@@ -1,8 +1,9 @@
-# OpenSignerKit
+# Faraday
 
-OpenSignerKit (OSK) is an offline Bitcoin signing core written in Rust, and
-OpenSigner is the reference application built on it for DIY devices, Android,
-iOS and desktop. No networking code exists in either.
+Faraday is an offline Bitcoin signing core written in Rust, with OpenSigner
+as the reference application built on it for DIY devices, Android, iOS and
+desktop. No networking code exists in either. The crates and packages below
+keep their original `osk-*` and `opensigner-*` names.
 
 See `docs/FEATURES.md` (what is supported), `docs/PLANNING.md`
 (architecture, threat model, decisions log), `docs/DESIGN.md` (the design
