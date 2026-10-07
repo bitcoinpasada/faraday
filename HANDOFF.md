@@ -31,7 +31,7 @@ build**. So the source is ahead of every output in `out/`:
   out/testkit out/snapshots/faraday/1366x768`) runs to the end.
 - Nothing is committed. The owner commits.
 
-To build when asked (check `minecraft-mode status` first; `DOCKER=podman`):
+To build when asked (`DOCKER=podman`):
 
     export DOCKER=podman
     just faraday-linux-bin
@@ -1037,7 +1037,7 @@ as possible before the next build.
 
 The HP (WSL2 Ubuntu): it has the pinned Rust
 toolchain, `just`, podman (no docker) and QEMU with OVMF. How it is kept
-up, Minecraft mode, and how the Dell pulls and tests are in
+up, and how the Dell pulls and tests are in
 `~/Projects/hp-build-setup/README.md`. Never run `wsl --shutdown` or
 reboot it without asking.
 
