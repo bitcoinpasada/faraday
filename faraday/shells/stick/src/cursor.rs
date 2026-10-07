@@ -30,7 +30,10 @@ use crate::touch::Touch;
 
 /// Frame pixels of scroll per notch of the wheel, the same distance the
 /// desktop shell moves a line.
-const WHEEL_NOTCH_PX: i32 = 48;
+const WHEEL_NOTCH_PX: f32 = 48.0;
+
+/// What a wheel reports one notch as (`REL_WHEEL_HI_RES` units).
+const WHEEL_NOTCH_UNITS: f32 = 120.0;
 
 /// The longest a touch on a buttoned pad can last and still be a tap.
 /// A deliberate tap is over well inside this; a finger resting on the
@@ -88,7 +91,7 @@ pub enum Pointed {
         /// Pixels from the top edge.
         y: u16,
     },
-    /// A wheel step at the cursor.
+    /// Two fingers moved the content at the cursor.
     Scroll {
         /// Pixels from the left edge.
         x: u16,
@@ -97,6 +100,41 @@ pub enum Pointed {
         /// Pixels the content moves; positive moves it up.
         dy: i16,
     },
+    /// The two fingers lifted.
+    ScrollEnd {
+        /// Pixels from the left edge.
+        x: u16,
+        /// Pixels from the top edge.
+        y: u16,
+    },
+    /// The wheel turned at the cursor.
+    Wheel {
+        /// Pixels from the left edge.
+        x: u16,
+        /// Pixels from the top edge.
+        y: u16,
+        /// Pixels the content should move; positive moves it up.
+        dy: i16,
+    },
+    /// The arrow moved to here with no button down.
+    Hover {
+        /// Pixels from the left edge.
+        x: u16,
+        /// Pixels from the top edge.
+        y: u16,
+    },
+}
+
+/// Whole pixels of `px` plus what `carry` held, keeping the fraction in
+/// `carry` for the next move, so slow moves add up instead of rounding
+/// away.
+fn whole(px: f32, carry: &mut f32) -> i16 {
+    let total = px + *carry;
+    let n = total
+        .round()
+        .clamp(f32::from(i16::MIN), f32::from(i16::MAX));
+    *carry = total - n;
+    n as i16
 }
 
 /// Where the pointer is, and whether it should be drawn.
@@ -112,6 +150,10 @@ pub struct Cursor {
     /// The touch that could still turn out to be a tap: where the cursor
     /// was when the finger landed, and when it landed.
     tap: Option<(u16, u16, u64)>,
+    /// Fractions of a pixel two fingers have moved and not yet sent.
+    pan_carry: f32,
+    /// Fractions of a pixel the wheel has turned and not yet sent.
+    wheel_carry: f32,
 }
 
 impl Cursor {
@@ -127,6 +169,8 @@ impl Cursor {
             visible: false,
             down: false,
             tap: None,
+            pan_carry: 0.0,
+            wheel_carry: 0.0,
         }
     }
 
@@ -156,11 +200,15 @@ impl Cursor {
                     .clamp(0.0, f32::from(self.height).max(1.0) - 1.0);
                 self.visible = true;
                 let (x, y) = self.at();
-                self.down.then_some(Pointed::Touch(Touch {
-                    x,
-                    y,
-                    phase: TouchPhase::Move,
-                }))
+                Some(if self.down {
+                    Pointed::Touch(Touch {
+                        x,
+                        y,
+                        phase: TouchPhase::Move,
+                    })
+                } else {
+                    Pointed::Hover { x, y }
+                })
             }
             Motion::Button(down) => {
                 if self.down == down {
@@ -184,29 +232,29 @@ impl Cursor {
                 // way one finger drags it on a touchscreen, so fingers
                 // moving toward the person move the content down, which
                 // is the core's negative.
-                let dy = -(dy as f32 * self.speed).round() as i32;
+                let dy = whole(-(dy as f32) * self.speed, &mut self.pan_carry);
                 if dy == 0 {
                     return None;
                 }
                 let (x, y) = self.at();
-                Some(Pointed::Scroll {
-                    x,
-                    y,
-                    dy: dy.clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16,
-                })
+                Some(Pointed::Scroll { x, y, dy })
             }
-            Motion::Wheel(notches) => {
+            Motion::PanEnd => {
+                self.pan_carry = 0.0;
+                let (x, y) = self.at();
+                Some(Pointed::ScrollEnd { x, y })
+            }
+            Motion::Wheel(units) => {
                 // evdev counts a turn away from the person as positive,
                 // which moves the content down; the core's positive moves
                 // it up.
-                let dy =
-                    (-notches * WHEEL_NOTCH_PX).clamp(i32::from(i16::MIN), i32::from(i16::MAX));
+                let px = -(units as f32) / WHEEL_NOTCH_UNITS * WHEEL_NOTCH_PX;
+                let dy = whole(px, &mut self.wheel_carry);
+                if dy == 0 {
+                    return None;
+                }
                 let (x, y) = self.at();
-                Some(Pointed::Scroll {
-                    x,
-                    y,
-                    dy: dy as i16,
-                })
+                Some(Pointed::Wheel { x, y, dy })
             }
         }
     }
@@ -305,7 +353,11 @@ mod tests {
     fn a_mouse_move_then_a_click_is_a_touch_where_the_pointer_is() {
         let mut cursor = Cursor::new(1920, 1080, 1.0);
         assert!(!cursor.visible(), "no arrow until the mouse is moved");
-        assert_eq!(cursor.apply(Motion::Move { dx: 40, dy: -30 }), None);
+        assert_eq!(
+            cursor.apply(Motion::Move { dx: 40, dy: -30 }),
+            Some(Pointed::Hover { x: 1000, y: 510 }),
+            "a move with no button down hovers"
+        );
         assert!(cursor.visible());
         let (x, y) = cursor.at();
         assert_eq!((x, y), (1000, 510));
@@ -343,14 +395,38 @@ mod tests {
         cursor.apply(Motion::Move { dx: 0, dy: 0 });
         let (x, y) = cursor.at();
         assert_eq!(
-            cursor.apply(Motion::Wheel(1)),
-            Some(Pointed::Scroll { x, y, dy: -48 }),
+            cursor.apply(Motion::Wheel(120)),
+            Some(Pointed::Wheel { x, y, dy: -48 }),
             "turning the wheel away moves the content down"
         );
         assert_eq!(
-            cursor.apply(Motion::Wheel(-2)),
-            Some(Pointed::Scroll { x, y, dy: 96 })
+            cursor.apply(Motion::Wheel(-240)),
+            Some(Pointed::Wheel { x, y, dy: 96 })
         );
+        assert_eq!(
+            cursor.apply(Motion::Wheel(-60)),
+            Some(Pointed::Wheel { x, y, dy: 24 }),
+            "half a notch of a fine wheel is half a notch's pixels"
+        );
+    }
+
+    #[test]
+    fn a_slow_pan_and_a_fine_wheel_lose_no_fraction_of_a_pixel() {
+        let mut cursor = Cursor::new(1920, 1080, 0.4);
+        let panned: i32 = (0..10)
+            .filter_map(|_| match cursor.apply(Motion::Pan { dy: -1 }) {
+                Some(Pointed::Scroll { dy, .. }) => Some(i32::from(dy)),
+                _ => None,
+            })
+            .sum();
+        assert_eq!(panned, 4, "ten moves of 0.4 pixels are four pixels");
+        let turned: i32 = (0..12)
+            .filter_map(|_| match cursor.apply(Motion::Wheel(-10)) {
+                Some(Pointed::Wheel { dy, .. }) => Some(i32::from(dy)),
+                _ => None,
+            })
+            .sum();
+        assert_eq!(turned, 48, "twelve twelfths of a notch are a notch");
     }
 
     #[test]

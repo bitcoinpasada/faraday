@@ -161,13 +161,6 @@ impl Faraday {
         }
     }
 
-    /// Scrolls the sheet.
-    pub(crate) fn wordlist_scroll(&mut self, dy: f32) {
-        if let Some(w) = self.wordlist.as_mut() {
-            w.scroll = (w.scroll + dy).clamp(0.0, w.max);
-        }
-    }
-
     /// Keys while the sheet is open: letters find a word, Backspace takes
     /// one back, the arrows scroll, Escape closes it. Every key is the
     /// sheet's while it is open, so none reaches the screen under it.
@@ -182,8 +175,8 @@ impl Faraday {
         };
         match key {
             K::Escape => self.wordlist_close(),
-            K::Down => self.wordlist_scroll(60.0),
-            K::Up => self.wordlist_scroll(-60.0),
+            K::Down => self.glide(60.0),
+            K::Up => self.glide(-60.0),
             K::Char(c) if c.is_ascii_alphabetic() && w.find.len() < 12 => {
                 w.find.push(c.to_ascii_lowercase());
                 w.find_mark();

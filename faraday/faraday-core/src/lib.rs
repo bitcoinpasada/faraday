@@ -52,6 +52,7 @@ mod family_text;
 mod guide;
 mod keygen_screen;
 mod lightning_screen;
+mod motion;
 mod screens;
 mod silent_screen;
 mod tools_screen;
@@ -327,6 +328,27 @@ pub enum Screen {
     Catalog,
 }
 
+/// A screen and the sheet over it, if any.
+type ScreenKey = (Screen, Option<Sheet>);
+
+/// The step column's open card as last drawn, and the change under way
+/// (`docs/MOTION.md` §3.5).
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Disclosed {
+    /// The screen and sheet the column was drawn on.
+    key: ScreenKey,
+    /// The card open.
+    open: Option<usize>,
+    /// Its body's height, units.
+    body_h: f32,
+    /// The card closing, and its body's height.
+    closing: Option<(usize, f32)>,
+    /// The tick the change started at (`None` until one comes).
+    at: Option<u64>,
+    /// The change is under way.
+    moving: bool,
+}
+
 /// Everything a press can do.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
@@ -456,6 +478,10 @@ pub enum Action {
     Cancel,
     /// Set the display scale, in percent.
     Scale(u16),
+    /// Draw in the dark or the light palette.
+    Theme(ui::Theme),
+    /// Reduce motion on or off.
+    ReduceMotion(bool),
     /// Guided mode on or off.
     Guided(bool),
     /// Show the spend's signed PSBT as a QR code.
@@ -649,6 +675,9 @@ pub enum Action {
     KDie(u8),
     /// Coin flips entered as a die's faces (true) or as a coin's sides.
     KByDie(bool),
+    /// Dice's own Flip mode: rolls read as flips rather than taken under
+    /// the chosen procedure.
+    KDiceFlip(bool),
     /// Entries typed as one string into a box (true), or pressed one at
     /// a time.
     KTyping(bool),
@@ -1611,6 +1640,11 @@ pub struct Faraday {
     last_display: Option<DisplayInfo>,
     /// The person's display scale, in percent of the automatic one.
     pub scale_pct: u16,
+    /// The palette the screens are drawn in.
+    pub theme: ui::Theme,
+    /// Reduce motion: nothing slides, glides, coasts or stretches; a
+    /// change still cross-fades.
+    pub reduce_motion: bool,
     /// Minutes without input before the session locks; 0 for never
     /// (`PLAN.md` §12.3).
     pub idle_lock_min: u16,
@@ -1694,6 +1728,17 @@ pub struct Faraday {
     /// The height a scrolled page last drew to, design units: how far its
     /// scroll may go.
     pub(crate) content_h: std::cell::Cell<f32>,
+    /// What moves the scrolled region: pans, glides, coasts and the
+    /// stretch at its ends (`docs/MOTION.md` §3.3).
+    motion: motion::Motion,
+    /// The screen and sheet the motion belongs to.
+    motion_for: ScreenKey,
+    /// The scrolled region the last frame drew, and the screen and sheet
+    /// it was drawn for.
+    extent: Option<(ScreenKey, ui::Scrolled)>,
+    /// For the overlay scrollbar: the screen and sheet, the offset last
+    /// drawn, and when it last changed (0 for not since it opened).
+    bar_seen: (ScreenKey, f32, u64),
     /// The QR sheet's contents.
     pub qr: Option<QrView>,
     /// The Spend tab.
@@ -1761,6 +1806,36 @@ pub struct Faraday {
     last_tap: Option<(Action, u64)>,
     /// Where the finger or pointer went down, in pixels.
     down_at: (i32, i32),
+    /// A finger on the scrolled region: the row it was last at, and
+    /// whether it has moved far enough to be scrolling rather than
+    /// pressing.
+    drag: Option<(i32, bool)>,
+    /// The touch now down only stopped a coast, and does nothing else.
+    swallow: bool,
+    /// The tick the last two-finger scroll came in at, until its end.
+    scroll_at: Option<u64>,
+    /// Where the pointer is, with no button down, in pixels.
+    hover: Option<(i32, i32)>,
+    /// The screen and sheet the last frame showed.
+    drawn_key: Option<ScreenKey>,
+    /// The frame before a change of screen or sheet, cross-faded from,
+    /// and the tick the fade started at (`None` until one comes).
+    fade: Option<(Vec<u8>, Option<u64>)>,
+    /// The tick the toast on show first came up at.
+    toast_at: Option<u64>,
+    /// The step column's open card, and one opening or closing.
+    disclosed: Option<Disclosed>,
+    /// The next frame cross-fades from the one on screen, whatever it
+    /// shows.
+    fade_next: bool,
+    /// The frosted page under the open sheet, and the screen, sheet and
+    /// theme it was made for.
+    frost: Option<((ScreenKey, ui::Theme), Vec<u8>)>,
+    /// The Guided switch's pill sliding: where it started, 0 on Steps
+    /// only and 1 on Guided, and the tick it started at.
+    guided_moving: Option<(f32, Option<u64>)>,
+    /// What can be pressed under it.
+    hovered: Option<Action>,
     scanned: u32,
     /// Running on an online machine (the desktop app), where sheets are
     /// turned into PDFs. Never set on the device.
@@ -1789,6 +1864,8 @@ impl Faraday {
             restart: false,
             last_display: None,
             scale_pct: 100,
+            theme: ui::Theme::Dark,
+            reduce_motion: false,
             idle_lock_min: IDLE_LOCK_MIN,
             qr_frame_ms: QR_SPEEDS[0],
             idle_off_min: IDLE_OFF_MIN,
@@ -1826,6 +1903,10 @@ impl Faraday {
             guided: true,
             list_offset: 0.0,
             content_h: std::cell::Cell::new(0.0),
+            motion: motion::Motion::default(),
+            motion_for: (Screen::Home, None),
+            extent: None,
+            bar_seen: ((Screen::Home, None), 0.0, 0),
             qr: None,
             family: family::FamilyState::default(),
             vanity: None,
@@ -1858,6 +1939,18 @@ impl Faraday {
             potential: None,
             last_tap: None,
             down_at: (0, 0),
+            drag: None,
+            swallow: false,
+            scroll_at: None,
+            hover: None,
+            drawn_key: None,
+            fade: None,
+            toast_at: None,
+            disclosed: None,
+            fade_next: false,
+            frost: None,
+            guided_moving: None,
+            hovered: None,
             online: false,
         }
     }
@@ -2353,6 +2446,27 @@ impl Faraday {
 
     fn toast(&mut self, text: &str) {
         self.toast = Some((text.to_string(), self.now_ms + 3000));
+        self.toast_at = None;
+    }
+
+    /// How much of the toast shows, 0 to 1, and how far below its place
+    /// it is, in units: it rises in, and fades as its time runs out.
+    pub(crate) fn toast_shown(&self) -> (f32, f32) {
+        let Some((_, until)) = &self.toast else {
+            return (0.0, 0.0);
+        };
+        let rise = motion::ease_out(motion::progress(
+            self.toast_at,
+            self.now_ms,
+            motion::TOAST_MS,
+        ));
+        let left = until.saturating_sub(self.now_ms) as f32 / motion::TOAST_MS as f32;
+        let lift = if self.reduce_motion {
+            0.0
+        } else {
+            10.0 * (1.0 - rise)
+        };
+        (rise.min(left.min(1.0)), lift)
     }
 
     /// Whether loading a key is allowed now: never with a stick attached.
@@ -2611,6 +2725,7 @@ impl Faraday {
             | Action::KFlip(_)
             | Action::KDie(_)
             | Action::KByDie(_)
+            | Action::KDiceFlip(_)
             | Action::KTyping(_)
             | Action::KTake
             | Action::KRank(_)
@@ -2926,6 +3041,14 @@ impl Faraday {
                 self.input_sheet();
             }
             Action::Guided(on) => {
+                if on != self.guided {
+                    // The switch's pill slides from where it shows now,
+                    // and the page, which gains or loses its walk-through,
+                    // cross-fades.
+                    let from = self.guided_shown();
+                    self.guided_moving = (!self.reduce_motion).then_some((from, None));
+                    self.fade_next = true;
+                }
                 self.guided = on;
                 self.save_boxes();
             }
@@ -3649,6 +3772,16 @@ impl Faraday {
                 if let Some(d) = self.last_display {
                     self.display(d);
                 }
+                self.save_boxes();
+            }
+            Action::ReduceMotion(on) => {
+                self.reduce_motion = on;
+                self.motion.stop();
+                self.save_boxes();
+            }
+            Action::Theme(theme) => {
+                self.fade_next = theme != self.theme;
+                self.theme = theme;
                 self.save_boxes();
             }
         }
@@ -5138,86 +5271,119 @@ impl Faraday {
                     self.qr = None;
                 }
             }
-            KeyIn::Down => self.scroll(60.0),
-            KeyIn::Up => self.scroll(-60.0),
+            KeyIn::Down => self.glide(60.0),
+            KeyIn::Up => self.glide(-60.0),
             _ => {}
         }
     }
 
-    fn scroll(&mut self, dy: f32) {
-        if self.sheet == Some(Sheet::Learn) {
-            self.learn_scroll(dy);
-            return;
+    /// The offset of the region that scrolls now, in design units: the
+    /// open sheet's, or the screen's.
+    fn scroll_slot(&mut self) -> Option<&mut f32> {
+        match self.sheet {
+            Some(Sheet::Learn) => return Some(&mut self.learn.scroll),
+            Some(Sheet::WordList) => return self.wordlist.as_mut().map(|w| &mut w.scroll),
+            _ => {}
         }
-        if self.sheet == Some(Sheet::WordList) {
-            self.wordlist_scroll(dy);
-            return;
-        }
-        // Pixels the content moves up, like every other scrolled screen;
-        // the upper bound is each screen's own, clamped where it draws.
-        if matches!(self.screen, Screen::Visit | Screen::Files | Screen::Wallets) {
-            self.list_offset = (self.list_offset + dy).max(0.0);
-        }
-        // Pages drawn whole, scrolled as far as their end.
-        if matches!(
+        Some(match self.screen {
+            Screen::Visit
+            | Screen::Files
+            | Screen::Wallets
+            | Screen::Start
+            | Screen::Decode
+            | Screen::Catalog
+            | Screen::Settings => &mut self.list_offset,
+            Screen::Family => &mut self.family.scroll.y,
+            Screen::Vanity => &mut self.vanity.as_mut()?.scroll.y,
+            Screen::KeyGen => &mut self.keygen.as_mut()?.scroll.y,
+            Screen::Bip85 => &mut self.bip85.as_mut()?.scroll.y,
+            Screen::Silent => &mut self.silent.as_mut()?.scroll.y,
+            Screen::CreateVault => &mut self.vaults.create.as_mut()?.scroll.y,
+            Screen::Spend => &mut self.spend.as_mut()?.scroll,
+            Screen::Backup => &mut self.backup.as_mut()?.scroll.y,
+            Screen::Message => &mut self.message.as_mut()?.scroll.y,
+            Screen::Create => &mut self.create.as_mut()?.scroll.y,
+            Screen::Restore => &mut self.restore.as_mut()?.scroll.y,
+            _ => return None,
+        })
+    }
+
+    /// Which region scrolls now: the screen, or the sheet over it when
+    /// that sheet scrolls. A sheet that does not scroll leaves the screen
+    /// the region, so what moves on it carries on under the sheet.
+    fn region_key(&self) -> ScreenKey {
+        (
             self.screen,
-            Screen::Start | Screen::Decode | Screen::Catalog
-        ) {
-            let max = (self.content_h.get() - self.h).max(0.0);
-            self.list_offset = (self.list_offset + dy).clamp(0.0, max);
+            self.sheet
+                .filter(|s| matches!(s, Sheet::Learn | Sheet::WordList)),
+        )
+    }
+
+    /// Runs `go` on the motion and the region that scrolls now, with how
+    /// far it goes as the last frame drew it. A motion left over from
+    /// another screen or sheet is stopped first.
+    fn with_region<R>(
+        &mut self,
+        go: impl FnOnce(&mut motion::Motion, &mut motion::Region) -> R,
+    ) -> Option<R> {
+        let key = self.region_key();
+        if self.motion_for != key {
+            self.motion_for = key;
+            self.motion.stop();
         }
-        if self.screen == Screen::Family {
-            self.family.scroll.y = (self.family.scroll.y + dy).max(0.0);
+        let extent = self.extent.filter(|(k, _)| *k == key).map(|(_, e)| e);
+        let (f, h) = (self.f.max(0.1), self.h);
+        let mut m = std::mem::take(&mut self.motion);
+        m.rigid = self.reduce_motion;
+        let out = self.scroll_slot().map(|offset| {
+            let mut region = motion::Region {
+                offset,
+                max: extent.map(|e| e.max),
+                view: extent.map_or(h, |e| e.view.h as f32 / f),
+                f,
+            };
+            go(&mut m, &mut region)
+        });
+        self.motion = m;
+        out
+    }
+
+    /// Finds what can be pressed under the pointer in the frame on
+    /// screen. Returns whether that changed.
+    fn find_hovered(&mut self) -> bool {
+        let now = self.hover.and_then(|(x, y)| {
+            self.hits
+                .iter()
+                .rev()
+                .find(|(r, _)| r.contains(x, y))
+                .map(|(_, a)| *a)
+        });
+        std::mem::replace(&mut self.hovered, now) != now
+    }
+
+    /// Fingers moved the content by `dy` units: at once.
+    fn pan(&mut self, dy: f32) {
+        self.with_region(|m, r| m.pan(r, dy));
+    }
+
+    /// A wheel or a key asked for `dy` units: the content glides there.
+    fn glide(&mut self, dy: f32) {
+        if self.reduce_motion {
+            self.with_region(|m, r| m.jump(r, dy));
+        } else if self.scroll_slot().is_some() {
+            self.motion.glide(dy);
         }
-        if self.screen == Screen::Vanity
-            && let Some(v) = self.vanity.as_mut()
-        {
-            v.scroll.y = (v.scroll.y + dy).max(0.0);
-        }
-        if self.screen == Screen::KeyGen
-            && let Some(k) = self.keygen.as_mut()
-        {
-            k.scroll.y = (k.scroll.y + dy).max(0.0);
-        }
-        if self.screen == Screen::Bip85
-            && let Some(b) = self.bip85.as_mut()
-        {
-            b.scroll.y = (b.scroll.y + dy).max(0.0);
-        }
-        if self.screen == Screen::Silent
-            && let Some(si) = self.silent.as_mut()
-        {
-            si.scroll.y = (si.scroll.y + dy).max(0.0);
-        }
-        if self.screen == Screen::CreateVault
-            && let Some(c) = self.vaults.create.as_mut()
-        {
-            c.scroll.y = (c.scroll.y + dy).max(0.0);
-        }
-        if self.screen == Screen::Spend
-            && let Some(s) = self.spend.as_mut()
-        {
-            s.scroll = (s.scroll + dy).max(0.0);
-        }
-        if self.screen == Screen::Backup
-            && let Some(b) = self.backup.as_mut()
-        {
-            b.scroll.y = (b.scroll.y + dy).max(0.0);
-        }
-        if self.screen == Screen::Message
-            && let Some(m) = self.message.as_mut()
-        {
-            m.scroll.y = (m.scroll.y + dy).max(0.0);
-        }
-        if self.screen == Screen::Create
-            && let Some(c) = self.create.as_mut()
-        {
-            c.scroll.y = (c.scroll.y + dy).max(0.0);
-        }
-        if self.screen == Screen::Restore
-            && let Some(r) = self.restore.as_mut()
-        {
-            r.scroll.y = (r.scroll.y + dy).max(0.0);
+    }
+
+    /// Moves whatever is moving on to `now_ms`. Returns whether a frame
+    /// is wanted for it.
+    fn motion_tick(&mut self, now_ms: u64) -> bool {
+        match self.with_region(|m, r| m.tick(r, now_ms)) {
+            Some(moved) => moved,
+            None => {
+                self.motion.stop();
+                false
+            }
         }
     }
 
@@ -5232,6 +5398,23 @@ impl Faraday {
         match phase {
             TouchPhase::Down => {
                 self.down_at = (x, y);
+                // A finger on a scrolled region may be the start of a
+                // drag; it is a press until it moves.
+                let key = self.region_key();
+                // Not through a sheet that does not scroll: the page under
+                // it is out of reach.
+                let reachable = self.sheet.is_none() || key.1.is_some();
+                self.drag = self
+                    .extent
+                    .filter(|(k, e)| reachable && *k == key && e.view.contains(x, y))
+                    .map(|_| (y, false));
+                // A touch on content that is still flying only stops it.
+                self.swallow = self.motion.flung(self.f);
+                if self.swallow {
+                    self.motion.stop();
+                    self.pressed = None;
+                    return;
+                }
                 self.pressed = found;
                 self.vaults.pressed_at = self.now_ms;
                 if found.is_some_and(|(a, _)| a == Action::VisitBar) {
@@ -5239,8 +5422,27 @@ impl Faraday {
                 }
             }
             TouchPhase::Move => {
+                let held_bar = self.pressed.is_some_and(|(a, _)| a == Action::VisitBar);
+                if let Some((last, dragging)) = self.drag
+                    && !held_bar
+                {
+                    let slop = motion::SLOP * self.f;
+                    let (dx, dy) = (x - self.down_at.0, y - self.down_at.1);
+                    let start = !dragging && (dy as f32).abs() > slop && dy.abs() > dx.abs();
+                    if dragging || start {
+                        // Past the slop the press is a drag: nothing
+                        // under the finger is pressed, the page follows.
+                        self.pressed = None;
+                        self.drag = Some((y, true));
+                        let from = if start { self.down_at.1 } else { last };
+                        self.pan((from - y) as f32 / self.f.max(0.1));
+                        self.dirty = true;
+                        self.commands.push_back(Command::Draw);
+                        return;
+                    }
+                }
                 // The scrollbar follows the finger anywhere once held.
-                if self.pressed.is_some_and(|(a, _)| a == Action::VisitBar) {
+                if held_bar {
                     self.visit_drag(y);
                     self.dirty = true;
                     self.commands.push_back(Command::Draw);
@@ -5251,6 +5453,14 @@ impl Faraday {
                 }
             }
             TouchPhase::Up => {
+                let dragged = self.drag.take().is_some_and(|(_, d)| d);
+                if dragged {
+                    self.pressed = None;
+                    self.motion.release(self.f);
+                }
+                if dragged || std::mem::take(&mut self.swallow) {
+                    return;
+                }
                 let pressed = self.pressed.take();
                 // A hold acts on the tick that completes it, never on release.
                 let was_selected = std::mem::take(&mut self.select_all);
@@ -5295,14 +5505,206 @@ impl Faraday {
         };
         let mut hits = std::mem::take(&mut self.hits);
         hits.clear();
-        {
-            let mut ui = ui::Ui::new(&mut canvas, self.f, &mut hits, self.pressed.map(|p| p.0));
-            ui.select_all = self.select_all;
-            screens::draw(self, &mut ui);
+        // Offsets in whole pixels, whoever set them last, so a scrolled
+        // page moves as one.
+        let f = self.f.max(0.1);
+        if let Some(offset) = self.scroll_slot() {
+            *offset = (*offset * f).round() / f;
+        }
+        // A change of screen or sheet cross-fades from the frame before.
+        let key = (self.screen, self.sheet);
+        if std::mem::take(&mut self.fade_next) || self.drawn_key.is_some_and(|was| was != key) {
+            self.fade = Some((canvas.snapshot(), None));
+        }
+        self.drawn_key = Some(key);
+        let faded = self
+            .fade
+            .as_ref()
+            .map(|(_, at)| motion::progress(*at, self.now_ms, motion::FADE_MS));
+        let risen = match (&self.fade, self.sheet) {
+            _ if self.reduce_motion => 1.0,
+            (Some((_, at)), Some(_)) => {
+                motion::ease_out(motion::progress(*at, self.now_ms, motion::SHEET_MS))
+            }
+            _ => 1.0,
+        };
+        let stretch = (self.motion.stretch() * f).round() as i32;
+        // The overlay scrollbar shows while the offset moves and fades
+        // once it has rested a moment.
+        let key = self.region_key();
+        let offset = self.scroll_slot().map_or(0.0, |o| *o);
+        let (seen_key, seen_offset, moved_at) = self.bar_seen;
+        let moved_at = if seen_key != key {
+            0
+        } else if seen_offset != offset || stretch != 0 {
+            self.now_ms.max(1)
+        } else {
+            moved_at
+        };
+        self.bar_seen = (key, offset, moved_at);
+        let bar = motion::bar_alpha(moved_at, self.now_ms);
+        // Drawn twice when a step card has just opened: the first time
+        // finds out, the second draws it growing from closed.
+        let mut follow_to = None;
+        let mut scrolled = None;
+        for _ in 0..2 {
+            hits.clear();
+            let disclosure = self
+                .disclosed
+                .as_ref()
+                .filter(|d| d.key == key && d.moving)
+                .map(|d| ui::Disclosure {
+                    open: d.open,
+                    closing: d.closing,
+                    shown: motion::ease_out(motion::progress(
+                        d.at,
+                        self.now_ms,
+                        motion::DISCLOSE_MS,
+                    )),
+                });
+            let column = {
+                let mut ui = ui::Ui::new(&mut canvas, self.f, &mut hits, self.pressed.map(|p| p.0));
+                ui.select_all = self.select_all;
+                ui.theme = self.theme;
+                ui.hovered = self.hovered;
+                ui.sheet_rise = motion::SHEET_RISE * (1.0 - risen);
+                ui.stretch = stretch;
+                ui.bar = (bar > 0).then_some((bar, offset));
+                ui.stretch_in_sheet = matches!(self.sheet, Some(Sheet::Learn | Sheet::WordList));
+                ui.disclosure = disclosure;
+                let frost_key = ((self.screen, self.sheet), self.theme);
+                ui.frost = self
+                    .frost
+                    .take()
+                    .filter(|(k, _)| *k == frost_key)
+                    .map(|(_, page)| page);
+                ui.guided_shown = self.guided_shown();
+                ui.offset = offset;
+                screens::draw(self, &mut ui);
+                scrolled = ui.scrolled;
+                follow_to = follow_to.or(ui.follow_to);
+                self.frost = ui.frost.take().map(|page| (frost_key, page));
+                ui.column
+            };
+            if !self.disclose(key, column) {
+                break;
+            }
+        }
+        if let Some(want) = follow_to {
+            let now = self.scroll_slot().map_or(want, |o| *o);
+            if self.reduce_motion {
+                self.with_region(|m, r| m.jump(r, want - now));
+            } else {
+                self.motion.glide_to(want - now);
+            }
+            self.dirty = true;
+            self.commands.push_back(Command::Draw);
+        }
+        self.extent = scrolled.map(|s| (self.region_key(), s));
+        if let (Some(t), Some((before, _))) = (faded, self.fade.as_ref()) {
+            if t >= 1.0 && risen >= 1.0 {
+                self.fade = None;
+            } else {
+                canvas.blend_from(before, motion::ease_out(t));
+            }
         }
         self.vaults.drawn = true;
         self.hits = hits;
         self.canvas = Some(canvas);
+        // The frame moved things under a still pointer: the next frame
+        // shows what it is over now.
+        if self.find_hovered() {
+            self.dirty = true;
+            self.commands.push_back(Command::Draw);
+        }
+    }
+
+    /// Where the Guided switch's pill shows: 0 on Steps only, 1 on
+    /// Guided, between while it slides.
+    fn guided_shown(&self) -> f32 {
+        let to = if self.guided { 1.0 } else { 0.0 };
+        match self.guided_moving {
+            Some((from, at)) => {
+                let t = motion::ease_out(motion::progress(at, self.now_ms, motion::SWITCH_MS));
+                from + (to - from) * t
+            }
+            None => to,
+        }
+    }
+
+    /// Takes what the step column drew: which card is open, and its
+    /// body's height. Returns whether a card has just opened, so the
+    /// frame is drawn again with it growing.
+    fn disclose(&mut self, key: ScreenKey, column: Option<(Option<usize>, f32)>) -> bool {
+        let Some((open, body_h)) = column else {
+            self.disclosed = None;
+            return false;
+        };
+        let opened = match self.disclosed.as_mut() {
+            Some(d) if d.key == key && d.open != open && self.reduce_motion => {
+                d.open = open;
+                d.body_h = body_h;
+                false
+            }
+            Some(d) if d.key == key && d.open != open => {
+                let closing = d.open.map(|i| (i, d.body_h));
+                *d = Disclosed {
+                    key,
+                    open,
+                    body_h,
+                    closing,
+                    at: None,
+                    moving: true,
+                };
+                true
+            }
+            Some(d) if d.key == key => {
+                d.body_h = body_h;
+                false
+            }
+            _ => {
+                self.disclosed = Some(Disclosed {
+                    key,
+                    open,
+                    body_h,
+                    closing: None,
+                    at: None,
+                    moving: false,
+                });
+                false
+            }
+        };
+        if let Some(d) = self.disclosed.as_mut()
+            && d.moving
+            && !opened
+            && motion::progress(d.at, self.now_ms, motion::DISCLOSE_MS) >= 1.0
+        {
+            d.moving = false;
+        }
+        opened
+    }
+
+    /// Brings whatever is moving to rest at once: a glide lands, a
+    /// stretch and a cross-fade end, a toast is fully up and the overlay
+    /// scrollbar is gone. For drivers that take pictures of the screens,
+    /// such as the snapshot tool, so a picture shows where things end up.
+    pub fn settle(&mut self) {
+        let _ = self.with_region(|m, r| m.settle(r));
+        self.motion.stop();
+        self.scroll_at = None;
+        self.fade = None;
+        if let Some(d) = self.disclosed.as_mut() {
+            d.moving = false;
+        }
+        self.guided_moving = None;
+        self.fade_next = false;
+        let f = self.f.max(0.1);
+        let offset = self.scroll_slot().map_or(0.0, |o| (*o * f).round() / f);
+        self.bar_seen = (self.region_key(), offset, 0);
+        if self.toast.is_some() {
+            self.toast_at = Some(self.now_ms.saturating_sub(motion::TOAST_MS));
+        }
+        self.dirty = true;
     }
 
     /// Acts as if `action` had been pressed: for drivers that script the
@@ -5459,10 +5861,85 @@ impl App for Faraday {
                 }
                 // Pixels the content moves up, as the shell API states
                 // them, in this layout's units.
-                self.scroll(f32::from(dy) / self.f.max(0.1));
+                self.pan(f32::from(dy) / self.f.max(0.1));
+                self.scroll_at = Some(self.now_ms);
+            }
+            Event::Wheel { dy, .. } => {
+                self.input_now();
+                if self.sheet == Some(Sheet::IdleWarn) {
+                    self.sheet = None;
+                }
+                self.glide(f32::from(dy) / self.f.max(0.1));
+            }
+            Event::ScrollEnd { .. } => {
+                self.scroll_at = None;
+                self.motion.release(self.f);
+            }
+            // A frame only when what is under the pointer changes.
+            Event::Hover { x, y } => {
+                self.input_now();
+                self.hover = Some((i32::from(x), i32::from(y)));
+                if !self.find_hovered() {
+                    return;
+                }
+            }
+            Event::HoverEnd => {
+                self.hover = None;
+                if !self.find_hovered() {
+                    return;
+                }
             }
             Event::Tick { now_ms } => {
+                // The scrollbar was showing at the last tick: this one
+                // draws its next step of fading, the last one included.
+                let fading = motion::bar_alpha(self.bar_seen.2, self.now_ms) > 0;
                 self.now_ms = now_ms;
+                // Asked for on every tick while something moves, so the
+                // shell keeps drawing at its frame rate.
+                // A cross-fade, a sheet rising or a toast coming or going
+                // starts on its first tick and wants a frame on each.
+                if let Some((_, at @ None)) = self.fade.as_mut() {
+                    *at = Some(now_ms);
+                }
+                if let Some(d) = self.disclosed.as_mut()
+                    && d.moving
+                    && d.at.is_none()
+                {
+                    d.at = Some(now_ms);
+                }
+                if let Some((_, at @ None)) = self.guided_moving.as_mut() {
+                    *at = Some(now_ms);
+                }
+                if let Some((_, Some(at))) = self.guided_moving
+                    && now_ms >= at + motion::SWITCH_MS + 16
+                {
+                    self.guided_moving = None;
+                }
+                if self.toast.is_some() && self.toast_at.is_none() {
+                    self.toast_at = Some(now_ms);
+                }
+                let fading = fading
+                    || self.fade.is_some()
+                    || self.disclosed.is_some_and(|d| d.moving)
+                    || self.guided_moving.is_some()
+                    || self.toast.as_ref().is_some_and(|(_, until)| {
+                        self.toast_at
+                            .is_some_and(|at| now_ms < at + motion::TOAST_MS + 16)
+                            || now_ms + motion::TOAST_MS + 16 > *until
+                    });
+                // Scrolling that stopped with no end said (a shell that
+                // never sends one) ends here, so a stretch springs back.
+                if self
+                    .scroll_at
+                    .is_some_and(|at| now_ms.saturating_sub(at) > motion::SCROLL_QUIET_MS)
+                {
+                    self.scroll_at = None;
+                    self.motion.release(self.f);
+                }
+                if self.motion_tick(now_ms) || fading {
+                    self.dirty = true;
+                    self.commands.push_back(Command::Draw);
+                }
                 if self.idle_tick(now_ms) {
                     self.dirty = true;
                     self.commands.push_back(Command::Draw);
@@ -5564,6 +6041,10 @@ impl App for Faraday {
 impl Faraday {
     fn display(&mut self, d: DisplayInfo) {
         self.last_display = Some(d);
+        // A new canvas has nothing to fade from.
+        self.drawn_key = None;
+        self.fade = None;
+        self.frost = None;
         // Fill a small display; on a large one, stop at a quarter more
         // than its density asks for, so a 4K monitor shows the screens
         // at a sensible size rather than magnified. The person's own

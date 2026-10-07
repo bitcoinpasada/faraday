@@ -227,6 +227,9 @@ impl Tour {
         // drawn twice, as a shell would.
         let _ = self.app.frame();
         self.app.event(Event::Tick { now_ms: self.now });
+        // What is still moving (a glide, a cross-fade, the scrollbar)
+        // comes to rest, so the screen is taken as it ends up.
+        self.app.settle();
         self.n += 1;
         let path = self.out.join(format!("{:02}-{name}.png", self.n));
         let frame = self.app.frame();
@@ -380,6 +383,9 @@ fn run(size: (u16, u16), kit: &Path, out: &Path, only_spend: bool) -> Result<(),
     // transaction taken apart.
     t.press(Action::SpendHex);
     t.app.list_offset = 0.0;
+    // Drawn before the scroll, as a shell draws after each press: how far
+    // the page now goes is what the scroll stops at.
+    let _ = t.app.frame();
     t.app.event(Event::Scroll {
         x: 700,
         y: 400,
@@ -389,6 +395,7 @@ fn run(size: (u16, u16), kit: &Path, out: &Path, only_spend: bool) -> Result<(),
     t.press(Action::SpendHex);
     t.press(Action::DecodeFinished);
     t.shot("decode")?;
+    let _ = t.app.frame();
     t.app.event(Event::Scroll {
         x: 700,
         y: 400,

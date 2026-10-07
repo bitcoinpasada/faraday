@@ -118,6 +118,7 @@ fn summary(k: &KeyGen, s: u8) -> String {
         ),
         kstep::LENGTH => format!("{} words", k.words),
         kstep::SOURCE => match k.source {
+            Some(Source::Dice) if k.by_die => format!("{} · Flip mode", source_name(Source::Dice)),
             Some(Source::Dice) => format!("Dice · {}", procedure_name(k.procedure)),
             Some(Source::Coins) if k.by_die => {
                 format!("{} · read from a die", source_name(Source::Coins))
@@ -375,6 +376,25 @@ fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += 60.0;
         // The dice's procedures and the mix's sources open under their row.
         if on && s == Source::Dice {
+            // Flip mode: each roll read as a flip, the same key a coin
+            // flipped the same way would make (`docs/PLANNING.md`
+            // §16.115 — the same procedure as Coins read from a die,
+            // built once, offered from both rows).
+            let flip_line = format!("{} rolls, read as flips", CoinFlips::needed(k.strength()));
+            row(
+                ui,
+                x + 40.0,
+                cy,
+                w - 40.0,
+                Row {
+                    on: k.by_die,
+                    name: "Flip mode",
+                    line: &flip_line,
+                    tone: MUTED,
+                    action: Action::KDiceFlip(true),
+                },
+            );
+            cy += 60.0;
             for (j, &p) in DiceProcedure::ALL.iter().enumerate() {
                 // Choosing words directly makes BIP-39 words, not a
                 // SLIP-39 secret.
@@ -394,7 +414,7 @@ fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     cy,
                     w - 40.0,
                     Row {
-                        on: k.procedure == p,
+                        on: k.procedure == p && !k.by_die,
                         name: procedure_name(p),
                         line: &line,
                         tone: MUTED,
@@ -812,7 +832,9 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     section_label(ui, x, cy, "Words so far");
     cy += 28.0;
     let live = k.live_words();
-    let coins = k.source == Some(Source::Coins);
+    // Flips always land in `k.coins`, whether Coins or Dice's Flip mode
+    // took them.
+    let coins = k.source == Some(Source::Coins) || k.by_die;
     let flips: zeroize::Zeroizing<Vec<u8>> =
         zeroize::Zeroizing::new(k.coins.flips().map(u8::from).collect());
     let rolls = k.dice.rolls();
@@ -933,6 +955,10 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// The entry just made, shown once so a mistyped one can be taken back.
 fn last_entry(k: &KeyGen) -> Option<String> {
     match k.active()? {
+        Source::Dice if k.by_die => k
+            .coins
+            .last()
+            .map(|h| if h { EN.create_heads } else { EN.create_tails }.to_string()),
         Source::Dice => k.dice.last().map(|r| r.to_string()),
         Source::Coins => k
             .coins
@@ -991,9 +1017,36 @@ fn stat(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str, tone: Color) -> f
     y + 26.0
 }
 
+/// The heads, tails and longest-run rows a flip accumulator's stats make.
+fn coin_check(coins: &CoinFlips, ui: &mut Ui, x: f32, y: f32) -> f32 {
+    let mut cy = y;
+    let st = coins.stats();
+    cy = stat(ui, x, cy, EN.create_heads, &st.heads.to_string(), TEXT);
+    cy = stat(ui, x, cy, EN.create_tails, &st.tails.to_string(), TEXT);
+    let side = if st.run_heads {
+        EN.create_heads
+    } else {
+        EN.create_tails
+    };
+    stat(
+        ui,
+        x,
+        cy,
+        EN.create_longest_run,
+        &opensigner_core::strings::fill(
+            EN.create_run_face,
+            &[&st.longest_run.to_string(), &side.to_lowercase()],
+        ),
+        TEXT,
+    )
+}
+
 fn check(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     match k.source {
+        Some(Source::Dice) if k.by_die => {
+            cy = coin_check(&k.coins, ui, x, cy);
+        }
         Some(Source::Dice) => {
             let st = k.dice.stats();
             let n = k.dice.len();
@@ -1040,25 +1093,7 @@ fn check(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             );
         }
         Some(Source::Coins) => {
-            let st = k.coins.stats();
-            cy = stat(ui, x, cy, EN.create_heads, &st.heads.to_string(), TEXT);
-            cy = stat(ui, x, cy, EN.create_tails, &st.tails.to_string(), TEXT);
-            let side = if st.run_heads {
-                EN.create_heads
-            } else {
-                EN.create_tails
-            };
-            cy = stat(
-                ui,
-                x,
-                cy,
-                EN.create_longest_run,
-                &opensigner_core::strings::fill(
-                    EN.create_run_face,
-                    &[&st.longest_run.to_string(), &side.to_lowercase()],
-                ),
-                TEXT,
-            );
+            cy = coin_check(&k.coins, ui, x, cy);
         }
         Some(Source::Cards) => {
             let st = k.cards.stats();

@@ -344,10 +344,14 @@ impl UiState {
             | Event::SecretNotStored
             | Event::Secret { .. }
             | Event::SecretUnavailable
-            | Event::SecretForgotten => None,
+            | Event::SecretForgotten
+            | Event::ScrollEnd { .. }
+            | Event::Hover { .. }
+            | Event::HoverEnd => None,
             Event::Tick { now_ms } => self.tick(now_ms),
             Event::Touch { x, y, phase } => self.touch(layout, i32::from(x), i32::from(y), phase),
-            Event::Scroll { x, y, dy } => {
+            // No glide here: a wheel moves the content as a scroll does.
+            Event::Scroll { x, y, dy } | Event::Wheel { x, y, dy } => {
                 let p = layout.scroll_at(i32::from(x), i32::from(y))?;
                 self.scroll_by(p.id?, p, i32::from(dy))
             }

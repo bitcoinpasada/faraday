@@ -120,6 +120,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
         }
     }
     ui.c.pop_clip();
+    ui.report_scroll_own_bar(clip, st.max);
     if st.max > 0.0 {
         let track = view - 8.0;
         let thumb = (track * view / content).max(30.0);

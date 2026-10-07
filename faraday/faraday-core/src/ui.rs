@@ -37,17 +37,62 @@ pub mod pal {
     pub const DIM: Color = Color::rgb(0x6f, 0x82, 0x91);
     /// The accent.
     pub const ACCENT: Color = Color::rgb(0x83, 0xd8, 0xef);
-    /// Text on the accent.
-    pub const ON_ACCENT: Color = Color::rgb(0x0d, 0x12, 0x18);
+    /// Text on the accent. One step from `SIDEBAR`, so the light theme
+    /// can tell them apart.
+    pub const ON_ACCENT: Color = Color::rgb(0x0d, 0x12, 0x19);
     /// Done, verified, can sign.
     pub const OK: Color = Color::rgb(0x8b, 0xd4, 0xb2);
     /// Waiting, unsaved, needs attention.
     pub const WARN: Color = Color::rgb(0xf0, 0xc0, 0x77);
     /// Refused.
     pub const ERR: Color = Color::rgb(0xef, 0x9b, 0x9b);
+
+    /// Each colour above and what it is in the light theme
+    /// (`docs/MOTION.md` §3.6).
+    pub const LIGHT: [(Color, Color); 14] = [
+        (BG, Color::rgb(0xf4, 0xf6, 0xf8)),
+        (SIDEBAR, Color::rgb(0xe9, 0xed, 0xf1)),
+        (SURFACE, Color::rgb(0xff, 0xff, 0xff)),
+        (LINE, Color::rgb(0xdc, 0xe2, 0xe8)),
+        (INNER, Color::rgb(0xe8, 0xed, 0xf1)),
+        (BORDER, Color::rgb(0xc6, 0xd0, 0xd8)),
+        (TEXT, Color::rgb(0x15, 0x1c, 0x23)),
+        (MUTED, Color::rgb(0x4f, 0x5d, 0x69)),
+        (DIM, Color::rgb(0x7a, 0x88, 0x94)),
+        (ACCENT, Color::rgb(0x0b, 0x7a, 0x9e)),
+        (ON_ACCENT, Color::rgb(0xff, 0xff, 0xff)),
+        (OK, Color::rgb(0x1d, 0x85, 0x56)),
+        (WARN, Color::rgb(0x9a, 0x5d, 0x00)),
+        (ERR, Color::rgb(0xbf, 0x34, 0x34)),
+    ];
 }
 
 use pal::*;
+
+/// Which palette the screens are drawn in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Theme {
+    /// Light text on a dark page: the prototype's palette.
+    #[default]
+    Dark,
+    /// Dark text on a light page.
+    Light,
+}
+
+impl Theme {
+    /// `c`, one of [`pal`]'s colours at any opacity, as this theme draws
+    /// it. Any other colour, a QR code's black and white or a camera's
+    /// picture, is drawn as it is.
+    pub fn color(self, c: Color) -> Color {
+        if self == Theme::Dark {
+            return c;
+        }
+        pal::LIGHT
+            .iter()
+            .find(|(dark, _)| (dark.r, dark.g, dark.b) == (c.r, c.g, c.b))
+            .map_or(c, |(_, light)| light.with_alpha(c.a))
+    }
+}
 
 /// A face: text, emphasis, or data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -94,6 +139,68 @@ pub struct Ui<'a> {
     pub oy: f32,
     /// All of the focused field is selected, and is drawn so.
     pub select_all: bool,
+    /// The region this frame scrolls, as the screen or sheet that drew
+    /// it last reported it.
+    pub scrolled: Option<Scrolled>,
+    /// How far the scrolling region is shown stretched past an end, in
+    /// pixels: negative when its content is pulled down past its top.
+    pub stretch: i32,
+    /// The stretch belongs to a sheet's region rather than the screen's.
+    pub stretch_in_sheet: bool,
+    /// What is being drawn now is a sheet.
+    pub in_sheet: bool,
+    /// The overlay scrollbar for the scrolling region, when it shows:
+    /// its opacity (0–255) and the region's offset in units.
+    pub bar: Option<(u8, f32)>,
+    /// The palette.
+    pub theme: Theme,
+    /// The action under the pointer, with no button down.
+    pub hovered: Option<Action>,
+    /// How far below its place a sheet is drawn while it rises in, units.
+    pub sheet_rise: f32,
+    /// The scrolling region's offset, units.
+    pub offset: f32,
+    /// The frosted copy of the page under the open sheet, kept from the
+    /// frame the sheet opened on.
+    pub frost: Option<Vec<u8>>,
+    /// Where the Guided switch's pill is: 0 on Steps only, 1 on Guided.
+    pub guided_shown: f32,
+    /// A step card opening, and the one closing, while they move.
+    pub disclosure: Option<Disclosure>,
+    /// What the step column drew: which card is open and how tall its
+    /// body is, units.
+    pub column: Option<(Option<usize>, f32)>,
+    /// Where the step column wants to glide to, to bring the open card
+    /// into view, units.
+    pub follow_to: Option<f32>,
+    /// Hits are clipped to this rather than to the drawing's clip while
+    /// a card's body is revealed: what is not yet uncovered can still be
+    /// pressed where it will be.
+    hit_clip: Option<Rect>,
+    /// The hit being taken draws its own hover look.
+    quiet_hover: bool,
+}
+
+/// A step card opening and the one closing, part of the way.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Disclosure {
+    /// The card opening.
+    pub open: Option<usize>,
+    /// The card closing, and how tall its body was, units.
+    pub closing: Option<(usize, f32)>,
+    /// How far through, 0 to 1, eased.
+    pub shown: f32,
+}
+
+/// A scrolled region as drawn: where it is and how far it goes.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Scrolled {
+    /// Where it is seen on the panel, in pixels.
+    pub view: Rect,
+    /// How far its content scrolls, in design units.
+    pub max: f32,
+    /// It draws its own scrollbar.
+    pub own_bar: bool,
 }
 
 impl<'a> Ui<'a> {
@@ -116,6 +223,173 @@ impl<'a> Ui<'a> {
             ox: 0.0,
             oy: 0.0,
             select_all: false,
+            scrolled: None,
+            stretch: 0,
+            stretch_in_sheet: false,
+            in_sheet: false,
+            bar: None,
+            theme: Theme::Dark,
+            hovered: None,
+            sheet_rise: 0.0,
+            offset: 0.0,
+            frost: None,
+            guided_shown: 1.0,
+            disclosure: None,
+            column: None,
+            follow_to: None,
+            hit_clip: None,
+            quiet_hover: false,
+        }
+    }
+
+    /// `c` in this frame's theme.
+    pub fn col(&self, c: Color) -> Color {
+        self.theme.color(c)
+    }
+
+    /// Fills the whole frame with `c`.
+    pub fn clear(&mut self, c: Color) {
+        let c = self.col(c);
+        self.c.clear(c);
+    }
+
+    /// Says that this frame scrolls the region seen through `view`
+    /// (pixels), whose content scrolls as far as `max` units. Called once
+    /// the region's content is drawn: a stretch past an end
+    /// (`docs/MOTION.md` §3.3) moves what was drawn in it, and what is
+    /// pressable there, and the page shows in the gap.
+    pub fn report_scroll(&mut self, view: Rect, max: f32) {
+        self.report(view, max, false);
+    }
+
+    /// [`Ui::report_scroll`], for a region that draws its own scrollbar.
+    pub fn report_scroll_own_bar(&mut self, view: Rect, max: f32) {
+        self.report(view, max, true);
+    }
+
+    fn report(&mut self, view: Rect, max: f32, own_bar: bool) {
+        let max = max.max(0.0);
+        self.scrolled = Some(Scrolled { view, max, own_bar });
+        if self.in_sheet != self.stretch_in_sheet {
+            return;
+        }
+        self.stretch_view(view);
+        self.edge_fades(view, max);
+        if let Some((alpha, offset)) = self.bar
+            && !own_bar
+            && max > 0.0
+            && alpha > 0
+        {
+            self.scroll_bar(view, max, offset, alpha);
+        }
+    }
+
+    /// The overlay scrollbar: a thin thumb at the region's right edge,
+    /// as long as the share of the content in view.
+    fn scroll_bar(&mut self, view: Rect, max: f32, offset: f32, alpha: u8) {
+        let f = self.f;
+        let inset = (4.0 * f).round() as i32;
+        let track = view.h - 2 * inset;
+        let vh = view.h as f32;
+        let thumb = ((track as f32 * vh / (vh + max * f)) as i32)
+            .max((30.0 * f) as i32)
+            .min(track);
+        if track <= 0 || thumb <= 0 {
+            return;
+        }
+        let at = ((track - thumb) as f32 * (offset / max).clamp(0.0, 1.0)).round() as i32;
+        // Shortened by what the stretch pulls past the end, as a native
+        // bar is.
+        let squeeze = self.stretch.abs().min(thumb / 2);
+        let (y, h) = if self.stretch < 0 {
+            (view.y + inset, thumb - squeeze)
+        } else {
+            (
+                view.y + inset + at + squeeze.min(track - thumb - at).max(0),
+                thumb - squeeze,
+            )
+        };
+        let w = (4.0 * f).round().max(2.0) as i32;
+        let rect = Rect::new(view.right() - inset - w, y, w, h);
+        let color = self.col(MUTED.with_alpha((u16::from(alpha) * 150 / 255) as u8));
+        self.c.fill_rounded_rect(rect, w as f32 / 2.0, color);
+    }
+
+    /// The region's content fades into the page at an edge it continues
+    /// past: under the top once scrolled, above the bottom while there is
+    /// more. Each fade comes in over the first 24 units scrolled.
+    fn edge_fades(&mut self, view: Rect, max: f32) {
+        if max <= 0.0 || view.h <= 0 {
+            return;
+        }
+        let band = ((24.0 * self.f).round() as i32).clamp(1, view.h / 4 + 1);
+        let page = self.col(if self.in_sheet { SURFACE } else { BG });
+        let reach = band as f32 / self.f;
+        let top = (self.offset / reach).clamp(0.0, 1.0);
+        let bottom = ((max - self.offset) / reach).clamp(0.0, 1.0);
+        for i in 0..band {
+            let k = 1.0 - (i as f32 + 0.5) / band as f32;
+            let a = k * k * 230.0;
+            if top > 0.0 {
+                let row = Rect::new(view.x, view.y + i, view.w, 1);
+                self.c.fill_rect(row, page.with_alpha((a * top) as u8));
+            }
+            if bottom > 0.0 {
+                let row = Rect::new(view.x, view.bottom() - 1 - i, view.w, 1);
+                self.c.fill_rect(row, page.with_alpha((a * bottom) as u8));
+            }
+        }
+    }
+
+    /// What a sheet stands on: the page, frosted (blurred once, the
+    /// first frame, and kept) and dimmed.
+    pub fn backdrop(&mut self) {
+        match self.frost.as_deref() {
+            Some(page) => self.c.restore(page),
+            None => {
+                // Reduced eight units to a pixel and blurred a little: as
+                // soft as more blur at a fraction of the work.
+                let scale = (8.0 * self.f).round().max(4.0) as u32;
+                let dim = self.col(BG.with_alpha(150));
+                self.c.frost(scale, 2, dim);
+                // Kept dimmed: each frame after is one copy.
+                self.frost = Some(self.c.snapshot());
+            }
+        }
+    }
+
+    /// A soft shadow under something that floats at (x, y), w by h with
+    /// corners of `r`: drawn before it, in the theme's depth.
+    pub fn shadow(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32) {
+        let rect = self.rect(x, y, w, h);
+        let color = match self.theme {
+            Theme::Dark => Color::rgb(0, 0, 0).with_alpha(140),
+            Theme::Light => Color::rgb(0x10, 0x18, 0x20).with_alpha(46),
+        };
+        let blur = 28.0 * self.f;
+        let dy = (8.0 * self.f).round() as i32;
+        self.c.shadow(rect, r * self.f, blur, dy, color);
+    }
+
+    /// Moves what was drawn in `view` by the stretch, and what is
+    /// pressable there with it; the page shows in the gap.
+    fn stretch_view(&mut self, view: Rect) {
+        let n = self.stretch.abs().min(view.h);
+        if n == 0 {
+            return;
+        }
+        self.c.shift(view, -self.stretch);
+        let gap = if self.stretch < 0 {
+            Rect::new(view.x, view.y, view.w, n)
+        } else {
+            Rect::new(view.x, view.bottom() - n, view.w, n)
+        };
+        let page = self.col(if self.in_sheet { SURFACE } else { BG });
+        self.c.fill_rect(gap, page);
+        for (r, _) in self.hits.iter_mut() {
+            if r.intersect(&view) == *r {
+                *r = Rect::new(r.x, r.y - self.stretch, r.w, r.h).intersect(&view);
+            }
         }
     }
 
@@ -151,6 +425,7 @@ impl<'a> Ui<'a> {
 
     /// A filled circle.
     pub fn dot(&mut self, cx: f32, cy: f32, r: f32, color: Color) {
+        let color = self.col(color);
         self.c.fill_circle(
             (cx + self.ox) * self.f,
             (cy + self.oy) * self.f,
@@ -161,6 +436,7 @@ impl<'a> Ui<'a> {
 
     /// A filled rectangle with rounded corners.
     pub fn fill(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, color: Color) {
+        let color = self.col(color);
         let rect = self.rect(x, y, w, h);
         if r <= 0.0 {
             self.c.fill_rect(rect, color);
@@ -171,6 +447,7 @@ impl<'a> Ui<'a> {
 
     /// An outlined rectangle with rounded corners.
     pub fn stroke(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, color: Color) {
+        let color = self.col(color);
         let rect = self.rect(x, y, w, h);
         let width = self.f.max(1.0);
         self.c.stroke_rounded_rect(rect, r * self.f, width, color);
@@ -184,6 +461,7 @@ impl<'a> Ui<'a> {
 
     /// A horizontal rule.
     pub fn rule(&mut self, x: f32, y: f32, w: f32, color: Color) {
+        let color = self.col(color);
         let r = self.rect(x, y, w, 1.0);
         let rect = Rect::new(r.x, r.y, r.w, 1.max(self.px(1.0)));
         self.c.fill_rect(rect, color);
@@ -217,6 +495,7 @@ impl<'a> Ui<'a> {
 
     /// `s` with its top-left at (x, y). Returns its width.
     pub fn text(&mut self, x: f32, y: f32, size: f32, w: W, color: Color, s: &str) -> f32 {
+        let color = self.col(color);
         let font = self.font(size, w);
         let px = self
             .c
@@ -284,6 +563,7 @@ impl<'a> Ui<'a> {
         color: Color,
         s: &str,
     ) -> f32 {
+        let color = self.col(color);
         let font = self.font(size, w);
         let rect = Rect::new(
             self.px(x + self.ox),
@@ -297,17 +577,50 @@ impl<'a> Ui<'a> {
 
     /// An icon centred in a square of side `boxw` at (x, y).
     pub fn icon(&mut self, x: f32, y: f32, boxw: f32, icon: Icon, size: f32, color: Color) {
+        let color = self.col(color);
         let rect = self.rect(x, y, boxw, boxw);
         self.c.icon(rect, icon, size, color);
     }
 
     /// Makes a region pressable: the part of it inside the clip, so what
     /// is scrolled out of sight cannot be pressed.
+    ///
+    /// Under the pointer it shows so: a faint wash over what was drawn
+    /// there, unless it is pressed, draws its own hover look (a button),
+    /// or covers so much of the screen that a wash would light the page.
     pub fn hit(&mut self, x: f32, y: f32, w: f32, h: f32, action: Action) {
-        let rect = self.rect(x, y, w, h).intersect(&self.c.clip());
+        let clip = self.hit_clip.unwrap_or_else(|| self.c.clip());
+        let rect = self.rect(x, y, w, h).intersect(&clip);
         if rect.w > 0 && rect.h > 0 {
+            let screen = i64::from(self.c.width()) * i64::from(self.c.height());
+            if self.hovered == Some(action)
+                && self.pressed != Some(action)
+                && !self.quiet_hover
+                && i64::from(rect.w) * i64::from(rect.h) * 4 < screen
+            {
+                let wash = self.col(TEXT.with_alpha(14));
+                self.c.fill_rounded_rect(rect, 8.0 * self.f, wash);
+            }
             self.hits.push((rect, action));
         }
+    }
+
+    /// Draws only inside `rect` until [`Ui::unreveal`], while what is
+    /// drawn stays pressable as if it all showed.
+    pub fn reveal(&mut self, rect: Rect) {
+        self.hit_clip = Some(self.c.clip());
+        self.c.push_clip(rect);
+    }
+
+    /// Ends [`Ui::reveal`].
+    pub fn unreveal(&mut self) {
+        self.c.pop_clip();
+        self.hit_clip = None;
+    }
+
+    /// Whether `action` is under the pointer.
+    pub fn is_hovered(&self, action: Action) -> bool {
+        self.hovered == Some(action) && self.pressed != Some(action)
     }
 
     /// Whether `action` is under a finger.
@@ -337,10 +650,14 @@ impl<'a> Ui<'a> {
         let weight = W::S;
         let width = w.unwrap_or_else(|| self.measure(size, weight, label) + 32.0);
         let pressed = self.is_pressed(action) && style != Style::Disabled;
+        let hovered = self.is_hovered(action) && style != Style::Disabled;
         match style {
             Style::Primary => {
+                // Mixed in the theme's own colours.
                 let bg = if pressed {
-                    ACCENT.mix(BG, 0.25)
+                    self.col(ACCENT).mix(self.col(BG), 0.25)
+                } else if hovered {
+                    self.col(ACCENT).mix(self.col(TEXT), 0.12)
                 } else {
                     ACCENT
                 };
@@ -349,12 +666,17 @@ impl<'a> Ui<'a> {
             Style::Secondary => {
                 if pressed {
                     self.fill(x, y, width, h, 10.0, INNER);
+                } else if hovered {
+                    self.fill(x, y, width, h, 10.0, INNER.with_alpha(150));
                 }
-                self.stroke(x, y, width, h, 10.0, BORDER);
+                let edge = if hovered { DIM } else { BORDER };
+                self.stroke(x, y, width, h, 10.0, edge);
             }
             Style::Ghost => {
                 if pressed {
                     self.fill(x, y, width, h, 10.0, INNER);
+                } else if hovered {
+                    self.fill(x, y, width, h, 10.0, INNER.with_alpha(150));
                 }
             }
             Style::Disabled => {
@@ -370,7 +692,9 @@ impl<'a> Ui<'a> {
         let tw = self.measure(size, weight, label);
         self.text_mid(x + (width - tw) / 2.0, y, h, size, weight, fg, label);
         if style != Style::Disabled {
+            self.quiet_hover = true;
             self.hit(x, y, width, h, action);
+            self.quiet_hover = false;
         }
         width
     }

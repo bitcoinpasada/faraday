@@ -35,6 +35,8 @@ pub struct Canvas {
     spare: Vec<(Rect, Mask)>,
     /// Glyph bitmaps filled from the outlines, kept between frames.
     glyphs: GlyphCache,
+    /// Rows put aside while a shape is drawn across the clip's edge.
+    scratch: Vec<u8>,
     /// The strings drawn since the last [`Canvas::clear`] that ran past
     /// the side of their clip, so that some of their ink is not on the
     /// panel (`docs/PLANNING.md` §16.133 rule 3).
@@ -84,6 +86,7 @@ impl Canvas {
             mask: None,
             spare: Vec::new(),
             glyphs: GlyphCache::new(),
+            scratch: Vec::new(),
             cut: Vec::new(),
             ink: None,
         }
@@ -214,10 +217,244 @@ impl Canvas {
         if r.is_empty() || color.a == 0 {
             return;
         }
+        if color.a < 255 {
+            // Blended here, a whole pixel at a time: tiny-skia's blend of
+            // a translucent fill took twenty milliseconds over a 1080p
+            // panel, and a sheet's dim covers the whole of it every frame.
+            let a = u32::from(color.a);
+            let src = u32::from_le_bytes([
+                div255(u32::from(color.r) * a) as u8,
+                div255(u32::from(color.g) * a) as u8,
+                div255(u32::from(color.b) * a) as u8,
+                color.a,
+            ]);
+            let stride = self.pixmap.width() as usize * 4;
+            let data = self.pixmap.data_mut();
+            for y in r.y..r.bottom() {
+                let start = y as usize * stride + r.x as usize * 4;
+                let row = &mut data[start..start + r.w as usize * 4];
+                for p in row.chunks_exact_mut(4) {
+                    let d = u32::from_le_bytes([p[0], p[1], p[2], p[3]]);
+                    p.copy_from_slice(&over(src, d, 255 - a).to_le_bytes());
+                }
+            }
+            return;
+        }
         let mut paint = Self::paint(color);
         paint.anti_alias = false;
         self.pixmap
             .fill_rect(skia_rect(r), &paint, Transform::identity(), None);
+    }
+
+    /// A soft shadow under a rounded rectangle that floats: `rect` with
+    /// corners of `radius`, moved down `dy`, blurred over `blur` pixels,
+    /// in `color` at its darkest. The middle, which what floats covers,
+    /// is left as it is. The clip is honoured.
+    ///
+    /// The shadow is worked out per pixel from its distance to the
+    /// shape, so it needs no blurred image kept for each size.
+    pub fn shadow(&mut self, rect: Rect, radius: f32, blur: f32, dy: i32, color: Color) {
+        if rect.is_empty() || color.a == 0 || blur <= 0.0 {
+            return;
+        }
+        let shape = Rect::new(rect.x, rect.y + dy, rect.w, rect.h);
+        let reach = blur as i32 + 1;
+        let area = Rect::new(
+            shape.x - reach,
+            shape.y - reach,
+            shape.w + 2 * reach,
+            shape.h + 2 * reach,
+        )
+        .intersect(&self.clip());
+        if area.is_empty() {
+            return;
+        }
+        // Covered by what floats, whatever its corners.
+        let r = radius
+            .max(0.0)
+            .min(rect.w as f32 / 2.0)
+            .min(rect.h as f32 / 2.0);
+        let inset = r as i32 + 1;
+        let covered = Rect::new(
+            rect.x + inset,
+            rect.y + inset,
+            rect.w - 2 * inset,
+            rect.h - 2 * inset,
+        );
+        let (cx, cy) = (
+            shape.x as f32 + shape.w as f32 / 2.0,
+            shape.y as f32 + shape.h as f32 / 2.0,
+        );
+        let (hw, hh) = (shape.w as f32 / 2.0 - r, shape.h as f32 / 2.0 - r);
+        let (cr, cg, cb, ca) = (
+            u32::from(color.r),
+            u32::from(color.g),
+            u32::from(color.b),
+            u32::from(color.a),
+        );
+        // How dark the shadow is at each quarter pixel from the edge:
+        // smooth from full there to nothing at `blur`.
+        let steps_per_px = 4.0;
+        let fall: Vec<u32> = (0..=(blur * steps_per_px) as usize + 1)
+            .map(|i| {
+                let t = (i as f32 / steps_per_px / blur).min(1.0);
+                (ca as f32 * (1.0 - t) * (1.0 - t) * (1.0 + 2.0 * t)) as u32
+            })
+            .collect();
+        let stride = self.pixmap.width() as usize * 4;
+        let data = self.pixmap.data_mut();
+        for py in area.y..area.bottom() {
+            // The rows the covered middle spans are only walked at their
+            // two ends.
+            let skip = (py >= covered.y && py < covered.bottom() && !covered.is_empty())
+                .then_some((covered.x, covered.right()));
+            for px in area.x..area.right() {
+                if let Some((from, to)) = skip
+                    && px >= from
+                    && px < to
+                {
+                    continue;
+                }
+                // Distance outside the rounded rectangle: along a side
+                // it is one coordinate's, round a corner both.
+                let qx = ((px as f32 + 0.5 - cx).abs() - hw).max(0.0);
+                let qy = ((py as f32 + 0.5 - cy).abs() - hh).max(0.0);
+                let d = if qx == 0.0 {
+                    qy
+                } else if qy == 0.0 {
+                    qx
+                } else {
+                    sqrt(qx * qx + qy * qy)
+                } - r;
+                let step = ((d.max(0.0) * steps_per_px) as usize).min(fall.len() - 1);
+                let a = fall[step];
+                if a == 0 {
+                    continue;
+                }
+                let inv = 255 - a;
+                let i = py as usize * stride + px as usize * 4;
+                let p = &mut data[i..i + 4];
+                p[0] = (div255(cr * a) + div255(u32::from(p[0]) * inv)) as u8;
+                p[1] = (div255(cg * a) + div255(u32::from(p[1]) * inv)) as u8;
+                p[2] = (div255(cb * a) + div255(u32::from(p[2]) * inv)) as u8;
+                p[3] = (a + div255(u32::from(p[3]) * inv)) as u8;
+            }
+        }
+    }
+
+    /// Blurs the whole canvas heavily, as frosted glass shows what is
+    /// behind it: reduced `scale` times on each side, box-blurred three
+    /// times `radius` wide, laid under `tint` (translucent, or none at
+    /// alpha 0), and enlarged again smoothly. Costs some milliseconds, so
+    /// it is meant to be done once and kept ([`Canvas::snapshot`],
+    /// [`Canvas::restore`]).
+    pub fn frost(&mut self, scale: u32, radius: u32, tint: Color) {
+        let (w, h) = (self.pixmap.width() as usize, self.pixmap.height() as usize);
+        let s = scale.max(1) as usize;
+        let (sw, sh) = (w.div_ceil(s), h.div_ceil(s));
+        // Each small pixel the mean of the block it stands for, a block
+        // of columns at a time.
+        let mut sums = alloc::vec![[0u32; 3]; sw * sh];
+        let data = self.pixmap.data();
+        for y in 0..h {
+            let line = &mut sums[(y / s) * sw..(y / s) * sw + sw];
+            let row = &data[y * w * 4..(y + 1) * w * 4];
+            for (cell, block) in line.iter_mut().zip(row.chunks(s * 4)) {
+                for p in block.chunks_exact(4) {
+                    cell[0] += u32::from(p[0]);
+                    cell[1] += u32::from(p[1]);
+                    cell[2] += u32::from(p[2]);
+                }
+            }
+        }
+        let mut px: Vec<[u32; 3]> = sums
+            .iter()
+            .enumerate()
+            .map(|(i, p)| {
+                let (cx, cy) = (i % sw, i / sw);
+                let n = ((w - cx * s).min(s) * (h - cy * s).min(s)) as u32;
+                [p[0] / n, p[1] / n, p[2] / n]
+            })
+            .collect();
+        let r = radius as usize;
+        for _ in 0..3 {
+            px = box_blur(&px, sw, sh, r, true);
+            px = box_blur(&px, sw, sh, r, false);
+        }
+        // The tint goes over the small picture, where it is cheap.
+        let a = u32::from(tint.a);
+        let tint = u32::from_le_bytes([
+            div255(u32::from(tint.r) * a) as u8,
+            div255(u32::from(tint.g) * a) as u8,
+            div255(u32::from(tint.b) * a) as u8,
+            tint.a,
+        ]);
+        let packed: Vec<u32> = px
+            .iter()
+            .map(|p| {
+                let p = u32::from_le_bytes([p[0] as u8, p[1] as u8, p[2] as u8, 255]);
+                over(tint, p, 255 - a)
+            })
+            .collect();
+        // Back to full size, each pixel between the four small ones
+        // around it: each small row is spread across the full width
+        // once, and each full row is then between two of those.
+        let place = |i: usize, n: usize| -> (usize, usize, u32) {
+            let f = ((i * 2 + 1) * 128 / s).saturating_sub(128);
+            let (i0, t) = (f / 256, (f % 256) as u32);
+            (i0.min(n - 1), (i0 + 1).min(n - 1), t)
+        };
+        let columns: Vec<(usize, usize, u32)> = (0..w).map(|x| place(x, sw)).collect();
+        let wide: Vec<u32> = (0..sh)
+            .flat_map(|y| {
+                let row = &packed[y * sw..y * sw + sw];
+                columns
+                    .iter()
+                    .map(move |&(x0, x1, t)| lerp(row[x0], row[x1], t))
+            })
+            .collect();
+        let data = self.pixmap.data_mut();
+        for y in 0..h {
+            let (y0, y1, t) = place(y, sh);
+            let (a, b) = (&wide[y0 * w..y0 * w + w], &wide[y1 * w..y1 * w + w]);
+            let row = &mut data[y * w * 4..(y + 1) * w * 4];
+            for ((p, &top), &bottom) in row.chunks_exact_mut(4).zip(a).zip(b) {
+                p.copy_from_slice(&(lerp(top, bottom, t) | 0xff00_0000).to_le_bytes());
+            }
+        }
+    }
+
+    /// Puts back a [`Canvas::snapshot`] of this canvas; one of another
+    /// size is ignored.
+    pub fn restore(&mut self, pixels: &[u8]) {
+        let data = self.pixmap.data_mut();
+        if pixels.len() == data.len() {
+            data.copy_from_slice(pixels);
+        }
+    }
+
+    /// A copy of every pixel, for [`Canvas::blend_from`] to fade from.
+    pub fn snapshot(&self) -> Vec<u8> {
+        self.pixmap.data().to_vec()
+    }
+
+    /// Shows `t` (0 to 1) of the way from `before`, a [`Canvas::snapshot`]
+    /// of this canvas, to what is drawn now: a cross-fade. A snapshot of
+    /// another size leaves the canvas as it is.
+    pub fn blend_from(&mut self, before: &[u8], t: f32) {
+        let data = self.pixmap.data_mut();
+        if before.len() != data.len() {
+            return;
+        }
+        let t = (t.clamp(0.0, 1.0) * 256.0) as u32;
+        if t >= 256 {
+            return;
+        }
+        for (now, was) in data.chunks_exact_mut(4).zip(before.chunks_exact(4)) {
+            let n = u32::from_le_bytes([now[0], now[1], now[2], now[3]]);
+            let w = u32::from_le_bytes([was[0], was[1], was[2], was[3]]);
+            now.copy_from_slice(&lerp(w, n, t).to_le_bytes());
+        }
     }
 
     /// Moves the pixels inside `rect` by `dy` rows, down for a positive
@@ -324,13 +561,7 @@ impl Canvas {
             return;
         }
         let path = rounded_rect_path(rect, radius, 0.0);
-        self.pixmap.fill_path(
-            &path,
-            &Self::paint(color),
-            FillRule::Winding,
-            Transform::identity(),
-            self.mask.as_ref().map(|m| &m.1),
-        );
+        self.draw_path(&path, &Self::paint(color), None);
     }
 
     /// Strokes a rectangle outline `width` pixels thick, inside the rect.
@@ -349,13 +580,7 @@ impl Canvas {
             width,
             ..Stroke::default()
         };
-        self.pixmap.stroke_path(
-            &path,
-            &Self::paint(color),
-            &stroke,
-            Transform::identity(),
-            self.mask.as_ref().map(|m| &m.1),
-        );
+        self.draw_path(&path, &Self::paint(color), Some(&stroke));
     }
 
     /// Draws a line `width` pixels thick between two points.
@@ -371,13 +596,7 @@ impl Canvas {
             width,
             ..Stroke::default()
         };
-        self.pixmap.stroke_path(
-            &path,
-            &Self::paint(color),
-            &stroke,
-            Transform::identity(),
-            self.mask.as_ref().map(|m| &m.1),
-        );
+        self.draw_path(&path, &Self::paint(color), Some(&stroke));
     }
 
     /// Fills a circle.
@@ -385,13 +604,7 @@ impl Canvas {
         let Some(path) = PathBuilder::from_circle(cx, cy, radius) else {
             return;
         };
-        self.pixmap.fill_path(
-            &path,
-            &Self::paint(color),
-            FillRule::Winding,
-            Transform::identity(),
-            self.mask.as_ref().map(|m| &m.1),
-        );
+        self.draw_path(&path, &Self::paint(color), None);
     }
 
     /// Strokes an arc of a circle, starting at twelve o'clock and
@@ -436,13 +649,71 @@ impl Canvas {
             width,
             ..Stroke::default()
         };
-        self.pixmap.stroke_path(
-            &path,
-            &Self::paint(color),
-            &stroke,
-            Transform::identity(),
-            self.mask.as_ref().map(|m| &m.1),
+        self.draw_path(&path, &Self::paint(color), Some(&stroke));
+    }
+
+    /// Fills `path`, or strokes it with `stroke`, inside the clip.
+    ///
+    /// The clip is a panel-sized mask, and tiny-skia blends through a
+    /// mask about thirty times slower than without one: a scrolled page's
+    /// cards cost a frame its budget. So the mask is used only when it
+    /// has to be. A shape inside the clip needs none. A shape inside the
+    /// clip's columns that crosses its top or bottom edge — a card
+    /// half scrolled out — is drawn whole with no mask, and the rows
+    /// outside the clip it reached are put back as they were: the same
+    /// pixels as the whole shape cut by the clip, which a scroll that
+    /// copies rows and draws the strip it uncovered depends on. Only a
+    /// shape across a side of the clip takes the mask.
+    fn draw_path(&mut self, path: &tiny_skia::Path, paint: &Paint, stroke: Option<&Stroke>) {
+        let draw = |pixmap: &mut tiny_skia::PixmapMut, dy: f32, mask: Option<&Mask>| {
+            let ts = Transform::from_translate(0.0, dy);
+            match stroke {
+                Some(s) => pixmap.stroke_path(path, paint, s, ts, mask),
+                None => pixmap.fill_path(path, paint, FillRule::Winding, ts, mask),
+            }
+        };
+        let Some((clip, mask)) = self.mask.as_ref() else {
+            draw(&mut self.pixmap.as_mut(), 0.0, None);
+            return;
+        };
+        // Every pixel the shape's ink can reach: half a stroke's width
+        // beyond the path, one more for the anti-aliased edge, and one
+        // for the truncation to whole pixels.
+        let b = path.bounds();
+        let grow = stroke.map_or(0.0, |s| s.width / 2.0) + 1.0;
+        let (l, t) = ((b.left() - grow) as i32 - 1, (b.top() - grow) as i32 - 1);
+        let (r, bo) = (
+            (b.right() + grow) as i32 + 1,
+            (b.bottom() + grow) as i32 + 1,
         );
+        let inside_columns = l >= clip.x && r <= clip.right();
+        if inside_columns && t >= clip.y && bo <= clip.bottom() {
+            draw(&mut self.pixmap.as_mut(), 0.0, None);
+        } else if inside_columns && !clip.is_empty() {
+            let row = self.pixmap.width() as usize * 4;
+            let height = self.pixmap.height() as i32;
+            // The rows above and below the clip the shape reaches.
+            let span =
+                |from: i32, to: i32| (from < to).then(|| from as usize * row..to as usize * row);
+            let top = span(t.max(0), clip.y.min(height));
+            let bottom = span(clip.bottom().max(0), bo.min(height));
+            let saved = &mut self.scratch;
+            saved.clear();
+            let data = self.pixmap.data();
+            for r in [&top, &bottom].into_iter().flatten() {
+                saved.extend_from_slice(&data[r.clone()]);
+            }
+            draw(&mut self.pixmap.as_mut(), 0.0, None);
+            let data = self.pixmap.data_mut();
+            let mut at = 0;
+            for r in [top, bottom].into_iter().flatten() {
+                let n = r.len();
+                data[r].copy_from_slice(&self.scratch[at..at + n]);
+                at += n;
+            }
+        } else {
+            draw(&mut self.pixmap.as_mut(), 0.0, Some(mask));
+        }
     }
 
     /// Single-line metrics of `text` in `font` on this display.
@@ -686,6 +957,70 @@ fn yuv_to_rgb(y: u8, u: u8, v: u8) -> (u8, u8, u8) {
 }
 
 /// `v / 255` rounded, for `v` up to `255 × 255`.
+/// One pass of a box blur `r` either side, along rows (`across`) or
+/// columns, over a `w × h` image of colours; the edges repeat.
+fn box_blur(px: &[[u32; 3]], w: usize, h: usize, r: usize, across: bool) -> Vec<[u32; 3]> {
+    let mut out = alloc::vec![[0u32; 3]; px.len()];
+    let (lines, len) = if across { (h, w) } else { (w, h) };
+    let n = (2 * r + 1) as u32;
+    for line in 0..lines {
+        let idx = |i: usize| if across { line * w + i } else { i * w + line };
+        let get = |i: isize| px[idx(i.clamp(0, len as isize - 1) as usize)];
+        let mut sum = [0u32; 3];
+        for i in -(r as isize)..=(r as isize) {
+            let p = get(i);
+            for k in 0..3 {
+                sum[k] += p[k];
+            }
+        }
+        for i in 0..len {
+            out[idx(i)] = [sum[0] / n, sum[1] / n, sum[2] / n];
+            let (add, sub) = (
+                get(i as isize + r as isize + 1),
+                get(i as isize - r as isize),
+            );
+            for k in 0..3 {
+                sum[k] = sum[k] + add[k] - sub[k];
+            }
+        }
+    }
+    out
+}
+
+/// `src` (premultiplied) over `dst`, whose share left is `inv` of 255,
+/// all four bytes at once: red with blue and green with alpha each in
+/// one word.
+#[inline]
+fn over(src: u32, dst: u32, inv: u32) -> u32 {
+    let div = |x: u32| {
+        let x = x + 0x0080_0080;
+        ((x + ((x >> 8) & 0x00ff_00ff)) >> 8) & 0x00ff_00ff
+    };
+    let rb = div((dst & 0x00ff_00ff) * inv);
+    let ga = div(((dst >> 8) & 0x00ff_00ff) * inv);
+    src + (rb | (ga << 8))
+}
+
+/// `t` of 256 of the way from pixel `a` to pixel `b`, all four bytes at
+/// once.
+#[inline]
+fn lerp(a: u32, b: u32, t: u32) -> u32 {
+    let u = 256 - t;
+    let rb = (((a & 0x00ff_00ff) * u + (b & 0x00ff_00ff) * t) >> 8) & 0x00ff_00ff;
+    let ga = ((((a >> 8) & 0x00ff_00ff) * u + ((b >> 8) & 0x00ff_00ff) * t) >> 8) & 0x00ff_00ff;
+    rb | (ga << 8)
+}
+
+/// A square root good to a few parts in a million, without `std`.
+fn sqrt(x: f32) -> f32 {
+    if x <= 0.0 {
+        return 0.0;
+    }
+    let mut g = f32::from_bits((x.to_bits() >> 1) + 0x1fbd_1df5);
+    g = 0.5 * (g + x / g);
+    0.5 * (g + x / g)
+}
+
 fn div255(v: u32) -> u32 {
     (v + 128 + ((v + 128) >> 8)) >> 8
 }
@@ -876,5 +1211,51 @@ mod tests {
             Color::WHITE,
             TextAlign::Start,
         );
+    }
+
+    /// A card scrolled half out of its region looks like the whole card
+    /// with the part outside the region cut away: the same pixels inside,
+    /// nothing outside. Whether the shape crosses the region's top and
+    /// bottom (drawn in the region's rows) or its side (drawn through the
+    /// mask), and for fills, strokes and circles alike.
+    #[test]
+    fn a_shape_cut_by_a_clip_is_the_whole_shape_cut() {
+        let region = Rect::new(8, 6, 48, 20);
+        let shapes: [&dyn Fn(&mut Canvas); 4] = [
+            // Across the top and bottom.
+            &|c| c.fill_rounded_rect(Rect::new(12, 2, 30, 28), 6.5, Color::rgb(90, 160, 220)),
+            &|c| {
+                c.stroke_rounded_rect(
+                    Rect::new(14, 1, 26, 12),
+                    4.0,
+                    1.5,
+                    Color::rgb(240, 200, 120),
+                )
+            },
+            // Across a side.
+            &|c| c.fill_circle(54.3, 15.7, 7.2, Color::rgb(140, 210, 180)),
+            // Inside.
+            &|c| c.fill_circle(30.0, 16.0, 4.0, Color::WHITE),
+        ];
+        for (i, shape) in shapes.iter().enumerate() {
+            let mut whole = canvas();
+            whole.clear(Color::BLACK);
+            shape(&mut whole);
+            let mut cut = canvas();
+            cut.clear(Color::BLACK);
+            cut.push_clip(region);
+            shape(&mut cut);
+            cut.pop_clip();
+            for y in 0..32 {
+                for x in 0..64 {
+                    let want = if region.contains(x, y) {
+                        pixel(&whole, x, y)
+                    } else {
+                        [0, 0, 0, 255]
+                    };
+                    assert_eq!(pixel(&cut, x, y), want, "shape {i} at ({x}, {y})");
+                }
+            }
+        }
     }
 }

@@ -142,8 +142,17 @@ impl Faraday {
     /// What is kept across a lock: the settings and the memory.
     pub(crate) fn kept(&self) -> Vec<(String, Vec<u8>)> {
         let settings = format!(
-            "scale={}\nguided={}\nseal-amounts={}\nidle-lock={}\nidle-off={}\nqr-ms={}\n",
+            "scale={}\ntheme={}\nmotion={}\nguided={}\nseal-amounts={}\nidle-lock={}\nidle-off={}\nqr-ms={}\n",
             self.scale_pct,
+            match self.theme {
+                crate::ui::Theme::Dark => "dark",
+                crate::ui::Theme::Light => "light",
+            },
+            if self.reduce_motion {
+                "reduced"
+            } else {
+                "full"
+            },
             u8::from(self.guided),
             u8::from(self.seal_amounts),
             self.idle_lock_min,
@@ -208,6 +217,14 @@ impl Faraday {
                                 }
                             }
                             Some(("guided", v)) => self.guided = v == "1",
+                            Some(("motion", v)) => self.reduce_motion = v == "reduced",
+                            Some(("theme", v)) => {
+                                self.theme = if v == "light" {
+                                    crate::ui::Theme::Light
+                                } else {
+                                    crate::ui::Theme::Dark
+                                };
+                            }
                             Some(("idle-lock", v)) => {
                                 if let Ok(m) = v.parse() {
                                     self.idle_lock_min = m;

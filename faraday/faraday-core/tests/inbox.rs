@@ -61,11 +61,18 @@ fn a_text_file_is_kept_and_offered_to_the_vault_as_a_note() {
     assert_eq!(app.inbox[k].kind, FileKind::Text);
     app.press(Action::Nav(Screen::Files));
     // The open vault's panel stands above the Inbox: scroll down to it.
+    // A key glides the page, so the frames between presses are ticked
+    // as a shell ticks them.
     let mut offered = false;
+    let mut now = 20_000;
     for _ in 0..20 {
         let _ = app.frame();
         offered |= app.offers(Action::Vault(V::AddFile(k)));
         app.event(Event::Key(Key::Down));
+        for _ in 0..12 {
+            now += 16;
+            app.event(Event::Tick { now_ms: now });
+        }
     }
     assert!(offered, "Files does not offer Add to vault");
     app.press(Action::Vault(V::AddFile(k)));

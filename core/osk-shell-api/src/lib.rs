@@ -390,6 +390,39 @@ pub enum Event {
         /// Scroll amount in pixels.
         dy: i16,
     },
+    /// A mouse wheel turned at a position. `dy` is in pixels, as for
+    /// [`Event::Scroll`]: where the content should end up once it has
+    /// moved, positive up. A core that animates glides there; one that
+    /// does not treats it as a `Scroll`. A wheel that reports fractions
+    /// of a notch sends them as the pixels they are worth.
+    Wheel {
+        /// Pointer x in pixels.
+        x: u16,
+        /// Pointer y in pixels.
+        y: u16,
+        /// Scroll amount in pixels.
+        dy: i16,
+    },
+    /// The gesture that was sending [`Event::Scroll`] ended: the fingers
+    /// lifted from a touchpad. Content that was moving may coast on with
+    /// the speed it had. A wheel never sends it.
+    ScrollEnd {
+        /// Pointer x in pixels.
+        x: u16,
+        /// Pointer y in pixels.
+        y: u16,
+    },
+    /// A pointer moved over the frame with no button down, in pixels.
+    /// Optional: a shell with no pointer never sends it.
+    Hover {
+        /// Pointer x in pixels.
+        x: u16,
+        /// Pointer y in pixels.
+        y: u16,
+    },
+    /// There is no pointer over the frame any more: it left the window,
+    /// or it hid because a finger touched the panel.
+    HoverEnd,
     /// Monotonic time, for timeouts and animations. The shell sends this at
     /// whatever rate it likes (typically 30–60 Hz while something animates,
     /// rarely otherwise); the core never assumes a rate.

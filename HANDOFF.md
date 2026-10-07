@@ -68,6 +68,7 @@ during Create routed into the flow.
 | `docs/QR.md` | Scanner and QR sender requirements: the union of Faraday OS's file transfer and the Wallets tab's scanner, built on OpenSigner's codec. |
 | `docs/FLOWS.md` | Every flow and where it leaves the person; five decisions made to remove dead ends. |
 | `docs/MULTIVENDOR.md` | Proposal: a second, independent implementation of each cryptographic step, and how it would show. Not built. |
+| `docs/MOTION.md` | Smooth scrolling (glide, momentum, rubber band), hover, motion, shadows, frosted sheets, light mode and reduce motion: decisions, measurements, design, what was built (item 49). |
 | `docs/OPENSIGNER-PARITY.md` | Every OpenSigner crate and app feature, whether Faraday has it, and the plan for the rest. |
 | `docs/AUDIT.md` | Every crate that computes cryptography, what is written here versus taken from a crate, and what each is checked against. |
 | `docs/FAMILY.md` | The Spend tab: family mode through Faraday's vault, page by page, with its text. |
@@ -1020,6 +1021,13 @@ as possible before the next build.
       what and opens nothing. The Wallets page's grid is trimmed to
       Restore, Back up, Sign and Check a message, Decode, and All tools.
       `tests/catalog.rs`.
+
+49. [x] 2026-10-06, owner: scrolling that feels native, modern visual
+    polish and a light mode. Built 2026-10-07: every item in
+    `docs/MOTION.md` §5, measured in §6. Needs the owner's check on the
+    Dell (wheel, two-finger flick, pull past an end, sheets, light
+    mode), on a fresh build: the shell API gained `Wheel`, `ScrollEnd`,
+    `Hover` and `HoverEnd`, and the stick shell sends them.
 
 ## Next steps
 

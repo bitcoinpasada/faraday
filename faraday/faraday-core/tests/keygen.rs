@@ -9,6 +9,7 @@ use faraday_core::keygen::{SOURCE_ROWS, Source, source_index};
 use faraday_core::{Action, Faraday, Screen};
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::bitcoin::hashes::{Hash, sha256};
+use osk_entropy::DiceProcedure;
 use osk_shell_api::{App, EntropyBytes, Event};
 
 /// From the Words card: the quiz, every word answered rightly.
@@ -112,6 +113,64 @@ fn one_hundred_twenty_eight_flips_are_a_twelve_word_key_bit_for_bit() {
     let expected = Mnemonic::from_entropy(Language::English, &bytes).unwrap();
     assert_eq!(expected.indices().len(), 12);
     assert_eq!(added(&app), vec![fingerprint(&expected)]);
+}
+
+#[test]
+fn dice_rolled_in_flip_mode_makes_the_key_the_same_flips_make() {
+    let faces: Vec<u8> = (0..128u32)
+        .map(|i| ((i * 7 + i / 5) % 6) as u8 + 1)
+        .collect();
+
+    let mut by_dice = opened();
+    by_dice.press(Action::KWords(12));
+    by_dice.press(Action::KSource(index(Source::Dice)));
+    by_dice.press(Action::KDiceFlip(true));
+    by_dice.press(Action::KNext);
+    for &f in &faces {
+        by_dice.press(Action::KRoll(f));
+    }
+
+    let mut by_coin = opened();
+    by_coin.press(Action::KWords(12));
+    by_coin.press(Action::KSource(index(Source::Coins)));
+    by_coin.press(Action::KNext);
+    for &f in &faces {
+        by_coin.press(Action::KFlip(f >= 4));
+    }
+
+    {
+        let a = by_dice.keygen.as_ref().unwrap();
+        let b = by_coin.keygen.as_ref().unwrap();
+        assert!(a.coins.flips().eq(b.coins.flips()));
+        assert_eq!(&a.live_words()[..], &b.live_words()[..]);
+    }
+
+    for app in [&mut by_dice, &mut by_coin] {
+        app.press(Action::KNext);
+        app.press(Action::KNext);
+        pass_quiz(app);
+        app.press(Action::KAdd);
+    }
+    assert_eq!(added(&by_dice), added(&by_coin));
+}
+
+#[test]
+fn flip_mode_and_a_dice_procedure_are_mutually_exclusive() {
+    let mut app = opened();
+    app.press(Action::KWords(12));
+    app.press(Action::KSource(index(Source::Dice)));
+    app.press(Action::KDiceFlip(true));
+    assert!(app.keygen.as_ref().unwrap().by_die);
+
+    app.press(Action::KProc(1));
+    let k = app.keygen.as_ref().unwrap();
+    assert!(!k.by_die);
+    assert_eq!(k.procedure, DiceProcedure::SixAsZero);
+
+    app.press(Action::KDiceFlip(true));
+    let k = app.keygen.as_ref().unwrap();
+    assert!(k.by_die);
+    assert_eq!(k.procedure, DiceProcedure::Hashed);
 }
 
 #[test]

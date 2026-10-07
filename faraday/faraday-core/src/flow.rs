@@ -10,6 +10,7 @@
 use osk_ui::widgets::Icon;
 
 use crate::Action;
+use crate::ui::Disclosure;
 use crate::ui::pal::*;
 use crate::ui::{Ui, W};
 
@@ -114,12 +115,27 @@ pub fn column_foot(
     } else {
         &[]
     };
+    // Where each option is, then the pill, sliding between them, then
+    // the labels over it.
+    let mut places = Vec::new();
     for &(label, on, guided) in switch {
         let bw = ui.measure(12.0, W::S, label) + 24.0;
         bx -= bw;
-        if on {
-            ui.fill(bx, y + 2.0, bw, 30.0, 8.0, INNER);
-        }
+        places.push((bx, bw, label, on, guided));
+        bx -= 4.0;
+    }
+    if let [(sx, sw, ..), (gx, gw, ..)] = places[..] {
+        let t = ui.guided_shown;
+        ui.fill(
+            sx + (gx - sx) * t,
+            y + 2.0,
+            sw + (gw - sw) * t,
+            30.0,
+            8.0,
+            INNER,
+        );
+    }
+    for (bx, bw, label, on, guided) in places {
         ui.text_mid(
             bx + 12.0,
             y + 2.0,
@@ -130,7 +146,6 @@ pub fn column_foot(
             label,
         );
         ui.hit(bx, y + 2.0, bw, 30.0, Action::Guided(guided));
-        bx -= 4.0;
     }
     y += 52.0;
     if let Some(note) = col.note {
@@ -142,10 +157,16 @@ pub fn column_foot(
     let inner_x = x + 58.0;
     let inner_w = w - 76.0;
     let mut open_top = None;
+    let mut open_body = None;
+    // A card opening grows and the one closing shrinks
+    // (`docs/MOTION.md` §3.5); what follows them moves with them. Where
+    // everything will be once they are done is what the page measures.
+    let disclosure = ui.disclosure;
+    let mut settled = 0.0;
     for (i, card) in cards.iter().enumerate() {
         let card_top = y;
         if card.open {
-            open_top = Some(y - top);
+            open_top = Some(y + settled - top);
         }
         let guide = card.guide.as_deref().filter(|_| col.guided && card.open);
         // Measured in a pass that draws nothing and keeps no hits, so the
@@ -177,14 +198,32 @@ pub fn column_foot(
         } else {
             0.0
         };
-        let card_h = 56.0 + if card.open { body_h + 18.0 } else { 0.0 };
+        let full_h = 56.0 + if card.open { body_h + 18.0 } else { 0.0 };
+        let card_h = match disclosure {
+            Some(d) if card.open && d.open == Some(i) => 56.0 + (body_h + 18.0) * d.shown,
+            Some(Disclosure {
+                closing: Some((c, h)),
+                shown,
+                ..
+            }) if c == i && !card.open => 56.0 + (h + 18.0) * (1.0 - shown),
+            _ => full_h,
+        };
+        settled += full_h - card_h;
+        if card.open {
+            open_body = Some(body_h);
+        }
         let edge = if card.open {
             ACCENT.with_alpha(100)
         } else {
             LINE
         };
         ui.card(x, card_top, w, card_h, edge);
-        if card.open {
+        if card.open && card_h < full_h {
+            let rect = ui.rect(x, card_top, w, card_h);
+            ui.reveal(rect);
+            draw_open(ui);
+            ui.unreveal();
+        } else if card.open {
             draw_open(ui);
         }
         ui.badge(
@@ -222,20 +261,22 @@ pub fn column_foot(
         foot_top = Some(y - top);
         y += 6.0 + foot(ui, x, y + 6.0, w);
     }
-    let content_h = y - top + 24.0;
+    let content_h = y + settled - top + 24.0;
     ui.c.pop_clip();
+    ui.column = Some((cards.iter().position(|c| c.open), open_body.unwrap_or(0.0)));
 
     let mut next = scroll;
     let mut again = false;
     let max = (content_h - col.h).max(0.0);
+    ui.report_scroll(clip, max);
     if next.follow {
         next.follow = false;
         // With every card closed, the foot is what comes into view.
         if let Some(t) = open_top.or(foot_top) {
             let want = (t - 100.0).clamp(0.0, max);
             if (want - next.y).abs() > 0.5 {
-                next.y = want;
-                again = true;
+                // It glides there.
+                ui.follow_to = Some(want);
             }
         }
     }

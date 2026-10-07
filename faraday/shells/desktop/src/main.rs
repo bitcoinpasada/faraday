@@ -59,6 +59,10 @@ use winit::keyboard::{Key as WinitKey, NamedKey};
 use winit::window::{Window, WindowId};
 
 const TICK: Duration = Duration::from_millis(50);
+
+/// The tick while something moves: a frame at 60 Hz (`docs/MOTION.md`
+/// §3.2).
+const FRAME: Duration = Duration::from_micros(16_667);
 /// How often the attached folders are looked at again.
 const RESCAN: Duration = Duration::from_millis(700);
 const TITLE: &str = "Faraday · F2 test stick · F3 blank stick · F4 pull all";
@@ -88,6 +92,9 @@ struct Shell {
     pressed: bool,
     shift: bool,
     wheel: f32,
+    /// The last tick asked for a frame: something is moving, so the next
+    /// tick comes a frame later rather than at the idle rate.
+    animating: bool,
 }
 
 fn entropy() -> Option<Event> {
@@ -126,6 +133,18 @@ impl Shell {
     /// Delivers one event, then answers what the app asked for. A lock
     /// starts a fresh app, as the device's app loop does.
     fn send(&mut self, event_loop: &ActiveEventLoop, event: Event) {
+        let ticked = matches!(event, Event::Tick { .. });
+        // What may start something moving is followed by a tick within a
+        // frame, so the motion starts at once.
+        if matches!(
+            event,
+            Event::Wheel { .. }
+                | Event::Scroll { .. }
+                | Event::ScrollEnd { .. }
+                | Event::Touch { .. }
+        ) {
+            self.next_tick = self.next_tick.min(Instant::now() + FRAME);
+        }
         let mut draw = false;
         let mut events = vec![event];
         while let Some(e) = events.pop() {
@@ -171,6 +190,9 @@ impl Shell {
             for line in serve(app, &mut self.boxes, Some(&self.print_dir)) {
                 eprintln!("{line}");
             }
+        }
+        if ticked {
+            self.animating = draw;
         }
         // A write changes a stick's files: look again now.
         self.rescan(event_loop, false);
@@ -368,6 +390,13 @@ impl ApplicationHandler for Shell {
                 self.cursor = p;
                 if self.pressed && moved {
                     self.touch(event_loop, TouchPhase::Move);
+                } else if moved {
+                    self.send(event_loop, Event::Hover { x: p.0, y: p.1 });
+                }
+            }
+            WindowEvent::CursorLeft { .. } => {
+                if !self.pressed {
+                    self.send(event_loop, Event::HoverEnd);
                 }
             }
             WindowEvent::MouseInput {
@@ -392,28 +421,32 @@ impl ApplicationHandler for Shell {
                     self.touch(event_loop, TouchPhase::Up);
                 }
             }
-            WindowEvent::MouseWheel { delta, .. } => {
+            WindowEvent::MouseWheel { delta, phase, .. } => {
                 // The shell API's scroll is pixels the content moves up;
                 // winit's positive is a wheel turned away or two fingers
                 // moved up, which move the content down. A wheel notch
-                // is 48 pixels, as on the stick.
-                let dy = match delta {
-                    MouseScrollDelta::LineDelta(_, lines) => -lines * 48.0,
-                    MouseScrollDelta::PixelDelta(p) => -(p.y as f32),
+                // is 48 pixels, as on the stick, and glides; two fingers
+                // move the content with them and coast when they lift.
+                let (x, y) = self.cursor;
+                let (dy, notched) = match delta {
+                    MouseScrollDelta::LineDelta(_, lines) => (-lines * 48.0, true),
+                    MouseScrollDelta::PixelDelta(p) => (-(p.y as f32), false),
                 };
                 self.wheel += dy;
-                let whole = self.wheel.trunc();
+                let whole = self.wheel.round();
                 self.wheel -= whole;
                 if whole != 0.0 {
-                    let (x, y) = self.cursor;
-                    self.send(
-                        event_loop,
-                        Event::Scroll {
-                            x,
-                            y,
-                            dy: whole.clamp(-32768.0, 32767.0) as i16,
-                        },
-                    );
+                    let dy = whole.clamp(-32768.0, 32767.0) as i16;
+                    let event = if notched {
+                        Event::Wheel { x, y, dy }
+                    } else {
+                        Event::Scroll { x, y, dy }
+                    };
+                    self.send(event_loop, event);
+                }
+                if !notched && phase == winit::event::TouchPhase::Ended {
+                    self.wheel = 0.0;
+                    self.send(event_loop, Event::ScrollEnd { x, y });
                 }
             }
             WindowEvent::ModifiersChanged(m) => self.shift = m.state().shift_key(),
@@ -513,7 +546,7 @@ impl ApplicationHandler for Shell {
         if now >= self.next_tick {
             let now_ms = self.epoch.elapsed().as_millis() as u64;
             self.send(event_loop, Event::Tick { now_ms });
-            self.next_tick = now + TICK;
+            self.next_tick = now + if self.animating { FRAME } else { TICK };
         }
         if now >= self.next_scan {
             self.rescan(event_loop, false);
@@ -666,6 +699,7 @@ fn main() -> ExitCode {
         pressed: false,
         shift: false,
         wheel: 0.0,
+        animating: false,
     };
     match event_loop.run_app(&mut shell) {
         Ok(()) => ExitCode::SUCCESS,

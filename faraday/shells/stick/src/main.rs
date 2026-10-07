@@ -138,10 +138,11 @@ use timings::{Bucket, Timings};
 /// How long the main loop waits to be woken before sending a tick.
 const TICK: Duration = Duration::from_millis(50);
 
-/// How long it waits while a finger is on the panel. A drag is drawn as
-/// often as the panel can be painted rather than five times a second,
-/// and the pass costs the same as any other.
-const DRAG_TICK: Duration = Duration::from_millis(16);
+/// One frame at 60 Hz. While a finger is on the panel, or the last pass
+/// drew (something is moving), the loop runs on a grid of these: input
+/// that arrives between two deadlines goes in together at the second, so
+/// every frame moves the content by an even step (`docs/MOTION.md` §3.2).
+const FRAME: Duration = Duration::from_micros(16_667);
 
 /// Wakes the channel holds. A pass takes every one of them, so the
 /// depth only has to cover the touches a controller can report between
@@ -1386,6 +1387,9 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
     // next move rather than for the tick, so a drag moves with the
     // finger.
     let mut contact = false;
+    // The next frame's deadline while the loop is on the 60 Hz grid: a
+    // finger is down, or the last pass drew.
+    let mut next_frame: Option<Instant> = None;
     while !shell.done && !shell.enough() {
         // Everything the controller has reported since the last pass
         // goes in now. It reports a moving finger a hundred times a
@@ -1395,30 +1399,43 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         let mut batch: Vec<Wake> = Vec::new();
         // The readers whose devices went away during this wait.
         let mut ended: Vec<u32> = Vec::new();
+        let mut wakes: Vec<Wake> = Vec::new();
         if unwoken {
             std::thread::sleep(TICK);
+        } else if let Some(deadline) = next_frame {
+            // On the grid: whatever arrives before the deadline goes in
+            // together at it.
+            loop {
+                match rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+                    Ok(w) => wakes.push(w),
+                    Err(RecvTimeoutError::Timeout) => break,
+                    Err(RecvTimeoutError::Disconnected) => {
+                        unwoken = true;
+                        break;
+                    }
+                }
+            }
         } else {
-            let wait = if contact { DRAG_TICK } else { TICK };
-            match rx.recv_timeout(wait) {
+            // At rest: the first thing to arrive is answered at once.
+            match rx.recv_timeout(TICK) {
                 Ok(first) => {
-                    let mut wakes = vec![first];
+                    wakes.push(first);
                     while let Ok(w) = rx.try_recv() {
                         wakes.push(w);
-                    }
-                    for wake in wakes {
-                        match wake {
-                            // The frame is taken below, from the
-                            // camera's channel; the note only ended the
-                            // wait.
-                            Wake::Frame => {}
-                            Wake::InputEnded(id) => ended.push(id),
-                            Wake::Held(id, input) => shell.held_wake(id, input, &mut batch),
-                            other => batch.push(other),
-                        }
                     }
                 }
                 Err(RecvTimeoutError::Timeout) => {}
                 Err(RecvTimeoutError::Disconnected) => unwoken = true,
+            }
+        }
+        for wake in wakes {
+            match wake {
+                // The frame is taken below, from the camera's channel;
+                // the note only ended the wait.
+                Wake::Frame => {}
+                Wake::InputEnded(id) => ended.push(id),
+                Wake::Held(id, input) => shell.held_wake(id, input, &mut batch),
+                other => batch.push(other),
             }
         }
         for id in ended {
@@ -1432,9 +1449,13 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
             match wake {
                 Wake::Touch(t) => {
                     // A finger on the screen is where the person is
-                    // looking; the arrow gets out of the way.
-                    if let Some(c) = shell.cursor.as_mut() {
+                    // looking; the arrow gets out of the way, and with it
+                    // whatever it was over.
+                    if let Some(c) = shell.cursor.as_mut()
+                        && c.visible()
+                    {
                         c.hide();
+                        shell.send_timed(Bucket::Touch, Event::HoverEnd);
                     }
                     contact = t.phase != TouchPhase::Up;
                     shell.touch(t);
@@ -1462,6 +1483,15 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
                         }
                         Some(Pointed::Scroll { x, y, dy }) => {
                             shell.send_timed(Bucket::Touch, Event::Scroll { x, y, dy });
+                        }
+                        Some(Pointed::ScrollEnd { x, y }) => {
+                            shell.send_timed(Bucket::Touch, Event::ScrollEnd { x, y });
+                        }
+                        Some(Pointed::Wheel { x, y, dy }) => {
+                            shell.send_timed(Bucket::Touch, Event::Wheel { x, y, dy });
+                        }
+                        Some(Pointed::Hover { x, y }) => {
+                            shell.send_timed(Bucket::Touch, Event::Hover { x, y });
                         }
                         None => {}
                     }
@@ -1556,7 +1586,18 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
             let now_ms = shell.now_ms();
             shell.send_timed(Bucket::Tick, Event::Tick { now_ms });
         }
+        let drawn = shell.drawn;
         shell.flush();
+        // Drawing, or a finger down, keeps the loop on the grid: the
+        // next deadline is a frame after this one, or a frame from now
+        // when this pass ran past it.
+        next_frame = (contact || shell.drawn != drawn).then(|| {
+            let now = Instant::now();
+            next_frame
+                .map(|d| d + FRAME)
+                .filter(|d| *d > now)
+                .unwrap_or(now + FRAME)
+        });
         if let Some(timings) = shell.timings.as_mut() {
             timings.pass();
         }

@@ -138,9 +138,4 @@ impl Faraday {
             self.learn.scroll = 0.0;
         }
     }
-
-    /// Scrolls the sheet.
-    pub(crate) fn learn_scroll(&mut self, dy: f32) {
-        self.learn.scroll = (self.learn.scroll + dy).clamp(0.0, self.learn.max);
-    }
 }

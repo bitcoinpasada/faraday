@@ -6,7 +6,7 @@ use osk_psbt::{Level, OutputKind};
 use osk_ui::widgets::Icon;
 
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W, btc, grouped, short, thousands};
+use crate::ui::{Style, Theme, Ui, W, btc, grouped, short, thousands};
 use crate::wallet::{FileKind, Session, fp_text, network_name};
 use crate::{Action, Faraday, Screen, Sheet, flow, guide};
 
@@ -20,85 +20,101 @@ const MAX_W: f32 = 1600.0;
 
 pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
     let (full_w, full_h) = app.size();
-    ui.c.clear(BG);
-    sidebar(app, ui, full_h);
-    let room = full_w - SIDEBAR_W;
-    let cw = room.min(MAX_W - SIDEBAR_W);
-    let h = full_h;
-    ui.ox = (room - cw) / 2.0;
-    let x = SIDEBAR_W;
-    match app.screen {
-        Screen::Home => home(app, ui, x, cw, h),
-        Screen::Start => start(app, ui, x, cw, h),
-        Screen::Backup => backup_screen(app, ui, x, cw, h),
-        Screen::Message => message_screen(app, ui, x, cw, h),
-        Screen::CheckMessage => check_screen(app, ui, x, cw, h),
-        Screen::Create => create_screen(app, ui, x, cw, h),
-        Screen::Restore => restore_screen(app, ui, x, cw, h),
-        Screen::Wallets => wallets(app, ui, x, cw, h),
-        Screen::Spend => spend(app, ui, x, cw, h),
-        Screen::Files => files(app, ui, x, cw, h),
-        Screen::Visit => visit(app, ui, x, cw, h),
-        Screen::Entry => entry(app, ui, x, cw, h),
-        Screen::KeyGen => crate::keygen_screen::draw(app, ui, x, cw, h),
-        Screen::Bip85 => crate::bip85_screen::draw(app, ui, x, cw, h),
-        Screen::Silent => crate::silent_screen::draw(app, ui, x, cw, h),
-        Screen::Explore => crate::explore_screen::draw(app, ui, x, cw, h),
-        Screen::Lightning => crate::lightning_screen::draw(app, ui, x, cw, h),
-        Screen::Tools => crate::tools_screen::draw(app, ui, x, cw, h),
-        Screen::Settings => settings(app, ui, x, cw, h),
-        Screen::Vaults => crate::vault_screens::list(app, ui, x, cw, h),
-        Screen::CreateVault => crate::vault_screens::create(app, ui, x, cw, h),
-        Screen::Unlock => crate::vault_screens::unlock(app, ui, x, cw, h),
-        Screen::VaultContents => crate::vault_screens::contents(app, ui, x, cw, h),
-        Screen::Family => crate::family_screen::draw(app, ui, x, cw, h),
-        Screen::Vanity => crate::vanity_screen::draw(app, ui, x, cw, h),
-        Screen::Decode => decode_screen(app, ui, x, cw, h),
-        Screen::Catalog => catalog_screen(app, ui, x, cw, h),
-    }
-    // The ? at the top right opens what explains this screen.
-    if !app.learn_pages().is_empty() {
-        // In the right margin, clear of every screen's own title row.
-        let (qx, qy) = (x + cw - 38.0, 12.0);
-        let pressed = ui.is_pressed(Action::Learn);
-        ui.fill(
-            qx,
-            qy,
-            28.0,
-            28.0,
-            14.0,
-            if pressed { INNER } else { SURFACE },
-        );
-        ui.stroke(qx, qy, 28.0, 28.0, 14.0, BORDER);
-        let tw = ui.measure(14.0, W::S, "?");
-        ui.text_mid(qx + 14.0 - tw / 2.0, qy, 28.0, 14.0, W::S, MUTED, "?");
-        ui.hit(qx - 6.0, qy - 6.0, 40.0, 40.0, Action::Learn);
-    }
-    if app.not_now && !app.sticks.is_empty() && app.sheet.is_none() {
-        let msg = "Remove the stick to keep working";
-        let bw = ui.measure(14.0, W::S, msg) + 40.0;
-        let bx = x + (cw - bw) / 2.0;
-        ui.fill(bx, h - 64.0, bw, 44.0, 10.0, WARN.with_alpha(40));
-        ui.stroke(bx, h - 64.0, bw, 44.0, 10.0, WARN.with_alpha(110));
-        ui.text_mid(bx + 20.0, h - 64.0, 44.0, 14.0, W::S, WARN, msg);
-    }
-    if let Some(t) = app.toast_text().map(str::to_string) {
-        let tw = ui.measure(14.0, W::R, &t) + 40.0;
-        let tx = x + (cw - tw) / 2.0;
-        ui.fill(tx, h - 64.0, tw, 44.0, 10.0, INNER);
-        ui.stroke(tx, h - 64.0, tw, 44.0, 10.0, BORDER);
-        ui.text_mid(tx + 20.0, h - 64.0, 44.0, 14.0, W::R, TEXT, &t);
-    }
-    ui.ox = 0.0;
-    ui.oy = 0.0;
-    if !app.session.network().is_mainnet() {
-        ui.fill(SIDEBAR_W, 0.0, full_w - SIDEBAR_W, 4.0, 0.0, WARN);
+    // Under a sheet that has its frosted copy of the page, the page
+    // is not drawn again: the copy stands for it.
+    let frosted = app.sheet.is_some() && ui.frost.is_some();
+    if !frosted {
+        ui.clear(BG);
+        sidebar(app, ui, full_h);
+        let room = full_w - SIDEBAR_W;
+        let cw = room.min(MAX_W - SIDEBAR_W);
+        let h = full_h;
+        ui.ox = (room - cw) / 2.0;
+        let x = SIDEBAR_W;
+        match app.screen {
+            Screen::Home => home(app, ui, x, cw, h),
+            Screen::Start => start(app, ui, x, cw, h),
+            Screen::Backup => backup_screen(app, ui, x, cw, h),
+            Screen::Message => message_screen(app, ui, x, cw, h),
+            Screen::CheckMessage => check_screen(app, ui, x, cw, h),
+            Screen::Create => create_screen(app, ui, x, cw, h),
+            Screen::Restore => restore_screen(app, ui, x, cw, h),
+            Screen::Wallets => wallets(app, ui, x, cw, h),
+            Screen::Spend => spend(app, ui, x, cw, h),
+            Screen::Files => files(app, ui, x, cw, h),
+            Screen::Visit => visit(app, ui, x, cw, h),
+            Screen::Entry => entry(app, ui, x, cw, h),
+            Screen::KeyGen => crate::keygen_screen::draw(app, ui, x, cw, h),
+            Screen::Bip85 => crate::bip85_screen::draw(app, ui, x, cw, h),
+            Screen::Silent => crate::silent_screen::draw(app, ui, x, cw, h),
+            Screen::Explore => crate::explore_screen::draw(app, ui, x, cw, h),
+            Screen::Lightning => crate::lightning_screen::draw(app, ui, x, cw, h),
+            Screen::Tools => crate::tools_screen::draw(app, ui, x, cw, h),
+            Screen::Settings => settings(app, ui, x, cw, h),
+            Screen::Vaults => crate::vault_screens::list(app, ui, x, cw, h),
+            Screen::CreateVault => crate::vault_screens::create(app, ui, x, cw, h),
+            Screen::Unlock => crate::vault_screens::unlock(app, ui, x, cw, h),
+            Screen::VaultContents => crate::vault_screens::contents(app, ui, x, cw, h),
+            Screen::Family => crate::family_screen::draw(app, ui, x, cw, h),
+            Screen::Vanity => crate::vanity_screen::draw(app, ui, x, cw, h),
+            Screen::Decode => decode_screen(app, ui, x, cw, h),
+            Screen::Catalog => catalog_screen(app, ui, x, cw, h),
+        }
+        // The ? at the top right opens what explains this screen.
+        if !app.learn_pages().is_empty() {
+            // In the right margin, clear of every screen's own title row.
+            let (qx, qy) = (x + cw - 38.0, 12.0);
+            let pressed = ui.is_pressed(Action::Learn);
+            ui.fill(
+                qx,
+                qy,
+                28.0,
+                28.0,
+                14.0,
+                if pressed { INNER } else { SURFACE },
+            );
+            ui.stroke(qx, qy, 28.0, 28.0, 14.0, BORDER);
+            let tw = ui.measure(14.0, W::S, "?");
+            ui.text_mid(qx + 14.0 - tw / 2.0, qy, 28.0, 14.0, W::S, MUTED, "?");
+            ui.hit(qx - 6.0, qy - 6.0, 40.0, 40.0, Action::Learn);
+        }
+        if app.not_now && !app.sticks.is_empty() && app.sheet.is_none() {
+            let msg = "Remove the stick to keep working";
+            let bw = ui.measure(14.0, W::S, msg) + 40.0;
+            let bx = x + (cw - bw) / 2.0;
+            ui.shadow(bx, h - 64.0, bw, 44.0, 10.0);
+            ui.fill(bx, h - 64.0, bw, 44.0, 10.0, BG);
+            ui.fill(bx, h - 64.0, bw, 44.0, 10.0, WARN.with_alpha(40));
+            ui.stroke(bx, h - 64.0, bw, 44.0, 10.0, WARN.with_alpha(110));
+            ui.text_mid(bx + 20.0, h - 64.0, 44.0, 14.0, W::S, WARN, msg);
+        }
+        if let Some(t) = app.toast_text().map(str::to_string) {
+            // It rises in, and fades as its time runs out.
+            let (shown, rise) = app.toast_shown();
+            let a = |c: osk_ui::Color| c.with_alpha((f32::from(c.a) * shown) as u8);
+            let ty = h - 64.0 + rise;
+            let tw = ui.measure(14.0, W::R, &t) + 40.0;
+            let tx = x + (cw - tw) / 2.0;
+            if shown >= 1.0 {
+                ui.shadow(tx, ty, tw, 44.0, 10.0);
+            }
+            ui.fill(tx, ty, tw, 44.0, 10.0, a(INNER));
+            ui.stroke(tx, ty, tw, 44.0, 10.0, a(BORDER));
+            ui.text_mid(tx + 20.0, ty, 44.0, 14.0, W::R, a(TEXT), &t);
+        }
+        ui.ox = 0.0;
+        ui.oy = 0.0;
+        if !app.session.network().is_mainnet() {
+            ui.fill(SIDEBAR_W, 0.0, full_w - SIDEBAR_W, 4.0, 0.0, WARN);
+        }
     }
     let (w, h) = (full_w, full_h);
     if let Some(sheet) = app.sheet {
         // Everything under a sheet is out of reach.
         ui.hits.clear();
-        ui.fill(0.0, 0.0, w, h, 0.0, BG.with_alpha(200));
+        ui.in_sheet = true;
+        ui.backdrop();
+        ui.oy = ui.sheet_rise;
         match sheet {
             Sheet::Lock => lock_sheet(app, ui, w, h),
             Sheet::LockAsk => crate::vault_screens::lock_ask(app, ui, w, h),
@@ -115,6 +131,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::IdleWarn => idle_warn_sheet(app, ui, w, h),
             Sheet::Potential => potential_sheet(app, ui, w, h),
         }
+        ui.oy = 0.0;
     }
 }
 
@@ -780,7 +797,7 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
 // Wallets: the start page
 // ---------------------------------------------------------------------
 
-fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
+fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let x = x0 + 48.0;
     let width = cw - 96.0;
     let mut y = 36.0 - app.list_offset;
@@ -1077,6 +1094,8 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
     }
     app.content_h
         .set(y + todo.len().div_ceil(per_row) as f32 * 70.0 + 24.0 + app.list_offset);
+    let view = ui.rect(x0, 0.0, cw, h);
+    ui.report_scroll(view, app.content_h.get() - h);
 }
 
 /// The nonce check: each signature against its key and this
@@ -1752,6 +1771,7 @@ fn catalog_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     ui.c.pop_clip();
     app.content_h.set(y - top + 40.0);
+    ui.report_scroll(clip, app.content_h.get() - h);
 }
 
 /// Hex in groups of sixteen, so a long run wraps.
@@ -1923,6 +1943,7 @@ fn decode_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     ui.c.pop_clip();
     app.content_h.set(y - top + 40.0);
+    ui.report_scroll(clip, app.content_h.get() - h);
 }
 
 /// Where a wallet's missing keys may be, and the way to look: a locked
@@ -2180,6 +2201,7 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.hit(x, ly, listw, 54.0, action);
     }
     ui.c.pop_clip();
+    ui.report_scroll(clip, max_shift);
     let mut ly = list_top + room as f32 * ROW;
     let below = total as f32 * ROW - shift - room as f32 * ROW;
     if below > 0.0 {
@@ -6699,6 +6721,7 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text_mid(ox + (colw - tw) / 2.0, oy, 72.0, 13.0, W::R, DIM, t);
     }
     ui.c.pop_clip();
+    ui.report_scroll(clip, content - (bottom - top));
     // Foot.
     let fy = h - 32.0 - 48.0;
     if !app.outbox.is_empty() {
@@ -7193,6 +7216,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.rule(ix + 20.0, ry + 52.0, colw - 40.0, INNER);
     }
     ui.c.pop_clip();
+    ui.report_scroll_own_bar(clip, max_shift);
     // The scrollbar, which a finger or the mouse drags.
     let track_h = max_rows as f32 * ROW;
     if max_shift > 0.0 {
@@ -7728,10 +7752,11 @@ fn entry_form(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) {
 // Settings
 // ---------------------------------------------------------------------
 
-fn settings(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
+fn settings(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let x = x0 + 56.0;
     let width = (cw - 112.0).min(760.0);
-    let mut y = 44.0;
+    let top = 44.0 - app.list_offset;
+    let mut y = top;
     title(ui, x, y, "Settings");
     y += 64.0;
     // Devices kept out until unplugged (`PLAN.md` §4.6) take a line.
@@ -7826,6 +7851,46 @@ fn settings(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
     }
     y += 244.0 + ignored_h;
     ui.card(x, y, width, 112.0, LINE);
+    ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, "Appearance");
+    let mut sx = x + 22.0;
+    for (label, theme) in [("Dark", Theme::Dark), ("Light", Theme::Light)] {
+        let style = if app.theme == theme {
+            Style::Primary
+        } else {
+            Style::Secondary
+        };
+        sx += ui.button(
+            sx,
+            y + 54.0,
+            Some(76.0),
+            38.0,
+            label,
+            style,
+            Action::Theme(theme),
+        ) + 8.0;
+    }
+    y += 132.0;
+    ui.card(x, y, width, 112.0, LINE);
+    ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, "Motion");
+    let mut sx = x + 22.0;
+    for (label, reduced) in [("Full", false), ("Reduced", true)] {
+        let style = if app.reduce_motion == reduced {
+            Style::Primary
+        } else {
+            Style::Secondary
+        };
+        sx += ui.button(
+            sx,
+            y + 54.0,
+            Some(96.0),
+            38.0,
+            label,
+            style,
+            Action::ReduceMotion(reduced),
+        ) + 8.0;
+    }
+    y += 132.0;
+    ui.card(x, y, width, 112.0, LINE);
     ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, "Display scale");
     let mut sx = x + 22.0;
     for pct in [75u16, 90, 100, 110, 125, 150, 200] {
@@ -7908,6 +7973,10 @@ fn settings(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
         ui.text(x + 22.0, ly, 13.0, W::R, MUTED, l);
         ly += 26.0;
     }
+    // Taller than a short screen: it scrolls.
+    let content = y + 164.0 + 44.0 - top;
+    let view = ui.rect(x0, 0.0, cw, h);
+    ui.report_scroll(view, content - h);
 }
 
 // ---------------------------------------------------------------------
@@ -7917,6 +7986,7 @@ fn settings(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
 pub(crate) fn sheet_box(ui: &mut Ui, w: f32, h: f32, sw: f32, sh: f32) -> (f32, f32) {
     let x = (w - sw) / 2.0;
     let y = (h - sh) / 2.0;
+    ui.shadow(x, y, sw, sh, 16.0);
     ui.fill(x, y, sw, sh, 16.0, SURFACE);
     ui.stroke(x, y, sw, sh, 16.0, BORDER);
     (x, y)
@@ -8747,6 +8817,7 @@ fn learn_sheet(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
     if app.learn.scroll > app.learn.max {
         app.learn.scroll = app.learn.max;
     }
+    ui.report_scroll_own_bar(clip, app.learn.max);
     if app.learn.max > 0.0 {
         let track = view - 8.0;
         let thumb = (track * view / content).max(30.0);

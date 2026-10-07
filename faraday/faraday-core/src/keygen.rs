@@ -336,6 +336,7 @@ impl KeyGen {
     pub fn progress(&self) -> (usize, usize) {
         let s = self.strength();
         match self.active() {
+            Some(Source::Dice) if self.by_die => (self.coins.len(), CoinFlips::needed(s)),
             Some(Source::Dice) => (self.dice.len(), self.procedure().needed(s)),
             Some(Source::Coins) => (self.coins.len(), CoinFlips::needed(s)),
             Some(Source::Cards) => (self.cards.len(), CardDraws::needed(s)),
@@ -359,6 +360,7 @@ impl KeyGen {
     pub fn warnings(&self) -> Warnings {
         let s = self.strength();
         match self.active() {
+            Some(Source::Dice) if self.by_die => self.coins.warnings(s),
             Some(Source::Dice) => self.dice.warnings_under(s, self.procedure()),
             Some(Source::Coins) => self.coins.warnings(s),
             Some(Source::Cards) => self.cards.warnings(s),
@@ -416,6 +418,7 @@ impl KeyGen {
     pub fn clear_active(&mut self) {
         self.clear_typed();
         match self.active() {
+            Some(Source::Dice) if self.by_die => self.coins.clear(),
             Some(Source::Dice) => self.dice.clear(),
             Some(Source::Coins) => self.coins.clear(),
             Some(Source::Cards) => self.cards.clear(),
@@ -438,6 +441,9 @@ impl KeyGen {
             return;
         }
         match self.active() {
+            Some(Source::Dice) if self.by_die => {
+                self.coins.pop();
+            }
             Some(Source::Dice) => {
                 self.dice.pop();
             }
@@ -456,9 +462,24 @@ impl KeyGen {
         self.note = None;
     }
 
-    /// A roll of 1 to 6.
+    /// Whether a press lands in the flip accumulator: Coins, with either
+    /// its own sides or a die's faces, or Dice in its own Flip mode.
+    fn flip_active(&self) -> bool {
+        match self.active() {
+            Some(Source::Coins) => true,
+            Some(Source::Dice) => self.by_die,
+            _ => false,
+        }
+    }
+
+    /// A roll of 1 to 6. In Dice's Flip mode this is read as a flip
+    /// instead, the same reading Coins gives a die's face.
     pub fn roll(&mut self, face: u8) {
         if self.active() != Some(Source::Dice) {
+            return;
+        }
+        if self.by_die {
+            self.die_flip(face);
             return;
         }
         let (have, need) = self.progress();
@@ -477,7 +498,7 @@ impl KeyGen {
     /// A flip: heads or tails.
     pub fn flip(&mut self, heads: bool) {
         let (have, need) = self.progress();
-        if self.active() == Some(Source::Coins) && have < need {
+        if self.flip_active() && have < need {
             self.coins.push(heads);
         }
     }
@@ -485,7 +506,7 @@ impl KeyGen {
     /// A die's face read as a flip: 1, 2 or 3 is tails (0), 4, 5 or 6
     /// heads (1).
     pub fn die_flip(&mut self, face: u8) {
-        if self.active() != Some(Source::Coins) {
+        if !self.flip_active() {
             return;
         }
         if !(1..=6).contains(&face) {
@@ -564,6 +585,7 @@ impl KeyGen {
         !self.slip39
             && match self.source {
                 Some(Source::Coins) => true,
+                Some(Source::Dice) if self.by_die => true,
                 Some(Source::Dice) => self.procedure().direct(),
                 _ => false,
             }
@@ -580,7 +602,9 @@ impl KeyGen {
             return out;
         }
         let most = self.words.saturating_sub(1);
-        if self.source == Some(Source::Coins) {
+        // Flips always land in `coins`, whether Coins or Dice's Flip mode
+        // took them.
+        if self.source == Some(Source::Coins) || self.by_die {
             let (mut index, mut n) = (0u16, 0);
             for heads in self.coins.flips() {
                 if out.len() >= most {
@@ -661,6 +685,7 @@ impl KeyGen {
     fn commitment(&self) -> [u8; 32] {
         match self.active() {
             Some(Source::Coins) => self.coins.commitment(),
+            Some(Source::Dice) if self.by_die => self.coins.commitment(),
             Some(Source::Cards) => self.cards.commitment(),
             Some(Source::Camera) => self.camera.commitment(),
             Some(Source::Device) => self.device.commitment(),
@@ -727,6 +752,7 @@ impl KeyGen {
             };
         }
         let entropy = match self.source {
+            Some(Source::Dice) if self.by_die => self.coins.entropy(strength),
             Some(Source::Dice) => self.dice.entropy_under(strength, self.procedure()),
             Some(Source::Coins) => self.coins.entropy(strength),
             Some(Source::Cards) => self.cards.entropy(strength),
@@ -874,6 +900,16 @@ impl crate::Faraday {
             A::KProc(i) => {
                 if let Some(&p) = DiceProcedure::ALL.get(usize::from(i)) {
                     k.procedure = p;
+                    k.by_die = false;
+                    k.clear_entries();
+                }
+            }
+            A::KDiceFlip(on) => {
+                if k.active() == Some(Source::Dice) && k.by_die != on {
+                    k.by_die = on;
+                    if on {
+                        k.procedure = DiceProcedure::Hashed;
+                    }
                     k.clear_entries();
                 }
             }

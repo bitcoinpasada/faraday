@@ -313,12 +313,14 @@ pub(crate) fn keygen(
             so the key is as good as the best of them."
             .to_string(),
         kstep::ENTER => match active {
+            Some(Source::Dice | Source::Coins) if by_die => "Roll one die at a time \
+                and press the face that came up. Each roll is one flip, 1 to 3 tails and 4 to \
+                6 heads, so the key is the one a coin would make from the same flips. The words \
+                build on screen as each one lands, a particularly easy way to check them against \
+                the entropy by hand."
+                .to_string(),
             Some(Source::Dice) => "Roll one die at a time and press the face that came up. Use a real \
                 die on a flat surface, not the same throw twice, and do not pick numbers in your head."
-                .to_string(),
-            Some(Source::Coins) if by_die => "Roll one die at a time and press the face that came \
-                up. Each roll is one flip, 1 to 3 tails and 4 to 6 heads, so the key is the one a coin \
-                would make from the same flips."
                 .to_string(),
             Some(Source::Coins) => "Flip a coin and press what came up, once per flip. Catching the coin \
                 in the air is fine; choosing the side is not."

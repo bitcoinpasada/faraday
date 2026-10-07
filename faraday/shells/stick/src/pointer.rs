@@ -76,12 +76,16 @@ pub enum Motion {
         /// Units toward the person.
         dy: i32,
     },
+    /// The two fingers that were panning lifted.
+    PanEnd,
     /// The button went down (`true`) or came up (`false`).
     Button(bool),
     /// One contact on a buttoned pad. It never moves the cursor.
     Finger(Finger),
-    /// The wheel turned this many notches; positive is away from the
-    /// person, which scrolls the content down.
+    /// The wheel turned this many 120ths of a notch; positive is away
+    /// from the person, which scrolls the content down. A wheel that
+    /// clicks reports whole notches, 120 at a time; a fine one reports
+    /// the fractions it turned.
     Wheel(i32),
 }
 
@@ -112,6 +116,10 @@ pub struct Pointer {
     /// Device units two fingers have travelled down the pad since the
     /// last packet that reported any.
     pan: i32,
+    /// Two fingers have panned since they landed.
+    panned: bool,
+    /// The fingers that panned lifted in this packet.
+    pan_ended: bool,
     /// The slot the `ABS_MT_*` events now belong to.
     slot: i32,
     touching: bool,
@@ -144,6 +152,8 @@ impl Pointer {
             abs_new: false,
             last_abs: None,
             pan: 0,
+            panned: false,
+            pan_ended: false,
             slot: 0,
             touching: false,
             finger: false,
@@ -208,6 +218,7 @@ impl Pointer {
                         self.touching = down;
                         if !down {
                             self.last_abs = None;
+                            self.pan_ended |= std::mem::take(&mut self.panned);
                         }
                         if self.tap_clicks && (self.finger || !down) {
                             self.button = Some(down);
@@ -238,6 +249,8 @@ impl Pointer {
                         self.last_abs = None;
                         if two {
                             self.cancel();
+                        } else {
+                            self.pan_ended |= std::mem::take(&mut self.panned);
                         }
                     }
                 }
@@ -273,6 +286,11 @@ impl Pointer {
         if self.pan != 0 {
             out.push(Wake::Pointer(Motion::Pan { dy: self.pan }));
             self.pan = 0;
+            self.panned = true;
+        }
+        if std::mem::take(&mut self.pan_ended) {
+            self.panned = false;
+            out.push(Wake::Pointer(Motion::PanEnd));
         }
         for finger in self.fingers.drain(..) {
             out.push(Wake::Pointer(Motion::Finger(finger)));
@@ -280,14 +298,11 @@ impl Pointer {
         if let Some(down) = self.button.take() {
             out.push(Wake::Pointer(Motion::Button(down)));
         }
-        let whole = self.fine / HI_RES_PER_NOTCH;
-        if whole != 0 {
-            self.fine -= whole * HI_RES_PER_NOTCH;
-            self.notches += whole;
-        }
-        if self.notches != 0 {
-            out.push(Wake::Pointer(Motion::Wheel(self.notches)));
+        let turned = self.notches * HI_RES_PER_NOTCH + self.fine;
+        if turned != 0 {
+            out.push(Wake::Pointer(Motion::Wheel(turned)));
             self.notches = 0;
+            self.fine = 0;
         }
     }
 }
@@ -352,13 +367,13 @@ mod tests {
                 Motion::Move { dx: 20, dy: -5 },
                 Motion::Button(true),
                 Motion::Button(false),
-                Motion::Wheel(-1),
+                Motion::Wheel(-120),
             ]
         );
     }
 
     #[test]
-    fn a_fine_wheel_is_counted_once_and_in_whole_notches() {
+    fn a_fine_wheel_is_counted_once_and_in_its_fractions() {
         let mut mouse = Pointer::new(true, false, false);
         // The whole-notch axis a fine wheel also sends is ignored.
         assert_eq!(
@@ -370,12 +385,12 @@ mod tests {
                     syn(),
                 ],
             ),
-            vec![],
-            "half a notch turns nothing yet"
+            vec![Motion::Wheel(60)],
+            "half a notch turns half a notch"
         );
         assert_eq!(
             run(&mut mouse, &[ev(EV_REL, REL_WHEEL_HI_RES, 60), syn()],),
-            vec![Motion::Wheel(1)]
+            vec![Motion::Wheel(60)]
         );
     }
 
@@ -544,8 +559,9 @@ mod tests {
                     syn(),
                 ],
             ),
-            vec![Motion::Move { dx: 12, dy: 0 }],
-            "the jump back to one finger's position moves nothing"
+            vec![Motion::PanEnd, Motion::Move { dx: 12, dy: 0 }],
+            "the pan ends when a finger lifts, and the jump back to one \
+             finger's position moves nothing"
         );
     }
 
