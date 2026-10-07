@@ -1,0 +1,26 @@
+Font Awesome Free 6
+https://fontawesome.com
+Copyright (c) Fonticons, Inc.
+
+This directory vendors one file from Font Awesome Free:
+Font_Awesome_6_Free-Solid-900.otf.
+
+Font Awesome Free is free, open source, and GPL friendly. It is released
+under several licences, and the two that apply to a vendored font file are:
+
+  - Icons — CC BY 4.0 License (https://creativecommons.org/licenses/by/4.0/)
+    In the Font Awesome Free download, the CC BY 4.0 licence applies to all
+    icons packaged as web and desktop font files.
+
+    Attribution: icons by Font Awesome (https://fontawesome.com),
+    licensed under CC BY 4.0. No changes were made to the icon designs;
+    OpenSignerKit rasterises a subset of them into glyph atlases at build
+    time.
+
+  - Fonts — SIL OFL 1.1 License (https://scripts.sil.org/OFL)
+    In the Font Awesome Free download, the SIL OFL licence applies to all
+    font files packaged as web and desktop font files. The full text of
+    the OFL 1.1 is in OFL.txt alongside this file.
+
+Font Awesome Free does not require a licence for the trademark or logo of
+Fonticons, Inc.; this project does not use either.

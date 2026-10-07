@@ -1,0 +1,18 @@
+# What this board does not have, on top of common/kernel.forbidden.
+
+THUNDERBOLT             a Thunderbolt or USB4 port is a PCIe slot on the outside of the case; without this driver it carries USB and DisplayPort and nothing that speaks PCIe
+MICROCODE_LATE_LOADING  replacing the microcode of a running CPU, which this image has no blob to do with anyway
+X86_MSR                 the model-specific registers as a file to read and write, which is DEVMEM by another name
+X86_CPUID               as X86_MSR
+EFIVAR_FS               the firmware's own variable store, mounted writable; the stick changes nothing about the machine it is plugged into
+RANDOM_TRUST_CPU        a generator inside the CPU cannot be examined, so the kernel mixes RDRAND in without crediting it
+RANDOM_TRUST_BOOTLOADER the firmware's seed was chosen by the firmware; mixed in, not credited
+PM                      the machine is on or it is off, and runtime power management is what SUSPEND and HIBERNATION are built on
+HYPERVISOR_GUEST        this is a kernel for a laptop; it boots in QEMU as a plain emulated PC
+VGA_CONSOLE             a machine booted through UEFI is in a graphics mode from the firmware onwards
+PCIEPORTBUS             nothing here is hot-plugged, and the controllers are found by enumeration without it
+ATA                     the laptop's own SATA or IDE disk; without the driver the kernel never sees it, so nothing on it can be read, written or mounted
+BLK_DEV_NVME            the laptop's own NVMe disk, for the same reason
+NVME_CORE               the layer BLK_DEV_NVME sits on, named so a driver cannot come back under another menu
+MMC                     the laptop's eMMC and its SD card reader, which are a disk and a card this device does not read
+SCSI_LOWLEVEL           the SAS, iSCSI, fibre-channel and RAID controllers a disk can be behind; the USB stick is behind none of them

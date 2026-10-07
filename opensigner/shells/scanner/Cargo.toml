@@ -1,0 +1,26 @@
+[package]
+name = "opensigner-scanner"
+version = "0.1.0"
+description = "Reads the QR codes in a shell's camera frames on a worker thread, so the core keeps its own"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+# The standard library, the core, and the workspace's zeroizing
+# wrapper: the decode policy itself is `opensigner_core::scan`,
+# so there is one definition of it wherever a shell decodes, and a frame
+# may picture a SeedQR, so nothing here outlives its wipe.
+[dependencies]
+opensigner-core = { path = "../../opensigner-core" }
+zeroize = { workspace = true, features = ["alloc"] }
+
+# Test-only: the codes the tests hold up to the scanner are drawn with
+# the codec's own encoder, from a mnemonic the BIP crate parses.
+[dev-dependencies]
+osk-codec = { path = "../../../core/osk-codec" }
+osk-bip = { path = "../../../core/osk-bip" }
+
+[lints]
+workspace = true

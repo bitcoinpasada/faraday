@@ -1,0 +1,12 @@
+# The Raspberry Pi's part of the kernel command line.
+
+# The console is the PL011 on the GPIO header, which disable-bt in
+# config.txt frees for serial0, and nothing else: no kernel text can land
+# on the panel.
+console=serial0,115200
+
+# Faraday: freed and allocated memory zeroed by the kernel (PLAN.md §4.2),
+# and only hard-wired USB devices authorised without faraday-grant (§4.6).
+init_on_free=1
+init_on_alloc=1
+usbcore.authorized_default=2

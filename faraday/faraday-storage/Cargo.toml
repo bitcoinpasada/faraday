@@ -1,0 +1,16 @@
+[package]
+name = "faraday-storage"
+version = "0.1.0"
+description = "What Faraday's shells share about sticks: listing, reading, writing with read-back, and keeping the Inbox and Outbox across a lock"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+faraday-core = { path = "../faraday-core" }
+faraday-files = { path = "../faraday-files" }
+
+[lints]
+workspace = true

@@ -1,0 +1,4 @@
+# Vendored third-party code (OPENSIGNER.md): kept as upstream wrote it.
+# `cargo fmt --all` reaches it as a path dependency of osk-codec, and
+# this stops it reformatting the copy.
+disable_all_formatting = true

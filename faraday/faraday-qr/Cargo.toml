@@ -1,0 +1,22 @@
+[package]
+name = "faraday-qr"
+version = "0.1.0"
+description = "What Faraday's scanner reads and its QR sender writes beyond OpenSigner's codec (docs/QR.md): BBQr, SeedSigner's numbered parts, the Faraday file envelope, and the UR registry's key and wallet types"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+osk-bip = { path = "../../core/osk-bip" }
+# BBQr's `Z` encoding is raw DEFLATE; decompressed here with the size bounded
+# (docs/QR.md §4). Already in the build through `png` (docs/deps/miniz_oxide.md).
+miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
+
+[dev-dependencies]
+faraday-files = { path = "../faraday-files" }
+osk-codec = { path = "../../core/osk-codec" }
+
+[lints]
+workspace = true

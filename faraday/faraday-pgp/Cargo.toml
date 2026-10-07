@@ -1,0 +1,21 @@
+[package]
+name = "faraday-pgp"
+version = "0.1.0"
+description = "The write-only OpenPGP subset Faraday makes: v4 Ed25519 keys, certificates, detached signatures, revocations, paperkey (PLAN.md §7)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+zeroize = { workspace = true, features = ["alloc"] }
+# Ed25519 signatures, the only public-key algorithm this crate writes.
+ed25519-dalek = { version = "3", default-features = false, features = ["zeroize"] }
+# Version-4 fingerprints are SHA-1 of the key; it is used for nothing else.
+sha1 = { version = "0.11", default-features = false }
+# The signature hashes: SHA-256 and SHA-512.
+sha2 = { workspace = true }
+
+[lints]
+workspace = true

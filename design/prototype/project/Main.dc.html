@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Source+Sans+3:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#83d8ef}a:hover{color:#b1e8f7}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; display: flex; background: #11161c; color: #e0e9ef; font-family: {{fontStack}}; overflow: hidden">
+<dc-import name="Sidebar" active="home" locked="{{ no }}" font="{{ font }}" hint-size="240px,800px"></dc-import>
+<main style="flex: 1; min-width: 0; box-sizing: border-box; padding: 44px 56px; display: flex; flex-direction: column; gap: 36px; background: {{mainBg}}">
+<h1 style="margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.02em">Home</h1>
+<section aria-label="Status" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+<div style="background: #19212a; border: 1px solid #1f2933; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #9aacb9"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"></rect><circle cx="12" cy="12" r="3.5"></circle></svg>Vault</div>
+<div style="display: flex; align-items: baseline; justify-content: space-between">
+<span style="font-size: 22px; font-weight: 600">Main</span>
+<span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #f0c077"><span style="width: 7px; height: 7px; border-radius: 4px; background: #f0c077"></span>2 unsaved changes</span>
+</div>
+<a href="Unlock.dc.html" style="align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid #303d49; color: #e0e9ef; text-decoration: none; font-size: 13px; font-weight: 500"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="11" width="15" height="10" rx="2"></rect><path d="M8 11V7.5a4 4 0 0 1 8 0V11"></path></svg>Lock</a>
+</div>
+<a href="Files.dc.html" style="background: #19212a; border: 1px solid #1f2933; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; text-decoration: none; color: #e0e9ef">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #9aacb9"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h4.5l2 2.5H19a1.5 1.5 0 0 1 1.5 1.5v8.5A1.5 1.5 0 0 1 19 20H5a1.5 1.5 0 0 1-1.5-1.5z"></path></svg>Files<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-left: auto"><path d="M9 5l7 7-7 7"></path></svg></span>
+<span style="font-size: 22px; font-weight: 600">2 in · 1 out</span>
+<span style="font-size: 13px; color: #9aacb9">1 to write on the next stick visit</span>
+</a>
+<a href="LockSheet.dc.html" style="background: #19212a; border: 1px solid #1f2933; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; text-decoration: none; color: #e0e9ef">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #9aacb9"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="9" width="10" height="12" rx="2"></rect><path d="M9 9V3.5h6V9"></path></svg>Sticks</span>
+<span style="font-size: 22px; font-weight: 600">None attached</span>
+<span style="font-size: 13px; color: #9aacb9">Vaults lock before a stick is read</span>
+</a>
+</section>
+<section aria-labelledby="start-h" style="display: flex; flex-direction: column; gap: 14px">
+<h2 id="start-h" style="margin: 0; font-size: 15px; font-weight: 600; color: #9aacb9">Start</h2>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+<a href="WalletsSpend.dc.html" style="display: flex; gap: 14px; align-items: flex-start; padding: 18px; border-radius: 12px; background: #19212a; border: 1px solid #1f2933; text-decoration: none; color: #e0e9ef">
+<span style="flex: none; width: 38px; height: 38px; border-radius: 10px; background: rgba(131,216,239,0.10); color: #83d8ef; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16c2.5 0 3.5-7 5.5-7s1.5 7 3.5 7 2-3.5 4-3.5 2.5 2.5 5 2.5"></path><path d="M3 20.5h18"></path></svg></span>
+<span style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 15px; font-weight: 600; font-family: 'JetBrains Mono', monospace">Sign unsigned.psbt</span><span style="font-size: 13px; color: #9aacb9">Wallets · Savings · 1 of 2 keys here</span></span>
+</a>
+<a href="CreateVault.dc.html" style="display: flex; gap: 14px; align-items: flex-start; padding: 18px; border-radius: 12px; background: #19212a; border: 1px solid #1f2933; text-decoration: none; color: #e0e9ef">
+<span style="flex: none; width: 38px; height: 38px; border-radius: 10px; background: rgba(131,216,239,0.10); color: #83d8ef; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"></rect><circle cx="12" cy="12" r="3.5"></circle><path d="M12 8.5V7M12 17v-1.5M15.5 12H17M7 12h1.5"></path></svg></span>
+<span style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 15px; font-weight: 600">Create a vault</span><span style="font-size: 13px; color: #9aacb9">One to four passphrases</span></span>
+</a>
+<a href="SecureBoot.dc.html" style="display: flex; gap: 14px; align-items: flex-start; padding: 18px; border-radius: 12px; background: #19212a; border: 1px solid #1f2933; text-decoration: none; color: #e0e9ef">
+<span style="flex: none; width: 38px; height: 38px; border-radius: 10px; background: rgba(131,216,239,0.10); color: #83d8ef; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.8-3.4 8-8 9-4.6-1-8-4.2-8-9V6z"></path><path d="M9 12l2.2 2.2L15.5 10"></path></svg></span>
+<span style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 15px; font-weight: 600">Sign a boot image</span><span style="font-size: 13px; color: #9aacb9">Secure Boot · keys in Main</span></span>
+</a>
+<a href="Main.dc.html" style="display: flex; gap: 14px; align-items: flex-start; padding: 18px; border-radius: 12px; background: #19212a; border: 1px solid #1f2933; text-decoration: none; color: #e0e9ef">
+<span style="flex: none; width: 38px; height: 38px; border-radius: 10px; background: rgba(131,216,239,0.10); color: #83d8ef; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="11" width="15" height="10" rx="2"></rect><path d="M8 11V7.5a4 4 0 0 1 8 0V11"></path><path d="M12 15v2"></path></svg></span>
+<span style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 15px; font-weight: 600">Add an entry</span><span style="font-size: 13px; color: #9aacb9">A password or a TOTP secret</span></span>
+</a>
+<a href="Main.dc.html" style="display: flex; gap: 14px; align-items: flex-start; padding: 18px; border-radius: 12px; background: #19212a; border: 1px solid #1f2933; text-decoration: none; color: #e0e9ef">
+<span style="flex: none; width: 38px; height: 38px; border-radius: 10px; background: rgba(131,216,239,0.10); color: #83d8ef; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="4"></circle><path d="M10.5 12.5 20 3"></path><path d="M16.5 6.5l2.5 2.5"></path><path d="M14 9l2 2"></path></svg></span>
+<span style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 15px; font-weight: 600">Make a GPG key</span><span style="font-size: 13px; color: #9aacb9">Ed25519 with a signing subkey</span></span>
+</a>
+<a href="Main.dc.html" style="display: flex; gap: 14px; align-items: flex-start; padding: 18px; border-radius: 12px; background: #19212a; border: 1px solid #1f2933; text-decoration: none; color: #e0e9ef">
+<span style="flex: none; width: 38px; height: 38px; border-radius: 10px; background: rgba(131,216,239,0.10); color: #83d8ef; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"></rect><circle cx="9" cy="9" r="1.1" fill="currentColor"></circle><circle cx="15" cy="15" r="1.1" fill="currentColor"></circle><circle cx="15" cy="9" r="1.1" fill="currentColor"></circle><circle cx="9" cy="15" r="1.1" fill="currentColor"></circle></svg></span>
+<span style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 15px; font-weight: 600">Make a passphrase</span><span style="font-size: 13px; color: #9aacb9">EFF dice word list</span></span>
+</a>
+</div>
+</section>
+<section aria-labelledby="in-h" style="display: flex; flex-direction: column; gap: 14px">
+<h2 id="in-h" style="margin: 0; font-size: 15px; font-weight: 600; color: #9aacb9">In Main</h2>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); background: #19212a; border: 1px solid #1f2933; border-radius: 12px">
+<div style="padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #1f2933"><span style="font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums">2</span><span style="font-size: 12px; color: #9aacb9">Bitcoin keys</span></div>
+<div style="padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #1f2933"><span style="font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums">3</span><span style="font-size: 12px; color: #9aacb9">Wallets</span></div>
+<div style="padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #1f2933"><span style="font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums">14</span><span style="font-size: 12px; color: #9aacb9">Entries</span></div>
+<div style="padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #1f2933"><span style="font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums">2</span><span style="font-size: 12px; color: #9aacb9">Notes</span></div>
+<div style="padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #1f2933"><span style="font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums">1</span><span style="font-size: 12px; color: #9aacb9">GPG key</span></div>
+<div style="padding: 16px 20px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums">1</span><span style="font-size: 12px; color: #9aacb9">Secure Boot set</span></div>
+</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"font":{"editor":"enum","options":["Inter","IBM Plex Sans","Source Sans 3"],"default":"Inter","section":"Look"},"glow":{"editor":"boolean","default":true,"section":"Look"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const stacks = { "Inter": "'Inter', sans-serif", "IBM Plex Sans": "'IBM Plex Sans', sans-serif", "Source Sans 3": "'Source Sans 3', sans-serif" };
+    const font = this.props.font ?? 'Inter';
+    const glow = this.props.glow ?? true;
+    return {
+      font,
+      no: false,
+      fontStack: stacks[font] || stacks.Inter,
+      mainBg: glow
+        ? 'radial-gradient(760px 420px at 88% -8%, rgba(131,216,239,0.11), rgba(131,216,239,0) 70%), #11161c'
+        : '#11161c'
+    };
+  }
+}
+</script>
+</body>
+</html>

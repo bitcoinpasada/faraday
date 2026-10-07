@@ -1,0 +1,15 @@
+# The x86_64 stick's part of the kernel command line.
+#
+# This board compiles the line into the kernel (board.conf's CMDLINE), so
+# what is here is what the machine boots with and nothing can pass it
+# anything else.
+
+# The density the shell lays out at. A firmware framebuffer says how many
+# pixels it has and never how large they are, so there is nothing to ask
+# the machine: 160 is the density the design system's dp are 1:1 at, and a
+# person who finds the text small edits this line and rebuilds
+# (PLANNING.md 16.94).
+opensigner.dpi=160
+
+# No console. The release image prints nothing anywhere; the dev variant
+# adds console=ttyS0,115200 from boards/x86_64-uefi/dev/cmdline.txt.

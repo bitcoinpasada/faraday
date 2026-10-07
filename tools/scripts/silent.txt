@@ -1,0 +1,84 @@
+# A silent payments wallet over "abandon ×11 about" (PLANNING §16.113):
+# the review, the wallet's page, its address and the form it is shown
+# in, a label as an address of its own, the check of a transaction
+# (tools/vectors/psbt/wallet-tapmulti-signed.psbt, which pays somebody
+# else), the export with the scan descriptor behind its hold, and the
+# two names BIP-353's record is published under.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # LOAD_HOLD: "Add key"
+pin 138 2580                    # LOAD_PIN_KEYBOARD: session PIN, first key of the session
+pin 138 2580                    # repeat it
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 2203                      # WALLETS_ADD
+tapid 63                        # BUILD_NEW
+tapid 1946                      # BUILD_KIND_BASE + 6: "Silent payments"
+tapid 1812                      # BUILD_KIND_CONTINUE
+tapid 1880                      # BUILD_WHICH_BASE + 0: the loaded key
+tapid 1802                      # BUILD_CONTINUE: the review
+snap silent-01-review
+tapid 1808                      # BUILD_ADD_WALLET
+snap silent-02-wallet           # address, labels, check, export, sheet
+tapid 3100                      # SILENT_ADDRESS
+snap silent-03-address          # the sp1 address and its code
+tapid 3103                      # SILENT_FORM: how it is shown
+tapid 211                       # PICK_BASE + 1: the second form
+tapid 209                       # PICK_CONTINUE
+snap silent-03b-address-form
+tapid 2                         # BACK to the wallet
+tapid 3101                      # SILENT_LABELS
+snap silent-04-labels           # none yet
+tapid 3104                      # SILENT_ADD_LABEL
+snap silent-04b-label-added
+tapid 3160                      # SILENT_LABEL_BASE + 0: label 1's address
+snap silent-04c-label-address
+tapid 2                         # BACK to the labels
+tapid 2                         # BACK to the wallet
+tapid 3102                      # SILENT_CHECK
+snap silent-05-check            # the transaction's way in
+tapid 3105                      # SILENT_READ: the scanner
+camera off
+file tools/vectors/psbt/wallet-tapmulti-signed.psbt
+tapid 701                       # SCAN_FILE
+snap silent-05b-checked         # what the check found
+tapid 3107                      # SILENT_DONE: back to the wallet
+tapid 811                       # WALLET_EXPORT
+snap silent-06-export           # the address, and the scan descriptor's row
+tapid 3110                      # SILENT_SECRET_ROW: BIP-392's scan descriptor
+snap silent-07-secret           # masked: it carries the scan private key
+pressid 3109                    # SILENT_REVEAL
+snap silent-07b-secret-shown
+releaseid 3109
+tapid 2                         # BACK to the export
+tapid 285                       # EXPORT_FORMAT: which format
+tapid 219                       # PICK_BASE + 9: BIP-353 DNS record
+tapid 209                       # PICK_CONTINUE: the name
+snap silent-08-dns-user
+text "alice"
+key enter
+snap silent-08b-dns-domain
+text "example.com"
+key enter
+snap silent-09-dns-record       # the record, under the two names

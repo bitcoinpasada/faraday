@@ -1,0 +1,5 @@
+# What this panel does not work without.
+
+FB_BCM2708          the framebuffer the Pi firmware sets up and hands over
+TOUCHSCREEN_GOODIX  the GT911 on the panel
+I2C_GPIO            the bit-banged i2c bus the panel's touch overlay declares the GT911 on

@@ -1,0 +1,39 @@
+# Walks the Load wizard on the Korean list, typing on the two-set jamo
+# keyboard. The mnemonic is the one 0x23 repeated sixteen times encodes;
+# its first word starts with ㄲ, which is shift and then ㄱ. Widget ids
+# are the constants in opensigner/opensigner-core/src/ids.rs.
+snap load-ko-00-home
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD: "Load a key"
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+snap load-ko-01-language        # Korean is a row that takes now
+tapid 122                       # LOAD_LANG_BASE + 2: Korean
+tapid 104                       # LOAD_LANG_CONTINUE
+snap load-ko-02-word-1-empty    # the two-set rows, every key live
+padkey 131 shift                # LOAD_KEYBOARD: the doubled consonants
+snap load-ko-03-shift           # ㅂㅈㄷㄱㅅ become ㅃㅉㄸㄲㅆ
+padkey 131 ㄲ                   # shift releases after the one key
+snap load-ko-04-word-1-kk       # dead keys dimmed by what ㄲ leaves
+word "ㅐㄷㅏㄹㅇㅡㅁ"
+snap load-ko-05-word-2          # word 1 accepted; the panel and the eye
+on mobile,wide tapid 15         # SECRET_EYE: show the words so far (small has no panel, so no eye)
+on mobile,wide snap load-ko-06-word-2-eye
+on mobile,wide tapid 15         # eye off
+word "ㄱㅜㄱㅅㅜ"
+word "ㅈㅡㅇㄱㅏ"
+word "ㅂㅏㅌㅏㅇ"
+word "ㄷㅓㅇㅇㅓㄹㅣ"
+word "ㅇㅕㄹㅈㅓㅇ"
+word "ㅇㅕㄱㅜㅓㄴ"
+word "ㅅㅐㅇㄱㅏㄱ"
+padkey 131 shift
+padkey 131 ㄲ
+word "ㅐㄷㅏㄹㅇㅡㅁ"
+word "ㄱㅜㄱㅅㅜ"
+word "ㅈㅡㅇㄱㅏ"
+snap load-ko-07-word-12
+word "ㅂㅏㄴㅈㅜㄱ"
+snap load-ko-08-checksum

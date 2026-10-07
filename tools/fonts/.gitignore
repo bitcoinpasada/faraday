@@ -1,0 +1,7 @@
+# The Noto Sans CJK region subsets: 23 MB of font files the baker
+# downloads and checks against the digests pinned in
+# tools/fontbake/src/main.rs. Only the baked outlines are committed.
+/cjk/
+# Iosevka's release archive and the Regular TTF unpacked from it, on the
+# same terms.
+/iosevka/

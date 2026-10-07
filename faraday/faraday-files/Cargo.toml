@@ -1,0 +1,17 @@
+[package]
+name = "faraday-files"
+version = "0.1.0"
+description = "A stick's files as Faraday reads and writes them, on a folder or a FAT volume: listing, reading, writing with read-back, vault write-back, QR codes from pictures, and the disk process's pipe protocol"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+faraday-fat = { path = "../faraday-fat" }
+osk-codec = { path = "../../core/osk-codec" }
+png.workspace = true
+
+[lints]
+workspace = true

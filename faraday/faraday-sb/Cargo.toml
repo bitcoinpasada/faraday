@@ -1,0 +1,24 @@
+[package]
+name = "faraday-sb"
+version = "0.1.0"
+description = "Secure Boot keys Faraday makes: PK, KEK and db certificates, signature lists, signed .auth updates, Authenticode (PLAN.md §8)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+zeroize = { workspace = true, features = ["alloc"] }
+sha2 = { workspace = true }
+# RSA-2048: key generation and PKCS #1 v1.5 signatures, which UEFI
+# Secure Boot requires. Pinned: 0.10 is the release on this graph's
+# RustCrypto generation and is still a release candidate.
+rsa = { version = "=0.10.0-rc.18", default-features = false, features = ["sha2", "encoding"] }
+# RSA key generation draws from a generator of this trait; Faraday's is a
+# ChaCha20 keystream from the caller's seed (`rng.rs`).
+rand_core = { version = "0.10", default-features = false }
+chacha20 = { workspace = true }
+
+[lints]
+workspace = true

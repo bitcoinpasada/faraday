@@ -1,0 +1,14 @@
+[package]
+name = "faraday-fat"
+version = "0.1.0"
+description = "FAT16 and FAT32 in Rust for the disk process (PLAN.md §4.3, §12.5): list, read, create, rename and delete in a partition's root directory; never formats, never edits a file in place"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+
+[lints]
+workspace = true

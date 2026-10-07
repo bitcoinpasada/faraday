@@ -1,0 +1,51 @@
+# What this board does not work without, on top of common/kernel.required.
+#
+# The three of these the Pi board forbids — HID, USB_STORAGE and SCSI —
+# are why these lists are per board: a laptop's keyboard and touchpad are
+# HIDs and the stick it boots from is a USB disk.
+
+EFI                       the firmware's own interfaces; the memory map, the system table and the power-off path
+EFI_STUB                  what makes bzImage a PE/COFF application the firmware can run, with no bootloader under it
+CMDLINE_BOOL              nothing passes this kernel a command line, so it carries its own
+CMDLINE_OVERRIDE          and ignores anything that tried to pass one
+SMP                       a kernel without it runs the app on one core of several
+ACPI                      how a PC describes itself: the power-off path, and the enumeration i8042 and i2c-hid need
+PCI                       the USB controllers and, on most machines, the display
+EFI_PARTITION             the stick is GPT; without the parser there is no second partition to mount
+FB_EFI                    the firmware framebuffer as /dev/fb0, with its size, depth and stride in sysfs
+SYSFB_SIMPLEFB            what turns the firmware's hand-over into the platform device a framebuffer driver binds to
+SERIO_I8042               the controller the built-in keyboard and touchpad are behind
+KEYBOARD_ATKBD            the built-in keyboard
+MOUSE_PS2                 the built-in touchpad, on machines where it is behind i8042
+I2C_HID_ACPI              the built-in touchpad, on machines where it is on an i2c bus
+I2C_DESIGNWARE_PLATFORM   that bus, on nearly every Intel and AMD laptop
+HID                       a laptop's keyboard, touchpad and touchscreen are all HIDs
+HID_GENERIC               USB keyboards and mice
+USB_HID                   the transport they arrive on
+HID_MULTITOUCH            what a touchpad and a HID touchscreen report through
+USB_XHCI_HCD              every USB port made this decade
+USB_EHCI_HCD              the older internal ports some machines still put a card reader or the keyboard controller behind
+USB_PCI                   both controllers are PCI devices
+USB_STORAGE               the stick itself, and the exchange partition on it
+SCSI                      the layer USB storage hands its disk to
+BLK_DEV_SD                that disk as /dev/sdX
+SERIAL_8250_CONSOLE       the dev variant's console and the line the test waits for
+INTEL_IOMMU               a PCIe device can read all of memory unless something stops it
+INTEL_IOMMU_DEFAULT_ON    on from boot, not on request
+AMD_IOMMU                 the same on an AMD machine
+IOMMU_DEFAULT_DMA_STRICT  a mapping is torn down when it is finished with, not when a batch is flushed
+MFD_INTEL_LPSS_PCI        the i2c controller a touchpad is on, as Skylake and later expose it: a PCI device, not an ACPI platform device
+MFD_INTEL_LPSS_ACPI       the same controller on the machines whose firmware still describes it in ACPI
+I2C_DESIGNWARE_PCI        the bus driver that binds to it in PCI mode
+PINCTRL_INTEL             the chipset GPIO controller an i2c touchpad's interrupt line is a pin on; without it the pad is found and never interrupts
+PINCTRL_SUNRISEPOINT      the pin table for Skylake and Kaby Lake, which is the machine this list was written for
+PINCTRL_AMD               the same controller on an AMD laptop
+GPIO_ACPI                 what turns an ACPI GPIO interrupt resource into a line a driver can request
+MOUSE_PS2_SYNAPTICS       a Synaptics pad reports a three-button mouse until this driver speaks its protocol
+MOUSE_PS2_ELANTECH        the same for an Elantech pad
+RMI4_CORE                 the pads that leave PS/2 for the SMBus once they are asked to
+RMI4_F11                  the pointing function a pad reports through; a core with no function driver reports nothing
+I2C_I801                  the SMBus controller on every Intel chipset, which is where those pads go
+
+# Faraday (PLAN.md §4.2, §4.3).
+MSDOS_PARTITION           an MBR stick's partitions as their own nodes, so the whole disk is never handed out

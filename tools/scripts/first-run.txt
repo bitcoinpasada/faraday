@@ -1,0 +1,22 @@
+# The first run (UX.md §7.1, job A4): what a device with no settings
+# file opens on, what the chevron leaves behind, and the last row of a
+# Learn page whose subject has a flow. The snapshot shell tells the app
+# the first run is over unless a script says otherwise, so this one
+# hands it settings that say it is not.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+settings tools/scripts/first-run.settings
+snap first-run-01-start-here
+scroll 100 150 400
+snap first-run-02-start-here-end
+tapid 502                       # START_HERE_CONTINUE: Keys, and Add a key on it
+snap first-run-03-add
+tapid 2                         # BACK to Keys
+tapid 2                         # BACK to the document
+tapid 2                         # the chevron: the first run is over
+snap first-run-04-home
+tapid 24                        # HOME_TILE_BASE + 4: Learn
+tapid 859                       # LEARN_ROW_BASE + 9: "Passphrases"
+scroll 100 150 2000
+scroll 100 150 2000
+scroll 100 150 2000
+snap first-run-05-learn-try-row

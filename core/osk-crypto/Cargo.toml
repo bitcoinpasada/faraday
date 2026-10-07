@@ -1,0 +1,40 @@
+[package]
+name = "osk-crypto"
+version = "0.1.0"
+description = "Secret wrapper types and thin wrappers over vetted hash primitives for OpenSignerKit"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[features]
+# The pages that hold long-lived secrets are pinned into RAM, so that a
+# seed cannot be written to swap in the clear (§5.5, §16.49). Off by
+# default: this crate is `no_std` and also builds for the browser and for
+# Android, neither of which may link `libc`. The desktop and Pi shells
+# turn it on through their dependency on this crate.
+pin-pages = ["dep:libc"]
+
+[dependencies]
+zeroize.workspace = true
+subtle.workspace = true
+sha2 = { workspace = true, features = ["zeroize"] }
+hmac = { workspace = true, features = ["zeroize"] }
+pbkdf2 = { workspace = true, features = ["hmac"] }
+chacha20poly1305.workspace = true
+
+# `mlock`/`munlock` for the `pin-pages` feature, and nothing else. Unix
+# only, so a Windows or wasm build with the feature on still compiles and
+# simply does not pin.
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true, optional = true }
+
+[lints.rust]
+# PLANNING.md §5.4 allows audited unsafe here for mlock and zeroize.
+# `deny` rather than `forbid` so that `pinned.rs` — the page-aligned
+# allocation, its release, the two dereferences of the pointer to it and
+# the `mlock`/`munlock` pair, and nothing else in the workspace core —
+# can allow it for itself.
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+missing_docs = "warn"

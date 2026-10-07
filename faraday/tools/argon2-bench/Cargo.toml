@@ -1,0 +1,19 @@
+[package]
+name = "faraday-argon2-bench"
+version = "0.1.0"
+description = "Times the vault presets' Argon2id on this machine, for docs/VAULT.md §3.1's table"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "argon2-bench"
+path = "src/main.rs"
+
+[dependencies]
+faraday-vault = { path = "../../faraday-vault" }
+
+[lints]
+workspace = true

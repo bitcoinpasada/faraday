@@ -1,0 +1,29 @@
+[package]
+name = "osk-ui"
+version = "0.1.0"
+description = "Layout engine, widgets and pixel renderer for OpenSignerKit, no_std + alloc"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[features]
+# The widget gallery, an `App` that exercises every widget for screen review.
+# Review tooling only; never enabled in a product build.
+gallery = []
+
+[dependencies]
+osk-shell-api = { path = "../osk-shell-api" }
+# Encode side only (`QrMatrix`); the decoder and its `std` stay out.
+osk-codec = { path = "../osk-codec", default-features = false }
+# The camera preview may picture a SeedQR: its pixels are wiped when the
+# last holder lets go, the application's state or the drawn tree.
+zeroize.workspace = true
+tiny-skia.workspace = true
+
+[dev-dependencies]
+# The wordlists, which the candidate tests take their longest words from.
+osk-bip = { path = "../osk-bip" }
+
+[lints]
+workspace = true

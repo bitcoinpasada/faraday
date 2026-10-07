@@ -1,0 +1,19 @@
+# The one account on the device besides root (security review
+# 2026-09-11, M8). Buildroot's users table:
+#
+#   username uid group gid password home shell groups comment
+#
+# uid and gid are written out rather than left to Buildroot, because
+# /etc/mdev.conf and the vfat mount in /etc/init.d/rcS name the same
+# numbers and two builders must get the same bytes.
+#
+# The password is "*", which no password matches, so the account cannot
+# be logged into even on the dev variant's serial console. The home is
+# "-", which means "/" and no directory of its own: the app writes to the
+# card and nowhere else. The shell is /bin/false.
+opensigner 200 opensigner 200 * - /bin/false - the account the app runs as
+# Faraday (PLAN.md §4.1): the disk process reads and writes the sticks
+# faraday-grant hands it, and the grant helper drops to its own account
+# with CAP_CHOWN alone. Neither can be logged into.
+ofdisk 201 ofdisk 201 * - /bin/false - the disk process
+ofgrant 202 ofgrant 202 * - /bin/false - the grant helper

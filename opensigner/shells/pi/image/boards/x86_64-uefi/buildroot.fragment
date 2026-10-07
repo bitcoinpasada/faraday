@@ -1,0 +1,36 @@
+# x86_64 with UEFI firmware: the architecture and the kernel. There is no
+# firmware package: the kernel is the EFI application the firmware runs.
+
+# Plain x86-64, the baseline every 64-bit PC implements. A later
+# microarchitecture level would be a faster binary on a machine that has
+# it and an unbootable stick on one that does not.
+BR2_x86_64=y
+BR2_x86_x86_64=y
+
+# Same version the pinned kernel is.
+BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_6_6=y
+
+# ---- kernel ----
+# Mainline stable from kernel.org, 6.6 longterm, and its x86_64
+# defconfig with the `=m` lines dropped (external/external.mk) plus our
+# fragments.
+BR2_LINUX_KERNEL_CUSTOM_TARBALL=y
+BR2_LINUX_KERNEL_CUSTOM_TARBALL_LOCATION="https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.84.tar.xz"
+# The tarball's sha256, which build.sh checks after the download. This is
+# the value Buildroot 2024.02.13's linux/linux.hash carries, taken from
+# kernel.org's signed sha256sums.asc, rather than one computed from a
+# download of our own: a hash from the same fetch it is meant to check
+# checks nothing.
+# KERNEL_SHA256 7fd20721551a61db347c5ac6ca05818e24058682be4e4389dc51e88d4ac17ba7
+BR2_LINUX_KERNEL_DEFCONFIG="x86_64"
+BR2_LINUX_KERNEL_NEEDS_HOST_OPENSSL=y
+# objtool, which an x86_64 kernel builds and runs over every object file,
+# needs libelf. Buildroot builds its own rather than taking the
+# container's, so the Dockerfile stays the list of Buildroot's own
+# documented host dependencies and nothing more.
+BR2_LINUX_KERNEL_NEEDS_HOST_LIBELF=y
+
+# bzImage is what CONFIG_EFI_STUB makes an EFI application: the same file
+# is a PE/COFF binary the firmware can run and a kernel with the whole
+# root filesystem inside it. post-image.sh copies it to EFI/BOOT/BOOTX64.EFI.
+BR2_LINUX_KERNEL_BZIMAGE=y

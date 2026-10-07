@@ -1,0 +1,90 @@
+#!/bin/sh
+# Everything the shell needs before it starts, and nothing else.
+#
+# The kernel mounts devtmpfs on /dev itself (CONFIG_DEVTMPFS_MOUNT), so
+# /dev/fb0, /dev/input/event* and /dev/video0 are already there. mdev -s runs
+# once anyway so the tree is complete and its permissions are the ones
+# /etc/mdev.conf asks for; no hotplug helper is installed, because nothing is
+# plugged in after boot. It runs below rather than here, after the wait for
+# the exchange partition, because on a machine whose devices arrive over USB
+# that wait is what the bus settling looks like.
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+
+# The exchange partition, where files are exchanged with a computer.
+# /etc/opensigner/exchange is what build.sh wrote there from the board's
+# board.conf: a card is always the same node, so a Pi names it, and a USB
+# stick can come up as sda or sdb, so it names the partition's label and
+# findfs answers which node that is on this boot.
+#
+# `flush` writes a file out when it is closed, so a signed PSBT is on the
+# medium the moment the screen says it is. A medium someone repartitioned
+# has no exchange partition and must still boot into the app, which then
+# says there is no file: hence the `|| true`.
+#
+# init mounts it as root and vfat has no owners of its own, so `uid` and
+# `gid` are what decide who may read and write the files on it: 200 is the
+# `opensigner` account the app runs as (common/users.table), and `umask`
+# keeps everything on the medium to that account.
+exchange="$(cat /etc/opensigner/exchange)"
+case "$exchange" in
+    LABEL=*)
+        # A USB disk is not enumerated when init runs: the controller,
+        # the device, the mass-storage interface and the SCSI disk above
+        # it each take a moment, and on this machine the partitions
+        # appear about a second after this line is reached. So the label
+        # is looked for until it answers, and the answer is also the
+        # sign that the bus has settled, which is why mdev runs after
+        # this and not before: a keyboard plugged in at power-on lands
+        # in the same second, and its node needs the ownership
+        # /etc/mdev.conf gives it.
+        n=0
+        while [ "$n" -lt 20 ]; do
+            found="$(findfs "$exchange" 2>/dev/null)"
+            [ -n "$found" ] && break
+            n=$((n + 1))
+            sleep 1
+        done
+        exchange="$found"
+        # A medium found by label is the USB stick, and a USB disk can
+        # be plugged in and pulled out while the app runs. The watcher
+        # below is what mounts those; it is started after this first
+        # mount, so the boot medium keeps /mnt/microsd.
+        watch_usb=yes
+        ;;
+esac
+
+/sbin/mdev -s
+
+mkdir -p /mnt/microsd
+if [ -n "$exchange" ]; then
+    mount -t vfat -o flush,noexec,nosuid,nodev,uid=200,gid=200,umask=077 \
+        "$exchange" /mnt/microsd || true
+fi
+
+# Every other FAT partition on a USB disk, mounted as it arrives and
+# unmounted when it goes: /usr/sbin/opensigner-usb-watch looks at
+# /sys/class/block once a second for as long as the machine is up, and
+# mounts under /mnt/usb with the options above. It is init's, like the
+# mount above, and it is not started on a board whose card is fixed and
+# whose kernel has no USB storage.
+if [ "$watch_usb" = yes ]; then
+    /usr/sbin/opensigner-usb-watch &
+fi
+
+# The boot report, dev variant only. /etc/opensigner/boot-report is the
+# file name build.sh wrote there, and it is absent from the release image,
+# which therefore writes nothing to the medium at boot.
+#
+# It is the kernel log, which is init's to read: the app runs as the
+# unprivileged `opensigner` user and /dev/kmsg is root's. The app appends
+# what it made of the machine to the same file (--boot-report), so a
+# laptop with no serial port and a blank screen still says what happened,
+# and the person reads it on any computer. The file is rewritten each
+# boot.
+if [ -f /etc/opensigner/boot-report ]; then
+    report="/mnt/microsd/$(cat /etc/opensigner/boot-report)"
+    if grep -q " /mnt/microsd " /proc/mounts; then
+        dmesg > "$report" 2>/dev/null || true
+    fi
+fi

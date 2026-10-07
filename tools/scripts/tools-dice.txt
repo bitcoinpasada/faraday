@@ -1,0 +1,46 @@
+# Tools › Dice passphrase (docs/UX.md §7.5): the list, the length, the
+# dice pad with the words it has rolled on a masked panel above it, the
+# passphrase, and the confirm that guards the rolls on the way out.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 23                        # HOME_TILE_BASE + 3: Tools
+tapid 1702                      # TOOLS_DICE
+snap dice-00-list               # the three EFF lists, the long one checked
+tapid 880                       # DICE_LIST_BASE + 0: the long list
+tapid 883                       # DICE_LIST_CONTINUE
+snap dice-01-words              # 4 · 5 · 6 · 7 · 8 · 10, each with its bits
+tapid 884                       # DICE_WORDS_BASE + 0: four words
+tapid 890                       # DICE_WORDS_CONTINUE
+snap dice-02-pad                # Roll 1 of 20
+padkey 891 1
+padkey 891 5
+padkey 891 2
+padkey 891 6
+padkey 891 3
+tick 600
+snap dice-03-first-word         # the first word, masked, where the panel fits
+padkey 891 4
+padkey 891 1
+padkey 891 6
+padkey 891 2
+padkey 891 5
+padkey 891 3
+padkey 891 6
+padkey 891 1
+padkey 891 4
+padkey 891 2
+padkey 891 5
+padkey 891 3
+padkey 891 6
+padkey 891 1
+padkey 891 4
+tick 600
+snap dice-05-full               # every roll in, Continue live
+tapid 892                       # DICE_CONTINUE
+snap dice-06-passphrase         # masked, with what it is worth
+tapid 15                        # SECRET_EYE
+snap dice-07-passphrase-shown
+tapid 2                         # BACK: the rolls are still entered
+snap dice-08-discard
+tapid 896                       # DICE_KEEP: back to the passphrase
+tapid 894                       # DICE_DONE: nothing is kept
+snap dice-09-tools

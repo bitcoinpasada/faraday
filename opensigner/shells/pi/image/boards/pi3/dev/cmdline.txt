@@ -1,0 +1,3 @@
+# The dev variant on a Raspberry Pi: the panel gets a console too, so a
+# board with no serial adapter still shows the probe lines.
+console=tty1

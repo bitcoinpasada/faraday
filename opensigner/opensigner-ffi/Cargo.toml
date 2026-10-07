@@ -1,0 +1,34 @@
+[package]
+name = "opensigner-ffi"
+version = "0.1.0"
+description = "The C ABI and JNI entry points that let a mobile shell drive OpenSigner"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+# `libopensigner.so` on Android, so the Kotlin shell loads "opensigner".
+# `rlib` as well so the safe half (handle table, command encoding) has
+# host unit tests; the JNI entry points cannot run on the host.
+name = "opensigner"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+osk-shell-api = { path = "../../core/osk-shell-api" }
+opensigner-core = { path = "../opensigner-core" }
+opensigner-scanner = { path = "../shells/scanner" }
+# Types and function-pointer tables only; no code (docs/deps/jni-sys.md).
+# Pinned exactly: 0.3.1 is a shim that re-exports 0.4, which generates its
+# table with a proc-macro and puts `jni-sys-macros`, `syn`, `quote` and
+# `proc-macro2` in this crate's graph. 0.3.0 stands alone.
+jni-sys = "=0.3.0"
+zeroize = { workspace = true, features = ["alloc"] }
+
+# Not `workspace = true`: the workspace forbids `unsafe_code`, and a
+# `forbid` cannot be lifted by the crate that needs it. This is the one
+# shell crate allowed unsafe; see README.md for what it is used for.
+[lints.rust]
+missing_docs = "warn"
+unsafe_op_in_unsafe_fn = "deny"

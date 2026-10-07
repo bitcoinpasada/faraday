@@ -1,0 +1,17 @@
+# The dev variant's inittab: the release one plus a login on the board's
+# console tty, so a new board or panel can be poked at while it is being
+# brought up. The root password is empty in this variant. Nothing built
+# from this directory goes on a medium that signs anything.
+#
+# The tty the getty runs on is the board's, from board.conf's CONSOLE_TTY:
+# ttyAMA0 on a Pi, ttyS0 on a PC. build.sh fills it in when it generates
+# /etc/inittab from this template. The getty line comes before the app's,
+# because init runs the `wait` entries in order and a getty started after
+# the app would only appear once the app had exited.
+#
+# The app drops to the `opensigner` user here as it does in the release
+# image; the getty and its root login are what the variant adds.
+::sysinit:/etc/init.d/rcS
+@TTY@::respawn:/sbin/getty -L @TTY@ 115200 vt100
+::wait:/bin/sh -c 'exec /bin/setpriv --nnp /usr/bin/setuidgid opensigner /usr/bin/opensigner-pi $(cat /etc/opensigner/args)'
+::wait:/sbin/poweroff -f

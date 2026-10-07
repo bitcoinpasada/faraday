@@ -1,0 +1,75 @@
+# Walks the Load wizard on the Simplified Chinese list, typing on the
+# pinyin keyboard. A character is looked up by its Mandarin reading: the
+# syllable on the letter rows, then its tone on the fourth row. Nothing
+# is offered until the tone completes the reading (PLANNING §16.43).
+# Mandarin is homophonic, so most readings still leave several
+# characters and the candidate strip is how one of them is accepted. A
+# character is one glyph, so the strip is ten cells a row and two rows,
+# and `yi4` — the largest tone group either list has, twenty characters —
+# is on the screen at once (PLANNING §16.45). Widget ids are the
+# constants in opensigner/opensigner-core/src/ids.rs.
+snap load-zh-hans-00-home
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD: "Load a key"
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+snap load-zh-hans-01-language   # Chinese (Simplified) is a row that takes now
+tapid 124                       # LOAD_LANG_BASE + 4
+tapid 104                       # LOAD_LANG_CONTINUE
+snap load-zh-hans-02-word-1-empty   # the letters live, the tones dead
+text "d"
+snap load-zh-hans-03-d          # only the vowels that make a syllable
+text "e"
+snap load-zh-hans-04-de         # `de` is a syllable: its tones wake, and the
+                                # strip stays empty until one is pressed
+text "5"
+snap load-zh-hans-05-de5        # the neutral tone: 的 and its homophones
+cand 132 0                      # LOAD_CANDIDATES cell 0: 的
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "yi"
+snap load-zh-hans-06-yi         # a syllable without a tone: nothing offered
+text "4"
+snap load-zh-hans-07-yi4        # the tone brings the whole group: twenty
+                                # characters in two rows of ten, no chevron
+padkey 131 backspace
+padkey 131 backspace
+padkey 131 backspace
+text "yi1"
+cand 132 0                      # 一
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "shi4"
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "zai4"
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "bu4"
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "le5"                      # one character: it is selected, and it waits
+tapid 132                       # for the tap that every other one costs
+text "you3"
+cand 132 0                      # 有, the reading's one character: selected, so one tap takes it
+text "he2"
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "ren2"
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "zhe4"
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "zhong1"
+snap load-zh-hans-08-zhong1     # word 11: 中 is first, 忠 终 钟 follow
+cand 132 0
+on small snap load-zh-hans-08b-zhong1-selected  # the first tap selected 中: the
+                                # cell is drawn as a chosen cell, and the next
+                                # tap on it accepts (PLANNING §16.50)
+on small cand 132 0
+snap load-zh-hans-09-word-12
+text "yi1"
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+snap load-zh-hans-10-checksum

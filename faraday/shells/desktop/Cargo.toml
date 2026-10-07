@@ -1,0 +1,35 @@
+[package]
+name = "faraday-desktop"
+version = "0.1.0"
+description = "Faraday in a window, with folders for sticks: the quickest way to try the screens"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "faraday"
+path = "src/main.rs"
+
+[dependencies]
+faraday-core = { path = "../../faraday-core", features = ["testkit"] }
+faraday-storage = { path = "../../faraday-storage" }
+osk-shell-api = { path = "../../../core/osk-shell-api" }
+# `pin-pages`: the `mlock` that keeps the loaded master keys out of swap.
+osk-crypto = { path = "../../../core/osk-crypto", features = ["pin-pages"] }
+winit.workspace = true
+softbuffer.workspace = true
+getrandom.workspace = true
+faraday-scanner = { path = "../../faraday-scanner" }
+
+# The webcam, as upstream's desktop shell reads it (camera.rs is a copy
+# of opensigner/shells/desktop/src/camera.rs at c418768).
+[target.'cfg(target_os = "linux")'.dependencies]
+opensigner-v4l2 = { path = "../../../opensigner/shells/v4l2" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+opensigner-avfoundation = { path = "../../../opensigner/shells/avfoundation" }
+
+[lints]
+workspace = true

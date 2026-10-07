@@ -1,0 +1,36 @@
+# Raspberry Pi 3B/3B+: the architecture, the kernel and the firmware.
+#
+# Buildroot's raspberrypi3_defconfig is the starting point: the same 32-bit
+# armv7 target `just pi-bin` builds for, the same pinned Raspberry Pi
+# kernel, the same firmware package.
+
+# armv7 hard-float, Cortex-A53. Matches armv7-unknown-linux-gnueabihf.
+BR2_arm=y
+BR2_cortex_a53=y
+BR2_ARM_FPU_NEON_VFPV4=y
+
+# Same version the pinned kernel is.
+BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_6_1=y
+
+# ---- kernel ----
+# The Raspberry Pi 6.1 tree at the commit Buildroot 2024.02 pins for the
+# Pi 3, its bcm2709 configuration, and our fragments on top.
+BR2_LINUX_KERNEL_CUSTOM_TARBALL=y
+BR2_LINUX_KERNEL_CUSTOM_TARBALL_LOCATION="$(call github,raspberrypi,linux,17f135b742c4edb340afb365873c3a574f7e16cb)/linux-17f135b742c4edb340afb365873c3a574f7e16cb.tar.gz"
+BR2_LINUX_KERNEL_DEFCONFIG="bcm2709"
+# The kernel tarball's sha256, which build.sh checks after the download.
+# Buildroot has no hash of its own for a tarball that is not one of the
+# versions its linux.hash lists, and this is not one, so without this line
+# nothing checks what was fetched.
+# KERNEL_SHA256 4d3a2af178ac6ed8f35b773836c8d216493a850aeb80932b379348e2df0cf5d2
+
+BR2_LINUX_KERNEL_NEEDS_HOST_OPENSSL=y
+BR2_LINUX_KERNEL_DTS_SUPPORT=y
+
+# ---- firmware ----
+# PI_X is the camera variant: start_x.elf and fixup_x.dat, which config.txt
+# selects and start_x=1 turns on (PLANNING.md 16.33).
+BR2_PACKAGE_RPI_FIRMWARE=y
+BR2_PACKAGE_RPI_FIRMWARE_BOOTCODE_BIN=y
+BR2_PACKAGE_RPI_FIRMWARE_VARIANT_PI_X=y
+BR2_PACKAGE_RPI_FIRMWARE_INSTALL_DTB_OVERLAYS=y

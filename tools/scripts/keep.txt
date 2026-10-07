@@ -1,0 +1,62 @@
+# A key kept on the device, on a Tier B phone with a secure element
+# (PLANNING §15 item 32): the offer to keep a key that follows adding it,
+# the key's page once it is kept, the duress PIN set in Settings, the pad
+# the next start opens on, a wrong PIN on it, and the Result after the
+# eighth wrong PIN removed the key.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+restart tier=B secure=tee       # a phone that keeps a key in its element
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # LOAD_HOLD: "Add key"
+pin 138 2580                    # LOAD_PIN_KEYBOARD: session PIN, first key of the session
+pin 138 2580                    # repeat it
+snap keep-01-offer              # keep this key on the device, or not now
+holdid 1401                     # KEEP_HOLD
+snap keep-02-home
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 2210                      # KEYS_ROW_BASE + 0: the kept key
+snap keep-03-key-kept           # the row that says the key is kept
+tapid 2                         # BACK to Keys
+tapid 2                         # BACK to Home
+tapid 25                        # HOME_TILE_BASE + 5: Settings
+snap keep-04-settings           # the duress PIN row and the stored key rows
+tapid 1405                      # KEEP_DURESS_ROW
+snap keep-05-duress
+pin 1406 1379                   # KEEP_DURESS_KEYBOARD: the duress PIN
+snap keep-05b-duress-repeat
+pin 1406 1379                   # repeat it: back to Settings
+restart                         # the app opened again on the same phone
+snap keep-06-stored-key         # the pad, and nowhere else to go
+pin 1404 9999                   # KEEP_PIN_KEYBOARD: a wrong PIN
+snap keep-07-wrong-pin          # how many are left before removal
+pin 1404 9999
+pin 1404 9999
+pin 1404 9999
+pin 1404 9999
+pin 1404 9999
+pin 1404 9999
+pin 1404 9999                   # the eighth: the key is removed
+snap keep-08-removed
+tapid 1409                      # KEEP_REMOVED_DONE: Home
+snap keep-09-home-after

@@ -1,0 +1,150 @@
+# Loads "abandon ×11 about" without a passphrase, then walks the key's
+# own wallet — the address list and one address, the script-type choice,
+# the export and its QR, the key it is made of — and then the key menu:
+# Backup, Open passphrase and the key it opens, Forget, and Settings.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # "Add key"
+pin 138 2580                    # LOAD_PIN_KEYBOARD: session PIN, first key of the session
+pin 138 2580                    # repeat it
+snap detail-00-home             # the launcher: six tiles and nothing else
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+snap detail-00a-wallets-empty
+tapid 2203                      # WALLETS_ADD: the kinds of wallet
+tapid 63                        # BUILD_NEW: the one wizard
+tapid 1940                      # BUILD_KIND_BASE + 0: "Single-sig"
+tapid 1812                      # BUILD_KIND_CONTINUE
+tapid 1880                      # BUILD_WHICH_BASE + 0: the loaded key
+tapid 1802                      # BUILD_CONTINUE
+tapid 1822                      # BUILD_SCRIPT_BASE + 2: SegWit
+tapid 1800                      # BUILD_SCRIPT_CONTINUE
+tapid 1808                      # BUILD_ADD_WALLET: "Add this wallet"
+snap detail-00b-wallet-menu     # sign, addresses, check, export, keys, forget
+tapid 810                       # WALLET_ADDRESSES
+snap detail-03-addresses
+tapid 1002                      # ADDR_ROW_BASE + 2: one address, whole
+snap detail-03c-address-detail
+tapid 2                         # BACK to the list
+tapid 223                       # ADDR_CHANGE: the change half of the pair
+snap detail-05-segwit-change
+tapid 228                       # ADDR_MORE: ten more addresses
+snap detail-05b-addresses-more
+tapid 2                         # BACK to the wallet menu
+tapid 811                       # WALLET_EXPORT
+snap detail-06-export-descriptor
+tapid 288                       # EXPORT_SHOW: the wallet-export QR
+snap detail-06b-export-code
+tapid 2                         # BACK to the export menu
+tapid 2                         # BACK to the wallet menu
+tapid 2                         # BACK to Wallets
+tapid 2                         # BACK to Home
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+snap detail-01-keys             # one row per key: the glyph, the fingerprint, what it is made of
+tapid 2210                      # KEYS_ROW_BASE + 0: the loaded key
+snap detail-02-key-menu         # the rows of what is done with this key
+tapid 202                       # DETAIL_BACKUP
+snap detail-08-backup-menu
+tapid 235                       # BACKUP_ENCRYPTED
+snap detail-08a-encrypted-form  # Which form? Encrypted backup is checked, each form with what opens it (§16.134)
+tapid 2910                      # FORM_CONTINUE
+snap detail-08b-encrypted-passphrase
+text "correct horse"
+tick 600                        # the last character masks
+snap detail-08c-encrypted-typed
+key enter
+snap detail-08d-encrypted-repeat
+text "correct horse"
+tick 600
+key enter
+snap detail-08e-encrypted-result   # which key, what is inside, how many bytes, what seals it and what reads it
+tapid 238                       # BACKUP_SHOW_QR
+snap detail-08f-encrypted-qr    # one code, no Animated row, Save as PNG
+tapid 2                         # BACK to the result
+tapid 2                         # BACK to the backup menu
+tapid 1930                      # BACKUP_GRID: which code to draw
+snap detail-08g-grid-choice     # SeedQR or CompactSeedQR, with its square
+tapid 1933                      # BACKUP_GRID_CONTINUE
+tapid 15                        # SECRET_EYE: the grid is a secret
+snap detail-08h-grid            # the modules as squares, with the guide lines
+tapid 2                         # BACK to the code choice
+tapid 2                         # BACK to the backup menu
+tapid 1934                      # BACKUP_STEEL: numbers for steel
+tapid 15                        # SECRET_EYE
+snap detail-08i-steel           # 0001 · ABAN · abandon, one row per word
+tapid 2                         # BACK to the backup menu
+tapid 1936                      # BACKUP_XOR: "Split with Seed XOR"
+snap detail-08j-xor-count       # how many parts?
+tapid 1941                      # XOR_COUNT_BASE + 1: three parts
+tapid 1944                      # XOR_COUNT_CONTINUE: where from?
+snap detail-08j2-xor-source     # the sources Create a key offers
+tapid 1950                      # XOR_SOURCE_BASE + 0: Dice
+tapid 1957                      # XOR_SOURCE_CONTINUE: part 1's rolls
+text "32461151351521144121541512665155412152342515356215"
+tick 600
+snap detail-08j3-xor-roll       # Part 1 of 3 in front of the roll count
+key enter                       # ✓ continues at 50
+tapid 630                       # CREATE_CONTINUE: past the sanity check
+text "51263414253611524316253142653142536142531426351425"
+key enter                       # part 2's fifty rolls
+tapid 630                       # CREATE_CONTINUE: the split is made
+tapid 15                        # SECRET_EYE
+snap detail-08k-xor-part        # part 1 of 3, a key of its own
+tapid 630                       # CREATE_CONTINUE: part 2
+tapid 630                       # part 3
+tapid 630                       # the result
+snap detail-08l-xor-result      # each part's fingerprint
+tapid 2                         # BACK to the part count
+tapid 2                         # BACK to the backup menu
+tapid 2                         # BACK to the key's page
+tapid 203                       # DETAIL_OPEN_PASSPHRASE: this key's own
+snap detail-09-open-passphrase
+text "passphrase"
+snap detail-09b-open-passphrase-key   # the key this passphrase opens
+key enter
+snap detail-09c-key-opened      # the Result: which key was added
+tapid 2                         # BACK to Keys
+tapid 2210                      # KEYS_ROW_BASE + 0
+tapid 2207                      # KEY_FORGET: the hold that forgets the key
+snap detail-10-forget           # what goes with it
+tapid 2                         # BACK to the key's page
+tapid 2                         # BACK to Keys
+tapid 2                         # BACK to Home
+tapid 10                        # STATUS_TIER: what the tiers mean
+snap detail-10b-tiers
+tapid 2                         # BACK to Home
+tapid 25                        # HOME_TILE_BASE + 5: Settings
+snap detail-11-settings
+tapid 304                       # SETTINGS_NETWORK_ROW: the network Choice
+tapid 302                       # SETTINGS_NET_BASE + 2: Signet, on the tap
+tapid 2                         # BACK: close the Choice
+tapid 308                       # SETTINGS_ABOUT_ROW
+snap detail-12-settings-about
+tapid 2                         # BACK to Settings
+tapid 311                       # SETTINGS_WIPE_ROW
+snap detail-13-wipe-screen
+holdid 310                      # SETTINGS_WIPE: hold to wipe
+snap detail-13b-keys-removed    # what the wipe removed
+tapid 319                       # SETTINGS_WIPED_DONE
+snap detail-14-home-after-wipe

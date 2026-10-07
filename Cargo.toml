@@ -1,0 +1,188 @@
+[workspace]
+resolver = "2"
+members = [
+    "core/osk-crypto",
+    "core/osk-bip",
+    "core/osk-entropy",
+    "core/osk-psbt",
+    "core/osk-shell-api",
+    "core/osk-codec",
+    "core/osk-backup",
+    "core/osk-keep",
+    "core/osk-ui",
+    "opensigner/opensigner-core",
+    "opensigner/opensigner-ffi",
+    "opensigner/shells/scanner",
+    "opensigner/shells/snapshot",
+    "opensigner/shells/v4l2",
+    "opensigner/shells/avfoundation",
+    "opensigner/shells/desktop",
+    "opensigner/shells/pi",
+    "tools/fontbake",
+    "tools/qrgen",
+    "faraday/faraday-core",
+    "faraday/faraday-storage",
+    "faraday/faraday-vault",
+    "faraday/faraday-fat",
+    "faraday/faraday-files",
+    "faraday/faraday-scanner",
+    "faraday/faraday-qr",
+    "faraday/faraday-disk",
+    "faraday/faraday-grant",
+    "faraday/faraday-pgp",
+    "faraday/faraday-sb",
+    "faraday/shells/desktop",
+    "faraday/shells/stick",
+    "faraday/shells/snapshot",
+    "faraday/tools/testkit",
+    "faraday/tools/argon2-bench",
+]
+# The fuzz targets are their own workspace: `cargo fuzz` builds them on
+# nightly with sanitizer flags, and nothing about that build belongs in
+# this one's lock file or target directory (fuzz/README.md).
+#
+# `third_party/rqrr` is a dependency, not a member: it is vendored
+# third-party code and neither `cargo fmt` nor `clippy -D warnings`
+# should be applied to it. `cargo fmt --all` also formats path
+# dependencies, so the copy carries a `rustfmt.toml` that turns
+# formatting off.
+exclude = ["fuzz", "faraday/fuzz", "third_party/rqrr"]
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+rust-version = "1.97"
+repository = "https://github.com/maxmoney21m/opensignerkit"
+
+[workspace.dependencies]
+zeroize = { version = "1.8", default-features = false, features = ["derive"] }
+subtle = { version = "2.6", default-features = false }
+sha2 = { version = "0.11", default-features = false }
+hmac = { version = "0.13", default-features = false }
+pbkdf2 = { version = "0.13", default-features = false }
+# Argon2id for the key kept on the device (§15 item 32;
+# docs/deps/argon2.md). `default-features = false` drops the
+# `password-hash` string format and the RNG; the memory is a `Vec<Block>`
+# the caller owns, so no `alloc` feature is needed.
+argon2 = { version = "0.6", default-features = false, features = ["zeroize"] }
+# In-memory sealing (§5.1, §16.21; docs/deps/chacha20poly1305.md). No
+# `alloc`, no RNG: the nonce comes from the session key's counter.
+chacha20poly1305 = { version = "0.11", default-features = false, features = ["zeroize"] }
+# The KDBX 4 writer's stream cipher (§16.112 pass E2). This is the crate
+# `chacha20poly1305` already builds on, at the version already in the
+# lock file, named here because it is not re-exported: KDBX encrypts its
+# body and its inner random stream with plain ChaCha20 (RFC 8439), not
+# with an AEAD. No new crate enters the graph.
+chacha20 = { version = "0.10", default-features = false, features = ["cipher", "zeroize"] }
+# rust-bitcoin without `std`: no_std + alloc. Brings `secp256k1` (§16.1).
+# `secp-recovery` is a feature of the same crate, not another dependency:
+# it turns on libsecp256k1's public-key recovery and rust-bitcoin's
+# `sign_message` signature type, which BIP-137 needs to check a message
+# signature against an address (§9, `osk_psbt::message`). Nothing else in
+# the graph changes.
+bitcoin = { version = "0.32", default-features = false, features = ["secp-recovery"] }
+
+# Miniscript policies and descriptors (§16; docs/deps/miniscript.md).
+# The 12.x line is the one that pairs with `bitcoin` 0.32.
+# `default-features = false` with `no-std` keeps the core `no_std` +
+# `alloc`; `compiler` is the concrete-policy compiler the Tools ›
+# Miniscript screen calls.
+miniscript = { version = "12.0", default-features = false, features = ["no-std", "compiler"] }
+
+# QR decoding (§7, §16.20; docs/deps/rqrr.md). `rqrr` needs std, so it
+# lives behind osk-codec's `decode` feature. BC-UR has no dependency:
+# `osk_codec::ur` is the whole transport (§16.61, docs/deps/ur.md).
+#
+# `rqrr` is the copy in `third_party/rqrr`, not the crates.io release.
+# Security review item M5a: upstream's `Perspective::map` asserts that the
+# mapped point fits in an `i32`, and a camera frame with a near-degenerate
+# capstone group trips that assertion during grid detection — on the Pi,
+# built with `panic = "abort"`, a printed sheet held in front of the
+# camera powers the device off. The copy returns `None` there and every
+# caller rejects the candidate grid; it is also trimmed of `lru`, `g2p`
+# and the proc-macro behind it. `third_party/rqrr/OPENSIGNER.md` records
+# what was changed.
+#
+# It is a path dependency rather than a `[patch.crates-io]` because Cargo
+# applies a patch only in the workspace being built: a project that
+# depends on `osk-codec` from this repository by git would otherwise get
+# the crates.io release (§16.138). The fuzz workspace reaches the copy
+# the same way, through `osk-codec`.
+rqrr = { path = "third_party/rqrr", default-features = false }
+
+# Rendering (§4.3, §16.3): pure Rust, no_std with `no-std-float` (libm).
+tiny-skia = { version = "0.12", default-features = false, features = ["no-std-float"] }
+
+# Build-time and shell-only tools; never in a core crate.
+# Glyph outlines for the font baker. Pinned to the version already in the
+# lock (fontdue brought it before), so the tool adds no crate.
+ttf-parser = "0.25.1"
+png = "0.18"
+# Desktop shell (§4.1): window and software blit only, plus the OS RNG
+# that answers `Command::RequestEntropy` (docs/deps/getrandom.md).
+winit = "0.30"
+softbuffer = "0.4"
+getrandom = "0.4"
+# Camera capture on Linux (§16.33; docs/deps/libc.md): the C type and
+# constant declarations the raw V4L2 ioctls need. Used by
+# `opensigner-v4l2` and by nothing else.
+libc = { version = "0.2", default-features = false }
+# Camera capture on macOS (§16.33; docs/deps/cc.md): compiles the one
+# Objective-C file of `opensigner-avfoundation` at build time. Already in
+# the graph, since `secp256k1-sys` builds libsecp256k1 with it.
+cc = "1"
+
+# Dev-dependencies (test-only; never in a release binary).
+bip39 = { version = "2.2", default-features = false, features = ["all-languages", "zeroize"] }
+serde_json = "1.0"
+unicode-normalization = "0.1"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+# Build hardening for release binaries (docs/PLANNING.md §5.4).
+# The dev profile keeps its defaults on purpose: `cargo test` needs
+# `panic = "unwind"` so that `#[should_panic]` tests and test isolation work.
+# Dependencies are optimized even in dev builds so that PBKDF2-heavy tests
+# run in seconds; workspace crates stay unoptimized for debugging. This
+# does not affect release builds.
+[profile.dev.package."*"]
+opt-level = 2
+
+# Our own library crates too: a full-screen render is 19 ms unoptimised and
+# 4 ms optimised, and the tests render thousands of screens. Debug
+# assertions and overflow checks stay on; a clean build is about 15 s
+# slower, an incremental one no slower.
+[profile.dev.package.osk-crypto]
+opt-level = 2
+[profile.dev.package.osk-bip]
+opt-level = 2
+[profile.dev.package.osk-codec]
+opt-level = 2
+[profile.dev.package.osk-psbt]
+opt-level = 2
+[profile.dev.package.osk-entropy]
+opt-level = 2
+[profile.dev.package.osk-ui]
+opt-level = 2
+[profile.dev.package.opensigner-core]
+opt-level = 2
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+strip = true
+debug = 0
+
+# The rasteriser, at speed rather than size. A pass on the panel is one
+# layout, one paint and one framebuffer write, and the paint is where the
+# time goes: a scroll pass on the 2.8" panel measures 6.1 ms at
+# opt-level "s" and 2.4 ms at 3, and the Pi binary is 128 KB smaller for
+# it (measured on this workspace, 2026-09-09). `osk-ui` at 3 changes
+# neither number, and the QR decoder at 3 is 1.4x at best, so both stay
+# with the rest of the release profile.
+[profile.release.package.tiny-skia]
+opt-level = 3

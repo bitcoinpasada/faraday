@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New keyboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Source+Sans+3:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#83d8ef}a:hover{color:#b1e8f7}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; position: relative; overflow: hidden; background: #11161c; font-family: {{fontStack}}; color: #e0e9ef">
+<dc-import name="Main" font="{{ font }}" hint-size="1280px,800px"></dc-import>
+<div style="position: absolute; inset: 0; background: rgba(5,8,11,0.66); display: flex; align-items: center; justify-content: center">
+<div role="dialog" aria-labelledby="kb-h" style="width: 500px; box-sizing: border-box; padding: 28px; border-radius: 16px; background: #19212a; border: 1px solid #303d49; box-shadow: 0 24px 64px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3); display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center">
+<span style="width: 52px; height: 52px; border-radius: 14px; background: rgba(131,216,239,0.12); color: #83d8ef; display: flex; align-items: center; justify-content: center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"></rect><path d="M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M7.5 14h9"></path></svg></span>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h2 id="kb-h" style="margin: 0; font-size: 22px; font-weight: 600">New keyboard</h2>
+<span style="font-size: 14px; color: #9aacb9">Describes itself as <span style="color: #e0e9ef">USB Keyboard</span> · <span style="font-family: 'JetBrains Mono', monospace">046d:c31c</span></span>
+<span style="font-size: 12px; color: #6f8291">A description is a claim, not proof.</span>
+</div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 12px">
+<span style="font-size: 14px">Type this code on the new keyboard</span>
+<div style="display: flex; gap: 10px">
+<sc-for list="{{ digits }}" as="d" hint-placeholder-count="4">
+<span style="width: 56px; height: 68px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 500; background: {{d.bg}}; border: 1px solid {{d.border}}; color: {{d.fg}}">{{ d.c }}</span>
+</sc-for>
+</div>
+<span style="font-size: 12px; color: #9aacb9">{{ progress }}</span>
+</div>
+<span style="font-size: 13px; color: #9aacb9">Its keys do nothing until then.</span>
+<a href="Main.dc.html" style="display: inline-flex; align-items: center; height: 42px; padding: 0 18px; border-radius: 10px; border: 1px solid #303d49; color: #e0e9ef; text-decoration: none; font-size: 14px; font-weight: 500">Ignore this device</a>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"font":{"editor":"enum","options":["Inter","IBM Plex Sans","Source Sans 3"],"default":"Inter","section":"Look"},"typed":{"editor":"int","default":2,"min":0,"max":4,"section":"State"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const stacks = { "Inter": "'Inter', sans-serif", "IBM Plex Sans": "'IBM Plex Sans', sans-serif", "Source Sans 3": "'Source Sans 3', sans-serif" };
+    const typed = Math.max(0, Math.min(4, this.props.typed ?? 2));
+    const code = ['7', '3', '9', '1'];
+    const digits = code.map((c, i) => ({
+      c,
+      bg: i < typed ? 'rgba(139,212,178,0.12)' : '#0d1218',
+      border: i < typed ? '#8bd4b2' : (i === typed ? '#83d8ef' : '#303d49'),
+      fg: i < typed ? '#8bd4b2' : '#e0e9ef'
+    }));
+    return {
+      font: this.props.font ?? 'Inter',
+      fontStack: stacks[this.props.font] || stacks.Inter,
+      digits,
+      progress: typed + ' of 4 typed'
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+# BusyBox for the OpenSigner image, on top of Buildroot's default config.
+#
+# The image needs init, a shell to run one start-up script, mdev, mount and
+# poweroff. Everything below is either one of those, kept on, or an applet
+# that has no business on a device with no network, no console and no login.
+
+# What init, /etc/init.d/rcS and Command::Exit actually use.
+CONFIG_INIT=y
+CONFIG_ASH=y
+CONFIG_SH_IS_ASH=y
+CONFIG_MOUNT=y
+CONFIG_FEATURE_MOUNT_FLAGS=y
+CONFIG_MDEV=y
+CONFIG_FEATURE_MDEV_CONF=y
+CONFIG_HALT=y
+CONFIG_POWEROFF=y
+
+# The app runs as the unprivileged `opensigner` user (security review
+# 2026-09-11, M8), and init is the only thing on the device that is root.
+# `setuidgid USER PROG` is what drops to it: it sets the group, drops the
+# supplementary groups and sets the uid, then execs. BusyBox's `setpriv`
+# has neither --reuid nor --regid nor --clear-groups — it takes only
+# --dump, --nnp, --inh-caps and --ambient-caps — so it cannot do the drop
+# itself; it is here for --nnp, which makes the setuid bit and file
+# capabilities unusable for everything the app execs (nothing, today).
+CONFIG_SETPRIV=y
+CONFIG_SETUIDGID=y
+
+# No login path: no getty in the inittab, and no applet that could grant a
+# session if one were somehow started.
+# CONFIG_LOGIN is not set
+# CONFIG_GETTY is not set
+# CONFIG_SU is not set
+# CONFIG_SULOGIN is not set
+# CONFIG_PASSWD is not set
+# CONFIG_ADDUSER is not set
+# CONFIG_DELUSER is not set
+# CONFIG_ADDGROUP is not set
+# CONFIG_DELGROUP is not set
+# CONFIG_CHPASSWD is not set
+
+# The device has no IP address and no radios. These applets cannot work, and
+# an image that cannot speak to a network is easier to reason about than one
+# that merely does not.
+# CONFIG_IFCONFIG is not set
+# CONFIG_IFUPDOWN is not set
+# CONFIG_IP is not set
+# CONFIG_ROUTE is not set
+# CONFIG_PING is not set
+# CONFIG_PING6 is not set
+# CONFIG_ARPING is not set
+# CONFIG_NETSTAT is not set
+# CONFIG_NSLOOKUP is not set
+# CONFIG_TRACEROUTE is not set
+# CONFIG_TRACEROUTE6 is not set
+# CONFIG_WGET is not set
+# CONFIG_NC is not set
+# CONFIG_TELNET is not set
+# CONFIG_TELNETD is not set
+# CONFIG_TFTP is not set
+# CONFIG_FTPGET is not set
+# CONFIG_FTPPUT is not set
+# CONFIG_HTTPD is not set
+# CONFIG_UDHCPC is not set
+# CONFIG_UDHCPD is not set
+# CONFIG_UDHCPC6 is not set
+# CONFIG_INETD is not set
+# CONFIG_DNSD is not set
+# CONFIG_NTPD is not set
+
+# Nothing reads a log on a device with no console and no storage.
+# CONFIG_SYSLOGD is not set
+# CONFIG_KLOGD is not set
+# CONFIG_LOGGER is not set
+# CONFIG_LOGREAD is not set

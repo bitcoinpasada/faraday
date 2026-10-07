@@ -1,0 +1,11 @@
+# What this board does not have, on top of common/kernel.forbidden.
+#
+# The touch controller is the whole input device and the one USB port
+# carries a camera, so the input and storage stacks a general-purpose
+# computer needs are not built here. The stick board requires the same
+# symbols, which is why they are in a board's file and not in a shared one.
+
+HID            USB is kept for a webcam and for nothing else; no keyboard, no mouse, no keypad
+USB_STORAGE    the only storage is the card the firmware booted from
+SCSI           only USB storage would have wanted it
+BCM_VCIO       /dev/vcio is the firmware mailbox from userspace, which is how vcgencmd burns the SoC's OTP

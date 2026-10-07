@@ -1,0 +1,14 @@
+# Faraday: upstream's common/kernel.required at c418768 without VFAT_FS,
+# which PLAN.md §4.2 forbids: no stick is mounted.
+# What every OpenSigner image needs to come up and be used, whatever it
+# runs on. A driver that quietly loses a dependency — because the
+# subsystem above it went out — fails here rather than on the owner's desk.
+
+BLK_DEV_INITRD       the whole root filesystem is linked into the kernel image
+DEVTMPFS_MOUNT       the kernel makes /dev itself; nothing in the image could
+FB                   the interface the shell writes every frame through
+VT                   the framebuffer console owns the display until the app's first frame, and it needs a virtual terminal
+FRAMEBUFFER_CONSOLE  what paints the boot logo, so a black display means the firmware and not a silent working device
+INPUT_EVDEV          /dev/input/eventN, which is how the shell reads touches, keys and pointers
+VIDEO_DEV            /dev/video0, the V4L2 node the scanner opens
+USB_VIDEO_CLASS      a USB webcam is a camera every one of these devices supports

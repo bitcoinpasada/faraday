@@ -1,0 +1,78 @@
+# Loads "abandon ×11 about" and signs a message with it, then checks a
+# signed message someone else's device could have made: the message
+# whole with the key, the address and the format above it, the hold, the
+# signature as a QR, and the answer for a signed message read from a
+# file. The signature lands in --out as signature.txt.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # "Add key"
+pin 138 2580                    # LOAD_PIN_KEYBOARD: session PIN, first key of the session
+pin 138 2580                    # repeat it
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 2203                      # WALLETS_ADD: the kinds of wallet
+tapid 63                        # BUILD_NEW: the one wizard
+tapid 1940                      # BUILD_KIND_BASE + 0: "Single-sig"
+tapid 1812                      # BUILD_KIND_CONTINUE
+tapid 1880                      # BUILD_WHICH_BASE + 0: the loaded key
+tapid 1802                      # BUILD_CONTINUE
+tapid 1822                      # BUILD_SCRIPT_BASE + 2: SegWit
+tapid 1800                      # BUILD_SCRIPT_CONTINUE
+tapid 1808                      # BUILD_ADD_WALLET: "Add this wallet"
+snap message-01-wallet          # "Sign a message" among the wallet's rows
+tapid 815                       # WALLET_SIGN_MESSAGE: the scanner, expecting any text
+snap message-01a-scan           # the square, and the four ways a message arrives
+tapid 709                       # SCAN_TYPE: the message field
+text "hello"
+snap message-01b-typing         # a message typed rather than read
+tapid 2                         # BACK: the scanner again
+tapid 815
+file tools/vectors/message.txt
+tapid 701                       # SCAN_FILE: the message the file holds
+snap message-02-message         # the message whole, the rows above it
+tapid 1505                      # MSG_FORMAT: the format Choice
+snap message-04-format          # BIP-137 and BIP-322
+tapid 2                         # BACK: keep BIP-137
+tapid 1507                      # MSG_CONTINUE
+snap message-05-confirm         # the hold
+holdid 1508                     # MSG_HOLD
+snap message-06-result          # the signature, the address, the format
+tapid 1510                      # MSG_SAVE
+snap message-07-saved
+tapid 1512                      # MSG_QR
+snap message-08-qr              # the signature as one code
+tapid 2                         # BACK to the result
+tapid 1509                      # MSG_SIGNATURE: the signature whole
+snap message-09-compare
+tapid 208                       # COMPARE_DONE
+tapid 2                         # BACK to Home
+tapid 23                        # HOME_TILE_BASE + 3: Tools
+snap message-10-tools           # "Verify a message" among the rows
+tapid 1501                      # MSG_CHECK_ROW: the scanner, expecting the three lines
+file tools/vectors/signed-message.txt
+tapid 701                       # SCAN_FILE
+snap message-11-checked         # valid, and which address form was checked
+tapid 1514                      # MSG_READ: the message it was over
+snap message-12-checked-message
+tapid 2                         # BACK to the answer

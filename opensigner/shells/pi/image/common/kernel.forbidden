@@ -1,0 +1,55 @@
+# Options no OpenSigner image builds, whatever it runs on. A symbol here
+# takes everything under it: NET alone removes INET, IPV6, netfilter, the
+# wireless and Bluetooth stacks and every network driver.
+#
+# What one device forbids and another needs is not here. It is in that
+# board's own kernel.forbidden or kernel.required.
+
+MODULES        a loadable module is a driver that is not in the image and can still be loaded into it
+NET            the device signs offline; with no socket layer there is no interface, no stack and no driver to reach one
+INET           follows NET, and named on its own so a stack cannot come back under a different menu
+WLAN           no radios
+BT             no radios
+SOUND          the device has no speaker and the app makes no sound
+DRM            the firmware hands Linux a plain framebuffer; the kernel-mode-setting stack draws nothing here
+USB_GADGET     a device-mode USB port is a way into the device that nothing in this image needs
+INPUT_JOYSTICK nothing in this product is played
+INPUT_MISC     nothing behind it is on any of these devices
+RC_CORE        no infrared receiver
+DVB_CORE       no tuner
+IIO            no sensors
+MD             no array; the medium is one device
+MTD            no flash chip, and BLOCK2MTD would make the boot medium into one
+SWAP           a page holding a seed must have nowhere to be written to
+DEVMEM         /dev/mem is all of physical memory, the peripherals included
+KEXEC          loading a second kernel over this one keeps the device running a kernel that is not on the medium
+MAGIC_SYSRQ    no input device may reboot the device, kill the app or dump kernel state
+DEBUG_FS       debugfs publishes kernel internals as a writable filesystem
+PROC_KCORE     /proc/kcore is the running kernel's memory as a file to read
+EXT4_FS        the rootfs is an initramfs and the exchange partition is FAT; no other filesystem is ever mounted
+BTRFS_FS       as EXT4_FS
+F2FS_FS        as EXT4_FS
+XFS_FS         as EXT4_FS
+NFS_FS         a network filesystem on a device with no network
+CIFS           as NFS_FS
+SQUASHFS       nothing on the medium is an image to loop-mount
+OVERLAY_FS     nothing is layered over the read-only root
+FUSE_FS        no filesystem is implemented in userspace here
+BLK_DEV_LOOP   a file must not become a block device
+BLK_DEV_NBD    a block device over a network the kernel does not have
+BLK_DEV_RAM    the rootfs is linked into the kernel; /dev/ram* has no use
+CRYPTO_USER_API the app carries its own curve and hashes; the kernel's crypto has no user
+PROFILING      a profiler reads what the app is doing
+KPROBES        a probe rewrites kernel text at runtime
+FTRACE         a trace of every call on a device that signs
+BPF_SYSCALL    loadable programs in the kernel, which is what MODULES is out for
+NAMESPACES     one program, one namespace
+CGROUPS        nothing is being limited or accounted for
+AUDIT          nothing collects an audit log and there is nowhere to send one
+SUSPEND        the device is on or it is off; a suspended device holds a seed in DRAM with nobody watching
+HIBERNATION    hibernation writes memory to storage, which is the one thing a seed must never do
+EEPROM_AT24    a driver that can write a small non-volatile chip has no use here
+EEPROM_AT25    as EEPROM_AT24
+EEPROM_93CX6   as EEPROM_AT24
+NVMEM_SYSFS    the sysfs faces of the nvmem providers, which are writable
+KGDB           a kernel debugger on the serial port of a device that signs; it also selects MAGIC_SYSRQ

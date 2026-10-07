@@ -1,0 +1,46 @@
+[package]
+name = "opensigner-core"
+version = "0.1.0"
+description = "The OpenSigner application: screens, flows and wording as a state machine over osk-ui, no_std + alloc"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+osk-shell-api = { path = "../../core/osk-shell-api" }
+osk-ui = { path = "../../core/osk-ui" }
+osk-bip = { path = "../../core/osk-bip" }
+osk-psbt = { path = "../../core/osk-psbt" }
+osk-entropy = { path = "../../core/osk-entropy" }
+osk-crypto = { path = "../../core/osk-crypto" }
+osk-codec = { path = "../../core/osk-codec" }
+# The encrypted file formats (`.oskb`, KDBX 4) and the kept-key blob.
+osk-backup = { path = "../../core/osk-backup" }
+osk-keep = { path = "../../core/osk-keep" }
+zeroize = { workspace = true, features = ["alloc"] }
+
+[features]
+# The hooks the crate's own tests need and no shell has: today, the
+# Argon2id cost the app writes the kept-key blob and encrypted exports
+# at, which a test sets to Argon2id's minimum so that a suite is not
+# a minute of key stretching (`docs/PLANNING.md` §16.119 rule 3).
+test-hooks = []
+
+[dev-dependencies]
+# The crate's own integration tests link the crate with `test-hooks` on;
+# nothing outside this table enables it.
+opensigner-core = { path = ".", features = ["test-hooks"] }
+# The Japanese BIP-39 vectors, read by tests/typing.rs.
+serde_json.workspace = true
+# The tests' stand-in secure element (HMAC-SHA256, tests/common), and a
+# backup sealed by hand with a pad the format refuses
+# (tests/backup_file.rs).
+hmac = { workspace = true }
+sha2 = { workspace = true }
+argon2 = { workspace = true }
+chacha20poly1305 = { workspace = true }
+
+[lints]
+workspace = true

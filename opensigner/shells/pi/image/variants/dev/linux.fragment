@@ -1,0 +1,6 @@
+# The dev variant puts a console on the panel as well as the serial port.
+# The virtual terminal is already on in the common fragment, because the
+# framebuffer console needs one to paint the boot logo; what this adds is
+# a console attached to it, so `console=tty1` in the dev command line has
+# somewhere to write.
+CONFIG_VT_CONSOLE=y

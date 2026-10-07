@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+	<meta name="author" content="Dominik Reichl" />
+
+	
+	
+
+	<meta name="DC.title" content="KDBX File Format Specification - KeePass" />
+	<meta name="DC.creator" content="Dominik Reichl" />
+	<meta name="DC.type" content="Text" />
+	<meta name="DC.format" content="text/html" />
+	<meta name="DC.language" content="en" />
+	<meta name="DC.rights" content="Copyright (C) 2003-2026 Dominik Reichl" />
+
+	<meta name="robots" content="index, follow" />
+
+	<title>KDBX File Format Specification - KeePass</title>
+	<base target="_self" />
+	<link rel="stylesheet" type="text/css" href="../../default.css" />
+	<link rel="shortcut icon" href="../../favicon.ico" />
+
+	
+	<script type="text/javascript" async="async" crossorigin="anonymous"
+		src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4717770029130736"></script>
+	
+	<script type="text/javascript" src="../../default.js"></script>
+
+	
+	<style type="text/css">
+	/* <![CDATA[ */
+	table.kdbx_t_nowrap_col1 tr th:nth-of-type(1), table.kdbx_t_nowrap_col1 tr td:nth-of-type(1),
+	table.kdbx_t_nowrap_col2 tr th:nth-of-type(2), table.kdbx_t_nowrap_col2 tr td:nth-of-type(2) {
+		white-space: nowrap;
+	}
+	/* ]]> */
+	</style>
+
+</head>
+<body>
+<table class="laytablews">
+<colgroup>
+	<col style="width: 189px;" />
+	<col />
+	<col style="width: 166px;" />
+</colgroup>
+
+<tr>
+<td class="helptopheader" colspan="3">
+
+<table class="laytablews"><tr>
+<td>
+<img src="../images/plockb_64.png" width="64" height="64"
+alt="" />&nbsp;&nbsp;&nbsp;<span class="big"><b>KeePass Help Center</b></span>
+</td>
+<td style="text-align: right;">
+<a href="../../index.html"><img src="../images/b16x16_kfm_home.png"
+alt="" /> KeePass Home</a> |
+<a href="../../download.html"><img src="../images/b16x16_tar.png"
+alt="" /> Downloads</a> |
+<a href="../../translations.html"><img src="../images/b16x16_keyboard_layout.png"
+alt="" /> Translations</a> |
+<a href="../../plugins.html"><img src="../images/b16x16_blockdevice.png"
+alt="" /> Plugins</a> |
+<a href="../../donate.html"><img src="../images/b16x16_donate.png"
+alt="" /> Donate</a>&nbsp;<br />
+<a href="../base/index.html"><img src="../images/b16x16_khelpcenter.png"
+alt="" /> Help Center Home</a> |
+<a href="https://sourceforge.net/p/keepass/discussion/"><img src="../images/b16x16_kdmconfig.png"
+alt="" /> Forums</a> |
+<a href="../../ratings.html"><img src="../../images/award.gif"
+alt="" /> Awards</a> |
+<a href="../../links.html"><img src="../images/b16x16_rotate_cw.png"
+alt="" /> Links</a><!-- |
+<a href="../../search.html"><img src="../images/b16x16_xmag.png"
+alt="" /> Search</a> -->&nbsp;</td>
+</tr></table>
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+<nav class="menubox">
+<div class="menutitle">KeePass Help Center</div>
+
+<a href="../base/index.html"><img src="../images/b16x16_khelpcenter.png"
+alt="" /> Help Center Home</a>
+
+<a href="https://sourceforge.net/p/keepass/discussion/"><img src="../images/b16x16_kdmconfig.png"
+alt="" /> Forums</a>
+
+<a href="../base/firststeps.html"><img src="../images/b16x16_ascii.png"
+alt="" /> First Steps Tutorial</a>
+
+<a href="../base/credits.html"><img src="../images/b16x16_message.png"
+alt="" /> Acknowledgements</a>
+
+</nav><br />
+<nav class="menubox">
+<div class="menutitle">KeePass 1.x</div>
+
+<a href="../v1/setup.html"><img src="../images/b16x16_package_system.png"
+alt="" /> Installation / Portability</a>
+
+<a href="../v1/translation.html"><img src="../images/b16x16_keyboard_layout.png"
+alt="" /> Translations</a>
+
+<a href="../v1/plugins.html"><img src="../images/b16x16_blockdevice.png"
+alt="" /> Plugins</a>
+
+<a href="../v1/version.html"><img src="../images/b16x16_kcmsystem.png"
+alt="" /> Compatibility</a>
+
+<a href="../v1/errors.html"><img src="../images/b16x16_binary.png"
+alt="" /> Error Codes</a>
+
+<a href="../v1/license.html"><img src="../images/b16x16_ascii.png"
+alt="" /> License</a>
+
+</nav><br />
+<nav class="menubox">
+<div class="menutitle">KeePass 2.x</div>
+
+<a href="../v2/setup.html"><img src="../images/b16x16_package_system.png"
+alt="" /> Installation / Portability</a>
+
+<a href="../v2/translation.html"><img src="../images/b16x16_keyboard_layout.png"
+alt="" /> Translations</a>
+
+<a href="../v2/plugins.html"><img src="../images/b16x16_blockdevice.png"
+alt="" /> Plugins</a>
+
+<a href="../v2/version.html"><img src="../images/b16x16_kcmsystem.png"
+alt="" /> Compatibility</a>
+
+<a href="../v2/policy.html"><img src="../images/b16x16_ascii.png"
+alt="" /> Application Policy</a>
+
+<a href="../v2/autotype_obfuscation.html"><img src="../images/b16x16_ktouch.png"
+alt="" /> Auto-Type Obfuscation</a>
+
+<a href="../v2/sync.html"><img src="../images/b16x16_dataexchange.png"
+alt="" /> Synchronization</a>
+
+<a href="../v2/triggers.html"><img src="../images/b16x16_make_kdevelop.png"
+alt="" /> Triggers</a>
+
+<a href="../v2/xml_replace.html"><img src="../images/b16x16_binary.png"
+alt="" /> XML Replace</a>
+
+<img src="../images/folder_open.png" alt="Folder" />
+User Interface:
+
+<a href="../v2/dbsettings.html"><img src="../images/empty.png" alt="" />
+<img src="../images/b16x16_kcmsystem.png" alt="" />
+Database Settings</a>
+
+<a href="../v2/entry.html"><img src="../images/empty.png" alt="" />
+<img src="../images/b16x16_vcard.png" alt="" />
+Entry</a>
+
+<a href="../v2/guioptions.html"><img src="../images/empty.png" alt="" />
+<img src="../images/b16x16_window_list.png" alt="" />
+Interface Options</a>
+
+<a href="../v2/ioconnect.html"><img src="../images/empty.png" alt="" />
+<img src="../images/b16x16_enhanced_browsing.png" alt="" />
+Load/Save From/To URL</a>
+
+<a href="../v2/license.html"><img src="../images/b16x16_ascii.png"
+alt="" /> License</a>
+
+</nav><br />
+<nav class="menubox">
+<div class="menutitle">Features</div>
+
+<a href="../base/accessibility.html"><img src="../images/b16x16_access.png"
+alt="" /> Accessibility</a>
+
+<a href="../base/autotype.html"><img src="../images/b16x16_ktouch.png"
+alt="" /> Auto-Type</a>
+
+<a href="../base/cmdline.html"><img src="../images/b16x16_konsole.png"
+alt="" /> Command Line Options</a>
+
+<a href="../base/configuration.html"><img src="../images/b16x16_kmultiple.png"
+alt="" /> Configuration</a>
+
+<a href="../base/fieldrefs.html"><img src="../images/b16x16_rotate_cw.png"
+alt="" /> Field References</a>
+
+<a href="../base/importexport.html"><img src="../images/b16x16_dataexchange.png"
+alt="" /> Import / Export</a>
+
+<a href="../base/integration.html"><img src="../images/b16x16_package_system.png"
+alt="" /> Integration</a>
+
+<a href="../base/keys.html"><img src="../images/b16x16_kgpg.png"
+alt="" /> Master Key</a>
+
+<a href="../base/multiuser.html"><img src="../images/b16x16_kdmconfig.png"
+alt="" /> Multiple Users</a>
+
+<a href="../base/pwgenerator.html"><img src="../images/b16x16_password.png"
+alt="" /> Password Generator</a>
+
+<a href="../base/placeholders.html"><img src="../images/b16x16_chardevice.png"
+alt="" /> Placeholders</a>
+
+<a href="../base/repair.html"><img src="../images/b16x16_kcmdrkonqi.png"
+alt="" /> Repair Databases</a>
+
+<a href="../base/search.html"><img src="../images/b16x16_xmag.png"
+alt="" /> Search</a>
+
+<a href="../base/secedits.html"><img src="../images/b16x16_desktop.png"
+alt="" /> Secure Edit Controls</a>
+
+<a href="../base/security.html"><img src="../images/b16x16_file_locked.png"
+alt="" /> Security</a>
+
+<a href="../base/tans.html"><img src="../images/b16x16_vcard.png"
+alt="" /> TAN Support</a>
+
+<a href="../base/autourl.html"><img src="../images/b16x16_enhanced_browsing.png"
+alt="" /> URL Field</a>
+
+<a href="../base/usingpws.html"><img src="../images/b16x16_ascii.png"
+alt="" /> Using Stored Passwords</a>
+
+</nav><br />
+<nav class="menubox">
+<div class="menutitle">FAQs and Info</div>
+
+<a href="../base/faq.html"><img src="../images/b16x16_help.png"
+alt="" /> Administrative FAQ</a>
+
+<a href="../base/faq_tech.html"><img src="../images/b16x16_help.png"
+alt="" /> Technical FAQ</a>
+
+<a href="../kb/faq.html"><img src="../images/b16x16_help.png"
+alt="" /> Additional FAQ</a>
+
+<a href="https://sourceforge.net/p/keepass/wiki/Backup/"
+target="_blank"><img src="../images/b16x16_dataexchange.png"
+alt="" /> Backup</a>
+
+</nav><br />
+<nav class="menubox">
+<div class="menutitle">Development</div>
+
+<a href="../v1_dev/customize.html"><img src="../images/b16x16_desktop.png"
+alt="" /> Customization (1.x)</a>
+
+<a href="../v2_dev/customize.html"><img src="../images/b16x16_desktop.png"
+alt="" /> Customization (2.x)</a>
+
+<a href="../v2_dev/scr_index.html"><img src="../images/b16x16_konsole.png"
+alt="" /> Scripting (2.x)</a>
+
+<a href="../v1_dev/plg_index.html"><img src="../images/b16x16_ascii.png"
+alt="" /> Creating Plugins (1.x)</a>
+
+<a href="../v2_dev/plg_index.html"><img src="../images/b16x16_ascii.png"
+alt="" /> Creating Plugins (2.x)</a>
+
+<a href="../v1_dev/plg_keyprov.html"><img src="../images/b16x16_password.png"
+alt="" /> Key Providers (1.x)</a>
+
+<a href="../v2_dev/plg_keyprov.html"><img src="../images/b16x16_password.png"
+alt="" /> Key Providers (2.x)</a>
+
+<a href="../kb/kdbx.html"><img src="../images/b16x16_binary.png"
+alt="" /> KDBX File Format</a>
+
+</nav><br />
+<nav class="menubox">
+<div class="menutitle">Support KeePass</div>
+
+<a href="../../donate.html"><img src="../images/b16x16_donate.png"
+alt="" /> Donate</a>
+
+</nav><br />
+
+</td>
+<td>
+
+
+
+
+<!-- Org Pub: 2024-03-01 -->
+
+<table class="sectionheader"><tr>
+<td><img src="../images/b64x64_binary.png" alt="" /></td>
+<td><h1>KDBX File Format Specification</h1>
+<p>Definition of the KDBX 4.1 file format.<!-- FMTVERSION --></p></td>
+</tr></table>
+
+<ul>
+<li><a href="#general">General</a></li>
+<li><a href="#overall">Overall Structure</a></li>
+<li><a href="#header">Header</a></li>
+<li><a href="#vardict">Variant Dictionary</a></li>
+<li><a href="#keys">Computation of Keys</a></li>
+<li><a href="#hbs">HMAC-Protected Block Stream</a></li>
+<li><a href="#iheader">Inner Header</a></li>
+<li><a href="#ienc">Inner Encryption</a></li>
+<li><a href="#xml">XML Document</a></li>
+</ul>
+
+<br />
+
+<h2 class="sectiontitle" id="general"><img src="../images/b16x16_help.png"
+alt="" /> General</h2>
+
+<p>KDBX is the KeePass 2.x database file format, which is used for storing
+user data (user names, passwords, URLs, etc.).
+It features encryption, data authentication (for detecting
+corruptions/manipulations), compression, attachment deduplication
+and extensibility (plugins and ports can store custom data).</p>
+
+<p>This specification defines the latest version (4.1)<!-- FMTVERSION -->
+of the KDBX file format.</p>
+
+<p>Some general notes on the KDBX file format and this specification:</p>
+
+<ul class="withspc">
+<li>Integers are stored in little-endian byte order, i.e. the least
+significant byte is stored first.
+For example, the integer 0x12345678 is stored as the byte sequence
+(0x78, 0x56, 0x34, 0x12).</li>
+
+<li>A boolean is stored as one byte. False = 0x00, true = 0x01.</li>
+
+<li>Strings are stored in UTF-8 encoding, without a byte-order mark (BOM)
+and without a null terminator (the length is clear from the context).</li>
+
+<li>A UUID is a unique identifier consisting of 16 bytes (128 bits).
+In this specification, we list the bytes of a UUID in hexadecimal form,
+without a prefix. For example, 31C1F2E6BF714350BE5805216AFC5AFF =
+(0x31, 0xC1, 0xF2, 0xE6, 0xBF, 0x71, 0x43, 0x50,
+0xBE, 0x58, 0x05, 0x21, 0x6A, 0xFC, 0x5A, 0xFF).
+In the <a href="#xml">XML document</a>, UUIDs are stored in Base64 encoding.</li>
+
+<li>In this specification, we use the symbol '&#x2016;' for the concatenation
+of two byte sequences, with implicit conversion of the arguments to
+byte sequences, without padding. Example:<br />
+(0xAB, 0xCD, 0xEF) &#x2016; 0x12345678 &#x2016; "Abc" =
+(0xAB, 0xCD, 0xEF, 0x78, 0x56, 0x34, 0x12, 0x41, 0x62, 0x63).</li>
+
+<li>Items marked with a '&#x27F3;' symbol should be regenerated each time
+the KDBX file is saved.</li>
+
+<li>The abbreviation 'KDB' stands for 'KeePass Database'. The 'X' indicates
+that XML is used.</li>
+</ul>
+
+<br />
+
+<h2 class="sectiontitle" id="overall"><img src="../images/b16x16_binary.png"
+alt="" /> Overall Structure</h2>
+
+<p>Overview of a KDBX file:</p>
+
+<ol>
+<li><a href="#header">Header</a>.</li>
+<li>SHA-256 hash of the header.</li>
+<li>HMAC-SHA-256 hash of the header.</li>
+<li>In <a href="#hbs">HMAC-protected block stream</a>:
+<ul>
+<li>Encrypted:
+<ul>
+<li>Compressed (optional):
+<ol>
+<li><a href="#iheader">Inner header</a>.</li>
+<li><a href="#xml">XML document</a>.</li>
+</ol></li>
+</ul></li>
+</ul></li>
+</ol>
+
+<p>The SHA-256 hash of the header can be used for checking the integrity
+of the header, without knowing the master key.
+It allows detecting unintentional corruptions.</p>
+
+<p>The HMAC-SHA-256 hash of the header can be used for checking the integrity
+and the authenticity of the header. The correct master key is required for
+verifying the HMAC. See the section '<a href="#keys">Computation of Keys</a>'
+for details about the computation of the HMAC key.</p>
+
+<p>The input data for the HMAC-protected block stream is encrypted,
+i.e. we have an Encrypt-then-MAC scheme.</p>
+
+<br />
+
+<h2 class="sectiontitle" id="header"><img src="../images/b16x16_binary.png"
+alt="" /> Header</h2>
+
+<p>A KDBX file starts as follows:</p>
+
+<table class="tablebox75">
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+<tr>
+<td>Signature (1)</td>
+<td>UInt32</td>
+<td>Must be 0x9AA2D903.</td>
+</tr>
+<tr>
+<td>Signature (2)</td>
+<td>UInt32</td>
+<td>Must be 0xB54BFB67.</td>
+</tr>
+<tr>
+<td>Format version</td>
+<td>UInt32</td>
+<td>The high word is the major version, and the low word is the minor version.
+<ul>
+<li>An application can load the file if it supports the major version.</li>
+<li>If the minor version of the file is greater than the one that the application
+supports, the application may try to load the file, ignoring any unknown items.
+Certain data may be lost in this case, thus showing a confirmation/warning
+is recommended.</li>
+</ul>
+For KDBX 4.1, the format version value is 0x00040001.<!-- FMTVERSION --></td>
+</tr>
+<tr>
+<td>Fields</td>
+<td>ID-value pairs</td>
+<td>One or more header fields. See below.</td>
+</tr>
+</table>
+
+<p>A header field consists of an ID <var>t</var> (byte) and a value <var>V</var>
+(type depends on <var>t</var>). Let <var>s</var> be the size of <var>V</var>
+in bytes, as Int32 (the maximum is about 2 GB).
+Each header field is stored as follows:<br />
+<var>t</var> &#x2016; <var>s</var> &#x2016; <var>V</var>.</p>
+
+<p>The following header fields are supported:</p>
+
+<table class="tablebox75">
+<tr><th>Name</th><th>ID</th><th>Type</th><th>Description</th></tr>
+<tr>
+<td>End of header</td>
+<td>0</td>
+<td>Byte[4]</td>
+<td>Indicates the end of the header. Must be present exactly once, as the last
+header field. The value should be the byte array (0x0D, 0x0A, 0x0D, 0x0A).</td>
+</tr>
+<tr>
+<td>Encryption algorithm</td>
+<td>2</td>
+<td>UUID</td>
+<td>The following encryption algorithms are supported by KeePass
+(built-in, without a plugin):
+<ul>
+<li><code>31C1F2E6BF714350BE5805216AFC5AFF</code>: AES-256 (NIST FIPS 197, CBC mode, PKCS #7 padding).</li>
+<li><code>D6038A2B8B6F4CB5A524339A31DBB59A</code>: ChaCha20 (RFC 8439).</li>
+</ul>
+Plugins can provide more encryption algorithms.</td>
+</tr>
+<tr>
+<td>Compression algorithm</td>
+<td>3</td>
+<td>UInt32</td>
+<td>0 = no compression, 1 = GZip.</td>
+</tr>
+<tr>
+<td>Master salt/seed (&#x27F3;)</td>
+<td>4</td>
+<td>Byte[32]</td>
+<td>Salt/seed for <a href="#keys">computing the keys</a>.</td>
+</tr>
+<tr>
+<td>Encryption IV/nonce (&#x27F3;)</td>
+<td>7</td>
+<td>Byte[]</td>
+<td>Initialization vector or nonce for the encryption algorithm.
+16 bytes for AES-256, 12 bytes for ChaCha20.</td>
+</tr>
+<tr>
+<td>KDF parameters</td>
+<td>11</td>
+<td><a href="#vardict">Variant dictionary</a></td>
+<td>Parameters for the key derivation function (KDF). See below.</td>
+</tr>
+<tr>
+<td>Public custom data</td>
+<td>12</td>
+<td><a href="#vardict">Variant dictionary</a></td>
+<td>Custom data of plugins/ports.
+The name of an item should be unique, e.g. "PluginName_ItemName".
+In this header field, only data that must be readable without decryption should
+be stored (e.g. data by a key provider plugin required for decryption).
+All other custom data should be stored in the encrypted
+<a href="#xml">XML document</a> (elements <code>//Meta/CustomData</code>,
+<code>//Group/CustomData</code> and <code>//Entry/CustomData</code>).</td>
+</tr>
+</table>
+
+<p>The IDs 1, 5, 6, 8, 9 and 10 were used in previous versions of the KDBX
+file format.</p>
+
+<p><b>Key derivation function (KDF) parameters.</b>
+The KDF parameters are stored in a <a href="#vardict">variant dictionary</a>.
+The following parameters are supported:</p>
+
+<table class="tablebox75">
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+<tr><td colspan="3"><b>All KDFs:</b></td></tr>
+<tr>
+<td><code>$UUID</code></td>
+<td>UUID</td>
+<td>UUID of the KDF. The following KDFs are supported by KeePass
+(built-in, without a plugin):
+<ul>
+<li><code>C9D9F39A628A4460BF740D08C18A4FEA</code>: AES-KDF.</li>
+<li><code>EF636DDF8C29444B91F7A9A403E30A0C</code>: Argon2d.</li>
+<li><code>9E298B1956DB4773B23DFC3EC6F0A1E6</code>: Argon2id.</li>
+</ul>
+Plugins can provide more KDFs.</td>
+</tr>
+
+<tr><td colspan="3"><b>AES-KDF:</b></td></tr>
+<tr>
+<td><code>S</code> (&#x27F3;)</td>
+<td>Byte[32]</td>
+<td>Salt/seed.</td>
+</tr>
+<tr>
+<td><code>R</code></td>
+<td>UInt64</td>
+<td>Rounds.</td>
+</tr>
+
+<tr><td colspan="3"><b>Argon2:</b></td></tr>
+<tr>
+<td><code>V</code></td>
+<td>UInt32</td>
+<td>Version. 0x10 (version 1.0) or 0x13 (version 1.3), as defined in the
+Argon2 specification. 0x13 is recommended.</td>
+</tr>
+<tr>
+<td><code>S</code> (&#x27F3;)</td>
+<td>Byte[]</td>
+<td>Salt. Size: minimum 8, maximum 0x3FFFFFFF, recommended 32.</td>
+</tr>
+<tr>
+<td><code>I</code></td>
+<td>UInt64</td>
+<td>Iterations. Minimum 1, maximum 0xFFFFFFFF.</td>
+</tr>
+<tr>
+<td><code>M</code></td>
+<td>UInt64</td>
+<td>Memory, in bytes. Minimum 8192, maximum 0x7FFFFFFF.</td>
+</tr>
+<tr>
+<td><code>P</code></td>
+<td>UInt32</td>
+<td>Parallelism. Minimum 1, maximum 0x00FFFFFF.</td>
+</tr>
+</table>
+
+<br /><br />
+
+<h2 class="sectiontitle" id="vardict"><img src="../images/b16x16_blockdevice.png"
+alt="" /> Variant Dictionary</h2>
+
+<p>A variant dictionary is a name-value dictionary, where the name is a string
+and the type of the value depends on the item. It is stored as follows:</p>
+
+<ol>
+<li>Format version, as UInt16.
+<ul>
+<li>The high byte is the major version. It is critical, i.e. an application
+must refuse to load the file if the major version is unsupported.</li>
+<li>The low byte is the minor version. It can be ignored, but when encountering
+an unsupported value type, a confirmation/warning should be displayed or
+loading should fail.</li>
+</ul>
+The current version is 1.0, i.e. 0x0100.</li>
+
+<li>Zero or more items (see below).</li>
+
+<li>Null terminator byte.</li>
+</ol>
+
+<p>An item looks as follows:</p>
+
+<table class="tablebox75 kdbx_t_nowrap_col1 kdbx_t_nowrap_col2">
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+<tr>
+<td>Value type <var>t</var></td>
+<td>Byte</td>
+<td>Supported value types are:
+<ul>
+<li><code>0x04</code>: UInt32.</li>
+<li><code>0x05</code>: UInt64.</li>
+<li><code>0x08</code>: Boolean.</li>
+<li><code>0x0C</code>: Int32.</li>
+<li><code>0x0D</code>: Int64.</li>
+<li><code>0x18</code>: String.</li>
+<li><code>0x42</code>: Byte[].</li>
+</ul></td>
+</tr>
+<tr>
+<td>Name size <var>r</var></td>
+<td>Int32</td>
+<td>Size of <var>U</var> in bytes.</td>
+</tr>
+<tr>
+<td>Name <var>U</var></td>
+<td>String (<var>r</var> bytes)</td>
+<td>Name of the item.</td>
+</tr>
+<tr>
+<td>Value size <var>s</var></td>
+<td>Int32</td>
+<td>Size of <var>V</var> in bytes.</td>
+</tr>
+<tr>
+<td>Value <var>V</var></td>
+<td><var>t</var> (<var>s</var> bytes)</td>
+<td>Value of the item.</td>
+</tr>
+</table>
+
+<p>The order of the items is arbitrary.</p>
+
+<br />
+
+<h2 class="sectiontitle" id="keys"><img src="../images/b16x16_kgpg_key3.png"
+alt="" /> Computation of Keys</h2>
+
+<p>For some of the cryptographic primitives used in the KDBX file format,
+a key is required. The keys are computed as follows:</p>
+
+<ol>
+<li>Let <var>R</var> be the SHA-256 hash of the concatenation of the
+components of the master key that the user has provided (each optional,
+in the following order):
+<ol>
+<li>SHA-256 hash of the <a href="../base/keys.html#password">master password</a>
+(encoded using UTF-8).</li>
+<li>Key stored in a <a href="../base/keys.html#keyfiles">key file</a>.</li>
+<li>Key provided by a <a href="../v2_dev/plg_keyprov.html">key provider</a> plugin.</li>
+<li>Key protected using the <a href="../base/keys.html#winuser">Windows user account</a>
+(DPAPI).</li>
+</ol></li>
+<li>Let <var>T</var> be the result of transforming <var>R</var> using a
+<a href="../base/security.html#secdictprotect">key derivation function</a>.
+The function and parameters for it are stored in the
+<a href="#header">header</a>.</li>
+</ol>
+
+<p>With <var>T</var> and the master salt/seed <var>S</var> (stored in the header),
+the final keys can be computed:</p>
+
+<ul class="withspc">
+<li>If the encryption algorithm needs a 256-bit key (such as AES-256 and ChaCha20),
+the key is:<br />
+SHA-256(<var>S</var> &#x2016; <var>T</var>).<br />
+If the encryption algorithm needs a key smaller than 256 bits, the key consists
+of the first bytes of SHA-256(<var>S</var> &#x2016; <var>T</var>).<!-- <br />
+If the encryption algorithm needs a key longer than 256 bits, compute as many
+key bytes as necessary by iteratively computing the HMAC-SHA-256 hashes
+of increasing indices (zero-based, type UInt64) with
+SHA-512(<var>S</var> &#x2016; <var>T</var>) as key for the HMAC. --></li>
+
+<li>The key for the HMAC-SHA-256 hash of the header is:<br />
+SHA-512(0xFFFFFFFFFFFFFFFF &#x2016; SHA-512(<var>S</var> &#x2016; <var>T</var> &#x2016; 0x01)).</li>
+
+<li>The key for the HMAC-SHA-256 hash of the <var>i</var>-th block (zero-based index,
+type UInt64) of the <a href="#hbs">HMAC-protected block stream</a> is:<br />
+SHA-512(<var>i</var> &#x2016; SHA-512(<var>S</var> &#x2016; <var>T</var> &#x2016; 0x01)).</li>
+</ul>
+
+<p>The inner encryption key is stored in the <a href="#iheader">inner header</a>
+and does not depend on the master key.
+For details, see the description of the <a href="#ienc">inner encryption</a>.</p>
+
+<br />
+
+<h2 class="sectiontitle" id="hbs"><img src="../images/b16x16_file_locked.png"
+alt="" /> HMAC-Protected Block Stream</h2>
+
+<p>When loading the content of a KDBX file, KeePass first verifies the integrity
+and the authenticity of the data before decrypting, decompressing and parsing it.
+For this, HMACs are used. Computing only one HMAC for the whole data would be
+problematic when the data is large.
+KeePass would either need to read the whole data into the process memory
+(i.e. a lot of process memory would be required)
+or read the whole data twice (which would be a problem when I/O is slow,
+e.g. when loading the KDBX file over a slow network/Internet connection,
+and temporary files should of course be avoided for multiple reasons).
+Solution: splitting the data into blocks and protecting each block using a HMAC.</p>
+
+<p>When saving a KDBX file, KeePass splits the input data for this stream into blocks.
+Let <var>M</var> be the <var>i</var>-th input block (zero-based index,
+type UInt64) and let <var>s</var> be the size of <var>M</var> (in bytes,
+as Int32), then an output block (to be stored in the file) looks as follows:<br />
+HMAC-SHA-256(<var>i</var> &#x2016; <var>s</var> &#x2016; <var>M</var>) &#x2016;
+<var>s</var> &#x2016; <var>M</var>.</p>
+
+<p>For computing the HMAC-SHA-256 hash, a key is required. See the section
+'<a href="#keys">Computation of Keys</a>' for details about the computation of
+the key.</p>
+
+<p>A very small block size results in a large KDBX file (due to the additional
+HMACs and size values).
+A very large block size requires a lot of process memory.
+So, except in special cases (e.g. a small block at the end of the file),
+neither the minimum nor the maximum is a good choice for the block size;
+a good size is in the "middle".
+When saving a KDBX file, KeePass currently uses 1048576 (i.e. 1 MB) as size
+for every input block except the last one (which may be smaller).</p>
+
+<p>The HMAC-protected block stream is terminated by an output block
+for an empty input block (i.e. <var>M</var> empty, <var>s</var> = 0).</p>
+
+<br />
+
+<h2 class="sectiontitle" id="iheader"><img src="../images/b16x16_binary.png"
+alt="" /> Inner Header</h2>
+
+<p>The inner header (which is called "inner" because it is compressed and
+encrypted) consists of one or more header fields.
+A header field consists of an ID <var>t</var> (byte) and a value <var>V</var>
+(type depends on <var>t</var>). Let <var>s</var> be the size of <var>V</var>
+in bytes, as Int32.
+Each header field is stored as follows:<br />
+<var>t</var> &#x2016; <var>s</var> &#x2016; <var>V</var>.</p>
+
+<p>The following header fields are supported:</p>
+
+<table class="tablebox75">
+<tr><th>Name</th><th>ID</th><th>Type</th><th>Description</th></tr>
+<tr>
+<td>End of header</td>
+<td>0</td>
+<td>&#x2013;</td>
+<td>Indicates the end of the header. Must be present exactly once, as the last
+header field. The value should be empty.</td>
+</tr>
+<tr>
+<td>Inner encryption algorithm</td>
+<td>1</td>
+<td>Int32</td>
+<td>2 = Salsa20, 3 = ChaCha20 (default, recommended). See '<a href="#ienc">Inner Encryption</a>'.</td>
+</tr>
+<tr>
+<td>Inner encryption key (&#x27F3;)</td>
+<td>2</td>
+<td>Byte[]</td>
+<td>See '<a href="#ienc">Inner Encryption</a>'.</td>
+</tr>
+<tr>
+<td>Binary content</td>
+<td>3</td>
+<td>Byte[]</td>
+<td>The value is <var>f</var> &#x2016; <var>C</var>, where <var>f</var> is a
+flags byte and <var>C</var> is the content of a binary
+(<a href="../v2/entry.html#bin">attachment</a>).
+The flag 0x01 indicates that the binary content should be protected in the
+process memory. A binary content is referenced in the
+<a href="#xml">XML document</a> by its index in the inner header
+(the first binary content has index 0, the second one has index 1, etc.).</td>
+</tr>
+</table>
+
+<br /><br />
+
+<h2 class="sectiontitle" id="ienc"><img src="../images/b16x16_file_locked.png"
+alt="" /> Inner Encryption</h2>
+
+<p>Most XML parsers work with regular strings, which may be difficult to erase
+from the process memory. So, if sensitive data would be stored unencryptedly in
+the <a href="#xml">XML document</a>, a
+<a href="../base/security.html#secmemprot">process memory protection</a> could
+not be realized properly.
+Solution: all data that should be protected in the process memory is stored in
+encrypted form in the XML document. For this, the encryption algorithm and key
+stored in the inner header are used.
+The encryption algorithm is a stream cipher and its state is <em>not</em> reset
+for each data to be protected (thus the order in which the data to be protected
+appears is important).
+For example, if there is an entry A with a password consisting of 23 UTF-8 bytes
+and an entry B with a password consisting of 19 UTF-8 bytes
+(and A appears before B), then the password of A is encrypted using the first
+23 output bytes of the stream cipher and the password of B is encrypted using
+the <em>next</em> (not first) 19 output bytes of the stream cipher.
+When loading a KDBX file, an application typically decrypts the protected data
+and immediately protects it using a method suitable for the current operating
+system (e.g. DPAPI on Windows).</p>
+
+<p>We emphasize that the only purpose of the inner encryption is to support the
+process memory protection. The inner encryption has no effect on the
+cryptographic security of the KDBX file format.</p>
+
+<p>Let <var>K</var> be the inner encryption key stored in the
+<a href="#iheader">inner header</a>.
+The parameters for the inner encryption algorithm are derived as follows:</p>
+
+<ul class="withspc">
+<li>Salsa20. <var>K</var> should consist of 32 bytes.
+The key for Salsa20 is SHA-256(<var>K</var>), and the nonce is
+(0xE8, 0x30, 0x09, 0x4B, 0x97, 0x20, 0x5D, 0x2A).</li>
+
+<li>ChaCha20. <var>K</var> should consist of 64 bytes.
+Compute <var>H</var> := SHA-512(<var>K</var>).
+The key for ChaCha20 is (<var>H</var>[0], ..., <var>H</var>[31]),
+and the nonce is (<var>H</var>[32], ..., <var>H</var>[43]).</li>
+</ul>
+
+<br />
+
+<h2 class="sectiontitle" id="xml"><img src="../images/b16x16_ascii.png"
+alt="" /> XML Document</h2>
+
+<p>The KDBX XML document contains most of the user data.</p>
+
+<p>The format of the KDBX XML document is specified by the following
+XML schema (including annotations):<br />
+<img src="../images/b16x16_ascii.png" alt="" />
+<a href="../download/KDBX_XML.xsd">KDBX_XML.xsd</a>
+(KDBX 4.1 XML Schema).<!-- FMTVERSION --></p>
+
+
+
+<br />
+<div style="text-align: center;">
+<!-- KeePass Help Center H 468 -->
+<ins class="adsbygoogle"
+    style="display:inline-block;width:468px;height:60px"
+    data-ad-client="ca-pub-4717770029130736"
+    data-ad-slot="2336575418"></ins>
+<script type="text/javascript">
+    (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+</div>
+
+<br />
+</td>
+
+<td style="text-align: right;">
+
+<!-- KeePass Help Center V 160 -->
+<ins class="adsbygoogle"
+    style="display:inline-block;width:160px;height:600px"
+    data-ad-client="ca-pub-4717770029130736"
+    data-ad-slot="5128199969"></ins>
+<script type="text/javascript">
+    (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+<br /><br />
+
+
+
+
+
+
+
+
+<!-- KeePass Help Center V 160 -->
+<ins class="adsbygoogle"
+    style="display:inline-block;width:160px;height:600px"
+    data-ad-client="ca-pub-4717770029130736"
+    data-ad-slot="5128199969"></ins>
+<script type="text/javascript">
+    (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+<br /><br />
+<!-- KeePass Help Center V 160 -->
+<ins class="adsbygoogle"
+    style="display:inline-block;width:160px;height:600px"
+    data-ad-client="ca-pub-4717770029130736"
+    data-ad-slot="5128199969"></ins>
+<script type="text/javascript">
+    (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+<br /><br />
+
+
+
+<small>
+<!-- <a href="https://validator.w3.org/check?uri=referer" target="_blank"><img
+src="../../images/valid_xhtml10.png" alt="Valid XHTML 1.0 Transitional Document" /></a><br />
+<br /> -->
+<a href="https://keepass.info/" target="_blank"><img
+src="../../images/icons/keepass_80x15.png" alt="Get KeePass" /></a>
+</small>
+</td>
+</tr>
+
+<tr><td><hr /></td>
+<td><hr />
+<footer style="text-align: right;">
+<small>Copyright &copy; 2003-2026 Dominik Reichl.
+[<a href="../../contact.html">Legal Contact / Imprint</a>]
+[<a href="../../help/base/terms.html">Terms &amp; Privacy</a>]
+[<a href="../../help/base/credits.html">Acknowledgements</a>]
+[<a href="../../donate.html">Donate</a>]</small>
+</footer></td>
+
+<td><hr /></td>
+</tr>
+</table>
+
+<br />
+
+</body></html>
+

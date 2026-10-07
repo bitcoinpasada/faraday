@@ -1,0 +1,38 @@
+[package]
+name = "faraday-core"
+version = "0.1.0"
+description = "Faraday's app: screens, the session, Inbox and Outbox; events in, commands out, no I/O"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+osk-shell-api = { path = "../../core/osk-shell-api" }
+osk-ui = { path = "../../core/osk-ui" }
+osk-bip = { path = "../../core/osk-bip" }
+osk-psbt = { path = "../../core/osk-psbt" }
+osk-codec = { path = "../../core/osk-codec" }
+osk-crypto = { path = "../../core/osk-crypto" }
+osk-entropy = { path = "../../core/osk-entropy" }
+# OpenSigner's Create wizard: the new-key options and their names
+# (`src/keygen.rs`).
+opensigner-core = { path = "../../opensigner/opensigner-core" }
+faraday-vault = { path = "../faraday-vault" }
+faraday-qr = { path = "../faraday-qr" }
+faraday-pgp = { path = "../faraday-pgp" }
+faraday-sb = { path = "../faraday-sb" }
+osk-backup = { path = "../../core/osk-backup" }
+zeroize = { workspace = true, features = ["alloc"] }
+
+[features]
+# The test wallets and the files a test stick carries. The stick image's
+# app is built without it.
+testkit = []
+
+[dev-dependencies]
+faraday-core = { path = ".", features = ["testkit"] }
+
+[lints]
+workspace = true

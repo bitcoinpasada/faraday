@@ -1,0 +1,48 @@
+# Walks Load a key › "Word numbers" (PLANNING §16.125 rule 2) with the
+# BIP-39 test mnemonic "abandon ×11 about": word 1 is number 1 and the
+# last word is number 4, the place "about" has on the English list.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD: "Load a key"
+snap numbers-01-source          # the rows most used first
+tapid 95                        # LOAD_SOURCE_NUMBERS: "Word numbers"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+snap numbers-02-word-1-empty    # 0 is dead on an empty field; no ✓
+text "1"
+snap numbers-03-word-1-typed    # the word the number names, in the strip
+cand 132 0                      # LOAD_CANDIDATES cell 0: "abandon"
+snap numbers-04-word-2          # the panel and the eye arrive with word 1
+text "1"
+cand 132 0
+text "1"
+cand 132 0
+text "1"
+cand 132 0
+text "1"
+cand 132 0
+text "1"
+cand 132 0
+text "1"
+cand 132 0
+text "1"
+cand 132 0
+text "1"
+cand 132 0
+text "1"
+cand 132 0
+snap numbers-05-word-11
+text "1"
+cand 132 0
+text "204"
+snap numbers-06-word-12-204     # 9 is dead here: 2049 is past the list
+key backspace
+key backspace
+key backspace
+text "4"
+snap numbers-07-word-12-4       # the checksum leaves "about" for the last place
+cand 132 0
+snap numbers-08-checksum

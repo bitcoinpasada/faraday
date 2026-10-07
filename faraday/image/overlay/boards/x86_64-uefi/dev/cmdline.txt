@@ -1,0 +1,20 @@
+# The dev variant on a PC: the kernel console is the screen and the first
+# serial port.
+#
+# tty0 is the framebuffer console, which the dev variant builds a console
+# for (variants/dev/linux.fragment). A laptop has no serial header that
+# anybody can reach, so without this a machine that will not come up says
+# nothing anywhere; with it the boot prints on the screen until the app
+# takes the framebuffer over.
+#
+# ttyS0 comes last, and the last console= named is the one userspace gets
+# as /dev/console: that is the port QEMU gives the machine, it is where
+# the dev getty runs (board.conf's CONSOLE_TTY), and it is how
+# tools/stick-test.py knows the shell has started.
+console=tty0
+console=ttyS0,115200
+
+# Faraday: the dev inittab sends the app's error output to /dev/kmsg, so a
+# laptop shows it on screen. The kernel limits how many lines userspace
+# writes there; on the dev variant every one goes through.
+printk.devkmsg=on

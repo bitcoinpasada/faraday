@@ -1,0 +1,28 @@
+# Faraday's fuzz targets: its own workspace, like upstream's fuzz/, so a
+# nightly `cargo fuzz` build with sanitizer flags never shares a target
+# directory or a lock file with the pinned workspace build. Run from
+# faraday/fuzz: `cargo +nightly fuzz run fat`.
+[package]
+name = "faraday-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+faraday-fat = { path = "../faraday-fat" }
+
+[profile.release]
+debug = true
+
+[[bin]]
+name = "fat"
+path = "fuzz_targets/fat.rs"
+test = false
+doc = false
+bench = false

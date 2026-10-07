@@ -1,0 +1,19 @@
+config BR2_PACKAGE_OPENSIGNER_PI
+	bool "opensigner-pi"
+	help
+	  Install the prebuilt opensigner-pi binary as /usr/bin/opensigner-pi.
+
+	  The binary is not built here: `just pi-bin` cross-compiles it on
+	  the host as a static armv7 executable and the image build mounts
+	  it into the container. Buildroot never sees the Rust toolchain.
+
+if BR2_PACKAGE_OPENSIGNER_PI
+
+config BR2_PACKAGE_OPENSIGNER_PI_BINARY
+	string "path to the prebuilt binary"
+	default "/binary/opensigner-pi"
+	help
+	  Absolute path, inside the build container, of the static armv7
+	  opensigner-pi binary produced by `just pi-bin`.
+
+endif

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Secure Boot</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Source+Sans+3:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#83d8ef}a:hover{color:#b1e8f7}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; display: flex; background: #11161c; color: #e0e9ef; font-family: {{fontStack}}; overflow: hidden">
+<dc-import name="Sidebar" active="secureboot" locked="{{ no }}" font="{{ font }}" hint-size="240px,800px"></dc-import>
+<main style="flex: 1; min-width: 0; box-sizing: border-box; padding: 36px 48px; display: flex; flex-direction: column; gap: 28px">
+<header style="display: flex; align-items: center; justify-content: space-between">
+<h1 style="margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.02em">Secure Boot</h1>
+<span style="font-size: 13px; color: #9aacb9">Owner keys in Main</span>
+</header>
+<section aria-label="Chain of trust" style="display: flex; align-items: stretch; gap: 0">
+<div style="flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 12px; background: #19212a; border: 1px solid #1f2933">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 500">PK</span>
+<span style="font-size: 12px; color: #9aacb9">Platform key · RSA-2048</span>
+<span style="margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #8bd4b2"><span style="width: 7px; height: 7px; border-radius: 4px; background: #8bd4b2"></span>In vault</span>
+</div>
+<div style="width: 44px; display: flex; align-items: center; justify-content: center; color: #6f8291"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></div>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 12px; background: #19212a; border: 1px solid #1f2933">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 500">KEK</span>
+<span style="font-size: 12px; color: #9aacb9">Key exchange key · RSA-2048</span>
+<span style="margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #8bd4b2"><span style="width: 7px; height: 7px; border-radius: 4px; background: #8bd4b2"></span>In vault</span>
+</div>
+<div style="width: 44px; display: flex; align-items: center; justify-content: center; color: #6f8291"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></div>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 12px; background: #19212a; border: 1px solid #1f2933">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 500">db</span>
+<span style="font-size: 12px; color: #9aacb9">Signs boot files · RSA-2048</span>
+<span style="margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #8bd4b2"><span style="width: 7px; height: 7px; border-radius: 4px; background: #8bd4b2"></span>In vault</span>
+</div>
+<div style="width: 44px; display: flex; align-items: center; justify-content: center; color: #6f8291"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></div>
+<div style="flex: 1.2; display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 12px; background: rgba(131,216,239,0.06); border: 1px dashed rgba(131,216,239,0.45)">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 500">BOOTX64.EFI</span>
+<span style="font-size: 12px; color: #9aacb9">From Inbox · 9.7 MiB</span>
+<span style="margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #f0c077"><span style="width: 7px; height: 7px; border-radius: 4px; background: #f0c077"></span>Not signed</span>
+</div>
+</section>
+<div style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; flex-grow: 1; min-height: 0">
+<section aria-labelledby="sign-h" style="display: flex; flex-direction: column; gap: 16px; padding: 22px; border-radius: 12px; background: #19212a; border: 1px solid #1f2933">
+<h2 id="sign-h" style="margin: 0; font-size: 16px; font-weight: 600">Sign BOOTX64.EFI</h2>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #9aacb9">SHA-256 of the file in the Inbox</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; letter-spacing: 0.02em; line-height: 1.6; word-spacing: 6px">[SHA-256 OF THE INBOX FILE IN GROUPS OF FOUR]</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(139,212,178,0.10); color: #8bd4b2; font-size: 13px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Matches build record Faraday 0.1.0</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #9aacb9">Build record fingerprint. Compare it with the one published elsewhere.</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 18px; letter-spacing: 0.04em; word-spacing: 8px">[BUILD RECORD FINGERPRINT]</span>
+</div>
+<label style="display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer"><input type="checkbox" checked="{{ compared }}" onChange="{{ toggleCompared }}" style="width: 18px; height: 18px; accent-color: #83d8ef; margin: 0">I compared it through another channel</label>
+<div style="flex-grow: 1"></div>
+<div style="display: flex; align-items: center; justify-content: space-between">
+<span style="font-size: 12px; color: #9aacb9">Signed file goes to the Outbox</span>
+<button type="button" style="height: 44px; padding: 0 22px; border-radius: 10px; border: 0; background: {{signBg}}; color: {{signFg}}; font-family: inherit; font-size: 15px; font-weight: 600">Sign with db</button>
+</div>
+</section>
+<section aria-labelledby="enrol-h" style="display: flex; flex-direction: column; gap: 14px; padding: 22px; border-radius: 12px; background: #19212a; border: 1px solid #1f2933">
+<h2 id="enrol-h" style="margin: 0; font-size: 16px; font-weight: 600">Enrolment files</h2>
+<div role="radiogroup" aria-label="Enrolment policy" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid #303d49; border-radius: 10px; overflow: hidden">
+<sc-for list="{{ policies }}" as="p" hint-placeholder-count="2">
+<button type="button" role="radio" aria-checked="{{ p.checked }}" onClick="{{ p.pick }}" style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border: 0; border-right: {{p.divider}}; background: {{p.bg}}; color: #e0e9ef; font-family: inherit; text-align: left; cursor: pointer"><span style="font-size: 13px; font-weight: 600">{{ p.label }}</span><span style="font-size: 11px; color: #9aacb9">{{ p.sub }}</span></button>
+</sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<sc-for list="{{ includes }}" as="r" hint-placeholder-count="2">
+<div style="display: flex; gap: 10px; font-size: 12px; line-height: 1.45"><span style="flex: none; width: 34px; font-family: 'JetBrains Mono', monospace; color: #9aacb9">{{ r.k }}</span><span>{{ r.v }}</span></div>
+</sc-for>
+<sc-if value="{{ windows }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; gap: 10px; font-size: 12px; line-height: 1.45; color: #9aacb9"><span style="flex: none; width: 34px">Not</span><span>Microsoft UEFI CA 2011 and 2023 (third-party), Option ROM UEFI CA 2023</span></div>
+</sc-if>
+</div>
+<div style="display: flex; gap: 8px; padding: 10px 12px; border-radius: 10px; background: rgba(240,192,119,0.10); color: #f0c077; font-size: 12px; line-height: 1.45"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-top: 1px"><path d="M12 3.5 21.5 20h-19z"></path><path d="M12 10v4.5M12 17.5v.01"></path></svg><span>A graphics card or storage controller whose firmware is signed by the third-party authority may not start under either policy.</span></div>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #9aacb9">PK.auth · KEK.auth · db.auth · .esl · .crt</span>
+<div style="flex-grow: 1"></div>
+<button type="button" style="align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 14px; font-weight: 500"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg>Put in Outbox</button>
+</section>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"font":{"editor":"enum","options":["Inter","IBM Plex Sans","Source Sans 3"],"default":"Inter","section":"Look"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { compared: false, policy: 'windows' };
+  }
+  renderVals() {
+    const stacks = { "Inter": "'Inter', sans-serif", "IBM Plex Sans": "'IBM Plex Sans', sans-serif", "Source Sans 3": "'Source Sans 3', sans-serif" };
+    const c = this.state.compared;
+    const win = this.state.policy === 'windows';
+    const policies = [
+      { k: 'own', label: 'Own keys only', sub: 'A computer used only for this' },
+      { k: 'windows', label: 'Windows-compatible', sub: 'Windows still boots' }
+    ].map((p, i) => ({
+      label: p.label, sub: p.sub,
+      checked: this.state.policy === p.k ? 'true' : 'false',
+      bg: this.state.policy === p.k ? 'rgba(131,216,239,0.12)' : 'transparent',
+      divider: i === 0 ? '1px solid #303d49' : '0',
+      pick: () => this.setState({ policy: p.k })
+    }));
+    return {
+      font: this.props.font ?? 'Inter',
+      no: false,
+      fontStack: stacks[this.props.font] || stacks.Inter,
+      compared: c,
+      toggleCompared: () => this.setState({ compared: !c }),
+      signBg: c ? '#83d8ef' : '#222c37',
+      signFg: c ? '#0d1218' : '#6f8291',
+      windows: win,
+      policies,
+      includes: win
+        ? [
+            { k: 'KEK', v: 'Yours, Microsoft Corporation KEK CA 2011, Microsoft Corporation KEK 2K CA 2023' },
+            { k: 'db', v: 'Yours, Microsoft Windows Production PCA 2011, Windows UEFI CA 2023' }
+          ]
+        : [
+            { k: 'KEK', v: 'Yours only' },
+            { k: 'db', v: 'Yours only' }
+          ]
+    };
+  }
+}
+</script>
+</body>
+</html>

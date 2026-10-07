@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vaults</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Source+Sans+3:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#83d8ef}a:hover{color:#b1e8f7}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; display: flex; background: #11161c; color: #e0e9ef; font-family: {{fontStack}}; overflow: hidden">
+<dc-import name="Sidebar" active="vaults" locked="{{ no }}" font="{{ font }}" hint-size="240px,800px"></dc-import>
+<main style="flex: 1; min-width: 0; box-sizing: border-box; padding: 36px 48px 32px; display: flex; flex-direction: column; gap: 22px">
+<header style="display: flex; align-items: center; justify-content: space-between">
+<h1 style="margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.02em">Vaults</h1>
+<a href="CreateVault.dc.html" style="display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 18px; border-radius: 10px; background: #83d8ef; color: #0d1218; text-decoration: none; font-size: 14px; font-weight: 600"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Create a vault</a>
+</header>
+<sc-if value="{{ justCreated }}" hint-placeholder-val="{{ true }}">
+<div role="status" style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; background: rgba(139,212,178,0.10); border: 1px solid rgba(139,212,178,0.30); color: #8bd4b2; font-size: 14px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg><span>Vault created. It is in the Outbox until a stick visit writes it.</span><a href="Outbox.dc.html" style="margin-left: auto; font-size: 13px; text-decoration: none">Open Outbox</a></div>
+</sc-if>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<sc-for list="{{ vaults }}" as="v" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 16px; min-height: 84px; box-sizing: border-box; padding: 14px 18px; border-radius: 12px; background: #19212a; border: 1px solid {{v.border}}">
+<span style="flex: none; width: 40px; height: 40px; border-radius: 11px; background: {{v.iconBg}}; color: {{v.iconFg}}; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"></rect><circle cx="12" cy="12" r="3.5"></circle><path d="M12 8.5V7M12 17v-1.5M15.5 12H17M7 12h1.5"></path></svg></span>
+<span style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
+<span style="display: flex; align-items: baseline; gap: 10px"><span style="font-size: 16px; font-weight: 600">{{ v.title }}</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #9aacb9">{{ v.file }}</span></span>
+<span style="font-size: 13px; color: #9aacb9">{{ v.where }} · {{ v.cost }}</span>
+</span>
+<span style="margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: {{v.stateColor}}"><span style="width: 7px; height: 7px; border-radius: 4px; background: {{v.stateColor}}"></span>{{ v.state }}</span>
+<a href="{{ v.href }}" style="flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 88px; height: 36px; padding: 0 14px; box-sizing: border-box; border-radius: 8px; border: 1px solid #303d49; color: #e0e9ef; text-decoration: none; font-size: 13px; font-weight: 500">{{ v.action }}</a>
+</div>
+</sc-for>
+</div>
+<div style="flex-grow: 1"></div>
+<span style="font-size: 12px; color: #6f8291">A locked vault shows only what its file states: its size and unlock cost.</span>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"font":{"editor":"enum","options":["Inter","IBM Plex Sans","Source Sans 3"],"default":"Inter","section":"Look"},"justCreated":{"editor":"boolean","default":true,"section":"State"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const stacks = { "Inter": "'Inter', sans-serif", "IBM Plex Sans": "'IBM Plex Sans', sans-serif", "Source Sans 3": "'Source Sans 3', sans-serif" };
+    const justCreated = this.props.justCreated ?? true;
+    const list = [
+      { title: 'Main', file: 'vault.ofv', where: 'From KINGSTON · 1.0 MB', cost: '256 MiB · 3 passes', state: 'Open · 2 unsaved changes', kind: 'open', action: 'Open', href: 'VaultContents.dc.html' },
+      { title: 'Locked vault', file: 'vault-2.ofv', where: 'From KINGSTON · 262 KB', cost: '64 MiB · 3 passes', state: 'Locked', kind: 'locked', action: 'Unlock', href: 'Unlock.dc.html' }
+    ];
+    if (justCreated) {
+      list.push({ title: 'New vault', file: 'named when written', where: 'In the Outbox · 1.0 MB', cost: '256 MiB · 3 passes', state: 'Locked · not written yet', kind: 'new', action: 'Unlock', href: 'Unlock.dc.html' });
+    }
+    const vaults = list.map((v) => ({
+      ...v,
+      border: v.kind === 'new' ? 'rgba(139,212,178,0.35)' : '#1f2933',
+      iconBg: v.kind === 'open' ? 'rgba(131,216,239,0.12)' : (v.kind === 'new' ? 'rgba(139,212,178,0.12)' : '#222c37'),
+      iconFg: v.kind === 'open' ? '#83d8ef' : (v.kind === 'new' ? '#8bd4b2' : '#9aacb9'),
+      stateColor: v.kind === 'open' ? '#f0c077' : (v.kind === 'new' ? '#8bd4b2' : '#9aacb9')
+    }));
+    return { font: this.props.font ?? 'Inter', no: false, fontStack: stacks[this.props.font] || stacks.Inter, justCreated, vaults };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,234 @@
+# Kernel configuration that holds for every board and every panel, merged
+# on top of the board's defconfig before the board's and the panel's own
+# fragments.
+#
+# Two kinds of line. A line that turns something on is here because the
+# initramfs, the console, the boot logo or the card needs it. A line that
+# turns something off names a subsystem this device does not have, with
+# the reason it does not have it. image/check-kernel-config.sh holds both
+# lists again as a rule the build enforces.
+#
+# Nothing is a module: the image has no modprobe and no /lib/modules, and
+# a driver that is not in the kernel is not on the device.
+
+# One image, no loadable modules: a driver that is not in the kernel is
+# not on the device, and there is no modprobe and no /lib/modules to put
+# one back.
+#
+# Turning modules off does not by itself drop the drivers a defconfig
+# builds as modules. Kconfig turns a `=m` into `=y` when CONFIG_MODULES
+# is off, so this line alone built all 1203 of the bcm2709 defconfig's
+# modules into the kernel (PLANNING.md 16.93). What drops them is
+# external.mk's post-patch hook, which deletes every `=m` line from the
+# defconfig before Buildroot reads it. This line stays because the rule
+# is still one image and no modules.
+# CONFIG_MODULES is not set
+
+# ---- device nodes ----
+# The shell opens /dev/fb0, /dev/input/eventN and /dev/video0 by path. The
+# kernel creates them itself; mdev only refreshes the tree afterwards.
+CONFIG_DEVTMPFS=y
+CONFIG_DEVTMPFS_MOUNT=y
+
+# ---- initramfs ----
+# The whole rootfs is linked into the kernel image; nothing is read from the
+# card after the firmware has loaded it.
+CONFIG_BLK_DEV_INITRD=y
+CONFIG_RD_GZIP=y
+CONFIG_INITRAMFS_COMPRESSION_GZIP=y
+
+# ---- console ----
+# The kernel console is a serial port and nothing else; which port is the
+# board's business. No kernel text ever reaches the panel.
+CONFIG_SERIAL_CORE=y
+CONFIG_SERIAL_CORE_CONSOLE=y
+# The virtual terminal is not a console in the release image. CONFIG_VT
+# stays on below because the framebuffer console needs it to paint the
+# boot logo, but VT_CONSOLE is what puts kernel messages on a terminal,
+# and the panel is never to carry a line of kernel text. The dev variant
+# turns it back on, which is what `console=tty1` in its command line
+# needs.
+# CONFIG_VT_CONSOLE is not set
+
+# ---- display ----
+# fbdev is the interface the shell writes through; which driver provides
+# it is the panel's business.
+CONFIG_FB=y
+
+# ---- boot logo ----
+# The framebuffer console takes the display a second or two after power,
+# well before the app has a frame to show, and paints the kernel's logo
+# on it. common/make-logo.py generates that logo at the panel's exact
+# size, so the mark lands in the middle, and external.mk copies it over
+# drivers/video/logo/logo_linux_clut224.ppm when the kernel is unpacked.
+# The console itself stays on the serial port (see cmdline.txt), so the
+# panel gets the logo and never a line of text.
+# The framebuffer console is a console, so it needs a virtual terminal
+# even though no text goes to it.
+CONFIG_VT=y
+CONFIG_FRAMEBUFFER_CONSOLE=y
+CONFIG_LOGO=y
+CONFIG_LOGO_LINUX_CLUT224=y
+# CONFIG_LOGO_LINUX_MONO is not set
+# CONFIG_LOGO_LINUX_VGA16 is not set
+
+# ---- microSD file exchange ----
+# The card's second partition is FAT and is mounted at /mnt/microsd by
+# init, so a PSBT can arrive as a file and a signed one can go back.
+# CONFIG_MMC_BLOCK gives the block device the mount needs; the codepage
+# and the NLS tables are what vfat needs to read a name a computer wrote.
+CONFIG_FAT_FS=y
+CONFIG_VFAT_FS=y
+CONFIG_FAT_DEFAULT_CODEPAGE=437
+CONFIG_FAT_DEFAULT_IOCHARSET="ascii"
+CONFIG_NLS=y
+CONFIG_NLS_CODEPAGE_437=y
+CONFIG_NLS_ASCII=y
+CONFIG_NLS_ISO8859_1=y
+
+# ---- SysRq and the kernel debugger ----
+# Nothing should be able to reboot the device, kill the app or dump kernel
+# state from an input device. The device is meant to be unreachable except
+# through the screen, and the magic keys are a way around that.
+#
+# KGDB has to go with it: KGDB_KDB selects MAGIC_SYSRQ, so leaving the
+# debugger on would turn the magic keys back on however this fragment
+# asked for them. A kernel debugger on the serial port of a device that
+# signs is not wanted either.
+# CONFIG_KGDB is not set
+# CONFIG_MAGIC_SYSRQ is not set
+
+# ---- what the app can reach (security review 2026-09-11, M8) ----
+# The shell opens a framebuffer, an input device, a capture device and
+# files on the card's second partition. Everything below is a way to read
+# or write memory, firmware or storage that the shell does not use, and
+# that a compromised shell would use to persist or to exfiltrate.
+
+# /dev/mem: all of physical memory, the peripherals included. STRICT_DEVMEM
+# would narrow it; no node at all is narrower still.
+# CONFIG_DEVMEM is not set
+
+# debugfs publishes kernel internals, including the DMA and clock trees
+# the panel runs on, as a writable filesystem.
+# CONFIG_DEBUG_FS is not set
+
+# There is no swap device and no place for one: a page holding a seed must
+# never have anywhere to be written to.
+# CONFIG_SWAP is not set
+
+# Flash chips and the block-to-MTD shim. The board has no MTD device, and
+# BLOCK2MTD would otherwise make the card into one.
+# CONFIG_MTD is not set
+
+# I2C and SPI EEPROM drivers. The panel's touch controller sits on i2c and
+# the camera on another; neither is written by this image, and a driver
+# that can write a small non-volatile chip has no use here.
+# CONFIG_EEPROM_AT24 is not set
+# CONFIG_EEPROM_AT25 is not set
+# CONFIG_EEPROM_93CX6 is not set
+
+# The sysfs faces of every nvmem provider, which are writable.
+# CONFIG_NVMEM_SYSFS is not set
+
+# /dev/ram*: block devices in RAM. The rootfs is an initramfs linked into
+# the kernel and needs none of them.
+# CONFIG_BLK_DEV_RAM is not set
+
+# /proc/kcore is the running kernel's memory as an ELF file to read.
+# CONFIG_PROC_KCORE is not set
+
+# Loading a second kernel over this one is a way to keep running with a
+# different kernel than the one on the card.
+# CONFIG_KEXEC is not set
+
+# ---- everything the board does not have and the app does not use ----
+# The defconfig is a general-purpose kernel for a general-purpose
+# computer. This device is one program on one panel with one camera and
+# one card. Each line below is a subsystem that is out, with the reason
+# it is out; image/check-kernel-config.sh fails the build if any of them
+# comes back.
+#
+# A subsystem takes everything under it. NET is the largest: it removes
+# INET, IPV6, netfilter, the wireless and Bluetooth stacks, the Ethernet
+# and USB network drivers and the board's own Broadcom Wi-Fi driver.
+
+# The device signs offline. With no socket layer there is no interface to
+# configure, no stack to reach and no driver that could carry a seed off
+# the board. PLANNING.md 11.2 and the security review's model both say
+# this kernel has no network stack; this is the line that makes it true.
+# CONFIG_NET is not set
+
+# No speaker, and the app makes no sound.
+# CONFIG_SOUND is not set
+
+# The firmware sets the panel up and hands Linux a plain framebuffer, so
+# the kernel-mode-setting stack draws nothing here.
+# CONFIG_DRM is not set
+
+# A device-mode USB port is a way into the device. USB is kept in host
+# mode for what the board's own fragment says it carries, and for nothing
+# else.
+# CONFIG_USB_GADGET is not set
+
+# Nothing in this product is played and nothing on any of these devices
+# sits behind the miscellaneous input drivers. Whether there is a HID
+# layer at all is the board's: a soldered-on touch controller is not a
+# HID, and a laptop's keyboard and touchpad are.
+# CONFIG_INPUT_JOYSTICK is not set
+# CONFIG_INPUT_MISC is not set
+
+# No infrared receiver, no tuner, no sensors on this board.
+# CONFIG_RC_CORE is not set
+# CONFIG_DVB_CORE is not set
+# CONFIG_IIO is not set
+
+# The boot medium is one device and not an array. Whether there is a SCSI
+# layer and a USB mass-storage driver is the board's: a card needs
+# neither, and a stick is one.
+# CONFIG_MD is not set
+
+# The rootfs is an initramfs and the card's second partition is FAT.
+# Nothing else is ever mounted, so no other filesystem is built.
+# CONFIG_EXT4_FS is not set
+# CONFIG_BTRFS_FS is not set
+# CONFIG_F2FS_FS is not set
+# CONFIG_XFS_FS is not set
+# CONFIG_NFS_FS is not set
+# CONFIG_CIFS is not set
+# CONFIG_SQUASHFS is not set
+# CONFIG_OVERLAY_FS is not set
+# CONFIG_FUSE_FS is not set
+
+# A file must not become a block device, and there is no network for one
+# to arrive over.
+# CONFIG_BLK_DEV_LOOP is not set
+# CONFIG_BLK_DEV_NBD is not set
+
+# The app carries its own curve and its own hashes. The kernel's crypto
+# has no user here, and AF_ALG is a way to hand bytes to the kernel.
+# CONFIG_CRYPTO_USER_API is not set
+
+# Ways to watch or change a running kernel from userspace. A device that
+# signs has no use for any of them, and each is a way to read what the
+# app is doing.
+# CONFIG_PROFILING is not set
+# CONFIG_KPROBES is not set
+# CONFIG_FTRACE is not set
+# CONFIG_BPF_SYSCALL is not set
+
+# One program, one namespace. Nothing is being isolated, limited or
+# accounted for, and nothing collects an audit log or has anywhere to
+# send one.
+# CONFIG_NAMESPACES is not set
+# CONFIG_CGROUPS is not set
+# CONFIG_AUDIT is not set
+# Autogrouping selects CGROUPS, so it has to go with them. It groups a
+# desktop's session processes so a build does not starve an editor; this
+# board runs one program.
+# CONFIG_SCHED_AUTOGROUP is not set
+
+# The board is on or it is off. A suspended board holds a seed in DRAM
+# with nobody watching, and hibernation writes memory to storage, which
+# is the one thing a seed must never do.
+# CONFIG_SUSPEND is not set
+# CONFIG_HIBERNATION is not set

@@ -1,0 +1,16 @@
+[package]
+name = "faraday-disk"
+version = "0.1.0"
+description = "The disk process (PLAN.md §4.3): unprivileged, it reads and writes the FAT partitions faraday-grant hands it and answers the app's shell over a pipe"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+faraday-fat = { path = "../faraday-fat" }
+faraday-files = { path = "../faraday-files" }
+
+[lints]
+workspace = true

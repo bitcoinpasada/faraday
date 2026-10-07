@@ -1,0 +1,23 @@
+[package]
+name = "faraday-scanner"
+version = "0.1.0"
+description = "Faraday's copy of opensigner-scanner: reads QR codes on a worker thread, and says what each pass saw"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+# The decode policy is still `opensigner_core::scan`'s reduction, and the
+# detector is the workspace's vendored `rqrr`, read directly so that a
+# pass can say where a code was and how fine it is.
+[dependencies]
+opensigner-core = { path = "../../opensigner/opensigner-core" }
+rqrr = { workspace = true }
+zeroize = { workspace = true, features = ["alloc"] }
+
+[dev-dependencies]
+osk-codec = { path = "../../core/osk-codec" }
+
+[lints]
+workspace = true

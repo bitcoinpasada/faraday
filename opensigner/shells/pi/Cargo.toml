@@ -1,0 +1,35 @@
+[package]
+name = "opensigner-pi"
+version = "0.1.0"
+description = "OpenSigner on a Raspberry Pi framebuffer panel: /dev/fb0 out, /dev/input in, nothing else"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "opensigner-pi"
+path = "src/main.rs"
+
+# The standard library, four workspace crates and `zeroize`, and that is
+# the whole list. `zeroize` is what wipes a captured frame while it waits
+# on the camera's channel. The device has no package manager and no OS RNG crate: entropy is
+# 32 bytes read from /dev/urandom, the panel is a file, and the touch
+# controller is another file. The camera is the one thing a file cannot
+# do, so it goes through opensigner-v4l2 (§16.33), which owns every
+# `ioctl` and every `unsafe` block; this crate still has none.
+[dependencies]
+osk-shell-api = { path = "../../../core/osk-shell-api" }
+# `pin-pages`: the `mlock` that keeps the session key and the loaded
+# master keys out of swap (§16.49). The release image configures no swap,
+# so this is the belt to that image's braces and the whole of the story
+# on a board booted with one.
+osk-crypto = { path = "../../../core/osk-crypto", features = ["pin-pages"] }
+opensigner-core = { path = "../../opensigner-core" }
+opensigner-v4l2 = { path = "../v4l2" }
+opensigner-scanner = { path = "../scanner" }
+zeroize = { workspace = true, features = ["alloc"] }
+
+[lints]
+workspace = true

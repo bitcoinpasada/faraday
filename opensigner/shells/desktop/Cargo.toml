@@ -1,0 +1,39 @@
+[package]
+name = "opensigner-desktop"
+version = "0.1.0"
+description = "OpenSigner in a window: winit for input, softbuffer for the blit, nothing else"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "opensigner-desktop"
+path = "src/main.rs"
+
+[dependencies]
+osk-shell-api = { path = "../../../core/osk-shell-api" }
+# Named here for one reason: `pin-pages` turns on the `mlock` that keeps
+# the session key and the loaded master keys out of swap (§16.49). A
+# desktop has swap and the shell can ask the kernel not to use it for
+# these pages.
+osk-crypto = { path = "../../../core/osk-crypto", features = ["pin-pages"] }
+opensigner-core = { path = "../../opensigner-core" }
+opensigner-scanner = { path = "../scanner" }
+winit.workspace = true
+softbuffer.workspace = true
+getrandom.workspace = true
+
+# Camera capture, Linux only (§16.33). The crate is one of the two places
+# in the workspace that may use `unsafe`; this shell has none of its own.
+[target.'cfg(target_os = "linux")'.dependencies]
+opensigner-v4l2 = { path = "../v4l2" }
+
+# Camera capture, macOS only (§16.33). The same arrangement: the crate
+# holds the `unsafe` and the Objective-C, this shell holds neither.
+[target.'cfg(target_os = "macos")'.dependencies]
+opensigner-avfoundation = { path = "../avfoundation" }
+
+[lints]
+workspace = true

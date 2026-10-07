@@ -1,0 +1,8 @@
+# Faraday: upstream's board command line (opensigner.dpi=160) with
+# freed and allocated memory zeroed by the kernel (PLAN.md §4.2), so a
+# locked process's memory cannot outlive it.
+#
+# usbcore.authorized_default=2 authorises only devices on hard-wired
+# internal ports; every other USB device waits for faraday-grant, which
+# authorises its interfaces one class at a time (PLAN.md §4.6).
+opensigner.dpi=160 init_on_free=1 init_on_alloc=1 usbcore.authorized_default=2

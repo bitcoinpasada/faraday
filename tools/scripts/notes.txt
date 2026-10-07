@@ -1,0 +1,87 @@
+# Tools › Notes and a wallet's Recovery sheet (PLANNING §16.112): the
+# empty list, a note typed and shown whole, its export as an encrypted
+# backup (the form, the passphrase twice, the sealed Result, its QR and
+# the file saved), a sealed note and a sealed sheet read back from the
+# backup vectors (tools/vectors/backup, passphrase "correct horse
+# battery staple"), a plain text file read as a note, and then a wallet's
+# own sheet: its note typed and the sheet exported.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 23                        # HOME_TILE_BASE + 3: Tools
+tapid 2900                      # TOOLS_NOTES
+snap notes-01-empty             # no notes, and the two ways to one
+tapid 2901                      # NOTES_NEW
+snap notes-02-typing            # the note's field, empty
+text "Keys in the safe. Words with the notary."
+snap notes-02b-typed
+key enter
+snap notes-03-note              # the note, whole
+tapid 2904                      # NOTE_EXPORT: which form
+tapid 2910                      # FORM_CONTINUE: Encrypted backup
+snap notes-04-seal-pass         # the passphrase it is sealed under
+text "a long enough one"
+key enter
+snap notes-04b-seal-repeat
+text "a long enough one"
+key enter
+snap notes-05-sealed            # the format, cipher and key derivation, and the ways off
+tapid 2913                      # SEAL_SHOW_QR
+snap notes-06-sealed-qr         # the sealed file as one QR
+tapid 2                         # BACK to the note
+tapid 2904                      # NOTE_EXPORT
+tapid 2941                      # FORM_BASE + 1: KDBX 4
+tapid 2910                      # FORM_CONTINUE
+text "a long enough one"
+key enter
+text "a long enough one"
+key enter
+snap notes-07-sealed-kdbx       # the same Result for a KDBX file
+tapid 2912                      # SEAL_SAVE: written as a file
+snap notes-07b-sealed-saved     # the name it was saved under
+tapid 2914                      # SEAL_DONE
+tapid 23                        # HOME_TILE_BASE + 3: Tools
+tapid 2900                      # TOOLS_NOTES
+snap notes-08-one-note          # the note of the session, listed
+tapid 2902                      # NOTES_READ_FILE: the scanner
+camera off                      # the backups arrive as files here
+file tools/vectors/backup/backup-v3-note.oskb
+tapid 701                       # SCAN_FILE: "Read a file"
+snap notes-09-open-pass         # the passphrase the backup opens under
+text "correct horse battery staple"
+key enter
+snap notes-09b-opened-note      # the sealed note, whole
+tapid 2                         # BACK to Notes
+tapid 2902                      # NOTES_READ_FILE
+camera off
+file tools/vectors/backup/backup-v3-sheet.oskb
+tapid 701                       # SCAN_FILE
+text "correct horse battery staple"
+key enter
+snap notes-10-opened-sheet      # a wallet's sheet: the wallet, its note, Add this wallet
+tapid 2909                      # SHEET_ADD_WALLET: the wallet the sheet names
+snap notes-11-sheet-wallet
+tapid 2906                      # WALLET_SHEET: this wallet's own sheet
+snap notes-12-sheet
+tapid 2907                      # SHEET_NOTE: the sheet's note
+snap notes-12b-sheet-note
+text "Two of three. The third key is with the notary."
+key enter
+snap notes-12c-sheet-written
+tapid 2908                      # SHEET_EXPORT: which form
+snap notes-13-sheet-form
+tapid 2910                      # FORM_CONTINUE: Encrypted backup
+text "a long enough one"
+key enter
+text "a long enough one"
+key enter
+snap notes-13b-sheet-sealed
+tapid 2                         # BACK to the sheet
+tapid 2                         # BACK to the wallet's page
+tapid 2                         # BACK to Wallets
+tapid 2                         # BACK to Home
+tapid 23                        # HOME_TILE_BASE + 3: Tools
+tapid 2900                      # TOOLS_NOTES
+tapid 2902                      # NOTES_READ_FILE
+camera off
+file tools/vectors/message.txt
+tapid 701                       # SCAN_FILE: a plain text file
+snap notes-14-plain-note        # the file's text, as a note

@@ -1,0 +1,38 @@
+# Rust
+/target/
+**/target/
+
+# Private notes and scratch files; never committed
+/local/
+
+# Editor and OS noise
+*.swp
+*~
+
+# Snapshot shell output
+/out/
+
+# Android shell: built artefacts and the local SDK path
+**/jniLibs/
+.gradle/
+**/build/
+local.properties
+
+# tools/build/ is not build output: it is the container recipes every
+# release artifact is built with, and it is committed.
+!/tools/build/
+
+# Session handoff notes; private, never committed
+/.thoughts/
+
+# Fuzzing (fuzz/README.md). One rule for both directories: a file with
+# an extension was put there by hand and is committed -- the seed corpus,
+# and the minimized input of a crash that is still open. What a run
+# produces is named after its SHA-1, has no extension, and is not.
+/fuzz/corpus/*/*
+!/fuzz/corpus/*/*.*
+/fuzz/artifacts/*/*
+!/fuzz/artifacts/*/*.*
+/fuzz/coverage/
+/fuzz/Cargo.lock
+__pycache__/

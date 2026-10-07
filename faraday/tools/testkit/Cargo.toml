@@ -1,0 +1,17 @@
+[package]
+name = "faraday-testkit"
+version = "0.1.0"
+description = "Writes the files the test sticks carry: the Savings wallet, an unsigned spend from it, and a cosigner's signed copy"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+faraday-core = { path = "../../faraday-core", features = ["testkit"] }
+osk-psbt = { path = "../../../core/osk-psbt" }
+osk-bip = { path = "../../../core/osk-bip" }
+
+[lints]
+workspace = true

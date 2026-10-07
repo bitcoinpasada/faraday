@@ -1,0 +1,21 @@
+[package]
+name = "opensigner-v4l2"
+version = "0.1.0"
+description = "Video4Linux2 capture through raw ioctls: the one crate in the workspace allowed to use unsafe"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+# One dependency, for the libc declarations the ioctls need. Everything
+# V4L2 is declared in src/abi.rs.
+[dependencies]
+libc.workspace = true
+
+# The workspace lints are deliberately NOT inherited: this crate is the
+# single exception to `unsafe_code = "forbid"` (docs/PLANNING.md §16.33).
+# Every other workspace lint that matters here is repeated by hand.
+[lints.rust]
+unsafe_code = "allow"
+missing_docs = "warn"

@@ -1,0 +1,25 @@
+[package]
+name = "osk-codec"
+version = "0.1.0"
+description = "QR payloads for OpenSignerKit: QR encode and decode, SeedQR, BC-UR, payload classification; no_std + alloc"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[features]
+default = ["decode"]
+# QR decoding from camera luma through `rqrr`, which needs `std`
+# (`docs/deps/rqrr.md`, `docs/PLANNING.md` §16.20). Everything else in the
+# crate is `no_std`.
+decode = ["dep:rqrr"]
+
+[dependencies]
+osk-bip = { path = "../osk-bip" }
+osk-crypto = { path = "../osk-crypto" }
+bitcoin.workspace = true
+zeroize = { workspace = true, features = ["alloc"] }
+rqrr = { workspace = true, optional = true }
+
+[lints]
+workspace = true

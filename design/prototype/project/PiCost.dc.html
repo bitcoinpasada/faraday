@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pi · Unlock cost</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Source+Sans+3:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 268px; height: 358px; box-sizing: border-box; display: flex; flex-direction: column; background: #11161c; color: #e0e9ef; font-family: {{fontStack}}">
+<div style="height: 56px; flex: none; display: flex; align-items: center; gap: 4px; padding: 0 8px; border-bottom: 1px solid #1f2933">
+<button type="button" aria-label="Back" style="width: 44px; height: 44px; border: 0; background: transparent; color: #e0e9ef; display: flex; align-items: center; justify-content: center; padding: 0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button>
+<h1 style="margin: 0; font-size: 20px; font-weight: 600">Unlock cost</h1>
+<span style="margin-left: auto; padding-right: 8px; font-size: 12px; color: #9aacb9">2 of 5</span>
+</div>
+<div role="radiogroup" aria-label="Unlock cost" style="flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 16px">
+<sc-for list="{{ rows }}" as="r" hint-placeholder-count="4">
+<button type="button" role="radio" aria-checked="{{ r.checked }}" onClick="{{ r.pick }}" style="display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 4px; border: 0; border-bottom: 1px solid #1f2933; background: transparent; color: #e0e9ef; font-family: inherit; text-align: left">
+<span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 16px; font-weight: 500">{{ r.label }}</span><span style="font-size: 12px; color: {{r.subColor}}">{{ r.sub }}</span></span>
+<span style="margin-left: auto; width: 22px; height: 22px; border-radius: 11px; box-sizing: border-box; border: 2px solid {{r.ring}}; background: {{r.fill}}; display: flex; align-items: center; justify-content: center"><span style="width: 8px; height: 8px; border-radius: 4px; background: {{r.dot}}"></span></span>
+</button>
+</sc-for>
+</div>
+<div style="padding: 0 16px 16px">
+<button type="button" style="width: 100%; height: 52px; border-radius: 12px; border: 0; background: #83d8ef; color: #0d1218; font-family: inherit; font-size: 16px; font-weight: 600">Continue</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"font":{"editor":"enum","options":["Inter","IBM Plex Sans","Source Sans 3"],"default":"Inter","section":"Look"},"$preview":{"width":268,"height":358}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { picked: 1 };
+  }
+  renderVals() {
+    const stacks = { "Inter": "'Inter', sans-serif", "IBM Plex Sans": "'IBM Plex Sans', sans-serif", "Source Sans 3": "'Source Sans 3', sans-serif" };
+    const defs = [
+      { label: 'Light', sub: '64 MiB · opens anywhere', warn: false },
+      { label: 'Standard', sub: '256 MiB · suggested', warn: false },
+      { label: 'Strong', sub: '1 GiB · too large for Pi 3', warn: true },
+      { label: 'Maximum', sub: '2 GiB · too large for Pi 3', warn: true }
+    ];
+    const rows = defs.map((d, i) => {
+      const on = i === this.state.picked;
+      return {
+        label: d.label, sub: d.sub,
+        subColor: d.warn ? '#f0c077' : (i === 1 ? '#83d8ef' : '#9aacb9'),
+        checked: on ? 'true' : 'false',
+        ring: on ? '#83d8ef' : '#303d49',
+        fill: 'transparent',
+        dot: on ? '#83d8ef' : 'transparent',
+        pick: () => this.setState({ picked: i })
+      };
+    });
+    return { fontStack: stacks[this.props.font] || stacks.Inter, rows };
+  }
+}
+</script>
+</body>
+</html>

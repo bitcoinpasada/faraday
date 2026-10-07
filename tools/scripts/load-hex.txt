@@ -1,0 +1,21 @@
+# Walks Load a key › "Hex entropy" (PLANNING §16.125 rule 3) with the
+# entropy of the BIP-39 test mnemonic "abandon ×11 about": 32 zero
+# digits, which are 16 zero bytes.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD: "Load a key"
+tapid 94                        # LOAD_SOURCE_HEX: "Hex entropy"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+snap hex-01-empty               # ✓ dead until the count's 32 digits are in
+text "0000000000000000000000000000000"
+tick 100
+snap hex-02-31-digits           # the last digit still visible, ✓ still dead
+text "0"
+tick 600
+snap hex-03-32-digits           # every digit masked, ✓ live
+key enter
+snap hex-04-checksum            # the words the entropy gives: 12, English, valid

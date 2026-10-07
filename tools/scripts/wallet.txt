@@ -1,0 +1,90 @@
+# A multisig wallet registered for the session as a BIP-388 policy
+# (PLANNING §15 item 8): loading the policy from Wallets, reviewing it,
+# using it, the menu it then has — addresses, export, keys, forget — the
+# row it becomes on Wallets, and what the Sign flow then says about the
+# change of that wallet. The fixtures are tools/vectors/psbt/wallet-2of3.*
+# (made by `just psbt-fixtures`); the wallet is the loaded key with two
+# fixed cosigners on regtest.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # "Add key"
+pin 138 2580                    # LOAD_PIN_KEYBOARD: session PIN, first key of the session
+pin 138 2580                    # repeat it
+tapid 25                        # HOME_TILE_BASE + 5: Settings
+tapid 304                       # SETTINGS_NETWORK_ROW: the network Choice
+tapid 303                       # SETTINGS_NET_BASE + 3: Regtest, the wallet's chain
+tapid 2                         # BACK: close the Choice
+tapid 2                         # BACK to Home
+snap wallet-00-home             # the key's own wallet, and the two actions
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 2203                      # WALLETS_ADD: the kinds of wallet
+tapid 62                        # WALLETS_LOAD: "Scan a wallet"
+camera off                      # the policy arrives as a file here
+file tools/vectors/psbt/wallet-2of3.policy
+tapid 701                       # SCAN_FILE: "Read a file"
+snap wallet-01-review           # quorum, script, the three keys and their glyphs
+tapid 720                       # INSPECT_TEXT: the descriptor, whole
+snap wallet-02-descriptor
+tapid 208                       # COMPARE_DONE
+tapid 722                       # INSPECT_USE_WALLET: "Use this wallet"
+snap wallet-03-menu             # the wallet's own menu
+tapid 810                       # WALLET_ADDRESSES
+snap wallet-03b-addresses       # the wallet's receive addresses
+tapid 1000                      # ADDR_ROW_BASE + 0: Receive 0
+snap wallet-03c-address         # one address and its code
+tapid 2                         # BACK to the list
+tapid 2                         # BACK to the menu
+tapid 811                       # WALLET_EXPORT
+snap wallet-03d-export          # the descriptor with its checksum
+tapid 288                       # EXPORT_SHOW: "Show as QR"
+snap wallet-03e-export-qr       # the code a coordinator scans
+tapid 2                         # BACK to the export menu
+tapid 2                         # BACK to the menu
+tapid 812                       # WALLET_KEYS: the wallet's own keys
+snap wallet-03f-keys            # one row per cosigner, with its glyph
+tapid 2                         # BACK to the menu
+tapid 2                         # BACK to Wallets
+snap wallet-04-wallets          # the policy as the one row of Wallets
+tapid 2                         # BACK to Home
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 2210                      # KEYS_ROW_BASE + 0: the loaded key
+tapid 2207                      # KEY_FORGET: the hold, naming the policy that stays
+snap wallet-04b-forget-with-policy
+tapid 2                         # BACK to the key's page
+tapid 2                         # BACK to Keys
+tapid 2                         # BACK to Home
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 90                        # WALLETS_POLICY_ROW_BASE + 0: the same page
+snap wallet-05-menu-again
+tapid 814                       # WALLET_SIGN: the scanner, expecting a transaction
+file tools/vectors/psbt/wallet-2of3.psbt
+tapid 701                       # SCAN_FILE
+snap wallet-06-summary          # change verified, because the wallet is in use
+tapid 410                       # SIGN_CONTINUE: Review details
+snap wallet-07-output-1
+tapid 410                       # SIGN_CONTINUE: the change output
+snap wallet-08-change           # MINE, with the wallet's own path
+tapid 410                       # SIGN_CONTINUE: the inputs
+snap wallet-09-inputs

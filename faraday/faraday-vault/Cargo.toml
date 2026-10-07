@@ -1,0 +1,28 @@
+[package]
+name = "faraday-vault"
+version = "0.1.0"
+description = "The Faraday vault file: four equal slots under Argon2id and XChaCha20-Poly1305, each opened by its own passphrase (docs/VAULT.md)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+osk-backup = { path = "../../core/osk-backup" }
+osk-bip = { path = "../../core/osk-bip" }
+osk-crypto = { path = "../../core/osk-crypto" }
+zeroize = { workspace = true, features = ["alloc"] }
+# Argon2id over the passphrase, as osk-backup stretches it.
+argon2 = { workspace = true }
+# Each slot's cipher.
+chacha20poly1305 = { workspace = true }
+# The keystream a new vault's salt, nonces and unused slots come from.
+chacha20 = { workspace = true }
+# HKDF-SHA256 from the stretched key to the slot key, written out over
+# HMAC: one extract and one expand block.
+sha2 = { workspace = true }
+hmac = { workspace = true }
+
+[lints]
+workspace = true

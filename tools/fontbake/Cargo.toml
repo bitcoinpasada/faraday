@@ -1,0 +1,24 @@
+[package]
+name = "osk-fontbake"
+version = "0.1.0"
+description = "Build-time glyph outline baker for osk-ui; never runs on a device"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "osk-fontbake"
+path = "src/main.rs"
+
+[dependencies]
+# The glyph set is computed from the wordlists themselves, so it cannot
+# drift from them; `osk-crypto` checks the downloaded CJK fonts.
+osk-bip = { path = "../../core/osk-bip" }
+osk-crypto = { path = "../../core/osk-crypto" }
+osk-ui = { path = "../../core/osk-ui" }
+ttf-parser.workspace = true
+
+[lints]
+workspace = true

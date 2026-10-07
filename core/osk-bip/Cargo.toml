@@ -1,0 +1,22 @@
+[package]
+name = "osk-bip"
+version = "0.1.0"
+description = "BIP-39, BIP-32 keys, addresses and descriptors for OpenSignerKit, no_std + alloc"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+osk-crypto = { path = "../osk-crypto" }
+zeroize.workspace = true
+bitcoin.workspace = true
+miniscript.workspace = true
+
+[dev-dependencies]
+bip39.workspace = true
+serde_json.workspace = true
+unicode-normalization.workspace = true
+
+[lints]
+workspace = true

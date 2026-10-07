@@ -1,0 +1,19 @@
+# The kernel command line, assembled by build.sh from this file, the
+# board's, the panel's and, in the dev variant, the variant's. Comments
+# and line breaks are stripped; a word prefixed with "-" removes that word
+# from what came before.
+#
+# Which console the line names is the board's, and so is where the line
+# ends up: a Pi's firmware reads it from cmdline.txt on the boot
+# partition, and a kernel that is its own EFI application has it compiled
+# in (board.conf's CMDLINE).
+
+# A healthy boot says almost nothing.
+quiet
+
+# One boot logo, not one per core: on a panel the logo is the size of the
+# panel and the second copy would be drawn off the bottom.
+fbcon=logo-count:1
+
+# No blinking cursor under the logo.
+vt.global_cursor_default=0

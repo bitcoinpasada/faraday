@@ -1,0 +1,223 @@
+# Walks the Create wizard with dice: 50 rolls starting with a deliberate
+# run of eight sixes (which puts the sanity check in the caution tone),
+# the math and the Secret screen one of its rows opens, both pages of
+# words (masked, held, with the wordlist numbers, and open under the app
+# bar's eye), the quiz (one wrong answer, the words it sends you to, a
+# skip caution, then every word right), no passphrase, the fingerprint,
+# and Key detail's Backup screens. The quiz order is fixed by the tick
+# clock (quiz.rs), so the answers below stay right as long as the ticks
+# above them do not change: `tapid` does not advance the clock, `pressid`
+# and `holdid` do.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+snap create-00-home
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 61                        # KEYS_CREATE: "Create a key"
+snap create-01-source
+tapid 600                       # CREATE_SOURCE_BASE + 0: Dice
+tapid 636                       # CREATE_SOURCE_CONTINUE
+snap create-02-count
+tapid 610                       # CREATE_COUNT_BASE + 0: 12 words
+tapid 638                       # CREATE_COUNT_CONTINUE
+snap create-03-language
+tapid 620                       # CREATE_LANG_BASE + 0: English
+tapid 639                       # CREATE_LANG_CONTINUE
+snap create-03b-procedure       # Which procedure? Hashed is checked (§16.115)
+tapid 3210                      # CREATE_PROCEDURE_CONTINUE
+snap create-04-roll-empty
+text "66666666"                 # a run of eight sixes
+text "3515211441215"
+tick 100
+snap create-05-roll-typing      # last roll still visible
+text "41512665155412152342515356215"
+tick 600
+snap create-06-roll-50
+key enter                       # ✓ continues at 50
+snap create-07-sanity
+tapid 634                       # CREATE_MATH: the row into the math
+snap create-08-math-masked
+tapid 632                       # CREATE_MATH_ENTROPY: the entropy, whole
+snap create-08b-math-entropy
+pressid 635                     # CREATE_REVEAL
+snap create-09-math-revealed
+releaseid 635
+tapid 2                         # BACK to the math
+tapid 630                       # Done: back to the sanity check
+tapid 630                       # Continue anyway
+snap create-10-words-1-masked
+pressid 635                     # CREATE_REVEAL: hold to show the words
+snap create-11-words-1-shown
+releaseid 635
+tapid 231                       # WORDS_NUMBERS: the row numbers off
+snap create-11b-words-1-numbers
+tapid 15                        # SECRET_EYE: 30 s with no finger on the panel
+snap create-11c-words-1-eye
+tapid 15                        # eye off
+tapid 231                       # numbers back on
+# Six words a page on a small panel; a phone and a wide pane hold the
+# whole key, so page two exists only on small (osk_ui::tokens).
+on small tapid 657              # WORDS_NEXT: page two
+on small snap create-12-words-2-masked
+on small pressid 635
+on small snap create-13-words-2-shown
+on small releaseid 635
+# The quiz order follows the tick clock, and `pressid` advances it by
+# 100 ms: keep the clock the same on the classes that skipped page two.
+on mobile,wide tick 100
+tapid 630                       # Continue: the quiz start
+snap create-13b-quiz-start
+tapid 645                       # QUIZ_SKIP: what skipping the quiz leaves behind
+snap create-17-quiz-skip-caution
+tapid 647                       # QUIZ_SKIP_CANCEL: keep going
+tapid 649                       # QUIZ_START
+snap create-14-quiz
+tapid 640                       # a wrong candidate for word 10
+tapid 654                       # QUIZ_CONTINUE
+snap create-15-quiz-wrong
+tapid 651                       # QUIZ_SHOW_WORDS: check the whole backup
+snap create-15b-quiz-words
+tapid 630                       # Continue: back to the same question, fresh decoys
+snap create-15c-quiz-same-question
+tapid 640                       # word 10
+tapid 654
+tapid 642                       # word 11
+tapid 654
+tapid 640                       # word 6
+tapid 654
+snap create-16-quiz-progress
+tapid 643                       # word 2
+tapid 654
+tapid 643                       # word 7
+tapid 654
+tapid 642                       # word 9
+tapid 654
+tapid 642                       # word 3
+tapid 654
+tapid 642                       # word 5
+tapid 654
+tapid 640                       # word 1
+tapid 654
+tapid 643                       # word 4
+tapid 654
+tapid 643                       # word 12
+tapid 654
+tapid 643                       # word 8
+tapid 654
+snap create-18-passphrase-offer
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+snap create-19-confirm
+tapid 137                       # LOAD_HOLD: "Add key"
+pin 138 2580                    # LOAD_PIN_KEYBOARD: session PIN, first key of the session
+pin 138 2580                    # repeat it
+snap create-20-home
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 2210                      # KEYS_ROW_BASE + 0: the loaded key
+snap create-21-key-menu
+tapid 202                       # DETAIL_BACKUP
+snap create-22-backup-menu
+tapid 234                       # BACKUP_VERIFY
+snap create-23-quiz-start
+tapid 648                       # QUIZ_HELPER: someone else holds the device
+snap create-24-quiz-helper
+tapid 649                       # QUIZ_START: helper mode is named while it runs
+snap create-24b-quiz-helper-running
+tapid 2                         # BACK: leaving the questions ends the quiz
+snap create-24c-quiz-not-verified
+tapid 650                       # QUIZ_DONE: back to the backup menu
+tapid 230                       # BACKUP_WORDS
+snap create-25-backup-words
+tapid 231                       # WORDS_NUMBERS: the row numbers off
+snap create-26-backup-words-numbers
+tapid 15                        # SECRET_EYE
+snap create-27-backup-words-eye
+on small tapid 657              # WORDS_NEXT: page two, still open
+on small snap create-28-backup-words-page-2
+tapid 650                       # QUIZ_DONE: back to the backup menu
+
+# ----- the four other sources (`docs/PLANNING.md` §8.1 items 3, 4, 5, 7) -----
+# Each run starts again from Home, because each is a key of its own.
+tapid 2                         # BACK to the key menu
+tapid 2                         # BACK to the wallet
+tapid 2                         # BACK to Home
+
+# Playing cards: the pad, the deck tracker's refusal, and the second
+# deck a 24-word key needs.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 2202                      # KEYS_ADD: the ways a key arrives
+tapid 61                        # KEYS_CREATE
+tapid 603                       # CREATE_SOURCE_BASE + 3: Playing cards
+tapid 636                       # CREATE_SOURCE_CONTINUE
+snap create-29-cards-count
+tapid 610                       # 12 words
+tapid 638
+tapid 620                       # English
+tapid 639
+snap create-30-cards-empty
+text "A♠2♠3♠4♠5♠6♠7♠8♠9♠T♠J♠Q♠K♠A♥2♥3♥4♥5♥6♥7♥8♥9♥T♥J♥"
+tick 600
+snap create-31-cards-24
+text "A♠"                       # a card already out of this deck
+snap create-32-cards-already-drawn
+text "Q♥"
+tick 600
+key enter                       # ✓ continues at 25
+snap create-33-cards-sanity
+key escape                      # leave the wizard; the cards are erased
+
+# Camera noise: the scanner turned into a viewfinder, with the shutter
+# under it. Three frames make 128 bits. Leaving a wizard leaves the Add
+# menu on screen, so each run after the first starts there.
+tapid 61                        # KEYS_CREATE
+tapid 604                       # CREATE_SOURCE_BASE + 4: Camera noise
+tapid 636
+tapid 610
+tapid 638
+tapid 620
+tapid 639
+snap create-34-camera-empty
+frame tools/fixtures/camera/room.png
+snap create-35-camera-viewfinder
+tapid 658                       # CREATE_SHUTTER
+frame tools/fixtures/camera/room.png
+tapid 658
+frame tools/fixtures/camera/room.png
+tapid 658                       # the third frame is the last one needed
+snap create-36-camera-sanity
+key escape
+
+# The device's own generator: one fact, one caution, and Continue.
+tapid 61
+tapid 606                       # CREATE_SOURCE_BASE + 6: This device
+snap create-37-source-device
+tapid 636
+tapid 610
+tapid 638
+tapid 620
+tapid 639
+snap create-38-device
+key escape
+
+# A mix of two sources, and the commitments it lists before the words.
+tapid 61
+tapid 605                       # CREATE_SOURCE_BASE + 5: Mixed sources
+tapid 636
+tapid 610
+tapid 638
+tapid 620
+tapid 639
+snap create-39-mix-choose
+tapid 660                       # CREATE_MIX_BASE + 0: Dice
+tapid 661                       # CREATE_MIX_BASE + 1: Coin flips
+snap create-40-mix-chosen
+tapid 665                       # CREATE_MIX_CONTINUE
+text "32461151351521144121541512665155412152342515356215"
+tick 600
+key enter                       # the dice are in; the coins are next
+snap create-41-mix-coins
+text "HHHHHTTTTTHHHHHTTTTTHHHHHTTTTTHHHHHTTTTTHHHHHTTTTTHHHHHTTTTTHHHH"
+text "HTTTTTHHHHHTTTTTHHHHHTTTTTHHHHHTTTTTHHHHHTTTTTHHHHHTTTTTHHHHHTTT"
+tick 600
+key enter
+snap create-42-mixed
+tapid 630                       # Continue: the words the mix came to
+snap create-43-mix-words

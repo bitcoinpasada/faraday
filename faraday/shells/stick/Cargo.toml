@@ -1,0 +1,27 @@
+[package]
+name = "faraday-stick"
+version = "0.1.0"
+description = "Faraday on the stick's framebuffer: a copy of opensigner/shells/pi (upstream c418768) that hosts faraday-core and reports sticks"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "faraday"
+path = "src/main.rs"
+
+[dependencies]
+osk-shell-api = { path = "../../../core/osk-shell-api" }
+osk-crypto = { path = "../../../core/osk-crypto", features = ["pin-pages"] }
+faraday-core = { path = "../../faraday-core" }
+faraday-storage = { path = "../../faraday-storage" }
+# The camera code reduces frames with opensigner-core's scan helpers.
+opensigner-core = { path = "../../../opensigner/opensigner-core" }
+opensigner-v4l2 = { path = "../../../opensigner/shells/v4l2" }
+faraday-scanner = { path = "../../faraday-scanner" }
+zeroize = { workspace = true, features = ["alloc"] }
+
+[lints]
+workspace = true

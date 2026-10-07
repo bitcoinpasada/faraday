@@ -1,0 +1,32 @@
+
+# ---- Waveshare 2.8" DPI LCD: 480x640 panel, Goodix GT911 touch ----
+# Values from Waveshare's documentation for this panel
+# (https://www.waveshare.com/wiki/2.8inch_DPI_LCD).
+#
+# dpi_output_format is the one departure. Waveshare document 0x7F216; this
+# image uses 0x7F206, which differs only in the colour order the firmware
+# gives the framebuffer. With the documented value the shell's pixels come
+# out with red and blue exchanged, because the shell writes RGB565 and
+# BGRA8888 as the framebuffer reports them rather than swizzling. If the
+# panel ever comes up with red and blue exchanged, put 0x7F216 back.
+ignore_lcd=0
+hdmi_ignore_hotplug=1
+disable_hdmi=1
+
+# GPIO 0-9, 12-17 and 20-25 to alternate function 2, the DPI pin map.
+gpio=0-9=a2
+gpio=12-17=a2
+gpio=20-25=a2
+
+enable_dpi_lcd=1
+display_default_lcd=1
+dpi_group=2
+dpi_mode=87
+dpi_output_format=0x7F206
+hdmi_timings=480 0 26 16 10 640 0 25 10 15 0 0 0 60 0 32000000 1
+extra_transpose_buffer=2
+
+# The panel node for a 3B/3B+, the 3B pin map, and the touch controller.
+dtoverlay=waveshare-28dpi-3b-4b
+dtoverlay=waveshare-28dpi-3b
+dtoverlay=waveshare-touch-28dpi
