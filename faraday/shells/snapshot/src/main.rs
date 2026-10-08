@@ -323,7 +323,9 @@ fn run(
         .iter()
         .position(|(n, _)| n == "nested-wallet-qr.png")
         .ok_or("the kit has no nested-wallet-qr.png")?;
-    t.press(Action::VisitQr(png));
+    // Ticked like any file: its codes are read on Import.
+    t.press(Action::VisitIn(png));
+    t.press(Action::VisitCopy);
     if t.app.inbox.len() != before + 1 {
         return Err("the QR code in nested-wallet-qr.png did not reach Files".into());
     }
@@ -1378,11 +1380,26 @@ fn run(
     Ok(())
 }
 
-/// A fresh session at boot: the boot stick brings the test vault, pulling
-/// it opens the passphrase prompt, the vault's wallets load from Files,
-/// a wallet made here is saved into the vault, and Restore starts with
-/// the transaction to sign.
+/// Test key 1's fingerprint, among the keys loaded.
+fn test_key_1(t: &Tour) -> Result<[u8; 4], String> {
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
+    t.app
+        .session
+        .keys
+        .iter()
+        .find(|k| k.words.as_deref().is_some_and(|w| w.as_str() == words))
+        .map(|k| k.master.fingerprint().0)
+        .ok_or_else(|| "test key 1 is not loaded".to_string())
+}
+
+/// A fresh session at boot: the boot stick's files are copied into
+/// memory and the import sheet comes up; pulling the stick shows what is
+/// on it, the test vault unlocks from the sheet and its wallets join the
+/// list, and Import loads what is chosen; then a wallet made here is
+/// saved into the vault.
 fn boot_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::Sheet;
+    use faraday_core::boot_import::ImportAction as I;
     t.press(Action::Lock);
     let mut boot = t.stick();
     boot.boot = true;
@@ -1393,28 +1410,78 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
         available_mib: 15_000,
     });
     t.app.vaults.ms_per_unit = Some(180);
-    if t.app.screen != Screen::Home || !t.app.inbox.iter().any(|i| i.name == "vault.ofv") {
-        return Err("the boot stick's vault did not reach Home".into());
+    if t.app.screen != Screen::Home
+        || t.app.sheet != Some(Sheet::Import)
+        || !t.app.inbox.iter().any(|i| i.name == "vault.ofv")
+    {
+        return Err("the boot stick's files did not come up for the import".into());
     }
-    t.shot("home-boot-vault")?;
+    t.shot("boot-import-stick")?;
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
+    if t.app.sheet != Some(Sheet::Import) || t.app.import_view().is_none() {
+        return Err("pulling the boot stick did not show what to import".into());
+    }
+    t.shot("boot-import")?;
+    // Import later leaves it waiting on Home; the Sticks card opens it
+    // again.
+    t.press(Action::Import(I::Later));
+    t.shot("home-import-waiting")?;
+    t.press(faraday_core::boot_import::OPEN);
+    if t.app.sheet != Some(Sheet::Import) {
+        return Err("the import did not open again from Home".into());
+    }
+    // Further down: the wallets, then the files for the Inbox and the
+    // line over the buttons.
+    let (w, h) = t.size();
+    let scroll = |t: &mut Tour, dy: i16| {
+        t.app.event(Event::Scroll {
+            x: w / 2,
+            y: h / 2,
+            dy,
+        });
+    };
+    scroll(t, 1400);
+    t.shot("boot-import-wallets")?;
+    scroll(t, i16::MAX);
+    t.shot("boot-import-end")?;
+    scroll(t, i16::MIN);
+    t.press(Action::Import(I::Unlock(0)));
     if t.app.screen != Screen::Unlock {
-        return Err("pulling the boot stick did not open the passphrase prompt".into());
+        return Err("Unlock on the import sheet did not open the passphrase prompt".into());
     }
     type_text(t, testkit::VAULT_PASSPHRASES[0]);
     t.shot("boot-unlock")?;
     t.press(Action::Vault(V::Unlock));
     t.tick();
-    t.shot("boot-files-vault")?;
-    t.press(Action::Vault(V::LoadAll(0)));
-    if t.app.session.wallets.len() != 12 || t.app.session.keys.len() != 1 {
+    if t.app.vaults.open.len() != 1 || t.app.sheet != Some(Sheet::Import) {
+        return Err("unlocking from the import did not come back to it".into());
+    }
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.shot("boot-import-unlocked")?;
+    let view = t.app.import_view().ok_or("no import")?;
+    println!(
+        "boot import: {} wallets ({} can sign), {} keys on their own, {} files",
+        view.wallets.len(),
+        view.wallets.iter().filter(|w| w.can_sign()).count(),
+        view.keys.len(),
+        view.files.len()
+    );
+    t.press(Action::Import(I::Go));
+    if t.app.import.is_some() || t.app.sheet.is_some() || t.app.screen != Screen::Home {
+        return Err("Import did not close on Home".into());
+    }
+    if t.app.session.wallets.len() < 12 || t.app.session.keys.is_empty() {
         return Err(format!(
-            "load everything gave {} wallets and {} keys",
+            "the import gave {} wallets and {} keys",
             t.app.session.wallets.len(),
             t.app.session.keys.len()
         ));
     }
+    t.shot("boot-imported")?;
+    t.press(Action::Nav(Screen::Files));
     t.shot("boot-loaded")?;
     // A 2-of-3 made here over test key 1 and two new keys, saved into
     // the open vault with the new keys.
@@ -1422,7 +1489,8 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CKind(4));
     t.press(Action::CNext(0));
     t.press(Action::CNext(1));
-    let bacon = t.app.session.keys[0].master.fingerprint().0;
+    // Test key 1, which the vault holds.
+    let bacon = test_key_1(t)?;
     t.press(Action::CSlotHere(0, bacon));
     device_key(t, 1);
     device_key(t, 2);
@@ -1449,14 +1517,14 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     if outbox.contains(&faraday_core::secrets::Exposure::Secret) {
         return Err("a secret reached the Outbox from Create".into());
     }
-    println!("boot: vault unlocked on pulling the stick, loaded, a new wallet saved into it");
+    println!("boot: imported from the boot stick, a new wallet saved into its vault");
     // BIP-85: a password from test key 1, into the open vault.
     t.press(Action::Nav(Screen::Start));
     t.press(Action::Bip85);
     if t.app.bip85.is_none() {
         return Err("BIP-85 did not open".into());
     }
-    let first = t.app.session.keys[0].master.fingerprint().0;
+    let first = bacon;
     t.press(Action::PKey(first));
     t.press(Action::PApp(4));
     t.shot("bip85-app")?;

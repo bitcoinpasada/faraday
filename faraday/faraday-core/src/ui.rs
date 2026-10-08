@@ -206,13 +206,13 @@ pub enum Theme {
     Dark,
     /// Dark text on a light page.
     Light,
-    /// Arctic Ice Studio's Nord: grey-blue, with its frost accent. The
-    /// theme a first start is in.
-    #[default]
+    /// Arctic Ice Studio's Nord: grey-blue, with its frost accent.
     Nord,
     /// Catppuccin Mocha: deep violet-grey, with its mauve accent.
     Catppuccin,
-    /// Tokyo Night: ink blue, with its blue accent.
+    /// Tokyo Night: ink blue, with its blue accent. The theme a first
+    /// start is in, on every shell.
+    #[default]
     TokyoNight,
     /// Gruvbox dark: warm brown-grey, with its yellow accent.
     Gruvbox,
@@ -349,6 +349,17 @@ pub struct Ui<'a> {
     pub stretch_in_sheet: bool,
     /// What is being drawn now is a sheet.
     pub in_sheet: bool,
+    /// On a small panel, the page's forward action asks to be pinned at
+    /// the panel's foot rather than drawn where it is (the frame draws
+    /// it, and the page scrolls above it).
+    pub pinning: bool,
+    /// The forward action a page pinned this frame.
+    pub pin: Option<(String, Style, Action)>,
+    /// A small panel's sheet keeps its buttons at its foot: they are
+    /// handed to it rather than drawn in its body.
+    pub sheet_pinning: bool,
+    /// The buttons a sheet's body handed over.
+    pub sheet_pin: Option<Vec<(String, Style, Action)>>,
     /// The overlay scrollbar for the scrolling region, when it shows:
     /// its opacity (0–255) and the region's offset in units.
     pub bar: Option<(u8, f32)>,
@@ -363,6 +374,9 @@ pub struct Ui<'a> {
     pub frost: Option<Vec<u8>>,
     /// Where the Guided switch's pill is: 0 on Steps only, 1 on Guided.
     pub guided_shown: f32,
+    /// On a small panel, which walk-through is shown on this screen: a
+    /// step's place, or [`crate::ABOUT_PAGE`].
+    pub about_open: Option<u8>,
     /// A step card opening, and the one closing, while they move.
     pub disclosure: Option<Disclosure>,
     /// What the step column drew: which card is open and how tall its
@@ -440,6 +454,11 @@ impl<'a> Ui<'a> {
             offset: 0.0,
             frost: None,
             guided_shown: 1.0,
+            about_open: None,
+            pinning: false,
+            pin: None,
+            sheet_pinning: false,
+            sheet_pin: None,
             disclosure: None,
             column: None,
             follow_to: None,
@@ -485,7 +504,10 @@ impl<'a> Ui<'a> {
         }
         self.stretch_view(view);
         self.edge_fades(view, max);
+        // A small panel draws no scrollbar: the edge fades say the page
+        // goes on.
         if let Some((alpha, offset)) = self.bar
+            && !self.compact
             && !own_bar
             && max > 0.0
             && alpha > 0
@@ -533,7 +555,9 @@ impl<'a> Ui<'a> {
         if max <= 0.0 || view.h <= 0 {
             return;
         }
-        let band = ((24.0 * self.f).round() as i32).clamp(1, view.h / 4 + 1);
+        // Deeper on a small panel, where it is the sign there is more.
+        let depth = if self.compact { 44.0 } else { 24.0 };
+        let band = ((depth * self.f).round() as i32).clamp(1, view.h / 4 + 1);
         let page = self.col(if self.in_sheet { SURFACE } else { BG });
         let reach = band as f32 / self.f;
         let top = (self.offset / reach).clamp(0.0, 1.0);
@@ -875,6 +899,24 @@ impl<'a> Ui<'a> {
             }
         }
         String::new()
+    }
+
+    /// [`Ui::fit`] for text that may be a secret: every shortened try is
+    /// a [`SecretText`](crate::secret_text::SecretText), wiped as it goes.
+    pub fn fit_secret(&self, size: f32, w: W, s: &str, max: f32) -> crate::secret_text::SecretText {
+        use crate::secret_text::SecretText;
+        if self.measure(size, w, s) <= max {
+            return SecretText::of(s);
+        }
+        let mut t = SecretText::of(s);
+        while t.pop().is_some() {
+            t.push('…');
+            if self.measure(size, w, &t) <= max {
+                return t;
+            }
+            t.pop();
+        }
+        SecretText::new()
     }
 
     /// `s` wrapped to `width`. Returns the height used.

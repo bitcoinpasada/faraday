@@ -343,3 +343,76 @@ CONFIG_MSDOS_PARTITION=y
 # core limit is 0 by default; this takes the feature out of the kernel so
 # nothing in userspace can raise it. The prompt needs EXPERT, set above.
 # CONFIG_COREDUMP is not set
+
+# ---- hardening only x86 has (PLANNING.md 16.140) ----
+# Kernel heap caches split by call site, list corruption checks, and a
+# random offset for the kernel stack on every system call, on by default
+# rather than on request. The Pi's kernel has none of the three.
+CONFIG_RANDOM_KMALLOC_CACHES=y
+CONFIG_LIST_HARDENED=y
+CONFIG_RANDOMIZE_KSTACK_OFFSET_DEFAULT=y
+
+# The 32-bit system call table and the interfaces only 16-bit or
+# port-banging programs use. The shell is a static 64-bit musl binary.
+# CONFIG_IA32_EMULATION is not set
+# CONFIG_MODIFY_LDT_SYSCALL is not set
+# CONFIG_X86_16BIT is not set
+# CONFIG_X86_IOPL_IOPERM is not set
+# /dev/port, /dev/mem's sibling for I/O ports; DEVMEM is out already.
+# CONFIG_DEVPORT is not set
+# The vsyscall page, which no static musl binary calls.
+CONFIG_LEGACY_VSYSCALL_NONE=y
+# Pushing characters into a terminal's input queue from a process.
+# CONFIG_LEGACY_TIOCSTI is not set
+# Raw HID access. Keyboards, touchpads and mice reach the shell through
+# evdev, and nothing reads a HID report itself.
+# CONFIG_HIDRAW is not set
+# CONFIG_USB_HIDDEV is not set
+
+# ---- drivers x86_64_defconfig brought in ----
+# virtio: a PCIe device can present virtio IDs, and VIRTIO_BLK is a block
+# device on a machine whose only storage is the stick. QEMU boots the
+# stick as a USB disk on xHCI and uses no virtio (tools/stick-qemu.py).
+# CONFIG_VIRTIO_MENU is not set
+# CONFIG_VIRTIO_BLK is not set
+# CONFIG_VIRTIO_CONSOLE is not set
+# The SCSI CD-ROM driver. ISO9660 is not built, but the driver still binds
+# to any USB device that presents a CD-ROM and parses what it sends, and
+# such devices are common, malicious ones included.
+# CONFIG_BLK_DEV_SR is not set
+# The vendor HID drivers. Each binds to a vendor and product ID any USB
+# device can claim and parses that device's reports with its own code.
+# HID_GENERIC and HID_MULTITOUCH cover keyboards, mice and touchpads; a
+# vendor's extra keys are what is lost.
+# CONFIG_HID_A4TECH is not set
+# CONFIG_HID_APPLE is not set
+# CONFIG_HID_BELKIN is not set
+# CONFIG_HID_CHERRY is not set
+# CONFIG_HID_CHICONY is not set
+# CONFIG_HID_CYPRESS is not set
+# CONFIG_HID_EZKEY is not set
+# CONFIG_HID_GYRATION is not set
+# CONFIG_HID_ITE is not set
+# CONFIG_HID_KENSINGTON is not set
+# CONFIG_HID_LOGITECH is not set
+# CONFIG_HID_REDRAGON is not set
+# CONFIG_HID_MICROSOFT is not set
+# CONFIG_HID_MONTEREY is not set
+# CONFIG_HID_NTRIG is not set
+# CONFIG_HID_PANTHERLORD is not set
+# CONFIG_HID_PETALYNX is not set
+# CONFIG_HID_SAMSUNG is not set
+# CONFIG_HID_SONY is not set
+# CONFIG_HID_SUNPLUS is not set
+# CONFIG_HID_TOPSEED is not set
+# CONFIG_HID_PID is not set
+# PCI hotplug, for the same reason PCIEPORTBUS is out: nothing here is
+# hot-plugged.
+# CONFIG_HOTPLUG_PCI is not set
+# Replacing ACPI tables or adding SSDTs at boot. With the command line
+# built in and the initramfs inside the kernel they have nothing to read,
+# and nothing here needs them.
+# CONFIG_ACPI_TABLE_UPGRADE is not set
+# CONFIG_EFI_CUSTOM_SSDT_OVERLAYS is not set
+# The EFI runtime memory map in sysfs, which exists for kexec.
+# CONFIG_EFI_RUNTIME_MAP is not set

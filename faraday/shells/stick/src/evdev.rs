@@ -295,6 +295,10 @@ pub struct Device {
     /// input is held back until a person says it is theirs (`PLAN.md`
     /// §4.6).
     pub trusted: bool,
+    /// A HID touchscreen's axis ranges, from its report descriptor
+    /// (`hid.rs`). None for a panel that is not HID, such as the Pi's
+    /// Goodix, which is scaled by `--touch-grid` instead.
+    pub range: Option<crate::hid::Range>,
 }
 
 impl Device {
@@ -313,8 +317,11 @@ impl Device {
             (self.touchscreen, "touchscreen"),
         ] {
             if yes {
-                kinds.push(word);
+                kinds.push(word.to_string());
             }
+        }
+        if let Some(r) = self.range.filter(|_| self.touchscreen) {
+            kinds.push(format!("range {}..{} x {}..{}", r.x.0, r.x.1, r.y.0, r.y.1));
         }
         kinds.join("+")
     }
@@ -358,14 +365,18 @@ pub fn find_devices(sys_class_input: &Path, dev_dir: &Path, wanted: &str) -> Vec
             .unwrap_or_default()
             .trim()
             .to_string();
+        let touchscreen = caps.touchscreen();
         let device = Device {
             trusted: trusted_by_bus(&dir),
+            range: touchscreen
+                .then(|| touch_range(&dir, has_bit(&caps.abs, ABS_MT_POSITION_X)))
+                .flatten(),
             node,
             name,
             keyboard: caps.keyboard(),
             mouse: caps.mouse(),
             touchpad: caps.touchpad(),
-            touchscreen: caps.touchscreen(),
+            touchscreen,
             hi_res_wheel: caps.hi_res_wheel(),
             left_button: caps.left_button(),
             abs_single: caps.abs_single(),
@@ -388,6 +399,21 @@ pub fn find_devices(sys_class_input: &Path, dev_dir: &Path, wanted: &str) -> Vec
     }
     devices.retain(Device::wanted);
     devices
+}
+
+/// The size of the largest report descriptor the kernel keeps
+/// (`HID_MAX_DESCRIPTOR_SIZE`): no more is read.
+const DESCRIPTOR_MAX: u64 = 4096;
+
+/// A touchscreen's axis ranges, when it is a HID device: its report
+/// descriptor is the file `device/device/report_descriptor` under its
+/// `/sys/class/input/eventN` directory (`hid.rs`). `multitouch` says the
+/// node reports fingers rather than a pen.
+pub fn touch_range(dir: &Path, multitouch: bool) -> Option<crate::hid::Range> {
+    let file = fs::File::open(dir.join("device/device/report_descriptor")).ok()?;
+    let mut bytes = Vec::new();
+    file.take(DESCRIPTOR_MAX).read_to_end(&mut bytes).ok()?;
+    crate::hid::ranges(&bytes).for_node(multitouch)
 }
 
 /// Whether an input device is part of the machine, from `/sys` alone: on
@@ -436,9 +462,10 @@ impl Readers {
     /// controller reports in `grid`.
     pub fn new(device: &Device, width: u16, height: u16, grid: (u16, u16)) -> Readers {
         Readers {
-            touch: device
-                .touchscreen
-                .then(|| touch::Parser::new(width, height, grid)),
+            touch: device.touchscreen.then(|| match device.range {
+                Some(r) => touch::Parser::with_range(width, height, r),
+                None => touch::Parser::new(width, height, grid),
+            }),
             pointer: (device.mouse || device.touchpad).then(|| {
                 Pointer::new(
                     device.hi_res_wheel,
@@ -465,6 +492,7 @@ impl Readers {
             match keyboard.feed(ev) {
                 Some(Stroke::Down(key)) => out.push(Wake::Key(key)),
                 Some(Stroke::Up(key)) => out.push(Wake::KeyUp(key)),
+                Some(Stroke::Panic(on)) => out.push(Wake::Panic(on)),
                 None => {}
             }
         }
@@ -501,6 +529,10 @@ pub fn read_loop(
             }
         }
         held.drain(..whole);
+        // A keyboard's events are what was typed, a passphrase among it:
+        // the bytes read are written over once decoded.
+        zeroize::Zeroize::zeroize(&mut buf[..n]);
+        zeroize::Zeroize::zeroize(held.spare_capacity_mut());
         for wake in out.drain(..) {
             // A device not yet believed is named on every event, so the
             // main loop can hold it back.
@@ -758,6 +790,7 @@ mod tests {
             left_button: true,
             abs_single: false,
             trusted: true,
+            range: None,
         };
         let mut readers = Readers::new(&device, 1920, 1080, (0, 0));
         let mut out = Vec::new();

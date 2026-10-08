@@ -28,9 +28,25 @@ faraday-linux-bin out="out/linux" cache="out/build/run":
     echo "needs $(objdump -T "{{out}}/faraday" | grep -o 'GLIBC_[0-9.]*' | sort -t. -k2,2n -u | tail -1)"
     sha256sum "{{out}}/faraday"
 
+# The desktop app standing for a device's screen at its true size on
+# this one, to try the small-panel layout by touch: 2.8 is the Pi's
+# Waveshare panel (3:4), 5 a phone (9:16). Under Hyprland it opens on
+# the laptop's own screen (eDP), whose EDID gives the pixels per inch;
+# pass extra flags after the size, such as `--ppi 277` or `--aspect 9:19.5`.
+faraday-panel inches="2.8" *flags="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build -q --release -p faraday-desktop
+    if command -v hyprctl >/dev/null && hyprctl monitors 2>/dev/null | grep -q '^Monitor eDP'; then
+        output="$(hyprctl monitors | awk '/^Monitor eDP/ {print $2; exit}')"
+        hyprctl dispatch "hl.dsp.focus({ monitor = \"$output\" })" >/dev/null 2>&1 \
+            || hyprctl dispatch focusmonitor "$output" >/dev/null
+    fi
+    exec target/release/faraday --panel "{{inches}}" {{flags}}
+
 # The test stick's files, all on testnet (every test wallet in each backup
-# form with its spends, the test keys in each form, the vault; listed in
-# its README.txt), after checking every spend signs and finishes.
+# form with its spends, the test keys in each form, the vault), after
+# checking every spend signs and finishes.
 faraday-testkit out="out/testkit":
     cargo run -q -p faraday-testkit -- "{{out}}"
 

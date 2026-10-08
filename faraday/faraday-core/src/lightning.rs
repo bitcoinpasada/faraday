@@ -38,9 +38,9 @@ pub struct LightningState {
     /// The source chosen.
     pub source: Option<NodeSource>,
     /// The aezeed's words, as typed.
-    pub typed: Zeroizing<String>,
+    pub typed: crate::secret_text::SecretText,
     /// The aezeed's passphrase; empty is LND's default.
-    pub passphrase: Zeroizing<String>,
+    pub passphrase: crate::secret_text::SecretText,
     /// Typing goes to the passphrase.
     pub on_passphrase: bool,
     /// The node key, once found.
@@ -69,8 +69,8 @@ impl Faraday {
     pub(crate) fn lightning_open(&mut self) {
         self.lightning = Some(LightningState {
             source: None,
-            typed: Zeroizing::new(String::new()),
-            passphrase: Zeroizing::new(String::new()),
+            typed: crate::secret_text::SecretText::new(),
+            passphrase: crate::secret_text::SecretText::new(),
             on_passphrase: false,
             node: None,
             error: None,
@@ -148,8 +148,7 @@ impl Faraday {
     fn lightning_secret_text(&self) -> Option<(String, Zeroizing<String>)> {
         let n = self.lightning.as_ref()?.node.as_ref()?;
         let id: String = n.public.iter().map(|b| format!("{b:02x}")).collect();
-        let private: String = n.private.iter().map(|b| format!("{b:02x}")).collect();
-        Some((id, Zeroizing::new(private)))
+        Some((id, crate::secret_text::hex(&n.private[..])))
     }
 
     /// One press on the screen.

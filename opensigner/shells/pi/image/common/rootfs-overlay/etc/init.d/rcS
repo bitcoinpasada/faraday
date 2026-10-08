@@ -8,8 +8,20 @@
 # plugged in after boot. It runs below rather than here, after the wait for
 # the exchange partition, because on a machine whose devices arrive over USB
 # that wait is what the bus settling looks like.
-mount -t proc proc /proc
-mount -t sysfs sysfs /sys
+#
+# Nothing on /proc, /sys or /dev is a program or a set-uid file, so none
+# of the three runs or honours one; /proc and /sys hold no device nodes
+# either. `hidepid=invisible` hides every process from the processes of
+# another user: the app sees itself and nothing init runs as root.
+mount -t proc -o nosuid,nodev,noexec,hidepid=invisible proc /proc
+mount -t sysfs -o nosuid,nodev,noexec sysfs /sys
+mount -o remount,nosuid,noexec /dev
+
+# Kernel addresses are hidden from every process, root's included, and no
+# process may trace another (Yama, PLANNING.md 16.140). Scope 3 cannot be
+# lowered again until the next boot.
+echo 2 > /proc/sys/kernel/kptr_restrict
+echo 3 > /proc/sys/kernel/yama/ptrace_scope
 
 # The exchange partition, where files are exchanged with a computer.
 # /etc/opensigner/exchange is what build.sh wrote there from the board's

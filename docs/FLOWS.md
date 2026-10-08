@@ -72,12 +72,23 @@ to get it.
 
 ## Session
 
-**Boot.** Firmware loads the system → vault files on the boot medium's data
-partition copied into the Inbox → **Remove the stick** (Pi: the card) →
-the moment no removable partition remains:
-- one or more vaults → **Unlock**;
-- no vault → a first screen with **Create a vault** and **Continue
-  without a vault** (the Wallets tab works without one, with keys typed or scanned for the session).
+**Boot.** Firmware loads the system → the boot medium's data partition
+copied into memory: vault files into the Inbox, every other file held
+apart for the import, a PNG as what its QR codes hold → the import sheet
+over Home: what was copied, **Remove the stick** (Pi: the card) → the
+moment no removable partition remains, the same sheet:
+- each vault from the medium → **Unlock** → the Unlock screen → back to
+  the sheet, with the vault's wallets and keys added;
+- the wallets found, once each, ticked, each with whether it can sign
+  here; the keys no wallet uses, ticked; every file for the Inbox, PSBTs
+  and vaults ticked;
+- **Import** → the chosen wallets, keys and files in; the rest wiped →
+  Home;
+- **Import later**, or a tap beside the sheet → Home, the files waiting;
+  Sticks (sidebar or Home) opens the sheet again;
+- nothing on the medium but the settings file → Home: **Create a vault**,
+  or the Wallets tab without one (keys typed or scanned for the
+  session).
 
 **Unlock.** Choose a vault (its memory need shown first) → passphrase →
 - opens → Home, or the Inbox's next step (decision 3);
@@ -117,10 +128,11 @@ visit** directly.
   holds, unticked on any other stick, and written over the settings
   file already there.
 - **Copy into the Inbox**: chosen files; kinds Faraday does not read
-  are shown dimmed. A vault file copied in appears on Vaults, locked. A PNG
-  or JPEG is not copied: **Read the QR codes** has the disk process decode
-  it, and each code it finds is routed as a scan would be (`docs/QR.md`
-  §2), with a multi-part transfer showing its progress across images.
+  are shown dimmed. A vault file copied in appears on Vaults, locked. A
+  PNG is ticked like any other file, and Select all includes it, but is
+  not copied: the disk process decodes it, and each code it finds is
+  routed as a scan would be (`docs/QR.md` §2), with a multi-part transfer
+  showing its progress across images. A JPEG is not read.
 - **Delete a vault file** (decision 4).
 - Ends on **Remove the stick** → once gone → **Unlock again**, or Home if
   nothing was locked.

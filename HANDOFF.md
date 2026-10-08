@@ -83,7 +83,8 @@ and the silent payments wallet (item 54).
   remote `upstream` again (re-added 2026-10-07), with no shared history.
   Upstream files are synced by applying `git diff <last> upstream/main`
   (`git apply --3way`, then `git reset` to leave the index alone): last
-  synced to `fa1ae03` (§16.139) on 2026-10-07; before that `c418768`.
+  synced to `96e2144` (§16.140, kernel hardening) on 2026-10-07; before
+  that `fa1ae03` (§16.139) and `c418768`.
 - Faraday's files (`PLAN.md`, `HANDOFF.md`, `docs/VAULT.md`,
   `docs/QR.md`, `docs/FLOWS.md`, `docs/WALLETS.md`, `design/prototype/`) are
   **untracked and uncommitted**. The owner commits.
@@ -346,9 +347,9 @@ as possible before the next build.
       type 1; sheets and PDFs state the network. A test network shows an
       amber band along the top, a tag in the sidebar and an amber pill.
     - [x] **The test stick, redone** (2026-10-05): testnet only, 82
-      files listed in the stick's `README.txt`: every wallet as
-      `-wallet.txt`, `-wallet.json` and (multisig) `-multisig-setup.txt`,
-      with its spends; Savings' split shares; descriptor QR PNGs for
+      files: every wallet as `-wallet.txt`, `-wallet.json` and
+      (multisig) `-multisig-setup.txt`, with its spends; Savings' split
+      shares; descriptor QR PNGs for
       Savings, Spending and Nested; each test key as words `.txt`, SeedQR
       and CompactSeedQR PNGs, `.oskb` (passphrase `backup`) and four
       account-key files; the vault, whose first slot now holds test key 1
@@ -1168,8 +1169,9 @@ as possible before the next build.
     command line gains `fbcon=logo-pos:center`; not yet seen on a built
     image.
 
-60. [ ] 2026-10-07, owner, IN PROGRESS, paused: the Raspberry Pi build
-    and the small-panel layout. Uncommitted; builds, clippy clean.
+60. [ ] 2026-10-07, owner: the Raspberry Pi build and the small-panel
+    layout. The screens are done (2026-10-08, "Left to do" 1–9 below);
+    left: build the Pi image and try it on the Pi 3 and panel (10).
 
     **Pi build (done).** `faraday/faraday.just` gains `faraday-pi-bin`
     and `faraday-pi-image` (the stick recipes with the root `board`/
@@ -1218,30 +1220,121 @@ as possible before the next build.
       `just faraday-snap 480x640` and `faraday-snapshots` render the
       panel sizes at their real density.
 
-    **Left to do**, seen on `faraday-snapshot 480x640@286` (full tour):
-    1. Sign a transaction's step bodies (`step_body`): the Transaction
-       table's columns, the Signers rows (fingerprint, label and
-       chip/button overlap), Finish's two cards side by side.
-    2. Decode a transaction, Check a message (desktop layout).
-    3. Backup flow: its side panel (`backup_panel`) covers the steps.
-    4. Restore: the sources step overflows.
-    5. Spend tab (`family_screen`): mostly fits; shot 25 "spend-loaded"
-       is still the desktop page.
-    6. Vaults: list, Unlock, an open vault's contents (tabs and entries),
-       Create vault (its summary panel covers the steps), the create
-       vault saved/public steps' rows.
-    7. Files and Stick visit (desktop layout, overlapping text).
-    8. Tools (Catalog grid), Tools calculators, Lightning, Explore,
-       Settings and About.
-    9. Tests for what a person sees on a small panel (Home offers each
-       place in view; Create with a dice key reaches Make the wallet;
-       the keyboard comes up on a passphrase field), then `just`.
-    10. Then build the Pi image (`local/remote-build.sh pi`) and try it
-        on the Pi 3 and panel.
+    **Left to do**, seen on `faraday-snapshot 480x640@286` (full tour).
+    1–9 done 2026-10-08, each looked at on renders at 480×640 and on tall
+    renders (480×1800 and 480×2400 @286) that show a whole page:
+    1. [x] Sign a transaction's step bodies: the Transaction table's rows
+       are two lines (what and how much, then where and its note); the
+       table of inputs and outputs puts each outpoint or address under its
+       line; Signers (plain and threshold) and Signatures put the label
+       and what it does on a second line; Finish's two cards stack, the
+       signed PSBT's buttons under each other when they do not fit; the
+       nonce check wraps; MuSig2's Nonces and the Path step's key chips
+       wrap. New `screens::wrap_buttons` lays a row of buttons that folds
+       at the column's width, each cut to fit.
+    2. [x] Decode a transaction (way back in the bar, to where it was
+       opened from: `screens::decode_back`) and Check a message: one
+       column, each value under its name, scrolling.
+    3. [x] Back up: no side panel on a small panel; Words on the seed,
+       the key choice, the words in two columns with their indices, the
+       SeedQR grid with the pinned row named under it, Check my copy, the
+       public files one under another, Split's choices under the label,
+       Backup done wrapped. `buttons_and_next` now wraps on a small
+       panel, with Continue on the last row when there is room.
+    4. [x] Restore: the first card's ways in and why not, and the sources
+       (`restore_sources_compact`): each source's name over its buttons.
+    5. [x] Spend tab: the Loaded view (`family_screen::loaded_compact`)
+       with its own bar; the walk-through's holding cards, vault card,
+       stick rows, words route, Check the money (addresses whole, to
+       compare character by character), Bring, Who signs, Put everything
+       away. Step dots in any flow with more steps than fit (11, 14) show
+       a window round the open step with arrows (`flow::paged`).
+    6. [x] Vaults: the list and Unlock as cards with their buttons under
+       them (`vault_screens::list_compact`, `unlock_compact`); a vault's
+       contents as two pages, the kinds and items as a list, a chosen item
+       (or a form, prompt, Save, Sign a file, images) as its own page that
+       the bar goes back from (`Vaults::item_open`,
+       `VaultAction::ItemBack`, `vault_screens::contents_detail`); Create
+       vault without its side panel, the summary and Create vault after
+       the last step (`create_summary`, `create_button`), the dice lists
+       one under another; Create a wallet's Secrets and Public files rows
+       two lines (`screens::put_row`).
+    7. [x] Files and Stick visit (`files_compact`, `visit_compact`): one
+       scrolled column each; Files has the stick's state first, then the
+       open vaults (`vault_panel_compact`), From the Inbox
+       (`inbox_panel_compact`), each Inbox and Outbox file as a card with
+       its buttons wrapped (`inbox_actions`, `file_card`); the visit has
+       Import before Write, every stick file listed (no clipped list).
+    8. [x] Tools catalog (a tile a row, Find across the panel), the
+       calculators, Lightning, Explore, Settings and About (each section
+       a measured card, `screens::section`), BIP-85's length and value.
+       `button_rows` cuts a label wider than its row.
+    9. [x] `tests/small_panel.rs`: Home offers every place; a wallet is
+       made by touch alone from a key rolled on dice; a passphrase field
+       brings the keyboard and stays above it. Found doing so: the
+       keyboard stayed up on a vault's list with no field; a step flow's
+       bar had neither ? nor the keyboard button (`compact::
+       flow_bar_tools`); a keyboard put away did not come back when
+       another field was pressed (it now follows which field has focus,
+       `osk_field`); and a field the keyboard came up over stayed under
+       it (the page now scrolls by as much, `Faraday::osk_reveal`, from
+       where the press was). `OskPress` is exported for the test.
+    10. [~] Built 2026-10-08 (`local/remote-build.sh pi`, release, from
+        the uncommitted tree with the walk-throughs behind a tap):
+        `out/pi/faraday-pi3-waveshare-28dpi.img` on the Dell, 68 MiB. Not
+        yet tried on the Pi 3 and panel.
+        To try the panel layout by touch on the Dell meanwhile:
+        `just faraday-panel 2.8` (or `5` for a phone): the desktop app
+        with `--panel INCHES [--aspect W:H] [--ppi N]` opens a window
+        that measures that diagonal on the laptop's own screen (pixels
+        per inch from its EDID; 277 on the XPS 13 9360), and takes the
+        touchscreen's touches (`WindowEvent::Touch`, new in the desktop
+        shell). Under Hyprland the recipe focuses the eDP screen first,
+        so the window opens there and floats at its size.
 
-    Owner's open calls on the layout (asked, not answered): Guided text
-    under the controls vs behind a tap; the order of Home's buttons; two
-    lines per word in New key's "Words so far".
+    **Pinned forward action and scroll cues (owner, 2026-10-08).** The
+    owner found Continue below the fold on Create a wallet's Kind step.
+    On a small panel now:
+    - A page's forward action is pinned in a bar at the panel's foot and
+      the page scrolls above it (`ui.pinning`/`ui.pin`, drawn by
+      `screens::draw_compact`, `PIN_H`; the page is laid out again in
+      the same frame when the bar comes or goes). Every `next_button`
+      and `buttons_and_next` next pins (they return whether they drew
+      in place), and `screens::pin_button` for the rest: Make the
+      wallet, Deal the shares, Sign the message, Save all then Continue
+      (Secrets), Unlock (Vaults and the Spend tab), Create vault, a
+      vault form's Save and a prompt's Open/Load/Seal, Add key, Open the
+      wallet (Restore), Write to a stick (Backup done), Next share.
+    - Sign a transaction's foot bar shows the open step's Continue while
+      the step is read, and the sign/finish button once there.
+    - While the docked keyboard is up the bar is hidden; the keyboard's
+      Done is Enter and puts the keyboard away, bringing the bar back.
+    - A sheet's buttons stay at its foot and its body scrolls above them
+      (`compact::sheet`, `ui.sheet_pinning`).
+    - More below: a deeper fade at the foot of the scrolled region, and
+      the scroll indicator always shown on a small panel while the page
+      goes on (no pointer to hover there).
+    - Steps that pick one option keep their explicit Continue.
+    Tests: `tests/small_panel.rs` checks each Create a vault step's and
+    Create a wallet's Kind forward action is in view without scrolling,
+    at 2.8 inches and on a 5-inch phone; they fail with pinning off.
+
+    The owner's calls on the layout (2026-10-08):
+    - **Guided text behind a tap.** On a small panel a step's or a page's
+      walk-through is a row, "About this step" / "About this page", after
+      the controls; a tap opens it and a second closes it
+      (`Action::About`, `Faraday::about_open`, `flow::about`). The panel
+      has no Guided switch, so the row is offered in Steps only too: the
+      tap is the choice. The Spend tab's leads are its own text, not
+      Guided text, and stay shown. Desktop unchanged.
+    - **Home's order, the agent's choice:** Spend, Wallets / Vaults,
+      Files / Scan, Stick visit (with a stick in) / Tools, Settings: the
+      device's job first, then where keys and transactions come from,
+      then the ways in and out, then what is used now and then.
+    - Two lines per word in New key's "Words so far": the owner is fine
+      with it as it is.
+    Also fixed then: Words chosen by the dice put each word's result on a
+    line under its rolls on a small panel (it ran off the panel).
 
 61. [x] 2026-10-07, owner's batch of seventeen (desktop):
     1. Nord is the theme a first start is in (`Theme`'s default).
@@ -1429,6 +1522,39 @@ as possible before the next build.
       the build does not yet make true: that the only storage the
       kernel sees is USB (and the Pi's card), and that nothing but the
       listed USB classes has a driver (`VIRTIO_BLK`, `BLK_DEV_SR`).
+    - **Progress (2026-10-07, late session).** Upstream took most of this
+      as §16.140 (`96e2144`; read `docs/PLANNING.md` §16.140 for what it
+      took, what it corrected in the note, and what it left).
+      1. Done: upstream synced to `96e2144` (Git state).
+      2. Done: carried into Faraday's copies. Upstream's x86 board
+         additions appended to `faraday/image/overlay/boards/x86_64-uefi/`
+         `kernel.forbidden`, `kernel.required`, `linux.fragment` (marked
+         "Upstream hardening ... at 96e2144"); upstream's common hardening
+         block appended to Faraday's `common/kernel.required`; upstream's
+         `/proc`, `/sys`, `/dev` mounts, `kptr_restrict=2` and
+         `ptrace_scope=3` put into Faraday's `rcS`. The Pi's common
+         `linux.fragment` and `kernel.forbidden` are not overlaid by
+         Faraday and come through as they are. `COREDUMP` is now in
+         upstream's common list as well as Faraday's board lists; the
+         duplicate is harmless.
+      3. Not done, as upstream also left them: `efi=disable_early_pci_dma`
+         (waits for hardware tests), Landlock for the app and
+         `faraday-disk`, `PR_SET_DUMPABLE` (largely covered now by
+         Yama scope 3), and §16.140's "later round" list.
+      4. Done: both stick images rebuilt on the build machine from this tree
+         (`out/stick/faraday-x86_64-uefi.img` 20:41,
+         `-dev.img` 20:50); the build's kernel-config check passed, and
+         the generated `.config` was read back for the options above.
+         `faraday/tools/qemu-check.py` boots the release image into the
+         app; `faraday/tools/disk-test.py` passes every check on the dev
+         image (stick rule, grant helper, USB authorisation) with the new
+         mounts, Yama and Lockdown. Not built: the Pi images. Not done:
+         a boot on the Dell or a Pi.
+      5. Done: `README.md` written from `local/README-draft.md`, with the
+         hardening, and corrected where the draft claimed more than the
+         tree has: no keyboard layout setting, no QR transfer tab, no
+         `tools/build/linux` (so `just faraday-linux-bin` does not run),
+         and no shared history with upstream.
     - Also found while drafting the README, for when this is picked up:
       `PLAN.md` §4.1 says init is the only root process after boot, but
       the app loop's shell (`inittab`) and the disk process's restart
@@ -1437,9 +1563,85 @@ as possible before the next build.
       `boards/pi3/kernel.forbidden` still forbids them; the owner has
       not yet decided which is right.
 
+64. [x] 2026-10-08, owner's batch (built and tested in source; not yet
+    on a device, no image built):
+    1. **Not air-gapped** on the desktop app: `Sheet::NotAirgapped`,
+       `Action::AirgapUnderstood`, `Faraday::airgap_warned` and
+       `mainnet_asked`. Mainnet chosen from Network waits for **I
+       understand** (Cancel leaves testnet); mainnet reached by loading
+       a mainnet wallet or PSBT brings the sheet up over it at the next
+       frame, with no way past but the acknowledgement. Once a session
+       (a lock starts a fresh testnet app). Never on the device.
+       `tests/airgap.rs`.
+    2. Scrollbar held and dragged everywhere: the word-list and Learn
+       sheets drew their own thin bars and now report their regions like
+       a page (`docs/MOTION.md` §3.8). The stick visit's list keeps its
+       own draggable bar. Tests in `tests/scroll.rs`.
+    3. Tokyo Night is the first-start theme (`Theme`'s default), on every
+       shell.
+    4. Laptop touchscreens on the stick: positions were scaled by the
+       Pi panel's 640×480 grid. A HID touchscreen's ranges are now read
+       from its report descriptor in sysfs (`shells/stick/src/hid.rs`,
+       no ioctl), and the touch parser reads slot 0 only, so a second
+       finger neither moves nor ends the first. Not covered: Wacom panels
+       (no `HID_WACOM` in the kernel; `hid-generic` binds them) and
+       Intel THC/QuickSPI touchscreens on the newest laptops (need a
+       newer kernel). The verbose boot report prints each touchscreen's
+       range.
+    5. Panic key: Super+S held 2 s (`keyboard::PanicTimer`,
+       `Stroke::Panic`, `Wake::Panic`) blanks the panel, drops the app
+       and exits for `poweroff -f`, from any screen; an unbelieved
+       keyboard's chord is held back like its keys. Super never types.
+       Shown beside Power off in Settings (device only), and in the
+       README and `PLAN.md` §5.3.
+    6. Zeroize audit. Found and fixed: typed secrets (`EntryState`'s
+       words and passphrase, `TextBox`, Tools, Lightning, the backup
+       check, New key's entries, the potential-wallet passphrase) were
+       `String`/`Zeroizing<String>`, which leave every pre-growth buffer
+       unwiped; now `secret_text::SecretText`. Secret strings built word
+       by word start with room (`secret_text::room`), private keys are
+       hex-encoded with no temporaries (`secret_text::hex`), the
+       displayed copies of typed secrets are `SecretText`
+       (`Ui::fit_secret`). Inbox/Outbox `Item`s, a QR sheet's source
+       and the session seed wipe on drop; SLIP-39/codex32 part lists are
+       allocated whole. The disk process (which outlives locks) wipes
+       every frame and file it passes, at both ends of the pipe, and its
+       FAT writer's cluster buffer; PNG pixels read for QR codes are
+       wiped; the stick shell wipes raw input bytes once decoded.
+       Left, needing upstream or an owner decision: transient copies made
+       while drawing (`format!`, glyph layout) and inside upstream crates
+       are freed unwiped; within a process only a wipe-on-free global
+       allocator catches those (an `unsafe` allocator, which belongs in
+       `osk-crypto`); `osk-codec`'s `QrMatrix` has no wipe. The kernel's
+       `init_on_free` covers all of it at each lock and at power-off.
+    7. README: the "Hardened" bullet folded into the kernel, process and
+       boot paragraphs; **Auditing Faraday** added (cryptographic core
+       upstream and apart from the interface, and why); panic key,
+       desktop warning, touchscreen, disk-process wiping.
+    Still for the owner: the Pi HDMI / USB keyboard / USB storage
+    question (answered in chat 2026-10-08, nothing built).
+
 ## Next steps
 
-0. Finish item 60 (the small panel), its list "Left to do" in order.
+**START HERE (2026-10-07, late).** The owner reports that upstream has
+landed the kernel hardening asked for in `local/upstream-kernel-hardening.md`
+(item 63). Work, in order, each step committed by the owner when done:
+1. Fetch `upstream` and sync upstream files past `fa1ae03` as "Git
+   state" says (`git diff fa1ae03 upstream/main`, `git apply --3way`).
+2. Carry upstream's kernel changes into Faraday's copies under
+   `faraday/image/overlay/boards/` (`kernel.forbidden`,
+   `kernel.required`, `linux.fragment`, `cmdline.txt`) and `rcS`.
+3. Do the Faraday-only parts of item 63 that upstream did not take.
+4. Build a stick image (`local/remote-build.sh stick`), check its
+   `.config` against item 63's lists, run the QEMU checks.
+5. Then the README (`local/README-draft.md`) can be finished.
+The session that wrote this note got through steps 1, 2, 4 and 5 (item
+63's "Progress" lines); step 3's remaining parts (Landlock,
+`efi=disable_early_pci_dma`, §16.140's later round), the Pi images and a
+boot on real hardware are what is left.
+
+0. Item 60: the screens are done; build the Pi image and try it on the
+   Pi 3 and panel when the owner asks.
 
 1. Build when the owner asks (commands under "Where we stopped"), and have
    the owner check scrolling, the PDFs and the scan sheet on the Dell.

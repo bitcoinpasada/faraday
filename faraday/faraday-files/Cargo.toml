@@ -12,6 +12,7 @@ publish = false
 faraday-fat = { path = "../faraday-fat" }
 osk-codec = { path = "../../core/osk-codec" }
 png.workspace = true
+zeroize = { workspace = true, features = ["alloc"] }
 
 [lints]
 workspace = true

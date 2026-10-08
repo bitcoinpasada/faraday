@@ -11,6 +11,7 @@ publish = false
 [dependencies]
 faraday-core = { path = "../faraday-core" }
 faraday-files = { path = "../faraday-files" }
+zeroize = { workspace = true, features = ["alloc"] }
 
 [lints]
 workspace = true

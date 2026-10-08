@@ -208,7 +208,11 @@ fn dice_open_on_flip_mode_and_every_way_takes_each_entry_as_it_is_typed() {
         dice.event(Event::Key(Key::Char(c)));
         let k = dice.keygen.as_ref().unwrap();
         assert_eq!(k.coins.len(), n + 1, "taken as typed");
-        assert_eq!(*k.entered, faces[..=n], "the box shows what was typed");
+        assert_eq!(
+            k.entered.as_str(),
+            &faces[..=n],
+            "the box shows what was typed"
+        );
     }
     let f: Vec<bool> = faces.bytes().map(|b| b >= b'4').collect();
     assert_eq!(
@@ -255,7 +259,7 @@ fn dice_open_on_flip_mode_and_every_way_takes_each_entry_as_it_is_typed() {
         app.event(Event::Key(Key::Backspace));
         let k = app.keygen.as_ref().unwrap();
         assert_eq!(k.dice.rolls(), &[1, 2, 3]);
-        assert_eq!(*k.entered, "123");
+        assert_eq!(k.entered.as_str(), "123");
     }
 }
 

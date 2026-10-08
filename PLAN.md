@@ -145,6 +145,17 @@ enforced by the board's `kernel.forbidden` and `kernel.required` lists
   hard-wired internal ports are authorised without the helper (§4.6).
 - **USB drivers:** storage, HID, UVC and hubs only (§4.6).
 - `RTC_HCTOSYS` is not needed: Faraday displays no time.
+- **Hardening** from Faraday's review, taken upstream as
+  `docs/PLANNING.md` §16.140 and carried into Faraday's board copies:
+  memory zeroed on allocation and free by default, heap and copy
+  hardening, stopping on corruption and on an oops, Yama (`ptrace_scope`
+  3) and Lockdown forced to confidentiality; io_uring, AIO, System V
+  IPC, the keyring, cross-memory attach and GPIO from userspace out; on
+  x86 the 32-bit and 16-bit system calls, raw HID, virtio, the SCSI
+  CD-ROM driver and the vendor HID drivers out. `rcS` mounts `/proc`,
+  `/sys` and `/dev` `nosuid,noexec` with hidden pids and sets
+  `kptr_restrict` 2. Not yet: Landlock for the app and the disk process,
+  and `efi=disable_early_pci_dma` (HANDOFF item 63).
 
 ### 4.3 Storage access (option B)
 
@@ -245,7 +256,11 @@ uses three layers instead, and the last is what stops an imitation.
    typed its code). A held-back device's clicks and keys never reach the
    app as input, so only a person at the screen can approve it. A device
    cannot see the screen, so it cannot pass. A Pi with no touch panel
-   trusts its first keyboard only after it types the code.
+   trusts its first keyboard only after it types the code. A laptop's
+   built-in touchscreen is on I2C and trusted as its touchpad is; its
+   positions are scaled by the ranges its HID report descriptor declares,
+   read from sysfs (`faraday/shells/stick/src/hid.rs`), since the shell
+   makes no `EVIOCGABS` ioctl.
 
 Devices that appear after boot (a keyboard, once authorised; a webcam)
 get the owners `/etc/mdev.conf` gives those present at boot, from
@@ -330,6 +345,13 @@ one vault alone.
   `docs/WALLETS.md` §3.3, the Spend tab's page, the idle time, and which
   Outbox files are secrets let out after the warning). The signed-amount
   memory is a privacy trace (txids and amounts), not a key.
+- Wiped as they pass, since they are not in the app's memory: the bytes
+  of every file `faraday-disk` reads or writes and every frame on its
+  pipes, at both ends (`faraday-files::proto`), because that process
+  lives on across locks; and the shell's raw input buffers once decoded.
+  Typed words and passphrases are `SecretText`
+  (`faraday-core/src/secret_text.rs`), which wipes its old buffer when it
+  grows, where a `Zeroizing<String>` would leave it behind.
 - Dropped from the Inbox at Lock, before the boxes are saved: a seed's
   words file (copied in, or `<picture>-words.txt` read from a SeedQR
   picture), a FROST carry file (`.osk`), an entries file and any plain
@@ -346,15 +368,41 @@ one vault alone.
 - The framebuffer holds the last frame until the next process draws, at
   once; only the kernel and the app read it.
 - The desktop app (online, for testing) restarts inside one process: there
-  only the app's own zeroizing applies.
+  only the app's own zeroizing applies. It starts on testnet; reaching
+  mainnet, chosen or by loading a mainnet wallet or transaction, first
+  shows **Not air-gapped**, which stays until **I understand** (once per
+  session).
+- **Panic key.** Super and S held together for two seconds, on any
+  believed keyboard, end the stick shell at once: the panel is painted
+  black, the app is dropped (its zeroizing runs), nothing is saved, and
+  init powers off. Settings shows the chord beside Power off; the
+  desktop app has none.
 
 ### 5.4 Flows
 
-**Boot.** The app reads vault files from the boot medium's data partition
-into the Inbox, shows **Remove the stick** (on the Pi, **Remove the
-card**), and waits until no removable partition remains. Then it asks for
-a passphrase. Unlocking is never offered while a stick or card is
-present.
+**Boot.** The first time the app sees the boot medium in a power-on, it
+reads every file on its data partition into memory: vault files into the
+Inbox, encrypted; every other file into a holding area apart from the
+Inbox, a PNG as what its QR codes hold (a SeedQR as its words), a kind
+Faraday does not read listed by name and size only. A sheet over Home says
+how many files were copied and what they are, and **Remove the stick to
+start the import** (on the Pi, the card). Once no removable partition
+remains, the same sheet lists the medium's vaults, each with **Unlock**
+(the Unlock screen, which comes back to the sheet); every wallet found in
+the files, the pictures and the open vaults, once each by descriptor,
+ticked, with its shape, whether the keys present can sign for it ("Can
+sign", "k of n keys here · m more needed", "Watch-only") and the files
+that carry it and its keys; the keys no listed wallet uses, ticked; and
+every file for the Inbox, PSBTs and vaults ticked, an open vault's file
+always kept. A line states that files not chosen are wiped from memory
+and that bringing one in later means inserting the stick again.
+**Import** loads the chosen wallets with their keys and the chosen keys,
+moves the chosen files into the Inbox, wipes the rest, and leaves Home.
+**Import later**, or a tap beside the sheet, leaves the files waiting;
+the sidebar's Sticks row and Home's Sticks and import cards open the
+sheet again. A lock wipes what was not imported, and a later insertion
+of the boot medium is an ordinary stick visit. Unlocking and loading keys
+are never offered while a stick or card is present.
 
 **A stick inserted while unlocked.** Nothing is handed out. The app sees
 the disk in `/sys` and shows a sheet: what will be sealed (vaults with

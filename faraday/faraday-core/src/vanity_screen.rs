@@ -143,8 +143,9 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
                 }
                 cy += used + 34.0;
             }
-            next_button(ui, x, cy, w, "Continue", va(V::Next(vstep::DIAL)));
-            cy += 52.0;
+            if next_button(ui, x, cy, w, "Continue", va(V::Next(vstep::DIAL))) {
+                cy += 52.0;
+            }
         }
         vstep::SCRIPT => {
             for (i, sc) in ScriptType::ALL.iter().enumerate() {
@@ -155,8 +156,9 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
                 cy += 42.0;
             }
             cy += 8.0;
-            next_button(ui, x, cy, w, "Continue", va(V::Next(vstep::SCRIPT)));
-            cy += 52.0;
+            if next_button(ui, x, cy, w, "Continue", va(V::Next(vstep::SCRIPT))) {
+                cy += 52.0;
+            }
         }
         vstep::PREFIX => {
             let fixed = v.grind.prefix.fixed_len(v.grind.script, net);
@@ -182,8 +184,9 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
             if let Some(e) = &v.error {
                 cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 8.0;
             }
-            next_button(ui, x, cy, w, "Continue", va(V::Next(vstep::PREFIX)));
-            cy += 52.0;
+            if next_button(ui, x, cy, w, "Continue", va(V::Next(vstep::PREFIX))) {
+                cy += 52.0;
+            }
         }
         _ => match (&v.grind.find, v.running) {
             (Some(f), _) => {

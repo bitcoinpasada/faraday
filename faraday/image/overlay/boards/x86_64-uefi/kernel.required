@@ -49,3 +49,9 @@ I2C_I801                  the SMBus controller on every Intel chipset, which is 
 
 # Faraday (PLAN.md §4.2, §4.3).
 MSDOS_PARTITION           an MBR stick's partitions as their own nodes, so the whole disk is never handed out
+
+# Upstream hardening (docs/PLANNING.md §16.140), at 96e2144.
+RANDOM_KMALLOC_CACHES           kernel heap caches split by call site, so one object is not placed beside another of a different kind
+LIST_HARDENED                   a corrupted kernel list is detected when it is walked
+RANDOMIZE_KSTACK_OFFSET_DEFAULT the kernel stack starts at a random offset on every system call, by default
+LEGACY_VSYSCALL_NONE            no vsyscall page; a static musl binary never calls it

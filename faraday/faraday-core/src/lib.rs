@@ -15,6 +15,7 @@
 
 pub mod backup;
 pub mod bip85;
+pub mod boot_import;
 pub mod catalog;
 pub mod create;
 pub mod decode;
@@ -33,6 +34,7 @@ pub mod memory;
 pub mod paper;
 pub mod pdf;
 pub mod restore;
+pub mod secret_text;
 pub mod secrets;
 pub mod secureboot;
 pub mod silent;
@@ -47,7 +49,9 @@ pub mod wallet;
 pub mod wordlist;
 
 mod bip85_screen;
+mod boot_import_screen;
 mod compact;
+pub use compact::OskPress;
 mod compact_screens;
 mod explore_screen;
 mod family_screen;
@@ -448,8 +452,6 @@ pub enum Action {
     TOther(u32),
     /// The carry file to the Outbox, for the share that signs next.
     CarryToOutbox,
-    /// Read the QR codes in this image on the stick.
-    VisitQr(usize),
     /// Type the BIP-39 passphrase in Add a key, or go back to the words.
     EntryPassphrase,
     /// Seal the signed-amount memory into an open vault on lock, or not.
@@ -488,6 +490,9 @@ pub enum Action {
     RFromVault(usize, usize),
     /// Move the session to this network.
     Network(osk_bip::keys::Network),
+    /// The online app's not-air-gapped warning acknowledged: mainnet,
+    /// if it was asked for, follows.
+    AirgapUnderstood,
     /// Close a sheet.
     Cancel,
     /// Set the display scale, in percent.
@@ -498,6 +503,9 @@ pub enum Action {
     ReduceMotion(bool),
     /// Guided mode on or off.
     Guided(bool),
+    /// On a small panel, a step's walk-through, or a page's, shown or
+    /// put away: the step's place, or [`ABOUT_PAGE`] for the page.
+    About(u8),
     /// Show the spend's signed PSBT as a QR code.
     QrSigned,
     /// Show the spend's PSBT as it stands, for a cosigner.
@@ -822,6 +830,8 @@ pub enum Action {
     /// Write the Outbox to a stick: the visit now when nothing secret was
     /// held, else what a lock wipes and keeps first.
     WriteAsk,
+    /// The boot import's sheet.
+    Import(boot_import::ImportAction),
 }
 
 /// What a stick visit calls a file it copies in, by its extension;
@@ -842,6 +852,7 @@ pub fn stick_kind(name: &str) -> Option<&'static str> {
         "efi" => Some("EFI image"),
         "osk" => Some("Threshold spend, part-signed"),
         "oskb" => Some("OpenSigner backup"),
+        "png" => Some("QR codes in a PNG"),
         _ => None,
     }
 }
@@ -859,7 +870,7 @@ fn seedqr_words(payload: &[u8]) -> Option<zeroize::Zeroizing<String>> {
         return None;
     };
     let words = lang.words();
-    let mut out = zeroize::Zeroizing::new(String::new());
+    let mut out = crate::secret_text::room();
     for (k, &i) in m.indices().iter().enumerate() {
         if k > 0 {
             out.push(' ');
@@ -891,6 +902,14 @@ pub struct Item {
     /// A secret the person let out unprotected, whatever its contents
     /// read as (`docs/FLOWS.md` decision 6).
     pub secret: bool,
+}
+
+/// An Inbox or Outbox file may be a seed or a share written in the clear:
+/// its bytes are wiped when it goes, whatever it holds.
+impl Drop for Item {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.bytes);
+    }
 }
 
 impl Item {
@@ -930,6 +949,8 @@ pub enum Sheet {
     Scan,
     /// Choosing the network.
     Network,
+    /// The online app on mainnet: this computer is not air-gapped.
+    NotAirgapped,
     /// Locked for idleness: what waits in the Outbox.
     Locked,
     /// A new input device, waiting to be believed or ignored.
@@ -950,6 +971,9 @@ pub enum Sheet {
     /// A seed from the Inbox becoming a wallet: a passphrase or none, and
     /// its kind; or a sealed backup's passphrase.
     Potential,
+    /// What the boot stick brought: remove the stick, unlock its vaults,
+    /// choose what to import.
+    Import,
 }
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
@@ -1041,6 +1065,29 @@ pub struct QrView {
     pub part: usize,
     /// A secret: whoever scans it can use it.
     pub secret: bool,
+}
+
+/// A code on screen may be a seed: what it was made from is wiped when
+/// the sheet closes. The codes themselves are `osk-codec`'s, which has no
+/// way to wipe them.
+impl Drop for QrView {
+    fn drop(&mut self) {
+        use zeroize::Zeroize;
+        match &mut self.source {
+            QrSource::Psbt(b) => b.zeroize(),
+            QrSource::Text(t) => t.zeroize(),
+            QrSource::Key(k, a) => {
+                k.zeroize();
+                a.zeroize();
+            }
+            QrSource::File(n, b) => {
+                n.zeroize();
+                b.zeroize();
+            }
+        }
+        self.title.zeroize();
+        self.subtitle.zeroize();
+    }
 }
 
 /// What a QR view shows.
@@ -1386,7 +1433,7 @@ fn what_instead_of_a_seed(text: &str) -> Option<&'static str> {
 #[derive(Default)]
 pub struct EntryState {
     /// The words as typed.
-    pub typed: String,
+    pub typed: secret_text::SecretText,
     /// The slot fingerprint the key is meant for.
     pub wanted: Option<[u8; 4]>,
     /// The label for the key.
@@ -1396,7 +1443,7 @@ pub struct EntryState {
     /// Where to go once the key is added.
     pub back: Option<Screen>,
     /// The BIP-39 passphrase, when one is typed.
-    pub passphrase: String,
+    pub passphrase: secret_text::SecretText,
     /// Typing goes to the passphrase rather than the words.
     pub on_passphrase: bool,
     /// Which form of key is being typed.
@@ -1420,13 +1467,6 @@ impl EntryState {
     /// The BIP-39 list the words are typed from.
     pub fn language(&self) -> osk_bip::bip39::Language {
         forms::LANGUAGES[usize::from(self.language_at) % forms::LANGUAGES.len()]
-    }
-}
-
-impl Drop for EntryState {
-    fn drop(&mut self) {
-        zeroize::Zeroize::zeroize(&mut self.typed);
-        zeroize::Zeroize::zeroize(&mut self.passphrase);
     }
 }
 
@@ -1506,7 +1546,7 @@ pub struct BackupState {
     /// Typing goes to the check field.
     pub checking: bool,
     /// The digits typed back.
-    pub typed: zeroize::Zeroizing<String>,
+    pub typed: secret_text::SecretText,
     /// Template word count.
     pub words: usize,
     /// Keys left off each split sheet.
@@ -1578,6 +1618,10 @@ pub struct CreateState {
     /// New keys made for this wallet.
     pub made: u32,
 }
+
+/// What [`Action::About`] names for a page's walk-through rather than a
+/// step's.
+pub const ABOUT_PAGE: u8 = u8::MAX;
 
 /// The create cards, in order.
 pub mod cstep {
@@ -1769,12 +1813,22 @@ pub struct Faraday {
     pub wallet: usize,
     /// The visit screen.
     pub visit: VisitState,
+    /// What the boot stick brought at its first look this power-on,
+    /// waiting to be imported (`boot_import`).
+    pub import: Option<boot_import::ImportState>,
     /// The settings the boot stick holds, as `settings_body` writes them:
     /// read from it at boot, or written to it since; `None` until the
     /// boot stick has been looked at (`stick_settings`).
     pub stick_settings: Option<String>,
     /// Guided mode: flows show their written walk-through.
     pub guided: bool,
+    /// On a small panel, the height of the pinned bar the last frame
+    /// drew: the page is laid out above it.
+    pub(crate) pin_h: std::cell::Cell<f32>,
+    /// On a small panel, the walk-through shown: the screen, and the
+    /// step's place or [`ABOUT_PAGE`]. Behind a tap there, so the
+    /// controls keep the panel.
+    pub about_open: Option<(Screen, u8)>,
     /// Pixels scrolled past in the long list on screen (the stick's
     /// files, Files, the wallet list): continuous, not row-snapped, so a
     /// wheel notch moves the content by its own pixels like everywhere
@@ -1899,11 +1953,24 @@ pub struct Faraday {
     /// Running on an online machine (the desktop app), where sheets are
     /// turned into PDFs. Never set on the device.
     pub online: bool,
+    /// The online app's warning that this computer is not air-gapped has
+    /// been acknowledged this session: it comes before mainnet does.
+    airgap_warned: bool,
+    /// The mainnet network asked for while that warning is on show.
+    mainnet_asked: Option<osk_bip::keys::Network>,
 }
 
 impl Default for Faraday {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// The session's own seed for fresh randomness goes with the app; the
+/// rest of what it holds wipes itself as it drops.
+impl Drop for Faraday {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.seed);
     }
 }
 
@@ -1962,8 +2029,11 @@ impl Faraday {
             entry: EntryState::default(),
             wallet: 0,
             visit: VisitState::default(),
+            import: None,
             stick_settings: None,
             guided: false,
+            about_open: None,
+            pin_h: std::cell::Cell::new(0.0),
             list_offset: 0.0,
             content_h: std::cell::Cell::new(0.0),
             motion: motion::Motion::default(),
@@ -2016,6 +2086,8 @@ impl Faraday {
             selftest: None,
             hovered: None,
             online: false,
+            airgap_warned: false,
+            mainnet_asked: None,
         }
     }
 
@@ -2037,7 +2109,10 @@ impl Faraday {
 
     /// Delivers what the shell knows about storage.
     pub fn storage(&mut self, event: StorageEvent) {
-        let event = match self.settings_event(event) {
+        let event = match self
+            .settings_event(event)
+            .and_then(|e| self.import_event(e))
+        {
             Some(e) => e,
             None => {
                 self.dirty = true;
@@ -2137,6 +2212,7 @@ impl Faraday {
                 }
             }
             StorageEvent::QrRead { name, payloads } => {
+                self.visit.inn.remove(&name);
                 if payloads.is_empty() {
                     self.visit
                         .log
@@ -2437,18 +2513,11 @@ impl Faraday {
                     )
                 };
                 self.toast(&said);
-                // Home at boot: pulling the stick opens the passphrase
-                // prompt of the vault it brought.
-                if self.screen == Screen::Home
-                    && !self.holds_secret()
-                    && self.session.wallets.is_empty()
-                    && let Some(i) = self.vault_files().iter().position(|f| f.open.is_none())
-                {
-                    self.vault_act(vaults::VaultAction::Open(i));
-                }
             }
+            self.import_stick_gone();
             return;
         }
+        self.import_stick_gone();
         if ids_now == ids_before {
             return;
         }
@@ -2463,15 +2532,22 @@ impl Faraday {
         }
         self.visit.log.clear();
         self.visit.settings = None;
+        // The first look at the boot stick this power-on: what it holds is
+        // copied into memory for the import (`boot_import`).
+        let first_look = self.stick_settings.is_none();
+        let boot = self.sticks.iter().find(|s| s.boot).cloned();
         if !self.clean() {
             self.not_now = false;
             self.sheet = Some(Sheet::Lock);
         } else {
             self.visit.out = self.visit_default_out();
-            // The boot stick alone leaves Home on screen: Home says what it
-            // brought and offers the visit.
+            if self.sheet == Some(Sheet::Import) {
+                self.sheet = None;
+            }
+            // The boot stick alone at its first look leaves Home on
+            // screen, with the import over it when it holds anything.
             let boot_only = self.sticks.iter().all(|s| s.boot);
-            if !(boot_only && self.screen == Screen::Home) {
+            if !(boot_only && first_look && self.screen == Screen::Home) {
                 // A stick arriving in the middle of Create or Restore
                 // brings the person back there when it is pulled.
                 if matches!(
@@ -2482,24 +2558,13 @@ impl Faraday {
                 }
                 self.screen = Screen::Visit;
             }
-            // The boot stick's vaults come into the Inbox by themselves
-            // (`PLAN.md` §5.4).
-            let reads: Vec<StorageCommand> = self
-                .sticks
-                .iter()
-                .filter(|s| s.boot)
-                .flat_map(|s| {
-                    s.files
-                        .iter()
-                        .filter(|(n, _)| n.to_ascii_lowercase().ends_with(".ofv"))
-                        .filter(|(n, _)| !self.inbox.iter().any(|i| &i.name == n))
-                        .map(|(n, _)| StorageCommand::Read {
-                            stick: s.id.clone(),
-                            name: n.clone(),
-                        })
-                })
-                .collect();
-            self.storage_out.extend(reads);
+            if first_look
+                && self.import.is_none()
+                && let Some(b) = boot.as_ref()
+                && b.files.iter().any(|(n, _)| !stick_settings::is_file(n))
+            {
+                self.import_start(b);
+            }
             // The boot stick's settings, once a session (`stick_settings`).
             if self.stick_settings.is_none()
                 && let Some(boot) = self.sticks.iter().find(|s| s.boot)
@@ -2619,6 +2684,9 @@ impl Faraday {
 
     fn lock(&mut self) {
         self.vault_seal_all();
+        // What the boot stick brought and was not imported is not kept:
+        // its bytes are wiped as it drops.
+        self.import = None;
         // Nothing secret copied in outlives the process that read it
         // (`PLAN.md` §5.3): the next process is clean, and these would be
         // in its memory and in `/run/faraday`. They are still on the stick
@@ -2784,6 +2852,7 @@ impl Faraday {
                 }
             }
             Action::Vault(v) => self.vault_act(v),
+            Action::Import(a) => self.import_act(a),
             Action::Family(f) => self.family_act(f),
             Action::Vanity(v) => self.vanity_act(v),
             Action::Learn => self.learn_open(),
@@ -3112,16 +3181,6 @@ impl Faraday {
                     }
                 }
             }
-            Action::VisitQr(i) => {
-                if let Some(stick) = self.sticks.get(self.visit.stick)
-                    && let Some((name, _)) = stick.files.get(i)
-                {
-                    self.storage_out.push_back(StorageCommand::ReadQr {
-                        stick: stick.id.clone(),
-                        name: name.clone(),
-                    });
-                }
-            }
             Action::VisitCopy => self.visit_copy(),
             Action::VisitCopyAndLoad => {
                 self.visit.load_after.extend(self.visit.inn.iter().cloned());
@@ -3187,6 +3246,23 @@ impl Faraday {
                     self.act(Action::Nav(Screen::Visit));
                 }
             }
+            Action::Network(n)
+                if self.online
+                    && n.is_mainnet()
+                    && !self.airgap_warned
+                    && !self.session.network().is_mainnet()
+                    && self.session.wallets.is_empty() =>
+            {
+                self.mainnet_asked = Some(n);
+                self.sheet = Some(Sheet::NotAirgapped);
+            }
+            Action::AirgapUnderstood => {
+                self.airgap_warned = true;
+                self.sheet = None;
+                if let Some(n) = self.mainnet_asked.take() {
+                    self.act(Action::Network(n));
+                }
+            }
             Action::Network(n) => match self.session.set_network(n) {
                 Ok(()) => {
                     self.sheet = None;
@@ -3195,6 +3271,7 @@ impl Faraday {
                 Err(e) => self.toast(&e.text()),
             },
             Action::Cancel => {
+                self.mainnet_asked = None;
                 self.secret_cancel();
                 self.wordlist = None;
                 self.potential = None;
@@ -3215,6 +3292,10 @@ impl Faraday {
                 self.qr = None;
                 // A device still waiting comes back up.
                 self.input_sheet();
+            }
+            Action::About(k) => {
+                let this = (self.screen, k);
+                self.about_open = (self.about_open != Some(this)).then_some(this);
             }
             Action::Guided(on) => {
                 if on != self.guided {
@@ -3270,7 +3351,7 @@ impl Faraday {
                 if let Some(b) = self.backup.as_mut() {
                     b.key = k;
                     b.reveal = false;
-                    b.typed = zeroize::Zeroizing::new(String::new());
+                    b.typed.clear();
                     b.paper = None;
                 }
             }
@@ -3304,7 +3385,7 @@ impl Faraday {
             }
             Action::BCheckClear => {
                 if let Some(b) = self.backup.as_mut() {
-                    b.typed = zeroize::Zeroizing::new(String::new());
+                    b.typed.clear();
                 }
             }
             Action::BWords(n) => {
@@ -4546,8 +4627,7 @@ impl Faraday {
                 Some(w) => w,
                 None => zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string()),
             };
-            zeroize::Zeroize::zeroize(&mut self.entry.typed);
-            self.entry.typed = text.to_string();
+            self.entry.typed.set(&text);
             self.entry.error = None;
             self.form_add_part();
             match self.entry.error.clone() {
@@ -4609,107 +4689,8 @@ impl Faraday {
             }
             return;
         }
-        scan.reads += 1;
-        let text = String::from_utf8_lossy(&bytes).trim().to_string();
-        // A SeedQR is digits only; a seed never arrives by this door.
-        if !text.is_empty()
-            && text.bytes().all(|b| b.is_ascii_digit())
-            && (text.len() == 48 || text.len() == 96)
-        {
-            scan.note =
-                Some("That is a SeedQR. Seeds go in through Add a key, not Files".to_string());
+        let Some((named, ext, data)) = self.read_code(bytes) else {
             return;
-        }
-        // A CompactSeedQR is 16 or 32 bytes of entropy, not text.
-        if matches!(bytes.len(), 16 | 32) && std::str::from_utf8(&bytes).is_err() {
-            scan.note = Some(
-                "That may be a CompactSeedQR. Seeds go in through Add a key, not Files".to_string(),
-            );
-            return;
-        }
-        // A wrong arrival is named, not refused generically (`docs/QR.md`
-        // §1): a seed's words or a private key never go in a box.
-        if let Some(why) = secret_text(&text) {
-            scan.note = Some(why.to_string());
-            return;
-        }
-        // BBQr and numbered parts are put together here; anything else is
-        // read as before.
-        let mut item: Option<(Option<String>, &str, Vec<u8>)> = None;
-        match scan.assembler.feed(&text) {
-            faraday_qr::Step::Part {
-                what,
-                have,
-                total,
-                missing,
-            } => {
-                scan.note = Some(part_note(what, have, total, &missing));
-                return;
-            }
-            faraday_qr::Step::Refused(why) => {
-                scan.note = Some(why);
-                return;
-            }
-            faraday_qr::Step::Done(arrived) => item = Some(arrival(arrived)),
-            faraday_qr::Step::NotMine => {}
-        }
-        if item.is_none() && osk_codec::ur::is_ur(&text) {
-            match scan.decoder.receive(&text) {
-                Ok(true) => match scan.decoder.message() {
-                    Some(osk_codec::ur::Message::Psbt(p)) => item = Some((None, "psbt", p.clone())),
-                    Some(osk_codec::ur::Message::Bytes(b)) => {
-                        item = Some(arrival(faraday_qr::classify_text(
-                            &String::from_utf8_lossy(b),
-                        )));
-                    }
-                    Some(osk_codec::ur::Message::Other { ur_type, cbor }) => {
-                        match faraday_qr::registry::read(ur_type, cbor) {
-                            Ok(Some(faraday_qr::registry::Read::Psbt(p))) => {
-                                item = Some((None, "psbt", p));
-                            }
-                            Ok(Some(faraday_qr::registry::Read::Keys(t)))
-                            | Ok(Some(faraday_qr::registry::Read::Descriptor(t))) => {
-                                item = Some((None, "txt", t.into_bytes()));
-                            }
-                            Ok(None) => {
-                                scan.note =
-                                    Some(format!("ur:{ur_type} is not a kind this build reads"));
-                            }
-                            Err(why) => scan.note = Some(why),
-                        }
-                        if item.is_none() {
-                            scan.decoder = osk_codec::ur::Decoder::new();
-                            return;
-                        }
-                    }
-                    None => return,
-                },
-                Ok(false) => {
-                    if let Some((have, of)) = scan.decoder.progress() {
-                        scan.note = Some(format!("UR: part {have} of {of}"));
-                    }
-                    return;
-                }
-                Err(e) => {
-                    scan.note = Some(format!("Not a part of this code: {e:?}"));
-                    return;
-                }
-            }
-        }
-        let (named, ext, data) = match item {
-            Some(i) => i,
-            None if wallet::read_psbt(&bytes).is_some() => (None, "psbt", bytes),
-            None => {
-                // An address is checked against the loaded wallets, not
-                // filed.
-                if let Some(said) = self.address_note(&text) {
-                    if let Some(scan) = self.scan.as_mut() {
-                        scan.note = Some(said);
-                    }
-                    return;
-                }
-                arrival(faraday_qr::classify_text(&text))
-            }
         };
         self.scanned += 1;
         let name = match named {
@@ -4750,6 +4731,117 @@ impl Faraday {
         ) {
             self.screen = Screen::Files;
         }
+    }
+
+    /// What one code read as a file holds: its name when it carries one,
+    /// its extension and its bytes. `None` while a transfer in parts waits
+    /// for more, and for a code that is refused, which leaves its reason
+    /// as the scan's note.
+    fn read_code(&mut self, bytes: Vec<u8>) -> Option<(Option<String>, &'static str, Vec<u8>)> {
+        let scan = self.scan.as_mut()?;
+        scan.reads += 1;
+        let text = String::from_utf8_lossy(&bytes).trim().to_string();
+        // A SeedQR is digits only; a seed never arrives by this door.
+        if !text.is_empty()
+            && text.bytes().all(|b| b.is_ascii_digit())
+            && (text.len() == 48 || text.len() == 96)
+        {
+            scan.note =
+                Some("That is a SeedQR. Seeds go in through Add a key, not Files".to_string());
+            return None;
+        }
+        // A CompactSeedQR is 16 or 32 bytes of entropy, not text.
+        if matches!(bytes.len(), 16 | 32) && std::str::from_utf8(&bytes).is_err() {
+            scan.note = Some(
+                "That may be a CompactSeedQR. Seeds go in through Add a key, not Files".to_string(),
+            );
+            return None;
+        }
+        // A wrong arrival is named, not refused generically (`docs/QR.md`
+        // §1): a seed's words or a private key never go in a box.
+        if let Some(why) = secret_text(&text) {
+            scan.note = Some(why.to_string());
+            return None;
+        }
+        // BBQr and numbered parts are put together here; anything else is
+        // read as before.
+        let mut item: Option<(Option<String>, &str, Vec<u8>)> = None;
+        match scan.assembler.feed(&text) {
+            faraday_qr::Step::Part {
+                what,
+                have,
+                total,
+                missing,
+            } => {
+                scan.note = Some(part_note(what, have, total, &missing));
+                return None;
+            }
+            faraday_qr::Step::Refused(why) => {
+                scan.note = Some(why);
+                return None;
+            }
+            faraday_qr::Step::Done(arrived) => item = Some(arrival(arrived)),
+            faraday_qr::Step::NotMine => {}
+        }
+        if item.is_none() && osk_codec::ur::is_ur(&text) {
+            match scan.decoder.receive(&text) {
+                Ok(true) => match scan.decoder.message() {
+                    Some(osk_codec::ur::Message::Psbt(p)) => item = Some((None, "psbt", p.clone())),
+                    Some(osk_codec::ur::Message::Bytes(b)) => {
+                        item = Some(arrival(faraday_qr::classify_text(
+                            &String::from_utf8_lossy(b),
+                        )));
+                    }
+                    Some(osk_codec::ur::Message::Other { ur_type, cbor }) => {
+                        match faraday_qr::registry::read(ur_type, cbor) {
+                            Ok(Some(faraday_qr::registry::Read::Psbt(p))) => {
+                                item = Some((None, "psbt", p));
+                            }
+                            Ok(Some(faraday_qr::registry::Read::Keys(t)))
+                            | Ok(Some(faraday_qr::registry::Read::Descriptor(t))) => {
+                                item = Some((None, "txt", t.into_bytes()));
+                            }
+                            Ok(None) => {
+                                scan.note =
+                                    Some(format!("ur:{ur_type} is not a kind this build reads"));
+                            }
+                            Err(why) => scan.note = Some(why),
+                        }
+                        if item.is_none() {
+                            scan.decoder = osk_codec::ur::Decoder::new();
+                            return None;
+                        }
+                    }
+                    None => return None,
+                },
+                Ok(false) => {
+                    if let Some((have, of)) = scan.decoder.progress() {
+                        scan.note = Some(format!("UR: part {have} of {of}"));
+                    }
+                    return None;
+                }
+                Err(e) => {
+                    scan.note = Some(format!("Not a part of this code: {e:?}"));
+                    return None;
+                }
+            }
+        }
+        let (named, ext, data) = match item {
+            Some(i) => i,
+            None if wallet::read_psbt(&bytes).is_some() => (None, "psbt", bytes),
+            None => {
+                // An address is checked against the loaded wallets, not
+                // filed.
+                if let Some(said) = self.address_note(&text) {
+                    if let Some(scan) = self.scan.as_mut() {
+                        scan.note = Some(said);
+                    }
+                    return None;
+                }
+                arrival(faraday_qr::classify_text(&text))
+            }
+        };
+        Some((named, ext, data))
     }
 
     /// What a scanned address is to the loaded wallets: one of a
@@ -4963,10 +5055,14 @@ impl Faraday {
             let id = stick.id.clone();
             self.visit.log.clear();
             for name in self.visit.inn.clone() {
-                self.storage_out.push_back(StorageCommand::Read {
-                    stick: id.clone(),
-                    name,
-                });
+                // A picture's QR codes are read, not its bytes.
+                let stick = id.clone();
+                self.storage_out
+                    .push_back(if name.to_ascii_lowercase().ends_with(".png") {
+                        StorageCommand::ReadQr { stick, name }
+                    } else {
+                        StorageCommand::Read { stick, name }
+                    });
             }
         }
     }
@@ -5503,7 +5599,7 @@ impl Faraday {
         match self.sheet {
             Some(Sheet::Learn) => return Some(&mut self.learn.scroll),
             Some(Sheet::WordList) => return self.wordlist.as_mut().map(|w| &mut w.scroll),
-            Some(s) if self.compact => {
+            Some(s) if self.compact || s == Sheet::Import => {
                 if self.sheet_scroll.1 != Some(s) {
                     self.sheet_scroll = (0.0, Some(s));
                 }
@@ -5519,7 +5615,19 @@ impl Faraday {
             | Screen::Decode
             | Screen::Catalog
             | Screen::Settings => &mut self.list_offset,
-            Screen::Home | Screen::Entry if self.compact => &mut self.list_offset,
+            Screen::Home
+            | Screen::Entry
+            | Screen::CheckMessage
+            | Screen::Vaults
+            | Screen::Unlock
+            | Screen::VaultContents
+            | Screen::Explore
+            | Screen::Lightning
+            | Screen::Tools
+                if self.compact =>
+            {
+                &mut self.list_offset
+            }
             Screen::Family => &mut self.family.scroll.y,
             Screen::Vanity => &mut self.vanity.as_mut()?.scroll.y,
             Screen::KeyGen => &mut self.keygen.as_mut()?.scroll.y,
@@ -5541,8 +5649,9 @@ impl Faraday {
     fn region_key(&self) -> ScreenKey {
         (
             self.screen,
-            self.sheet
-                .filter(|s| self.compact || matches!(s, Sheet::Learn | Sheet::WordList)),
+            self.sheet.filter(|s| {
+                self.compact || matches!(s, Sheet::Learn | Sheet::WordList | Sheet::Import)
+            }),
         )
     }
 
@@ -5750,8 +5859,12 @@ impl Faraday {
 
     /// The overlay scrollbar a press at (x, y) would take: the scrolled
     /// region's, when the press is within [`ui::BAR_GRAB`] of its right
-    /// edge and the region scrolls, with where its bar runs.
+    /// edge and the region scrolls, with where its bar runs. A small
+    /// panel draws none, so a press there is on the content.
     fn bar_at(&self, x: i32, y: i32) -> Option<(ui::Scrolled, ui::BarGeometry)> {
+        if self.compact {
+            return None;
+        }
         let key = self.region_key();
         // Not through a sheet that does not scroll.
         let reachable = self.sheet.is_none() || key.1.is_some();
@@ -5800,6 +5913,15 @@ impl Faraday {
         let Some(mut canvas) = self.canvas.take() else {
             return;
         };
+        // The online app reached mainnet some other way (a mainnet wallet
+        // or transaction loaded): the warning comes up over it.
+        if self.online
+            && self.session.network().is_mainnet()
+            && !self.airgap_warned
+            && self.sheet.is_none()
+        {
+            self.sheet = Some(Sheet::NotAirgapped);
+        }
         let mut hits = std::mem::take(&mut self.hits);
         hits.clear();
         // Offsets in whole pixels, whoever set them last, so a scrolled
@@ -5854,8 +5976,10 @@ impl Faraday {
                 ui.hovered = self.hovered;
                 ui.stretch = stretch;
                 ui.bar = (bar > 0).then_some((bar, offset));
-                ui.stretch_in_sheet = matches!(self.sheet, Some(Sheet::Learn | Sheet::WordList))
-                    || (self.compact && self.sheet.is_some());
+                ui.stretch_in_sheet = matches!(
+                    self.sheet,
+                    Some(Sheet::Learn | Sheet::WordList | Sheet::Import)
+                ) || (self.compact && self.sheet.is_some());
                 ui.disclosure = disclosure;
                 let frost_key = ((self.screen, self.sheet), self.theme);
                 ui.frost = self
@@ -5864,6 +5988,10 @@ impl Faraday {
                     .filter(|(k, _)| *k == frost_key)
                     .map(|(_, page)| page);
                 ui.guided_shown = self.guided_shown();
+                ui.about_open = self
+                    .about_open
+                    .filter(|(s, _)| *s == self.screen && self.sheet.is_none())
+                    .map(|(_, k)| k);
                 ui.offset = offset;
                 ui.compact = self.compact;
                 ui.caret_on = self.caret_on();

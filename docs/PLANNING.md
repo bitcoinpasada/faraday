@@ -2062,7 +2062,9 @@ working screen is still labels, values and actions and never an
 explanation; Learn and About are not working screens and may hold
 paragraphs; and text of any length anywhere in the product is plain
 statement of fact in an encyclopedia voice. `CLAUDE.md`'s first bullet
-and DESIGN §2 principle 1 now say that.
+and DESIGN §2 principle 1 now say that. (§16.141 records one such
+statement the owner asked for on a working sheet: what Import does with
+the files not chosen.)
 
 **Tier A and Tier B are named for what they are.** "Dedicated device"
 described the hardware, not the property that matters, and "phone with
@@ -10023,3 +10025,127 @@ usable", rather than an abort.
 - The `psbt_parse` fuzz target compiles again: it built
   `osk_psbt::Context` without the three fields added since. All ten
   targets build, and `psbt_parse` ran 60 seconds without a crash.
+
+### 16.140 Kernel hardening from the Faraday fork's review (2026-10-07)
+
+**Why.** The Faraday fork reviewed its x86 stick kernel, which starts from
+this tree's `boards/x86_64-uefi` at `c418768`, against the Kernel Self
+Protection Project's recommendations and sent the findings here. Checked
+against this tree's own built configs, its x86 findings were right. It
+was wrong that `init_on_free` was already on here (that is Faraday's
+command line, not ours), it treated the Pi as the same kernel when the Pi
+is the Raspberry Pi fork's 6.1 on 32-bit ARM, and its Landlock section
+described Faraday's processes rather than this image's.
+
+**Both boards** (`common/linux.fragment`, enforced by
+`common/kernel.required` and `common/kernel.forbidden`):
+
+- Zeroing on allocation and on free, built in as the default:
+  `INIT_ON_ALLOC_DEFAULT_ON`, `INIT_ON_FREE_DEFAULT_ON`. The app erases
+  its own secrets; this covers the copies the kernel makes on the way.
+- Heap and copy hardening: `HARDENED_USERCOPY`, `FORTIFY_SOURCE`,
+  `SLAB_FREELIST_HARDENED`, `SLAB_FREELIST_RANDOM`,
+  `SHUFFLE_PAGE_ALLOCATOR`, and `SLAB_MERGE_DEFAULT` off.
+- Stopping on corruption: `BUG_ON_DATA_CORRUPTION`,
+  `SCHED_STACK_END_CHECK`, `PANIC_ON_OOPS`. `PANIC_TIMEOUT` is 0, so a
+  panic halts.
+- `ZERO_CALL_USED_REGS` and `SECURITY_DMESG_RESTRICT`.
+- Yama, and Lockdown forced to confidentiality from early boot.
+  `CONFIG_LSM` is named as `"lockdown,yama"`: the Pi's defconfig sets an
+  empty list, which builds both modules and starts neither.
+- Off: `IO_URING`, `AIO`, `SYSVIPC`, `KEYS`, `CROSS_MEMORY_ATTACH`,
+  `KCMP`, `BINFMT_MISC`, `CRASH_DUMP`, `GPIO_CDEV` and `COREDUMP`. The
+  shell's only dependency that talks to the kernel is `libc`, and the
+  Pi's touch controller is the kernel's Goodix driver. On the Pi, three
+  defconfig options selected two of these back on, and the build's check
+  stopped it: `GPIO_SYSFS` selects `GPIO_CDEV`, and `FS_ENCRYPTION` and
+  `INTEGRITY` select `KEYS`. All three are off; no filesystem here is
+  encrypted and nothing measures files. `COREDUMP` was a
+  Faraday change the review did not propose here: the shell aborts on a
+  panic, and the only writable filesystem is the exchange partition.
+
+**The x86 board only:** `RANDOM_KMALLOC_CACHES`, `LIST_HARDENED` and
+`RANDOMIZE_KSTACK_OFFSET_DEFAULT`, which the Pi's kernel does not have;
+`LEGACY_VSYSCALL_NONE`; and off, `IA32_EMULATION`, `MODIFY_LDT_SYSCALL`,
+`X86_16BIT`, `X86_IOPL_IOPERM`, `DEVPORT`, `LEGACY_TIOCSTI`, `HIDRAW`,
+`USB_HIDDEV`, virtio, the SCSI CD-ROM driver, the 22 vendor HID drivers
+`x86_64_defconfig` builds, `HOTPLUG_PCI`, `ACPI_TABLE_UPGRADE`,
+`EFI_CUSTOM_SSDT_OVERLAYS` and `EFI_RUNTIME_MAP`. A vendor's extra keys
+are what the HID removal costs; `HID_GENERIC` and `HID_MULTITOUCH` still
+read every keyboard, mouse and touchpad.
+
+**`rcS`:** `/proc` is mounted `nosuid,nodev,noexec,hidepid=invisible`,
+`/sys` `nosuid,nodev,noexec`, and `/dev` remounted `nosuid,noexec`;
+`kernel.kptr_restrict` is 2 and `kernel.yama.ptrace_scope` 3.
+
+**Not done.**
+
+- `RANDSTRUCT` and `GCC_PLUGIN_STACKLEAK`: Buildroot's `linux/linux.mk`
+  turns `GCC_PLUGINS` off for every kernel it builds.
+- `EFI_DISABLE_PCI_DMA`: the kernel's help says it "will cause failures
+  with some poorly behaved hardware and should not be enabled without
+  testing". It waits for the stick's hardware tests.
+- `PERF_EVENTS` on x86, which the architecture selects.
+- Landlock for the app and `prctl(PR_SET_DUMPABLE, 0)` in the shell.
+  These are changes to the shell's code, and Landlock's rule set has to
+  be tested against the stick that is mounted after the app starts.
+
+**Tested here.** Both release images build, which is when
+`check-kernel-config.sh` holds the lists against the generated
+`.config` (stick: 113 options out, 71 in; Pi: 64 out, 38 in). The stick
+image passes `tools/stick-test.py` in QEMU: it boots into the app, takes
+a mouse and a keyboard, and every USB stick case still mounts, with the
+new `rcS` mounts in place. Hardware tests on each board (keyboard,
+touchpad, webcam, stick, power-off) are the Faraday maintainer's, who
+asked for these changes.
+
+**What `kernel-hardening-checker` still reports** (run from its
+repository on both configs; 66 failures on x86, 49 on the Pi). Most are
+not available here: options the Pi's 6.1 ARM kernel does not have, the
+GCC plugins Buildroot turns off, Clang's CFI, UBSAN. Some are what the
+image is: `FB` and `VT` draw the display, `STAGING` holds the Pi's
+camera, and `SECCOMP_FILTER` and `SYN_COOKIES` need `NET`. The `DEBUG_*`
+options and SELinux are not wanted on a device. Left for a later round,
+each cheap and each needing a rebuild and a boot: `LDISC_AUTOLOAD`,
+`PROC_PAGE_MONITOR`, `LATENCYTOP`, `CACHESTAT_SYSCALL`,
+`PROVIDE_OHCI1394_DMA_INIT` and `RSEQ` off; `DEFAULT_MMAP_MIN_ADDR`
+raised; `ARCH_MMAP_RND_BITS` at its maximum; `PROC_MEM_NO_FORCE`,
+`STATIC_USERMODEHELPER` and `KFENCE`; and Landlock with the shell's
+rule set.
+
+### 16.141 The boot import, and one line of fact on its sheet (2026-10-08)
+
+**Why.** At boot the app read the boot stick's vault files into the
+Inbox, and pulling the stick opened the first locked vault's passphrase
+prompt. Anything else on the stick needed a stick visit before the pull,
+and a PNG's QR codes were read one picture at a time behind a **Read the
+QR codes** button, with its checkbox greyed out. The owner's ask: at
+boot, copy everything on the stick into memory, say so and ask for the
+stick to be removed; then offer the vaults to unlock; then list the
+wallets the whole set holds, with their keys and whether they can sign,
+and the files, to choose from; one button imports the choice and wipes
+the rest.
+
+**What it does** (`faraday-core/src/boot_import.rs`, its sheet in
+`boot_import_screen.rs`; README, "Starting a session: the boot import";
+`PLAN.md` §5.4). The first look at the boot stick in a power-on (the
+condition the settings file is read under) copies every file: vaults
+into the Inbox, where the vault screens unlock them, the rest into a
+holding area beside it, a PNG as what its codes hold. `Sheet::Import`
+over Home says what was copied and asks for the stick to be removed;
+once it is out, it lists the vaults with **Unlock**, the wallets found
+in the files and the open vaults once each by descriptor with "Can
+sign", "k of n keys here · m more needed" or "Watch-only" and the files
+that carry them, the keys no wallet uses, and every file for the Inbox.
+**Import** loads through the Inbox's loader and the vaults' own, moves
+the chosen files into the Inbox, and drops the rest, wiped as it drops.
+Pulling the boot stick no longer opens a passphrase prompt; a lock drops
+what was not imported; a later insertion is an ordinary visit. On a
+visit, a PNG is ticked like any file and read on Import, and the **Read
+the QR codes** button is gone.
+
+**The owner's decision: one line of fact on a working sheet.** The sheet
+carries, above its buttons, "Files not chosen are wiped from memory. To
+bring one in later, insert the stick again." It says what the button
+does and what follows from it, in plain statement, which §16.46 allows
+anywhere; it is not an explanation of why, which §16.37 keeps in Learn.

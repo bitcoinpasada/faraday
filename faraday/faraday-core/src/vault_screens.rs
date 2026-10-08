@@ -54,6 +54,25 @@ pub(crate) fn text_box(
 /// The warning that stands above a passphrase while a stick is attached:
 /// nothing secret is typed until it is pulled. Returns its height.
 pub(crate) fn stick_banner(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
+    if ui.compact {
+        // Wrapped beside its icon on a small panel.
+        ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+        let th = ui.wrap(x + 40.0, y + 12.0, w - 52.0, 13.0, W::S, WARN, text);
+        ui.c.pop_clip();
+        let bh = th + 24.0;
+        ui.fill(x, y, w, bh, 10.0, WARN.with_alpha(30));
+        ui.stroke(x, y, w, bh, 10.0, WARN.with_alpha(110));
+        ui.icon(
+            x + 10.0,
+            y + bh / 2.0 - 10.0,
+            20.0,
+            Icon::Warning,
+            11.0,
+            WARN,
+        );
+        ui.wrap(x + 40.0, y + 12.0, w - 52.0, 13.0, W::S, WARN, text);
+        return bh + 12.0;
+    }
     ui.fill(x, y, w, 48.0, 10.0, WARN.with_alpha(30));
     ui.stroke(x, y, w, 48.0, 10.0, WARN.with_alpha(110));
     ui.icon(x + 14.0, y + 14.0, 20.0, Icon::Warning, 11.0, WARN);
@@ -115,7 +134,7 @@ fn text_area(
     focused: bool,
     action: Action,
 ) -> f32 {
-    let mut shown = b.text.to_string();
+    let mut shown = b.text.clone();
     if focused {
         shown.push_str(ui.caret_char());
     }
@@ -132,9 +151,9 @@ fn secret(ui: &mut Ui, x: f32, y: f32, w: f32, value: &str, mono: bool, id: usiz
     let held = ui.is_pressed(action);
     let face = if mono { W::M } else { W::R };
     let shown = if held {
-        value.to_string()
+        crate::secret_text::SecretText::of(value)
     } else {
-        "•".repeat(value.chars().count().clamp(8, 24))
+        crate::secret_text::SecretText::of(&"•".repeat(value.chars().count().clamp(8, 24)))
     };
     let tw = w - 28.0;
     // Measured in a pass that draws nothing, so the field's surface goes
@@ -214,7 +233,10 @@ fn hold_button(
 // The list
 // ---------------------------------------------------------------------
 
-pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
+pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    if ui.compact {
+        return list_compact(app, ui, x0, cw, h);
+    }
     let x = x0 + 48.0;
     let w = cw - 96.0;
     let mut y = 36.0;
@@ -371,11 +393,15 @@ pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
 // Unlock
 // ---------------------------------------------------------------------
 
-pub(crate) fn unlock(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
+pub(crate) fn unlock(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    if ui.compact {
+        return unlock_compact(app, ui, x0, cw, h);
+    }
     let x = x0 + 48.0;
     let w = (cw - 96.0).min(760.0);
     let mut y = 28.0;
-    back_link(ui, x, y, "Vaults", Action::Nav(Screen::Vaults));
+    let (back, to) = unlock_back(app);
+    back_link(ui, x, y, back, to);
     y += 26.0;
     title(ui, x, y, "Unlock");
     y += 56.0;
@@ -504,6 +530,294 @@ pub(crate) fn unlock(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
     }
 }
 
+/// Where Unlock's way back goes: the boot import's sheet when it was
+/// opened from there, else the vault list.
+pub(crate) fn unlock_back(app: &Faraday) -> (&'static str, Action) {
+    if app.vaults.back_to == Some(Screen::Home) && app.import.is_some() {
+        ("Import", crate::boot_import::OPEN)
+    } else {
+        ("Vaults", Action::Nav(Screen::Vaults))
+    }
+}
+
+/// [`list`] on a small panel: Create a vault, then each vault as a card
+/// with its buttons under what it says. The way back to a flow that made
+/// one is the bar's.
+fn list_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    use crate::compact::M;
+    use crate::compact_screens::{about, finish};
+    let (x, w) = (x0 + M, cw - 2.0 * M);
+    let top = 12.0 - app.list_offset;
+    let mut y = top;
+    if app.vaults.back_to.is_none() {
+        ui.button(
+            x,
+            y,
+            Some(w),
+            44.0,
+            "Create a vault",
+            Style::Primary,
+            va(V::Create),
+        );
+        y += 58.0;
+    }
+    let files = app.vault_files();
+    if files.is_empty() {
+        y += ui.wrap(
+            x,
+            y,
+            w,
+            14.0,
+            W::R,
+            MUTED,
+            "No vault in the Inbox or the Outbox",
+        ) + 12.0;
+    }
+    let in_inbox = |salt: &[u8; 32]| {
+        app.inbox
+            .iter()
+            .filter(|i| i.kind == crate::FileKind::Vault)
+            .any(|i| faraday_vault::read_header(&i.bytes).is_ok_and(|h| &h.salt == salt))
+    };
+    for (i, f) in files.iter().enumerate() {
+        let open = f.open.and_then(|o| app.vaults.open.get(o));
+        let fresh = f.in_outbox && !in_inbox(&f.header.salt);
+        let (title_text, state, state_color, icon_color, edge) = match open {
+            Some(v) if v.changes > 0 => (
+                v.label(),
+                format!(
+                    "Open · {} unsaved {}",
+                    v.changes,
+                    if v.changes == 1 { "change" } else { "changes" }
+                ),
+                WARN,
+                ACCENT,
+                LINE,
+            ),
+            Some(v) => (v.label(), "Open".to_string(), OK, ACCENT, LINE),
+            None if !app.may_load_keys() => (
+                if fresh { "New vault" } else { "Locked vault" }.to_string(),
+                "Remove the stick to unlock".to_string(),
+                WARN,
+                MUTED,
+                LINE,
+            ),
+            None if fresh => (
+                "New vault".to_string(),
+                "Locked · not written yet".to_string(),
+                OK,
+                OK,
+                OK.with_alpha(90),
+            ),
+            None => (
+                "Locked vault".to_string(),
+                "Locked".to_string(),
+                MUTED,
+                MUTED,
+                LINE,
+            ),
+        };
+        let buttons: &[(&str, Style, Action)] = if open.is_some() {
+            &[
+                ("View contents", Style::Secondary, va(V::Open(i))),
+                ("Lock", Style::Primary, Action::LockAsk),
+            ]
+        } else {
+            &[("Unlock", Style::Primary, va(V::Open(i)))]
+        };
+        let ch = 112.0 + 40.0;
+        ui.fill(x, y, w, ch, 12.0, SURFACE);
+        ui.stroke(x, y, w, ch, 12.0, edge);
+        ui.fill(
+            x + 12.0,
+            y + 14.0,
+            36.0,
+            36.0,
+            8.0,
+            icon_color.with_alpha(30),
+        );
+        ui.icon(x + 12.0, y + 14.0, 36.0, Icon::Lock, 15.0, icon_color);
+        let room = w - 60.0 - 12.0;
+        let t = ui.fit(15.0, W::S, &title_text, room);
+        ui.text(x + 60.0, y + 10.0, 15.0, W::S, TEXT, &t);
+        let name = ui.fit(12.0, W::M, &f.name, room);
+        ui.text(x + 60.0, y + 34.0, 12.0, W::M, MUTED, &name);
+        let where_ = if f.in_outbox {
+            "In the Outbox"
+        } else {
+            "In the Inbox"
+        };
+        let line = format!(
+            "{where_} · {} · {}",
+            file_text(f.len),
+            cost_text(&f.header.cost)
+        );
+        let line = ui.fit(12.0, W::R, &line, w - 24.0);
+        ui.text(x + 12.0, y + 58.0, 12.0, W::R, DIM, &line);
+        let state = ui.fit(13.0, W::S, &state, w - 24.0);
+        ui.text(x + 12.0, y + 78.0, 13.0, W::S, state_color, &state);
+        // The buttons share the card's last row.
+        let n = buttons.len() as f32;
+        let bw = (w - 24.0 - 8.0 * (n - 1.0)) / n;
+        for (k, &(label, style, action)) in buttons.iter().enumerate() {
+            let bx = x + 12.0 + k as f32 * (bw + 8.0);
+            ui.button(bx, y + 102.0, Some(bw), 40.0, label, style, action);
+        }
+        y += ch + 12.0;
+    }
+    y += about(
+        ui,
+        x,
+        y,
+        w,
+        "A vault holds keys, wallets, entries and notes under one to four passphrases, each opening its \
+         own contents. A locked vault shows only what its file states: its size and unlock cost. A vault \
+         comes into the Inbox on a stick visit, and goes back out through the Outbox when the session \
+         locks with changes in it.",
+    );
+    finish(app, ui, x0, cw, h, y - top + 16.0);
+}
+
+/// [`unlock`] on a small panel: the vaults, the passphrase, Unlock, each
+/// the panel's width.
+fn unlock_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    use crate::compact::M;
+    use crate::compact_screens::{about, finish};
+    let (x, w) = (x0 + M, cw - 2.0 * M);
+    let top = 12.0 - app.list_offset;
+    let mut y = top;
+    if !app.may_load_keys() {
+        y += stick_banner(ui, x, y, w, "Remove the stick, then type the passphrase");
+    }
+    let files = app.vault_files();
+    let locked: Vec<(usize, &vaults::VaultFile)> = files
+        .iter()
+        .enumerate()
+        .filter(|(_, f)| f.open.is_none())
+        .collect();
+    if locked.is_empty() {
+        y += ui.wrap(
+            x,
+            y,
+            w,
+            14.0,
+            W::R,
+            MUTED,
+            "No locked vault in the Inbox or the Outbox",
+        ) + 12.0;
+        ui.button(
+            x,
+            y,
+            Some(w),
+            40.0,
+            "Create a vault",
+            Style::Secondary,
+            va(V::Create),
+        );
+        finish(app, ui, x0, cw, h, y - top + 56.0);
+        return;
+    }
+    for (i, f) in &locked {
+        let on = *i == app.vaults.pick;
+        let ch = 82.0;
+        ui.fill(
+            x,
+            y,
+            w,
+            ch,
+            12.0,
+            if on { ACCENT.with_alpha(18) } else { SURFACE },
+        );
+        ui.stroke(x, y, w, ch, 12.0, if on { ACCENT } else { LINE });
+        let fg = if on { ACCENT } else { MUTED };
+        ui.fill(x + 12.0, y + 12.0, 36.0, 36.0, 8.0, fg.with_alpha(30));
+        ui.icon(x + 12.0, y + 12.0, 36.0, Icon::Lock, 15.0, fg);
+        let room = w - 60.0 - 12.0;
+        let name = ui.fit(14.0, W::M, &f.name, room);
+        ui.text(x + 60.0, y + 10.0, 14.0, W::M, TEXT, &name);
+        let where_ = if f.in_outbox {
+            "In the Outbox"
+        } else {
+            "In the Inbox"
+        };
+        let line = ui.fit(
+            12.0,
+            W::R,
+            &format!("{where_} · {}", file_text(f.len)),
+            room,
+        );
+        ui.text(x + 60.0, y + 32.0, 12.0, W::R, MUTED, &line);
+        let mem = f.header.cost.memory_kib / 1024;
+        let cost = format!(
+            "{} · {} here",
+            cost_text(&f.header.cost),
+            app.vaults.time_text(mem, f.header.cost.passes)
+        );
+        let cost = ui.fit(12.0, W::S, &cost, w - 24.0);
+        ui.text(x + 12.0, y + 56.0, 12.0, W::S, TEXT, &cost);
+        ui.hit(x, y, w, ch, va(V::Pick(*i)));
+        y += ch + 10.0;
+    }
+    y += 6.0;
+    section_label(ui, x, y, "Passphrase");
+    y += 24.0;
+    if app.may_load_keys() {
+        let focused = app.vaults.focus == Some(Focus::Passphrase);
+        secret_box(
+            ui,
+            x,
+            y,
+            w,
+            &app.vaults.passphrase,
+            app.vaults.typed_shown,
+            focused,
+            va(V::FocusPassphrase),
+            va(V::ShowTyped),
+        );
+    } else {
+        stick_field(ui, x, y, w);
+    }
+    y += 52.0;
+    if app.vaults.working == Some(vaults::Work::Unlock) {
+        let f = files.get(app.vaults.pick);
+        let t = f
+            .map(|f| {
+                app.vaults
+                    .time_text(f.header.cost.memory_kib / 1024, f.header.cost.passes)
+            })
+            .unwrap_or_default();
+        ui.text_mid(x, y, 44.0, 15.0, W::S, ACCENT, &format!("Unlocking · {t}"));
+        y += 52.0;
+    } else {
+        let style = if app.may_load_keys() {
+            Style::Primary
+        } else {
+            Style::Disabled
+        };
+        if crate::screens::pin_button(ui, x, y, Some(w), 44.0, "Unlock", style, va(V::Unlock)) {
+            y += 52.0;
+        }
+        let free = match app.vaults.memory_free_mib {
+            Some(m) => format!("This computer: {} free", mib_text(m)),
+            None => "This computer: memory not reported".to_string(),
+        };
+        y += ui.wrap(x, y, w, 13.0, W::R, MUTED, &free) + 12.0;
+    }
+    if let Some(e) = &app.vaults.unlock_error {
+        y += ui.wrap(x, y, w, 14.0, W::R, ERR, e) + 12.0;
+    }
+    y += about(
+        ui,
+        x,
+        y,
+        w,
+        "Choose the vault and type a passphrase. Each passphrase opens its own contents, and a vault does \
+         not say how many it has. The time is the Argon2id cost the vault was made with, measured on this \
+         computer.",
+    );
+    finish(app, ui, x0, cw, h, y - top + 16.0);
+}
+
 fn back_link(ui: &mut Ui, x: f32, y: f32, label: &str, action: Action) {
     ui.icon(x - 4.0, y, 18.0, Icon::ChevronLeft, 12.0, MUTED);
     ui.text_mid(x + 14.0, y, 18.0, 13.0, W::R, MUTED, label);
@@ -543,9 +857,12 @@ pub(crate) fn create(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             guide: Some(create_guide(k)),
         })
         .collect();
+    // A small panel has no side panel: its summary and Create vault
+    // follow the last step.
+    let compact = ui.compact;
     let col = flow::Column {
         area_x: x0,
-        area_w: cw - panel_w,
+        area_w: if compact { cw } else { cw - panel_w },
         x: x0 + 40.0,
         w: (cw - panel_w - 72.0).min(820.0),
         h,
@@ -570,7 +887,9 @@ pub(crate) fn create(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         app.dirty = true;
         app.commands.push_back(osk_shell_api::Command::Draw);
     }
-    create_panel(app, ui, x0 + cw - panel_w, panel_w, h, &summaries);
+    if !compact {
+        create_panel(app, ui, x0 + cw - panel_w, panel_w, h, &summaries);
+    }
 }
 
 fn create_guide(k: u8) -> String {
@@ -656,8 +975,9 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 cy += 46.0;
             }
             cy += 10.0;
-            crate::screens::next_button(ui, x, cy, w, "Continue", va(V::CNext(n)));
-            cy += 50.0;
+            if crate::screens::next_button(ui, x, cy, w, "Continue", va(V::CNext(n))) {
+                cy += 50.0;
+            }
         }
         vstep::COST => {
             let (weakest, ram) = app.vaults.weakest();
@@ -780,8 +1100,9 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 ),
             );
             cy += 30.0;
-            crate::screens::next_button(ui, x, cy, w, "Continue", va(V::CNext(n)));
-            cy += 50.0;
+            if crate::screens::next_button(ui, x, cy, w, "Continue", va(V::CNext(n))) {
+                cy += 50.0;
+            }
         }
         vstep::SIZE => {
             let bw = (w - 18.0) / 4.0;
@@ -806,8 +1127,9 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 ui.hit(bx, cy, bw, 62.0, va(V::CSize(k)));
             }
             cy += 80.0;
-            crate::screens::next_button(ui, x, cy, w, "Continue", va(V::CNext(n)));
-            cy += 50.0;
+            if crate::screens::next_button(ui, x, cy, w, "Continue", va(V::CNext(n))) {
+                cy += 50.0;
+            }
         }
         _ => {
             let half = (w - 12.0) / 2.0;
@@ -893,16 +1215,23 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     dice_style,
                     va(V::Dice(i)),
                 );
-                ui.text_mid(
-                    x + dw + 14.0,
-                    cy,
-                    40.0,
-                    13.0,
-                    W::R,
-                    MUTED,
-                    "or type your own below",
-                );
-                cy += 52.0;
+                // Beside the button; on a small panel under it.
+                if ui.compact {
+                    cy += 46.0;
+                    ui.text(x, cy, 13.0, W::R, MUTED, "or type your own below");
+                    cy += 26.0;
+                } else {
+                    ui.text_mid(
+                        x + dw + 14.0,
+                        cy,
+                        40.0,
+                        13.0,
+                        W::R,
+                        MUTED,
+                        "or type your own below",
+                    );
+                    cy += 52.0;
+                }
                 if may {
                     let fa = app.vaults.focus == Some(Focus::Phrase(i, false));
                     let fb = app.vaults.focus == Some(Focus::Phrase(i, true));
@@ -988,6 +1317,15 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 );
                 cy += 46.0;
             }
+            // A small panel has no side panel: what will be made, and
+            // Create vault, come after the last step's controls.
+            if ui.compact {
+                cy += 10.0;
+                ui.rule(x, cy, w, LINE);
+                cy += 16.0;
+                cy += create_summary(app, ui, x, cy, w) + 8.0;
+                cy += create_button(app, ui, x, cy, w) + 8.0;
+            }
         }
     }
     cy - y
@@ -1023,10 +1361,17 @@ fn dice_panel(
             EN.dice_list_short2_detail,
         ),
     ];
-    let lw = (w - 2.0 * 10.0) / 3.0;
+    // Side by side; on a small panel one under another.
+    let compact = ui.compact;
+    let lw = if compact { w } else { (w - 2.0 * 10.0) / 3.0 };
     for (k, (l, name, detail)) in lists.iter().enumerate() {
         let on = *l == list;
-        let bx = x + k as f32 * (lw + 10.0);
+        let (bx, cy) = if compact {
+            (x, cy + k as f32 * 52.0)
+        } else {
+            (x + k as f32 * (lw + 10.0), cy)
+        };
+        let detail = ui.fit(11.0, W::R, detail, lw - 20.0);
         ui.fill(
             bx,
             cy,
@@ -1037,13 +1382,14 @@ fn dice_panel(
         );
         ui.stroke(bx, cy, lw, 44.0, 8.0, if on { ACCENT } else { INNER });
         ui.text(bx + 10.0, cy + 6.0, 13.0, W::S, TEXT, name);
-        ui.text(bx + 10.0, cy + 24.0, 11.0, W::R, MUTED, detail);
+        ui.text(bx + 10.0, cy + 24.0, 11.0, W::R, MUTED, &detail);
         ui.hit(bx, cy, lw, 44.0, Action::Vault(V::DiceList(k as u8)));
     }
-    cy += 56.0;
-    ui.text(
+    cy += if compact { 3.0 * 52.0 + 4.0 } else { 56.0 };
+    cy += ui.wrap(
         x,
         cy,
+        w,
         13.0,
         W::S,
         TEXT,
@@ -1051,8 +1397,7 @@ fn dice_panel(
             "Roll {} dice for each word and type the numbers",
             list.dice_per_word()
         ),
-    );
-    cy += 26.0;
+    ) + 8.0;
     let focused = app.vaults.focus == Some(Focus::Dice);
     text_box(
         ui,
@@ -1110,9 +1455,10 @@ fn dice_panel(
             String::new()
         }
     );
-    ui.text(
+    cy += ui.wrap(
         x,
         cy,
+        w,
         12.0,
         W::R,
         if bits >= vaults::STRONG_BITS {
@@ -1121,8 +1467,7 @@ fn dice_panel(
             MUTED
         },
         &status,
-    );
-    cy += 24.0;
+    ) + 8.0;
     // How long is long enough, and where the lists come from.
     cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, &vaults::dice_aim(list)) + 12.0;
     let style = if words.is_empty() {
@@ -1176,6 +1521,19 @@ fn create_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32, summaries:
         ui.hit(x - 8.0, y - 4.0, w + 16.0, 42.0, va(V::CStep(k as u8)));
         y += 46.0;
     }
+    y += create_summary(app, ui, x, y, w);
+    let by = (h - 26.0 - 46.0).max(y + 12.0);
+    create_button(app, ui, x, by, w);
+}
+
+/// What Create vault will make: warnings about its cost, the file, its
+/// size, memory and unlock time, and the passphrases' strength. Returns
+/// its height.
+fn create_summary(app: &Faraday, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let Some(c) = app.vaults.create.as_ref() else {
+        return 0.0;
+    };
+    let mut y = y0;
     let (k, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
     let (weakest, ram) = app.vaults.weakest();
     let name = if k == 4 { "Custom" } else { PRESETS[k].0 };
@@ -1266,9 +1624,15 @@ fn create_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32, summaries:
     }
     if let Some(e) = &c.error {
         y += 6.0;
-        ui.wrap(x, y, w, 13.0, W::R, ERR, e);
+        y += ui.wrap(x, y, w, 13.0, W::R, ERR, e) + 6.0;
     }
-    let by = h - 26.0 - 46.0;
+    y - y0
+}
+
+/// Create vault, or how long creating takes while it works. Returns its
+/// height.
+fn create_button(app: &Faraday, ui: &mut Ui, x: f32, by: f32, w: f32) -> f32 {
+    let (_, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
     if app.vaults.working == Some(vaults::Work::Create) {
         ui.text_mid(
             x,
@@ -1279,21 +1643,24 @@ fn create_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32, summaries:
             ACCENT,
             &format!("Creating · {}", app.vaults.time_text(mem, passes)),
         );
-    } else {
-        ui.button(
-            x,
-            by,
-            Some(w),
-            46.0,
-            "Create vault",
-            if app.may_load_keys() {
-                Style::Primary
-            } else {
-                Style::Disabled
-            },
-            va(V::CGo),
-        );
+    } else if !crate::screens::pin_button(
+        ui,
+        x,
+        by,
+        Some(w),
+        46.0,
+        "Create vault",
+        if app.may_load_keys() {
+            Style::Primary
+        } else {
+            Style::Disabled
+        },
+        va(V::CGo),
+    ) {
+        // Pinned at the panel's foot.
+        return 0.0;
     }
+    46.0
 }
 
 // ---------------------------------------------------------------------
@@ -1456,6 +1823,9 @@ fn words_text(r: &Record) -> Option<String> {
 }
 
 pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    if ui.compact {
+        return contents_compact(app, ui, x0, cw, h);
+    }
     let x = x0 + 40.0;
     let w = cw - 80.0;
     let mut y = 28.0;
@@ -1693,10 +2063,211 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
 
     // The detail: a form, the session's keys or wallets to save, or the item.
-    let dx = detail_x;
-    let dw = detail_w;
-    let mut dy = top;
-    ui.fill(dx - 16.0, top - 8.0, 1.0, h - top - 16.0, 0.0, LINE);
+    ui.fill(detail_x - 16.0, top - 8.0, 1.0, h - top - 16.0, 0.0, LINE);
+    detail(app, ui, v, &items, sel, detail_x, top, detail_w);
+}
+
+/// Whether the contents show an item, or something being added or made,
+/// rather than the vault's list: on a small panel, a page of its own.
+pub(crate) fn contents_detail(app: &Faraday) -> bool {
+    let v = &app.vaults;
+    v.item_open || v.form.is_some() || v.prompt.is_some() || v.saving || v.signing || v.sb_images
+}
+
+/// [`contents`] on a small panel: the vault, its kinds and the items of
+/// the kind chosen, as a list; a chosen item, or what is being added or
+/// made, as a page of its own that the bar goes back from.
+fn contents_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    use crate::compact::M;
+    use crate::compact_screens::{about, finish, row};
+    use crate::screens::wrap_buttons;
+    let (x, w) = (x0 + M, cw - 2.0 * M);
+    let top = 12.0 - app.list_offset;
+    let mut y = top;
+    let Some(v) = app.vaults.open.get(app.vaults.current) else {
+        ui.text(x, y, 15.0, W::R, MUTED, "No vault is open");
+        return;
+    };
+    let (cat_label, kinds) = CATEGORIES[app.vaults.category];
+    let items: Vec<&Record> = v
+        .contents
+        .records
+        .iter()
+        .filter(|r| kinds.contains(&r.kind))
+        .collect();
+    let sel = app.vaults.item[app.vaults.category].min(items.len().saturating_sub(1));
+    if contents_detail(app) {
+        y = detail(app, ui, v, &items, sel, x, y, w);
+        finish(app, ui, x0, cw, h, y - top + 16.0);
+        return;
+    }
+    let label = ui.fit(18.0, W::S, &v.label(), w);
+    ui.text(x, y, 18.0, W::S, TEXT, &label);
+    y += 28.0;
+    let state = if v.changes == 0 {
+        "Open".to_string()
+    } else {
+        format!(
+            "Open · {} unsaved {}",
+            v.changes,
+            if v.changes == 1 { "change" } else { "changes" }
+        )
+    };
+    ui.text(
+        x,
+        y,
+        13.0,
+        W::S,
+        if v.changes == 0 { OK } else { WARN },
+        &state,
+    );
+    y += 22.0;
+    let sub = format!("{} · {}", v.name, cost_text(&v.header().cost));
+    let sub = ui.fit(12.0, W::M, &sub, w);
+    ui.text(x, y, 12.0, W::M, MUTED, &sub);
+    y += 26.0;
+    let half = (w - 8.0) / 2.0;
+    ui.button(
+        x,
+        y,
+        Some(half),
+        40.0,
+        "Rename",
+        Style::Secondary,
+        va(V::Rename),
+    );
+    ui.button(
+        x + half + 8.0,
+        y,
+        Some(half),
+        40.0,
+        "Lock",
+        Style::Primary,
+        Action::LockAsk,
+    );
+    y += 52.0;
+    if app.vaults.open.len() > 1 {
+        let labels: Vec<String> = app.vaults.open.iter().map(|o| o.label()).collect();
+        let items: Vec<(&str, Style, Action)> = labels
+            .iter()
+            .enumerate()
+            .map(|(i, l)| {
+                let style = if i == app.vaults.current {
+                    Style::Primary
+                } else {
+                    Style::Secondary
+                };
+                (l.as_str(), style, va(V::Show(i)))
+            })
+            .collect();
+        y += wrap_buttons(ui, x, y, w, 32.0, &items) + 4.0;
+    }
+    // The kinds, each with how many it holds.
+    let kind_labels: Vec<String> = CATEGORIES
+        .iter()
+        .map(|(label, kinds)| {
+            let n = v
+                .contents
+                .records
+                .iter()
+                .filter(|r| kinds.contains(&r.kind))
+                .count();
+            format!("{label} {n}")
+        })
+        .collect();
+    let kind_items: Vec<(&str, Style, Action)> = kind_labels
+        .iter()
+        .enumerate()
+        .map(|(k, l)| {
+            let style = if k == app.vaults.category {
+                Style::Primary
+            } else {
+                Style::Secondary
+            };
+            (l.as_str(), style, va(V::Category(k)))
+        })
+        .collect();
+    y += wrap_buttons(ui, x, y, w, 34.0, &kind_items) + 8.0;
+    ui.rule(x, y, w, LINE);
+    y += 14.0;
+    section_label(ui, x, y, cat_label);
+    y += 28.0;
+    // What can fill this kind.
+    let add = match app.vaults.category {
+        0 => Some("Save a key"),
+        1 => Some("Save a wallet"),
+        2 => Some("Add an entry"),
+        3 => Some("Add a note"),
+        4 => Some("Make a key"),
+        5 => Some("Make keys"),
+        _ => None,
+    };
+    let entries_files = app
+        .inbox
+        .iter()
+        .filter(|i| i.kind == crate::FileKind::Entries)
+        .count();
+    let mut extra: Vec<(String, V)> = Vec::new();
+    if let Some(a) = add {
+        extra.push((a.to_string(), V::Add));
+    }
+    match app.vaults.category {
+        2 => {
+            extra.push(("Scan a code".to_string(), V::ScanEntry));
+            if entries_files > 0 {
+                extra.push((
+                    format!("Import from Files ({entries_files})"),
+                    V::ImportAllEntries,
+                ));
+            }
+        }
+        0 | 3 => {
+            for (k, i) in app.inbox.iter().enumerate() {
+                if i.kind == crate::FileKind::Backup {
+                    extra.push((format!("Import {}", i.name), V::ImportBackup(k)));
+                }
+            }
+        }
+        _ => {}
+    }
+    let extra_items: Vec<(&str, Style, Action)> = extra
+        .iter()
+        .map(|(l, a)| (l.as_str(), Style::Secondary, va(*a)))
+        .collect();
+    y += wrap_buttons(ui, x, y, w, 36.0, &extra_items) + 4.0;
+    for (k, r) in items.iter().enumerate() {
+        let (t, line, _) = item_heading(app, r);
+        y += row(ui, x, y, w, None, &t, &line, MUTED, Some(va(V::Item(k))));
+    }
+    if items.is_empty() {
+        ui.text(x, y, 13.0, W::R, DIM, "None in this vault");
+        y += 30.0;
+    }
+    y += about(
+        ui,
+        x,
+        y,
+        w,
+        "Secret values show only while held. Changes stay in this session until it locks; locking seals \
+         them into the Outbox, and the next stick visit writes the vault back over its own file.",
+    );
+    finish(app, ui, x0, cw, h, y - top + 16.0);
+}
+
+/// The detail of the contents at (dx, dy), dw wide: a form, a prompt,
+/// the session's keys or wallets to save, a GPG key's files to sign,
+/// Secure Boot's images, or the item. Returns where it ends.
+#[allow(clippy::too_many_arguments)]
+fn detail(
+    app: &Faraday,
+    ui: &mut Ui,
+    v: &vaults::OpenVault,
+    items: &[&Record],
+    sel: usize,
+    dx: f32,
+    mut dy: f32,
+    dw: f32,
+) -> f32 {
     if let Some(form) = &app.vaults.form {
         let heading = match (form.kind, form.record) {
             (kind::SLOT_LABEL, _) => "Rename the vault",
@@ -1738,20 +2309,34 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if form.kind == kind::GPG {
             ui.text(dx, dy, 12.0, W::R, MUTED, "Expires");
             dy += 22.0;
-            dy += years_row(app, ui, dx, dy) + 16.0;
+            dy += years_row(app, ui, dx, dy, dw) + 16.0;
         }
         if app.vaults.working == Some(vaults::Work::SecureBoot) {
             ui.text_mid(dx, dy, 40.0, 15.0, W::S, ACCENT, "Making PK, KEK and db");
-            return;
+            return dy;
         }
         let save = match form.kind {
             kind::GPG => "Make the key",
             kind::SECURE_BOOT => "Make the keys",
             _ => "Save",
         };
-        let sw = ui.button(dx, dy, None, 40.0, save, Style::Primary, va(V::FormSave));
+        // On a small panel Save is pinned at the foot and Cancel stays.
+        let sw = if crate::screens::pin_button(
+            ui,
+            dx,
+            dy,
+            None,
+            40.0,
+            save,
+            Style::Primary,
+            va(V::FormSave),
+        ) {
+            ui.measure(14.0, W::S, save) + 42.0
+        } else {
+            0.0
+        };
         ui.button(
-            dx + sw + 10.0,
+            dx + sw,
             dy,
             None,
             40.0,
@@ -1759,7 +2344,7 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Style::Ghost,
             va(V::FormCancel),
         );
-        return;
+        return dy;
     }
     if let Some(p) = &app.vaults.prompt {
         let heading = match p.purpose {
@@ -1798,9 +2383,22 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 vaults::Purpose::Kdbx => "Seal and export",
                 vaults::Purpose::KeyPassphrase => "Load",
             };
-            let sw = ui.button(dx, dy, None, 40.0, label, Style::Primary, va(V::PromptGo));
+            let sw = if crate::screens::pin_button(
+                ui,
+                dx,
+                dy,
+                None,
+                40.0,
+                label,
+                Style::Primary,
+                va(V::PromptGo),
+            ) {
+                ui.measure(14.0, W::S, label) + 42.0
+            } else {
+                0.0
+            };
             ui.button(
-                dx + sw + 10.0,
+                dx + sw,
                 dy,
                 None,
                 40.0,
@@ -1813,15 +2411,13 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if let Some(e) = &p.error {
             ui.wrap(dx, dy, dw, 13.0, W::R, ERR, e);
         }
-        return;
+        return dy;
     }
     if app.vaults.saving {
-        save_panel(app, ui, v, dx, dy, dw);
-        return;
+        return save_panel(app, ui, v, dx, dy, dw);
     }
     if app.vaults.sb_images {
-        images_panel(app, ui, dx, dy, dw);
-        return;
+        return images_panel(app, ui, dx, dy, dw);
     }
     if app.vaults.signing {
         ui.text(dx, dy, 18.0, W::S, TEXT, "Sign a file");
@@ -1855,9 +2451,11 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Style::Ghost,
             va(V::GpgSignPick),
         );
-        return;
+        return dy;
     }
-    let Some(r) = items.get(sel) else { return };
+    let Some(r) = items.get(sel) else {
+        return dy;
+    };
     let (t, line, mono) = item_heading(app, r);
     ui.text(dx, dy, 18.0, if mono { W::M } else { W::S }, TEXT, &t);
     dy += 30.0;
@@ -1996,18 +2594,20 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 hold_row(ui, &mut dy, "Paperkey", &g.paperkey, true);
                 ui.text(dx, dy, 12.0, W::R, MUTED, "Renew for");
                 dy += 22.0;
-                years_row(app, ui, dx, dy);
+                // Renew at the row's end; on a small panel under it.
                 let rw = ui.measure(13.0, W::S, "Renew") + 30.0;
+                let yh = years_row(app, ui, dx, dy, if ui.compact { dw } else { dw - rw - 8.0 });
+                let ry = if ui.compact { dy + yh + 8.0 } else { dy };
                 ui.button(
                     dx + dw - rw,
-                    dy,
+                    ry,
                     Some(rw),
                     32.0,
                     "Renew",
                     Style::Secondary,
                     va(V::GpgRenew),
                 );
-                dy += 46.0;
+                dy = ry + 46.0;
             }
             actions.push(("Export public key", V::GpgExport));
             actions.push(("Sign a file", V::GpgSignPick));
@@ -2022,16 +2622,19 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             }
             ui.text(dx, dy, 12.0, W::R, MUTED, "Enrolment adds");
             dy += 22.0;
-            let mut bx = dx;
-            for (label, own) in [("Windows-compatible", false), ("Own keys only", true)] {
-                let style = if app.vaults.sb_own_only == own {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                };
-                bx += ui.button(bx, dy, None, 32.0, label, style, va(V::SbOwnOnly(own))) + 6.0;
-            }
-            dy += 40.0;
+            let own_items: Vec<(&str, Style, Action)> =
+                [("Windows-compatible", false), ("Own keys only", true)]
+                    .into_iter()
+                    .map(|(label, own)| {
+                        let style = if app.vaults.sb_own_only == own {
+                            Style::Primary
+                        } else {
+                            Style::Secondary
+                        };
+                        (label, style, va(V::SbOwnOnly(own)))
+                    })
+                    .collect();
+            dy += crate::screens::wrap_buttons(ui, dx, dy, dw, 32.0, &own_items);
             let line = if app.vaults.sb_own_only {
                 "Your PK, KEK and db only. Windows will not start, nor any card or controller whose firmware Microsoft signed"
             } else {
@@ -2056,11 +2659,19 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     dy += 48.0;
     hold_delete(app, ui, dx, dy);
+    dy + 48.0
 }
 
 /// The session's keys or wallets that are not yet in this vault, each
 /// with Save.
-fn save_panel(app: &Faraday, ui: &mut Ui, v: &vaults::OpenVault, dx: f32, mut dy: f32, dw: f32) {
+fn save_panel(
+    app: &Faraday,
+    ui: &mut Ui,
+    v: &vaults::OpenVault,
+    dx: f32,
+    mut dy: f32,
+    dw: f32,
+) -> f32 {
     let keys = app.vaults.category == 0;
     ui.text(
         dx,
@@ -2090,6 +2701,24 @@ fn save_panel(app: &Faraday, ui: &mut Ui, v: &vaults::OpenVault, dx: f32, mut dy
             } else {
                 key.label.clone()
             };
+            if ui.compact {
+                // The key and its name, then its buttons under them.
+                let label = ui.fit(13.0, W::R, &label, dw - 100.0);
+                ui.text_mid(dx + 100.0, dy, 40.0, 13.0, W::R, MUTED, &label);
+                dy += 42.0;
+                let mut items = vec![("Save", Style::Secondary, va(V::SaveKey(k)))];
+                if key.passphrase.is_some() {
+                    items.push((
+                        "Save with its passphrase",
+                        Style::Secondary,
+                        va(V::SaveKeyWithPassphrase(k)),
+                    ));
+                }
+                dy += crate::screens::wrap_buttons(ui, dx, dy, dw, 36.0, &items);
+                ui.rule(dx, dy - 2.0, dw, INNER);
+                dy += 6.0;
+                continue;
+            }
             let two = key.passphrase.is_some();
             let room = if two { dw - 110.0 } else { dw - 200.0 };
             let label = ui.fit(13.0, W::R, &label, room);
@@ -2130,6 +2759,7 @@ fn save_panel(app: &Faraday, ui: &mut Ui, v: &vaults::OpenVault, dx: f32, mut dy
                 DIM,
                 "Every key in this session is in the vault",
             );
+            dy += 30.0;
         }
     } else {
         let held: Vec<String> = v
@@ -2146,6 +2776,25 @@ fn save_panel(app: &Faraday, ui: &mut Ui, v: &vaults::OpenVault, dx: f32, mut dy
                 continue;
             }
             any = true;
+            if ui.compact {
+                // The name over its shape, Save beside them.
+                let name = ui.fit(14.0, W::S, &wl.name, dw - 96.0);
+                ui.text(dx, dy + 2.0, 14.0, W::S, TEXT, &name);
+                let shape = ui.fit(12.0, W::R, &Session::shape(wl), dw - 96.0);
+                ui.text(dx, dy + 24.0, 12.0, W::R, MUTED, &shape);
+                ui.button(
+                    dx + dw - 80.0,
+                    dy + 4.0,
+                    Some(80.0),
+                    36.0,
+                    "Save",
+                    Style::Secondary,
+                    va(V::SaveWallet(k)),
+                );
+                ui.rule(dx, dy + 48.0, dw, INNER);
+                dy += 52.0;
+                continue;
+            }
             ui.text_mid(dx, dy, 40.0, 14.0, W::S, TEXT, &wl.name);
             let shape = ui.fit(12.0, W::R, &Session::shape(wl), dw - 260.0);
             ui.text_mid(dx + 150.0, dy, 40.0, 12.0, W::R, MUTED, &shape);
@@ -2170,8 +2819,10 @@ fn save_panel(app: &Faraday, ui: &mut Ui, v: &vaults::OpenVault, dx: f32, mut dy
                 DIM,
                 "Every wallet in this session is in the vault",
             );
+            dy += 30.0;
         }
     }
+    dy
 }
 
 /// Lock, asked for while a vault is open: what is sealed into the Outbox
@@ -2269,28 +2920,30 @@ pub(crate) fn lock_ask(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 }
 
 /// The expiry choices for a GPG key. Returns the row's height.
-fn years_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32) -> f32 {
-    let mut bx = x;
-    for (label, years) in [
+fn years_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let items: Vec<(&str, Style, Action)> = [
         ("1 year", 1u32),
         ("2 years", 2),
         ("5 years", 5),
         ("Never", 0),
-    ] {
+    ]
+    .into_iter()
+    .map(|(label, years)| {
         let style = if app.vaults.gpg_years == years {
             Style::Primary
         } else {
             Style::Secondary
         };
-        bx += ui.button(bx, y, None, 32.0, label, style, va(V::GpgYears(years))) + 6.0;
-    }
-    32.0
+        (label, style, va(V::GpgYears(years)))
+    })
+    .collect();
+    crate::screens::wrap_buttons(ui, x, y, w, 32.0, &items) - 8.0
 }
 
 /// The Inbox's EFI images, each to sign or check with the selected db key;
 /// or, once one is chosen to sign, its SHA-256 to compare with the build
 /// record before the hold that signs it (`PLAN.md` §8).
-fn images_panel(app: &Faraday, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) {
+fn images_panel(app: &Faraday, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
     if let Some(k) = app.vaults.sb_sign
         && let Some(item) = app.inbox.get(k)
     {
@@ -2319,7 +2972,7 @@ fn images_panel(app: &Faraday, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) {
             Style::Ghost,
             va(V::SbImages),
         );
-        return;
+        return dy + 48.0;
     }
     ui.text(dx, dy, 18.0, W::S, TEXT, "Sign or check an image");
     dy += 40.0;
@@ -2334,8 +2987,13 @@ fn images_panel(app: &Faraday, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) {
         dy += 30.0;
     }
     for (k, it) in images {
-        let name = ui.fit(14.0, W::M, &it.name, dw - 200.0);
+        // On a small panel the name has a line of its own.
+        let room = if ui.compact { dw } else { dw - 200.0 };
+        let name = ui.fit(14.0, W::M, &it.name, room);
         ui.text_mid(dx, dy, 40.0, 14.0, W::M, TEXT, &name);
+        if ui.compact {
+            dy += 36.0;
+        }
         ui.button(
             dx + dw - 80.0,
             dy + 2.0,
@@ -2370,6 +3028,7 @@ fn images_panel(app: &Faraday, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) {
         Style::Ghost,
         va(V::SbImages),
     );
+    dy + 56.0
 }
 
 /// Whether open vault `v` holds a wallet with the same descriptor.

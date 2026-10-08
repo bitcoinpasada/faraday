@@ -43,7 +43,6 @@ impl Form {
 }
 
 /// The parts collected so far, erased on drop.
-#[derive(Default)]
 pub struct Parts {
     /// SLIP-39 shares.
     pub slip39: Vec<slip39::Share>,
@@ -51,6 +50,21 @@ pub struct Parts {
     pub codex32: Vec<Codex32>,
     /// Seed XOR parts.
     pub xor: SeedXor,
+}
+
+/// Room for every share a backup can have, made at the start: a list
+/// that grows moves its shares to a larger buffer and frees the old one
+/// as it is, which would leave a copy of each share behind.
+const PART_ROOM: usize = 32;
+
+impl Default for Parts {
+    fn default() -> Self {
+        Parts {
+            slip39: Vec::with_capacity(PART_ROOM),
+            codex32: Vec::with_capacity(PART_ROOM),
+            xor: SeedXor::default(),
+        }
+    }
 }
 
 impl Parts {
@@ -172,7 +186,6 @@ impl Faraday {
         };
         match result {
             Ok(()) => {
-                zeroize::Zeroize::zeroize(&mut self.entry.typed);
                 self.entry.typed.clear();
                 self.entry.error = None;
                 // A codex32 secret is the key already.
@@ -338,7 +351,7 @@ pub fn completion(lang: Language, typed: &str) -> Option<String> {
 /// lines starting `#` are notes, and a number before a word (`1.`, `2)`,
 /// `03`) is its place, not a word.
 pub fn file_words(text: &str) -> zeroize::Zeroizing<String> {
-    let mut out = zeroize::Zeroizing::new(String::new());
+    let mut out = crate::secret_text::room();
     for line in text.lines().map(str::trim) {
         if line.starts_with('#') {
             continue;

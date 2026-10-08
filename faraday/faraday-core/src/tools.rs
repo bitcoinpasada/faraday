@@ -14,8 +14,9 @@ use crate::{Faraday, Screen};
 pub struct ToolsState {
     /// The calculator open.
     pub tool: Tool,
-    /// What is typed.
-    pub typed: String,
+    /// What is typed: an extended private key is refused, but it was
+    /// typed.
+    pub typed: crate::secret_text::SecretText,
     /// How the Hashes field is read.
     pub read_as: ReadAs,
     /// What the Units field is typed in: 0 sat, 1 BTC, 2 mBTC, 3 bits.
@@ -52,7 +53,7 @@ impl Faraday {
     pub(crate) fn tools_open(&mut self) {
         self.tools = Some(ToolsState {
             tool: Tool::Hashes,
-            typed: String::new(),
+            typed: crate::secret_text::SecretText::new(),
             read_as: ReadAs::Auto,
             unit: 0,
             script: PolicyScript::Segwit,

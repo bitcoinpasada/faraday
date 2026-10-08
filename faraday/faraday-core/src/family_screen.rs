@@ -18,6 +18,10 @@ fn fa(a: F) -> Action {
 }
 
 pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    if app.family_overview() && ui.compact {
+        loaded_compact(app, ui, cw, h);
+        return;
+    }
     if app.family_overview() {
         let content = loaded(app, ui, x0, cw);
         // Scrolled no further than its end.
@@ -268,6 +272,211 @@ fn loaded(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
     y + scrolled + 32.0
 }
 
+/// [`loaded`] on a small panel: under the page's bar, one column, each
+/// card's button under what it says.
+fn loaded_compact(app: &mut Faraday, ui: &mut Ui, cw: f32, h: f32) {
+    use crate::compact::{BAR_H, M};
+    use crate::compact_screens::measured;
+    use crate::screens::{missing_keys_line, section_label, wrap_buttons};
+    let (x, w) = (M, cw - 2.0 * M);
+    let clip = ui.rect(0.0, BAR_H, cw, h - BAR_H);
+    ui.c.push_clip(clip);
+    let top = BAR_H + 12.0 - app.family.scroll.y;
+    let mut y = top;
+    y += wrap_buttons(
+        ui,
+        x,
+        y,
+        w,
+        36.0,
+        &[(
+            "Walk through from the start",
+            Style::Ghost,
+            fa(F::Walkthrough),
+        )],
+    ) + 4.0;
+
+    // A transaction being signed comes first.
+    if let Some(s) = app.spend.as_ref() {
+        let name = s
+            .wallet
+            .and_then(|i| app.session.wallets.get(i))
+            .map_or("no wallet loaded".to_string(), |w| w.name.clone());
+        let line = format!("Signing {} · {name}", s.spend.source);
+        let lh = measured(ui, |ui| {
+            ui.wrap(x + 46.0, y + 14.0, w - 60.0, 14.0, W::S, TEXT, &line)
+        });
+        let ch = lh + 14.0 + 12.0 + 40.0 + 14.0;
+        ui.card(x, y, w, ch, ACCENT.with_alpha(110));
+        ui.icon(x + 14.0, y + 14.0, 20.0, Icon::Sign, 12.0, ACCENT);
+        ui.wrap(x + 46.0, y + 14.0, w - 60.0, 14.0, W::S, TEXT, &line);
+        ui.button(
+            x + 14.0,
+            y + lh + 26.0,
+            Some(w - 28.0),
+            40.0,
+            "Continue signing",
+            Style::Primary,
+            s.wallet
+                .map_or(Action::Nav(crate::Screen::Spend), |i| fa(F::SpendFrom(i))),
+        );
+        y += ch + 16.0;
+    }
+
+    section_label(ui, x, y, "Wallets loaded");
+    y += 30.0;
+    if app.session.wallets.is_empty() {
+        ui.text_mid(x, y, 30.0, 13.0, W::R, DIM, "None loaded");
+        y += 42.0;
+    }
+    for (i, wl) in app.session.wallets.iter().enumerate() {
+        let slots = app.session.slots(wl);
+        let here = slots.iter().filter(|s| s.held_by.is_some()).count();
+        let need = crate::wallet::needed(wl);
+        let ready = here >= need;
+        let (marker, tone) = if ready {
+            (format!("Ready to sign · {} of {need}", here.min(need)), OK)
+        } else if here > 0 {
+            (
+                format!(
+                    "{here} {} here · {need} needed",
+                    if here == 1 { "key" } else { "keys" }
+                ),
+                WARN,
+            )
+        } else {
+            ("No key here".to_string(), DIM)
+        };
+        // The keys still missing: where they may be. Measured first so
+        // the card is drawn at its height.
+        let missing = |ui: &mut Ui, y: f32| -> f32 {
+            if ready {
+                return 0.0;
+            }
+            let used = missing_keys_line(
+                app,
+                ui,
+                &slots,
+                crate::Screen::Family,
+                x + 18.0,
+                y,
+                w - 32.0,
+            );
+            if used > 0.0 {
+                used
+            } else {
+                ui.wrap(
+                    x + 14.0,
+                    y,
+                    w - 28.0,
+                    13.0,
+                    W::R,
+                    MUTED,
+                    "An open vault holds a missing key · Open it to load it",
+                ) + 8.0
+            }
+        };
+        let mh = measured(ui, |ui| missing(ui, y));
+        let ch = 70.0 + mh + 40.0 + 14.0;
+        ui.card(x, y, w, ch, if ready { OK.with_alpha(90) } else { LINE });
+        ui.icon(x + 14.0, y + 12.0, 20.0, Icon::Wallet, 12.0, MUTED);
+        let name = ui.fit(15.0, W::S, &wl.name, w - 60.0);
+        ui.text_mid(x + 42.0, y + 4.0, 36.0, 15.0, W::S, TEXT, &name);
+        let shape = ui.fit(12.0, W::R, &Session::shape(wl), w - 56.0);
+        ui.text_mid(x + 42.0, y + 28.0, 18.0, 12.0, W::R, MUTED, &shape);
+        let marker = ui.fit(12.0, W::S, &marker, w - 56.0);
+        ui.text_mid(x + 42.0, y + 46.0, 18.0, 12.0, W::S, tone, &marker);
+        missing(ui, y + 70.0);
+        let label = if ready { "Spend from it" } else { "Open it" };
+        ui.button(
+            x + 14.0,
+            y + 70.0 + mh,
+            Some(w - 28.0),
+            40.0,
+            label,
+            if ready {
+                Style::Primary
+            } else {
+                Style::Secondary
+            },
+            if ready {
+                fa(F::SpendFrom(i))
+            } else {
+                Action::OpenWallet(i)
+            },
+        );
+        y += ch + 10.0;
+    }
+
+    // Seeds that open no wallet loaded.
+    let lonely: Vec<&crate::wallet::Key> = app
+        .session
+        .keys
+        .iter()
+        .filter(|k| {
+            let fp = k.master.fingerprint();
+            !app.session.wallets.iter().any(|w| {
+                app.session
+                    .slots(w)
+                    .iter()
+                    .any(|s| s.fingerprint == Some(fp))
+            })
+        })
+        .collect();
+    if !lonely.is_empty() {
+        y += 8.0;
+        section_label(ui, x, y, "Seeds with no wallet loaded");
+        y += 30.0;
+        for k in &lonely {
+            ui.text_mid(
+                x,
+                y,
+                30.0,
+                14.0,
+                W::M,
+                TEXT,
+                &fp_text(k.master.fingerprint()),
+            );
+            let label = ui.fit(13.0, W::R, &k.label, w - 100.0);
+            ui.text_mid(x + 100.0, y, 30.0, 13.0, W::R, MUTED, &label);
+            y += 32.0;
+        }
+        let file = app.inbox.iter().position(|i| i.kind == FileKind::Wallet);
+        let open_label = file.map(|k| format!("Open {}", app.inbox[k].name));
+        let mut items: Vec<(&str, Style, Action)> = Vec::new();
+        if let (Some(k), Some(l)) = (file, open_label.as_deref()) {
+            items.push((l, Style::Primary, fa(F::UseWallet(k))));
+        }
+        items.push((
+            "Restore its wallet",
+            Style::Secondary,
+            Action::RestoreWallet,
+        ));
+        items.push((
+            "Spend as a single-key wallet",
+            Style::Secondary,
+            fa(F::SeedWallet),
+        ));
+        y += 4.0 + wrap_buttons(ui, x, y + 4.0, w, 38.0, &items);
+    }
+    ui.c.pop_clip();
+    let content = y - top + 24.0;
+    let max = (content - (h - BAR_H)).max(0.0);
+    ui.report_scroll(clip, max);
+    if app.family.scroll.y > max {
+        app.family.scroll.y = max;
+        app.dirty = true;
+        app.commands.push_back(osk_shell_api::Command::Draw);
+    }
+    crate::compact::bar(
+        app,
+        ui,
+        cw,
+        ("Home", Action::Nav(crate::Screen::Home)),
+        "Spend",
+    );
+}
+
 /// One line of what to do next, with its button. Returns its height.
 #[allow(clippy::too_many_arguments)]
 fn next_row(
@@ -359,15 +568,21 @@ fn body(app: &Faraday, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
     cy += match id {
         CardId::Page(page::MAP) => map(ui, x, cy, w),
         CardId::Page(page::SAFE) => {
-            next_button(ui, x, cy, w, "Continue", fa(F::Next(page::SAFE)));
-            52.0
+            if next_button(ui, x, cy, w, "Continue", fa(F::Next(page::SAFE))) {
+                52.0
+            } else {
+                0.0
+            }
         }
         CardId::Page(page::HOLDING) => holding(app, ui, x, cy, w),
         CardId::Page(page::OPEN) => open(app, ui, x, cy, w),
         CardId::Page(page::CHECK) => check(app, ui, x, cy, w),
         CardId::Page(page::WRITE) => {
-            next_button(ui, x, cy, w, "I have the PSBT", fa(F::Next(page::WRITE)));
-            52.0
+            if next_button(ui, x, cy, w, "I have the PSBT", fa(F::Next(page::WRITE))) {
+                52.0
+            } else {
+                0.0
+            }
         }
         CardId::Page(page::BRING) => bring(app, ui, x, cy, w),
         CardId::Page(_) => away(app, ui, x, cy, w),
@@ -378,16 +593,18 @@ fn body(app: &Faraday, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
             };
             let mut used = step_body(app, ui, n, x, cy, w, s.wallet, app.spend_needed());
             if n == step::FINISH && s.spend.finished.is_some() {
-                ui.button(
+                used += crate::screens::wrap_buttons(
+                    ui,
                     x,
                     cy + used,
-                    None,
+                    w,
                     38.0,
-                    "Show the finished transaction as QR",
-                    Style::Secondary,
-                    fa(F::QrTx),
-                );
-                used += 50.0;
+                    &[(
+                        "Show the finished transaction as QR",
+                        Style::Secondary,
+                        fa(F::QrTx),
+                    )],
+                ) + 4.0;
             }
             used
         }
@@ -464,8 +681,8 @@ fn map(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         WARN,
         text::WORDS_ARE_MONEY,
     ) + 16.0;
-    next_button(ui, x, cy, w, "Start", fa(F::Next(page::MAP)));
-    cy + 52.0 - y
+    let drawn = next_button(ui, x, cy, w, "Start", fa(F::Next(page::MAP)));
+    cy + (if drawn { 52.0 } else { 8.0 }) - y
 }
 
 /// What are you holding?: big answers that turn the page.
@@ -490,9 +707,10 @@ fn holding(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     for (head, sub, action, on) in answers {
         let top = cy;
         let pressed = ui.is_pressed(action);
-        let th = ui.wrap(x + 20.0, top + 44.0, w - 40.0, 13.0, W::R, MUTED, sub);
-        let bh = 60.0 + th;
-        ui.text(x + 20.0, top + 16.0, 16.0, W::S, TEXT, head);
+        // The answer wraps clear of the tick.
+        let hh = ui.wrap(x + 20.0, top + 16.0, w - 64.0, 16.0, W::S, TEXT, head);
+        let th = ui.wrap(x + 20.0, top + 22.0 + hh, w - 40.0, 13.0, W::R, MUTED, sub);
+        let bh = 38.0 + hh + th;
         let edge = if on || pressed { ACCENT } else { BORDER };
         ui.stroke(x, top, w, bh, 12.0, edge);
         if on {
@@ -577,9 +795,11 @@ fn vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             "Remove the stick, then type the passphrase",
         );
     }
+    let compact = ui.compact;
     for (i, f) in &locked {
         let on = *i == app.vaults.pick;
-        let ch = 64.0;
+        // On a small panel the unlock time goes on a third line.
+        let ch = if compact { 84.0 } else { 64.0 };
         ui.fill(
             x,
             cy,
@@ -597,35 +817,39 @@ fn vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             15.0,
             if on { ACCENT } else { MUTED },
         );
-        ui.text(x + 62.0, cy + 12.0, 14.0, W::M, TEXT, &f.name);
         let where_ = if f.in_outbox {
             "Sealed here, in the Outbox"
         } else {
             "Copied in from a stick"
         };
-        ui.text(
-            x + 62.0,
-            cy + 36.0,
-            12.0,
-            W::R,
-            MUTED,
-            &format!("{where_} · {}", file_text(f.len)),
-        );
+        let where_ = format!("{where_} · {}", file_text(f.len));
         let mem = f.header.cost.memory_kib / 1024;
         let time = format!(
             "Unlocks in {}",
             app.vaults.time_text(mem, f.header.cost.passes)
         );
-        ui.text_right(x + w - 14.0, cy + 8.0, 24.0, 12.0, W::S, TEXT, &time);
-        ui.text_right(
-            x + w - 14.0,
-            cy + 32.0,
-            24.0,
-            12.0,
-            W::R,
-            MUTED,
-            &cost_text(&f.header.cost),
-        );
+        if compact {
+            let room = w - 62.0 - 12.0;
+            let name = ui.fit(14.0, W::M, &f.name, room);
+            ui.text(x + 62.0, cy + 10.0, 14.0, W::M, TEXT, &name);
+            let where_ = ui.fit(12.0, W::R, &where_, room);
+            ui.text(x + 62.0, cy + 34.0, 12.0, W::R, MUTED, &where_);
+            let time = ui.fit(12.0, W::S, &time, room);
+            ui.text(x + 62.0, cy + 56.0, 12.0, W::S, TEXT, &time);
+        } else {
+            ui.text(x + 62.0, cy + 12.0, 14.0, W::M, TEXT, &f.name);
+            ui.text(x + 62.0, cy + 36.0, 12.0, W::R, MUTED, &where_);
+            ui.text_right(x + w - 14.0, cy + 8.0, 24.0, 12.0, W::S, TEXT, &time);
+            ui.text_right(
+                x + w - 14.0,
+                cy + 32.0,
+                24.0,
+                12.0,
+                W::R,
+                MUTED,
+                &cost_text(&f.header.cost),
+            );
+        }
         ui.hit(x, cy, w, ch, fa(F::Pick(*i)));
         cy += ch + 8.0;
     }
@@ -657,12 +881,24 @@ fn vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         } else {
             Style::Disabled
         };
-        let bw = ui.button(x, cy, Some(140.0), 42.0, "Unlock", style, fa(F::Unlock));
         let free = match app.vaults.memory_free_mib {
             Some(m) => format!("This computer: {} free", mib_text(m)),
             None => String::new(),
         };
-        ui.text_mid(x + bw + 16.0, cy, 42.0, 13.0, W::R, MUTED, &free);
+        if compact {
+            // Unlock pinned at the foot; the memory line here.
+            if crate::screens::pin_button(ui, x, cy, Some(w), 42.0, "Unlock", style, fa(F::Unlock))
+            {
+                cy += 50.0;
+            }
+            if !free.is_empty() {
+                cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, &free) + 8.0;
+            }
+            cy -= 54.0;
+        } else {
+            let bw = ui.button(x, cy, Some(140.0), 42.0, "Unlock", style, fa(F::Unlock));
+            ui.text_mid(x + bw + 16.0, cy, 42.0, 13.0, W::R, MUTED, &free);
+        }
     }
     cy += 54.0;
     if let Some(e) = &app.vaults.unlock_error {
@@ -672,7 +908,7 @@ fn vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// A stick visit from this tab, or what stops one.
-fn stick_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, _w: f32, label: &str) -> f32 {
+fn stick_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) -> f32 {
     let open = app.holds_secret() || !app.vaults.open.is_empty();
     let (style, note) = match (app.sticks.is_empty(), open) {
         (true, _) => (Style::Disabled, "Plug the stick in"),
@@ -691,6 +927,10 @@ fn stick_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, _w: f32, label: &str) -
         style,
         Action::VisitFrom(crate::Screen::Family),
     );
+    if ui.compact && !note.is_empty() {
+        // Under the button, wrapped.
+        return 46.0 + ui.wrap(x, y + 46.0, w, 13.0, W::R, DIM, note) + 12.0;
+    }
     if !note.is_empty() {
         ui.text_mid(x + bw + 14.0, y, 38.0, 13.0, W::R, DIM, note);
     }
@@ -708,33 +948,29 @@ fn words(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .wallets
         .iter()
         .any(|wl| wl.source == crate::family::WORDS_SOURCE);
-    let bw = ui.button(
+    cy += crate::screens::wrap_buttons(
+        ui,
         x,
         cy,
-        None,
+        w,
         40.0,
-        if typed {
-            "Type other words"
-        } else {
-            "Type the words"
-        },
-        style(if typed {
-            Style::Secondary
-        } else {
-            Style::Primary
-        }),
-        fa(F::TypeWords),
-    );
-    ui.button(
-        x + bw + 8.0,
-        cy,
-        None,
-        40.0,
-        "Scan a SeedQR",
-        style(Style::Secondary),
-        Action::ScanSeed,
-    );
-    cy += 52.0;
+        &[
+            (
+                if typed {
+                    "Type other words"
+                } else {
+                    "Type the words"
+                },
+                style(if typed {
+                    Style::Secondary
+                } else {
+                    Style::Primary
+                }),
+                fa(F::TypeWords),
+            ),
+            ("Scan a SeedQR", style(Style::Secondary), Action::ScanSeed),
+        ],
+    ) + 4.0;
     if !may {
         ui.text(x, cy, 13.0, W::S, WARN, "Remove the stick first");
         cy += 28.0;
@@ -773,11 +1009,19 @@ fn words(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             if on { TEXT } else { MUTED },
             crate::family::kind_name(*kind),
         );
-        let a = ui.fit(12.0, W::M, &addr, w - 190.0);
-        ui.text_right(x + w, cy, 40.0, 12.0, W::M, MUTED, &a);
-        ui.hit(x, cy, w, 40.0, fa(F::Kind(k as u8)));
-        ui.rule(x, cy + 40.0, w, INNER);
-        cy += 42.0;
+        // On a small panel the address goes under the kind.
+        let rh = if ui.compact {
+            let a = ui.fit(12.0, W::M, &addr, w - 30.0);
+            ui.text_mid(x + 30.0, cy + 30.0, 20.0, 12.0, W::M, MUTED, &a);
+            56.0
+        } else {
+            let a = ui.fit(12.0, W::M, &addr, w - 190.0);
+            ui.text_right(x + w, cy, 40.0, 12.0, W::M, MUTED, &a);
+            40.0
+        };
+        ui.hit(x, cy, w, rh, fa(F::Kind(k as u8)));
+        ui.rule(x, cy + rh, w, INNER);
+        cy += rh + 2.0;
     }
     cy + 12.0 - y
 }
@@ -810,16 +1054,15 @@ fn paper(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .map(|(k, i)| (k, i.name.as_str()))
         .collect();
     for (k, name) in &wallets {
-        ui.button(
+        let label = format!("Open {name}");
+        cy += crate::screens::wrap_buttons(
+            ui,
             x,
             cy,
-            None,
+            w,
             36.0,
-            &format!("Open {name}"),
-            Style::Secondary,
-            fa(F::UseWallet(*k)),
+            &[(&label, Style::Secondary, fa(F::UseWallet(*k)))],
         );
-        cy += 44.0;
     }
     let shares: Vec<String> = app
         .inbox
@@ -838,16 +1081,15 @@ fn paper(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     m.n,
                     m.have.join(" ")
                 );
-                ui.text_mid(
+                cy += ui.wrap(
                     x,
-                    cy,
-                    36.0,
+                    cy + 8.0,
+                    w,
                     13.0,
                     W::M,
                     if m.whole.is_some() { OK } else { WARN },
                     &line,
-                );
-                cy += 40.0;
+                ) + 22.0;
                 if m.whole.is_some() && !ready {
                     ui.button(
                         x,
@@ -901,7 +1143,8 @@ fn opened(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         for (i, wl) in app.session.wallets.iter().enumerate() {
             let on = chosen == Some(i);
             ui.checkbox(x, cy + 11.0, on, true);
-            ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::S, TEXT, &wl.name);
+            let name = ui.fit(14.0, W::S, &wl.name, w - 30.0);
+            ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::S, TEXT, &name);
             // How many of its keys are here: a vault may hold only some.
             let slots = app.session.slots(wl);
             let here = slots.iter().filter(|s| s.held_by.is_some()).count();
@@ -910,17 +1153,18 @@ fn opened(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 Session::shape(wl),
                 slots.len()
             );
-            ui.text_right(
-                x + w,
-                cy,
-                40.0,
-                12.0,
-                W::R,
-                if here > 0 { MUTED } else { DIM },
-                &line,
-            );
-            ui.hit(x, cy, w, 40.0, fa(F::Choose(i)));
-            cy += 42.0;
+            let tone = if here > 0 { MUTED } else { DIM };
+            // Under the name on a small panel.
+            let rh = if ui.compact {
+                let line = ui.fit(12.0, W::R, &line, w - 30.0);
+                ui.text_mid(x + 30.0, cy + 30.0, 20.0, 12.0, W::R, tone, &line);
+                56.0
+            } else {
+                ui.text_right(x + w, cy, 40.0, 12.0, W::R, tone, &line);
+                40.0
+            };
+            ui.hit(x, cy, w, rh, fa(F::Choose(i)));
+            cy += rh + 2.0;
         }
         cy += 8.0;
     }
@@ -930,16 +1174,24 @@ fn opened(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let wl = &app.session.wallets[i];
     ui.fill(x, cy, w, 1.0, 0.0, INNER);
     cy += 14.0;
-    ui.text(x, cy, 15.0, W::S, TEXT, &wl.name);
-    ui.text_right(
-        x + w,
-        cy - 4.0,
-        24.0,
-        12.0,
-        W::R,
-        MUTED,
-        &Session::shape(wl),
-    );
+    if ui.compact {
+        let name = ui.fit(15.0, W::S, &wl.name, w);
+        ui.text(x, cy, 15.0, W::S, TEXT, &name);
+        cy += 24.0;
+        let shape = ui.fit(12.0, W::R, &Session::shape(wl), w);
+        ui.text(x, cy, 12.0, W::R, MUTED, &shape);
+    } else {
+        ui.text(x, cy, 15.0, W::S, TEXT, &wl.name);
+        ui.text_right(
+            x + w,
+            cy - 4.0,
+            24.0,
+            12.0,
+            W::R,
+            MUTED,
+            &Session::shape(wl),
+        );
+    }
     cy += 28.0;
     let slots = app.session.slots(wl);
     let here = slots.iter().filter(|s| s.held_by.is_some()).count();
@@ -973,8 +1225,8 @@ fn opened(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         TEXT,
         &grouped(&app.session.address(wl, false, 0)),
     ) + 16.0;
-    next_button(ui, x, cy, w, "Continue", fa(F::Next(page::OPEN)));
-    cy + 52.0 - y
+    let drawn = next_button(ui, x, cy, w, "Continue", fa(F::Next(page::OPEN)));
+    cy + (if drawn { 52.0 } else { 8.0 }) - y
 }
 
 /// Check the money: the wallet as a QR code, and its addresses.
@@ -984,16 +1236,18 @@ fn check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return 0.0;
     };
     let wl = &app.session.wallets[i];
-    ui.button(
+    cy += crate::screens::wrap_buttons(
+        ui,
         x,
         cy,
-        None,
+        w,
         40.0,
-        "Show the wallet as a QR code",
-        Style::Primary,
-        Action::QrWallet(i),
-    );
-    cy += 54.0;
+        &[(
+            "Show the wallet as a QR code",
+            Style::Primary,
+            Action::QrWallet(i),
+        )],
+    ) + 6.0;
     let n = 3 + app.family.addresses;
     for (head, change) in [("Receive", false), ("Change", true)] {
         ui.text(x, cy, 13.0, W::S, MUTED, head);
@@ -1001,25 +1255,42 @@ fn check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         for k in 0..n {
             ui.text_mid(x, cy, 28.0, 12.0, W::R, DIM, &k.to_string());
             let a = grouped(&app.session.address(wl, change, k));
+            if ui.compact {
+                // Whole, to compare character for character.
+                cy += ui.wrap(x + 24.0, cy + 6.0, w - 24.0, 12.0, W::M, TEXT, &a) + 14.0;
+                continue;
+            }
             let a = ui.fit(13.0, W::M, &a, w - 40.0);
             ui.text_mid(x + 40.0, cy, 28.0, 13.0, W::M, TEXT, &a);
             cy += 30.0;
         }
         cy += 8.0;
     }
-    if n < 50 {
-        ui.button(
-            x,
-            cy,
-            None,
-            36.0,
+    let more: &[(&str, Style, Action)] = if n < 50 {
+        &[(
             "Show more addresses",
             Style::Secondary,
             fa(F::MoreAddresses),
+        )]
+    } else {
+        &[]
+    };
+    if ui.compact {
+        cy += crate::screens::buttons_and_next(
+            ui,
+            x,
+            cy,
+            w,
+            more,
+            Some(("It matches", fa(F::Next(page::CHECK)))),
         );
+        return cy + 4.0 - y;
     }
-    next_button(ui, x, cy, w, "It matches", fa(F::Next(page::CHECK)));
-    cy + 52.0 - y
+    for &(label, style, action) in more {
+        ui.button(x, cy, None, 36.0, label, style, action);
+    }
+    let drawn = next_button(ui, x, cy, w, "It matches", fa(F::Next(page::CHECK)));
+    cy + (if drawn { 52.0 } else { 8.0 }) - y
 }
 
 /// Bring the transaction: scan it, copy it in, or one already in Files.
@@ -1053,7 +1324,14 @@ fn bring(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     for (k, name) in &psbts {
         let current = app.spend.as_ref().is_some_and(|s| s.spend.source == *name);
-        ui.text_mid(x, cy, 38.0, 14.0, W::M, TEXT, name);
+        // On a small panel the name has its own line.
+        if ui.compact {
+            let n = ui.fit(14.0, W::M, name, w);
+            ui.text(x, cy, 14.0, W::M, TEXT, &n);
+            cy += 22.0;
+        } else {
+            ui.text_mid(x, cy, 38.0, 14.0, W::M, TEXT, name);
+        }
         if current {
             ui.text_right(x + w, cy, 38.0, 13.0, W::S, OK, "Signing this one");
         } else {
@@ -1076,8 +1354,7 @@ fn bring(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         match s.wallet.and_then(|w| app.session.wallets.get(w)) {
             Some(wl) => {
                 let line = format!("Spends from {} · {}", wl.name, Session::shape(wl));
-                ui.text(x, cy, 13.0, W::S, OK, &line);
-                cy += 30.0;
+                cy += ui.wrap(x, cy, w, 13.0, W::S, OK, &line) + 12.0;
             }
             None => {
                 cy += ui.wrap(
@@ -1093,8 +1370,9 @@ fn bring(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 ) + 12.0;
             }
         }
-        next_button(ui, x, cy, w, "Read it", Action::Step(first_step(app)));
-        cy += 52.0;
+        if next_button(ui, x, cy, w, "Read it", Action::Step(first_step(app))) {
+            cy += 52.0;
+        }
     }
     cy - y
 }
@@ -1117,15 +1395,29 @@ fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let may = app.may_load_keys();
     match s.wallet.and_then(|i| app.session.wallets.get(i)) {
         Some(wl) => {
+            // On a small panel a key's name has its line, and what it
+            // does goes under it.
+            let compact = ui.compact;
             for (k, slot) in app.session.slots(wl).iter().enumerate() {
                 ui.text_mid(x, cy, 42.0, 12.0, W::R, DIM, &(k + 1).to_string());
                 let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
                 ui.text_mid(x + 22.0, cy, 42.0, 14.0, W::M, TEXT, &fp);
+                if compact && slot.held_by.is_some() {
+                    let label = slot.held_by.as_deref().unwrap_or_default();
+                    let label = ui.fit(13.0, W::R, label, w - 124.0);
+                    ui.text_mid(x + 124.0, cy, 42.0, 13.0, W::R, MUTED, &label);
+                    cy += 36.0;
+                }
                 match &slot.held_by {
+                    Some(_) if compact => {
+                        let t = "Signs here";
+                        ui.chip(x + 22.0, cy + 8.0, t, OK, OK.with_alpha(30));
+                    }
                     Some(label) => {
-                        ui.text_mid(x + 124.0, cy, 42.0, 13.0, W::R, MUTED, label);
                         let t = "Signs here";
                         let cw2 = ui.measure(12.0, W::R, t) + 34.0;
+                        let label = ui.fit(13.0, W::R, label, w - 124.0 - cw2 - 8.0);
+                        ui.text_mid(x + 124.0, cy, 42.0, 13.0, W::R, MUTED, &label);
                         ui.chip(x + w - cw2, cy + 8.0, t, OK, OK.with_alpha(30));
                     }
                     None => {
@@ -1165,45 +1457,26 @@ fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .filter(|fp| app.session.key_label(**fp).is_some())
         .count();
     // The other keys: a SeedQR, typed words above, or another vault.
-    let mut bx = x;
-    bx += ui.button(
-        x,
-        cy,
-        None,
-        38.0,
-        "Scan a SeedQR",
-        if may {
-            Style::Secondary
-        } else {
-            Style::Disabled
-        },
-        Action::ScanSeed,
-    ) + 8.0;
-    for (k, f) in app.vault_files().iter().enumerate() {
-        if f.open.is_some() {
-            continue;
-        }
-        let label = format!("Unlock {}", f.name);
-        let bw = ui.measure(13.0, W::S, &label) + 32.0;
-        if bx + bw > x + w {
-            bx = x;
-            cy += 46.0;
-        }
-        bx += ui.button(
-            bx,
-            cy,
-            Some(bw),
-            38.0,
-            &label,
-            if may {
-                Style::Secondary
-            } else {
-                Style::Disabled
-            },
-            Action::Vault(VaultAction::OpenFrom(k, crate::Screen::Family)),
-        ) + 8.0;
-    }
-    cy += 48.0;
+    let style = if may {
+        Style::Secondary
+    } else {
+        Style::Disabled
+    };
+    let unlocks: Vec<(String, Action)> = app
+        .vault_files()
+        .iter()
+        .enumerate()
+        .filter(|(_, f)| f.open.is_none())
+        .map(|(k, f)| {
+            (
+                format!("Unlock {}", f.name),
+                Action::Vault(VaultAction::OpenFrom(k, crate::Screen::Family)),
+            )
+        })
+        .collect();
+    let mut items: Vec<(&str, Style, Action)> = vec![("Scan a SeedQR", style, Action::ScanSeed)];
+    items.extend(unlocks.iter().map(|(l, a)| (l.as_str(), style, *a)));
+    cy += crate::screens::wrap_buttons(ui, x, cy, w, 38.0, &items) + 2.0;
     if !may {
         ui.text(x, cy, 13.0, W::S, WARN, "Remove the stick first");
         cy += 28.0;
@@ -1217,8 +1490,8 @@ fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         if here >= needed { OK } else { MUTED },
         &format!("Needs {needed} · {here} here"),
     );
-    next_button(ui, x, cy, w, "Continue", Action::StepNext(step::SIGNERS));
-    cy + 52.0 - y
+    let drawn = next_button(ui, x, cy, w, "Continue", Action::StepNext(step::SIGNERS));
+    cy + (if drawn { 52.0 } else { 8.0 }) - y
 }
 
 /// Put everything away: lock, write what waits, power off.
@@ -1226,11 +1499,27 @@ fn away(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     for it in &app.outbox {
         ui.icon(x, cy + 6.0, 20.0, Icon::File, 11.0, MUTED);
-        ui.text_mid(x + 28.0, cy, 32.0, 13.0, W::M, TEXT, &it.name);
+        let name = ui.fit(13.0, W::M, &it.name, w - 28.0);
+        ui.text_mid(x + 28.0, cy, 32.0, 13.0, W::M, TEXT, &name);
         cy += 34.0;
     }
     if !app.outbox.is_empty() {
         cy += 8.0;
+    }
+    if ui.compact {
+        cy += crate::screens::wrap_buttons(
+            ui,
+            x,
+            cy,
+            w,
+            40.0,
+            &[
+                ("Lock", Style::Primary, Action::LockAsk),
+                ("Power off", Style::Secondary, Action::PowerAsk),
+                ("Start over", Style::Ghost, fa(F::StartOver)),
+            ],
+        );
+        return cy + 4.0 - y;
     }
     let bw = ui.button(x, cy, None, 40.0, "Lock", Style::Primary, Action::LockAsk);
     ui.button(

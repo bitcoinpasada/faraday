@@ -2,10 +2,19 @@
 //!
 //! ```text
 //! faraday [--sticks DIR] [--size WxH] [--full-kit]
+//!         [--panel INCHES [--aspect W:H] [--ppi N]]
 //! ```
 //!
 //! The window draws at the display's own resolution and can be resized;
 //! the app lays itself out for whatever size it is given.
+//!
+//! `--panel` stands for a device's own screen instead: a window that
+//! measures INCHES corner to corner on this screen, 3:4 upright below 4
+//! inches (the Pi's 2.8-inch panel) and 9:16 at 4 and over (a phone),
+//! or `--aspect` given, with the app laid out at that screen's true size
+//! as the device lays it out. The window keeps its size. This screen's
+//! pixels per inch come from its EDID; `--ppi` overrides them. A finger
+//! on a touchscreen presses as the device's panel does.
 //!
 //! Sticks are folders. `--sticks DIR` (default `$HOME/faraday-sticks`)
 //! holds `TESTSTICK`, which gets every test kit file it lacks at each
@@ -15,9 +24,10 @@
 //! public backup files and a vault, passphrase `a`, holding its three
 //! seeds); `--full-kit` makes it the full test kit instead. A folder made
 //! for the other kit is moved aside, not mixed. The test stick stands for
-//! the boot stick: plugging it in reads its vaults into the Inbox and its
-//! `faraday-settings.txt`, once a session, as the device reads the stick
-//! it booted from.
+//! the boot stick: the first time it is plugged in a session, its
+//! `faraday-settings.txt` is read and every other file on it is copied
+//! into memory for the boot import, as the device does with the stick it
+//! booted from; later, it is visited like any stick.
 //!
 //! - F2 plugs the test stick in, or pulls it out;
 //! - F3 does the same for the blank stick;
@@ -55,7 +65,7 @@ use osk_shell_api::{
 };
 use softbuffer::{Context, Surface};
 use winit::application::ApplicationHandler;
-use winit::dpi::LogicalSize;
+use winit::dpi::{LogicalSize, PhysicalSize};
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{Key as WinitKey, NamedKey};
@@ -69,9 +79,63 @@ const FRAME: Duration = Duration::from_micros(16_667);
 /// How often the attached folders are looked at again.
 const RESCAN: Duration = Duration::from_millis(700);
 const TITLE: &str = "Faraday · F2 test stick · F3 blank stick · F4 pull all";
+const TITLE_KEYS: &str = "F2 test stick · F3 blank · F4 pull all";
+
+/// A device's screen, shown at its true size on this one.
+#[derive(Clone, Copy)]
+struct Panel {
+    /// Its diagonal, inches.
+    inches: f64,
+    /// Its width to its height.
+    aspect: (f64, f64),
+    /// This screen's pixels per inch.
+    ppi: f64,
+}
+
+impl Panel {
+    /// Its size in this screen's pixels.
+    fn pixels(&self) -> (u32, u32) {
+        let (aw, ah) = self.aspect;
+        let d = (aw * aw + ah * ah).sqrt();
+        let w = self.inches * aw / d * self.ppi;
+        let h = self.inches * ah / d * self.ppi;
+        (w.round() as u32, h.round() as u32)
+    }
+}
+
+/// This screen's pixels per inch, from the first connected panel's EDID:
+/// its first detailed timing's active pixels over its size in millimetres.
+fn screen_ppi() -> Option<f64> {
+    let dir = std::fs::read_dir("/sys/class/drm").ok()?;
+    let mut paths: Vec<PathBuf> = dir.flatten().map(|e| e.path()).collect();
+    // A laptop's own panel first.
+    paths.sort_by_key(|p| !p.to_string_lossy().contains("eDP"));
+    for p in paths {
+        let Ok(e) = std::fs::read(p.join("edid")) else {
+            continue;
+        };
+        if e.len() < 72 {
+            continue;
+        }
+        let px_w = f64::from(u16::from(e[56]) | (u16::from(e[58] & 0xF0) << 4));
+        let px_h = f64::from(u16::from(e[59]) | (u16::from(e[61] & 0xF0) << 4));
+        let mm_w = f64::from(u16::from(e[66]) | (u16::from(e[68] & 0xF0) << 4));
+        let mm_h = f64::from(u16::from(e[67]) | (u16::from(e[68] & 0x0F) << 8));
+        if px_w > 0.0 && mm_w > 0.0 && mm_h > 0.0 {
+            let px = (px_w * px_w + px_h * px_h).sqrt();
+            let inches = (mm_w * mm_w + mm_h * mm_h).sqrt() / 25.4;
+            return Some(px / inches);
+        }
+    }
+    None
+}
 
 struct Shell {
     sticks_dir: PathBuf,
+    /// A device's screen to stand for, when given.
+    panel: Option<Panel>,
+    /// The finger pressing, on a touchscreen.
+    finger: Option<u64>,
     /// Where PDFs are saved.
     print_dir: PathBuf,
     size: (u32, u32),
@@ -114,8 +178,13 @@ impl Shell {
             width: w.clamp(320, u32::from(u16::MAX)) as u16,
             height: h.clamp(240, u32::from(u16::MAX)) as u16,
             // The compositor's scale for this window, as a density: the
-            // app grows no larger than a quarter beyond it.
-            dpi: (160.0 * self.scale).round().clamp(80.0, 640.0) as u16,
+            // app grows no larger than a quarter beyond it. Standing for
+            // a device's screen, this screen's own density, so the app
+            // is laid out at that screen's true size.
+            dpi: match self.panel {
+                Some(p) => p.ppi.round().clamp(80.0, 640.0) as u16,
+                None => (160.0 * self.scale).round().clamp(80.0, 640.0) as u16,
+            },
             inset_bottom: 0,
             inset_top: 0,
             buttons: 0,
@@ -129,8 +198,9 @@ impl Shell {
     fn sticks(&self) -> Vec<StickInfo> {
         self.attached
             .iter()
-            // The test stick stands for the boot stick: its vault and its
-            // settings file are read when it is plugged in.
+            // The test stick stands for the boot stick: its first plugging
+            // in a session reads its settings file and brings up the boot
+            // import.
             .map(|name| stick_info(&self.sticks_dir.join(name), name, name == "TESTSTICK"))
             .collect()
     }
@@ -330,13 +400,35 @@ impl ApplicationHandler for Shell {
         if self.window.is_some() {
             return;
         }
-        let attributes = Window::default_attributes()
-            .with_title(TITLE)
-            .with_inner_size(LogicalSize::new(
-                f64::from(self.size.0),
-                f64::from(self.size.1),
-            ))
-            .with_min_inner_size(LogicalSize::new(640.0, 400.0));
+        let attributes = match self.panel {
+            // A device's screen keeps its size: given in the compositor's
+            // units, since a window is sized before it knows its scale.
+            Some(p) => {
+                let (w, h) = p.pixels();
+                // The laptop's own panel, whose EDID gave the pixels per
+                // inch, is the screen it stands on.
+                let monitors: Vec<_> = event_loop.available_monitors().collect();
+                let scale = monitors
+                    .iter()
+                    .find(|m| m.name().is_some_and(|n| n.starts_with("eDP")))
+                    .or(monitors.first())
+                    .map_or(1.0, |m| m.scale_factor());
+                let size = LogicalSize::new(f64::from(w) / scale, f64::from(h) / scale);
+                Window::default_attributes()
+                    .with_title(format!("Faraday · {} in panel · {TITLE_KEYS}", p.inches))
+                    .with_inner_size(size)
+                    .with_min_inner_size(size)
+                    .with_max_inner_size(size)
+                    .with_resizable(false)
+            }
+            None => Window::default_attributes()
+                .with_title(TITLE)
+                .with_inner_size(LogicalSize::new(
+                    f64::from(self.size.0),
+                    f64::from(self.size.1),
+                ))
+                .with_min_inner_size(LogicalSize::new(640.0, 400.0)),
+        };
         let window = match event_loop.create_window(attributes) {
             Ok(w) => Rc::new(w),
             Err(e) => {
@@ -373,6 +465,14 @@ impl ApplicationHandler for Shell {
             WindowEvent::RedrawRequested => self.draw(),
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 self.scale = scale_factor;
+                // A device's screen stays the same size in this screen's
+                // pixels at any scale.
+                if let (Some(p), Some(w)) = (self.panel, &self.window) {
+                    let size = PhysicalSize::new(p.pixels().0, p.pixels().1);
+                    w.set_min_inner_size(Some(size));
+                    w.set_max_inner_size(Some(size));
+                    let _ = w.request_inner_size(size);
+                }
                 let display = self.display();
                 self.send(event_loop, display);
             }
@@ -424,6 +524,34 @@ impl ApplicationHandler for Shell {
                 if self.pressed {
                     self.pressed = false;
                     self.touch(event_loop, TouchPhase::Up);
+                }
+            }
+            // A finger on a touchscreen presses as on the device's panel:
+            // the first finger down is the press, others are ignored.
+            WindowEvent::Touch(t) => {
+                use winit::event::TouchPhase as T;
+                let p = (
+                    t.location.x.clamp(0.0, 65535.0) as u16,
+                    t.location.y.clamp(0.0, 65535.0) as u16,
+                );
+                match t.phase {
+                    T::Started if self.finger.is_none() => {
+                        self.finger = Some(t.id);
+                        self.cursor = p;
+                        self.pressed = true;
+                        self.touch(event_loop, TouchPhase::Down);
+                    }
+                    T::Moved if self.finger == Some(t.id) => {
+                        self.cursor = p;
+                        self.touch(event_loop, TouchPhase::Move);
+                    }
+                    T::Ended | T::Cancelled if self.finger == Some(t.id) => {
+                        self.cursor = p;
+                        self.finger = None;
+                        self.pressed = false;
+                        self.touch(event_loop, TouchPhase::Up);
+                    }
+                    _ => {}
                 }
             }
             WindowEvent::MouseWheel { delta, phase, .. } => {
@@ -626,6 +754,9 @@ fn main() -> ExitCode {
         .unwrap_or_else(|| PathBuf::from("faraday-sticks"));
     let mut size = (1280, 800);
     let mut full_kit = false;
+    let mut panel: Option<f64> = None;
+    let mut aspect: Option<(f64, f64)> = None;
+    let mut ppi: Option<f64> = None;
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
@@ -637,6 +768,36 @@ fn main() -> ExitCode {
                 }
             },
             "--full-kit" => full_kit = true,
+            "--panel" => match args
+                .next()
+                .and_then(|s| s.trim_end_matches("in").parse().ok())
+            {
+                Some(i) if (1.0..=13.0).contains(&i) => panel = Some(i),
+                _ => {
+                    eprintln!("faraday: --panel needs a diagonal in inches, 1 to 13");
+                    return ExitCode::from(2);
+                }
+            },
+            "--aspect" => {
+                let parsed = args.next().and_then(|s| {
+                    let (w, h) = s.split_once(':')?;
+                    Some((w.parse::<f64>().ok()?, h.parse::<f64>().ok()?))
+                });
+                match parsed {
+                    Some((w, h)) if w > 0.0 && h > 0.0 => aspect = Some((w, h)),
+                    _ => {
+                        eprintln!("faraday: --aspect needs W:H, such as 3:4");
+                        return ExitCode::from(2);
+                    }
+                }
+            }
+            "--ppi" => match args.next().and_then(|s| s.parse().ok()) {
+                Some(p) if (50.0..=1000.0).contains(&p) => ppi = Some(p),
+                _ => {
+                    eprintln!("faraday: --ppi needs this screen's pixels per inch");
+                    return ExitCode::from(2);
+                }
+            },
             "--size" => {
                 let parsed = args.next().and_then(|s| {
                     let (w, h) = s.split_once('x')?;
@@ -652,7 +813,7 @@ fn main() -> ExitCode {
             }
             "--help" | "-h" => {
                 println!(
-                    "faraday [--sticks DIR] [--size WxH] [--full-kit]\n  F2 test stick, F3 blank stick, F4 pull all, F5 plug every folder in DIR\n  --full-kit: the test stick carries the full test kit, not the backup test stick"
+                    "faraday [--sticks DIR] [--size WxH] [--full-kit] [--panel INCHES [--aspect W:H] [--ppi N]]\n  F2 test stick, F3 blank stick, F4 pull all, F5 plug every folder in DIR\n  --full-kit: the test stick carries the full test kit, not the backup test stick\n  --panel: a device's screen at its true size: 2.8 is the Pi's panel (3:4), 5 a phone (9:16)\n  --aspect: the panel's width to height · --ppi: this screen's pixels per inch, if its EDID is wrong"
                 );
                 return ExitCode::SUCCESS;
             }
@@ -662,6 +823,26 @@ fn main() -> ExitCode {
             }
         }
     }
+    let panel = match panel {
+        Some(inches) => {
+            let Some(ppi) = ppi.or_else(screen_ppi) else {
+                eprintln!("faraday: this screen's pixels per inch are unknown: give --ppi");
+                return ExitCode::from(2);
+            };
+            let aspect = aspect.unwrap_or(if inches < 4.0 {
+                (3.0, 4.0)
+            } else {
+                (9.0, 16.0)
+            });
+            eprintln!("faraday: a {inches} in panel at {ppi:.0} pixels per inch here");
+            Some(Panel {
+                inches,
+                aspect,
+                ppi,
+            })
+        }
+        None => None,
+    };
     if let Err(e) = prepare(&sticks_dir, full_kit) {
         eprintln!("faraday: {e}");
         return ExitCode::FAILURE;
@@ -680,6 +861,8 @@ fn main() -> ExitCode {
         .unwrap_or_else(|| PathBuf::from("faraday-print"));
     let app = desktop_app();
     let mut shell = Shell {
+        panel,
+        finger: None,
         print_dir,
         sticks_dir,
         size,

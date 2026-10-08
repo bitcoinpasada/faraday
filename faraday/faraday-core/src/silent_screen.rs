@@ -191,8 +191,9 @@ fn card(app: &Faraday, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f
                 ));
             }
             cy += button_rows(ui, x, cy, w, &row);
-            next_button(ui, x, cy, w, "Continue", Action::SNext);
-            cy += 48.0;
+            if next_button(ui, x, cy, w, "Continue", Action::SNext) {
+                cy += 48.0;
+            }
         }
         sstep::CHECK => cy += check_card(app, s, ui, x, cy, w),
         _ => {

@@ -232,3 +232,99 @@ CONFIG_NLS_ISO8859_1=y
 # is the one thing a seed must never do.
 # CONFIG_SUSPEND is not set
 # CONFIG_HIBERNATION is not set
+
+# ---- kernel memory: zeroed, checked, and harder to lay out ----
+# (PLANNING.md 16.140, from the Faraday fork's review of this tree.)
+#
+# Every page and every slab object is zeroed when it is handed out and
+# again when it is freed. The app erases its own secrets; this covers the
+# copies the kernel makes on its way: pipe and tty buffers, the input
+# queue, the framebuffer's staging, a page the app returned. Built in as
+# the default rather than set on the command line, so that the one list
+# in kernel.required is where it is checked.
+CONFIG_INIT_ON_ALLOC_DEFAULT_ON=y
+CONFIG_INIT_ON_FREE_DEFAULT_ON=y
+
+# Copies between the kernel and a process are checked against the object
+# they come from, and the string and memory functions inside the kernel
+# against the sizes the compiler knows.
+CONFIG_HARDENED_USERCOPY=y
+CONFIG_FORTIFY_SOURCE=y
+
+# The slab allocator's free lists are obfuscated and shuffled, pages come
+# out of the page allocator in a shuffled order, and caches of different
+# types are not merged into one. A kernel heap bug is turned into an
+# exploit by placing one object beside another; these make where an
+# object lands something an attacker cannot predict.
+CONFIG_SLAB_FREELIST_HARDENED=y
+CONFIG_SLAB_FREELIST_RANDOM=y
+CONFIG_SHUFFLE_PAGE_ALLOCATOR=y
+# CONFIG_SLAB_MERGE_DEFAULT is not set
+
+# Corruption the kernel detects stops it rather than being stepped over,
+# and an oops is a panic. A kernel that has oopsed is in a state nobody
+# chose, and on a device that signs, stopping is the safe result: the
+# panic halts, since PANIC_TIMEOUT is 0, and nothing tries again.
+CONFIG_BUG_ON_DATA_CORRUPTION=y
+CONFIG_SCHED_STACK_END_CHECK=y
+CONFIG_PANIC_ON_OOPS=y
+
+# Registers a function used are cleared when it returns, which leaves
+# fewer instruction sequences to build a return-oriented chain from.
+CONFIG_ZERO_CALL_USED_REGS=y
+
+# The kernel log, which holds kernel addresses, is for root only. init
+# reads it for the dev image's boot report; the app never does.
+CONFIG_SECURITY_DMESG_RESTRICT=y
+
+# ---- security modules ----
+# Yama: rcS sets ptrace_scope to 3, so no process can trace another.
+# Lockdown, forced to confidentiality from early boot: every interface
+# that reads or writes kernel memory or raw hardware is shut in one place,
+# including any a later option brings back. The Pi's defconfig sets an
+# empty LSM list, which would build both and start neither, so the list
+# is named here.
+CONFIG_SECURITY=y
+CONFIG_SECURITY_YAMA=y
+CONFIG_SECURITY_LOCKDOWN_LSM=y
+CONFIG_SECURITY_LOCKDOWN_LSM_EARLY=y
+CONFIG_LOCK_DOWN_KERNEL_FORCE_CONFIDENTIALITY=y
+CONFIG_LSM="lockdown,yama"
+
+# ---- system calls the image does not make ----
+# Each of these is a kernel interface any process can reach, and the
+# shell, BusyBox and init use none of them: the shell's only dependency
+# that talks to the kernel is libc.
+#
+# io_uring is a large share of recent kernel privilege escalations; AIO is
+# the older asynchronous I/O; System V IPC is shared memory, semaphores
+# and message queues between processes, and there is one process.
+# CONFIG_IO_URING is not set
+# CONFIG_AIO is not set
+# CONFIG_SYSVIPC is not set
+# The kernel keyring. Nothing here stores a key in the kernel. Two
+# options the Pi's defconfig builds select it, and neither has a user:
+# filesystem encryption, for ext4 and f2fs, which are not built, and the
+# integrity subsystem behind IMA and EVM, which measure files against a
+# policy this image does not have.
+# CONFIG_KEYS is not set
+# CONFIG_FS_ENCRYPTION is not set
+# CONFIG_INTEGRITY is not set
+# process_vm_readv/writev and kcmp: reading another process's memory and
+# comparing its kernel objects.
+# CONFIG_CROSS_MEMORY_ATTACH is not set
+# CONFIG_KCMP is not set
+# Interpreters for arbitrary binary formats; the image runs two ELF files.
+# CONFIG_BINFMT_MISC is not set
+# A crash kernel, which cannot exist without KEXEC.
+# CONFIG_CRASH_DUMP is not set
+# /dev/gpiochip*: the panel's touch controller is the kernel's Goodix
+# driver, and nothing reads a pin from userspace. The older
+# /sys/class/gpio interface, which the Pi's defconfig builds, selects it
+# and goes with it.
+# CONFIG_GPIO_CDEV is not set
+# CONFIG_GPIO_SYSFS is not set
+# A core dump is a copy of the app's memory written to a file, and the only
+# writable filesystem is the exchange partition. The shell aborts on a
+# panic, which is a signal that dumps core wherever the limit allows it.
+# CONFIG_COREDUMP is not set

@@ -1,8 +1,8 @@
 //! The backup test stick: what backing up the 2-of-3 Taproot multisig
 //! over the test seeds leaves. Its public files restore the wallet, any
 //! two of its split sheets rebuild it, and its vault, passphrase `a`,
-//! opens on pulling the stick and holds the three seeds that sign, and
-//! its unsigned spend signs and finishes on the Spend tab.
+//! opens from Home once the stick is pulled and holds the three seeds
+//! that sign, and its unsigned spend signs and finishes on the Spend tab.
 
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
@@ -119,13 +119,14 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
         "{:?}",
         app.visit.log
     );
-    // F4: the stick out, and the vault's passphrase asked for.
+    // F4: the stick out, Home, and the vault opened from there.
     app.storage(StorageEvent::Sticks(Vec::new()));
-    assert_eq!(
-        app.screen,
-        Screen::Unlock,
-        "pulling the stick did not ask for the vault"
-    );
+    assert_eq!(app.screen, Screen::Home);
+    let _ = app.frame();
+    let open = Action::Vault(V::Open(0));
+    assert!(app.offers(open), "Home does not offer the vault");
+    app.press(open);
+    assert_eq!(app.screen, Screen::Unlock);
     for c in testkit::BACKUP_VAULT_PASSPHRASE.chars() {
         app.event(Event::Key(Key::Char(c)));
     }

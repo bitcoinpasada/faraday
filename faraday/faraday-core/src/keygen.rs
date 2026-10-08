@@ -257,7 +257,7 @@ pub struct KeyGen {
     pub typing: bool,
     /// Every roll or flip taken, as it was entered (a face, or H or T),
     /// in order: what the box shows.
-    pub entered: zeroize::Zeroizing<String>,
+    pub entered: crate::secret_text::SecretText,
     /// Where the flow returns to.
     pub back: Screen,
 }
@@ -314,7 +314,7 @@ impl KeyGen {
             quiz_share: 0,
             by_die: false,
             typing: true,
-            entered: zeroize::Zeroizing::new(String::new()),
+            entered: crate::secret_text::SecretText::new(),
         }
     }
 
@@ -767,7 +767,6 @@ impl KeyGen {
 
     /// Forgets the record of entries.
     pub fn clear_entered(&mut self) {
-        zeroize::Zeroize::zeroize(&mut *self.entered);
         self.entered.clear();
     }
 
@@ -956,7 +955,7 @@ impl KeyGen {
     /// The words, space-separated, for the session to load.
     pub fn phrase(&self) -> Option<zeroize::Zeroizing<String>> {
         let m = self.mnemonic.as_ref()?;
-        let mut s = zeroize::Zeroizing::new(String::new());
+        let mut s = crate::secret_text::room();
         for (k, &i) in m.indices().iter().enumerate() {
             if k > 0 {
                 s.push(' ');

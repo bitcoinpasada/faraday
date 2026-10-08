@@ -17,13 +17,35 @@ fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
-pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
-    let Some(t) = app.tools.as_ref() else {
+const GUIDE: &str = "Calculators: each takes what you type, works one thing out and keeps nothing. \
+                     None of them touches a key; an extended private key is refused.";
+
+pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    if app.tools.is_none() {
         return;
-    };
+    }
+    // A small panel has its bar for the way back and the name, and puts
+    // each value under its name.
+    if ui.compact {
+        let (x, width) = (x0 + crate::compact::M, cw - 2.0 * crate::compact::M);
+        let top = 12.0 - app.list_offset;
+        let y = body(app, ui, x, top, width);
+        let y = y + crate::compact_screens::about(ui, x, y, width, GUIDE);
+        crate::compact_screens::finish(app, ui, x0, cw, h, y - top + 16.0);
+        return;
+    }
     let x = x0 + 56.0;
     let width = (cw - 112.0).min(900.0);
-    let mut y = 36.0;
+    let y = header(app, ui, x, 36.0, width);
+    body(app, ui, x, y, width);
+}
+
+/// The way back, the title and what explains the page, as the desktop
+/// draws them. Returns where the page goes on.
+fn header(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
+    let Some(t) = app.tools.as_ref() else {
+        return y;
+    };
     ui.icon(
         x - 4.0,
         y,
@@ -37,15 +59,15 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
     y += 22.0;
     title(ui, x, y, "Tools");
     y += 52.0;
-    y += guide_text(
-        app,
-        ui,
-        x,
-        y,
-        width,
-        "Calculators: each takes what you type, works one thing out and keeps nothing. None of them \
-         touches a key; an extended private key is refused.",
-    );
+    y + guide_text(app, ui, x, y, width, GUIDE)
+}
+
+/// The calculators, the field and what it works out. Returns where it
+/// ends.
+fn body(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
+    let Some(t) = app.tools.as_ref() else {
+        return y;
+    };
     let tools: Vec<(String, Style, Action)> = Tool::ALL
         .iter()
         .enumerate()
@@ -108,21 +130,22 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
     }
     // The field.
     let shown = if t.typed.is_empty() {
-        match t.tool {
+        crate::secret_text::SecretText::of(match t.tool {
             Tool::Hashes => "Text or hex",
             Tool::Encodings => "Base58, bech32 or hex",
             Tool::Descriptor => "A descriptor",
             Tool::ConvertKey => "An xpub, ypub, zpub, tpub…",
             Tool::Units => "An amount",
             Tool::Miniscript => "A policy, e.g. or(pk(9a6a2580),and(pk(…),older(1000)))",
-        }
-        .to_string()
+        })
     } else {
-        format!("{}{}", t.typed, ui.caret_char())
+        let mut s = crate::secret_text::SecretText::of(&t.typed);
+        s.push_str(ui.caret_char());
+        s
     };
     ui.fill(x, y, width, 44.0, 8.0, BG);
     ui.stroke(x, y, width, 44.0, 8.0, ACCENT);
-    let s = ui.fit(14.0, W::M, &shown, width - 100.0);
+    let s = ui.fit_secret(14.0, W::M, &shown, width - 100.0);
     ui.text_mid(
         x + 12.0,
         y,
@@ -143,7 +166,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
     );
     y += 58.0;
     if t.typed.trim().is_empty() {
-        return;
+        return y;
     }
     let mut rows: Vec<(String, String)> = Vec::new();
     let mut note: Option<String> = None;
@@ -250,14 +273,21 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
         },
     }
     if let Some(n) = note {
-        ui.wrap(x, y, width, 13.0, W::R, ERR, &n);
-        return;
+        return y + ui.wrap(x, y, width, 13.0, W::R, ERR, &n) + 10.0;
     }
+    // On a small panel each value goes under its name.
+    let (vx, below) = if ui.compact {
+        (0.0, 20.0)
+    } else {
+        (140.0, 0.0)
+    };
     for (label, value) in rows {
         ui.text(x, y, 13.0, W::R, MUTED, &label);
+        y += below;
         y += ui
-            .wrap(x + 140.0, y, width - 140.0, 13.0, W::M, TEXT, &value)
+            .wrap(x + vx, y, width - vx, 13.0, W::M, TEXT, &value)
             .max(20.0)
             + 10.0;
     }
+    y
 }

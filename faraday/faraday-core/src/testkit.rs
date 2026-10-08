@@ -512,23 +512,7 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
         "spending-message.txt".to_string(),
         osk_psbt::message::signed_text(&signed.address, &signed.signature, text).into_bytes(),
     ));
-    out.push(("README.txt".to_string(), readme(&out).into_bytes()));
     Ok(out)
-}
-
-/// The stick's index of its own files.
-fn readme(files: &[(String, Vec<u8>)]) -> String {
-    let mut s = String::from(
-        "Faraday test stick. Testnet only; every key is a dummy.\n\n\
-         Keys: test key 1 bacon, 2 zebra, 3 summer (each word 24 times).\n\
-         Vault vault.ofv: passphrase \"test vault\" (test key 1 and every wallet), \
-         \"decoy\" (a second slot).\n\
-         .oskb backups: passphrase \"backup\".\n\n",
-    );
-    for (name, bytes) in files {
-        s.push_str(&format!("{name}  {} bytes\n", bytes.len()));
-    }
-    s
 }
 
 /// A spend of a miniscript wallet down its timelocked path: the first
@@ -909,19 +893,6 @@ pub fn backup_files() -> Result<Vec<(String, Vec<u8>)>, String> {
     out.push((
         "taproot-multisig-unsigned.psbt".to_string(),
         unsigned.to_bytes(),
-    ));
-    out.push((
-        "README.txt".to_string(),
-        format!(
-            "Faraday backup test stick, testnet. Dummy seeds: nothing here holds value.\n\n\
-             The backup of {}, a 2-of-3 Taproot multisig over the test seeds bacon, zebra and \
-             summer (each word repeated 24 times): its public files, and vault.ofv, whose \
-             passphrase is a, holding the three seeds. And \
-             taproot-multisig-unsigned.psbt, an unsigned spend from it, as a coordinator \
-             hands one over.\n",
-            kit.name
-        )
-        .into_bytes(),
     ));
     Ok(out)
 }

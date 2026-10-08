@@ -529,13 +529,24 @@ impl<D: Disk> Volume<D> {
         let cb = self.cluster_bytes as usize;
         let n = data.len().div_ceil(cb);
         let taken = self.free_clusters(n)?;
+        // One cluster's buffer for the whole file, written over with zeros
+        // once done: what is written may be a secret, and the disk process
+        // that writes it outlives the app.
+        let mut block = vec![0u8; cb];
+        let mut wrote = Ok(());
         for (k, &c) in taken.iter().enumerate() {
             let part = &data[k * cb..data.len().min((k + 1) * cb)];
-            let mut block = vec![0u8; cb];
+            block.fill(0);
             block[..part.len()].copy_from_slice(part);
             let at = self.cluster_at(c);
-            self.disk.write_at(at, &block)?;
+            wrote = self.disk.write_at(at, &block);
+            if wrote.is_err() {
+                break;
+            }
         }
+        block.fill(0);
+        core::hint::black_box(&block);
+        wrote?;
         for (k, &c) in taken.iter().enumerate() {
             let next = taken.get(k + 1).copied().unwrap_or(self.eoc());
             self.fat_set(c, next)?;

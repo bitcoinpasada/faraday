@@ -12,20 +12,29 @@
 //! 640×480 — so a raw position is scaled by the panel size over the grid
 //! and clamped, exactly as the SeedSigner fork's `touch.py` does. The fork
 //! asks the driver for its real ranges with an `EVIOCGABS` ioctl; this
-//! crate forbids `unsafe` and has no `libc`, so the grid is told to it
-//! instead, by `--touch-grid`, and the name to look for by
-//! `--touch-name`. The image writes both from the panel directory's
-//! `panel.conf`.
+//! crate forbids `unsafe` and has no `libc`. A laptop's touchscreen is a
+//! HID device, and its ranges are the ones its report descriptor
+//! declares, which `hid.rs` reads from sysfs ([`Parser::with_range`]).
+//! The Pi's panel is not HID: its grid is told to the shell by
+//! `--touch-grid`, and the name to look for by `--touch-name`, which the
+//! image writes from the panel directory's `panel.conf`.
 //!
 //! Packets end at `EV_SYN`, and a touch is delivered then: a tracking id
 //! of zero or more opens a contact (Down) or continues one (Move), and a
 //! tracking id of −1, or `BTN_TOUCH` going to zero, closes it (Up).
+//!
+//! A multitouch screen reports every finger, each in a slot of its own
+//! (`ABS_MT_SLOT`). Only slot 0's are read, the finger that touched first
+//! while none was down: a second finger neither moves the first nor ends
+//! it. Once a device has said it reports multitouch positions, its
+//! `ABS_X`/`ABS_Y`, the kernel's copy of whichever finger is oldest, are
+//! not read.
 
 use osk_shell_api::TouchPhase;
 
 use crate::evdev::{
-    ABS_MT_POSITION_X, ABS_MT_POSITION_Y, ABS_MT_TRACKING_ID, ABS_X, ABS_Y, BTN_TOUCH, EV_ABS,
-    EV_KEY, EV_SYN, RawEvent, SYN_REPORT,
+    ABS_MT_POSITION_X, ABS_MT_POSITION_Y, ABS_MT_SLOT, ABS_MT_TRACKING_ID, ABS_X, ABS_Y, BTN_TOUCH,
+    EV_ABS, EV_KEY, EV_SYN, RawEvent, SYN_REPORT,
 };
 
 /// The name to look for when no `--touch-name` is given: the controller
@@ -51,10 +60,17 @@ pub struct Touch {
 pub struct Parser {
     width: u16,
     height: u16,
+    /// Where the controller's x and y start: zero on a grid.
+    origin: (i64, i64),
     /// The controller's reporting grid, which a position is scaled from.
     grid_width: i64,
     /// The reporting grid's other axis.
     grid_height: i64,
+    /// The slot the multitouch events that follow belong to.
+    slot: i32,
+    /// The device has reported a multitouch position: its single-touch
+    /// axes are the kernel's copy and are not read.
+    multitouch: bool,
     x: i64,
     y: i64,
     /// A position has been reported at least once, so the coordinates mean
@@ -79,8 +95,11 @@ impl Parser {
         Parser {
             width,
             height,
+            origin: (0, 0),
             grid_width: i64::from(grid.0.max(1)),
             grid_height: i64::from(grid.1.max(1)),
+            slot: 0,
+            multitouch: false,
             x: 0,
             y: 0,
             positioned: false,
@@ -91,10 +110,23 @@ impl Parser {
         }
     }
 
+    /// A parser for a panel `width × height` pixels whose controller
+    /// reports in the ranges a HID descriptor declares, both ends
+    /// inclusive.
+    pub fn with_range(width: u16, height: u16, range: crate::hid::Range) -> Parser {
+        let span = |(lo, hi): crate::hid::Axis| (i64::from(hi) - i64::from(lo) + 1).max(1);
+        Parser {
+            origin: (i64::from(range.x.0), i64::from(range.y.0)),
+            grid_width: span(range.x),
+            grid_height: span(range.y),
+            ..Parser::new(width, height, (1, 1))
+        }
+    }
+
     /// Raw grid position → panel pixel, scaled and clamped.
     fn transform(&self) -> (u16, u16) {
-        let x = self.x * i64::from(self.width) / self.grid_width;
-        let y = self.y * i64::from(self.height) / self.grid_height;
+        let x = (self.x - self.origin.0) * i64::from(self.width) / self.grid_width;
+        let y = (self.y - self.origin.1) * i64::from(self.height) / self.grid_height;
         (
             x.clamp(0, i64::from(self.width) - 1) as u16,
             y.clamp(0, i64::from(self.height) - 1) as u16,
@@ -107,11 +139,18 @@ impl Parser {
         match ev.kind {
             EV_ABS => {
                 match ev.code {
+                    ABS_MT_SLOT => self.slot = ev.value,
+                    // Another finger's.
+                    ABS_MT_POSITION_X | ABS_MT_POSITION_Y | ABS_MT_TRACKING_ID
+                        if self.slot != 0 => {}
+                    ABS_X | ABS_Y if self.multitouch => {}
                     ABS_MT_POSITION_X | ABS_X => {
+                        self.multitouch |= ev.code == ABS_MT_POSITION_X;
                         self.x = i64::from(ev.value);
                         self.positioned = true;
                     }
                     ABS_MT_POSITION_Y | ABS_Y => {
+                        self.multitouch |= ev.code == ABS_MT_POSITION_Y;
                         self.y = i64::from(ev.value);
                         self.positioned = true;
                     }
@@ -342,6 +381,154 @@ mod tests {
                 y: 0,
                 phase: TouchPhase::Down
             }]
+        );
+    }
+
+    /// Events of one size, from (type, code, value) triples.
+    fn packets(size: usize, events: &[(u16, u16, i32)]) -> Vec<u8> {
+        events
+            .iter()
+            .flat_map(|&(k, c, v)| event(size, k, c, v))
+            .collect()
+    }
+
+    fn run_with(parser: &mut Parser, bytes: &[u8], size: usize) -> Vec<Touch> {
+        bytes
+            .chunks_exact(size)
+            .filter_map(|c| decode(c, size))
+            .filter_map(|e| parser.feed(e))
+            .collect()
+    }
+
+    #[test]
+    fn a_laptop_touchscreen_is_scaled_by_its_descriptors_range() {
+        // A 1920 × 1080 panel whose controller reports 0..=3200 by
+        // 0..=1800, the kernel's single-touch copy riding along.
+        let range = crate::hid::Range {
+            x: (0, 3200),
+            y: (0, 1800),
+        };
+        let mut parser = Parser::with_range(1920, 1080, range);
+        let size = EVENT_SIZE_64;
+        let bytes = packets(
+            size,
+            &[
+                (EV_ABS, ABS_MT_SLOT, 0),
+                (EV_ABS, ABS_MT_TRACKING_ID, 7),
+                (EV_ABS, ABS_MT_POSITION_X, 1600),
+                (EV_ABS, ABS_MT_POSITION_Y, 900),
+                (EV_KEY, BTN_TOUCH, 1),
+                (EV_ABS, ABS_X, 1600),
+                (EV_ABS, ABS_Y, 900),
+                (EV_SYN, SYN_REPORT, 0),
+                (EV_ABS, ABS_MT_POSITION_X, 3200),
+                (EV_ABS, ABS_MT_POSITION_Y, 1800),
+                (EV_ABS, ABS_X, 3200),
+                (EV_ABS, ABS_Y, 1800),
+                (EV_SYN, SYN_REPORT, 0),
+            ],
+        );
+        assert_eq!(
+            run_with(&mut parser, &bytes, size),
+            vec![
+                // 1600 × 1920 / 3201 and 900 × 1080 / 1801: the middle.
+                Touch {
+                    x: 959,
+                    y: 539,
+                    phase: TouchPhase::Down
+                },
+                // The far corner is the last pixel, not past it.
+                Touch {
+                    x: 1919,
+                    y: 1079,
+                    phase: TouchPhase::Move
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn a_range_that_does_not_start_at_zero_is_moved_to_the_corner() {
+        let range = crate::hid::Range {
+            x: (100, 1099),
+            y: (-50, 949),
+        };
+        let mut parser = Parser::with_range(1000, 1000, range);
+        let size = EVENT_SIZE_64;
+        let bytes = packets(
+            size,
+            &[
+                (EV_KEY, BTN_TOUCH, 1),
+                (EV_ABS, ABS_X, 100),
+                (EV_ABS, ABS_Y, -50),
+                (EV_SYN, SYN_REPORT, 0),
+            ],
+        );
+        assert_eq!(
+            run_with(&mut parser, &bytes, size),
+            vec![Touch {
+                x: 0,
+                y: 0,
+                phase: TouchPhase::Down
+            }]
+        );
+    }
+
+    #[test]
+    fn a_second_finger_neither_moves_nor_ends_the_first() {
+        let mut parser = Parser::new(480, 640, DEFAULT_TOUCH_GRID);
+        let size = EVENT_SIZE_64;
+        let bytes = packets(
+            size,
+            &[
+                // First finger, slot 0.
+                (EV_ABS, ABS_MT_SLOT, 0),
+                (EV_ABS, ABS_MT_TRACKING_ID, 1),
+                (EV_ABS, ABS_MT_POSITION_X, 320),
+                (EV_ABS, ABS_MT_POSITION_Y, 240),
+                (EV_KEY, BTN_TOUCH, 1),
+                (EV_ABS, ABS_X, 320),
+                (EV_ABS, ABS_Y, 240),
+                (EV_SYN, SYN_REPORT, 0),
+                // Second finger, slot 1, far away.
+                (EV_ABS, ABS_MT_SLOT, 1),
+                (EV_ABS, ABS_MT_TRACKING_ID, 2),
+                (EV_ABS, ABS_MT_POSITION_X, 10),
+                (EV_ABS, ABS_MT_POSITION_Y, 10),
+                (EV_SYN, SYN_REPORT, 0),
+                // It lifts.
+                (EV_ABS, ABS_MT_TRACKING_ID, -1),
+                (EV_SYN, SYN_REPORT, 0),
+                // The first moves, its slot named again.
+                (EV_ABS, ABS_MT_SLOT, 0),
+                (EV_ABS, ABS_MT_POSITION_X, 0),
+                (EV_ABS, ABS_X, 0),
+                (EV_SYN, SYN_REPORT, 0),
+                // And lifts.
+                (EV_ABS, ABS_MT_TRACKING_ID, -1),
+                (EV_KEY, BTN_TOUCH, 0),
+                (EV_SYN, SYN_REPORT, 0),
+            ],
+        );
+        assert_eq!(
+            run_with(&mut parser, &bytes, size),
+            vec![
+                Touch {
+                    x: 240,
+                    y: 320,
+                    phase: TouchPhase::Down
+                },
+                Touch {
+                    x: 0,
+                    y: 320,
+                    phase: TouchPhase::Move
+                },
+                Touch {
+                    x: 0,
+                    y: 320,
+                    phase: TouchPhase::Up
+                },
+            ]
         );
     }
 }

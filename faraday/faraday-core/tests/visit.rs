@@ -1,6 +1,6 @@
 //! The stick visit's Import list: Select all chooses every file Faraday
-//! reads and a second press none, and a long list has a scrollbar that
-//! drags it to the end at once.
+//! reads, pictures of QR codes with them, and a second press none, and a
+//! long list has a scrollbar that drags it to the end at once.
 
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
@@ -43,9 +43,10 @@ fn select_all_chooses_every_readable_file_and_then_none() {
     app.press(Action::VisitInAll);
     assert_eq!(
         app.visit.inn.len(),
-        5,
-        "pictures and unread kinds are not imported"
+        6,
+        "the PSBTs and the picture, and no kind Faraday does not read"
     );
+    assert!(app.visit.inn.contains("photo.png"));
     app.press(Action::VisitInAll);
     assert!(app.visit.inn.is_empty());
 }

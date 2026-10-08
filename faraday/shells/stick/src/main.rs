@@ -110,6 +110,7 @@ mod cursor;
 mod evdev;
 mod fb;
 mod files;
+mod hid;
 mod keyboard;
 mod pointer;
 mod timings;
@@ -177,6 +178,9 @@ enum Wake {
     Frame,
     /// What a device not yet believed sent, held back (`PLAN.md` §4.6).
     Held(u32, HeldInput),
+    /// The panic chord, Super and S, closed (`true`) or opened again
+    /// (`keyboard.rs`).
+    Panic(bool),
 }
 
 /// What a held-back device sends: the input [`Wake`]s, by themselves.
@@ -186,6 +190,7 @@ enum HeldInput {
     Pointer(pointer::Motion),
     Key(Key),
     KeyUp(Key),
+    Panic(bool),
 }
 
 impl HeldInput {
@@ -196,6 +201,7 @@ impl HeldInput {
             Wake::Pointer(m) => Some(HeldInput::Pointer(m)),
             Wake::Key(k) => Some(HeldInput::Key(k)),
             Wake::KeyUp(k) => Some(HeldInput::KeyUp(k)),
+            Wake::Panic(on) => Some(HeldInput::Panic(on)),
             _ => None,
         }
     }
@@ -207,6 +213,7 @@ impl HeldInput {
             HeldInput::Pointer(m) => Wake::Pointer(m),
             HeldInput::Key(k) => Wake::Key(k),
             HeldInput::KeyUp(k) => Wake::KeyUp(k),
+            HeldInput::Panic(on) => Wake::Panic(on),
         }
     }
 }
@@ -461,6 +468,7 @@ fn input_device(value: &str) -> Result<evdev::Device, String> {
         abs_single: kind == "pad",
         // A file standing in for a device on a build box.
         trusted: true,
+        range: None,
     })
 }
 
@@ -629,6 +637,11 @@ struct Shell {
     pointer_speed: f32,
     /// When the directory was last listed.
     scanned: Instant,
+    /// How long Super and S have been held (`keyboard.rs`).
+    panic_timer: keyboard::PanicTimer,
+    /// The panic chord was held for [`keyboard::PANIC_HOLD`]: the loop
+    /// ended for it, and nothing more is drawn or saved.
+    panic: bool,
 }
 
 impl Shell {
@@ -724,6 +737,15 @@ impl Shell {
     /// path stays inside safe `std`.
     /// Paints the panel if a `Draw` is pending. Called once per loop
     /// pass, after every event of the pass has gone in.
+    /// Paints the panel black: what was on it is gone before the power is.
+    fn blank(&mut self) {
+        let g = self.geometry;
+        let row = vec![0u8; g.row_bytes()];
+        for y in 0..usize::from(g.height) {
+            let _ = self.fb.write_all_at(&row, (y * g.stride) as u64);
+        }
+    }
+
     fn flush(&mut self) {
         if self.dirty {
             self.dirty = false;
@@ -1250,6 +1272,8 @@ fn run(args: Args) -> Result<bool, String> {
         grid: args.touch_grid,
         pointer_speed: args.pointer_speed,
         scanned: Instant::now(),
+        panic_timer: keyboard::PanicTimer::default(),
+        panic: false,
     };
     if args.verbose {
         eprintln!(
@@ -1309,6 +1333,14 @@ fn run(args: Args) -> Result<bool, String> {
     shell.flush();
 
     main_loop(&mut shell, &rx);
+    if shell.panic {
+        // The panic chord: the panel goes dark, the app's secrets are
+        // wiped as it drops, and init powers off with no last screen.
+        shell.blank();
+        shell.camera.off();
+        shell.app = None;
+        return Ok(false);
+    }
     // The last screen the core asked for, if the loop ended on an event.
     shell.flush();
     // Everything the last interval measured, before the machine goes.
@@ -1498,11 +1530,19 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
                 }
                 Wake::Key(key) => shell.send_timed(Bucket::Touch, Event::Key(key)),
                 Wake::KeyUp(key) => shell.send_timed(Bucket::Touch, Event::KeyUp(key)),
+                Wake::Panic(on) => shell.panic_timer.chord(on, Instant::now()),
                 Wake::Frame | Wake::InputEnded(_) | Wake::Held(..) => {}
             }
             if shell.done {
                 break;
             }
+        }
+        // The panic chord held long enough: nothing more is drawn, asked
+        // or saved.
+        if shell.panic_timer.due(Instant::now()) {
+            shell.panic = true;
+            shell.done = true;
+            break;
         }
         if shell.done {
             break;

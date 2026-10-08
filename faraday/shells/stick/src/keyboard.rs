@@ -21,6 +21,12 @@
 //! A key coming up is reported as well as a key going down, because a
 //! hold is held with Enter the way it is held with a finger
 //! (`docs/DESIGN.md` §4.15).
+//!
+//! Super (either one) with S is the panic chord: held for [`PANIC_HOLD`]
+//! it powers the machine off at once, whatever is on screen. The
+//! keyboard says when the chord closes and when it opens again
+//! ([`Stroke::Panic`]); [`PanicTimer`] times it for the main loop. Super is not a
+//! typing key, so nothing typed while it is held reaches the app.
 
 use osk_shell_api::Key;
 
@@ -42,6 +48,12 @@ const KEY_LEFTSHIFT: u16 = 42;
 const KEY_RIGHTSHIFT: u16 = 54;
 /// `KEY_KPENTER`, the keypad's own Enter.
 const KEY_KPENTER: u16 = 96;
+/// `KEY_S`, the panic chord's letter.
+const KEY_S: u16 = 31;
+/// `KEY_LEFTMETA`: Super, the Windows key.
+const KEY_LEFTMETA: u16 = 125;
+/// `KEY_RIGHTMETA`.
+const KEY_RIGHTMETA: u16 = 126;
 
 /// The keypad's digits, `KEY_KP0` to `KEY_KP9`, in the order 0 to 9.
 /// Num Lock is not read: a PIN pad and a passphrase both want the digit
@@ -139,6 +151,8 @@ pub enum Stroke {
     Down(Key),
     /// The key is up again.
     Up(Key),
+    /// Super and S are now both held (`true`), or no longer (`false`).
+    Panic(bool),
 }
 
 /// Whether a key held down repeats: Backspace deletes character after
@@ -150,11 +164,16 @@ fn repeats(key: Key) -> bool {
     )
 }
 
-/// One keyboard's state: which Shift keys are held.
+/// One keyboard's state: which Shift and Super keys are held, and S.
 #[derive(Debug, Default)]
 pub struct Keyboard {
     left_shift: bool,
     right_shift: bool,
+    left_meta: bool,
+    right_meta: bool,
+    s: bool,
+    /// The panic chord as last said.
+    panic: bool,
 }
 
 impl Keyboard {
@@ -175,7 +194,21 @@ impl Keyboard {
                 self.right_shift = ev.value != 0;
                 return None;
             }
+            KEY_LEFTMETA => self.left_meta = ev.value != 0,
+            KEY_RIGHTMETA => self.right_meta = ev.value != 0,
+            KEY_S => self.s = ev.value != 0,
             _ => {}
+        }
+        let meta = self.left_meta || self.right_meta;
+        let chord = meta && self.s;
+        if chord != self.panic {
+            self.panic = chord;
+            return Some(Stroke::Panic(chord));
+        }
+        // Super itself types nothing, and nothing is typed while it is
+        // held. A key that went down before it still comes up.
+        if matches!(ev.code, KEY_LEFTMETA | KEY_RIGHTMETA) || (meta && ev.value != 0) {
+            return None;
         }
         let shift = self.left_shift || self.right_shift;
         Some(match ev.value {
@@ -203,6 +236,29 @@ impl Keyboard {
             Key::Tab if shift => Some(Key::BackTab),
             other => Some(other),
         }
+    }
+}
+
+/// How long Super and S are held before the machine powers off at once.
+pub const PANIC_HOLD: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// Times the panic chord across every keyboard's [`Stroke::Panic`].
+#[derive(Debug, Default)]
+pub struct PanicTimer {
+    since: Option<std::time::Instant>,
+}
+
+impl PanicTimer {
+    /// The chord closed (`true`) or opened at `now`. Closing it again
+    /// while held keeps the first time.
+    pub fn chord(&mut self, on: bool, now: std::time::Instant) {
+        self.since = if on { self.since.or(Some(now)) } else { None };
+    }
+
+    /// Whether the chord has been held for [`PANIC_HOLD`] at `now`.
+    pub fn due(&self, now: std::time::Instant) -> bool {
+        self.since
+            .is_some_and(|since| now.saturating_duration_since(since) >= PANIC_HOLD)
     }
 }
 
@@ -333,5 +389,39 @@ mod tests {
         }
         // Caps Lock does not change a letter's case.
         assert_eq!(kb.feed(press(30)), Some(Stroke::Down(Key::Char('a'))));
+    }
+
+    #[test]
+    fn super_and_s_together_are_the_panic_chord_and_type_nothing() {
+        let mut kb = Keyboard::default();
+        assert_eq!(kb.feed(press(KEY_LEFTMETA)), None);
+        assert_eq!(kb.feed(press(KEY_S)), Some(Stroke::Panic(true)));
+        assert_eq!(kb.feed(repeat(KEY_S)), None);
+        assert_eq!(kb.feed(press(30)), None, "nothing typed under Super");
+        assert_eq!(kb.feed(release(KEY_S)), Some(Stroke::Panic(false)));
+        assert_eq!(kb.feed(release(KEY_LEFTMETA)), None);
+        assert_eq!(kb.feed(press(KEY_S)), Some(Stroke::Down(Key::Char('s'))));
+        // S first, then the right Super, closes it too.
+        assert_eq!(kb.feed(press(KEY_RIGHTMETA)), Some(Stroke::Panic(true)));
+        assert_eq!(kb.feed(release(KEY_RIGHTMETA)), Some(Stroke::Panic(false)));
+    }
+
+    #[test]
+    fn the_chord_powers_off_only_once_held_for_two_seconds() {
+        use std::time::{Duration, Instant};
+        let t0 = Instant::now();
+        let mut timer = PanicTimer::default();
+        assert!(!timer.due(t0 + Duration::from_secs(9)));
+        timer.chord(true, t0);
+        assert!(!timer.due(t0 + Duration::from_millis(1999)));
+        // A repeat of the chord does not restart the count.
+        timer.chord(true, t0 + Duration::from_millis(1500));
+        assert!(timer.due(t0 + Duration::from_secs(2)));
+        // Let go before the two seconds, and it starts again from zero.
+        timer.chord(false, t0 + Duration::from_secs(3));
+        timer.chord(true, t0 + Duration::from_secs(4));
+        assert!(!timer.due(t0 + Duration::from_millis(5500)));
+        timer.chord(false, t0 + Duration::from_millis(5600));
+        assert!(!timer.due(t0 + Duration::from_secs(60)));
     }
 }

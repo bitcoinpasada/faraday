@@ -16,3 +16,40 @@ BLK_DEV_NVME            the laptop's own NVMe disk, for the same reason
 NVME_CORE               the layer BLK_DEV_NVME sits on, named so a driver cannot come back under another menu
 MMC                     the laptop's eMMC and its SD card reader, which are a disk and a card this device does not read
 SCSI_LOWLEVEL           the SAS, iSCSI, fibre-channel and RAID controllers a disk can be behind; the USB stick is behind none of them
+IA32_EMULATION          the whole 32-bit system call table; the shell is a static 64-bit binary
+MODIFY_LDT_SYSCALL      16-bit segments, for Wine and DOSEMU
+X86_16BIT               as MODIFY_LDT_SYSCALL
+X86_IOPL_IOPERM         raw I/O port access from a process
+DEVPORT                 /dev/port, DEVMEM's sibling for I/O ports
+LEGACY_TIOCSTI          pushing characters into a terminal's input queue from a process
+HIDRAW                  raw HID reports; input reaches the shell through evdev
+USB_HIDDEV              as HIDRAW
+VIRTIO                  a PCIe device can present virtio IDs, and VIRTIO_BLK is a block device on a machine whose only storage is the stick
+BLK_DEV_SR              binds to any USB device presenting a CD-ROM and parses what it sends
+CDROM                   the layer under BLK_DEV_SR, named so it cannot come back under another driver
+HID_APPLE               each vendor HID driver binds to IDs any USB device can claim and parses its reports with its own code; HID_GENERIC covers the input
+HID_A4TECH              as HID_APPLE
+HID_BELKIN              as HID_APPLE
+HID_CHERRY              as HID_APPLE
+HID_CHICONY             as HID_APPLE
+HID_CYPRESS             as HID_APPLE
+HID_EZKEY               as HID_APPLE
+HID_GYRATION            as HID_APPLE
+HID_ITE                 as HID_APPLE
+HID_KENSINGTON          as HID_APPLE
+HID_LOGITECH            as HID_APPLE
+HID_REDRAGON            as HID_APPLE
+HID_MICROSOFT           as HID_APPLE
+HID_MONTEREY            as HID_APPLE
+HID_NTRIG               as HID_APPLE
+HID_PANTHERLORD         as HID_APPLE
+HID_PETALYNX            as HID_APPLE
+HID_SAMSUNG             as HID_APPLE
+HID_SONY                as HID_APPLE
+HID_SUNPLUS             as HID_APPLE
+HID_TOPSEED             as HID_APPLE
+HID_PID                 as HID_APPLE
+HOTPLUG_PCI             nothing here is hot-plugged
+ACPI_TABLE_UPGRADE      replacing ACPI tables at boot, which nothing here needs
+EFI_CUSTOM_SSDT_OVERLAYS as ACPI_TABLE_UPGRADE
+EFI_RUNTIME_MAP         the EFI memory map in sysfs, which exists for kexec

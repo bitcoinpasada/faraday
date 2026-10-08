@@ -1,10 +1,12 @@
-//! A session at boot: the boot stick's vault waits on Home, pulling the
-//! stick opens its passphrase prompt, and unlocking shows the vault's
+//! A session at boot: the boot stick's vault comes into the Inbox with
+//! the import over Home, pulling the stick leaves Home with the import,
+//! not the passphrase prompt, and a vault unlocked on its own shows its
 //! wallets and keys on Files without loading them until asked.
 
+use faraday_core::boot_import::ImportAction as I;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
-use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent};
+use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 /// Answers the app's reads from the test vault, the one file on the
@@ -50,6 +52,13 @@ fn booted() -> (Faraday, Vec<u8>) {
     (app, vault)
 }
 
+/// Booted, with the import put off for later: the vault waits in Files.
+fn later() -> (Faraday, Vec<u8>) {
+    let (mut app, vault) = booted();
+    app.press(Action::Import(I::Later));
+    (app, vault)
+}
+
 fn unlock(app: &mut Faraday) {
     for c in testkit::VAULT_PASSPHRASES[0].chars() {
         app.event(Event::Key(Key::Char(c)));
@@ -60,18 +69,22 @@ fn unlock(app: &mut Faraday) {
 }
 
 #[test]
-fn the_boot_sticks_vault_waits_on_home_and_pulling_the_stick_asks_for_its_passphrase() {
+fn the_boot_sticks_vault_waits_on_home_and_pulling_the_stick_leaves_the_import_up() {
     let (mut app, _) = booted();
     assert_eq!(app.screen, Screen::Home);
+    assert_eq!(app.sheet, Some(Sheet::Import));
     assert!(app.inbox.iter().any(|i| i.name == "vault.ofv"));
     app.storage(StorageEvent::Sticks(Vec::new()));
-    assert_eq!(app.screen, Screen::Unlock);
+    assert_eq!(app.screen, Screen::Home, "pulling the stick left Home");
+    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.vaults.passphrase.text.is_empty());
 }
 
 #[test]
 fn unlocking_loads_nothing_until_the_person_chooses() {
-    let (mut app, _) = booted();
+    let (mut app, _) = later();
     app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::Vault(V::Open(0)));
     unlock(&mut app);
     assert_eq!(app.vaults.open.len(), 1);
     assert_eq!(app.screen, Screen::Files);
@@ -103,8 +116,9 @@ fn restore_starts_with_the_transaction_to_sign() {
 
 #[test]
 fn select_all_and_load_counts_what_it_loads_and_files_stays_on_screen() {
-    let (mut app, _) = booted();
+    let (mut app, _) = later();
     app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::Vault(V::Open(0)));
     unlock(&mut app);
     let rows = app.vault_rows(0);
     // Select all when some are chosen chooses all; again, none.
@@ -138,7 +152,7 @@ fn select_all_and_load_counts_what_it_loads_and_files_stays_on_screen() {
 
 #[test]
 fn a_vault_passphrase_is_typed_only_once_the_stick_is_pulled() {
-    let (mut app, vault) = booted();
+    let (mut app, vault) = later();
     app.press(Action::Vault(V::Open(0)));
     assert_eq!(app.screen, Screen::Unlock);
     app.press(Action::Vault(V::FocusPassphrase));

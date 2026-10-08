@@ -73,14 +73,46 @@ pub(crate) fn bar(app: &Faraday, ui: &mut Ui, w: f32, back: (&str, Action), name
     }
     ui.icon(4.0, 4.0, BAR_H - 8.0, Icon::ChevronLeft, 13.0, TEXT);
     ui.hit(0.0, 0.0, BAR_H + 8.0, BAR_H, action);
+    let right = tools(app, ui, w);
+    // The page's own name, and above it, small, where Back goes.
+    let x = BAR_H;
+    let room = right - x;
+    let label = ui.fit(11.0, W::R, label, room);
+    ui.text(x, 5.0, 11.0, W::R, MUTED, &label);
+    let name = ui.fit(16.0, W::S, name, room);
+    ui.text(x, 19.0, 16.0, W::S, TEXT, &name);
+    test_strip(app, ui, w);
+    BAR_H
+}
+
+/// A step flow's bar, which the flow draws: the ? and the keyboard at its
+/// right end, over whatever of its name runs that far.
+pub(crate) fn flow_bar_tools(app: &Faraday, ui: &mut Ui, w: f32) {
+    let right = tools(app, ui, -w);
+    if right < w - M {
+        ui.fill(right, 0.0, w - right, BAR_H - 1.0, 0.0, SIDEBAR);
+        tools(app, ui, w);
+    }
+    test_strip(app, ui, w);
+}
+
+/// The ? when the page has something in Learn, and the keyboard where
+/// the page types, at the bar's right end. Returns where they begin.
+/// A negative `w` measures without drawing.
+fn tools(app: &Faraday, ui: &mut Ui, w: f32) -> f32 {
+    let draw = w > 0.0;
+    let w = w.abs();
     let mut right = if app.learn_pages().is_empty() {
         w - M
     } else {
-        help(ui, w - M - 30.0, (BAR_H - 30.0) / 2.0);
+        if draw {
+            help(ui, w - M - 30.0, (BAR_H - 30.0) / 2.0);
+        }
         w - M - 38.0
     };
-    // The keyboard, where the page types.
-    if app.osk_offered() || app.osk_shown() {
+    // The keyboard, where the page types, and to bring it back once put
+    // away from a field.
+    if app.osk_offered() || app.osk_shown() || app.osk_auto() {
         let shown = app.osk_shown();
         let action = Action::Osk(if shown {
             OskPress::Hide
@@ -89,6 +121,10 @@ pub(crate) fn bar(app: &Faraday, ui: &mut Ui, w: f32, back: (&str, Action), name
         });
         let kx = right - 34.0;
         let ky = (BAR_H - 34.0) / 2.0;
+        right = kx - 6.0;
+        if !draw {
+            return right;
+        }
         if shown || ui.is_pressed(action) {
             ui.fill(
                 kx,
@@ -108,17 +144,8 @@ pub(crate) fn bar(app: &Faraday, ui: &mut Ui, w: f32, back: (&str, Action), name
             if shown { ACCENT } else { MUTED },
         );
         ui.hit(kx - 4.0, 0.0, 42.0, BAR_H, action);
-        right = kx - 6.0;
     }
-    // The page's own name, and above it, small, where Back goes.
-    let x = BAR_H;
-    let room = right - x;
-    let label = ui.fit(11.0, W::R, label, room);
-    ui.text(x, 5.0, 11.0, W::R, MUTED, &label);
-    let name = ui.fit(16.0, W::S, name, room);
-    ui.text(x, 19.0, 16.0, W::S, TEXT, &name);
-    test_strip(app, ui, w);
-    BAR_H
+    right
 }
 
 /// The ? that opens what explains the page.
@@ -153,13 +180,32 @@ pub(crate) fn page(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) -> (f32, f32)
         _ => screen_name(app.screen),
     };
     let back = match app.screen {
-        Screen::Wallets | Screen::Explore | Screen::Entry => {
+        Screen::Wallets | Screen::Explore | Screen::Entry | Screen::CheckMessage => {
             ("Wallets", Action::Nav(Screen::Start))
         }
-        Screen::Unlock | Screen::VaultContents => ("Vaults", Action::Nav(Screen::Vaults)),
-        Screen::Tools | Screen::Decode | Screen::Lightning => {
-            ("Tools", Action::Nav(Screen::Catalog))
-        }
+        // An item of a vault goes back to the vault's list.
+        Screen::VaultContents if crate::vault_screens::contents_detail(app) => (
+            "Vault contents",
+            Action::Vault(crate::vaults::VaultAction::ItemBack),
+        ),
+        Screen::Unlock => crate::vault_screens::unlock_back(app),
+        Screen::VaultContents => ("Vaults", Action::Nav(Screen::Vaults)),
+        // Made from another flow: the way back to it.
+        Screen::Vaults if app.vaults.back_to.is_some() => (
+            match app.vaults.back_to {
+                Some(Screen::Create) => "Create a wallet",
+                Some(Screen::Restore) => "Restore a wallet",
+                Some(Screen::Family) => "Spend",
+                _ => "Back",
+            },
+            Action::Vault(crate::vaults::VaultAction::Back),
+        ),
+        // Decode goes back where it was opened from.
+        Screen::Decode => match app.decode.as_ref() {
+            Some(d) => (crate::screens::decode_back(d.back), Action::Nav(d.back)),
+            None => ("Tools", Action::Nav(Screen::Catalog)),
+        },
+        Screen::Tools | Screen::Lightning => ("Tools", Action::Nav(Screen::Catalog)),
         _ => ("Home", Action::Nav(Screen::Home)),
     };
     bar(app, ui, w, back, name);
@@ -369,7 +415,17 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
     let wallets = app.session.wallets.len();
     let vault_files = app.vault_files().len();
     let open = app.vaults.open.len();
+    // In two columns: the device's job first (spending, and every other
+    // wallet flow), then where keys and transactions come from, then the
+    // ways in and out, then what is used now and then.
     let mut t: Vec<Tile> = vec![
+        (
+            Icon::Sign,
+            "Spend",
+            String::new(),
+            Action::Nav(Screen::Family),
+            true,
+        ),
         (
             Icon::Wallet,
             "Wallets",
@@ -379,13 +435,6 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
                 wallets.to_string()
             },
             Action::Nav(Screen::Start),
-            true,
-        ),
-        (
-            Icon::Sign,
-            "Spend",
-            String::new(),
-            Action::Nav(Screen::Family),
             true,
         ),
         (
@@ -417,13 +466,6 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
             Action::Scan,
             may,
         ),
-        (
-            Icon::Tools,
-            "Tools",
-            String::new(),
-            Action::Nav(Screen::Catalog),
-            true,
-        ),
     ];
     if !app.sticks.is_empty() && !app.holds_secret() {
         t.push((
@@ -434,6 +476,13 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
             true,
         ));
     }
+    t.push((
+        Icon::Tools,
+        "Tools",
+        String::new(),
+        Action::Nav(Screen::Catalog),
+        true,
+    ));
     t.push((
         Icon::Settings,
         "Settings",
@@ -463,6 +512,26 @@ fn prompts(app: &Faraday) -> Vec<(Icon, String, Option<Action>, osk_ui::Color)> 
             Some(Action::StartSpend(i)),
             ACCENT,
         ));
+    }
+    // What the boot stick brought waits as one prompt, its vaults with it.
+    if let Some(imp) = app.import.as_ref() {
+        let present = app.import_stick_present();
+        p.push(if present {
+            (
+                Icon::Drive,
+                "Remove the stick to start the import".to_string(),
+                Some(crate::boot_import::OPEN),
+                WARN,
+            )
+        } else {
+            (
+                Icon::Download,
+                format!("Import from {}", imp.label),
+                Some(crate::boot_import::OPEN),
+                ACCENT,
+            )
+        });
+        return p;
     }
     let fresh = !app.holds_secret() && app.session.wallets.is_empty() && app.spend.is_none();
     if fresh {
@@ -497,29 +566,66 @@ pub(crate) fn sheet(
     h: f32,
     body: &mut dyn FnMut(&mut Ui, f32, f32, f32) -> f32,
 ) {
-    let (sx, sw, pad) = (8.0, w - 16.0, 16.0);
+    scroll_sheet(ui, (8.0, w - 16.0), h, 8.0, 16.0, body);
+}
+
+/// A sheet `sw` wide at `sx`, as tall as what `body` draws and at most
+/// `h` less `margin` above and below, centred, with `pad` inside: what is
+/// above its buttons scrolls when it is taller. [`sheet`] on a small
+/// panel; a long sheet on the desktop too.
+pub(crate) fn scroll_sheet(
+    ui: &mut Ui,
+    (sx, sw): (f32, f32),
+    h: f32,
+    margin: f32,
+    pad: f32,
+    body: &mut dyn FnMut(&mut Ui, f32, f32, f32) -> f32,
+) {
     let (ix, iw) = (sx + pad, sw - 2.0 * pad);
+    // The sheet's buttons ([`buttons`]) are kept at its foot, and what is
+    // above them scrolls when the sheet is taller than the panel.
     let mark = ui.hits.len();
     ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    ui.sheet_pin = None;
+    ui.sheet_pinning = true;
     let ch = body(ui, ix, 0.0, iw);
+    let pins = ui.sheet_pin.take();
+    let items: Vec<(&str, Style, Action)> = pins
+        .iter()
+        .flatten()
+        .map(|(l, s, a)| (l.as_str(), *s, *a))
+        .collect();
+    ui.sheet_pinning = false;
+    let bh = buttons(ui, ix, 0.0, iw, &items);
     ui.c.pop_clip();
     ui.hits.truncate(mark);
-    let sh = (ch + 2.0 * pad).min(h - 16.0);
-    let sy = ((h - sh) / 2.0).max(8.0);
+    let foot = if items.is_empty() { 0.0 } else { bh + pad };
+    let sh = (ch + 2.0 * pad + foot).min(h - 2.0 * margin);
+    let sy = ((h - sh) / 2.0).max(margin);
     if let Some(a) = ui.outside {
         ui.hit_around(sx, sy, sw, sh, a);
     }
     ui.shadow(sx, sy, sw, sh, 14.0);
     ui.fill(sx, sy, sw, sh, 14.0, SURFACE);
     ui.stroke(sx, sy, sw, sh, 14.0, BORDER);
-    // Taller than the panel: it scrolls.
-    let max = (ch + 2.0 * pad - sh).max(0.0);
+    // Taller than the panel: what is above the buttons scrolls.
+    let view = sh - foot;
+    let max = (ch + 2.0 * pad - view).max(0.0);
     let off = ui.offset.clamp(0.0, max);
-    let clip = ui.rect(sx, sy, sw, sh);
+    let clip = ui.rect(sx, sy, sw, view);
     ui.c.push_clip(clip);
+    ui.sheet_pinning = true;
     body(ui, ix, sy + pad - off, iw);
+    ui.sheet_pinning = false;
+    ui.sheet_pin = None;
     ui.c.pop_clip();
     ui.report_scroll(clip, max);
+    if !items.is_empty() {
+        if max > 0.0 {
+            ui.fill(sx + 1.0, sy + view, sw - 2.0, 1.0, 0.0, LINE);
+        }
+        buttons(ui, ix, sy + view, iw, &items);
+    }
 }
 
 /// A sheet's title: its icon, and the words wrapped beside it. Returns
@@ -558,6 +664,16 @@ pub(crate) fn kv(
 /// under another, full width, when not. Returns their height.
 pub(crate) fn buttons(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, Style, Action)]) -> f32 {
     if items.is_empty() {
+        return 0.0;
+    }
+    // Inside a sheet, they go to its foot ([`sheet`]).
+    if ui.sheet_pinning {
+        ui.sheet_pin = Some(
+            items
+                .iter()
+                .map(|&(l, s, a)| (l.to_string(), s, a))
+                .collect(),
+        );
         return 0.0;
     }
     let n = items.len() as f32;
@@ -642,8 +758,8 @@ pub(crate) struct Osk {
     manual: bool,
     /// Put away while a field has focus.
     hidden: bool,
-    /// A field had focus on the last frame.
-    was_auto: bool,
+    /// Which field had focus on the last frame, when one did.
+    was_field: Option<String>,
 }
 
 /// One row of keys, design units.
@@ -663,6 +779,10 @@ impl Faraday {
                 self.entry.on_passphrase
                     || self.entry.form != crate::forms::Form::Words
                     || self.entry.keys.is_none()
+            }
+            // The vault's list has no field; its item page may.
+            Screen::VaultContents => {
+                self.vaults.focus.is_some() && crate::vault_screens::contents_detail(self)
             }
             Screen::Vanity => self
                 .vanity
@@ -712,13 +832,43 @@ impl Faraday {
         }
     }
 
-    /// A field newly focused brings the keyboard up again.
-    pub(crate) fn osk_track(&mut self) {
-        let auto = self.osk_auto();
-        if auto && !self.osk.was_auto {
+    /// Which field typing goes to, as far as telling one from another:
+    /// none when no field takes typing.
+    fn osk_field(&self) -> Option<String> {
+        self.osk_auto().then(|| {
+            format!(
+                "{:?} {:?} {:?} {}",
+                self.screen, self.sheet, self.vaults.focus, self.entry.on_passphrase
+            )
+        })
+    }
+
+    /// A field newly focused, or another field than before, brings the
+    /// keyboard up again. Returns whether it came up on this frame.
+    pub(crate) fn osk_track(&mut self) -> bool {
+        let field = self.osk_field();
+        let rose = field.is_some() && field != self.osk.was_field;
+        if rose {
             self.osk.hidden = false;
         }
-        self.osk.was_auto = auto;
+        self.osk.was_field = field;
+        rose
+    }
+
+    /// The keyboard just came up over the panel's foot: when the press
+    /// that focused the field was under where the keyboard now is, the
+    /// page scrolls that far, so the field stays in view. `f` is pixels a
+    /// design unit; `visible` the height left above the keyboard.
+    pub(crate) fn osk_reveal(&mut self, f: f32, visible: f32) {
+        let tapped = self.down_at.1 as f32 / f.max(0.01);
+        let over = tapped + 56.0 - visible;
+        if over > 0.0
+            && let Some(slot) = self.scroll_slot()
+        {
+            *slot += over;
+            self.dirty = true;
+            self.commands.push_back(osk_shell_api::Command::Draw);
+        }
     }
 
     /// Leaving a page puts away a keyboard brought up by hand.
@@ -738,7 +888,13 @@ impl Faraday {
                 }
             }
             OskPress::Back => self.key(K::Backspace),
-            OskPress::Done => self.key(K::Enter),
+            // Done is Enter, and puts the keyboard away, so the page's
+            // pinned action shows again; another field brings it back.
+            OskPress::Done => {
+                self.key(K::Enter);
+                self.osk.hidden = true;
+                self.osk.manual = false;
+            }
             OskPress::Shift => self.osk.shift = !self.osk.shift,
             OskPress::Symbols => self.osk.symbols = !self.osk.symbols,
             OskPress::Show => {

@@ -90,7 +90,7 @@ impl Faraday {
             let Ok(part) = Mnemonic::from_entropy(lang, e) else {
                 return;
             };
-            let mut line = Zeroizing::new(String::new());
+            let mut line = crate::secret_text::room();
             for (k, &w) in part.indices().iter().enumerate() {
                 if k > 0 {
                     line.push(' ');

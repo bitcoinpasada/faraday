@@ -245,15 +245,16 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy += ui.wrap(x + 16.0, cy, w.min(760.0) - 16.0, 13.0, W::R, TEXT, f) + 8.0;
         }
         cy += 4.0;
-        next_button(
+        if next_button(
             ui,
             x,
             cy,
             w.min(760.0),
             "Continue",
             Action::KWords(k.words as u8),
-        );
-        cy += 52.0;
+        ) {
+            cy += 52.0;
+        }
     }
     cy - y
 }
@@ -513,8 +514,8 @@ fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if let Some(n) = &k.note {
         ui.text(x, cy + 10.0, 13.0, W::R, ERR, n);
     }
-    next_button(ui, x, cy, w, "Continue", Action::KNext);
-    cy + 48.0 - y
+    let drawn = next_button(ui, x, cy, w, "Continue", Action::KNext);
+    cy + (if drawn { 48.0 } else { 8.0 }) - y
 }
 
 fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -661,30 +662,32 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 } else {
                     Style::Secondary
                 };
+                // Four to the row's width at most; on a small panel the
+                // deck goes under them.
+                let sw = ((w - 3.0 * 8.0) / 4.0).min(64.0);
                 ui.button(
-                    x + s as f32 * 72.0,
+                    x + s as f32 * (sw + 8.0),
                     cy,
-                    Some(64.0),
+                    Some(sw),
                     44.0,
                     &ch.to_string(),
                     style,
                     Action::KSuit(s as u8),
                 );
             }
-            ui.text_mid(
-                x + 4.0 * 72.0 + 8.0,
-                cy,
-                44.0,
-                12.0,
-                W::R,
-                MUTED,
-                &format!(
-                    "Deck {} · {} drawn from it",
-                    k.cards.deck(),
-                    k.cards.in_deck()
-                ),
+            let deck = format!(
+                "Deck {} · {} drawn from it",
+                k.cards.deck(),
+                k.cards.in_deck()
             );
-            cy += 56.0;
+            if ui.compact {
+                cy += 52.0;
+                ui.text(x, cy, 12.0, W::R, MUTED, &deck);
+                cy += 28.0;
+            } else {
+                ui.text_mid(x + 4.0 * 72.0 + 8.0, cy, 44.0, 12.0, W::R, MUTED, &deck);
+                cy += 56.0;
+            }
         }
         Some(Source::Hex) => {
             let bw = ((w - 7.0 * 6.0) / 8.0).min(60.0);
@@ -793,6 +796,16 @@ fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ) + 6.0;
         }
         bx += 18.0;
+        // Typed and Buttons go on a row of their own when the four do
+        // not fit.
+        let need: f32 = ["Typed", "Buttons"]
+            .iter()
+            .map(|l| ui.measure(13.0, W::S, l) + 38.0)
+            .sum();
+        if bx + need > x + w {
+            bx = x;
+            cy += 42.0;
+        }
     }
     for (label, on) in [("Typed", true), ("Buttons", false)] {
         bx += ui.button(
@@ -1019,6 +1032,11 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let cell = ui.measure(13.0, W::M, "00") + 12.0;
     let cells_x = x + num_w + 14.0;
     let info_x = cells_x + cell * per as f32 + 10.0;
+    // On a small panel what a word's rolls name goes on a line under
+    // them, from where the rolls start.
+    let compact = ui.compact;
+    let info_y = if compact { 46.0 } else { 0.0 };
+    let info_w = x + w - cells_x;
     // A word's row: its rolls over their bits, then what they name.
     let row = |ui: &mut Ui,
                cy: f32,
@@ -1046,7 +1064,7 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             }
         }
         // The checksum's bits, after the last word's rolled ones.
-        let mut info_x = info_x;
+        let mut info_x = if compact { cells_x } else { info_x };
         if let Some(sum) = sum {
             let sx = cells_x + cells.len() as f32 * cell + 6.0;
             ui.text_mid(sx, cy, 22.0, 11.0, W::R, DIM, "checksum");
@@ -1054,9 +1072,17 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let sw = ui
                 .measure(11.0, W::R, "checksum")
                 .max(ui.measure(13.0, W::M, sum));
-            info_x = info_x.max(sx + sw + 14.0);
+            if !compact {
+                info_x = info_x.max(sx + sw + 14.0);
+            }
         }
+        let cy = cy + info_y;
         match index {
+            Some(i) if compact => {
+                let pw = ui.word_pill(info_x, cy - 3.0, Language::English.word(i), open_word(i));
+                let line = format!("= {i} · word {}", i + 1);
+                ui.text_mid(info_x + pw + 8.0, cy - 3.0, 26.0, 12.0, W::R, MUTED, &line);
+            }
             Some(i) => {
                 ui.word_pill(info_x, cy - 3.0, Language::English.word(i), open_word(i));
                 ui.text_mid(
@@ -1068,6 +1094,10 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     MUTED,
                     &format!("= {i} · word {} of the list", i + 1),
                 );
+            }
+            None if compact => {
+                let note = ui.fit(12.0, W::R, note, info_w);
+                ui.text_mid(info_x, cy - 3.0, 26.0, 12.0, W::R, DIM, &note);
             }
             None => {
                 ui.text_mid(info_x, cy + 22.0, 22.0, 12.0, W::R, DIM, note);
@@ -1098,7 +1128,7 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .collect();
         let note = format!("{} of {per} rolls", got.len());
         row(ui, cy, slot, &cells, None, live.get(slot).copied(), &note);
-        cy += 50.0;
+        cy += 50.0 + info_y;
     }
     // The last word: rolled only as far as its high bits, which the key
     // keeps; the rest, shown as dots, are the checksum's.
@@ -1139,7 +1169,7 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         made,
         "The checksum, from all the other bits, once every roll is in",
     );
-    cy + 58.0
+    cy + 58.0 + info_y
 }
 
 /// Opens the BIP-39 list at word `i`.
@@ -1421,18 +1451,24 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Action::KShare(-1),
         ) + 8.0;
     }
+    // The next share, or past the last one, the next step: pinned on a
+    // small panel.
     if k.share_at + 1 < k.shares.len() {
-        ui.button(
-            bx,
-            cy,
-            None,
-            40.0,
-            "Next share",
-            Style::Primary,
-            Action::KShare(1),
-        );
+        if ui.pinning {
+            ui.pin = Some(("Next share".to_string(), Style::Primary, Action::KShare(1)));
+        } else {
+            ui.button(
+                bx,
+                cy,
+                None,
+                40.0,
+                "Next share",
+                Style::Primary,
+                Action::KShare(1),
+            );
+        }
     } else {
-        next_button(ui, x, cy, w, "I wrote them all down", Action::KNext);
+        let _ = next_button(ui, x, cy, w, "I wrote them all down", Action::KNext);
     }
     cy + 48.0 - y
 }
@@ -1532,8 +1568,8 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         } else {
             "Add key"
         };
-        next_button(ui, x, cy, w, label, Action::KAdd);
-        return cy + 48.0 - y;
+        let drawn = next_button(ui, x, cy, w, label, Action::KAdd);
+        return cy + (if drawn { 48.0 } else { 8.0 }) - y;
     }
     let progress = if k.slip39 {
         format!(

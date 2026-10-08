@@ -131,8 +131,11 @@ impl Boxes {
                     for e in fs::read_dir(&d).map_err(|e| e.to_string())?.flatten() {
                         let _ = fs::remove_file(e.path());
                     }
-                    for (name, bytes) in files {
-                        fs::write(d.join(checked(&name)?), bytes).map_err(|e| e.to_string())?;
+                    for (name, mut bytes) in files {
+                        let wrote = fs::write(d.join(checked(&name)?), &bytes);
+                        // The shell's copy goes; the app keeps its own.
+                        zeroize::Zeroize::zeroize(&mut bytes);
+                        wrote.map_err(|e| e.to_string())?;
                     }
                 }
                 Ok(())
@@ -322,7 +325,10 @@ impl DiskProcess {
     ) -> Result<faraday_files::proto::Response, String> {
         use faraday_files::proto::{Request, Response, send};
         self.seq = self.seq.wrapping_add(1);
-        send(&mut self.tx, self.seq, &req.encode()).map_err(|e| e.to_string())?;
+        let mut encoded = req.encode();
+        let sent = send(&mut self.tx, self.seq, &encoded);
+        zeroize::Zeroize::zeroize(&mut encoded);
+        sent.map_err(|e| e.to_string())?;
         let wait = if matches!(req, Request::Write { .. }) {
             ASK_WRITE
         } else {
@@ -332,10 +338,15 @@ impl DiskProcess {
         loop {
             let left = until.saturating_duration_since(std::time::Instant::now());
             match self.answers.recv_timeout(left) {
-                Ok((seq, frame)) if seq == self.seq => {
-                    return Response::decode(&frame).map_err(|_| "a malformed answer".to_string());
+                Ok((seq, mut frame)) if seq == self.seq => {
+                    let answer = Response::decode(&frame);
+                    zeroize::Zeroize::zeroize(&mut frame);
+                    return answer.map_err(|_| "a malformed answer".to_string());
                 }
-                Ok(_) => continue,
+                Ok((_, mut late)) => {
+                    zeroize::Zeroize::zeroize(&mut late);
+                    continue;
+                }
                 Err(_) => return Err("the disk process does not answer".to_string()),
             }
         }
@@ -380,11 +391,14 @@ impl Sticks for DiskProcess {
 
     fn write(&mut self, stick: &str, name: &str, bytes: &[u8]) -> Result<String, String> {
         use faraday_files::proto::{Request, Response};
-        match self.ask(&Request::Write {
+        let mut req = Request::Write {
             stick: stick.into(),
             name: name.into(),
             bytes: bytes.to_vec(),
-        })? {
+        };
+        let answer = self.ask(&req);
+        req.wipe();
+        match answer? {
             Response::Written(n) => Ok(n),
             Response::Failed(why) => Err(why),
             _ => Err("an answer that is not a write".to_string()),

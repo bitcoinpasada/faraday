@@ -361,17 +361,18 @@ pub fn qr_in_png(bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
     if w.saturating_mul(h) > MAX_PIXELS {
         return Err("the image is too large".into());
     }
-    let mut buf = vec![
+    // The picture may be of a SeedQR: every copy of its pixels is wiped.
+    let mut buf = zeroize::Zeroizing::new(vec![
         0u8;
         reader
             .output_buffer_size()
             .ok_or("the image is too large")?
-    ];
+    ]);
     let info = reader.next_frame(&mut buf).map_err(|e| e.to_string())?;
     let px = &buf[..info.buffer_size()];
     let luma_of =
         |r: u8, g: u8, b: u8| ((u32::from(r) * 3 + u32::from(g) * 6 + u32::from(b)) / 10) as u8;
-    let luma: Vec<u8> = match info.color_type {
+    let luma: zeroize::Zeroizing<Vec<u8>> = zeroize::Zeroizing::new(match info.color_type {
         png::ColorType::Grayscale => px.to_vec(),
         png::ColorType::GrayscaleAlpha => px.chunks_exact(2).map(|p| p[0]).collect(),
         png::ColorType::Rgb => px
@@ -383,7 +384,7 @@ pub fn qr_in_png(bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
             .map(|p| luma_of(p[0], p[1], p[2]))
             .collect(),
         png::ColorType::Indexed => return Err("a palette image was not expanded".into()),
-    };
+    });
     if luma.len() != w * h {
         return Err("the image's pixels do not add up".into());
     }
@@ -395,7 +396,8 @@ pub fn qr_in_png(bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
         return Ok(codes);
     }
     // A code printed light on dark reads once the picture is inverted.
-    let inverted: Vec<u8> = luma.iter().map(|b| 255 - b).collect();
+    let inverted: zeroize::Zeroizing<Vec<u8>> =
+        zeroize::Zeroizing::new(luma.iter().map(|b| 255 - b).collect());
     Ok(osk_codec::decode::decode_luma(w, h, &inverted)
         .into_iter()
         .map(|d| d.bytes)

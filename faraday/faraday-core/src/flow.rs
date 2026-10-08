@@ -317,15 +317,43 @@ fn paged(
     let mut y = top + 10.0;
     let inner = w - 2.0 * M;
 
-    // The steps: a numbered dot each, the open one wide with its name.
-    let n = cards.len() as f32;
+    // The steps: a numbered dot each. When they do not all fit, as many
+    // as do, the open one among them, with an arrow where more are.
     let dot = 26.0;
+    let fits = ((inner + 4.0) / (dot + 4.0)).floor().max(3.0) as usize;
+    let (first, last) = if cards.len() <= fits {
+        (0, cards.len())
+    } else {
+        let room = fits - 2;
+        let at = open.unwrap_or(0);
+        let first = at.saturating_sub(room / 2).min(cards.len() - room);
+        (first, first + room)
+    };
+    let shown = if cards.len() <= fits {
+        cards.len()
+    } else {
+        fits
+    };
+    let n = shown as f32;
     let gap = ((inner - n * dot) / (n - 1.0).max(1.0)).clamp(2.0, 10.0);
     let mut dx = M;
-    for (i, card) in cards.iter().enumerate() {
+    let more = |ui: &mut Ui, dx: f32, icon: Icon, to: usize| {
+        ui.icon(dx, y, dot, icon, 10.0, DIM);
+        ui.hit_around(dx, y, dot, dot, cards[to].toggle);
+    };
+    if cards.len() > fits {
+        if first > 0 {
+            more(ui, dx, Icon::ChevronLeft, first - 1);
+        }
+        dx += dot + gap;
+    }
+    for (i, card) in cards.iter().enumerate().take(last).skip(first) {
         ui.badge(dx, y, &(i + 1).to_string(), card.done, card.open);
         ui.hit_around(dx, y, dot, dot, card.toggle);
         dx += dot + gap;
+    }
+    if last < cards.len() {
+        more(ui, dx, Icon::ChevronRight, last);
     }
     y += dot + 12.0;
 
@@ -337,17 +365,20 @@ fn paged(
             y += 18.0;
             y += ui.wrap(M, y, inner, 18.0, W::S, TEXT, &card.title) + 10.0;
             y += body(ui, i, M, y, inner);
-            // The walk-through comes after the controls: on a small
-            // panel it would otherwise be all the first screenful shows.
-            if let Some(text) = card.guide.as_deref().filter(|_| col.guided) {
-                y += 8.0;
-                ui.rule(M, y, inner, LINE);
-                y += 14.0;
-                ui.text(M, y, 12.0, W::S, MUTED, "About this step");
-                y += 22.0;
-                let gh = ui.wrap(M + 12.0, y, inner - 12.0, 13.0, W::R, MUTED, text);
-                ui.fill(M, y, 3.0, gh, 1.5, ACCENT.with_alpha(140));
-                y += gh + 8.0;
+            // The walk-through comes after the controls, behind a tap:
+            // on a small panel it would otherwise take the room the
+            // controls need. The tap is the choice there, so it is offered
+            // in Steps only too. A flow with no Guided switch (the Spend
+            // tab) has a lead that is its own text, always shown.
+            if let Some(text) = card.guide.as_deref() {
+                if col.switch {
+                    y += about(ui, M, y, inner, "About this step", i as u8, text);
+                } else {
+                    y += 8.0;
+                    let gh = ui.wrap(M + 12.0, y, inner - 12.0, 13.0, W::R, MUTED, text);
+                    ui.fill(M, y, 3.0, gh, 1.5, ACCENT.with_alpha(140));
+                    y += gh + 8.0;
+                }
             }
         }
         None => {
@@ -419,4 +450,40 @@ fn paged(
         again = true;
     }
     (next, again || scroll.follow)
+}
+
+/// A walk-through behind a tap, after a small panel's controls: a row
+/// that opens it and closes it, and the text while open. `k` is the
+/// step's place, or [`crate::ABOUT_PAGE`]. Returns its height.
+pub(crate) fn about(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, k: u8, text: &str) -> f32 {
+    let open = ui.about_open == Some(k);
+    let action = Action::About(k);
+    let mut cy = y + 8.0;
+    ui.rule(x, cy, w, LINE);
+    cy += 6.0;
+    if ui.is_pressed(action) {
+        ui.fill(x, cy, w, 36.0, 8.0, INNER);
+    }
+    ui.icon(x, cy + 8.0, 20.0, Icon::Info, 11.0, MUTED);
+    ui.text_mid(x + 26.0, cy, 36.0, 13.0, W::S, MUTED, label);
+    ui.icon(
+        x + w - 22.0,
+        cy + 8.0,
+        20.0,
+        if open {
+            Icon::ChevronUp
+        } else {
+            Icon::ChevronRight
+        },
+        9.0,
+        DIM,
+    );
+    ui.hit(x, cy, w, 36.0, action);
+    cy += 42.0;
+    if open {
+        let gh = ui.wrap(x + 12.0, cy, w - 12.0, 13.0, W::R, MUTED, text);
+        ui.fill(x, cy, 3.0, gh, 1.5, ACCENT.with_alpha(140));
+        cy += gh + 8.0;
+    }
+    cy - y
 }

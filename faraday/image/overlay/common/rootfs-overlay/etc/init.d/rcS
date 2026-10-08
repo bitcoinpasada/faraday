@@ -7,9 +7,22 @@
 # The kernel mounts devtmpfs on /dev itself (CONFIG_DEVTMPFS_MOUNT), and
 # `mdev -s` applies /etc/mdev.conf's owners once. A stick's partition node
 # stays root's, mode 0600 or 0660, until faraday-grant decides.
-mount -t proc proc /proc
-mount -t sysfs sysfs /sys
+#
+# Upstream's mounts at 96e2144 (docs/PLANNING.md §16.140): nothing on
+# /proc, /sys or /dev is a program or a set-uid file, so none of the three
+# runs or honours one, and `hidepid=invisible` hides every process from
+# the processes of another user. The app, the disk process and the grant
+# helper read only /proc/cmdline, /proc/mounts and /proc/meminfo.
+mount -t proc -o nosuid,nodev,noexec,hidepid=invisible proc /proc
+mount -t sysfs -o nosuid,nodev,noexec sysfs /sys
+mount -o remount,nosuid,noexec /dev
 /sbin/mdev -s
+
+# Kernel addresses are hidden from every process, root's included, and no
+# process may trace another (Yama). Scope 3 cannot be lowered again until
+# the next boot.
+echo 2 > /proc/sys/kernel/kptr_restrict
+echo 3 > /proc/sys/kernel/yama/ptrace_scope
 
 # USB interfaces (PLAN.md §4.6): no root hub authorises an interface by
 # itself from here on. usbcore.authorized_default=2 already keeps every

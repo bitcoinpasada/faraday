@@ -248,6 +248,9 @@ pub enum VaultAction {
     SbHoldSign,
     /// Check image n's signature.
     SbCheck(usize),
+    /// On a small panel, back from an item, or what was being added or
+    /// made, to the vault's list.
+    ItemBack,
 }
 
 /// Whether an action acts when held long enough rather than on release.
@@ -280,21 +283,19 @@ pub struct Prompt {
     pub error: Option<String>,
 }
 
-/// A line of typing, wiped when dropped or cleared.
+/// A line of typing, wiped when dropped, cleared or moved.
 #[derive(Default)]
 pub struct TextBox {
     /// What is typed.
-    pub text: Zeroizing<String>,
+    pub text: crate::secret_text::SecretText,
 }
 
 impl TextBox {
     fn clear(&mut self) {
-        zeroize::Zeroize::zeroize(&mut *self.text);
         self.text.clear();
     }
     fn set(&mut self, s: &str) {
-        self.clear();
-        self.text.push_str(s);
+        self.text.set(s);
     }
 }
 
@@ -499,6 +500,8 @@ pub struct Vaults {
     pub category: usize,
     /// The item shown in each kind.
     pub item: [usize; 6],
+    /// On a small panel, the chosen item is the page, not the list.
+    pub item_open: bool,
     /// Adding or editing an item.
     pub form: Option<Form>,
     /// Saving session keys or wallets into the vault.
@@ -771,6 +774,14 @@ impl Faraday {
     /// Runs a vault action.
     pub(crate) fn vault_act(&mut self, a: VaultAction) {
         use VaultAction as V;
+        // A small panel's contents page changes to another page: it starts
+        // at its top.
+        if matches!(
+            a,
+            V::Item(_) | V::ItemBack | V::Add | V::Edit | V::Rename | V::Category(_)
+        ) {
+            self.list_offset = 0.0;
+        }
         match a {
             V::Open(i) => {
                 let files = self.vault_files();
@@ -778,6 +789,7 @@ impl Faraday {
                     match f.open {
                         Some(o) => {
                             self.vaults.current = o;
+                            self.vaults.item_open = false;
                             self.screen = Screen::VaultContents;
                         }
                         None => {
@@ -785,6 +797,14 @@ impl Faraday {
                             self.vaults.unlock_error = None;
                             self.vaults.focus = self.may_load_keys().then_some(Focus::Passphrase);
                             self.screen = Screen::Unlock;
+                            // The import sheet's way back is set afresh by
+                            // `OpenFrom` below each time; one left from
+                            // an Unlock abandoned by the sidebar does not
+                            // linger. Create's and Restore's stay: a vault
+                            // just made there is opened through here.
+                            if self.vaults.back_to == Some(Screen::Home) {
+                                self.vaults.back_to = None;
+                            }
                             self.vault_measure();
                         }
                     }
@@ -992,17 +1012,30 @@ impl Faraday {
                     self.vaults.current = i;
                     self.vaults.form = None;
                     self.vaults.saving = false;
+                    self.vaults.item_open = false;
                 }
             }
             V::Category(k) => {
                 self.vaults.category = k.min(CATEGORIES.len() - 1);
                 self.vaults.form = None;
                 self.vaults.saving = false;
+                self.vaults.item_open = false;
             }
             V::Item(k) => {
                 self.vaults.item[self.vaults.category] = k;
                 self.vaults.form = None;
                 self.vaults.saving = false;
+                self.vaults.item_open = true;
+            }
+            V::ItemBack => {
+                self.vaults.item_open = false;
+                self.vaults.form = None;
+                self.vaults.prompt = None;
+                self.vaults.saving = false;
+                self.vaults.signing = false;
+                self.vaults.sb_images = false;
+                self.vaults.sb_sign = None;
+                self.vaults.focus = None;
             }
             V::Reveal(_) => {}
             V::HoldDelete => self.vault_delete(),
@@ -1516,6 +1549,11 @@ impl Faraday {
                     self.family_unlocked(v);
                 } else {
                     self.screen = back.unwrap_or(Screen::Files);
+                }
+                // Unlocked for the boot import: its sheet again, with the
+                // vault's wallets and keys in it.
+                if back == Some(Screen::Home) && self.import.is_some() {
+                    self.sheet = Some(crate::Sheet::Import);
                 }
             }
             Err(e) => {
@@ -2509,7 +2547,7 @@ pub fn multiline(kind: u8, number: u8) -> bool {
 /// A mnemonic's words, space-separated, in wiped memory.
 fn phrase_of(m: &osk_bip::bip39::Mnemonic) -> Zeroizing<String> {
     let lang = m.language();
-    let mut out = Zeroizing::new(String::new());
+    let mut out = crate::secret_text::room();
     for (k, &i) in m.indices().iter().enumerate() {
         if k > 0 {
             out.push(' ');

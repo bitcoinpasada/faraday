@@ -46,3 +46,7 @@ MOUSE_PS2_ELANTECH        the same for an Elantech pad
 RMI4_CORE                 the pads that leave PS/2 for the SMBus once they are asked to
 RMI4_F11                  the pointing function a pad reports through; a core with no function driver reports nothing
 I2C_I801                  the SMBus controller on every Intel chipset, which is where those pads go
+RANDOM_KMALLOC_CACHES           kernel heap caches split by call site, so one object is not placed beside another of a different kind
+LIST_HARDENED                   a corrupted kernel list is detected when it is walked
+RANDOMIZE_KSTACK_OFFSET_DEFAULT the kernel stack starts at a random offset on every system call, by default
+LEGACY_VSYSCALL_NONE            no vsyscall page; a static musl binary never calls it

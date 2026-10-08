@@ -10,10 +10,10 @@
 //! (`faraday_core::testkit::backup_files`): what backing up the 2-of-3
 //! Taproot multisig leaves, with the three seeds in a vault.
 //!
-//! Into `OUT_DIR`: every file of the test stick (`faraday_core::testkit`,
-//! listed in its `README.txt`), all on testnet: each test wallet in every
-//! backup form, its unsigned spend and a cosigner's signed copy, the test
-//! keys in every form a key arrives in, and the test vault.
+//! Into `OUT_DIR`: every file of the test stick (`faraday_core::testkit`),
+//! all on testnet: each test wallet in every backup form, its unsigned
+//! spend and a cosigner's signed copy, the test keys in every form a key
+//! arrives in, and the test vault.
 
 use std::path::Path;
 use std::process::ExitCode;

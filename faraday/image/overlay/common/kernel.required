@@ -1,4 +1,4 @@
-# Faraday: upstream's common/kernel.required at c418768 without VFAT_FS,
+# Faraday: upstream's common/kernel.required at 96e2144 without VFAT_FS,
 # which PLAN.md §4.2 forbids: no stick is mounted.
 # What every OpenSigner image needs to come up and be used, whatever it
 # runs on. A driver that quietly loses a dependency — because the
@@ -12,3 +12,22 @@ FRAMEBUFFER_CONSOLE  what paints the boot logo, so a black display means the fir
 INPUT_EVDEV          /dev/input/eventN, which is how the shell reads touches, keys and pointers
 VIDEO_DEV            /dev/video0, the V4L2 node the scanner opens
 USB_VIDEO_CLASS      a USB webcam is a camera every one of these devices supports
+
+# Hardening (PLANNING.md 16.140). The options only one architecture has
+# are in that board's list.
+INIT_ON_ALLOC_DEFAULT_ON              every page and slab object is zeroed when it is handed out
+INIT_ON_FREE_DEFAULT_ON               and when it is freed, so a kernel copy of a secret does not outlive its use
+HARDENED_USERCOPY                     copies between the kernel and a process are checked against the object they come from
+FORTIFY_SOURCE                        the kernel's memory and string functions are checked against the sizes the compiler knows
+SLAB_FREELIST_HARDENED                a corrupted slab free list is detected
+SLAB_FREELIST_RANDOM                  where a slab object lands is not predictable
+SHUFFLE_PAGE_ALLOCATOR                nor where a page lands
+BUG_ON_DATA_CORRUPTION                detected corruption stops the kernel instead of being stepped over
+SCHED_STACK_END_CHECK                 so does an overrun kernel stack
+PANIC_ON_OOPS                         a kernel that has oopsed is in a state nobody chose; on a signer, stopping is the safe result
+ZERO_CALL_USED_REGS                   registers are cleared on return, leaving fewer gadgets for a return-oriented chain
+SECURITY_DMESG_RESTRICT               the kernel log, with its addresses, is for root only
+SECURITY_YAMA                         rcS sets ptrace_scope to 3: no process traces another
+SECURITY_LOCKDOWN_LSM                 one switch for every interface that reads or writes kernel memory or raw hardware
+SECURITY_LOCKDOWN_LSM_EARLY           on before anything else starts
+LOCK_DOWN_KERNEL_FORCE_CONFIDENTIALITY at its strictest level, and not one a process can lower

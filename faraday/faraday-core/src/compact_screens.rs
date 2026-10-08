@@ -388,6 +388,23 @@ fn silent_card(
     finish(app, ui, 0.0, x + iw + M, h, cy - top + 8.0);
 }
 
+/// What explains a page, after its controls and behind a tap, as a
+/// step's is. Returns its height.
+pub(crate) fn about(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
+    crate::flow::about(ui, x, y, w, "About this page", crate::ABOUT_PAGE, text)
+}
+
+/// The height `draw` takes, drawing nothing and keeping no hits: what a
+/// card is measured with before its surface goes down.
+pub(crate) fn measured(ui: &mut Ui, draw: impl FnOnce(&mut Ui) -> f32) -> f32 {
+    let mark = ui.hits.len();
+    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    let h = draw(ui);
+    ui.c.pop_clip();
+    ui.hits.truncate(mark);
+    h
+}
+
 /// Reports how tall the page is, so it scrolls.
 pub(crate) fn finish(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32, content: f32) {
     app.content_h.set(content);
@@ -598,13 +615,14 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         app.entry.on_passphrase,
         Action::EntryPassphrase,
     );
+    // Add key is pinned at the foot.
+    ui.pin = Some(("Add key".to_string(), Style::Primary, Action::EntryAdd));
     y += stack(
         ui,
         x,
         y,
         iw,
         &[
-            ("Add key", Style::Primary, Action::EntryAdd),
             ("Scan a SeedQR", Style::Secondary, Action::ScanSeed),
             ("Make a new key", Style::Secondary, Action::KeyGen(None)),
             ("Clear", Style::Ghost, Action::EntryClear),

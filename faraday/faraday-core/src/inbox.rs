@@ -26,7 +26,7 @@ use zeroize::Zeroizing;
 
 use crate::create::NewKind;
 use crate::wallet::{FileKind, Refusal, Session, Wallet, fp_text};
-use crate::{Faraday, forms, stem};
+use crate::{Faraday, Item, forms, stem};
 
 /// Where a seed found in the Inbox comes from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -286,8 +286,13 @@ impl Faraday {
 
     /// The secret a seed source gives.
     pub(crate) fn inbox_secret(&self, source: &SeedSource) -> Option<Secret> {
+        self.secret_in(&self.inbox, source)
+    }
+
+    /// The secret a seed source among `items` gives.
+    pub(crate) fn secret_in(&self, items: &[Item], source: &SeedSource) -> Option<Secret> {
         let text = |k: &usize| {
-            self.inbox
+            items
                 .get(*k)
                 .map(|i| Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
         };
@@ -322,8 +327,9 @@ impl Faraday {
         }
     }
 
-    /// The fingerprint a source's seed has with no passphrase.
-    fn source_fingerprint(&self, source: &SeedSource) -> Option<Fingerprint> {
+    /// The fingerprint a source's seed among `items` has with no
+    /// passphrase.
+    fn source_fingerprint(&self, items: &[Item], source: &SeedSource) -> Option<Fingerprint> {
         let tag: &[u8] = match source {
             SeedSource::Words(_) => b"words",
             SeedSource::Slip39(_) => b"slip39",
@@ -331,17 +337,17 @@ impl Faraday {
             SeedSource::Loaded => return None,
         };
         let material: Vec<u8> = match source {
-            SeedSource::Words(k) => self.inbox.get(*k)?.bytes.clone(),
+            SeedSource::Words(k) => items.get(*k)?.bytes.clone(),
             SeedSource::Slip39(ks) | SeedSource::Codex32(ks) => ks
                 .iter()
-                .filter_map(|k| self.inbox.get(*k))
+                .filter_map(|k| items.get(*k))
                 .flat_map(|i| i.bytes.clone())
                 .collect(),
             SeedSource::Loaded => return None,
         };
         let material = Zeroizing::new(material);
         self.fingerprint_memo(tag, &material, || {
-            self.inbox_secret(source)?
+            self.secret_in(items, source)?
                 .master("", &self.session)
                 .map(|m| m.fingerprint())
         })
@@ -349,6 +355,13 @@ impl Faraday {
 
     /// Everything the Inbox gives, put together.
     pub fn inbox_found(&self) -> Found {
+        self.found_in(&self.inbox)
+    }
+
+    /// Everything `items` give, put together, with the session's own keys
+    /// and wallets: the Inbox, or the files a boot import holds. Places in
+    /// what it returns are places in `items`.
+    pub(crate) fn found_in(&self, items: &[Item]) -> Found {
         let mut found = Found::default();
 
         // Seeds: words files, then split seeds that add up, then the
@@ -376,12 +389,12 @@ impl Faraday {
                 .iter()
                 .any(|k| k.master.fingerprint() == fp)
         };
-        for (k, item) in self.inbox.iter().enumerate() {
+        for (k, item) in items.iter().enumerate() {
             if item.kind != FileKind::Words {
                 continue;
             }
             let src = SeedSource::Words(k);
-            if let Some(fp) = self.source_fingerprint(&src) {
+            if let Some(fp) = self.source_fingerprint(items, &src) {
                 add_seed(&mut found, fp, stem(&item.name), src, loaded_fp(fp));
             }
         }
@@ -389,7 +402,7 @@ impl Faraday {
         // by theirs.
         let mut slip: Vec<(u16, Vec<usize>, u8)> = Vec::new();
         let mut codex: Vec<([u8; 4], Vec<usize>, usize, bool)> = Vec::new();
-        for (k, item) in self.inbox.iter().enumerate() {
+        for (k, item) in items.iter().enumerate() {
             if item.kind != FileKind::SeedPart {
                 continue;
             }
@@ -419,7 +432,7 @@ impl Faraday {
         for (_, ks, need) in slip {
             let src = SeedSource::Slip39(ks.clone());
             match (ks.len() >= usize::from(need))
-                .then(|| self.source_fingerprint(&src))
+                .then(|| self.source_fingerprint(items, &src))
                 .flatten()
             {
                 Some(fp) => add_seed(
@@ -438,7 +451,7 @@ impl Faraday {
         for (_, ks, need, secret) in codex {
             let src = SeedSource::Codex32(ks.clone());
             match (secret || ks.len() >= need)
-                .then(|| self.source_fingerprint(&src))
+                .then(|| self.source_fingerprint(items, &src))
                 .flatten()
             {
                 Some(fp) => add_seed(
@@ -463,7 +476,7 @@ impl Faraday {
                 true,
             );
         }
-        for (k, item) in self.inbox.iter().enumerate() {
+        for (k, item) in items.iter().enumerate() {
             if item.kind == FileKind::Backup {
                 found.waiting.push(Waiting {
                     line: format!("{} · OpenSigner backup, sealed", item.name),
@@ -525,7 +538,7 @@ impl Faraday {
             .iter()
             .map(|w| crate::wallet::same_wallet(&w.policy))
             .collect();
-        for (k, item) in self.inbox.iter().enumerate() {
+        for (k, item) in items.iter().enumerate() {
             if item.kind != FileKind::Wallet {
                 continue;
             }
@@ -534,15 +547,14 @@ impl Faraday {
                 .is_ok_and(|p| loaded_desc.contains(&crate::wallet::same_wallet(&p)));
             push_wallet(
                 &mut found,
-                self.inbox_wallet_name(k),
+                self.wallet_name_in(items, k),
                 &text,
                 Some(k),
                 false,
                 loaded,
             );
         }
-        let shares: Vec<String> = self
-            .inbox
+        let shares: Vec<String> = items
             .iter()
             .filter(|i| i.kind == FileKind::Share)
             .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
@@ -586,7 +598,7 @@ impl Faraday {
         }
         // Account xpubs: once each, and only those no wallet here uses and
         // no seed here gives (the seed is the stronger of the two).
-        for (k, item) in self.inbox.iter().enumerate() {
+        for (k, item) in items.iter().enumerate() {
             if item.kind != FileKind::Key {
                 continue;
             }
@@ -626,7 +638,12 @@ impl Faraday {
     /// The name a wallet file gives its wallet: a wallet .json's label,
     /// or the file's name in words.
     pub(crate) fn inbox_wallet_name(&self, index: usize) -> String {
-        let Some(item) = self.inbox.get(index) else {
+        self.wallet_name_in(&self.inbox, index)
+    }
+
+    /// [`Faraday::inbox_wallet_name`] for a file among `items`.
+    pub(crate) fn wallet_name_in(&self, items: &[Item], index: usize) -> String {
+        let Some(item) = items.get(index) else {
             return String::new();
         };
         let text = String::from_utf8_lossy(&item.bytes);
@@ -652,20 +669,42 @@ impl Faraday {
     /// here that are its keys. Seeds load only with no stick attached;
     /// the wallets load either way. Returns (wallets, seeds) loaded.
     pub(crate) fn inbox_load(&mut self) -> (usize, usize) {
-        let found = self.inbox_found();
+        let inbox = std::mem::take(&mut self.inbox);
+        let skip = self.inbox_skip.clone();
+        let loaded = self.load_found_in(&inbox, &skip, &|_| false);
+        self.inbox = inbox;
+        self.refresh_spend();
+        loaded
+    }
+
+    /// Loads the wallets `items` describe but those in `skip` (by
+    /// descriptor), each with the seeds among `items` that are its keys,
+    /// and the seeds `also` names whether a wallet chosen uses them or
+    /// not. Seeds load only with no stick attached. Returns (wallets,
+    /// seeds) loaded.
+    pub(crate) fn load_found_in(
+        &mut self,
+        items: &[Item],
+        skip: &BTreeSet<String>,
+        also: &dyn Fn(Fingerprint) -> bool,
+    ) -> (usize, usize) {
+        let found = self.found_in(items);
         let chosen: Vec<FoundWallet> = found
             .to_load()
             .into_iter()
-            .filter(|w| !self.inbox_skip.contains(&w.descriptor))
+            .filter(|w| !skip.contains(&w.descriptor))
             .cloned()
             .collect();
         let mut keys = 0;
         if self.may_load_keys() {
             for s in &found.seeds {
-                if s.loaded || !chosen.iter().any(|w| w.keys.contains(&s.fingerprint)) {
+                if s.loaded
+                    || !(chosen.iter().any(|w| w.keys.contains(&s.fingerprint))
+                        || also(s.fingerprint))
+                {
                     continue;
                 }
-                if let Some(secret) = s.sources.first().and_then(|src| self.inbox_secret(src))
+                if let Some(secret) = s.sources.first().and_then(|src| self.secret_in(items, src))
                     && secret.add("", &s.label, &mut self.session).is_ok()
                 {
                     keys += 1;
@@ -676,20 +715,19 @@ impl Faraday {
         for w in &chosen {
             let (name, text) = match w.files.first() {
                 Some(k) => (
-                    self.inbox_wallet_name(*k),
-                    String::from_utf8_lossy(&self.inbox[*k].bytes).into_owned(),
+                    self.wallet_name_in(items, *k),
+                    String::from_utf8_lossy(&items[*k].bytes).into_owned(),
                 ),
                 None => (w.name.clone(), w.descriptor.clone()),
             };
             let source = w
                 .files
                 .first()
-                .map_or("its shares".to_string(), |k| self.inbox[*k].name.clone());
+                .map_or("its shares".to_string(), |k| items[*k].name.clone());
             if self.session.add_wallet(&name, &text, &source).is_ok() {
                 wallets += 1;
             }
         }
-        self.refresh_spend();
         (wallets, keys)
     }
 
@@ -738,7 +776,7 @@ pub struct Potential {
     /// The seed's fingerprint with no passphrase, which names it.
     pub fingerprint: Option<Fingerprint>,
     /// The passphrase typed, empty for none.
-    pub passphrase: Zeroizing<String>,
+    pub passphrase: crate::secret_text::SecretText,
     /// Typing goes to the passphrase.
     pub typing: bool,
     /// The passphrase is shown in the clear.
@@ -1074,7 +1112,7 @@ impl Faraday {
             Err(e) => {
                 if let Some(p) = self.potential.as_mut() {
                     p.error = Some(e);
-                    zeroize::Zeroize::zeroize(&mut *p.passphrase);
+                    p.passphrase.clear();
                 }
             }
         }

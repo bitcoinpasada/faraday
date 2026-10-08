@@ -133,11 +133,6 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
         }
     }
     ui.c.pop_clip();
-    ui.report_scroll_own_bar(clip, st.max);
-    if st.max > 0.0 {
-        let track = view - 8.0;
-        let thumb = (track * view / content).max(30.0);
-        let at = (track - thumb) * st.scroll / st.max;
-        ui.fill(x + sw - 14.0, top + 4.0 + at, 4.0, thumb, 2.0, BORDER);
-    }
+    // The overlay scrollbar, held and dragged as on any page.
+    ui.report_scroll(clip, st.max);
 }

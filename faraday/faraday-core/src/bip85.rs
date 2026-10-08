@@ -144,7 +144,7 @@ impl Faraday {
             .find(|k| Some(k.master.fingerprint().0) == b.key)?
             .master;
         let i = b.index()?;
-        let text = match b.app {
+        let text: Zeroizing<String> = match b.app {
             Bip85App::Words => {
                 let m = bip85::child_mnemonic(master, Language::English, b.length, i).ok()?;
                 let words: Vec<&str> = m
@@ -152,26 +152,29 @@ impl Faraday {
                     .iter()
                     .map(|&w| Language::English.word(w))
                     .collect();
-                words.join(" ")
+                Zeroizing::new(words.join(" "))
             }
-            Bip85App::Wif => bip85::child_wif(master, i).ok()?.as_str().to_string(),
-            Bip85App::Xprv => bip85::child_xprv(master, i).ok()?.as_str().to_string(),
-            Bip85App::Hex => bip85::child_hex(master, b.length, i)
-                .ok()?
-                .as_bytes()
-                .iter()
-                .map(|x| format!("{x:02x}"))
-                .collect(),
-            Bip85App::Base64 => bip85::child_password_base64(master, b.length, i)
-                .ok()?
-                .as_str()
-                .to_string(),
-            Bip85App::Base85 => bip85::child_password_base85(master, b.length, i)
-                .ok()?
-                .as_str()
-                .to_string(),
+            Bip85App::Wif => Zeroizing::new(bip85::child_wif(master, i).ok()?.as_str().to_string()),
+            Bip85App::Xprv => {
+                Zeroizing::new(bip85::child_xprv(master, i).ok()?.as_str().to_string())
+            }
+            Bip85App::Hex => {
+                crate::secret_text::hex(bip85::child_hex(master, b.length, i).ok()?.as_bytes())
+            }
+            Bip85App::Base64 => Zeroizing::new(
+                bip85::child_password_base64(master, b.length, i)
+                    .ok()?
+                    .as_str()
+                    .to_string(),
+            ),
+            Bip85App::Base85 => Zeroizing::new(
+                bip85::child_password_base85(master, b.length, i)
+                    .ok()?
+                    .as_str()
+                    .to_string(),
+            ),
         };
-        Some(Zeroizing::new(text))
+        Some(text)
     }
 
     /// What the value is called where it is kept.

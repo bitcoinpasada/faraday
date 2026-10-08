@@ -36,8 +36,12 @@ fn serve(disks: &mut Disks, requests: &Path, responses: &Path) -> std::io::Resul
     let mut rx = File::open(requests)?;
     let mut tx = OpenOptions::new().write(true).open(responses)?;
     let mut last = String::new();
-    while let Some((seq, frame)) = proto::receive(&mut rx)? {
-        let answer = match Request::decode(&frame) {
+    while let Some((seq, mut frame)) = proto::receive(&mut rx)? {
+        // A file read or written may be a seed in the clear, and this
+        // process outlives the app's locks: what passed through is wiped.
+        let decoded = Request::decode(&frame);
+        zeroize::Zeroize::zeroize(&mut frame);
+        let mut answer = match decoded {
             Ok(req) => {
                 let answer = disks.handle(req);
                 // A listing that changed is said on the console, for a
@@ -61,7 +65,11 @@ fn serve(disks: &mut Disks, requests: &Path, responses: &Path) -> std::io::Resul
                 return Ok(());
             }
         };
-        proto::send(&mut tx, seq, &answer.encode())?;
+        let mut encoded = answer.encode();
+        answer.wipe();
+        let sent = proto::send(&mut tx, seq, &encoded);
+        zeroize::Zeroize::zeroize(&mut encoded);
+        sent?;
     }
     Ok(())
 }

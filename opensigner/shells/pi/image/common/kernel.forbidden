@@ -53,3 +53,18 @@ EEPROM_AT25    as EEPROM_AT24
 EEPROM_93CX6   as EEPROM_AT24
 NVMEM_SYSFS    the sysfs faces of the nvmem providers, which are writable
 KGDB           a kernel debugger on the serial port of a device that signs; it also selects MAGIC_SYSRQ
+
+# Hardening (PLANNING.md 16.140): interfaces any process can reach that
+# nothing in the image uses, and two allocator and crash behaviours.
+SLAB_MERGE_DEFAULT  caches of different types merged into one, which is what lets one object be placed beside another
+IO_URING            a large share of recent kernel privilege escalations, and nothing here submits a ring
+AIO                 the older asynchronous I/O; nothing here uses it
+SYSVIPC             shared memory, semaphores and queues between processes, on a device that runs one
+KEYS                the kernel keyring; nothing here stores a key in the kernel
+CROSS_MEMORY_ATTACH process_vm_readv and writev: one process reading another's memory
+KCMP                comparing another process's kernel objects
+BINFMT_MISC         interpreters for arbitrary binary formats; the image runs two ELF files
+CRASH_DUMP          a crash kernel, which cannot exist without KEXEC
+GPIO_CDEV           /dev/gpiochip*; the touch controller is a kernel driver and nothing reads a pin from userspace
+GPIO_SYSFS          /sys/class/gpio, the older way to drive a pin from userspace, which selects GPIO_CDEV
+COREDUMP            a core dump is the app's memory written to a file, and the only writable filesystem is the exchange partition

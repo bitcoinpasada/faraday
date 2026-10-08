@@ -166,8 +166,15 @@ fn card(app: &Faraday, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f3
                     Action::PLength(-1),
                 );
                 ui.text_mid(x + mw + 16.0, cy, 40.0, 15.0, W::S, TEXT, &l);
+                // On a small panel + sits at the row's end and the range
+                // goes under the row.
+                let px = if ui.compact {
+                    x + w - 44.0
+                } else {
+                    x + mw + 170.0
+                };
                 ui.button(
-                    x + mw + 170.0,
+                    px,
                     cy,
                     Some(44.0),
                     40.0,
@@ -175,19 +182,19 @@ fn card(app: &Faraday, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f3
                     Style::Secondary,
                     Action::PLength(1),
                 );
-                ui.text_mid(
-                    x + mw + 230.0,
-                    cy,
-                    40.0,
-                    12.0,
-                    W::R,
-                    DIM,
-                    &format!("{lo} to {hi}"),
-                );
-                cy += 52.0;
+                let range = format!("{lo} to {hi}");
+                if ui.compact {
+                    cy += 46.0;
+                    ui.text(x, cy, 12.0, W::R, DIM, &range);
+                    cy += 28.0;
+                } else {
+                    ui.text_mid(x + mw + 230.0, cy, 40.0, 12.0, W::R, DIM, &range);
+                    cy += 52.0;
+                }
             }
-            next_button(ui, x, cy, w, "Continue", Action::PNext);
-            cy += 48.0;
+            if next_button(ui, x, cy, w, "Continue", Action::PNext) {
+                cy += 48.0;
+            }
         }
         pstep::INDEX => {
             let mw = ui.button(
@@ -219,20 +226,31 @@ fn card(app: &Faraday, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f3
             }
             ui.text(x, cy, 12.0, W::R, DIM, "Type the digits · Enter continues");
             cy += 24.0;
-            next_button(ui, x, cy, w, "Continue", Action::PNext);
-            cy += 48.0;
+            if next_button(ui, x, cy, w, "Continue", Action::PNext) {
+                cy += 48.0;
+            }
         }
         _ => {
+            // On a small panel each value goes under its name.
+            let (vx, below) = if ui.compact {
+                (0.0, 18.0)
+            } else {
+                (120.0, 0.0)
+            };
             ui.text(x, cy, 12.0, W::R, MUTED, "Path");
-            ui.text(x + 120.0, cy, 13.0, W::M, TEXT, &b.path());
-            cy += 26.0;
+            cy += below;
+            cy += ui
+                .wrap(x + vx, cy, w - vx, 13.0, W::M, TEXT, &b.path())
+                .max(20.0)
+                + 6.0;
             ui.text(x, cy, 12.0, W::R, MUTED, app_name(b.app));
+            cy += below;
             // Derived for this frame only, and wiped with it.
             let value = if b.shown { app.bip85_value() } else { None };
             let shown =
                 value.as_ref().map_or("••••••••••••", |v| v.as_str());
             cy += ui
-                .wrap(x + 120.0, cy, w - 120.0, 14.0, W::M, TEXT, shown)
+                .wrap(x + vx, cy, w - vx, 14.0, W::M, TEXT, shown)
                 .max(20.0)
                 + 12.0;
             let mut row: Vec<(String, Style, Action)> = vec![(

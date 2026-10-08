@@ -278,10 +278,15 @@ impl Disks {
                 .place(&stick)
                 .and_then(|mut p| faraday_files::read(&mut p, &name))
                 .map(Response::Bytes),
-            Request::Write { stick, name, bytes } => {
+            Request::Write {
+                stick,
+                name,
+                mut bytes,
+            } => {
                 let written = self
                     .place(&stick)
                     .and_then(|mut p| faraday_files::write_any(&mut p, &name, &bytes));
+                zeroize::Zeroize::zeroize(&mut bytes);
                 // What this process wrote changes the listing.
                 self.seen.remove(&stick);
                 written.map(Response::Written)

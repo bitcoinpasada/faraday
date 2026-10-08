@@ -33,3 +33,9 @@ changes and nothing else has to be kept in step.
 - Do not use `rm`; use `trash`. Use absolute paths in shell commands.
 - Agents do not commit and do not spawn agents; the orchestrator reviews
   and commits.
+- The orchestrator hands each task to an agent on the model it needs:
+  Opus for work that takes decisions or judgement (design, a new flow,
+  a spec, a review), Sonnet for mechanical work whose result can be
+  checked (a specified change, a rename, making tests pass), Haiku for
+  menial read-only work (finding files, listing call sites, reading
+  logs).

@@ -9,6 +9,13 @@
 //! count and its items. Every length is checked against what is left of
 //! the frame, and a frame against [`MAX_FRAME`], before anything is
 //! allocated: each side treats the other as hostile.
+//!
+//! A file on its way through may be a seed written in the clear, and the
+//! disk process lives on across the app's locks, so no copy is left
+//! behind: a frame is built in a buffer sized for it (no move as it
+//! grows), [`send`] wipes the frame it wrote, and each side wipes what it
+//! received and what it answered once done with it ([`Request::wipe`],
+//! [`Response::wipe`]).
 
 use std::io::{Read, Write};
 
@@ -83,7 +90,14 @@ struct Out(Vec<u8>);
 
 impl Out {
     fn tag(t: u8) -> Out {
-        Out(vec![t])
+        Out::sized(t, 0)
+    }
+    /// A frame with room for `more` bytes after its tag, so that it never
+    /// moves, and leaves a copy, as it fills.
+    fn sized(t: u8, more: usize) -> Out {
+        let mut v = Vec::with_capacity(more + 1);
+        v.push(t);
+        Out(v)
     }
     fn str(&mut self, s: &str) {
         // A string longer than a 2-byte length is cut at a character.
@@ -150,6 +164,13 @@ impl In<'_> {
 }
 
 impl Request {
+    /// Wipes the file it carries, if any.
+    pub fn wipe(&mut self) {
+        if let Request::Write { bytes, .. } = self {
+            zeroize::Zeroize::zeroize(bytes);
+        }
+    }
+
     /// The frame's bytes.
     pub fn encode(&self) -> Vec<u8> {
         let o = match self {
@@ -161,7 +182,7 @@ impl Request {
                 o
             }
             Request::Write { stick, name, bytes } => {
-                let mut o = Out::tag(3);
+                let mut o = Out::sized(3, 4 + stick.len() + name.len() + 4 + bytes.len());
                 o.str(stick);
                 o.str(name);
                 o.bytes(bytes);
@@ -203,6 +224,15 @@ impl Request {
 }
 
 impl Response {
+    /// Wipes the file or codes it carries, if any.
+    pub fn wipe(&mut self) {
+        match self {
+            Response::Bytes(b) => zeroize::Zeroize::zeroize(b),
+            Response::Qr(codes) => codes.iter_mut().for_each(zeroize::Zeroize::zeroize),
+            _ => {}
+        }
+    }
+
     /// The frame's bytes.
     pub fn encode(&self) -> Vec<u8> {
         let o = match self {
@@ -222,7 +252,7 @@ impl Response {
                 o
             }
             Response::Bytes(b) => {
-                let mut o = Out::tag(0x82);
+                let mut o = Out::sized(0x82, 4 + b.len());
                 o.bytes(b);
                 o
             }
@@ -232,7 +262,8 @@ impl Response {
                 o
             }
             Response::Qr(codes) => {
-                let mut o = Out::tag(0x84);
+                let size = codes.iter().map(|c| 4 + c.len()).sum::<usize>();
+                let mut o = Out::sized(0x84, 2 + size);
                 o.count(codes.len());
                 for c in codes.iter().take(u16::MAX as usize) {
                     o.bytes(c);
@@ -302,8 +333,9 @@ pub fn send(w: &mut dyn Write, seq: u32, payload: &[u8]) -> std::io::Result<()> 
     frame.extend_from_slice(&len.to_le_bytes());
     frame.extend_from_slice(&seq.to_le_bytes());
     frame.extend_from_slice(payload);
-    w.write_all(&frame)?;
-    w.flush()
+    let sent = w.write_all(&frame).and_then(|()| w.flush());
+    zeroize::Zeroize::zeroize(&mut frame);
+    sent
 }
 
 /// Takes one frame and its sequence number; `None` when the other end has

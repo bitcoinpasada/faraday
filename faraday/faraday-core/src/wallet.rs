@@ -400,7 +400,7 @@ impl Session {
         } else {
             label.trim().to_string()
         };
-        let mut words = zeroize::Zeroizing::new(String::new());
+        let mut words = crate::secret_text::room();
         for (k, &i) in mnemonic.indices().iter().enumerate() {
             if k > 0 {
                 words.push(' ');

@@ -271,6 +271,32 @@ fn a_scrollbar_shows_while_the_content_moves_and_then_fades() {
 }
 
 #[test]
+fn a_small_panel_shows_no_scrollbar_and_its_right_edge_scrolls_the_page() {
+    let mut app = long_files(480, 640);
+    assert!(app.is_compact());
+    wheel(&mut app, 48);
+    run(&mut app, 1_000, 300);
+    let moved = pixels(&mut app);
+    let mut still = long_files(480, 640);
+    still.list_offset = 48.0;
+    scroll(&mut still, 0);
+    run(&mut still, 1_000, 300);
+    assert!(moved == pixels(&mut still), "no bar beside the moving list");
+    // A finger at the right edge drags the page as anywhere else does.
+    let touch = |app: &mut Faraday, y: u16, phase| {
+        app.event(Event::Touch { x: 476, y, phase });
+        while app.poll_command().is_some() {}
+    };
+    let at = still.list_offset;
+    touch(&mut still, 500, TouchPhase::Down);
+    assert_eq!(still.list_offset, at, "a press there moves nothing");
+    touch(&mut still, 450, TouchPhase::Move);
+    touch(&mut still, 400, TouchPhase::Move);
+    touch(&mut still, 400, TouchPhase::Up);
+    assert_eq!(still.list_offset, at + 100.0);
+}
+
+#[test]
 fn a_stretch_springs_back_even_when_no_end_is_said() {
     // A shell that never says the fingers lifted.
     let mut app = long_files(1280, 800);
@@ -345,4 +371,60 @@ fn the_scrollbar_shows_while_the_pointer_is_over_it() {
         pixels(&mut app) == rest,
         "and fades once the pointer leaves"
     );
+}
+
+/// Holds the bar at (x, from_y), drags it to the top, lets go; returns
+/// where each step left `offset`.
+fn drag_bar(
+    app: &mut Faraday,
+    x: u16,
+    from_y: u16,
+    offset: impl Fn(&Faraday) -> f32,
+) -> (f32, f32) {
+    let touch = |app: &mut Faraday, y: u16, phase| {
+        app.event(Event::Touch { x, y, phase });
+        while app.poll_command().is_some() {}
+        let _ = app.frame();
+    };
+    touch(app, from_y, TouchPhase::Down);
+    let low = offset(app);
+    touch(app, 0, TouchPhase::Move);
+    let top = offset(app);
+    touch(app, 0, TouchPhase::Up);
+    (low, top)
+}
+
+#[test]
+fn the_word_list_scrollbar_can_be_held_and_dragged() {
+    use faraday_core::wordlist::WordListAction as WL;
+    let mut app = testkit::started();
+    app.press(Action::WordList(WL::Open(0, None)));
+    let _ = app.frame();
+    // The sheet is 860 wide, centred: its right edge is at 1070.
+    let scroll = |a: &Faraday| a.wordlist.as_ref().unwrap().scroll;
+    let (low, top) = drag_bar(&mut app, 1066, 740, scroll);
+    assert!(
+        low > 1000.0,
+        "pressed low on the track, the list went there"
+    );
+    assert_eq!(top, 0.0, "dragged to the top, it followed");
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::WordList));
+    assert!(
+        app.wordlist.as_ref().unwrap().mark.is_none(),
+        "no word pressed"
+    );
+}
+
+#[test]
+fn the_learn_scrollbar_can_be_held_and_dragged() {
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Learn);
+    let _ = app.frame();
+    assert!(app.learn.max > 0.0, "the page is longer than the sheet");
+    // The sheet is 860 wide, centred: its right edge is at 1070.
+    let (low, top) = drag_bar(&mut app, 1066, 740, |a| a.learn.scroll);
+    assert!(low > 0.0, "pressed low on the track, the page went there");
+    assert_eq!(top, 0.0, "dragged to the top, it followed");
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
 }

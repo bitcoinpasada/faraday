@@ -245,8 +245,8 @@ lacks). Rosé Pine and Light are light themes (`Theme::is_light`), with
 the lighter shadow. Settings › Appearance shows each as a tile drawn in
 its own colours (`Ui::theme_tile`); the theme is kept as `theme=<id>`.
 `faraday-snapshot WxH KIT OUT themes` renders three screens in each.
-Nord is the theme a first start is in (owner, 2026-10-07; `Theme`'s
-default).
+Tokyo Night is the theme a first start is in, on every shell (owner,
+2026-10-08; it was Nord from 2026-10-07; `Theme`'s default).
 
 ### 3.8 The caret and the scrollbar (2026-10-07)
 
@@ -261,6 +261,11 @@ default).
   or finger until it lifts. With the pointer over that edge the bar
   shows in full. `ui::BarGeometry` is where both drawing and holding
   find it.
+- Every scrolled region uses it (2026-10-08): the word-list sheet and
+  the Learn sheet, which drew a thin bar of their own that could not be
+  held, now report their region with `Ui::report_scroll` like a page.
+  The stick visit's file list keeps its own bar, which is held and
+  dragged by itself (`Action::VisitBar`).
 
 ## 4. Tests
 
