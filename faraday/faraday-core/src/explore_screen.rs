@@ -71,15 +71,8 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
         8.0,
         if err.is_some() { ERR } else { ACCENT },
     );
-    ui.text_mid(
-        px + 12.0,
-        y,
-        44.0,
-        15.0,
-        W::M,
-        TEXT,
-        &format!("m/{}|", e.path),
-    );
+    let path = format!("m/{}{}", e.path, ui.caret_char());
+    ui.text_mid(px + 12.0, y, 44.0, 15.0, W::M, TEXT, &path);
     y += 52.0;
     if let Some(m) = err {
         ui.text(px, y, 13.0, W::R, ERR, m);

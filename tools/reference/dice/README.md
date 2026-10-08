@@ -146,11 +146,30 @@ and the loop that feeds it, which is where the reroll and the coin live:
     words.push(hodlBitBoxLookupWord(diceInWord, coin));
 ```
 
-The rolls name every word but the last. The last carries the checksum, so
-it is one of `2^(11 - checksum bits)` words — 128 at twelve words, 8 at
-twenty-four — and the person chooses it. That is what the BitBox02
-firmware itself does, and the only place dice appear in it
-(`src/rust/bitbox02-rust/src/workflow/mnemonic.rs`):
+The rolls name every word, the last included (§16.139). The last word
+also carries the checksum, so only its high `11 − checksum bits` bits
+come from the dice — 7 at twelve words, 3 at twenty-four — and the
+checksum replaces the rest. That is how SeedSigner completes a final
+word the person picked, in `calculate_checksum`
+(`src/seedsigner/helpers/mnemonic_generation.py`):
+
+```python
+    # Convert the resulting mnemonic to bytes, but we `ignore_checksum` validation
+    # because we assume it's incorrect since we either let the user select their own
+    # final word OR we injected the 0000 word from the wordlist.
+    mnemonic_bytes = bip39.mnemonic_to_bytes(unicodedata.normalize("NFKD", " ".join(mnemonic_copy)), ignore_checksum=True, wordlist=Seed.get_wordlist(wordlist_language_code))
+
+    # This function will convert the bytes back into a mnemonic, but it will also
+    # calculate the proper checksum bits while doing so. For a 12-word seed it will just
+    # overwrite the last 4 bits from the above result with the checksum; for a 24-word
+    # seed it'll overwrite the last 8 bits.
+    return bip39.mnemonic_from_bytes(mnemonic_bytes).split()
+```
+
+EntropyLab and the BitBox02 firmware instead stop the rolls one word
+short and let the person pick the last word from the words the checksum
+leaves. Those bits are then the person's choice, not the dice's. The
+firmware's comment (`src/rust/bitbox02-rust/src/workflow/mnemonic.rs`):
 
 ```rust
             // For the last word, we can restrict to a subset of bip39 words that fulfil the
@@ -161,22 +180,26 @@ firmware itself does, and the only place dice appear in it
                 // With 24 words there are only 8 valid candidates. We presnet them as a menu.
 ```
 
-EntropyLab computes the same candidate list in
-`hodlComputeTargetLastWords`; `osk_bip::bip39::last_word_candidates` is
-that computation and predates this pass.
+Picking candidate `k` of that list, in index order, is the same key as
+rolling a last word whose high bits are `k`; the group `111111` names
+`abandon` and gives the first candidate.
 
-Vector, computed by running `hodlBitBoxRolls` and `hodlTargetLastWords`
-out of `src/js/app.js` the same way:
+Vectors. The words for each six-roll group are EntropyLab's
+`hodlBitBoxLookupWord`; the entropy and the completed words are the two
+embit calls `calculate_checksum` makes (embit's `bip39`, run with
+`uv run --with embit`):
 
-```
-$ node vectors.mjs
-{"words":12,"rolls":"123411234122341233412344123415234126341231412342123413234124341235",
- "rolled":["brand","hobby","ranch","shoulder","brass","hockey","ranch","short","brand","hockey","random"],
- "candidates":128,"first_candidate":"above","last_candidate":"zone"}
-{"words":24,"rolls":"…138 rolls of the same transcript…",
- "candidates":8,"first_candidate":"boat","last_candidate":"yard"}
-24 candidates: ["boat","desk","field","ivory","mammal","pig","school","yard"]
-```
+| Rolls | Rolled last word | Entropy | Key's last word |
+|---|---|---|---|
+| EntropyLab's 66-roll transcript + `432141` | `tooth` | `1b0d8ac66371b2d8ec66361b0d8ec6f2` | `torch` |
+| EntropyLab's 66-roll transcript + `111111` | `abandon` | `1b0d8ac66371b2d8ec66361b0d8ec680` | `above` |
+| the 72 rolls of the first row, twice | `tooth` | `1b0d8ac66371b2d8ec66361b0d8ec6f261b0d8ac66371b2d8ec66361b0d8ec6f` | `unfold` |
+
+The 66-roll transcript is
+`123411234122341233412344123415234126341231412342123413234124341235`,
+whose eleven words EntropyLab's `hodlBitBoxRolls` gives as `brand hobby
+ranch shoulder brass hockey ranch short brand hockey random`; its
+`hodlTargetLastWords` gives 128 candidates from `above` to `zone`.
 
 ## What the sanity step counts
 

@@ -46,7 +46,7 @@ pub(crate) fn text_box(
     ui.text_mid(x + 12.0, y, 40.0, 14.0, W::M, TEXT, &shown);
     if focused && !ui.select_all {
         let cx = x + 13.0 + ui.measure(14.0, W::M, &shown);
-        ui.fill(cx, y + 11.0, 2.0, 18.0, 1.0, ACCENT);
+        ui.caret(cx, y + 11.0, 18.0);
     }
     ui.hit(x, y, w, 40.0, action);
 }
@@ -117,7 +117,7 @@ fn text_area(
 ) -> f32 {
     let mut shown = b.text.to_string();
     if focused {
-        shown.push('|');
+        shown.push_str(ui.caret_char());
     }
     let th = ui.wrap(x + 12.0, y + 10.0, w - 24.0, 14.0, W::R, TEXT, &shown);
     let h = (th + 20.0).max(96.0);
@@ -324,12 +324,7 @@ pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
         );
         ui.icon(x + 18.0, y + 22.0, 48.0, Icon::Lock, 20.0, icon_color);
         ui.text(x + 84.0, y + 16.0, 16.0, W::S, TEXT, &title_text);
-        let name = if fresh {
-            "named when written".to_string()
-        } else {
-            f.name.clone()
-        };
-        ui.text(x + 84.0, y + 42.0, 12.0, W::M, MUTED, &name);
+        ui.text(x + 84.0, y + 42.0, 12.0, W::M, MUTED, &f.name);
         let where_ = if f.in_outbox {
             "In the Outbox"
         } else {
@@ -341,25 +336,26 @@ pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
             cost_text(&f.header.cost)
         );
         ui.text(x + 84.0, y + 62.0, 12.0, W::R, DIM, &line);
-        let label = if open.is_some() { "Open" } else { "Unlock" };
-        let bw = ui.measure(14.0, W::S, label) + 36.0;
-        let style = if open.is_some() {
-            Style::Secondary
+        // An open vault: what is in it, and Lock, which seals it (and
+        // every other) into the Outbox. A locked one: Unlock.
+        let buttons: &[(&str, Style, Action)] = if open.is_some() {
+            &[
+                ("View contents", Style::Secondary, va(V::Open(i))),
+                ("Lock", Style::Primary, Action::LockAsk),
+            ]
         } else {
-            Style::Primary
+            &[("Unlock", Style::Primary, va(V::Open(i)))]
         };
-        ui.button(
-            x + w - 20.0 - bw,
-            y + 26.0,
-            Some(bw),
-            40.0,
-            label,
-            style,
-            va(V::Open(i)),
-        );
+        let mut bx = x + w - 20.0;
+        for &(label, style, action) in buttons.iter().rev() {
+            let bw = ui.measure(14.0, W::S, label) + 36.0;
+            bx -= bw;
+            ui.button(bx, y + 26.0, Some(bw), 40.0, label, style, action);
+            bx -= 8.0;
+        }
         let sw = ui.measure(13.0, W::S, &state);
         ui.text_mid(
-            x + w - 40.0 - bw - sw,
+            bx - 12.0 - sw,
             y + 26.0,
             40.0,
             13.0,
@@ -523,7 +519,7 @@ const VSTEPS: [&str; 4] = [
     "Where will you open it?",
     "Unlock cost",
     "Space per passphrase",
-    "Passphrases",
+    "Name and passphrases",
 ];
 
 pub(crate) fn create(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -582,9 +578,14 @@ fn create_guide(k: u8) -> String {
         vstep::WHERE => "A vault opens only on a machine with the memory its cost asks for. Choose every kind of \
             machine it will ever be opened on; the cost suggested next fits the one with the least memory."
             .to_string(),
-        vstep::COST => "Each guess at a passphrase costs this much memory and time. Memory is a hard limit: a \
-            machine without it cannot open the vault at any speed. The passphrase matters more: one more \
-            dice word adds 12.9 bits, and this whole range of cost adds 6. The cost cannot be changed later."
+        vstep::COST => "Each guess at a passphrase costs this much memory and time. Argon2id works through \
+            the memory 1 KiB at a time, once each pass, so a guess is memory in KiB times passes block \
+            steps, and the cost adds the base-2 logarithm of that to the passphrase's own bits: 64 MiB \
+            with 3 passes is 196,608 steps, ≈17.6 bits, and doubling the memory or the passes adds ≈1. \
+            These are estimates, marked ≈: they count work, not how much harder memory is than time for \
+            an attacker. A dice passphrase's own bits are exact. Memory is a hard limit: a machine \
+            without it cannot open the vault at any speed. The passphrase matters more: one more dice \
+            word adds 12.9 bits, and this whole range of cost adds ≈6. The cost cannot be changed later."
             .to_string(),
         vstep::SIZE => "Every passphrase gets the same space, fixed for the life of the vault. 256 KiB holds \
             keys, wallets, notes and about a hundred entries."
@@ -621,7 +622,8 @@ fn create_summaries(app: &Faraday) -> [String; 4] {
             file_text(file_len(c.slot))
         ),
         format!(
-            "{n} {} · {}",
+            "{}.ofv · {n} {} · {}",
+            vaults::vault_stem(&c.name.text),
             if n == 1 { "passphrase" } else { "passphrases" },
             if ok { "match" } else { "not finished" }
         ),
@@ -686,17 +688,19 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     if on { ACCENT.with_alpha(22) } else { BG },
                 );
                 ui.stroke(x, cy, w, 50.0, 8.0, if on { ACCENT } else { INNER });
-                ui.text_mid(x + 16.0, cy, 50.0, 14.0, W::S, TEXT, label);
-                ui.text_mid(
-                    x + 120.0,
-                    cy,
-                    50.0,
-                    13.0,
-                    W::M,
-                    MUTED,
-                    &format!("{} · {p} passes", mib_text(m)),
+                // The name and what the row says of it, then the cost and
+                // the bits it adds.
+                ui.text(x + 16.0, cy + 8.0, 14.0, W::S, TEXT, label);
+                let room = w - 44.0 - ui.measure(14.0, W::S, label);
+                let note = ui.fit(12.0, W::R, &note, room);
+                ui.text_right(x + w - 16.0, cy + 5.0, 24.0, 12.0, W::R, color, &note);
+                let detail = format!(
+                    "{} · {p} passes · ≈{:.1} bits",
+                    mib_text(m),
+                    vaults::cost_bits(m, p)
                 );
-                ui.text_right(x + w - 16.0, cy, 50.0, 12.0, W::R, color, &note);
+                let detail = ui.fit(12.0, W::M, &detail, w - 32.0);
+                ui.text(x + 16.0, cy + 29.0, 12.0, W::M, MUTED, &detail);
                 ui.hit(x, cy, w, 50.0, va(V::CPreset(k)));
                 cy += 56.0;
             }
@@ -738,23 +742,11 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             }
             // The memory it needs against the weakest machine's.
             let need = mem + 100;
-            ui.text(
-                x,
-                cy,
-                13.0,
-                W::S,
-                TEXT,
-                &format!("Needs about {} free", mib_text(need)),
-            );
-            ui.text_right(
-                x + w,
-                cy - 4.0,
-                24.0,
-                12.0,
-                W::R,
-                MUTED,
-                &format!("{weakest}: {}", mib_text(ram)),
-            );
+            let needs = format!("Needs about {} free", mib_text(need));
+            ui.text(x, cy, 13.0, W::S, TEXT, &needs);
+            let room = w - ui.measure(13.0, W::S, &needs) - 12.0;
+            let has = ui.fit(12.0, W::R, &format!("{weakest}: {}", mib_text(ram)), room);
+            ui.text_right(x + w, cy - 4.0, 24.0, 12.0, W::R, MUTED, &has);
             cy += 24.0;
             ui.fill(x, cy, w, 8.0, 4.0, INNER);
             let share = (need as f32 / ram.max(1) as f32).min(1.0);
@@ -774,6 +766,18 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 W::R,
                 MUTED,
                 &format!("Unlocks in {} here", app.vaults.time_text(mem, passes)),
+            );
+            cy += 22.0;
+            ui.text(
+                x,
+                cy,
+                12.0,
+                W::R,
+                MUTED,
+                &format!(
+                    "Adds ≈{:.1} bits to every passphrase",
+                    vaults::cost_bits(mem, passes)
+                ),
             );
             cy += 30.0;
             crate::screens::next_button(ui, x, cy, w, "Continue", va(V::CNext(n)));
@@ -808,6 +812,28 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
         _ => {
             let half = (w - 12.0) / 2.0;
             let may = app.may_load_keys();
+            // Its name, which names the file.
+            ui.text_mid(x, cy, 36.0, 13.0, W::S, TEXT, "Name");
+            cy += 40.0;
+            let nw = w.min(360.0);
+            text_box(
+                ui,
+                x,
+                cy,
+                nw,
+                &c.name,
+                false,
+                app.vaults.focus == Some(Focus::Name),
+                va(V::CName),
+            );
+            let file = format!("File {}.ofv", vaults::vault_stem(&c.name.text));
+            if nw + 16.0 + ui.measure(13.0, W::R, &file) <= w {
+                ui.text_mid(x + nw + 16.0, cy, 40.0, 13.0, W::R, MUTED, &file);
+                cy += 56.0;
+            } else {
+                ui.text(x, cy + 48.0, 13.0, W::R, MUTED, &file);
+                cy += 78.0;
+            }
             if !may {
                 cy += stick_banner(ui, x, cy, w, "Remove the stick, then type the passphrases");
             }
@@ -915,7 +941,35 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     ("Type it, then type it again", DIM)
                 };
                 ui.text(x, cy, 12.0, W::R, color, status);
-                cy += 30.0;
+                cy += 22.0;
+                // Its strength: the dice's bits and the cost's, when the
+                // dice made it.
+                let (_, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
+                let cost = vaults::cost_bits(mem, passes);
+                let strength = match vaults::Vaults::phrase_bits(c, i) {
+                    Some(own) => Some((
+                        format!(
+                            "{own:.1} bits from dice + ≈{cost:.1} from the unlock cost ≈ {:.1} bits",
+                            own + cost
+                        ),
+                        if own >= vaults::STRONG_BITS as f32 {
+                            OK
+                        } else {
+                            MUTED
+                        },
+                    )),
+                    None if !a.text.is_empty() => Some((
+                        format!(
+                            "Typed: its own bits are not measured · the unlock cost adds ≈{cost:.1}"
+                        ),
+                        DIM,
+                    )),
+                    None => None,
+                };
+                if let Some((line, tone)) = strength {
+                    cy += ui.wrap(x, cy, w, 12.0, W::R, tone, &line);
+                }
+                cy += 12.0;
                 if let Some((di, rolls, list)) = app.vaults.dice.as_ref()
                     && *di == i
                 {
@@ -1014,43 +1068,42 @@ fn dice_panel(
     let words = vaults::dice_words(&rolls.text, list);
     let per = list.dice_per_word();
     let left = rolls.text.len() % per;
-    let line = if words.is_empty() {
-        "No word yet".to_string()
+    // The words as the rolls make them, each a pill that opens it in its
+    // list, as New key shows its words.
+    if words.is_empty() {
+        ui.text(x, cy, 13.0, W::R, DIM, "No word yet");
+        cy += 26.0;
     } else {
-        words.join(" ")
-    };
-    cy += ui.wrap(x, cy, w, 15.0, W::M, TEXT, &line) + 8.0;
-    // Each word, a link to it in its list.
-    let place = crate::wordlist::WordList::Eff(list).place();
-    let mut bx = x;
-    for (word, i) in words
-        .iter()
-        .zip(vaults::dice_word_indices(&rolls.text, list))
-    {
-        let label = format!("{word} in the list");
-        let bw = ui.measure(13.0, W::S, &label) + 32.0;
-        if bx > x && bx + bw > x + w {
-            bx = x;
-            cy += 34.0;
+        ui.text(x, cy, 12.0, W::R, MUTED, crate::wordlist::PRESS_A_WORD);
+        cy += 22.0;
+        let place = crate::wordlist::WordList::Eff(list).place();
+        let mut bx = x;
+        for (word, i) in words
+            .iter()
+            .zip(vaults::dice_word_indices(&rolls.text, list))
+        {
+            let bw = ui.measure(14.0, W::M, word) + 24.0;
+            if bx > x && bx + bw > x + w {
+                bx = x;
+                cy += 32.0;
+            }
+            bx += ui.word_pill(
+                bx,
+                cy,
+                word,
+                Action::WordList(crate::wordlist::WordListAction::Open(place, Some(i))),
+            ) + 6.0;
         }
-        bx += ui.button(
-            bx,
-            cy,
-            Some(bw),
-            28.0,
-            &label,
-            Style::Ghost,
-            Action::WordList(crate::wordlist::WordListAction::Open(place, Some(i))),
-        ) + 4.0;
-    }
-    if !words.is_empty() {
-        cy += 36.0;
+        cy += 38.0;
     }
     let bits = list.bits(words.len());
+    let (_, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
+    let own = words.len() as f32 * list.bits_per_word();
     let status = format!(
-        "{} {} · {bits} bits{}",
+        "{} {} · {own:.1} bits · ≈{:.1} with the unlock cost{}",
         words.len(),
         if words.len() == 1 { "word" } else { "words" },
+        own + vaults::cost_bits(mem, passes),
         if left > 0 {
             format!(" · {left} of {per} dice for the next word")
         } else {
@@ -1106,7 +1159,7 @@ fn create_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32, summaries:
         "Opens on",
         "Unlock cost",
         "Space per passphrase",
-        "Passphrases",
+        "Name and passphrases",
     ]
     .iter()
     .enumerate()
@@ -1172,11 +1225,38 @@ fn create_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32, summaries:
     y += 8.0;
     ui.text(x, y, 13.0, W::S, MUTED, "Will create");
     y += 26.0;
+    let cost = vaults::cost_bits(mem, passes);
+    // The weakest passphrase's strength, known when the dice made every
+    // one.
+    let own: Vec<Option<f32>> = (0..c.phrases.len())
+        .map(|i| vaults::Vaults::phrase_bits(c, i))
+        .collect();
+    let strength = if c.phrases.iter().all(|(a, _)| a.text.is_empty()) {
+        "No passphrase yet".to_string()
+    } else if let Some(min) = own
+        .iter()
+        .map(|b| b.map(|b| b + cost))
+        .collect::<Option<Vec<f32>>>()
+        .and_then(|v| v.into_iter().reduce(f32::min))
+    {
+        format!("≈{min:.1} bits")
+    } else {
+        "Not measured".to_string()
+    };
     let facts = [
-        ("File", "vault.ofv".to_string()),
+        ("File", format!("{}.ofv", vaults::vault_stem(&c.name.text))),
         ("Size", file_text(file_len(c.slot))),
         ("Memory to open", format!("about {}", mib_text(mem + 100))),
         ("Unlock here", app.vaults.time_text(mem, passes)),
+        ("Unlock cost adds", format!("≈{cost:.1} bits")),
+        (
+            if c.phrases.len() > 1 {
+                "Weakest passphrase"
+            } else {
+                "Strength"
+            },
+            strength,
+        ),
         ("Goes to", "Outbox".to_string()),
     ];
     for (k, v) in facts.iter() {
@@ -1413,7 +1493,7 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Some(lockw),
         40.0,
         "Lock",
-        Style::Secondary,
+        Style::Primary,
         Action::LockAsk,
     );
     let rw = ui.measure(13.0, W::S, "Rename") + 28.0;
@@ -2127,6 +2207,23 @@ pub(crate) fn lock_ask(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     .into_iter()
     .filter(|(_, v)| !v.is_empty())
     .collect();
+    if ui.compact {
+        let rows: Vec<(&str, String, osk_ui::Color)> =
+            rows.into_iter().map(|(k, v)| (k, v, TEXT)).collect();
+        crate::compact::kv_sheet(
+            ui,
+            w,
+            h,
+            (Icon::Lock, ACCENT, "Lock"),
+            "Everything not in a vault is wiped with the session",
+            &rows,
+            &[
+                ("Back to the vault", Style::Secondary, Action::Cancel),
+                ("Lock", Style::Primary, Action::Lock),
+            ],
+        );
+        return;
+    }
     let sh = 210.0 + rows.len() as f32 * 44.0;
     let (x, y) = crate::screens::sheet_box(ui, w, h, 560.0, sh);
     let ix = x + 32.0;

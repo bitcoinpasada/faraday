@@ -16,6 +16,8 @@ osk-psbt = { path = "../../core/osk-psbt" }
 osk-codec = { path = "../../core/osk-codec" }
 osk-crypto = { path = "../../core/osk-crypto" }
 osk-entropy = { path = "../../core/osk-entropy" }
+osk-learn = { path = "../../core/osk-learn" }
+osk-selftest = { path = "../../core/osk-selftest" }
 # OpenSigner's Create wizard: the new-key options and their names
 # (`src/keygen.rs`).
 opensigner-core = { path = "../../opensigner/opensigner-core" }

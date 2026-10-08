@@ -18,9 +18,9 @@ use osk_ui::widgets::keyboard::{self, KeyboardKind};
 use osk_ui::widgets::{Icon, Tone};
 
 use crate::codex32::{Codex32Plan, MAX_STRINGS_MADE, Step};
-use crate::create::{SOURCE_ROWS, Source};
 use crate::views::create as create_view;
 use crate::{OpenSigner, ids, strings};
+use osk_entropy::{SOURCE_ROWS, Source};
 
 use osk_bip::codex32::MAX_THRESHOLD;
 

@@ -16,7 +16,8 @@ use osk_bip::slip39;
 use osk_crypto::{Zeroize, ZeroizeOnDrop};
 use osk_entropy::{
     CameraNoise, CardDraws, CoinFlips, DeviceRandom, DiceProcedure, DiceRolls, FrameStats,
-    MAX_XOR_PARTS, MIN_MIX, MIN_XOR_PARTS, Mixed, RawHex, SeedXor, Strength, Warnings,
+    MAX_XOR_PARTS, MIN_MIX, MIN_XOR_PARTS, MIX_SOURCES, Mixed, RawHex, SOURCE_ROWS, SeedXor,
+    Source, Strength, Warnings,
 };
 use osk_ui::geom::SizeClass;
 use osk_ui::widgets::keyboard::KeyInput;
@@ -25,54 +26,6 @@ use crate::finish::{Finish, FinishStep, MASK_MS, Material};
 use crate::ids::{self, Id};
 use crate::load::{EntryList, LoadWizard, LoadedKey};
 use crate::quiz::{Quiz, QuizState};
-
-/// Where the entropy comes from.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Source {
-    /// Six-sided dice, hashed (`osk_entropy::DiceRolls`).
-    Dice,
-    /// Coin flips, packed (`osk_entropy::CoinFlips`).
-    Coins,
-    /// Hex digits typed as they are (`osk_entropy::RawHex`).
-    Hex,
-    /// Seed XOR parts, typed as words and XORed back into the key
-    /// (`osk_entropy::SeedXor`).
-    SeedXor,
-    /// Cards drawn from a shuffled deck (`osk_entropy::CardDraws`).
-    Cards,
-    /// The noise in a run of camera frames (`osk_entropy::CameraNoise`).
-    Camera,
-    /// Several sources combined (`osk_entropy::Mixed`).
-    Mix,
-    /// The shell's own generator (`osk_entropy::DeviceRandom`).
-    Device,
-}
-
-/// The source rows the first step lists, in order. Seed XOR is not
-/// among them: combining parts gives back a key that already existed,
-/// so it is a row of the Load wizard's sources.
-pub const SOURCE_ROWS: [Source; 7] = [
-    Source::Dice,
-    Source::Coins,
-    Source::Hex,
-    Source::Cards,
-    Source::Camera,
-    Source::Mix,
-    Source::Device,
-];
-
-/// The sources a mix offers, in the order its rows list them and in the
-/// order their steps then run. Hex is not among them: a mix is a way of
-/// not having to trust one source, and typed hex is the person's own
-/// bytes, which they can mix themselves before typing. Seed XOR is not
-/// a source of randomness at all.
-pub const MIX_SOURCES: [Source; 5] = [
-    Source::Dice,
-    Source::Coins,
-    Source::Cards,
-    Source::Camera,
-    Source::Device,
-];
 
 /// Where the wizard is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -88,9 +41,6 @@ pub enum Step {
     Language,
     /// Rolling, flipping or typing.
     Entropy,
-    /// Which of the words the checksum leaves is the last one, after a
-    /// run of direct selection ([`DiceProcedure::Words`]).
-    LastWord,
     /// Typing one Seed XOR part's words, and the fingerprint it comes
     /// to once they are all in.
     XorPart,
@@ -178,9 +128,6 @@ pub struct CreateWizard {
     /// Which published procedure the rolls follow
     /// (`docs/PLANNING.md` §16.115).
     dice_proc: DiceProcedure,
-    /// Which of the checksum's candidate words the last-word Choice has
-    /// checked, after a run of direct selection.
-    last_word: u16,
     /// Whether the last key pressed was a face the direct-selection
     /// procedure rerolls, which the caption line under the pad says.
     reroll: bool,
@@ -284,7 +231,6 @@ pub struct CreateWizard {
 impl Zeroize for CreateWizard {
     fn zeroize(&mut self) {
         self.dice.zeroize();
-        self.last_word = 0;
         self.reroll = false;
         self.coins.zeroize();
         self.hex.zeroize();
@@ -344,7 +290,6 @@ impl CreateWizard {
             lang: Language::English,
             dice: DiceRolls::new(),
             dice_proc: DiceProcedure::Hashed,
-            last_word: 0,
             reroll: false,
             coins: CoinFlips::new(),
             hex: RawHex::new(),
@@ -473,7 +418,7 @@ impl CreateWizard {
         if self.slip39 {
             &crate::load::SLIP39_COUNTS
         } else {
-            &crate::load::COUNTS
+            &osk_entropy::WORD_COUNTS
         }
     }
 
@@ -605,7 +550,6 @@ impl CreateWizard {
         if procedure != self.dice_proc && self.procedure_available(procedure) {
             self.dice_proc = procedure;
             self.dice.clear();
-            self.last_word = 0;
             self.reroll = false;
         }
     }
@@ -633,29 +577,9 @@ impl CreateWizard {
         self.dice.word_indices()
     }
 
-    /// How many words direct selection rolls before the checksum leaves
-    /// the last one.
+    /// How many words direct selection rolls: every word of the key.
     pub fn dice_words_needed(&self) -> usize {
-        self.strength().words() - 1
-    }
-
-    /// The words the checksum leaves for the last place, in index
-    /// order, once every other word is rolled.
-    pub fn last_word_candidates(&self) -> Option<osk_bip::bip39::LastWordCandidates> {
-        let mut first = [0u16; 24];
-        let need = self.dice_words_needed();
-        for (slot, index) in first.iter_mut().zip(self.dice.word_indices()) {
-            *slot = index;
-        }
-        if self.dice.word_count() < need {
-            return None;
-        }
-        osk_bip::bip39::last_word_candidates(&first[..need]).ok()
-    }
-
-    /// Which candidate the last-word Choice has checked.
-    pub fn last_word(&self) -> usize {
-        usize::from(self.last_word)
+        self.strength().words()
     }
 
     /// Word count: a BIP-39 length, or a SLIP-39 share's 20 or 33.
@@ -723,10 +647,6 @@ impl CreateWizard {
             Step::Language => Step::Count,
             Step::Procedure if self.slip39 || self.codex32 => Step::Count,
             Step::Procedure => Step::Language,
-            Step::LastWord => {
-                self.last_word = 0;
-                Step::Entropy
-            }
             Step::Entropy if self.sub.is_some() => {
                 self.clear_entry();
                 self.clear_mix();
@@ -921,14 +841,6 @@ impl CreateWizard {
                     self.set_procedure(DiceProcedure::ALL[i]);
                 } else if id == ids::CREATE_PROCEDURE_CONTINUE {
                     self.step = self.entry_step();
-                }
-            }
-            Step::LastWord => {
-                let n = self.last_word_candidates().map_or(0, |c| c.len());
-                if let Some(i) = ids::index_in(id, ids::CREATE_LAST_WORD_BASE, n) {
-                    self.last_word = i as u16;
-                } else if id == ids::CREATE_LAST_WORD_CONTINUE {
-                    self.take_last_word();
                 }
             }
             Step::Entropy | Step::Camera => {
@@ -1343,7 +1255,6 @@ impl CreateWizard {
 
     fn clear_entry(&mut self) {
         self.dice.clear();
-        self.last_word = 0;
         self.reroll = false;
         self.coins.clear();
         self.hex.clear();
@@ -1386,8 +1297,12 @@ impl CreateWizard {
     pub fn entry_bits(&self) -> f32 {
         match self.active() {
             // Direct selection is worth eleven bits a completed word,
-            // not log2 6 a roll: the rerolled faces carry nothing.
-            Source::Dice if self.procedure().direct() => (self.dice.word_count() * 11) as f32,
+            // not log2 6 a roll: the rerolled faces carry nothing. The
+            // last word's low bits become the checksum, so the count
+            // stops at the strength.
+            Source::Dice if self.procedure().direct() => {
+                (self.dice.word_count() * 11).min(self.strength().bits()) as f32
+            }
             Source::Dice => self.dice.bits_collected(),
             Source::Coins => self.coins.bits_collected(),
             Source::Hex => self.hex.len() as f32 * 4.0,
@@ -1488,14 +1403,6 @@ impl CreateWizard {
             self.mix_take();
             return;
         }
-        // Direct selection has named every word but the last, whose
-        // free bits and checksum are the choice the next step makes
-        // (`docs/PLANNING.md` §16.115).
-        if self.procedure().direct() {
-            self.last_word = 0;
-            self.step = Step::LastWord;
-            return;
-        }
         let strength = self.strength();
         let entropy = match self.source {
             Source::Dice => self.dice.entropy_under(strength, self.procedure()),
@@ -1551,30 +1458,6 @@ impl CreateWizard {
             Source::Device => Step::Words,
             _ => Step::Sanity,
         };
-    }
-
-    /// Takes the word the last-word Choice has checked and spells the
-    /// key: the rolled words, then that one.
-    fn take_last_word(&mut self) {
-        let need = self.dice_words_needed();
-        let Some(mut candidates) = self.last_word_candidates() else {
-            return;
-        };
-        let Some(last) = candidates.nth(usize::from(self.last_word)) else {
-            return;
-        };
-        let mut indices = [0u16; 24];
-        for (slot, index) in indices.iter_mut().zip(self.dice.word_indices()) {
-            *slot = index;
-        }
-        indices[need] = last;
-        let built = Mnemonic::from_indices(self.lang, &indices[..need + 1]);
-        indices.zeroize();
-        let Ok(m) = built else {
-            return;
-        };
-        self.mnemonic = Some(m);
-        self.step = Step::Sanity;
     }
 
     /// The mnemonic, once built.

@@ -106,15 +106,10 @@ impl Region<'_> {
 /// How long two-finger scrolling may pause before it is taken to have
 /// ended, for a shell that does not say when the fingers lift.
 pub const SCROLL_QUIET_MS: u64 = 300;
-/// How long a change of screen or sheet cross-fades.
-pub const FADE_MS: u64 = 150;
 /// How long a switch's pill takes to slide to the other side.
 pub const SWITCH_MS: u64 = 160;
 /// How long a step card takes to open or close.
 pub const DISCLOSE_MS: u64 = 180;
-/// How far a sheet rises as it opens, in units, and over how long.
-pub const SHEET_RISE: f32 = 12.0;
-pub const SHEET_MS: u64 = 180;
 /// How long a toast takes to rise in, and to fade out at its end.
 pub const TOAST_MS: u64 = 160;
 
@@ -137,6 +132,9 @@ pub fn progress(at: Option<u64>, now: u64, ms: u64) -> f32 {
 /// long it then takes to fade.
 const BAR_STAY_MS: u64 = 800;
 const BAR_FADE_MS: u64 = 300;
+
+/// Half the text caret's blink: on this long, then off this long.
+pub const CARET_HALF_MS: u64 = 530;
 
 /// The overlay scrollbar's opacity, 0–255, at `now_ms` for content that
 /// last moved at `moved_at` (0: not since the region opened).

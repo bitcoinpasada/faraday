@@ -155,7 +155,7 @@ impl OpenSigner {
         rows.push(Row::Menu {
             id: ids::SETTINGS_START_HERE_ROW,
             icon: Some(Icon::Flag),
-            label: String::from(s.learn_start_here.title),
+            label: String::from(s.learn.start_here.title),
             value: None,
             tone: Tone::Text,
         });

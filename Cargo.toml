@@ -9,6 +9,8 @@ members = [
     "core/osk-codec",
     "core/osk-backup",
     "core/osk-keep",
+    "core/osk-learn",
+    "core/osk-selftest",
     "core/osk-ui",
     "opensigner/opensigner-core",
     "opensigner/opensigner-ffi",

@@ -29,6 +29,25 @@ pub fn read_raw(bytes: &[u8]) -> Option<Transaction> {
     consensus::deserialize(&raw).ok()
 }
 
+/// A raw transaction, in hex text or in bytes, wrapped in an unsigned
+/// PSBT, so that [`crate::inspect`] reads it the way it reads a PSBT;
+/// the PSBT's bytes, and the id of the transaction that arrived.
+///
+/// The wrapper carries no signatures, because a PSBT's unsigned
+/// transaction may carry none; the id is that of the transaction as it
+/// arrived, signatures and all.
+pub fn wrap_raw(bytes: &[u8]) -> Option<(Vec<u8>, Txid)> {
+    let tx = read_raw(bytes)?;
+    let txid = tx.compute_txid();
+    let mut unsigned = tx;
+    for input in &mut unsigned.input {
+        input.script_sig = ScriptBuf::new();
+        input.witness = Witness::new();
+    }
+    let psbt = Psbt::from_unsigned_tx(unsigned).ok()?;
+    Some((psbt.serialize(), txid))
+}
+
 /// Whether an input carries signature data: a scriptSig, a witness, or
 /// both.
 pub fn is_signed(script_sig: &ScriptBuf, witness: &Witness) -> bool {

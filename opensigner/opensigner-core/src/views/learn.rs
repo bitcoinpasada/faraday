@@ -16,11 +16,10 @@ use osk_ui::screens::{self, Action, Row, Section};
 use osk_ui::widgets::{Icon, Tone};
 
 use crate::learn_map::Topic;
-use crate::strings::LearnPage;
 use crate::{OpenSigner, TryIt, ids};
 
 /// The page's sections, as the Document draws them.
-fn sections(page: &LearnPage) -> Vec<Section> {
+fn sections(page: &osk_learn::Page) -> Vec<Section> {
     page.sections
         .iter()
         .map(|section| Section {
@@ -41,7 +40,8 @@ impl OpenSigner {
     pub(crate) fn view_learn(&self) -> Node {
         let s = self.strings();
         let rows: Vec<Row> = s
-            .learn_pages()
+            .learn
+            .pages()
             .iter()
             .enumerate()
             .map(|(i, page)| Row::Menu {
@@ -70,7 +70,7 @@ impl OpenSigner {
     /// that opens the flow it is about where it has one.
     pub(crate) fn view_learn_page(&self, i: usize) -> Node {
         let s = self.strings();
-        let pages = s.learn_pages();
+        let pages = s.learn.pages();
         let i = i.min(pages.len() - 1);
         let page = pages[i];
         let row = self.learn_try(i).map(|(_, label, icon)| Row::Action {
@@ -89,7 +89,7 @@ impl OpenSigner {
     /// is about, and the chevron is the way back to it.
     pub(crate) fn view_learn_topic(&self, i: usize, section: Option<usize>) -> Node {
         let s = self.strings();
-        let pages = s.learn_pages();
+        let pages = s.learn.pages();
         let i = i.min(pages.len() - 1);
         let page = pages[i];
         let mut sections = sections(page);
@@ -108,7 +108,7 @@ impl OpenSigner {
     /// so the screen has no second action saying so.
     pub(crate) fn view_start_here(&self) -> Node {
         let s = self.strings();
-        let page = &s.learn_start_here;
+        let page = &s.learn.start_here;
         self.with_chrome(Some(ids::BACK), |c| {
             screens::document_with(
                 c,

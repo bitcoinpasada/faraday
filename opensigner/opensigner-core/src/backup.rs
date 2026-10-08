@@ -20,12 +20,13 @@ use osk_crypto::{Zeroize, ZeroizeOnDrop};
 use osk_entropy::MAX_XOR_PARTS;
 use osk_ui::widgets::keyboard::KeyInput;
 
-use crate::create::{CreateWizard, SOURCE_ROWS, Source};
+use crate::create::CreateWizard;
 use crate::ids::{self, Id};
 use crate::load::EntryList;
 use crate::pass_entry::PassEntry;
 use crate::quiz::{Quiz, QuizState};
 use crate::sign::Save;
+use osk_entropy::{SOURCE_ROWS, Source};
 
 /// The part counts a Seed XOR split offers, in the order the Choice
 /// lists them.

@@ -36,6 +36,7 @@ pub mod restore;
 pub mod secrets;
 pub mod secureboot;
 pub mod silent;
+pub mod stick_settings;
 #[cfg(feature = "testkit")]
 pub mod testkit;
 pub mod tools;
@@ -46,6 +47,8 @@ pub mod wallet;
 pub mod wordlist;
 
 mod bip85_screen;
+mod compact;
+mod compact_screens;
 mod explore_screen;
 mod family_screen;
 mod family_text;
@@ -360,8 +363,17 @@ pub enum Action {
     Entry(Option<[u8; 4]>),
     /// Add the typed key.
     EntryAdd,
-    /// Type the words from another list, by its place in `forms::LATIN`.
+    /// Type the words from another list, by its place in
+    /// `forms::LANGUAGES`.
     EntryLanguage(u8),
+    /// A key of the on-screen keyboard a list's words are typed on.
+    EntryKey(char),
+    /// That keyboard's backspace.
+    EntryKeyBack,
+    /// That keyboard's shift (Korean's doubled consonants).
+    EntryShift,
+    /// Take the word offered at this place among the candidates.
+    EntryCandidate(u8),
     /// Show the lists other than English, or hide them.
     EntryLanguages,
     /// Type another form of key, by its place in `forms::Form::ALL`.
@@ -408,6 +420,8 @@ pub enum Action {
     VisitStick(usize),
     /// Choose an Outbox file to write.
     VisitOut(usize),
+    /// Tick or untick the settings file on a stick visit.
+    VisitSettings,
     /// Choose a stick file to copy.
     VisitIn(usize),
     /// Choose every file on the stick Faraday reads, or none when all are
@@ -620,6 +634,12 @@ pub enum Action {
     SScanOut,
     /// Done with this silent payments card.
     SNext,
+    /// Add the key's silent payments wallet to the session's wallets.
+    SAddWallet,
+    /// Open session wallet n, a silent payments wallet, on its page.
+    SWallet(usize),
+    /// Check whether Inbox file n, a transaction, pays the wallet.
+    SCheck(usize),
     /// Open or close a BIP-85 card.
     PStep(u8),
     /// The key BIP-85 derives from, by fingerprint.
@@ -650,6 +670,8 @@ pub enum Action {
     ScanCamera(u8),
     /// Open the Learn pages for the screen on show.
     Learn,
+    /// The docked keyboard of a small panel.
+    Osk(compact::OskPress),
     /// Show the Learn sheet's page.
     LearnPage(u8),
     /// The word-list sheet, or a link to it.
@@ -660,10 +682,12 @@ pub enum Action {
     KStep(u8),
     /// 12 or 24 words.
     KWords(u8),
-    /// Choose a source, by its place in `keygen::Source::ALL`.
-    KSource(u8),
-    /// Choose a dice procedure, by its place in `DiceProcedure::ALL`.
-    KProc(u8),
+    /// Choose an option of the Randomness card, by its place in
+    /// `keygen::WAYS`.
+    KWay(u8),
+    /// Open or close a group of the Randomness card: 0 the options
+    /// verifiable by hand, 1 the ones the device computes.
+    KGroup(u8),
     /// Take a source into a mix or out of it, by its place in
     /// `keygen::Source::MIXABLE`.
     KMix(u8),
@@ -675,14 +699,9 @@ pub enum Action {
     KDie(u8),
     /// Coin flips entered as a die's faces (true) or as a coin's sides.
     KByDie(bool),
-    /// Dice's own Flip mode: rolls read as flips rather than taken under
-    /// the chosen procedure.
-    KDiceFlip(bool),
     /// Entries typed as one string into a box (true), or pressed one at
     /// a time.
     KTyping(bool),
-    /// Take what is typed into the box.
-    KTake,
     /// A card's rank.
     KRank(u8),
     /// A card's suit.
@@ -697,8 +716,8 @@ pub enum Action {
     KClear,
     /// Done with this card.
     KNext,
-    /// The last word, by its wordlist index.
-    KLast(u16),
+    /// Run the self-test again (Settings › About).
+    SelfTestRun,
     /// Show or hide the words.
     KShow,
     /// Load the key.
@@ -808,6 +827,10 @@ pub enum Action {
 /// What a stick visit calls a file it copies in, by its extension;
 /// `None` for a kind Faraday does not read.
 pub fn stick_kind(name: &str) -> Option<&'static str> {
+    // The settings file is read at boot, not copied in.
+    if stick_settings::is_file(name) {
+        return None;
+    }
     let lower = name.to_ascii_lowercase();
     let ext = lower.rsplit('.').next().unwrap_or("");
     match ext {
@@ -1236,6 +1259,18 @@ fn ur_bytes_frames(data: &[u8], what: &str, part: usize) -> Result<Frames, Strin
     ))
 }
 
+/// Whether an Outbox file can go as a QR transfer: what a wallet reads
+/// goes as itself, anything else in the file envelope, which carries up
+/// to 256 KiB. No vault is that small.
+pub(crate) fn qr_fits(item: &Item) -> bool {
+    match item.kind {
+        FileKind::Psbt | FileKind::Wallet | FileKind::Key | FileKind::Message | FileKind::Share => {
+            true
+        }
+        _ => !item.bytes.is_empty() && item.bytes.len() <= faraday_qr::envelope::MAX_FILE,
+    }
+}
+
 /// A file's name as the envelope takes one: letters, digits, dots,
 /// hyphens and underscores, starting with a letter or digit.
 fn envelope_name(name: &str) -> String {
@@ -1367,8 +1402,14 @@ pub struct EntryState {
     /// Which form of key is being typed.
     pub form: forms::Form,
     /// The BIP-39 list the words are typed from, by its place in
-    /// `forms::LATIN`.
+    /// `forms::LANGUAGES`.
     pub language_at: u8,
+    /// OpenSigner's word entry, for a list typed on an on-screen
+    /// keyboard ([`forms::on_screen`]); `None` for a Latin list, whose
+    /// words are typed into `typed`.
+    pub keys: Option<Box<opensigner_core::load::LoadWizard>>,
+    /// The on-screen keyboard's shift is on.
+    pub shift: bool,
     /// SLIP-39 shares, codex32 strings or Seed XOR parts collected.
     pub parts: forms::Parts,
     /// The lists other than English are shown to choose from.
@@ -1378,7 +1419,7 @@ pub struct EntryState {
 impl EntryState {
     /// The BIP-39 list the words are typed from.
     pub fn language(&self) -> osk_bip::bip39::Language {
-        forms::LATIN[usize::from(self.language_at) % forms::LATIN.len()]
+        forms::LANGUAGES[usize::from(self.language_at) % forms::LANGUAGES.len()]
     }
 }
 
@@ -1614,6 +1655,9 @@ pub struct VisitState {
     pub out: BTreeSet<String>,
     /// Stick files chosen to copy, by name.
     pub inn: BTreeSet<String>,
+    /// The settings file's row as the person set it; `None` for its
+    /// default (`Faraday::visit_settings_on`).
+    pub settings: Option<bool>,
     /// What the last write or copy did, one line per file.
     pub log: Vec<(String, bool)>,
     /// Names from an "Import and load" copy, by name: loaded as keys the
@@ -1631,6 +1675,9 @@ pub struct Faraday {
     f: f32,
     w: f32,
     h: f32,
+    /// The display is a small panel: under 600 dp wide, laid out one
+    /// column, pages in place of the sidebar (`Faraday::is_compact`).
+    compact: bool,
     hits: Vec<(Rect, Action)>,
     pressed: Option<(Action, Rect)>,
     commands: VecDeque<Command>,
@@ -1642,8 +1689,7 @@ pub struct Faraday {
     pub scale_pct: u16,
     /// The palette the screens are drawn in.
     pub theme: ui::Theme,
-    /// Reduce motion: nothing slides, glides, coasts or stretches; a
-    /// change still cross-fades.
+    /// Reduce motion: nothing slides, glides, coasts or stretches.
     pub reduce_motion: bool,
     /// Minutes without input before the session locks; 0 for never
     /// (`PLAN.md` §12.3).
@@ -1694,6 +1740,11 @@ pub struct Faraday {
     pub screen: Screen,
     /// A sheet over it.
     pub sheet: Option<Sheet>,
+    /// How far a sheet taller than a small panel is scrolled, and which
+    /// sheet it was: another sheet starts at its top.
+    sheet_scroll: (f32, Option<Sheet>),
+    /// A small panel's docked keyboard.
+    osk: compact::Osk,
     /// The Wallets tab's session.
     pub session: Session,
     /// The transaction being signed.
@@ -1718,6 +1769,10 @@ pub struct Faraday {
     pub wallet: usize,
     /// The visit screen.
     pub visit: VisitState,
+    /// The settings the boot stick holds, as `settings_body` writes them:
+    /// read from it at boot, or written to it since; `None` until the
+    /// boot stick has been looked at (`stick_settings`).
+    pub stick_settings: Option<String>,
     /// Guided mode: flows show their written walk-through.
     pub guided: bool,
     /// Pixels scrolled past in the long list on screen (the stick's
@@ -1812,28 +1867,32 @@ pub struct Faraday {
     drag: Option<(i32, bool)>,
     /// The touch now down only stopped a coast, and does nothing else.
     swallow: bool,
+    /// The overlay scrollbar is held: how far down its thumb, in pixels,
+    /// the finger or pointer took it.
+    bar_held: Option<i32>,
+    /// The tick the text caret's blink last started over at: a key or a
+    /// press, so it shows while typing goes on.
+    caret_at: u64,
+    /// The last frame drew a caret, and whether it showed.
+    caret_drawn: Option<bool>,
     /// The tick the last two-finger scroll came in at, until its end.
     scroll_at: Option<u64>,
     /// Where the pointer is, with no button down, in pixels.
     hover: Option<(i32, i32)>,
-    /// The screen and sheet the last frame showed.
-    drawn_key: Option<ScreenKey>,
-    /// The frame before a change of screen or sheet, cross-faded from,
-    /// and the tick the fade started at (`None` until one comes).
-    fade: Option<(Vec<u8>, Option<u64>)>,
     /// The tick the toast on show first came up at.
     toast_at: Option<u64>,
     /// The step column's open card, and one opening or closing.
     disclosed: Option<Disclosed>,
-    /// The next frame cross-fades from the one on screen, whatever it
-    /// shows.
-    fade_next: bool,
     /// The frosted page under the open sheet, and the screen, sheet and
     /// theme it was made for.
     frost: Option<((ScreenKey, ui::Theme), Vec<u8>)>,
     /// The Guided switch's pill sliding: where it started, 0 on Steps
     /// only and 1 on Guided, and the tick it started at.
     guided_moving: Option<(f32, Option<u64>)>,
+    /// What the start-up self-test found (`osk_selftest`): run when the
+    /// display first arrives, before any input. A failure blocks the app
+    /// on a screen naming the check, with Exit its only control.
+    selftest: Option<osk_selftest::Outcome>,
     /// What can be pressed under it.
     hovered: Option<Action>,
     scanned: u32,
@@ -1856,6 +1915,7 @@ impl Faraday {
             f: 1.0,
             w: 1280.0,
             h: 800.0,
+            compact: false,
             hits: Vec::new(),
             pressed: None,
             commands: VecDeque::new(),
@@ -1864,7 +1924,7 @@ impl Faraday {
             restart: false,
             last_display: None,
             scale_pct: 100,
-            theme: ui::Theme::Dark,
+            theme: ui::Theme::default(),
             reduce_motion: false,
             idle_lock_min: IDLE_LOCK_MIN,
             qr_frame_ms: QR_SPEEDS[0],
@@ -1888,6 +1948,8 @@ impl Faraday {
             toast: None,
             screen: Screen::Home,
             sheet: None,
+            sheet_scroll: (0.0, None),
+            osk: compact::Osk::default(),
             session: Session::default(),
             spend: None,
             decode: None,
@@ -1900,7 +1962,8 @@ impl Faraday {
             entry: EntryState::default(),
             wallet: 0,
             visit: VisitState::default(),
-            guided: true,
+            stick_settings: None,
+            guided: false,
             list_offset: 0.0,
             content_h: std::cell::Cell::new(0.0),
             motion: motion::Motion::default(),
@@ -1941,15 +2004,16 @@ impl Faraday {
             down_at: (0, 0),
             drag: None,
             swallow: false,
+            bar_held: None,
+            caret_at: 0,
+            caret_drawn: None,
             scroll_at: None,
             hover: None,
-            drawn_key: None,
-            fade: None,
             toast_at: None,
             disclosed: None,
-            fade_next: false,
             frost: None,
             guided_moving: None,
+            selftest: None,
             hovered: None,
             online: false,
         }
@@ -1973,6 +2037,14 @@ impl Faraday {
 
     /// Delivers what the shell knows about storage.
     pub fn storage(&mut self, event: StorageEvent) {
+        let event = match self.settings_event(event) {
+            Some(e) => e,
+            None => {
+                self.dirty = true;
+                self.commands.push_back(Command::Draw);
+                return;
+            }
+        };
         match event {
             StorageEvent::Sticks(sticks) => self.sticks_changed(sticks),
             StorageEvent::Read { name, bytes, .. } => {
@@ -2390,6 +2462,7 @@ impl Faraday {
             self.vaults.focus = None;
         }
         self.visit.log.clear();
+        self.visit.settings = None;
         if !self.clean() {
             self.not_now = false;
             self.sheet = Some(Sheet::Lock);
@@ -2427,6 +2500,18 @@ impl Faraday {
                 })
                 .collect();
             self.storage_out.extend(reads);
+            // The boot stick's settings, once a session (`stick_settings`).
+            if self.stick_settings.is_none()
+                && let Some(boot) = self.sticks.iter().find(|s| s.boot)
+            {
+                match boot.files.iter().find(|(n, _)| stick_settings::is_file(n)) {
+                    Some((n, _)) => self.storage_out.push_back(StorageCommand::Read {
+                        stick: boot.id.clone(),
+                        name: n.clone(),
+                    }),
+                    None => self.settings_on_stick_known(),
+                }
+            }
         }
     }
 
@@ -2469,9 +2554,38 @@ impl Faraday {
         (rise.min(left.min(1.0)), lift)
     }
 
-    /// Whether loading a key is allowed now: never with a stick attached.
+    /// Whether loading a key is allowed now: only once the self-test has
+    /// passed, and never with a stick attached.
     pub fn may_load_keys(&self) -> bool {
-        self.sticks.is_empty()
+        self.selftest_passed() && self.sticks.is_empty()
+    }
+
+    /// What the start-up self-test found, once it has run: how many
+    /// checks passed, or the name of the first that failed.
+    pub fn selftest(&self) -> Option<osk_selftest::Outcome> {
+        self.selftest
+    }
+
+    /// The self-test has run and every check passed.
+    pub fn selftest_passed(&self) -> bool {
+        matches!(self.selftest, Some(Ok(_)))
+    }
+
+    /// The self-test has run and a check failed: the app is blocked.
+    pub fn selftest_failed(&self) -> bool {
+        matches!(self.selftest, Some(Err(_)))
+    }
+
+    /// Runs `checks` as the self-test, in place of
+    /// [`osk_selftest::CHECKS`]: for a test that a failed check blocks the
+    /// app.
+    #[doc(hidden)]
+    pub fn run_selftest_with(&mut self, checks: &[osk_selftest::Check]) {
+        self.selftest = Some(osk_selftest::run_checks(checks));
+        if self.selftest_failed() {
+            self.sheet = None;
+        }
+        self.dirty = true;
     }
 
     /// The toast shown, if one is current.
@@ -2655,11 +2769,25 @@ impl Faraday {
     }
 
     fn act(&mut self, action: Action) {
+        // A build whose vectors do not reproduce does nothing but exit.
+        if self.selftest_failed() {
+            if action == Action::PowerOff {
+                self.commands.push_back(Command::Exit);
+            }
+            return;
+        }
         match action {
+            Action::SelfTestRun => {
+                self.selftest = Some(osk_selftest::run());
+                if self.selftest_failed() {
+                    self.sheet = None;
+                }
+            }
             Action::Vault(v) => self.vault_act(v),
             Action::Family(f) => self.family_act(f),
             Action::Vanity(v) => self.vanity_act(v),
             Action::Learn => self.learn_open(),
+            Action::Osk(p) => self.osk_press(p),
             Action::ScanCamera(i) => {
                 if let Some((id, _)) = self.cameras.get(usize::from(i)) {
                     self.camera = Some(id.clone());
@@ -2689,7 +2817,10 @@ impl Faraday {
             | Action::SRecord
             | Action::SScanVault
             | Action::SScanOut
-            | Action::SNext => self.silent_act(action),
+            | Action::SNext
+            | Action::SAddWallet
+            | Action::SWallet(_)
+            | Action::SCheck(_) => self.silent_act(action),
             Action::Explore
             | Action::XKey(_)
             | Action::XPreset(_)
@@ -2718,16 +2849,14 @@ impl Faraday {
             Action::KeyGen(_)
             | Action::KStep(_)
             | Action::KWords(_)
-            | Action::KSource(_)
-            | Action::KProc(_)
+            | Action::KWay(_)
+            | Action::KGroup(_)
             | Action::KMix(_)
             | Action::KRoll(_)
             | Action::KFlip(_)
             | Action::KDie(_)
             | Action::KByDie(_)
-            | Action::KDiceFlip(_)
             | Action::KTyping(_)
-            | Action::KTake
             | Action::KRank(_)
             | Action::KSuit(_)
             | Action::KHex(_)
@@ -2735,7 +2864,6 @@ impl Faraday {
             | Action::KUndo
             | Action::KClear
             | Action::KNext
-            | Action::KLast(_)
             | Action::KShow
             | Action::KAdd
             | Action::KQuiz(_)
@@ -2750,6 +2878,7 @@ impl Faraday {
             | Action::KeyGenSlip39 => self.keygen_act(action),
             Action::Nav(s) => {
                 self.screen = s;
+                self.osk_leave();
                 self.list_offset = 0.0;
                 self.renaming = None;
                 if s == Screen::Visit {
@@ -2766,19 +2895,55 @@ impl Faraday {
                     self.entry = EntryState::default();
                     self.entry.wanted = wanted;
                     self.entry.back = back;
+                    // A small panel has no keyboard of its own: every
+                    // list's words go on OpenSigner's word keyboard.
+                    if self.compact {
+                        self.entry.keys = Some(forms::word_typer(self.entry.language()));
+                    }
                     self.screen = Screen::Entry;
                 }
             }
             Action::EntryClear => {
                 self.entry.typed.clear();
+                if self.entry.keys.is_some() {
+                    self.entry.keys = Some(forms::word_typer(self.entry.language()));
+                }
                 self.entry.label.clear();
                 self.entry.error = None;
             }
             Action::EntryAdd => self.entry_add(),
             Action::EntryLanguages => self.entry.languages = !self.entry.languages,
             Action::EntryLanguage(i) => {
-                if usize::from(i) < forms::LATIN.len() {
+                if let Some(&lang) = forms::LANGUAGES.get(usize::from(i)) {
                     self.entry.language_at = i;
+                    self.entry.error = None;
+                    self.entry.shift = false;
+                    // A list with a keyboard of its own starts its words
+                    // over; one typed in Latin letters keeps them.
+                    self.entry.keys =
+                        (forms::on_screen(lang) || self.compact).then(|| forms::word_typer(lang));
+                    if self.compact {
+                        self.entry.languages = false;
+                    }
+                }
+            }
+            Action::EntryKey(c) => {
+                if let Some(w) = self.entry.keys.as_mut() {
+                    w.type_char(c);
+                    self.entry.shift = false;
+                    self.entry.error = None;
+                }
+            }
+            Action::EntryKeyBack => {
+                if let Some(w) = self.entry.keys.as_mut() {
+                    w.backspace();
+                    self.entry.error = None;
+                }
+            }
+            Action::EntryShift => self.entry.shift = !self.entry.shift,
+            Action::EntryCandidate(n) => {
+                if let Some(w) = self.entry.keys.as_mut() {
+                    w.commit_candidate(usize::from(n));
                     self.entry.error = None;
                 }
             }
@@ -2886,6 +3051,10 @@ impl Faraday {
             Action::VisitStick(i) => {
                 self.visit.stick = i;
                 self.visit.inn.clear();
+                self.visit.settings = None;
+            }
+            Action::VisitSettings => {
+                self.visit.settings = Some(!self.visit_settings_on());
             }
             Action::VisitOut(i) => {
                 if let Some(item) = self.outbox.get(i) {
@@ -2925,6 +3094,13 @@ impl Faraday {
                 if let Some(stick) = self.sticks.get(self.visit.stick) {
                     let id = stick.id.clone();
                     self.visit.log.clear();
+                    if self.visit_settings_on() {
+                        self.storage_out.push_back(StorageCommand::Write {
+                            stick: id.clone(),
+                            name: stick_settings::FILE.to_string(),
+                            bytes: self.settings_file_text().into_bytes(),
+                        });
+                    }
                     for item in &self.outbox {
                         if self.visit.out.contains(&item.name) {
                             self.storage_out.push_back(StorageCommand::Write {
@@ -3042,12 +3218,9 @@ impl Faraday {
             }
             Action::Guided(on) => {
                 if on != self.guided {
-                    // The switch's pill slides from where it shows now,
-                    // and the page, which gains or loses its walk-through,
-                    // cross-fades.
+                    // The switch's pill slides from where it shows now.
                     let from = self.guided_shown();
                     self.guided_moving = (!self.reduce_motion).then_some((from, None));
-                    self.fade_next = true;
                 }
                 self.guided = on;
                 self.save_boxes();
@@ -3435,10 +3608,11 @@ impl Faraday {
                 }
             }
             Action::CSlotFile(k, i) => {
+                let kind = self.create.as_ref().map(|c| c.kind).unwrap_or_default();
                 let key = self
                     .inbox
                     .get(i)
-                    .and_then(|it| create::read_key(&String::from_utf8_lossy(&it.bytes)));
+                    .and_then(|it| create::key_for(kind, &String::from_utf8_lossy(&it.bytes)));
                 // A cosigner's key sets the network the wallet is made on.
                 let net = key
                     .as_deref()
@@ -3695,7 +3869,7 @@ impl Faraday {
                 }
             }
             Action::QrOutbox(i) => {
-                if let Some(item) = self.outbox.get(i) {
+                if let Some(item) = self.outbox.get(i).filter(|it| qr_fits(it)) {
                     // What a wallet reads goes as itself; any other file in
                     // the Faraday file envelope.
                     let source = match item.kind {
@@ -3780,7 +3954,6 @@ impl Faraday {
                 self.save_boxes();
             }
             Action::Theme(theme) => {
-                self.fade_next = theme != self.theme;
                 self.theme = theme;
                 self.save_boxes();
             }
@@ -4415,7 +4588,14 @@ impl Faraday {
                     self.scan = None;
                     self.sheet = None;
                     self.commands.push_back(Command::CameraOff);
+                    // The words read are added as typed words, not
+                    // through the word keyboard, which a small panel
+                    // gets back if they are refused.
+                    let keys = self.entry.keys.take();
                     self.entry_add();
+                    if self.screen == Screen::Entry && keys.is_some() {
+                        self.entry.keys = Some(forms::word_typer(lang));
+                    }
                 }
                 Err(_) => {
                     // Named, when it is something else.
@@ -4645,9 +4825,23 @@ impl Faraday {
         if !self.may_load_keys() {
             return;
         }
+        let lang = self.entry.language();
+        if let Some(w) = self.entry.keys.as_mut() {
+            forms::take_typed(w, lang);
+        }
         let wanted = self.entry.wanted.map(osk_bip::keys::Fingerprint);
         let label = self.entry.label.clone();
-        let m = match forms::typed_mnemonic(self.entry.language(), &self.entry.typed) {
+        let typed = match self.entry.keys.as_ref() {
+            Some(w) => {
+                let mut idx: Vec<u16> = w.committed_indices().collect();
+                let m = osk_bip::bip39::Mnemonic::from_indices(self.entry.language(), &idx)
+                    .map_err(|e| e.to_string());
+                zeroize::Zeroize::zeroize(&mut idx);
+                m
+            }
+            None => forms::typed_mnemonic(self.entry.language(), &self.entry.typed),
+        };
+        let m = match typed {
             Ok(m) => m,
             Err(e) => {
                 self.entry.error = Some(e);
@@ -5021,6 +5215,9 @@ impl Faraday {
             Screen::Entry if self.entry.on_passphrase => self.entry.passphrase.zeroize(),
             Screen::Entry => {
                 self.entry.typed.zeroize();
+                if self.entry.keys.is_some() {
+                    self.entry.keys = Some(forms::word_typer(self.entry.language()));
+                }
                 self.entry.error = None;
             }
             Screen::Wallets => {
@@ -5075,6 +5272,9 @@ impl Faraday {
     }
 
     fn key(&mut self, key: KeyIn) {
+        if self.selftest_failed() {
+            return;
+        }
         if self.wordlist_key(key) {
             return;
         }
@@ -5164,6 +5364,26 @@ impl Faraday {
                 KeyIn::Escape => self.screen = self.entry_leave(),
                 _ => {}
             }
+            return;
+        }
+        // A list with an on-screen keyboard takes what a physical one can
+        // type of it: pinyin's letters and tone digits, or the list's
+        // own characters from an input method.
+        let lang = self.entry.language();
+        if self.screen == Screen::Entry
+            && let Some(w) = self.entry.keys.as_mut()
+        {
+            match key {
+                KeyIn::Char(' ') | KeyIn::Tab => forms::take_typed(w, lang),
+                KeyIn::Char(c) => {
+                    w.type_char(c);
+                }
+                KeyIn::Backspace => w.backspace(),
+                KeyIn::Enter => self.entry_add(),
+                KeyIn::Escape => self.screen = self.entry_leave(),
+                _ => {}
+            }
+            self.entry.error = None;
             return;
         }
         if self.screen == Screen::Entry {
@@ -5283,6 +5503,12 @@ impl Faraday {
         match self.sheet {
             Some(Sheet::Learn) => return Some(&mut self.learn.scroll),
             Some(Sheet::WordList) => return self.wordlist.as_mut().map(|w| &mut w.scroll),
+            Some(s) if self.compact => {
+                if self.sheet_scroll.1 != Some(s) {
+                    self.sheet_scroll = (0.0, Some(s));
+                }
+                return Some(&mut self.sheet_scroll.0);
+            }
             _ => {}
         }
         Some(match self.screen {
@@ -5293,6 +5519,7 @@ impl Faraday {
             | Screen::Decode
             | Screen::Catalog
             | Screen::Settings => &mut self.list_offset,
+            Screen::Home | Screen::Entry if self.compact => &mut self.list_offset,
             Screen::Family => &mut self.family.scroll.y,
             Screen::Vanity => &mut self.vanity.as_mut()?.scroll.y,
             Screen::KeyGen => &mut self.keygen.as_mut()?.scroll.y,
@@ -5315,7 +5542,7 @@ impl Faraday {
         (
             self.screen,
             self.sheet
-                .filter(|s| matches!(s, Sheet::Learn | Sheet::WordList)),
+                .filter(|s| self.compact || matches!(s, Sheet::Learn | Sheet::WordList)),
         )
     }
 
@@ -5398,6 +5625,30 @@ impl Faraday {
         match phase {
             TouchPhase::Down => {
                 self.down_at = (x, y);
+                // At the scrolled region's right edge a press takes the
+                // scrollbar: held on its thumb it follows from where it was
+                // taken, anywhere else on the track the thumb's middle
+                // comes to the press.
+                if let Some((e, g)) = self.bar_at(x, y) {
+                    let offset = self.scroll_slot().map_or(0.0, |o| *o);
+                    let at = g.top
+                        + ((g.track - g.thumb) as f32 * (offset / e.max).clamp(0.0, 1.0)).round()
+                            as i32;
+                    let grab = if (at..at + g.thumb).contains(&y) {
+                        y - at
+                    } else {
+                        g.thumb / 2
+                    };
+                    self.bar_held = Some(grab);
+                    self.motion.stop();
+                    self.pressed = None;
+                    self.drag = None;
+                    self.swallow = false;
+                    self.bar_drag(y);
+                    self.dirty = true;
+                    self.commands.push_back(Command::Draw);
+                    return;
+                }
                 // A finger on a scrolled region may be the start of a
                 // drag; it is a press until it moves.
                 let key = self.region_key();
@@ -5422,6 +5673,12 @@ impl Faraday {
                 }
             }
             TouchPhase::Move => {
+                if self.bar_held.is_some() {
+                    self.bar_drag(y);
+                    self.dirty = true;
+                    self.commands.push_back(Command::Draw);
+                    return;
+                }
                 let held_bar = self.pressed.is_some_and(|(a, _)| a == Action::VisitBar);
                 if let Some((last, dragging)) = self.drag
                     && !held_bar
@@ -5453,6 +5710,9 @@ impl Faraday {
                 }
             }
             TouchPhase::Up => {
+                if self.bar_held.take().is_some() {
+                    return;
+                }
                 let dragged = self.drag.take().is_some_and(|(_, d)| d);
                 if dragged {
                     self.pressed = None;
@@ -5488,6 +5748,43 @@ impl Faraday {
         }
     }
 
+    /// The overlay scrollbar a press at (x, y) would take: the scrolled
+    /// region's, when the press is within [`ui::BAR_GRAB`] of its right
+    /// edge and the region scrolls, with where its bar runs.
+    fn bar_at(&self, x: i32, y: i32) -> Option<(ui::Scrolled, ui::BarGeometry)> {
+        let key = self.region_key();
+        // Not through a sheet that does not scroll.
+        let reachable = self.sheet.is_none() || key.1.is_some();
+        let (k, e) = self.extent?;
+        if !reachable || k != key || e.own_bar || e.max <= 0.0 || !e.view.contains(x, y) {
+            return None;
+        }
+        let f = self.f.max(0.1);
+        if x < e.view.right() - (ui::BAR_GRAB * f).round() as i32 {
+            return None;
+        }
+        let g = ui::BarGeometry::of(e.view, e.max, f);
+        (g.track > g.thumb).then_some((e, g))
+    }
+
+    /// The scrolled region moved to where its held scrollbar is, at pixel
+    /// row `y`.
+    fn bar_drag(&mut self, y: i32) {
+        let Some(grab) = self.bar_held else {
+            return;
+        };
+        let key = self.region_key();
+        let Some((_, e)) = self.extent.filter(|(k, _)| *k == key) else {
+            return;
+        };
+        let g = ui::BarGeometry::of(e.view, e.max, self.f.max(0.1));
+        let room = (g.track - g.thumb).max(1) as f32;
+        let at = ((y - g.top - grab) as f32).clamp(0.0, room);
+        if let Some(o) = self.scroll_slot() {
+            *o = at / room * e.max;
+        }
+    }
+
     /// The stick's file list scrolled to where the scrollbar is held, at
     /// pixel row `y`: the thumb's middle under the finger.
     fn visit_drag(&mut self, y: i32) {
@@ -5511,23 +5808,6 @@ impl Faraday {
         if let Some(offset) = self.scroll_slot() {
             *offset = (*offset * f).round() / f;
         }
-        // A change of screen or sheet cross-fades from the frame before.
-        let key = (self.screen, self.sheet);
-        if std::mem::take(&mut self.fade_next) || self.drawn_key.is_some_and(|was| was != key) {
-            self.fade = Some((canvas.snapshot(), None));
-        }
-        self.drawn_key = Some(key);
-        let faded = self
-            .fade
-            .as_ref()
-            .map(|(_, at)| motion::progress(*at, self.now_ms, motion::FADE_MS));
-        let risen = match (&self.fade, self.sheet) {
-            _ if self.reduce_motion => 1.0,
-            (Some((_, at)), Some(_)) => {
-                motion::ease_out(motion::progress(*at, self.now_ms, motion::SHEET_MS))
-            }
-            _ => 1.0,
-        };
         let stretch = (self.motion.stretch() * f).round() as i32;
         // The overlay scrollbar shows while the offset moves and fades
         // once it has rested a moment.
@@ -5541,12 +5821,17 @@ impl Faraday {
         } else {
             moved_at
         };
+        // Held, or with the pointer over it, it stays in full.
+        let hot =
+            self.bar_held.is_some() || self.hover.is_some_and(|(x, y)| self.bar_at(x, y).is_some());
+        let moved_at = if hot { self.now_ms.max(1) } else { moved_at };
         self.bar_seen = (key, offset, moved_at);
         let bar = motion::bar_alpha(moved_at, self.now_ms);
         // Drawn twice when a step card has just opened: the first time
         // finds out, the second draws it growing from closed.
         let mut follow_to = None;
         let mut scrolled = None;
+        let mut caret = None;
         for _ in 0..2 {
             hits.clear();
             let disclosure = self
@@ -5567,10 +5852,10 @@ impl Faraday {
                 ui.select_all = self.select_all;
                 ui.theme = self.theme;
                 ui.hovered = self.hovered;
-                ui.sheet_rise = motion::SHEET_RISE * (1.0 - risen);
                 ui.stretch = stretch;
                 ui.bar = (bar > 0).then_some((bar, offset));
-                ui.stretch_in_sheet = matches!(self.sheet, Some(Sheet::Learn | Sheet::WordList));
+                ui.stretch_in_sheet = matches!(self.sheet, Some(Sheet::Learn | Sheet::WordList))
+                    || (self.compact && self.sheet.is_some());
                 ui.disclosure = disclosure;
                 let frost_key = ((self.screen, self.sheet), self.theme);
                 ui.frost = self
@@ -5580,7 +5865,10 @@ impl Faraday {
                     .map(|(_, page)| page);
                 ui.guided_shown = self.guided_shown();
                 ui.offset = offset;
+                ui.compact = self.compact;
+                ui.caret_on = self.caret_on();
                 screens::draw(self, &mut ui);
+                caret = ui.caret_drawn.then_some(ui.caret_on);
                 scrolled = ui.scrolled;
                 follow_to = follow_to.or(ui.follow_to);
                 self.frost = ui.frost.take().map(|page| (frost_key, page));
@@ -5601,13 +5889,7 @@ impl Faraday {
             self.commands.push_back(Command::Draw);
         }
         self.extent = scrolled.map(|s| (self.region_key(), s));
-        if let (Some(t), Some((before, _))) = (faded, self.fade.as_ref()) {
-            if t >= 1.0 && risen >= 1.0 {
-                self.fade = None;
-            } else {
-                canvas.blend_from(before, motion::ease_out(t));
-            }
-        }
+        self.caret_drawn = caret;
         self.vaults.drawn = true;
         self.hits = hits;
         self.canvas = Some(canvas);
@@ -5617,6 +5899,14 @@ impl Faraday {
             self.dirty = true;
             self.commands.push_back(Command::Draw);
         }
+    }
+
+    /// Whether the text caret shows now: it blinks, on for a half period
+    /// and off for one, starting on at the last key or press. Steady with
+    /// reduce motion.
+    fn caret_on(&self) -> bool {
+        self.reduce_motion
+            || (self.now_ms.saturating_sub(self.caret_at) / motion::CARET_HALF_MS).is_multiple_of(2)
     }
 
     /// Where the Guided switch's pill shows: 0 on Steps only, 1 on
@@ -5685,19 +5975,18 @@ impl Faraday {
     }
 
     /// Brings whatever is moving to rest at once: a glide lands, a
-    /// stretch and a cross-fade end, a toast is fully up and the overlay
-    /// scrollbar is gone. For drivers that take pictures of the screens,
+    /// stretch ends, a toast is fully up, the overlay scrollbar is gone
+    /// and a text caret shows. For drivers that take pictures of the screens,
     /// such as the snapshot tool, so a picture shows where things end up.
     pub fn settle(&mut self) {
+        self.caret_at = self.now_ms;
         let _ = self.with_region(|m, r| m.settle(r));
         self.motion.stop();
         self.scroll_at = None;
-        self.fade = None;
         if let Some(d) = self.disclosed.as_mut() {
             d.moving = false;
         }
         self.guided_moving = None;
-        self.fade_next = false;
         let f = self.f.max(0.1);
         let offset = self.scroll_slot().map_or(0.0, |o| (*o * f).round() / f);
         self.bar_seen = (self.region_key(), offset, 0);
@@ -5768,6 +6057,11 @@ impl Faraday {
     pub fn size(&self) -> (f32, f32) {
         (self.w, self.h)
     }
+
+    /// Whether the display is a small panel, drawn one column at a time.
+    pub fn is_compact(&self) -> bool {
+        self.compact
+    }
 }
 
 /// The create cards a kind shows.
@@ -5814,7 +6108,12 @@ fn field_action(a: Action) -> bool {
     matches!(
         a,
         Action::Vault(
-            V::FocusPassphrase | V::CFocus(..) | V::FocusField(_) | V::FocusPrompt | V::Dice(_)
+            V::FocusPassphrase
+                | V::CFocus(..)
+                | V::CName
+                | V::FocusField(_)
+                | V::FocusPrompt
+                | V::Dice(_)
         ) | Action::EntryPassphrase
             | Action::Rename
             | Action::MType
@@ -5835,6 +6134,7 @@ impl App for Faraday {
             Event::Display(d) => self.display(d),
             Event::Touch { x, y, phase } => {
                 self.input_now();
+                self.caret_at = self.now_ms;
                 // Any input puts the idle lock off; the press that does
                 // it does nothing else.
                 if self.sheet == Some(Sheet::IdleWarn) {
@@ -5848,6 +6148,7 @@ impl App for Faraday {
             }
             Event::Key(k) => {
                 self.input_now();
+                self.caret_at = self.now_ms;
                 if self.sheet == Some(Sheet::IdleWarn) {
                     self.sheet = None;
                 } else {
@@ -5878,8 +6179,11 @@ impl App for Faraday {
             // A frame only when what is under the pointer changes.
             Event::Hover { x, y } => {
                 self.input_now();
+                let was = self.hover.is_some_and(|(x, y)| self.bar_at(x, y).is_some());
                 self.hover = Some((i32::from(x), i32::from(y)));
-                if !self.find_hovered() {
+                let now = self.hover.is_some_and(|(x, y)| self.bar_at(x, y).is_some());
+                // Coming over the scrollbar shows it.
+                if !self.find_hovered() && was == now {
                     return;
                 }
             }
@@ -5896,11 +6200,8 @@ impl App for Faraday {
                 self.now_ms = now_ms;
                 // Asked for on every tick while something moves, so the
                 // shell keeps drawing at its frame rate.
-                // A cross-fade, a sheet rising or a toast coming or going
-                // starts on its first tick and wants a frame on each.
-                if let Some((_, at @ None)) = self.fade.as_mut() {
-                    *at = Some(now_ms);
-                }
+                // A card opening or a toast coming or going starts on its
+                // first tick and wants a frame on each.
                 if let Some(d) = self.disclosed.as_mut()
                     && d.moving
                     && d.at.is_none()
@@ -5919,7 +6220,7 @@ impl App for Faraday {
                     self.toast_at = Some(now_ms);
                 }
                 let fading = fading
-                    || self.fade.is_some()
+                    || self.caret_drawn.is_some_and(|on| on != self.caret_on())
                     || self.disclosed.is_some_and(|d| d.moving)
                     || self.guided_moving.is_some()
                     || self.toast.as_ref().is_some_and(|(_, until)| {
@@ -6041,9 +6342,11 @@ impl App for Faraday {
 impl Faraday {
     fn display(&mut self, d: DisplayInfo) {
         self.last_display = Some(d);
-        // A new canvas has nothing to fade from.
-        self.drawn_key = None;
-        self.fade = None;
+        // The self-test runs once, at start, before any input: a display
+        // comes before anything can be pressed.
+        if self.selftest.is_none() {
+            self.selftest = Some(osk_selftest::run());
+        }
         self.frost = None;
         // Fill a small display; on a large one, stop at a quarter more
         // than its density asks for, so a 4K monitor shows the screens
@@ -6051,7 +6354,15 @@ impl Faraday {
         // choice multiplies whatever that gives.
         let fit = (f32::from(d.width) / 1280.0).min(f32::from(d.height) / 800.0);
         let density = f32::from(d.dpi.max(1)) / 160.0;
-        let f = (fit.min(density * 1.25) * f32::from(self.scale_pct) / 100.0).max(0.5);
+        // A panel under 600 dp wide (the Pi's 2.8" is 268) gets the
+        // one-column layout at its own density, not the desktop shrunk.
+        self.compact = f32::from(d.width) / density < 600.0;
+        let base = if self.compact {
+            density
+        } else {
+            fit.min(density * 1.25)
+        };
+        let f = (base * f32::from(self.scale_pct) / 100.0).max(0.5);
         let scaled = DisplayInfo {
             dpi: (160.0 * f).round().max(1.0) as u16,
             ..d

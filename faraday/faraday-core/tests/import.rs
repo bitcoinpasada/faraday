@@ -27,7 +27,7 @@ fn detach(app: &mut Faraday) {
 
 #[test]
 fn a_words_file_copied_in_offers_to_load_the_key_it_spells() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     attach(&mut app);
     app.press(Action::Nav(Screen::Visit));
     app.press(Action::VisitIn(0));
@@ -54,7 +54,7 @@ fn a_words_file_copied_in_offers_to_load_the_key_it_spells() {
 
 #[test]
 fn import_and_load_loads_the_key_once_the_stick_is_pulled() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     attach(&mut app);
     app.press(Action::Nav(Screen::Visit));
     app.press(Action::VisitIn(0));
@@ -90,7 +90,7 @@ fn stick_words_file() -> (String, Vec<u8>) {
 fn a_words_file_with_a_note_line_is_copied_and_loads_on_pulling_the_stick() {
     let (name, bytes) = stick_words_file();
     assert!(String::from_utf8_lossy(&bytes).starts_with('#'));
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         id: STICK.to_string(),
         label: "TESTSTICK".to_string(),
@@ -148,7 +148,7 @@ fn seedqr_digits() -> Vec<u8> {
 
 #[test]
 fn a_seedqr_picture_read_on_a_visit_loads_its_key_when_the_stick_is_pulled() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     attach(&mut app);
     app.press(Action::Nav(Screen::Visit));
     app.storage(StorageEvent::QrRead {

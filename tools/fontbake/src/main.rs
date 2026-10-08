@@ -84,7 +84,8 @@ const FACES: &[FaceSpec] = &[
 
 /// UI symbols outside the two contiguous text ranges.
 const SYMBOLS: &[char] = &[
-    '•', '▾', '▸', '←', '→', '↑', '↓', '✓', '✗', '×', '…', '°', '₿',
+    '•', '▾', '▸', '←', '→', '↑', '↓', '✓', '✗', '×', '…', '°', '₿', '≈', '’', '‘', '“', '”', '–',
+    '—',
 ];
 
 /// The icon code points, and where each comes from. `U+E9xx` are

@@ -145,7 +145,7 @@ fn export_writes_a_record_that_parses_back_to_the_same_wallet() {
         h.app
             .texts()
             .iter()
-            .any(|t| *t == strings::EN.learn_coordinators.title),
+            .any(|t| *t == strings::EN.learn.coordinators.title),
         "the page it opened: {:?}",
         h.app.texts()
     );
@@ -162,7 +162,7 @@ fn the_review_of_a_record_is_about_coordinator_files() {
         h.app
             .texts()
             .iter()
-            .any(|t| *t == strings::EN.learn_coordinators.title),
+            .any(|t| *t == strings::EN.learn.coordinators.title),
         "the page it opened: {:?}",
         h.app.texts()
     );

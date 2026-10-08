@@ -95,7 +95,6 @@ pub mod notes;
 pub mod pass_entry;
 pub mod quiz;
 pub mod scan;
-pub mod selftest;
 pub mod session;
 pub mod settings;
 pub mod shares;
@@ -1586,9 +1585,9 @@ impl Picker {
             Picker::MessageFormat => message::FORMATS.len(),
             // The four notations, and the row that browses from word 1.
             Picker::SearchBy => wordlist::SearchBy::ALL.len() + 1,
-            Picker::ReadAs => tools::ReadAs::ALL.len(),
+            Picker::ReadAs => osk_codec::encodings::ReadAs::ALL.len(),
             Picker::FromUnit => osk_ui::components::Denomination::ALL.len(),
-            Picker::PolicyScript => tools::PolicyScript::ALL.len(),
+            Picker::PolicyScript => osk_bip::compile::PolicyScript::ALL.len(),
             Picker::ConvertKey(keys) => keys,
             // No and Yes.
             Picker::KeepWallet => 2,
@@ -1899,7 +1898,7 @@ pub struct OpenSigner {
     /// (`None`: no QR on screen).
     qr_visible: Option<bool>,
     /// The self-test outcome; `None` until the display is known.
-    selftest: Option<selftest::Outcome>,
+    selftest: Option<osk_selftest::Outcome>,
     /// Whether the shell has a camera. True until it says otherwise, so
     /// the scanner is offered on a shell that has never been asked.
     has_camera: bool,
@@ -2212,7 +2211,7 @@ impl OpenSigner {
     }
 
     /// The self-test outcome, once it has run.
-    pub fn selftest(&self) -> Option<selftest::Outcome> {
+    pub fn selftest(&self) -> Option<osk_selftest::Outcome> {
         self.selftest
     }
 
@@ -4284,7 +4283,7 @@ impl OpenSigner {
             .filter_map(|key| {
                 let master = key.master.as_ref()?;
                 let text = match script {
-                    tools::PolicyScript::Segwit => {
+                    osk_bip::compile::PolicyScript::Segwit => {
                         let a = master
                             .multisig_account_xpub(
                                 osk_bip::keys::MultisigScriptType::NativeSegwit,
@@ -4293,7 +4292,7 @@ impl OpenSigner {
                             .ok()?;
                         build::account_key(a.master_fingerprint(), a.path(), a.xpub())
                     }
-                    tools::PolicyScript::Taproot => {
+                    osk_bip::compile::PolicyScript::Taproot => {
                         let a = master.account_xpub(ScriptType::Taproot, 0).ok()?;
                         build::account_key(a.master_fingerprint(), a.path(), a.xpub())
                     }
@@ -5926,7 +5925,7 @@ impl OpenSigner {
     /// passphrase of this backup's own (§16.107 rule 5).
     fn start_share_backup(&mut self, key: usize) {
         self.shares.zeroize();
-        let source = create::SOURCE_ROWS[0];
+        let source = osk_entropy::SOURCE_ROWS[0];
         let started = self
             .keys
             .get(key)
@@ -5963,7 +5962,7 @@ impl OpenSigner {
             return;
         }
         if g.step() == create::Step::MixResult
-            && let Some(i) = ids::index_in(id, ids::CREATE_MIX_BASE, create::MIX_SOURCES.len())
+            && let Some(i) = ids::index_in(id, ids::CREATE_MIX_BASE, osk_entropy::MIX_SOURCES.len())
             && let Some(c) = g.mix_commitments().get(i).copied()
         {
             let title = self.strings().create_mixed_title;
@@ -6001,7 +6000,7 @@ impl OpenSigner {
             return;
         }
         if g.step() == create::Step::MixResult
-            && let Some(i) = ids::index_in(id, ids::CREATE_MIX_BASE, create::MIX_SOURCES.len())
+            && let Some(i) = ids::index_in(id, ids::CREATE_MIX_BASE, osk_entropy::MIX_SOURCES.len())
             && let Some(c) = g.mix_commitments().get(i).copied()
         {
             let title = self.strings().create_mixed_title;
@@ -6244,7 +6243,7 @@ impl OpenSigner {
     /// string (§16.109 rule 5).
     fn start_codex32_backup(&mut self, key: usize) {
         self.codex32.zeroize();
-        let source = create::SOURCE_ROWS[0];
+        let source = osk_entropy::SOURCE_ROWS[0];
         let Some(k) = self.keys.get(key) else {
             return;
         };
@@ -6506,10 +6505,10 @@ impl OpenSigner {
 
     /// Whether `source` can be chosen on this build: the camera row
     /// needs a camera, and the device row is not offered on Tier D.
-    pub(crate) fn source_available(&self, source: create::Source) -> bool {
+    pub(crate) fn source_available(&self, source: osk_entropy::Source) -> bool {
         match source {
-            create::Source::Camera => self.has_camera,
-            create::Source::Device => self.tier != AssuranceTier::D,
+            osk_entropy::Source::Camera => self.has_camera,
+            osk_entropy::Source::Device => self.tier != AssuranceTier::D,
             _ => true,
         }
     }
@@ -7102,7 +7101,7 @@ impl OpenSigner {
             self.check_transaction_signatures(true);
             return;
         }
-        match tools::raw_transaction(bytes) {
+        match osk_psbt::transaction::wrap_raw(bytes) {
             Some((wrapper, txid)) => {
                 self.go_home();
                 self.push(Screen::Decode);
@@ -7137,7 +7136,12 @@ impl OpenSigner {
 
     /// The same, forcing how the Hashes field is read: an unknown code's
     /// bytes reach it as hex, whatever they spell.
-    fn tool_scanned_as(&mut self, tool: Tool, text: String, read_as: Option<tools::ReadAs>) {
+    fn tool_scanned_as(
+        &mut self,
+        tool: Tool,
+        text: String,
+        read_as: Option<osk_codec::encodings::ReadAs>,
+    ) {
         self.pop_screen();
         self.push(Screen::Tool(tool));
         if let Some(read_as) = read_as {
@@ -8113,7 +8117,7 @@ impl OpenSigner {
             return;
         }
         if g.step() == create::Step::MixResult
-            && let Some(i) = ids::index_in(id, ids::CREATE_MIX_BASE, create::MIX_SOURCES.len())
+            && let Some(i) = ids::index_in(id, ids::CREATE_MIX_BASE, osk_entropy::MIX_SOURCES.len())
             && let Some(c) = g.mix_commitments().get(i).copied()
         {
             let title = self.strings().create_mixed_title;
@@ -9497,7 +9501,7 @@ impl OpenSigner {
             self.selftest = Some(Err("injected failure"));
             return;
         }
-        self.selftest = Some(selftest::run());
+        self.selftest = Some(osk_selftest::run());
     }
 
     // ----- input -----
@@ -10036,7 +10040,7 @@ impl OpenSigner {
                 None => self.push(Screen::Word(0)),
             },
             (Picker::ReadAs, Screen::Tool(_)) => {
-                if let Some(r) = tools::ReadAs::ALL.get(picked) {
+                if let Some(r) = osk_codec::encodings::ReadAs::ALL.get(picked) {
                     self.calc.set_read_as(*r);
                 }
             }
@@ -10046,7 +10050,7 @@ impl OpenSigner {
                 }
             }
             (Picker::PolicyScript, Screen::Tool(_)) => {
-                if let Some(script) = tools::PolicyScript::ALL.get(picked) {
+                if let Some(script) = osk_bip::compile::PolicyScript::ALL.get(picked) {
                     self.calc.set_script(*script);
                 }
             }
@@ -10845,7 +10849,7 @@ impl OpenSigner {
                 }
             }
             Screen::Learn => {
-                if let Some(i) = ids::index_in(id, ids::LEARN_ROW_BASE, strings::LEARN_PAGES) {
+                if let Some(i) = ids::index_in(id, ids::LEARN_ROW_BASE, osk_learn::PAGES) {
                     self.push(Screen::LearnPage(i));
                 }
             }
@@ -11286,7 +11290,11 @@ impl OpenSigner {
                     // hex because that is what the field now holds.
                     let bytes = s.take_unknown();
                     let hex = text::hex(&bytes);
-                    self.tool_scanned_as(Tool::Hashes, hex, Some(tools::ReadAs::Hex));
+                    self.tool_scanned_as(
+                        Tool::Hashes,
+                        hex,
+                        Some(osk_codec::encodings::ReadAs::Hex),
+                    );
                 } else if id == ids::SCAN_AS_ENCODINGS {
                     let bytes = s.take_unknown();
                     let text = String::from_utf8_lossy(bytes.trim_ascii()).into_owned();
@@ -11852,7 +11860,7 @@ impl OpenSigner {
                 }
                 if w.step() == create::Step::MixResult
                     && let Some(i) =
-                        ids::index_in(id, ids::CREATE_MIX_BASE, create::MIX_SOURCES.len())
+                        ids::index_in(id, ids::CREATE_MIX_BASE, osk_entropy::MIX_SOURCES.len())
                     && let Some(c) = w.mix_commitments().get(i).copied()
                 {
                     let title = self.strings().create_mixed_title;
@@ -12803,7 +12811,7 @@ impl OpenSigner {
         }
         match tool {
             Tool::Hashes => {
-                let picked = tools::ReadAs::ALL
+                let picked = osk_codec::encodings::ReadAs::ALL
                     .iter()
                     .position(|r| *r == self.calc.read_as())
                     .unwrap_or(0);
@@ -12817,7 +12825,7 @@ impl OpenSigner {
                 self.overlay = Some(Overlay::Choice(Picker::FromUnit, picked));
             }
             Tool::Miniscript => {
-                let picked = tools::PolicyScript::ALL
+                let picked = osk_bip::compile::PolicyScript::ALL
                     .iter()
                     .position(|script| *script == self.calc.script())
                     .unwrap_or(0);
@@ -12835,7 +12843,9 @@ impl OpenSigner {
         // other wallet gets.
         if id == ids::TOOL_LOAD_WALLET {
             let policy = match tool {
-                Tool::Descriptor => tools::checksum_facts(self.calc.typed()).and_then(|f| f.wallet),
+                Tool::Descriptor => {
+                    osk_bip::descriptor::checksum_facts(self.calc.typed()).and_then(|f| f.wallet)
+                }
                 _ => self.policy_facts().and_then(|f| f.wallet),
             };
             if let Some(policy) = policy {
@@ -14799,7 +14809,7 @@ mod tests {
         );
         assert_eq!(app.selftest(), None);
         app.event(display());
-        assert_eq!(app.selftest(), Some(Ok(selftest::CHECKS.len())));
+        assert_eq!(app.selftest(), Some(Ok(osk_selftest::CHECKS.len())));
         // A device that has never run opens on the first run's
         // document; a device that has settings opens on Home.
         assert_eq!(app.screen(), ScreenKind::StartHere);

@@ -867,6 +867,26 @@ pub fn threshold_carry() -> Result<Vec<u8>, String> {
 /// The backup test stick's vault passphrase.
 pub const BACKUP_VAULT_PASSPHRASE: &str = "a";
 
+/// The public files a wallet's backup puts in the Outbox, every one the
+/// Back up step offers (`Faraday::public_out`), under the names it gives
+/// them.
+pub fn public_files(name: &str, descriptor: &str) -> Result<Vec<(String, Vec<u8>)>, String> {
+    let mut app = crate::Faraday::new();
+    app.session = session();
+    let w = app
+        .session
+        .add_wallet(name, descriptor, "Test wallet")
+        .map_err(|e| e.text())?;
+    for what in 0..=7 {
+        app.public_out(w, what);
+    }
+    Ok(app
+        .outbox
+        .iter()
+        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .collect())
+}
+
 /// The backup test stick (2026-10-06): only what backing up the 2-of-3
 /// Taproot multisig over the three test seeds leaves, as a person would
 /// carry it. On the stick, every public file Faraday's Backup step
@@ -881,20 +901,7 @@ pub fn backup_files() -> Result<Vec<(String, Vec<u8>)>, String> {
         .into_iter()
         .find(|k| k.id == "taproot-multisig")
         .ok_or("no Taproot multisig kit")?;
-    let mut app = crate::Faraday::new();
-    app.session = session();
-    let w = app
-        .session
-        .add_wallet(kit.name, &kit.descriptor, "Test wallet")
-        .map_err(|e| e.text())?;
-    for what in 0..=7 {
-        app.public_out(w, what);
-    }
-    let mut out: Vec<(String, Vec<u8>)> = app
-        .outbox
-        .iter()
-        .map(|i| (i.name.clone(), i.bytes.clone()))
-        .collect();
+    let mut out = public_files(kit.name, &kit.descriptor)?;
     out.push(("vault.ofv".to_string(), seeds_vault()?));
     // A spend to try the Spend tab and Wallets on: what a coordinator
     // such as Sparrow hands over.
@@ -1090,4 +1097,26 @@ pub fn test_efi() -> Vec<u8> {
     put32(&mut pe, sec + 36, 0x6000_0020);
     pe[0x200] = 0xc3;
     pe
+}
+
+/// The app as a shell starts it: made, then told its display, which is
+/// when the start-up self-test runs and before which no key is accepted.
+/// 1280 × 800 at 160 dpi, the size the app assumes before a display
+/// arrives, so nothing on screen moves.
+pub fn started() -> crate::Faraday {
+    use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+    let mut app = crate::Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width: 1280,
+        height: 800,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app
 }

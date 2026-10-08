@@ -1,6 +1,6 @@
-//! Changes that move rather than jump (`docs/MOTION.md` §3.5): a new
-//! screen cross-fades in, a step card grows open, and each comes to rest
-//! where it would have jumped to.
+//! How changes show (`docs/MOTION.md` §5): a new screen is there at once,
+//! with no fade, and a step card grows open and comes to rest where it
+//! would have jumped to.
 
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
@@ -40,13 +40,12 @@ fn frames(app: &mut Faraday, from: u64, to: u64) -> Vec<u8> {
 }
 
 #[test]
-fn a_new_screen_fades_in_and_comes_to_rest() {
+fn a_new_screen_is_there_at_once() {
     let mut app = shown();
     app.press(Action::Nav(Screen::Settings));
-    let early = frames(&mut app, 1_016, 1_048);
-    let rest = frames(&mut app, 1_064, 1_400);
-    assert!(early != rest, "part of the way in");
-    assert!(frames(&mut app, 1_416, 2_000) == rest, "and then still");
+    let first = frames(&mut app, 1_016, 1_016);
+    let rest = frames(&mut app, 1_032, 2_000);
+    assert!(first == rest, "the first frame is the screen at rest");
 }
 
 #[test]

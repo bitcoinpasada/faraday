@@ -1,6 +1,7 @@
 //! The word-list sheet over [`crate::wordlist`]: a tab for each list,
 //! Back, and every word of the list on show in rows of number, code and
-//! word, in the mono face, the marked word lit.
+//! word, in the mono face, the marked word lit. A press beside the sheet
+//! closes it, as Back does.
 
 use crate::Action;
 use crate::Faraday;
@@ -16,40 +17,49 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
     let Some(st) = app.wordlist.as_mut() else {
         return;
     };
-    let sw = (w - 80.0).min(860.0);
-    let sh = h - 64.0;
+    let compact = ui.compact;
+    let (sw, sh, pad) = if compact {
+        (w - 16.0, h - 16.0, 14.0)
+    } else {
+        ((w - 80.0).min(860.0), h - 64.0, 28.0)
+    };
     let (x, y) = sheet_box(ui, w, h, sw, sh);
-    // A tab for each list, and Back.
-    let mut tx = x + 28.0;
-    for (i, l) in LISTS.iter().enumerate() {
-        let style = if *l == st.list {
-            Style::Primary
-        } else {
-            Style::Secondary
-        };
-        tx += ui.button(
-            tx,
-            y + 22.0,
-            None,
-            34.0,
-            l.name(),
-            style,
-            Action::WordList(WL::List(i as u8)),
-        ) + 6.0;
-    }
+    ui.hit_around(x, y, sw, sh, Action::WordList(WL::Outside));
+    // A tab for each list, and Back; on a small panel the tabs wrap.
+    let back_w = if compact { 64.0 } else { 96.0 };
     ui.button(
-        x + sw - 28.0 - 96.0,
-        y + 22.0,
-        Some(96.0),
+        x + sw - pad - back_w,
+        y + 14.0,
+        Some(back_w),
         34.0,
         "Back",
         Style::Secondary,
         Action::WordList(WL::Close),
     );
+    let tabs: Vec<(String, Style, Action)> = LISTS
+        .iter()
+        .enumerate()
+        .map(|(i, l)| {
+            let style = if *l == st.list {
+                Style::Primary
+            } else {
+                Style::Secondary
+            };
+            (
+                l.name().to_string(),
+                style,
+                Action::WordList(WL::List(i as u8)),
+            )
+        })
+        .collect();
+    let tabs_h =
+        crate::screens::button_rows(ui, x + pad, y + 14.0, sw - 2.0 * pad - back_w - 8.0, &tabs)
+            - 44.0
+            + 34.0;
     let words = st.list.words();
-    let (bx, bw) = (x + 32.0, sw - 64.0);
+    let (bx, bw) = (x + pad + 4.0, sw - 2.0 * pad - 8.0);
     // What the list is, and what is typed to find a word.
-    let mut cy = y + 74.0;
+    let mut cy = y + 14.0 + tabs_h + 18.0;
     let about = match st.mark {
         Some(m) => format!(
             "{} words · word {} of {} marked",
@@ -60,12 +70,15 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
         None => format!("{} words", words.len()),
     };
     ui.text(bx, cy, 13.0, W::R, MUTED, &about);
-    let find = if st.find.is_empty() {
-        "Type to find a word".to_string()
-    } else {
-        format!("Find: {}", st.find)
-    };
-    ui.text_right(bx + bw, cy - 6.0, 28.0, 13.0, W::M, DIM, &find);
+    // No keyboard on a small panel: nothing to say about typing.
+    if !compact || !st.find.is_empty() {
+        let find = if st.find.is_empty() {
+            "Type to find a word".to_string()
+        } else {
+            format!("Find: {}", st.find)
+        };
+        ui.text_right(bx + bw, cy - 6.0, 28.0, 13.0, W::M, DIM, &find);
+    }
     cy += 28.0;
     // The columns: number, code, word.
     let num_w = ui.measure(14.0, W::M, "0000");

@@ -93,6 +93,9 @@ pub fn column_foot(
     body: &mut dyn FnMut(&mut Ui, usize, f32, f32, f32) -> f32,
     foot: Option<Foot>,
 ) -> (Scroll, bool) {
+    if ui.compact {
+        return paged(ui, col, cards, scroll, body, foot);
+    }
     let clip = ui.rect(col.area_x, 0.0, col.area_w, col.h);
     ui.c.push_clip(clip);
     let top = 28.0 - scroll.y;
@@ -105,12 +108,12 @@ pub fn column_foot(
         y += 22.0;
     }
     ui.text(x, y, 26.0, W::S, TEXT, col.heading);
-    // Guided or Steps only, beside the title.
+    // Steps only or Guided, beside the title; laid out from the right.
     let mut bx = x + w;
     let switch: &[(&str, bool, bool)] = if col.switch {
         &[
-            ("Steps only", !col.guided, false),
             ("Guided", col.guided, true),
+            ("Steps only", !col.guided, false),
         ]
     } else {
         &[]
@@ -124,7 +127,7 @@ pub fn column_foot(
         places.push((bx, bw, label, on, guided));
         bx -= 4.0;
     }
-    if let [(sx, sw, ..), (gx, gw, ..)] = places[..] {
+    if let [(gx, gw, ..), (sx, sw, ..)] = places[..] {
         let t = ui.guided_shown;
         ui.fill(
             sx + (gx - sx) * t,
@@ -285,4 +288,135 @@ pub fn column_foot(
         again = true;
     }
     (next, again)
+}
+
+/// The step flow on a small panel: the open step is the page. A bar
+/// back, the flow's name, a strip of the steps to go between them, then
+/// the step's controls; with no step open, the steps as a list, and the
+/// foot under them.
+fn paged(
+    ui: &mut Ui,
+    col: &Column,
+    cards: &[Card],
+    scroll: Scroll,
+    body: &mut dyn FnMut(&mut Ui, usize, f32, f32, f32) -> f32,
+    foot: Option<Foot>,
+) -> (Scroll, bool) {
+    use crate::compact::{BAR_H, M};
+    let w = col.area_x + col.area_w;
+    let open = cards.iter().position(|c| c.open);
+    // A step just opened starts at its top.
+    let mut next = scroll;
+    if next.follow {
+        next.follow = false;
+        next.y = 0.0;
+    }
+    let clip = ui.rect(0.0, BAR_H, w, col.h - BAR_H);
+    ui.c.push_clip(clip);
+    let top = BAR_H - next.y;
+    let mut y = top + 10.0;
+    let inner = w - 2.0 * M;
+
+    // The steps: a numbered dot each, the open one wide with its name.
+    let n = cards.len() as f32;
+    let dot = 26.0;
+    let gap = ((inner - n * dot) / (n - 1.0).max(1.0)).clamp(2.0, 10.0);
+    let mut dx = M;
+    for (i, card) in cards.iter().enumerate() {
+        ui.badge(dx, y, &(i + 1).to_string(), card.done, card.open);
+        ui.hit_around(dx, y, dot, dot, card.toggle);
+        dx += dot + gap;
+    }
+    y += dot + 12.0;
+
+    match open {
+        Some(i) => {
+            let card = &cards[i];
+            let count = format!("Step {} of {}", i + 1, cards.len());
+            ui.text(M, y, 12.0, W::R, MUTED, &count);
+            y += 18.0;
+            y += ui.wrap(M, y, inner, 18.0, W::S, TEXT, &card.title) + 10.0;
+            y += body(ui, i, M, y, inner);
+            // The walk-through comes after the controls: on a small
+            // panel it would otherwise be all the first screenful shows.
+            if let Some(text) = card.guide.as_deref().filter(|_| col.guided) {
+                y += 8.0;
+                ui.rule(M, y, inner, LINE);
+                y += 14.0;
+                ui.text(M, y, 12.0, W::S, MUTED, "About this step");
+                y += 22.0;
+                let gh = ui.wrap(M + 12.0, y, inner - 12.0, 13.0, W::R, MUTED, text);
+                ui.fill(M, y, 3.0, gh, 1.5, ACCENT.with_alpha(140));
+                y += gh + 8.0;
+            }
+        }
+        None => {
+            if let Some(note) = col.note {
+                let nh = ui.wrap(M + 12.0, y, inner - 12.0, 13.0, W::R, MUTED, note);
+                ui.fill(M, y, 3.0, nh, 1.5, ACCENT.with_alpha(140));
+                y += nh + 14.0;
+            }
+            for (i, card) in cards.iter().enumerate() {
+                let pressed = ui.is_pressed(card.toggle);
+                ui.fill(
+                    M,
+                    y,
+                    inner,
+                    52.0,
+                    10.0,
+                    if pressed { INNER } else { SURFACE },
+                );
+                ui.stroke(M, y, inner, 52.0, 10.0, LINE);
+                ui.badge(M + 10.0, y + 13.0, &(i + 1).to_string(), card.done, false);
+                let tw = inner - 70.0;
+                let title = ui.fit(14.0, W::S, &card.title, tw);
+                ui.text(M + 46.0, y + 8.0, 14.0, W::S, TEXT, &title);
+                let face = if card.mono { W::M } else { W::R };
+                let summary = ui.fit(12.0, face, &card.summary, tw);
+                ui.text(M + 46.0, y + 29.0, 12.0, face, MUTED, &summary);
+                ui.icon(
+                    M + inner - 24.0,
+                    y + 16.0,
+                    20.0,
+                    Icon::ChevronRight,
+                    9.0,
+                    DIM,
+                );
+                ui.hit(M, y, inner, 52.0, card.toggle);
+                y += 52.0 + 8.0;
+            }
+            if let Some(foot) = foot {
+                y += 6.0 + foot(ui, M, y + 6.0, inner);
+            }
+        }
+    }
+    let content_h = y - top + 24.0;
+    ui.c.pop_clip();
+    ui.column = None;
+
+    // The bar goes over whatever has scrolled under it.
+    let back = col
+        .back
+        .unwrap_or(("Home", Action::Nav(crate::Screen::Home)));
+    ui.fill(0.0, 0.0, w, BAR_H, 0.0, SIDEBAR);
+    ui.fill(0.0, BAR_H - 1.0, w, 1.0, 0.0, LINE);
+    if ui.is_pressed(back.1) {
+        ui.fill(4.0, 4.0, BAR_H - 8.0, BAR_H - 8.0, 8.0, INNER);
+    }
+    ui.icon(4.0, 4.0, BAR_H - 8.0, Icon::ChevronLeft, 13.0, TEXT);
+    ui.hit(0.0, 0.0, BAR_H + 8.0, BAR_H, back.1);
+    let room = w - BAR_H - M;
+    let label = ui.fit(11.0, W::R, back.0, room);
+    ui.text(BAR_H, 5.0, 11.0, W::R, MUTED, &label);
+    let heading = ui.fit(16.0, W::S, col.heading, room);
+    ui.text(BAR_H, 19.0, 16.0, W::S, TEXT, &heading);
+
+    let max = (content_h - (col.h - BAR_H)).max(0.0);
+    ui.report_scroll(clip, max);
+    let mut again = false;
+    if next.y > max {
+        next.y = max;
+        again = true;
+    }
+    (next, again || scroll.follow)
 }

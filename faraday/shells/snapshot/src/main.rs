@@ -1,12 +1,18 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot WxH TESTKIT_DIR OUT_DIR [spend]
+//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact]
 //! ```
 //!
 //! `TESTKIT_DIR` is what `faraday-testkit` wrote; its files stand in
 //! for a stick called TESTSTICK. Each step of the tour is one numbered
-//! PNG in `OUT_DIR`. With `spend`, only the Spend tab's tour runs.
+//! PNG in `OUT_DIR`. With `spend`, only the Spend tab's tour runs; with
+//! `themes`, three screens in each theme.
+//!
+//! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
+//! its own, since the core picks `small`/`medium`/`wide` from physical
+//! width, not pixels. The Pi's Waveshare panel is `480x640@286`; the
+//! smallest panel the design supports is `240x320@143`.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -25,6 +31,7 @@ struct Tour {
     sticks: Vec<StickInfo>,
     /// Entropy requests answered, so each answer differs.
     answers: u8,
+    dpi: u16,
 }
 
 impl Tour {
@@ -67,7 +74,7 @@ impl Tour {
             if c == Command::Exit {
                 let size = self.size();
                 self.app = Faraday::new();
-                self.app.event(display(size));
+                self.app.event(display(size, self.dpi));
             }
         }
         while let Some(c) = self.app.poll_storage() {
@@ -227,7 +234,7 @@ impl Tour {
         // drawn twice, as a shell would.
         let _ = self.app.frame();
         self.app.event(Event::Tick { now_ms: self.now });
-        // What is still moving (a glide, a cross-fade, the scrollbar)
+        // What is still moving (a glide, a card opening, the scrollbar)
         // comes to rest, so the screen is taken as it ends up.
         self.app.settle();
         self.n += 1;
@@ -248,11 +255,11 @@ impl Tour {
     }
 }
 
-fn display((width, height): (u16, u16)) -> Event {
+fn display((width, height): (u16, u16), dpi: u16) -> Event {
     Event::Display(DisplayInfo {
         width,
         height,
-        dpi: 160,
+        dpi,
         inset_bottom: 0,
         inset_top: 0,
         buttons: 0,
@@ -263,10 +270,16 @@ fn display((width, height): (u16, u16)) -> Event {
     })
 }
 
-fn run(size: (u16, u16), kit: &Path, out: &Path, only_spend: bool) -> Result<(), String> {
+fn run(
+    size: (u16, u16),
+    dpi: u16,
+    kit: &Path,
+    out: &Path,
+    only: Option<&str>,
+) -> Result<(), String> {
     std::fs::create_dir_all(out).map_err(|e| e.to_string())?;
     let mut app = Faraday::new();
-    app.event(display(size));
+    app.event(display(size, dpi));
     let mut t = Tour {
         app,
         out: out.to_path_buf(),
@@ -275,9 +288,13 @@ fn run(size: (u16, u16), kit: &Path, out: &Path, only_spend: bool) -> Result<(),
         now: 0,
         sticks: Vec::new(),
         answers: 0,
+        dpi,
     };
-    if only_spend {
-        return spend_tour(&mut t);
+    match only {
+        Some("spend") => return spend_tour(&mut t),
+        Some("themes") => return themes_tour(&mut t),
+        Some("compact") => return compact_tour(&mut t),
+        _ => {}
     }
     t.shot("home-empty")?;
     // A stick arrives while nothing secret is held: the visit.
@@ -1317,6 +1334,9 @@ fn run(size: (u16, u16), kit: &Path, out: &Path, only_spend: bool) -> Result<(),
     t.shot("keygen-slip39")?;
     t.press(Action::Nav(Screen::Catalog));
     word_lists(&mut t)?;
+    rolled_words(&mut t)?;
+    keyed_entry(&mut t)?;
+    silent_wallet(&mut t)?;
     t.press(Action::Nav(Screen::Catalog));
     // Create › MuSig2: every key signs.
     t.press(Action::Catalog(
@@ -1335,8 +1355,26 @@ fn run(size: (u16, u16), kit: &Path, out: &Path, only_spend: bool) -> Result<(),
     t.app.event(Event::Key(Key::Escape));
     t.press(Action::Nav(Screen::Settings));
     t.shot("settings")?;
+    // The bottom of Settings, where About says what the self-test found.
+    for _ in 0..30 {
+        t.app.event(Event::Key(Key::Down));
+    }
+    t.shot("settings-about")?;
     t.press(Action::PowerAsk);
     t.shot("power-sheet")?;
+    t.app.event(Event::Key(Key::Escape));
+    // New key's hint for cards, with its en dash.
+    t.press(Action::KeyGen(None));
+    t.press(Action::KWords(12));
+    t.press(Action::KWay(faraday_core::keygen::Way::Cards.index()));
+    t.press(Action::KNext);
+    t.shot("keygen-cards")?;
+    // Last, since nothing after it does anything: a self-test that failed.
+    t.app.run_selftest_with(&[osk_selftest::Check {
+        name: "BIP-39 vector (entropy → words → seed)",
+        run: || false,
+    }]);
+    t.shot("selftest-failed")?;
     Ok(())
 }
 
@@ -1468,6 +1506,77 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
 /// the PSBT copied in from a stick, the unlock, the wallet chosen, the
 /// check, the transaction, test key 2 typed from the signing card, the
 /// signature and the result.
+/// Each theme on three screens, with the test kit loaded: the Wallets
+/// tab's first page, the wallets, and Settings.
+/// The small panel's Home, and Create a wallet with a new key from dice,
+/// a step to a page.
+fn compact_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::cstep;
+    t.shot("home")?;
+    t.press(Action::CreateWallet);
+    t.shot("create-kind")?;
+    t.press(Action::CNext(cstep::KIND));
+    t.shot("create-keys")?;
+    t.press(Action::KeyGen(Some(0)));
+    t.shot("keygen-length")?;
+    t.press(Action::KWords(12));
+    t.shot("keygen-source")?;
+    t.press(Action::KNext);
+    t.shot("keygen-rolls-none")?;
+    let mut x: u32 = 0x2545_f491;
+    for i in 0..128 {
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        t.press(Action::KRoll((x % 6) as u8 + 1));
+        if i == 20 {
+            t.shot("keygen-rolls")?;
+        }
+    }
+    t.shot("keygen-rolls-done")?;
+    t.press(Action::KNext);
+    t.shot("keygen-check")?;
+    t.press(Action::KNext);
+    t.shot("keygen-words")?;
+    t.press(Action::KShow);
+    t.shot("keygen-words-shown")?;
+    t.press(Action::KShow);
+    t.press(Action::KNext);
+    t.shot("keygen-quiz")?;
+    pass_quiz(t);
+    t.shot("keygen-quiz-passed")?;
+    t.press(Action::KAdd);
+    t.shot("create-keys-filled")?;
+    t.press(Action::CNext(cstep::KEYS));
+    t.shot("create-build")?;
+    t.press(Action::CMake);
+    t.shot("create-made")?;
+    t.press(Action::CNext(cstep::CHECK));
+    t.shot("create-next")?;
+    let open = t.app.create.as_ref().and_then(|c| c.open);
+    if let Some(k) = open {
+        t.press(Action::CStep(k));
+    }
+    t.shot("create-overview")?;
+    t.press(Action::Nav(Screen::Home));
+    t.shot("home-loaded")?;
+    Ok(())
+}
+
+fn themes_tour(t: &mut Tour) -> Result<(), String> {
+    t.load_kit()?;
+    for theme in faraday_core::ui::Theme::ALL {
+        t.press(Action::Theme(theme));
+        t.press(Action::Nav(Screen::Start));
+        t.shot(&format!("theme-{}-wallets", theme.id()))?;
+        t.press(Action::Nav(Screen::Wallets));
+        t.shot(&format!("theme-{}-list", theme.id()))?;
+        t.press(Action::Nav(Screen::Settings));
+        t.shot(&format!("theme-{}-settings", theme.id()))?;
+    }
+    Ok(())
+}
+
 fn spend_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::family::{FamilyAction as F, Route, page};
     let fam = |a: F| Action::Family(a);
@@ -1619,10 +1728,10 @@ fn pass_quiz(t: &mut Tour) {
 /// A new key for a Create slot from the device's generator, as fast as
 /// the flow allows.
 fn device_key(t: &mut Tour, slot: u8) {
-    let device = faraday_core::keygen::source_index(faraday_core::keygen::Source::Device);
+    let device = faraday_core::keygen::Way::Device.index();
     t.press(Action::KeyGen(Some(slot)));
     t.press(Action::KWords(24));
-    t.press(Action::KSource(device));
+    t.press(Action::KWay(device));
     t.press(Action::KNext);
     t.press(Action::KNext);
     t.press(Action::KNext);
@@ -1637,8 +1746,10 @@ fn dice_key(t: &mut Tour, slot: u8) -> Result<(), String> {
     t.press(Action::KeyGen(Some(slot)));
     t.shot("keygen-length")?;
     t.press(Action::KWords(24));
-    t.press(Action::KSource(0));
     t.shot("keygen-source")?;
+    t.press(Action::KGroup(1));
+    t.press(Action::KWay(faraday_core::keygen::Way::DiceHashed.index()));
+    t.shot("keygen-source-computed")?;
     t.press(Action::KNext);
     // Rolls a die would give: a fixed run from a small generator.
     let mut x: u32 = 0x2545_f491;
@@ -1657,6 +1768,15 @@ fn dice_key(t: &mut Tour, slot: u8) -> Result<(), String> {
     t.shot("keygen-words")?;
     t.press(Action::Learn);
     t.shot("learn-keygen")?;
+    // The next page, scrolled to the dice table's em dashes.
+    t.press(Action::LearnPage(1));
+    let _ = t.app.frame();
+    t.app.event(Event::Scroll {
+        x: 640,
+        y: 400,
+        dy: 260,
+    });
+    t.shot("learn-randomness-sources")?;
     t.press(Action::Cancel);
     t.press(Action::KNext);
     t.shot("keygen-quiz")?;
@@ -1670,13 +1790,14 @@ fn dice_key(t: &mut Tour, slot: u8) -> Result<(), String> {
 /// in, a word in its list, the rest typed as a string, the checksum's
 /// last word once the words are made; and the Word lists tile.
 fn word_lists(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::keygen::{Source, kstep, source_index};
+    use faraday_core::keygen::{Way, kstep};
     use faraday_core::wordlist::WordListAction as WL;
     t.press(Action::KeyGen(None));
     t.press(Action::KWords(12));
-    t.press(Action::KSource(source_index(Source::Coins)));
+    t.press(Action::KWay(Way::Coins.index()));
     t.press(Action::KNext);
     t.press(Action::KByDie(true));
+    t.press(Action::KTyping(false));
     for i in 0..60u32 {
         t.press(Action::KDie(((i * 5 + i / 3) % 6) as u8 + 1));
     }
@@ -1696,7 +1817,6 @@ fn word_lists(t: &mut Tour) -> Result<(), String> {
         .collect();
     type_text(t, &rest);
     t.shot("keygen-coins-typed")?;
-    t.app.event(Event::Key(Key::Enter));
     t.press(Action::KNext);
     t.press(Action::KStep(kstep::ENTER));
     t.shot("keygen-coins-made")?;
@@ -1717,6 +1837,101 @@ fn word_lists(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// New key from rolls that name words (BitBox): the words as the rolls
+/// come in, each roll over its bits, then the last word's rolled bits and
+/// the checksum once the words are made.
+fn rolled_words(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::keygen::{Way, kstep};
+    t.press(Action::KeyGen(None));
+    t.press(Action::KWords(12));
+    t.press(Action::KWay(Way::DiceWords.index()));
+    t.press(Action::KNext);
+    let rolls: String = (0..27u32)
+        .map(|i| {
+            let face = if i % 6 == 5 {
+                i % 6 + 1
+            } else {
+                (i * 3 + i / 6) % 4 + 1
+            };
+            char::from(b'0' + face as u8)
+        })
+        .collect();
+    type_text(t, &rolls);
+    t.shot("keygen-bitbox-rolls")?;
+    let rest: String = (27..72u32)
+        .map(|i| {
+            let face = if i % 6 == 5 {
+                i % 5 + 2
+            } else {
+                (i * 7 + i / 5) % 4 + 1
+            };
+            char::from(b'0' + face as u8)
+        })
+        .collect();
+    type_text(t, &rest);
+    t.press(Action::KNext);
+    t.press(Action::KStep(kstep::ENTER));
+    // A frame first, so the keys have a scrolled region to move.
+    let _ = t.app.frame();
+    for _ in 0..14 {
+        t.app.event(Event::Key(Key::Down));
+    }
+    t.shot("keygen-bitbox-made")?;
+    t.press(Action::Nav(Screen::Catalog));
+    Ok(())
+}
+
+/// Add a key from the lists typed on keyboards of their own: Japanese
+/// with a word half typed, Korean, Simplified Chinese with a reading
+/// awaiting its tone and with its characters offered, and Traditional.
+fn keyed_entry(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::forms::LANGUAGES;
+    use osk_bip::bip39::Language;
+    let at = |l: Language| LANGUAGES.iter().position(|x| *x == l).unwrap_or(0) as u8;
+    t.press(Action::Entry(None));
+    t.press(Action::EntryLanguages);
+    t.press(Action::EntryLanguage(at(Language::Japanese)));
+    t.press(Action::EntryKey('あ'));
+    t.shot("entry-japanese")?;
+    for _ in 0..13 {
+        t.press(Action::EntryKey('あ'));
+        t.press(Action::EntryCandidate(0));
+    }
+    t.press(Action::EntryKey('か'));
+    t.shot("entry-japanese-thirteen")?;
+    t.press(Action::EntryLanguage(at(Language::Korean)));
+    t.shot("entry-korean")?;
+    t.press(Action::EntryLanguage(at(Language::ChineseSimplified)));
+    type_text(t, "shi");
+    t.shot("entry-chinese-pinyin")?;
+    type_text(t, "4");
+    t.shot("entry-chinese-pinyin-tone")?;
+    t.press(Action::EntryLanguage(at(Language::ChineseTraditional)));
+    t.shot("entry-chinese-zhuyin")?;
+    t.press(Action::Nav(Screen::Wallets));
+    Ok(())
+}
+
+/// A key's silent payments wallet among the wallets: its card, and its
+/// page with Check a payment open.
+fn silent_wallet(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::silent::sstep;
+    t.press(Action::Silent);
+    if let Some(fp) = t.app.session.keys.first().map(|k| k.master.fingerprint().0) {
+        t.press(Action::SKey(fp));
+    }
+    t.press(Action::SAddWallet);
+    let i = t.app.session.wallets.len().saturating_sub(1);
+    t.press(Action::PickWallet(i));
+    t.press(Action::Nav(Screen::Wallets));
+    t.shot("wallet-silent")?;
+    t.press(Action::SWallet(i));
+    t.press(Action::SStep(sstep::CHECK));
+    t.shot("silent-check")?;
+    t.press(Action::Nav(Screen::Wallets));
+    Ok(())
+}
+
 fn type_text(t: &mut Tour, text: &str) {
     for c in text.chars() {
         t.app.event(Event::Key(Key::Char(c)));
@@ -1731,18 +1946,38 @@ fn fp_hex(fp: [u8; 4]) -> String {
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     if !(4..=5).contains(&args.len()) {
-        eprintln!("usage: faraday-snapshot WxH TESTKIT_DIR OUT_DIR [spend]");
+        eprintln!("usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact]");
         return ExitCode::from(2);
     }
-    let Some((w, h)) = args[1]
+    let (size_arg, dpi_arg) = match args[1].split_once('@') {
+        Some((s, d)) => (s, Some(d)),
+        None => (args[1].as_str(), None),
+    };
+    let Some((w, h)) = size_arg
         .split_once('x')
         .and_then(|(w, h)| Some((w.parse().ok()?, h.parse().ok()?)))
     else {
-        eprintln!("size must be WxH");
+        eprintln!("size must be WxH[@DPI]");
         return ExitCode::from(2);
     };
-    let only_spend = args.get(4).is_some_and(|a| a == "spend");
-    match run((w, h), Path::new(&args[2]), Path::new(&args[3]), only_spend) {
+    // 160 is a desktop monitor's rough density; a real panel (the Pi's
+    // 480x640 at 286 dpi, or the 240x320 minimum at 143) must say its
+    // own, because the core picks its size class from physical width,
+    // not from pixels.
+    let dpi: u16 = match dpi_arg.map(str::parse) {
+        Some(Ok(d)) => d,
+        Some(Err(_)) => {
+            eprintln!("dpi must be a number");
+            return ExitCode::from(2);
+        }
+        None => 160,
+    };
+    let only = args.get(4).map(String::as_str);
+    if only.is_some_and(|m| !["spend", "themes", "compact"].contains(&m)) {
+        eprintln!("the tour is spend, themes or compact");
+        return ExitCode::from(2);
+    }
+    match run((w, h), dpi, Path::new(&args[2]), Path::new(&args[3]), only) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("faraday-snapshot: {e}");

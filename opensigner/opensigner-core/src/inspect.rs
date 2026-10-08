@@ -1,16 +1,15 @@
 //! What a scanned descriptor or extended public key says, apart from
 //! how it is drawn (`docs/DESIGN.md` §5 Record).
 //!
-//! The document itself, and the three readings its rows are built from:
-//! which script type a descriptor's function names, the master
-//! fingerprint of every key origin in it, and the chain an extended
-//! public key belongs to. The strings here are descriptor notation, not
-//! wording, so they stay out of `strings/en.rs`.
+//! The document itself. The three readings its rows are built from are
+//! in `osk-bip` (`docs/PLANNING.md` §16.139): the script type a
+//! descriptor's function names (`descriptor::script_type`), the master
+//! fingerprint of every key origin in it
+//! (`descriptor::origin_fingerprints`), and the chain an extended public
+//! key belongs to (`slip132::network_kind`).
 
 use alloc::string::String;
-use alloc::vec::Vec;
 
-use osk_bip::keys::ScriptType;
 use osk_bip::policy::WalletPolicy;
 
 /// A read-only document for something scanned: a descriptor, an extended
@@ -74,54 +73,4 @@ pub(crate) struct Swap {
     /// What the card states under its title: the wallet in use, and the
     /// key that changed.
     pub(crate) value: String,
-}
-
-/// The script type a descriptor's function names, in the one vocabulary
-/// §4.6 allows.
-pub(crate) fn descriptor_script(text: &str) -> Option<ScriptType> {
-    let head: String = text
-        .chars()
-        .take_while(|c| *c != '[' && *c != ')')
-        .collect();
-    if head.starts_with("tr(") || head.starts_with("rawtr(") {
-        Some(ScriptType::Taproot)
-    } else if head.starts_with("sh(wpkh(") || head.starts_with("sh(wsh(") {
-        Some(ScriptType::NestedSegwit)
-    } else if head.starts_with("wpkh(") || head.starts_with("wsh(") {
-        Some(ScriptType::NativeSegwit)
-    } else if head.starts_with("pkh(") || head.starts_with("sh(") || head.starts_with("pk(") {
-        Some(ScriptType::Legacy)
-    } else {
-        None
-    }
-}
-
-/// The master fingerprint of every key origin a descriptor carries,
-/// `[73c5da0a/84h/0h/0h]` giving `73c5da0a`.
-pub(crate) fn descriptor_origins(text: &str) -> Vec<String> {
-    osk_ui::descriptor::tokens(text)
-        .into_iter()
-        .filter(|t| t.kind == osk_ui::descriptor::Kind::Origin)
-        .map(|t| {
-            t.full
-                .trim_start_matches('[')
-                .chars()
-                .take_while(|c| *c != '/' && *c != ']')
-                .collect()
-        })
-        .collect()
-}
-
-/// The chain an extended public key belongs to, by its version bytes.
-pub(crate) fn xpub_network(text: &str) -> Option<&'static str> {
-    use osk_bip::bitcoin::NetworkKind;
-    use osk_bip::keys::Network;
-    let kind = osk_bip::xkey::decode_xpub(text)
-        .map(|x| x.network)
-        .or_else(|_| osk_bip::slip132::decode_xpub(text).map(|(x, _)| x.network))
-        .ok()?;
-    Some(match kind {
-        NetworkKind::Main => Network::Mainnet.name(),
-        NetworkKind::Test => Network::Testnet.name(),
-    })
 }

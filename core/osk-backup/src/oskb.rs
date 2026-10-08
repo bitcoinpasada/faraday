@@ -50,14 +50,14 @@
 
 use alloc::vec::Vec;
 
-use argon2::{Algorithm, Argon2, Block, Params, Version};
+use argon2::Params;
 use chacha20poly1305::aead::inout::InOutBuf;
 use chacha20poly1305::{AeadInOut, KeyInit, Tag, XChaCha20Poly1305, XNonce};
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_crypto::{Secret, Zeroize};
 use zeroize::Zeroizing;
 
-use crate::{Cost, DEVICE_PARAMS};
+use crate::{Cost, DEVICE_PARAMS, StretchError, argon2id};
 
 /// The first four bytes of every backup.
 pub const MAGIC: [u8; 4] = *b"OSKB";
@@ -507,36 +507,13 @@ fn language_index(lang: Language) -> Option<u8> {
         .map(|i| i as u8)
 }
 
-/// `Argon2id(passphrase, salt)`, 32 bytes, at `cost`.
-///
-/// The working memory is asked for rather than taken: a device that
-/// cannot spare what the file asks for says so ([`Error::Memory`])
-/// instead of aborting on the allocation.
+/// `Argon2id(passphrase, salt)`, 32 bytes, at `cost`: [`argon2id`],
+/// with a cost the device cannot spare the memory for named in MiB.
 fn stretch(cost: &Cost, passphrase: &[u8], salt: &[u8]) -> Result<Secret<[u8; 32]>, Error> {
-    let params = Params::new(cost.memory_kib, cost.passes, cost.lanes, Some(32))
-        .map_err(|_| Error::Format)?;
-    let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params.clone());
-    // The working memory is the caller's, as it is in `keep`: this
-    // crate has `alloc` and the crate's own allocating helper needs a
-    // feature that drags in its string format. It is overwritten below,
-    // since what it holds is derived from the passphrase.
-    let blocks = params.block_count();
-    let mut memory: Vec<Block> = Vec::new();
-    memory
-        .try_reserve_exact(blocks)
-        .map_err(|_| Error::Memory(cost.memory_kib / 1024))?;
-    memory.resize(blocks, Block::default());
-    let mut derived = Secret::new([0u8; 32]);
-    let hashed = argon
-        .hash_password_into_with_memory(passphrase, salt, derived.expose_mut(), &mut memory)
-        .is_ok();
-    memory.fill(Block::default());
-    core::hint::black_box(&memory);
-    if hashed {
-        Ok(derived)
-    } else {
-        Err(Error::Format)
-    }
+    argon2id(cost, passphrase, salt).map_err(|e| match e {
+        StretchError::Memory => Error::Memory(cost.memory_kib / 1024),
+        StretchError::Params => Error::Format,
+    })
 }
 
 #[cfg(test)]

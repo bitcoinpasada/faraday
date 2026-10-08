@@ -1,6 +1,8 @@
 //! Words typed from another BIP-39 list: each word typed as its ASCII
 //! fold (`ábaco` as `abaco`), the key the one that list's words give, not
-//! the English words of the same entropy.
+//! the English words of the same entropy. Japanese, Korean and both
+//! Chinese lists are typed on keyboards of their own, OpenSigner's, and
+//! a word is taken by pressing it among those the keys can be.
 
 use faraday_core::{Action, Faraday};
 use osk_bip::bip39::{Language, Mnemonic};
@@ -31,9 +33,9 @@ fn spanish_words_typed_without_accents_make_the_spanish_key() {
         .collect();
     let es = Mnemonic::from_entropy(Language::Spanish, &entropy).unwrap();
     let en = Mnemonic::from_entropy(Language::English, &entropy).unwrap();
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
-    let at = faraday_core::forms::LATIN
+    let at = faraday_core::forms::LANGUAGES
         .iter()
         .position(|l| *l == Language::Spanish)
         .unwrap();
@@ -49,9 +51,9 @@ fn spanish_words_typed_without_accents_make_the_spanish_key() {
 
 #[test]
 fn a_word_from_another_list_is_named_as_not_on_this_one() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
-    let at = faraday_core::forms::LATIN
+    let at = faraday_core::forms::LANGUAGES
         .iter()
         .position(|l| *l == Language::French)
         .unwrap();
@@ -71,7 +73,7 @@ fn a_word_from_another_list_is_named_as_not_on_this_one() {
 
 #[test]
 fn the_other_lists_are_behind_one_button_until_asked_for() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.event(osk_shell_api::Event::Display(osk_shell_api::DisplayInfo {
         width: 1366,
         height: 768,
@@ -94,4 +96,95 @@ fn the_other_lists_are_behind_one_button_until_asked_for() {
     app.press(Action::EntryLanguages);
     let _ = app.frame();
     assert!(app.offers(Action::EntryLanguage(1)));
+}
+
+/// Types word `i` of `lang` on the list's own keyboard, as a person
+/// would: its kana or jamo key by key, or its reading and then its tone;
+/// then presses it among the words offered.
+fn type_on_keys(app: &mut Faraday, lang: Language, i: u16) {
+    use osk_bip::bip39::Script;
+    use osk_ui::widgets::keyboard::ZHUYIN_MARKS;
+    let keys: Vec<char> = match lang.script() {
+        Script::Pinyin | Script::Zhuyin => {
+            let (spelling, tone) = lang.word_readings(i).next().unwrap();
+            let mut k: Vec<char> = spelling.chars().collect();
+            k.push(if lang.script() == Script::Pinyin {
+                char::from(b'0' + tone)
+            } else {
+                ZHUYIN_MARKS[usize::from(tone) - 1]
+            });
+            k
+        }
+        _ => lang.typed(i).unwrap().as_chars().to_vec(),
+    };
+    for c in keys {
+        app.press(Action::EntryKey(c));
+    }
+    let w = app.entry.keys.as_ref().unwrap();
+    let at = w
+        .candidates()
+        .position(|c| c == i)
+        .unwrap_or_else(|| panic!("{} offered", lang.word(i)));
+    app.press(Action::EntryCandidate(at as u8));
+}
+
+#[test]
+fn words_typed_on_the_kana_jamo_pinyin_and_zhuyin_keyboards_make_that_list_s_key() {
+    let entropy: Vec<u8> = (0u8..16)
+        .map(|i| i.wrapping_mul(53).wrapping_add(7))
+        .collect();
+    for lang in [
+        Language::Japanese,
+        Language::Korean,
+        Language::ChineseSimplified,
+        Language::ChineseTraditional,
+    ] {
+        let m = Mnemonic::from_entropy(lang, &entropy).unwrap();
+        let mut app = faraday_core::testkit::started();
+        app.press(Action::Entry(None));
+        let at = faraday_core::forms::LANGUAGES
+            .iter()
+            .position(|l| *l == lang)
+            .unwrap();
+        app.press(Action::EntryLanguage(at as u8));
+        assert!(
+            app.entry.keys.is_some(),
+            "{lang:?} has a keyboard of its own"
+        );
+        for &i in m.indices() {
+            type_on_keys(&mut app, lang, i);
+        }
+        let typed: Vec<u16> = app
+            .entry
+            .keys
+            .as_ref()
+            .unwrap()
+            .committed_indices()
+            .collect();
+        assert_eq!(&typed[..], m.indices(), "{lang:?}");
+        app.press(Action::EntryAdd);
+        assert_eq!(app.session.keys.len(), 1, "{lang:?}: {:?}", app.entry.error);
+        let key = &app.session.keys[0];
+        assert_eq!(key.master.fingerprint().0, fingerprint(&m), "{lang:?}");
+        assert_eq!(key.language, lang);
+    }
+}
+
+#[test]
+fn a_key_that_leads_to_no_word_is_not_taken() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Entry(None));
+    let at = faraday_core::forms::LANGUAGES
+        .iter()
+        .position(|l| *l == Language::ChineseSimplified)
+        .unwrap();
+    app.press(Action::EntryLanguage(at as u8));
+    // No pinyin syllable starts with "v".
+    app.event(Event::Key(Key::Char('v')));
+    assert!(app.entry.keys.as_ref().unwrap().prefix().is_empty());
+    // "shi" and a tone are, typed on the computer's keyboard.
+    for c in "shi4".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    assert!(app.entry.keys.as_ref().unwrap().candidates().count() > 1);
 }

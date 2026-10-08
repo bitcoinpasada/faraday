@@ -142,22 +142,9 @@ impl Faraday {
     /// What is kept across a lock: the settings and the memory.
     pub(crate) fn kept(&self) -> Vec<(String, Vec<u8>)> {
         let settings = format!(
-            "scale={}\ntheme={}\nmotion={}\nguided={}\nseal-amounts={}\nidle-lock={}\nidle-off={}\nqr-ms={}\n",
-            self.scale_pct,
-            match self.theme {
-                crate::ui::Theme::Dark => "dark",
-                crate::ui::Theme::Light => "light",
-            },
-            if self.reduce_motion {
-                "reduced"
-            } else {
-                "full"
-            },
-            u8::from(self.guided),
-            u8::from(self.seal_amounts),
-            self.idle_lock_min,
-            self.idle_off_min,
-            self.qr_frame_ms
+            "{}seal-amounts={}\n",
+            self.settings_body(),
+            u8::from(self.seal_amounts)
         );
         let mut out = vec![
             ("settings".to_string(), settings.into_bytes()),
@@ -173,6 +160,11 @@ impl Faraday {
             .collect();
         if !secret_out.is_empty() {
             out.push(("secret-out".to_string(), secret_out.join("\n").into_bytes()));
+        }
+        // What the boot stick holds, so the next process neither reads it
+        // again over settings changed since nor loses what to compare.
+        if let Some(b) = &self.stick_settings {
+            out.push(("stick-settings".to_string(), b.clone().into_bytes()));
         }
         if let Some(f) = self.family_kept() {
             out.push(("family".to_string(), f));
@@ -192,60 +184,14 @@ impl Faraday {
                 "settings" => {
                     for line in String::from_utf8_lossy(bytes).lines() {
                         match line.split_once('=') {
-                            Some(("scale", v)) => {
-                                if let Ok(p) = v.parse::<u16>()
-                                    && (50..=300).contains(&p)
-                                {
-                                    self.scale_pct = p;
-                                    if let Some(d) = self.last_display {
-                                        // Only what this display adds is
-                                        // dropped: the first request for
-                                        // entropy may still be waiting.
-                                        let before = self.commands.len();
-                                        self.display(d);
-                                        let mut i = before;
-                                        while i < self.commands.len() {
-                                            if self.commands[i]
-                                                == osk_shell_api::Command::RequestEntropy
-                                            {
-                                                self.commands.remove(i);
-                                            } else {
-                                                i += 1;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            Some(("guided", v)) => self.guided = v == "1",
-                            Some(("motion", v)) => self.reduce_motion = v == "reduced",
-                            Some(("theme", v)) => {
-                                self.theme = if v == "light" {
-                                    crate::ui::Theme::Light
-                                } else {
-                                    crate::ui::Theme::Dark
-                                };
-                            }
-                            Some(("idle-lock", v)) => {
-                                if let Ok(m) = v.parse() {
-                                    self.idle_lock_min = m;
-                                }
-                            }
-                            Some(("qr-ms", v)) => {
-                                if let Ok(ms) = v.parse::<u64>()
-                                    && crate::QR_SPEEDS.contains(&ms)
-                                {
-                                    self.qr_frame_ms = ms;
-                                }
-                            }
-                            Some(("idle-off", v)) => {
-                                if let Ok(m) = v.parse() {
-                                    self.idle_off_min = m;
-                                }
-                            }
                             Some(("seal-amounts", v)) => self.seal_amounts = v == "1",
-                            _ => {}
+                            Some((k, v)) => self.apply_setting(k, v, false),
+                            None => {}
                         }
                     }
+                }
+                "stick-settings" => {
+                    self.stick_settings = Some(String::from_utf8_lossy(bytes).into_owned());
                 }
                 "signed-amounts" => self.signed_amounts = decode(bytes),
                 "family" => self.family_restore(bytes),

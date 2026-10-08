@@ -722,7 +722,9 @@ dependencies = [
  "osk-codec",
  "osk-crypto",
  "osk-entropy",
+ "osk-learn",
  "osk-psbt",
+ "osk-selftest",
  "osk-shell-api",
  "osk-ui",
  "zeroize",
@@ -823,6 +825,7 @@ dependencies = [
  "faraday-vault",
  "osk-bip",
  "osk-codec",
+ "osk-selftest",
  "osk-shell-api",
  "png",
 ]
@@ -1611,7 +1614,9 @@ dependencies = [
  "osk-crypto",
  "osk-entropy",
  "osk-keep",
+ "osk-learn",
  "osk-psbt",
+ "osk-selftest",
  "osk-shell-api",
  "osk-ui",
  "serde_json",
@@ -1781,6 +1786,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "osk-learn"
+version = "0.1.0"
+
+[[package]]
 name = "osk-psbt"
 version = "0.1.0"
 dependencies = [
@@ -1799,6 +1808,16 @@ dependencies = [
  "osk-codec",
  "osk-psbt",
  "png",
+]
+
+[[package]]
+name = "osk-selftest"
+version = "0.1.0"
+dependencies = [
+ "osk-backup",
+ "osk-bip",
+ "osk-crypto",
+ "osk-psbt",
 ]
 
 [[package]]

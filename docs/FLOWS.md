@@ -108,9 +108,14 @@ visit** directly.
 
 **Stick visit** (one screen, both directions):
 - **Write from the Outbox**: chosen files written, read back, compared.
-  A sealed vault replaces the file with its identity, or is written as
-  `vault.ofv` / `vault-N.ofv` where there is none. A failed comparison
-  leaves the file in the Outbox and says which.
+  A sealed vault replaces the file with its identity, or is written
+  under its own name (`name.ofv`, `name-2.ofv` when the stick has one;
+  `docs/VAULT.md` §6) where there is none. A failed comparison
+  leaves the file in the Outbox and says which. The first row is the
+  settings, `faraday-settings.txt`, which is not an Outbox file: ticked
+  on the boot stick when the settings differ from what the boot stick
+  holds, unticked on any other stick, and written over the settings
+  file already there.
 - **Copy into the Inbox**: chosen files; kinds Faraday does not read
   are shown dimmed. A vault file copied in appears on Vaults, locked. A PNG
   or JPEG is not copied: **Read the QR codes** has the disk process decode
@@ -249,4 +254,7 @@ offers Type and Read a file.
 
 **Settings**: keyboard layout (US first), display scale, idle lock and
 power-off times, reduce motion, light or dark, ignored devices, About
-(version, build hash).
+(version, build hash). They are kept across a lock in RAM, and across a
+power-off in `faraday-settings.txt` on the boot stick, read at boot
+before the passphrase (`PLAN.md` §5.2). Never for an idle time, the
+signed-amount memory's seal and the network are not read from the file.

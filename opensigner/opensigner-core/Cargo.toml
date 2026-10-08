@@ -19,6 +19,8 @@ osk-codec = { path = "../../core/osk-codec" }
 # The encrypted file formats (`.oskb`, KDBX 4) and the kept-key blob.
 osk-backup = { path = "../../core/osk-backup" }
 osk-keep = { path = "../../core/osk-keep" }
+osk-learn = { path = "../../core/osk-learn" }
+osk-selftest = { path = "../../core/osk-selftest" }
 zeroize = { workspace = true, features = ["alloc"] }
 
 [features]

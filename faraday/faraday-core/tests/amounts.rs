@@ -52,7 +52,7 @@ fn kept(app: &mut Faraday) -> Vec<(String, Vec<u8>)> {
 #[test]
 fn the_same_transaction_with_other_amounts_is_refused_across_a_lock() {
     let psbt = spending();
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     offer(&mut app, &psbt, Vec::new());
     assert!(!app.spend.as_ref().unwrap().spend.signed_here.is_empty());
     let kept = kept(&mut app);
@@ -62,14 +62,14 @@ fn the_same_transaction_with_other_amounts_is_refused_across_a_lock() {
     let mut changed = psbt.inner().clone();
     changed.inputs[0].witness_utxo.as_mut().unwrap().value += osk_bip::bitcoin::Amount::from_sat(1);
     let changed = osk_psbt::Psbt::from(changed);
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     offer(&mut app, &changed, kept.clone());
     let s = app.spend.as_ref().unwrap();
     assert!(s.spend.signed_here.is_empty());
     assert!(s.error.as_deref().is_some_and(|e| e.contains("refused")));
 
     // The same amounts again sign.
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     offer(&mut app, &psbt, kept);
     assert!(!app.spend.as_ref().unwrap().spend.signed_here.is_empty());
 }

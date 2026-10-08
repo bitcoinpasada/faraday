@@ -8,9 +8,10 @@
 //! Only the top level of a stick is used. A write is a new file, read
 //! back and compared, then renamed into place; it never goes over a file
 //! already there, except a sealed vault going back over its own file,
-//! found by salt and length. A write-back a pulled stick interrupted is
-//! finished on the next visit. Pictures are decoded for QR codes here, so
-//! only the codes' contents reach the app (`docs/QR.md` §4).
+//! found by salt and length, and the settings file over the settings
+//! file. A vault write-back a pulled stick interrupted is finished on the
+//! next visit. Pictures are decoded for QR codes here, so only the codes'
+//! contents reach the app (`docs/QR.md` §4).
 //!
 //! [`proto`] is how the app's shell and the disk process talk.
 
@@ -305,11 +306,39 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
     }
 }
 
+/// The settings file's name (`faraday_core::stick_settings::FILE`).
+pub const SETTINGS_FILE: &str = "faraday-settings.txt";
+
+/// Writes the settings file over the one already there: the new bytes
+/// beside it, read back and compared, then the old file goes and the new
+/// one takes its name. A stick pulled between the two keeps no settings
+/// file, and the next visit writes one.
+pub fn write_settings(place: &mut dyn Place, bytes: &[u8]) -> Result<String, String> {
+    let temp = format!(".faraday-{SETTINGS_FILE}.part");
+    put_checked(place, &temp, bytes)?;
+    let old: Vec<String> = place
+        .files()?
+        .into_iter()
+        .map(|(n, _)| n)
+        .filter(|n| n.eq_ignore_ascii_case(SETTINGS_FILE))
+        .collect();
+    for n in old {
+        if let Err(e) = place.remove(&n) {
+            let _ = place.remove(&temp);
+            return Err(e);
+        }
+    }
+    place.rename(&temp, SETTINGS_FILE)?;
+    Ok(SETTINGS_FILE.to_string())
+}
+
 /// Writes what the app put in the Outbox: a sealed vault back over its
-/// own file, anything else as a new file.
+/// own file, the settings over the settings, anything else as a new file.
 pub fn write_any(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<String, String> {
     if name.ends_with(".ofv") && bytes.starts_with(b"OFVT") {
         write_vault(place, name, bytes)
+    } else if name.eq_ignore_ascii_case(SETTINGS_FILE) && bytes.starts_with(b"faraday-settings ") {
+        write_settings(place, bytes)
     } else {
         write(place, name, bytes)
     }

@@ -40,7 +40,7 @@ const MAX_BECH32: usize = 90;
 const MAX_BASE58: usize = 35;
 
 /// The human-readable part of a bech32 address on `network`.
-fn hrp(network: Network) -> &'static str {
+pub fn hrp(network: Network) -> &'static str {
     match network {
         Network::Mainnet => "bc",
         Network::Testnet | Network::Signet => "tb",

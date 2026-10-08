@@ -4,7 +4,9 @@
 //! screen over them (`docs/OPENSIGNER-PARITY.md` plan C4). Nothing here
 //! is a secret: an extended private key is refused, and nothing is kept.
 
-use opensigner_core::tools::{PolicyScript, ReadAs, Tool};
+use opensigner_core::tools::Tool;
+use osk_bip::compile::PolicyScript;
+use osk_codec::encodings::ReadAs;
 
 use crate::{Faraday, Screen};
 

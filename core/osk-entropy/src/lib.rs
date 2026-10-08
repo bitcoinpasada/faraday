@@ -15,10 +15,10 @@
 //!   bits over log2 6 ≈ 2.585, rounded up: 50, 62, 75 and 87. 256 bits
 //!   asks for 99 rather than the 100 the rule gives, because 99 rolls
 //!   carry 255.9 bits and that is what the other tools accept. The second
-//!   writes every 6 as a 0 first (Keystone). The third names a word
+//!   writes every 6 as a 0 first (Keystone). The third names every word
 //!   outright from five rolls of 1-4 and a sixth read as a coin
-//!   (BitBox), 66 rolls at 128 bits and 138 at 256, and the last word
-//!   is the one the checksum leaves that the person chooses.
+//!   (BitBox), 72 rolls at 128 bits and 144 at 256, and the checksum
+//!   replaces the last word's low bits (§16.139).
 //! - **Coins** ([`CoinFlips`]): each flip is one bit, packed MSB-first
 //!   (the first flip is the top bit of the first byte), no hashing. A fair
 //!   coin already gives uniform bits, and packing is what every other tool
@@ -45,6 +45,10 @@
 //! truncated; coins and hex are defined otherwise (packed bits, the
 //! digits themselves) and their commitment is a separate statement of
 //! what went in.
+//!
+//! [`Source`] names each of these, and [`SOURCE_ROWS`], [`MIX_SOURCES`]
+//! and [`WORD_COUNTS`] are the lists a key-making flow offers, in the
+//! order it offers them.
 //!
 //! The sanity checks ([`DiceRolls::warnings`], [`CoinFlips::warnings`])
 //! are cautions for the user, never hard blocks, except `too_few`. The
@@ -280,10 +284,11 @@ pub enum DiceProcedure {
     /// Direct word selection: [`DICE_WORD_FACES`] rolls of 1–4 name a
     /// word and a sixth roll is a coin, 1–3 heads and 4–6 tails, so one
     /// word is 4⁵ × 2 = 2048 outcomes. A 5 or a 6 in the first five
-    /// positions is a reroll and is not kept. The rolls name every word
-    /// but the last, whose free bits and checksum are the choice among
-    /// the words the checksum leaves. EntropyLab's "BitBox diceware /
-    /// Direct word selection".
+    /// positions is a reroll and is not kept. EntropyLab's "BitBox
+    /// diceware / Direct word selection". The rolls name every word,
+    /// the last included, and the checksum then replaces the last
+    /// word's low bits, as SeedSigner's `calculate_checksum` completes a
+    /// final word the person picked.
     Words,
 }
 
@@ -302,11 +307,11 @@ impl DiceProcedure {
 
     /// Rolls the procedure needs at `strength`: the hashed procedures
     /// take [`Strength::rolls`], direct selection [`DICE_WORD_ROLLS`]
-    /// for every word but the last.
+    /// for every word.
     pub fn needed(self, strength: Strength) -> usize {
         match self {
             DiceProcedure::Hashed | DiceProcedure::SixAsZero => strength.rolls(),
-            DiceProcedure::Words => DICE_WORD_ROLLS * (strength.words() - 1),
+            DiceProcedure::Words => DICE_WORD_ROLLS * strength.words(),
         }
     }
 
@@ -574,8 +579,13 @@ impl DiceRolls {
     }
 
     /// The rolls under `procedure`, truncated to the strength.
-    /// [`DiceProcedure::Words`] names words rather than bytes and has no
-    /// entropy of its own; ask it for [`word_indices`](Self::word_indices).
+    ///
+    /// Under [`DiceProcedure::Words`] the entropy is the named words'
+    /// 11-bit indices written one after another, cut to the strength's
+    /// bits: every bit of every word but the last, and the last word's
+    /// high `11 − checksum` bits. BIP-39 then writes the checksum into
+    /// the bits that were cut, so the key's last word is the rolled
+    /// word with its low bits replaced.
     pub fn entropy_under(
         &self,
         strength: Strength,
@@ -600,7 +610,36 @@ impl DiceRolls {
                 hash.zeroize();
                 Ok(e)
             }
-            DiceProcedure::Words => Err(Error::BadLength),
+            DiceProcedure::Words => {
+                if !self.is_enough_under(strength, procedure) {
+                    return Err(Error::TooFew {
+                        have: self.len(),
+                        need: procedure.needed(strength),
+                    });
+                }
+                let mut bytes = [0u8; 32];
+                let mut bit = 0usize;
+                for word in 0..strength.words() {
+                    // A group kept by `push` rather than `push_under` can
+                    // hold a 5 or a 6 where only 1–4 name a word.
+                    let Some(index) = self.word_index(word) else {
+                        bytes.zeroize();
+                        return Err(Error::BadLength);
+                    };
+                    for b in (0..11).rev() {
+                        if bit == strength.bits() {
+                            break;
+                        }
+                        if index >> b & 1 == 1 {
+                            bytes[bit / 8] |= 0x80 >> (bit % 8);
+                        }
+                        bit += 1;
+                    }
+                }
+                let e = RawEntropy::new(&bytes[..strength.bytes()]);
+                bytes.zeroize();
+                Ok(e)
+            }
         }
     }
 
@@ -1767,6 +1806,60 @@ fn nibble(c: u8) -> u8 {
     }
 }
 
+// ----- what a flow offers -----
+
+/// Where a key's entropy comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Source {
+    /// Six-sided dice ([`DiceRolls`], under a [`DiceProcedure`]).
+    Dice,
+    /// Coin flips, packed ([`CoinFlips`]).
+    Coins,
+    /// Hex digits typed as they are ([`RawHex`]).
+    Hex,
+    /// Seed XOR parts, typed as words and XORed back into the key
+    /// ([`SeedXor`]).
+    SeedXor,
+    /// Cards drawn from a shuffled deck ([`CardDraws`]).
+    Cards,
+    /// The noise in a run of camera frames ([`CameraNoise`]).
+    Camera,
+    /// Several sources combined ([`Mixed`]).
+    Mix,
+    /// The shell's own generator ([`DeviceRandom`]).
+    Device,
+}
+
+/// The sources a new key can be made from, in the order they are
+/// listed. Seed XOR is not among them: combining parts gives back a key
+/// that already existed, so it is a way of loading one.
+pub const SOURCE_ROWS: [Source; 7] = [
+    Source::Dice,
+    Source::Coins,
+    Source::Hex,
+    Source::Cards,
+    Source::Camera,
+    Source::Mix,
+    Source::Device,
+];
+
+/// The sources a mix offers, in the order they are listed and in the
+/// order their steps then run. Hex is not among them: a mix is a way of
+/// not having to trust one source, and typed hex is the person's own
+/// bytes, which they can mix themselves before typing. Seed XOR is not
+/// a source of randomness at all.
+pub const MIX_SOURCES: [Source; 5] = [
+    Source::Dice,
+    Source::Coins,
+    Source::Cards,
+    Source::Camera,
+    Source::Device,
+];
+
+/// The BIP-39 word counts on offer, in the order they are listed: the
+/// two most keys use, then the rest in ascending order.
+pub const WORD_COUNTS: [u8; 5] = [12, 24, 15, 18, 21];
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1862,9 +1955,9 @@ mod tests {
 
     #[test]
     fn direct_selection_names_a_word_from_five_faces_and_a_coin() {
-        // Six rolls a word, for every word but the last.
-        assert_eq!(DiceProcedure::Words.needed(Strength::Bits128), 66);
-        assert_eq!(DiceProcedure::Words.needed(Strength::Bits256), 138);
+        // Six rolls a word, for every word.
+        assert_eq!(DiceProcedure::Words.needed(Strength::Bits128), 72);
+        assert_eq!(DiceProcedure::Words.needed(Strength::Bits256), 144);
         assert_eq!(DiceProcedure::Hashed.needed(Strength::Bits128), 50);
         assert_eq!(DiceProcedure::SixAsZero.needed(Strength::Bits256), 99);
 
@@ -1897,6 +1990,59 @@ mod tests {
         assert!(!DiceProcedure::Words.accepts(0, 5));
         assert!(DiceProcedure::Words.accepts(5, 5));
         assert!(DiceProcedure::Hashed.accepts(0, 5));
+    }
+
+    /// The rolls of EntropyLab's BitBox transcript name every word, the
+    /// last included, and the entropy is what SeedSigner's
+    /// `calculate_checksum` makes of those words: embit's
+    /// `mnemonic_to_bytes(..., ignore_checksum=True)`
+    /// (`tools/reference/dice/README.md`).
+    #[test]
+    fn direct_selection_rolls_the_last_word_and_keeps_its_high_bits() {
+        const ROLLS_12: &str =
+            "123411234122341233412344123415234126341231412342123413234124341235432141";
+        let mut d = DiceRolls::new();
+        for c in ROLLS_12.bytes() {
+            assert!(d.push_under(c - b'0', DiceProcedure::Words));
+        }
+        assert!(d.is_enough_under(Strength::Bits128, DiceProcedure::Words));
+        let e = d
+            .entropy_under(Strength::Bits128, DiceProcedure::Words)
+            .unwrap();
+        assert_eq!(
+            e.as_bytes(),
+            &[
+                0x1b, 0x0d, 0x8a, 0xc6, 0x63, 0x71, 0xb2, 0xd8, 0xec, 0x66, 0x36, 0x1b, 0x0d, 0x8e,
+                0xc6, 0xf2
+            ]
+        );
+
+        // Twenty-four words: the same 72 rolls twice.
+        for c in ROLLS_12.bytes() {
+            assert!(d.push_under(c - b'0', DiceProcedure::Words));
+        }
+        let e = d
+            .entropy_under(Strength::Bits256, DiceProcedure::Words)
+            .unwrap();
+        assert_eq!(
+            e.as_bytes(),
+            &[
+                0x1b, 0x0d, 0x8a, 0xc6, 0x63, 0x71, 0xb2, 0xd8, 0xec, 0x66, 0x36, 0x1b, 0x0d, 0x8e,
+                0xc6, 0xf2, 0x61, 0xb0, 0xd8, 0xac, 0x66, 0x37, 0x1b, 0x2d, 0x8e, 0xc6, 0x63, 0x61,
+                0xb0, 0xd8, 0xec, 0x6f
+            ]
+        );
+
+        // Eleven words' rolls are not enough for twelve.
+        let mut d = DiceRolls::new();
+        for c in ROLLS_12[..66].bytes() {
+            d.push_under(c - b'0', DiceProcedure::Words);
+        }
+        assert_eq!(
+            d.entropy_under(Strength::Bits128, DiceProcedure::Words)
+                .err(),
+            Some(Error::TooFew { have: 66, need: 72 })
+        );
     }
 
     #[test]

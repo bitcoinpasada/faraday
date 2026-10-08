@@ -165,7 +165,7 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
             ui.stroke(x, cy, w, 46.0, 8.0, ACCENT);
             let fw = ui.text_mid(x + 14.0, cy, 46.0, 18.0, W::M, DIM, &text[..fixed]);
             let tw = ui.text_mid(x + 14.0 + fw, cy, 46.0, 18.0, W::M, TEXT, &text[fixed..]);
-            ui.fill(x + 16.0 + fw + tw, cy + 12.0, 2.0, 22.0, 1.0, ACCENT);
+            ui.caret(x + 16.0 + fw + tw, cy + 12.0, 22.0);
             cy += 56.0;
             let expected = v.grind.expected(net);
             if v.grind.prefix.has_free(v.grind.script, net) {

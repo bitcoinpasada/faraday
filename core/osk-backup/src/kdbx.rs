@@ -60,7 +60,7 @@
 
 use alloc::vec::Vec;
 
-use argon2::{Algorithm, Argon2, Block, Params, Version};
+use argon2::Params;
 use chacha20::ChaCha20;
 use chacha20::cipher::{KeyIvInit, StreamCipher};
 use hmac::{Hmac, KeyInit, Mac};
@@ -68,7 +68,7 @@ use osk_crypto::{Secret, Zeroize};
 use sha2::{Digest, Sha256, Sha512};
 use zeroize::Zeroizing;
 
-use crate::Cost;
+use crate::{Cost, argon2id};
 
 /// The first four bytes of every KDBX file.
 const SIGNATURE_1: u32 = 0x9AA2_D903;
@@ -279,25 +279,13 @@ fn keys(master_seed: &[u8], kdf_salt: &[u8], passphrase: &[u8], cost: Cost) -> O
     })
 }
 
-/// `Argon2id(composite, salt)`, 32 bytes, at `cost`. The working memory
-/// is the caller's, as it is in [`crate::oskb`], and is overwritten
-/// before it is given back.
+/// `Argon2id(composite, salt)`, 32 bytes, at `cost`: [`argon2id`],
+/// refused above [`MAX_MEMORY_KIB`].
 fn stretch(composite: &Secret<[u8; 32]>, salt: &[u8], cost: Cost) -> Option<Secret<[u8; 32]>> {
     if cost.memory_kib > MAX_MEMORY_KIB {
         return None;
     }
-    let params = Params::new(cost.memory_kib, cost.passes, cost.lanes, Some(32)).ok()?;
-    let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params.clone());
-    let mut memory: Vec<Block> = Vec::new();
-    memory.try_reserve_exact(params.block_count()).ok()?;
-    memory.resize(params.block_count(), Block::default());
-    let mut out = Secret::new([0u8; 32]);
-    let ok = argon
-        .hash_password_into_with_memory(composite.expose(), salt, out.expose_mut(), &mut memory)
-        .is_ok();
-    memory.fill(Block::default());
-    core::hint::black_box(&memory);
-    ok.then_some(out)
+    argon2id(&cost, composite.expose(), salt).ok()
 }
 
 /// `SHA-512(i ‖ base)`: the key block `i`'s HMAC is computed under, and

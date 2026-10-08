@@ -483,6 +483,14 @@ impl Session {
 
     /// The wallet's slots, in the descriptor's order.
     pub fn slots(&self, wallet: &Wallet) -> Vec<Slot> {
+        // A silent payments wallet's one slot is the key its two halves
+        // were derived from.
+        if let Some(r) = wallet.policy.silent() {
+            return vec![Slot {
+                fingerprint: Some(r.fingerprint),
+                held_by: self.key_label(r.fingerprint).map(str::to_string),
+            }];
+        }
         // A threshold wallet's slots are its shares, each named by its
         // own fingerprint.
         if let Some(record) = wallet.policy.record() {
@@ -550,6 +558,7 @@ impl Session {
             ),
             Kind::MuSig => format!("{n} of {n} · MuSig2"),
             Kind::Threshold => format!("{m} of {n} · FROST"),
+            Kind::Silent => "1 key · silent payments".to_string(),
             Kind::Other => "Wallet".to_string(),
         }
     }
@@ -772,6 +781,9 @@ pub enum Kind {
     MuSig,
     /// FROST: a threshold of shares signs in two rounds.
     Threshold,
+    /// Silent payments (BIP-352): one key's scan and spend halves, an
+    /// `sp1…` address, and nothing to spend from yet.
+    Silent,
     /// Anything else this build reads but has no flow for.
     Other,
 }
@@ -803,6 +815,9 @@ pub mod step {
 impl Kind {
     /// The kind a policy describes.
     pub fn of(policy: &WalletPolicy) -> Kind {
+        if policy.silent().is_some() {
+            return Kind::Silent;
+        }
         if policy.tapscript_quorum().is_some() {
             return Kind::TapMulti;
         }
@@ -819,7 +834,7 @@ impl Kind {
 
     /// Whether more than one key can take part.
     pub fn has_cosigners(self) -> bool {
-        !matches!(self, Kind::Single(_) | Kind::Other)
+        !matches!(self, Kind::Single(_) | Kind::Silent | Kind::Other)
     }
 
     /// The steps of a spend from a wallet of this kind
@@ -941,17 +956,27 @@ pub fn same_wallet(policy: &WalletPolicy) -> String {
 /// Reads a wallet from text: a descriptor, a BIP-388 policy, or a
 /// threshold record. Comment lines (`#`) and blank lines are skipped.
 pub fn read_wallet(text: &str) -> Result<WalletPolicy, Refusal> {
-    // A threshold record is read whole: its lines are its fields.
-    if osk_bip::threshold::ThresholdRecord::looks_like_record(text) {
+    // A threshold record and a silent payments record are read whole:
+    // their lines are their fields.
+    if osk_bip::threshold::ThresholdRecord::looks_like_record(text)
+        || osk_bip::silent_wallet::SilentWallet::looks_like_record(text)
+    {
         return WalletPolicy::parse_any(text).map_err(|e| Refusal::NotAWallet(e.to_string()));
     }
+    if osk_bip::coldcard::looks_like_export(text) {
+        return coldcard_export(text);
+    }
     // A wallet .json (Specter Desktop's, which Sparrow also writes and
-    // reads) or Bitcoin Core's `listdescriptors`: the descriptor field.
+    // reads) or Bitcoin Core's `listdescriptors`: the descriptor fields.
     if text.trim_start().starts_with('{') {
         let d = json_string(text, "descriptor")
             .or_else(|| json_string(text, "desc"))
             .ok_or_else(|| Refusal::NotAWallet("a .json file with no descriptor".into()))?;
-        return WalletPolicy::parse_any(&d).map_err(|e| Refusal::NotAWallet(e.to_string()));
+        return WalletPolicy::parse_any(&d).or_else(|e| {
+            let mut all = json_strings(text, "descriptor");
+            all.extend(json_strings(text, "desc"));
+            multipath(&all).ok_or_else(|| Refusal::NotAWallet(e.to_string()))
+        });
     }
     let body: String = text
         .lines()
@@ -970,7 +995,213 @@ pub fn read_wallet(text: &str) -> Result<WalletPolicy, Refusal> {
         return osk_bip::multisig_config::parse(text)
             .map_err(|e| Refusal::NotAWallet(format!("{e:?}")));
     }
-    WalletPolicy::parse_any(&body).map_err(|e| Refusal::NotAWallet(e.to_string()))
+    WalletPolicy::parse_any(&body).or_else(|e| {
+        let lines: Vec<String> = text
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .map(String::from)
+            .collect();
+        multipath(&lines).ok_or_else(|| Refusal::NotAWallet(e.to_string()))
+    })
+}
+
+/// Descriptors other wallets write that are not one multipath
+/// descriptor, read as the `<0;1>` wallet they describe:
+///
+/// - a receive and a change descriptor, the same but for `/0/*` and
+///   `/1/*` (Sparrow's older export, Bitcoin Core's `listdescriptors`,
+///   which lists one pair per kind: the wallet is the multisig or
+///   miniscript one if there is one, else BIP-84's, 86's, 49's, 44's,
+///   the order OpenSigner prefers);
+/// - a receive descriptor alone, `/0/*` (Jade's and Keystone's export);
+/// - one descriptor whose keys carry no derivation (Specter Desktop's
+///   wallet .json, and the one Sparrow writes for Specter);
+/// - any of these after a label, `Receive: wpkh(…)` (Sparrow).
+///
+/// Each descriptor must read on its own, checksum and all, before it is
+/// rewritten; one that does not refuses the file.
+fn multipath(descs: &[String]) -> Option<WalletPolicy> {
+    use std::str::FromStr;
+    let mut plain = Vec::new();
+    for d in descs {
+        let d = without_label(d.trim());
+        osk_bip::miniscript::Descriptor::<osk_bip::miniscript::DescriptorPublicKey>::from_str(d)
+            .ok()?;
+        plain.push(d.split('#').next().unwrap_or(d).to_string());
+    }
+    let mut wallets: Vec<String> = plain
+        .iter()
+        .filter(|d| d.contains("/0/*") && !d.contains("/1/*"))
+        .filter(|d| plain.len() == 1 || plain.contains(&d.replace("/0/*", "/1/*")))
+        .map(|d| d.replace("/0/*", "/<0;1>/*"))
+        .collect();
+    if plain.len() == 1 && wallets.is_empty() {
+        wallets.extend(with_chains(&plain[0]));
+    }
+    let rank = |d: &String| {
+        if d.starts_with("wpkh(") {
+            1
+        } else if d.starts_with("tr(") && !d.contains(',') {
+            2
+        } else if d.starts_with("sh(wpkh(") {
+            3
+        } else if d.starts_with("pkh(") {
+            4
+        } else {
+            0
+        }
+    };
+    wallets.sort_by_key(rank);
+    wallets.iter().find_map(|d| WalletPolicy::parse_any(d).ok())
+}
+
+/// A descriptor line without the label before it: `Receive: wpkh(…)`.
+fn without_label(line: &str) -> &str {
+    match line.split_once(": ") {
+        Some((label, rest)) if label.chars().all(|c| c.is_ascii_alphabetic() || c == ' ') => {
+            rest.trim()
+        }
+        _ => line,
+    }
+}
+
+/// `d` with `/<0;1>/*` after every extended key, when none of its keys
+/// carries a derivation; otherwise `None`.
+fn with_chains(d: &str) -> Option<String> {
+    let mut out = String::new();
+    let mut rest = d;
+    let mut found = false;
+    while let Some(at) = ["xpub", "tpub"].iter().filter_map(|p| rest.find(p)).min() {
+        let len = rest[at..]
+            .find(|c: char| !c.is_ascii_alphanumeric())
+            .unwrap_or(rest.len() - at);
+        let end = at + len;
+        if rest[end..].starts_with('/') {
+            return None;
+        }
+        out.push_str(&rest[..end]);
+        out.push_str("/<0;1>/*");
+        rest = &rest[end..];
+        found = true;
+    }
+    out.push_str(rest);
+    found.then_some(out)
+}
+
+/// Every string value under `key` in a JSON text.
+fn json_strings(text: &str, key: &str) -> Vec<String> {
+    let pattern = format!("\"{key}\"");
+    let mut out = Vec::new();
+    let mut from = 0;
+    while let Some(at) = text[from..].find(&pattern) {
+        if let Some(v) = json_string(&text[from + at..], key) {
+            out.push(v);
+        }
+        from += at + pattern.len();
+    }
+    out
+}
+
+/// Coldcard's account export, which Nunchuk, Passport and Sparrow also
+/// write: one object per single-sig account. The wallet is the first of
+/// BIP-84, BIP-86, BIP-49 and BIP-44 the file has, as OpenSigner chooses.
+///
+/// Each account's key is rooted at the file's top-level `xfp`, the
+/// master's (Coldcard's `docs/generic-wallet-export.md`); the `xfp`
+/// inside an account is that account key's own fingerprint, and a key
+/// origin written with it would match no seed. `osk_bip::coldcard::parse`
+/// takes the inner one, so the file is read here. Where the account
+/// states its first address, the wallet read must give the same one.
+fn coldcard_export(text: &str) -> Result<WalletPolicy, Refusal> {
+    let bad = |why: &str| Refusal::NotAWallet(format!("Coldcard export: {why}"));
+    let master = json_string(text, "xfp").ok_or_else(|| bad("no xfp"))?;
+    for (field, wrap) in [
+        ("bip84", "wpkh(K)"),
+        ("bip86", "tr(K)"),
+        ("bip49", "sh(wpkh(K))"),
+        ("bip44", "pkh(K)"),
+    ] {
+        let Some(at) = text.find(&format!("\"{field}\"")) else {
+            continue;
+        };
+        let account = &text[at..at + text[at..].find('}').unwrap_or(text.len() - at)];
+        let (Some(deriv), Some(xpub)) =
+            (json_string(account, "deriv"), json_string(account, "xpub"))
+        else {
+            continue;
+        };
+        let path = deriv.trim_start_matches('m').trim_start_matches('/');
+        let key = format!("[{}/{path}]{xpub}/<0;1>/*", master.to_ascii_lowercase());
+        let policy = WalletPolicy::parse_any(&wrap.replace('K', &key))
+            .map_err(|e| Refusal::NotAWallet(e.to_string()))?;
+        if let Some(first) = json_string(account, "first") {
+            let found = osk_bip::keys::Network::ALL.iter().any(|&net| {
+                policy
+                    .address_at(net, false, 0)
+                    .is_ok_and(|a| a.to_string() == first)
+            });
+            if !found {
+                return Err(bad(&format!("its first {field} address is not {first}")));
+            }
+        }
+        return Ok(policy);
+    }
+    Err(bad("no single-sig account"))
+}
+
+/// The object under `key` in a JSON text, from its name to its closing
+/// brace. Enough for the flat objects wallets write; not a JSON parser.
+pub(crate) fn json_object<'a>(text: &'a str, key: &str) -> Option<&'a str> {
+    let at = text.find(&format!("\"{key}\""))?;
+    let rest = &text[at..];
+    let open = rest.find('{')?;
+    // The value must be the object itself, not a later one.
+    if rest[key.len() + 2..open]
+        .trim()
+        .trim_start_matches(':')
+        .trim()
+        != ""
+    {
+        return None;
+    }
+    Some(&rest[..rest.find('}')? + 1])
+}
+
+/// An extended public key in BIP-32's own encoding, `xpub` or `tpub`,
+/// whichever SLIP-132 spelling it came in (`ypub`, `zpub`, `Ypub`, `Zpub`
+/// and their test-network forms). A key that is no extended public key is
+/// `None`.
+pub(crate) fn plain_xpub(key: &str) -> Option<String> {
+    use osk_bip::bitcoin::base58;
+    const MAIN: [[u8; 4]; 5] = [
+        [0x04, 0x88, 0xb2, 0x1e],
+        [0x04, 0x9d, 0x7c, 0xb2],
+        [0x04, 0xb2, 0x47, 0x46],
+        [0x02, 0x95, 0xb4, 0x3f],
+        [0x02, 0xaa, 0x7e, 0xd3],
+    ];
+    const TEST: [[u8; 4]; 5] = [
+        [0x04, 0x35, 0x87, 0xcf],
+        [0x04, 0x4a, 0x52, 0x62],
+        [0x04, 0x5f, 0x1c, 0xf6],
+        [0x02, 0x42, 0x89, 0xef],
+        [0x02, 0x57, 0x54, 0x83],
+    ];
+    let mut bytes = base58::decode_check(key.trim()).ok()?;
+    if bytes.len() != 78 {
+        return None;
+    }
+    let version: [u8; 4] = bytes[..4].try_into().ok()?;
+    let plain = if MAIN.contains(&version) {
+        MAIN[0]
+    } else if TEST.contains(&version) {
+        TEST[0]
+    } else {
+        return None;
+    };
+    bytes[..4].copy_from_slice(&plain);
+    Some(base58::encode_check(&bytes))
 }
 
 /// The first string value under `key` in a JSON text, with its escapes

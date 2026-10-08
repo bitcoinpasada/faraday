@@ -27,7 +27,7 @@ fn musig_index() -> u8 {
 
 #[test]
 fn a_musig2_wallet_made_here_is_bip390s_over_the_taproot_accounts() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     add_key(&mut app, "bacon");
     add_key(&mut app, "zebra");
     app.press(Action::CreateWallet);
@@ -68,7 +68,7 @@ fn a_musig2_wallet_made_here_is_bip390s_over_the_taproot_accounts() {
 
 #[test]
 fn the_signatures_needed_follow_the_keys() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.press(Action::CreateWallet);
     app.press(Action::CKind(musig_index()));
     let n = app.create.as_ref().unwrap().n;

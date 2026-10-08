@@ -22,9 +22,9 @@ Other signers turn dice into a key in more than one way, and the same rolls give
 
 **Six as zero, hashed** writes every 6 as a 0 first and then hashes the same way. Keystone uses it, and so does the "Dice" mode of iancoleman's page. It is no better or worse than the first; it is a different convention, and a key made under one will not appear under the other.
 
-**Words chosen by the dice** does not hash at all. Five rolls of 1 to 4 and a sixth roll read as a coin — 1 to 3 heads, 4 to 6 tails — pick one word out of 2048 directly, because 4 × 4 × 4 × 4 × 4 × 2 is 2048. A 5 or a 6 among the first five is rolled again. This is the BitBox paper table. It costs more rolls: 66 for 12 words against 50, and 138 for 24 against 99. What you get for them is a key you can check by hand against a printed wordlist, without a computer anywhere in it.
+**Words chosen by the dice** does not hash at all. Five rolls of 1 to 4 and a sixth roll read as a coin — 1 to 3 heads, 4 to 6 tails — pick one word out of 2048 directly, because 4 × 4 × 4 × 4 × 4 × 2 is 2048. A 5 or a 6 among the first five is rolled again. This is the BitBox paper table. It costs more rolls: 72 for 12 words against 50, and 144 for 24 against 99. The last word's final rolls only fill bits the checksum replaces, so a device may stop before them, at 70 for 12 words and 140 for 24. What you get for them is a key you can check by hand against a printed wordlist, without a computer anywhere in it.
 
-The dice name every word but the last. The last word carries the checksum, so only a few words can stand there — 128 at 12 words, 8 at 24 — and the device lists them for you to choose from. That choice is yours, not the dice's, and it is worth 7 bits at 12 words and 3 at 24. Those bits aside, the key is as random as the rolls were.
+The dice name every word, the last one too. The last word also carries the checksum, so only its first bits come from the dice — 7 of its 11 at 12 words, 3 at 24 — and the device writes the checksum into the rest. The last word of your key is usually not the word the table names for the last six rolls. SeedSigner completes a last word the same way.
 
 ## Playing cards
 

@@ -74,13 +74,13 @@ person notices, in the order below. Nothing here edits an upstream file.
 
 **A. Integrity first**
 
-1. Ask upstream to move `SOURCE_ROWS`, `MIX_SOURCES` and `COUNTS` into
-   `osk-entropy`, and the Learn pages' text into a `core/` crate, so Faraday
-   reads no app code. Until then `faraday-core` depends on `opensigner-core`
-   for them.
-2. Self-test at start (`opensigner-core/src/selftest.rs`'s vectors, once
-   upstream moves them to `core/`): BIP-39, BIP-32, signing and the KDFs
-   checked before any key is accepted.
+1. Done 2026-10-07 (upstream §16.139, synced): `SOURCE_ROWS`,
+   `MIX_SOURCES` and `WORD_COUNTS` are `osk-entropy`'s and the Learn pages
+   `osk-learn`'s, and Faraday reads them there.
+2. Done 2026-10-07: the self-test at start (`core/osk-selftest`,
+   upstream §16.139): BIP-39, BIP-32, signing and the KDFs checked when
+   the display arrives, and no key accepted until they pass; a failure
+   blocks the app with Exit only (HANDOFF item 53).
 3. Done 2026-10-06: vault creation, GPG and Secure Boot keys take fresh
    shell bytes of their own (`faraday-core/src/fresh.rs`). A vault's seal
    nonce and the new-keyboard code keep the session's bytes and a counter:
@@ -88,8 +88,9 @@ person notices, in the order below. Nothing here edits an upstream file.
 
 **B. Keys in every form OpenSigner reads**
 
-1. Done for the Latin lists 2026-10-06. Left: Japanese (kana), Korean
-   (jamo) and Chinese (pinyin, zhuyin), which need on-screen keyboards.
+1. Done: the Latin lists 2026-10-06; Japanese (kana), Korean (jamo) and
+   Chinese (pinyin, 注音) 2026-10-07, on OpenSigner's keyboards through its
+   own word entry (HANDOFF item 52).
 2. Loading done 2026-10-06, and a held key's Seed XOR split and codex32
    shares in the backup. A new key made as SLIP-39 shares done
    2026-10-06: New key's Length card offers BIP-39 words or SLIP-39
@@ -105,8 +106,9 @@ person notices, in the order below. Nothing here edits an upstream file.
 **C. The rest of the app**
 
 1. Done 2026-10-06: Explore.
-2. Receiving done 2026-10-06. Left: a silent wallet among the session's
-   wallets, and signing silent payment outputs when upstream does.
+2. Receiving done 2026-10-06; the silent payments wallet among the
+   session's wallets, with Check a payment, 2026-10-07 (HANDOFF item 54).
+   Left: signing silent payment outputs, when upstream does (BIP-375).
 3. Done 2026-10-06: the Lightning node key.
 4. Tools done 2026-10-06. Vanity search done 2026-10-06
    (`faraday-core/src/vanity.rs`, `vanity_screen.rs`, `tests/vanity.rs`):

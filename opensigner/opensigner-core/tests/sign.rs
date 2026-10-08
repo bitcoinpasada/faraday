@@ -694,19 +694,13 @@ fn selftest_passes_on_start_and_can_be_rerun() {
         boot: BootState::Unknown,
         memory_mib: None,
     });
-    assert_eq!(
-        h.app.selftest(),
-        Some(Ok(opensigner_core::selftest::CHECKS.len()))
-    );
+    assert_eq!(h.app.selftest(), Some(Ok(osk_selftest::CHECKS.len())));
     assert_eq!(h.app.screen(), ScreenKind::Home);
     h.open_settings();
     h.tap(ids::SETTINGS_ABOUT_ROW);
     assert_eq!(h.app.screen(), ScreenKind::About);
     h.tap(ids::SETTINGS_SELFTEST);
-    assert_eq!(
-        h.app.selftest(),
-        Some(Ok(opensigner_core::selftest::CHECKS.len()))
-    );
+    assert_eq!(h.app.selftest(), Some(Ok(osk_selftest::CHECKS.len())));
     assert_eq!(h.app.screen(), ScreenKind::About);
 }
 

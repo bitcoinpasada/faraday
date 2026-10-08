@@ -1,16 +1,16 @@
 //! New key, as a person making one sees it: the same rolls or flips give
 //! the key other signers make from them, too few entries make nothing, a
-//! caution does not stop anyone, the direct-selection procedure ends in a
-//! last word the person picks, this device's generator is asked for fresh
+//! caution does not stop anyone, rolls that name words roll the last word
+//! too and the checksum replaces its low bits, this device's generator is asked for fresh
 //! bytes and the key is those bytes alone, a key made for a Create slot
 //! fills it, and leaving the screen forgets everything.
 
-use faraday_core::keygen::{SOURCE_ROWS, Source, source_index};
+use faraday_core::keygen::{Group, Source, Way};
 use faraday_core::{Action, Faraday, Screen};
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::bitcoin::hashes::{Hash, sha256};
 use osk_entropy::DiceProcedure;
-use osk_shell_api::{App, EntropyBytes, Event};
+use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 
 /// From the Words card: the quiz, every word answered rightly.
 fn pass_quiz(app: &mut Faraday) {
@@ -28,16 +28,32 @@ fn pass_quiz(app: &mut Faraday) {
     }
 }
 
-fn index(s: Source) -> u8 {
-    source_index(s)
-}
-
 /// The app on Add a key, with New key opened from there.
 fn opened() -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
     assert_eq!(app.screen, Screen::KeyGen);
+    app
+}
+
+/// [`opened`] on a display tall enough for a whole card.
+fn opened_tall() -> Faraday {
+    let mut app = faraday_core::testkit::started();
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 2400,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::Entry(None));
+    app.press(Action::KeyGen(None));
     app
 }
 
@@ -70,7 +86,7 @@ fn ninety_nine_rolls_make_the_key_coldcard_and_seedsigner_make() {
         .collect();
     let mut app = opened();
     app.press(Action::KWords(24));
-    app.press(Action::KSource(index(Source::Dice)));
+    app.press(Action::KWay(Way::DiceHashed.index()));
     app.press(Action::KNext);
     for r in &rolls {
         app.press(Action::KRoll(*r));
@@ -94,7 +110,7 @@ fn one_hundred_twenty_eight_flips_are_a_twelve_word_key_bit_for_bit() {
     let flips: Vec<bool> = (0..128).map(|i| (i * 5 + i / 3) % 2 == 0).collect();
     let mut app = opened();
     app.press(Action::KWords(12));
-    app.press(Action::KSource(index(Source::Coins)));
+    app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);
     for f in &flips {
         app.press(Action::KFlip(*f));
@@ -123,8 +139,7 @@ fn dice_rolled_in_flip_mode_makes_the_key_the_same_flips_make() {
 
     let mut by_dice = opened();
     by_dice.press(Action::KWords(12));
-    by_dice.press(Action::KSource(index(Source::Dice)));
-    by_dice.press(Action::KDiceFlip(true));
+    by_dice.press(Action::KWay(Way::DiceFlips.index()));
     by_dice.press(Action::KNext);
     for &f in &faces {
         by_dice.press(Action::KRoll(f));
@@ -132,7 +147,7 @@ fn dice_rolled_in_flip_mode_makes_the_key_the_same_flips_make() {
 
     let mut by_coin = opened();
     by_coin.press(Action::KWords(12));
-    by_coin.press(Action::KSource(index(Source::Coins)));
+    by_coin.press(Action::KWay(Way::Coins.index()));
     by_coin.press(Action::KNext);
     for &f in &faces {
         by_coin.press(Action::KFlip(f >= 4));
@@ -155,22 +170,54 @@ fn dice_rolled_in_flip_mode_makes_the_key_the_same_flips_make() {
 }
 
 #[test]
-fn flip_mode_and_a_dice_procedure_are_mutually_exclusive() {
-    let mut app = opened();
+fn words_chosen_by_the_dice_are_chosen_from_the_start_and_one_option_replaces_another() {
+    let mut app = opened_tall();
     app.press(Action::KWords(12));
-    app.press(Action::KSource(index(Source::Dice)));
-    app.press(Action::KDiceFlip(true));
-    assert!(app.keygen.as_ref().unwrap().by_die);
+    let k = app.keygen.as_ref().unwrap();
+    assert_eq!(k.way(), Some(Way::DiceWords));
+    assert!(k.groups_open[0] && !k.groups_open[1] && !k.groups_open[2]);
+    let _ = app.frame();
+    assert!(app.offers(Action::KWay(Way::DiceFlips.index())));
+    assert!(
+        !app.offers(Action::KWay(Way::DiceHashed.index())),
+        "second group closed"
+    );
+    assert!(
+        !app.offers(Action::KWay(Way::Device.index())),
+        "this device's group closed"
+    );
+    app.press(Action::KGroup(2));
+    let _ = app.frame();
+    assert!(app.offers(Action::KWay(Way::Device.index())));
 
-    app.press(Action::KProc(1));
+    app.press(Action::KGroup(1));
+    let _ = app.frame();
+    assert!(app.offers(Action::KWay(Way::DiceSixAsZero.index())));
+    app.press(Action::KWay(Way::DiceSixAsZero.index()));
     let k = app.keygen.as_ref().unwrap();
     assert!(!k.by_die);
     assert_eq!(k.procedure, DiceProcedure::SixAsZero);
 
-    app.press(Action::KDiceFlip(true));
+    app.press(Action::KWay(Way::DiceFlips.index()));
     let k = app.keygen.as_ref().unwrap();
     assert!(k.by_die);
-    assert_eq!(k.procedure, DiceProcedure::Hashed);
+    assert_eq!(k.way(), Some(Way::DiceFlips));
+}
+
+#[test]
+fn shares_offer_nothing_as_checkable_by_hand_and_no_words_chosen_by_rolls() {
+    let mut app = opened_tall();
+    app.press(Action::KForm(true));
+    app.press(Action::KWords(20));
+    let _ = app.frame();
+    let k = app.keygen.as_ref().unwrap();
+    for w in [Way::DiceFlips, Way::Coins, Way::DiceHashed, Way::Hex] {
+        assert_eq!(w.group(k.slip39), Group::Computed);
+        assert!(app.offers(Action::KWay(w.index())), "{w:?} on offer");
+    }
+    assert!(!app.offers(Action::KWay(Way::DiceWords.index())));
+    app.press(Action::KWay(Way::DiceWords.index()));
+    assert_ne!(app.keygen.as_ref().unwrap().way(), Some(Way::DiceWords));
 }
 
 #[test]
@@ -178,7 +225,7 @@ fn every_length_opensigner_offers_can_be_chosen() {
     for n in [12u8, 15, 18, 21, 24] {
         let mut app = opened();
         app.press(Action::KWords(n));
-        app.press(Action::KSource(index(Source::Hex)));
+        app.press(Action::KWay(Way::Hex.index()));
         app.press(Action::KNext);
         let digits = usize::from(n) * 11 * 32 / 33 / 4;
         for i in 0..digits {
@@ -197,7 +244,7 @@ fn every_length_opensigner_offers_can_be_chosen() {
 fn too_few_rolls_make_no_words() {
     let mut app = opened();
     app.press(Action::KWords(12));
-    app.press(Action::KSource(index(Source::Dice)));
+    app.press(Action::KWay(Way::DiceHashed.index()));
     app.press(Action::KNext);
     for _ in 0..10 {
         app.press(Action::KRoll(3));
@@ -214,7 +261,7 @@ fn too_few_rolls_make_no_words() {
 fn a_run_of_one_face_is_cautioned_and_does_not_stop_the_key() {
     let mut app = opened();
     app.press(Action::KWords(12));
-    app.press(Action::KSource(index(Source::Dice)));
+    app.press(Action::KWay(Way::DiceHashed.index()));
     app.press(Action::KNext);
     for _ in 0..50 {
         app.press(Action::KRoll(6));
@@ -227,46 +274,68 @@ fn a_run_of_one_face_is_cautioned_and_does_not_stop_the_key() {
     assert_eq!(app.session.keys.len(), 1);
 }
 
+/// EntropyLab's BitBox transcript for twelve words, the last included,
+/// and the entropy embit's `mnemonic_to_bytes(..., ignore_checksum=True)`
+/// makes of the words it names, as SeedSigner's `calculate_checksum`
+/// completes a last word (`tools/reference/dice/README.md`, §16.139).
+const BITBOX_12: &str = "123411234122341233412344123415234126341231412342123413234124341235432141";
+const BITBOX_12_ENTROPY: [u8; 16] = [
+    0x1b, 0x0d, 0x8a, 0xc6, 0x63, 0x71, 0xb2, 0xd8, 0xec, 0x66, 0x36, 0x1b, 0x0d, 0x8e, 0xc6, 0xf2,
+];
+
 #[test]
-fn rolls_that_name_words_end_in_a_last_word_the_person_picks() {
+fn rolls_that_name_words_stop_at_the_last_words_kept_bits_and_the_checksum_ends_it() {
     let mut app = opened();
     app.press(Action::KWords(12));
-    app.press(Action::KSource(index(Source::Dice)));
-    // Direct word selection (BitBox), the third procedure.
-    app.press(Action::KProc(2));
+    app.press(Action::KWay(Way::DiceWords.index()));
     app.press(Action::KNext);
     // A 5 is rolled again in a word's first five places: refused.
     app.press(Action::KRoll(5));
     assert_eq!(app.keygen.as_ref().unwrap().dice.len(), 0);
-    for i in 0..66u32 {
-        let face = if i % 6 == 5 {
-            (i % 3) as u8 + 4
-        } else {
-            (i * 3 % 4) as u8 + 1
-        };
-        app.press(Action::KRoll(face));
+    for c in BITBOX_12.bytes() {
+        app.press(Action::KRoll(c - b'0'));
     }
-    app.press(Action::KNext);
-    assert!(
-        app.keygen.as_ref().unwrap().mnemonic.is_none(),
-        "no last word yet"
-    );
-    let cands = app.keygen.as_ref().unwrap().last_word_candidates();
-    assert_eq!(cands.len(), 128, "seven free bits at 12 words");
-    app.press(Action::KLast(cands[5]));
+    // Six rolls a word, and for the last only the four that cover the
+    // seven bits it keeps: the transcript's last two are not taken, and
+    // the last word, checksum and all, is there at once.
+    let expected = Mnemonic::from_entropy(Language::English, &BITBOX_12_ENTROPY).unwrap();
+    let k = app.keygen.as_ref().unwrap();
+    assert_eq!(k.dice.len(), 70);
+    assert_eq!(k.checksum_word(), Some(expected.indices()[11]));
     app.press(Action::KNext);
     let k = app.keygen.as_ref().unwrap();
-    let m = k.mnemonic.as_ref().unwrap();
-    assert_eq!(m.indices()[11], cands[5]);
+    let m = k.mnemonic.as_ref().expect("the words are made");
+    assert_eq!(m.indices(), expected.indices());
+    // The words before the last are the rolls' own.
     let named: Vec<u16> = k.dice.word_indices().collect();
-    assert_eq!(&m.indices()[..11], &named[..]);
+    assert_eq!(&m.indices()[..11], &named[..11]);
+    // The last keeps the high seven of the eight bits its four rolls
+    // name.
+    let high = k.dice.rolls()[66..70]
+        .iter()
+        .fold(0u16, |n, &f| n * 4 + u16::from(f - 1));
+    assert_eq!(m.indices()[11] >> 4, high >> 1);
+}
+
+#[test]
+fn three_one_four_two_two_five_is_miracle() {
+    let mut app = opened();
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::DiceWords.index()));
+    app.press(Action::KNext);
+    for f in [3, 1, 4, 2, 2, 5] {
+        app.press(Action::KRoll(f));
+    }
+    let k = app.keygen.as_ref().unwrap();
+    assert_eq!(&k.live_words()[..], &[1131]);
+    assert_eq!(Language::English.word(1131), "miracle");
 }
 
 /// A device key from the given answer, through the whole flow.
 fn device_key(answer: [u8; 32]) -> Faraday {
     let mut app = opened();
     app.press(Action::KWords(12));
-    app.press(Action::KSource(index(Source::Device)));
+    app.press(Action::KWay(Way::Device.index()));
     app.press(Action::KNext);
     // Nothing is made before the generator answers.
     app.press(Action::KNext);
@@ -297,7 +366,7 @@ fn this_devices_key_is_its_generators_fresh_answer_hashed_and_nothing_else() {
 fn a_mix_of_dice_and_coins_is_the_hash_of_both_commitments() {
     let mut app = opened();
     app.press(Action::KWords(12));
-    app.press(Action::KSource(index(Source::Mix)));
+    app.press(Action::KWay(Way::Mix.index()));
     let mix = faraday_core::keygen::MIX_SOURCES;
     let pos = |s: Source| mix.iter().position(|m| *m == s).unwrap() as u8;
     app.press(Action::KMix(pos(Source::Dice)));
@@ -330,14 +399,14 @@ fn a_mix_of_dice_and_coins_is_the_hash_of_both_commitments() {
 
 #[test]
 fn a_key_made_for_a_create_slot_fills_it() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.press(Action::CreateWallet);
     app.press(Action::CKind(4));
     app.press(Action::CNext(0));
     app.press(Action::CNext(1));
     app.press(Action::KeyGen(Some(1)));
     app.press(Action::KWords(12));
-    app.press(Action::KSource(index(Source::Coins)));
+    app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);
     for i in 0..128 {
         app.press(Action::KFlip(i % 3 != 1));
@@ -356,21 +425,20 @@ fn a_key_made_for_a_create_slot_fills_it() {
 fn leaving_new_key_forgets_the_entries() {
     let mut app = opened();
     app.press(Action::KWords(12));
-    app.press(Action::KSource(index(Source::Dice)));
+    app.press(Action::KWay(Way::DiceFlips.index()));
     app.press(Action::KNext);
     app.press(Action::KRoll(4));
     app.press(Action::Nav(Screen::Entry));
     assert!(app.keygen.is_none());
     app.press(Action::KeyGen(None));
     assert_eq!(app.keygen.as_ref().unwrap().dice.len(), 0);
-    assert!(SOURCE_ROWS.contains(&Source::Device));
 }
 
 #[test]
 fn a_key_is_added_only_after_the_quiz_or_skipping_it_twice() {
     let mut app = opened();
     app.press(Action::KWords(12));
-    app.press(Action::KSource(index(Source::Coins)));
+    app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);
     for i in 0..128 {
         app.press(Action::KFlip(i % 3 != 1));

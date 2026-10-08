@@ -607,6 +607,28 @@ impl Canvas {
         self.draw_path(&path, &Self::paint(color), None);
     }
 
+    /// Fills a shape made of closed outlines through the given points, in
+    /// pixels. An outline wound the other way round from the one around
+    /// it is a hole.
+    pub fn fill_contours(&mut self, contours: &[&[(f32, f32)]], color: Color) {
+        if color.a == 0 {
+            return;
+        }
+        let mut pb = PathBuilder::new();
+        for points in contours {
+            let Some((&(x0, y0), rest)) = points.split_first() else {
+                continue;
+            };
+            pb.move_to(x0, y0);
+            for &(x, y) in rest {
+                pb.line_to(x, y);
+            }
+            pb.close();
+        }
+        let Some(path) = pb.finish() else { return };
+        self.draw_path(&path, &Self::paint(color), None);
+    }
+
     /// Strokes an arc of a circle, starting at twelve o'clock and
     /// sweeping clockwise over `fraction` of a whole turn.
     ///

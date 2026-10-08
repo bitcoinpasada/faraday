@@ -18,8 +18,12 @@ use osk_ui::widgets::keyboard::{self, ALL_KEYS, KeyboardKind};
 use osk_ui::widgets::{Icon, Tone};
 
 use crate::strings::Strings;
-use crate::tools::{KeyReading, PolicyScript, ReadAs, Tool};
-use crate::{OpenSigner, ids, strings, text, tools};
+use crate::tools::Tool;
+use crate::{OpenSigner, ids, strings, text};
+use osk_bip::compile::{self, PolicyScript};
+use osk_bip::descriptor::checksum_facts;
+use osk_bip::slip132::{KeyReading, key_facts};
+use osk_codec::encodings::ReadAs;
 
 /// How a mode of the Hashes field is named, for the row and its Choice.
 pub(crate) fn read_as_name(read_as: ReadAs, s: &Strings) -> &'static str {
@@ -87,14 +91,14 @@ impl OpenSigner {
             Tool::Encodings => (
                 s.tool_encoding_title,
                 Above::Nothing,
-                (!typed.trim().is_empty() && tools::encoding_of(typed).is_none())
+                (!typed.trim().is_empty() && osk_codec::encodings::read(typed).is_none())
                     .then(|| String::from(s.tool_not_an_encoding)),
             ),
             Tool::Descriptor => (s.tool_descriptor_title, Above::Nothing, None),
             Tool::ConvertKey => (
                 s.tool_key_title,
                 Above::Nothing,
-                match tools::key_facts(typed, self.network) {
+                match key_facts(typed, self.network) {
                     KeyReading::Private => Some(String::from(s.tool_public_only)),
                     KeyReading::None if !typed.trim().is_empty() => {
                         Some(String::from(s.tool_not_a_key))
@@ -130,7 +134,7 @@ impl OpenSigner {
                 // The compiler's own words, on one line: what is wrong
                 // with the policy is a fact about the policy, and this
                 // device has no better way to say it.
-                match tools::compile(typed, self.calc.script(), &self.policy_key_expressions()) {
+                match compile::compile(typed, self.calc.script(), &self.policy_key_expressions()) {
                     Err(reason) if !reason.is_empty() => Some(reason),
                     _ => None,
                 },
@@ -272,8 +276,8 @@ impl OpenSigner {
     }
 
     /// What the compiler made of what is typed.
-    pub(crate) fn policy_facts(&self) -> Option<tools::PolicyFacts> {
-        tools::compile(
+    pub(crate) fn policy_facts(&self) -> Option<compile::PolicyFacts> {
+        compile::compile(
             self.calc.typed(),
             self.calc.script(),
             &self.policy_key_expressions(),
@@ -312,7 +316,7 @@ impl OpenSigner {
         let s = self.strings();
         match tool {
             Tool::Hashes => {
-                let h = tools::hashes(&self.calc.input());
+                let h = osk_bip::hashes::hashes(&self.calc.input());
                 vec![
                     (0, s.tool_sha256_row, text::hex(&h.sha256)),
                     (1, s.tool_sha256d_row, text::hex(&h.sha256d)),
@@ -320,12 +324,12 @@ impl OpenSigner {
                 ]
             }
             Tool::Encodings => {
-                let Some(r) = tools::encoding_of(self.calc.typed()) else {
+                let Some(r) = osk_codec::encodings::read(self.calc.typed()) else {
                     return Vec::new();
                 };
                 let mut out = vec![(0, s.row_bytes, text::hex(&r.bytes))];
                 if r.encoding == Encoding::Hex {
-                    let hrp = tools::hrp(self.network);
+                    let hrp = osk_bip::address::hrp(self.network);
                     out.push((
                         1,
                         s.tool_base58check,
@@ -340,13 +344,12 @@ impl OpenSigner {
                 }
                 out
             }
-            Tool::Descriptor => match tools::checksum_facts(self.calc.typed()) {
+            Tool::Descriptor => match checksum_facts(self.calc.typed()) {
                 Some(f) => vec![(0, s.tool_descriptor_row, f.with_checksum)],
                 None => Vec::new(),
             },
             Tool::ConvertKey => {
-                let KeyReading::Public(f) = tools::key_facts(self.calc.typed(), self.network)
-                else {
+                let KeyReading::Public(f) = key_facts(self.calc.typed(), self.network) else {
                     return Vec::new();
                 };
                 let mut out = vec![(0, s.tool_bip32_row, f.bip32.clone())];
@@ -390,7 +393,7 @@ impl OpenSigner {
     /// other spellings of the same bytes.
     fn encoding_rows(&self) -> Vec<components::Record> {
         let s = self.strings();
-        let Some(r) = tools::encoding_of(self.calc.typed()) else {
+        let Some(r) = osk_codec::encodings::read(self.calc.typed()) else {
             return Vec::new();
         };
         let mut strings_left = self.tool_strings(Tool::Encodings).into_iter();
@@ -434,7 +437,7 @@ impl OpenSigner {
         if r.encoding == Encoding::Hex {
             rows.push(components::Record::mono(
                 s.tool_hrp_row,
-                tools::hrp(self.network),
+                osk_bip::address::hrp(self.network),
             ));
             for (at, label, value) in strings_left {
                 rows.push(components::Record::reference(
@@ -451,7 +454,7 @@ impl OpenSigner {
     /// arrived with, and whether it parses as a wallet.
     fn checksum_rows(&self) -> Vec<components::Record> {
         let s = self.strings();
-        let Some(f) = tools::checksum_facts(self.calc.typed()) else {
+        let Some(f) = checksum_facts(self.calc.typed()) else {
             return Vec::new();
         };
         // The verdict first: a checksum tool answers whether the one
@@ -484,7 +487,7 @@ impl OpenSigner {
     /// itself.
     fn key_rows(&self) -> Vec<components::Record> {
         let s = self.strings();
-        let KeyReading::Public(f) = tools::key_facts(self.calc.typed(), self.network) else {
+        let KeyReading::Public(f) = key_facts(self.calc.typed(), self.network) else {
             return Vec::new();
         };
         let mut rows = self.reference_rows(Tool::ConvertKey);

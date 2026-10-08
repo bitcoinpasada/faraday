@@ -13,7 +13,7 @@ mod common;
 use common::{ABANDON, Harness, PANEL, TILE_LEARN, TILE_SCAN, TILE_TOOLS};
 use opensigner_core::load::Step as LoadStep;
 use opensigner_core::sign::{Stage, Step as SignStep};
-use opensigner_core::strings::{EN, LearnPage};
+use opensigner_core::strings::EN;
 use opensigner_core::{ScreenKind, create, ids};
 use osk_shell_api::{Event, FileKind};
 
@@ -39,7 +39,7 @@ fn load_second_key(h: &mut Harness) {
 /// Taps the info button on the screen now showing and asserts that it
 /// opened `page`: the page's title is on screen, and a page opened this
 /// way carries no "Try it" row.
-fn open_info(h: &mut Harness, page: &'static LearnPage) {
+fn open_info(h: &mut Harness, page: &'static osk_learn::Page) {
     assert!(
         h.app.rect_of(ids::INFO).is_some(),
         "{:?} carries no info button",
@@ -62,7 +62,7 @@ fn open_info(h: &mut Harness, page: &'static LearnPage) {
 
 /// The whole round trip on the screen now showing: the button opens
 /// `page` and the chevron puts the same screen back.
-fn info_and_back(h: &mut Harness, page: &'static LearnPage) {
+fn info_and_back(h: &mut Harness, page: &'static osk_learn::Page) {
     let screen = h.app.screen();
     open_info(h, page);
     h.tap(ids::BACK);
@@ -77,39 +77,39 @@ fn every_list_opens_the_page_for_what_it_holds() {
     load_key(&mut h);
 
     h.open_keys();
-    info_and_back(&mut h, &EN.learn_words);
+    info_and_back(&mut h, &EN.learn.words);
 
     h.open_add(ids::KEYS_ADD);
-    info_and_back(&mut h, &EN.learn_words);
+    info_and_back(&mut h, &EN.learn.words);
 
     h.go_home();
     h.open_key(0);
-    info_and_back(&mut h, &EN.learn_backups);
+    info_and_back(&mut h, &EN.learn.backups);
 
     h.tap(ids::DETAIL_BACKUP);
     assert_eq!(h.app.screen(), ScreenKind::BackupMenu);
-    info_and_back(&mut h, &EN.learn_backups);
+    info_and_back(&mut h, &EN.learn.backups);
 
     h.open_wallets();
-    info_and_back(&mut h, &EN.learn_wallet_kinds);
+    info_and_back(&mut h, &EN.learn.wallet_kinds);
 
     h.tap(ids::WALLETS_ADD);
     assert_eq!(h.app.screen(), ScreenKind::AddWallet);
-    info_and_back(&mut h, &EN.learn_wallet_kinds);
+    info_and_back(&mut h, &EN.learn.wallet_kinds);
 
     h.open_tile(TILE_TOOLS);
-    info_and_back(&mut h, &EN.learn_tools);
+    info_and_back(&mut h, &EN.learn.tools);
 
     h.open_settings();
-    info_and_back(&mut h, &EN.learn_devices);
+    info_and_back(&mut h, &EN.learn.devices);
 
     h.tap(ids::SETTINGS_ABOUT_ROW);
     assert_eq!(h.app.screen(), ScreenKind::About);
-    info_and_back(&mut h, &EN.learn_devices);
+    info_and_back(&mut h, &EN.learn.devices);
 
     h.open_tile(TILE_SCAN);
     assert_eq!(h.app.screen(), ScreenKind::Scan);
-    info_and_back(&mut h, &EN.learn_air_gap);
+    info_and_back(&mut h, &EN.learn.air_gap);
 }
 
 /// A wallet's own screens: the page is the kinds of wallets, its
@@ -121,21 +121,21 @@ fn a_wallets_screens_open_the_pages_they_are_about() {
     load_key(&mut h);
     h.open_single_sig(0);
     assert_eq!(h.app.screen(), ScreenKind::Wallet);
-    info_and_back(&mut h, &EN.learn_wallet_kinds);
+    info_and_back(&mut h, &EN.learn.wallet_kinds);
 
     h.tap(ids::WALLET_KEYS);
     assert_eq!(h.app.screen(), ScreenKind::WalletKeys);
-    info_and_back(&mut h, &EN.learn_wallet_kinds);
+    info_and_back(&mut h, &EN.learn.wallet_kinds);
     h.tap(ids::BACK);
 
     h.tap(ids::WALLET_ADDRESSES);
     assert_eq!(h.app.screen(), ScreenKind::Addresses);
-    info_and_back(&mut h, &EN.learn_verifying);
+    info_and_back(&mut h, &EN.learn.verifying);
     h.tap(ids::BACK);
 
     h.tap(ids::WALLET_EXPORT);
     assert_eq!(h.app.screen(), ScreenKind::Export);
-    info_and_back(&mut h, &EN.learn_xpubs);
+    info_and_back(&mut h, &EN.learn.xpubs);
 }
 
 /// A single-sig wallet's page opens "Kinds of wallets" at the single-sig
@@ -145,7 +145,7 @@ fn a_wallet_opens_its_page_at_the_kind_it_is() {
     let mut h = Harness::new(PANEL);
     load_key(&mut h);
     h.open_single_sig(0);
-    open_info(&mut h, &EN.learn_wallet_kinds);
+    open_info(&mut h, &EN.learn.wallet_kinds);
 
     let heading = h.app.rect_of(ids::LEARN_HEADING).expect("the section");
     let view = h.app.rect_of(ids::SCROLL).expect("the scrolling body");
@@ -155,11 +155,11 @@ fn a_wallet_opens_its_page_at_the_kind_it_is() {
     );
     // The section it opened at is the one about wallets over one key.
     assert_eq!(
-        EN.learn_wallet_kinds.sections[1].heading,
+        EN.learn.wallet_kinds.sections[1].heading,
         h.app
             .texts()
             .into_iter()
-            .find(|t| *t == EN.learn_wallet_kinds.sections[1].heading)
+            .find(|t| *t == EN.learn.wallet_kinds.sections[1].heading)
             .unwrap_or_default()
     );
 }
@@ -171,7 +171,7 @@ fn the_create_wizard_opens_the_page_of_its_step() {
     let mut h = Harness::new(PANEL);
     h.open_create();
     assert_eq!(h.app.create_step(), Some(create::Step::Source));
-    info_and_back(&mut h, &EN.learn_randomness);
+    info_and_back(&mut h, &EN.learn.randomness);
     assert_eq!(h.app.create_step(), Some(create::Step::Source));
 
     h.choose(
@@ -186,10 +186,10 @@ fn the_create_wizard_opens_the_page_of_its_step() {
     // The dice procedure Choice is part of the same question and opens
     // the same page.
     assert_eq!(h.app.create_step(), Some(create::Step::Procedure));
-    info_and_back(&mut h, &EN.learn_where_randomness);
+    info_and_back(&mut h, &EN.learn.where_randomness);
     h.tap(ids::CREATE_PROCEDURE_CONTINUE);
     assert_eq!(h.app.create_step(), Some(create::Step::Entropy));
-    info_and_back(&mut h, &EN.learn_where_randomness);
+    info_and_back(&mut h, &EN.learn.where_randomness);
     assert_eq!(h.app.create_step(), Some(create::Step::Entropy));
 }
 
@@ -198,11 +198,11 @@ fn the_create_wizard_opens_the_page_of_its_step() {
 #[test]
 fn the_load_source_opens_the_page_of_the_checked_row() {
     let sources = [
-        (ids::LOAD_SOURCE_TYPE, &EN.learn_words),
-        (ids::LOAD_SOURCE_BACKUP, &EN.learn_encrypted_backups),
-        (ids::LOAD_SOURCE_XOR, &EN.learn_seed_xor),
-        (ids::LOAD_SOURCE_SLIP39, &EN.learn_other_backups),
-        (ids::LOAD_SOURCE_CODEX32, &EN.learn_other_backups),
+        (ids::LOAD_SOURCE_TYPE, &EN.learn.words),
+        (ids::LOAD_SOURCE_BACKUP, &EN.learn.encrypted_backups),
+        (ids::LOAD_SOURCE_XOR, &EN.learn.seed_xor),
+        (ids::LOAD_SOURCE_SLIP39, &EN.learn.other_backups),
+        (ids::LOAD_SOURCE_CODEX32, &EN.learn.other_backups),
     ];
     for (row, page) in sources {
         let mut h = Harness::new(PANEL);
@@ -221,24 +221,24 @@ fn the_load_source_opens_the_page_of_the_checked_row() {
 fn the_slip39_steps_open_the_slip39_section() {
     const SHARE: &str = "shadow pistol academic always adequate wildlife fancy gross oasis \
                          cylinder mustang wrist rescue view short owner flip making coding armed";
-    let section = EN.learn_other_backups.sections[1].heading;
+    let section = EN.learn.other_backups.sections[1].heading;
     let mut h = Harness::new(PANEL);
     h.open_load();
     h.tap(ids::LOAD_SOURCE_SLIP39);
-    open_info(&mut h, &EN.learn_other_backups);
+    open_info(&mut h, &EN.learn.other_backups);
     assert!(h.app.texts().iter().any(|t| t == section), "{section}");
     h.tap(ids::BACK);
 
     h.tap(ids::LOAD_SOURCE_CONTINUE);
-    info_and_back(&mut h, &EN.learn_other_backups);
+    info_and_back(&mut h, &EN.learn.other_backups);
 
     h.tap(ids::LOAD_COUNT_CONTINUE);
     assert_eq!(h.app.load_step(), Some(LoadStep::Words));
-    info_and_back(&mut h, &EN.learn_other_backups);
+    info_and_back(&mut h, &EN.learn.other_backups);
 
     h.type_share(SHARE);
     assert_eq!(h.app.load_step(), Some(LoadStep::Checksum));
-    info_and_back(&mut h, &EN.learn_other_backups);
+    info_and_back(&mut h, &EN.learn.other_backups);
     assert_eq!(h.app.load_step(), Some(LoadStep::Checksum));
 }
 
@@ -249,21 +249,21 @@ fn the_slip39_steps_open_the_slip39_section() {
 fn the_codex32_steps_open_the_codex32_section() {
     const SECRET: &str = "ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw";
     const SHARE: &str = "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
-    let section = EN.learn_other_backups.sections[2].heading;
+    let section = EN.learn.other_backups.sections[2].heading;
     let mut h = Harness::new(PANEL);
     h.open_load();
     h.tap(ids::LOAD_SOURCE_CODEX32);
-    open_info(&mut h, &EN.learn_other_backups);
+    open_info(&mut h, &EN.learn.other_backups);
     assert!(h.app.texts().iter().any(|t| t == section), "{section}");
     h.tap(ids::BACK);
 
     h.tap(ids::LOAD_SOURCE_CONTINUE);
     assert_eq!(h.app.load_step(), Some(LoadStep::Words));
-    info_and_back(&mut h, &EN.learn_other_backups);
+    info_and_back(&mut h, &EN.learn.other_backups);
 
     h.type_codex32(SHARE);
     assert_eq!(h.app.load_step(), Some(LoadStep::Checksum));
-    info_and_back(&mut h, &EN.learn_other_backups);
+    info_and_back(&mut h, &EN.learn.other_backups);
     assert_eq!(h.app.load_step(), Some(LoadStep::Checksum));
 
     // The confirmation a secret lands on is a key's, not codex32's, so
@@ -285,7 +285,7 @@ fn the_page_leaves_the_wizard_where_it_was() {
     assert_eq!(h.app.load_step(), Some(LoadStep::PassphraseOffer));
     assert_eq!(h.app.load_words_accepted(), ABANDON.len());
 
-    open_info(&mut h, &EN.learn_passphrases);
+    open_info(&mut h, &EN.learn.passphrases);
     h.tap(ids::BACK);
 
     assert_eq!(h.app.screen(), ScreenKind::Load);
@@ -301,11 +301,11 @@ fn the_screens_that_open_a_key_from_a_key_carry_their_pages() {
     load_key(&mut h);
 
     h.open_passphrase(0);
-    info_and_back(&mut h, &EN.learn_passphrases);
+    info_and_back(&mut h, &EN.learn.passphrases);
 
     h.go_home();
     h.open_child(0);
-    info_and_back(&mut h, &EN.learn_words);
+    info_and_back(&mut h, &EN.learn.words);
 }
 
 /// Add a wallet's kind Choice is about the kinds; a FROST group's counts
@@ -316,10 +316,10 @@ fn the_wallet_wizard_opens_the_kinds_and_then_the_kind() {
     load_key(&mut h);
     h.open_add_wallet(ids::BUILD_NEW);
     assert_eq!(h.app.screen(), ScreenKind::Build);
-    info_and_back(&mut h, &EN.learn_wallet_kinds);
+    info_and_back(&mut h, &EN.learn.wallet_kinds);
 
     h.choose(ids::at(ids::BUILD_KIND_BASE, 4), ids::BUILD_KIND_CONTINUE);
-    info_and_back(&mut h, &EN.learn_frost);
+    info_and_back(&mut h, &EN.learn.frost);
 }
 
 /// Each kind's own steps open "Kinds of wallets" at that kind's section:
@@ -338,7 +338,7 @@ fn the_new_kinds_open_their_own_sections() {
             ids::at(ids::BUILD_KIND_BASE, kind),
             ids::BUILD_KIND_CONTINUE,
         );
-        open_info(&mut h, &EN.learn_wallet_kinds);
+        open_info(&mut h, &EN.learn.wallet_kinds);
         assert!(
             h.app.texts().iter().any(|t| t == section),
             "{section} is not the section it opened: {:?}",
@@ -361,20 +361,20 @@ fn the_recovery_steps_stay_on_the_recovery_section() {
     h.choose(ids::at(ids::BUILD_KIND_BASE, 5), ids::BUILD_KIND_CONTINUE);
     h.tap(ids::at(ids::BUILD_WHICH_BASE, 0));
     h.tap(ids::BUILD_CONTINUE);
-    info_and_back(&mut h, &EN.learn_wallet_kinds);
+    info_and_back(&mut h, &EN.learn.wallet_kinds);
 
     h.tap(ids::at(ids::BUILD_WHICH_BASE, 1));
     h.tap(ids::BUILD_LATER_CONTINUE);
-    info_and_back(&mut h, &EN.learn_wallet_kinds);
+    info_and_back(&mut h, &EN.learn.wallet_kinds);
 
     h.tap(ids::BUILD_DELAY_TYPE);
     h.tap(ids::BUILD_DELAY_CONTINUE);
-    info_and_back(&mut h, &EN.learn_wallet_kinds);
+    info_and_back(&mut h, &EN.learn.wallet_kinds);
 
     h.tap(ids::BACK);
     h.tap(ids::at(ids::BUILD_DELAY_BASE, 0));
     h.tap(ids::BUILD_DELAY_CONTINUE);
-    info_and_back(&mut h, &EN.learn_wallet_kinds);
+    info_and_back(&mut h, &EN.learn.wallet_kinds);
 }
 
 /// A screen with a secret keeps the eye in the slot and takes no info
@@ -427,9 +427,10 @@ fn home_learn_and_the_lock_screen_leave_the_slot_empty() {
 #[test]
 fn the_learn_menu_still_offers_the_flow_a_page_is_about() {
     let words = EN
-        .learn_pages()
+        .learn
+        .pages()
         .iter()
-        .position(|p| core::ptr::eq(*p, &EN.learn_words))
+        .position(|p| core::ptr::eq(*p, &EN.learn.words))
         .expect("the words page is listed");
     let mut h = Harness::new(PANEL);
     h.open_tile(TILE_LEARN);
@@ -459,12 +460,12 @@ fn the_sign_review_opens_the_transactions_page() {
         bytes: DEMO.to_vec(),
     });
     assert_eq!(h.app.sign_stage(), Some(Stage::Wizard(SignStep::Summary)));
-    info_and_back(&mut h, &EN.learn_transactions);
+    info_and_back(&mut h, &EN.learn.transactions);
     assert_eq!(h.app.sign_stage(), Some(Stage::Wizard(SignStep::Summary)));
 
     h.tap(ids::SIGN_CONTINUE);
     assert_eq!(h.app.sign_stage(), Some(Stage::Wizard(SignStep::Outputs)));
-    info_and_back(&mut h, &EN.learn_transactions);
+    info_and_back(&mut h, &EN.learn.transactions);
     assert_eq!(h.app.sign_stage(), Some(Stage::Wizard(SignStep::Outputs)));
 }
 
@@ -477,10 +478,10 @@ fn checking_an_address_opens_the_verifying_page() {
     h.tap(ids::WALLET_CHECK);
     // Scan is the way in for anything read, and it is about the air gap.
     assert_eq!(h.app.screen(), ScreenKind::Scan);
-    info_and_back(&mut h, &EN.learn_air_gap);
+    info_and_back(&mut h, &EN.learn.air_gap);
     h.tap(ids::SCAN_TYPE);
     assert_eq!(h.app.screen(), ScreenKind::Verify);
-    info_and_back(&mut h, &EN.learn_verifying);
+    info_and_back(&mut h, &EN.learn.verifying);
 }
 
 /// Writing a SLIP-39 backup: the word count a share has, every Choice
@@ -493,32 +494,32 @@ fn writing_slip39_shares_opens_the_other_backups_page() {
     let mut h = Harness::new(PANEL);
     h.open_add(ids::ADD_CREATE_SLIP39);
     // The source Choice is about randomness, as Create a key's is.
-    info_and_back(&mut h, &EN.learn_randomness);
+    info_and_back(&mut h, &EN.learn.randomness);
     h.choose(
         ids::at(ids::CREATE_SOURCE_BASE, 6),
         ids::CREATE_SOURCE_CONTINUE,
     );
     assert_eq!(h.app.create_step(), Some(create::Step::Count));
-    info_and_back(&mut h, &EN.learn_other_backups);
+    info_and_back(&mut h, &EN.learn.other_backups);
     h.choose(
         ids::at(ids::CREATE_COUNT_BASE, 0),
         ids::CREATE_COUNT_CONTINUE,
     );
     h.tap(ids::CREATE_CONTINUE);
     // The passphrase steps are about passphrases wherever they are.
-    info_and_back(&mut h, &EN.learn_passphrases);
+    info_and_back(&mut h, &EN.learn.passphrases);
     h.choose(ids::LOAD_SKIP, ids::LOAD_PASS_CONTINUE);
     assert_eq!(h.app.split_step(), Some(ShareStep::Groups));
-    info_and_back(&mut h, &EN.learn_other_backups);
+    info_and_back(&mut h, &EN.learn.other_backups);
     h.choose(
         ids::at(ids::SHARE_GROUPS_BASE, 0),
         ids::SHARE_GROUPS_CONTINUE,
     );
     assert_eq!(h.app.split_step(), Some(ShareStep::Count));
-    info_and_back(&mut h, &EN.learn_other_backups);
+    info_and_back(&mut h, &EN.learn.other_backups);
     h.choose(ids::at(ids::SHARE_COUNT_BASE, 1), ids::SHARE_COUNT_CONTINUE);
     assert_eq!(h.app.split_step(), Some(ShareStep::Threshold));
-    info_and_back(&mut h, &EN.learn_other_backups);
+    info_and_back(&mut h, &EN.learn.other_backups);
 }
 
 /// Writing a codex32 backup: the seed length, every Choice of the plan
@@ -528,17 +529,17 @@ fn writing_slip39_shares_opens_the_other_backups_page() {
 fn writing_codex32_strings_opens_the_other_backups_page() {
     use opensigner_core::codex32::Step as PlanStep;
 
-    let section = EN.learn_other_backups.sections[2].heading;
+    let section = EN.learn.other_backups.sections[2].heading;
     let mut h = Harness::new(PANEL);
     h.open_add(ids::ADD_CREATE_CODEX32);
     // The source Choice is about randomness, as Create a key's is.
-    info_and_back(&mut h, &EN.learn_randomness);
+    info_and_back(&mut h, &EN.learn.randomness);
     h.choose(
         ids::at(ids::CREATE_SOURCE_BASE, 6),
         ids::CREATE_SOURCE_CONTINUE,
     );
     assert_eq!(h.app.create_step(), Some(create::Step::Count));
-    open_info(&mut h, &EN.learn_other_backups);
+    open_info(&mut h, &EN.learn.other_backups);
     assert!(h.app.texts().iter().any(|t| t == section), "{section}");
     h.tap(ids::BACK);
     h.choose(
@@ -547,16 +548,16 @@ fn writing_codex32_strings_opens_the_other_backups_page() {
     );
     h.tap(ids::CREATE_CONTINUE);
     assert_eq!(h.app.codex32_step(), Some(PlanStep::Split));
-    info_and_back(&mut h, &EN.learn_other_backups);
+    info_and_back(&mut h, &EN.learn.other_backups);
     h.choose(ids::CODEX32_SPLIT_YES, ids::CODEX32_SPLIT_CONTINUE);
     assert_eq!(h.app.codex32_step(), Some(PlanStep::Count));
-    info_and_back(&mut h, &EN.learn_other_backups);
+    info_and_back(&mut h, &EN.learn.other_backups);
     h.choose(
         ids::at(ids::CODEX32_COUNT_BASE, 1),
         ids::CODEX32_COUNT_CONTINUE,
     );
     assert_eq!(h.app.codex32_step(), Some(PlanStep::Threshold));
-    info_and_back(&mut h, &EN.learn_other_backups);
+    info_and_back(&mut h, &EN.learn.other_backups);
 }
 
 /// Backup › Codex32 on a key made of words opens the same page: the
@@ -571,10 +572,10 @@ fn a_codex32_backup_opens_the_other_backups_page() {
     h.tap(ids::DETAIL_BACKUP);
     h.tap(ids::BACKUP_CODEX32);
     assert_eq!(h.app.codex32_step(), Some(PlanStep::Split));
-    info_and_back(&mut h, &EN.learn_other_backups);
+    info_and_back(&mut h, &EN.learn.other_backups);
     h.choose(ids::CODEX32_SPLIT_YES, ids::CODEX32_SPLIT_CONTINUE);
     assert_eq!(h.app.codex32_step(), Some(PlanStep::Count));
-    info_and_back(&mut h, &EN.learn_other_backups);
+    info_and_back(&mut h, &EN.learn.other_backups);
 }
 
 /// A key's account export is about what an xpub shows; BIP 129's key
@@ -589,7 +590,7 @@ fn a_keys_account_opens_xpubs_and_its_key_record_opens_coordinator_files() {
     // The SegWit multisig account, which is the one BIP 129 covers.
     h.choose(ids::at(ids::PICK_BASE, 5), ids::PICK_CONTINUE);
     assert_eq!(h.app.screen(), ScreenKind::Export);
-    info_and_back(&mut h, &EN.learn_xpubs);
+    info_and_back(&mut h, &EN.learn.xpubs);
 
     let record = opensigner_core::ExportFormat::ALL
         .iter()
@@ -597,20 +598,20 @@ fn a_keys_account_opens_xpubs_and_its_key_record_opens_coordinator_files() {
         .expect("the format is in the list");
     h.tap(ids::EXPORT_FORMAT);
     h.choose(ids::at(ids::PICK_BASE, record), ids::PICK_CONTINUE);
-    info_and_back(&mut h, &EN.learn_coordinators);
+    info_and_back(&mut h, &EN.learn.coordinators);
 
     h.tap(ids::BSMS_TOKEN_NONE);
     h.pad(
         ids::BSMS_TOKEN_KEYBOARD,
         osk_ui::widgets::keyboard::KeyInput::Done,
     );
-    info_and_back(&mut h, &EN.learn_coordinators);
+    info_and_back(&mut h, &EN.learn.coordinators);
     h.pad(
         ids::BSMS_DESCRIPTION_KEYBOARD,
         osk_ui::widgets::keyboard::KeyInput::Done,
     );
     assert_eq!(h.app.screen(), ScreenKind::Export);
-    info_and_back(&mut h, &EN.learn_coordinators);
+    info_and_back(&mut h, &EN.learn.coordinators);
 }
 
 /// The keys a transaction names are about transactions, as the review
@@ -632,7 +633,7 @@ fn the_transactions_keys_review_opens_transactions() {
     assert_eq!(h.app.screen(), ScreenKind::Sign);
     h.tap(ids::SIGN_KEYS);
     assert_eq!(h.app.screen(), ScreenKind::WalletKeys);
-    info_and_back(&mut h, &EN.learn_transactions);
+    info_and_back(&mut h, &EN.learn.transactions);
 }
 
 /// The page that says what a signature was checked for, and the tool
@@ -663,7 +664,7 @@ fn the_signatures_page_and_the_compare_tool_open_the_nonces_page() {
         h.app.sign_stage(),
         Some(Stage::Wizard(SignStep::Signatures))
     );
-    info_and_back(&mut h, &EN.learn_nonces);
+    info_and_back(&mut h, &EN.learn.nonces);
 
     // Compare transactions, from its first transaction on.
     let mut h = Harness::new(PANEL);
@@ -678,7 +679,7 @@ fn the_signatures_page_and_the_compare_tool_open_the_nonces_page() {
         bytes: DEMO.to_vec(),
     });
     assert_eq!(h.app.screen(), ScreenKind::CompareTx);
-    info_and_back(&mut h, &EN.learn_nonces);
+    info_and_back(&mut h, &EN.learn.nonces);
 }
 
 /// BIP-85's other applications are explained where BIP-85 is, and
@@ -692,12 +693,12 @@ fn the_bip85_pads_open_seed_words_and_the_core_import_opens_coordinator_files() 
     h.tap(ids::DETAIL_BIP85);
     // A base64 password, which asks its length and then its index.
     h.choose(ids::at(ids::PICK_BASE, 4), ids::PICK_CONTINUE);
-    info_and_back(&mut h, &EN.learn_words);
+    info_and_back(&mut h, &EN.learn.words);
     h.pad(
         ids::BIP85_LENGTH_PAD,
         osk_ui::widgets::keyboard::KeyInput::Done,
     );
-    info_and_back(&mut h, &EN.learn_words);
+    info_and_back(&mut h, &EN.learn.words);
     // The Secret screen the index opens carries the eye in that slot,
     // so there is no button on it.
     h.pad(
@@ -711,7 +712,7 @@ fn the_bip85_pads_open_seed_words_and_the_core_import_opens_coordinator_files() 
     h.set_network(3);
     h.add_single_sig(0, 2);
     h.tap(ids::WALLET_EXPORT);
-    info_and_back(&mut h, &EN.learn_xpubs);
+    info_and_back(&mut h, &EN.learn.xpubs);
     let import = opensigner_core::ExportFormat::ALL
         .iter()
         .position(|f| *f == opensigner_core::ExportFormat::CoreImport)
@@ -719,7 +720,7 @@ fn the_bip85_pads_open_seed_words_and_the_core_import_opens_coordinator_files() 
     h.tap(ids::EXPORT_FORMAT);
     h.choose(ids::at(ids::PICK_BASE, import), ids::PICK_CONTINUE);
     h.choose(ids::at(ids::PICK_BASE, 1), ids::PICK_CONTINUE);
-    info_and_back(&mut h, &EN.learn_coordinators);
+    info_and_back(&mut h, &EN.learn.coordinators);
 }
 
 /// A silent payments wallet's own screens are about silent payments,
@@ -742,28 +743,28 @@ fn a_silent_wallets_screens_open_the_silent_payments_page() {
     h.tap(ids::BUILD_CONTINUE);
     h.tap(ids::BUILD_ADD_WALLET);
     assert_eq!(h.app.screen(), ScreenKind::Wallet);
-    info_and_back(&mut h, &EN.learn_wallet_kinds);
+    info_and_back(&mut h, &EN.learn.wallet_kinds);
 
     h.tap(ids::SILENT_ADDRESS);
     assert_eq!(h.app.screen(), ScreenKind::SilentAddress);
-    info_and_back(&mut h, &EN.learn_silent_payments);
+    info_and_back(&mut h, &EN.learn.silent_payments);
     h.tap(ids::BACK);
 
     h.tap(ids::SILENT_LABELS);
     assert_eq!(h.app.screen(), ScreenKind::SilentLabels);
-    info_and_back(&mut h, &EN.learn_silent_payments);
+    info_and_back(&mut h, &EN.learn.silent_payments);
     h.tap(ids::BACK);
 
     h.tap(ids::SILENT_CHECK);
     assert_eq!(h.app.screen(), ScreenKind::SilentCheck);
-    info_and_back(&mut h, &EN.learn_silent_payments);
+    info_and_back(&mut h, &EN.learn.silent_payments);
     h.tap(ids::BACK);
 
     // The export is about the xpubs that leave the device, as every
     // export is; the Secret screen behind it carries the eye in that
     // slot, so there is no button on it.
     h.tap(ids::WALLET_EXPORT);
-    info_and_back(&mut h, &EN.learn_xpubs);
+    info_and_back(&mut h, &EN.learn.xpubs);
     h.tap(ids::SILENT_SECRET_ROW);
     assert_eq!(h.app.screen(), ScreenKind::SilentSecret);
     assert!(h.app.rect_of(ids::INFO).is_none(), "the scan descriptor");

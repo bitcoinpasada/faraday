@@ -1,10 +1,10 @@
-//! The ? button: OpenSigner's Learn pages, read from OpenSigner's own
-//! strings (`opensigner_core::strings::EN`, edited as `docs/learn/*.md`
-//! upstream), so Faraday shows the same text and never a copy that
+//! The ? button: OpenSigner's Learn pages, read from `osk_learn::EN`
+//! (edited as `docs/learn/*.md` upstream), so Faraday shows the same text
+//! and never a copy that
 //! drifts. Each screen names the pages that explain it; a wallet's screens
 //! name the pages for its kind.
 
-use opensigner_core::strings::{EN, LearnPage};
+use osk_learn::{EN, Page as LearnPage};
 
 use crate::create::NewKind;
 use crate::wallet::Kind;
@@ -26,33 +26,30 @@ pub struct LearnState {
 
 fn for_kind(kind: Kind) -> Vec<&'static LearnPage> {
     match kind {
-        Kind::Single(_) => vec![&EN.learn_wallet_kinds, &EN.learn_words],
-        Kind::Multi(_) => vec![&EN.learn_multisig, &EN.learn_xpubs, &EN.learn_coordinators],
-        Kind::TapMulti => vec![&EN.learn_multisig, &EN.learn_spend_paths],
+        Kind::Single(_) => vec![&EN.wallet_kinds, &EN.words],
+        Kind::Multi(_) => vec![&EN.multisig, &EN.xpubs, &EN.coordinators],
+        Kind::TapMulti => vec![&EN.multisig, &EN.spend_paths],
         Kind::Miniscript | Kind::Tree => {
-            vec![
-                &EN.learn_spend_paths,
-                &EN.learn_inheritance,
-                &EN.learn_wallet_kinds,
-            ]
+            vec![&EN.spend_paths, &EN.inheritance, &EN.wallet_kinds]
         }
-        Kind::MuSig => vec![&EN.learn_nonces, &EN.learn_multisig],
-        Kind::Threshold => vec![&EN.learn_frost, &EN.learn_nonces],
-        Kind::Other => vec![&EN.learn_wallet_kinds],
+        Kind::MuSig => vec![&EN.nonces, &EN.multisig],
+        Kind::Threshold => vec![&EN.frost, &EN.nonces],
+        Kind::Silent => vec![&EN.silent_payments, &EN.wallet_kinds],
+        Kind::Other => vec![&EN.wallet_kinds],
     }
 }
 
 fn for_new(kind: NewKind) -> Vec<&'static LearnPage> {
     match kind {
         NewKind::NativeSegwit | NewKind::Taproot | NewKind::NestedSegwit | NewKind::Legacy => {
-            vec![&EN.learn_wallet_kinds, &EN.learn_words, &EN.learn_backups]
+            vec![&EN.wallet_kinds, &EN.words, &EN.backups]
         }
         NewKind::Multi | NewKind::MultiNested | NewKind::MultiLegacy => {
-            vec![&EN.learn_multisig, &EN.learn_xpubs, &EN.learn_coordinators]
+            vec![&EN.multisig, &EN.xpubs, &EN.coordinators]
         }
-        NewKind::TapMulti => vec![&EN.learn_multisig, &EN.learn_spend_paths],
-        NewKind::Threshold => vec![&EN.learn_frost, &EN.learn_nonces],
-        NewKind::MuSig => vec![&EN.learn_nonces, &EN.learn_wallet_kinds],
+        NewKind::TapMulti => vec![&EN.multisig, &EN.spend_paths],
+        NewKind::Threshold => vec![&EN.frost, &EN.nonces],
+        NewKind::MuSig => vec![&EN.nonces, &EN.wallet_kinds],
     }
 }
 
@@ -66,55 +63,42 @@ impl Faraday {
                 .map(|w| Kind::of(&w.policy))
         };
         match self.screen {
-            Screen::Home => vec![&EN.learn_start_here, &EN.learn_air_gap],
-            Screen::Family => vec![
-                &EN.learn_inheritance,
-                &EN.learn_transactions,
-                &EN.learn_air_gap,
-                &EN.learn_scams,
-            ],
-            Screen::Start => vec![&EN.learn_wallet_kinds, &EN.learn_start_here],
-            Screen::Wallets => wallet().map_or_else(|| vec![&EN.learn_wallet_kinds], for_kind),
+            Screen::Home => vec![&EN.start_here, &EN.air_gap],
+            Screen::Family => vec![&EN.inheritance, &EN.transactions, &EN.air_gap, &EN.scams],
+            Screen::Start => vec![&EN.wallet_kinds, &EN.start_here],
+            Screen::Wallets => wallet().map_or_else(|| vec![&EN.wallet_kinds], for_kind),
             Screen::Spend => {
-                let mut p = vec![&EN.learn_transactions, &EN.learn_verifying];
+                let mut p = vec![&EN.transactions, &EN.verifying];
                 if let Some(k) = wallet()
                     && matches!(k, Kind::MuSig | Kind::Threshold)
                 {
-                    p.push(&EN.learn_nonces);
+                    p.push(&EN.nonces);
                 }
-                p.push(&EN.learn_scams);
+                p.push(&EN.scams);
                 p
             }
             Screen::Create => self
                 .create
                 .as_ref()
-                .map_or_else(|| vec![&EN.learn_wallet_kinds], |c| for_new(c.kind)),
-            Screen::KeyGen => vec![
-                &EN.learn_randomness,
-                &EN.learn_where_randomness,
-                &EN.learn_words,
-            ],
-            Screen::Entry => vec![&EN.learn_words, &EN.learn_passphrases],
-            Screen::Silent => vec![&EN.learn_silent_payments, &EN.learn_xpubs],
-            Screen::Explore => vec![&EN.learn_xpubs, &EN.learn_glossary],
-            Screen::Vanity => vec![&EN.learn_passphrases, &EN.learn_wallet_kinds],
-            Screen::Lightning => vec![&EN.learn_glossary],
-            Screen::Tools => vec![&EN.learn_tools, &EN.learn_glossary],
-            Screen::Bip85 => vec![&EN.learn_passphrases, &EN.learn_glossary],
-            Screen::Backup => vec![
-                &EN.learn_backups,
-                &EN.learn_other_backups,
-                &EN.learn_seed_xor,
-            ],
-            Screen::Restore => vec![&EN.learn_backups, &EN.learn_inheritance],
-            Screen::Message | Screen::CheckMessage => vec![&EN.learn_message],
-            Screen::Files | Screen::Visit => vec![&EN.learn_air_gap, &EN.learn_coordinators],
+                .map_or_else(|| vec![&EN.wallet_kinds], |c| for_new(c.kind)),
+            Screen::KeyGen => vec![&EN.randomness, &EN.where_randomness, &EN.words],
+            Screen::Entry => vec![&EN.words, &EN.passphrases],
+            Screen::Silent => vec![&EN.silent_payments, &EN.xpubs],
+            Screen::Explore => vec![&EN.xpubs, &EN.glossary],
+            Screen::Vanity => vec![&EN.passphrases, &EN.wallet_kinds],
+            Screen::Lightning => vec![&EN.glossary],
+            Screen::Tools => vec![&EN.tools, &EN.glossary],
+            Screen::Bip85 => vec![&EN.passphrases, &EN.glossary],
+            Screen::Backup => vec![&EN.backups, &EN.other_backups, &EN.seed_xor],
+            Screen::Restore => vec![&EN.backups, &EN.inheritance],
+            Screen::Message | Screen::CheckMessage => vec![&EN.message],
+            Screen::Files | Screen::Visit => vec![&EN.air_gap, &EN.coordinators],
             Screen::Vaults | Screen::CreateVault | Screen::Unlock | Screen::VaultContents => {
-                vec![&EN.learn_encrypted_backups, &EN.learn_passphrases]
+                vec![&EN.encrypted_backups, &EN.passphrases]
             }
-            Screen::Settings => vec![&EN.learn_secure_element, &EN.learn_glossary],
-            Screen::Decode => vec![&EN.learn_transactions, &EN.learn_verifying],
-            Screen::Catalog => vec![&EN.learn_tools, &EN.learn_glossary],
+            Screen::Settings => vec![&EN.secure_element, &EN.glossary],
+            Screen::Decode => vec![&EN.transactions, &EN.verifying],
+            Screen::Catalog => vec![&EN.tools, &EN.glossary],
         }
     }
 

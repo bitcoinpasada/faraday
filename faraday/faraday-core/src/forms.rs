@@ -254,16 +254,41 @@ impl Faraday {
     }
 }
 
-/// The BIP-39 lists a laptop keyboard types: those written in Latin
-/// letters, whose words are typed as their ASCII fold (`niño` as `nino`).
-pub const LATIN: [Language; 6] = [
+/// Every BIP-39 list words are typed from, in the order they are
+/// offered. The six written in Latin letters are typed on the computer's
+/// keyboard as their ASCII fold (`niño` as `nino`); the other four on an
+/// on-screen keyboard of their own ([`on_screen`]).
+pub const LANGUAGES: [Language; 10] = [
     Language::English,
     Language::Spanish,
     Language::French,
     Language::Italian,
     Language::Czech,
     Language::Portuguese,
+    Language::Japanese,
+    Language::Korean,
+    Language::ChineseSimplified,
+    Language::ChineseTraditional,
 ];
+
+/// Whether a list's words are typed on an on-screen keyboard: kana for
+/// Japanese, jamo for Korean, pinyin and 注音 readings for the two
+/// Chinese lists. OpenSigner's own word entry
+/// (`opensigner_core::load::LoadWizard`) does the typing, with the keys
+/// it allows and the words it offers.
+pub fn on_screen(lang: Language) -> bool {
+    lang.script() != osk_bip::bip39::Script::Latin
+}
+
+/// OpenSigner's word entry at its typing step, for `lang`. Up to 24
+/// words; the count is however many are taken when the key is added.
+pub fn word_typer(lang: Language) -> Box<opensigner_core::load::LoadWizard> {
+    let mut w = Box::new(opensigner_core::load::LoadWizard::new());
+    w.set_language(lang);
+    w.set_count(24);
+    w.go(opensigner_core::load::Step::Words);
+    w
+}
 
 /// A list's name.
 pub fn language_name(lang: Language) -> &'static str {
@@ -348,4 +373,22 @@ pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, String> {
     let m = Mnemonic::from_indices(lang, &idx).map_err(|e| e.to_string());
     zeroize::Zeroize::zeroize(&mut idx);
     m
+}
+
+/// Takes the word typed whole on `w`: the one its letters spell, or the
+/// only one they can be. Space, Tab, Enter and Add key end a word so on
+/// a physical keyboard, as a press on its pill does on the screen.
+pub fn take_typed(w: &mut opensigner_core::load::LoadWizard, lang: Language) {
+    let prefix: String = w.prefix().iter().collect();
+    if prefix.is_empty() {
+        return;
+    }
+    let cands: Vec<u16> = w.candidates().collect();
+    let n = cands
+        .iter()
+        .position(|&i| lang.word(i) == prefix)
+        .or((cands.len() == 1).then_some(0));
+    if let Some(n) = n {
+        w.commit_candidate(n);
+    }
 }

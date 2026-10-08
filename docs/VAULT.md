@@ -97,6 +97,20 @@ six-word dice passphrase (77.5 bits) is out of reach at any cost here; a
 short or reused passphrase is not protected by any cost here. The Create
 form says this beside the cost.
 
+**The bits shown.** The Create form states what each cost adds as
+log2(memory in KiB × passes), the number of Argon2id 1 KiB block steps
+in one guess: Light ≈17.6 bits, Standard ≈19.6, Strong and Maximum
+≈22.0. That is an estimate: it counts work only, not how much harder
+memory is than time for an attacker's hardware, so Strong and Maximum
+come out equal. A passphrase the dice made has its own bits exactly
+(words × log2 of the list's length, shown rounded to a tenth). The form
+shows the two added as the passphrase's strength, for each passphrase and
+the weakest in the summary, and only while the field still holds the
+dice's words. Every figure that includes the cost's bits is written with
+≈, never =, and the dice's own bits without it. A typed passphrase's own
+bits are not measured, and the form says so (`vaults::cost_bits`,
+`Vaults::phrase_bits`).
+
 **Presets.** The Create form asks where the vault will be opened and
 offers the largest preset that fits the weakest machine chosen:
 
@@ -202,10 +216,13 @@ the Outbox.
 
 ## 6. Writing back
 
-A vault is offered under one fixed name, `vault.ofv`, whatever it holds,
-so a name says nothing about its contents; a second vault on the same
-stick becomes `vault-2.ofv`, as OpenSigner names its backups. The name is
-not the vault's identity. A vault is known by its salt and its size, and
+A vault is named when it is made (owner, 2026-10-07, reversing the
+fixed name of 2026-10-04): its file is that name, letters, digits,
+hyphens and underscores, spaces made hyphens, with `.ofv`; left empty it
+is `vault.ofv`. A name taken already becomes `name-2.ofv`, as OpenSigner
+names its backups. A name can say what a vault holds to anyone who sees
+the stick; leaving it empty keeps the old rule. The name is not the
+vault's identity. A vault is known by its salt and its size, and
 writing back replaces the previous copy; no older copy is kept. On a
 stick visit:
 

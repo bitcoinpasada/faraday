@@ -284,13 +284,9 @@ pub(crate) fn restore(n: u8) -> String {
 }
 
 /// The walk-through for one card of New key.
-pub(crate) fn keygen(
-    n: u8,
-    active: Option<crate::keygen::Source>,
-    slip39: bool,
-    by_die: bool,
-) -> String {
+pub(crate) fn keygen(n: u8, k: &crate::keygen::KeyGen) -> String {
     use crate::keygen::{Source, kstep};
+    let (active, slip39, by_die) = (k.active(), k.slip39, k.by_die);
     match n {
         kstep::LENGTH if slip39 => "A SLIP-39 key is a master secret of 128 or 256 bits, never written \
             whole: it is dealt as shares of 20 or 33 words, and any of them up to the number needed \
@@ -306,18 +302,46 @@ pub(crate) fn keygen(
         kstep::LENGTH => "12 words carry 128 bits and 24 words 256. Either is beyond guessing; most wallets \
             and signers read every length here."
             .to_string(),
+        kstep::SOURCE if slip39 => "Randomness you make yourself, with dice, coins or cards, does not \
+            depend on this device's software: you can make the same secret again elsewhere from the same \
+            rolls. The shares are worked out from it by the device. This device's generator is the operating \
+            system's; nothing on the screen can show whether it was faulty or rigged, so a key made from it \
+            trusts this device. A mix combines several sources, so the key is as good as the best of them."
+            .to_string(),
         kstep::SOURCE => "Randomness you make yourself, with dice, coins or cards, does not depend on this \
-            device's software: you can make the same key again elsewhere from the same rolls and check it. \
-            This device's generator is the operating system's; nothing on the screen can show whether it \
-            was faulty or rigged, so a key made from it trusts this device. A mix combines several sources, \
-            so the key is as good as the best of them."
+            device's software. In the first group every word is your entries' own bits: each one shows as \
+            it comes in, and you can find it in the list by hand. In the second the device hashes your \
+            entries into the words, which you can check only by making the same key again elsewhere. This \
+            device's generator is the operating system's; nothing on the screen can show whether it was \
+            faulty or rigged, so a key made from it trusts this device. A mix combines several sources, so \
+            the key is as good as the best of them."
             .to_string(),
         kstep::ENTER => match active {
+            Some(Source::Dice | Source::Coins) if by_die && slip39 => "Roll one die at a time \
+                and enter the face that came up. Each roll is one flip, 1 to 3 tails and 4 to \
+                6 heads, so the secret is the one a coin would make from the same flips."
+                .to_string(),
             Some(Source::Dice | Source::Coins) if by_die => "Roll one die at a time \
-                and press the face that came up. Each roll is one flip, 1 to 3 tails and 4 to \
-                6 heads, so the key is the one a coin would make from the same flips. The words \
-                build on screen as each one lands, a particularly easy way to check them against \
-                the entropy by hand."
+                and enter the face that came up. Each roll is one flip, 1 to 3 tails (0) and 4 to \
+                6 heads (1), so the key is the one a coin would make from the same flips. Every \
+                11 flips are a word's number in the list, counted from 0, and the word shows as \
+                its 11th flip comes in."
+                .to_string(),
+            Some(Source::Dice) if k.procedure().direct() => format!(
+                "Roll one die at a time and enter the face that came up. A word takes six rolls. In \
+                its first five, 1 is 00, 2 is 01, 3 is 10 and 4 is 11; a 5 or a 6 there stands for \
+                nothing and is rolled again. The sixth roll is one bit: 1 to 3 is 0, 4 to 6 is 1. The \
+                11 bits, in order, are the word's number in the list counted from 0: 3 1 4 2 2 5 is \
+                10 00 11 01 01 1, which is 1131, the list's word 1132, \"miracle\". The last word is \
+                rolled the same way; the key keeps its first {} bits, and its other {} are the \
+                checksum, which the device works out from all the others and writes in their place.",
+                k.last_bits(),
+                k.words / 3
+            ),
+            Some(Source::Coins) if !slip39 => "Flip a coin and enter what came up, once per flip. \
+                Catching the coin in the air is fine; choosing the side is not. Heads is 1 and tails \
+                0; every 11 flips are a word's number in the list, counted from 0, and the word shows \
+                as its 11th flip comes in."
                 .to_string(),
             Some(Source::Dice) => "Roll one die at a time and press the face that came up. Use a real \
                 die on a flat surface, not the same throw twice, and do not pick numbers in your head."

@@ -10,7 +10,7 @@ fn shown(app: &Faraday) -> &'static str {
 
 #[test]
 fn the_question_mark_opens_the_pages_for_the_screen() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.press(Action::CreateWallet);
     app.press(Action::CKind(4));
     app.press(Action::Learn);

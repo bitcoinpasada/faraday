@@ -1,0 +1,13 @@
+[package]
+name = "osk-learn"
+version = "0.1.0"
+description = "The Learn pages of OpenSignerKit: what a person needs to know to hold and use a key, as plain text; no_std, no alloc"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

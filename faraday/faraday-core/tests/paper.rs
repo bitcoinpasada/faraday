@@ -15,7 +15,7 @@ fn typed(app: &mut Faraday, text: &str) {
 /// Test key 1 and the Spending wallet over it, with the system's
 /// randomness answered.
 fn backing_up() -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,
@@ -49,7 +49,7 @@ fn backing_up() -> Faraday {
 }
 
 fn added_from(form: u8, parts: &[&str]) -> [u8; 4] {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
     app.press(Action::EntryForm(form));
     for p in parts {

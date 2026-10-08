@@ -12,7 +12,7 @@ use alloc::string::String;
 
 mod en;
 
-pub use en::{EN, LEARN_PAGES, LearnPage, LearnSection, Strings};
+pub use en::{EN, Strings};
 
 /// Fills a template's `{}` placeholders from `args`, in order. A
 /// placeholder with no argument is dropped; a spare argument is ignored.

@@ -1,8 +1,12 @@
-//! The BIP-380 output descriptor checksum.
+//! The BIP-380 output descriptor checksum, and the facts a reader checks
+//! in a descriptor someone else wrote.
 //!
 //! Descriptors themselves are produced by [`crate::account::AccountXpub`];
-//! this module only implements the 8-character BCH checksum that follows
-//! the `#`, ported from the reference Python in BIP-380.
+//! this module implements the 8-character BCH checksum that follows the
+//! `#`, ported from the reference Python in BIP-380, and reads a
+//! descriptor's text for its checksum verdict ([`checksum_facts`]), its
+//! script type ([`script_type`]) and the masters its keys come from
+//! ([`origin_fingerprints`]).
 //!
 //! ```
 //! use osk_bip::descriptor::{descriptor_checksum, verify_checksum};
@@ -11,6 +15,12 @@
 //! assert!(verify_checksum("raw(deadbeef)#89f8spxm"));
 //! assert!(!verify_checksum("raw(deedbeef)#89f8spxm"));
 //! ```
+
+use alloc::string::String;
+use alloc::vec::Vec;
+
+use crate::keys::ScriptType;
+use crate::policy::WalletPolicy;
 
 /// Every character a descriptor may contain, in symbol order.
 const INPUT_CHARSET: &[u8] =
@@ -113,6 +123,80 @@ pub fn verify_checksum(descriptor: &str) -> bool {
         return false;
     }
     descriptor_checksum(body).is_some_and(|expected| expected == *checksum.as_bytes())
+}
+
+/// What the checksum of a typed descriptor comes to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChecksumFacts {
+    /// The descriptor with the checksum computed here.
+    pub with_checksum: String,
+    /// The checksum computed here, on its own.
+    pub checksum: String,
+    /// The checksum that arrived with the text, and whether it holds.
+    pub given: Option<(String, bool)>,
+    /// The wallet the descriptor is, where it is one
+    /// [`WalletPolicy::parse_any`] reads.
+    pub wallet: Option<WalletPolicy>,
+}
+
+/// The checksum of `text`, or `None` when it is empty or holds a
+/// character no descriptor may.
+pub fn checksum_facts(text: &str) -> Option<ChecksumFacts> {
+    let text = text.trim();
+    if text.is_empty() {
+        return None;
+    }
+    let (body, given) = match text.split_once('#') {
+        Some((body, tail)) => (body, Some(String::from(tail))),
+        None => (text, None),
+    };
+    let sum = descriptor_checksum(body)?;
+    let sum = String::from_utf8(sum.to_vec()).ok()?;
+    let with_checksum = alloc::format!("{body}#{sum}");
+    Some(ChecksumFacts {
+        given: given.map(|g| {
+            let holds = g == sum;
+            (g, holds)
+        }),
+        wallet: WalletPolicy::parse_any(body).ok(),
+        checksum: sum,
+        with_checksum,
+    })
+}
+
+/// The script type a descriptor's outer function names: `tr(` and
+/// `rawtr(` Taproot, `sh(wpkh(` and `sh(wsh(` nested Segwit, `wpkh(` and
+/// `wsh(` native Segwit, `pkh(`, `sh(` and `pk(` legacy.
+pub fn script_type(text: &str) -> Option<ScriptType> {
+    let head: String = text
+        .chars()
+        .take_while(|c| *c != '[' && *c != ')')
+        .collect();
+    if head.starts_with("tr(") || head.starts_with("rawtr(") {
+        Some(ScriptType::Taproot)
+    } else if head.starts_with("sh(wpkh(") || head.starts_with("sh(wsh(") {
+        Some(ScriptType::NestedSegwit)
+    } else if head.starts_with("wpkh(") || head.starts_with("wsh(") {
+        Some(ScriptType::NativeSegwit)
+    } else if head.starts_with("pkh(") || head.starts_with("sh(") || head.starts_with("pk(") {
+        Some(ScriptType::Legacy)
+    } else {
+        None
+    }
+}
+
+/// The master fingerprint of every key origin a descriptor carries, in
+/// the order it writes them: `[73c5da0a/84h/0h/0h]` gives `73c5da0a`.
+pub fn origin_fingerprints(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut rest = text;
+    while let Some(open) = rest.find('[') {
+        let origin = &rest[open + 1..];
+        let end = origin.find(']').unwrap_or(origin.len());
+        out.push(origin[..end].chars().take_while(|c| *c != '/').collect());
+        rest = &origin[end..];
+    }
+    out
 }
 
 #[cfg(test)]

@@ -295,8 +295,8 @@ fn the_compiler_turns_a_policy_into_a_descriptor() {
     // now and one that spends after the wait. The compiler picks `pk`
     // over `pkh` for the second branch, which is the same spend a byte
     // cheaper.
-    let facts =
-        tools::compile(POLICY, tools::PolicyScript::Segwit, &[]).expect("this policy compiles");
+    let facts = osk_bip::compile::compile(POLICY, osk_bip::compile::PolicyScript::Segwit, &[])
+        .expect("this policy compiles");
     assert!(
         facts
             .descriptor
@@ -336,8 +336,9 @@ fn a_policy_that_does_not_compile_says_why() {
         ScreenKind::Tool,
         "\u{2713} is dead, so there is nowhere to go"
     );
-    let reason = tools::compile("or(pk(@0),", tools::PolicyScript::Segwit, &[])
-        .expect_err("this policy does not compile");
+    let reason =
+        osk_bip::compile::compile("or(pk(@0),", osk_bip::compile::PolicyScript::Segwit, &[])
+            .expect_err("this policy does not compile");
     assert!(!reason.is_empty());
     assert!(
         h.app.texts().contains(&reason),

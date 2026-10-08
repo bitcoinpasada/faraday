@@ -1022,18 +1022,18 @@ fn a_mix_lists_a_commitment_per_source_and_hashes_them_in_order() {
 
 // ----- the other published dice procedures (`docs/PLANNING.md` §16.115)
 
-/// The rolls EntropyLab's BitBox diceware transcript makes for a
-/// twelve-word key: five faces of 1–4 for each of the eleven rolled
-/// words and a sixth roll read as the coin
-/// (`tools/reference/dice/README.md`).
-const BITBOX_66: &str = "123411234122341233412344123415234126341231412342123413234124341235";
+/// The rolls of a twelve-word key under direct selection: five faces
+/// of 1–4 and a sixth roll read as the coin for each word. The first 66
+/// are EntropyLab's BitBox diceware transcript; the last six name
+/// "tooth" (`tools/reference/dice/README.md`).
+const BITBOX_72: &str = "123411234122341233412344123415234126341231412342123413234124341235432141";
 
-/// The eleven words those rolls name, and the first of the 128 words the
-/// checksum leaves for the twelfth place, as EntropyLab's own
-/// `hodlBitBoxRolls` and `hodlTargetLastWords` give them.
+/// The words of that key: the eleven EntropyLab's `hodlBitBoxRolls`
+/// names, and "tooth" with its low four bits replaced by the checksum,
+/// as SeedSigner's `calculate_checksum` completes it.
 const BITBOX_WORDS: [&str; 12] = [
     "brand", "hobby", "ranch", "shoulder", "brass", "hockey", "ranch", "short", "brand", "hockey",
-    "random", "above",
+    "random", "torch",
 ];
 
 /// The entropy EntropyLab's "Dice [1-6] / Hashed rolls" makes of
@@ -1058,12 +1058,12 @@ fn to_procedure(h: &mut Harness) {
 }
 
 /// "Which procedure?" states the rolls each procedure takes at the
-/// length that was chosen: 50 for the two that hash, 66 for the one that
-/// names words, and 99 and 138 at twenty-four words.
+/// length that was chosen: 50 for the two that hash, 72 for the one that
+/// names words, and 99 and 144 at twenty-four words.
 #[test]
 fn the_procedure_choice_states_what_each_one_costs_in_rolls() {
     let s = &strings::EN;
-    for (row, hashed, direct) in [(0usize, "50", "66"), (1, "99", "138")] {
+    for (row, hashed, direct) in [(0usize, "50", "72"), (1, "99", "144")] {
         let mut h = Harness::new(PANEL);
         h.open_create();
         h.choose(
@@ -1078,7 +1078,7 @@ fn the_procedure_choice_states_what_each_one_costs_in_rolls() {
         let texts = h.app.texts();
         for want in [
             strings::fill1(s.dice_procedure_rolls, hashed),
-            strings::fill1(s.dice_procedure_rolls_words, direct),
+            strings::fill1(s.dice_procedure_rolls, direct),
         ] {
             assert!(
                 texts.contains(&want),
@@ -1120,11 +1120,11 @@ fn the_two_hashing_procedures_take_the_same_rolls_to_their_own_keys() {
     }
 }
 
-/// Direct selection: the rolls name eleven words as they go, a 5 or a 6
-/// in a word's first five places is rolled again and says so, and the
-/// twelfth word is chosen from the words the checksum leaves.
+/// Direct selection: the rolls name every word as they go, the last
+/// included, and a 5 or a 6 in a word's first five places is rolled
+/// again and says so. The checksum takes the last word's low bits.
 #[test]
-fn the_dice_name_the_words_and_the_checksum_leaves_the_last_one() {
+fn the_dice_name_every_word_and_the_checksum_completes_the_last() {
     let mut h = Harness::new(PANEL);
     to_procedure(&mut h);
     h.choose(
@@ -1141,26 +1141,13 @@ fn the_dice_name_the_words_and_the_checksum_leaves_the_last_one() {
         texts.iter().any(|t| t == strings::EN.create_rerolled),
         "the pad never says the face was rolled again: {texts:?}"
     );
-    h.type_text(BITBOX_66);
-    assert_eq!(h.app.create_entries(), Some(66));
+    // Eleven words' rolls do not finish a twelve-word key.
+    h.type_text(&BITBOX_72[..66]);
     h.key(Key::Enter);
-    // Every word but the last is rolled; the last is chosen.
-    assert_eq!(h.app.create_step(), Some(Step::LastWord));
-    let texts = h.app.texts();
-    assert!(
-        texts
-            .iter()
-            .any(|t| t == strings::EN.create_last_word_title),
-        "the last-word Choice has no title: {texts:?}"
-    );
-    assert!(
-        texts.iter().filter(|t| *t == BITBOX_WORDS[11]).count() == 1,
-        "the first candidate is not offered: {texts:?}"
-    );
-    h.choose(
-        ids::at(ids::CREATE_LAST_WORD_BASE, 0),
-        ids::CREATE_LAST_WORD_CONTINUE,
-    );
+    assert_eq!(h.app.create_step(), Some(Step::Entropy));
+    h.type_text(&BITBOX_72[66..]);
+    assert_eq!(h.app.create_entries(), Some(72));
+    h.key(Key::Enter);
     assert_eq!(h.app.create_step(), Some(Step::Sanity));
     h.tap(ids::CREATE_CONTINUE);
     finish_create(&mut h, &BITBOX_WORDS);

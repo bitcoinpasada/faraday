@@ -299,3 +299,50 @@ fn with_reduce_motion_a_notch_moves_at_once_and_nothing_stretches() {
         "a pull past the top shows nothing"
     );
 }
+
+/// Settings on a 1280 × 800 panel, taller than it: it scrolls.
+fn settings() -> Faraday {
+    let mut app = long_files(1280, 800);
+    app.press(Action::Nav(Screen::Settings));
+    tick(&mut app, 1_000);
+    let _ = app.frame();
+    app
+}
+
+#[test]
+fn the_scrollbar_can_be_held_and_dragged_with_a_pointer_or_a_finger() {
+    let mut app = settings();
+    let touch = |app: &mut Faraday, y: u16, phase| {
+        app.event(Event::Touch { x: 1274, y, phase });
+        while app.poll_command().is_some() {}
+        let _ = app.frame();
+    };
+    // Pressed low on the track: the page goes there at once.
+    touch(&mut app, 790, TouchPhase::Down);
+    let low = app.list_offset;
+    assert!(low > 0.0, "the page moved down");
+    // Dragged to the top: it follows, and stops at the top.
+    touch(&mut app, 400, TouchPhase::Move);
+    assert!(app.list_offset < low);
+    touch(&mut app, 0, TouchPhase::Move);
+    assert_eq!(app.list_offset, 0.0);
+    touch(&mut app, 0, TouchPhase::Up);
+    assert_eq!(app.screen, Screen::Settings, "nothing under it was pressed");
+}
+
+#[test]
+fn the_scrollbar_shows_while_the_pointer_is_over_it() {
+    let mut app = settings();
+    let rest = pixels(&mut app);
+    app.event(Event::Hover { x: 1274, y: 400 });
+    assert!(pixels(&mut app) != rest, "the bar shows");
+    // Still there after it would have faded from a scroll.
+    let now = run(&mut app, 1_000, 2_000);
+    assert!(pixels(&mut app) != rest);
+    app.event(Event::Hover { x: 700, y: 400 });
+    run(&mut app, now, 2_000);
+    assert!(
+        pixels(&mut app) == rest,
+        "and fades once the pointer leaves"
+    );
+}

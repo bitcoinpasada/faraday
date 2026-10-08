@@ -365,7 +365,7 @@ fn every_string_is_reachable_through_the_app() {
     );
     says(
         &h,
-        &strings::fill1(s.dice_procedure_rolls_words, "66"),
+        &strings::fill1(s.dice_procedure_rolls, "72"),
         "the procedure step",
     );
     h.tap(ids::CREATE_PROCEDURE_CONTINUE);
@@ -675,7 +675,7 @@ fn every_string_is_reachable_through_the_app() {
     says(&h, s.settings_never, "the auto-wipe Choice");
     h.tap(ids::BACK);
     h.tap(ids::SETTINGS_ABOUT_ROW);
-    let checks = format!("{}", opensigner_core::selftest::CHECKS.len());
+    let checks = format!("{}", osk_selftest::CHECKS.len());
     for want in [
         s.settings_version,
         s.settings_tier,
@@ -3848,7 +3848,7 @@ fn drag(h: &mut Harness, display: DisplayInfo) -> (Vec<u8>, Vec<u8>) {
 /// Opens the first Learn page with more on it than the panel shows.
 fn open_long_learn_page(h: &mut Harness) {
     h.tap(ids::at(ids::HOME_TILE_BASE, 4));
-    for i in 0..strings::LEARN_PAGES {
+    for i in 0..osk_learn::PAGES {
         h.tap(ids::at(ids::LEARN_ROW_BASE, i));
         if scrolls(h) {
             return;

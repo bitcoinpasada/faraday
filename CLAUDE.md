@@ -9,10 +9,13 @@ changes and nothing else has to be kept in step.
   screens, built from the §4 components; every dimension is a name in
   `core/osk-ui/src/tokens.rs` (`tools/lint-tokens.sh` fails the build
   otherwise); every user-facing string is in
-  `opensigner/opensigner-core/src/strings/en.rs`; a working screen carries
-  labels, values and actions and never an explanation; explanations live
-  in Learn and About, which are not working screens; and text anywhere in
-  the product is plain statement of fact, never mannered prose.
+  `opensigner/opensigner-core/src/strings/en.rs`, except the Learn pages,
+  which are `core/osk-learn/src/en.rs` and are edited as `docs/learn/`,
+  and the self-test's check names in `core/osk-selftest`; a working
+  screen carries labels, values and actions and never an explanation;
+  explanations live in Learn and About, which are not working screens;
+  and text anywhere in the product is plain statement of fact, never
+  mannered prose.
 - `just` is the check: tests, clippy with warnings as errors, fmt and the
   three lints. Keep every test passing or change it to the rule it now
   encodes; do not delete a test to make the build pass. Run it once, at

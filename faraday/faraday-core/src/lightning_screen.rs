@@ -78,7 +78,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
         let shown = if l.typed.is_empty() {
             "The 24 words".to_string()
         } else {
-            format!("{}|", l.typed.as_str())
+            format!("{}{}", l.typed.as_str(), ui.caret_char())
         };
         let shown = ui.fit(14.0, W::M, &shown, width - 90.0);
         ui.text_mid(x + 12.0, y, 44.0, 14.0, W::M, TEXT, &shown);
@@ -106,7 +106,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
         let p = if l.passphrase.is_empty() && !l.on_passphrase {
             "aezeed (LND's default)".to_string()
         } else {
-            format!("{}|", "•".repeat(l.passphrase.len()))
+            format!("{}{}", "•".repeat(l.passphrase.len()), ui.caret_char())
         };
         ui.text_mid(px + 12.0, y, 40.0, 13.0, W::M, TEXT, &p);
         ui.hit(px, y, pw, 40.0, Action::LPassphrase);

@@ -50,7 +50,7 @@ crate or shell.
 
 - Load a key from typed words, a SeedQR or CompactSeedQR, an encrypted backup, Seed XOR parts, SLIP-39 shares, or a Codex32 string or its shares.
 - Create a key from dice, coins, typed hex, a shuffled deck, camera noise, the device's own generator, or a mix of sources, with a sanity check on the entropy and the math shown. 12, 15, 18, 21 or 24 words.
-- Dice are read by whichever published procedure you follow: hashed as ASCII digits (Coldcard, SeedSigner), every six written as a zero and then hashed (Keystone), or words chosen outright by the rolls (BitBox), where five rolls of 1–4 and a coin roll name a word and the last word is chosen from the words the checksum leaves.
+- Dice are read by whichever published procedure you follow: hashed as ASCII digits (Coldcard, SeedSigner), every six written as a zero and then hashed (Keystone), or words chosen outright by the rolls (BitBox), where five rolls of 1–4 and a coin roll name each word, the last one too, and the checksum takes the last word's low bits.
 - Create SLIP-39 shares and Create Codex32 shares as flows of their own, with the same entropy sources.
 - Open a passphrase over a loaded key, or a BIP-85 child of one. A passphrase key is never stored.
 - Derive one of BIP-85's other applications from a key: a WIF, an extended private key, 16, 32 or 64 bytes of hex, or a password in base64 or base85, shown on a masked screen and kept nowhere.

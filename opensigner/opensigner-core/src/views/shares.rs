@@ -16,11 +16,11 @@ use osk_ui::screens::{self, Action, Chrome, Entry, Item, Result};
 use osk_ui::widgets::keyboard::{ALL_KEYS, KeyboardKind};
 use osk_ui::widgets::{Icon, Tone};
 
-use crate::create::{SOURCE_ROWS, Source};
 use crate::load::EntryList;
 use crate::shares::{MAX_GROUPS, SharePlan, Step};
 use crate::views::{create as create_view, quiz as quiz_view, words};
 use crate::{OpenSigner, ids, strings};
+use osk_entropy::{SOURCE_ROWS, Source};
 
 impl OpenSigner {
     /// The screen the split is on.

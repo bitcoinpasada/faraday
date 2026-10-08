@@ -11,8 +11,8 @@ use osk_shell_api::DisplayInfo;
 const LEARN_TILE: usize = 4;
 
 /// The pages, in the order the list shows them.
-fn pages() -> [&'static strings::LearnPage; strings::LEARN_PAGES] {
-    strings::EN.learn_pages()
+fn pages() -> [&'static osk_learn::Page; osk_learn::PAGES] {
+    strings::EN.learn.pages()
 }
 
 fn open_learn(display: DisplayInfo) -> Harness {
@@ -81,7 +81,7 @@ fn back_walks_out_of_learn_one_step_at_a_time() {
 /// opens the flow it is about.
 #[test]
 fn learn_asks_for_nothing_and_offers_at_most_one_row() {
-    for i in 0..strings::LEARN_PAGES {
+    for i in 0..osk_learn::PAGES {
         let mut h = open_learn(PANEL);
         h.tap(ids::at(ids::LEARN_ROW_BASE, i));
         assert_eq!(h.app.screen(), ScreenKind::LearnPage);
@@ -151,7 +151,7 @@ fn every_page_reads_whole_on_the_smallest_panel() {
 fn the_glossary_lists_its_terms_in_alphabetical_order() {
     let glossary = pages()
         .into_iter()
-        .find(|p| p.title == strings::EN.learn_glossary.title)
+        .find(|p| p.title == strings::EN.learn.glossary.title)
         .expect("the glossary is one of the pages");
     let terms: Vec<String> = glossary
         .sections

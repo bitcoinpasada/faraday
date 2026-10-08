@@ -201,15 +201,8 @@ fn card(app: &Faraday, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f3
             );
             ui.fill(x + mw + 8.0, cy, 180.0, 44.0, 8.0, BG);
             ui.stroke(x + mw + 8.0, cy, 180.0, 44.0, 8.0, ACCENT);
-            ui.text_mid(
-                x + mw + 20.0,
-                cy,
-                44.0,
-                16.0,
-                W::M,
-                TEXT,
-                &format!("{}|", b.index),
-            );
+            let index = format!("{}{}", b.index, ui.caret_char());
+            ui.text_mid(x + mw + 20.0, cy, 44.0, 16.0, W::M, TEXT, &index);
             ui.button(
                 x + mw + 196.0,
                 cy,

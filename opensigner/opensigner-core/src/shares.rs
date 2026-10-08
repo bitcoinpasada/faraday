@@ -19,10 +19,10 @@
 use osk_bip::slip39::{self, GroupSpec, Share};
 use osk_crypto::{Zeroize, ZeroizeOnDrop};
 
-use crate::create::Source;
 use crate::ids::{self, Id};
 use crate::load::EntryList;
 use crate::quiz::{Quiz, QuizState};
+use osk_entropy::Source;
 
 /// Groups a backup may have, and shares a group may have.
 pub const MAX_GROUPS: usize = slip39::MAX_COUNT;
@@ -546,9 +546,9 @@ impl SharePlan {
             }
             Step::Source => {
                 if let Some(i) =
-                    ids::index_in(id, ids::SHARE_SOURCE_BASE, crate::create::SOURCE_ROWS.len())
+                    ids::index_in(id, ids::SHARE_SOURCE_BASE, osk_entropy::SOURCE_ROWS.len())
                 {
-                    self.source = crate::create::SOURCE_ROWS[i];
+                    self.source = osk_entropy::SOURCE_ROWS[i];
                 } else if id == ids::SHARE_SOURCE_CONTINUE {
                     return self.begin_random();
                 }

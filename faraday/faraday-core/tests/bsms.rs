@@ -19,7 +19,7 @@ wsh(sortedmulti(2,[1cf0bf7e/48'/0'/0'/2']xpub6FL8FhxNNUVnG64YurPd16AfGyvFLhh7S2u
 bc1qrgc6p3kylfztu06ysl752gwwuekhvtfh9vr7zg43jvu60mutamcsv948ej";
 
 fn with_inbox(files: Vec<(&str, String)>) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: files
             .into_iter()
@@ -59,7 +59,7 @@ fn the_bips_key_record_is_a_cosigners_key_only_with_its_signature() {
 
 #[test]
 fn faradays_own_records_read_back() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
     for c in faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[0].0).chars() {
         app.event(osk_shell_api::Event::Key(osk_shell_api::Key::Char(c)));

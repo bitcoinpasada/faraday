@@ -18,8 +18,11 @@ use osk_ui::screens::{self, Action};
 use osk_ui::tokens;
 use osk_ui::widgets::{Icon, Tone, WarningLevel};
 
-use crate::inspect::{InspectDoc, descriptor_origins, descriptor_script, xpub_network};
+use crate::inspect::InspectDoc;
 use crate::{OpenSigner, ids, strings, text};
+use osk_bip::descriptor::{origin_fingerprints, script_type};
+use osk_bip::keys::Network;
+use osk_bip::slip132::network_kind;
 
 impl OpenSigner {
     pub(crate) fn view_inspect(&self) -> Node {
@@ -331,7 +334,7 @@ impl OpenSigner {
                 Tone::Text,
             ));
         }
-        if let Some(script) = descriptor_script(&doc.text) {
+        if let Some(script) = script_type(&doc.text) {
             rows.push(components::Record::text(
                 s.script_type_row,
                 text::script_short(script, s),
@@ -428,7 +431,7 @@ impl OpenSigner {
                     }
                 })
                 .collect(),
-            None => descriptor_origins(&doc.text)
+            None => origin_fingerprints(&doc.text)
                 .into_iter()
                 .map(|fingerprint| {
                     let holds_key = self
@@ -481,10 +484,15 @@ impl OpenSigner {
     fn xpub_rows(&self, doc: &InspectDoc) -> Vec<components::Record> {
         let s = self.strings();
         let mut rows = Vec::new();
-        if let Some(network) = xpub_network(&doc.text) {
+        if let Some(kind) = network_kind(&doc.text) {
+            // The four test networks share one set of version bytes.
+            let network = match kind {
+                osk_bip::bitcoin::NetworkKind::Main => Network::Mainnet,
+                osk_bip::bitcoin::NetworkKind::Test => Network::Testnet,
+            };
             rows.push(components::Record::text(
                 s.confirm_network,
-                network,
+                network.name(),
                 Tone::Text,
             ));
         }

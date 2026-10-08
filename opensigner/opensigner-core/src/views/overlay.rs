@@ -178,7 +178,7 @@ impl OpenSigner {
     /// §5 Choice, "Script": what a compiled policy is wrapped in.
     fn policy_script_choice(&self, c: &Chrome<'_>, picked: usize) -> Node {
         let s = self.strings();
-        let items: Vec<Item> = crate::tools::PolicyScript::ALL
+        let items: Vec<Item> = osk_bip::compile::PolicyScript::ALL
             .iter()
             .enumerate()
             .map(|(i, script)| {
@@ -199,7 +199,7 @@ impl OpenSigner {
 
     fn read_as_choice(&self, c: &Chrome<'_>, picked: usize) -> Node {
         let s = self.strings();
-        let items: Vec<Item> = crate::tools::ReadAs::ALL
+        let items: Vec<Item> = osk_codec::encodings::ReadAs::ALL
             .iter()
             .enumerate()
             .map(|(i, r)| {

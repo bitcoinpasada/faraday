@@ -21,7 +21,7 @@ fn add_key(app: &mut Faraday, seed: &str) {
 }
 
 fn with_inbox(files: Vec<(String, Vec<u8>)>) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: files,
         outbox: Vec::new(),

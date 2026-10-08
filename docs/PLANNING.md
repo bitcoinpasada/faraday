@@ -326,7 +326,7 @@ Legend: **M** = MVP (needed to be a usable signer), **1** = v1.0, **2** = later,
 | 14 | Seed XOR (Coldcard-compatible split/combine) | 1 |
 | 15 | SLIP-39 Shamir backup | ? |
 | 16 | Seed combination/split explainer (why XOR ≠ Shamir) | 2 |
-| 17 | Alternative dice procedures, each byte-identical to the published one so a seed made elsewhere by that procedure is reproduced here | 1 — landed, §16.115 pass P1. Three procedures, taken from the sources quoted in `tools/reference/dice/README.md`: hashed (Coldcard, SeedSigner, EntropyLab's "Base 10"), which is what this device already did; six written as zero then hashed (Keystone, iancoleman's "Dice", EntropyLab's "Dice [1-6]"); and words chosen by the dice (EntropyLab's "BitBox diceware"), five rolls of 1–4 and a coin roll a word, the last word chosen from the words the checksum leaves. The brief's "dice as coin flips" and "base-10 digits hashed" are not separate procedures; EntropyLab's D++ needs a D8 and two D16 and is not built — §16.115 has both findings |
+| 17 | Alternative dice procedures, each byte-identical to the published one so a seed made elsewhere by that procedure is reproduced here | 1 — landed, §16.115 pass P1. Three procedures, taken from the sources quoted in `tools/reference/dice/README.md`: hashed (Coldcard, SeedSigner, EntropyLab's "Base 10"), which is what this device already did; six written as zero then hashed (Keystone, iancoleman's "Dice", EntropyLab's "Dice [1-6]"); and words chosen by the dice (EntropyLab's "BitBox diceware"), five rolls of 1–4 and a coin roll a word, the last word rolled too and its low bits the checksum (§16.139). The brief's "dice as coin flips" and "base-10 digits hashed" are not separate procedures; EntropyLab's D++ needs a D8 and two D16 and is not built — §16.115 has both findings |
 | 18 | LND aezeed cipher seed decoding (scrypt, AEZ v5, CRC-32C) to the entropy and the LND node key path, and the LDK node key from a BIP-39 phrase; decoding only | done, §16.116 pass P2. `osk_bip::aezeed` over `osk_bip::aez` (AEZ v5 written here) and `osk_crypto`'s own scrypt and BLAKE2b, on every AEZ vector and on LND's own — which are made at `scryptN = 16` and are not decodable by a released LND, so the same seeds re-enciphered at the production cost are checked too; Tools › Lightning node key |
 | 19 | Vanity address grinder over a key's passphrase counter or account index, stop on first find, the found value written back to the key | done, §16.117 pass P3. `osk_bip::vanity` over EntropyLab's counter and order, checked against two vectors its own WebAssembly produced here; the key page's Vanity address row, a budget of candidates a frame rather than a thread, the rate measured on screen; a key that already carries a passphrase has no base to extend, so that dial is dimmed there |
 
@@ -7954,7 +7954,9 @@ were cloned only to read and nothing was vendored.
   masked panel as their six rolls complete them, as the dice passphrase
   tool's do.
 
-**The last word is chosen, not rolled.** Direct selection names every
+**The last word is chosen, not rolled.** **Superseded by §16.139:** the
+dice roll the last word too, and the checksum takes its low bits. As
+first built, direct selection named every
 word but the last. The last carries the checksum, so only
 `2^(11 − checksum bits)` words can stand there — 128 at twelve words, 8
 at twenty-four — and a **"Which last word?"** Choice lists them in index
@@ -9916,4 +9918,108 @@ the failure is silent.
 **Not moved yet.** The Tools calculators (`tools.rs`: hashes, the
 descriptor checksum facts, the miniscript compiler's facts, key facts),
 the start-up self-test's vector set (`selftest.rs`), and `inspect.rs`'s
-reading of key origins through `osk_ui::descriptor::tokens`.
+reading of key origins through `osk_ui::descriptor::tokens`. All three
+moved in §16.139.
+
+### 16.139 The dice roll the last word; the entropy lists, the Learn pages, the self-test and the calculators are core crates' (2026-10-07)
+
+**Why.** Two reports from people building on these crates. Someone
+using `osk-entropy`: direct selection allowed no rolls for the last
+word, so its free bits were the person's choice rather than the
+dice's. The fork Faraday: it read `SOURCE_ROWS`, `MIX_SOURCES`,
+`COUNTS` and the Learn text out of `opensigner-core`, and wanted the
+self-test's vectors (BIP-39, BIP-32, signing, KDFs) in `core/` so it
+can run them before it accepts a key. §16.138's list of what had not
+moved yet is the rest of this entry.
+
+**The last word is rolled.** Direct selection now takes six rolls for
+every word, the last included: 72 rolls at twelve words, 144 at
+twenty-four. `DiceRolls::entropy_under` writes the named words' 11-bit
+indices one after another and cuts them to the strength's bits, so
+the last word's high `11 − checksum` bits come from the dice (7 at
+twelve words, 3 at twenty-four) and BIP-39 writes the checksum into
+the rest. The key's last word is therefore the rolled word with its
+low bits replaced, which is how SeedSigner's `calculate_checksum`
+completes a final word the person picked. The "Which last word?"
+Choice, its ids (`CREATE_LAST_WORD_BASE`, `CREATE_LAST_WORD_CONTINUE`)
+and its strings are gone, and the procedure's row says "72 rolls" like
+the others. The pad's bit count stops at the strength, since the
+last group's low bits carry nothing. Vectors are in
+`tools/reference/dice/README.md`: embit's BIP-39, which is what
+`calculate_checksum` calls, over EntropyLab's lookup.
+
+A key made under EntropyLab's or BitBox's own procedure, where the
+person picks candidate `k` of the checksum's list, is the key whose
+last group's high bits are `k`; `111111` gives the first candidate.
+
+**Rejected.** Rolling only the free bits, three rolls of 1–4 and a coin
+at twelve words and a different short sequence at each length, as
+EntropyLab's D++ finishes its last word: fewer rolls, but a sixth kind
+of group a person must learn, and a last word that is not looked up in
+the same table. Keeping the Choice with the rolled word checked: it
+offers back the choice the report was about.
+
+**What moved.**
+
+| What | Was | Is |
+|---|---|---|
+| `Source`, `SOURCE_ROWS`, `MIX_SOURCES` | `opensigner-core/src/create.rs` | `osk_entropy` |
+| The BIP-39 word counts in the order they are listed | `load::COUNTS` | `osk_entropy::WORD_COUNTS` |
+| The Learn pages: `LearnPage`, `LearnSection`, the 27 pages, `learn_pages()` | `strings/en.rs` | `core/osk-learn`: `Page`, `Section`, `Learn`, `EN`, `Learn::pages()`, `PAGES` |
+| The start-up self-test | `opensigner-core/src/selftest.rs` | `core/osk-selftest` |
+| Argon2id, three copies | `oskb.rs`, `kdbx.rs`, `osk-keep` | `osk_backup::argon2id` |
+| `hashes`, `Hashes` | `tools.rs` | `osk_bip::hashes` |
+| `checksum_facts`, `ChecksumFacts` | `tools.rs` | `osk_bip::descriptor` |
+| A descriptor's script type and its origins' fingerprints | `inspect.rs`, through `osk_ui::descriptor::tokens` | `osk_bip::descriptor::{script_type, origin_fingerprints}` |
+| `compile`, `PolicyFacts`, `PolicyScript` | `tools.rs` | `osk_bip::compile` |
+| `key_facts`, `KeyFacts`, `KeyReading`, an xpub's chain | `tools.rs`, `inspect.rs` | `osk_bip::slip132::{key_facts, network_kind}` |
+| `read_input`, `ReadAs` | `tools.rs` | `osk_codec::encodings` |
+| `raw_transaction` | `tools.rs` | `osk_psbt::transaction::wrap_raw` |
+| `hrp` | `tools.rs` | `osk_bip::address::hrp`, made public |
+
+`Source` and the lists are re-exported nowhere: the app names them by
+their `osk_entropy` paths. `COUNTS` is `WORD_COUNTS` because the app
+already has a `dice::WORD_COUNTS` for the diceware passphrase and
+`osk_entropy::COUNTS` would not say what it counts.
+
+What stays in the app is what is typed and what a screen does with it:
+the calculator's field (`tools::Calculator`), `Tool`, Compare
+transactions' state, the Units tool (its `Denomination` is `osk-ui`'s),
+the Learn "Try it" rows and the map from a screen to its page
+(`learn_map.rs`), and the self-test's failure screen.
+
+**The Learn pages.** `osk-learn` is `no_std` with no dependencies: a
+page is a title and its sections, and `Learn::pages()` lists them in
+reading order. `Strings` holds `learn: &'static osk_learn::Learn`, and
+the app reads `s.learn.words` where it read `s.learn_words`.
+`tools/learn/sync.py` reads `core/osk-learn/src/en.rs` and `lib.rs`;
+`docs/learn/` is still where the text is edited. `CLAUDE.md`'s rule
+that every user-facing string is in `strings/en.rs` names the two
+exceptions, the Learn pages and the self-test's check names.
+
+**The self-test.** `osk-selftest` runs the six checks it had and two
+more, scrypt (RFC 7914's first vector, N = 16) and Argon2id (256 KiB,
+two passes, one lane; the answer argon2-cffi and OpenSSL agree on,
+recorded in `tools/vectors/kdf/README.md`). PBKDF2-HMAC-SHA512 was
+already checked by the BIP-39 seed vectors and HMAC-SHA512 by BIP-32.
+The Argon2id check calls `osk_backup::argon2id`, which is now the one
+function the `.oskb` file, the KDBX database and the kept-key blob all
+stretch through; before this there were three copies of it, and the
+kept-key one allocated its memory without `try_reserve`. A cost the
+device cannot spare the memory for is now `None` from
+`osk_keep::challenge`, which already meant "these parameters are not
+usable", rather than an abort.
+
+**Smaller changes.**
+
+- The Encodings tool offers a hex string under `bcrt` on regtest, where
+  it offered `tb`: `osk_bip::address::hrp` is the one the address
+  checks already used.
+- The tests of the moved functions against published vectors moved with
+  them: `core/osk-bip/tests/calculators.rs`,
+  `core/osk-codec/tests/encodings.rs`,
+  `core/osk-psbt/tests/transaction.rs`. The app's tests keep what a
+  person sees.
+- The `psbt_parse` fuzz target compiles again: it built
+  `osk_psbt::Context` without the three fields added since. All ten
+  targets build, and `psbt_parse` ran 60 seconds without a crash.

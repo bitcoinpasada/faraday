@@ -9,7 +9,7 @@
 //! One table, both directions: [`Topic`] names a Learn page, the map
 //! below says which topic a screen is about, and [`Topic::try_it`] says
 //! which flow a page's "Try it" row opens (§16.85). A page's index in
-//! [`Strings::learn_pages`] is looked up from the page itself, so
+//! [`osk_learn::Learn::pages`] is looked up from the page itself, so
 //! neither direction can drift from the order Learn lists them in.
 
 use osk_ui::widgets::Icon;
@@ -19,7 +19,7 @@ use crate::build::{Step as BuildStep, WalletKind};
 use crate::create::Step as CreateStep;
 use crate::load::{Source as LoadSource, Step as LoadStep};
 use crate::sign::{Stage, Step as SignStep};
-use crate::strings::{LearnPage, Strings};
+use crate::strings::Strings;
 use crate::{OpenSigner, Screen, TryIt, WalletRef, Wizard};
 
 use osk_bip::policy::Template;
@@ -91,35 +91,35 @@ impl Topic {
     ];
 
     /// The page itself.
-    pub(crate) fn page(self, s: &'static Strings) -> &'static LearnPage {
+    pub(crate) fn page(self, s: &'static Strings) -> &'static osk_learn::Page {
         match self {
-            Topic::StartHere => &s.learn_start_here,
-            Topic::Words => &s.learn_words,
-            Topic::Devices => &s.learn_devices,
-            Topic::Transactions => &s.learn_transactions,
-            Topic::Randomness => &s.learn_randomness,
-            Topic::WhereRandomness => &s.learn_where_randomness,
-            Topic::Backups => &s.learn_backups,
-            Topic::EncryptedBackups => &s.learn_encrypted_backups,
-            Topic::SeedXor => &s.learn_seed_xor,
-            Topic::Passphrases => &s.learn_passphrases,
-            Topic::Verifying => &s.learn_verifying,
-            Topic::AirGap => &s.learn_air_gap,
-            Topic::Scams => &s.learn_scams,
-            Topic::Multisig => &s.learn_multisig,
-            Topic::SpendPaths => &s.learn_spend_paths,
-            Topic::Xpubs => &s.learn_xpubs,
-            Topic::SecureElement => &s.learn_secure_element,
-            Topic::Inheritance => &s.learn_inheritance,
-            Topic::Nonces => &s.learn_nonces,
-            Topic::Message => &s.learn_message,
-            Topic::Glossary => &s.learn_glossary,
-            Topic::Tools => &s.learn_tools,
-            Topic::WalletKinds => &s.learn_wallet_kinds,
-            Topic::Frost => &s.learn_frost,
-            Topic::OtherBackups => &s.learn_other_backups,
-            Topic::Coordinators => &s.learn_coordinators,
-            Topic::SilentPayments => &s.learn_silent_payments,
+            Topic::StartHere => &s.learn.start_here,
+            Topic::Words => &s.learn.words,
+            Topic::Devices => &s.learn.devices,
+            Topic::Transactions => &s.learn.transactions,
+            Topic::Randomness => &s.learn.randomness,
+            Topic::WhereRandomness => &s.learn.where_randomness,
+            Topic::Backups => &s.learn.backups,
+            Topic::EncryptedBackups => &s.learn.encrypted_backups,
+            Topic::SeedXor => &s.learn.seed_xor,
+            Topic::Passphrases => &s.learn.passphrases,
+            Topic::Verifying => &s.learn.verifying,
+            Topic::AirGap => &s.learn.air_gap,
+            Topic::Scams => &s.learn.scams,
+            Topic::Multisig => &s.learn.multisig,
+            Topic::SpendPaths => &s.learn.spend_paths,
+            Topic::Xpubs => &s.learn.xpubs,
+            Topic::SecureElement => &s.learn.secure_element,
+            Topic::Inheritance => &s.learn.inheritance,
+            Topic::Nonces => &s.learn.nonces,
+            Topic::Message => &s.learn.message,
+            Topic::Glossary => &s.learn.glossary,
+            Topic::Tools => &s.learn.tools,
+            Topic::WalletKinds => &s.learn.wallet_kinds,
+            Topic::Frost => &s.learn.frost,
+            Topic::OtherBackups => &s.learn.other_backups,
+            Topic::Coordinators => &s.learn.coordinators,
+            Topic::SilentPayments => &s.learn.silent_payments,
         }
     }
 
@@ -127,7 +127,8 @@ impl Topic {
     /// pushed with.
     pub(crate) fn index(self, s: &'static Strings) -> usize {
         let page = self.page(s);
-        s.learn_pages()
+        s.learn
+            .pages()
             .iter()
             .position(|p| core::ptr::eq(*p, page))
             .unwrap_or(0)
@@ -274,7 +275,6 @@ impl OpenSigner {
                 CreateStep::Source => page(Topic::Randomness),
                 CreateStep::Procedure
                 | CreateStep::Entropy
-                | CreateStep::LastWord
                 | CreateStep::Camera
                 | CreateStep::Device
                 | CreateStep::MixChoose

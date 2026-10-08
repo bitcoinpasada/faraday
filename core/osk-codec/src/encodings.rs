@@ -162,6 +162,34 @@ pub fn bech32m(hrp: &str, bytes: &[u8]) -> Option<String> {
     bitcoin::bech32::encode::<Bech32m>(hrp, bytes).ok()
 }
 
+/// How text names bytes, where it could be either.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReadAs {
+    /// Hex when every character is a hex digit and there is an even
+    /// number of them, UTF-8 text otherwise.
+    Auto,
+    /// The characters' own bytes, whatever they spell.
+    Text,
+    /// Hex digits, two per byte.
+    Hex,
+}
+
+impl ReadAs {
+    /// The three, in the order a Choice lists them.
+    pub const ALL: [ReadAs; 3] = [ReadAs::Auto, ReadAs::Text, ReadAs::Hex];
+}
+
+/// The bytes `text` names under `read_as`: its hex when that says hex
+/// (or says nothing and the text is hex), its own UTF-8 bytes otherwise.
+/// Text that is not hex, read as hex, is no bytes.
+pub fn read_input(text: &str, read_as: ReadAs) -> Vec<u8> {
+    match read_as {
+        ReadAs::Text => text.as_bytes().to_vec(),
+        ReadAs::Hex => from_hex(text).unwrap_or_default(),
+        ReadAs::Auto => from_hex(text).unwrap_or_else(|| text.as_bytes().to_vec()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -27,7 +27,7 @@ fn typed(app: &mut Faraday, text: &str) {
 
 #[test]
 fn an_lnd_cipher_seed_gives_lnds_node_id() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.press(Action::Lightning);
     assert_eq!(app.screen, Screen::Lightning);
     app.press(Action::LAezeed);
@@ -45,7 +45,7 @@ fn an_lnd_cipher_seed_gives_lnds_node_id() {
 
 #[test]
 fn a_loaded_key_gives_ldk_nodes_node_id() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
     typed(
         &mut app,

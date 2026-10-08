@@ -4,10 +4,8 @@
 mod common;
 
 use common::{ABANDON, Harness, PANEL, PHONE, TINY};
-use opensigner_core::tools::{self, KeyReading, ReadAs, Tool};
+use opensigner_core::tools::{self, Tool};
 use opensigner_core::{ScreenKind, ids, strings};
-use osk_bip::keys::Network;
-use osk_bip::slip132;
 use osk_psbt::Psbt;
 use osk_shell_api::{Event, FileKind};
 use osk_ui::components::{Denomination, denominated};
@@ -20,27 +18,10 @@ const DEMO_PSBT: &[u8] = include_bytes!("../../../tools/vectors/psbt/demo-regtes
 /// `000102030405060708090a0b0c0d0e0f`.
 const VECTOR_1_XPUB: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
 
-/// The same vector's master public key, compressed.
-const VECTOR_1_PUBKEY: &str = "0339a36013301597daef41fbe593a02cc513d0b55527ec2df1050e2e8ff49c85c2";
-
-/// BIP-32 test vector 1: the identifier of that key, which is HASH160
-/// of the public key above. Its first four bytes are the fingerprint
-/// `3442193e` the vector states.
-const VECTOR_1_IDENTIFIER: &str = "3442193e1bb70916e914552172cd4e2dbc9df811";
-
 /// Home › Tools.
 fn open_tools(h: &mut Harness) {
     h.tap(ids::at(ids::HOME_TILE_BASE, 3));
     assert_eq!(h.app.screen(), ScreenKind::Tools);
-}
-
-/// Hex of some bytes, for comparing against a published vector.
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| alloc_hex(*b)).collect()
-}
-
-fn alloc_hex(b: u8) -> String {
-    format!("{b:02x}")
 }
 
 #[test]
@@ -128,128 +109,6 @@ fn verify_a_signed_message_is_a_tool_and_reaches_the_answer() {
     );
 }
 
-/// FIPS 180-4 and BIP-32: the hashes a person compares against a
-/// published value.
-#[test]
-fn the_hashes_match_the_published_vectors() {
-    let abc = tools::hashes(b"abc");
-    assert_eq!(
-        hex(&abc.sha256),
-        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-    );
-    let empty = tools::hashes(b"");
-    assert_eq!(
-        hex(&empty.sha256),
-        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    );
-    assert_eq!(
-        hex(&empty.sha256d),
-        "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456"
-    );
-    let key = tools::read_input(VECTOR_1_PUBKEY, ReadAs::Hex);
-    assert_eq!(hex(&tools::hashes(&key).hash160), VECTOR_1_IDENTIFIER);
-}
-
-/// The mode row decides what the field means: "dead" is four characters
-/// of text or two bytes of hex, and they hash to different things.
-#[test]
-fn the_mode_row_decides_whether_the_field_is_text_or_hex() {
-    let text = tools::read_input("dead", ReadAs::Text);
-    let bytes = tools::read_input("dead", ReadAs::Hex);
-    assert_eq!(text.len(), 4);
-    assert_eq!(bytes, [0xde, 0xad]);
-    // With no mode forced, a string that spells hex is read as hex.
-    assert_eq!(tools::read_input("dead", ReadAs::Auto), bytes);
-    assert_eq!(tools::read_input("dea", ReadAs::Auto).len(), 3);
-}
-
-/// BIP-173 and BIP-350: the strings the standards say are valid and the
-/// ones they say must be rejected.
-#[test]
-fn the_bech32_vectors_are_read_the_way_the_standards_say() {
-    use osk_codec::encodings::{Encoding, read};
-    for valid in [
-        "A12UEL5L",
-        "a12uel5l",
-        "abcdef1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw",
-        "?1ezyfcl",
-    ] {
-        assert_eq!(
-            read(valid).map(|r| r.encoding),
-            Some(Encoding::Bech32),
-            "{valid}"
-        );
-    }
-    for valid in [
-        "A1LQFN3A",
-        "abcdef1l7aum6echk45nj3s0wdvt2fg8x9yrzpqzd3ryx",
-        "?1v759aa",
-    ] {
-        assert_eq!(
-            read(valid).map(|r| r.encoding),
-            Some(Encoding::Bech32m),
-            "{valid}"
-        );
-    }
-    for invalid in [
-        // An empty human-readable part.
-        "1pzry9x0s0muk",
-        // A character outside the data charset.
-        "x1b4n0q5v",
-        // The checksum does not hold.
-        "li1dgmt3",
-        // Mixed case.
-        "A1G7SGD8",
-    ] {
-        assert!(
-            !matches!(
-                read(invalid).map(|r| r.encoding),
-                Some(Encoding::Bech32 | Encoding::Bech32m)
-            ),
-            "{invalid} was read as bech32"
-        );
-    }
-}
-
-/// BIP-380: the checksum of a descriptor, and the verdict on the one it
-/// arrived with.
-#[test]
-fn the_descriptor_checksum_matches_bip_380() {
-    let f = tools::checksum_facts("raw(deadbeef)").expect("a descriptor");
-    assert_eq!(f.with_checksum, "raw(deadbeef)#89f8spxm");
-    assert_eq!(f.given, None);
-
-    let holds = tools::checksum_facts("raw(deadbeef)#89f8spxm").expect("a descriptor");
-    assert_eq!(
-        holds.given.as_ref().map(|(g, ok)| (g.as_str(), *ok)),
-        Some(("89f8spxm", true))
-    );
-
-    // BIP-380's invalid examples: a checksum of the wrong length, and
-    // one whose characters are not the ones this descriptor produces.
-    for wrong in ["raw(deadbeef)#89f8spxmx", "raw(deadbeef)#89f8spxn"] {
-        let f = tools::checksum_facts(wrong).expect("a descriptor");
-        assert_eq!(f.with_checksum, "raw(deadbeef)#89f8spxm");
-        assert!(!f.given.expect("a checksum arrived").1, "{wrong} held");
-    }
-
-    // Only a descriptor this device could derive from is one it offers
-    // to load: a raw script is a descriptor and not a wallet.
-    assert!(
-        tools::checksum_facts("raw(deadbeef)")
-            .expect("a descriptor")
-            .wallet
-            .is_none()
-    );
-    let wpkh = format!("wpkh([3442193e/84h/0h/0h]{VECTOR_1_XPUB}/<0;1>/*)");
-    assert!(
-        tools::checksum_facts(&wpkh)
-            .expect("a descriptor")
-            .wallet
-            .is_some()
-    );
-}
-
 /// The checksum screen states its verdict, the checksum it computed, and
 /// the descriptor it computed it from. A descriptor this device can
 /// derive from carries the row that loads it as a wallet; one it cannot
@@ -307,43 +166,6 @@ fn the_checksum_screen_states_the_verdict_and_the_checksum_it_computed() {
     );
     h.tap(ids::TOOL_LOAD_WALLET);
     assert_ne!(h.app.screen(), ScreenKind::ToolResult, "the review opened");
-}
-
-/// SLIP-132: one key, five spellings, and nothing invented. The key
-/// material is the same in each, so every spelling decodes back to the
-/// key that was typed.
-#[test]
-fn one_key_is_shown_in_every_spelling() {
-    let KeyReading::Public(f) = tools::key_facts(VECTOR_1_XPUB, Network::Mainnet) else {
-        panic!("the BIP-32 vector 1 master key is an extended public key");
-    };
-    assert_eq!(f.bip32, VECTOR_1_XPUB);
-    assert_eq!(f.depth, 0);
-    assert_eq!(f.fingerprint, "3442193e");
-    assert_eq!(f.child, "0");
-    assert_eq!(f.network, Network::Mainnet);
-    let prefixes = ["xpub", "ypub", "zpub", "xpub"];
-    for ((_, spelling), prefix) in f.slip132.iter().zip(prefixes) {
-        assert!(spelling.starts_with(prefix), "{spelling} is not a {prefix}");
-        let (decoded, _) = slip132::decode_xpub(spelling).expect("a key");
-        assert_eq!(
-            hex(&decoded.public_key.serialize()),
-            VECTOR_1_PUBKEY,
-            "{spelling} is another key"
-        );
-    }
-
-    // A private key is refused: the key explorer is where those are
-    // seen.
-    let xprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
-    assert_eq!(
-        tools::key_facts(xprv, Network::Mainnet),
-        KeyReading::Private
-    );
-    assert_eq!(
-        tools::key_facts("nonsense", Network::Mainnet),
-        KeyReading::None
-    );
 }
 
 /// The units at the boundaries: the smallest amount there is, and the
@@ -575,11 +397,6 @@ fn a_raw_transaction_in_hex_is_decoded_too() {
     // The genesis coinbase transaction, which every implementation
     // agrees on.
     const GENESIS: &str = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000";
-    let (wrapper, txid) = tools::raw_transaction(GENESIS.as_bytes()).expect("a transaction");
-    assert_eq!(
-        format!("{txid}"),
-        "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"
-    );
     let mut h = Harness::new(PANEL);
     open_tools(&mut h);
     h.tap(ids::TOOLS_DECODE);
@@ -598,7 +415,6 @@ fn a_raw_transaction_in_hex_is_decoded_too() {
         "the transaction id: {:?}",
         h.app.texts()
     );
-    assert!(!wrapper.is_empty());
 }
 
 /// The mode row above a calculator's field is read, not guessed at: on

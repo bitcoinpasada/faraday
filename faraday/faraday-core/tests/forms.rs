@@ -21,7 +21,7 @@ fn enter(app: &mut Faraday) {
 }
 
 fn adding(form: u8) -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
     app.press(Action::EntryForm(form));
     app

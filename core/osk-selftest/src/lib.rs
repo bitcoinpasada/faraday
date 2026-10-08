@@ -1,15 +1,21 @@
-//! Start-up self-test (`docs/PLANNING.md` §8.5 #5, §12; UX.md §7.1 A3):
-//! a small fixed set of published vectors run before Home is shown. A
-//! failure names the check and blocks the app; the only way out is Exit.
+//! Start-up self-test (`docs/PLANNING.md` §8.5 #5, §12, §16.139; UX.md
+//! §7.1 A3): a small fixed set of published vectors, run before any key
+//! is accepted. Each check calls the function the product itself calls:
+//! BIP-39 words and seed (PBKDF2-HMAC-SHA512), BIP-32 derivation, a
+//! BIP-84 address, ECDSA and BIP-340 signing, and the two other KDFs,
+//! scrypt and Argon2id. In OpenSigner a failure names the check and
+//! blocks the app; the only way out is Exit.
 //!
 //! The expected values are copied from the vector files the integration
 //! tests use (`tools/vectors/bip39/vectors.json`,
 //! `tools/vectors/bip39/test_JP_BIP39.json`,
 //! `tools/vectors/psbt/rfc6979.txt`, `core/osk-bip/tests/bip32.rs`,
-//! `core/osk-bip/tests/accounts.rs`) and from libsecp256k1's copy of the
-//! BIP-340 vectors; nothing here is retyped. The whole set runs in a few
-//! milliseconds in a release build: one PBKDF2 at 2048 rounds per BIP-39
-//! seed, a handful of EC operations, two signatures.
+//! `core/osk-bip/tests/accounts.rs`, `tools/vectors/kdf/README.md`) and
+//! from libsecp256k1's copy of the BIP-340 vectors; nothing here is
+//! retyped. The whole set runs in a few milliseconds in a release build:
+//! one PBKDF2 at 2048 rounds per BIP-39 seed, a handful of EC
+//! operations, two signatures, an scrypt at N = 16 and an Argon2id over
+//! 256 KiB.
 //!
 //! The curve context these checks use is randomized like every other in
 //! the product (security review M1), from a fixed seed: a self-test has
@@ -17,10 +23,15 @@
 //! cannot change what it computes, which is what the checks are here to
 //! confirm.
 
+#![no_std]
+
+extern crate alloc;
+
 use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::str::FromStr;
 
+use osk_backup::Cost;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, Network, ScriptType};
 use osk_psbt::bitcoin::bip32::{DerivationPath, Xpriv};
@@ -38,7 +49,7 @@ pub struct Check {
 }
 
 /// The checks, in the order they run.
-pub const CHECKS: [Check; 6] = [
+pub const CHECKS: [Check; 8] = [
     Check {
         name: "BIP-39 vector (entropy → words → seed)",
         run: bip39_vector,
@@ -62,6 +73,14 @@ pub const CHECKS: [Check; 6] = [
     Check {
         name: "Schnorr sign and verify (BIP-340)",
         run: schnorr_vector,
+    },
+    Check {
+        name: "scrypt (RFC 7914)",
+        run: scrypt_vector,
+    },
+    Check {
+        name: "Argon2id",
+        run: argon2id_vector,
     },
 ];
 
@@ -269,6 +288,45 @@ fn schnorr_vector() -> bool {
     key == expected_key
         && sig.serialize()[..] == expected[..]
         && secp.verify_schnorr(&sig, &msg, &key).is_ok()
+}
+
+// ----- scrypt: RFC 7914 §12, the first vector -----
+//
+// The KDF of an LND cipher seed (aezeed), at the RFC's own N = 16 rather
+// than aezeed's 32768, so the check costs microseconds.
+
+const SCRYPT_KEY: &str = "77d6576238657b203b19ca42c18a0497f16b4844e3074ae8dfdffa3fede2144\
+    2fcd0069ded0948f8326a753a0fc81f17e8d3e0fb2e0d3628cf35e20c38d18906";
+
+fn scrypt_vector() -> bool {
+    let mut out = [0u8; 64];
+    if osk_crypto::scrypt(b"", b"", 16, 1, 1, &mut out).is_err() {
+        return false;
+    }
+    unhex(SCRYPT_KEY).as_deref() == Some(&out[..])
+}
+
+// ----- Argon2id: the known answer in `tools/vectors/kdf/README.md` -----
+//
+// The KDF of an `osk-backup` file, a KDBX database and the kept-key
+// blob, all three through `osk_backup::argon2id`, at 256 KiB rather than
+// their 64 MiB. The answer is the reference C implementation's
+// (argon2-cffi) and OpenSSL's, which agree.
+
+const ARGON2ID_COST: Cost = Cost {
+    memory_kib: 256,
+    passes: 2,
+    lanes: 1,
+};
+const ARGON2ID_PASSWORD: &[u8] = b"password";
+const ARGON2ID_SALT: &[u8] = b"somesaltsomesalt";
+const ARGON2ID_KEY: &str = "cab746b4621993fdc91ec50787980b414a90a692f0bc68dfe19f9c25b3cba9ec";
+
+fn argon2id_vector() -> bool {
+    let Ok(key) = osk_backup::argon2id(&ARGON2ID_COST, ARGON2ID_PASSWORD, ARGON2ID_SALT) else {
+        return false;
+    };
+    unhex(ARGON2ID_KEY).as_deref() == Some(&key.expose()[..])
 }
 
 fn unhex(s: &str) -> Option<Vec<u8>> {

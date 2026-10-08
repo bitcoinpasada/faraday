@@ -52,12 +52,10 @@ and cryptography come from OpenSigner, with Faraday's interface over them
 26); `docs/OPENSIGNER-PARITY.md` is the plan for the rest of OpenSigner.
 
 What is left, in the order the plan gives (`docs/OPENSIGNER-PARITY.md`
-§3): upstream asks (A1: the New key option lists and the Learn text into
-`core/`; A2: the self-test vectors into `core/`); BIP-39 entry for
-Japanese, Korean and Chinese (on-screen keyboards); a new key made as
-SLIP-39 shares; a silent payments wallet among the session's wallets;
-vanity search; the desktop shell's camera choice; a descriptor scanned
-during Create routed into the flow.
+§3), as of 2026-10-07: only signing silent payment outputs, which waits
+on upstream (BIP-375). The upstream asks and BIP-39 entry for Japanese,
+Korean and Chinese are done (item 52), the start-up self-test (item 53)
+and the silent payments wallet (item 54).
 
 ## Where things are
 
@@ -80,8 +78,12 @@ during Create routed into the flow.
 
 ## Git state
 
-- This is a full clone of `maxmoney21m/opensignerkit`; the remote is named
-  `upstream`. `main` is fast-forwarded to upstream `c418768` (§16.138).
+- The repository was restarted with fresh history (origin is
+  `bitcoinpasada/faraday`); upstream `maxmoney21m/opensignerkit` is the
+  remote `upstream` again (re-added 2026-10-07), with no shared history.
+  Upstream files are synced by applying `git diff <last> upstream/main`
+  (`git apply --3way`, then `git reset` to leave the index alone): last
+  synced to `fa1ae03` (§16.139) on 2026-10-07; before that `c418768`.
 - Faraday's files (`PLAN.md`, `HANDOFF.md`, `docs/VAULT.md`,
   `docs/QR.md`, `docs/FLOWS.md`, `docs/WALLETS.md`, `design/prototype/`) are
   **untracked and uncommitted**. The owner commits.
@@ -1029,7 +1031,415 @@ as possible before the next build.
     mode), on a fresh build: the shell API gained `Wheel`, `ScrollEnd`,
     `Hover` and `HoverEnd`, and the stick shell sends them.
 
+50. [x] 2026-10-07, owner, New key and motion:
+    - Randomness lists its options (`keygen::Way`, `WAYS`) in three
+      groups (`keygen::Group`): "Your own entropy, words verifiable by
+      hand" (Recommended, open, chosen from the start on Dice · Flip
+      mode; also Coin flips and BitBox), "Your entropy, computer
+      generates words" (closed: dice hashed, six as zero, hex, cards,
+      camera, mix) and "Made by this device". For SLIP-39 shares the
+      first group is not shown: shares are the device's work, so nothing
+      there is checkable by hand, and BitBox is not offered.
+      `KWay`/`KGroup` replace `KSource`/`KProc`/`KDiceFlip`.
+    - BitBox (direct selection) rolls the last word too, as upstream
+      §16.139 does it (synced 2026-10-07): six rolls a word, the last
+      included (72 at 12 words, 144 at 24); the key keeps the last rolled
+      word's high bits (7 at 12, 3 at 24) and the checksum replaces the
+      rest (`osk_entropy::DiceRolls::entropy_under`). Faraday's own
+      version, which rolled only those high bits, is gone; it made the
+      same keys. The Rolls card shows each word's rolls over their bits,
+      the 11 bits as its number, and the word, with Guided text on how.
+    - Typed is the default entry everywhere on the desktop; a future Pi
+      shell would want Buttons. The word-list sheet closes on a press
+      outside it.
+    - No cross-fades anywhere (`docs/MOTION.md` §5 item 3.9).
+    - Words show live everywhere, alike in New key and a vault's
+      passphrase dice: a typed roll or flip is taken as it is typed
+      (`KeyGen::entered` records every one, buttons too; "Take these"
+      and `KTake` are gone), the last word shows as soon as every entry
+      is in, and each word is a pill (`Ui::word_pill`) that opens it in
+      its list, with one note (`wordlist::PRESS_A_WORD`) in place of an
+      "In the list" button per word.
+
+51. [x] 2026-10-07, owner: Create a vault shows the bits the unlock
+    cost adds (each preset, and under the choice) and each passphrase's
+    estimated strength, dice bits plus cost bits, with the weakest in the
+    summary panel; a typed passphrase's own bits are not measured
+    (`docs/VAULT.md` §3.1, "The bits shown"). The cost rows are two
+    lines so they fit a narrow column. `tests/vault_passphrase.rs`.
+
+52. [x] 2026-10-07, owner: upstream §16.139 synced (`fa1ae03`, see "Git
+    state"). Faraday now reads `Source`, `SOURCE_ROWS`, `MIX_SOURCES`
+    and `WORD_COUNTS` from `osk_entropy`, the Learn pages from
+    `osk_learn::EN`, and the Tools calculators from `osk_bip`,
+    `osk_codec`; BitBox's last word is upstream's (item 50).
+    Add a key offers all ten BIP-39 lists: Japanese, Korean and both
+    Chinese lists are typed on OpenSigner's kana, jamo, pinyin and 注音
+    keyboards (`osk_ui::widgets::keyboard`), drawn by Faraday, through
+    OpenSigner's own word entry (`opensigner_core::load::LoadWizard`,
+    `forms::word_typer`): keys that lead to no word are off, the words
+    the keys can be are pills, a press takes one. Pinyin also takes the
+    computer's keyboard (letters, then the tone 1 to 5). The keys shrink
+    to fit 768 high with 24 words. `tests/languages.rs`.
+
+53. [x] 2026-10-07, owner: the start-up self-test (`osk_selftest`, the
+    eight checks: BIP-39 English and Japanese, BIP-32, a BIP-84 address,
+    ECDSA, BIP-340, scrypt, Argon2id) runs when the display first
+    arrives, before any input, as OpenSigner runs it. No key is
+    accepted until it has passed (`Faraday::may_load_keys`, and New
+    key's add). A failure replaces every screen with one naming the
+    check, whose only control is Exit; every other press and key does
+    nothing. Settings › About shows the result with Run again. Tests
+    start the app as a shell does (`testkit::started`, a 1280 × 800
+    display) so the self-test has run. `tests/selftest.rs`.
+
+54. [x] 2026-10-07, owner: a silent payments wallet among the session's
+    wallets (upstream §16.113's model, over `WalletPolicy::of_silent`):
+    Silent payments › Address offers "Add as a wallet"; an `osk-silent`
+    record in Files loads as one (`read_wallet` reads it whole); it
+    saves into a vault as its record (it has no descriptor that reads
+    back). `Kind::Silent`; its one key is its slot. Its card shows the
+    key, the `sp1…` address and the labels handed out, and opens its
+    page, the Silent payments flow, where a label shown is a label
+    handed out on the record. A new card, Check a payment, reads a
+    transaction from Files (raw or a finalized PSBT, OpenSigner's
+    `silent::Check`), takes the transactions it spends from out of Files,
+    and names the outputs that pay the wallet, to the address or a
+    label, or says none does, or that it is unsigned, or that its key is
+    not loaded. Without its key the page shows the address and asks for
+    the key. Sending is not built. `tests/silent.rs`.
+
+55. [x] 2026-10-07, owner: the Secure Boot test in real firmware,
+    `faraday/tools/sb-ovmf-check.py` (`just faraday-sb-ovmf`, PLAN.md §8):
+    `faraday-sb` makes test keys from a fixed seed and signs systemd-boot
+    with the db key (`faraday-sb/examples/ovmf_kit.rs`); OVMF in QEMU,
+    in Setup Mode, takes the `.auth` updates (systemd-boot's
+    `secure-boot-enroll` writes them from `loader/keys/auto`), and with
+    Secure Boot enforced runs the signed image and refuses the unsigned
+    one and the signed one altered by one byte, for both the own-keys
+    and the Windows-compatible policy. Passed on this laptop
+    2026-10-07 (edk2-ovmf, systemd-boot 261). Not part of `just`: it
+    boots QEMU ten times.
+
+56. [x] 2026-10-07, owner: interoperability with the major wallets
+    (`docs/INTEROP.md`). `faraday/tools/core-check.py` (not in `just`)
+    runs every test wallet against Bitcoin Core on regtest through
+    Faraday's own flows (`examples/interop.rs`): Core imports the
+    `-bitcoin-core.json`, addresses agree, Core's PSBT is signed and
+    finished by Faraday and accepted, and Core combines two Faraday
+    partial signatures for each multisig; every check passed against
+    Core 31.1.0. `tests/interop.rs` reads files from Sparrow's and
+    BlueWallet's test suites (`tests/vectors/interop/`). Fixed: Coldcard's
+    generic export loaded as BIP-44 legacy and, through
+    `osk_bip::coldcard::parse`, with the account's own fingerprint in place
+    of the master's (upstream fault, an upstream ask);
+    `wallet::coldcard_export` reads it, checking Coldcard's `first`
+    address. `testkit::public_files`. The gaps (`docs/INTEROP.md` §4) wait
+    on the owner's choice of what to build.
+
+57. [x] 2026-10-07, owner: five more themes, Nord, Catppuccin (Mocha),
+    Tokyo Night, Gruvbox and Rosé Pine (Dawn, light) (`docs/MOTION.md`
+    §3.7); Settings › Appearance shows each as a tile in its own colours;
+    kept as `theme=<id>`. `faraday-snapshot WxH KIT OUT themes`.
+    `tests/appearance.rs`.
+
+58. [x] 2026-10-07, owner: the boot logo shows two marks again:
+    Faraday's on the left, OpenSigner's key (upstream's `mark.txt`) on the
+    right, each over its name (`faraday/image/overlay/common/make-logo.py`).
+    Faraday's mark is the owner's choice D, the keyhole shield, in blue
+    (`faraday-mark.txt`; the other candidates and the sheet the owner chose
+    from are in `design/marks/`). The sidebar draws the same grid in
+    place of the shield icon (`Ui::mark`), whole pixels per square, in
+    the theme's accent. Not built into an image yet. Centred on a PC by
+    item 59.
+
+59. [x] 2026-10-07, owner: `docs/INTEROP.md`'s first two gaps, and the
+    logo centred. Create's key slots take Coldcard's, Passport's and
+    Unchained's cosigner key files and the generic export's BIP-48 and
+    BIP-45 accounts (`create::read_keys`, `key_for`: the account the
+    kind needs, SLIP-132 keys made `xpub`/`tpub` by `wallet::plain_xpub`);
+    the slot offers any file with such a key. A wallet reads from a
+    receive and a change descriptor (one per line, or Core's
+    `listdescriptors`, multisig first, else BIP-84, 86, 49, 44), a receive
+    descriptor alone, keys with no derivation (Specter's .json) and a
+    `Receive:` label, each descriptor checked with its checksum before it
+    is made `<0;1>` (`wallet::multipath`). `tests/interop.rs`;
+    `core-check.py` now checks `listdescriptors` against Core. The PC
+    command line gains `fbcon=logo-pos:center`; not yet seen on a built
+    image.
+
+60. [ ] 2026-10-07, owner, IN PROGRESS, paused: the Raspberry Pi build
+    and the small-panel layout. Uncommitted; builds, clippy clean.
+
+    **Pi build (done).** `faraday/faraday.just` gains `faraday-pi-bin`
+    and `faraday-pi-image` (the stick recipes with the root `board`/
+    `panel`, default `pi3` + `waveshare-28dpi`; `faraday/image/overlay/
+    boards/pi3` already existed). Output `out/pi/faraday-pi3-waveshare-
+    28dpi[-dev].img`. `local/remote-build.sh pi [--dev]` builds it on
+    the build machine and pulls back only the image (not `out/pi/`'s Buildroot
+    tree). The build machine now has the armv7 target and `gcc-arm-linux-
+    gnueabihf` (installed through `/etc/sudoers.d/faraday-arm-toolchain`).
+    No Pi image has been built yet: the first run was stopped on purpose
+    until the screens below are done.
+
+    **Small-panel layout (`Faraday::is_compact`).** A display under
+    600 dp wide (the Pi's 480×640 @ 286 dpi is 268 dp) is laid out at its
+    own density, one column, no sidebar; desktop is unchanged and every
+    faraday-core test passed. New files `compact.rs` (Home, the page
+    bar, sheets, the docked keyboard) and `compact_screens.rs` (wallet
+    card, Add a key). Done and looked at on renders:
+    - Home: status card, waiting prompts, the sidebar's places as a
+      2-column grid, Lock and power; scrolls.
+    - Every non-flow page has a bar: back, its name, ?, keyboard button.
+    - Every step flow (`flow::column`, 11 screens) is a page per step:
+      numbered dots to move between steps, controls first, the Guided
+      text under "About this step"; no step open shows the step list.
+    - Create a wallet and New key, every step, fit (`buttons_and_next`,
+      `stepper` in screens.rs). New key starts on the dice buttons on a
+      small panel (`KeyGen::typing`), typed on desktop.
+    - Wallets start page as one column of rows; a wallet's card is its
+      own page (`compact_screens::wallet_card`), silent wallets too.
+    - Add a key: every list (English too) on OpenSigner's word keyboard;
+      space, Tab, Enter and Add key take a word typed whole on a USB
+      keyboard (`forms::take_typed`); a scanned SeedQR still adds.
+    - Docked keyboard: OpenSigner's `KeyboardKind::Passphrase` (Path on
+      Explore) at the panel's foot whenever a focused field takes typing
+      (vault passphrases, BIP-39 passphrase, rename, message, SLIP-39/
+      codex32, vanity prefix, the potential sheet); offered from the bar
+      on Explore, BIP-85, Tools, Catalog, Lightning (`compact::Osk`).
+    - Sheets: lock, write-out, idle, lock-ask, locked, network, power,
+      secret, potential, new input, QR (format/speed/size as stepping
+      buttons), scan, Learn, word list; a sheet taller than the panel
+      scrolls (`sheet_scroll`).
+    - Sign a transaction: paged steps, with the signatures and the main
+      button fixed at the foot (`spend_bar`, shares `spend_status` with
+      the desktop panel).
+    - `faraday-snapshot` takes `WxH[@DPI]` and a `compact` tour;
+      `just faraday-snap 480x640` and `faraday-snapshots` render the
+      panel sizes at their real density.
+
+    **Left to do**, seen on `faraday-snapshot 480x640@286` (full tour):
+    1. Sign a transaction's step bodies (`step_body`): the Transaction
+       table's columns, the Signers rows (fingerprint, label and
+       chip/button overlap), Finish's two cards side by side.
+    2. Decode a transaction, Check a message (desktop layout).
+    3. Backup flow: its side panel (`backup_panel`) covers the steps.
+    4. Restore: the sources step overflows.
+    5. Spend tab (`family_screen`): mostly fits; shot 25 "spend-loaded"
+       is still the desktop page.
+    6. Vaults: list, Unlock, an open vault's contents (tabs and entries),
+       Create vault (its summary panel covers the steps), the create
+       vault saved/public steps' rows.
+    7. Files and Stick visit (desktop layout, overlapping text).
+    8. Tools (Catalog grid), Tools calculators, Lightning, Explore,
+       Settings and About.
+    9. Tests for what a person sees on a small panel (Home offers each
+       place in view; Create with a dice key reaches Make the wallet;
+       the keyboard comes up on a passphrase field), then `just`.
+    10. Then build the Pi image (`local/remote-build.sh pi`) and try it
+        on the Pi 3 and panel.
+
+    Owner's open calls on the layout (asked, not answered): Guided text
+    under the controls vs behind a tap; the order of Home's buttons; two
+    lines per word in New key's "Words so far".
+
+61. [x] 2026-10-07, owner's batch of seventeen (desktop):
+    1. Nord is the theme a first start is in (`Theme`'s default).
+    2. About ends with "Visit nakamotoinstitute.org to learn about
+       Bitcoin’s history, economics, and technology. Not affiliated."
+       The curly apostrophe is baked since 2026-10-07, with ‘ “ ” – —
+       (`SYMBOLS` in `tools/fontbake/src/main.rs`, `just fonts`).
+    3. Every sheet closes on a press beside it, as its own way out does
+       (`Ui::outside`, set per sheet in `screens::draw`; `sheet_box` and
+       `compact::sheet` take it): Cancel for most, Not now for the stick
+       lock, Ignore for a new input device; the word list keeps its own,
+       the idle warning closes on any input as before. `tests/outside.rs`.
+    4–5. Home's tiles read **Vaults** (now to the Vaults tab, not
+       straight into Create a vault) and **Wallets**.
+    6. Create's Keys step: New key on the first empty slot is the
+       primary button, Continue only once every slot is filled.
+    7. Randomness, first group: Dice · Words chosen by the dice (the
+       default now; "(BitBox)" dropped in Faraday's `procedure_name`),
+       then Dice · Flip mode, then Coin flips (`WAYS` order). "Made by
+       this device" opens and closes like the others and starts closed
+       (`groups_open[2]`).
+    8. Words chosen by the dice stop at the last word's kept bits:
+       `KeyGen::dice_needed`/`rolls_for`, six rolls a word and
+       ⌈kept/2⌉ for the last (70 at 12 words, 140 at 24); the checksum
+       word shows on the last roll. `KeyGen::dice_entropy` fills the
+       unrolled faces with zero bits before `osk_entropy`'s
+       `entropy_under`, which is unchanged (upstream §16.139 still
+       rolls 72); same keys. The Learn page says a device may stop at 70.
+       `tests/keygen.rs`.
+    9. The overlay scrollbar is 6 wide, shows while the pointer is over
+       the region's right edge, and is held and dragged by pointer or
+       finger (`ui::BarGeometry`, `BAR_GRAB`, `Faraday::bar_at`,
+       `bar_drag`; `docs/MOTION.md` §3.8). `tests/scroll.rs`.
+    10. Carets blink (`Ui::caret`, `caret_char`, 530 ms halves, steady
+        with reduce motion). `tests/caret.rs`.
+    11. Vaults are named in Create's last step, now "Name and
+        passphrases"; the file is `vaults::vault_stem` + `.ofv`,
+        numbered when taken, `vault.ofv` when left empty (`docs/VAULT.md`
+        §6, `PLAN.md` §12.1 reversed). `tests/vault_name.rs`.
+    12. A vault in the Outbox is no longer offered as a QR code (no vault
+        fits the envelope's 256 KiB; `qr_fits`), so the "Cannot make a
+        code" toast is gone.
+    13. The Outbox group reads "Written sealed · Sealed under their
+        passphrases before they reach a stick".
+    14. The Vaults list's open vault: **View contents** and **Lock**
+        (`LockAsk`, which locks the session: every open vault).
+    15. Steps only is the default and on the left, Guided on the right;
+        one setting for every flow, kept as before.
+    16. The in-app mark is drawn as smooth outlines (`Ui::mark`, the
+        shield and keyhole at the grid's proportions, `Canvas::
+        fill_contours` added to osk-ui); the boot logo keeps the grid.
+    17. The sidebar's "N vault(s) open" opens Vault contents, whose Lock
+        is now the primary button.
+
+62. [x] 2026-10-07, owner: **settings on the stick.** Settings survive a
+    lock (the `kept` set in `/run/faraday`, `memory.rs` `kept` and
+    `restore_kept`) but not a power-off; `PLAN.md` §5.2 lists settings
+    in the Outbox and nothing writes them. Build that.
+    1. **The file.** `faraday-settings.txt` on a stick's data partition,
+       plain text, because the theme and scale are wanted on the
+       passphrase screen and the keyboard layout (FLOWS' Settings line;
+       not built yet, and it goes in this file when it is) is needed to
+       type the passphrase, so it cannot be inside a vault. First line
+       `faraday-settings 1`, then the `key=value` lines `kept` already
+       writes: `scale`, `theme`, `motion`, `guided`, `qr-ms`,
+       `idle-lock`, `idle-off`. One function writes both the `kept`
+       text and the file's body.
+    2. **Not in the file:** `seal-amounts`, and the network. A stick's
+       data partition is not covered by Secure Boot, so the file is the
+       one thing someone with the stick can change while the signed
+       kernel stays the same. Nothing read from it may make a fresh
+       boot less protected than the defaults: the signed-amount memory
+       is sealed unless turned off on the device in this session, and
+       every session starts on the network it starts on now.
+    3. **Reading.** At boot, from the boot stick only, by the same path
+       that brings the boot stick's `.ofv` files into the Inbox
+       (`lib.rs`, "The boot stick's vaults come into the Inbox by
+       themselves"), and applied before the passphrase prompt. The file
+       is untrusted input (`PLAN.md` §4.4 gains a line): over 4 KiB or
+       a first line other than `faraday-settings 1` and it is ignored
+       whole; otherwise each line is taken only if its key is known and
+       its value is one Settings itself offers (`scale` 50 to 300,
+       `theme` a `Theme::from_id`, `qr-ms` in `QR_SPEEDS`, `idle-lock`
+       in 2, 5, 10, 30 and `idle-off` in 10, 20, 30, 60, so **never**
+       (0) is not read from a file and is chosen on the device each
+       session), and any other line is skipped. `restore_kept`'s
+       `idle-lock` and `idle-off` take any number today; the file's
+       reader checks the lists, and `restore_kept` may share it. The
+       file is not an Inbox item and is not shown in Files.
+    4. **Writing.** A stick visit lists one more row, **Settings**,
+       for `faraday-settings.txt`: ticked on the boot stick when the
+       settings differ from what was read from it at boot (or from the
+       defaults when it had no file), unticked on any other stick,
+       where the file would say Faraday was used. Written the way the
+       disk process writes everything: a new file, read back, compared,
+       renamed over the old one.
+    5. Desktop shell: the same, with the test stick's folder as the
+       boot stick. The test kit writes no settings file.
+    6. Docs: `PLAN.md` §5.2 (settings are this file, not an Outbox
+       item) and §4.4, `docs/FLOWS.md`'s Settings line and the stick
+       visit, and the README's "Stateless" list once built (it now says
+       settings are lost at power-off).
+    Tests, a new `tests/settings_file.rs`: a boot stick with the file
+    starts in its theme and scale before the passphrase; a bad value,
+    an unknown key, `idle-lock=0` and `seal-amounts=0` change nothing;
+    an oversized file or a wrong first line changes nothing; a setting
+    changed here ticks the Settings row on the boot stick and the write
+    reads back as the settings now; another stick's row is unticked.
+    **Built** as specified: `faraday-core/src/stick_settings.rs` (the
+    file's text, the strict per-line reader shared with the kept set,
+    the boot-stick read, the visit row's default), `kept` carries
+    `stick-settings` (what the boot stick holds) so a later process
+    neither reads the file again nor loses what to compare;
+    `faraday_files::write_settings` writes over the old file, chosen in
+    `write_any` by name and first line, so the disk process and the
+    desktop's folders both do it. The idle choices Settings offers are
+    `stick_settings::IDLE_LOCK_CHOICES`/`IDLE_OFF_CHOICES`, which the
+    Settings screen now draws from. The desktop's TESTSTICK is reported
+    as the boot stick, so plugging it in now also reads its vaults into
+    the Inbox and leaves Home on screen, as the device does. Tests:
+    `faraday-core/tests/settings_file.rs`,
+    `faraday-storage/tests/settings_write.rs`. Not yet on a device.
+
+63. [ ] 2026-10-07, owner: **kernel hardening**, from an audit of the
+    `.config` of that day's x86 stick build (Linux 6.6.84,
+    `out/pi/x86_64-uefi-efi-framebuffer/output/build/linux-custom/.config`)
+    against the Kernel Self Protection Project's list. The findings, with
+    a reason for each option, are in `local/upstream-kernel-hardening.md`.
+    **The owner gave that file to the OpenSigner developer** and is
+    waiting for upstream's changes. Most of it is upstream's x86 fragment,
+    which Faraday's is a copy of.
+    - **Order.** When upstream's changes land, merge them (`just
+      upstream-diff` lists them) and carry them into Faraday's copies under
+      `faraday/image/overlay/boards/`. What upstream does not take, or that
+      is Faraday's alone (the disk process, the grant helper, the clean
+      marker), Faraday does in its overlay. Ask the owner before starting
+      the Faraday-only part ahead of upstream.
+    - **What it covers** (the file's sections):
+      1. To `kernel.forbidden`, after an `strace -f` of a full session in
+         the dev image under QEMU confirms nothing uses them: `IO_URING`,
+         `AIO`, `SYSVIPC`, `KEYS`, `IA32_EMULATION`,
+         `MODIFY_LDT_SYSCALL`, `X86_16BIT`, `X86_IOPL_IOPERM`,
+         `BINFMT_MISC`, `CROSS_MEMORY_ATTACH`, `KCMP`, `LEGACY_TIOCSTI`,
+         `CRASH_DUMP`, `DEVPORT`, `GPIO_CDEV`, `HIDRAW`, `USB_HIDDEV`;
+         `LEGACY_VSYSCALL_NONE` in place of `_XONLY`. `PERF_EVENTS` is
+         selected by x86 and stays there.
+      2. `x86_64_defconfig` leftovers, to `kernel.forbidden`: `VIRTIO*`
+         (including `VIRTIO_BLK`, a block driver: check that
+         `sb-ovmf-check.py`, which attaches the image `if=virtio`, still
+         passes; only the firmware reads that disk), `BLK_DEV_SR` and
+         `CDROM`, the vendor HID drivers and `HID_PID` (keep
+         `HID_GENERIC` and `HID_MULTITOUCH`; `HID_APPLE` only if Mac
+         keyboards are wanted), `HOTPLUG_PCI`, `ACPI_TABLE_UPGRADE`,
+         `EFI_CUSTOM_SSDT_OVERLAYS`, `EFI_RUNTIME_MAP`.
+      3. To `kernel.required`: `HARDENED_USERCOPY`, `FORTIFY_SOURCE`,
+         `SLAB_FREELIST_HARDENED`, `SLAB_FREELIST_RANDOM`,
+         `SHUFFLE_PAGE_ALLOCATOR`, `RANDOM_KMALLOC_CACHES`,
+         `LIST_HARDENED`, `BUG_ON_DATA_CORRUPTION`,
+         `SCHED_STACK_END_CHECK`, `RANDOMIZE_KSTACK_OFFSET_DEFAULT`,
+         `ZERO_CALL_USED_REGS`, `PANIC_ON_OOPS`,
+         `SECURITY_DMESG_RESTRICT`, `INIT_ON_ALLOC_DEFAULT_ON`,
+         `INIT_ON_FREE_DEFAULT_ON` (the Pi's `cmdline.txt` is on the
+         card and anyone holding it can edit it); `SLAB_MERGE_DEFAULT`
+         to `kernel.forbidden`.
+      4. `SECURITY_YAMA` with `kernel.yama.ptrace_scope=3` set in `rcS`;
+         `SECURITY_LOCKDOWN_LSM` forced to confidentiality;
+         `SECURITY_LANDLOCK`, with a Landlock ruleset in the app and in
+         `faraday-disk` (not the grant helper: §12 decision 8). Seccomp
+         is not available, because it needs `NET`. The app calls
+         `prctl(PR_SET_DUMPABLE, 0)` at start-up.
+      5. Command line: `efi=disable_early_pci_dma` on x86. `rcS`: set
+         `kernel.kptr_restrict=2`; mount `/proc` with
+         `hidepid=invisible`; mount `/proc`, `/sys` and `/run` with
+         `nosuid,nodev,noexec`, and `/dev` with `nosuid,noexec`.
+    - **Tests:** the existing QEMU checks (`tools/stick-qemu.py`,
+      `disk-test.py`, `sb-ovmf-check.py`) and one boot on the Dell
+      (keyboard, touchpad, webcam, stick, power-off). The Pi boards'
+      `.config` gets the same audit at their first build.
+    - **README.** The owner's draft of the new README, with the security
+      model, the comparison with amnesiac live systems and "a live
+      system with networking compiled out", is
+      `local/README-draft.md`. **It is not published until upstream's
+      hardening has landed and been merged here**, and then the owner
+      adds the discussion to it. Until then the draft states two things
+      the build does not yet make true: that the only storage the
+      kernel sees is USB (and the Pi's card), and that nothing but the
+      listed USB classes has a driver (`VIRTIO_BLK`, `BLK_DEV_SR`).
+    - Also found while drafting the README, for when this is picked up:
+      `PLAN.md` §4.1 says init is the only root process after boot, but
+      the app loop's shell (`inittab`) and the disk process's restart
+      loop (`rcS`) are root too. Neither reads input. And `PLAN.md` §3
+      says the Pi board turns on `USB_STORAGE`, `SCSI` and `HID`, but
+      `boards/pi3/kernel.forbidden` still forbids them; the owner has
+      not yet decided which is right.
+
 ## Next steps
+
+0. Finish item 60 (the small panel), its list "Left to do" in order.
 
 1. Build when the owner asks (commands under "Where we stopped"), and have
    the owner check scrolling, the PDFs and the scan sheet on the Dell.
@@ -1037,9 +1447,15 @@ as possible before the next build.
 3. The design canvas (`design/prototype/`) has not been republished
    since 2026-10-04 and no longer matches the app; the app is the
    reference now.
-4. For later (owner, 2026-10-06): check interoperability against major
-   external wallets' backup and export files — at least Sparrow, Nunchuk,
-   BlueWallet, Coldcard and Trezor.
+4. The owner chooses which of `docs/INTEROP.md` §4's remaining gaps to
+   build. At the next image build, check the boot logo is centred
+   (`qemu-check.py`'s photograph).
+5. The desktop QR transfer companion is not built (nor the QR transfer
+   tab, `docs/FLOWS.md`); options are with the owner.
+6. Hiding a vault (owner's proposal, 2026-10-07: a vault inside one JPEG
+   among many) is under discussion; nothing decided.
+8. Item 63, kernel hardening: waiting for upstream's changes; the new
+   README (`local/README-draft.md`) waits with it.
 
 ## Build machine
 

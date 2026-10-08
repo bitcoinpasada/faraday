@@ -182,14 +182,13 @@ extent; a motion left from another screen or sheet is stopped.
   the last frame's hits, like `pressed`; a frame is drawn only when the
   hovered action changes.
 - **Motion** (all time-based, all under a reduce-motion setting later):
-  - a sheet's scrim fades in over 160 ms and the sheet rises 12 units
-    while fading in;
+  - a sheet and its scrim appear at once (cross-fades removed
+    2026-10-07, §5 item 3.9);
   - a toast rises and fades in over 160 ms;
   - a step card opens with its height growing over 180 ms (ease-out
     cubic), and the jump that brings the open card into view
     (`Scroll::follow`) is a glide;
-  - changing screen crossfades over 140 ms (the old frame kept and
-    blended out over the new one);
+  - changing screen shows the new one at once;
   - the Guided / Steps only switch's pill slides between its options.
 - **Depth**: soft shadows only under what floats (sheets, toasts, the
   network menu), pre-blurred once per radius and blur and drawn as nine
@@ -233,6 +232,35 @@ extent; a motion left from another screen or sheet is stopped.
 | OK | `#8bd4b2` | `#1d8556` |
 | WARN | `#f0c077` | `#9a5d00` |
 | ERR | `#ef9b9b` | `#bf3434` |
+
+### 3.7 Named themes (2026-10-07)
+
+Five more palettes beside Dark and Light, each a published theme mapped
+onto the same fourteen names (`ui::pal::NORD`, `CATPPUCCIN`,
+`TOKYO_NIGHT`, `GRUVBOX`, `ROSE_PINE`): Nord, Catppuccin Mocha, Tokyo
+Night, Gruvbox dark and Rosé Pine Dawn. Where a theme's own red, gold or
+green reads under 4.5:1 on its cards it is lightened or darkened until it
+does (Nord's and Gruvbox's red, Rosé Pine's love, gold and a green it
+lacks). Rosé Pine and Light are light themes (`Theme::is_light`), with
+the lighter shadow. Settings › Appearance shows each as a tile drawn in
+its own colours (`Ui::theme_tile`); the theme is kept as `theme=<id>`.
+`faraday-snapshot WxH KIT OUT themes` renders three screens in each.
+Nord is the theme a first start is in (owner, 2026-10-07; `Theme`'s
+default).
+
+### 3.8 The caret and the scrollbar (2026-10-07)
+
+- The caret of the field typing goes to blinks: on 530 ms, off 530 ms
+  (`motion::CARET_HALF_MS`), back on at every key or press; steady with
+  reduce motion. `Ui::caret` and `Ui::caret_char` draw it; a frame is
+  asked for only when a caret was drawn and its half changes.
+- The overlay scrollbar is 6 units wide and can be held: a press within
+  16 units of a scrolled region's right edge (`ui::BAR_GRAB`) takes it,
+  on the thumb from where it was taken, elsewhere on the track with the
+  thumb's middle brought to the press, and the page follows the pointer
+  or finger until it lifts. With the pointer over that edge the bar
+  shows in full. `ui::BarGeometry` is where both drawing and holding
+  find it.
 
 ## 4. Tests
 
@@ -302,10 +330,9 @@ Phase 3 — appearance:
 - [x] 3.2 Hover looks (§3.5): buttons draw their own; every other hit
       area gets a faint wash from `Ui::hit`. A frame only when what is
       under the pointer changes.
-- [x] 3.3 Sheet, toast and scrim motion: any change of screen or sheet
-      cross-fades 150 ms from the frame before (`Canvas::snapshot`,
-      `Canvas::blend_from`), which fades a sheet's scrim in and out; a
-      sheet opening also rises 12 units; a toast rises in and fades out.
+- [x] 3.3 Sheet, toast and scrim motion: a toast rises in and fades
+      out. The cross-fade on a change of screen or sheet, and a sheet's
+      rise, were removed by item 3.9.
       `Faraday::settle` brings everything to rest for the snapshot tool,
       whose pictures match the last commit's but for 1 px snapping.
 - [x] 3.4 Card disclosure height animation and gliding follow: the
@@ -315,9 +342,8 @@ Phase 3 — appearance:
       (`Ui::reveal`). The follow glides (`Ui::follow_to`). Motion belongs
       to the scrolling region (`Faraday::region_key`), so a sheet that
       does not scroll leaves what moves under it moving.
-- [x] 3.5 Screen crossfade (done with 3.3); Guided switch slide, with
-      the page cross-fading as its walk-through comes or goes; changing
-      theme cross-fades too (`Faraday::fade_next`).
+- [x] 3.5 Guided switch slide. The page and a theme change no longer
+      cross-fade (item 3.9).
 - [x] 3.6 Shadows under floating things (`Canvas::shadow`, worked out
       per pixel from the distance to the shape, so nothing is cached):
       sheets, the toast, the stick banner. Instead of a hairline, the
@@ -330,7 +356,11 @@ Phase 3 — appearance:
       copy stands for it.
 - [x] 3.8 Reduce motion in Settings (Motion: Full, Reduced), kept
       across a lock: nothing glides, coasts, stretches, grows, rises or
-      slides; changes still cross-fade, as a dissolve is not movement.
+      slides.
+- [x] 3.9 No cross-fades (owner, 2026-10-07: they did not look smooth
+      enough). A change of screen, sheet, Guided or theme is drawn at
+      once; a sheet no longer rises. `Canvas::blend_from` is left in
+      `osk-ui`, unused here.
 
 ## 6. After (measured 2026-10-07)
 
@@ -349,9 +379,8 @@ Same harness and machine as §2, release profile.
   into the kept frosted copy, so a sheet's frames pay neither.
 - `osk-ui` at opt-level 3 in release changed none of these numbers, as
   upstream found (`Cargo.toml`), so the profile is as it was.
-- The frame a sheet opens on costs two frames at 1080p, once; it is the
-  first frame of the cross-fade, which still shows mostly the screen
-  before. Frosting by a coarser reduction would be cheaper still.
+- The frame a sheet opens on costs two frames at 1080p, once.
+  Frosting by a coarser reduction would be cheaper still.
 - Not measured here: the framebuffer write on the stick (`--timings`
   on the Dell says how long a frame's `pwrite` takes).
 

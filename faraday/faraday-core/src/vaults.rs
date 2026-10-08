@@ -72,6 +72,16 @@ pub fn dice_aim(list: osk_bip::diceware::List) -> String {
     )
 }
 
+/// The bits an unlock cost adds to every passphrase (`docs/VAULT.md`
+/// §3.1): one guess is memory × passes of Argon2id's 1 KiB block steps,
+/// and the cost adds the base-2 logarithm of that count. Doubling the
+/// memory or the passes adds one bit. An estimate, shown with ≈: it
+/// counts work, and leaves out how much harder memory is than time for
+/// an attacker's hardware.
+pub fn cost_bits(memory_mib: u32, passes: u32) -> f32 {
+    (f64::from(memory_mib) * 1024.0 * f64::from(passes)).log2() as f32
+}
+
 /// How long "Hold to delete" is held before it deletes, in ms.
 pub const HOLD_MS: u64 = 1200;
 
@@ -136,6 +146,8 @@ pub enum VaultAction {
     CRemovePhrase(usize),
     /// Type into passphrase n, its first or second field.
     CFocus(usize, bool),
+    /// Type the vault's name.
+    CName,
     /// Show or hide every passphrase being typed.
     CShow,
     /// Make the vault.
@@ -299,6 +311,8 @@ pub enum Focus {
     Dice,
     /// The prompt.
     Prompt,
+    /// Create's name for the vault.
+    Name,
 }
 
 /// One vault file the Inbox or Outbox holds.
@@ -405,8 +419,13 @@ pub struct CreateForm {
     pub passes: u32,
     /// The slot size.
     pub slot: u32,
+    /// The vault's name, which its file is named after.
+    pub name: TextBox,
     /// Each passphrase, typed twice.
     pub phrases: Vec<(TextBox, TextBox)>,
+    /// For each passphrase the dice made, what they made and its bits:
+    /// its strength holds while the field still holds those words.
+    pub from_dice: Vec<Option<(zeroize::Zeroizing<String>, f32)>>,
     /// The passphrases are shown in the clear, not masked: a person
     /// cannot accept one on faith, only on seeing it.
     pub shown: bool,
@@ -425,7 +444,9 @@ impl Default for CreateForm {
             memory: 512,
             passes: 3,
             slot: fv::DEFAULT_SLOT,
+            name: TextBox::default(),
             phrases: vec![(TextBox::default(), TextBox::default())],
+            from_dice: vec![None],
             shown: false,
             error: None,
         }
@@ -625,6 +646,14 @@ impl Vaults {
     pub fn phrase_ok(c: &CreateForm, i: usize) -> bool {
         let (a, b) = &c.phrases[i];
         !a.text.is_empty() && *a.text == *b.text
+    }
+
+    /// Passphrase `i`'s own bits, known only while it is the words the
+    /// dice made: a typed passphrase's strength is not measured.
+    pub fn phrase_bits(c: &CreateForm, i: usize) -> Option<f32> {
+        let (made, bits) = c.from_dice.get(i)?.as_ref()?;
+        let (a, b) = c.phrases.get(i)?;
+        (**made == *a.text && **made == *b.text).then_some(*bits)
     }
 }
 
@@ -923,6 +952,7 @@ impl Faraday {
                     && c.phrases.len() < fv::SLOTS
                 {
                     c.phrases.push((TextBox::default(), TextBox::default()));
+                    c.from_dice.push(None);
                     self.vaults.focus = Some(Focus::Phrase(c.phrases.len() - 1, false));
                 }
             }
@@ -932,12 +962,16 @@ impl Faraday {
                     && i < c.phrases.len()
                 {
                     c.phrases.remove(i);
+                    if i < c.from_dice.len() {
+                        c.from_dice.remove(i);
+                    }
                     self.vaults.focus = None;
                 }
             }
             V::CFocus(i, second) => {
                 self.vaults.focus = self.may_load_keys().then_some(Focus::Phrase(i, second));
             }
+            V::CName => self.vaults.focus = Some(Focus::Name),
             V::CShow => {
                 if let Some(c) = self.vaults.create.as_mut() {
                     c.shown = !c.shown;
@@ -1077,6 +1111,10 @@ impl Faraday {
                         let phrase = Zeroizing::new(words.join(""));
                         a.set(&phrase);
                         b.set(&phrase);
+                        let bits = words.len() as f32 * list.bits_per_word();
+                        if let Some(d) = c.from_dice.get_mut(i) {
+                            *d = Some((phrase, bits));
+                        }
                     }
                     self.vaults.focus = None;
                 }
@@ -2046,9 +2084,12 @@ impl Faraday {
         let Some(w) = self.session.wallets.get(k) else {
             return;
         };
-        let text = match w.policy.record() {
-            Some(r) => r.to_text(),
-            None => w.policy.to_descriptor_checksummed(),
+        // A threshold wallet and a silent payments wallet are their
+        // records: neither has a descriptor that reads back as it.
+        let text = match (w.policy.record(), w.policy.silent()) {
+            (Some(r), _) => r.to_text(),
+            (None, Some(s)) => s.to_text(),
+            (None, None) => w.policy.to_descriptor_checksummed(),
         };
         let record = Record::new(kind::WALLET)
             .with(field::WALLET, text.as_bytes())
@@ -2145,7 +2186,7 @@ impl Faraday {
         let made = fv::create(c.slot, cost, &phrases, &contents, &seed);
         match made {
             Ok(file) => {
-                let name = self.free_vault_name();
+                let name = self.free_vault_name(&vault_stem(&c.name.text));
                 self.put_outbox(&name, file);
                 self.vaults.just_made = Some(name);
                 self.vaults.create = None;
@@ -2161,21 +2202,22 @@ impl Faraday {
         }
     }
 
-    /// `vault.ofv`, or the first `vault-n.ofv` no box holds.
-    fn free_vault_name(&self) -> String {
+    /// `stem.ofv`, or the first `stem-n.ofv` no box holds.
+    pub(crate) fn free_vault_name(&self, stem: &str) -> String {
         let taken = |n: &str| {
             self.outbox
                 .iter()
                 .chain(self.inbox.iter())
-                .any(|i| i.name == n)
+                .any(|i| i.name.eq_ignore_ascii_case(n))
         };
-        if !taken("vault.ofv") {
-            return "vault.ofv".to_string();
+        let first = format!("{stem}.ofv");
+        if !taken(&first) {
+            return first;
         }
         (2..100)
-            .map(|n| format!("vault-{n}.ofv"))
+            .map(|n| format!("{stem}-{n}.ofv"))
             .find(|n| !taken(n))
-            .unwrap_or_else(|| "vault-100.ofv".to_string())
+            .unwrap_or_else(|| format!("{stem}-100.ofv"))
     }
 
     /// Seals every open vault with changes into the Outbox (`PLAN.md`
@@ -2302,6 +2344,9 @@ impl Faraday {
                         self.vault_act(VaultAction::Unlock);
                     }
                 }
+                Focus::Name => {
+                    self.vaults.focus = self.may_load_keys().then_some(Focus::Phrase(0, false));
+                }
                 Focus::Phrase(i, second) => {
                     let n = self.vaults.create.as_ref().map_or(0, |c| c.phrases.len());
                     self.vaults.focus = if !second {
@@ -2383,7 +2428,34 @@ impl Faraday {
                 .map(|f| &mut f.2),
             Focus::Dice => self.vaults.dice.as_mut().map(|d| &mut d.1),
             Focus::Prompt => self.vaults.prompt.as_mut().map(|p| &mut p.text),
+            Focus::Name => self.vaults.create.as_mut().map(|c| &mut c.name),
         }
+    }
+}
+
+/// Longest name a vault's file takes, before `.ofv`.
+pub const NAME_MAX: usize = 40;
+
+/// The file name, less `.ofv`, a vault named `typed` is written under:
+/// letters, digits, hyphens and underscores, spaces made hyphens,
+/// anything else left out; `vault` when that leaves nothing.
+pub fn vault_stem(typed: &str) -> String {
+    let mut out = String::new();
+    for c in typed.trim().chars() {
+        if out.chars().count() >= NAME_MAX {
+            break;
+        }
+        if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+            out.push(c);
+        } else if c.is_whitespace() && !out.ends_with('-') {
+            out.push('-');
+        }
+    }
+    let out = out.trim_matches('-');
+    if out.is_empty() {
+        "vault".to_string()
+    } else {
+        out.to_string()
     }
 }
 

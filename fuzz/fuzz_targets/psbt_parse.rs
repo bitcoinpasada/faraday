@@ -34,6 +34,9 @@ fn run(psbt: &Psbt) {
         network: Network::Testnet,
         keys: &[],
         wallets: &[],
+        musig_session: None,
+        shares: &[],
+        carry: None,
     };
     let _ = inspect(psbt, &empty);
 
@@ -42,6 +45,9 @@ fn run(psbt: &Psbt) {
         network: Network::Testnet,
         keys,
         wallets: &[],
+        musig_session: None,
+        shares: &[],
+        carry: None,
     };
     let _ = inspect(psbt, &loaded);
 }

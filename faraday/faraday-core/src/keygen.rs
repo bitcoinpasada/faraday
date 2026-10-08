@@ -21,16 +21,16 @@ use osk_entropy::{
     Warnings,
 };
 
-pub use opensigner_core::create::{MIX_SOURCES, SOURCE_ROWS, Source};
 pub use opensigner_core::quiz::QuizState;
 use opensigner_core::strings::EN;
+pub use osk_entropy::{MIX_SOURCES, SOURCE_ROWS, Source};
 
 use osk_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 
 use crate::{Screen, flow};
 
 /// The word counts on offer, in OpenSigner's order.
-pub const COUNTS: [u8; 5] = opensigner_core::load::COUNTS;
+pub const COUNTS: [u8; 5] = osk_entropy::WORD_COUNTS;
 
 /// A source's name, as OpenSigner writes it.
 pub fn source_name(s: Source) -> &'static str {
@@ -51,13 +51,106 @@ pub fn procedure_name(p: DiceProcedure) -> &'static str {
     match p {
         DiceProcedure::Hashed => EN.dice_procedure_hashed,
         DiceProcedure::SixAsZero => EN.dice_procedure_six_as_zero,
-        DiceProcedure::Words => EN.dice_procedure_words,
+        // OpenSigner's name less its "(BitBox)".
+        DiceProcedure::Words => "Words chosen by the dice",
     }
 }
 
 /// Its place in [`SOURCE_ROWS`], which actions carry.
 pub fn source_index(s: Source) -> u8 {
     SOURCE_ROWS.iter().position(|x| *x == s).unwrap_or(0) as u8
+}
+
+/// One option on the Randomness card: a source and, for dice, how the
+/// rolls are read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Way {
+    /// Each roll read as a flip, as Coins reads a die.
+    DiceFlips,
+    /// Coin flips, or a die's faces read as flips.
+    Coins,
+    /// Rolls that name words directly (BitBox), the last word too, its
+    /// low bits replaced by the checksum.
+    DiceWords,
+    /// Rolls hashed (Coldcard, SeedSigner).
+    DiceHashed,
+    /// Rolls hashed with every 6 written 0 (Keystone).
+    DiceSixAsZero,
+    /// Hex digits made elsewhere.
+    Hex,
+    /// Cards from a shuffled deck.
+    Cards,
+    /// Pictures from the camera.
+    Camera,
+    /// Two or more sources, combined.
+    Mix,
+    /// This device's generator.
+    Device,
+}
+
+/// The options, in the order the card lists them. Actions carry an
+/// option by its place here.
+pub const WAYS: [Way; 10] = [
+    Way::DiceWords,
+    Way::DiceFlips,
+    Way::Coins,
+    Way::DiceHashed,
+    Way::DiceSixAsZero,
+    Way::Hex,
+    Way::Cards,
+    Way::Camera,
+    Way::Mix,
+    Way::Device,
+];
+
+/// The groups the Randomness card lists the options in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Group {
+    /// The person's own entropy, every word of which can be worked out
+    /// by hand from the entries as they come in.
+    ByHand,
+    /// The person's own entropy, which the device hashes or splits into
+    /// the words.
+    Computed,
+    /// This device's generator.
+    Device,
+}
+
+impl Way {
+    /// Its place in [`WAYS`].
+    pub fn index(self) -> u8 {
+        WAYS.iter().position(|w| *w == self).unwrap_or(0) as u8
+    }
+
+    /// The source it enters.
+    pub fn source(self) -> Source {
+        match self {
+            Way::DiceFlips | Way::DiceWords | Way::DiceHashed | Way::DiceSixAsZero => Source::Dice,
+            Way::Coins => Source::Coins,
+            Way::Hex => Source::Hex,
+            Way::Cards => Source::Cards,
+            Way::Camera => Source::Camera,
+            Way::Mix => Source::Mix,
+            Way::Device => Source::Device,
+        }
+    }
+
+    /// The group it is listed in. SLIP-39 shares are made from the
+    /// entropy by the device, so no option makes words a person can
+    /// check by hand.
+    pub fn group(self, slip39: bool) -> Group {
+        match self {
+            Way::Device => Group::Device,
+            Way::DiceFlips | Way::Coins | Way::DiceWords if !slip39 => Group::ByHand,
+            _ => Group::Computed,
+        }
+    }
+
+    /// Whether it is offered: rolls that name words make BIP-39 words,
+    /// not a SLIP-39 secret.
+    pub fn offered(self, slip39: bool) -> bool {
+        !(slip39 && self == Way::DiceWords)
+    }
 }
 
 /// The cards of the flow, in order.
@@ -119,8 +212,9 @@ pub struct KeyGen {
     pub frame: Option<Vec<u8>>,
     /// A card's rank, picked before its suit.
     pub rank: Option<u8>,
-    /// The last word chosen, after direct selection.
-    pub last_word: Option<u16>,
+    /// Which of the Randomness card's groups are open: the options
+    /// verifiable by hand, and the ones the device computes.
+    pub groups_open: [bool; 3],
     /// The words, once made.
     pub mnemonic: Option<Mnemonic>,
     /// The words are on screen.
@@ -157,11 +251,13 @@ pub struct KeyGen {
     /// 4, 5 or 6 a 1 (heads). The flips, and so the key, are the same as
     /// flipping a coin.
     pub by_die: bool,
-    /// Entries are typed as one string into a box and taken together,
-    /// rather than pressed one at a time.
+    /// Entries are typed into a box, rather than pressed on buttons. On
+    /// from the start on a desktop, which has a keyboard; off on a small
+    /// panel. Either way each entry is taken as it comes.
     pub typing: bool,
-    /// The string typed, not yet taken.
-    pub typed: zeroize::Zeroizing<String>,
+    /// Every roll or flip taken, as it was entered (a face, or H or T),
+    /// in order: what the box shows.
+    pub entered: zeroize::Zeroizing<String>,
     /// Where the flow returns to.
     pub back: Screen,
 }
@@ -183,8 +279,10 @@ impl KeyGen {
             scroll: flow::Scroll::default(),
             words: if only_24 { 24 } else { 12 },
             only_24,
-            source: None,
-            procedure: DiceProcedure::Hashed,
+            // Dice that name words: every word checkable by hand as it
+            // comes in.
+            source: Some(Source::Dice),
+            procedure: DiceProcedure::Words,
             mix: [false; MIX_SOURCES.len()],
             mix_at: 0,
             mixed: Mixed::new(),
@@ -197,7 +295,7 @@ impl KeyGen {
             device_asked: false,
             frame: None,
             rank: None,
-            last_word: None,
+            groups_open: [true, false, false],
             mnemonic: None,
             shown: false,
             fingerprint: None,
@@ -215,8 +313,8 @@ impl KeyGen {
             share_at: 0,
             quiz_share: 0,
             by_die: false,
-            typing: false,
-            typed: zeroize::Zeroizing::new(String::new()),
+            typing: true,
+            entered: zeroize::Zeroizing::new(String::new()),
         }
     }
 
@@ -240,8 +338,17 @@ impl KeyGen {
         self.clear_entries();
         self.done = [false; kstep::COUNT];
         self.open = Some(kstep::LENGTH);
-        // A share's words are a fixed scheme: no direct word choice.
-        self.procedure = DiceProcedure::Hashed;
+        // A share's words are a fixed scheme: no direct word choice. Back
+        // to words, the dice name them again, as at the start.
+        if on {
+            self.procedure = DiceProcedure::Hashed;
+        } else if self.way() == Some(Way::DiceHashed) {
+            self.procedure = DiceProcedure::Words;
+        }
+        // Shares are not words anyone checks by hand: the options are
+        // all in the group the device computes.
+        self.groups_open[0] = !on;
+        self.groups_open[1] = on;
     }
 
     /// The share whose words are on screen or quizzed, as SLIP-39 word
@@ -313,6 +420,88 @@ impl KeyGen {
         }
     }
 
+    /// The option chosen on the Randomness card.
+    pub fn way(&self) -> Option<Way> {
+        Some(match self.source? {
+            Source::Dice if self.by_die => Way::DiceFlips,
+            Source::Dice => match self.procedure {
+                DiceProcedure::Hashed => Way::DiceHashed,
+                DiceProcedure::SixAsZero => Way::DiceSixAsZero,
+                DiceProcedure::Words => Way::DiceWords,
+            },
+            Source::Coins => Way::Coins,
+            Source::Hex => Way::Hex,
+            Source::Cards => Way::Cards,
+            Source::Camera => Way::Camera,
+            Source::Mix => Way::Mix,
+            Source::Device | Source::SeedXor => Way::Device,
+        })
+    }
+
+    /// Chooses an option, forgetting what was entered.
+    pub fn choose(&mut self, way: Way) {
+        if !way.offered(self.slip39) {
+            return;
+        }
+        self.source = Some(way.source());
+        self.by_die = way == Way::DiceFlips;
+        self.procedure = match way {
+            Way::DiceWords => DiceProcedure::Words,
+            Way::DiceSixAsZero => DiceProcedure::SixAsZero,
+            _ => DiceProcedure::Hashed,
+        };
+        self.clear_entries();
+        self.done[usize::from(kstep::SOURCE)] = false;
+    }
+
+    /// The high bits of the last rolled word the key keeps under direct
+    /// selection: what the checksum leaves, 11 less a bit for every three
+    /// words (7 at 12 words, 3 at 24). The checksum replaces the rest
+    /// (`osk_entropy::DiceRolls::entropy_under`).
+    pub fn last_bits(&self) -> usize {
+        11 - self.words / 3
+    }
+
+    /// Rolls the chosen dice procedure takes. Direct selection stops as
+    /// soon as the key's bits are in: six rolls for every word but the
+    /// last, and for the last only the faces that cover its kept high
+    /// bits, two bits a face (4 at 12 words, 2 at 24). The rest of that
+    /// word would be replaced by the checksum, so it is not rolled.
+    pub fn dice_needed(&self) -> usize {
+        self.rolls_for(self.procedure())
+    }
+
+    /// Rolls procedure `p` takes at this length (see
+    /// [`KeyGen::dice_needed`]).
+    pub fn rolls_for(&self, p: DiceProcedure) -> usize {
+        if p.direct() {
+            osk_entropy::DICE_WORD_ROLLS * (self.words - 1) + self.last_bits().div_ceil(2)
+        } else {
+            p.needed(self.strength())
+        }
+    }
+
+    /// The dice's entropy under the chosen procedure. Direct selection's
+    /// last word, rolled only as far as its kept bits, is filled out
+    /// with faces that stand for zero bits, which the checksum replaces.
+    fn dice_entropy(
+        &self,
+        strength: Strength,
+    ) -> Result<osk_entropy::RawEntropy, osk_entropy::Error> {
+        let p = self.procedure();
+        if !p.direct() || self.dice.len() < self.dice_needed() {
+            return self.dice.entropy_under(strength, p);
+        }
+        let mut full = DiceRolls::new();
+        for &r in self.dice.rolls() {
+            full.push(r);
+        }
+        while full.len() < p.needed(strength) {
+            full.push(1);
+        }
+        full.entropy_under(strength, p)
+    }
+
     /// The sources a mix takes, in order.
     pub fn mix_list(&self) -> Vec<Source> {
         MIX_SOURCES
@@ -337,7 +526,7 @@ impl KeyGen {
         let s = self.strength();
         match self.active() {
             Some(Source::Dice) if self.by_die => (self.coins.len(), CoinFlips::needed(s)),
-            Some(Source::Dice) => (self.dice.len(), self.procedure().needed(s)),
+            Some(Source::Dice) => (self.dice.len(), self.dice_needed()),
             Some(Source::Coins) => (self.coins.len(), CoinFlips::needed(s)),
             Some(Source::Cards) => (self.cards.len(), CardDraws::needed(s)),
             Some(Source::Hex) => (self.hex.len(), s.hex_digits()),
@@ -361,7 +550,10 @@ impl KeyGen {
         let s = self.strength();
         match self.active() {
             Some(Source::Dice) if self.by_die => self.coins.warnings(s),
-            Some(Source::Dice) => self.dice.warnings_under(s, self.procedure()),
+            Some(Source::Dice) => Warnings {
+                too_few: !self.ready(),
+                ..self.dice.warnings_under(s, self.procedure())
+            },
             Some(Source::Coins) => self.coins.warnings(s),
             Some(Source::Cards) => self.cards.warnings(s),
             Some(Source::Camera) => self.camera.warnings(s),
@@ -390,7 +582,7 @@ impl KeyGen {
 
     /// Forgets every entry, the mix and the words.
     pub fn clear_entries(&mut self) {
-        self.clear_typed();
+        self.clear_entered();
         self.dice.clear();
         self.coins.clear();
         self.cards.clear();
@@ -401,7 +593,6 @@ impl KeyGen {
         self.mixed.clear();
         self.mix_at = 0;
         self.rank = None;
-        self.last_word = None;
         self.mnemonic = None;
         self.shown = false;
         self.fingerprint = None;
@@ -416,7 +607,7 @@ impl KeyGen {
 
     /// Forgets the active source's entries only.
     pub fn clear_active(&mut self) {
-        self.clear_typed();
+        self.clear_entered();
         match self.active() {
             Some(Source::Dice) if self.by_die => self.coins.clear(),
             Some(Source::Dice) => self.dice.clear(),
@@ -431,7 +622,6 @@ impl KeyGen {
             _ => {}
         }
         self.rank = None;
-        self.last_word = None;
         self.note = None;
     }
 
@@ -440,6 +630,7 @@ impl KeyGen {
         if self.rank.take().is_some() {
             return;
         }
+        let had = self.progress().0;
         match self.active() {
             Some(Source::Dice) if self.by_die => {
                 self.coins.pop();
@@ -458,8 +649,23 @@ impl KeyGen {
             }
             _ => {}
         }
-        self.last_word = None;
+        if self.progress().0 < had && self.flip_or_roll() {
+            self.entered.pop();
+        }
         self.note = None;
+    }
+
+    /// Whether the active source's entries are rolls or flips, which
+    /// the box shows.
+    fn flip_or_roll(&self) -> bool {
+        matches!(self.active(), Some(Source::Dice | Source::Coins))
+    }
+
+    /// Notes an entry taken, for the box.
+    fn record(&mut self, c: char) {
+        if self.entered.len() < 1024 {
+            self.entered.push(c);
+        }
     }
 
     /// Whether a press lands in the flip accumulator: Coins, with either
@@ -486,9 +692,13 @@ impl KeyGen {
         if have >= need {
             return;
         }
-        self.note = (!self.dice.push_under(face, self.procedure())).then(|| {
+        let taken = self.dice.push_under(face, self.procedure());
+        if taken {
+            self.record(char::from(b'0' + face));
+        }
+        self.note = (!taken).then(|| {
             if self.procedure().direct() {
-                "5 and 6 are rolled again here".to_string()
+                "A 5 or a 6 is rolled again in a word's first five rolls".to_string()
             } else {
                 "A die has six faces".to_string()
             }
@@ -497,10 +707,15 @@ impl KeyGen {
 
     /// A flip: heads or tails.
     pub fn flip(&mut self, heads: bool) {
-        let (have, need) = self.progress();
-        if self.flip_active() && have < need {
-            self.coins.push(heads);
+        if self.flip_in(heads) {
+            self.record(if heads { 'H' } else { 'T' });
         }
+    }
+
+    /// Takes a flip into the accumulator. Returns whether it was taken.
+    fn flip_in(&mut self, heads: bool) -> bool {
+        let (have, need) = self.progress();
+        self.flip_active() && have < need && self.coins.push(heads)
     }
 
     /// A die's face read as a flip: 1, 2 or 3 is tails (0), 4, 5 or 6
@@ -514,7 +729,9 @@ impl KeyGen {
             return;
         }
         self.note = None;
-        self.flip(face >= 4);
+        if self.flip_in(face >= 4) {
+            self.record(char::from(b'0' + face));
+        }
     }
 
     /// Whether the box takes `c`: a die's face for dice or for flips
@@ -528,52 +745,30 @@ impl KeyGen {
         }
     }
 
-    /// A character typed into the box; one the source does not take is
-    /// left out.
+    /// A character typed into the box, taken at once as the entry it
+    /// names: a roll, a die's face read as a flip, or a flip. One the
+    /// source does not take is left out.
     pub fn type_char(&mut self, c: char) {
-        if self.typable(c) && self.typed.len() < 1024 {
-            self.typed.push(c);
-            self.note = None;
+        if !self.typable(c) {
+            return;
+        }
+        if self.progress().0 >= self.progress().1 {
+            self.note = Some("No more are needed".to_string());
+            return;
+        }
+        match (self.active(), c) {
+            (Some(Source::Dice), _) => self.roll(c as u8 - b'0'),
+            (Some(Source::Coins), _) if self.by_die => self.die_flip(c as u8 - b'0'),
+            (Some(Source::Coins), '1' | 'h' | 'H') => self.flip(true),
+            (Some(Source::Coins), _) => self.flip(false),
+            _ => {}
         }
     }
 
-    /// Empties the box.
-    pub fn clear_typed(&mut self) {
-        zeroize::Zeroize::zeroize(&mut *self.typed);
-        self.typed.clear();
-    }
-
-    /// Takes what is typed, in order, as if each character were pressed
-    /// on the pad: a roll, a die's face read as a flip, or a flip.
-    pub fn take_typed(&mut self) {
-        let typed = std::mem::take(&mut self.typed);
-        let (mut refused, mut over) = (0usize, 0usize);
-        for c in typed.chars() {
-            let (have, need) = self.progress();
-            if have >= need {
-                over += 1;
-                continue;
-            }
-            match (self.active(), c) {
-                (Some(Source::Dice), '1'..='6') => self.roll(c as u8 - b'0'),
-                (Some(Source::Coins), '1'..='6') if self.by_die => self.die_flip(c as u8 - b'0'),
-                (Some(Source::Coins), '1' | 'h' | 'H') => self.flip(true),
-                (Some(Source::Coins), '0' | 't' | 'T') => self.flip(false),
-                _ => continue,
-            }
-            if self.progress().0 == have {
-                refused += 1;
-            }
-        }
-        self.note = if refused > 0 && self.procedure().direct() {
-            Some(format!(
-                "{refused} not taken: 5 and 6 are rolled again here"
-            ))
-        } else if over > 0 {
-            Some(format!("{over} more than needed, not taken"))
-        } else {
-            None
-        };
+    /// Forgets the record of entries.
+    pub fn clear_entered(&mut self) {
+        zeroize::Zeroize::zeroize(&mut *self.entered);
+        self.entered.clear();
     }
 
     /// Whether the entries are the key's own bits as they come in, so
@@ -625,17 +820,28 @@ impl KeyGen {
         out
     }
 
-    /// The last word, once the words are made from the entries: what the
-    /// checksum made of the rest.
+    /// The last word, once every entry is in: what the checksum makes
+    /// of the rest, from the words made or, before they are, worked out
+    /// on the spot.
     pub fn checksum_word(&self) -> Option<u16> {
         if !self.reveals() {
             return None;
         }
-        self.mnemonic
-            .as_ref()?
-            .indices()
-            .get(self.words - 1)
-            .copied()
+        if let Some(m) = self.mnemonic.as_ref() {
+            return m.indices().get(self.words - 1).copied();
+        }
+        if !self.ready() {
+            return None;
+        }
+        let strength = self.strength();
+        let mut bytes = if self.procedure().direct() && !self.by_die {
+            self.dice_entropy(strength).ok()?.as_bytes().to_vec()
+        } else {
+            self.coins.entropy(strength).ok()?.as_bytes().to_vec()
+        };
+        let m = Mnemonic::from_entropy(Language::English, &bytes).ok();
+        zeroize::Zeroize::zeroize(&mut bytes);
+        m?.indices().get(self.words - 1).copied()
     }
 
     /// A card's rank, then its suit, makes a draw.
@@ -694,24 +900,6 @@ impl KeyGen {
         }
     }
 
-    /// The words the checksum leaves for the last place, once direct
-    /// selection has named every other word.
-    pub fn last_word_candidates(&self) -> Vec<u16> {
-        let need = self.words - 1;
-        if !self.procedure().direct() || self.dice.word_count() < need {
-            return Vec::new();
-        }
-        let mut first = [0u16; 24];
-        for (slot, index) in first.iter_mut().zip(self.dice.word_indices()) {
-            *slot = index;
-        }
-        let out = osk_bip::bip39::last_word_candidates(&first[..need])
-            .map(|c| c.collect())
-            .unwrap_or_default();
-        zeroize::Zeroize::zeroize(&mut first);
-        out
-    }
-
     /// Done with the active source: the next source of a mix, or the
     /// words. Returns whether the words were made.
     pub fn finish_entry(&mut self) -> bool {
@@ -734,26 +922,9 @@ impl KeyGen {
                 Err(_) => false,
             };
         }
-        if self.procedure().direct() {
-            let Some(last) = self.last_word else {
-                self.note = Some("Choose the last word".to_string());
-                return false;
-            };
-            let mut indices: Vec<u16> = self.dice.word_indices().take(self.words - 1).collect();
-            indices.push(last);
-            let built = Mnemonic::from_indices(Language::English, &indices);
-            zeroize::Zeroize::zeroize(&mut indices);
-            return match built {
-                Ok(m) => {
-                    self.mnemonic = Some(m);
-                    true
-                }
-                Err(_) => false,
-            };
-        }
         let entropy = match self.source {
             Some(Source::Dice) if self.by_die => self.coins.entropy(strength),
-            Some(Source::Dice) => self.dice.entropy_under(strength, self.procedure()),
+            Some(Source::Dice) => self.dice_entropy(strength),
             Some(Source::Coins) => self.coins.entropy(strength),
             Some(Source::Cards) => self.cards.entropy(strength),
             Some(Source::Hex) => self.hex.entropy(),
@@ -810,7 +981,11 @@ impl crate::Faraday {
         }
         let only_24 = slot.is_some() && self.create.as_ref().is_some_and(|c| c.kind.threshold());
         let back = self.screen;
-        self.keygen = Some(KeyGen::new(slot, back, only_24));
+        let mut k = KeyGen::new(slot, back, only_24);
+        // A small panel is a touch screen with no keyboard of its own:
+        // the faces are pressed, not typed.
+        k.typing = !self.compact;
+        self.keygen = Some(k);
         self.screen = Screen::KeyGen;
     }
 
@@ -890,27 +1065,14 @@ impl crate::Faraday {
                     open(k, kstep::SOURCE);
                 }
             }
-            A::KSource(i) => {
-                if let Some(&s) = SOURCE_ROWS.get(usize::from(i)) {
-                    k.source = Some(s);
-                    k.clear_entries();
-                    k.done[usize::from(kstep::SOURCE)] = false;
+            A::KWay(i) => {
+                if let Some(&w) = WAYS.get(usize::from(i)) {
+                    k.choose(w);
                 }
             }
-            A::KProc(i) => {
-                if let Some(&p) = DiceProcedure::ALL.get(usize::from(i)) {
-                    k.procedure = p;
-                    k.by_die = false;
-                    k.clear_entries();
-                }
-            }
-            A::KDiceFlip(on) => {
-                if k.active() == Some(Source::Dice) && k.by_die != on {
-                    k.by_die = on;
-                    if on {
-                        k.procedure = DiceProcedure::Hashed;
-                    }
-                    k.clear_entries();
+            A::KGroup(i) => {
+                if let Some(open) = k.groups_open.get_mut(usize::from(i)) {
+                    *open = !*open;
                 }
             }
             A::KMix(i) => {
@@ -1007,17 +1169,8 @@ impl crate::Faraday {
             A::KRoll(f) => k.roll(f),
             A::KFlip(h) => k.flip(h),
             A::KDie(f) => k.die_flip(f),
-            A::KByDie(on) => {
-                if k.by_die != on {
-                    k.by_die = on;
-                    k.clear_typed();
-                }
-            }
-            A::KTyping(on) => {
-                k.typing = on;
-                k.clear_typed();
-            }
-            A::KTake => k.take_typed(),
+            A::KByDie(on) => k.by_die = on,
+            A::KTyping(on) => k.typing = on,
             A::KRank(r) => k.card(Some(r), None),
             A::KSuit(s) => k.card(None, Some(s)),
             A::KHex(v) => {
@@ -1028,7 +1181,6 @@ impl crate::Faraday {
             A::KFrame => k.take_frame(),
             A::KUndo => k.undo(),
             A::KClear => k.clear_active(),
-            A::KLast(w) => k.last_word = Some(w),
             A::KShow => {
                 if k.open == Some(kstep::WORDS) {
                     k.shown = !k.shown;
@@ -1104,6 +1256,10 @@ impl crate::Faraday {
 
     /// Loads the key the words spell and leaves the flow.
     fn keygen_add(&mut self) {
+        // No key is accepted before the self-test has passed.
+        if !self.selftest_passed() {
+            return;
+        }
         let Some(k) = self.keygen.as_ref() else {
             return;
         };
@@ -1234,27 +1390,16 @@ impl crate::Faraday {
             self.keygen_leave();
             return true;
         }
-        // Typing into the box: characters go in, Backspace takes one
-        // out, Enter takes what is typed.
+        // Typing into the box: each character is taken as it comes, and
+        // the box keeps every one, so nothing else on the page reads it.
+        // Backspace and Enter are the page's, as with the buttons.
         if k.open == Some(kstep::ENTER)
             && k.typing
-            && matches!(k.active(), Some(Source::Dice | Source::Coins))
+            && k.flip_or_roll()
+            && let KeyIn::Char(c) = key
         {
-            match key {
-                KeyIn::Char(c) => {
-                    k.type_char(c);
-                    return true;
-                }
-                KeyIn::Backspace if !k.typed.is_empty() => {
-                    k.typed.pop();
-                    return true;
-                }
-                KeyIn::Enter if !k.typed.is_empty() => {
-                    k.take_typed();
-                    return true;
-                }
-                _ => {}
-            }
+            k.type_char(c);
+            return true;
         }
         if key == KeyIn::Enter {
             if k.open == Some(kstep::QUIZ) {

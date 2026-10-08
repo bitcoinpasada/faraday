@@ -8,7 +8,7 @@ use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Faraday, flow};
 
-const TITLES: [&str; sstep::COUNT] = ["Key", "Address", "Scan key"];
+const TITLES: [&str; sstep::COUNT] = ["Key", "Address", "Scan key", "Check a payment"];
 
 pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(s) = app.silent.as_ref() else {
@@ -18,7 +18,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .map(|k| flow::Card {
             title: TITLES[usize::from(k)].to_string(),
             summary: summary(app, s, k),
-            mono: k != sstep::SCAN,
+            mono: k == sstep::KEY || k == sstep::ADDRESS,
             done: s.done[usize::from(k)],
             open: s.open == Some(k),
             toggle: Action::SStep(k),
@@ -67,7 +67,12 @@ fn summary(app: &Faraday, s: &SilentState, k: u8) -> String {
             .silent_address()
             .map(|a| crate::ui::short(&a))
             .unwrap_or_default(),
-        _ => "A secret: shows every payment".to_string(),
+        sstep::SCAN => "A secret: shows every payment".to_string(),
+        _ => match s.check.as_ref().map(|(_, c)| c.result()) {
+            Some(Some(r)) => checked_text(r).0,
+            Some(None) => "Needs a previous transaction".to_string(),
+            None => "A transaction from Files".to_string(),
+        },
     }
 }
 
@@ -80,8 +85,12 @@ fn guide(k: u8) -> String {
             wallet, so you can tell who paid; the payer cannot tell the two apart. The record lists the \
             labels handed out, for the wallet software that watches for payments."
             .to_string(),
-        _ => "Finding payments needs the scan key: it shows every payment to this address, though it \
-            cannot spend them. It goes into the vault, or to a scanning wallet you run yourself."
+        sstep::SCAN => "Finding payments needs the scan key: it shows every payment to this address, \
+            though it cannot spend them. It goes into the vault, or to a scanning wallet you run yourself."
+            .to_string(),
+        _ => "A payment to a silent payments address goes to an address only this key can find. Copy \
+            the transaction into Files, signed, with the transactions it spends from; this works out \
+            whether any of its outputs pay this wallet, and to which label."
             .to_string(),
     }
 }
@@ -107,6 +116,29 @@ fn card(app: &Faraday, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f
                     )
                 })
                 .collect();
+            cy += button_rows(ui, x, cy, w, &row);
+        }
+        sstep::ADDRESS if !app.silent_key_here() && s.wallet.is_some() => {
+            // The wallet's own address needs no key; labels do.
+            let a = app.silent_address().unwrap_or_default();
+            cy += ui.wrap(x, cy, w, 14.0, W::M, TEXT, &a) + 14.0;
+            cy += ui.wrap(
+                x,
+                cy,
+                w,
+                13.0,
+                W::R,
+                MUTED,
+                "Its key is not loaded: labels, the scan key and a check need it",
+            ) + 12.0;
+            let row = vec![
+                ("Show as QR".to_string(), Style::Primary, Action::SQr(false)),
+                (
+                    "Add its key".to_string(),
+                    Style::Secondary,
+                    Action::Entry(s.key),
+                ),
+            ];
             cy += button_rows(ui, x, cy, w, &row);
         }
         sstep::ADDRESS => {
@@ -150,10 +182,19 @@ fn card(app: &Faraday, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f
                     Action::SRecord,
                 ),
             ];
+            let mut row = row;
+            if s.wallet.is_none() {
+                row.push((
+                    "Add as a wallet".to_string(),
+                    Style::Secondary,
+                    Action::SAddWallet,
+                ));
+            }
             cy += button_rows(ui, x, cy, w, &row);
             next_button(ui, x, cy, w, "Continue", Action::SNext);
             cy += 48.0;
         }
+        sstep::CHECK => cy += check_card(app, s, ui, x, cy, w),
         _ => {
             ui.chip(
                 x,
@@ -183,6 +224,104 @@ fn card(app: &Faraday, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f
             ));
             cy += button_rows(ui, x, cy, w, &row);
         }
+    }
+    cy - y
+}
+
+/// What a check came to, as a line and its tone.
+fn checked_text(r: &opensigner_core::silent::Checked) -> (String, osk_ui::Color) {
+    use opensigner_core::silent::Checked;
+    match r {
+        Checked::Paid(paid) => {
+            let n = paid.len();
+            (
+                format!(
+                    "Pays this wallet: {n} {}",
+                    if n == 1 { "output" } else { "outputs" }
+                ),
+                OK,
+            )
+        }
+        Checked::NotPaid => ("Pays nothing to this wallet".to_string(), MUTED),
+        Checked::NoInputs => (
+            "Spends nothing a silent payment is made from".to_string(),
+            MUTED,
+        ),
+        Checked::Unsigned => (
+            "Not signed: an input's key is not in it yet".to_string(),
+            WARN,
+        ),
+        Checked::KeyNotLoaded => ("Its key is not loaded".to_string(), WARN),
+    }
+}
+
+/// Check a payment: the transactions in Files to check, and what the one
+/// checked came to, output by output.
+fn check_card(app: &Faraday, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    use opensigner_core::silent::Checked;
+    let mut cy = y;
+    if let Some((name, check)) = s.check.as_ref() {
+        ui.text(x, cy, 13.0, W::S, TEXT, name);
+        cy += 24.0;
+        match check.result() {
+            Some(r) => {
+                let (line, tone) = checked_text(r);
+                ui.text(x, cy, 14.0, W::S, tone, &line);
+                cy += 26.0;
+                if let Checked::Paid(paid) = r {
+                    for p in paid {
+                        let to = match p.label {
+                            None => "the address".to_string(),
+                            Some(0) => "change".to_string(),
+                            Some(m) => format!("label {m}"),
+                        };
+                        let row = format!(
+                            "Output {} · {} · to {to}",
+                            p.vout,
+                            crate::ui::btc(p.amount.to_sat())
+                        );
+                        ui.text(x + 12.0, cy, 13.0, W::M, TEXT, &row);
+                        cy += 22.0;
+                    }
+                }
+            }
+            None => {
+                let txid = check
+                    .waiting_for()
+                    .map(|t| t.to_string())
+                    .unwrap_or_default();
+                cy += ui.wrap(
+                    x,
+                    cy,
+                    w,
+                    13.0,
+                    W::R,
+                    WARN,
+                    &format!("Needs the transaction it spends from, {txid}: copy it into Files and check again"),
+                ) + 8.0;
+            }
+        }
+        cy += 10.0;
+    }
+    // Every file in Files that reads as a transaction.
+    let txs: Vec<(String, Style, Action)> = app
+        .inbox
+        .iter()
+        .enumerate()
+        .filter(|(_, it)| opensigner_core::silent::Check::read(&it.bytes).is_some())
+        .map(|(k, it)| {
+            (
+                format!("Check {}", it.name),
+                Style::Secondary,
+                Action::SCheck(k),
+            )
+        })
+        .collect();
+    if txs.is_empty() {
+        ui.text(x, cy, 13.0, W::R, DIM, "No transaction in Files");
+        cy += 28.0;
+    } else {
+        cy += button_rows(ui, x, cy, w, &txs);
     }
     cy - y
 }

@@ -91,3 +91,57 @@ fn reduce_motion_is_kept_across_a_lock() {
     });
     assert!(next.reduce_motion);
 }
+
+/// The page's colour in the middle of the screen's empty right margin,
+/// once the change has faded in.
+fn page(app: &mut Faraday, clock: &mut u64) -> [u8; 3] {
+    let _ = page_light(app, clock);
+    let frame = app.frame();
+    let i = (790 * usize::from(frame.width) + 1270) * 4;
+    [frame.rgba[i], frame.rgba[i + 1], frame.rgba[i + 2]]
+}
+
+#[test]
+fn every_theme_is_offered_and_each_draws_its_own_page() {
+    let mut app = shown();
+    let mut clock = 1_000;
+    let mut seen = Vec::new();
+    for theme in Theme::ALL {
+        let _ = app.frame();
+        assert!(
+            app.offers(Action::Theme(theme)),
+            "{} not offered",
+            theme.name()
+        );
+        app.press(Action::Theme(theme));
+        assert_eq!(app.theme, theme);
+        let colour = page(&mut app, &mut clock);
+        assert!(
+            !seen.contains(&colour),
+            "{} draws a page already seen",
+            theme.name()
+        );
+        seen.push(colour);
+    }
+}
+
+#[test]
+fn a_named_theme_is_kept_across_a_lock() {
+    for theme in [Theme::Gruvbox, Theme::RosePine] {
+        let mut app = shown();
+        app.press(Action::Theme(theme));
+        let mut kept = Vec::new();
+        while let Some(c) = app.poll_storage() {
+            if let StorageCommand::SaveBoxes { kept: k, .. } = c {
+                kept = k;
+            }
+        }
+        let mut next = Faraday::new();
+        next.storage(StorageEvent::Restored {
+            inbox: Vec::new(),
+            outbox: Vec::new(),
+            kept,
+        });
+        assert_eq!(next.theme, theme);
+    }
+}

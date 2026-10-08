@@ -28,8 +28,8 @@ use osk_crypto::{Zeroize, ZeroizeOnDrop};
 use osk_entropy::Strength;
 use osk_ui::widgets::keyboard::{self, KeyMask, KeyboardKind};
 
-use crate::create::Source;
 use crate::ids::{self, Id};
+use osk_entropy::Source;
 
 /// What every codex32 string starts with, which the field holds before
 /// the first key is pressed and which backspace never eats.
@@ -717,12 +717,10 @@ impl Codex32Plan {
                 Next::Stay
             }
             Step::Source => {
-                if let Some(i) = ids::index_in(
-                    id,
-                    ids::CODEX32_SOURCE_BASE,
-                    crate::create::SOURCE_ROWS.len(),
-                ) {
-                    self.source = crate::create::SOURCE_ROWS[i];
+                if let Some(i) =
+                    ids::index_in(id, ids::CODEX32_SOURCE_BASE, osk_entropy::SOURCE_ROWS.len())
+                {
+                    self.source = osk_entropy::SOURCE_ROWS[i];
                 } else if id == ids::CODEX32_SOURCE_CONTINUE {
                     return self.gather_or_split();
                 }

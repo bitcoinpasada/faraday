@@ -162,8 +162,16 @@ non-cryptographic and live in `faraday-core`:
 - **Amounts** from a full previous transaction must hash to the outpoint
   and agree with any `witnessUtxo`; an amount that is only stated is
   **amount unchecked**.
-- **Two or more inputs with an unchecked amount** shows the 2020 two-round
-  attack in the open, with the rule "sign a transaction once".
+- **A SegWit v0 input without its previous transaction, in a transaction
+  with more than one input,** is refused, with no override
+  (`osk-psbt`'s `AmountUnverified`, a blocked warning). BIP-143 signs the
+  amount an input states, so two signing rounds over two different
+  stated amounts give two valid signatures that pay the difference to
+  the miner (the 2020 two-round attack). The fix is the previous
+  transaction, in the PSBT or brought in through Files. A single-input
+  transaction is signed from its `witnessUtxo`: a false amount there
+  gives a signature no node accepts. Taproot inputs commit to every
+  amount and need no previous transaction.
 - **Signed-amount memory**: the amounts each input stated are remembered
   against the unsigned transaction's hash. The same transaction stated
   differently is refused with no override. The memory is kept in
@@ -257,8 +265,10 @@ What changes is wording, order and what is folded away:
 - the review in sentences, with the full table one choice away;
 - warnings word for word as in full mode, from the same function.
 
-A switch beside each flow's title chooses **Guided** or **Steps only** (called Full until 2026-10-06); a wallet in
-progress carries over between them.
+A switch beside each flow's title chooses **Steps only** or **Guided** (called Full until 2026-10-06); a wallet in
+progress carries over between them. The choice is one setting for every
+flow, kept with the others; Steps only, on the left, is where a first
+start is (owner, 2026-10-07).
 
 This is the **Spend** tab (`docs/FAMILY.md`, built
 2026-10-06): one column from what is in the envelope to a sent

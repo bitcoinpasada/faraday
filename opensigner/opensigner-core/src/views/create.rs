@@ -26,11 +26,12 @@ use osk_ui::widgets::{Icon, Tone};
 
 use osk_entropy::DiceProcedure;
 
-use crate::create::{CreateWizard, MIX_SOURCES, SOURCE_ROWS, Source, Step};
+use crate::create::{CreateWizard, Step};
 use crate::load::EntryList;
 use crate::strings::Strings;
 use crate::views::{load, quiz as quiz_view, words};
 use crate::{OpenSigner, ids, strings, text};
+use osk_entropy::{MIX_SOURCES, SOURCE_ROWS, Source};
 
 /// The title of a screen the wizard is drawing, with the part it is
 /// making in front of it while a Seed XOR split runs the wizard once
@@ -66,9 +67,6 @@ impl OpenSigner {
                 self.with_chrome(Some(ids::BACK), |c| procedure_step(c, w, self.strings()))
             }
             Step::Entropy => self.with_chrome(Some(ids::BACK), |c| self.entropy_step(c, w)),
-            Step::LastWord => {
-                self.with_chrome(Some(ids::BACK), |c| last_word_step(c, w, self.strings()))
-            }
             Step::Camera => self.with_chrome(Some(ids::BACK), |c| self.camera_step(c, w)),
             Step::Device => self.with_chrome(Some(ids::BACK), |c| self.device_step(c, w)),
             Step::MixChoose => {
@@ -517,11 +515,7 @@ fn procedure_step(c: &Chrome<'_>, w: &CreateWizard, s: &Strings) -> Node {
                 return Item::dimmed(label, s.reason_no_words);
             }
             let rolls = alloc::format!("{}", w.procedure_rolls(*procedure));
-            let under = if procedure.direct() {
-                strings::fill1(s.dice_procedure_rolls_words, &rolls)
-            } else {
-                strings::fill1(s.dice_procedure_rolls, &rolls)
-            };
+            let under = strings::fill1(s.dice_procedure_rolls, &rolls);
             Item::key(
                 ids::at(ids::CREATE_PROCEDURE_BASE, i),
                 label,
@@ -536,33 +530,6 @@ fn procedure_step(c: &Chrome<'_>, w: &CreateWizard, s: &Strings) -> Node {
         &title,
         items,
         Action::new(ids::CREATE_PROCEDURE_CONTINUE, s.action_continue),
-    )
-}
-
-/// §5 Choice, "Which last word?": the words the checksum leaves for the
-/// last place after a run of direct selection — 128 of them at twelve
-/// words, 8 at twenty-four — in index order, the first checked.
-fn last_word_step(c: &Chrome<'_>, w: &CreateWizard, s: &Strings) -> Node {
-    let list = EntryList::Bip39(w.language());
-    let items = w
-        .last_word_candidates()
-        .into_iter()
-        .flatten()
-        .enumerate()
-        .map(|(i, index)| {
-            Item::chosen(
-                ids::at(ids::CREATE_LAST_WORD_BASE, i),
-                text::shown_word(list, index),
-                i == w.last_word(),
-            )
-        })
-        .collect();
-    let title = titled(w, s, s.create_last_word_title);
-    screens::choice(
-        c,
-        &title,
-        items,
-        Action::new(ids::CREATE_LAST_WORD_CONTINUE, s.action_continue),
     )
 }
 

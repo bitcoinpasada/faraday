@@ -13,6 +13,42 @@ use osk_ui::{Canvas, Color, Font, Rect};
 
 use crate::Action;
 
+/// The overlay scrollbar's thumb, units wide.
+const BAR_W: f32 = 6.0;
+/// How far in from a scrolled region's right edge a press takes the
+/// scrollbar rather than the content, in units.
+pub const BAR_GRAB: f32 = 16.0;
+
+/// Where the overlay scrollbar of a region seen through `view` (pixels)
+/// runs: the track's top and length and the thumb's length, in pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BarGeometry {
+    /// The track's top.
+    pub top: i32,
+    /// The track's length.
+    pub track: i32,
+    /// The thumb's length.
+    pub thumb: i32,
+}
+
+impl BarGeometry {
+    /// The bar of a region whose content scrolls `max` units, at `f`
+    /// pixels a unit.
+    pub fn of(view: Rect, max: f32, f: f32) -> BarGeometry {
+        let inset = (4.0 * f).round() as i32;
+        let track = view.h - 2 * inset;
+        let vh = view.h as f32;
+        let thumb = ((track as f32 * vh / (vh + max * f)) as i32)
+            .max((30.0 * f) as i32)
+            .min(track);
+        BarGeometry {
+            top: view.y + inset,
+            track,
+            thumb,
+        }
+    }
+}
+
 /// The prototype's palette.
 pub mod pal {
     use osk_ui::Color;
@@ -65,32 +101,196 @@ pub mod pal {
         (WARN, Color::rgb(0x9a, 0x5d, 0x00)),
         (ERR, Color::rgb(0xbf, 0x34, 0x34)),
     ];
+
+    /// Nord (nordtheme.com): Polar Night, Snow Storm and Frost.
+    pub const NORD: [(Color, Color); 14] = [
+        (BG, Color::rgb(0x2e, 0x34, 0x40)),
+        (SIDEBAR, Color::rgb(0x27, 0x2c, 0x36)),
+        (SURFACE, Color::rgb(0x3b, 0x42, 0x52)),
+        (LINE, Color::rgb(0x43, 0x4c, 0x5e)),
+        (INNER, Color::rgb(0x47, 0x4f, 0x62)),
+        (BORDER, Color::rgb(0x5a, 0x65, 0x7c)),
+        (TEXT, Color::rgb(0xec, 0xef, 0xf4)),
+        (MUTED, Color::rgb(0xb7, 0xc0, 0xcf)),
+        (DIM, Color::rgb(0x86, 0x91, 0xa7)),
+        (ACCENT, Color::rgb(0x88, 0xc0, 0xd0)),
+        (ON_ACCENT, Color::rgb(0x2e, 0x34, 0x40)),
+        (OK, Color::rgb(0xa3, 0xbe, 0x8c)),
+        (WARN, Color::rgb(0xeb, 0xcb, 0x8b)),
+        (ERR, Color::rgb(0xeb, 0xa1, 0xa8)),
+    ];
+
+    /// Catppuccin Mocha (catppuccin.com): base, mantle, surfaces, mauve.
+    pub const CATPPUCCIN: [(Color, Color); 14] = [
+        (BG, Color::rgb(0x1e, 0x1e, 0x2e)),
+        (SIDEBAR, Color::rgb(0x18, 0x18, 0x25)),
+        (SURFACE, Color::rgb(0x31, 0x32, 0x44)),
+        (LINE, Color::rgb(0x3b, 0x3d, 0x52)),
+        (INNER, Color::rgb(0x45, 0x47, 0x5a)),
+        (BORDER, Color::rgb(0x58, 0x5b, 0x70)),
+        (TEXT, Color::rgb(0xcd, 0xd6, 0xf4)),
+        (MUTED, Color::rgb(0xa6, 0xad, 0xc8)),
+        (DIM, Color::rgb(0x7f, 0x84, 0x9c)),
+        (ACCENT, Color::rgb(0xcb, 0xa6, 0xf7)),
+        (ON_ACCENT, Color::rgb(0x1e, 0x1e, 0x2e)),
+        (OK, Color::rgb(0xa6, 0xe3, 0xa1)),
+        (WARN, Color::rgb(0xf9, 0xe2, 0xaf)),
+        (ERR, Color::rgb(0xf3, 0x8b, 0xa8)),
+    ];
+
+    /// Tokyo Night (enkia's theme): night background, storm cards, blue.
+    pub const TOKYO_NIGHT: [(Color, Color); 14] = [
+        (BG, Color::rgb(0x1a, 0x1b, 0x26)),
+        (SIDEBAR, Color::rgb(0x16, 0x16, 0x1e)),
+        (SURFACE, Color::rgb(0x24, 0x28, 0x3b)),
+        (LINE, Color::rgb(0x2f, 0x34, 0x4d)),
+        (INNER, Color::rgb(0x2f, 0x35, 0x49)),
+        (BORDER, Color::rgb(0x3b, 0x42, 0x61)),
+        (TEXT, Color::rgb(0xc0, 0xca, 0xf5)),
+        (MUTED, Color::rgb(0xa9, 0xb1, 0xd6)),
+        (DIM, Color::rgb(0x73, 0x7a, 0xa2)),
+        (ACCENT, Color::rgb(0x7a, 0xa2, 0xf7)),
+        (ON_ACCENT, Color::rgb(0x1a, 0x1b, 0x26)),
+        (OK, Color::rgb(0x9e, 0xce, 0x6a)),
+        (WARN, Color::rgb(0xe0, 0xaf, 0x68)),
+        (ERR, Color::rgb(0xf7, 0x76, 0x8e)),
+    ];
+
+    /// Gruvbox dark (morhetz): bg0 to bg2, fg, yellow, and its bright accents.
+    pub const GRUVBOX: [(Color, Color); 14] = [
+        (BG, Color::rgb(0x28, 0x28, 0x28)),
+        (SIDEBAR, Color::rgb(0x1d, 0x20, 0x21)),
+        (SURFACE, Color::rgb(0x32, 0x30, 0x2f)),
+        (LINE, Color::rgb(0x3c, 0x38, 0x36)),
+        (INNER, Color::rgb(0x45, 0x40, 0x3d)),
+        (BORDER, Color::rgb(0x50, 0x49, 0x45)),
+        (TEXT, Color::rgb(0xeb, 0xdb, 0xb2)),
+        (MUTED, Color::rgb(0xbd, 0xae, 0x93)),
+        (DIM, Color::rgb(0x92, 0x83, 0x74)),
+        (ACCENT, Color::rgb(0xfa, 0xbd, 0x2f)),
+        (ON_ACCENT, Color::rgb(0x28, 0x28, 0x28)),
+        (OK, Color::rgb(0xb8, 0xbb, 0x26)),
+        (WARN, Color::rgb(0xfe, 0x80, 0x19)),
+        (ERR, Color::rgb(0xfd, 0x6f, 0x5a)),
+    ];
+
+    /// Rosé Pine Dawn (rosepinetheme.com): base, surface, overlay, pine. Its
+    /// gold, love and a green beside them are darkened to read on its paper.
+    pub const ROSE_PINE: [(Color, Color); 14] = [
+        (BG, Color::rgb(0xfa, 0xf4, 0xed)),
+        (SIDEBAR, Color::rgb(0xf2, 0xe9, 0xe1)),
+        (SURFACE, Color::rgb(0xff, 0xfa, 0xf3)),
+        (LINE, Color::rgb(0xe6, 0xdf, 0xd8)),
+        (INNER, Color::rgb(0xf4, 0xed, 0xe8)),
+        (BORDER, Color::rgb(0xce, 0xca, 0xcd)),
+        (TEXT, Color::rgb(0x57, 0x52, 0x79)),
+        (MUTED, Color::rgb(0x6e, 0x6a, 0x86)),
+        (DIM, Color::rgb(0x98, 0x93, 0xa5)),
+        (ACCENT, Color::rgb(0x28, 0x69, 0x83)),
+        (ON_ACCENT, Color::rgb(0xff, 0xfa, 0xf3)),
+        (OK, Color::rgb(0x3d, 0x7a, 0x52)),
+        (WARN, Color::rgb(0xa8, 0x64, 0x12)),
+        (ERR, Color::rgb(0xa4, 0x50, 0x6a)),
+    ];
 }
 
 use pal::*;
+
+/// Faraday's mark as a pixel grid, the one the boot logo is drawn from.
+const MARK: &str = include_str!("../../image/overlay/common/faraday-mark.txt");
 
 /// Which palette the screens are drawn in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Theme {
     /// Light text on a dark page: the prototype's palette.
-    #[default]
     Dark,
     /// Dark text on a light page.
     Light,
+    /// Arctic Ice Studio's Nord: grey-blue, with its frost accent. The
+    /// theme a first start is in.
+    #[default]
+    Nord,
+    /// Catppuccin Mocha: deep violet-grey, with its mauve accent.
+    Catppuccin,
+    /// Tokyo Night: ink blue, with its blue accent.
+    TokyoNight,
+    /// Gruvbox dark: warm brown-grey, with its yellow accent.
+    Gruvbox,
+    /// Rosé Pine Dawn: dark text on warm paper, with its pine accent.
+    RosePine,
 }
 
 impl Theme {
+    /// Every theme, in the order Settings offers them.
+    pub const ALL: [Theme; 7] = [
+        Theme::Dark,
+        Theme::Light,
+        Theme::Nord,
+        Theme::Catppuccin,
+        Theme::TokyoNight,
+        Theme::Gruvbox,
+        Theme::RosePine,
+    ];
+
+    /// What Settings calls it.
+    pub fn name(self) -> &'static str {
+        match self {
+            Theme::Dark => "Dark",
+            Theme::Light => "Light",
+            Theme::Nord => "Nord",
+            Theme::Catppuccin => "Catppuccin",
+            Theme::TokyoNight => "Tokyo Night",
+            Theme::Gruvbox => "Gruvbox",
+            Theme::RosePine => "Rosé Pine",
+        }
+    }
+
+    /// The word the kept settings write it as (`memory.rs`).
+    pub fn id(self) -> &'static str {
+        match self {
+            Theme::Dark => "dark",
+            Theme::Light => "light",
+            Theme::Nord => "nord",
+            Theme::Catppuccin => "catppuccin",
+            Theme::TokyoNight => "tokyo-night",
+            Theme::Gruvbox => "gruvbox",
+            Theme::RosePine => "rose-pine",
+        }
+    }
+
+    /// The theme a kept `id` names.
+    pub fn from_id(id: &str) -> Option<Theme> {
+        Theme::ALL.into_iter().find(|t| t.id() == id)
+    }
+
+    /// Dark text on a light page: shadows are lighter.
+    pub fn is_light(self) -> bool {
+        matches!(self, Theme::Light | Theme::RosePine)
+    }
+
+    fn table(self) -> Option<&'static [(Color, Color); 14]> {
+        match self {
+            Theme::Dark => None,
+            Theme::Light => Some(&pal::LIGHT),
+            Theme::Nord => Some(&pal::NORD),
+            Theme::Catppuccin => Some(&pal::CATPPUCCIN),
+            Theme::TokyoNight => Some(&pal::TOKYO_NIGHT),
+            Theme::Gruvbox => Some(&pal::GRUVBOX),
+            Theme::RosePine => Some(&pal::ROSE_PINE),
+        }
+    }
+
     /// `c`, one of [`pal`]'s colours at any opacity, as this theme draws
     /// it. Any other colour, a QR code's black and white or a camera's
     /// picture, is drawn as it is.
     pub fn color(self, c: Color) -> Color {
-        if self == Theme::Dark {
+        let Some(table) = self.table() else {
             return c;
-        }
-        pal::LIGHT
+        };
+        table
             .iter()
             .find(|(dark, _)| (dark.r, dark.g, dark.b) == (c.r, c.g, c.b))
-            .map_or(c, |(_, light)| light.with_alpha(c.a))
+            .map_or(c, |(_, to)| to.with_alpha(c.a))
     }
 }
 
@@ -156,8 +356,6 @@ pub struct Ui<'a> {
     pub theme: Theme,
     /// The action under the pointer, with no button down.
     pub hovered: Option<Action>,
-    /// How far below its place a sheet is drawn while it rises in, units.
-    pub sheet_rise: f32,
     /// The scrolling region's offset, units.
     pub offset: f32,
     /// The frosted copy of the page under the open sheet, kept from the
@@ -173,12 +371,21 @@ pub struct Ui<'a> {
     /// Where the step column wants to glide to, to bring the open card
     /// into view, units.
     pub follow_to: Option<f32>,
+    /// The display is a small panel: one column, a page per step.
+    pub compact: bool,
     /// Hits are clipped to this rather than to the drawing's clip while
     /// a card's body is revealed: what is not yet uncovered can still be
     /// pressed where it will be.
     hit_clip: Option<Rect>,
     /// The hit being taken draws its own hover look.
     quiet_hover: bool,
+    /// What a press beside the open sheet does: the sheet's own way out.
+    pub outside: Option<Action>,
+    /// The text caret shows this frame: it blinks.
+    pub caret_on: bool,
+    /// A caret was drawn this frame, shown or in the off half of its
+    /// blink, so the next half wants a frame.
+    pub caret_drawn: bool,
 }
 
 /// A step card opening and the one closing, part of the way.
@@ -228,17 +435,20 @@ impl<'a> Ui<'a> {
             stretch_in_sheet: false,
             in_sheet: false,
             bar: None,
-            theme: Theme::Dark,
+            theme: Theme::default(),
             hovered: None,
-            sheet_rise: 0.0,
             offset: 0.0,
             frost: None,
             guided_shown: 1.0,
             disclosure: None,
             column: None,
             follow_to: None,
+            compact: false,
             hit_clip: None,
             quiet_hover: false,
+            outside: None,
+            caret_on: true,
+            caret_drawn: false,
         }
     }
 
@@ -284,16 +494,17 @@ impl<'a> Ui<'a> {
         }
     }
 
-    /// The overlay scrollbar: a thin thumb at the region's right edge,
-    /// as long as the share of the content in view.
+    /// The overlay scrollbar: a thumb at the region's right edge, as long
+    /// as the share of the content in view. It can be held and dragged
+    /// ([`BarGeometry`]).
     fn scroll_bar(&mut self, view: Rect, max: f32, offset: f32, alpha: u8) {
         let f = self.f;
-        let inset = (4.0 * f).round() as i32;
-        let track = view.h - 2 * inset;
-        let vh = view.h as f32;
-        let thumb = ((track as f32 * vh / (vh + max * f)) as i32)
-            .max((30.0 * f) as i32)
-            .min(track);
+        let BarGeometry {
+            top: track_top,
+            track,
+            thumb,
+        } = BarGeometry::of(view, max, f);
+        let inset = track_top - view.y;
         if track <= 0 || thumb <= 0 {
             return;
         }
@@ -309,7 +520,7 @@ impl<'a> Ui<'a> {
                 thumb - squeeze,
             )
         };
-        let w = (4.0 * f).round().max(2.0) as i32;
+        let w = (BAR_W * f).round().max(3.0) as i32;
         let rect = Rect::new(view.right() - inset - w, y, w, h);
         let color = self.col(MUTED.with_alpha((u16::from(alpha) * 150 / 255) as u8));
         self.c.fill_rounded_rect(rect, w as f32 / 2.0, color);
@@ -362,9 +573,10 @@ impl<'a> Ui<'a> {
     /// corners of `r`: drawn before it, in the theme's depth.
     pub fn shadow(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32) {
         let rect = self.rect(x, y, w, h);
-        let color = match self.theme {
-            Theme::Dark => Color::rgb(0, 0, 0).with_alpha(140),
-            Theme::Light => Color::rgb(0x10, 0x18, 0x20).with_alpha(46),
+        let color = if self.theme.is_light() {
+            Color::rgb(0x10, 0x18, 0x20).with_alpha(46)
+        } else {
+            Color::rgb(0, 0, 0).with_alpha(140)
         };
         let blur = 28.0 * self.f;
         let dy = (8.0 * self.f).round() as i32;
@@ -457,6 +669,120 @@ impl<'a> Ui<'a> {
     pub fn card(&mut self, x: f32, y: f32, w: f32, h: f32, edge: Color) {
         self.fill(x, y, w, h, 12.0, SURFACE);
         self.stroke(x, y, w, h, 12.0, edge);
+    }
+
+    /// A theme as a tile drawn in its own colours: its page, a card with
+    /// a primary button and the three states, and its name. The theme on
+    /// screen is ringed in its accent; another is ringed while hovered.
+    #[allow(clippy::too_many_arguments)]
+    pub fn theme_tile(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        theme: Theme,
+        current: bool,
+        action: Action,
+    ) {
+        let ring = if current {
+            Some(ACCENT)
+        } else if self.is_hovered(action) || self.is_pressed(action) {
+            Some(DIM)
+        } else {
+            None
+        };
+        if let Some(ring) = ring {
+            self.stroke(x - 3.0, y - 3.0, w + 6.0, h + 6.0, 13.0, ring);
+            self.stroke(x - 2.0, y - 2.0, w + 4.0, h + 4.0, 12.0, ring);
+        }
+        let now = self.theme;
+        self.theme = theme;
+        self.fill(x, y, w, h, 10.0, BG);
+        self.stroke(x, y, w, h, 10.0, LINE);
+        self.fill(x + 10.0, y + 10.0, w - 20.0, 30.0, 6.0, SURFACE);
+        self.fill(x + 17.0, y + 19.0, 24.0, 12.0, 6.0, ACCENT);
+        for (i, c) in [OK, WARN, ERR].into_iter().enumerate() {
+            self.dot(x + w - 38.0 + 9.0 * i as f32, y + 25.0, 3.0, c);
+        }
+        let name = self.fit(12.0, W::S, theme.name(), w - 20.0);
+        self.text(x + 10.0, y + 50.0, 12.0, W::S, TEXT, &name);
+        self.theme = now;
+        self.hit(x, y, w, h, action);
+    }
+
+    /// Faraday's mark in a box `w` by `h` units at (x, y): the keyhole
+    /// shield of the boot logo (`faraday/image/overlay/common/faraday-mark.txt`),
+    /// drawn as smooth outlines at the grid's proportions rather than its
+    /// squares, the shield in the accent with its rim lighter and the
+    /// keyhole cut through.
+    pub fn mark(&mut self, x: f32, y: f32, w: f32, h: f32) {
+        let rows: Vec<&[u8]> = MARK
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .map(str::as_bytes)
+            .collect();
+        let used = |c: &u8| *c != b'.';
+        let Some(top) = rows.iter().position(|r| r.iter().any(used)) else {
+            return;
+        };
+        let bottom = rows.iter().rposition(|r| r.iter().any(used)).unwrap_or(top) + 1;
+        let left = rows
+            .iter()
+            .filter_map(|r| r.iter().position(used))
+            .min()
+            .unwrap_or(0);
+        let right = rows
+            .iter()
+            .filter_map(|r| r.iter().rposition(used))
+            .max()
+            .unwrap_or(left)
+            + 1;
+        // The grid's proportions, fitted to the box and centred.
+        let aspect = (bottom - top) as f32 / (right - left) as f32;
+        let area = self.rect(x, y, w, h);
+        let sw = (area.w as f32).min(area.h as f32 / aspect);
+        let sh = sw * aspect;
+        let ox = area.x as f32 + (area.w as f32 - sw) / 2.0;
+        let oy = area.y as f32 + (area.h as f32 - sh) / 2.0;
+        let stroke = self.col(ACCENT);
+        let lit = stroke.mix(Color::rgb(0xff, 0xff, 0xff), 0.5);
+        // The keyhole: a round head and a slot widening below it, wound
+        // against the shield so that it is a hole.
+        let (cx, head_y, head_r) = (ox + sw / 2.0, oy + 0.28 * sh, 0.15 * sw);
+        let (waist, foot, foot_y) = (0.045 * sw, 0.15 * sw, oy + 0.61 * sh);
+        let join = (head_r * head_r - waist * waist).sqrt();
+        let from = join.atan2(-waist);
+        let to = join.atan2(waist) + std::f32::consts::TAU;
+        let mut hole: Vec<(f32, f32)> = (0..=48)
+            .map(|i| {
+                let a = from + (to - from) * i as f32 / 48.0;
+                (cx + head_r * a.cos(), head_y + head_r * a.sin())
+            })
+            .collect();
+        hole.extend([(cx + foot, foot_y), (cx - foot, foot_y)]);
+        hole.reverse();
+        let rim = (0.07 * sw).max(1.0);
+        let outer = shield(ox, oy, sw, sh);
+        let inner = shield(ox + rim, oy + rim, sw - 2.0 * rim, sh - 2.4 * rim);
+        self.c.fill_contours(&[&outer, &hole], lit);
+        self.c.fill_contours(&[&inner, &hole], stroke);
+    }
+
+    /// The caret of the field typing goes to, `h` units tall at (x, y),
+    /// in the off half of its blink not drawn.
+    pub fn caret(&mut self, x: f32, y: f32, h: f32) {
+        self.caret_drawn = true;
+        if self.caret_on {
+            self.fill(x, y, 2.0, h, 1.0, ACCENT);
+        }
+    }
+
+    /// The caret as a character after the text typed, for a field drawn
+    /// as one string: a bar, or nothing in the off half of its blink.
+    pub fn caret_char(&mut self) -> &'static str {
+        self.caret_drawn = true;
+        if self.caret_on { "|" } else { "" }
     }
 
     /// A horizontal rule.
@@ -605,6 +931,18 @@ impl<'a> Ui<'a> {
         }
     }
 
+    /// Presses everywhere outside the box at (x, y), w by h, take
+    /// `action`: a sheet that a press beside it closes. No hover look.
+    pub fn hit_around(&mut self, x: f32, y: f32, w: f32, h: f32, action: Action) {
+        const FAR: f32 = 10_000.0;
+        self.quiet_hover = true;
+        self.hit(x - FAR, y - FAR, w + 2.0 * FAR, FAR, action);
+        self.hit(x - FAR, y + h, w + 2.0 * FAR, FAR, action);
+        self.hit(x - FAR, y, FAR, h, action);
+        self.hit(x + w, y, FAR, h, action);
+        self.quiet_hover = false;
+    }
+
     /// Draws only inside `rect` until [`Ui::unreveal`], while what is
     /// drawn stays pressable as if it all showed.
     pub fn reveal(&mut self, rect: Rect) {
@@ -709,6 +1047,18 @@ impl<'a> Ui<'a> {
         width
     }
 
+    /// A word in a pill that a press opens in its list, where words are
+    /// shown as they are made. Returns its width.
+    pub fn word_pill(&mut self, x: f32, y: f32, word: &str, action: Action) -> f32 {
+        let h = 26.0;
+        let width = self.measure(14.0, W::M, word) + 24.0;
+        self.fill(x, y, width, h, h / 2.0, INNER);
+        self.stroke(x, y, width, h, h / 2.0, BORDER);
+        self.text_mid(x + 12.0, y, h, 14.0, W::M, TEXT, word);
+        self.hit(x, y, width, h, action);
+        width
+    }
+
     /// A pill with a plain label and an edge. Returns its width.
     pub fn pill(&mut self, x: f32, y: f32, h: f32, label: &str) -> f32 {
         let width = self.measure(12.0, W::R, label) + 24.0;
@@ -798,5 +1148,39 @@ pub fn thousands(n: u64) -> String {
         }
         out.push(ch);
     }
+    out
+}
+
+/// The shield's outline in a box `w` by `h` pixels at (x, y), clockwise:
+/// a flat top with rounded corners, straight sides to six tenths of the
+/// way down, and curved sides meeting in a point.
+fn shield(x: f32, y: f32, w: f32, h: f32) -> Vec<(f32, f32)> {
+    use std::f32::consts::{FRAC_PI_2, PI};
+    let r = 0.12 * w;
+    let mut out = Vec::new();
+    for (cx, from) in [(x + r, PI), (x + w - r, PI + FRAC_PI_2)] {
+        out.extend((0..=8).map(|i| {
+            let a = from + FRAC_PI_2 * i as f32 / 8.0;
+            (cx + r * a.cos(), y + r + r * a.sin())
+        }));
+    }
+    let side = y + 0.60 * h;
+    let tip = (x + w / 2.0, y + h);
+    // A quadratic curve from the foot of a side to the tip, its control
+    // point just inside the side.
+    let curve = |sx: f32, cx: f32| {
+        (0..=16).map(move |i| {
+            let t = i as f32 / 16.0;
+            let u = 1.0 - t;
+            let ctrl = (cx, side + 0.25 * h);
+            (
+                u * u * sx + 2.0 * u * t * ctrl.0 + t * t * tip.0,
+                u * u * side + 2.0 * u * t * ctrl.1 + t * t * tip.1,
+            )
+        })
+    };
+    out.extend(curve(x + w, x + w - 0.02 * w));
+    let left: Vec<(f32, f32)> = curve(x, x + 0.02 * w).collect();
+    out.extend(left.into_iter().rev());
     out
 }

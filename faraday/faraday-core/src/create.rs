@@ -263,19 +263,120 @@ pub fn new_words(entropy: &[u8; 32]) -> Result<String, String> {
         .join(" "))
 }
 
-/// The account key in a file, if the file is one: `[fingerprint/path]xpub`
-/// on a line of its own.
+/// The account key in a file, if the file is one: the first of
+/// [`read_keys`].
 pub fn read_key(text: &str) -> Option<String> {
-    // A BIP 129 key record counts only when its signature is the key's.
+    read_keys(text).into_iter().next()
+}
+
+/// Every account key a file offers, as `[fingerprint/path]xpub`: a BIP 129
+/// key record whose signature is the key's; Coldcard's multisig key file
+/// (`ccxp-….json`, which Passport and Unchained also write: flat `p2wsh`,
+/// `p2sh_p2wsh` and `p2sh` fields, each with its `_deriv`); Coldcard's
+/// generic export, one object per account; or `[fingerprint/path]xpub` on
+/// lines of their own.
+pub fn read_keys(text: &str) -> Vec<String> {
     if osk_bip::bsms::is_signer_record(text) {
-        let r = osk_bip::bsms::SignerRecord::parse(text).ok()?;
-        r.verify().ok()?;
-        return Some(r.key.key_text());
+        return osk_bip::bsms::SignerRecord::parse(text)
+            .ok()
+            .filter(|r| r.verify().is_ok())
+            .map(|r| r.key.key_text())
+            .into_iter()
+            .collect();
+    }
+    if text.trim_start().starts_with('{') {
+        return coldcard_keys(text);
     }
     text.lines()
         .map(str::trim)
         .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .find_map(|l| PolicyKey::parse(l).ok().map(|k| k.key_text()))
+        .filter_map(|l| PolicyKey::parse(l).ok().map(|k| k.key_text()))
+        .collect()
+}
+
+/// The account keys in a Coldcard JSON file, each rooted at the file's
+/// top-level `xfp`, the master's. Coldcard writes the flat multisig keys
+/// in SLIP-132 form (`Zpub`, `Ypub`, `Vpub`, `Upub`), which a descriptor
+/// takes as `xpub` or `tpub`.
+fn coldcard_keys(text: &str) -> Vec<String> {
+    use crate::wallet::{json_object, json_string};
+    let Some(master) = json_string(text, "xfp") else {
+        return Vec::new();
+    };
+    let master = master.to_ascii_lowercase();
+    let key = |deriv: &str, xpub: &str| {
+        let path = deriv.trim_start_matches('m').trim_start_matches('/');
+        let xpub = crate::wallet::plain_xpub(xpub)?;
+        PolicyKey::parse(&format!("[{master}/{path}]{xpub}"))
+            .ok()
+            .map(|k| k.key_text())
+    };
+    let mut keys = Vec::new();
+    // The multisig key file: flat fields. Coldcard has written the nested
+    // one as `p2wsh_p2sh` and as `p2sh_p2wsh`.
+    for field in ["p2wsh", "p2sh_p2wsh", "p2wsh_p2sh", "p2sh"] {
+        let flat = text.find(&format!("\"{field}\"")).is_some_and(|at| {
+            // A field at the top level, not inside an account object.
+            text[..at].matches('{').count() == text[..at].matches('}').count() + 1
+        });
+        if !flat {
+            continue;
+        }
+        if let (Some(d), Some(x)) = (
+            json_string(text, &format!("{field}_deriv")),
+            json_string(text, field),
+        ) && let Some(k) = key(&d, &x)
+        {
+            keys.push(k);
+        }
+    }
+    // The generic export: one object per account.
+    for field in [
+        "bip48_2", "bip48_1", "bip45", "bip86", "bip84", "bip49", "bip44",
+    ] {
+        if let Some(account) = json_object(text, field)
+            && let (Some(d), Some(x)) =
+                (json_string(account, "deriv"), json_string(account, "xpub"))
+            && let Some(k) = key(&d, &x)
+        {
+            keys.push(k);
+        }
+    }
+    keys
+}
+
+/// The key in a file for a slot of a `kind` wallet: of the keys the file
+/// offers, the one at the kind's derivation (any account, any network);
+/// or, from a file that holds one key only, that key, as the person chose
+/// the file for it.
+pub fn key_for(kind: NewKind, text: &str) -> Option<String> {
+    let keys = read_keys(text);
+    // Purpose, and for BIP-48 the script type: what the kind's path says
+    // apart from its coin type and account.
+    let shape = |path: &str| {
+        let steps: Vec<String> = path
+            .trim_start_matches('m')
+            .split('/')
+            .filter(|s| !s.is_empty())
+            .map(|s| s.trim_end_matches(['h', '\'', 'H']).to_string())
+            .collect();
+        match steps.first().map(String::as_str) {
+            Some("48") => steps.get(3).map(|t| format!("48/{t}")),
+            Some(p) => Some(p.to_string()),
+            None => None,
+        }
+    };
+    let want = shape(&kind.path(osk_bip::keys::Network::Mainnet))?;
+    let at = |k: &String| {
+        let path = k.get(k.find('/')? + 1..k.find(']')?)?;
+        shape(path)
+    };
+    keys.iter()
+        .find(|k| at(k).as_deref() == Some(want.as_str()))
+        .cloned()
+        .or_else(|| {
+            (keys.len() == 1 && !text.trim_start().starts_with('{')).then(|| keys[0].clone())
+        })
 }
 
 /// Builds and reads back the wallet a creation describes.

@@ -194,7 +194,8 @@ partition.
 ### 4.4 Untrusted input, the complete list
 
 Camera frames (OpenSigner's vendored `rqrr`, fuzzed), file contents read
-from sticks (PSBTs and other OpenSigner inputs, entry import text),
+from sticks (PSBTs and other OpenSigner inputs, entry import text, the
+boot stick's settings file, §5.2),
 vault files (only the fixed header is read before an authentication tag
 is checked; Argon2id cost is capped before allocation), FAT metadata (in
 the unprivileged disk process), GPT and MBR partition tables (in the
@@ -276,8 +277,18 @@ partitions and does not count.
   `BOOTX64.EFI`, entry import text, vault files. Held in RAM.
 - **Outbox:** results that are public or encrypted — signed PSBTs, public
   keys and certificates, GPG signatures and revocation certificates,
-  Secure Boot enrolment files, the signed `BOOTX64.EFI`, sealed vaults,
-  settings. Held in RAM and written on the next stick visit.
+  Secure Boot enrolment files, the signed `BOOTX64.EFI`, sealed vaults.
+  Held in RAM and written on the next stick visit.
+- **Settings** are not an Outbox file. `faraday-settings.txt` on the
+  boot stick, plain text so the theme, scale and keyboard layout apply
+  before the passphrase, is read once a session, at boot. A line is
+  taken only if its key is known and its value is one Settings offers;
+  never for an idle time, the signed-amount memory's seal and the
+  network are not read from it, so a file someone edited cannot make a
+  fresh boot less protected than the defaults. A stick visit offers it
+  as its first row, ticked on the boot stick when the settings changed,
+  and writes it over the settings file there
+  (`faraday-core/src/stick_settings.rs`).
 
 Both live under `/run/faraday`, a RAM directory readable only by
 uid 200. Nothing decrypted is ever placed in the Outbox. Both are shown on one
@@ -468,7 +479,16 @@ Version-4 fingerprints need SHA-1, which is used for fingerprints only.
 - Check an existing signature against the db certificate in a vault.
 - Test: `tools/stick-qemu.py` extended to enrol generated keys in OVMF,
   boot the signed image, and confirm an unsigned or altered image is
-  refused. This is OpenSigner's §15 item 52.
+  refused. This is OpenSigner's §15 item 52. Built 2026-10-07 as
+  `faraday/tools/sb-ovmf-check.py` (`just faraday-sb-ovmf`), over
+  systemd-boot rather than the stick: for each policy, OVMF in Setup
+  Mode takes the three `.auth` updates (systemd-boot writes them, as a
+  firmware setup screen does), then with Secure Boot enforced runs the
+  image signed with the db key and refuses it unsigned and altered by one
+  byte. In Setup Mode the firmware may take KEK and db without checking
+  their signatures; those are checked by `openssl` in
+  `faraday-sb/tests/judged.rs`. Signing the stick's own `BOOTX64.EFI` is
+  the same code path over a larger image.
 
 ## 9. Interface
 
@@ -583,7 +603,8 @@ device graph, to be measured with `cargo tree` once a prototype exists.
 ## 12. Decided 2026-10-04
 
 1. **Vault file names** are fixed: `vault.ofv`, then `vault-2.ofv`
-   (`docs/VAULT.md` §6).
+   (`docs/VAULT.md` §6). Reversed by the owner 2026-10-07: a vault is
+   named when it is made, and `vault.ofv` is the name left empty.
 2. **Write-back replaces** the previous copy; no `.bak`.
 3. **Idle** (owner, 2026-10-06): at 5 minutes without input a warning
    comes up with a countdown and what the lock wipes, seals and keeps;

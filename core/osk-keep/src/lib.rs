@@ -146,7 +146,7 @@ pub mod wallets;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use argon2::{Algorithm, Argon2, Block, Params, Version};
+use argon2::Params;
 use chacha20poly1305::aead::inout::InOutBuf;
 use chacha20poly1305::{AeadInOut, KeyInit, Tag, XChaCha20Poly1305, XNonce};
 use hmac::{Hmac, Mac};
@@ -842,31 +842,10 @@ fn kek(guess: &Guess, mac: &[u8; 32]) -> Secret<[u8; 32]> {
     Secret::new(hmac.finalize().into_bytes().into())
 }
 
-/// `Argon2id(pin, salt_pin)` at the blob's cost.
+/// `Argon2id(pin, salt_pin)` at the blob's cost
+/// ([`osk_backup::argon2id`]).
 fn stretch(header: &Header, pin: &[u8]) -> Option<Secret<[u8; 32]>> {
-    let params = Params::new(
-        header.cost.memory_kib,
-        header.cost.passes,
-        header.cost.lanes,
-        Some(32),
-    )
-    .ok()?;
-    let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params.clone());
-    // Argon2's working memory is the caller's: this crate has `alloc`
-    // and the `argon2` crate's own allocating helper needs a feature
-    // that drags in its string format. It is overwritten below, since
-    // what it holds is derived from the PIN.
-    let mut memory = vec![Block::default(); params.block_count()];
-    let mut derived = Secret::new([0u8; 32]);
-    let hashed = argon
-        .hash_password_into_with_memory(pin, &header.salt_pin, derived.expose_mut(), &mut memory)
-        .is_ok();
-    memory.fill(Block::default());
-    core::hint::black_box(&memory);
-    if !hashed {
-        return None;
-    }
-    Some(derived)
+    osk_backup::argon2id(&header.cost, pin, &header.salt_pin).ok()
 }
 
 /// The keys record's plaintext: the kind, the count and every slot.

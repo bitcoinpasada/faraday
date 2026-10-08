@@ -8,7 +8,7 @@ use faraday_core::{Action, Faraday, Screen};
 use osk_shell_api::{App, Event, Key};
 
 fn with_key() -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.press(Action::Network(testkit::NET));
     app.press(Action::Entry(None));
     for c in testkit::test_words("bacon").chars() {

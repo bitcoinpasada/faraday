@@ -182,7 +182,7 @@ pub const LOAD_WHICH_PASSPHRASE: Id = Id(108);
 /// that have the room for it. Drawn from the first accepted word, masked,
 /// and revealed by a finger on it or by [`SECRET_EYE`] (§4.3, §4.10).
 pub const LOAD_WORDS_PANEL: Id = Id(109);
-/// Load: word-count buttons, in [`crate::load::COUNTS`] order.
+/// Load: word-count buttons, in [`osk_entropy::WORD_COUNTS`] order.
 pub const LOAD_COUNT_BASE: u32 = 110;
 /// Load: language rows, in `Language::ALL` order.
 pub const LOAD_LANG_BASE: u32 = 120;
@@ -303,7 +303,7 @@ pub const XOR_COUNT_CONTINUE: Id = Id(1944);
 pub const XOR_ADD_ANOTHER: Id = Id(1945);
 /// Create: "Combine", which XORs the parts typed so far.
 pub const XOR_COMBINE: Id = Id(1946);
-/// "Random parts from?": the rows, in [`crate::create::SOURCE_ROWS`]
+/// "Random parts from?": the rows, in [`osk_entropy::SOURCE_ROWS`]
 /// order.
 pub const XOR_SOURCE_BASE: u32 = 1950;
 /// "Random parts from?": Continue, which opens the first part's entry.
@@ -643,11 +643,11 @@ pub const EXPLORE_KEEP: Id = Id(823);
 /// Explore: "Discard" on the discard confirm.
 pub const EXPLORE_DISCARD: Id = Id(824);
 
-/// Create: source rows, in [`crate::create::SOURCE_ROWS`] order.
+/// Create: source rows, in [`osk_entropy::SOURCE_ROWS`] order.
 pub const CREATE_SOURCE_BASE: u32 = 600;
 /// Create: Continue on the source step.
 pub const CREATE_SOURCE_CONTINUE: Id = Id(636);
-/// Create: word-count rows, in [`crate::load::COUNTS`] order.
+/// Create: word-count rows, in [`osk_entropy::WORD_COUNTS`] order.
 pub const CREATE_COUNT_BASE: u32 = 610;
 /// Create: Continue on the word-count step.
 pub const CREATE_COUNT_CONTINUE: Id = Id(638);
@@ -683,7 +683,7 @@ pub const CREATE_MATH_WORD: Id = Id(653);
 /// Create: the shutter of the camera-noise step.
 pub const CREATE_SHUTTER: Id = Id(658);
 /// Create: the toggle rows of "Mix which sources?", in
-/// [`crate::create::MIX_SOURCES`] order.
+/// [`osk_entropy::MIX_SOURCES`] order.
 pub const CREATE_MIX_BASE: u32 = 660;
 /// Create: Continue on "Mix which sources?".
 pub const CREATE_MIX_CONTINUE: Id = Id(665);
@@ -724,7 +724,7 @@ pub const LEARN_TRY: Id = Id(849);
 /// which the frame that placed it scrolls to the top of the view.
 pub const LEARN_HEADING: Id = Id(848);
 /// Learn: the row that opens page `i` of the list, in the order
-/// [`crate::strings::Strings::learn_pages`] gives them.
+/// [`osk_learn::Learn::pages`] gives them.
 pub const LEARN_ROW_BASE: u32 = 850;
 
 /// Files: the row that reads the file at position `i` of the listing
@@ -901,7 +901,7 @@ pub const SHARE_COUNT_CONTINUE: Id = Id(2404);
 pub const SHARE_THRESHOLD_BASE: u32 = 2470;
 /// Continue on that Choice.
 pub const SHARE_THRESHOLD_CONTINUE: Id = Id(2405);
-/// "Random shares from?": the rows, in [`crate::create::SOURCE_ROWS`]
+/// "Random shares from?": the rows, in [`osk_entropy::SOURCE_ROWS`]
 /// order.
 pub const SHARE_SOURCE_BASE: u32 = 2490;
 /// Continue on that Choice.
@@ -929,7 +929,7 @@ pub const CODEX32_COUNT_CONTINUE: Id = Id(2505);
 pub const CODEX32_THRESHOLD_BASE: u32 = 2580;
 /// Continue on that Choice.
 pub const CODEX32_THRESHOLD_CONTINUE: Id = Id(2506);
-/// "Random shares from?": the rows, in [`crate::create::SOURCE_ROWS`]
+/// "Random shares from?": the rows, in [`osk_entropy::SOURCE_ROWS`]
 /// order.
 pub const CODEX32_SOURCE_BASE: u32 = 2620;
 /// Continue on that Choice.
@@ -1062,11 +1062,6 @@ pub const SILENT_SECRET_ROW: Id = Id(3110);
 pub const CREATE_PROCEDURE_BASE: u32 = 3200;
 /// Create: Continue on "Which procedure?".
 pub const CREATE_PROCEDURE_CONTINUE: Id = Id(3210);
-/// Create: the rows of "Which last word?" after a run of direct
-/// selection, in candidate order (128 of them at twelve words).
-pub const CREATE_LAST_WORD_BASE: u32 = 3300;
-/// Create: Continue on "Which last word?".
-pub const CREATE_LAST_WORD_CONTINUE: Id = Id(3211);
 
 // ----- Tools › Lightning node key (`docs/PLANNING.md` §16.116) -----
 

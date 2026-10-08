@@ -5,12 +5,16 @@ use opensigner_core::strings::EN;
 use osk_bip::bip39::Language;
 use osk_entropy::{CameraNoise, CardDraws, CoinFlips, DiceProcedure, RANKS, SUITS};
 
-use crate::keygen::{KeyGen, MIX_SOURCES, SOURCE_ROWS, Source, kstep, procedure_name, source_name};
-use crate::screens::{next_button, section_label};
+use crate::keygen::{
+    Group, KeyGen, MIX_SOURCES, Source, WAYS, Way, kstep, procedure_name, source_name,
+};
+use crate::screens::{buttons_and_next, next_button, section_label, stepper};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Faraday, flow, guide};
+use osk_ui::Color;
+use osk_ui::widgets::Icon;
 
 const TITLES: [&str; kstep::COUNT] = ["Length", "Randomness", "Entries", "Check", "Words", "Quiz"];
 
@@ -30,7 +34,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             done: k.done[usize::from(s)],
             open: k.open == Some(s),
             toggle: Action::KStep(s),
-            guide: Some(guide::keygen(s, k.active(), k.slip39, k.by_die)),
+            guide: Some(guide::keygen(s, k)),
         })
         .collect();
     let back_label = match k.back {
@@ -93,7 +97,7 @@ fn entries_title(k: &KeyGen) -> String {
 fn asks(k: &KeyGen, s: Source) -> String {
     let st = k.strength();
     match s {
-        Source::Dice => format!("{} rolls of a six-sided die", k.procedure().needed(st)),
+        Source::Dice => format!("{} rolls of a six-sided die", k.dice_needed()),
         Source::Coins => format!(
             "{} flips, or rolls of a die read as flips",
             CoinFlips::needed(st)
@@ -102,10 +106,7 @@ fn asks(k: &KeyGen, s: Source) -> String {
         Source::Hex => format!("{} digits made elsewhere", st.hex_digits()),
         Source::Camera => format!("{} pictures", CameraNoise::needed(st)),
         Source::Mix => "Two or more of these, combined".to_string(),
-        Source::Device => format!(
-            "{} · {}: {} · getrandom(2)",
-            EN.create_device_os, EN.create_trust_row, EN.create_trust_device
-        ),
+        Source::Device => format!("{} · getrandom(2)", EN.create_device_os),
         Source::SeedXor => String::new(),
     }
 }
@@ -118,8 +119,7 @@ fn summary(k: &KeyGen, s: u8) -> String {
         ),
         kstep::LENGTH => format!("{} words", k.words),
         kstep::SOURCE => match k.source {
-            Some(Source::Dice) if k.by_die => format!("{} · Flip mode", source_name(Source::Dice)),
-            Some(Source::Dice) => format!("Dice · {}", procedure_name(k.procedure)),
+            Some(Source::Dice) => k.way().map(way_name).unwrap_or_default(),
             Some(Source::Coins) if k.by_die => {
                 format!("{} · read from a die", source_name(Source::Coins))
             }
@@ -170,7 +170,7 @@ fn summary(k: &KeyGen, s: u8) -> String {
 
 fn card_body(k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
     match s {
-        kstep::LENGTH => length(k, ui, x, y),
+        kstep::LENGTH => length(k, ui, x, y, w),
         kstep::SOURCE => sources(k, ui, x, y, w),
         kstep::ENTER => entries(k, ui, x, y, w),
         kstep::CHECK => check(k, ui, x, y, w),
@@ -191,7 +191,7 @@ const SLIP39_FACTS: [&str; 7] = [
     "A share is 20 words for a 128-bit seed, the strength of 12 BIP-39 words, or 33 words for 256 bits.",
 ];
 
-fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32) -> f32 {
+fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     // Words or shares.
     if !k.only_24 {
@@ -206,7 +206,7 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32) -> f32 {
         }
         cy += 50.0;
     }
-    let used = length_counts(k, ui, x, cy);
+    let used = length_counts(k, ui, x, cy, w);
     cy += used;
     if k.slip39 {
         for (label, value, minus, plus) in [
@@ -223,23 +223,13 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32) -> f32 {
                 Action::KSlipN(1),
             ),
         ] {
-            ui.text_mid(x, cy, 40.0, 13.0, W::R, MUTED, label);
-            ui.button(
-                x + 180.0,
-                cy,
-                Some(40.0),
-                40.0,
-                "-",
-                Style::Secondary,
-                minus,
-            );
-            ui.text_mid(x + 236.0, cy, 40.0, 18.0, W::S, TEXT, &value.to_string());
-            ui.button(x + 270.0, cy, Some(40.0), 40.0, "+", Style::Secondary, plus);
+            stepper(ui, x, cy, w, label, usize::from(value), minus, plus, true);
             cy += 50.0;
         }
-        ui.text(
+        cy += ui.wrap(
             x,
             cy,
+            w,
             13.0,
             W::S,
             TEXT,
@@ -247,24 +237,37 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32) -> f32 {
                 "Any {} of the {} shares restore the key",
                 k.slip_m, k.slip_n
             ),
-        );
-        cy += 30.0;
+        ) + 12.0;
         ui.text(x, cy, 13.0, W::S, MUTED, "What shares reveal");
         cy += 24.0;
         for f in SLIP39_FACTS {
             ui.fill(x + 2.0, cy + 7.0, 4.0, 4.0, 2.0, MUTED);
-            cy += ui.wrap(x + 16.0, cy, 760.0, 13.0, W::R, TEXT, f) + 8.0;
+            cy += ui.wrap(x + 16.0, cy, w.min(760.0) - 16.0, 13.0, W::R, TEXT, f) + 8.0;
         }
         cy += 4.0;
-        next_button(ui, x, cy, 760.0, "Continue", Action::KWords(k.words as u8));
+        next_button(
+            ui,
+            x,
+            cy,
+            w.min(760.0),
+            "Continue",
+            Action::KWords(k.words as u8),
+        );
         cy += 52.0;
     }
     cy - y
 }
 
-fn length_counts(k: &KeyGen, ui: &mut Ui, x: f32, y: f32) -> f32 {
+fn length_counts(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut bx = x;
+    let mut y = y;
+    let top = y;
     for &n in k.counts() {
+        // Wrapped to the width: a small panel takes two to a row.
+        if bx > x && bx + 104.0 > x + w {
+            bx = x;
+            y += 48.0;
+        }
         let allowed = !k.only_24 || n == 24;
         let style = if !allowed {
             Style::Disabled
@@ -287,7 +290,7 @@ fn length_counts(k: &KeyGen, ui: &mut Ui, x: f32, y: f32) -> f32 {
             },
         ) + 8.0;
     }
-    let mut used = 52.0;
+    let mut used = y - top + 52.0;
     if k.only_24 {
         ui.text(
             x,
@@ -307,7 +310,6 @@ struct Row<'a> {
     on: bool,
     name: &'a str,
     line: &'a str,
-    tone: Color,
     action: Action,
 }
 
@@ -316,7 +318,6 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
         on,
         name,
         line,
-        tone,
         action: a,
     } = r;
     ui.fill(x, y, w, 52.0, 10.0, if on { INNER } else { BG });
@@ -332,116 +333,181 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
     if !on {
         ui.dot(x + 22.0, y + 26.0, 5.0, BG);
     }
-    ui.text(x + 42.0, y + 8.0, 14.0, W::S, TEXT, name);
-    ui.text(x + 42.0, y + 29.0, 12.0, W::R, tone, line);
+    let name = ui.fit(14.0, W::S, name, w - 54.0);
+    ui.text(x + 42.0, y + 8.0, 14.0, W::S, TEXT, &name);
+    let line = ui.fit(12.0, W::R, line, w - 54.0);
+    ui.text(x + 42.0, y + 29.0, 12.0, W::R, MUTED, &line);
     ui.hit(x, y, w, 52.0, a);
 }
 
-use osk_ui::Color;
+/// An option's name on the Randomness card and in its summary.
+fn way_name(w: Way) -> String {
+    match w {
+        Way::DiceFlips => format!("{} · Flip mode", source_name(Source::Dice)),
+        Way::DiceWords | Way::DiceHashed | Way::DiceSixAsZero => format!(
+            "{} · {}",
+            source_name(Source::Dice),
+            procedure_name(match w {
+                Way::DiceWords => DiceProcedure::Words,
+                Way::DiceSixAsZero => DiceProcedure::SixAsZero,
+                _ => DiceProcedure::Hashed,
+            })
+        ),
+        w => source_name(w.source()).to_string(),
+    }
+}
+
+/// What an option asks for at this length, as its row's second line.
+fn way_line(k: &KeyGen, w: Way) -> String {
+    let st = k.strength();
+    match w {
+        Way::DiceFlips => format!("{} rolls, read as flips", CoinFlips::needed(st)),
+        Way::DiceWords | Way::DiceHashed | Way::DiceSixAsZero => {
+            let p = match w {
+                Way::DiceWords => DiceProcedure::Words,
+                Way::DiceSixAsZero => DiceProcedure::SixAsZero,
+                _ => DiceProcedure::Hashed,
+            };
+            EN.dice_procedure_rolls
+                .replacen("{}", &k.rolls_for(p).to_string(), 1)
+        }
+        w => asks(k, w.source()),
+    }
+}
+
+/// A group's heading. Each group opens and closes (this device's closed
+/// at the start); a closed one names the option chosen in it.
+fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 {
+    let title = match g {
+        Group::ByHand => "Your own entropy, words verifiable by hand",
+        Group::Computed => "Your entropy, computer generates words",
+        Group::Device => "Made by this device",
+    };
+    if ui.compact {
+        let mut cy = y;
+        cy += ui.wrap(x, cy, w - 34.0, 14.0, W::S, MUTED, title);
+        let i = group_index(g);
+        let open = k.groups_open[usize::from(i)];
+        let chosen = k.way().filter(|w| w.group(k.slip39) == g);
+        if g == Group::ByHand || (!open && chosen.is_some()) {
+            cy += 4.0;
+            let mut bx = x;
+            if g == Group::ByHand {
+                bx += ui.chip(x, cy, "Recommended", OK, OK.with_alpha(30)) + 8.0;
+            }
+            if let Some(way) = chosen.filter(|_| !open) {
+                let name = ui.fit(13.0, W::S, &way_name(way), x + w - bx);
+                ui.text(bx, cy + 2.0, 13.0, W::S, ACCENT, &name);
+            }
+            cy += 24.0;
+        }
+        ui.icon(
+            x + w - 24.0,
+            y - 3.0,
+            20.0,
+            if open {
+                Icon::ChevronUp
+            } else {
+                Icon::ChevronRight
+            },
+            10.0,
+            DIM,
+        );
+        ui.hit(x, y - 8.0, w, cy - y + 8.0, Action::KGroup(i));
+        return cy - y + 8.0;
+    }
+    section_label(ui, x, y, title);
+    let i = group_index(g);
+    if g == Group::ByHand {
+        let lw = ui.measure(14.0, W::S, title);
+        ui.chip(x + lw + 12.0, y - 4.0, "Recommended", OK, OK.with_alpha(30));
+    }
+    let open = k.groups_open[usize::from(i)];
+    ui.icon(
+        x + w - 30.0,
+        y - 3.0,
+        20.0,
+        if open {
+            Icon::ChevronUp
+        } else {
+            Icon::ChevronRight
+        },
+        10.0,
+        DIM,
+    );
+    if !open && let Some(way) = k.way().filter(|w| w.group(k.slip39) == g) {
+        ui.text_right(
+            x + w - 40.0,
+            y - 6.0,
+            30.0,
+            13.0,
+            W::S,
+            ACCENT,
+            &way_name(way),
+        );
+    }
+    ui.hit(x, y - 8.0, w, 32.0, Action::KGroup(i));
+    28.0
+}
+
+/// A group's place in [`KeyGen::groups_open`], which `KGroup` carries.
+fn group_index(g: Group) -> u8 {
+    match g {
+        Group::ByHand => 0,
+        Group::Computed => 1,
+        Group::Device => 2,
+    }
+}
 
 fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    section_label(ui, x, cy, "Made by you");
-    let lw = ui.measure(14.0, W::S, "Made by you");
-    ui.chip(
-        x + lw + 12.0,
-        cy - 4.0,
-        "Recommended",
-        OK,
-        OK.with_alpha(30),
-    );
-    cy += 28.0;
-    for (i, &s) in SOURCE_ROWS.iter().enumerate() {
-        if s == Source::Device {
-            cy += 8.0;
-            section_label(ui, x, cy, "Made by this device");
-            cy += 28.0;
+    let chosen = k.way();
+    for g in [Group::ByHand, Group::Computed, Group::Device] {
+        let ways: Vec<Way> = WAYS
+            .iter()
+            .copied()
+            .filter(|w| w.offered(k.slip39) && w.group(k.slip39) == g)
+            .collect();
+        if ways.is_empty() {
+            continue;
         }
-        let on = k.source == Some(s);
-        let tone = if s == Source::Device { WARN } else { MUTED };
-        let line = asks(k, s);
-        row(
-            ui,
-            x,
-            cy,
-            w,
-            Row {
-                on,
-                name: source_name(s),
-                line: &line,
-                tone,
-                action: Action::KSource(i as u8),
-            },
-        );
-        cy += 60.0;
-        // The dice's procedures and the mix's sources open under their row.
-        if on && s == Source::Dice {
-            // Flip mode: each roll read as a flip, the same key a coin
-            // flipped the same way would make (`docs/PLANNING.md`
-            // §16.115 — the same procedure as Coins read from a die,
-            // built once, offered from both rows).
-            let flip_line = format!("{} rolls, read as flips", CoinFlips::needed(k.strength()));
+        if cy > y {
+            cy += 8.0;
+        }
+        cy += group_head(k, ui, x, cy, w, g);
+        let open = k.groups_open[usize::from(group_index(g))];
+        if !open {
+            cy += 4.0;
+            continue;
+        }
+        for way in ways {
+            let line = way_line(k, way);
             row(
                 ui,
-                x + 40.0,
+                x,
                 cy,
-                w - 40.0,
+                w,
                 Row {
-                    on: k.by_die,
-                    name: "Flip mode",
-                    line: &flip_line,
-                    tone: MUTED,
-                    action: Action::KDiceFlip(true),
+                    on: chosen == Some(way),
+                    name: &way_name(way),
+                    line: &line,
+                    action: Action::KWay(way.index()),
                 },
             );
             cy += 60.0;
-            for (j, &p) in DiceProcedure::ALL.iter().enumerate() {
-                // Choosing words directly makes BIP-39 words, not a
-                // SLIP-39 secret.
-                if k.slip39 && p.direct() {
-                    continue;
+            // The mix's sources open under its row.
+            if chosen == Some(way) && way == Way::Mix {
+                for (j, &m) in MIX_SOURCES.iter().enumerate() {
+                    let on = k.mix[j];
+                    ui.checkbox(x + 44.0, cy + 7.0, on, true);
+                    ui.text(x + 74.0, cy + 6.0, 14.0, W::R, TEXT, source_name(m));
+                    let nw = ui.measure(14.0, W::R, source_name(m));
+                    ui.text(x + 86.0 + nw, cy + 7.0, 12.0, W::R, MUTED, &asks(k, m));
+                    ui.hit(x + 40.0, cy, w - 40.0, 32.0, Action::KMix(j as u8));
+                    cy += 34.0;
                 }
-                let n = p.needed(k.strength());
-                let line = if p.direct() {
-                    EN.dice_procedure_rolls_words
-                        .replacen("{}", &n.to_string(), 1)
-                } else {
-                    EN.dice_procedure_rolls.replacen("{}", &n.to_string(), 1)
-                };
-                row(
-                    ui,
-                    x + 40.0,
-                    cy,
-                    w - 40.0,
-                    Row {
-                        on: k.procedure == p && !k.by_die,
-                        name: procedure_name(p),
-                        line: &line,
-                        tone: MUTED,
-                        action: Action::KProc(j as u8),
-                    },
-                );
-                cy += 60.0;
+                cy += 8.0;
             }
-        }
-        if on && s == Source::Mix {
-            for (j, &m) in MIX_SOURCES.iter().enumerate() {
-                let chosen = k.mix[j];
-                ui.checkbox(x + 44.0, cy + 7.0, chosen, true);
-                ui.text(x + 74.0, cy + 6.0, 14.0, W::R, TEXT, source_name(m));
-                let nw = ui.measure(14.0, W::R, source_name(m));
-                ui.text(
-                    x + 86.0 + nw,
-                    cy + 7.0,
-                    12.0,
-                    W::R,
-                    if m == Source::Device { WARN } else { MUTED },
-                    &asks(k, m),
-                );
-                ui.hit(x + 40.0, cy, w - 40.0, 32.0, Action::KMix(j as u8));
-                cy += 34.0;
-            }
-            cy += 8.0;
         }
     }
     if let Some(n) = &k.note {
@@ -504,9 +570,6 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             if k.reveals() {
                 cy = reveal(k, ui, x, cy, w);
             }
-            if k.procedure().direct() && have >= need {
-                cy = last_words(k, ui, x, cy, w);
-            }
         }
         Some(Source::Coins) if k.by_die => {
             let bw = ((w - 5.0 * 8.0) / 6.0).min(84.0);
@@ -547,9 +610,6 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy += 68.0;
             if k.reveals() {
                 cy = reveal(k, ui, x, cy, w);
-            }
-            if k.procedure().direct() && have >= need {
-                cy = last_words(k, ui, x, cy, w);
             }
         }
         Some(Source::Coins) => {
@@ -677,34 +737,28 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += 22.0;
     }
     if let Some(n) = &k.note {
-        ui.text(x, cy, 13.0, W::R, ERR, n);
-        cy += 22.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, n) + 4.0;
     }
     cy += 6.0;
-    if !matches!(active, Some(Source::Device)) {
-        let uw = ui.button(x, cy, None, 40.0, "Undo", Style::Ghost, Action::KUndo);
-        ui.button(
-            x + uw + 6.0,
-            cy,
-            None,
-            40.0,
-            "Clear",
-            Style::Ghost,
-            Action::KClear,
-        );
-    }
     let last_of_mix = k.source != Some(Source::Mix) || k.mix_at + 1 >= k.mix_list().len();
     let label = if last_of_mix {
         "Make the words"
     } else {
         "Next source"
     };
-    next_button(ui, x, cy, w, label, Action::KNext);
-    cy += 52.0;
+    let edits: &[(&str, Style, Action)] = if matches!(active, Some(Source::Device)) {
+        &[]
+    } else {
+        &[
+            ("Undo", Style::Ghost, Action::KUndo),
+            ("Clear", Style::Ghost, Action::KClear),
+        ]
+    };
+    cy += buttons_and_next(ui, x, cy, w, edits, Some((label, Action::KNext))) + 4.0;
+    if ui.compact {
+        return cy - y;
+    }
     let hint = match active {
-        Some(Source::Dice | Source::Coins) if k.typing => {
-            "Typing goes into the box · Enter takes it · Enter again continues"
-        }
         Some(Source::Dice) => "Type 1 to 6 · Backspace takes one back · Enter continues",
         Some(Source::Coins) if k.by_die => {
             "Type 1 to 6 · Backspace takes one back · Enter continues"
@@ -740,7 +794,7 @@ fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         bx += 18.0;
     }
-    for (label, on) in [("Buttons", false), ("Typed", true)] {
+    for (label, on) in [("Typed", true), ("Buttons", false)] {
         bx += ui.button(
             bx,
             cy,
@@ -763,44 +817,20 @@ fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy
 }
 
-/// The box a string of entries is typed into, and the button that takes
-/// it.
+/// The box entries are typed into. Each is taken as it is typed, and
+/// the box shows every one taken, by buttons too.
 fn typed_box(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let take = "Take these";
-    let tw = ui.measure(14.0, W::S, take) + 32.0;
-    let bw = w - tw - 8.0;
-    ui.fill(x, y, bw, 40.0, 8.0, BG);
-    ui.stroke(x, y, bw, 40.0, 8.0, ACCENT);
-    let shown = tail_fit(ui, &k.typed, bw - 30.0);
+    ui.fill(x, y, w, 40.0, 8.0, BG);
+    ui.stroke(x, y, w, 40.0, 8.0, ACCENT);
+    let shown = tail_fit(ui, &k.entered, w - 30.0);
     ui.text_mid(x + 12.0, y, 40.0, 14.0, W::M, TEXT, &shown);
     let cx = x + 13.0 + ui.measure(14.0, W::M, &shown);
-    ui.fill(cx, y + 11.0, 2.0, 18.0, 1.0, ACCENT);
-    ui.button(
-        x + bw + 8.0,
-        y,
-        Some(tw),
-        40.0,
-        take,
-        if k.typed.is_empty() {
-            Style::Disabled
-        } else {
-            Style::Primary
-        },
-        Action::KTake,
-    );
+    ui.caret(cx, y + 11.0, 18.0);
     let what = match k.active() {
         Some(Source::Coins) if !k.by_die => "H or 1 for heads, T or 0 for tails",
         _ => "Faces 1 to 6, as rolled",
     };
-    let count = k.typed.chars().count();
-    ui.text(
-        x,
-        y + 48.0,
-        12.0,
-        W::R,
-        DIM,
-        &format!("{what} · {count} typed"),
-    );
+    ui.text(x, y + 48.0, 12.0, W::R, DIM, what);
     y + 76.0
 }
 
@@ -828,9 +858,14 @@ fn tail_fit(ui: &Ui, s: &str, max: f32) -> String {
 /// word, with a link to it in the list. The last place shows no word
 /// until the words are made, because its last bits are the checksum.
 fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    if k.source == Some(Source::Dice) && !k.by_die {
+        return rolled_words(k, ui, x, y, w);
+    }
     let mut cy = y + 4.0;
     section_label(ui, x, cy, "Words so far");
-    cy += 28.0;
+    cy += 24.0;
+    ui.text(x, cy, 12.0, W::R, MUTED, crate::wordlist::PRESS_A_WORD);
+    cy += 24.0;
     let live = k.live_words();
     // Flips always land in `k.coins`, whether Coins or Dice's Flip mode
     // took them.
@@ -866,43 +901,44 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let num_w = ui.measure(13.0, W::M, "00");
     let code_w = ui.measure(13.0, W::M, &"0".repeat(per.max(11)));
     let index_w = ui.measure(13.0, W::M, "0000");
-    let (cx, ix, wx) = (
-        x + num_w + 14.0,
-        x + num_w + code_w + 34.0,
-        x + num_w + code_w + index_w + 54.0,
-    );
-    let link = "In the list";
-    let lw = ui.measure(13.0, W::S, link) + 32.0;
+    // On a small panel the number in the list and the word go on a
+    // second line, under the bits.
+    let narrow = ui.compact;
+    let (cx, ix, wx, down, step) = if narrow {
+        let cx = x + num_w + 14.0;
+        (cx, cx, cx + index_w + 14.0, 26.0, 58.0)
+    } else {
+        (
+            x + num_w + 14.0,
+            x + num_w + code_w + 34.0,
+            x + num_w + code_w + index_w + 54.0,
+            0.0,
+            30.0,
+        )
+    };
     let row = |ui: &mut Ui, cy: f32, slot: usize, code: &str, index: Option<u16>, note: &str| {
         let n = (slot + 1).to_string();
         let nw = ui.measure(13.0, W::M, &n);
         ui.text_mid(x + num_w - nw, cy, 30.0, 13.0, W::M, DIM, &n);
         ui.text_mid(cx, cy, 30.0, 13.0, W::M, MUTED, code);
+        let cy = cy + down;
         match index {
             Some(i) => {
                 let num = (i + 1).to_string();
                 let tw = ui.measure(13.0, W::M, &num);
                 ui.text_mid(ix + index_w - tw, cy, 30.0, 13.0, W::M, MUTED, &num);
-                ui.text_mid(wx, cy, 30.0, 14.0, W::M, TEXT, Language::English.word(i));
-                ui.button(
-                    x + w - lw,
-                    cy + 2.0,
-                    Some(lw),
-                    26.0,
-                    link,
-                    Style::Ghost,
-                    Action::WordList(crate::wordlist::WordListAction::Open(0, Some(i))),
-                );
+                ui.word_pill(wx, cy + 2.0, Language::English.word(i), open_word(i));
             }
             None => {
-                ui.text_mid(ix, cy, 30.0, 12.0, W::R, DIM, note);
+                let note = ui.fit(12.0, W::R, note, x + w - ix);
+                ui.text_mid(ix, cy, 30.0, 12.0, W::R, DIM, &note);
             }
         }
     };
     let last = k.words - 1;
     for (slot, &i) in live.iter().enumerate() {
         row(ui, cy, slot, &code_of(slot, per), Some(i), "");
-        cy += 30.0;
+        cy += step;
     }
     // The word being entered, when it is not the last.
     let at = live.len();
@@ -914,7 +950,7 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             format!("{part} of {per} rolls")
         };
         row(ui, cy, at, &code_of(at, part.min(per)), None, &note);
-        cy += 30.0;
+        cy += step;
     }
     // The last word: its own bits so far, then the checksum's.
     let made = k.checksum_word();
@@ -934,11 +970,12 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         made,
         "From the checksum, once the rest is in",
     );
-    cy += 30.0;
+    cy += step;
     if coins && made.is_some() {
-        ui.text(
+        cy += ui.wrap(
             x,
             cy,
+            w,
             12.0,
             W::R,
             DIM,
@@ -946,10 +983,168 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 "The last {checksum} bits of word {} are the checksum",
                 last + 1
             ),
-        );
-        cy += 22.0;
+        ) + 8.0;
     }
     cy + 8.0
+}
+
+/// Rolls that name words (BitBox) as they come in, word by word: each
+/// roll over the bits it stands for, the eleven bits read as the word's
+/// number in the list, and the word, with a link to it in the list. The
+/// last word's first bits are rolled the same way, and only those; its
+/// last bits are the checksum, shown as soon as the last of them is in.
+fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let mut cy = y + 4.0;
+    section_label(ui, x, cy, "Words so far");
+    cy += 24.0;
+    ui.text(x, cy, 12.0, W::R, MUTED, crate::wordlist::PRESS_A_WORD);
+    cy += 20.0;
+    cy += ui.wrap(
+        x,
+        cy,
+        w,
+        12.0,
+        W::R,
+        MUTED,
+        "Rolls 1 to 5 of a word: 1 = 00, 2 = 01, 3 = 10, 4 = 11 · Roll 6: 1 to 3 = 0, 4 to 6 = 1 · \
+         The 11 bits are the word's number in the list, from 0",
+    ) + 12.0;
+    let per = osk_entropy::DICE_WORD_ROLLS;
+    let faces = osk_entropy::DICE_WORD_FACES;
+    let rolls = k.dice.rolls();
+    let live = k.live_words();
+    let last = k.words - 1;
+    let checksum = k.words / 3;
+    let num_w = ui.measure(13.0, W::M, "00");
+    let cell = ui.measure(13.0, W::M, "00") + 12.0;
+    let cells_x = x + num_w + 14.0;
+    let info_x = cells_x + cell * per as f32 + 10.0;
+    // A word's row: its rolls over their bits, then what they name.
+    let row = |ui: &mut Ui,
+               cy: f32,
+               slot: usize,
+               cells: &[(String, String)],
+               sum: Option<&str>,
+               index: Option<u16>,
+               note: &str| {
+        let n = (slot + 1).to_string();
+        let nw = ui.measure(13.0, W::M, &n);
+        ui.text_mid(x + num_w - nw, cy, 22.0, 13.0, W::M, DIM, &n);
+        for (c, (face, bits)) in cells.iter().enumerate() {
+            let cx = cells_x + c as f32 * cell;
+            for (line, text, size, tone) in [(0.0, face, 13.0, TEXT), (22.0, bits, 13.0, MUTED)] {
+                let tw = ui.measure(size, W::M, text);
+                ui.text_mid(
+                    cx + (cell - tw) / 2.0,
+                    cy + line,
+                    22.0,
+                    size,
+                    W::M,
+                    tone,
+                    text,
+                );
+            }
+        }
+        // The checksum's bits, after the last word's rolled ones.
+        let mut info_x = info_x;
+        if let Some(sum) = sum {
+            let sx = cells_x + cells.len() as f32 * cell + 6.0;
+            ui.text_mid(sx, cy, 22.0, 11.0, W::R, DIM, "checksum");
+            ui.text_mid(sx, cy + 22.0, 22.0, 13.0, W::M, MUTED, sum);
+            let sw = ui
+                .measure(11.0, W::R, "checksum")
+                .max(ui.measure(13.0, W::M, sum));
+            info_x = info_x.max(sx + sw + 14.0);
+        }
+        match index {
+            Some(i) => {
+                ui.word_pill(info_x, cy - 3.0, Language::English.word(i), open_word(i));
+                ui.text_mid(
+                    info_x,
+                    cy + 22.0,
+                    22.0,
+                    12.0,
+                    W::R,
+                    MUTED,
+                    &format!("= {i} · word {} of the list", i + 1),
+                );
+            }
+            None => {
+                ui.text_mid(info_x, cy + 22.0, 22.0, 12.0, W::R, DIM, note);
+            }
+        }
+    };
+    let bits = |pos: usize, face: u8| -> String {
+        if pos < faces {
+            format!("{:02b}", face - 1)
+        } else {
+            (if face >= 4 { "1" } else { "0" }).to_string()
+        }
+    };
+    let at = rolls.len() / per;
+    for slot in 0..last.min(at + 1) {
+        let got = &rolls[(slot * per).min(rolls.len())..rolls.len().min((slot + 1) * per)];
+        if got.is_empty() {
+            break;
+        }
+        let cells: Vec<(String, String)> = (0..per)
+            .map(|p| match got.get(p) {
+                Some(&f) => (f.to_string(), bits(p, f)),
+                None => (
+                    "·".to_string(),
+                    if p < faces { "··" } else { "·" }.to_string(),
+                ),
+            })
+            .collect();
+        let note = format!("{} of {per} rolls", got.len());
+        row(ui, cy, slot, &cells, None, live.get(slot).copied(), &note);
+        cy += 50.0;
+    }
+    // The last word: rolled only as far as its high bits, which the key
+    // keeps; the rest, shown as dots, are the checksum's.
+    let from = last * per;
+    let got = rolls.get(from..).unwrap_or(&[]);
+    let kept = k.last_bits();
+    let cells: Vec<(String, String)> = (0..kept.div_ceil(2))
+        .map(|p| {
+            let (at, width) = if p < faces {
+                (2 * p, 2)
+            } else {
+                (2 * faces, 1)
+            };
+            let keep = kept.saturating_sub(at).min(width);
+            match got.get(p) {
+                Some(&f) => {
+                    let all = bits(p, f);
+                    (
+                        f.to_string(),
+                        format!("{}{}", &all[..keep], "·".repeat(width - keep)),
+                    )
+                }
+                None => ("·".to_string(), "·".repeat(width)),
+            }
+        })
+        .collect();
+    let made = k.checksum_word();
+    let sum = match made {
+        Some(i) => format!("{:0width$b}", i & ((1 << checksum) - 1), width = checksum),
+        None => "·".repeat(checksum),
+    };
+    row(
+        ui,
+        cy,
+        last,
+        &cells,
+        Some(&sum),
+        made,
+        "The checksum, from all the other bits, once every roll is in",
+    );
+    cy + 58.0
+}
+
+/// Opens the BIP-39 list at word `i`.
+fn open_word(i: u16) -> Action {
+    Action::WordList(crate::wordlist::WordListAction::Open(0, Some(i)))
 }
 
 /// The entry just made, shown once so a mistyped one can be taken back.
@@ -973,28 +1168,6 @@ fn last_entry(k: &KeyGen) -> Option<String> {
     }
 }
 
-fn last_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let mut cy = y;
-    section_label(ui, x, cy, EN.create_last_word_title);
-    cy += 28.0;
-    let cands = k.last_word_candidates();
-    let cell = 104.0;
-    let cols = ((w + 6.0) / (cell + 6.0)).floor().max(1.0) as usize;
-    for (i, &idx) in cands.iter().enumerate() {
-        let on = k.last_word == Some(idx);
-        ui.button(
-            x + (i % cols) as f32 * (cell + 6.0),
-            cy + (i / cols) as f32 * 40.0,
-            Some(cell),
-            34.0,
-            Language::English.word(idx),
-            if on { Style::Primary } else { Style::Secondary },
-            Action::KLast(idx),
-        );
-    }
-    cy + cands.len().div_ceil(cols) as f32 * 40.0 + 8.0
-}
-
 fn device_rows(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let rows = [
         (EN.create_device_row, EN.create_device_os, TEXT),
@@ -1013,7 +1186,12 @@ fn device_rows(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 fn stat(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str, tone: Color) -> f32 {
     ui.text(x, y, 13.0, W::R, MUTED, label);
-    ui.text(x + 140.0, y, 13.0, W::M, tone, value);
+    if ui.compact && ui.measure(13.0, W::M, value) > 130.0 {
+        ui.text(x, y + 20.0, 13.0, W::M, tone, value);
+        return y + 46.0;
+    }
+    let vx = if ui.compact { 110.0 } else { 140.0 };
+    ui.text(x + vx, y, 13.0, W::M, tone, value);
     y + 26.0
 }
 
@@ -1163,9 +1341,15 @@ fn check(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Some(Source::Device) => "Start again",
         _ => EN.create_sanity_again,
     };
-    ui.button(x, cy, None, 40.0, again, Style::Ghost, Action::KAgain);
-    next_button(ui, x, cy, w, "Continue", Action::KNext);
-    cy + 48.0 - y
+    cy += buttons_and_next(
+        ui,
+        x,
+        cy,
+        w,
+        &[(again, Style::Ghost, Action::KAgain)],
+        Some(("Continue", Action::KNext)),
+    );
+    cy - y
 }
 
 /// One SLIP-39 share at a time, its words numbered, with the way to the
@@ -1200,8 +1384,8 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         TEXT,
     );
     cy += 6.0;
-    let cols = 4;
-    let cellw = (w - 3.0 * 10.0) / cols as f32;
+    let cols = if ui.compact { 2 } else { 4 };
+    let cellw = (w - (cols - 1) as f32 * 10.0) / cols as f32;
     for (i, &idx) in ind.iter().enumerate() {
         let cx = x + (i % cols) as f32 * (cellw + 10.0);
         let wy = cy + (i / cols) as f32 * 46.0;
@@ -1274,8 +1458,8 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     cy = stat(ui, x, cy, "Source", &summary(k, kstep::SOURCE), TEXT);
     cy += 6.0;
-    let cols = 4;
-    let cellw = (w - 3.0 * 10.0) / cols as f32;
+    let cols = if ui.compact { 2 } else { 4 };
+    let cellw = (w - (cols - 1) as f32 * 10.0) / cols as f32;
     for (i, &idx) in m.indices().iter().enumerate() {
         let cx = x + (i % cols) as f32 * (cellw + 10.0);
         let wy = cy + (i / cols) as f32 * 46.0;
@@ -1294,17 +1478,19 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ui.text(x, cy, 13.0, W::R, ERR, n);
         cy += 24.0;
     }
-    ui.button(
+    cy += buttons_and_next(
+        ui,
         x,
         cy,
-        None,
-        40.0,
-        if k.shown { "Hide words" } else { "Show words" },
-        Style::Secondary,
-        Action::KShow,
+        w,
+        &[(
+            if k.shown { "Hide words" } else { "Show words" },
+            Style::Secondary,
+            Action::KShow,
+        )],
+        Some(("I wrote them down", Action::KNext)),
     );
-    next_button(ui, x, cy, w, "I wrote them down", Action::KNext);
-    cy + 48.0 - y
+    cy - y
 }
 
 /// OpenSigner's backup quiz: each word asked in a random order, picked
@@ -1370,7 +1556,8 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     );
     cy += 40.0;
     let wrong = q.wrong_slot();
-    let bw = ((w - 3.0 * 8.0) / 4.0).min(170.0);
+    let per = if ui.compact { 2 } else { 4 };
+    let bw = ((w - (per - 1) as f32 * 8.0) / per as f32).min(170.0);
     for (i, &idx) in q.choices().iter().enumerate() {
         let style = if wrong == Some(i) {
             Style::Disabled
@@ -1378,8 +1565,8 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Style::Secondary
         };
         ui.button(
-            x + i as f32 * (bw + 8.0),
-            cy,
+            x + (i % per) as f32 * (bw + 8.0),
+            cy + (i / per) as f32 * 56.0,
             Some(bw),
             48.0,
             if k.slip39 {
@@ -1391,17 +1578,17 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Action::KQuiz(i as u8),
         );
     }
-    cy += 60.0;
+    cy += q.choices().len().div_ceil(per) as f32 * 56.0 + 4.0;
     if q.state() == QuizState::Wrong {
-        ui.text(
+        cy += ui.wrap(
             x,
             cy,
+            w,
             13.0,
             W::R,
             ERR,
             "Not that one. Check your copy against the words",
-        );
-        cy += 26.0;
+        ) + 10.0;
         let aw = ui.button(
             x,
             cy,
@@ -1423,15 +1610,15 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += 52.0;
     }
     if k.skip_ask {
-        ui.text(
+        cy += ui.wrap(
             x,
             cy,
+            w,
             13.0,
             W::R,
             WARN,
             "Without the quiz, a word copied wrongly is found only when the backup is needed",
-        );
-        cy += 26.0;
+        ) + 10.0;
         ui.button(
             x,
             cy,
@@ -1453,6 +1640,9 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         );
     }
     cy += 48.0;
+    if ui.compact {
+        return cy - y;
+    }
     ui.text(
         x,
         cy,

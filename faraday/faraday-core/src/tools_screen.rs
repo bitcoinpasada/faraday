@@ -1,9 +1,11 @@
 //! The Tools screen: OpenSigner's calculators, one at a time.
 
-use opensigner_core::tools::{
-    KeyReading, PolicyScript, ReadAs, Tool, checksum_facts, compile, encoding_of, hashes,
-    key_facts, read_input,
-};
+use opensigner_core::tools::Tool;
+use osk_bip::compile::{PolicyScript, compile};
+use osk_bip::descriptor::checksum_facts;
+use osk_bip::hashes::hashes;
+use osk_bip::slip132::{KeyReading, key_facts};
+use osk_codec::encodings::{ReadAs, read as encoding_of, read_input};
 
 use crate::screens::{button_rows, guide_text, title};
 use crate::tools::{UNITS, tool_name};
@@ -116,7 +118,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
         }
         .to_string()
     } else {
-        format!("{}|", t.typed)
+        format!("{}{}", t.typed, ui.caret_char())
     };
     ui.fill(x, y, width, 44.0, 8.0, BG);
     ui.stroke(x, y, width, 44.0, 8.0, ACCENT);

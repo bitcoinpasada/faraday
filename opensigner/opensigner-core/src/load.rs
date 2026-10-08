@@ -24,7 +24,7 @@ use osk_bip::threshold::share_fingerprint;
 use osk_crypto::{
     MnemonicBytes, Sealed, SealedBytes, Secret, SeedBytes, SessionKey, Zeroize, ZeroizeOnDrop,
 };
-use osk_entropy::{RawHex, Strength};
+use osk_entropy::{RawHex, Strength, WORD_COUNTS};
 use osk_ui::widgets::keyboard::{self, KeyInput, KeyMask, KeyboardKind};
 
 use crate::codex32::{Codex32Entry, Submitted};
@@ -370,9 +370,6 @@ impl Step {
         }
     }
 }
-
-/// The word counts on offer, in the order the screen lists them.
-pub const COUNTS: [u8; 5] = [12, 24, 15, 18, 21];
 
 /// Words the entry step holds at once: a SLIP-39 share's 33, which is
 /// more than BIP-39's 24.
@@ -1040,7 +1037,7 @@ impl LoadWizard {
     /// ignored, fewer leave the wizard at its first step.
     pub fn from_words(indices: &[u16], lang: Language) -> Self {
         let mut w = Self::new();
-        if !COUNTS.contains(&(indices.len() as u8)) {
+        if !WORD_COUNTS.contains(&(indices.len() as u8)) {
             return w;
         }
         let n = indices.len();
@@ -1095,7 +1092,7 @@ impl LoadWizard {
         if self.is_slip39() {
             &SLIP39_COUNTS
         } else {
-            &COUNTS
+            &WORD_COUNTS
         }
     }
 

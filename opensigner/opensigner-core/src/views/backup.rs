@@ -27,11 +27,11 @@ use osk_ui::widgets::{Icon, Tone};
 use osk_bip::bip39::Language;
 
 use crate::backup::{BackupFlow, BackupStep};
-use crate::create::{SOURCE_ROWS, Source};
 use crate::load::{EntryList, LoadedKey};
 use crate::sign::Save;
 use crate::views::{create as create_view, quiz as quiz_view, words};
 use crate::{OpenSigner, ids, strings, text};
+use osk_entropy::{SOURCE_ROWS, Source};
 
 impl OpenSigner {
     pub(crate) fn view_backup(&self, b: &BackupFlow) -> Node {

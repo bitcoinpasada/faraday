@@ -5,13 +5,15 @@
 //! An extended key is 78 bytes; SLIP-132 only swaps the four version
 //! bytes, so encoding is: serialize, replace the version, base58check.
 
+use alloc::boxed::Box;
 use alloc::string::String;
+use alloc::vec::Vec;
 
 use bitcoin::NetworkKind;
 use bitcoin::base58;
 use bitcoin::bip32::Xpub;
 
-use crate::keys::ScriptType;
+use crate::keys::{Network, ScriptType};
 use crate::xkey::{self, TPUB, XPUB};
 
 /// The vocabulary a rejected extended key is reported in, shared with
@@ -84,4 +86,79 @@ pub fn decode_xpub(s: &str) -> Result<(Xpub, ScriptType), Error> {
     bytes[..4].copy_from_slice(&plain);
     let xpub = xkey::xpub_from_bytes(&bytes)?;
     Ok((xpub, script_type))
+}
+
+/// What [`key_facts`] made of the text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeyReading {
+    /// An extended public key, in every spelling.
+    Public(Box<KeyFacts>),
+    /// An extended private key, which is not converted.
+    Private,
+    /// Not an extended key at all.
+    None,
+}
+
+/// Every spelling of one extended public key, and what it says about
+/// itself.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeyFacts {
+    /// The BIP-32 form: `xpub` or `tpub`.
+    pub bip32: String,
+    /// The SLIP-132 form for each script type, in [`ScriptType::ALL`]
+    /// order.
+    pub slip132: Vec<(ScriptType, String)>,
+    /// Which chain the version bytes name.
+    pub network: Network,
+    /// How far below the master the key is.
+    pub depth: u8,
+    /// The key's own fingerprint, as eight hex digits.
+    pub fingerprint: String,
+    /// The child number the key was derived at.
+    pub child: String,
+}
+
+/// Reads `text` as an extended key and writes it every other way.
+///
+/// The four test networks share one set of version bytes, so a test key
+/// cannot say which of them it is: `network`, the chain the caller is
+/// set to, decides, and a test key read while set to mainnet is called
+/// testnet.
+pub fn key_facts(text: &str, network: Network) -> KeyReading {
+    let text = text.trim();
+    if text.is_empty() {
+        return KeyReading::None;
+    }
+    if xkey::decode_xpriv(text).is_ok() {
+        return KeyReading::Private;
+    }
+    let Ok((xpub, _)) = decode_xpub(text) else {
+        return KeyReading::None;
+    };
+    let on = match xpub.network {
+        NetworkKind::Main => Network::Mainnet,
+        _ if network == Network::Mainnet => Network::Testnet,
+        _ => network,
+    };
+    let child = xpub.child_number;
+    KeyReading::Public(Box::new(KeyFacts {
+        bip32: encode_xpub(&xpub, ScriptType::Legacy),
+        slip132: ScriptType::ALL
+            .iter()
+            .map(|s| (*s, encode_xpub(&xpub, *s)))
+            .collect(),
+        network: on,
+        depth: xpub.depth,
+        fingerprint: alloc::format!("{}", xpub.fingerprint()),
+        child: alloc::format!("{child}"),
+    }))
+}
+
+/// Whether an extended public key, in BIP-32 or any SLIP-132 spelling,
+/// is a mainnet or a test-network key, by its version bytes.
+pub fn network_kind(text: &str) -> Option<NetworkKind> {
+    xkey::decode_xpub(text)
+        .map(|x| x.network)
+        .or_else(|_| decode_xpub(text).map(|(x, _)| x.network))
+        .ok()
 }

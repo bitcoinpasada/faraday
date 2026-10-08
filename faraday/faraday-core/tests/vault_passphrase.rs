@@ -1,7 +1,8 @@
 //! The Create vault Passphrases step: choosing one of the three EFF dice
 //! lists changes the words the same rolls spell and starts the rolls
 //! over, the passphrase fields stay masked until the person asks to see
-//! them, and a passphrase added by mistake can be taken back out. Every
+//! them, a passphrase added by mistake can be taken back out, and a
+//! passphrase the dice made has a strength only while it is unchanged. Every
 //! passphrase field, Unlock's too, has an eye that shows what is typed.
 
 use faraday_core::vaults::VaultAction as V;
@@ -12,7 +13,7 @@ use osk_shell_api::App;
 /// The Create vault form, open on the Passphrases step, rolling for
 /// passphrase 0.
 fn rolling() -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.press(Action::Vault(V::Create));
     app.press(Action::Vault(V::Dice(0)));
     app
@@ -92,7 +93,7 @@ fn choosing_a_list_clears_rolls_already_typed() {
 
 #[test]
 fn passphrases_are_masked_until_shown() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.press(Action::Vault(V::Create));
     assert!(!app.vaults.create.as_ref().unwrap().shown);
     app.press(Action::Vault(V::CShow));
@@ -103,7 +104,7 @@ fn passphrases_are_masked_until_shown() {
 
 #[test]
 fn a_second_passphrase_added_by_mistake_can_be_removed() {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.press(Action::Vault(V::Create));
     assert_eq!(app.vaults.create.as_ref().unwrap().phrases.len(), 1);
     app.press(Action::Vault(V::CAddPhrase));
@@ -117,7 +118,7 @@ fn a_second_passphrase_added_by_mistake_can_be_removed() {
 }
 
 fn shown() -> Faraday {
-    let mut app = Faraday::new();
+    let mut app = faraday_core::testkit::started();
     app.event(osk_shell_api::Event::Display(osk_shell_api::DisplayInfo {
         width: 1366,
         height: 768,
@@ -169,4 +170,26 @@ fn the_dice_panel_says_how_many_words_make_a_strong_passphrase() {
     assert!(dice_aim(List::Large).starts_with("Aim for 6 words"));
     assert!(dice_aim(List::Short1).starts_with("Aim for 8 words"));
     assert!(dice_aim(List::Large).contains("eff.org/dice"));
+}
+
+#[test]
+fn a_dice_passphrase_has_a_strength_until_it_is_changed() {
+    use faraday_core::vaults::Vaults;
+    use osk_shell_api::{Event, Key};
+    let mut app = rolling();
+    // Six words of the long list: thirty dice.
+    for c in "123451234512345123451234512345".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::Vault(V::DiceUse));
+    let c = app.vaults.create.as_ref().unwrap();
+    let own = Vaults::phrase_bits(c, 0).expect("the dice's bits");
+    assert!((own - 6.0 * List::Large.bits_per_word()).abs() < 1e-3);
+
+    // Changed by hand, it is a typed passphrase: no strength is claimed.
+    app.press(Action::Vault(V::CFocus(0, false)));
+    app.event(Event::Key(Key::Char('x')));
+    let c = app.vaults.create.as_ref().unwrap();
+    assert!(c.phrases[0].0.text.ends_with('x'));
+    assert_eq!(Vaults::phrase_bits(c, 0), None);
 }

@@ -13,6 +13,9 @@ use osk_bip::diceware::List;
 
 use crate::{Faraday, Sheet};
 
+/// Said once beside words shown as pills, each of which opens its list.
+pub const PRESS_A_WORD: &str = "Press a word to see it in the list";
+
 /// One of the lists the sheet shows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WordList {
@@ -111,6 +114,8 @@ pub enum WordListAction {
     Mark(u16),
     /// Close the sheet, back to the screen under it.
     Close,
+    /// A press outside the sheet: closes it as Back does.
+    Outside,
 }
 
 impl Faraday {
@@ -149,7 +154,7 @@ impl Faraday {
                     w.mark = Some(usize::from(i));
                 }
             }
-            WordListAction::Close => self.wordlist_close(),
+            WordListAction::Close | WordListAction::Outside => self.wordlist_close(),
         }
     }
 

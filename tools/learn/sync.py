@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Learn pages as Markdown, round-tripped with `strings/en.rs`.
+"""Learn pages as Markdown, round-tripped with `osk-learn`'s `en.rs`.
 
-The Learn pages are `LearnPage` literals in
-`opensigner/opensigner-core/src/strings/en.rs`. Editing prose inside Rust
-string literals is miserable, so each page also lives as one Markdown file
-in `docs/learn/`, which is where the text is written and revised:
+The Learn pages are `Page` literals in `core/osk-learn/src/en.rs`.
+Editing prose inside Rust string literals is miserable, so each page also
+lives as one Markdown file in `docs/learn/`, which is where the text is
+written and revised:
 
     docs/learn/01-words.md
     # Words                      ← the page title
@@ -13,8 +13,8 @@ in `docs/learn/`, which is where the text is written and revised:
 
     A second paragraph.
 
-`en.rs` stays the only place the device reads strings from; the Markdown
-is the editing form. The two are kept identical by the `check` command,
+`en.rs` stays the only place the device reads the pages from; the
+Markdown is the editing form. The two are kept identical by the `check` command,
 which `just` runs as a lint.
 
 Commands, from the repository root:
@@ -23,11 +23,11 @@ Commands, from the repository root:
     python3 tools/learn/sync.py import   # docs/learn/*.md → en.rs, printing word counts
     python3 tools/learn/sync.py check    # fail if the two differ
 
-Pages are matched by the field name in `en.rs` (`learn_words` ↔
-`01-words.md`); the number prefix is the order `learn_pages()` lists them
-in. Adding or removing a page is a code change (the struct field,
-`LEARN_PAGES` and `learn_pages()`), not something this script does: it
-refuses a file with no field and a field with no file.
+Pages are matched by the field name in `en.rs` (`words` ↔
+`02-words.md`); the number prefix is the order `Learn::pages()` lists
+them in, in `core/osk-learn/src/lib.rs`. Adding or removing a page is a
+code change (the struct field, `PAGES` and `pages()`), not something this
+script does: it refuses a file with no field and a field with no file.
 """
 
 from __future__ import annotations
@@ -37,13 +37,14 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-EN_RS = ROOT / "opensigner" / "opensigner-core" / "src" / "strings" / "en.rs"
+LIB_RS = ROOT / "core" / "osk-learn" / "src" / "lib.rs"
+EN_RS = ROOT / "core" / "osk-learn" / "src" / "en.rs"
 DOCS = ROOT / "docs" / "learn"
 
 # ----- en.rs -----------------------------------------------------------------
 
-FIELD_RE = re.compile(r"^    (learn_[a-z_]+): LearnPage \{$")
-ORDER_RE = re.compile(r"^\s+&self\.(learn_[a-z_]+),$", re.M)
+FIELD_RE = re.compile(r"^    ([a-z_]+): Page \{$")
+ORDER_RE = re.compile(r"^\s+&self\.([a-z_]+),$", re.M)
 
 
 def rust_unescape(s: str) -> str:
@@ -75,12 +76,12 @@ def rust_escape(s: str) -> str:
 
 
 def page_order(text: str) -> list[str]:
-    """Field names in the order `learn_pages()` lists them."""
-    start = text.index("pub fn learn_pages(")
+    """Field names in the order `Learn::pages()` lists them."""
+    start = text.index("pub fn pages(")
     end = text.index("\n    }", start)
     order = ORDER_RE.findall(text[start:end] + "\n")
     if not order:
-        raise SystemExit("en.rs: learn_pages() lists no pages")
+        raise SystemExit("lib.rs: Learn::pages() lists no pages")
     return order
 
 
@@ -106,7 +107,7 @@ PARA_RE = re.compile(r'^\s*"((?:[^"\\]|\\.)*)",$')
 
 
 def parse_block(lines: list[str]) -> tuple[str, list[tuple[str, list[str]]]]:
-    """A `LearnPage` literal → (title, [(heading, [paragraphs])])."""
+    """A `Page` literal → (title, [(heading, [paragraphs])])."""
     title = None
     sections: list[tuple[str, list[str]]] = []
     mode = None
@@ -131,10 +132,10 @@ def parse_block(lines: list[str]) -> tuple[str, list[tuple[str, list[str]]]]:
 
 
 def render_block(field: str, title: str, sections: list[tuple[str, list[str]]]) -> list[str]:
-    out = [f"    {field}: LearnPage {{", f'        title: "{rust_escape(title)}",', "        sections: &["]
+    out = [f"    {field}: Page {{", f'        title: "{rust_escape(title)}",', "        sections: &["]
     for heading, paras in sections:
         out += [
-            "            LearnSection {",
+            "            Section {",
             f'                heading: "{rust_escape(heading)}",',
             "                paragraphs: &[",
         ]
@@ -199,7 +200,7 @@ def word_count(title: str, sections: list[tuple[str, list[str]]]) -> int:
 
 
 def file_for(field: str, index: int) -> Path:
-    return DOCS / f"{index + 1:02d}-{field.removeprefix('learn_').replace('_', '-')}.md"
+    return DOCS / f"{index + 1:02d}-{field.replace('_', '-')}.md"
 
 
 # ----- commands --------------------------------------------------------------
@@ -208,11 +209,11 @@ def file_for(field: str, index: int) -> Path:
 def load_en() -> tuple[list[str], list[str], dict[str, tuple[int, int]]]:
     text = EN_RS.read_text(encoding="utf-8")
     lines = text.split("\n")
-    order = page_order(text)
+    order = page_order(LIB_RS.read_text(encoding="utf-8"))
     blocks = page_blocks(lines)
     missing = [f for f in order if f not in blocks]
     if missing:
-        raise SystemExit(f"en.rs: listed in learn_pages() but no literal: {missing}")
+        raise SystemExit(f"en.rs: listed in Learn::pages() but no literal: {missing}")
     return lines, order, blocks
 
 
@@ -233,7 +234,7 @@ def cmd_export() -> None:
         print(f"wrote {path.relative_to(ROOT)}")
     stray = sorted(set(DOCS.glob("*.md")) - set(markdown_of(lines, order, blocks)))
     for s in stray:
-        print(f"note: {s.relative_to(ROOT)} matches no page in learn_pages()")
+        print(f"note: {s.relative_to(ROOT)} matches no page in Learn::pages()")
 
 
 def cmd_import() -> None:
@@ -243,7 +244,7 @@ def cmd_import() -> None:
     for p in sorted(present - set(expected)):
         raise SystemExit(f"{p.relative_to(ROOT)}: no such page; adding a page is a code change")
     for p in sorted(set(expected) - present):
-        raise SystemExit(f"{p.relative_to(ROOT)}: missing; every page listed in learn_pages() needs its file")
+        raise SystemExit(f"{p.relative_to(ROOT)}: missing; every page listed in Learn::pages() needs its file")
     # Replace from the bottom so earlier line numbers stay valid.
     for path, field in sorted(expected.items(), key=lambda kv: blocks[kv[1]][0], reverse=True):
         title, sections = from_markdown(path.read_text(encoding="utf-8"), path.name)
@@ -264,7 +265,7 @@ def cmd_check() -> None:
         elif path.read_text(encoding="utf-8") != md:
             bad.append(f"{path.relative_to(ROOT)}: differs from en.rs (run `just learn-import` or `just learn-export`)")
     for p in sorted(set(DOCS.glob("*.md")) - set(want)):
-        bad.append(f"{p.relative_to(ROOT)}: matches no page in learn_pages()")
+        bad.append(f"{p.relative_to(ROOT)}: matches no page in Learn::pages()")
     if bad:
         print("\n".join(bad))
         raise SystemExit(1)

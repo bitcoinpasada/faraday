@@ -2,7 +2,7 @@
 //! as m of n shares; any m of them restore the key loaded, and each share
 //! is quizzed before it is.
 
-use faraday_core::keygen::{Source, kstep, source_index};
+use faraday_core::keygen::{Way, kstep};
 use faraday_core::{Action, Faraday, Screen};
 use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 
@@ -35,7 +35,7 @@ fn dealt() -> Faraday {
     assert!(k.slip39);
     assert_eq!((k.slip_m, k.slip_n, k.words), (2, 3, 20));
     app.press(Action::KWords(20));
-    app.press(Action::KSource(source_index(Source::Coins)));
+    app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);
     for i in 0..128 {
         app.press(Action::KFlip(i % 3 != 1));

@@ -17,6 +17,7 @@ faraday-sb = { path = "../../faraday-sb" }
 osk-shell-api = { path = "../../../core/osk-shell-api" }
 png.workspace = true
 osk-codec = { path = "../../../core/osk-codec" }
+osk-selftest = { path = "../../../core/osk-selftest" }
 
 [lints]
 workspace = true

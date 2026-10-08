@@ -3,7 +3,7 @@
 //! the new vault to unlock and a way back; unlocking it, or going back,
 //! returns to the wallet still being made.
 
-use faraday_core::keygen::{Source, source_index};
+use faraday_core::keygen::Way;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen};
 use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
@@ -44,7 +44,7 @@ fn create_to_vault_step() -> Faraday {
     app.press(Action::CNext(faraday_core::cstep::KIND));
     app.press(Action::KeyGen(Some(0)));
     app.press(Action::KWords(12));
-    app.press(Action::KSource(source_index(Source::Coins)));
+    app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);
     for i in 0..128 {
         app.press(Action::KFlip(i % 3 != 1));

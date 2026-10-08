@@ -14,7 +14,10 @@
 //! (`faraday_core::testkit::backup_files`: a 2-of-3 Taproot multisig's
 //! public backup files and a vault, passphrase `a`, holding its three
 //! seeds); `--full-kit` makes it the full test kit instead. A folder made
-//! for the other kit is moved aside, not mixed.
+//! for the other kit is moved aside, not mixed. The test stick stands for
+//! the boot stick: plugging it in reads its vaults into the Inbox and its
+//! `faraday-settings.txt`, once a session, as the device reads the stick
+//! it booted from.
 //!
 //! - F2 plugs the test stick in, or pulls it out;
 //! - F3 does the same for the blank stick;
@@ -126,7 +129,9 @@ impl Shell {
     fn sticks(&self) -> Vec<StickInfo> {
         self.attached
             .iter()
-            .map(|name| stick_info(&self.sticks_dir.join(name), name, false))
+            // The test stick stands for the boot stick: its vault and its
+            // settings file are read when it is plugged in.
+            .map(|name| stick_info(&self.sticks_dir.join(name), name, name == "TESTSTICK"))
             .collect()
     }
 

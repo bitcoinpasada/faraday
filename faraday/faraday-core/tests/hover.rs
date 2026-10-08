@@ -33,6 +33,7 @@ fn pixels(app: &mut Faraday) -> Vec<u8> {
 #[test]
 fn a_button_under_the_pointer_shows_it_and_stops_when_the_pointer_leaves() {
     let mut app = settings();
+    let theme = app.theme;
     let before = pixels(&mut app);
     let (x, y) = app.where_offered(Action::Theme(Theme::Light)).unwrap();
     app.event(Event::Hover { x, y });
@@ -46,7 +47,7 @@ fn a_button_under_the_pointer_shows_it_and_stops_when_the_pointer_leaves() {
         pixels(&mut app) == before,
         "and as it was once the pointer leaves"
     );
-    assert_eq!(app.theme, Theme::Dark, "hovering pressed nothing");
+    assert_eq!(app.theme, theme, "hovering pressed nothing");
 }
 
 #[test]
@@ -63,8 +64,9 @@ fn a_sidebar_item_under_the_pointer_shows_it() {
 fn moving_over_nothing_pressable_draws_no_frame() {
     let mut app = settings();
     while app.poll_command().is_some() {}
-    app.event(Event::Hover { x: 1270, y: 790 });
-    app.event(Event::Hover { x: 1265, y: 785 });
+    // Clear of the scrolled page's right edge, where its scrollbar is.
+    app.event(Event::Hover { x: 1200, y: 790 });
+    app.event(Event::Hover { x: 1195, y: 785 });
     assert!(
         std::iter::from_fn(|| app.poll_command()).next().is_none(),
         "no frame is asked for"
