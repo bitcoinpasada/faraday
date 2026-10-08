@@ -80,15 +80,19 @@ loads the kernel, with the root filesystem inside it, from the card into
 RAM, and nothing needs the card after that. The card is therefore treated
 as the PC treats its boot stick: it is removed after boot, before any
 vault is unlocked, and it or any other SD card can be put back for a
-stick visit (§5.4) to save a vault or move files. USB sticks work too.
-The Faraday Pi board turns on what OpenSigner's Pi board forbids: the
-SD host driver with card insertion and removal, `USB_STORAGE` and `SCSI`
-for sticks, and `HID` for keyboards and pointers. SD partitions are handed
-out by the same grant helper as USB partitions, under the same rules
-(§4.3). Whether the Pi 3's slot reports removal and insertion reliably is
-tested on hardware before the flows rely on it. The card's boot
-partition is labelled `OSKBOOT` (OpenSigner's Pi image leaves it
-unlabelled) so the grant helper refuses it.
+stick visit (§5.4) to save a vault or move files. The card is the Pi's
+only storage. It has two partitions: the boot partition, labelled
+`OSKBOOT` (OpenSigner's Pi image leaves it unlabelled) so the grant
+helper refuses it, and an empty FAT partition for exchanging files. SD
+partitions are handed out by the same grant helper as USB partitions,
+under the same rules (§4.3). Whether the Pi 3's slot reports removal and
+insertion reliably is tested on hardware before the flows rely on it.
+
+The Pi board keeps what OpenSigner's Pi board forbids (decided
+2026-10-08): no `USB_STORAGE` or `SCSI`, so no USB sticks, and no `HID`,
+so no USB keyboard or mouse. The touch panel is the whole input device,
+and the USB ports carry a camera and nothing else. The Pi drives the
+panel only, not HDMI.
 
 On a PC, SD cards are read through USB card readers. The x86 kernel keeps
 `MMC` forbidden, as OpenSigner has it, because `MMC` is also how many
@@ -96,9 +100,7 @@ laptops attach their internal eMMC disk.
 
 Differences a person sees on the Pi:
 
-- The 2.8" panel is the `small` class, so every flow is paged (§9.1). A Pi
-  4 or 5 on an HDMI monitor would be `wide`, with forms; that needs a
-  board and panel configuration OpenSigner does not have yet.
+- The 2.8" panel is the `small` class, so every flow is paged (§9.1).
 - The Pi 3 has no verified boot. Secure Boot keys can be made and PC
   images signed on a Pi, but nothing signs or checks the Pi's own boot;
   Faraday opens on OpenSigner's existing statement that only a card
@@ -121,9 +123,14 @@ and are not Faraday targets.
 | `faraday` (the app) | `opensigner` (uid 200) | none | camera frames (QR), input events, file contents passed by the disk process, vault files |
 
 `rcS` runs once as root at boot: it mounts `proc` and `sysfs`, starts
-`faraday-grant` and the app loop, and mounts no storage. After that
-the only root process is init, waiting to run `poweroff -f` when the app
-loop ends.
+`faraday-grant` and the disk process's restart loop, and mounts no
+storage; init then starts the app loop. Three root processes remain
+after boot, and none reads input: init, waiting to run `poweroff -f`
+when the app loop ends; the app loop's shell (`inittab`), which starts
+the app as `opensigner` with no new privileges and starts it again when
+it exits for a lock; and the disk process's restart loop (`rcS`), which
+starts `faraday-disk` as `ofdisk` the same way and again a second after
+it ends.
 
 ### 4.2 The kernel
 
@@ -143,7 +150,8 @@ enforced by the board's `kernel.forbidden` and `kernel.required` lists
   (§5.3).
 - **Command line:** `usbcore.authorized_default=2`, so only devices on
   hard-wired internal ports are authorised without the helper (§4.6).
-- **USB drivers:** storage, HID, UVC and hubs only (§4.6).
+- **USB drivers:** storage, HID, UVC and hubs only on x86; UVC and hubs
+  only on the Pi (§3, §4.6).
 - `RTC_HCTOSYS` is not needed: Faraday displays no time.
 - **Hardening** from Faraday's review, taken upstream as
   `docs/PLANNING.md` §16.140 and carried into Faraday's board copies:
@@ -230,9 +238,9 @@ the policy checks what a device says it is, not its firmware. No policy
 can tell a real keyboard from a device built to imitate one. Faraday
 uses three layers instead, and the last is what stops an imitation.
 
-1. **No drivers.** The kernel carries drivers for four kinds of USB
+1. **No drivers.** The x86 kernel carries drivers for four kinds of USB
    interface and nothing else: mass storage, HID keyboards and pointers,
-   UVC cameras and hubs. A network adapter, serial adapter, audio device,
+   UVC cameras and hubs. The Pi's carries only UVC and hubs (§3). A network adapter, serial adapter, audio device,
    printer or vendor device has no driver to bind to, whatever it
    reports.
 2. **Interface authorisation.** The kernel's own USB authorisation, the
@@ -255,8 +263,7 @@ uses three layers instead, and the last is what stops an imitation.
    pressed on the built-in keyboard or touchpad, or on a keyboard that has
    typed its code). A held-back device's clicks and keys never reach the
    app as input, so only a person at the screen can approve it. A device
-   cannot see the screen, so it cannot pass. A Pi with no touch panel
-   trusts its first keyboard only after it types the code. A laptop's
+   cannot see the screen, so it cannot pass. A laptop's
    built-in touchscreen is on I2C and trusted as its touchpad is; its
    positions are scaled by the ranges its HID report descriptor declares,
    read from sysfs (`faraday/shells/stick/src/hid.rs`), since the shell
@@ -414,7 +421,7 @@ untouched and shows "Remove the stick to keep working".
 **A stick visit.** One screen does both directions: write the Outbox
 (each file read back and compared), save sealed vaults over the files they
 came from (`docs/VAULT.md` §6), and pick files into the Inbox. On the Pi
-the boot card, another SD card or a USB stick may be the one visited. It
+the boot card or another SD card is the one visited. It
 ends on **Remove the stick**, then **Unlock again**.
 
 **File-based PSBT signing.** Visit: pick the PSBT into the Inbox. Remove.
@@ -691,10 +698,7 @@ device graph, to be measured with `cargo tree` once a prototype exists.
 
 ## 13. Open questions
 
-1. **Which Pis.** The `pi3` board with the Waveshare 2.8" panel is what
-   OpenSigner has tested. A Pi 4 or 5 on HDMI with a keyboard would give
-   the Pi the `wide` forms and more RAM for Argon2id, and needs a new
-   board configuration and a 64-bit build.
-2. **The Pi Zero 2 W.** One USB port (camera or stick, not both without a
-   hub) and Wi-Fi and Bluetooth hardware on the board, which OpenSigner
-   notes must be disabled in the kernel or removed.
+1. **The Pi Zero 2 W.** Wi-Fi and Bluetooth hardware on the board, which
+   OpenSigner notes must be disabled in the kernel or removed. (Decided
+   2026-10-08: the Pi is the `pi3` board with the Waveshare 2.8" panel,
+   with no HDMI and no USB keyboard, mouse or storage, §3.)

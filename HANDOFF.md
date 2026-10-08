@@ -1,6 +1,6 @@
 # Faraday — handoff
 
-**As of 2026-10-06.** For a session starting cold, human or agent. Read this,
+**As of 2026-10-08.** For a session starting cold, human or agent. Read this,
 then `PLAN.md`, then the docs it names.
 
 ## What this is
@@ -13,49 +13,64 @@ and QR transfer to OpenSigner. It was called openfaraday until
 (the owner's amnesic Arch desktop), whose repository is now
 `~/Projects/faraday-os-deprecated`. A first build exists (below).
 
-## Where we stopped (2026-10-06)
+## Where we stopped (2026-10-08)
 
-The owner said: finish the QR work, write this handoff, stop, and **do not
-build**. So the source is ahead of every output in `out/`:
+Everything through item 64 is committed (`1eec0ff`, then the README's
+storage-stick and choosing-a-computer sections); `main` is ahead of
+`origin` and nothing since `78f5a15` has been pushed. The owner commits.
 
-- `out/stick/faraday-x86_64-uefi.img` and `out/linux/faraday` were built
-  at 04:44–04:47 on 2026-10-06 (release image, no `dev=1`, booted in
-  QEMU by `faraday/tools/qemu-check.py`). They have everything through
-  item 34 below, and **not** item 35 (scrolling, PDFs, the scanner's
-  outline, "too fine" and camera choice).
-- `just` passes on the current source: fmt, clippy with warnings as
-  errors, the lints, and every test (1525 of them, one skipped), after
-  items 37 to 43. `out/linux/faraday` was rebuilt on 2026-10-06 with
-  them (sha256 `cefc935d…`); the stick image was not.
-  The snapshot tour (`cargo run -q -p faraday-snapshot -- 1366x768
-  out/testkit out/snapshots/faraday/1366x768`) runs to the end.
-- Nothing is committed. The owner commits.
+The owner built from that tree on 2026-10-08:
 
-To build when asked (`DOCKER=podman`):
+- `out/stick/faraday-x86_64-uefi.img` (release, 13:49, built from the
+  working tree with the boot-logo fix below): has everything through
+  item 64. In QEMU it shows the logo centred and then the app (Tokyo
+  Night, the new-keyboard sheet for QEMU's keyboard).
+- `out/pi/faraday-pi3-waveshare-28dpi.img` (release, 12:48): not yet
+  tried on the Pi 3 and panel; the owner will do that later.
+- `out/stick/faraday-x86_64-uefi-dev.img` is older (2026-10-07, item
+  63) and has none of item 64.
 
-    export DOCKER=podman
-    just faraday-linux-bin
-    just faraday-stick-image          # release; dev=1 only when asked
-    python3 faraday/tools/qemu-check.py out/stick/faraday-x86_64-uefi.img out/stick/qemu-check out/testkit
+What the owner checks on the Dell with this stick image (none of it can
+be seen in QEMU): scrolling, the PDF backup sheets and the scan sheet
+(item 35); settings on the stick (item 62); the laptop touchscreen's
+ranges, the Super+S panic key and dragging the scrollbar (item 64); that
+the boot logo shows between the firmware's screen and the app.
 
-The owner tests on the Dell with `hp-pull`; the dev image's kernel console
-prints over the app, so test sticks are release images.
+**The boot logo never showed (fixed 2026-10-08, uncommitted).** The owner
+saw a blank screen, then the app. Upstream's common command line has
+`quiet`, and Linux 6.6's framebuffer console draws no logo when the
+console log level is `quiet`'s 4 or lower (`fbcon_init`, fbcon.c:1009).
+Faraday's x86 board `cmdline.txt` now adds `loglevel=5` after it, and the
+board's `dev/cmdline.txt` removes it again. `quiet` stays: the EFI stub
+reads only that word, and without it prints its own lines on the screen.
+Seen in QEMU frame by frame: before, a black frame then the app; after,
+the two marks centred, then the app. The Pi board's `cmdline.txt` has
+the same `loglevel=5` (its only console is the serial port, which now
+also carries warnings) and a new `boards/pi3/dev/cmdline.txt`, upstream's
+with `-loglevel=5`; the 12:48 Pi image predates this, so the next Pi
+build has it.
 
-What the owner reported last and what was done about it (item 35): mouse
-wheel and trackpad scrolling were inverted and jumped about half a page;
-the backup sheets were not PDFs. Both are fixed in source and need the
-owner's check on the Dell after the next build. The owner's other
-standing requests: secrets leave only sealed in a vault unless a warning
-is acknowledged (`docs/FLOWS.md` decision 6, item 27); New key's options
-and cryptography come from OpenSigner, with Faraday's interface over them
-(items 24, 29); a ? on every screen opens OpenSigner's Learn pages (item
-26); `docs/OPENSIGNER-PARITY.md` is the plan for the rest of OpenSigner.
+Decided 2026-10-08: the Pi image has no USB keyboard, mouse or storage
+and no HDMI; the touch panel is its input and its card its storage
+(`PLAN.md` §3, which now says so).
 
-What is left, in the order the plan gives (`docs/OPENSIGNER-PARITY.md`
-§3), as of 2026-10-07: only signing silent payment outputs, which waits
-on upstream (BIP-375). The upstream asks and BIP-39 entry for Japanese,
-Korean and Chinese are done (item 52), the start-up self-test (item 53)
-and the silent payments wallet (item 54).
+To build (on the build machine, from this tree, uncommitted changes included):
+
+    local/remote-build.sh stick           # or pi, desktop, all; --dev for the dev image
+    python3 -B faraday/tools/qemu-check.py out/stick/faraday-x86_64-uefi.img out/stick/qemu-check out/testkit
+
+`qemu-check.py`'s output directory must have a short path (its QMP
+socket lives there; a path under the scratchpad is too long for
+`AF_UNIX`). The owner tests on the Dell with `hp-pull`; the dev image's
+kernel console prints over the app, so test sticks are release images.
+
+The owner's standing requests: secrets leave only sealed in a vault
+unless a warning is acknowledged (`docs/FLOWS.md` decision 6, item 27);
+New key's options and cryptography come from OpenSigner, with Faraday's
+interface over them (items 24, 29); a ? on every screen opens
+OpenSigner's Learn pages (item 26); `docs/OPENSIGNER-PARITY.md` is the
+plan for the rest of OpenSigner. Of that plan (§3) only signing silent
+payment outputs is left, which waits on upstream (BIP-375).
 
 ## Where things are
 
@@ -85,10 +100,8 @@ and the silent payments wallet (item 54).
   (`git apply --3way`, then `git reset` to leave the index alone): last
   synced to `96e2144` (§16.140, kernel hardening) on 2026-10-07; before
   that `fa1ae03` (§16.139) and `c418768`.
-- Faraday's files (`PLAN.md`, `HANDOFF.md`, `docs/VAULT.md`,
-  `docs/QR.md`, `docs/FLOWS.md`, `docs/WALLETS.md`, `design/prototype/`) are
-  **untracked and uncommitted**. The owner commits.
-- No GitHub fork exists; nothing has been pushed.
+- Faraday's files are committed on `main`; the owner commits. `origin`
+  has the history up to `78f5a15`; later commits are not pushed.
 
 ## Upstream
 
@@ -109,10 +122,13 @@ origins through `osk-ui`).
   OpenSigner's `osk-*` types directly, with no separate adapter crate.
 - USB "option B": no filesystem in the kernel; a `CAP_CHOWN`-only helper
   hands USB/SD partitions (never whole disks, never `OSKBOOT`) to an
-  unprivileged FAT16/FAT32 process; root at runtime is only idle PID 1.
+  unprivileged FAT16/FAT32 process; at runtime the only root processes are
+  init and the two restart loops (app, disk process), none reading input.
 - No storage while a secret is in memory; Inbox and Outbox on one Files
   screen; locking restarts the app; `init_on_free=1`.
-- USB devices: drivers for storage, HID, UVC and hubs only; per-interface
+- USB devices: drivers for storage, HID, UVC and hubs only on x86, UVC
+  and hubs only on the Pi (no USB keyboard, mouse or storage, no HDMI,
+  decided 2026-10-08); per-interface
   authorisation; a storage device's HID interface never authorised; a new
   keyboard types a code shown on screen before it is believed.
 - Vaults: four slots, hidden-slot deniability with its stated limit,
@@ -126,8 +142,11 @@ origins through `osk-ui`).
 
 ## Open questions
 
-`PLAN.md` §13: which Raspberry Pis (Pi 3 panel, or also Pi 4/5 on HDMI with
-a 64-bit build), and whether the Pi Zero 2 W is worth it.
+`PLAN.md` §13: whether the Pi Zero 2 W is worth it. (Which Pis is
+decided: the Pi 3 with its panel, no HDMI, no USB input or storage.)
+Create a vault's unlock-cost choices (`faraday-core/src/vaults.rs`) still
+list the Pi 5, 4 and Zero 2 W as places a vault may be opened; whether
+they stay is the owner's call.
 
 ## The build (as of 2026-10-05)
 
@@ -1279,10 +1298,10 @@ as possible before the next build.
        `osk_field`); and a field the keyboard came up over stayed under
        it (the page now scrolls by as much, `Faraday::osk_reveal`, from
        where the press was). `OskPress` is exported for the test.
-    10. [~] Built 2026-10-08 (`local/remote-build.sh pi`, release, from
-        the uncommitted tree with the walk-throughs behind a tap):
-        `out/pi/faraday-pi3-waveshare-28dpi.img` on the Dell, 68 MiB. Not
-        yet tried on the Pi 3 and panel.
+    10. [~] Built 2026-10-08 12:48 by the owner (release, built after
+        `1eec0ff` was committed): `out/pi/faraday-pi3-waveshare-28dpi.img`
+        on the Dell, 68 MiB. Not yet tried on the Pi 3 and panel; the
+        owner will do that later.
         To try the panel layout by touch on the Dell meanwhile:
         `just faraday-panel 2.8` (or `5` for a phone): the desktop app
         with `--panel INCHES [--aspect W:H] [--ppi N]` opens a window
@@ -1555,13 +1574,12 @@ as possible before the next build.
          tree has: no keyboard layout setting, no QR transfer tab, no
          `tools/build/linux` (so `just faraday-linux-bin` does not run),
          and no shared history with upstream.
-    - Also found while drafting the README, for when this is picked up:
-      `PLAN.md` §4.1 says init is the only root process after boot, but
-      the app loop's shell (`inittab`) and the disk process's restart
-      loop (`rcS`) are root too. Neither reads input. And `PLAN.md` §3
-      says the Pi board turns on `USB_STORAGE`, `SCSI` and `HID`, but
-      `boards/pi3/kernel.forbidden` still forbids them; the owner has
-      not yet decided which is right.
+    - Found while drafting the README, fixed 2026-10-08: `PLAN.md` §4.1
+      now names all three root processes (init, the app loop's shell in
+      `inittab`, the disk process's restart loop in `rcS`; none reads
+      input), and §3 now matches `boards/pi3/kernel.forbidden`: the
+      owner decided the Pi has no `USB_STORAGE`, `SCSI` or `HID`, and no
+      HDMI.
 
 64. [x] 2026-10-08, owner's batch (built and tested in source; not yet
     on a device, no image built):
@@ -1618,46 +1636,35 @@ as possible before the next build.
        boot paragraphs; **Auditing Faraday** added (cryptographic core
        upstream and apart from the interface, and why); panic key,
        desktop warning, touchscreen, disk-process wiping.
-    Still for the owner: the Pi HDMI / USB keyboard / USB storage
-    question (answered in chat 2026-10-08, nothing built).
+    The Pi HDMI / USB keyboard / USB storage question: decided
+    2026-10-08, none of them (`PLAN.md` §3); the Pi board stays as built.
 
 ## Next steps
 
-**START HERE (2026-10-07, late).** The owner reports that upstream has
-landed the kernel hardening asked for in `local/upstream-kernel-hardening.md`
-(item 63). Work, in order, each step committed by the owner when done:
-1. Fetch `upstream` and sync upstream files past `fa1ae03` as "Git
-   state" says (`git diff fa1ae03 upstream/main`, `git apply --3way`).
-2. Carry upstream's kernel changes into Faraday's copies under
-   `faraday/image/overlay/boards/` (`kernel.forbidden`,
-   `kernel.required`, `linux.fragment`, `cmdline.txt`) and `rcS`.
-3. Do the Faraday-only parts of item 63 that upstream did not take.
-4. Build a stick image (`local/remote-build.sh stick`), check its
-   `.config` against item 63's lists, run the QEMU checks.
-5. Then the README (`local/README-draft.md`) can be finished.
-The session that wrote this note got through steps 1, 2, 4 and 5 (item
-63's "Progress" lines); step 3's remaining parts (Landlock,
-`efi=disable_early_pci_dma`, §16.140's later round), the Pi images and a
-boot on real hardware are what is left.
+**START HERE (2026-10-08).** In order:
 
-0. Item 60: the screens are done; build the Pi image and try it on the
-   Pi 3 and panel when the owner asks.
-
-1. Build when the owner asks (commands under "Where we stopped"), and have
-   the owner check scrolling, the PDFs and the scan sheet on the Dell.
-2. Then `docs/OPENSIGNER-PARITY.md` §3's remaining items, in order.
-3. The design canvas (`design/prototype/`) has not been republished
-   since 2026-10-04 and no longer matches the app; the app is the
-   reference now.
-4. The owner chooses which of `docs/INTEROP.md` §4's remaining gaps to
-   build. At the next image build, check the boot logo is centred
-   (`qemu-check.py`'s photograph).
-5. The desktop QR transfer companion is not built (nor the QR transfer
-   tab, `docs/FLOWS.md`); options are with the owner.
-6. Hiding a vault (owner's proposal, 2026-10-07: a vault inside one JPEG
-   among many) is under discussion; nothing decided.
-8. Item 63, kernel hardening: waiting for upstream's changes; the new
-   README (`local/README-draft.md`) waits with it.
+1. The owner tests the 12:46 release stick image on the Dell (the list
+   under "Where we stopped") and reports.
+2. Item 63's Faraday-only remainder, when the owner says to go ahead of
+   upstream: Landlock for the app and `faraday-disk`, §16.140's later
+   round; `efi=disable_early_pci_dma` after a boot on real hardware.
+3. Item 60, step 10: the Pi image on the Pi 3 and panel, when the owner
+   has it in hand.
+4. Later, or waiting on others:
+   - Signing silent payment outputs (`docs/OPENSIGNER-PARITY.md` §3),
+     waiting on upstream's BIP-375 work.
+   - A wipe-on-free allocator for what item 64's zeroize audit left
+     (transient copies while drawing and inside upstream crates); it
+     belongs upstream in `osk-crypto`.
+   - The owner chooses which of `docs/INTEROP.md` §4's remaining gaps to
+     build.
+   - The desktop QR transfer companion and the QR transfer tab
+     (`docs/FLOWS.md`) are not built; options are with the owner.
+   - Hiding a vault (the owner's proposal, 2026-10-07: a vault inside
+     one JPEG among many) is under discussion; nothing decided.
+   - The design canvas (`design/prototype/`) has not been republished
+     since 2026-10-04 and no longer matches the app; the app is the
+     reference now.
 
 ## Build machine
 
