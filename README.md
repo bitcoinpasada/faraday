@@ -9,7 +9,9 @@ signs with them on a machine that has no network.
 Faraday is a fork of OpenSignerKit / OpenSigner and uses its library
 crates for every piece of Bitcoin cryptography.
 
-**There is no release yet.** Build from source. Use test seeds only.
+**0.1.0 is a pre-release.** No second builder has reproduced it yet.
+Use test seeds only. Check a download as [Verifying a
+release](#verifying-a-release) says before using it.
 
 ## What it does
 
@@ -479,6 +481,31 @@ host paths remapped out of the output, so that a second builder can
 check that it gets the same bytes. No second builder has checked a
 Faraday image yet. The pinned container build of the desktop app
 (`just faraday-linux-bin`) is not set up yet.
+
+## Verifying a release
+
+Each release on GitHub has the artifacts, `SHA256SUMS` listing their
+SHA-256 sums and the commit they were built from, and `SHA256SUMS.asc`,
+a detached signature over it. The release key was made in Faraday and
+its secret part has never left a Faraday vault. Its public part is
+[`faraday/release-key.asc`](faraday/release-key.asc), and its
+fingerprint is:
+
+```
+14FE C4E8 EF5B 6DA8 C356  0083 D48D D674 74F1 4573
+```
+
+Import the key, check that `gpg --fingerprint` prints that fingerprint,
+then check the signature and the sums of the files downloaded:
+
+```
+gpg --import release-key.asc
+gpg --fingerprint D48DD67474F14573
+gpg --verify SHA256SUMS.asc SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS
+```
+
+The release tags are signed with the same key: `git tag -v v0.1.0`.
 
 ## Relationship to OpenSigner
 
