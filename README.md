@@ -9,9 +9,20 @@ signs with them on a machine that has no network.
 Faraday is a fork of OpenSignerKit / OpenSigner and uses its library
 crates for every piece of Bitcoin cryptography.
 
-**0.1.0 is a pre-release.** No second builder has reproduced it yet.
-Use test seeds only. Check a download as [Verifying a
-release](#verifying-a-release) says before using it.
+> **Use at your own risk.** Faraday is not reviewed. 0.1.0 is a
+> pre-release: no one outside the project has reviewed its code, its
+> cryptography or its builds, and no second builder has reproduced it.
+> It comes with no warranty of any kind (see `LICENSE`). Check a
+> download as [Verifying a release](#verifying-a-release) says before
+> using it.
+
+**Reviews and feedback are wanted.** Read the code, boot an image, try
+the flows, and say what you find in an
+[issue](https://github.com/bitcoinpasada/faraday/issues): a bug, a
+screen that is unclear, a flow that leads nowhere, or a claim in
+[Security model](#security-model) or [Auditing
+Faraday](#auditing-faraday) that does not hold. Where to start reading
+is in [Auditing Faraday](#auditing-faraday).
 
 ## What it does
 
@@ -23,6 +34,47 @@ release](#verifying-a-release) says before using it.
 | Secure Boot | Generate PK, KEK and db keys and certificates, write enrolment files, sign and check `BOOTX64.EFI`. |
 | QR | One scanner and one sender: fountain-coded `ur:bytes`, BBQr, and the `faraday-file-v1` envelope for any file. |
 | Settings | Theme, display scale, reduced motion, idle lock and power-off times, kept on the boot stick between sessions. |
+
+## Screens
+
+The stick image on a PC, at 1280×800.
+
+<table>
+<tr>
+<td><img src="docs/screenshots/pc-home.png" alt="Home"></td>
+<td><img src="docs/screenshots/pc-tools.png" alt="Tools"></td>
+</tr>
+<tr>
+<td>Home</td>
+<td>Tools: every flow, with its standards</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/pc-new-key-dice.png" alt="A new key from die rolls"></td>
+<td><img src="docs/screenshots/pc-settings.png" alt="Settings"></td>
+</tr>
+<tr>
+<td>A new BIP-39 key from die rolls: each word's bits and the word</td>
+<td>Settings</td>
+</tr>
+</table>
+
+The Raspberry Pi image on its 2.8 inch panel, at 480×640, worked by
+touch.
+
+<table>
+<tr>
+<td><img src="docs/screenshots/pi-home.png" alt="Home" width="200"></td>
+<td><img src="docs/screenshots/pi-new-key-rolls.png" alt="A new key from dice rolls" width="200"></td>
+<td><img src="docs/screenshots/pi-add-a-key.png" alt="Typing a seed's words" width="200"></td>
+<td><img src="docs/screenshots/pi-restore-m-of-n.png" alt="Choosing M of N" width="200"></td>
+</tr>
+<tr>
+<td>Home</td>
+<td>A new key from dice rolls</td>
+<td>Add a key: typing a seed's words</td>
+<td>Restore: 2 of 3</td>
+</tr>
+</table>
 
 ## Starting a session: the boot import
 
