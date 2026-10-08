@@ -30,6 +30,9 @@ changes and nothing else has to be kept in step.
   token's value, a library's or the language's own behaviour, or a
   comparison of a screen's geometry against the design document.
 - No hosted CI, no GitHub Actions, no metered external services.
+- `local/user-notes.txt` is the owner's own notes; agents ignore it.
+  `local/REMAINING.md` is the short list of remaining work, kept up to
+  date by whoever finishes, adds or changes an item.
 - Do not use `rm`; use `trash`. Use absolute paths in shell commands.
 - Agents do not commit and do not spawn agents; the orchestrator reviews
   and commits.
