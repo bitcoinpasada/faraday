@@ -33,6 +33,9 @@ changes and nothing else has to be kept in step.
 - `local/user-notes.txt` is the owner's own notes; agents ignore it.
   `local/REMAINING.md` is the short list of remaining work, kept up to
   date by whoever finishes, adds or changes an item.
+- The remote machine that builds the images is "the build machine" in
+  everything written here: docs, comments, commit messages. Never its
+  hostname, its owner's name or its address.
 - Do not use `rm`; use `trash`. Use absolute paths in shell commands.
 - Agents do not commit and do not spawn agents; the orchestrator reviews
   and commits.
