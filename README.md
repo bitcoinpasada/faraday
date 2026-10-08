@@ -521,7 +521,7 @@ its secret part has never left a Faraday vault. Its public part is
 fingerprint is:
 
 ```
-14FE C4E8 EF5B 6DA8 C356  0083 D48D D674 74F1 4573
+E8A2 E837 7878 F1D0 5D87  CD92 5D84 71D7 F9CF B8C9
 ```
 
 Import the key, check that `gpg --fingerprint` prints that fingerprint,
@@ -529,7 +529,7 @@ then check the signature and the sums of the files downloaded:
 
 ```
 gpg --import release-key.asc
-gpg --fingerprint D48DD67474F14573
+gpg --fingerprint 5D8471D7F9CFB8C9
 gpg --verify SHA256SUMS.asc SHA256SUMS
 sha256sum -c --ignore-missing SHA256SUMS
 ```
