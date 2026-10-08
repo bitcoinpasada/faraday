@@ -10,3 +10,11 @@ console=serial0,115200
 init_on_free=1
 init_on_alloc=1
 usbcore.authorized_default=2
+
+# Faraday: loglevel=5, after common's `quiet`. The framebuffer console
+# draws no logo when the console log level is `quiet`'s 4 or lower
+# (fbcon_init in drivers/video/fbdev/core/fbcon.c), so with `quiet` alone
+# the panel stays blank until the app's first frame. The only console is
+# the serial port, which now also carries warnings; the dev variant
+# removes it.
+loglevel=5

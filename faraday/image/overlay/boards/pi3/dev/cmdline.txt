@@ -1,0 +1,9 @@
+# Faraday: upstream's pi3 dev/cmdline.txt with -loglevel=5 added.
+#
+# The dev variant on a Raspberry Pi: the panel gets a console too, so a
+# board with no serial adapter still shows the probe lines.
+console=tty1
+
+# Faraday: the release board's loglevel=5 is for the logo; the dev variant
+# prints every level, as its `-quiet` intends.
+-loglevel=5

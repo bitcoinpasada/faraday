@@ -18,3 +18,6 @@ console=ttyS0,115200
 # laptop shows it on screen. The kernel limits how many lines userspace
 # writes there; on the dev variant every one goes through.
 printk.devkmsg=on
+# The release board's loglevel=5 is for the logo; the dev variant prints
+# every level, as its `-quiet` intends.
+-loglevel=5

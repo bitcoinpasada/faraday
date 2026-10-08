@@ -9,5 +9,14 @@
 # fbcon=logo-pos:center: a PC's boot logo is a 320 x 320 square (its
 # panel's size is not known when the image is built), which the kernel
 # would draw at the top left of the screen; this puts it in the middle.
+#
+# loglevel=5, after common's `quiet`: the framebuffer console draws no
+# logo when the console log level is `quiet`'s 4 or lower (fbcon_init in
+# drivers/video/fbdev/core/fbcon.c), so with `quiet` alone a PC shows a
+# blank screen until the app's first frame. `quiet` stays because the EFI
+# stub reads only that word, and without it prints its own lines on the
+# screen before the kernel starts. The release image names no console, so
+# the higher level prints nothing anywhere; the dev variant removes it.
 opensigner.dpi=160 init_on_free=1 init_on_alloc=1 usbcore.authorized_default=2
 fbcon=logo-pos:center
+loglevel=5
