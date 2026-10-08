@@ -256,6 +256,15 @@ internal error rather than carrying on.
   | Keyboard and pointer | Built-in keyboard, touchpad and touchscreen, and USB | The touch panel only: the kernel has no HID driver |
   | Camera | USB webcam | Pi camera or USB webcam |
 
+- **Why the stick comes out.** Nothing reaches a stick except through
+  a stick visit, which writes only what the Outbox holds, and only while
+  nothing secret is open. Pulling the stick does not add that rule; it
+  takes away the means to break it. With no stick attached, no fault in
+  Faraday can write a secret to one, and a hostile stick has nothing to
+  attack while a key or passphrase is in memory. A secret reaches a
+  stick only sealed inside a vault, or unencrypted if the person asks
+  for that. Faraday warns that anyone with the stick will be able to
+  read it, and asks again before writing it.
 - **Removable storage behind a boundary.**
   - The kernel parses no filesystem from a stick or card; it has no FAT
     driver. `faraday-disk` reads and writes FAT in Rust, as an
