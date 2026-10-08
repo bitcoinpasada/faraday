@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact]
+//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds]
 //! ```
 //!
 //! `TESTKIT_DIR` is what `faraday-testkit` wrote; its files stand in
@@ -294,6 +294,7 @@ fn run(
         Some("spend") => return spend_tour(&mut t),
         Some("themes") => return themes_tour(&mut t),
         Some("compact") => return compact_tour(&mut t),
+        Some("seeds") => return seeds_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -332,7 +333,13 @@ fn run(
     t.shot("visit-png-read")?;
     t.press(Action::Nav(Screen::Home));
     t.shot("home-stick-attached")?;
+    // Add a key with the stick in: the sheet asks for it to be pulled,
+    // and Add a key opens when it is.
+    t.press(Action::Entry(None));
+    t.shot("home-pull")?;
     t.sticks(false);
+    t.shot("entry-after-pull")?;
+    t.press(Action::Nav(Screen::Home));
     t.shot("home-files")?;
     t.press(Action::Nav(Screen::Files));
     t.shot("files")?;
@@ -1323,6 +1330,7 @@ fn run(
     t.press(Action::Nav(Screen::Files));
     t.shot("files-outbox-vault-open")?;
     println!("the vault just made opens on its first passphrase typed again");
+    seeds_tour(&mut t)?;
     boot_tour(&mut t)?;
     spend_tour(&mut t)?;
     // Tools: every flow, and Find a tool.
@@ -1581,6 +1589,26 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
 fn compact_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::cstep;
     t.shot("home")?;
+    t.press(Action::Nav(Screen::Start));
+    t.shot("wallets-empty")?;
+    // Add a key with a stick in: the sheet, then Add a key once it is
+    // pulled.
+    t.sticks(true);
+    t.press(Action::Nav(Screen::Home));
+    t.shot("home-stick")?;
+    t.press(Action::Entry(None));
+    t.shot("home-pull")?;
+    t.sticks(false);
+    t.shot("entry-after-pull")?;
+    // Its foot: Scan a SeedQR, Make a new key, and the way in from a stick.
+    let _ = t.app.frame();
+    t.app.event(Event::Scroll {
+        x: 240,
+        y: 200,
+        dy: 1200,
+    });
+    t.shot("entry-foot")?;
+    t.press(Action::Nav(Screen::Home));
     t.press(Action::CreateWallet);
     t.shot("create-kind")?;
     t.press(Action::CNext(cstep::KIND));
@@ -1628,6 +1656,91 @@ fn compact_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("create-overview")?;
     t.press(Action::Nav(Screen::Home));
     t.shot("home-loaded")?;
+    // Add a key: two words typed, the third begun; then a SLIP-39 share.
+    t.press(Action::Entry(None));
+    type_text(t, "zebra zebra zeb");
+    t.shot("entry-typing")?;
+    t.press(Action::EntryForm(1));
+    type_text(t, "shadow pistol academic ac");
+    t.shot("entry-slip39")?;
+    t.press(Action::Nav(Screen::Home));
+    seeds_tour(t)?;
+    Ok(())
+}
+
+/// A wallet from seed words alone: Restore's Type the seeds, two seeds
+/// typed with the next steps, the shape (M of N on its sliders, the
+/// third cosigner's xpub, the kind and the path) and the Check card;
+/// then the Spend tab's words route with Add another seed and the
+/// sliders.
+fn seeds_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::family::{FamilyAction as F, Route, page};
+    use faraday_core::seeds::{Focus, SLIDE_N, SeedsAction as S};
+    t.press(Action::Lock);
+    t.sticks(false);
+    t.tick();
+    t.press(Action::Network(testkit::NET));
+    t.press(Action::RestoreWallet);
+    t.press(Action::RNext(0));
+    t.shot("restore-type-seeds")?;
+    scroll(t, 300);
+    t.shot("restore-type-seeds-foot")?;
+    t.press(Action::RSeeds);
+    for n in [0, 1] {
+        t.press(Action::Entry(None));
+        t.type_key(n);
+    }
+    if t.app.screen != Screen::Restore {
+        return Err("Add a key did not return to Restore".into());
+    }
+    t.shot("restore-seeds-first")?;
+    t.press(Action::Seeds(S::Shape));
+    t.press(Action::Slide(SLIDE_N, 3));
+    t.press(Action::Seeds(S::Focus(Focus::Cosigner(0))));
+    type_text(t, &testkit::key(2, "m/48'/1'/0'/2'"));
+    t.app.event(Event::Key(Key::Enter));
+    t.shot("restore-seeds-shape")?;
+    // Down the shape to Make the wallet: further on a small panel.
+    let steps = if t.size().0 < 700 { 5 } else { 2 };
+    for k in 1..=steps {
+        scroll(t, 300);
+        t.shot(&format!("restore-seeds-shape-{k}"))?;
+    }
+    t.press(Action::Seeds(S::Make));
+    t.shot("restore-seeds-check")?;
+    if t.app.restore.as_ref().and_then(|r| r.wallet).is_none() {
+        return Err("the seeds made no wallet".into());
+    }
+    // The Spend tab: words, then another seed, then how many sign.
+    t.press(Action::Lock);
+    // The process after the lock has its clock from the next tick.
+    t.tick();
+    t.press(Action::Network(testkit::NET));
+    t.press(Action::Nav(Screen::Family));
+    t.press(Action::Family(F::StartOver));
+    t.press(Action::Family(F::Next(page::MAP)));
+    t.press(Action::Family(F::Next(page::SAFE)));
+    t.press(Action::Family(F::Holding(Route::Words)));
+    t.press(Action::Entry(None));
+    t.type_key(0);
+    t.shot("spend-words-one-seed")?;
+    t.press(Action::Entry(None));
+    t.type_key(1);
+    t.shot("spend-words-two-seeds")?;
+    t.press(Action::Slide(SLIDE_N, 3));
+    t.press(Action::Seeds(S::Focus(Focus::Cosigner(0))));
+    type_text(t, &testkit::key(2, "m/48'/1'/0'/2'"));
+    t.app.event(Event::Key(Key::Enter));
+    for k in 1..=steps {
+        scroll(t, 300);
+        t.shot(&format!("spend-words-shape-{k}"))?;
+    }
+    t.press(Action::Seeds(S::Make));
+    t.shot("spend-words-made")?;
+    if t.app.family_wallet().is_none() {
+        return Err("the Spend tab's seeds made no wallet".into());
+    }
+    t.press(Action::Lock);
     Ok(())
 }
 
@@ -2000,6 +2113,17 @@ fn silent_wallet(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// The page scrolled down by `dy`, as a wheel would.
+fn scroll(t: &mut Tour, dy: i16) {
+    let _ = t.app.frame();
+    let (w, h) = t.size();
+    t.app.event(Event::Scroll {
+        x: w / 2,
+        y: h / 2,
+        dy,
+    });
+}
+
 fn type_text(t: &mut Tour, text: &str) {
     for c in text.chars() {
         t.app.event(Event::Key(Key::Char(c)));
@@ -2014,7 +2138,9 @@ fn fp_hex(fp: [u8; 4]) -> String {
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     if !(4..=5).contains(&args.len()) {
-        eprintln!("usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact]");
+        eprintln!(
+            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds]"
+        );
         return ExitCode::from(2);
     }
     let (size_arg, dpi_arg) = match args[1].split_once('@') {
@@ -2041,8 +2167,8 @@ fn main() -> ExitCode {
         None => 160,
     };
     let only = args.get(4).map(String::as_str);
-    if only.is_some_and(|m| !["spend", "themes", "compact"].contains(&m)) {
-        eprintln!("the tour is spend, themes or compact");
+    if only.is_some_and(|m| !["spend", "themes", "compact", "seeds"].contains(&m)) {
+        eprintln!("the tour is spend, themes, compact or seeds");
         return ExitCode::from(2);
     }
     match run((w, h), dpi, Path::new(&args[2]), Path::new(&args[3]), only) {

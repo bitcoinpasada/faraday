@@ -134,6 +134,18 @@ impl NewKind {
         }
     }
 
+    /// The kind's path with account `account` in place of 0: the
+    /// account is BIP-44's third step, BIP-48's too. `m/45'` has none
+    /// and stays as it is.
+    pub fn path_at(self, network: osk_bip::keys::Network, account: u32) -> String {
+        let path = self.path(network);
+        let mut steps: Vec<String> = path.split('/').map(str::to_string).collect();
+        if steps.len() >= 4 {
+            steps[3] = format!("{account}'");
+        }
+        steps.join("/")
+    }
+
     /// `[fingerprint/path]xpub` of a master key, at this kind's path.
     pub fn key_text(self, master: &MasterKey) -> Result<String, String> {
         let (xpub, fp, path) = match self {
@@ -236,6 +248,44 @@ impl NewKind {
             NewKind::MuSig => format!("tr(musig({})/<0;1>/*)", keys.join(",")),
         }
     }
+}
+
+/// `[fingerprint/path]xpub` of a master key at `path`, written
+/// `m/48'/0'/0'/2'` or `48h/0h/0h/2h`: what [`NewKind::key_text`] gives
+/// at a kind's own path, at any other.
+pub fn key_text_at(master: &MasterKey, path: &str) -> Result<String, String> {
+    let path = normal_path(path).ok_or_else(|| format!("Not a derivation path: {path}"))?;
+    let parsed: osk_bip::bitcoin::bip32::DerivationPath =
+        path.parse().map_err(|e| format!("{e}"))?;
+    let d = master.derive(&parsed);
+    let shown = path
+        .trim_start_matches('m')
+        .trim_start_matches('/')
+        .replace('\'', "h");
+    if shown.is_empty() {
+        return Ok(format!("[{}]{}", master.fingerprint(), d.to_xpub()));
+    }
+    Ok(format!("[{}/{shown}]{}", master.fingerprint(), d.to_xpub()))
+}
+
+/// A derivation path as typed, `m/48'/0'/0'/2'`, `48h/0h/0h/2h` or with
+/// spaces, as `m/48'/0'/0'/2'`; `None` when a step is not a number.
+pub fn normal_path(text: &str) -> Option<String> {
+    let t: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+    let t = t.trim_start_matches(['m', 'M']).trim_start_matches('/');
+    let mut out = String::from("m");
+    for step in t.split('/').filter(|s| !s.is_empty()) {
+        let (num, hard) = match step.strip_suffix(['\'', 'h', 'H']) {
+            Some(n) => (n, true),
+            None => (step, false),
+        };
+        let n: u32 = num.parse().ok()?;
+        if n >= 1 << 31 {
+            return None;
+        }
+        out.push_str(&format!("/{n}{}", if hard { "'" } else { "" }));
+    }
+    Some(out)
 }
 
 /// Where a slot's key comes from.

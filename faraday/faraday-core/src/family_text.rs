@@ -65,7 +65,8 @@ pub const ANSWERS: [(Route, &str, &str); 3] = [
         "Words, and nothing else",
         "Twelve, eighteen or twenty-four ordinary English words, numbered, in a fixed order, and \
          nothing else that looks like a long code, a block of letter-and-number lines, or a QR \
-         code. A single list of words is usually the whole wallet.",
+         code. A single list of words is usually the whole wallet. Several lists, perhaps with \
+         a line like 2 of 3, are one wallet of several keys and go here too.",
     ),
     (
         Route::Paper,
@@ -292,7 +293,9 @@ fn open_lead(app: &Faraday) -> String {
              order matter; nothing else does. Faraday checks them against the list of 2048 words \
              and the backup's own checksum, so a mistyped or missing word is caught here. If a \
              separate passphrase came with the words, put it in the passphrase box exactly as \
-             written. If there was none, leave it empty."
+             written. If there was none, leave it empty. Several lists are one wallet of several \
+             keys: add each with Add another seed, then choose how many keys there are and how \
+             many sign, the kind and the path."
         }
         Some(Route::Paper) => {
             "Scan or type the long code exactly as it is written, including everything after the \
@@ -354,6 +357,12 @@ pub fn more(app: &Faraday, id: CardId) -> &'static [&'static str] {
                  paper.",
                 "When the transaction arrives, Faraday reads which kind it spends from its own key \
                  paths and opens that kind.",
+                "With several lists of words, the wallet is a multisig. The number of keys and \
+                 how many must sign are often written down as 2 of 3 or similar. A key whose \
+                 words are not here, a cosigner's, goes in as its account key (an xpub): scanned, \
+                 from a key file in Files, or typed. Native SegWit multisig at the standard path \
+                 is what most wallets make; if Sparrow shows nothing on the next page, try \
+                 another kind or account.",
             ],
             Some(Route::Paper) => &[
                 "If it came in pieces, do one sheet at a time. Scan or copy in what one sheet \

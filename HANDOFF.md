@@ -1638,6 +1638,78 @@ as possible before the next build.
        desktop warning, touchscreen, disk-process wiping.
     The Pi HDMI / USB keyboard / USB storage question: decided
     2026-10-08, none of them (`PLAN.md` §3); the Pi board stays as built.
+65. [x] 2026-10-08, owner's batch (Add a key, stick popup, seeds-first restore):
+    1. Add a key moves on to the next word once the letters typed spell
+       a word and no other word on the list starts with them, by the
+       same step Tab takes: `entry_complete_word` for typed BIP-39
+       words, Seed XOR parts and SLIP-39 shares (Tab now completes the
+       last two as well; `forms::slip39_completion`), `forms::take_typed`
+       for a list's own keyboard and the small panel (`forms::word_whole`
+       compares the word's typed form; a read list's word once its tone
+       leaves one character). A word that starts a longer one ("act",
+       "action") waits for a space, Tab or Enter. Codex32 is a string
+       and is left as it was. The focused word box shows the caret, empty
+       or not, on the desktop and the small panel, as does the box a
+       share or part is typed into and the backup's copy check. Tests in
+       `tests/forms.rs`; `tests/languages.rs` follows the keyboard path.
+       The small-panel tour shows Add a key typing BIP-39 words and a
+       SLIP-39 share.
+    2. The stick popup, Add a key first, Scan floating. `Sheet::Pull`:
+       an action that loads a key (`Faraday::pull_what`: Add a key, Scan
+       a SeedQR, a share's QR, Load this key, Make a new key and SLIP-39
+       shares, a seed or backup opened from the Inbox, a Tools tile that
+       adds or makes a key), pressed with a stick attached, waits in
+       `Faraday::pull` under a sheet "Pull the stick to add a key" (to
+       make a key, …), the stick's label, Cancel. The last stick pulled
+       closes it and runs the action; Cancel drops it. The gate is in
+       `act`, so nothing those actions reach is shown disabled for the
+       stick any more on Home, the Wallets tab or Tools (`tile_need` lost
+       its stick case). Home's Start tiles lead with Add a key ("Type,
+       scan or bring in a seed"); the later Add a key tile is gone. Scan
+       is `Ui::fab`, an accent pill with the Scan icon bottom-right of
+       Home (smaller on the small panel, whose Home tiles swap Scan for
+       Add a key and leave room under the last row so it scrolls out from
+       under the button). Scan stays open with a stick in: it loads no
+       key. The Wallets tab has Add a key as a third tile (empty) or in
+       place of "A seed" (loaded); the small panel's empty Wallets has it
+       as a row. Add a key shows "From a stick · plug it in" above its
+       buttons, or Copy files in → Stick visit with one attached.
+       Create's New key and Files' Load this key are pressable with a
+       stick in too and open the sheet. Unlock buttons and passphrase
+       fields stay disabled with a stick in, as before. Tests in
+       `tests/home.rs`; `docs/FLOWS.md` decision 8 and Home; both tours
+       show Home with Scan, the sheet, and Add a key after the pull.
+    3. A wallet from seed words alone, one piece for Restore and the
+       Spend tab (`seeds.rs`, drawn by `seeds_screen.rs`). Restore's The
+       wallet card has **Type the seeds** (desktop and small panel; also
+       under "Choose the wallet first" on The seeds), `Action::RSeeds`:
+       The seeds opens in seeds-first mode (`RestoreState::seeds`), lists
+       the seeds typed in this flow by fingerprint, and offers Add
+       another key (Add a key returns to Restore; `entry_leave` too),
+       Scan a SeedQR, a seed an open vault holds, a seed already loaded,
+       and Make the wallet. That opens the shape: M of N on two sliders
+       (`Ui::slider`, `Action::Slide(id, n)`: tap a stop, drag along it
+       in `touch` Move, or the arrow keys on the slider last used), N
+       from the seeds in hand to 15; a box per missing cosigner for its
+       account key (`seeds::cosigner_key`: xpub/zpub/Zpub/tpub, with or
+       without origin; a key of the other network is refused), filled
+       by typing, Scan (`seeds_take_file` in `scanned`) or a key file in
+       Files; the kind (several keys: `Multi` default, `MultiNested`,
+       `MultiLegacy`, `TapMulti`; one key: native SegWit default,
+       Taproot, nested, legacy); the path (`NewKind::path_at` with an
+       account stepper, or a custom path, `create::normal_path`); the
+       first address; Make the wallet, which builds
+       `NewKind::descriptor` over `create::key_text_at` keys, loads it
+       (source "Typed seeds"), and opens Check. The Spend tab's words
+       route: after the first seed the native SegWit wallet opens as
+       before but the page stays open, with Add another seed
+       (`Action::Entry`) and Continue; the second seed drops the single-key wallet
+       and brings up the same shape; Make the wallet goes on to page 5.
+       FROST and MuSig are not offered here (a dealt FROST share has no
+       seed account; MuSig needs every key's Taproot account and is in
+       Create). Tests in `tests/seeds_first.rs`; docs: WALLETS.md §2,
+       FAMILY.md §3, §4, FLOWS.md; `guide::restore`, the Spend tab's
+       words text. Both tours end with the seeds steps.
 
 ## Next steps
 

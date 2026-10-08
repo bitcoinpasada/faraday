@@ -937,12 +937,22 @@ fn stick_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) ->
     50.0
 }
 
-/// The words route: type or scan the words; the kind of wallet they
-/// open, each with its first address.
+/// The words route: type or scan the words, and add another seed for a
+/// wallet of several; with one seed, the kind of wallet it opens, each
+/// with its first address; with more, the wallet's shape (`seeds.rs`).
 fn words(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    let may = app.may_load_keys();
-    let style = |s| if may { s } else { Style::Disabled };
+    let s = &app.family.seeds;
+    let several = app.seeds_here(s).len() >= 2;
+    if several {
+        cy += crate::seeds_screen::keys(app, ui, s, true, x, cy, w) + 4.0;
+        if s.shaping {
+            ui.rule(x, cy, w, INNER);
+            cy += 16.0;
+            cy += crate::seeds_screen::shape(app, ui, s, false, x, cy, w);
+        }
+        return cy - y;
+    }
     let typed = app
         .session
         .wallets
@@ -957,25 +967,21 @@ fn words(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         &[
             (
                 if typed {
-                    "Type other words"
+                    "Add another seed"
                 } else {
                     "Type the words"
                 },
-                style(if typed {
+                if typed {
                     Style::Secondary
                 } else {
                     Style::Primary
-                }),
-                fa(F::TypeWords),
+                },
+                Action::Entry(None),
             ),
-            ("Scan a SeedQR", style(Style::Secondary), Action::ScanSeed),
+            ("Scan a SeedQR", Style::Secondary, Action::ScanSeed),
         ],
     ) + 4.0;
-    if !may {
-        ui.text(x, cy, 13.0, W::S, WARN, "Remove the stick first");
-        cy += 28.0;
-    }
-    let (Some(key), Some(now)) = (app.session.keys.last(), app.family_words_kind_now()) else {
+    let (Some(key), Some(now)) = (app.family_words_key(), app.family_words_kind_now()) else {
         return cy - y;
     };
     ui.text(

@@ -258,9 +258,13 @@ impl Faraday {
             Ok(fp) => {
                 self.toast(&format!("Key {} added", fp_text(fp)));
                 let back = self.entry.back;
+                self.seeds_took(fp, back);
                 self.entry = crate::EntryState::default();
                 self.refresh_spend();
                 self.screen = back.unwrap_or(crate::Screen::Wallets);
+                if back == Some(crate::Screen::Family) {
+                    self.family_key_added();
+                }
             }
             Err(e) => self.entry.error = Some(e),
         }
@@ -347,6 +351,22 @@ pub fn completion(lang: Language, typed: &str) -> Option<String> {
     }
 }
 
+/// The one SLIP-39 word a prefix can still become, for Tab: the same
+/// rule as [`completion`], over the 1024-word SLIP-39 list instead of a
+/// BIP-39 one.
+pub fn slip39_completion(typed: &str) -> Option<String> {
+    let prefix = typed.rsplit(' ').next().unwrap_or("");
+    if prefix.is_empty() {
+        return None;
+    }
+    let mut c = slip39::candidates(prefix);
+    let only = c.next()?;
+    if c.next().is_some() {
+        return None;
+    }
+    Some(slip39::word(only).to_string())
+}
+
 /// The words in a file of them, as a person or a backup tool writes one:
 /// lines starting `#` are notes, and a number before a word (`1.`, `2)`,
 /// `03`) is its place, not a word.
@@ -386,6 +406,24 @@ pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, String> {
     let m = Mnemonic::from_indices(lang, &idx).map_err(|e| e.to_string());
     zeroize::Zeroize::zeroize(&mut idx);
     m
+}
+
+/// Whether the keys typed for the word in progress on `w` already type
+/// one word whole, with no other word on the list starting the same
+/// way: the point at which typing takes it as Tab would. A read list's
+/// word is whole once its tone leaves one character.
+pub fn word_whole(w: &opensigner_core::load::LoadWizard, lang: Language) -> bool {
+    let prefix = w.prefix();
+    if prefix.is_empty() || !w.accepting() {
+        return false;
+    }
+    let Some(only) = w.candidates().next() else {
+        return false;
+    };
+    match lang.typed(only) {
+        Some(t) => t.as_chars() == prefix,
+        None => !w.awaiting_tone(),
+    }
 }
 
 /// Takes the word typed whole on `w`: the one its letters spell, or the

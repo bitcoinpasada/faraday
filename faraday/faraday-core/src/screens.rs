@@ -112,6 +112,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::IdleWarn => idle_warn_sheet(app, ui, w, h),
             Sheet::Potential => potential_sheet(app, ui, w, h),
             Sheet::Import => crate::boot_import_screen::draw(app, ui, w, h),
+            Sheet::Pull => pull_sheet(app, ui, w, h),
         }
         ui.oy = 0.0;
     }
@@ -644,7 +645,7 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
 // Home
 // ---------------------------------------------------------------------
 
-fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
+fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let x = x0 + 56.0;
     let width = cw - 112.0;
     let mut y = 44.0;
@@ -733,18 +734,13 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
     section_label(ui, x, y, "Start");
     y += 30.0;
     let mut tiles: Vec<(Icon, String, String, Action, bool)> = Vec::new();
-    let may = app.may_load_keys();
-    let blocked = "Remove the stick first".to_string();
+    // With a stick attached it asks for the stick to be pulled first.
     tiles.push((
-        Icon::Scan,
-        "Scan".to_string(),
-        if may {
-            "A PSBT, a wallet, a key or an address".to_string()
-        } else {
-            blocked.clone()
-        },
-        Action::Scan,
-        may,
+        Icon::Keys,
+        "Add a key".to_string(),
+        "Type, scan or bring in a seed".to_string(),
+        Action::Entry(None),
+        true,
     ));
     // Nothing open yet: the first choice of the session.
     let fresh = !app.holds_secret() && app.session.wallets.is_empty() && app.spend.is_none();
@@ -894,17 +890,6 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
         ));
     }
     if !fresh {
-        tiles.push((
-            Icon::Keys,
-            "Add a key".to_string(),
-            if may {
-                "Type 12 or 24 words".to_string()
-            } else {
-                blocked.clone()
-            },
-            Action::Entry(None),
-            may,
-        ));
         if let Some((i, _)) = app
             .inbox
             .iter()
@@ -987,6 +972,8 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
             ui.hit(tx, ty, tilew, 84.0, *action);
         }
     }
+    // Scan floats at the foot, on the right.
+    ui.fab(x + width, h - 32.0, Icon::Scan, "Scan", Action::Scan);
 }
 
 // ---------------------------------------------------------------------
@@ -1048,6 +1035,17 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             MUTED,
             Some(Action::RestoreWallet),
         );
+        y += crate::compact_screens::row(
+            ui,
+            x,
+            y,
+            width,
+            Some(Icon::Keys),
+            "Add a key",
+            "Type, scan or bring in a seed",
+            MUTED,
+            Some(Action::Entry(None)),
+        );
         y += 8.0;
         let files = app.vault_files();
         match files.iter().position(|f| f.open.is_none()) {
@@ -1082,7 +1080,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if empty {
         let gap = 16.0;
-        let tw = (width - gap) / 2.0;
+        let tw = (width - 2.0 * gap) / 3.0;
         let ways = [
             (
                 Icon::Flag,
@@ -1096,6 +1094,12 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 "From its backups",
                 Action::RestoreWallet,
             ),
+            (
+                Icon::Keys,
+                "Add a key",
+                "Type, scan or bring in a seed",
+                Action::Entry(None),
+            ),
         ];
         for (k, (icon, label, sub, action)) in ways.iter().enumerate() {
             let tx = x + k as f32 * (tw + gap);
@@ -1105,7 +1109,8 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ui.fill(tx + 20.0, y + 24.0, 44.0, 44.0, 10.0, ACCENT.with_alpha(26));
             ui.icon(tx + 20.0, y + 24.0, 44.0, *icon, 18.0, ACCENT);
             ui.text(tx + 82.0, y + 24.0, 16.0, W::S, TEXT, label);
-            ui.text(tx + 82.0, y + 50.0, 13.0, W::R, MUTED, sub);
+            let sub = ui.fit(13.0, W::R, sub, tw - 100.0);
+            ui.text(tx + 82.0, y + 50.0, 13.0, W::R, MUTED, &sub);
             ui.hit(tx, y, tw, 92.0, *action);
         }
         y += 92.0 + 28.0;
@@ -1142,7 +1147,6 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     section_label(ui, x, y, "What do you have?");
     y += 30.0;
-    let may = app.may_load_keys();
     let psbts = app
         .inbox
         .iter()
@@ -1188,13 +1192,9 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ),
         (
             Icon::Keys,
-            "A seed",
-            if may {
-                "Type its 12 or 24 words".to_string()
-            } else {
-                "Remove the stick first".to_string()
-            },
-            may.then_some(Action::Entry(None)),
+            "Add a key",
+            "Type, scan or bring in a seed".to_string(),
+            Some(Action::Entry(None)),
         ),
         (
             Icon::Flag,
@@ -5276,21 +5276,28 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                                 INNER
                             },
                         );
-                        let shown = if typed.is_empty() {
-                            "Type here".to_string()
-                        } else {
-                            typed
-                        };
+                        let hint = typed.is_empty();
+                        let shown = if hint { "Type here".to_string() } else { typed };
                         let shown = ui.fit(14.0, W::M, &shown, w - 28.0);
-                        ui.text_mid(
-                            x + 14.0,
+                        // The caret stands before the hint while nothing
+                        // is typed, after the digits once some are.
+                        let lead = if b.checking && hint { 6.0 } else { 0.0 };
+                        let tw = ui.text_mid(
+                            x + 14.0 + lead,
                             cy,
                             44.0,
                             14.0,
                             W::M,
-                            if b.typed.is_empty() { DIM } else { TEXT },
+                            if hint { DIM } else { TEXT },
                             &shown,
                         );
+                        if b.checking {
+                            ui.caret(
+                                x + 14.0 + if hint { 0.0 } else { tw + 1.0 },
+                                cy + 13.0,
+                                18.0,
+                            );
+                        }
                         cy += 54.0;
                         let (line, c) = match crate::backup::check_copy(&b.typed, &digits) {
                             crate::backup::CopyCheck::Matches => {
@@ -6387,9 +6394,7 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     }
                     row.push((
                         "New key".to_string(),
-                        if !app.may_load_keys() {
-                            Style::Disabled
-                        } else if first_empty == Some(slot) {
+                        if first_empty == Some(slot) {
                             Style::Primary
                         } else {
                             Style::Secondary
@@ -6977,7 +6982,13 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     (None, n) => format!("{n} PSBTs in Files"),
                 },
                 (1, Some(w)) => format!("{} · {}", w.name, Session::shape(w)),
+                (1, None) if r.seeds.is_some() => "From the seeds".to_string(),
                 (1, None) => "Not chosen yet".to_string(),
+                (2, None) => match r.seeds.as_ref().map(|s| app.seeds_here(s).len()) {
+                    Some(1) => "1 seed typed".to_string(),
+                    Some(n) => format!("{n} seeds typed"),
+                    None => String::new(),
+                },
                 (2, Some(w)) => {
                     let slots = app.session.slots(w);
                     let here = slots.iter().filter(|s| s.held_by.is_some()).count();
@@ -7191,9 +7202,38 @@ fn restore_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f3
                 if next_button(ui, x, cy, w, "Continue", Action::RNext(n)) {
                     cy += 48.0;
                 }
+            } else if let Some(s) = r.seeds.as_ref() {
+                // Seeds first: the seeds, then the wallet they make.
+                if s.shaping {
+                    cy += crate::seeds_screen::shape(app, ui, s, true, x, cy, w);
+                } else {
+                    cy += crate::seeds_screen::keys(app, ui, s, false, x, cy, w);
+                    if !app.seeds_here(s).is_empty() {
+                        cy += 4.0;
+                        cy += buttons_and_next(
+                            ui,
+                            x,
+                            cy,
+                            w,
+                            &[],
+                            Some((
+                                "Make the wallet",
+                                Action::Seeds(crate::seeds::SeedsAction::Shape),
+                            )),
+                        );
+                    }
+                }
             } else {
                 ui.text(x, cy, 13.0, W::R, DIM, "Choose the wallet first");
                 cy += 30.0;
+                cy += wrap_buttons(
+                    ui,
+                    x,
+                    cy,
+                    w,
+                    40.0,
+                    &[("Type the seeds", Style::Secondary, Action::RSeeds)],
+                );
             }
         }
         3 => {
@@ -7451,14 +7491,14 @@ fn restore_sources(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Style::Secondary,
         Action::Scan,
     );
-    ui.text_mid(
-        x + 90.0 + sw + 12.0,
+    ui.button(
+        x + 90.0 + sw + 8.0,
         cy,
+        None,
         40.0,
-        13.0,
-        W::R,
-        DIM,
-        "Words: in the next card",
+        "Type the seeds",
+        Style::Secondary,
+        Action::RSeeds,
     );
     cy += 56.0;
     ui.rule(x, cy - 6.0, w, INNER);
@@ -7549,13 +7589,15 @@ fn restore_sources_compact(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -
         cy,
         w,
         40.0,
-        &[(
-            "Scan the descriptor or a share",
-            Style::Secondary,
-            Action::Scan,
-        )],
-    );
-    cy += ui.wrap(x, cy, w, 13.0, W::R, DIM, "Words: in the next card") + 14.0;
+        &[
+            (
+                "Scan the descriptor or a share",
+                Style::Secondary,
+                Action::Scan,
+            ),
+            ("Type the seeds", Style::Secondary, Action::RSeeds),
+        ],
+    ) + 6.0;
     ui.rule(x, cy - 6.0, w, INNER);
     cy += 10.0;
     cy - y
@@ -7861,11 +7903,7 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     None,
                     36.0,
                     "Load this key",
-                    if app.may_load_keys() {
-                        Style::Primary
-                    } else {
-                        Style::Disabled
-                    },
+                    Style::Primary,
                     Action::LoadKey(k),
                 ) + 8.0;
                 bx += add_to_vault(app, ui, bx, iy + 64.0, k, Style::Secondary);
@@ -8863,15 +8901,7 @@ fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note)
             }
         }
         FileKind::Words => {
-            out.push((
-                "Load this key".into(),
-                if app.may_load_keys() {
-                    Style::Primary
-                } else {
-                    Style::Disabled
-                },
-                Action::LoadKey(k),
-            ));
+            out.push(("Load this key".into(), Style::Primary, Action::LoadKey(k)));
             out.push(add_to_vault(Style::Secondary));
         }
         FileKind::Message => {
@@ -9857,7 +9887,12 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Some(i) if !last_partial => lang.word(i),
                 _ => wd,
             };
-            ui.text_mid(cx + 36.0, cy, 38.0, 14.0, W::M, c, shown);
+            let tw = ui.text_mid(cx + 36.0, cy, 38.0, 14.0, W::M, c, shown);
+            if last_partial && !app.entry.on_passphrase {
+                ui.caret(cx + 37.0 + tw, cy + 10.0, 18.0);
+            }
+        } else if current && !app.entry.on_passphrase {
+            ui.caret(cx + 37.0, cy + 10.0, 18.0);
         }
     }
     y += (shown / cols) as f32 * 46.0 + 12.0;
@@ -9968,9 +10003,15 @@ fn keyed_words(
             None if current && !prefix.is_empty() => Some((prefix.clone(), ACCENT)),
             None => None,
         };
-        if let Some((t, c)) = word {
-            let t = ui.fit(14.0, W::M, &t, cellw - 36.0);
-            ui.text_mid(cx + 30.0, cy, 36.0, 14.0, W::M, c, &t);
+        let tw = match word {
+            Some((t, c)) => {
+                let t = ui.fit(14.0, W::M, &t, cellw - 36.0);
+                ui.text_mid(cx + 30.0, cy, 36.0, 14.0, W::M, c, &t)
+            }
+            None => 0.0,
+        };
+        if current && !app.entry.on_passphrase {
+            ui.caret(cx + 31.0 + tw, cy + 9.0, 18.0);
         }
     }
     y += (shown / cols) as f32 * 42.0 + 8.0;
@@ -10187,6 +10228,7 @@ fn entry_finish(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) 
     );
     ui.hit(px, y, pw, 40.0, Action::EntryPassphrase);
     let by = h - 36.0 - 46.0;
+    entry_stick(app, ui, x, by - 48.0);
     ui.button(
         x,
         by,
@@ -10236,6 +10278,33 @@ fn entry_finish(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) 
     );
 }
 
+/// Add a key's way in from a stick: a key file on it is copied in on the
+/// stick visit and loads when the stick is pulled.
+pub(crate) fn entry_stick(app: &Faraday, ui: &mut Ui, x: f32, y: f32) {
+    if app.sticks.is_empty() {
+        ui.icon(x - 2.0, y + 8.0, 20.0, Icon::Drive, 12.0, DIM);
+        ui.text_mid(
+            x + 24.0,
+            y,
+            36.0,
+            13.0,
+            W::R,
+            DIM,
+            "From a stick · plug it in",
+        );
+    } else {
+        ui.button(
+            x,
+            y,
+            None,
+            36.0,
+            "Copy files in",
+            Style::Secondary,
+            Action::Nav(Screen::Visit),
+        );
+    }
+}
+
 /// Add a key in another form than BIP-39 words: one share, string or part
 /// typed at a time, the ones collected listed, then put together.
 fn entry_form(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) {
@@ -10272,19 +10341,25 @@ fn entry_form(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) {
             ACCENT
         },
     );
-    let typed = if app.entry.typed.is_empty() && !app.entry.on_passphrase {
+    let on = !app.entry.on_passphrase;
+    let empty = app.entry.typed.is_empty();
+    let typed = if empty && on {
+        // The caret stands before the hint while nothing is typed.
+        ui.caret(x + 12.0, y + 13.0, 18.0);
         match form {
             Form::Codex32 => crate::secret_text::SecretText::of("ms1…"),
             _ => crate::secret_text::SecretText::of("Words of one share"),
         }
     } else {
         let mut t = crate::secret_text::SecretText::of(&app.entry.typed);
-        t.push_str(ui.caret_char());
+        if on {
+            t.push_str(ui.caret_char());
+        }
         t
     };
     let shown = ui.fit_secret(14.0, W::M, &typed, width - 24.0);
     ui.text_mid(
-        x + 12.0,
+        x + if empty && on { 18.0 } else { 12.0 },
         y,
         44.0,
         14.0,
@@ -10341,6 +10416,7 @@ fn entry_form(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) {
         ui.hit(px, y, pw, 40.0, Action::EntryPassphrase);
     }
     let by = h - 36.0 - 46.0;
+    entry_stick(app, ui, x, by - 48.0);
     let ready = app.entry.parts.ready(form);
     let aw = ui.button(
         x,
@@ -10933,6 +11009,55 @@ pub(crate) fn sheet_box(ui: &mut Ui, w: f32, h: f32, sw: f32, sh: f32) -> (f32, 
     ui.fill(x, y, sw, sh, 16.0, SURFACE);
     ui.stroke(x, y, sw, sh, 16.0, BORDER);
     (x, y)
+}
+
+/// Something that loads a key was pressed with a stick attached: what it
+/// was, and the stick. It closes, and what was pressed carries on, when
+/// the stick is pulled.
+fn pull_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+    let what = app.pull.and_then(|a| app.pull_what(a)).unwrap_or("go on");
+    let title = format!("Pull the stick to {what}");
+    let line = match app.sticks.len() {
+        0 | 1 => format!(
+            "{} · attached",
+            app.sticks.first().map_or("", |s| s.label.as_str())
+        ),
+        k => format!("{k} sticks attached"),
+    };
+    if ui.compact {
+        crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
+            let mut cy = y;
+            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Drive, WARN, &title);
+            cy += ui.wrap(x, cy, iw, 13.0, W::R, MUTED, &line) + 16.0;
+            cy += crate::compact::buttons(
+                ui,
+                x,
+                cy,
+                iw,
+                &[("Cancel", Style::Secondary, Action::Cancel)],
+            );
+            cy - y
+        });
+        return;
+    }
+    let sh = 196.0;
+    let (x, y) = sheet_box(ui, w, h, 480.0, sh);
+    let ix = x + 32.0;
+    let iw = 480.0 - 64.0;
+    ui.icon(ix, y + 30.0, 30.0, Icon::Drive, 18.0, WARN);
+    let title = ui.fit(20.0, W::S, &title, iw - 42.0);
+    ui.text_mid(ix + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, &title);
+    let line = ui.fit(13.0, W::R, &line, iw);
+    ui.text(ix, y + 78.0, 13.0, W::R, MUTED, &line);
+    ui.button(
+        ix,
+        y + sh - 32.0 - 46.0,
+        Some(iw),
+        46.0,
+        "Cancel",
+        Style::Secondary,
+        Action::Cancel,
+    );
 }
 
 fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {

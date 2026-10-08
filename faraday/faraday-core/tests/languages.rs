@@ -117,10 +117,17 @@ fn type_on_keys(app: &mut Faraday, lang: Language, i: u16) {
         }
         _ => lang.typed(i).unwrap().as_chars().to_vec(),
     };
+    let before = app.entry.keys.as_ref().unwrap().committed_indices().count();
     for c in keys {
         app.press(Action::EntryKey(c));
     }
     let w = app.entry.keys.as_ref().unwrap();
+    // A word with no other word starting the same way is taken as its
+    // last key is typed, with no word pressed.
+    if w.committed_indices().count() > before {
+        assert_eq!(w.committed_indices().last(), Some(i));
+        return;
+    }
     let at = w
         .candidates()
         .position(|c| c == i)

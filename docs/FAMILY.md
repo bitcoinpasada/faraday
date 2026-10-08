@@ -68,7 +68,7 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
 | 1 | How to spend bitcoin | all | the map; **Start** |
 | 2 | Start from the stick | all | none; on the desktop app, a line saying it is the desktop copy |
 | 3 | What are you holding? | all | four answers |
-| 4 | Open the wallet | all, differs | Vault: the vault list, Remove the stick, passphrase, Unlock, what opened · Words: Type the words · Paper: Restore (scan, type, sheets) |
+| 4 | Open the wallet | all, differs | Vault: the vault list, Remove the stick, passphrase, Unlock, what opened · Words: Type the words, Add another seed; with two seeds or more, M of N on two sliders, the cosigners' xpubs, the kind and the path · Paper: Restore (scan, type, sheets) |
 | 5 | Check the money is really there | all | the wallet as a QR; addresses, receive and change, more on request |
 | 6 | Write the payment | all | none |
 | 7 | Bring the transaction here | all | Scan its QR · Copy it from a stick (the lock cycle) · PSBTs already in Files |
@@ -79,7 +79,8 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
 | 12 | Put everything away | all | Lock; the stick visit for the Outbox; Power off |
 
 Routes: **Vault** (a Faraday stick and its passphrase), **Words** (words
-only: one key), **Paper** (words and a wallet description).
+only: one key, or several lists of words and perhaps a line like 2 of 3),
+**Paper** (words and a wallet description).
 
 ## 4. The prose, page by page
 
@@ -156,7 +157,9 @@ Answers:
 - **Words, and nothing else.** Twelve, eighteen or twenty-four ordinary
   English words, numbered, in a fixed order, and nothing else that looks
   like a long code, a block of letter-and-number lines, or a QR code. A
-  single list of words is usually the whole wallet. → Words route.
+  single list of words is usually the whole wallet. Several lists, perhaps
+  with a line like 2 of 3, are one wallet of several keys and go here too.
+  → Words route.
 - **Words and something else.** As well as the words there is one long
   line starting `wsh(` or `wpkh(`, or lines pairing short codes with
   `xpub`s, or QR codes meant to be scanned, perhaps spread across several
@@ -234,9 +237,31 @@ words, put it in the second box exactly as written. If there was none,
 leave it empty. If you are unsure, try empty first.
 
 *(Controls: Type the words, which opens word entry and returns here; Scan
-a SeedQR. The wallet opened is native SegWit, account 0.)* More: If Sparrow shows nothing on page 5, the wallet may
-be an older kind; **Try another kind** lists Taproot, nested SegWit and
-legacy for the same words.
+a SeedQR. The wallet opened is native SegWit, account 0, and the page
+stays open with **Add another seed** and **Continue**.)* More: If Sparrow
+shows nothing on page 5, the wallet may be an older kind; **Try another
+kind** lists Taproot, nested SegWit and legacy for the same words.
+
+**Several seeds** (2026-10-08, the owner's request): for someone whose
+paper holds several lists of words and a wallet policy written by hand,
+with no descriptor. **Add another seed** opens word entry again (or Scan a
+SeedQR, a seed from an open vault, one already loaded). With two seeds or
+more the single-key wallet goes and the page lists the seeds by
+fingerprint, then the wallet's shape: **M of N** on two sliders, the
+number of keys (the seeds in hand up to 15) and the signatures needed (1
+up to that), each moved by tap, drag or the arrow keys; a box for each key
+whose seed is not here, filled with its account key (`xpub`, `zpub`,
+`Zpub`, `tpub`, with or without its key origin) by Scan, a key file in
+Files, or typing; the kind (native SegWit multisig by default, nested,
+legacy, Taproot); the path (the kind's standard path with an account
+number, or a custom path); the first address; **Make the wallet**. The
+wallet is the descriptor Create a wallet writes over the seeds' keys at
+that path, and the tab goes on to page 5 with it. The same piece is
+Restore's seeds-first route (`docs/WALLETS.md` §2), `seeds.rs`.
+
+More: the number of keys and how many sign are often written as 2 of 3;
+a cosigner's key goes in as its xpub; if Sparrow shows nothing, try
+another kind or account.
 
 #### Paper route
 

@@ -158,6 +158,9 @@ pub struct FamilyState {
     pub error: Option<String>,
     /// The walk-through is shown although something is loaded already.
     pub walkthrough: bool,
+    /// The seeds typed on the words route, and the wallet of several
+    /// keys they make (`seeds.rs`).
+    pub seeds: crate::seeds::SeedsState,
 }
 
 /// The single-key wallets typed words may open, the most common first.
@@ -367,7 +370,7 @@ impl Faraday {
                 self.family.wallet = Some(w.name.clone());
                 self.wallet = i;
                 self.family.route = Some(match w.source.as_str() {
-                    WORDS_SOURCE => Route::Words,
+                    WORDS_SOURCE | crate::seeds::SOURCE => Route::Words,
                     "Vault" => Route::Vault,
                     _ => Route::Paper,
                 });
@@ -507,18 +510,40 @@ impl Faraday {
     /// a native SegWit wallet; the other
     /// single-key kinds are one press away.
     pub(crate) fn family_key_added(&mut self) {
-        if self.family.route == Some(Route::Words) && !self.family_ready() {
+        let words = self.family.route == Some(Route::Words);
+        if words && self.family.seeds.keys.len() <= 1 && !self.family_ready() {
             self.family_words_kind(NewKind::NativeSegwit);
         }
         self.refresh_spend();
-        self.family_opened();
+        if words {
+            // The page stays open: another seed may follow.
+            self.family_choose_only();
+        } else {
+            self.family_opened();
+        }
         self.family_settle();
+    }
+
+    /// The key the words route's single-key wallet is opened from: the
+    /// first seed typed on the route, else the last loaded.
+    pub(crate) fn family_words_key(&self) -> Option<&crate::wallet::Key> {
+        self.family
+            .seeds
+            .keys
+            .first()
+            .and_then(|fp| {
+                self.session
+                    .keys
+                    .iter()
+                    .find(|k| k.master.fingerprint().0 == *fp)
+            })
+            .or(self.session.keys.last())
     }
 
     /// The wallet the last key typed opens as `kind`, in place of the one
     /// it opened before.
     fn family_words_kind(&mut self, kind: NewKind) {
-        let Some(key) = self.session.keys.last() else {
+        let Some(key) = self.family_words_key() else {
             return;
         };
         let text = match kind.key_text(&key.master) {
@@ -628,7 +653,10 @@ impl Faraday {
         let Some(s) = self.spend.as_ref() else {
             return;
         };
-        if s.wallet.is_none() && self.family.route == Some(Route::Words) {
+        if s.wallet.is_none()
+            && self.family.route == Some(Route::Words)
+            && self.family.seeds.keys.len() <= 1
+        {
             let before = self.family_words_kind_now();
             let mut found = false;
             for kind in SINGLE {

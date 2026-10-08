@@ -70,6 +70,26 @@ to get it.
    label or sentence calls an xpub or a descriptor a key; the test
    stick's files are named `seed-…` and `xpub-…` accordingly.
 
+8. **What loads a key asks for the stick to be pulled** (2026-10-08).
+   Keys still load only with no stick attached, but nothing that loads one
+   is shown disabled for it: Add a key, Make a new key, Load this key, a
+   Tools tile that adds or makes a key, opening a seed from the Inbox or a
+   backup. Pressed with a stick in, each opens a sheet, "Pull the stick to
+   add a key" (or to make a key, …), the stick's label, and **Cancel**.
+   The sheet closes the moment the last stick goes, and what was pressed
+   carries on; Cancel closes it with nothing done. Scanning loads no key
+   and stays open with a stick in.
+
+## Home
+
+**Start** leads with **Add a key** (type, scan or bring in a seed) →
+the Add a key screen: a form (BIP-39 words, SLIP-39 shares, codex32, Seed
+XOR parts), **Scan a SeedQR**, **Make a new key**, and "From a stick ·
+plug it in" (with a stick attached, **Copy files in** → Stick visit; a key
+file copied in loads when the stick is pulled). **Scan** floats in the
+bottom-right corner of Home on every panel → the scanner. The Wallets tab
+carries **Add a key** beside Create a wallet and Restore a wallet.
+
 ## Session
 
 **Boot.** Firmware loads the system → the boot medium's data partition
@@ -191,6 +211,10 @@ guarantees for this file's rule:
   what was not saved.
 - **Creating a wallet ends in Backup and Save**, never on the descriptor
   alone.
+- **Restore** takes the wallet's description (a stick, a vault, paper) or
+  **Type the seeds**: each seed through Add a key and back, **Add another
+  key**, then **Make the wallet**: M of N on two sliders, the cosigners'
+  xpubs, the kind and the path, the first address, Check.
 
 ## Spend tab
 
@@ -198,7 +222,9 @@ Family mode for someone spending for the first time
 (`docs/FAMILY.md`): the map → the stick → **What are you holding?** (a
 Faraday stick and its passphrase, words only, or words and a
 description) → **Open the wallet** (the vault's Unlock and load, word
-entry, or the description by camera or from Files) → check the money in
+entry with **Add another seed** for a wallet of several seeds: M of N, the
+cosigners' xpubs, the kind and the path; or the description by camera or
+from Files) → check the money in
 Sparrow → write the payment in Sparrow → bring the PSBT (camera, or a
 stick: the lock cycle, after which the tab opens on the same page) → the
 spend's own steps → **Put everything away** (lock, the Outbox to a

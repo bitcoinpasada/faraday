@@ -212,6 +212,10 @@ pub(crate) fn page(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) -> (f32, f32)
     (BAR_H, h - BAR_H)
 }
 
+/// The height Scan's floating button takes at the foot of Home, with the
+/// margin above it.
+const FAB_ROOM: f32 = 48.0;
+
 /// Home: what is loaded, then a button for each place the sidebar goes.
 pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let top = -app.list_offset;
@@ -398,8 +402,12 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     ui.icon(px, y, pw, Icon::Power, 15.0, MUTED);
     ui.hit(px, y, pw, 44.0, Action::PowerAsk);
     y += 44.0 + 16.0;
+    // Room under the last row for Scan, which floats over the foot: what
+    // it covers scrolls out from under it.
+    y += FAB_ROOM;
 
     test_strip(app, ui, w);
+    ui.fab(w - M, h - M, Icon::Scan, "Scan", Action::Scan);
     let content = y - top;
     app.content_h.set(content);
     let view = ui.rect(0.0, 0.0, w, h);
@@ -411,7 +419,6 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 type Tile = (Icon, &'static str, String, Action, bool);
 
 fn tiles(app: &Faraday) -> Vec<Tile> {
-    let may = app.may_load_keys();
     let wallets = app.session.wallets.len();
     let vault_files = app.vault_files().len();
     let open = app.vaults.open.len();
@@ -455,16 +462,13 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
             Action::Nav(Screen::Files),
             true,
         ),
+        // With a stick attached it asks for the stick to be pulled first.
         (
-            Icon::Scan,
-            "Scan",
-            if may {
-                String::new()
-            } else {
-                "Stick in".to_string()
-            },
-            Action::Scan,
-            may,
+            Icon::Keys,
+            "Add a key",
+            String::new(),
+            Action::Entry(None),
+            true,
         ),
     ];
     if !app.sticks.is_empty() && !app.holds_secret() {

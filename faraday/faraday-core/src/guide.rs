@@ -268,11 +268,15 @@ pub(crate) fn restore(n: u8) -> String {
             .to_string(),
         1 => "Start with the wallet in xpubs: its descriptor, wallet file or multisig config from a \
             stick, the wallet saved in a vault, or the descriptor or split shares on paper as QR codes. Any \
-            quorum of shares holds every key; tick the ones you have and rebuild."
+            quorum of shares holds every key; tick the ones you have and rebuild. With seed words \
+            alone and no description, Type the seeds."
             .to_string(),
         2 => "Type each seed you hold back in, from its sheet. Faraday checks that the words give the key \
             that slot expects and refuses them if they do not, so a seed in the wrong envelope is caught \
-            here. Seeds held by other people stay with them; they sign on their own devices."
+            here. Seeds held by other people stay with them; they sign on their own devices. \
+            From the seeds alone, add each one, then Make the wallet: how many keys and how many \
+            sign, an account key (xpub) for each cosigner whose words are not here, the kind and \
+            the path. The first address shows before the wallet is made."
             .to_string(),
         3 => "Compare this address with the first address written on the backup sheet, and with the wallet \
             software that holds the history. If they match, the wallet is back exactly as it was."

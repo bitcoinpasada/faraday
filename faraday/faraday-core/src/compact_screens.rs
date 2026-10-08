@@ -530,13 +530,14 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         MUTED,
         &format!("Word {}", taken.len() + 1),
     );
-    let shown = if prefix.is_empty() {
+    let on = !app.entry.on_passphrase;
+    let shown = if prefix.is_empty() && !on {
         "…".to_string()
     } else {
         prefix.clone()
     };
     let pw = ui.text(x + 64.0, y - 4.0, 18.0, W::M, ACCENT, &shown);
-    if !prefix.is_empty() {
+    if on {
         ui.caret(x + 66.0 + pw, y - 2.0, 20.0);
     }
     let (status, tone) = match &app.entry.error {
@@ -628,6 +629,8 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ("Clear", Style::Ghost, Action::EntryClear),
         ],
     );
+    crate::screens::entry_stick(app, ui, x, y + 4.0);
+    y += 44.0;
     finish(app, ui, x0, cw, h, y - top + 8.0);
 }
 
@@ -656,10 +659,18 @@ fn entry_form(
             _ => "Words of one share".to_string(),
         }
     } else {
-        app.entry.typed.to_string()
+        let mut t = app.entry.typed.to_string();
+        if on {
+            t.push_str(ui.caret_char());
+        }
+        t
     };
+    // The caret stands before the hint while nothing is typed.
+    if empty && on {
+        ui.caret(x + 10.0, y + 9.0, 18.0);
+    }
     let th = ui.wrap(
-        x + 10.0,
+        x + if empty && on { 16.0 } else { 10.0 },
         y + 10.0,
         iw - 20.0,
         13.0,
@@ -732,5 +743,7 @@ fn entry_form(
             ),
         ],
     );
+    crate::screens::entry_stick(app, ui, x, y + 4.0);
+    y += 44.0;
     finish(app, ui, x0, cw, h, y - top + 8.0);
 }

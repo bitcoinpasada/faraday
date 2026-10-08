@@ -1079,6 +1079,112 @@ impl<'a> Ui<'a> {
         width
     }
 
+    /// A floating action: a pill in the accent colour over the page, its
+    /// icon and its word, its bottom-right corner at (`right`, `bottom`).
+    /// Returns its width.
+    pub fn fab(&mut self, right: f32, bottom: f32, icon: Icon, label: &str, action: Action) -> f32 {
+        // Smaller on a small panel, where it floats over more of the page.
+        let (h, size, pad) = if self.compact {
+            (40.0, 14.0, 10.0)
+        } else {
+            (48.0, 15.0, 14.0)
+        };
+        let width = self.measure(size, W::S, label) + 2.0 * pad + 34.0;
+        let (x, y) = (right - width, bottom - h);
+        let bg = if self.is_pressed(action) {
+            self.col(ACCENT).mix(self.col(BG), 0.25)
+        } else if self.is_hovered(action) {
+            self.col(ACCENT).mix(self.col(TEXT), 0.12)
+        } else {
+            ACCENT
+        };
+        self.shadow(x, y, width, h, h / 2.0);
+        self.fill(x, y, width, h, h / 2.0, bg);
+        self.icon(
+            x + pad,
+            y + (h - 26.0) / 2.0,
+            26.0,
+            icon,
+            size - 2.0,
+            ON_ACCENT,
+        );
+        self.text_mid(x + pad + 30.0, y, h, size, W::S, ON_ACCENT, label);
+        self.quiet_hover = true;
+        self.hit(x, y, width, h, action);
+        self.quiet_hover = false;
+        width
+    }
+
+    /// A slider over the whole numbers `lo..=hi`, at `value`: a track
+    /// with a stop for each number and a round thumb carrying the value,
+    /// the two ends' numbers under it. Each stop's share of the track
+    /// presses as [`Action::Slide`]`(id, n)`; a finger held on it and
+    /// dragged along presses each stop it crosses (`Faraday::touch`), and
+    /// the arrow keys step the slider last pressed. Returns the height
+    /// used.
+    #[allow(clippy::too_many_arguments)]
+    pub fn slider(&mut self, x: f32, y: f32, w: f32, id: u8, lo: u8, hi: u8, value: u8) -> f32 {
+        let (lo, hi) = (lo.min(hi), hi.max(lo));
+        let value = value.clamp(lo, hi);
+        // Room at each end for the thumb.
+        let pad = 14.0;
+        let track = (w - 2.0 * pad).max(1.0);
+        let gap = if hi > lo {
+            track / f32::from(hi - lo)
+        } else {
+            0.0
+        };
+        let at = |n: u8| x + pad + gap * f32::from(n - lo);
+        let mid = y + 20.0;
+        let held = matches!(self.pressed, Some(Action::Slide(i, _)) if i == id);
+        self.fill(x + pad, mid - 2.0, track, 4.0, 2.0, INNER);
+        let vx = at(value);
+        self.fill(x + pad, mid - 2.0, vx - x - pad, 4.0, 2.0, ACCENT);
+        for n in lo..=hi {
+            if n != value {
+                let c = if n < value { ACCENT } else { BORDER };
+                self.dot(at(n), mid, 3.0, c);
+            }
+        }
+        let r = if held { 15.0 } else { 13.0 };
+        let bg = if held {
+            self.col(ACCENT).mix(self.col(TEXT), 0.12)
+        } else {
+            ACCENT
+        };
+        self.dot(vx, mid, r, bg);
+        let v = value.to_string();
+        let vw = self.measure(12.0, W::S, &v);
+        self.text_mid(vx - vw / 2.0, mid - 10.0, 20.0, 12.0, W::S, ON_ACCENT, &v);
+        let (l, h) = (lo.to_string(), hi.to_string());
+        self.text(
+            x + pad - self.measure(11.0, W::R, &l) / 2.0,
+            y + 38.0,
+            11.0,
+            W::R,
+            DIM,
+            &l,
+        );
+        self.text(
+            x + pad + track - self.measure(11.0, W::R, &h) / 2.0,
+            y + 38.0,
+            11.0,
+            W::R,
+            DIM,
+            &h,
+        );
+        // Each stop takes the presses nearest it, the ends out to the
+        // slider's edges.
+        self.quiet_hover = true;
+        for n in lo..=hi {
+            let left = if n == lo { x } else { at(n) - gap / 2.0 };
+            let right = if n == hi { x + w } else { at(n) + gap / 2.0 };
+            self.hit(left, y, right - left, 40.0, Action::Slide(id, n));
+        }
+        self.quiet_hover = false;
+        56.0
+    }
+
     /// A rounded label with a dot. Returns its width.
     pub fn chip(&mut self, x: f32, y: f32, label: &str, fg: Color, bg: Color) -> f32 {
         let h = 26.0;

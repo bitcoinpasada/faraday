@@ -1,7 +1,8 @@
 //! Add a key in the other forms OpenSigner reads: SLIP-39 shares, codex32
 //! strings and Seed XOR parts, each typed one at a time, against the
 //! published vectors (SLIP-39's own, BIP 93's) and the repository's Seed
-//! XOR vector.
+//! XOR vector. In every form typed word by word, a word moves on to the
+//! next once its letters spell it and no other word starts with them.
 
 use std::str::FromStr;
 
@@ -163,4 +164,33 @@ fn a_codex32_string_and_a_slip39_share_can_be_scanned_instead_of_typed() {
         bytes: b"hello".to_vec(),
     });
     assert!(app.scan.as_ref().is_some_and(|s| s.note.is_some()));
+}
+
+#[test]
+fn an_unambiguous_word_moves_on_from_typing_alone() {
+    // No other BIP-39 word starts with "zebra": its last letter typed
+    // moves on to the next word, the same as Tab does, with no Tab
+    // pressed.
+    let mut app = adding(0);
+    typed(&mut app, "zebra");
+    assert_eq!(&*app.entry.typed, "zebra ");
+}
+
+#[test]
+fn a_word_that_starts_a_longer_one_waits_for_a_space() {
+    // "act" is whole, but "action" also starts that way, so typing it
+    // does not move on by itself; a space still does, as it always has.
+    let mut app = adding(0);
+    typed(&mut app, "act");
+    assert_eq!(&*app.entry.typed, "act");
+    typed(&mut app, " ");
+    assert_eq!(&*app.entry.typed, "act ");
+}
+
+#[test]
+fn an_unambiguous_slip39_word_moves_on_from_typing_alone() {
+    // SLIP-39's list has no other word starting "academic".
+    let mut app = adding(1);
+    typed(&mut app, "academic");
+    assert_eq!(&*app.entry.typed, "academic ");
 }

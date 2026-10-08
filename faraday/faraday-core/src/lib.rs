@@ -37,6 +37,7 @@ pub mod restore;
 pub mod secret_text;
 pub mod secrets;
 pub mod secureboot;
+pub mod seeds;
 pub mod silent;
 pub mod stick_settings;
 #[cfg(feature = "testkit")]
@@ -61,6 +62,7 @@ mod keygen_screen;
 mod lightning_screen;
 mod motion;
 mod screens;
+mod seeds_screen;
 mod silent_screen;
 mod tools_screen;
 mod vanity_screen;
@@ -782,6 +784,13 @@ pub enum Action {
     RShare(usize),
     /// Rebuild the wallet from the shares chosen.
     RRebuild,
+    /// Restore from the seeds alone: the seeds card opens in seeds-first
+    /// mode.
+    RSeeds,
+    /// A wallet made from the seeds in hand (`seeds.rs`).
+    Seeds(seeds::SeedsAction),
+    /// A slider pressed, dragged or stepped: which slider, the value.
+    Slide(u8, u8),
     /// Rebuild the wallet from every share in the Inbox, and open it.
     RestoreShares,
     /// Read QR codes with the camera into Files.
@@ -976,6 +985,9 @@ pub enum Sheet {
     /// What the boot stick brought: remove the stick, unlock its vaults,
     /// choose what to import.
     Import,
+    /// Something pressed that loads a key, with a stick attached: it
+    /// carries on once the stick is pulled ([`Faraday::pull`]).
+    Pull,
 }
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
@@ -1660,6 +1672,9 @@ pub struct RestoreState {
     pub wallet: Option<usize>,
     /// The last refusal.
     pub error: Option<String>,
+    /// Restoring from the seeds alone, before any wallet: the seeds
+    /// typed so far and the wallet they will make.
+    pub seeds: Option<seeds::SeedsState>,
 }
 
 /// The restore cards, in order.
@@ -1807,6 +1822,9 @@ pub struct Faraday {
     pub sticks: Vec<StickInfo>,
     /// "Not now" was chosen for the sticks present.
     pub not_now: bool,
+    /// What was pressed with a stick attached, done when it is pulled
+    /// ([`Sheet::Pull`]).
+    pub pull: Option<Action>,
     /// The flow a stick visit returns to when the stick is pulled.
     pub after_visit: Option<Screen>,
     /// Seed entry.
@@ -2027,6 +2045,7 @@ impl Faraday {
             outbox: Vec::new(),
             sticks: Vec::new(),
             not_now: false,
+            pull: None,
             after_visit: None,
             entry: EntryState::default(),
             wallet: 0,
@@ -2511,6 +2530,13 @@ impl Faraday {
                 self.toast(&said);
             }
             self.import_stick_gone();
+            // What was pressed with the stick in carries on.
+            if self.sheet == Some(Sheet::Pull) {
+                self.sheet = None;
+                if let Some(a) = self.pull.take() {
+                    self.act(a);
+                }
+            }
             return;
         }
         self.import_stick_gone();
@@ -2619,6 +2645,27 @@ impl Faraday {
     /// passed, and never with a stick attached.
     pub fn may_load_keys(&self) -> bool {
         self.selftest_passed() && self.sticks.is_empty()
+    }
+
+    /// What `action` does, named for the sheet that asks for the stick to
+    /// be pulled first, when it loads a key; `None` for anything a stick
+    /// may stay in for.
+    pub fn pull_what(&self, action: Action) -> Option<&'static str> {
+        use catalog::Go;
+        Some(match action {
+            Action::Entry(_) | Action::ScanSeed | Action::ScanPart | Action::LoadKey(_) => {
+                "add a key"
+            }
+            Action::KeyGen(_) | Action::KeyGenSlip39 => "make a key",
+            Action::PotentialOpen(_) => "load the wallet",
+            Action::BackupOpen(_) => "open the backup",
+            Action::Catalog(i) => match catalog::TILES.get(usize::from(i))?.go {
+                Go::NewKey | Go::NewShares => "make a key",
+                Go::AddKey(_) | Go::SeedQr => "add a key",
+                _ => return None,
+            },
+            _ => return None,
+        })
     }
 
     /// What the start-up self-test found, once it has run: how many
@@ -2841,6 +2888,13 @@ impl Faraday {
             }
             return;
         }
+        // Keys load only with no stick attached: what loads one waits,
+        // under a sheet, for the stick to be pulled.
+        if self.selftest_passed() && !self.sticks.is_empty() && self.pull_what(action).is_some() {
+            self.pull = Some(action);
+            self.sheet = Some(Sheet::Pull);
+            return;
+        }
         match action {
             Action::SelfTestRun => {
                 self.selftest = Some(osk_selftest::run());
@@ -2994,10 +3048,14 @@ impl Faraday {
                 }
             }
             Action::EntryKey(c) => {
+                let lang = self.entry.language();
                 if let Some(w) = self.entry.keys.as_mut() {
                     w.type_char(c);
                     self.entry.shift = false;
                     self.entry.error = None;
+                    if forms::word_whole(w, lang) {
+                        forms::take_typed(w, lang);
+                    }
                 }
             }
             Action::EntryKeyBack => {
@@ -3268,6 +3326,7 @@ impl Faraday {
                 Err(e) => self.toast(&e.text()),
             },
             Action::Cancel => {
+                self.pull = None;
                 self.mainnet_asked = None;
                 self.secret_cancel();
                 self.wordlist = None;
@@ -3878,6 +3937,21 @@ impl Faraday {
                     }
                 }
             }
+            Action::RSeeds => {
+                if let Some(r) = self.restore.as_mut() {
+                    r.seeds.get_or_insert_with(seeds::SeedsState::default);
+                    // The wallet comes from the seeds now, not a file.
+                    r.wallet = None;
+                    r.error = None;
+                    r.done[rstep::WALLET as usize] = false;
+                    r.done[rstep::SEEDS as usize] = false;
+                    r.done[rstep::CHECK as usize] = false;
+                    r.open = Some(rstep::SEEDS);
+                    r.scroll.follow = true;
+                }
+            }
+            Action::Seeds(a) => self.seeds_act(a),
+            Action::Slide(id, v) => self.slide(id, v),
             Action::RestoreShares => {
                 let texts: Vec<String> = self
                     .inbox
@@ -4709,6 +4783,12 @@ impl Faraday {
         self.scan = None;
         self.sheet = None;
         self.commands.push_back(Command::CameraOff);
+        // A cosigner's account key scanned while a wallet is made from
+        // seeds fills the box waiting for one.
+        if is_key && self.seeds_take_file(self.inbox.len() - 1) {
+            self.toast(&format!("{name} is a cosigner's key"));
+            return;
+        }
         // A cosigner's key scanned while a wallet is being made fills the
         // slot waiting for one.
         if is_key && let Some(slot) = self.create_waiting_slot() {
@@ -4906,8 +4986,46 @@ impl Faraday {
     pub(crate) fn entry_leave(&self) -> Screen {
         match self.entry.back {
             Some(s @ (Screen::Family | Screen::Spend)) => s,
+            Some(Screen::Restore) if self.restore.as_ref().is_some_and(|r| r.seeds.is_some()) => {
+                Screen::Restore
+            }
             _ => Screen::Wallets,
         }
+    }
+
+    /// The word just typed into `entry.typed`, the way Tab completes it:
+    /// the one word of the list this form's words come from that its
+    /// letters can still become, if only one. `Codex32` has none, since
+    /// it is typed as a string, not words.
+    fn entry_tab_word(&self) -> Option<String> {
+        match self.entry.form {
+            forms::Form::Words => forms::completion(self.entry.language(), &self.entry.typed),
+            forms::Form::Xor => {
+                forms::completion(osk_bip::bip39::Language::English, &self.entry.typed)
+            }
+            forms::Form::Slip39 => forms::slip39_completion(&self.entry.typed),
+            forms::Form::Codex32 => None,
+        }
+    }
+
+    /// Completes the word just typed into `entry.typed`, the way Tab
+    /// does for every form that types BIP-39 or SLIP-39 words one at a
+    /// time.
+    fn entry_complete_word(&mut self) {
+        if let Some(word) = self.entry_tab_word() {
+            let cut = self.entry.typed.rfind(' ').map(|i| i + 1).unwrap_or(0);
+            self.entry.typed.truncate(cut);
+            self.entry.typed.push_str(&word);
+            self.entry.typed.push(' ');
+        }
+    }
+
+    /// Whether the word just typed into `entry.typed` is already whole
+    /// and the only one it can be: the point at which it moves on by
+    /// itself, the same move Tab makes for you.
+    fn entry_word_whole(&self) -> bool {
+        let prefix = self.entry.typed.rsplit(' ').next().unwrap_or("");
+        !prefix.is_empty() && self.entry_tab_word().as_deref() == Some(prefix)
     }
 
     fn entry_add(&mut self) {
@@ -4943,11 +5061,14 @@ impl Faraday {
         {
             Ok(fp) => {
                 self.toast(&format!("Key {} added", fp_text(fp)));
-                // A SeedQR scanned over the Spend tab returns to it too.
-                let back = self
-                    .entry
-                    .back
-                    .or((self.screen == Screen::Family).then_some(Screen::Family));
+                // A SeedQR scanned over the Spend tab or Restore returns
+                // to it too.
+                let back =
+                    self.entry
+                        .back
+                        .or(matches!(self.screen, Screen::Family | Screen::Restore)
+                            .then_some(self.screen));
+                self.seeds_took(fp, back);
                 self.entry = EntryState::default();
                 self.refresh_spend();
                 self.screen = match back {
@@ -5288,7 +5409,9 @@ impl Faraday {
     /// Whether typing goes to a text field now.
     pub(crate) fn typing_field(&self) -> bool {
         match self.screen {
-            Screen::Unlock | Screen::CreateVault | Screen::VaultContents | Screen::Family => {
+            Screen::Family => self.vaults.focus.is_some() || self.seeds_typing(),
+            Screen::Restore => self.seeds_typing(),
+            Screen::Unlock | Screen::CreateVault | Screen::VaultContents => {
                 self.vaults.focus.is_some()
             }
             Screen::Entry => true,
@@ -5302,6 +5425,7 @@ impl Faraday {
     fn clear_typing(&mut self) {
         use zeroize::Zeroize;
         match self.screen {
+            Screen::Family | Screen::Restore if self.seeds_typing() => self.seeds_clear_typing(),
             Screen::Unlock | Screen::CreateVault | Screen::VaultContents | Screen::Family => {
                 self.vault_clear_focused();
             }
@@ -5398,6 +5522,9 @@ impl Faraday {
                 _ => {}
             }
         }
+        if self.seeds_key(key) {
+            return;
+        }
         if self.vault_key(key) {
             return;
         }
@@ -5442,12 +5569,16 @@ impl Faraday {
                 KeyIn::Char(c) if c.is_ascii_alphabetic() || (codex32 && c.is_ascii_digit()) => {
                     self.entry.typed.push(c.to_ascii_lowercase());
                     self.entry.error = None;
+                    if !codex32 && self.entry_word_whole() {
+                        self.entry_complete_word();
+                    }
                 }
                 KeyIn::Char(' ') if !codex32 => {
                     if !self.entry.typed.is_empty() && !self.entry.typed.ends_with(' ') {
                         self.entry.typed.push(' ');
                     }
                 }
+                KeyIn::Tab if !codex32 => self.entry_complete_word(),
                 KeyIn::Backspace => {
                     self.entry.typed.pop();
                     self.entry.error = None;
@@ -5470,6 +5601,9 @@ impl Faraday {
                 KeyIn::Char(' ') | KeyIn::Tab => forms::take_typed(w, lang),
                 KeyIn::Char(c) => {
                     w.type_char(c);
+                    if forms::word_whole(w, lang) {
+                        forms::take_typed(w, lang);
+                    }
                 }
                 KeyIn::Backspace => w.backspace(),
                 KeyIn::Enter => self.entry_add(),
@@ -5484,6 +5618,9 @@ impl Faraday {
                 KeyIn::Char(c) if c.is_ascii_alphabetic() => {
                     self.entry.typed.push(c.to_ascii_lowercase());
                     self.entry.error = None;
+                    if self.entry_word_whole() {
+                        self.entry_complete_word();
+                    }
                 }
                 KeyIn::Char(' ') => {
                     if !self.entry.typed.is_empty() && !self.entry.typed.ends_with(' ') {
@@ -5494,15 +5631,7 @@ impl Faraday {
                     self.entry.typed.pop();
                     self.entry.error = None;
                 }
-                KeyIn::Tab => {
-                    if let Some(word) = forms::completion(self.entry.language(), &self.entry.typed)
-                    {
-                        let cut = self.entry.typed.rfind(' ').map(|i| i + 1).unwrap_or(0);
-                        self.entry.typed.truncate(cut);
-                        self.entry.typed.push_str(&word);
-                        self.entry.typed.push(' ');
-                    }
-                }
+                KeyIn::Tab => self.entry_complete_word(),
                 KeyIn::Enter => self.entry_add(),
                 KeyIn::Escape => self.screen = self.entry_leave(),
                 _ => {}
@@ -5786,6 +5915,27 @@ impl Faraday {
                     return;
                 }
                 let held_bar = self.pressed.is_some_and(|(a, _)| a == Action::VisitBar);
+                // A slider held follows the finger along its track.
+                if let Some((Action::Slide(id, _), r)) = self.pressed {
+                    let row = r.y + r.h / 2;
+                    let under = self
+                        .hits
+                        .iter()
+                        .rev()
+                        .find(|(h, a)| {
+                            matches!(a, Action::Slide(i, _) if *i == id) && h.contains(x, row)
+                        })
+                        .map(|(h, a)| (*a, *h));
+                    if let Some((a, h)) = under
+                        && Some(a) != self.pressed.map(|p| p.0)
+                    {
+                        self.pressed = Some((a, h));
+                        self.act(a);
+                        self.dirty = true;
+                        self.commands.push_back(Command::Draw);
+                    }
+                    return;
+                }
                 if let Some((last, dragging)) = self.drag
                     && !held_bar
                 {
