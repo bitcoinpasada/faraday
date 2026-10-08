@@ -64,6 +64,71 @@ stick in the same power-on is an ordinary stick visit; the desktop app's
 test stick (F2) stands for the boot stick, so its first plugging in a
 session runs the import.
 
+## A second stick for storage
+
+On a PC, any other USB stick can carry files to and from Faraday. It is
+read and written on an ordinary stick visit, never at the boot import,
+and only while no vault is open ([Security model](#security-model)).
+Format it like this:
+
+- **A partition table**, MBR or GPT, with the files in a partition. A
+  filesystem written to the whole device with no partition table (what
+  `mkfs.fat /dev/sdX` makes) is not seen: Faraday only ever opens
+  partitions.
+- **FAT32 or FAT16.** exFAT, NTFS, ext4 and APFS are not read, and
+  neither is FAT12. Sticks larger than 32 GB usually come formatted
+  exFAT and need reformatting; most smaller ones come as MBR and FAT32
+  and work as they are.
+- **Any label except `OSKBOOT`**, which marks a boot partition and is
+  never opened.
+- **Files at the top level.** Files inside folders are not read. The
+  largest file read is 18 MiB.
+
+On Linux, with the stick at `/dev/sdX` (check with `lsblk` first; this
+erases the stick):
+
+```
+sudo parted --script /dev/sdX mklabel msdos mkpart primary fat32 1MiB 100%
+sudo mkfs.fat -F 32 -n FARADAY /dev/sdX1
+```
+
+On macOS, with the stick at `/dev/diskN` (check with `diskutil list`):
+
+```
+diskutil eraseDisk FAT32 FARADAY MBRFormat /dev/diskN
+```
+
+On Windows, Explorer's Format offers FAT32 only for 32 GB or less; for a
+larger stick, use Disk Management to make a partition of 32 GB or less
+and format it FAT32.
+
+The Raspberry Pi image reads no USB stick: its kernel has no USB storage
+driver, and the SD card it boots from is its only storage.
+
+## Choosing a computer
+
+A laptop is the better machine for the stick image. Its screen,
+keyboard and touchpad are inside the case: nothing outside it sees the
+screen, and Faraday takes input from them without asking.
+
+On a desktop PC, the monitor cable carries everything Faraday shows:
+seed words, keys as QR codes, and the code typed to approve a new
+keyboard. A plain monitor is fine. Avoid anything on the other end of
+the cable that can record or send on what it shows:
+
+- smart TVs, and monitors with network, casting or screenshot features;
+- capture cards and recorders;
+- KVM switches, and above all network KVMs. A network KVM both sees the
+  screen and acts as a USB keyboard, so it can read the approval code
+  and type it, and then operate Faraday from elsewhere.
+
+Faraday's kernel has no Wi-Fi or Bluetooth driver, so a laptop's radios
+stay off whatever card it has. Taking the card out as well means nothing
+can turn them on, whatever runs on the machine. Cheap laptops whose
+Wi-Fi and Bluetooth are on a separate card, in an M.2 or mini PCIe slot
+behind a screwed panel, are widely available, used business models
+especially.
+
 ## Security model
 
 ### One program, not a desktop
