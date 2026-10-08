@@ -127,12 +127,15 @@ visit** directly.
   on the boot stick when the settings differ from what the boot stick
   holds, unticked on any other stick, and written over the settings
   file already there.
-- **Copy into the Inbox**: chosen files; kinds Faraday does not read
-  are shown dimmed. A vault file copied in appears on Vaults, locked. A
+- **Copy into the Inbox**: chosen files, any of them; a file Faraday
+  reads as nothing it knows comes in as a File, for **Sign a file** or
+  QR **Send**, and is dropped at a lock. A vault file copied in appears
+  on Vaults, locked. A
   PNG is ticked like any other file, and Select all includes it, but is
   not copied: the disk process decodes it, and each code it finds is
   routed as a scan would be (`docs/QR.md` §2), with a multi-part transfer
-  showing its progress across images. A JPEG is not read.
+  showing its progress across images. A JPEG's codes are not read; it
+  comes in as a File.
 - **Delete a vault file** (decision 4).
 - Ends on **Remove the stick** → once gone → **Unlock again**, or Home if
   nothing was locked.

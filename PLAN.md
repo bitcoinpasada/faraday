@@ -390,8 +390,9 @@ one vault alone.
 **Boot.** The first time the app sees the boot medium in a power-on, it
 reads every file on its data partition into memory: vault files into the
 Inbox, encrypted; every other file into a holding area apart from the
-Inbox, a PNG as what its QR codes hold (a SeedQR as its words), a kind
-Faraday does not read listed by name and size only. A sheet over Home says
+Inbox, a PNG as what its QR codes hold (a SeedQR as its words), a file
+Faraday reads as nothing it knows as a File, to sign or send as codes.
+A sheet over Home says
 how many files were copied and what they are, and **Remove the stick to
 start the import** (on the Pi, the card). Once no removable partition
 remains, the same sheet lists the medium's vaults, each with **Unlock**

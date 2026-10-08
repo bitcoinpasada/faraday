@@ -35,8 +35,9 @@ not leave it attached while anything secret is open.
    vault file goes into the Inbox, still encrypted. Every other file is
    held apart from the Inbox until the import. A PNG is not kept as a
    picture: its QR codes are read, and what they hold is kept, a SeedQR
-   as its seed words. A file of a kind Faraday does not read is listed
-   by name and size and not read. A sheet says how many files were
+   as its seed words. A file Faraday reads as nothing it knows, up to
+   18 MiB, is kept as a File, which can go to the Inbox to be signed
+   with a GPG key or sent as QR codes. A sheet says how many files were
    copied and what they are, and asks for the stick to be removed.
 2. **Remove the stick.** Keys never load and passphrases are never typed
    while a stick is attached. Once it is out, the sheet lists what the
@@ -350,6 +351,34 @@ is still a risk. What Faraday removes is everything else.
   `docs/VAULT.md`, with test vectors in `tools/vectors/vault/`.
   `tools/vault/open.py`, a Python reader over standard libraries, opens a
   vault with no Faraday code.
+
+### Why this construction holds up
+
+The pieces above are chosen so that the usual ways a passphrase-sealed
+file goes wrong are absent by construction, not patched after the fact.
+
+- **Standard primitives, used in the standard way.** Argon2id and
+  XChaCha20-Poly1305 are the current recommendations for passphrase
+  stretching and authenticated encryption, and both come from vetted
+  crates rather than anything invented here (`docs/AUDIT.md`). The work
+  is in how they are combined; none of it is new cryptography.
+- **Memory-hard stretching.** Argon2id makes each guess cost memory as
+  well as time, which is what denies an attacker the advantage of
+  massively parallel hardware. It raises the floor under a passphrase; it
+  does not replace a strong one.
+- **Stateless sealing.** A 24-byte nonce is large enough to draw at
+  random on every seal with no meaningful chance of collision, so correct
+  use needs no counter and no saved state. A frequent source of AEAD
+  failures — a reused or mismanaged nonce — cannot arise here.
+- **Nothing is compressed before encryption.** Compressing secrets before
+  sealing them can leak their content through ciphertext length; this
+  format does not, and the fixed slot size means a file's length reveals
+  only its size bucket, never how much is stored or what kind of thing it
+  is. An unused slot is random bytes, indistinguishable from one in use.
+- **Open, not obscure.** The scheme is written down byte for byte, has
+  test vectors, and is opened by an independent reader, so its security
+  rests on the passphrase and the primitives alone — not on the format
+  staying secret, and a vault outlives the program that wrote it.
 
 ### What this does not defend against
 

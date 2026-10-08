@@ -162,7 +162,7 @@ fn the_boot_stick_is_copied_into_memory_with_only_its_vault_in_the_inbox() {
     let inbox: Vec<&str> = app.inbox.iter().map(|i| i.name.as_str()).collect();
     assert_eq!(inbox, ["vault.ofv"]);
     let c = app.import_count().unwrap();
-    assert_eq!((c.copied, c.not_read, c.vaults), (6, 1, 1));
+    assert_eq!((c.copied, c.not_read, c.vaults), (7, 0, 1));
     // Nothing loads, and nothing is imported, while it is in.
     let _ = app.frame();
     assert!(app.offers(Action::Import(I::Later)));
@@ -192,11 +192,12 @@ fn pulling_the_stick_lists_a_wallet_with_its_key_from_a_picture() {
             .iter()
             .any(|k| k.fingerprint == fp(2) && k.chosen && k.files == ["summer-words.txt"])
     );
-    // The PSBT is chosen for the Inbox; the note is not; the photo is not
-    // read.
+    // The PSBT is chosen for the Inbox; the note is not, and nor is the
+    // photo, which is read as a File and can still be chosen.
     assert!(file(&view, "savings-unsigned.psbt").chosen);
     assert!(!file(&view, "notes.txt").chosen);
-    assert!(!file(&view, "photo.jpg").enabled);
+    let photo = file(&view, "photo.jpg");
+    assert!(photo.enabled && !photo.chosen);
     assert!(file(&view, "vault.ofv").chosen);
     assert!(app.offers(Action::Import(I::Go)));
     assert!(app.offers(Action::Import(I::Unlock(0))));

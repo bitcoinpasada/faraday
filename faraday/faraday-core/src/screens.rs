@@ -7596,7 +7596,7 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
         FileKind::EfiImage => "EFI image",
         FileKind::SeedPart => "Part of a seed: SLIP-39 or codex32",
         FileKind::Text => "Text",
-        FileKind::Other => "Other",
+        FileKind::Other => "File",
     }
 }
 
@@ -9238,8 +9238,6 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     for (k, (name, size)) in stick.files.iter().enumerate() {
         let kind = crate::stick_kind(name);
-        let lower = name.to_ascii_lowercase();
-        let image = lower.ends_with(".jpg") || lower.ends_with(".jpeg");
         let on = app.visit.inn.contains(name);
         ui.checkbox(x + 2.0, y + 10.0, on, kind.is_some());
         let fg = if kind.is_some() { TEXT } else { DIM };
@@ -9248,11 +9246,10 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let sub = match kind {
             Some(k) => format!(
                 "{k} · {}",
-                kind_line(FileKind::Other, *size as usize).trim_start_matches("Other · ")
+                kind_line(FileKind::Other, *size as usize).trim_start_matches("File · ")
             ),
-            None if crate::stick_settings::is_file(name) => "Settings".to_string(),
-            None if image => "JPEG · not read by this build".to_string(),
-            None => "Not a kind of file Faraday reads".to_string(),
+            // Read at boot, not copied in.
+            None => "Settings".to_string(),
         };
         let sub = ui.fit(12.0, W::R, &sub, w - 32.0);
         ui.text(
@@ -9579,8 +9576,6 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     for (k, (name, size)) in stick.files.iter().enumerate() {
         let ry = list_top - shift + k as f32 * ROW;
         let kind = crate::stick_kind(name);
-        let lower = name.to_ascii_lowercase();
-        let image = lower.ends_with(".jpg") || lower.ends_with(".jpeg");
         let on = app.visit.inn.contains(name);
         ui.checkbox(ix + 22.0, ry + 15.0, on, kind.is_some());
         let fg = if kind.is_some() { TEXT } else { DIM };
@@ -9590,11 +9585,10 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let sub = match kind {
             Some(k) => format!(
                 "{k} · {}",
-                kind_line(FileKind::Other, *size as usize).trim_start_matches("Other · ")
+                kind_line(FileKind::Other, *size as usize).trim_start_matches("File · ")
             ),
-            None if crate::stick_settings::is_file(name) => "Settings".to_string(),
-            None if image => "JPEG · not read by this build".to_string(),
-            None => "Not a kind of file Faraday reads".to_string(),
+            // Read at boot, not copied in.
+            None => "Settings".to_string(),
         };
         let sub = ui.fit(12.0, W::R, &sub, colw - room);
         ui.text(

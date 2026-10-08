@@ -834,8 +834,10 @@ pub enum Action {
     Import(boot_import::ImportAction),
 }
 
-/// What a stick visit calls a file it copies in, by its extension;
-/// `None` for a kind Faraday does not read.
+/// What a stick visit calls a file it copies in, by its extension: any
+/// file but the settings file is copied, and one whose extension says
+/// nothing is a File, whatever its contents turn out to be. `None` for
+/// the settings file.
 pub fn stick_kind(name: &str) -> Option<&'static str> {
     // The settings file is read at boot, not copied in.
     if stick_settings::is_file(name) {
@@ -853,7 +855,7 @@ pub fn stick_kind(name: &str) -> Option<&'static str> {
         "osk" => Some("Threshold spend, part-signed"),
         "oskb" => Some("OpenSigner backup"),
         "png" => Some("QR codes in a PNG"),
-        _ => None,
+        _ => Some("File"),
     }
 }
 
@@ -2123,24 +2125,18 @@ impl Faraday {
         match event {
             StorageEvent::Sticks(sticks) => self.sticks_changed(sticks),
             StorageEvent::Read { name, bytes, .. } => {
+                // A file Faraday reads as nothing else still comes in, as
+                // a File: to sign, or to send as codes.
                 let item = Item::new(&name, bytes);
-                let ok = item.kind != FileKind::Other;
-                if ok {
-                    let line = if item.kind == FileKind::Words
-                        && self.visit.load_after.contains(&name)
-                    {
-                        format!("Copied {name}: a key's words, loaded when the stick is removed")
-                    } else {
-                        format!("Copied {name}")
-                    };
-                    self.inbox.retain(|i| i.name != name);
-                    self.inbox.push(item);
-                    self.visit.log.push((line, true));
+                let line = if item.kind == FileKind::Words && self.visit.load_after.contains(&name)
+                {
+                    format!("Copied {name}: a key's words, loaded when the stick is removed")
                 } else {
-                    self.visit
-                        .log
-                        .push((format!("{name} is not a kind of file Faraday reads"), false));
-                }
+                    format!("Copied {name}")
+                };
+                self.inbox.retain(|i| i.name != name);
+                self.inbox.push(item);
+                self.visit.log.push((line, true));
                 self.visit.inn.remove(&name);
                 self.save_boxes();
             }
@@ -2699,6 +2695,7 @@ impl Faraday {
                     | FileKind::Carry
                     | FileKind::Entries
                     | FileKind::Text
+                    | FileKind::Other
             ) && !i.secret
         });
         self.session.wipe();

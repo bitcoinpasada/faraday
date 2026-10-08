@@ -366,9 +366,6 @@ impl Faraday {
                 self.inbox.push(item);
                 self.save_boxes();
             }
-            FileKind::Other => {
-                imp.files[f].state = Staged::Failed("not a kind of file Faraday reads".into());
-            }
             kind => {
                 if kind == FileKind::Psbt {
                     imp.to_inbox.insert(name.to_string());
@@ -693,7 +690,7 @@ impl Faraday {
         // Every file, for the Inbox.
         for (f, file) in imp.files.iter().enumerate() {
             let size = crate::screens::kind_line(FileKind::Other, file.size as usize);
-            let size = size.trim_start_matches("Other · ").to_string();
+            let size = size.trim_start_matches("File · ").to_string();
             let open_vault = file.state == Staged::Vault
                 && view
                     .vaults

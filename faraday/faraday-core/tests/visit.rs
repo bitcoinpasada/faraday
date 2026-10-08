@@ -37,16 +37,17 @@ fn with_stick(n: usize) -> Faraday {
 }
 
 #[test]
-fn select_all_chooses_every_readable_file_and_then_none() {
+fn select_all_chooses_every_file_and_then_none() {
     let mut app = with_stick(5);
     assert!(app.offers(Action::VisitInAll));
     app.press(Action::VisitInAll);
     assert_eq!(
         app.visit.inn.len(),
-        6,
-        "the PSBTs and the picture, and no kind Faraday does not read"
+        7,
+        "the PSBTs, the picture and a file of a kind Faraday does not know"
     );
     assert!(app.visit.inn.contains("photo.png"));
+    assert!(app.visit.inn.contains("notes.docx"));
     app.press(Action::VisitInAll);
     assert!(app.visit.inn.is_empty());
 }
