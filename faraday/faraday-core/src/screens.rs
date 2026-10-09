@@ -5203,6 +5203,11 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     "No key of this wallet was loaded from words in this session",
                 );
                 cy += 30.0;
+                // The small panel has no side panel: where each is kept
+                // is on this page.
+                if ui.compact {
+                    cy += kept_rows(app, ui, x, cy, w);
+                }
                 let drawn = next_button(ui, x, cy, w, "Continue", Action::BNext(n));
                 return cy + (if drawn { 48.0 } else { 8.0 }) - y;
             }
@@ -5211,7 +5216,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     .iter()
                     .map(|&k| {
                         let key = &app.session.keys[k];
-                        format!("{} · {}", fp_text(key.master.fingerprint()), key.label)
+                        key_line(key.master.fingerprint(), &key.label)
                     })
                     .collect();
                 let items: Vec<(&str, Style, Action)> = labels
@@ -5255,9 +5260,8 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 (x + bw + 14.0, cy)
             };
             let info = format!(
-                "{} · {} · {} words",
-                fp_text(key.master.fingerprint()),
-                key.label,
+                "{} · {} words",
+                key_line(key.master.fingerprint(), &key.label),
                 list.len()
             );
             let info = ui.fit(13.0, W::R, &info, x + w - ix);
@@ -5302,6 +5306,11 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     let cy = cy + lh + 12.0;
                     let cy = cy + paper_section(app, ui, x, cy, w);
                     let cy = cy + seed_copies(app, ui, x, cy, w, b.key);
+                    let cy = if ui.compact {
+                        cy + 8.0 + kept_rows(app, ui, x, cy + 8.0, w)
+                    } else {
+                        cy
+                    };
                     let drawn = next_button(ui, x, cy, w, "Continue", Action::BNext(n));
                     return cy + (if drawn { 48.0 } else { 8.0 }) - y;
                 }
@@ -5443,6 +5452,10 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 cy += paper_section(app, ui, x, cy, w);
             }
             cy += seed_copies(app, ui, x, cy, w, b.key);
+            if ui.compact {
+                cy += 8.0;
+                cy += kept_rows(app, ui, x, cy, w);
+            }
             if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
                 cy += 48.0;
             }
@@ -5833,24 +5846,63 @@ fn backup_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32) {
     let facts = [
         ("Wallet", wallet.name.clone()),
         ("Shape", Session::shape(wallet)),
-        ("Seeds here", keys.to_string()),
+        ("Seeds loaded", keys.to_string()),
         ("Put in the Outbox", b.sent.len().to_string()),
     ];
     for (k, v) in facts.iter() {
-        ui.text_mid(x, y, 38.0, 12.0, W::R, MUTED, k);
+        ui.text_mid(x, y, 34.0, 12.0, W::R, MUTED, k);
         let v = ui.fit(13.0, W::R, v, w - 100.0);
-        ui.text_right(x + w, y, 38.0, 13.0, W::R, TEXT, &v);
-        ui.rule(x, y + 38.0, w, INNER);
-        y += 40.0;
+        ui.text_right(x + w, y, 34.0, 13.0, W::R, TEXT, &v);
+        ui.rule(x, y + 34.0, w, INNER);
+        y += 36.0;
     }
-    y += 12.0;
-    for name in b.sent.iter().take(8) {
+    y += 14.0;
+    y += kept_rows(app, ui, x, y, w);
+    y += 8.0;
+    for name in &b.sent {
+        if y + 22.0 > h - 16.0 {
+            break;
+        }
         let t = ui.fit(12.0, W::M, name, w);
         ui.text(x, y, 12.0, W::M, TEXT, &t);
         y += 22.0;
     }
-    let note = "Seeds are copied by hand first. A vault, or a file past a warning, is a further copy. The sheets go to the Outbox as PDFs.";
-    ui.wrap(x, h - 96.0, w, 12.0, W::R, DIM, note);
+}
+
+/// The colour of a line of [`crate::backup::Kept`].
+fn tone(t: crate::backup::Tone) -> osk_ui::Color {
+    use crate::backup::Tone;
+    match t {
+        Tone::Ok => OK,
+        Tone::Warn => WARN,
+        Tone::Err => ERR,
+        Tone::Dim => DIM,
+    }
+}
+
+/// Where the wallet and each of its seeds are kept: the wallet's line,
+/// then "Seeds" and a row per key, its fingerprint and its lines. The
+/// backup's side panel and the small panel's seeds page draw it. Returns
+/// its height.
+fn kept_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let Some(kept) = app.backup_kept() else {
+        return 0.0;
+    };
+    let mut cy = y;
+    let (line, t) = &kept.wallet;
+    cy += ui.wrap(x, cy, w, 13.0, W::S, tone(*t), line) + 16.0;
+    ui.text(x, cy, 13.0, W::S, MUTED, "Seeds");
+    cy += 26.0;
+    for seed in &kept.seeds {
+        let name = ui.fit(13.0, W::M, &seed.name, w);
+        ui.text(x, cy, 13.0, W::M, TEXT, &name);
+        cy += 22.0;
+        for (line, t) in &seed.lines {
+            cy += ui.wrap(x + 12.0, cy, w - 12.0, 12.0, W::R, tone(*t), line) + 4.0;
+        }
+        cy += 8.0;
+    }
+    cy - y
 }
 
 // ---------------------------------------------------------------------
@@ -6555,7 +6607,7 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                         let fp = k.master.fingerprint();
                         let on = *src == Source::Here(fp.0);
                         row.push((
-                            format!("{} · {}", fp_text(fp), k.label),
+                            key_line(fp, &k.label),
                             if on { Style::Primary } else { Style::Secondary },
                             Action::CSlotHere(slot as u8, fp.0),
                         ));

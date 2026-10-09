@@ -1753,6 +1753,9 @@ pub struct BackupState {
     pub typed: secret_text::SecretText,
     /// What scanning the copy of the seed on screen found.
     pub scanned: Option<backup::CopyCheck>,
+    /// The seeds, by fingerprint, whose copy by hand matched when typed
+    /// back or scanned, in this backup.
+    pub checked: Vec<[u8; 4]>,
     /// Template word count.
     pub words: usize,
     /// Keys left off each split sheet.
@@ -4499,6 +4502,113 @@ impl Faraday {
             .collect()
     }
 
+    /// Where the wallet being backed up and each of its keys are kept, as
+    /// the backup's "This backup" panel and the small panel's seeds page
+    /// list them: in which open vault, whether the copy by hand was
+    /// checked, whether a file of it is in the Outbox unprotected, or not
+    /// here at all.
+    pub fn backup_kept(&self) -> Option<backup::Kept> {
+        use crate::vault_screens::{vault_has_wallet, vault_key};
+        use backup::{KeptSeed, Tone};
+        let b = self.backup.as_ref()?;
+        let wallet = self.session.wallets.get(b.wallet)?;
+        let open = 0..self.vaults.open.len();
+        // A locked vault cannot be looked into.
+        let unknown = self.vaults.open.is_empty() && !self.vault_files().is_empty();
+        let not_known = || ("Not checked: no vault unlocked".to_string(), Tone::Dim);
+        let wallet_line = match open.clone().find(|&v| vault_has_wallet(self, v, wallet)) {
+            Some(v) => (format!("Wallet in {}", self.vaults.open[v].name), Tone::Ok),
+            None if unknown => not_known(),
+            None => ("Wallet not in a vault".to_string(), Tone::Warn),
+        };
+        let stem = file_stem(&wallet.name);
+        let here = self.backup_keys(b.wallet);
+        let seed_lines = |key: &wallet::Key| -> Vec<(String, Tone)> {
+            let fp = key.master.fingerprint();
+            let mut lines = Vec::new();
+            lines.push(
+                match open
+                    .clone()
+                    .find_map(|v| vault_key(self, v, fp).map(|p| (v, p)))
+                {
+                    Some((v, with)) => (
+                        format!(
+                            "In {}{}",
+                            self.vaults.open[v].name,
+                            if with { " with its passphrase" } else { "" }
+                        ),
+                        Tone::Ok,
+                    ),
+                    None if unknown => not_known(),
+                    None => ("Not in a vault".to_string(), Tone::Warn),
+                },
+            );
+            lines.push(if b.checked.contains(&fp.0) {
+                ("Paper copy checked".to_string(), Tone::Ok)
+            } else {
+                ("Paper: not checked".to_string(), Tone::Warn)
+            });
+            let fps = fp_text(fp).to_lowercase();
+            let files = ["words.txt", "seedqr.png", "compactseedqr.png"]
+                .map(|end| format!("{stem}-{fps}-{end}"));
+            if self
+                .outbox
+                .iter()
+                .any(|i| i.secret && files.contains(&i.name))
+            {
+                lines.push(("File in the Outbox, unprotected".to_string(), Tone::Err));
+            }
+            lines
+        };
+        let away = || {
+            vec![(
+                "Not here: backed up on its own device".to_string(),
+                Tone::Dim,
+            )]
+        };
+        let mut seeds = Vec::new();
+        if let Some(record) = wallet.policy.record() {
+            // A threshold wallet's keys are its shares, by number.
+            for (id, pubshare) in record.info.pubshares.iter().enumerate() {
+                let key = here
+                    .iter()
+                    .map(|&k| &self.session.keys[k])
+                    .find(|k| pubshare.is_some() && k.share.as_ref() == pubshare.as_ref());
+                seeds.push(match key {
+                    Some(key) => KeptSeed {
+                        name: fp_text(key.master.fingerprint()),
+                        lines: seed_lines(key),
+                    },
+                    None => KeptSeed {
+                        name: format!("Share {}", id + 1),
+                        lines: away(),
+                    },
+                });
+            }
+        } else {
+            let mut fps: Vec<osk_bip::keys::Fingerprint> = Vec::new();
+            for f in wallet.policy.keys().iter().filter_map(|k| k.fingerprint()) {
+                if !fps.contains(&f) {
+                    fps.push(f);
+                }
+            }
+            for fp in fps {
+                let key = here
+                    .iter()
+                    .map(|&k| &self.session.keys[k])
+                    .find(|k| k.master.fingerprint() == fp);
+                seeds.push(KeptSeed {
+                    name: fp_text(fp),
+                    lines: key.map_or_else(away, seed_lines),
+                });
+            }
+        }
+        Some(backup::Kept {
+            wallet: wallet_line,
+            seeds,
+        })
+    }
+
     /// The backup cards this wallet shows.
     pub fn backup_steps(&self) -> Vec<u8> {
         let multi = self
@@ -5346,6 +5456,10 @@ impl Faraday {
         let digits = osk_codec::seedqr::to_digits(&mn);
         if backup::check_copy(&b.typed, digits.expose().as_bytes()) == backup::CopyCheck::Matches {
             b.done[bstep::SEEDS as usize] = true;
+            let fp = key.master.fingerprint().0;
+            if !b.checked.contains(&fp) {
+                b.checked.push(fp);
+            }
         }
     }
 
@@ -5386,6 +5500,9 @@ impl Faraday {
         if let Some(b) = self.backup.as_mut() {
             if matched {
                 b.done[bstep::SEEDS as usize] = true;
+                if !b.checked.contains(&fp.0) {
+                    b.checked.push(fp.0);
+                }
             }
             b.scanned = Some(found.clone());
         }

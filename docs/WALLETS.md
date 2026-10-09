@@ -279,6 +279,28 @@ secret nonce unencrypted, with the vault's encryption.
    the share, as the text file is.
 4. **The envelope.** Which sheet goes with which seed.
 
+**This backup**, the side panel (on the small panel, the foot of the
+seeds page; 2026-10-09), is the summary: Wallet, Shape, **Seeds loaded**
+(the wallet's seeds loaded here from words) and Put in the Outbox, as
+counts. Under them, where each is kept, in the theme's status colours:
+the wallet, **Wallet in {vault}** (OK) or **Wallet not in a vault**
+(WARN); then **Seeds**, a row per key of the wallet by fingerprint (a
+threshold wallet's shares by number), each with its lines:
+
+- **In {vault}** (OK), the first open vault holding it, "with its
+  passphrase" when its record keeps one; **Not in a vault** (WARN) when
+  no open vault does; **Not checked: no vault unlocked** (DIM), for the
+  wallet too, when vault files exist and none is open.
+- **Paper copy checked** (OK) once Scan my copy or Type my copy's
+  numbers matched that seed in this backup; **Paper: not checked**
+  (WARN) otherwise.
+- **File in the Outbox, unprotected** (ERR) while its words or SeedQR
+  file from the secret sheet is in the Outbox.
+- A key whose seed is not loaded here: **Not here: backed up on its own
+  device** (DIM), its only line.
+
+The panel has no footer: the rows say what was done.
+
 The vault is a fifth copy, not a replacement for paper, and the Backup step
 says so. A file is the least safe of the three.
 

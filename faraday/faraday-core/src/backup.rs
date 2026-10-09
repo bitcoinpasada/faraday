@@ -332,6 +332,40 @@ pub fn compare_words(copy: &[u16], seed: &[u16]) -> CopyCheck {
     }
 }
 
+/// How a line of the backup's "This backup" panel is coloured: kept,
+/// wanting, out in the clear, or not known.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tone {
+    /// Kept: the theme's OK.
+    Ok,
+    /// Not kept yet: WARN.
+    Warn,
+    /// A copy in the clear: ERR.
+    Err,
+    /// Not known here: DIM.
+    Dim,
+}
+
+/// One of the wallet's keys on the backup's panel: its fingerprint (or,
+/// for a share not here, its number) and where it is kept.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeptSeed {
+    /// The key, by fingerprint.
+    pub name: String,
+    /// Where it is kept, a line each.
+    pub lines: Vec<(String, Tone)>,
+}
+
+/// Where the wallet and each of its seeds are kept, as the backup's
+/// panel lists them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Kept {
+    /// The wallet: in a vault or not.
+    pub wallet: (String, Tone),
+    /// Every key of the wallet, in its order.
+    pub seeds: Vec<KeptSeed>,
+}
+
 /// What the camera found of a copy, as the seeds step says it.
 pub fn copy_scan_line(found: &CopyCheck) -> String {
     match found {

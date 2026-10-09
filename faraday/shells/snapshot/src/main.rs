@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway]
+//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept]
 //! ```
 //!
 //! `TESTKIT_DIR` is what `faraday-testkit` wrote; its files stand in
@@ -22,7 +22,9 @@
 //! Compact, written beside the screens as `outbox-*`; with `vaultway`,
 //! Tools' GPG key with no vault, Create a vault made for it, the tile
 //! with the test vault locked, Unlock for it and the GPG keys it comes
-//! back to.
+//! back to; with `kept`, the backup's seeds step and "This backup" panel
+//! for Savings (2-of-3, one seed here, put out as a file, no vault) and
+//! for Spending (one key, in the open test vault, its copy checked).
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -317,6 +319,7 @@ fn run(
         Some("public") => return public_tour(&mut t),
         Some("seedfile") => return seedfile_tour(&mut t),
         Some("vaultway") => return vaultway_tour(&mut t),
+        Some("kept") => return kept_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -2220,6 +2223,65 @@ fn seedfile_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// Where each seed is kept, on the backup's panel (the seeds page on a
+/// small panel): Savings with test key 1 here, its words put in the
+/// Outbox unprotected and no vault; then, with the test vault open,
+/// Spending, whose one key and wallet the vault holds, its copy typed
+/// back and matched.
+fn kept_tour(t: &mut Tour) -> Result<(), String> {
+    t.load_kit()?;
+    t.press(Action::Backup(0));
+    t.press(Action::BNext(0));
+    t.press(Action::BFile);
+    t.press(Action::SecretAck);
+    t.press(Action::SecretUnprotected);
+    scroll_to(t, Action::BNext(1));
+    t.shot("kept-two-of-three")?;
+    let vault = testkit::files()?
+        .into_iter()
+        .find(|(n, _)| n == "vault.ofv")
+        .ok_or("no test vault")?;
+    let inbox: Vec<(String, Vec<u8>)> = t
+        .app
+        .inbox
+        .iter()
+        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .chain(std::iter::once(vault))
+        .collect();
+    t.app.storage(StorageEvent::Restored {
+        inbox,
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.vaults.ms_per_unit = Some(180);
+    t.press(Action::Nav(Screen::Vaults));
+    t.press(Action::Vault(V::Open(0)));
+    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    t.press(Action::Vault(V::Unlock));
+    for _ in 0..20 {
+        t.tick();
+    }
+    if t.app.vaults.open.len() != 1 {
+        return Err("the test vault did not open".into());
+    }
+    t.press(Action::Backup(1));
+    t.press(Action::BNext(0));
+    t.press(Action::BReveal);
+    t.press(Action::BCheck);
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
+    let mn = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &words)
+        .map_err(|e| format!("{e:?}"))?;
+    let digits = osk_codec::seedqr::to_digits(&mn);
+    let typed = String::from_utf8_lossy(digits.expose().as_bytes()).into_owned();
+    type_text(t, &typed);
+    scroll_to(t, Action::BNext(1));
+    t.shot("kept-one-key")?;
+    Ok(())
+}
+
 /// Tools' GPG key with no vault file, Create a vault made for it, and
 /// back; then with the test vault locked, the tile again, Unlock for it,
 /// and the GPG keys it comes back to.
@@ -2668,7 +2730,7 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway]"
+            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept]"
         );
         return ExitCode::from(2);
     }
@@ -2699,12 +2761,12 @@ fn main() -> ExitCode {
     if only.is_some_and(|m| {
         ![
             "spend", "themes", "compact", "seeds", "keys", "visit", "copy", "scan", "public",
-            "seedfile", "vaultway",
+            "seedfile", "vaultway", "kept",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile or vaultway"
+            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway or kept"
         );
         return ExitCode::from(2);
     }

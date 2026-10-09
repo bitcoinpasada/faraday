@@ -6,8 +6,10 @@
 //! labelled picture, Standard or Compact. Each reads back as the same
 //! key, the words from a stick, the picture through Add a key's scanner.
 //! No file holds the BIP-39 passphrase, and a stick visit does not tick
-//! the file for writing.
+//! the file for writing. The backup's panel says where the wallet and
+//! each of its seeds are kept.
 
+use faraday_core::backup::{Kept, Tone};
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
@@ -340,4 +342,131 @@ fn a_stick_visit_leaves_the_seed_file_unticked() {
             "{name} is ticked for writing"
         );
     }
+}
+
+fn kept(app: &Faraday) -> Kept {
+    app.backup_kept().expect("no backup open")
+}
+
+fn line(text: &str, tone: Tone) -> (String, Tone) {
+    (text.to_string(), tone)
+}
+
+/// Test key `n` typed into Add a key. Returns its index in the session.
+fn add_key(app: &mut Faraday, n: usize) -> usize {
+    app.press(Action::Entry(None));
+    type_text(app, &testkit::test_words(testkit::TEST_SEEDS[n].0));
+    app.press(Action::EntryAdd);
+    app.session.keys.len() - 1
+}
+
+/// The test 2-of-3 over the test seeds, its backup open.
+fn savings_backup(app: &mut Faraday) {
+    app.session
+        .add_wallet("Savings", &testkit::savings(), "test")
+        .unwrap();
+    app.press(Action::Backup(app.session.wallets.len() - 1));
+    let _ = app.frame();
+}
+
+#[test]
+fn the_panel_says_which_vault_holds_the_seed_and_the_wallet() {
+    let mut app = device(vec![kit_file("vault.ofv")]);
+    backing_up(&mut app, false);
+    let locked = line("Not checked: no vault unlocked", Tone::Dim);
+    assert_eq!(kept(&app).wallet, locked);
+    assert_eq!(kept(&app).seeds[0].lines[0], locked);
+    unlock(&mut app);
+    assert_eq!(kept(&app).wallet, line("Wallet not in a vault", Tone::Warn));
+    assert_eq!(
+        kept(&app).seeds[0].lines[0],
+        line("Not in a vault", Tone::Warn)
+    );
+    app.press(Action::BVault(false));
+    assert_eq!(kept(&app).seeds[0].lines[0], line("In vault.ofv", Tone::Ok));
+    let w = app.backup.as_ref().unwrap().wallet;
+    app.press(Action::Vault(V::SaveWallet(w)));
+    assert_eq!(kept(&app).wallet, line("Wallet in vault.ofv", Tone::Ok));
+}
+
+#[test]
+fn saved_with_its_passphrase_the_panel_says_so() {
+    let mut app = device(vec![kit_file("vault.ofv")]);
+    backing_up(&mut app, true);
+    unlock(&mut app);
+    app.press(Action::BVault(true));
+    assert_eq!(
+        kept(&app).seeds[0].lines[0],
+        line("In vault.ofv with its passphrase", Tone::Ok)
+    );
+}
+
+#[test]
+fn with_no_vault_the_seed_is_not_in_a_vault() {
+    let mut app = device(Vec::new());
+    backing_up(&mut app, false);
+    let k = kept(&app);
+    assert_eq!(k.wallet, line("Wallet not in a vault", Tone::Warn));
+    assert_eq!(
+        k.seeds[0].lines,
+        vec![
+            line("Not in a vault", Tone::Warn),
+            line("Paper: not checked", Tone::Warn)
+        ]
+    );
+}
+
+#[test]
+fn a_seed_file_in_the_outbox_is_listed_as_unprotected() {
+    let mut app = device(Vec::new());
+    backing_up(&mut app, false);
+    seed_file(&mut app, 0);
+    assert!(
+        kept(&app).seeds[0]
+            .lines
+            .contains(&line("File in the Outbox, unprotected", Tone::Err))
+    );
+}
+
+#[test]
+fn a_matched_copy_check_marks_that_seed_only() {
+    use osk_bip::bip39::{Language, Mnemonic};
+    let mut app = device(Vec::new());
+    add_key(&mut app, 0);
+    let k2 = add_key(&mut app, 1);
+    savings_backup(&mut app);
+    app.press(Action::BKey(k2));
+    app.press(Action::BNext(bstep::BLANK));
+    app.press(Action::BReveal);
+    let words = testkit::test_words(testkit::TEST_SEEDS[1].0);
+    let digits = osk_codec::seedqr::to_digits(&Mnemonic::parse(Language::English, &words).unwrap());
+    app.press(Action::BCheck);
+    type_text(
+        &mut app,
+        std::str::from_utf8(digits.expose().as_bytes()).unwrap(),
+    );
+    let k = kept(&app);
+    let checked = line("Paper copy checked", Tone::Ok);
+    assert!(k.seeds[1].lines.contains(&checked), "{:?}", k.seeds[1]);
+    assert!(!k.seeds[0].lines.contains(&checked), "{:?}", k.seeds[0]);
+    assert!(
+        k.seeds[0]
+            .lines
+            .contains(&line("Paper: not checked", Tone::Warn))
+    );
+}
+
+#[test]
+fn a_two_of_three_with_one_seed_here_lists_the_other_two_as_not_here() {
+    let mut app = device(Vec::new());
+    let k = add_key(&mut app, 1);
+    let fp = app.session.keys[k].master.fingerprint();
+    savings_backup(&mut app);
+    let seeds = kept(&app).seeds;
+    assert_eq!(seeds.len(), 3);
+    let away = vec![line("Not here: backed up on its own device", Tone::Dim)];
+    assert_eq!(seeds[0].lines, away);
+    assert_eq!(seeds[2].lines, away);
+    assert_eq!(seeds[1].name, faraday_core::wallet::fp_text(fp));
+    assert_ne!(seeds[1].lines, away);
 }

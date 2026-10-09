@@ -90,7 +90,7 @@ pub(crate) fn keys(
         let f = k.master.fingerprint();
         if !here.contains(&f.0) {
             labels.push((
-                format!("Use {} · {}", fp_text(f), k.label),
+                format!("Use {}", crate::wallet::key_line(f, &k.label)),
                 Style::Secondary,
                 sa(S::UseLoaded(f.0)),
             ));

@@ -280,6 +280,13 @@ guarantees for this file's rule:
   step keeps paper first; under each seed, **Save into {vault}** (and
   "with its passphrase" when loaded with one) and **Save as a file…**,
   which opens the secret sheet for the seed. The same on a small panel.
+- **The backup says where each seed is kept** (owner, 2026-10-09;
+  `docs/WALLETS.md` §5). Its "This backup" panel, and the foot of the
+  seeds page on a small panel, list the wallet (in which open vault, or
+  not in one) and every key of the wallet by fingerprint: in which open
+  vault, whether its copy by hand was checked, whether its file is in
+  the Outbox unprotected, or not here (backed up on its own device). With
+  vault files and none open, it says the vaults were not checked.
 - **The descriptor and its shares as pictures** (2026-10-09). Create's
   Public files card and the backup's public step (**PNG** on the
   descriptor's row) write `{name}-descriptor.png`: the

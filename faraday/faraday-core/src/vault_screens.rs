@@ -3090,10 +3090,16 @@ pub(crate) fn vault_has_wallet(app: &Faraday, v: usize, w: &Wallet) -> bool {
 
 /// Whether open vault `v` holds the key with fingerprint `fp`.
 pub(crate) fn vault_has_key(app: &Faraday, v: usize, fp: osk_bip::keys::Fingerprint) -> bool {
+    vault_key(app, v, fp).is_some()
+}
+
+/// Whether open vault `v` holds the key with fingerprint `fp`, and if so
+/// whether its record keeps the BIP-39 passphrase.
+pub(crate) fn vault_key(app: &Faraday, v: usize, fp: osk_bip::keys::Fingerprint) -> Option<bool> {
     let want = fp_text(fp);
-    app.vaults.open.get(v).is_some_and(|o| {
-        o.contents
-            .of(kind::KEY)
-            .any(|(_, r)| key_fingerprint(app, r).as_deref() == Some(want.as_str()))
-    })
+    let o = app.vaults.open.get(v)?;
+    o.contents
+        .of(kind::KEY)
+        .find(|(_, r)| key_fingerprint(app, r).as_deref() == Some(want.as_str()))
+        .map(|(_, r)| r.field(field::KEY_PASSPHRASE).is_some())
 }

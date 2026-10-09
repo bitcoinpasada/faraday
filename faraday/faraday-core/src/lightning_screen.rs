@@ -4,7 +4,6 @@ use crate::lightning::NodeSource;
 use crate::screens::{button_rows, guide_text, title};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use crate::wallet::fp_text;
 use crate::{Action, Faraday};
 
 pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -83,7 +82,7 @@ fn body(
         .map(|k| {
             let fp = k.master.fingerprint();
             (
-                format!("ldk-node · {} · {}", fp_text(fp), k.label),
+                format!("ldk-node · {}", crate::wallet::key_line(fp, &k.label)),
                 if l.source == Some(NodeSource::Key(fp.0)) {
                     Style::Primary
                 } else {

@@ -6,7 +6,6 @@ use crate::explore::PRESETS;
 use crate::screens::{button_rows, guide_text, title};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use crate::wallet::fp_text;
 use crate::{Action, Faraday};
 
 pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -36,7 +35,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .map(|k| {
             let fp = k.master.fingerprint();
             (
-                format!("{} · {}", fp_text(fp), k.label),
+                crate::wallet::key_line(fp, &k.label),
                 if e.key == Some(fp.0) {
                     Style::Primary
                 } else {
