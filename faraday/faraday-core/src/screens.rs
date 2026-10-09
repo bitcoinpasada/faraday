@@ -4771,16 +4771,200 @@ fn spend_panel(
 // Back up a wallet
 // ---------------------------------------------------------------------
 
-const BSTEPS: [&str; 5] = [
-    "The blank sheets",
-    "The seeds, by hand",
-    "The wallet in xpubs",
-    "Split between signers",
-    "The envelope",
+/// A plan question's title.
+fn question_title(q: u8) -> &'static str {
+    use crate::qstep;
+    match q {
+        qstep::PRESET => "Start from",
+        qstep::SEEDS => "The seeds go",
+        qstep::PLACES => "Places",
+        qstep::WALLET => "The wallet description goes",
+        qstep::SOFTWARE => "Software",
+        qstep::PASSPHRASE => "Passphrases",
+        _ => "Map",
+    }
+}
+
+/// The rows of the seeds question.
+const SEED_ROWS: [&str; 4] = [
+    "On paper, words by hand",
+    "On paper, SeedQR by hand",
+    "In the vault",
+    "As a file, unprotected",
 ];
 
+/// The rows of the software question.
+const SOFTWARE_ROWS: [&str; 5] = [
+    "Sparrow",
+    "Coldcard, Keystone, Passport",
+    "Nunchuk",
+    "Bitcoin Core",
+    "Not sure",
+];
+
+/// The rows of the wallet description question, by whether each place
+/// keeps a share.
+fn description_rows(shares: bool) -> [&'static str; 4] {
+    [
+        if shares {
+            "A share in each place"
+        } else {
+            "A sheet in each place"
+        },
+        "In the vault",
+        "Into watch-only software",
+        "As files on a stick",
+    ]
+}
+
+/// The labels of the rows ticked, joined; "None" when none is.
+fn ticked(labels: &[&str], on: &[bool]) -> String {
+    let v: Vec<&str> = labels
+        .iter()
+        .zip(on)
+        .filter(|(_, o)| **o)
+        .map(|(l, _)| *l)
+        .collect();
+    if v.is_empty() {
+        "None".to_string()
+    } else {
+        v.join(" · ")
+    }
+}
+
+/// A checklist item's title and the line shown while it is closed.
+fn item_title(app: &Faraday, n: u8) -> (String, String) {
+    use crate::plan::Item;
+    let Some(b) = app.backup.as_ref() else {
+        return (String::new(), String::new());
+    };
+    let Some(wallet) = app.session.wallets.get(b.wallet) else {
+        return (String::new(), String::new());
+    };
+    let shape = app.plan_shape(b.wallet);
+    let a = &b.answers;
+    let (_, keys_n) = Session::quorum(wallet);
+    let item = crate::bstep::item(n).unwrap_or(Item::Envelopes);
+    let done = app.backup_item_done(item);
+    let vault = app
+        .vaults
+        .open
+        .get(app.vaults.current)
+        .map_or("the vault".to_string(), |o| o.name.clone());
+    match item {
+        Item::Templates => {
+            let k = crate::plan::templates(&shape, a).max(1);
+            (
+                format!(
+                    "Print {k} blank {}",
+                    if k == 1 { "template" } else { "templates" }
+                ),
+                format!("Template for {} words", b.words),
+            )
+        }
+        Item::Copy(i) => (
+            format!(
+                "Copy seed {} by hand",
+                shape.seeds.get(i).map_or("", |s| s.name.as_str())
+            ),
+            if done { "Checked" } else { "Not checked" }.to_string(),
+        ),
+        Item::SeedsVault => (
+            format!("Save the seeds into {vault}"),
+            if done { "Saved" } else { "Not saved" }.to_string(),
+        ),
+        Item::SeedFiles => (
+            "The seeds as files".to_string(),
+            if done { "In the Outbox" } else { "Not made" }.to_string(),
+        ),
+        Item::WalletVault => (
+            format!("Save the wallet into {vault}"),
+            if done { "Saved" } else { "Not saved" }.to_string(),
+        ),
+        Item::Sheets if a.split && shape.splits => (
+            "The shares".to_string(),
+            format!(
+                "{keys_n} shares, {} keys each",
+                keys_n - a.omit.min(shape.m.saturating_sub(1))
+            ),
+        ),
+        Item::Sheets => (
+            "The wallet sheet".to_string(),
+            if done {
+                "In the Outbox"
+            } else {
+                "A PDF to print"
+            }
+            .to_string(),
+        ),
+        Item::PublicFiles => (
+            "The public files".to_string(),
+            ticked(&SOFTWARE_ROWS, &a.software),
+        ),
+        Item::ShowDescriptor => (
+            "Show the descriptor to the software".to_string(),
+            if done { "Shown" } else { "Not shown" }.to_string(),
+        ),
+        Item::Envelopes => (
+            "One envelope per place".to_string(),
+            format!(
+                "{} {}",
+                a.places,
+                if a.places == 1 {
+                    "envelope"
+                } else {
+                    "envelopes"
+                }
+            ),
+        ),
+    }
+}
+
+/// A plan question's line while it is closed: its answers.
+fn question_summary(app: &Faraday, q: u8) -> String {
+    use crate::qstep;
+    let Some(b) = app.backup.as_ref() else {
+        return String::new();
+    };
+    let shape = app.plan_shape(b.wallet);
+    let a = &b.answers;
+    match q {
+        qstep::PRESET => "3 presets".to_string(),
+        qstep::SEEDS => ticked(&SEED_ROWS, &a.seeds),
+        qstep::PLACES => {
+            let mut s = format!(
+                "{} {}",
+                a.places,
+                if a.places == 1 { "place" } else { "places" }
+            );
+            if shape.splits && a.wallet[crate::plan::wallet::PAPER] {
+                s.push_str(if a.split {
+                    " · a share each"
+                } else {
+                    " · the whole sheet"
+                });
+            }
+            s
+        }
+        qstep::WALLET => ticked(&description_rows(a.split && shape.splits), &a.wallet),
+        qstep::SOFTWARE => ticked(&SOFTWARE_ROWS, &a.software),
+        qstep::PASSPHRASE => {
+            let k = shape
+                .seeds
+                .iter()
+                .filter(|s| s.here && s.passphrase)
+                .count();
+            format!("{k} {}", if k == 1 { "passphrase" } else { "passphrases" })
+        }
+        _ => {
+            let c = crate::plan::check(&shape, a);
+            format!("Any one place lost: {}", c.lost.text())
+        }
+    }
+}
+
 fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    use crate::bstep;
+    use crate::BStage;
     let panel_w = 320.0;
     let col_x = x0 + 40.0;
     let col_w = cw - panel_w - 72.0;
@@ -4791,32 +4975,39 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(wallet) = app.session.wallets.get(b.wallet) else {
         return;
     };
-    let steps = app.backup_steps();
     let keys = app.backup_keys(b.wallet);
     let (m, n) = Session::quorum(wallet);
+    let checklist = b.stage == BStage::Checklist;
+    let steps = if checklist {
+        app.backup_items()
+    } else {
+        app.backup_questions()
+    };
     let cards: Vec<flow::Card> = steps
         .iter()
-        .map(|&k| flow::Card {
-            title: BSTEPS[k as usize].to_string(),
-            summary: match k {
-                bstep::BLANK => format!("Template for {} words", b.words),
-                bstep::SEEDS => format!(
-                    "{} {} here",
-                    keys.len(),
-                    if keys.len() == 1 { "seed" } else { "seeds" }
-                ),
-                bstep::PUBLIC => "Descriptor, QR and sheet".to_string(),
-                bstep::SPLIT => format!(
-                    "{n} sheets, {} keys each",
-                    n - b.omit.min(m.saturating_sub(1))
-                ),
-                _ => format!("{n} {}", if n == 1 { "envelope" } else { "envelopes" }),
-            },
-            mono: false,
-            done: b.done[k as usize],
-            open: b.open == Some(k),
-            toggle: Action::BStep(k),
-            guide: Some(guide::backup(k, m, n, keys.len())),
+        .map(|&k| {
+            if checklist {
+                let (title, summary) = item_title(app, k);
+                flow::Card {
+                    title,
+                    summary,
+                    mono: false,
+                    done: crate::bstep::item(k).is_some_and(|it| app.backup_item_done(it)),
+                    open: b.open == Some(k),
+                    toggle: Action::BStep(k),
+                    guide: Some(guide::backup(k, m, n, keys.len())).filter(|g| !g.is_empty()),
+                }
+            } else {
+                flow::Card {
+                    title: question_title(k).to_string(),
+                    summary: question_summary(app, k),
+                    mono: false,
+                    done: false,
+                    open: b.q == Some(k),
+                    toggle: Action::BQ(k),
+                    guide: None,
+                }
+            }
         })
         .collect();
     // With more than one wallet loaded, the one backed up is a chip that
@@ -4828,8 +5019,8 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         format!("Back up {}", wallet.name)
     };
     let pick = b.pick && many;
-    // A small panel has no room for the side panel; what it counts is in
-    // the steps and the foot.
+    // A small panel has no room for the side panel: the map is a page of
+    // the plan, and the envelopes list the places.
     let compact = ui.compact;
     let col = flow::Column {
         area_x: x0,
@@ -4846,31 +5037,52 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ),
         heading: &heading,
         guided: app.guided,
-        switch: true,
+        switch: checklist,
         note: None,
         chip: many.then_some(wallet.name.as_str()),
         chip_tap: many.then_some(Action::BWallets),
     };
     let scroll = b.scroll;
     ui.chip_at = None;
-    let all_done = steps.iter().all(|&k| b.done[k as usize]);
+    let all_done = checklist
+        && steps
+            .iter()
+            .all(|&k| crate::bstep::item(k).is_some_and(|it| app.backup_item_done(it)));
     let from_create = app.create.as_ref().and_then(|c| c.built) == Some(b.wallet);
     let (next, again) = {
         let app_ref: &Faraday = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            backup_body(app_ref, ui, steps[i], x, y, w)
+            if checklist {
+                backup_body(app_ref, ui, steps[i], x, y, w)
+            } else {
+                plan_body(app_ref, ui, &steps, i, x, y, w)
+            }
         };
         let mut foot = |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 {
-            backup_done(app_ref, ui, from_create, x, y, w)
+            if !checklist {
+                return wrap_buttons(
+                    ui,
+                    x,
+                    y,
+                    w,
+                    40.0,
+                    &[("Make the checklist", Style::Primary, Action::BChecklist)],
+                );
+            }
+            if all_done {
+                backup_done(app_ref, ui, from_create, x, y, w)
+            } else {
+                wrap_buttons(
+                    ui,
+                    x,
+                    y,
+                    w,
+                    40.0,
+                    &[("Change the plan", Style::Secondary, Action::BPlan)],
+                )
+            }
         };
-        flow::column_foot(
-            ui,
-            &col,
-            &cards,
-            scroll,
-            &mut body,
-            all_done.then_some(&mut foot as flow::Foot),
-        )
+        flow::column_foot(ui, &col, &cards, scroll, &mut body, Some(&mut foot))
     };
     if let Some(b) = app.backup.as_mut() {
         b.scroll = next;
@@ -4886,6 +5098,370 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let right = if compact { x0 + cw } else { x0 + cw - panel_w } - 16.0;
         wallet_pick(app, ui, cx, cy + 6.0, chip_w, right);
     }
+}
+
+/// The open question of the backup's plan: its multi-choice lists, then
+/// Continue, or on the last question the way to the checklist. Returns
+/// its height.
+fn plan_body(app: &Faraday, ui: &mut Ui, qs: &[u8], i: usize, x: f32, y: f32, w: f32) -> f32 {
+    use crate::plan::{Preset, wallet as pw};
+    use crate::{qrow, qstep};
+    let Some(b) = app.backup.as_ref() else {
+        return 0.0;
+    };
+    let shape = app.plan_shape(b.wallet);
+    let a = &b.answers;
+    let q = qs[i];
+    let mut cy = y;
+    let rows = |list: u8, labels: &[&str], on: &[bool]| -> Vec<(String, bool, bool, Action)> {
+        labels
+            .iter()
+            .zip(on)
+            .enumerate()
+            .map(|(r, (l, o))| (l.to_string(), *o, true, Action::BAnswer(list, r as u8)))
+            .collect()
+    };
+    match q {
+        qstep::PRESET => {
+            for (k, p) in Preset::ALL.iter().enumerate() {
+                ui.button(
+                    x,
+                    cy,
+                    Some(w),
+                    40.0,
+                    p.name(),
+                    Style::Secondary,
+                    Action::BPreset(k as u8),
+                );
+                cy += 48.0;
+            }
+            return cy - y;
+        }
+        qstep::SEEDS => {
+            cy += ui.multi_list(x, cy, w, &rows(qrow::SEEDS, &SEED_ROWS, &a.seeds));
+        }
+        qstep::PLACES => {
+            let p = a.places;
+            stepper(
+                ui,
+                x,
+                cy,
+                w,
+                "Places with paper",
+                p,
+                Action::BAnswer(qrow::PLACES, p.saturating_sub(1) as u8),
+                Action::BAnswer(qrow::PLACES, (p + 1).min(255) as u8),
+                true,
+            );
+            cy += 52.0;
+            if shape.splits && a.wallet[pw::PAPER] {
+                section_label(ui, x, cy, "Each place keeps");
+                cy += 28.0;
+                cy += ui.multi_list(
+                    x,
+                    cy,
+                    w,
+                    &[
+                        (
+                            "Its own share".to_string(),
+                            a.split,
+                            true,
+                            Action::BAnswer(qrow::SPLIT, 0),
+                        ),
+                        (
+                            "The whole wallet sheet".to_string(),
+                            !a.split,
+                            true,
+                            Action::BAnswer(qrow::SPLIT, 1),
+                        ),
+                    ],
+                ) + 12.0;
+            }
+            if a.vault(&shape) {
+                section_label(ui, x, cy, "A stick with the vault");
+                cy += 28.0;
+                let names: Vec<String> = (0..p).map(|k| app.place_name(k)).collect();
+                let labels: Vec<&str> = names.iter().map(String::as_str).collect();
+                cy += ui.multi_list(x, cy, w, &rows(qrow::STICKS, &labels, &a.sticks)) + 12.0;
+            }
+            cy += place_names(app, ui, x, cy, w);
+        }
+        qstep::WALLET => {
+            let labels = description_rows(a.split && shape.splits);
+            cy += ui.multi_list(x, cy, w, &rows(qrow::WALLET, &labels, &a.wallet));
+        }
+        qstep::SOFTWARE => {
+            cy +=
+                ui.multi_list(x, cy, w, &rows(qrow::SOFTWARE, &SOFTWARE_ROWS, &a.software)) + 12.0;
+            section_label(ui, x, cy, "Form");
+            cy += 28.0;
+            cy += ui.multi_list(
+                x,
+                cy,
+                w,
+                &rows(qrow::FORM, &["QR picture", "Text"], &a.form),
+            );
+        }
+        qstep::PASSPHRASE => {
+            for (s, seed) in shape.seeds.iter().enumerate() {
+                if !(seed.here && seed.passphrase) {
+                    continue;
+                }
+                section_label(ui, x, cy, &format!("Passphrase of {}", seed.name));
+                cy += 28.0;
+                let words: Vec<usize> = (0..a.places)
+                    .filter(|&p| a.words_at(&shape, p).contains(&s))
+                    .collect();
+                let list = qrow::PASS.saturating_add(s.min(200) as u8);
+                let mut items: Vec<(String, bool, bool, Action)> = (0..a.places)
+                    .map(|p| {
+                        let with = words.contains(&p);
+                        let label = if with {
+                            format!("{} · its words", app.place_name(p))
+                        } else {
+                            app.place_name(p)
+                        };
+                        (
+                            label,
+                            a.pass_at(s, p),
+                            !with,
+                            Action::BAnswer(list, p as u8),
+                        )
+                    })
+                    .collect();
+                if a.seeds[crate::plan::seeds::VAULT] {
+                    items.push((
+                        "In the vault, with its seed".to_string(),
+                        a.pass_in_vault(s),
+                        true,
+                        Action::BAnswer(list, a.places as u8),
+                    ));
+                }
+                cy += ui.multi_list(x, cy, w, &items) + 12.0;
+            }
+        }
+        _ => {
+            cy += map_rows(app, ui, x, cy, w, false);
+        }
+    }
+    cy += 8.0;
+    let last = i + 1 == qs.len();
+    let drawn = if last {
+        next_button(ui, x, cy, w, "Make the checklist", Action::BChecklist)
+    } else {
+        next_button(ui, x, cy, w, "Continue", Action::BQNext(q))
+    };
+    if drawn {
+        cy += 48.0;
+    }
+    cy - y
+}
+
+/// The places' names, on the places question: typed and kept in the open
+/// vault, or with none open, the way to one. Returns its height.
+fn place_names(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let Some(b) = app.backup.as_ref() else {
+        return 0.0;
+    };
+    let mut cy = y;
+    let v = app.vaults.current;
+    let Some(open) = app.vaults.open.get(v) else {
+        section_label(ui, x, cy, "Names");
+        cy += 28.0;
+        ui.text(x, cy, 13.0, W::R, MUTED, "Only in a vault");
+        cy += 26.0;
+        if let Some((label, a)) = app.vault_way(Screen::Backup) {
+            cy += wrap_buttons(ui, x, cy, w, 36.0, &[(label.as_str(), Style::Secondary, a)]);
+        }
+        return cy - y;
+    };
+    let head = format!("Names, kept in {}", open.name);
+    let head = ui.fit(13.0, W::S, &head, w);
+    section_label(ui, x, cy, &head);
+    cy += 28.0;
+    for p in 0..b.answers.places {
+        let typing = b.naming == Some(p);
+        let name = b.names.get(p).map_or("", String::as_str);
+        let bw = 80.0;
+        let fw = w - bw - 8.0;
+        ui.fill(x, cy, fw, 40.0, 8.0, BG);
+        ui.stroke(
+            x,
+            cy,
+            fw,
+            40.0,
+            8.0,
+            if typing {
+                ACCENT.with_alpha(110)
+            } else {
+                INNER
+            },
+        );
+        let hint = name.is_empty();
+        let shown = if hint {
+            format!("Place {}", p + 1)
+        } else {
+            name.to_string()
+        };
+        let shown = ui.fit(14.0, W::R, &shown, fw - 28.0);
+        let tw = ui.text_mid(
+            x + 12.0,
+            cy,
+            40.0,
+            14.0,
+            W::R,
+            if hint { DIM } else { TEXT },
+            &shown,
+        );
+        if typing {
+            ui.caret(
+                x + 12.0 + if hint { 0.0 } else { tw + 1.0 },
+                cy + 11.0,
+                18.0,
+            );
+        }
+        ui.hit(x, cy, fw, 40.0, Action::BName(p as u8));
+        ui.button(
+            x + fw + 8.0,
+            cy,
+            Some(bw),
+            40.0,
+            if typing { "Done" } else { "Name" },
+            Style::Secondary,
+            Action::BName(p as u8),
+        );
+        cy += 48.0;
+    }
+    cy - y
+}
+
+/// What a thing on the map is done by, in the checklist.
+fn held_item(
+    at: crate::plan::At,
+    what: crate::plan::What,
+    items: &[u8],
+) -> Option<crate::plan::Item> {
+    use crate::plan::{At, Item, What};
+    let has = |it: Item| items.contains(&crate::bstep::of(it));
+    let item = match (at, what) {
+        (At::Away, _) | (_, What::Passphrase(_) | What::VaultStick) => return None,
+        (_, What::Words(i) | What::SeedQr(i)) => Item::Copy(i),
+        (_, What::Sheet | What::Share(_)) => Item::Sheets,
+        (At::Vault, What::Wallet) => Item::WalletVault,
+        (At::Vault, _) => Item::SeedsVault,
+        (At::Software, _) if has(Item::ShowDescriptor) => Item::ShowDescriptor,
+        (_, What::SeedFile(_)) => Item::SeedFiles,
+        _ => Item::PublicFiles,
+    };
+    has(item).then_some(item)
+}
+
+/// The map: one box per place, then the vault, a stick of files, the
+/// software and the seeds on their own devices, each listing what it
+/// holds and its tag; in the checklist, each line marked by its item's
+/// state. `boxed` draws each as a box, as the side panel does. Returns
+/// its height.
+fn map_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, boxed: bool) -> f32 {
+    use crate::plan::{At, Tag};
+    let Some(b) = app.backup.as_ref() else {
+        return 0.0;
+    };
+    let shape = app.plan_shape(b.wallet);
+    let checklist = b.stage == crate::BStage::Checklist;
+    let items = if checklist {
+        app.backup_items()
+    } else {
+        Vec::new()
+    };
+    let vault_name = app
+        .vaults
+        .open
+        .get(app.vaults.current)
+        .map_or("Vault".to_string(), |o| o.name.clone());
+    let mut cy = y;
+    for spot in crate::plan::map(&shape, &b.answers) {
+        let name = match spot.at {
+            At::Place(p) => app.place_name(p),
+            At::Vault => vault_name.clone(),
+            At::Files => "Stick of files".to_string(),
+            At::Software => "Watch-only software".to_string(),
+            At::Away => "On its own device".to_string(),
+        };
+        let top = cy;
+        let (ix, iw) = if boxed { (x + 12.0, w - 24.0) } else { (x, w) };
+        if boxed {
+            cy += 10.0;
+        }
+        let name = ui.fit(13.0, W::S, &name, iw);
+        ui.text(ix, cy, 13.0, W::S, TEXT, &name);
+        cy += 22.0;
+        if spot.holds.is_empty() {
+            ui.text(ix, cy, 12.0, W::R, DIM, "Nothing");
+            cy += 20.0;
+        }
+        for (what, tag) in &spot.holds {
+            let tone = match tag {
+                Tag::Secret => WARN,
+                Tag::Sealed => ACCENT,
+                Tag::Public => MUTED,
+            };
+            let tw = ui.measure(11.0, W::R, tag.name());
+            ui.text_right(ix + iw, cy, 18.0, 11.0, W::R, tone, tag.name());
+            let mut lx = ix;
+            if checklist {
+                let state = held_item(spot.at, *what, &items).map(|it| app.backup_item_done(it));
+                if let Some(done) = state {
+                    ui.dot(ix + 4.0, cy + 9.0, 3.5, if done { OK } else { DIM });
+                }
+                lx += 14.0;
+            }
+            let label = ui.fit(12.0, W::R, &what.label(&shape), ix + iw - lx - tw - 8.0);
+            ui.text_mid(lx, cy, 18.0, 12.0, W::R, TEXT, &label);
+            cy += 20.0;
+        }
+        if boxed {
+            cy += 6.0;
+            ui.stroke(x, top, w, cy - top, 8.0, LINE);
+        }
+        cy += 8.0;
+    }
+    if !boxed {
+        cy += 4.0;
+        cy += check_rows(app, ui, x, cy, w);
+    }
+    cy - y
+}
+
+/// The check under the map: its three lines, each with its value.
+/// Returns its height.
+fn check_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    use crate::plan::{CHECK_LINES, Found, Lost};
+    let Some(b) = app.backup.as_ref() else {
+        return 0.0;
+    };
+    let shape = app.plan_shape(b.wallet);
+    let c = crate::plan::check(&shape, &b.answers);
+    let lost = match c.lost {
+        Lost::Yes => OK,
+        Lost::WithVault => ACCENT,
+        Lost::No => ERR,
+    };
+    let found = |f: Found| match f {
+        Found::Yes => WARN,
+        Found::OnlyWithVault => ACCENT,
+        Found::No => OK,
+    };
+    let lines = [
+        (CHECK_LINES[0], c.lost.text(), lost),
+        (CHECK_LINES[1], c.spend.text(), found(c.spend)),
+        (CHECK_LINES[2], c.balance.text(), found(c.balance)),
+    ];
+    let mut cy = y;
+    for (label, value, tone) in lines {
+        cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, label) + 2.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::S, tone, value) + 10.0;
+    }
+    cy - y
 }
 
 /// The loaded wallets, one row each, under the backup's wallet chip at
@@ -4926,13 +5502,6 @@ fn backup_done(app: &Faraday, ui: &mut Ui, from_create: bool, x: f32, y: f32, w:
     };
     let n = app.outbox.len();
     let mut items: Vec<(String, Style, Action)> = Vec::new();
-    if b.sent.is_empty() {
-        items.push((
-            "Put the sheets in the Outbox".to_string(),
-            Style::Secondary,
-            Action::BSheets,
-        ));
-    }
     let write_style = if n == 0 {
         Style::Disabled
     } else {
@@ -4956,6 +5525,11 @@ fn backup_done(app: &Faraday, ui: &mut Ui, from_create: bool, x: f32, y: f32, w:
         "Open the Outbox".to_string(),
         Style::Secondary,
         Action::Nav(Screen::Files),
+    ));
+    items.push((
+        "Change the plan".to_string(),
+        Style::Secondary,
+        Action::BPlan,
     ));
     if from_create {
         items.push((
@@ -5235,7 +5809,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 Some(("Continue", Action::BNext(n))),
             );
         }
-        bstep::SEEDS => {
+        n if n >= bstep::COPY => {
             let keys = app.backup_keys(b.wallet);
             if keys.is_empty() {
                 ui.wrap(
@@ -5255,28 +5829,6 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 }
                 let drawn = next_button(ui, x, cy, w, "Continue", Action::BNext(n));
                 return cy + (if drawn { 48.0 } else { 8.0 }) - y;
-            }
-            if keys.len() > 1 {
-                let labels: Vec<String> = keys
-                    .iter()
-                    .map(|&k| {
-                        let key = &app.session.keys[k];
-                        key_line(key.master.fingerprint(), &key.label)
-                    })
-                    .collect();
-                let items: Vec<(&str, Style, Action)> = labels
-                    .iter()
-                    .zip(&keys)
-                    .map(|(l, &k)| {
-                        let style = if b.key == k {
-                            Style::Primary
-                        } else {
-                            Style::Secondary
-                        };
-                        (l.as_str(), style, Action::BKey(k))
-                    })
-                    .collect();
-                cy += wrap_buttons(ui, x, cy, w, 36.0, &items) + 4.0;
             }
             let key = &app.session.keys[b.key];
             let words = key.words.as_ref().map(|z| z.as_str()).unwrap_or("");
@@ -5350,7 +5902,6 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     );
                     let cy = cy + lh + 12.0;
                     let cy = cy + paper_section(app, ui, x, cy, w);
-                    let cy = cy + seed_copies(app, ui, x, cy, w, b.key);
                     let cy = if ui.compact {
                         cy + 8.0 + kept_rows(app, ui, x, cy + 8.0, w)
                     } else {
@@ -5496,7 +6047,6 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 }
                 cy += paper_section(app, ui, x, cy, w);
             }
-            cy += seed_copies(app, ui, x, cy, w, b.key);
             if ui.compact {
                 cy += 8.0;
                 cy += kept_rows(app, ui, x, cy, w);
@@ -5506,14 +6056,73 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             }
         }
         bstep::PUBLIC => {
-            cy += public_rows(app, ui, x, cy, w, b.wallet);
+            cy += public_rows_for(app, ui, x, cy, w, b.wallet, Some(&app.backup_public()));
+            cy += 12.0;
+            if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
+                cy += 48.0;
+            }
+        }
+        bstep::WALLET => {
             cy += wallet_vault(app, ui, x, cy, w, b.wallet);
             cy += 12.0;
             if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
                 cy += 48.0;
             }
         }
-        bstep::SPLIT => {
+        bstep::VAULT | bstep::FILES => {
+            cy += key_choice(app, ui, x, cy, w);
+            cy += seed_copies(app, ui, x, cy, w, b.key, n == bstep::VAULT);
+            cy += 8.0;
+            if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
+                cy += 48.0;
+            }
+        }
+        bstep::SHOW => {
+            let shown = if b.shown { "Shown" } else { "Not shown" };
+            let bw = ui.button(
+                x,
+                cy,
+                None,
+                38.0,
+                "Show as QR",
+                Style::Secondary,
+                Action::QrWallet(b.wallet),
+            );
+            ui.text_mid(
+                x + bw + 14.0,
+                cy,
+                38.0,
+                13.0,
+                W::S,
+                if b.shown { OK } else { MUTED },
+                shown,
+            );
+            cy += 50.0;
+            if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
+                cy += 48.0;
+            }
+        }
+        bstep::SHEETS if !(b.answers.split && crate::backup::splits(wallet)) => {
+            let stem = crate::file_stem(&wallet.name);
+            let file = format!("{stem}-backup.pdf");
+            let done = app.outbox.iter().any(|f| f.name == file);
+            cy += file_row(
+                ui,
+                x,
+                cy,
+                w,
+                "Backup sheet",
+                "A PDF to print",
+                done.then_some("In the Outbox"),
+                ("To the Outbox", Action::BOut(3)),
+                &[],
+            );
+            cy += 12.0;
+            if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
+                cy += 48.0;
+            }
+        }
+        bstep::SHEETS => {
             ui.text_mid(x, cy, 36.0, 13.0, W::R, MUTED, "Keys left off each sheet");
             // On a small panel the choices go under the label.
             let mut bx = if ui.compact {
@@ -5523,7 +6132,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 x + 190.0
             };
             for k in 0..m {
-                let style = if b.omit == k {
+                let style = if b.answers.omit == k {
                     Style::Primary
                 } else {
                     Style::Secondary
@@ -5539,7 +6148,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 ) + 6.0;
             }
             cy += 50.0;
-            let plan = crate::backup::split_plan(keys_n, m, b.omit);
+            let plan = crate::backup::split_plan(keys_n, m, b.answers.omit);
             let slots = app.session.slots(wallet);
             for (i, row) in plan.iter().enumerate() {
                 let fps: Vec<String> = row
@@ -5589,11 +6198,27 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             );
         }
         _ => {
-            let plan =
-                crate::backup::splits(wallet).then(|| crate::backup::split_plan(keys_n, m, b.omit));
-            for line in crate::backup::envelope(&app.session, wallet, plan.as_deref()) {
-                let used = ui.wrap(x, cy, w, 13.0, W::R, TEXT, &line);
-                cy += used + 6.0;
+            // On a small panel the map is here, as a list of places.
+            if ui.compact {
+                cy += map_rows(app, ui, x, cy, w, false);
+            } else {
+                let shape = app.plan_shape(b.wallet);
+                for spot in crate::plan::map(&shape, &b.answers) {
+                    let crate::plan::At::Place(p) = spot.at else {
+                        continue;
+                    };
+                    let head = ui.fit(13.0, W::S, &app.place_name(p), w);
+                    ui.text(x, cy, 13.0, W::S, TEXT, &head);
+                    cy += 22.0;
+                    let holds: Vec<String> =
+                        spot.holds.iter().map(|(h, _)| h.label(&shape)).collect();
+                    let line = if holds.is_empty() {
+                        "Nothing".to_string()
+                    } else {
+                        holds.join(" · ")
+                    };
+                    cy += ui.wrap(x + 12.0, cy, w - 12.0, 12.0, W::R, MUTED, &line) + 10.0;
+                }
             }
             cy += 10.0;
             cy += buttons_and_next(
@@ -5618,12 +6243,9 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
 /// Returns its height.
 /// The key's other paper forms: a Seed XOR split and codex32 shares,
 /// shown to copy by hand like the words.
-/// Under a seed on the backup's seeds step, after the copy by hand: a
-/// further copy into the open vault, as Vaults saves a key, and a file,
-/// through the secret sheet. Returns the height used.
-/// On the backup's public step: the wallet in the open vault, or the
-/// button that saves it there, or the way to make or unlock one and back
-/// to this step. Returns its height.
+/// On the backup's wallet vault item: the wallet in the open vault, or
+/// the button that saves it there, or the way to make or unlock one and
+/// back to this item. Returns its height.
 fn wallet_vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) -> f32 {
     use crate::vault_screens::vault_has_wallet;
     use crate::vaults::VaultAction as V;
@@ -5665,17 +6287,67 @@ fn wallet_vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) ->
     cy - y
 }
 
-fn seed_copies(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, k: usize) -> f32 {
-    use crate::vault_screens::vault_has_key;
+/// The seeds here as buttons, the one shown chosen, when there is more
+/// than one. Returns the height used.
+fn key_choice(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let Some(b) = app.backup.as_ref() else {
+        return 0.0;
+    };
+    let keys = app.backup_keys(b.wallet);
+    if keys.len() < 2 {
+        return 0.0;
+    }
+    let labels: Vec<String> = keys
+        .iter()
+        .map(|&k| {
+            let key = &app.session.keys[k];
+            key_line(key.master.fingerprint(), &key.label)
+        })
+        .collect();
+    let items: Vec<(&str, Style, Action)> = labels
+        .iter()
+        .zip(&keys)
+        .map(|(l, &k)| {
+            let style = if b.key == k {
+                Style::Primary
+            } else {
+                Style::Secondary
+            };
+            (l.as_str(), style, Action::BKey(k))
+        })
+        .collect();
+    wrap_buttons(ui, x, y, w, 36.0, &items) + 4.0
+}
+
+/// A seed's copy beyond paper, on its checklist item: into the open
+/// vault, as Vaults saves a key (`vault`), or as a file through the
+/// secret sheet. Returns the height used.
+fn seed_copies(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, k: usize, vault: bool) -> f32 {
+    use crate::vault_screens::vault_key;
     let Some(key) = app.session.keys.get(k) else {
         return 0.0;
     };
-    let mut cy = y + 8.0;
-    section_label(ui, x, cy, "Other copies");
+    let mut cy = y + 4.0;
+    let fp = key.master.fingerprint();
+    let name = key_line(fp, &key.label);
+    let name = ui.fit(13.0, W::S, &name, w);
+    ui.text(x, cy, 13.0, W::S, TEXT, &name);
     cy += 28.0;
+    if !vault {
+        cy += wrap_buttons(
+            ui,
+            x,
+            cy,
+            w,
+            36.0,
+            &[("Save as a file…", Style::Secondary, Action::BFile)],
+        ) + 4.0;
+        return cy - y;
+    }
     let v = app.vaults.current;
+    let has_pass = key.passphrase.as_ref().is_some_and(|p| !p.is_empty());
     match app.vaults.open.get(v) {
-        Some(open) if vault_has_key(app, v, key.master.fingerprint()) => {
+        Some(open) if vault_key(app, v, fp).is_some() => {
             let line = ui.fit(13.0, W::S, &format!("In {}", open.name), w);
             ui.text(x, cy, 13.0, W::S, OK, &line);
             cy += 30.0;
@@ -5684,12 +6356,12 @@ fn seed_copies(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, k: usize) -> 
             let save = format!("Save into {}", open.name);
             let with = format!("Save into {} with its passphrase", open.name);
             let mut items = vec![(save.as_str(), Style::Secondary, Action::BVault(false))];
-            if key.passphrase.is_some() {
+            if has_pass {
                 items.push((with.as_str(), Style::Secondary, Action::BVault(true)));
             }
             cy += wrap_buttons(ui, x, cy, w, 36.0, &items) + 4.0;
         }
-        // Make or unlock one, and back to this step.
+        // Make or unlock one, and back to this item.
         None => {
             if let Some((label, a)) = app.vault_way(Screen::Backup) {
                 cy += wrap_buttons(ui, x, cy, w, 36.0, &[(label.as_str(), Style::Secondary, a)])
@@ -5697,14 +6369,6 @@ fn seed_copies(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, k: usize) -> 
             }
         }
     }
-    cy += wrap_buttons(
-        ui,
-        x,
-        cy,
-        w,
-        36.0,
-        &[("Save as a file…", Style::Secondary, Action::BFile)],
-    ) + 4.0;
     cy - y
 }
 
@@ -5865,43 +6529,31 @@ fn seed_grid(ui: &mut Ui, m: &osk_codec::qr::QrMatrix, x: f32, y: f32, w: f32, p
     margin + side + 10.0
 }
 
+/// The backup's side panel: the map, its boxes listing what each holds,
+/// in the checklist each line marked by its item's state; the check at
+/// its foot.
 fn backup_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32) {
-    let Some(b) = app.backup.as_ref() else { return };
-    let Some(wallet) = app.session.wallets.get(b.wallet) else {
+    if app.backup.is_none() {
         return;
-    };
+    }
     ui.fill(px, 0.0, pw, h, 0.0, SURFACE);
     ui.fill(px, 0.0, 1.0, h, 0.0, LINE);
-    let x = px + 26.0;
-    let w = pw - 52.0;
-    let mut y = 32.0;
-    ui.text(x, y, 13.0, W::S, MUTED, "This backup");
-    y += 30.0;
-    let keys = app.backup_keys(b.wallet).len();
-    let facts = [
-        ("Wallet", wallet.name.clone()),
-        ("Shape", Session::shape(wallet)),
-        ("Seeds loaded", keys.to_string()),
-        ("Put in the Outbox", b.sent.len().to_string()),
-    ];
-    for (k, v) in facts.iter() {
-        ui.text_mid(x, y, 34.0, 12.0, W::R, MUTED, k);
-        let v = ui.fit(13.0, W::R, v, w - 100.0);
-        ui.text_right(x + w, y, 34.0, 13.0, W::R, TEXT, &v);
-        ui.rule(x, y + 34.0, w, INNER);
-        y += 36.0;
-    }
-    y += 14.0;
-    y += kept_rows(app, ui, x, y, w);
-    y += 8.0;
-    for name in &b.sent {
-        if y + 22.0 > h - 16.0 {
-            break;
-        }
-        let t = ui.fit(12.0, W::M, name, w);
-        ui.text(x, y, 12.0, W::M, TEXT, &t);
-        y += 22.0;
-    }
+    let x = px + 22.0;
+    let w = pw - 44.0;
+    // The check is measured first, so the map stops above it.
+    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    let mark = ui.hits.len();
+    let ch = check_rows(app, ui, x, 0.0, w);
+    ui.hits.truncate(mark);
+    ui.c.pop_clip();
+    let foot = h - ch - 16.0;
+    ui.text(x, 28.0, 13.0, W::S, MUTED, "Map");
+    let clip = ui.rect(px, 52.0, pw, foot - 60.0);
+    ui.c.push_clip(clip);
+    map_rows(app, ui, x, 56.0, w, true);
+    ui.c.pop_clip();
+    ui.rule(x, foot - 4.0, w, INNER);
+    check_rows(app, ui, x, foot + 8.0, w);
 }
 
 /// The colour of a line of [`crate::backup::Kept`].
@@ -7343,8 +7995,35 @@ fn public_files(app: &Faraday, i: usize) -> Vec<FileRow<'static, String>> {
 /// Draws [`public_files`] of wallet `i`, each marked once its file is in
 /// the Outbox. Returns their height.
 fn public_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) -> f32 {
+    public_rows_for(app, ui, x, y, w, i, None)
+}
+
+/// [`public_rows`], on the backup's checklist: only the files `only`
+/// names (as `public_out` numbers them) and the keys for the cosigners,
+/// the codes beside them only where the plan's form has QR pictures.
+fn public_rows_for(
+    app: &Faraday,
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    i: usize,
+    only: Option<&[u8]>,
+) -> f32 {
+    let qr = app
+        .backup
+        .as_ref()
+        .is_none_or(|b| only.is_none() || b.answers.form[crate::plan::form::QR]);
     let mut cy = y;
     for (name, detail, file, action, extra) in &public_files(app, i) {
+        let wanted = match (only, action) {
+            (Some(o), Action::PublicOut(_, what)) => o.contains(what),
+            _ => true,
+        };
+        if !wanted {
+            continue;
+        }
+        let extra: &[(&str, Action)] = if qr { extra } else { &[] };
         let done = app.outbox.iter().any(|f| &f.name == file);
         cy += file_row(
             ui,

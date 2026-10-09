@@ -58,7 +58,7 @@ to get it.
    its public PSBT goes to the Outbox, the next device finds the round by
    the transaction when it opens that PSBT with the vault unlocked, and
    the round leaves the vault once it has signed. A wallet's seed, from
-   the backup's seeds step (2026-10-09), goes in as a key record
+   the backup's checklist (2026-10-09), goes in as a key record
    (`kind::KEY`, as Vaults saves it), never a note; as a file it is the
    words or the SeedQR picture, one picked on the sheet, behind its own
    acknowledgement ("anyone who copies the stick or sees this file can
@@ -116,8 +116,8 @@ to get it.
     unlocked, or to Tools when the way back is taken); BIP-85, the
     Lightning node key and the Silent payments scan key (**Save into
     {vault}**); the secret sheet (the FROST carry, a seed from the backup's
-    seeds step), which closes on the way, keeps its secret, and opens
-    again on return; the backup's seeds step; Files (an entries file, an
+    files item), which closes on the way, keeps its secret, and opens
+    again on return; the backup's seeds and wallet vault items; Files (an entries file, an
     `.oskb`, a file added to a vault); Vault contents with none open; and
     Restore's seeds route, which offers Unlock only, as a new vault holds
     no seed. Create a wallet's vault step keeps **Make a vault** /
@@ -275,14 +275,37 @@ guarantees for this file's rule:
   what was not saved.
 - **Creating a wallet ends in Backup and Save**, never on the descriptor
   alone.
+- **The backup starts with a plan, then a checklist of only what it
+  needs** (owner, 2026-10-09, proposal A; `docs/WALLETS.md` §5). Three
+  presets (**Paper only**, **Paper and vault**, **Paper, vault and
+  watch-only software**) fill the plan's questions, each a multi-choice
+  list (DESIGN §4.2): where the seeds go, the places (how many, share or
+  whole sheet, which keep the vault's stick, their names with a vault
+  open), where the wallet description goes, the software and form, each
+  passphrase's places. Beside them the map (one box per place, the
+  vault, a stick of files, the software, the seeds on their own
+  devices, each tagged secret, sealed or public) and the check: "Any one
+  place lost: the rest rebuild the wallet", "One place found: can
+  spend", "One place found: sees the balance", qualified "with the
+  vault's passphrase" where the vault is what decides it. **Make the
+  checklist** replaces the questions with only the items the plan needs,
+  each done by what it does (a file in the Outbox, a seed or the wallet
+  in the vault, a copy matched, the descriptor shown); the envelopes
+  alone by **Done**. A place's name lives only in the vault (record
+  type 11, `docs/VAULT.md` §7), which the next backup of the wallet
+  starts from; no file, sheet, PDF, PNG or Outbox item holds one, and
+  the blank template carries empty "Place ____ holds ____" lines
+  instead. On a small panel: one question per page, the map as the
+  plan's last page and in the envelopes item.
 - **A seed's backup: by hand, into a vault, a file only past the secret
-  sheet** (owner, 2026-10-09; `docs/WALLETS.md` §5 step 2). The seeds
-  step keeps paper first; under each seed, **Save into {vault}** (and
-  "with its passphrase" when loaded with one) and **Save as a file…**,
-  which opens the secret sheet for the seed. The same on a small panel.
+  sheet** (owner, 2026-10-09; `docs/WALLETS.md` §5 step 3). Paper stays
+  first: a copy item per seed; the vault item has **Save into {vault}**
+  (and "with its passphrase" when loaded with one) under each seed; the
+  files item **Save as a file…**, which opens the secret sheet for the
+  seed. The same on a small panel.
 - **The backup says where each seed is kept** (owner, 2026-10-09;
-  `docs/WALLETS.md` §5). Its "This backup" panel, and the foot of the
-  seeds page on a small panel, list the wallet (in which open vault, or
+  `docs/WALLETS.md` §5). The map on the side panel marks each line
+  with its item's state; the copy page on a small panel lists the wallet (in which open vault, or
   not in one) and every key of the wallet by fingerprint: in which open
   vault, whether its copy by hand was checked, whether its file is in
   the Outbox unprotected, or not here (backed up on its own device). With
@@ -294,16 +317,15 @@ guarantees for this file's rule:
   again**. With more than one wallet loaded the head is "Back up a
   wallet" with the wallet's name as a chip, which lists the loaded
   wallets; a press on one starts the backup on it. A watch-only wallet
-  (no seeds here) opens on the public step; any other on the blank
-  sheets; every step stays a press away. Steps: blank sheets, seeds,
-  the wallet in xpubs, split (multisig), envelope. The public step and
-  Create's Public files card are one list drawn from the wallet:
-  descriptor, wallet file, multisig config, backup sheet, BSMS record,
-  Bitcoin Core import, each key held here and its BSMS key record. The
-  public step ends with **Save the wallet into {vault}** (or the way to
-  make or unlock one, back to the step); the seeds step has the seeds'.
+  (no seeds here) is asked nothing about seeds. The checklist's public
+  files item and Create's Public files card are one list drawn from the
+  wallet (descriptor, wallet file, multisig config, BSMS record, Bitcoin
+  Core import, each key held here and its BSMS key record), the item
+  showing the rows the plan's software picks. **Save the wallet into
+  {vault}** is its own item (or the way to make or unlock one, back to
+  the item); the seeds' vault item has the seeds'.
 - **The descriptor and its shares as pictures** (2026-10-09). Create's
-  Public files card and the backup's public step (**PNG** on the
+  Public files card and the backup's public files item (**PNG** on the
   descriptor's row) write `{name}-descriptor.png`: the
   checksummed descriptor as one static code, with the wallet's name, its
   shape (and the network when not mainnet), the keys' fingerprints, the
@@ -322,7 +344,7 @@ guarantees for this file's rule:
   config, BSMS descriptor record, each key held here and its BSMS key
   record), Create's Keys card (**Show xpub QR**, **Xpub PNG to the
   Outbox**, **Xpub file to the Outbox** under each key held here), the
-  backup's public step (the same rows as Create's card), Sign a message
+  backup's public files item (the same rows as Create's card), Sign a message
   (**Put in the Outbox**, **Show as QR**, **PNG to the Outbox**) and
   Silent payments (**Record to the Outbox**, **Record as QR**, **Record
   as PNG**). The QR sheet carries **PNG to the Outbox** (**PNG** beside

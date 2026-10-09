@@ -45,6 +45,8 @@ pub mod kind {
     pub const ROUND: u8 = 9;
     /// The amounts a transaction's inputs stated when it was signed.
     pub const AMOUNTS: u8 = 10;
+    /// A wallet's backup plan.
+    pub const PLAN: u8 = 11;
 }
 
 /// The fields of each record type, by number.
@@ -96,6 +98,15 @@ pub mod field {
     pub const ROUND_STATE: u8 = 4;
     /// Signing round: set when the round has been used.
     pub const ROUND_USED: u8 = 5;
+
+    /// Backup plan: the wallet, as its wallet record holds it.
+    pub const PLAN_WALLET: u8 = 1;
+    /// Backup plan: the answers, a line each.
+    pub const PLAN_ANSWERS: u8 = 2;
+    /// Backup plan: a place's name, one per place in order (repeatable).
+    pub const PLAN_PLACE: u8 = 3;
+    /// Backup plan: what one place holds, a line (repeatable).
+    pub const PLAN_HOLDS: u8 = 4;
 }
 
 /// Bit 0 of a key's flags: load it into the session at unlock.
@@ -222,6 +233,12 @@ const AMOUNTS_RULES: &[Rule] = &[
     rule(1, true, false, Shape::Exact(32)),
     rule(2, true, true, Shape::Exact(8)),
 ];
+const PLAN_RULES: &[Rule] = &[
+    rule(1, true, false, TEXT),
+    rule(2, false, false, TEXT),
+    rule(3, false, true, Shape::Text(128)),
+    rule(4, false, true, TEXT),
+];
 
 /// The fields of each record type (§7).
 fn rules(kind: u8) -> Option<&'static [Rule]> {
@@ -236,6 +253,7 @@ fn rules(kind: u8) -> Option<&'static [Rule]> {
         kind::SECURE_BOOT => SECURE_BOOT_RULES,
         kind::ROUND => ROUND_RULES,
         kind::AMOUNTS => AMOUNTS_RULES,
+        kind::PLAN => PLAN_RULES,
         _ => return None,
     })
 }

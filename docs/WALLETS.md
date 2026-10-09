@@ -234,98 +234,138 @@ secret nonce unencrypted, with the vault's encryption.
 | FROST | Kind → Quorum → **Deal** (on this device, as OpenSigner does) → each share to its own vault slot or exported to its holder → Check → Backup → Save |
 | Recovery | Kind → Primary keys → **Recovery paths** (up to three, each with keys and a timelock) → Build → Check → Backup → Save |
 
-**Backup** keeps four steps, adjusted for a machine with no printer.
-Any loaded wallet can be backed up again (2026-10-09), not only the one
-just made: from the wallet's card (**Back up**, that card's wallet),
-Start's **Back up a wallet** and the Tools tile (the wallet last picked
-on Wallets), Create's last step and Restore's **Back it up again**. With
-more than one wallet loaded, the flow's head reads "Back up a wallet"
-and the wallet's name is a chip; a press on it lists the loaded
-wallets, one row each with its shape, and a press on one starts the
-backup again on that wallet. A wallet with seeds here opens on the
-blank sheets; one with none (watch only) opens on its public files, the
-template and seeds steps still a press away, the seeds step saying
-that no key of the wallet was loaded from words here. Nothing is marked
-done that was not.
+**Backup** is a plan, then a checklist of only what the plan needs
+(2026-10-09, the owner's proposal A; it replaced five fixed cards that
+each showed every option). Any loaded wallet can be backed up again,
+not only the one just made: from the wallet's card (**Back up**, that
+card's wallet), Start's **Back up a wallet** and the Tools tile (the
+wallet last picked on Wallets), Create's last step and Restore's **Back
+it up again**. With more than one wallet loaded, the flow's head reads
+"Back up a wallet" and the wallet's name is a chip; a press on it lists
+the loaded wallets, one row each with its shape, and a press on one
+starts the backup again on that wallet. The plan's logic is `plan.rs`,
+tested on its own; nothing is marked done that was not.
 
-1. **The blank sheets.** A template holding no secret (numbered word
-   lines, path, network, the SeedQR grid's fixed squares) goes to the
-   Outbox as a file to print anywhere.
-2. **The seeds: by hand; into a vault; a file only past the secret
-   sheet.** Words and the SeedQR grid to copy on paper, behind
-   hold-to-reveal; never a printer. No line for a BIP-39 passphrase, and
-   the screen says why. **Scan my copy** checks
-   the copy afterwards: the camera reads the drawn SeedQR (Standard or
-   Compact), compares its words with the seed on screen in place (never
-   loaded as a key, never put in Files) and names the first word that
-   differs. With no camera, **Type my copy's numbers** checks it from the
-   four-digit number beside each word, typed back in order. Under each
-   seed, after the copy by hand (2026-10-09): **Save into {vault}**
-   writes the key record Vaults' Save writes (`kind::KEY`, loaded at
-   unlock), and **Save into {vault} with its passphrase** when the key was
-   loaded with one; the row reads "In {vault}" once the vault holds it,
-   and with no vault open it says to unlock or make one on Vaults.
-   **Save as a file…** opens the secret sheet for the seed: "Save into
-   {vault}" there writes the same key record, never a note; or, once
-   "I understand: anyone who copies the stick or sees this file can
-   spend these coins" is ticked, the file goes to the Outbox under
-   Unprotected secrets, unticked on a stick visit. The file is one of
-   two forms picked on the sheet, the words (`{wallet}-{fp}-words.txt`,
-   read back by Add a key and other signers) or the SeedQR in the form
-   picked on the step as a labelled PNG
-   (`{wallet}-{fp}-seedqr.png` or `-compactseedqr.png`, "Seed {fp}"
-   over "{n} words · secret: spends", read back by Add a key's
-   scanner); never both, and never the passphrase.
-3. **The wallet in public keys.** The descriptor as one code or animated
-   (one code while version ≤ 25 at ECL M or better), the same code as a
-   labelled PNG in the Outbox (`{name}-descriptor.png`: the wallet's
-   name, shape, key fingerprints and descriptor checksum under the code;
-   past that bound, one labelled picture per BBQr part), and a
-   backup sheet (descriptor, keys, first addresses) as a file in the
-   Outbox. The step lists the same files as Create's Public files card,
-   drawn from the wallet itself so a loaded or restored wallet gets them
-   all: descriptor, wallet file, multisig config, backup sheet, the BSMS
-   descriptor record (`wsh` and `sh(wsh)` multisig), Bitcoin Core's
-   import (any wallet but silent payments), and, for a wallet of more
-   than one key, each key whose seed is here (`xpub-{fp}.txt`, the key
-   as the wallet's descriptor writes it) with its signed BSMS key record
-   where BIP 129 covers it and the key is at Create's own account. Under
-   them, **Save the wallet into {vault}**, "Wallet in {vault}" once the
-   open vault holds it, or with none open **Make a vault**, **Unlock
-   {name}** or **Unlock a vault**, which come back to this step. For a
-   multisig, **Split between signers**: a split plan
-   where each sheet omits at most M−1 keys, so any quorum can rebuild and no
-   single holder can watch. The sheet states the measured minimum rebuild
-   group, and that this is not secret sharing. Each share goes out as its
-   PDF, its text and `{name}-share-k-of-n.png`, the share's text as one
-   code labelled with the keys it holds and leaves off; a scan of it is
-   the share, as the text file is.
-4. **The envelope.** Which sheet goes with which seed.
+**1. Presets, then the plan.** The flow opens on three presets, one tap
+each: **Paper only**, **Paper and vault**, **Paper, vault and watch-only
+software**. Each fills the plan's questions; every answer stays
+changeable. The questions are cards, each a multi-choice list (DESIGN
+§4.2), Continue under it; on the small panel one question per page:
 
-**This backup**, the side panel (on the small panel, the foot of the
-seeds page; 2026-10-09), is the summary: Wallet, Shape, **Seeds loaded**
-(the wallet's seeds loaded here from words) and Put in the Outbox, as
-counts. Under them, where each is kept, in the theme's status colours:
-the wallet, **Wallet in {vault}** (OK) or **Wallet not in a vault**
-(WARN); then **Seeds**, a row per key of the wallet by fingerprint (a
-threshold wallet's shares by number), each with its lines:
+- **The seeds go**: on paper, words by hand · on paper, SeedQR by hand ·
+  in the vault · as a file, unprotected (the secret sheet's warning and
+  "I understand", below). Not asked for a wallet with no seed here.
+- **Places**: how many places keep paper (1 to the wallet's seeds, at
+  least 3); for a multisig, each place its own share (the default) or
+  the whole wallet sheet; which places keep a stick with the vault;
+  and, with a vault open, each place's name (below). Seed *i* goes to
+  place *i* mod the places, and a place past the last seed keeps
+  another copy; shares are spread the same way.
+- **The wallet description goes**: a sheet (or share) in each place ·
+  in the vault · into watch-only software · as files on a stick.
+- **Software** (asked when the description goes to software or files):
+  Sparrow (the wallet file) · Coldcard, Keystone, Passport (the
+  multisig config) · Nunchuk (the BSMS record) · Bitcoin Core (its
+  import) · Not sure (the descriptor), each the descriptor where the
+  wallet has no such file; form: QR picture · text · both. This decides
+  which public files are offered at all.
+- **Passphrases** (asked when a seed was loaded with a BIP-39
+  passphrase): where each passphrase is kept, a row per place and "In
+  the vault, with its seed"; a place that keeps its words is dimmed and
+  cannot be ticked.
 
-- **In {vault}** (OK), the first open vault holding it, "with its
-  passphrase" when its record keeps one; **Not in a vault** (WARN) when
-  no open vault does; **Not checked: no vault unlocked** (DIM), for the
-  wallet too, when vault files exist and none is open.
-- **Paper copy checked** (OK) once Scan my copy or Type my copy's
-  numbers matched that seed in this backup; **Paper: not checked**
-  (WARN) otherwise.
-- **File in the Outbox, unprotected** (ERR) while its words or SeedQR
-  file from the secret sheet is in the Outbox.
-- A key whose seed is not loaded here: **Not here: backed up on its own
-  device** (DIM), its only line.
+Defaults from the wallet: one key, paper words, two places, the sheet
+in each, the descriptor as a QR picture; a multisig, a place per seed,
+each with its seed and its share; seeds held elsewhere are listed "On
+its own device" and get no paper here; watch only, no seed question.
+"Paper and vault" adds the seeds and the wallet into the vault and its
+stick in place 1; the third preset adds watch-only software.
 
-The panel has no footer: the rows say what was done.
+**2. The map**, the side panel (on the small panel the plan's last page
+and the envelopes' item), redrawn as answers change: one box per place,
+the vault, a stick of unprotected files, watch-only software and the
+seeds on their own devices, each listing what it holds tagged secret,
+sealed or public. Under it the check, found as `backup::audit` finds a
+split's, by trying each place lost and each place found:
 
-The vault is a fifth copy, not a replacement for paper, and the Backup step
-says so. A file is the least safe of the three.
+- **Any one place lost: the rest rebuild the wallet**: Yes, **Yes, with
+  the vault's passphrase**, or No. Rebuilding takes a quorum of seeds,
+  each with its passphrase, and for more than one key the description,
+  whole or from shares that together hold every key. Watch-only
+  software counts as a copy of the description; a seed on its own
+  device counts as kept.
+- **One place found: can spend**: Yes, **Only with the vault's
+  passphrase** (the place keeps the vault's stick and the vault holds
+  what is missing), or No.
+- **One place found: sees the balance**: the same three values; the
+  whole description, or a one-key wallet's seed, shows it.
+
+A place here is a paper place, a stick of files, or the vault's own
+stick when no place keeps one. Labels and values only; what each line
+means is in Learn's Backups page.
+
+**3. The checklist**, the plan made (**Make the checklist**): only the
+items the plan needs, each done by what it does, never by a tap:
+
+1. **Print N blank templates** (one per paper copy of a seed): done
+   when the template is in the Outbox. The template holds no secret
+   (numbered word lines, path, network, the SeedQR grid's fixed
+   squares) and a second page of empty lines, "Place ____ holds ____",
+   one per place, filled in by hand; nothing of the plan is printed.
+2. **Copy seed {fp} by hand**, one per seed here: words and the SeedQR
+   grid behind hold-to-reveal, never a printer, no line for a BIP-39
+   passphrase. Done when **Scan my copy** (the camera reads the drawn
+   SeedQR, compares its words with the seed in place, never loaded,
+   names the first word that differs) or, with no camera, **Type my
+   copy's numbers** matched that seed. Seed XOR and codex32 are here
+   too.
+3. **Save the seeds into {vault}**: done when the open vault holds
+   every seed here. Each seed: **Save into {vault}** (the key record
+   Vaults' Save writes, loaded at unlock) and **with its passphrase**
+   when it has one; with no vault open **Make a vault**, **Unlock
+   {name}** or **Unlock a vault**, which come back to this item.
+4. **The seeds as files**: **Save as a file…** opens the secret sheet:
+   "Save into {vault}" there writes the same key record; or, once "I
+   understand: anyone who copies the stick or sees this file can spend
+   these coins" is ticked, the words (`{wallet}-{fp}-words.txt`) or the
+   SeedQR as a labelled PNG (`{wallet}-{fp}-seedqr.png` or
+   `-compactseedqr.png`) go to the Outbox under Unprotected secrets,
+   unticked on a stick visit; never the passphrase. Done when each
+   seed's file is there.
+5. **Save the wallet into {vault}**: done when an open vault holds it.
+6. **The wallet sheet** (descriptor, keys, first addresses, a PDF) or,
+   split, **The shares**: each sheet omits at most M−1 keys, so any
+   quorum rebuilds and no one share watches, with the measured minimum
+   rebuild group; each share as its PDF, its text and
+   `{name}-share-k-of-n.png`. Done when it is in the Outbox.
+7. **The public files** for the software and form chosen, as Create's
+   Public files card lists them, with each key whose seed is here
+   (`xpub-{fp}.txt` and its BIP 129 record) for the cosigners: done
+   when each chosen file is in the Outbox.
+8. **Show the descriptor to the software**: the descriptor as one code
+   or animated (`QrWallet`); done once shown.
+9. **One envelope per place**, listing what goes in it: done by
+   **Done**, the one thing the device cannot see.
+
+Under the list, **Change the plan** goes back to the questions. With
+every item done, "Backup done", the Outbox count, **Write to a stick**,
+**Open the Outbox**. On the side panel each line of the map carries its
+item's state, a dot in OK once done. The small panel's copy page keeps
+the per-seed lines of `Faraday::backup_kept` (in which vault, copy
+checked, a file in the Outbox unprotected, not here).
+
+**Place names: in the vault only** (owner). A place may be named ("Home
+safe") only with a vault open; the plan is then saved into it as record
+type 11, "Backup plan" (`docs/VAULT.md` §7: the wallet, the answers,
+each place's name, what each holds), when the checklist is made, over
+the one it kept for that wallet, and the next backup of the wallet with
+the vault open starts from it rather than the presets. A name is shown
+on screen and never put in any file, sheet, PDF, PNG or Outbox item.
+Without a vault the places are "Place 1", "Place 2". There is no
+printed map: where things are is sensitive.
+
+The vault is one more copy, not a replacement for paper. A file is the
+least safe of the three.
 
 ## 6. Guided mode
 

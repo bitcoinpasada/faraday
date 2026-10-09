@@ -11,7 +11,7 @@
 //! and the public PSBT with this device's nonce goes to the Outbox; the
 //! next device, with the vault unlocked, finds the round by the
 //! transaction when it opens that PSBT, and the round is removed from
-//! the vault once used. A wallet's seed, from the backup's seeds step,
+//! the vault once used. A wallet's seed, from the backup's checklist,
 //! goes in as the key record Vaults saves (`kind::KEY`, loaded at
 //! unlock), never as a note; as a file it is the words or the SeedQR as
 //! a labelled PNG, one of the two, picked on the sheet, and never holds
@@ -147,7 +147,7 @@ impl Faraday {
         self.sheet = Some(Sheet::SecretOut);
     }
 
-    /// The seed shown on the backup's seeds step, offered as a secret:
+    /// The seed shown on the backup's checklist, offered as a secret:
     /// into a vault as its key record, or as a file, its words or its
     /// SeedQR in the form picked on the step, after the warning.
     pub(crate) fn offer_seed(&mut self) {

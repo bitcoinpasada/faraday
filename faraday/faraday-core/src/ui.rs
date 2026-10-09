@@ -1392,6 +1392,38 @@ impl<'a> Ui<'a> {
         }
     }
 
+    /// A multi-choice list (`docs/DESIGN.md` §4.2, Multi choice): one
+    /// full-width row per option, a checkbox at its start, any number
+    /// ticked; a tap ticks or unticks its row. A row not enabled is
+    /// dimmed and takes no tap. The rows are `(label, ticked, enabled,
+    /// action)`. Returns the list's height; Continue goes under it.
+    pub fn multi_list(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        rows: &[(String, bool, bool, Action)],
+    ) -> f32 {
+        let rh = if self.compact { 44.0 } else { 40.0 };
+        for (i, (label, on, enabled, action)) in rows.iter().enumerate() {
+            let ry = y + i as f32 * rh;
+            if *enabled && (self.is_pressed(*action) || self.is_hovered(*action)) {
+                self.fill(x, ry + 2.0, w, rh - 4.0, 8.0, INNER);
+            }
+            self.checkbox(x + 10.0, ry + (rh - 18.0) / 2.0, *on, *enabled);
+            let shown = self.fit(14.0, W::R, label, w - 50.0);
+            let fg = if *enabled { TEXT } else { DIM };
+            self.text_mid(x + 40.0, ry, rh, 14.0, W::R, fg, &shown);
+            if i + 1 < rows.len() {
+                self.rule(x + 40.0, ry + rh, w - 40.0, INNER);
+            }
+            if *enabled {
+                self.hit(x, ry, w, rh, *action);
+            }
+        }
+        rows.len() as f32 * rh
+    }
+
     /// A checkbox.
     pub fn checkbox(&mut self, x: f32, y: f32, on: bool, enabled: bool) {
         if on && enabled {

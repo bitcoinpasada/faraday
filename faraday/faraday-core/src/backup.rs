@@ -243,11 +243,18 @@ pub fn sheet_wallet(session: &Session, wallet: &Wallet) -> String {
 }
 
 /// The blank template: numbered word lines and the SeedQR grid's fixed
-/// squares, for a seed of `words` words. It holds no secret and may go to
-/// any printer. `wallet` adds the path, script and network to fill in.
-pub fn sheet_blank(words: usize, wallet: Option<&Wallet>, network: Network) -> String {
+/// squares, for a seed of `words` words, and a page of `places` empty
+/// lines, "Place ____ holds ____", to fill in by hand. It holds no secret
+/// and nothing of the plan, and may go to any printer. `wallet` adds the
+/// path, script and network to fill in.
+pub fn sheet_blank(
+    words: usize,
+    wallet: Option<&Wallet>,
+    network: Network,
+    places: usize,
+) -> String {
     let mut out = format!(
-        "faraday-sheet 1\nkind: blank\nwords: {words}\nnetwork: {}\n",
+        "faraday-sheet 1\nkind: blank\nwords: {words}\nnetwork: {}\nplaces: {places}\n",
         network.name()
     );
     if let Some(w) = wallet {
@@ -332,7 +339,7 @@ pub fn compare_words(copy: &[u16], seed: &[u16]) -> CopyCheck {
     }
 }
 
-/// How a line of the backup's "This backup" panel is coloured: kept,
+/// How a line of the backup's per-seed lines are coloured: kept,
 /// wanting, out in the clear, or not known.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tone {
@@ -366,7 +373,7 @@ pub struct Kept {
     pub seeds: Vec<KeptSeed>,
 }
 
-/// What the camera found of a copy, as the seeds step says it.
+/// What the camera found of a copy, as the copy item says it.
 pub fn copy_scan_line(found: &CopyCheck) -> String {
     match found {
         CopyCheck::WrongWord(k) => format!("Your copy scans but word {k} differs"),

@@ -1,6 +1,6 @@
-//! The backup's seeds step checks the hand-drawn SeedQR: Scan my copy
-//! opens the camera, a copy of the seed on screen says it matches and
-//! marks the step done, a copy with a word wrong or of another seed names
+//! The backup's checklist item for a seed's copy by hand checks the
+//! hand-drawn SeedQR: Scan my copy opens the camera, a copy of the seed
+//! on screen says it matches and marks the item done, a copy with a word wrong or of another seed names
 //! the first word that differs and keeps the camera open, and nothing
 //! scanned there is loaded as a key or put in Files. With no camera the
 //! copy is checked from its typed numbers instead.
@@ -43,7 +43,7 @@ fn shown() -> Faraday {
 }
 
 /// The seed typed into Add a key, a one-key wallet made from it, and its
-/// backup open on the seeds step with the seed shown; a camera listed
+/// backup's paper plan made, open on the seed's copy with the seed shown; a camera listed
 /// when `camera`.
 fn backing_up(words: &str, camera: bool) -> Faraday {
     let mut app = shown();
@@ -64,7 +64,9 @@ fn backing_up(words: &str, camera: bool) -> Faraday {
     app.press(Action::Seeds(S::Make));
     assert_eq!(app.session.wallets.len(), 1);
     app.press(Action::Backup(0));
-    app.press(Action::BNext(bstep::BLANK));
+    app.press(Action::BPreset(0));
+    app.press(Action::BChecklist);
+    app.press(Action::BStep(bstep::COPY));
     app.press(Action::BReveal);
     let _ = app.frame();
     app
@@ -102,9 +104,7 @@ fn note(app: &Faraday) -> String {
 }
 
 fn seeds_done(app: &Faraday) -> bool {
-    app.backup
-        .as_ref()
-        .is_some_and(|b| b.done[bstep::SEEDS as usize])
+    app.backup_item_done(faraday_core::plan::Item::Copy(0))
 }
 
 /// Whether the seeds step offers `action` anywhere down its column,

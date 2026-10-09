@@ -124,7 +124,7 @@ pub(crate) fn backup(n: u8, m: usize, keys: usize, seeds_here: usize) -> String 
             carry it to the desktop app, and print one copy per seed. You write on it by hand in the next \
             step."
             .to_string(),
-        bstep::SEEDS => {
+        n if n >= bstep::COPY => {
             let lead = if seeds_here == 0 {
                 "None of this wallet's seeds were typed into this session, so there is nothing to copy here. \
                  Each seed is backed up on the device that holds it."
@@ -156,7 +156,7 @@ pub(crate) fn backup(n: u8, m: usize, keys: usize, seeds_here: usize) -> String 
             backup sheet in the Outbox; the sheet goes as a PDF to print. Sparrow imports the .json under Specter Desktop, \
             and the multisig config under Coldcard Multisig."
             .to_string(),
-        bstep::SPLIT => format!(
+        bstep::SHEETS if m > 1 => format!(
             "Instead of one sheet with every key, give each of the {keys} signers a share that leaves some \
              keys off. With {} left off each, any {m} shares together hold every key, so any {m} signers can \
              rebuild the wallet, and one share alone cannot watch it. This is not secret sharing: the keys \
@@ -165,8 +165,8 @@ pub(crate) fn backup(n: u8, m: usize, keys: usize, seeds_here: usize) -> String 
              or a scan of the picture.",
             m.saturating_sub(1)
         ),
-        bstep::ENVELOPE => "One envelope per signer: the seed in that signer's hand, with the sheet or share \
-            that goes with it. Store the envelopes apart. A copy kept in a vault is one more \
+        bstep::ENVELOPE => "One envelope per place, holding what the plan puts there. Store the envelopes \
+            apart. A copy kept in a vault is one more \
             copy, not a replacement for paper."
             .to_string(),
         _ => String::new(),

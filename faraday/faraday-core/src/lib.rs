@@ -34,6 +34,7 @@ pub mod memory;
 pub mod paper;
 pub mod pdf;
 pub mod picture;
+pub mod plan;
 pub mod restore;
 pub mod secret_text;
 pub mod secrets;
@@ -491,7 +492,7 @@ pub enum Action {
     CSaveAll,
     /// One of wallet n's public files to the Outbox, as `public_out`
     /// numbers them: what Create's Public files card and the backup's
-    /// public step offer.
+    /// public files item offer.
     PublicOut(usize, u8),
     /// The account key in wallet n's slot k, held here, to the Outbox
     /// for the cosigners.
@@ -550,10 +551,28 @@ pub enum Action {
     /// Open or close the list of loaded wallets under the backup's
     /// wallet chip.
     BWallets,
-    /// Open or close a backup card.
+    /// Open or close an item of the backup's checklist, by [`bstep`].
     BStep(u8),
-    /// Close a backup card as done and open the next.
+    /// Open the checklist item after this one; on the envelopes, close
+    /// them as done.
     BNext(u8),
+    /// Open or close a question of the backup's plan, by [`qstep`].
+    BQ(u8),
+    /// Open the plan's question after this one.
+    BQNext(u8),
+    /// Fill the plan's answers from a preset, by its place in
+    /// [`plan::Preset::ALL`].
+    BPreset(u8),
+    /// Tick or untick a row of one of the plan's questions: the question
+    /// by [`qrow`], then the row.
+    BAnswer(u8, u8),
+    /// Start or stop typing place n's name (only with a vault open).
+    BName(u8),
+    /// The plan made: on to the checklist, the plan saved into the open
+    /// vault.
+    BChecklist,
+    /// Back from the checklist to the plan.
+    BPlan,
     /// Show the seed of this session key.
     BKey(usize),
     /// Show or hide the words.
@@ -841,8 +860,6 @@ pub enum Action {
     /// Put a backup file in the Outbox: 0 template, 1 descriptor,
     /// 2 multisig config, 3 backup sheet, 4 split shares, 5 wallet .json.
     BOut(u8),
-    /// Put the backup's sheets in the Outbox: the template and the sheet.
-    BSheets,
     /// Decode the transaction this spend finished.
     DecodeFinished,
     /// Open the Tools page's tile n.
@@ -1110,7 +1127,7 @@ pub enum ScanPurpose {
     /// A TOTP setup code into a vault entry.
     VaultEntry,
     /// The hand-drawn copy of the seed with this fingerprint, on the
-    /// backup's seeds step: compared with it there, never loaded.
+    /// backup's copy item: compared with it there, never loaded.
     CheckCopy(osk_bip::keys::Fingerprint),
 }
 
@@ -1762,10 +1779,23 @@ pub struct WalletKey<'a> {
 pub struct BackupState {
     /// The wallet being backed up.
     pub wallet: usize,
-    /// The open card.
+    /// The plan, or the checklist made from it.
+    pub stage: BStage,
+    /// The open question of the plan, by [`qstep`].
+    pub q: Option<u8>,
+    /// The plan's answers.
+    pub answers: plan::Answers,
+    /// What each place is called, kept only in a vault; empty for
+    /// "Place 1", "Place 2".
+    pub names: Vec<String>,
+    /// The place whose name is being typed.
+    pub naming: Option<usize>,
+    /// The open item of the checklist, by [`bstep`].
     pub open: Option<u8>,
-    /// Cards closed as done.
-    pub done: [bool; 5],
+    /// The envelopes closed as done: the one item nothing else marks.
+    pub envelopes: bool,
+    /// The descriptor was shown as a code in this backup.
+    pub shown: bool,
     /// The column's scroll.
     pub scroll: flow::Scroll,
     /// The session key whose seed is shown, by index into the session.
@@ -1787,8 +1817,6 @@ pub struct BackupState {
     pub checked: Vec<[u8; 4]>,
     /// Template word count.
     pub words: usize,
-    /// Keys left off each split sheet.
-    pub omit: usize,
     /// What went to the Outbox, for the summary.
     pub sent: Vec<String>,
     /// Another paper form of the key, on screen.
@@ -1923,16 +1951,123 @@ pub mod rstep {
 
 /// The backup cards, in order.
 pub mod bstep {
-    /// The blank template.
+    use crate::plan::Item;
+
+    /// Print the blank templates.
     pub const BLANK: u8 = 0;
-    /// The seeds, by hand.
-    pub const SEEDS: u8 = 1;
-    /// The wallet in public keys.
+    /// The public files for the software chosen.
     pub const PUBLIC: u8 = 2;
-    /// The split between signers.
-    pub const SPLIT: u8 = 3;
-    /// The envelope.
+    /// The wallet sheet or the shares.
+    pub const SHEETS: u8 = 3;
+    /// One envelope per place.
     pub const ENVELOPE: u8 = 4;
+    /// The seeds into the vault.
+    pub const VAULT: u8 = 5;
+    /// The seeds as files.
+    pub const FILES: u8 = 6;
+    /// The wallet into the vault.
+    pub const WALLET: u8 = 7;
+    /// The descriptor shown to the watch-only software.
+    pub const SHOW: u8 = 8;
+    /// Copy seed i by hand and check it: `COPY + i`, the seed by its
+    /// place among the wallet's.
+    pub const COPY: u8 = 16;
+
+    /// An item's number.
+    pub fn of(item: Item) -> u8 {
+        match item {
+            Item::Templates => BLANK,
+            Item::Copy(i) => COPY.saturating_add(i.min(200) as u8),
+            Item::SeedsVault => VAULT,
+            Item::SeedFiles => FILES,
+            Item::WalletVault => WALLET,
+            Item::Sheets => SHEETS,
+            Item::PublicFiles => PUBLIC,
+            Item::ShowDescriptor => SHOW,
+            Item::Envelopes => ENVELOPE,
+        }
+    }
+
+    /// The item a number stands for.
+    pub fn item(n: u8) -> Option<Item> {
+        Some(match n {
+            BLANK => Item::Templates,
+            VAULT => Item::SeedsVault,
+            FILES => Item::SeedFiles,
+            WALLET => Item::WalletVault,
+            SHEETS => Item::Sheets,
+            PUBLIC => Item::PublicFiles,
+            SHOW => Item::ShowDescriptor,
+            ENVELOPE => Item::Envelopes,
+            n if n >= COPY => Item::Copy(usize::from(n - COPY)),
+            _ => return None,
+        })
+    }
+}
+
+/// The backup's two parts.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum BStage {
+    /// The presets and the questions, with the map beside them.
+    #[default]
+    Plan,
+    /// The checklist made from the plan.
+    Checklist,
+}
+
+/// The questions of the backup's plan, in order.
+pub mod qstep {
+    /// The three presets.
+    pub const PRESET: u8 = 0;
+    /// Where the seeds go.
+    pub const SEEDS: u8 = 1;
+    /// The places.
+    pub const PLACES: u8 = 2;
+    /// Where the wallet description goes.
+    pub const WALLET: u8 = 3;
+    /// The watch-only software and the files' form.
+    pub const SOFTWARE: u8 = 4;
+    /// Where each passphrase is kept.
+    pub const PASSPHRASE: u8 = 5;
+    /// The map, as its own page on a small panel.
+    pub const MAP: u8 = 6;
+}
+
+/// The lists a [`Action::BAnswer`] ticks, as [`plan::Question`] names
+/// them.
+pub mod qrow {
+    /// Where the seeds go.
+    pub const SEEDS: u8 = 0;
+    /// How many places: the row is the count.
+    pub const PLACES: u8 = 1;
+    /// A share each (row 0) or the whole sheet (row 1).
+    pub const SPLIT: u8 = 2;
+    /// A stick with the vault, by place.
+    pub const STICKS: u8 = 3;
+    /// Where the wallet description goes.
+    pub const WALLET: u8 = 4;
+    /// The software.
+    pub const SOFTWARE: u8 = 5;
+    /// The form.
+    pub const FORM: u8 = 6;
+    /// Seed i's passphrase: `PASS + i`, a row per place, then the vault.
+    pub const PASS: u8 = 16;
+
+    /// The question a list number stands for.
+    pub fn question(n: u8) -> Option<crate::plan::Question> {
+        use crate::plan::Question as Q;
+        Some(match n {
+            SEEDS => Q::Seeds,
+            PLACES => Q::Places,
+            SPLIT => Q::Split,
+            STICKS => Q::Sticks,
+            WALLET => Q::Wallet,
+            SOFTWARE => Q::Software,
+            FORM => Q::Form,
+            n if n >= PASS => Q::Passphrase(usize::from(n - PASS)),
+            _ => return None,
+        })
+    }
 }
 
 /// A column of the stick visit's two.
@@ -2469,7 +2604,7 @@ impl Faraday {
             }
             StorageEvent::Cameras(list) => {
                 // Sent as the shell looks again: drawn again only when it
-                // changes, since what the seeds step offers depends on it.
+                // changes, since what the copy item offers depends on it.
                 if self.cameras == list {
                     return;
                 }
@@ -3728,23 +3863,101 @@ impl Faraday {
                 if i < self.session.wallets.len() {
                     let keys = self.backup_keys(i);
                     let first_key = keys.first().copied().unwrap_or(0);
-                    let (m, _) = Session::quorum(&self.session.wallets[i]);
-                    // A wallet with no seeds here has nothing for the
-                    // template or the seeds: it opens on its public files.
-                    let open = if keys.is_empty() {
-                        bstep::PUBLIC
-                    } else {
-                        bstep::BLANK
+                    let shape = self.plan_shape(i);
+                    // The plan this wallet's last backup saved into an
+                    // open vault, else the presets and the wallet's
+                    // defaults.
+                    let (answers, names, q) = match self.plan_load(i, &shape) {
+                        Some((a, names)) => (a, names, None),
+                        None => (
+                            plan::Answers::defaults(&shape),
+                            Vec::new(),
+                            Some(qstep::PRESET),
+                        ),
                     };
                     self.backup = Some(BackupState {
                         wallet: i,
-                        open: Some(open),
+                        q,
+                        answers,
+                        names,
                         key: first_key,
                         words: 24,
-                        omit: m.saturating_sub(1),
                         ..BackupState::default()
                     });
                     self.screen = Screen::Backup;
+                }
+            }
+            Action::BQ(n) => {
+                if let Some(b) = self.backup.as_mut() {
+                    b.q = if b.q == Some(n) { None } else { Some(n) };
+                    b.scroll.follow = true;
+                    b.naming = None;
+                }
+            }
+            Action::BQNext(n) => {
+                let qs = self.backup_questions();
+                if let Some(b) = self.backup.as_mut() {
+                    b.q = qs.iter().skip_while(|&&q| q != n).nth(1).copied();
+                    b.scroll.follow = true;
+                    b.naming = None;
+                }
+            }
+            Action::BPreset(k) => {
+                let Some(w) = self.backup.as_ref().map(|b| b.wallet) else {
+                    return;
+                };
+                let shape = self.plan_shape(w);
+                if let Some(&preset) = plan::Preset::ALL.get(usize::from(k)) {
+                    let answers = plan::Answers::preset(&shape, preset);
+                    if let Some(b) = self.backup.as_mut() {
+                        b.answers = answers;
+                    }
+                    self.act(Action::BQNext(qstep::PRESET));
+                }
+            }
+            Action::BAnswer(list, row) => {
+                let Some(w) = self.backup.as_ref().map(|b| b.wallet) else {
+                    return;
+                };
+                let shape = self.plan_shape(w);
+                if let (Some(q), Some(b)) = (qrow::question(list), self.backup.as_mut()) {
+                    b.answers.toggle(&shape, q, usize::from(row));
+                    // A question that no longer applies closes.
+                    b.naming = b.naming.filter(|&p| p < b.answers.places);
+                }
+            }
+            Action::BName(p) => {
+                let open = self.vaults.open.get(self.vaults.current).is_some();
+                if let Some(b) = self.backup.as_mut()
+                    && open
+                {
+                    let p = usize::from(p);
+                    if b.names.len() <= p {
+                        b.names.resize(p + 1, String::new());
+                    }
+                    b.naming = if b.naming == Some(p) { None } else { Some(p) };
+                }
+            }
+            Action::BChecklist => {
+                self.plan_save();
+                let items = self.backup_items();
+                let first = items
+                    .iter()
+                    .copied()
+                    .find(|&n| bstep::item(n).is_some_and(|it| !self.backup_item_done(it)));
+                if let Some(b) = self.backup.as_mut() {
+                    b.stage = BStage::Checklist;
+                    b.naming = None;
+                    b.scroll = flow::Scroll::default();
+                }
+                self.backup_item_open(first);
+            }
+            Action::BPlan => {
+                if let Some(b) = self.backup.as_mut() {
+                    b.stage = BStage::Plan;
+                    b.q = None;
+                    b.checking = false;
+                    b.scroll = flow::Scroll::default();
                 }
             }
             Action::BWallets => {
@@ -3753,20 +3966,23 @@ impl Faraday {
                 }
             }
             Action::BStep(n) => {
-                if let Some(b) = self.backup.as_mut() {
-                    b.open = if b.open == Some(n) { None } else { Some(n) };
-                    b.scroll.follow = true;
-                    b.checking = false;
-                }
+                let open = self.backup.as_ref().and_then(|b| b.open);
+                self.backup_item_open(if open == Some(n) { None } else { Some(n) });
             }
             Action::BNext(n) => {
-                let steps = self.backup_steps();
-                if let Some(b) = self.backup.as_mut() {
-                    b.done[n as usize] = true;
-                    b.open = steps.iter().copied().find(|&i| !b.done[i as usize]);
-                    b.scroll.follow = true;
-                    b.checking = false;
-                }
+                let items = self.backup_items();
+                let next = if n == bstep::ENVELOPE {
+                    if let Some(b) = self.backup.as_mut() {
+                        b.envelopes = true;
+                    }
+                    items
+                        .iter()
+                        .copied()
+                        .find(|&i| bstep::item(i).is_some_and(|it| !self.backup_item_done(it)))
+                } else {
+                    items.iter().skip_while(|&&i| i != n).nth(1).copied()
+                };
+                self.backup_item_open(next);
             }
             Action::BKey(k) => {
                 if let Some(b) = self.backup.as_mut() {
@@ -3847,7 +4063,7 @@ impl Faraday {
             }
             Action::BOmit(n) => {
                 if let Some(b) = self.backup.as_mut() {
-                    b.omit = n;
+                    b.answers.omit = n;
                 }
             }
             Action::BOut(what) => self.backup_out(what),
@@ -3961,10 +4177,6 @@ impl Faraday {
                 if let Some(s) = self.spend.as_mut() {
                     s.show_hex = !s.show_hex;
                 }
-            }
-            Action::BSheets => {
-                self.backup_out(0);
-                self.backup_out(3);
             }
             Action::WriteAsk => {
                 if !self.clean() {
@@ -4399,6 +4611,12 @@ impl Faraday {
                 }
             }
             Action::QrWallet(i) => {
+                if let Some(b) = self.backup.as_mut()
+                    && b.wallet == i
+                    && self.screen == Screen::Backup
+                {
+                    b.shown = true;
+                }
                 if i < self.session.wallets.len() {
                     let view = self.code_view(Code::Descriptor(i));
                     self.open_qr(view);
@@ -4548,8 +4766,7 @@ impl Faraday {
     }
 
     /// Where the wallet being backed up and each of its keys are kept, as
-    /// the backup's "This backup" panel and the small panel's seeds page
-    /// list them: in which open vault, whether the copy by hand was
+    /// the small panel's copy page lists them: in which open vault, whether the copy by hand was
     /// checked, whether a file of it is in the Outbox unprotected, or not
     /// here at all.
     pub fn backup_kept(&self) -> Option<backup::Kept> {
@@ -4654,19 +4871,420 @@ impl Faraday {
         })
     }
 
-    /// The backup cards this wallet shows.
-    pub fn backup_steps(&self) -> Vec<u8> {
-        let multi = self
-            .backup
-            .as_ref()
-            .and_then(|b| self.session.wallets.get(b.wallet))
-            .is_some_and(backup::splits);
-        let mut v = vec![bstep::BLANK, bstep::SEEDS, bstep::PUBLIC];
-        if multi {
-            v.push(bstep::SPLIT);
+    /// Wallet `w`'s seeds, in its order, as the plan and the panel list
+    /// them: a name each (its fingerprint, or a share not here by number)
+    /// and the session key that holds it, when its words are here.
+    pub fn backup_seed_list(&self, w: usize) -> Vec<(String, Option<usize>)> {
+        let Some(wallet) = self.session.wallets.get(w) else {
+            return Vec::new();
+        };
+        let here = self.backup_keys(w);
+        if let Some(record) = wallet.policy.record() {
+            return record
+                .info
+                .pubshares
+                .iter()
+                .enumerate()
+                .map(|(id, pubshare)| {
+                    let key = here.iter().copied().find(|&k| {
+                        pubshare.is_some()
+                            && self.session.keys[k].share.as_ref() == pubshare.as_ref()
+                    });
+                    match key {
+                        Some(k) => (fp_text(self.session.keys[k].master.fingerprint()), Some(k)),
+                        None => (format!("Share {}", id + 1), None),
+                    }
+                })
+                .collect();
         }
-        v.push(bstep::ENVELOPE);
+        let mut fps: Vec<osk_bip::keys::Fingerprint> = Vec::new();
+        for f in wallet.policy.keys().iter().filter_map(|k| k.fingerprint()) {
+            if !fps.contains(&f) {
+                fps.push(f);
+            }
+        }
+        fps.into_iter()
+            .map(|fp| {
+                let key = here
+                    .iter()
+                    .copied()
+                    .find(|&k| self.session.keys[k].master.fingerprint() == fp);
+                (fp_text(fp), key)
+            })
+            .collect()
+    }
+
+    /// What wallet `w`'s plan is for: its quorum, its seeds and whether
+    /// its description splits.
+    pub fn plan_shape(&self, w: usize) -> plan::Shape {
+        let Some(wallet) = self.session.wallets.get(w) else {
+            return plan::Shape {
+                m: 1,
+                keys: 1,
+                seeds: Vec::new(),
+                splits: false,
+            };
+        };
+        let (m, n) = Session::quorum(wallet);
+        let seeds: Vec<plan::Seed> = self
+            .backup_seed_list(w)
+            .into_iter()
+            .map(|(name, key)| plan::Seed {
+                name,
+                here: key.is_some(),
+                passphrase: key
+                    .and_then(|k| self.session.keys[k].passphrase.as_ref())
+                    .is_some_and(|p| !p.is_empty()),
+            })
+            .collect();
+        plan::Shape {
+            m: m.clamp(1, seeds.len().max(1)),
+            keys: n.max(1),
+            seeds,
+            splits: backup::splits(wallet),
+        }
+    }
+
+    /// The questions of the backup's plan this wallet asks, in order: no
+    /// seed question for a wallet with no seed here, the software only
+    /// where the description goes to software or files, a passphrase's
+    /// places only where a seed has one, and on a small panel the map as
+    /// the last page.
+    pub fn backup_questions(&self) -> Vec<u8> {
+        let Some(b) = self.backup.as_ref() else {
+            return Vec::new();
+        };
+        let shape = self.plan_shape(b.wallet);
+        let a = &b.answers;
+        let mut v = vec![qstep::PRESET];
+        if !shape.watch_only() {
+            v.push(qstep::SEEDS);
+        }
+        v.push(qstep::PLACES);
+        v.push(qstep::WALLET);
+        if a.wallet[plan::wallet::SOFTWARE] || a.wallet[plan::wallet::FILES] {
+            v.push(qstep::SOFTWARE);
+        }
+        if shape.seeds.iter().any(|s| s.here && s.passphrase) {
+            v.push(qstep::PASSPHRASE);
+        }
+        if self.is_compact() {
+            v.push(qstep::MAP);
+        }
         v
+    }
+
+    /// The backup's checklist, by [`bstep`]: only what the plan needs.
+    pub fn backup_items(&self) -> Vec<u8> {
+        let Some(b) = self.backup.as_ref() else {
+            return Vec::new();
+        };
+        let shape = self.plan_shape(b.wallet);
+        plan::checklist(&shape, &b.answers)
+            .into_iter()
+            .map(bstep::of)
+            .collect()
+    }
+
+    /// Opens checklist item `n`, or closes them all. A seed's copy shows
+    /// that seed.
+    fn backup_item_open(&mut self, n: Option<u8>) {
+        let key = n
+            .and_then(bstep::item)
+            .and_then(|it| match it {
+                plan::Item::Copy(i) => Some(i),
+                _ => None,
+            })
+            .and_then(|i| {
+                let w = self.backup.as_ref()?.wallet;
+                self.backup_seed_list(w).get(i)?.1
+            });
+        if let Some(b) = self.backup.as_mut() {
+            b.open = n;
+            b.scroll.follow = true;
+            b.checking = false;
+            if let Some(k) = key
+                && b.key != k
+            {
+                b.key = k;
+                b.reveal = false;
+                b.typed.clear();
+                b.scanned = None;
+                b.paper = None;
+            }
+        }
+    }
+
+    /// The public files the plan's software calls for, as
+    /// [`Faraday::public_out`] numbers their text: Sparrow the wallet
+    /// file, Coldcard, Keystone and Passport the multisig config, Nunchuk
+    /// the BSMS record, Bitcoin Core its import, each the descriptor where
+    /// the wallet has no such file; "Not sure" the descriptor.
+    pub fn backup_public(&self) -> Vec<u8> {
+        use osk_bip::policy::{Template, Wrapper};
+        use plan::software as sw;
+        let Some(b) = self.backup.as_ref() else {
+            return Vec::new();
+        };
+        let Some(w) = self.session.wallets.get(b.wallet) else {
+            return Vec::new();
+        };
+        let a = &b.answers;
+        let config = backup::multisig_config(w, None).is_some();
+        let bsms = matches!(
+            w.policy.template(),
+            Template::Multi {
+                wrapper: Wrapper::Wsh | Wrapper::ShWsh,
+                ..
+            }
+        );
+        let core = w.policy.silent().is_none();
+        let mut v: Vec<u8> = Vec::new();
+        let add = |v: &mut Vec<u8>, x: u8| {
+            if !v.contains(&x) {
+                v.push(x);
+            }
+        };
+        if a.software[sw::SPARROW] {
+            add(&mut v, 5);
+        }
+        if a.software[sw::HARDWARE] {
+            add(&mut v, if config { 2 } else { 1 });
+        }
+        if a.software[sw::NUNCHUK] {
+            add(&mut v, if bsms { 6 } else { 1 });
+        }
+        if a.software[sw::CORE] {
+            add(&mut v, if core { 7 } else { 1 });
+        }
+        if a.software[sw::NOT_SURE] || v.is_empty() {
+            add(&mut v, 1);
+        }
+        v
+    }
+
+    /// The files [`Faraday::backup_public`] makes, in the form chosen: the
+    /// text, the labelled picture, or both; a file with no picture as its
+    /// text.
+    fn backup_public_names(&self) -> Vec<String> {
+        let Some(b) = self.backup.as_ref() else {
+            return Vec::new();
+        };
+        let Some(w) = self.session.wallets.get(b.wallet) else {
+            return Vec::new();
+        };
+        let stem = file_stem(&w.name);
+        let (qr, text) = (
+            b.answers.form[plan::form::QR],
+            b.answers.form[plan::form::TEXT],
+        );
+        let mut out = Vec::new();
+        for what in self.backup_public() {
+            let file = match what {
+                1 => format!("{stem}-descriptor.txt"),
+                2 => format!("{stem}-multisig-config.txt"),
+                5 => format!("{stem}-wallet.json"),
+                6 => format!("{stem}-bsms.txt"),
+                _ => format!("{stem}-bitcoin-core.json"),
+            };
+            let picture = match what {
+                1 => self
+                    .public_pictures(b.wallet, 8)
+                    .first()
+                    .map(|p| p.name.clone()),
+                2 => Some(format!("{stem}-multisig-config.png")),
+                6 => Some(format!("{stem}-bsms.png")),
+                _ => None,
+            };
+            match picture {
+                Some(p) if qr => {
+                    out.push(p);
+                    if text {
+                        out.push(file);
+                    }
+                }
+                _ => out.push(file),
+            }
+        }
+        out
+    }
+
+    /// Whether a checklist item is done, by what it does: its file in the
+    /// Outbox, its seeds or the wallet in the open vault, the copy
+    /// matched, the descriptor shown; the envelopes alone by a press.
+    pub fn backup_item_done(&self, item: plan::Item) -> bool {
+        use crate::vault_screens::{vault_has_wallet, vault_key};
+        let Some(b) = self.backup.as_ref() else {
+            return false;
+        };
+        let Some(w) = self.session.wallets.get(b.wallet) else {
+            return false;
+        };
+        let stem = file_stem(&w.name);
+        let out = |name: &str| self.outbox.iter().any(|i| i.name == name);
+        let seeds = self.backup_seed_list(b.wallet);
+        let here: Vec<(usize, &wallet::Key)> = seeds
+            .iter()
+            .enumerate()
+            .filter_map(|(i, (_, k))| Some((i, self.session.keys.get((*k)?)?)))
+            .collect();
+        match item {
+            plan::Item::Templates => out(&format!("blank-template-{}-words.pdf", b.words)),
+            plan::Item::Copy(i) => here
+                .iter()
+                .find(|(j, _)| *j == i)
+                .is_some_and(|(_, k)| b.checked.contains(&k.master.fingerprint().0)),
+            plan::Item::SeedsVault => {
+                let v = self.vaults.current;
+                !here.is_empty()
+                    && here
+                        .iter()
+                        .all(|(_, k)| vault_key(self, v, k.master.fingerprint()).is_some())
+            }
+            plan::Item::SeedFiles => {
+                !here.is_empty()
+                    && here.iter().all(|(_, k)| {
+                        let fps = fp_text(k.master.fingerprint()).to_lowercase();
+                        ["words.txt", "seedqr.png", "compactseedqr.png"]
+                            .iter()
+                            .any(|end| {
+                                self.outbox
+                                    .iter()
+                                    .any(|i| i.secret && i.name == format!("{stem}-{fps}-{end}"))
+                            })
+                    })
+            }
+            plan::Item::WalletVault => {
+                (0..self.vaults.open.len()).any(|v| vault_has_wallet(self, v, w))
+            }
+            plan::Item::Sheets => {
+                if b.answers.split && backup::splits(w) {
+                    let (_, n) = Session::quorum(w);
+                    out(&format!("{stem}-share-1-of-{n}.pdf"))
+                } else {
+                    out(&format!("{stem}-backup.pdf"))
+                }
+            }
+            plan::Item::PublicFiles => self.backup_public_names().iter().all(|n| out(n)),
+            plan::Item::ShowDescriptor => b.shown,
+            plan::Item::Envelopes => b.envelopes,
+        }
+    }
+
+    /// What place `p` is called on screen: its name, kept in the vault, or
+    /// "Place 1", "Place 2".
+    pub fn place_name(&self, p: usize) -> String {
+        self.backup
+            .as_ref()
+            .and_then(|b| b.names.get(p))
+            .map(|n| n.trim())
+            .filter(|n| !n.is_empty())
+            .map_or_else(|| format!("Place {}", p + 1), str::to_string)
+    }
+
+    /// The text a vault keeps a wallet under, as Vaults saves it.
+    fn wallet_text(w: &wallet::Wallet) -> String {
+        match (w.policy.record(), w.policy.silent()) {
+            (Some(r), _) => r.to_text(),
+            (None, Some(s)) => s.to_text(),
+            (None, None) => w.policy.to_descriptor_checksummed(),
+        }
+    }
+
+    /// The plan an open vault keeps for wallet `w` (record type 11): its
+    /// answers and the places' names. None when no open vault has one,
+    /// or it is not for a wallet of this shape.
+    fn plan_load(&self, w: usize, shape: &plan::Shape) -> Option<(plan::Answers, Vec<String>)> {
+        use faraday_vault::records::{field, kind};
+        let wallet = self.session.wallets.get(w)?;
+        let want = wallet::same_wallet(&wallet.policy);
+        self.vaults.open.iter().find_map(|o| {
+            o.contents.of(kind::PLAN).find_map(|(_, r)| {
+                let same = r
+                    .text(field::PLAN_WALLET)
+                    .and_then(|t| wallet::read_wallet(t).ok())
+                    .is_some_and(|p| wallet::same_wallet(&p) == want);
+                if !same {
+                    return None;
+                }
+                let a = plan::Answers::from_text(shape, r.text(field::PLAN_ANSWERS)?)?;
+                let names = r
+                    .fields
+                    .iter()
+                    .filter(|f| f.number == field::PLAN_PLACE)
+                    .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
+                    .collect();
+                Some((a, names))
+            })
+        })
+    }
+
+    /// Saves the backup's plan into the open vault as record type 11,
+    /// over the one it kept for this wallet: the wallet, the answers, the
+    /// places' names and what each holds. The names are kept nowhere
+    /// else.
+    fn plan_save(&mut self) {
+        use faraday_vault::records::{Record, field, kind};
+        let Some(b) = self.backup.as_ref() else {
+            return;
+        };
+        let Some(w) = self.session.wallets.get(b.wallet) else {
+            return;
+        };
+        let v = self.vaults.current;
+        let Some(open) = self.vaults.open.get(v) else {
+            return;
+        };
+        let shape = self.plan_shape(b.wallet);
+        let mut record = Record::new(kind::PLAN)
+            .with(field::PLAN_WALLET, Self::wallet_text(w).as_bytes())
+            .with(field::PLAN_ANSWERS, b.answers.to_text().as_bytes());
+        for p in 0..b.answers.places {
+            let name = b.names.get(p).map_or("", |n| n.trim());
+            record.push(field::PLAN_PLACE, name.as_bytes());
+        }
+        for spot in plan::map(&shape, &b.answers) {
+            let at = match spot.at {
+                plan::At::Place(p) => self.place_name(p),
+                plan::At::Vault => "Vault".to_string(),
+                plan::At::Files => "Stick of files".to_string(),
+                plan::At::Software => "Watch-only software".to_string(),
+                plan::At::Away => "On its own device".to_string(),
+            };
+            let holds: Vec<String> = spot.holds.iter().map(|(h, _)| h.label(&shape)).collect();
+            record.push(
+                field::PLAN_HOLDS,
+                format!("{at}: {}", holds.join(", ")).as_bytes(),
+            );
+        }
+        let want = wallet::same_wallet(&w.policy);
+        let same = |r: &faraday_vault::records::Record| {
+            r.kind == kind::PLAN
+                && r.text(field::PLAN_WALLET)
+                    .and_then(|t| wallet::read_wallet(t).ok())
+                    .is_some_and(|p| wallet::same_wallet(&p) == want)
+        };
+        // Kept as it was: nothing to write back.
+        let unchanged = open.contents.records.iter().any(|r| {
+            same(r)
+                && r.fields.len() == record.fields.len()
+                && r.fields
+                    .iter()
+                    .zip(&record.fields)
+                    .all(|(a, b)| a.number == b.number && *a.bytes == *b.bytes)
+        });
+        if unchanged {
+            return;
+        }
+        let name = open.name.clone();
+        if let Some(open) = self.vaults.open.get_mut(v) {
+            let before = open.contents.records.len();
+            open.contents.records.retain(|r| !same(r));
+            if open.contents.records.len() != before {
+                open.changes += 1;
+            }
+        }
+        self.vault_push(record, &format!("The plan is in {name}"));
     }
 
     fn backup_out(&mut self, what: u8) {
@@ -4744,7 +5362,10 @@ impl Faraday {
             4 => {
                 let (m, n) = Session::quorum(w);
                 // As the shares' sheets and text are split.
-                let omit = self.backup.as_ref().map_or(m.saturating_sub(1), |b| b.omit);
+                let omit = self
+                    .backup
+                    .as_ref()
+                    .map_or(m.saturating_sub(1), |b| b.answers.omit);
                 let plan = backup::split_plan(n, m, omit);
                 let mut out = Vec::new();
                 for (i, row) in plan.iter().enumerate() {
@@ -4795,13 +5416,18 @@ impl Faraday {
         let omit = self
             .backup
             .as_ref()
-            .map_or(Session::quorum(w).0.saturating_sub(1), |b| b.omit);
+            .map_or(Session::quorum(w).0.saturating_sub(1), |b| b.answers.omit);
         let stem = file_stem(&w.name);
         let mut files: Vec<(String, Vec<u8>)> = Vec::new();
         match what {
             // The sheets go out as PDFs, ready to print anywhere: they
             // hold nothing secret.
-            0 => match pdf::sheet(&backup::sheet_blank(words, Some(w), self.session.network())) {
+            0 => match pdf::sheet(&backup::sheet_blank(
+                words,
+                Some(w),
+                self.session.network(),
+                self.backup.as_ref().map_or(1, |b| b.answers.places),
+            )) {
                 Ok(p) => files.push((format!("blank-template-{words}-words.pdf"), p)),
                 Err(e) => self.toast(&format!("No PDF: {e}")),
             },
@@ -5590,7 +6216,7 @@ impl Faraday {
         }
     }
 
-    /// The seeds step is done once the numbers typed back match the seed
+    /// A seed's copy is checked once the numbers typed back match the seed
     /// on screen, as a scanned copy that matches makes it.
     fn backup_typed_check(&mut self) {
         let Some(b) = self.backup.as_mut() else {
@@ -5607,7 +6233,6 @@ impl Faraday {
         };
         let digits = osk_codec::seedqr::to_digits(&mn);
         if backup::check_copy(&b.typed, digits.expose().as_bytes()) == backup::CopyCheck::Matches {
-            b.done[bstep::SEEDS as usize] = true;
             let fp = key.master.fingerprint().0;
             if !b.checked.contains(&fp) {
                 b.checked.push(fp);
@@ -5615,7 +6240,7 @@ impl Faraday {
         }
     }
 
-    /// A code read while the backup's seeds step scans the copy of the
+    /// A code read while the backup's copy item scans the copy of the
     /// seed `fp`: decoded as a SeedQR and compared word by word with that
     /// seed, never loaded. A match closes the camera; a word that differs
     /// is named and the camera stays open for the copy fixed.
@@ -5650,11 +6275,8 @@ impl Faraday {
         drop(seed);
         let matched = found == backup::CopyCheck::Matches;
         if let Some(b) = self.backup.as_mut() {
-            if matched {
-                b.done[bstep::SEEDS as usize] = true;
-                if !b.checked.contains(&fp.0) {
-                    b.checked.push(fp.0);
-                }
+            if matched && !b.checked.contains(&fp.0) {
+                b.checked.push(fp.0);
             }
             b.scanned = Some(found.clone());
         }
@@ -6757,12 +7379,32 @@ impl Faraday {
                     b.typed.pop();
                     return;
                 }
-                KeyIn::Down if b.open == Some(bstep::SEEDS) => {
+                KeyIn::Down if b.open.is_some_and(|o| o >= bstep::COPY) => {
                     b.pin += 1;
                     return;
                 }
-                KeyIn::Up if b.open == Some(bstep::SEEDS) => {
+                KeyIn::Up if b.open.is_some_and(|o| o >= bstep::COPY) => {
                     b.pin = b.pin.saturating_sub(1);
+                    return;
+                }
+                // A place's name, typed: kept in the vault alone.
+                KeyIn::Char(c) if b.naming.is_some() => {
+                    if let Some(name) = b.naming.and_then(|p| b.names.get_mut(p))
+                        && name.chars().count() < 32
+                        && !c.is_control()
+                    {
+                        name.push(c);
+                    }
+                    return;
+                }
+                KeyIn::Backspace if b.naming.is_some() => {
+                    if let Some(name) = b.naming.and_then(|p| b.names.get_mut(p)) {
+                        name.pop();
+                    }
+                    return;
+                }
+                KeyIn::Enter | KeyIn::Escape if b.naming.is_some() => {
+                    b.naming = None;
                     return;
                 }
                 _ => {}

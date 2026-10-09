@@ -1,5 +1,5 @@
-//! The backup's seeds step, after the copy by hand, offers the seed into
-//! the open vault and as a file. Into the vault it is the key record
+//! The backup's checklist, past the copy by hand, offers the seed into
+//! the open vault and as a file where the plan puts it there. Into the vault it is the key record
 //! Vaults saves, which loads at the next unlock; from the secret sheet
 //! too it goes in as a key, never as a note. As a file it goes to the
 //! Outbox only once the warning is ticked: the words, or the SeedQR as a
@@ -14,7 +14,7 @@ use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::wallet::FileKind;
-use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, bstep};
+use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, bstep, plan, qrow};
 use faraday_vault::records::kind;
 use osk_bip::keys::Fingerprint;
 use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
@@ -81,7 +81,8 @@ fn unlock(app: &mut Faraday) {
 }
 
 /// Test key 2 typed into Add a key, with the passphrase when `with`, a
-/// one-key wallet made from it, and its backup open on the seeds step.
+/// one-key wallet made from it, and its backup's plan made: paper, the
+/// vault and a file; the seed's copy open.
 /// Returns the key's fingerprint.
 fn backing_up(app: &mut Faraday, with: bool) -> Fingerprint {
     app.press(Action::Entry(None));
@@ -98,7 +99,10 @@ fn backing_up(app: &mut Faraday, with: bool) -> Fingerprint {
     app.press(Action::Seeds(S::Make));
     let w = app.session.wallets.len() - 1;
     app.press(Action::Backup(w));
-    app.press(Action::BNext(bstep::BLANK));
+    app.press(Action::BPreset(1));
+    app.press(Action::BAnswer(qrow::SEEDS, plan::seeds::FILE as u8));
+    app.press(Action::BChecklist);
+    app.press(Action::BStep(bstep::COPY));
     app.press(Action::BReveal);
     let _ = app.frame();
     fp
@@ -435,8 +439,16 @@ fn a_matched_copy_check_marks_that_seed_only() {
     add_key(&mut app, 0);
     let k2 = add_key(&mut app, 1);
     savings_backup(&mut app);
-    app.press(Action::BKey(k2));
-    app.press(Action::BNext(bstep::BLANK));
+    // The copy of the seed of test key 2, by its place in the wallet.
+    let i = app
+        .backup_seed_list(app.backup.as_ref().unwrap().wallet)
+        .iter()
+        .position(|(_, k)| *k == Some(k2))
+        .expect("test key 2 is a seed of Savings") as u8;
+    app.press(Action::BPreset(0));
+    app.press(Action::BChecklist);
+    app.press(Action::BStep(bstep::COPY + i));
+    assert_eq!(app.backup.as_ref().unwrap().key, k2);
     app.press(Action::BReveal);
     let words = testkit::test_words(testkit::TEST_SEEDS[1].0);
     let digits = osk_codec::seedqr::to_digits(&Mnemonic::parse(Language::English, &words).unwrap());

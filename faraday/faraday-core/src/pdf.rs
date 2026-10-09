@@ -462,7 +462,25 @@ fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
         }
     }
     p.text(MARGIN, PAGE_H - MARGIN, 8.0, Font::Sans, "There is no line for a passphrase. Written beside the words, it would stop being a second factor.");
-    Ok(document(vec![p]))
+    // The places, to fill in by hand: a line each, nothing printed on it.
+    let places: usize = get(f, "places")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1)
+        .clamp(1, 20);
+    let mut q = Page::default();
+    let mut y = MARGIN;
+    q.text(MARGIN, y, 18.0, Font::Bold, "Places");
+    y += 40.0;
+    let right = PAGE_W - MARGIN;
+    for _ in 0..places {
+        q.text(MARGIN, y, 11.0, Font::Sans, "Place");
+        q.line(MARGIN + 36.0, y + 12.0, MARGIN + 196.0, y + 12.0, 0.5, 0.55);
+        q.text(MARGIN + 204.0, y, 11.0, Font::Sans, "holds");
+        q.line(MARGIN + 238.0, y + 12.0, right, y + 12.0, 0.5, 0.55);
+        q.line(MARGIN + 238.0, y + 34.0, right, y + 34.0, 0.5, 0.55);
+        y += 56.0;
+    }
+    Ok(document(vec![p, q]))
 }
 
 /// A SeedQR of `words` words from a fixed dummy seed: its fixed squares

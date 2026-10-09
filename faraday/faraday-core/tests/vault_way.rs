@@ -312,7 +312,8 @@ fn silent_payments_makes_a_vault_and_comes_back_to_save_the_scan_key() {
     );
 }
 
-/// A one-key wallet from test key 2, its backup open on the seeds step.
+/// A one-key wallet from test key 2, its backup's plan of paper and a
+/// vault made, open on the seed's copy.
 fn on_the_seeds_step(app: &mut Faraday) {
     add_key(app, 1);
     let fp = app.session.keys[0].master.fingerprint();
@@ -320,15 +321,18 @@ fn on_the_seeds_step(app: &mut Faraday) {
     app.press(Action::Seeds(S::Make));
     let w = app.session.wallets.len() - 1;
     app.press(Action::Backup(w));
-    app.press(Action::BNext(bstep::BLANK));
+    app.press(Action::BPreset(1));
+    app.press(Action::BChecklist);
+    app.press(Action::BStep(bstep::COPY));
     app.press(Action::BReveal);
     let _ = app.frame();
 }
 
 #[test]
-fn the_seeds_step_makes_a_vault_and_comes_back_with_save_live() {
+fn the_seeds_vault_item_makes_a_vault_and_comes_back_with_save_live() {
     let mut app = device(Vec::new());
     on_the_seeds_step(&mut app);
+    app.press(Action::BStep(bstep::VAULT));
     let step = app.backup.as_ref().unwrap().open;
     press_make(&mut app, Screen::Backup);
     make_the_vault(&mut app);

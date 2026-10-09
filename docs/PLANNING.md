@@ -10190,3 +10190,22 @@ publishes an upgrade marker.
 - *A boot-partition-only flash for development* (`just
   faraday-stick-boot`), so a test stick keeps its vaults across builds.
   It is not offered to users: it puts the stick on the build computer.
+
+### 16.143 A multi-choice list beside Choice, for the backup's plan (2026-10-09)
+
+**Why.** Faraday's backup became a plan, then a checklist of only what
+the plan needs (Faraday's `docs/WALLETS.md` §5, the owner's proposal A).
+The plan's questions each take more than one answer: the seeds on paper
+and in a vault, the wallet description on a sheet and in software,
+several programs at once. Choice (§4.2) checks one row; a row of chips
+for more is ruled out on every class.
+
+**Decision** (owner: ok). DESIGN §4.2 gains **Multi choice**: the same
+full-width rows as Choice, a checkbox at each row's start instead of the
+accent check, any number ticked, Continue under the list, a row that may
+not be ticked dimmed and inert. Nothing has to be ticked, so Continue is
+never dimmed for it. Several lists may share a page, each under its own
+label, where they answer one question (the software and its form). On a
+small panel the plan asks one question per page, as every step flow
+pages there. It is built in Faraday's core (`Ui::multi_list`); `osk-ui`
+gets a component when an OpenSigner screen needs one.

@@ -1,9 +1,10 @@
 //! Any loaded wallet can be backed up again, with every public file
 //! Create offers. A wallet loaded from a descriptor file, with no seed
-//! here, opens its backup on the public files and puts each of them in
-//! the Outbox, the BSMS record and Bitcoin Core's import among them. A
-//! restored one-key wallet saves itself into a vault from its backup,
-//! unlocking it on the way. With two wallets loaded, Back up from Tools
+//! here, opens its backup on the presets with no question about seeds,
+//! and a plan that sends it to every software as files puts each public
+//! file in the Outbox, the BSMS record and Bitcoin Core's import among
+//! them. A restored one-key wallet saves itself into a vault from its
+//! checklist, unlocking it on the way. With two wallets loaded, Back up from Tools
 //! backs up the one picked on Wallets, and its chip switches to the
 //! other. The key rows list the wallet's keys whose seeds are here.
 
@@ -12,7 +13,7 @@ use faraday_core::catalog::{Go, TILES};
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
-use faraday_core::{Action, Code, Faraday, Screen, bstep};
+use faraday_core::{Action, Code, Faraday, Screen, bstep, plan, qrow, qstep};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 fn kit_file(name: &str) -> (String, Vec<u8>) {
@@ -85,29 +86,60 @@ fn in_outbox(app: &Faraday, name: &str) -> bool {
     app.outbox.iter().any(|i| i.name == name)
 }
 
-/// Presses `action`, which the screen on show must offer.
+/// Presses `action`, which the screen on show must offer somewhere down
+/// its column.
 fn press_offered(app: &mut Faraday, action: Action) {
-    let _ = app.frame();
-    assert!(app.offers(action), "{action:?} is not offered");
-    app.press(action);
+    for _ in 0..20 {
+        app.settle();
+        let _ = app.frame();
+        if app.offers(action) {
+            app.press(action);
+            return;
+        }
+        app.event(Event::Scroll {
+            x: 400,
+            y: 384,
+            dy: 300,
+        });
+    }
+    panic!("{action:?} is not offered");
+}
+
+/// The plan with the description to every software, as text and QR
+/// pictures, then the checklist made from it.
+fn every_software(app: &mut Faraday) {
+    press_offered(app, Action::BPreset(2));
+    for row in 0..5u8 {
+        if row != plan::software::NOT_SURE as u8 {
+            app.press(Action::BAnswer(qrow::SOFTWARE, row));
+        }
+    }
+    app.press(Action::BAnswer(qrow::FORM, plan::form::TEXT as u8));
+    app.press(Action::BChecklist);
 }
 
 #[test]
-fn a_watch_only_wallet_opens_on_its_public_files_and_puts_each_in_the_outbox() {
+fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() {
     let mut app = device(vec![kit_file("savings-wallet.txt")]);
     let w = load(&mut app, "savings-wallet.txt");
     assert!(app.session.keys.is_empty());
     app.press(Action::Backup(w));
     assert_eq!(app.screen, Screen::Backup);
-    let b = app.backup.as_ref().unwrap();
-    assert_eq!(b.open, Some(bstep::PUBLIC));
-    assert!(b.done.iter().all(|d| !d), "nothing is done yet");
+    assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::PRESET));
+    assert!(!app.backup_questions().contains(&qstep::SEEDS));
+    every_software(&mut app);
+    let items = app.backup_items();
+    assert!(!items.contains(&bstep::BLANK) && !items.contains(&bstep::COPY));
+    for n in &items {
+        let it = bstep::item(*n).unwrap();
+        assert!(!app.backup_item_done(it), "{it:?} is done already");
+    }
+    press_offered(&mut app, Action::BStep(bstep::PUBLIC));
     let want = testkit::public_files("Savings", &testkit::savings()).unwrap();
     for (what, name) in [
         (1, "savings-descriptor.txt"),
         (5, "savings-wallet.json"),
         (2, "savings-multisig-config.txt"),
-        (3, "savings-backup.pdf"),
         (6, "savings-bsms.txt"),
         (7, "savings-bitcoin-core.json"),
         (8, "savings-descriptor.png"),
@@ -130,9 +162,13 @@ fn a_watch_only_wallet_opens_on_its_public_files_and_puts_each_in_the_outbox() {
     for slot in 0..3 {
         assert!(!app.offers(Action::WalletKeyOut(w, slot)));
     }
-    // The other steps are a press away.
-    press_offered(&mut app, Action::BStep(bstep::BLANK));
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::BLANK));
+    assert!(app.backup_item_done(plan::Item::PublicFiles));
+    // The shares are the next item, a press away.
+    press_offered(&mut app, Action::BStep(bstep::SHEETS));
+    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::SHEETS));
+    press_offered(&mut app, Action::BOut(4));
+    assert!(in_outbox(&app, "savings-share-1-of-3.pdf"));
+    assert!(app.backup_item_done(plan::Item::Sheets));
 }
 
 #[test]
@@ -143,9 +179,11 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     app.press(Action::Seeds(S::Make));
     let w = app.session.wallets.len() - 1;
     app.press(Action::Backup(w));
-    // Seeds here: it opens on the blank sheets.
+    press_offered(&mut app, Action::BPreset(1));
+    press_offered(&mut app, Action::BChecklist);
+    // Seeds here: it opens on the blank templates.
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::BLANK));
-    press_offered(&mut app, Action::BStep(bstep::PUBLIC));
+    press_offered(&mut app, Action::BStep(bstep::WALLET));
     // The vault is locked: Unlock it, and back to this step.
     app.vaults.ms_per_unit = Some(180);
     press_offered(&mut app, Action::Vault(V::OpenFrom(0, Screen::Backup)));
@@ -160,15 +198,16 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     }
     assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
     assert_eq!(app.screen, Screen::Backup);
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::PUBLIC));
+    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::WALLET));
     assert_eq!(app.backup_kept().unwrap().wallet.1, Tone::Warn);
     press_offered(&mut app, Action::Vault(V::SaveWallet(w)));
     let kept = app.backup_kept().unwrap();
     assert_eq!(kept.wallet.1, Tone::Ok, "{:?}", kept.wallet);
     assert!(kept.wallet.0.starts_with("Wallet in "), "{:?}", kept.wallet);
-    // Saved once: the step says so rather than offering it again.
+    // Saved once: the item says so rather than offering it again.
     let _ = app.frame();
     assert!(!app.offers(Action::Vault(V::SaveWallet(w))));
+    assert!(app.backup_item_done(plan::Item::WalletVault));
 }
 
 #[test]
@@ -225,6 +264,7 @@ fn the_key_rows_list_the_keys_whose_seeds_are_here() {
             .expect("a slot") as u8
     };
     app.press(Action::Backup(w));
+    every_software(&mut app);
     app.press(Action::BStep(bstep::PUBLIC));
     let _ = app.frame();
     // Test key 2's seed is not here: its slot has no row.

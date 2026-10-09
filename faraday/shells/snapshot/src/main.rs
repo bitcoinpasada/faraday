@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again]
+//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan]
 //! ```
 //!
 //! `TESTKIT_DIR` is what `faraday-testkit` wrote; its files stand in
@@ -14,21 +14,25 @@
 //! Home's Scan pressed with a stick in, then the camera once it is pulled;
 //! with `public`, the public files offered as a code and a picture (a
 //! signed message, Silent payments, Create's keys and Public files card,
-//! the QR sheet, the backup's public step, a GPG key in a vault), and the
+//! the QR sheet, the backup's public files item, a GPG key in a vault), and the
 //! pictures put in the Outbox written beside the screens as `outbox-*`;
-//! with `seedfile`, the backup's seeds step offering the seed into a
+//! with `seedfile`, the backup's checklist offering the seed into a
 //! vault or as a file, with no vault open and with the test vault, the
 //! secret sheet for the seed, and its SeedQR pictures, Standard and
 //! Compact, written beside the screens as `outbox-*`; with `vaultway`,
 //! Tools' GPG key with no vault, Create a vault made for it, the tile
 //! with the test vault locked, Unlock for it and the GPG keys it comes
-//! back to; with `kept`, the backup's seeds step and "This backup" panel
+//! back to; with `kept`, the backup's copy item and its map
 //! for Savings (2-of-3, one seed here, put out as a file, no vault) and
 //! for Spending (one key, in the open test vault, its copy checked); with
 //! `again`, a wallet loaded again: Savings with no seed here, opening its
-//! backup on the public files, then a one-key wallet restored from test
-//! key 2, its public step saving it into the test vault, and the wallet
-//! chip's list of the two.
+//! backup on the presets and its public files, then a one-key wallet
+//! restored from test key 2, its checklist saving it into the test vault,
+//! and the wallet chip's list of the two; with `plan`, the backup's plan:
+//! the presets and the questions with the map for a one-key wallet and
+//! for Savings (2-of-3), the map's own page on a small panel, the
+//! checklist part done, and the blank template written beside the
+//! screens as `outbox-*`.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -40,7 +44,9 @@ use std::process::ExitCode;
 
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
-use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent};
+use faraday_core::{
+    Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent, bstep, qrow, qstep,
+};
 use osk_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
 
 struct Tour {
@@ -325,6 +331,7 @@ fn run(
         Some("vaultway") => return vaultway_tour(&mut t),
         Some("kept") => return kept_tour(&mut t),
         Some("again") => return again_tour(&mut t),
+        Some("plan") => return plan_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -797,10 +804,14 @@ fn run(
     }
     t.press(Action::Nav(Screen::Wallets));
     t.shot("wallets-list")?;
-    // The backup of Savings.
+    // The backup of Savings: the presets, then paper only.
     t.press(Action::Backup(0));
+    t.shot("backup-plan")?;
+    t.press(Action::BPreset(0));
+    t.press(Action::BChecklist);
     t.shot("backup-blank")?;
-    t.press(Action::BNext(0));
+    t.press(Action::BOut(0));
+    t.press(Action::BNext(bstep::BLANK));
     t.press(Action::BReveal);
     t.shot("backup-seed")?;
     // The copy scanned with its third word drawn wrong.
@@ -813,19 +824,19 @@ fn run(
     t.press(Action::BXor(2));
     t.shot("backup-xor")?;
     t.press(Action::BPaperHide);
-    t.press(Action::BNext(1));
-    t.shot("backup-public")?;
-    t.press(Action::BNext(2));
+    // The copy typed back.
+    t.press(Action::BCheck);
+    for c in copy_digits(&t, None)? {
+        t.app.event(Event::Key(Key::Char(char::from(c))));
+    }
+    t.press(Action::BCheck);
+    t.press(Action::BStep(bstep::SHEETS));
     t.press(Action::BOut(4));
     t.shot("backup-split")?;
-    t.press(Action::BNext(3));
+    t.press(Action::BStep(bstep::ENVELOPE));
     t.shot("backup-envelope")?;
-    // Every card done: what is in the Outbox, and the way to a stick.
-    for step in t.app.backup_steps() {
-        if !t.app.backup.as_ref().is_some_and(|b| b.done[step as usize]) {
-            t.press(Action::BNext(step));
-        }
-    }
+    // Every item done: what is in the Outbox, and the way to a stick.
+    t.press(Action::BNext(bstep::ENVELOPE));
     t.shot("backup-done")?;
     t.press(Action::WriteAsk);
     t.shot("backup-write-out")?;
@@ -1950,6 +1961,23 @@ fn copy_digits(t: &Tour, wrong: Option<usize>) -> Result<Vec<u8>, String> {
     Ok(digits)
 }
 
+/// The backup's plan from preset `preset`, with `ticks` ticked
+/// (`BAnswer`'s list and row), then its checklist.
+fn to_checklist(t: &mut Tour, preset: u8, ticks: &[(u8, u8)]) {
+    t.press(Action::BPreset(preset));
+    for &(list, row) in ticks {
+        t.press(Action::BAnswer(list, row));
+    }
+    t.press(Action::BChecklist);
+}
+
+/// Scrolls the checklist until the open item's Continue is on screen.
+fn scroll_to_open_next(t: &mut Tour) {
+    if let Some(n) = t.app.backup.as_ref().and_then(|b| b.open) {
+        scroll_to(t, Action::BNext(n));
+    }
+}
+
 /// Scrolls the page until `action` is on screen, then a little further.
 fn scroll_to(t: &mut Tour, action: Action) {
     for _ in 0..30 {
@@ -1966,12 +1994,12 @@ fn scroll_to(t: &mut Tour, action: Action) {
     }
 }
 
-/// The backup's seeds step checking the copy: with no camera, the typed
+/// The backup's copy item checking the copy: with no camera, the typed
 /// check; with one, Scan my copy, a copy with a word wrong on the sheet,
 /// and the match back on the step.
 /// Public files as codes and pictures: a signed message, Silent
 /// payments, Create's keys and Public files card for a 2-of-3 made here,
-/// the QR sheet with its PNG, the backup's public step for Savings, and a
+/// the QR sheet with its PNG, the backup's public files item for Savings, and a
 /// GPG key made in the test vault.
 fn public_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::Code;
@@ -2023,8 +2051,8 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("public-sheet")?;
     t.press(Action::Cancel);
     t.press(Action::Backup(built));
-    t.press(Action::BNext(0));
-    t.press(Action::BNext(1));
+    to_checklist(t, 2, &[(qrow::FORM, 1)]);
+    t.press(Action::BStep(bstep::PUBLIC));
     t.press(Action::PublicOut(built, 8));
     scroll_to(t, Action::PublicOut(built, 8));
     t.shot("public-backup")?;
@@ -2102,7 +2130,8 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
 fn copy_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     t.press(Action::Backup(0));
-    t.press(Action::BNext(0));
+    to_checklist(t, 0, &[]);
+    t.press(Action::BNext(bstep::BLANK));
     t.press(Action::BReveal);
     t.app.storage(StorageEvent::Cameras(Vec::new()));
     scroll_to(t, Action::BCheck);
@@ -2131,7 +2160,7 @@ fn copy_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// The backup's seeds step offering a seed into a vault or as a file:
+/// The backup's checklist offering a seed into a vault or as a file:
 /// with no vault open, the step and the secret sheet; with the test
 /// vault open, a seed it holds and one it does not, and the sheet; then
 /// the seed's SeedQR, Standard and Compact, put in the Outbox past the
@@ -2152,8 +2181,8 @@ fn seedfile_tour(t: &mut Tour) -> Result<(), String> {
         })
         .ok_or("test key 2 was not added")?;
     t.press(Action::Backup(0));
-    t.press(Action::BNext(0));
-    t.press(Action::BReveal);
+    to_checklist(t, 1, &[(qrow::SEEDS, 3)]);
+    t.press(Action::BStep(bstep::FILES));
     scroll_to(t, Action::BFile);
     t.shot("seedfile-no-vault")?;
     t.press(Action::BFile);
@@ -2194,12 +2223,11 @@ fn seedfile_tour(t: &mut Tour) -> Result<(), String> {
         return Err("the test vault did not open".into());
     }
     t.press(Action::Nav(Screen::Backup));
-    scroll_to(t, Action::BFile);
+    t.press(Action::BStep(bstep::VAULT));
     t.shot("seedfile-in-vault")?;
     t.press(Action::BKey(second));
-    t.press(Action::BReveal);
-    scroll_to(t, Action::BFile);
     t.shot("seedfile-vault")?;
+    t.press(Action::BStep(bstep::FILES));
     t.press(Action::BFile);
     t.press(Action::SecretForm(1));
     t.press(Action::SecretAck);
@@ -2237,11 +2265,12 @@ fn seedfile_tour(t: &mut Tour) -> Result<(), String> {
 fn kept_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     t.press(Action::Backup(0));
-    t.press(Action::BNext(0));
+    to_checklist(t, 0, &[(qrow::SEEDS, 3)]);
+    t.press(Action::BNext(bstep::BLANK));
     t.press(Action::BFile);
     t.press(Action::SecretAck);
     t.press(Action::SecretUnprotected);
-    scroll_to(t, Action::BNext(1));
+    scroll_to_open_next(t);
     t.shot("kept-two-of-three")?;
     let vault = testkit::files()?
         .into_iter()
@@ -2274,7 +2303,8 @@ fn kept_tour(t: &mut Tour) -> Result<(), String> {
         return Err("the test vault did not open".into());
     }
     t.press(Action::Backup(1));
-    t.press(Action::BNext(0));
+    to_checklist(t, 1, &[]);
+    t.press(Action::BNext(bstep::BLANK));
     t.press(Action::BReveal);
     t.press(Action::BCheck);
     let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
@@ -2283,7 +2313,7 @@ fn kept_tour(t: &mut Tour) -> Result<(), String> {
     let digits = osk_codec::seedqr::to_digits(&mn);
     let typed = String::from_utf8_lossy(digits.expose().as_bytes()).into_owned();
     type_text(t, &typed);
-    scroll_to(t, Action::BNext(1));
+    scroll_to_open_next(t);
     t.shot("kept-one-key")?;
     Ok(())
 }
@@ -2291,7 +2321,7 @@ fn kept_tour(t: &mut Tour) -> Result<(), String> {
 /// A loaded wallet backed up again: Savings loaded from its descriptor
 /// file with no seed here opens on its public files, every one on offer;
 /// a one-key wallet restored from test key 2 saves itself into the test
-/// vault from its public step; then the wallet chip's list of the two.
+/// vault from its checklist; then the wallet chip's list of the two.
 fn again_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::seeds::SeedsAction as S;
     t.copy_wallets();
@@ -2304,6 +2334,15 @@ fn again_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::LoadWallet(savings));
     t.press(Action::Backup(0));
     t.shot("again-watch-only")?;
+    let every = [
+        (qrow::SOFTWARE, 0),
+        (qrow::SOFTWARE, 1),
+        (qrow::SOFTWARE, 2),
+        (qrow::SOFTWARE, 3),
+        (qrow::FORM, 1),
+    ];
+    to_checklist(t, 2, &every);
+    t.press(Action::BStep(bstep::PUBLIC));
     scroll_to(t, Action::PublicOut(0, 7));
     t.shot("again-watch-only-files")?;
     let vault = testkit::files()?
@@ -2339,7 +2378,8 @@ fn again_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Seeds(S::Make));
     let w = t.app.session.wallets.len() - 1;
     t.press(Action::Backup(w));
-    t.press(Action::BStep(faraday_core::bstep::PUBLIC));
+    to_checklist(t, 1, &[]);
+    t.press(Action::BStep(bstep::WALLET));
     scroll_to(t, Action::Vault(V::OpenFrom(0, Screen::Backup)));
     t.shot("again-restored-locked")?;
     t.app.vaults.ms_per_unit = Some(180);
@@ -2363,6 +2403,58 @@ fn again_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.press(Action::BWallets);
     t.shot("again-wallets")?;
+    Ok(())
+}
+
+/// The backup's plan: for Spending (one key, test key 1 here), the
+/// presets, the seeds and the places with the map beside them; for
+/// Savings (2-of-3, one seed here), the seeds and the places, and on a
+/// small panel the map's own page; then the checklist part done, and the
+/// blank template written beside the screens.
+fn plan_tour(t: &mut Tour) -> Result<(), String> {
+    t.load_kit()?;
+    let find = |t: &Tour, name: &str| {
+        t.app
+            .session
+            .wallets
+            .iter()
+            .position(|w| w.name == name)
+            .ok_or(format!("no {name}"))
+    };
+    let spending = find(t, "Spending")?;
+    let savings = find(t, "Savings")?;
+    t.press(Action::Backup(spending));
+    t.shot("plan-presets-one-key")?;
+    t.press(Action::BPreset(1));
+    t.shot("plan-seeds-one-key")?;
+    t.press(Action::BQ(qstep::PLACES));
+    t.shot("plan-places-one-key")?;
+    t.press(Action::Backup(savings));
+    t.press(Action::BPreset(0));
+    t.shot("plan-seeds-two-of-three")?;
+    t.press(Action::BQ(qstep::PLACES));
+    t.shot("plan-places-two-of-three")?;
+    if t.app.backup_questions().contains(&qstep::MAP) {
+        t.press(Action::BQ(qstep::MAP));
+        t.shot("plan-map-two-of-three")?;
+    }
+    t.press(Action::BChecklist);
+    t.press(Action::BOut(0));
+    t.press(Action::BStep(bstep::SHEETS));
+    t.press(Action::BOut(4));
+    t.shot("plan-checklist-part-done")?;
+    t.press(Action::BStep(bstep::ENVELOPE));
+    t.shot("plan-envelopes")?;
+    for item in t
+        .app
+        .outbox
+        .iter()
+        .filter(|i| i.name.starts_with("blank-template"))
+    {
+        let path = t.out.join(format!("outbox-{}", item.name));
+        std::fs::write(&path, &item.bytes).map_err(|e| format!("{}: {e}", path.display()))?;
+        println!("{}", path.display());
+    }
     Ok(())
 }
 
@@ -2814,7 +2906,7 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept]"
+            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan]"
         );
         return ExitCode::from(2);
     }
@@ -2845,12 +2937,12 @@ fn main() -> ExitCode {
     if only.is_some_and(|m| {
         ![
             "spend", "themes", "compact", "seeds", "keys", "visit", "copy", "scan", "public",
-            "seedfile", "vaultway", "kept", "again",
+            "seedfile", "vaultway", "kept", "again", "plan",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept or again"
+            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again or plan"
         );
         return ExitCode::from(2);
     }

@@ -184,10 +184,10 @@ fn a_finished_backup_offers_a_stick_and_asks_to_lock_first() {
     let mut app = create_to_vault_step();
     let wallet = app.create.as_ref().unwrap().built.unwrap();
     app.press(Action::Backup(wallet));
-    for step in app.backup_steps() {
-        app.press(Action::BNext(step));
-    }
-    app.press(Action::BSheets);
+    app.press(Action::BPreset(0));
+    app.press(Action::BChecklist);
+    app.press(Action::BOut(0));
+    app.press(Action::BOut(3));
     let pdfs = app
         .outbox
         .iter()
