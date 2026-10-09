@@ -68,13 +68,10 @@ touch.
 <td width="25%"><img src="docs/screenshots/pi-add-a-key.png" alt="Typing a seed's words" width="100%"></td>
 <td width="25%"><img src="docs/screenshots/pi-restore-m-of-n.png" alt="Choosing M of N" width="100%"></td>
 </tr>
-<tr>
-<td>Home</td>
-<td>A new key from dice rolls</td>
-<td>Add a key: typing a seed's words</td>
-<td>Restore: 2 of 3</td>
-</tr>
 </table>
+
+Left to right: Home; a new key from dice rolls; Add a key, typing a
+seed's words; Restore, 2 of 3.
 
 ## Starting a session: the boot import
 
