@@ -36,6 +36,9 @@ changes and nothing else has to be kept in step.
 - The remote machine that builds the images is "the build machine" in
   everything written here: docs, comments, commit messages. Never its
   hostname, its owner's name or its address.
+- Before pushing, check every new commit for personal information:
+  names, email addresses, hostnames, IP addresses, local paths, keys
+  and tokens, in the diff and in the commit message.
 - Do not use `rm`; use `trash`. Use absolute paths in shell commands.
 - Agents do not commit and do not spawn agents; the orchestrator reviews
   and commits.
