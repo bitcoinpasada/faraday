@@ -3350,6 +3350,7 @@ fn spend(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         switch: true,
         note: None,
         chip: None,
+        chip_tap: None,
     };
     let (next, again) = {
         let app_ref: &Faraday = app;
@@ -4818,7 +4819,15 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             guide: Some(guide::backup(k, m, n, keys.len())),
         })
         .collect();
-    let heading = format!("Back up {}", wallet.name);
+    // With more than one wallet loaded, the one backed up is a chip that
+    // opens the list of them.
+    let many = app.session.wallets.len() > 1;
+    let heading = if many {
+        "Back up a wallet".to_string()
+    } else {
+        format!("Back up {}", wallet.name)
+    };
+    let pick = b.pick && many;
     // A small panel has no room for the side panel; what it counts is in
     // the steps and the foot.
     let compact = ui.compact;
@@ -4839,9 +4848,11 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         guided: app.guided,
         switch: true,
         note: None,
-        chip: None,
+        chip: many.then_some(wallet.name.as_str()),
+        chip_tap: many.then_some(Action::BWallets),
     };
     let scroll = b.scroll;
+    ui.chip_at = None;
     let all_done = steps.iter().all(|&k| b.done[k as usize]);
     let from_create = app.create.as_ref().and_then(|c| c.built) == Some(b.wallet);
     let (next, again) = {
@@ -4870,6 +4881,40 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if !compact {
         backup_panel(app, ui, x0 + cw - panel_w, panel_w, h);
+    }
+    if pick && let Some((cx, cy, chip_w)) = ui.chip_at {
+        let right = if compact { x0 + cw } else { x0 + cw - panel_w } - 16.0;
+        wallet_pick(app, ui, cx, cy + 6.0, chip_w, right);
+    }
+}
+
+/// The loaded wallets, one row each, under the backup's wallet chip at
+/// (x, y): a press on one starts its backup, a press beside the list
+/// closes it.
+fn wallet_pick(app: &Faraday, ui: &mut Ui, x: f32, y: f32, chip_w: f32, right: f32) {
+    let current = app.backup.as_ref().map_or(0, |b| b.wallet);
+    let lw = 340.0_f32.max(chip_w).min(right - x);
+    let rh = 44.0;
+    let n = app.session.wallets.len();
+    let lh = n as f32 * rh + 8.0;
+    ui.hit_around(x, y, lw, lh, Action::BWallets);
+    ui.shadow(x, y, lw, lh, 12.0);
+    ui.fill(x, y, lw, lh, 12.0, SURFACE);
+    ui.stroke(x, y, lw, lh, 12.0, BORDER);
+    for (k, wl) in app.session.wallets.iter().enumerate() {
+        let ry = y + 4.0 + k as f32 * rh;
+        let (fg, weight) = if k == current {
+            (ACCENT, W::S)
+        } else {
+            (TEXT, W::R)
+        };
+        // The name first, up to half the row; the shape in what is left.
+        let nw = ui.measure(14.0, weight, &wl.name).min(lw / 2.0);
+        let name = ui.fit(14.0, weight, &wl.name, nw);
+        let shape = ui.fit(12.0, W::R, &Session::shape(wl), lw - nw - 48.0);
+        ui.text_mid(x + 14.0, ry, rh, 14.0, weight, fg, &name);
+        ui.text_right(x + lw - 14.0, ry, rh, 12.0, W::R, MUTED, &shape);
+        ui.hit(x + 4.0, ry, lw - 8.0, rh, Action::Backup(k));
     }
 }
 
@@ -5461,62 +5506,8 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             }
         }
         bstep::PUBLIC => {
-            // Each file with its own button, and Show as QR and PNG beside
-            // the ones a wallet reads from a code.
-            let stem = crate::file_stem(&wallet.name);
-            let wi = b.wallet;
-            let mut rows: Vec<FileRow<&str>> = vec![
-                (
-                    "Descriptor",
-                    "Any wallet software",
-                    format!("{stem}-descriptor.txt"),
-                    Action::BOut(1),
-                    vec![
-                        ("Show as QR", Action::QrWallet(wi)),
-                        ("PNG", Action::BOut(8)),
-                    ],
-                ),
-                (
-                    "Wallet file",
-                    "Sparrow, Specter",
-                    format!("{stem}-wallet.json"),
-                    Action::BOut(5),
-                    Vec::new(),
-                ),
-            ];
-            if crate::backup::multisig_config(wallet, None).is_some() {
-                rows.push((
-                    "Multisig config",
-                    "Coldcard, Keystone, Passport",
-                    format!("{stem}-multisig-config.txt"),
-                    Action::BOut(2),
-                    vec![
-                        ("Show as QR", Action::ShowCode(Code::MultisigConfig(wi))),
-                        ("PNG", Action::CodePng(Code::MultisigConfig(wi))),
-                    ],
-                ));
-            }
-            rows.push((
-                "Backup sheet",
-                "A PDF to print",
-                format!("{stem}-backup.pdf"),
-                Action::BOut(3),
-                Vec::new(),
-            ));
-            for (name, detail, file, action, extra) in &rows {
-                let done = app.outbox.iter().any(|f| &f.name == file);
-                cy += file_row(
-                    ui,
-                    x,
-                    cy,
-                    w,
-                    name,
-                    detail,
-                    done.then_some("In the Outbox"),
-                    ("To the Outbox", *action),
-                    extra,
-                );
-            }
+            cy += public_rows(app, ui, x, cy, w, b.wallet);
+            cy += wallet_vault(app, ui, x, cy, w, b.wallet);
             cy += 12.0;
             if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
                 cy += 48.0;
@@ -5630,6 +5621,50 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
 /// Under a seed on the backup's seeds step, after the copy by hand: a
 /// further copy into the open vault, as Vaults saves a key, and a file,
 /// through the secret sheet. Returns the height used.
+/// On the backup's public step: the wallet in the open vault, or the
+/// button that saves it there, or the way to make or unlock one and back
+/// to this step. Returns its height.
+fn wallet_vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) -> f32 {
+    use crate::vault_screens::vault_has_wallet;
+    use crate::vaults::VaultAction as V;
+    let Some(wallet) = app.session.wallets.get(i) else {
+        return 0.0;
+    };
+    let mut cy = y + 8.0;
+    section_label(ui, x, cy, "Vault");
+    cy += 28.0;
+    let v = app.vaults.current;
+    match app.vaults.open.get(v) {
+        Some(open) if vault_has_wallet(app, v, wallet) => {
+            let line = ui.fit(13.0, W::S, &format!("Wallet in {}", open.name), w);
+            ui.text(x, cy, 13.0, W::S, OK, &line);
+            cy += 30.0;
+        }
+        Some(open) => {
+            let save = format!("Save the wallet into {}", open.name);
+            cy += wrap_buttons(
+                ui,
+                x,
+                cy,
+                w,
+                36.0,
+                &[(
+                    save.as_str(),
+                    Style::Secondary,
+                    Action::Vault(V::SaveWallet(i)),
+                )],
+            ) + 4.0;
+        }
+        None => {
+            if let Some((label, a)) = app.vault_way(Screen::Backup) {
+                cy += wrap_buttons(ui, x, cy, w, 36.0, &[(label.as_str(), Style::Secondary, a)])
+                    + 4.0;
+            }
+        }
+    }
+    cy - y
+}
+
 fn seed_copies(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, k: usize) -> f32 {
     use crate::vault_screens::vault_has_key;
     let Some(key) = app.session.keys.get(k) else {
@@ -5966,6 +6001,7 @@ fn message_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         switch: true,
         note: None,
         chip: None,
+        chip_tap: None,
     };
     let scroll = m.scroll;
     let (next, again) = {
@@ -6442,6 +6478,7 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         switch: true,
         note: None,
         chip: None,
+        chip_tap: None,
     };
     let scroll = c.scroll;
     let (next, again) = {
@@ -7169,43 +7206,62 @@ fn file_row_extra(
 /// The Public files card of Create: what the wallet just made gives the
 /// cosigners and watch-only software, each to the Outbox.
 fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    use crate::create::Source;
     let c = app.create.as_ref().expect("create");
     let mut cy = y;
     let Some(i) = c.built else {
         ui.text(x, cy, 13.0, W::R, DIM, "Make the wallet first");
         return 30.0;
     };
+    ui.chip(x, cy, "Public · anyone may read these", MUTED, INNER);
+    cy += 38.0;
+    cy += public_rows(app, ui, x, cy, w, i);
+    cy += 10.0;
+    cy += buttons_and_next(
+        ui,
+        x,
+        cy,
+        w,
+        &[],
+        Some(("Continue", Action::CNext(crate::cstep::PUBLIC))),
+    );
+    cy + 4.0 - y
+}
+
+/// Wallet `i`'s public files, as Create's Public files card and the
+/// backup's public step both offer them: the descriptor, the wallet
+/// file, the multisig config, the backup sheet, the BSMS record, Bitcoin
+/// Core's import, and each key held here with its BSMS record, for the
+/// cosigners. Each has its own button, and Show as QR and PNG beside the
+/// ones a wallet or a person reads from a code.
+fn public_files(app: &Faraday, i: usize) -> Vec<FileRow<'static, String>> {
+    use osk_bip::policy::{Template, Wrapper};
     let Some(wl) = app.session.wallets.get(i) else {
-        return 0.0;
+        return Vec::new();
     };
     let stem = crate::file_stem(&wl.name);
-    let multi = crate::backup::multisig_config(wl, None).is_some();
-    // Each file with its own button, and Show as QR and PNG beside the
-    // ones a wallet or a person reads from a code.
     let codes = |show: Action, png: Action| vec![("Show as QR", show), ("PNG", png)];
     let mut rows: Vec<FileRow<String>> = vec![
         (
             "Descriptor".to_string(),
             "Any wallet software",
             format!("{stem}-descriptor.txt"),
-            Action::CPublic(1),
-            codes(Action::QrWallet(i), Action::CPublic(8)),
+            Action::PublicOut(i, 1),
+            codes(Action::QrWallet(i), Action::PublicOut(i, 8)),
         ),
         (
             "Wallet file".to_string(),
             "Sparrow, Specter",
             format!("{stem}-wallet.json"),
-            Action::CPublic(5),
+            Action::PublicOut(i, 5),
             Vec::new(),
         ),
     ];
-    if multi {
+    if crate::backup::multisig_config(wl, None).is_some() {
         rows.push((
             "Multisig config".to_string(),
             "Coldcard, Keystone, Passport",
             format!("{stem}-multisig-config.txt"),
-            Action::CPublic(2),
+            Action::PublicOut(i, 2),
             codes(
                 Action::ShowCode(Code::MultisigConfig(i)),
                 Action::CodePng(Code::MultisigConfig(i)),
@@ -7214,67 +7270,81 @@ fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     }
     rows.push((
         "Backup sheet".to_string(),
-        "Printed on the desktop app",
+        "A PDF to print",
         format!("{stem}-backup.pdf"),
-        Action::CPublic(3),
+        Action::PublicOut(i, 3),
         Vec::new(),
     ));
+    // BIP 129 covers wsh and sh(wsh) multisig.
     if matches!(
-        c.kind,
-        crate::create::NewKind::Multi | crate::create::NewKind::MultiNested
+        wl.policy.template(),
+        Template::Multi {
+            wrapper: Wrapper::Wsh | Wrapper::ShWsh,
+            ..
+        }
     ) {
         rows.push((
             "BSMS descriptor record".to_string(),
             "BIP 129: Coldcard, Sparrow, Nunchuk",
             format!("{stem}-bsms.txt"),
-            Action::CPublic(6),
+            Action::PublicOut(i, 6),
             codes(
                 Action::ShowCode(Code::Bsms(i)),
                 Action::CodePng(Code::Bsms(i)),
             ),
         ));
     }
-    rows.push((
-        "Bitcoin Core import".to_string(),
-        "importdescriptors, watch-only",
-        format!("{stem}-bitcoin-core.json"),
-        Action::CPublic(7),
-        Vec::new(),
-    ));
-    // The account key of each key held here, for the cosigners.
-    if c.kind.multi() && !c.kind.threshold() {
-        for (slot, s) in c.slots.iter().enumerate() {
-            if let Source::Here(fp) = s {
-                let fp = fp_text(osk_bip::keys::Fingerprint(*fp));
-                let k = slot as u8;
-                rows.push((
-                    format!("Key {fp}"),
-                    "For the cosigners",
-                    format!("xpub-{fp}.txt"),
-                    Action::CKeyOut(k),
-                    codes(Action::CKeyQr(k), Action::CodePng(Code::Key(k))),
-                ));
-                if matches!(
-                    c.kind,
-                    crate::create::NewKind::Multi | crate::create::NewKind::MultiNested
-                ) {
-                    rows.push((
-                        format!("Key {fp}, BSMS"),
-                        "Signed xpub record, BIP 129",
-                        format!("xpub-{fp}-bsms.txt"),
-                        Action::CKeyBsms(k),
-                        codes(
-                            Action::ShowCode(Code::KeyBsms(k)),
-                            Action::CodePng(Code::KeyBsms(k)),
-                        ),
-                    ));
-                }
-            }
+    // A silent payments wallet has no descriptor Bitcoin Core imports.
+    if wl.policy.silent().is_none() {
+        rows.push((
+            "Bitcoin Core import".to_string(),
+            "importdescriptors, watch-only",
+            format!("{stem}-bitcoin-core.json"),
+            Action::PublicOut(i, 7),
+            Vec::new(),
+        ));
+    }
+    // The account key of each seed held here, for the cosigners.
+    for slot in app.wallet_keys_here(i) {
+        let Ok(k) = app.wallet_key(i, slot) else {
+            continue;
+        };
+        let fp = k.fp.clone();
+        let record = matches!(
+            k.standard,
+            Some(crate::create::NewKind::Multi | crate::create::NewKind::MultiNested)
+        );
+        rows.push((
+            format!("Key {fp}"),
+            "For the cosigners",
+            format!("xpub-{fp}.txt"),
+            Action::WalletKeyOut(i, slot),
+            codes(
+                Action::ShowCode(Code::WalletKey(i, slot)),
+                Action::CodePng(Code::WalletKey(i, slot)),
+            ),
+        ));
+        if record {
+            rows.push((
+                format!("Key {fp}, BSMS"),
+                "Signed xpub record, BIP 129",
+                format!("xpub-{fp}-bsms.txt"),
+                Action::WalletKeyBsms(i, slot),
+                codes(
+                    Action::ShowCode(Code::WalletKeyBsms(i, slot)),
+                    Action::CodePng(Code::WalletKeyBsms(i, slot)),
+                ),
+            ));
         }
     }
-    ui.chip(x, cy, "Public · anyone may read these", MUTED, INNER);
-    cy += 38.0;
-    for (name, detail, file, action, extra) in &rows {
+    rows
+}
+
+/// Draws [`public_files`] of wallet `i`, each marked once its file is in
+/// the Outbox. Returns their height.
+fn public_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) -> f32 {
+    let mut cy = y;
+    for (name, detail, file, action, extra) in &public_files(app, i) {
         let done = app.outbox.iter().any(|f| &f.name == file);
         cy += file_row(
             ui,
@@ -7288,16 +7358,7 @@ fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
             extra,
         );
     }
-    cy += 10.0;
-    cy += buttons_and_next(
-        ui,
-        x,
-        cy,
-        w,
-        &[],
-        Some(("Continue", Action::CNext(crate::cstep::PUBLIC))),
-    );
-    cy + 4.0 - y
+    cy - y
 }
 
 // ---------------------------------------------------------------------
@@ -7376,6 +7437,7 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         switch: true,
         note: None,
         chip: None,
+        chip_tap: None,
     };
     let scroll = r.scroll;
     let (next, again) = {

@@ -234,7 +234,19 @@ secret nonce unencrypted, with the vault's encryption.
 | FROST | Kind → Quorum → **Deal** (on this device, as OpenSigner does) → each share to its own vault slot or exported to its holder → Check → Backup → Save |
 | Recovery | Kind → Primary keys → **Recovery paths** (up to three, each with keys and a timelock) → Build → Check → Backup → Save |
 
-**Backup** keeps four steps, adjusted for a machine with no printer:
+**Backup** keeps four steps, adjusted for a machine with no printer.
+Any loaded wallet can be backed up again (2026-10-09), not only the one
+just made: from the wallet's card (**Back up**, that card's wallet),
+Start's **Back up a wallet** and the Tools tile (the wallet last picked
+on Wallets), Create's last step and Restore's **Back it up again**. With
+more than one wallet loaded, the flow's head reads "Back up a wallet"
+and the wallet's name is a chip; a press on it lists the loaded
+wallets, one row each with its shape, and a press on one starts the
+backup again on that wallet. A wallet with seeds here opens on the
+blank sheets; one with none (watch only) opens on its public files, the
+template and seeds steps still a press away, the seeds step saying
+that no key of the wallet was loaded from words here. Nothing is marked
+done that was not.
 
 1. **The blank sheets.** A template holding no secret (numbered word
    lines, path, network, the SeedQR grid's fixed squares) goes to the
@@ -270,7 +282,18 @@ secret nonce unencrypted, with the vault's encryption.
    name, shape, key fingerprints and descriptor checksum under the code;
    past that bound, one labelled picture per BBQr part), and a
    backup sheet (descriptor, keys, first addresses) as a file in the
-   Outbox. For a multisig, **Split between signers**: a split plan
+   Outbox. The step lists the same files as Create's Public files card,
+   drawn from the wallet itself so a loaded or restored wallet gets them
+   all: descriptor, wallet file, multisig config, backup sheet, the BSMS
+   descriptor record (`wsh` and `sh(wsh)` multisig), Bitcoin Core's
+   import (any wallet but silent payments), and, for a wallet of more
+   than one key, each key whose seed is here (`xpub-{fp}.txt`, the key
+   as the wallet's descriptor writes it) with its signed BSMS key record
+   where BIP 129 covers it and the key is at Create's own account. Under
+   them, **Save the wallet into {vault}**, "Wallet in {vault}" once the
+   open vault holds it, or with none open **Make a vault**, **Unlock
+   {name}** or **Unlock a vault**, which come back to this step. For a
+   multisig, **Split between signers**: a split plan
    where each sheet omits at most M−1 keys, so any quorum can rebuild and no
    single holder can watch. The sheet states the measured minimum rebuild
    group, and that this is not secret sharing. Each share goes out as its

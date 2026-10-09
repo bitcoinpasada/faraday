@@ -287,6 +287,21 @@ guarantees for this file's rule:
   vault, whether its copy by hand was checked, whether its file is in
   the Outbox unprotected, or not here (backed up on its own device). With
   vault files and none open, it says the vaults were not checked.
+- **Any loaded wallet backs up again, with every file on offer**
+  (owner, 2026-10-09; `docs/WALLETS.md` §5). Entries: the wallet's card
+  (**Back up**, also on the small panel), Start's **Back up a wallet**,
+  the Tools tile, Create's last step and Restore's **Back it up
+  again**. With more than one wallet loaded the head is "Back up a
+  wallet" with the wallet's name as a chip, which lists the loaded
+  wallets; a press on one starts the backup on it. A watch-only wallet
+  (no seeds here) opens on the public step; any other on the blank
+  sheets; every step stays a press away. Steps: blank sheets, seeds,
+  the wallet in xpubs, split (multisig), envelope. The public step and
+  Create's Public files card are one list drawn from the wallet:
+  descriptor, wallet file, multisig config, backup sheet, BSMS record,
+  Bitcoin Core import, each key held here and its BSMS key record. The
+  public step ends with **Save the wallet into {vault}** (or the way to
+  make or unlock one, back to the step); the seeds step has the seeds'.
 - **The descriptor and its shares as pictures** (2026-10-09). Create's
   Public files card and the backup's public step (**PNG** on the
   descriptor's row) write `{name}-descriptor.png`: the
@@ -307,7 +322,7 @@ guarantees for this file's rule:
   config, BSMS descriptor record, each key held here and its BSMS key
   record), Create's Keys card (**Show xpub QR**, **Xpub PNG to the
   Outbox**, **Xpub file to the Outbox** under each key held here), the
-  backup's public step (descriptor, multisig config), Sign a message
+  backup's public step (the same rows as Create's card), Sign a message
   (**Put in the Outbox**, **Show as QR**, **PNG to the Outbox**) and
   Silent payments (**Record to the Outbox**, **Record as QR**, **Record
   as PNG**). The QR sheet carries **PNG to the Outbox** (**PNG** beside

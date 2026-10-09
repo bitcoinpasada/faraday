@@ -64,8 +64,12 @@ pub struct Column<'a> {
     pub switch: bool,
     /// A line under the title, about the page as a whole.
     pub note: Option<&'a str>,
-    /// A chip beside the title: where the flow goes next.
+    /// A chip beside the title: where the flow goes next, or what it
+    /// works on.
     pub chip: Option<&'a str>,
+    /// What a press on the chip does; where it was drawn is left in
+    /// [`Ui::chip_at`].
+    pub chip_tap: Option<Action>,
 }
 
 /// Draws the cards. `body` draws the open card's controls at (x, y) in a
@@ -111,7 +115,12 @@ pub fn column_foot(
     }
     let hw = ui.text(x, y, 26.0, W::S, TEXT, col.heading);
     if let Some(chip) = col.chip {
-        ui.chip(x + hw + 14.0, y + 4.0, chip, ACCENT, ACCENT.with_alpha(30));
+        let cx = x + hw + 14.0;
+        let cw = ui.chip(cx, y + 4.0, chip, ACCENT, ACCENT.with_alpha(30));
+        if let Some(a) = col.chip_tap {
+            ui.hit(cx, y + 4.0, cw, 26.0, a);
+            ui.chip_at = Some((cx, y + 30.0, cw));
+        }
     }
     // Steps only or Guided, beside the title; laid out from the right.
     let mut bx = x + w;
@@ -323,7 +332,11 @@ fn paged(
     let inner = w - 2.0 * M;
     if let Some(chip) = col.chip {
         let chip = ui.fit(12.0, W::R, chip, inner - 34.0);
-        ui.chip(M, y, &chip, ACCENT, ACCENT.with_alpha(30));
+        let cw = ui.chip(M, y, &chip, ACCENT, ACCENT.with_alpha(30));
+        if let Some(a) = col.chip_tap {
+            ui.hit(M, y, cw, 26.0, a);
+            ui.chip_at = Some((M, y + 26.0, cw));
+        }
         y += 36.0;
     }
 

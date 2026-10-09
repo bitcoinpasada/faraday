@@ -65,6 +65,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
              loaded and what each wallet needs next.",
         ),
         chip: None,
+        chip_tap: None,
     };
     let scroll = app.family.scroll;
     let (next, again) = {

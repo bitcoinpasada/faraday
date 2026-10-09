@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept]
+//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again]
 //! ```
 //!
 //! `TESTKIT_DIR` is what `faraday-testkit` wrote; its files stand in
@@ -24,7 +24,11 @@
 //! with the test vault locked, Unlock for it and the GPG keys it comes
 //! back to; with `kept`, the backup's seeds step and "This backup" panel
 //! for Savings (2-of-3, one seed here, put out as a file, no vault) and
-//! for Spending (one key, in the open test vault, its copy checked).
+//! for Spending (one key, in the open test vault, its copy checked); with
+//! `again`, a wallet loaded again: Savings with no seed here, opening its
+//! backup on the public files, then a one-key wallet restored from test
+//! key 2, its public step saving it into the test vault, and the wallet
+//! chip's list of the two.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -320,6 +324,7 @@ fn run(
         Some("seedfile") => return seedfile_tour(&mut t),
         Some("vaultway") => return vaultway_tour(&mut t),
         Some("kept") => return kept_tour(&mut t),
+        Some("again") => return again_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -1542,8 +1547,9 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     }
     // Then the public files, to the Outbox.
     t.press(Action::CNext(6));
-    t.press(Action::CPublic(1));
-    t.press(Action::CPublic(2));
+    let built = t.app.create.as_ref().and_then(|c| c.built).unwrap_or(0);
+    t.press(Action::PublicOut(built, 1));
+    t.press(Action::PublicOut(built, 2));
     t.shot("create-public")?;
     let outbox: Vec<_> = t.app.outbox.iter().map(|i| i.kind.exposure()).collect();
     if outbox.contains(&faraday_core::secrets::Exposure::Secret) {
@@ -2004,23 +2010,23 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
         t.press(Action::CNext(step));
     }
     // Found while it is offered: once done, the row says so instead.
-    scroll_to(t, Action::CPublic(8));
-    t.press(Action::CPublic(8));
-    t.shot("public-create")?;
     let built = t.app.create.as_ref().and_then(|c| c.built).unwrap_or(0);
+    scroll_to(t, Action::PublicOut(built, 8));
+    t.press(Action::PublicOut(built, 8));
+    t.shot("public-create")?;
     t.press(Action::CodePng(Code::MultisigConfig(built)));
     t.press(Action::CodePng(Code::Bsms(built)));
-    scroll_to(t, Action::CodePng(Code::KeyBsms(0)));
+    scroll_to(t, Action::CodePng(Code::WalletKeyBsms(built, 0)));
     t.shot("public-create-keys")?;
-    t.press(Action::CodePng(Code::Key(0)));
+    t.press(Action::CodePng(Code::WalletKey(built, 0)));
     t.press(Action::ShowCode(Code::MultisigConfig(built)));
     t.shot("public-sheet")?;
     t.press(Action::Cancel);
-    t.press(Action::Backup(0));
+    t.press(Action::Backup(built));
     t.press(Action::BNext(0));
     t.press(Action::BNext(1));
-    t.press(Action::BOut(8));
-    scroll_to(t, Action::BOut(8));
+    t.press(Action::PublicOut(built, 8));
+    scroll_to(t, Action::PublicOut(built, 8));
     t.shot("public-backup")?;
     // A GPG key made in the test vault: its public key and revocation,
     // and a signature, each as a code and a picture.
@@ -2279,6 +2285,84 @@ fn kept_tour(t: &mut Tour) -> Result<(), String> {
     type_text(t, &typed);
     scroll_to(t, Action::BNext(1));
     t.shot("kept-one-key")?;
+    Ok(())
+}
+
+/// A loaded wallet backed up again: Savings loaded from its descriptor
+/// file with no seed here opens on its public files, every one on offer;
+/// a one-key wallet restored from test key 2 saves itself into the test
+/// vault from its public step; then the wallet chip's list of the two.
+fn again_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::seeds::SeedsAction as S;
+    t.copy_wallets();
+    let savings = t
+        .app
+        .inbox
+        .iter()
+        .position(|it| it.name == "savings-wallet.txt")
+        .ok_or("savings-wallet.txt is not in Files")?;
+    t.press(Action::LoadWallet(savings));
+    t.press(Action::Backup(0));
+    t.shot("again-watch-only")?;
+    scroll_to(t, Action::PublicOut(0, 7));
+    t.shot("again-watch-only-files")?;
+    let vault = testkit::files()?
+        .into_iter()
+        .find(|(n, _)| n == "vault.ofv")
+        .ok_or("no test vault")?;
+    let inbox: Vec<(String, Vec<u8>)> = t
+        .app
+        .inbox
+        .iter()
+        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .chain(std::iter::once(vault))
+        .collect();
+    t.app.storage(StorageEvent::Restored {
+        inbox,
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.press(Action::Entry(None));
+    t.type_key(1);
+    let fp = t
+        .app
+        .session
+        .keys
+        .last()
+        .ok_or("test key 2 did not load")?
+        .master
+        .fingerprint();
+    t.press(Action::KeyWallet(fp.0, 1));
+    t.press(Action::Seeds(S::Make));
+    let w = t.app.session.wallets.len() - 1;
+    t.press(Action::Backup(w));
+    t.press(Action::BStep(faraday_core::bstep::PUBLIC));
+    scroll_to(t, Action::Vault(V::OpenFrom(0, Screen::Backup)));
+    t.shot("again-restored-locked")?;
+    t.app.vaults.ms_per_unit = Some(180);
+    t.press(Action::Vault(V::OpenFrom(0, Screen::Backup)));
+    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    t.press(Action::Vault(V::Unlock));
+    for _ in 0..20 {
+        t.tick();
+    }
+    if t.app.vaults.open.len() != 1 || t.app.screen != Screen::Backup {
+        return Err("the test vault did not open back to the backup".into());
+    }
+    scroll_to(t, Action::Vault(V::SaveWallet(w)));
+    t.shot("again-restored-vault")?;
+    t.press(Action::Vault(V::SaveWallet(w)));
+    t.shot("again-restored-saved")?;
+    // Back to the head, where the chip is.
+    for _ in 0..10 {
+        scroll(t, -120);
+        t.app.settle();
+    }
+    t.press(Action::BWallets);
+    t.shot("again-wallets")?;
     Ok(())
 }
 
@@ -2761,12 +2845,12 @@ fn main() -> ExitCode {
     if only.is_some_and(|m| {
         ![
             "spend", "themes", "compact", "seeds", "keys", "visit", "copy", "scan", "public",
-            "seedfile", "vaultway", "kept",
+            "seedfile", "vaultway", "kept", "again",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway or kept"
+            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept or again"
         );
         return ExitCode::from(2);
     }

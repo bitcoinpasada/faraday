@@ -876,6 +876,7 @@ pub(crate) fn create(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         switch: true,
         note: None,
         chip: then.as_deref(),
+        chip_tap: None,
     };
     let scroll = c.scroll;
     let (next, again) = {

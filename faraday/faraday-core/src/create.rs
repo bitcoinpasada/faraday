@@ -86,6 +86,29 @@ impl NewKind {
         }
     }
 
+    /// The kind a wallet of this policy is, when it is one Create makes:
+    /// what names its keys and signs their BIP 129 records.
+    pub fn of(policy: &WalletPolicy) -> Option<NewKind> {
+        use osk_bip::policy::{Template, Wrapper};
+        Some(match policy.template() {
+            Template::Single { script } => match script {
+                ScriptType::NativeSegwit => NewKind::NativeSegwit,
+                ScriptType::Taproot => NewKind::Taproot,
+                ScriptType::NestedSegwit => NewKind::NestedSegwit,
+                ScriptType::Legacy => NewKind::Legacy,
+            },
+            Template::Multi { wrapper, .. } => match wrapper {
+                Wrapper::Wsh => NewKind::Multi,
+                Wrapper::ShWsh => NewKind::MultiNested,
+                Wrapper::Sh => NewKind::MultiLegacy,
+            },
+            Template::Tree if policy.tapscript_quorum().is_some() => NewKind::TapMulti,
+            Template::MuSig => NewKind::MuSig,
+            Template::Threshold { .. } => NewKind::Threshold,
+            _ => return None,
+        })
+    }
+
     /// Whether it has more than one key.
     pub fn multi(self) -> bool {
         matches!(

@@ -449,6 +449,9 @@ pub struct Ui<'a> {
     pub follow_to: Option<f32>,
     /// The display is a small panel: one column, a page per step.
     pub compact: bool,
+    /// Where the step column drew a chip that a press opens, this
+    /// frame: its left edge, its foot and its width, units.
+    pub chip_at: Option<(f32, f32, f32)>,
     /// Hits are clipped to this rather than to the drawing's clip while
     /// a card's body is revealed: what is not yet uncovered can still be
     /// pressed where it will be.
@@ -541,6 +544,7 @@ impl<'a> Ui<'a> {
             column: None,
             follow_to: None,
             compact: false,
+            chip_at: None,
             hit_clip: None,
             quiet_hover: false,
             outside: None,

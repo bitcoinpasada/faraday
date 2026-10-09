@@ -489,9 +489,15 @@ pub enum Action {
     /// Save the wallet just made, and its keys held here, into the open
     /// vault.
     CSaveAll,
-    /// One of the wallet just made's public files to the Outbox, as
-    /// `public_out` numbers them.
-    CPublic(u8),
+    /// One of wallet n's public files to the Outbox, as `public_out`
+    /// numbers them: what Create's Public files card and the backup's
+    /// public step offer.
+    PublicOut(usize, u8),
+    /// The account key in wallet n's slot k, held here, to the Outbox
+    /// for the cosigners.
+    WalletKeyOut(usize, u8),
+    /// That key as a BIP 129 key record, signed, to the Outbox.
+    WalletKeyBsms(usize, u8),
     /// Open the stick visit from a flow, which it returns to when the
     /// stick is pulled.
     VisitFrom(Screen),
@@ -541,6 +547,9 @@ pub enum Action {
     OpenWallet(usize),
     /// Start backing up a wallet.
     Backup(usize),
+    /// Open or close the list of loaded wallets under the backup's
+    /// wallet chip.
+    BWallets,
     /// Open or close a backup card.
     BStep(u8),
     /// Close a backup card as done and open the next.
@@ -1235,6 +1244,11 @@ pub enum Code {
     Key(u8),
     /// That key's signed BIP 129 key record.
     KeyBsms(u8),
+    /// The account key in wallet n's slot k, held here, as the wallet's
+    /// descriptor writes it.
+    WalletKey(usize, u8),
+    /// That key's signed BIP 129 key record.
+    WalletKeyBsms(usize, u8),
     /// The silent payments address on show: as it is, or as a
     /// `bitcoin:` link.
     Silent(bool),
@@ -1728,6 +1742,21 @@ pub struct SpendState {
     pub round_spent: bool,
 }
 
+/// An account key of a loaded wallet held here, as
+/// [`Faraday::wallet_key`] finds it.
+pub struct WalletKey<'a> {
+    /// The master fingerprint, as text.
+    pub fp: String,
+    /// `[fingerprint/path]xpub`, as the wallet's descriptor writes it.
+    pub text: String,
+    /// What kind of wallet it is a key of, by name.
+    pub kind: String,
+    /// The kind, when the key is at Create's own account for it.
+    pub standard: Option<create::NewKind>,
+    /// The seed's master key.
+    pub master: &'a osk_bip::keys::MasterKey,
+}
+
 /// The backup flow's state.
 #[derive(Default)]
 pub struct BackupState {
@@ -1764,6 +1793,8 @@ pub struct BackupState {
     pub sent: Vec<String>,
     /// Another paper form of the key, on screen.
     pub paper: Option<paper::PaperForm>,
+    /// The list of loaded wallets is open under the wallet chip.
+    pub pick: bool,
 }
 
 /// Signing a message: the cards' state.
@@ -3609,11 +3640,9 @@ impl Faraday {
                 self.save_boxes();
             }
             Action::CSaveAll => self.create_save_all(),
-            Action::CPublic(what) => {
-                if let Some(i) = self.create.as_ref().and_then(|c| c.built) {
-                    self.public_out(i, what);
-                }
-            }
+            Action::PublicOut(i, what) => self.public_out(i, what),
+            Action::WalletKeyOut(i, k) => self.wallet_key_out(i, k),
+            Action::WalletKeyBsms(i, k) => self.wallet_key_bsms(i, k),
             Action::RFromVault(v, r) => self.restore_from_vault(v, r),
             Action::VisitFrom(back) => {
                 if !self.sticks.is_empty() && !self.holds_secret() {
@@ -3666,6 +3695,9 @@ impl Faraday {
                 }
                 self.sheet = None;
                 self.qr = None;
+                if let Some(b) = self.backup.as_mut() {
+                    b.pick = false;
+                }
                 // A device still waiting comes back up.
                 self.input_sheet();
             }
@@ -3694,17 +3726,30 @@ impl Faraday {
             }
             Action::Backup(i) => {
                 if i < self.session.wallets.len() {
-                    let first_key = self.backup_keys(i).first().copied().unwrap_or(0);
+                    let keys = self.backup_keys(i);
+                    let first_key = keys.first().copied().unwrap_or(0);
                     let (m, _) = Session::quorum(&self.session.wallets[i]);
+                    // A wallet with no seeds here has nothing for the
+                    // template or the seeds: it opens on its public files.
+                    let open = if keys.is_empty() {
+                        bstep::PUBLIC
+                    } else {
+                        bstep::BLANK
+                    };
                     self.backup = Some(BackupState {
                         wallet: i,
-                        open: Some(bstep::BLANK),
+                        open: Some(open),
                         key: first_key,
                         words: 24,
                         omit: m.saturating_sub(1),
                         ..BackupState::default()
                     });
                     self.screen = Screen::Backup;
+                }
+            }
+            Action::BWallets => {
+                if let Some(b) = self.backup.as_mut() {
+                    b.pick = !b.pick;
                 }
             }
             Action::BStep(n) => {
@@ -4835,19 +4880,126 @@ impl Faraday {
         for (name, bytes) in files {
             self.put_outbox(&name, bytes);
         }
+        self.backup_sent(wallet, &names);
+        match names.len() {
+            0 => {}
+            1 => self.toast(&format!("{} is in the Outbox", names[0])),
+            k => self.toast(&format!("{k} files are in the Outbox")),
+        }
+    }
+
+    /// Files of wallet `wallet` just put in the Outbox, for the summary
+    /// of its backup when one is under way.
+    fn backup_sent(&mut self, wallet: usize, names: &[String]) {
         if let Some(b) = self.backup.as_mut()
             && b.wallet == wallet
         {
-            for n in &names {
+            for n in names {
                 if !b.sent.contains(n) {
                     b.sent.push(n.clone());
                 }
             }
         }
-        match names.len() {
-            0 => {}
-            1 => self.toast(&format!("{} is in the Outbox", names[0])),
-            k => self.toast(&format!("{k} files are in the Outbox")),
+    }
+
+    /// The account key in slot `slot` of wallet `i`, when this session
+    /// holds its seed: for the cosigners of a wallet of more than one
+    /// key. `None` for a threshold or silent payments wallet, whose
+    /// slots are not account keys.
+    pub fn wallet_key(&self, i: usize, slot: u8) -> Result<WalletKey<'_>, String> {
+        let w = self
+            .session
+            .wallets
+            .get(i)
+            .ok_or("That wallet is no longer loaded")?;
+        if w.policy.record().is_some() || w.policy.silent().is_some() {
+            return Err("This wallet's keys are not account keys".into());
+        }
+        let pk = w
+            .policy
+            .keys()
+            .get(usize::from(slot))
+            .ok_or("This wallet has no such key")?;
+        let fp = pk.fingerprint().ok_or("That key names no master")?;
+        let key = self
+            .session
+            .keys
+            .iter()
+            .find(|k| k.master.fingerprint() == fp)
+            .ok_or("That key is not held here")?;
+        let kind = create::NewKind::of(&w.policy);
+        // Create's own account for its kind: what its BIP 129 record and
+        // its account code are made at. A key elsewhere has neither.
+        let standard = kind.filter(|k| {
+            k.key_text(&key.master)
+                .ok()
+                .and_then(|t| osk_bip::policy::PolicyKey::parse(&t).ok())
+                .is_some_and(|t| t.xpub() == pk.xpub() && t.path() == pk.path())
+        });
+        Ok(WalletKey {
+            fp: fp_text(fp),
+            text: pk.key_text(),
+            kind: kind.map_or_else(|| Session::shape(w), |k| k.name().to_string()),
+            standard,
+            master: &key.master,
+        })
+    }
+
+    /// The slots of wallet `i` whose seeds are held here, one a key, as
+    /// its public files list them: none for a wallet of one key.
+    pub fn wallet_keys_here(&self, i: usize) -> Vec<u8> {
+        let Some(w) = self.session.wallets.get(i) else {
+            return Vec::new();
+        };
+        let mut seen = Vec::new();
+        let mut out = Vec::new();
+        if self.session.slots(w).len() < 2 {
+            return out;
+        }
+        for slot in 0..w.policy.keys().len().min(usize::from(u8::MAX)) {
+            let slot = slot as u8;
+            if let Ok(k) = self.wallet_key(i, slot)
+                && !seen.contains(&k.fp)
+            {
+                seen.push(k.fp);
+                out.push(slot);
+            }
+        }
+        out
+    }
+
+    /// A wallet key's BIP 129 key record, signed by the key: for a `wsh`
+    /// or `sh(wsh)` multisig key at Create's own account.
+    fn wallet_key_record(&self, i: usize, slot: u8) -> Result<(String, String), String> {
+        let k = self.wallet_key(i, slot)?;
+        k.standard
+            .and_then(|kind| kind.bsms_record(k.master, &format!("Faraday key {}", k.fp)))
+            .map(|r| (k.fp.clone(), r))
+            .ok_or_else(|| "BIP 129 covers wsh and sh(wsh) multisig keys".to_string())
+    }
+
+    fn wallet_key_out(&mut self, i: usize, slot: u8) {
+        match self.wallet_key(i, slot) {
+            Ok(k) => {
+                let name = format!("xpub-{}.txt", k.fp);
+                let bytes = format!("# Account xpub {}, {}\n{}\n", k.fp, k.kind, k.text);
+                self.put_outbox(&name, bytes.into_bytes());
+                self.backup_sent(i, std::slice::from_ref(&name));
+                self.toast(&format!("{name} is in the Outbox"));
+            }
+            Err(e) => self.toast(&e),
+        }
+    }
+
+    fn wallet_key_bsms(&mut self, i: usize, slot: u8) {
+        match self.wallet_key_record(i, slot) {
+            Ok((fp, text)) => {
+                let name = format!("xpub-{fp}-bsms.txt");
+                self.put_outbox(&name, text.into_bytes());
+                self.backup_sent(i, std::slice::from_ref(&name));
+                self.toast(&format!("{name} is in the Outbox"));
+            }
+            Err(e) => self.toast(&e),
         }
     }
 
@@ -5799,6 +5951,32 @@ impl Faraday {
                 ];
                 Ok(QrView::text(&format!("Key {fp} · BSMS record"), &text)?
                     .public(&format!("xpub-{fp}-bsms.png"), lines))
+            }
+            Code::WalletKey(i, slot) => {
+                let k = self.wallet_key(i, slot)?;
+                let account = k.standard.and_then(|kind| kind.account_ur(k.master));
+                let lines = vec![
+                    key_label(&k.fp, &k.kind, &k.text),
+                    "Public: spends nothing".to_string(),
+                ];
+                Ok(QrView::of(
+                    &format!("Xpub {} · {}", k.fp, k.kind),
+                    QrSource::Key(k.text.clone(), account),
+                    QrFormat::Ur,
+                    QR_PARTS[1],
+                )?
+                .public(&format!("xpub-{}.png", k.fp), lines))
+            }
+            Code::WalletKeyBsms(i, slot) => {
+                let k = self.wallet_key(i, slot)?;
+                let (_, text) = self.wallet_key_record(i, slot)?;
+                let lines = vec![
+                    key_label(&k.fp, &k.kind, &k.text),
+                    "BIP 129 key record, signed by the key".to_string(),
+                    "Public: spends nothing".to_string(),
+                ];
+                Ok(QrView::text(&format!("Key {} · BSMS record", k.fp), &text)?
+                    .public(&format!("xpub-{}-bsms.png", k.fp), lines))
             }
             Code::Silent(_) | Code::SilentRecord => self.silent_code(code),
             Code::Message => {
