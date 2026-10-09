@@ -1030,7 +1030,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y,
             width,
             Some(Icon::Wallet),
-            "Restore a wallet",
+            "Load or restore a wallet",
             "From its backups",
             MUTED,
             Some(Action::RestoreWallet),
@@ -1090,7 +1090,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ),
             (
                 Icon::Wallet,
-                "Restore a wallet",
+                "Load or restore a wallet",
                 "From its backups",
                 Action::RestoreWallet,
             ),
@@ -1283,7 +1283,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let msg_file = app.inbox.iter().position(|i| i.kind == FileKind::Message);
     let todo: Vec<(&str, String, Option<Action>)> = vec![
         (
-            "Restore a wallet",
+            "Load or restore a wallet",
             "From its descriptor or its shares".to_string(),
             Some(Action::RestoreWallet),
         ),
@@ -2837,7 +2837,7 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             by - 48.0,
             Some(listw),
             40.0,
-            "Restore a wallet",
+            "Load or restore a wallet",
             Style::Secondary,
             Action::RestoreWallet,
         );
@@ -7011,7 +7011,7 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         w: col_w,
         h,
         back: Some(("Wallets", Action::Nav(Screen::Start))),
-        heading: "Restore a wallet",
+        heading: "Load or restore a wallet",
         guided: app.guided,
         switch: true,
         note: None,
@@ -10568,7 +10568,7 @@ fn settings_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += section(ui, x, y, w, "Appearance", &|ui, x, y0, w| {
         let per_row = 2;
         let tile_w = (w - 8.0) / 2.0;
-        let tile_h = 72.0;
+        let tile_h = ui.theme_tile_h(tile_w);
         for (i, theme) in Theme::ALL.into_iter().enumerate() {
             ui.theme_tile(
                 x + (i % per_row) as f32 * (tile_w + 8.0),
@@ -10811,7 +10811,8 @@ fn settings(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 244.0 + ignored_h;
     // Each theme a tile in its own colours, in rows as wide as the card.
     let inner = width - 44.0;
-    let per_row = (((inner + 8.0) / 96.0).floor() as usize).clamp(1, Theme::ALL.len());
+    let per_row =
+        (((inner + 8.0) / (ui.theme_tile_min() + 8.0)).floor() as usize).clamp(1, Theme::ALL.len());
     let tile_w = (inner - 8.0 * (per_row - 1) as f32) / per_row as f32;
     let rows = Theme::ALL.len().div_ceil(per_row);
     let tile_h = 72.0;

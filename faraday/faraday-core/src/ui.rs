@@ -192,6 +192,46 @@ pub mod pal {
         (WARN, Color::rgb(0xa8, 0x64, 0x12)),
         (ERR, Color::rgb(0xa4, 0x50, 0x6a)),
     ];
+
+    /// Bitcoin Orange: a warm near-black page, Bitcoin's orange
+    /// (#F7931A) as the accent at full strength. Light text on a dark
+    /// page needs no darkening to read against it.
+    pub const BITCOIN_ORANGE: [(Color, Color); 14] = [
+        (BG, Color::rgb(0x1c, 0x14, 0x10)),
+        (SIDEBAR, Color::rgb(0x14, 0x0e, 0x0a)),
+        (SURFACE, Color::rgb(0x27, 0x1d, 0x17)),
+        (LINE, Color::rgb(0x33, 0x26, 0x19)),
+        (INNER, Color::rgb(0x3a, 0x2c, 0x1e)),
+        (BORDER, Color::rgb(0x4a, 0x38, 0x28)),
+        (TEXT, Color::rgb(0xf2, 0xe9, 0xdf)),
+        (MUTED, Color::rgb(0xc9, 0xb8, 0xa4)),
+        (DIM, Color::rgb(0x8f, 0x7d, 0x6c)),
+        (ACCENT, Color::rgb(0xf7, 0x93, 0x1a)),
+        (ON_ACCENT, Color::rgb(0x1c, 0x14, 0x10)),
+        (OK, Color::rgb(0x8e, 0xcb, 0x86)),
+        (WARN, Color::rgb(0xe8, 0xb9, 0x4c)),
+        (ERR, Color::rgb(0xe5, 0x48, 0x4d)),
+    ];
+
+    /// Bitcoin Orange Light: a warm paper page, Bitcoin's orange
+    /// darkened (its hue kept) to 4.5:1 against the page for text and
+    /// the focus ring (#F7931A is 2.1:1 there; #9E5906 is 4.9:1).
+    pub const BITCOIN_ORANGE_LIGHT: [(Color, Color); 14] = [
+        (BG, Color::rgb(0xfd, 0xf1, 0xe7)),
+        (SIDEBAR, Color::rgb(0xf5, 0xe6, 0xd7)),
+        (SURFACE, Color::rgb(0xff, 0xfc, 0xf8)),
+        (LINE, Color::rgb(0xe9, 0xd9, 0xc5)),
+        (INNER, Color::rgb(0xf2, 0xe4, 0xd3)),
+        (BORDER, Color::rgb(0xd8, 0xc0, 0xa3)),
+        (TEXT, Color::rgb(0x2a, 0x1c, 0x0f)),
+        (MUTED, Color::rgb(0x6b, 0x54, 0x40)),
+        (DIM, Color::rgb(0x9c, 0x88, 0x72)),
+        (ACCENT, Color::rgb(0x9e, 0x59, 0x06)),
+        (ON_ACCENT, Color::rgb(0xff, 0xff, 0xff)),
+        (OK, Color::rgb(0x1d, 0x85, 0x56)),
+        (WARN, Color::rgb(0x7a, 0x64, 0x00)),
+        (ERR, Color::rgb(0xbf, 0x34, 0x34)),
+    ];
 }
 
 use pal::*;
@@ -218,11 +258,17 @@ pub enum Theme {
     Gruvbox,
     /// Rosé Pine Dawn: dark text on warm paper, with its pine accent.
     RosePine,
+    /// Light text on a dark page, with Bitcoin's orange (#F7931A) as
+    /// the accent, taken at full strength.
+    BitcoinOrange,
+    /// Dark text on a light page, with Bitcoin's orange as the accent,
+    /// darkened (its hue kept) to read at 4.5:1 against the page.
+    BitcoinOrangeLight,
 }
 
 impl Theme {
     /// Every theme, in the order Settings offers them.
-    pub const ALL: [Theme; 7] = [
+    pub const ALL: [Theme; 9] = [
         Theme::Dark,
         Theme::Light,
         Theme::Nord,
@@ -230,6 +276,8 @@ impl Theme {
         Theme::TokyoNight,
         Theme::Gruvbox,
         Theme::RosePine,
+        Theme::BitcoinOrange,
+        Theme::BitcoinOrangeLight,
     ];
 
     /// What Settings calls it.
@@ -242,6 +290,8 @@ impl Theme {
             Theme::TokyoNight => "Tokyo Night",
             Theme::Gruvbox => "Gruvbox",
             Theme::RosePine => "Rosé Pine",
+            Theme::BitcoinOrange => "Bitcoin Orange",
+            Theme::BitcoinOrangeLight => "Bitcoin Orange Light",
         }
     }
 
@@ -255,6 +305,8 @@ impl Theme {
             Theme::TokyoNight => "tokyo-night",
             Theme::Gruvbox => "gruvbox",
             Theme::RosePine => "rose-pine",
+            Theme::BitcoinOrange => "bitcoin-orange",
+            Theme::BitcoinOrangeLight => "bitcoin-orange-light",
         }
     }
 
@@ -265,7 +317,10 @@ impl Theme {
 
     /// Dark text on a light page: shadows are lighter.
     pub fn is_light(self) -> bool {
-        matches!(self, Theme::Light | Theme::RosePine)
+        matches!(
+            self,
+            Theme::Light | Theme::RosePine | Theme::BitcoinOrangeLight
+        )
     }
 
     fn table(self) -> Option<&'static [(Color, Color); 14]> {
@@ -277,6 +332,8 @@ impl Theme {
             Theme::TokyoNight => Some(&pal::TOKYO_NIGHT),
             Theme::Gruvbox => Some(&pal::GRUVBOX),
             Theme::RosePine => Some(&pal::ROSE_PINE),
+            Theme::BitcoinOrange => Some(&pal::BITCOIN_ORANGE),
+            Theme::BitcoinOrangeLight => Some(&pal::BITCOIN_ORANGE_LIGHT),
         }
     }
 
@@ -729,10 +786,52 @@ impl<'a> Ui<'a> {
         for (i, c) in [OK, WARN, ERR].into_iter().enumerate() {
             self.dot(x + w - 38.0 + 9.0 * i as f32, y + 25.0, 3.0, c);
         }
-        let name = self.fit(12.0, W::S, theme.name(), w - 20.0);
-        self.text(x + 10.0, y + 50.0, 12.0, W::S, TEXT, &name);
+        // A name too long for the tile wraps at its spaces, the tile being
+        // drawn taller for it (`theme_tile_h`).
+        let lines = self.theme_name_lines(theme, w - 20.0);
+        let mut ty = y + h - 22.0 - 15.0 * (lines.len() - 1) as f32;
+        for line in lines {
+            let line = self.fit(12.0, W::S, &line, w - 20.0);
+            self.text(x + 10.0, ty, 12.0, W::S, TEXT, &line);
+            ty += 15.0;
+        }
         self.theme = now;
         self.hit(x, y, w, h, action);
+    }
+
+    /// The narrowest a theme tile can be with every theme's name in
+    /// full.
+    pub fn theme_tile_min(&self) -> f32 {
+        Theme::ALL
+            .into_iter()
+            .map(|t| self.measure(12.0, W::S, t.name()) + 20.0)
+            .fold(96.0, f32::max)
+    }
+
+    /// How tall theme tiles `w` wide are drawn: a line taller for each
+    /// line a name wraps onto.
+    pub fn theme_tile_h(&self, w: f32) -> f32 {
+        let lines = Theme::ALL
+            .into_iter()
+            .map(|t| self.theme_name_lines(t, w - 20.0).len())
+            .max()
+            .unwrap_or(1);
+        72.0 + 15.0 * (lines - 1) as f32
+    }
+
+    /// A theme's name in lines no wider than `max`, broken at spaces.
+    fn theme_name_lines(&self, theme: Theme, max: f32) -> Vec<String> {
+        let mut lines: Vec<String> = Vec::new();
+        for word in theme.name().split(' ') {
+            match lines.last_mut() {
+                Some(last) if self.measure(12.0, W::S, &format!("{last} {word}")) <= max => {
+                    last.push(' ');
+                    last.push_str(word);
+                }
+                _ => lines.push(word.to_string()),
+            }
+        }
+        lines
     }
 
     /// Faraday's mark in a box `w` by `h` units at (x, y): the keyhole

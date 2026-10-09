@@ -220,7 +220,7 @@ pub const TILES: &[Tile] = &[
     },
     Tile {
         group: "Wallets",
-        name: "Restore a wallet",
+        name: "Load or restore a wallet",
         line: "Descriptor, wallet file, BIP 129 record or split sheets",
         tags: &["BIP-380", "BIP-388", "BIP-389", "BIP-129"],
         go: Go::Restore,

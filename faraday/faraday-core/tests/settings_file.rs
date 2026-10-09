@@ -145,6 +145,28 @@ fn a_changed_setting_is_written_to_the_boot_stick_and_reads_back_the_same() {
 }
 
 #[test]
+fn every_theme_round_trips_through_the_settings_file() {
+    for theme in Theme::ALL {
+        let mut app = booted(None);
+        app.press(Action::Theme(theme));
+        app.press(Action::Nav(Screen::Visit));
+        // A changed theme ticks the settings row by default; the
+        // default theme itself does not, so it is ticked here.
+        if !app.visit_settings_on() {
+            app.press(Action::VisitSettings);
+        }
+        app.press(Action::VisitWrite);
+        let wrote = pump(&mut app, None);
+        let (_, _, bytes) = wrote
+            .iter()
+            .find(|(s, n, _)| s == "boot" && n == FILE)
+            .unwrap_or_else(|| panic!("{} is not written to the boot stick", theme.name()));
+        let back = booted(Some(bytes));
+        assert_eq!(back.theme, theme, "{} did not read back", theme.name());
+    }
+}
+
+#[test]
 fn unchanged_settings_are_not_written_unless_ticked() {
     let mut app = booted(Some(b"faraday-settings 1\ntheme=nord\n"));
     app.press(Action::Nav(Screen::Visit));

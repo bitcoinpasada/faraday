@@ -88,7 +88,7 @@ XOR parts), **Scan a SeedQR**, **Make a new key**, and "From a stick ·
 plug it in" (with a stick attached, **Copy files in** → Stick visit; a key
 file copied in loads when the stick is pulled). **Scan** floats in the
 bottom-right corner of Home on every panel → the scanner. The Wallets tab
-carries **Add a key** beside Create a wallet and Restore a wallet.
+carries **Add a key** beside Create a wallet and Load or restore a wallet.
 
 ## Session
 

@@ -47,7 +47,7 @@ pub(crate) fn screen_name(s: Screen) -> &'static str {
         Screen::Message => "Sign a message",
         Screen::CheckMessage => "Check a message",
         Screen::Create => "Create a wallet",
-        Screen::Restore => "Restore a wallet",
+        Screen::Restore => "Load or restore a wallet",
         Screen::Settings => "Settings",
         Screen::Vaults | Screen::Unlock | Screen::VaultContents => "Vaults",
         Screen::CreateVault => "Create a vault",
@@ -194,7 +194,7 @@ pub(crate) fn page(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) -> (f32, f32)
         Screen::Vaults if app.vaults.back_to.is_some() => (
             match app.vaults.back_to {
                 Some(Screen::Create) => "Create a wallet",
-                Some(Screen::Restore) => "Restore a wallet",
+                Some(Screen::Restore) => "Load or restore a wallet",
                 Some(Screen::Family) => "Spend",
                 _ => "Back",
             },

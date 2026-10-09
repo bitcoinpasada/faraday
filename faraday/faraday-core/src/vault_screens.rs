@@ -244,7 +244,7 @@ pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // started in its place (that would drop the way back).
     let back = app.vaults.back_to.map(|s| match s {
         Screen::Create => "Create a wallet",
-        Screen::Restore => "Restore a wallet",
+        Screen::Restore => "Load or restore a wallet",
         Screen::Family => "Spend",
         _ => "Back",
     });
