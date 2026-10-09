@@ -486,3 +486,51 @@ fn leaving_unlock_by_nav_clears_the_way_back_to_the_import_sheet() {
     assert_eq!((app.screen, app.sheet), (Screen::Files, None));
     assert!(app.import.is_some());
 }
+
+/// A USB mouse the shell holds back until a person says so.
+fn mouse(app: &mut Faraday) {
+    app.storage(StorageEvent::NewInput {
+        id: 9,
+        name: "USB Optical Mouse".into(),
+        keyboard: false,
+        pointer: true,
+    });
+}
+
+#[test]
+fn a_mouse_plugged_in_at_boot_is_asked_about_before_the_import() {
+    let files = stick_files();
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    mouse(&mut app);
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
+    pump(&mut app, &files);
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    app.press(Action::InputUse(9));
+    assert_eq!(app.poll_input_decision(), Some((9, true)));
+    assert_eq!(app.sheet, Some(Sheet::Import));
+}
+
+#[test]
+fn a_mouse_seen_after_the_stick_is_asked_about_first_too() {
+    let mut app = booted();
+    assert_eq!(app.sheet, Some(Sheet::Import));
+    mouse(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    app.press(Action::InputIgnore(9));
+    assert_eq!(app.sheet, Some(Sheet::Import));
+}
+
+#[test]
+fn a_mouse_waiting_comes_up_when_the_import_is_put_off() {
+    let mut app = pulled();
+    app.press(Action::Import(I::Later));
+    assert_eq!(app.sheet, None);
+    mouse(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    app.press(Action::InputUse(9));
+    // The import was put off, so it stays behind Sticks.
+    assert_eq!(app.sheet, None);
+}

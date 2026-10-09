@@ -308,7 +308,13 @@ impl Faraday {
         self.import = Some(state);
         self.after_visit = None;
         self.screen = Screen::Home;
-        self.sheet = Some(Sheet::Import);
+        // A device waiting to be believed is asked about first
+        // (`PLAN.md` §4.6); this sheet comes up once it is decided.
+        if self.sheet == Some(Sheet::NewInput) {
+            self.import_under_input = true;
+        } else {
+            self.sheet = Some(Sheet::Import);
+        }
     }
 
     /// Takes the storage answers the import asked for and hands every

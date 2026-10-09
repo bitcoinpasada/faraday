@@ -55,6 +55,12 @@ impl Faraday {
             code,
             typed: String::new(),
         });
+        // The boot import waits for it: which pointer and keyboard are
+        // believed is the first thing settled (`PLAN.md` §4.6).
+        if self.sheet == Some(Sheet::Import) {
+            self.import_under_input = true;
+            self.sheet = None;
+        }
         if self.sheet.is_none() {
             self.sheet = Some(Sheet::NewInput);
         }
@@ -114,11 +120,13 @@ impl Faraday {
         self.input_sheet();
     }
 
-    /// The sheet shows while a device waits, and goes when none does.
+    /// The sheet shows while a device waits, and goes when none does,
+    /// back to the boot import's sheet if that waited under it.
     pub(crate) fn input_sheet(&mut self) {
         if self.inputs.is_empty() {
             if self.sheet == Some(Sheet::NewInput) {
-                self.sheet = None;
+                let import = std::mem::take(&mut self.import_under_input);
+                self.sheet = (import && self.import.is_some()).then_some(Sheet::Import);
             }
         } else if self.sheet.is_none() {
             self.sheet = Some(Sheet::NewInput);

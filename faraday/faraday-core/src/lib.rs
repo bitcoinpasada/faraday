@@ -1778,6 +1778,9 @@ pub struct Faraday {
     pub inputs: Vec<inputs::NewInput>,
     /// Devices kept out until unplugged, by id and name.
     pub ignored_inputs: Vec<(u32, String)>,
+    /// The boot import's sheet waits under the new-device sheet, and
+    /// comes up once every waiting device is decided.
+    import_under_input: bool,
     /// Decisions the shell has not taken yet.
     input_decisions: VecDeque<(u32, bool)>,
     /// New keys made this session, which number their labels.
@@ -2023,6 +2026,7 @@ impl Faraday {
             tainted: false,
             inputs: Vec::new(),
             ignored_inputs: Vec::new(),
+            import_under_input: false,
             input_decisions: VecDeque::new(),
             new_keys: 0,
             vaults: vaults::Vaults::default(),
@@ -2130,6 +2134,12 @@ impl Faraday {
 
     /// Delivers what the shell knows about storage.
     pub fn storage(&mut self, event: StorageEvent) {
+        self.storage_event(event);
+        // A device still waiting comes back up once no other sheet is.
+        self.input_sheet();
+    }
+
+    fn storage_event(&mut self, event: StorageEvent) {
         let event = match self
             .settings_event(event)
             .and_then(|e| self.import_event(e))
@@ -6311,6 +6321,8 @@ impl Faraday {
         if let Some(psbt) = spent {
             self.vault_round_used(&psbt);
         }
+        // A device still waiting comes back up once no other sheet is.
+        self.input_sheet();
         self.dirty = true;
         self.commands.push_back(Command::Draw);
     }
