@@ -161,7 +161,7 @@ and published with each release:
 | Recent x86-64 laptop (Ryzen 7 7445HS, 2026-10-05) | 0.3 s | 1.2 s | 6.9 s | 8.2 s |
 
 The laptop row was measured by `cargo run --release -p
-faraday-argon2-bench` under WSL2, three runs a preset, the middle kept.
+faraday-argon2-bench`, three runs a preset, the middle kept.
 The Raspberry Pi rows wait for the boards.
 
 Lanes are 1 everywhere, so a multi-core machine opens no faster than a

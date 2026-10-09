@@ -1,5 +1,4 @@
-# Faraday's recipes, imported by the root justfile. Each output lands
-# where hp-pull collects it (~/Projects/hp-build-setup/README.md).
+# Faraday's recipes, imported by the root justfile.
 
 # The desktop app at out/linux/faraday: glibc 2.36 or newer, which
 # winit needs to load the Wayland and X11 libraries.

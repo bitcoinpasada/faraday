@@ -206,7 +206,7 @@ def main():
         # 2. The boot stick: OSKBOOT root's, its data partition handed out.
         expect(console.run("cat /run/faraday-clean/clean 2>/dev/null").strip() == "clean",
                "the app publishes that it is clean")
-        # QEMU under WSL runs the guest's clock slowly: the boot stick's
+        # QEMU on the build machine runs the guest's clock slowly: the boot stick's
         # disk can take a long time to be enumerated.
         deadline = time.monotonic() + 180
         while "sda2" not in console.run("ls /sys/class/block"):

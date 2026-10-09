@@ -54,14 +54,14 @@ Decided 2026-10-08: the Pi image has no USB keyboard, mouse or storage
 and no HDMI; the touch panel is its input and its card its storage
 (`PLAN.md` §3, which now says so).
 
-To build (on the build machine, from this tree, uncommitted changes included):
+To build:
 
-    local/remote-build.sh stick           # or pi, desktop, all; --dev for the dev image
+    just faraday-stick-image              # or faraday-pi-image, faraday-linux-bin; dev=1 for the dev image
     python3 -B faraday/tools/qemu-check.py out/stick/faraday-x86_64-uefi.img out/stick/qemu-check out/testkit
 
 `qemu-check.py`'s output directory must have a short path (its QMP
 socket lives there; a path under the scratchpad is too long for
-`AF_UNIX`). The owner tests on the Dell with `hp-pull`; the dev image's
+`AF_UNIX`). The owner tests on the Dell; the dev image's
 kernel console prints over the app, so test sticks are release images.
 
 The owner's standing requests: secrets leave only sealed in a vault
@@ -150,12 +150,11 @@ they stay is the owner's call.
 
 ## The build (as of 2026-10-05)
 
-Built on the HP; tested on the Dell by `hp-pull`
-(`~/Projects/hp-build-setup/README.md`). Outputs:
+Built on the build machine; tested on the Dell. Outputs:
 `out/stick/faraday-x86_64-uefi.img` (`just faraday-stick-image`),
 `out/linux/faraday` (`just faraday-linux-bin`, the online desktop app),
 `out/snapshots/faraday/<WxH>/` (`just faraday-snapshots`, a ~60-step tour
-with the PDFs it prints). The HP has podman and no `docker`: run the two
+with the PDFs it prints). On a machine with podman and no `docker`, run the two
 container recipes with `DOCKER=podman` in the environment (`export
 DOCKER=podman; just faraday-stick-image`), which the recipes and
 `faraday/image/run-build.sh` pass through.
@@ -259,16 +258,14 @@ as possible before the next build.
    `~/Projects/faraday-os-deprecated` (its GitHub repo,
    bitcoinpasada/faraday, is the owner's to rename); this repo becomes
    `~/Projects/faraday`; crates `faraday-*`, outputs `out/linux/faraday`
-   and `out/stick/faraday-x86_64-uefi.img`, recipes `faraday-*`; update
-   `hp-build-setup` (README, `dell/hp-pull` path) and tell the owner to
-   reinstall the Dell scripts; recreate the auto-continue job with the
+   and `out/stick/faraday-x86_64-uefi.img`, recipes `faraday-*`; recreate the auto-continue job with the
    new path.
 9. [x] Small fixes: scroll long lists (Stick visit, Files, the wallet
    list), compact wallet rows; a stick's volume label instead of `sda1`;
    "Boot stick" once; "1 of 1 signature"; a signed file named
    `<wallet>-signed.psbt`, not `…-unsigned-signed.psbt`.
 10. [x] Build (2026-10-05 03:34): `just faraday-stick-image`, `just faraday-linux-bin`,
-   `just faraday-snapshots`; tell the owner what is ready for `hp-pull`.
+   `just faraday-snapshots`; tell the owner what is ready.
 
 11. [x] Vaults (owner, 2026-10-05: "implement it in the vaults tab"):
     `faraday/faraday-vault` is `docs/VAULT.md` (format, Argon2id +
@@ -1196,10 +1193,8 @@ as possible before the next build.
     and `faraday-pi-image` (the stick recipes with the root `board`/
     `panel`, default `pi3` + `waveshare-28dpi`; `faraday/image/overlay/
     boards/pi3` already existed). Output `out/pi/faraday-pi3-waveshare-
-    28dpi[-dev].img`. `local/remote-build.sh pi [--dev]` builds it on
-    the build machine and pulls back only the image (not `out/pi/`'s Buildroot
-    tree). The build machine now has the armv7 target and `gcc-arm-linux-
-    gnueabihf` (installed through `/etc/sudoers.d/faraday-arm-toolchain`).
+    28dpi[-dev].img`. Building it needs the armv7 target and
+    `gcc-arm-linux-gnueabihf`.
     No Pi image has been built yet: the first run was stopped on purpose
     until the screens below are done.
 
@@ -1740,15 +1735,12 @@ as possible before the next build.
 
 ## Build machine
 
-The HP (WSL2 Ubuntu): it has the pinned Rust
-toolchain, `just`, podman (no docker) and QEMU with OVMF. How it is kept
-up, and how the Dell pulls and tests are in
-`~/Projects/hp-build-setup/README.md`. Never run `wsl --shutdown` or
-reboot it without asking.
+Builds run on the build machine: it has the pinned Rust toolchain,
+`just`, podman (no docker) and QEMU with OVMF.
 
 ## Other sources the docs cite
 
-Copied beside this project on the HP, in `~/Projects/`:
+Copied beside this project on the build machine, in `~/Projects/`:
 - `~/Projects/faraday-os-deprecated`: Faraday OS source, docs, profile, package repo and
   test scripts. Left behind on the laptop as build output:
   `out/` (ISOs), `work/`, `test/run/` (disk images), and the kernel's
