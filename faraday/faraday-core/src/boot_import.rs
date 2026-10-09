@@ -406,7 +406,7 @@ impl Faraday {
                 ));
                 continue;
             }
-            if let Some((named, ext, data)) = self.read_code(p) {
+            if let Some((named, ext, data)) = self.read_code(zeroize::Zeroizing::new(p)) {
                 let item = Item::new(&named.unwrap_or_else(|| format!("{stem}.{ext}")), data);
                 if item.kind == FileKind::Other {
                     note = Some("Not a PSBT, a descriptor, an xpub or a signed message".into());

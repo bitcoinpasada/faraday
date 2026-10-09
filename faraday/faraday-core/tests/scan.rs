@@ -1,7 +1,7 @@
 //! What a person scanning codes into Files sees: a transfer in parts says
 //! which parts are still missing and lands in the Inbox whole; a file sent
 //! in Faraday's envelope keeps its name; an address is checked against the
-//! loaded wallets; and a seed's words are named and kept out.
+//! loaded wallets; and a seed's words are never filed.
 
 use faraday_core::testkit;
 use faraday_core::wallet::FileKind;
@@ -83,13 +83,12 @@ fn a_scanned_address_is_named_as_a_loaded_wallets_own() {
 }
 
 #[test]
-fn a_seeds_words_scanned_into_files_are_named_and_not_filed() {
+fn a_seeds_words_scanned_are_never_filed() {
     let mut app = scanning(Vec::new());
     scan(
         &mut app,
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
     );
-    assert!(note(&app).contains("seed's words"), "{}", note(&app));
     assert!(app.inbox.is_empty());
 }
 

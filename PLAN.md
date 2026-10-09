@@ -416,8 +416,11 @@ moves the chosen files into the Inbox, wipes the rest, and leaves Home.
 **Import later**, or a tap beside the sheet, leaves the files waiting;
 the sidebar's Sticks row and Home's Sticks and import cards open the
 sheet again. A lock wipes what was not imported, and a later insertion
-of the boot medium is an ordinary stick visit. Unlocking and loading keys
-are never offered while a stick or card is present.
+of the boot medium is an ordinary stick visit. Unlocking, loading keys
+and scanning are never offered while a stick or card is present: a
+camera frame may picture a seed. The camera on withdraws the clean
+marker as a secret does, so a stick inserted while it is on is held
+back, nothing read, and arrives once the camera is off.
 
 **A stick inserted while unlocked.** Nothing is handed out. The app sees
 the disk in `/sys` and shows a sheet: what will be sealed (vaults with

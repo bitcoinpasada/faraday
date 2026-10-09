@@ -79,8 +79,16 @@ to get it.
    backup. Pressed with a stick in, each opens a sheet, "Pull the stick to
    add a key" (or to make a key, …), the stick's label, and **Cancel**.
    The sheet closes the moment the last stick goes, and what was pressed
-   carries on; Cancel closes it with nothing done. Scanning loads no key
-   and stays open with a stick in.
+   carries on; Cancel closes it with nothing done.
+
+9. **Every scan waits for the stick to be out** (2026-10-09). A camera
+   frame may picture a seed, so the scanner opens only with no stick
+   attached: Scan, Scan a SeedQR, Scan your copy and a vault entry's Scan,
+   pressed with a stick in, open the same sheet, "Pull the stick to scan",
+   and the camera turns on once the stick is out. A stick plugged in while
+   the camera is on is held back, nothing read from it, and arrives as any
+   stick does once the camera is off. Signing by QR alone needs no stick
+   and is unchanged.
 
 ## Home
 
@@ -89,7 +97,12 @@ the Add a key screen: a form (BIP-39 words, SLIP-39 shares, codex32, Seed
 XOR parts), **Scan a SeedQR**, **Make a new key**, and "From a stick ·
 plug it in" (with a stick attached, **Copy files in** → Stick visit; a key
 file copied in loads when the stick is pulled). **Scan** floats in the
-bottom-right corner of Home on every panel → the scanner. The Wallets tab
+bottom-right corner of Home on every panel → the scanner (with a stick
+in, the sheet asks for it to be pulled first). Home's Scan takes a seed
+too: a SeedQR, a CompactSeedQR or a seed's words go to Add a key and are
+added as **Scan a SeedQR** adds them, never into Files or the Inbox; a
+private key or xprv is named, since Add a key does not take one. The
+Wallets tab
 carries **Add a key** beside Create a wallet and Load or restore a wallet.
 A key added with no wallet loaded lands on Wallets, whose card says
 "Key 73c5da0a is loaded. No wallet uses it." with **Make a wallet from

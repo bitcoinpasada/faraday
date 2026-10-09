@@ -11217,8 +11217,8 @@ pub(crate) fn sheet_box(ui: &mut Ui, w: f32, h: f32, sw: f32, sh: f32) -> (f32, 
     (x, y)
 }
 
-/// Something that loads a key was pressed with a stick attached: what it
-/// was, and the stick. It closes, and what was pressed carries on, when
+/// Something that loads a key or turns the camera on was pressed with a
+/// stick attached: what it was, and the stick. It closes, and what was pressed carries on, when
 /// the stick is pulled.
 fn pull_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let what = app.pull.and_then(|a| app.pull_what(a)).unwrap_or("go on");

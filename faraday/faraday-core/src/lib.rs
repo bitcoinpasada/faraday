@@ -929,6 +929,30 @@ fn seedqr_words(payload: &[u8]) -> Option<zeroize::Zeroizing<String>> {
     Some(out)
 }
 
+/// The seed a code holds: a SeedQR, a CompactSeedQR, or a seed's words in
+/// English, as words; `None` for anything else.
+fn seed_in_code(payload: &[u8]) -> Option<zeroize::Zeroizing<String>> {
+    if let Some(words) = seedqr_words(payload) {
+        return Some(words);
+    }
+    let text = zeroize::Zeroizing::new(String::from_utf8_lossy(payload).into_owned());
+    let mut out = crate::secret_text::room();
+    for (k, w) in text.split_whitespace().enumerate() {
+        if k > 0 {
+            out.push(' ');
+        }
+        out.push_str(w);
+    }
+    let words = out.split(' ').count();
+    (matches!(words, 12 | 15 | 18 | 21 | 24)
+        && osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, out.as_str()).is_ok())
+    .then_some(out)
+}
+
+/// Said on the camera when what it read would load a key with a stick
+/// attached.
+const STICK_KEYS: &str = "Keys load only with no stick attached";
+
 /// A transaction being decoded, and where the person came from.
 pub struct DecodeState {
     /// What it decoded to.
@@ -1854,6 +1878,9 @@ pub struct Faraday {
     /// A secret has been held or typed in this process. Only a fresh
     /// process is clean (`PLAN.md` §5.1).
     tainted: bool,
+    /// A stick arrived while the camera was on: held back, and taken as
+    /// arriving once the camera is off.
+    stick_held: bool,
     /// New input devices waiting to be believed (`PLAN.md` §4.6).
     pub inputs: Vec<inputs::NewInput>,
     /// Devices kept out until unplugged, by id and name.
@@ -2112,6 +2139,7 @@ impl Faraday {
             idle_locking: None,
             idle_shown: None,
             tainted: false,
+            stick_held: false,
             inputs: Vec::new(),
             ignored_inputs: Vec::new(),
             import_under_input: false,
@@ -2470,9 +2498,31 @@ impl Faraday {
     /// typed a secret. Only then may a stick be handed to the disk
     /// process; the shell publishes it for `faraday-grant`, and a lock is
     /// the way back to it.
+    ///
+    /// While the camera is on the process is not clean either, since a
+    /// frame may picture a seed: no stick is handed out then, and one
+    /// plugged in waits until the camera is off.
     pub fn clean(&mut self) -> bool {
         self.note_secrets();
-        !self.tainted
+        !self.tainted && !self.camera_on()
+    }
+
+    /// The camera is on, reading codes.
+    fn camera_on(&self) -> bool {
+        self.sheet == Some(Sheet::Scan) || self.keygen_camera_on
+    }
+
+    /// A stick held back while the camera was on arrives once it is off.
+    fn release_held_stick(&mut self) {
+        if !self.stick_held || self.camera_on() {
+            return;
+        }
+        self.stick_held = false;
+        if !self.sticks.is_empty() {
+            self.stick_arrived();
+            self.dirty = true;
+            self.commands.push_back(Command::Draw);
+        }
     }
 
     /// Input arrived: the idle timers start again.
@@ -2604,6 +2654,7 @@ impl Faraday {
             .unwrap_or_default();
         self.visit.inn.retain(|n| names.contains(n));
         if self.sticks.is_empty() {
+            self.stick_held = false;
             self.not_now = false;
             if self.sheet == Some(Sheet::Lock) {
                 self.sheet = None;
@@ -2645,8 +2696,22 @@ impl Faraday {
         }
         self.import_stick_gone();
         if ids_now == ids_before {
+            self.release_held_stick();
             return;
         }
+        // A stick arriving while the camera is on is held back, and
+        // arrives when the camera is off (`PLAN.md` §5.4): then a clean
+        // process visits it and any other asks to lock first. The
+        // scanner is never replaced with its camera still on.
+        if self.camera_on() {
+            self.stick_held = true;
+            return;
+        }
+        self.stick_arrived();
+    }
+
+    /// A stick arrived, or one held back is taken now.
+    fn stick_arrived(&mut self) {
         // A stick arrived. Only a clean process takes it; any other locks
         // first (`PLAN.md` §5.4). No passphrase field takes typing while
         // it is attached.
@@ -2752,11 +2817,13 @@ impl Faraday {
     }
 
     /// What `action` does, named for the sheet that asks for the stick to
-    /// be pulled first, when it loads a key; `None` for anything a stick
-    /// may stay in for.
+    /// be pulled first, when it loads a key or turns the camera on (a
+    /// frame may picture a seed); `None` for anything a stick may stay in
+    /// for.
     pub fn pull_what(&self, action: Action) -> Option<&'static str> {
         use catalog::Go;
         Some(match action {
+            Action::Scan | Action::BScan | Action::Vault(vaults::VaultAction::ScanEntry) => "scan",
             Action::Entry(_) | Action::ScanSeed | Action::ScanPart | Action::LoadKey(_) => {
                 "add a key"
             }
@@ -2766,6 +2833,9 @@ impl Faraday {
             Action::Catalog(i) => match catalog::TILES.get(usize::from(i))?.go {
                 Go::NewKey | Go::NewShares => "make a key",
                 Go::AddKey(_) | Go::SeedQr => "add a key",
+                // Sign and Decode with nothing to open scan: the Scan
+                // they press waits instead.
+                Go::CheckAddress | Go::Scan => "scan",
                 _ => return None,
             },
             _ => return None,
@@ -4819,9 +4889,18 @@ impl Faraday {
 
     /// One code the camera read: a part of a UR, a PSBT, or text.
     fn scanned(&mut self, bytes: Vec<u8>) {
+        let bytes = zeroize::Zeroizing::new(bytes);
+        let camera = self.sheet == Some(Sheet::Scan);
+        let sticks = !self.sticks.is_empty();
         let Some(scan) = self.scan.as_mut() else {
             return;
         };
+        // A stick plugged in while the camera is on is held back, and no
+        // key loads while it is attached: what loads one is not read.
+        if camera && sticks && matches!(scan.purpose, ScanPurpose::Seed | ScanPurpose::KeyPart) {
+            scan.note = Some(STICK_KEYS.to_string());
+            return;
+        }
         if scan.purpose == ScanPurpose::VaultEntry {
             let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).into_owned());
             match self.vault_scanned_entry(&text) {
@@ -4839,7 +4918,6 @@ impl Faraday {
             return;
         }
         if scan.purpose == ScanPurpose::KeyPart {
-            let bytes = zeroize::Zeroizing::new(bytes);
             let text = match seedqr_words(&bytes) {
                 Some(w) => w,
                 None => zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string()),
@@ -4863,11 +4941,11 @@ impl Faraday {
             return;
         }
         if let ScanPurpose::CheckCopy(fp) = scan.purpose {
-            self.copy_scanned(fp, zeroize::Zeroizing::new(bytes));
+            self.copy_scanned(fp, bytes);
             return;
         }
         if scan.purpose == ScanPurpose::Seed {
-            let mut bytes = zeroize::Zeroizing::new(bytes);
+            let mut bytes = bytes;
             let lang = osk_bip::bip39::Language::English;
             let digits = bytes.iter().all(u8::is_ascii_digit);
             let read = if digits {
@@ -4879,24 +4957,14 @@ impl Faraday {
             match read {
                 Ok(m) => {
                     let words = lang.words();
-                    zeroize::Zeroize::zeroize(&mut self.entry.typed);
+                    let mut typed = crate::secret_text::room();
                     for (k, &i) in m.indices().iter().enumerate() {
                         if k > 0 {
-                            self.entry.typed.push(' ');
+                            typed.push(' ');
                         }
-                        self.entry.typed.push_str(words[usize::from(i)]);
+                        typed.push_str(words[usize::from(i)]);
                     }
-                    self.scan = None;
-                    self.sheet = None;
-                    self.commands.push_back(Command::CameraOff);
-                    // The words read are added as typed words, not
-                    // through the word keyboard, which a small panel
-                    // gets back if they are refused.
-                    let keys = self.entry.keys.take();
-                    self.entry_add();
-                    if self.screen == Screen::Entry && keys.is_some() {
-                        self.entry.keys = Some(forms::word_typer(lang));
-                    }
+                    self.seed_scanned(&typed);
                 }
                 Err(_) => {
                     // Named, when it is something else.
@@ -4909,6 +4977,22 @@ impl Faraday {
                 }
             }
             return;
+        }
+        // Home's Scan takes a seed too: a SeedQR, a CompactSeedQR or the
+        // words go to Add a key, as its own Scan does, and never into a
+        // box (`docs/QR.md` §2).
+        if camera && let Some(words) = seed_in_code(&bytes) {
+            if self.may_load_keys() {
+                self.act(Action::Entry(None));
+                self.seed_scanned(&words);
+                return;
+            }
+            if sticks {
+                if let Some(scan) = self.scan.as_mut() {
+                    scan.note = Some(STICK_KEYS.to_string());
+                }
+                return;
+            }
         }
         let Some((named, ext, data)) = self.read_code(bytes) else {
             return;
@@ -4957,6 +5041,22 @@ impl Faraday {
             Screen::Spend | Screen::Visit | Screen::Restore | Screen::Home | Screen::Family
         ) {
             self.screen = Screen::Files;
+        }
+    }
+
+    /// A seed's words read by the camera, on Add a key: the camera closes
+    /// and they are added as Add a key adds typed words.
+    fn seed_scanned(&mut self, words: &str) {
+        self.entry.typed.set(words);
+        self.scan = None;
+        self.sheet = None;
+        self.commands.push_back(Command::CameraOff);
+        // The words read are added as typed words, not through the word
+        // keyboard, which a small panel gets back if they are refused.
+        let keys = self.entry.keys.take();
+        self.entry_add();
+        if self.screen == Screen::Entry && keys.is_some() {
+            self.entry.keys = Some(forms::word_typer(self.entry.language()));
         }
     }
 
@@ -5034,10 +5134,14 @@ impl Faraday {
     /// its extension and its bytes. `None` while a transfer in parts waits
     /// for more, and for a code that is refused, which leaves its reason
     /// as the scan's note.
-    fn read_code(&mut self, bytes: Vec<u8>) -> Option<(Option<String>, &'static str, Vec<u8>)> {
+    /// What it read is wiped once done with: it may be a seed.
+    fn read_code(
+        &mut self,
+        bytes: zeroize::Zeroizing<Vec<u8>>,
+    ) -> Option<(Option<String>, &'static str, Vec<u8>)> {
         let scan = self.scan.as_mut()?;
         scan.reads += 1;
-        let text = String::from_utf8_lossy(&bytes).trim().to_string();
+        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string());
         // A SeedQR is digits only; a seed never arrives by this door.
         if !text.is_empty()
             && text.bytes().all(|b| b.is_ascii_digit())
@@ -5125,7 +5229,7 @@ impl Faraday {
         }
         let (named, ext, data) = match item {
             Some(i) => i,
-            None if wallet::read_psbt(&bytes).is_some() => (None, "psbt", bytes),
+            None if wallet::read_psbt(&bytes).is_some() => (None, "psbt", bytes.to_vec()),
             None => {
                 // An address is checked against the loaded wallets, not
                 // filed.
@@ -6606,6 +6710,7 @@ impl Faraday {
         if let Some(psbt) = spent {
             self.vault_round_used(&psbt);
         }
+        self.release_held_stick();
         // A device still waiting comes back up once no other sheet is.
         self.input_sheet();
         self.dirty = true;
@@ -6893,12 +6998,16 @@ impl App for Faraday {
                 }
                 None => return,
             },
-            Event::Scanned { bytes } => self.scanned(bytes),
+            Event::Scanned { bytes } => {
+                self.scanned(bytes);
+                self.release_held_stick();
+            }
             Event::CameraUnavailable => {
                 if self.scan.take().is_some() {
                     self.sheet = None;
                     self.toast("No camera, or the camera was refused");
                 }
+                self.release_held_stick();
             }
             _ => return,
         }

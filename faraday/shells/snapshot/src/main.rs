@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy]
+//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan]
 //! ```
 //!
 //! `TESTKIT_DIR` is what `faraday-testkit` wrote; its files stand in
@@ -10,7 +10,8 @@
 //! `themes`, three screens in each theme; with `keys`, Wallets with keys
 //! in no wallet; with `visit`, Stick visit with a backup's 20 files in the
 //! Outbox, each list scrolled to its end; with `copy`, the backup's seeds
-//! step checking the copy, without a camera and with one.
+//! step checking the copy, without a camera and with one; with `scan`,
+//! Home's Scan pressed with a stick in, then the camera once it is pulled.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -301,6 +302,7 @@ fn run(
         Some("keys") => return keys_tour(&mut t),
         Some("visit") => return visit_tour(&mut t),
         Some("copy") => return copy_tour(&mut t),
+        Some("scan") => return scan_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -1589,6 +1591,20 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
 /// signature and the result.
 /// Each theme on three screens, with the test kit loaded: the Wallets
 /// tab's first page, the wallets, and Settings.
+/// Home's Scan with a stick in: the sheet asks for it to be pulled, and
+/// the camera opens when it is.
+fn scan_tour(t: &mut Tour) -> Result<(), String> {
+    t.sticks(true);
+    t.press(Action::Nav(Screen::Home));
+    t.press(Action::Scan);
+    t.shot("home-pull-scan")?;
+    t.sticks(false);
+    if t.app.sheet != Some(faraday_core::Sheet::Scan) {
+        return Err("pulling the stick did not open the camera".into());
+    }
+    t.shot("scan-after-pull")
+}
+
 /// The small panel's Home, and Create a wallet with a new key from dice,
 /// a step to a page.
 fn compact_tour(t: &mut Tour) -> Result<(), String> {
@@ -2387,11 +2403,11 @@ fn main() -> ExitCode {
     let only = args.get(4).map(String::as_str);
     if only.is_some_and(|m| {
         ![
-            "spend", "themes", "compact", "seeds", "keys", "visit", "copy",
+            "spend", "themes", "compact", "seeds", "keys", "visit", "copy", "scan",
         ]
         .contains(&m)
     }) {
-        eprintln!("the tour is spend, themes, compact, seeds, keys, visit or copy");
+        eprintln!("the tour is spend, themes, compact, seeds, keys, visit, copy or scan");
         return ExitCode::from(2);
     }
     match run((w, h), dpi, Path::new(&args[2]), Path::new(&args[3]), only) {

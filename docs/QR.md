@@ -83,13 +83,18 @@ needs it and nothing here has it yet. `New` means neither does it as needed.
 Every successful scan is classified once, then goes where it belongs. The
 scanner reached from a screen that wants one kind (Sign wants a PSBT) still
 classifies everything, and names a wrong arrival instead of refusing it
-generically. The QR transfer tab's **Receive** wants anything:
+generically. The QR transfer tab's **Receive** and Home's **Scan** want
+anything. Every scanner opens only with no stick attached, as Add a key
+does: a frame may picture a seed. A stick plugged in while the camera is
+on is held back until it is off (`PLAN.md` §5.4).
 
 | Arrived | Goes to |
 |---|---|
 | PSBT, raw transaction | The transaction step of the wallet it belongs to (`docs/WALLETS.md` §2) |
 | Descriptor, policy, multisig config, BSMS, account key (`crypto-account`, `crypto-hdkey`, xpub) | A new wallet card, or the piece a wallet in progress is missing |
-| SeedQR, CompactSeedQR, words, codex32, encrypted backup | The slot of the wallet it belongs to, or **Keys without a wallet**; then **Save to vault** |
+| SeedQR, CompactSeedQR, words | Add a key, added as its own **Scan a SeedQR** adds them; never Files or the Inbox |
+| codex32, encrypted backup | The slot of the wallet it belongs to, or **Keys without a wallet**; then **Save to vault** |
+| Private key, xprv | Named: Add a key takes seeds as words or a SeedQR |
 | `otpauth://` URI | A new entry, filled in, in the open vault |
 | Faraday file envelope | The Inbox, after its SHA-256 is checked |
 | Codes read from an image file on a stick | Routed one by one by the rows above, as if scanned |
