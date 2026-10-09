@@ -5450,6 +5450,11 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     Action::QrWallet(b.wallet),
                 ),
                 (
+                    "Descriptor QR to the Outbox",
+                    Style::Secondary,
+                    Action::BOut(8),
+                ),
+                (
                     "Descriptor to the Outbox",
                     Style::Secondary,
                     Action::BOut(1),
@@ -5481,16 +5486,16 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 }
                 cy += 6.0;
             } else {
-                // The first three on a row, the files of the wallet's
-                // own shape under them.
+                // In rows, each as wide as its label, the next row when
+                // one does not fit beside the last.
                 let mut bx = x;
-                for &(label, style, action) in &items[..3] {
-                    bx += ui.button(bx, cy, None, 38.0, label, style, action) + 8.0;
-                }
-                cy += 46.0;
-                let mut bx = x;
-                for &(label, style, action) in &items[3..] {
-                    bx += ui.button(bx, cy, None, 38.0, label, style, action) + 8.0;
+                for &(label, style, action) in &items {
+                    let bw = ui.measure(14.0, W::S, label) + 32.0;
+                    if bx > x && bx + bw > x + w {
+                        bx = x;
+                        cy += 46.0;
+                    }
+                    bx += ui.button(bx, cy, Some(bw), 38.0, label, style, action) + 8.0;
                 }
                 cy += 52.0;
             }
@@ -6966,6 +6971,12 @@ fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
             Action::CPublic(1),
         ),
         (
+            "Descriptor QR".to_string(),
+            "Any wallet that scans a QR",
+            format!("{stem}-descriptor.png"),
+            Action::CPublic(8),
+        ),
+        (
             "Wallet file".to_string(),
             "Sparrow, Specter",
             format!("{stem}-wallet.json"),
@@ -7031,7 +7042,14 @@ fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     ui.chip(x, cy, "Public · anyone may read these", MUTED, INNER);
     cy += 38.0;
     for (name, detail, file, action) in &rows {
-        let done = app.outbox.iter().any(|f| &f.name == file);
+        // A picture past one code goes as parts, `-1-of-3.png` and on.
+        let parts = file.strip_suffix(".png").map(|s| format!("{s}-"));
+        let done = app.outbox.iter().any(|f| {
+            &f.name == file
+                || parts
+                    .as_deref()
+                    .is_some_and(|p| f.name.starts_with(p) && f.name.ends_with(".png"))
+        });
         cy += put_row(
             ui,
             x,

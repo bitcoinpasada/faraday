@@ -861,7 +861,7 @@ pub fn public_files(name: &str, descriptor: &str) -> Result<Vec<(String, Vec<u8>
         .session
         .add_wallet(name, descriptor, "Test wallet")
         .map_err(|e| e.text())?;
-    for what in 0..=7 {
+    for what in 0..=8 {
         app.public_out(w, what);
     }
     Ok(app
@@ -874,8 +874,9 @@ pub fn public_files(name: &str, descriptor: &str) -> Result<Vec<(String, Vec<u8>
 /// The backup test stick (2026-10-06): only what backing up the 2-of-3
 /// Taproot multisig over the three test seeds leaves, as a person would
 /// carry it. On the stick, every public file Faraday's Backup step
-/// writes for that wallet (the descriptor, the multisig config, the
-/// split shares, the wallet .json, the BIP 129 record, Bitcoin Core's
+/// writes for that wallet (the descriptor as text and as a labelled QR
+/// picture, the multisig config, the split shares with their pictures,
+/// the wallet .json, the BIP 129 record, Bitcoin Core's
 /// import file, the backup sheet and the blank template as PDFs);
 /// `vault.ofv`, whose passphrase is `a`, holding the three seeds, each
 /// loaded at unlock; and an unsigned spend from the wallet. All testnet.

@@ -33,6 +33,7 @@ pub mod lightning;
 pub mod memory;
 pub mod paper;
 pub mod pdf;
+pub mod picture;
 pub mod restore;
 pub mod secret_text;
 pub mod secrets;
@@ -1375,6 +1376,19 @@ fn bbqr_frames(t: char, data: &[u8], part: usize) -> Result<Frames, String> {
         format!("BBQr {t} · {} frames, shown in turn", frames.len())
     };
     Ok((sub, frames))
+}
+
+/// Text as pictures keep it: one static code while it fits version 25
+/// at medium error correction (the bound `docs/WALLETS.md` §5 sets for
+/// a descriptor on screen), else the BBQr parts the QR view makes, one
+/// code each, which a scanner that assembles parts takes one after the
+/// other.
+pub(crate) fn picture_codes(text: &str) -> Result<Vec<osk_codec::qr::QrMatrix>, String> {
+    use osk_codec::qr::{Ecc, Payload, encode_bounded};
+    if let Ok(m) = encode_bounded(Payload::Bytes(text.as_bytes()), Ecc::Medium, 25) {
+        return Ok(vec![m]);
+    }
+    bbqr_frames('U', text.as_bytes(), QR_PARTS[1]).map(|(_, frames)| frames)
 }
 
 /// Bytes as `ur:bytes`: one code when it fits, else animated.
@@ -4386,10 +4400,117 @@ impl Faraday {
         self.public_out(wallet, what);
     }
 
+    /// The labelled pictures among a wallet's public files `what` (as
+    /// [`Faraday::public_out`] numbers them): for 8, the descriptor's
+    /// code, in parts past one code; for 4, each split share's code, one
+    /// beside each share's sheet and text. None for any other file.
+    pub fn public_pictures(&self, wallet: usize, what: u8) -> Vec<picture::Labelled> {
+        let Some(w) = self.session.wallets.get(wallet) else {
+            return Vec::new();
+        };
+        let stem = file_stem(&w.name);
+        let net = self.session.network();
+        let shape = if net.is_mainnet() {
+            Session::shape(w)
+        } else {
+            format!("{} · {}", Session::shape(w), net.name())
+        };
+        let keys = w.policy.keys();
+        let fps = |pick: &dyn Fn(usize) -> bool| -> Vec<String> {
+            keys.iter()
+                .enumerate()
+                .filter(|(i, _)| pick(*i))
+                .filter_map(|(_, k)| k.fingerprint().map(fp_text))
+                .collect()
+        };
+        // Each code of `text` as a picture: `name` when there is one,
+        // `name{part}j-of-k` for each part when there are more.
+        let pictures = |name: &str, part: &str, text: &str, lines: Vec<String>| {
+            let codes = picture_codes(text).unwrap_or_default();
+            let k = codes.len();
+            codes
+                .into_iter()
+                .enumerate()
+                .map(|(j, code)| {
+                    let (name, mut label) = if k == 1 {
+                        (format!("{name}.png"), Vec::new())
+                    } else {
+                        (
+                            format!("{name}{part}{}-of-{k}.png", j + 1),
+                            vec![format!("Part {} of {k}", j + 1)],
+                        )
+                    };
+                    label.extend(lines.iter().cloned());
+                    picture::Labelled {
+                        name,
+                        code,
+                        title: w.name.clone(),
+                        lines: label,
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+        match what {
+            8 => {
+                let text = w.policy.to_descriptor_checksummed();
+                let all = fps(&|_| true);
+                let mut lines = vec![shape];
+                if !all.is_empty() {
+                    let word = if all.len() == 1 { "Key" } else { "Keys" };
+                    lines.push(format!("{word} {}", all.join(" · ")));
+                }
+                if let Some((_, sum)) = text.rsplit_once('#') {
+                    lines.push(format!("Descriptor checksum {sum}"));
+                }
+                lines.push("Public: watch only, spends nothing".to_string());
+                pictures(&format!("{stem}-descriptor"), "-", &text, lines)
+            }
+            4 => {
+                let (m, n) = Session::quorum(w);
+                // As the shares' sheets and text are split.
+                let omit = self.backup.as_ref().map_or(m.saturating_sub(1), |b| b.omit);
+                let plan = backup::split_plan(n, m, omit);
+                let mut out = Vec::new();
+                for (i, row) in plan.iter().enumerate() {
+                    let Some(text) = backup::split_share(w, row) else {
+                        continue;
+                    };
+                    let mut lines = vec![
+                        format!(
+                            "Share {} of {} · any {m} rebuild the wallet",
+                            i + 1,
+                            plan.len()
+                        ),
+                        shape.clone(),
+                    ];
+                    let held = fps(&|k| row.contains(&k));
+                    if !held.is_empty() {
+                        lines.push(format!("Holds {}", held.join(" · ")));
+                    }
+                    let off = fps(&|k| !row.contains(&k));
+                    if !off.is_empty() {
+                        lines.push(format!("Leaves off {}", off.join(" · ")));
+                    }
+                    lines.push("Not a wallet on its own".to_string());
+                    lines.push("Public: spends nothing".to_string());
+                    out.extend(pictures(
+                        &format!("{stem}-share-{}-of-{n}", i + 1),
+                        "-part-",
+                        &text,
+                        lines,
+                    ));
+                }
+                out
+            }
+            _ => Vec::new(),
+        }
+    }
+
     /// One of a wallet's public files to the Outbox: 0 the blank
     /// template, 1 the descriptor, 2 the multisig config, 3 the backup
     /// sheet, 4 the split shares, 5 the wallet .json, 6 the BIP 129
-    /// descriptor record, 7 Bitcoin Core's `importdescriptors` file.
+    /// descriptor record, 7 Bitcoin Core's `importdescriptors` file, 8 the
+    /// descriptor's code as a labelled picture.
     pub(crate) fn public_out(&mut self, wallet: usize, what: u8) {
         let Some(w) = self.session.wallets.get(wallet) else {
             return;
@@ -4458,6 +4579,7 @@ impl Faraday {
             4 => {
                 let (m, n) = Session::quorum(w);
                 let plan = backup::split_plan(n, m, omit);
+                let pictures = self.public_pictures(wallet, 4);
                 for (i, row) in plan.iter().enumerate() {
                     if let Some(c) = backup::split_share(w, row) {
                         // The sheet to print beside each file.
@@ -4466,7 +4588,21 @@ impl Faraday {
                             files.push((format!("{stem}-share-{}-of-{n}.pdf", i + 1), pdf));
                         }
                         files.push((format!("{stem}-share-{}-of-{n}.txt", i + 1), c.into_bytes()));
+                        // And its code, to scan back.
+                        let share = format!("{stem}-share-{}-of-{n}", i + 1);
+                        for p in pictures.iter().filter(|p| {
+                            p.name
+                                .strip_prefix(share.as_str())
+                                .is_some_and(|rest| rest == ".png" || rest.starts_with("-part-"))
+                        }) {
+                            files.push((p.name.clone(), p.png()));
+                        }
                     }
+                }
+            }
+            8 => {
+                for p in self.public_pictures(wallet, 8) {
+                    files.push((p.name.clone(), p.png()));
                 }
             }
             _ => {}

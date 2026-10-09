@@ -21,5 +21,10 @@ bitcoin.workspace = true
 zeroize = { workspace = true, features = ["alloc"] }
 rqrr = { workspace = true, optional = true }
 
+[dev-dependencies]
+# Tests only: the PNG decoder the shells and the disk process read
+# pictures with, to read back what `png` writes.
+png.workspace = true
+
 [lints]
 workspace = true

@@ -35,6 +35,8 @@ testkit = []
 
 [dev-dependencies]
 faraday-core = { path = ".", features = ["testkit"] }
+# The disk process's picture reader: what a PNG on a stick reads as.
+faraday-files = { path = "../faraday-files" }
 
 [lints]
 workspace = true

@@ -129,6 +129,19 @@ intact, not who sent it.
    kept. Faraday writes BBQr as `2` (and reads `H`), so nothing it
    sends needs a decompressor.
 
+3. **Pictures written: labelled PNGs** (2026-10-09). A wallet's
+   descriptor and each share of a split backup go to the Outbox as a
+   PNG: the code, black on white in whole-pixel modules, with plain
+   label lines under it (the wallet's name, shape, fingerprints,
+   checksum or share number), drawn on an off-screen canvas in the
+   app's fonts and written as eight-bit greyscale in stored deflate
+   blocks (`osk_codec::png::grey_png`, no compressor, a few hundred
+   KB). Writing a picture is allowed in the app; reading one stays in
+   the disk process (item 1). A descriptor past one code (version 25
+   at ECL M) is one picture per BBQr part, which the reader assembles
+   from the pictures in turn. The writer, `faraday_core::picture`,
+   takes any code, title and label lines.
+
 ## 5. Tests
 
 - **The conformance corpus.** `qr-testing/` and

@@ -1,11 +1,14 @@
-//! A QR code as a PNG file (`docs/PLANNING.md` §16.134 rule 5): black
-//! modules on white, the four-module quiet zone round them, each module
-//! a square of whole pixels.
+//! Pictures as PNG files: a QR code (`docs/PLANNING.md` §16.134 rule
+//! 5), black modules on white, the four-module quiet zone round them,
+//! each module a square of whole pixels; and any greyscale picture, such
+//! as a code drawn with a label under it.
 //!
-//! The image is one-bit greyscale, so a row is a filter byte and one
-//! bit per pixel. The pixels are deflated in stored blocks, which is
-//! what deflate allows for data it does not compress: a one-bit image
-//! of a code is a few kilobytes, and a file written this way needs no
+//! A code is one-bit greyscale, so a row is a filter byte and one bit
+//! per pixel; a picture is eight-bit greyscale, a byte per pixel, so
+//! that the edges of its text keep their shades. The pixels are deflated
+//! in stored blocks, which is what deflate allows for data it does not
+//! compress: a one-bit image of a code is a few kilobytes, a labelled
+//! picture a few hundred, and a file written this way needs no
 //! compressor and no new crate. The chunks carry the CRC-32 the fountain
 //! code already has, and the zlib stream its Adler-32.
 
@@ -48,18 +51,47 @@ pub fn qr_png(matrix: &QrMatrix, scale: usize) -> Vec<u8> {
         }
     }
 
+    file(side, side, 1, &raw)
+}
+
+/// A greyscale picture `width` × `height` pixels as a PNG file:
+/// `pixels` row by row from the top, one byte a pixel, 0 black and 255
+/// white. Pixels past the end of a short `pixels` are white; any past
+/// `width` × `height` are left out.
+pub fn grey_png(width: usize, height: usize, pixels: &[u8]) -> Vec<u8> {
+    // Every row: filter type 0 (none), then the row's bytes.
+    let mut raw = Vec::with_capacity(height * (width + 1));
+    for y in 0..height {
+        raw.push(0);
+        let start = raw.len();
+        raw.resize(start + width, 0xFF);
+        let from = (y * width).min(pixels.len());
+        let to = (from + width).min(pixels.len());
+        raw[start..start + (to - from)].copy_from_slice(&pixels[from..to]);
+    }
+    let out = file(width, height, 8, &raw);
+    // The picture may be of a secret: the rows copied here are wiped.
+    zeroize::Zeroize::zeroize(&mut raw);
+    out
+}
+
+/// The file round `raw`, the filtered rows of a greyscale image of
+/// `depth` bits a pixel.
+fn file(width: usize, height: usize, depth: u8, raw: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(raw.len() + raw.len() / STORED_MAX * 5 + 128);
     out.extend_from_slice(&SIGNATURE);
 
     let mut header = Vec::with_capacity(13);
-    header.extend_from_slice(&(side as u32).to_be_bytes());
-    header.extend_from_slice(&(side as u32).to_be_bytes());
-    // Bit depth 1, colour type 0 (greyscale), deflate, the one filter
+    header.extend_from_slice(&(width as u32).to_be_bytes());
+    header.extend_from_slice(&(height as u32).to_be_bytes());
+    // The bit depth, colour type 0 (greyscale), deflate, the one filter
     // method, no interlace.
-    header.extend_from_slice(&[1, 0, 0, 0, 0]);
+    header.extend_from_slice(&[depth, 0, 0, 0, 0]);
     chunk(&mut out, b"IHDR", &header);
 
-    chunk(&mut out, b"IDAT", &zlib_stored(&raw));
+    let mut data = zlib_stored(raw);
+    chunk(&mut out, b"IDAT", &data);
+    zeroize::Zeroize::zeroize(&mut data);
     chunk(&mut out, b"IEND", &[]);
     out
 }

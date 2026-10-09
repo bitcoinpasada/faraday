@@ -60,8 +60,9 @@ to get it.
    the round leaves the vault once it has signed. Create a wallet says the
    same in its cards: after Check come **Secrets into a vault** (the keys
    held here and the wallet), then **Public files** (descriptor, wallet
-   file, multisig config, backup sheet, each key's account key, the
-   descriptor QR), then **Paper backup**: the seeds copied by hand, each
+   file, the descriptor's QR as a labelled picture, multisig config,
+   backup sheet, each key's account key, the descriptor QR on screen),
+   then **Paper backup**: the seeds copied by hand, each
    copy checked by scanning its drawn SeedQR (by its words' typed numbers
    where there is no camera).
 
@@ -233,6 +234,19 @@ guarantees for this file's rule:
   what was not saved.
 - **Creating a wallet ends in Backup and Save**, never on the descriptor
   alone.
+- **The descriptor and its shares as pictures** (2026-10-09). Create's
+  Public files card (**Descriptor QR**) and the backup's public step
+  (**Descriptor QR to the Outbox**) write `{name}-descriptor.png`: the
+  checksummed descriptor as one static code, with the wallet's name, its
+  shape (and the network when not mainnet), the keys' fingerprints, the
+  descriptor's checksum and "Public: watch only, spends nothing" under
+  it. Past one code (version 25 at ECL M) it goes as the BBQr parts the
+  QR view makes, `{name}-descriptor-1-of-3.png` and on, each labelled
+  with its part. **Shares to the Outbox** writes each split share's
+  `{name}-share-k-of-n.png` beside its PDF and text: the share's text as
+  one code, labelled with the share's number and quorum, the keys it
+  holds and leaves off, and "Not a wallet on its own". A scan of a share
+  picture comes back as the share, and Restore takes any quorum of them.
 - **A key in no wallet has a way on**: the card's buttons above with no
   wallet loaded; with wallets loaded, the key's row in the left column
   carries **Make a wallet from this key**. The left column runs top

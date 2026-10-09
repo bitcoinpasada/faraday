@@ -248,12 +248,18 @@ secret nonce unencrypted, with the vault's encryption.
    differs. With no camera, **Type my copy's numbers** checks it from the
    four-digit number beside each word, typed back in order.
 3. **The wallet in public keys.** The descriptor as one code or animated
-   (one code while version ≤ 25 at ECL M or better), and a
+   (one code while version ≤ 25 at ECL M or better), the same code as a
+   labelled PNG in the Outbox (`{name}-descriptor.png`: the wallet's
+   name, shape, key fingerprints and descriptor checksum under the code;
+   past that bound, one labelled picture per BBQr part), and a
    backup sheet (descriptor, keys, first addresses) as a file in the
    Outbox. For a multisig, **Split between signers**: a split plan
    where each sheet omits at most M−1 keys, so any quorum can rebuild and no
    single holder can watch. The sheet states the measured minimum rebuild
-   group, and that this is not secret sharing.
+   group, and that this is not secret sharing. Each share goes out as its
+   PDF, its text and `{name}-share-k-of-n.png`, the share's text as one
+   code labelled with the keys it holds and leaves off; a scan of it is
+   the share, as the text file is.
 4. **The envelope.** Which sheet goes with which seed.
 
 The vault is a fifth copy, not a replacement for paper, and the Backup step

@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan]
+//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public]
 //! ```
 //!
 //! `TESTKIT_DIR` is what `faraday-testkit` wrote; its files stand in
@@ -11,7 +11,9 @@
 //! in no wallet; with `visit`, Stick visit with a backup's 20 files in the
 //! Outbox, each list scrolled to its end; with `copy`, the backup's seeds
 //! step checking the copy, without a camera and with one; with `scan`,
-//! Home's Scan pressed with a stick in, then the camera once it is pulled.
+//! Home's Scan pressed with a stick in, then the camera once it is pulled;
+//! with `public`, the descriptor's QR picture put in the Outbox from
+//! Create's Public files card and from the backup's public step.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -303,6 +305,7 @@ fn run(
         Some("visit") => return visit_tour(&mut t),
         Some("copy") => return copy_tour(&mut t),
         Some("scan") => return scan_tour(&mut t),
+        Some("public") => return public_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -1946,6 +1949,37 @@ fn scroll_to(t: &mut Tour, action: Action) {
 /// The backup's seeds step checking the copy: with no camera, the typed
 /// check; with one, Scan my copy, a copy with a word wrong on the sheet,
 /// and the match back on the step.
+/// The descriptor's QR picture to the Outbox: from Create's Public files
+/// card, for a 2-of-3 made here, and from the backup's public step, for
+/// Savings.
+fn public_tour(t: &mut Tour) -> Result<(), String> {
+    t.load_kit()?;
+    t.press(Action::CreateWallet);
+    t.press(Action::CKind(4));
+    t.press(Action::CNext(0));
+    t.press(Action::CNext(1));
+    let bacon = test_key_1(t)?;
+    t.press(Action::CSlotHere(0, bacon));
+    device_key(t, 1);
+    device_key(t, 2);
+    t.press(Action::CNext(2));
+    t.press(Action::CMake);
+    for step in 3..=6 {
+        t.press(Action::CNext(step));
+    }
+    // Found while it is offered: once done, the row says so instead.
+    scroll_to(t, Action::CPublic(8));
+    t.press(Action::CPublic(8));
+    t.shot("public-create")?;
+    t.press(Action::Backup(0));
+    t.press(Action::BNext(0));
+    t.press(Action::BNext(1));
+    t.press(Action::BOut(8));
+    scroll_to(t, Action::BOut(8));
+    t.shot("public-backup")?;
+    Ok(())
+}
+
 fn copy_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     t.press(Action::Backup(0));
@@ -2403,11 +2437,11 @@ fn main() -> ExitCode {
     let only = args.get(4).map(String::as_str);
     if only.is_some_and(|m| {
         ![
-            "spend", "themes", "compact", "seeds", "keys", "visit", "copy", "scan",
+            "spend", "themes", "compact", "seeds", "keys", "visit", "copy", "scan", "public",
         ]
         .contains(&m)
     }) {
-        eprintln!("the tour is spend, themes, compact, seeds, keys, visit, copy or scan");
+        eprintln!("the tour is spend, themes, compact, seeds, keys, visit, copy, scan or public");
         return ExitCode::from(2);
     }
     match run((w, h), dpi, Path::new(&args[2]), Path::new(&args[3]), only) {

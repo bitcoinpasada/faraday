@@ -142,15 +142,18 @@ pub(crate) fn backup(n: u8, m: usize, keys: usize, seeds_here: usize) -> String 
         }
         bstep::PUBLIC => "This half is xpubs only. It can spend nothing, but it is the only thing that \
             puts the keys back together into this wallet, so keep copies. Show the descriptor as a QR to \
-            load the wallet into watch-only software, and put the files and the backup sheet in the Outbox; \
-            the sheet goes as a PDF to print. Sparrow imports the .json under Specter Desktop, \
+            load the wallet into watch-only software, or put the QR in the Outbox as a picture with the \
+            wallet's name, keys and checksum under it, to print or to scan later. Put the files and the \
+            backup sheet in the Outbox; the sheet goes as a PDF to print. Sparrow imports the .json under Specter Desktop, \
             and the multisig config under Coldcard Multisig."
             .to_string(),
         bstep::SPLIT => format!(
             "Instead of one sheet with every key, give each of the {keys} signers a share that leaves some \
              keys off. With {} left off each, any {m} shares together hold every key, so any {m} signers can \
              rebuild the wallet, and one share alone cannot watch it. This is not secret sharing: the keys \
-             are public, and the shares only decide who can see the balance.",
+             are public, and the shares only decide who can see the balance. Each share goes to the \
+             Outbox as a sheet to print, a text file and a picture of its QR; Restore takes the text file \
+             or a scan of the picture.",
             m.saturating_sub(1)
         ),
         bstep::ENVELOPE => "One envelope per signer: the seed in that signer's hand, with the sheet or share \
