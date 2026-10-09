@@ -10149,3 +10149,44 @@ carries, above its buttons, "Files not chosen are wiped from memory. To
 bring one in later, insert the stick again." It says what the button
 does and what follows from it, in plain statement, which §16.46 allows
 anywhere; it is not an explanation of why, which §16.37 keeps in Learn.
+
+### 16.142 Faraday upgrades another Faraday stick, and never signs inside the upgrade (2026-10-08)
+
+**Why.** Upgrading a stick meant writing the new image over the whole
+stick, which empties its data partition, or replacing `BOOTX64.EFI` on
+another computer, which puts the vaults on that computer: it can copy
+them to guess at the passphrase offline, delete them, and plant files. The
+owner's ask: Faraday copies itself onto a stick that already holds
+Faraday and a data partition, and the data partition is not touched.
+
+**What it does** (Faraday's `PLAN.md` §5.5; not built yet). Settings →
+**Upgrade a Faraday stick**, in the clean state: the stick Faraday
+started from is read, then its boot partition is written raw over the
+target's, read back and compared. The source is accepted only if it
+carries the running kernel's release string, into which the build puts
+the Faraday version and commit; every stick has the same partition
+UUIDs, so unplugging and replugging the boot stick changes nothing. A
+new process, `faraday-boot` (`ofboot`, uid 203), does the copy and reads
+no FAT; the app can only ask it to copy, never hand it bytes.
+`faraday-grant` hands it partitions named `OSKBOOT` only while the app
+publishes an upgrade marker.
+
+**The owner's decisions.**
+
+- *The exception to "no boot partition is handed out" is small.* That
+  rule (Faraday's `PLAN.md` §4.3) is there so a Faraday compromised while
+  running cannot plant itself on a stick. Here the app never supplies
+  the bytes; a source stick that was tampered with already controls the
+  machine it booted; and without Secure Boot any computer the stick is
+  plugged into can rewrite the boot partition anyway.
+- *No signing inside the upgrade.* Signing there would have the app hand
+  `faraday-boot` a file of its own making, checked by Authenticode
+  digest against the source, and `faraday-boot` would parse PE and write
+  FAT. Instead an owner with Secure Boot signs each release once through
+  a spare stick (sign on the vault stick, copy the signed file onto the
+  spare's boot partition on a computer, boot the spare, upgrade the
+  vault stick from it), so the vault stick never meets an online
+  computer. A Learn page and the README take the person through it.
+- *A boot-partition-only flash for development* (`just
+  faraday-stick-boot`), so a test stick keeps its vaults across builds.
+  It is not offered to users: it puts the stick on the build computer.

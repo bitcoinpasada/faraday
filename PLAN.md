@@ -121,6 +121,7 @@ and are not Faraday targets.
 | `faraday-grant` | own user | `CAP_CHOWN` only | `/sys` attributes, nothing read from a stick |
 | `faraday-disk` | `ofdisk` (uid 201) | none | FAT16 and FAT32 filesystems on USB and SD partitions; PNG and JPEG files, read for QR codes |
 | `faraday` (the app) | `opensigner` (uid 200) | none | camera frames (QR), input events, file contents passed by the disk process, vault files |
+| `faraday-boot` (not built yet, §5.5) | `ofboot` (uid 203) | none | `/sys` attributes; a boot partition's release string, bounded; reads no FAT |
 
 `rcS` runs once as root at boot: it mounts `proc` and `sysfs`, starts
 `faraday-grant` and the disk process's restart loop, and mounts no
@@ -205,7 +206,10 @@ Outbox (public) and sealed vaults (ciphertext). It never holds a secret.
 
 The boot partition is never handed out, so the running system cannot
 rewrite its own kernel. OpenSigner has the same property by never mounting
-it. This requires both images' `genimage.cfg` to name or label the boot
+it. The one exception, not built yet, is upgrading a stick (§5.5): while
+the app is in that flow, a partition named `OSKBOOT` goes to
+`faraday-boot`, never to the disk process, and only for a raw copy of
+the Faraday that is running. This requires both images' `genimage.cfg` to name or label the boot
 partition `OSKBOOT`: the ESP's GPT name and FAT label on the PC, the boot
 partition's FAT label on the Pi, where it is also the card's first
 partition.
@@ -218,8 +222,9 @@ boot stick's settings file, §5.2),
 vault files (only the fixed header is read before an authentication tag
 is checked; Argon2id cost is capped before allocation), FAT metadata (in
 the unprivileged disk process), GPT and MBR partition tables (in the
-kernel), `/sys` attributes (in the grant helper), and USB descriptors and input events (in the kernel and the
-app, §4.6).
+kernel), `/sys` attributes (in the grant helper), USB descriptors and input events (in the kernel and the
+app, §4.6), and, once §5.5 is built, a boot partition's release string
+(in `faraday-boot`, bounded).
 
 ### 4.5 What this does not defend against
 
@@ -392,7 +397,9 @@ reads every file on its data partition into memory: vault files into the
 Inbox, encrypted; every other file into a holding area apart from the
 Inbox, a PNG as what its QR codes hold (a SeedQR as its words), a file
 Faraday reads as nothing it knows as a File, to sign or send as codes.
-A sheet over Home says
+A keyboard or pointer waiting to be believed (§4.6) is asked about
+first, whether it was seen before the stick or after; then a sheet over
+Home says
 how many files were copied and what they are, and **Remove the stick to
 start the import** (on the Pi, the card). Once no removable partition
 remains, the same sheet lists the medium's vaults, each with **Unlock**
@@ -428,6 +435,98 @@ ends on **Remove the stick**, then **Unlock again**.
 **File-based PSBT signing.** Visit: pick the PSBT into the Inbox. Remove.
 Unlock. Sign in OpenSigner; Save puts the signed PSBT in the Outbox. Lock.
 Visit: the Outbox is written. QR signing needs no stick.
+
+### 5.5 Upgrading a stick
+
+Not built yet (decided 2026-10-08, `docs/PLANNING.md` §16.142). Faraday
+copies itself onto another Faraday stick: the boot partition of the
+stick it started from is written over the other stick's, and that
+stick's data partition, with its vaults and settings file, is not
+touched. The stick holding vaults then never needs a computer other than
+the one Faraday runs on.
+
+**The flow.** Settings → **Upgrade a Faraday stick**. If anything is
+unlocked, the sheet for a stick inserted while unlocked (§5.4) comes
+first, so the copy happens in the clean state. Then:
+
+1. "Insert the stick Faraday started from." Its boot partition is read
+   whole into memory, and kept only if it holds this Faraday (below).
+2. "Remove it. Insert the stick to upgrade." The sheet shows the version
+   on that stick and the one to be written. **Upgrade** writes, reads
+   back and compares.
+3. Done; the stick is removed.
+
+With both sticks in at once there is no swap: the one holding this
+Faraday is the source. Taking the boot stick out after boot and putting
+it back for step 1 changes nothing. Every stick has the same partition
+UUIDs (`genimage.cfg`), so the source is told by what it holds, never by
+when it was inserted.
+
+**Which stick is the source.** The image build writes the Faraday
+version and commit into the kernel's release string
+(`CONFIG_LOCALVERSION`), which the bzImage carries uncompressed in its
+setup header. A boot partition is accepted as the source only if it
+contains the running kernel's release string, as `/proc/version` gives
+it. This identifies the version; it is not a signature, and a stick made
+to carry the same string would pass. Such a stick, present at the
+machine, could as well have been the stick it booted from. The target's
+version is read the same way and shown: a stick that carries no such
+string (0.1.0 and earlier) shows as an earlier version, and a target
+newer than the running Faraday is warned about.
+
+**Who writes.** `faraday-boot`, user `ofboot` (uid 203), started by
+`rcS` as the disk process is. It copies the partition raw and reads no
+FAT on either stick; apart from `/sys`, the only bytes it reads from a
+stick are the release strings, bounded and printable only. The app asks
+it two things over a pipe: read the source, and write the copy to a
+partition. It never hands it bytes, so a compromised app can at most
+write the Faraday that is running. `faraday-grant` hands a partition
+named `OSKBOOT` to `ofboot`, never to `ofdisk`, and only while the app
+publishes an upgrade marker beside the clean marker (§5.1). Outside the
+flow no boot partition is handed out, as before (§4.3).
+
+**Limits.** The target's boot partition must be at least the source's
+size: 48 MB on the PC, about 11 MB of it used now. A release whose boot
+partition has to grow cannot be copied onto an older stick; that needs
+repartitioning, which moves the data partition, and is not planned. A
+stick pulled during the write does not boot; its data partition is
+intact, and the upgrade is run again.
+
+**Secure Boot.** The copy is byte for byte, so a source whose
+`BOOTX64.EFI` carries the owner's db signature passes it on. Faraday
+does not sign inside the upgrade (owner, 2026-10-08): the app would then
+hand `faraday-boot` bytes of its own making. A new release is signed
+once, through a spare stick, so the vault stick never meets an online
+computer:
+
+1. On a computer: write the release onto a spare stick, and put its
+   `BOOTX64.EFI` on the spare's data partition too.
+2. Boot the current, signed vault stick. Read the file from the spare
+   into the Inbox, unlock the vault holding the db key, sign (§8), lock,
+   and write only the signed file back to the spare.
+3. On the computer: copy the signed file onto the spare's boot
+   partition.
+4. Boot the spare and upgrade the vault stick from it.
+
+A Learn page and the README take the person through these steps; the
+working screens do not explain them.
+
+**The Pi.** The same flow over the card's first partition
+(`mmcblk0p1`, 32 MB), swapping cards in the one slot. After the PC.
+
+**Test.** QEMU boots the new image with an older stick attached,
+upgrades it, boots it, and checks the version and that its data
+partition is byte for byte what it was.
+
+**For development.** `faraday-stick-image` also leaves the boot
+partition's own image (`esp.vfat`) as
+`out/stick/faraday-x86_64-uefi[-dev]-boot.vfat`, and
+`just faraday-stick-boot dev=/dev/sdX` writes it over the partition
+named `OSKBOOT` alone, so a test stick keeps its vaults and settings
+across builds. It refuses unless the disk is on USB, its first partition
+is named `OSKBOOT` and is large enough, and the device is typed back; it
+reads back and compares. It puts the whole stick on the build computer,
+so it is not offered to users.
 
 ## 6. Vaults and the Wallets tab
 
@@ -531,7 +630,9 @@ Version-4 fingerprints need SHA-1, which is used for fingerprints only.
   the Outbox and is copied onto the boot partition on another computer —
   the running system cannot write its own boot partition (§4.3), and the
   firmware checks the signature, so an untrusted copy step changes
-  nothing.
+  nothing. The stick that goes to that computer is a spare, never the
+  one holding vaults; the vault stick is then upgraded from the spare
+  (§5.5).
 - Check an existing signature against the db certificate in a vault.
 - Test: `tools/stick-qemu.py` extended to enrol generated keys in OVMF,
   boot the signed image, and confirm an unsigned or altered image is
@@ -628,6 +729,7 @@ other tab.
 | `faraday/shells/stick` | The x86 stick shell, from `shells/pi`: framebuffer, evdev, V4L2, the pipe to the disk process. |
 | `faraday/faraday-disk` | FAT16 and FAT32 in Rust, unprivileged. |
 | `faraday/faraday-grant` | The `CAP_CHOWN` helper. The only new crate with `unsafe` (ownership and capabilities). |
+| `faraday/faraday-boot` | Not built yet (§5.5): copies the running Faraday's boot partition raw onto another stick's. |
 
 New dependencies, each needing a note in `docs/deps/` under OpenSigner's
 policy: an Ed25519 implementation (`ed25519-dalek`), `sha1`, `hkdf`,
@@ -655,6 +757,9 @@ device graph, to be measured with `cargo tree` once a prototype exists.
 6. **Secure Boot**, with the OVMF enrolment test.
 7. **Forms and look:** `faraday-ui`, kerning, scale, motion, the
    snapshot gallery.
+8. **Upgrading a stick** (§5.5): the boot-partition-only flash for
+   development first, then `faraday-boot` and the flow on the PC, the
+   Learn page and README section, then the Pi.
 
 ## 12. Decided 2026-10-04
 
