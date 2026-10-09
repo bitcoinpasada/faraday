@@ -41,16 +41,16 @@ The stick image on a PC, at 1280×800.
 
 <table>
 <tr>
-<td><img src="docs/screenshots/pc-home.png" alt="Home"></td>
-<td><img src="docs/screenshots/pc-tools.png" alt="Tools"></td>
+<td width="50%"><img src="docs/screenshots/pc-home.png" alt="Home" width="100%"></td>
+<td width="50%"><img src="docs/screenshots/pc-tools.png" alt="Tools" width="100%"></td>
 </tr>
 <tr>
 <td>Home</td>
 <td>Tools: every flow, with its standards</td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/pc-new-key-dice.png" alt="A new key from die rolls"></td>
-<td><img src="docs/screenshots/pc-settings.png" alt="Settings"></td>
+<td width="50%"><img src="docs/screenshots/pc-new-key-dice.png" alt="A new key from die rolls" width="100%"></td>
+<td width="50%"><img src="docs/screenshots/pc-settings.png" alt="Settings" width="100%"></td>
 </tr>
 <tr>
 <td>A new BIP-39 key from die rolls: each word's bits and the word</td>
@@ -63,10 +63,10 @@ touch.
 
 <table>
 <tr>
-<td><img src="docs/screenshots/pi-home.png" alt="Home" width="200"></td>
-<td><img src="docs/screenshots/pi-new-key-rolls.png" alt="A new key from dice rolls" width="200"></td>
-<td><img src="docs/screenshots/pi-add-a-key.png" alt="Typing a seed's words" width="200"></td>
-<td><img src="docs/screenshots/pi-restore-m-of-n.png" alt="Choosing M of N" width="200"></td>
+<td width="25%"><img src="docs/screenshots/pi-home.png" alt="Home" width="100%"></td>
+<td width="25%"><img src="docs/screenshots/pi-new-key-rolls.png" alt="A new key from dice rolls" width="100%"></td>
+<td width="25%"><img src="docs/screenshots/pi-add-a-key.png" alt="Typing a seed's words" width="100%"></td>
+<td width="25%"><img src="docs/screenshots/pi-restore-m-of-n.png" alt="Choosing M of N" width="100%"></td>
 </tr>
 <tr>
 <td>Home</td>
