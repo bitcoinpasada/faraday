@@ -132,8 +132,8 @@ pub(crate) fn backup(n: u8, m: usize, keys: usize, seeds_here: usize) -> String 
             } else {
                 "Copy each seed onto its own template by hand: the words, and if you want a code to scan, \
                  the SeedQR square by square. The grey squares are already on the template. Click a row to \
-                 keep your place, or move it with the arrow keys. Then type the digits of your copy back; \
-                 a mistake is named by its word."
+                 keep your place, or move it with the arrow keys. Then scan your copy with the camera; a \
+                 mistake is named by its word."
                     .to_string()
             };
             format!("{lead} A printer is a computer with memory and often a network, so a seed never goes \

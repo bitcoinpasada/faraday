@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit]
+//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy]
 //! ```
 //!
 //! `TESTKIT_DIR` is what `faraday-testkit` wrote; its files stand in
@@ -9,7 +9,8 @@
 //! PNG in `OUT_DIR`. With `spend`, only the Spend tab's tour runs; with
 //! `themes`, three screens in each theme; with `keys`, Wallets with keys
 //! in no wallet; with `visit`, Stick visit with a backup's 20 files in the
-//! Outbox, each list scrolled to its end.
+//! Outbox, each list scrolled to its end; with `copy`, the backup's seeds
+//! step checking the copy, without a camera and with one.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -299,6 +300,7 @@ fn run(
         Some("seeds") => return seeds_tour(&mut t),
         Some("keys") => return keys_tour(&mut t),
         Some("visit") => return visit_tour(&mut t),
+        Some("copy") => return copy_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -777,17 +779,16 @@ fn run(
     t.press(Action::BNext(0));
     t.press(Action::BReveal);
     t.shot("backup-seed")?;
-    t.press(Action::BCheck);
-    // bacon is word 0138; the third word is typed wrong.
-    for c in "01380138013901380138".chars() {
-        t.app.event(Event::Key(Key::Char(c)));
-    }
-    t.shot("backup-check-wrong")?;
+    // The copy scanned with its third word drawn wrong.
+    t.press(Action::BScan);
+    let wrong = copy_digits(&t, Some(2))?;
+    t.app.event(Event::Scanned { bytes: wrong });
+    t.shot("backup-scan-wrong")?;
+    t.press(Action::Cancel);
     // Another paper form: test key 1 split into two Seed XOR parts.
     t.press(Action::BXor(2));
     t.shot("backup-xor")?;
     t.press(Action::BPaperHide);
-    t.press(Action::BCheck);
     t.press(Action::BNext(1));
     t.shot("backup-public")?;
     t.press(Action::BNext(2));
@@ -1891,6 +1892,76 @@ fn visit_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// The SeedQR digits of the seed the backup shows, as a camera reads
+/// them off the copy; with `wrong`, that word's number one off.
+fn copy_digits(t: &Tour, wrong: Option<usize>) -> Result<Vec<u8>, String> {
+    let b = t.app.backup.as_ref().ok_or("no backup")?;
+    let key = t.app.session.keys.get(b.key).ok_or("no key")?;
+    let words = key.words.as_deref().ok_or("no words")?;
+    let m = osk_bip::bip39::Mnemonic::parse(key.language, words.as_str())
+        .map_err(|e| format!("{e}"))?;
+    let mut digits = osk_codec::seedqr::to_digits(&m)
+        .expose()
+        .as_bytes()
+        .to_vec();
+    if let Some(k) = wrong {
+        let d = &mut digits[k * 4 + 3];
+        *d = if *d == b'9' { b'8' } else { *d + 1 };
+    }
+    Ok(digits)
+}
+
+/// Scrolls the page until `action` is on screen, then a little further.
+fn scroll_to(t: &mut Tour, action: Action) {
+    for _ in 0..30 {
+        t.app.settle();
+        let _ = t.app.frame();
+        let (_, h) = t.size();
+        if t.app
+            .where_offered(action)
+            .is_some_and(|(_, y)| y < h * 2 / 3)
+        {
+            return;
+        }
+        scroll(t, 120);
+    }
+}
+
+/// The backup's seeds step checking the copy: with no camera, the typed
+/// check; with one, Scan my copy, a copy with a word wrong on the sheet,
+/// and the match back on the step.
+fn copy_tour(t: &mut Tour) -> Result<(), String> {
+    t.load_kit()?;
+    t.press(Action::Backup(0));
+    t.press(Action::BNext(0));
+    t.press(Action::BReveal);
+    t.app.storage(StorageEvent::Cameras(Vec::new()));
+    scroll_to(t, Action::BCheck);
+    t.shot("copy-no-camera")?;
+    t.press(Action::BCheck);
+    for &c in &copy_digits(t, None)?[..12] {
+        t.app.event(Event::Key(Key::Char(char::from(c))));
+    }
+    t.shot("copy-typing")?;
+    t.press(Action::BCheck);
+    t.press(Action::BCheckClear);
+    t.app.storage(StorageEvent::Cameras(vec![(
+        "/dev/video0".into(),
+        "Integrated Camera".into(),
+    )]));
+    scroll_to(t, Action::BScan);
+    t.shot("copy-camera")?;
+    t.press(Action::BScan);
+    let wrong = copy_digits(t, Some(4))?;
+    t.app.event(Event::Scanned { bytes: wrong });
+    t.shot("copy-scan-differs")?;
+    let right = copy_digits(t, None)?;
+    t.app.event(Event::Scanned { bytes: right });
+    scroll_to(t, Action::BScan);
+    t.shot("copy-scan-matched")?;
+    Ok(())
+}
+
 fn themes_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     for theme in faraday_core::ui::Theme::ALL {
@@ -2286,7 +2357,7 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit]"
+            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy]"
         );
         return ExitCode::from(2);
     }
@@ -2314,9 +2385,13 @@ fn main() -> ExitCode {
         None => 160,
     };
     let only = args.get(4).map(String::as_str);
-    if only.is_some_and(|m| !["spend", "themes", "compact", "seeds", "keys", "visit"].contains(&m))
-    {
-        eprintln!("the tour is spend, themes, compact, seeds, keys or visit");
+    if only.is_some_and(|m| {
+        ![
+            "spend", "themes", "compact", "seeds", "keys", "visit", "copy",
+        ]
+        .contains(&m)
+    }) {
+        eprintln!("the tour is spend, themes, compact, seeds, keys, visit or copy");
         return ExitCode::from(2);
     }
     match run((w, h), dpi, Path::new(&args[2]), Path::new(&args[3]), only) {

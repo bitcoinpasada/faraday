@@ -138,7 +138,11 @@ fn a_codex32_string_and_a_slip39_share_can_be_scanned_instead_of_typed() {
     // BIP 93 vector 1, as a QR code holds it.
     let mut app = adding(2);
     app.press(Action::ScanPart);
-    assert!(app.scan.as_ref().is_some_and(|s| s.part));
+    assert!(
+        app.scan
+            .as_ref()
+            .is_some_and(|s| s.purpose == faraday_core::ScanPurpose::KeyPart)
+    );
     app.event(Event::Scanned {
         bytes: b"MS10TESTSXXXXXXXXXXXXXXXXXXXXXXXXXX4NZVCA9CMCZLW".to_vec(),
     });

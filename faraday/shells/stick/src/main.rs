@@ -1157,6 +1157,9 @@ impl Shell {
             if let Some(available_mib) = faraday_storage::memory_available_mib() {
                 app.storage(StorageEvent::Memory { available_mib });
             }
+            // Which cameras there are, so a screen can offer the camera
+            // or do without it.
+            app.storage(StorageEvent::Cameras(camera::list()));
         }
         // What the app asked for in answer, and the redraw.
         self.send(Event::Tick {

@@ -241,7 +241,12 @@ secret nonce unencrypted, with the vault's encryption.
    Outbox as a file to print anywhere.
 2. **The seeds, by hand.** Words and the SeedQR grid to copy on paper,
    behind hold-to-reveal; never a file, never a printer. No line for a
-   BIP-39 passphrase, and the screen says why.
+   BIP-39 passphrase, and the screen says why. **Scan my copy** checks
+   the copy afterwards: the camera reads the drawn SeedQR (Standard or
+   Compact), compares its words with the seed on screen in place (never
+   loaded as a key, never put in Files) and names the first word that
+   differs. With no camera, **Type my copy's numbers** checks it from the
+   four-digit number beside each word, typed back in order.
 3. **The wallet in public keys.** The descriptor as one code or animated
    (one code while version ≤ 25 at ECL M or better), and a
    backup sheet (descriptor, keys, first addresses) as a file in the

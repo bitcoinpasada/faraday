@@ -61,7 +61,9 @@ to get it.
    same in its cards: after Check come **Secrets into a vault** (the keys
    held here and the wallet), then **Public files** (descriptor, wallet
    file, multisig config, backup sheet, each key's account key, the
-   descriptor QR), then **Paper backup**.
+   descriptor QR), then **Paper backup**: the seeds copied by hand, each
+   copy checked by scanning its drawn SeedQR (by its words' typed numbers
+   where there is no camera).
 
 7. **Words for keys** (2026-10-06). A **key** or **seed** is what signs:
    words, a SeedQR, a share of one. An account's public key with its

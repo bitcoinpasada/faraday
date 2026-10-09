@@ -3,7 +3,9 @@
 //!
 //! - the seeds, copied by hand from the screen: words with their BIP-39
 //!   indices, and the SeedQR drawn as a ruled grid, checked afterwards by
-//!   typing the digits back. Never a file, never a printer.
+//!   scanning the drawn grid ([`compare_words`]), or, with no camera, by
+//!   typing the words' numbers back ([`check_copy`]). Never a file, never
+//!   a printer.
 //! - the wallet in public keys: the descriptor as a QR code and as files,
 //!   a multisig config, and for a multisig the split plan.
 //!
@@ -312,6 +314,25 @@ pub fn check_copy(typed: &str, digits: &[u8]) -> CopyCheck {
             typed: t.len(),
             of: digits.len(),
         }
+    }
+}
+
+/// Compares the words a scanned copy holds with the seed's, by their
+/// BIP-39 numbers: the first that differs, counting from one, or a copy
+/// of another length at the first word one has and the other lacks.
+pub fn compare_words(copy: &[u16], seed: &[u16]) -> CopyCheck {
+    match copy.iter().zip(seed).position(|(a, b)| a != b) {
+        Some(i) => CopyCheck::WrongWord(i + 1),
+        None if copy.len() == seed.len() => CopyCheck::Matches,
+        None => CopyCheck::WrongWord(copy.len().min(seed.len()) + 1),
+    }
+}
+
+/// What the camera found of a copy, as the seeds step says it.
+pub fn copy_scan_line(found: &CopyCheck) -> String {
+    match found {
+        CopyCheck::WrongWord(k) => format!("Your copy scans but word {k} differs"),
+        _ => "Your copy scans and matches the seed".to_string(),
     }
 }
 

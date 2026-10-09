@@ -310,6 +310,9 @@ impl Shell {
             if let Some(available_mib) = faraday_storage::memory_available_mib() {
                 app.storage(StorageEvent::Memory { available_mib });
             }
+            // Which cameras there are, so a screen can offer the camera
+            // or do without it.
+            app.storage(StorageEvent::Cameras(camera::list()));
             for line in serve(app, &mut self.boxes, Some(&self.print_dir)) {
                 eprintln!("{line}");
             }

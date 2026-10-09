@@ -547,6 +547,8 @@ pub enum Action {
     BPin(usize),
     /// Start or stop typing the digits back.
     BCheck,
+    /// Scan the copy of the seed on screen.
+    BScan,
     /// Clear the typed digits.
     BCheckClear,
     /// The template's word count.
@@ -879,6 +881,31 @@ pub fn stick_kind(name: &str) -> Option<&'static str> {
     }
 }
 
+/// The words' BIP-39 numbers a drawn SeedQR holds: a Standard SeedQR's
+/// digits four to a word, or a Compact SeedQR's 16 or 32 bytes. The
+/// digits are read without the checksum, so a copy with one word wrong
+/// still reads and the word is named. Wiped when dropped.
+fn copy_indices(bytes: &[u8]) -> Option<zeroize::Zeroizing<Vec<u16>>> {
+    if !bytes.is_empty() && bytes.iter().all(u8::is_ascii_digit) {
+        if !matches!(bytes.len(), 48 | 96) {
+            return None;
+        }
+        let mut out = zeroize::Zeroizing::new(Vec::with_capacity(bytes.len() / 4));
+        for chunk in bytes.chunks(4) {
+            let v = chunk
+                .iter()
+                .fold(0u16, |v, &c| v * 10 + u16::from(c - b'0'));
+            if v >= 2048 {
+                return None;
+            }
+            out.push(v);
+        }
+        return Some(out);
+    }
+    let m = osk_codec::seedqr::from_entropy(bytes, osk_bip::bip39::Language::English).ok()?;
+    Some(zeroize::Zeroizing::new(m.indices().to_vec()))
+}
+
 /// The words a SeedQR holds, standard (digits) or compact (entropy), in
 /// English; `None` for any other code.
 fn seedqr_words(payload: &[u8]) -> Option<zeroize::Zeroizing<String>> {
@@ -1022,6 +1049,23 @@ pub const TOO_FINE_TENTHS: u16 = 25;
 /// says so.
 const TOO_FINE_PASSES: u32 = 3;
 
+/// What the camera is reading codes for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ScanPurpose {
+    /// A file for Files: a PSBT, a descriptor, an xpub, a message.
+    #[default]
+    Files,
+    /// A SeedQR for Add a key.
+    Seed,
+    /// One part of a key for Add a key's other forms.
+    KeyPart,
+    /// A TOTP setup code into a vault entry.
+    VaultEntry,
+    /// The hand-drawn copy of the seed with this fingerprint, on the
+    /// backup's seeds step: compared with it there, never loaded.
+    CheckCopy(osk_bip::keys::Fingerprint),
+}
+
 /// What the camera sheet holds.
 #[derive(Default)]
 pub struct ScanState {
@@ -1041,12 +1085,8 @@ pub struct ScanState {
     pub note: Option<String>,
     /// Codes read so far.
     pub reads: usize,
-    /// Scanning a SeedQR for Add a key, not a file for Files.
-    pub key: bool,
-    /// Scanning one part of a key for Add a key's other forms.
-    pub part: bool,
-    /// Scanning a TOTP setup code into a vault entry.
-    pub entry: bool,
+    /// What the codes read are for.
+    pub purpose: ScanPurpose,
     /// BBQr and numbered parts being put together.
     pub assembler: faraday_qr::Assembler,
 }
@@ -1572,6 +1612,8 @@ pub struct BackupState {
     pub checking: bool,
     /// The digits typed back.
     pub typed: secret_text::SecretText,
+    /// What scanning the copy of the seed on screen found.
+    pub scanned: Option<backup::CopyCheck>,
     /// Template word count.
     pub words: usize,
     /// Keys left off each split sheet.
@@ -1957,7 +1999,8 @@ pub struct Faraday {
     /// A transfer in parts the camera was closed on, kept for the next
     /// scan.
     scan_parts: Option<(osk_codec::ur::Decoder, faraday_qr::Assembler)>,
-    /// The cameras the shell can open.
+    /// The cameras the shell can open. With none, the backup's seeds
+    /// step checks a copy by its typed numbers instead of the camera.
     pub cameras: Vec<(String, String)>,
     /// The one chosen, by id; the shell's first when none is.
     pub camera: Option<String>,
@@ -2248,8 +2291,12 @@ impl Faraday {
                 }
             }
             StorageEvent::Cameras(list) => {
+                // Sent as the shell looks again: drawn again only when it
+                // changes, since what the seeds step offers depends on it.
+                if self.cameras == list {
+                    return;
+                }
                 self.cameras = list;
-                return;
             }
             StorageEvent::QrSeen {
                 width,
@@ -3479,6 +3526,7 @@ impl Faraday {
                     b.key = k;
                     b.reveal = false;
                     b.typed.clear();
+                    b.scanned = None;
                     b.paper = None;
                 }
             }
@@ -3508,6 +3556,20 @@ impl Faraday {
             Action::BCheck => {
                 if let Some(b) = self.backup.as_mut() {
                     b.checking = !b.checking;
+                }
+            }
+            Action::BScan => {
+                let fp = self
+                    .backup
+                    .as_ref()
+                    .and_then(|b| self.session.keys.get(b.key))
+                    .map(|k| k.master.fingerprint());
+                if let Some(fp) = fp {
+                    let mut scan = ScanState::default();
+                    scan.purpose = ScanPurpose::CheckCopy(fp);
+                    self.scan = Some(scan);
+                    self.sheet = Some(Sheet::Scan);
+                    self.commands.push_back(Command::CameraOn);
                 }
             }
             Action::BCheckClear => {
@@ -3915,7 +3977,7 @@ impl Faraday {
             Action::ScanPart => {
                 if self.may_load_keys() {
                     let mut scan = ScanState::default();
-                    scan.part = true;
+                    scan.purpose = ScanPurpose::KeyPart;
                     self.scan = Some(scan);
                     self.sheet = Some(Sheet::Scan);
                     self.commands.push_back(Command::CameraOn);
@@ -3924,7 +3986,7 @@ impl Faraday {
             Action::ScanSeed => {
                 if self.may_load_keys() {
                     let mut scan = ScanState::default();
-                    scan.key = true;
+                    scan.purpose = ScanPurpose::Seed;
                     self.scan = Some(scan);
                     self.sheet = Some(Sheet::Scan);
                     self.commands.push_back(Command::CameraOn);
@@ -4760,7 +4822,7 @@ impl Faraday {
         let Some(scan) = self.scan.as_mut() else {
             return;
         };
-        if scan.entry {
+        if scan.purpose == ScanPurpose::VaultEntry {
             let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).into_owned());
             match self.vault_scanned_entry(&text) {
                 Ok(()) => {
@@ -4776,7 +4838,7 @@ impl Faraday {
             }
             return;
         }
-        if scan.part {
+        if scan.purpose == ScanPurpose::KeyPart {
             let bytes = zeroize::Zeroizing::new(bytes);
             let text = match seedqr_words(&bytes) {
                 Some(w) => w,
@@ -4800,7 +4862,11 @@ impl Faraday {
             }
             return;
         }
-        if scan.key {
+        if let ScanPurpose::CheckCopy(fp) = scan.purpose {
+            self.copy_scanned(fp, zeroize::Zeroizing::new(bytes));
+            return;
+        }
+        if scan.purpose == ScanPurpose::Seed {
             let mut bytes = zeroize::Zeroizing::new(bytes);
             let lang = osk_bip::bip39::Language::English;
             let digits = bytes.iter().all(u8::is_ascii_digit);
@@ -4891,6 +4957,76 @@ impl Faraday {
             Screen::Spend | Screen::Visit | Screen::Restore | Screen::Home | Screen::Family
         ) {
             self.screen = Screen::Files;
+        }
+    }
+
+    /// The seeds step is done once the numbers typed back match the seed
+    /// on screen, as a scanned copy that matches makes it.
+    fn backup_typed_check(&mut self) {
+        let Some(b) = self.backup.as_mut() else {
+            return;
+        };
+        let Some(key) = self.session.keys.get(b.key) else {
+            return;
+        };
+        let Some(words) = key.words.as_ref() else {
+            return;
+        };
+        let Ok(mn) = osk_bip::bip39::Mnemonic::parse(key.language, words.as_str()) else {
+            return;
+        };
+        let digits = osk_codec::seedqr::to_digits(&mn);
+        if backup::check_copy(&b.typed, digits.expose().as_bytes()) == backup::CopyCheck::Matches {
+            b.done[bstep::SEEDS as usize] = true;
+        }
+    }
+
+    /// A code read while the backup's seeds step scans the copy of the
+    /// seed `fp`: decoded as a SeedQR and compared word by word with that
+    /// seed, never loaded. A match closes the camera; a word that differs
+    /// is named and the camera stays open for the copy fixed.
+    fn copy_scanned(&mut self, fp: osk_bip::keys::Fingerprint, bytes: zeroize::Zeroizing<Vec<u8>>) {
+        use osk_bip::bip39::Mnemonic;
+        let copy = copy_indices(&bytes);
+        drop(bytes);
+        let Some(copy) = copy else {
+            if let Some(scan) = self.scan.as_mut() {
+                scan.note = Some("Not a SeedQR".to_string());
+            }
+            return;
+        };
+        let seed = self
+            .session
+            .keys
+            .iter()
+            .find(|k| k.master.fingerprint() == fp)
+            .and_then(|k| {
+                let words = k.words.as_ref()?;
+                Mnemonic::parse(k.language, words.as_str()).ok()
+            });
+        let Some(seed) = seed else {
+            // The seed is no longer here: nothing to compare with.
+            self.scan = None;
+            self.sheet = None;
+            self.commands.push_back(Command::CameraOff);
+            return;
+        };
+        let found = backup::compare_words(&copy, seed.indices());
+        drop(copy);
+        drop(seed);
+        let matched = found == backup::CopyCheck::Matches;
+        if let Some(b) = self.backup.as_mut() {
+            if matched {
+                b.done[bstep::SEEDS as usize] = true;
+            }
+            b.scanned = Some(found.clone());
+        }
+        if matched {
+            self.scan = None;
+            self.sheet = None;
+            self.commands.push_back(Command::CameraOff);
+        } else if let Some(scan) = self.scan.as_mut() {
+            scan.note = Some(backup::copy_scan_line(&found));
         }
     }
 
@@ -5772,6 +5908,7 @@ impl Faraday {
             match key {
                 KeyIn::Char(c) if b.checking && c.is_ascii_digit() => {
                     b.typed.push(c);
+                    self.backup_typed_check();
                     return;
                 }
                 KeyIn::Backspace if b.checking => {
@@ -5791,10 +5928,10 @@ impl Faraday {
         }
         match key {
             KeyIn::Escape => {
+                // Escape is the sheet's Cancel: the scanner's camera goes
+                // off with it, as on Cancel.
                 if self.sheet.is_some() && self.sheet != Some(Sheet::Lock) {
-                    self.secret_cancel();
-                    self.sheet = None;
-                    self.qr = None;
+                    self.act(Action::Cancel);
                 }
             }
             KeyIn::Down => self.glide(60.0),

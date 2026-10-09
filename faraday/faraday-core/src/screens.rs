@@ -5324,22 +5324,47 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     if let Ok(mx) = matrix {
                         cy += seed_grid(ui, &mx, x, cy, w.min(560.0), b.pin) + 12.0;
                     }
-                    // Check my copy.
+                    // The copy checked: scanned with the camera, or with
+                    // none, its words' numbers typed back.
                     let digits = osk_codec::seedqr::to_digits(&mn);
                     let digits = digits.expose().as_bytes().to_vec();
-                    let label = if b.checking {
-                        "Stop typing"
+                    if app.cameras.is_empty() {
+                        let label = if b.checking {
+                            "Stop typing"
+                        } else {
+                            "Type my copy's numbers"
+                        };
+                        let cw2 =
+                            ui.button(x, cy, None, 38.0, label, Style::Secondary, Action::BCheck);
+                        let hint = "Type the four-digit number beside each word, in order";
+                        // Beside the button where it fits, else under it.
+                        if ui.compact || ui.measure(12.0, W::R, hint) > w - cw2 - 14.0 {
+                            cy += 46.0;
+                            cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, hint) + 10.0;
+                        } else {
+                            ui.text_mid(x + cw2 + 14.0, cy, 38.0, 12.0, W::R, MUTED, hint);
+                            cy += 48.0;
+                        }
                     } else {
-                        "Check my copy"
-                    };
-                    let cw2 = ui.button(x, cy, None, 38.0, label, Style::Secondary, Action::BCheck);
-                    let hint = "Type the digits of your copy, four per word";
-                    if ui.compact {
-                        cy += 46.0;
-                        cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, hint) + 10.0;
-                    } else {
-                        ui.text_mid(x + cw2 + 14.0, cy, 38.0, 12.0, W::R, MUTED, hint);
+                        ui.button(
+                            x,
+                            cy,
+                            None,
+                            38.0,
+                            "Scan my copy",
+                            Style::Secondary,
+                            Action::BScan,
+                        );
                         cy += 48.0;
+                    }
+                    if let Some(found) = b.scanned.as_ref() {
+                        let c = if *found == crate::backup::CopyCheck::Matches {
+                            OK
+                        } else {
+                            ERR
+                        };
+                        let line = crate::backup::copy_scan_line(found);
+                        cy += ui.wrap(x, cy, w, 13.0, W::S, c, &line) + 12.0;
                     }
                     if b.checking || !b.typed.is_empty() {
                         let typed: String = b
@@ -11485,10 +11510,10 @@ fn scan_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let (x, y) = sheet_box(ui, w, h, sw, sh);
     let x = x + pad - 32.0;
     let sw = sw - 2.0 * (pad - 32.0);
-    let title = if sc.key {
-        "Scan a SeedQR"
-    } else {
-        "Scan a QR code"
+    let title = match sc.purpose {
+        crate::ScanPurpose::Seed => "Scan a SeedQR",
+        crate::ScanPurpose::CheckCopy(_) => "Scan your copy",
+        _ => "Scan a QR code",
     };
     ui.text(x + 32.0, y + 26.0, 18.0, W::S, TEXT, title);
     let line = sc

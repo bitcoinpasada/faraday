@@ -1111,7 +1111,7 @@ impl Faraday {
             }
             V::ScanEntry => {
                 let mut scan = crate::ScanState::default();
-                scan.entry = true;
+                scan.purpose = crate::ScanPurpose::VaultEntry;
                 self.scan = Some(scan);
                 self.sheet = Some(crate::Sheet::Scan);
                 self.commands.push_back(osk_shell_api::Command::CameraOn);
