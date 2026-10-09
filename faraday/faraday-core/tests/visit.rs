@@ -113,6 +113,7 @@ fn with_outbox(mut app: Faraday, n: usize, secret: bool) -> Faraday {
             bytes: vec![b'%'; 2000],
             kind: FileKind::Pdf,
             secret: false,
+            picture: None,
         });
     }
     if secret {
@@ -121,6 +122,7 @@ fn with_outbox(mut app: Faraday, n: usize, secret: bool) -> Faraday {
             bytes: b"words".to_vec(),
             kind: FileKind::Text,
             secret: true,
+            picture: None,
         });
     }
     app.press(Action::Nav(Screen::Visit));

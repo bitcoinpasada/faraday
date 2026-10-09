@@ -94,6 +94,7 @@ fn pump(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
             StorageCommand::ReadQr { name, .. } => {
                 app.storage(StorageEvent::QrRead {
                     name,
+                    bytes: Vec::new(),
                     payloads: vec![zebra_seedqr()],
                 });
             }
@@ -394,6 +395,7 @@ fn a_picture_ticked_on_a_visit_has_its_codes_read_into_the_inbox() {
             asked = true;
             app.storage(StorageEvent::QrRead {
                 name,
+                bytes: Vec::new(),
                 payloads: vec![zebra_wallet().into_bytes()],
             });
         }
@@ -431,6 +433,7 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
             StorageCommand::ReadQr { name, .. } => {
                 app.storage(StorageEvent::QrRead {
                     name,
+                    bytes: Vec::new(),
                     payloads: vec![seed_seedqr(0)],
                 });
             }

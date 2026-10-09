@@ -144,6 +144,7 @@ fn key_scanned(name: &str, png: &[u8]) -> String {
     app.press(Action::Nav(Screen::Visit));
     app.storage(StorageEvent::QrRead {
         name: name.to_string(),
+        bytes: png.to_vec(),
         payloads: faraday_files::qr_in_png(png).expect("a PNG"),
     });
     let item = app

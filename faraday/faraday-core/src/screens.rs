@@ -10404,8 +10404,8 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let readable: Vec<&String> = stick
         .files
         .iter()
+        .filter(|(n, size)| crate::stick_kind(n).is_some() && *size <= crate::READ_MAX)
         .map(|(n, _)| n)
-        .filter(|n| crate::stick_kind(n).is_some())
         .collect();
     if !readable.is_empty() {
         let all = readable.iter().all(|n| app.visit.inn.contains(*n));
@@ -10415,7 +10415,9 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 34.0;
     }
     for (k, (name, size)) in stick.files.iter().enumerate() {
-        let kind = crate::stick_kind(name);
+        // A file larger than the disk process reads is listed, not read.
+        let big = *size > crate::READ_MAX;
+        let kind = crate::stick_kind(name).filter(|_| !big);
         let on = app.visit.inn.contains(name);
         ui.checkbox(x + 2.0, y + 10.0, on, kind.is_some());
         let fg = if kind.is_some() { TEXT } else { DIM };
@@ -10426,6 +10428,7 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 "{k} · {}",
                 kind_line(FileKind::Other, *size as usize).trim_start_matches("File · ")
             ),
+            None if big => "Larger than 18 MB: not read".to_string(),
             // Read at boot, not copied in.
             None => "Settings".to_string(),
         };
@@ -10482,7 +10485,7 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ],
     ) + 12.0;
 
-    // Write from the Outbox.
+    // Write to the stick: the Outbox, and copies from the Inbox.
     ui.icon(x, y, 20.0, Icon::Export, 13.0, ACCENT);
     ui.text_mid(
         x + 28.0,
@@ -10491,18 +10494,12 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         15.0,
         W::S,
         TEXT,
-        "Write from the Outbox",
+        &format!("Write to the {}", app.medium.noun()),
     );
     y += 34.0;
     // The settings, which are not an Outbox file.
     let settings_on = app.visit_settings_on();
-    // Select all: the settings and every file but an unprotected secret.
-    let all = settings_on
-        && app
-            .outbox
-            .iter()
-            .filter(|i| i.exposure() != crate::secrets::Exposure::Secret)
-            .all(|i| app.visit.out.contains(&i.name));
+    let all = visit_all_out(app);
     ui.checkbox(x + 2.0, y + 4.0, all, true);
     ui.text(x + 32.0, y + 2.0, 13.0, W::S, MUTED, "Select all");
     ui.hit(x - 4.0, y - 6.0, w + 8.0, 34.0, Action::VisitOutAll);
@@ -10555,12 +10552,24 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text(x, y, 13.0, W::R, DIM, "The Outbox is empty");
         y += 28.0;
     }
-    let nout = app
-        .outbox
-        .iter()
-        .filter(|i| app.visit.out.contains(&i.name))
-        .count()
-        + usize::from(settings_on);
+    let inbox_rows = app.visit_inbox_rows();
+    if !inbox_rows.is_empty() {
+        ui.text_mid(x, y, 30.0, 13.0, W::S, MUTED, "From the Inbox");
+        y += 32.0;
+        for &k in &inbox_rows {
+            let item = &app.inbox[k];
+            y += row(
+                ui,
+                y,
+                app.visit.from_inbox.contains(&item.name),
+                &item.name,
+                &visit_inbox_line(item),
+                visit_inbox_tag(item),
+                Action::VisitInbox(k),
+            );
+        }
+    }
+    let nout = visit_write_count(app);
     let label = format!("Write {nout} {}", if nout == 1 { "file" } else { "files" });
     y += 6.0;
     ui.button(
@@ -10667,7 +10676,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let list_top = y + 62.0;
     let max_rows = ((colh - 140.0) / ROW).max(1.0) as usize;
     let track_h = max_rows as f32 * ROW;
-    // Write from the Outbox.
+    // Write to the stick: the Outbox, and copies from the Inbox.
     ui.card(x, y, colw, colh, LINE);
     ui.icon(x + 20.0, y + 20.0, 22.0, Icon::Export, 14.0, ACCENT);
     ui.text_mid(
@@ -10677,20 +10686,22 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         16.0,
         W::S,
         TEXT,
-        "Write from the Outbox",
+        &format!("Write to the {}", app.medium.noun()),
     );
     let settings_on = app.visit_settings_on();
-    // Select all: the settings and every file but an unprotected secret.
-    let all = settings_on
-        && app
-            .outbox
-            .iter()
-            .filter(|i| i.exposure() != crate::secrets::Exposure::Secret)
-            .all(|i| app.visit.out.contains(&i.name));
-    visit_select_all(ui, x + colw, y, all, Action::VisitOutAll);
-    // The settings, which are not an Outbox file, then the Outbox.
-    let total = 1 + app.outbox.len();
-    let max_shift = (total as f32 * ROW - track_h).max(0.0);
+    let inbox_rows = app.visit_inbox_rows();
+    visit_select_all(ui, x + colw, y, visit_all_out(app), Action::VisitOutAll);
+    // The settings, which are not an Outbox file, then the Outbox, then
+    // the Inbox under its heading.
+    const HEAD: f32 = 36.0;
+    let all_h = (1 + app.outbox.len()) as f32 * ROW
+        + if app.outbox.is_empty() { HEAD } else { 0.0 }
+        + if inbox_rows.is_empty() {
+            0.0
+        } else {
+            HEAD + inbox_rows.len() as f32 * ROW
+        };
+    let max_shift = (all_h - track_h).max(0.0);
     let shift = app.visit.out_offset.min(max_shift);
     let clip = ui.rect(x, list_top, colw, track_h);
     ui.c.push_clip(clip);
@@ -10709,28 +10720,70 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.hit(x + 12.0, ry, colw - 24.0, 50.0, Action::VisitSettings);
     ui.rule(x + 20.0, ry + 52.0, colw - 40.0, INNER);
     ry += ROW;
+    let file_row = |ui: &mut Ui,
+                    ry: f32,
+                    on: bool,
+                    name: &str,
+                    line: &str,
+                    tag: (&str, osk_ui::Color),
+                    action: Action| {
+        ui.checkbox(x + 22.0, ry + 15.0, on, true);
+        let tw = ui.measure(12.0, W::S, tag.0) + 12.0;
+        let name = ui.fit(14.0, W::M, name, colw - 74.0 - tw);
+        ui.text(x + 54.0, ry + 6.0, 14.0, W::M, TEXT, &name);
+        let line = ui.fit(12.0, W::R, line, colw - 90.0);
+        ui.text(x + 54.0, ry + 28.0, 12.0, W::R, MUTED, &line);
+        ui.text_right(x + colw - 20.0, ry + 6.0, 20.0, 12.0, W::S, tag.1, tag.0);
+        ui.hit(x + 12.0, ry, colw - 24.0, 50.0, action);
+        ui.rule(x + 20.0, ry + 52.0, colw - 40.0, INNER);
+    };
     for (k, item) in app.outbox.iter().enumerate() {
         let on = app.visit.out.contains(&item.name);
-        ui.checkbox(x + 22.0, ry + 15.0, on, true);
-        let name = ui.fit(14.0, W::M, &item.name, colw - 90.0);
-        ui.text(x + 54.0, ry + 6.0, 14.0, W::M, TEXT, &name);
-        ui.text(
-            x + 54.0,
-            ry + 28.0,
-            12.0,
-            W::R,
-            MUTED,
-            &kind_line(item.kind, item.bytes.len()),
-        );
-        let (tag, tone) = match item.exposure() {
+        let tag = match item.exposure() {
             crate::secrets::Exposure::Public => ("Public", MUTED),
             crate::secrets::Exposure::Sealed => ("Sealed", OK),
             crate::secrets::Exposure::Secret => ("Unprotected secret", ERR),
         };
-        ui.text_right(x + colw - 20.0, ry + 6.0, 20.0, 12.0, W::S, tone, tag);
-        ui.hit(x + 12.0, ry, colw - 24.0, 50.0, Action::VisitOut(k));
-        ui.rule(x + 20.0, ry + 52.0, colw - 40.0, INNER);
+        file_row(
+            ui,
+            ry,
+            on,
+            &item.name,
+            &kind_line(item.kind, item.bytes.len()),
+            tag,
+            Action::VisitOut(k),
+        );
         ry += ROW;
+    }
+    if app.outbox.is_empty() {
+        ui.text_mid(x + 22.0, ry, HEAD, 13.0, W::R, DIM, "The Outbox is empty");
+        ry += HEAD;
+    }
+    if !inbox_rows.is_empty() {
+        ui.text_mid(
+            x + 22.0,
+            ry + 4.0,
+            HEAD - 4.0,
+            13.0,
+            W::S,
+            MUTED,
+            "From the Inbox",
+        );
+        ry += HEAD;
+        for &k in &inbox_rows {
+            let item = &app.inbox[k];
+            let on = app.visit.from_inbox.contains(&item.name);
+            file_row(
+                ui,
+                ry,
+                on,
+                &item.name,
+                &visit_inbox_line(item),
+                visit_inbox_tag(item),
+                Action::VisitInbox(k),
+            );
+            ry += ROW;
+        }
     }
     ui.c.pop_clip();
     ui.report_scroll_in(
@@ -10746,25 +10799,10 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (x, colw),
         list_top,
         track_h,
-        total as f32 * ROW,
+        all_h,
         shift,
     );
-    if app.outbox.is_empty() {
-        ui.text(
-            x + 22.0,
-            list_top + ROW,
-            13.0,
-            W::R,
-            DIM,
-            "The Outbox is empty",
-        );
-    }
-    let nout = app
-        .outbox
-        .iter()
-        .filter(|i| app.visit.out.contains(&i.name))
-        .count()
-        + usize::from(settings_on);
+    let nout = visit_write_count(app);
     let label = format!("Write {nout} {}", if nout == 1 { "file" } else { "files" });
     let bw = ui.measure(14.0, W::S, &label) + 36.0;
     ui.button(
@@ -10801,8 +10839,8 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let readable: Vec<&String> = stick
         .files
         .iter()
+        .filter(|(n, size)| crate::stick_kind(n).is_some() && *size <= crate::READ_MAX)
         .map(|(n, _)| n)
-        .filter(|n| crate::stick_kind(n).is_some())
         .collect();
     if !readable.is_empty() {
         let all = readable.iter().all(|n| app.visit.inn.contains(*n));
@@ -10812,7 +10850,9 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.c.push_clip(clip);
     for (k, (name, size)) in stick.files.iter().enumerate() {
         let ry = list_top - shift + k as f32 * ROW;
-        let kind = crate::stick_kind(name);
+        // A file larger than the disk process reads is listed, not read.
+        let big = *size > crate::READ_MAX;
+        let kind = crate::stick_kind(name).filter(|_| !big);
         let on = app.visit.inn.contains(name);
         ui.checkbox(ix + 22.0, ry + 15.0, on, kind.is_some());
         let fg = if kind.is_some() { TEXT } else { DIM };
@@ -10824,6 +10864,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 "{k} · {}",
                 kind_line(FileKind::Other, *size as usize).trim_start_matches("File · ")
             ),
+            None if big => "Larger than 18 MB: not read".to_string(),
             // Read at boot, not copied in.
             None => "Settings".to_string(),
         };
@@ -10917,6 +10958,65 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let t = ui.fit(13.0, W::R, line, width / 2.0 - 20.0);
         let used = ui.text_mid(lx, fy, 44.0, 13.0, W::R, c, &t);
         lx += used + 24.0;
+    }
+}
+
+/// Whether everything Select all chooses on a visit's write list is
+/// chosen: the settings, every Outbox file but an unprotected secret, and
+/// every public or sealed Inbox file listed.
+fn visit_all_out(app: &Faraday) -> bool {
+    app.visit_settings_on()
+        && app
+            .outbox
+            .iter()
+            .filter(|i| i.exposure() != crate::secrets::Exposure::Secret)
+            .all(|i| app.visit.out.contains(&i.name))
+        && app
+            .visit_inbox_rows()
+            .into_iter()
+            .filter_map(|k| app.inbox.get(k))
+            .filter(|i| i.copy_ack().is_none())
+            .all(|i| app.visit.from_inbox.contains(&i.name))
+}
+
+/// How many files a visit's Write writes: the settings, the Outbox files
+/// and the Inbox files chosen.
+fn visit_write_count(app: &Faraday) -> usize {
+    let out = app
+        .outbox
+        .iter()
+        .filter(|i| app.visit.out.contains(&i.name))
+        .count();
+    let inbox = app
+        .visit_inbox_rows()
+        .into_iter()
+        .filter_map(|k| app.inbox.get(k))
+        .filter(|i| app.visit.from_inbox.contains(&i.name))
+        .count();
+    out + inbox + usize::from(app.visit_settings_on())
+}
+
+/// An Inbox file's second line on a visit's write list: a picture says
+/// what its codes hold.
+fn visit_inbox_line(item: &crate::Item) -> String {
+    match item.picture {
+        Some(FileKind::Other) => format!(
+            "PNG, no QR code read · {}",
+            kind_line(FileKind::Other, item.bytes.len()).trim_start_matches("File · ")
+        ),
+        Some(k) => format!("PNG · {}", kind_line(k, item.bytes.len())),
+        None => kind_line(item.kind, item.bytes.len()),
+    }
+}
+
+/// An Inbox file's tag on a visit's write list: public and sealed files
+/// are written as they are; the rest only past the secret sheet.
+fn visit_inbox_tag(item: &crate::Item) -> (&'static str, osk_ui::Color) {
+    match item.copy_ack() {
+        None if item.exposure() == crate::secrets::Exposure::Sealed => ("Sealed", OK),
+        None => ("Public", MUTED),
+        Some(crate::secrets::Ack::Unknown) => ("May be a secret", WARN),
+        Some(_) => ("Secret", ERR),
     }
 }
 
@@ -13587,10 +13687,29 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     } else {
         Style::Disabled
     };
+    // A file a visit would copy to another stick is ticked there, not put
+    // in the Outbox; text Faraday cannot tell about may be a secret.
+    let head = if out.ack == crate::secrets::Ack::Unknown {
+        "This may be a secret"
+    } else {
+        "This is a secret"
+    };
+    let (unprotected, out_label) = if out.to_visit {
+        (
+            format!("Unprotected, on the {}", app.medium.noun()),
+            "Tick it to write",
+        )
+    } else {
+        (
+            "Unprotected, in the Outbox".to_string(),
+            "Put it in the Outbox unprotected",
+        )
+    };
+    let to_vault = !matches!(out.keep, crate::secrets::Keep::None);
     if ui.compact {
         crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Lock, WARN, "This is a secret");
+            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Lock, WARN, head);
             for (label, value) in [
                 ("File", out.name.as_str()),
                 ("What it is", out.what.as_str()),
@@ -13599,9 +13718,11 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                 cy += crate::compact::kv(ui, x, cy, iw, label, value, TEXT);
             }
             cy += 4.0;
-            ui.text(x, cy, 13.0, W::S, OK, "Sealed in a vault");
-            cy += 24.0;
-            match vault {
+            if to_vault {
+                ui.text(x, cy, 13.0, W::S, OK, "Sealed in a vault");
+                cy += 24.0;
+            }
+            match vault.filter(|_| to_vault) {
                 Some((name, true)) => {
                     let line = ui.fit(13.0, W::S, &format!("In {name}"), iw);
                     ui.text(x, cy, 13.0, W::S, OK, &line);
@@ -13624,15 +13745,16 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                     cy += 58.0;
                 }
                 // Make or unlock one: the sheet waits, and opens again.
-                None => {
+                None if to_vault => {
                     if let Some((label, a)) = app.vault_way(app.screen) {
                         let label = ui.fit(15.0, W::S, &label, iw - 24.0);
                         ui.button(x, cy, Some(iw), 46.0, &label, Style::Primary, a);
                         cy += 58.0;
                     }
                 }
+                None => {}
             }
-            ui.text(x, cy, 13.0, W::S, ERR, "Unprotected, in the Outbox");
+            ui.text(x, cy, 13.0, W::S, ERR, &unprotected);
             cy += 24.0;
             if forms.len() > 1 {
                 cy += wrap_buttons(ui, x, cy, iw, 34.0, &forms) + 4.0;
@@ -13655,11 +13777,7 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                 cy,
                 iw,
                 &[
-                    (
-                        "Put it in the Outbox unprotected",
-                        out_style,
-                        Action::SecretUnprotected,
-                    ),
+                    (out_label, out_style, Action::SecretUnprotected),
                     ("Cancel", Style::Ghost, Action::Cancel),
                 ],
             );
@@ -13675,12 +13793,15 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     } else {
         18.0
     };
-    let sh = 452.0 + ack_h + if forms.len() > 1 { 44.0 } else { 0.0 };
+    let sh = 452.0
+        + ack_h
+        + if forms.len() > 1 { 44.0 } else { 0.0 }
+        + if to_vault { 0.0 } else { -96.0 };
     let (x, y) = sheet_box(ui, w, h, sw, sh);
     let bx = x + bx;
     let mut cy = y + 26.0;
     ui.icon(bx - 4.0, cy - 2.0, 28.0, Icon::Lock, 14.0, WARN);
-    ui.text(bx + 28.0, cy, 18.0, W::S, TEXT, "This is a secret");
+    ui.text(bx + 28.0, cy, 18.0, W::S, TEXT, head);
     cy += 38.0;
     for (label, value, face) in [
         ("File", out.name.as_str(), W::M),
@@ -13692,10 +13813,12 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         cy += used.max(20.0) + 10.0;
     }
     cy += 6.0;
-    // The vault, first.
-    ui.text(bx, cy, 13.0, W::S, OK, "Sealed in a vault");
-    cy += 26.0;
-    match vault {
+    // The vault, first, for what a vault keeps.
+    if to_vault {
+        ui.text(bx, cy, 13.0, W::S, OK, "Sealed in a vault");
+        cy += 26.0;
+    }
+    match vault.filter(|_| to_vault) {
         Some((name, true)) => {
             ui.text_mid(bx, cy, 42.0, 13.0, W::S, OK, &format!("In {name}"));
             cy += 54.0;
@@ -13714,17 +13837,21 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             cy += 54.0;
         }
         // Make or unlock one: the sheet waits, and opens again.
-        None => {
+        None if to_vault => {
             if let Some((label, a)) = app.vault_way(app.screen) {
                 ui.button(bx, cy, None, 42.0, &label, Style::Primary, a);
             }
             cy += 54.0;
         }
+        None => {}
     }
-    ui.rule(bx, cy, bw, INNER);
-    cy += 16.0;
-    // The Outbox, only once the person says they understand.
-    ui.text(bx, cy, 13.0, W::S, ERR, "Unprotected, in the Outbox");
+    if to_vault {
+        ui.rule(bx, cy, bw, INNER);
+        cy += 16.0;
+    }
+    // The Outbox, or the stick, only once the person says they
+    // understand.
+    ui.text(bx, cy, 13.0, W::S, ERR, &unprotected);
     cy += 26.0;
     if forms.len() > 1 {
         cy += wrap_buttons(ui, bx, cy, bw, 34.0, &forms) + 2.0;
@@ -13752,7 +13879,7 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         cy,
         None,
         40.0,
-        "Put it in the Outbox unprotected",
+        out_label,
         out_style,
         Action::SecretUnprotected,
     );

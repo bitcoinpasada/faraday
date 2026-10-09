@@ -201,7 +201,8 @@ below use the PC's words.
 visit** directly.
 
 **Stick visit** (one screen, both directions):
-- **Write from the Outbox**: chosen files written, read back, compared.
+- **Write to the stick**: chosen files written, read back, compared:
+  the Outbox's, then the Inbox's under **From the Inbox** (below).
   A sealed vault replaces the file with its identity, or is written
   under its own name (`name.ofv`, `name-2.ofv` when the stick has one;
   `docs/VAULT.md` §6) where there is none. A failed comparison
@@ -210,15 +211,27 @@ visit** directly.
   on the boot stick when the settings differ from what the boot stick
   holds, unticked on any other stick, and written over the settings
   file already there.
+- **From the Inbox**: every Inbox file the stick shown does not hold
+  already (by name and size), unticked, written from the Inbox, where it
+  stays for the next stick: a copy from one stick to another, one after
+  the other or both in at once. A public or sealed file is ticked like
+  an Outbox file, and Select all ticks it. A secret kind (words, seed
+  parts, entries, a carry file), text and a file Faraday does not read
+  open the secret sheet instead, never ticked by Select all: text, words,
+  seed parts and entries may go into the open vault as a note; past the
+  line ("Faraday cannot tell whether this is a secret" for text and
+  other files) **Tick it to write** ticks the row. Nothing goes to the
+  Outbox. A picture is what its codes hold.
 - **Copy into the Inbox**: chosen files, any of them; a file Faraday
   reads as nothing it knows comes in as a File, for **Sign a file** or
   QR **Send**, and is dropped at a lock. A vault file copied in appears
   on Vaults, locked. A
-  PNG is ticked like any other file, and Select all includes it, but is
-  not copied: the disk process decodes it, and each code it finds is
-  routed as a scan would be (`docs/QR.md` §2), with a multi-part transfer
-  showing its progress across images. A JPEG's codes are not read; it
-  comes in as a File.
+  PNG is ticked like any other file, and Select all includes it: the disk
+  process decodes it, and each code it finds is routed as a scan would be
+  (`docs/QR.md` §2), with a multi-part transfer showing its progress
+  across images; the picture itself comes in too, as it came, to be
+  written to another stick. A JPEG's codes are not read; it comes in as
+  a File. A file over 18 MiB is listed and cannot be ticked.
 - **Delete a vault file** (decision 4).
 - Ends on **Remove the stick** → once gone → **Unlock again**, or Home if
   nothing was locked.

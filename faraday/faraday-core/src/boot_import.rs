@@ -335,7 +335,9 @@ impl Faraday {
                     imp.files[f].state = Staged::Failed(reason);
                 }
             }
-            StorageEvent::QrRead { name, payloads } if self.import_waits(None, &name) => {
+            // The picture's bytes are not kept: what its codes hold is
+            // imported, and the picture is copied on a visit.
+            StorageEvent::QrRead { name, payloads, .. } if self.import_waits(None, &name) => {
                 self.import_codes(&name, payloads)
             }
             other => return Some(other),

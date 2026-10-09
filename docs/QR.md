@@ -114,10 +114,15 @@ intact, not who sent it.
 
 1. **QR from images: PNG only, in the disk process only.** (JPEG was
    dropped on 2026-10-05: it needs a decoder crate.) An image
-   file on a stick is never handed to the app. `faraday-disk`
+   file on a stick is never decoded by the app. `faraday-disk`
    (`PLAN.md` §4.3), which is unprivileged and holds no secret, decodes the
-   image and the QR codes in it and passes the app only the decoded text,
-   each code arriving exactly as a camera scan would. Several images at
+   image and the QR codes in it and passes the app the decoded text,
+   each code arriving exactly as a camera scan would, and beside it the
+   picture's bytes as they are (2026-10-08). The app keeps those bytes as
+   an Inbox file, to be written to another stick as the same `.png`
+   (`PLAN.md` §5.4), with the exposure of what the codes held; it never
+   parses them. A picture whose codes cannot be read still comes in, as
+   one with no code read. Several images at
    once are read in turn, and reading stops when a multi-part transfer
    completes. Images are tried at about 1,200 pixels on the
    long side first and at full size second; one over

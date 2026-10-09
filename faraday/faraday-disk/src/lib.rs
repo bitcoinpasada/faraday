@@ -294,7 +294,7 @@ impl Disks {
             Request::ReadQr { stick, name } => self
                 .place(&stick)
                 .and_then(|mut p| faraday_files::read_qr_png(&mut p as &mut dyn Place, &name))
-                .map(Response::Qr),
+                .map(|(bytes, codes)| Response::Qr { bytes, codes }),
         };
         answer.unwrap_or_else(Response::Failed)
     }

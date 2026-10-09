@@ -51,8 +51,8 @@ pub fn finish_vault_writes(stick: &Path) {
     faraday_files::finish_vault_writes(&mut Dir(stick.to_path_buf()));
 }
 
-/// The QR codes in a PNG in a stick directory.
-pub fn read_qr_png(stick: &str, name: &str) -> Result<Vec<Vec<u8>>, String> {
+/// A PNG in a stick directory: its bytes and its QR codes.
+pub fn read_qr_png(stick: &str, name: &str) -> Result<faraday_files::Picture, String> {
     faraday_files::read_qr_png(&mut dir(stick), name)
 }
 
@@ -62,8 +62,8 @@ pub trait Sticks {
     fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, String>;
     /// A file written; the name it went under.
     fn write(&mut self, stick: &str, name: &str, bytes: &[u8]) -> Result<String, String>;
-    /// The QR codes in a picture.
-    fn read_qr(&mut self, stick: &str, name: &str) -> Result<Vec<Vec<u8>>, String>;
+    /// A picture: its bytes and its QR codes.
+    fn read_qr(&mut self, stick: &str, name: &str) -> Result<faraday_files::Picture, String>;
 }
 
 /// Sticks that are folders, named by their paths.
@@ -76,7 +76,7 @@ impl Sticks for Dirs {
     fn write(&mut self, stick: &str, name: &str, bytes: &[u8]) -> Result<String, String> {
         faraday_files::write_any(&mut dir(stick), name, bytes)
     }
-    fn read_qr(&mut self, stick: &str, name: &str) -> Result<Vec<Vec<u8>>, String> {
+    fn read_qr(&mut self, stick: &str, name: &str) -> Result<faraday_files::Picture, String> {
         read_qr_png(stick, name)
     }
 }
@@ -232,7 +232,11 @@ pub fn serve_with(
             }
             StorageCommand::ReadQr { stick, name } => {
                 let ev = match sticks.read_qr(&stick, &name) {
-                    Ok(payloads) => StorageEvent::QrRead { name, payloads },
+                    Ok((bytes, payloads)) => StorageEvent::QrRead {
+                        name,
+                        bytes,
+                        payloads,
+                    },
                     Err(reason) => StorageEvent::ReadFailed {
                         stick,
                         name,
@@ -401,13 +405,13 @@ impl Sticks for DiskProcess {
         }
     }
 
-    fn read_qr(&mut self, stick: &str, name: &str) -> Result<Vec<Vec<u8>>, String> {
+    fn read_qr(&mut self, stick: &str, name: &str) -> Result<faraday_files::Picture, String> {
         use faraday_files::proto::{Request, Response};
         match self.ask(&Request::ReadQr {
             stick: stick.into(),
             name: name.into(),
         })? {
-            Response::Qr(c) => Ok(c),
+            Response::Qr { bytes, codes } => Ok((bytes, codes)),
             Response::Failed(why) => Err(why),
             _ => Err("an answer that is not codes".to_string()),
         }

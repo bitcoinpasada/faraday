@@ -153,6 +153,7 @@ fn a_seedqr_picture_read_on_a_visit_loads_its_key_when_the_stick_is_pulled() {
     app.press(Action::Nav(Screen::Visit));
     app.storage(StorageEvent::QrRead {
         name: "key-1-seedqr.png".to_string(),
+        bytes: b"a picture".to_vec(),
         payloads: vec![seedqr_digits()],
     });
     let item = app

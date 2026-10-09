@@ -15,6 +15,30 @@ use osk_bip::bitcoin::hashes::{Hash, sha256};
 use osk_psbt::Psbt;
 
 use crate::Faraday;
+use crate::wallet::FileKind;
+
+/// What a picture's codes may read as, by the name the kept list gives
+/// it; one not named reads as [`FileKind::Other`].
+const PICTURE_KINDS: [FileKind; 18] = [
+    FileKind::Psbt,
+    FileKind::Wallet,
+    FileKind::Transaction,
+    FileKind::Sheet,
+    FileKind::Message,
+    FileKind::Key,
+    FileKind::Words,
+    FileKind::Share,
+    FileKind::Vault,
+    FileKind::Entries,
+    FileKind::Backup,
+    FileKind::EfiImage,
+    FileKind::Carry,
+    FileKind::Kdbx,
+    FileKind::Pdf,
+    FileKind::SeedPart,
+    FileKind::Text,
+    FileKind::Other,
+];
 
 /// The most transactions remembered; the oldest go first.
 const MAX: usize = 1000;
@@ -161,6 +185,16 @@ impl Faraday {
         if !secret_out.is_empty() {
             out.push(("secret-out".to_string(), secret_out.join("\n").into_bytes()));
         }
+        // What each picture in the Inbox holds: the next process does not
+        // decode it, and only the disk process could.
+        let pictures: Vec<String> = self
+            .inbox
+            .iter()
+            .filter_map(|i| Some(format!("{:?}\t{}", i.picture?, i.name)))
+            .collect();
+        if !pictures.is_empty() {
+            out.push(("pictures".to_string(), pictures.join("\n").into_bytes()));
+        }
         // What the boot stick holds, so the next process neither reads it
         // again over settings changed since nor loses what to compare.
         if let Some(b) = &self.stick_settings {
@@ -201,6 +235,22 @@ impl Faraday {
                     for i in self.outbox.iter_mut() {
                         if names.contains(&i.name.as_str()) {
                             i.secret = true;
+                        }
+                    }
+                }
+                "pictures" => {
+                    let text = String::from_utf8_lossy(bytes);
+                    for line in text.lines() {
+                        let Some((k, name)) = line.split_once('\t') else {
+                            continue;
+                        };
+                        let kind = PICTURE_KINDS
+                            .iter()
+                            .copied()
+                            .find(|c| format!("{c:?}") == k)
+                            .unwrap_or(FileKind::Other);
+                        for i in self.inbox.iter_mut().filter(|i| i.name == name) {
+                            i.picture = Some(kind);
                         }
                     }
                 }

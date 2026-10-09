@@ -44,6 +44,12 @@ download verification, age, hardware baselines, drive formatting,
 partitioning, wiping or cloning, exFAT, a clipboard for secrets, and
 writing any decrypted data to USB.
 
+A stick visit does copy files from one stick to another (§5.4): that is
+for backup copies of vault, backup and other files, not file
+management. Public and sealed files go as they are; a secret, or text
+Faraday cannot tell about, only past the secret sheet's warning, one
+file at a time.
+
 ## 2. Relationship to OpenSigner
 
 - This repository is a full clone of `maxmoney21m/opensignerkit` with its
@@ -440,6 +446,28 @@ the boot card or another SD card is the one visited, and the screen is
 **SD card visit**. It ends on **Remove the stick** ("Remove the SD card"
 on the Pi), then **Unlock again**.
 
+**Copying from one stick to another.** The visit's write list, **Write
+to the stick**, also lists the Inbox's files under **From the Inbox**,
+except those the stick shown already holds (same name and size), all
+unticked. So stick A → visit, copy in → stick B → visit, write; with
+both sticks in at once the visit shows one and then the other. A
+public or sealed file (PSBTs, wallets, descriptors, certificates,
+vaults, `.oskb`, KeePass) is written as it is, and Select all ticks it.
+A secret kind (words, seed parts, entries, a FROST carry file) is
+ticked only through the secret sheet, never by Select all: it may go
+into the open vault, or, once its line is ticked, is ticked to write
+unprotected; it never enters the Outbox, which outlives a lock. Text
+and a file Faraday does not read go the same way, the sheet saying
+"Faraday cannot tell whether this is a secret". A PNG copied in is
+kept as it came, beside what its codes hold, and written out as the
+same file; it takes the exposure of what its codes hold (a SeedQR or
+words a secret, an encrypted backup sealed, text unknown, no code read
+like a file Faraday does not read). A lock drops from the Inbox every
+file, picture or not, that may hold a secret. A file over 18 MiB is
+listed and not read. The boot import keeps only what a picture's
+codes hold, and its holding area is wiped unless imported, so copying
+from the boot stick takes Import or a later visit.
+
 **File-based PSBT signing.** Visit: pick the PSBT into the Inbox. Remove.
 Unlock. Sign in OpenSigner; Save puts the signed PSBT in the Outbox. Lock.
 Visit: the Outbox is written. QR signing needs no stick.
@@ -798,8 +826,10 @@ device graph, to be measured with `cargo tree` once a prototype exists.
    a dev-dependency, and fuzz the parser with the repository's `fuzz/`
    setup.
 6. **QR from images:** PNG only, read for QR codes in the disk process,
-   which passes the app only the decoded text (`docs/QR.md` §4). JPEG is
-   not read (owner, 2026-10-05): it would need a decoder crate.
+   which passes the app the decoded text and the picture's bytes as they
+   are (`docs/QR.md` §4). The app keeps those bytes to write the same
+   `.png` to another stick and never decodes them (owner, 2026-10-08).
+   JPEG is not read (owner, 2026-10-05): it would need a decoder crate.
 7. **BBQr `Z`:** read, with the decompressed size bounded; never written
    (`docs/QR.md` §4).
 8. **No seccomp filter on the grant helper** (owner, 2026-10-05). Linux

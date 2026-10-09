@@ -20,8 +20,8 @@
 use std::io::{Read, Write};
 
 /// The largest frame either side sends or takes: the largest file plus
-/// room for its name.
-pub const MAX_FRAME: u32 = super::MAX_READ as u32 + 64 * 1024;
+/// room for its name, or for a picture's codes beside its bytes.
+pub const MAX_FRAME: u32 = super::MAX_READ as u32 + 1024 * 1024;
 
 /// What the shell asks.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,8 +76,13 @@ pub enum Response {
     Bytes(Vec<u8>),
     /// The name a file was written under.
     Written(String),
-    /// The codes in a picture.
-    Qr(Vec<Vec<u8>>),
+    /// A picture: its bytes as they are, and its codes' payloads.
+    Qr {
+        /// The picture's bytes, unchanged.
+        bytes: Vec<u8>,
+        /// Each code's payload.
+        codes: Vec<Vec<u8>>,
+    },
     /// Why the request failed.
     Failed(String),
 }
@@ -228,7 +233,10 @@ impl Response {
     pub fn wipe(&mut self) {
         match self {
             Response::Bytes(b) => zeroize::Zeroize::zeroize(b),
-            Response::Qr(codes) => codes.iter_mut().for_each(zeroize::Zeroize::zeroize),
+            Response::Qr { bytes, codes } => {
+                zeroize::Zeroize::zeroize(bytes);
+                codes.iter_mut().for_each(zeroize::Zeroize::zeroize);
+            }
             _ => {}
         }
     }
@@ -261,9 +269,10 @@ impl Response {
                 o.str(n);
                 o
             }
-            Response::Qr(codes) => {
+            Response::Qr { bytes, codes } => {
                 let size = codes.iter().map(|c| 4 + c.len()).sum::<usize>();
-                let mut o = Out::sized(0x84, 2 + size);
+                let mut o = Out::sized(0x84, 4 + bytes.len() + 2 + size);
+                o.bytes(bytes);
                 o.count(codes.len());
                 for c in codes.iter().take(u16::MAX as usize) {
                     o.bytes(c);
@@ -307,12 +316,13 @@ impl Response {
             0x82 => Response::Bytes(i.bytes()?),
             0x83 => Response::Written(i.str()?),
             0x84 => {
+                let bytes = i.bytes()?;
                 let n = i.u16()?;
                 let mut codes = Vec::new();
                 for _ in 0..n {
                     codes.push(i.bytes()?);
                 }
-                Response::Qr(codes)
+                Response::Qr { bytes, codes }
             }
             0xFF => Response::Failed(i.str()?),
             _ => return Err(Malformed),
@@ -391,7 +401,10 @@ mod tests {
             }]),
             Response::Bytes(vec![9; 100]),
             Response::Written("signed-2.psbt".into()),
-            Response::Qr(vec![b"wpkh(...)".to_vec(), vec![]]),
+            Response::Qr {
+                bytes: b"\x89PNG...".to_vec(),
+                codes: vec![b"wpkh(...)".to_vec(), vec![]],
+            },
             Response::Failed("the stick is full".into()),
         ];
         for r in responses {

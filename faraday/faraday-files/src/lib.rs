@@ -10,8 +10,9 @@
 //! already there, except a sealed vault going back over its own file,
 //! found by salt and length, and the settings file over the settings
 //! file. A vault write-back a pulled stick interrupted is finished on the
-//! next visit. Pictures are decoded for QR codes here, so only the codes'
-//! contents reach the app (`docs/QR.md` §4).
+//! next visit. Pictures are decoded for QR codes here, and only here: the
+//! app gets the codes' contents and the picture's bytes as they are, to
+//! keep and write out again, and never decodes an image (`docs/QR.md` §4).
 //!
 //! [`proto`] is how the app's shell and the disk process talk.
 
@@ -344,9 +345,16 @@ pub fn write_any(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<Stri
     }
 }
 
-/// The QR codes in a PNG on a stick, as their payload bytes.
-pub fn read_qr_png(place: &mut dyn Place, name: &str) -> Result<Vec<Vec<u8>>, String> {
-    qr_in_png(&read(place, name)?)
+/// A PNG on a stick: its bytes as they are, and its QR codes' payloads.
+/// A picture whose codes cannot be read (not a PNG, too many pixels) is
+/// still read, with no codes: it is copied as a file.
+pub type Picture = (Vec<u8>, Vec<Vec<u8>>);
+
+/// A PNG on a stick, read: its bytes and its QR codes ([`Picture`]).
+pub fn read_qr_png(place: &mut dyn Place, name: &str) -> Result<Picture, String> {
+    let bytes = read(place, name)?;
+    let codes = qr_in_png(&bytes).unwrap_or_default();
+    Ok((bytes, codes))
 }
 
 /// The QR codes in a PNG's bytes.

@@ -30,6 +30,7 @@ fn scan(app: &mut Faraday, name: &str, png: &[u8]) {
     assert!(!payloads.is_empty(), "{name}: no code read");
     app.storage(StorageEvent::QrRead {
         name: name.to_string(),
+        bytes: png.to_vec(),
         payloads,
     });
 }

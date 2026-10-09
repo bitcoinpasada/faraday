@@ -331,6 +331,7 @@ fn a_stick_visit_leaves_the_seed_file_unticked() {
             bytes: b"wpkh([00000000/84h/1h/0h]tpub)".to_vec(),
             kind: FileKind::Text,
             secret: false,
+            picture: None,
         });
         app.storage(StorageEvent::Sticks(vec![StickInfo {
             id: STICK.to_string(),

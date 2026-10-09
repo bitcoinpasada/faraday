@@ -46,6 +46,21 @@ impl FileKind {
             _ => Exposure::Public,
         }
     }
+
+    /// A file of this kind may hold a secret: the secret kinds, and text
+    /// or a file Faraday does not read, which it cannot tell. A lock drops
+    /// these from the Inbox (`PLAN.md` §5.3).
+    pub fn may_be_secret(self) -> bool {
+        matches!(
+            self,
+            FileKind::Words
+                | FileKind::SeedPart
+                | FileKind::Carry
+                | FileKind::Entries
+                | FileKind::Text
+                | FileKind::Other
+        )
+    }
 }
 
 /// A secret on its way out, waiting for the person to say where.
@@ -68,6 +83,9 @@ pub struct SecretOut {
     pub form: usize,
     /// The line the person ticks before it may go out unprotected.
     pub ack: Ack,
+    /// An Inbox file a stick visit would write to another stick: past the
+    /// warning it is ticked on the visit, and goes nowhere else.
+    pub to_visit: bool,
 }
 
 /// What a secret becomes in a vault.
@@ -84,6 +102,9 @@ pub enum Keep {
         /// Its fingerprint, checked before it is saved.
         fp: osk_bip::keys::Fingerprint,
     },
+    /// Nothing: a picture or a file Faraday does not read is not offered
+    /// to a vault.
+    None,
 }
 
 /// One form a secret's file can take.
@@ -103,6 +124,8 @@ pub enum Ack {
     Any,
     /// A seed's.
     Seed,
+    /// Text or a file Faraday does not read: it cannot tell.
+    Unknown,
 }
 
 impl Ack {
@@ -113,6 +136,9 @@ impl Ack {
             Ack::Any => format!("Anyone who copies the {noun} or sees the code can read it"),
             Ack::Seed => format!(
                 "I understand: anyone who copies the {noun} or sees this file can spend these coins"
+            ),
+            Ack::Unknown => format!(
+                "Faraday cannot tell whether this is a secret: anyone who copies the {noun} can read it"
             ),
         }
     }
@@ -130,6 +156,7 @@ impl SecretOut {
             forms: Vec::new(),
             form: 0,
             ack: Ack::Any,
+            to_visit: false,
         }
     }
 }
@@ -239,6 +266,7 @@ impl Faraday {
             forms,
             form: 0,
             ack: Ack::Seed,
+            to_visit: false,
         };
         self.offer_secret(out);
     }
@@ -286,6 +314,10 @@ impl Faraday {
                     }
                 }
             }
+            Keep::None => {
+                self.sheet = None;
+                return;
+            }
         };
         let before = self
             .vaults
@@ -327,6 +359,7 @@ impl Faraday {
                 self.toast(&format!("{label} is in {vault}"));
             }
             Keep::Note => self.toast(&format!("{} is in {vault}", out.name)),
+            Keep::None => {}
         }
     }
 
@@ -340,6 +373,12 @@ impl Faraday {
             return;
         };
         self.sheet = None;
+        // From the Inbox to another stick: ticked on the visit, written
+        // from the Inbox when the person presses Write.
+        if out.to_visit {
+            self.visit.from_inbox.insert(out.name.clone());
+            return;
+        }
         if matches!(out.keep, Keep::Round(_))
             && let Some(s) = self.spend.as_mut()
         {

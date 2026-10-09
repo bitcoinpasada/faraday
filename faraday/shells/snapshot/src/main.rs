@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -36,7 +36,10 @@
 //! the presets and the questions with the map for a one-key wallet and
 //! for Savings (2-of-3), the map's own page on a small panel, the
 //! checklist part done, and the blank template written beside the
-//! screens as `outbox-*`.
+//! screens as `outbox-*`; with `inbox`, Stick visit offering the Inbox's
+//! files under "From the Inbox" (a wallet, a vault, a wallet's QR
+//! picture, seed words and text), Select all, and the secret sheet for
+//! the text and for the words.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -145,7 +148,11 @@ impl Tour {
                 }
                 StorageCommand::ReadQr { stick, name } => {
                     let ev = match faraday_storage::read_qr_png(&stick, &name) {
-                        Ok(payloads) => StorageEvent::QrRead { name, payloads },
+                        Ok((bytes, payloads)) => StorageEvent::QrRead {
+                            name,
+                            bytes,
+                            payloads,
+                        },
                         Err(reason) => StorageEvent::ReadFailed {
                             stick,
                             name,
@@ -340,6 +347,7 @@ fn run(
         Some("kept") => return kept_tour(&mut t),
         Some("again") => return again_tour(&mut t),
         Some("plan") => return plan_tour(&mut t),
+        Some("inbox") => return inbox_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -372,7 +380,8 @@ fn run(
     // Ticked like any file: its codes are read on Import.
     t.press(Action::VisitIn(png));
     t.press(Action::VisitCopy);
-    if t.app.inbox.len() != before + 1 {
+    // What its code holds, and the picture itself, kept to copy on.
+    if t.app.inbox.len() != before + 2 {
         return Err("the QR code in nested-wallet-qr.png did not reach Files".into());
     }
     t.shot("visit-png-read")?;
@@ -1895,6 +1904,7 @@ fn visit_tour(t: &mut Tour) -> Result<(), String> {
             kind: classify(name, &bytes),
             bytes,
             secret: false,
+            picture: None,
         });
     }
     t.app.outbox.push(faraday_core::Item {
@@ -1902,6 +1912,7 @@ fn visit_tour(t: &mut Tour) -> Result<(), String> {
         kind: faraday_core::wallet::FileKind::Text,
         bytes: b"words".to_vec(),
         secret: true,
+        picture: None,
     });
     t.sticks(true);
     t.press(Action::Nav(Screen::Visit));
@@ -1947,6 +1958,62 @@ fn visit_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::VisitOutAll);
     t.press(Action::VisitOutAll);
     t.shot("visit-outbox-none")?;
+    Ok(())
+}
+
+/// Stick visit with files copied in from another stick offered under
+/// "From the Inbox".
+fn inbox_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::wallet::FileKind as K;
+    let item = |name: &str, kind: K, len: usize, picture: Option<K>| faraday_core::Item {
+        name: name.into(),
+        bytes: vec![b'#'; len],
+        kind,
+        secret: false,
+        picture,
+    };
+    t.app
+        .outbox
+        .push(item("savings-signed.psbt", K::Psbt, 1400, None));
+    for i in [
+        item("family-savings-descriptor.txt", K::Wallet, 620, None),
+        item("household.ofv", K::Vault, 4_200_000, None),
+        item("savings-photo-qr.png", K::Other, 2900, Some(K::Wallet)),
+        item("seed-3-words.txt", K::Words, 160, None),
+        item("recovery-codes.txt", K::Text, 210, None),
+    ] {
+        t.app.inbox.push(i);
+    }
+    t.sticks(true);
+    t.press(Action::Nav(Screen::Visit));
+    if t.app.is_compact() {
+        // Down past the stick's files to the write list.
+        for _ in 0..400 {
+            let _ = t.app.frame();
+            if t.app.offers(Action::VisitInbox(4)) {
+                break;
+            }
+            scroll(t, 200);
+            t.app.settle();
+        }
+    }
+    t.shot("inbox-offered")?;
+    t.press(Action::VisitOutAll);
+    t.shot("inbox-select-all")?;
+    t.press(Action::VisitInbox(4));
+    t.shot("inbox-text-sheet")?;
+    if t.app.is_compact() {
+        // The small panel's sheet scrolls to its acknowledgement.
+        scroll(t, 400);
+        t.shot("inbox-text-sheet-foot")?;
+    }
+    t.press(Action::SecretAck);
+    t.shot("inbox-text-ack")?;
+    t.press(Action::SecretUnprotected);
+    t.press(Action::VisitInbox(3));
+    t.shot("inbox-words-sheet")?;
+    t.press(Action::Cancel);
+    t.shot("inbox-chosen")?;
     Ok(())
 }
 
@@ -2952,12 +3019,12 @@ fn main() -> ExitCode {
     if only.is_some_and(|m| {
         ![
             "spend", "themes", "compact", "seeds", "keys", "visit", "copy", "scan", "public",
-            "seedfile", "vaultway", "kept", "again", "plan",
+            "seedfile", "vaultway", "kept", "again", "plan", "inbox",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again or plan"
+            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan or inbox"
         );
         return ExitCode::from(2);
     }

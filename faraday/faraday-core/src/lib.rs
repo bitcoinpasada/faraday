@@ -151,10 +151,14 @@ pub enum StorageEvent {
         /// Why.
         reason: String,
     },
-    /// The QR codes read from an image on a stick.
+    /// A picture on a stick: the QR codes the disk process read from it,
+    /// and its bytes as they are. The app keeps and writes the bytes and
+    /// never decodes them (`PLAN.md` §12 item 6).
     QrRead {
         /// The image's name.
         name: String,
+        /// The picture's bytes, unchanged.
+        bytes: Vec<u8>,
         /// Each code's payload.
         payloads: Vec<Vec<u8>>,
     },
@@ -441,6 +445,9 @@ pub enum Action {
     /// Choose every file on the stick Faraday reads, or none when all are
     /// chosen.
     VisitInAll,
+    /// Choose an Inbox file to write to the stick, by its index in the
+    /// Inbox: one that may be a secret opens the secret sheet first.
+    VisitInbox(usize),
     /// Choose the settings and every Outbox file but an unprotected
     /// secret, or none when all of those are chosen.
     VisitOutAll,
@@ -899,6 +906,10 @@ pub enum Action {
     Import(boot_import::ImportAction),
 }
 
+/// The largest file read from a stick, as the disk process reads them
+/// (`faraday-files` `MAX_READ`): a larger one is listed and not read.
+pub const READ_MAX: u64 = 18 * 1024 * 1024;
+
 /// What a stick visit calls a file it copies in, by its extension: any
 /// file but the settings file is copied, and one whose extension says
 /// nothing is a File, whatever its contents turn out to be. `None` for
@@ -1020,6 +1031,10 @@ pub struct Item {
     /// A secret the person let out unprotected, whatever its contents
     /// read as (`docs/FLOWS.md` decision 6).
     pub secret: bool,
+    /// A picture copied in from a stick: what its QR codes read as, which
+    /// the disk process decoded ([`FileKind::Other`] when none read). Its
+    /// bytes are the picture's, kept to be written out as they came.
+    pub picture: Option<FileKind>,
 }
 
 /// An Inbox or Outbox file may be a seed or a share written in the clear:
@@ -1038,15 +1053,37 @@ impl Item {
             bytes,
             kind,
             secret: false,
+            picture: None,
         }
     }
 
-    /// Who may read it: a secret let out is one, whatever its kind.
+    /// What it holds: a picture's codes, or the file itself.
+    pub fn holds(&self) -> FileKind {
+        self.picture.unwrap_or(self.kind)
+    }
+
+    /// Who may read it: a secret let out is one, whatever its kind; a
+    /// picture is what its codes hold.
     pub fn exposure(&self) -> secrets::Exposure {
         if self.secret {
             secrets::Exposure::Secret
         } else {
-            self.kind.exposure()
+            self.holds().exposure()
+        }
+    }
+
+    /// What a stick visit asks the person to say before it writes this
+    /// Inbox file, on the secret sheet: `None` for a public or sealed file,
+    /// written as it is.
+    pub fn copy_ack(&self) -> Option<secrets::Ack> {
+        if self.secret {
+            return Some(secrets::Ack::Any);
+        }
+        match self.holds() {
+            FileKind::Words | FileKind::SeedPart => Some(secrets::Ack::Seed),
+            FileKind::Carry | FileKind::Entries => Some(secrets::Ack::Any),
+            FileKind::Text | FileKind::Other => Some(secrets::Ack::Unknown),
+            _ => None,
         }
     }
 }
@@ -2105,6 +2142,12 @@ pub struct VisitState {
     pub out_offset: f32,
     /// Where each column's scrollbar was drawn, by [`VisitState::bar`].
     pub bars: [std::cell::Cell<Option<VisitBarAt>>; 2],
+    /// Inbox files chosen to write, by name: a copy from one stick to
+    /// another. One that may be a secret is chosen only on the secret
+    /// sheet.
+    pub from_inbox: BTreeSet<String>,
+    /// Inbox files sent to be written and not yet answered, by name.
+    pub writing_inbox: BTreeSet<String>,
 }
 
 /// Where a stick visit column's scrollbar was drawn, in pixels: the
@@ -2586,8 +2629,13 @@ impl Faraday {
                 self.visit.log.push((format!("{name}: {reason}"), false));
             }
             StorageEvent::Written { name, wrote_as, .. } => {
-                self.outbox.retain(|i| i.name != name);
-                self.visit.out.remove(&name);
+                // A copy from the Inbox stays there, for the next stick.
+                if self.visit.writing_inbox.remove(&name) {
+                    self.visit.from_inbox.remove(&name);
+                } else {
+                    self.outbox.retain(|i| i.name != name);
+                    self.visit.out.remove(&name);
+                }
                 let line = if wrote_as == name {
                     format!("Wrote {name}, read back and matched")
                 } else {
@@ -2597,8 +2645,13 @@ impl Faraday {
                 self.save_boxes();
             }
             StorageEvent::WriteFailed { name, reason, .. } => {
+                let from = if self.visit.writing_inbox.remove(&name) {
+                    "Inbox"
+                } else {
+                    "Outbox"
+                };
                 self.visit.log.push((
-                    format!("{name} not written: {reason}. It stays in the Outbox"),
+                    format!("{name} not written: {reason}. It stays in the {from}"),
                     false,
                 ));
             }
@@ -2653,88 +2706,29 @@ impl Faraday {
                     }
                 }
             }
-            StorageEvent::QrRead { name, payloads } => {
+            StorageEvent::QrRead {
+                name,
+                bytes,
+                payloads,
+            } => {
                 self.visit.inn.remove(&name);
-                if payloads.is_empty() {
-                    self.visit
-                        .log
-                        .push((format!("{name}: no QR code found"), false));
+                // The picture itself comes in as it is, beside what its
+                // codes hold, to be written to another stick; it takes
+                // the exposure of what they hold.
+                let before = self.inbox.len();
+                self.qr_read(&name, payloads);
+                let holds = self.picture_holds(before);
+                // Under its own name, unless what its codes held took it.
+                let got = if self.inbox.iter().skip(before).any(|i| i.name == name) {
+                    self.free_inbox_name(&name)
                 } else {
-                    // An image is read as the camera reads: a UR in parts can
-                    // span several images.
-                    if self.scan.is_none() {
-                        self.scan = Some(ScanState::default());
-                    }
-                    let before = self.inbox.len();
-                    let mut seeds = 0;
-                    for p in payloads {
-                        // A SeedQR on a stick is a seed's words in another
-                        // form: copied in as the words, and loaded when the
-                        // stick is removed, as Import and load does.
-                        if let Some(words) = seedqr_words(&p) {
-                            let stem = name.rsplit_once('.').map_or(name.as_str(), |(s, _)| s);
-                            let got = self.free_inbox_name(&format!("{stem}-words.txt"));
-                            self.inbox.push(Item::new(&got, words.as_bytes().to_vec()));
-                            self.visit.load_after.insert(got.clone());
-                            self.save_boxes();
-                            seeds += 1;
-                            self.visit.log.push((
-                                format!(
-                                    "{name}: a SeedQR, copied in as {got}; its key loads when the \
-                                     {} is removed",
-                                    self.medium.noun()
-                                ),
-                                true,
-                            ));
-                            continue;
-                        }
-                        if self.scan.is_none() {
-                            self.scan = Some(ScanState::default());
-                        }
-                        let parts = self.scan.as_ref().is_some_and(ScanState::in_parts);
-                        let n = self.inbox.len();
-                        self.scanned(p);
-                        // A transfer in parts that has just come together
-                        // ends the reading: what follows is another.
-                        if parts && self.inbox.len() > n {
-                            break;
-                        }
-                    }
-                    let note = self.scan.as_ref().and_then(|s| s.note.clone());
-                    let seed_last = self
-                        .inbox
-                        .last()
-                        .is_some_and(|i| self.visit.load_after.contains(&i.name));
-                    if self.inbox.len() > before + seeds && !seed_last {
-                        // Named after the picture it came from.
-                        let stem = name.rsplit_once('.').map_or(name.as_str(), |(s, _)| s);
-                        let taken: Vec<String> =
-                            self.inbox.iter().map(|i| i.name.clone()).collect();
-                        let mut got = String::new();
-                        if let Some(last) = self.inbox.last_mut() {
-                            let ext = last
-                                .name
-                                .rsplit_once('.')
-                                .map_or("txt", |(_, e)| e)
-                                .to_string();
-                            let wanted = format!("{stem}.{ext}");
-                            if !taken.contains(&wanted) {
-                                last.name = wanted;
-                            }
-                            got = last.name.clone();
-                        }
-                        self.save_boxes();
-                        self.toast(&format!("{got} is in Files"));
-                        self.visit
-                            .log
-                            .push((format!("{name} read into Files as {got}"), true));
-                    } else if seeds == 0 {
-                        self.visit.log.push((
-                            format!("{name}: {}", note.unwrap_or_else(|| "read".into())),
-                            true,
-                        ));
-                    }
-                }
+                    self.inbox.retain(|i| i.name != name);
+                    name
+                };
+                let mut item = Item::new(&got, bytes);
+                item.picture = Some(holds);
+                self.inbox.push(item);
+                self.save_boxes();
             }
             StorageEvent::PrintFailed { reason } => self.toast(&format!("Not printed: {reason}")),
             StorageEvent::NewInput {
@@ -3224,17 +3218,10 @@ impl Faraday {
         // (`PLAN.md` §5.3): the next process is clean, and these would be
         // in its memory and in `/run/faraday`. They are still on the stick
         // they came from.
-        self.inbox.retain(|i| {
-            !matches!(
-                i.kind,
-                FileKind::Words
-                    | FileKind::SeedPart
-                    | FileKind::Carry
-                    | FileKind::Entries
-                    | FileKind::Text
-                    | FileKind::Other
-            ) && !i.secret
-        });
+        // A picture goes as what its codes hold, and as Other when none
+        // read.
+        self.inbox
+            .retain(|i| !i.holds().may_be_secret() && !i.secret);
         self.session.wipe();
         self.spend = None;
         self.backup = None;
@@ -3494,6 +3481,7 @@ impl Faraday {
                 self.renaming = None;
                 if s == Screen::Visit {
                     self.visit.out = self.visit_default_out();
+                    self.visit.from_inbox.clear();
                     self.visit.out_offset = 0.0;
                 }
             }
@@ -3683,7 +3671,8 @@ impl Faraday {
             }
             Action::VisitIn(i) => {
                 if let Some(stick) = self.sticks.get(self.visit.stick)
-                    && let Some((n, _)) = stick.files.get(i)
+                    && let Some((n, size)) = stick.files.get(i)
+                    && *size <= READ_MAX
                 {
                     let n = n.clone();
                     if !self.visit.inn.remove(&n) {
@@ -3696,7 +3685,7 @@ impl Faraday {
                     let all: BTreeSet<String> = stick
                         .files
                         .iter()
-                        .filter(|(n, _)| stick_kind(n).is_some())
+                        .filter(|(n, size)| stick_kind(n).is_some() && *size <= READ_MAX)
                         .map(|(n, _)| n.clone())
                         .collect();
                     if !all.is_empty() && all.is_subset(&self.visit.inn) {
@@ -3708,16 +3697,25 @@ impl Faraday {
             }
             Action::VisitOutAll => {
                 // Every row but an unprotected secret, which is ticked one
-                // at a time (FLOWS.md decision 6).
+                // at a time (FLOWS.md decision 6); from the Inbox, every
+                // public or sealed file, and none that may be a secret.
                 let all = self.visit_default_out();
-                let every = self.visit_settings_on() && all.is_subset(&self.visit.out);
+                let inbox = self.visit_inbox_plain();
+                let every = self.visit_settings_on()
+                    && all.is_subset(&self.visit.out)
+                    && inbox.is_subset(&self.visit.from_inbox);
                 if every {
                     self.visit.out.clear();
+                    for n in &inbox {
+                        self.visit.from_inbox.remove(n);
+                    }
                 } else {
                     self.visit.out.extend(all);
+                    self.visit.from_inbox.extend(inbox);
                 }
                 self.visit.settings = Some(!every);
             }
+            Action::VisitInbox(i) => self.visit_inbox(i),
             Action::VisitBar(_) => {}
             Action::VisitWrite => {
                 if let Some(stick) = self.sticks.get(self.visit.stick) {
@@ -3732,6 +3730,20 @@ impl Faraday {
                     }
                     for item in &self.outbox {
                         if self.visit.out.contains(&item.name) {
+                            self.storage_out.push_back(StorageCommand::Write {
+                                stick: id.clone(),
+                                name: item.name.clone(),
+                                bytes: item.bytes.clone(),
+                            });
+                        }
+                    }
+                    // A copy from another stick: its bytes as they came,
+                    // a picture's too. Only those the visit lists.
+                    let listed = self.visit_inbox_rows();
+                    for &k in &listed {
+                        let item = &self.inbox[k];
+                        if self.visit.from_inbox.contains(&item.name) {
+                            self.visit.writing_inbox.insert(item.name.clone());
                             self.storage_out.push_back(StorageCommand::Write {
                                 stick: id.clone(),
                                 name: item.name.clone(),
@@ -6877,6 +6889,192 @@ impl Faraday {
             self.inbox_load_named();
         }
         n
+    }
+
+    /// What a picture's codes held, read as the camera reads them.
+    fn qr_read(&mut self, name: &str, payloads: Vec<Vec<u8>>) {
+        if payloads.is_empty() {
+            self.visit
+                .log
+                .push((format!("Copied {name}: no QR code read"), true));
+        } else {
+            // An image is read as the camera reads: a UR in parts can
+            // span several images.
+            if self.scan.is_none() {
+                self.scan = Some(ScanState::default());
+            }
+            let before = self.inbox.len();
+            let mut seeds = 0;
+            for p in payloads {
+                // A SeedQR on a stick is a seed's words in another
+                // form: copied in as the words, and loaded when the
+                // stick is removed, as Import and load does.
+                if let Some(words) = seedqr_words(&p) {
+                    let stem = name.rsplit_once('.').map_or(name, |(s, _)| s);
+                    let got = self.free_inbox_name(&format!("{stem}-words.txt"));
+                    self.inbox.push(Item::new(&got, words.as_bytes().to_vec()));
+                    self.visit.load_after.insert(got.clone());
+                    self.save_boxes();
+                    seeds += 1;
+                    self.visit.log.push((
+                        format!(
+                            "{name}: a SeedQR, copied in as {got}; its key loads when the \
+                                     {} is removed",
+                            self.medium.noun()
+                        ),
+                        true,
+                    ));
+                    continue;
+                }
+                if self.scan.is_none() {
+                    self.scan = Some(ScanState::default());
+                }
+                let parts = self.scan.as_ref().is_some_and(ScanState::in_parts);
+                let n = self.inbox.len();
+                self.scanned(p);
+                // A transfer in parts that has just come together
+                // ends the reading: what follows is another.
+                if parts && self.inbox.len() > n {
+                    break;
+                }
+            }
+            let note = self.scan.as_ref().and_then(|s| s.note.clone());
+            let seed_last = self
+                .inbox
+                .last()
+                .is_some_and(|i| self.visit.load_after.contains(&i.name));
+            if self.inbox.len() > before + seeds && !seed_last {
+                // Named after the picture it came from.
+                let stem = name.rsplit_once('.').map_or(name, |(s, _)| s);
+                let taken: Vec<String> = self.inbox.iter().map(|i| i.name.clone()).collect();
+                let mut got = String::new();
+                if let Some(last) = self.inbox.last_mut() {
+                    let ext = last
+                        .name
+                        .rsplit_once('.')
+                        .map_or("txt", |(_, e)| e)
+                        .to_string();
+                    let wanted = format!("{stem}.{ext}");
+                    if !taken.contains(&wanted) {
+                        last.name = wanted;
+                    }
+                    got = last.name.clone();
+                }
+                self.save_boxes();
+                self.toast(&format!("{got} is in Files"));
+                self.visit
+                    .log
+                    .push((format!("{name} read into Files as {got}"), true));
+            } else if seeds == 0 {
+                self.visit.log.push((
+                    format!("{name}: {}", note.unwrap_or_else(|| "read".into())),
+                    true,
+                ));
+            }
+        }
+    }
+
+    /// What a picture copied in holds, from what its codes added to the
+    /// Inbox from `before` on: the kind most in need of care, a seed's
+    /// words before any other secret, a secret before a sealed file, and
+    /// [`FileKind::Other`] when they added nothing.
+    fn picture_holds(&self, before: usize) -> FileKind {
+        let care = |k: FileKind| match k.exposure() {
+            _ if matches!(k, FileKind::Words | FileKind::SeedPart) => 5,
+            secrets::Exposure::Secret => 4,
+            _ if k.may_be_secret() => 3,
+            secrets::Exposure::Sealed => 2,
+            secrets::Exposure::Public => 1,
+        };
+        self.inbox
+            .iter()
+            .skip(before)
+            .map(|i| i.kind)
+            .max_by_key(|k| care(*k))
+            .unwrap_or(FileKind::Other)
+    }
+
+    /// The Inbox files a stick visit offers to write, by index: every one
+    /// but those the stick shown holds already, by name and size.
+    pub fn visit_inbox_rows(&self) -> Vec<usize> {
+        let on_stick = self.sticks.get(self.visit.stick).map(|s| &s.files);
+        self.inbox
+            .iter()
+            .enumerate()
+            .filter(|(_, i)| {
+                !on_stick.is_some_and(|f| {
+                    f.iter()
+                        .any(|(n, len)| *n == i.name && *len == i.bytes.len() as u64)
+                })
+            })
+            .map(|(k, _)| k)
+            .collect()
+    }
+
+    /// The Inbox files Select all chooses on a visit: the public and
+    /// sealed ones it lists, never one that may be a secret.
+    fn visit_inbox_plain(&self) -> BTreeSet<String> {
+        self.visit_inbox_rows()
+            .into_iter()
+            .filter_map(|k| self.inbox.get(k))
+            .filter(|i| i.copy_ack().is_none())
+            .map(|i| i.name.clone())
+            .collect()
+    }
+
+    /// An Inbox file's row on a visit, pressed: unticked, or ticked when
+    /// it is public or sealed. One that may be a secret goes to the secret
+    /// sheet, and is ticked only once the person says they understand.
+    fn visit_inbox(&mut self, i: usize) {
+        if !self.visit_inbox_rows().contains(&i) {
+            return;
+        }
+        let Some(item) = self.inbox.get(i) else {
+            return;
+        };
+        let name = item.name.clone();
+        if self.visit.from_inbox.remove(&name) {
+            return;
+        }
+        let Some(ack) = item.copy_ack() else {
+            self.visit.from_inbox.insert(name);
+            return;
+        };
+        let holds = item.holds();
+        let what = match (item.picture, holds) {
+            (Some(FileKind::Other), _) => "A PNG with no QR code read".to_string(),
+            (Some(k), _) => format!("A PNG of {}", screens::kind_name(k).to_lowercase()),
+            (None, FileKind::Other) => "A file Faraday does not read".to_string(),
+            (None, k) => screens::kind_name(k).to_string(),
+        };
+        let gives = match holds {
+            FileKind::Words => "Whoever has it holds the key: spends its coins, or signs as it",
+            FileKind::SeedPart => "Whoever has enough parts holds the key",
+            FileKind::Entries => "Whoever has it reads every password and code in it",
+            FileKind::Carry => "Whoever has it and a share's signature can work out that share",
+            _ => "Whoever has it reads it",
+        };
+        // Text goes into a vault as a note; a picture or a file Faraday
+        // does not read only to a stick.
+        let keep = if item.picture.is_none()
+            && matches!(
+                holds,
+                FileKind::Words | FileKind::SeedPart | FileKind::Entries | FileKind::Text
+            ) {
+            secrets::Keep::Note
+        } else {
+            secrets::Keep::None
+        };
+        let mut out = secrets::SecretOut::new(
+            name,
+            zeroize::Zeroizing::new(item.bytes.clone()),
+            &what,
+            gives,
+        );
+        out.keep = keep;
+        out.ack = ack;
+        out.to_visit = true;
+        self.offer_secret(out);
     }
 
     /// Reads every chosen stick file into the Inbox.
