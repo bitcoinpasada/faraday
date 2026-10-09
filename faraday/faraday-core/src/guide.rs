@@ -136,7 +136,16 @@ pub(crate) fn backup(n: u8, m: usize, keys: usize, seeds_here: usize) -> String 
                  mistake is named by its word."
                     .to_string()
             };
-            format!("{lead} A printer is a computer with memory and often a network, so a seed never goes \
+            let further = if seeds_here == 0 {
+                ""
+            } else {
+                " Paper comes first. Under the copy, Save into the open vault keeps a further copy \
+                 sealed under the vault's passphrase. Save as a file writes the words or the SeedQR \
+                 picture to the Outbox unprotected, only after you tick that anyone who copies the \
+                 stick can spend with it: the least safe of the three. A file never holds the \
+                 passphrase; the vault keeps it only when saved with its passphrase."
+            };
+            format!("{lead}{further} A printer is a computer with memory and often a network, so a seed never goes \
                      to one. There is no line for a passphrase: written beside the words it stops being a \
                      second factor.")
         }

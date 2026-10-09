@@ -4,8 +4,12 @@
 //! - the seeds, copied by hand from the screen: words with their BIP-39
 //!   indices, and the SeedQR drawn as a ruled grid, checked afterwards by
 //!   scanning the drawn grid ([`compare_words`]), or, with no camera, by
-//!   typing the words' numbers back ([`check_copy`]). Never a file, never
-//!   a printer.
+//!   typing the words' numbers back ([`check_copy`]). Never a printer.
+//!   After the copy by hand, a further copy: into the open vault as the
+//!   key record Vaults saves, or as a file only through the secret sheet
+//!   (`crate::secrets`), past a warning: the words or the SeedQR as a
+//!   labelled PNG, never the BIP-39 passphrase. Paper stays first; a
+//!   file is the least safe of the three.
 //! - the wallet in public keys: the descriptor as a QR code and as files,
 //!   a multisig config, and for a multisig the split plan.
 //!

@@ -290,13 +290,12 @@ impl Faraday {
                     return;
                 };
                 let name = format!("spscan-{}.txt", fp_text(osk_bip::keys::Fingerprint(fp)));
-                self.offer_secret(crate::secrets::SecretOut {
+                self.offer_secret(crate::secrets::SecretOut::new(
                     name,
-                    bytes: Zeroizing::new(format!("{}\n", key.as_str()).into_bytes()),
-                    what: "A silent payments scan key",
-                    gives: "Whoever has it sees every payment to this address; it cannot spend them",
-                    round: None,
-                });
+                    Zeroizing::new(format!("{}\n", key.as_str()).into_bytes()),
+                    "A silent payments scan key",
+                    "Whoever has it sees every payment to this address; it cannot spend them",
+                ));
                 return;
             }
             A::SAddWallet => return self.silent_add_wallet(),

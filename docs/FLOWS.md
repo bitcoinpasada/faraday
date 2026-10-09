@@ -53,11 +53,18 @@ to get it.
    seed's words), and the mark is kept across a lock. A seed's words file
    is a secret by its kind. The code refuses a
    secret on the plain Outbox path, so a new flow cannot skip the sheet.
-   Today's secret is the FROST carry (the next share's secret nonce): into
-   the vault it is a signing-round record (`docs/VAULT.md` §7, type 9),
+   The FROST carry (the next share's secret nonce) goes into
+   the vault as a signing-round record (`docs/VAULT.md` §7, type 9),
    its public PSBT goes to the Outbox, the next device finds the round by
    the transaction when it opens that PSBT with the vault unlocked, and
-   the round leaves the vault once it has signed. Create a wallet says the
+   the round leaves the vault once it has signed. A wallet's seed, from
+   the backup's seeds step (2026-10-09), goes in as a key record
+   (`kind::KEY`, as Vaults saves it), never a note; as a file it is the
+   words or the SeedQR picture, one picked on the sheet, behind its own
+   acknowledgement ("anyone who copies the stick or sees this file can
+   spend these coins"), and never holds the BIP-39 passphrase. A seed's
+   SeedQR never goes through the QR sheet's **PNG to the Outbox**, which
+   is for public content. Create a wallet says the
    same in its cards: after Check come **Secrets into a vault** (the keys
    held here and the wallet), then **Public files** (descriptor, wallet
    file, multisig config, backup sheet, BSMS record, Bitcoin Core import,
@@ -237,6 +244,11 @@ guarantees for this file's rule:
   what was not saved.
 - **Creating a wallet ends in Backup and Save**, never on the descriptor
   alone.
+- **A seed's backup: by hand, into a vault, a file only past the secret
+  sheet** (owner, 2026-10-09; `docs/WALLETS.md` §5 step 2). The seeds
+  step keeps paper first; under each seed, **Save into {vault}** (and
+  "with its passphrase" when loaded with one) and **Save as a file…**,
+  which opens the secret sheet for the seed. The same on a small panel.
 - **The descriptor and its shares as pictures** (2026-10-09). Create's
   Public files card and the backup's public step (**PNG** on the
   descriptor's row) write `{name}-descriptor.png`: the

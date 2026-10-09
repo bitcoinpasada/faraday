@@ -5298,6 +5298,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     );
                     let cy = cy + lh + 12.0;
                     let cy = cy + paper_section(app, ui, x, cy, w);
+                    let cy = cy + seed_copies(app, ui, x, cy, w, b.key);
                     let drawn = next_button(ui, x, cy, w, "Continue", Action::BNext(n));
                     return cy + (if drawn { 48.0 } else { 8.0 }) - y;
                 }
@@ -5438,6 +5439,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 }
                 cy += paper_section(app, ui, x, cy, w);
             }
+            cy += seed_copies(app, ui, x, cy, w, b.key);
             if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
                 cy += 48.0;
             }
@@ -5609,6 +5611,56 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
 /// Returns its height.
 /// The key's other paper forms: a Seed XOR split and codex32 shares,
 /// shown to copy by hand like the words.
+/// Under a seed on the backup's seeds step, after the copy by hand: a
+/// further copy into the open vault, as Vaults saves a key, and a file,
+/// through the secret sheet. Returns the height used.
+fn seed_copies(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, k: usize) -> f32 {
+    use crate::vault_screens::vault_has_key;
+    let Some(key) = app.session.keys.get(k) else {
+        return 0.0;
+    };
+    let mut cy = y + 8.0;
+    section_label(ui, x, cy, "Other copies");
+    cy += 28.0;
+    let v = app.vaults.current;
+    match app.vaults.open.get(v) {
+        Some(open) if vault_has_key(app, v, key.master.fingerprint()) => {
+            let line = ui.fit(13.0, W::S, &format!("In {}", open.name), w);
+            ui.text(x, cy, 13.0, W::S, OK, &line);
+            cy += 30.0;
+        }
+        Some(open) => {
+            let save = format!("Save into {}", open.name);
+            let with = format!("Save into {} with its passphrase", open.name);
+            let mut items = vec![(save.as_str(), Style::Secondary, Action::BVault(false))];
+            if key.passphrase.is_some() {
+                items.push((with.as_str(), Style::Secondary, Action::BVault(true)));
+            }
+            cy += wrap_buttons(ui, x, cy, w, 36.0, &items) + 4.0;
+        }
+        None => {
+            cy += ui.wrap(
+                x,
+                cy,
+                w,
+                13.0,
+                W::R,
+                MUTED,
+                "No vault is open. Unlock or make one on Vaults, then come back to this step",
+            ) + 12.0;
+        }
+    }
+    cy += wrap_buttons(
+        ui,
+        x,
+        cy,
+        w,
+        36.0,
+        &[("Save as a file…", Style::Secondary, Action::BFile)],
+    ) + 4.0;
+    cy - y
+}
+
 fn paper_section(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::paper::PaperForm;
     let Some(b) = app.backup.as_ref() else {
@@ -5798,7 +5850,7 @@ fn backup_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32) {
         ui.text(x, y, 12.0, W::M, TEXT, &t);
         y += 22.0;
     }
-    let note = "Seeds are copied by hand and never written to a file. The sheets go to the Outbox as PDFs.";
+    let note = "Seeds are copied by hand first. A vault, or a file past a warning, is a further copy. The sheets go to the Outbox as PDFs.";
     ui.wrap(x, h - 96.0, w, 12.0, W::R, DIM, note);
 }
 
@@ -12644,30 +12696,70 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let Some(out) = app.secret_out.as_ref() else {
         return;
     };
+    // Where it would go into a vault: a seed the vault holds already
+    // says so instead of offering to save it again.
+    let v = app.vaults.current;
+    let vault = app.vaults.open.get(v).map(|o| {
+        let held = match out.keep {
+            crate::secrets::Keep::Key { fp, .. } => crate::vault_screens::vault_has_key(app, v, fp),
+            _ => false,
+        };
+        (o.name.as_str(), held)
+    });
+    // The forms the file can take, the one picked primary.
+    let forms: Vec<(&str, Style, Action)> = out
+        .forms
+        .iter()
+        .enumerate()
+        .map(|(i, f)| {
+            let style = if i == out.form {
+                Style::Primary
+            } else {
+                Style::Secondary
+            };
+            (f.label, style, Action::SecretForm(i as u8))
+        })
+        .collect();
+    let out_style = if app.secret_ack {
+        Style::Secondary
+    } else {
+        Style::Disabled
+    };
     if ui.compact {
         crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
             let mut cy = y;
             cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Lock, WARN, "This is a secret");
             for (label, value) in [
                 ("File", out.name.as_str()),
-                ("What it is", out.what),
-                ("Who can use it", out.gives),
+                ("What it is", out.what.as_str()),
+                ("Who can use it", out.gives.as_str()),
             ] {
                 cy += crate::compact::kv(ui, x, cy, iw, label, value, TEXT);
             }
             cy += 4.0;
             ui.text(x, cy, 13.0, W::S, OK, "Sealed in a vault");
             cy += 24.0;
-            match app.vaults.open.get(app.vaults.current) {
-                Some(v) => {
-                    let label = format!("Save into {}", v.name);
-                    cy += crate::compact::buttons(
-                        ui,
+            match vault {
+                Some((name, true)) => {
+                    let line = ui.fit(13.0, W::S, &format!("In {name}"), iw);
+                    ui.text(x, cy, 13.0, W::S, OK, &line);
+                    cy += 30.0;
+                }
+                Some((name, false)) => {
+                    // In place: the sheet's foot holds the Outbox's
+                    // button and Cancel.
+                    let label = format!("Save into {name}");
+                    let label = ui.fit(15.0, W::S, &label, iw - 24.0);
+                    ui.button(
                         x,
                         cy,
-                        iw,
-                        &[(&label, Style::Primary, Action::SecretVault)],
-                    ) + 12.0;
+                        Some(iw),
+                        46.0,
+                        &label,
+                        Style::Primary,
+                        Action::SecretVault,
+                    );
+                    cy += 58.0;
                 }
                 None => {
                     cy += ui.wrap(
@@ -12683,16 +12775,11 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             }
             ui.text(x, cy, 13.0, W::S, ERR, "Unprotected, in the Outbox");
             cy += 24.0;
+            if forms.len() > 1 {
+                cy += wrap_buttons(ui, x, cy, iw, 34.0, &forms) + 4.0;
+            }
             ui.checkbox(x, cy + 1.0, app.secret_ack, true);
-            let lh = ui.wrap(
-                x + 28.0,
-                cy,
-                iw - 28.0,
-                13.0,
-                W::R,
-                TEXT,
-                "Anyone who copies the stick or sees the code can read it",
-            );
+            let lh = ui.wrap(x + 28.0, cy, iw - 28.0, 13.0, W::R, TEXT, out.ack);
             ui.hit(x - 4.0, cy - 6.0, iw, lh + 12.0, Action::SecretAck);
             cy += lh + 12.0;
             cy += crate::compact::buttons(
@@ -12703,11 +12790,7 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                 &[
                     (
                         "Put it in the Outbox unprotected",
-                        if app.secret_ack {
-                            Style::Secondary
-                        } else {
-                            Style::Disabled
-                        },
+                        out_style,
                         Action::SecretUnprotected,
                     ),
                     ("Cancel", Style::Ghost, Action::Cancel),
@@ -12718,17 +12801,24 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         return;
     }
     let sw = 600.0f32.min(w - 48.0);
-    let sh = 470.0;
+    let (bx, bw) = (32.0, sw - 64.0);
+    // The acknowledgement on one line, or on two when longer.
+    let ack_h = if ui.measure(13.0, W::R, out.ack) > bw - 28.0 {
+        36.0
+    } else {
+        18.0
+    };
+    let sh = 452.0 + ack_h + if forms.len() > 1 { 44.0 } else { 0.0 };
     let (x, y) = sheet_box(ui, w, h, sw, sh);
-    let (bx, bw) = (x + 32.0, sw - 64.0);
+    let bx = x + bx;
     let mut cy = y + 26.0;
     ui.icon(bx - 4.0, cy - 2.0, 28.0, Icon::Lock, 14.0, WARN);
     ui.text(bx + 28.0, cy, 18.0, W::S, TEXT, "This is a secret");
     cy += 38.0;
     for (label, value, face) in [
         ("File", out.name.as_str(), W::M),
-        ("What it is", out.what, W::R),
-        ("Who can use it", out.gives, W::R),
+        ("What it is", out.what.as_str(), W::R),
+        ("Who can use it", out.gives.as_str(), W::R),
     ] {
         ui.text(bx, cy, 12.0, W::R, MUTED, label);
         let used = ui.wrap(bx + 130.0, cy, bw - 130.0, 13.0, face, TEXT, value);
@@ -12738,9 +12828,13 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     // The vault, first.
     ui.text(bx, cy, 13.0, W::S, OK, "Sealed in a vault");
     cy += 26.0;
-    match app.vaults.open.get(app.vaults.current) {
-        Some(v) => {
-            let label = format!("Save into {}", v.name);
+    match vault {
+        Some((name, true)) => {
+            ui.text_mid(bx, cy, 42.0, 13.0, W::S, OK, &format!("In {name}"));
+            cy += 54.0;
+        }
+        Some((name, false)) => {
+            let label = format!("Save into {name}");
             ui.button(
                 bx,
                 cy,
@@ -12770,22 +12864,26 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     // The Outbox, only once the person says they understand.
     ui.text(bx, cy, 13.0, W::S, ERR, "Unprotected, in the Outbox");
     cy += 26.0;
+    if forms.len() > 1 {
+        cy += wrap_buttons(ui, bx, cy, bw, 34.0, &forms) + 2.0;
+    }
     ui.checkbox(bx, cy + 1.0, app.secret_ack, true);
-    let line = "Anyone who copies the stick or sees the code can read it";
-    ui.text(bx + 28.0, cy, 13.0, W::R, TEXT, line);
-    ui.hit(bx - 4.0, cy - 6.0, bw, 30.0, Action::SecretAck);
-    cy += 34.0;
+    let lh = ui.wrap(bx + 28.0, cy, bw - 28.0, 13.0, W::R, TEXT, out.ack);
+    ui.hit(
+        bx - 4.0,
+        cy - 6.0,
+        bw,
+        lh.max(18.0) + 12.0,
+        Action::SecretAck,
+    );
+    cy += lh.max(18.0) + 16.0;
     ui.button(
         bx,
         cy,
         None,
         40.0,
         "Put it in the Outbox unprotected",
-        if app.secret_ack {
-            Style::Secondary
-        } else {
-            Style::Disabled
-        },
+        out_style,
         Action::SecretUnprotected,
     );
     ui.button(

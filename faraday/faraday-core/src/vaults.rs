@@ -2095,16 +2095,25 @@ impl Faraday {
     }
 
     fn vault_save_key_with(&mut self, k: usize, with_passphrase: bool) {
-        let Some(key) = self.session.keys.get(k) else {
-            return;
-        };
+        if let Some((record, label)) = self.key_record(k, with_passphrase) {
+            self.vault_push(record, &format!("{label} is in the vault"));
+        }
+    }
+
+    /// Session key `k` as the vault's key record, loaded at unlock, and
+    /// its label: what Save on Vaults writes, and the secret sheet for a
+    /// seed. With its BIP-39 passphrase only when `with_passphrase`.
+    pub(crate) fn key_record(
+        &mut self,
+        k: usize,
+        with_passphrase: bool,
+    ) -> Option<(Record, String)> {
+        let key = self.session.keys.get(k)?;
         let Some(words) = key.words.as_ref() else {
             self.toast("This key has no words to keep");
-            return;
+            return None;
         };
-        let Ok(m) = osk_bip::bip39::Mnemonic::parse(key.language, words) else {
-            return;
-        };
+        let m = osk_bip::bip39::Mnemonic::parse(key.language, words).ok()?;
         let mut record = Record::new(kind::KEY)
             .with(field::KEY, &records::words_payload(&m))
             .with(field::KEY_LABEL, key.label.as_bytes())
@@ -2114,8 +2123,7 @@ impl Faraday {
         if with_passphrase && let Some(p) = key.passphrase.as_ref() {
             record.push(field::KEY_PASSPHRASE, p.as_bytes());
         }
-        let label = key.label.clone();
-        self.vault_push(record, &format!("{label} is in the vault"));
+        Some((record, key.label.clone()))
     }
 
     fn vault_save_wallet(&mut self, k: usize) {

@@ -3,8 +3,9 @@
 //! into parts that are each BIP-39 words, every part needed; and codex32
 //! shares of its BIP-32 seed (BIP 93), any `k` of `n` enough. The
 //! arithmetic is `osk-entropy`'s and `osk-bip`'s; the randomness is fresh
-//! from the system. Like the words, the parts are shown to copy by hand
-//! and never written to a file.
+//! from the system. The parts are shown to copy by hand and never
+//! written to a file; only the seed itself goes into a vault or, past
+//! the secret sheet, a file (`crate::secrets`).
 
 use osk_bip::bip39::Mnemonic;
 use osk_bip::bitcoin::hashes::{Hash, HashEngine, sha256};

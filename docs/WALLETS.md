@@ -239,14 +239,31 @@ secret nonce unencrypted, with the vault's encryption.
 1. **The blank sheets.** A template holding no secret (numbered word
    lines, path, network, the SeedQR grid's fixed squares) goes to the
    Outbox as a file to print anywhere.
-2. **The seeds, by hand.** Words and the SeedQR grid to copy on paper,
-   behind hold-to-reveal; never a file, never a printer. No line for a
-   BIP-39 passphrase, and the screen says why. **Scan my copy** checks
+2. **The seeds: by hand; into a vault; a file only past the secret
+   sheet.** Words and the SeedQR grid to copy on paper, behind
+   hold-to-reveal; never a printer. No line for a BIP-39 passphrase, and
+   the screen says why. **Scan my copy** checks
    the copy afterwards: the camera reads the drawn SeedQR (Standard or
    Compact), compares its words with the seed on screen in place (never
    loaded as a key, never put in Files) and names the first word that
    differs. With no camera, **Type my copy's numbers** checks it from the
-   four-digit number beside each word, typed back in order.
+   four-digit number beside each word, typed back in order. Under each
+   seed, after the copy by hand (2026-10-09): **Save into {vault}**
+   writes the key record Vaults' Save writes (`kind::KEY`, loaded at
+   unlock), and **Save into {vault} with its passphrase** when the key was
+   loaded with one; the row reads "In {vault}" once the vault holds it,
+   and with no vault open it says to unlock or make one on Vaults.
+   **Save as a file…** opens the secret sheet for the seed: "Save into
+   {vault}" there writes the same key record, never a note; or, once
+   "I understand: anyone who copies the stick or sees this file can
+   spend these coins" is ticked, the file goes to the Outbox under
+   Unprotected secrets, unticked on a stick visit. The file is one of
+   two forms picked on the sheet, the words (`{wallet}-{fp}-words.txt`,
+   read back by Add a key and other signers) or the SeedQR in the form
+   picked on the step as a labelled PNG
+   (`{wallet}-{fp}-seedqr.png` or `-compactseedqr.png`, "Seed {fp}"
+   over "{n} words · secret: spends", read back by Add a key's
+   scanner); never both, and never the passphrase.
 3. **The wallet in public keys.** The descriptor as one code or animated
    (one code while version ≤ 25 at ECL M or better), the same code as a
    labelled PNG in the Outbox (`{name}-descriptor.png`: the wallet's
@@ -263,7 +280,7 @@ secret nonce unencrypted, with the vault's encryption.
 4. **The envelope.** Which sheet goes with which seed.
 
 The vault is a fifth copy, not a replacement for paper, and the Backup step
-says so.
+says so. A file is the least safe of the three.
 
 ## 6. Guided mode
 

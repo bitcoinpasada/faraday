@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public]
+//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile]
 //! ```
 //!
 //! `TESTKIT_DIR` is what `faraday-testkit` wrote; its files stand in
@@ -15,7 +15,11 @@
 //! with `public`, the public files offered as a code and a picture (a
 //! signed message, Silent payments, Create's keys and Public files card,
 //! the QR sheet, the backup's public step, a GPG key in a vault), and the
-//! pictures put in the Outbox written beside the screens as `outbox-*`.
+//! pictures put in the Outbox written beside the screens as `outbox-*`;
+//! with `seedfile`, the backup's seeds step offering the seed into a
+//! vault or as a file, with no vault open and with the test vault, the
+//! secret sheet for the seed, and its SeedQR pictures, Standard and
+//! Compact, written beside the screens as `outbox-*`.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -308,6 +312,7 @@ fn run(
         Some("copy") => return copy_tour(&mut t),
         Some("scan") => return scan_tour(&mut t),
         Some("public") => return public_tour(&mut t),
+        Some("seedfile") => return seedfile_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -2113,6 +2118,104 @@ fn copy_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// The backup's seeds step offering a seed into a vault or as a file:
+/// with no vault open, the step and the secret sheet; with the test
+/// vault open, a seed it holds and one it does not, and the sheet; then
+/// the seed's SeedQR, Standard and Compact, put in the Outbox past the
+/// warning and written beside the screens.
+fn seedfile_tour(t: &mut Tour) -> Result<(), String> {
+    t.load_kit()?;
+    t.press(Action::Entry(None));
+    t.type_key(1);
+    let second = t
+        .app
+        .session
+        .keys
+        .iter()
+        .position(|k| {
+            k.words
+                .as_deref()
+                .is_some_and(|w| w.as_str() == testkit::test_words(testkit::TEST_SEEDS[1].0))
+        })
+        .ok_or("test key 2 was not added")?;
+    t.press(Action::Backup(0));
+    t.press(Action::BNext(0));
+    t.press(Action::BReveal);
+    scroll_to(t, Action::BFile);
+    t.shot("seedfile-no-vault")?;
+    t.press(Action::BFile);
+    t.shot("seedfile-sheet-no-vault")?;
+    // On a small panel the sheet scrolls: its middle.
+    scroll(t, 240);
+    t.shot("seedfile-sheet-no-vault-down")?;
+    t.press(Action::Cancel);
+    // The test vault, unlocked: it holds test key 1, not test key 2.
+    let vault = testkit::files()?
+        .into_iter()
+        .find(|(n, _)| n == "vault.ofv")
+        .ok_or("no test vault")?;
+    let inbox: Vec<(String, Vec<u8>)> = t
+        .app
+        .inbox
+        .iter()
+        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .chain(std::iter::once(vault))
+        .collect();
+    t.app.storage(StorageEvent::Restored {
+        inbox,
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.vaults.ms_per_unit = Some(180);
+    t.press(Action::Nav(Screen::Vaults));
+    t.press(Action::Vault(V::Open(0)));
+    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    t.press(Action::Vault(V::Unlock));
+    for _ in 0..20 {
+        t.tick();
+    }
+    if t.app.vaults.open.len() != 1 {
+        return Err("the test vault did not open".into());
+    }
+    t.press(Action::Nav(Screen::Backup));
+    scroll_to(t, Action::BFile);
+    t.shot("seedfile-in-vault")?;
+    t.press(Action::BKey(second));
+    t.press(Action::BReveal);
+    scroll_to(t, Action::BFile);
+    t.shot("seedfile-vault")?;
+    t.press(Action::BFile);
+    t.press(Action::SecretForm(1));
+    t.press(Action::SecretAck);
+    t.shot("seedfile-sheet-seedqr")?;
+    scroll(t, 240);
+    t.shot("seedfile-sheet-seedqr-down")?;
+    t.press(Action::SecretUnprotected);
+    t.press(Action::BCompact(true));
+    t.press(Action::BFile);
+    t.press(Action::SecretForm(1));
+    t.press(Action::SecretAck);
+    t.press(Action::SecretUnprotected);
+    let pictures: Vec<_> = t
+        .app
+        .outbox
+        .iter()
+        .filter(|i| i.name.ends_with(".png"))
+        .collect();
+    if pictures.len() != 2 {
+        return Err(format!("{} SeedQR pictures in the Outbox", pictures.len()));
+    }
+    for item in pictures {
+        let path = t.out.join(format!("outbox-{}", item.name));
+        std::fs::write(&path, &item.bytes).map_err(|e| format!("{}: {e}", path.display()))?;
+        println!("{}", path.display());
+    }
+    Ok(())
+}
+
 fn themes_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     for theme in faraday_core::ui::Theme::ALL {
@@ -2508,7 +2611,7 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy]"
+            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile]"
         );
         return ExitCode::from(2);
     }
@@ -2539,10 +2642,13 @@ fn main() -> ExitCode {
     if only.is_some_and(|m| {
         ![
             "spend", "themes", "compact", "seeds", "keys", "visit", "copy", "scan", "public",
+            "seedfile",
         ]
         .contains(&m)
     }) {
-        eprintln!("the tour is spend, themes, compact, seeds, keys, visit, copy, scan or public");
+        eprintln!(
+            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public or seedfile"
+        );
         return ExitCode::from(2);
     }
     match run((w, h), dpi, Path::new(&args[2]), Path::new(&args[3]), only) {

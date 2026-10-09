@@ -263,13 +263,12 @@ impl Faraday {
             Bip85App::Hex => "Secret bytes",
             Bip85App::Base64 | Bip85App::Base85 => "A password",
         };
-        self.offer_secret(crate::secrets::SecretOut {
+        self.offer_secret(crate::secrets::SecretOut::new(
             name,
-            bytes: Zeroizing::new(text.as_bytes().to_vec()),
+            Zeroizing::new(text.as_bytes().to_vec()),
             what,
-            gives: "Whoever has it has what it protects or spends",
-            round: None,
-        });
+            "Whoever has it has what it protects or spends",
+        ));
     }
 
     /// One press inside the flow.

@@ -559,6 +559,11 @@ pub enum Action {
     BScan,
     /// Clear the typed digits.
     BCheckClear,
+    /// The seed shown into the open vault as a key, with its BIP-39
+    /// passphrase when true.
+    BVault(bool),
+    /// The seed shown as a file: the secret sheet for it.
+    BFile,
     /// The template's word count.
     BWords(usize),
     /// Keys left off each split sheet.
@@ -605,6 +610,8 @@ pub enum Action {
     SecretAck,
     /// The secret to the Outbox, unprotected.
     SecretUnprotected,
+    /// The form the secret's file takes, by index.
+    SecretForm(u8),
     /// Open BIP-85.
     Bip85,
     /// Open silent payments.
@@ -3246,6 +3253,7 @@ impl Faraday {
             Action::SecretVault => self.secret_to_vault(),
             Action::SecretAck => self.secret_ack = !self.secret_ack,
             Action::SecretUnprotected => self.secret_unprotected(),
+            Action::SecretForm(i) => self.secret_form(usize::from(i)),
             Action::LearnPage(i) => self.learn_page(i),
             Action::WordList(a) => self.wordlist_act(a),
             Action::KeyGen(_)
@@ -3755,6 +3763,22 @@ impl Faraday {
                     b.typed.clear();
                 }
             }
+            Action::BVault(with) => {
+                let v = self.vaults.current;
+                let k = self.backup.as_ref().map(|b| b.key).filter(|&k| {
+                    self.session.keys.get(k).is_some_and(|key| {
+                        !vault_screens::vault_has_key(self, v, key.master.fingerprint())
+                    })
+                });
+                if let Some(k) = k {
+                    self.vault_act(if with {
+                        vaults::VaultAction::SaveKeyWithPassphrase(k)
+                    } else {
+                        vaults::VaultAction::SaveKey(k)
+                    });
+                }
+            }
+            Action::BFile => self.offer_seed(),
             Action::BWords(n) => {
                 if let Some(b) = self.backup.as_mut() {
                     b.words = n;
@@ -4394,13 +4418,14 @@ impl Faraday {
                         psbt,
                         psbt_name: format!("{stem}-part.psbt"),
                     };
-                    Some(secrets::SecretOut {
-                        name: format!("{stem}-partly-signed.osk"),
+                    let mut out = secrets::SecretOut::new(
+                        format!("{stem}-partly-signed.osk"),
                         bytes,
-                        what: "The secret nonce the next share signs this transaction with",
-                        gives: "Whoever has it and a share's signature can work out that share",
-                        round: Some(round),
-                    })
+                        "The secret nonce the next share signs this transaction with",
+                        "Whoever has it and a share's signature can work out that share",
+                    );
+                    out.keep = secrets::Keep::Round(round);
+                    Some(out)
                 });
                 if let Some(out) = out {
                     self.offer_secret(out);

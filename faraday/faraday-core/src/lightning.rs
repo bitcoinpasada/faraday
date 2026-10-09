@@ -178,15 +178,14 @@ impl Faraday {
                 let Some((id, private)) = self.lightning_secret_text() else {
                     return;
                 };
-                self.offer_secret(crate::secrets::SecretOut {
-                    name: format!("lightning-{}.txt", &id[..16]),
-                    bytes: Zeroizing::new(
+                self.offer_secret(crate::secrets::SecretOut::new(
+                    format!("lightning-{}.txt", &id[..16]),
+                    Zeroizing::new(
                         format!("node id {id}\nprivate key {}\n", private.as_str()).into_bytes(),
                     ),
-                    what: "A Lightning node's private key",
-                    gives: "Whoever has it is the node: its channels and their money",
-                    round: None,
-                });
+                    "A Lightning node's private key",
+                    "Whoever has it is the node: its channels and their money",
+                ));
                 return;
             }
             _ => {}
