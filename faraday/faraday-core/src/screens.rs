@@ -8,7 +8,7 @@ use osk_ui::widgets::Icon;
 use crate::ui::pal::*;
 use crate::ui::{Style, Theme, Ui, W, btc, grouped, short, thousands};
 use crate::wallet::{FileKind, Session, fp_text, key_line, network_name};
-use crate::{Action, Faraday, Screen, Sheet, flow, guide};
+use crate::{Action, Code, Faraday, Screen, Sheet, flow, guide};
 
 const SIDEBAR_W: f32 = 240.0;
 
@@ -5443,62 +5443,63 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             }
         }
         bstep::PUBLIC => {
-            let mut items: Vec<(&str, Style, Action)> = vec![
+            // Each file with its own button, and Show as QR and PNG beside
+            // the ones a wallet reads from a code.
+            let stem = crate::file_stem(&wallet.name);
+            let wi = b.wallet;
+            let mut rows: Vec<FileRow<&str>> = vec![
                 (
-                    "Show the descriptor as QR",
-                    Style::Secondary,
-                    Action::QrWallet(b.wallet),
-                ),
-                (
-                    "Descriptor QR to the Outbox",
-                    Style::Secondary,
-                    Action::BOut(8),
-                ),
-                (
-                    "Descriptor to the Outbox",
-                    Style::Secondary,
+                    "Descriptor",
+                    "Any wallet software",
+                    format!("{stem}-descriptor.txt"),
                     Action::BOut(1),
+                    vec![
+                        ("Show as QR", Action::QrWallet(wi)),
+                        ("PNG", Action::BOut(8)),
+                    ],
                 ),
                 (
-                    "Wallet .json to the Outbox",
-                    Style::Secondary,
+                    "Wallet file",
+                    "Sparrow, Specter",
+                    format!("{stem}-wallet.json"),
                     Action::BOut(5),
+                    Vec::new(),
                 ),
             ];
             if crate::backup::multisig_config(wallet, None).is_some() {
-                items.push((
-                    "Multisig config to the Outbox",
-                    Style::Secondary,
+                rows.push((
+                    "Multisig config",
+                    "Coldcard, Keystone, Passport",
+                    format!("{stem}-multisig-config.txt"),
                     Action::BOut(2),
+                    vec![
+                        ("Show as QR", Action::ShowCode(Code::MultisigConfig(wi))),
+                        ("PNG", Action::CodePng(Code::MultisigConfig(wi))),
+                    ],
                 ));
             }
-            items.push((
-                "Backup sheet to the Outbox",
-                Style::Secondary,
+            rows.push((
+                "Backup sheet",
+                "A PDF to print",
+                format!("{stem}-backup.pdf"),
                 Action::BOut(3),
+                Vec::new(),
             ));
-            if ui.compact {
-                // One under another, the panel's width.
-                for &(label, style, action) in &items {
-                    let label = ui.fit(14.0, W::S, label, w - 24.0);
-                    ui.button(x, cy, Some(w), 38.0, &label, style, action);
-                    cy += 46.0;
-                }
-                cy += 6.0;
-            } else {
-                // In rows, each as wide as its label, the next row when
-                // one does not fit beside the last.
-                let mut bx = x;
-                for &(label, style, action) in &items {
-                    let bw = ui.measure(14.0, W::S, label) + 32.0;
-                    if bx > x && bx + bw > x + w {
-                        bx = x;
-                        cy += 46.0;
-                    }
-                    bx += ui.button(bx, cy, Some(bw), 38.0, label, style, action) + 8.0;
-                }
-                cy += 52.0;
+            for (name, detail, file, action, extra) in &rows {
+                let done = app.outbox.iter().any(|f| &f.name == file);
+                cy += file_row(
+                    ui,
+                    x,
+                    cy,
+                    w,
+                    name,
+                    detail,
+                    done.then_some("In the Outbox"),
+                    ("To the Outbox", *action),
+                    extra,
+                );
             }
+            cy += 12.0;
             if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
                 cy += 48.0;
             }
@@ -6062,25 +6063,22 @@ fn message_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f3
                     ui.text(x, cy, 12.0, W::R, MUTED, "Signature");
                     cy += 20.0;
                     cy += ui.wrap(x, cy, w, 13.0, W::M, TEXT, &sig.signature) + 14.0;
-                    let bw = ui.button(
+                    cy += wrap_buttons(
+                        ui,
                         x,
                         cy,
-                        None,
+                        w,
                         38.0,
-                        "Put in the Outbox",
-                        Style::Secondary,
-                        Action::MOut,
-                    );
-                    ui.button(
-                        x + bw + 8.0,
-                        cy,
-                        None,
-                        38.0,
-                        "Show as QR",
-                        Style::Secondary,
-                        Action::MQr,
-                    );
-                    cy += 50.0;
+                        &[
+                            ("Put in the Outbox", Style::Secondary, Action::MOut),
+                            ("Show as QR", Style::Secondary, Action::MQr),
+                            (
+                                "PNG to the Outbox",
+                                Style::Secondary,
+                                Action::CodePng(Code::Message),
+                            ),
+                        ],
+                    ) + 4.0;
                 }
             }
             if let Some(e) = &m.error {
@@ -6554,26 +6552,25 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     // A key held here goes out to the cosigners, who need
                     // it to make the same wallet.
                     if c.kind.multi() && !c.kind.threshold() && matches!(src, Source::Here(_)) {
-                        let bx = x + indent;
-                        let qw = ui.button(
-                            bx,
-                            cy,
-                            None,
-                            32.0,
-                            "Show xpub QR",
-                            Style::Secondary,
-                            Action::CKeyQr(slot as u8),
-                        );
-                        ui.button(
-                            bx + qw + 6.0,
-                            cy,
-                            None,
-                            32.0,
-                            "Xpub file to the Outbox",
-                            Style::Secondary,
-                            Action::CKeyOut(slot as u8),
-                        );
-                        cy += 44.0;
+                        let k = slot as u8;
+                        let row = vec![
+                            (
+                                "Show xpub QR".to_string(),
+                                Style::Secondary,
+                                Action::CKeyQr(k),
+                            ),
+                            (
+                                "Xpub PNG to the Outbox".to_string(),
+                                Style::Secondary,
+                                Action::CodePng(Code::Key(k)),
+                            ),
+                            (
+                                "Xpub file to the Outbox".to_string(),
+                                Style::Secondary,
+                                Action::CKeyOut(k),
+                            ),
+                        ];
+                        cy += button_rows(ui, x + indent, cy, w - indent, &row);
                     }
                 }
                 ui.rule(x, cy, w, INNER);
@@ -6912,6 +6909,27 @@ fn put_row(
     done: Option<&str>,
     button: (&str, Action),
 ) -> f32 {
+    file_row(ui, x, y, w, name, detail, done, button, &[])
+}
+
+/// A file's row as [`put_row`] draws it, with `extra` buttons before its
+/// own (Show as QR, PNG), which stay when the file is done. On a small
+/// panel the buttons go on a row under the name.
+#[allow(clippy::too_many_arguments)]
+fn file_row(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    name: &str,
+    detail: &str,
+    done: Option<&str>,
+    button: (&str, Action),
+    extra: &[(&str, Action)],
+) -> f32 {
+    if !extra.is_empty() {
+        return file_row_extra(ui, x, y, w, name, detail, done, button, extra);
+    }
     let right = match done {
         Some(t) => ui.measure(13.0, W::S, t),
         None => ui.measure(13.0, W::S, button.0) + 32.0,
@@ -6948,6 +6966,101 @@ fn put_row(
     rh + 8.0
 }
 
+/// A file offered on a card: its name, what reads it, the file's name,
+/// its own button's action, and Show as QR and PNG when it has them.
+type FileRow<'a, N> = (N, &'a str, String, Action, Vec<(&'a str, Action)>);
+
+#[allow(clippy::too_many_arguments)]
+fn file_row_extra(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    name: &str,
+    detail: &str,
+    done: Option<&str>,
+    button: (&str, Action),
+    extra: &[(&str, Action)],
+) -> f32 {
+    let done_w = done.map_or(0.0, |t| ui.measure(13.0, W::S, t));
+    if ui.compact {
+        let room = w - if done_w > 0.0 { done_w + 10.0 } else { 0.0 };
+        let n = ui.fit(14.0, W::S, name, room);
+        ui.text(x, y + 6.0, 14.0, W::S, TEXT, &n);
+        if let Some(t) = done {
+            ui.text_right(x + w, y, 28.0, 13.0, W::S, OK, t);
+        }
+        let d = ui.fit(12.0, W::R, detail, w);
+        ui.text(x, y + 28.0, 12.0, W::R, MUTED, &d);
+        let mut items: Vec<(&str, Style, Action)> = extra
+            .iter()
+            .map(|&(l, a)| (l, Style::Secondary, a))
+            .collect();
+        if done.is_none() {
+            items.push((button.0, Style::Secondary, button.1));
+        }
+        // One row across the panel when the labels fit it, the space
+        // left shared out; else wrapped.
+        let gap = 6.0;
+        let widths: Vec<f32> = items
+            .iter()
+            .map(|(l, ..)| ui.measure(13.0, W::S, l) + 20.0)
+            .collect();
+        let used = widths.iter().sum::<f32>() + gap * (items.len() as f32 - 1.0);
+        let rh = if used <= w {
+            let extra = (w - used) / items.len() as f32;
+            let mut bx = x;
+            for (&(label, style, action), bw) in items.iter().zip(&widths) {
+                bx += ui.button(bx, y + 50.0, Some(bw + extra), 34.0, label, style, action) + gap;
+            }
+            50.0 + 34.0
+        } else {
+            50.0 + wrap_buttons(ui, x, y + 50.0, w, 34.0, &items) - 8.0
+        };
+        ui.rule(x, y + rh + 4.0, w, INNER);
+        return rh + 8.0;
+    }
+    let rh = 36.0;
+    let by = y + (rh - 34.0) / 2.0;
+    let mut right = x + w;
+    match done {
+        Some(t) => {
+            ui.text_right(right, y, rh, 13.0, W::S, OK, t);
+            right -= done_w + 12.0;
+        }
+        None => {
+            let bw = ui.measure(13.0, W::S, button.0) + 32.0;
+            right -= bw;
+            ui.button(
+                right,
+                by,
+                Some(bw),
+                34.0,
+                button.0,
+                Style::Secondary,
+                button.1,
+            );
+            right -= 6.0;
+        }
+    }
+    for &(label, action) in extra.iter().rev() {
+        let bw = ui.measure(13.0, W::S, label) + 32.0;
+        right -= bw;
+        ui.button(right, by, Some(bw), 34.0, label, Style::Secondary, action);
+        right -= 6.0;
+    }
+    let name_w = 200.0_f32.min(right - x - 10.0);
+    let n = ui.fit(14.0, W::S, name, name_w);
+    ui.text_mid(x, y, rh, 14.0, W::S, TEXT, &n);
+    let room = right - (x + 220.0) - 10.0;
+    if room > 60.0 {
+        let d = ui.fit(12.0, W::R, detail, room);
+        ui.text_mid(x + 220.0, y, rh, 12.0, W::R, MUTED, &d);
+    }
+    ui.rule(x, y + rh + 4.0, w, INNER);
+    rh + 8.0
+}
+
 /// The Public files card of Create: what the wallet just made gives the
 /// cosigners and watch-only software, each to the Outbox.
 fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -6963,24 +7076,23 @@ fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     };
     let stem = crate::file_stem(&wl.name);
     let multi = crate::backup::multisig_config(wl, None).is_some();
-    let mut rows: Vec<(String, &str, String, Action)> = vec![
+    // Each file with its own button, and Show as QR and PNG beside the
+    // ones a wallet or a person reads from a code.
+    let codes = |show: Action, png: Action| vec![("Show as QR", show), ("PNG", png)];
+    let mut rows: Vec<FileRow<String>> = vec![
         (
             "Descriptor".to_string(),
             "Any wallet software",
             format!("{stem}-descriptor.txt"),
             Action::CPublic(1),
-        ),
-        (
-            "Descriptor QR".to_string(),
-            "Any wallet that scans a QR",
-            format!("{stem}-descriptor.png"),
-            Action::CPublic(8),
+            codes(Action::QrWallet(i), Action::CPublic(8)),
         ),
         (
             "Wallet file".to_string(),
             "Sparrow, Specter",
             format!("{stem}-wallet.json"),
             Action::CPublic(5),
+            Vec::new(),
         ),
     ];
     if multi {
@@ -6989,6 +7101,10 @@ fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
             "Coldcard, Keystone, Passport",
             format!("{stem}-multisig-config.txt"),
             Action::CPublic(2),
+            codes(
+                Action::ShowCode(Code::MultisigConfig(i)),
+                Action::CodePng(Code::MultisigConfig(i)),
+            ),
         ));
     }
     rows.push((
@@ -6996,6 +7112,7 @@ fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
         "Printed on the desktop app",
         format!("{stem}-backup.pdf"),
         Action::CPublic(3),
+        Vec::new(),
     ));
     if matches!(
         c.kind,
@@ -7006,6 +7123,10 @@ fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
             "BIP 129: Coldcard, Sparrow, Nunchuk",
             format!("{stem}-bsms.txt"),
             Action::CPublic(6),
+            codes(
+                Action::ShowCode(Code::Bsms(i)),
+                Action::CodePng(Code::Bsms(i)),
+            ),
         ));
     }
     rows.push((
@@ -7013,17 +7134,20 @@ fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
         "importdescriptors, watch-only",
         format!("{stem}-bitcoin-core.json"),
         Action::CPublic(7),
+        Vec::new(),
     ));
     // The account key of each key held here, for the cosigners.
     if c.kind.multi() && !c.kind.threshold() {
         for (slot, s) in c.slots.iter().enumerate() {
             if let Source::Here(fp) = s {
                 let fp = fp_text(osk_bip::keys::Fingerprint(*fp));
+                let k = slot as u8;
                 rows.push((
                     format!("Key {fp}"),
                     "For the cosigners",
                     format!("xpub-{fp}.txt"),
-                    Action::CKeyOut(slot as u8),
+                    Action::CKeyOut(k),
+                    codes(Action::CKeyQr(k), Action::CodePng(Code::Key(k))),
                 ));
                 if matches!(
                     c.kind,
@@ -7033,7 +7157,11 @@ fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
                         format!("Key {fp}, BSMS"),
                         "Signed xpub record, BIP 129",
                         format!("xpub-{fp}-bsms.txt"),
-                        Action::CKeyBsms(slot as u8),
+                        Action::CKeyBsms(k),
+                        codes(
+                            Action::ShowCode(Code::KeyBsms(k)),
+                            Action::CodePng(Code::KeyBsms(k)),
+                        ),
                     ));
                 }
             }
@@ -7041,16 +7169,9 @@ fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     }
     ui.chip(x, cy, "Public · anyone may read these", MUTED, INNER);
     cy += 38.0;
-    for (name, detail, file, action) in &rows {
-        // A picture past one code goes as parts, `-1-of-3.png` and on.
-        let parts = file.strip_suffix(".png").map(|s| format!("{s}-"));
-        let done = app.outbox.iter().any(|f| {
-            &f.name == file
-                || parts
-                    .as_deref()
-                    .is_some_and(|p| f.name.starts_with(p) && f.name.ends_with(".png"))
-        });
-        cy += put_row(
+    for (name, detail, file, action, extra) in &rows {
+        let done = app.outbox.iter().any(|f| &f.name == file);
+        cy += file_row(
             ui,
             x,
             cy,
@@ -7059,6 +7180,7 @@ fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
             detail,
             done.then_some("In the Outbox"),
             ("To the Outbox", *action),
+            extra,
         );
     }
     cy += 10.0;
@@ -7067,11 +7189,7 @@ fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
         x,
         cy,
         w,
-        &[(
-            "Show the descriptor as QR",
-            Style::Secondary,
-            Action::QrWallet(i),
-        )],
+        &[],
         Some(("Continue", Action::CNext(crate::cstep::PUBLIC))),
     );
     cy + 4.0 - y
@@ -11715,7 +11833,18 @@ fn qr_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         }
     }
     let mut bx = x + 32.0;
-    if q.frames.len() > 1 || q.part != crate::QR_PARTS[1] {
+    if q.offers_png() {
+        // One code of public content: kept as a picture with its label.
+        ui.button(
+            bx,
+            y + sh - 32.0 - 44.0,
+            None,
+            44.0,
+            "PNG to the Outbox",
+            Style::Secondary,
+            Action::QrPng,
+        );
+    } else if q.frames.len() > 1 || q.part != crate::QR_PARTS[1] {
         for (label, n) in ["Small", "Medium", "Large"].iter().zip(crate::QR_PARTS) {
             let on = q.part == n;
             bx += ui.button(
@@ -11743,7 +11872,7 @@ fn qr_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 
 /// The QR sheet on a small panel: the code as large as the panel allows,
 /// and its format, speed and part size as buttons that step through the
-/// choices.
+/// choices, with PNG beside them for one code of public content.
 fn qr_sheet_compact(app: &Faraday, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) {
     let text = matches!(
         q.source,
@@ -11790,6 +11919,10 @@ fn qr_sheet_compact(app: &Faraday, q: &crate::QrView, ui: &mut Ui, w: f32, h: f3
             Style::Secondary,
             Action::QrPartSize(crate::QR_PARTS[(pp + 1) % 3]),
         ));
+    }
+    // One code of public content: kept as a picture with its label.
+    if q.offers_png() {
+        cycles.push(("PNG", Style::Secondary, Action::QrPng));
     }
     let rows_h = if cycles.is_empty() { 0.0 } else { 48.0 } + 46.0;
     crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {

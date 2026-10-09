@@ -6,7 +6,7 @@ use crate::silent::{SilentState, sstep};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
-use crate::{Action, Faraday, flow};
+use crate::{Action, Code, Faraday, flow};
 
 const TITLES: [&str; sstep::COUNT] = ["Key", "Address", "Scan key", "Check a payment"];
 
@@ -180,6 +180,16 @@ fn card(app: &Faraday, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f
                     "Record to the Outbox".to_string(),
                     Style::Secondary,
                     Action::SRecord,
+                ),
+                (
+                    "Record as QR".to_string(),
+                    Style::Secondary,
+                    Action::ShowCode(Code::SilentRecord),
+                ),
+                (
+                    "Record as PNG".to_string(),
+                    Style::Secondary,
+                    Action::CodePng(Code::SilentRecord),
                 ),
             ];
             let mut row = row;

@@ -12,8 +12,10 @@
 //! Outbox, each list scrolled to its end; with `copy`, the backup's seeds
 //! step checking the copy, without a camera and with one; with `scan`,
 //! Home's Scan pressed with a stick in, then the camera once it is pulled;
-//! with `public`, the descriptor's QR picture put in the Outbox from
-//! Create's Public files card and from the backup's public step.
+//! with `public`, the public files offered as a code and a picture (a
+//! signed message, Silent payments, Create's keys and Public files card,
+//! the QR sheet, the backup's public step, a GPG key in a vault), and the
+//! pictures put in the Outbox written beside the screens as `outbox-*`.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -1949,11 +1951,31 @@ fn scroll_to(t: &mut Tour, action: Action) {
 /// The backup's seeds step checking the copy: with no camera, the typed
 /// check; with one, Scan my copy, a copy with a word wrong on the sheet,
 /// and the match back on the step.
-/// The descriptor's QR picture to the Outbox: from Create's Public files
-/// card, for a 2-of-3 made here, and from the backup's public step, for
-/// Savings.
+/// Public files as codes and pictures: a signed message, Silent
+/// payments, Create's keys and Public files card for a 2-of-3 made here,
+/// the QR sheet with its PNG, the backup's public step for Savings, and a
+/// GPG key made in the test vault.
 fn public_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::Code;
     t.load_kit()?;
+    // A signed message: to the Outbox, as a code, as a picture.
+    t.press(Action::SignMessage);
+    if let Some(m) = t.app.message.as_mut() {
+        m.text = "Faraday signs this".to_string();
+    }
+    t.press(Action::MSign);
+    t.press(Action::MStep(faraday_core::mstep::SIGN));
+    scroll_to(t, Action::MOut);
+    t.shot("public-message")?;
+    t.press(Action::CodePng(Code::Message));
+    // Silent payments: the record beside the address.
+    t.press(Action::Silent);
+    scroll_to(t, Action::CodePng(Code::SilentRecord));
+    t.shot("public-silent")?;
+    t.press(Action::SQr(false));
+    t.shot("public-silent-sheet")?;
+    t.press(Action::QrPng);
+    t.press(Action::Cancel);
     t.press(Action::CreateWallet);
     t.press(Action::CKind(4));
     t.press(Action::CNext(0));
@@ -1962,6 +1984,8 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CSlotHere(0, bacon));
     device_key(t, 1);
     device_key(t, 2);
+    scroll_to(t, Action::CodePng(Code::Key(0)));
+    t.shot("public-keys")?;
     t.press(Action::CNext(2));
     t.press(Action::CMake);
     for step in 3..=6 {
@@ -1971,12 +1995,89 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
     scroll_to(t, Action::CPublic(8));
     t.press(Action::CPublic(8));
     t.shot("public-create")?;
+    let built = t.app.create.as_ref().and_then(|c| c.built).unwrap_or(0);
+    t.press(Action::CodePng(Code::MultisigConfig(built)));
+    t.press(Action::CodePng(Code::Bsms(built)));
+    scroll_to(t, Action::CodePng(Code::KeyBsms(0)));
+    t.shot("public-create-keys")?;
+    t.press(Action::CodePng(Code::Key(0)));
+    t.press(Action::ShowCode(Code::MultisigConfig(built)));
+    t.shot("public-sheet")?;
+    t.press(Action::Cancel);
     t.press(Action::Backup(0));
     t.press(Action::BNext(0));
     t.press(Action::BNext(1));
     t.press(Action::BOut(8));
     scroll_to(t, Action::BOut(8));
     t.shot("public-backup")?;
+    // A GPG key made in the test vault: its public key and revocation,
+    // and a signature, each as a code and a picture.
+    let vault = testkit::files()?
+        .into_iter()
+        .find(|(n, _)| n == "vault.ofv")
+        .ok_or("no test vault")?;
+    let outbox: Vec<(String, Vec<u8>)> = t
+        .app
+        .outbox
+        .iter()
+        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .collect();
+    t.app.storage(StorageEvent::Restored {
+        inbox: vec![
+            vault,
+            (
+                "SHA256SUMS".into(),
+                b"3d6f  faraday-0.1.0-linux-x86_64\n".to_vec(),
+            ),
+        ],
+        outbox,
+        kept: Vec::new(),
+    });
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.storage(StorageEvent::Clock {
+        unix_secs: 1_791_000_000,
+    });
+    t.app.vaults.ms_per_unit = Some(180);
+    t.press(Action::Nav(Screen::Vaults));
+    t.press(Action::Vault(V::Open(0)));
+    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    t.press(Action::Vault(V::Unlock));
+    for _ in 0..20 {
+        t.tick();
+    }
+    if t.app.vaults.open.len() != 1 {
+        return Err("the test vault did not open".into());
+    }
+    t.press(Action::Nav(Screen::VaultContents));
+    t.press(Action::Vault(V::Category(4)));
+    t.press(Action::Vault(V::Add));
+    type_text(t, "Test Person");
+    t.app.event(Event::Key(Key::Tab));
+    type_text(t, "test@example.com");
+    t.press(Action::Vault(V::FormSave));
+    // On a small panel the key's page is opened from the list.
+    t.press(Action::Vault(V::Item(0)));
+    scroll_to(t, Action::CodePng(Code::GpgRevocation));
+    t.shot("public-gpg")?;
+    t.press(Action::CodePng(Code::GpgKey));
+    t.press(Action::CodePng(Code::GpgRevocation));
+    t.press(Action::Vault(V::GpgSignPick));
+    // Back to the top of the list of files.
+    for _ in 0..10 {
+        scroll(t, -600);
+    }
+    t.shot("public-gpg-sign")?;
+    t.press(Action::ShowCode(Code::GpgKey));
+    t.shot("public-gpg-sheet")?;
+    t.press(Action::Cancel);
+    // The pictures made, beside the screens.
+    for item in t.app.outbox.iter().filter(|i| i.name.ends_with(".png")) {
+        let path = t.out.join(format!("outbox-{}", item.name));
+        std::fs::write(&path, &item.bytes).map_err(|e| format!("{}: {e}", path.display()))?;
+        println!("{}", path.display());
+    }
     Ok(())
 }
 

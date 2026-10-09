@@ -13,7 +13,7 @@ use crate::vaults::{
     VaultAction as V, cost_text, file_text, mib_text, size_text, vstep,
 };
 use crate::wallet::{Session, Wallet, fp_text};
-use crate::{Action, Faraday, Screen, flow};
+use crate::{Action, Code, Faraday, Screen, flow};
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{Record, SLOT_SIZES, file_len};
 
@@ -2427,19 +2427,33 @@ fn detail(
             ui.text(dx, dy, 13.0, W::R, DIM, "The Inbox is empty");
         }
         for (k, it) in files {
-            let name = ui.fit(14.0, W::M, &it.name, dw - 110.0);
+            // Sign puts the signature in the Outbox; beside it, the
+            // signature as a code and as a picture of it.
+            let buttons = [
+                ("Show as QR", Action::ShowCode(Code::GpgSignature(k))),
+                ("PNG", Action::CodePng(Code::GpgSignature(k))),
+                ("Sign", va(V::GpgSign(k))),
+            ];
+            let widths: Vec<f32> = buttons
+                .iter()
+                .map(|(l, _)| ui.measure(13.0, W::S, l) + 30.0)
+                .collect();
+            let all = widths.iter().sum::<f32>() + 12.0;
+            let (name_w, by) = if ui.compact {
+                (dw, dy + 40.0)
+            } else {
+                (dw - all - 16.0, dy + 2.0)
+            };
+            let name = ui.fit(14.0, W::M, &it.name, name_w);
             ui.text_mid(dx, dy, 40.0, 14.0, W::M, TEXT, &name);
-            ui.button(
-                dx + dw - 80.0,
-                dy + 2.0,
-                Some(80.0),
-                36.0,
-                "Sign",
-                Style::Secondary,
-                va(V::GpgSign(k)),
-            );
-            ui.rule(dx, dy + 44.0, dw, INNER);
-            dy += 48.0;
+            let mut bx = if ui.compact { dx } else { dx + dw - all };
+            for ((label, action), bw) in buttons.iter().zip(&widths) {
+                ui.button(bx, by, Some(*bw), 36.0, label, Style::Secondary, *action);
+                bx += bw + 6.0;
+            }
+            let rh = if ui.compact { 84.0 } else { 44.0 };
+            ui.rule(dx, dy + rh, dw, INNER);
+            dy += rh + 4.0;
         }
         dy += 8.0;
         ui.button(
@@ -2481,7 +2495,9 @@ fn detail(
         *dy += secret(ui, dx, *dy, dw, value, mono, secret_id) + 14.0;
         secret_id += 1;
     };
-    let mut actions: Vec<(&str, V)> = Vec::new();
+    let mut actions: Vec<(&str, Action)> = Vec::new();
+    // Where a new row of them starts, whether or not the last is full.
+    let mut breaks: Vec<usize> = Vec::new();
     match r.kind {
         kind::KEY => {
             let fp = key_fingerprint(app, r).unwrap_or_default();
@@ -2523,9 +2539,9 @@ fn detail(
                 false,
             );
             if !here {
-                actions.push(("Load into session", V::Load));
+                actions.push(("Load into session", va(V::Load)));
                 if records::words_of(r).is_some() && r.field(field::KEY_PASSPHRASE).is_none() {
-                    actions.push(("Load with a passphrase", V::LoadWithPassphrase));
+                    actions.push(("Load with a passphrase", va(V::LoadWithPassphrase)));
                 }
             }
             actions.push((
@@ -2534,13 +2550,13 @@ fn detail(
                 } else {
                     "Choose at unlock"
                 },
-                V::ToggleLoad,
+                va(V::ToggleLoad),
             ));
         }
         kind::WALLET => {
             let text = r.text(field::WALLET).unwrap_or("");
             field_row(ui, &mut dy, "Descriptor", text, true);
-            actions.push(("Open in Wallets", V::Load));
+            actions.push(("Open in Wallets", va(V::Load)));
         }
         kind::ENTRY => {
             if let Some(u) = r.text(field::USERNAME) {
@@ -2558,8 +2574,8 @@ fn detail(
             if let Some(n) = r.text(field::NOTES) {
                 field_row(ui, &mut dy, "Notes", n, false);
             }
-            actions.push(("Edit", V::Edit));
-            actions.push(("Export for KeePass", V::ExportKdbx));
+            actions.push(("Edit", va(V::Edit)));
+            actions.push(("Export for KeePass", va(V::ExportKdbx)));
         }
         kind::NOTE => {
             hold_row(
@@ -2569,7 +2585,7 @@ fn detail(
                 r.text(field::NOTE).unwrap_or(""),
                 false,
             );
-            actions.push(("Edit", V::Edit));
+            actions.push(("Edit", va(V::Edit)));
         }
         kind::SHEET => {
             let (d, _, note) = sheet_parts(r);
@@ -2609,9 +2625,26 @@ fn detail(
                 );
                 dy = ry + 46.0;
             }
-            actions.push(("Export public key", V::GpgExport));
-            actions.push(("Sign a file", V::GpgSignPick));
-            actions.push(("Revocation certificate", V::GpgRevoke));
+            // Each file on a row of its own: to the Outbox, as a code,
+            // as a picture.
+            // On a small panel the code and the picture go under the
+            // file's own button.
+            breaks.push(actions.len());
+            actions.push(("Export public key", va(V::GpgExport)));
+            if ui.compact {
+                breaks.push(actions.len());
+            }
+            actions.push(("Show as QR", Action::ShowCode(Code::GpgKey)));
+            actions.push(("PNG", Action::CodePng(Code::GpgKey)));
+            breaks.push(actions.len());
+            actions.push(("Revocation certificate", va(V::GpgRevoke)));
+            if ui.compact {
+                breaks.push(actions.len());
+            }
+            actions.push(("Show as QR", Action::ShowCode(Code::GpgRevocation)));
+            actions.push(("PNG", Action::CodePng(Code::GpgRevocation)));
+            breaks.push(actions.len());
+            actions.push(("Sign a file", va(V::GpgSignPick)));
         }
         kind::SECURE_BOOT => {
             if let Some(sb) = crate::secureboot::shown(r) {
@@ -2641,20 +2674,20 @@ fn detail(
                 "Yours, with Microsoft's KEK CAs and Windows CAs. Not Microsoft's third-party CA: a card or controller whose firmware it signed may not start"
             };
             dy += ui.wrap(dx, dy, dw, 12.0, W::R, MUTED, line) + 14.0;
-            actions.push(("Enrolment files", V::SbEnrol));
-            actions.push(("Sign or check an image", V::SbImages));
+            actions.push(("Enrolment files", va(V::SbEnrol)));
+            actions.push(("Sign or check an image", va(V::SbImages)));
         }
         _ => {}
     }
     dy += 6.0;
     let mut bx = dx;
-    for (label, a) in actions {
+    for (i, (label, a)) in actions.into_iter().enumerate() {
         let bw = ui.measure(13.0, W::S, label) + 30.0;
-        if bx + bw > dx + dw {
+        if bx > dx && (bx + bw > dx + dw || breaks.contains(&i)) {
             bx = dx;
             dy += 44.0;
         }
-        ui.button(bx, dy, Some(bw), 36.0, label, Style::Secondary, va(a));
+        ui.button(bx, dy, Some(bw), 36.0, label, Style::Secondary, a);
         bx += bw + 8.0;
     }
     dy += 48.0;

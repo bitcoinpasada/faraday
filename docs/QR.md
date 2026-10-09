@@ -142,6 +142,43 @@ intact, not who sent it.
    from the pictures in turn. The writer, `faraday_core::picture`,
    takes any code, title and label lines.
 
+4. **What is offered as a code and as a picture** (2026-10-09). Every
+   public file a flow makes is offered three ways where it can be: to
+   the Outbox, **Show as QR** beside it, and a labelled **PNG** to the
+   Outbox. A code is offered where a wallet or a person reads that
+   content from one; a picture where it is one static code worth
+   keeping on paper or showing to another device later. One mechanism
+   serves every flow: a `QrView` carries the label lines and the file
+   name of its picture, and whether its content is public; the QR sheet
+   shows **PNG to the Outbox** while the view is one static code of
+   public content, and a flow's own **PNG** builds the same view and
+   writes its picture without opening the sheet.
+
+   | File | Show as QR | PNG |
+   |---|---|---|
+   | Descriptor, shares | yes | yes (item 3) |
+   | Multisig config (Coldcard, Keystone, Passport scan it) | yes | yes |
+   | BSMS descriptor record | yes | yes |
+   | Cosigner's key, `xpub-{fp}.txt`, and its BSMS key record | yes | yes, labelled `Key {fp} · {kind} · {path}` |
+   | Silent payments record `silent-{fp}.txt`, and the address on its sheet | yes | yes, labelled `Silent payment address · {fp}` |
+   | Signed message | yes | yes |
+   | GPG public key, revocation, detached signature | yes | yes, as one code; the revocation's label says "Revokes {key}" |
+   | PSBT part, signed PSBT, transaction hex | yes | no |
+   | Wallet .json, Bitcoin Core import | from Files | no |
+   | Backup, share and blank PDFs | no | no |
+   | Vaults, Secure Boot keys and signed images | from Files where they fit | no |
+
+   Why not the rest: a PSBT is handed over in animated parts, and a set
+   of part pictures is clumsier than the file; a wallet .json and
+   Bitcoin Core's import file are read by software from a file, and
+   nothing scans them; the PDFs are the printed sheets themselves;
+   vaults, keys and signed images are sealed or binary, too large for
+   one code. A secret never gets either: it leaves only through the
+   secret sheet. Files' own **Show as QR** shows any Outbox file that
+   fits, as before, and offers no picture. A public file past one code
+   is shown animated and its **PNG** says it is more than one code;
+   only the descriptor is written as one picture per part.
+
 ## 5. Tests
 
 - **The conformance corpus.** `qr-testing/` and

@@ -530,6 +530,13 @@ pub enum Action {
     QrPartSize(usize),
     /// Milliseconds each frame of an animated code stays up.
     QrSpeed(u64),
+    /// The QR sheet's code as a labelled picture, to the Outbox.
+    QrPng,
+    /// A public file a flow makes, shown as a QR code.
+    ShowCode(Code),
+    /// A public file a flow makes, as a labelled picture of its code to
+    /// the Outbox: what the QR sheet's PNG makes, without the sheet.
+    CodePng(Code),
     /// Open a wallet's card.
     OpenWallet(usize),
     /// Start backing up a wallet.
@@ -1155,6 +1162,15 @@ pub struct QrView {
     pub part: usize,
     /// A secret: whoever scans it can use it.
     pub secret: bool,
+    /// Public content worth keeping as a picture, as the caller says (a
+    /// descriptor, a key, a signed message; not a PSBT or a transaction,
+    /// which are handed over as files or in parts): while the view shows
+    /// one code, the sheet offers it as a labelled PNG.
+    pub public: bool,
+    /// The lines under the title in that picture, one statement each.
+    pub label: Vec<String>,
+    /// The picture's file name.
+    pub png_name: String,
 }
 
 /// A code on screen may be a seed: what it was made from is wiped when
@@ -1195,6 +1211,36 @@ pub enum QrSource {
     /// Any other file, in the Faraday file envelope (`docs/QR.md`):
     /// `ur:bytes`, or BBQr `J`, as Faraday OS reads them.
     File(String, Vec<u8>),
+}
+
+/// A public file a flow makes that is offered as a code and as a
+/// labelled picture of it, beside the file itself (`docs/QR.md`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Code {
+    /// A wallet's descriptor, or a threshold wallet's record.
+    Descriptor(usize),
+    /// A wallet's multisig config, as Coldcard, Keystone and Passport
+    /// scan it.
+    MultisigConfig(usize),
+    /// A wallet's BIP 129 descriptor record.
+    Bsms(usize),
+    /// The account key of Create's slot n, for the cosigners.
+    Key(u8),
+    /// That key's signed BIP 129 key record.
+    KeyBsms(u8),
+    /// The silent payments address on show: as it is, or as a
+    /// `bitcoin:` link.
+    Silent(bool),
+    /// The silent payments record, `silent-{fp}.txt`.
+    SilentRecord,
+    /// The signed message.
+    Message,
+    /// The selected GPG key's public certificate.
+    GpgKey,
+    /// A revocation certificate for the selected GPG key.
+    GpgRevocation,
+    /// A detached signature by the selected GPG key over Inbox file n.
+    GpgSignature(usize),
 }
 
 /// How a QR view is written.
@@ -1326,6 +1372,9 @@ impl QrView {
             format,
             part,
             secret,
+            public: false,
+            label: Vec::new(),
+            png_name: String::new(),
         })
     }
 
@@ -1334,8 +1383,39 @@ impl QrView {
         let secret = self.secret;
         QrView::of(&self.title, self.source.clone(), format, part).map(|mut v| {
             v.secret |= secret;
+            v.public = self.public;
+            v.label = self.label.clone();
+            v.png_name = self.png_name.clone();
             v
         })
+    }
+
+    /// The view as public content a picture may keep: the file `name`,
+    /// the title and then `lines` under the code.
+    pub fn public(mut self, name: &str, lines: Vec<String>) -> QrView {
+        self.public = true;
+        self.png_name = name.to_string();
+        self.label = lines;
+        self
+    }
+
+    /// Whether the sheet offers the code as a PNG: public, not a secret,
+    /// and one static code.
+    pub fn offers_png(&self) -> bool {
+        self.public && !self.secret && self.frames.len() == 1 && !self.png_name.is_empty()
+    }
+
+    /// The code on show as a labelled picture, its file's name and
+    /// bytes, when it offers one.
+    pub fn png(&self) -> Option<(String, Vec<u8>)> {
+        if !self.offers_png() {
+            return None;
+        }
+        let code = self.frames.first()?;
+        Some((
+            self.png_name.clone(),
+            picture::labelled_png(code, &self.title, &self.label),
+        ))
     }
 }
 
@@ -1389,6 +1469,20 @@ pub(crate) fn picture_codes(text: &str) -> Result<Vec<osk_codec::qr::QrMatrix>, 
         return Ok(vec![m]);
     }
     bbqr_frames('U', text.as_bytes(), QR_PARTS[1]).map(|(_, frames)| frames)
+}
+
+/// The line that names a cosigner's key under its code: `Key {fp} ·
+/// {kind} · {path}`, the path read from the key's `[fp/path]` origin.
+fn key_label(fp: &str, kind: &str, key: &str) -> String {
+    let path = key
+        .strip_prefix('[')
+        .and_then(|k| k.split_once(']'))
+        .and_then(|(origin, _)| origin.split_once('/'))
+        .map(|(_, p)| format!("m/{p}"));
+    match path {
+        Some(p) => format!("Key {fp} · {kind} · {p}"),
+        None => format!("Key {fp} · {kind}"),
+    }
 }
 
 /// Bytes as `ur:bytes`: one code when it fits, else animated.
@@ -3878,7 +3972,8 @@ impl Faraday {
                         self.put_outbox(&name, text.into_bytes());
                         self.toast(&format!("{name} is in the Outbox"));
                     } else {
-                        self.open_qr(QrView::text("Signed message", &text));
+                        let view = self.code_view(Code::Message);
+                        self.open_qr(view);
                     }
                 }
             }
@@ -3998,13 +4093,8 @@ impl Faraday {
                     Ok((fp, text)) => {
                         let kind = self.create.as_ref().map_or("", |c| c.kind.name());
                         if qr {
-                            let account = self.create_key_account(k);
-                            self.open_qr(QrView::of(
-                                &format!("Xpub {fp} · {kind}"),
-                                QrSource::Key(text, account),
-                                QrFormat::Ur,
-                                QR_PARTS[1],
-                            ));
+                            let view = self.code_view(Code::Key(k));
+                            self.open_qr(view);
                         } else {
                             let name = format!("xpub-{fp}.txt");
                             self.put_outbox(
@@ -4017,29 +4107,14 @@ impl Faraday {
                     Err(e) => self.toast(&e),
                 }
             }
-            Action::CKeyBsms(k) => {
-                let made = self.create.as_ref().and_then(|c| {
-                    let Some(create::Source::Here(fp)) = c.slots.get(k as usize) else {
-                        return None;
-                    };
-                    let key = self
-                        .session
-                        .keys
-                        .iter()
-                        .find(|x| x.master.fingerprint().0 == *fp)?;
-                    let fpt = fp_text(osk_bip::keys::Fingerprint(*fp));
-                    c.kind
-                        .bsms_record(&key.master, &format!("Faraday key {fpt}"))
-                        .map(|r| (format!("xpub-{fpt}-bsms.txt"), r))
-                });
-                match made {
-                    Some((name, text)) => {
-                        self.put_outbox(&name, text.into_bytes());
-                        self.toast(&format!("{name} is in the Outbox"));
-                    }
-                    None => self.toast("BIP 129 covers wsh and sh(wsh) multisig keys"),
+            Action::CKeyBsms(k) => match self.create_key_bsms(k) {
+                Some((fpt, text)) => {
+                    let name = format!("xpub-{fpt}-bsms.txt");
+                    self.put_outbox(&name, text.into_bytes());
+                    self.toast(&format!("{name} is in the Outbox"));
                 }
-            }
+                None => self.toast("BIP 129 covers wsh and sh(wsh) multisig keys"),
+            },
             Action::CSlotClear(k) => {
                 if let Some(c) = self.create.as_mut()
                     && let Some(s) = c.slots.get_mut(k as usize)
@@ -4239,15 +4314,23 @@ impl Faraday {
                 }
             }
             Action::QrWallet(i) => {
-                if let Some(w) = self.session.wallets.get(i) {
-                    let (title, text) = match w.policy.record() {
-                        Some(r) => (format!("{} · threshold record", w.name), r.to_text()),
-                        None => (
-                            format!("{} · wallet descriptor", w.name),
-                            w.policy.to_descriptor_checksummed(),
-                        ),
-                    };
-                    self.open_qr(QrView::text(&title, &text));
+                if i < self.session.wallets.len() {
+                    let view = self.code_view(Code::Descriptor(i));
+                    self.open_qr(view);
+                }
+            }
+            Action::ShowCode(c) => {
+                let view = self.code_view(c);
+                self.open_qr(view);
+            }
+            Action::CodePng(c) => {
+                let view = self.code_view(c);
+                self.code_png(view.as_ref());
+            }
+            Action::QrPng => {
+                if let Some(q) = self.qr.take() {
+                    self.code_png(Ok(&q));
+                    self.qr = Some(q);
                 }
             }
             Action::QrOutbox(i) => {
@@ -4548,15 +4631,8 @@ impl Faraday {
                 backup::wallet_json(&w.name, &w.policy).into_bytes(),
             )),
             6 => {
-                let net = self.session.network();
-                if let Ok(first) = w.policy.address_at(net, false, 0) {
-                    let record = osk_bip::bsms::DescriptorRecord {
-                        policy: w.policy.clone(),
-                        paths: vec!["/0/*".to_string(), "/1/*".to_string()],
-                        first_address: first.to_string(),
-                        network: net,
-                    };
-                    files.push((format!("{stem}-bsms.txt"), record.to_text().into_bytes()));
+                if let Some(record) = self.wallet_file_text(wallet, 6) {
+                    files.push((format!("{stem}-bsms.txt"), record.into_bytes()));
                 }
             }
             7 => files.push((
@@ -4568,7 +4644,7 @@ impl Faraday {
                 .into_bytes(),
             )),
             2 => {
-                if let Some(c) = backup::multisig_config(w, None) {
+                if let Some(c) = self.wallet_file_text(wallet, 2) {
                     files.push((format!("{stem}-multisig-config.txt"), c.into_bytes()));
                 }
             }
@@ -4677,6 +4753,24 @@ impl Faraday {
             .iter()
             .find(|k| k.master.fingerprint().0 == *fp)?;
         c.kind.account_ur(&key.master)
+    }
+
+    /// A slot's key as a signed BIP 129 key record, with its
+    /// fingerprint: for a `wsh` or `sh(wsh)` multisig only.
+    fn create_key_bsms(&self, slot: u8) -> Option<(String, String)> {
+        let c = self.create.as_ref()?;
+        let Some(create::Source::Here(fp)) = c.slots.get(slot as usize) else {
+            return None;
+        };
+        let key = self
+            .session
+            .keys
+            .iter()
+            .find(|x| x.master.fingerprint().0 == *fp)?;
+        let fpt = fp_text(osk_bip::keys::Fingerprint(*fp));
+        c.kind
+            .bsms_record(&key.master, &format!("Faraday key {fpt}"))
+            .map(|r| (fpt, r))
     }
 
     /// The key texts of a creation's slots, or why they are not ready.
@@ -5438,6 +5532,181 @@ impl Faraday {
                 self.sheet = Some(Sheet::Qr);
             }
             Err(e) => self.toast(&format!("Cannot make a code: {e}")),
+        }
+    }
+
+    /// A view's code as a labelled picture to the Outbox, when it is one
+    /// code of public content.
+    fn code_png(&mut self, view: Result<&QrView, &String>) {
+        let v = match view {
+            Ok(v) => v,
+            Err(e) => return self.toast(&format!("Cannot make a code: {e}")),
+        };
+        match v.png() {
+            Some((name, bytes)) => {
+                self.put_outbox(&name, bytes);
+                self.toast(&format!("{name} is in the Outbox"));
+            }
+            None if v.public && v.frames.len() > 1 => {
+                self.toast(&format!("{} is more than one code", v.title));
+            }
+            None => {}
+        }
+    }
+
+    /// The QR view of a public file a flow makes: its code, and the name
+    /// and label of its picture.
+    pub fn code_view(&self, code: Code) -> Result<QrView, String> {
+        let wallet = |i: usize| {
+            self.session
+                .wallets
+                .get(i)
+                .ok_or_else(|| "That wallet is no longer loaded".to_string())
+        };
+        match code {
+            Code::Descriptor(i) => {
+                let w = wallet(i)?;
+                let stem = file_stem(&w.name);
+                let mut lines = self.wallet_label(w);
+                let (title, text, name) = match w.policy.record() {
+                    Some(r) => (
+                        format!("{} · threshold record", w.name),
+                        r.to_text(),
+                        format!("{stem}-record.png"),
+                    ),
+                    None => {
+                        let text = w.policy.to_descriptor_checksummed();
+                        if let Some((_, sum)) = text.rsplit_once('#') {
+                            lines.push(format!("Descriptor checksum {sum}"));
+                        }
+                        (
+                            format!("{} · wallet descriptor", w.name),
+                            text,
+                            format!("{stem}-descriptor.png"),
+                        )
+                    }
+                };
+                lines.push("Public: watch only, spends nothing".to_string());
+                Ok(QrView::text(&title, &text)?.public(&name, lines))
+            }
+            Code::MultisigConfig(i) | Code::Bsms(i) => {
+                let w = wallet(i)?;
+                let stem = file_stem(&w.name);
+                let what = if code == Code::MultisigConfig(i) {
+                    2
+                } else {
+                    6
+                };
+                let text = self
+                    .wallet_file_text(i, what)
+                    .ok_or("This wallet has no such file")?;
+                let (title, name) = if what == 2 {
+                    (
+                        format!("{} · multisig config", w.name),
+                        format!("{stem}-multisig-config.png"),
+                    )
+                } else {
+                    (
+                        format!("{} · BSMS descriptor record", w.name),
+                        format!("{stem}-bsms.png"),
+                    )
+                };
+                let mut lines = self.wallet_label(w);
+                lines.push("Public: watch only, spends nothing".to_string());
+                Ok(QrView::text(&title, &text)?.public(&name, lines))
+            }
+            Code::Key(k) => {
+                let (fp, text) = self.create_key_text(k)?;
+                let kind = self.create.as_ref().map_or("", |c| c.kind.name());
+                let account = self.create_key_account(k);
+                let lines = vec![
+                    key_label(&fp, kind, &text),
+                    "Public: spends nothing".to_string(),
+                ];
+                Ok(QrView::of(
+                    &format!("Xpub {fp} · {kind}"),
+                    QrSource::Key(text, account),
+                    QrFormat::Ur,
+                    QR_PARTS[1],
+                )?
+                .public(&format!("xpub-{fp}.png"), lines))
+            }
+            Code::KeyBsms(k) => {
+                let (fp, key) = self.create_key_text(k)?;
+                let kind = self.create.as_ref().map_or("", |c| c.kind.name());
+                let (_, text) = self
+                    .create_key_bsms(k)
+                    .ok_or("BIP 129 covers wsh and sh(wsh) multisig keys")?;
+                let lines = vec![
+                    key_label(&fp, kind, &key),
+                    "BIP 129 key record, signed by the key".to_string(),
+                    "Public: spends nothing".to_string(),
+                ];
+                Ok(QrView::text(&format!("Key {fp} · BSMS record"), &text)?
+                    .public(&format!("xpub-{fp}-bsms.png"), lines))
+            }
+            Code::Silent(_) | Code::SilentRecord => self.silent_code(code),
+            Code::Message => {
+                let m = self.message.as_ref().ok_or("No message is signed")?;
+                let sig = m.signed.as_ref().ok_or("The message is not signed yet")?;
+                let text = osk_psbt::message::signed_text(&sig.address, &sig.signature, &m.text);
+                let name = format!(
+                    "message-{}.png",
+                    &sig.address[sig.address.len().saturating_sub(6)..]
+                );
+                let lines = vec![
+                    format!("Signed by {}", sig.address),
+                    "Public: proves who signed, spends nothing".to_string(),
+                ];
+                Ok(QrView::text("Signed message", &text)?.public(&name, lines))
+            }
+            Code::GpgKey | Code::GpgRevocation | Code::GpgSignature(_) => self.gpg_code(code),
+        }
+    }
+
+    /// The lines that name a wallet under its code: its shape and
+    /// network, and its keys' fingerprints.
+    fn wallet_label(&self, w: &wallet::Wallet) -> Vec<String> {
+        let net = self.session.network();
+        let shape = if net.is_mainnet() {
+            Session::shape(w)
+        } else {
+            format!("{} · {}", Session::shape(w), net.name())
+        };
+        let mut lines = vec![shape];
+        let all: Vec<String> = w
+            .policy
+            .keys()
+            .iter()
+            .filter_map(|k| k.fingerprint().map(fp_text))
+            .collect();
+        if !all.is_empty() {
+            let word = if all.len() == 1 { "Key" } else { "Keys" };
+            lines.push(format!("{word} {}", all.join(" · ")));
+        }
+        lines
+    }
+
+    /// A wallet's public text file `what` (as [`Faraday::public_out`]
+    /// numbers them): 2 the multisig config, 6 the BIP 129 record.
+    fn wallet_file_text(&self, wallet: usize, what: u8) -> Option<String> {
+        let w = self.session.wallets.get(wallet)?;
+        match what {
+            2 => backup::multisig_config(w, None),
+            6 => {
+                let net = self.session.network();
+                let first = w.policy.address_at(net, false, 0).ok()?;
+                Some(
+                    osk_bip::bsms::DescriptorRecord {
+                        policy: w.policy.clone(),
+                        paths: vec!["/0/*".to_string(), "/1/*".to_string()],
+                        first_address: first.to_string(),
+                        network: net,
+                    }
+                    .to_text(),
+                )
+            }
+            _ => None,
         }
     }
 

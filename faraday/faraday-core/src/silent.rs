@@ -198,26 +198,61 @@ impl Faraday {
         Some(Zeroizing::new(k.as_str().to_string()))
     }
 
+    /// The QR view of the address on show (as it is, or as a `bitcoin:`
+    /// link) or of the record, with the name and label of its picture.
+    pub(crate) fn silent_code(&self, code: crate::Code) -> Result<QrView, String> {
+        let s = self.silent.as_ref().ok_or("Silent payments is not open")?;
+        let fp = fp_text(osk_bip::keys::Fingerprint(
+            s.key.ok_or("Choose a key first")?,
+        ));
+        let mut lines = vec![format!("Silent payment address · {fp}")];
+        let (title, text, name) = match code {
+            crate::Code::Silent(uri) => {
+                let a = self.silent_address().ok_or("No address for this key")?;
+                let mut name = format!("silent-{fp}");
+                if s.label > 0 {
+                    lines.push(format!("Label {}", s.label));
+                    name.push_str(&format!("-label-{}", s.label));
+                }
+                let text = if uri {
+                    name.push_str("-link");
+                    osk_bip::silent::uri(&a)
+                        .map(|u| u.as_str().to_string())
+                        .unwrap_or(a)
+                } else {
+                    a
+                };
+                lines.push("Public: receives payments, spends nothing".to_string());
+                ("Silent payments address", text, name)
+            }
+            _ => {
+                let text = self.silent_record().ok_or("No record for this key")?;
+                lines.push("Public: watch only, spends nothing".to_string());
+                (
+                    "Silent payments record",
+                    text,
+                    format!("silent-{fp}-record"),
+                )
+            }
+        };
+        Ok(QrView::of(
+            title,
+            QrSource::Text(text),
+            QrFormat::Ur,
+            crate::QR_PARTS[1],
+        )?
+        .public(&format!("{name}.png"), lines))
+    }
+
     /// One press inside the flow.
     pub(crate) fn silent_act(&mut self, action: crate::Action) {
         use crate::Action as A;
         match action {
             A::Silent => return self.silent_open(),
             A::SQr(uri) => {
-                if let Some(a) = self.silent_address() {
-                    let text = if uri {
-                        osk_bip::silent::uri(&a)
-                            .map(|u| u.as_str().to_string())
-                            .unwrap_or(a)
-                    } else {
-                        a
-                    };
-                    self.open_qr(QrView::of(
-                        "Silent payments address",
-                        QrSource::Text(text),
-                        QrFormat::Ur,
-                        crate::QR_PARTS[1],
-                    ));
+                if self.silent_address().is_some() {
+                    let view = self.silent_code(crate::Code::Silent(uri));
+                    self.open_qr(view);
                 }
                 return;
             }

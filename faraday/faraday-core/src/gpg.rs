@@ -193,19 +193,79 @@ impl Faraday {
         Ok(())
     }
 
-    /// The selected key's public certificate to the Outbox.
-    pub(crate) fn gpg_export(&mut self) {
-        let Some((at, key)) = self.gpg_selected() else {
-            return;
-        };
+    /// The selected key's public certificate, armoured, with the key.
+    fn gpg_certificate(&self) -> Option<(Key, String)> {
+        let (at, key) = self.gpg_selected()?;
         let r = &self.vaults.open[self.vaults.current].contents.records[at];
         let cert = match r.field(f::CERTIFICATE) {
             Some(c) => c.to_vec(),
             None => key.certificate(certified_at(r).unwrap_or(key.created)),
         };
+        Some((key, armor(Armor::PublicKey, &cert)))
+    }
+
+    /// The selected key's public certificate to the Outbox.
+    pub(crate) fn gpg_export(&mut self) {
+        let Some((key, text)) = self.gpg_certificate() else {
+            return;
+        };
         let name = format!("{}.asc", file_stem(&key));
-        self.put_outbox(&name, armor(Armor::PublicKey, &cert).into_bytes());
+        self.put_outbox(&name, text.into_bytes());
         self.toast(&format!("{name} is in the Outbox"));
+    }
+
+    /// The QR view of the selected key's certificate, a revocation of it
+    /// or its signature over an Inbox file, with the name and label of
+    /// its picture.
+    pub(crate) fn gpg_code(&self, code: crate::Code) -> Result<crate::QrView, String> {
+        use crate::Code;
+        let (_, key) = self.gpg_selected().ok_or("No GPG key is selected")?;
+        let stem = file_stem(&key);
+        let fp = format!(
+            "Fingerprint {}",
+            faraday_pgp::fingerprint_text(&key.fingerprint())
+        );
+        let who = key.user_ids.first().cloned().unwrap_or_default();
+        let (title, text, name, lines) = match code {
+            Code::GpgKey => {
+                let (_, text) = self.gpg_certificate().ok_or("No GPG key is selected")?;
+                (
+                    "GPG public key".to_string(),
+                    text,
+                    format!("{stem}.png"),
+                    vec![
+                        who,
+                        fp,
+                        "Public: checks signatures, signs nothing".to_string(),
+                    ],
+                )
+            }
+            Code::GpgRevocation => {
+                let rev = key.revocation(self.clock()?, Reason::Unspecified, "");
+                (
+                    "GPG revocation certificate".to_string(),
+                    armor(Armor::PublicKey, &rev),
+                    format!("{stem}-revocation.png"),
+                    vec![
+                        format!("Revokes {who}"),
+                        fp,
+                        "Whoever has it can revoke the key".to_string(),
+                    ],
+                )
+            }
+            Code::GpgSignature(k) => {
+                let item = self.inbox.get(k).ok_or("That file is no longer in Files")?;
+                let sig = key.sign(&item.bytes, self.clock()?, Hash::Sha512);
+                (
+                    format!("GPG signature · {}", item.name),
+                    armor(Armor::Signature, &sig),
+                    format!("{}-signature.png", item.name),
+                    vec![format!("Signs {}", item.name), format!("By {who}"), fp],
+                )
+            }
+            _ => return Err("Not a GPG file".to_string()),
+        };
+        Ok(crate::QrView::text(&title, &text)?.public(&name, lines))
     }
 
     /// A revocation certificate for the selected key to the Outbox.

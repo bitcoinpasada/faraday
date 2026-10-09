@@ -60,9 +60,10 @@ to get it.
    the round leaves the vault once it has signed. Create a wallet says the
    same in its cards: after Check come **Secrets into a vault** (the keys
    held here and the wallet), then **Public files** (descriptor, wallet
-   file, the descriptor's QR as a labelled picture, multisig config,
-   backup sheet, each key's account key, the descriptor QR on screen),
-   then **Paper backup**: the seeds copied by hand, each
+   file, multisig config, backup sheet, BSMS record, Bitcoin Core import,
+   each key's account key and its BSMS record; the descriptor, the
+   multisig config, the BSMS records and the keys each with **Show as QR**
+   and **PNG** beside **To the Outbox**), then **Paper backup**: the seeds copied by hand, each
    copy checked by scanning its drawn SeedQR (by its words' typed numbers
    where there is no camera).
 
@@ -207,7 +208,9 @@ contents, empty, with an Add action per kind.
 - **Edit** → the same form → back to the item.
 - **Hold to delete from vault** → gone; the next item selected.
 - A Bitcoin key or wallet → **Open in Wallets**, **Open in OpenSigner** (a key), or **Don't load at unlock**.
-- A GPG key → **Export public key**, **Sign a file**, **Renew**.
+- A GPG key → **Export public key**, **Revocation certificate**, each with
+  **Show as QR** and **PNG** on its row; **Sign a file**, whose list has
+  **Show as QR**, **PNG** and **Sign** on each file's row; **Renew**.
 - Secure Boot keys → **Open Secure Boot**.
 
 **Change passphrases, cost or space** → **Make a new vault from this one**
@@ -235,8 +238,8 @@ guarantees for this file's rule:
 - **Creating a wallet ends in Backup and Save**, never on the descriptor
   alone.
 - **The descriptor and its shares as pictures** (2026-10-09). Create's
-  Public files card (**Descriptor QR**) and the backup's public step
-  (**Descriptor QR to the Outbox**) write `{name}-descriptor.png`: the
+  Public files card and the backup's public step (**PNG** on the
+  descriptor's row) write `{name}-descriptor.png`: the
   checksummed descriptor as one static code, with the wallet's name, its
   shape (and the network when not mainnet), the keys' fingerprints, the
   descriptor's checksum and "Public: watch only, spends nothing" under
@@ -247,6 +250,25 @@ guarantees for this file's rule:
   one code, labelled with the share's number and quorum, the keys it
   holds and leaves off, and "Not a wallet on its own". A scan of a share
   picture comes back as the share, and Restore takes any quorum of them.
+- **Every public file a flow makes as a code and a picture**
+  (2026-10-09; `docs/QR.md` §4 item 4). Beside a file's **To the
+  Outbox** sit **Show as QR** and **PNG** where a wallet or a person
+  reads it from a code: Create's Public files card (descriptor, multisig
+  config, BSMS descriptor record, each key held here and its BSMS key
+  record), Create's Keys card (**Show xpub QR**, **Xpub PNG to the
+  Outbox**, **Xpub file to the Outbox** under each key held here), the
+  backup's public step (descriptor, multisig config), Sign a message
+  (**Put in the Outbox**, **Show as QR**, **PNG to the Outbox**) and
+  Silent payments (**Record to the Outbox**, **Record as QR**, **Record
+  as PNG**). The QR sheet carries **PNG to the Outbox** (**PNG** beside
+  the format on a small panel) whenever it shows one code of public
+  content; a row's **PNG** is that button without the sheet, and says
+  "{name} is in the Outbox". Labels under the code: `Key {fp} · {kind}
+  · {path}` for a key, `Silent payment address · {fp}` for the silent
+  payments address and record, `Signed by {address}` for a message, the
+  wallet's shape and keys for its files. A file past one code says so
+  instead of writing parts; a PSBT, a transaction, a file shown from
+  Files and a secret offer no picture.
 - **A key in no wallet has a way on**: the card's buttons above with no
   wallet loaded; with wallets loaded, the key's row in the left column
   carries **Make a wallet from this key**. The left column runs top
@@ -289,11 +311,17 @@ none open: "Unlock or create a vault first", with both buttons.
 result: fingerprint, **Export public key** (code or Outbox),
 **Revocation certificate** (Outbox, with the note that it should be kept
 apart from the key), **Paperkey backup** (shown; a hold to reveal) → the
-key's page in Vault contents.
+key's page in Vault contents. The public key and the revocation each
+have **Show as QR** and **PNG** on their row: `{name}-{fp8}.png` with the
+user ID and fingerprint under the code, and
+`{name}-{fp8}-revocation.png` labelled "Revokes {user ID}" (an Ed25519
+certificate is one code, about 700 bytes armoured).
 
 **Sign a file** → choose an Inbox file → choose the key → detached
-signature to the Outbox → "Insert a stick to write it". No Inbox file:
-"Copy the file in on a stick visit first."
+signature to the Outbox → "Insert a stick to write it". Each file's row
+also shows the signature as a code (**Show as QR**) or writes it as
+`{file}-signature.png` (**PNG**). No Inbox file: "Copy the file in on a
+stick visit first."
 
 **Renew** → new expiry → updated public key to the Outbox.
 
