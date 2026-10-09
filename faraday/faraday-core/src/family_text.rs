@@ -9,42 +9,50 @@
 
 use crate::family::{CardId, Route, page};
 use crate::wallet::{Kind, step};
-use crate::{Faraday, guide};
+use crate::{Faraday, Medium, guide};
 
 /// The map: where each stop happens, its name, and what is done there.
-pub const MAP: [(&str, &str, &str); 6] = [
-    (
-        "Paper",
-        "What you have",
-        "The Faraday stick and its passphrase, or words written down, and often a sheet \
-         describing the wallet.",
-    ),
-    (
-        "Offline",
-        "Open the wallet here",
-        "Start a computer from the Faraday stick and open the wallet.",
-    ),
-    (
-        "Online",
-        "Check the balance",
-        "Put the wallet's description into Sparrow on an online computer.",
-    ),
-    (
-        "Online",
-        "Write the payment",
-        "Make the transaction in Sparrow. It gives you a PSBT.",
-    ),
-    (
-        "Offline",
-        "Sign it here",
-        "Bring the PSBT to Faraday, read what it does, and sign it.",
-    ),
-    (
-        "Online",
-        "Send it",
-        "Take the signed transaction back to Sparrow and broadcast it.",
-    ),
-];
+pub fn map(m: Medium) -> [(&'static str, &'static str, String); 6] {
+    [
+        (
+            "Paper",
+            "What you have",
+            format!(
+                "The Faraday {} and its passphrase, or words written down, and often a sheet \
+                 describing the wallet.",
+                m.noun()
+            ),
+        ),
+        (
+            "Offline",
+            "Open the wallet here",
+            format!(
+                "Start a computer from the Faraday {} and open the wallet.",
+                m.noun()
+            ),
+        ),
+        (
+            "Online",
+            "Check the balance",
+            "Put the wallet's description into Sparrow on an online computer.".to_string(),
+        ),
+        (
+            "Online",
+            "Write the payment",
+            "Make the transaction in Sparrow. It gives you a PSBT.".to_string(),
+        ),
+        (
+            "Offline",
+            "Sign it here",
+            "Bring the PSBT to Faraday, read what it does, and sign it.".to_string(),
+        ),
+        (
+            "Online",
+            "Send it",
+            "Take the signed transaction back to Sparrow and broadcast it.".to_string(),
+        ),
+    ]
+}
 
 /// The line under the map that is never folded away.
 pub const WORDS_ARE_MONEY: &str = "The words are the money. Never photograph them, and never type \
@@ -52,31 +60,38 @@ pub const WORDS_ARE_MONEY: &str = "The words are the money. Never photograph the
 
 /// The answers to What are you holding?: the route, its title, what it
 /// looks like.
-pub const ANSWERS: [(Route, &str, &str); 3] = [
+pub fn answers(m: Medium) -> [(Route, String, String); 3] {
+    [
     (
         Route::Vault,
-        "A Faraday stick and its passphrase",
-        "The stick this computer started from, or another one with a vault on it, and a \
-         passphrase written down apart from it. The vault holds the wallet and the keys that \
-         sign for it.",
+        format!("A Faraday {} and its passphrase", m.noun()),
+        format!(
+            "The {} this computer started from, or another one with a vault on it, and a \
+             passphrase written down apart from it. The vault holds the wallet and the keys \
+             that sign for it.",
+            m.noun()
+        ),
     ),
     (
         Route::Words,
-        "Words, and nothing else",
+        "Words, and nothing else".to_string(),
         "Twelve, eighteen or twenty-four ordinary English words, numbered, in a fixed order, and \
          nothing else that looks like a long code, a block of letter-and-number lines, or a QR \
          code. A single list of words is usually the whole wallet. Several lists, perhaps with \
-         a line like 2 of 3, are one wallet of several keys and go here too.",
+         a line like 2 of 3, are one wallet of several keys and go here too."
+            .to_string(),
     ),
     (
         Route::Paper,
-        "Words and something else",
+        "Words and something else".to_string(),
         "As well as the words there is one long line starting wsh( or wpkh(, or lines pairing \
          short codes with xpubs, or QR codes meant to be scanned, perhaps spread across several \
          sheets. The wallet needs more than one key, and its description goes in before the \
-         words.",
+         words."
+            .to_string(),
     ),
-];
+    ]
+}
 
 /// The answer that opens the list below.
 pub const UNSURE: (&str, &str) = (
@@ -85,58 +100,68 @@ pub const UNSURE: (&str, &str) = (
 );
 
 /// What each thing in the envelope looks like: its look, then what it is.
-pub const LOOKS: [(&str, &str); 8] = [
-    (
-        "A USB stick labelled Faraday, and a passphrase on a separate card",
-        "The stick starts the computer and carries the vault, a locked file named like \
-         vault.ofv. The passphrase opens it. The vault holds the wallet and the keys that sign \
-         for it.",
-    ),
-    (
-        "A square black-and-white pattern",
-        "A QR code: the same information in a form a camera can read. Several numbered 1 of 5 \
+pub fn looks(m: Medium) -> [(String, String); 8] {
+    let looks: [(&str, &str); 7] = [
+        (
+            "A square black-and-white pattern",
+            "A QR code: the same information in a form a camera can read. Several numbered 1 of 5 \
          and so on are one thing in parts: scan them one after another. Never scan a QR code \
          that sits beside seed words into anything but Faraday.",
-    ),
-    (
-        "Words numbered 1 to 12, 18 or 24",
-        "The seed phrase. Often headed recovery phrase, seed words or backup, or stamped into \
+        ),
+        (
+            "Words numbered 1 to 12, 18 or 24",
+            "The seed phrase. Often headed recovery phrase, seed words or backup, or stamped into \
          steel.",
-    ),
-    (
-        "One long line starting wpkh(, wsh(, tr(, xpub, zpub or tpub",
-        "A descriptor or an xpub. It shows the addresses and the balance but cannot spend. \
+        ),
+        (
+            "One long line starting wpkh(, wsh(, tr(, xpub, zpub or tpub",
+            "A descriptor or an xpub. It shows the addresses and the balance but cannot spend. \
          Do not post it publicly: it shows the wallet's whole history.",
-    ),
-    (
-        "Several sheets each holding a few lines, like 73C5DA0A: xpub…",
-        "One description split up on purpose, often under a heading such as this sheet carries 2 \
+        ),
+        (
+            "Several sheets each holding a few lines, like 73C5DA0A: xpub…",
+            "One description split up on purpose, often under a heading such as this sheet carries 2 \
          of 3 wallet descriptor parts. Enough of the sheets, in any order, add up to the whole. \
          A line such as Policy: 2 of 3 says how many signatures the wallet needs.",
-    ),
-    (
-        "A word or sentence kept apart from the list, called a passphrase or a 25th word",
-        "If one exists, the words alone open a wallet that is real but empty, and the money is \
+        ),
+        (
+            "A word or sentence kept apart from the list, called a passphrase or a 25th word",
+            "If one exists, the words alone open a wallet that is real but empty, and the money is \
          in the wallet the words and the passphrase open. This is not the vault's passphrase: \
          the vault's passphrase opens the vault file, and this one changes which wallet the \
          words open.",
-    ),
-    (
-        "A short line starting bc1, 3 or 1",
-        "One address, not a backup.",
-    ),
-    (
-        "A small device with a screen and buttons",
-        "A hardware wallet. It is a way of using the words, not a replacement for them.",
-    ),
-];
+        ),
+        (
+            "A short line starting bc1, 3 or 1",
+            "One address, not a backup.",
+        ),
+        (
+            "A small device with a screen and buttons",
+            "A hardware wallet. It is a way of using the words, not a replacement for them.",
+        ),
+    ];
+    let [a, b, c, d, e, f, g] = looks.map(|(look, what)| (look.to_string(), what.to_string()));
+    let medium = (
+        format!(
+            "{} labelled Faraday, and a passphrase on a separate card",
+            m.a_full_cap()
+        ),
+        format!(
+            "The {} starts the computer and carries the vault, a locked file named like \
+             vault.ofv. The passphrase opens it. The vault holds the wallet and the keys that \
+             sign for it.",
+            m.noun()
+        ),
+    );
+    [medium, a, b, c, d, e, f, g]
+}
 
 /// A card's title.
 pub fn title(app: &Faraday, id: CardId) -> String {
     let s = match id {
         CardId::Page(p) => match p {
             page::MAP => "How to spend bitcoin",
-            page::SAFE => "Start from the stick",
+            page::SAFE => return format!("Start from the {}", app.medium.noun()),
             page::HOLDING => "What are you holding?",
             page::OPEN => "Open the wallet",
             page::CHECK => "Check the money is really there",
@@ -170,13 +195,19 @@ pub fn lead(app: &Faraday, id: CardId) -> String {
              the last."
         }
         CardId::Page(page::SAFE) if app.online => {
-            "This is the desktop copy of Faraday, which runs on an ordinary computer that has \
-             been online. It is for testing. For real money, start a computer from the Faraday \
-             stick."
+            return format!(
+                "This is the desktop copy of Faraday, which runs on an ordinary computer that has \
+                 been online. It is for testing. For real money, start a computer from the \
+                 Faraday {}.",
+                app.medium.noun()
+            );
         }
         CardId::Page(page::SAFE) => {
-            "This computer is running Faraday from the stick. It has no network, and it forgets \
-             everything when it is switched off."
+            return format!(
+                "This computer is running Faraday from the {}. It has no network, and it forgets \
+                 everything when it is switched off.",
+                app.medium.noun()
+            );
         }
         CardId::Page(page::HOLDING) => {
             "Lay out everything in the envelope first. Several items is normal and does not mean \
@@ -198,17 +229,25 @@ pub fn lead(app: &Faraday, id: CardId) -> String {
              Faraday reads. Sparrow can also save it as a .psbt file."
         }
         CardId::Page(page::BRING) => {
-            "Two ways. Scanning is the simpler: nothing has to lock. Press Scan and hold \
-             Sparrow's QR code up to this computer's camera; an animation is read as it loops. \
-             Or save the .psbt onto a stick and copy it in. Faraday reads a stick only while no \
-             vault or key is open, so with one open it locks first: it seals the vault, forgets \
-             the keys and starts again. Copy the PSBT in, remove the stick, and unlock with the \
-             same passphrase. This tab comes back on this page."
+            return format!(
+                "Two ways. Scanning is the simpler: nothing has to lock. Press Scan and hold \
+                 Sparrow's QR code up to this computer's camera; an animation is read as it \
+                 loops. Or save the .psbt onto {a} and copy it in. Faraday reads {a} only while \
+                 no vault or key is open, so with one open it locks first: it seals the vault, \
+                 forgets the keys and starts again. Copy the PSBT in, remove the {noun}, and \
+                 unlock with the same passphrase. This tab comes back on this page.",
+                a = app.medium.a(),
+                noun = app.medium.noun()
+            );
         }
         CardId::Page(_) => {
-            "Lock Faraday. The vault is sealed again and the keys are forgotten. If the Outbox \
-             holds anything you still need, plug a stick in and the stick visit writes it. Then \
-             switch off, take the stick out, and put it back with the papers."
+            return format!(
+                "Lock Faraday. The vault is sealed again and the keys are forgotten. If the \
+                 Outbox holds anything you still need, plug {a} in and the {noun} visit writes \
+                 it. Then switch off, take the {noun} out, and put it back with the papers.",
+                a = app.medium.a(),
+                noun = app.medium.noun()
+            );
         }
         CardId::Later(_) => "This opens once the transaction is here.",
         CardId::Step(step::TRANSACTION) => {
@@ -243,12 +282,15 @@ pub fn lead(app: &Faraday, id: CardId) -> String {
              it counts."
         }
         CardId::Step(step::FINISH) => {
-            "The finished transaction is what the network accepts. Show the signed PSBT as a QR \
-             code; in Sparrow, on the same transaction, press Scan QR and hold it up to the \
-             webcam, then Broadcast Transaction. Or put the finished transaction \
-             in the Outbox and carry it on a stick. It is safe to hand to anyone: nobody can \
-             change where the money goes without breaking the signatures, and a broken \
-             transaction is rejected, not redirected."
+            return format!(
+                "The finished transaction is what the network accepts. Show the signed PSBT as a \
+                 QR code; in Sparrow, on the same transaction, press Scan QR and hold it up to \
+                 the webcam, then Broadcast Transaction. Or put the finished transaction in the \
+                 Outbox and carry it on {}. It is safe to hand to anyone: nobody can change \
+                 where the money goes without breaking the signatures, and a broken transaction \
+                 is rejected, not redirected.",
+                app.medium.a()
+            );
         }
         CardId::Step(n) => {
             let s = app.spend.as_ref();
@@ -257,7 +299,7 @@ pub fn lead(app: &Faraday, id: CardId) -> String {
                 .and_then(|w| app.session.wallets.get(w))
                 .map(|w| Kind::of(&w.policy));
             return match s {
-                Some(s) => guide::spend(n, kind, app.spend_needed(), s),
+                Some(s) => guide::spend(n, kind, app.spend_needed(), s, app.medium),
                 None => String::new(),
             };
         }
@@ -282,11 +324,16 @@ fn signers_missing(app: &Faraday) -> bool {
 fn open_lead(app: &Faraday) -> String {
     let s = match app.family.route {
         Some(Route::Vault) => {
-            "The vault comes in by itself from the stick this computer started from; one on \
-             another stick is copied in on a stick visit. Faraday opens a vault only with no \
-             stick attached: take the stick out and keep it with the papers. Then type the vault's passphrase exactly as it is written, \
-             capital letters and spaces included. Then the vault lists its wallets and seeds, all \
-             ticked: Load brings them in, or untick what you do not need first."
+            return format!(
+                "The vault comes in by itself from the {noun} this computer started from; one on \
+                 another {noun} is copied in on {a} visit. Faraday opens a vault only with no \
+                 {noun} attached: take the {noun} out and keep it with the papers. Then type the \
+                 vault's passphrase exactly as it is written, capital letters and spaces \
+                 included. Then the vault lists its wallets and seeds, all ticked: Load brings \
+                 them in, or untick what you do not need first.",
+                noun = app.medium.noun(),
+                a = app.medium.a()
+            );
         }
         Some(Route::Words) => {
             "Type the words in the order they are written, separated by spaces. Spelling and \
@@ -309,34 +356,55 @@ fn open_lead(app: &Faraday) -> String {
 }
 
 /// A card's More about this, as separate paragraphs.
-pub fn more(app: &Faraday, id: CardId) -> &'static [&'static str] {
-    match id {
-        CardId::Page(page::MAP) => &[
-            "Anyone who reads the words can spend the money from anywhere in the world, and it \
+pub fn more(app: &Faraday, id: CardId) -> Vec<String> {
+    let m = app.medium;
+    let fixed: &[&str] = match id {
+        CardId::Page(page::MAP) => {
+            let mut paras = strings(&[
+                "Anyone who reads the words can spend the money from anywhere in the world, and it \
              cannot be reversed. Where a wallet needs several lists, anyone with enough of them \
              can. Treat every list as if it were the only one. No legitimate bitcoin company will \
              ever ask for them: not a support line, not someone helping you, not an AI.",
-            "Nothing done here is irreversible until the last step, and that step does not happen \
+                "Nothing done here is irreversible until the last step, and that step does not happen \
              in Faraday. Opening the vault, typing words, looking at addresses and reading a \
              transaction move nothing and notify no one. You can stop and come back.",
-            "There is no deadline; bitcoin does not expire. Rushing is how people get robbed, by \
+                "There is no deadline; bitcoin does not expire. Rushing is how people get robbed, by \
              scammers and by helpers acting in their own interest. Take your time, and find \
              someone you trust.",
-            "If any of this stops making sense, stop. Put the stick and the paper somewhere safe \
-             and get help from someone you would trust with the money itself. Waiting costs \
-             nothing.",
-        ],
-        CardId::Page(page::SAFE) => &[
-            "Shut the computer down completely, not sleep or restart. Unplug any network cable.",
-            "Plug the Faraday stick in, switch the computer on and press the boot menu key \
-             straight away, repeatedly. It is usually F12, F9, Esc or F2. The first screen often \
-             names the key for a second or two.",
-            "Pick the USB stick from the list that appears. If no list appears, the key was wrong \
-             or came too late: shut down and try another one.",
-            "If the stick is missing, or someone else has opened the envelope, do not use it. Do \
-             not use a stick you are unsure about: the words are the money, and taking longer \
-             costs nothing.",
-        ],
+            ]);
+            paras.push(format!(
+                "If any of this stops making sense, stop. Put the {} and the paper somewhere safe \
+                 and get help from someone you would trust with the money itself. Waiting costs \
+                 nothing.",
+                m.noun()
+            ));
+            return paras;
+        }
+        CardId::Page(page::SAFE) => {
+            return vec![
+                "Shut the computer down completely, not sleep or restart. Unplug any network \
+                 cable."
+                    .to_string(),
+                format!(
+                    "Plug the Faraday {} in, switch the computer on and press the boot menu key \
+                     straight away, repeatedly. It is usually F12, F9, Esc or F2. The first \
+                     screen often names the key for a second or two.",
+                    m.noun()
+                ),
+                format!(
+                    "Pick the {} from the list that appears. If no list appears, the key was \
+                     wrong or came too late: shut down and try another one.",
+                    m.full()
+                ),
+                format!(
+                    "If the {noun} is missing, or someone else has opened the envelope, do not \
+                     use it. Do not use {a} you are unsure about: the words are the money, and \
+                     taking longer costs nothing.",
+                    noun = m.noun(),
+                    a = m.a()
+                ),
+            ];
+        }
         CardId::Page(page::OPEN) => match app.family.route {
             Some(Route::Vault) => &[
                 "Unlocking takes the time shown on purpose: it makes guessing the passphrase slow.",
@@ -412,11 +480,20 @@ pub fn more(app: &Faraday, id: CardId) -> &'static [&'static str] {
              was low. Exchanges usually want one to six confirmations before the money shows in \
              the account.",
         ],
-        CardId::Page(page::AWAY) => &[
-            "When Faraday signs with a vault open, it records the amounts it signed inside that \
-             vault, so locking seals a changed copy of the vault into the Outbox. Writing it back \
-             to the stick keeps that record; leaving it out changes nothing else.",
-        ],
+        CardId::Page(page::AWAY) => {
+            return vec![format!(
+                "When Faraday signs with a vault open, it records the amounts it signed inside \
+                 that vault, so locking seals a changed copy of the vault into the Outbox. \
+                 Writing it back to the {} keeps that record; leaving it out changes nothing \
+                 else.",
+                m.noun()
+            )];
+        }
         _ => &[],
-    }
+    };
+    strings(fixed)
+}
+
+fn strings(paras: &[&str]) -> Vec<String> {
+    paras.iter().map(|p| p.to_string()).collect()
 }

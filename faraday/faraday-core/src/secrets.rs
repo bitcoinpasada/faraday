@@ -67,7 +67,7 @@ pub struct SecretOut {
     /// The form picked, by index into `forms`.
     pub form: usize,
     /// The line the person ticks before it may go out unprotected.
-    pub ack: &'static str,
+    pub ack: Ack,
 }
 
 /// What a secret becomes in a vault.
@@ -96,12 +96,27 @@ pub struct SecretFile {
     pub bytes: zeroize::Zeroizing<Vec<u8>>,
 }
 
-/// The acknowledgement every secret but a seed asks for.
-pub const ACK: &str = "Anyone who copies the stick or sees the code can read it";
+/// The acknowledgement a secret asks for before it goes out unprotected.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Ack {
+    /// Every secret but a seed's.
+    Any,
+    /// A seed's.
+    Seed,
+}
 
-/// A seed's acknowledgement.
-pub const SEED_ACK: &str =
-    "I understand: anyone who copies the stick or sees this file can spend these coins";
+impl Ack {
+    /// Its line, naming the medium the file is carried on.
+    pub fn text(self, medium: crate::Medium) -> String {
+        let noun = medium.noun();
+        match self {
+            Ack::Any => format!("Anyone who copies the {noun} or sees the code can read it"),
+            Ack::Seed => format!(
+                "I understand: anyone who copies the {noun} or sees this file can spend these coins"
+            ),
+        }
+    }
+}
 
 impl SecretOut {
     /// A secret of one form that goes into a vault as a note.
@@ -114,7 +129,7 @@ impl SecretOut {
             keep: Keep::Note,
             forms: Vec::new(),
             form: 0,
-            ack: ACK,
+            ack: Ack::Any,
         }
     }
 }
@@ -223,7 +238,7 @@ impl Faraday {
             keep: Keep::Key { key: k, fp },
             forms,
             form: 0,
-            ack: SEED_ACK,
+            ack: Ack::Seed,
         };
         self.offer_secret(out);
     }

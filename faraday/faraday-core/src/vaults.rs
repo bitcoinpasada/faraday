@@ -789,7 +789,7 @@ impl Faraday {
                     CATEGORIES[self.vaults.category.min(CATEGORIES.len() - 1)].0,
                     |t| t.name,
                 ),
-            _ => crate::compact::screen_name(s),
+            _ => crate::compact::screen_name(s, self.medium),
         }
     }
 
@@ -1569,7 +1569,7 @@ impl Faraday {
             return;
         };
         let error = if !self.may_load_keys() {
-            Some("Remove the stick to unlock".to_string())
+            Some(format!("Remove the {} to unlock", self.medium.noun()))
         } else if self.vaults.passphrase.text.is_empty() {
             Some("Type the passphrase".to_string())
         } else {
@@ -2261,11 +2261,12 @@ impl Faraday {
     fn vault_create_check(&mut self) {
         let free = self.vaults.memory_free_mib;
         let cost = self.vaults.form_cost();
+        let medium = self.medium;
         let Some(c) = self.vaults.create.as_mut() else {
             return;
         };
         let error = if !self.sticks.is_empty() {
-            Some("Remove the stick first".to_string())
+            Some(format!("Remove the {} first", medium.noun()))
         } else if let Some(k) = (0..4u8).find(|&i| !c.done[i as usize] && i != vstep::PHRASES) {
             c.open = Some(k);
             Some(format!("Finish step {} first", k + 1))

@@ -35,13 +35,13 @@ pub(crate) fn draws_own_bar(s: Screen) -> bool {
 }
 
 /// What a page's bar calls it.
-pub(crate) fn screen_name(s: Screen) -> &'static str {
+pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
     match s {
         Screen::Home => "Home",
         Screen::Start | Screen::Wallets => "Wallets",
         Screen::Spend | Screen::Family => "Spend",
         Screen::Files => "Files",
-        Screen::Visit => "Stick visit",
+        Screen::Visit => medium.visit(),
         Screen::Entry => "Add a key",
         Screen::Backup => "Back up",
         Screen::Message => "Sign a message",
@@ -177,7 +177,7 @@ pub(crate) fn test_strip(app: &Faraday, ui: &mut Ui, w: f32) {
 pub(crate) fn page(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
     let name = match app.session.wallets.get(app.wallet) {
         Some(w) if app.screen == Screen::Wallets => w.name.as_str(),
-        _ => screen_name(app.screen),
+        _ => screen_name(app.screen, app.medium),
     };
     let back = match app.screen {
         Screen::Wallets | Screen::Explore | Screen::Entry | Screen::CheckMessage => {
@@ -262,16 +262,7 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             format!("{v} {} open", if v == 1 { "vault" } else { "vaults" }),
         ),
     };
-    let sticks = match app.sticks.len() {
-        0 => "no stick".to_string(),
-        1 => app.sticks[0].label.clone(),
-        k => format!("{k} sticks"),
-    };
-    let sub = format!(
-        "{} in · {} out · {sticks}",
-        app.inbox.len(),
-        app.outbox.len()
-    );
+    let sub = app.home_files_line();
     let session = if keys + wallets == 0 {
         Screen::Start
     } else {
@@ -468,8 +459,8 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
     ];
     if !app.sticks.is_empty() && !app.holds_secret() {
         t.push((
-            Icon::Drive,
-            "Stick visit",
+            app.medium.icon(),
+            app.medium.visit(),
             String::new(),
             Action::Nav(Screen::Visit),
             true,
@@ -517,8 +508,8 @@ fn prompts(app: &Faraday) -> Vec<(Icon, String, Option<Action>, osk_ui::Color)> 
         let present = app.import_stick_present();
         p.push(if present {
             (
-                Icon::Drive,
-                "Remove the stick to start the import".to_string(),
+                app.medium.icon(),
+                format!("Remove the {} to start the import", app.medium.noun()),
                 Some(crate::boot_import::OPEN),
                 WARN,
             )
@@ -546,7 +537,7 @@ fn prompts(app: &Faraday) -> Vec<(Icon, String, Option<Action>, osk_ui::Color)> 
             } else {
                 p.push((
                     Icon::Lock,
-                    "Pull the stick to unlock".to_string(),
+                    format!("Pull the {} to unlock", app.medium.noun()),
                     None,
                     WARN,
                 ));
@@ -973,5 +964,22 @@ pub(crate) fn keyboard(app: &Faraday, ui: &mut Ui, w: f32, y: f32) {
             ),
             _ => {}
         }
+    }
+}
+
+impl Faraday {
+    /// Home's status line on a small panel: the Inbox, the Outbox, and
+    /// what is attached, by its label or by how many.
+    pub fn home_files_line(&self) -> String {
+        let sticks = match self.sticks.len() {
+            0 => format!("no {}", self.medium.noun()),
+            1 => self.sticks[0].label.clone(),
+            k => format!("{k} {}", self.medium.nouns()),
+        };
+        format!(
+            "{} in · {} out · {sticks}",
+            self.inbox.len(),
+            self.outbox.len()
+        )
     }
 }

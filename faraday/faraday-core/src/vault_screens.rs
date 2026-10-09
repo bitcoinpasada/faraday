@@ -81,10 +81,11 @@ pub(crate) fn stick_banner(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f
 }
 
 /// A passphrase field that takes no typing: a stick is attached.
-pub(crate) fn stick_field(ui: &mut Ui, x: f32, y: f32, w: f32) {
+pub(crate) fn stick_field(medium: crate::Medium, ui: &mut Ui, x: f32, y: f32, w: f32) {
     ui.fill(x, y, w, 40.0, 8.0, SURFACE);
     ui.stroke(x, y, w, 40.0, 8.0, INNER);
-    ui.text_mid(x + 12.0, y, 40.0, 13.0, W::R, DIM, "Remove the stick first");
+    let text = format!("Remove the {} first", medium.noun());
+    ui.text_mid(x + 12.0, y, 40.0, 13.0, W::R, DIM, &text);
 }
 
 /// A passphrase field with an eye at its right end: pressing the eye
@@ -267,10 +268,13 @@ pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         w,
-        "A vault holds keys, wallets, entries and notes under one to four passphrases, each opening its \
-         own contents. A locked vault shows only what its file states: its size and unlock cost. A vault \
-         comes into the Inbox on a stick visit, and goes back out through the Outbox when the session \
-         locks with changes in it.",
+        &format!(
+            "A vault holds keys, wallets, entries and notes under one to four passphrases, each opening \
+             its own contents. A locked vault shows only what its file states: its size and unlock cost. \
+             A vault comes into the Inbox on {} visit, and goes back out through the Outbox when the \
+             session locks with changes in it.",
+            app.medium.a()
+        ),
     );
     let files = app.vault_files();
     if files.is_empty() {
@@ -308,7 +312,7 @@ pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Some(v) => (v.label(), "Open".to_string(), OK, ACCENT, LINE),
             None if !app.may_load_keys() => (
                 if fresh { "New vault" } else { "Locked vault" }.to_string(),
-                "Remove the stick to unlock".to_string(),
+                format!("Remove the {} to unlock", app.medium.noun()),
                 WARN,
                 MUTED,
                 LINE,
@@ -411,7 +415,8 @@ pub(crate) fn unlock(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
          computer.",
     );
     if !app.may_load_keys() {
-        y += stick_banner(ui, x, y, w, "Remove the stick, then type the passphrase");
+        let pull = format!("Remove the {}, then type the passphrase", app.medium.noun());
+        y += stick_banner(ui, x, y, w, &pull);
     }
     let files = app.vault_files();
     let locked: Vec<(usize, &vaults::VaultFile)> = files
@@ -493,7 +498,7 @@ pub(crate) fn unlock(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             va(V::ShowTyped),
         );
     } else {
-        stick_field(ui, x, y, w);
+        stick_field(app.medium, ui, x, y, w);
     }
     y += 56.0;
     let working = app.vaults.working == Some(vaults::Work::Unlock);
@@ -593,7 +598,7 @@ fn list_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Some(v) => (v.label(), "Open".to_string(), OK, ACCENT, LINE),
             None if !app.may_load_keys() => (
                 if fresh { "New vault" } else { "Locked vault" }.to_string(),
-                "Remove the stick to unlock".to_string(),
+                format!("Remove the {} to unlock", app.medium.noun()),
                 WARN,
                 MUTED,
                 LINE,
@@ -666,10 +671,13 @@ fn list_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         w,
-        "A vault holds keys, wallets, entries and notes under one to four passphrases, each opening its \
-         own contents. A locked vault shows only what its file states: its size and unlock cost. A vault \
-         comes into the Inbox on a stick visit, and goes back out through the Outbox when the session \
-         locks with changes in it.",
+        &format!(
+            "A vault holds keys, wallets, entries and notes under one to four passphrases, each opening \
+             its own contents. A locked vault shows only what its file states: its size and unlock cost. \
+             A vault comes into the Inbox on {} visit, and goes back out through the Outbox when the \
+             session locks with changes in it.",
+            app.medium.a()
+        ),
     );
     finish(app, ui, x0, cw, h, y - top + 16.0);
 }
@@ -683,7 +691,8 @@ fn unlock_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let top = 12.0 - app.list_offset;
     let mut y = top;
     if !app.may_load_keys() {
-        y += stick_banner(ui, x, y, w, "Remove the stick, then type the passphrase");
+        let pull = format!("Remove the {}, then type the passphrase", app.medium.noun());
+        y += stick_banner(ui, x, y, w, &pull);
     }
     let files = app.vault_files();
     let locked: Vec<(usize, &vaults::VaultFile)> = files
@@ -771,7 +780,7 @@ fn unlock_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             va(V::ShowTyped),
         );
     } else {
-        stick_field(ui, x, y, w);
+        stick_field(app.medium, ui, x, y, w);
     }
     y += 52.0;
     if app.vaults.working == Some(vaults::Work::Unlock) {
@@ -1163,7 +1172,11 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 cy += 78.0;
             }
             if !may {
-                cy += stick_banner(ui, x, cy, w, "Remove the stick, then type the passphrases");
+                let pull = format!(
+                    "Remove the {}, then type the passphrases",
+                    app.medium.noun()
+                );
+                cy += stick_banner(ui, x, cy, w, &pull);
             }
             ui.button(
                 x,
@@ -1264,8 +1277,8 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                         va(V::CShow),
                     );
                 } else {
-                    stick_field(ui, x, cy, half);
-                    stick_field(ui, x + half + 12.0, cy, half);
+                    stick_field(app.medium, ui, x, cy, half);
+                    stick_field(app.medium, ui, x + half + 12.0, cy, half);
                 }
                 cy += 46.0;
                 let (status, color) = if !b.text.is_empty() && *a.text == *b.text {
@@ -1906,8 +1919,11 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         w,
-        "Secret values show only while held. Changes stay in this session until it locks; locking seals \
-         them into the Outbox, and the next stick visit writes the vault back over its own file.",
+        &format!(
+            "Secret values show only while held. Changes stay in this session until it locks; locking \
+             seals them into the Outbox, and the next {} visit writes the vault back over its own file.",
+            app.medium.noun()
+        ),
     );
 
     // Three columns: kinds, items, the item.
@@ -2261,8 +2277,11 @@ fn contents_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         w,
-        "Secret values show only while held. Changes stay in this session until it locks; locking seals \
-         them into the Outbox, and the next stick visit writes the vault back over its own file.",
+        &format!(
+            "Secret values show only while held. Changes stay in this session until it locks; locking \
+             seals them into the Outbox, and the next {} visit writes the vault back over its own file.",
+            app.medium.noun()
+        ),
     );
     finish(app, ui, x0, cw, h, y - top + 16.0);
 }

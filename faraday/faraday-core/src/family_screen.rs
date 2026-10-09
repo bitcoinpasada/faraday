@@ -521,13 +521,13 @@ fn summary(app: &Faraday, id: CardId) -> String {
     let s = match id {
         CardId::Page(page::MAP) => "Six stops",
         CardId::Page(page::SAFE) if app.online => "Desktop copy",
-        CardId::Page(page::SAFE) => "Running from the stick",
+        CardId::Page(page::SAFE) => return format!("Running from the {}", app.medium.noun()),
         CardId::Page(page::HOLDING) => {
             return match app.family.route {
-                Some(r) => text::ANSWERS
-                    .iter()
+                Some(r) => text::answers(app.medium)
+                    .into_iter()
                     .find(|a| a.0 == r)
-                    .map(|a| a.1.to_string())
+                    .map(|a| a.1)
                     .unwrap_or_default(),
                 None => "Not answered yet".to_string(),
             };
@@ -568,7 +568,7 @@ fn summary(app: &Faraday, id: CardId) -> String {
 fn body(app: &Faraday, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     cy += match id {
-        CardId::Page(page::MAP) => map(ui, x, cy, w),
+        CardId::Page(page::MAP) => map(app, ui, x, cy, w),
         CardId::Page(page::SAFE) => {
             if next_button(ui, x, cy, w, "Continue", fa(F::Next(page::SAFE))) {
                 52.0
@@ -614,7 +614,7 @@ fn body(app: &Faraday, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
     };
     let paras = text::more(app, id);
     if !paras.is_empty() {
-        cy += more(app, ui, id, paras, x, cy, w);
+        cy += more(app, ui, id, &paras, x, cy, w);
     }
     cy - y
 }
@@ -628,7 +628,7 @@ fn threshold(app: &Faraday) -> bool {
 }
 
 /// More about this: a quiet button, and the paragraphs while it is open.
-fn more(app: &Faraday, ui: &mut Ui, id: CardId, paras: &[&str], x: f32, y: f32, w: f32) -> f32 {
+fn more(app: &Faraday, ui: &mut Ui, id: CardId, paras: &[String], x: f32, y: f32, w: f32) -> f32 {
     let bit = more_bit(id);
     let shown = app.family.more & (1 << u32::from(bit)) != 0;
     let mut cy = y + 4.0;
@@ -654,9 +654,10 @@ fn more(app: &Faraday, ui: &mut Ui, id: CardId, paras: &[&str], x: f32, y: f32, 
     cy - y
 }
 
-fn map(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn map(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    for (k, (place, head, line)) in text::MAP.iter().enumerate() {
+    let stops = text::map(app.medium);
+    for (k, (place, head, line)) in stops.iter().enumerate() {
         let c = match *place {
             "Offline" => OK,
             "Online" => WARN,
@@ -665,7 +666,7 @@ fn map(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         // The lane: one node a stop, joined.
         ui.dot(x + 9.0, cy + 11.0, 6.0, c);
         let used = 30.0 + ui.wrap(x + 112.0, cy + 26.0, w - 112.0, 13.0, W::R, MUTED, line);
-        if k + 1 < text::MAP.len() {
+        if k + 1 < stops.len() {
             ui.fill(x + 8.0, cy + 20.0, 2.0, used - 12.0, 1.0, BORDER);
         }
         ui.text(x + 28.0, cy + 2.0, 12.0, W::S, c, place);
@@ -690,19 +691,12 @@ fn map(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// What are you holding?: big answers that turn the page.
 fn holding(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    let answers = text::ANSWERS
-        .iter()
-        .map(|(r, head, sub)| {
-            (
-                *head,
-                *sub,
-                fa(F::Holding(*r)),
-                app.family.route == Some(*r),
-            )
-        })
+    let answers = text::answers(app.medium)
+        .into_iter()
+        .map(|(r, head, sub)| (head, sub, fa(F::Holding(r)), app.family.route == Some(r)))
         .chain(std::iter::once((
-            text::UNSURE.0,
-            text::UNSURE.1,
+            text::UNSURE.0.to_string(),
+            text::UNSURE.1.to_string(),
             fa(F::Unsure),
             app.family.help,
         )));
@@ -710,8 +704,8 @@ fn holding(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let top = cy;
         let pressed = ui.is_pressed(action);
         // The answer wraps clear of the tick.
-        let hh = ui.wrap(x + 20.0, top + 16.0, w - 64.0, 16.0, W::S, TEXT, head);
-        let th = ui.wrap(x + 20.0, top + 22.0 + hh, w - 40.0, 13.0, W::R, MUTED, sub);
+        let hh = ui.wrap(x + 20.0, top + 16.0, w - 64.0, 16.0, W::S, TEXT, &head);
+        let th = ui.wrap(x + 20.0, top + 22.0 + hh, w - 40.0, 13.0, W::R, MUTED, &sub);
         let bh = 38.0 + hh + th;
         let edge = if on || pressed { ACCENT } else { BORDER };
         ui.stroke(x, top, w, bh, 12.0, edge);
@@ -723,9 +717,9 @@ fn holding(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     if app.family.help {
         cy += 8.0;
-        for (look, what) in text::LOOKS {
-            cy += ui.wrap(x, cy, w, 14.0, W::S, TEXT, look) + 4.0;
-            cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, what) + 14.0;
+        for (look, what) in text::looks(app.medium) {
+            cy += ui.wrap(x, cy, w, 14.0, W::S, TEXT, &look) + 4.0;
+            cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, &what) + 14.0;
         }
     }
     cy - y + 6.0
@@ -779,10 +773,15 @@ fn vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             13.0,
             W::R,
             MUTED,
-            "No vault in Files. The stick this computer started from brings its vault in by \
-             itself; a vault on another stick is copied in on a stick visit.",
+            &format!(
+                "No vault in Files. The {noun} this computer started from brings its vault in by \
+                 itself; a vault on another {noun} is copied in on {a} visit.",
+                noun = app.medium.noun(),
+                a = app.medium.a()
+            ),
         ) + 12.0;
-        cy += stick_row(app, ui, x, cy, w, "Copy a vault in from a stick");
+        let label = format!("Copy a vault in from {}", app.medium.a());
+        cy += stick_row(app, ui, x, cy, w, &label);
         return cy - y;
     }
     if locked.is_empty() {
@@ -794,7 +793,7 @@ fn vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             x,
             cy,
             w,
-            "Remove the stick, then type the passphrase",
+            &format!("Remove the {}, then type the passphrase", app.medium.noun()),
         );
     }
     let compact = ui.compact;
@@ -820,9 +819,9 @@ fn vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             if on { ACCENT } else { MUTED },
         );
         let where_ = if f.in_outbox {
-            "Sealed here, in the Outbox"
+            "Sealed here, in the Outbox".to_string()
         } else {
-            "Copied in from a stick"
+            format!("Copied in from {}", app.medium.a())
         };
         let where_ = format!("{where_} · {}", file_text(f.len));
         let mem = f.header.cost.memory_kib / 1024;
@@ -872,7 +871,7 @@ fn vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Action::Vault(VaultAction::ShowTyped),
         );
     } else {
-        crate::vault_screens::stick_field(ui, x, cy, w);
+        crate::vault_screens::stick_field(app.medium, ui, x, cy, w);
     }
     cy += 52.0;
     if app.vaults.working == Some(crate::vaults::Work::Unlock) {
@@ -913,12 +912,15 @@ fn vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 fn stick_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) -> f32 {
     let open = app.holds_secret() || !app.vaults.open.is_empty();
     let (style, note) = match (app.sticks.is_empty(), open) {
-        (true, _) => (Style::Disabled, "Plug the stick in"),
+        (true, _) => (
+            Style::Disabled,
+            format!("Plug the {} in", app.medium.noun()),
+        ),
         (false, true) => (
             Style::Disabled,
-            "Faraday asks to lock first when a stick goes in",
+            format!("Faraday asks to lock first when {} goes in", app.medium.a()),
         ),
-        (false, false) => (Style::Secondary, ""),
+        (false, false) => (Style::Secondary, String::new()),
     };
     let bw = ui.button(
         x,
@@ -931,10 +933,10 @@ fn stick_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) ->
     );
     if ui.compact && !note.is_empty() {
         // Under the button, wrapped.
-        return 46.0 + ui.wrap(x, y + 46.0, w, 13.0, W::R, DIM, note) + 12.0;
+        return 46.0 + ui.wrap(x, y + 46.0, w, 13.0, W::R, DIM, &note) + 12.0;
     }
     if !note.is_empty() {
-        ui.text_mid(x + bw + 14.0, y, 38.0, 13.0, W::R, DIM, note);
+        ui.text_mid(x + bw + 14.0, y, 38.0, 13.0, W::R, DIM, &note);
     }
     50.0
 }
@@ -1053,7 +1055,8 @@ fn paper(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Action::Scan,
     );
     cy += 52.0;
-    cy += stick_row(app, ui, x, cy, w, "Copy it in from a stick");
+    let label = format!("Copy it in from {}", app.medium.a());
+    cy += stick_row(app, ui, x, cy, w, &label);
     let wallets: Vec<(usize, &str)> = app
         .inbox
         .iter()
@@ -1318,7 +1321,8 @@ fn bring(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Action::Scan,
     );
     cy += 52.0;
-    cy += stick_row(app, ui, x, cy, w, "Copy it in from a stick");
+    let label = format!("Copy it in from {}", app.medium.a());
+    cy += stick_row(app, ui, x, cy, w, &label);
     let psbts: Vec<(usize, &str)> = app
         .inbox
         .iter()
@@ -1486,7 +1490,8 @@ fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     items.extend(unlocks.iter().map(|(l, a)| (l.as_str(), style, *a)));
     cy += crate::screens::wrap_buttons(ui, x, cy, w, 38.0, &items) + 2.0;
     if !may {
-        ui.text(x, cy, 13.0, W::S, WARN, "Remove the stick first");
+        let pull = format!("Remove the {} first", app.medium.noun());
+        ui.text(x, cy, 13.0, W::S, WARN, &pull);
         cy += 28.0;
     }
     ui.text_mid(

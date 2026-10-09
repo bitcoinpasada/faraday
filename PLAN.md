@@ -107,6 +107,10 @@ Differences a person sees on the Pi:
   the person flashed should be used.
 - RAM is 1 GB on a Pi 3, which bounds the Argon2id cost of any vault it
   creates or opens (`docs/VAULT.md` §3.1).
+- Every screen says "SD card" where the PC says "stick" ("SD card
+  visit", "Lock and use SD card", "no SD card" on Home), and draws the SD
+  card glyph where the PC draws a drive (`docs/PLANNING.md` §16.144). The
+  stick shell tells the app which at start.
 
 The Android, iOS and desktop shells stay in the tree for upstream merges
 and are not Faraday targets.
@@ -432,8 +436,9 @@ untouched and shows "Remove the stick to keep working".
 **A stick visit.** One screen does both directions: write the Outbox
 (each file read back and compared), save sealed vaults over the files they
 came from (`docs/VAULT.md` §6), and pick files into the Inbox. On the Pi
-the boot card or another SD card is the one visited. It
-ends on **Remove the stick**, then **Unlock again**.
+the boot card or another SD card is the one visited, and the screen is
+**SD card visit**. It ends on **Remove the stick** ("Remove the SD card"
+on the Pi), then **Unlock again**.
 
 **File-based PSBT signing.** Visit: pick the PSBT into the Inbox. Remove.
 Unlock. Sign in OpenSigner; Save puts the signed PSBT in the Outbox. Lock.
@@ -448,7 +453,8 @@ stick's data partition, with its vaults and settings file, is not
 touched. The stick holding vaults then never needs a computer other than
 the one Faraday runs on.
 
-**The flow.** Settings → **Upgrade a Faraday stick**. If anything is
+**The flow.** Settings → **Upgrade a Faraday stick** (**Upgrade a
+Faraday SD card** on the Pi, whose medium is named as §3 says). If anything is
 unlocked, the sheet for a stick inserted while unlocked (§5.4) comes
 first, so the copy happens in the clean state. Then:
 

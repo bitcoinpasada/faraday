@@ -156,6 +156,7 @@ const ICONS: &[u32] = &[
     0xF56E, // file-export
     0xF5FD, // layer-group
     0xF658, // envelope-open-text
+    0xF7C2, // sd-card
 ];
 
 /// The mono face: Iosevka's default Regular cut, SIL OFL 1.1

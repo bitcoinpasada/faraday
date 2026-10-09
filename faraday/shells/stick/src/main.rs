@@ -126,7 +126,7 @@ use std::time::{Duration, Instant};
 
 use camera::{Camera, Capture};
 use cursor::{Cursor, Pointed};
-use faraday_core::{Faraday, StickInfo, StorageEvent};
+use faraday_core::{Faraday, Medium, StickInfo, StorageEvent};
 use faraday_scanner::Scanner;
 use faraday_storage::{Boxes, DiskProcess, serve, serve_with, stick_info};
 use fb::{Depth, Geometry};
@@ -258,6 +258,24 @@ const BOXES: &str = "/run/faraday";
 
 /// Where init mounts every other FAT partition of a USB disk.
 const USB_MOUNTS: &str = "/mnt/usb";
+
+/// Which partition the image mounts at [`DEFAULT_FILES`], as it wrote it:
+/// `/dev/mmcblk0p2` on a Raspberry Pi, `LABEL=OSKDATA` on the PC image.
+const EXCHANGE: &str = "/etc/opensigner/exchange";
+
+/// What the removable medium is called on this machine: an SD card on
+/// the Pi, which has no USB storage, and a stick everywhere else (an SD
+/// card in a USB reader included). The Pi build knows it is one; any
+/// other build knows by its boot medium being the board's own card.
+fn medium() -> Medium {
+    let card =
+        std::fs::read_to_string(EXCHANGE).is_ok_and(|e| e.trim().starts_with("/dev/mmcblk0"));
+    if cfg!(target_arch = "arm") || card {
+        Medium::SdCard
+    } else {
+        Medium::Stick
+    }
+}
 
 /// How often the mounts are looked at again.
 const STICK_SCAN: Duration = Duration::from_millis(700);
@@ -1109,7 +1127,8 @@ impl Shell {
         for line in mounts.lines() {
             let point = line.split_whitespace().nth(1).unwrap_or("");
             if point == DEFAULT_FILES {
-                sticks.push(stick_info(Path::new(point), "Boot stick", true));
+                // The app names the boot medium itself.
+                sticks.push(stick_info(Path::new(point), "", true));
             } else if let Some(name) = point
                 .strip_prefix(USB_MOUNTS)
                 .and_then(|p| p.strip_prefix('/'))
@@ -1237,7 +1256,11 @@ fn run(args: Args) -> Result<bool, String> {
     let tx = watch.is_some().then_some(tx);
 
     let mut shell = Shell {
-        app: Some(Faraday::new()),
+        app: Some({
+            let mut app = Faraday::new();
+            app.medium = medium();
+            app
+        }),
         boxes: Boxes::Dir(PathBuf::from(BOXES)),
         sticks: Vec::new(),
         next_scan: Instant::now(),

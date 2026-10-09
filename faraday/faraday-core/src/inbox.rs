@@ -943,8 +943,9 @@ impl Faraday {
             return;
         }
         if !self.may_load_keys() {
+            let error = format!("Remove the {} first", self.medium.noun());
             if let Some(p) = self.potential.as_mut() {
-                p.error = Some("Remove the stick first".to_string());
+                p.error = Some(error);
             }
             return;
         }

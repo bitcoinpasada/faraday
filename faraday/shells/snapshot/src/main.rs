@@ -1,8 +1,12 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan]
 //! ```
+//!
+//! `--sd-card` runs the tour as the Pi's stick shell starts the app:
+//! with the removable medium an SD card (`Medium::SdCard`), so every
+//! screen names it as the Pi does.
 //!
 //! `TESTKIT_DIR` is what `faraday-testkit` wrote; its files stand in
 //! for a stick called TESTSTICK. Each step of the tour is one numbered
@@ -45,7 +49,7 @@ use std::process::ExitCode;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{
-    Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent, bstep, qrow, qstep,
+    Action, Faraday, Medium, Screen, StickInfo, StorageCommand, StorageEvent, bstep, qrow, qstep,
 };
 use osk_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
 
@@ -100,7 +104,9 @@ impl Tour {
             }
             if c == Command::Exit {
                 let size = self.size();
+                let medium = self.app.medium;
                 self.app = Faraday::new();
+                self.app.medium = medium;
                 self.app.event(display(size, self.dpi));
             }
         }
@@ -303,9 +309,11 @@ fn run(
     kit: &Path,
     out: &Path,
     only: Option<&str>,
+    medium: Medium,
 ) -> Result<(), String> {
     std::fs::create_dir_all(out).map_err(|e| e.to_string())?;
     let mut app = Faraday::new();
+    app.medium = medium;
     app.event(display(size, dpi));
     let mut t = Tour {
         app,
@@ -2903,10 +2911,17 @@ fn fp_hex(fp: [u8; 4]) -> String {
 }
 
 fn main() -> ExitCode {
-    let args: Vec<String> = std::env::args().collect();
+    let mut args: Vec<String> = std::env::args().collect();
+    let medium = match args.iter().position(|a| a == "--sd-card") {
+        Some(i) => {
+            args.remove(i);
+            Medium::SdCard
+        }
+        None => Medium::Stick,
+    };
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan]"
+            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan]"
         );
         return ExitCode::from(2);
     }
@@ -2946,7 +2961,14 @@ fn main() -> ExitCode {
         );
         return ExitCode::from(2);
     }
-    match run((w, h), dpi, Path::new(&args[2]), Path::new(&args[3]), only) {
+    match run(
+        (w, h),
+        dpi,
+        Path::new(&args[2]),
+        Path::new(&args[3]),
+        only,
+        medium,
+    ) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("faraday-snapshot: {e}");

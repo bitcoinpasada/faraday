@@ -451,12 +451,13 @@ impl Faraday {
     /// The boot stick was pulled: what it had not answered never will be.
     pub(crate) fn import_stick_gone(&mut self) {
         let present: Vec<String> = self.sticks.iter().map(|s| s.id.clone()).collect();
+        let noun = self.medium.noun();
         if let Some(imp) = self.import.as_mut()
             && !present.contains(&imp.stick)
         {
             for f in imp.files.iter_mut() {
                 if f.state == Staged::Reading {
-                    f.state = Staged::Failed("the stick was removed before it was read".into());
+                    f.state = Staged::Failed(format!("the {noun} was removed before it was read"));
                 }
             }
         }

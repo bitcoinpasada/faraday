@@ -229,7 +229,7 @@ impl Faraday {
     /// Child words load as a key of this session.
     pub(crate) fn bip85_load(&mut self) {
         if !self.may_load_keys() {
-            self.toast("Remove the stick first");
+            self.toast(&format!("Remove the {} first", self.medium.noun()));
             return;
         }
         let Some(value) = self.bip85_value() else {

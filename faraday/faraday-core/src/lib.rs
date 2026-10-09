@@ -30,6 +30,7 @@ pub mod inputs;
 pub mod keygen;
 pub mod learn;
 pub mod lightning;
+pub mod medium;
 pub mod memory;
 pub mod paper;
 pub mod pdf;
@@ -55,6 +56,7 @@ mod bip85_screen;
 mod boot_import_screen;
 mod compact;
 pub use compact::OskPress;
+pub use medium::Medium;
 mod compact_screens;
 mod explore_screen;
 mod family_screen;
@@ -992,7 +994,9 @@ fn seed_in_code(payload: &[u8]) -> Option<zeroize::Zeroizing<String>> {
 
 /// Said on the camera when what it read would load a key with a stick
 /// attached.
-const STICK_KEYS: &str = "Keys load only with no stick attached";
+fn stick_keys(m: Medium) -> String {
+    format!("Keys load only with no {} attached", m.noun())
+}
 
 /// A transaction being decoded, and where the person came from.
 pub struct DecodeState {
@@ -2375,6 +2379,9 @@ pub struct Faraday {
     /// Running on an online machine (the desktop app), where sheets are
     /// turned into PDFs. Never set on the device.
     pub online: bool,
+    /// What the removable medium is called and drawn as: a stick, or an
+    /// SD card on the Pi. The shell sets it at start.
+    pub medium: Medium,
     /// The online app's warning that this computer is not air-gapped has
     /// been acknowledged this session: it comes before mainnet does.
     airgap_warned: bool,
@@ -2513,6 +2520,7 @@ impl Faraday {
             selftest: None,
             hovered: None,
             online: false,
+            medium: Medium::Stick,
             airgap_warned: false,
             mainnet_asked: None,
         }
@@ -2561,7 +2569,10 @@ impl Faraday {
                 let item = Item::new(&name, bytes);
                 let line = if item.kind == FileKind::Words && self.visit.load_after.contains(&name)
                 {
-                    format!("Copied {name}: a key's words, loaded when the stick is removed")
+                    format!(
+                        "Copied {name}: a key's words, loaded when the {} is removed",
+                        self.medium.noun()
+                    )
                 } else {
                     format!("Copied {name}")
                 };
@@ -2670,7 +2681,8 @@ impl Faraday {
                             self.visit.log.push((
                                 format!(
                                     "{name}: a SeedQR, copied in as {got}; its key loads when the \
-                                     stick is removed"
+                                     {} is removed",
+                                    self.medium.noun()
                                 ),
                                 true,
                             ));
@@ -2927,6 +2939,12 @@ impl Faraday {
         let had = !self.sticks.is_empty();
         let ids_before: Vec<String> = self.sticks.iter().map(|s| s.id.clone()).collect();
         self.sticks = sticks;
+        // The medium the device started from goes by what it is, not by
+        // its volume label.
+        let boot = self.medium.boot();
+        for s in self.sticks.iter_mut().filter(|s| s.boot) {
+            s.label = boot.to_string();
+        }
         let ids_now: Vec<String> = self.sticks.iter().map(|s| s.id.clone()).collect();
         if self.visit.stick >= self.sticks.len() {
             self.visit.stick = 0;
@@ -2959,10 +2977,11 @@ impl Faraday {
             if had {
                 let loaded = self.load_after_pull();
                 let said = if loaded == 0 {
-                    "Stick removed".to_string()
+                    format!("{} removed", self.medium.cap())
                 } else {
                     format!(
-                        "Stick removed · {loaded} {} loaded",
+                        "{} removed · {loaded} {} loaded",
+                        self.medium.cap(),
                         if loaded == 1 { "key" } else { "keys" }
                     )
                 };
@@ -4088,7 +4107,7 @@ impl Faraday {
                 if self.may_load_keys() {
                     self.potential_open(osk_bip::keys::Fingerprint(fp));
                 } else {
-                    self.toast("Remove the stick first");
+                    self.toast(&format!("Remove the {} first", self.medium.noun()));
                 }
             }
             Action::XpubOpen(i) => self.xpub_open(i),
@@ -4096,7 +4115,7 @@ impl Faraday {
                 if self.may_load_keys() {
                     self.backup_open(k);
                 } else {
-                    self.toast("Remove the stick first");
+                    self.toast(&format!("Remove the {} first", self.medium.noun()));
                 }
             }
             Action::PotentialKind(k) => {
@@ -4182,7 +4201,10 @@ impl Faraday {
                 if !self.clean() {
                     self.sheet = Some(Sheet::WriteOut);
                 } else if self.sticks.is_empty() {
-                    self.toast("Plug in a stick: the visit writes the Outbox");
+                    self.toast(&format!(
+                        "Plug in {}: the visit writes the Outbox",
+                        self.medium.a()
+                    ));
                 } else {
                     self.act(Action::Nav(Screen::Visit));
                 }
@@ -5247,11 +5269,15 @@ impl Faraday {
             let at = match spot.at {
                 plan::At::Place(p) => self.place_name(p),
                 plan::At::Vault => "Vault".to_string(),
-                plan::At::Files => "Stick of files".to_string(),
+                plan::At::Files => format!("{} of files", self.medium.cap()),
                 plan::At::Software => "Watch-only software".to_string(),
                 plan::At::Away => "On its own device".to_string(),
             };
-            let holds: Vec<String> = spot.holds.iter().map(|(h, _)| h.label(&shape)).collect();
+            let holds: Vec<String> = spot
+                .holds
+                .iter()
+                .map(|(h, _)| h.label(&shape, self.medium))
+                .collect();
             record.push(
                 field::PLAN_HOLDS,
                 format!("{at}: {}", holds.join(", ")).as_bytes(),
@@ -5715,9 +5741,10 @@ impl Faraday {
                 create::Source::Empty => return Err(format!("Key {} has no key yet", i + 1)),
                 create::Source::Later => {
                     return Err(format!(
-                        "Key {} waits for its cosigner's xpub file. Copy it in on a stick visit, \
+                        "Key {} waits for its cosigner's xpub file. Copy it in on {} visit, \
                          then choose it for Key {} under Keys",
                         i + 1,
+                        self.medium.a(),
                         i + 1
                     ));
                 }
@@ -6048,13 +6075,14 @@ impl Faraday {
         let bytes = zeroize::Zeroizing::new(bytes);
         let camera = self.sheet == Some(Sheet::Scan);
         let sticks = !self.sticks.is_empty();
+        let medium = self.medium;
         let Some(scan) = self.scan.as_mut() else {
             return;
         };
         // A stick plugged in while the camera is on is held back, and no
         // key loads while it is attached: what loads one is not read.
         if camera && sticks && matches!(scan.purpose, ScanPurpose::Seed | ScanPurpose::KeyPart) {
-            scan.note = Some(STICK_KEYS.to_string());
+            scan.note = Some(stick_keys(medium));
             return;
         }
         if scan.purpose == ScanPurpose::VaultEntry {
@@ -6145,7 +6173,7 @@ impl Faraday {
             }
             if sticks {
                 if let Some(scan) = self.scan.as_mut() {
-                    scan.note = Some(STICK_KEYS.to_string());
+                    scan.note = Some(stick_keys(medium));
                 }
                 return;
             }

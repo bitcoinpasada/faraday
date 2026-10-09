@@ -152,7 +152,8 @@ from the seeds card returns to Wallets with the key still loaded.
 **Boot.** Firmware loads the system → the boot medium's data partition
 copied into memory: vault files into the Inbox, every other file held
 apart for the import, a PNG as what its QR codes hold → the import sheet
-over Home: what was copied, **Remove the stick** (Pi: the card) → the
+over Home: what was copied, **Remove the stick** (Pi: **Remove the SD
+card**) → the
 moment no removable partition remains, the same sheet:
 - each vault from the medium → **Unlock** → the Unlock screen → back to
   the sheet, with the vault's wallets and keys added;
@@ -184,6 +185,11 @@ in it, stay on Unlock and list what is waiting.
 **Power off** → decision 5 → off.
 
 ## Sticks and cards
+
+On the Pi every medium is an SD card and every screen says so: "SD card"
+for "stick", **SD card visit** for **Stick visit**, **Lock and use SD
+card**, "Remove the SD card" (`docs/PLANNING.md` §16.144). The flows
+below use the PC's words.
 
 **A stick or card inserted while unlocked** → **Lock to use this stick**
 (what is sealed, what is wiped, what waits) →

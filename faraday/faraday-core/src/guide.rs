@@ -5,11 +5,11 @@
 //! with, and what happens next. No reassurance and no theory; Learn has
 //! the theory.
 
-use crate::SpendState;
 use crate::wallet::{Kind, step};
+use crate::{Medium, SpendState};
 
 /// The walk-through for one step of a spend.
-pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState) -> String {
+pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState, m: Medium) -> String {
     let cosigned = kind.is_some_and(Kind::has_cosigners);
     match n {
         step::WALLET => match kind {
@@ -68,11 +68,13 @@ pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState) ->
             if !s.spend.signed_here.is_empty() {
                 "Signed. Each signature was checked against its key before it was kept.".to_string()
             } else if kind == Some(Kind::Threshold) {
-                "Signing as a share draws a fresh secret nonce for each share that signs, adds this share's \
-                 part, and puts the next share's nonce in a carry file. The carry file is a secret until \
-                 that share has signed: keep the stick with you and sign the same day. The last share to \
-                 sign checks every part before it combines them."
-                    .to_string()
+                format!(
+                    "Signing as a share draws a fresh secret nonce for each share that signs, adds this \
+                     share's part, and puts the next share's nonce in a carry file. The carry file is a \
+                     secret until that share has signed: keep the {} with you and sign the same day. The \
+                     last share to sign checks every part before it combines them.",
+                    m.noun()
+                )
             } else if kind == Some(Kind::MuSig) {
                 "Round two: this device adds its partial signature over everyone's nonces. The others do the \
                  same on their copies; when theirs come back, Faraday combines all of them into one signature."
@@ -89,11 +91,13 @@ pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState) ->
                     .to_string()
             }
         }
-        step::COLLECT => "Get the other signatures. Put the PSBT in the Outbox to carry it on a stick, or \
-            let each cosigner sign the copy they already have. When a signed copy comes back, copy it in on \
-            a stick visit and add it here. Each signature is checked against its key, and a copy of any \
-            other transaction is refused."
-            .to_string(),
+        step::COLLECT => format!(
+            "Get the other signatures. Put the PSBT in the Outbox to carry it on {a}, or let each \
+             cosigner sign the copy they already have. When a signed copy comes back, copy it in on {a} \
+             visit and add it here. Each signature is checked against its key, and a copy of any other \
+             transaction is refused.",
+            a = m.a()
+        ),
         step::FINISH => {
             if s.spend.finished.is_some() {
                 "There are two results. The signed PSBT goes back to the wallet that made the transaction, \
@@ -101,10 +105,12 @@ pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState) ->
                  you trust. Either one is enough."
                     .to_string()
             } else if kind == Some(Kind::Threshold) && (s.carry_out.is_some() || s.out_signed) {
-                "Put the carry file in the Outbox and write it to a stick. At the next share's place, \
-                 copy it into Faraday with that share loaded, open it from Files and sign. The share that \
-                 signs last gets the finished transaction."
-                    .to_string()
+                format!(
+                    "Put the carry file in the Outbox and write it to {}. At the next share's place, \
+                     copy it into Faraday with that share loaded, open it from Files and sign. The share \
+                     that signs last gets the finished transaction.",
+                    m.a()
+                )
             } else {
                 "The transaction is finished when enough keys have signed. Until then it cannot be \
                  broadcast."
@@ -116,7 +122,7 @@ pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState) ->
 }
 
 /// The walk-through for one card of the backup.
-pub(crate) fn backup(n: u8, m: usize, keys: usize, seeds_here: usize) -> String {
+pub(crate) fn backup(n: u8, m: usize, keys: usize, seeds_here: usize, medium: Medium) -> String {
     use crate::bstep;
     match n {
         bstep::BLANK => "Print the blank template first, anywhere: it holds no secret, only numbered \
@@ -137,13 +143,16 @@ pub(crate) fn backup(n: u8, m: usize, keys: usize, seeds_here: usize) -> String 
                     .to_string()
             };
             let further = if seeds_here == 0 {
-                ""
+                String::new()
             } else {
-                " Paper comes first. Under the copy, Save into the open vault keeps a further copy \
-                 sealed under the vault's passphrase. Save as a file writes the words or the SeedQR \
-                 picture to the Outbox unprotected, only after you tick that anyone who copies the \
-                 stick can spend with it: the least safe of the three. A file never holds the \
-                 passphrase; the vault keeps it only when saved with its passphrase."
+                format!(
+                    " Paper comes first. Under the copy, Save into the open vault keeps a further copy \
+                     sealed under the vault's passphrase. Save as a file writes the words or the SeedQR \
+                     picture to the Outbox unprotected, only after you tick that anyone who copies the \
+                     {} can spend with it: the least safe of the three. A file never holds the \
+                     passphrase; the vault keeps it only when saved with its passphrase.",
+                    medium.noun()
+                )
             };
             format!("{lead}{further} A printer is a computer with memory and often a network, so a seed never goes \
                      to one. There is no line for a passphrase: written beside the words it stops being a \
@@ -196,7 +205,13 @@ pub(crate) fn message(n: u8) -> String {
 }
 
 /// The walk-through for one card of creating a wallet.
-pub(crate) fn create(n: u8, kind: crate::create::NewKind, m: usize, keys: usize) -> String {
+pub(crate) fn create(
+    n: u8,
+    kind: crate::create::NewKind,
+    m: usize,
+    keys: usize,
+    medium: Medium,
+) -> String {
     use crate::cstep;
     let multi = kind.multi();
     if kind.threshold() {
@@ -237,13 +252,16 @@ pub(crate) fn create(n: u8, kind: crate::create::NewKind, m: usize, keys: usize)
         ),
         cstep::KEYS => {
             if multi {
-                "Fill each slot. A key loaded here signs on this device. New key makes a fresh seed here; \
-                 write its words down in the backup step before any money goes in. A cosigner's slot takes the \
-                 account xpub their device exports, copied in on a stick visit; it never brings a secret. \
-                 If a cosigner's xpub is not here yet, mark the slot for later and carry on; this wallet waits \
-                 under Nothing yet on the Wallets page. Each key held here can give its xpub as a file or a \
-                 QR code, so the cosigners can make the same wallet on their side."
-                    .to_string()
+                format!(
+                    "Fill each slot. A key loaded here signs on this device. New key makes a fresh seed \
+                     here; write its words down in the backup step before any money goes in. A cosigner's \
+                     slot takes the account xpub their device exports, copied in on {} visit; it never \
+                     brings a secret. If a cosigner's xpub is not here yet, mark the slot for later and \
+                     carry on; this wallet waits under Nothing yet on the Wallets page. Each key held here \
+                     can give its xpub as a file or a QR code, so the cosigners can make the same wallet \
+                     on their side.",
+                    medium.a()
+                )
             } else {
                 "Choose the key: one loaded here, or a new one made here from fresh randomness. A new key \
                  exists only in this session until its words are written down in the backup step."
@@ -264,25 +282,32 @@ pub(crate) fn create(n: u8, kind: crate::create::NewKind, m: usize, keys: usize)
             one step. Secrets leave this device only inside a vault file. The paper backup stays the \
             backup; the vault is a copy."
             .to_string(),
-        cstep::PUBLIC => "These files hold xpubs only: they can spend nothing, and the cosigners and \
-            your watch-only software need them. They go to the Outbox as they are, for the next stick visit."
-            .to_string(),
+        cstep::PUBLIC => format!(
+            "These files hold xpubs only: they can spend nothing, and the cosigners and your watch-only \
+             software need them. They go to the Outbox as they are, for the next {} visit.",
+            medium.noun()
+        ),
         _ => String::new(),
     }
 }
 
 /// The walk-through for one card of restoring a wallet.
-pub(crate) fn restore(n: u8) -> String {
+pub(crate) fn restore(n: u8, m: Medium) -> String {
     match n {
-        0 => "If a transaction is waiting to be signed, bring it in first: from a stick now, while no key \
-            or vault is open, or as a QR code now or later. Once a key is loaded, no stick goes in until \
-            you lock."
-            .to_string(),
-        1 => "Start with the wallet in xpubs: its descriptor, wallet file or multisig config from a \
-            stick, the wallet saved in a vault, or the descriptor or split shares on paper as QR codes. Any \
-            quorum of shares holds every key; tick the ones you have and rebuild. With seed words \
-            alone and no description, Type the seeds."
-            .to_string(),
+        0 => format!(
+            "If a transaction is waiting to be signed, bring it in first: from {} now, while no key or \
+             vault is open, or as a QR code now or later. Once a key is loaded, no {} goes in until you \
+             lock.",
+            m.a(),
+            m.noun()
+        ),
+        1 => format!(
+            "Start with the wallet in xpubs: its descriptor, wallet file or multisig config from {}, \
+             the wallet saved in a vault, or the descriptor or split shares on paper as QR codes. Any \
+             quorum of shares holds every key; tick the ones you have and rebuild. With seed words \
+             alone and no description, Type the seeds.",
+            m.a()
+        ),
         2 => "Type each seed you hold back in, from its sheet. Faraday checks that the words give the key \
             that slot expects and refuses them if they do not, so a seed in the wrong envelope is caught \
             here. Seeds held by other people stay with them; they sign on their own devices. \

@@ -88,7 +88,7 @@ fn counted(ui: &mut Ui, x: f32, y: f32, w: f32, c: &ImportCount) -> f32 {
 
 /// The stick is still in: what was copied, and the way on.
 fn present(
-    _app: &Faraday,
+    app: &Faraday,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -97,9 +97,17 @@ fn present(
     c: &ImportCount,
 ) -> f32 {
     let mut cy = y;
-    cy += head(ui, x, cy, w, Icon::Drive, &format!("Data found on {label}"));
+    cy += head(
+        ui,
+        x,
+        cy,
+        w,
+        app.medium.icon(),
+        &format!("Data found on {label}"),
+    );
     cy += counted(ui, x, cy, w, c);
-    cy += stick_banner(ui, x, cy, w, "Remove the stick to start the import");
+    let pull = format!("Remove the {} to start the import", app.medium.noun());
+    cy += stick_banner(ui, x, cy, w, &pull);
     cy += buttons(
         ui,
         x,
@@ -141,7 +149,8 @@ fn body(
     );
     cy += counted(ui, x, cy, w, c);
     if !may {
-        cy += stick_banner(ui, x, cy, w, "Remove the stick to import");
+        let pull = format!("Remove the {} to import", app.medium.noun());
+        cy += stick_banner(ui, x, cy, w, &pull);
     }
 
     // The vaults the stick brought, each unlocked here.
@@ -301,7 +310,10 @@ fn body(
         13.0,
         W::R,
         MUTED,
-        "Files not chosen are wiped from memory. To bring one in later, insert the stick again.",
+        &format!(
+            "Files not chosen are wiped from memory. To bring one in later, insert the {} again.",
+            app.medium.noun()
+        ),
     ) + 6.0;
     cy += buttons(
         ui,

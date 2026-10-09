@@ -10209,3 +10209,44 @@ label, where they answer one question (the software and its form). On a
 small panel the plan asks one question per page, as every step flow
 pages there. It is built in Faraday's core (`Ui::multi_list`); `osk-ui`
 gets a component when an OpenSigner screen needs one.
+
+### 16.144 On the Pi, "SD card" where the app says "stick" (2026-10-09)
+
+**Why.** The Pi has no USB storage (PLAN.md §3), so every medium it sees
+is an SD card, yet the app called it a stick on every screen: Home's
+status line, Stick visit, the Pull and Lock sheets, the vault screens,
+the boot import, the family guide.
+
+**Decision** (owner: go-ahead). Faraday's core keeps
+`Medium { Stick, SdCard }` (`faraday-core/src/medium.rs`), told to it by
+the shell at start; nothing in the core looks at the architecture, so the
+snapshot shell renders either wording at any size and the desktop app
+stays "stick". The stick shell says SD card in its Pi build (armv7) or
+when the image recorded the exchange partition on `/dev/mmcblk0`
+(`/etc/opensigner/exchange`); the snapshot shell takes `--sd-card`.
+Every string naming the medium takes its words from `Medium`: the noun
+("stick" / "SD card"), the plural, the article form ("a stick" / "an SD
+card"), the sentence-start forms ("Stick" / "SD card", "A stick" / "An SD
+card"), the full name where the kind matters ("USB stick"), the visit's
+name ("Stick visit" / "SD card visit") and the boot medium's ("Boot
+stick" / "Boot SD card"); no string builds "a {noun}" by hand. The boot
+medium's name moved out of `faraday-storage` into the app, which names a
+`boot` medium itself whatever its volume label. Spelling: "SD card",
+capital SD and lowercase card, "SD cards", never "card" alone; so the
+PC's Files foot now reads "Waiting for a stick" where it read "Waiting
+for a stick or card". Code names and file names are unchanged
+(`StickInfo`, `stick_settings.rs`, `faraday-settings.txt`).
+
+The medium's glyph follows it: `Icon::Drive` on the PC, `Icon::SdCard` on
+the Pi, Font Awesome 6 Free Solid `sd-card` (U+F7C2) added back to the
+icon face after §16.91 removed `MicroSd` as unused. `osk-ui` is shared
+with upstream OpenSigner: the new variant, its place in `Icon::ALL`, its
+code point and name in `core/osk-ui/src/widgets/icon.rs`, the
+`tools/fontbake` entry and the rebaked `core/osk-ui/assets/icon.outl` are
+an upstream change, offered to OpenSigner with this one.
+
+Not settled here: the family guide's "Start from the SD card" card still
+walks through a PC's boot menu, which a Pi does not have; its steps for a
+Pi are the owner's to write. The online desktop app's mainnet warning
+still says "booted from a stick", since it names the PC image to use, not
+a medium the app sees.

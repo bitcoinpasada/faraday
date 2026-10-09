@@ -517,7 +517,7 @@ pub struct Spot {
 
 impl What {
     /// What it is, as the map and the envelopes list it.
-    pub fn label(self, shape: &Shape) -> String {
+    pub fn label(self, shape: &Shape, medium: crate::Medium) -> String {
         let seed = |i: usize| {
             shape
                 .seeds
@@ -531,7 +531,7 @@ impl What {
             What::Passphrase(i) => format!("Passphrase of {}", seed(i)),
             What::Sheet => "Wallet sheet".to_string(),
             What::Share(j) => format!("Share {} of {}", j + 1, shape.keys),
-            What::VaultStick => "Stick with the vault".to_string(),
+            What::VaultStick => format!("{} with the vault", medium.cap()),
             What::Seed(i) => format!("Seed {}", seed(i)),
             What::SeedPassphrase(i) => format!("Seed {} with its passphrase", seed(i)),
             What::Wallet => "Wallet description".to_string(),

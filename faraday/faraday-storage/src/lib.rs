@@ -352,19 +352,15 @@ impl DiskProcess {
         }
     }
 
-    /// The partitions handed out now. The boot medium's is called the boot
-    /// stick, whatever its label.
+    /// The partitions handed out now, by their volume labels. The app
+    /// names the boot medium itself (`Medium::boot`), whatever its label.
     pub fn list(&mut self) -> Result<Vec<StickInfo>, String> {
         use faraday_files::proto::{Request, Response};
         match self.ask(&Request::List)? {
             Response::Sticks(s) => Ok(s
                 .into_iter()
                 .map(|s| StickInfo {
-                    label: if s.boot {
-                        "Boot stick".to_string()
-                    } else {
-                        s.label
-                    },
+                    label: s.label,
                     id: s.id,
                     boot: s.boot,
                     files: s.files,

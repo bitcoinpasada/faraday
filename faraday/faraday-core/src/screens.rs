@@ -215,7 +215,7 @@ fn draw_compact(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32, kb: bool) {
 /// "Remove the stick" and the toast, centred at the foot of the column.
 fn notices(app: &Faraday, ui: &mut Ui, x: f32, cw: f32, h: f32) {
     if app.not_now && !app.sticks.is_empty() && app.sheet.is_none() {
-        let msg = "Remove the stick to keep working";
+        let msg = &format!("Remove the {} to keep working", app.medium.noun());
         let bw = ui.measure(14.0, W::S, msg) + 40.0;
         let bx = x + (cw - bw) / 2.0;
         ui.shadow(bx, h - 64.0, bw, 44.0, 10.0);
@@ -345,7 +345,7 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
         (Icon::Tools, "Tools", Screen::Catalog),
     ];
     if !app.sticks.is_empty() && !app.holds_secret() {
-        items.push((Icon::Drive, "Stick visit", Screen::Visit));
+        items.push((app.medium.icon(), app.medium.visit(), Screen::Visit));
     }
     items.push((Icon::Settings, "Settings", Screen::Settings));
     let mut y = 76.0;
@@ -599,8 +599,8 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
             ACCENT.with_alpha(30),
         );
     }
-    ui.icon(22.0, fy, 20.0, Icon::Drive, 12.0, MUTED);
-    ui.text_mid(46.0, fy, 20.0, 12.0, W::R, MUTED, "Sticks");
+    ui.icon(22.0, fy, 20.0, app.medium.icon(), 12.0, MUTED);
+    ui.text_mid(46.0, fy, 20.0, 12.0, W::R, MUTED, app.medium.caps());
     let sticks = ui.fit(12.0, W::R, &sticks, 110.0);
     ui.text_right(
         SIDEBAR_W - 24.0,
@@ -690,13 +690,17 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             if app.outbox.is_empty() {
                 "Outbox empty".to_string()
             } else {
-                format!("{} to write on the next stick visit", app.outbox.len())
+                format!(
+                    "{} to write on the next {} visit",
+                    app.outbox.len(),
+                    app.medium.noun()
+                )
             },
             Action::Nav(Screen::Files),
         ),
         (
-            Icon::Drive,
-            "Sticks",
+            app.medium.icon(),
+            app.medium.caps(),
             match app.sticks.len() {
                 0 => "None attached".to_string(),
                 1 => app.sticks[0].label.clone(),
@@ -705,7 +709,7 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             if app.sticks.is_empty() && app.import.is_some() {
                 "An import waits".to_string()
             } else if app.sticks.is_empty() {
-                "Keys load only with no stick attached".to_string()
+                format!("Keys load only with no {} attached", app.medium.noun())
             } else {
                 "Remove before loading keys".to_string()
             },
@@ -772,7 +776,7 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 13.0,
                 W::S,
                 WARN,
-                "Remove the stick to start the import",
+                &format!("Remove the {} to start the import", app.medium.noun()),
             );
         } else {
             ui.text(x + 74.0, y + 44.0, 13.0, W::R, MUTED, "Not imported yet");
@@ -797,7 +801,7 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 .iter()
                 .any(|s| s.boot && s.files.iter().any(|(n, _)| *n == f.name));
             let line = if boot {
-                format!("{} · copied from the boot stick", f.name)
+                format!("{} · copied from the boot {}", f.name, app.medium.noun())
             } else {
                 format!("{} · in Files", f.name)
             };
@@ -823,15 +827,15 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     13.0,
                     W::S,
                     WARN,
-                    "Pull the stick to unlock",
+                    &format!("Pull the {} to unlock", app.medium.noun()),
                 );
             }
             y += 76.0 + gap;
             tiles.push((
-                Icon::Drive,
-                "Bring a PSBT in from a stick".to_string(),
+                app.medium.icon(),
+                format!("Bring a PSBT in from {}", app.medium.a()),
                 if app.sticks.is_empty() {
-                    "Insert the stick".to_string()
+                    format!("Insert the {}", app.medium.noun())
                 } else {
                     "Before the vault is unlocked".to_string()
                 },
@@ -865,8 +869,8 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         if !app.sticks.is_empty() && locked.is_none() {
             tiles.push((
-                Icon::Drive,
-                "Stick visit".to_string(),
+                app.medium.icon(),
+                app.medium.visit().to_string(),
                 "Write the Outbox, copy files in".to_string(),
                 Action::Nav(Screen::Visit),
                 true,
@@ -921,8 +925,8 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ));
         if !app.sticks.is_empty() && !app.holds_secret() {
             tiles.push((
-                Icon::Drive,
-                "Stick visit".to_string(),
+                app.medium.icon(),
+                app.medium.visit().to_string(),
                 "Write the Outbox, copy files in".to_string(),
                 Action::Nav(Screen::Visit),
                 true,
@@ -1000,13 +1004,17 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         && app.spend.is_none();
     if app.guided && !compact {
         let text = if empty {
-            "No wallet is loaded. Create one with new keys or keys you load here, or restore one from \
-             its backups: a stick, a vault or paper."
+            format!(
+                "No wallet is loaded. Create one with new keys or keys you load here, or restore one \
+                 from its backups: {}, a vault or paper.",
+                app.medium.a()
+            )
         } else {
             "Start from what you have in front of you. Every way in ends at the same place: the wallet, \
              with each of its keys marked as here, elsewhere or missing, and the one thing still to do."
+                .to_string()
         };
-        let used = ui.wrap(x, y, width.min(820.0), 14.0, W::R, MUTED, text);
+        let used = ui.wrap(x, y, width.min(820.0), 14.0, W::R, MUTED, &text);
         y += used + 20.0;
     }
     section_label(ui, x, y, "Your wallets");
@@ -1096,7 +1104,10 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     12.0,
                     W::R,
                     MUTED,
-                    "A stick with a Faraday vault brings its wallets and keys",
+                    &format!(
+                        "{} with a Faraday vault brings its wallets and keys",
+                        app.medium.a_cap()
+                    ),
                 ) + 12.0;
             }
         }
@@ -1156,7 +1167,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 );
             }
             None => {
-                ui.icon(x, y + 10.0, 20.0, Icon::Drive, 13.0, MUTED);
+                ui.icon(x, y + 10.0, 20.0, app.medium.icon(), 13.0, MUTED);
                 ui.text_mid(
                     x + 30.0,
                     y,
@@ -1164,7 +1175,10 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     14.0,
                     W::R,
                     MUTED,
-                    "A stick with a Faraday vault brings its wallets and keys",
+                    &format!(
+                        "{} with a Faraday vault brings its wallets and keys",
+                        app.medium.a_cap()
+                    ),
                 );
             }
         }
@@ -1179,9 +1193,12 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .count();
     let wallet_file = app.inbox.iter().position(|i| i.kind == FileKind::Wallet);
     let stick_hint = if app.sticks.is_empty() {
-        "Copy one in on a stick visit"
+        format!("Copy one in on {} visit", app.medium.a())
     } else {
-        "On the stick: open the stick visit"
+        format!(
+            "On the {noun}: open the {noun} visit",
+            noun = app.medium.noun()
+        )
     };
     let visit = if app.sticks.is_empty() || app.holds_secret() {
         None
@@ -1336,7 +1353,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             "Check a signed message",
             match msg_file {
                 Some(i) => app.inbox[i].name.clone(),
-                None => "Copy one in on a stick visit".to_string(),
+                None => format!("Copy one in on {} visit", app.medium.a()),
             },
             msg_file.map(Action::CheckMessage),
         ),
@@ -1349,7 +1366,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 "Decode a transaction",
                 match tx {
                     Some(i) => app.inbox[i].name.clone(),
-                    None => "Scan one, or copy its hex in on a stick".to_string(),
+                    None => format!("Scan one, or copy its hex in on {}", app.medium.a()),
                 },
                 Some(tx.map_or(Action::Scan, Action::DecodeInbox)),
             )
@@ -1666,7 +1683,7 @@ fn inbox_panel(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 12.0,
                 W::R,
                 WARN,
-                "Seeds load once the stick is out",
+                &format!("Seeds load once the {} is out", app.medium.noun()),
             );
         }
         ty += 54.0;
@@ -1874,7 +1891,7 @@ fn potential_compact(
                 );
                 ui.hit(x + iw - 44.0, cy, 44.0, 44.0, Action::PotentialShow);
             } else {
-                crate::vault_screens::stick_field(ui, x, cy, iw);
+                crate::vault_screens::stick_field(app.medium, ui, x, cy, iw);
             }
             cy += 56.0;
         }
@@ -2043,7 +2060,7 @@ fn potential_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             );
             ui.hit(ix + iw - 40.0, cy, 40.0, 40.0, Action::PotentialShow);
         } else {
-            crate::vault_screens::stick_field(ui, ix, cy, iw);
+            crate::vault_screens::stick_field(app.medium, ui, ix, cy, iw);
         }
         cy += 52.0;
     }
@@ -2527,7 +2544,10 @@ pub(crate) fn missing_keys_line(
             "Not in {} · perhaps another vault, a paper backup or a SeedQR",
             open_names.join(", ")
         ),
-        (None, true) => "A vault on a stick, a paper backup or a SeedQR may hold them".to_string(),
+        (None, true) => format!(
+            "A vault on {}, a paper backup or a SeedQR may hold them",
+            app.medium.a()
+        ),
     };
     if ui.compact {
         ui.icon(x - 4.0, y - 2.0, 20.0, Icon::Info, 11.0, MUTED);
@@ -3325,7 +3345,7 @@ fn spend(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 done: s.done[n as usize],
                 open: s.open == Some(n),
                 toggle: Action::Step(n),
-                guide: Some(guide::spend(n, kind, needed, s)),
+                guide: Some(guide::spend(n, kind, needed, s, app.medium)),
             })
             .collect();
         (
@@ -3421,7 +3441,10 @@ fn spend_status(app: &Faraday, needed: usize) -> (usize, usize, String, String) 
             "The next share signs with the carry file".to_string()
         }
     } else if s.spend.finished.is_some() && s.out_signed && s.out_tx {
-        "Both in the Outbox · insert a stick to write them".to_string()
+        format!(
+            "Both in the Outbox · insert {} to write them",
+            app.medium.a()
+        )
     } else if missing == 0 {
         "Complete".to_string()
     } else if threshold.is_some() && !can_sign_here.is_empty() && missing > 1 {
@@ -4804,16 +4827,17 @@ const SOFTWARE_ROWS: [&str; 5] = [
 
 /// The rows of the wallet description question, by whether each place
 /// keeps a share.
-fn description_rows(shares: bool) -> [&'static str; 4] {
+fn description_rows(shares: bool, medium: crate::Medium) -> [String; 4] {
     [
         if shares {
             "A share in each place"
         } else {
             "A sheet in each place"
-        },
-        "In the vault",
-        "Into watch-only software",
-        "As files on a stick",
+        }
+        .to_string(),
+        "In the vault".to_string(),
+        "Into watch-only software".to_string(),
+        format!("As files on {}", medium.a()),
     ]
 }
 
@@ -4946,7 +4970,11 @@ fn question_summary(app: &Faraday, q: u8) -> String {
             }
             s
         }
-        qstep::WALLET => ticked(&description_rows(a.split && shape.splits), &a.wallet),
+        qstep::WALLET => {
+            let rows = description_rows(a.split && shape.splits, app.medium);
+            let labels: Vec<&str> = rows.iter().map(String::as_str).collect();
+            ticked(&labels, &a.wallet)
+        }
         qstep::SOFTWARE => ticked(&SOFTWARE_ROWS, &a.software),
         qstep::PASSPHRASE => {
             let k = shape
@@ -4995,7 +5023,8 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     done: crate::bstep::item(k).is_some_and(|it| app.backup_item_done(it)),
                     open: b.open == Some(k),
                     toggle: Action::BStep(k),
-                    guide: Some(guide::backup(k, m, n, keys.len())).filter(|g| !g.is_empty()),
+                    guide: Some(guide::backup(k, m, n, keys.len(), app.medium))
+                        .filter(|g| !g.is_empty()),
                 }
             } else {
                 flow::Card {
@@ -5178,7 +5207,7 @@ fn plan_body(app: &Faraday, ui: &mut Ui, qs: &[u8], i: usize, x: f32, y: f32, w:
                 ) + 12.0;
             }
             if a.vault(&shape) {
-                section_label(ui, x, cy, "A stick with the vault");
+                section_label(ui, x, cy, &format!("{} with the vault", app.medium.a_cap()));
                 cy += 28.0;
                 let names: Vec<String> = (0..p).map(|k| app.place_name(k)).collect();
                 let labels: Vec<&str> = names.iter().map(String::as_str).collect();
@@ -5187,7 +5216,8 @@ fn plan_body(app: &Faraday, ui: &mut Ui, qs: &[u8], i: usize, x: f32, y: f32, w:
             cy += place_names(app, ui, x, cy, w);
         }
         qstep::WALLET => {
-            let labels = description_rows(a.split && shape.splits);
+            let rows_ = description_rows(a.split && shape.splits, app.medium);
+            let labels: Vec<&str> = rows_.iter().map(String::as_str).collect();
             cy += ui.multi_list(x, cy, w, &rows(qrow::WALLET, &labels, &a.wallet));
         }
         qstep::SOFTWARE => {
@@ -5383,7 +5413,7 @@ fn map_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, boxed: bool) -> 
         let name = match spot.at {
             At::Place(p) => app.place_name(p),
             At::Vault => vault_name.clone(),
-            At::Files => "Stick of files".to_string(),
+            At::Files => format!("{} of files", app.medium.cap()),
             At::Software => "Watch-only software".to_string(),
             At::Away => "On its own device".to_string(),
         };
@@ -5415,7 +5445,12 @@ fn map_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, boxed: bool) -> 
                 }
                 lx += 14.0;
             }
-            let label = ui.fit(12.0, W::R, &what.label(&shape), ix + iw - lx - tw - 8.0);
+            let label = ui.fit(
+                12.0,
+                W::R,
+                &what.label(&shape, app.medium),
+                ix + iw - lx - tw - 8.0,
+            );
             ui.text_mid(lx, cy, 18.0, 12.0, W::R, TEXT, &label);
             cy += 20.0;
         }
@@ -5510,13 +5545,13 @@ fn backup_done(app: &Faraday, ui: &mut Ui, from_create: bool, x: f32, y: f32, w:
     // Pinned at the foot on a small panel.
     if ui.pinning {
         ui.pin = Some((
-            "Write to a stick".to_string(),
+            format!("Write to {}", app.medium.a()),
             write_style,
             Action::WriteAsk,
         ));
     } else {
         items.push((
-            "Write to a stick".to_string(),
+            format!("Write to {}", app.medium.a()),
             write_style,
             Action::WriteAsk,
         ));
@@ -6210,8 +6245,11 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     let head = ui.fit(13.0, W::S, &app.place_name(p), w);
                     ui.text(x, cy, 13.0, W::S, TEXT, &head);
                     cy += 22.0;
-                    let holds: Vec<String> =
-                        spot.holds.iter().map(|(h, _)| h.label(&shape)).collect();
+                    let holds: Vec<String> = spot
+                        .holds
+                        .iter()
+                        .map(|(h, _)| h.label(&shape, app.medium))
+                        .collect();
                     let line = if holds.is_empty() {
                         "Nothing".to_string()
                     } else {
@@ -7115,7 +7153,7 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             done: c.done[k as usize],
             open: c.open == Some(k),
             toggle: Action::CStep(k),
-            guide: Some(guide::create(k, c.kind, c.m, c.n)),
+            guide: Some(guide::create(k, c.kind, c.m, c.n, app.medium)),
         })
         .collect();
     let col = flow::Column {
@@ -8094,7 +8132,7 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             done: r.done[k as usize],
             open: r.open == Some(k),
             toggle: Action::RStep(k),
-            guide: Some(guide::restore(k)),
+            guide: Some(guide::restore(k, app.medium)),
         })
         .collect();
     let col = flow::Column {
@@ -8424,11 +8462,12 @@ fn restore_psbt_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
     let (style, sub) = match (closed, app.sticks.is_empty()) {
         (true, _) => (
             Style::Disabled,
-            "A stick only before a key or vault is open",
+            format!("{} only before a key or vault is open", app.medium.a_cap()),
         ),
-        (false, true) => (Style::Disabled, "Insert the stick"),
-        (false, false) => (Style::Secondary, ""),
+        (false, true) => (Style::Disabled, format!("Insert the {}", app.medium.noun())),
+        (false, false) => (Style::Secondary, String::new()),
     };
+    let from = format!("From {}", app.medium.a());
     if ui.compact {
         // The two ways in, then why the stick cannot be used, each on
         // its own line.
@@ -8439,12 +8478,12 @@ fn restore_psbt_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
             w,
             40.0,
             &[
-                ("From a stick", style, Action::VisitFrom(Screen::Restore)),
+                (from.as_str(), style, Action::VisitFrom(Screen::Restore)),
                 ("Scan a QR code", Style::Secondary, Action::Scan),
             ],
         );
         if !sub.is_empty() {
-            cy += ui.wrap(x, cy, w, 13.0, W::R, WARN, sub) + 10.0;
+            cy += ui.wrap(x, cy, w, 13.0, W::R, WARN, &sub) + 10.0;
         }
         let has = app.spend.is_some() || app.inbox.iter().any(|i| i.kind == FileKind::Psbt);
         let drawn = next_button(
@@ -8462,7 +8501,7 @@ fn restore_psbt_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
         cy,
         None,
         40.0,
-        "From a stick",
+        &from,
         style,
         Action::VisitFrom(Screen::Restore),
     );
@@ -8476,7 +8515,7 @@ fn restore_psbt_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
         Action::Scan,
     );
     if !sub.is_empty() {
-        ui.text_mid(x + bw + sw + 24.0, cy, 40.0, 13.0, W::R, WARN, sub);
+        ui.text_mid(x + bw + sw + 24.0, cy, 40.0, 13.0, W::R, WARN, &sub);
     }
     cy += 52.0;
     let has = app.spend.is_some() || app.inbox.iter().any(|i| i.kind == FileKind::Psbt);
@@ -8504,7 +8543,7 @@ fn restore_sources(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     // A stick.
     let stick = !app.sticks.is_empty() && !app.holds_secret();
-    ui.text_mid(x, cy, 40.0, 13.0, W::S, MUTED, "Stick");
+    ui.text_mid(x, cy, 40.0, 13.0, W::S, MUTED, app.medium.cap());
     let bw = ui.button(
         x + 90.0,
         cy,
@@ -8526,10 +8565,10 @@ fn restore_sources(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             13.0,
             W::R,
             DIM,
-            if app.holds_secret() {
-                "Not while a key is loaded"
+            &if app.holds_secret() {
+                "Not while a key is loaded".to_string()
             } else {
-                "Insert the stick"
+                format!("Insert the {}", app.medium.noun())
             },
         );
     }
@@ -8578,7 +8617,7 @@ fn restore_sources(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             13.0,
             W::R,
             DIM,
-            "Copy the vault in from its stick",
+            &format!("Copy the vault in from its {}", app.medium.noun()),
         );
     }
     cy += 48.0;
@@ -8616,7 +8655,7 @@ fn restore_sources_compact(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -
     let mut cy = y;
     // A stick.
     let stick = !app.sticks.is_empty() && !app.holds_secret();
-    ui.text(x, cy, 13.0, W::S, MUTED, "Stick");
+    ui.text(x, cy, 13.0, W::S, MUTED, app.medium.cap());
     cy += 22.0;
     cy += wrap_buttons(
         ui,
@@ -8636,11 +8675,11 @@ fn restore_sources_compact(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -
     );
     if !stick {
         let why = if app.holds_secret() {
-            "Not while a key is loaded"
+            "Not while a key is loaded".to_string()
         } else {
-            "Insert the stick"
+            format!("Insert the {}", app.medium.noun())
         };
-        cy += ui.wrap(x, cy, w, 13.0, W::R, DIM, why) + 8.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, DIM, &why) + 8.0;
     }
     cy += 8.0;
     // A vault: locked in Files, or open.
@@ -8672,7 +8711,7 @@ fn restore_sources_compact(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -
             13.0,
             W::R,
             DIM,
-            "Copy the vault in from its stick",
+            &format!("Copy the vault in from its {}", app.medium.noun()),
         ) + 8.0;
     } else {
         let items: Vec<(&str, Style, Action)> = labels
@@ -8815,16 +8854,19 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         width.min(900.0),
-        "The Inbox holds what was copied in from sticks; the Outbox holds what waits to be written to one. \
-         Both live in memory and are emptied at power-off. The Outbox keeps public files apart from \
-         vaults, which carry secrets sealed under a passphrase; a secret goes out unprotected only when \
-         you say so after a warning, and is listed apart.",
+        &format!(
+            "The Inbox holds what was copied in from {}; the Outbox holds what waits to be written to \
+             one. Both live in memory and are emptied at power-off. The Outbox keeps public files apart \
+             from vaults, which carry secrets sealed under a passphrase; a secret goes out unprotected \
+             only when you say so after a warning, and is listed apart.",
+            app.medium.nouns()
+        ),
     );
     // Arrived from Import and load: pulling the stick is the next step.
     if !app.sticks.is_empty() && !app.visit.load_after.is_empty() {
         ui.fill(x, y, width, 48.0, 10.0, WARN.with_alpha(22));
         ui.stroke(x, y, width, 48.0, 10.0, WARN.with_alpha(90));
-        ui.icon(x + 16.0, y + 14.0, 20.0, Icon::Drive, 13.0, WARN);
+        ui.icon(x + 16.0, y + 14.0, 20.0, app.medium.icon(), 13.0, WARN);
         ui.text_mid(x + 44.0, y, 48.0, 14.0, W::S, WARN, &pull_line(app));
         y += 60.0;
     }
@@ -9028,7 +9070,7 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if app.inbox.is_empty() {
         ui.stroke(x, iy, colw, 72.0, 12.0, BORDER);
-        let t = "Empty · files are copied in on a stick visit";
+        let t = &format!("Empty · files are copied in on {} visit", app.medium.a());
         let tw = ui.measure(13.0, W::R, t);
         ui.text_mid(x + (colw - tw) / 2.0, iy, 72.0, 13.0, W::R, DIM, t);
     }
@@ -9050,17 +9092,25 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // passphrase, and any secret the person let out unprotected.
     use crate::secrets::Exposure;
     for (exposure, label, line, tone) in [
-        (Exposure::Public, "Public", "Anyone may read these", MUTED),
+        (
+            Exposure::Public,
+            "Public",
+            "Anyone may read these".to_string(),
+            MUTED,
+        ),
         (
             Exposure::Sealed,
             "Written sealed",
-            "Sealed under their passphrases before they reach a stick",
+            format!(
+                "Sealed under their passphrases before they reach {}",
+                app.medium.a()
+            ),
             OK,
         ),
         (
             Exposure::Secret,
             "Unprotected secrets",
-            "Anyone who has the stick can use these",
+            format!("Anyone who has the {} can use these", app.medium.noun()),
             ERR,
         ),
     ] {
@@ -9074,7 +9124,7 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             continue;
         }
         let lw = ui.text(ox, oy, 12.0, W::S, tone, label);
-        ui.text(ox + lw + 10.0, oy, 12.0, W::R, DIM, line);
+        ui.text(ox + lw + 10.0, oy, 12.0, W::R, DIM, &line);
         oy += 24.0;
         for (k, item) in group {
             let (edge, icon, ink) = match exposure {
@@ -9177,10 +9227,10 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
     }
     let (label, action) = if app.sticks.is_empty() {
-        ("Waiting for a stick or card".to_string(), None)
+        (format!("Waiting for {}", app.medium.a()), None)
     } else if app.holds_secret() {
         (
-            "Stick attached · lock to use it".to_string(),
+            format!("{} attached · lock to use it", app.medium.cap()),
             Some(Action::Lock),
         )
     } else {
@@ -9559,7 +9609,7 @@ fn inbox_panel_compact(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
                     12.0,
                     W::R,
                     WARN,
-                    "Seeds load once the stick is out",
+                    &format!("Seeds load once the {} is out", app.medium.noun()),
                 ) + 8.0;
             }
             ty += 6.0;
@@ -10057,10 +10107,10 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut y = top;
     // The stick, or what waits for one.
     let (label, action) = if app.sticks.is_empty() {
-        ("Waiting for a stick or card".to_string(), None)
+        (format!("Waiting for {}", app.medium.a()), None)
     } else if app.holds_secret() {
         (
-            "Stick attached · lock to use it".to_string(),
+            format!("{} attached · lock to use it", app.medium.cap()),
             Some(Action::Lock),
         )
     } else {
@@ -10148,7 +10198,7 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             13.0,
             W::R,
             DIM,
-            "Empty · files are copied in on a stick visit",
+            &format!("Empty · files are copied in on {} visit", app.medium.a()),
         ) + 14.0;
     }
     // Outbox, grouped by who may read it.
@@ -10164,17 +10214,25 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     y += 28.0;
     for (exposure, label, line, tone) in [
-        (Exposure::Public, "Public", "Anyone may read these", MUTED),
+        (
+            Exposure::Public,
+            "Public",
+            "Anyone may read these".to_string(),
+            MUTED,
+        ),
         (
             Exposure::Sealed,
             "Written sealed",
-            "Sealed under their passphrases before they reach a stick",
+            format!(
+                "Sealed under their passphrases before they reach {}",
+                app.medium.a()
+            ),
             OK,
         ),
         (
             Exposure::Secret,
             "Unprotected secrets",
-            "Anyone who has the stick can use these",
+            format!("Anyone who has the {} can use these", app.medium.noun()),
             ERR,
         ),
     ] {
@@ -10189,7 +10247,7 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         ui.text(x, y, 12.0, W::S, tone, label);
         y += 18.0;
-        y += ui.wrap(x, y, w, 12.0, W::R, DIM, line) + 8.0;
+        y += ui.wrap(x, y, w, 12.0, W::R, DIM, &line) + 8.0;
         for (k, item) in group {
             let (edge, icon, ink) = match exposure {
                 Exposure::Public => (LINE, Icon::Export, ACCENT),
@@ -10260,10 +10318,13 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         w,
-        "The Inbox holds what was copied in from sticks; the Outbox holds what waits to be written to one. \
-         Both live in memory and are emptied at power-off. The Outbox keeps public files apart from \
-         vaults, which carry secrets sealed under a passphrase; a secret goes out unprotected only when \
-         you say so after a warning, and is listed apart.",
+        &format!(
+            "The Inbox holds what was copied in from {}; the Outbox holds what waits to be written to \
+             one. Both live in memory and are emptied at power-off. The Outbox keeps public files apart \
+             from vaults, which carry secrets sealed under a passphrase; a secret goes out unprotected \
+             only when you say so after a warning, and is listed apart.",
+            app.medium.nouns()
+        ),
     );
     finish(app, ui, x0, cw, h, y - top + 16.0);
 }
@@ -10280,7 +10341,14 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     app.visit.bar(crate::Column::Outbox).set(None);
     app.visit.bar(crate::Column::Stick).set(None);
     let Some(stick) = app.sticks.get(app.visit.stick) else {
-        ui.text(x, y, 15.0, W::R, MUTED, "No stick attached");
+        ui.text(
+            x,
+            y,
+            15.0,
+            W::R,
+            MUTED,
+            &format!("No {} attached", app.medium.noun()),
+        );
         return;
     };
     // One button per stick, the chosen one filled.
@@ -10378,7 +10446,8 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 6.0;
     }
     if stick.files.is_empty() {
-        ui.text(x, y, 13.0, W::R, DIM, "No files on this stick");
+        let none = format!("No files on this {}", app.medium.noun());
+        ui.text(x, y, 13.0, W::R, DIM, &none);
         y += 28.0;
     }
     let nin = app.visit.inn.len();
@@ -10513,9 +10582,12 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         w,
-        "Write the Outbox to the stick and copy in what you need from it. Each file written is read back \
-         and compared before it counts. Remove the stick when you are done: keys load only with no stick \
-         attached.",
+        &format!(
+            "Write the Outbox to the {noun} and copy in what you need from it. Each file written is read \
+             back and compared before it counts. Remove the {noun} when you are done: keys load only with \
+             no {noun} attached.",
+            noun = app.medium.noun()
+        ),
     );
     finish(app, ui, x0, cw, h, y - top + 16.0);
 }
@@ -10527,7 +10599,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let x = x0 + 48.0;
     let width = cw - 96.0;
     let mut y = 36.0;
-    title(ui, x, y, "Stick visit");
+    title(ui, x, y, app.medium.visit());
     // One chip per stick; the chosen one is outlined.
     let mut chx = x + width;
     for (k, st) in app.sticks.iter().enumerate().rev() {
@@ -10570,12 +10642,22 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         width.min(900.0),
-        "Write the Outbox to the stick and copy in what you need from it. Each file written is read back \
-         and compared before it counts. Remove the stick when you are done: keys load only with no stick \
-         attached.",
+        &format!(
+            "Write the Outbox to the {noun} and copy in what you need from it. Each file written is read \
+             back and compared before it counts. Remove the {noun} when you are done: keys load only with \
+             no {noun} attached.",
+            noun = app.medium.noun()
+        ),
     );
     let Some(stick) = app.sticks.get(app.visit.stick) else {
-        ui.text(x, y, 15.0, W::R, MUTED, "No stick attached");
+        ui.text(
+            x,
+            y,
+            15.0,
+            W::R,
+            MUTED,
+            &format!("No {} attached", app.medium.noun()),
+        );
         return;
     };
     let colw = (width - 20.0) / 2.0;
@@ -10773,7 +10855,8 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     let ry = list_top + track_h;
     if stick.files.is_empty() {
-        ui.text(ix + 22.0, ry, 13.0, W::R, DIM, "No files on this stick");
+        let none = format!("No files on this {}", app.medium.noun());
+        ui.text(ix + 22.0, ry, 13.0, W::R, DIM, &none);
     }
     let nin = app.visit.inn.len();
     let enabled = nin > 0;
@@ -10812,7 +10895,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let ay = h - 32.0 - 44.0 - 44.0;
     ui.fill(x, ay, width, 44.0, 10.0, WARN.with_alpha(22));
     ui.stroke(x, ay, width, 44.0, 10.0, WARN.with_alpha(90));
-    ui.icon(x + 16.0, ay + 12.0, 20.0, Icon::Drive, 13.0, WARN);
+    ui.icon(x + 16.0, ay + 12.0, 20.0, app.medium.icon(), 13.0, WARN);
     ui.text_mid(x + 44.0, ay, 44.0, 14.0, W::S, WARN, &pull_line(app));
     let open_label = "Open the Inbox";
     let obw = ui.measure(14.0, W::S, open_label) + 32.0;
@@ -10910,11 +10993,12 @@ fn pull_line(app: &Faraday) -> String {
         .into_iter()
         .find(|f| f.open.is_none() && !f.in_outbox)
         .map(|f| f.name);
+    let noun = app.medium.noun();
     match (n, vault) {
-        (0, Some(v)) if !app.holds_secret() => format!("Remove the stick to unlock {v}"),
-        (0, _) => "Remove the stick when you are done".to_string(),
-        (1, _) => "1 key copied in · remove the stick to load it".to_string(),
-        (n, _) => format!("{n} keys copied in · remove the stick to load them"),
+        (0, Some(v)) if !app.holds_secret() => format!("Remove the {noun} to unlock {v}"),
+        (0, _) => format!("Remove the {noun} when you are done"),
+        (1, _) => format!("1 key copied in · remove the {noun} to load it"),
+        (n, _) => format!("{n} keys copied in · remove the {noun} to load them"),
     }
 }
 
@@ -11447,7 +11531,7 @@ fn entry_finish(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) 
 /// stick visit and loads when the stick is pulled.
 pub(crate) fn entry_stick(app: &Faraday, ui: &mut Ui, x: f32, y: f32) {
     if app.sticks.is_empty() {
-        ui.icon(x - 2.0, y + 8.0, 20.0, Icon::Drive, 12.0, DIM);
+        ui.icon(x - 2.0, y + 8.0, 20.0, app.medium.icon(), 12.0, DIM);
         ui.text_mid(
             x + 24.0,
             y,
@@ -11455,7 +11539,7 @@ pub(crate) fn entry_stick(app: &Faraday, ui: &mut Ui, x: f32, y: f32) {
             13.0,
             W::R,
             DIM,
-            "From a stick · plug it in",
+            &format!("From {} · plug it in", app.medium.a()),
         );
     } else {
         ui.button(
@@ -11824,12 +11908,18 @@ fn settings_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             format!("Faraday {}", crate::VERSION),
             "Keys are typed, scanned as SeedQR or loaded from a vault, and kept for the session only"
                 .to_string(),
-            "Vaults · files move by stick · QR by camera and from PNG files on a stick".to_string(),
+            format!(
+                "Vaults · files move by {noun} · QR by camera and from PNG files on {a}",
+                noun = app.medium.noun(),
+                a = app.medium.a()
+            ),
             if app.online {
-                "Sticks are folders in ~/faraday-sticks".to_string()
+                format!("{} are folders in ~/faraday-sticks", app.medium.caps())
             } else {
-                "Sticks are read by an unprivileged disk process; the kernel mounts none"
-                    .to_string()
+                format!(
+                    "{} are read by an unprivileged disk process; the kernel mounts none",
+                    app.medium.caps()
+                )
             },
         ];
         for l in &lines {
@@ -12094,11 +12184,18 @@ fn settings(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         format!("Faraday {}", crate::VERSION),
         "Keys are typed, scanned as SeedQR or loaded from a vault, and kept for the session only"
             .to_string(),
-        "Vaults · files move by stick · QR by camera and from PNG files on a stick".to_string(),
+        format!(
+            "Vaults · files move by {noun} · QR by camera and from PNG files on {a}",
+            noun = app.medium.noun(),
+            a = app.medium.a()
+        ),
         if app.online {
-            "Sticks are folders in ~/faraday-sticks".to_string()
+            format!("{} are folders in ~/faraday-sticks", app.medium.caps())
         } else {
-            "Sticks are read by an unprivileged disk process; the kernel mounts none".to_string()
+            format!(
+                "{} are read by an unprivileged disk process; the kernel mounts none",
+                app.medium.caps()
+            )
         },
     ];
     let mut ly = y + 50.0;
@@ -12182,18 +12279,18 @@ pub(crate) fn sheet_box(ui: &mut Ui, w: f32, h: f32, sw: f32, sh: f32) -> (f32, 
 /// the stick is pulled.
 fn pull_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let what = app.pull.and_then(|a| app.pull_what(a)).unwrap_or("go on");
-    let title = format!("Pull the stick to {what}");
+    let title = format!("Pull the {} to {what}", app.medium.noun());
     let line = match app.sticks.len() {
         0 | 1 => format!(
             "{} · attached",
             app.sticks.first().map_or("", |s| s.label.as_str())
         ),
-        k => format!("{k} sticks attached"),
+        k => format!("{k} {} attached", app.medium.nouns()),
     };
     if ui.compact {
         crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Drive, WARN, &title);
+            cy += crate::compact::sheet_head(ui, x, cy, iw, app.medium.icon(), WARN, &title);
             cy += ui.wrap(x, cy, iw, 13.0, W::R, MUTED, &line) + 16.0;
             cy += crate::compact::buttons(
                 ui,
@@ -12210,7 +12307,7 @@ fn pull_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let (x, y) = sheet_box(ui, w, h, 480.0, sh);
     let ix = x + 32.0;
     let iw = 480.0 - 64.0;
-    ui.icon(ix, y + 30.0, 30.0, Icon::Drive, 18.0, WARN);
+    ui.icon(ix, y + 30.0, 30.0, app.medium.icon(), 18.0, WARN);
     let title = ui.fit(20.0, W::S, &title, iw - 42.0);
     ui.text_mid(ix + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, &title);
     let line = ui.fit(13.0, W::R, &line, iw);
@@ -12256,7 +12353,10 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                 app.outbox.len()
             ),
         ),
-        ("Then", "A fresh start, and the stick visit".to_string()),
+        (
+            "Then",
+            format!("A fresh start, and the {} visit", app.medium.noun()),
+        ),
     ];
     let sealed = (
         "Sealed",
@@ -12267,6 +12367,8 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     } else {
         vec![&sealed, &rows[0], &rows[1], &rows[2]]
     };
+    let attached = format!("{} is attached", app.medium.a_cap());
+    let use_it = format!("Lock and use {}", app.medium.noun());
     if ui.compact {
         let rows: Vec<(&str, String, osk_ui::Color)> =
             rows.iter().map(|(k, v)| (*k, v.clone(), TEXT)).collect();
@@ -12274,12 +12376,12 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             ui,
             w,
             h,
-            (Icon::Drive, WARN, "A stick is attached"),
+            (app.medium.icon(), WARN, &attached),
             &format!("{label} · nothing has been read from it"),
             &rows,
             &[
                 ("Not now", Style::Secondary, Action::NotNow),
-                ("Lock and use stick", Style::Primary, Action::Lock),
+                (&use_it, Style::Primary, Action::Lock),
             ],
         );
         return;
@@ -12288,16 +12390,8 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let (x, y) = sheet_box(ui, w, h, 560.0, sh);
     let ix = x + 32.0;
     let iw = 560.0 - 64.0;
-    ui.icon(ix, y + 30.0, 30.0, Icon::Drive, 18.0, WARN);
-    ui.text_mid(
-        ix + 42.0,
-        y + 30.0,
-        30.0,
-        20.0,
-        W::S,
-        TEXT,
-        "A stick is attached",
-    );
+    ui.icon(ix, y + 30.0, 30.0, app.medium.icon(), 18.0, WARN);
+    ui.text_mid(ix + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, &attached);
     ui.text(
         ix,
         y + 76.0,
@@ -12330,7 +12424,7 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         by,
         Some(bw),
         46.0,
-        "Lock and use stick",
+        &use_it,
         Style::Primary,
         Action::Lock,
     );
@@ -12381,15 +12475,19 @@ fn write_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     ));
     rows.push((
         "Then",
-        "Lock, plug in a stick, and the visit writes them".to_string(),
+        format!(
+            "Lock, plug in {}, and the visit writes them",
+            app.medium.a()
+        ),
         TEXT,
     ));
+    let title = format!("Write to {}", app.medium.a());
     if ui.compact {
         crate::compact::kv_sheet(
             ui,
             w,
             h,
-            (Icon::Drive, ACCENT, "Write to a stick"),
+            (app.medium.icon(), ACCENT, &title),
             "Everything not in a vault is wiped with the session",
             &rows,
             &[
@@ -12403,16 +12501,8 @@ fn write_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let (x, y) = sheet_box(ui, w, h, 600.0, sh);
     let ix = x + 32.0;
     let iw = 600.0 - 64.0;
-    ui.icon(ix, y + 30.0, 30.0, Icon::Drive, 18.0, ACCENT);
-    ui.text_mid(
-        ix + 42.0,
-        y + 30.0,
-        30.0,
-        20.0,
-        W::S,
-        TEXT,
-        "Write to a stick",
-    );
+    ui.icon(ix, y + 30.0, 30.0, app.medium.icon(), 18.0, ACCENT);
+    ui.text_mid(ix + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, &title);
     ui.text(
         ix,
         y + 76.0,
@@ -13548,7 +13638,15 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                 cy += wrap_buttons(ui, x, cy, iw, 34.0, &forms) + 4.0;
             }
             ui.checkbox(x, cy + 1.0, app.secret_ack, true);
-            let lh = ui.wrap(x + 28.0, cy, iw - 28.0, 13.0, W::R, TEXT, out.ack);
+            let lh = ui.wrap(
+                x + 28.0,
+                cy,
+                iw - 28.0,
+                13.0,
+                W::R,
+                TEXT,
+                &out.ack.text(app.medium),
+            );
             ui.hit(x - 4.0, cy - 6.0, iw, lh + 12.0, Action::SecretAck);
             cy += lh + 12.0;
             cy += crate::compact::buttons(
@@ -13572,7 +13670,7 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let sw = 600.0f32.min(w - 48.0);
     let (bx, bw) = (32.0, sw - 64.0);
     // The acknowledgement on one line, or on two when longer.
-    let ack_h = if ui.measure(13.0, W::R, out.ack) > bw - 28.0 {
+    let ack_h = if ui.measure(13.0, W::R, &out.ack.text(app.medium)) > bw - 28.0 {
         36.0
     } else {
         18.0
@@ -13632,7 +13730,15 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         cy += wrap_buttons(ui, bx, cy, bw, 34.0, &forms) + 2.0;
     }
     ui.checkbox(bx, cy + 1.0, app.secret_ack, true);
-    let lh = ui.wrap(bx + 28.0, cy, bw - 28.0, 13.0, W::R, TEXT, out.ack);
+    let lh = ui.wrap(
+        bx + 28.0,
+        cy,
+        bw - 28.0,
+        13.0,
+        W::R,
+        TEXT,
+        &out.ack.text(app.medium),
+    );
     ui.hit(
         bx - 4.0,
         cy - 6.0,

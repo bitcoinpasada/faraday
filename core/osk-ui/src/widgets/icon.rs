@@ -115,6 +115,9 @@ pub enum Icon {
     Export,
     /// A drive: a key kept on this device.
     Drive,
+    /// An SD card: the removable medium on a device whose only one is a
+    /// card, where another shows `Drive`.
+    SdCard,
     /// A flag: "Start here".
     Flag,
     /// Compression: the CompactSeedQR.
@@ -145,7 +148,7 @@ pub enum Icon {
 
 impl Icon {
     /// Every icon, for the gallery and for the completeness test.
-    pub const ALL: [Icon; 61] = [
+    pub const ALL: [Icon; 62] = [
         Icon::Scan,
         Icon::Keys,
         Icon::Sign,
@@ -194,6 +197,7 @@ impl Icon {
         Icon::Receipt,
         Icon::Export,
         Icon::Drive,
+        Icon::SdCard,
         Icon::Flag,
         Icon::Compress,
         Icon::Grid,
@@ -273,6 +277,7 @@ impl Icon {
             Icon::Export => '\u{f56e}',
             Icon::LayerGroup => '\u{f5fd}',
             Icon::EnvelopeOpen => '\u{f658}',
+            Icon::SdCard => '\u{f7c2}',
         }
     }
 
@@ -327,6 +332,7 @@ impl Icon {
             Icon::Receipt => "Receipt",
             Icon::Export => "Export",
             Icon::Drive => "Drive",
+            Icon::SdCard => "SdCard",
             Icon::Flag => "Flag",
             Icon::Compress => "Compress",
             Icon::Grid => "Grid",

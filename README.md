@@ -155,7 +155,9 @@ larger stick, use Disk Management to make a partition of 32 GB or less
 and format it FAT32.
 
 The Raspberry Pi image reads no USB stick: its kernel has no USB storage
-driver, and the SD card it boots from is its only storage.
+driver, and the SD card it boots from is its only storage. Its screens say
+"SD card" wherever the PC's say "stick": "SD card visit", "Lock and use
+SD card", "Remove the SD card".
 
 ## Choosing a computer
 

@@ -975,7 +975,7 @@ impl crate::Faraday {
     /// Opens the flow, for a Create slot or for the session.
     pub(crate) fn keygen_open(&mut self, slot: Option<u8>) {
         if !self.may_load_keys() {
-            self.toast("Remove the stick first");
+            self.toast(&format!("Remove the {} first", self.medium.noun()));
             return;
         }
         let only_24 = slot.is_some() && self.create.as_ref().is_some_and(|c| c.kind.threshold());
