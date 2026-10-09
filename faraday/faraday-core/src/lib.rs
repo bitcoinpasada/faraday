@@ -339,6 +339,8 @@ pub enum Screen {
 
 /// A screen and the sheet over it, if any.
 type ScreenKey = (Screen, Option<Sheet>);
+/// A scrolled region: the screen and sheet, and which of their regions.
+type RegionKey = (ScreenKey, ui::Slot);
 
 /// The step column's open card as last drawn, and the change under way
 /// (`docs/MOTION.md` §3.5).
@@ -435,8 +437,11 @@ pub enum Action {
     /// Choose every file on the stick Faraday reads, or none when all are
     /// chosen.
     VisitInAll,
-    /// The stick's file list's scrollbar: held and dragged.
-    VisitBar,
+    /// Choose the settings and every Outbox file but an unprotected
+    /// secret, or none when all of those are chosen.
+    VisitOutAll,
+    /// A stick visit column's scrollbar: held and dragged.
+    VisitBar(Column),
     /// Write the chosen Outbox files.
     VisitWrite,
     /// Copy the chosen stick files.
@@ -1715,6 +1720,15 @@ pub mod bstep {
     pub const ENVELOPE: u8 = 4;
 }
 
+/// A column of the stick visit's two.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Column {
+    /// Write from the Outbox.
+    Outbox,
+    /// Import into the Inbox: the stick's files.
+    Stick,
+}
+
 /// The visit screen's choices.
 #[derive(Default)]
 pub struct VisitState {
@@ -1732,10 +1746,26 @@ pub struct VisitState {
     /// Names from an "Import and load" copy, by name: loaded as keys the
     /// moment the stick is pulled, no further press needed.
     pub load_after: BTreeSet<String>,
-    /// Where the file list's scrollbar was drawn, in pixels: the track's
-    /// top and height, the thumb's height, and the furthest the list
-    /// scrolls in design units.
-    pub bar: std::cell::Cell<Option<(i32, i32, i32, f32)>>,
+    /// How far the Outbox list is scrolled, design units. The stick's
+    /// files scroll by [`Faraday::list_offset`].
+    pub out_offset: f32,
+    /// Where each column's scrollbar was drawn, by [`VisitState::bar`].
+    pub bars: [std::cell::Cell<Option<VisitBarAt>>; 2],
+}
+
+/// Where a stick visit column's scrollbar was drawn, in pixels: the
+/// track's top and height, the thumb's height, and the furthest the list
+/// scrolls in design units.
+pub type VisitBarAt = (i32, i32, i32, f32);
+
+impl VisitState {
+    /// Where `column`'s scrollbar was drawn, `None` when its list fits.
+    pub fn bar(&self, column: Column) -> &std::cell::Cell<Option<VisitBarAt>> {
+        &self.bars[match column {
+            Column::Outbox => 0,
+            Column::Stick => 1,
+        }]
+    }
 }
 
 /// The app.
@@ -1874,14 +1904,18 @@ pub struct Faraday {
     /// What moves the scrolled region: pans, glides, coasts and the
     /// stretch at its ends (`docs/MOTION.md` §3.3).
     motion: motion::Motion,
-    /// The screen and sheet the motion belongs to.
-    motion_for: ScreenKey,
-    /// The scrolled region the last frame drew, and the screen and sheet
-    /// it was drawn for.
-    extent: Option<(ScreenKey, ui::Scrolled)>,
-    /// For the overlay scrollbar: the screen and sheet, the offset last
-    /// drawn, and when it last changed (0 for not since it opened).
-    bar_seen: (ScreenKey, f32, u64),
+    /// The screen, sheet and region the motion belongs to.
+    motion_for: RegionKey,
+    /// The scrolled regions the last frame drew, and the screen and
+    /// sheet they were drawn for.
+    extent: Option<(ScreenKey, Vec<ui::Scrolled>)>,
+    /// The region the wheel, a trackpad and a finger last went to: the
+    /// one under the pointer when it started.
+    region: ui::Slot,
+    /// For the overlay scrollbar: the screen, sheet and region, the
+    /// offset last drawn, and when it last changed (0 for not since it
+    /// opened).
+    bar_seen: (RegionKey, f32, u64),
     /// The QR sheet's contents.
     pub qr: Option<QrView>,
     /// The Spend tab.
@@ -2074,9 +2108,10 @@ impl Faraday {
             list_offset: 0.0,
             content_h: std::cell::Cell::new(0.0),
             motion: motion::Motion::default(),
-            motion_for: (Screen::Home, None),
+            motion_for: ((Screen::Home, None), ui::Slot::Page),
             extent: None,
-            bar_seen: ((Screen::Home, None), 0.0, 0),
+            region: ui::Slot::Page,
+            bar_seen: (((Screen::Home, None), ui::Slot::Page), 0.0, 0),
             qr: None,
             family: family::FamilyState::default(),
             vanity: None,
@@ -3025,6 +3060,7 @@ impl Faraday {
                 self.renaming = None;
                 if s == Screen::Visit {
                     self.visit.out = self.visit_default_out();
+                    self.visit.out_offset = 0.0;
                 }
             }
             Action::Entry(wanted) => {
@@ -3236,7 +3272,19 @@ impl Faraday {
                     }
                 }
             }
-            Action::VisitBar => {}
+            Action::VisitOutAll => {
+                // Every row but an unprotected secret, which is ticked one
+                // at a time (FLOWS.md decision 6).
+                let all = self.visit_default_out();
+                let every = self.visit_settings_on() && all.is_subset(&self.visit.out);
+                if every {
+                    self.visit.out.clear();
+                } else {
+                    self.visit.out.extend(all);
+                }
+                self.visit.settings = Some(!every);
+            }
+            Action::VisitBar(_) => {}
             Action::VisitWrite => {
                 if let Some(stick) = self.sticks.get(self.visit.stick) {
                     let id = stick.id.clone();
@@ -5756,8 +5804,67 @@ impl Faraday {
     }
 
     /// The offset of the region that scrolls now, in design units: the
-    /// open sheet's, or the screen's.
+    /// open sheet's, the screen's, or another region of the screen's
+    /// that the pointer went to ([`Faraday::slot`]).
     fn scroll_slot(&mut self) -> Option<&mut f32> {
+        match self.slot() {
+            ui::Slot::VisitOut => Some(&mut self.visit.out_offset),
+            ui::Slot::Page => self.page_slot(),
+        }
+    }
+
+    /// Which region scrolls now: the one the pointer last went to, while
+    /// it can be reached; else the screen's or the sheet's own.
+    fn slot(&self) -> ui::Slot {
+        match self.region {
+            ui::Slot::VisitOut
+                if self.screen == Screen::Visit
+                    && !self.compact
+                    && self.region_key().1.is_none() =>
+            {
+                ui::Slot::VisitOut
+            }
+            _ => ui::Slot::Page,
+        }
+    }
+
+    /// The regions the last frame drew that can be reached now, last
+    /// drawn first: through a sheet that does not scroll, none.
+    fn regions(&self) -> std::vec::IntoIter<ui::Scrolled> {
+        let key = self.region_key();
+        let reachable = self.sheet.is_none() || key.1.is_some();
+        let v: Vec<ui::Scrolled> = self
+            .extent
+            .iter()
+            .filter(|(k, _)| reachable && *k == key)
+            .flat_map(|(_, v)| v.iter().rev().copied())
+            .filter(|e| e.slot == ui::Slot::Page || key.1.is_none())
+            .collect();
+        v.into_iter()
+    }
+
+    /// The region that scrolls now, as the last frame drew it.
+    fn region_now(&self) -> Option<ui::Scrolled> {
+        let slot = self.slot();
+        let key = self.region_key();
+        self.extent
+            .iter()
+            .filter(|(k, _)| *k == key)
+            .flat_map(|(_, v)| v.iter().copied())
+            .find(|e| e.slot == slot)
+    }
+
+    /// The wheel, a trackpad or a finger starts at (x, y): the region
+    /// under it is the one they move, the page's when none is.
+    fn point_region(&mut self, x: i32, y: i32) {
+        self.region = self
+            .regions()
+            .find(|e| e.view.contains(x, y))
+            .map_or(ui::Slot::Page, |e| e.slot);
+    }
+
+    /// The screen's region's offset, or the scrolling sheet's.
+    fn page_slot(&mut self) -> Option<&mut f32> {
         match self.sheet {
             Some(Sheet::Learn) => return Some(&mut self.learn.scroll),
             Some(Sheet::WordList) => return self.wordlist.as_mut().map(|w| &mut w.scroll),
@@ -5817,6 +5924,16 @@ impl Faraday {
         )
     }
 
+    /// The motion belongs to the region that scrolls now: what moved
+    /// another screen, sheet or region is stopped.
+    fn own_motion(&mut self) {
+        let key = (self.region_key(), self.slot());
+        if self.motion_for != key {
+            self.motion_for = key;
+            self.motion.stop();
+        }
+    }
+
     /// Runs `go` on the motion and the region that scrolls now, with how
     /// far it goes as the last frame drew it. A motion left over from
     /// another screen or sheet is stopped first.
@@ -5824,12 +5941,8 @@ impl Faraday {
         &mut self,
         go: impl FnOnce(&mut motion::Motion, &mut motion::Region) -> R,
     ) -> Option<R> {
-        let key = self.region_key();
-        if self.motion_for != key {
-            self.motion_for = key;
-            self.motion.stop();
-        }
-        let extent = self.extent.filter(|(k, _)| *k == key).map(|(_, e)| e);
+        self.own_motion();
+        let extent = self.region_now();
         let (f, h) = (self.f.max(0.1), self.h);
         let mut m = std::mem::take(&mut self.motion);
         m.rigid = self.reduce_motion;
@@ -5869,6 +5982,9 @@ impl Faraday {
         if self.reduce_motion {
             self.with_region(|m, r| m.jump(r, dy));
         } else if self.scroll_slot().is_some() {
+            // A glide on the region the pointer has just moved to starts
+            // there, not on the region that was moving.
+            self.own_motion();
             self.motion.glide(dy);
         }
     }
@@ -5896,6 +6012,7 @@ impl Faraday {
         match phase {
             TouchPhase::Down => {
                 self.down_at = (x, y);
+                self.point_region(x, y);
                 // At the scrolled region's right edge a press takes the
                 // scrollbar: held on its thumb it follows from where it was
                 // taken, anywhere else on the track the thumb's middle
@@ -5921,14 +6038,12 @@ impl Faraday {
                     return;
                 }
                 // A finger on a scrolled region may be the start of a
-                // drag; it is a press until it moves.
-                let key = self.region_key();
-                // Not through a sheet that does not scroll: the page under
-                // it is out of reach.
-                let reachable = self.sheet.is_none() || key.1.is_some();
+                // drag; it is a press until it moves. Not through a sheet
+                // that does not scroll: the page under it is out of reach.
+                let slot = self.slot();
                 self.drag = self
-                    .extent
-                    .filter(|(k, e)| reachable && *k == key && e.view.contains(x, y))
+                    .regions()
+                    .find(|e| e.slot == slot && e.view.contains(x, y))
                     .map(|_| (y, false));
                 // A touch on content that is still flying only stops it.
                 self.swallow = self.motion.flung(self.f);
@@ -5939,8 +6054,8 @@ impl Faraday {
                 }
                 self.pressed = found;
                 self.vaults.pressed_at = self.now_ms;
-                if found.is_some_and(|(a, _)| a == Action::VisitBar) {
-                    self.visit_drag(y);
+                if let Some((Action::VisitBar(c), _)) = found {
+                    self.visit_drag(c, y);
                 }
             }
             TouchPhase::Move => {
@@ -5950,7 +6065,10 @@ impl Faraday {
                     self.commands.push_back(Command::Draw);
                     return;
                 }
-                let held_bar = self.pressed.is_some_and(|(a, _)| a == Action::VisitBar);
+                let held_bar = match self.pressed {
+                    Some((Action::VisitBar(c), _)) => Some(c),
+                    _ => None,
+                };
                 // A slider held follows the finger along its track.
                 if let Some((Action::Slide(id, _), r)) = self.pressed {
                     let row = r.y + r.h / 2;
@@ -5973,7 +6091,7 @@ impl Faraday {
                     return;
                 }
                 if let Some((last, dragging)) = self.drag
-                    && !held_bar
+                    && held_bar.is_none()
                 {
                     let slop = motion::SLOP * self.f;
                     let (dx, dy) = (x - self.down_at.0, y - self.down_at.1);
@@ -5991,8 +6109,8 @@ impl Faraday {
                     }
                 }
                 // The scrollbar follows the finger anywhere once held.
-                if held_bar {
-                    self.visit_drag(y);
+                if let Some(c) = held_bar {
+                    self.visit_drag(c, y);
                     self.dirty = true;
                     self.commands.push_back(Command::Draw);
                 } else if let Some((_, r)) = self.pressed
@@ -6048,11 +6166,9 @@ impl Faraday {
         if self.compact {
             return None;
         }
-        let key = self.region_key();
         // Not through a sheet that does not scroll.
-        let reachable = self.sheet.is_none() || key.1.is_some();
-        let (k, e) = self.extent?;
-        if !reachable || k != key || e.own_bar || e.max <= 0.0 || !e.view.contains(x, y) {
+        let e = self.regions().find(|e| e.view.contains(x, y))?;
+        if e.own_bar || e.max <= 0.0 {
             return None;
         }
         let f = self.f.max(0.1);
@@ -6069,8 +6185,7 @@ impl Faraday {
         let Some(grab) = self.bar_held else {
             return;
         };
-        let key = self.region_key();
-        let Some((_, e)) = self.extent.filter(|(k, _)| *k == key) else {
+        let Some(e) = self.region_now() else {
             return;
         };
         let g = ui::BarGeometry::of(e.view, e.max, self.f.max(0.1));
@@ -6081,15 +6196,19 @@ impl Faraday {
         }
     }
 
-    /// The stick's file list scrolled to where the scrollbar is held, at
-    /// pixel row `y`: the thumb's middle under the finger.
-    fn visit_drag(&mut self, y: i32) {
-        let Some((top, h, thumb, max)) = self.visit.bar.get() else {
+    /// A stick visit column's list scrolled to where its scrollbar is
+    /// held, at pixel row `y`: the thumb's middle under the finger.
+    fn visit_drag(&mut self, column: Column, y: i32) {
+        let Some((top, h, thumb, max)) = self.visit.bar(column).get() else {
             return;
         };
         let room = (h - thumb).max(1) as f32;
         let at = ((y - top) as f32 - thumb as f32 / 2.0).clamp(0.0, room);
-        self.list_offset = at / room * max;
+        let offset = at / room * max;
+        match column {
+            Column::Outbox => self.visit.out_offset = offset,
+            Column::Stick => self.list_offset = offset,
+        }
     }
 
     fn render(&mut self) {
@@ -6117,9 +6236,11 @@ impl Faraday {
         // The overlay scrollbar shows while the offset moves and fades
         // once it has rested a moment.
         let key = self.region_key();
+        let slot = self.slot();
         let offset = self.scroll_slot().map_or(0.0, |o| *o);
+        let page_offset = self.page_slot().map_or(0.0, |o| *o);
         let (seen_key, seen_offset, moved_at) = self.bar_seen;
-        let moved_at = if seen_key != key {
+        let moved_at = if seen_key != (key, slot) {
             0
         } else if seen_offset != offset || stretch != 0 {
             self.now_ms.max(1)
@@ -6130,12 +6251,12 @@ impl Faraday {
         let hot =
             self.bar_held.is_some() || self.hover.is_some_and(|(x, y)| self.bar_at(x, y).is_some());
         let moved_at = if hot { self.now_ms.max(1) } else { moved_at };
-        self.bar_seen = (key, offset, moved_at);
+        self.bar_seen = ((key, slot), offset, moved_at);
         let bar = motion::bar_alpha(moved_at, self.now_ms);
         // Drawn twice when a step card has just opened: the first time
         // finds out, the second draws it growing from closed.
         let mut follow_to = None;
-        let mut scrolled = None;
+        let mut scrolled = Vec::new();
         let mut caret = None;
         for _ in 0..2 {
             hits.clear();
@@ -6175,12 +6296,13 @@ impl Faraday {
                     .about_open
                     .filter(|(s, _)| *s == self.screen && self.sheet.is_none())
                     .map(|(_, k)| k);
-                ui.offset = offset;
+                ui.offset = page_offset;
+                ui.active = slot;
                 ui.compact = self.compact;
                 ui.caret_on = self.caret_on();
                 screens::draw(self, &mut ui);
                 caret = ui.caret_drawn.then_some(ui.caret_on);
-                scrolled = ui.scrolled;
+                scrolled = std::mem::take(&mut ui.scrolled);
                 follow_to = follow_to.or(ui.follow_to);
                 self.frost = ui.frost.take().map(|page| (frost_key, page));
                 ui.column
@@ -6199,7 +6321,7 @@ impl Faraday {
             self.dirty = true;
             self.commands.push_back(Command::Draw);
         }
-        self.extent = scrolled.map(|s| (self.region_key(), s));
+        self.extent = (!scrolled.is_empty()).then(|| (self.region_key(), scrolled));
         self.caret_drawn = caret;
         self.vaults.drawn = true;
         self.hits = hits;
@@ -6300,7 +6422,7 @@ impl Faraday {
         self.guided_moving = None;
         let f = self.f.max(0.1);
         let offset = self.scroll_slot().map_or(0.0, |o| (*o * f).round() / f);
-        self.bar_seen = (self.region_key(), offset, 0);
+        self.bar_seen = ((self.region_key(), self.slot()), offset, 0);
         if self.toast.is_some() {
             self.toast_at = Some(self.now_ms.saturating_sub(motion::TOAST_MS));
         }
@@ -6479,21 +6601,26 @@ impl App for Faraday {
                     self.key(k);
                 }
             }
-            Event::Scroll { dy, .. } => {
+            Event::Scroll { x, y, dy } => {
                 self.input_now();
                 if self.sheet == Some(Sheet::IdleWarn) {
                     self.sheet = None;
+                }
+                // A gesture goes on moving the region it started over.
+                if self.scroll_at.is_none() {
+                    self.point_region(i32::from(x), i32::from(y));
                 }
                 // Pixels the content moves up, as the shell API states
                 // them, in this layout's units.
                 self.pan(f32::from(dy) / self.f.max(0.1));
                 self.scroll_at = Some(self.now_ms);
             }
-            Event::Wheel { dy, .. } => {
+            Event::Wheel { x, y, dy } => {
                 self.input_now();
                 if self.sheet == Some(Sheet::IdleWarn) {
                     self.sheet = None;
                 }
+                self.point_region(i32::from(x), i32::from(y));
                 self.glide(f32::from(dy) / self.f.max(0.1));
             }
             Event::ScrollEnd { .. } => {

@@ -9267,7 +9267,8 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, w) = (x0 + M, cw - 2.0 * M);
     let top = 12.0 - app.list_offset;
     let mut y = top;
-    app.visit.bar.set(None);
+    app.visit.bar(crate::Column::Outbox).set(None);
+    app.visit.bar(crate::Column::Stick).set(None);
     let Some(stick) = app.sticks.get(app.visit.stick) else {
         ui.text(x, y, 15.0, W::R, MUTED, "No stick attached");
         return;
@@ -9416,6 +9417,17 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 34.0;
     // The settings, which are not an Outbox file.
     let settings_on = app.visit_settings_on();
+    // Select all: the settings and every file but an unprotected secret.
+    let all = settings_on
+        && app
+            .outbox
+            .iter()
+            .filter(|i| i.exposure() != crate::secrets::Exposure::Secret)
+            .all(|i| app.visit.out.contains(&i.name));
+    ui.checkbox(x + 2.0, y + 4.0, all, true);
+    ui.text(x + 32.0, y + 2.0, 13.0, W::S, MUTED, "Select all");
+    ui.hit(x - 4.0, y - 6.0, w + 8.0, 34.0, Action::VisitOutAll);
+    y += 34.0;
     let row = |ui: &mut Ui,
                y: f32,
                on: bool,
@@ -9558,6 +9570,11 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let colw = (width - 20.0) / 2.0;
     let colh = h - y - 32.0 - 108.0;
+    const ROW: f32 = 56.0;
+    // Rows between the heading and the buttons at the card's foot.
+    let list_top = y + 62.0;
+    let max_rows = ((colh - 140.0) / ROW).max(1.0) as usize;
+    let track_h = max_rows as f32 * ROW;
     // Write from the Outbox.
     ui.card(x, y, colw, colh, LINE);
     ui.icon(x + 20.0, y + 20.0, 22.0, Icon::Export, 14.0, ACCENT);
@@ -9570,9 +9587,22 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         TEXT,
         "Write from the Outbox",
     );
-    let mut ry = y + 62.0;
-    // The settings, which are not an Outbox file.
     let settings_on = app.visit_settings_on();
+    // Select all: the settings and every file but an unprotected secret.
+    let all = settings_on
+        && app
+            .outbox
+            .iter()
+            .filter(|i| i.exposure() != crate::secrets::Exposure::Secret)
+            .all(|i| app.visit.out.contains(&i.name));
+    visit_select_all(ui, x + colw, y, all, Action::VisitOutAll);
+    // The settings, which are not an Outbox file, then the Outbox.
+    let total = 1 + app.outbox.len();
+    let max_shift = (total as f32 * ROW - track_h).max(0.0);
+    let shift = app.visit.out_offset.min(max_shift);
+    let clip = ui.rect(x, list_top, colw, track_h);
+    ui.c.push_clip(clip);
+    let mut ry = list_top - shift;
     ui.checkbox(x + 22.0, ry + 15.0, settings_on, true);
     ui.text(
         x + 54.0,
@@ -9586,7 +9616,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.text_right(x + colw - 20.0, ry + 6.0, 20.0, 12.0, W::S, MUTED, "Public");
     ui.hit(x + 12.0, ry, colw - 24.0, 50.0, Action::VisitSettings);
     ui.rule(x + 20.0, ry + 52.0, colw - 40.0, INNER);
-    ry += 56.0;
+    ry += ROW;
     for (k, item) in app.outbox.iter().enumerate() {
         let on = app.visit.out.contains(&item.name);
         ui.checkbox(x + 22.0, ry + 15.0, on, true);
@@ -9608,10 +9638,34 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text_right(x + colw - 20.0, ry + 6.0, 20.0, 12.0, W::S, tone, tag);
         ui.hit(x + 12.0, ry, colw - 24.0, 50.0, Action::VisitOut(k));
         ui.rule(x + 20.0, ry + 52.0, colw - 40.0, INNER);
-        ry += 56.0;
+        ry += ROW;
     }
+    ui.c.pop_clip();
+    ui.report_scroll_in(
+        crate::ui::Slot::VisitOut,
+        clip,
+        max_shift,
+        app.visit.out_offset,
+    );
+    visit_list_bar(
+        app,
+        ui,
+        crate::Column::Outbox,
+        (x, colw),
+        list_top,
+        track_h,
+        total as f32 * ROW,
+        shift,
+    );
     if app.outbox.is_empty() {
-        ui.text(x + 22.0, ry, 13.0, W::R, DIM, "The Outbox is empty");
+        ui.text(
+            x + 22.0,
+            list_top + ROW,
+            13.0,
+            W::R,
+            DIM,
+            "The Outbox is empty",
+        );
     }
     let nout = app
         .outbox
@@ -9648,11 +9702,8 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         TEXT,
         "Import into the Inbox",
     );
-    let list_top = y + 62.0;
-    const ROW: f32 = 56.0;
-    let max_rows = ((colh - 140.0) / ROW).max(1.0) as usize;
     let total = stick.files.len();
-    let max_shift = (total as f32 * ROW - max_rows as f32 * ROW).max(0.0);
+    let max_shift = (total as f32 * ROW - track_h).max(0.0);
     let shift = app.list_offset.min(max_shift);
     // Select all: every file Faraday reads, or none when all are chosen.
     let readable: Vec<&String> = stick
@@ -9663,14 +9714,9 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .collect();
     if !readable.is_empty() {
         let all = readable.iter().all(|n| app.visit.inn.contains(*n));
-        let label = "Select all";
-        let lw = ui.measure(13.0, W::S, label);
-        let sx = ix + colw - 24.0 - lw - 28.0;
-        ui.checkbox(sx, y + 22.0, all, true);
-        ui.text_mid(sx + 28.0, y + 16.0, 30.0, 13.0, W::S, MUTED, label);
-        ui.hit(sx - 8.0, y + 12.0, lw + 44.0, 38.0, Action::VisitInAll);
+        visit_select_all(ui, ix + colw, y, all, Action::VisitInAll);
     }
-    let clip = ui.rect(ix, list_top, colw, max_rows as f32 * ROW);
+    let clip = ui.rect(ix, list_top, colw, track_h);
     ui.c.push_clip(clip);
     for (k, (name, size)) in stick.files.iter().enumerate() {
         let ry = list_top - shift + k as f32 * ROW;
@@ -9705,36 +9751,17 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     ui.c.pop_clip();
     ui.report_scroll_own_bar(clip, max_shift);
-    // The scrollbar, which a finger or the mouse drags.
-    let track_h = max_rows as f32 * ROW;
-    if max_shift > 0.0 {
-        let thumb = (track_h * track_h / (total as f32 * ROW)).max(32.0);
-        let tx = ix + colw - 14.0;
-        let ty = list_top + (track_h - thumb) * shift / max_shift;
-        ui.fill(tx, list_top, 6.0, track_h, 3.0, INNER);
-        let held = ui.is_pressed(Action::VisitBar);
-        ui.fill(tx, ty, 6.0, thumb, 3.0, if held { ACCENT } else { BORDER });
-        ui.hit(tx - 8.0, list_top, 22.0, track_h, Action::VisitBar);
-        let r = ui.rect(tx, list_top, 6.0, track_h);
-        app.visit.bar.set(Some((r.y, r.h, ui.px(thumb), max_shift)));
-    } else {
-        app.visit.bar.set(None);
-    }
-    let ry = list_top + max_rows as f32 * ROW;
-    let below = total as f32 * ROW - shift - max_rows as f32 * ROW;
-    if below > 0.0 {
-        ui.text(
-            ix + 22.0,
-            ry,
-            12.0,
-            W::R,
-            DIM,
-            &format!(
-                "{} more · scroll to see them",
-                (below / ROW).ceil() as usize
-            ),
-        );
-    }
+    visit_list_bar(
+        app,
+        ui,
+        crate::Column::Stick,
+        (ix, colw),
+        list_top,
+        track_h,
+        total as f32 * ROW,
+        shift,
+    );
+    let ry = list_top + track_h;
     if stick.files.is_empty() {
         ui.text(ix + 22.0, ry, 13.0, W::R, DIM, "No files on this stick");
     }
@@ -9797,6 +9824,65 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let t = ui.fit(13.0, W::R, line, width / 2.0 - 20.0);
         let used = ui.text_mid(lx, fy, 44.0, 13.0, W::R, c, &t);
         lx += used + 24.0;
+    }
+}
+
+/// A stick visit column's "Select all", at the right of its heading: the
+/// card's right edge at `right`, its top at `y`.
+fn visit_select_all(ui: &mut Ui, right: f32, y: f32, all: bool, action: Action) {
+    let label = "Select all";
+    let lw = ui.measure(13.0, W::S, label);
+    let sx = right - 24.0 - lw - 28.0;
+    ui.checkbox(sx, y + 22.0, all, true);
+    ui.text_mid(sx + 28.0, y + 16.0, 30.0, 13.0, W::S, MUTED, label);
+    ui.hit(sx - 8.0, y + 12.0, lw + 44.0, 38.0, action);
+}
+
+/// A stick visit column's list's scrollbar, which a finger or the mouse
+/// drags, and under the list how many rows are below it: the card's left
+/// edge and width in `card`, the list's rows from `top`, `track_h` of
+/// them shown of `all_h`, scrolled by `shift`.
+#[allow(clippy::too_many_arguments)]
+fn visit_list_bar(
+    app: &Faraday,
+    ui: &mut Ui,
+    column: crate::Column,
+    card: (f32, f32),
+    top: f32,
+    track_h: f32,
+    all_h: f32,
+    shift: f32,
+) {
+    const ROW: f32 = 56.0;
+    let right = card.0 + card.1;
+    let max_shift = (all_h - track_h).max(0.0);
+    let bar = app.visit.bar(column);
+    if max_shift > 0.0 {
+        let thumb = (track_h * track_h / all_h).max(32.0);
+        let tx = right - 14.0;
+        let ty = top + (track_h - thumb) * shift / max_shift;
+        ui.fill(tx, top, 6.0, track_h, 3.0, INNER);
+        let held = ui.is_pressed(Action::VisitBar(column));
+        ui.fill(tx, ty, 6.0, thumb, 3.0, if held { ACCENT } else { BORDER });
+        ui.hit(tx - 8.0, top, 22.0, track_h, Action::VisitBar(column));
+        let r = ui.rect(tx, top, 6.0, track_h);
+        bar.set(Some((r.y, r.h, ui.px(thumb), max_shift)));
+    } else {
+        bar.set(None);
+    }
+    let below = all_h - shift - track_h;
+    if below > 0.0 {
+        ui.text(
+            card.0 + 22.0,
+            top + track_h,
+            12.0,
+            W::R,
+            DIM,
+            &format!(
+                "{} more · scroll to see them",
+                (below / ROW).ceil() as usize
+            ),
+        );
     }
 }
 

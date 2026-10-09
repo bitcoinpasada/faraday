@@ -396,9 +396,13 @@ pub struct Ui<'a> {
     pub oy: f32,
     /// All of the focused field is selected, and is drawn so.
     pub select_all: bool,
-    /// The region this frame scrolls, as the screen or sheet that drew
-    /// it last reported it.
-    pub scrolled: Option<Scrolled>,
+    /// The regions this frame scrolls, as the screen or sheet that drew
+    /// them last reported them: one a slot, the last report of a slot
+    /// replacing an earlier one (a sheet's region over the screen's).
+    pub scrolled: Vec<Scrolled>,
+    /// The region the wheel and a finger move now: its stretch and its
+    /// overlay scrollbar are drawn, no other's.
+    pub active: Slot,
     /// How far the scrolling region is shown stretched past an end, in
     /// pixels: negative when its content is pulled down past its top.
     pub stretch: i32,
@@ -424,7 +428,8 @@ pub struct Ui<'a> {
     pub theme: Theme,
     /// The action under the pointer, with no button down.
     pub hovered: Option<Action>,
-    /// The scrolling region's offset, units.
+    /// The screen's or the scrolling sheet's own region's offset
+    /// ([`Slot::Page`]), units.
     pub offset: f32,
     /// The frosted copy of the page under the open sheet, kept from the
     /// frame the sheet opened on.
@@ -470,9 +475,24 @@ pub struct Disclosure {
     pub shown: f32,
 }
 
+/// Which offset a scrolled region moves. A screen can scroll more than
+/// one region at once, each by its own offset; the wheel, a trackpad and
+/// a finger move the one under the pointer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Slot {
+    /// The screen's region, or the open sheet's when it scrolls: the
+    /// offset `Faraday::scroll_slot` names for it.
+    #[default]
+    Page,
+    /// Stick visit's Outbox list (`VisitState::out_offset`).
+    VisitOut,
+}
+
 /// A scrolled region as drawn: where it is and how far it goes.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Scrolled {
+    /// The offset it moves.
+    pub slot: Slot,
     /// Where it is seen on the panel, in pixels.
     pub view: Rect,
     /// How far its content scrolls, in design units.
@@ -501,7 +521,8 @@ impl<'a> Ui<'a> {
             ox: 0.0,
             oy: 0.0,
             select_all: false,
-            scrolled: None,
+            scrolled: Vec::new(),
+            active: Slot::Page,
             stretch: 0,
             stretch_in_sheet: false,
             in_sheet: false,
@@ -545,25 +566,45 @@ impl<'a> Ui<'a> {
     /// (`docs/MOTION.md` §3.3) moves what was drawn in it, and what is
     /// pressable there, and the page shows in the gap.
     pub fn report_scroll(&mut self, view: Rect, max: f32) {
-        self.report(view, max, false);
+        let offset = self.offset;
+        self.report(Slot::Page, view, max, offset, false);
     }
 
     /// [`Ui::report_scroll`], for a region that draws its own scrollbar.
     pub fn report_scroll_own_bar(&mut self, view: Rect, max: f32) {
-        self.report(view, max, true);
+        let offset = self.offset;
+        self.report(Slot::Page, view, max, offset, true);
     }
 
-    fn report(&mut self, view: Rect, max: f32, own_bar: bool) {
+    /// [`Ui::report_scroll_own_bar`], for a region beside the page's that
+    /// moves by its own offset, `offset` units now.
+    pub fn report_scroll_in(&mut self, slot: Slot, view: Rect, max: f32, offset: f32) {
+        self.report(slot, view, max, offset, true);
+    }
+
+    fn report(&mut self, slot: Slot, view: Rect, max: f32, offset: f32, own_bar: bool) {
         let max = max.max(0.0);
-        self.scrolled = Some(Scrolled { view, max, own_bar });
+        let region = Scrolled {
+            slot,
+            view,
+            max,
+            own_bar,
+        };
+        match self.scrolled.iter_mut().find(|s| s.slot == slot) {
+            Some(s) => *s = region,
+            None => self.scrolled.push(region),
+        }
         if self.in_sheet != self.stretch_in_sheet {
             return;
         }
-        self.stretch_view(view);
-        self.edge_fades(view, max);
+        if slot == self.active {
+            self.stretch_view(view);
+        }
+        self.edge_fades(view, max, offset);
         // A small panel draws no scrollbar: the edge fades say the page
         // goes on.
         if let Some((alpha, offset)) = self.bar
+            && slot == self.active
             && !self.compact
             && !own_bar
             && max > 0.0
@@ -608,7 +649,7 @@ impl<'a> Ui<'a> {
     /// The region's content fades into the page at an edge it continues
     /// past: under the top once scrolled, above the bottom while there is
     /// more. Each fade comes in over the first 24 units scrolled.
-    fn edge_fades(&mut self, view: Rect, max: f32) {
+    fn edge_fades(&mut self, view: Rect, max: f32, offset: f32) {
         if max <= 0.0 || view.h <= 0 {
             return;
         }
@@ -617,8 +658,8 @@ impl<'a> Ui<'a> {
         let band = ((depth * self.f).round() as i32).clamp(1, view.h / 4 + 1);
         let page = self.col(if self.in_sheet { SURFACE } else { BG });
         let reach = band as f32 / self.f;
-        let top = (self.offset / reach).clamp(0.0, 1.0);
-        let bottom = ((max - self.offset) / reach).clamp(0.0, 1.0);
+        let top = (offset / reach).clamp(0.0, 1.0);
+        let bottom = ((max - offset) / reach).clamp(0.0, 1.0);
         for i in 0..band {
             let k = 1.0 - (i as f32 + 0.5) / band as f32;
             let a = k * k * 230.0;

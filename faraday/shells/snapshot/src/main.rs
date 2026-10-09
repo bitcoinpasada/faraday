@@ -1,14 +1,15 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys]
+//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit]
 //! ```
 //!
 //! `TESTKIT_DIR` is what `faraday-testkit` wrote; its files stand in
 //! for a stick called TESTSTICK. Each step of the tour is one numbered
 //! PNG in `OUT_DIR`. With `spend`, only the Spend tab's tour runs; with
 //! `themes`, three screens in each theme; with `keys`, Wallets with keys
-//! in no wallet.
+//! in no wallet; with `visit`, Stick visit with a backup's 20 files in the
+//! Outbox, each list scrolled to its end.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -297,6 +298,7 @@ fn run(
         Some("compact") => return compact_tour(&mut t),
         Some("seeds") => return seeds_tour(&mut t),
         Some("keys") => return keys_tour(&mut t),
+        Some("visit") => return visit_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -1797,6 +1799,95 @@ fn keys_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// Stick visit with a wallet backup's 20 files in the Outbox and an
+/// unprotected secret: the Outbox list at its top and scrolled to its end
+/// by the wheel over it, then the stick's files at their end beside it.
+/// On a small panel the page scrolls as one.
+fn visit_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::wallet::classify;
+    let stem = "family-savings";
+    let mut names: Vec<String> = [
+        "descriptor.txt",
+        "wallet.json",
+        "sparrow.txt",
+        "coldcard.txt",
+        "nunchuk.bsms",
+        "core-import.txt",
+        "backup.pdf",
+    ]
+    .iter()
+    .map(|e| format!("{stem}-{e}"))
+    .collect();
+    for k in 1..=3 {
+        names.push(format!("{stem}-share-{k}-of-3.pdf"));
+        names.push(format!("{stem}-share-{k}-of-3.txt"));
+        names.push(format!("{stem}-key-{k}-sheet.pdf"));
+    }
+    names.push(format!("{stem}-vault.ofv"));
+    names.push(format!("{stem}-checklist.pdf"));
+    names.push(format!("{stem}-recovery.txt"));
+    for name in &names {
+        let bytes = vec![b'#'; 1800];
+        t.app.outbox.push(faraday_core::Item {
+            name: name.clone(),
+            kind: classify(name, &bytes),
+            bytes,
+            secret: false,
+        });
+    }
+    t.app.outbox.push(faraday_core::Item {
+        name: "seed-words.txt".into(),
+        kind: faraday_core::wallet::FileKind::Text,
+        bytes: b"words".to_vec(),
+        secret: true,
+    });
+    t.sticks(true);
+    t.press(Action::Nav(Screen::Visit));
+    t.shot("visit-outbox")?;
+    if t.app.is_compact() {
+        // Down past the stick's files to the Outbox, then through it.
+        for _ in 0..400 {
+            let _ = t.app.frame();
+            if t.app.offers(Action::VisitOutAll) {
+                break;
+            }
+            scroll(t, 200);
+            t.app.settle();
+        }
+        t.shot("visit-page-outbox")?;
+        for k in 1..=4 {
+            scroll(t, 500);
+            t.shot(&format!("visit-page-outbox-{k}"))?;
+        }
+        return Ok(());
+    }
+    let _ = t.app.frame();
+    let over = t
+        .app
+        .where_offered(Action::VisitOut(0))
+        .ok_or("the Outbox's first file is not on screen")?;
+    t.app.event(Event::Wheel {
+        x: over.0,
+        y: over.1,
+        dy: 5000,
+    });
+    t.shot("visit-outbox-end")?;
+    let over = t
+        .app
+        .where_offered(Action::VisitIn(0))
+        .ok_or("the stick's first file is not on screen")?;
+    t.app.event(Event::Wheel {
+        x: over.0,
+        y: over.1,
+        dy: 5000,
+    });
+    t.shot("visit-both-ends")?;
+    t.press(Action::VisitOutAll);
+    t.press(Action::VisitOutAll);
+    t.shot("visit-outbox-none")?;
+    Ok(())
+}
+
 fn themes_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     for theme in faraday_core::ui::Theme::ALL {
@@ -2192,7 +2283,7 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys]"
+            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit]"
         );
         return ExitCode::from(2);
     }
@@ -2220,8 +2311,9 @@ fn main() -> ExitCode {
         None => 160,
     };
     let only = args.get(4).map(String::as_str);
-    if only.is_some_and(|m| !["spend", "themes", "compact", "seeds", "keys"].contains(&m)) {
-        eprintln!("the tour is spend, themes, compact, seeds or keys");
+    if only.is_some_and(|m| !["spend", "themes", "compact", "seeds", "keys", "visit"].contains(&m))
+    {
+        eprintln!("the tour is spend, themes, compact, seeds, keys or visit");
         return ExitCode::from(2);
     }
     match run((w, h), dpi, Path::new(&args[2]), Path::new(&args[3]), only) {
