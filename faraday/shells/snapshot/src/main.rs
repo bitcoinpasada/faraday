@@ -1796,6 +1796,9 @@ fn keys_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Seeds(S::Make));
     t.press(Action::Nav(Screen::Wallets));
     t.shot("wallets-one-wallet-one-key")?;
+    // The small panel's wallet list, where the loose key has its row.
+    t.press(Action::Nav(Screen::Start));
+    t.shot("wallet-list-one-wallet-one-key")?;
     Ok(())
 }
 

@@ -182,3 +182,31 @@ fn the_small_panel_offers_a_wallet_from_the_key() {
     }
     assert!(seen, "the small panel offers no wallet from the key");
 }
+
+#[test]
+fn the_small_panels_wallet_list_offers_a_wallet_from_a_loose_key() {
+    let mut app = shown(480, 640, 286);
+    let first = add_key(&mut app, ABANDON);
+    app.press(Action::KeyWallet(first, 1));
+    app.press(Action::Seeds(S::Make));
+    let second = add_key(&mut app, &faraday_core::testkit::test_words("zebra"));
+    app.press(Action::Nav(Screen::Start));
+    let mut seen = false;
+    for _ in 0..20 {
+        let _ = app.frame();
+        if app
+            .where_offered(Action::KeyWallet(second, 1))
+            .is_some_and(|(_, y)| y < 640)
+        {
+            seen = true;
+            break;
+        }
+        app.event(Event::Scroll {
+            x: 240,
+            y: 320,
+            dy: 60,
+        });
+    }
+    assert!(seen, "the wallet list offers no wallet from the loose key");
+    assert!(!app.offers(Action::KeyWallet(first, 1)));
+}

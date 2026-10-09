@@ -1012,6 +1012,31 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     section_label(ui, x, y, "Your wallets");
     y += if compact { 24.0 } else { 30.0 };
     y += wallet_rows(app, ui, x, y, width, 2, &Action::OpenWallet) + 18.0;
+    // On the small panel this is the wallet list: a key in no wallet is
+    // listed after the wallets with its way on, as on the desktop's
+    // Wallets column. With no wallet loaded the wallet page says it.
+    let (loose, _) = app.loose_keys();
+    if compact && !app.session.wallets.is_empty() && !loose.is_empty() {
+        section_label(ui, x, y, "Keys without a wallet");
+        y += 24.0;
+        for fp in &loose {
+            let line = key_line(*fp, app.session.key_label(*fp).unwrap_or(""));
+            let line = ui.fit(14.0, W::M, &line, width);
+            ui.text_mid(x, y, 30.0, 14.0, W::M, TEXT, &line);
+            y += 34.0;
+            ui.button(
+                x,
+                y,
+                Some(width),
+                44.0,
+                FROM_KEY,
+                Style::Secondary,
+                Action::KeyWallet(fp.0, 1),
+            );
+            y += 56.0;
+        }
+        y += 6.0;
+    }
     if empty && compact {
         y += crate::compact_screens::row(
             ui,
