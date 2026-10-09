@@ -36,6 +36,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         guided: app.guided,
         switch: true,
         note: None,
+        chip: None,
     };
     let scroll = s.scroll;
     let (next, again) = {
@@ -222,11 +223,11 @@ fn card(app: &Faraday, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f
                     Style::Primary,
                     Action::SScanVault,
                 )),
-                None => row.push((
-                    "No vault open".to_string(),
-                    Style::Disabled,
-                    Action::SScanVault,
-                )),
+                // Make or unlock one, and back to this step.
+                None => row.extend(
+                    app.vault_way(crate::Screen::Silent)
+                        .map(|(label, a)| (label, Style::Primary, a)),
+                ),
             }
             row.push((
                 "Out unprotected…".to_string(),

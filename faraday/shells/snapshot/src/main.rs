@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile]
+//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway]
 //! ```
 //!
 //! `TESTKIT_DIR` is what `faraday-testkit` wrote; its files stand in
@@ -19,7 +19,10 @@
 //! with `seedfile`, the backup's seeds step offering the seed into a
 //! vault or as a file, with no vault open and with the test vault, the
 //! secret sheet for the seed, and its SeedQR pictures, Standard and
-//! Compact, written beside the screens as `outbox-*`.
+//! Compact, written beside the screens as `outbox-*`; with `vaultway`,
+//! Tools' GPG key with no vault, Create a vault made for it, the tile
+//! with the test vault locked, Unlock for it and the GPG keys it comes
+//! back to.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -313,6 +316,7 @@ fn run(
         Some("scan") => return scan_tour(&mut t),
         Some("public") => return public_tour(&mut t),
         Some("seedfile") => return seedfile_tour(&mut t),
+        Some("vaultway") => return vaultway_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -2216,6 +2220,59 @@ fn seedfile_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// Tools' GPG key with no vault file, Create a vault made for it, and
+/// back; then with the test vault locked, the tile again, Unlock for it,
+/// and the GPG keys it comes back to.
+fn vaultway_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::catalog::TILES;
+    let gpg = TILES
+        .iter()
+        .position(|tile| tile.name == "GPG key")
+        .ok_or("no GPG key tile")? as u8;
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.vaults.ms_per_unit = Some(180);
+    // On a small panel the tile is found by typing, as far down as it is.
+    let find = |t: &mut Tour| {
+        t.press(Action::Nav(Screen::Catalog));
+        if t.app.is_compact() {
+            t.app.event(Event::Key(Key::Escape));
+            type_text(t, "gpg");
+        } else {
+            scroll_to(t, Action::Catalog(gpg));
+        }
+    };
+    find(t);
+    t.shot("tools-no-vault")?;
+    t.press(Action::Catalog(gpg));
+    t.shot("create-then-gpg")?;
+    t.press(Action::Vault(V::Back));
+    let vault = testkit::files()?
+        .into_iter()
+        .find(|(n, _)| n == "vault.ofv")
+        .ok_or("no test vault")?;
+    t.app.storage(StorageEvent::Restored {
+        inbox: vec![vault],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    find(t);
+    t.shot("tools-vault-locked")?;
+    t.press(Action::Catalog(gpg));
+    t.shot("unlock-for-gpg")?;
+    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    t.press(Action::Vault(V::Unlock));
+    for _ in 0..20 {
+        t.tick();
+    }
+    if t.app.screen != Screen::VaultContents {
+        return Err("unlocking did not come back to the GPG keys".into());
+    }
+    t.shot("unlocked-gpg")?;
+    Ok(())
+}
+
 fn themes_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     for theme in faraday_core::ui::Theme::ALL {
@@ -2611,7 +2668,7 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile]"
+            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway]"
         );
         return ExitCode::from(2);
     }
@@ -2642,12 +2699,12 @@ fn main() -> ExitCode {
     if only.is_some_and(|m| {
         ![
             "spend", "themes", "compact", "seeds", "keys", "visit", "copy", "scan", "public",
-            "seedfile",
+            "seedfile", "vaultway",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public or seedfile"
+            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile or vaultway"
         );
         return ExitCode::from(2);
     }

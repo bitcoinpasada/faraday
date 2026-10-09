@@ -1,7 +1,7 @@
 //! Pausing a wallet's creation to make a vault for its keys: Make a vault
-//! opens the vault wizard, and finishing it lands on the vault list with
-//! the new vault to unlock and a way back; unlocking it, or going back,
-//! returns to the wallet still being made.
+//! opens the vault wizard, and finishing it lands on Unlock with the new
+//! vault picked and a way back; unlocking it, or going back, returns to
+//! the wallet still being made.
 
 use faraday_core::keygen::Way;
 use faraday_core::vaults::VaultAction as V;
@@ -87,21 +87,17 @@ fn make_a_vault(app: &mut Faraday) {
     type_text(app, "test phrase");
     app.press(Action::Vault(V::CGo));
     settle(app, 1);
-    assert_eq!(app.screen, Screen::Vaults);
-    assert!(app.vaults.just_made.is_some(), "the vault was not made");
-}
-
-/// The list row of the vault just made.
-fn just_made_row(app: &Faraday) -> usize {
-    let name = app.vaults.just_made.clone().unwrap();
-    app.vault_files()
-        .iter()
-        .position(|f| f.name == name)
-        .unwrap()
+    assert_eq!(app.screen, Screen::Unlock);
+    let name = app
+        .vaults
+        .just_made
+        .clone()
+        .expect("the vault was not made");
+    assert_eq!(app.vault_files()[app.vaults.pick].name, name);
 }
 
 #[test]
-fn going_back_from_the_vault_list_leaves_the_new_vault_locked_and_returns_to_create() {
+fn going_back_from_unlock_leaves_the_new_vault_locked_and_returns_to_create() {
     let mut app = create_to_vault_step();
     make_a_vault(&mut app);
     app.press(Action::Vault(V::Back));
@@ -117,8 +113,6 @@ fn going_back_from_the_vault_list_leaves_the_new_vault_locked_and_returns_to_cre
 fn opening_a_just_made_vault_needs_its_passphrase_typed_again() {
     let mut app = create_to_vault_step();
     make_a_vault(&mut app);
-    let row = just_made_row(&app);
-    app.press(Action::Vault(V::Open(row)));
     settle(&mut app, 30);
     assert_eq!(
         app.screen,
@@ -135,8 +129,6 @@ fn opening_a_just_made_vault_needs_its_passphrase_typed_again() {
 fn opening_a_just_made_vault_with_its_passphrase_returns_to_create() {
     let mut app = create_to_vault_step();
     make_a_vault(&mut app);
-    let row = just_made_row(&app);
-    app.press(Action::Vault(V::Open(row)));
     type_text(&mut app, "test phrase");
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 30);

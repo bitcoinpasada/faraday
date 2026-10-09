@@ -64,6 +64,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
              wallet or a seed already loaded, Spend opens on a shorter page instead: what is \
              loaded and what each wallet needs next.",
         ),
+        chip: None,
     };
     let scroll = app.family.scroll;
     let (next, again) = {

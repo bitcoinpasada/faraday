@@ -37,6 +37,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         guided: app.guided,
         switch: true,
         note: None,
+        chip: None,
     };
     let scroll = b.scroll;
     let (next, again) = {
@@ -264,7 +265,11 @@ fn card(app: &Faraday, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f3
                     Style::Primary,
                     Action::PVault,
                 )),
-                None => row.push(("No vault open".to_string(), Style::Disabled, Action::PVault)),
+                // Make or unlock one, and back to this value.
+                None => row.extend(
+                    app.vault_way(crate::Screen::Bip85)
+                        .map(|(label, a)| (label, Style::Primary, a)),
+                ),
             }
             if b.app == Bip85App::Words {
                 row.push(("Load as a key".to_string(), Style::Secondary, Action::PLoad));

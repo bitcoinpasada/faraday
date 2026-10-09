@@ -54,6 +54,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         guided: app.guided,
         switch: true,
         note: None,
+        chip: None,
     };
     let scroll = k.scroll;
     let (next, again) = {

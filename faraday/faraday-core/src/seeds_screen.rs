@@ -78,6 +78,14 @@ pub(crate) fn keys(
             sa(S::FromVault(v, r)),
         ));
     }
+    // Restore with a vault file and none open: Unlock, and back to this
+    // step. A vault made now holds no seed, so there is no Make a vault.
+    if !words
+        && let Some((label, a)) = app.vault_way(crate::Screen::Restore)
+        && !matches!(a, Action::Vault(crate::vaults::VaultAction::CreateFrom(_)))
+    {
+        labels.push((label, Style::Secondary, a));
+    }
     for k in &app.session.keys {
         let f = k.master.fingerprint();
         if !here.contains(&f.0) {

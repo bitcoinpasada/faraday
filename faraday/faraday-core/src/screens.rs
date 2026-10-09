@@ -2227,6 +2227,7 @@ fn catalog_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             let tx = x + (k % per) as f32 * (tw3 + gap);
             let ty = y + (k / per) as f32 * (th + 10.0);
             let need = app.tile_need(tile.go);
+            let opens = app.tile_opens(tile.go);
             let action = Action::Catalog(*i as u8);
             let pressed = ui.is_pressed(action);
             ui.fill(tx, ty, tw3, th, 10.0, if pressed { INNER } else { SURFACE });
@@ -2237,7 +2238,7 @@ fn catalog_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 ty + 12.0,
                 14.0,
                 W::S,
-                if need.is_some() { DIM } else { TEXT },
+                if opens { TEXT } else { DIM },
                 &name,
             );
             let line = ui.fit(12.0, W::R, need.unwrap_or(tile.line), tw3 - 32.0);
@@ -2260,7 +2261,7 @@ fn catalog_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 ui.text_mid(gx + 7.0, ty + 56.0, 18.0, 11.0, W::M, MUTED, tag);
                 gx += gw + 6.0;
             }
-            if need.is_none() {
+            if opens {
                 ui.hit(tx, ty, tw3, th, action);
             }
         }
@@ -3348,6 +3349,7 @@ fn spend(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         guided,
         switch: true,
         note: None,
+        chip: None,
     };
     let (next, again) = {
         let app_ref: &Faraday = app;
@@ -4837,6 +4839,7 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         guided: app.guided,
         switch: true,
         note: None,
+        chip: None,
     };
     let scroll = b.scroll;
     let all_done = steps.iter().all(|&k| b.done[k as usize]);
@@ -5638,16 +5641,12 @@ fn seed_copies(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, k: usize) -> 
             }
             cy += wrap_buttons(ui, x, cy, w, 36.0, &items) + 4.0;
         }
+        // Make or unlock one, and back to this step.
         None => {
-            cy += ui.wrap(
-                x,
-                cy,
-                w,
-                13.0,
-                W::R,
-                MUTED,
-                "No vault is open. Unlock or make one on Vaults, then come back to this step",
-            ) + 12.0;
+            if let Some((label, a)) = app.vault_way(Screen::Backup) {
+                cy += wrap_buttons(ui, x, cy, w, 36.0, &[(label.as_str(), Style::Secondary, a)])
+                    + 4.0;
+            }
         }
     }
     cy += wrap_buttons(
@@ -5914,6 +5913,7 @@ fn message_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         guided: app.guided,
         switch: true,
         note: None,
+        chip: None,
     };
     let scroll = m.scroll;
     let (next, again) = {
@@ -6389,6 +6389,7 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         guided: app.guided,
         switch: true,
         note: None,
+        chip: None,
     };
     let scroll = c.scroll;
     let (next, again) = {
@@ -7322,6 +7323,7 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         guided: app.guided,
         switch: true,
         note: None,
+        chip: None,
     };
     let scroll = r.scroll;
     let (next, again) = {
@@ -7949,24 +7951,14 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
     }
 }
 
-/// Add to vault, for an Inbox file a vault keeps: available once a vault
-/// is open. Returns the width used.
+/// Add to vault, for an Inbox file a vault keeps; with none open, Make a
+/// vault or Unlock, which come back to Files. Returns the width used.
 fn add_to_vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, k: usize, style: Style) -> f32 {
-    let open = !app.vaults.open.is_empty();
-    let label = if open {
-        "Add to vault"
-    } else {
-        "Add to vault · unlock one first"
-    };
-    ui.button(
-        x,
-        y,
-        None,
-        36.0,
-        label,
-        if open { style } else { Style::Disabled },
+    let (label, action) = app.vault_way(Screen::Files).unwrap_or((
+        "Add to vault".to_string(),
         Action::Vault(crate::vaults::VaultAction::AddFile(k)),
-    ) + 8.0
+    ));
+    ui.button(x, y, None, 36.0, &label, style, action) + 8.0
 }
 
 /// Restore the wallet, on a share of a split backup: the shares in the
@@ -8114,20 +8106,11 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 } else {
                     crate::vaults::VaultAction::ImportBackup(k)
                 };
-                let style = if app.vaults.open.is_empty() {
-                    Style::Disabled
-                } else {
-                    Style::Primary
-                };
-                bx += ui.button(
-                    bx,
-                    iy + 64.0,
-                    None,
-                    36.0,
-                    "Import into the vault",
-                    style,
-                    Action::Vault(action),
-                ) + 8.0;
+                // No vault open: make or unlock one, and back here.
+                let (label, action) = app
+                    .vault_way(Screen::Files)
+                    .unwrap_or(("Import into the vault".to_string(), Action::Vault(action)));
+                bx += ui.button(bx, iy + 64.0, None, 36.0, &label, Style::Primary, action) + 8.0;
             }
             FileKind::Vault => {
                 let files = app.vault_files();
@@ -9111,22 +9094,18 @@ type Note = Option<(String, osk_ui::Color)>;
 fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note) {
     let mut out: Vec<(String, Style, Action)> = Vec::new();
     let mut note = None;
-    let vault_style = |style| {
-        if app.vaults.open.is_empty() {
-            Style::Disabled
-        } else {
-            style
-        }
+    // With no vault open, what goes into one offers Make a vault or
+    // Unlock instead, which come back to Files.
+    let into_vault = |label: &str, style, action| {
+        let (label, action) = app
+            .vault_way(Screen::Files)
+            .unwrap_or((label.to_string(), action));
+        (label, style, action)
     };
     let add_to_vault = |style| {
-        let label = if app.vaults.open.is_empty() {
-            "Add to vault · unlock one first"
-        } else {
-            "Add to vault"
-        };
-        (
-            label.to_string(),
-            vault_style(style),
+        into_vault(
+            "Add to vault",
+            style,
             Action::Vault(crate::vaults::VaultAction::AddFile(k)),
         )
     };
@@ -9149,9 +9128,9 @@ fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note)
             } else {
                 crate::vaults::VaultAction::ImportBackup(k)
             };
-            out.push((
-                "Import into the vault".into(),
-                vault_style(Style::Primary),
+            out.push(into_vault(
+                "Import into the vault",
+                Style::Primary,
                 Action::Vault(action),
             ));
         }
@@ -12761,16 +12740,13 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                     );
                     cy += 58.0;
                 }
+                // Make or unlock one: the sheet waits, and opens again.
                 None => {
-                    cy += ui.wrap(
-                        x,
-                        cy,
-                        iw,
-                        13.0,
-                        W::R,
-                        MUTED,
-                        "No vault is open. Unlock or make one on Vaults, then come back",
-                    ) + 12.0;
+                    if let Some((label, a)) = app.vault_way(app.screen) {
+                        let label = ui.fit(15.0, W::S, &label, iw - 24.0);
+                        ui.button(x, cy, Some(iw), 46.0, &label, Style::Primary, a);
+                        cy += 58.0;
+                    }
                 }
             }
             ui.text(x, cy, 13.0, W::S, ERR, "Unprotected, in the Outbox");
@@ -12846,17 +12822,12 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             );
             cy += 54.0;
         }
+        // Make or unlock one: the sheet waits, and opens again.
         None => {
-            ui.wrap(
-                bx,
-                cy,
-                bw,
-                13.0,
-                W::R,
-                MUTED,
-                "No vault is open. Unlock or make one on Vaults, then come back to this step",
-            );
-            cy += 46.0;
+            if let Some((label, a)) = app.vault_way(app.screen) {
+                ui.button(bx, cy, None, 42.0, &label, Style::Primary, a);
+            }
+            cy += 54.0;
         }
     }
     ui.rule(bx, cy, bw, INNER);

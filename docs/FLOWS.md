@@ -99,6 +99,32 @@ to get it.
    stick does once the camera is off. Signing by QR alone needs no stick
    and is unchanged.
 
+10. **Whatever needs a vault leads into making or unlocking one, and
+    back** (owner, 2026-10-09). Where a flow needs an open vault and none
+    is, its button is **Make a vault** when no vault file is in Files,
+    **Unlock {name}** when one is, and **Unlock a vault** (the Vaults
+    list) when several are; never a disabled button or a line to go to
+    Vaults. Create a vault, opened this way, carries a chip at its head,
+    "Then: {flow}", and its way back returns to the flow. Making the vault
+    goes straight to Unlock with it picked: the passphrase is typed once
+    more, which shows the person has it. Unlocking needs the stick out:
+    with one in, the Pull sheet asks first ("Pull the stick to unlock").
+    Once unlocked, the flow is back on the step it was on, with the
+    vault's button live. The places: Tools' **GPG key**, **Secure Boot
+    keys** and **KeePass export** ("Make a vault first" / "Unlock a vault
+    first" on the tile, pressable; back to that category of the vault
+    unlocked, or to Tools when the way back is taken); BIP-85, the
+    Lightning node key and the Silent payments scan key (**Save into
+    {vault}**); the secret sheet (the FROST carry, a seed from the backup's
+    seeds step), which closes on the way, keeps its secret, and opens
+    again on return; the backup's seeds step; Files (an entries file, an
+    `.oskb`, a file added to a vault); Vault contents with none open; and
+    Restore's seeds route, which offers Unlock only, as a new vault holds
+    no seed. Create a wallet's vault step keeps **Make a vault** /
+    **Unlock {name}** / **Not now**. Going back anywhere on the way, or
+    leaving for another page, ends it: a secret held for it is dropped,
+    wiped, as Cancel on the sheet does.
+
 ## Home
 
 **Start** leads with **Add a key** (type, scan or bring in a seed) →
@@ -200,11 +226,16 @@ stays in the Outbox, and the visit screen says to put the stick back.
 not written yet), memory need and source; **Create a vault** at the top.
 - open vault → **Open** → Vault contents;
 - locked vault → **Unlock** → passphrase sheet → Vault contents.
+- opened from a flow that needs a vault (decision 10): **Unlock** →
+  the flow, on the step it was on; the way back returns to it.
 
 **Create a vault** (step cards: where it opens, unlock cost, space per
 passphrase, passphrases) → **Create vault** → Vaults overview, new vault
 open (decision 2), sealed copy in the Outbox → **Add contents** → Vault
-contents, empty, with an Add action per kind.
+contents, empty, with an Add action per kind. Opened from a flow that
+needs a vault (decision 10), it shows "Then: {flow}" by its title, and
+**Create vault** goes to Unlock with the new vault picked, then back to
+the flow.
 
 **Vault contents**: kinds → items → details.
 - **Add an entry** → form (title, username, password with **Generate with
@@ -317,7 +348,9 @@ Outbox ("Insert a stick to write it").
 ## GPG
 
 Every GPG action needs an open vault (the secret key lives there). With
-none open: "Unlock or create a vault first", with both buttons.
+none open, Tools' **GPG key** tile reads "Make a vault first" (no vault
+file) or "Unlock a vault first" and leads into Create a vault or Unlock,
+which come back to the vault's GPG keys (decision 10).
 
 **Make a key** (step cards: name and email, expiry, vault) → created →
 result: fingerprint, **Export public key** (code or Outbox),
@@ -339,7 +372,9 @@ stick visit first."
 
 ## Secure Boot
 
-Needs an open vault for the keys.
+Needs an open vault for the keys. With none open, Tools' **Secure Boot
+keys** tile leads into Create a vault or Unlock and back, as GPG's does;
+**KeePass export** the same, to the vault's entries.
 
 **Make keys** → PK, KEK, db generated into the vault → Secure Boot screen.
 

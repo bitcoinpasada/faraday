@@ -242,12 +242,7 @@ pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut y = 36.0;
     // Made from another flow: the way back to it, and no second vault
     // started in its place (that would drop the way back).
-    let back = app.vaults.back_to.map(|s| match s {
-        Screen::Create => "Create a wallet",
-        Screen::Restore => "Load or restore a wallet",
-        Screen::Family => "Spend",
-        _ => "Back",
-    });
+    let back = app.vaults.back_to.map(|s| app.back_link_name(s));
     if let Some(label) = back {
         back_link(ui, x, 28.0, label, va(V::Back));
         y = 54.0;
@@ -533,10 +528,11 @@ pub(crate) fn unlock(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// Where Unlock's way back goes: the boot import's sheet when it was
 /// opened from there, else the vault list.
 pub(crate) fn unlock_back(app: &Faraday) -> (&'static str, Action) {
-    if app.vaults.back_to == Some(Screen::Home) && app.import.is_some() {
-        ("Import", crate::boot_import::OPEN)
-    } else {
-        ("Vaults", Action::Nav(Screen::Vaults))
+    match app.vaults.back_to {
+        Some(Screen::Home) if app.import.is_some() => ("Import", crate::boot_import::OPEN),
+        // Unlocking for another flow: back to it.
+        Some(s) => (app.back_link_name(s), va(V::Back)),
+        None => ("Vaults", Action::Nav(Screen::Vaults)),
     }
 }
 
@@ -842,6 +838,10 @@ pub(crate) fn create(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     };
     let summaries = create_summaries(app);
+    let then = app
+        .vaults
+        .back_to
+        .map(|s| format!("Then: {}", app.back_name(s)));
     let cards: Vec<flow::Card> = (0..4u8)
         .map(|k| flow::Card {
             title: VSTEPS[k as usize].to_string(),
@@ -866,11 +866,16 @@ pub(crate) fn create(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x: x0 + 40.0,
         w: (cw - panel_w - 72.0).min(820.0),
         h,
-        back: Some(("Vaults", Action::Nav(Screen::Vaults))),
+        // Made for another flow: back to it, and where it goes next.
+        back: Some(match app.vaults.back_to {
+            Some(s) => (app.back_link_name(s), va(V::Back)),
+            None => ("Vaults", Action::Nav(Screen::Vaults)),
+        }),
         heading: "Create a vault",
         guided: app.guided,
         switch: true,
         note: None,
+        chip: then.as_deref(),
     };
     let scroll = c.scroll;
     let (next, again) = {
@@ -1834,6 +1839,9 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(v) = app.vaults.open.get(app.vaults.current) else {
         title(ui, x, y, "Vault contents");
         ui.text(x, y + 56.0, 15.0, W::R, MUTED, "No vault is open");
+        if let Some((label, a)) = app.vault_way(Screen::VaultContents) {
+            ui.button(x, y + 90.0, None, 44.0, &label, Style::Primary, a);
+        }
         return;
     };
     title(ui, x, y, &v.label());
@@ -2086,6 +2094,10 @@ fn contents_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut y = top;
     let Some(v) = app.vaults.open.get(app.vaults.current) else {
         ui.text(x, y, 15.0, W::R, MUTED, "No vault is open");
+        if let Some((label, a)) = app.vault_way(Screen::VaultContents) {
+            let label = ui.fit(15.0, W::S, &label, w - 24.0);
+            ui.button(x, y + 32.0, Some(w), 44.0, &label, Style::Primary, a);
+        }
         return;
     };
     let (cat_label, kinds) = CATEGORIES[app.vaults.category];

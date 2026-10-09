@@ -108,6 +108,9 @@ pub enum VaultAction {
     CreateFrom(Screen),
     /// Unlock vault n from another flow, which it returns to.
     OpenFrom(usize, Screen),
+    /// The vault list, to unlock one of several for another flow, which
+    /// the unlock returns to.
+    ListFrom(Screen),
     /// Back from the vault list to the flow that made a vault.
     Back,
     /// Load the seed with this master fingerprint from whichever open
@@ -745,6 +748,70 @@ impl Faraday {
         out
     }
 
+    /// What a flow that needs a vault offers while none is open, coming
+    /// back to `back`: Make a vault when there is no vault file, Unlock
+    /// {name} when one is locked, Unlock a vault, through the list, when
+    /// several are. `None` while a vault is open.
+    pub fn vault_way(&self, back: Screen) -> Option<(String, crate::Action)> {
+        if self.vaults.open.get(self.vaults.current).is_some() {
+            return None;
+        }
+        let files = self.vault_files();
+        let locked: Vec<usize> = (0..files.len())
+            .filter(|&i| files[i].open.is_none())
+            .collect();
+        let (label, a) = match locked[..] {
+            [] => ("Make a vault".to_string(), VaultAction::CreateFrom(back)),
+            [k] => (
+                format!("Unlock {}", files[k].name),
+                VaultAction::OpenFrom(k, back),
+            ),
+            _ => ("Unlock a vault".to_string(), VaultAction::ListFrom(back)),
+        };
+        Some((label, crate::Action::Vault(a)))
+    }
+
+    /// The flow a vault is being made or unlocked for, by name: the way
+    /// back's label and the "Then:" on Create a vault.
+    pub fn back_name(&self, s: Screen) -> &'static str {
+        match s {
+            Screen::Create => "Create a wallet",
+            Screen::Restore => "Load or restore a wallet",
+            Screen::Family => "Spend",
+            Screen::Backup => "Back up a wallet",
+            Screen::Bip85 => "Child seeds and passwords",
+            Screen::Lightning => "Lightning node key",
+            Screen::Home if self.import.is_some() => "Import",
+            Screen::VaultContents => crate::catalog::TILES
+                .iter()
+                .find(|t| t.go == crate::catalog::Go::VaultCategory(self.vaults.category))
+                .map_or(
+                    CATEGORIES[self.vaults.category.min(CATEGORIES.len() - 1)].0,
+                    |t| t.name,
+                ),
+            _ => crate::compact::screen_name(s),
+        }
+    }
+
+    /// Where the way back from making or unlocking a vault for `s` goes,
+    /// by name: Tools for a vault category with no vault open, as
+    /// [`VaultAction::Back`] goes there; else the flow.
+    pub fn back_link_name(&self, s: Screen) -> &'static str {
+        if s == Screen::VaultContents && self.vaults.open.get(self.vaults.current).is_none() {
+            "Tools"
+        } else {
+            self.back_name(s)
+        }
+    }
+
+    /// The secret sheet closes while a vault is made or unlocked for it;
+    /// its secret is kept, and the sheet opens again when the vault does.
+    fn secret_sheet_waits(&mut self) {
+        if self.sheet == Some(crate::Sheet::SecretOut) {
+            self.sheet = None;
+        }
+    }
+
     fn vault_bytes(&self, f: &VaultFile) -> Option<Vec<u8>> {
         let items = if f.in_outbox {
             &self.outbox
@@ -815,6 +882,7 @@ impl Faraday {
                     V::CreateFrom(s) => Some(s),
                     _ => None,
                 };
+                self.secret_sheet_waits();
                 self.vaults.create = Some(CreateForm::default());
                 self.vaults.just_made = None;
                 self.screen = Screen::CreateVault;
@@ -824,7 +892,14 @@ impl Faraday {
                 self.vault_act(V::Open(i));
                 if self.screen == Screen::Unlock {
                     self.vaults.back_to = Some(back);
+                    self.secret_sheet_waits();
                 }
+            }
+            V::ListFrom(back) => {
+                self.vaults.back_to = Some(back);
+                self.vaults.just_made = None;
+                self.secret_sheet_waits();
+                self.screen = Screen::Vaults;
             }
             V::EachShown(v) => {
                 if let Some(o) = self.vaults.open.get_mut(v) {
@@ -873,7 +948,24 @@ impl Faraday {
             V::Back => {
                 self.vaults.just_made = None;
                 if let Some(s) = self.vaults.back_to.take() {
-                    self.screen = s;
+                    self.vaults.passphrase.clear();
+                    self.vaults.typed_shown = false;
+                    self.vaults.unlock_error = None;
+                    self.vaults.create = None;
+                    self.vaults.dice = None;
+                    self.vaults.focus = None;
+                    // The way back from making or unlocking a vault for a
+                    // secret is its Cancel: the secret is dropped.
+                    self.secret_cancel();
+                    // A vault category from Tools with no vault open has
+                    // nothing to show: back to Tools.
+                    self.screen = if s == Screen::VaultContents
+                        && self.vaults.open.get(self.vaults.current).is_none()
+                    {
+                        Screen::Catalog
+                    } else {
+                        s
+                    };
                 }
             }
             V::Choose(v, r) => {
@@ -1522,7 +1614,10 @@ impl Faraday {
                     each_shown: false,
                 });
                 self.vaults.current = self.vaults.open.len() - 1;
-                self.vaults.category = 0;
+                // Unlocked for a vault category from Tools: that category.
+                if self.vaults.back_to != Some(Screen::VaultContents) {
+                    self.vaults.category = 0;
+                }
                 self.vaults.item = [0; 6];
                 // Keys not marked to load start unchosen; every wallet
                 // starts chosen. Nothing loads until the person says.
@@ -1554,6 +1649,10 @@ impl Faraday {
                 // vault's wallets and keys in it.
                 if back == Some(Screen::Home) && self.import.is_some() {
                     self.sheet = Some(crate::Sheet::Import);
+                }
+                // Unlocked for a secret: its sheet again, with the vault.
+                if back.is_some() && self.secret_out.is_some() {
+                    self.sheet = Some(crate::Sheet::SecretOut);
                 }
             }
             Err(e) => {
@@ -2234,11 +2333,18 @@ impl Faraday {
             Ok(file) => {
                 let name = self.free_vault_name(&vault_stem(&c.name.text));
                 self.put_outbox(&name, file);
-                self.vaults.just_made = Some(name);
+                self.vaults.just_made = Some(name.clone());
                 self.vaults.create = None;
                 self.vaults.focus = None;
                 self.screen = Screen::Vaults;
                 self.toast("Vault created");
+                // Made for another flow: Unlock, the new vault picked. Its
+                // passphrase is typed once more, then the flow goes on.
+                if self.vaults.back_to.is_some()
+                    && let Some(i) = self.vault_files().iter().position(|f| f.name == name)
+                {
+                    self.vault_act(VaultAction::Open(i));
+                }
             }
             Err(e) => {
                 if let Some(c) = self.vaults.create.as_mut() {

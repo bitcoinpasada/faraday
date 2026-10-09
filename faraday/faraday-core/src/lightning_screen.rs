@@ -210,7 +210,11 @@ fn body(
             Style::Primary,
             Action::LVault,
         )),
-        None => row.push(("No vault open".to_string(), Style::Disabled, Action::LVault)),
+        // Make or unlock one, and back to this key.
+        None => row.extend(
+            app.vault_way(crate::Screen::Lightning)
+                .map(|(label, a)| (label, Style::Primary, a)),
+        ),
     }
     row.push(("Out unprotected…".to_string(), Style::Ghost, Action::LOut));
     y + button_rows(ui, vx, y, vw, &row)

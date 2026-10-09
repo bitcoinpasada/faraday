@@ -191,13 +191,8 @@ pub(crate) fn page(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) -> (f32, f32)
         Screen::Unlock => crate::vault_screens::unlock_back(app),
         Screen::VaultContents => ("Vaults", Action::Nav(Screen::Vaults)),
         // Made from another flow: the way back to it.
-        Screen::Vaults if app.vaults.back_to.is_some() => (
-            match app.vaults.back_to {
-                Some(Screen::Create) => "Create a wallet",
-                Some(Screen::Restore) => "Load or restore a wallet",
-                Some(Screen::Family) => "Spend",
-                _ => "Back",
-            },
+        Screen::Vaults if let Some(s) = app.vaults.back_to => (
+            app.back_link_name(s),
             Action::Vault(crate::vaults::VaultAction::Back),
         ),
         // Decode goes back where it was opened from.

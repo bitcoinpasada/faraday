@@ -2945,7 +2945,20 @@ impl Faraday {
             Action::KeyGen(_) | Action::KeyGenSlip39 => "make a key",
             Action::PotentialOpen(_) => "load the wallet",
             Action::BackupOpen(_) => "open the backup",
+            // Unlocking for another flow: the Pull sheet asks first, and
+            // Unlock opens once the stick is out.
+            Action::Vault(vaults::VaultAction::OpenFrom(i, _))
+                if self.vault_files().get(i).is_some_and(|f| f.open.is_none()) =>
+            {
+                "unlock"
+            }
+            Action::Vault(vaults::VaultAction::ListFrom(_)) => "unlock",
             Action::Catalog(i) => match catalog::TILES.get(usize::from(i))?.go {
+                Go::VaultCategory(_)
+                    if self.vaults.open.is_empty() && !self.vault_files().is_empty() =>
+                {
+                    "unlock"
+                }
                 Go::NewKey | Go::NewShares => "make a key",
                 Go::AddKey(_) | Go::SeedQr => "add a key",
                 // Sign and Decode with nothing to open scan: the Scan
@@ -7105,11 +7118,32 @@ impl Faraday {
     pub fn press(&mut self, action: Action) {
         self.note_secrets();
         self.act(action);
+        // A vault being made or unlocked for another flow: the way back
+        // ends when the person leaves for anything else, and a secret
+        // kept for it goes, wiped. While on the way, the flow keeps what
+        // it held.
+        let detour = matches!(
+            self.screen,
+            Screen::CreateVault | Screen::Vaults | Screen::Unlock
+        );
+        if !detour {
+            self.vaults.back_to = None;
+        }
+        let waiting = detour && self.vaults.back_to.is_some();
+        if !waiting && !matches!(self.sheet, Some(Sheet::SecretOut | Sheet::Pull)) {
+            self.secret_cancel();
+        }
+        let kept = |s: Screen| self.screen == s || (waiting && self.vaults.back_to == Some(s));
+        let (bip85, lightning, silent) = (
+            kept(Screen::Bip85),
+            kept(Screen::Lightning),
+            kept(Screen::Silent),
+        );
         // Leaving the new-key screen drops what it held.
         if self.screen != Screen::KeyGen && self.keygen.is_some() {
             self.keygen = None;
         }
-        if self.screen != Screen::Bip85 {
+        if !bip85 {
             self.bip85 = None;
         }
         if self.screen != Screen::Explore {
@@ -7125,10 +7159,10 @@ impl Faraday {
         if self.screen != Screen::Vanity {
             self.vanity = None;
         }
-        if self.screen != Screen::Lightning && self.sheet != Some(Sheet::SecretOut) {
+        if !lightning && self.sheet != Some(Sheet::SecretOut) {
             self.lightning = None;
         }
-        if self.screen != Screen::Silent && self.sheet != Some(Sheet::Qr) {
+        if !silent && self.sheet != Some(Sheet::Qr) {
             self.silent = None;
         }
         self.keygen_camera();

@@ -442,7 +442,14 @@ impl Faraday {
             Go::CheckMessage if !self.inbox.iter().any(|i| i.kind == FileKind::Message) => {
                 "Copy a signed message in first"
             }
-            Go::VaultCategory(_) if self.vaults.open.is_empty() => "Unlock a vault first",
+            // Pressable: these two lead into making or unlocking one.
+            Go::VaultCategory(_) if self.vaults.open.is_empty() => {
+                if self.vault_files().is_empty() {
+                    "Make a vault first"
+                } else {
+                    "Unlock a vault first"
+                }
+            }
             Go::OpenBackup if !self.inbox.iter().any(|i| i.kind == FileKind::Backup) => {
                 "Copy an .oskb in first"
             }
@@ -451,12 +458,19 @@ impl Faraday {
         Some(need)
     }
 
+    /// Whether a tile opens when pressed: it needs nothing first, or what
+    /// it needs is a vault, which the press leads into making or
+    /// unlocking.
+    pub fn tile_opens(&self, go: Go) -> bool {
+        matches!(go, Go::VaultCategory(_)) || self.tile_need(go).is_none()
+    }
+
     /// Opens tile `i`'s flow.
     pub(crate) fn catalog_go(&mut self, i: usize) {
         let Some(tile) = TILES.get(i) else {
             return;
         };
-        if self.tile_need(tile.go).is_some() {
+        if !self.tile_opens(tile.go) {
             return;
         }
         match tile.go {
@@ -513,6 +527,14 @@ impl Faraday {
             }
             Go::Vaults => self.act(Action::Nav(Screen::Vaults)),
             Go::CreateVault => self.act(Action::Vault(VaultAction::Create)),
+            // No vault open: Create a vault or Unlock, which come back to
+            // this category of the vault made or unlocked.
+            Go::VaultCategory(c) if self.vaults.open.is_empty() => {
+                self.vaults.category = c;
+                if let Some((_, a)) = self.vault_way(Screen::VaultContents) {
+                    self.act(a);
+                }
+            }
             Go::VaultCategory(c) => {
                 self.vaults.current = 0;
                 self.act(Action::Nav(Screen::VaultContents));

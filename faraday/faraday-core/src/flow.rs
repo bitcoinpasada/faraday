@@ -64,6 +64,8 @@ pub struct Column<'a> {
     pub switch: bool,
     /// A line under the title, about the page as a whole.
     pub note: Option<&'a str>,
+    /// A chip beside the title: where the flow goes next.
+    pub chip: Option<&'a str>,
 }
 
 /// Draws the cards. `body` draws the open card's controls at (x, y) in a
@@ -107,7 +109,10 @@ pub fn column_foot(
         ui.hit(x - 4.0, y - 4.0, lw + 30.0, 24.0, action);
         y += 22.0;
     }
-    ui.text(x, y, 26.0, W::S, TEXT, col.heading);
+    let hw = ui.text(x, y, 26.0, W::S, TEXT, col.heading);
+    if let Some(chip) = col.chip {
+        ui.chip(x + hw + 14.0, y + 4.0, chip, ACCENT, ACCENT.with_alpha(30));
+    }
     // Steps only or Guided, beside the title; laid out from the right.
     let mut bx = x + w;
     let switch: &[(&str, bool, bool)] = if col.switch {
@@ -316,6 +321,11 @@ fn paged(
     let top = BAR_H - next.y;
     let mut y = top + 10.0;
     let inner = w - 2.0 * M;
+    if let Some(chip) = col.chip {
+        let chip = ui.fit(12.0, W::R, chip, inner - 34.0);
+        ui.chip(M, y, &chip, ACCENT, ACCENT.with_alpha(30));
+        y += 36.0;
+    }
 
     // The steps: a numbered dot each. When they do not all fit, as many
     // as do, the open one among them, with an arrow where more are.
