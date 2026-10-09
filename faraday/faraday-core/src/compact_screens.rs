@@ -87,7 +87,12 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
     let mut cy = top + 12.0;
     let may = app.may_load_keys();
     let Some(wlt) = app.session.wallets.get(app.wallet) else {
-        ui.text(x, cy, 14.0, W::R, MUTED, "No wallet loaded");
+        if app.session.loose_keys().is_empty() {
+            ui.text(x, cy, 14.0, W::R, MUTED, "No wallet loaded");
+        } else {
+            cy += crate::screens::loose_card(app, ui, x, cy, iw);
+            finish(app, ui, x0, cw, h, cy - top + 8.0);
+        }
         return;
     };
 
@@ -230,7 +235,13 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
         let chipw = ui.measure(12.0, W::R, state) + 34.0;
         ui.chip(x + iw - chipw, cy + 3.0, state, fg, bg);
         cy += 30.0;
-        if let Some(label) = &slot.held_by {
+        // A key added with no label is labelled with its fingerprint:
+        // the fingerprint is not said twice.
+        if let Some(label) = slot
+            .held_by
+            .as_ref()
+            .filter(|l| !l.trim().eq_ignore_ascii_case(&fp))
+        {
             let label = ui.fit(12.0, W::R, label, iw - 20.0);
             ui.text(x + 20.0, cy, 12.0, W::R, MUTED, &label);
             cy += 20.0;
@@ -328,8 +339,10 @@ fn silent_card(
     ui.chip(x + iw - chipw, cy + 3.0, state, fg, bg);
     cy += 30.0;
     if let Some(label) = held {
-        ui.text(x, cy, 12.0, W::R, MUTED, label);
-        cy += 20.0;
+        if !label.trim().eq_ignore_ascii_case(&fp_text(r.fingerprint)) {
+            ui.text(x, cy, 12.0, W::R, MUTED, label);
+            cy += 20.0;
+        }
     } else {
         let (label, style, action) = if app.vault_key_for(r.fingerprint).is_some() {
             (

@@ -7,7 +7,7 @@ use osk_ui::widgets::Icon;
 
 use crate::ui::pal::*;
 use crate::ui::{Style, Theme, Ui, W, btc, grouped, short, thousands};
-use crate::wallet::{FileKind, Session, fp_text, network_name};
+use crate::wallet::{FileKind, Session, fp_text, key_line, network_name};
 use crate::{Action, Faraday, Screen, Sheet, flow, guide};
 
 const SIDEBAR_W: f32 = 240.0;
@@ -2681,6 +2681,65 @@ pub(crate) fn wallet_rows(
 // Wallets
 // ---------------------------------------------------------------------
 
+/// What the Wallets tab offers for a key in no wallet.
+pub(crate) const FROM_KEY: &str = "Make a wallet from this key";
+
+/// The Wallets card with keys loaded and no wallet: each key, the one
+/// picked when there are several, and the ways on to a wallet. Returns
+/// the height used.
+pub(crate) fn loose_card(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let (loose, picked) = app.loose_keys();
+    let Some(picked) = picked else {
+        return 0.0;
+    };
+    let mut cy = y;
+    if let [only] = loose.as_slice() {
+        let line = format!("Key {} is loaded. No wallet uses it.", fp_text(*only));
+        cy += ui.wrap(x, cy, w, 15.0, W::R, TEXT, &line) + 16.0;
+    } else {
+        let line = format!("{} keys are loaded. No wallet uses them.", loose.len());
+        cy += ui.wrap(x, cy, w, 15.0, W::R, TEXT, &line) + 10.0;
+        for fp in &loose {
+            let on = fp.0 == picked;
+            ui.checkbox(x, cy + 11.0, on, true);
+            let line = key_line(*fp, app.session.key_label(*fp).unwrap_or(""));
+            let line = ui.fit(14.0, W::M, &line, w - 30.0);
+            ui.text_mid(
+                x + 30.0,
+                cy,
+                40.0,
+                14.0,
+                W::M,
+                if on { TEXT } else { MUTED },
+                &line,
+            );
+            ui.hit(x, cy, w, 40.0, Action::PickKey(fp.0));
+            ui.rule(x, cy + 40.0, w, INNER);
+            cy += 42.0;
+        }
+        cy += 14.0;
+    }
+    let items = [
+        (FROM_KEY, Style::Primary, Action::KeyWallet(picked, 1)),
+        (
+            "Add another key",
+            Style::Secondary,
+            Action::KeyWallet(picked, 2),
+        ),
+        (
+            "Load or restore a wallet",
+            Style::Secondary,
+            Action::RestoreWallet,
+        ),
+    ];
+    cy += if ui.compact {
+        crate::compact_screens::stack(ui, x, cy, w, &items)
+    } else {
+        wrap_buttons(ui, x, cy, w, 40.0, &items)
+    };
+    cy - y
+}
+
 fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         crate::compact_screens::wallet_card(app, ui, x0, cw, h);
@@ -2730,29 +2789,39 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     let listw = 250.0;
     let bottom = h - 28.0;
-    // The list.
-    section_label(ui, x + 4.0, y, "Wallets");
-    let list_top = y + 28.0;
-    const ROW: f32 = 60.0;
-    let room = ((h - 28.0 - 100.0 - list_top) / ROW).floor().max(1.0) as usize;
+    let may = app.may_load_keys();
     let total = app.session.wallets.len();
-    let max_shift = (total as f32 * ROW - room as f32 * ROW).max(0.0);
-    let shift = app.list_offset.min(max_shift);
-    if shift > 0.0 {
-        ui.text_right(
-            x + listw,
-            y,
-            18.0,
-            12.0,
-            W::R,
-            DIM,
-            &format!("{} above", (shift / ROW).ceil() as usize),
-        );
+    let none = total == 0;
+    let (loose, _) = app.loose_keys();
+    // The card offers the loose keys' next steps, and Load or restore,
+    // when no wallet is loaded.
+    let card_offers = none && !loose.is_empty();
+
+    // The left column, top down: the wallets, the keys in no wallet,
+    // then the buttons; scrolled when taller than the screen.
+    const ROW: f32 = 60.0;
+    const KEY_ROW: f32 = 22.0;
+    const KEY_BUTTON: f32 = 46.0;
+    let mut content = 0.0;
+    if !none {
+        content += 28.0 + total as f32 * ROW;
     }
-    let clip = ui.rect(x, list_top, listw, room as f32 * ROW);
+    if !loose.is_empty() {
+        let each = if none { KEY_ROW } else { KEY_ROW + KEY_BUTTON };
+        content += 8.0 + 26.0 + loose.len() as f32 * each;
+    }
+    content += 8.0 + if none && !card_offers { 48.0 } else { 0.0 } + 40.0;
+    let view_h = bottom - y;
+    let max_shift = (content - view_h).max(0.0);
+    let shift = app.list_offset.min(max_shift);
+    let clip = ui.rect(x - 4.0, y, listw + 8.0, view_h);
     ui.c.push_clip(clip);
+    let mut ly = y - shift;
+    if !none {
+        section_label(ui, x + 4.0, ly, "Wallets");
+        ly += 28.0;
+    }
     for (i, wlt) in app.session.wallets.iter().enumerate() {
-        let ly = list_top - shift + i as f32 * ROW;
         let current = i == app.wallet;
         let action = Action::PickWallet(i);
         let (bg, edge) = if current {
@@ -2783,68 +2852,50 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let t = ui.fit(12.0, W::R, &t, listw - 28.0);
         ui.text(x + 14.0, ly + 31.0, 12.0, W::R, c, &t);
         ui.hit(x, ly, listw, 54.0, action);
-    }
-    ui.c.pop_clip();
-    ui.report_scroll(clip, max_shift);
-    let mut ly = list_top + room as f32 * ROW;
-    let below = total as f32 * ROW - shift - room as f32 * ROW;
-    if below > 0.0 {
-        ui.text(
-            x + 4.0,
-            ly,
-            12.0,
-            W::R,
-            DIM,
-            &format!("{} more · scroll", (below / ROW).ceil() as usize),
-        );
-        ly += 22.0;
-    }
-    if app.session.wallets.is_empty() {
-        ui.text(x + 4.0, ly, 13.0, W::R, DIM, "None loaded");
-        ly += 28.0;
+        ly += ROW;
     }
     // Keys not in any wallet.
-    let loose: Vec<String> = app
-        .session
-        .keys
-        .iter()
-        .filter(|k| {
-            let fp = k.master.fingerprint();
-            !app.session.wallets.iter().any(|w| {
-                app.session
-                    .slots(w)
-                    .iter()
-                    .any(|s| s.fingerprint == Some(fp))
-            })
-        })
-        .map(|k| format!("{} · {}", fp_text(k.master.fingerprint()), k.label))
-        .collect();
     if !loose.is_empty() {
         ly += 8.0;
         section_label(ui, x + 4.0, ly, "Keys without a wallet");
         ly += 26.0;
-        for k in &loose {
-            let k = ui.fit(13.0, W::R, k, listw - 8.0);
-            ui.text(x + 4.0, ly, 13.0, W::R, TEXT, &k);
-            ly += 22.0;
+        for fp in &loose {
+            let line = key_line(*fp, app.session.key_label(*fp).unwrap_or(""));
+            let line = ui.fit(13.0, W::R, &line, listw - 8.0);
+            ui.text(x + 4.0, ly, 13.0, W::R, TEXT, &line);
+            ly += KEY_ROW;
+            // With wallets loaded the card shows one of them: the key's
+            // own row offers the wallet from it.
+            if !none {
+                ui.button(
+                    x,
+                    ly,
+                    Some(listw),
+                    38.0,
+                    FROM_KEY,
+                    Style::Secondary,
+                    Action::KeyWallet(fp.0, 1),
+                );
+                ly += KEY_BUTTON;
+            }
         }
     }
-    let may = app.may_load_keys();
-    let by = bottom - 40.0;
-    if app.session.wallets.is_empty() {
+    ly += 8.0;
+    if none && !card_offers {
         ui.button(
             x,
-            by - 48.0,
+            ly,
             Some(listw),
             40.0,
             "Load or restore a wallet",
             Style::Secondary,
             Action::RestoreWallet,
         );
+        ly += 48.0;
     }
     ui.button(
         x,
-        by,
+        ly,
         Some(listw),
         40.0,
         "Add a key",
@@ -2855,6 +2906,8 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         },
         Action::Entry(None),
     );
+    ui.c.pop_clip();
+    ui.report_scroll(clip, max_shift);
 
     // The wallet card.
     let cx = x + listw + 16.0;
@@ -2862,8 +2915,12 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let ch = bottom - y;
     ui.card(cx, y, cwid, ch, LINE);
     let Some(wlt) = app.session.wallets.get(app.wallet) else {
-        let msg = "No wallet loaded";
-        ui.wrap(cx + 24.0, y + 24.0, cwid - 48.0, 15.0, W::R, MUTED, msg);
+        if card_offers {
+            loose_card(app, ui, cx + 24.0, y + 24.0, cwid - 48.0);
+        } else {
+            let msg = "No wallet loaded";
+            ui.wrap(cx + 24.0, y + 24.0, cwid - 48.0, 15.0, W::R, MUTED, msg);
+        }
         return;
     };
     let ix = cx + 24.0;
@@ -2968,7 +3025,12 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .map(fp_text)
             .unwrap_or_else(|| "no origin".to_string());
         ui.text_mid(ix + 26.0, cy, 46.0, 14.0, W::M, TEXT, &fp);
-        if let Some(label) = &slot.held_by {
+        // A key named after its fingerprint is not named twice.
+        if let Some(label) = slot
+            .held_by
+            .as_ref()
+            .filter(|l| !l.trim().eq_ignore_ascii_case(&fp))
+        {
             ui.text_mid(ix + 130.0, cy, 46.0, 13.0, W::R, MUTED, label);
         }
         let (state, fg, bg) = if slot.held_by.is_some() {
@@ -7010,7 +7072,14 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x: col_x,
         w: col_w,
         h,
-        back: Some(("Wallets", Action::Nav(Screen::Start))),
+        back: Some((
+            "Wallets",
+            Action::Nav(if r.from_key {
+                Screen::Wallets
+            } else {
+                Screen::Start
+            }),
+        )),
         heading: "Load or restore a wallet",
         guided: app.guided,
         switch: true,

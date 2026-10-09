@@ -186,6 +186,18 @@ pub fn fp_text(fp: Fingerprint) -> String {
     String::from_utf8_lossy(&fp.to_hex()).into_owned()
 }
 
+/// A key as a line: its fingerprint, then its label when the label is
+/// not the fingerprint itself.
+pub fn key_line(fp: Fingerprint, label: &str) -> String {
+    let f = fp_text(fp);
+    let label = label.trim();
+    if label.is_empty() || label.eq_ignore_ascii_case(&f) {
+        f
+    } else {
+        format!("{f} · {label}")
+    }
+}
+
 /// Keys and wallets for this session. Nothing here is written anywhere.
 pub struct Session {
     /// Keys that can sign.
@@ -479,6 +491,21 @@ impl Session {
             .iter()
             .find(|k| k.master.fingerprint() == fp)
             .map(|k| k.label.as_str())
+    }
+
+    /// The keys loaded that no wallet loaded uses, in the order they
+    /// were added.
+    pub fn loose_keys(&self) -> Vec<Fingerprint> {
+        self.keys
+            .iter()
+            .map(|k| k.master.fingerprint())
+            .filter(|&fp| {
+                !self
+                    .wallets
+                    .iter()
+                    .any(|w| self.slots(w).iter().any(|s| s.fingerprint == Some(fp)))
+            })
+            .collect()
     }
 
     /// The wallet's slots, in the descriptor's order.

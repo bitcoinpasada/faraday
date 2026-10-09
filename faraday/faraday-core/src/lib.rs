@@ -392,6 +392,8 @@ pub enum Action {
     EntryClear,
     /// Choose a wallet on the Wallets tab.
     PickWallet(usize),
+    /// Choose a key in no wallet on the Wallets tab, by fingerprint.
+    PickKey([u8; 4]),
     /// Remove a wallet from the session.
     RemoveWallet(usize),
     /// Remove every key from the session.
@@ -787,6 +789,10 @@ pub enum Action {
     /// Restore from the seeds alone: the seeds card opens in seeds-first
     /// mode.
     RSeeds,
+    /// A wallet from a loaded key in no wallet, by fingerprint: Restore's
+    /// seeds card with that key in, at the shape, with this many keys
+    /// (1 for a wallet of that key alone, 2 to add another).
+    KeyWallet([u8; 4], u8),
     /// A wallet made from the seeds in hand (`seeds.rs`).
     Seeds(seeds::SeedsAction),
     /// A slider pressed, dragged or stepped: which slider, the value.
@@ -1675,6 +1681,8 @@ pub struct RestoreState {
     /// Restoring from the seeds alone, before any wallet: the seeds
     /// typed so far and the wallet they will make.
     pub seeds: Option<seeds::SeedsState>,
+    /// Opened from a key on Wallets: Back goes to Wallets.
+    pub from_key: bool,
 }
 
 /// The restore cards, in order.
@@ -1834,6 +1842,9 @@ pub struct Faraday {
     pub entry: EntryState,
     /// The wallet chosen on the Wallets tab.
     pub wallet: usize,
+    /// The key in no wallet chosen on the Wallets tab, by fingerprint,
+    /// when several are loaded and none of them in a wallet.
+    pub loose_pick: Option<[u8; 4]>,
     /// The visit screen.
     pub visit: VisitState,
     /// What the boot stick brought at its first look this power-on,
@@ -2053,6 +2064,7 @@ impl Faraday {
             after_visit: None,
             entry: EntryState::default(),
             wallet: 0,
+            loose_pick: None,
             visit: VisitState::default(),
             import: None,
             stick_settings: None,
@@ -3096,6 +3108,7 @@ impl Faraday {
                 self.wallet = i;
                 self.renaming = None;
             }
+            Action::PickKey(fp) => self.loose_pick = Some(fp),
             Action::RemoveWallet(i) => {
                 if i < self.session.wallets.len() {
                     self.session.wallets.remove(i);
@@ -3959,6 +3972,19 @@ impl Faraday {
                     r.open = Some(rstep::SEEDS);
                     r.scroll.follow = true;
                 }
+            }
+            Action::KeyWallet(fp, n) => {
+                let mut s = seeds::SeedsState::default();
+                s.take(fp);
+                s.start_shape();
+                s.set_n(usize::from(n));
+                self.restore = Some(RestoreState {
+                    open: Some(rstep::SEEDS),
+                    seeds: Some(s),
+                    from_key: true,
+                    ..RestoreState::default()
+                });
+                self.screen = Screen::Restore;
             }
             Action::Seeds(a) => self.seeds_act(a),
             Action::Slide(id, v) => self.slide(id, v),
@@ -6343,6 +6369,17 @@ impl Faraday {
     /// The width and height of the layout, in design units.
     pub fn size(&self) -> (f32, f32) {
         (self.w, self.h)
+    }
+
+    /// The keys loaded that no wallet uses, and the one of them the
+    /// Wallets card offers a wallet from: the one picked, else the first.
+    pub fn loose_keys(&self) -> (Vec<osk_bip::keys::Fingerprint>, Option<[u8; 4]>) {
+        let loose = self.session.loose_keys();
+        let picked = self
+            .loose_pick
+            .filter(|p| loose.iter().any(|f| f.0 == *p))
+            .or_else(|| loose.first().map(|f| f.0));
+        (loose, picked)
     }
 
     /// Whether the display is a small panel, drawn one column at a time.

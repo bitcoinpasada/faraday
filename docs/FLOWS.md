@@ -89,6 +89,13 @@ plug it in" (with a stick attached, **Copy files in** → Stick visit; a key
 file copied in loads when the stick is pulled). **Scan** floats in the
 bottom-right corner of Home on every panel → the scanner. The Wallets tab
 carries **Add a key** beside Create a wallet and Load or restore a wallet.
+A key added with no wallet loaded lands on Wallets, whose card says
+"Key 73c5da0a is loaded. No wallet uses it." with **Make a wallet from
+this key** (Restore's seeds card with the key in, at the shape: 1 of 1,
+Native SegWit, account 0 → **Make the wallet**), **Add another key** (the
+same card at 2 keys, for a multisig) and **Load or restore a wallet**.
+Several such keys: one line each, the buttons on the one picked. Back
+from the seeds card returns to Wallets with the key still loaded.
 
 ## Session
 
@@ -211,6 +218,11 @@ guarantees for this file's rule:
   what was not saved.
 - **Creating a wallet ends in Backup and Save**, never on the descriptor
   alone.
+- **A key in no wallet has a way on**: the card's buttons above with no
+  wallet loaded; with wallets loaded, the key's row in the left column
+  carries **Make a wallet from this key**. The left column runs top
+  down, wallets, keys in no wallet, then its buttons, and scrolls when
+  taller than the screen.
 - **Restore** takes the wallet's description (a stick, a vault, paper) or
   **Type the seeds**: each seed through Add a key and back, **Add another
   key**, then **Make the wallet**: M of N on two sliders, the cosigners'

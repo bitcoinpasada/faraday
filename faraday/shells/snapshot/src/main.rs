@@ -1,13 +1,14 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds]
+//! faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys]
 //! ```
 //!
 //! `TESTKIT_DIR` is what `faraday-testkit` wrote; its files stand in
 //! for a stick called TESTSTICK. Each step of the tour is one numbered
 //! PNG in `OUT_DIR`. With `spend`, only the Spend tab's tour runs; with
-//! `themes`, three screens in each theme.
+//! `themes`, three screens in each theme; with `keys`, Wallets with keys
+//! in no wallet.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -295,6 +296,7 @@ fn run(
         Some("themes") => return themes_tour(&mut t),
         Some("compact") => return compact_tour(&mut t),
         Some("seeds") => return seeds_tour(&mut t),
+        Some("keys") => return keys_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -1744,6 +1746,57 @@ fn seeds_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// Keys in no wallet on Wallets: a key beside the test kit's wallets,
+/// with the column scrolled to its buttons; then one key added to an
+/// empty session, the wallet made from it, and two keys.
+fn keys_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::seeds::SeedsAction as S;
+    let abandon = "abandon abandon abandon abandon abandon abandon \
+                   abandon abandon abandon abandon abandon about";
+    t.load_kit()?;
+    t.press(Action::Entry(None));
+    type_text(t, abandon);
+    t.press(Action::EntryAdd);
+    t.press(Action::Nav(Screen::Wallets));
+    t.shot("wallets-kit-and-key")?;
+    scroll(t, 1200);
+    t.shot("wallets-kit-and-key-foot")?;
+    t.press(Action::Lock);
+    t.sticks(false);
+    t.tick();
+    t.press(Action::Entry(None));
+    type_text(t, abandon);
+    t.press(Action::EntryAdd);
+    t.shot("wallets-one-key")?;
+    let fp = t
+        .app
+        .session
+        .keys
+        .first()
+        .map(|k| k.master.fingerprint().0)
+        .ok_or("no key added")?;
+    t.press(Action::KeyWallet(fp, 1));
+    t.shot("from-key-shape")?;
+    let steps = if t.size().0 < 700 { 5 } else { 2 };
+    for k in 1..=steps {
+        scroll(t, 300);
+        t.shot(&format!("from-key-shape-{k}"))?;
+    }
+    t.press(Action::Nav(Screen::Wallets));
+    t.press(Action::KeyWallet(fp, 2));
+    t.shot("from-key-two")?;
+    t.press(Action::Nav(Screen::Wallets));
+    t.press(Action::Entry(None));
+    t.type_key(1);
+    t.press(Action::Nav(Screen::Wallets));
+    t.shot("wallets-two-keys")?;
+    t.press(Action::KeyWallet(fp, 1));
+    t.press(Action::Seeds(S::Make));
+    t.press(Action::Nav(Screen::Wallets));
+    t.shot("wallets-one-wallet-one-key")?;
+    Ok(())
+}
+
 fn themes_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     for theme in faraday_core::ui::Theme::ALL {
@@ -2139,7 +2192,7 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds]"
+            "usage: faraday-snapshot WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys]"
         );
         return ExitCode::from(2);
     }
@@ -2167,8 +2220,8 @@ fn main() -> ExitCode {
         None => 160,
     };
     let only = args.get(4).map(String::as_str);
-    if only.is_some_and(|m| !["spend", "themes", "compact", "seeds"].contains(&m)) {
-        eprintln!("the tour is spend, themes, compact or seeds");
+    if only.is_some_and(|m| !["spend", "themes", "compact", "seeds", "keys"].contains(&m)) {
+        eprintln!("the tour is spend, themes, compact, seeds or keys");
         return ExitCode::from(2);
     }
     match run((w, h), dpi, Path::new(&args[2]), Path::new(&args[3]), only) {
