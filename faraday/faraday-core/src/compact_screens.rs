@@ -290,26 +290,24 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
             Action::Nav(Screen::Files),
         ),
     };
-    cy += stack(
-        ui,
-        x,
-        cy,
-        iw,
-        &[
-            sign,
-            (
-                "Show wallet QR",
-                Style::Secondary,
-                Action::QrWallet(app.wallet),
-            ),
-            ("Back up", Style::Secondary, Action::Backup(app.wallet)),
-            (
-                "Remove from session",
-                Style::Ghost,
-                Action::RemoveWallet(app.wallet),
-            ),
-        ],
-    );
+    let mut buttons = vec![
+        sign,
+        (
+            "Show wallet QR",
+            Style::Secondary,
+            Action::QrWallet(app.wallet),
+        ),
+        ("Back up", Style::Secondary, Action::Backup(app.wallet)),
+    ];
+    if app.session.message_wallets().contains(&app.wallet) {
+        buttons.push(("Sign a message", Style::Secondary, Action::SignMessage));
+    }
+    buttons.push((
+        "Remove from session",
+        Style::Ghost,
+        Action::RemoveWallet(app.wallet),
+    ));
+    cy += stack(ui, x, cy, iw, &buttons);
     finish(app, ui, x0, cw, h, cy - top + 8.0);
 }
 

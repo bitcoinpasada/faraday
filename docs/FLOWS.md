@@ -125,6 +125,34 @@ to get it.
     leaving for another page, ends it: a secret held for it is dropped,
     wiped, as Cancel on the sheet does.
 
+11. **Home is the Start section, one lead and at most two secondaries**
+    (owner, 2026-10-10; `docs/SIMPLIFY.md` §1 and §1.2). The three status
+    cards (Session, Files, Sticks) are gone from Home: the sidebar's
+    status block already carries them. Start is one full-width lead tile,
+    the first job that applies (a spend under way, a PSBT in Files, an
+    import waiting, a locked vault, otherwise Make a wallet), then at
+    most two secondary tiles (Wallets, Vaults; Stick visit when they
+    leave room). Add a key is not on Home: it is reached from Wallets'
+    empty state and from Tools.
+12. **Wallets with something loaded is the list and the card alone**
+    (owner, 2026-10-10; `docs/SIMPLIFY.md` §1.3). "What do you have?" and
+    "What do you want to do?" are gone from the Wallets start page: every
+    job they offered (Sign a transaction, Back up, Show wallet QR, Sign a
+    message) is reached from the wallet card, opened from a wallet's row,
+    and from Tools.
+13. **Learn joins the sidebar, after Tools** (owner, 2026-10-10;
+    `docs/SIMPLIFY.md` §1.4). The small panel's Home grid carries it in
+    Add a key's old place.
+14. **The network chooser moves to Settings** (owner, 2026-10-10;
+    `docs/SIMPLIFY.md` §1.5). Home's network pill, and the sidebar's own
+    badge, are off-mainnet badges that open nothing; choosing a network
+    is a Settings row.
+15. **The session strip** (owner, 2026-10-10; `docs/SIMPLIFY.md` §1.6).
+    The sidebar (and the small Home's status card) carries one line,
+    **Bring in · Open · Work · Write out**, the current stage in the
+    accent, computed from what is attached, loaded and waiting; tapping
+    it opens Files.
+
 ## Home
 
 **Start** leads with **Add a key** (type, scan or bring in a seed) →

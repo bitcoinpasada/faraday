@@ -22,7 +22,6 @@ fn desktop() -> Faraday {
 #[test]
 fn mainnet_waits_for_i_understand_on_the_desktop() {
     let mut app = desktop();
-    app.press(Action::NetworkAsk);
     app.press(Action::Network(Network::Mainnet));
     assert_eq!(app.sheet, Some(Sheet::NotAirgapped));
     assert_eq!(app.session.network(), Network::Testnet);

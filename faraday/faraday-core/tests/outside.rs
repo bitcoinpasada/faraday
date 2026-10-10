@@ -1,6 +1,7 @@
 //! A sheet closes on a press beside it, as its own way out does: the
-//! camera, the network choice, a QR code. A press on the sheet itself
-//! does not close it.
+//! camera, a QR code. A press on the sheet itself does not close it.
+//! The network choice is a Settings row now, not a sheet: it changes the
+//! network at once, with nothing to close.
 
 use faraday_core::{Action, Faraday, Screen, Sheet, testkit};
 use osk_shell_api::{App, Command, Event, TouchPhase};
@@ -32,14 +33,12 @@ fn the_camera_closes_on_a_press_beside_it() {
 }
 
 #[test]
-fn the_network_choice_closes_on_a_press_beside_it_and_keeps_the_network() {
+fn the_network_choice_in_settings_changes_the_network_with_no_sheet() {
     let mut app = testkit::started();
-    let before = app.session.network();
-    app.press(Action::NetworkAsk);
-    assert_eq!(app.sheet, Some(Sheet::Network));
-    press_at(&mut app, 1276, 796);
+    app.press(Action::Nav(Screen::Settings));
+    app.press(Action::Network(osk_bip::keys::Network::Testnet));
+    assert_eq!(app.session.network(), osk_bip::keys::Network::Testnet);
     assert_eq!(app.sheet, None);
-    assert_eq!(app.session.network(), before);
 }
 
 #[test]

@@ -5,8 +5,37 @@
 
 use faraday_core::testkit;
 use faraday_core::wallet::{FileKind, Session, classify};
-use faraday_core::{Action, Faraday, StorageEvent};
+use faraday_core::{Action, Faraday, Screen, StorageEvent};
 use osk_bip::keys::Network;
+use osk_shell_api::App;
+
+#[test]
+fn home_has_no_network_target_on_mainnet() {
+    let app = testkit::started();
+    assert_eq!(app.session.network(), Network::Mainnet);
+    assert!(!app.offers(Action::Network(Network::Testnet)));
+}
+
+#[test]
+fn settings_changes_the_network() {
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Settings));
+    let _ = app.frame();
+    assert!(app.offers(Action::Network(Network::Testnet)));
+    app.press(Action::Network(Network::Testnet));
+    assert_eq!(app.session.network(), Network::Testnet);
+    assert_eq!(app.sheet, None);
+}
+
+#[test]
+fn off_mainnet_home_is_still_a_badge_with_no_target() {
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Settings));
+    app.press(Action::Network(Network::Testnet));
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    assert!(!app.offers(Action::Network(Network::Mainnet)));
+}
 
 /// BIP-84's account 0 for the "abandon … about" seed: a mainnet wallet.
 const MAINNET_WALLET: &str = "wpkh([73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/<0;1>/*)";

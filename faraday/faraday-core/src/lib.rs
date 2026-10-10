@@ -620,8 +620,6 @@ pub enum Action {
     PowerAsk,
     /// Power off.
     PowerOff,
-    /// Open the network chooser.
-    NetworkAsk,
     /// Minutes without input before locking; 0 for never.
     IdleLock(u16),
     /// Minutes without input before powering off; 0 for never.
@@ -1250,8 +1248,6 @@ pub enum Sheet {
     Qr,
     /// The camera, reading QR codes.
     Scan,
-    /// Choosing the network.
-    Network,
     /// The online app on mainnet: this computer is not air-gapped.
     NotAirgapped,
     /// Locked for idleness: what waits in the Outbox.
@@ -3526,6 +3522,23 @@ impl Faraday {
         }
     }
 
+    /// The session strip's stage, computed, never stored: where the
+    /// person is in the lock cycle now. A stick attached while working
+    /// still asks to bring it in, because the lock sheet is what asks to
+    /// lock it; `Write out` is files For the stick with no stick
+    /// attached (a vault changed since written, §3.5, joins it later).
+    pub fn session_stage(&self) -> &'static str {
+        if !self.sticks.is_empty() || self.import.is_some() {
+            "Bring in"
+        } else if !self.outbox.is_empty() {
+            "Write out"
+        } else if self.holds_secret() || !self.session.wallets.is_empty() {
+            "Work"
+        } else {
+            "Open"
+        }
+    }
+
     /// The Inbox PSBT to offer first: the one with the fewest signatures,
     /// so a cosigner's signed copy never stands in for the transaction.
     pub fn lead_psbt(&self) -> Option<usize> {
@@ -3998,7 +4011,6 @@ impl Faraday {
                 self.sheet = None;
                 self.commands.push_back(Command::Exit);
             }
-            Action::NetworkAsk => self.sheet = Some(Sheet::Network),
             Action::InputUse(id) => self.input_believe(id),
             Action::InputIgnore(id) => self.input_ignore(id),
             Action::IdleLock(m) => {

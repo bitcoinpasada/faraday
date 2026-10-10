@@ -220,30 +220,19 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let mut y = top + 12.0;
     let inner = w - 2.0 * M;
 
-    // The mark and the name; the network on the right.
+    // The mark and the name; off mainnet, a badge on the right that
+    // opens nothing. The chooser is in Settings.
     ui.mark(M, y, 20.0, 23.0);
     ui.text_mid(M + 28.0, y, 24.0, 17.0, W::S, TEXT, "Faraday");
     let net = app.session.network();
-    let label = format!("{}  ▾", network_name(net));
-    let pw = ui.measure(12.0, W::S, &label) + 24.0;
-    let px = w - M - pw;
-    let (fg, bg, edge) = if net.is_mainnet() {
-        (MUTED, SURFACE, LINE)
-    } else {
-        (WARN, WARN.with_alpha(30), WARN.with_alpha(110))
-    };
-    let pressed = ui.is_pressed(Action::NetworkAsk);
-    ui.fill(
-        px,
-        y - 2.0,
-        pw,
-        28.0,
-        14.0,
-        if pressed { INNER } else { bg },
-    );
-    ui.stroke(px, y - 2.0, pw, 28.0, 14.0, edge);
-    ui.text_mid(px + 12.0, y - 2.0, 28.0, 12.0, W::S, fg, &label);
-    ui.hit(px - 4.0, y - 8.0, pw + 8.0, 40.0, Action::NetworkAsk);
+    if !net.is_mainnet() {
+        let label = network_name(net);
+        let pw = ui.measure(12.0, W::S, label) + 24.0;
+        let px = w - M - pw;
+        ui.fill(px, y - 2.0, pw, 28.0, 14.0, WARN.with_alpha(30));
+        ui.stroke(px, y - 2.0, pw, 28.0, 14.0, WARN.with_alpha(110));
+        ui.text_mid(px + 12.0, y - 2.0, 28.0, 12.0, W::S, WARN, label);
+    }
     y += 38.0;
 
     // What this session holds.
@@ -289,6 +278,29 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     ui.text_mid(M + 28.0, y + 26.0, 20.0, 12.0, W::R, MUTED, &sub);
     ui.hit(M, y, inner, 52.0, action);
     y += 52.0 + 10.0;
+
+    // The session strip: the four stages of the lock cycle, the one now
+    // current in the accent, the rest dim. Tapping it opens Files.
+    {
+        let stage = app.session_stage();
+        let open_files = Action::Nav(Screen::Files);
+        if ui.is_pressed(open_files) {
+            ui.fill(M, y, inner, 22.0, 6.0, INNER);
+        }
+        let mut sx = M + 4.0;
+        for (i, label) in ["Bring in", "Open", "Work", "Write out"]
+            .into_iter()
+            .enumerate()
+        {
+            if i > 0 {
+                sx += ui.text_mid(sx, y, 22.0, 11.0, W::R, DIM, " · ");
+            }
+            let fg = if label == stage { ACCENT } else { DIM };
+            sx += ui.text_mid(sx, y, 22.0, 11.0, W::S, fg, label);
+        }
+        ui.hit(M, y, inner, 22.0, open_files);
+        y += 22.0 + 10.0;
+    }
 
     // The one thing waiting, when there is one.
     for (icon, label, action, tone) in prompts(app) {
@@ -451,14 +463,7 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
             Action::Nav(Screen::Files),
             true,
         ),
-        // With a stick attached it asks for the stick to be pulled first.
-        (
-            Icon::Keys,
-            "Add a key",
-            String::new(),
-            Action::Entry(None),
-            true,
-        ),
+        (Icon::Learn, "Learn", String::new(), Action::Learn, true),
     ];
     if !app.sticks.is_empty() && !app.holds_secret() {
         t.push((
@@ -496,68 +501,12 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
     t
 }
 
-/// What Home puts above the menu: a locked vault to unlock, a
-/// transaction to sign, a signing under way, a stick to pull.
+/// What Home puts above the menu: the same one lead job §1.2 ranks for
+/// the wide Home (`crate::screens::home_lead`), as one prompt row.
 fn prompts(app: &Faraday) -> Vec<(Icon, String, Option<Action>, osk_ui::Color)> {
-    use crate::vaults::VaultAction as V;
-    let mut p = Vec::new();
-    if let Some(s) = app.spend.as_ref() {
-        p.push((
-            Icon::Sign,
-            format!("Continue signing {}", s.spend.source),
-            Some(Action::Nav(Screen::Spend)),
-            ACCENT,
-        ));
-    } else if let Some(i) = app.lead_psbt() {
-        p.push((
-            Icon::Sign,
-            format!("Sign {}", app.inbox[i].name),
-            Some(Action::StartSpend(i)),
-            ACCENT,
-        ));
-    }
-    // What the boot stick brought waits as one prompt, its vaults with it.
-    if let Some(imp) = app.import.as_ref() {
-        let present = app.import_stick_present();
-        p.push(if present {
-            (
-                app.medium.icon(),
-                format!("Remove the {} to start the import", app.medium.noun()),
-                Some(crate::boot_import::OPEN),
-                WARN,
-            )
-        } else {
-            (
-                Icon::Download,
-                format!("Import from {}", imp.label),
-                Some(crate::boot_import::OPEN),
-                ACCENT,
-            )
-        });
-        return p;
-    }
-    let fresh = !app.holds_secret() && app.session.wallets.is_empty() && app.spend.is_none();
-    if fresh {
-        let files = app.vault_files();
-        if let Some(i) = files.iter().position(|f| f.open.is_none()) {
-            if app.sticks.is_empty() {
-                p.push((
-                    Icon::Lock,
-                    format!("Unlock {}", files[i].name),
-                    Some(Action::Vault(V::Open(i))),
-                    ACCENT,
-                ));
-            } else {
-                p.push((
-                    Icon::Lock,
-                    format!("Pull the {} to unlock", app.medium.noun()),
-                    None,
-                    WARN,
-                ));
-            }
-        }
-    }
-    p
+    let (icon, label, _sub, action, enabled) = crate::screens::home_lead(app);
+    let tone = if enabled { ACCENT } else { WARN };
+    vec![(icon, label, enabled.then_some(action), tone)]
 }
 
 /// A sheet on a small panel: the panel's width less a margin, as tall as

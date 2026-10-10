@@ -76,6 +76,18 @@ fn tap(app: &mut Faraday, action: Action) {
 }
 
 #[test]
+fn homes_grid_offers_learn_and_not_add_a_key() {
+    let mut app = panel();
+    find(&mut app, Action::Learn);
+    assert!(
+        on_panel(&mut app, Action::Entry(None)).is_none(),
+        "Add a key is reached from Wallets now, not Home"
+    );
+    tap(&mut app, Action::Learn);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
+}
+
+#[test]
 fn home_offers_every_place_without_a_sidebar() {
     let mut app = panel();
     assert_eq!(app.screen, Screen::Home);

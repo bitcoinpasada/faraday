@@ -119,12 +119,19 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
         "{:?}",
         app.visit.log
     );
-    // F4: the stick out, Home, and the vault opened from there.
+    // F4: the stick out, Home. The unsigned PSBT also copied in leads
+    // Home (`docs/SIMPLIFY.md` §1.2 rule 2); the vault opens from Vaults.
     app.storage(StorageEvent::Sticks(Vec::new()));
     assert_eq!(app.screen, Screen::Home);
     let _ = app.frame();
+    assert!(
+        app.offers(Action::Nav(Screen::Vaults)),
+        "Home does not offer Vaults"
+    );
+    app.press(Action::Nav(Screen::Vaults));
+    let _ = app.frame();
     let open = Action::Vault(V::Open(0));
-    assert!(app.offers(open), "Home does not offer the vault");
+    assert!(app.offers(open), "Vaults does not offer the vault");
     app.press(open);
     assert_eq!(app.screen, Screen::Unlock);
     for c in testkit::BACKUP_VAULT_PASSPHRASE.chars() {

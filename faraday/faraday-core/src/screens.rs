@@ -101,7 +101,6 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::Power => power_sheet(app, ui, w, h),
             Sheet::Qr => qr_sheet(app, ui, w, h),
             Sheet::Scan => scan_sheet(app, ui, w, h),
-            Sheet::Network => network_sheet(app, ui, w, h),
             Sheet::NotAirgapped => not_airgapped_sheet(app, ui, w, h),
             Sheet::Locked => locked_sheet(app, ui, w, h),
             Sheet::NewInput => new_input_sheet(app, ui, w, h),
@@ -263,23 +262,19 @@ pub(crate) fn section_label(ui: &mut Ui, x: f32, y: f32, s: &str) {
 }
 
 /// The network the session is on, at the right of a screen's title row.
-/// Pressing it opens the chooser; a test network is drawn in the warning
-/// colour.
+/// A badge, off mainnet only: it opens nothing. The chooser is in
+/// Settings.
 fn network_pill(app: &Faraday, ui: &mut Ui, right: f32, y: f32) {
     let net = app.session.network();
-    let label = format!("{}  ▾", network_name(net));
-    let pw = ui.measure(12.0, W::S, &label) + 28.0;
+    if net.is_mainnet() {
+        return;
+    }
+    let label = network_name(net);
+    let pw = ui.measure(12.0, W::S, label) + 28.0;
     let px = right - pw;
-    let (fg, bg, edge) = if net.is_mainnet() {
-        (MUTED, SURFACE, LINE)
-    } else {
-        (WARN, WARN.with_alpha(30), WARN.with_alpha(110))
-    };
-    let pressed = ui.is_pressed(Action::NetworkAsk);
-    ui.fill(px, y, pw, 30.0, 15.0, if pressed { INNER } else { bg });
-    ui.stroke(px, y, pw, 30.0, 15.0, edge);
-    ui.text_mid(px + 14.0, y, 30.0, 12.0, W::S, fg, &label);
-    ui.hit(px, y, pw, 30.0, Action::NetworkAsk);
+    ui.fill(px, y, pw, 30.0, 15.0, WARN.with_alpha(30));
+    ui.stroke(px, y, pw, 30.0, 15.0, WARN.with_alpha(110));
+    ui.text_mid(px + 14.0, y, 30.0, 12.0, W::S, WARN, label);
 }
 
 // ---------------------------------------------------------------------
@@ -335,10 +330,11 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
         ui.fill(tx, 23.0, tw, 26.0, 13.0, WARN.with_alpha(30));
         ui.stroke(tx, 23.0, tw, 26.0, 13.0, WARN.with_alpha(110));
         ui.text_mid(tx + 12.0, 23.0, 26.0, 12.0, W::S, WARN, label);
-        ui.hit(tx, 23.0, tw, 26.0, Action::NetworkAsk);
     }
 
-    let mut items = vec![
+    // The places that are always offered, in order; Learn (not a place,
+    // a sheet) is drawn between Tools and whatever comes after it.
+    let items = [
         (Icon::House, "Home", Screen::Home),
         (Icon::Lock, "Vaults", Screen::Vaults),
         (Icon::File, "Files", Screen::Files),
@@ -346,18 +342,41 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
         (Icon::Sign, "Spend", Screen::Family),
         (Icon::Tools, "Tools", Screen::Catalog),
     ];
+    let mut tail = Vec::new();
     if !app.sticks.is_empty() && !app.holds_secret() {
-        items.push((app.medium.icon(), app.medium.visit(), Screen::Visit));
+        tail.push((app.medium.icon(), app.medium.visit(), Screen::Visit));
     }
     // The online app is the device's QR link.
     if app.online {
-        items.push((Icon::Qr, "Transfer", Screen::Transfer));
+        tail.push((Icon::Qr, "Transfer", Screen::Transfer));
     }
-    items.push((Icon::Settings, "Settings", Screen::Settings));
+    tail.push((Icon::Settings, "Settings", Screen::Settings));
     let mut y = 76.0;
     // Add a key opened from the Spend tab belongs to it.
     let from_spend = app.screen == Screen::Entry && app.entry.back == Some(Screen::Family);
-    for (icon, label, screen) in items {
+    let v = app.vaults.open.len();
+    let row = |ui: &mut Ui, y: f32, icon: Icon, label: &str, active: bool, action: Action| {
+        if active || ui.is_pressed(action) {
+            ui.fill(12.0, y, SIDEBAR_W - 24.0, 40.0, 8.0, ACCENT.with_alpha(30));
+        }
+        let fg = if active { TEXT } else { MUTED };
+        ui.icon(24.0, y + 11.0, 18.0, icon, 15.0, fg);
+        ui.text_mid(54.0, y, 40.0, 14.0, W::S, fg, label);
+        // Vaults carries how many are open, at the row's right end.
+        if icon == Icon::Lock && v > 0 {
+            ui.text_right(
+                SIDEBAR_W - 24.0,
+                y,
+                40.0,
+                12.0,
+                W::R,
+                MUTED,
+                &format!("{v} open"),
+            );
+        }
+        ui.hit(12.0, y, SIDEBAR_W - 24.0, 40.0, action);
+    };
+    for (icon, label, screen) in items.into_iter().chain(tail) {
         let active = app.screen == screen
             || (screen == Screen::Family && from_spend)
             || (screen == Screen::Start
@@ -385,15 +404,20 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
                     app.screen,
                     Screen::CreateVault | Screen::Unlock | Screen::VaultContents
                 ));
-        let action = Action::Nav(screen);
-        if active || ui.is_pressed(action) {
-            ui.fill(12.0, y, SIDEBAR_W - 24.0, 40.0, 8.0, ACCENT.with_alpha(30));
-        }
-        let fg = if active { TEXT } else { MUTED };
-        ui.icon(24.0, y + 11.0, 18.0, icon, 15.0, fg);
-        ui.text_mid(54.0, y, 40.0, 14.0, W::S, fg, label);
-        ui.hit(12.0, y, SIDEBAR_W - 24.0, 40.0, action);
+        row(ui, y, icon, label, active, Action::Nav(screen));
         y += 44.0;
+        // Learn, after Tools: opens the Learn sheet, not a screen.
+        if screen == Screen::Catalog {
+            row(
+                ui,
+                y,
+                Icon::Learn,
+                "Learn",
+                app.sheet == Some(Sheet::Learn),
+                Action::Learn,
+            );
+            y += 44.0;
+        }
     }
 
     // Status at the foot, and above it what is loaded in two groups,
@@ -403,7 +427,6 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
     let foot = h - 172.0;
     let seeds = app.session.keys.len();
     let wallets = app.session.wallets.len();
-    let v = app.vaults.open.len();
     const ROW: f32 = 22.0;
     const HEAD: f32 = 26.0;
     let groups = usize::from(seeds > 0) + usize::from(wallets > 0);
@@ -414,30 +437,35 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
     let mut fy = foot - block;
     ui.rule(12.0, fy, SIDEBAR_W - 24.0, LINE);
     fy += 16.0;
-    let (dot, line) = match (seeds + wallets, v) {
-        (0, 0) => (DIM, "Nothing loaded".to_string()),
-        (_, 0) => (OK, "Loaded for this session".to_string()),
-        (_, v) => (
-            OK,
-            format!("{v} {} open", if v == 1 { "vault" } else { "vaults" }),
-        ),
-    };
-    // Open vaults: the line opens what is in them.
-    let contents = Action::Nav(Screen::VaultContents);
-    if v > 0 && ui.is_pressed(contents) {
-        ui.fill(
-            16.0,
-            fy - 4.0,
-            SIDEBAR_W - 32.0,
-            28.0,
-            6.0,
-            ACCENT.with_alpha(30),
-        );
-    }
-    ui.dot(28.0, fy + 10.0, 4.0, dot);
-    ui.text_mid(40.0, fy, 20.0, 13.0, W::S, TEXT, &line);
-    if v > 0 {
-        ui.hit(16.0, fy - 4.0, SIDEBAR_W - 32.0, 28.0, contents);
+    // The session strip, in the dot line's old place and height: the
+    // four stages of the lock cycle, the one now current in the accent,
+    // the rest dim. It explains the cycle without prose and opens Files,
+    // costing the seed and wallet list below no room of its own.
+    {
+        let stage = app.session_stage();
+        let open_files = Action::Nav(Screen::Files);
+        if ui.is_pressed(open_files) {
+            ui.fill(
+                16.0,
+                fy - 4.0,
+                SIDEBAR_W - 32.0,
+                28.0,
+                6.0,
+                ACCENT.with_alpha(30),
+            );
+        }
+        let mut sx = 24.0;
+        for (i, label) in ["Bring in", "Open", "Work", "Write out"]
+            .into_iter()
+            .enumerate()
+        {
+            if i > 0 {
+                sx += ui.text_mid(sx, fy, 20.0, 11.0, W::R, DIM, " · ");
+            }
+            let fg = if label == stage { ACCENT } else { DIM };
+            sx += ui.text_mid(sx, fy, 20.0, 11.0, W::S, fg, label);
+        }
+        ui.hit(16.0, fy - 4.0, SIDEBAR_W - 32.0, 28.0, open_files);
     }
     fy += 30.0;
     let rows_w = SIDEBAR_W - 56.0;
@@ -651,6 +679,137 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
 // Home
 // ---------------------------------------------------------------------
 
+/// Home's one lead job: the first rule of §1.2's ranking that applies.
+/// `enabled` is false for a prompt with no target of its own (pull the
+/// stick first).
+pub(crate) fn home_lead(app: &Faraday) -> (Icon, String, String, Action, bool) {
+    use crate::vaults::VaultAction as V;
+    // Rule 1: a spend under way.
+    if let Some(s) = app.spend.as_ref() {
+        return (
+            Icon::Sign,
+            format!("Continue signing {}", s.spend.source),
+            format!("{} of {} signatures", s.signers.len(), app.spend_needed()),
+            Action::Nav(Screen::Spend),
+            true,
+        );
+    }
+    // Rule 2: a PSBT in Files.
+    if let Some(i) = app.lead_psbt() {
+        return (
+            Icon::Sign,
+            format!("Sign {}", app.inbox[i].name),
+            "From Files".to_string(),
+            Action::StartSpend(i),
+            true,
+        );
+    }
+    // Rule 3: an import waiting.
+    if let Some(imp) = app.import.as_ref() {
+        return if app.import_stick_present() {
+            (
+                app.medium.icon(),
+                format!("Remove the {} to start the import", app.medium.noun()),
+                String::new(),
+                crate::boot_import::OPEN,
+                true,
+            )
+        } else {
+            (
+                Icon::Download,
+                format!("Import from {}", imp.label),
+                String::new(),
+                crate::boot_import::OPEN,
+                true,
+            )
+        };
+    }
+    // Rule 4 (a receipt from this power-on's last stick visit and
+    // nothing loaded, §4.3) goes here.
+    // Rule 5: a locked vault file and nothing loaded.
+    let fresh = !app.holds_secret() && app.session.wallets.is_empty();
+    if fresh {
+        let files = app.vault_files();
+        if let Some(i) = files.iter().position(|f| f.open.is_none()) {
+            let f = &files[i];
+            if app.sticks.is_empty() {
+                return (
+                    Icon::Lock,
+                    format!("Unlock {}", f.name),
+                    format!("{} · in Files", f.name),
+                    Action::Vault(V::Open(i)),
+                    true,
+                );
+            }
+            return (
+                Icon::Lock,
+                format!("Unlock {}", f.name),
+                format!("Pull the {} to unlock", app.medium.noun()),
+                Action::Nav(Screen::Home),
+                false,
+            );
+        }
+    }
+    // Rule 6 (a vault changed since written, §3.5) goes here.
+    // Rule 7: otherwise.
+    (
+        Icon::Wallet,
+        "Make a wallet".to_string(),
+        "Single key or multisig".to_string(),
+        Action::CreateWallet,
+        true,
+    )
+}
+
+/// Home's secondary tiles: the first two of §1.2's list that apply.
+/// Backups (§5) joins the list later.
+pub(crate) fn home_secondaries(app: &Faraday) -> Vec<(Icon, String, String, Action)> {
+    let wallets = app.session.wallets.len();
+    let wallets_tile = (
+        Icon::Wallet,
+        "Wallets".to_string(),
+        if wallets == 0 {
+            "Create or restore".to_string()
+        } else {
+            format!(
+                "{wallets} {}",
+                if wallets == 1 { "wallet" } else { "wallets" }
+            )
+        },
+        // Nothing loaded: the three-ways-in start page, not the
+        // wallet card with nothing to show.
+        Action::Nav(if wallets == 0 {
+            Screen::Start
+        } else {
+            Screen::Wallets
+        }),
+    );
+    // Backups (§5) goes here, between Wallets and the second tile, once
+    // any wallet is known; it isn't built yet.
+    let second = if !app.sticks.is_empty() && !app.holds_secret() {
+        (
+            app.medium.icon(),
+            app.medium.visit().to_string(),
+            "A stick attached".to_string(),
+            Action::Nav(Screen::Visit),
+        )
+    } else {
+        let vault_files = app.vault_files().len();
+        let open = app.vaults.open.len();
+        (
+            Icon::Lock,
+            "Vaults".to_string(),
+            match (open, vault_files) {
+                (0, 0) => "None yet".to_string(),
+                (0, n) => format!("{n} locked"),
+                (o, _) => format!("{o} open"),
+            },
+            Action::Nav(Screen::Vaults),
+        )
+    };
+    vec![wallets_tile, second]
+}
+
 fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let x = x0 + 56.0;
     let width = cw - 112.0;
@@ -659,329 +818,80 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     network_pill(app, ui, x + width, y + 2.0);
     y += 64.0;
 
-    // Status cards.
-    let gap = 16.0;
-    let cardw = (width - 2.0 * gap) / 3.0;
-    let keys = app.session.keys.len();
-    let wallets = app.session.wallets.len();
-    let session_empty = keys == 0 && wallets == 0;
-    let session_big = if session_empty {
-        "Empty".to_string()
-    } else {
-        format!(
-            "{keys} {} · {wallets} {}",
-            if keys == 1 { "key" } else { "keys" },
-            if wallets == 1 { "wallet" } else { "wallets" }
-        )
-    };
-    // Nothing loaded: the same Create/Restore start page the sidebar's
-    // own Wallets tab opens, not the session view with nothing in it.
-    let session_screen = if session_empty {
-        Screen::Start
-    } else {
-        Screen::Wallets
-    };
-    let cards: [(Icon, &str, String, String, Action); 3] = [
-        (
-            Icon::Keys,
-            "Session",
-            session_big,
-            "Wiped when you lock".to_string(),
-            Action::Nav(session_screen),
-        ),
-        (
-            Icon::File,
-            "Files",
-            format!("{} in · {} out", app.inbox.len(), app.outbox.len()),
-            if app.outbox.is_empty() {
-                "Outbox empty".to_string()
-            } else {
-                format!(
-                    "{} to write on the next {} visit",
-                    app.outbox.len(),
-                    app.medium.noun()
-                )
-            },
-            Action::Nav(Screen::Files),
-        ),
-        (
-            app.medium.icon(),
-            app.medium.caps(),
-            match app.sticks.len() {
-                0 => "None attached".to_string(),
-                1 => app.sticks[0].label.clone(),
-                k => format!("{k} attached"),
-            },
-            if app.sticks.is_empty() && app.import.is_some() {
-                "An import waits".to_string()
-            } else if app.sticks.is_empty() {
-                format!("Keys load only with no {} attached", app.medium.noun())
-            } else {
-                "Remove before loading keys".to_string()
-            },
-            if app.sticks.is_empty() && app.import.is_some() {
-                crate::boot_import::OPEN
-            } else if app.sticks.is_empty() || app.holds_secret() {
-                Action::Nav(Screen::Home)
-            } else {
-                Action::Nav(Screen::Visit)
-            },
-        ),
-    ];
-    for (i, (icon, label, big, sub, action)) in cards.iter().enumerate() {
-        let cx = x + i as f32 * (cardw + gap);
-        ui.card(cx, y, cardw, 116.0, LINE);
-        ui.icon(cx + 18.0, y + 18.0, 16.0, *icon, 12.0, MUTED);
-        ui.text_mid(cx + 40.0, y + 16.0, 20.0, 12.0, W::R, MUTED, label);
-        let big = ui.fit(22.0, W::S, big, cardw - 40.0);
-        ui.text(cx + 20.0, y + 46.0, 22.0, W::S, TEXT, &big);
-        let sub = ui.fit(13.0, W::R, sub, cardw - 40.0);
-        ui.text(cx + 20.0, y + 84.0, 13.0, W::R, MUTED, &sub);
-        ui.hit(cx, y, cardw, 116.0, *action);
-    }
-    y += 116.0 + 36.0;
-
     section_label(ui, x, y, "Start");
     y += 30.0;
-    let mut tiles: Vec<(Icon, String, String, Action, bool)> = Vec::new();
-    // With a stick attached it asks for the stick to be pulled first.
-    tiles.push((
-        Icon::Keys,
-        "Add a key".to_string(),
-        "Type, scan or bring in a seed".to_string(),
-        Action::Entry(None),
-        true,
-    ));
-    // Nothing open yet: the first choice of the session.
-    let fresh = !app.holds_secret() && app.session.wallets.is_empty() && app.spend.is_none();
-    let files = app.vault_files();
-    // What the boot stick brought waits as one card, its vaults with it.
-    let locked = if app.import.is_some() {
-        None
+
+    let gap = 16.0;
+    // The lead: full width, the first job of §1.2's ranking that applies.
+    let (icon, label, sub, action, enabled) = home_lead(app);
+    let lead_h = 96.0;
+    let pressed = enabled && ui.is_pressed(action);
+    ui.fill(
+        x,
+        y,
+        width,
+        lead_h,
+        14.0,
+        if pressed { INNER } else { SURFACE },
+    );
+    ui.stroke(
+        x,
+        y,
+        width,
+        lead_h,
+        14.0,
+        if enabled { LINE } else { WARN.with_alpha(110) },
+    );
+    let (ibg, ifg) = if enabled {
+        (ACCENT.with_alpha(26), ACCENT)
     } else {
-        files.iter().position(|f| f.open.is_none())
+        (INNER, DIM)
     };
-    if let Some(imp) = app.import.as_ref() {
-        let present = app.import_stick_present();
-        let n = app.import_count().map_or(0, |c| c.copied);
-        let line = format!(
-            "Data from {} · {n} {} in memory",
-            imp.label,
-            if n == 1 { "file" } else { "files" }
+    ui.fill(x + 20.0, y + 24.0, 48.0, 48.0, 12.0, ibg);
+    ui.icon(x + 20.0, y + 24.0, 48.0, icon, 20.0, ifg);
+    let label = ui.fit(19.0, W::S, &label, width - 184.0);
+    ui.text(x + 86.0, y + 22.0, 19.0, W::S, TEXT, &label);
+    if !sub.is_empty() {
+        let sub = ui.fit(14.0, W::R, &sub, width - 184.0);
+        ui.text(
+            x + 86.0,
+            y + 54.0,
+            14.0,
+            W::R,
+            if enabled { MUTED } else { WARN },
+            &sub,
         );
-        ui.card(x, y, width, 76.0, ACCENT.with_alpha(90));
-        ui.icon(x + 20.0, y + 18.0, 40.0, Icon::Download, 17.0, ACCENT);
-        let label = "Choose what to import";
-        let bw = ui.measure(14.0, W::S, label) + 40.0;
-        let line = ui.fit(16.0, W::S, &line, width - 74.0 - bw - 40.0);
-        ui.text(x + 74.0, y + 16.0, 16.0, W::S, TEXT, &line);
-        if present {
-            ui.text(
-                x + 74.0,
-                y + 44.0,
-                13.0,
-                W::S,
-                WARN,
-                &format!("Remove the {} to start the import", app.medium.noun()),
-            );
-        } else {
-            ui.text(x + 74.0, y + 44.0, 13.0, W::R, MUTED, "Not imported yet");
-        }
-        ui.button(
-            x + width - 20.0 - bw,
-            y + 18.0,
-            Some(bw),
-            40.0,
-            label,
-            Style::Primary,
-            crate::boot_import::OPEN,
-        );
-        y += 76.0 + gap;
     }
-    if fresh {
-        use crate::vaults::VaultAction as V;
-        if let Some(i) = locked {
-            let f = &files[i];
-            let boot = app
-                .sticks
-                .iter()
-                .any(|s| s.boot && s.files.iter().any(|(n, _)| *n == f.name));
-            let line = if boot {
-                format!("{} · copied from the boot {}", f.name, app.medium.noun())
-            } else {
-                format!("{} · in Files", f.name)
-            };
-            ui.card(x, y, width, 76.0, ACCENT.with_alpha(90));
-            ui.icon(x + 20.0, y + 18.0, 40.0, Icon::Lock, 17.0, ACCENT);
-            ui.text(x + 74.0, y + 16.0, 16.0, W::S, TEXT, &line);
-            if app.sticks.is_empty() {
-                ui.text(x + 74.0, y + 44.0, 13.0, W::R, MUTED, "Locked");
-                let bw = ui.measure(14.0, W::S, "Unlock") + 40.0;
-                ui.button(
-                    x + width - 20.0 - bw,
-                    y + 18.0,
-                    Some(bw),
-                    40.0,
-                    "Unlock",
-                    Style::Primary,
-                    Action::Vault(V::Open(i)),
-                );
-            } else {
-                ui.text(
-                    x + 74.0,
-                    y + 44.0,
-                    13.0,
-                    W::S,
-                    WARN,
-                    &format!("Pull the {} to unlock", app.medium.noun()),
-                );
-            }
-            y += 76.0 + gap;
-            tiles.push((
-                app.medium.icon(),
-                format!("Bring a PSBT in from {}", app.medium.a()),
-                if app.sticks.is_empty() {
-                    format!("Insert the {}", app.medium.noun())
-                } else {
-                    "Before the vault is unlocked".to_string()
-                },
-                Action::Nav(Screen::Visit),
-                !app.sticks.is_empty(),
-            ));
-        } else {
-            tiles.push((
-                Icon::Lock,
-                "Vaults".to_string(),
-                "Keys and wallets, locked".to_string(),
-                Action::Nav(Screen::Vaults),
-                true,
-            ));
-            tiles.push((
-                Icon::Wallet,
-                "Wallets".to_string(),
-                "Create or restore a wallet".to_string(),
-                Action::Nav(Screen::Start),
-                true,
-            ));
-        }
-        if let Some(i) = app.lead_psbt() {
-            tiles.push((
-                Icon::Sign,
-                format!("Sign {}", app.inbox[i].name),
-                "From Files".to_string(),
-                Action::StartSpend(i),
-                true,
-            ));
-        }
-        if !app.sticks.is_empty() && locked.is_none() {
-            tiles.push((
-                app.medium.icon(),
-                app.medium.visit().to_string(),
-                "Write the Outbox, copy files in".to_string(),
-                Action::Nav(Screen::Visit),
-                true,
-            ));
-        }
-    } else if let Some(s) = app.spend.as_ref() {
-        tiles.push((
-            Icon::Sign,
-            format!("Continue signing {}", s.spend.source),
-            format!("{} of {} signatures", s.signers.len(), app.spend_needed()),
-            Action::Nav(Screen::Spend),
-            true,
-        ));
-    } else if let Some(i) = app.lead_psbt() {
-        tiles.push((
-            Icon::Sign,
-            format!("Sign {}", app.inbox[i].name),
-            "From Files".to_string(),
-            Action::StartSpend(i),
-            true,
-        ));
+    if enabled {
+        ui.hit(x, y, width, lead_h, action);
     }
-    if !fresh {
-        if let Some((i, _)) = app
-            .inbox
-            .iter()
-            .enumerate()
-            .find(|(_, it)| it.kind == FileKind::Wallet)
-        {
-            tiles.push((
-                Icon::Wallet,
-                "Load a wallet".to_string(),
-                "From a descriptor in Files".to_string(),
-                Action::LoadWallet(i),
-                true,
-            ));
-        }
-        tiles.push((
-            Icon::Wallet,
-            "Wallets".to_string(),
-            format!(
-                "{} {}",
-                app.session.wallets.len(),
-                if app.session.wallets.len() == 1 {
-                    "wallet"
-                } else {
-                    "wallets"
-                }
-            ),
-            Action::Nav(Screen::Wallets),
-            true,
-        ));
-        if !app.sticks.is_empty() && !app.holds_secret() {
-            tiles.push((
-                app.medium.icon(),
-                app.medium.visit().to_string(),
-                "Write the Outbox, copy files in".to_string(),
-                Action::Nav(Screen::Visit),
-                true,
-            ));
-        }
-    }
-    let tilew = (width - 2.0 * gap) / 3.0;
-    for (i, (icon, label, sub, action, enabled)) in tiles.iter().enumerate() {
-        let tx = x + (i % 3) as f32 * (tilew + gap);
-        let ty = y + (i / 3) as f32 * (84.0 + gap);
+    y += lead_h + gap;
+
+    // At most two secondary tiles, half width each.
+    let secondaries = home_secondaries(app);
+    let tilew = (width - gap) / 2.0;
+    let tile_h = 84.0;
+    for (i, (icon, label, sub, action)) in secondaries.iter().enumerate() {
+        let tx = x + i as f32 * (tilew + gap);
         let pressed = ui.is_pressed(*action);
         ui.fill(
             tx,
-            ty,
+            y,
             tilew,
-            84.0,
+            tile_h,
             12.0,
             if pressed { INNER } else { SURFACE },
         );
-        ui.stroke(tx, ty, tilew, 84.0, 12.0, LINE);
-        let (ibg, ifg) = if *enabled {
-            (ACCENT.with_alpha(26), ACCENT)
-        } else {
-            (INNER, DIM)
-        };
-        ui.fill(tx + 18.0, ty + 22.0, 40.0, 40.0, 10.0, ibg);
-        ui.icon(tx + 18.0, ty + 22.0, 40.0, *icon, 17.0, ifg);
+        ui.stroke(tx, y, tilew, tile_h, 12.0, LINE);
+        ui.fill(tx + 18.0, y + 22.0, 40.0, 40.0, 10.0, ACCENT.with_alpha(26));
+        ui.icon(tx + 18.0, y + 22.0, 40.0, *icon, 17.0, ACCENT);
         let label = ui.fit(15.0, W::S, label, tilew - 96.0);
-        ui.text(
-            tx + 74.0,
-            ty + 20.0,
-            15.0,
-            W::S,
-            if *enabled { TEXT } else { DIM },
-            &label,
-        );
+        ui.text(tx + 74.0, y + 20.0, 15.0, W::S, TEXT, &label);
         let sub = ui.fit(13.0, W::R, sub, tilew - 96.0);
-        ui.text(
-            tx + 74.0,
-            ty + 46.0,
-            13.0,
-            W::R,
-            if *enabled { MUTED } else { WARN },
-            &sub,
-        );
-        if *enabled {
-            ui.hit(tx, ty, tilew, 84.0, *action);
-        }
+        ui.text(tx + 74.0, y + 46.0, 13.0, W::R, MUTED, &sub);
+        ui.hit(tx, y, tilew, tile_h, *action);
     }
+
     // Scan floats at the foot, on the right.
     ui.fab(x + width, h - 32.0, Icon::Scan, "Scan", Action::Scan);
 }
@@ -1050,6 +960,44 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y += 56.0;
         }
         y += 6.0;
+    }
+    // Wallets loaded: the list and the wallet card carry every job
+    // (Sign a transaction, Back up, Show wallet QR, Sign a message) and
+    // Tools has the rest; Add a key stays under the list.
+    // `docs/SIMPLIFY.md` §1.3.
+    if !empty {
+        if compact {
+            y += crate::compact_screens::row(
+                ui,
+                x,
+                y,
+                width,
+                Some(Icon::Keys),
+                "Add a key",
+                "Type, scan or bring in a seed",
+                MUTED,
+                Some(Action::Entry(None)),
+            );
+        } else {
+            ui.button(
+                x,
+                y,
+                None,
+                40.0,
+                "Add a key",
+                Style::Secondary,
+                Action::Entry(None),
+            );
+            y += 40.0 + 18.0;
+        }
+        if compact {
+            crate::compact_screens::finish(app, ui, x0, cw, h, y + 16.0 + app.list_offset);
+        } else {
+            app.content_h.set(y + app.list_offset + 24.0);
+            let view = ui.rect(x0, 0.0, cw, h);
+            ui.report_scroll(view, app.content_h.get() - h);
+        }
+        return;
     }
     if empty && compact {
         y += crate::compact_screens::row(
@@ -1188,242 +1136,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 );
             }
         }
-        return;
     }
-    section_label(ui, x, y, "What do you have?");
-    y += 30.0;
-    let psbts = app
-        .inbox
-        .iter()
-        .filter(|i| i.kind == FileKind::Psbt)
-        .count();
-    let wallet_file = app.inbox.iter().position(|i| i.kind == FileKind::Wallet);
-    let stick_hint = if app.sticks.is_empty() {
-        format!("Copy one in on {} visit", app.medium.a())
-    } else {
-        format!(
-            "On the {noun}: open the {noun} visit",
-            noun = app.medium.noun()
-        )
-    };
-    let visit = if app.sticks.is_empty() || app.holds_secret() {
-        None
-    } else {
-        Some(Action::Nav(Screen::Visit))
-    };
-    let choices: [(Icon, &str, String, Option<Action>); 4] = [
-        (
-            Icon::Sign,
-            "A transaction to sign",
-            match (app.spend.as_ref(), app.lead_psbt()) {
-                (Some(s), _) => format!("Continue signing {}", s.spend.source),
-                (None, Some(_)) => format!(
-                    "{psbts} {} in Files",
-                    if psbts == 1 { "PSBT" } else { "PSBTs" }
-                ),
-                (None, None) => stick_hint.to_string(),
-            },
-            match (app.spend.as_ref(), app.lead_psbt()) {
-                (Some(_), _) => Some(Action::Nav(Screen::Spend)),
-                (None, Some(i)) => Some(Action::StartSpend(i)),
-                (None, None) => visit,
-            },
-        ),
-        (
-            Icon::Wallet,
-            "A wallet description",
-            match wallet_file {
-                Some(i) => format!("Load {}", app.inbox[i].name),
-                None => format!("Descriptor or policy · {stick_hint}"),
-            },
-            wallet_file.map(Action::LoadWallet).or(visit),
-        ),
-        (
-            Icon::Keys,
-            "Add a key",
-            "Type, scan or bring in a seed".to_string(),
-            Some(Action::Entry(None)),
-        ),
-        (
-            Icon::Flag,
-            "Nothing yet",
-            match app.create_waiting() {
-                _ if !app.create_unfinished() => {
-                    "Create a wallet: single key or multisig".to_string()
-                }
-                0 => "Continue the wallet being made".to_string(),
-                1 => "Continue the wallet being made · 1 key to come".to_string(),
-                k => format!("Continue the wallet being made · {k} keys to come"),
-            },
-            Some(Action::CreateWallet),
-        ),
-    ];
-    let gap = 16.0;
-    let tw = (width - gap) / 2.0;
-    if compact {
-        for (icon, label, sub, action) in &choices {
-            y += crate::compact_screens::row(
-                ui,
-                x,
-                y,
-                width,
-                Some(*icon),
-                label,
-                sub,
-                MUTED,
-                *action,
-            );
-        }
-        y -= 2.0 * 92.0 + gap + 28.0 - 18.0;
-    }
-    for (k, (icon, label, sub, action)) in choices.iter().enumerate().filter(|_| !compact) {
-        let tx = x + (k % 2) as f32 * (tw + gap);
-        let ty = y + (k / 2) as f32 * (92.0 + gap);
-        let enabled = action.is_some();
-        let pressed = action.is_some_and(|a| ui.is_pressed(a));
-        ui.fill(
-            tx,
-            ty,
-            tw,
-            92.0,
-            12.0,
-            if pressed { INNER } else { SURFACE },
-        );
-        ui.stroke(tx, ty, tw, 92.0, 12.0, LINE);
-        ui.fill(
-            tx + 20.0,
-            ty + 24.0,
-            44.0,
-            44.0,
-            12.0,
-            if enabled {
-                ACCENT.with_alpha(26)
-            } else {
-                INNER
-            },
-        );
-        ui.icon(
-            tx + 20.0,
-            ty + 24.0,
-            44.0,
-            *icon,
-            18.0,
-            if enabled { ACCENT } else { DIM },
-        );
-        ui.text(
-            tx + 82.0,
-            ty + 22.0,
-            16.0,
-            W::S,
-            if enabled { TEXT } else { DIM },
-            label,
-        );
-        let sub = ui.fit(13.0, W::R, sub, tw - 104.0);
-        ui.text(tx + 82.0, ty + 50.0, 13.0, W::R, MUTED, &sub);
-        if let Some(a) = action {
-            ui.hit(tx, ty, tw, 92.0, *a);
-        }
-    }
-    y += 2.0 * 92.0 + gap + 28.0;
-
-    section_label(ui, x, y, "What do you want to do?");
-    y += 30.0;
-    let msg_file = app.inbox.iter().position(|i| i.kind == FileKind::Message);
-    let todo: Vec<(&str, String, Option<Action>)> = vec![
-        (
-            "Load or restore a wallet",
-            "From its descriptor or its shares".to_string(),
-            Some(Action::RestoreWallet),
-        ),
-        (
-            "Back up a wallet",
-            match app.session.wallets.get(app.wallet) {
-                Some(w) => w.name.clone(),
-                None => "Load a wallet first".to_string(),
-            },
-            app.session
-                .wallets
-                .get(app.wallet)
-                .map(|_| Action::Backup(app.wallet)),
-        ),
-        (
-            "Sign a message",
-            if app.session.message_wallets().is_empty() {
-                "Needs a single-key wallet with its key here".to_string()
-            } else {
-                "BIP-322 or BIP-137".to_string()
-            },
-            (!app.session.message_wallets().is_empty()).then_some(Action::SignMessage),
-        ),
-        (
-            "Check a signed message",
-            match msg_file {
-                Some(i) => app.inbox[i].name.clone(),
-                None => format!("Copy one in on {} visit", app.medium.a()),
-            },
-            msg_file.map(Action::CheckMessage),
-        ),
-        {
-            let tx = app
-                .inbox
-                .iter()
-                .position(|i| i.kind == FileKind::Transaction);
-            (
-                "Decode a transaction",
-                match tx {
-                    Some(i) => app.inbox[i].name.clone(),
-                    None => format!("Scan one, or copy its hex in on {}", app.medium.a()),
-                },
-                Some(tx.map_or(Action::Scan, Action::DecodeInbox)),
-            )
-        },
-        (
-            "All tools",
-            "Every flow, with its BIP numbers".to_string(),
-            Some(Action::Nav(Screen::Catalog)),
-        ),
-    ];
-    if compact {
-        for (label, sub, action) in &todo {
-            y += crate::compact_screens::row(ui, x, y, width, None, label, sub, MUTED, *action);
-        }
-        crate::compact_screens::finish(app, ui, x0, cw, h, y + 16.0 + app.list_offset);
-        return;
-    }
-    let per_row = 3;
-    let tw3 = (width - (per_row as f32 - 1.0) * gap) / per_row as f32;
-    for (k, (label, sub, action)) in todo.iter().enumerate() {
-        let tx = x + (k % per_row) as f32 * (tw3 + gap);
-        let y = y + (k / per_row) as f32 * (60.0 + 10.0);
-        let enabled = action.is_some();
-        let pressed = action.is_some_and(|a| ui.is_pressed(a));
-        ui.fill(
-            tx,
-            y,
-            tw3,
-            60.0,
-            10.0,
-            if pressed { INNER } else { SURFACE },
-        );
-        ui.stroke(tx, y, tw3, 60.0, 10.0, LINE);
-        ui.text(
-            tx + 16.0,
-            y + 11.0,
-            14.0,
-            W::S,
-            if enabled { TEXT } else { DIM },
-            label,
-        );
-        let sub = ui.fit(12.0, W::R, sub, tw3 - 32.0);
-        ui.text(tx + 16.0, y + 34.0, 12.0, W::R, MUTED, &sub);
-        if let Some(a) = action {
-            ui.hit(tx, y, tw3, 60.0, *a);
-        }
-    }
-    app.content_h
-        .set(y + todo.len().div_ceil(per_row) as f32 * 70.0 + 24.0 + app.list_offset);
-    let view = ui.rect(x0, 0.0, cw, h);
-    ui.report_scroll(view, app.content_h.get() - h);
 }
 
 /// The nonce check: each signature against its key and this
@@ -3192,15 +2905,27 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Style::Secondary,
         Action::QrWallet(app.wallet),
     );
-    ui.button(
-        bx + qw + 8.0,
+    let mut bx2 = bx + qw + 8.0;
+    bx2 += ui.button(
+        bx2,
         ay,
         None,
         40.0,
         "Back up",
         Style::Secondary,
         Action::Backup(app.wallet),
-    );
+    ) + 8.0;
+    if app.session.message_wallets().contains(&app.wallet) {
+        ui.button(
+            bx2,
+            ay,
+            None,
+            40.0,
+            "Sign a message",
+            Style::Secondary,
+            Action::SignMessage,
+        );
+    }
     let rw = ui.measure(13.0, W::S, "Remove from session") + 32.0;
     ui.button(
         ix + iw - rw,
@@ -11939,6 +11664,14 @@ fn settings_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         y - y0
     });
+    y += section(ui, x, y, w, "Network", &|ui, x, y0, w| {
+        let mut y = y0;
+        y += wrap_buttons(ui, x, y, w, 38.0, &network_row_items(app));
+        if let Some(note) = network_row_note(app) {
+            y += ui.wrap(x, y, w, 13.0, W::R, MUTED, note) + 4.0;
+        }
+        y - y0 - 8.0
+    });
     y += section(ui, x, y, w, "Appearance", &|ui, x, y0, w| {
         let per_row = 2;
         let tile_w = (w - 8.0) / 2.0;
@@ -12201,6 +11934,16 @@ fn settings(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text_mid(x + 22.0, ry, 26.0, 13.0, W::R, WARN, &line);
     }
     y += 244.0 + ignored_h;
+    ui.card(x, y, width, 94.0, LINE);
+    ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, "Network");
+    let mut sx = x + 22.0;
+    for (label, style, action) in network_row_items(app) {
+        sx += ui.button(sx, y + 46.0, None, 38.0, label, style, action) + 8.0;
+    }
+    if let Some(note) = network_row_note(app) {
+        ui.text_mid(sx + 6.0, y + 46.0, 38.0, 13.0, W::R, MUTED, note);
+    }
+    y += 114.0;
     // Each theme a tile in its own colours, in rows as wide as the card.
     let inner = width - 44.0;
     let per_row =
@@ -13445,60 +13188,37 @@ fn locked_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
-fn network_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+/// The Network row's buttons: every network, the one in use marked
+/// primary, and any not reachable from here (between mainnet and a test
+/// network, while wallets are loaded) disabled.
+pub(crate) fn network_row_items(app: &Faraday) -> Vec<(&'static str, Style, Action)> {
     use osk_bip::keys::Network;
-    let sh = 140.0 + Network::ALL.len() as f32 * 52.0;
-    let (sw, pad) = if ui.compact {
-        (w - 16.0, 16.0)
-    } else {
-        (420.0, 32.0)
-    };
-    let (x, y) = sheet_box(ui, w, h, sw, sh);
-    let ix = x + pad;
-    let iw = sw - 2.0 * pad;
-    ui.text(ix, y + 30.0, 20.0, W::S, TEXT, "Network");
     let now = app.session.network();
-    let mut ry = y + 76.0;
-    for n in Network::ALL {
-        let here = n == now;
-        // Between mainnet and a test network only while no wallet is
-        // loaded.
-        let open = here || n.kind() == now.kind() || app.session.wallets.is_empty();
-        let action = Action::Network(n);
-        let fill = if here {
-            ACCENT.with_alpha(30)
-        } else if ui.is_pressed(action) {
-            INNER
-        } else {
-            SURFACE
-        };
-        ui.fill(ix, ry, iw, 44.0, 8.0, fill);
-        ui.stroke(ix, ry, iw, 44.0, 8.0, if here { ACCENT } else { LINE });
-        let fg = match (open, n.is_mainnet()) {
-            (false, _) => DIM,
-            (true, true) => TEXT,
-            (true, false) => WARN,
-        };
-        ui.text_mid(ix + 16.0, ry, 44.0, 15.0, W::S, fg, network_name(n));
-        if here {
-            ui.text_right(ix + iw - 16.0, ry, 44.0, 12.0, W::R, MUTED, "In use");
-        } else if !open {
-            ui.text_right(ix + iw - 16.0, ry, 44.0, 12.0, W::R, DIM, "Wallets loaded");
-        }
-        if open {
-            ui.hit(ix, ry, iw, 44.0, action);
-        }
-        ry += 52.0;
-    }
-    ui.button(
-        ix,
-        y + sh - 32.0 - 40.0,
-        Some(iw),
-        40.0,
-        "Close",
-        Style::Secondary,
-        Action::Cancel,
-    );
+    Network::ALL
+        .iter()
+        .map(|&n| {
+            let here = n == now;
+            let open = here || n.kind() == now.kind() || app.session.wallets.is_empty();
+            let style = if here {
+                Style::Primary
+            } else if open {
+                Style::Secondary
+            } else {
+                Style::Disabled
+            };
+            (network_name(n), style, Action::Network(n))
+        })
+        .collect()
+}
+
+/// "Wallets loaded", muted, after the Network row's buttons when one of
+/// them is disabled: the reason a network can't be chosen, as the old
+/// sheet said it.
+pub(crate) fn network_row_note(app: &Faraday) -> Option<&'static str> {
+    network_row_items(app)
+        .iter()
+        .any(|(_, style, _)| *style == Style::Disabled)
+        .then_some("Wallets loaded")
 }
 
 /// The lines of the online app's mainnet warning.

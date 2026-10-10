@@ -98,10 +98,13 @@ fn an_open_vault_is_locked_or_looked_into_from_the_list_and_the_sidebar() {
     let _ = app.frame();
     assert!(app.offers(Action::Vault(V::Open(0))), "its contents");
     assert!(app.offers(Action::LockAsk), "and Lock");
-    // The sidebar's "1 vault open" opens what is in it.
+    // The sidebar's Vaults row carries "1 open" and opens Vaults, from
+    // where its contents are reached (`docs/SIMPLIFY.md` §1.6, revised).
     app.press(Action::Nav(Screen::Home));
     let _ = app.frame();
-    assert!(app.offers(Action::Nav(Screen::VaultContents)));
-    app.press(Action::Nav(Screen::VaultContents));
-    assert_eq!(app.screen, Screen::VaultContents);
+    assert!(app.offers(Action::Nav(Screen::Vaults)));
+    app.press(Action::Nav(Screen::Vaults));
+    assert_eq!(app.screen, Screen::Vaults);
+    let _ = app.frame();
+    assert!(app.offers(Action::Vault(V::Open(0))), "its contents, again");
 }
