@@ -55,6 +55,7 @@ fn header(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &st
     );
     ui.text(x + 14.0, y, 12.0, W::R, MUTED, "Wallets");
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, Action::Nav(l.back));
+    ui.back(Action::Nav(l.back));
     y += 22.0;
     title(ui, x, y, "Lightning node key");
     y += 52.0;

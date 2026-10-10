@@ -488,7 +488,9 @@ fn length_counts(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let allowed = !k.only_24 || n == 24;
         let style = if !allowed {
             Style::Disabled
-        } else if usize::from(n) == k.words && (k.slip39 || k.done[usize::from(kstep::LENGTH)]) {
+        } else if usize::from(n) == k.words {
+            // The default shows chosen from the start, as any choice
+            // shows its value (`docs/NEW-WALLET.md` §13.3).
             Style::Primary
         } else {
             Style::Secondary
@@ -1082,35 +1084,27 @@ fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 fn typed_box(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     ui.fill(x, y, w, 40.0, 8.0, BG);
     ui.stroke(x, y, w, 40.0, 8.0, ACCENT);
-    let shown = tail_fit(ui, &k.entered, w - 30.0);
-    ui.text_mid(x + 12.0, y, 40.0, 14.0, W::M, TEXT, &shown);
-    let cx = x + 13.0 + ui.measure(14.0, W::M, &shown);
-    ui.caret(cx, y + 11.0, 18.0);
+    // A press in the box places the caret, a drag selects rolls, and
+    // what is deleted there leaves the key (`docs/NEW-WALLET.md` §13.2).
+    ui.typed(
+        x + 12.0,
+        y,
+        40.0,
+        14.0,
+        W::M,
+        TEXT,
+        &k.entered,
+        w - 30.0,
+        true,
+        Action::KTyping(true),
+    );
+    ui.hit(x, y, w, 40.0, Action::KTyping(true));
     let what = match k.active() {
         Some(Source::Coins) if !k.by_die => "H or 1 for heads, T or 0 for tails",
         _ => "Faces 1 to 6, as rolled",
     };
     ui.text(x, y + 48.0, 12.0, W::R, DIM, what);
     y + 76.0
-}
-
-/// The end of `s` that fits `max`, with an ellipsis before it when cut.
-fn tail_fit(ui: &Ui, s: &str, max: f32) -> String {
-    if ui.measure(14.0, W::M, s) <= max {
-        return s.to_string();
-    }
-    let chars: Vec<char> = s.chars().collect();
-    let mut from = 0;
-    while from < chars.len() {
-        let t: String = std::iter::once('…')
-            .chain(chars[from..].iter().copied())
-            .collect();
-        if ui.measure(14.0, W::M, &t) <= max {
-            return t;
-        }
-        from += 1;
-    }
-    String::new()
 }
 
 /// The words the entries name, as they come in: each word's place, the

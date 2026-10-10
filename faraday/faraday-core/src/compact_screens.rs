@@ -154,12 +154,18 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
         Some(name) => {
             ui.fill(x, cy, iw, 44.0, 8.0, BG);
             ui.stroke(x, cy, iw, 44.0, 8.0, ACCENT.with_alpha(110));
-            let shown = ui.fit(16.0, W::S, name, iw - 24.0);
-            ui.selection(x + 10.0, cy, 44.0, 16.0, W::S, &shown, true);
-            let nw = ui.text_mid(x + 10.0, cy, 44.0, 16.0, W::S, TEXT, &shown);
-            if !ui.select_all {
-                ui.caret(x + 11.0 + nw, cy + 12.0, 20.0);
-            }
+            ui.typed(
+                x + 10.0,
+                cy,
+                44.0,
+                16.0,
+                W::S,
+                TEXT,
+                name,
+                iw - 24.0,
+                true,
+                Action::Rename,
+            );
             ui.hit(x, cy, iw, 44.0, Action::Rename);
             cy += 52.0;
         }
@@ -448,23 +454,22 @@ fn pass_field(
     let fy = y + 18.0;
     ui.fill(x, fy, w, 42.0, 8.0, BG);
     ui.stroke(x, fy, w, 42.0, 8.0, if on { ACCENT } else { BORDER });
-    let shown = if secret.is_empty() && !on {
-        "None".to_string()
+    if secret.is_empty() {
+        ui.no_passphrase(x, fy, 42.0, on);
     } else {
-        "•".repeat(secret.chars().count().min(40))
-    };
-    let shown = ui.fit(14.0, W::M, &shown, w - 30.0);
-    let tw = ui.text_mid(
-        x + 12.0,
-        fy,
-        42.0,
-        14.0,
-        W::M,
-        if secret.is_empty() && !on { DIM } else { TEXT },
-        &shown,
-    );
-    if on {
-        ui.caret(x + 13.0 + tw, fy + 12.0, 18.0);
+        let dots = "•".repeat(secret.chars().count());
+        ui.typed(
+            x + 12.0,
+            fy,
+            42.0,
+            14.0,
+            W::M,
+            TEXT,
+            &dots,
+            w - 30.0,
+            on,
+            action,
+        );
     }
     ui.hit(x, fy, w, 42.0, action);
     18.0 + 42.0 + 12.0

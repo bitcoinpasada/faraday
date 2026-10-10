@@ -408,6 +408,65 @@ pub enum Style {
     Disabled,
 }
 
+/// Where the caret and the selection are in the field typing goes to
+/// (`docs/NEW-WALLET.md` §13.2), in characters from the field's start.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Edit {
+    /// The field they are in, by the action that focuses it. In any
+    /// other field the caret is at the end and nothing is selected.
+    pub field: Option<Action>,
+    /// The caret; at the end when `None`.
+    pub caret: Option<usize>,
+    /// The selection's other end, while something is selected.
+    pub anchor: Option<usize>,
+}
+
+impl Edit {
+    /// The caret in a text `len` characters long.
+    pub fn caret_in(&self, len: usize) -> usize {
+        self.caret.map_or(len, |c| c.min(len))
+    }
+
+    /// The characters selected in a text `len` characters long, from
+    /// and to, when any are.
+    pub fn selected(&self, len: usize) -> Option<(usize, usize)> {
+        let a = self.anchor?.min(len);
+        let c = self.caret_in(len);
+        (a != c).then(|| (a.min(c), a.max(c)))
+    }
+
+    /// Whether the whole of a text `len` characters long is selected.
+    pub fn all(&self, len: usize) -> bool {
+        len > 0 && self.selected(len) == Some((0, len))
+    }
+}
+
+/// Where a line of typing drew its characters: the pixel column of the
+/// edge before each character in view, the first of them `first`, and
+/// the one after the last. A press or a drag there places the caret.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FieldAt {
+    /// The action the field is pressed with.
+    pub action: Action,
+    /// The first character in view.
+    pub first: usize,
+    /// The edges, in pixels.
+    pub edges: Vec<i32>,
+}
+
+impl FieldAt {
+    /// The place between characters nearest pixel column `x`.
+    pub fn index_at(&self, x: i32) -> usize {
+        let j = self
+            .edges
+            .iter()
+            .enumerate()
+            .min_by_key(|(_, e)| (**e - x).abs())
+            .map_or(0, |(j, _)| j);
+        self.first + j
+    }
+}
+
 /// One frame's drawing context.
 pub struct Ui<'a> {
     /// The canvas.
@@ -427,8 +486,13 @@ pub struct Ui<'a> {
     pub ox: f32,
     /// See [`Ui::ox`].
     pub oy: f32,
-    /// All of the focused field is selected, and is drawn so.
-    pub select_all: bool,
+    /// Where the caret and the selection are in the focused field.
+    pub edit: Edit,
+    /// Where each line of typing drew its characters this frame.
+    pub fields: Vec<FieldAt>,
+    /// What the screen's back link does, when it drew one: the mouse's
+    /// back button does the same.
+    pub back_link: Option<Action>,
     /// The regions this frame scrolls, as the screen or sheet that drew
     /// them last reported them: one a slot, the last report of a slot
     /// replacing an earlier one (a sheet's region over the screen's).
@@ -560,7 +624,9 @@ impl<'a> Ui<'a> {
             layer: 0,
             ox: 0.0,
             oy: 0.0,
-            select_all: false,
+            edit: Edit::default(),
+            fields: Vec::new(),
+            back_link: None,
             scrolled: Vec::new(),
             active: Slot::Page,
             stretch: 0,
@@ -769,19 +835,102 @@ impl<'a> Ui<'a> {
     }
 
     /// The selection behind text `shown` drawn at (x, y) in a field of
-    /// height `h`, when the field is focused and all of it is selected.
+    /// height `h`, when the field is focused and all of it is selected:
+    /// for a field drawn as one string, whose caret stays at its end.
     #[allow(clippy::too_many_arguments)]
     pub fn selection(&mut self, x: f32, y: f32, h: f32, size: f32, w: W, shown: &str, on: bool) {
-        if on && self.select_all && !shown.is_empty() {
+        if on && self.edit.all(shown.chars().count()) {
             let tw = self.measure(size, w, shown);
-            self.fill(
-                x - 2.0,
-                y + h * 0.2,
-                tw + 4.0,
-                h * 0.6,
-                3.0,
-                ACCENT.with_alpha(90),
-            );
+            self.selected_band(x, y, h, tw);
+        }
+    }
+
+    /// The band behind selected text `tw` wide from x, in a field `h`
+    /// tall at y.
+    fn selected_band(&mut self, x: f32, y: f32, h: f32, tw: f32) {
+        self.fill(
+            x - 2.0,
+            y + h * 0.2,
+            tw + 4.0,
+            h * 0.6,
+            3.0,
+            ACCENT.with_alpha(90),
+        );
+    }
+
+    /// One line of typing (`docs/NEW-WALLET.md` §13.2): `text`, dots
+    /// already for a masked field, from x in the middle of a box `h`
+    /// tall at y, at most `room` wide. While `focused`, what is selected
+    /// is drawn behind it and the caret at its place, and the part in
+    /// view is the end or, with the caret before that, from the caret.
+    /// Where each character starts is kept for `action`, so a press or
+    /// a drag there places the caret. Returns the width drawn.
+    #[allow(clippy::too_many_arguments)]
+    pub fn typed(
+        &mut self,
+        x: f32,
+        y: f32,
+        h: f32,
+        size: f32,
+        w: W,
+        color: Color,
+        text: &str,
+        room: f32,
+        focused: bool,
+        action: Action,
+    ) -> f32 {
+        // The byte offset of each character's start, and of the end: the
+        // text itself is never copied.
+        let at: Vec<usize> = text
+            .char_indices()
+            .map(|(i, _)| i)
+            .chain(std::iter::once(text.len()))
+            .collect();
+        let n = at.len() - 1;
+        let edge: Vec<f32> = at
+            .iter()
+            .map(|&b| self.measure(size, w, &text[..b]))
+            .collect();
+        let edit = if focused { self.edit } else { Edit::default() };
+        let caret = edit.caret_in(n);
+        let mut from = 0;
+        while from < n && edge[n] - edge[from] > room {
+            from += 1;
+        }
+        let mut to = n;
+        if caret < from {
+            from = caret;
+            while to > from && edge[to] - edge[from] > room {
+                to -= 1;
+            }
+        }
+        let left = |i: usize| x + edge[i] - edge[from];
+        let selected = edit.selected(n);
+        if let Some((lo, hi)) = selected {
+            let (lo, hi) = (lo.clamp(from, to), hi.clamp(from, to));
+            if hi > lo {
+                self.selected_band(left(lo), y, h, edge[hi] - edge[lo]);
+            }
+        }
+        self.text_mid(x, y, h, size, w, color, &text[at[from]..at[to]]);
+        if focused && selected.is_none() {
+            let ch = (size + 4.0).max(18.0);
+            self.caret(left(caret) + 1.0, y + (h - ch) / 2.0, ch);
+        }
+        let edges = (from..=to).map(|i| self.px(left(i) + self.ox)).collect();
+        self.fields.push(FieldAt {
+            action,
+            first: from,
+            edges,
+        });
+        edge[to] - edge[from]
+    }
+
+    /// Records the screen's back link: drawn, it is what the mouse's
+    /// back button does.
+    pub fn back(&mut self, action: Action) {
+        if self.layer == 0 {
+            self.back_link = Some(action);
         }
     }
 
@@ -1420,11 +1569,29 @@ impl<'a> Ui<'a> {
 
     /// A pill with a plain label and an edge. Returns its width.
     pub fn pill(&mut self, x: f32, y: f32, h: f32, label: &str) -> f32 {
+        self.pill_in(x, y, h, label, MUTED)
+    }
+
+    /// [`Ui::pill`] with its label in `color`.
+    pub fn pill_in(&mut self, x: f32, y: f32, h: f32, label: &str, color: Color) -> f32 {
         let width = self.measure(12.0, W::R, label) + 24.0;
         self.fill(x, y, width, h, h / 2.0, SURFACE);
         self.stroke(x, y, width, h, h / 2.0, LINE);
-        self.text_mid(x + 12.0, y, h, 12.0, W::R, MUTED, label);
+        self.text_mid(x + 12.0, y, h, 12.0, W::R, color, label);
         width
+    }
+
+    /// An empty BIP-39 passphrase field's content
+    /// (`docs/NEW-WALLET.md` §13.4): the **No passphrase** pill at the
+    /// start of the box `h` tall at (x, y), and the caret after it while
+    /// the field is focused.
+    pub fn no_passphrase(&mut self, x: f32, y: f32, h: f32, focused: bool) {
+        let ph = 24.0;
+        let label = opensigner_core::strings::EN.passphrase_none;
+        let pw = self.pill_in(x + 8.0, y + (h - ph) / 2.0, ph, label, DIM);
+        if focused {
+            self.caret(x + 14.0 + pw, y + (h - 18.0) / 2.0, 18.0);
+        }
     }
 
     /// Threshold pips: `filled` of `n`.

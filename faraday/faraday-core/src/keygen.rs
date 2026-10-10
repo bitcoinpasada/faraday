@@ -718,7 +718,7 @@ impl KeyGen {
 
     /// Whether the active source's entries are rolls or flips, which
     /// the box shows.
-    fn flip_or_roll(&self) -> bool {
+    pub(crate) fn flip_or_roll(&self) -> bool {
         matches!(self.active(), Some(Source::Dice | Source::Coins))
     }
 

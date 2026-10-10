@@ -115,6 +115,7 @@ pub fn column_foot(
         ui.icon(x - 4.0, y, 16.0, Icon::ChevronLeft, 10.0, MUTED);
         let lw = ui.text(x + 14.0, y, 12.0, W::R, MUTED, label);
         ui.hit(x - 4.0, y - 4.0, lw + 30.0, 24.0, action);
+        ui.back(action);
         y += 22.0;
     }
     let hw = ui.text(x, y, 26.0, W::S, TEXT, col.heading);
@@ -461,6 +462,7 @@ fn paged(
     }
     ui.icon(4.0, 4.0, BAR_H - 8.0, Icon::ChevronLeft, 13.0, TEXT);
     ui.hit(0.0, 0.0, BAR_H + 8.0, BAR_H, back.1);
+    ui.back(back.1);
     let room = w - BAR_H - M;
     let label = ui.fit(11.0, W::R, back.0, room);
     ui.text(BAR_H, 5.0, 11.0, W::R, MUTED, &label);

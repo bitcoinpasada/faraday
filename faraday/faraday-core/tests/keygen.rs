@@ -822,3 +822,44 @@ fn new_key_on_its_own_asks_for_no_passphrase_and_adds_the_key_without_one() {
     assert_eq!(added(&app), vec![fingerprint(&m)]);
     assert!(app.session.keys[0].passphrase.is_none());
 }
+
+/// The colour drawn just inside the left end of what `action` presses,
+/// at its middle.
+fn fill_of(app: &mut Faraday, action: Action) -> [u8; 4] {
+    let (x, y, _, h) = app.hit_box(action).expect("drawn");
+    let (x, y) = (usize::from(x) + 4, usize::from(y + h / 2));
+    let frame = app.frame();
+    let at = (y * frame.width as usize + x) * 4;
+    frame.rgba[at..at + 4].try_into().unwrap()
+}
+
+#[test]
+fn a_fresh_new_key_draws_twelve_words_as_chosen() {
+    let mut app = opened_tall();
+    assert_eq!(
+        app.keygen.as_ref().unwrap().open,
+        Some(faraday_core::keygen::kstep::LENGTH)
+    );
+    let _ = app.frame();
+    let twelve = fill_of(&mut app, Action::KWords(12));
+    let fifteen = fill_of(&mut app, Action::KWords(15));
+    let eighteen = fill_of(&mut app, Action::KWords(18));
+    assert_ne!(twelve, fifteen, "12 words is drawn chosen before any press");
+    assert_eq!(fifteen, eighteen, "the others are not");
+}
+
+#[test]
+fn an_empty_key_card_passphrase_field_says_no_passphrase_until_a_character_is_typed() {
+    let mut app = slot_flow(true);
+    flip_all(&mut app);
+    app.press(Action::KNext);
+    let count = |app: &mut Faraday, s: &str| app.drawn_texts().iter().filter(|t| *t == s).count();
+    assert_eq!(count(&mut app, "No passphrase"), 2, "one in each field");
+    assert_eq!(count(&mut app, "None"), 0);
+    assert_eq!(count(&mut app, "Not set"), 0);
+    // Focused and empty, it stays.
+    app.press(Action::KPassField(0));
+    assert_eq!(count(&mut app, "No passphrase"), 2);
+    type_text(&mut app, "a");
+    assert_eq!(count(&mut app, "No passphrase"), 1, "the dots in its place");
+}

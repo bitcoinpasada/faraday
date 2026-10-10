@@ -56,6 +56,7 @@ fn header(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
     );
     ui.text(x + 14.0, y, 12.0, W::R, MUTED, "Wallets");
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, Action::Nav(t.back));
+    ui.back(Action::Nav(t.back));
     y += 22.0;
     title(ui, x, y, "Tools");
     y += 52.0;

@@ -268,6 +268,9 @@ pub enum Key {
     Char(char),
     /// Delete the character before the cursor.
     Backspace,
+    /// Delete the character after the cursor. A shell that has the key
+    /// sends it; one that does not never does.
+    Delete,
     /// Confirm / done.
     Enter,
     /// Cancel / back.
@@ -412,6 +415,21 @@ pub enum Event {
         /// Pointer y in pixels.
         y: u16,
     },
+    /// Shift went down (`true`) or came up (`false`): a press or an
+    /// arrow key with it held extends what is selected in a field.
+    /// Optional, desktop shells only; a shell that never sends it has
+    /// Shift never held.
+    Shift {
+        /// Whether Shift is down now.
+        held: bool,
+    },
+    /// The mouse's back button: what the screen's back link, or
+    /// Escape, does. Optional, desktop shells only.
+    Back,
+    /// The mouse's forward button: the screen last left by
+    /// [`Event::Back`] again, while nothing else has been opened since.
+    /// Optional, desktop shells only.
+    Forward,
     /// A pointer moved over the frame with no button down, in pixels.
     /// Optional: a shell with no pointer never sends it.
     Hover {

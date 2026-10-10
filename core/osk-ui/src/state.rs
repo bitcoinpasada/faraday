@@ -347,7 +347,10 @@ impl UiState {
             | Event::SecretForgotten
             | Event::ScrollEnd { .. }
             | Event::Hover { .. }
-            | Event::HoverEnd => None,
+            | Event::HoverEnd
+            | Event::Shift { .. }
+            | Event::Back
+            | Event::Forward => None,
             Event::Tick { now_ms } => self.tick(now_ms),
             Event::Touch { x, y, phase } => self.touch(layout, i32::from(x), i32::from(y), phase),
             // No glide here: a wheel moves the content as a scroll does.

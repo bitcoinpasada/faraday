@@ -1744,26 +1744,56 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
             i as u8,
         ));
     }
-    // The description as files too, for the public files item below.
+    // The description into the vault, and as files too, for the public
+    // files item below.
+    let into_vault = t
+        .app
+        .backup
+        .as_ref()
+        .is_some_and(|b| b.answers.wallet[faraday_core::plan::wallet::VAULT]);
+    if !into_vault {
+        t.press(Action::BAnswer(
+            faraday_core::qrow::WALLET,
+            faraday_core::plan::wallet::VAULT as u8,
+        ));
+    }
     t.press(Action::BAnswer(
         faraday_core::qrow::WALLET,
         faraday_core::plan::wallet::FILES as u8,
     ));
     t.press(Action::BChecklist);
-    t.press(Action::BStep(faraday_core::bstep::VAULT));
-    // Making the checklist saved the plan into the vault already.
-    let before = t.app.vaults.open[0].changes;
-    for k in t.app.backup_keys(built) {
-        t.press(Action::BKey(k));
-        t.press(Action::BVaultSave(0));
+    // The items before the vault's wait for it (`docs/NEW-WALLET.md`
+    // §14.1): each copy by hand checked in turn, then the vault.
+    items_before(t, faraday_core::bstep::VAULT)?;
+    if t.app.backup.as_ref().and_then(|b| b.open) != Some(faraday_core::bstep::VAULT) {
+        t.press(Action::BStep(faraday_core::bstep::VAULT));
     }
+    // Making the checklist saved the plan into the vault already.
+    use faraday_vault::records::kind;
+    let count = |t: &Tour, k: u8| t.app.vaults.open[0].contents.of(k).count();
+    let before = t.app.vaults.open[0].changes;
+    let plans = count(t, kind::PLAN);
+    let keys = count(t, kind::KEY);
+    let wallets = count(t, kind::WALLET);
     t.shot("create-backup-vault")?;
-    t.press(Action::Vault(V::SaveWallet(built)));
+    // One Save into the vault saves all the plan puts there
+    // (`docs/NEW-WALLET.md` §14.1): the two new keys and the wallet;
+    // test key 1 was there already. The plan record the checklist wrote
+    // is kept as it is, one of it: nothing in it changed.
+    t.press(Action::BVaultSave(0));
     t.shot("create-backup-vault-saved")?;
-    // The wallet and the two new keys; test key 1 was there already.
     let saved = t.app.vaults.open[0].changes - before;
     if saved != 3 {
         return Err(format!("the checklist saved {saved} records, not 3"));
+    }
+    if count(t, kind::KEY) != keys + 2 || count(t, kind::WALLET) != wallets + 1 {
+        return Err("the vault's save did not add the two new keys and the wallet".into());
+    }
+    if plans == 0 || count(t, kind::PLAN) != plans {
+        return Err(format!(
+            "the vault holds {} plan records, {plans} before the save",
+            count(t, kind::PLAN)
+        ));
     }
     // Then the public files, to the Outbox.
     t.press(Action::BStep(faraday_core::bstep::PUBLIC));
@@ -2097,8 +2127,18 @@ fn compact_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::KNext);
     t.shot("keygen-key")?;
     t.press(Action::KPassField(0));
+    // Focused and empty: the No passphrase pill, the caret after it
+    // (`docs/NEW-WALLET.md` §13.4).
+    t.shot("keygen-key-passphrase-empty")?;
     type_text(t, "Ride the 7 bus");
     t.shot("keygen-key-passphrase")?;
+    // Five of the dots selected with Shift and Left (§13.2).
+    t.app.event(Event::Shift { held: true });
+    for _ in 0..5 {
+        t.app.event(Event::Key(Key::Left));
+    }
+    t.app.event(Event::Shift { held: false });
+    t.shot("keygen-key-passphrase-selected")?;
     t.press(Action::KPassField(1));
     type_text(t, "Ride the 7 bus");
     // Lock in adds the key and, a single key being the whole wallet,
@@ -2423,6 +2463,32 @@ fn copy_digits(t: &Tour, wrong: Option<usize>) -> Result<Vec<u8>, String> {
         *d = if *d == b'9' { b'8' } else { *d + 1 };
     }
     Ok(digits)
+}
+
+/// Does each checklist item before `target` in the checklist's order,
+/// as a person must (`docs/NEW-WALLET.md` §14.1): a copy by hand is
+/// checked by its numbers typed back, the envelopes by their Continue.
+fn items_before(t: &mut Tour, target: u8) -> Result<(), String> {
+    use faraday_core::bstep;
+    while let Some(n) = t.app.backup_waiting() {
+        if n == target {
+            break;
+        }
+        if t.app.backup.as_ref().and_then(|b| b.open) != Some(n) {
+            t.press(Action::BStep(n));
+        }
+        if bstep::is_copy(n) {
+            t.press(Action::BCheck);
+            for c in copy_digits(t, None)? {
+                t.app.event(Event::Key(Key::Char(char::from(c))));
+            }
+        }
+        t.press(Action::BNext(n));
+        if t.app.backup_waiting() == Some(n) {
+            return Err(format!("checklist item {n} was not done in turn"));
+        }
+    }
+    Ok(())
 }
 
 /// The backup's plan from preset `preset`, with `ticks` ticked

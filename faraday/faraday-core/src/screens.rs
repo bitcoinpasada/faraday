@@ -2201,6 +2201,7 @@ fn decode_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.icon(x - 4.0, y, 16.0, Icon::ChevronLeft, 10.0, MUTED);
         let lw = ui.text(x + 14.0, y, 12.0, W::R, MUTED, decode_back(d.back));
         ui.hit(x - 4.0, y - 4.0, lw + 30.0, 24.0, Action::Nav(d.back));
+        ui.back(Action::Nav(d.back));
         y += 22.0;
         title(ui, x, y, "Decode a transaction");
         y += 44.0;
@@ -2843,12 +2844,18 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Some(name) => {
             ui.fill(ix - 6.0, cy - 4.0, 360.0, 38.0, 8.0, BG);
             ui.stroke(ix - 6.0, cy - 4.0, 360.0, 38.0, 8.0, ACCENT.with_alpha(110));
-            ui.selection(ix, cy - 4.0, 38.0, 22.0, W::S, name, true);
-            let nw = ui.text(ix, cy, 22.0, W::S, TEXT, name);
-            if !ui.select_all {
-                // The caret, drawn: a glyph would be one more character.
-                ui.caret(ix + nw + 2.0, cy + 2.0, 24.0);
-            }
+            ui.typed(
+                ix,
+                cy - 4.0,
+                38.0,
+                22.0,
+                W::S,
+                TEXT,
+                name,
+                348.0,
+                true,
+                Action::Rename,
+            );
             ui.hit(ix - 6.0, cy - 4.0, 360.0, 38.0, Action::Rename);
             ui.text(
                 ix + 370.0,
@@ -6839,13 +6846,13 @@ fn message_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f3
                 } else {
                     "Press Type to write the message".to_string()
                 }
-            } else if m.typing && !ui.select_all {
+            } else if m.typing && !ui.edit.all(m.text.chars().count()) {
                 format!("{}{}", m.text, ui.caret_char())
             } else {
                 m.text.clone()
             };
             ui.c.push_clip(ui.rect(x, cy, w, box_h));
-            if m.typing && ui.select_all && !m.text.is_empty() {
+            if m.typing && ui.edit.all(m.text.chars().count()) {
                 ui.fill(
                     x + 4.0,
                     cy + 4.0,
@@ -7007,6 +7014,7 @@ fn check_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.icon(x - 4.0, y, 16.0, Icon::ChevronLeft, 10.0, MUTED);
         ui.text(x + 14.0, y, 12.0, W::R, MUTED, "Wallets");
         ui.hit(x - 4.0, y - 4.0, 80.0, 24.0, Action::Nav(Screen::Start));
+        ui.back(Action::Nav(Screen::Start));
         y += 22.0;
         title(ui, x, y, "Check a signed message");
         y += 60.0;
@@ -7871,8 +7879,9 @@ fn file_row_extra(
 /// above; the shape, the keys' fingerprints and the checksum below; a
 /// chevron; the whole row opens `action`. Returns its height.
 /// A masked passphrase field with its label at the left (above it on a
-/// small panel): dots for what is typed, "Not set" while it is empty and
-/// not focused, the caret while it is. Returns the height used.
+/// small panel): dots for what is typed, the **No passphrase** pill
+/// while it is empty, the caret while it is focused. Returns the height
+/// used.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn pass_field(
     ui: &mut Ui,
@@ -7893,19 +7902,41 @@ pub(crate) fn pass_field(
     };
     ui.fill(px, py, pw, 40.0, 8.0, BG);
     ui.stroke(px, py, pw, 40.0, 8.0, if on { ACCENT } else { BORDER });
-    let (shown, tone) = if text.as_str().is_empty() && !on {
-        ("Not set".to_string(), DIM)
-    } else {
-        let mut d = "•".repeat(text.as_str().chars().count().min(40));
-        ui.selection(px + 12.0, py, 40.0, 14.0, W::M, &d, on);
-        if on && !ui.select_all {
-            d.push_str(ui.caret_char());
-        }
-        (d, TEXT)
-    };
-    ui.text_mid(px + 12.0, py, 40.0, 14.0, W::M, tone, &shown);
+    dots_field(ui, px, py, pw, text, on, action);
     ui.hit(px, py, pw, 40.0, action);
     py - y + 48.0
+}
+
+/// What a BIP-39 passphrase field 40 tall and `w` wide at (x, y) shows:
+/// a dot for each character typed, with the selection and the caret
+/// while `on`, or the **No passphrase** pill while it is empty
+/// (`docs/NEW-WALLET.md` §13.4).
+pub(crate) fn dots_field(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    text: &str,
+    on: bool,
+    action: Action,
+) {
+    if text.is_empty() {
+        ui.no_passphrase(x, y, 40.0, on);
+    } else {
+        let dots = "•".repeat(text.chars().count());
+        ui.typed(
+            x + 12.0,
+            y,
+            40.0,
+            14.0,
+            W::M,
+            TEXT,
+            &dots,
+            w - 24.0,
+            on,
+            action,
+        );
+    }
 }
 
 /// The **Locked in** tag: a lock and the words, in `OK`. Returns its
@@ -11228,6 +11259,7 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         },
     );
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, back);
+    ui.back(back);
     y += 22.0;
     let heading = match app.entry.wanted {
         Some(fp) => format!("Add key {}", fp_text(osk_bip::keys::Fingerprint(fp))),
@@ -11670,28 +11702,14 @@ fn entry_finish(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) 
     let on = app.entry.on_passphrase;
     ui.fill(px, y, pw, 40.0, 8.0, BG);
     ui.stroke(px, y, pw, 40.0, 8.0, if on { ACCENT } else { BORDER });
-    let shown = if app.entry.passphrase.is_empty() && !on {
-        "None".to_string()
-    } else {
-        let mut d = "•".repeat(app.entry.passphrase.len().min(40));
-        ui.selection(px + 12.0, y, 40.0, 14.0, W::M, &d, on);
-        if on && !ui.select_all {
-            d.push_str(ui.caret_char());
-        }
-        d
-    };
-    ui.text_mid(
-        px + 12.0,
+    dots_field(
+        ui,
+        px,
         y,
-        40.0,
-        14.0,
-        W::M,
-        if app.entry.passphrase.is_empty() && !on {
-            DIM
-        } else {
-            TEXT
-        },
-        &shown,
+        pw,
+        &app.entry.passphrase,
+        on,
+        Action::EntryPassphrase,
     );
     ui.hit(px, y, pw, 40.0, Action::EntryPassphrase);
     let by = h - 36.0 - 46.0;
@@ -11869,17 +11887,15 @@ fn entry_form(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) {
         let on = app.entry.on_passphrase;
         ui.fill(px, y, pw, 40.0, 8.0, BG);
         ui.stroke(px, y, pw, 40.0, 8.0, if on { ACCENT } else { BORDER });
-        let p = if app.entry.passphrase.is_empty() && !on {
-            "None".to_string()
-        } else {
-            let mut d = "•".repeat(app.entry.passphrase.len().min(40));
-            ui.selection(px + 12.0, y, 40.0, 14.0, W::M, &d, on);
-            if on && !ui.select_all {
-                d.push_str(ui.caret_char());
-            }
-            d
-        };
-        ui.text_mid(px + 12.0, y, 40.0, 14.0, W::M, TEXT, &p);
+        dots_field(
+            ui,
+            px,
+            y,
+            pw,
+            &app.entry.passphrase,
+            on,
+            Action::EntryPassphrase,
+        );
         ui.hit(px, y, pw, 40.0, Action::EntryPassphrase);
     }
     let by = h - 36.0 - 46.0;

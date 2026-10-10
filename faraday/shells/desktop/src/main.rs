@@ -438,9 +438,8 @@ impl Shell {
 
 fn map_key(key: &WinitKey) -> Option<Key> {
     match key {
-        // Delete as well: the fields have no cursor to delete after, and
-        // with a field selected it empties it.
-        WinitKey::Named(NamedKey::Backspace | NamedKey::Delete) => Some(Key::Backspace),
+        WinitKey::Named(NamedKey::Backspace) => Some(Key::Backspace),
+        WinitKey::Named(NamedKey::Delete) => Some(Key::Delete),
         WinitKey::Named(NamedKey::Enter) => Some(Key::Enter),
         WinitKey::Named(NamedKey::Escape) => Some(Key::Escape),
         WinitKey::Named(NamedKey::ArrowUp) => Some(Key::Up),
@@ -654,7 +653,24 @@ impl ApplicationHandler for Shell {
                     self.send(event_loop, Event::ScrollEnd { x, y });
                 }
             }
-            WindowEvent::ModifiersChanged(m) => self.shift = m.state().shift_key(),
+            WindowEvent::ModifiersChanged(m) => {
+                let shift = m.state().shift_key();
+                if shift != self.shift {
+                    self.shift = shift;
+                    self.send(event_loop, Event::Shift { held: shift });
+                }
+            }
+            // The mouse's back and forward buttons.
+            WindowEvent::MouseInput {
+                state: ElementState::Pressed,
+                button: MouseButton::Back,
+                ..
+            } => self.send(event_loop, Event::Back),
+            WindowEvent::MouseInput {
+                state: ElementState::Pressed,
+                button: MouseButton::Forward,
+                ..
+            } => self.send(event_loop, Event::Forward),
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.state != ElementState::Pressed {
                     return;

@@ -61,6 +61,7 @@ mod backups_screen;
 mod bip85_screen;
 mod boot_import_screen;
 mod compact;
+mod edit;
 mod held;
 pub use compact::OskPress;
 pub use medium::Medium;
@@ -2818,9 +2819,23 @@ pub struct Faraday {
     pub upgrade_after_lock: bool,
     /// The chosen wallet's new name, while it is typed.
     pub renaming: Option<String>,
-    /// All of the focused field is selected: Backspace clears it, and a
-    /// typed character replaces it.
-    pub select_all: bool,
+    /// Where the caret and the selection are in the field typing goes
+    /// to (`docs/NEW-WALLET.md` §13.2).
+    pub(crate) edit: ui::Edit,
+    /// An edit inside a field is being typed through the field's own
+    /// keys.
+    editing: bool,
+    /// Shift is held.
+    shift: bool,
+    /// Where the last frame drew each line of typing's characters.
+    fields: Vec<ui::FieldAt>,
+    /// The screen's back link, as the last frame drew it.
+    back_link: Option<Action>,
+    /// Screens left by the mouse's back button, the last left last
+    /// (`docs/NEW-WALLET.md` §13.1).
+    forward: Vec<Screen>,
+    /// The screen the last back or forward button landed on.
+    landed: Option<Screen>,
     /// Seeds' fingerprints with no passphrase, by a hash of the secret:
     /// the Inbox's wallets and seeds are put together on every frame.
     pub(crate) fp_memo: std::cell::RefCell<Vec<([u8; 32], osk_bip::keys::Fingerprint)>>,
@@ -3013,7 +3028,13 @@ impl Faraday {
             upgrade_after_lock: false,
             scanned: 0,
             renaming: None,
-            select_all: false,
+            edit: ui::Edit::default(),
+            editing: false,
+            shift: false,
+            fields: Vec::new(),
+            back_link: None,
+            forward: Vec::new(),
+            landed: None,
             fp_memo: Default::default(),
             inbox_skip: BTreeSet::new(),
             potential: None,
@@ -8727,65 +8748,15 @@ impl Faraday {
             Screen::Wallets => self.renaming.is_some(),
             Screen::Message => self.message.as_ref().is_some_and(|m| m.typing),
             Screen::KeyGen => self.keygen.as_ref().is_some_and(|k| {
-                k.focus.is_some() && k.open == Some(keygen::kstep::KEY) && !k.locked
+                !k.locked
+                    && ((k.focus.is_some() && k.open == Some(keygen::kstep::KEY))
+                        || (k.open == Some(keygen::kstep::ENTER) && k.typing && k.flip_or_roll()))
             }),
             Screen::Create => self
                 .create
                 .as_ref()
                 .is_some_and(|c| c.pass_slot.is_some() && c.pass_focus.is_some()),
             _ => false,
-        }
-    }
-
-    /// Empties the field typing goes to.
-    fn clear_typing(&mut self) {
-        use zeroize::Zeroize;
-        if self.sheet == Some(Sheet::Import) {
-            self.vault_clear_focused();
-            return;
-        }
-        match self.screen {
-            Screen::Family | Screen::Restore if self.seeds_typing() => self.seeds_clear_typing(),
-            Screen::Unlock | Screen::CreateVault | Screen::VaultContents | Screen::Family => {
-                self.vault_clear_focused();
-            }
-            Screen::Entry if self.entry.on_passphrase => self.entry.passphrase.zeroize(),
-            Screen::Entry => {
-                self.entry.typed.zeroize();
-                if self.entry.keys.is_some() {
-                    self.entry.keys = Some(forms::word_typer(self.entry.language()));
-                }
-                self.entry.error = None;
-            }
-            Screen::Wallets => {
-                if let Some(n) = self.renaming.as_mut() {
-                    n.clear();
-                }
-            }
-            Screen::KeyGen => {
-                if let Some(k) = self.keygen.as_mut() {
-                    match k.focus {
-                        Some(0) => k.passphrase.clear(),
-                        Some(_) => k.passphrase2.clear(),
-                        None => {}
-                    }
-                }
-            }
-            Screen::Create => {
-                if let Some(c) = self.create.as_mut() {
-                    match c.pass_focus {
-                        Some(0) => c.pass.clear(),
-                        Some(_) => c.pass2.clear(),
-                        None => {}
-                    }
-                }
-            }
-            Screen::Message => {
-                if let Some(m) = self.message.as_mut() {
-                    m.text.clear();
-                }
-            }
-            _ => {}
         }
     }
 
@@ -8839,27 +8810,18 @@ impl Faraday {
         if self.catalog_key(key) {
             return;
         }
-        // A selected field: Backspace empties it, a character replaces it,
-        // any other key leaves it as it is.
-        if std::mem::take(&mut self.select_all) && self.typing_field() {
-            match key {
-                KeyIn::Backspace => {
-                    if !self.sticks.is_empty()
-                        && matches!(
-                            self.vaults.focus,
-                            Some(vaults::Focus::Passphrase | vaults::Focus::Phrase(..))
-                        )
-                    {
-                        // Nothing in a passphrase field moves with a stick in.
-                    } else {
-                        self.clear_typing();
-                    }
-                    return;
-                }
-                KeyIn::Char(c) if !c.is_control() => self.clear_typing(),
-                _ => {}
-            }
+        // The caret moved, or an edit inside the field: what is selected
+        // goes with Backspace or Delete, and a character replaces it.
+        if self.edit_key(key) {
+            return;
         }
+        // Delete in a field with no caret of its own takes the last
+        // character, as Backspace does.
+        let key = if key == KeyIn::Delete {
+            KeyIn::Backspace
+        } else {
+            key
+        };
         if self.seeds_key(key) {
             return;
         }
@@ -9430,26 +9392,29 @@ impl Faraday {
                 }
                 let pressed = self.pressed.take();
                 // A hold acts on the tick that completes it, never on release.
-                let was_selected = std::mem::take(&mut self.select_all);
                 if let (Some((a, _)), Some((b, _))) = (pressed, found)
                     && a == b
                     && !vaults::is_hold(a)
                 {
-                    // A second press on the field typing goes to, or a
-                    // drag across it, selects all of it.
+                    // On a field: the caret where it was pressed, a
+                    // second press selecting all of it, a drag what it
+                    // went over (`docs/NEW-WALLET.md` §13.2).
                     let double = self
                         .last_tap
                         .is_some_and(|(l, t)| l == a && self.now_ms.saturating_sub(t) <= 450);
-                    let dragged = (x - self.down_at.0).abs() > 12;
-                    if (double || dragged) && field_action(a) && self.typing_field() {
-                        self.select_all = !was_selected || dragged;
-                        self.last_tap = None;
+                    if field_action(a)
+                        && let Some(dragged) = self.field_press(a, self.down_at.0, x, double)
+                    {
+                        self.last_tap = (!double && !dragged).then_some((a, self.now_ms));
                         return;
                     }
                     self.last_tap = Some((a, self.now_ms));
                     self.act(a);
                     self.keygen_camera();
                     self.keygen_device();
+                    if field_action(a) {
+                        self.field_press(a, x, x, false);
+                    }
                 }
             }
         }
@@ -9572,7 +9537,7 @@ impl Faraday {
                 });
             let column = {
                 let mut ui = ui::Ui::new(&mut canvas, self.f, &mut hits, self.pressed.map(|p| p.0));
-                ui.select_all = self.select_all;
+                ui.edit = self.edit_now();
                 ui.theme = self.theme;
                 ui.hovered = self.hovered;
                 ui.stretch = stretch;
@@ -9599,6 +9564,8 @@ impl Faraday {
                 ui.caret_on = self.caret_on();
                 screens::draw(self, &mut ui);
                 caret = ui.caret_drawn.then_some(ui.caret_on);
+                self.fields = std::mem::take(&mut ui.fields);
+                self.back_link = ui.back_link;
                 scrolled = std::mem::take(&mut ui.scrolled);
                 follow_to = follow_to.or(ui.follow_to);
                 self.frost = ui.frost.take().map(|page| (frost_key, page));
@@ -9890,6 +9857,8 @@ fn field_action(a: Action) -> bool {
             | Action::CPassField(_)
             | Action::Rename
             | Action::MType
+            | Action::KTyping(true)
+            | Action::Seeds(seeds::SeedsAction::Focus(_))
     )
 }
 
@@ -9926,6 +9895,26 @@ impl App for Faraday {
                     self.sheet = None;
                 } else {
                     self.key(k);
+                }
+            }
+            Event::Shift { held } => {
+                self.shift = held;
+                return;
+            }
+            Event::Back => {
+                self.input_now();
+                if self.sheet == Some(Sheet::IdleWarn) {
+                    self.sheet = None;
+                } else {
+                    self.mouse_back();
+                }
+            }
+            Event::Forward => {
+                self.input_now();
+                if self.sheet == Some(Sheet::IdleWarn) {
+                    self.sheet = None;
+                } else {
+                    self.mouse_forward();
                 }
             }
             Event::Scroll { x, y, dy } => {

@@ -655,25 +655,6 @@ impl Faraday {
         s.error = None;
         true
     }
-
-    /// Empties the box typing goes to.
-    pub(crate) fn seeds_clear_typing(&mut self) {
-        if let Some(s) = self.seeds_mut() {
-            match s.focus {
-                Some(Focus::Cosigner(k)) => {
-                    if let Some(c) = s.cosigners.get_mut(usize::from(k)) {
-                        c.clear();
-                    }
-                }
-                Some(Focus::Path) => {
-                    if let Some(p) = s.custom.as_mut() {
-                        p.clear();
-                    }
-                }
-                None => {}
-            }
-        }
-    }
 }
 
 /// The keys open vaults hold that are not loaded: the vault, the record

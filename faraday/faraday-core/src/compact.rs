@@ -76,6 +76,7 @@ pub(crate) fn bar(app: &Faraday, ui: &mut Ui, w: f32, back: (&str, Action), name
     }
     ui.icon(4.0, 4.0, BAR_H - 8.0, Icon::ChevronLeft, 13.0, TEXT);
     ui.hit(0.0, 0.0, BAR_H + 8.0, BAR_H, action);
+    ui.back(action);
     let right = tools(app, ui, w);
     // The page's own name, and above it, small, where Back goes.
     let x = BAR_H;
@@ -761,6 +762,11 @@ impl Faraday {
                 .vanity
                 .as_ref()
                 .is_some_and(|v| v.open == Some(crate::vanity::vstep::PREFIX) && !v.running),
+            // The Key card's passphrase; the box of rolls has buttons of
+            // its own on a small panel.
+            Screen::KeyGen => self.keygen.as_ref().is_some_and(|k| {
+                k.focus.is_some() && k.open == Some(crate::keygen::kstep::KEY) && !k.locked
+            }),
             _ => self.typing_field(),
         }
     }

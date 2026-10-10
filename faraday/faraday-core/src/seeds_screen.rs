@@ -364,29 +364,19 @@ fn field(
         let hint = ui.fit(13.0, W::R, hint, w - 24.0);
         ui.text_mid(x + 12.0, y, 40.0, 13.0, W::R, DIM, &hint);
     } else {
-        // The end typed last stays in view.
-        let room = w - 30.0;
-        let mut shown = text.to_string();
-        if ui.measure(14.0, W::M, &shown) > room {
-            let chars: Vec<char> = text.chars().collect();
-            let mut from = 0;
-            while from < chars.len() {
-                let tail: String = std::iter::once('…')
-                    .chain(chars[from..].iter().copied())
-                    .collect();
-                if ui.measure(14.0, W::M, &tail) <= room {
-                    shown = tail;
-                    break;
-                }
-                from += 1;
-            }
-        }
-        ui.selection(x + 12.0, y, 40.0, 14.0, W::M, &shown, focused);
-        ui.text_mid(x + 12.0, y, 40.0, 14.0, W::M, TEXT, &shown);
-        if focused && !ui.select_all {
-            let cx = x + 13.0 + ui.measure(14.0, W::M, &shown);
-            ui.caret(cx, y + 11.0, 18.0);
-        }
+        // The end typed last stays in view, or the caret.
+        ui.typed(
+            x + 12.0,
+            y,
+            40.0,
+            14.0,
+            W::M,
+            TEXT,
+            text,
+            w - 30.0,
+            focused,
+            action,
+        );
     }
     ui.hit(x, y, w, 40.0, action);
 }

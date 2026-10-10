@@ -2994,16 +2994,6 @@ impl Faraday {
         true
     }
 
-    /// Empties the vault field typing goes to.
-    pub(crate) fn vault_clear_focused(&mut self) {
-        if let Some(f) = self.vaults.focus
-            && let Some(b) = self.vault_box(f)
-        {
-            b.clear();
-        }
-        self.vaults.unlock_error = None;
-    }
-
     fn vault_box(&mut self, focus: Focus) -> Option<&mut TextBox> {
         match focus {
             Focus::Passphrase => Some(&mut self.vaults.passphrase),

@@ -36,18 +36,27 @@ pub(crate) fn text_box(
 ) {
     ui.fill(x, y, w, 40.0, 8.0, BG);
     ui.stroke(x, y, w, 40.0, 8.0, if focused { ACCENT } else { BORDER });
-    let shown: String = if masked {
-        "•".repeat(b.text.chars().count().min(48))
+    // The dots stand for the characters one to one, so a press or a
+    // selection in them is by position.
+    let dots;
+    let shown: &str = if masked {
+        dots = "•".repeat(b.text.chars().count());
+        &dots
     } else {
-        b.text.to_string()
+        &b.text
     };
-    let shown = ui.fit(14.0, W::M, &shown, w - 30.0);
-    ui.selection(x + 12.0, y, 40.0, 14.0, W::M, &shown, focused);
-    ui.text_mid(x + 12.0, y, 40.0, 14.0, W::M, TEXT, &shown);
-    if focused && !ui.select_all {
-        let cx = x + 13.0 + ui.measure(14.0, W::M, &shown);
-        ui.caret(cx, y + 11.0, 18.0);
-    }
+    ui.typed(
+        x + 12.0,
+        y,
+        40.0,
+        14.0,
+        W::M,
+        TEXT,
+        shown,
+        w - 30.0,
+        focused,
+        action,
+    );
     ui.hit(x, y, w, 40.0, action);
 }
 
@@ -868,6 +877,7 @@ fn back_link(ui: &mut Ui, x: f32, y: f32, label: &str, action: Action) {
     ui.text_mid(x + 14.0, y, 18.0, 13.0, W::R, MUTED, label);
     let lw = ui.measure(13.0, W::R, label) + 20.0;
     ui.hit(x - 6.0, y - 4.0, lw, 26.0, action);
+    ui.back(action);
 }
 
 // ---------------------------------------------------------------------

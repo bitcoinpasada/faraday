@@ -795,9 +795,13 @@ characters dragged over; Shift with a press or the arrow keys extends
 the selection; a double press selects all (as a second press does
 today). Backspace or Delete removes the selection; a character typed
 replaces it. In a masked field the dots stand for the characters one
-to one, so a selection is by position. `SecretText` gains insert and
-delete at a position and keeps wiping what it drops; nothing is copied
-out of a masked field.
+to one, so a selection is by position. Nothing is copied out of a
+masked field. As built (orchestrator's ruling, 2026-10-10): an edit
+inside a field goes through the field's own keys (`edit.rs`): the text
+after the edit point is taken off with Backspace (each character wiped
+as `SecretText::pop` wipes it), the edit is made, and that text is typed
+back from a `SecretText`; so `SecretText` gained no new methods, and
+each field keeps its own filter and limits.
 
 **Where.** `ui.rs` (`selection`, `select_all`, the caret), the text
 fields' handling in `lib.rs`, `secret_text.rs`, `keygen.rs` (the

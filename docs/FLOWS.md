@@ -474,6 +474,23 @@ to get it.
     Wallets with the same toast and wallet chosen as the boot sheet's
     Unlock (decision 43). A vault that holds no wallet lands where it
     does today; an unlock begun from inside a flow still returns to it.
+47. **Mouse back and forward, selecting text, the default count**
+    (owner, 2026-10-10; `docs/NEW-WALLET.md` §13). On the desktop the
+    mouse's back button does what the screen's back link does (Escape
+    where there is none, a sheet's Cancel over a sheet), and its forward
+    button opens again the screen back left, as it was left, until
+    anything else is opened. In a line of typing — typed text, a masked
+    passphrase, New key's box of rolls or flips — a press puts the caret
+    where it lands, a drag selects what it goes over, Shift with a press
+    or Left and Right extends the selection, and a second press selects
+    all; Backspace and Delete take the selection, a character replaces
+    it. In dots a selection is by position; nothing is copied out of a
+    masked field. Rolls or flips deleted in the box leave the key's
+    entropy with them. New key's Length shows its default count chosen
+    from the start. An empty BIP-39 passphrase field (New key's Key card,
+    Create's Add a passphrase, Add a key) shows a **No passphrase** pill
+    at its start, with the caret after it while focused; a vault's
+    passphrase field has none.
 
 ## Home
 
