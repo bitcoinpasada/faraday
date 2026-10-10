@@ -665,7 +665,7 @@ impl Faraday {
             return if unknown {
                 ("A vault is locked".to_string(), Tone::Dim)
             } else {
-                ("Not in a vault".to_string(), Tone::Warn)
+                ("Not saved yet".to_string(), Tone::Warn)
             };
         };
         let (state, tone) = match self.currency(f) {

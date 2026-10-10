@@ -163,8 +163,8 @@ fn summary(k: &KeyGen, s: u8) -> String {
                 let fp = fp_text(osk_bip::keys::Fingerprint(fp));
                 match (k.slot, k.with_passphrase) {
                     (None, _) => format!("{fp} · locked in"),
-                    (Some(_), true) => format!("{fp} · passphrase · locked in"),
-                    (Some(_), false) => format!("{fp} · no passphrase · locked in"),
+                    (Some(_), true) => format!("{fp} · passphrase set · locked in"),
+                    (Some(_), false) => format!("{fp} · passphrase not set · locked in"),
                 }
             }
         },
@@ -332,8 +332,13 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         return cy - y;
     }
     if k.slot.is_some() {
-        let said = if k.with_passphrase { "set" } else { "none" };
-        cy = stat(ui, x, cy, "Passphrase", said, TEXT);
+        cy = stat_pill(
+            ui,
+            x,
+            cy,
+            "Passphrase",
+            if k.with_passphrase { "Set" } else { "Not set" },
+        );
     }
     if let Some(fp) = k.fingerprint {
         cy = stat(
@@ -1461,6 +1466,16 @@ fn stat(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str, tone: Color) -> f
     }
     let vx = if ui.compact { 110.0 } else { 140.0 };
     ui.text(x + vx, y, 13.0, W::M, tone, value);
+    y + 26.0
+}
+
+/// A stat row whose value is a pill (`docs/NEW-WALLET.md` §3.3), such as
+/// the locked Key card's Passphrase: "Set" or "Not set", never bare
+/// text, since bare text reads as the passphrase itself.
+fn stat_pill(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str) -> f32 {
+    ui.text(x, y, 13.0, W::R, MUTED, label);
+    let vx = if ui.compact { 110.0 } else { 140.0 };
+    ui.pill(x + vx, y - 3.0, 22.0, value);
     y + 26.0
 }
 

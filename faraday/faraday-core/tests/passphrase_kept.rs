@@ -1,0 +1,163 @@
+//! A BIP-39 passphrase is never kept in the clear: not in what the
+//! device asks the shell to keep, and not in a file queued for the
+//! stick (`docs/NEW-WALLET.md` §3.3, the passphrase wording batch).
+
+use faraday_core::create::NewKind;
+use faraday_core::keygen::Way;
+use faraday_core::plan::Preset;
+use faraday_core::vaults::VaultAction as V;
+use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, bstep, cstep, testkit};
+use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+
+const PASSPHRASE: &str = "lantern-orchid-41";
+
+/// What the shell was asked to keep, and what waits for the stick.
+type Boxes = Vec<(String, Vec<u8>)>;
+
+fn kit_file(name: &str) -> (String, Vec<u8>) {
+    testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == name)
+        .unwrap()
+}
+
+/// A device on a tall display, with a vault kit on its stick, so a
+/// backup's checklist can save a key into it.
+fn device() -> Faraday {
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 2400,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.storage(StorageEvent::Restored {
+        inbox: vec![kit_file("vault.ofv")],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    let _ = app.frame();
+    app
+}
+
+fn type_text(app: &mut Faraday, text: &str) {
+    for c in text.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+}
+
+/// Flips enough for twelve words.
+fn flip_all(app: &mut Faraday) {
+    for i in 0..128 {
+        app.press(Action::KFlip((i * 5 + i / 3) % 2 == 0));
+    }
+}
+
+fn unlock_vault(app: &mut Faraday) {
+    app.vaults.ms_per_unit = Some(180);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    type_text(app, testkit::VAULT_PASSPHRASES[0]);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults.open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    app.press(Action::Nav(Screen::Backup));
+}
+
+/// A single-key wallet made from a Create slot with a known passphrase,
+/// its backup plan set to paper and vault, the checklist open and the
+/// seed saved into the vault without its passphrase, then the device
+/// locked. Returns what the shell was asked to keep and queue for the
+/// stick.
+fn locked_after_backup() -> (Boxes, Boxes) {
+    let mut app = device();
+    app.press(Action::CreateWallet);
+    let at = NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::NativeSegwit)
+        .unwrap() as u8;
+    app.press(Action::CKind(at));
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::KeyGen(Some(0)));
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Coins.index()));
+    app.press(Action::KNext);
+    flip_all(&mut app);
+    app.press(Action::KNext);
+    app.press(Action::KPassField(0));
+    type_text(&mut app, PASSPHRASE);
+    app.press(Action::KPassField(1));
+    type_text(&mut app, PASSPHRASE);
+    app.press(Action::KLock);
+    assert!(
+        app.keygen.as_ref().is_some_and(|k| k.locked),
+        "the key did not lock in"
+    );
+    app.press(Action::KNext);
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(
+        app.create.as_ref().and_then(|c| c.open),
+        Some(cstep::BACKUP),
+        "a single-key Create opens on Back up"
+    );
+    let k = Preset::ALL
+        .iter()
+        .position(|p| *p == Preset::PaperVault)
+        .expect("Paper and vault") as u8;
+    app.press(Action::CBackup(k));
+    assert_eq!(app.screen, Screen::Backup);
+    app.press(Action::BChecklist);
+    app.press(Action::BStep(bstep::COPY));
+    app.press(Action::BReveal);
+    let _ = app.frame();
+    unlock_vault(&mut app);
+    app.press(Action::BVault(false));
+    let _ = app.frame();
+
+    app.press(Action::Lock);
+    let mut found = None;
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes { kept, outbox, .. } = c {
+            found = Some((kept, outbox));
+        }
+    }
+    found.expect("the device did not ask to keep anything on locking")
+}
+
+fn holds(bytes: &[u8], needle: &[u8]) -> bool {
+    !needle.is_empty() && bytes.windows(needle.len()).any(|w| w == needle)
+}
+
+#[test]
+fn locking_after_a_vault_backup_never_keeps_the_passphrase_in_the_clear() {
+    let (kept, outbox) = locked_after_backup();
+    let needle = PASSPHRASE.as_bytes();
+    for (name, bytes) in &kept {
+        assert!(
+            !holds(bytes, needle),
+            "{name}, kept on locking, holds the passphrase"
+        );
+    }
+    for (name, bytes) in &outbox {
+        assert!(
+            !holds(bytes, needle),
+            "{name}, queued for the stick, holds the passphrase"
+        );
+    }
+}

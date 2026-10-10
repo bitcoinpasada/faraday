@@ -7827,7 +7827,7 @@ fn file_row_extra(
 /// above; the shape, the keys' fingerprints and the checksum below; a
 /// chevron; the whole row opens `action`. Returns its height.
 /// A masked passphrase field with its label at the left (above it on a
-/// small panel): dots for what is typed, "None" while it is empty and
+/// small panel): dots for what is typed, "Not set" while it is empty and
 /// not focused, the caret while it is. Returns the height used.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn pass_field(
@@ -7850,7 +7850,7 @@ pub(crate) fn pass_field(
     ui.fill(px, py, pw, 40.0, 8.0, BG);
     ui.stroke(px, py, pw, 40.0, 8.0, if on { ACCENT } else { BORDER });
     let (shown, tone) = if text.as_str().is_empty() && !on {
-        ("None".to_string(), DIM)
+        ("Not set".to_string(), DIM)
     } else {
         let mut d = "•".repeat(text.as_str().chars().count().min(40));
         ui.selection(px + 12.0, py, 40.0, 14.0, W::M, &d, on);
