@@ -1,5 +1,13 @@
 # Faraday's recipes, imported by the root justfile.
 
+# release=1 makes a published release build: it refuses a dev image, a
+# version override and a tree that differs from its commit
+# (docs/DECISIONS.md F5). version=X.Y.Z makes a test or dev build claim
+# another version, for trying the upgrade's newer-Faraday warning between
+# test builds (F5).
+release := "0"
+version := ""
+
 # The desktop app at out/linux/faraday: glibc 2.36 or newer, which
 # winit needs to load the Wayland and X11 libraries.
 #
@@ -15,9 +23,16 @@ faraday-linux-bin out="out/linux" cache="out/build/run":
     set -euo pipefail
     root="$(pwd)"
     mkdir -p "{{out}}" "{{cache}}/linux" "{{build_cache}}/cargo"
+    # Not `export FARADAY_BUILD=$(...)`: with `set -e`, export's own exit
+    # status hides a failure of the command inside it. The desktop build
+    # has no dev variant (docs/DECISIONS.md F5), so FARADAY_DEV is fixed
+    # at 0 rather than following a `dev` variable.
+    FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV=0 FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
+    export FARADAY_BUILD
     {{docker}} build -t opensigner-build-linux tools/build/linux
     {{docker}} run --rm \
         -e SOURCE_DATE_EPOCH="{{source_date_epoch}}" \
+        -e FARADAY_BUILD="$FARADAY_BUILD" \
         -v "$root":/src:ro \
         -v "$root/{{out}}":/out \
         -v "$root/{{cache}}/linux":/build \
@@ -116,6 +131,10 @@ faraday-stick-bin:
     export "CARGO_TARGET_${upper}_LINKER=$CC"
     export "CFLAGS_${under}=$CFLAGS"
     export RUSTFLAGS="-C target-feature=+crt-static"
+    # Not `export FARADAY_BUILD=$(...)`: with `set -e`, export's own exit
+    # status hides a failure of the command inside it.
+    FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV={{dev}} FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
+    export FARADAY_BUILD
     cargo build --release --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant -p faraday-boot
     mkdir -p out/faraday/{{stick_board}}
     cp "target/$RUST_TARGET/release/faraday" out/faraday/{{stick_board}}/opensigner-pi
@@ -129,7 +148,11 @@ faraday-stick-bin:
 # The Faraday USB stick image, at out/stick/faraday-x86_64-uefi.img
 # (dev=1: -dev.img, with a console and a login on ttyS0), and beside it
 # -boot.vfat, its boot partition's exact bytes, for faraday-stick-boot.
-# Flash it to a stick and boot the laptop from it.
+# Flash it to a stick and boot the laptop from it. A test release unless
+# release=1 (docs/DECISIONS.md F5):
+#
+#   just faraday-stick-image              a test release
+#   just release=1 faraday-stick-image    a published release
 faraday-stick-image: faraday-stick-bin
     #!/usr/bin/env bash
     set -euo pipefail
@@ -139,7 +162,8 @@ faraday-stick-image: faraday-stick-bin
         variant="$variant-dev"
         name="$name-dev"
     fi
-    DOCKER="{{docker}}" faraday/image/run-build.sh \
+    DOCKER="{{docker}}" FARADAY_RELEASE="{{release}}" FARADAY_VERSION="{{version}}" \
+        faraday/image/run-build.sh \
         "{{stick_board}}" "{{stick_panel}}" "{{dev}}" "{{buildroot_tag}}" \
         "{{buildroot_commit}}"
     mkdir -p out/stick
@@ -195,6 +219,10 @@ faraday-pi-bin:
     export "CARGO_TARGET_${upper}_LINKER=$CC"
     export "CFLAGS_${under}=$CFLAGS"
     export RUSTFLAGS="-C target-feature=+crt-static"
+    # Not `export FARADAY_BUILD=$(...)`: with `set -e`, export's own exit
+    # status hides a failure of the command inside it.
+    FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV={{dev}} FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
+    export FARADAY_BUILD
     cargo build --release --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant -p faraday-boot
     mkdir -p out/faraday/{{board}}
     cp "target/$RUST_TARGET/release/faraday" out/faraday/{{board}}/opensigner-pi
@@ -206,11 +234,12 @@ faraday-pi-bin:
 # The Faraday microSD card image, at
 # out/pi/faraday-<board>-<panel>.img (dev=1: -dev.img, with a console and
 # a login on the board's serial port). Flash it to a card and boot the Pi
-# from it.
+# from it. A test release unless release=1 (docs/DECISIONS.md F5):
 #
 #   just faraday-pi-image                        the owner's device (pi3,
 #                                                  waveshare-28dpi)
 #   just board=B panel=P dev=0|1 faraday-pi-image any other combination
+#   just release=1 faraday-pi-image              a published release
 faraday-pi-image: faraday-pi-bin
     #!/usr/bin/env bash
     set -euo pipefail
@@ -220,7 +249,8 @@ faraday-pi-image: faraday-pi-bin
         variant="$variant-dev"
         name="$name-dev"
     fi
-    DOCKER="{{docker}}" faraday/image/run-build.sh \
+    DOCKER="{{docker}}" FARADAY_RELEASE="{{release}}" FARADAY_VERSION="{{version}}" \
+        faraday/image/run-build.sh \
         "{{board}}" "{{panel}}" "{{dev}}" "{{buildroot_tag}}" \
         "{{buildroot_commit}}"
     mkdir -p out/pi

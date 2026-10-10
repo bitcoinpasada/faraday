@@ -70,6 +70,9 @@ pub enum Fit {
     Fits,
     /// It carries a newer Faraday than the one running: it can be written.
     Newer,
+    /// The source is a dev build and this stick does not hold one: it
+    /// gains a serial console and login. It can be written.
+    Dev,
     /// It already carries this Faraday.
     Same,
     /// Its boot partition is smaller than the source: MB it has, MB
@@ -82,12 +85,57 @@ pub enum Fit {
 /// its version in the kernel shows as earlier.
 pub fn version(release: Option<&str>) -> String {
     match release.and_then(|r| r.split_once("-faraday-")) {
-        Some((_, v)) => match v.split_once('+') {
-            Some((number, build)) => format!("{number} ({build})"),
-            None => v.to_string(),
-        },
+        Some((_, build_id)) => describe(build_id),
         None => "0.1.0 or earlier".to_string(),
     }
+}
+
+/// A build ID described (`docs/DECISIONS.md` F5): the part of the kernel
+/// release string after `-faraday-`, or [`crate::BUILD`] directly.
+///
+/// | Input | Output |
+/// |---|---|
+/// | `0.2.0` | `0.2.0` |
+/// | `0.1.0+ef24784b48d8.test` | `0.1.0 test release (ef24784b48d8)` |
+/// | `0.1.0+ef24784b48d8.dirty-3fa9c1d2.test` | `0.1.0 test release (ef24784b48d8, changes 3fa9c1d2)` |
+/// | `0.1.0+ef24784b48d8.dev` | `0.1.0 dev (ef24784b48d8)` |
+/// | `0.1.0+ef24784b48d8.dirty-3fa9c1d2.dev` | `0.1.0 dev (ef24784b48d8, changes 3fa9c1d2)` |
+/// | `0.1.0+4d0680b1a2b3` | `0.1.0 (4d0680b1a2b3)` |
+/// | `0.1.0+4d0680b1a2b3.dirty` | `0.1.0 (4d0680b1a2b3.dirty)` |
+///
+/// The last two are the old format, kept. Anything after `+` that this
+/// does not recognise follows the old rule, `number (rest)`.
+pub fn describe(id: &str) -> String {
+    let Some((number, rest)) = id.split_once('+') else {
+        // A release: the version alone.
+        return id.to_string();
+    };
+    let mut parts = rest.splitn(3, '.');
+    let commit = parts.next().unwrap_or(rest);
+    let after_commit: Vec<&str> = parts.collect();
+    let (changes, kind) = match after_commit.as_slice() {
+        [kind] if *kind == "test" || *kind == "dev" => (None, Some(*kind)),
+        [dirty, kind] if dirty.starts_with("dirty-") && (*kind == "test" || *kind == "dev") => {
+            (dirty.strip_prefix("dirty-"), Some(*kind))
+        }
+        _ => (None, None),
+    };
+    match (kind, changes) {
+        (Some("test"), None) => format!("{number} test release ({commit})"),
+        (Some("test"), Some(fp)) => format!("{number} test release ({commit}, changes {fp})"),
+        (Some("dev"), None) => format!("{number} dev ({commit})"),
+        (Some("dev"), Some(fp)) => format!("{number} dev ({commit}, changes {fp})"),
+        _ => format!("{number} ({rest})"),
+    }
+}
+
+/// Whether a release string names a dev build: the part after
+/// `-faraday-` ends with `.dev`. A target with no release string is not
+/// dev.
+fn is_dev(release: Option<&str>) -> bool {
+    release
+        .and_then(|r| r.split_once("-faraday-"))
+        .is_some_and(|(_, v)| v.ends_with(".dev"))
 }
 
 /// The version number in a release string, to compare: `None` for a
@@ -144,6 +192,9 @@ impl UpgradeState {
         }
         if part.release.as_deref() == Some(release.as_str()) {
             return Fit::Same;
+        }
+        if is_dev(Some(release)) && !is_dev(part.release.as_deref()) {
+            return Fit::Dev;
         }
         match (number(part.release.as_deref()), number(Some(release))) {
             (Some(t), Some(s)) if t > s => Fit::Newer,

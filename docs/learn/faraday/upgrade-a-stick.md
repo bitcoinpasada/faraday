@@ -14,7 +14,7 @@ This identifies a version. It is not a signature: a stick made to carry the same
 
 ## Versions
 
-The upgrade shows the version on the stick to upgrade and the version to be written. A stick made by Faraday 0.1.0 or earlier carries no version and shows as 0.1.0 or earlier. A stick that carries a newer Faraday than the one running is marked: writing it puts an older Faraday on it. A stick that already carries this Faraday is not written.
+The upgrade shows the version on the stick to upgrade and the version to be written: a published release by its number, a build made for trying things out as a test release or a dev build, each with the commit it was built from. A stick made by Faraday 0.1.0 or earlier carries no version and shows as 0.1.0 or earlier. A stick that carries a newer Faraday than the one running is marked: writing it puts an older Faraday on it. A stick that already carries this Faraday is not written. Writing a dev build over a stick that does not hold one is marked too: a dev build has a serial console and a login, and is made for development, not for a stick that holds vaults.
 
 ## Limits
 

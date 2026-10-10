@@ -619,6 +619,14 @@ just dev=1 faraday-stick-boot /dev/sdX    # development: rewrite a stick's boot 
 just faraday-upgrade-check OLD.img        # QEMU: the dev image upgrades an older stick image
 ```
 
+A build this way is a test release unless built with `release=1`, which
+refuses a dev image, a version override and a tree that differs from its
+commit (`docs/DECISIONS.md` F5):
+
+```
+just release=1 faraday-stick-image        # a published release
+```
+
 `faraday-stick-boot` writes the image's boot partition
 (`out/stick/faraday-x86_64-uefi[-dev]-boot.vfat`) over a Faraday
 stick's `OSKBOOT` partition and leaves its data partition as it is. It
@@ -636,9 +644,11 @@ The stick image is built in a container with the base image and every
 compiler pinned by version, the commit date as `SOURCE_DATE_EPOCH`, and
 host paths remapped out of the output, so that a second builder can
 check that it gets the same bytes. The kernel's release string carries
-the Faraday version and the commit's first twelve hex digits (and
-`.dirty` for a tree that differs from it), never a date. No second
-builder has checked a Faraday image yet. The pinned container build of the desktop app
+the Faraday build ID: a release's version alone, otherwise the version,
+the commit's first twelve hex digits and the kind of build, test or dev
+(and `.dirty-XXXXXXXX` for a tree that differs from its commit), never a
+date (`docs/DECISIONS.md` F5). No second builder has checked a Faraday
+image yet. The pinned container build of the desktop app
 (`just faraday-linux-bin`) is not set up yet.
 
 ## Verifying a release

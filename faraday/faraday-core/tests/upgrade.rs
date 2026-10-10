@@ -10,6 +10,23 @@ use faraday_core::{
 };
 use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
+/// A source whose release is our own choosing, rather than `read_source`'s
+/// fixed `RUNNING`: the boot stick in, read as the source.
+fn read_source_release(app: &mut Faraday, release: &str) {
+    app.storage(StorageEvent::Boots(vec![part(
+        "sda1@sda#1",
+        48 * MB,
+        Some(release),
+        false,
+    )]));
+    assert_eq!(asked(app), vec![StorageCommand::BootRead]);
+    app.storage(StorageEvent::BootSource {
+        id: "sda1@sda#1".into(),
+        release: release.into(),
+        size: 48 * MB,
+    });
+}
+
 /// What this Faraday's kernel carries.
 const RUNNING: &str = "6.6.84-faraday-0.2.0+4d0680b1a2b3";
 const MB: u64 = 1 << 20;
@@ -386,4 +403,209 @@ fn the_upgrade_s_learn_page_takes_secure_boot_through_a_spare_stick() {
             .iter()
             .all(|p| p.title != "Upgrading a Faraday stick")
     );
+}
+
+// Build kinds (docs/DECISIONS.md F5): a test release written over another
+// commit's test release fits and is written; two builds of the same
+// commit with different uncommitted changes are not the same build; the
+// same build string is still refused; a dev source warns over anything
+// that is not itself dev, and still writes; a dev source fits a dev
+// target of another commit; a higher version number is Newer.
+
+#[test]
+fn a_test_release_fits_over_another_commit_s_test_release_and_is_written() {
+    let mut app = device();
+    open(&mut app);
+    read_source_release(&mut app, "6.6.84-faraday-0.1.0+aaaaaaaaaaaa.test");
+    let target = part(
+        "sdb1@sdb#2",
+        48 * MB,
+        Some("6.6.84-faraday-0.1.0+bbbbbbbbbbbb.test"),
+        false,
+    );
+    app.storage(StorageEvent::Boots(vec![
+        part(
+            "sda1@sda#1",
+            48 * MB,
+            Some("6.6.84-faraday-0.1.0+aaaaaaaaaaaa.test"),
+            true,
+        ),
+        target.clone(),
+    ]));
+    assert_eq!(upgrade(&app).fit(&target), Fit::Fits);
+    app.press(Action::UpgradeWrite);
+    assert_eq!(
+        asked(&mut app),
+        vec![StorageCommand::BootWrite {
+            target: target.id.clone()
+        }]
+    );
+}
+
+#[test]
+fn two_test_builds_of_the_same_commit_with_different_changes_are_not_the_same_build() {
+    let mut app = device();
+    open(&mut app);
+    read_source_release(
+        &mut app,
+        "6.6.84-faraday-0.1.0+aaaaaaaaaaaa.dirty-11111111.test",
+    );
+    let target = part(
+        "sdb1@sdb#2",
+        48 * MB,
+        Some("6.6.84-faraday-0.1.0+aaaaaaaaaaaa.dirty-22222222.test"),
+        false,
+    );
+    app.storage(StorageEvent::Boots(vec![
+        part(
+            "sda1@sda#1",
+            48 * MB,
+            Some("6.6.84-faraday-0.1.0+aaaaaaaaaaaa.dirty-11111111.test"),
+            true,
+        ),
+        target.clone(),
+    ]));
+    assert_eq!(
+        upgrade(&app).fit(&target),
+        Fit::Fits,
+        "different changes on the same commit are not the same build"
+    );
+    app.press(Action::UpgradeWrite);
+    assert_eq!(
+        asked(&mut app),
+        vec![StorageCommand::BootWrite {
+            target: target.id.clone()
+        }]
+    );
+}
+
+#[test]
+fn a_target_with_the_same_build_string_is_still_refused() {
+    let mut app = device();
+    open(&mut app);
+    let release = "6.6.84-faraday-0.1.0+aaaaaaaaaaaa.dirty-11111111.test";
+    read_source_release(&mut app, release);
+    let target = part("sdb1@sdb#2", 48 * MB, Some(release), false);
+    app.storage(StorageEvent::Boots(vec![
+        part("sda1@sda#1", 48 * MB, Some(release), true),
+        target.clone(),
+    ]));
+    assert_eq!(upgrade(&app).fit(&target), Fit::Same);
+    app.press(Action::UpgradeWrite);
+    assert!(asked(&mut app).is_empty());
+}
+
+#[test]
+fn a_dev_source_warns_over_a_test_a_release_and_an_old_target_and_still_writes() {
+    let mut app = device();
+    open(&mut app);
+    read_source_release(&mut app, "6.6.84-faraday-0.1.0+aaaaaaaaaaaa.dev");
+    let test_target = part(
+        "sdb1@sdb#2",
+        48 * MB,
+        Some("6.6.84-faraday-0.1.0+bbbbbbbbbbbb.test"),
+        false,
+    );
+    // A released version, higher than the source's: Dev still outranks
+    // Newer (docs/DECISIONS.md F5's order).
+    let release_target = part("sdc1@sdc#3", 48 * MB, Some("6.6.84-faraday-0.9.0"), false);
+    let old_target = part("sdd1@sdd#4", 48 * MB, None, false);
+    app.storage(StorageEvent::Boots(vec![
+        part(
+            "sda1@sda#1",
+            48 * MB,
+            Some("6.6.84-faraday-0.1.0+aaaaaaaaaaaa.dev"),
+            true,
+        ),
+        test_target.clone(),
+        release_target.clone(),
+        old_target.clone(),
+    ]));
+    let u = upgrade(&app);
+    assert_eq!(u.fit(&test_target), Fit::Dev);
+    assert_eq!(u.fit(&release_target), Fit::Dev);
+    assert_eq!(u.fit(&old_target), Fit::Dev);
+    // The warning does not block the write.
+    app.press(Action::UpgradeWrite);
+    assert_eq!(
+        asked(&mut app),
+        vec![StorageCommand::BootWrite {
+            target: test_target.id.clone()
+        }]
+    );
+}
+
+#[test]
+fn a_dev_source_fits_a_dev_target_of_another_commit() {
+    let mut app = device();
+    open(&mut app);
+    read_source_release(&mut app, "6.6.84-faraday-0.1.0+aaaaaaaaaaaa.dev");
+    let dev_target = part(
+        "sdb1@sdb#2",
+        48 * MB,
+        Some("6.6.84-faraday-0.1.0+cccccccccccc.dev"),
+        false,
+    );
+    app.storage(StorageEvent::Boots(vec![
+        part(
+            "sda1@sda#1",
+            48 * MB,
+            Some("6.6.84-faraday-0.1.0+aaaaaaaaaaaa.dev"),
+            true,
+        ),
+        dev_target.clone(),
+    ]));
+    assert_eq!(upgrade(&app).fit(&dev_target), Fit::Fits);
+}
+
+#[test]
+fn a_higher_version_number_is_newer() {
+    let mut app = device();
+    open(&mut app);
+    read_source_release(&mut app, "6.6.84-faraday-0.1.0+aaaaaaaaaaaa.test");
+    let target = part(
+        "sdb1@sdb#2",
+        48 * MB,
+        Some("6.6.84-faraday-0.9.0+bbbbbbbbbbbb.test"),
+        false,
+    );
+    app.storage(StorageEvent::Boots(vec![
+        part(
+            "sda1@sda#1",
+            48 * MB,
+            Some("6.6.84-faraday-0.1.0+aaaaaaaaaaaa.test"),
+            true,
+        ),
+        target.clone(),
+    ]));
+    assert_eq!(upgrade(&app).fit(&target), Fit::Newer);
+}
+
+#[test]
+fn the_upgrade_screen_names_a_release_a_test_release_a_dev_build_and_the_old_format() {
+    assert_eq!(version(Some("6.6.84-faraday-0.2.0")), "0.2.0");
+    assert_eq!(
+        version(Some("6.6.84-faraday-0.1.0+ef24784b48d8.test")),
+        "0.1.0 test release (ef24784b48d8)"
+    );
+    assert_eq!(
+        version(Some("6.6.84-faraday-0.1.0+ef24784b48d8.dev")),
+        "0.1.0 dev (ef24784b48d8)"
+    );
+    assert_eq!(
+        version(Some("6.6.84-faraday-0.1.0+4d0680b1a2b3")),
+        "0.1.0 (4d0680b1a2b3)"
+    );
+}
+
+#[test]
+fn about_shows_the_version_label_local_build_without_a_faraday_build_id() {
+    let mut app = device();
+    app.press(Action::Nav(Screen::Settings));
+    let texts = app.drawn_texts();
+    // The test binary carries no FARADAY_BUILD (faraday_core::lib.rs).
+    assert!(faraday_core::BUILD.is_none());
+    let want = format!("Faraday {}", faraday_core::version_label());
+    assert!(want.ends_with("(local build)"), "{want:?}");
+    assert!(texts.iter().any(|t| t == &want), "{want:?}: {texts:?}");
 }

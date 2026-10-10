@@ -11887,7 +11887,7 @@ fn settings_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += section(ui, x, y, w, "About", &|ui, x, y0, w| {
         let mut y = y0;
         let lines = [
-            format!("Faraday {}", crate::VERSION),
+            format!("Faraday {}", crate::version_label()),
             "Keys are typed, scanned as SeedQR or loaded from a vault, and kept for the session only"
                 .to_string(),
             format!(
@@ -12189,7 +12189,7 @@ fn settings(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.card(x, y, width, about_h, LINE);
     ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, "About");
     let lines = [
-        format!("Faraday {}", crate::VERSION),
+        format!("Faraday {}", crate::version_label()),
         "Keys are typed, scanned as SeedQR or loaded from a vault, and kept for the session only"
             .to_string(),
         format!(

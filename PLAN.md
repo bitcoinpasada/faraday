@@ -547,14 +547,16 @@ version is read the same way and shown: a stick that carries no such
 string (0.1.0 and earlier) shows as an earlier version, and a target
 newer than the running Faraday is warned about.
 
-The release string is `<kernel>-faraday-<version>+<commit>`, the
-version from `faraday-core`'s `Cargo.toml`, the commit's first twelve
-hex digits, and `.dirty` after them when tracked files differ from the
-commit (`faraday/image/run-build.sh`), so it comes from the tree and
-never the clock; `kernel.forbidden` keeps `LOCALVERSION_AUTO` out, and
-the build fails if the bzImage does not carry the string. The app shows
-a release as `0.2.0 (4d0680b1a2b3)`; newer is by the version number
-alone, so two builds of one version are neither newer nor older.
+The release string is `<kernel>-faraday-<build ID>`, the build ID from
+`faraday/image/build-id.sh` and how it is shown both specified in
+`docs/DECISIONS.md` F5: a published release's version alone, otherwise
+the version, the commit's first twelve hex digits and the kind of build
+(test or dev), with a mark when the tree differs from its commit. It
+comes from the tree and never the clock; `kernel.forbidden` keeps
+`LOCALVERSION_AUTO` out, and the build fails if the bzImage does not
+carry the string. Newer is by the version number alone, so two builds of
+one version are neither newer nor older, except that a dev build is
+warned about over a target that does not hold one (F5).
 
 **Who writes.** `faraday-boot`, user `ofboot` (uid 203), started by
 `rcS` as the disk process is. It copies the partition raw and reads no

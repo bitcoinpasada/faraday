@@ -31,17 +31,14 @@ if [ "$dev" != "0" ]; then
     variant="$variant-dev"
 fi
 
-# The kernel's release string carries the Faraday version and commit
-# (PLAN.md §5.5): `6.6.84-faraday-0.1.0+4d0680b1a2b3`, with `.dirty` after
-# the commit when tracked files differ from it. The upgrade takes a boot
-# partition as the source only if it holds the running kernel's release
-# string, and shows a target's version from the one it holds. It comes
-# from the commit, never the clock, so two builders get the same bytes.
-version="$(sed -n 's/^version = "\(.*\)"$/\1/p' "$root/faraday/faraday-core/Cargo.toml" | head -1)"
-faraday_commit="$(git -C "$root" rev-parse --short=12 HEAD)"
-dirty=""
-git -C "$root" diff --quiet HEAD -- || dirty=".dirty"
-localversion="-faraday-$version+$faraday_commit$dirty"
+# The kernel's release string carries the Faraday build ID (docs/DECISIONS.md
+# F5): a release's version alone, otherwise the version, the commit and the
+# kind (test, the default, or dev), with `.dirty-XXXXXXXX` before the kind
+# when the tree differs from the commit. The upgrade takes a boot partition
+# as the source only if it holds the running kernel's release string, and
+# shows a target's version from the one it holds. It comes from the commit,
+# never the clock, so two builders get the same bytes.
+localversion="-faraday-$(FARADAY_DEV="$dev" "$root/faraday/image/build-id.sh")"
 fragment="$merged/boards/$board/linux.fragment"
 [ -f "$fragment" ] || { echo "$fragment: no board fragment to add the version to" >&2; exit 1; }
 printf '\n# Faraday'"'"'s version and commit (run-build.sh).\nCONFIG_LOCALVERSION="%s"\n# CONFIG_LOCALVERSION_AUTO is not set\n' \

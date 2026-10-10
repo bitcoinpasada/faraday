@@ -89,6 +89,21 @@ use wallet::{FileKind, Session, Spend, fp_text};
 /// The version shown on Settings.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// The build ID the build scripts set (`docs/DECISIONS.md` F5): the
+/// kernel release string's part after `-faraday-`. `None` for a plain
+/// `cargo build`, which sets no such environment variable.
+pub const BUILD: Option<&str> = option_env!("FARADAY_BUILD");
+
+/// What About and Settings show for the running build: `BUILD` described
+/// (`docs/DECISIONS.md` F5) when set, else the crate's version, marked as
+/// a local build.
+pub fn version_label() -> String {
+    match BUILD {
+        Some(build) => crate::upgrade::describe(build),
+        None => format!("{VERSION} (local build)"),
+    }
+}
+
 /// Minutes without input before the session locks, at first.
 pub const IDLE_LOCK_MIN: u16 = 10;
 /// Minutes without input before the machine powers off, at first,

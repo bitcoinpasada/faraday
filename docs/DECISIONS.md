@@ -157,3 +157,52 @@ walks through a PC's boot menu, which a Pi does not have; its steps for a
 Pi are the owner's to write. The online desktop app's mainnet warning
 still says "booted from a stick", since it names the PC image to use, not
 a medium the app sees.
+
+### F5 Release, test release and dev builds, each named in the release string (2026-10-10)
+
+**Why.** Every build since 0.1.0 carried `-faraday-0.1.0+<commit>`, so a
+build from `main` claimed the published release's number, and a dev
+image and a release image of one commit carried the same string: the
+upgrade read them as the same build. Builds made again with different
+uncommitted changes also read as the same build and were refused. The
+owner rebuilds often to test, the upgrade among them, and wants each
+kind of build named for what it is.
+
+**What it is.** The part of the kernel release string after
+`-faraday-`, which the app also shows in About:
+
+| Build | String | Shown as |
+|---|---|---|
+| Release | `0.2.0` | 0.2.0 |
+| Test release (the default) | `0.1.0+ef24784b48d8.test` | 0.1.0 test release (ef24784b48d8) |
+| Dev (console, serial login) | `0.1.0+ef24784b48d8.dev` | 0.1.0 dev (ef24784b48d8) |
+
+A tree that differs from its commit adds `.dirty-` and eight hex digits
+of a hash of the differences before the kind
+(`0.1.0+ef24784b48d8.dirty-3fa9c1d2.test`, shown as "0.1.0 test release
+(ef24784b48d8, changes 3fa9c1d2)"), so two builds with different
+changes differ and the same changes give the same string. The commit and
+the kind follow `+`, which in semantic versioning names a build of a
+version, not an earlier version.
+
+**The owner's decisions.**
+
+- *A published release carries its number alone.* One version is
+  published once; its commit is in the signed tag and in `SHA256SUMS`.
+- *Test release is the default; a release is asked for* (`just
+  release=1 …`), and a release build refuses a dev image, a version
+  override and a tree that differs from its commit. A release built by
+  mistake without the flag reads as a test release, which shows before
+  it is published.
+- *A test or dev build may claim another version number*
+  (`version=0.9.0`), so the upgrade's warning about a newer Faraday can
+  be tried between test builds.
+- *The upgrade warns before writing a dev build over a stick that does
+  not hold one*: the target gains a serial console and login. It can
+  still be written.
+
+The upgrade's other rules are F2's: the same string is refused, a
+higher version number is warned about, anything else is written.
+Sticks made between F2 and this entry (`0.1.0+<commit>`, no kind) show
+as before, "0.1.0 (<commit>)". This resolves the audit's finding that a
+dev image and a release image could not be told apart.

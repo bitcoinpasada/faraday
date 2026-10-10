@@ -194,6 +194,10 @@ fn target(
     let note = match &fit {
         Fit::Fits => None,
         Fit::Newer => Some(("Newer than this Faraday".to_string(), WARN)),
+        Fit::Dev => Some((
+            "Writes a dev build, with a serial console".to_string(),
+            WARN,
+        )),
         Fit::Same => Some(("Already this version".to_string(), MUTED)),
         Fit::TooSmall(has, needs) => {
             Some((format!("Boot partition {has} MB · needs {needs} MB"), ERR))
