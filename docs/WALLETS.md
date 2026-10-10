@@ -440,8 +440,10 @@ What changes is wording, order and what is folded away:
 
 A switch beside each flow's title chooses **Steps only** or **Guided** (called Full until 2026-10-06); a wallet in
 progress carries over between them. The choice is one setting for every
-flow, kept with the others; Steps only, on the left, is where a first
-start is (owner, 2026-10-07).
+flow, kept with the others; Steps only is on the left, and Guided is
+where a first start is, on a device that has never had a setting saved
+(`docs/SIMPLIFY.md` §6.1, 2026-10-10; reverses the 2026-10-07 default
+for a first start only).
 
 This is the **Spend** tab (`docs/FAMILY.md`, built
 2026-10-06): one column from what is in the envelope to a sent

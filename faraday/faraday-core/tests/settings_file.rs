@@ -233,3 +233,20 @@ fn after_a_lock_the_boot_stick_is_not_read_again() {
     next.press(Action::VisitWrite);
     assert!(pump(&mut next, None).iter().any(|(_, n, _)| n == FILE));
 }
+
+#[test]
+fn a_fresh_app_opens_guided() {
+    // No kept state and no stick settings file: a device that has never
+    // had a setting saved (`docs/SIMPLIFY.md` §6.1).
+    let app = defaults();
+    assert!(app.guided);
+    let booted = booted(None);
+    assert!(booted.guided);
+}
+
+#[test]
+fn a_settings_file_saying_guided_0_is_steps_only() {
+    let file = b"faraday-settings 1\nguided=0\n";
+    let app = booted(Some(file));
+    assert!(!app.guided);
+}

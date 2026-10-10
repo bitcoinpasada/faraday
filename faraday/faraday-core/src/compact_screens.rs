@@ -25,12 +25,21 @@ pub(crate) fn row(
     sub_tone: osk_ui::Color,
     action: Option<Action>,
 ) -> f32 {
-    let h = 56.0;
     let enabled = action.is_some();
     let pressed = action.is_some_and(|a| ui.is_pressed(a));
+    let mut tx = x + 14.0;
+    if icon.is_some() {
+        tx = x + 52.0;
+    }
+    let room = x + w - tx - if enabled { 26.0 } else { 10.0 };
+    // A label that does not fit at its size breaks at a space onto
+    // further lines, and the row grows (`docs/DESIGN.md` "Menu row"):
+    // never cut off, the label this row is given is always shown whole.
+    let lines = ui.wrap_lines(14.0, W::S, label, room);
+    let line_h = ui.line(14.0, W::S);
+    let h = 56.0 + (lines - 1) as f32 * line_h;
     ui.fill(x, y, w, h, 10.0, if pressed { INNER } else { SURFACE });
     ui.stroke(x, y, w, h, 10.0, LINE);
-    let mut tx = x + 14.0;
     if let Some(i) = icon {
         let (bg, fg) = if enabled {
             (ACCENT.with_alpha(26), ACCENT)
@@ -39,21 +48,19 @@ pub(crate) fn row(
         };
         ui.fill(x + 10.0, y + 12.0, 32.0, 32.0, 8.0, bg);
         ui.icon(x + 10.0, y + 12.0, 32.0, i, 14.0, fg);
-        tx = x + 52.0;
     }
-    let room = x + w - tx - if enabled { 26.0 } else { 10.0 };
-    let label = ui.fit(14.0, W::S, label, room);
-    ui.text(
-        tx,
-        y + 9.0,
-        14.0,
-        W::S,
-        if enabled { TEXT } else { DIM },
-        &label,
-    );
+    let label_color = if enabled { TEXT } else { DIM };
+    let sub_y = if lines > 1 {
+        ui.wrap(tx, y + 9.0, room, 14.0, W::S, label_color, label);
+        y + 9.0 + lines as f32 * line_h
+    } else {
+        let label = ui.fit(14.0, W::S, label, room);
+        ui.text(tx, y + 9.0, 14.0, W::S, label_color, &label);
+        y + 30.0
+    };
     if !sub.is_empty() {
         let sub = ui.fit(12.0, W::R, sub, room);
-        ui.text(tx, y + 30.0, 12.0, W::R, sub_tone, &sub);
+        ui.text(tx, sub_y, 12.0, W::R, sub_tone, &sub);
     }
     if let Some(a) = action {
         ui.icon(x + w - 24.0, y + 18.0, 20.0, Icon::ChevronRight, 9.0, DIM);

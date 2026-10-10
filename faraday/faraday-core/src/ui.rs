@@ -1057,6 +1057,28 @@ impl<'a> Ui<'a> {
         self.text_mid(right - width, y, h, size, w, color, s);
     }
 
+    /// How many lines `s` breaks onto at `max` width: the same
+    /// break-at-a-space rule [`Ui::wrap`] draws, counted rather than
+    /// drawn, so a caller can grow a row before drawing its background.
+    pub fn wrap_lines(&self, size: f32, w: W, s: &str, max: f32) -> usize {
+        let mut lines = 1usize;
+        let mut cur = String::new();
+        for word in s.split_whitespace() {
+            let candidate = if cur.is_empty() {
+                word.to_string()
+            } else {
+                format!("{cur} {word}")
+            };
+            if cur.is_empty() || self.measure(size, w, &candidate) <= max {
+                cur = candidate;
+            } else {
+                lines += 1;
+                cur = word.to_string();
+            }
+        }
+        lines
+    }
+
     /// `s` cut with an ellipsis to fit `max` units.
     pub fn fit(&self, size: f32, w: W, s: &str, max: f32) -> String {
         if self.measure(size, w, s) <= max {

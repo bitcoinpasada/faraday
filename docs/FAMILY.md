@@ -47,7 +47,12 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
 
 ## 2. Where it sits
 
-- Sidebar: **Spend**, after Wallets. `Screen::Family`.
+- `Screen::Family`. Not in the sidebar or the small Home grid
+  (`docs/SIMPLIFY.md` §6.2, 2026-10-10): reached from the Wallets empty
+  state's fourth way in, **Spend from a backup, step by step** ("A
+  stick, words, or paper"); the Learn sheet's first row, **Spending,
+  step by step**; and Home's lead when a spend started in it is under
+  way. The tab's screen and code are unchanged.
 - Each page is a step card (`flow.rs`): one open, the others closed to a
   line saying what was done. A page that does not apply to the route is not
   in the column at all, so numbering closes over it.

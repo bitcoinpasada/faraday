@@ -13,10 +13,8 @@ fn with(seeds: u8, wallets: usize) -> Faraday {
     with_height(seeds, wallets, 768)
 }
 
-/// `with`, at a chosen panel height. Learn's row (§1.4) still costs the
-/// sidebar's list room until §6.2 takes Spend out, so a few tests need
-/// more height than the panel's own 768 to fit their counts; §6.2
-/// returns them to 768.
+/// `with`, at a chosen panel height, for a test that wants more room
+/// than the panel's own 768 to fit its counts.
 fn with_height(seeds: u8, wallets: usize, height: u16) -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
@@ -72,6 +70,14 @@ fn the_sidebar_offers_learn_and_opens_the_learn_sheet() {
     assert!(app.offers(Action::Learn));
     app.press(Action::Learn);
     assert_eq!(app.sheet, Some(Sheet::Learn));
+}
+
+/// Spend left the sidebar (`docs/SIMPLIFY.md` §6.2): the Wallets empty
+/// state and the Learn sheet are its ways in now.
+#[test]
+fn the_sidebar_has_no_spend_row() {
+    let app = with(0, 0);
+    assert!(!app.offers(Action::Nav(Screen::Family)));
 }
 
 /// Each of the four stages of the session strip in turn.
@@ -145,7 +151,7 @@ fn the_session_strip_reads_write_out_for_a_vault_changed_since_written() {
 
 #[test]
 fn a_few_are_each_named_and_open_what_they_name() {
-    let mut app = with_height(3, 2, 900);
+    let mut app = with(3, 2);
     for k in 0..3 {
         assert!(
             app.offers(Action::ExploreKey(fp(&app, k))),
@@ -167,7 +173,7 @@ fn a_few_are_each_named_and_open_what_they_name() {
 
 #[test]
 fn many_show_their_first_rows_and_how_many_more() {
-    let app = with_height(30, 12, 900);
+    let app = with(30, 12);
     assert!(app.offers(Action::ExploreKey(fp(&app, 0))));
     assert!(
         !app.offers(Action::ExploreKey(fp(&app, 29))),

@@ -340,7 +340,6 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
         (Icon::Lock, "Vaults", Screen::Vaults),
         (Icon::File, "Files", Screen::Files),
         (Icon::Wallet, "Wallets", Screen::Start),
-        (Icon::Sign, "Spend", Screen::Family),
         (Icon::Tools, "Tools", Screen::Catalog),
     ];
     let mut tail = Vec::new();
@@ -379,7 +378,6 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
     };
     for (icon, label, screen) in items.into_iter().chain(tail) {
         let active = app.screen == screen
-            || (screen == Screen::Family && from_spend)
             || (screen == Screen::Start
                 && !from_spend
                 && matches!(
@@ -1100,6 +1098,17 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             MUTED,
             Some(Action::Entry(None)),
         );
+        y += crate::compact_screens::row(
+            ui,
+            x,
+            y,
+            width,
+            Some(Icon::Sign),
+            "Spend from a backup, step by step",
+            "A stick, words, or paper",
+            MUTED,
+            Some(Action::Nav(Screen::Family)),
+        );
         y += 8.0;
         let files = app.vault_files();
         match files.iter().position(|f| f.open.is_none()) {
@@ -1137,7 +1146,9 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if empty {
         let gap = 16.0;
-        let tw = (width - 2.0 * gap) / 3.0;
+        // Four ways in (`docs/SIMPLIFY.md` §6.2): Create, Load or
+        // restore, Add a key, and Spend from a backup.
+        let tw = (width - 3.0 * gap) / 4.0;
         let ways = [
             (
                 Icon::Flag,
@@ -1157,20 +1168,63 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 "Type, scan or bring in a seed",
                 Action::Entry(None),
             ),
+            (
+                Icon::Sign,
+                "Spend from a backup, step by step",
+                "A stick, words, or paper",
+                Action::Nav(Screen::Family),
+            ),
         ];
+        // A label or sub-line that does not fit at its size breaks onto
+        // further lines (`docs/DESIGN.md` "Menu row"): every card in the
+        // row grows to the tallest label and sub among them, so the row
+        // stays even and nothing is cut off.
+        let label_room = tw - 100.0;
+        let label_line_h = ui.line(16.0, W::S);
+        let sub_line_h = ui.line(13.0, W::R);
+        let max_label_lines = ways
+            .iter()
+            .map(|(_, label, _, _)| ui.wrap_lines(16.0, W::S, label, label_room))
+            .max()
+            .unwrap_or(1);
+        let max_sub_lines = ways
+            .iter()
+            .map(|(_, _, sub, _)| ui.wrap_lines(13.0, W::R, sub, label_room))
+            .max()
+            .unwrap_or(1);
+        let card_h = 92.0
+            + (max_label_lines - 1) as f32 * label_line_h
+            + (max_sub_lines - 1) as f32 * sub_line_h;
         for (k, (icon, label, sub, action)) in ways.iter().enumerate() {
             let tx = x + k as f32 * (tw + gap);
             let pressed = ui.is_pressed(*action);
-            ui.fill(tx, y, tw, 92.0, 12.0, if pressed { INNER } else { SURFACE });
-            ui.stroke(tx, y, tw, 92.0, 12.0, LINE);
+            ui.fill(
+                tx,
+                y,
+                tw,
+                card_h,
+                12.0,
+                if pressed { INNER } else { SURFACE },
+            );
+            ui.stroke(tx, y, tw, card_h, 12.0, LINE);
             ui.fill(tx + 20.0, y + 24.0, 44.0, 44.0, 10.0, ACCENT.with_alpha(26));
             ui.icon(tx + 20.0, y + 24.0, 44.0, *icon, 18.0, ACCENT);
-            ui.text(tx + 82.0, y + 24.0, 16.0, W::S, TEXT, label);
-            let sub = ui.fit(13.0, W::R, sub, tw - 100.0);
-            ui.text(tx + 82.0, y + 50.0, 13.0, W::R, MUTED, &sub);
-            ui.hit(tx, y, tw, 92.0, *action);
+            if ui.wrap_lines(16.0, W::S, label, label_room) > 1 {
+                ui.wrap(tx + 82.0, y + 24.0, label_room, 16.0, W::S, TEXT, label);
+            } else {
+                let label = ui.fit(16.0, W::S, label, label_room);
+                ui.text(tx + 82.0, y + 24.0, 16.0, W::S, TEXT, &label);
+            }
+            let sub_y = y + 24.0 + max_label_lines as f32 * label_line_h + 2.0;
+            if ui.wrap_lines(13.0, W::R, sub, label_room) > 1 {
+                ui.wrap(tx + 82.0, sub_y, label_room, 13.0, W::R, MUTED, sub);
+            } else {
+                let sub = ui.fit(13.0, W::R, sub, label_room);
+                ui.text(tx + 82.0, sub_y, 13.0, W::R, MUTED, &sub);
+            }
+            ui.hit(tx, y, tw, card_h, *action);
         }
-        y += 92.0 + 28.0;
+        y += card_h + 28.0;
         let files = app.vault_files();
         match files.iter().position(|f| f.open.is_none()) {
             Some(i) => {
@@ -5463,6 +5517,56 @@ pub(crate) fn button_rows(
         }
         let label = ui.fit(13.0, W::S, label, bw - 24.0);
         bx += ui.button(bx, by, Some(bw), 32.0, &label, *style, *action) + 6.0;
+    }
+    by - y + 44.0
+}
+
+/// `button_rows`, except a label too wide for the row even alone is
+/// never cut (`docs/DESIGN.md` "Menu row"): it takes the row whole and
+/// wraps onto further lines, its chip growing to hold them. Used where
+/// `button_rows`'s "a long label is cut" must not hold — the Learn
+/// sheet's tabs, whose first row names a label the spec gives in full
+/// (`docs/SIMPLIFY.md` §6.2).
+pub(crate) fn learn_tabs(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    items: &[(String, Style, Action)],
+) -> f32 {
+    let (mut bx, mut by) = (x, y);
+    for (label, style, action) in items {
+        let natural = ui.measure(13.0, W::S, label) + 32.0;
+        if natural <= w {
+            if bx > x && bx + natural > x + w {
+                bx = x;
+                by += 40.0;
+            }
+            bx += ui.button(bx, by, Some(natural), 32.0, label, *style, *action) + 6.0;
+        } else {
+            if bx > x {
+                bx = x;
+                by += 40.0;
+            }
+            let lines = ui.wrap_lines(13.0, W::S, label, w - 24.0).max(1);
+            let line_h = ui.line(13.0, W::S);
+            let bh = 32.0 + (lines - 1) as f32 * line_h;
+            // An empty-labelled button draws this style's background,
+            // border and hit region exactly as any other; the label is
+            // then wrapped over it, since `Ui::button` itself only ever
+            // draws one line.
+            ui.button(bx, by, Some(w), bh, "", *style, *action);
+            let fg = match style {
+                Style::Primary => ON_ACCENT,
+                Style::Secondary => TEXT,
+                Style::Ghost => MUTED,
+                Style::Disabled => DIM,
+            };
+            let top = by + (bh - lines as f32 * line_h) / 2.0;
+            ui.wrap(bx + 12.0, top, w - 24.0, 13.0, W::S, fg, label);
+            by += bh + 6.0;
+            bx = x;
+        }
     }
     by - y + 44.0
 }
@@ -13256,22 +13360,26 @@ fn learn_sheet(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
         Style::Secondary,
         Action::Cancel,
     );
-    let tabs: Vec<(String, Style, Action)> = app
-        .learn
-        .pages
-        .iter()
-        .enumerate()
-        .map(|(i, p)| {
-            let style = if i == app.learn.page {
-                Style::Primary
-            } else {
-                Style::Secondary
-            };
-            (p.title.to_string(), style, Action::LearnPage(i as u8))
-        })
-        .collect();
-    let tabs_h = if app.learn.pages.len() > 1 || !compact {
-        button_rows(ui, x + pad, y + 14.0, sw - 2.0 * pad - done_w - 8.0, &tabs) - 44.0 + 34.0
+    // The sheet's first row (`docs/SIMPLIFY.md` §6.2): a direct way to
+    // the Spend tab, except from the Spend tab itself.
+    let mut tabs: Vec<(String, Style, Action)> = Vec::new();
+    if app.screen != Screen::Family {
+        tabs.push((
+            "Spending, step by step".to_string(),
+            Style::Secondary,
+            Action::LearnSpend,
+        ));
+    }
+    tabs.extend(app.learn.pages.iter().enumerate().map(|(i, p)| {
+        let style = if i == app.learn.page {
+            Style::Primary
+        } else {
+            Style::Secondary
+        };
+        (p.title.to_string(), style, Action::LearnPage(i as u8))
+    }));
+    let tabs_h = if tabs.len() > 1 || !compact {
+        learn_tabs(ui, x + pad, y + 14.0, sw - 2.0 * pad - done_w - 8.0, &tabs) - 44.0 + 34.0
     } else {
         34.0
     };

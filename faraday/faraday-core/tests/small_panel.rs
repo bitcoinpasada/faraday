@@ -94,7 +94,6 @@ fn home_offers_every_place_without_a_sidebar() {
     assert_eq!(app.screen, Screen::Home);
     for place in [
         Screen::Start,
-        Screen::Family,
         Screen::Vaults,
         Screen::Files,
         Screen::Catalog,
@@ -106,6 +105,14 @@ fn home_offers_every_place_without_a_sidebar() {
     assert_eq!(app.screen, Screen::Settings);
     tap(&mut app, Action::Nav(Screen::Home));
     assert_eq!(app.screen, Screen::Home, "the bar goes back to Home");
+}
+
+/// Spend left the small Home grid (`docs/SIMPLIFY.md` §6.2): the
+/// Wallets empty state and the Learn sheet reach it instead.
+#[test]
+fn homes_grid_has_no_spend_tile() {
+    let mut app = panel();
+    assert!(on_panel(&mut app, Action::Nav(Screen::Family)).is_none());
 }
 
 #[test]
@@ -193,7 +200,10 @@ fn a_passphrase_field_brings_the_keyboard_and_stays_above_it() {
 #[test]
 fn a_step_s_walk_through_opens_and_closes_on_a_tap_in_steps_only_too() {
     let mut app = panel();
-    assert!(!app.guided, "Steps only, as a first start is");
+    // A first start is Guided (`docs/SIMPLIFY.md` §6.1); Steps only is a
+    // choice, and this walk-through opens on a tap there too.
+    assert!(app.guided, "Guided is the first start");
+    app.press(Action::Guided(false));
     tap(&mut app, Action::Nav(Screen::Vaults));
     tap(&mut app, Action::Vault(V::Create));
     // Create a vault opens on its second card, Name and passphrases.
@@ -342,7 +352,6 @@ fn scan_never_covers_a_tile() {
     let _ = app.frame();
     let scan = app.hit_box(Action::Scan).expect("Scan is offered");
     for action in [
-        Action::Nav(Screen::Family),
         Action::Nav(Screen::Start),
         Action::Nav(Screen::Vaults),
         Action::Nav(Screen::Files),

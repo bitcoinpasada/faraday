@@ -602,6 +602,12 @@ guarantees for this file's rule:
 
 ## Spend tab
 
+Spend left the sidebar and the small Home grid (`docs/SIMPLIFY.md`
+§6.2, 2026-10-10); it is reached from the Wallets empty state's
+**Spend from a backup, step by step**, the Learn sheet's first row
+**Spending, step by step**, and Home's lead when a spend is under way.
+The tab's own screen and steps below are unchanged.
+
 Family mode for someone spending for the first time
 (`docs/FAMILY.md`): the map → the stick → **What are you holding?** (a
 Faraday stick and its passphrase, words only, or words and a

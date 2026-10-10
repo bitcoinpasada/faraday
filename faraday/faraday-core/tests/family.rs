@@ -369,3 +369,30 @@ fn no_page_past_the_wallet_opens_without_one() {
     app.press(Action::Family(F::Card(page::CHECK)));
     assert_eq!(app.family.open, Some(Open::Page(page::OPEN)));
 }
+
+/// The Spend tab left the sidebar and the small Home grid
+/// (`docs/SIMPLIFY.md` §6.2); it is still reached from the Wallets empty
+/// state's fourth way in.
+#[test]
+fn the_spend_tab_opens_from_the_wallets_empty_state() {
+    let mut app = shown();
+    app.press(Action::Nav(Screen::Start));
+    let _ = app.frame();
+    assert!(app.offers(Action::Nav(Screen::Family)));
+    app.press(Action::Nav(Screen::Family));
+    assert_eq!(app.screen, Screen::Family);
+}
+
+/// The Learn sheet's first row is the other way in, from any screen that
+/// is not the Spend tab itself.
+#[test]
+fn the_spend_tab_opens_from_learn() {
+    let mut app = shown();
+    app.press(Action::Learn);
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
+    assert!(app.offers(Action::LearnSpend));
+    app.press(Action::LearnSpend);
+    assert_eq!(app.screen, Screen::Family);
+    assert_eq!(app.sheet, None);
+}

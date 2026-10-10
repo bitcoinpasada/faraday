@@ -901,6 +901,9 @@ pub enum Action {
     Osk(compact::OskPress),
     /// Show the Learn sheet's page.
     LearnPage(u8),
+    /// The Learn sheet's first row, **Spending, step by step**: closes
+    /// the sheet and opens the Spend tab (`docs/SIMPLIFY.md` §6.2).
+    LearnSpend,
     /// The word-list sheet, or a link to it.
     WordList(wordlist::WordListAction),
     /// Make a new key, for this Create slot or for the session.
@@ -2850,7 +2853,11 @@ impl Faraday {
             visit: VisitState::default(),
             import: None,
             stick_settings: None,
-            guided: false,
+            // A device that has never had a setting saved opens Guided;
+            // Steps only is a choice (`docs/SIMPLIFY.md` §6.1). A saved
+            // value, from the kept state or the boot stick's settings
+            // file, overwrites this before the person sees a screen.
+            guided: true,
             about_open: None,
             pin_h: std::cell::Cell::new(0.0),
             list_offset: 0.0,
@@ -3971,6 +3978,10 @@ impl Faraday {
             Action::Family(f) => self.family_act(f),
             Action::Vanity(v) => self.vanity_act(v),
             Action::Learn => self.learn_open(),
+            Action::LearnSpend => {
+                self.sheet = None;
+                self.screen = Screen::Family;
+            }
             Action::Osk(p) => self.osk_press(p),
             Action::ScanCamera(i) => {
                 if let Some((id, _)) = self.cameras.get(usize::from(i)) {

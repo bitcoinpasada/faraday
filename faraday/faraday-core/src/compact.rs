@@ -429,17 +429,11 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
     let wallets = app.session.wallets.len();
     let vault_files = app.vault_files().len();
     let open = app.vaults.open.len();
-    // In two columns: the device's job first (spending, and every other
-    // wallet flow), then where keys and transactions come from, then the
-    // ways in and out, then what is used now and then.
+    // In two columns: wallets and keys first (every wallet flow,
+    // including spending: `docs/SIMPLIFY.md` §6.2 moves Spend to the
+    // Wallets empty state and the Learn sheet), then the ways in and
+    // out, then what is used now and then.
     let mut t: Vec<Tile> = vec![
-        (
-            Icon::Sign,
-            "Spend",
-            String::new(),
-            Action::Nav(Screen::Family),
-            true,
-        ),
         (
             Icon::Wallet,
             "Wallets",
