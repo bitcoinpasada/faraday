@@ -211,7 +211,7 @@ impl Faraday {
         };
         let name = format!("{}.asc", file_stem(&key));
         self.put_outbox(&name, text.into_bytes());
-        self.toast(&format!("{name} is in the Outbox"));
+        self.toast_out(&name);
     }
 
     /// The QR view of the selected key's certificate, a revocation of it
@@ -280,7 +280,7 @@ impl Faraday {
         let name = format!("{}-revocation.asc", file_stem(&key));
         let rev = key.revocation(now, Reason::Unspecified, "");
         self.put_outbox(&name, armor(Armor::PublicKey, &rev).into_bytes());
-        self.toast(&format!("{name} is in the Outbox"));
+        self.toast_out(&name);
     }
 
     /// New self-signatures with the chosen expiry counted from now; the
@@ -304,7 +304,7 @@ impl Faraday {
             v.changes += 1;
         }
         self.put_outbox(&name, armor(Armor::PublicKey, &cert).into_bytes());
-        self.toast(&format!("Renewed · {name} is in the Outbox"));
+        self.toast(&format!("Renewed · {name} waits {}", self.medium.for_the()));
     }
 
     /// A detached signature over Inbox file `k` by the selected key, to
@@ -324,7 +324,7 @@ impl Faraday {
         let sig = key.sign(&item.bytes, now, Hash::Sha512);
         self.put_outbox(&name, armor(Armor::Signature, &sig).into_bytes());
         self.vaults.signing = false;
-        self.toast(&format!("{name} is in the Outbox"));
+        self.toast_out(&name);
     }
 }
 

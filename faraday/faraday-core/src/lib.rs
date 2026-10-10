@@ -556,11 +556,10 @@ pub enum Action {
     SignHere,
     /// Add the signatures in this Inbox file.
     Collect(usize),
-    /// Put the PSBT with the signatures so far in the Outbox.
-    PartToOutbox,
-    /// Put the signed PSBT in the Outbox.
+    /// Make the signed PSBT For the stick again, after a Remove. Finish
+    /// makes it the moment the transaction is finished.
     SignedToOutbox,
-    /// Put the finished transaction in the Outbox.
+    /// Make the finished transaction For the stick again, after a Remove.
     TxToOutbox,
     /// The summary panel's action.
     Primary,
@@ -633,6 +632,9 @@ pub enum Action {
     /// One of wallet n's public files to the Outbox, as `public_out`
     /// numbers them: what the backup's public files item offers.
     PublicOut(usize, u8),
+    /// Remove from For the stick the files [`Action::PublicOut`] makes
+    /// for the same wallet and number.
+    PublicRemove(usize, u8),
     /// The account key in wallet n's slot k, held here, to the Outbox
     /// for the cosigners.
     WalletKeyOut(usize, u8),
@@ -1013,8 +1015,9 @@ pub enum Action {
     PdfInbox(usize),
     /// Make a PDF of an Outbox sheet (online only).
     PdfOutbox(usize),
-    /// Put a backup file in the Outbox: 0 template, 1 descriptor,
+    /// Make a backup file For the stick again: 0 template, 1 descriptor,
     /// 2 multisig config, 3 backup sheet, 4 split shares, 5 wallet .json.
+    /// Making the checklist makes the ones it calls for.
     BOut(u8),
     /// Decode the transaction this spend finished.
     DecodeFinished,
@@ -2311,6 +2314,129 @@ pub struct VisitState {
     pub from_inbox: BTreeSet<String>,
     /// Inbox files sent to be written and not yet answered, by name.
     pub writing_inbox: BTreeSet<String>,
+    /// The write under way: the stick's label, and each file sent with
+    /// the SHA-256 of its bytes. Its first answer starts a new receipt.
+    pub writing: Option<Writing>,
+}
+
+/// A write under way: the stick's label, each file sent with its
+/// SHA-256, and whether an answer has started its receipt.
+pub type Writing = (String, Vec<(String, [u8; 32])>, bool);
+
+/// What the last stick visit wrote (`docs/SIMPLIFY.md` §4.3): kept on
+/// [`Faraday`], across a lock in the kept state, gone at power-off, and
+/// replaced by the next write. Nothing on it is written again.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Receipt {
+    /// The stick's label.
+    pub label: String,
+    /// When the write was answered, Unix seconds, when the clock is known.
+    pub time: Option<u64>,
+    /// One row per file sent.
+    pub files: Vec<ReceiptFile>,
+}
+
+/// One file on a [`Receipt`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReceiptFile {
+    /// Its name.
+    pub name: String,
+    /// SHA-256 of the bytes written.
+    pub hash: [u8; 32],
+    /// Written, read back and matched.
+    pub verified: bool,
+    /// Why it was not, when it was not.
+    pub failure: Option<String>,
+}
+
+impl Receipt {
+    /// "Written to STICK at 14:02", or without the time when the clock
+    /// is not known.
+    pub fn heading(&self) -> String {
+        match self.time {
+            Some(t) => format!("Written to {} at {}", self.label, vaults::time_of_day(t)),
+            None => format!("Written to {}", self.label),
+        }
+    }
+
+    /// The file written and matched under `name` with these bytes.
+    pub fn holds(&self, name: &str, bytes: &[u8]) -> bool {
+        let hash = sha256_of(bytes);
+        self.files
+            .iter()
+            .any(|f| f.verified && f.name == name && f.hash == hash)
+    }
+
+    /// Whether `name` was written and matched.
+    pub fn wrote(&self, name: &str) -> bool {
+        self.files.iter().any(|f| f.verified && f.name == name)
+    }
+
+    /// As the kept state holds it: a `receipt` line, then a `file` line
+    /// per file, fields split by tabs.
+    pub(crate) fn encode(&self) -> Vec<u8> {
+        let field = |s: &str| s.replace(['\t', '\n', '\r'], " ");
+        let mut out = format!(
+            "receipt\t{}\t{}\n",
+            field(&self.label),
+            self.time.map(|t| t.to_string()).unwrap_or_default()
+        );
+        for f in &self.files {
+            let hash: String = f.hash.iter().map(|b| format!("{b:02x}")).collect();
+            out.push_str(&format!(
+                "file\t{}\t{hash}\t{}\t{}\n",
+                field(&f.name),
+                u8::from(f.verified),
+                field(f.failure.as_deref().unwrap_or(""))
+            ));
+        }
+        out.into_bytes()
+    }
+
+    /// Read back; `None` when it does not read.
+    pub(crate) fn decode(bytes: &[u8]) -> Option<Receipt> {
+        let text = String::from_utf8_lossy(bytes);
+        let mut out: Option<Receipt> = None;
+        for line in text.lines() {
+            let f: Vec<&str> = line.split('\t').collect();
+            match f[..] {
+                ["receipt", label, time] => {
+                    out = Some(Receipt {
+                        label: label.to_string(),
+                        time: time.parse().ok(),
+                        files: Vec::new(),
+                    });
+                }
+                ["file", name, hash, verified, failure] => {
+                    let bytes: Option<Vec<u8>> = (0..32)
+                        .map(|i| {
+                            hash.get(i * 2..i * 2 + 2)
+                                .and_then(|h| u8::from_str_radix(h, 16).ok())
+                        })
+                        .collect();
+                    let Some(hash) = bytes.and_then(|b| <[u8; 32]>::try_from(b).ok()) else {
+                        continue;
+                    };
+                    if let Some(r) = out.as_mut() {
+                        r.files.push(ReceiptFile {
+                            name: name.to_string(),
+                            hash,
+                            verified: verified == "1",
+                            failure: (!failure.is_empty()).then(|| failure.to_string()),
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
+        out
+    }
+}
+
+/// SHA-256 of `bytes`.
+pub(crate) fn sha256_of(bytes: &[u8]) -> [u8; 32] {
+    use osk_bip::bitcoin::hashes::{Hash, sha256};
+    sha256::Hash::hash(bytes).to_byte_array()
 }
 
 /// Where a stick visit column's scrollbar was drawn, in pixels: the
@@ -2401,6 +2527,8 @@ pub struct Faraday {
     /// (Spend tab) for, this power-on, kept across a lock
     /// (`docs/WALLETS.md` §4).
     pub checked_wallets: Vec<String>,
+    /// What the last stick visit wrote, this power-on (§4.3).
+    pub receipt: Option<Receipt>,
     seed: [u8; 32],
     /// The session's seed has arrived.
     seeded: bool,
@@ -2664,6 +2792,7 @@ impl Faraday {
             signed_amounts: Vec::new(),
             seal_amounts: true,
             checked_wallets: Vec::new(),
+            receipt: None,
             seed: [0; 32],
             seeded: false,
             sign_draws: 0,
@@ -2816,11 +2945,28 @@ impl Faraday {
                 self.visit.log.push((format!("{name}: {reason}"), false));
             }
             StorageEvent::Written { name, wrote_as, .. } => {
+                self.receipt_add(&name, None);
                 // A copy from the Inbox stays there, for the next stick.
                 if self.visit.writing_inbox.remove(&name) {
                     self.visit.from_inbox.remove(&name);
                 } else {
-                    self.outbox.retain(|i| i.name != name);
+                    // Written, it leaves For the stick for the receipt. A
+                    // vault stays in Files as the stick now holds it, to
+                    // unlock again; its copy from before goes.
+                    if let Some(k) = self.outbox.iter().position(|i| i.name == name) {
+                        let item = self.outbox.remove(k);
+                        if item.kind == FileKind::Vault
+                            && let Ok(h) = faraday_vault::read_header(&item.bytes)
+                        {
+                            self.inbox.retain(|i| {
+                                i.name != item.name
+                                    && !(i.kind == FileKind::Vault
+                                        && faraday_vault::read_header(&i.bytes)
+                                            .is_ok_and(|o| o.salt == h.salt))
+                            });
+                            self.inbox.push(Item::new(&item.name, item.bytes.clone()));
+                        }
+                    }
                     self.visit.out.remove(&name);
                 }
                 let line = if wrote_as == name {
@@ -2832,15 +2978,15 @@ impl Faraday {
                 self.save_boxes();
             }
             StorageEvent::WriteFailed { name, reason, .. } => {
-                let from = if self.visit.writing_inbox.remove(&name) {
-                    "Inbox"
+                self.receipt_add(&name, Some(reason.clone()));
+                let stays = if self.visit.writing_inbox.remove(&name) {
+                    "It stays in Files".to_string()
                 } else {
-                    "Outbox"
+                    format!("It still waits {}", self.medium.for_the())
                 };
-                self.visit.log.push((
-                    format!("{name} not written: {reason}. It stays in the {from}"),
-                    false,
-                ));
+                self.visit
+                    .log
+                    .push((format!("{name} not written: {reason}. {stays}"), false));
             }
             StorageEvent::Printed { path } => self.toast(&format!("Saved {path}")),
             StorageEvent::Clock { unix_secs } => {
@@ -3301,6 +3447,13 @@ impl Faraday {
         });
     }
 
+    /// A file, or files, a flow made and put For the stick: "{what}
+    /// waits for the stick".
+    fn toast_out(&mut self, what: &str) {
+        let text = format!("{what} waits {}", self.medium.for_the());
+        self.toast(&text);
+    }
+
     fn toast(&mut self, text: &str) {
         self.toast = Some((text.to_string(), self.now_ms + 3000));
         self.toast_at = None;
@@ -3415,6 +3568,38 @@ impl Faraday {
         self.outbox.retain(|i| i.name != name);
         self.outbox.push(item);
         self.save_boxes();
+    }
+
+    /// A write's answer onto the receipt: the first answer of a write
+    /// replaces the last receipt with a new one (`docs/SIMPLIFY.md` §4.3).
+    fn receipt_add(&mut self, name: &str, failure: Option<String>) {
+        let now = self.clock_now();
+        let Some((label, sent, started)) = self.visit.writing.as_mut() else {
+            return;
+        };
+        let Some(k) = sent.iter().position(|(n, _)| n == name) else {
+            return;
+        };
+        let (name, hash) = sent.remove(k);
+        if !*started {
+            *started = true;
+            self.receipt = Some(Receipt {
+                label: label.clone(),
+                time: now,
+                files: Vec::new(),
+            });
+        }
+        if sent.is_empty() {
+            self.visit.writing = None;
+        }
+        if let Some(r) = self.receipt.as_mut() {
+            r.files.push(ReceiptFile {
+                name,
+                hash,
+                verified: failure.is_none(),
+                failure,
+            });
+        }
     }
 
     /// What a visit writes unless the person changes it: the Outbox but
@@ -3561,17 +3746,66 @@ impl Faraday {
                 s.opened = true;
             }
         }
+        self.spend_files_out();
+    }
+
+    /// Finish makes both results For the stick the moment the
+    /// transaction is finished: the signed PSBT and the finished
+    /// transaction. One the person removed is not made again unless they
+    /// ask.
+    fn spend_files_out(&mut self) {
+        let Some(s) = self.spend.as_mut() else {
+            return;
+        };
+        if s.spend.finished.is_none() {
+            return;
+        }
+        let stem = result_stem(&s.spend.source);
+        let mut made: Vec<(String, Vec<u8>)> = Vec::new();
+        if !s.out_signed {
+            s.out_signed = true;
+            made.push((format!("{stem}-signed.psbt"), s.spend.psbt.to_bytes()));
+        }
+        if !s.out_tx
+            && let Some(hex) = s.spend.finished_hex()
+        {
+            s.out_tx = true;
+            made.push((format!("{stem}-final.txn"), hex.into_bytes()));
+        }
+        for (name, bytes) in made {
+            self.put_outbox(&name, bytes);
+        }
+    }
+
+    /// The PSBT with what this pass added, For the stick for the other
+    /// signers while more are needed. A threshold spend's part goes with
+    /// its carry, through the secret sheet, instead.
+    fn part_out(&mut self) {
+        let Some(s) = self.spend.as_ref() else {
+            return;
+        };
+        let threshold = s
+            .inspection
+            .inputs
+            .first()
+            .is_some_and(|i| i.threshold.is_some());
+        if s.complete || threshold || s.carry_out.is_some() {
+            return;
+        }
+        let name = format!("{}-part.psbt", result_stem(&s.spend.source));
+        let bytes = s.spend.psbt.to_bytes();
+        self.put_outbox(&name, bytes);
     }
 
     /// The session strip's stage, computed, never stored: where the
     /// person is in the lock cycle now. A stick attached while working
     /// still asks to bring it in, because the lock sheet is what asks to
-    /// lock it; `Write out` is files For the stick with no stick
-    /// attached (a vault changed since written, §3.5, joins it later).
+    /// lock it; `Write out` is files For the stick, or a vault changed
+    /// since it was written (§3.5), with no stick attached.
     pub fn session_stage(&self) -> &'static str {
         if !self.sticks.is_empty() || self.import.is_some() {
             "Bring in"
-        } else if !self.outbox.is_empty() {
+        } else if !self.outbox.is_empty() || self.vault_changed().is_some() {
             "Write out"
         } else if self.holds_secret() || !self.session.wallets.is_empty() {
             "Work"
@@ -3888,14 +4122,6 @@ impl Faraday {
             }
             Action::SignHere => self.sign_here(),
             Action::Collect(i) => self.collect(i),
-            Action::PartToOutbox => {
-                if let Some(s) = self.spend.as_ref() {
-                    let name = format!("{}-part.psbt", result_stem(&s.spend.source));
-                    let bytes = s.spend.psbt.to_bytes();
-                    self.put_outbox(&name, bytes);
-                    self.toast(&format!("{name} is in the Outbox"));
-                }
-            }
             Action::SignedToOutbox => {
                 if let Some(s) = self.spend.as_mut() {
                     let name = format!("{}-signed.psbt", result_stem(&s.spend.source));
@@ -3994,7 +4220,9 @@ impl Faraday {
             Action::VisitWrite => {
                 if let Some(stick) = self.sticks.get(self.visit.stick) {
                     let id = stick.id.clone();
+                    let label = stick.label.clone();
                     self.visit.log.clear();
+                    let before = self.storage_out.len();
                     if self.visit_settings_on() {
                         self.storage_out.push_back(StorageCommand::Write {
                             stick: id.clone(),
@@ -4024,6 +4252,21 @@ impl Faraday {
                                 bytes: item.bytes.clone(),
                             });
                         }
+                    }
+                    // What this write sends, for its receipt.
+                    let sent: Vec<(String, [u8; 32])> = self
+                        .storage_out
+                        .iter()
+                        .skip(before)
+                        .filter_map(|c| match c {
+                            StorageCommand::Write { name, bytes, .. } => {
+                                Some((name.clone(), sha256_of(bytes)))
+                            }
+                            _ => None,
+                        })
+                        .collect();
+                    if !sent.is_empty() {
+                        self.visit.writing = Some((label, sent, false));
                     }
                 }
             }
@@ -4080,6 +4323,7 @@ impl Faraday {
                 self.save_boxes();
             }
             Action::PublicOut(i, what) => self.public_out(i, what),
+            Action::PublicRemove(i, what) => self.public_remove(i, what),
             Action::WalletKeyOut(i, k) => self.wallet_key_out(i, k),
             Action::WalletKeyBsms(i, k) => self.wallet_key_bsms(i, k),
             Action::RFromVault(v, r) => self.restore_from_vault(v, r),
@@ -4245,6 +4489,7 @@ impl Faraday {
             }
             Action::BChecklist => {
                 self.plan_save();
+                self.backup_files_make();
                 let items = self.backup_items();
                 let first = items
                     .iter()
@@ -4362,13 +4607,23 @@ impl Faraday {
             }
             Action::BFile => self.offer_seed(),
             Action::BWords(n) => {
+                // On the checklist the template For the stick is made
+                // again for the new length.
+                let remake = self.backup_remake(0);
                 if let Some(b) = self.backup.as_mut() {
                     b.words = n;
                 }
+                if let Some(w) = remake {
+                    self.public_out(w, 0);
+                }
             }
             Action::BOmit(n) => {
+                let remake = self.backup_remake(4);
                 if let Some(b) = self.backup.as_mut() {
                     b.answers.omit = n;
+                }
+                if let Some(w) = remake {
+                    self.public_out(w, 4);
                 }
             }
             Action::BOut(what) => self.backup_out(what),
@@ -4488,7 +4743,7 @@ impl Faraday {
                     self.sheet = Some(Sheet::WriteOut);
                 } else if self.sticks.is_empty() {
                     self.toast(&format!(
-                        "Plug in {}: the visit writes the Outbox",
+                        "Plug in {}: the visit writes what waits for it",
                         self.medium.a()
                     ));
                 } else {
@@ -4562,6 +4817,10 @@ impl Faraday {
                         Err(e) => m.error = Some(e),
                     }
                 }
+                // The signed message goes For the stick as it is made.
+                if self.message.as_ref().is_some_and(|m| m.signed.is_some()) {
+                    self.act(Action::MOut);
+                }
             }
             Action::MOut | Action::MQr => {
                 if let Some(m) = self.message.as_ref()
@@ -4575,7 +4834,7 @@ impl Faraday {
                             &sig.address[sig.address.len().saturating_sub(6)..]
                         );
                         self.put_outbox(&name, text.into_bytes());
-                        self.toast(&format!("{name} is in the Outbox"));
+                        self.toast_out(&name);
                     } else {
                         let view = self.code_view(Code::Message);
                         self.open_qr(view);
@@ -4756,7 +5015,7 @@ impl Faraday {
                                 &name,
                                 format!("# Account xpub {fp}, {kind}\n{text}\n").into_bytes(),
                             );
-                            self.toast(&format!("{name} is in the Outbox"));
+                            self.toast_out(&name);
                         }
                     }
                     Err(e) => self.toast(&e),
@@ -4766,7 +5025,7 @@ impl Faraday {
                 Some((fpt, text)) => {
                     let name = format!("xpub-{fpt}-bsms.txt");
                     self.put_outbox(&name, text.into_bytes());
-                    self.toast(&format!("{name} is in the Outbox"));
+                    self.toast_out(&name);
                 }
                 None => self.toast("BIP 129 covers wsh and sh(wsh) multisig keys"),
             },
@@ -5169,7 +5428,10 @@ impl Faraday {
                 .iter()
                 .any(|i| i.secret && files.contains(&i.name))
             {
-                lines.push(("File in the Outbox, unprotected".to_string(), Tone::Err));
+                lines.push((
+                    format!("File {}, unprotected", self.medium.for_the()),
+                    Tone::Err,
+                ));
             }
             lines
         };
@@ -5460,8 +5722,8 @@ impl Faraday {
         out
     }
 
-    /// Whether a checklist item is done, by what it does: its file in the
-    /// Outbox, its seeds or the wallet in the open vault, the copy
+    /// Whether a checklist item is done, by what it does: its file For
+    /// the stick or written, its seeds or the wallet in the open vault, the copy
     /// matched, the descriptor shown; the envelopes alone by a press.
     pub fn backup_item_done(&self, item: plan::Item) -> bool {
         use crate::vault_screens::{vault_has_wallet, vault_key};
@@ -5472,7 +5734,11 @@ impl Faraday {
             return false;
         };
         let stem = file_stem(&w.name);
-        let out = |name: &str| self.outbox.iter().any(|i| i.name == name);
+        // For the stick, or written by the last visit.
+        let out = |name: &str| {
+            self.outbox.iter().any(|i| i.name == name)
+                || self.receipt.as_ref().is_some_and(|r| r.wrote(name))
+        };
         let seeds = self.backup_seed_list(b.wallet);
         let here: Vec<(usize, &wallet::Key)> = seeds
             .iter()
@@ -5499,9 +5765,9 @@ impl Faraday {
                         ["words.txt", "seedqr.png", "compactseedqr.png"]
                             .iter()
                             .any(|end| {
-                                self.outbox
-                                    .iter()
-                                    .any(|i| i.secret && i.name == format!("{stem}-{fps}-{end}"))
+                                let name = format!("{stem}-{fps}-{end}");
+                                self.outbox.iter().any(|i| i.secret && i.name == name)
+                                    || self.receipt.as_ref().is_some_and(|r| r.wrote(&name))
                             })
                     })
             }
@@ -5764,8 +6030,129 @@ impl Faraday {
     /// descriptor record, 7 Bitcoin Core's `importdescriptors` file, 8 the
     /// descriptor's code as a labelled picture.
     pub(crate) fn public_out(&mut self, wallet: usize, what: u8) {
-        let Some(w) = self.session.wallets.get(wallet) else {
+        let files = self.public_made(wallet, what);
+        let names: Vec<String> = files.iter().map(|(n, _)| n.clone()).collect();
+        for (name, bytes) in files {
+            self.put_outbox(&name, bytes);
+        }
+        self.backup_sent(wallet, &names);
+        match names.len() {
+            0 => {}
+            1 => self.toast_out(&names[0]),
+            k => self.toast_out(&format!("{k} files")),
+        }
+    }
+
+    /// Removes from For the stick what [`Faraday::public_out`] makes for
+    /// `wallet` and `what`.
+    fn public_remove(&mut self, wallet: usize, what: u8) {
+        let names: Vec<String> = self
+            .public_made(wallet, what)
+            .into_iter()
+            .map(|(n, _)| n)
+            .collect();
+        let before = self.outbox.len();
+        self.outbox.retain(|i| !names.contains(&i.name));
+        if self.outbox.len() != before {
+            self.save_boxes();
+        }
+    }
+
+    /// The backup under way's wallet, when its checklist is showing and
+    /// file `what` is For the stick: that file is made again when what it
+    /// depends on changes. The old one goes now.
+    fn backup_remake(&mut self, what: u8) -> Option<usize> {
+        let b = self.backup.as_ref()?;
+        if b.stage != BStage::Checklist {
+            return None;
+        }
+        let w = b.wallet;
+        let made: Vec<String> = self
+            .public_made(w, what)
+            .into_iter()
+            .map(|(n, _)| n)
+            .collect();
+        if !self.outbox.iter().any(|i| made.contains(&i.name)) {
+            return None;
+        }
+        self.public_remove(w, what);
+        Some(w)
+    }
+
+    /// Making the checklist makes every public file it calls for, For
+    /// the stick: the blank template, the sheet or the shares, and the
+    /// files for the software chosen. Made again, each replaces its
+    /// namesake.
+    fn backup_files_make(&mut self) {
+        let Some(b) = self.backup.as_ref() else {
             return;
+        };
+        let w = b.wallet;
+        let (qr, text) = (
+            b.answers.form[plan::form::QR],
+            b.answers.form[plan::form::TEXT],
+        );
+        let split = self
+            .session
+            .wallets
+            .get(w)
+            .is_some_and(|wl| b.answers.split && backup::splits(wl));
+        let items: Vec<plan::Item> = self
+            .backup_items()
+            .into_iter()
+            .filter_map(bstep::item)
+            .collect();
+        let mut files: Vec<(String, Vec<u8>)> = Vec::new();
+        for item in items {
+            match item {
+                plan::Item::Templates => files.extend(self.public_made(w, 0)),
+                plan::Item::Sheets => files.extend(self.public_made(w, if split { 4 } else { 3 })),
+                plan::Item::PublicFiles => {
+                    // In the form chosen, as `backup_public_names` lists
+                    // them: the picture, the text, or both.
+                    for what in self.backup_public() {
+                        let picture: Vec<(String, Vec<u8>)> = match what {
+                            _ if !qr => Vec::new(),
+                            1 => self.public_made(w, 8),
+                            2 | 6 => {
+                                let code = if what == 2 {
+                                    Code::MultisigConfig(w)
+                                } else {
+                                    Code::Bsms(w)
+                                };
+                                self.code_view(code)
+                                    .ok()
+                                    .and_then(|v| v.png())
+                                    .into_iter()
+                                    .collect()
+                            }
+                            _ => Vec::new(),
+                        };
+                        if picture.is_empty() || text {
+                            files.extend(self.public_made(w, what));
+                        }
+                        files.extend(picture);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let names: Vec<String> = files.iter().map(|(n, _)| n.clone()).collect();
+        for (name, bytes) in files {
+            self.put_outbox(&name, bytes);
+        }
+        self.backup_sent(w, &names);
+        match names.len() {
+            0 => {}
+            1 => self.toast_out(&names[0]),
+            k => self.toast_out(&format!("{k} files")),
+        }
+    }
+
+    /// The files [`Faraday::public_out`] makes, with their bytes.
+    fn public_made(&mut self, wallet: usize, what: u8) -> Vec<(String, Vec<u8>)> {
+        let Some(w) = self.session.wallets.get(wallet) else {
+            return Vec::new();
         };
         let words = self.backup.as_ref().map_or(24, |b| b.words);
         let omit = self
@@ -5857,16 +6244,7 @@ impl Faraday {
             }
             _ => {}
         }
-        let names: Vec<String> = files.iter().map(|(n, _)| n.clone()).collect();
-        for (name, bytes) in files {
-            self.put_outbox(&name, bytes);
-        }
-        self.backup_sent(wallet, &names);
-        match names.len() {
-            0 => {}
-            1 => self.toast(&format!("{} is in the Outbox", names[0])),
-            k => self.toast(&format!("{k} files are in the Outbox")),
-        }
+        files
     }
 
     /// Files of wallet `wallet` just put in the Outbox, for the summary
@@ -5966,7 +6344,7 @@ impl Faraday {
                 let bytes = format!("# Account xpub {}, {}\n{}\n", k.fp, k.kind, k.text);
                 self.put_outbox(&name, bytes.into_bytes());
                 self.backup_sent(i, std::slice::from_ref(&name));
-                self.toast(&format!("{name} is in the Outbox"));
+                self.toast_out(&name);
             }
             Err(e) => self.toast(&e),
         }
@@ -5978,7 +6356,7 @@ impl Faraday {
                 let name = format!("xpub-{fp}-bsms.txt");
                 self.put_outbox(&name, text.into_bytes());
                 self.backup_sent(i, std::slice::from_ref(&name));
-                self.toast(&format!("{name} is in the Outbox"));
+                self.toast_out(&name);
             }
             Err(e) => self.toast(&e),
         }
@@ -6805,7 +7183,7 @@ impl Faraday {
         match v.png() {
             Some((name, bytes)) => {
                 self.put_outbox(&name, bytes);
-                self.toast(&format!("{name} is in the Outbox"));
+                self.toast_out(&name);
             }
             None if v.public && v.frames.len() > 1 => {
                 self.toast(&format!("{} is more than one code", v.title));
@@ -7426,6 +7804,7 @@ impl Faraday {
         let Some(s) = self.spend.as_mut() else {
             return;
         };
+        let before = s.spend.psbt.to_bytes();
         // A threshold spend's first location chooses the other shares
         // before it signs.
         let needed = s.needed;
@@ -7509,6 +7888,7 @@ impl Faraday {
         }
         if nonce_only {
             self.refresh_spend();
+            self.part_out();
             if let Some(s) = self.spend.as_mut() {
                 s.open = Some(wallet::step::NONCES);
                 s.follow = true;
@@ -7517,6 +7897,13 @@ impl Faraday {
             return;
         }
         self.refresh_spend();
+        if self
+            .spend
+            .as_ref()
+            .is_some_and(|s| s.spend.psbt.to_bytes() != before)
+        {
+            self.part_out();
+        }
         if let Some(s) = self.spend.as_mut() {
             s.follow = true;
             if s.complete {
@@ -7574,6 +7961,13 @@ impl Faraday {
             }
         }
         self.refresh_spend();
+        if self
+            .spend
+            .as_ref()
+            .is_some_and(|s| s.spend.psbt.to_bytes() != before)
+        {
+            self.part_out();
+        }
         if let Some(s) = self.spend.as_mut() {
             s.follow = true;
             if s.complete {
@@ -7609,12 +8003,8 @@ impl Faraday {
                 self.act(Action::CarryToOutbox);
             }
         } else if s.spend.finished.is_some() {
-            if !(s.out_signed && s.out_tx) {
-                self.act(Action::SignedToOutbox);
-                self.act(Action::TxToOutbox);
-            } else {
-                self.screen = Screen::Files;
-            }
+            // Both files went For the stick at Finish: Files writes them.
+            self.screen = Screen::Files;
         } else if complete {
             s.done[wallet::step::COLLECT as usize] = true;
             s.open = Some(wallet::step::FINISH);

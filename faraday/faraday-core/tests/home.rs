@@ -479,3 +479,96 @@ fn home_lead_rule_5_reads_what_the_vault_held_when_last_seen_open() {
         "the lead's line is what the vault held: {texts:?}"
     );
 }
+
+/// Answers every write a stick visit sends as written and matched.
+fn answer_writes(app: &mut Faraday) {
+    while let Some(c) = app.poll_storage() {
+        if let faraday_core::StorageCommand::Write { stick, name, .. } = c {
+            app.storage(StorageEvent::Written {
+                stick,
+                wrote_as: name.clone(),
+                name,
+            });
+        }
+    }
+}
+
+/// Rule 4 (§4.3): after a stick visit wrote something, with nothing
+/// loaded, Home leads with what was written, and its tap opens Files.
+#[test]
+fn home_lead_rule_4_a_receipt_with_nothing_loaded_shows_what_was_written() {
+    let wallet = faraday_core::testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == "spending-wallet.txt")
+        .unwrap();
+    let mut app = shown();
+    app.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox: vec![wallet],
+        kept: Vec::new(),
+    });
+    stick(&mut app, true);
+    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::VisitWrite);
+    answer_writes(&mut app);
+    stick(&mut app, false);
+    app.press(Action::Nav(Screen::Home));
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Written to STICK"),
+        "Home leads with the receipt: {texts:?}"
+    );
+    assert!(
+        texts.iter().any(|t| t.contains("spending-wallet.txt")),
+        "the lead's line names the files: {texts:?}"
+    );
+    tap(&mut app, Action::Nav(Screen::Files));
+    assert_eq!(app.screen, Screen::Files);
+}
+
+/// Rule 6 (§3.5): a vault changed since it was written leads with
+/// writing it, and the tap opens Files, where the visit is.
+#[test]
+fn home_lead_rule_6_a_vault_changed_since_written_offers_to_write_it() {
+    use faraday_core::vaults::VaultAction as V;
+    let vault = faraday_core::testkit::test_vault().unwrap();
+    let mut app = with_inbox(vec![("vault.ofv", vault)]);
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    // A key the test vault does not hold, to save into it.
+    app.session
+        .add_words(
+            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon \
+             abandon about",
+            "k",
+            None,
+        )
+        .unwrap();
+    app.press(Action::Vault(V::Open(0)));
+    for c in faraday_core::testkit::VAULT_PASSPHRASES[0].chars() {
+        app.event(Event::Key(osk_shell_api::Key::Char(c)));
+    }
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults.open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    app.press(Action::Vault(V::AddKind(0)));
+    app.press(Action::Vault(V::SaveKey(0)));
+    app.press(Action::Nav(Screen::Home));
+    let texts = app.drawn_texts();
+    assert!(
+        texts
+            .iter()
+            .any(|t| t.starts_with("Write ") && t.ends_with(" to a stick")),
+        "Home leads with writing the vault: {texts:?}"
+    );
+    tap(&mut app, Action::Nav(Screen::Files));
+    assert_eq!(app.screen, Screen::Files);
+}

@@ -5,8 +5,8 @@ where it leaves the person. Not built.
 
 The rule this file checks: **no flow ends on a dead end.** Each one
 finishes on a screen that shows what happened and offers the next thing a
-person would do. Where a flow cannot go on (no vault open, no file in the
-Inbox, a stick still attached), it says what is missing and offers the way
+person would do. Where a flow cannot go on (no vault open, no file in
+Files, a stick still attached), it says what is missing and offers the way
 to get it.
 
 `PLAN.md` holds the decisions; `docs/VAULT.md` the vault format;
@@ -14,49 +14,54 @@ to get it.
 
 ## Decisions this pass made
 
-1. **One Files screen holds the Inbox and the Outbox.** Files read from a
-   stick had nowhere to be seen until a screen asked for one. The sidebar's
-   status row reads "Files · 2 in · 1 out" and opens it. Every Inbox file
-   carries the action that uses it: a PSBT **Sign in Wallets**,
-   `BOOTX64.EFI` **Sign in Secure Boot**, an entries file **Import into a
-   vault**, a vault file **Unlock**, a received file **Show as QR**.
-   Inbox and Outbox are both emptied at power-off.
+1. **One Files screen holds what came from the stick and what goes to
+   it.** Files read from a stick had nowhere to be seen until a screen
+   asked for one. The sidebar's status row reads "Files · 2 in · 1 out"
+   and opens it. Every file copied in carries the action that uses it: a
+   PSBT **Sign in Wallets**, `BOOTX64.EFI` **Sign in Secure Boot**, an
+   entries file **Import into a vault**, a vault file **Unlock**, a
+   received file **Show as QR**. Both halves are emptied at power-off.
+   The halves are named by direction (owner, 2026-10-10;
+   `docs/SIMPLIFY.md` §4.1): **From the stick** and **For the stick**
+   ("From the SD card", "For the SD card" on the Pi), on Files, the stick
+   visit, the sheets and every button; no screen says "Inbox" or
+   "Outbox", which remain the code's names only.
 2. **A new vault opens as soon as it is created**, on its first
    passphrase's slot, because a new vault is empty and the next thing is
    putting something in it. Create vault lands on the Vaults overview with
    the new vault open and **Add contents** beside it. Replaced by
    decision 22 (2026-10-10).
-3. **After any lock cycle, the Inbox decides what is offered first.**
+3. **After any lock cycle, what came from the stick decides what is offered first.**
    Locking restarts the app, so the screen a person was on is gone. When
-   unlocking again finds a new PSBT in the Inbox, Home leads with "Sign
+   unlocking again finds a new PSBT in Files, Home leads with "Sign
    unsigned.psbt" instead of the generic tiles.
 4. **A stick visit can delete a vault file.** Changing a passphrase means
    making a new vault; the old file, still openable with the old
    passphrase, stays on the stick until deleted. The visit offers **Delete
    vault-2.ofv** (a hold) and states that deleting on flash media removes
    the file, not every copy of its bytes.
-5. **Power off warns when something would be lost.** If the Outbox has
-   files or a vault has unsaved changes, Power off lists them and needs a
+5. **Power off warns when something would be lost.** If files wait
+   for the stick or a vault has unsaved changes, Power off lists them and needs a
    hold.
 6. **Public and secret leave by different doors** (2026-10-06). Every file
    on its way out is public (anyone may read it: descriptors, wallet files,
    account keys, PSBTs, certificates), sealed (a vault or an encrypted
    backup) or secret (anyone holding it can use what is in it). Public
-   files go to the Outbox as they are. A secret goes into the open vault by
-   default and leaves only inside the vault file; the one way into the
-   Outbox unprotected is the secret sheet, which names the file, what it
-   is and who can use it, and enables **Put it in the Outbox unprotected**
-   only once the person ticks that anyone with the stick can read it. The
-   Outbox lists the three apart, Public, Sealed and Unprotected secrets, a
+   files go For the stick as they are. A secret goes into the open vault by
+   default and leaves only inside the vault file; the one way For the
+   stick unprotected is the secret sheet, which names the file, what it
+   is and who can use it, and enables **Put it for the stick unprotected**
+   only once the person ticks that anyone with the stick can read it. For
+   the stick lists the three apart, Public, Sealed and Unprotected secrets, a
    stick visit tags each row, and an unprotected secret is not ticked for
    writing until the person ticks it on the visit. A secret let out this
    way is marked as one whatever its text reads as (a node key, a child
    seed's words), and the mark is kept across a lock. A seed's words file
    is a secret by its kind. The code refuses a
-   secret on the plain Outbox path, so a new flow cannot skip the sheet.
+   secret on the plain path For the stick, so a new flow cannot skip the sheet.
    The FROST carry (the next share's secret nonce) goes into
    the vault as a signing-round record (`docs/VAULT.md` §7, type 9),
-   its public PSBT goes to the Outbox, the next device finds the round by
+   its public PSBT goes For the stick, the next device finds the round by
    the transaction when it opens that PSBT with the vault unlocked, and
    the round leaves the vault once it has signed. A wallet's seed, from
    the backup's checklist (2026-10-09), goes in as a key record
@@ -64,15 +69,15 @@ to get it.
    words or the SeedQR picture, one picked on the sheet, behind its own
    acknowledgement ("anyone who copies the stick or sees this file can
    spend these coins"), and never holds the BIP-39 passphrase. A seed's
-   SeedQR never goes through the QR sheet's **PNG to the Outbox**, which
+   SeedQR never goes through the QR sheet's **PNG for the stick**, which
    is for public content. Create a wallet ends in the same doors
    (2026-10-10, `docs/SIMPLIFY.md` §2.3): its last card, **Back up**,
    offers the plan's presets and opens the backup on the wallet just
    made, whose checklist puts the seeds and the wallet into a vault,
    lists the public files (descriptor, wallet file, multisig config,
    BSMS record, Bitcoin Core import, each key's account key and its BSMS
-   record; each with **Show as QR** and **PNG** beside **To the Outbox**
-   where a wallet reads it from a code) and has the seeds copied by hand,
+   record; each with **Show as QR** and **PNG** where a wallet reads it
+   from a code, and **Remove** while it waits For the stick) and has the seeds copied by hand,
    each copy checked by scanning its drawn SeedQR (by its words' typed
    numbers where there is no camera).
 
@@ -86,7 +91,7 @@ to get it.
 8. **What loads a key asks for the stick to be pulled** (2026-10-08).
    Keys still load only with no stick attached, but nothing that loads one
    is shown disabled for it: Add a key, Make a new key, Load this key, a
-   Tools tile that adds or makes a key, opening a seed from the Inbox or a
+   Tools tile that adds or makes a key, opening a seed from Files or a
    backup. Pressed with a stick in, each opens a sheet, "Pull the stick to
    add a key" (or to make a key, …), the stick's label, and **Cancel**.
    The sheet closes the moment the last stick goes, and what was pressed
@@ -131,7 +136,9 @@ to get it.
     cards (Session, Files, Sticks) are gone from Home: the sidebar's
     status block already carries them. Start is one full-width lead tile,
     the first job that applies (a spend under way, a PSBT in Files, an
-    import waiting, a locked vault, otherwise Make a wallet), then at
+    import waiting, what the last visit wrote with nothing loaded, a
+    locked vault, a vault changed since it was written, otherwise Make a
+    wallet), then at
     most two secondary tiles (Wallets, Vaults; Stick visit when they
     leave room). Add a key is not on Home: it is reached from Wallets'
     empty state and from Tools.
@@ -152,7 +159,8 @@ to get it.
     The sidebar (and the small Home's status card) carries one line,
     **Bring in · Open · Work · Write out**, the current stage in the
     accent, computed from what is attached, loaded and waiting; tapping
-    it opens Files.
+    it opens Files. **Write out** is files For the stick, or a vault
+    changed since it was written (decision 26), with no stick attached.
 16. **A step card with a default opens closed** (owner, 2026-10-10;
     `docs/SIMPLIFY.md` §2.1). Create a wallet, New key and Sign a
     transaction open on the first card without one; a closed default
@@ -197,6 +205,34 @@ to get it.
     goes by its name and Home's lead is "Unlock {name}", both with the
     line "Savings 2 of 3 · key 9a6a2580 · 12 entries · seen 14:02"; with
     nothing remembered, "Unlock to see what it holds".
+24. **For the stick fills itself** (owner, 2026-10-10;
+    `docs/SIMPLIFY.md` §4.2). A public file a flow makes goes For the
+    stick the moment it is made: the signed PSBT and the finished
+    transaction at Finish, the PSBT with this pass's signatures while
+    more are needed, the backup checklist's template, sheet or shares
+    and public files when the checklist is made (made again when the
+    word count or the shares change), a GPG public key, revocation or
+    signature, a signed message, a sealed vault at lock. No button puts a
+    file out: where **To the Outbox** stood, the row reads "For the
+    stick" with **Remove**, and after a Remove the button makes it again.
+    The secret sheet stays the one way a secret goes For the stick.
+25. **A write leaves a receipt** (owner, 2026-10-10; `docs/SIMPLIFY.md`
+    §4.3). When a stick visit's write is answered, what it sent leaves
+    For the stick and becomes the receipt, shown under For the stick as
+    "Written to {label} at {time}" with a row per file, "verified" or why
+    not. It is kept across a lock until power-off and replaced by the
+    next write; nothing on it is written again. A vault written stays in
+    Files as the stick now holds it. With nothing loaded, Home leads with
+    "Written to {label}" and the file names, opening Files; a backup
+    checklist item counts a file on the receipt as done.
+26. **A vault's currency** (owner, 2026-10-10; `docs/SIMPLIFY.md` §3.5).
+    Each vault file reads one of three states, computed from the
+    receipt: "Never written" (sealed For the stick, on no receipt), "On
+    {label} · current" (the receipt wrote the bytes it has now),
+    "Changed since written" (open with unsaved changes, or sealed bytes
+    that differ). It leads the vault's Vaults row; a changed vault makes
+    Home lead with "Write {name} to a stick" and the session strip read
+    Write out.
 
 ## Home
 
@@ -208,7 +244,7 @@ file copied in loads when the stick is pulled). **Scan** floats in the
 bottom-right corner of Home on every panel → the scanner (with a stick
 in, the sheet asks for it to be pulled first). Home's Scan takes a seed
 too: a SeedQR, a CompactSeedQR or a seed's words go to Add a key and are
-added as **Scan a SeedQR** adds them, never into Files or the Inbox; a
+added as **Scan a SeedQR** adds them, never into Files; a
 private key or xprv is named, since Add a key does not take one. The
 Wallets tab
 carries **Add a key** beside Create a wallet and Load or restore a wallet.
@@ -223,7 +259,7 @@ from the seeds card returns to Wallets with the key still loaded.
 ## Session
 
 **Boot.** Firmware loads the system → the boot medium's data partition
-copied into memory: vault files into the Inbox, every other file held
+copied into memory: vault files into From the stick, every other file held
 apart for the import, a PNG as what its QR codes hold → the import sheet
 over Home: what was copied, **Remove the stick** (Pi: **Remove the SD
 card**) → the
@@ -231,7 +267,7 @@ moment no removable partition remains, the same sheet:
 - each vault from the medium → **Unlock** → the Unlock screen → back to
   the sheet, with the vault's wallets and keys added;
 - the wallets found, once each, ticked, each with whether it can sign
-  here; the keys no wallet uses, ticked; every file for the Inbox, PSBTs
+  here; the keys no wallet uses, ticked; every file for Files, PSBTs
   and vaults ticked;
 - **Import** → the chosen wallets, keys and files in; the rest wiped →
   Home;
@@ -242,7 +278,7 @@ moment no removable partition remains, the same sheet:
   session).
 
 **Unlock.** Choose a vault (its memory need shown first) → passphrase →
-- opens → Home, or the Inbox's next step (decision 3);
+- opens → Home, or the next step of what is in Files (decision 3);
 - wrong passphrase → stays, says so; no lockout (an offline copy can be
   attacked without the device anyway);
 - needs more memory than is free → said before the passphrase field;
@@ -251,9 +287,9 @@ moment no removable partition remains, the same sheet:
   when the stick goes.
 
 **Lock** (sidebar, Home's vault card, a vault's page, or 5 minutes idle) →
-vaults sealed into the Outbox → the Wallets session wiped → app restarts → Unlock.
-After 10 more idle minutes with an empty Outbox, power off; with anything
-in it, stay on Unlock and list what is waiting.
+vaults sealed For the stick → the Wallets session wiped → app restarts → Unlock.
+After 10 more idle minutes with nothing For the stick, power off; with
+anything there, stay on Unlock and list what is waiting.
 
 **Power off** → decision 5 → off.
 
@@ -275,27 +311,28 @@ visit** directly.
 
 **Stick visit** (one screen, both directions):
 - **Write to the stick**: chosen files written, read back, compared:
-  the Outbox's, then the Inbox's under **From the Inbox** (below).
-  A sealed vault replaces the file with its identity, or is written
+  those For the stick, then those from it under **From the stick** (below).
+  What is written and matched leaves For the stick for the receipt
+  (decision 25). A sealed vault replaces the file with its identity, or is written
   under its own name (`name.ofv`, `name-2.ofv` when the stick has one;
   `docs/VAULT.md` §6) where there is none. A failed comparison
-  leaves the file in the Outbox and says which. The first row is the
-  settings, `faraday-settings.txt`, which is not an Outbox file: ticked
+  leaves the file For the stick and says which. The first row is the
+  settings, `faraday-settings.txt`, which is not a file For the stick: ticked
   on the boot stick when the settings differ from what the boot stick
   holds, unticked on any other stick, and written over the settings
   file already there.
-- **From the Inbox**: every Inbox file the stick shown does not hold
-  already (by name and size), unticked, written from the Inbox, where it
+- **From the stick**: every file copied in that the stick shown does not
+  hold already (by name and size), unticked, written from Files, where it
   stays for the next stick: a copy from one stick to another, one after
   the other or both in at once. A public or sealed file is ticked like
-  an Outbox file, and Select all ticks it. A secret kind (words, seed
+  a file For the stick, and Select all ticks it. A secret kind (words, seed
   parts, entries, a carry file), text and a file Faraday does not read
   open the secret sheet instead, never ticked by Select all: text, words,
   seed parts and entries may go into the open vault as a note; past the
   line ("Faraday cannot tell whether this is a secret" for text and
-  other files) **Tick it to write** ticks the row. Nothing goes to the
-  Outbox. A picture is what its codes hold.
-- **Copy into the Inbox**: chosen files, any of them; a file Faraday
+  other files) **Tick it to write** ticks the row. Nothing goes For the
+  stick. A picture is what its codes hold.
+- **Copy from the stick**: chosen files, any of them; a file Faraday
   reads as nothing it knows comes in as a File, for **Sign a file** or
   QR **Send**, and is dropped at a lock. A vault file copied in appears
   on Vaults, locked. A
@@ -310,13 +347,14 @@ visit** directly.
   nothing was locked.
 
 **A stick pulled during a write** → the write is reported failed, the file
-stays in the Outbox, and the visit screen says to put the stick back.
+stays For the stick, and the visit screen says to put the stick back.
 
 ## Vaults
 
-**Vaults overview**: each vault in memory with its state (open, locked,
-not written yet) and source; an open one with its size and cost, a
-locked one with what it held when last seen open (decision 23);
+**Vaults overview**: each vault in memory with its state (open, locked)
+and its currency (never written, on a stick and current, or changed
+since written; decision 26) and source; an open one with its size and
+cost, a locked one with what it held when last seen open (decision 23);
 **Create a vault** at the top.
 - open vault → **Open** → Vault contents;
 - locked vault → **Unlock** → passphrase sheet → Vault contents.
@@ -326,8 +364,8 @@ locked one with what it held when last seen open (decision 23);
 **Create a vault** (step cards: Size, then Name and passphrases;
 **Customise** puts where it opens, unlock cost and space per passphrase
 in Size's place; decision 21) → **Create vault** → Unlock with the new
-vault picked, "Type the passphrase once more to open it", sealed copy in
-the Outbox → **Unlock** → Vault contents, "Nothing in it yet", **Put a
+vault picked, "Type the passphrase once more to open it", sealed copy
+For the stick → **Unlock** → Vault contents, "Nothing in it yet", **Put a
 wallet in it** (Wallets) and **Write it to a stick** (Files), with
 **Add…** listing an Add action per kind (decision 22). Opened from a
 flow that needs a vault (decision 10), it shows "Then: {flow}" by its
@@ -338,7 +376,7 @@ details.
 - **Add an entry** → form (title, username, password with **Generate with
   dice**, URL, notes, TOTP secret typed or **Scan**) → saved → the entry
   selected in the list; vault marked unsaved.
-- **Import entries** (from an Inbox file) → preview: entries found, lines
+- **Import entries** (from a file in Files) → preview: entries found, lines
   skipped with the reason → choose the vault → import → Entries list.
 - **Edit** → the same form → back to the item.
 - **Hold to delete from vault** → gone; the next item selected.
@@ -367,7 +405,10 @@ guarantees for this file's rule:
   wallet opens **Load the wallet**.
 - **Signing ends on two results**, the signed PSBT for the wallet that wrote
   the transaction and the finished transaction with its txid, each shown as
-  a code and offered to the Outbox ("Insert a stick to write it").
+  a code and put For the stick the moment the transaction is finished
+  (decision 24): Finish's primary is **Insert a stick to write it**
+  (opening Files), or **Open Files** with a stick in, and each result's
+  card carries **Remove** while it waits.
 - **Anything added in a session offers Save to vault**, and locking lists
   what was not saved.
 - **Creating a wallet ends in Backup and Save**, never on the descriptor
@@ -386,11 +427,11 @@ guarantees for this file's rule:
   spend", "One place found: sees the balance", qualified "with the
   vault's passphrase" where the vault is what decides it. **Make the
   checklist** replaces the questions with only the items the plan needs,
-  each done by what it does (a file in the Outbox, a seed or the wallet
+  each done by what it does (a file For the stick or written, a seed or the wallet
   in the vault, a copy matched, the descriptor shown); the envelopes
   alone by **Done**. A place's name lives only in the vault (record
   type 11, `docs/VAULT.md` §7), which the next backup of the wallet
-  starts from; no file, sheet, PDF, PNG or Outbox item holds one, and
+  starts from; no file, sheet, PDF or PNG holds one, and
   the blank template carries empty "Place ____ holds ____" lines
   instead. On a small panel: one question per page, the map as the
   plan's last page and in the envelopes item.
@@ -405,7 +446,7 @@ guarantees for this file's rule:
   with its item's state; the copy page on a small panel lists the wallet (in which open vault, or
   not in one) and every key of the wallet by fingerprint: in which open
   vault, whether its copy by hand was checked, whether its file is in
-  the Outbox unprotected, or not here (backed up on its own device). With
+  For the stick unprotected, or not here (backed up on its own device). With
   vault files and none open, it says the vaults were not checked.
 - **Any loaded wallet backs up again, with every file on offer**
   (owner, 2026-10-09; `docs/WALLETS.md` §5). Entries: the wallet's card
@@ -428,25 +469,26 @@ guarantees for this file's rule:
   descriptor's checksum and "Public: watch only, spends nothing" under
   it. Past one code (version 25 at ECL M) it goes as the BBQr parts the
   QR view makes, `{name}-descriptor-1-of-3.png` and on, each labelled
-  with its part. **Shares to the Outbox** writes each split share's
+  with its part. The shares item makes each split share's
   `{name}-share-k-of-n.png` beside its PDF and text: the share's text as
   one code, labelled with the share's number and quorum, the keys it
   holds and leaves off, and "Not a wallet on its own". A scan of a share
   picture comes back as the share, and Restore takes any quorum of them.
 - **Every public file a flow makes as a code and a picture**
-  (2026-10-09; `docs/QR.md` §4 item 4). Beside a file's **To the
-  Outbox** sit **Show as QR** and **PNG** where a wallet or a person
+  (2026-10-09; `docs/QR.md` §4 item 4). Beside a file's row, For the
+  stick with **Remove** (decision 24), sit **Show as QR** and **PNG** where a wallet or a person
   reads it from a code: the backup's public files item (descriptor,
   multisig config, BSMS descriptor record, each key held here and its
-  BSMS key record), Create's Keys card (**Show xpub QR**, **Xpub PNG to
-  the Outbox**, **Xpub file to the Outbox** under each key held here),
+  BSMS key record), Create's Keys card (**Show xpub QR**, **Xpub PNG for
+  the stick**, **Xpub file for the stick** under each key held here),
   Sign a message
-  (**Put in the Outbox**, **Show as QR**, **PNG to the Outbox**) and
-  Silent payments (**Record to the Outbox**, **Record as QR**, **Record
-  as PNG**). The QR sheet carries **PNG to the Outbox** (**PNG** beside
+  (the message file For the stick as it is signed, **Show as QR**, **PNG
+  for the stick**) and
+  Silent payments (**Record for the stick**, **Record as QR**, **Record
+  as PNG**). The QR sheet carries **PNG for the stick** (**PNG** beside
   the format on a small panel) whenever it shows one code of public
   content; a row's **PNG** is that button without the sheet, and says
-  "{name} is in the Outbox". Labels under the code: `Key {fp} · {kind}
+  "{name} waits for the stick". Labels under the code: `Key {fp} · {kind}
   · {path}` for a key, `Silent payment address · {fp}` for the silent
   payments address and record, `Signed by {address}` for a message, the
   wallet's shape and keys for its files. A file past one code says so
@@ -473,8 +515,8 @@ cosigners' xpubs, the kind and the path; or the description by camera or
 from Files) → check the money in
 Sparrow → write the payment in Sparrow → bring the PSBT (camera, or a
 stick: the lock cycle, after which the tab opens on the same page) → the
-spend's own steps → **Put everything away** (lock, the Outbox to a
-stick, power off). Every page that cannot be reached yet sends the
+spend's own steps → **Put everything away** (lock, what waits for the
+stick written to it, power off). Every page that cannot be reached yet sends the
 person to the one that comes first.
 
 ## OpenSigner tab (kept for now)
@@ -482,8 +524,8 @@ person to the one that comes first.
 OpenSigner's own screens and flows, unchanged. From a vault, **Open in
 OpenSigner** on a Bitcoin key runs OpenSigner's load flow with the key
 already supplied, ending on its key page. Its encrypted-backup export
-offers **Import into a vault**; its PSBTs and public exports go to the
-Outbox ("Insert a stick to write it").
+offers **Import into a vault**; its PSBTs and public exports go For the
+stick ("Insert a stick to write it").
 
 ## GPG
 
@@ -493,8 +535,9 @@ file) or "Unlock a vault first" and leads into Create a vault or Unlock,
 which come back to the vault's GPG keys (decision 10).
 
 **Make a key** (step cards: name and email, expiry, vault) → created →
-result: fingerprint, **Export public key** (code or Outbox),
-**Revocation certificate** (Outbox, with the note that it should be kept
+result: fingerprint, the public key and the revocation certificate
+For the stick as the key is made (decision 24), **Export public key**
+(code, or the file again), **Revocation certificate** (again, with the note that it should be kept
 apart from the key), **Paperkey backup** (shown; a hold to reveal) → the
 key's page in Vault contents. The public key and the revocation each
 have **Show as QR** and **PNG** on their row: `{name}-{fp8}.png` with the
@@ -502,13 +545,13 @@ user ID and fingerprint under the code, and
 `{name}-{fp8}-revocation.png` labelled "Revokes {user ID}" (an Ed25519
 certificate is one code, about 700 bytes armoured).
 
-**Sign a file** → choose an Inbox file → choose the key → detached
-signature to the Outbox → "Insert a stick to write it". Each file's row
+**Sign a file** → choose a file copied in → choose the key → detached
+signature For the stick → "Insert a stick to write it". Each file's row
 also shows the signature as a code (**Show as QR**) or writes it as
-`{file}-signature.png` (**PNG**). No Inbox file: "Copy the file in on a
+`{file}-signature.png` (**PNG**). No file copied in: "Copy the file in on a
 stick visit first."
 
-**Renew** → new expiry → updated public key to the Outbox.
+**Renew** → new expiry → updated public key For the stick.
 
 ## Secure Boot
 
@@ -518,13 +561,13 @@ keys** tile leads into Create a vault or Unlock and back, as GPG's does;
 
 **Make keys** → PK, KEK, db generated into the vault → Secure Boot screen.
 
-**Enrolment files** → policy (Windows-compatible or own keys only) → **Put
-in Outbox** → Learn page: enrolling in the firmware's setup screen.
+**Enrolment files** → policy (Windows-compatible or own keys only) → the
+files For the stick → Learn page: enrolling in the firmware's setup screen.
 
-**Sign `BOOTX64.EFI`** → needs the file in the Inbox (none: "Copy
+**Sign `BOOTX64.EFI`** → needs the file copied in (none: "Copy
 BOOTX64.EFI in from a stick first", with what a stick visit is) → build
 record match → fingerprint compared through another channel → **Sign with
-db** → signed file to the Outbox → Learn page: copying it onto the boot
+db** → signed file For the stick → Learn page: copying it onto the boot
 partition on another computer.
 
 **Check a signature** → result against the vault's db certificate.
@@ -532,8 +575,8 @@ partition on another computer.
 ## QR transfer tab
 
 On the device this is Files and Scan, already: Files' **Show as QR**
-sends an Inbox or Outbox file as codes (format, frame rate, part size,
-progress, **Done**), and **Scan** receives into the Inbox, routed by
+sends a file in Files as codes (format, frame rate, part size,
+progress, **Done**), and **Scan** receives into Files, routed by
 `docs/QR.md` §2.
 
 **Transfer**, in the desktop app only (the online Faraday; never on the
@@ -550,7 +593,7 @@ file saved into `~/Downloads` under its own name (envelope) or
 `received-N.psbt` / `.txt`, never over a file ("name (2).ext") → "Saved
 {path}", or "Saved {path}: this file holds a secret" for words, a
 SeedQR, seed parts, entries or a carry file → the camera stays on for
-the next → **Cancel**. Nothing goes into the desktop app's Inbox; a file
+the next → **Cancel**. Nothing goes into the desktop app's Files; a file
 to use in the desktop Faraday is copied in from a stick folder.
 
 ## New devices and settings

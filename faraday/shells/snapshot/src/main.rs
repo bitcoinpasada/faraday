@@ -537,9 +537,9 @@ fn run(
     t.press(Action::QrSigned);
     t.shot("qr-signed-psbt")?;
     t.press(Action::Cancel);
-    t.press(Action::Primary);
+    // Finish put both files For the stick; the primary opens Files.
     t.shot("spend-in-outbox")?;
-    t.press(Action::Nav(Screen::Files));
+    t.press(Action::Primary);
     t.shot("files-outbox")?;
     // A single-key spend: no signers or signatures steps.
     let single = t
@@ -873,8 +873,8 @@ fn run(
     t.shot("backup-plan")?;
     t.press(Action::BPreset(0));
     t.press(Action::BChecklist);
+    t.press(Action::BStep(bstep::BLANK));
     t.shot("backup-blank")?;
-    t.press(Action::BOut(0));
     t.press(Action::BNext(bstep::BLANK));
     t.press(Action::BReveal);
     t.shot("backup-seed")?;
@@ -895,20 +895,18 @@ fn run(
     }
     t.press(Action::BCheck);
     t.press(Action::BStep(bstep::SHEETS));
-    t.press(Action::BOut(4));
     t.shot("backup-split")?;
     t.press(Action::BStep(bstep::ENVELOPE));
     t.shot("backup-envelope")?;
-    // Every item done: what is in the Outbox, and the way to a stick.
+    // Every item done: what waits for the stick, and the way to one.
     t.press(Action::BNext(bstep::ENVELOPE));
     t.shot("backup-done")?;
     t.press(Action::WriteAsk);
     t.shot("backup-write-out")?;
     t.press(Action::Cancel);
-    // The sheets go to the Outbox as PDFs; written beside the shots for
-    // a look.
+    // The sheets went For the stick as PDFs with the checklist; written
+    // beside the shots for a look.
     t.press(Action::Backup(0));
-    t.press(Action::BOut(0));
     t.press(Action::BOut(3));
     for name in ["blank-template-24-words.pdf", "savings-backup.pdf"] {
         let item = t
@@ -2373,14 +2371,15 @@ fn scroll_to(t: &mut Tour, action: Action) {
 fn public_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::Code;
     t.load_kit()?;
-    // A signed message: to the Outbox, as a code, as a picture.
+    // A signed message: For the stick as it is signed, as a code, as a
+    // picture.
     t.press(Action::SignMessage);
     if let Some(m) = t.app.message.as_mut() {
         m.text = "Faraday signs this".to_string();
     }
     t.press(Action::MSign);
     t.press(Action::MStep(faraday_core::mstep::SIGN));
-    scroll_to(t, Action::MOut);
+    scroll_to(t, Action::MQr);
     t.shot("public-message")?;
     t.press(Action::CodePng(Code::Message));
     // Silent payments: the record beside the address.
@@ -2831,9 +2830,7 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
         t.shot("plan-map-two-of-three")?;
     }
     t.press(Action::BChecklist);
-    t.press(Action::BOut(0));
     t.press(Action::BStep(bstep::SHEETS));
-    t.press(Action::BOut(4));
     t.shot("plan-checklist-part-done")?;
     t.press(Action::BStep(bstep::ENVELOPE));
     t.shot("plan-envelopes")?;

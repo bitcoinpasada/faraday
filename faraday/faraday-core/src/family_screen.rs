@@ -549,9 +549,9 @@ fn summary(app: &Faraday, id: CardId) -> String {
         }
         CardId::Page(page::AWAY) => {
             return match app.outbox.len() {
-                0 => "Outbox empty".to_string(),
-                1 => "1 file in the Outbox".to_string(),
-                n => format!("{n} files in the Outbox"),
+                0 => format!("Nothing waits {}", app.medium.for_the()),
+                1 => format!("1 file {}", app.medium.for_the()),
+                n => format!("{n} files {}", app.medium.for_the()),
             };
         }
         CardId::Page(_) => "",
@@ -820,7 +820,7 @@ fn vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             if on { ACCENT } else { MUTED },
         );
         let where_ = if f.in_outbox {
-            "Sealed here, in the Outbox".to_string()
+            format!("Sealed here, {}", app.medium.for_the())
         } else {
             format!("Copied in from {}", app.medium.a())
         };

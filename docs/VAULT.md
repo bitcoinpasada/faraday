@@ -223,8 +223,8 @@ Sealing writes the vault back to memory as a file:
   unused slot from one that another passphrase opens, so it never
   rewrites, re-randomises or clears one.
 
-Sealing happens on every lock (`PLAN.md` §5.3). The sealed file goes to
-the Outbox.
+Sealing happens on every lock (`PLAN.md` §5.3). The sealed file goes
+For the stick (Files' half that a stick visit writes).
 
 ## 6. Writing back
 
@@ -247,6 +247,17 @@ stick visit:
 4. FAT has no atomic replace. If a visit finds a new file that reads back
    whole and no original, it completes step 3; if it finds both, it
    keeps the original and discards the new file.
+
+Once written and matched, the vault leaves For the stick and stays in
+Files as the stick now holds it, and the visit's receipt keeps the
+SHA-256 of the bytes written (owner, 2026-10-10; `docs/SIMPLIFY.md`
+§4.3). The receipt is kept across a lock under the key `receipt` and is
+gone at power-off. From it each vault file's currency is computed,
+never stored (§3.5): **Never written** (sealed For the stick, on no
+receipt), **On {label} · current** (the receipt wrote the bytes it has
+now), **Changed since written** (open with unsaved changes, or sealed
+bytes that differ from the receipt's). A vault copied in, unchanged and
+on no receipt, reads none of the three.
 
 ## 7. Slot contents
 

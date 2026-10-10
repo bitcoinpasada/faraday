@@ -99,7 +99,7 @@ SeedSigner and a Coldcard. The Wallets tab's central object is therefore a
 |---|---|
 | **A vault holding a wallet and one of its keys** | At unlock the wallet loads into the Wallets tab with its key attached. The card opens at "1 of 2 signatures possible here." Nothing to do. |
 | **A key with no wallet** (from a vault, or added on its own) | Listed under **Keys without a wallet**. With no wallet loaded the card offers **Make a wallet from this key** (Restore's seeds card with the key in, at 1 of 1, native SegWit, account 0), **Add another key** (the same at 2 keys) and **Load or restore a wallet**; with wallets loaded the key's row carries **Make a wallet from this key**. |
-| **A wallet description arriving** (scan, file, Inbox; any form in §3.2) | The Wallets tab derives each vault key's account key at the descriptor's paths and compares, attaches every match, and marks the rest watch-only. "This wallet uses 73c5da0a from Main" says which matched. **Save the wallet to a vault** is offered. |
+| **A wallet description arriving** (scan, file, Files; any form in §3.2) | The Wallets tab derives each vault key's account key at the descriptor's paths and compares, attaches every match, and marks the rest watch-only. "This wallet uses 73c5da0a from Main" says which matched. **Save the wallet to a vault** is offered. |
 | **Pieces of a description** (split sheets, key lines, a partial config, SeedSigner exports one at a time) | The card exists from the first piece, with the quorum unknown or stated, and lists fingerprints in hand and still missing. It completes when the last piece arrives. Overlapping pieces deduplicate. |
 | **Seed words alone** (one list or several, perhaps a line like "2 of 3", no description) | Restore › The wallet › **Type the seeds** opens The seeds in seeds-first mode (the Spend tab's words route has the same piece, `seeds.rs`). Each seed goes in through Add a key, which returns to the card: the seeds by fingerprint, **Add another key**, Scan a SeedQR, a seed from an open vault, a seed already loaded, and **Make the wallet**. That leads to the shape: M of N on two sliders (keys from the seeds in hand to 15, signatures from 1 to that; tap, drag or the arrow keys), an account key for each cosigner whose seed is not here (Scan, a key file in Files, or typed: `xpub`, `zpub`, `Zpub`, `tpub`, with or without origin), the kind (several keys: native SegWit multisig by default, nested, legacy at m/45', Taproot `sortedmulti_a`; one key: native SegWit by default, Taproot, nested, legacy), the path (the kind's standard path with an account number, or a custom path) and the first address. **Make the wallet** builds the descriptor Create a wallet writes (`create.rs`) over the seeds' keys at that path, loads it with the seeds in their slots, and opens Check. |
 | **A transaction arriving first** | The Wallets tab reads its key origins and finds the wallet it belongs to among loaded wallets, then among vault keys. "This transaction spends from Savings; you can sign with 73c5da0a." With no wallet known, it can still sign from the PSBT's own key origins, but change cannot be verified, and the review says so and offers **Load the wallet**. |
@@ -130,10 +130,10 @@ is a list of them.
 | **Load** | A wallet in any form (§3.2). Builds the wallet card, routing itself to the right kind. |
 | **Signers** | The wallet card's slots, filled for signing (§2). |
 | **Check** | First addresses, receive and change; the wallet as a QR for the online wallet (one code or animated, by the plan in §3.2); **Is this address mine?**. |
-| **Transaction** | A PSBT by scan, Inbox file or typing. The review in sentences with the full table one choice away; every warning from one function, never softened for guided mode (§3.3). |
+| **Transaction** | A PSBT by scan, a file in Files or typing. The review in sentences with the full table one choice away; every warning from one function, never softened for guided mode (§3.3). |
 | **Txid** | The transaction id before anyone signs, for native SegWit and Taproot spends; refused for legacy and P2SH-wrapped inputs, whose id changes on signing. |
 | **Sign** | Signs with every key held, producing one partly signed PSBT per key, the form separate devices would give. |
-| **Collect** | **Signatures for this transaction**: cosigners' PSBTs by scan, file or Inbox. Each signature is verified against its key and this transaction's sighash; a PSBT for another transaction is refused, never merged. The collection belongs to the transaction, so reviewing again keeps it. |
+| **Collect** | **Signatures for this transaction**: cosigners' PSBTs by scan, file or Files. Each signature is verified against its key and this transaction's sighash; a PSBT for another transaction is refused, never merged. The collection belongs to the transaction, so reviewing again keeps it. |
 | **Finish** | Two results: the **signed PSBT**, not finalised, for the wallet that wrote it (`ur:crypto-psbt`); and the **finished transaction** with its txid in a box of its own and **Decode this transaction**. Finalising may fail one signature short; the signed PSBT is shown anyway, labelled with what is still missing. |
 | **Agree** | Paste another device's signed PSBT; compare the signatures byte for byte: **identical** or **differs**, with both shown. |
 | **Backup** | The four steps of §5. |
@@ -180,7 +180,7 @@ non-cryptographic and live in `faraday-core`:
   a vault open it is also sealed into that vault (on by default, a setting),
   so it survives power-off. Decided 2026-10-04.
 - **Add the previous transactions**: raw transactions typed, scanned or
-  read from the Inbox, each kept only if it hashes to an outpoint being
+  read from Files, each kept only if it hashes to an outpoint being
   spent. It opens itself when the transaction needs it.
 - **Anything other than `SIGHASH_ALL`** stops, and those inputs are refused.
 - Fee, dust, network, unknown paths and the deterministic nonce check, as
@@ -337,8 +337,9 @@ means is in Learn's Backups page.
 **3. The checklist**, the plan made (**Make the checklist**): only the
 items the plan needs, each done by what it does, never by a tap:
 
-1. **Print N blank templates** (one per paper copy of a seed): done
-   when the template is in the Outbox. The template holds no secret
+1. **Print N blank templates** (one per paper copy of a seed): made For
+   the stick with the checklist, again when the word count changes; done
+   while it is For the stick or on the last visit's receipt. The template holds no secret
    (numbered word lines, path, network, the SeedQR grid's fixed
    squares) and a second page of empty lines, "Place ____ holds ____",
    one per place, filled in by hand; nothing of the plan is printed.
@@ -359,7 +360,7 @@ items the plan needs, each done by what it does, never by a tap:
    understand: anyone who copies the stick or sees this file can spend
    these coins" is ticked, the words (`{wallet}-{fp}-words.txt`) or the
    SeedQR as a labelled PNG (`{wallet}-{fp}-seedqr.png` or
-   `-compactseedqr.png`) go to the Outbox under Unprotected secrets,
+   `-compactseedqr.png`) go For the stick under Unprotected secrets,
    unticked on a stick visit; never the passphrase. Done when each
    seed's file is there.
 5. **Save the wallet into {vault}**: done when an open vault holds it.
@@ -367,23 +368,28 @@ items the plan needs, each done by what it does, never by a tap:
    split, **The shares**: each sheet omits at most M−1 keys, so any
    quorum rebuilds and no one share watches, with the measured minimum
    rebuild group; each share as its PDF, its text and
-   `{name}-share-k-of-n.png`. Done when it is in the Outbox.
+   `{name}-share-k-of-n.png`. Made For the stick with the checklist,
+   with **Remove**; done while it is For the stick or on the receipt.
 7. **The public files** for the software and form chosen, drawn from
    the wallet (descriptor, wallet file, multisig config, BSMS record,
    Bitcoin Core's import), with each key whose seed is here
-   (`xpub-{fp}.txt` and its BIP 129 record) for the cosigners: done
-   when each chosen file is in the Outbox.
+   (`xpub-{fp}.txt` and its BIP 129 record) for the cosigners. The
+   files the plan chose are made For the stick the moment the checklist
+   is made (2026-10-10, `docs/SIMPLIFY.md` §4.2); each row reads "For the
+   stick" with **Remove**, or "Written to {label}" once a visit wrote
+   it, and **Make the file** where it is neither. Done when each chosen
+   file is For the stick or on the receipt.
 8. **Show the descriptor to the software**: the descriptor as one code
    or animated (`QrWallet`); done once shown.
 9. **One envelope per place**, listing what goes in it: done by
    **Done**, the one thing the device cannot see.
 
 Under the list, **Change the plan** goes back to the questions. With
-every item done, "Backup done", the Outbox count, **Write to a stick**,
-**Open the Outbox**. On the side panel each line of the map carries its
+every item done, "Backup done", the count of files for the stick,
+**Write to a stick**, **Open Files**. On the side panel each line of the map carries its
 item's state, a dot in OK once done. The small panel's copy page keeps
 the per-seed lines of `Faraday::backup_kept` (in which vault, copy
-checked, a file in the Outbox unprotected, not here).
+checked, a file for the stick unprotected, not here).
 
 **Place names: in the vault only** (owner). A place may be named ("Home
 safe") only with a vault open; the plan is then saved into it as record
@@ -391,7 +397,7 @@ type 11, "Backup plan" (`docs/VAULT.md` §7: the wallet, the answers,
 each place's name, what each holds), when the checklist is made, over
 the one it kept for that wallet, and the next backup of the wallet with
 the vault open starts from it rather than the presets. A name is shown
-on screen and never put in any file, sheet, PDF, PNG or Outbox item.
+on screen and never put in any file, sheet, PDF or PNG.
 Without a vault the places are "Place 1", "Place 2". There is no
 printed map: where things are is sensitive.
 

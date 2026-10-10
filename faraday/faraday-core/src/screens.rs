@@ -592,7 +592,7 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
         Action::Nav(Screen::Wallets),
     );
     fy += gap;
-    let files = format!("{} in · {} out", app.inbox.len(), app.outbox.len());
+    let files = app.files_count();
     if app.screen == Screen::Files {
         ui.fill(
             16.0,
@@ -724,10 +724,20 @@ pub(crate) fn home_lead(app: &Faraday) -> (Icon, String, String, Action, bool) {
             )
         };
     }
-    // Rule 4 (a receipt from this power-on's last stick visit and
-    // nothing loaded, §4.3) goes here.
-    // Rule 5: a locked vault file and nothing loaded.
+    // Rule 4: a receipt from this power-on's last stick visit, and
+    // nothing loaded.
     let fresh = !app.holds_secret() && app.session.wallets.is_empty();
+    if fresh && let Some(r) = app.receipt.as_ref() {
+        let names: Vec<&str> = r.files.iter().map(|f| f.name.as_str()).collect();
+        return (
+            Icon::Done,
+            format!("Written to {}", r.label),
+            names.join(", "),
+            Action::Nav(Screen::Files),
+            true,
+        );
+    }
+    // Rule 5: a locked vault file and nothing loaded.
     if fresh {
         let files = app.vault_files();
         if let Some(i) = files.iter().position(|f| f.open.is_none()) {
@@ -756,7 +766,16 @@ pub(crate) fn home_lead(app: &Faraday) -> (Icon, String, String, Action, bool) {
             );
         }
     }
-    // Rule 6 (a vault changed since written, §3.5) goes here.
+    // Rule 6: a vault changed since it was written.
+    if let Some(name) = app.vault_changed() {
+        return (
+            Icon::Export,
+            format!("Write {name} to {}", app.medium.a()),
+            crate::vaults::Currency::Changed.line(),
+            Action::Nav(Screen::Files),
+            true,
+        );
+    }
     // Rule 7: otherwise.
     (
         Icon::Wallet,
@@ -1312,7 +1331,15 @@ fn inbox_panel(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     ui.card(x, y, w, h, LINE);
     ui.icon(x + 20.0, y + 18.0, 20.0, Icon::Download, 13.0, ACCENT);
-    ui.text_mid(x + 48.0, y + 14.0, 28.0, 15.0, W::S, TEXT, "From the Inbox");
+    ui.text_mid(
+        x + 48.0,
+        y + 14.0,
+        28.0,
+        15.0,
+        W::S,
+        TEXT,
+        app.medium.from_box(),
+    );
     let mut ty = y + 52.0;
     let may = app.may_load_keys();
     if !wallets.is_empty() {
@@ -3187,15 +3214,12 @@ fn spend_status(app: &Faraday, needed: usize) -> (usize, usize, String, String) 
     let carry = threshold.is_some() && (s.carry_out.is_some() || s.out_signed) && !s.complete;
     let need_line = if carry {
         if s.out_signed {
-            "Carry file in the Outbox · the next share signs with it".to_string()
+            "Carry file kept · the next share signs with it".to_string()
         } else {
             "The next share signs with the carry file".to_string()
         }
     } else if s.spend.finished.is_some() && s.out_signed && s.out_tx {
-        format!(
-            "Both in the Outbox · insert {} to write them",
-            app.medium.a()
-        )
+        format!("Both wait {}", app.medium.for_the())
     } else if missing == 0 {
         "Complete".to_string()
     } else if threshold.is_some() && !can_sign_here.is_empty() && missing > 1 {
@@ -3215,13 +3239,14 @@ fn spend_status(app: &Faraday, needed: usize) -> (usize, usize, String, String) 
         if s.out_signed {
             "Open Files".to_string()
         } else {
-            "Carry file to the Outbox".to_string()
+            "Keep the carry file".to_string()
         }
     } else if s.spend.finished.is_some() {
-        if s.out_signed && s.out_tx {
-            "Open Files".to_string()
+        // Both went For the stick at Finish: the next step is writing.
+        if app.sticks.is_empty() {
+            format!("Insert {} to write it", app.medium.a())
         } else {
-            "Put both in the Outbox".to_string()
+            "Open Files".to_string()
         }
     } else if missing == 0 {
         "Finish".to_string()
@@ -4064,6 +4089,8 @@ pub(crate) fn step_body(
                 }
             }
             if !complete {
+                let part = format!("{}-part.psbt", crate::result_stem(&s.spend.source));
+                cy += made_line(app, ui, x, cy, w, &part);
                 cy += wrap_buttons(
                     ui,
                     x,
@@ -4071,11 +4098,6 @@ pub(crate) fn step_body(
                     w,
                     38.0,
                     &[
-                        (
-                            "Put the PSBT in the Outbox",
-                            Style::Secondary,
-                            Action::PartToOutbox,
-                        ),
                         ("Show as QR", Style::Secondary, Action::QrPart),
                         ("Scan a copy", Style::Secondary, Action::Scan),
                     ],
@@ -4112,9 +4134,9 @@ pub(crate) fn step_body(
             let name = format!("{}-partly-signed.osk", crate::result_stem(&s.spend.source));
             ui.text(x + 14.0, cy + 62.0, 12.0, W::M, TEXT, &name);
             let (label, style) = if s.out_signed {
-                ("In the Outbox", Style::Disabled)
+                ("Kept", Style::Disabled)
             } else {
-                ("Put in the Outbox", Style::Secondary)
+                ("Keep it", Style::Secondary)
             };
             ui.button(
                 x + 14.0,
@@ -4152,17 +4174,18 @@ pub(crate) fn step_body(
                 let compact = ui.compact;
                 let half = if compact { w } else { (w - 12.0) / 2.0 };
                 let mut card_y = cy;
-                for (k, (head, sub, outed, action)) in [
+                let stem = crate::result_stem(&s.spend.source);
+                for (k, (head, sub, file, action)) in [
                     (
                         "Signed PSBT",
                         "For the wallet that wrote it · not finalised",
-                        s.out_signed,
+                        format!("{stem}-signed.psbt"),
                         Action::SignedToOutbox,
                     ),
                     (
                         "Finished transaction",
                         "Ready to broadcast",
-                        s.out_tx,
+                        format!("{stem}-final.txn"),
                         Action::TxToOutbox,
                     ),
                 ]
@@ -4174,10 +4197,12 @@ pub(crate) fn step_body(
                     } else {
                         (x + k as f32 * (half + 12.0), cy)
                     };
-                    let (label, style) = if *outed {
-                        ("In the Outbox", Style::Disabled)
-                    } else {
-                        ("Put in the Outbox", Style::Secondary)
+                    // Made For the stick at Finish: Remove while it waits,
+                    // made again only when asked.
+                    let place = made_place(app, file);
+                    let (label, style, action) = match &place {
+                        Some((_, Some(i))) => ("Remove", Style::Ghost, Action::OutboxRemove(*i)),
+                        _ => ("Make again", Style::Secondary, *action),
                     };
                     // Where the buttons go: in a row when they fit.
                     let lw = ui.measure(13.0, W::S, label) + 32.0;
@@ -4210,7 +4235,7 @@ pub(crate) fn step_body(
                     };
                     let detail = ui.fit(12.0, W::M, &detail, half - 28.0);
                     ui.text(bx + 14.0, cy + 66.0, 12.0, W::M, TEXT, &detail);
-                    let bw = ui.button(bx + 14.0, by, Some(lw), 36.0, label, style, *action);
+                    let bw = ui.button(bx + 14.0, by, Some(lw), 36.0, label, style, action);
                     if k == 0 {
                         let (qx, qy) = if stacked {
                             (bx + 14.0, by + 44.0)
@@ -4227,8 +4252,8 @@ pub(crate) fn step_body(
                             Action::QrSigned,
                         );
                     }
-                    if *outed {
-                        ui.icon(bx + half - 34.0, by + 8.0, 20.0, Icon::Done, 12.0, OK);
+                    if let Some((t, _)) = &place {
+                        ui.text_right(bx + half - 14.0, cy + 14.0, 20.0, 12.0, W::S, OK, t);
                     }
                     card_y += card_h + 10.0;
                 }
@@ -4325,6 +4350,8 @@ pub(crate) fn step_body(
                 if !items.is_empty() {
                     cy += wrap_buttons(ui, x, cy, w, 36.0, &items) + 2.0;
                 }
+                let part = format!("{}-part.psbt", crate::result_stem(&s.spend.source));
+                cy += made_line(app, ui, x, cy, w, &part);
                 let others_in = rows.iter().filter(|r| !r.2).all(|r| r.3);
                 let mine_in = rows.iter().filter(|r| r.2).all(|r| r.3);
                 cy += wrap_buttons(
@@ -4333,14 +4360,7 @@ pub(crate) fn step_body(
                     cy,
                     w,
                     38.0,
-                    &[
-                        (
-                            "Put the PSBT in the Outbox",
-                            Style::Secondary,
-                            Action::PartToOutbox,
-                        ),
-                        ("Show as QR", Style::Secondary, Action::QrPart),
-                    ],
+                    &[("Show as QR", Style::Secondary, Action::QrPart)],
                 ) + 2.0;
                 if !others_in && !mine_in {
                     ui.button(
@@ -4650,7 +4670,12 @@ fn item_title(app: &Faraday, n: u8) -> (String, String) {
         ),
         Item::SeedFiles => (
             "The seeds as files".to_string(),
-            if done { "In the Outbox" } else { "Not made" }.to_string(),
+            if done {
+                app.medium.for_box()
+            } else {
+                "Not made"
+            }
+            .to_string(),
         ),
         Item::WalletVault => (
             format!("Save the wallet into {vault}"),
@@ -4666,7 +4691,7 @@ fn item_title(app: &Faraday, n: u8) -> (String, String) {
         Item::Sheets => (
             "The wallet sheet".to_string(),
             if done {
-                "In the Outbox"
+                app.medium.for_box()
             } else {
                 "A PDF to print"
             }
@@ -5310,7 +5335,7 @@ fn backup_done(app: &Faraday, ui: &mut Ui, from_create: bool, x: f32, y: f32, w:
         ));
     }
     items.push((
-        "Open the Outbox".to_string(),
+        "Open Files".to_string(),
         Style::Secondary,
         Action::Nav(Screen::Files),
     ));
@@ -5327,8 +5352,9 @@ fn backup_done(app: &Faraday, ui: &mut Ui, from_create: bool, x: f32, y: f32, w:
         ));
     }
     let line = format!(
-        "{n} {} in the Outbox · {} from this backup",
+        "{n} {} {} · {} from this backup",
         if n == 1 { "file" } else { "files" },
+        app.medium.for_the(),
         b.sent.len()
     );
     // Laid out first, so the card is drawn at its full height. On a small
@@ -5584,18 +5610,30 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 ) + 8.0;
             }
             cy += 52.0;
-            cy += buttons_and_next(
+            // Made For the stick with the checklist, and again for
+            // another length.
+            let file = format!("blank-template-{}-words.pdf", b.words);
+            let (state, button) = made_state(
+                app,
+                &file,
+                Some(Action::PublicRemove(b.wallet, 0)),
+                ("Make it", Action::BOut(0)),
+            );
+            cy += file_row(
                 ui,
                 x,
                 cy,
                 w,
-                &[(
-                    "Put the template in the Outbox",
-                    Style::Secondary,
-                    Action::BOut(0),
-                )],
-                Some(("Continue", Action::BNext(n))),
+                "Blank template",
+                &format!("{} words · a PDF to print", b.words),
+                state.as_deref(),
+                button,
+                &[],
             );
+            cy += 12.0;
+            if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
+                cy += 48.0;
+            }
         }
         n if n >= bstep::COPY => {
             let keys = app.backup_keys(b.wallet);
@@ -5893,7 +5931,12 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
         bstep::SHEETS if !(b.answers.split && crate::backup::splits(wallet)) => {
             let stem = crate::file_stem(&wallet.name);
             let file = format!("{stem}-backup.pdf");
-            let done = app.outbox.iter().any(|f| f.name == file);
+            let (state, button) = made_state(
+                app,
+                &file,
+                Some(Action::PublicRemove(b.wallet, 3)),
+                ("Make it", Action::BOut(3)),
+            );
             cy += file_row(
                 ui,
                 x,
@@ -5901,8 +5944,8 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 w,
                 "Backup sheet",
                 "A PDF to print",
-                done.then_some("In the Outbox"),
-                ("To the Outbox", Action::BOut(3)),
+                state.as_deref(),
+                button,
                 &[],
             );
             cy += 12.0;
@@ -5976,14 +6019,31 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 cy += ui.wrap(x, cy, w, 13.0, W::R, if *ok { OK } else { WARN }, l) + 4.0;
             }
             cy += 10.0;
-            cy += buttons_and_next(
+            // Each share's sheet, text and picture, made For the stick
+            // with the checklist; Remove takes them all.
+            let stem = crate::file_stem(&wallet.name);
+            let file = format!("{stem}-share-1-of-{}.pdf", Session::quorum(wallet).1);
+            let (state, button) = made_state(
+                app,
+                &file,
+                Some(Action::PublicRemove(b.wallet, 4)),
+                ("Make them", Action::BOut(4)),
+            );
+            cy += file_row(
                 ui,
                 x,
                 cy,
                 w,
-                &[("Shares to the Outbox", Style::Secondary, Action::BOut(4))],
-                Some(("Continue", Action::BNext(n))),
+                "The shares",
+                "Sheets to print, text files and pictures",
+                state.as_deref(),
+                button,
+                &[],
             );
+            cy += 12.0;
+            if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
+                cy += 48.0;
+            }
         }
         _ => {
             // On a small panel the map is here, as a list of places.
@@ -6647,6 +6707,25 @@ fn message_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f3
                     ui.text(x, cy, 12.0, W::R, MUTED, "Signature");
                     cy += 20.0;
                     cy += ui.wrap(x, cy, w, 13.0, W::M, TEXT, &sig.signature) + 14.0;
+                    // Made For the stick as it was signed.
+                    let file = format!(
+                        "message-{}.txt",
+                        &sig.address[sig.address.len().saturating_sub(6)..]
+                    );
+                    let (state, (label, style, action)) =
+                        made_state(app, &file, None, ("Make the file", Action::MOut));
+                    let png = format!("PNG {}", app.medium.for_the());
+                    cy += file_row(
+                        ui,
+                        x,
+                        cy,
+                        w,
+                        &file,
+                        "Signed message",
+                        state.as_deref(),
+                        (label, style, action),
+                        &[],
+                    ) + 6.0;
                     cy += wrap_buttons(
                         ui,
                         x,
@@ -6654,13 +6733,8 @@ fn message_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f3
                         w,
                         38.0,
                         &[
-                            ("Put in the Outbox", Style::Secondary, Action::MOut),
                             ("Show as QR", Style::Secondary, Action::MQr),
-                            (
-                                "PNG to the Outbox",
-                                Style::Secondary,
-                                Action::CodePng(Code::Message),
-                            ),
+                            (&png, Style::Secondary, Action::CodePng(Code::Message)),
                         ],
                     ) + 4.0;
                 }
@@ -7133,12 +7207,12 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                                 Action::CKeyQr(k),
                             ),
                             (
-                                "Xpub PNG to the Outbox".to_string(),
+                                format!("Xpub PNG {}", app.medium.for_the()),
                                 Style::Secondary,
                                 Action::CodePng(Code::Key(k)),
                             ),
                             (
-                                "Xpub file to the Outbox".to_string(),
+                                format!("Xpub file {}", app.medium.for_the()),
                                 Style::Secondary,
                                 Action::CKeyOut(k),
                             ),
@@ -7236,10 +7310,74 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
     cy - y
 }
 
-/// One row of what goes somewhere: its name and what it is, and at the
-/// right either where it already is or the button that puts it there,
-/// with `extra` buttons before its own (Show as QR, PNG), which stay when
-/// the file is done. On a small panel the name and what it is are two
+/// Where a file a flow made stands: For the stick, with its place in
+/// the list for Remove; or written, by the receipt. `None` when neither.
+fn made_place(app: &Faraday, file: &str) -> Option<(String, Option<usize>)> {
+    if let Some(k) = app.outbox.iter().position(|i| i.name == file) {
+        return Some((app.medium.for_box().to_string(), Some(k)));
+    }
+    app.receipt
+        .as_ref()
+        .filter(|r| r.wrote(file))
+        .map(|r| (format!("Written to {}", r.label), None))
+}
+
+/// A file a flow made, as one line: its name, where it is, and Remove
+/// while it waits For the stick. Nothing when it is neither waiting nor
+/// written. Returns its height.
+fn made_line(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, file: &str) -> f32 {
+    let Some((state, k)) = made_place(app, file) else {
+        return 0.0;
+    };
+    let mut right = x + w;
+    if let Some(k) = k {
+        let bw = ui.measure(13.0, W::S, "Remove") + 32.0;
+        right -= bw;
+        ui.button(
+            right,
+            y,
+            Some(bw),
+            34.0,
+            "Remove",
+            Style::Ghost,
+            Action::OutboxRemove(k),
+        );
+        right -= 10.0;
+    }
+    let sw = ui.measure(13.0, W::S, &state);
+    ui.text_mid(right - sw, y, 34.0, 13.0, W::S, OK, &state);
+    let n = ui.fit(13.0, W::M, file, (right - sw - 10.0 - x).max(0.0));
+    ui.text_mid(x, y, 34.0, 13.0, W::M, TEXT, &n);
+    44.0
+}
+
+/// A made file's row state and its button: For the stick with Remove;
+/// written, by the receipt, with `make` to make it again; or not made,
+/// with `make`. `remove` takes it off For the stick.
+fn made_state<'a>(
+    app: &Faraday,
+    file: &str,
+    remove: Option<Action>,
+    make: (&'a str, Action),
+) -> (Option<String>, (&'a str, Style, Action)) {
+    match made_place(app, file) {
+        Some((t, Some(k))) => (
+            Some(t),
+            (
+                "Remove",
+                Style::Ghost,
+                remove.unwrap_or(Action::OutboxRemove(k)),
+            ),
+        ),
+        Some((t, None)) => (Some(t), ("Make again", Style::Secondary, make.1)),
+        None => (None, (make.0, Style::Secondary, make.1)),
+    }
+}
+
+/// One row of a file a flow makes: its name and what it is, and at the
+/// right where it is, when it is made, and its button (Remove while it
+/// waits For the stick, else the one that makes it), with `extra`
+/// buttons before them (Show as QR, PNG). On a small panel the name and what it is are two
 /// lines, and the buttons go on a row under the name. Returns the row's
 /// height.
 #[allow(clippy::too_many_arguments)]
@@ -7251,43 +7389,42 @@ fn file_row(
     name: &str,
     detail: &str,
     done: Option<&str>,
-    button: (&str, Action),
+    button: (&str, Style, Action),
     extra: &[(&str, Action)],
 ) -> f32 {
     if !extra.is_empty() {
         return file_row_extra(ui, x, y, w, name, detail, done, button, extra);
     }
-    let right = match done {
-        Some(t) => ui.measure(13.0, W::S, t),
-        None => ui.measure(13.0, W::S, button.0) + 32.0,
-    };
+    let bw = ui.measure(13.0, W::S, button.0) + 32.0;
+    let done_w = done.map_or(0.0, |t| ui.measure(13.0, W::S, t) + 10.0);
+    let right = bw + done_w;
     let rh = if ui.compact { 52.0 } else { 36.0 };
     let by = y + (rh - 34.0) / 2.0;
-    match done {
-        Some(t) => {
-            ui.text_right(x + w, y, rh, 13.0, W::S, OK, t);
-        }
-        None => {
-            ui.button(
-                x + w - right,
-                by,
-                Some(right),
-                34.0,
-                button.0,
-                Style::Secondary,
-                button.1,
-            );
-        }
-    }
+    ui.button(x + w - bw, by, Some(bw), 34.0, button.0, button.1, button.2);
     if ui.compact {
-        let room = w - right - 10.0;
+        // Where it is takes the second line, in place of what it is, so
+        // the name keeps the room beside the button.
+        let room = w - bw - 10.0;
         let name = ui.fit(14.0, W::S, name, room);
         ui.text(x, y + 6.0, 14.0, W::S, TEXT, &name);
-        let detail = ui.fit(12.0, W::R, detail, room);
-        ui.text(x, y + 28.0, 12.0, W::R, MUTED, &detail);
+        let (line, tone) = match done {
+            Some(t) => (t, OK),
+            None => (detail, MUTED),
+        };
+        let line = ui.fit(12.0, W::R, line, room);
+        ui.text(x, y + 28.0, 12.0, W::R, tone, &line);
     } else {
-        ui.text_mid(x, y, 36.0, 14.0, W::S, TEXT, name);
-        ui.text_mid(x + 220.0, y, 36.0, 12.0, W::R, MUTED, detail);
+        if let Some(t) = done {
+            ui.text_right(x + w - bw - 10.0, y, rh, 13.0, W::S, OK, t);
+        }
+        let name_w = 200.0_f32.min(w - right - 10.0);
+        let n = ui.fit(14.0, W::S, name, name_w);
+        ui.text_mid(x, y, 36.0, 14.0, W::S, TEXT, &n);
+        let room = w - right - 220.0 - 10.0;
+        if room > 60.0 {
+            let d = ui.fit(12.0, W::R, detail, room);
+            ui.text_mid(x + 220.0, y, 36.0, 12.0, W::R, MUTED, &d);
+        }
     }
     ui.rule(x, y + rh + 4.0, w, INNER);
     rh + 8.0
@@ -7306,7 +7443,7 @@ fn file_row_extra(
     name: &str,
     detail: &str,
     done: Option<&str>,
-    button: (&str, Action),
+    button: (&str, Style, Action),
     extra: &[(&str, Action)],
 ) -> f32 {
     let done_w = done.map_or(0.0, |t| ui.measure(13.0, W::S, t));
@@ -7323,9 +7460,7 @@ fn file_row_extra(
             .iter()
             .map(|&(l, a)| (l, Style::Secondary, a))
             .collect();
-        if done.is_none() {
-            items.push((button.0, Style::Secondary, button.1));
-        }
+        items.push(button);
         // One row across the panel when the labels fit it, the space
         // left shared out; else wrapped.
         let gap = 6.0;
@@ -7350,25 +7485,13 @@ fn file_row_extra(
     let rh = 36.0;
     let by = y + (rh - 34.0) / 2.0;
     let mut right = x + w;
-    match done {
-        Some(t) => {
-            ui.text_right(right, y, rh, 13.0, W::S, OK, t);
-            right -= done_w + 12.0;
-        }
-        None => {
-            let bw = ui.measure(13.0, W::S, button.0) + 32.0;
-            right -= bw;
-            ui.button(
-                right,
-                by,
-                Some(bw),
-                34.0,
-                button.0,
-                Style::Secondary,
-                button.1,
-            );
-            right -= 6.0;
-        }
+    let bw = ui.measure(13.0, W::S, button.0) + 32.0;
+    right -= bw;
+    ui.button(right, by, Some(bw), 34.0, button.0, button.1, button.2);
+    right -= 6.0;
+    if let Some(t) = done {
+        ui.text_right(right - 4.0, y, rh, 13.0, W::S, OK, t);
+        right -= done_w + 16.0;
     }
     for &(label, action) in extra.iter().rev() {
         let bw = ui.measure(13.0, W::S, label) + 32.0;
@@ -7566,18 +7689,13 @@ fn public_rows_for(
             continue;
         }
         let extra: &[(&str, Action)] = if qr { extra } else { &[] };
-        let done = app.outbox.iter().any(|f| &f.name == file);
-        cy += file_row(
-            ui,
-            x,
-            cy,
-            w,
-            name,
-            detail,
-            done.then_some("In the Outbox"),
-            ("To the Outbox", *action),
-            extra,
-        );
+        // Made For the stick with the checklist: Remove while it waits.
+        let remove = match action {
+            Action::PublicOut(w, what) => Some(Action::PublicRemove(*w, *what)),
+            _ => None,
+        };
+        let (state, button) = made_state(app, file, remove, ("Make the file", *action));
+        cy += file_row(ui, x, cy, w, name, detail, state.as_deref(), button, extra);
     }
     cy - y
 }
@@ -8360,11 +8478,13 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y,
         width.min(900.0),
         &format!(
-            "The Inbox holds what was copied in from {}; the Outbox holds what waits to be written to \
-             one. Both live in memory and are emptied at power-off. The Outbox keeps public files apart \
-             from vaults, which carry secrets sealed under a passphrase; a secret goes out unprotected \
-             only when you say so after a warning, and is listed apart.",
-            app.medium.nouns()
+            "{} holds what was copied in from {}; {} holds what waits to be written to one, and what \
+             the last visit wrote. Both live in memory and are emptied at power-off. Public files are \
+             listed apart from vaults, which carry secrets sealed under a passphrase; a secret goes out \
+             unprotected only when you say so after a warning, and is listed apart.",
+            app.medium.from_box(),
+            app.medium.nouns(),
+            app.medium.for_box()
         ),
     );
     // Arrived from Import and load: pulling the stick is the next step.
@@ -8384,9 +8504,9 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let colw = (width - 20.0) / 2.0;
     // Inbox.
-    ui.text(x, y, 15.0, W::S, MUTED, "Inbox");
+    let lw = ui.text(x, y, 15.0, W::S, MUTED, app.medium.from_box());
     ui.text(
-        x + 52.0,
+        x + lw + 10.0,
         y + 2.0,
         13.0,
         W::R,
@@ -8397,8 +8517,13 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let top = y + 28.0;
     let bottom = h - 32.0 - 48.0 - 12.0;
     let groups = 3.0;
-    let content =
-        (app.inbox.len() as f32 * 124.0).max(app.outbox.len() as f32 * 124.0 + groups * 30.0) + 8.0;
+    // The receipt under For the stick: its heading and a row per file.
+    let receipt_h = app.receipt.as_ref().map_or(0.0, |r| {
+        30.0 + r.files.len() as f32 * 28.0 + if app.outbox.is_empty() { 84.0 } else { 0.0 }
+    });
+    let content = (app.inbox.len() as f32 * 124.0)
+        .max(app.outbox.len() as f32 * 124.0 + groups * 30.0 + receipt_h)
+        + 8.0;
     let shift = app.list_offset.min((content - (bottom - top)).max(0.0));
     let clip = ui.rect(x0, top, cw, (bottom - top).max(0.0));
     ui.c.push_clip(clip);
@@ -8582,9 +8707,9 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Outbox, its title above the scrolled lists.
     let ox = x + colw + 20.0;
     ui.c.pop_clip();
-    ui.text(ox, y, 15.0, W::S, MUTED, "Outbox");
+    let lw = ui.text(ox, y, 15.0, W::S, MUTED, app.medium.for_box());
     ui.text(
-        ox + 64.0,
+        ox + lw + 10.0,
         y + 2.0,
         13.0,
         W::R,
@@ -8714,6 +8839,10 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let t = "Empty";
         let tw = ui.measure(13.0, W::R, t);
         ui.text_mid(ox + (colw - tw) / 2.0, oy, 72.0, 13.0, W::R, DIM, t);
+        oy += 84.0;
+    }
+    if let Some(r) = app.receipt.as_ref() {
+        receipt_rows(ui, r, ox, oy, colw);
     }
     ui.c.pop_clip();
     ui.report_scroll(clip, content - (bottom - top));
@@ -8728,7 +8857,10 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             12.0,
             W::R,
             MUTED,
-            "Power off asks first while the Outbox holds files",
+            &format!(
+                "Power off asks first while files wait {}",
+                app.medium.for_the()
+            ),
         );
     }
     let (label, action) = if app.sticks.is_empty() {
@@ -8756,6 +8888,28 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if let Some(a) = action {
         ui.hit(bx, fy, bw, 48.0, a);
     }
+}
+
+/// The last visit's receipt under For the stick: "Written to STICK at
+/// 14:02", then a row per file, "verified" or why it was not. Nothing on
+/// it is written again. Returns its height.
+fn receipt_rows(ui: &mut Ui, r: &crate::Receipt, x: f32, y: f32, w: f32) -> f32 {
+    let head = ui.fit(12.0, W::S, &r.heading(), w);
+    ui.text(x, y, 12.0, W::S, OK, &head);
+    let mut ry = y + 30.0;
+    for f in &r.files {
+        let (state, tone) = match &f.failure {
+            None => ("verified".to_string(), OK),
+            Some(why) => (why.clone(), ERR),
+        };
+        let state = ui.fit(12.0, W::R, &state, w / 2.0);
+        let sw = ui.measure(12.0, W::R, &state);
+        ui.text_right(x + w, ry - 4.0, 20.0, 12.0, W::R, tone, &state);
+        let name = ui.fit(13.0, W::M, &f.name, (w - sw - 12.0).max(0.0));
+        ui.text(x, ry, 13.0, W::M, TEXT, &name);
+        ry += 28.0;
+    }
+    ry - y
 }
 
 // ---------------------------------------------------------------------
@@ -9036,7 +9190,7 @@ fn inbox_panel_compact(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
             15.0,
             W::S,
             TEXT,
-            "From the Inbox",
+            app.medium.from_box(),
         );
         ty += 36.0;
         if !wallets.is_empty() {
@@ -9660,7 +9814,7 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += ip + 14.0;
     }
     // Inbox.
-    let lw = ui.text(x, y, 15.0, W::S, MUTED, "Inbox");
+    let lw = ui.text(x, y, 15.0, W::S, MUTED, app.medium.from_box());
     ui.text(
         x + lw + 10.0,
         y + 2.0,
@@ -9708,7 +9862,7 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     // Outbox, grouped by who may read it.
     y += 8.0;
-    let lw = ui.text(x, y, 15.0, W::S, MUTED, "Outbox");
+    let lw = ui.text(x, y, 15.0, W::S, MUTED, app.medium.for_box());
     ui.text(
         x + lw + 10.0,
         y + 2.0,
@@ -9805,6 +9959,9 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text(x, y, 13.0, W::R, DIM, "Empty");
         y += 26.0;
     }
+    if let Some(r) = app.receipt.as_ref() {
+        y += receipt_rows(ui, r, x, y, w) + 8.0;
+    }
     if !app.outbox.is_empty() {
         y += 6.0;
         ui.icon(x, y, 18.0, Icon::Power, 10.0, MUTED);
@@ -9815,7 +9972,10 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             12.0,
             W::R,
             MUTED,
-            "Power off asks first while the Outbox holds files",
+            &format!(
+                "Power off asks first while files wait {}",
+                app.medium.for_the()
+            ),
         ) + 10.0;
     }
     y += about(
@@ -9824,11 +9984,13 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y,
         w,
         &format!(
-            "The Inbox holds what was copied in from {}; the Outbox holds what waits to be written to \
-             one. Both live in memory and are emptied at power-off. The Outbox keeps public files apart \
-             from vaults, which carry secrets sealed under a passphrase; a secret goes out unprotected \
-             only when you say so after a warning, and is listed apart.",
-            app.medium.nouns()
+            "{} holds what was copied in from {}; {} holds what waits to be written to one, and what \
+             the last visit wrote. Both live in memory and are emptied at power-off. Public files are \
+             listed apart from vaults, which carry secrets sealed under a passphrase; a secret goes out \
+             unprotected only when you say so after a warning, and is listed apart.",
+            app.medium.from_box(),
+            app.medium.nouns(),
+            app.medium.for_box()
         ),
     );
     finish(app, ui, x0, cw, h, y - top + 16.0);
@@ -9883,7 +10045,7 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y,
         Some(w),
         40.0,
-        "Open the Inbox",
+        "Open Files",
         Style::Secondary,
         Action::Nav(Screen::Files),
     );
@@ -9903,7 +10065,7 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         15.0,
         W::S,
         TEXT,
-        "Import into the Inbox",
+        &format!("Copy {}", app.medium.from_the()),
     );
     y += 34.0;
     let readable: Vec<&String> = stick
@@ -10054,12 +10216,19 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
     }
     if app.outbox.is_empty() {
-        ui.text(x, y, 13.0, W::R, DIM, "The Outbox is empty");
+        ui.text(
+            x,
+            y,
+            13.0,
+            W::R,
+            DIM,
+            &format!("Nothing waits {}", app.medium.for_the()),
+        );
         y += 28.0;
     }
     let inbox_rows = app.visit_inbox_rows();
     if !inbox_rows.is_empty() {
-        ui.text_mid(x, y, 30.0, 13.0, W::S, MUTED, "From the Inbox");
+        ui.text_mid(x, y, 30.0, 13.0, W::S, MUTED, app.medium.from_box());
         y += 32.0;
         for &k in &inbox_rows {
             let item = &app.inbox[k];
@@ -10097,7 +10266,7 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y,
         w,
         &format!(
-            "Write the Outbox to the {noun} and copy in what you need from it. Each file written is read \
+            "Write what waits for the {noun} and copy in what you need from it. Each file written is read \
              back and compared before it counts. Remove the {noun} when you are done: keys load only with \
              no {noun} attached.",
             noun = app.medium.noun()
@@ -10157,7 +10326,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y,
         width.min(900.0),
         &format!(
-            "Write the Outbox to the {noun} and copy in what you need from it. Each file written is read \
+            "Write what waits for the {noun} and copy in what you need from it. Each file written is read \
              back and compared before it counts. Remove the {noun} when you are done: keys load only with \
              no {noun} attached.",
             noun = app.medium.noun()
@@ -10261,7 +10430,15 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ry += ROW;
     }
     if app.outbox.is_empty() {
-        ui.text_mid(x + 22.0, ry, HEAD, 13.0, W::R, DIM, "The Outbox is empty");
+        ui.text_mid(
+            x + 22.0,
+            ry,
+            HEAD,
+            13.0,
+            W::R,
+            DIM,
+            &format!("Nothing waits {}", app.medium.for_the()),
+        );
         ry += HEAD;
     }
     if !inbox_rows.is_empty() {
@@ -10272,7 +10449,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             13.0,
             W::S,
             MUTED,
-            "From the Inbox",
+            app.medium.from_box(),
         );
         ry += HEAD;
         for &k in &inbox_rows {
@@ -10335,7 +10512,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         16.0,
         W::S,
         TEXT,
-        "Import into the Inbox",
+        &format!("Copy {}", app.medium.from_the()),
     );
     let total = stick.files.len();
     let max_shift = (total as f32 * ROW - track_h).max(0.0);
@@ -10443,7 +10620,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.stroke(x, ay, width, 44.0, 10.0, WARN.with_alpha(90));
     ui.icon(x + 16.0, ay + 12.0, 20.0, app.medium.icon(), 13.0, WARN);
     ui.text_mid(x + 44.0, ay, 44.0, 14.0, W::S, WARN, &pull_line(app));
-    let open_label = "Open the Inbox";
+    let open_label = "Open Files";
     let obw = ui.measure(14.0, W::S, open_label) + 32.0;
     ui.button(
         x + width - 12.0 - obw,
@@ -12026,16 +12203,18 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         (
             "Kept",
             format!(
-                "{} in the Inbox · {} in the Outbox",
+                "{} {} · {} {}",
                 app.inbox.len(),
-                app.outbox.len()
+                app.medium.from_the(),
+                app.outbox.len(),
+                app.medium.for_the()
             ),
         ),
         ("Then", then),
     ];
     let sealed = (
         "Sealed",
-        format!("{} · into the Outbox", changed.join(", ")),
+        format!("{} · {}", changed.join(", "), app.medium.for_the()),
     );
     let rows: Vec<&(&str, String)> = if changed.is_empty() {
         rows.iter().collect()
@@ -12124,7 +12303,7 @@ fn write_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     if !sealed.is_empty() {
         rows.push((
             "Sealed",
-            format!("{} · into the Outbox", sealed.join(", ")),
+            format!("{} · {}", sealed.join(", "), app.medium.for_the()),
             TEXT,
         ));
     }
@@ -12147,8 +12326,9 @@ fn write_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     rows.push((
         "Written",
         format!(
-            "{n} {} in the Outbox",
-            if n == 1 { "file" } else { "files" }
+            "{n} {} {}",
+            if n == 1 { "file" } else { "files" },
+            app.medium.for_the()
         ),
         TEXT,
     ));
@@ -12456,7 +12636,7 @@ fn qr_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             y + sh - 32.0 - 44.0,
             None,
             44.0,
-            "PNG to the Outbox",
+            &format!("PNG {}", app.medium.for_the()),
             Style::Secondary,
             Action::QrPng,
         );
@@ -12808,20 +12988,28 @@ fn idle_warn_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         ),
     )];
     if !sealed.is_empty() {
-        rows.push(("Sealed", format!("{} · into the Outbox", sealed.join(", "))));
+        rows.push((
+            "Sealed",
+            format!("{} · {}", sealed.join(", "), app.medium.for_the()),
+        ));
     }
     rows.push((
         "Kept",
         format!(
-            "{} in the Inbox · {} in the Outbox",
+            "{} {} · {} {}",
             app.inbox.len(),
-            app.outbox.len()
+            app.medium.from_the(),
+            app.outbox.len(),
+            app.medium.for_the()
         ),
     ));
     let off = match (app.idle_off_min, app.online) {
         (0, _) | (_, true) => "No power-off".to_string(),
         (m, false) => {
-            format!("Power off at {m} minutes without input, unless the Outbox holds files")
+            format!(
+                "Power off at {m} minutes without input, unless files wait {}",
+                app.medium.for_the()
+            )
         }
     };
     rows.push(("Then", off));
@@ -12898,8 +13086,9 @@ fn locked_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             }
             if shown > 0 {
                 let line = format!(
-                    "{} in the Outbox · no power-off until it is written",
-                    app.outbox.len()
+                    "{} {} · no power-off until written",
+                    app.outbox.len(),
+                    app.medium.for_the()
                 );
                 cy += ui.wrap(x, cy, iw, 13.0, W::S, WARN, &line) + 8.0;
                 for item in app.outbox.iter().take(shown) {
@@ -12961,8 +13150,9 @@ fn locked_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             W::S,
             WARN,
             &format!(
-                "{} in the Outbox · no power-off until it is written",
-                app.outbox.len()
+                "{} {} · no power-off until written",
+                app.outbox.len(),
+                app.medium.for_the()
             ),
         );
         ry += 32.0;
@@ -13079,7 +13269,7 @@ fn power_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                     13.0,
                     W::R,
                     WARN,
-                    "The Outbox holds files that are lost at power-off",
+                    &format!("Files {} are lost at power-off", app.medium.for_the()),
                 ) + 8.0;
                 for item in app.outbox.iter().take(4) {
                     let n = ui.fit(13.0, W::M, &item.name, iw);
@@ -13113,7 +13303,7 @@ fn power_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         13.0,
         W::R,
         WARN,
-        "The Outbox holds files that are lost at power-off",
+        &format!("Files {} are lost at power-off", app.medium.for_the()),
     );
     let mut ry = y + 100.0;
     for item in app.outbox.iter().take(4) {
@@ -13270,6 +13460,7 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     } else {
         "This is a secret"
     };
+    let put_label = format!("Put it {} unprotected", app.medium.for_the());
     let (unprotected, out_label) = if out.to_visit {
         (
             format!("Unprotected, on the {}", app.medium.noun()),
@@ -13277,8 +13468,8 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         )
     } else {
         (
-            "Unprotected, in the Outbox".to_string(),
-            "Put it in the Outbox unprotected",
+            format!("Unprotected, {}", app.medium.for_the()),
+            put_label.as_str(),
         )
     };
     let to_vault = !matches!(out.keep, crate::secrets::Keep::None);

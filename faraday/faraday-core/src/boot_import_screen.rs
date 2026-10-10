@@ -275,7 +275,7 @@ fn body(
 
     // Every file, for the Inbox.
     if !v.files.is_empty() {
-        cy += group(ui, x, cy, w, "Files for the Inbox");
+        cy += group(ui, x, cy, w, "Files to copy in");
         for (i, f) in v.files.iter().enumerate() {
             let top = cy;
             ui.checkbox(x, cy + 4.0, f.chosen, f.enabled);

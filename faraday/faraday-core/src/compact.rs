@@ -935,7 +935,19 @@ pub(crate) fn keyboard(app: &Faraday, ui: &mut Ui, w: f32, y: f32) {
 }
 
 impl Faraday {
-    /// Home's status line on a small panel: the Inbox, the Outbox, and
+    /// Files by direction, as the sidebar's Files row reads it: "3 for
+    /// the stick" while any wait, else "20 from the stick", else "none".
+    pub fn files_count(&self) -> String {
+        if !self.outbox.is_empty() {
+            format!("{} {}", self.outbox.len(), self.medium.for_the())
+        } else if !self.inbox.is_empty() {
+            format!("{} {}", self.inbox.len(), self.medium.from_the())
+        } else {
+            "none".to_string()
+        }
+    }
+
+    /// Home's status line on a small panel: Files by direction, and
     /// what is attached, by its label or by how many.
     pub fn home_files_line(&self) -> String {
         let sticks = match self.sticks.len() {
@@ -943,10 +955,6 @@ impl Faraday {
             1 => self.sticks[0].label.clone(),
             k => format!("{k} {}", self.medium.nouns()),
         };
-        format!(
-            "{} in · {} out · {sticks}",
-            self.inbox.len(),
-            self.outbox.len()
-        )
+        format!("{} · {sticks}", self.files_count())
     }
 }

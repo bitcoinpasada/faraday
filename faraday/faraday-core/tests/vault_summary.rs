@@ -2,7 +2,7 @@
 //! (`docs/SIMPLIFY.md` §3.4, `docs/VAULT.md` §11): the Vaults list names
 //! the wallet and key a vault held when last seen open, in the next
 //! process after a lock; after power-off, with no kept state, it says to
-//! unlock it to see.
+//! unlock it to see. Each row reads its currency too (§3.5).
 
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, testkit};
@@ -142,7 +142,103 @@ fn after_power_off_the_vaults_list_does_not_name_what_it_held() {
         "nothing of the vault is remembered: {texts:?}"
     );
     assert!(
-        texts.iter().any(|t| t == "Unlock to see what it holds"),
+        texts
+            .iter()
+            .any(|t| t.contains("Unlock to see what it holds")),
         "the row says how to see it: {texts:?}"
+    );
+}
+
+/// Answers every write the visit sends as written and matched.
+fn answer_writes(app: &mut Faraday) {
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Write { stick, name, .. } = c {
+            app.storage(StorageEvent::Written {
+                stick,
+                wrote_as: name.clone(),
+                name,
+            });
+        }
+    }
+}
+
+/// The Vaults list's lines as drawn.
+fn vaults_list(app: &mut Faraday) -> Vec<String> {
+    app.press(Action::Nav(Screen::Vaults));
+    app.drawn_texts()
+}
+
+/// A vault's currency (`docs/SIMPLIFY.md` §3.5), on its Vaults list row:
+/// never written once made; current on the stick once a visit wrote it;
+/// changed once it is open with a change, and still after the lock that
+/// seals the change.
+#[test]
+fn a_vaults_currency_reads_never_written_then_current_then_changed() {
+    let mut app = shown(Vec::new(), Vec::new(), Vec::new());
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x70 + i; 32])));
+    }
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    for second in [false, true] {
+        app.press(Action::Vault(V::CFocus(0, second)));
+        type_text(&mut app, "test phrase");
+    }
+    app.press(Action::Vault(V::CGo));
+    settle(&mut app, |a| a.screen == Screen::Unlock);
+    let texts = vaults_list(&mut app);
+    assert!(
+        texts.iter().any(|t| t.contains("Never written")),
+        "made and never written: {texts:?}"
+    );
+
+    // The passphrase was typed: the next process writes it.
+    app.press(Action::Lock);
+    let (inbox, outbox, kept) = saved(&mut app);
+    let mut app = shown(inbox, outbox, kept);
+    app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
+        id: "S".into(),
+        label: "VAULTSTICK".into(),
+        boot: false,
+        files: Vec::new(),
+    }]));
+    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::VisitWrite);
+    answer_writes(&mut app);
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let texts = vaults_list(&mut app);
+    assert!(
+        texts.iter().any(|t| t.contains("On VAULTSTICK · current")),
+        "written and matched: {texts:?}"
+    );
+
+    // Opened with a key saved into it: changed since written.
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x78 + i; 32])));
+    }
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
+    app.press(Action::EntryAdd);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    type_text(&mut app, "test phrase");
+    app.press(Action::Vault(V::Unlock));
+    settle(&mut app, |a| !a.vaults.open.is_empty());
+    assert_eq!(app.vaults.open.len(), 1, "the written vault did not open");
+    app.press(Action::Vault(V::AddKind(0)));
+    app.press(Action::Vault(V::SaveKey(0)));
+    let texts = vaults_list(&mut app);
+    assert!(
+        texts.iter().any(|t| t.contains("Changed since written")),
+        "open with a change: {texts:?}"
+    );
+    // Sealed at the lock, its bytes are not the ones written.
+    app.press(Action::Lock);
+    let (inbox, outbox, kept) = saved(&mut app);
+    let mut app = shown(inbox, outbox, kept);
+    let texts = vaults_list(&mut app);
+    assert!(
+        texts.iter().any(|t| t.contains("Changed since written")),
+        "sealed with the change: {texts:?}"
     );
 }

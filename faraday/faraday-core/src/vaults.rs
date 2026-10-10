@@ -2078,7 +2078,7 @@ impl Faraday {
                 self.vaults.prompt = None;
                 self.vaults.focus = None;
                 self.put_outbox(&name, file);
-                self.toast(&format!("{name} is in the Outbox, sealed"));
+                self.toast(&format!("{name} waits {}, sealed", self.medium.for_the()));
             }
             None => {
                 if let Some(p) = self.vaults.prompt.as_mut() {
@@ -2239,7 +2239,7 @@ impl Faraday {
                     .get(self.vaults.current)
                     .map_or(0, |v| v.contents.of(kind::GPG).count());
                 self.vaults.item[self.vaults.category] = n.saturating_sub(1);
-                self.toast("Made · the certificate and a revocation certificate are in the Outbox");
+                self.toast_out("Made · the certificate and a revocation certificate");
             }
             return;
         }
@@ -2848,6 +2848,32 @@ fn phrase_of(m: &osk_bip::bip39::Mnemonic) -> Zeroizing<String> {
     out
 }
 
+/// A vault file's currency (`docs/SIMPLIFY.md` §3.5), computed from the
+/// receipt's hashes, never stored.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Currency {
+    /// Sealed For the stick, and no receipt names it.
+    NeverWritten,
+    /// The last receipt that names it wrote the bytes it has now: on the
+    /// stick of this label.
+    Current(String),
+    /// Open with unsaved changes, or sealed bytes that differ from the
+    /// receipt's.
+    Changed,
+}
+
+impl Currency {
+    /// The line a person reads: "Never written", "On STICK · current",
+    /// "Changed since written".
+    pub fn line(&self) -> String {
+        match self {
+            Currency::NeverWritten => "Never written".to_string(),
+            Currency::Current(label) => format!("On {label} · current"),
+            Currency::Changed => "Changed since written".to_string(),
+        }
+    }
+}
+
 /// What the app remembers of a vault seen open, across a lock
 /// (`docs/VAULT.md` §11): names and fingerprints, never anything that
 /// spends. Kept in the kept state, so it is gone at power-off.
@@ -3001,7 +3027,7 @@ pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
 impl Faraday {
     /// Now on this computer's clock, Unix seconds: the last time the
     /// shell said, moved on by the ticks since.
-    fn clock_now(&self) -> Option<u64> {
+    pub(crate) fn clock_now(&self) -> Option<u64> {
         let at = self.vaults.unix_secs?;
         Some(at + self.now_ms.saturating_sub(self.vaults.clock_at_ms) / 1000)
     }
@@ -3056,6 +3082,52 @@ impl Faraday {
                 None => self.vaults.summaries.push(s),
             }
         }
+    }
+
+    /// Where vault file `f` stands against the last write
+    /// (`docs/SIMPLIFY.md` §3.5): `None` for a vault copied in from a
+    /// stick, unchanged, that no receipt names.
+    pub fn currency(&self, f: &VaultFile) -> Option<Currency> {
+        let changed = f
+            .open
+            .and_then(|o| self.vaults.open.get(o))
+            .is_some_and(|v| v.changes > 0);
+        let named = self.receipt.as_ref().filter(|r| r.wrote(&f.name));
+        match named {
+            Some(r) => {
+                let boxes = if f.in_outbox {
+                    &self.outbox
+                } else {
+                    &self.inbox
+                };
+                let same = boxes
+                    .iter()
+                    .find(|i| i.name == f.name)
+                    .is_some_and(|i| r.holds(&i.name, &i.bytes));
+                Some(if same && !changed {
+                    Currency::Current(r.label.clone())
+                } else {
+                    Currency::Changed
+                })
+            }
+            None if f.in_outbox => Some(Currency::NeverWritten),
+            None if changed => Some(Currency::Changed),
+            None => None,
+        }
+    }
+
+    /// The first vault changed since it was written, by the name it goes
+    /// by: Home's lead rule 6 and the session strip's Write out.
+    pub fn vault_changed(&self) -> Option<String> {
+        self.vault_files().iter().find_map(|f| {
+            (self.currency(f) == Some(Currency::Changed)).then(|| {
+                f.open
+                    .and_then(|o| self.vaults.open.get(o))
+                    .map(|v| v.label())
+                    .or_else(|| self.vault_summary(f).map(|s| s.name.clone()))
+                    .unwrap_or_else(|| f.name.clone())
+            })
+        })
     }
 
     /// What is remembered of a vault file, when it was seen open since

@@ -9,7 +9,7 @@ use faraday_core::plan::Item;
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
-use faraday_core::{Action, BStage, Faraday, Screen, StorageEvent, bstep, qrow, qstep};
+use faraday_core::{Action, BStage, Faraday, Screen, StorageEvent, bstep, plan, qrow, qstep};
 use faraday_vault::records::{field, kind};
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
@@ -129,21 +129,21 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
         ],
         "only what paper and a vault need"
     );
+    // The template and the sheet are made For the stick with the
+    // checklist: done with no press. The rest wait for what they do.
+    for item in [Item::Templates, Item::Sheets] {
+        assert!(done(&app, item), "{item:?} not made with the checklist");
+    }
     for item in [
-        Item::Templates,
         Item::Copy(0),
         Item::SeedsVault,
         Item::WalletVault,
-        Item::Sheets,
         Item::Envelopes,
     ] {
         assert!(!done(&app, item), "{item:?} done before anything");
     }
-    // The template, in the Outbox.
-    press_offered(&mut app, Action::BOut(0));
-    assert!(done(&app, Item::Templates));
-    // The copy, typed back.
-    press_offered(&mut app, Action::BStep(bstep::COPY));
+    // So the checklist opens on the copy, which is typed back.
+    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY));
     app.press(Action::BReveal);
     app.storage(StorageEvent::Cameras(Vec::new()));
     press_offered(&mut app, Action::BCheck);
@@ -162,8 +162,11 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
     press_offered(&mut app, Action::BStep(bstep::WALLET));
     press_offered(&mut app, Action::Vault(V::SaveWallet(w)));
     assert!(done(&app, Item::WalletVault));
-    // The sheet, in the Outbox.
+    // The sheet, For the stick since the checklist: its row offers
+    // Remove, which undoes the item, and making it again redoes it.
     press_offered(&mut app, Action::BStep(bstep::SHEETS));
+    press_offered(&mut app, Action::PublicRemove(w, 3));
+    assert!(!done(&app, Item::Sheets));
     press_offered(&mut app, Action::BOut(3));
     assert!(done(&app, Item::Sheets));
     // The envelopes, by a press; then the way to a stick.
@@ -171,6 +174,34 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
     press_offered(&mut app, Action::BNext(bstep::ENVELOPE));
     assert!(done(&app, Item::Envelopes));
     press_offered(&mut app, Action::WriteAsk);
+}
+
+#[test]
+fn making_the_checklist_with_sparrow_chosen_puts_the_wallet_file_for_the_stick() {
+    let mut app = device(Vec::new());
+    let w = one_key(&mut app);
+    app.press(Action::Backup(w));
+    press_offered(&mut app, Action::BPreset(2));
+    app.press(Action::BAnswer(
+        qrow::SOFTWARE,
+        plan::software::SPARROW as u8,
+    ));
+    // As a file: the text form beside the picture.
+    app.press(Action::BAnswer(qrow::FORM, plan::form::TEXT as u8));
+    assert!(
+        app.outbox.is_empty(),
+        "nothing is made before the checklist"
+    );
+    press_offered(&mut app, Action::BChecklist);
+    let name = format!(
+        "{}-wallet.json",
+        faraday_core::file_stem(&app.session.wallets[w].name)
+    );
+    assert!(
+        app.outbox.iter().any(|i| i.name == name),
+        "{name} is not For the stick"
+    );
+    assert!(done(&app, Item::PublicFiles));
 }
 
 #[test]

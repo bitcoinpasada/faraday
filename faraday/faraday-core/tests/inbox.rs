@@ -136,3 +136,190 @@ fn files_restores_a_wallet_from_its_shares() {
         s.address(&s.wallets[0], false, 0)
     });
 }
+
+// ---------------------------------------------------------------------
+// §4.1 (`docs/SIMPLIFY.md`): the two halves of Files are named by
+// direction, From the stick and For the stick, wherever a person reads
+// them.
+// ---------------------------------------------------------------------
+
+use faraday_core::{Screen as S, Sheet, StickInfo};
+
+const SCREENS: [S; 29] = [
+    S::Home,
+    S::Start,
+    S::Wallets,
+    S::Spend,
+    S::Files,
+    S::Visit,
+    S::Entry,
+    S::Backup,
+    S::Message,
+    S::CheckMessage,
+    S::Create,
+    S::Restore,
+    S::Settings,
+    S::Vaults,
+    S::CreateVault,
+    S::KeyGen,
+    S::Bip85,
+    S::Silent,
+    S::Explore,
+    S::Lightning,
+    S::Tools,
+    S::Unlock,
+    S::VaultContents,
+    S::Family,
+    S::Vanity,
+    S::Decode,
+    S::Catalog,
+    S::Transfer,
+    S::Upgrade,
+];
+
+/// What `app` draws, each string tagged with where it was drawn.
+fn texts_at(app: &mut Faraday, at: &str, all: &mut Vec<(String, String)>) {
+    all.extend(app.drawn_texts().into_iter().map(|t| (at.to_string(), t)));
+}
+
+/// A boot stick holding `files`, every read it asks for answered.
+fn boot_stick(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        id: "boot".into(),
+        label: "FARADAY".into(),
+        boot: true,
+        files: files
+            .iter()
+            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .collect(),
+    }]));
+    while let Some(c) = app.poll_storage() {
+        if let faraday_core::StorageCommand::Read { stick, name } = c
+            && let Some((_, bytes)) = files.iter().find(|(n, _)| *n == name)
+        {
+            app.storage(StorageEvent::Read {
+                stick,
+                name,
+                bytes: bytes.clone(),
+            });
+        }
+    }
+    let _ = app.frame();
+}
+
+/// Every screen, and every sheet that names the two halves, at a
+/// display of `width` x `height` at `dpi`, with files in both: what is
+/// drawn, tagged with where.
+fn every_text(width: u16, height: u16, dpi: u16) -> Vec<(String, String)> {
+    let kit = |name: &str| {
+        testkit::files()
+            .unwrap()
+            .into_iter()
+            .find(|(n, _)| n == name)
+            .unwrap()
+    };
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.storage(StorageEvent::Restored {
+        inbox: vec![
+            kit("vault.ofv"),
+            kit("spending-wallet.txt"),
+            ("gmail-codes.txt".into(), CODES.into()),
+        ],
+        outbox: vec![kit("savings-wallet.txt")],
+        kept: Vec::new(),
+    });
+    let mut all = Vec::new();
+    // The boot import sheet, then a stick visit with nothing held.
+    boot_stick(&mut app, &[("notes.txt".to_string(), b"a note".to_vec())]);
+    if app.import.is_some() {
+        app.sheet = Some(Sheet::Import);
+        texts_at(&mut app, "boot import sheet", &mut all);
+    }
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        id: "S".into(),
+        label: "STICK".into(),
+        boot: false,
+        files: vec![("spend.psbt".into(), 300)],
+    }]));
+    app.sheet = None;
+    app.press(Action::Nav(S::Visit));
+    texts_at(&mut app, "visit", &mut all);
+    app.press(Action::Nav(S::Files));
+    texts_at(&mut app, "Files with a stick", &mut all);
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.sheet = None;
+    // A key loaded, and a wallet: every screen, then the sheets.
+    app.press(Action::Entry(None));
+    for c in testkit::test_words(testkit::TEST_SEEDS[0].0).chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    let w = app
+        .inbox
+        .iter()
+        .position(|i| i.name == "spending-wallet.txt")
+        .unwrap();
+    app.press(Action::LoadWallet(w));
+    for screen in SCREENS {
+        app.screen = screen;
+        texts_at(&mut app, &format!("{screen:?}"), &mut all);
+    }
+    app.screen = S::Files;
+    for sheet in [
+        Sheet::Lock,
+        Sheet::LockAsk,
+        Sheet::Power,
+        Sheet::IdleWarn,
+        Sheet::Locked,
+        Sheet::WriteOut,
+    ] {
+        app.sheet = Some(sheet);
+        texts_at(&mut app, &format!("{sheet:?}"), &mut all);
+    }
+    app.sheet = None;
+    // The secret sheet: a BIP-85 child seed let out.
+    app.press(Action::Bip85);
+    app.press(Action::PApp(4));
+    app.press(Action::PNext);
+    app.press(Action::PNext);
+    app.press(Action::POut);
+    assert_eq!(app.sheet, Some(Sheet::SecretOut));
+    texts_at(&mut app, "secret sheet", &mut all);
+    all
+}
+
+#[test]
+fn no_screen_or_sheet_calls_either_half_inbox_or_outbox() {
+    for (w, h, dpi) in [(1366, 768, 160), (480, 640, 160)] {
+        let all = every_text(w, h, dpi);
+        assert!(all.len() > 500, "{w}x{h}: too little drawn to judge");
+        let bad: Vec<&(String, String)> = all
+            .iter()
+            .filter(|(_, t)| {
+                let t = t.to_lowercase();
+                t.contains("inbox") || t.contains("outbox")
+            })
+            .collect();
+        assert!(bad.is_empty(), "{w}x{h}: {bad:?}");
+        assert!(
+            all.iter().any(|(_, t)| t == "From the stick")
+                && all.iter().any(|(_, t)| t == "For the stick"),
+            "{w}x{h}: Files does not name its halves by direction"
+        );
+    }
+}

@@ -263,7 +263,7 @@ impl Faraday {
                 if let (Some(text), Some(fp)) = (self.silent_record(), fp) {
                     let name = format!("silent-{}.txt", fp_text(osk_bip::keys::Fingerprint(fp)));
                     self.put_outbox(&name, text.into_bytes());
-                    self.toast(&format!("{name} is in the Outbox"));
+                    self.toast_out(&name);
                 }
                 return;
             }

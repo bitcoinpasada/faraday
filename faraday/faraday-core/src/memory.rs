@@ -229,6 +229,11 @@ impl Faraday {
                 crate::vaults::summaries_encode(&self.vaults.summaries),
             ));
         }
+        // What the last visit wrote, for Files, Home and each vault's
+        // currency (§4.3).
+        if let Some(r) = &self.receipt {
+            out.push(("receipt".to_string(), r.encode()));
+        }
         if let Some(f) = self.family_kept() {
             out.push(("family".to_string(), f));
         }
@@ -269,6 +274,7 @@ impl Faraday {
                         .collect();
                 }
                 "family" => self.family_restore(bytes),
+                "receipt" => self.receipt = crate::Receipt::decode(bytes),
                 "vault-summaries" => {
                     self.vaults.summaries = crate::vaults::summaries_decode(bytes);
                 }

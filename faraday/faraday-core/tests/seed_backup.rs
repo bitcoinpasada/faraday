@@ -168,6 +168,12 @@ fn scanned(png: &[u8]) -> Fingerprint {
 
 const STICK: &str = "S1";
 
+/// The secrets For the stick: the checklist's public files go there on
+/// their own, a seed only past the secret sheet.
+fn secrets_out(app: &Faraday) -> usize {
+    app.outbox.iter().filter(|i| i.secret).count()
+}
+
 #[test]
 fn saved_into_the_vault_from_the_seeds_step_the_key_loads_at_the_next_unlock() {
     let mut app = device(vec![kit_file("vault.ofv")]);
@@ -213,16 +219,16 @@ fn the_unprotected_button_does_nothing_until_the_warning_is_ticked() {
     backing_up(&mut app, false);
     app.press(Action::BFile);
     app.press(Action::SecretUnprotected);
-    assert!(app.outbox.is_empty(), "out before the warning was ticked");
+    assert_eq!(secrets_out(&app), 0, "out before the warning was ticked");
     assert_eq!(app.sheet, Some(Sheet::SecretOut));
     // Ticked and unticked again, still nothing.
     app.press(Action::SecretAck);
     app.press(Action::SecretAck);
     app.press(Action::SecretUnprotected);
-    assert!(app.outbox.is_empty());
+    assert_eq!(secrets_out(&app), 0);
     app.press(Action::SecretAck);
     app.press(Action::SecretUnprotected);
-    assert_eq!(app.outbox.len(), 1);
+    assert_eq!(secrets_out(&app), 1);
 }
 
 #[test]
@@ -233,11 +239,11 @@ fn cancelling_the_sheet_lets_nothing_out() {
     app.press(Action::SecretAck);
     app.press(Action::Cancel);
     assert!(app.secret_out.is_none(), "the secret is still held");
-    assert!(app.outbox.is_empty());
+    assert_eq!(secrets_out(&app), 0);
     // Opened again, the warning is unticked.
     app.press(Action::BFile);
     app.press(Action::SecretUnprotected);
-    assert!(app.outbox.is_empty());
+    assert_eq!(secrets_out(&app), 0);
 }
 
 #[test]
@@ -422,14 +428,14 @@ fn with_no_vault_the_seed_is_not_in_a_vault() {
 }
 
 #[test]
-fn a_seed_file_in_the_outbox_is_listed_as_unprotected() {
+fn a_seed_file_for_the_stick_is_listed_as_unprotected() {
     let mut app = device(Vec::new());
     backing_up(&mut app, false);
     seed_file(&mut app, 0);
     assert!(
         kept(&app).seeds[0]
             .lines
-            .contains(&line("File in the Outbox, unprotected", Tone::Err))
+            .contains(&line("File for the stick, unprotected", Tone::Err))
     );
 }
 

@@ -283,3 +283,128 @@ fn a_finger_dragged_on_the_outbox_moves_it_and_not_the_stick_list() {
         "the drag ticked or unticked the file it started on"
     );
 }
+
+type Files = Vec<(String, Vec<u8>)>;
+
+/// A process restored from `boxes` (Inbox, Outbox, kept), with the clock
+/// known and `stick` attached when given.
+fn process(boxes: (Files, Files, Files), stick: Option<&str>) -> Faraday {
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 768,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.storage(StorageEvent::Restored {
+        inbox: boxes.0,
+        outbox: boxes.1,
+        kept: boxes.2,
+    });
+    app.storage(StorageEvent::Clock {
+        unix_secs: 1_791_000_000,
+    });
+    if let Some(label) = stick {
+        app.storage(StorageEvent::Sticks(vec![StickInfo {
+            id: "S".into(),
+            label: label.into(),
+            boot: false,
+            files: Vec::new(),
+        }]));
+    }
+    let _ = app.frame();
+    app
+}
+
+/// What the last save kept: the Inbox, the Outbox and the kept state.
+fn saved(app: &mut Faraday) -> (Files, Files, Files) {
+    let mut last = (Vec::new(), Vec::new(), Vec::new());
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes {
+            inbox,
+            outbox,
+            kept,
+        } = c
+        {
+            last = (inbox, outbox, kept);
+        }
+    }
+    last
+}
+
+fn files_texts(app: &mut Faraday) -> Vec<String> {
+    app.press(Action::Nav(Screen::Files));
+    app.drawn_texts()
+}
+
+/// A write leaves a receipt (`docs/SIMPLIFY.md` §4.3): Files lists it
+/// under For the stick with the file names, the files written leave the
+/// list that waits, and it is still there after the lock that follows,
+/// in the next process, where Home leads with it. A fresh process, after
+/// power-off, has none.
+#[test]
+fn a_write_leaves_a_receipt_that_a_lock_keeps_and_power_off_does_not() {
+    let wallet = faraday_core::testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == "spending-wallet.txt")
+        .unwrap();
+    let mut app = process((Vec::new(), vec![wallet], Vec::new()), Some("TESTSTICK"));
+    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::VisitWrite);
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Write { stick, name, .. } = c {
+            app.storage(StorageEvent::Written {
+                stick,
+                wrote_as: name.clone(),
+                name,
+            });
+        }
+    }
+    assert!(
+        !app.outbox.iter().any(|i| i.name == "spending-wallet.txt"),
+        "a file written still waits"
+    );
+    let texts = files_texts(&mut app);
+    assert!(
+        texts.iter().any(|t| t == "Written to TESTSTICK at 04:00"),
+        "no receipt on Files: {texts:?}"
+    );
+    assert!(
+        texts.iter().any(|t| t == "spending-wallet.txt"),
+        "the receipt names the file: {texts:?}"
+    );
+    assert!(texts.iter().any(|t| t == "verified"), "{texts:?}");
+
+    // Pulled, then locked: the next process still lists it, and Home
+    // leads with it.
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::Lock);
+    let (inbox, outbox, kept) = saved(&mut app);
+    let mut next = process((inbox.clone(), outbox.clone(), kept), None);
+    let texts = files_texts(&mut next);
+    assert!(
+        texts.iter().any(|t| t == "Written to TESTSTICK at 04:00"),
+        "the lock lost the receipt: {texts:?}"
+    );
+    next.press(Action::Nav(Screen::Home));
+    let texts = next.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Written to TESTSTICK"),
+        "Home does not lead with the receipt: {texts:?}"
+    );
+
+    // Power-off: the files may come back; the kept state does not.
+    let mut fresh = process((inbox, outbox, Vec::new()), None);
+    let texts = files_texts(&mut fresh);
+    assert!(
+        !texts.iter().any(|t| t.starts_with("Written to")),
+        "a fresh process has a receipt: {texts:?}"
+    );
+}

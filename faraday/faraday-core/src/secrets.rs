@@ -345,8 +345,9 @@ impl Faraday {
             Keep::Round(r) => {
                 self.put_outbox(&r.psbt_name, r.psbt);
                 self.toast(&format!(
-                    "The nonce is in {vault}; {} is in the Outbox",
-                    r.psbt_name
+                    "The nonce is in {vault}; {} waits {}",
+                    r.psbt_name,
+                    self.medium.for_the()
                 ));
             }
             Keep::Key { key, .. } => {
@@ -390,7 +391,10 @@ impl Faraday {
         item.secret = true;
         self.outbox.push(item);
         self.save_boxes();
-        self.toast(&format!("{name} is in the Outbox, unprotected"));
+        self.toast(&format!(
+            "{name} waits {}, unprotected",
+            self.medium.for_the()
+        ));
     }
 
     /// Nothing chosen: a carry file goes back to the spend it came from;

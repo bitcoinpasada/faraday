@@ -160,7 +160,7 @@ impl Faraday {
                 for (name, bytes) in files {
                     self.put_outbox(&name, bytes);
                 }
-                self.toast(&format!("{n} enrolment files are in the Outbox"));
+                self.toast_out(&format!("{n} enrolment files"));
             }
             Err(e) => self.toast(e.reason()),
         }
@@ -181,7 +181,7 @@ impl Faraday {
                 self.put_outbox(&name, signed);
                 self.vaults.sb_sign = None;
                 self.vaults.sb_images = false;
-                self.toast(&format!("{name}, signed, is in the Outbox"));
+                self.toast_out(&format!("{name}, signed,"));
             }
             Err(e) => self.toast(e.reason()),
         }

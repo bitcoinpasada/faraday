@@ -42,9 +42,9 @@ fn attach(app: &mut Faraday, on: bool) {
 #[test]
 fn the_pi_s_home_says_no_sd_card() {
     let app = panel(Medium::SdCard);
-    assert_eq!(app.home_files_line(), "0 in · 0 out · no SD card");
+    assert_eq!(app.home_files_line(), "none · no SD card");
     let pc = panel(Medium::Stick);
-    assert_eq!(pc.home_files_line(), "0 in · 0 out · no stick");
+    assert_eq!(pc.home_files_line(), "none · no stick");
 }
 
 #[test]
@@ -54,7 +54,7 @@ fn the_pi_names_an_sd_card_with_its_article_and_at_the_start_of_a_line() {
     app.press(Action::WriteAsk);
     assert_eq!(
         app.toast_text(),
-        Some("Plug in an SD card: the visit writes the Outbox")
+        Some("Plug in an SD card: the visit writes what waits for it")
     );
     attach(&mut app, true);
     attach(&mut app, false);
@@ -64,7 +64,7 @@ fn the_pi_names_an_sd_card_with_its_article_and_at_the_start_of_a_line() {
     pc.press(Action::WriteAsk);
     assert_eq!(
         pc.toast_text(),
-        Some("Plug in a stick: the visit writes the Outbox")
+        Some("Plug in a stick: the visit writes what waits for it")
     );
     attach(&mut pc, true);
     attach(&mut pc, false);
@@ -81,5 +81,5 @@ fn the_pi_calls_the_card_it_started_from_the_boot_sd_card() {
         files: Vec::new(),
     }]));
     let _ = app.frame();
-    assert_eq!(app.home_files_line(), "0 in · 0 out · Boot SD card");
+    assert_eq!(app.home_files_line(), "none · Boot SD card");
 }

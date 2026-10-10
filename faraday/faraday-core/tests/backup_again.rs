@@ -130,43 +130,54 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
     every_software(&mut app);
     let items = app.backup_items();
     assert!(!items.contains(&bstep::BLANK) && !items.contains(&bstep::COPY));
+    // Making the checklist made every file it calls for, For the stick:
+    // the public files and the shares are done with no press; the rest
+    // are not.
     for n in &items {
         let it = bstep::item(*n).unwrap();
-        assert!(!app.backup_item_done(it), "{it:?} is done already");
+        let made = matches!(it, plan::Item::PublicFiles | plan::Item::Sheets);
+        assert_eq!(app.backup_item_done(it), made, "{it:?}");
     }
     press_offered(&mut app, Action::BStep(bstep::PUBLIC));
     let want = testkit::public_files("Savings", &testkit::savings()).unwrap();
-    for (what, name) in [
-        (1, "savings-descriptor.txt"),
-        (5, "savings-wallet.json"),
-        (2, "savings-multisig-config.txt"),
-        (6, "savings-bsms.txt"),
-        (7, "savings-bitcoin-core.json"),
-        (8, "savings-descriptor.png"),
+    for name in [
+        "savings-descriptor.txt",
+        "savings-wallet.json",
+        "savings-multisig-config.txt",
+        "savings-bsms.txt",
+        "savings-bitcoin-core.json",
+        "savings-descriptor.png",
     ] {
-        press_offered(&mut app, Action::PublicOut(w, what));
         assert!(in_outbox(&app, name), "{name} is not in the Outbox");
-        if !name.ends_with(".pdf") {
-            let made = &app.outbox.iter().find(|i| i.name == name).unwrap().bytes;
-            let kit = &want.iter().find(|(n, _)| n == name).unwrap().1;
-            assert_eq!(made, kit, "{name}");
-        }
-    }
-    for code in [Code::MultisigConfig(w), Code::Bsms(w)] {
-        press_offered(&mut app, Action::CodePng(code));
+        let made = &app.outbox.iter().find(|i| i.name == name).unwrap().bytes;
+        let kit = &want.iter().find(|(n, _)| n == name).unwrap().1;
+        assert_eq!(made, kit, "{name}");
     }
     assert!(in_outbox(&app, "savings-multisig-config.png"));
     assert!(in_outbox(&app, "savings-bsms.png"));
+    // Each row offers Remove where it offered to put the file out; made
+    // again, the file replaces its namesake.
+    press_offered(&mut app, Action::PublicRemove(w, 5));
+    assert!(!in_outbox(&app, "savings-wallet.json"));
+    assert!(!app.backup_item_done(plan::Item::PublicFiles));
+    press_offered(&mut app, Action::PublicOut(w, 5));
+    assert!(in_outbox(&app, "savings-wallet.json"));
+    assert_eq!(
+        app.outbox
+            .iter()
+            .filter(|i| i.name == "savings-wallet.json")
+            .count(),
+        1
+    );
+    assert!(app.backup_item_done(plan::Item::PublicFiles));
     // No seed here: no key of it to give the cosigners.
     let _ = app.frame();
     for slot in 0..3 {
         assert!(!app.offers(Action::WalletKeyOut(w, slot)));
     }
-    assert!(app.backup_item_done(plan::Item::PublicFiles));
-    // The shares are the next item, a press away.
+    // The shares, made with the checklist.
     press_offered(&mut app, Action::BStep(bstep::SHEETS));
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::SHEETS));
-    press_offered(&mut app, Action::BOut(4));
     assert!(in_outbox(&app, "savings-share-1-of-3.pdf"));
     assert!(app.backup_item_done(plan::Item::Sheets));
 }
@@ -181,8 +192,10 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     app.press(Action::Backup(w));
     press_offered(&mut app, Action::BPreset(1));
     press_offered(&mut app, Action::BChecklist);
-    // Seeds here: it opens on the blank templates.
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::BLANK));
+    // Seeds here: the blank template is made with the checklist, so it
+    // opens on the copy.
+    assert!(app.backup_item_done(plan::Item::Templates));
+    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY));
     press_offered(&mut app, Action::BStep(bstep::WALLET));
     // The vault is locked: Unlock it, and back to this step.
     app.vaults.ms_per_unit = Some(180);

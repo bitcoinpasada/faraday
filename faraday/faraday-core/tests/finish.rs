@@ -249,3 +249,29 @@ fn a_checked_wallet_has_check_closed_on_its_next_spend_and_after_a_lock() {
     let app = spending_offered(Vec::new());
     assert!(!check_closed(&app), "open again in a fresh process");
 }
+
+/// Finishing a spend puts both results For the stick with no further
+/// press (`docs/SIMPLIFY.md` §4.2): the signed PSBT and the finished
+/// transaction. Each card offers Remove in their place, and the primary
+/// opens Files, where the visit writes them.
+#[test]
+fn finishing_a_spend_puts_both_files_for_the_stick() {
+    let mut app = spending_finished();
+    let names: Vec<&str> = app.outbox.iter().map(|i| i.name.as_str()).collect();
+    assert!(names.contains(&"spend-signed.psbt"), "{names:?}");
+    assert!(names.contains(&"spend-final.txn"), "{names:?}");
+    let signed = app
+        .outbox
+        .iter()
+        .position(|i| i.name == "spend-signed.psbt")
+        .unwrap();
+    let _ = app.frame();
+    assert!(app.offers(Action::OutboxRemove(signed)));
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Insert a stick to write it"),
+        "with no stick the primary asks for one: {texts:?}"
+    );
+    app.press(Action::Primary);
+    assert_eq!(app.screen, Screen::Files);
+}

@@ -28,7 +28,7 @@ The copy is byte for byte, so a stick whose BOOTX64.EFI carries your db signatur
 
 1. On a computer, write the new release onto a spare stick, and copy its EFI/BOOT/BOOTX64.EFI onto the spare's data partition as well.
 
-2. Start from your signed vault stick. Read BOOTX64.EFI from the spare into the Inbox, unlock the vault that holds your db key, sign the file, lock, and write only the signed file back to the spare.
+2. Start from your signed vault stick. Copy BOOTX64.EFI in from the spare, unlock the vault that holds your db key, sign the file, lock, and write only the signed file back to the spare.
 
 3. On the computer, copy the signed file over EFI/BOOT/BOOTX64.EFI on the spare's boot partition.
 

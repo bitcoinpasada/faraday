@@ -81,11 +81,11 @@ reads it once, when it first sees the stick after power-on, and does
 not leave it attached while anything secret is open.
 
 1. **Copied into memory.** Every file on the stick is read into RAM. A
-   vault file goes into the Inbox, still encrypted. Every other file is
-   held apart from the Inbox until the import. A PNG is not kept as a
+   vault file goes into Files, From the stick, still encrypted. Every
+   other file is held apart until the import. A PNG is not kept as a
    picture: its QR codes are read, and what they hold is kept, a SeedQR
    as its seed words. A file Faraday reads as nothing it knows, up to
-   18 MiB, is kept as a File, which can go to the Inbox to be signed
+   18 MiB, is kept as a File, which can go into Files to be signed
    with a GPG key or sent as QR codes. A sheet says how many files were
    copied and what they are, and asks for the stick to be removed.
 2. **Remove the stick.** Keys never load and passphrases are never typed
@@ -99,10 +99,10 @@ not leave it attached while anything secret is open.
    whether the keys present can sign for it ("Can sign", "1 of 3 keys
    here · 1 more needed", or "Watch-only"), and the files that carry it
    and its keys. Keys that no wallet listed uses follow, ticked. Then
-   every file, for the Inbox: PSBTs and vaults ticked, everything else
+   every file, for Files: PSBTs and vaults ticked, everything else
    not, and an open vault's file always kept.
 5. **Import.** One press loads the chosen wallets with their keys and the
-   chosen keys, moves the chosen files into the Inbox, and wipes
+   chosen keys, moves the chosen files into Files, and wipes
    everything else from memory. A file not chosen is still on the stick;
    bringing it in later means inserting the stick again, for an ordinary
    stick visit. The session goes on from Home with the wallets and keys
@@ -191,8 +191,8 @@ computer:
 
 1. On a computer, write the new release onto a spare stick, and copy
    its `EFI/BOOT/BOOTX64.EFI` onto the spare's data partition as well.
-2. Start from your signed vault stick. Read `BOOTX64.EFI` from the spare
-   into the Inbox, unlock the vault that holds your db key, sign it,
+2. Start from your signed vault stick. Copy `BOOTX64.EFI` in from the
+   spare, unlock the vault that holds your db key, sign it,
    lock, and write only the signed file back to the spare.
 3. On the computer, copy the signed file over `EFI/BOOT/BOOTX64.EFI` on
    the spare's boot partition.
@@ -300,7 +300,7 @@ internal error rather than carrying on.
   | Camera | USB webcam | Pi camera or USB webcam |
 
 - **Why the stick comes out.** Nothing reaches a stick except through
-  a stick visit, which writes only what the Outbox holds, and only while
+  a stick visit, which writes only what waits For the stick, and only while
   nothing secret is open. Pulling the stick does not add that rule; it
   takes away the means to break it. With no stick attached, no fault in
   Faraday can write a secret to one, and a hostile stick has nothing to
@@ -362,7 +362,7 @@ internal error rather than carrying on.
 - Nothing is written to the computer. There is no driver for its disk
   and no access to its firmware variables.
 - **What locking wipes, and how.** Locking seals every open vault into
-  the Outbox and then clears memory in two steps:
+  For the stick and then clears memory in two steps:
   1. The application drops every key, seed, passphrase and decrypted
      record it holds. Each is kept in a type that overwrites its memory
      with zeros when it is dropped (the `zeroize` crate's volatile
@@ -378,8 +378,9 @@ internal error rather than carrying on.
      temporary values a library left on the stack.
 
   Seed-word files and other secret files copied in from a stick are
-  removed from RAM at the same time. The Inbox and Outbox, which hold
-  only public or encrypted files, are kept for the fresh process.
+  removed from RAM at the same time. Files, From the stick and For the
+  stick, which hold only public or encrypted files, are kept for the
+  fresh process, with the receipt of the last stick visit's write.
   Nothing can be paged out first: there is no swap, no hibernation and
   no core dumps.
 - **Panic key.** Holding Super and S together for two seconds powers
@@ -595,7 +596,7 @@ report drops to the app, so there the list is the way. **Receive** reads
 the codes the device's Files shows through the webcam and saves each
 whole file into the same folder, under its own name or `received-N`,
 never over a file already there (`name (2).ext`). Nothing received goes
-into the desktop app's Inbox. `--transfer` opens the app on Transfer.
+into the desktop app's Files. `--transfer` opens the app on Transfer.
 
 Build the test kit on its own with:
 

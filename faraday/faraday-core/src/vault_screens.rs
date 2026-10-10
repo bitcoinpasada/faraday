@@ -271,21 +271,15 @@ pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         &format!(
             "A vault holds keys, wallets, entries and notes under one to four passphrases, each opening \
              its own contents. A locked vault shows only what its file states: its size and unlock cost. \
-             A vault comes into the Inbox on {} visit, and goes back out through the Outbox when the \
-             session locks with changes in it.",
-            app.medium.a()
+             A vault is copied in on {} visit, and is sealed {} again when the session locks with \
+             changes in it.",
+            app.medium.a(),
+            app.medium.for_the()
         ),
     );
     let files = app.vault_files();
     if files.is_empty() {
-        ui.text(
-            x,
-            y + 8.0,
-            15.0,
-            W::R,
-            MUTED,
-            "No vault in the Inbox or the Outbox",
-        );
+        ui.text(x, y + 8.0, 15.0, W::R, MUTED, "No vault in Files");
         return;
     }
     let in_inbox = |salt: &[u8; 32]| {
@@ -351,9 +345,9 @@ pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text(x + 84.0, y + 16.0, 16.0, W::S, TEXT, &title_text);
         ui.text(x + 84.0, y + 42.0, 12.0, W::M, MUTED, &f.name);
         let where_ = if f.in_outbox {
-            "In the Outbox"
+            app.medium.for_box()
         } else {
-            "In the Inbox"
+            app.medium.from_box()
         };
         let line = list_line(app, f, where_);
         let line = ui.fit(12.0, W::R, &line, w - 84.0 - 300.0);
@@ -430,14 +424,7 @@ pub(crate) fn unlock(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .filter(|(_, f)| f.open.is_none())
         .collect();
     if locked.is_empty() {
-        ui.text(
-            x,
-            y,
-            15.0,
-            W::R,
-            MUTED,
-            "No locked vault in the Inbox or the Outbox",
-        );
+        ui.text(x, y, 15.0, W::R, MUTED, "No locked vault in Files");
         ui.button(
             x,
             y + 36.0,
@@ -466,9 +453,9 @@ pub(crate) fn unlock(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.icon(x + 16.0, y + 14.0, 44.0, Icon::Lock, 18.0, fg);
         ui.text(x + 76.0, y + 14.0, 14.0, W::M, TEXT, &f.name);
         let where_ = if f.in_outbox {
-            "In the Outbox"
+            app.medium.for_box()
         } else {
-            "In the Inbox"
+            app.medium.from_box()
         };
         ui.text(
             x + 76.0,
@@ -539,16 +526,23 @@ pub(crate) fn unlock(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// open; once locked, what it held when last seen open, or that unlocking
 /// shows it.
 fn list_line(app: &Faraday, f: &vaults::VaultFile, where_: &str) -> String {
-    if f.open.is_some() {
-        return format!(
+    let line = if f.open.is_some() {
+        format!(
             "{where_} · {} · {}",
             file_text(f.len),
             cost_text(&f.header.cost)
-        );
-    }
-    match app.vault_summary(f) {
-        Some(s) => s.line(),
-        None => "Unlock to see what it holds".to_string(),
+        )
+    } else {
+        match app.vault_summary(f) {
+            Some(s) => s.line(),
+            None => "Unlock to see what it holds".to_string(),
+        }
+    };
+    // Its currency first (§3.5): never written, current on a stick, or
+    // changed since written.
+    match app.currency(f) {
+        Some(c) => format!("{} · {line}", c.line()),
+        None => line,
     }
 }
 
@@ -611,15 +605,7 @@ fn list_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let files = app.vault_files();
     if files.is_empty() {
-        y += ui.wrap(
-            x,
-            y,
-            w,
-            14.0,
-            W::R,
-            MUTED,
-            "No vault in the Inbox or the Outbox",
-        ) + 12.0;
+        y += ui.wrap(x, y, w, 14.0, W::R, MUTED, "No vault in Files") + 12.0;
     }
     let in_inbox = |salt: &[u8; 32]| {
         app.inbox
@@ -695,9 +681,9 @@ fn list_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let name = ui.fit(12.0, W::M, &f.name, room);
         ui.text(x + 60.0, y + 34.0, 12.0, W::M, MUTED, &name);
         let where_ = if f.in_outbox {
-            "In the Outbox"
+            app.medium.for_box()
         } else {
-            "In the Inbox"
+            app.medium.from_box()
         };
         let line = list_line(app, f, where_);
         // What a locked vault held, when it is longer than a line, takes
@@ -732,9 +718,10 @@ fn list_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         &format!(
             "A vault holds keys, wallets, entries and notes under one to four passphrases, each opening \
              its own contents. A locked vault shows only what its file states: its size and unlock cost. \
-             A vault comes into the Inbox on {} visit, and goes back out through the Outbox when the \
-             session locks with changes in it.",
-            app.medium.a()
+             A vault is copied in on {} visit, and is sealed {} again when the session locks with \
+             changes in it.",
+            app.medium.a(),
+            app.medium.for_the()
         ),
     );
     finish(app, ui, x0, cw, h, y - top + 16.0);
@@ -762,15 +749,7 @@ fn unlock_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .filter(|(_, f)| f.open.is_none())
         .collect();
     if locked.is_empty() {
-        y += ui.wrap(
-            x,
-            y,
-            w,
-            14.0,
-            W::R,
-            MUTED,
-            "No locked vault in the Inbox or the Outbox",
-        ) + 12.0;
+        y += ui.wrap(x, y, w, 14.0, W::R, MUTED, "No locked vault in Files") + 12.0;
         ui.button(
             x,
             y,
@@ -802,9 +781,9 @@ fn unlock_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let name = ui.fit(14.0, W::M, &f.name, room);
         ui.text(x + 60.0, y + 10.0, 14.0, W::M, TEXT, &name);
         let where_ = if f.in_outbox {
-            "In the Outbox"
+            app.medium.for_box()
         } else {
-            "In the Inbox"
+            app.medium.from_box()
         };
         let line = ui.fit(
             12.0,
@@ -1819,7 +1798,7 @@ fn create_summary(app: &Faraday, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             },
             strength,
         ),
-        ("Goes to", "Outbox".to_string()),
+        ("Goes to", app.medium.for_box().to_string()),
     ];
     for (k, v) in facts.iter() {
         ui.text_mid(x, y, 30.0, 12.0, W::R, MUTED, k);
@@ -2106,7 +2085,7 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         w,
         &format!(
             "Secret values show only while held. Changes stay in this session until it locks; locking \
-             seals them into the Outbox, and the next {} visit writes the vault back over its own file.",
+             seals them, and the next {} visit writes the vault back over its own file.",
             app.medium.noun()
         ),
     );
@@ -2572,7 +2551,7 @@ fn contents_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         w,
         &format!(
             "Secret values show only while held. Changes stay in this session until it locks; locking \
-             seals them into the Outbox, and the next {} visit writes the vault back over its own file.",
+             seals them, and the next {} visit writes the vault back over its own file.",
             app.medium.noun()
         ),
     );
@@ -2749,7 +2728,14 @@ fn detail(
         dy += 40.0;
         let files: Vec<(usize, &crate::Item)> = app.inbox.iter().enumerate().collect();
         if files.is_empty() {
-            ui.text(dx, dy, 13.0, W::R, DIM, "The Inbox is empty");
+            ui.text(
+                dx,
+                dy,
+                13.0,
+                W::R,
+                DIM,
+                &format!("No file {}", app.medium.from_the()),
+            );
         }
         for (k, it) in files {
             // Sign puts the signature in the Outbox; beside it, the
@@ -3341,7 +3327,14 @@ fn images_panel(app: &Faraday, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f3
         .filter(|(_, i)| crate::secureboot::is_image(&i.name))
         .collect();
     if images.is_empty() {
-        ui.text(dx, dy, 13.0, W::R, DIM, "No EFI image in the Inbox");
+        ui.text(
+            dx,
+            dy,
+            13.0,
+            W::R,
+            DIM,
+            &format!("No EFI image {}", app.medium.from_the()),
+        );
         dy += 30.0;
     }
     for (k, it) in images {

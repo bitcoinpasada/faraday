@@ -443,7 +443,7 @@ impl Faraday {
                     loaded_fp(fp),
                 ),
                 None => found.waiting.push(Waiting {
-                    line: format!("SLIP-39 shares · {} of {need} in the Inbox", ks.len()),
+                    line: format!("SLIP-39 shares · {} of {need} in Files", ks.len()),
                     backup: None,
                 }),
             }
@@ -462,7 +462,7 @@ impl Faraday {
                     loaded_fp(fp),
                 ),
                 None => found.waiting.push(Waiting {
-                    line: format!("codex32 shares · {} of {need} in the Inbox", ks.len()),
+                    line: format!("codex32 shares · {} of {need} in Files", ks.len()),
                     backup: None,
                 }),
             }
@@ -846,7 +846,7 @@ impl Faraday {
         );
         match self
             .session
-            .add_wallet(&name, &descriptor, "an xpub in the Inbox")
+            .add_wallet(&name, &descriptor, "an xpub in Files")
         {
             Ok(i) => {
                 self.wallet = i;
@@ -1039,7 +1039,7 @@ impl Faraday {
         let name = format!("{} · {}", fp_text(fp), crate::family::kind_name(kind));
         match self
             .session
-            .add_wallet(&name, &descriptor, "a seed in the Inbox")
+            .add_wallet(&name, &descriptor, "a seed in Files")
         {
             Ok(i) => {
                 self.wallet = i;

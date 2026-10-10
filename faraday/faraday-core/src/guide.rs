@@ -86,13 +86,15 @@ pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState, m:
                     if needed == 1 { "signature" } else { "signatures" }
                 )
             } else {
-                "Signing uses the key loaded on this device. Faraday checks the signature before keeping \
-                 it, and nothing leaves the device until you put a file in the Outbox."
-                    .to_string()
+                format!(
+                    "Signing uses the key loaded on this device. Faraday checks the signature before \
+                     keeping it, and nothing leaves the device until {} visit writes it.",
+                    m.a()
+                )
             }
         }
         step::COLLECT => format!(
-            "Get the other signatures. Put the PSBT in the Outbox to carry it on {a}, or let each \
+            "Get the other signatures. Carry the PSBT, which waits in Files, on {a}, or let each \
              cosigner sign the copy they already have. When a signed copy comes back, copy it in on {a} \
              visit and add it here. Each signature is checked against its key, and a copy of any other \
              transaction is refused.",
@@ -106,7 +108,7 @@ pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState, m:
                     .to_string()
             } else if kind == Some(Kind::Threshold) && (s.carry_out.is_some() || s.out_signed) {
                 format!(
-                    "Put the carry file in the Outbox and write it to {}. At the next share's place, \
+                    "Keep the carry file in the vault, or write it to {}. At the next share's place, \
                      copy it into Faraday with that share loaded, open it from Files and sign. The share \
                      that signs last gets the finished transaction.",
                     m.a()
@@ -125,11 +127,12 @@ pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState, m:
 pub(crate) fn backup(n: u8, m: usize, keys: usize, seeds_here: usize, medium: Medium) -> String {
     use crate::bstep;
     match n {
-        bstep::BLANK => "Print the blank template first, anywhere: it holds no secret, only numbered \
-            lines for the words and the squares every SeedQR of this length shares. Put it in the Outbox, \
-            carry it to the desktop app, and print one copy per seed. You write on it by hand in the next \
-            step."
-            .to_string(),
+        bstep::BLANK => format!(
+            "Print the blank template first, anywhere: it holds no secret, only numbered lines for the \
+             words and the squares every SeedQR of this length shares. It waits {}: carry it to the \
+             desktop app, and print one copy per seed. You write on it by hand in the next step.",
+            medium.for_the()
+        ),
         n if n >= bstep::COPY => {
             let lead = if seeds_here == 0 {
                 "None of this wallet's seeds were typed into this session, so there is nothing to copy here. \
@@ -147,37 +150,45 @@ pub(crate) fn backup(n: u8, m: usize, keys: usize, seeds_here: usize, medium: Me
             } else {
                 format!(
                     " Paper comes first. Under the copy, Save into the open vault keeps a further copy \
-                     sealed under the vault's passphrase. Save as a file writes the words or the SeedQR \
-                     picture to the Outbox unprotected, only after you tick that anyone who copies the \
+                     sealed under the vault's passphrase. Save as a file makes the words or the SeedQR \
+                     picture a file {}, unprotected, only after you tick that anyone who copies the \
                      {} can spend with it: the least safe of the three. A file never holds the \
                      passphrase; the vault keeps it only when saved with its passphrase.",
+                    medium.for_the(),
                     medium.noun()
                 )
             };
-            format!("{lead}{further} A printer is a computer with memory and often a network, so a seed never goes \
+            format!(
+                "{lead}{further} A printer is a computer with memory and often a network, so a seed never goes \
                      to one. There is no line for a passphrase: written beside the words it stops being a \
-                     second factor.")
+                     second factor."
+            )
         }
-        bstep::PUBLIC => "This half is xpubs only. It can spend nothing, but it is the only thing that \
-            puts the keys back together into this wallet, so keep copies. Show the descriptor as a QR to \
-            load the wallet into watch-only software, or put the QR in the Outbox as a picture with the \
-            wallet's name, keys and checksum under it, to print or to scan later. Put the files and the \
-            backup sheet in the Outbox; the sheet goes as a PDF to print. Sparrow imports the .json under Specter Desktop, \
-            and the multisig config under Coldcard Multisig."
-            .to_string(),
+        bstep::PUBLIC => format!(
+            "This half is xpubs only. It can spend nothing, but it is the only thing that puts the keys \
+             back together into this wallet, so keep copies. Show the descriptor as a QR to load the \
+             wallet into watch-only software, or keep the QR as a picture with the wallet's name, keys \
+             and checksum under it, to print or to scan later. The files and the backup sheet wait {} \
+             from the moment the checklist is made; the sheet goes as a PDF to print. Sparrow imports \
+             the .json under Specter Desktop, and the multisig config under Coldcard Multisig.",
+            medium.for_the()
+        ),
         bstep::SHEETS if m > 1 => format!(
             "Instead of one sheet with every key, give each of the {keys} signers a share that leaves some \
              keys off. With {} left off each, any {m} shares together hold every key, so any {m} signers can \
              rebuild the wallet, and one share alone cannot watch it. This is not secret sharing: the keys \
-             are public, and the shares only decide who can see the balance. Each share goes to the \
-             Outbox as a sheet to print, a text file and a picture of its QR; Restore takes the text file \
-             or a scan of the picture.",
-            m.saturating_sub(1)
+             are public, and the shares only decide who can see the balance. Each share waits {} as \
+             a sheet to print, a text file and a picture of its QR; Restore takes the text file or a scan \
+             of the picture.",
+            m.saturating_sub(1),
+            medium.for_the()
         ),
-        bstep::ENVELOPE => "One envelope per place, holding what the plan puts there. Store the envelopes \
+        bstep::ENVELOPE => {
+            "One envelope per place, holding what the plan puts there. Store the envelopes \
             apart. A copy kept in a vault is one more \
             copy, not a replacement for paper."
-            .to_string(),
+                .to_string()
+        }
         _ => String::new(),
     }
 }

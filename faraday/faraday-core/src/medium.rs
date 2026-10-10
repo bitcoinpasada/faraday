@@ -84,7 +84,43 @@ impl Medium {
         }
     }
 
-    /// The screen that writes the Outbox to it and copies files in:
+    /// The half of Files that holds what was copied in, as a label:
+    /// "From the stick", "From the SD card".
+    pub const fn from_box(self) -> &'static str {
+        match self {
+            Medium::Stick => "From the stick",
+            Medium::SdCard => "From the SD card",
+        }
+    }
+
+    /// The half of Files that holds what waits to be written, as a
+    /// label: "For the stick", "For the SD card".
+    pub const fn for_box(self) -> &'static str {
+        match self {
+            Medium::Stick => "For the stick",
+            Medium::SdCard => "For the SD card",
+        }
+    }
+
+    /// Mid-sentence, where a file came from: "from the stick", "from
+    /// the SD card".
+    pub const fn from_the(self) -> &'static str {
+        match self {
+            Medium::Stick => "from the stick",
+            Medium::SdCard => "from the SD card",
+        }
+    }
+
+    /// Mid-sentence, where a file waits to go: "for the stick", "for the
+    /// SD card".
+    pub const fn for_the(self) -> &'static str {
+        match self {
+            Medium::Stick => "for the stick",
+            Medium::SdCard => "for the SD card",
+        }
+    }
+
+    /// The screen that writes what waits for it and copies files in:
     /// "Stick visit", "SD card visit".
     pub const fn visit(self) -> &'static str {
         match self {

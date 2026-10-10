@@ -104,6 +104,45 @@ fn the_session_strip_names_the_current_stage() {
     assert_eq!(app.session_stage(), "Bring in");
 }
 
+/// Write out also when nothing waits For the stick but a vault has
+/// changed since it was written (§3.5): here the test vault, copied in,
+/// opened, and a key saved into it.
+#[test]
+fn the_session_strip_reads_write_out_for_a_vault_changed_since_written() {
+    use faraday_core::vaults::VaultAction as V;
+    let mut app = with(1, 0);
+    app.storage(faraday_core::StorageEvent::Restored {
+        inbox: vec![(
+            "vault.ofv".to_string(),
+            faraday_core::testkit::test_vault().unwrap(),
+        )],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.storage(faraday_core::StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.vaults.ms_per_unit = Some(180);
+    app.press(Action::Vault(V::Open(0)));
+    for c in faraday_core::testkit::VAULT_PASSPHRASES[0].chars() {
+        app.event(Event::Key(osk_shell_api::Key::Char(c)));
+    }
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults.open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    assert_eq!(app.session_stage(), "Work", "open and unchanged");
+    app.press(Action::Vault(V::AddKind(0)));
+    app.press(Action::Vault(V::SaveKey(0)));
+    assert!(app.outbox.is_empty());
+    assert_eq!(app.session_stage(), "Write out");
+}
+
 #[test]
 fn a_few_are_each_named_and_open_what_they_name() {
     let mut app = with_height(3, 2, 900);

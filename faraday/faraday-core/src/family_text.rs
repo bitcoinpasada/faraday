@@ -242,8 +242,8 @@ pub fn lead(app: &Faraday, id: CardId) -> String {
         }
         CardId::Page(_) => {
             return format!(
-                "Lock Faraday. The vault is sealed again and the keys are forgotten. If the \
-                 Outbox holds anything you still need, plug {a} in and the {noun} visit writes \
+                "Lock Faraday. The vault is sealed again and the keys are forgotten. If a file \
+                 you still need waits for the {noun}, plug {a} in and the {noun} visit writes \
                  it. Then switch off, take the {noun} out, and put it back with the papers.",
                 a = app.medium.a(),
                 noun = app.medium.noun()
@@ -285,8 +285,8 @@ pub fn lead(app: &Faraday, id: CardId) -> String {
             return format!(
                 "The finished transaction is what the network accepts. Show the signed PSBT as a \
                  QR code; in Sparrow, on the same transaction, press Scan QR and hold it up to \
-                 the webcam, then Broadcast Transaction. Or put the finished transaction in the \
-                 Outbox and carry it on {}. It is safe to hand to anyone: nobody can change \
+                 the webcam, then Broadcast Transaction. Or carry the finished transaction, which \
+                 waits in Files, on {}. It is safe to hand to anyone: nobody can change \
                  where the money goes without breaking the signatures, and a broken transaction \
                  is rejected, not redirected.",
                 app.medium.a()
@@ -483,7 +483,7 @@ pub fn more(app: &Faraday, id: CardId) -> Vec<String> {
         CardId::Page(page::AWAY) => {
             return vec![format!(
                 "When Faraday signs with a vault open, it records the amounts it signed inside \
-                 that vault, so locking seals a changed copy of the vault into the Outbox. \
+                 that vault, so locking seals a changed copy of the vault to write back. \
                  Writing it back to the {} keeps that record; leaving it out changes nothing \
                  else.",
                 m.noun()

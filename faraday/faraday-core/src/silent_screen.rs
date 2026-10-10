@@ -186,7 +186,7 @@ fn card(app: &Faraday, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f
                     Action::SQr(true),
                 ),
                 (
-                    "Record to the Outbox".to_string(),
+                    format!("Record {}", app.medium.for_the()),
                     Style::Secondary,
                     Action::SRecord,
                 ),
