@@ -3,6 +3,9 @@
 //! two of its split sheets rebuild it, and its vault, passphrase `a`,
 //! opens from Home once the stick is pulled and holds the three seeds
 //! that sign, and its unsigned spend signs and finishes on the Spend tab.
+//! A stick plugged in while a seed is held brings up the lock sheet,
+//! which says where else each seed is: in a vault, its copy checked, or
+//! nowhere else.
 
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
@@ -105,7 +108,7 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
             .collect(),
     }]));
     assert_eq!(app.screen, Screen::Visit);
-    app.press(Action::VisitInAll);
+    // Every file comes in ticked.
     app.press(Action::VisitCopy);
     // The shell answers each read.
     while let Some(c) = app.poll_storage() {
@@ -205,5 +208,115 @@ fn the_sticks_spend_signs_and_finishes_on_the_spend_tab() {
     assert!(
         app.spend.as_ref().unwrap().complete,
         "the spend did not complete"
+    );
+}
+
+/// The seed of test key 1, the test vault's, typed into Add a key, and a
+/// one-key wallet made from it. Returns the name the sheets give it.
+fn with_seed(app: &mut Faraday) -> String {
+    use faraday_core::seeds::SeedsAction as S;
+    app.press(Action::Entry(None));
+    for c in testkit::test_words(testkit::TEST_SEEDS[0].0).chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    assert_eq!(app.session.keys.len(), 1, "{:?}", app.entry.error);
+    let fp = app.session.keys[0].master.fingerprint().0;
+    app.press(Action::KeyWallet(fp, 1));
+    app.press(Action::Seeds(S::Make));
+    assert_eq!(app.session.wallets.len(), 1);
+    // A key typed in has no name of its own: it goes by its fingerprint.
+    format!(
+        "Seed {}",
+        faraday_core::wallet::fp_text(app.session.keys[0].master.fingerprint())
+    )
+}
+
+/// A stick plugged in while a secret is held: the lock sheet's lines.
+fn lock_sheet_lines(app: &mut Faraday) -> Vec<String> {
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        id: "S".into(),
+        label: "OTHER".into(),
+        boot: false,
+        files: Vec::new(),
+    }]));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Lock));
+    app.drawn_texts()
+}
+
+#[test]
+fn the_lock_sheet_lists_a_seed_in_memory_only_as_nowhere_else() {
+    let mut app = testkit::started();
+    let label = with_seed(&mut app);
+    let lines = lock_sheet_lines(&mut app);
+    assert!(lines.iter().any(|l| l == "Kept"), "{lines:?}");
+    assert!(lines.iter().any(|l| l == "Wiped from memory"), "{lines:?}");
+    assert!(
+        lines.contains(&format!("{label} · nowhere else")),
+        "{lines:?}"
+    );
+}
+
+#[test]
+fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
+    use faraday_core::bstep;
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.vaults.ms_per_unit = Some(100);
+    app.storage(StorageEvent::Restored {
+        inbox: vec![("vault.ofv".into(), testkit::test_vault().unwrap())],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let label = with_seed(&mut app);
+    // Its copy by hand, checked from its typed numbers.
+    app.press(Action::Backup(0));
+    app.press(Action::BPreset(0));
+    app.press(Action::BChecklist);
+    if app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {
+        app.press(Action::BStep(bstep::COPY));
+    }
+    app.press(Action::BReveal);
+    app.press(Action::BCheck);
+    let m = osk_bip::bip39::Mnemonic::parse(
+        osk_bip::bip39::Language::English,
+        &testkit::test_words(testkit::TEST_SEEDS[0].0),
+    )
+    .unwrap();
+    for i in m.indices() {
+        for c in format!("{i:04}").chars() {
+            app.event(Event::Key(Key::Char(c)));
+        }
+    }
+    assert!(
+        app.backup_item_done(faraday_core::plan::Item::Copy(0)),
+        "the copy was not checked"
+    );
+    // The test vault, which holds the seed; the wallet saved into it.
+    app.press(Action::Vault(V::Open(0)));
+    for c in testkit::VAULT_PASSPHRASES[0].chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::Vault(V::Unlock));
+    let _ = app.frame();
+    app.event(Event::Tick { now_ms: 1000 });
+    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    app.press(Action::Vault(V::SaveWallet(0)));
+    let lines = lock_sheet_lines(&mut app);
+    let line = lines
+        .iter()
+        .find(|l| l.starts_with(&format!("{label} · in ")))
+        .unwrap_or_else(|| panic!("the seed is not listed as in the vault: {lines:?}"));
+    assert!(line.ends_with("· copy checked"), "{line}");
+    assert!(
+        !lines.iter().any(|l| l.contains("nowhere else")),
+        "{lines:?}"
+    );
+    // The vault is kept, with its currency.
+    assert!(
+        lines.iter().any(|l| l.contains("Changed since written")),
+        "{lines:?}"
     );
 }

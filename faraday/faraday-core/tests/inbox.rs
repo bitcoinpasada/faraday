@@ -279,7 +279,15 @@ fn every_text(width: u16, height: u16, dpi: u16) -> Vec<(String, String)> {
         app.screen = screen;
         texts_at(&mut app, &format!("{screen:?}"), &mut all);
     }
+    // Files, scrolled to its foot: For the stick, under all that came in.
     app.screen = S::Files;
+    let _ = app.frame();
+    app.event(Event::Scroll {
+        x: width / 2,
+        y: height / 2,
+        dy: i16::MAX,
+    });
+    texts_at(&mut app, "Files scrolled", &mut all);
     for sheet in [
         Sheet::Lock,
         Sheet::LockAsk,

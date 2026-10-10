@@ -257,7 +257,10 @@ never stored (§3.5): **Never written** (sealed For the stick, on no
 receipt), **On {label} · current** (the receipt wrote the bytes it has
 now), **Changed since written** (open with unsaved changes, or sealed
 bytes that differ from the receipt's). A vault copied in, unchanged and
-on no receipt, reads none of the three.
+on no receipt, reads **On {label} · current** for the stick it was read
+from, which the app remembers with the SHA-256 of the bytes read (kept
+across a lock under the key `vault-from`, gone at power-off), or
+**Unchanged** when that stick is not known.
 
 ## 7. Slot contents
 

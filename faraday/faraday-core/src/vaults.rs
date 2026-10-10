@@ -332,7 +332,7 @@ pub struct TextBox {
 }
 
 impl TextBox {
-    fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         self.text.clear();
     }
     fn set(&mut self, s: &str) {
@@ -812,6 +812,106 @@ impl Faraday {
             .map(|w| w.name.clone())
             .collect();
         (keys, wallets)
+    }
+
+    /// What a lock, a write-out or a power-off keeps and what it wipes
+    /// (`docs/SIMPLIFY.md` §4.5): each vault with its currency, the files
+    /// For the stick, and each seed and wallet in memory with where else
+    /// it is. At `power_off` a vault not written as it stands and the
+    /// files For the stick are lost, not kept.
+    pub fn kept_wiped(&self, power_off: bool) -> KeptWiped {
+        let mut out = KeptWiped::default();
+        for f in self.vault_files() {
+            let open = f.open.and_then(|o| self.vaults.open.get(o));
+            let title = open
+                .map(|v| v.label())
+                .or_else(|| self.vault_summary(&f).map(|s| s.name.clone()))
+                .unwrap_or_else(|| f.name.clone());
+            let currency = self.currency(&f);
+            let state = currency
+                .as_ref()
+                .map_or_else(|| self.medium.from_box().to_string(), Currency::line);
+            let line = format!("{title} · {state}");
+            let lost =
+                power_off && matches!(currency, Some(Currency::NeverWritten | Currency::Changed));
+            if lost {
+                out.wiped.push((line, true));
+            } else {
+                out.kept.push(line);
+            }
+        }
+        let n = self.outbox.len();
+        let files = format!(
+            "{n} {} {}",
+            if n == 1 { "file" } else { "files" },
+            self.medium.for_the()
+        );
+        if power_off {
+            if n > 0 {
+                out.wiped.push((files, true));
+            }
+        } else {
+            out.kept.push(files);
+        }
+        // Where an open vault holds each seed and wallet.
+        let in_vault_key = |payload: &[u8]| {
+            self.vaults.open.iter().find_map(|v| {
+                v.contents
+                    .of(kind::KEY)
+                    .any(|(_, r)| r.field(field::KEY) == Some(payload))
+                    .then(|| v.label())
+            })
+        };
+        let in_vault_wallet = |descriptor: &str| {
+            self.vaults.open.iter().find_map(|v| {
+                v.contents
+                    .of(kind::WALLET)
+                    .filter_map(|(_, r)| r.text(field::WALLET))
+                    .filter_map(|t| crate::wallet::read_wallet(t).ok())
+                    .any(|p| p.to_descriptor() == descriptor)
+                    .then(|| v.label())
+            })
+        };
+        let checked: &[[u8; 4]] = self.backup.as_ref().map_or(&[], |b| &b.checked);
+        for k in &self.session.keys {
+            let vault = k
+                .words
+                .as_ref()
+                .and_then(|w| osk_bip::bip39::Mnemonic::parse(k.language, w).ok())
+                .and_then(|m| in_vault_key(&records::words_payload(&m)));
+            let copy = checked.contains(&k.master.fingerprint().0);
+            let (state, nowhere) = match (vault, copy) {
+                (Some(v), true) => (format!("in {v} · copy checked"), false),
+                (Some(v), false) => (format!("in {v}"), false),
+                (None, true) => ("copy checked".to_string(), false),
+                (None, false) => ("nowhere else".to_string(), true),
+            };
+            // A key with no name of its own goes by "Seed {fingerprint}",
+            // as the backup map writes it.
+            let fp = crate::wallet::fp_text(k.master.fingerprint());
+            let name = if k.label.is_empty() || k.label.eq_ignore_ascii_case(&fp) {
+                format!("Seed {fp}")
+            } else {
+                k.label.clone()
+            };
+            out.wiped.push((format!("{name} · {state}"), nowhere));
+        }
+        for w in &self.session.wallets {
+            let in_files = self
+                .inbox
+                .iter()
+                .chain(self.outbox.iter())
+                .any(|i| i.name == w.source);
+            let (state, nowhere) = match in_vault_wallet(&w.policy.to_descriptor()) {
+                Some(v) => (format!("in {v}"), false),
+                None if in_files => ("in Files".to_string(), false),
+                None => ("nowhere else".to_string(), true),
+            };
+            out.wiped.push((format!("{} · {state}", w.name), nowhere));
+        }
+        // What is nowhere else first, where it is read.
+        out.wiped.sort_by_key(|(_, nowhere)| !nowhere);
+        out
     }
 
     /// The vaults the Inbox and Outbox hold: one row per vault, the
@@ -1747,6 +1847,8 @@ impl Faraday {
             return;
         };
         let name = f.name.clone();
+        // Unlocked on the boot import's sheet: the unlock imports.
+        let for_import = self.sheet == Some(crate::Sheet::Import) && self.import.is_some();
         let result = fv::open(&bytes, self.vaults.passphrase.text.as_bytes());
         match result {
             Ok((opened, contents)) => {
@@ -1804,6 +1906,11 @@ impl Faraday {
                 let made = self.vaults.just_made.take() == Some(self.vaults.open[v].name.clone());
                 self.toast(&format!("{name} unlocked", name = self.vaults.open[v].name));
                 self.vault_summaries_refresh();
+                if for_import {
+                    self.vaults.back_to = None;
+                    self.import_go();
+                    return;
+                }
                 // Unlocked from the Spend tab, or for it: everything loads.
                 let back = self.vaults.back_to.take();
                 if self.screen == Screen::Family || back == Some(Screen::Family) {
@@ -2612,10 +2719,14 @@ impl Faraday {
     /// Typing on a vault screen. Returns whether the key was taken.
     pub(crate) fn vault_key(&mut self, key: osk_shell_api::Key) -> bool {
         use osk_shell_api::Key as K;
-        if !matches!(
-            self.screen,
-            Screen::Unlock | Screen::CreateVault | Screen::VaultContents | Screen::Family
-        ) {
+        // The boot import's sheet has a passphrase field of its own.
+        let import = self.sheet == Some(crate::Sheet::Import) && self.screen == Screen::Home;
+        if !import
+            && !matches!(
+                self.screen,
+                Screen::Unlock | Screen::CreateVault | Screen::VaultContents | Screen::Family
+            )
+        {
             return false;
         }
         let Some(focus) = self.vaults.focus else {
@@ -2669,7 +2780,9 @@ impl Faraday {
             match focus {
                 Focus::Dice | Focus::Prompt => {}
                 Focus::Passphrase => {
-                    if key == K::Enter {
+                    if key == K::Enter && import {
+                        self.import_act(crate::boot_import::ImportAction::Submit);
+                    } else if key == K::Enter {
                         self.vault_act(VaultAction::Unlock);
                     }
                 }
@@ -2848,6 +2961,17 @@ fn phrase_of(m: &osk_bip::bip39::Mnemonic) -> Zeroizing<String> {
     out
 }
 
+/// What the lock, write-out and power-off sheets list (§4.5).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct KeptWiped {
+    /// Kept: one line per vault with its currency, then the files For
+    /// the stick.
+    pub kept: Vec<String>,
+    /// Wiped from memory, or lost at power-off: one line each, `true` for
+    /// what is nowhere else.
+    pub wiped: Vec<(String, bool)>,
+}
+
 /// A vault file's currency (`docs/SIMPLIFY.md` §3.5), computed from the
 /// receipt's hashes, never stored.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2860,16 +2984,19 @@ pub enum Currency {
     /// Open with unsaved changes, or sealed bytes that differ from the
     /// receipt's.
     Changed,
+    /// Read from a stick and not changed since, the stick not known.
+    Unchanged,
 }
 
 impl Currency {
     /// The line a person reads: "Never written", "On STICK · current",
-    /// "Changed since written".
+    /// "Changed since written", "Unchanged".
     pub fn line(&self) -> String {
         match self {
             Currency::NeverWritten => "Never written".to_string(),
             Currency::Current(label) => format!("On {label} · current"),
             Currency::Changed => "Changed since written".to_string(),
+            Currency::Unchanged => "Unchanged".to_string(),
         }
     }
 }
@@ -3085,8 +3212,9 @@ impl Faraday {
     }
 
     /// Where vault file `f` stands against the last write
-    /// (`docs/SIMPLIFY.md` §3.5): `None` for a vault copied in from a
-    /// stick, unchanged, that no receipt names.
+    /// (`docs/SIMPLIFY.md` §3.5). A vault copied in from a stick,
+    /// unchanged, that no receipt names is current on the stick it came
+    /// from when that is known, else unchanged.
     pub fn currency(&self, f: &VaultFile) -> Option<Currency> {
         let changed = f
             .open
@@ -3112,7 +3240,23 @@ impl Faraday {
             }
             None if f.in_outbox => Some(Currency::NeverWritten),
             None if changed => Some(Currency::Changed),
-            None => None,
+            // Read from a stick and not changed: on the stick it came
+            // from, as it is, when that stick is known.
+            None => {
+                let hash = self
+                    .inbox
+                    .iter()
+                    .find(|i| i.name == f.name)
+                    .map(|i| crate::sha256_of(&i.bytes));
+                Some(
+                    self.vault_from
+                        .iter()
+                        .find(|(n, h, _)| *n == f.name && Some(*h) == hash)
+                        .map_or(Currency::Unchanged, |(.., label)| {
+                            Currency::Current(label.clone())
+                        }),
+                )
+            }
         }
     }
 

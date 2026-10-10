@@ -419,22 +419,26 @@ Inbox, a PNG as what its QR codes hold (a SeedQR as its words), a file
 Faraday reads as nothing it knows as a File, to sign or send as codes.
 A keyboard or pointer waiting to be believed (§4.6) is asked about
 first, whether it was seen before the stick or after; then a sheet over
-Home says
-how many files were copied and what they are, and **Remove the stick to
-start the import** (on the Pi, the card). Once no removable partition
-remains, the same sheet lists the medium's vaults, each with **Unlock**
-(the Unlock screen, which comes back to the sheet); every wallet found in
-the files, the pictures and the open vaults, once each by descriptor,
-ticked, with its shape, whether the keys present can sign for it ("Can
-sign", "k of n keys here · m more needed", "Watch-only") and the files
-that carry it and its keys; the keys no listed wallet uses, ticked; and
-every file for the Inbox, PSBTs and vaults ticked, an open vault's file
-always kept. A line states that files not chosen are wiped from memory
-and that bringing one in later means inserting the stick again.
-**Import** loads the chosen wallets with their keys and the chosen keys,
-moves the chosen files into the Inbox, wipes the rest, and leaves Home.
-**Import later**, or a tap beside the sheet, leaves the files waiting;
-the sidebar's Sticks row and Home's Sticks and import cards open the
+Home reads "Read from {label}", one line of what was read ("1 vault ·
+2 PSBTs · 4 other files") and "Pull the stick to continue" (on the Pi,
+the card), with no lists. Once no removable partition remains, a medium
+with one vault puts its passphrase field on the sheet, with **Unlock**
+and **Not now**; with several, each vault's row has **Unlock**, which
+opens the field under it. An unlock that succeeds imports everything:
+the vault's wallets and keys, every wallet and key found in the files
+and pictures, and every file into the Inbox but a secret's, whose key
+loads without it; the rest is wiped and Home leads. A wrong passphrase
+stays on the sheet and says so. **Choose what to import** lists every
+wallet found in the files, the pictures and the open vaults, once each
+by descriptor, ticked, with its shape, whether the keys present can sign
+for it ("Can sign", "k of n keys here · m more needed", "Watch-only")
+and the files that carry it and its keys; the keys no listed wallet
+uses, ticked; and every file, ticked but a secret's, an open vault's
+file always kept. **Import** brings in what is ticked without unlocking.
+A medium with no vault is imported the moment it is pulled; one with
+only the settings file brings up no sheet. **Not now**, or a tap beside
+the sheet, leaves the files waiting; Home leads with the vault's
+**Unlock**, which opens the
 sheet again. A lock wipes what was not imported, and a later insertion
 of the boot medium is an ordinary stick visit. Unlocking, loading keys
 and scanning are never offered while a stick or card is present: a
@@ -443,18 +447,23 @@ marker as a secret does, so a stick inserted while it is on is held
 back, nothing read, and arrives once the camera is off.
 
 **A stick inserted while unlocked.** Nothing is handed out. The app sees
-the disk in `/sys` and shows a sheet: what will be sealed (vaults with
-unsaved changes), what will be wiped (keys loaded in OpenSigner), what is
-waiting in the Outbox. **Lock and use stick** locks (§5.3); the fresh
+the disk in `/sys` and shows a sheet: what is kept (each vault with its
+currency, the files waiting in the Outbox), then what is wiped from
+memory (each seed and wallet, with where else it is: in a vault, its copy
+checked, or "nowhere else"), then what happens. **Lock and use stick** locks (§5.3); the fresh
 process, now clean, lets the stick through. **Not now** leaves the stick
 untouched and shows "Remove the stick to keep working".
 
 **A stick visit.** One screen does both directions: write the Outbox
 (each file read back and compared), save sealed vaults over the files they
-came from (`docs/VAULT.md` §6), and pick files into the Inbox. On the Pi
-the boot card or another SD card is the one visited, and the screen is
-**SD card visit**. It ends on **Remove the stick** ("Remove the SD card"
-on the Pi), then **Unlock again**.
+came from (`docs/VAULT.md` §6), and pick files into the Inbox: every file
+it reads comes in ticked but a seed's by its name, one over 18 MiB and
+one already in by name and size, and **Unselect all** clears them. On the
+Pi the boot card or another SD card is the one visited, and the screen is
+**SD card visit**. Its title's chip says where it goes once the stick is
+pulled: "Then: Unlock" when a vault was sealed for it, else "Then: Home".
+It ends on **Remove the stick** ("Remove the SD card" on the Pi), then
+that.
 
 **Copying from one stick to another.** The visit's write list, **Write
 to the stick**, also lists the Inbox's files under **From the Inbox**,

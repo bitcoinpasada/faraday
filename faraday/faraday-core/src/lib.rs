@@ -577,8 +577,7 @@ pub enum Action {
     VisitSettings,
     /// Choose a stick file to copy.
     VisitIn(usize),
-    /// Choose every file on the stick Faraday reads, or none when all are
-    /// chosen.
+    /// Unselect all: none of the stick's files comes in.
     VisitInAll,
     /// Choose an Inbox file to write to the stick, by its index in the
     /// Inbox: one that may be a secret opens the secret sheet first.
@@ -1059,6 +1058,13 @@ pub enum Action {
 /// The largest file read from a stick, as the disk process reads them
 /// (`faraday-files` `MAX_READ`): a larger one is listed and not read.
 pub const READ_MAX: u64 = 18 * 1024 * 1024;
+
+/// A file named as Faraday names a seed it writes out: its words, its
+/// SeedQR, a BIP-85 child.
+fn seed_by_name(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    lower.ends_with("words.txt") || lower.ends_with("seedqr.png") || lower.starts_with("bip85-")
+}
 
 /// What a stick visit calls a file it copies in, by its extension: any
 /// file but the settings file is copied, and one whose extension says
@@ -2529,6 +2535,9 @@ pub struct Faraday {
     pub checked_wallets: Vec<String>,
     /// What the last stick visit wrote, this power-on (§4.3).
     pub receipt: Option<Receipt>,
+    /// Each vault file read from a stick this power-on: its name, the
+    /// hash of its bytes as read, and the stick's label (§3.5).
+    pub vault_from: Vec<(String, [u8; 32], String)>,
     seed: [u8; 32],
     /// The session's seed has arrived.
     seeded: bool,
@@ -2793,6 +2802,7 @@ impl Faraday {
             seal_amounts: true,
             checked_wallets: Vec::new(),
             receipt: None,
+            vault_from: Vec::new(),
             seed: [0; 32],
             seeded: false,
             sign_draws: 0,
@@ -2922,10 +2932,16 @@ impl Faraday {
         };
         match event {
             StorageEvent::Sticks(sticks) => self.sticks_changed(sticks),
-            StorageEvent::Read { name, bytes, .. } => {
+            StorageEvent::Read { stick, name, bytes } => {
                 // A file Faraday reads as nothing else still comes in, as
                 // a File: to sign, or to send as codes.
                 let item = Item::new(&name, bytes);
+                if item.kind == FileKind::Vault
+                    && let Some(s) = self.sticks.iter().find(|s| s.id == stick)
+                {
+                    let label = s.label.clone();
+                    self.vault_read_from(&name, &item.bytes, &label);
+                }
                 let line = if item.kind == FileKind::Words && self.visit.load_after.contains(&name)
                 {
                     format!(
@@ -3324,9 +3340,18 @@ impl Faraday {
                 self.vaults.focus = Some(vaults::Focus::Passphrase);
             }
             if self.screen == Screen::Visit {
+                // Where the visit's chip said it goes (§4.7).
+                let unlock = self
+                    .after_visit
+                    .is_none()
+                    .then(|| self.visit_unlocks())
+                    .flatten();
                 self.screen = self.after_visit.take().unwrap_or(Screen::Home);
                 if self.screen == Screen::Family {
                     self.family_settle();
+                }
+                if let Some(i) = unlock {
+                    self.vault_act(vaults::VaultAction::Open(i));
                 }
             }
             if had {
@@ -3394,6 +3419,7 @@ impl Faraday {
             // disk process lists stay where they are, unvisited.
         } else {
             self.visit.out = self.visit_default_out();
+            self.visit.inn = self.visit_default_in();
             if self.sheet == Some(Sheet::Import) {
                 self.sheet = None;
             }
@@ -3605,6 +3631,59 @@ impl Faraday {
     /// What a visit writes unless the person changes it: the Outbox but
     /// an unprotected secret, which is written only when ticked on the
     /// visit itself.
+    /// The vault, by place in [`Faraday::vault_files`], a stick visit
+    /// unlocks once the stick is pulled: a locked one sealed for it, still
+    /// For the stick or written by the last write.
+    fn visit_unlocks(&self) -> Option<usize> {
+        self.vault_files().iter().position(|f| {
+            f.open.is_none()
+                && (f.in_outbox || self.receipt.as_ref().is_some_and(|r| r.wrote(&f.name)))
+        })
+    }
+
+    /// The stick visit's chip (`docs/SIMPLIFY.md` §4.7): where pulling
+    /// the stick goes. Back to the flow the stick came in during, Unlock
+    /// when a vault was sealed for the visit, else Home.
+    pub fn visit_then(&self) -> String {
+        match self.after_visit {
+            Some(s) => format!("Then: {}", self.back_name(s)),
+            None if self.visit_unlocks().is_some() => "Then: Unlock".to_string(),
+            None => "Then: Home".to_string(),
+        }
+    }
+
+    /// Remembers that vault file `name`, these bytes, was read from the
+    /// stick labelled `label`.
+    pub(crate) fn vault_read_from(&mut self, name: &str, bytes: &[u8], label: &str) {
+        self.vault_from.retain(|(n, ..)| n != name);
+        self.vault_from
+            .push((name.to_string(), sha256_of(bytes), label.to_string()));
+    }
+
+    /// What a visit ticks to come in (`docs/SIMPLIFY.md` §4.6): every file
+    /// on the stick shown that Faraday reads, but a seed's by its name
+    /// (which comes in through its own tick), one over 18 MiB, and one
+    /// From the stick already by name and size.
+    pub(crate) fn visit_default_in(&self) -> std::collections::BTreeSet<String> {
+        let Some(stick) = self.sticks.get(self.visit.stick) else {
+            return Default::default();
+        };
+        stick
+            .files
+            .iter()
+            .filter(|(n, size)| {
+                stick_kind(n).is_some()
+                    && *size <= READ_MAX
+                    && !seed_by_name(n)
+                    && !self
+                        .inbox
+                        .iter()
+                        .any(|i| i.name == *n && i.bytes.len() as u64 == *size)
+            })
+            .map(|(n, _)| n.clone())
+            .collect()
+    }
+
     fn visit_default_out(&self) -> std::collections::BTreeSet<String> {
         self.outbox
             .iter()
@@ -3976,6 +4055,7 @@ impl Faraday {
                 self.renaming = None;
                 if s == Screen::Visit {
                     self.visit.out = self.visit_default_out();
+                    self.visit.inn = self.visit_default_in();
                     self.visit.from_inbox.clear();
                     self.visit.out_offset = 0.0;
                 }
@@ -4155,7 +4235,7 @@ impl Faraday {
             }
             Action::VisitStick(i) => {
                 self.visit.stick = i;
-                self.visit.inn.clear();
+                self.visit.inn = self.visit_default_in();
                 self.visit.settings = None;
             }
             Action::VisitSettings => {
@@ -4180,21 +4260,8 @@ impl Faraday {
                     }
                 }
             }
-            Action::VisitInAll => {
-                if let Some(stick) = self.sticks.get(self.visit.stick) {
-                    let all: BTreeSet<String> = stick
-                        .files
-                        .iter()
-                        .filter(|(n, size)| stick_kind(n).is_some() && *size <= READ_MAX)
-                        .map(|(n, _)| n.clone())
-                        .collect();
-                    if !all.is_empty() && all.is_subset(&self.visit.inn) {
-                        self.visit.inn.clear();
-                    } else {
-                        self.visit.inn = all;
-                    }
-                }
-            }
+            // Unselect all: everything comes in by default (§4.6).
+            Action::VisitInAll => self.visit.inn.clear(),
             Action::VisitOutAll => {
                 // Every row but an unprotected secret, which is ticked one
                 // at a time (FLOWS.md decision 6); from the Inbox, every
@@ -8031,6 +8098,9 @@ impl Faraday {
 
     /// Whether typing goes to a text field now.
     pub(crate) fn typing_field(&self) -> bool {
+        if self.sheet == Some(Sheet::Import) {
+            return self.vaults.focus == Some(vaults::Focus::Passphrase);
+        }
         match self.screen {
             Screen::Family => self.vaults.focus.is_some() || self.seeds_typing(),
             Screen::Restore => self.seeds_typing(),
@@ -8047,6 +8117,10 @@ impl Faraday {
     /// Empties the field typing goes to.
     fn clear_typing(&mut self) {
         use zeroize::Zeroize;
+        if self.sheet == Some(Sheet::Import) {
+            self.vault_clear_focused();
+            return;
+        }
         match self.screen {
             Screen::Family | Screen::Restore if self.seeds_typing() => self.seeds_clear_typing(),
             Screen::Unlock | Screen::CreateVault | Screen::VaultContents | Screen::Family => {

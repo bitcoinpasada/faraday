@@ -241,6 +241,8 @@ impl Tour {
             self.sticks(true);
         }
         let names: Vec<String> = self.stick().files.iter().map(|(n, _)| n.clone()).collect();
+        // Everything comes in ticked: Unselect all, then these alone.
+        self.press(Action::VisitInAll);
         for (i, n) in names.iter().enumerate() {
             if n.ends_with("-wallet.txt") && !self.app.inbox.iter().any(|it| &it.name == n) {
                 self.press(Action::VisitIn(i));
@@ -401,7 +403,9 @@ fn run(
     t.shot("home-empty")?;
     // A stick arrives while nothing secret is held: the visit.
     t.sticks(true);
+    // Every file Faraday reads comes in ticked but a seed's.
     t.shot("visit")?;
+    t.press(Action::VisitInAll);
     for name in [
         "savings-unsigned.psbt",
         "taproot-multisig-unsigned.psbt",
@@ -426,6 +430,7 @@ fn run(
         .position(|(n, _)| n == "nested-wallet-qr.png")
         .ok_or("the kit has no nested-wallet-qr.png")?;
     // Ticked like any file: its codes are read on Import.
+    t.press(Action::VisitInAll);
     t.press(Action::VisitIn(png));
     t.press(Action::VisitCopy);
     // What its code holds, and the picture itself, kept to copy on.
@@ -583,6 +588,7 @@ fn run(
     t.app.storage(StorageEvent::Sticks(t.sticks.clone()));
     t.pump();
     let names: Vec<String> = t.stick().files.iter().map(|(n, _)| n.clone()).collect();
+    t.press(Action::VisitInAll);
     for (i, n) in names.iter().enumerate() {
         if n.starts_with("musig-") && n.ends_with(".psbt") || n == "inheritance-unsigned.psbt" {
             t.press(Action::VisitIn(i));
@@ -646,6 +652,7 @@ fn run(
         .iter()
         .position(|(n, _)| n == "threshold-unsigned.psbt")
     {
+        t.press(Action::VisitInAll);
         t.press(Action::VisitIn(i));
         t.press(Action::VisitCopy);
     }
@@ -739,6 +746,7 @@ fn run(
     t.press(Action::Lock);
     t.app.storage(StorageEvent::Sticks(t.sticks.clone()));
     t.pump();
+    t.press(Action::VisitInAll);
     for name in ["savings-share-1-of-3.txt", "savings-share-2-of-3.txt"] {
         if let Some(i) = t.stick().files.iter().position(|(n, _)| n == name) {
             t.press(Action::VisitIn(i));
@@ -949,6 +957,7 @@ fn run(
         .iter()
         .position(|(n, _)| n == "spending-message.txt")
     {
+        t.press(Action::VisitInAll);
         t.press(Action::VisitIn(i));
         t.press(Action::VisitCopy);
     }
@@ -974,6 +983,7 @@ fn run(
         .iter()
         .position(|(n, _)| n == "xpub-3-cf2e083d-multisig.txt")
     {
+        t.press(Action::VisitInAll);
         t.press(Action::VisitIn(i));
         t.press(Action::VisitCopy);
     }
@@ -1081,6 +1091,7 @@ fn run(
         .iter()
         .position(|(n, _)| n == "vault.ofv")
         .ok_or("the kit has no vault.ofv")?;
+    t.press(Action::VisitInAll);
     t.press(Action::VisitIn(vi));
     for name in ["vault-entries.txt", "seed-2-5d388376.oskb", "BOOTX64.EFI"] {
         let k = t
@@ -1374,6 +1385,13 @@ fn run(
     t.shot("vaults-remembered")?;
     t.press(Action::Nav(Screen::Home));
     t.shot("home-vault-remembered")?;
+    // A stick for the vault sealed at lock: the visit goes to Unlock.
+    t.sticks(true);
+    t.shot("visit-then-unlock")?;
+    t.sticks(false);
+    if t.app.screen != Screen::Unlock {
+        return Err("pulling the stick after writing the vault did not go to Unlock".into());
+    }
     t.restart();
     // A new vault: two passphrases at the Light cost.
     t.app.storage(StorageEvent::Memory {
@@ -1540,10 +1558,11 @@ fn test_key_1(t: &Tour) -> Result<[u8; 4], String> {
 }
 
 /// A fresh session at boot: the boot stick's files are copied into
-/// memory and the import sheet comes up; pulling the stick shows what is
-/// on it, the test vault unlocks from the sheet and its wallets join the
-/// list, and Import loads what is chosen; then a wallet made here is
-/// saved into the vault.
+/// memory and the sheet says what was read; pulling the stick puts the
+/// vault's passphrase on the sheet. A wrong passphrase stays; Not now
+/// leaves Home leading with the vault's Unlock; Choose what to import
+/// lists the wallets, keys and files; the right passphrase imports
+/// everything. Then a wallet made here is saved into the vault.
 fn boot_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::Sheet;
     use faraday_core::boot_import::ImportAction as I;
@@ -1566,20 +1585,32 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("boot-import-stick")?;
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
-    if t.app.sheet != Some(Sheet::Import) || t.app.import_view().is_none() {
-        return Err("pulling the boot stick did not show what to import".into());
+    if t.app.sheet != Some(Sheet::Import) || t.app.import_field().is_none() {
+        return Err(
+            "pulling the boot stick did not put the vault's passphrase on the sheet".into(),
+        );
     }
     t.shot("boot-import")?;
-    // Import later leaves it waiting on Home; the Sticks card opens it
-    // again.
+    // A wrong passphrase stays on the sheet and says so. A tap on the
+    // field first, which on a small panel brings the keyboard up.
+    t.press(Action::Vault(V::FocusPassphrase));
+    type_text(t, "not the passphrase");
+    t.press(Action::Import(I::Submit));
+    t.tick();
+    if t.app.sheet != Some(Sheet::Import) || t.app.vaults.unlock_error.is_none() {
+        return Err("a wrong passphrase did not stay on the sheet".into());
+    }
+    t.shot("boot-import-wrong")?;
+    // Not now leaves Home leading with the vault's Unlock, which opens
+    // the sheet again.
     t.press(Action::Import(I::Later));
     t.shot("home-import-waiting")?;
     t.press(faraday_core::boot_import::OPEN);
     if t.app.sheet != Some(Sheet::Import) {
         return Err("the import did not open again from Home".into());
     }
-    // Further down: the wallets, then the files for the Inbox and the
-    // line over the buttons.
+    // Choose what to import: the wallets, the keys and the files.
+    t.press(Action::Import(I::Choose));
     let (w, h) = t.size();
     let scroll = |t: &mut Tour, dy: i16| {
         t.app.event(Event::Scroll {
@@ -1593,32 +1624,20 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     scroll(t, i16::MAX);
     t.shot("boot-import-end")?;
     scroll(t, i16::MIN);
-    t.press(Action::Import(I::Unlock(0)));
-    if t.app.screen != Screen::Unlock {
-        return Err("Unlock on the import sheet did not open the passphrase prompt".into());
-    }
+    t.press(Action::Vault(V::FocusPassphrase));
     type_text(t, testkit::VAULT_PASSPHRASES[0]);
     t.shot("boot-unlock")?;
-    t.press(Action::Vault(V::Unlock));
+    t.press(Action::Import(I::Submit));
     t.tick();
-    if t.app.vaults.open.len() != 1 || t.app.sheet != Some(Sheet::Import) {
-        return Err("unlocking from the import did not come back to it".into());
-    }
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    t.shot("boot-import-unlocked")?;
-    let view = t.app.import_view().ok_or("no import")?;
-    println!(
-        "boot import: {} wallets ({} can sign), {} keys on their own, {} files",
-        view.wallets.len(),
-        view.wallets.iter().filter(|w| w.can_sign()).count(),
-        view.keys.len(),
-        view.files.len()
-    );
-    t.press(Action::Import(I::Go));
-    if t.app.import.is_some() || t.app.sheet.is_some() || t.app.screen != Screen::Home {
-        return Err("Import did not close on Home".into());
+    if t.app.vaults.open.len() != 1
+        || t.app.import.is_some()
+        || t.app.sheet.is_some()
+        || t.app.screen != Screen::Home
+    {
+        return Err("unlocking on the import sheet did not import and close on Home".into());
     }
     if t.app.session.wallets.len() < 12 || t.app.session.keys.is_empty() {
         return Err(format!(
@@ -2936,6 +2955,7 @@ fn spend_tour(t: &mut Tour) -> Result<(), String> {
     // The vault and the transaction from a stick: the visit, and back.
     t.press(Action::Nav(Screen::Family));
     t.sticks(true);
+    t.press(Action::VisitInAll);
     for name in ["vault.ofv", "savings-unsigned.psbt"] {
         if let Some(i) = t.stick().files.iter().position(|(n, _)| n == name) {
             t.press(Action::VisitIn(i));

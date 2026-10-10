@@ -86,35 +86,37 @@ not leave it attached while anything secret is open.
    picture: its QR codes are read, and what they hold is kept, a SeedQR
    as its seed words. A file Faraday reads as nothing it knows, up to
    18 MiB, is kept as a File, which can go into Files to be signed
-   with a GPG key or sent as QR codes. A sheet says how many files were
-   copied and what they are, and asks for the stick to be removed.
-2. **Remove the stick.** Keys never load and passphrases are never typed
-   while a stick is attached. Once it is out, the sheet lists what the
-   files hold.
-3. **Unlock the vaults wanted.** Each vault from the stick has an
-   Unlock button. Unlocking opens the usual passphrase screen and comes
-   back to the sheet, which then lists the vault's wallets and keys too.
-4. **Choose.** The sheet lists every wallet found in the files, the
-   pictures and the open vaults, once each, ticked: its name, its shape,
-   whether the keys present can sign for it ("Can sign", "1 of 3 keys
-   here · 1 more needed", or "Watch-only"), and the files that carry it
-   and its keys. Keys that no wallet listed uses follow, ticked. Then
-   every file, for Files: PSBTs and vaults ticked, everything else
-   not, and an open vault's file always kept.
-5. **Import.** One press loads the chosen wallets with their keys and the
-   chosen keys, moves the chosen files into Files, and wipes
-   everything else from memory. A file not chosen is still on the stick;
-   bringing it in later means inserting the stick again, for an ordinary
-   stick visit. The session goes on from Home with the wallets and keys
-   loaded.
+   with a GPG key or sent as QR codes. A sheet reads "Read from
+   {label}", one line of what was read ("1 vault · 2 PSBTs · 4 other
+   files"), and "Pull the stick to continue".
+2. **Pull the stick.** Keys never load and passphrases are never typed
+   while a stick is attached.
+3. **Unlock on the sheet.** With one vault on the stick, its passphrase
+   field is on the sheet; with several, each has an Unlock button that
+   opens the field under it. An unlock that succeeds imports everything:
+   the vault's wallets and keys, the wallets and keys the stick's files
+   and pictures hold, and every file into Files but a secret's, whose
+   key loads without it. Everything else is wiped from memory, and the
+   session goes on from Home. A wrong passphrase stays on the sheet and
+   says so.
+4. **Or choose.** **Choose what to import** lists every wallet found in
+   the files, the pictures and the open vaults, once each, ticked: its
+   name, its shape, whether the keys present can sign for it ("Can
+   sign", "1 of 3 keys here · 1 more needed", or "Watch-only"), and the
+   files that carry it and its keys. Keys that no wallet listed uses
+   follow, ticked; then every file, ticked but a secret's. **Import**
+   brings in what is ticked without unlocking. A file not chosen is
+   still on the stick; bringing it in later means inserting the stick
+   again, for an ordinary stick visit.
 
-**Import later**, or a tap beside the sheet, leaves the copied files
-waiting in memory and goes to Home; the Sticks row in the sidebar, the
-Sticks card on Home and the import card on Home open the sheet again.
-Locking wipes whatever was not imported. A later insertion of the boot
-stick in the same power-on is an ordinary stick visit; the desktop app's
-test stick (F2) stands for the boot stick, so its first plugging in a
-session runs the import.
+A stick with no vault is imported as it is pulled; one with only the
+settings file brings up no sheet. **Not now**, or a tap beside the sheet,
+leaves the copied files waiting in memory and goes to Home, which leads
+with the vault's Unlock and opens the sheet again; the Sticks row in the
+sidebar does too. Locking wipes whatever was not imported. A later
+insertion of the boot stick in the same power-on is an ordinary stick
+visit; the desktop app's test stick (F2) stands for the boot stick, so
+its first plugging in a session runs the import.
 
 ## A second stick for storage
 

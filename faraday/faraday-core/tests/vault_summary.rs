@@ -242,3 +242,51 @@ fn a_vaults_currency_reads_never_written_then_current_then_changed() {
         "sealed with the change: {texts:?}"
     );
 }
+
+/// A vault copied in from a stick and not changed reads as current on
+/// that stick, across the lock that follows; one whose stick is not known
+/// reads "Unchanged" (§3.5).
+#[test]
+fn a_vault_copied_in_reads_current_on_its_stick_or_unchanged() {
+    let vault = testkit::test_vault().unwrap();
+    let mut app = shown(Vec::new(), Vec::new(), Vec::new());
+    app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
+        id: "S".into(),
+        label: "VAULTSTICK".into(),
+        boot: false,
+        files: vec![("vault.ofv".into(), vault.len() as u64)],
+    }]));
+    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::VisitCopy);
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Read { stick, name } = c {
+            app.storage(StorageEvent::Read {
+                stick,
+                name,
+                bytes: vault.clone(),
+            });
+        }
+    }
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let texts = vaults_list(&mut app);
+    assert!(
+        texts.iter().any(|t| t.contains("On VAULTSTICK · current")),
+        "copied in, unchanged: {texts:?}"
+    );
+    // The next process remembers where it came from.
+    app.press(Action::Lock);
+    let (inbox, outbox, kept) = saved(&mut app);
+    let mut next = shown(inbox.clone(), outbox.clone(), kept);
+    let texts = vaults_list(&mut next);
+    assert!(
+        texts.iter().any(|t| t.contains("On VAULTSTICK · current")),
+        "after the lock: {texts:?}"
+    );
+    // With nothing kept, the stick is not known.
+    let mut fresh = shown(inbox, outbox, Vec::new());
+    let texts = vaults_list(&mut fresh);
+    assert!(
+        texts.iter().any(|t| t.contains("Unchanged")),
+        "stick not known: {texts:?}"
+    );
+}

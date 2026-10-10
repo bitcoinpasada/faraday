@@ -1,8 +1,9 @@
-//! The stick visit: Select all on the Import list chooses every file
-//! Faraday reads, pictures of QR codes with them, and a second press none;
-//! Select all on the Outbox list chooses every file but an unprotected
-//! secret; each long list has a scrollbar that drags it to the end at
-//! once, and the wheel moves the list it is over and not the other.
+//! The stick visit: every file Faraday reads comes in ticked but a
+//! seed's, and Unselect all clears them; Select all on the For the stick
+//! list chooses every file but an unprotected secret; each long list has
+//! a scrollbar that drags it to the end at once, and the wheel moves the
+//! list it is over and not the other. The chip says where pulling the
+//! stick goes: Unlock when a vault was sealed for the visit, else Home.
 
 use faraday_core::wallet::FileKind;
 use faraday_core::{
@@ -47,10 +48,8 @@ fn with_stick_at(n: usize, (width, height, dpi): (u16, u16, u16)) -> Faraday {
 }
 
 #[test]
-fn select_all_chooses_every_file_and_then_none() {
+fn every_file_comes_in_ticked_and_unselect_all_clears_them() {
     let mut app = with_stick(5);
-    assert!(app.offers(Action::VisitInAll));
-    app.press(Action::VisitInAll);
     assert_eq!(
         app.visit.inn.len(),
         7,
@@ -58,8 +57,49 @@ fn select_all_chooses_every_file_and_then_none() {
     );
     assert!(app.visit.inn.contains("photo.png"));
     assert!(app.visit.inn.contains("notes.docx"));
+    assert!(app.offers(Action::VisitInAll));
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Unselect all"), "{texts:?}");
+    // Select all stays on the For the stick list only.
+    assert_eq!(
+        texts.iter().filter(|t| *t == "Select all").count(),
+        1,
+        "{texts:?}"
+    );
     app.press(Action::VisitInAll);
     assert!(app.visit.inn.is_empty());
+}
+
+#[test]
+fn a_fresh_visit_has_the_psbts_and_descriptors_ticked_and_the_words_file_not() {
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 768,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        id: "S".into(),
+        label: "TESTSTICK".into(),
+        boot: false,
+        files: vec![
+            ("savings-unsigned.psbt".into(), 900),
+            ("savings-descriptor.txt".into(), 300),
+            ("savings-9a6a2580-words.txt".into(), 120),
+            ("savings-9a6a2580-seedqr.png".into(), 4000),
+            ("film.mp4".into(), 19 * 1024 * 1024),
+        ],
+    }]));
+    assert_eq!(app.screen, Screen::Visit);
+    let ticked: Vec<&str> = app.visit.inn.iter().map(String::as_str).collect();
+    assert_eq!(ticked, ["savings-descriptor.txt", "savings-unsigned.psbt"]);
 }
 
 #[test]
@@ -407,4 +447,39 @@ fn a_write_leaves_a_receipt_that_a_lock_keeps_and_power_off_does_not() {
         !texts.iter().any(|t| t.starts_with("Written to")),
         "a fresh process has a receipt: {texts:?}"
     );
+}
+
+/// A stick attached to a process restored with `outbox` For the stick.
+fn visiting(outbox: Files) -> Faraday {
+    let mut app = process((Vec::new(), outbox, Vec::new()), Some("TESTSTICK"));
+    assert_eq!(app.screen, Screen::Visit);
+    let _ = app.frame();
+    app
+}
+
+#[test]
+fn the_visit_says_then_home_and_goes_there() {
+    let wallet = faraday_core::testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == "spending-wallet.txt")
+        .unwrap();
+    let mut app = visiting(vec![wallet]);
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Then: Home"), "{texts:?}");
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.screen, Screen::Home);
+}
+
+#[test]
+fn a_visit_for_a_vault_sealed_at_lock_says_then_unlock_and_goes_there() {
+    let vault = (
+        "vault.ofv".to_string(),
+        faraday_core::testkit::test_vault().unwrap(),
+    );
+    let mut app = visiting(vec![vault]);
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Then: Unlock"), "{texts:?}");
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.screen, Screen::Unlock);
 }

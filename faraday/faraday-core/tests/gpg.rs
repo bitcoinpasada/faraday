@@ -86,7 +86,7 @@ fn copied_in() -> Faraday {
             .collect(),
     }]));
     assert_eq!(app.screen, Screen::Visit);
-    app.press(Action::VisitInAll);
+    // Every file comes in ticked.
     app.press(Action::VisitCopy);
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {

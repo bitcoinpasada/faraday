@@ -1,14 +1,17 @@
 //! The boot import (`PLAN.md` §5.4): the first look at the boot stick in a
-//! power-on copies every file on it into memory, the person pulls the
-//! stick, unlocks the vaults they want, chooses the wallets, keys and
-//! files to bring in, and one press imports them and wipes the rest.
+//! power-on copies every file on it into memory; the sheet says what was
+//! read and asks for the stick to be pulled. Once it is out, a vault the
+//! stick brought is unlocked on the sheet itself, and the unlock imports
+//! everything; with no vault, everything is imported at once. "Choose what
+//! to import" lists the wallets, keys and files, each ticked, for an
+//! import of what is ticked without unlocking.
 //!
-//! Vault files go into the Inbox as soon as they are read, so that the
+//! Vault files go From the stick as soon as they are read, so that the
 //! vault screens unlock them as they unlock any other: they are
 //! ciphertext. Everything else waits here, outside the Inbox, until the
 //! import: the wallets and keys chosen load through the Inbox's loader
 //! and the vaults' (`Faraday::load_found_in`, `Faraday::vault_load_set`),
-//! the files chosen move into the Inbox, and the rest is dropped, its
+//! the files chosen move From the stick, and the rest is dropped, its
 //! bytes wiped as each [`Item`] drops.
 
 use std::collections::BTreeSet;
@@ -16,7 +19,8 @@ use std::collections::BTreeSet;
 use faraday_vault::records::{field, kind};
 
 use crate::inbox::SeedSource;
-use crate::vaults::VaultAction;
+use crate::secrets::Exposure;
+use crate::vaults::{Focus, VaultAction};
 use crate::wallet::{FileKind, Session, Wallet, fp_text};
 use crate::{
     Action, Faraday, Item, Screen, Sheet, StickInfo, StorageCommand, StorageEvent, stem, stick_kind,
@@ -27,16 +31,21 @@ use crate::{
 pub enum ImportAction {
     /// Show the sheet over Home.
     Open,
-    /// Close it; what was copied stays in memory.
+    /// Not now: close it; what was copied stays in memory.
     Later,
     /// Choose or drop wallet n of [`ImportView::wallets`].
     Wallet(usize),
     /// Choose or drop key n of [`ImportView::keys`].
     Key(usize),
-    /// Choose or drop file n of [`ImportView::files`] for the Inbox.
+    /// Choose or drop file n of [`ImportView::files`] for From the stick.
     File(usize),
-    /// Unlock vault n of [`ImportView::vaults`].
+    /// Open the passphrase field under vault n of [`ImportView::vaults`].
     Unlock(usize),
+    /// Unlock the vault whose field is open: once it opens, everything
+    /// chosen is imported, the vault's wallets and keys with it.
+    Submit,
+    /// Choose what to import: the wallets, keys and files, each ticked.
+    Choose,
     /// Import what is chosen and wipe the rest.
     Go,
 }
@@ -88,8 +97,14 @@ pub struct ImportState {
     skip_wallets: BTreeSet<String>,
     /// Keys left out of the import, by fingerprint.
     skip_keys: BTreeSet<String>,
-    /// Files chosen for the Inbox, by name.
+    /// Files chosen for From the stick, by name: every file read but a
+    /// secret's, until the person says otherwise.
     to_inbox: BTreeSet<String>,
+    /// The vault, by place in [`ImportView::vaults`], whose passphrase
+    /// field is open under it.
+    pub field: Option<usize>,
+    /// The lists of what to import are shown.
+    pub choosing: bool,
 }
 
 /// A wallet the import offers.
@@ -163,8 +178,11 @@ pub struct ImportFile {
 pub struct ImportVault {
     /// Its place in [`Faraday::vault_files`].
     pub file: usize,
-    /// Its name.
+    /// Its file's name.
     pub name: String,
+    /// The name it goes by: what it was called when last seen open, or
+    /// its file's name.
+    pub title: String,
     /// The open slot's label, when it is open.
     pub open: Option<String>,
     /// Its size.
@@ -201,6 +219,32 @@ pub struct ImportCount {
     pub keys: usize,
     /// Files read that are none of these.
     pub other: usize,
+    /// Files read that are, or whose codes hold, a PSBT.
+    pub psbts: usize,
+}
+
+impl ImportCount {
+    /// The sheet's one line of what was read: "1 vault · 2 PSBTs · 4
+    /// other files", leaving out what there is none of.
+    pub fn line(&self) -> String {
+        let n =
+            |k: usize, one: &str, many: &str| format!("{k} {}", if k == 1 { one } else { many });
+        let other = self.copied - self.vaults - self.psbts;
+        let parts: Vec<String> = [
+            (self.vaults, "vault", "vaults"),
+            (self.psbts, "PSBT", "PSBTs"),
+            (other, "other file", "other files"),
+        ]
+        .into_iter()
+        .filter(|(k, ..)| *k > 0)
+        .map(|(k, one, many)| n(k, one, many))
+        .collect();
+        if parts.is_empty() {
+            "No files read".to_string()
+        } else {
+            parts.join(" · ")
+        }
+    }
 }
 
 /// A picture's file name.
@@ -370,12 +414,16 @@ impl Faraday {
             FileKind::Vault => {
                 imp.files[f].state = Staged::Vault;
                 imp.to_inbox.insert(name.to_string());
+                let label = imp.label.clone();
+                self.vault_read_from(name, &item.bytes, &label);
                 self.inbox.retain(|i| i.name != name);
                 self.inbox.push(item);
                 self.save_boxes();
             }
             kind => {
-                if kind == FileKind::Psbt {
+                // Everything comes in by default but a secret, whose key
+                // loads without its file.
+                if kind.exposure() != Exposure::Secret {
                     imp.to_inbox.insert(name.to_string());
                 }
                 imp.files[f].state = Staged::Read;
@@ -441,6 +489,9 @@ impl Faraday {
             )
         };
         imp.files[f].state = Staged::Codes(said);
+        if got.iter().any(|i| i.kind.exposure() != Exposure::Secret) {
+            imp.to_inbox.insert(name.to_string());
+        }
         for item in got {
             let taken: Vec<String> = imp.items.iter().map(|i| i.name.clone()).collect();
             let mut item = item;
@@ -451,17 +502,59 @@ impl Faraday {
     }
 
     /// The boot stick was pulled: what it had not answered never will be.
+    /// With no stick left, a stick that brought no vault is imported at
+    /// once; one that brought one vault has its passphrase field ready.
     pub(crate) fn import_stick_gone(&mut self) {
         let present: Vec<String> = self.sticks.iter().map(|s| s.id.clone()).collect();
         let noun = self.medium.noun();
-        if let Some(imp) = self.import.as_mut()
-            && !present.contains(&imp.stick)
-        {
-            for f in imp.files.iter_mut() {
-                if f.state == Staged::Reading {
-                    f.state = Staged::Failed(format!("the {noun} was removed before it was read"));
-                }
+        let Some(imp) = self.import.as_mut() else {
+            return;
+        };
+        if present.contains(&imp.stick) {
+            return;
+        }
+        for f in imp.files.iter_mut() {
+            if f.state == Staged::Reading {
+                f.state = Staged::Failed(format!("the {noun} was removed before it was read"));
             }
+        }
+        if !self.may_load_keys() {
+            return;
+        }
+        let Some(view) = self.import_view() else {
+            return;
+        };
+        if view.vaults.is_empty() {
+            self.import_go();
+        } else if self.sheet == Some(Sheet::Import)
+            && self.vaults.focus.is_none()
+            && let Some(i) = self.import_field()
+        {
+            self.import_field_ready(i);
+        }
+    }
+
+    /// The field under vault `i` opened as the sheet comes up. On a small
+    /// panel it waits for a tap, which brings the keyboard up: until then
+    /// the sheet has room for the rest.
+    fn import_field_ready(&mut self, i: usize) {
+        self.import_act(ImportAction::Unlock(i));
+        if self.compact {
+            self.vaults.focus = None;
+        }
+    }
+
+    /// The vault, by place in [`ImportView::vaults`], whose passphrase
+    /// field the sheet shows: the one opened, or the only vault when the
+    /// stick brought one. Never an open vault's.
+    pub fn import_field(&self) -> Option<usize> {
+        let imp = self.import.as_ref()?;
+        let view = self.import_view()?;
+        let locked = |i: usize| view.vaults.get(i).is_some_and(|v| v.open.is_none());
+        match imp.field {
+            Some(i) if locked(i) => Some(i),
+            _ if view.vaults.len() == 1 && locked(0) => Some(0),
+            _ => None,
         }
     }
 
@@ -500,6 +593,14 @@ impl Faraday {
                 }
                 Staged::Read | Staged::Codes(_) => {
                     c.copied += 1;
+                    if imp
+                        .item_file
+                        .iter()
+                        .zip(&imp.items)
+                        .any(|(g, i)| *g == f && i.kind == FileKind::Psbt)
+                    {
+                        c.psbts += 1;
+                    }
                     let wallet_or_key = known.contains(&f)
                         || imp.item_file.iter().zip(&imp.items).any(|(g, i)| {
                             *g == f && matches!(i.kind, FileKind::Wallet | FileKind::Share)
@@ -534,6 +635,9 @@ impl Faraday {
             view.vaults.push(ImportVault {
                 file: i,
                 name: vf.name.clone(),
+                title: self
+                    .vault_summary(vf)
+                    .map_or_else(|| vf.name.clone(), |s| s.name.clone()),
                 open: vf
                     .open
                     .and_then(|o| self.vaults.open.get(o))
@@ -744,9 +848,21 @@ impl Faraday {
                     self.vaults.back_to = None;
                     self.screen = Screen::Home;
                     self.sheet = Some(Sheet::Import);
+                    self.vaults.focus = None;
+                    if !self.import_stick_present()
+                        && let Some(i) = self.import_field()
+                    {
+                        self.import_field_ready(i);
+                    }
                 }
             }
-            I::Later => self.sheet = None,
+            I::Later => {
+                self.sheet = None;
+                self.vaults.passphrase.clear();
+                self.vaults.typed_shown = false;
+                self.vaults.focus = None;
+                self.vaults.unlock_error = None;
+            }
             I::Wallet(i) => {
                 let Some(d) = self
                     .import_view()
@@ -790,9 +906,35 @@ impl Faraday {
                 let Some(v) = self.import_view().and_then(|v| v.vaults.get(i).cloned()) else {
                     return;
                 };
-                if v.open.is_none() {
-                    self.sheet = None;
-                    self.vault_act(VaultAction::OpenFrom(v.file, Screen::Home));
+                if v.open.is_some() {
+                    return;
+                }
+                let moved = self.import.as_ref().is_some_and(|imp| imp.field != Some(i));
+                if let Some(imp) = self.import.as_mut() {
+                    imp.field = Some(i);
+                }
+                if moved {
+                    self.vaults.passphrase.clear();
+                    self.vaults.typed_shown = false;
+                }
+                self.vaults.pick = v.file;
+                self.vaults.back_to = None;
+                self.vaults.unlock_error = None;
+                self.vaults.focus = self.may_load_keys().then_some(Focus::Passphrase);
+            }
+            I::Submit => {
+                let Some(i) = self.import_field() else {
+                    return;
+                };
+                let Some(v) = self.import_view().and_then(|v| v.vaults.get(i).cloned()) else {
+                    return;
+                };
+                self.vaults.pick = v.file;
+                self.vault_act(VaultAction::Unlock);
+            }
+            I::Choose => {
+                if let Some(imp) = self.import.as_mut() {
+                    imp.choosing = !imp.choosing;
                 }
             }
             I::Go => self.import_go(),
@@ -800,8 +942,8 @@ impl Faraday {
     }
 
     /// Imports what is chosen: the wallets with their keys, the keys on
-    /// their own, the files for the Inbox; and wipes the rest.
-    fn import_go(&mut self) {
+    /// their own, the files for From the stick; and wipes the rest.
+    pub(crate) fn import_go(&mut self) {
         if !self.may_load_keys() {
             return;
         }
@@ -889,8 +1031,16 @@ impl Faraday {
             .count();
         self.save_boxes();
         self.refresh_spend();
-        self.sheet = None;
-        self.screen = Screen::Home;
+        // From the sheet, Home; imported on its own as the stick was
+        // pulled, the screen stays and any other sheet with it.
+        if self.sheet == Some(Sheet::Import) {
+            self.sheet = None;
+            self.screen = Screen::Home;
+        }
+        self.vaults.passphrase.clear();
+        if self.vaults.focus == Some(Focus::Passphrase) && self.screen == Screen::Home {
+            self.vaults.focus = None;
+        }
         self.wallet = 0;
         let keys = self.session.keys.len() - keys_before;
         let wallets = self.session.wallets.len() - wallets_before;
@@ -908,5 +1058,5 @@ impl Faraday {
 /// The press that opens the import sheet.
 pub const OPEN: Action = Action::Import(ImportAction::Open);
 
-/// The press that closes it for later.
+/// The press that closes it for later: Not now.
 pub const LATER: Action = Action::Import(ImportAction::Later);

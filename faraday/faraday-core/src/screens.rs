@@ -704,25 +704,37 @@ pub(crate) fn home_lead(app: &Faraday) -> (Icon, String, String, Action, bool) {
             true,
         );
     }
-    // Rule 3: an import waiting.
+    // Rule 3: an import waiting. Put off with the stick's vault locked,
+    // it is that vault's Unlock, on the sheet (§4.4).
     if let Some(imp) = app.import.as_ref() {
-        return if app.import_stick_present() {
-            (
+        if app.import_stick_present() {
+            return (
                 app.medium.icon(),
                 format!("Remove the {} to start the import", app.medium.noun()),
                 String::new(),
                 crate::boot_import::OPEN,
                 true,
-            )
-        } else {
-            (
-                Icon::Download,
-                format!("Import from {}", imp.label),
-                String::new(),
+            );
+        }
+        let locked = app
+            .import_view()
+            .and_then(|v| v.vaults.into_iter().find(|v| v.open.is_none()));
+        if let Some(v) = locked {
+            return (
+                Icon::Lock,
+                format!("Unlock {}", v.title),
+                format!("Read from {}", imp.label),
                 crate::boot_import::OPEN,
                 true,
-            )
-        };
+            );
+        }
+        return (
+            Icon::Download,
+            format!("Import from {}", imp.label),
+            String::new(),
+            crate::boot_import::OPEN,
+            true,
+        );
     }
     // Rule 4: a receipt from this power-on's last stick visit, and
     // nothing loaded.
@@ -10018,6 +10030,10 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         return;
     };
+    // Where pulling the stick goes.
+    let then = ui.fit(12.0, W::R, &app.visit_then(), w - 34.0);
+    ui.chip(x, y, &then, ACCENT, ACCENT.with_alpha(30));
+    y += 36.0;
     // One button per stick, the chosen one filled.
     if app.sticks.len() > 1 {
         let items: Vec<(&str, Style, Action)> = app
@@ -10068,17 +10084,12 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         &format!("Copy {}", app.medium.from_the()),
     );
     y += 34.0;
-    let readable: Vec<&String> = stick
-        .files
-        .iter()
-        .filter(|(n, size)| crate::stick_kind(n).is_some() && *size <= crate::READ_MAX)
-        .map(|(n, _)| n)
-        .collect();
-    if !readable.is_empty() {
-        let all = readable.iter().all(|n| app.visit.inn.contains(*n));
-        ui.checkbox(x + 2.0, y + 4.0, all, true);
-        ui.text(x + 32.0, y + 2.0, 13.0, W::S, MUTED, "Select all");
-        ui.hit(x - 4.0, y - 6.0, w + 8.0, 34.0, Action::VisitInAll);
+    // Everything comes in by default: Unselect all, while any is ticked.
+    if !app.visit.inn.is_empty() {
+        let t = "Unselect all";
+        let tw = ui.measure(13.0, W::S, t);
+        ui.text(x, y + 2.0, 13.0, W::S, ACCENT, t);
+        ui.hit(x - 6.0, y - 6.0, tw + 12.0, 34.0, Action::VisitInAll);
         y += 34.0;
     }
     for (k, (name, size)) in stick.files.iter().enumerate() {
@@ -10283,6 +10294,15 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let width = cw - 96.0;
     let mut y = 36.0;
     title(ui, x, y, app.medium.visit());
+    // Where pulling the stick goes.
+    let tw = ui.measure(28.0, W::S, app.medium.visit());
+    ui.chip(
+        x + tw + 14.0,
+        y + 4.0,
+        &app.visit_then(),
+        ACCENT,
+        ACCENT.with_alpha(30),
+    );
     // One chip per stick; the chosen one is outlined.
     let mut chx = x + width;
     for (k, st) in app.sticks.iter().enumerate().rev() {
@@ -10517,16 +10537,9 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let total = stick.files.len();
     let max_shift = (total as f32 * ROW - track_h).max(0.0);
     let shift = app.list_offset.min(max_shift);
-    // Select all: every file Faraday reads, or none when all are chosen.
-    let readable: Vec<&String> = stick
-        .files
-        .iter()
-        .filter(|(n, size)| crate::stick_kind(n).is_some() && *size <= crate::READ_MAX)
-        .map(|(n, _)| n)
-        .collect();
-    if !readable.is_empty() {
-        let all = readable.iter().all(|n| app.visit.inn.contains(*n));
-        visit_select_all(ui, ix + colw, y, all, Action::VisitInAll);
+    // Everything comes in by default: Unselect all, while any is ticked.
+    if !app.visit.inn.is_empty() {
+        visit_unselect_all(ui, ix + colw, y);
     }
     let clip = ui.rect(ix, list_top, colw, track_h);
     ui.c.push_clip(clip);
@@ -10711,6 +10724,16 @@ fn visit_select_all(ui: &mut Ui, right: f32, y: f32, all: bool, action: Action) 
     ui.checkbox(sx, y + 22.0, all, true);
     ui.text_mid(sx + 28.0, y + 16.0, 30.0, 13.0, W::S, MUTED, label);
     ui.hit(sx - 8.0, y + 12.0, lw + 44.0, 38.0, action);
+}
+
+/// The stick visit's "Unselect all", at the right of the From the stick
+/// heading: the card's right edge at `right`, its top at `y`.
+fn visit_unselect_all(ui: &mut Ui, right: f32, y: f32) {
+    let label = "Unselect all";
+    let lw = ui.measure(13.0, W::S, label);
+    let sx = right - 24.0 - lw;
+    ui.text_mid(sx, y + 16.0, 30.0, 13.0, W::S, ACCENT, label);
+    ui.hit(sx - 8.0, y + 12.0, lw + 16.0, 38.0, Action::VisitInAll);
 }
 
 /// A stick visit column's list's scrollbar, which a finger or the mouse
@@ -12171,55 +12194,90 @@ fn pull_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
+/// The lock, write-out and power-off sheets' sections (§4.5): Kept,
+/// one line per vault with its currency and one for the files For the
+/// stick; then Wiped from memory, each seed and wallet with where else it
+/// is, "nowhere else" alone in the danger tone; then Then.
+fn kept_sections(
+    app: &Faraday,
+    power_off: bool,
+    then: String,
+) -> Vec<(&'static str, Vec<(String, osk_ui::Color)>)> {
+    let kw = app.kept_wiped(power_off);
+    vec![
+        ("Kept", kw.kept.into_iter().map(|l| (l, TEXT)).collect()),
+        (
+            "Wiped from memory",
+            kw.wiped
+                .into_iter()
+                .map(|(l, nowhere)| (l, if nowhere { ERR } else { TEXT }))
+                .collect(),
+        ),
+        ("Then", vec![(then, TEXT)]),
+    ]
+}
+
+/// A sheet that says what a lock or a power-off does: its title, a line,
+/// the sections, each line wrapped to the sheet, and its buttons.
+fn kept_sheet(
+    ui: &mut Ui,
+    w: f32,
+    h: f32,
+    head: (Icon, osk_ui::Color, &str),
+    line: &str,
+    sections: &[(&str, Vec<(String, osk_ui::Color)>)],
+    actions: &[(&str, Style, Action)],
+) {
+    let (place, margin, pad) = if ui.compact {
+        ((8.0, w - 16.0), 8.0, 16.0)
+    } else {
+        let sw = (w - 48.0).min(600.0);
+        (((w - sw) / 2.0, sw), 40.0, 32.0)
+    };
+    crate::compact::scroll_sheet(ui, place, h, margin, pad, &mut |ui, x, y, iw| {
+        let mut cy = y;
+        if ui.compact {
+            cy += crate::compact::sheet_head(ui, x, cy, iw, head.0, head.1, head.2);
+        } else {
+            ui.icon(x, cy, 30.0, head.0, 18.0, head.1);
+            let t = ui.fit(20.0, W::S, head.2, iw - 42.0);
+            ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, TEXT, &t);
+            cy += 46.0;
+        }
+        if !line.is_empty() {
+            cy += ui.wrap(x, cy, iw, 13.0, W::R, MUTED, line) + 12.0;
+        }
+        for (name, lines) in sections {
+            if lines.is_empty() {
+                continue;
+            }
+            ui.rule(x, cy, iw, INNER);
+            cy += 12.0;
+            ui.text(x, cy, 12.0, W::R, MUTED, name);
+            cy += 22.0;
+            for (text, tone) in lines {
+                cy += ui.wrap(x, cy, iw, 14.0, W::R, *tone, text) + 8.0;
+            }
+            cy += 4.0;
+        }
+        cy += 8.0;
+        cy += crate::compact::buttons(ui, x, cy, iw, actions);
+        cy - y
+    });
+}
+
 fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
-    let changed: Vec<String> = app
-        .vaults
-        .open
-        .iter()
-        .filter(|v| v.changes > 0)
-        .map(|v| v.label())
-        .collect();
     let label = app
         .sticks
         .first()
         .map(|s| s.label.clone())
         .unwrap_or_default();
-    let keys = app.session.keys.len();
     // Asked for by Upgrade rather than by a stick arriving.
     let upgrade = app.upgrade_after_lock;
     let then = if upgrade {
         "A fresh start, and the upgrade".to_string()
     } else {
         format!("A fresh start, and the {} visit", app.medium.noun())
-    };
-    let rows = [
-        (
-            "Wiped",
-            format!(
-                "{keys} {} and the transaction being signed",
-                if keys == 1 { "key" } else { "keys" }
-            ),
-        ),
-        (
-            "Kept",
-            format!(
-                "{} {} · {} {}",
-                app.inbox.len(),
-                app.medium.from_the(),
-                app.outbox.len(),
-                app.medium.for_the()
-            ),
-        ),
-        ("Then", then),
-    ];
-    let sealed = (
-        "Sealed",
-        format!("{} · {}", changed.join(", "), app.medium.for_the()),
-    );
-    let rows: Vec<&(&str, String)> = if changed.is_empty() {
-        rows.iter().collect()
-    } else {
-        vec![&sealed, &rows[0], &rows[1], &rows[2]]
     };
     let (attached, use_it, line) = if upgrade {
         (
@@ -12234,169 +12292,39 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             format!("{label} · nothing has been read from it"),
         )
     };
-    if ui.compact {
-        let rows: Vec<(&str, String, osk_ui::Color)> =
-            rows.iter().map(|(k, v)| (*k, v.clone(), TEXT)).collect();
-        crate::compact::kv_sheet(
-            ui,
-            w,
-            h,
-            (app.medium.icon(), WARN, &attached),
-            &line,
-            &rows,
-            &[
-                ("Not now", Style::Secondary, Action::NotNow),
-                (&use_it, Style::Primary, Action::Lock),
-            ],
-        );
-        return;
-    }
-    let sh = if changed.is_empty() { 380.0 } else { 422.0 };
-    let (x, y) = sheet_box(ui, w, h, 560.0, sh);
-    let ix = x + 32.0;
-    let iw = 560.0 - 64.0;
-    ui.icon(ix, y + 30.0, 30.0, app.medium.icon(), 18.0, WARN);
-    ui.text_mid(ix + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, &attached);
-    ui.text(ix, y + 76.0, 13.0, W::R, MUTED, &line);
-    let mut ry = y + 112.0;
-    for (k, v) in rows.iter() {
-        ui.text_mid(ix, ry, 40.0, 13.0, W::R, MUTED, k);
-        let v = ui.fit(14.0, W::R, v, iw - 90.0);
-        ui.text_mid(ix + 90.0, ry, 40.0, 14.0, W::R, TEXT, &v);
-        ui.rule(ix, ry + 40.0, iw, INNER);
-        ry += 42.0;
-    }
-    let by = y + sh - 32.0 - 46.0;
-    let bw = (iw - 12.0) / 2.0;
-    ui.button(
-        ix,
-        by,
-        Some(bw),
-        46.0,
-        "Not now",
-        Style::Secondary,
-        Action::NotNow,
-    );
-    ui.button(
-        ix + bw + 12.0,
-        by,
-        Some(bw),
-        46.0,
-        &use_it,
-        Style::Primary,
-        Action::Lock,
+    kept_sheet(
+        ui,
+        w,
+        h,
+        (app.medium.icon(), WARN, &attached),
+        &line,
+        &kept_sections(app, false, then),
+        &[
+            ("Not now", Style::Secondary, Action::NotNow),
+            (&use_it, Style::Primary, Action::Lock),
+        ],
     );
 }
 
-/// Writing the Outbox to a stick from a session that held a secret: the
-/// lock comes first, and this says what it seals, wipes and keeps.
+/// Writing what is For the stick from a session that held a secret: the
+/// lock comes first, and this says what it keeps and wipes.
 fn write_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
-    let (keys, wallets) = app.unsaved();
-    let sealed: Vec<String> = app
-        .vaults
-        .open
-        .iter()
-        .filter(|v| v.changes > 0)
-        .map(|v| v.label())
-        .collect();
-    let mut rows: Vec<(&str, String, osk_ui::Color)> = Vec::new();
-    if !sealed.is_empty() {
-        rows.push((
-            "Sealed",
-            format!("{} · {}", sealed.join(", "), app.medium.for_the()),
-            TEXT,
-        ));
-    }
-    let counted = |n: usize, one: &str, many: &str| match n {
-        0 => None,
-        1 => Some(format!("1 {one}")),
-        n => Some(format!("{n} {many}")),
-    };
-    let not_saved: Vec<String> = [
-        counted(keys.len(), "seed", "seeds"),
-        counted(wallets.len(), "wallet", "wallets"),
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
-    if !not_saved.is_empty() {
-        rows.push(("Not in a vault", not_saved.join(" · "), WARN));
-    }
-    let n = app.outbox.len();
-    rows.push((
-        "Written",
-        format!(
-            "{n} {} {}",
-            if n == 1 { "file" } else { "files" },
-            app.medium.for_the()
-        ),
-        TEXT,
-    ));
-    rows.push((
-        "Then",
-        format!(
-            "Lock, plug in {}, and the visit writes them",
-            app.medium.a()
-        ),
-        TEXT,
-    ));
+    let then = format!(
+        "Lock, plug in {}, and the visit writes them",
+        app.medium.a()
+    );
     let title = format!("Write to {}", app.medium.a());
-    if ui.compact {
-        crate::compact::kv_sheet(
-            ui,
-            w,
-            h,
-            (app.medium.icon(), ACCENT, &title),
-            "Everything not in a vault is wiped with the session",
-            &rows,
-            &[
-                ("Not now", Style::Secondary, Action::Cancel),
-                ("Lock", Style::Primary, Action::Lock),
-            ],
-        );
-        return;
-    }
-    let sh = 210.0 + rows.len() as f32 * 44.0;
-    let (x, y) = sheet_box(ui, w, h, 600.0, sh);
-    let ix = x + 32.0;
-    let iw = 600.0 - 64.0;
-    ui.icon(ix, y + 30.0, 30.0, app.medium.icon(), 18.0, ACCENT);
-    ui.text_mid(ix + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, &title);
-    ui.text(
-        ix,
-        y + 76.0,
-        13.0,
-        W::R,
-        MUTED,
-        "Everything not in a vault is wiped with the session",
-    );
-    let mut ry = y + 106.0;
-    for (k, v, tone) in &rows {
-        ui.text_mid(ix, ry, 40.0, 13.0, W::R, MUTED, k);
-        let v = ui.fit(14.0, W::R, v, iw - 150.0);
-        ui.text_mid(ix + 150.0, ry, 40.0, 14.0, W::R, *tone, &v);
-        ui.rule(ix, ry + 40.0, iw, INNER);
-        ry += 44.0;
-    }
-    let by = y + sh - 32.0 - 46.0;
-    let bw = (iw - 12.0) / 2.0;
-    ui.button(
-        ix,
-        by,
-        Some(bw),
-        46.0,
-        "Not now",
-        Style::Secondary,
-        Action::Cancel,
-    );
-    ui.button(
-        ix + bw + 12.0,
-        by,
-        Some(bw),
-        46.0,
-        "Lock",
-        Style::Primary,
-        Action::Lock,
+    kept_sheet(
+        ui,
+        w,
+        h,
+        (app.medium.icon(), ACCENT, &title),
+        "",
+        &kept_sections(app, false, then),
+        &[
+            ("Not now", Style::Secondary, Action::Cancel),
+            ("Lock", Style::Primary, Action::Lock),
+        ],
     );
 }
 
@@ -13257,78 +13185,17 @@ fn not_airgapped_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 }
 
 fn power_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
-    if ui.compact {
-        crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
-            let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Power, TEXT, "Power off");
-            if !app.outbox.is_empty() {
-                cy += ui.wrap(
-                    x,
-                    cy,
-                    iw,
-                    13.0,
-                    W::R,
-                    WARN,
-                    &format!("Files {} are lost at power-off", app.medium.for_the()),
-                ) + 8.0;
-                for item in app.outbox.iter().take(4) {
-                    let n = ui.fit(13.0, W::M, &item.name, iw);
-                    ui.text(x, cy, 13.0, W::M, TEXT, &n);
-                    cy += 24.0;
-                }
-            }
-            cy += 8.0;
-            cy += crate::compact::buttons(
-                ui,
-                x,
-                cy,
-                iw,
-                &[
-                    ("Cancel", Style::Secondary, Action::Cancel),
-                    ("Power off", Style::Primary, Action::PowerOff),
-                ],
-            );
-            cy - y
-        });
-        return;
-    }
-    let sh = 220.0 + app.outbox.len().min(4) as f32 * 30.0;
-    let (x, y) = sheet_box(ui, w, h, 520.0, sh);
-    let ix = x + 32.0;
-    let iw = 520.0 - 64.0;
-    ui.text(ix, y + 30.0, 20.0, W::S, TEXT, "Power off");
-    ui.text(
-        ix,
-        y + 66.0,
-        13.0,
-        W::R,
-        WARN,
-        &format!("Files {} are lost at power-off", app.medium.for_the()),
-    );
-    let mut ry = y + 100.0;
-    for item in app.outbox.iter().take(4) {
-        ui.text(ix, ry, 14.0, W::M, TEXT, &item.name);
-        ry += 30.0;
-    }
-    let by = y + sh - 32.0 - 46.0;
-    let bw = (iw - 12.0) / 2.0;
-    ui.button(
-        ix,
-        by,
-        Some(bw),
-        46.0,
-        "Cancel",
-        Style::Secondary,
-        Action::Cancel,
-    );
-    ui.button(
-        ix + bw + 12.0,
-        by,
-        Some(bw),
-        46.0,
-        "Power off",
-        Style::Primary,
-        Action::PowerOff,
+    kept_sheet(
+        ui,
+        w,
+        h,
+        (Icon::Power, TEXT, "Power off"),
+        "",
+        &kept_sections(app, true, "The computer powers off".to_string()),
+        &[
+            ("Cancel", Style::Secondary, Action::Cancel),
+            ("Power off", Style::Primary, Action::PowerOff),
+        ],
     );
 }
 

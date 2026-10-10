@@ -230,9 +230,48 @@ to get it.
     receipt: "Never written" (sealed For the stick, on no receipt), "On
     {label} · current" (the receipt wrote the bytes it has now),
     "Changed since written" (open with unsaved changes, or sealed bytes
-    that differ). It leads the vault's Vaults row; a changed vault makes
+    that differ). A vault copied in from a stick and not changed reads "On
+    {label} · current" for the stick it came from, remembered across a
+    lock, or "Unchanged" when that stick is not known. It leads the vault's Vaults row; a changed vault makes
     Home lead with "Write {name} to a stick" and the session strip read
     Write out.
+27. **The boot sheet is a front door** (owner, 2026-10-10;
+    `docs/SIMPLIFY.md` §4.4). With the stick in, the sheet reads "Read
+    from {label}", one line of counts ("1 vault · 2 PSBTs · 4 other
+    files") and "Pull the stick to continue", with no lists. Once it is
+    out, a stick with one vault puts that vault's passphrase field on the
+    sheet with **Unlock** and **Not now**; several put **Unlock** on each
+    row, which opens the field under it. An unlock that succeeds imports
+    everything, the vault's wallets and keys with the stick's, and closes
+    the sheet; a wrong passphrase stays and says so. Everything is ticked
+    by default but a secret's file, whose key loads without it. **Choose
+    what to import** shows the ticked lists, and **Import** brings in what
+    is ticked without unlocking. With no vault everything comes in as the
+    stick is pulled; with only the settings file there is no sheet. **Not
+    now** leaves Home leading with "Unlock {name}", which opens the sheet
+    again.
+28. **The lock, write-out and power-off sheets lead with what is kept**
+    (owner, 2026-10-10; `docs/SIMPLIFY.md` §4.5). Each lists **Kept**
+    first: one line per vault with its currency, and one for the files
+    For the stick; then **Wiped from memory**: one line per seed (a key
+    with no name of its own as "Seed {fingerprint}") and wallet, with
+    where else it is ("in {vault}", "copy checked", "in
+    Files" for a wallet whose file is there) or "nowhere else", that line
+    alone in the danger tone and listed first; then **Then**. At power-off
+    a vault never written or changed since, and the files For the stick,
+    are under Wiped from memory, in the danger tone. The lock sheet's
+    title stays.
+29. **Everything comes in by default** (owner, 2026-10-10;
+    `docs/SIMPLIFY.md` §4.6). A stick visit ticks every file it can read
+    to come in, but a seed's by its name (words, SeedQR, BIP-85), one over
+    18 MiB, and one already From the stick by name and size. **Select
+    all** on Copy from the stick is gone; **Unselect all** takes its
+    place while anything is ticked.
+30. **The visit says where it goes next** (owner, 2026-10-10;
+    `docs/SIMPLIFY.md` §4.7). The stick visit's title carries the chip
+    "Then: Unlock" when a vault was sealed for it (For the stick, or on
+    the last write's receipt), "Then: {flow}" when the stick came in
+    during one, else "Then: Home"; pulling the stick goes there.
 
 ## Home
 
@@ -261,21 +300,25 @@ from the seeds card returns to Wallets with the key still loaded.
 **Boot.** Firmware loads the system → the boot medium's data partition
 copied into memory: vault files into From the stick, every other file held
 apart for the import, a PNG as what its QR codes hold → the import sheet
-over Home: what was copied, **Remove the stick** (Pi: **Remove the SD
-card**) → the
-moment no removable partition remains, the same sheet:
-- each vault from the medium → **Unlock** → the Unlock screen → back to
-  the sheet, with the vault's wallets and keys added;
-- the wallets found, once each, ticked, each with whether it can sign
-  here; the keys no wallet uses, ticked; every file for Files, PSBTs
-  and vaults ticked;
-- **Import** → the chosen wallets, keys and files in; the rest wiped →
-  Home;
-- **Import later**, or a tap beside the sheet → Home, the files waiting;
-  Sticks (sidebar or Home) opens the sheet again;
-- nothing on the medium but the settings file → Home: **Create a vault**,
-  or the Wallets tab without one (keys typed or scanned for the
-  session).
+over Home: "Read from {label}", what was read in one line ("1 vault ·
+2 PSBTs · 4 other files"), "Pull the stick to continue" (Pi: "Pull the SD
+card to continue") → the moment no removable partition remains (decision
+27):
+- one vault from the medium → its passphrase field on the sheet →
+  **Unlock** → everything imported (the vault's wallets and keys, the
+  stick's wallets, keys and files but a secret's file) → Home, which
+  leads by its ranking; a wrong passphrase → stays, says so;
+- several vaults → **Unlock** on each row opens the field under it; one
+  unlocked imports everything; the others stay locked in Files;
+- **Choose what to import** → the wallets found, once each, ticked, each
+  with whether it can sign here; the keys no wallet uses, ticked; every
+  file, ticked but a secret's → **Import** → what is ticked, without
+  unlocking → Home;
+- no vault → everything imported at once → Home, leading with **Sign
+  {psbt}** when one came;
+- **Not now**, or a tap beside the sheet → Home, the files waiting; Home
+  leads with **Unlock {name}**, which opens the sheet again;
+- nothing on the medium but the settings file → no sheet; Home.
 
 **Unlock.** Choose a vault (its memory need shown first) → passphrase →
 - opens → Home, or the next step of what is in Files (decision 3);
@@ -291,7 +334,8 @@ vaults sealed For the stick → the Wallets session wiped → app restarts → U
 After 10 more idle minutes with nothing For the stick, power off; with
 anything there, stay on Unlock and list what is waiting.
 
-**Power off** → decision 5 → off.
+**Power off** → decision 5, the sheet listing what is kept and what is
+wiped (decision 28) → off.
 
 ## Sticks and cards
 
@@ -301,7 +345,8 @@ card**, "Remove the SD card" (`docs/PLANNING.md` §16.144). The flows
 below use the PC's words.
 
 **A stick or card inserted while unlocked** → **Lock to use this stick**
-(what is sealed, what is wiped, what waits) →
+(what is kept, then what is wiped from memory and where else it is,
+then what happens; decision 28) →
 - **Lock and use stick** → lock → **Stick visit**;
 - **Not now** → nothing is handed out; a banner says "Remove the stick to
   keep working" until it goes.
@@ -332,19 +377,23 @@ visit** directly.
   line ("Faraday cannot tell whether this is a secret" for text and
   other files) **Tick it to write** ticks the row. Nothing goes For the
   stick. A picture is what its codes hold.
-- **Copy from the stick**: chosen files, any of them; a file Faraday
+- **Copy from the stick**: every file it reads ticked but a seed's, one
+  over 18 MiB and one already From the stick (decision 29); **Unselect
+  all** clears them. Chosen files, any of them; a file Faraday
   reads as nothing it knows comes in as a File, for **Sign a file** or
   QR **Send**, and is dropped at a lock. A vault file copied in appears
   on Vaults, locked. A
-  PNG is ticked like any other file, and Select all includes it: the disk
+  PNG is ticked like any other file: the disk
   process decodes it, and each code it finds is routed as a scan would be
   (`docs/QR.md` §2), with a multi-part transfer showing its progress
   across images; the picture itself comes in too, as it came, to be
   written to another stick. A JPEG's codes are not read; it comes in as
   a File. A file over 18 MiB is listed and cannot be ticked.
 - **Delete a vault file** (decision 4).
-- Ends on **Remove the stick** → once gone → **Unlock again**, or Home if
-  nothing was locked.
+- The title's chip says where pulling the stick goes (decision 30) →
+  **Remove the stick** → once gone → **Unlock**, with the vault sealed for
+  the visit, or the flow it came in during, or Home, which leads with the
+  receipt.
 
 **A stick pulled during a write** → the write is reported failed, the file
 stays For the stick, and the visit screen says to put the stick back.

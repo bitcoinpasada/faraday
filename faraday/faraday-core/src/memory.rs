@@ -234,6 +234,18 @@ impl Faraday {
         if let Some(r) = &self.receipt {
             out.push(("receipt".to_string(), r.encode()));
         }
+        // Which stick each vault file came from, for its currency (§3.5).
+        if !self.vault_from.is_empty() {
+            let lines: Vec<String> = self
+                .vault_from
+                .iter()
+                .map(|(name, hash, label)| {
+                    let hex: String = hash.iter().map(|b| format!("{b:02x}")).collect();
+                    format!("{hex}\t{label}\t{name}")
+                })
+                .collect();
+            out.push(("vault-from".to_string(), lines.join("\n").into_bytes()));
+        }
         if let Some(f) = self.family_kept() {
             out.push(("family".to_string(), f));
         }
@@ -275,6 +287,27 @@ impl Faraday {
                 }
                 "family" => self.family_restore(bytes),
                 "receipt" => self.receipt = crate::Receipt::decode(bytes),
+                "vault-from" => {
+                    for line in String::from_utf8_lossy(bytes).lines() {
+                        let mut parts = line.splitn(3, '\t');
+                        let (Some(hex), Some(label), Some(name)) =
+                            (parts.next(), parts.next(), parts.next())
+                        else {
+                            continue;
+                        };
+                        let mut hash = [0u8; 32];
+                        let ok = hex.len() == 64
+                            && (0..32).all(|i| {
+                                u8::from_str_radix(&hex[2 * i..2 * i + 2], 16)
+                                    .map(|b| hash[i] = b)
+                                    .is_ok()
+                            });
+                        if ok {
+                            self.vault_from
+                                .push((name.to_string(), hash, label.to_string()));
+                        }
+                    }
+                }
                 "vault-summaries" => {
                     self.vaults.summaries = crate::vaults::summaries_decode(bytes);
                 }

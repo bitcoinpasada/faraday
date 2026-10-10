@@ -334,8 +334,8 @@ fn home_lead_rule_5_with_a_stick_in_asks_to_pull_it_first() {
     );
 }
 
-/// A minimal boot stick holding one plain file: enough to bring up
-/// `app.import` without a vault or a PSBT in it, so rule 3 alone leads.
+/// A minimal boot stick: a plain file and the test vault, enough to bring
+/// up `app.import` without a PSBT in it, so rule 3 alone leads.
 fn boot_stick(files: &[(String, Vec<u8>)]) -> StickInfo {
     StickInfo {
         id: "boot".into(),
@@ -360,7 +360,13 @@ fn pump(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
 
 #[test]
 fn home_lead_rule_3_an_import_waiting() {
-    let files = vec![("notes.txt".to_string(), b"a note".to_vec())];
+    let files = vec![
+        ("notes.txt".to_string(), b"a note".to_vec()),
+        (
+            "vault.ofv".to_string(),
+            faraday_core::testkit::test_vault().unwrap(),
+        ),
+    ];
     let mut app = shown();
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -377,12 +383,18 @@ fn home_lead_rule_3_an_import_waiting() {
         app.offers(faraday_core::boot_import::OPEN),
         "Home does not lead with the import, stick still in"
     );
-    // Pulled: Import from {label}, and the tap reopens the boot sheet.
+    // Pulled: Unlock {name}, the stick's vault, and the tap reopens the
+    // boot sheet with its passphrase field.
     app.storage(StorageEvent::Sticks(Vec::new()));
-    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Unlock vault.ofv"), "{texts:?}");
     assert!(app.offers(faraday_core::boot_import::OPEN));
     app.press(faraday_core::boot_import::OPEN);
     assert_eq!(app.sheet, Some(Sheet::Import));
+    let _ = app.frame();
+    assert!(app.offers(Action::Import(
+        faraday_core::boot_import::ImportAction::Submit
+    )));
 }
 
 #[test]

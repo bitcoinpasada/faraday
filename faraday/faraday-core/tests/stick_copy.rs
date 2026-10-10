@@ -133,6 +133,8 @@ fn copy_in(app: &mut Faraday, sticks: &[&Stick], names: &[&str]) {
                 .unwrap_or_else(|| panic!("{n} is not on the stick"))
         })
         .collect();
+    // Those alone: Unselect all, then each ticked.
+    app.press(Action::VisitInAll);
     for k in ks {
         app.press(Action::VisitIn(k));
     }
@@ -347,8 +349,9 @@ fn a_file_larger_than_18_mib_is_not_read() {
         "the large file can be ticked"
     );
     app.press(Action::VisitIn(0));
-    app.press(Action::VisitInAll);
+    // It is not ticked with everything else, nor by its own press.
     assert!(!app.visit.inn.contains("film.mp4"));
+    assert!(app.visit.inn.contains("savings-share-1-of-3.txt"));
     app.press(Action::VisitCopy);
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { name, .. } | StorageCommand::ReadQr { name, .. } = c {
