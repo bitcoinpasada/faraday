@@ -6,6 +6,7 @@
 //! another key. A tool not on PATH (`sbverify` also as `FARADAY_SBVERIFY`)
 //! is said and its check skipped.
 
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -18,11 +19,27 @@ fn keys() -> Keys {
     make(&[0x42; 32], "Test", NOW).unwrap()
 }
 
-fn scratch(name: &str) -> PathBuf {
+/// A test's own scratch tree; removed when it drops.
+struct Scratch(PathBuf);
+
+impl Deref for Scratch {
+    type Target = Path;
+    fn deref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn scratch(name: &str) -> Scratch {
     let dir = std::env::temp_dir().join(format!("faraday-sb-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    dir
+    Scratch(dir)
 }
 
 fn run(cmd: &str, args: &[&str]) -> Option<(bool, String)> {

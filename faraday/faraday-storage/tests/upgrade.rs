@@ -82,6 +82,13 @@ impl Machine {
     }
 }
 
+impl Drop for Machine {
+    /// The tree is a test's own; leaving it fills the temp directory.
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.root);
+    }
+}
+
 fn device() -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {

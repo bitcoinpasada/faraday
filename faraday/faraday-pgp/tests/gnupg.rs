@@ -7,6 +7,7 @@
 //! The tools are found on PATH (`paperkey` also as `FARADAY_PAPERKEY`); a
 //! machine without one says so and skips that check.
 
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -30,7 +31,23 @@ fn hex(fp: &[u8; 20]) -> String {
     fp.iter().map(|b| format!("{b:02X}")).collect()
 }
 
-fn scratch(name: &str) -> PathBuf {
+/// A test's own scratch tree; removed when it drops.
+struct Scratch(PathBuf);
+
+impl Deref for Scratch {
+    type Target = Path;
+    fn deref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn scratch(name: &str) -> Scratch {
     let dir = std::env::temp_dir().join(format!("faraday-pgp-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -39,7 +56,7 @@ fn scratch(name: &str) -> PathBuf {
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
     }
-    dir
+    Scratch(dir)
 }
 
 fn gpg(home: &Path, args: &[&str]) -> Option<(bool, String)> {

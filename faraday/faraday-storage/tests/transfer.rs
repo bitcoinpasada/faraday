@@ -9,19 +9,36 @@
 //! the system's temporary directory standing for Downloads.
 
 use std::fs;
-use std::path::PathBuf;
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
 
 use faraday_core::wallet::{FileKind, Session};
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent, testkit};
 use faraday_storage::{Boxes, Host, serve};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
+/// A test's own folder standing for Downloads; removed when it drops.
+struct Downloads(PathBuf);
+
+impl Deref for Downloads {
+    type Target = Path;
+    fn deref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for Downloads {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
 /// A fresh folder standing for Downloads.
-fn downloads(name: &str) -> PathBuf {
+fn downloads(name: &str) -> Downloads {
     let dir = std::env::temp_dir().join(format!("faraday-transfer-{name}-{}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
-    dir
+    Downloads(dir)
 }
 
 fn host(dir: &std::path::Path) -> Host {
@@ -324,7 +341,8 @@ fn a_file_dropped_on_the_window_is_sent() {
     let path = dir.join("elsewhere.psbt");
     let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
     fs::write(&path, &psbt).unwrap();
-    let host = host(&downloads("drop-downloads"));
+    let target = downloads("drop-downloads");
+    let host = host(&target);
     let mut boxes = boxes();
     let mut app = desktop();
     app.storage(StorageEvent::Dropped {

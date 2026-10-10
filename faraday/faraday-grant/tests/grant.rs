@@ -144,6 +144,13 @@ impl Machine {
     }
 }
 
+impl Drop for Machine {
+    /// The tree is a test's own; leaving it fills the temp directory.
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.root);
+    }
+}
+
 #[test]
 fn a_stick_is_handed_out_while_clean_and_the_boot_partition_never() {
     let m = Machine::new("hand");

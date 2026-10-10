@@ -7,6 +7,7 @@
 //! `mkfs.fat`, `fsck.fat`, `mcopy`, `mmd` and `mdir`) or on PATH; a
 //! machine without them says so and skips.
 
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -31,11 +32,27 @@ fn have_tools() -> bool {
     ok
 }
 
-fn scratch(name: &str) -> PathBuf {
+/// A test's own scratch tree; removed when it drops.
+struct Scratch(PathBuf);
+
+impl Deref for Scratch {
+    type Target = Path;
+    fn deref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn scratch(name: &str) -> Scratch {
     let dir = std::env::temp_dir().join(format!("faraday-fat-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    dir
+    Scratch(dir)
 }
 
 /// A fresh volume from `mkfs.fat` with these arguments, `kib` long.

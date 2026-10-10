@@ -2,15 +2,38 @@
 //! other file of the same name is still written beside it, never over it.
 
 use std::fs;
-use std::path::PathBuf;
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
 
 use faraday_storage::{Dirs, Sticks};
 
-fn stick(name: &str) -> PathBuf {
+/// A test's own directory standing for a stick; removed when it drops.
+struct Stick(PathBuf);
+
+impl Deref for Stick {
+    type Target = Path;
+    fn deref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl AsRef<Path> for Stick {
+    fn as_ref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for Stick {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
+fn stick(name: &str) -> Stick {
     let dir = std::env::temp_dir().join(format!("faraday-settings-{name}-{}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
-    dir
+    Stick(dir)
 }
 
 #[test]
