@@ -362,6 +362,9 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
                 cy += descriptor_row(ui, x, cy, w, wl, Action::QrWallet(i));
                 let a = grouped(&app.session.address_shown(wl, false, 0));
                 cy += long_row(ui, x, cy, w, "First address", &a);
+                if !app.wallet_held(i).is_empty() {
+                    cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, crate::glance::RECEIVE_WARNING) + 8.0;
+                }
             }
         }
         // A slot of a wallet of several keys, or the key on its own: the

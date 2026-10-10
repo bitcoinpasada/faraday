@@ -288,6 +288,10 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
     if !app.backup.as_ref().unwrap().answers.wallet[wallet::FILES] {
         app.press(Action::BAnswer(qrow::WALLET, wallet::FILES as u8));
     }
+    // Nothing by hand or into a vault, so the item is open to reach.
+    app.press(Action::BAnswer(qrow::WALLET, wallet::VAULT as u8));
+    app.press(Action::BAnswer(qrow::SEEDS, seeds::WORDS as u8));
+    app.press(Action::BAnswer(qrow::SEEDS, seeds::VAULT as u8));
     app.press(Action::BChecklist);
     assert!(
         app.backup_items().contains(&bstep::PUBLIC),
@@ -628,4 +632,92 @@ fn a_plan_saved_with_one_vault_still_loads() {
         .find(|s| s.at == At::Vault(0))
         .unwrap();
     assert_eq!(vault.holds.len(), 4, "three seeds and the wallet");
+}
+
+/// A single key whose words are unticked keeps its only copy in Vault 1,
+/// and Vault 1's stick still has a place (`docs/NEW-WALLET.md` §14.2);
+/// with one place for two vaults, both sticks go there.
+#[test]
+fn the_single_key_with_words_unticked_places_vault_1s_stick() {
+    let shape = one_key();
+    let mut a = Answers::preset(&shape, Preset::PaperVault);
+    a.toggle(&shape, Question::Seeds, seeds::WORDS);
+    assert!(a.words_at(&shape, 0).is_empty() && a.words_at(&shape, 1).is_empty());
+    assert!((0..a.places).any(|p| a.stick_at(0, p)), "Vault 1's stick");
+    // From Paper only: the words unticked, then the vault ticked.
+    let mut a = Answers::preset(&shape, Preset::Paper);
+    a.toggle(&shape, Question::Seeds, seeds::WORDS);
+    a.toggle(&shape, Question::Seeds, seeds::VAULT);
+    assert!((0..a.places).any(|p| a.stick_at(0, p)), "Vault 1's stick");
+    // Two vaults and one place: both sticks are kept there.
+    let shape = two_here();
+    let mut a = Answers::preset(&shape, Preset::PaperVault);
+    a.toggle(&shape, Question::Places, 1);
+    assert_eq!(a.places, 1);
+    for v in a.vaults_made(&shape) {
+        assert!(a.stick_at(v, 0), "vault {v} has no place");
+    }
+}
+
+/// With the check reading No, the map panel says why: the seed kept only
+/// in a vault whose one stick is at the place lost.
+#[test]
+fn a_plan_that_does_not_survive_a_place_lost_says_why() {
+    let shape = one_key();
+    let mut a = Answers::preset(&shape, Preset::PaperVault);
+    a.toggle(&shape, Question::Seeds, seeds::WORDS);
+    let stick = (0..a.places).find(|&p| a.stick_at(0, p)).unwrap();
+    assert_eq!(check(&shape, &a).lost, Lost::No);
+    let name = |p: usize| format!("Place {}", p + 1);
+    assert_eq!(
+        faraday_core::plan::lost_why(&shape, &a, &name, "stick").as_deref(),
+        Some(
+            format!(
+                "Seed aaaa0001 is kept only in Vault 1, whose stick is at Place {}",
+                stick + 1
+            )
+            .as_str()
+        )
+    );
+    // Paper and vault as the preset makes it: nothing to say.
+    let a = Answers::preset(&shape, Preset::PaperVault);
+    assert_eq!(
+        faraday_core::plan::lost_why(&shape, &a, &name, "stick"),
+        None
+    );
+}
+
+/// A vault left with no stick place holds Places: its Continue gives way
+/// to a line that says so, and the checklist is not made.
+#[test]
+fn a_vault_with_no_stick_place_holds_places() {
+    use faraday_core::{Action, BStage, qrow, qstep};
+    use osk_shell_api::App;
+    let mut app = places_of("Savings");
+    let w = app.backup.as_ref().unwrap().wallet;
+    let shape = app.plan_shape(w);
+    // The description into a vault: Vault 1, its stick given a place.
+    app.press(Action::BAnswer(qrow::WALLET, wallet::VAULT as u8));
+    let a = app.backup.as_ref().unwrap().answers.clone();
+    assert_eq!(a.vaults_made(&shape), vec![0]);
+    let at = (0..a.places).find(|&p| a.stick_at(0, p)).expect("a place");
+    // Its stick unticked.
+    app.press(Action::BAnswer(qrow::STICKS, at as u8));
+    let _ = app.frame();
+    assert!(!app.offers(Action::BQNext(qstep::PLACES)));
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t.contains("Vault 1's stick needs a place")),
+        "{:?}",
+        app.drawn_texts()
+    );
+    app.press(Action::BQNext(qstep::PLACES));
+    assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::PLACES));
+    app.press(Action::BChecklist);
+    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Plan);
+    // Ticked again, the way on is back.
+    app.press(Action::BAnswer(qrow::STICKS, at as u8));
+    app.press(Action::BQNext(qstep::PLACES));
+    assert_ne!(app.backup.as_ref().unwrap().q, Some(qstep::PLACES));
 }

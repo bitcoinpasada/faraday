@@ -100,6 +100,11 @@ fn backing_up(app: &mut Faraday, with: bool) -> Fingerprint {
     let w = app.session.wallets.len() - 1;
     app.press(Action::Backup(w));
     app.press(Action::BPreset(1));
+    if with {
+        // The passphrase into the vault with its seed: the row after the
+        // two places.
+        app.press(Action::BAnswer(qrow::PASS, 2));
+    }
     app.press(Action::BAnswer(qrow::SEEDS, plan::seeds::FILE as u8));
     app.press(Action::BChecklist);
     app.press(Action::BStep(bstep::COPY));
@@ -180,10 +185,10 @@ fn saved_into_the_vault_from_the_seeds_step_the_key_loads_at_the_next_unlock() {
     let fp = backing_up(&mut app, false);
     unlock(&mut app);
     let before = keys_in_vault(&app);
-    app.press(Action::BVault(false));
+    app.press(Action::BVaultSave(0));
     assert_eq!(keys_in_vault(&app), before + 1);
     // Saved once: pressed again, it is not saved twice.
-    app.press(Action::BVault(false));
+    app.press(Action::BVaultSave(0));
     assert_eq!(keys_in_vault(&app), before + 1);
     assert!(reopened(&mut app).contains(&fp));
 }
@@ -193,7 +198,7 @@ fn with_its_passphrase_the_vault_keeps_the_key_as_it_was_loaded() {
     let mut app = device(vec![kit_file("vault.ofv")]);
     let fp = backing_up(&mut app, true);
     unlock(&mut app);
-    app.press(Action::BVault(true));
+    app.press(Action::BVaultSave(0));
     assert!(reopened(&mut app).contains(&fp));
 }
 
@@ -393,10 +398,9 @@ fn the_panel_says_which_vault_holds_the_seed_and_the_wallet() {
         kept(&app).seeds[0].lines[0],
         line("Not in a vault", Tone::Warn)
     );
-    app.press(Action::BVault(false));
+    // One press saves the seed and the wallet.
+    app.press(Action::BVaultSave(0));
     assert_eq!(kept(&app).seeds[0].lines[0], line("In vault.ofv", Tone::Ok));
-    let w = app.backup.as_ref().unwrap().wallet;
-    app.press(Action::Vault(V::SaveWallet(w)));
     assert_eq!(kept(&app).wallet, line("Wallet in vault.ofv", Tone::Ok));
 }
 
@@ -405,7 +409,7 @@ fn saved_with_its_passphrase_the_panel_says_so() {
     let mut app = device(vec![kit_file("vault.ofv")]);
     backing_up(&mut app, true);
     unlock(&mut app);
-    app.press(Action::BVault(true));
+    app.press(Action::BVaultSave(0));
     assert_eq!(
         kept(&app).seeds[0].lines[0],
         line("In vault.ofv with its passphrase", Tone::Ok)
@@ -443,21 +447,22 @@ fn a_seed_file_for_the_stick_is_listed_as_unprotected() {
 fn a_matched_copy_check_marks_that_seed_only() {
     use osk_bip::bip39::{Language, Mnemonic};
     let mut app = device(Vec::new());
-    add_key(&mut app, 0);
-    let k2 = add_key(&mut app, 1);
+    let k1 = add_key(&mut app, 0);
+    add_key(&mut app, 1);
     savings_backup(&mut app);
-    // The copy of the seed of test key 2, by its place in the wallet.
+    // The copy of the seed of test key 1, the first, by its place in the
+    // wallet.
     let i = app
         .backup_seed_list(app.backup.as_ref().unwrap().wallet)
         .iter()
-        .position(|(_, k)| *k == Some(k2))
-        .expect("test key 2 is a seed of Savings") as u8;
+        .position(|(_, k)| *k == Some(k1))
+        .expect("test key 1 is a seed of Savings") as u8;
     app.press(Action::BPreset(0));
     app.press(Action::BChecklist);
-    app.press(Action::BStep(bstep::COPY + i));
-    assert_eq!(app.backup.as_ref().unwrap().key, k2);
+    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY + i));
+    assert_eq!(app.backup.as_ref().unwrap().key, k1);
     app.press(Action::BReveal);
-    let words = testkit::test_words(testkit::TEST_SEEDS[1].0);
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
     let digits = osk_codec::seedqr::to_digits(&Mnemonic::parse(Language::English, &words).unwrap());
     app.press(Action::BCheck);
     type_text(
@@ -466,10 +471,19 @@ fn a_matched_copy_check_marks_that_seed_only() {
     );
     let k = kept(&app);
     let checked = line("Paper copy checked", Tone::Ok);
-    assert!(k.seeds[1].lines.contains(&checked), "{:?}", k.seeds[1]);
-    assert!(!k.seeds[0].lines.contains(&checked), "{:?}", k.seeds[0]);
+    let other = 1 - usize::from(i);
     assert!(
-        k.seeds[0]
+        k.seeds[usize::from(i)].lines.contains(&checked),
+        "{:?}",
+        k.seeds[usize::from(i)]
+    );
+    assert!(
+        !k.seeds[other].lines.contains(&checked),
+        "{:?}",
+        k.seeds[other]
+    );
+    assert!(
+        k.seeds[other]
             .lines
             .contains(&line("Paper: not checked", Tone::Warn))
     );

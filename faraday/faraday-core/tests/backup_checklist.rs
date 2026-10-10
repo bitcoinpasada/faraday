@@ -149,11 +149,10 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
     );
     assert!(done(&app, Item::Copy(0)));
     assert!(!done(&app, Item::Vault(0)), "the copy is not the vault");
-    // The seed and the wallet, into the vault, on the vault's one item.
+    // The seed and the wallet, into the vault, by the vault item's one
+    // button.
     press_offered(&mut app, Action::BStep(bstep::VAULT));
-    press_offered(&mut app, Action::BVault(false));
-    assert!(!done(&app, Item::Vault(0)), "the wallet is not in it yet");
-    press_offered(&mut app, Action::Vault(V::SaveWallet(w)));
+    press_offered(&mut app, Action::BVaultSave(0));
     assert!(done(&app, Item::Vault(0)));
     // The sheet, For the stick since the checklist: its row offers
     // Remove, which undoes the item, and making it again redoes it.
@@ -249,7 +248,7 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
     }
     // Made again, the plan is replaced, not added to.
     app.press(Action::BPlan);
-    app.press(Action::BAnswer(qrow::STICKS, 1));
+    app.press(Action::BAnswer(qrow::STICKS, 0));
     app.press(Action::BChecklist);
     assert_eq!(app.vaults.open[0].contents.of(kind::PLAN).count(), 1);
     // The next backup of the wallet starts from it.
@@ -354,6 +353,8 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
     let w = two_of_three_two_here(&mut app);
     app.press(Action::Backup(w));
     press_offered(&mut app, Action::BPreset(1));
+    // No paper words, so the vaults come first.
+    app.press(Action::BAnswer(qrow::SEEDS, plan::seeds::WORDS as u8));
     press_offered(&mut app, Action::BChecklist);
     let items = app.backup_items();
     assert!(
@@ -364,13 +365,12 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
         !items.contains(&(bstep::VAULT + 2)),
         "no vault for the cosigner's seed"
     );
-    // Vault 1: made, its seed and the wallet saved into it.
-    press_offered(&mut app, Action::BStep(bstep::VAULT));
+    // Vault 1, open first: made, its seed and the wallet saved into it.
+    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
     press_offered(&mut app, Action::Vault(V::CreateFrom(Screen::Backup)));
     make_the_vault(&mut app);
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
-    press_offered(&mut app, Action::BVault(false));
-    press_offered(&mut app, Action::Vault(V::SaveWallet(w)));
+    press_offered(&mut app, Action::BVaultSave(0));
     assert!(done(&app, Item::Vault(0)));
     assert!(!done(&app, Item::Vault(1)));
     // Vault 2's item: the open vault holds Vault 1's seed, so it offers
@@ -381,7 +381,7 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
         app.settle();
         let _ = app.frame();
         assert!(
-            !app.offers(Action::BVault(false)),
+            !app.offers(Action::BVaultSave(1)),
             "Vault 2 offered into Vault 1's vault"
         );
         if app.offers(Action::BNewVault) {
@@ -399,8 +399,7 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
     assert_eq!(app.vaults.open.len(), 0, "the first vault is locked");
     make_the_vault(&mut app);
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT + 1));
-    press_offered(&mut app, Action::BVault(false));
-    press_offered(&mut app, Action::Vault(V::SaveWallet(w)));
+    press_offered(&mut app, Action::BVaultSave(1));
     assert!(done(&app, Item::Vault(1)));
     assert!(
         done(&app, Item::Vault(0)),

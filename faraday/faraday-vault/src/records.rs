@@ -112,6 +112,10 @@ pub mod field {
 /// Bit 0 of a key's flags: load it into the session at unlock.
 pub const LOAD_AT_UNLOCK: u8 = 1;
 
+/// Bit 1 of a key's flags: the key was made in Faraday and its backup is
+/// not done; it signs nothing until it is. Never a secret.
+pub const BACKUP_PENDING: u8 = 2;
+
 /// Why a slot's contents were refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Fault {

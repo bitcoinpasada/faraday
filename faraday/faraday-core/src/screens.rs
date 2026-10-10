@@ -2984,6 +2984,9 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     cy += 24.0;
     let addr = grouped(&app.session.address_shown(wlt, false, 0));
     cy += ui.wrap(ix, cy, iw, 15.0, W::M, TEXT, &addr) + 8.0;
+    if !app.wallet_held(app.wallet).is_empty() {
+        cy += ui.wrap(ix, cy, iw, 13.0, W::S, WARN, crate::glance::RECEIVE_WARNING) + 8.0;
+    }
     ui.c.pop_clip();
     let content = cy + app.card_offset - top;
     let max = (content - (view_h - (top - view_top))).max(0.0);
@@ -4853,11 +4856,30 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         app.backup_questions()
     };
+    // The items after one not done wait for it (`docs/NEW-WALLET.md`
+    // §14.1): each says which.
+    let waiting = if checklist {
+        app.backup_waiting()
+    } else {
+        None
+    };
+    let waiting_title = waiting.map(|n| item_title(app, n).0);
     let cards: Vec<flow::Card> = steps
         .iter()
         .map(|&k| {
             if checklist {
                 let (title, summary) = item_title(app, k);
+                let summary = match (&waiting_title, waiting) {
+                    (Some(t), Some(n))
+                        if n != k
+                            && !app.backup_reachable(k)
+                            && !crate::bstep::item(k)
+                                .is_some_and(|it| app.backup_item_done(it)) =>
+                    {
+                        format!("After: {t}")
+                    }
+                    _ => summary,
+                };
                 flow::Card {
                     title,
                     summary,
@@ -4925,7 +4947,6 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         && steps
             .iter()
             .all(|&k| crate::bstep::item(k).is_some_and(|it| app.backup_item_done(it)));
-    let from_create = b.from_create;
     let (next, again) = {
         let app_ref: &Faraday = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
@@ -4937,6 +4958,18 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         let mut foot = |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 {
             if !checklist {
+                // Held, as on the last question: the line says by what.
+                let held = match (app_ref.backup_stickless(), app_ref.backup_kept_nowhere()) {
+                    (Some(v), _) => Some(format!(
+                        "Vault {}'s {} needs a place",
+                        v + 1,
+                        app_ref.medium.noun()
+                    )),
+                    (None, line) => line,
+                };
+                if let Some(line) = held {
+                    return ui.wrap(x, y, w, 13.0, W::S, WARN, &line) + 12.0;
+                }
                 return wrap_buttons(
                     ui,
                     x,
@@ -4947,7 +4980,7 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 );
             }
             if all_done {
-                backup_done(app_ref, ui, from_create, x, y, w)
+                backup_done(app_ref, ui, x, y, w)
             } else {
                 wrap_buttons(
                     ui,
@@ -5000,6 +5033,19 @@ fn plan_body(app: &Faraday, ui: &mut Ui, qs: &[u8], i: usize, x: f32, y: f32, w:
     };
     match q {
         qstep::PRESET => {
+            // F1's one line of fact, where a key made here waits for this
+            // backup (`docs/NEW-WALLET.md` §14.5).
+            if !app.wallet_held(b.wallet).is_empty() {
+                cy += ui.wrap(
+                    x,
+                    cy,
+                    w,
+                    13.0,
+                    W::R,
+                    MUTED,
+                    "A key made here signs only once this backup is done.",
+                ) + 12.0;
+            }
             for (k, p) in Preset::ALL.iter().enumerate() {
                 ui.button(
                     x,
@@ -5171,6 +5217,36 @@ fn plan_body(app: &Faraday, ui: &mut Ui, qs: &[u8], i: usize, x: f32, y: f32, w:
     }
     cy += 8.0;
     let last = i + 1 == qs.len();
+    // In place of the way on, what holds it (`docs/NEW-WALLET.md` §14.2,
+    // §14.4): a vault's stick at no place, a key made here kept nowhere.
+    let stickless = app
+        .backup_stickless()
+        .filter(|_| q == qstep::PLACES || last);
+    let nowhere = app.backup_kept_nowhere().filter(|_| last);
+    let held = match (stickless, nowhere) {
+        (Some(v), _) => Some(format!(
+            "Vault {}'s {} needs a place",
+            v + 1,
+            app.medium.noun()
+        )),
+        (None, Some(line)) => Some(line),
+        (None, None) => None,
+    };
+    if let Some(line) = held {
+        // On a small panel, where the way on is pinned at the foot, the
+        // line takes its place there, greyed.
+        if ui.pinning {
+            let on = if last {
+                Action::BChecklist
+            } else {
+                Action::BQNext(q)
+            };
+            ui.pin = Some((line, Style::Disabled, on));
+            return cy - y;
+        }
+        cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 12.0;
+        return cy - y;
+    }
     let drawn = if last {
         next_button(ui, x, cy, w, "Make the checklist", Action::BChecklist)
     } else {
@@ -5349,6 +5425,27 @@ fn map_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, boxed: bool) -> 
         }
         cy += 8.0;
     }
+    // Work an earlier plan did that this one dropped, as it is: the copy
+    // exists until it is destroyed (`docs/NEW-WALLET.md` §14.4).
+    for line in &b.extras {
+        let top = cy;
+        let (ix, iw) = if boxed { (x + 12.0, w - 24.0) } else { (x, w) };
+        if boxed {
+            cy += 10.0;
+        }
+        let tag = crate::plan::Tag::Sealed.name();
+        let tw = ui.measure(11.0, W::R, tag);
+        ui.text_right(ix + iw, cy, 18.0, 11.0, W::R, ACCENT, tag);
+        cy += ui
+            .wrap(ix, cy, iw - tw - 8.0, 12.0, W::R, TEXT, line)
+            .max(18.0)
+            + 2.0;
+        if boxed {
+            cy += 6.0;
+            ui.stroke(x, top, w, cy - top, 8.0, LINE);
+        }
+        cy += 8.0;
+    }
     if !boxed {
         cy += 4.0;
         cy += check_rows(app, ui, x, cy, w);
@@ -5364,7 +5461,13 @@ fn check_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let shape = app.plan_shape(b.wallet);
     let c = crate::plan::check(&shape, &b.answers);
-    crate::glance::check_lines(ui, x, y, w, c, false)
+    let mut h = crate::glance::check_lines(ui, x, y, w, c, false);
+    // Why "Any one place lost" reads No (`docs/NEW-WALLET.md` §14.2).
+    let name = |p: usize| app.place_name(p);
+    if let Some(why) = crate::plan::lost_why(&shape, &b.answers, &name, app.medium.noun()) {
+        h += ui.wrap(x, y + h, w, 12.0, W::R, ERR, &why) + 8.0;
+    }
+    h
 }
 
 /// The loaded wallets, one row each, under the backup's wallet chip at
@@ -5397,96 +5500,60 @@ fn wallet_pick(app: &Faraday, ui: &mut Ui, x: f32, y: f32, chip_w: f32, right: f
     }
 }
 
-/// Under the backup's cards once every one is done: what is in the
-/// Outbox, and the way to a stick. Returns its height.
-fn backup_done(app: &Faraday, ui: &mut Ui, from_create: bool, x: f32, y: f32, w: f32) -> f32 {
+/// Under the backup's cards once every one is done
+/// (`docs/NEW-WALLET.md` §14.6): the plan's three checks as a strip, the
+/// wallet's chart of the plan just completed, what waits for the stick,
+/// and Write to a stick, Open the wallet, Change the plan. Returns its
+/// height.
+fn backup_done(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    use crate::glance::{self, Backup, Direction};
     let Some(b) = app.backup.as_ref() else {
         return 0.0;
     };
+    let mut cy = y;
+    ui.icon(x, cy, 24.0, Icon::Success, 13.0, OK);
+    ui.text_mid(x + 32.0, cy, 24.0, 15.0, W::S, OK, "Backup done");
+    cy += 40.0;
+    if let Some(g) = glance::of(app, b.wallet) {
+        if let Backup::Plan { check, .. } = &g.backup {
+            cy += glance::check_lines(ui, x, cy, w, *check, true) + 16.0;
+        }
+        cy += if ui.compact {
+            glance::draw_column_with(ui, &g, Direction::WalletFirst, x, cy, w, false)
+        } else {
+            glance::draw_with(ui, &g, Direction::WalletFirst, x, cy, w, false)
+        };
+        cy += 16.0;
+    }
     let n = app.outbox.len();
-    let mut items: Vec<(String, Style, Action)> = Vec::new();
-    let write_style = if n == 0 {
-        Style::Disabled
-    } else {
-        Style::Primary
-    };
-    // Pinned at the foot on a small panel.
-    if ui.pinning {
-        ui.pin = Some((
-            format!("Write to {}", app.medium.a()),
-            write_style,
-            Action::WriteAsk,
-        ));
-    } else {
-        items.push((
-            format!("Write to {}", app.medium.a()),
-            write_style,
-            Action::WriteAsk,
-        ));
-    }
-    items.push((
-        "Open Files".to_string(),
-        Style::Secondary,
-        Action::Nav(Screen::Files),
-    ));
-    items.push((
-        "Change the plan".to_string(),
-        Style::Secondary,
-        Action::BPlan,
-    ));
-    if from_create {
-        items.push((
-            "Open the wallet".to_string(),
-            Style::Secondary,
-            Action::OpenWallet(b.wallet),
-        ));
-    }
     let line = format!(
         "{n} {} {} · {} from this backup",
         if n == 1 { "file" } else { "files" },
         app.medium.for_the(),
         b.sent.len()
     );
-    // Laid out first, so the card is drawn at its full height. On a small
-    // panel the line wraps and the buttons start under the icon.
-    let (left, right) = if ui.compact {
-        (x + 18.0, x + w - 18.0)
+    cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, &line) + 12.0;
+    let write_style = if n == 0 {
+        Style::Disabled
     } else {
-        (x + 50.0, x + w - 18.0)
+        Style::Primary
     };
-    let line_h = if ui.compact {
-        ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
-        let lh = ui.wrap(x + 50.0, y + 46.0, w - 68.0, 13.0, W::R, MUTED, &line);
-        ui.c.pop_clip();
-        lh
+    let write = format!("Write to {}", app.medium.a());
+    let mut items: Vec<(&str, Style, Action)> = Vec::new();
+    // Pinned at the foot on a small panel.
+    if ui.pinning {
+        ui.pin = Some((write.clone(), write_style, Action::WriteAsk));
     } else {
-        22.0
-    };
-    let (mut bx, mut by) = (left, y + 62.0 + line_h);
-    let mut placed: Vec<(f32, f32, f32)> = Vec::new();
-    for (label, _, _) in &items {
-        let bw = ui.measure(14.0, W::S, label) + 36.0;
-        if bx > left && bx + bw > right {
-            bx = left;
-            by += 50.0;
-        }
-        placed.push((bx, by, bw));
-        bx += bw + 8.0;
+        items.push((write.as_str(), write_style, Action::WriteAsk));
     }
-    let ch = by - y + 64.0;
-    ui.fill(x, y, w, ch, 12.0, OK.with_alpha(18));
-    ui.stroke(x, y, w, ch, 12.0, OK.with_alpha(90));
-    ui.icon(x + 18.0, y + 16.0, 24.0, Icon::Success, 13.0, OK);
-    ui.text_mid(x + 50.0, y + 16.0, 24.0, 15.0, W::S, OK, "Backup done");
-    if ui.compact {
-        ui.wrap(x + 50.0, y + 46.0, w - 68.0, 13.0, W::R, MUTED, &line);
-    } else {
-        ui.text_mid(x + 50.0, y + 44.0, 22.0, 13.0, W::R, MUTED, &line);
-    }
-    for ((label, style, action), (bx, by, bw)) in items.iter().zip(placed) {
-        ui.button(bx, by, Some(bw), 40.0, label, *style, *action);
-    }
-    ch
+    items.push((
+        "Open the wallet",
+        Style::Secondary,
+        Action::OpenWallet(b.wallet),
+    ));
+    items.push(("Change the plan", Style::Secondary, Action::BPlan));
+    cy += wrap_buttons(ui, x, cy, w, 40.0, &items);
+    cy - y
 }
 
 /// Buttons laid left to right, wrapping to a new row at the width.
@@ -5855,7 +5922,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 &[],
             );
             cy += 12.0;
-            if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
+            if item_next(app, ui, x, cy, w, n) {
                 cy += 48.0;
             }
         }
@@ -5877,7 +5944,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 if ui.compact {
                     cy += kept_rows(app, ui, x, cy, w);
                 }
-                let drawn = next_button(ui, x, cy, w, "Continue", Action::BNext(n));
+                let drawn = item_next(app, ui, x, cy, w, n);
                 return cy + (if drawn { 48.0 } else { 8.0 }) - y;
             }
             let key = &app.session.keys[b.key];
@@ -5952,12 +6019,13 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     );
                     let cy = cy + lh + 12.0;
                     let cy = cy + paper_section(app, ui, x, cy, w);
+                    let cy = cy + copy_check(app, ui, x, cy, w);
                     let cy = if ui.compact {
                         cy + 8.0 + kept_rows(app, ui, x, cy + 8.0, w)
                     } else {
                         cy
                     };
-                    let drawn = next_button(ui, x, cy, w, "Continue", Action::BNext(n));
+                    let drawn = item_next(app, ui, x, cy, w, n);
                     return cy + (if drawn { 48.0 } else { 8.0 }) - y;
                 }
                 // The SeedQR as a ruled grid to copy.
@@ -5983,163 +6051,45 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     if let Ok(mx) = matrix {
                         cy += seed_grid(ui, &mx, x, cy, w.min(560.0), b.pin) + 12.0;
                     }
-                    // The copy checked: scanned with the camera, or with
-                    // none, its words' numbers typed back.
-                    let digits = osk_codec::seedqr::to_digits(&mn);
-                    let digits = digits.expose().as_bytes().to_vec();
-                    if app.cameras.is_empty() {
-                        let label = if b.checking {
-                            "Stop typing"
-                        } else {
-                            "Type my copy's numbers"
-                        };
-                        let cw2 =
-                            ui.button(x, cy, None, 38.0, label, Style::Secondary, Action::BCheck);
-                        let hint = "Type the four-digit number beside each word, in order";
-                        // Beside the button where it fits, else under it.
-                        if ui.compact || ui.measure(12.0, W::R, hint) > w - cw2 - 14.0 {
-                            cy += 46.0;
-                            cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, hint) + 10.0;
-                        } else {
-                            ui.text_mid(x + cw2 + 14.0, cy, 38.0, 12.0, W::R, MUTED, hint);
-                            cy += 48.0;
-                        }
-                    } else {
-                        ui.button(
-                            x,
-                            cy,
-                            None,
-                            38.0,
-                            "Scan my copy",
-                            Style::Secondary,
-                            Action::BScan,
-                        );
-                        cy += 48.0;
-                    }
-                    if let Some(found) = b.scanned.as_ref() {
-                        let c = if *found == crate::backup::CopyCheck::Matches {
-                            OK
-                        } else {
-                            ERR
-                        };
-                        let line = crate::backup::copy_scan_line(found);
-                        cy += ui.wrap(x, cy, w, 13.0, W::S, c, &line) + 12.0;
-                    }
-                    if b.checking || !b.typed.is_empty() {
-                        let typed: String = b
-                            .typed
-                            .chars()
-                            .collect::<Vec<_>>()
-                            .chunks(4)
-                            .map(|c| c.iter().collect::<String>())
-                            .collect::<Vec<_>>()
-                            .join(" ");
-                        ui.fill(x, cy, w, 44.0, 8.0, BG);
-                        ui.stroke(
-                            x,
-                            cy,
-                            w,
-                            44.0,
-                            8.0,
-                            if b.checking {
-                                ACCENT.with_alpha(110)
-                            } else {
-                                INNER
-                            },
-                        );
-                        let hint = typed.is_empty();
-                        let shown = if hint { "Type here".to_string() } else { typed };
-                        let shown = ui.fit(14.0, W::M, &shown, w - 28.0);
-                        // The caret stands before the hint while nothing
-                        // is typed, after the digits once some are.
-                        let lead = if b.checking && hint { 6.0 } else { 0.0 };
-                        let tw = ui.text_mid(
-                            x + 14.0 + lead,
-                            cy,
-                            44.0,
-                            14.0,
-                            W::M,
-                            if hint { DIM } else { TEXT },
-                            &shown,
-                        );
-                        if b.checking {
-                            ui.caret(
-                                x + 14.0 + if hint { 0.0 } else { tw + 1.0 },
-                                cy + 13.0,
-                                18.0,
-                            );
-                        }
-                        cy += 54.0;
-                        let (line, c) = match crate::backup::check_copy(&b.typed, &digits) {
-                            crate::backup::CopyCheck::Matches => {
-                                ("Your copy matches the seed".to_string(), OK)
-                            }
-                            crate::backup::CopyCheck::WrongWord(k) => {
-                                (format!("Word {k} differs: check its four digits"), ERR)
-                            }
-                            crate::backup::CopyCheck::SoFar { typed, of } => (
-                                format!("{typed} of {of} digits typed · all match so far"),
-                                MUTED,
-                            ),
-                        };
-                        let lh = ui.wrap(x, cy, w - 88.0, 13.0, W::S, c, &line);
-                        ui.button(
-                            x + w - 80.0,
-                            cy - 8.0,
-                            Some(80.0),
-                            32.0,
-                            "Clear",
-                            Style::Ghost,
-                            Action::BCheckClear,
-                        );
-                        cy += lh.max(18.0) + 12.0;
-                    }
                 }
                 cy += paper_section(app, ui, x, cy, w);
             }
+            // The copy checked: scanned, or its words' numbers typed back;
+            // the foot's Check my copy starts it.
+            cy += copy_check(app, ui, x, cy, w);
             if ui.compact {
                 cy += 8.0;
                 cy += kept_rows(app, ui, x, cy, w);
             }
-            if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
+            if item_next(app, ui, x, cy, w, n) {
                 cy += 48.0;
             }
         }
         bstep::PUBLIC => {
             cy += public_rows_for(app, ui, x, cy, w, b.wallet, Some(&app.backup_public()));
             cy += 12.0;
-            if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
+            if item_next(app, ui, x, cy, w, n) {
                 cy += 48.0;
             }
         }
         n if n >= bstep::VAULT => {
             cy += vault_item(app, ui, x, cy, w, usize::from(n - bstep::VAULT));
             cy += 8.0;
-            if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
+            if item_next(app, ui, x, cy, w, n) {
                 cy += 48.0;
             }
         }
         bstep::FILES => {
-            cy += key_choice(app, ui, x, cy, w, &app.backup_keys(b.wallet));
-            cy += seed_copies(app, ui, x, cy, w, b.key, false);
+            cy += seed_files(app, ui, x, cy, w);
             cy += 8.0;
-            if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
+            if item_next(app, ui, x, cy, w, n) {
                 cy += 48.0;
             }
         }
         bstep::SHOW => {
             let shown = if b.shown { "Shown" } else { "Not shown" };
-            let bw = ui.button(
-                x,
-                cy,
-                None,
-                38.0,
-                "Show as QR",
-                Style::Secondary,
-                Action::QrWallet(b.wallet),
-            );
             ui.text_mid(
-                x + bw + 14.0,
+                x,
                 cy,
                 38.0,
                 13.0,
@@ -6148,7 +6098,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 shown,
             );
             cy += 50.0;
-            if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
+            if item_next(app, ui, x, cy, w, n) {
                 cy += 48.0;
             }
         }
@@ -6173,7 +6123,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 &[],
             );
             cy += 12.0;
-            if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
+            if item_next(app, ui, x, cy, w, n) {
                 cy += 48.0;
             }
         }
@@ -6201,7 +6151,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 &[],
             );
             cy += 12.0;
-            if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
+            if item_next(app, ui, x, cy, w, n) {
                 cy += 48.0;
             }
         }
@@ -6254,184 +6204,264 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
 /// Returns its height.
 /// The key's other paper forms: a Seed XOR split and codex32 shares,
 /// shown to copy by hand like the words.
-/// On the backup's wallet vault item: the wallet in the open vault, or
-/// the button that saves it there, or the way to make or unlock one and
-/// back to this item. Returns its height.
-fn wallet_vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) -> f32 {
-    use crate::vault_screens::vault_has_wallet;
-    use crate::vaults::VaultAction as V;
-    let Some(wallet) = app.session.wallets.get(i) else {
-        return 0.0;
-    };
-    let mut cy = y + 8.0;
-    section_label(ui, x, cy, "Vault");
-    cy += 28.0;
-    let v = app.vaults.current;
-    match app.vaults.open.get(v) {
-        Some(open) if vault_has_wallet(app, v, wallet) => {
-            let line = ui.fit(13.0, W::S, &format!("Wallet in {}", open.name), w);
-            ui.text(x, cy, 13.0, W::S, OK, &line);
-            cy += 30.0;
-        }
-        Some(open) => {
-            let save = format!("Save the wallet into {}", open.name);
-            cy += wrap_buttons(
-                ui,
-                x,
-                cy,
-                w,
-                36.0,
-                &[(
-                    save.as_str(),
-                    Style::Secondary,
-                    Action::Vault(V::SaveWallet(i)),
-                )],
-            ) + 4.0;
-        }
-        None => {
-            if let Some((label, a)) = app.vault_way(Screen::Backup) {
-                cy += wrap_buttons(ui, x, cy, w, 36.0, &[(label.as_str(), Style::Secondary, a)])
-                    + 4.0;
-            }
-        }
-    }
-    cy - y
-}
-
-/// A vault's checklist item: with the open vault holding another vault's
-/// seed, the way to lock it and make a new one; else its seeds into the
-/// open vault, one shown at a time, and the wallet where the plan puts it
-/// there; with no vault open, the way to make or unlock one. Returns its
-/// height.
-fn vault_item(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 {
+/// The copy of the seed on screen checked: what scanning it found, and
+/// with no camera, once Check my copy is pressed, the numbers typed back
+/// and how they compare. Returns its height.
+fn copy_check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(b) = app.backup.as_ref() else {
         return 0.0;
     };
-    let shape = app.plan_shape(b.wallet);
-    let a = &b.answers;
+    let Some(key) = app.session.keys.get(b.key) else {
+        return 0.0;
+    };
+    let Some(words) = key.words.as_ref() else {
+        return 0.0;
+    };
+    let Ok(mn) = osk_bip::bip39::Mnemonic::parse(key.language, words.as_str()) else {
+        return 0.0;
+    };
+    let digits = osk_codec::seedqr::to_digits(&mn);
+    let digits = digits.expose().as_bytes().to_vec();
+    let mut cy = y;
+    if let Some(found) = b.scanned.as_ref() {
+        let c = if *found == crate::backup::CopyCheck::Matches {
+            OK
+        } else {
+            ERR
+        };
+        let line = crate::backup::copy_scan_line(found);
+        cy += ui.wrap(x, cy, w, 13.0, W::S, c, &line) + 12.0;
+    }
+    if !(b.checking || !b.typed.is_empty()) {
+        return cy - y;
+    }
+    let hint = "Type the four-digit number beside each word, in order";
+    cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, hint) + 10.0;
+    let typed: String = b
+        .typed
+        .chars()
+        .collect::<Vec<_>>()
+        .chunks(4)
+        .map(|c| c.iter().collect::<String>())
+        .collect::<Vec<_>>()
+        .join(" ");
+    ui.fill(x, cy, w, 44.0, 8.0, BG);
+    ui.stroke(
+        x,
+        cy,
+        w,
+        44.0,
+        8.0,
+        if b.checking {
+            ACCENT.with_alpha(110)
+        } else {
+            INNER
+        },
+    );
+    let empty = typed.is_empty();
+    let shown = if empty {
+        "Type here".to_string()
+    } else {
+        typed
+    };
+    let shown = ui.fit(14.0, W::M, &shown, w - 28.0);
+    // The caret stands before the hint while nothing is typed, after the
+    // digits once some are.
+    let lead = if b.checking && empty { 6.0 } else { 0.0 };
+    let tw = ui.text_mid(
+        x + 14.0 + lead,
+        cy,
+        44.0,
+        14.0,
+        W::M,
+        if empty { DIM } else { TEXT },
+        &shown,
+    );
+    if b.checking {
+        ui.caret(
+            x + 14.0 + if empty { 0.0 } else { tw + 1.0 },
+            cy + 13.0,
+            18.0,
+        );
+    }
+    cy += 54.0;
+    let (line, c) = match crate::backup::check_copy(&b.typed, &digits) {
+        crate::backup::CopyCheck::Matches => ("Your copy matches the seed".to_string(), OK),
+        crate::backup::CopyCheck::WrongWord(k) => {
+            (format!("Word {k} differs: check its four digits"), ERR)
+        }
+        crate::backup::CopyCheck::SoFar { typed, of } => (
+            format!("{typed} of {of} digits typed · all match so far"),
+            MUTED,
+        ),
+    };
+    let lh = ui.wrap(x, cy, w - 88.0, 13.0, W::S, c, &line);
+    ui.button(
+        x + w - 80.0,
+        cy - 8.0,
+        Some(80.0),
+        32.0,
+        "Clear",
+        Style::Ghost,
+        Action::BCheckClear,
+    );
+    cy += lh.max(18.0) + 12.0;
+    cy - y
+}
+
+/// A checklist item's next action (`docs/NEW-WALLET.md` §14.1): its own
+/// until it is done, then Continue. A vault item: Make a vault (or the
+/// way to one), then Save into the open vault, then Continue.
+fn item_action(app: &Faraday, n: u8) -> (String, Action) {
+    use crate::bstep;
+    use crate::plan::Item;
+    let item = bstep::item(n).unwrap_or(Item::Envelopes);
+    let next = ("Continue".to_string(), Action::BNext(n));
+    if item == Item::Envelopes || app.backup_item_done(item) {
+        return next;
+    }
+    let Some(b) = app.backup.as_ref() else {
+        return next;
+    };
+    let split = b.answers.split
+        && app
+            .session
+            .wallets
+            .get(b.wallet)
+            .is_some_and(crate::backup::splits);
+    match item {
+        Item::Templates => ("Make it".to_string(), Action::BOut(0)),
+        Item::Copy(_) if !app.cameras.is_empty() => ("Check my copy".to_string(), Action::BScan),
+        Item::Copy(_) if b.checking => ("Stop typing".to_string(), Action::BCheck),
+        Item::Copy(_) => ("Check my copy".to_string(), Action::BCheck),
+        Item::Vault(v) => {
+            let cur = app.vaults.current;
+            match app.vaults.open.get(cur) {
+                Some(_) if app.backup_vault_taken(v, cur) => (
+                    "Lock it and make a new vault".to_string(),
+                    Action::BNewVault,
+                ),
+                Some(open) => (
+                    format!("Save into {}", open.name),
+                    Action::BVaultSave(v.min(255) as u8),
+                ),
+                None => app.vault_way(Screen::Backup).unwrap_or(next),
+            }
+        }
+        Item::SeedFiles => ("Make it".to_string(), Action::BFile),
+        Item::Sheets if split => ("Make them".to_string(), Action::BOut(4)),
+        Item::Sheets => ("Make it".to_string(), Action::BOut(3)),
+        Item::PublicFiles => ("Make them".to_string(), Action::BFilesMake),
+        Item::ShowDescriptor => ("Show as QR".to_string(), Action::QrWallet(b.wallet)),
+        Item::Envelopes => next,
+    }
+}
+
+/// The item's next action as its foot button. Returns whether it was
+/// drawn in the column (on a small panel it is pinned instead).
+fn item_next(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> bool {
+    let (label, action) = item_action(app, n);
+    let label = ui.fit(14.0, W::S, &label, w - 36.0);
+    next_button(ui, x, y, w, &label, action)
+}
+
+/// A vault's checklist item: what Save into the open vault saves, a row
+/// each, marked once the vault holds it; with the open vault holding
+/// another vault's seed, that. Its one button is the foot's. Returns its
+/// height.
+fn vault_item(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 {
+    use crate::vault_screens::vault_has_wallet;
+    let Some(b) = app.backup.as_ref() else {
+        return 0.0;
+    };
     let mut cy = y;
     let cur = app.vaults.current;
-    if let Some(open) = app.vaults.open.get(cur)
+    let open = app.vaults.open.get(cur);
+    if let Some(o) = open
         && app.backup_vault_taken(v, cur)
     {
-        let line = format!("{} holds another vault's seed", open.name);
+        let line = format!("{} holds another vault's seed", o.name);
         let line = ui.fit(13.0, W::S, &line, w);
         ui.text(x, cy + 4.0, 13.0, W::S, WARN, &line);
         cy += 32.0;
-        cy += wrap_buttons(
-            ui,
-            x,
-            cy,
-            w,
-            36.0,
-            &[(
-                "Lock it and make a new vault",
-                Style::Secondary,
-                Action::BNewVault,
-            )],
-        ) + 4.0;
-        return cy - y;
     }
-    let list = app.backup_seed_list(b.wallet);
-    let keys: Vec<usize> = a
-        .vault_seeds(&shape, v)
-        .into_iter()
-        .filter_map(|i| list.get(i)?.1)
+    let head = match open {
+        Some(o) => format!("Into {}", o.name),
+        None => "Into the vault".to_string(),
+    };
+    let head = ui.fit(13.0, W::S, &head, w);
+    section_label(ui, x, cy, &head);
+    cy += 28.0;
+    let (own, _) = app.backup_vault_seeds(v);
+    let mut rows: Vec<(String, bool)> = own
+        .iter()
+        .filter_map(|&(k, with)| {
+            let key = app.session.keys.get(k)?;
+            let name = fp_text(key.master.fingerprint());
+            let label = if with {
+                format!("Seed {name} with its passphrase")
+            } else {
+                format!("Seed {name}")
+            };
+            let has = open.is_some() && app.vault_holds_seed(cur, k, with);
+            Some((label, has))
+        })
         .collect();
-    if let Some(&first) = keys.first() {
-        cy += key_choice(app, ui, x, cy, w, &keys);
-        let k = if keys.contains(&b.key) { b.key } else { first };
-        cy += seed_copies(app, ui, x, cy, w, k, true);
+    if b.answers.wallet[crate::plan::wallet::VAULT] {
+        let has = open.is_some()
+            && app
+                .session
+                .wallets
+                .get(b.wallet)
+                .is_some_and(|wl| vault_has_wallet(app, cur, wl));
+        rows.push(("Wallet description".to_string(), has));
     }
-    let open = app.vaults.open.get(cur).is_some();
-    if a.wallet[crate::plan::wallet::VAULT] && (keys.is_empty() || open) {
-        cy += wallet_vault(app, ui, x, cy, w, b.wallet);
+    for (label, has) in rows {
+        ui.dot(x + 4.0, cy + 9.0, 3.5, if has { OK } else { DIM });
+        let label = ui.fit(13.0, W::R, &label, w - 18.0);
+        ui.text_mid(x + 18.0, cy, 18.0, 13.0, W::R, TEXT, &label);
+        cy += 24.0;
     }
-    cy - y
+    cy + 4.0 - y
 }
 
-/// The seeds `keys` as buttons, the one shown chosen, when there is more
-/// than one. Returns the height used.
-fn key_choice(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, keys: &[usize]) -> f32 {
+/// The seeds' files, on their checklist item: a row per seed here,
+/// marked once its file is made. The foot's Make it makes the next one.
+/// Returns the height used.
+fn seed_files(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(b) = app.backup.as_ref() else {
         return 0.0;
     };
-    if keys.len() < 2 {
-        return 0.0;
-    }
-    let labels: Vec<String> = keys
-        .iter()
-        .map(|&k| {
-            let key = &app.session.keys[k];
-            key_line(key.master.fingerprint(), &key.label)
-        })
-        .collect();
-    let items: Vec<(&str, Style, Action)> = labels
-        .iter()
-        .zip(keys)
-        .map(|(l, &k)| {
-            let style = if b.key == k {
-                Style::Primary
-            } else {
-                Style::Secondary
-            };
-            (l.as_str(), style, Action::BKey(k))
-        })
-        .collect();
-    wrap_buttons(ui, x, y, w, 36.0, &items) + 4.0
-}
-
-/// A seed's copy beyond paper, on its checklist item: into the open
-/// vault, as Vaults saves a key (`vault`), or as a file through the
-/// secret sheet. Returns the height used.
-fn seed_copies(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, k: usize, vault: bool) -> f32 {
-    use crate::vault_screens::vault_key;
-    let Some(key) = app.session.keys.get(k) else {
+    let Some(wallet) = app.session.wallets.get(b.wallet) else {
         return 0.0;
     };
+    let stem = crate::file_stem(&wallet.name);
     let mut cy = y + 4.0;
-    let fp = key.master.fingerprint();
-    let name = key_line(fp, &key.label);
-    let name = ui.fit(13.0, W::S, &name, w);
-    ui.text(x, cy, 13.0, W::S, TEXT, &name);
-    cy += 28.0;
-    if !vault {
-        cy += wrap_buttons(
-            ui,
-            x,
+    for k in app.backup_keys(b.wallet) {
+        let key = &app.session.keys[k];
+        let made = app.seed_file_made(&stem, key);
+        ui.dot(x + 4.0, cy + 9.0, 3.5, if made { OK } else { DIM });
+        let name = key_line(key.master.fingerprint(), &key.label);
+        let state = if made {
+            app.medium.for_box()
+        } else {
+            "Not made"
+        };
+        let sw = ui.measure(12.0, W::R, state);
+        let name = ui.fit(13.0, W::S, &name, w - sw - 30.0);
+        ui.text_mid(x + 18.0, cy, 18.0, 13.0, W::S, TEXT, &name);
+        ui.text_right(
+            x + w,
             cy,
-            w,
-            36.0,
-            &[("Save as a file…", Style::Secondary, Action::BFile)],
-        ) + 4.0;
-        return cy - y;
+            18.0,
+            12.0,
+            W::R,
+            if made { OK } else { MUTED },
+            state,
+        );
+        cy += 26.0;
     }
-    let v = app.vaults.current;
-    let has_pass = key.passphrase.as_ref().is_some_and(|p| !p.is_empty());
-    match app.vaults.open.get(v) {
-        Some(open) if vault_key(app, v, fp).is_some() => {
-            let line = ui.fit(13.0, W::S, &format!("In {}", open.name), w);
-            ui.text(x, cy, 13.0, W::S, OK, &line);
-            cy += 30.0;
-        }
-        Some(open) => {
-            let save = format!("Save into {}", open.name);
-            let with = format!("Save into {} with its passphrase", open.name);
-            let mut items = vec![(save.as_str(), Style::Secondary, Action::BVault(false))];
-            if has_pass {
-                items.push((with.as_str(), Style::Secondary, Action::BVault(true)));
-            }
-            cy += wrap_buttons(ui, x, cy, w, 36.0, &items) + 4.0;
-        }
-        // Make or unlock one, and back to this item.
-        None => {
-            if let Some((label, a)) = app.vault_way(Screen::Backup) {
-                cy += wrap_buttons(ui, x, cy, w, 36.0, &[(label.as_str(), Style::Secondary, a)])
-                    + 4.0;
-            }
-        }
-    }
-    cy - y
+    cy + 4.0 - y
 }
 
 fn paper_section(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -7584,6 +7614,11 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 // address per key (`docs/NEW-WALLET.md` §2.4).
                 section_label(ui, x, cy, "The wallet's first addresses");
                 cy += 24.0;
+                if let Some(i) = c.built
+                    && !app.wallet_held(i).is_empty()
+                {
+                    cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, crate::glance::RECEIVE_WARNING) + 8.0;
+                }
                 for (label, change, idx) in [
                     ("Receive 0/0", false, 0),
                     ("Receive 0/1", false, 1),

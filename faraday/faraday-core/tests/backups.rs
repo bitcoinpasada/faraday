@@ -142,7 +142,7 @@ fn backed_up(copies: usize) -> Faraday {
         type_the_copy(&mut app);
     }
     app.press(Action::BCheck);
-    app.press(Action::BVault(false));
+    app.press(Action::BVaultSave(0));
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::AddKind(1)));
     app.press(Action::Vault(V::SaveWallet(0)));

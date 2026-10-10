@@ -229,9 +229,18 @@ impl Faraday {
     }
 
     /// The wallet card's first button (`docs/NEW-WALLET.md` §11.2):
-    /// carry on this wallet's spend, sign its PSBT in Files, or spend from
-    /// it.
+    /// finish the backup first while a key made here waits for it (§14.3),
+    /// else carry on this wallet's spend, sign its PSBT in Files, or spend
+    /// from it.
     pub fn spend_button(&self, w: usize) -> (String, Action) {
+        // A key made here signs once its backup is done
+        // (`docs/NEW-WALLET.md` §14.3).
+        if !self.wallet_held(w).is_empty() {
+            return (
+                "Finish the backup first".to_string(),
+                Action::BackupFirst(w),
+            );
+        }
         if let Some(s) = self.spend.as_ref().filter(|s| s.wallet == Some(w)) {
             return (
                 format!(

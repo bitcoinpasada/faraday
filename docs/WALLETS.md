@@ -390,7 +390,11 @@ place that keeps its stick. Labels and values only; what each line
 means is in Learn's Backups page.
 
 **3. The checklist**, the plan made (**Make the checklist**): only the
-items the plan needs, each done by what it does, never by a tap. Opened
+items the plan needs, each done by what it does, never by a tap. An
+item's foot button is its own next action until it is done, and only
+then **Continue**; an item not done cannot be passed, and the items
+after it open once it is done, each saying "After: {item}" meanwhile
+(2026-10-10, `docs/NEW-WALLET.md` §14.1). Opened
 from an action on the wallet's chart (2026-10-10, `docs/NEW-WALLET.md`
 §9) it opens at that item with the plan the chart shows, and makes
 nothing For the stick: each item's own **Make it** does.
@@ -403,23 +407,28 @@ nothing For the stick: each item's own **Make it** does.
    one per place, filled in by hand; nothing of the plan is printed.
 2. **Copy seed {fp} by hand**, one per seed here: words and the SeedQR
    grid behind hold-to-reveal, never a printer, no line for a BIP-39
-   passphrase. Done when **Scan my copy** (the camera reads the drawn
-   SeedQR, compares its words with the seed in place, never loaded,
-   names the first word that differs) or, with no camera, **Type my
-   copy's numbers** matched that seed. Seed XOR and codex32 are here
-   too.
-3. **Vault 1: {fp}**, one item per vault made: with no vault open
-   **Make a vault**, **Unlock {name}** or **Unlock a vault**, which come
-   back to this item; then each of its seeds, **Save into {vault}** (the
-   key record Vaults' Save writes, loaded at unlock) and **with its
-   passphrase** when it has one, and the wallet where the plan puts it
-   there. An open vault that holds a seed only another vault is to hold
-   is not offered: "{vault} holds another vault's seed", **Lock it and
-   make a new vault** (that vault alone is sealed For the stick and
-   closed). Done when an open vault, or one locked since and remembered,
-   holds every seed of the item, the wallet where planned, and no other
-   vault's seed. The wallet-into-the-vault item folds into these.
-4. **The seeds as files**: **Save as a file…** opens the secret sheet:
+   passphrase. Its button, **Check my copy**: with a camera **Scan my
+   copy** (the camera reads the drawn SeedQR, compares its words with
+   the seed in place, never loaded, names the first word that differs),
+   with none the copy's numbers typed back; done when they match that
+   seed. Seed XOR and codex32 are here too.
+3. **Vault 1: {fp}**, one item per vault made, its body the rows one
+   press will save ("Seed {fp}", "Seed {fp} with its passphrase",
+   "Wallet description"), each marked once the open vault holds it. Its
+   one button: with no vault open **Make a vault**, **Unlock {name}** or
+   **Unlock a vault**, which come back to this item; then **Save into
+   {vault}**, which saves in one press each of its seeds (the key record
+   Vaults' Save writes, loaded at unlock), with its passphrase where the
+   plan keeps it there, and the wallet where the plan puts it there
+   (owner, 2026-10-10: no seed by seed, nothing left out); then
+   **Continue**. An open vault that holds a seed only another vault is
+   to hold is not offered: "{vault} holds another vault's seed", **Lock
+   it and make a new vault** (that vault alone is sealed For the stick
+   and closed). Done when an open vault, or one locked since and
+   remembered, holds every seed of the item (with its passphrase where
+   planned), the wallet where planned, and no other vault's seed.
+4. **The seeds as files**: **Make it** opens the secret sheet for the
+   first seed whose file is not made:
    "Save into {vault}" there writes the same key record; or, once "I
    understand: anyone who copies the stick or sees this file can spend
    these coins" is ticked, the words (`{wallet}-{fp}-words.txt`) or the
@@ -452,12 +461,32 @@ A stick visit with more than one vault file For the stick ticks one by
 default, the first the last write did not write; the rest wait for the
 next stick, and the receipt names the vault file each stick got.
 
-Under the list, **Change the plan** goes back to the questions. With
-every item done, "Backup done", the count of files for the stick,
-**Write to a stick**, **Open Files**. On the side panel each line of the map carries its
+Under the list, **Change the plan** goes back to the questions; it is
+the one way out of an item not done. Items the new plan still has stay
+done; what a vault holds that the new plan drops stays on the map as
+what it is ("vault.ofv holds seed 9A6A2580"). With every item done,
+"Backup done", then the plan's three checks as a strip, each value
+large in its colour, the wallet's chart of the plan (wallet first), the
+count of files for the stick, **Write to a stick**, **Open the
+wallet**, **Change the plan** (2026-10-10, `docs/NEW-WALLET.md` §14.6). On the side panel each line of the map carries its
 item's state, a dot in OK once done. The small panel's copy page keeps
 the per-seed lines of `Faraday::backup_kept` (in which vault, copy
 checked, a file for the stick unprotected, not here).
+
+**The backup before the spend** (owner, 2026-10-10;
+`docs/DECISIONS.md` F6, `docs/NEW-WALLET.md` §14). A key made here
+(New key's words, or a passphrase added in Create) signs nothing until
+a checklist that keeps its seed and passphrase is complete: the
+wallet's card reads **Finish the backup first** (its checklist, or its
+plan when none is made), and Who signs lists it "Waiting for its
+backup" with **Finish the backup**. Its addresses carry "Back up before
+you receive". The plan's first card says "A key made here signs only
+once this backup is done."; a plan that keeps no copy of it says "Seed
+{fp} is kept nowhere" in place of Make the checklist. Places' Continue,
+while a vault made has no stick ticked, reads "Vault 1's stick needs a
+place"; a plan whose check reads "Any one place lost: No" says why
+under it on the map panel. Keys restored from words, a SeedQR or a
+vault with nothing pending sign at once.
 
 **Place names: in the vault only** (owner). A place may be named ("Home
 safe") only with a vault open; the plan is then saved into it as record

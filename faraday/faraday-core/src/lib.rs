@@ -61,6 +61,7 @@ mod backups_screen;
 mod bip85_screen;
 mod boot_import_screen;
 mod compact;
+mod held;
 pub use compact::OskPress;
 pub use medium::Medium;
 mod compact_screens;
@@ -535,6 +536,9 @@ pub enum Action {
     /// the plan its chart shows (`docs/NEW-WALLET.md` §6.2). Nothing is
     /// made For the stick by opening it: each item offers what it makes.
     BackupChecklist(usize),
+    /// Finish the backup first (`docs/NEW-WALLET.md` §14.3): wallet `i`'s
+    /// checklist, or its plan when none is made.
+    BackupFirst(usize),
     /// Open, or close, the wallet's chart as its own page on a small
     /// panel.
     Glance(bool),
@@ -777,9 +781,13 @@ pub enum Action {
     BScan,
     /// Clear the typed digits.
     BCheckClear,
-    /// The seed shown into the open vault as a key, with its BIP-39
-    /// passphrase when true.
-    BVault(bool),
+    /// Vault `v`'s item: save into the open vault, in one press,
+    /// everything the plan puts in that vault: its seeds, each passphrase
+    /// the plan keeps there, and the wallet where the plan puts it there.
+    BVaultSave(u8),
+    /// Make the checklist's public files again: the template, the sheet
+    /// or the shares, the files for the software.
+    BFilesMake,
     /// A vault's item, the open vault holding another vault's seed: lock
     /// that vault and make a new one, back to the item.
     BNewVault,
@@ -2104,6 +2112,12 @@ pub struct BackupState {
     /// Opened from a chart in an open vault's view: the way back is the
     /// vault.
     pub from_vault: bool,
+    /// Work done that a later plan dropped, as what it is ("vault.ofv
+    /// holds seed 9A6A2580"): the copy exists until it is destroyed.
+    pub extras: Vec<String>,
+    /// The vaults the checklist had filled when Change the plan was
+    /// pressed, by name, with the seeds each holds.
+    pub prior: Vec<(String, Vec<String>)>,
 }
 
 /// Signing a message: the cards' state.
@@ -2618,6 +2632,10 @@ pub struct Faraday {
     input_decisions: VecDeque<(u32, bool)>,
     /// New keys made this session, which number their labels.
     new_keys: u32,
+    /// The keys made here whose backup is not yet done, by fingerprint
+    /// (`docs/NEW-WALLET.md` §14.3): they sign nothing until it is. Never
+    /// a secret; kept in a vault beside the seed and in the plan record.
+    made_here: Vec<osk_bip::keys::Fingerprint>,
     /// The vaults: the open slots and the vault screens' state.
     pub vaults: vaults::Vaults,
     /// The amounts each signed transaction's inputs stated
@@ -2912,6 +2930,7 @@ impl Faraday {
             import_under_input: false,
             input_decisions: VecDeque::new(),
             new_keys: 0,
+            made_here: Vec::new(),
             vaults: vaults::Vaults::default(),
             signed_amounts: Vec::new(),
             seal_amounts: true,
@@ -3039,6 +3058,7 @@ impl Faraday {
     /// Delivers what the shell knows about storage.
     pub fn storage(&mut self, event: StorageEvent) {
         self.storage_event(event);
+        self.backup_settle();
         // A device still waiting comes back up once no other sheet is.
         self.input_sheet();
     }
@@ -4731,6 +4751,11 @@ impl Faraday {
                 }
             }
             Action::BQNext(n) => {
+                // Every vault's stick has a place before the plan goes on
+                // (`docs/NEW-WALLET.md` §14.2).
+                if n == qstep::PLACES && self.backup_stickless().is_some() {
+                    return;
+                }
                 let qs = self.backup_questions();
                 if let Some(b) = self.backup.as_mut() {
                     b.q = qs.iter().skip_while(|&&q| q != n).nth(1).copied();
@@ -4775,6 +4800,13 @@ impl Faraday {
                 }
             }
             Action::BChecklist => {
+                // A plan that keeps no copy of a key made here, or leaves
+                // a vault's stick at no place, is not made into a
+                // checklist (`docs/NEW-WALLET.md` §14.2, §14.4).
+                if self.backup_kept_nowhere().is_some() || self.backup_stickless().is_some() {
+                    return;
+                }
+                self.backup_extras();
                 self.plan_save();
                 self.backup_files_make();
                 let items = self.backup_items();
@@ -4791,6 +4823,9 @@ impl Faraday {
                 self.backups_sync();
             }
             Action::BPlan => {
+                // What the checklist has put in vaults so far, should the
+                // new plan drop it.
+                self.backup_prior();
                 if let Some(b) = self.backup.as_mut() {
                     b.stage = BStage::Plan;
                     b.q = None;
@@ -4805,9 +4840,22 @@ impl Faraday {
             }
             Action::BStep(n) => {
                 let open = self.backup.as_ref().and_then(|b| b.open);
-                self.backup_item_open(if open == Some(n) { None } else { Some(n) });
+                // An item opens once every item before it is done
+                // (`docs/NEW-WALLET.md` §14.1).
+                if open == Some(n) {
+                    self.backup_item_open(None);
+                } else if self.backup_reachable(n) {
+                    self.backup_item_open(Some(n));
+                }
             }
             Action::BNext(n) => {
+                // No way past an item but doing it; the envelopes are done
+                // by this press.
+                if n != bstep::ENVELOPE
+                    && !bstep::item(n).is_some_and(|it| self.backup_item_done(it))
+                {
+                    return;
+                }
                 let items = self.backup_items();
                 let next = if n == bstep::ENVELOPE {
                     if let Some(b) = self.backup.as_mut() {
@@ -4880,26 +4928,31 @@ impl Faraday {
                     b.counted = false;
                 }
             }
-            Action::BVault(with) => {
-                let v = self.vaults.current;
-                let k = self.backup.as_ref().map(|b| b.key).filter(|&k| {
-                    self.session.keys.get(k).is_some_and(|key| {
-                        !vault_screens::vault_has_key(self, v, key.master.fingerprint())
-                    })
-                });
-                if let Some(k) = k {
-                    self.vault_act(if with {
-                        vaults::VaultAction::SaveKeyWithPassphrase(k)
-                    } else {
-                        vaults::VaultAction::SaveKey(k)
-                    });
-                }
+            Action::BVaultSave(v) => self.backup_vault_save(usize::from(v)),
+            Action::BFilesMake => {
+                self.backup_files_make();
+                self.backups_sync();
             }
+            Action::BackupFirst(w) => self.backup_first(w),
             Action::BNewVault => {
                 self.vault_lock_one(self.vaults.current);
                 self.vault_act(vaults::VaultAction::CreateFrom(Screen::Backup));
             }
-            Action::BFile => self.offer_seed(),
+            Action::BFile => {
+                // The seeds' files item makes the first one not yet made.
+                let next = self.backup.as_ref().and_then(|b| {
+                    let stem = file_stem(&self.session.wallets.get(b.wallet)?.name);
+                    self.backup_keys(b.wallet)
+                        .into_iter()
+                        .find(|&k| !self.seed_file_made(&stem, &self.session.keys[k]))
+                });
+                if let (Some(k), Some(b)) = (next, self.backup.as_mut())
+                    && b.open == Some(bstep::FILES)
+                {
+                    b.key = k;
+                }
+                self.offer_seed();
+            }
             Action::BWords(n) => {
                 // On the checklist the template For the stick is made
                 // again for the new length.
@@ -6090,17 +6143,7 @@ impl Faraday {
                 .is_some_and(|(_, k)| b.checked.contains(&k.master.fingerprint().0)),
             plan::Item::Vault(v) => self.backup_vault_fits(v).is_some(),
             plan::Item::SeedFiles => {
-                !here.is_empty()
-                    && here.iter().all(|(_, k)| {
-                        let fps = fp_text(k.master.fingerprint()).to_lowercase();
-                        ["words.txt", "seedqr.png", "compactseedqr.png"]
-                            .iter()
-                            .any(|end| {
-                                let name = format!("{stem}-{fps}-{end}");
-                                self.outbox.iter().any(|i| i.secret && i.name == name)
-                                    || self.receipt.as_ref().is_some_and(|r| r.wrote(&name))
-                            })
-                    })
+                !here.is_empty() && here.iter().all(|(_, k)| self.seed_file_made(&stem, k))
             }
             plan::Item::Sheets => {
                 if b.answers.split && backup::splits(w) {
@@ -6114,6 +6157,19 @@ impl Faraday {
             plan::Item::ShowDescriptor => b.shown,
             plan::Item::Envelopes => b.envelopes,
         }
+    }
+
+    /// Whether a file of key `k`'s seed, for the wallet whose files are
+    /// named `stem`, is For the stick or was written by the last visit.
+    pub(crate) fn seed_file_made(&self, stem: &str, k: &wallet::Key) -> bool {
+        let fps = fp_text(k.master.fingerprint()).to_lowercase();
+        ["words.txt", "seedqr.png", "compactseedqr.png"]
+            .iter()
+            .any(|end| {
+                let name = format!("{stem}-{fps}-{end}");
+                self.outbox.iter().any(|i| i.secret && i.name == name)
+                    || self.receipt.as_ref().is_some_and(|r| r.wrote(&name))
+            })
     }
 
     /// The fingerprints of the seeds the plan puts into vault `v`, and of
@@ -6151,35 +6207,72 @@ impl Faraday {
         )
     }
 
+    /// The session keys of the seeds the plan puts into vault `v`, each
+    /// with whether its passphrase goes in with it, and those of the seeds
+    /// it puts into another vault and not this one.
+    pub(crate) fn backup_vault_seeds(&self, v: usize) -> (Vec<(usize, bool)>, Vec<usize>) {
+        let Some(b) = self.backup.as_ref() else {
+            return (Vec::new(), Vec::new());
+        };
+        let shape = self.plan_shape(b.wallet);
+        let list = self.backup_seed_list(b.wallet);
+        let own = b.answers.vault_seeds(&shape, v);
+        let mut others: Vec<usize> = b
+            .answers
+            .vaults_made(&shape)
+            .into_iter()
+            .filter(|&u| u != v)
+            .flat_map(|u| b.answers.vault_seeds(&shape, u))
+            .filter(|i| !own.contains(i))
+            .filter_map(|i| list.get(i)?.1)
+            .collect();
+        others.sort_unstable();
+        others.dedup();
+        let own = own
+            .into_iter()
+            .filter_map(|i| {
+                let k = list.get(i)?.1?;
+                let with = shape.seeds[i].passphrase && b.answers.pass_in_vault(i);
+                Some((k, with))
+            })
+            .collect();
+        (own, others)
+    }
+
     /// Whether open vault `o` holds a seed the plan puts into another
     /// vault and not vault `v`: it is not offered for vault `v`.
     pub fn backup_vault_taken(&self, v: usize, o: usize) -> bool {
-        use crate::vault_screens::vault_key;
-        let (_, others) = self.backup_vault_keys(v);
-        others.iter().any(|&f| vault_key(self, o, f).is_some())
+        let (_, others) = self.backup_vault_seeds(v);
+        others.iter().any(|&k| self.vault_holds_seed(o, k, false))
     }
 
     /// The vault that does the plan's vault `v`: an open vault, or one
     /// locked since this power-on by what it was seen to hold, that holds
-    /// every seed the plan puts into `v`, the wallet where the plan puts
-    /// it there, and no seed only another vault is to hold. Its name.
+    /// every seed the plan puts into `v` (with its passphrase where the
+    /// plan puts it there), the wallet where the plan puts it there, and
+    /// no seed only another vault is to hold. Its name.
     pub(crate) fn backup_vault_fits(&self, v: usize) -> Option<String> {
-        use crate::vault_screens::{vault_has_wallet, vault_key};
+        use crate::vault_screens::vault_has_wallet;
         let b = self.backup.as_ref()?;
         let w = self.session.wallets.get(b.wallet)?;
-        let (own, others) = self.backup_vault_keys(v);
+        let (own_seeds, other_seeds) = self.backup_vault_seeds(v);
         let wallet_too = b.answers.wallet[plan::wallet::VAULT];
-        if own.is_empty() && !wallet_too {
+        if own_seeds.is_empty() && !wallet_too {
             return None;
         }
         let open = (0..self.vaults.open.len()).find(|&o| {
-            own.iter().all(|&f| vault_key(self, o, f).is_some())
-                && !others.iter().any(|&f| vault_key(self, o, f).is_some())
+            own_seeds
+                .iter()
+                .all(|&(k, with)| self.vault_holds_seed(o, k, with))
+                && !other_seeds
+                    .iter()
+                    .any(|&k| self.vault_holds_seed(o, k, false))
                 && (!wallet_too || vault_has_wallet(self, o, w))
         });
         if let Some(o) = open {
             return Some(self.vaults.open[o].name.clone());
         }
+        let (own, others) = self.backup_vault_keys(v);
         let sum = w.policy.checksum();
         let text = |f: &osk_bip::keys::Fingerprint| fp_text(*f);
         let salts: Vec<[u8; 32]> = self.vaults.open.iter().map(|o| o.header().salt).collect();
@@ -6278,9 +6371,15 @@ impl Faraday {
             return;
         };
         let shape = self.plan_shape(b.wallet);
+        // The keys made here with their backup pending, by fingerprint
+        // (`docs/NEW-WALLET.md` §14.3).
+        let mut answers = b.answers.to_text();
+        for fp in self.wallet_held(b.wallet) {
+            answers.push_str(&format!("held {}\n", fp_text(fp)));
+        }
         let mut record = Record::new(kind::PLAN)
             .with(field::PLAN_WALLET, Self::wallet_text(w).as_bytes())
-            .with(field::PLAN_ANSWERS, b.answers.to_text().as_bytes());
+            .with(field::PLAN_ANSWERS, answers.as_bytes());
         for p in 0..b.answers.places {
             let name = b.names.get(p).map_or("", |n| n.trim());
             record.push(field::PLAN_PLACE, name.as_bytes());
@@ -6302,6 +6401,10 @@ impl Faraday {
                 field::PLAN_HOLDS,
                 format!("{at}: {}", holds.join(", ")).as_bytes(),
             );
+        }
+        // Work a later plan dropped stays on the map as what it is.
+        for line in &b.extras {
+            record.push(field::PLAN_HOLDS, line.as_bytes());
         }
         let want = wallet::same_wallet(&w.policy);
         let same = |r: &faraday_vault::records::Record| {
@@ -7138,14 +7241,22 @@ impl Faraday {
             return;
         };
         let label = format!("{} · passphrase", key.label);
-        let added = match self.session.add_words_with(&words, &pass, &label, None) {
-            Ok(fp) => Ok(fp),
+        let (added, new) = match self.session.add_words_with(&words, &pass, &label, None) {
+            Ok(fp) => (Ok(fp), true),
             // Loaded already with this passphrase: that key is the one.
-            Err(wallet::Refusal::Duplicate(_)) => Session::default()
-                .add_words_with(&words, &pass, "", None)
-                .map_err(|e| e.text()),
-            Err(e) => Err(e.text()),
+            Err(wallet::Refusal::Duplicate(_)) => (
+                Session::default()
+                    .add_words_with(&words, &pass, "", None)
+                    .map_err(|e| e.text()),
+                false,
+            ),
+            Err(e) => (Err(e.text()), false),
         };
+        // The passphrase exists nowhere else: the key is made here
+        // (`docs/NEW-WALLET.md` §14.3).
+        if new && let Ok(fp) = &added {
+            self.mark_made_here(*fp);
+        }
         let Some(c) = self.create.as_mut() else {
             return;
         };
@@ -8313,6 +8424,32 @@ impl Faraday {
     }
 
     fn sign_here(&mut self) {
+        // A key made here signs nothing until its backup is done
+        // (`docs/NEW-WALLET.md` §14.3).
+        let held = self.held_keys();
+        let waiting: Vec<String> = self
+            .spend
+            .as_ref()
+            .map(|s| {
+                s.inspection
+                    .participating_keys
+                    .iter()
+                    .filter(|fp| held.contains(fp))
+                    .map(|fp| fp_text(*fp))
+                    .collect()
+            })
+            .unwrap_or_default();
+        if !waiting.is_empty() {
+            if let Some(s) = self.spend.as_mut() {
+                s.error = Some(format!(
+                    "{} waits for its backup: finish the backup first",
+                    waiting.join(", ")
+                ));
+                s.open = Some(wallet::step::SIGNERS);
+                s.follow = true;
+            }
+            return;
+        }
         // A MuSig2 or FROST round opened here draws its secret nonces
         // from a seed of this pass's own; a pass with no such input
         // draws nothing and needs none.
@@ -9594,6 +9731,7 @@ impl Faraday {
     pub fn press(&mut self, action: Action) {
         self.note_secrets();
         self.act(action);
+        self.backup_settle();
         // A vault being made or unlocked for another flow: the way back
         // ends when the person leaves for anything else, and a secret
         // kept for it goes, wiped. While on the way, the flow keeps what
@@ -9958,6 +10096,7 @@ impl App for Faraday {
             }
             _ => return,
         }
+        self.backup_settle();
         self.dirty = true;
         self.commands.push_back(Command::Draw);
     }

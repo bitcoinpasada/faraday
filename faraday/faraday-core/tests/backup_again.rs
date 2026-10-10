@@ -106,9 +106,19 @@ fn press_offered(app: &mut Faraday, action: Action) {
 }
 
 /// The plan with the description to every software, as text and QR
-/// pictures, then the checklist made from it.
+/// pictures, and nothing into a vault or on paper by hand, so the
+/// public files item is open to reach; then the checklist made from it.
 fn every_software(app: &mut Faraday) {
     press_offered(app, Action::BPreset(2));
+    let a = app.backup.as_ref().unwrap().answers.clone();
+    if a.wallet[plan::wallet::VAULT] {
+        app.press(Action::BAnswer(qrow::WALLET, plan::wallet::VAULT as u8));
+    }
+    for row in [plan::seeds::WORDS, plan::seeds::VAULT] {
+        if a.seeds[row] {
+            app.press(Action::BAnswer(qrow::SEEDS, row as u8));
+        }
+    }
     for row in 0..5u8 {
         if row != plan::software::NOT_SURE as u8 {
             app.press(Action::BAnswer(qrow::SOFTWARE, row));
@@ -197,6 +207,19 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     // opens on the copy.
     assert!(app.backup_item_done(plan::Item::Templates));
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY));
+    // The vault's item opens once the copy is checked.
+    app.press(Action::BStep(bstep::VAULT));
+    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY));
+    press_offered(&mut app, Action::BCheck);
+    let words = testkit::test_words(testkit::TEST_SEEDS[1].0);
+    let digits = osk_codec::seedqr::to_digits(
+        &osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &words).unwrap(),
+    );
+    type_text(
+        &mut app,
+        std::str::from_utf8(digits.expose().as_bytes()).unwrap(),
+    );
+    assert!(app.backup_item_done(plan::Item::Copy(0)));
     press_offered(&mut app, Action::BStep(bstep::VAULT));
     // The vault is locked: Unlock it, and back to this step.
     app.vaults.ms_per_unit = Some(180);
@@ -214,17 +237,18 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
     assert_eq!(app.backup_kept().unwrap().wallet.1, Tone::Warn);
-    press_offered(&mut app, Action::Vault(V::SaveWallet(w)));
+    assert!(!app.backup_item_done(plan::Item::Vault(0)));
+    // One press saves the seed and the wallet.
+    press_offered(&mut app, Action::BVaultSave(0));
     let kept = app.backup_kept().unwrap();
     assert_eq!(kept.wallet.1, Tone::Ok, "{:?}", kept.wallet);
     assert!(kept.wallet.0.starts_with("Wallet in "), "{:?}", kept.wallet);
-    // Saved once: the item says so rather than offering it again.
-    let _ = app.frame();
-    assert!(!app.offers(Action::Vault(V::SaveWallet(w))));
-    // The vault's item is done with its seed in it too.
-    assert!(!app.backup_item_done(plan::Item::Vault(0)));
-    press_offered(&mut app, Action::BVault(false));
     assert!(app.backup_item_done(plan::Item::Vault(0)));
+    // Saved once: the item goes on rather than offering it again.
+    let _ = app.frame();
+    assert!(!app.offers(Action::BVaultSave(0)));
+    assert!(!app.offers(Action::Vault(V::SaveWallet(w))));
+    assert!(app.offers(Action::BNext(bstep::VAULT)));
 }
 
 #[test]

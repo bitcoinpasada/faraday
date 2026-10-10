@@ -9,7 +9,7 @@ use faraday_core::catalog::TILES;
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
-use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, bstep};
+use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, bstep, plan, qrow};
 use faraday_vault::records::kind;
 use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
@@ -324,15 +324,19 @@ fn on_the_seeds_step(app: &mut Faraday) {
 fn the_seeds_vault_item_makes_a_vault_and_comes_back_with_save_live() {
     let mut app = device(Vec::new());
     on_the_seeds_step(&mut app);
-    app.press(Action::BStep(bstep::VAULT));
+    // No paper words: the vault's item comes first.
+    app.press(Action::BPlan);
+    app.press(Action::BAnswer(qrow::SEEDS, plan::seeds::WORDS as u8));
+    app.press(Action::BChecklist);
     let step = app.backup.as_ref().unwrap().open;
+    assert_eq!(step, Some(bstep::VAULT));
     press_make(&mut app, Screen::Backup);
     make_the_vault(&mut app);
     unlock_with(&mut app, NEW_PHRASE);
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.backup.as_ref().unwrap().open, step, "the same step");
     assert!(
-        offered(&mut app, Action::BVault(false)),
+        offered(&mut app, Action::BVaultSave(0)),
         "Save into the vault is live"
     );
 }

@@ -65,8 +65,16 @@ fn create_to_vault_step() -> Faraday {
         .unwrap() as u8;
     app.press(Action::CBackup(paper_and_vault));
     assert_eq!(app.screen, Screen::Backup);
+    // No paper words: the vault's item comes first and opens.
+    app.press(Action::BAnswer(
+        faraday_core::qrow::SEEDS,
+        faraday_core::plan::seeds::WORDS as u8,
+    ));
     app.press(Action::BChecklist);
-    app.press(Action::BStep(faraday_core::bstep::VAULT));
+    assert_eq!(
+        app.backup.as_ref().unwrap().open,
+        Some(faraday_core::bstep::VAULT)
+    );
     let _ = app.frame();
     assert!(
         app.offers(Action::Vault(V::CreateFrom(Screen::Backup))),

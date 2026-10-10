@@ -413,6 +413,7 @@ fn run(
         Some("upgrade") => return upgrade_tour(&mut t),
         Some("glance") => return glance_tour(&mut t),
         Some("fromvault") => return from_vault_tour(&mut t),
+        Some("first") => return first_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -1754,7 +1755,7 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     let before = t.app.vaults.open[0].changes;
     for k in t.app.backup_keys(built) {
         t.press(Action::BKey(k));
-        t.press(Action::BVault(false));
+        t.press(Action::BVaultSave(0));
     }
     t.shot("create-backup-vault")?;
     t.press(Action::Vault(V::SaveWallet(built)));
@@ -3135,7 +3136,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Backup(one));
     t.press(Action::BPreset(1));
     t.press(Action::BChecklist);
-    t.press(Action::BVault(false));
+    t.press(Action::BVaultSave(0));
     t.press(Action::Nav(Screen::VaultContents));
     t.press(Action::Vault(V::AddKind(1)));
     t.press(Action::Vault(V::SaveWallet(one)));
@@ -3237,6 +3238,123 @@ fn vaultway_tour(t: &mut Tour) -> Result<(), String> {
         return Err("unlocking did not come back to the GPG keys".into());
     }
     t.shot("unlocked-gpg")?;
+    Ok(())
+}
+
+/// The backup before spending (`docs/NEW-WALLET.md` §14): a single-key
+/// wallet made here, its card with Finish the backup first and the
+/// receive warning; Places with Vault 1's stick unticked; the vault item
+/// with no vault open, with one made and open, and saved into; the end of
+/// the backup with the checks strip and the chart.
+fn first_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::create::NewKind;
+    use faraday_core::plan::Preset;
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.vaults.ms_per_unit = Some(180);
+    let kind = NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::NativeSegwit)
+        .ok_or("no native SegWit")? as u8;
+    t.press(Action::CreateWallet);
+    t.press(Action::CKind(kind));
+    t.press(Action::CNext(faraday_core::cstep::KIND));
+    device_key(t, 0);
+    let w = t
+        .app
+        .create
+        .as_ref()
+        .and_then(|c| c.built)
+        .ok_or("the wallet was not made")?;
+    t.press(Action::OpenWallet(w));
+    t.shot("first-card-held")?;
+    // The plan: Paper and vault; Vault 1's stick unticked on Places.
+    t.press(Action::BackupFirst(w));
+    let paper_vault = Preset::ALL
+        .iter()
+        .position(|p| *p == Preset::PaperVault)
+        .ok_or("no Paper and vault")? as u8;
+    t.press(Action::BPreset(paper_vault));
+    t.press(Action::BQ(qstep::PLACES));
+    let at = {
+        let a = &t.app.backup.as_ref().ok_or("no backup")?.answers;
+        (0..a.places)
+            .find(|&p| a.stick_at(0, p))
+            .ok_or("Vault 1's stick has no place")?
+    };
+    t.press(Action::BAnswer(qrow::STICKS, at as u8));
+    t.shot("first-places-stickless")?;
+    t.press(Action::BAnswer(qrow::STICKS, at as u8));
+    t.press(Action::BChecklist);
+    // The copy checked, typed back.
+    let digits = {
+        let key = t.app.session.keys.last().ok_or("no key")?;
+        let words = key.words.as_ref().ok_or("no words")?.to_string();
+        let m = osk_bip::bip39::Mnemonic::parse(key.language, &words).map_err(|e| e.to_string())?;
+        osk_codec::seedqr::to_digits(&m)
+            .expose()
+            .as_bytes()
+            .to_vec()
+    };
+    t.press(Action::BCheck);
+    for c in digits {
+        t.app.event(Event::Key(Key::Char(char::from(c))));
+    }
+    t.press(Action::BCheck);
+    t.press(Action::BStep(bstep::VAULT));
+    scroll_to(t, Action::Vault(V::CreateFrom(Screen::Backup)));
+    t.shot("first-vault-make")?;
+    t.press(Action::Vault(V::CreateFrom(Screen::Backup)));
+    for second in [false, true] {
+        t.press(Action::Vault(V::CFocus(0, second)));
+        type_text(t, "first phrase");
+    }
+    t.press(Action::Vault(V::CGo));
+    for _ in 0..10 {
+        if t.app.screen == Screen::Unlock {
+            break;
+        }
+        t.tick();
+    }
+    type_text(t, "first phrase");
+    t.press(Action::Vault(V::Unlock));
+    for _ in 0..10 {
+        if !t.app.vaults.open.is_empty() && t.app.screen == Screen::Backup {
+            break;
+        }
+        t.tick();
+    }
+    if t.app.vaults.open.is_empty() {
+        return Err("the vault made for the first tour did not open".to_string());
+    }
+    scroll_to(t, Action::BVaultSave(0));
+    t.shot("first-vault-save")?;
+    t.press(Action::BVaultSave(0));
+    scroll_to(t, Action::BNext(bstep::VAULT));
+    t.shot("first-vault-saved")?;
+    t.press(Action::BNext(bstep::VAULT));
+    if t.app.backup.as_ref().and_then(|b| b.open) != Some(bstep::ENVELOPE) {
+        t.press(Action::BStep(bstep::ENVELOPE));
+    }
+    t.press(Action::BNext(bstep::ENVELOPE));
+    let done = t
+        .app
+        .backup_items()
+        .into_iter()
+        .filter_map(bstep::item)
+        .all(|it| t.app.backup_item_done(it));
+    if !done {
+        return Err("the first tour's checklist is not done".to_string());
+    }
+    t.shot("first-done")?;
+    if t.app.is_compact() {
+        // The done card's top: the checks strip, then the chart.
+        scroll(t, 420);
+        t.shot("first-done-strip")?;
+    }
+    scroll_to(t, Action::BPlan);
+    t.shot("first-done-foot")?;
     Ok(())
 }
 
@@ -3724,7 +3842,7 @@ fn main() -> ExitCode {
     };
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|fromvault]"
+            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|fromvault|first]"
         );
         return ExitCode::from(2);
     }
@@ -3773,11 +3891,12 @@ fn main() -> ExitCode {
             "upgrade",
             "glance",
             "fromvault",
+            "first",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance or fromvault"
+            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, fromvault or first"
         );
         return ExitCode::from(2);
     }

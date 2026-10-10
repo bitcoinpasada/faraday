@@ -127,7 +127,7 @@ fn locked_after_backup() -> (Boxes, Boxes) {
     app.press(Action::BReveal);
     let _ = app.frame();
     unlock_vault(&mut app);
-    app.press(Action::BVault(false));
+    app.press(Action::BVaultSave(0));
     let _ = app.frame();
 
     app.press(Action::Lock);

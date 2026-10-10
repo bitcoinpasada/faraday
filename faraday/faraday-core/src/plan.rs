@@ -337,6 +337,14 @@ impl Answers {
         }
     }
 
+    /// The first vault made whose stick no place keeps: the plan waits
+    /// on Places until it has one (`docs/NEW-WALLET.md` §14.2).
+    pub fn stickless(&self, shape: &Shape) -> Option<usize> {
+        self.vaults_made(shape)
+            .into_iter()
+            .find(|&v| !(0..self.places).any(|p| self.stick_at(v, p)))
+    }
+
     /// Whether place `p` keeps a stick with vault `v` on it.
     pub fn stick_at(&self, v: usize, p: usize) -> bool {
         self.sticks
@@ -351,8 +359,8 @@ impl Answers {
     /// failing that, the last place that keeps only its own seeds' words
     /// and no other vault's stick, which for a seed kept in more than one
     /// place is the one with its further copy; failing that, the last
-    /// place with its own seeds' words. Where none is, it is left with no
-    /// place.
+    /// place with its own seeds' words; last, the place holding the
+    /// fewest keys. Every vault's stick has a place.
     fn place_stick(&mut self, shape: &Shape, v: usize) {
         let made = self.vaults_made(shape);
         let own = self.vault_seeds(shape, v);
@@ -370,6 +378,19 @@ impl Answers {
                 (0..self.places)
                     .rev()
                     .find(|&p| words(p).iter().any(|i| own.contains(i)))
+            })
+            .or_else(|| {
+                // Last, the place holding the fewest keys: its words and
+                // the seeds of the vaults whose sticks it keeps.
+                (0..self.places).min_by_key(|&p| {
+                    let mut keys = words(p);
+                    for &u in made.iter().filter(|&&u| u != v && self.stick_at(u, p)) {
+                        keys.extend(self.vault_seeds(shape, u));
+                    }
+                    keys.sort_unstable();
+                    keys.dedup();
+                    keys.len()
+                })
             });
         if self.sticks.len() <= v {
             self.sticks.resize(v + 1, vec![false; self.places]);
@@ -474,6 +495,13 @@ impl Answers {
                 }
             }
         }
+        // A vault left with no stick is given a place, unless the person
+        // just unticked its last one.
+        let before = if matches!(q, Question::Sticks(_)) {
+            before
+        } else {
+            Vec::new()
+        };
         self.place_new_sticks(shape, &before);
     }
 
@@ -507,7 +535,18 @@ impl Answers {
         }
         out
     }
+}
 
+/// The fingerprints a plan's text lists as made here with their backup
+/// pending, one `held` line each.
+pub fn held_in(text: &str) -> Vec<String> {
+    text.lines()
+        .filter_map(|l| l.strip_prefix("held "))
+        .map(|f| f.trim().to_string())
+        .collect()
+}
+
+impl Answers {
     /// Reads [`Answers::to_text`] back for `shape`: None when it is not
     /// for a wallet of this shape. A plan saved before vaults were one per
     /// seed, with one `sticks` line and no `vault` line, reads as one
@@ -553,6 +592,9 @@ impl Answers {
                     let i: usize = i.parse().ok()?;
                     *a.pass.get_mut(i)? = flags(row)?;
                 }
+                // A key made here whose backup is pending: read by the
+                // caller (`docs/NEW-WALLET.md` §14.3), not an answer.
+                "held" => continue,
                 _ => return None,
             }
             seen += 1;
@@ -1065,31 +1107,11 @@ fn alone_in(shape: &Shape, a: &Answers, boxes: &[Spot], at: At) -> Alone {
 pub fn check(shape: &Shape, a: &Answers) -> Check {
     let boxes = map(shape, a);
     let places = spots(shape, a);
-    let mut lost = Lost::Yes;
-    for &gone in &places {
-        let mut have = Have::none(shape);
-        let mut readable: Vec<usize> = Vec::new();
-        for &at in places.iter().filter(|&&at| at != gone) {
-            if !matches!(at, At::Vault(_)) {
-                holds_in(&boxes, at).into_iter().for_each(|w| have.add(w));
-            }
-            readable.extend(reads_in(shape, a, at));
-        }
-        holds_in(&boxes, At::Software)
-            .into_iter()
-            .for_each(|w| have.add(w));
-        holds_in(&boxes, At::Away)
-            .into_iter()
-            .for_each(|w| have.add(w));
-        let verdict = if have.rebuilds(shape, a) {
-            Lost::Yes
-        } else if !readable.is_empty() && opened_in(&boxes, &have, &readable).rebuilds(shape, a) {
-            Lost::WithVault
-        } else {
-            Lost::No
-        };
-        lost = lost.min(verdict);
-    }
+    let lost = places
+        .iter()
+        .map(|&gone| lost_one(shape, a, &boxes, &places, gone))
+        .min()
+        .unwrap_or(Lost::Yes);
     let mut spend = Found::No;
     let mut balance = Found::No;
     for &at in &places {
@@ -1102,6 +1124,167 @@ pub fn check(shape: &Shape, a: &Answers) -> Check {
         spend,
         balance,
     }
+}
+
+/// What is left with spot `gone` lost, of `places` on the map `boxes`.
+fn lost_one(shape: &Shape, a: &Answers, boxes: &[Spot], places: &[At], gone: At) -> Lost {
+    let mut have = Have::none(shape);
+    let mut readable: Vec<usize> = Vec::new();
+    for &at in places.iter().filter(|&&at| at != gone) {
+        if !matches!(at, At::Vault(_)) {
+            holds_in(boxes, at).into_iter().for_each(|w| have.add(w));
+        }
+        readable.extend(reads_in(shape, a, at));
+    }
+    holds_in(boxes, At::Software)
+        .into_iter()
+        .for_each(|w| have.add(w));
+    holds_in(boxes, At::Away)
+        .into_iter()
+        .for_each(|w| have.add(w));
+    if have.rebuilds(shape, a) {
+        Lost::Yes
+    } else if !readable.is_empty() && opened_in(boxes, &have, &readable).rebuilds(shape, a) {
+        Lost::WithVault
+    } else {
+        Lost::No
+    }
+}
+
+/// Where seed `i` is kept: each place with its words or SeedQR, the
+/// stick of files, each vault that holds it.
+fn seed_spots(shape: &Shape, a: &Answers, i: usize) -> Vec<At> {
+    let mut out: Vec<At> = (0..a.places)
+        .filter(|&p| a.words_at(shape, p).contains(&i))
+        .map(At::Place)
+        .collect();
+    if a.seeds[seeds::FILE] && shape.seeds.get(i).is_some_and(|s| s.here) {
+        out.push(At::Files);
+    }
+    for v in a.vaults_made(shape) {
+        if a.vault_seeds(shape, v).contains(&i) {
+            out.push(At::Vault(v));
+        }
+    }
+    out
+}
+
+/// Why "Any one place lost" reads No, as a line under the check: the
+/// first spot whose loss leaves too little, and the seed or passphrase
+/// kept only there. `name` names a place, `noun` is the medium ("stick").
+/// None when the check does not read No.
+pub fn lost_why(
+    shape: &Shape,
+    a: &Answers,
+    name: &dyn Fn(usize) -> String,
+    noun: &str,
+) -> Option<String> {
+    let boxes = map(shape, a);
+    let places = spots(shape, a);
+    let gone = places
+        .iter()
+        .copied()
+        .find(|&g| lost_one(shape, a, &boxes, &places, g) == Lost::No)?;
+    let stick_text = |v: usize| -> String {
+        let at: Vec<String> = (0..a.places)
+            .filter(|&p| a.stick_at(v, p))
+            .map(name)
+            .collect();
+        if at.is_empty() {
+            "at no place".to_string()
+        } else {
+            format!("at {}", at.join(", "))
+        }
+    };
+    // A thing kept at `at` is lost with `gone`: there, or in a vault whose
+    // every stick is there.
+    let with_gone = |at: At| -> bool {
+        at == gone
+            || matches!(at, At::Vault(v) if (0..a.places)
+                .filter(|&p| a.stick_at(v, p))
+                .all(|p| At::Place(p) == gone))
+    };
+    let only = |list: &[At]| -> Option<String> {
+        match list {
+            [At::Vault(v)] => Some(format!(
+                "Vault {}, whose {noun} is {}",
+                v + 1,
+                stick_text(*v)
+            )),
+            [At::Place(p)] => Some(name(*p)),
+            [At::Files] => Some(format!("the {noun} of files")),
+            _ => None,
+        }
+    };
+    for i in shape.here() {
+        let seed = &shape.seeds[i].name;
+        let kept = seed_spots(shape, a, i);
+        if kept.is_empty() {
+            return Some(format!("Seed {seed} is kept nowhere"));
+        }
+        if kept.iter().all(|&at| with_gone(at)) {
+            let line = match only(&kept) {
+                Some(w) if matches!(kept[0], At::Vault(_)) => format!("in {w}"),
+                Some(w) if kept[0] == At::Files => format!("on {w}"),
+                Some(w) => format!("at {w}"),
+                None => format!("with {}", name_at(gone, name, noun)),
+            };
+            return Some(format!("Seed {seed} is kept only {line}"));
+        }
+        if shape.seeds[i].passphrase {
+            let mut pass: Vec<At> = (0..a.places)
+                .filter(|&p| a.pass_at(i, p))
+                .map(At::Place)
+                .collect();
+            if a.pass_in_vault(i) {
+                pass.extend(kept.iter().copied().filter(|at| matches!(at, At::Vault(_))));
+            }
+            if pass.is_empty() {
+                return Some(format!("The passphrase of {seed} is kept nowhere"));
+            }
+            if pass.iter().all(|&at| with_gone(at)) {
+                return Some(format!(
+                    "The passphrase of {seed} is kept only with {}",
+                    name_at(gone, name, noun)
+                ));
+            }
+        }
+    }
+    Some(format!(
+        "Without {}, the rest do not rebuild the wallet",
+        name_at(gone, name, noun)
+    ))
+}
+
+/// A spot as the why line names it.
+fn name_at(at: At, name: &dyn Fn(usize) -> String, noun: &str) -> String {
+    match at {
+        At::Place(p) => name(p),
+        At::Vault(v) => format!("Vault {}", v + 1),
+        At::Files => format!("the {noun} of files"),
+        At::Software => "the software".to_string(),
+        At::Away => "the devices".to_string(),
+    }
+}
+
+/// The first of `seeds` (made here) the plan keeps no copy of, or whose
+/// passphrase it keeps nowhere: the line said in place of Make the
+/// checklist (`docs/NEW-WALLET.md` §14.4).
+pub fn kept_nowhere(shape: &Shape, a: &Answers, seeds: &[usize]) -> Option<String> {
+    for &i in seeds {
+        let Some(seed) = shape.seeds.get(i).filter(|s| s.here) else {
+            continue;
+        };
+        let kept = seed_spots(shape, a, i);
+        if kept.is_empty() {
+            return Some(format!("Seed {} is kept nowhere", seed.name));
+        }
+        let pass = (0..a.places).any(|p| a.pass_at(i, p)) || a.pass_in_vault(i);
+        if seed.passphrase && !pass {
+            return Some(format!("The passphrase of {} is kept nowhere", seed.name));
+        }
+    }
+    None
 }
 
 /// One thing the checklist asks for.

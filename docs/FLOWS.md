@@ -449,6 +449,24 @@ to get it.
     edits the plan (Move, Add here, Remove the place, I destroyed this
     copy), marks and dates, lost and exposed, a holder's name and Mark
     checked for a key not held here (the second batch).
+45. **The backup comes before spending** (owner, 2026-10-10;
+    `docs/NEW-WALLET.md` §14, `docs/DECISIONS.md` F6). Back up's
+    checklist: an item's foot button is its next action (a vault item's
+    **Make a vault** or the way to one, then one **Save into {vault}**
+    that saves every seed, passphrase and the description the plan puts
+    there, then **Continue**; a copy's **Check my copy**; files' **Make
+    it**), and the items after one not done do not open. Places waits
+    while a vault's stick has no place ("Vault 1's stick needs a
+    place"); a plan that keeps no copy of a key made here is not made
+    into a checklist ("Seed {fp} is kept nowhere"); **Change the plan**
+    stays under every item, done work the new plan drops stays on the
+    map. A key made here signs once its checklist is complete: the
+    wallet card's first button is **Finish the backup first**, Who signs
+    lists it **Waiting for its backup** with **Finish the backup**, and
+    the card's address, Create's Check, the Key card's address and the
+    chart's wallet node say "Back up before you receive". The done card,
+    the wallet card and the open vault lead with the plan's three checks
+    as a strip above the chart.
 
 ## Home
 
@@ -780,8 +798,8 @@ guarantees for this file's rule:
   vault's passphrase"; a vault "Sealed", with where its stick is). A
   line runs from the wallet to each key and from each key held here to
   every node holding its seed, a colour and dash pattern per key; a
-  cosigner's key has none, and its seed is in no node. Under it the
-  plan's three check lines. The plan is the backup's once its checklist
+  cosigner's key has none, and its seed is in no node. Above it the
+  plan's three checks as a strip (decision 45). The plan is the backup's once its checklist
   is made, else the one recorded this power-on (kept across a lock),
   else an open vault's. No plan: "No backup plan" with **Back up**; a
   plan in a locked vault not remembered: "Plan in {vault}, locked" with

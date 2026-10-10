@@ -206,3 +206,54 @@ higher version number is warned about, anything else is written.
 Sticks made between F2 and this entry (`0.1.0+<commit>`, no kind) show
 as before, "0.1.0 (<commit>)". This resolves the audit's finding that a
 dev image and a release image could not be told apart.
+
+### F6 The backup before the spend (2026-10-10)
+
+**Why.** A key made in Faraday exists nowhere else until its backup is
+done, and a passphrase added here exists only in memory. Back up's
+checklist could be passed item by item without doing any of them; a
+vault item saved its seeds and the description by separate buttons, so
+part of it could be left out; and a plan could leave a vault's stick at
+no place (the owner's screenshot: a single key whose words were
+unticked, its only copy in Vault 1, Vault 1's stick nowhere). The
+owner's ask: "we need to force users to follow the backup flow they
+already selected", and for a vault item, "make ONE button that saves
+everything they indicated they wanted saved in the vault into the
+vault; do not allow continue until they've done that".
+
+**What it does** (`docs/NEW-WALLET.md` §14; `faraday-core/src/held.rs`;
+`docs/WALLETS.md` §5, "The backup before the spend").
+
+- *Which keys.* A key is made here when its words came from New key, or
+  when a passphrase was added to it in Create. It stays held until a
+  backup checklist that keeps its seed, and that passphrase, is
+  complete, every item done. Keys restored from words, a SeedQR or a
+  vault with nothing pending are already backed up and sign at once.
+- *What waits.* Signing a transaction with a held key is refused; the
+  wallet card's first button is **Finish the backup first**, and Who
+  signs lists the key as "Waiting for its backup". Signing a message is
+  not a spend and is not held. Receiving is warned, not blocked: every
+  address shown for the wallet carries "Back up before you receive".
+- *The checklist forces the plan chosen.* An item's button is its next
+  action until it is done, then **Continue**; the items after it open
+  only once it is done. A vault item has one **Save into {vault}**,
+  which saves every seed, passphrase and the description the plan puts
+  in that vault. Every vault's stick has a place, and a plan that keeps
+  no copy of a key made here is not made into a checklist. **Change the
+  plan** stays the way out of an item: a simpler plan is allowed, and
+  its own checklist must still be completed.
+- *Across a lock.* Which keys are held is kept by fingerprint, never by
+  a secret: bit 1 of the key record's flags in the vault beside the
+  seed, and a `held` line in the backup plan's record (`docs/VAULT.md`
+  §7). A key loaded from a vault that says so is held again. The seed
+  and the passphrase are written nowhere new.
+
+**The owner's decision: one line of fact on the plan.** The plan's first
+card says "A key made here signs only once this backup is done.", only
+when the wallet has a key made here. It states what follows from the
+plan, as F1's line does, and explains nothing.
+
+**What it leaves.** A vault locked before the checklist completes
+keeps its flag: a key loaded from it later is held again, until a
+checklist that keeps it is completed with that vault open.
+

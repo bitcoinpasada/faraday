@@ -2598,10 +2598,17 @@ impl Faraday {
             return None;
         };
         let m = osk_bip::bip39::Mnemonic::parse(key.language, words).ok()?;
+        // Made here and its backup not done: the vault says so, beside
+        // the seed.
+        let flags = if self.key_held(key.master.fingerprint()) {
+            records::LOAD_AT_UNLOCK | records::BACKUP_PENDING
+        } else {
+            records::LOAD_AT_UNLOCK
+        };
         let mut record = Record::new(kind::KEY)
             .with(field::KEY, &records::words_payload(&m))
             .with(field::KEY_LABEL, key.label.as_bytes())
-            .with(field::KEY_FLAGS, &[records::LOAD_AT_UNLOCK]);
+            .with(field::KEY_FLAGS, &[flags]);
         // A BIP-39 passphrase is stored only when the person asks
         // (`PLAN.md` §6.3).
         if with_passphrase && let Some(p) = key.passphrase.as_ref() {
@@ -2781,6 +2788,9 @@ impl Faraday {
     /// Open vault `i`, with the signed-amount memory added, sealed: its
     /// name and bytes, or None when nobody changed it.
     fn vault_sealed(&mut self, i: usize) -> Option<(String, Vec<u8>)> {
+        // A held key's record says so before the vault goes
+        // (`docs/NEW-WALLET.md` §14.3).
+        self.held_sweep();
         // The signed-amount memory goes into every open vault that lacks
         // part of it, the oldest records leaving first when the slot is
         // full (`docs/VAULT.md` §7, type 10).

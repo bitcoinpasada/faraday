@@ -1530,7 +1530,38 @@ fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     ui.text_mid(x + 124.0, cy, 42.0, 13.0, W::R, MUTED, &label);
                     cy += 36.0;
                 }
+                // Made here, its backup not done: it waits
+                // (`docs/NEW-WALLET.md` §14.3).
+                let waits =
+                    slot.held_by.is_some() && slot.fingerprint.is_some_and(|f| app.key_held(f));
                 match &slot.held_by {
+                    Some(_) if waits => {
+                        let t = crate::glance::WAITING;
+                        let label = "Finish the backup";
+                        let bw = ui.measure(13.0, W::S, label) + 32.0;
+                        let cw2 = ui.measure(12.0, W::R, t) + 34.0;
+                        let wi = s.wallet.unwrap_or(0);
+                        if compact {
+                            ui.chip(x + 22.0, cy + 8.0, t, WARN, WARN.with_alpha(30));
+                        } else {
+                            ui.chip(
+                                x + w - bw - 8.0 - cw2,
+                                cy + 8.0,
+                                t,
+                                WARN,
+                                WARN.with_alpha(30),
+                            );
+                        }
+                        ui.button(
+                            x + w - bw,
+                            cy + 3.0,
+                            Some(bw),
+                            36.0,
+                            label,
+                            Style::Secondary,
+                            Action::BackupFirst(wi),
+                        );
+                    }
                     Some(_) if compact => {
                         let t = "Signs here";
                         ui.chip(x + 22.0, cy + 8.0, t, OK, OK.with_alpha(30));

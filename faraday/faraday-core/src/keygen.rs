@@ -1472,6 +1472,9 @@ impl crate::Faraday {
                 return;
             }
         };
+        // Made here: it signs once its backup is done (`docs/NEW-WALLET.md`
+        // §14.3).
+        self.mark_made_here(fp);
         self.new_keys += 1;
         let kind = match slot {
             Some(_) => self.create.as_ref().map(|c| c.kind).unwrap_or_default(),

@@ -44,7 +44,17 @@ pub struct Glance {
     /// The key whose lines are drawn bold, the rest dimmed: **Where it
     /// is** on its sheet (`docs/NEW-WALLET.md` §9.3).
     pub focus: Option<usize>,
+    /// A key of it made here waits for its backup: the wallet node says
+    /// "Back up before you receive" (`docs/NEW-WALLET.md` §14.3).
+    pub held: bool,
 }
+
+/// What every address of a wallet with a key made here and waiting for
+/// its backup carries, in `WARN` (`docs/NEW-WALLET.md` §14.3).
+pub const RECEIVE_WARNING: &str = "Back up before you receive";
+
+/// A key node's state while its key, made here, waits for its backup.
+pub const WAITING: &str = "Waiting for its backup";
 
 /// Where a chart is drawn, and so what its sheets' actions act on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -273,6 +283,7 @@ fn build(
     let slot_of: Vec<Option<usize>> = (0..shape.seeds.len())
         .map(|i| (0..slots.len()).find(|&n| seed_of(n, &slots[n]) == Some(i)))
         .collect();
+    let held_keys = app.held_keys();
     let keys: Vec<KeyNode> = slots
         .iter()
         .enumerate()
@@ -283,7 +294,10 @@ fn build(
                 .unwrap_or_else(|| "no origin".to_string());
             let passphrase = seed_of(n, slot).is_some_and(|i| shape.seeds[i].passphrase);
             let held = slot.held_by.is_some();
+            // Made here, its backup not done (`docs/NEW-WALLET.md` §14.3).
+            let waits = held && slot.fingerprint.is_some_and(|f| held_keys.contains(&f));
             let state = match (held, kept(slot), passphrase, any_here) {
+                _ if waits => WAITING,
                 (true, _, true, _) => "Can sign · passphrase",
                 (true, _, false, _) => "Can sign here",
                 (false, true, true, _) => "In this vault · passphrase",
@@ -329,6 +343,9 @@ fn build(
         None => none,
     };
     let focus = app.chart_focus.filter(|(p, _)| *p == press).map(|(_, k)| k);
+    let held = slots
+        .iter()
+        .any(|s| s.held_by.is_some() && s.fingerprint.is_some_and(|f| held_keys.contains(&f)));
     Some(Glance {
         name: wallet.name.clone(),
         shape: Session::shape(wallet),
@@ -338,6 +355,7 @@ fn build(
         press,
         threshold,
         focus,
+        held,
     })
 }
 
@@ -695,15 +713,24 @@ fn alone_color(s: &str) -> Color {
 fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
     use crate::glance_sheet::{ChartAction as C, Target};
     let open = |t: Target| Some(Action::Chart(C::Open(g.press, t)));
+    let mut wallet_lines = vec![Text::new(
+        format!("{} · #{}", g.shape, g.checksum),
+        tokens::CAPTION,
+        W::R,
+        MUTED,
+    )];
+    if g.held {
+        wallet_lines.push(Text::new(
+            RECEIVE_WARNING.to_string(),
+            tokens::CAPTION,
+            W::S,
+            WARN,
+        ));
+    }
     let wallet = vec![Node {
         title: g.name.clone(),
         tag: None,
-        lines: vec![Text::new(
-            format!("{} · #{}", g.shape, g.checksum),
-            tokens::CAPTION,
-            W::R,
-            MUTED,
-        )],
+        lines: wallet_lines,
         button: None,
         action: open(Target::Wallet),
     }];
@@ -720,7 +747,13 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                 k.state.clone(),
                 tokens::CAPTION,
                 W::S,
-                if k.here { OK } else { MUTED },
+                if k.state == WAITING {
+                    WARN
+                } else if k.here {
+                    OK
+                } else {
+                    MUTED
+                },
             ));
             if let Some(way) = k.way_in {
                 let tone = if k.action.is_some() { ACCENT } else { DIM };
@@ -1060,9 +1093,8 @@ pub fn layout(
     }
 }
 
-/// Draws the chart of `g` at (x, y), `width` wide, reading `direction`;
-/// the plan's check lines under it, or, read backup first, above it as
-/// the question a recovery starts from. Returns its height.
+/// Draws the chart of `g` at (x, y), `width` wide, reading `direction`,
+/// with the plan's check strip above it, either way. Returns its height.
 pub(crate) fn draw(
     ui: &mut Ui,
     g: &Glance,
@@ -1071,11 +1103,24 @@ pub(crate) fn draw(
     y: f32,
     width: f32,
 ) -> f32 {
+    draw_with(ui, g, direction, x, y, width, true)
+}
+
+/// [`draw`], with the check strip only when `check`: the end of the
+/// backup draws its own strip above the done card.
+pub(crate) fn draw_with(
+    ui: &mut Ui,
+    g: &Glance,
+    direction: Direction,
+    x: f32,
+    y: f32,
+    width: f32,
+    check: bool,
+) -> f32 {
     let rows = rows(g, false);
     let mut top = y;
-    if direction == Direction::BackupFirst
-        && let Backup::Plan { check, .. } = &g.backup
-    {
+    // The check leads, read either way (`docs/NEW-WALLET.md` §14.6).
+    if check && let Backup::Plan { check, .. } = &g.backup {
         top += check_lines(ui, x, top, width, *check, true);
         top += tokens::PAD;
     }
@@ -1136,13 +1181,7 @@ pub(crate) fn draw(
             node.draw(ui, p.x, p.y, p.w, p.h);
         }
     }
-    let mut cy = top + laid.height;
-    if direction == Direction::WalletFirst
-        && let Backup::Plan { check, .. } = &g.backup
-    {
-        cy += tokens::PAD;
-        cy += check_lines(ui, x, cy, width, *check, true);
-    }
+    let cy = top + laid.height;
     cy - y
 }
 
@@ -1182,9 +1221,11 @@ fn segment(ui: &mut Ui, a: (f32, f32), b: (f32, f32), color: Color, dash: [f32; 
     }
 }
 
-/// The plan's three check lines, each with its value, as the backup's map
-/// panel shows them: one under another, or with `beside`, side by side
-/// where the width allows. Returns their height.
+/// The plan's three check lines as a strip (`docs/NEW-WALLET.md` §14.6):
+/// each line in a box with its value large in its colour, side by side
+/// with `beside` where the width allows, else one box under another. The
+/// wallet card, the open vault, the end of the backup and the backup's
+/// map panel all draw it. Returns its height.
 pub(crate) fn check_lines(
     ui: &mut Ui,
     x: f32,
@@ -1210,23 +1251,66 @@ pub(crate) fn check_lines(
         (CHECK_LINES[2], c.balance.text(), found(c.balance)),
     ];
     let gap = tokens::CHART_NODE_GAP;
+    let pad = tokens::CHART_NODE_PAD;
     let col_w = (w - 2.0 * gap) / lines.len() as f32;
     let side = beside && col_w >= tokens::CHART_NODE_MIN;
+    let box_w = if side { col_w } else { w };
+    // Each box's height, measured before it is drawn.
+    let measure = |ui: &mut Ui, label: &str, value: &str| -> f32 {
+        ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+        let mut h = ui.wrap(
+            0.0,
+            0.0,
+            box_w - 2.0 * pad,
+            tokens::CAPTION,
+            W::R,
+            MUTED,
+            label,
+        );
+        h += tokens::GAP_SMALL;
+        h += ui.wrap(
+            0.0,
+            0.0,
+            box_w - 2.0 * pad,
+            tokens::TITLE,
+            W::S,
+            MUTED,
+            value,
+        );
+        ui.c.pop_clip();
+        h + 2.0 * pad
+    };
+    let heights: Vec<f32> = lines
+        .iter()
+        .map(|(label, value, _)| measure(ui, label, value))
+        .collect();
+    let tallest = heights.iter().copied().fold(0.0, f32::max);
     let mut cy = y;
-    let mut tallest: f32 = 0.0;
     for (i, (label, value, tone)) in lines.into_iter().enumerate() {
-        if side {
-            let cx = x + i as f32 * (col_w + gap);
-            let mut h =
-                ui.wrap(cx, y, col_w, tokens::CAPTION, W::R, MUTED, label) + tokens::GAP_SMALL;
-            h += ui.wrap(cx, y + h, col_w, tokens::CAPTION, W::S, tone, value);
-            tallest = tallest.max(h);
+        let (bx, by, bh) = if side {
+            (x + i as f32 * (col_w + gap), y, tallest)
         } else {
-            cy += ui.wrap(x, cy, w, tokens::CAPTION, W::R, MUTED, label) + tokens::GAP_SMALL;
-            cy += ui.wrap(x, cy, w, tokens::CAPTION, W::S, tone, value) + tokens::GAP;
+            (x, cy, heights[i])
+        };
+        ui.fill(bx, by, box_w, bh, tokens::RADIUS_SMALL, tone.with_alpha(18));
+        ui.stroke(bx, by, box_w, bh, tokens::RADIUS_SMALL, tone.with_alpha(90));
+        let tx = bx + pad;
+        let tw = box_w - 2.0 * pad;
+        let lh = ui.wrap(tx, by + pad, tw, tokens::CAPTION, W::R, MUTED, label);
+        ui.wrap(
+            tx,
+            by + pad + lh + tokens::GAP_SMALL,
+            tw,
+            tokens::TITLE,
+            W::S,
+            tone,
+            value,
+        );
+        if !side {
+            cy += bh + tokens::GAP;
         }
     }
-    if side { tallest } else { cy - y }
+    if side { tallest } else { cy - y - tokens::GAP }
 }
 
 /// The small panel's page: the wallet, its keys and its backup in one
@@ -1241,20 +1325,32 @@ pub(crate) fn draw_column(
     y: f32,
     width: f32,
 ) -> f32 {
+    draw_column_with(ui, g, direction, x, y, width, true)
+}
+
+/// [`draw_column`], with the check rows only when `with_check`.
+pub(crate) fn draw_column_with(
+    ui: &mut Ui,
+    g: &Glance,
+    direction: Direction,
+    x: f32,
+    y: f32,
+    width: f32,
+    with_check: bool,
+) -> f32 {
     let [wallet, keys, backup] = rows(g, true);
     let mut cy = y;
     let check = match &g.backup {
-        Backup::Plan { check, .. } => Some(*check),
+        Backup::Plan { check, .. } if with_check => Some(*check),
         _ => None,
     };
+    // The check leads, as three rows (`docs/NEW-WALLET.md` §14.6).
+    if let Some(c) = check {
+        cy += check_lines(ui, x, cy, width, c, false) + tokens::PAD;
+    }
     let order = match direction {
         Direction::WalletFirst => [("", wallet), ("Keys", keys), ("Backup", backup)],
-        Direction::BackupFirst => {
-            if let Some(c) = check {
-                cy += check_lines(ui, x, cy, width, c, false);
-            }
-            [("Backup", backup), ("Keys", keys), ("Wallet", wallet)]
-        }
+        Direction::BackupFirst => [("Backup", backup), ("Keys", keys), ("Wallet", wallet)],
     };
     for (heading, nodes) in order {
         if !heading.is_empty() {
@@ -1266,9 +1362,6 @@ pub(crate) fn draw_column(
             cy += h + tokens::GAP;
         }
         cy += tokens::GAP;
-    }
-    if let (Direction::WalletFirst, Some(c)) = (direction, check) {
-        cy += check_lines(ui, x, cy, width, c, false);
     }
     cy - y
 }

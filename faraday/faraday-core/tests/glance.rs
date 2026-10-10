@@ -475,7 +475,7 @@ fn a_wallet_loaded_from_its_vault_on_another_power_on_charts_the_vaults_plan() {
     planned(&mut app, w, 1);
     app.press(Action::Backup(w));
     app.press(Action::BChecklist);
-    app.press(Action::BVault(false));
+    app.press(Action::BVaultSave(0));
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::AddKind(1)));
     app.press(Action::Vault(V::SaveWallet(0)));
@@ -587,7 +587,7 @@ fn vault_holding(app: &mut Faraday, w: usize, plan: bool) {
         planned(app, w, 1);
         app.press(Action::Backup(w));
         app.press(Action::BChecklist);
-        app.press(Action::BVault(false));
+        app.press(Action::BVaultSave(0));
     }
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::AddKind(1)));

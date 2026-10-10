@@ -282,6 +282,9 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
     cy += heading(ui, x, cy, "First receive address · 0/0");
     let addr = grouped(&app.session.address_shown(wlt, false, 0));
     cy += ui.wrap(x, cy, iw, 14.0, W::M, TEXT, &addr) + 18.0;
+    if !app.wallet_held(app.wallet).is_empty() {
+        cy += ui.wrap(x, cy, iw, 13.0, W::S, WARN, crate::glance::RECEIVE_WARNING) + 12.0;
+    }
 
     // What else can be done with it.
     let mut buttons = vec![
