@@ -555,15 +555,21 @@ working screens do not explain them.
 upgrades it, boots it, and checks the version and that its data
 partition is byte for byte what it was.
 
-**For development.** `faraday-stick-image` also leaves the boot
+**For development** (built). `faraday-stick-image` also leaves the boot
 partition's own image (`esp.vfat`) as
 `out/stick/faraday-x86_64-uefi[-dev]-boot.vfat`, and
-`just faraday-stick-boot dev=/dev/sdX` writes it over the partition
-named `OSKBOOT` alone, so a test stick keeps its vaults and settings
-across builds. It refuses unless the disk is on USB, its first partition
-is named `OSKBOOT` and is large enough, and the device is typed back; it
-reads back and compares. It puts the whole stick on the build computer,
-so it is not offered to users.
+`just [dev=1] faraday-stick-boot /dev/sdX` (`faraday/image/stick-boot.sh`)
+writes it over the partition named `OSKBOOT` alone, so a test stick
+keeps its vaults and settings across builds. It refuses unless the disk
+is whole, removable and on USB, nothing on it is mounted or used as
+swap, and its partition table is a Faraday stick's: GPT with
+`genimage.cfg`'s disk UUID and two partitions, `OSKBOOT` an EFI system
+partition with its UUID and at least the image's size, then `OSKDATA`
+with its own. The device is typed back; it reads back and compares, and
+checks the partition table is unchanged. `--dry-run` checks and says
+what it would write where. A regular file holding a stick image is
+accepted as the target, for testing. It puts the whole stick on the
+build computer, so it is not offered to users.
 
 ## 6. Vaults and the Wallets tab
 
@@ -795,7 +801,7 @@ device graph, to be measured with `cargo tree` once a prototype exists.
 7. **Forms and look:** `faraday-ui`, kerning, scale, motion, the
    snapshot gallery.
 8. **Upgrading a stick** (§5.5): the boot-partition-only flash for
-   development first, then `faraday-boot` and the flow on the PC, the
+   development (built), then `faraday-boot` and the flow on the PC, the
    Learn page and README section, then the Pi.
 
 ## 12. Decided 2026-10-04

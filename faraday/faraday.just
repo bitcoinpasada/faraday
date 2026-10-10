@@ -117,8 +117,9 @@ faraday-stick-bin:
         out/faraday/{{stick_board}}/faraday-grant
 
 # The Faraday USB stick image, at out/stick/faraday-x86_64-uefi.img
-# (dev=1: -dev.img, with a console and a login on ttyS0). Flash it to a
-# stick and boot the laptop from it.
+# (dev=1: -dev.img, with a console and a login on ttyS0), and beside it
+# -boot.vfat, its boot partition's exact bytes, for faraday-stick-boot.
+# Flash it to a stick and boot the laptop from it.
 faraday-stick-image: faraday-stick-bin
     #!/usr/bin/env bash
     set -euo pipefail
@@ -133,7 +134,37 @@ faraday-stick-image: faraday-stick-bin
         "{{buildroot_commit}}"
     mkdir -p out/stick
     cp "out/pi/$variant/output/images/opensigner-x86_64-uefi.img" "out/stick/$name.img"
-    ls -l "out/stick/$name.img"
+    cp "out/pi/$variant/output/images/esp.vfat" "out/stick/$name-boot.vfat"
+    ls -l "out/stick/$name.img" "out/stick/$name-boot.vfat"
+
+# For development, not offered to users (PLAN.md §5.5): writes the stick
+# image's boot partition over the partition named OSKBOOT on a Faraday
+# stick, leaving its data partition, vaults and settings as they are.
+# Refuses a disk that is not removable on USB, has anything mounted, or
+# whose partition table is not a Faraday stick's; the device is typed
+# back; it reads back and compares. dev=1 writes the -dev image's.
+#
+#   just faraday-stick-boot /dev/sdX
+#   just dev=1 faraday-stick-boot /dev/sdX
+#   just faraday-stick-boot --dry-run /dev/sdX    checks, writes nothing
+#
+# The target may be a regular file holding a stick image, for testing.
+# Writes a stick's boot partition alone, for development.
+faraday-stick-boot +args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    name="faraday-x86_64-uefi"
+    if [ "{{dev}}" != "0" ]; then
+        name="$name-dev"
+    fi
+    dry=""
+    set -- {{args}}
+    if [ "${1:-}" = "--dry-run" ]; then
+        dry="--dry-run"
+        shift
+    fi
+    [ $# -eq 1 ] || { echo "usage: just [dev=1] faraday-stick-boot [--dry-run] /dev/sdX" >&2; exit 1; }
+    exec faraday/image/stick-boot.sh $dry "out/stick/$name-boot.vfat" "$1"
 
 # The Pi shell, cross-compiled for the board the root justfile's `board`
 # variable names (armv7, static against glibc, as upstream's own pi-bin

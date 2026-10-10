@@ -568,7 +568,15 @@ The image is built with Buildroot in a container (`DOCKER=podman` or
 just faraday-stick-bin                    # the stick binary, static musl
 just faraday-stick-image                  # out/stick/faraday-x86_64-uefi.img
 just dev=1 faraday-stick-image            # + a serial console and root login, for development
+just dev=1 faraday-stick-boot /dev/sdX    # development: rewrite a stick's boot partition alone
 ```
+
+`faraday-stick-boot` writes the image's boot partition
+(`out/stick/faraday-x86_64-uefi[-dev]-boot.vfat`) over a Faraday
+stick's `OSKBOOT` partition and leaves its data partition as it is. It
+refuses a disk that is not a Faraday stick on USB or has anything
+mounted, and asks for the device to be typed back; `--dry-run` only
+checks. It is for development only.
 
 Flash the image to a stick and boot a PC from it; the stick image starts
 on mainnet. `faraday/image/run-build.sh` and
