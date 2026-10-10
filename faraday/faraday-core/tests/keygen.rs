@@ -348,6 +348,45 @@ fn device_key(answer: [u8; 32]) -> Faraday {
     app
 }
 
+/// New key with handed-out keys: the key is made from the generator's
+/// answer as ever, and the session adds its next handed-out key in its
+/// place; without them, as on the device, the key made is the key added.
+#[test]
+fn a_session_that_hands_out_keys_makes_the_next_one_not_loaded() {
+    let words = |w: &str| vec![w; 24].join(" ");
+    let handing = |answer: [u8; 32], loaded: &[&str]| {
+        let mut app = faraday_core::testkit::started();
+        app.session.handout = vec![words("bacon"), words("flag"), words("gas")];
+        for w in loaded {
+            app.session.add_words(&words(w), "", None).unwrap();
+        }
+        app.press(Action::Entry(None));
+        app.press(Action::KeyGen(None));
+        app.press(Action::KWords(24));
+        app.press(Action::KWay(Way::Device.index()));
+        app.press(Action::KNext);
+        app.press(Action::KNext);
+        app.event(Event::Entropy(EntropyBytes::new(answer)));
+        app.press(Action::KNext);
+        // The words made are the generator's.
+        let made = app.keygen.as_ref().and_then(|k| k.phrase()).unwrap();
+        assert_ne!(made.as_str(), words("bacon"));
+        app.press(Action::KNext);
+        pass_quiz(&mut app);
+        app.press(Action::KAdd);
+        added(&app)
+    };
+    let seed = |w: &str| fingerprint(&Mnemonic::parse(Language::English, &words(w)).unwrap());
+    assert_eq!(handing([0x5a; 32], &[]), vec![seed("bacon")]);
+    assert_eq!(handing([0x5b; 32], &[]), vec![seed("bacon")]);
+    assert_eq!(
+        handing([0x5a; 32], &["bacon"]),
+        vec![seed("bacon"), seed("flag")]
+    );
+    // The device hands nothing out.
+    assert_ne!(added(&device_key([0x5a; 32])), vec![seed("bacon")]);
+}
+
 #[test]
 fn this_devices_key_is_its_generators_fresh_answer_hashed_and_nothing_else() {
     let answer = [0x5au8; 32];

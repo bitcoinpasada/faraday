@@ -160,6 +160,9 @@ pub enum Refusal {
         /// The network of the loaded wallets.
         loaded: Network,
     },
+    /// The session takes only the keys its shell names, and this is
+    /// another ([`Session::only`]).
+    NotAllowed(String),
 }
 
 impl Refusal {
@@ -177,6 +180,7 @@ impl Refusal {
                 network_name(*offered),
                 network_name(*loaded)
             ),
+            Refusal::NotAllowed(fp) => format!("{fp} is not a key this session takes"),
         }
     }
 }
@@ -206,6 +210,23 @@ pub struct Session {
     pub wallets: Vec<Wallet>,
     /// The network every key derives for and every address is shown on.
     network: Network,
+    /// When the shell sets it, the only keys the session takes, by master
+    /// fingerprint, for a shell that must hold only keys it knows. `None`,
+    /// as on the stick and the desktop, takes any key.
+    pub only: Option<Vec<Fingerprint>>,
+    /// When the shell sets it, every address shown on the screen carries
+    /// a checksum broken in one character ([`broken_checksum`]), so that
+    /// no wallet sends to it, for a shell whose keys are public. Scripts, PSBTs, files, signatures and every
+    /// comparison keep the real address. `false`, as on the stick and the
+    /// desktop.
+    pub broken_checksums: bool,
+    /// When the shell sets it, the keys New key adds, as words, in place
+    /// of the key it made: the first one not loaded each time
+    /// ([`Session::next_handout`]). The key is made as ever, from what the
+    /// person entered, and only the one added differs, for a shell that
+    /// must hold only keys it knows. Empty, as on the stick and the desktop: New key
+    /// adds the key it made.
+    pub handout: Vec<String>,
 }
 
 impl Default for Session {
@@ -214,6 +235,9 @@ impl Default for Session {
             keys: Vec::new(),
             wallets: Vec::new(),
             network: START_NETWORK,
+            only: None,
+            broken_checksums: false,
+            handout: Vec::new(),
         }
     }
 }
@@ -404,6 +428,7 @@ impl Session {
                 got: fp_text(fp),
             });
         }
+        self.allowed(fp)?;
         if self.keys.iter().any(|k| k.master.fingerprint() == fp) {
             return Err(Refusal::Duplicate(fp_text(fp)));
         }
@@ -433,6 +458,14 @@ impl Session {
         Ok(fp)
     }
 
+    /// Refuses a key the shell's list ([`Session::only`]) leaves out.
+    fn allowed(&self, fp: Fingerprint) -> Result<(), Refusal> {
+        match &self.only {
+            Some(list) if !list.contains(&fp) => Err(Refusal::NotAllowed(fp_text(fp))),
+            _ => Ok(()),
+        }
+    }
+
     /// Adds the key a master seed gives, as an `osk-backup` kind-2 backup
     /// carries one: there are no words to copy by hand.
     pub fn add_seed(&mut self, seed: &[u8], label: &str) -> Result<Fingerprint, Refusal> {
@@ -440,6 +473,7 @@ impl Session {
             .ok_or_else(|| Refusal::Words("a master seed is 16 to 64 bytes".to_string()))?;
         let master = MasterKey::from_seed_bytes(&osk_crypto::Secret::new(bytes), self.network);
         let fp = master.fingerprint();
+        self.allowed(fp)?;
         if self.keys.iter().any(|k| k.master.fingerprint() == fp) {
             return Err(Refusal::Duplicate(fp_text(fp)));
         }
@@ -597,6 +631,37 @@ impl Session {
             .address_at(self.network, change, index)
             .map(|a| a.to_string())
             .unwrap_or_else(|e| format!("no address: {e}"))
+    }
+
+    /// The words New key hands out next ([`Session::handout`]): the first
+    /// of them whose key is not loaded. `None` when the shell set none.
+    pub fn next_handout(&self) -> Option<String> {
+        let loaded: Vec<Fingerprint> = self.keys.iter().map(|k| k.master.fingerprint()).collect();
+        self.handout
+            .iter()
+            .find(|words| {
+                let mut probe = Session::on(self.network);
+                probe
+                    .add_words(words, "", None)
+                    .is_ok_and(|fp| !loaded.contains(&fp))
+            })
+            .cloned()
+    }
+
+    /// An address of the wallet as the screen shows it ([`Session::shown`]).
+    pub fn address_shown(&self, wallet: &Wallet, change: bool, index: u32) -> String {
+        self.shown(&self.address(wallet, change, index))
+    }
+
+    /// `address` as the screen shows it: as it is, or with its checksum
+    /// broken when the shell asked for that
+    /// ([`Session::broken_checksums`]).
+    pub fn shown(&self, address: &str) -> String {
+        if self.broken_checksums {
+            broken_checksum(address)
+        } else {
+            address.to_string()
+        }
     }
 
     fn key_refs(&self) -> Vec<KeyRef> {
@@ -1754,4 +1819,43 @@ pub fn musig_nonces(
             )
         })
         .collect()
+}
+
+/// `address` with the last character of its checksum changed to the next
+/// one in its alphabet: a bech32 or bech32m address then fails its
+/// checksum whatever the character (both detect any one substitution),
+/// and a base58 one keeps its payload under a checksum that no longer
+/// matches it. Text that is not an address is left as it is.
+pub fn broken_checksum(address: &str) -> String {
+    const BECH32: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+    const BASE58: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    let lower = address.to_ascii_lowercase();
+    let alphabet = match lower.rfind('1') {
+        Some(sep)
+            if sep > 0
+                && address.len() - sep > 6
+                && lower[sep + 1..].chars().all(|c| BECH32.contains(c)) =>
+        {
+            BECH32
+        }
+        _ if address.len() >= 26 && address.chars().all(|c| BASE58.contains(c)) => BASE58,
+        _ => return address.to_string(),
+    };
+    let mut chars: Vec<char> = address.chars().collect();
+    let Some(last) = chars.last_mut() else {
+        return address.to_string();
+    };
+    let lc = last.to_ascii_lowercase();
+    let at = alphabet
+        .chars()
+        .position(|c| c == if alphabet == BECH32 { lc } else { *last });
+    if let Some(i) = at {
+        let next = alphabet.chars().cycle().nth(i + 1).unwrap_or(*last);
+        *last = if last.is_ascii_uppercase() && alphabet == BECH32 {
+            next.to_ascii_uppercase()
+        } else {
+            next
+        };
+    }
+    chars.into_iter().collect()
 }

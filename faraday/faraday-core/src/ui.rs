@@ -232,6 +232,27 @@ pub mod pal {
         (WARN, Color::rgb(0x7a, 0x64, 0x00)),
         (ERR, Color::rgb(0xbf, 0x34, 0x34)),
     ];
+
+    /// Lamplight: warm cream paper and espresso text, a terracotta
+    /// accent darkened to read at 4.5:1 against the page for text and
+    /// the focus ring (#A34E26 is 5.2:1), and a muted sage, amber and
+    /// brick that read at 4.5:1 there too.
+    pub const LAMPLIGHT: [(Color, Color); 14] = [
+        (BG, Color::rgb(0xfb, 0xf3, 0xe6)),
+        (SIDEBAR, Color::rgb(0xf3, 0xe6, 0xd2)),
+        (SURFACE, Color::rgb(0xff, 0xfa, 0xf2)),
+        (LINE, Color::rgb(0xeb, 0xdc, 0xc6)),
+        (INNER, Color::rgb(0xf5, 0xea, 0xd9)),
+        (BORDER, Color::rgb(0xd8, 0xc2, 0xa3)),
+        (TEXT, Color::rgb(0x3a, 0x2a, 0x1f)),
+        (MUTED, Color::rgb(0x6b, 0x54, 0x44)),
+        (DIM, Color::rgb(0x97, 0x80, 0x6c)),
+        (ACCENT, Color::rgb(0xa3, 0x4e, 0x26)),
+        (ON_ACCENT, Color::rgb(0xff, 0xfa, 0xf2)),
+        (OK, Color::rgb(0x3f, 0x73, 0x50)),
+        (WARN, Color::rgb(0x8a, 0x5c, 0x0e)),
+        (ERR, Color::rgb(0xa3, 0x39, 0x2e)),
+    ];
 }
 
 use pal::*;
@@ -264,11 +285,14 @@ pub enum Theme {
     /// Dark text on a light page, with Bitcoin's orange as the accent,
     /// darkened (its hue kept) to read at 4.5:1 against the page.
     BitcoinOrangeLight,
+    /// Dark espresso text on warm cream paper, with a terracotta accent:
+    /// light, warm and calm.
+    Lamplight,
 }
 
 impl Theme {
     /// Every theme, in the order Settings offers them.
-    pub const ALL: [Theme; 9] = [
+    pub const ALL: [Theme; 10] = [
         Theme::Dark,
         Theme::Light,
         Theme::Nord,
@@ -278,6 +302,7 @@ impl Theme {
         Theme::RosePine,
         Theme::BitcoinOrange,
         Theme::BitcoinOrangeLight,
+        Theme::Lamplight,
     ];
 
     /// What Settings calls it.
@@ -292,6 +317,7 @@ impl Theme {
             Theme::RosePine => "Rosé Pine",
             Theme::BitcoinOrange => "Bitcoin Orange",
             Theme::BitcoinOrangeLight => "Bitcoin Orange Light",
+            Theme::Lamplight => "Lamplight",
         }
     }
 
@@ -307,6 +333,7 @@ impl Theme {
             Theme::RosePine => "rose-pine",
             Theme::BitcoinOrange => "bitcoin-orange",
             Theme::BitcoinOrangeLight => "bitcoin-orange-light",
+            Theme::Lamplight => "lamplight",
         }
     }
 
@@ -319,7 +346,7 @@ impl Theme {
     pub fn is_light(self) -> bool {
         matches!(
             self,
-            Theme::Light | Theme::RosePine | Theme::BitcoinOrangeLight
+            Theme::Light | Theme::RosePine | Theme::BitcoinOrangeLight | Theme::Lamplight
         )
     }
 
@@ -334,6 +361,7 @@ impl Theme {
             Theme::RosePine => Some(&pal::ROSE_PINE),
             Theme::BitcoinOrange => Some(&pal::BITCOIN_ORANGE),
             Theme::BitcoinOrangeLight => Some(&pal::BITCOIN_ORANGE_LIGHT),
+            Theme::Lamplight => Some(&pal::LAMPLIGHT),
         }
     }
 

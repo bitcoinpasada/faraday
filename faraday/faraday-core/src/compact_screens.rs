@@ -273,7 +273,7 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
     }
     cy += 10.0;
     cy += heading(ui, x, cy, "First receive address · 0/0");
-    let addr = grouped(&app.session.address(wlt, false, 0));
+    let addr = grouped(&app.session.address_shown(wlt, false, 0));
     cy += ui.wrap(x, cy, iw, 14.0, W::M, TEXT, &addr) + 18.0;
 
     // What can be done with it.
@@ -363,7 +363,15 @@ fn silent_card(
     }
     cy += 10.0;
     cy += heading(ui, x, cy, "Address");
-    cy += ui.wrap(x, cy, iw, 14.0, W::M, TEXT, &r.address()) + 14.0;
+    cy += ui.wrap(
+        x,
+        cy,
+        iw,
+        14.0,
+        W::M,
+        TEXT,
+        &app.session.shown(&r.address()),
+    ) + 14.0;
     ui.text(x, cy, 13.0, W::S, MUTED, "Labels handed out");
     ui.text_right(
         x + iw,

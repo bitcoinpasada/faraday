@@ -2462,7 +2462,7 @@ fn decode_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 12.0,
                 W::M,
                 TEXT,
-                &grouped(&out.address),
+                &grouped(&app.session.shown(&out.address)),
             );
             y += ah + 4.0;
             ui.text_mid(x + 26.0, y, 22.0, 12.0, W::R, MUTED, out.kind);
@@ -2472,7 +2472,12 @@ fn decode_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y += wh + 12.0;
             continue;
         }
-        let addr = ui.fit(13.0, W::M, &grouped(&out.address), w - 220.0);
+        let addr = ui.fit(
+            13.0,
+            W::M,
+            &grouped(&app.session.shown(&out.address)),
+            w - 220.0,
+        );
         ui.text_mid(x + 26.0, y, 26.0, 13.0, W::M, TEXT, &addr);
         y += 26.0;
         let kw = ui.text_mid(x + 26.0, y, 22.0, 12.0, W::R, MUTED, out.kind);
@@ -3134,7 +3139,7 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     cy += 16.0;
     ui.text(ix, cy, 13.0, W::S, MUTED, "First receive address · 0/0");
     cy += 24.0;
-    let addr = grouped(&app.session.address(wlt, false, 0));
+    let addr = grouped(&app.session.address_shown(wlt, false, 0));
     let used = ui.wrap(ix, cy, iw, 15.0, W::M, TEXT, &addr);
     let _ = used;
 
@@ -3260,7 +3265,15 @@ fn silent_wallet_card(
     cy += 64.0;
     ui.text(ix, cy, 13.0, W::S, MUTED, "Address");
     cy += 24.0;
-    cy += ui.wrap(ix, cy, iw, 14.0, W::M, TEXT, &r.address()) + 18.0;
+    cy += ui.wrap(
+        ix,
+        cy,
+        iw,
+        14.0,
+        W::M,
+        TEXT,
+        &app.session.shown(&r.address()),
+    ) + 18.0;
     ui.text(ix, cy, 13.0, W::S, MUTED, "Labels handed out");
     ui.text(ix + 180.0, cy, 13.0, W::M, TEXT, &r.labels.to_string());
     // Actions.
@@ -3683,7 +3696,7 @@ pub(crate) fn step_body(
                         ("Change 1/0", true, 0),
                     ] {
                         ui.text(x, cy + 2.0, 12.0, W::R, MUTED, label);
-                        let a = grouped(&app.session.address(wl, change, idx));
+                        let a = grouped(&app.session.address_shown(wl, change, idx));
                         // On a small panel the address goes under its label.
                         let ax = if ui.compact {
                             cy += 20.0;
@@ -3712,7 +3725,7 @@ pub(crate) fn step_body(
                 rows.push((
                     "Sends".into(),
                     btc(o.amount.to_sat()),
-                    format!("to {}", short(&o.address)),
+                    format!("to {}", short(&app.session.shown(&o.address))),
                     None,
                 ));
             }
@@ -3731,7 +3744,7 @@ pub(crate) fn step_body(
                         rows.push((
                             "Change".into(),
                             btc(o.amount.to_sat()),
-                            format!("to {}", short(&o.address)),
+                            format!("to {}", short(&app.session.shown(&o.address))),
                             Some(("Unverified", WARN)),
                         ));
                     }
@@ -3836,11 +3849,13 @@ pub(crate) fn step_body(
                             format!("{}:{}", short(&inp.txid.to_string()), inp.vout),
                         )
                     })
-                    .chain(
-                        i.outputs
-                            .iter()
-                            .map(|o| ("Output", btc(o.amount.to_sat()), o.address.clone())),
-                    )
+                    .chain(i.outputs.iter().map(|o| {
+                        (
+                            "Output",
+                            btc(o.amount.to_sat()),
+                            app.session.shown(&o.address),
+                        )
+                    }))
                     .collect::<Vec<_>>();
                 for (label, amount, what) in &lines {
                     ui.text(x, cy, 12.0, W::R, MUTED, label);
@@ -3869,8 +3884,8 @@ pub(crate) fn step_body(
                 }
                 for o in &i.outputs {
                     ui.text(x, cy, 12.0, W::R, MUTED, "Output");
-                    let used =
-                        ui.wrap(x + 64.0, cy, w - 64.0 - 110.0, 12.0, W::M, TEXT, &o.address);
+                    let shown = app.session.shown(&o.address);
+                    let used = ui.wrap(x + 64.0, cy, w - 64.0 - 110.0, 12.0, W::M, TEXT, &shown);
                     ui.text_right(
                         x + w,
                         cy - 4.0,
@@ -4711,7 +4726,7 @@ fn spend_panel(
     y += 30.0;
     let to = recipients(i)
         .first()
-        .map(|o| short(&o.address))
+        .map(|o| short(&app.session.shown(&o.address)))
         .unwrap_or_else(|| "·".into());
     let change = if i.outputs.iter().any(|o| o.is_ours()) {
         "Verified".to_string()
@@ -6652,7 +6667,7 @@ fn message_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let address = m
         .wallet
         .and_then(|w| app.session.wallets.get(w))
-        .map(|w| app.session.address(w, false, m.index));
+        .map(|w| app.session.address_shown(w, false, m.index));
     let cards: Vec<flow::Card> = (0..4u8)
         .map(|k| flow::Card {
             title: MSTEPS[k as usize].to_string(),
@@ -6762,7 +6777,7 @@ fn message_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f3
                     Action::MIndex(1),
                 );
                 cy += 46.0;
-                let a = grouped(&app.session.address(wl, false, m.index));
+                let a = grouped(&app.session.address_shown(wl, false, m.index));
                 cy += ui.wrap(x, cy, w, 14.0, W::M, TEXT, &a) + 12.0;
             }
             if next_button(ui, x, cy, w, "Continue", Action::MNext(n)) {
@@ -7040,7 +7055,11 @@ fn check_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += card_h + 20.0;
     let rows = [
         ("File", item.name.clone(), W::M),
-        ("Address", grouped(&c.signed.address), W::M),
+        (
+            "Address",
+            grouped(&app.session.shown(&c.signed.address)),
+            W::M,
+        ),
         (
             "Wallet",
             match c.wallet {
@@ -7523,7 +7542,7 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     ("Change 1/0", true, 0),
                 ] {
                     ui.text(x, cy + 2.0, 12.0, W::R, MUTED, label);
-                    let a = grouped(&app.session.address(wl, change, idx));
+                    let a = grouped(&app.session.address_shown(wl, change, idx));
                     let ax = if ui.compact {
                         cy += 20.0;
                         0.0
@@ -8131,7 +8150,7 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     let here = slots.iter().filter(|s| s.held_by.is_some()).count();
                     format!("{here} of {} seeds typed", slots.len())
                 }
-                (3, Some(w)) => short(&app.session.address(w, false, 0)),
+                (3, Some(w)) => short(&app.session.address_shown(w, false, 0)),
                 _ => String::new(),
             },
             mono: k == 3,
@@ -8393,7 +8412,7 @@ fn restore_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f3
                     15.0,
                     W::M,
                     TEXT,
-                    &grouped(&app.session.address(w2, false, 0)),
+                    &grouped(&app.session.address_shown(w2, false, 0)),
                 ) + 14.0;
                 cy += buttons_and_next(
                     ui,

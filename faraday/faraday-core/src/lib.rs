@@ -6655,10 +6655,20 @@ impl Faraday {
         let t = text.trim();
         let t = t.strip_prefix("bitcoin:").unwrap_or(t);
         let t = t.split('?').next().unwrap_or(t);
-        let addr = t
-            .parse::<osk_bip::bitcoin::Address<osk_bip::bitcoin::address::NetworkUnchecked>>()
-            .ok()?;
         let net = self.session.network();
+        let Ok(addr) =
+            t.parse::<osk_bip::bitcoin::Address<osk_bip::bitcoin::address::NetworkUnchecked>>()
+        else {
+            // An address's characters, as many as one has, that fail its
+            // checksum: one of them is wrong.
+            let whole = t.len() >= 26
+                && osk_bip::keys::Network::ALL
+                    .iter()
+                    .any(|&n| osk_bip::address::is_address_prefix(t, n));
+            return whole.then(|| {
+                "That address fails its checksum: a character in it is wrong".to_string()
+            });
+        };
         let Ok(addr) = addr.require_network(net.into()) else {
             return Some(format!(
                 "That address is not on {}",

@@ -113,8 +113,9 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 32.0;
     }
     y += button_rows(ui, px, y, pw, &scripts) + 6.0;
+    let shown = app.session.shown(&r.address);
     for (label, value) in [
-        ("Address", r.address.as_str()),
+        ("Address", shown.as_str()),
         ("Public key", r.public_key.as_str()),
         ("Extended key", r.xpub.as_str()),
     ] {

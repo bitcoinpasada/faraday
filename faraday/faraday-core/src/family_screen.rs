@@ -1007,7 +1007,7 @@ fn words(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .ok()
             .and_then(|t| crate::create::build(*kind, 1, &[t]).ok())
             .and_then(|p| p.address_at(app.session.network(), false, 0).ok())
-            .map(|a| a.to_string())
+            .map(|a| app.session.shown(&a.to_string()))
             .unwrap_or_default();
         ui.checkbox(x, cy + 11.0, on, true);
         ui.text_mid(
@@ -1234,7 +1234,7 @@ fn opened(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         14.0,
         W::M,
         TEXT,
-        &grouped(&app.session.address(wl, false, 0)),
+        &grouped(&app.session.address_shown(wl, false, 0)),
     ) + 16.0;
     let drawn = next_button(ui, x, cy, w, "Continue", fa(F::Next(page::OPEN)));
     cy + (if drawn { 52.0 } else { 8.0 }) - y
@@ -1265,7 +1265,7 @@ fn check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += 24.0;
         for k in 0..n {
             ui.text_mid(x, cy, 28.0, 12.0, W::R, DIM, &k.to_string());
-            let a = grouped(&app.session.address(wl, change, k));
+            let a = grouped(&app.session.address_shown(wl, change, k));
             if ui.compact {
                 // Whole, to compare character for character.
                 cy += ui.wrap(x + 24.0, cy + 6.0, w - 24.0, 12.0, W::M, TEXT, &a) + 14.0;

@@ -1273,7 +1273,12 @@ impl crate::Faraday {
         }
         let (slot, back, slip39) = (k.slot, k.back, k.slip39);
         let label = format!("New key {}", self.new_keys + 1);
-        let added = if k.slip39 {
+        // A session that hands out keys adds its next one in place of the
+        // key just made, which goes unused (`Session::handout`).
+        let added = if let Some(words) = self.session.next_handout() {
+            let words = zeroize::Zeroizing::new(words);
+            self.session.add_words(&words, &label, None)
+        } else if k.slip39 {
             match k.secret.as_ref() {
                 Some(s) => {
                     let s = s.clone();

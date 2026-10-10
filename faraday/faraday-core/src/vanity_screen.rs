@@ -101,7 +101,7 @@ fn summary(app: &Faraday, v: &VanityState, s: u8) -> String {
             v.grind.prefix.as_str().to_string()
         }
         vstep::RUN => match (&v.grind.find, v.running) {
-            (Some(f), _) => f.address.as_str().to_string(),
+            (Some(f), _) => app.session.shown(f.address.as_str()),
             (None, true) => format!("{} tried", thousands(v.grind.tested)),
             (None, false) => String::new(),
         },
@@ -194,7 +194,15 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
             (Some(f), _) => {
                 ui.text(x, cy, 12.0, W::R, MUTED, "Found");
                 cy += 22.0;
-                cy += ui.wrap(x, cy, w, 15.0, W::M, OK, &grouped(f.address.as_str())) + 12.0;
+                cy += ui.wrap(
+                    x,
+                    cy,
+                    w,
+                    15.0,
+                    W::M,
+                    OK,
+                    &grouped(&app.session.shown(f.address.as_str())),
+                ) + 12.0;
                 match v.grind.dial {
                     Dial::Account => {
                         ui.text(

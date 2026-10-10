@@ -247,6 +247,9 @@ its own colours (`Ui::theme_tile`); the theme is kept as `theme=<id>`.
 `faraday-snapshot WxH KIT OUT themes` renders three screens in each.
 Tokyo Night is the theme a first start is in, on every shell (owner,
 2026-10-08; it was Nord from 2026-10-07; `Theme`'s default).
+Lamplight (2026-10-09, `ui::pal::LAMPLIGHT`) is Faraday's own light
+theme: warm cream page, espresso text, a terracotta accent (#A34E26,
+5.2:1 on the page) and a sage, amber and brick at 4.5:1 or more.
 
 ### 3.8 The caret and the scrollbar (2026-10-07)
 

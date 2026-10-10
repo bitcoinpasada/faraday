@@ -67,7 +67,7 @@ fn summary(app: &Faraday, s: &SilentState, k: u8) -> String {
             .unwrap_or_else(|| "Not chosen".to_string()),
         sstep::ADDRESS => app
             .silent_address()
-            .map(|a| crate::ui::short(&a))
+            .map(|a| crate::ui::short(&app.session.shown(&a)))
             .unwrap_or_default(),
         sstep::SCAN => "A secret: shows every payment".to_string(),
         _ => match s.check.as_ref().map(|(_, c)| c.result()) {
@@ -122,7 +122,10 @@ fn card(app: &Faraday, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f
         }
         sstep::ADDRESS if !app.silent_key_here() && s.wallet.is_some() => {
             // The wallet's own address needs no key; labels do.
-            let a = app.silent_address().unwrap_or_default();
+            let a = app
+                .silent_address()
+                .map(|a| app.session.shown(&a))
+                .unwrap_or_default();
             cy += ui.wrap(x, cy, w, 14.0, W::M, TEXT, &a) + 14.0;
             cy += ui.wrap(
                 x,
@@ -169,7 +172,10 @@ fn card(app: &Faraday, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f
                 Action::SLabel(1),
             );
             cy += 52.0;
-            let a = app.silent_address().unwrap_or_default();
+            let a = app
+                .silent_address()
+                .map(|a| app.session.shown(&a))
+                .unwrap_or_default();
             cy += ui.wrap(x, cy, w, 14.0, W::M, TEXT, &a) + 14.0;
             let row = vec![
                 ("Show as QR".to_string(), Style::Primary, Action::SQr(false)),

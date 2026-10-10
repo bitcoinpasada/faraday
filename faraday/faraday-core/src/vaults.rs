@@ -664,6 +664,23 @@ impl Vaults {
 }
 
 impl Faraday {
+    /// Puts `phrase` in Create a vault's first passphrase, typed twice, in
+    /// place of what is there, for a shell that offers a known passphrase
+    /// in place of rolled words; the stick and the desktop never call it.
+    pub fn put_passphrase(&mut self, phrase: &str) {
+        if let Some(c) = self.vaults.create.as_mut()
+            && let Some((a, b)) = c.phrases.get_mut(0)
+        {
+            a.set(phrase);
+            b.set(phrase);
+            if let Some(d) = c.from_dice.get_mut(0) {
+                *d = None;
+            }
+            self.dirty = true;
+            self.commands.push_back(osk_shell_api::Command::Draw);
+        }
+    }
+
     /// Whether anything secret is in memory: a key, or an open vault.
     pub fn holds_secret(&self) -> bool {
         self.session.holds_secret() || !self.vaults.open.is_empty()

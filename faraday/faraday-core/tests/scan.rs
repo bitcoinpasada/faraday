@@ -83,6 +83,23 @@ fn a_scanned_address_is_named_as_a_loaded_wallets_own() {
 }
 
 #[test]
+fn a_scanned_address_with_one_character_wrong_is_refused_for_its_checksum() {
+    let mut app = scanning(vec![(
+        "spending-wallet.txt",
+        kit("spending").descriptor.into_bytes(),
+    )]);
+    app.press(Action::LoadWallet(0));
+    let ours = app.session.address(&app.session.wallets[0], false, 0);
+    let wrong = faraday_core::wallet::broken_checksum(&ours);
+    assert_ne!(wrong, ours);
+    app.press(Action::Scan);
+    scan(&mut app, &wrong);
+    let said = note(&app);
+    assert!(said.contains("fails its checksum"), "{said}");
+    assert_eq!(app.inbox.len(), 1, "the address was filed");
+}
+
+#[test]
 fn a_seeds_words_scanned_are_never_filed() {
     let mut app = scanning(Vec::new());
     scan(
