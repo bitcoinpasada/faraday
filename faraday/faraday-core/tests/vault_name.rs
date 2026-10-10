@@ -3,7 +3,6 @@
 //! sidebar; a vault, larger than any QR transfer, is not offered as one.
 
 use faraday_core::vaults::VaultAction as V;
-use faraday_core::vaults::vstep;
 use faraday_core::{Action, Faraday, Screen, testkit};
 use osk_shell_api::{App, EntropyBytes, Event, Key};
 
@@ -33,9 +32,6 @@ fn started() -> Faraday {
 fn make(app: &mut Faraday, name: &str) {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
-    for step in [vstep::WHERE, vstep::COST, vstep::SIZE] {
-        app.press(Action::Vault(V::CNext(step)));
-    }
     if !name.is_empty() {
         app.press(Action::Vault(V::CName));
         type_text(app, name);
@@ -46,7 +42,7 @@ fn make(app: &mut Faraday, name: &str) {
     type_text(app, "test phrase");
     app.press(Action::Vault(V::CGo));
     settle(app);
-    assert_eq!(app.screen, Screen::Vaults, "the vault was made");
+    assert_eq!(app.screen, Screen::Unlock, "the vault was made");
 }
 
 fn outbox_names(app: &Faraday) -> Vec<String> {

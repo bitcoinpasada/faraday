@@ -2845,6 +2845,7 @@ impl Faraday {
             StorageEvent::Printed { path } => self.toast(&format!("Saved {path}")),
             StorageEvent::Clock { unix_secs } => {
                 self.vaults.unix_secs = Some(unix_secs);
+                self.vaults.clock_at_ms = self.now_ms;
                 return;
             }
             StorageEvent::Memory { available_mib } => {
@@ -3627,7 +3628,11 @@ impl Faraday {
                     self.sheet = None;
                 }
             }
-            Action::Vault(v) => self.vault_act(v),
+            Action::Vault(v) => {
+                self.vault_act(v);
+                // What changed in an open vault is what a lock remembers.
+                self.vault_summaries_refresh();
+            }
             Action::Import(a) => self.import_act(a),
             Action::Family(f) => self.family_act(f),
             Action::Vanity(v) => self.vanity_act(v),

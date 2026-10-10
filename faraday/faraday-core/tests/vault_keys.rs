@@ -173,3 +173,74 @@ fn only_the_chosen_wallets_load_with_their_seeds() {
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(app.session.wallets[0].name, together[0].name);
 }
+
+// ---------------------------------------------------------------------
+// §3.3 (`docs/SIMPLIFY.md`): Vault contents lists the kinds it holds,
+// then Add….
+// ---------------------------------------------------------------------
+
+/// A vault made here and opened, with nothing in it.
+fn new_open_vault(app: &mut Faraday) {
+    for i in 0..8u8 {
+        app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+            [0x50 + i; 32],
+        )));
+    }
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    for second in [false, true] {
+        app.press(Action::Vault(V::CFocus(0, second)));
+        for c in "test phrase".chars() {
+            app.event(Event::Key(Key::Char(c)));
+        }
+    }
+    app.press(Action::Vault(V::CGo));
+    for t in 1..60u64 {
+        if app.screen == Screen::Unlock {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.screen, Screen::Unlock, "the vault was made");
+    for c in "test phrase".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::Vault(V::Unlock));
+    for t in 60..120u64 {
+        if !app.vaults.open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults.open.len(), 1, "the new vault did not open");
+}
+
+#[test]
+fn a_vault_with_one_key_lists_keys_and_add_and_no_other_kind() {
+    let mut app = device(Vec::new());
+    add_key(&mut app, 0);
+    new_open_vault(&mut app);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::AddMenu));
+    let _ = app.frame();
+    for k in 0..faraday_core::vaults::CATEGORIES.len() {
+        assert!(
+            app.offers(Action::Vault(V::AddKind(k))),
+            "Add… lists kind {k}"
+        );
+    }
+    app.press(Action::Vault(V::AddKind(0)));
+    app.press(Action::Vault(V::SaveKey(0)));
+    app.press(Action::Vault(V::ItemBack));
+    let _ = app.frame();
+    assert!(app.offers(Action::Vault(V::Category(0))), "Bitcoin keys");
+    assert!(app.offers(Action::Vault(V::AddMenu)), "Add…");
+    for k in 1..faraday_core::vaults::CATEGORIES.len() {
+        assert!(
+            !app.offers(Action::Vault(V::Category(k))),
+            "kind {k} holds nothing and is not listed"
+        );
+    }
+}

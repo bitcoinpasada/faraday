@@ -117,11 +117,7 @@ impl Tour {
                 continue;
             }
             if c == Command::Exit {
-                let size = self.size();
-                let medium = self.app.medium;
-                self.app = Faraday::new();
-                self.app.medium = medium;
-                self.app.event(display(size, self.dpi));
+                self.restart();
             }
         }
         while let Some(c) = self.app.poll_storage() {
@@ -204,6 +200,15 @@ impl Tour {
                 | StorageCommand::BootForget => {}
             }
         }
+    }
+
+    /// A fresh process on the same display, as after a lock.
+    fn restart(&mut self) {
+        let size = self.size();
+        let medium = self.app.medium;
+        self.app = Faraday::new();
+        self.app.medium = medium;
+        self.app.event(display(size, self.dpi));
     }
 
     fn size(&mut self) -> (u16, u16) {
@@ -1326,6 +1331,19 @@ fn run(
         .find(|i| i.name == "vault.ofv")
         .map(|i| i.bytes.clone())
         .ok_or("locking put no sealed vault in the Outbox")?;
+    // What the lock saved for the next process: the boxes and the kept
+    // state.
+    let mut saved = None;
+    while let Some(c) = t.app.poll_storage() {
+        if let StorageCommand::SaveBoxes {
+            inbox,
+            outbox,
+            kept,
+        } = c
+        {
+            saved = Some((inbox, outbox, kept));
+        }
+    }
     t.pump();
     let (_, main) = faraday_vault::open(&sealed, testkit::VAULT_PASSPHRASES[0].as_bytes())
         .map_err(|e| e.reason())?;
@@ -1345,6 +1363,20 @@ fn run(
         return Err("the sealed vault lost its entry, or changed more than the open slot".into());
     }
     println!("vault unlocked, an entry added, sealed on lock with the other slots unchanged");
+    // The next process, given what the lock saved: the locked vault's row
+    // and Home's lead say what it held when last seen open. Then a fresh
+    // process again, as the lock left it, for the rest of the tour.
+    let (inbox, outbox, kept) = saved.ok_or("the lock saved nothing")?;
+    t.app.storage(StorageEvent::Restored {
+        inbox,
+        outbox,
+        kept,
+    });
+    t.press(Action::Nav(Screen::Vaults));
+    t.shot("vaults-remembered")?;
+    t.press(Action::Nav(Screen::Home));
+    t.shot("home-vault-remembered")?;
+    t.restart();
     // A new vault: two passphrases at the Light cost.
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -1352,12 +1384,18 @@ fn run(
     t.app.vaults.ms_per_unit = Some(180);
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Create));
+    // It opens on Name and passphrases, the size closed on its default.
     t.shot("create-vault")?;
-    t.press(Action::Vault(V::CNext(0)));
+    t.press(Action::Vault(V::CStep(faraday_core::vaults::vstep::PRESET)));
+    t.shot("create-vault-size")?;
+    // Customise: the three cards in the size's place.
+    t.press(Action::Vault(V::CCustomise));
+    t.shot("create-vault-customise")?;
+    t.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::WHERE)));
     t.press(Action::Vault(V::CPreset(0)));
     t.shot("create-vault-cost")?;
-    t.press(Action::Vault(V::CNext(1)));
-    t.press(Action::Vault(V::CNext(2)));
+    // A fresh Create, on the default size, makes the tour's vault.
+    t.press(Action::Vault(V::Create));
     // The first passphrase from dice: six words, thirty rolls, run
     // together with no spaces.
     let rolls = "123456123456123456123456123456";
@@ -1407,7 +1445,8 @@ fn run(
     for p in [dice_phrase.as_str(), "second passphrase"] {
         faraday_vault::open(&made, p.as_bytes()).map_err(|e| format!("{p}: {}", e.reason()))?;
     }
-    t.shot("vaults-created")?;
+    // Made: Unlock, the new vault picked, its passphrase asked once more.
+    t.shot("create-vault-unlock")?;
     println!("a vault made here opens with each of its two passphrases");
     let before = t.app.vaults.open.len();
     let row = t

@@ -99,8 +99,8 @@ form says this beside the cost.
 
 **The bits shown.** The Create form states what each cost adds as
 log2(memory in KiB × passes), the number of Argon2id 1 KiB block steps
-in one guess: Light ≈17.6 bits, Standard ≈19.6, Strong and Maximum
-≈22.0. That is an estimate: it counts work only, not how much harder
+in one guess: Light ≈17.6 bits, Standard ≈19.6, Medium ≈20.6, Strong
+and Maximum ≈22.0. That is an estimate: it counts work only, not how much harder
 memory is than time for an attacker's hardware, so Strong and Maximum
 come out equal. A passphrase the dice made has its own bits exactly
 (words × log2 of the list's length, shown rounded to a tenth). The form
@@ -111,13 +111,23 @@ dice's words. Every figure that includes the cost's bits is written with
 bits are not measured, and the form says so (`vaults::cost_bits`,
 `Vaults::phrase_bits`).
 
-**Presets.** The Create form asks where the vault will be opened and
-offers the largest preset that fits the weakest machine chosen:
+**Two sizes, then Customise** (owner, 2026-10-10; `docs/SIMPLIFY.md`
+§3.1). The Create form's first card is **Size**, two rows: **PCs only**
+(Medium, 512 MiB, 3 passes) and **PCs and a Raspberry Pi** (Light, 64
+MiB, 3 passes), the second chosen by default, each with its unlock time
+here and the memory it needs free. Since the size has a default, the
+form opens on Name and passphrases. A small **Customise** button opens
+the three cards the size stands for in its place: where the vault will
+be opened, the unlock cost, and the space per passphrase.
+
+**Presets.** Customise asks where the vault will be opened and marks
+the largest preset that fits the weakest machine chosen as suggested:
 
 | Preset | Memory | Passes | Memory free to open | Opens on |
 |---|---|---|---|---|
 | Light | 64 MiB | 3 | about 150 MiB | anything, including a 512 MB Pi Zero 2 W |
 | Standard | 256 MiB | 3 | about 350 MiB | a 1 GB Raspberry Pi 3 and anything larger |
+| Medium | 512 MiB | 3 | about 600 MiB | a 1 GB Pi 3 with little else running; any PC |
 | Strong | 1 GiB | 4 | about 1.1 GiB | a Pi 4 or 5 with 2 GB or more; a PC with 2 GB or more |
 | Maximum | 2 GiB | 2 | about 2.1 GiB | a Pi 4 or 5 with 4 GB or more; a PC with 4 GB or more |
 | Custom | 64 MiB to 4 GiB | 2 to 10 | memory + about 100 MiB | chosen by the person |
@@ -130,6 +140,8 @@ passes (interactive), 256 MiB with 3 (moderate) and 1 GiB with 4
 (sensitive). OWASP's lowest is 19 MiB with 2 passes. Light is RFC 9106's
 second option, Standard libsodium's moderate, Strong libsodium's
 sensitive, and Maximum is RFC 9106's first option with a second pass.
+Medium is Standard's three passes at twice the memory, the PCs-only
+size.
 The designers' advice is to take as much memory as the target allows and
 then add passes to fill the time budget, which is how the presets are
 ordered. Lanes are 1 here, not 4: a lane is parallelism for the defender,
@@ -331,3 +343,30 @@ records of the slot it opens, over the standard library and either
 Faraday. The vectors in `tools/vectors/vault/` are opened by both
 implementations in the tests: a 64 KiB vault with one passphrase, and a
 64 KiB vault with three, each slot holding one record of every type.
+
+## 11. What the app remembers of a locked vault
+
+(owner, 2026-10-10; `docs/SIMPLIFY.md` §3.4, decision 4.) While a slot
+is open, the app keeps a summary of it: the file's name and salt, the
+slot's name, its wallets (name and shape), its keys (fingerprints), how
+many entries it holds, its backup maps' lines (record type 11, field 4)
+and the time it was last open by this computer's clock. The summaries
+are rebuilt on unlock, after every change made on a vault screen and as
+the session seals, and written into the kept state at lock under the key
+`vault-summaries` (`memory.rs`), which the next process reads back. They
+are gone at power-off, with the rest of `/run/faraday`.
+
+The Vaults list's row of a locked vault with a summary goes by the
+slot's name ("Main"), keeps its file name, and reads the summary in
+place of its size and cost: "Savings 2 of 3 · key 9a6a2580 · 12 entries
+· seen 14:02" (one or two wallets and keys by name, more by count).
+Home's Unlock lead is "Unlock Main" with the same line. A locked vault
+with no summary keeps its row as before and reads "Unlock to see what
+it holds".
+
+**The trade-off.** Wallet names and shapes, key fingerprints, the backup
+map's places and the slot's name stay in RAM, and in `/run/faraday`,
+while the vault is locked, until power-off. None of it spends: no seed,
+no words, no entry's fields, no descriptor. It does say which slot was
+open, which §9's deniability does not cover while the machine stays on;
+powering off ends it.

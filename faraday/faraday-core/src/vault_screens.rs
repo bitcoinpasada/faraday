@@ -9,8 +9,8 @@ use crate::screens::{guide_text, section_label, title};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::vaults::{
-    self, CATEGORIES, CUSTOM_MEMORY, CUSTOM_PASSES, Focus, HOLD_MS, MACHINES, PRESETS, TextBox,
-    VaultAction as V, cost_text, file_text, mib_text, size_text, vstep,
+    self, CATEGORIES, CUSTOM, CUSTOM_MEMORY, CUSTOM_PASSES, Focus, HOLD_MS, MACHINES, PRESETS,
+    SIZES, TextBox, VaultAction as V, cost_text, file_text, mib_text, size_text, vstep,
 };
 use crate::wallet::{Session, Wallet, fp_text};
 use crate::{Action, Code, Faraday, Screen, flow};
@@ -297,6 +297,8 @@ pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     for (i, f) in files.iter().enumerate() {
         let open = f.open.and_then(|o| app.vaults.open.get(o));
         let fresh = f.in_outbox && !in_inbox(&f.header.salt);
+        // A locked vault seen open since power-on goes by its name.
+        let remembered = app.vault_summary(f).map(|s| s.name.as_str());
         let (title_text, state, state_color, icon_color, edge) = match open {
             Some(v) if v.changes > 0 => (
                 v.label(),
@@ -311,21 +313,23 @@ pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ),
             Some(v) => (v.label(), "Open".to_string(), OK, ACCENT, LINE),
             None if !app.may_load_keys() => (
-                if fresh { "New vault" } else { "Locked vault" }.to_string(),
+                remembered
+                    .unwrap_or(if fresh { "New vault" } else { "Locked vault" })
+                    .to_string(),
                 format!("Remove the {} to unlock", app.medium.noun()),
                 WARN,
                 MUTED,
                 LINE,
             ),
             None if fresh => (
-                "New vault".to_string(),
+                remembered.unwrap_or("New vault").to_string(),
                 "Locked · not written yet".to_string(),
                 OK,
                 OK,
                 OK.with_alpha(90),
             ),
             None => (
-                "Locked vault".to_string(),
+                remembered.unwrap_or("Locked vault").to_string(),
                 "Locked".to_string(),
                 MUTED,
                 MUTED,
@@ -351,11 +355,8 @@ pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         } else {
             "In the Inbox"
         };
-        let line = format!(
-            "{where_} · {} · {}",
-            file_text(f.len),
-            cost_text(&f.header.cost)
-        );
+        let line = list_line(app, f, where_);
+        let line = ui.fit(12.0, W::R, &line, w - 84.0 - 300.0);
         ui.text(x + 84.0, y + 62.0, 12.0, W::R, DIM, &line);
         // An open vault: what is in it, and Lock, which seals it (and
         // every other) into the Outbox. A locked one: Unlock.
@@ -404,6 +405,10 @@ pub(crate) fn unlock(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 26.0;
     title(ui, x, y, "Unlock");
     y += 56.0;
+    if just_made_picked(app) {
+        ui.text(x, y - 14.0, 14.0, W::R, MUTED, ONCE_MORE);
+        y += 20.0;
+    }
     y += guide_text(
         app,
         ui,
@@ -530,6 +535,48 @@ pub(crate) fn unlock(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
 }
 
+/// The third line of a vault's row: where it is, its size and cost while
+/// open; once locked, what it held when last seen open, or that unlocking
+/// shows it.
+fn list_line(app: &Faraday, f: &vaults::VaultFile, where_: &str) -> String {
+    if f.open.is_some() {
+        return format!(
+            "{where_} · {} · {}",
+            file_text(f.len),
+            cost_text(&f.header.cost)
+        );
+    }
+    match app.vault_summary(f) {
+        Some(s) => s.line(),
+        None => "Unlock to see what it holds".to_string(),
+    }
+}
+
+/// `s`, parts split by " · ", over two lines of `w` at 12 regular: as
+/// many parts as fit on the first, the rest fitted to the second.
+fn two_lines(ui: &mut Ui, s: &str, w: f32) -> (String, String) {
+    let parts: Vec<&str> = s.split(" · ").collect();
+    let mut n = 1;
+    while n < parts.len() && ui.measure(12.0, W::R, &parts[..=n].join(" · ")) <= w {
+        n += 1;
+    }
+    let first = ui.fit(12.0, W::R, &parts[..n].join(" · "), w);
+    let second = ui.fit(12.0, W::R, &parts[n..].join(" · "), w);
+    (first, second)
+}
+
+/// Unlock's caption for the vault just made.
+const ONCE_MORE: &str = "Type the passphrase once more to open it";
+
+/// Whether Unlock has the vault just made picked.
+fn just_made_picked(app: &Faraday) -> bool {
+    app.vaults.just_made.as_ref().is_some_and(|n| {
+        app.vault_files()
+            .get(app.vaults.pick)
+            .is_some_and(|f| &f.name == n)
+    })
+}
+
 /// Where Unlock's way back goes: the boot import's sheet when it was
 /// opened from there, else the vault list.
 pub(crate) fn unlock_back(app: &Faraday) -> (&'static str, Action) {
@@ -583,6 +630,8 @@ fn list_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     for (i, f) in files.iter().enumerate() {
         let open = f.open.and_then(|o| app.vaults.open.get(o));
         let fresh = f.in_outbox && !in_inbox(&f.header.salt);
+        // A locked vault seen open since power-on goes by its name.
+        let remembered = app.vault_summary(f).map(|s| s.name.as_str());
         let (title_text, state, state_color, icon_color, edge) = match open {
             Some(v) if v.changes > 0 => (
                 v.label(),
@@ -597,21 +646,23 @@ fn list_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ),
             Some(v) => (v.label(), "Open".to_string(), OK, ACCENT, LINE),
             None if !app.may_load_keys() => (
-                if fresh { "New vault" } else { "Locked vault" }.to_string(),
+                remembered
+                    .unwrap_or(if fresh { "New vault" } else { "Locked vault" })
+                    .to_string(),
                 format!("Remove the {} to unlock", app.medium.noun()),
                 WARN,
                 MUTED,
                 LINE,
             ),
             None if fresh => (
-                "New vault".to_string(),
+                remembered.unwrap_or("New vault").to_string(),
                 "Locked · not written yet".to_string(),
                 OK,
                 OK,
                 OK.with_alpha(90),
             ),
             None => (
-                "Locked vault".to_string(),
+                remembered.unwrap_or("Locked vault").to_string(),
                 "Locked".to_string(),
                 MUTED,
                 MUTED,
@@ -648,15 +699,22 @@ fn list_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         } else {
             "In the Inbox"
         };
-        let line = format!(
-            "{where_} · {} · {}",
-            file_text(f.len),
-            cost_text(&f.header.cost)
-        );
-        let line = ui.fit(12.0, W::R, &line, w - 24.0);
-        ui.text(x + 12.0, y + 58.0, 12.0, W::R, DIM, &line);
-        let state = ui.fit(13.0, W::S, &state, w - 24.0);
-        ui.text(x + 12.0, y + 78.0, 13.0, W::S, state_color, &state);
+        let line = list_line(app, f, where_);
+        // What a locked vault held, when it is longer than a line, takes
+        // the state's line too: the Unlock button says it is locked.
+        if open.is_none()
+            && app.vault_summary(f).is_some()
+            && ui.measure(12.0, W::R, &line) > w - 24.0
+        {
+            let (first, second) = two_lines(ui, &line, w - 24.0);
+            ui.text(x + 12.0, y + 58.0, 12.0, W::R, DIM, &first);
+            ui.text(x + 12.0, y + 78.0, 12.0, W::R, DIM, &second);
+        } else {
+            let line = ui.fit(12.0, W::R, &line, w - 24.0);
+            ui.text(x + 12.0, y + 58.0, 12.0, W::R, DIM, &line);
+            let state = ui.fit(13.0, W::S, &state, w - 24.0);
+            ui.text(x + 12.0, y + 78.0, 13.0, W::S, state_color, &state);
+        }
         // The buttons share the card's last row.
         let n = buttons.len() as f32;
         let bw = (w - 24.0 - 8.0 * (n - 1.0)) / n;
@@ -690,6 +748,9 @@ fn unlock_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, w) = (x0 + M, cw - 2.0 * M);
     let top = 12.0 - app.list_offset;
     let mut y = top;
+    if just_made_picked(app) {
+        y += ui.wrap(x, y, w, 14.0, W::R, MUTED, ONCE_MORE) + 12.0;
+    }
     if !app.may_load_keys() {
         let pull = format!("Remove the {}, then type the passphrase", app.medium.noun());
         y += stick_banner(ui, x, y, w, &pull);
@@ -834,11 +895,13 @@ fn back_link(ui: &mut Ui, x: f32, y: f32, label: &str, action: Action) {
 // Create a vault
 // ---------------------------------------------------------------------
 
-const VSTEPS: [&str; 4] = [
+/// Each step's title, by `vstep`.
+const VSTEPS: [&str; vstep::COUNT] = [
     "Where will you open it?",
     "Unlock cost",
     "Space per passphrase",
     "Name and passphrases",
+    "Size",
 ];
 
 pub(crate) fn create(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -851,8 +914,10 @@ pub(crate) fn create(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .vaults
         .back_to
         .map(|s| format!("Then: {}", app.back_name(s)));
-    let cards: Vec<flow::Card> = (0..4u8)
-        .map(|k| flow::Card {
+    let steps = c.steps();
+    let cards: Vec<flow::Card> = steps
+        .iter()
+        .map(|&k| flow::Card {
             title: VSTEPS[k as usize].to_string(),
             summary: if c.done[k as usize] {
                 summaries[k as usize].clone()
@@ -862,9 +927,8 @@ pub(crate) fn create(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             mono: false,
             done: c.done[k as usize],
             open: c.open == Some(k),
-            // §3.1 gives this flow its defaults; until then every card
-            // opens as it does today.
-            default: false,
+            // The size has a default: closed at entry, with Change.
+            default: k == vstep::PRESET,
             toggle: va(V::CStep(k)),
             guide: Some(create_guide(k)),
         })
@@ -894,7 +958,7 @@ pub(crate) fn create(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (next, again) = {
         let app_ref: &Faraday = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            create_body(app_ref, ui, i as u8, x, y, w)
+            create_body(app_ref, ui, steps[i], x, y, w)
         };
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
@@ -927,6 +991,10 @@ fn create_guide(k: u8) -> String {
         vstep::SIZE => "Every passphrase gets the same space, fixed for the life of the vault. 256 KiB holds \
             keys, wallets, notes and about a hundred entries."
             .to_string(),
+        vstep::PRESET => "A vault opens only on a machine with the memory its cost asks for, and the cost \
+            cannot be changed later. 512 MiB opens on PCs; 64 MiB opens on a Raspberry Pi as well. \
+            Customise chooses the machines, the cost and the space per passphrase one by one."
+            .to_string(),
         _ => "Each passphrase opens its own contents, and the file does not say how many there are. They are \
             set now: adding or changing one later means making a new vault and moving the contents across. \
             The passphrase matters more than the cost: six words from the EFF long list are 77.5 bits, out \
@@ -935,8 +1003,9 @@ fn create_guide(k: u8) -> String {
     }
 }
 
-/// The summary line of each step, and of the panel's choices.
-fn create_summaries(app: &Faraday) -> [String; 4] {
+/// The summary line of each step, by `vstep`, and of the panel's
+/// choices.
+fn create_summaries(app: &Faraday) -> [String; vstep::COUNT] {
     let Some(c) = app.vaults.create.as_ref() else {
         return Default::default();
     };
@@ -947,8 +1016,12 @@ fn create_summaries(app: &Faraday) -> [String; 4] {
         }
     }
     let (k, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
-    let name = if k == 4 { "Custom" } else { PRESETS[k].0 };
+    let name = if k == CUSTOM { "Custom" } else { PRESETS[k].0 };
     let n = c.phrases.len();
+    let size = match app.vaults.size_row() {
+        Some(r) => format!("{} · {} · {passes} passes", SIZES[r].0, mib_text(mem)),
+        None => format!("{name} · {} · {passes} passes", mib_text(mem)),
+    };
     let ok = (0..n).all(|i| vaults::Vaults::phrase_ok(c, i));
     [
         places.join(", "),
@@ -964,6 +1037,7 @@ fn create_summaries(app: &Faraday) -> [String; 4] {
             if n == 1 { "passphrase" } else { "passphrases" },
             if ok { "match" } else { "not finished" }
         ),
+        size,
     ]
 }
 
@@ -1008,7 +1082,7 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             for (k, (label, m, p)) in choices.enumerate() {
                 let on = k == current;
                 let fits = m <= ram / 2;
-                let (note, color) = if k == 4 {
+                let (note, color) = if k == CUSTOM {
                     ("Choose memory and passes".to_string(), DIM)
                 } else if k == suggested {
                     ("Suggested".to_string(), ACCENT)
@@ -1042,7 +1116,7 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 ui.hit(x, cy, w, 50.0, va(V::CPreset(k)));
                 cy += 56.0;
             }
-            if current == 4 {
+            if current == CUSTOM {
                 cy += 4.0;
                 ui.text(x, cy, 12.0, W::R, MUTED, "Memory");
                 cy += 22.0;
@@ -1122,6 +1196,89 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 cy += 50.0;
             }
         }
+        vstep::PRESET => {
+            // Two sizes, each with its unlock time here and the memory it
+            // needs; Customise opens the three cards they stand for.
+            let chosen = app.vaults.size_row();
+            let free = app.vaults.memory_free_mib;
+            let row_h = if ui.compact { 70.0 } else { 56.0 };
+            for (r, (label, preset, _)) in SIZES.iter().enumerate() {
+                let (_, mem, passes) = PRESETS[*preset];
+                let on = chosen == Some(r);
+                ui.fill(
+                    x,
+                    cy,
+                    w,
+                    row_h,
+                    8.0,
+                    if on { ACCENT.with_alpha(26) } else { BG },
+                );
+                ui.stroke(
+                    x,
+                    cy,
+                    w,
+                    row_h,
+                    8.0,
+                    if on { ACCENT.with_alpha(110) } else { INNER },
+                );
+                let cost = format!("{} · {passes} passes", mib_text(mem));
+                let time = match app.vaults.seconds(mem, passes) {
+                    Some(_) => format!("Unlocks in {} here", app.vaults.time_text(mem, passes)),
+                    None => "Unlock time not measured yet".to_string(),
+                };
+                let needs = format!("needs about {} free", mib_text(mem + 100));
+                let short = free.is_some_and(|f| mem + 100 > f);
+                if ui.compact {
+                    // Three lines: the name, the cost and its time here,
+                    // the memory it needs.
+                    let name = ui.fit(14.0, W::S, label, w - 28.0);
+                    ui.text(x + 14.0, cy + 6.0, 14.0, W::S, TEXT, &name);
+                    let here = match app.vaults.seconds(mem, passes) {
+                        Some(_) => format!("{cost} · {} here", app.vaults.time_text(mem, passes)),
+                        None => cost.clone(),
+                    };
+                    let here = ui.fit(12.0, W::R, &here, w - 28.0);
+                    ui.text(x + 14.0, cy + 26.0, 12.0, W::R, MUTED, &here);
+                    let needs = format!("Needs about {} free", mib_text(mem + 100));
+                    let needs = ui.fit(12.0, W::R, &needs, w - 28.0);
+                    ui.text(
+                        x + 14.0,
+                        cy + 46.0,
+                        12.0,
+                        W::R,
+                        if short { WARN } else { MUTED },
+                        &needs,
+                    );
+                } else {
+                    ui.text(x + 14.0, cy + 8.0, 14.0, W::S, TEXT, label);
+                    ui.text_right(x + w - 14.0, cy + 5.0, 24.0, 13.0, W::S, TEXT, &cost);
+                    let line = ui.fit(12.0, W::R, &format!("{time} · {needs}"), w - 28.0);
+                    ui.text(
+                        x + 14.0,
+                        cy + 31.0,
+                        12.0,
+                        W::R,
+                        if short { WARN } else { MUTED },
+                        &line,
+                    );
+                }
+                ui.hit(x, cy, w, row_h, va(V::CSizeRow(r)));
+                cy += row_h + 6.0;
+            }
+            ui.button(
+                x,
+                cy,
+                None,
+                34.0,
+                "Customise",
+                Style::Ghost,
+                va(V::CCustomise),
+            );
+            cy += 50.0;
+            if crate::screens::next_button(ui, x, cy, w, "Continue", va(V::CNext(n))) {
+                cy += 50.0;
+            }
+        }
         vstep::SIZE => {
             let bw = (w - 18.0) / 4.0;
             for (k, s) in SLOT_SIZES.iter().enumerate() {
@@ -1152,9 +1309,23 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
         _ => {
             let half = (w - 12.0) / 2.0;
             let may = app.may_load_keys();
-            // Its name, which names the file.
+            // Its name, which names the file: what it holds, since the
+            // file is all anyone who sees the stick sees (`docs/VAULT.md`
+            // §6).
             ui.text_mid(x, cy, 36.0, 13.0, W::S, TEXT, "Name");
-            cy += 40.0;
+            cy += 34.0;
+            cy += ui.wrap(
+                x,
+                cy,
+                w,
+                12.0,
+                W::R,
+                MUTED,
+                &format!(
+                    "What it holds, for anyone who sees the {} · leave empty for vault.ofv",
+                    app.medium.noun()
+                ),
+            ) + 10.0;
             let nw = w.min(360.0);
             text_box(
                 ui,
@@ -1511,7 +1682,14 @@ fn dice_panel(
     cy - y
 }
 
-fn create_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32, summaries: &[String; 4]) {
+fn create_panel(
+    app: &Faraday,
+    ui: &mut Ui,
+    px: f32,
+    pw: f32,
+    h: f32,
+    summaries: &[String; vstep::COUNT],
+) {
     let Some(c) = app.vaults.create.as_ref() else {
         return;
     };
@@ -1531,7 +1709,10 @@ fn create_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32, summaries:
     .iter()
     .enumerate()
     {
-        let live = c.done[k] || c.open == Some(k as u8);
+        // Until Customise, the size stands for the first three: they
+        // carry its values, and open its card.
+        let by_size = !c.customise && k as u8 != vstep::PHRASES;
+        let live = by_size || c.done[k] || c.open == Some(k as u8);
         ui.text(x, y, 12.0, W::R, MUTED, label);
         let v = if live {
             summaries[k].clone()
@@ -1540,7 +1721,8 @@ fn create_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32, summaries:
         };
         let v = ui.fit(13.0, W::R, &v, w);
         ui.text(x, y + 18.0, 13.0, W::R, if live { TEXT } else { DIM }, &v);
-        ui.hit(x - 8.0, y - 4.0, w + 16.0, 42.0, va(V::CStep(k as u8)));
+        let step = if by_size { vstep::PRESET } else { k as u8 };
+        ui.hit(x - 8.0, y - 4.0, w + 16.0, 42.0, va(V::CStep(step)));
         y += 46.0;
     }
     y += create_summary(app, ui, x, y, w);
@@ -1558,7 +1740,7 @@ fn create_summary(app: &Faraday, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
     let (k, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
     let (weakest, ram) = app.vaults.weakest();
-    let name = if k == 4 { "Custom" } else { PRESETS[k].0 };
+    let name = if k == CUSTOM { "Custom" } else { PRESETS[k].0 };
     let mut warnings: Vec<(String, osk_ui::Color)> = Vec::new();
     if let Some(free) = app.vaults.memory_free_mib
         && mem + 100 > free
@@ -1936,14 +2118,9 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let detail_w = w - kinds_w - items_w - 48.0;
     let top = y;
     let mut ky = top;
-    for (k, (label, kinds)) in CATEGORIES.iter().enumerate() {
-        let count = v
-            .contents
-            .records
-            .iter()
-            .filter(|r| kinds.contains(&r.kind))
-            .count();
-        let on = k == app.vaults.category;
+    // The kinds it holds, then Add….
+    for (k, label, count) in listed_kinds(app, v) {
+        let on = k == app.vaults.category && !app.vaults.add_menu;
         if on {
             ui.fill(x, ky, kinds_w, 38.0, 8.0, ACCENT.with_alpha(30));
         }
@@ -1968,24 +2145,43 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.hit(x, ky, kinds_w, 38.0, va(V::Category(k)));
         ky += 42.0;
     }
+    if app.vaults.add_menu {
+        ui.fill(x, ky, kinds_w, 38.0, 8.0, ACCENT.with_alpha(30));
+    }
+    ui.text_mid(
+        x + 12.0,
+        ky,
+        38.0,
+        14.0,
+        W::S,
+        if app.vaults.add_menu { TEXT } else { MUTED },
+        ADD_ROW,
+    );
+    ui.hit(x, ky, kinds_w, 38.0, va(V::AddMenu));
 
-    let (cat_label, kinds) = CATEGORIES[app.vaults.category];
     let ix = x + kinds_w + 16.0;
+    if app.vaults.add_menu {
+        add_list(ui, ix, top, items_w);
+        return;
+    }
+    if shows_empty(app, v) {
+        ui.text(ix, top + 6.0, 15.0, W::S, TEXT, NOTHING_YET);
+        let mut by = top + 40.0;
+        for (label, style, action) in empty_buttons(app) {
+            let bw = ui.measure(14.0, W::S, &label) + 36.0;
+            ui.button(ix, by, Some(bw), 40.0, &label, style, action);
+            by += 50.0;
+        }
+        return;
+    }
+    let (cat_label, kinds) = CATEGORIES[app.vaults.category];
     let items: Vec<&Record> = v
         .contents
         .records
         .iter()
         .filter(|r| kinds.contains(&r.kind))
         .collect();
-    let add = match app.vaults.category {
-        0 => Some("Save a key"),
-        1 => Some("Save a wallet"),
-        2 => Some("Add an entry"),
-        3 => Some("Add a note"),
-        4 => Some("Make a key"),
-        5 => Some("Make keys"),
-        _ => None,
-    };
+    let add = add_label(app.vaults.category);
     ui.text_mid(ix, top, 34.0, 14.0, W::S, TEXT, cat_label);
     if let Some(a) = add {
         let aw = ui.measure(13.0, W::S, a) + 26.0;
@@ -2095,6 +2291,92 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     detail(app, ui, v, &items, sel, detail_x, top, detail_w);
 }
 
+/// The contents' row that lists every kind to add.
+const ADD_ROW: &str = "Add…";
+/// What an open vault with nothing in it says.
+const NOTHING_YET: &str = "Nothing in it yet";
+
+/// What adds an item of kind `k`, as its category's Add button reads.
+fn add_label(k: usize) -> Option<&'static str> {
+    match k {
+        0 => Some("Save a key"),
+        1 => Some("Save a wallet"),
+        2 => Some("Add an entry"),
+        3 => Some("Add a note"),
+        4 => Some("Make a key"),
+        5 => Some("Make keys"),
+        _ => None,
+    }
+}
+
+/// The kinds the contents list: those the slot holds something of, and
+/// the one shown when it was chosen; each with its place in `CATEGORIES`,
+/// label and count.
+fn listed_kinds(app: &Faraday, v: &vaults::OpenVault) -> Vec<(usize, &'static str, usize)> {
+    CATEGORIES
+        .iter()
+        .enumerate()
+        .map(|(k, (label, kinds))| {
+            let n = v
+                .contents
+                .records
+                .iter()
+                .filter(|r| kinds.contains(&r.kind))
+                .count();
+            (k, *label, n)
+        })
+        .filter(|&(k, _, n)| {
+            n > 0
+                || (k == app.vaults.category && app.vaults.category_chosen && !app.vaults.add_menu)
+        })
+        .collect()
+}
+
+/// Whether the contents show an empty vault's next steps: nothing in it,
+/// and nothing chosen or under way.
+fn shows_empty(app: &Faraday, v: &vaults::OpenVault) -> bool {
+    let held = CATEGORIES
+        .iter()
+        .any(|(_, kinds)| v.contents.records.iter().any(|r| kinds.contains(&r.kind)));
+    !held && !app.vaults.category_chosen && !app.vaults.add_menu && !contents_detail(app)
+}
+
+/// An empty vault's next steps.
+fn empty_buttons(app: &Faraday) -> [(String, Style, Action); 2] {
+    [
+        (
+            "Put a wallet in it".to_string(),
+            Style::Primary,
+            va(V::PutWallet),
+        ),
+        (
+            format!("Write it to {}", app.medium.a()),
+            Style::Secondary,
+            va(V::WriteOut),
+        ),
+    ]
+}
+
+/// The Add… list at (x, y), w wide: every kind, each with its Add action.
+/// Returns its height.
+fn add_list(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let mut cy = y;
+    for (k, (label, _)) in CATEGORIES.iter().enumerate() {
+        let Some(add) = add_label(k) else {
+            continue;
+        };
+        ui.fill(x, cy, w, 52.0, 8.0, BG);
+        ui.stroke(x, cy, w, 52.0, 8.0, LINE);
+        let t = ui.fit(14.0, W::S, add, w - 24.0);
+        ui.text(x + 12.0, cy + 8.0, 14.0, W::S, TEXT, &t);
+        let l = ui.fit(12.0, W::R, label, w - 24.0);
+        ui.text(x + 12.0, cy + 30.0, 12.0, W::R, MUTED, &l);
+        ui.hit(x, cy, w, 52.0, va(V::AddKind(k)));
+        cy += 58.0;
+    }
+    cy - y
+}
+
 /// Whether the contents show an item, or something being added or made,
 /// rather than the vault's list: on a small panel, a page of its own.
 pub(crate) fn contents_detail(app: &Faraday) -> bool {
@@ -2194,46 +2476,54 @@ fn contents_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .collect();
         y += wrap_buttons(ui, x, y, w, 32.0, &items) + 4.0;
     }
-    // The kinds, each with how many it holds.
-    let kind_labels: Vec<String> = CATEGORIES
+    // The kinds it holds, each with how many, then Add….
+    let listed = listed_kinds(app, v);
+    let kind_labels: Vec<(usize, String)> = listed
         .iter()
-        .map(|(label, kinds)| {
-            let n = v
-                .contents
-                .records
-                .iter()
-                .filter(|r| kinds.contains(&r.kind))
-                .count();
-            format!("{label} {n}")
-        })
+        .map(|(k, label, n)| (*k, format!("{label} {n}")))
         .collect();
-    let kind_items: Vec<(&str, Style, Action)> = kind_labels
+    let mut kind_items: Vec<(&str, Style, Action)> = kind_labels
         .iter()
-        .enumerate()
         .map(|(k, l)| {
-            let style = if k == app.vaults.category {
+            let style = if *k == app.vaults.category && !app.vaults.add_menu {
                 Style::Primary
             } else {
                 Style::Secondary
             };
-            (l.as_str(), style, va(V::Category(k)))
+            (l.as_str(), style, va(V::Category(*k)))
         })
         .collect();
+    kind_items.push((
+        ADD_ROW,
+        if app.vaults.add_menu {
+            Style::Primary
+        } else {
+            Style::Secondary
+        },
+        va(V::AddMenu),
+    ));
     y += wrap_buttons(ui, x, y, w, 34.0, &kind_items) + 8.0;
     ui.rule(x, y, w, LINE);
     y += 14.0;
+    if app.vaults.add_menu {
+        y += add_list(ui, x, y, w) + 8.0;
+        finish(app, ui, x0, cw, h, y - top + 16.0);
+        return;
+    }
+    if shows_empty(app, v) {
+        ui.text(x, y, 15.0, W::S, TEXT, NOTHING_YET);
+        y += 34.0;
+        for (label, style, action) in empty_buttons(app) {
+            ui.button(x, y, Some(w), 44.0, &label, style, action);
+            y += 54.0;
+        }
+        finish(app, ui, x0, cw, h, y - top + 16.0);
+        return;
+    }
     section_label(ui, x, y, cat_label);
     y += 28.0;
     // What can fill this kind.
-    let add = match app.vaults.category {
-        0 => Some("Save a key"),
-        1 => Some("Save a wallet"),
-        2 => Some("Add an entry"),
-        3 => Some("Add a note"),
-        4 => Some("Make a key"),
-        5 => Some("Make keys"),
-        _ => None,
-    };
+    let add = add_label(app.vaults.category);
     let entries_files = app
         .inbox
         .iter()

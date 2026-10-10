@@ -24,7 +24,8 @@ to get it.
 2. **A new vault opens as soon as it is created**, on its first
    passphrase's slot, because a new vault is empty and the next thing is
    putting something in it. Create vault lands on the Vaults overview with
-   the new vault open and **Add contents** beside it.
+   the new vault open and **Add contents** beside it. Replaced by
+   decision 22 (2026-10-10).
 3. **After any lock cycle, the Inbox decides what is offered first.**
    Locking restarts the app, so the screen a person was on is gone. When
    unlocking again finds a new PSBT in the Inbox, Home leads with "Sign
@@ -174,6 +175,28 @@ to get it.
     backup on the new wallet with that preset, its chip "Then: Wallets",
     its way back the wallet's card. The vault, public-files and paper
     cards are gone: they are the checklist's items.
+21. **Create a vault offers two sizes** (owner, 2026-10-10;
+    `docs/SIMPLIFY.md` §3.1 and §3.2). Its cards are Size and Name and
+    passphrases; Size is **PCs only** (512 MiB) or **PCs and a Raspberry
+    Pi** (64 MiB, the default), both 3 passes, so the flow opens on Name
+    and passphrases. **Customise** opens the three cards it stands for
+    (where it opens, unlock cost, space per passphrase) in its place. The
+    Name field's caption says the name is what it holds, for anyone who
+    sees the stick.
+22. **A new vault is opened once more, then shows its next steps**
+    (owner, 2026-10-10; `docs/SIMPLIFY.md` §3.3). This replaces decision
+    2: **Create vault** always goes to Unlock with the new vault picked,
+    under "Type the passphrase once more to open it"; unlocked, it opens
+    on Vault contents, which says "Nothing in it yet" with **Put a wallet
+    in it** (Wallets) and **Write it to a stick** (Files). Vault contents
+    lists only the kinds a slot holds something of, then **Add…**, which
+    lists every kind with its Add action.
+23. **A locked vault says what it held** (owner, 2026-10-10;
+    `docs/SIMPLIFY.md` §3.4, `docs/VAULT.md` §11). What a vault held when
+    last seen open is kept across a lock until power-off: its Vaults row
+    goes by its name and Home's lead is "Unlock {name}", both with the
+    line "Savings 2 of 3 · key 9a6a2580 · 12 entries · seen 14:02"; with
+    nothing remembered, "Unlock to see what it holds".
 
 ## Home
 
@@ -292,21 +315,26 @@ stays in the Outbox, and the visit screen says to put the stick back.
 ## Vaults
 
 **Vaults overview**: each vault in memory with its state (open, locked,
-not written yet), memory need and source; **Create a vault** at the top.
+not written yet) and source; an open one with its size and cost, a
+locked one with what it held when last seen open (decision 23);
+**Create a vault** at the top.
 - open vault → **Open** → Vault contents;
 - locked vault → **Unlock** → passphrase sheet → Vault contents.
 - opened from a flow that needs a vault (decision 10): **Unlock** →
   the flow, on the step it was on; the way back returns to it.
 
-**Create a vault** (step cards: where it opens, unlock cost, space per
-passphrase, passphrases) → **Create vault** → Vaults overview, new vault
-open (decision 2), sealed copy in the Outbox → **Add contents** → Vault
-contents, empty, with an Add action per kind. Opened from a flow that
-needs a vault (decision 10), it shows "Then: {flow}" by its title, and
-**Create vault** goes to Unlock with the new vault picked, then back to
-the flow.
+**Create a vault** (step cards: Size, then Name and passphrases;
+**Customise** puts where it opens, unlock cost and space per passphrase
+in Size's place; decision 21) → **Create vault** → Unlock with the new
+vault picked, "Type the passphrase once more to open it", sealed copy in
+the Outbox → **Unlock** → Vault contents, "Nothing in it yet", **Put a
+wallet in it** (Wallets) and **Write it to a stick** (Files), with
+**Add…** listing an Add action per kind (decision 22). Opened from a
+flow that needs a vault (decision 10), it shows "Then: {flow}" by its
+title, and the unlock goes back to the flow.
 
-**Vault contents**: kinds → items → details.
+**Vault contents**: the kinds it holds, then **Add…** → items →
+details.
 - **Add an entry** → form (title, username, password with **Generate with
   dice**, URL, notes, TOTP secret typed or **Scan**) → saved → the entry
   selected in the list; vault marked unsaved.

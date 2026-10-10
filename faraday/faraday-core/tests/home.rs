@@ -419,3 +419,63 @@ fn homes_second_secondary_is_stick_visit_with_one_attached_else_vaults() {
     tap(&mut app, Action::Nav(Screen::Visit));
     assert_eq!(app.screen, Screen::Visit);
 }
+
+/// Rule 5 with what the vault held when last seen open (§3.4): after a
+/// lock, the Unlock lead's line names it.
+#[test]
+fn home_lead_rule_5_reads_what_the_vault_held_when_last_seen_open() {
+    use faraday_core::StorageCommand;
+    use faraday_core::vaults::VaultAction as V;
+    let vault = faraday_core::testkit::test_vault().unwrap();
+    let mut app = with_inbox(vec![("vault.ofv", vault)]);
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.press(Action::Vault(V::Open(0)));
+    for c in faraday_core::testkit::VAULT_PASSPHRASES[0].chars() {
+        app.event(Event::Key(osk_shell_api::Key::Char(c)));
+    }
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults.open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    app.press(Action::Lock);
+    let mut boxes = (Vec::new(), Vec::new(), Vec::new());
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes {
+            inbox,
+            outbox,
+            kept,
+        } = c
+        {
+            boxes = (inbox, outbox, kept);
+        }
+    }
+
+    // The next process.
+    let mut app = shown();
+    app.storage(StorageEvent::Restored {
+        inbox: boxes.0,
+        outbox: boxes.1,
+        kept: boxes.2,
+    });
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::Vault(V::Open(0))),
+        "Home leads with Unlock {{name}}"
+    );
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Unlock Test vault"),
+        "the lead names the vault it remembers: {texts:?}"
+    );
+    assert!(
+        texts.iter().any(|t| t.contains("wallets · key ")),
+        "the lead's line is what the vault held: {texts:?}"
+    );
+}

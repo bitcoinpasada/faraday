@@ -434,6 +434,10 @@ wherever the kept state is listed.
 
 ### 3.5 A vault's currency
 
+**Built in the §4 batch**, after §4.3 and before §4.5: its "On {label}
+· current" state reads the receipt's hashes, which §4.3 makes, and
+§4.5's sheets read the state (orchestrator, 2026-10-10).
+
 **What.** Each vault file has one of three states, computed: **Never
 written** (sealed into For the stick, no receipt names it); **On
 {label} · current** (the last receipt that names it wrote the bytes it
@@ -695,7 +699,8 @@ tab.
 
 ## 7. Order and gates
 
-Batches: §1, §2, §3, §4, §5, §6, each ending with its tests, `just`,
+Batches: §1, §2, §3 (3.1 to 3.4), §4 (4.1 to 4.3, then 3.5, then 4.4
+to 4.7), §5, §6, each ending with its tests, `just`,
 the two renders, and the completion report. §4.4 (the boot sheet) and
 §5 (Backups) are the two with the most new code; do not fold either
 into another batch. After §6, `local/REMAINING.md` gets the owner's

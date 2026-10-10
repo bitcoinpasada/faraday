@@ -5,6 +5,7 @@
 
 use faraday_core::keygen::{Group, Way};
 use faraday_core::vaults::VaultAction as V;
+use faraday_core::vaults::vstep;
 use faraday_core::{Action, Faraday, OskPress, Screen};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
@@ -118,9 +119,14 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     tap(&mut app, Action::KeyGen(Some(0)));
     assert_eq!(app.screen, Screen::KeyGen);
     // Length (12 words) and Randomness (dice, by words) are already the
-    // defaults, closed with Change: Randomness opened directly here, to
-    // choose dice hashed instead of what this test is not about.
-    app.press(Action::KStep(faraday_core::keygen::kstep::SOURCE));
+    // defaults, closed with Change: the page carries each at its head, and
+    // Randomness's Change opens it, to choose dice hashed instead.
+    tap(&mut app, Action::KStep(faraday_core::keygen::kstep::SOURCE));
+    assert_eq!(
+        app.keygen.as_ref().and_then(|k| k.open),
+        Some(faraday_core::keygen::kstep::SOURCE),
+        "Change opens Randomness"
+    );
     // Dice hashed into the words: its group opened first.
     tap(&mut app, Action::KGroup(Group::Computed as u8));
     tap(&mut app, Action::KWay(Way::DiceHashed.index()));
@@ -157,9 +163,7 @@ fn a_passphrase_field_brings_the_keyboard_and_stays_above_it() {
     tap(&mut app, Action::Nav(Screen::Vaults));
     tap(&mut app, Action::Vault(V::Create));
     assert_eq!(app.screen, Screen::CreateVault);
-    for step in 0..3 {
-        tap(&mut app, Action::Vault(V::CNext(step)));
-    }
+    // It opens on Name and passphrases.
     let key = Action::Osk(OskPress::Char('a'));
     assert!(
         on_panel(&mut app, key).is_some(),
@@ -192,9 +196,10 @@ fn a_step_s_walk_through_opens_and_closes_on_a_tap_in_steps_only_too() {
     assert!(!app.guided, "Steps only, as a first start is");
     tap(&mut app, Action::Nav(Screen::Vaults));
     tap(&mut app, Action::Vault(V::Create));
-    let about = Action::About(0);
+    // Create a vault opens on its second card, Name and passphrases.
+    let about = Action::About(1);
     tap(&mut app, about);
-    assert_eq!(app.about_open, Some((Screen::CreateVault, 0)));
+    assert_eq!(app.about_open, Some((Screen::CreateVault, 1)));
     tap(&mut app, about);
     assert_eq!(app.about_open, None, "a second tap puts it away");
 }
@@ -231,7 +236,13 @@ fn in_view(app: &mut Faraday, h: u16, action: Action) -> bool {
 fn forward_in_view(mut app: Faraday, h: u16) {
     tap(&mut app, Action::Nav(Screen::Vaults));
     tap(&mut app, Action::Vault(V::Create));
-    for step in 0..3 {
+    // The size, opened on its own; then Customise's three cards in its
+    // place.
+    tap(&mut app, Action::Vault(V::CStep(vstep::PRESET)));
+    let next = Action::Vault(V::CNext(vstep::PRESET));
+    assert!(in_view(&mut app, h, next), "Create a vault, the size");
+    tap(&mut app, Action::Vault(V::CCustomise));
+    for step in [vstep::WHERE, vstep::COST, vstep::SIZE] {
         let next = Action::Vault(V::CNext(step));
         assert!(in_view(&mut app, h, next), "Create a vault, step {step}");
         tap(&mut app, next);
@@ -250,13 +261,12 @@ fn forward_in_view(mut app: Faraday, h: u16) {
     tap(&mut app, Action::Nav(Screen::Home));
     tap(&mut app, Action::Nav(Screen::Start));
     tap(&mut app, Action::CreateWallet);
-    // Kind defaults to single key and opens closed, with Change: pressed
-    // directly here, since reopening a closed default card is not what
-    // this test is about.
-    app.press(Action::CStep(faraday_core::cstep::KIND));
+    // Kind defaults to single key and opens closed: its Change, at the
+    // head of the Keys page, opens it.
+    tap(&mut app, Action::CStep(faraday_core::cstep::KIND));
     // Taproot (kind 1) is behind More kinds now; the two always-shown
     // rows are Single key (0) and Multisig (4).
-    app.press(Action::CMoreKinds);
+    tap(&mut app, Action::CMoreKinds);
     for kind in 0..2u8 {
         tap(&mut app, Action::CKind(kind));
         assert!(
@@ -264,6 +274,53 @@ fn forward_in_view(mut app: Faraday, h: u16) {
             "Create a wallet, Kind, with kind {kind} chosen"
         );
     }
+}
+
+/// A card closed on its default is reached from the page that opens:
+/// Create a wallet opens on Keys, whose head carries Kind with Change.
+#[test]
+fn kind_is_offered_on_the_keys_page_and_opens() {
+    let mut app = panel();
+    tap(&mut app, Action::Nav(Screen::Start));
+    tap(&mut app, Action::CreateWallet);
+    assert_eq!(
+        app.create.as_ref().and_then(|c| c.open),
+        Some(faraday_core::cstep::KEYS),
+        "it opens on Keys"
+    );
+    let kind = Action::CStep(faraday_core::cstep::KIND);
+    assert!(
+        on_panel(&mut app, kind).is_some(),
+        "Kind is on the Keys page"
+    );
+    tap(&mut app, kind);
+    assert_eq!(
+        app.create.as_ref().and_then(|c| c.open),
+        Some(faraday_core::cstep::KIND),
+        "Change opens Kind"
+    );
+}
+
+/// Tapping the page's title shows the list of steps, from which any
+/// opens.
+#[test]
+fn the_page_title_shows_the_steps() {
+    let mut app = panel();
+    tap(&mut app, Action::Nav(Screen::Start));
+    tap(&mut app, Action::CreateWallet);
+    let keys = Action::CStep(faraday_core::cstep::KEYS);
+    tap(&mut app, keys);
+    assert_eq!(app.create.as_ref().and_then(|c| c.open), None);
+    let back_up = Action::CStep(faraday_core::cstep::BACKUP);
+    assert!(
+        on_panel(&mut app, back_up).is_some(),
+        "every step is listed"
+    );
+    tap(&mut app, keys);
+    assert_eq!(
+        app.create.as_ref().and_then(|c| c.open),
+        Some(faraday_core::cstep::KEYS)
+    );
 }
 
 #[test]
@@ -310,10 +367,10 @@ fn a_flow_s_page_title_carries_the_progress() {
     tap(&mut app, Action::Nav(Screen::Vaults));
     tap(&mut app, Action::Vault(V::Create));
     let texts = app.drawn_texts();
+    // Create a vault is two cards, and opens on the second: the size
+    // has its default (`docs/SIMPLIFY.md` §3.1).
     assert!(
-        texts.iter().any(|t| t == "Where will it open · 1 of 4"
-            || t == "Name and passphrases · 1 of 4"
-            || t.ends_with("· 1 of 4")),
+        texts.iter().any(|t| t == "Name and passphrases · 2 of 2"),
         "no title carries the progress: {texts:?}"
     );
     assert!(

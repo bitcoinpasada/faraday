@@ -423,10 +423,6 @@ fn tap(app: &mut Faraday, x: u16, y: u16) {
 fn a_passphrase_word_s_link_marks_it_in_its_eff_list_and_back_keeps_the_rolls() {
     let mut app = shown();
     app.press(Action::Vault(V::Create));
-    app.press(Action::Vault(V::CNext(0)));
-    app.press(Action::Vault(V::CPreset(0)));
-    app.press(Action::Vault(V::CNext(1)));
-    app.press(Action::Vault(V::CNext(2)));
     app.press(Action::Vault(V::Dice(0)));
     app.press(Action::Vault(V::DiceList(1)));
     let rolls = "6512";

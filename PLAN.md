@@ -372,8 +372,10 @@ one vault alone.
   neither the app's memory nor `/run/faraday`.
 - Kept, in `/run/faraday` for the next process: the Inbox, the Outbox,
   and the `kept` set (settings, the signed-amount memory of
-  `docs/WALLETS.md` §3.3, the Spend tab's page, the idle time, and which
-  Outbox files are secrets let out after the warning). The signed-amount
+  `docs/WALLETS.md` §3.3, the Spend tab's page, the idle time, which
+  Outbox files are secrets let out after the warning, and
+  `vault-summaries`, what each vault seen open held, `docs/VAULT.md`
+  §11). The signed-amount
   memory is a privacy trace (txids and amounts), not a key.
 - Wiped as they pass, since they are not in the app's memory: the bytes
   of every file `faraday-disk` reads or writes and every frame on its

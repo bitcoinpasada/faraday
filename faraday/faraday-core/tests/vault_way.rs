@@ -86,7 +86,7 @@ fn add_key(app: &mut Faraday, n: usize) {
     app.press(Action::EntryAdd);
 }
 
-/// On Create a vault: the light cost, one passphrase, Create. Lands on
+/// On Create a vault: the default size, one passphrase, Create. Lands on
 /// Unlock with the new vault picked.
 fn make_the_vault(app: &mut Faraday) {
     assert_eq!(
@@ -94,10 +94,6 @@ fn make_the_vault(app: &mut Faraday) {
         Screen::CreateVault,
         "Create a vault did not open"
     );
-    app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::WHERE)));
-    app.press(Action::Vault(V::CPreset(0)));
-    app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::COST)));
-    app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::SIZE)));
     type_text(app, NEW_PHRASE);
     app.press(Action::Vault(V::CFocus(0, true)));
     type_text(app, NEW_PHRASE);
@@ -228,10 +224,6 @@ fn going_back_from_create_returns_to_tools_and_a_later_unlock_is_an_ordinary_one
     // A vault made and unlocked from Vaults afterwards does not open GPG.
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
-    app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::WHERE)));
-    app.press(Action::Vault(V::CPreset(0)));
-    app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::COST)));
-    app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::SIZE)));
     type_text(&mut app, NEW_PHRASE);
     app.press(Action::Vault(V::CFocus(0, true)));
     type_text(&mut app, NEW_PHRASE);
@@ -239,8 +231,8 @@ fn going_back_from_create_returns_to_tools_and_a_later_unlock_is_an_ordinary_one
     settle(&mut app, |a| a.screen != Screen::CreateVault);
     assert_eq!(
         app.screen,
-        Screen::Vaults,
-        "made from Vaults, it stays there"
+        Screen::Unlock,
+        "made from Vaults, it goes to Unlock with the new vault picked"
     );
     app.press(Action::Vault(V::Open(0)));
     unlock_with(&mut app, NEW_PHRASE);
@@ -411,4 +403,55 @@ fn an_oskb_in_files_makes_a_vault_and_comes_back_with_import_live() {
         app.offers(Action::Vault(V::ImportBackup(k))),
         "Import into the vault is live"
     );
+}
+
+// ---------------------------------------------------------------------
+// §3.3 (`docs/SIMPLIFY.md`): after creation, once more to open it; an
+// empty vault's next steps.
+// ---------------------------------------------------------------------
+
+#[test]
+fn create_a_vault_lands_on_unlock_asking_for_the_passphrase_once_more() {
+    let mut app = device(Vec::new());
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    make_the_vault(&mut app);
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "Type the passphrase once more to open it"),
+        "Unlock says to type the passphrase once more"
+    );
+}
+
+#[test]
+fn an_empty_open_vault_offers_a_wallet_and_a_stick() {
+    let mut app = device(Vec::new());
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    make_the_vault(&mut app);
+    unlock_with(&mut app, NEW_PHRASE);
+    assert_eq!(
+        app.screen,
+        Screen::VaultContents,
+        "the vault just made opens on its contents"
+    );
+    assert!(
+        app.drawn_texts().iter().any(|t| t == "Nothing in it yet"),
+        "it says it is empty"
+    );
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::Vault(V::PutWallet)),
+        "Put a wallet in it"
+    );
+    assert!(
+        app.offers(Action::Vault(V::WriteOut)),
+        "Write it to a stick"
+    );
+    app.press(Action::Vault(V::PutWallet));
+    assert_eq!(app.screen, Screen::Start, "Wallets, with none loaded");
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::WriteOut));
+    assert_eq!(app.screen, Screen::Files);
 }

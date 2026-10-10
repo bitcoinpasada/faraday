@@ -732,18 +732,24 @@ pub(crate) fn home_lead(app: &Faraday) -> (Icon, String, String, Action, bool) {
         let files = app.vault_files();
         if let Some(i) = files.iter().position(|f| f.open.is_none()) {
             let f = &files[i];
+            // By its name, with what it held when last seen open (§3.4),
+            // when it was.
+            let (name, line) = match app.vault_summary(f) {
+                Some(s) => (s.name.clone(), s.line()),
+                None => (f.name.clone(), format!("{} · in Files", f.name)),
+            };
             if app.sticks.is_empty() {
                 return (
                     Icon::Lock,
-                    format!("Unlock {}", f.name),
-                    format!("{} · in Files", f.name),
+                    format!("Unlock {name}"),
+                    line,
                     Action::Vault(V::Open(i)),
                     true,
                 );
             }
             return (
                 Icon::Lock,
-                format!("Unlock {}", f.name),
+                format!("Unlock {name}"),
                 format!("Pull the {} to unlock", app.medium.noun()),
                 Action::Nav(Screen::Home),
                 false,

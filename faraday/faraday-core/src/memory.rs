@@ -1,5 +1,6 @@
 //! What the app keeps across a lock, outside the process (`PLAN.md` §5.2,
-//! `docs/WALLETS.md` §3.3): its settings, and the signed-amount memory.
+//! `docs/WALLETS.md` §3.3): its settings, the signed-amount memory, and
+//! what each vault seen open holds (`docs/VAULT.md` §11).
 //!
 //! The signed-amount memory is the answer to the 2020 two-round attack: a
 //! coordinator shows one amount for an input to get a signature, then
@@ -220,6 +221,14 @@ impl Faraday {
         if let Some(b) = &self.stick_settings {
             out.push(("stick-settings".to_string(), b.clone().into_bytes()));
         }
+        // What each vault seen open holds, for its locked row and Home
+        // (`docs/VAULT.md` §11).
+        if !self.vaults.summaries.is_empty() {
+            out.push((
+                "vault-summaries".to_string(),
+                crate::vaults::summaries_encode(&self.vaults.summaries),
+            ));
+        }
         if let Some(f) = self.family_kept() {
             out.push(("family".to_string(), f));
         }
@@ -260,6 +269,9 @@ impl Faraday {
                         .collect();
                 }
                 "family" => self.family_restore(bytes),
+                "vault-summaries" => {
+                    self.vaults.summaries = crate::vaults::summaries_decode(bytes);
+                }
                 "secret-out" => {
                     let text = String::from_utf8_lossy(bytes);
                     let names: Vec<&str> = text.lines().collect();

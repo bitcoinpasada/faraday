@@ -18,13 +18,33 @@ use zeroize::Zeroizing;
 
 use crate::{Action, Faraday, FileKind, Screen, flow};
 
-/// The presets of `docs/VAULT.md` §3.1: name, memory in MiB, passes.
-pub const PRESETS: [(&str, u32, u32); 4] = [
+/// The presets of `docs/VAULT.md` §3.1: name, memory in MiB, passes, in
+/// order of memory.
+pub const PRESETS: [(&str, u32, u32); 5] = [
     ("Light", 64, 3),
     ("Standard", 256, 3),
+    ("Medium", 512, 3),
     ("Strong", 1024, 4),
     ("Maximum", 2048, 2),
 ];
+
+/// The place after the presets that stands for a custom cost.
+pub const CUSTOM: usize = PRESETS.len();
+
+/// Create a vault's two sizes (`docs/SIMPLIFY.md` §3.1): the label, the
+/// preset it takes, and the machines it is for besides this one, in
+/// `MACHINES` order. The second is the default.
+pub const SIZES: [(&str, usize, [bool; 5]); 2] = [
+    ("PCs only", 2, [true, false, false, false, false]),
+    (
+        "PCs and a Raspberry Pi",
+        0,
+        [true, false, false, true, false],
+    ),
+];
+
+/// The size a new vault starts on: PCs and a Raspberry Pi.
+pub const DEFAULT_SIZE: usize = 1;
 
 /// The machines a vault may be opened on, besides this one: label, short
 /// name, memory shown, memory in MiB.
@@ -95,6 +115,11 @@ pub mod vstep {
     pub const SIZE: u8 = 2;
     /// The passphrases.
     pub const PHRASES: u8 = 3;
+    /// The size: one of two presets, standing for the first three steps
+    /// until Customise opens them.
+    pub const PRESET: u8 = 4;
+    /// How many steps there are.
+    pub const COUNT: usize = 5;
 }
 
 /// Everything a vault screen can do.
@@ -135,8 +160,13 @@ pub enum VaultAction {
     CNext(u8),
     /// Choose or drop a machine the vault will be opened on.
     CMachine(usize),
-    /// Choose a preset, or 4 for Custom.
+    /// Choose a preset, or `CUSTOM`.
     CPreset(usize),
+    /// Choose one of the two sizes, by its place in `SIZES`.
+    CSizeRow(usize),
+    /// Open the three cards the two sizes stand for: where it opens, the
+    /// unlock cost and the space per passphrase.
+    CCustomise,
     /// A custom cost's memory.
     CMemory(usize),
     /// A custom cost's passes.
@@ -179,6 +209,14 @@ pub enum VaultAction {
     Edit,
     /// Add an item of the current kind.
     Add,
+    /// The contents' Add… row: every kind, each with its Add action.
+    AddMenu,
+    /// Add an item of kind n, from the Add… list.
+    AddKind(usize),
+    /// An empty vault's Put a wallet in it: Wallets.
+    PutWallet,
+    /// An empty vault's Write it to a stick: Files.
+    WriteOut,
     /// Save session key n into the vault.
     SaveKey(usize),
     /// Save session wallet n into the vault.
@@ -409,13 +447,16 @@ impl OpenVault {
 pub struct CreateForm {
     /// The open step.
     pub open: Option<u8>,
-    /// Steps closed as done.
-    pub done: [bool; 4],
+    /// Steps closed as done, by `vstep`.
+    pub done: [bool; vstep::COUNT],
+    /// Customise has opened the three cards the size stands for.
+    pub customise: bool,
     /// The column's scroll.
     pub scroll: flow::Scroll,
     /// The machines chosen, in `MACHINES` order.
     pub on: [bool; 5],
-    /// The preset chosen, 4 for Custom; `None` takes the suggestion.
+    /// The preset chosen, `CUSTOM` for Custom; `None` takes the
+    /// suggestion.
     pub preset: Option<usize>,
     /// A custom cost's memory, MiB.
     pub memory: u32,
@@ -439,12 +480,18 @@ pub struct CreateForm {
 
 impl Default for CreateForm {
     fn default() -> Self {
+        // The size has a default, so the flow opens on Name and
+        // passphrases (`DESIGN.md` §4.14).
+        let mut done = [false; vstep::COUNT];
+        done[usize::from(vstep::PRESET)] = true;
+        let (_, preset, on) = SIZES[DEFAULT_SIZE];
         CreateForm {
-            open: Some(vstep::WHERE),
-            done: [false; 4],
+            open: Some(vstep::PHRASES),
+            done,
+            customise: false,
             scroll: flow::Scroll::default(),
-            on: [true, false, false, true, false],
-            preset: None,
+            on,
+            preset: Some(preset),
             memory: 512,
             passes: 3,
             slot: fv::DEFAULT_SLOT,
@@ -453,6 +500,19 @@ impl Default for CreateForm {
             from_dice: vec![None],
             shown: false,
             error: None,
+        }
+    }
+}
+
+impl CreateForm {
+    /// The steps shown, in order: the size and the passphrases, or, once
+    /// Customise is pressed, the three cards the size stands for in its
+    /// place.
+    pub fn steps(&self) -> &'static [u8] {
+        if self.customise {
+            &[vstep::WHERE, vstep::COST, vstep::SIZE, vstep::PHRASES]
+        } else {
+            &[vstep::PRESET, vstep::PHRASES]
         }
     }
 }
@@ -501,6 +561,12 @@ pub struct Vaults {
     pub current: usize,
     /// The kind shown.
     pub category: usize,
+    /// The kind shown was chosen, by the person or the flow that opened
+    /// the contents, rather than set at unlock: it is listed even while it
+    /// holds nothing.
+    pub category_chosen: bool,
+    /// The contents show the Add… list: every kind with its Add action.
+    pub add_menu: bool,
     /// The item shown in each kind.
     pub item: [usize; 6],
     /// On a small panel, the chosen item is the page, not the list.
@@ -534,6 +600,10 @@ pub struct Vaults {
     pub prompt: Option<Prompt>,
     /// This computer's clock, Unix seconds, as the shell last said.
     pub unix_secs: Option<u64>,
+    /// When the shell last said it, on the app's own ticks, ms.
+    pub(crate) clock_at_ms: u64,
+    /// What is remembered of each vault seen open since power-on.
+    pub summaries: Vec<VaultSummary>,
     /// The expiry chosen for a GPG key being made or renewed, in years;
     /// 0 for never.
     pub gpg_years: u32,
@@ -619,7 +689,7 @@ impl Vaults {
         let c = self.create.as_ref()?;
         let k = c.preset.unwrap_or_else(|| self.suggested());
         Some(match k {
-            4 => (4, c.memory, c.passes),
+            CUSTOM => (CUSTOM, c.memory, c.passes),
             k => (k, PRESETS[k].1, PRESETS[k].2),
         })
     }
@@ -646,6 +716,15 @@ impl Vaults {
             .rev()
             .find(|&k| PRESETS[k].1 <= ram / 2)
             .unwrap_or(0)
+    }
+
+    /// The size row chosen, while the preset and machines are one of
+    /// `SIZES`.
+    pub fn size_row(&self) -> Option<usize> {
+        let c = self.create.as_ref()?;
+        SIZES
+            .iter()
+            .position(|(_, p, on)| c.preset == Some(*p) && c.on == *on)
     }
 
     /// Whether a passphrase pair is typed the same twice, and not empty.
@@ -862,7 +941,7 @@ impl Faraday {
         // at its top.
         if matches!(
             a,
-            V::Item(_) | V::ItemBack | V::Add | V::Edit | V::Rename | V::Category(_)
+            V::Item(_) | V::ItemBack | V::Add | V::AddMenu | V::Edit | V::Rename | V::Category(_)
         ) {
             self.list_offset = 0.0;
         }
@@ -902,6 +981,9 @@ impl Faraday {
                 self.secret_sheet_waits();
                 self.vaults.create = Some(CreateForm::default());
                 self.vaults.just_made = None;
+                // It opens on Name and passphrases: the first passphrase
+                // takes the typing, as Continue into that card does.
+                self.vaults.focus = self.may_load_keys().then_some(Focus::Phrase(0, false));
                 self.screen = Screen::CreateVault;
                 self.vault_measure();
             }
@@ -1031,13 +1113,18 @@ impl Faraday {
                     c.scroll.follow = true;
                     if c.open == Some(vstep::PHRASES) {
                         self.vaults.focus = Some(Focus::Phrase(0, false));
+                    } else if matches!(self.vaults.focus, Some(Focus::Phrase(..) | Focus::Name)) {
+                        // Typing goes nowhere on a card with no field.
+                        self.vaults.focus = None;
                     }
                 }
             }
             V::CNext(k) => {
-                if let Some(c) = self.vaults.create.as_mut() {
+                if let Some(c) = self.vaults.create.as_mut()
+                    && usize::from(k) < vstep::COUNT
+                {
                     c.done[k as usize] = true;
-                    c.open = (0..4u8).find(|&i| !c.done[i as usize]);
+                    c.open = c.steps().iter().copied().find(|&i| !c.done[i as usize]);
                     c.scroll.follow = true;
                     c.error = None;
                     if c.open == Some(vstep::PHRASES) {
@@ -1055,20 +1142,45 @@ impl Faraday {
             }
             V::CPreset(k) => {
                 if let Some(c) = self.vaults.create.as_mut() {
-                    c.preset = Some(k.min(4));
+                    c.preset = Some(k.min(CUSTOM));
+                    c.error = None;
+                }
+            }
+            V::CSizeRow(k) => {
+                if let Some(c) = self.vaults.create.as_mut()
+                    && let Some(&(_, preset, on)) = SIZES.get(k)
+                {
+                    c.preset = Some(preset);
+                    c.on = on;
+                    c.error = None;
+                }
+            }
+            V::CCustomise => {
+                if let Some(c) = self.vaults.create.as_mut() {
+                    // The three cards open on the size's values, to be
+                    // walked through in order.
+                    c.customise = true;
+                    for k in [vstep::WHERE, vstep::COST, vstep::SIZE] {
+                        c.done[usize::from(k)] = false;
+                    }
+                    if matches!(self.vaults.focus, Some(Focus::Phrase(..) | Focus::Name)) {
+                        self.vaults.focus = None;
+                    }
+                    c.open = Some(vstep::WHERE);
+                    c.scroll.follow = true;
                     c.error = None;
                 }
             }
             V::CMemory(k) => {
                 if let Some(c) = self.vaults.create.as_mut() {
                     c.memory = CUSTOM_MEMORY[k.min(CUSTOM_MEMORY.len() - 1)];
-                    c.preset = Some(4);
+                    c.preset = Some(CUSTOM);
                 }
             }
             V::CPasses(k) => {
                 if let Some(c) = self.vaults.create.as_mut() {
                     c.passes = CUSTOM_PASSES[k.min(CUSTOM_PASSES.len() - 1)];
-                    c.preset = Some(4);
+                    c.preset = Some(CUSTOM);
                 }
             }
             V::CSize(k) => {
@@ -1126,6 +1238,8 @@ impl Faraday {
             }
             V::Category(k) => {
                 self.vaults.category = k.min(CATEGORIES.len() - 1);
+                self.vaults.category_chosen = true;
+                self.vaults.add_menu = false;
                 self.vaults.form = None;
                 self.vaults.saving = false;
                 self.vaults.item_open = false;
@@ -1164,6 +1278,24 @@ impl Faraday {
             }
             V::Load => self.vault_load_selected(),
             V::Edit => self.vault_form(true),
+            V::AddMenu => {
+                self.vaults.add_menu = true;
+                self.vaults.form = None;
+                self.vaults.saving = false;
+                self.vaults.item_open = false;
+            }
+            V::AddKind(k) => {
+                self.vault_act(V::Category(k));
+                self.vault_act(V::Add);
+            }
+            V::PutWallet => {
+                self.screen = if self.session.wallets.is_empty() {
+                    Screen::Start
+                } else {
+                    Screen::Wallets
+                };
+            }
+            V::WriteOut => self.screen = Screen::Files,
             V::Add => {
                 let kinds = CATEGORIES[self.vaults.category].1;
                 if kinds.contains(&kind::GPG) {
@@ -1632,8 +1764,23 @@ impl Faraday {
                 });
                 self.vaults.current = self.vaults.open.len() - 1;
                 // Unlocked for a vault category from Tools: that category.
+                // Otherwise the first kind it holds.
+                self.vaults.add_menu = false;
                 if self.vaults.back_to != Some(Screen::VaultContents) {
-                    self.vaults.category = 0;
+                    let held = |kinds: &[u8]| {
+                        self.vaults.open[self.vaults.open.len() - 1]
+                            .contents
+                            .records
+                            .iter()
+                            .any(|r| kinds.contains(&r.kind))
+                    };
+                    self.vaults.category = CATEGORIES
+                        .iter()
+                        .position(|(_, kinds)| held(kinds))
+                        .unwrap_or(0);
+                    self.vaults.category_chosen = false;
+                } else {
+                    self.vaults.category_chosen = true;
                 }
                 self.vaults.item = [0; 6];
                 // Keys not marked to load start unchosen; every wallet
@@ -1652,15 +1799,22 @@ impl Faraday {
                 self.vaults.open[v].skip = skip;
                 let records = self.vaults.open[v].contents.records.clone();
                 self.amounts_from_vault(&records);
-                self.vaults.just_made = None;
+                // The vault just made opens on its contents, empty, with
+                // what to do next.
+                let made = self.vaults.just_made.take() == Some(self.vaults.open[v].name.clone());
                 self.toast(&format!("{name} unlocked", name = self.vaults.open[v].name));
+                self.vault_summaries_refresh();
                 // Unlocked from the Spend tab, or for it: everything loads.
                 let back = self.vaults.back_to.take();
                 if self.screen == Screen::Family || back == Some(Screen::Family) {
                     self.screen = Screen::Family;
                     self.family_unlocked(v);
                 } else {
-                    self.screen = back.unwrap_or(Screen::Files);
+                    self.screen = back.unwrap_or(if made {
+                        Screen::VaultContents
+                    } else {
+                        Screen::Files
+                    });
                 }
                 // Unlocked for the boot import: its sheet again, with the
                 // vault's wallets and keys in it.
@@ -2284,9 +2438,13 @@ impl Faraday {
         };
         let error = if !self.sticks.is_empty() {
             Some(format!("Remove the {} first", medium.noun()))
-        } else if let Some(k) = (0..4u8).find(|&i| !c.done[i as usize] && i != vstep::PHRASES) {
-            c.open = Some(k);
-            Some(format!("Finish step {} first", k + 1))
+        } else if let Some(n) = c
+            .steps()
+            .iter()
+            .position(|&i| !c.done[i as usize] && i != vstep::PHRASES)
+        {
+            c.open = Some(c.steps()[n]);
+            Some(format!("Finish step {} first", n + 1))
         } else if c.phrases.iter().any(|(a, _)| a.text.is_empty()) {
             c.open = Some(vstep::PHRASES);
             Some("Every passphrase needs a value".to_string())
@@ -2356,11 +2514,10 @@ impl Faraday {
                 self.vaults.focus = None;
                 self.screen = Screen::Vaults;
                 self.toast("Vault created");
-                // Made for another flow: Unlock, the new vault picked. Its
-                // passphrase is typed once more, then the flow goes on.
-                if self.vaults.back_to.is_some()
-                    && let Some(i) = self.vault_files().iter().position(|f| f.name == name)
-                {
+                // Unlock, the new vault picked (FLOWS decision 10): its
+                // passphrase is typed once more, then the flow it was made
+                // for goes on, or its contents open.
+                if let Some(i) = self.vault_files().iter().position(|f| f.name == name) {
                     self.vault_act(VaultAction::Open(i));
                 }
             }
@@ -2395,6 +2552,8 @@ impl Faraday {
     /// change only when there is something to keep, which is all a second
     /// copy can compare (`docs/VAULT.md` §9).
     pub(crate) fn vault_seal_all(&mut self) {
+        // What each open vault holds, remembered across the lock.
+        self.vault_summaries_refresh();
         // The signed-amount memory goes into every open vault that lacks
         // part of it, the oldest records leaving first when the slot is
         // full (`docs/VAULT.md` §7, type 10).
@@ -2687,4 +2846,224 @@ fn phrase_of(m: &osk_bip::bip39::Mnemonic) -> Zeroizing<String> {
         out.push_str(lang.word(i));
     }
     out
+}
+
+/// What the app remembers of a vault seen open, across a lock
+/// (`docs/VAULT.md` §11): names and fingerprints, never anything that
+/// spends. Kept in the kept state, so it is gone at power-off.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct VaultSummary {
+    /// The file it was opened from.
+    pub file: String,
+    /// The file's salt, which is the vault's identity.
+    pub salt: [u8; 32],
+    /// The open slot's name.
+    pub name: String,
+    /// Its wallets: name and shape.
+    pub wallets: Vec<(String, String)>,
+    /// Its keys' fingerprints.
+    pub keys: Vec<String>,
+    /// How many entries it holds.
+    pub entries: usize,
+    /// Its backup maps' lines: where each place is and what it holds
+    /// (record type 11, field 4).
+    pub map: Vec<String>,
+    /// When it was last seen open, Unix seconds, when the clock is known.
+    pub seen: Option<u64>,
+}
+
+impl VaultSummary {
+    /// The line a locked vault's row and Home's Unlock lead read under
+    /// its name: "Savings 2 of 3 · key 9a6a2580 · 12 entries · seen
+    /// 14:02".
+    pub fn line(&self) -> String {
+        let mut parts: Vec<String> = Vec::new();
+        // One or two wallets by name and the shape's first part ("2 of
+        // 3", "Single key"); more, by count.
+        if self.wallets.len() <= 2 {
+            for (name, shape) in &self.wallets {
+                let short = shape.split(" · ").next().unwrap_or(shape);
+                parts.push(format!("{name} {short}"));
+            }
+        } else {
+            parts.push(format!("{} wallets", self.wallets.len()));
+        }
+        // The same for keys: one or two by fingerprint, more by count.
+        match self.keys.len() {
+            0 => {}
+            1 => parts.push(format!("key {}", self.keys[0])),
+            2 => parts.push(format!("keys {}", self.keys.join(", "))),
+            n => parts.push(format!("{n} keys")),
+        }
+        match self.entries {
+            0 => {}
+            1 => parts.push("1 entry".to_string()),
+            n => parts.push(format!("{n} entries")),
+        }
+        if let Some(t) = self.seen {
+            parts.push(format!("seen {}", time_of_day(t)));
+        }
+        if parts.is_empty() {
+            return "Nothing in it".to_string();
+        }
+        parts.join(" · ")
+    }
+}
+
+/// A time of day from Unix seconds, hh:mm, as the computer's clock keeps
+/// it (UTC on Faraday).
+pub fn time_of_day(unix_secs: u64) -> String {
+    let s = unix_secs % 86_400;
+    format!("{:02}:{:02}", s / 3600, (s / 60) % 60)
+}
+
+/// One text field of the kept summaries: no tab or line break.
+fn kept_field(s: &str) -> String {
+    s.replace(['\t', '\n', '\r'], " ")
+}
+
+/// The summaries as the kept state holds them: a `vault` line per
+/// vault, then its `wallet`, `key` and `map` lines, fields split by tabs.
+pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
+    let mut out = String::new();
+    for s in all {
+        let salt: String = s.salt.iter().map(|b| format!("{b:02x}")).collect();
+        let seen = s.seen.map(|t| t.to_string()).unwrap_or_default();
+        out.push_str(&format!(
+            "vault\t{salt}\t{}\t{}\t{}\t{seen}\n",
+            kept_field(&s.file),
+            kept_field(&s.name),
+            s.entries
+        ));
+        for (name, shape) in &s.wallets {
+            out.push_str(&format!(
+                "wallet\t{}\t{}\n",
+                kept_field(name),
+                kept_field(shape)
+            ));
+        }
+        for k in &s.keys {
+            out.push_str(&format!("key\t{}\n", kept_field(k)));
+        }
+        for m in &s.map {
+            out.push_str(&format!("map\t{}\n", kept_field(m)));
+        }
+    }
+    out.into_bytes()
+}
+
+/// The summaries read back; a line that does not read is skipped.
+pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
+    let text = String::from_utf8_lossy(bytes);
+    let mut out: Vec<VaultSummary> = Vec::new();
+    for line in text.lines() {
+        let f: Vec<&str> = line.split('\t').collect();
+        match f[..] {
+            ["vault", salt, file, name, entries, seen] => {
+                let mut s = VaultSummary::default();
+                let bytes: Option<Vec<u8>> = (0..32)
+                    .map(|i| {
+                        salt.get(i * 2..i * 2 + 2)
+                            .and_then(|h| u8::from_str_radix(h, 16).ok())
+                    })
+                    .collect();
+                match bytes.and_then(|b| <[u8; 32]>::try_from(b).ok()) {
+                    Some(b) if salt.len() == 64 => s.salt = b,
+                    _ => continue,
+                }
+                s.file = file.to_string();
+                s.name = name.to_string();
+                s.entries = entries.parse().unwrap_or(0);
+                s.seen = seen.parse().ok();
+                out.push(s);
+            }
+            ["wallet", name, shape] => {
+                if let Some(s) = out.last_mut() {
+                    s.wallets.push((name.to_string(), shape.to_string()));
+                }
+            }
+            ["key", fp] => {
+                if let Some(s) = out.last_mut() {
+                    s.keys.push(fp.to_string());
+                }
+            }
+            ["map", m] => {
+                if let Some(s) = out.last_mut() {
+                    s.map.push(m.to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+impl Faraday {
+    /// Now on this computer's clock, Unix seconds: the last time the
+    /// shell said, moved on by the ticks since.
+    fn clock_now(&self) -> Option<u64> {
+        let at = self.vaults.unix_secs?;
+        Some(at + self.now_ms.saturating_sub(self.vaults.clock_at_ms) / 1000)
+    }
+
+    /// Writes each open vault's summary over the one kept for it: on
+    /// unlock, after every change made on a vault screen, and as the
+    /// session seals.
+    pub(crate) fn vault_summaries_refresh(&mut self) {
+        let seen = self.clock_now();
+        let mut fresh = Vec::new();
+        for v in &self.vaults.open {
+            let wallets = v
+                .contents
+                .of(kind::WALLET)
+                .map(|(_, r)| {
+                    (
+                        r.text(field::WALLET_NAME).unwrap_or("Wallet").to_string(),
+                        crate::vault_screens::wallet_shape(r).unwrap_or_default(),
+                    )
+                })
+                .collect();
+            let keys = v
+                .contents
+                .of(kind::KEY)
+                .filter_map(|(_, r)| crate::vault_screens::key_fingerprint(self, r))
+                .collect();
+            let map = v
+                .contents
+                .of(kind::PLAN)
+                .flat_map(|(_, r)| {
+                    r.fields
+                        .iter()
+                        .filter(|f| f.number == field::PLAN_HOLDS)
+                        .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
+                        .collect::<Vec<_>>()
+                })
+                .collect();
+            fresh.push(VaultSummary {
+                file: v.name.clone(),
+                salt: v.header().salt,
+                name: v.label(),
+                wallets,
+                keys,
+                entries: v.contents.of(kind::ENTRY).count(),
+                map,
+                seen,
+            });
+        }
+        for s in fresh {
+            match self.vaults.summaries.iter_mut().find(|o| o.salt == s.salt) {
+                Some(o) => *o = s,
+                None => self.vaults.summaries.push(s),
+            }
+        }
+    }
+
+    /// What is remembered of a vault file, when it was seen open since
+    /// power-on.
+    pub fn vault_summary(&self, f: &VaultFile) -> Option<&VaultSummary> {
+        self.vaults
+            .summaries
+            .iter()
+            .find(|s| s.salt == f.header.salt)
+    }
 }

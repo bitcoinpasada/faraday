@@ -364,9 +364,31 @@ fn paged(
 
     match open {
         Some(i) => {
+            // Each earlier card closed on its default: its value, and
+            // Change, which opens it.
+            let mut defaults = false;
+            for c in cards[..i].iter().filter(|c| c.default && !c.open) {
+                let cw = ui.measure(13.0, W::S, "Change");
+                let line = format!("{} · {}", c.title, c.summary);
+                let face = if c.mono { W::M } else { W::R };
+                let line = ui.fit(13.0, face, &line, inner - cw - 16.0);
+                ui.text_mid(M, y, 34.0, 13.0, face, MUTED, &line);
+                ui.text_right(M + inner, y, 34.0, 13.0, W::S, ACCENT, "Change");
+                ui.hit(M, y, inner, 34.0, c.toggle);
+                y += 36.0;
+                defaults = true;
+            }
+            if defaults {
+                ui.rule(M, y, inner, LINE);
+                y += 12.0;
+            }
+            // The title says where the page is; tapping it closes the
+            // card, which leaves the list of steps, any of which opens.
             let card = &cards[i];
             let title = format!("{} · {} of {}", card.title, i + 1, cards.len());
-            y += ui.wrap(M, y, inner, 18.0, W::S, TEXT, &title) + 10.0;
+            let th = ui.wrap(M, y, inner, 18.0, W::S, TEXT, &title);
+            ui.hit(M, y, inner, th, card.toggle);
+            y += th + 10.0;
             y += body(ui, i, M, y, inner);
             // The walk-through comes after the controls, behind a tap:
             // on a small panel it would otherwise take the room the

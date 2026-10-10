@@ -91,9 +91,7 @@ fn create_to_vault_step() -> Faraday {
 fn make_a_vault(app: &mut Faraday) {
     app.press(Action::Vault(V::CreateFrom(Screen::Backup)));
     assert_eq!(app.screen, Screen::CreateVault);
-    app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::WHERE)));
-    app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::COST)));
-    app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::SIZE)));
+    // The size has its default: the flow opens on the passphrases.
     type_text(app, "test phrase");
     app.press(Action::Vault(V::CFocus(0, true)));
     type_text(app, "test phrase");
@@ -155,9 +153,6 @@ fn opening_a_just_made_vault_with_its_passphrase_returns_to_the_backup() {
 fn a_new_vaults_passphrases_wait_until_the_stick_is_pulled() {
     let mut app = create_to_vault_step();
     app.press(Action::Vault(V::CreateFrom(Screen::Backup)));
-    app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::WHERE)));
-    app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::COST)));
-    app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::SIZE)));
     app.storage(faraday_core::StorageEvent::Sticks(vec![
         faraday_core::StickInfo {
             id: "a".into(),
@@ -213,4 +208,121 @@ fn a_finished_backup_offers_a_stick_and_asks_to_lock_first() {
     app.press(Action::Cancel);
     assert_eq!(app.sheet, None);
     assert_eq!(app.session.keys.len(), 1, "Not now keeps the session");
+}
+
+// ---------------------------------------------------------------------
+// §3.1 (`docs/SIMPLIFY.md`): two sizes, then Customise.
+// ---------------------------------------------------------------------
+
+/// The app with nothing loaded, memory to spare and the system's
+/// randomness in, on Create a vault from Vaults.
+fn on_create_vault() -> Faraday {
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 768,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.storage(faraday_core::StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x30 + i; 32])));
+    }
+    app.vaults.ms_per_unit = Some(180);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    let _ = app.frame();
+    app
+}
+
+/// Types one passphrase twice, presses Create vault and waits: the cost
+/// of the vault made, MiB and passes.
+fn create_and_read_cost(app: &mut Faraday) -> (u32, u32) {
+    app.press(Action::Vault(V::CFocus(0, false)));
+    type_text(app, "test phrase");
+    app.press(Action::Vault(V::CFocus(0, true)));
+    type_text(app, "test phrase");
+    app.press(Action::Vault(V::CGo));
+    settle(app, 1);
+    assert_eq!(app.screen, Screen::Unlock, "the vault was made");
+    let made = app.vaults.just_made.clone().expect("the vault was made");
+    let f = app
+        .vault_files()
+        .into_iter()
+        .find(|f| f.name == made)
+        .unwrap();
+    (f.header.cost.memory_kib / 1024, f.header.cost.passes)
+}
+
+#[test]
+fn a_fresh_create_a_vault_opens_on_name_and_passphrases_with_64_mib_chosen() {
+    use faraday_core::vaults::vstep;
+    let mut app = on_create_vault();
+    let c = app.vaults.create.as_ref().unwrap();
+    assert_eq!(c.open, Some(vstep::PHRASES), "it opens on the passphrases");
+    assert!(
+        app.offers(Action::Vault(V::CStep(vstep::PRESET))),
+        "the size is a card of its own, closed"
+    );
+    assert!(
+        !app.offers(Action::Vault(V::CStep(vstep::COST))),
+        "the unlock cost is not a card until Customise"
+    );
+    assert_eq!(create_and_read_cost(&mut app), (64, 3));
+}
+
+#[test]
+fn pcs_only_makes_a_512_mib_vault() {
+    use faraday_core::vaults::vstep;
+    let mut app = on_create_vault();
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    let _ = app.frame();
+    assert!(app.offers(Action::Vault(V::CSizeRow(0))), "PCs only");
+    assert!(
+        app.offers(Action::Vault(V::CSizeRow(1))),
+        "PCs and a Raspberry Pi"
+    );
+    app.press(Action::Vault(V::CSizeRow(0)));
+    app.press(Action::Vault(V::CNext(vstep::PRESET)));
+    assert_eq!(
+        app.vaults.create.as_ref().unwrap().open,
+        Some(vstep::PHRASES),
+        "Continue goes on to the passphrases"
+    );
+    assert_eq!(create_and_read_cost(&mut app), (512, 3));
+}
+
+#[test]
+fn customise_opens_the_three_cards_and_a_custom_memory_survives_continue() {
+    use faraday_core::vaults::{CUSTOM_MEMORY, vstep};
+    let mut app = on_create_vault();
+    app.press(Action::Vault(V::CStep(vstep::PRESET)));
+    let _ = app.frame();
+    assert!(app.offers(Action::Vault(V::CCustomise)));
+    app.press(Action::Vault(V::CCustomise));
+    let _ = app.frame();
+    for step in [vstep::WHERE, vstep::COST, vstep::SIZE] {
+        assert!(
+            app.offers(Action::Vault(V::CStep(step))),
+            "Customise shows step {step}"
+        );
+    }
+    assert!(
+        !app.offers(Action::Vault(V::CStep(vstep::PRESET))),
+        "in place of the size"
+    );
+    app.press(Action::Vault(V::CNext(vstep::WHERE)));
+    let k = CUSTOM_MEMORY.iter().position(|m| *m == 128).unwrap();
+    app.press(Action::Vault(V::CMemory(k)));
+    app.press(Action::Vault(V::CNext(vstep::COST)));
+    app.press(Action::Vault(V::CNext(vstep::SIZE)));
+    assert_eq!(create_and_read_cost(&mut app).0, 128);
 }
