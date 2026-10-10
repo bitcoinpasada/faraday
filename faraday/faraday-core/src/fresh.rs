@@ -3,7 +3,11 @@
 //! answer seeds the session, and the next few wait in a small pool. A key
 //! made here (a vault's keys, a GPG key, Secure Boot keys) takes one
 //! answer of its own, hashed with what it is for, and the pool is topped
-//! up. Nothing secret is derived from the session's bytes and a counter.
+//! up. A signing pass that opens a MuSig2 or FROST round takes
+//! [`Faraday::sign_seed`]: the session's seed with a count of the passes,
+//! as OpenSigner's `musig_seed` draws it, so that no two passes of a
+//! process draw the same nonce. Nothing else secret is derived from the
+//! session's bytes and a counter.
 
 use osk_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 use osk_shell_api::Command;
@@ -34,6 +38,24 @@ impl Faraday {
         e.input(b"faraday fresh");
         e.input(what);
         e.input(&bytes[..]);
+        Some(sha256::Hash::from_engine(e).to_byte_array())
+    }
+
+    /// The seed a signing pass draws a MuSig2 or FROST round's secret
+    /// nonces from: the session's seed hashed with a count of the
+    /// passes, so a nonce shared again is never the one shared before.
+    /// `None` until the session is seeded, and the shell is asked: a
+    /// round is never opened on bytes the system did not give.
+    pub(crate) fn sign_seed(&mut self) -> Option<[u8; 32]> {
+        if !self.seeded {
+            self.commands.push_back(Command::RequestEntropy);
+            return None;
+        }
+        self.sign_draws += 1;
+        let mut e = sha256::Hash::engine();
+        e.input(b"faraday sign seed");
+        e.input(&self.seed);
+        e.input(&self.sign_draws.to_le_bytes());
         Some(sha256::Hash::from_engine(e).to_byte_array())
     }
 

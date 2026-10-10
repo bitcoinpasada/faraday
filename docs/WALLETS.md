@@ -218,8 +218,19 @@ visit. Two ways through, both offered:
   that holds the key, bound to the unsigned transaction's hash, and marked
   used the moment round 2 signs. A nonce is never written anywhere else.
   The binding means an old copy of the vault restored later cannot sign a
-  *different* transaction with a nonce already spent: it can only reproduce
-  the identical partial signature. The flow says this before it seals.
+  *different* transaction with a nonce already spent. It can still sign
+  the same transaction again, and if the other signers' nonces changed in
+  between that is a second signature under one secret nonce, which leaks
+  the key (2026-10-10 audit): a restored round is for one answer from the
+  cosigners, never a replay. The flow says this before it seals.
+
+Every pass that may open a round draws its nonces from a seed of its own
+(`Faraday::sign_seed`, the session's seed with a count of the passes, as
+OpenSigner's `musig_seed` draws it), a session whose nonces have all
+signed is dropped, and a pass is refused until the shell has answered
+the first request for randomness (2026-10-10, after the audit found the
+process's one seed reused: a nonce shared again was the nonce shared
+before).
 
 This replaces OpenSigner's FROST carry file, which today holds the bound
 secret nonce unencrypted, with the vault's encryption.

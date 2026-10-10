@@ -10,7 +10,7 @@ use faraday_core::secrets::Exposure;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 fn kit_file(name: &str) -> (String, Vec<u8>) {
     testkit::files()
@@ -42,6 +42,9 @@ fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
+    // A round draws its nonces from the system's randomness, which the
+    // shell answers at the first display.
+    app.event(Event::Entropy(EntropyBytes::new([5u8; 32])));
     app
 }
 

@@ -2384,6 +2384,8 @@ pub struct Faraday {
     seed: [u8; 32],
     /// The session's seed has arrived.
     seeded: bool,
+    /// Signing passes that drew a seed of their own (`fresh.rs`).
+    sign_draws: u64,
     /// Fresh answers waiting for the next key (`fresh.rs`).
     pool: Vec<zeroize::Zeroizing<[u8; 32]>>,
     now_ms: u64,
@@ -2642,6 +2644,7 @@ impl Faraday {
             seal_amounts: true,
             seed: [0; 32],
             seeded: false,
+            sign_draws: 0,
             pool: Vec::new(),
             now_ms: 0,
             toast: None,
@@ -7309,7 +7312,23 @@ impl Faraday {
     }
 
     fn sign_here(&mut self) {
-        let seed = self.seed;
+        // A MuSig2 or FROST round opened here draws its secret nonces
+        // from a seed of this pass's own; a pass with no such input
+        // draws nothing and needs none.
+        let opens_round = self
+            .spend
+            .as_ref()
+            .is_some_and(|s| spend_opens_round(&s.inspection));
+        let seed = match self.sign_seed() {
+            Some(seed) => seed,
+            None if opens_round => {
+                if let Some(s) = self.spend.as_mut() {
+                    s.error = Some("No randomness from the system yet. Try again".to_string());
+                }
+                return;
+            }
+            None => [0u8; 32],
+        };
         // The same transaction stating other amounts than when it was
         // signed here is refused, with no override (`docs/WALLETS.md` §3.3).
         if self
@@ -7371,6 +7390,11 @@ impl Faraday {
         let signed =
             self.session
                 .sign_with(&mut psbt, seed, &mut s.musig, &s.others, s.carry.as_ref());
+        // A session whose every nonce has signed is over: the next pass
+        // over this transaction opens a new one, never the same nonce.
+        if s.musig.as_ref().is_some_and(|m| m.is_empty()) {
+            s.musig = None;
+        }
         let signed = signed.map(|out| {
             // A threshold pass that leaves shares to sign leaves their
             // nonce in a carry file; the one it read is spent.
@@ -7435,6 +7459,9 @@ impl Faraday {
         };
         let bytes = item.bytes.clone();
         let name = item.name.clone();
+        // Drawn before the spend is borrowed: a MuSig2 aggregation below
+        // may still share a nonce, and never the one shared before.
+        let seed = self.sign_seed();
         let Some(s) = self.spend.as_mut() else {
             return;
         };
@@ -7455,12 +7482,18 @@ impl Faraday {
             .is_some_and(|w| wallet::Kind::of(&w.policy) == wallet::Kind::MuSig);
         if musig && !s.spend.signed_here.is_empty() && s.spend.finish().is_err() {
             let mut psbt = s.spend.psbt.clone();
-            if self
-                .session
-                .sign(&mut psbt, self.seed, &mut s.musig)
-                .is_ok()
-            {
-                s.spend.psbt = psbt;
+            match seed {
+                Some(seed) => {
+                    if self.session.sign(&mut psbt, seed, &mut s.musig).is_ok() {
+                        s.spend.psbt = psbt;
+                    }
+                    if s.musig.as_ref().is_some_and(|m| m.is_empty()) {
+                        s.musig = None;
+                    }
+                }
+                None => {
+                    s.error = Some("No randomness from the system yet. Try again".to_string());
+                }
             }
         }
         self.refresh_spend();
@@ -8917,4 +8950,14 @@ impl Faraday {
         self.canvas = Some(Canvas::new(&scaled));
         self.fresh_ask();
     }
+}
+
+/// Whether a pass over this transaction may open a MuSig2 or FROST
+/// round, which draws secret nonces: any such input is one, since what
+/// the pass does with it is decided only as it signs.
+fn spend_opens_round(inspection: &osk_psbt::Inspection) -> bool {
+    inspection
+        .inputs
+        .iter()
+        .any(|i| i.musig.is_some() || i.threshold.is_some())
 }
