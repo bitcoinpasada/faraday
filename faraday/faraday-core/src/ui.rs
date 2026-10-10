@@ -83,6 +83,11 @@ pub mod pal {
     /// Refused.
     pub const ERR: Color = Color::rgb(0xef, 0x9b, 0x9b);
 
+    /// The structure chart's line colours (`docs/DESIGN.md` §4.16), one
+    /// per key held here, in turn: the theme's own colours, so each theme
+    /// draws them as it draws the rest.
+    pub const KEY_LINES: [Color; 5] = [ACCENT, OK, WARN, ERR, MUTED];
+
     /// Each colour above and what it is in the light theme
     /// (`docs/MOTION.md` §3.6).
     pub const LIGHT: [(Color, Color); 14] = [
@@ -517,6 +522,8 @@ pub enum Slot {
     Page,
     /// Stick visit's Outbox list (`VisitState::out_offset`).
     VisitOut,
+    /// The wallet card's body on a desktop (`Faraday::card_offset`).
+    Card,
 }
 
 /// A scrolled region as drawn: where it is and how far it goes.
@@ -986,6 +993,14 @@ impl<'a> Ui<'a> {
         let color = self.col(color);
         let r = self.rect(x, y, w, 1.0);
         let rect = Rect::new(r.x, r.y, r.w, 1.max(self.px(1.0)));
+        self.c.fill_rect(rect, color);
+    }
+
+    /// A vertical rule: one unit wide, at least a pixel.
+    pub fn vrule(&mut self, x: f32, y: f32, h: f32, color: Color) {
+        let color = self.col(color);
+        let r = self.rect(x, y, 1.0, h);
+        let rect = Rect::new(r.x, r.y, 1.max(self.px(1.0)), r.h);
         self.c.fill_rect(rect, color);
     }
 

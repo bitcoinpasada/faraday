@@ -970,35 +970,100 @@ fn spots(shape: &Shape, a: &Answers) -> Vec<At> {
     v
 }
 
+/// What one spot gives whoever finds it alone: whether it spends, and
+/// whether it sees the balance, each outright or only with the vault's
+/// passphrase.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Alone {
+    /// It spends.
+    pub spend: Found,
+    /// It sees the balance.
+    pub balance: Found,
+}
+
+impl Alone {
+    /// The line the wallet's chart writes under a spot: "Nothing", "Sees
+    /// the balance", "Can spend", "Can spend with the vault's passphrase".
+    pub fn text(self) -> &'static str {
+        match (self.spend, self.balance) {
+            (Found::Yes, _) => "Can spend",
+            (Found::OnlyWithVault, Found::Yes) => {
+                "Sees the balance · can spend with the vault's passphrase"
+            }
+            (Found::OnlyWithVault, _) => "Can spend with the vault's passphrase",
+            (Found::No, Found::Yes) => "Sees the balance",
+            (Found::No, Found::OnlyWithVault) => "Sees the balance with the vault's passphrase",
+            (Found::No, Found::No) => "Nothing",
+        }
+    }
+}
+
+/// What spot `at` gives whoever finds it alone: what it holds, and each
+/// vault whose stick it keeps, read with that vault's passphrase. The
+/// check's "One place found" lines are the most any spot gives.
+pub fn alone(shape: &Shape, a: &Answers, at: At) -> Alone {
+    alone_in(shape, a, &map(shape, a), at)
+}
+
+/// What a spot holds, on the map `boxes`.
+fn holds_in(boxes: &[Spot], at: At) -> Vec<What> {
+    boxes
+        .iter()
+        .filter(|s| s.at == at)
+        .flat_map(|s| s.holds.iter().map(|(w, _)| *w))
+        .collect()
+}
+
+/// The vaults a spot can be read from: the ones whose stick a place keeps,
+/// or a vault's own stick.
+fn reads_in(shape: &Shape, a: &Answers, at: At) -> Vec<usize> {
+    let made = a.vaults_made(shape);
+    match at {
+        At::Place(p) => made.into_iter().filter(|&v| a.stick_at(v, p)).collect(),
+        At::Vault(v) if made.contains(&v) => vec![v],
+        _ => Vec::new(),
+    }
+}
+
+/// `have`, with what `vaults` hold read too.
+fn opened_in(boxes: &[Spot], have: &Have, vaults: &[usize]) -> Have {
+    let mut with = have.clone();
+    for &v in vaults {
+        holds_in(boxes, At::Vault(v))
+            .into_iter()
+            .for_each(|w| with.add(w));
+    }
+    with
+}
+
+fn alone_in(shape: &Shape, a: &Answers, boxes: &[Spot], at: At) -> Alone {
+    let mut have = Have::none(shape);
+    if !matches!(at, At::Vault(_)) {
+        holds_in(boxes, at).into_iter().for_each(|w| have.add(w));
+    }
+    let with = opened_in(boxes, &have, &reads_in(shape, a, at));
+    let found = |ok: &dyn Fn(&Have) -> bool| {
+        if ok(&have) {
+            Found::Yes
+        } else if ok(&with) {
+            Found::OnlyWithVault
+        } else {
+            Found::No
+        }
+    };
+    Alone {
+        spend: found(&|h| {
+            h.seeds_ok(shape) >= shape.m.max(1) && (!shape.multi() || h.wallet_ok(shape, a))
+        }),
+        balance: found(&|h| h.sees(shape, a)),
+    }
+}
+
 /// Computes the check: every place lost in turn, and every place found.
 /// Each vault is read, with its passphrase, from a place that keeps its
 /// stick, or from its own stick.
 pub fn check(shape: &Shape, a: &Answers) -> Check {
     let boxes = map(shape, a);
-    let holds = |at: At| -> Vec<What> {
-        boxes
-            .iter()
-            .filter(|s| s.at == at)
-            .flat_map(|s| s.holds.iter().map(|(w, _)| *w))
-            .collect()
-    };
-    let made = a.vaults_made(shape);
-    // The vaults a spot can be read from: the ones whose stick a place
-    // keeps, or a vault's own stick.
-    let reads = |at: At| -> Vec<usize> {
-        match at {
-            At::Place(p) => made.iter().copied().filter(|&v| a.stick_at(v, p)).collect(),
-            At::Vault(v) if made.contains(&v) => vec![v],
-            _ => Vec::new(),
-        }
-    };
-    let opened = |have: &Have, vaults: &[usize]| {
-        let mut with = have.clone();
-        for &v in vaults {
-            holds(At::Vault(v)).into_iter().for_each(|w| with.add(w));
-        }
-        with
-    };
     let places = spots(shape, a);
     let mut lost = Lost::Yes;
     for &gone in &places {
@@ -1006,15 +1071,19 @@ pub fn check(shape: &Shape, a: &Answers) -> Check {
         let mut readable: Vec<usize> = Vec::new();
         for &at in places.iter().filter(|&&at| at != gone) {
             if !matches!(at, At::Vault(_)) {
-                holds(at).into_iter().for_each(|w| have.add(w));
+                holds_in(&boxes, at).into_iter().for_each(|w| have.add(w));
             }
-            readable.extend(reads(at));
+            readable.extend(reads_in(shape, a, at));
         }
-        holds(At::Software).into_iter().for_each(|w| have.add(w));
-        holds(At::Away).into_iter().for_each(|w| have.add(w));
+        holds_in(&boxes, At::Software)
+            .into_iter()
+            .for_each(|w| have.add(w));
+        holds_in(&boxes, At::Away)
+            .into_iter()
+            .for_each(|w| have.add(w));
         let verdict = if have.rebuilds(shape, a) {
             Lost::Yes
-        } else if !readable.is_empty() && opened(&have, &readable).rebuilds(shape, a) {
+        } else if !readable.is_empty() && opened_in(&boxes, &have, &readable).rebuilds(shape, a) {
             Lost::WithVault
         } else {
             Lost::No
@@ -1024,24 +1093,9 @@ pub fn check(shape: &Shape, a: &Answers) -> Check {
     let mut spend = Found::No;
     let mut balance = Found::No;
     for &at in &places {
-        let mut have = Have::none(shape);
-        if !matches!(at, At::Vault(_)) {
-            holds(at).into_iter().for_each(|w| have.add(w));
-        }
-        let with = opened(&have, &reads(at));
-        let found = |ok: &dyn Fn(&Have) -> bool| {
-            if ok(&have) {
-                Found::Yes
-            } else if ok(&with) {
-                Found::OnlyWithVault
-            } else {
-                Found::No
-            }
-        };
-        spend = spend.max(found(&|h| {
-            h.seeds_ok(shape) >= shape.m.max(1) && (!shape.multi() || h.wallet_ok(shape, a))
-        }));
-        balance = balance.max(found(&|h| h.sees(shape, a)));
+        let found = alone_in(shape, a, &boxes, at);
+        spend = spend.max(found.spend);
+        balance = balance.max(found.balance);
     }
     Check {
         lost,

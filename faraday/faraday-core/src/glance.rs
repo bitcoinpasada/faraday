@@ -1,0 +1,1046 @@
+//! The wallet at a glance (`docs/NEW-WALLET.md` §6): one chart of a
+//! loaded wallet, its keys and its backup, on the wallet's card.
+//!
+//! [`of`] gathers what the chart shows from the wallet, the session's keys
+//! and the backup's plan: the plan of the backup under way once its
+//! checklist is made, else the one this power-on recorded, else the one an
+//! open vault keeps. [`draw`] lays it out as a structure chart
+//! (`docs/DESIGN.md` §4.16): three rows of nodes, wrapped where the card
+//! is too narrow, joined by orthogonal lines that run down, across and
+//! down through the bands and gaps between nodes and never through one.
+//! [`draw_column`] is the small panel's page: the same nodes in one
+//! column, with no lines.
+
+use osk_ui::{Color, tokens};
+
+use crate::backup::Tone;
+use crate::plan::{self, At, Tag, What};
+use crate::ui::pal::*;
+use crate::ui::{Style, Ui, W};
+use crate::wallet::{Session, fp_text};
+use crate::{Action, Faraday};
+
+/// The chart of one wallet.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Glance {
+    /// The wallet: its name.
+    pub name: String,
+    /// "2 of 3 · native SegWit".
+    pub shape: String,
+    /// The descriptor's checksum.
+    pub checksum: String,
+    /// Its keys, numbered as the wallet's keys are.
+    pub keys: Vec<KeyNode>,
+    /// Its backup.
+    pub backup: Backup,
+}
+
+/// One key of the wallet.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeyNode {
+    /// Its number in the wallet, from one.
+    pub number: usize,
+    /// Its fingerprint, or "no origin".
+    pub fingerprint: String,
+    /// Its label, when it has one other than its fingerprint.
+    pub label: Option<String>,
+    /// Where it is: "Can sign here", "Cosigner · xpub only".
+    pub state: String,
+    /// Held here: its lines go to whatever holds its seed.
+    pub here: bool,
+    /// What a press on it does: Explore for a key here; for a key the
+    /// quorum still needs, its way in.
+    pub action: Option<Action>,
+    /// The way in a key the quorum still needs is offered, by name.
+    pub way_in: Option<&'static str>,
+}
+
+/// The wallet's backup, as the chart's third row shows it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Backup {
+    /// A plan is known: a node per spot of its map, and its check.
+    Plan {
+        /// The nodes, in the map's order.
+        nodes: Vec<BackupNode>,
+        /// The plan's check.
+        check: plan::Check,
+    },
+    /// The plan is in a locked vault and not remembered: its name, and
+    /// the press that unlocks it.
+    Locked {
+        /// The vault's name.
+        vault: String,
+        /// Unlock it, and come back.
+        unlock: Action,
+    },
+    /// No plan is known.
+    None,
+}
+
+/// One spot of the backup's map.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BackupNode {
+    /// Where.
+    pub at: At,
+    /// "Place 1", or the place's name; "Vault 1".
+    pub name: String,
+    /// The most exposed of what it holds.
+    pub tag: Tag,
+    /// What it holds: "Key 1 words", "Wallet sheet", "Vault 2 stick".
+    pub holds: Vec<String>,
+    /// What it holds, naming the keys a vault's stick opens: "Key 1
+    /// words · Key 2 in the vault", for the small panel.
+    pub keys_held: String,
+    /// For a vault: where its stick is kept.
+    pub stick: Option<String>,
+    /// What this device saw of it, as the Backups screen says it.
+    pub state: Option<(String, Tone)>,
+    /// What it gives whoever finds it alone; a vault reads "Sealed".
+    pub alone: Option<String>,
+    /// The keys whose seed it holds, by index into [`Glance::keys`]: a
+    /// line is drawn to it from each of them held here.
+    pub keys: Vec<usize>,
+}
+
+/// The plan the chart draws for loaded wallet `w`, with the places'
+/// names: the backup under way once its checklist is made, else this
+/// power-on's record of it, else an open vault's.
+pub fn plan_of(app: &Faraday, w: usize) -> Option<(plan::Answers, Vec<String>)> {
+    let wallet = app.session.wallets.get(w)?;
+    let shape = app.plan_shape(w);
+    if let Some(b) = app.backup.as_ref()
+        && b.wallet == w
+        && b.stage == crate::BStage::Checklist
+    {
+        return Some((b.answers.clone(), b.names.clone()));
+    }
+    let kept = app.plan_load_of(wallet, &shape);
+    let sum = wallet.policy.checksum();
+    let recorded = app
+        .backup_records
+        .iter()
+        .find(|r| r.sum == sum && !r.answers.is_empty())
+        .and_then(|r| plan::Answers::from_text(&shape, &r.answers));
+    match (recorded, kept) {
+        (Some(a), kept) => Some((a, kept.map(|(_, n)| n).unwrap_or_default())),
+        (None, kept) => kept,
+    }
+}
+
+/// The chart of loaded wallet `w`; `None` for a silent payments wallet,
+/// which has no quorum or plan to draw.
+pub fn of(app: &Faraday, w: usize) -> Option<Glance> {
+    let wallet = app.session.wallets.get(w)?;
+    if wallet.policy.silent().is_some() {
+        return None;
+    }
+    let shape = app.plan_shape(w);
+    let slots = app.session.slots(wallet);
+    let any_here = slots.iter().any(|s| s.held_by.is_some());
+    let quorum_here =
+        slots.iter().filter(|s| s.held_by.is_some()).count() >= crate::wallet::needed(wallet);
+    let may = app.may_load_keys();
+    let threshold = wallet.policy.record().is_some();
+    // Each slot's seed in the plan: a share by its number, else by
+    // fingerprint.
+    let seed_of = |n: usize, slot: &crate::wallet::Slot| -> Option<usize> {
+        if threshold {
+            return (n < shape.seeds.len()).then_some(n);
+        }
+        let fp = fp_text(slot.fingerprint?);
+        shape.seeds.iter().position(|s| s.name == fp)
+    };
+    let slot_of: Vec<Option<usize>> = (0..shape.seeds.len())
+        .map(|i| (0..slots.len()).find(|&n| seed_of(n, &slots[n]) == Some(i)))
+        .collect();
+    let keys: Vec<KeyNode> = slots
+        .iter()
+        .enumerate()
+        .map(|(n, slot)| {
+            let fingerprint = slot
+                .fingerprint
+                .map(fp_text)
+                .unwrap_or_else(|| "no origin".to_string());
+            let passphrase = seed_of(n, slot).is_some_and(|i| shape.seeds[i].passphrase);
+            let here = slot.held_by.is_some();
+            let state = match (here, passphrase, any_here) {
+                (true, true, _) => "Can sign · passphrase",
+                (true, false, _) => "Can sign here",
+                (false, _, true) => "Cosigner · xpub only",
+                (false, _, false) => "On its own device",
+            };
+            let (action, way_in) = if here {
+                (slot.fingerprint.map(|f| Action::ExploreKey(f.0)), None)
+            } else if quorum_here {
+                (None, None)
+            } else {
+                match slot.fingerprint.filter(|f| app.vault_key_for(*f).is_some()) {
+                    Some(f) => (
+                        Some(Action::Vault(crate::vaults::VaultAction::LoadKeyOf(f.0))),
+                        Some("Load from vault"),
+                    ),
+                    None => (
+                        Some(Action::Entry(slot.fingerprint.map(|f| f.0))),
+                        Some("Add its key"),
+                    ),
+                }
+            };
+            KeyNode {
+                number: n + 1,
+                label: slot
+                    .held_by
+                    .as_ref()
+                    .map(|l| l.trim().to_string())
+                    .filter(|l| !l.is_empty() && !l.eq_ignore_ascii_case(&fingerprint)),
+                fingerprint,
+                state: state.to_string(),
+                here,
+                action: action.filter(|_| here || may),
+                way_in,
+            }
+        })
+        .collect();
+    let backup = match plan_of(app, w) {
+        Some((a, names)) => backup_nodes(app, w, &shape, &a, &names, &slot_of, &keys, any_here),
+        None => locked(app, &wallet.policy.checksum()),
+    };
+    Some(Glance {
+        name: wallet.name.clone(),
+        shape: Session::shape(wallet),
+        checksum: wallet.policy.checksum(),
+        keys,
+        backup,
+    })
+}
+
+/// A plan kept in a locked vault seen this power-on, else no plan.
+fn locked(app: &Faraday, sum: &str) -> Backup {
+    let Some(s) = app
+        .vaults
+        .summaries
+        .iter()
+        .find(|s| s.planned.iter().any(|c| c == sum))
+    else {
+        return Backup::None;
+    };
+    let back = crate::Screen::Wallets;
+    let unlock = app
+        .vault_files()
+        .iter()
+        .position(|f| f.open.is_none() && f.header.salt == s.salt)
+        .map_or(crate::vaults::VaultAction::ListFrom(back), |k| {
+            crate::vaults::VaultAction::OpenFrom(k, back)
+        });
+    Backup::Locked {
+        vault: s.name.clone(),
+        unlock: Action::Vault(unlock),
+    }
+}
+
+/// The plan's map as the chart's nodes, with its check.
+#[allow(clippy::too_many_arguments)]
+fn backup_nodes(
+    app: &Faraday,
+    w: usize,
+    shape: &plan::Shape,
+    a: &plan::Answers,
+    names: &[String],
+    slot_of: &[Option<usize>],
+    keys: &[KeyNode],
+    any_here: bool,
+) -> Backup {
+    let number = |i: usize| slot_of.get(i).copied().flatten().map_or(i + 1, |n| n + 1);
+    let place = |p: usize| {
+        names
+            .get(p)
+            .map(|n| n.trim())
+            .filter(|n| !n.is_empty())
+            .map_or_else(|| format!("Place {}", p + 1), str::to_string)
+    };
+    let label = |what: What| match what {
+        What::Words(i) => format!("Key {} words", number(i)),
+        What::SeedQr(i) => format!("Key {} SeedQR", number(i)),
+        What::Passphrase(i) => format!("Passphrase {}", number(i)),
+        What::Sheet => "Wallet sheet".to_string(),
+        What::Share(j) => format!("Share {} of {}", j + 1, shape.keys),
+        What::VaultStick(v) => format!("Vault {} stick", v + 1),
+        What::Seed(i) => format!("Key {} seed", number(i)),
+        What::SeedPassphrase(i) => format!("Key {} seed + passphrase", number(i)),
+        What::Wallet => "Description".to_string(),
+        What::SeedFile(i) => format!("Key {} file", number(i)),
+    };
+    // The small panel names the keys a vault's stick opens.
+    let keys_label = |what: What| match what {
+        What::VaultStick(v) => {
+            let inside: Vec<String> = a
+                .vault_seeds(shape, v)
+                .into_iter()
+                .map(|i| format!("Key {}", number(i)))
+                .collect();
+            if inside.is_empty() {
+                label(what)
+            } else {
+                format!("{} in the vault", inside.join(", "))
+            }
+        }
+        _ => label(what),
+    };
+    let sum = app.session.wallets.get(w).map(|wl| wl.policy.checksum());
+    let lines = app
+        .backups()
+        .into_iter()
+        .find(|e| Some(&e.sum) == sum.as_ref())
+        .and_then(|e| e.lines)
+        .unwrap_or_default();
+    let worst = |t: &[(What, Tag)]| {
+        let rank = |t: Tag| match t {
+            Tag::Public => 0,
+            Tag::Sealed => 1,
+            Tag::Secret => 2,
+        };
+        t.iter()
+            .map(|(_, t)| *t)
+            .max_by_key(|t| rank(*t))
+            .unwrap_or(Tag::Public)
+    };
+    let nodes = plan::map(shape, a)
+        .into_iter()
+        // A cosigner's seed is theirs to keep: no node of this backup.
+        .filter(|spot| !(spot.at == At::Away && any_here))
+        .map(|spot| {
+            let name = match spot.at {
+                At::Place(p) => place(p),
+                At::Vault(v) => format!("Vault {}", v + 1),
+                At::Files => format!("{} of files", app.medium.cap()),
+                At::Software => "Watch-only software".to_string(),
+                At::Away => "On its own device".to_string(),
+            };
+            let stick = match spot.at {
+                At::Vault(v) => {
+                    let at: Vec<String> = (0..a.places)
+                        .filter(|&p| a.stick_at(v, p))
+                        .map(place)
+                        .collect();
+                    Some(if at.is_empty() {
+                        "Its own stick".to_string()
+                    } else {
+                        format!("Stick at {}", at.join(", "))
+                    })
+                }
+                _ => None,
+            };
+            let mut seeds: Vec<usize> = Vec::new();
+            for (what, _) in &spot.holds {
+                if let What::Words(i)
+                | What::SeedQr(i)
+                | What::Seed(i)
+                | What::SeedPassphrase(i)
+                | What::SeedFile(i) = *what
+                    && let Some(k) = slot_of.get(i).copied().flatten()
+                    && keys.get(k).is_some_and(|k| k.here)
+                    && !seeds.contains(&k)
+                {
+                    seeds.push(k);
+                }
+            }
+            let state = match spot.at {
+                At::Away => Some(("Not here".to_string(), Tone::Dim)),
+                at => lines
+                    .iter()
+                    .find(|l| l.at == Some(at))
+                    .map(|l| (l.state.clone(), l.tone)),
+            };
+            let alone = match spot.at {
+                At::Vault(_) => Some("Sealed".to_string()),
+                At::Away => None,
+                at => Some(plan::alone(shape, a, at).text().to_string()),
+            };
+            BackupNode {
+                at: spot.at,
+                name,
+                tag: if matches!(spot.at, At::Vault(_)) {
+                    Tag::Sealed
+                } else {
+                    worst(&spot.holds)
+                },
+                holds: if spot.holds.is_empty() {
+                    vec!["Nothing".to_string()]
+                } else {
+                    spot.holds.iter().map(|(w, _)| label(*w)).collect()
+                },
+                keys_held: if spot.holds.is_empty() {
+                    "Nothing".to_string()
+                } else {
+                    spot.holds
+                        .iter()
+                        .map(|(w, _)| keys_label(*w))
+                        .collect::<Vec<_>>()
+                        .join(" · ")
+                },
+                stick,
+                state,
+                alone,
+                keys: seeds,
+            }
+        })
+        .collect();
+    Backup::Plan {
+        nodes,
+        check: plan::check(shape, a),
+    }
+}
+
+// ---------------------------------------------------------------------
+// Drawing
+// ---------------------------------------------------------------------
+
+/// A line of text in a node.
+struct Text {
+    text: String,
+    size: f32,
+    weight: W,
+    color: Color,
+}
+
+impl Text {
+    fn new(text: impl Into<String>, size: f32, weight: W, color: Color) -> Text {
+        Text {
+            text: text.into(),
+            size,
+            weight,
+            color,
+        }
+    }
+}
+
+/// A node as drawn: its title, the tag at its right, the lines under it,
+/// a button at its foot, and what a press on it does.
+struct Node {
+    title: String,
+    tag: Option<(&'static str, Color)>,
+    lines: Vec<Text>,
+    button: Option<(String, Style, Action)>,
+    action: Option<Action>,
+}
+
+impl Node {
+    /// The width its title and lines ask for, with its padding.
+    fn natural(&self, ui: &Ui) -> f32 {
+        let tag = self.tag.map_or(0.0, |(t, _)| {
+            ui.measure(tokens::CAPTION, W::R, t) + tokens::GAP
+        });
+        let title = ui.measure(tokens::LABEL, W::S, &self.title) + tag;
+        let lines = self
+            .lines
+            .iter()
+            .map(|l| ui.measure(l.size, l.weight, &l.text))
+            .fold(title, f32::max);
+        let button = self.button.as_ref().map_or(0.0, |(l, ..)| {
+            ui.measure(tokens::CAPTION, W::S, l) + 2.0 * tokens::PAD
+        });
+        lines.max(button) + 2.0 * tokens::CHART_NODE_PAD
+    }
+
+    /// Its height at width `w`.
+    fn height(&self, ui: &Ui, w: f32) -> f32 {
+        let inner = w - 2.0 * tokens::CHART_NODE_PAD;
+        let mut h = 2.0 * tokens::CHART_NODE_PAD + ui.line(tokens::LABEL, W::S);
+        for l in &self.lines {
+            h += ui.wrap_lines(l.size, l.weight, &l.text, inner) as f32 * ui.line(l.size, l.weight);
+        }
+        if self.button.is_some() {
+            h += tokens::GAP + tokens::CHART_BUTTON;
+        }
+        h
+    }
+
+    fn draw(&self, ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) {
+        let pad = tokens::CHART_NODE_PAD;
+        let pressed = self.action.is_some_and(|a| ui.is_pressed(a));
+        ui.fill(x, y, w, h, tokens::RADIUS, if pressed { INNER } else { BG });
+        ui.stroke(x, y, w, h, tokens::RADIUS, INNER);
+        let inner = w - 2.0 * pad;
+        let mut cy = y + pad;
+        let tag_w = match self.tag {
+            Some((t, c)) => {
+                let tw = ui.measure(tokens::CAPTION, W::R, t);
+                let lh = ui.line(tokens::LABEL, W::S);
+                ui.text_right(x + w - pad, cy, lh, tokens::CAPTION, W::R, c, t);
+                tw + tokens::GAP
+            }
+            None => 0.0,
+        };
+        let title = ui.fit(tokens::LABEL, W::S, &self.title, inner - tag_w);
+        ui.text(x + pad, cy, tokens::LABEL, W::S, TEXT, &title);
+        cy += ui.line(tokens::LABEL, W::S);
+        for l in &self.lines {
+            cy += ui.wrap(x + pad, cy, inner, l.size, l.weight, l.color, &l.text);
+        }
+        if let Some((label, style, action)) = &self.button {
+            let label = ui.fit(tokens::CAPTION, W::S, label, inner);
+            ui.button(
+                x + pad,
+                cy + tokens::GAP,
+                Some(inner),
+                tokens::CHART_BUTTON,
+                &label,
+                *style,
+                *action,
+            );
+        }
+        if let Some(a) = self.action {
+            ui.hit(x, y, w, h, a);
+        }
+    }
+}
+
+fn tag_color(t: Tag) -> Color {
+    match t {
+        Tag::Secret => WARN,
+        Tag::Sealed => ACCENT,
+        Tag::Public => MUTED,
+    }
+}
+
+fn tone_color(t: Tone) -> Color {
+    match t {
+        Tone::Ok => OK,
+        Tone::Warn => WARN,
+        Tone::Err => ERR,
+        Tone::Dim => DIM,
+    }
+}
+
+/// How what a spot gives alone reads: spending in the clear is a warning,
+/// a vault's seal the accent, nothing at all is good.
+fn alone_color(s: &str) -> Color {
+    if s == "Can spend" {
+        WARN
+    } else if s == "Nothing" {
+        OK
+    } else if s.contains("vault") || s == "Sealed" {
+        ACCENT
+    } else {
+        MUTED
+    }
+}
+
+/// The three rows of nodes: the wallet, its keys, its backup.
+fn rows(g: &Glance, w: usize, compact: bool) -> [Vec<Node>; 3] {
+    let wallet = vec![Node {
+        title: g.name.clone(),
+        tag: None,
+        lines: vec![Text::new(
+            format!("{} · #{}", g.shape, g.checksum),
+            tokens::CAPTION,
+            W::R,
+            MUTED,
+        )],
+        button: None,
+        action: None,
+    }];
+    let keys = g
+        .keys
+        .iter()
+        .map(|k| {
+            let mut lines = Vec::new();
+            if let Some(l) = &k.label {
+                lines.push(Text::new(l.clone(), tokens::CAPTION, W::R, MUTED));
+            }
+            lines.push(Text::new(
+                k.state.clone(),
+                tokens::CAPTION,
+                W::S,
+                if k.here { OK } else { MUTED },
+            ));
+            if let Some(way) = k.way_in {
+                let tone = if k.action.is_some() { ACCENT } else { DIM };
+                lines.push(Text::new(way, tokens::CAPTION, W::S, tone));
+            }
+            Node {
+                title: format!("Key {} · {}", k.number, k.fingerprint),
+                tag: None,
+                lines,
+                button: None,
+                action: k.action,
+            }
+        })
+        .collect();
+    let backup = match &g.backup {
+        Backup::Plan { nodes, .. } => nodes
+            .iter()
+            .map(|n| {
+                let mut lines: Vec<Text> = if compact {
+                    vec![Text::new(n.keys_held.clone(), tokens::CAPTION, W::R, TEXT)]
+                } else {
+                    n.holds
+                        .iter()
+                        .map(|h| Text::new(h.clone(), tokens::CAPTION, W::R, TEXT))
+                        .collect()
+                };
+                if let Some(s) = &n.stick {
+                    lines.push(Text::new(s.clone(), tokens::CAPTION, W::R, MUTED));
+                }
+                if let Some((s, t)) = &n.state {
+                    lines.push(Text::new(s.clone(), tokens::CAPTION, W::R, tone_color(*t)));
+                }
+                if let Some(s) = &n.alone {
+                    lines.push(Text::new(s.clone(), tokens::CAPTION, W::S, alone_color(s)));
+                }
+                Node {
+                    title: n.name.clone(),
+                    tag: Some((n.tag.name(), tag_color(n.tag))),
+                    lines,
+                    button: None,
+                    action: Some(Action::BackupChecklist(w)),
+                }
+            })
+            .collect(),
+        Backup::Locked { vault, unlock } => vec![Node {
+            title: format!("Plan in {vault}, locked"),
+            tag: None,
+            lines: Vec::new(),
+            button: Some(("Unlock".to_string(), Style::Secondary, *unlock)),
+            action: None,
+        }],
+        Backup::None => vec![Node {
+            title: "No backup plan".to_string(),
+            tag: None,
+            lines: Vec::new(),
+            button: Some(("Back up".to_string(), Style::Secondary, Action::Backup(w))),
+            action: None,
+        }],
+    };
+    [wallet, keys, backup]
+}
+
+/// Which way the chart reads: the wallet on top, its keys under it and
+/// its backup at the foot, as the wallet's card draws it; or the backup on
+/// top, through the keys, to the wallet at the foot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Direction {
+    /// The wallet, then its keys, then its backup.
+    WalletFirst,
+    /// The backup, then the keys, then the wallet.
+    BackupFirst,
+}
+
+impl Direction {
+    /// The rows top down, by number: 0 the wallet, 1 its keys, 2 its
+    /// backup.
+    pub fn rows(self) -> [usize; 3] {
+        match self {
+            Direction::WalletFirst => [0, 1, 2],
+            Direction::BackupFirst => [2, 1, 0],
+        }
+    }
+}
+
+/// Where a node is drawn.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Placed {
+    /// Its left edge.
+    pub x: f32,
+    /// Its top edge.
+    pub y: f32,
+    /// Its width.
+    pub w: f32,
+    /// Its height: its line's tallest node's.
+    pub h: f32,
+    /// Its line of nodes, counted down the whole chart.
+    pub line: usize,
+}
+
+/// A source of lines: a node, by row and place in it, and the nodes its
+/// lines go to.
+pub type Source = ((usize, usize), Vec<(usize, usize)>);
+
+/// One line: its source, its upper node and its lower node.
+type Edge = (usize, (usize, usize), (usize, usize));
+
+/// The chart laid out: each row's nodes, by row number (0 the wallet, 1
+/// its keys, 2 its backup), and each line drawn, by its source and its
+/// points, every run between two of them across or down.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Layout {
+    /// Each row's nodes.
+    pub nodes: [Vec<Placed>; 3],
+    /// Each line: its source, by place in the sources given, and its
+    /// points.
+    pub paths: Vec<(usize, Vec<(f32, f32)>)>,
+    /// How tall the chart is.
+    pub height: f32,
+}
+
+/// Places `n` nodes in lines across `w` from `x`: as many on a line as
+/// fit at [`tokens::CHART_NODE_MIN`], each line centred. Returns each
+/// node's x, width and line within the row.
+fn arrange(n: usize, x: f32, w: f32) -> Vec<(f32, f32, usize)> {
+    if n == 0 {
+        return Vec::new();
+    }
+    let gap = tokens::CHART_NODE_GAP;
+    let per_line = (((w + gap) / (tokens::CHART_NODE_MIN + gap)).floor() as usize).max(1);
+    let node_w = if n <= per_line {
+        ((w - (n - 1) as f32 * gap) / n as f32).min(tokens::CHART_NODE_MAX)
+    } else {
+        (w - (per_line - 1) as f32 * gap) / per_line as f32
+    };
+    let mut out = Vec::new();
+    for i in 0..n {
+        let line = i / per_line;
+        let on_line = (n - line * per_line).min(per_line);
+        let line_w = on_line as f32 * node_w + (on_line - 1) as f32 * gap;
+        let start = x + (w - line_w) / 2.0;
+        out.push((start + (i % per_line) as f32 * (node_w + gap), node_w, line));
+    }
+    out
+}
+
+/// Lays the chart out at (x, y), `width` wide, reading `direction`: the
+/// wallet's node `wallet_w` wide and centred, `counts` nodes in each row
+/// (by row number), each `height(row, i, width)` tall, and the lines of
+/// `sources`. A line leaves the middle of the upper node's bottom edge
+/// (or, with more sources there, its own point along it), runs down into
+/// the band under that line of nodes, across, down through the gap
+/// between two nodes of each line it passes, and into the lower node's
+/// top edge: across or down, never through a node.
+#[allow(clippy::too_many_arguments)]
+pub fn layout(
+    direction: Direction,
+    x: f32,
+    y: f32,
+    width: f32,
+    wallet_w: f32,
+    counts: [usize; 3],
+    height: &dyn Fn(usize, usize, f32) -> f32,
+    sources: &[Source],
+) -> Layout {
+    let mut placed: [Vec<Placed>; 3] = Default::default();
+    let mut line = 0;
+    for r in direction.rows() {
+        let spots = if r == 0 {
+            let nw = wallet_w.max(tokens::CHART_NODE_MIN).min(width);
+            (0..counts[0])
+                .map(|_| (x + (width - nw) / 2.0, nw, 0))
+                .collect()
+        } else {
+            arrange(counts[r], x, width)
+        };
+        let lines = spots.iter().map(|s| s.2 + 1).max().unwrap_or(0);
+        placed[r] = spots
+            .iter()
+            .enumerate()
+            .map(|(i, &(nx, nw, l))| Placed {
+                x: nx,
+                y: 0.0,
+                w: nw,
+                h: height(r, i, nw),
+                line: line + l,
+            })
+            .collect();
+        line += lines;
+    }
+    let lines = line;
+    // Every line, from its upper node to its lower one.
+    let edges: Vec<Edge> = sources
+        .iter()
+        .enumerate()
+        .flat_map(|(s, (from, to))| {
+            let placed = &placed;
+            to.iter().filter_map(move |&t| {
+                let (a, b) = (placed[from.0].get(from.1)?, placed[t.0].get(t.1)?);
+                Some(if a.line <= b.line {
+                    (s, *from, t)
+                } else {
+                    (s, t, *from)
+                })
+            })
+        })
+        .collect();
+    let at = |p: (usize, usize)| placed[p.0][p.1];
+    // The sources each band between two lines of nodes carries, in order.
+    let band_of: Vec<Vec<usize>> = (0..lines.saturating_sub(1))
+        .map(|b| {
+            let mut v: Vec<usize> = edges
+                .iter()
+                .filter(|(_, u, d)| at(*u).line <= b && b < at(*d).line)
+                .map(|(s, ..)| *s)
+                .collect();
+            v.sort_unstable();
+            v.dedup();
+            v
+        })
+        .collect();
+    let band_h: Vec<f32> = band_of
+        .iter()
+        .map(|v| match v.len() {
+            0 => tokens::CHART_NODE_GAP,
+            n => 2.0 * tokens::CHART_BAND + (n - 1) as f32 * tokens::CHART_LANE,
+        })
+        .collect();
+    // Each line's top and height.
+    let mut line_h = vec![0.0f32; lines];
+    for p in placed.iter().flatten() {
+        line_h[p.line] = line_h[p.line].max(p.h);
+    }
+    let mut line_y = vec![y; lines];
+    for l in 1..lines {
+        line_y[l] = line_y[l - 1] + line_h[l - 1] + band_h[l - 1];
+    }
+    for p in placed.iter_mut().flatten() {
+        p.y = line_y[p.line];
+        p.h = line_h[p.line];
+    }
+    let at = |p: (usize, usize)| placed[p.0][p.1];
+    let lane_y = |b: usize, s: usize| {
+        let slot = band_of[b].iter().position(|&x| x == s).unwrap_or(0);
+        line_y[b] + line_h[b] + tokens::CHART_BAND + slot as f32 * tokens::CHART_LANE
+    };
+    // Where a line runs down through line `l`: the gap between two of its
+    // nodes, or beside them, nearest both ends.
+    let gap_x = |l: usize, from: f32, to: f32| -> f32 {
+        let mut on: Vec<Placed> = placed
+            .iter()
+            .flatten()
+            .copied()
+            .filter(|p| p.line == l)
+            .collect();
+        on.sort_by(|a, b| a.x.total_cmp(&b.x));
+        let half = tokens::CHART_NODE_GAP / 2.0;
+        let mut ways: Vec<f32> = on
+            .windows(2)
+            .map(|p| (p[0].x + p[0].w + p[1].x) / 2.0)
+            .collect();
+        if let Some(first) = on.first()
+            && first.x - x >= half
+        {
+            ways.push(first.x - half);
+        }
+        if let Some(last) = on.last()
+            && x + width - (last.x + last.w) >= half
+        {
+            ways.push(last.x + last.w + half);
+        }
+        ways.into_iter()
+            .min_by(|a, b| {
+                ((a - from).abs() + (a - to).abs()).total_cmp(&((b - from).abs() + (b - to).abs()))
+            })
+            .unwrap_or(to)
+    };
+    // A node's point along its bottom (`below`) or top edge for source
+    // `s`: one per source meeting it there, spread evenly.
+    let port = |n: (usize, usize), below: bool, s: usize| -> f32 {
+        let mut meet: Vec<usize> = edges
+            .iter()
+            .filter(|(_, u, d)| if below { *u == n } else { *d == n })
+            .map(|(s, ..)| *s)
+            .collect();
+        meet.sort_unstable();
+        meet.dedup();
+        let j = meet.iter().position(|&i| i == s).unwrap_or(0);
+        let p = at(n);
+        p.x + p.w * (j + 1) as f32 / (meet.len() + 1) as f32
+    };
+    let mut paths = Vec::new();
+    for &(s, u, d) in &edges {
+        let (up, down) = (at(u), at(d));
+        let sx = port(u, true, s);
+        let tx = port(d, false, s);
+        let mut pts = vec![(sx, up.y + up.h)];
+        let mut cx = sx;
+        for (b, carried) in band_of.iter().enumerate().take(down.line).skip(up.line) {
+            let ly = lane_y(b, s);
+            pts.push((cx, ly));
+            if b + 1 < down.line {
+                let n = carried.len() as f32;
+                let slot = carried.iter().position(|&i| i == s).unwrap_or(0) as f32;
+                cx = gap_x(b + 1, cx, tx) + (slot - (n - 1.0) / 2.0) * tokens::CHART_LANE;
+                pts.push((cx, ly));
+                pts.push((cx, lane_y(b + 1, s)));
+            } else {
+                cx = tx;
+                pts.push((cx, ly));
+            }
+        }
+        pts.push((tx, down.y));
+        pts.dedup();
+        paths.push((s, pts));
+    }
+    let bottom = (0..lines).map(|l| line_y[l] + line_h[l]).fold(y, f32::max);
+    Layout {
+        nodes: placed,
+        paths,
+        height: bottom - y,
+    }
+}
+
+/// Draws the chart of `g` (loaded wallet `w`) at (x, y), `width` wide,
+/// the wallet on top. Returns its height.
+pub(crate) fn draw(ui: &mut Ui, g: &Glance, w: usize, x: f32, y: f32, width: f32) -> f32 {
+    let rows = rows(g, w, false);
+    // The lines' sources: the wallet to each key, each key held here to
+    // every node that holds its seed, each in its colour and dashes.
+    let mut sources: Vec<Source> = vec![((0, 0), (0..g.keys.len()).map(|k| (1, k)).collect())];
+    let mut looks: Vec<(Color, [f32; 4])> = vec![(BORDER, tokens::CHART_DASHES[0])];
+    if let Backup::Plan { nodes, .. } = &g.backup {
+        for (held, (k, _)) in g
+            .keys
+            .iter()
+            .enumerate()
+            .filter(|(_, k)| k.here)
+            .enumerate()
+        {
+            let to: Vec<(usize, usize)> = nodes
+                .iter()
+                .enumerate()
+                .filter(|(_, n)| n.keys.contains(&k))
+                .map(|(i, _)| (2, i))
+                .collect();
+            sources.push(((1, k), to));
+            looks.push((
+                KEY_LINES[held % KEY_LINES.len()],
+                tokens::CHART_DASHES[held % tokens::CHART_DASHES.len()],
+            ));
+        }
+    }
+    let wallet_w = rows[0].iter().map(|n| n.natural(ui)).fold(0.0, f32::max);
+    let counts = [rows[0].len(), rows[1].len(), rows[2].len()];
+    let laid = {
+        let ui: &Ui = ui;
+        let height = |r: usize, i: usize, nw: f32| rows[r][i].height(ui, nw);
+        layout(
+            Direction::WalletFirst,
+            x,
+            y,
+            width,
+            wallet_w,
+            counts,
+            &height,
+            &sources,
+        )
+    };
+    // The lines, under the nodes.
+    for (s, pts) in &laid.paths {
+        let (color, dash) = looks[*s];
+        for seg in pts.windows(2) {
+            segment(ui, seg[0], seg[1], color, dash);
+        }
+    }
+    for (r, nodes) in rows.iter().enumerate() {
+        for (node, p) in nodes.iter().zip(&laid.nodes[r]) {
+            node.draw(ui, p.x, p.y, p.w, p.h);
+        }
+    }
+    let mut cy = y + laid.height;
+    if let Backup::Plan { check, .. } = &g.backup {
+        cy += tokens::PAD;
+        cy += check_lines(ui, x, cy, width, *check, true);
+    }
+    cy - y
+}
+
+/// An orthogonal run from `a` to `b`, in `dash`.
+fn segment(ui: &mut Ui, a: (f32, f32), b: (f32, f32), color: Color, dash: [f32; 4]) {
+    let across = (a.1 - b.1).abs() < f32::EPSILON;
+    let (start, end) = if across {
+        (a.0.min(b.0), a.0.max(b.0))
+    } else {
+        (a.1.min(b.1), a.1.max(b.1))
+    };
+    let half = tokens::CHART_STROKE / 2.0;
+    let run = |from: f32, to: f32, ui: &mut Ui| {
+        if to <= from {
+            return;
+        }
+        if across {
+            ui.rule(from, a.1 - half, to - from, color);
+        } else {
+            ui.vrule(a.0 - half, from, to - from, color);
+        }
+    };
+    if dash[1] <= 0.0 {
+        run(start, end, ui);
+        return;
+    }
+    let mut at = start;
+    let mut k = 0;
+    while at < end {
+        let len = dash[k % 4];
+        if k % 2 == 0 {
+            run(at, (at + len).min(end), ui);
+        }
+        at += len;
+        k += 1;
+    }
+}
+
+/// The plan's three check lines, each with its value, as the backup's map
+/// panel shows them: one under another, or with `beside`, side by side
+/// where the width allows. Returns their height.
+pub(crate) fn check_lines(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    c: plan::Check,
+    beside: bool,
+) -> f32 {
+    use crate::plan::{CHECK_LINES, Found, Lost};
+    let lost = match c.lost {
+        Lost::Yes => OK,
+        Lost::WithVault => ACCENT,
+        Lost::No => ERR,
+    };
+    let found = |f: Found| match f {
+        Found::Yes => WARN,
+        Found::OnlyWithVault => ACCENT,
+        Found::No => OK,
+    };
+    let lines = [
+        (CHECK_LINES[0], c.lost.text(), lost),
+        (CHECK_LINES[1], c.spend.text(), found(c.spend)),
+        (CHECK_LINES[2], c.balance.text(), found(c.balance)),
+    ];
+    let gap = tokens::CHART_NODE_GAP;
+    let col_w = (w - 2.0 * gap) / lines.len() as f32;
+    let side = beside && col_w >= tokens::CHART_NODE_MIN;
+    let mut cy = y;
+    let mut tallest: f32 = 0.0;
+    for (i, (label, value, tone)) in lines.into_iter().enumerate() {
+        if side {
+            let cx = x + i as f32 * (col_w + gap);
+            let mut h =
+                ui.wrap(cx, y, col_w, tokens::CAPTION, W::R, MUTED, label) + tokens::GAP_SMALL;
+            h += ui.wrap(cx, y + h, col_w, tokens::CAPTION, W::S, tone, value);
+            tallest = tallest.max(h);
+        } else {
+            cy += ui.wrap(x, cy, w, tokens::CAPTION, W::R, MUTED, label) + tokens::GAP_SMALL;
+            cy += ui.wrap(x, cy, w, tokens::CAPTION, W::S, tone, value) + tokens::GAP;
+        }
+    }
+    if side { tallest } else { cy - y }
+}
+
+/// The small panel's page: the wallet, its keys and its backup in one
+/// column, with no lines; each backup node names the keys it holds. Then
+/// the check. Returns its height.
+pub(crate) fn draw_column(ui: &mut Ui, g: &Glance, w: usize, x: f32, y: f32, width: f32) -> f32 {
+    let [wallet, keys, backup] = rows(g, w, true);
+    let mut cy = y;
+    for (heading, nodes) in [("", wallet), ("Keys", keys), ("Backup", backup)] {
+        if !heading.is_empty() {
+            cy += crate::compact_screens::heading(ui, x, cy, heading);
+        }
+        for node in nodes {
+            let h = node.height(ui, width);
+            node.draw(ui, x, cy, width, h);
+            cy += h + tokens::GAP;
+        }
+        cy += tokens::GAP;
+    }
+    if let Backup::Plan { check, .. } = &g.backup {
+        cy += check_lines(ui, x, cy, width, *check, false);
+    }
+    cy - y
+}

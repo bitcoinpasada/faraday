@@ -2860,9 +2860,9 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     cy += 34.0;
     ui.text(ix, cy, 14.0, W::R, MUTED, &Session::shape(wlt));
     cy += 26.0;
-    // Where its backup is (§5.2): a press opens Backups on it.
-    cy += backup_line(app, ui, ix, cy, iw, app.wallet);
     if let Some(r) = wlt.policy.silent() {
+        // Where its backup is (§5.2): a press opens Backups on it.
+        cy += backup_line(app, ui, ix, cy, iw, app.wallet);
         silent_wallet_card(app, ui, r, ix, iw, cy, y + ch);
         return;
     }
@@ -2870,6 +2870,57 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (m, _) = Session::quorum(wlt);
     let slots = app.session.slots(wlt);
     let here = slots.iter().filter(|s| s.held_by.is_some()).count().min(m);
+
+    // Actions: the first along the foot, Remove from session at the
+    // end; a row more above when they do not fit the card's width.
+    let mut items: Vec<(&str, Style, Action)> = Vec::new();
+    match app.lead_psbt() {
+        _ if app.spend.is_some() && here > 0 => items.push((
+            "Continue signing",
+            Style::Primary,
+            Action::Nav(Screen::Spend),
+        )),
+        Some(i) if here > 0 => {
+            items.push(("Sign a transaction", Style::Primary, Action::StartSpend(i)))
+        }
+        _ => items.push((
+            "No PSBT in Files",
+            Style::Disabled,
+            Action::Nav(Screen::Files),
+        )),
+    }
+    items.push((
+        "Show wallet QR",
+        Style::Secondary,
+        Action::QrWallet(app.wallet),
+    ));
+    items.push(("Back up", Style::Secondary, Action::Backup(app.wallet)));
+    if app.session.message_wallets().contains(&app.wallet) {
+        items.push(("Sign a message", Style::Secondary, Action::SignMessage));
+    }
+    let foot = card_actions(
+        ui,
+        ix,
+        y + ch - 62.0,
+        iw,
+        &items,
+        (
+            "Remove from session",
+            Style::Ghost,
+            Action::RemoveWallet(app.wallet),
+        ),
+    );
+
+    // The body, between the head and the actions: scrolled when the
+    // chart makes it taller than the card.
+    let view_top = cy - 6.0;
+    let view_h = (foot - 8.0 - view_top).max(0.0);
+    let clip = ui.rect(cx + 1.0, view_top, cwid - 2.0, view_h);
+    ui.c.push_clip(clip);
+    let top = cy;
+    cy -= app.card_offset;
+    // Where its backup is (§5.2): a press opens Backups on it.
+    cy += backup_line(app, ui, ix, cy, iw, app.wallet);
     ui.fill(ix, cy, iw, 50.0, 10.0, BG);
     ui.stroke(ix, cy, iw, 50.0, 10.0, INNER);
     let pw = ui.pips(ix + 16.0, cy + 20.0, m, here);
@@ -2909,69 +2960,16 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     cy += 66.0;
 
-    ui.text(ix, cy, 13.0, W::S, MUTED, "Keys");
+    // The wallet at a glance (`docs/NEW-WALLET.md` §6): its keys and
+    // its backup, where each thing is and what each place gives.
+    ui.text(ix, cy, 13.0, W::S, MUTED, "At a glance");
     cy += 24.0;
-    // Once the quorum is here, a missing key adds nothing: the finished
-    // transaction carries the quorum's signatures and no more.
-    let quorum_here =
-        slots.iter().filter(|s| s.held_by.is_some()).count() >= crate::wallet::needed(wlt);
-    for (n, slot) in slots.iter().enumerate() {
-        ui.text_mid(ix, cy, 46.0, 12.0, W::R, DIM, &(n + 1).to_string());
-        let fp = slot
-            .fingerprint
-            .map(fp_text)
-            .unwrap_or_else(|| "no origin".to_string());
-        ui.text_mid(ix + 26.0, cy, 46.0, 14.0, W::M, TEXT, &fp);
-        // A key named after its fingerprint is not named twice.
-        if let Some(label) = slot
-            .held_by
-            .as_ref()
-            .filter(|l| !l.trim().eq_ignore_ascii_case(&fp))
-        {
-            ui.text_mid(ix + 130.0, cy, 46.0, 13.0, W::R, MUTED, label);
-        }
-        let (state, fg, bg) = if slot.held_by.is_some() {
-            ("Can sign here", OK, OK.with_alpha(30))
-        } else if quorum_here {
-            ("Not needed", DIM, INNER)
-        } else {
-            ("Not here", MUTED, INNER)
-        };
-        // Its way in: from an open vault that holds it, else typed or
-        // scanned.
-        let button = (slot.held_by.is_none() && !quorum_here).then(|| {
-            match slot.fingerprint.filter(|f| app.vault_key_for(*f).is_some()) {
-                Some(f) => (
-                    "Load from vault",
-                    Style::Primary,
-                    Action::Vault(crate::vaults::VaultAction::LoadKeyOf(f.0)),
-                ),
-                None => (
-                    "Add its key",
-                    Style::Secondary,
-                    Action::Entry(slot.fingerprint.map(|f| f.0)),
-                ),
-            }
-        });
-        let bw = button.map_or(0.0, |(l, _, _)| ui.measure(13.0, W::S, l) + 28.0);
-        let right = ix + iw - bw - 10.0;
-        let chipw = ui.measure(12.0, W::R, state) + 34.0;
-        ui.chip(right - chipw, cy + 10.0, state, fg, bg);
-        if let Some((label, style, action)) = button {
-            ui.button(
-                ix + iw - bw,
-                cy + 7.0,
-                Some(bw),
-                32.0,
-                label,
-                if may { style } else { Style::Disabled },
-                action,
-            );
-        }
-        ui.rule(ix, cy + 46.0, iw, INNER);
-        cy += 48.0;
+    if let Some(g) = crate::glance::of(app, app.wallet) {
+        cy += crate::glance::draw(ui, &g, app.wallet, ix, cy, iw);
     }
     // Where the keys still missing may be.
+    let quorum_here =
+        slots.iter().filter(|s| s.held_by.is_some()).count() >= crate::wallet::needed(wlt);
     if !quorum_here {
         cy += 4.0;
         cy += missing_keys_line(app, ui, &slots, Screen::Wallets, ix, cy, iw);
@@ -2980,54 +2978,17 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.text(ix, cy, 13.0, W::S, MUTED, "First receive address · 0/0");
     cy += 24.0;
     let addr = grouped(&app.session.address_shown(wlt, false, 0));
-    let used = ui.wrap(ix, cy, iw, 15.0, W::M, TEXT, &addr);
-    let _ = used;
-
-    // Actions: the first along the foot, Remove from session at the
-    // end; a row more above when they do not fit the card's width.
-    let mut items: Vec<(&str, Style, Action)> = Vec::new();
-    match app.lead_psbt() {
-        _ if app.spend.is_some() && here > 0 => items.push((
-            "Continue signing",
-            Style::Primary,
-            Action::Nav(Screen::Spend),
-        )),
-        Some(i) if here > 0 => {
-            items.push(("Sign a transaction", Style::Primary, Action::StartSpend(i)))
-        }
-        _ => items.push((
-            "No PSBT in Files",
-            Style::Disabled,
-            Action::Nav(Screen::Files),
-        )),
-    }
-    items.push((
-        "Show wallet QR",
-        Style::Secondary,
-        Action::QrWallet(app.wallet),
-    ));
-    items.push(("Back up", Style::Secondary, Action::Backup(app.wallet)));
-    if app.session.message_wallets().contains(&app.wallet) {
-        items.push(("Sign a message", Style::Secondary, Action::SignMessage));
-    }
-    card_actions(
-        ui,
-        ix,
-        y + ch - 62.0,
-        iw,
-        &items,
-        (
-            "Remove from session",
-            Style::Ghost,
-            Action::RemoveWallet(app.wallet),
-        ),
-    );
+    cy += ui.wrap(ix, cy, iw, 15.0, W::M, TEXT, &addr) + 8.0;
+    ui.c.pop_clip();
+    let content = cy + app.card_offset - top;
+    let max = (content - (view_h - (top - view_top))).max(0.0);
+    ui.report_scroll_in(crate::ui::Slot::Card, clip, max, app.card_offset);
 }
 
 /// A wallet card's actions along its foot, the last row's top at `ay`:
 /// `items` from the left, `end` at the right of the last row. Where they
 /// do not fit `w` they take more rows, upward, so the last row stays at
-/// the foot. A rule runs above the first row.
+/// the foot. A rule runs above the first row. Returns the rule's y.
 fn card_actions(
     ui: &mut Ui,
     x: f32,
@@ -3035,7 +2996,7 @@ fn card_actions(
     w: f32,
     items: &[(&str, Style, Action)],
     end: (&str, Style, Action),
-) {
+) -> f32 {
     const H: f32 = 40.0;
     const GAP: f32 = 8.0;
     let width = |ui: &Ui, label: &str| (ui.measure(14.0, W::S, label) + 32.0).min(w);
@@ -3072,6 +3033,7 @@ fn card_actions(
     }
     let label = ui.fit(14.0, W::S, end.0, ew - 24.0);
     ui.button(x + w - ew, ay, Some(ew), H, &label, end.1, end.2);
+    top - 14.0
 }
 
 /// A silent payments wallet's card: its key, its address and the labels
@@ -3137,7 +3099,7 @@ fn silent_wallet_card(
     ) + 18.0;
     ui.text(ix, cy, 13.0, W::S, MUTED, "Labels handed out");
     ui.text(ix + 180.0, cy, 13.0, W::M, TEXT, &r.labels.to_string());
-    card_actions(
+    let _ = card_actions(
         ui,
         ix,
         bottom - 62.0,
@@ -5388,33 +5350,12 @@ fn map_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, boxed: bool) -> 
 /// The check under the map: its three lines, each with its value.
 /// Returns its height.
 fn check_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    use crate::plan::{CHECK_LINES, Found, Lost};
     let Some(b) = app.backup.as_ref() else {
         return 0.0;
     };
     let shape = app.plan_shape(b.wallet);
     let c = crate::plan::check(&shape, &b.answers);
-    let lost = match c.lost {
-        Lost::Yes => OK,
-        Lost::WithVault => ACCENT,
-        Lost::No => ERR,
-    };
-    let found = |f: Found| match f {
-        Found::Yes => WARN,
-        Found::OnlyWithVault => ACCENT,
-        Found::No => OK,
-    };
-    let lines = [
-        (CHECK_LINES[0], c.lost.text(), lost),
-        (CHECK_LINES[1], c.spend.text(), found(c.spend)),
-        (CHECK_LINES[2], c.balance.text(), found(c.balance)),
-    ];
-    let mut cy = y;
-    for (label, value, tone) in lines {
-        cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, label) + 2.0;
-        cy += ui.wrap(x, cy, w, 13.0, W::S, tone, value) + 10.0;
-    }
-    cy - y
+    crate::glance::check_lines(ui, x, y, w, c, false)
 }
 
 /// The loaded wallets, one row each, under the backup's wallet chip at

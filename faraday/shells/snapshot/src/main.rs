@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -48,7 +48,12 @@
 //! stick from Settings, the lock it asks for with a key loaded, and each
 //! step with the boot copier's answers given by hand: the source read, an
 //! older stick, a newer one beside it, one too small, one pulled during
-//! the write, and one written.
+//! the write, and one written; with `glance`, the Wallets card's chart
+//! at a glance (`docs/NEW-WALLET.md` §6): a one-key wallet with no plan,
+//! then with Paper and vault, and a 2-of-3 with two keys here, the second
+//! with a passphrase, and a cosigner, with Paper and vault and the
+//! passphrase in the vault too; on a small panel the card's At a glance
+//! row and the chart's own page.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -399,6 +404,7 @@ fn run(
         Some("inbox") => return inbox_tour(&mut t),
         Some("transfer") => return transfer_tour(&mut t),
         Some("upgrade") => return upgrade_tour(&mut t),
+        Some("glance") => return glance_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -2983,6 +2989,88 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// The Wallets card at a glance: a one-key wallet with no plan, then with
+/// Paper and vault; a 2-of-3 with test keys 1 and 2 here, key 2 with a
+/// passphrase, and test key 3 a cosigner, with Paper and vault and key
+/// 2's passphrase in its vault too. On a small panel, each card's At a
+/// glance row and the chart's page.
+fn glance_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::create::NewKind;
+    t.press(Action::Entry(None));
+    t.type_key(0);
+    let one = {
+        let text = NewKind::NativeSegwit
+            .key_text(&t.app.session.keys[0].master)
+            .map_err(|e| e.to_string())?;
+        t.app
+            .session
+            .add_wallet("Spending", &format!("wpkh({text}/<0;1>/*)"), "test")
+            .map_err(|e| e.text())?
+    };
+    let shot_card = |t: &mut Tour, w: usize, name: &str| -> Result<(), String> {
+        t.press(Action::OpenWallet(w));
+        t.shot(name)?;
+        if t.app.is_compact() {
+            t.press(Action::Glance(true));
+            t.shot(&format!("{name}-page"))?;
+            for k in 1..=3 {
+                scroll(t, 500);
+                t.shot(&format!("{name}-page-{k}"))?;
+            }
+            t.press(Action::Glance(false));
+        } else {
+            scroll(t, 400);
+            t.shot(&format!("{name}-foot"))?;
+        }
+        Ok(())
+    };
+    shot_card(t, one, "glance-no-plan")?;
+    t.press(Action::Backup(one));
+    t.press(Action::BPreset(1));
+    t.press(Action::BChecklist);
+    shot_card(t, one, "glance-one-key")?;
+    // Test key 2 with a passphrase, test key 3 a cosigner's.
+    t.app
+        .session
+        .add_words_with(
+            &testkit::test_words(testkit::TEST_SEEDS[1].0),
+            "glance",
+            "Test key 2",
+            None,
+        )
+        .map_err(|e| e.text())?;
+    let mut elsewhere = faraday_core::wallet::Session::default();
+    elsewhere
+        .add_words(
+            &testkit::test_words(testkit::TEST_SEEDS[2].0),
+            "Test key 3",
+            None,
+        )
+        .map_err(|e| e.text())?;
+    let masters = [
+        &t.app.session.keys[0].master,
+        &t.app.session.keys[1].master,
+        &elsewhere.keys[0].master,
+    ];
+    let keys: Vec<String> = masters
+        .iter()
+        .map(|m| NewKind::Multi.key_text(m))
+        .collect::<Result<_, _>>()?;
+    let two = t
+        .app
+        .session
+        .add_wallet("Savings", &NewKind::Multi.descriptor(2, &keys), "test")
+        .map_err(|e| e.text())?;
+    shot_card(t, two, "glance-two-of-three-no-plan")?;
+    t.press(Action::Backup(two));
+    t.press(Action::BPreset(1));
+    // Key 2's passphrase into its vault too.
+    t.press(Action::BAnswer(qrow::PASS + 1, 3));
+    t.press(Action::BChecklist);
+    shot_card(t, two, "glance-two-of-three")?;
+    Ok(())
+}
+
 /// Tools' GPG key with no vault file, Create a vault made for it, and
 /// back; then with the test vault locked, the tile again, Unlock for it,
 /// and the GPG keys it comes back to.
@@ -3450,7 +3538,7 @@ fn main() -> ExitCode {
     };
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer]"
+            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance]"
         );
         return ExitCode::from(2);
     }
@@ -3482,11 +3570,12 @@ fn main() -> ExitCode {
         ![
             "spend", "themes", "compact", "seeds", "keys", "visit", "copy", "scan", "public",
             "seedfile", "vaultway", "kept", "again", "plan", "inbox", "transfer", "upgrade",
+            "glance",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer or upgrade"
+            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade or glance"
         );
         return ExitCode::from(2);
     }

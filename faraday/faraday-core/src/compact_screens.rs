@@ -92,7 +92,6 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
     let (x, iw) = (x0 + M, cw - 2.0 * M);
     let top = -app.list_offset;
     let mut cy = top + 12.0;
-    let may = app.may_load_keys();
     let Some(wlt) = app.session.wallets.get(app.wallet) else {
         if app.session.loose_keys().is_empty() {
             ui.text(x, cy, 14.0, W::R, MUTED, "No wallet loaded");
@@ -102,6 +101,14 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
         }
         return;
     };
+    // The chart, as its own page.
+    if app.glance
+        && let Some(g) = crate::glance::of(app, app.wallet)
+    {
+        cy += crate::glance::draw_column(ui, &g, app.wallet, x, cy, iw);
+        finish(app, ui, x0, cw, h, cy - top + 8.0);
+        return;
+    }
 
     // A PSBT waiting leads.
     let lead = match app.spend.as_ref() {
@@ -223,58 +230,35 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
     );
     cy += box_h + 16.0;
 
-    // The keys: one row each, and its way in under it when it has one.
-    cy += heading(ui, x, cy, "Keys");
+    // The wallet at a glance, as its own page: its keys and its backup.
     let quorum_here =
         slots.iter().filter(|s| s.held_by.is_some()).count() >= crate::wallet::needed(wlt);
-    for (n, slot) in slots.iter().enumerate() {
-        ui.text_mid(x, cy, 30.0, 12.0, W::R, DIM, &(n + 1).to_string());
-        let fp = slot
-            .fingerprint
-            .map(fp_text)
-            .unwrap_or_else(|| "no origin".to_string());
-        ui.text_mid(x + 20.0, cy, 30.0, 14.0, W::M, TEXT, &fp);
-        let (state, fg, bg) = if slot.held_by.is_some() {
-            ("Can sign here", OK, OK.with_alpha(30))
-        } else if quorum_here {
-            ("Not needed", DIM, INNER)
-        } else {
-            ("Not here", MUTED, INNER)
-        };
-        let chipw = ui.measure(12.0, W::R, state) + 34.0;
-        ui.chip(x + iw - chipw, cy + 3.0, state, fg, bg);
-        cy += 30.0;
-        // A key added with no label is labelled with its fingerprint:
-        // the fingerprint is not said twice.
-        if let Some(label) = slot
-            .held_by
-            .as_ref()
-            .filter(|l| !l.trim().eq_ignore_ascii_case(&fp))
-        {
-            let label = ui.fit(12.0, W::R, label, iw - 20.0);
-            ui.text(x + 20.0, cy, 12.0, W::R, MUTED, &label);
-            cy += 20.0;
-        }
-        if slot.held_by.is_none() && !quorum_here {
-            let (label, style, action) =
-                match slot.fingerprint.filter(|f| app.vault_key_for(*f).is_some()) {
-                    Some(f) => (
-                        "Load from vault",
-                        Style::Primary,
-                        Action::Vault(crate::vaults::VaultAction::LoadKeyOf(f.0)),
-                    ),
-                    None => (
-                        "Add its key",
-                        Style::Secondary,
-                        Action::Entry(slot.fingerprint.map(|f| f.0)),
-                    ),
-                };
-            let style = if may { style } else { Style::Disabled };
-            ui.button(x + 20.0, cy, Some(iw - 20.0), 36.0, label, style, action);
-            cy += 44.0;
-        }
-        ui.rule(x, cy + 2.0, iw, INNER);
-        cy += 10.0;
+    if let Some(g) = crate::glance::of(app, app.wallet) {
+        let sub = format!(
+            "{} {} · {}",
+            g.keys.len(),
+            if g.keys.len() == 1 { "key" } else { "keys" },
+            match &g.backup {
+                crate::glance::Backup::Plan { nodes, .. } => format!(
+                    "{} backup {}",
+                    nodes.len(),
+                    if nodes.len() == 1 { "place" } else { "places" }
+                ),
+                crate::glance::Backup::Locked { vault, .. } => format!("plan in {vault}, locked"),
+                crate::glance::Backup::None => "no backup plan".to_string(),
+            }
+        );
+        cy += row(
+            ui,
+            x,
+            cy,
+            iw,
+            None,
+            "At a glance",
+            &sub,
+            MUTED,
+            Some(Action::Glance(true)),
+        );
     }
     if !quorum_here {
         cy += 4.0;

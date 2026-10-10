@@ -31,6 +31,10 @@ pub struct Record {
     pub checks: Vec<([u8; 4], u32)>,
     /// The descriptor was shown to the watch-only software as a code.
     pub shown: bool,
+    /// The plan's answers, as [`plan::Answers::to_text`] writes them:
+    /// what the wallet's card draws its chart from once the backup is
+    /// left. Empty in a record kept before it was written.
+    pub answers: String,
 }
 
 /// One place of the map.
@@ -175,6 +179,12 @@ pub(crate) fn encode(all: &[Record]) -> Vec<u8> {
         for (fp, n) in &r.checks {
             out.push_str(&format!("check\t{}\t{n}\n", hex4(*fp)));
         }
+        if !r.answers.is_empty() {
+            out.push_str(&format!(
+                "plan\t{}\n",
+                kept_field(&r.answers.trim_end().replace('\n', ";"))
+            ));
+        }
     }
     out.into_bytes()
 }
@@ -211,6 +221,11 @@ pub(crate) fn decode(bytes: &[u8]) -> Vec<Record> {
                     files: list(files),
                     secret: list(secret),
                 });
+            }
+            ["plan", answers] => {
+                if let Some(r) = out.last_mut() {
+                    r.answers = answers.replace(';', "\n");
+                }
             }
             ["check", fp, n] => {
                 if let (Some(fp), Ok(n), Some(r)) = (read_hex4(fp), n.parse(), out.last_mut()) {
@@ -332,11 +347,13 @@ impl Faraday {
         let sum = wallet.policy.checksum();
         let name = wallet.name.clone();
         let shown = b.shown;
+        let answers = b.answers.to_text();
         match self.backup_records.iter_mut().find(|r| r.sum == sum) {
             Some(r) => {
                 r.spots = spots;
                 r.name = name;
                 r.shown |= shown;
+                r.answers = answers;
             }
             None => self.backup_records.push(Record {
                 sum,
@@ -344,6 +361,7 @@ impl Faraday {
                 spots,
                 checks: Vec::new(),
                 shown,
+                answers,
             }),
         }
     }
@@ -506,6 +524,7 @@ impl Faraday {
             spots: self.backup_spots(w, wi, &a),
             checks: Vec::new(),
             shown: false,
+            answers: String::new(),
         };
         Some(self.record_lines(&r, sum, &names))
     }

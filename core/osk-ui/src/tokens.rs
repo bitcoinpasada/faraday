@@ -944,6 +944,43 @@ pub const ENTRY_DOCK_GAP: f32 = GAP_SMALL;
 pub const TYPED_VALUE_BLOCK: f32 = 24.0;
 
 // ---------------------------------------------------------------------
+// Structure chart
+// ---------------------------------------------------------------------
+
+/// Padding in dp inside a structure chart's node (`docs/DESIGN.md`
+/// §4.16): a grid step and a half, so that five nodes stand side by side
+/// on a desktop card.
+pub const CHART_NODE_PAD: f32 = GRID + GAP_SMALL;
+/// The narrowest a node is drawn before its row wraps onto another line.
+pub const CHART_NODE_MIN: f32 = 112.0;
+/// The widest a node is drawn: a row of few nodes is centred, not
+/// stretched across the card.
+pub const CHART_NODE_MAX: f32 = 240.0;
+/// The gap in dp between two nodes side by side, which a line passing
+/// down between them runs through.
+pub const CHART_NODE_GAP: f32 = GRID + GAP_SMALL;
+/// The space in dp above and below the lines' runs across, between two
+/// lines of nodes.
+pub const CHART_BAND: f32 = GRID + GAP_SMALL;
+/// The distance in dp between two lines running side by side, across a
+/// band or down a gap.
+pub const CHART_LANE: f32 = GAP_SMALL;
+/// A line's stroke in dp.
+pub const CHART_STROKE: f32 = 1.0;
+/// Height in dp of a button inside a node.
+pub const CHART_BUTTON: f32 = 32.0;
+/// Each key's dash pattern, in dp: on, off, on, off. The first is solid.
+/// With the line colours, which cycle with them, they tell the keys'
+/// lines apart where colour alone does not.
+pub const CHART_DASHES: [[f32; 4]; 5] = [
+    [1.0, 0.0, 1.0, 0.0],
+    [8.0, 4.0, 8.0, 4.0],
+    [2.0, 3.0, 2.0, 3.0],
+    [10.0, 3.0, 2.0, 3.0],
+    [14.0, 4.0, 5.0, 4.0],
+];
+
+// ---------------------------------------------------------------------
 // Timings
 // ---------------------------------------------------------------------
 

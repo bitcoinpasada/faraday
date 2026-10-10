@@ -170,10 +170,19 @@ fn help(ui: &mut Ui, x: f32, y: f32) {
 /// under it as the desktop draws it, in the panel's width.
 pub(crate) fn page(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
     let name = match app.session.wallets.get(app.wallet) {
+        Some(_) if app.screen == Screen::Wallets && app.glance => "At a glance",
         Some(w) if app.screen == Screen::Wallets => w.name.as_str(),
         _ => screen_name(app.screen, app.medium),
     };
     let back = match app.screen {
+        // The chart's page goes back to the wallet's card.
+        Screen::Wallets if app.glance => (
+            app.session
+                .wallets
+                .get(app.wallet)
+                .map_or("Wallets", |w| w.name.as_str()),
+            Action::Glance(false),
+        ),
         Screen::Wallets | Screen::Explore | Screen::Entry | Screen::CheckMessage => {
             ("Wallets", Action::Nav(Screen::Start))
         }

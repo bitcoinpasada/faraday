@@ -687,6 +687,31 @@ guarantees for this file's rule:
   carries **Make a wallet from this key**. The left column runs top
   down, wallets, keys in no wallet, then its buttons, and scrolls when
   taller than the screen.
+- **The wallet's card shows it at a glance** (owner, 2026-10-10;
+  `docs/NEW-WALLET.md` §6). Its Keys list becomes **At a glance**, a
+  structure chart (DESIGN §4.16): the wallet (name, shape, checksum);
+  its keys, numbered as before, each with its fingerprint, label and
+  where it is ("Can sign here", "Can sign · passphrase", "Cosigner ·
+  xpub only", "On its own device"); its backup, a node per spot of the
+  plan's map, each listing what it holds ("Key 1 words", "Vault 2
+  stick", "Key 2 seed + passphrase", "Description"), its tag, what
+  Backups saw of it, and what it gives whoever finds it alone
+  ("Nothing", "Sees the balance", "Can spend", "Can spend with the
+  vault's passphrase"; a vault "Sealed", with where its stick is). A
+  line runs from the wallet to each key and from each key held here to
+  every node holding its seed, a colour and dash pattern per key; a
+  cosigner's key has none, and its seed is in no node. Under it the
+  plan's three check lines. The plan is the backup's once its checklist
+  is made, else the one recorded this power-on (kept across a lock),
+  else an open vault's. No plan: "No backup plan" with **Back up**; a
+  plan in a locked vault not remembered: "Plan in {vault}, locked" with
+  **Unlock**. A backup node opens Back up at its checklist; a key held
+  here opens Explore; a key the quorum still needs offers its way in
+  (**Load from vault**, **Add its key**) as the Keys list did. The card's
+  body scrolls between its head and its buttons. On a small panel an
+  **At a glance** row opens the chart as its own page, one column, no
+  lines, each backup node naming the keys it holds ("Key 1 words · Key
+  2 in the vault"); Back returns to the card.
 - **Restore** takes the wallet's description (a stick, a vault, paper) or
   **Type the seeds**: each seed through Add a key and back, **Add another
   key**, then **Make the wallet**: M of N on two sliders, the cosigners'

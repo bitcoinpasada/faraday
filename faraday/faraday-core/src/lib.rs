@@ -25,6 +25,7 @@ pub mod family;
 pub mod flow;
 pub mod forms;
 mod fresh;
+pub mod glance;
 pub mod gpg;
 pub mod inbox;
 pub mod inputs;
@@ -529,6 +530,12 @@ pub enum Action {
     Nav(Screen),
     /// Open Backups on loaded wallet `i`.
     BackupsOf(usize),
+    /// Open Back up a wallet on loaded wallet `i` at its checklist, from
+    /// the plan its chart shows (`docs/NEW-WALLET.md` §6.2).
+    BackupChecklist(usize),
+    /// Open, or close, the wallet's chart as its own page on a small
+    /// panel.
+    Glance(bool),
     /// Show the Backups screen's wallet `i`, a page each on a small panel.
     BackupsPage(usize),
     /// A vault screen's action.
@@ -2694,6 +2701,10 @@ pub struct Faraday {
     /// wheel notch moves the content by its own pixels like everywhere
     /// else.
     pub list_offset: f32,
+    /// Design units scrolled past in the wallet card's body, on a desktop.
+    pub card_offset: f32,
+    /// The wallet's chart is open as its own page, on a small panel.
+    pub glance: bool,
     /// The height a scrolled page last drew to, design units: how far its
     /// scroll may go.
     pub(crate) content_h: std::cell::Cell<f32>,
@@ -2925,6 +2936,8 @@ impl Faraday {
             about_open: None,
             pin_h: std::cell::Cell::new(0.0),
             list_offset: 0.0,
+            card_offset: 0.0,
+            glance: false,
             content_h: std::cell::Cell::new(0.0),
             motion: motion::Motion::default(),
             motion_for: ((Screen::Home, None), ui::Slot::Page),
@@ -4204,6 +4217,8 @@ impl Faraday {
                 self.screen = s;
                 self.osk_leave();
                 self.list_offset = 0.0;
+                self.card_offset = 0.0;
+                self.glance = false;
                 self.renaming = None;
                 if s == Screen::Visit {
                     self.visit.out = self.visit_default_out();
@@ -4296,6 +4311,7 @@ impl Faraday {
             Action::PickWallet(i) => {
                 self.wallet = i;
                 self.renaming = None;
+                self.card_offset = 0.0;
             }
             Action::PickKey(fp) => self.loose_pick = Some(fp),
             Action::RemoveWallet(i) => {
@@ -4625,7 +4641,37 @@ impl Faraday {
                 if i < self.session.wallets.len() {
                     self.wallet = i;
                     self.screen = Screen::Wallets;
+                    self.card_offset = 0.0;
+                    self.glance = false;
                 }
+            }
+            Action::Glance(open) => {
+                self.glance = open && self.screen == Screen::Wallets;
+                self.list_offset = 0.0;
+            }
+            Action::BackupChecklist(i) => {
+                if i >= self.session.wallets.len() {
+                    return;
+                }
+                let known = glance::plan_of(self, i);
+                if !self.backup.as_ref().is_some_and(|b| b.wallet == i) {
+                    self.act(Action::Backup(i));
+                }
+                if let Some(b) = self.backup.as_mut()
+                    && b.stage != BStage::Checklist
+                {
+                    // The plan the chart showed, when it is not the one
+                    // loaded.
+                    if let Some((answers, names)) = known {
+                        b.answers = answers;
+                        if b.names.iter().all(|n| n.trim().is_empty()) {
+                            b.names = names;
+                        }
+                        b.q = None;
+                        self.act(Action::BChecklist);
+                    }
+                }
+                self.screen = Screen::Backup;
             }
             Action::Backup(i) => {
                 if i < self.session.wallets.len() {
@@ -8875,6 +8921,7 @@ impl Faraday {
     fn scroll_slot(&mut self) -> Option<&mut f32> {
         match self.slot() {
             ui::Slot::VisitOut => Some(&mut self.visit.out_offset),
+            ui::Slot::Card => Some(&mut self.card_offset),
             ui::Slot::Page => self.page_slot(),
         }
     }
@@ -8889,6 +8936,13 @@ impl Faraday {
                     && self.region_key().1.is_none() =>
             {
                 ui::Slot::VisitOut
+            }
+            ui::Slot::Card
+                if self.screen == Screen::Wallets
+                    && !self.compact
+                    && self.region_key().1.is_none() =>
+            {
+                ui::Slot::Card
             }
             _ => ui::Slot::Page,
         }

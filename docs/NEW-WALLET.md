@@ -69,6 +69,14 @@ with shares a person has not heard of.
 10. A loaded wallet's card shows the wallet **at a glance**: one chart of
     the wallet, its keys and its backup, where each thing is and what
     each place gives whoever finds it.
+11. The wallet's map travels in the vault (the type 11 Backup plan
+    record) and its chart loads with the wallet on unlock. Seen from an
+    open vault, the chart runs the other way: the places and vaults on
+    top, flowing down through the keys into the wallet at the bottom,
+    the way a recovery goes.
+12. Every node and line of the chart can be pressed to look after the
+    backup: rename, check, print again, copy, move, mark lost or
+    exposed (§9). An edit there makes the map the plan.
 
 ## 1. Appearance
 
@@ -177,7 +185,7 @@ Before lock-in:
   `reveals()`, else hidden behind **Show words** as now.
 - For a Create slot only: **Passphrase** and **Passphrase again**,
   masked text fields, the same kind Add a key uses for its passphrase;
-  empty means none, the placeholder reads "None". Unequal fields: "The
+  empty means none, the placeholder reads "Not set". Unequal fields: "The
   two passphrases differ", and no lock-in. New key on its own has no
   passphrase fields: it makes the key alone (decision 4).
 - **Lock in** (primary; Enter presses it). It adds the key: through
@@ -189,9 +197,10 @@ Before lock-in:
 
 After lock-in, the same card shows:
 
-- The words and, for a Create slot, the passphrase line ("Passphrase ·
-  set", masked, or "Passphrase · none") read-only, with a **Locked in**
-  tag (lock icon, `OK`).
+- The words and, for a Create slot, the passphrase line: **Passphrase**
+  with a pill (`Ui::pill`) reading **Set** or **Not set**, never a bare
+  "none", which reads as a passphrase (owner, 2026-10-10). Read-only,
+  with a **Locked in** tag (lock icon, `OK`).
 - **Fingerprint**, then by context:
   - single-key Create: the wallet's descriptor row (`descriptor_row`)
     and **First address** with the wallet's receive 0/0;
@@ -200,8 +209,8 @@ After lock-in, the same card shows:
   - on its own: **Key**, the native SegWit key text, no address.
 - **Continue**, which ends the flow (§3.4).
 
-Summary when closed: "cf0e9805 · no passphrase · locked in" (or
-"· passphrase ·"; on its own "cf0e9805 · locked in"); "Not locked in"
+Summary when closed: "cf0e9805 · passphrase not set · locked in" (or
+"· passphrase set ·"; on its own "cf0e9805 · locked in"); "Not locked in"
 before. After lock-in Length,
 Randomness and the entry card open to be read but change nothing: no
 Change, no inputs, as Create's cards are once `built`.
@@ -467,13 +476,178 @@ pressing a place opens the checklist.
 screen), `docs/FLOWS.md` (Wallets tab), `README.md` "Screens" if its
 Wallets screenshot changes.
 
-## 7. Order
+## 7. The map from a vault, the other way up
+
+### 7.1 It loads with the wallet
+
+A vault holds each wallet's plan as a type 11 record (`docs/VAULT.md`):
+its answers, its place names and its map lines. On unlock, a wallet the
+vault holds is loaded with its plan, and its card's chart (§6) draws
+from that record at once, without opening Back up. (Built with §6.)
+
+### 7.2 The open vault shows it from the backups up
+
+When a vault is open, its view (where SIMPLIFY §3.3 opens a vault just
+unlocked) lists each wallet it holds with that wallet's chart reversed:
+the backup row on top (places, vaults, files, software), the keys under
+it, the wallet at the bottom, the lines running down from where each
+seed is kept into its key and from the keys into the wallet. Each
+backup node keeps its "found alone" line; the check lines go above the
+chart, as the question a recovery starts from. Pressing the wallet node
+opens its card in Wallets; pressing a place opens its Back up checklist,
+as in §6. On the small panel, the stacked page of §6.2 in the reverse
+order. A wallet with no plan in this vault shows its wallet and key
+nodes only, with "No backup plan in this vault".
+
+**Where.** `vault_screens.rs` (the open vault's view), the chart's
+layout from §6 with its reverse direction, `compact_screens.rs`.
+
+**Tests.** `tests/glance.rs`: an open vault holding a wallet with a plan
+shows the chart with the places above the keys and the keys above the
+wallet; pressing the wallet node opens its card.
+
+**Docs.** `docs/DESIGN.md` §4 (the chart's two directions), §5 (the
+vault view), `docs/VAULT.md` (what the view shows), `docs/FLOWS.md`.
+
+## 9. Acting on the chart
+
+The chart of §6 and §7 is also where the backup is looked after: any
+node, and any line inside a node, can be pressed.
+
+### 9.1 What a press does
+
+A press opens a sheet for that node or line: what it is, where it is,
+when it was last checked here, and its actions. Rules for every action:
+
+- An action that changes where something is kept shows the check's
+  three lines before and after ("One place found: can spend · No → Only
+  with the vault's passphrase") and asks to confirm; a change that makes
+  a line worse is shown in `WARN`.
+- A secret copy is only ever made through the flows that exist: by hand
+  with the copy check, into a vault, as a file after its warning. Files
+  go For the stick, as everywhere.
+- A secret action needs the seed loaded here. When it is not: "Load
+  this key" with the way to it (unlock the vault that holds it, or add
+  its words).
+- Names, dates and marks (§9.5) are kept only in a vault. With none
+  open, those actions read "Open a vault to keep this".
+- On the small panel the sheet is a page; Back returns to the chart.
+
+### 9.2 The wallet node
+
+Show wallet QR (the descriptor, full text under it) · Public files for
+the software (For the stick) · Print the wallet sheet again · Rename
+the wallet · Check addresses (Create's Check) · Change the plan (Back
+up's plan questions).
+
+### 9.3 Key nodes
+
+**A key held here:** Show xpub QR, Xpub file · **Make another backup of
+this seed**: choose the form (words by hand, SeedQR by hand, into a
+vault, Seed XOR parts, codex32 shares, a file), then the place (one of
+the plan's, or a new one), then the form's own flow; the plan gains the
+copy · **Check a copy of this seed** (Scan my copy, or the words typed
+and compared; nothing kept but the result) · **Where it is** (its lines
+on the chart drawn bold, the rest dimmed).
+
+**A key not held here** (a cosigner's, or on its own device): Show its
+xpub · **Name its holder** ("Alice's Coldcard"; kept in the vault like a
+place's name) · **Mark checked**, the date its holder confirmed their
+backup. Nothing secret is offered.
+
+**A FROST share:** as a key held here, less the xpub.
+
+### 9.4 Backup nodes and the lines inside them
+
+**A place:** Rename · Mark checked (each thing in it, today) · What goes
+in its envelope (the envelope list, For the stick as a PDF) · **Add
+here**: a copy of a seed held here, its passphrase, the wallet sheet, a
+share, a vault's stick · **Mark lost**, **Mark exposed** (§9.6) ·
+Remove the place: asks where each thing in it goes first.
+
+Inside a place, per line:
+
+| Line | Actions |
+|---|---|
+| A seed's words or SeedQR | Check this copy · Make another copy (elsewhere) · Move to another place · I destroyed this copy · Lost · Exposed |
+| A passphrase | Check it: typed, the key it makes compared with the loaded one by fingerprint, nothing kept · Move · Another copy · Lost · Exposed |
+| The wallet sheet | Print again (PDF), as a QR picture, as text · Move · Another copy elsewhere |
+| A share | Print again (sheet PDF, text file, QR picture) · Move · Keys left off each share (the slider; changes every share, so it is a plan change) |
+| A vault's stick | Open that vault (unlock) · Copy the vault to another stick, at another place (a new line, "Vault 1 · copy") · Move the stick · Write it out again, when the vault has changed since it was written (SIMPLIFY §3.5) |
+
+**A vault node:** Unlock or open · Rename · Save more into it (another
+seed held here, a passphrase, the description), each a plan change ·
+Its sticks, and Copy to another stick, as above.
+
+**Watch-only software:** Show the descriptor QR again · Public files
+for that software.
+
+**Unprotected files:** what they are and where they were written ·
+Write again · Remove from the plan, which asks to destroy the stick's
+copies by hand and shows the check after.
+
+### 9.5 What is kept, and where
+
+The type 11 record (`docs/VAULT.md`) gains, per thing on the map: the
+date it was last checked here, its holder's name for a key not held
+here, and a mark (lost, exposed, destroyed). Never a secret: a
+passphrase is checked by the fingerprint it makes, and only "checked
+on" is kept.
+
+### 9.6 Lost and exposed
+
+Marking a place or a line lost or exposed runs the check with that
+place gone, or found by someone, and says what follows, in order of
+what to do:
+
+1. Someone can now spend, or could with a vault's passphrase they
+   might guess: **Move the money to a new wallet**, which opens Create a
+   wallet and then Spend's sweep of every coin to it. In `ERR`.
+2. The wallet can no longer be rebuilt from what is left: **Back up
+   again now**, while the seeds held here can still sign. In `ERR`.
+3. Someone can see the balance: a line saying so; nothing to undo.
+4. Nothing lost that is not elsewhere: **Make a replacement copy**,
+   opening the same form for the same seed.
+
+A marked thing stays on the chart, struck through, until the person
+removes it from the plan.
+
+### 9.7 The plan once it is edited here
+
+The plan's answers spread things over the places by rule (`spread`). An
+edit on the chart (a move, a copy, an added or removed thing) is not a
+rule, so from the first such edit the map itself is the plan: the type
+11 record's map lines (field 4) are read back as the spots, and
+`check` runs on them as it runs on a drawn map today. The answers stay
+for the plan questions; Change the plan from them, or a preset, asks
+first: "Your changes on the chart are replaced".
+
+### 9.8 The owner's answers (2026-10-10)
+
+1. Edits on the chart make the map the plan (§9.7): yes.
+2. Lost and exposed, with the move-the-money way out (§9.6), in this
+   pass: yes.
+3. Holder names and checked dates for keys not held here (§9.3, §9.5):
+   yes, in the vault only.
+4. Copies of a vault on more sticks, each its own line (§9.4): yes.
+
+## 10. Order
 
 1. §1 and §2 together (mechanical).
 2. §3.
 3. §4.
 4. §5.
-5. §6.
+5. §6 (with §7.1).
+6. The passphrase wording (§3.3, 2026-10-10): the locked Key card's
+   pill, the summary, and the empty field's "Not set" in
+   `screens.rs` `pass_field`, which Create's Add a passphrase shares.
+   And a test: a key locked in with a known passphrase, then a lock;
+   no byte of the kept state (`Faraday::kept`) nor any file written to
+   the stick holds the passphrase.
+7. §7.2.
+8. §9, in two batches: the sheets and the
+   actions that exist as flows today (§9.1–§9.4); then the edited map,
+   the marks and lost/exposed (§9.5–§9.7).
 
 Then the owner's walk: a single key from Wallets to Backup done, with
 dice by hand and a passphrase; a 2-of-3 with two keys made here and one
