@@ -4678,7 +4678,7 @@ fn question_title(q: u8) -> &'static str {
 const SEED_ROWS: [&str; 4] = [
     "On paper, words by hand",
     "On paper, SeedQR by hand",
-    "In the vault",
+    "Into vaults",
     "As a file, unprotected",
 ];
 
@@ -4736,11 +4736,6 @@ fn item_title(app: &Faraday, n: u8) -> (String, String) {
     let (_, keys_n) = Session::quorum(wallet);
     let item = crate::bstep::item(n).unwrap_or(Item::Envelopes);
     let done = app.backup_item_done(item);
-    let vault = app
-        .vaults
-        .open
-        .get(app.vaults.current)
-        .map_or("the vault".to_string(), |o| o.name.clone());
     match item {
         Item::Templates => {
             let k = crate::plan::templates(&shape, a).max(1);
@@ -4759,10 +4754,23 @@ fn item_title(app: &Faraday, n: u8) -> (String, String) {
             ),
             if done { "Checked" } else { "Not checked" }.to_string(),
         ),
-        Item::SeedsVault => (
-            format!("Save the seeds into {vault}"),
-            if done { "Saved" } else { "Not saved" }.to_string(),
-        ),
+        Item::Vault(v) => {
+            let names: Vec<&str> = a
+                .vault_seeds(&shape, v)
+                .into_iter()
+                .map(|i| shape.seeds[i].name.as_str())
+                .collect();
+            let title = if names.is_empty() {
+                format!("Vault {}", v + 1)
+            } else {
+                format!("Vault {}: {}", v + 1, names.join(", "))
+            };
+            let line = match app.backup_vault_fits(v) {
+                Some(name) => format!("In {name}"),
+                None => "Not saved".to_string(),
+            };
+            (title, line)
+        }
         Item::SeedFiles => (
             "The seeds as files".to_string(),
             if done {
@@ -4771,10 +4779,6 @@ fn item_title(app: &Faraday, n: u8) -> (String, String) {
                 "Not made"
             }
             .to_string(),
-        ),
-        Item::WalletVault => (
-            format!("Save the wallet into {vault}"),
-            if done { "Saved" } else { "Not saved" }.to_string(),
         ),
         Item::Sheets if a.split && shape.splits => (
             "The shares".to_string(),
@@ -5041,6 +5045,29 @@ fn plan_body(app: &Faraday, ui: &mut Ui, qs: &[u8], i: usize, x: f32, y: f32, w:
         }
         qstep::SEEDS => {
             cy += ui.multi_list(x, cy, w, &rows(qrow::SEEDS, &SEED_ROWS, &a.seeds));
+            // A section per vault: the seeds here, more than one may be
+            // ticked into one.
+            if a.seeds[crate::plan::seeds::VAULT] && !shape.watch_only() {
+                for (v, row) in a.vaults.iter().enumerate() {
+                    cy += 12.0;
+                    section_label(ui, x, cy, &format!("Vault {}", v + 1));
+                    cy += 28.0;
+                    let list = qrow::VAULTS.saturating_add(v.min(63) as u8);
+                    let items: Vec<(String, bool, bool, Action)> = shape
+                        .here()
+                        .into_iter()
+                        .map(|i| {
+                            (
+                                shape.seeds[i].name.clone(),
+                                row.get(i) == Some(&true),
+                                true,
+                                Action::BAnswer(list, i.min(255) as u8),
+                            )
+                        })
+                        .collect();
+                    cy += ui.multi_list(x, cy, w, &items);
+                }
+            }
         }
         qstep::PLACES => {
             let p = a.places;
@@ -5096,12 +5123,19 @@ fn plan_body(app: &Faraday, ui: &mut Ui, qs: &[u8], i: usize, x: f32, y: f32, w:
                     cy += shares_card(app, ui, x, cy, w, b.wallet, a.omit);
                 }
             }
-            if a.vault(&shape) {
-                section_label(ui, x, cy, &format!("{} with the vault", app.medium.a_cap()));
+            let names: Vec<String> = (0..p).map(|k| app.place_name(k)).collect();
+            let labels: Vec<&str> = names.iter().map(String::as_str).collect();
+            for v in a.vaults_made(&shape) {
+                section_label(
+                    ui,
+                    x,
+                    cy,
+                    &format!("Vault {}'s {}", v + 1, app.medium.noun()),
+                );
                 cy += 28.0;
-                let names: Vec<String> = (0..p).map(|k| app.place_name(k)).collect();
-                let labels: Vec<&str> = names.iter().map(String::as_str).collect();
-                cy += ui.multi_list(x, cy, w, &rows(qrow::STICKS, &labels, &a.sticks)) + 12.0;
+                let list = qrow::STICKS.saturating_add(v.min(63) as u8);
+                let on = a.sticks.get(v).cloned().unwrap_or_default();
+                cy += ui.multi_list(x, cy, w, &rows(list, &labels, &on)) + 12.0;
             }
             cy += place_names(app, ui, x, cy, w);
         }
@@ -5132,7 +5166,7 @@ fn plan_body(app: &Faraday, ui: &mut Ui, qs: &[u8], i: usize, x: f32, y: f32, w:
                 let words: Vec<usize> = (0..a.places)
                     .filter(|&p| a.words_at(&shape, p).contains(&s))
                     .collect();
-                let list = qrow::PASS.saturating_add(s.min(200) as u8);
+                let list = qrow::PASS.saturating_add(s.min(111) as u8);
                 let mut items: Vec<(String, bool, bool, Action)> = (0..a.places)
                     .map(|p| {
                         let with = words.contains(&p);
@@ -5264,11 +5298,10 @@ fn held_item(
     use crate::plan::{At, Item, What};
     let has = |it: Item| items.contains(&crate::bstep::of(it));
     let item = match (at, what) {
-        (At::Away, _) | (_, What::Passphrase(_) | What::VaultStick) => return None,
+        (At::Away, _) | (_, What::Passphrase(_) | What::VaultStick(_)) => return None,
         (_, What::Words(i) | What::SeedQr(i)) => Item::Copy(i),
         (_, What::Sheet | What::Share(_)) => Item::Sheets,
-        (At::Vault, What::Wallet) => Item::WalletVault,
-        (At::Vault, _) => Item::SeedsVault,
+        (At::Vault(v), _) => Item::Vault(v),
         (At::Software, _) if has(Item::ShowDescriptor) => Item::ShowDescriptor,
         (_, What::SeedFile(_)) => Item::SeedFiles,
         _ => Item::PublicFiles,
@@ -5293,16 +5326,11 @@ fn map_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, boxed: bool) -> 
     } else {
         Vec::new()
     };
-    let vault_name = app
-        .vaults
-        .open
-        .get(app.vaults.current)
-        .map_or("Vault".to_string(), |o| o.name.clone());
     let mut cy = y;
     for spot in crate::plan::map(&shape, &b.answers) {
         let name = match spot.at {
             At::Place(p) => app.place_name(p),
-            At::Vault => vault_name.clone(),
+            At::Vault(v) => b.answers.vault_name(&shape, v),
             At::Files => format!("{} of files", app.medium.cap()),
             At::Software => "Watch-only software".to_string(),
             At::Away => "On its own device".to_string(),
@@ -5881,7 +5909,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 cy += 48.0;
             }
         }
-        n if n >= bstep::COPY => {
+        n if bstep::is_copy(n) => {
             let keys = app.backup_keys(b.wallet);
             if keys.is_empty() {
                 ui.wrap(
@@ -6134,16 +6162,16 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 cy += 48.0;
             }
         }
-        bstep::WALLET => {
-            cy += wallet_vault(app, ui, x, cy, w, b.wallet);
-            cy += 12.0;
+        n if n >= bstep::VAULT => {
+            cy += vault_item(app, ui, x, cy, w, usize::from(n - bstep::VAULT));
+            cy += 8.0;
             if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
                 cy += 48.0;
             }
         }
-        bstep::VAULT | bstep::FILES => {
-            cy += key_choice(app, ui, x, cy, w);
-            cy += seed_copies(app, ui, x, cy, w, b.key, n == bstep::VAULT);
+        bstep::FILES => {
+            cy += key_choice(app, ui, x, cy, w, &app.backup_keys(b.wallet));
+            cy += seed_copies(app, ui, x, cy, w, b.key, false);
             cy += 8.0;
             if next_button(ui, x, cy, w, "Continue", Action::BNext(n)) {
                 cy += 48.0;
@@ -6320,13 +6348,64 @@ fn wallet_vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) ->
     cy - y
 }
 
-/// The seeds here as buttons, the one shown chosen, when there is more
-/// than one. Returns the height used.
-fn key_choice(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+/// A vault's checklist item: with the open vault holding another vault's
+/// seed, the way to lock it and make a new one; else its seeds into the
+/// open vault, one shown at a time, and the wallet where the plan puts it
+/// there; with no vault open, the way to make or unlock one. Returns its
+/// height.
+fn vault_item(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 {
     let Some(b) = app.backup.as_ref() else {
         return 0.0;
     };
-    let keys = app.backup_keys(b.wallet);
+    let shape = app.plan_shape(b.wallet);
+    let a = &b.answers;
+    let mut cy = y;
+    let cur = app.vaults.current;
+    if let Some(open) = app.vaults.open.get(cur)
+        && app.backup_vault_taken(v, cur)
+    {
+        let line = format!("{} holds another vault's seed", open.name);
+        let line = ui.fit(13.0, W::S, &line, w);
+        ui.text(x, cy + 4.0, 13.0, W::S, WARN, &line);
+        cy += 32.0;
+        cy += wrap_buttons(
+            ui,
+            x,
+            cy,
+            w,
+            36.0,
+            &[(
+                "Lock it and make a new vault",
+                Style::Secondary,
+                Action::BNewVault,
+            )],
+        ) + 4.0;
+        return cy - y;
+    }
+    let list = app.backup_seed_list(b.wallet);
+    let keys: Vec<usize> = a
+        .vault_seeds(&shape, v)
+        .into_iter()
+        .filter_map(|i| list.get(i)?.1)
+        .collect();
+    if let Some(&first) = keys.first() {
+        cy += key_choice(app, ui, x, cy, w, &keys);
+        let k = if keys.contains(&b.key) { b.key } else { first };
+        cy += seed_copies(app, ui, x, cy, w, k, true);
+    }
+    let open = app.vaults.open.get(cur).is_some();
+    if a.wallet[crate::plan::wallet::VAULT] && (keys.is_empty() || open) {
+        cy += wallet_vault(app, ui, x, cy, w, b.wallet);
+    }
+    cy - y
+}
+
+/// The seeds `keys` as buttons, the one shown chosen, when there is more
+/// than one. Returns the height used.
+fn key_choice(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, keys: &[usize]) -> f32 {
+    let Some(b) = app.backup.as_ref() else {
+        return 0.0;
+    };
     if keys.len() < 2 {
         return 0.0;
     }
@@ -6339,7 +6418,7 @@ fn key_choice(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .collect();
     let items: Vec<(&str, Style, Action)> = labels
         .iter()
-        .zip(&keys)
+        .zip(keys)
         .map(|(l, &k)| {
             let style = if b.key == k {
                 Style::Primary

@@ -768,6 +768,9 @@ pub enum Action {
     /// The seed shown into the open vault as a key, with its BIP-39
     /// passphrase when true.
     BVault(bool),
+    /// A vault's item, the open vault holding another vault's seed: lock
+    /// that vault and make a new one, back to the item.
+    BNewVault,
     /// The seed shown as a file: the secret sheet for it.
     BFile,
     /// The template's word count.
@@ -2245,26 +2248,28 @@ pub mod bstep {
     pub const SHEETS: u8 = 3;
     /// One envelope per place.
     pub const ENVELOPE: u8 = 4;
-    /// The seeds into the vault.
-    pub const VAULT: u8 = 5;
     /// The seeds as files.
     pub const FILES: u8 = 6;
-    /// The wallet into the vault.
-    pub const WALLET: u8 = 7;
     /// The descriptor shown to the watch-only software.
     pub const SHOW: u8 = 8;
     /// Copy seed i by hand and check it: `COPY + i`, the seed by its
-    /// place among the wallet's.
+    /// place among the wallet's, below [`VAULT`].
     pub const COPY: u8 = 16;
+    /// Vault v made and filled: `VAULT + v`, the first vault `VAULT`.
+    pub const VAULT: u8 = 128;
+
+    /// Whether `n` is a seed's copy by hand.
+    pub fn is_copy(n: u8) -> bool {
+        (COPY..VAULT).contains(&n)
+    }
 
     /// An item's number.
     pub fn of(item: Item) -> u8 {
         match item {
             Item::Templates => BLANK,
-            Item::Copy(i) => COPY.saturating_add(i.min(200) as u8),
-            Item::SeedsVault => VAULT,
+            Item::Copy(i) => COPY.saturating_add(i.min(usize::from(VAULT - COPY - 1)) as u8),
+            Item::Vault(v) => VAULT.saturating_add(v.min(127) as u8),
             Item::SeedFiles => FILES,
-            Item::WalletVault => WALLET,
             Item::Sheets => SHEETS,
             Item::PublicFiles => PUBLIC,
             Item::ShowDescriptor => SHOW,
@@ -2276,13 +2281,12 @@ pub mod bstep {
     pub fn item(n: u8) -> Option<Item> {
         Some(match n {
             BLANK => Item::Templates,
-            VAULT => Item::SeedsVault,
             FILES => Item::SeedFiles,
-            WALLET => Item::WalletVault,
             SHEETS => Item::Sheets,
             PUBLIC => Item::PublicFiles,
             SHOW => Item::ShowDescriptor,
             ENVELOPE => Item::Envelopes,
+            n if n >= VAULT => Item::Vault(usize::from(n - VAULT)),
             n if n >= COPY => Item::Copy(usize::from(n - COPY)),
             _ => return None,
         })
@@ -2326,8 +2330,6 @@ pub mod qrow {
     pub const PLACES: u8 = 1;
     /// The whole sheet (row 0) or a share each (row 1).
     pub const SPLIT: u8 = 2;
-    /// A stick with the vault, by place.
-    pub const STICKS: u8 = 3;
     /// Where the wallet description goes.
     pub const WALLET: u8 = 4;
     /// The software.
@@ -2336,6 +2338,11 @@ pub mod qrow {
     pub const FORM: u8 = 6;
     /// Seed i's passphrase: `PASS + i`, a row per place, then the vault.
     pub const PASS: u8 = 16;
+    /// A stick with vault v: `STICKS + v`, a row per place.
+    pub const STICKS: u8 = 128;
+    /// The seeds vault v holds: `VAULTS + v`, a row per seed of the
+    /// wallet.
+    pub const VAULTS: u8 = 192;
 
     /// The question a list number stands for.
     pub fn question(n: u8) -> Option<crate::plan::Question> {
@@ -2344,10 +2351,11 @@ pub mod qrow {
             SEEDS => Q::Seeds,
             PLACES => Q::Places,
             SPLIT => Q::Split,
-            STICKS => Q::Sticks,
             WALLET => Q::Wallet,
             SOFTWARE => Q::Software,
             FORM => Q::Form,
+            n if n >= VAULTS => Q::Vault(usize::from(n - VAULTS)),
+            n if n >= STICKS => Q::Sticks(usize::from(n - STICKS)),
             n if n >= PASS => Q::Passphrase(usize::from(n - PASS)),
             _ => return None,
         })
@@ -3768,12 +3776,45 @@ impl Faraday {
             .collect()
     }
 
-    fn visit_default_out(&self) -> std::collections::BTreeSet<String> {
+    /// Every Outbox file a visit may write unasked: all but an
+    /// unprotected secret.
+    fn visit_all_out(&self) -> std::collections::BTreeSet<String> {
         self.outbox
             .iter()
             .filter(|i| i.exposure() != secrets::Exposure::Secret)
             .map(|i| i.name.clone())
             .collect()
+    }
+
+    /// [`Faraday::visit_all_out`], but with more than one vault file
+    /// waiting, one vault for this stick (`docs/NEW-WALLET.md` §5.3): the
+    /// first the last write did not write. The rest wait for the next
+    /// stick.
+    fn visit_default_out(&self) -> std::collections::BTreeSet<String> {
+        let mut out = self.visit_all_out();
+        let vaults: Vec<&Item> = self
+            .outbox
+            .iter()
+            .filter(|i| i.kind == FileKind::Vault)
+            .collect();
+        if vaults.len() > 1 {
+            let written = |i: &Item| {
+                self.receipt
+                    .as_ref()
+                    .is_some_and(|r| r.holds(&i.name, &i.bytes))
+            };
+            let one = vaults
+                .iter()
+                .find(|i| !written(i))
+                .or(vaults.first())
+                .map(|i| i.name.clone());
+            for i in &vaults {
+                if Some(&i.name) != one.as_ref() {
+                    out.remove(&i.name);
+                }
+            }
+        }
+        out
     }
 
     fn lock(&mut self) {
@@ -4377,7 +4418,7 @@ impl Faraday {
                 // Every row but an unprotected secret, which is ticked one
                 // at a time (FLOWS.md decision 6); from the Inbox, every
                 // public or sealed file, and none that may be a secret.
-                let all = self.visit_default_out();
+                let all = self.visit_all_out();
                 let inbox = self.visit_inbox_plain();
                 let every = self.visit_settings_on()
                     && all.is_subset(&self.visit.out)
@@ -4788,6 +4829,10 @@ impl Faraday {
                         vaults::VaultAction::SaveKey(k)
                     });
                 }
+            }
+            Action::BNewVault => {
+                self.vault_lock_one(self.vaults.current);
+                self.vault_act(vaults::VaultAction::CreateFrom(Screen::Backup));
             }
             Action::BFile => self.offer_seed(),
             Action::BWords(n) => {
@@ -5819,10 +5864,16 @@ impl Faraday {
     /// Opens checklist item `n`, or closes them all. A seed's copy shows
     /// that seed.
     fn backup_item_open(&mut self, n: Option<u8>) {
+        let shape = self.backup.as_ref().map(|b| self.plan_shape(b.wallet));
         let key = n
             .and_then(bstep::item)
             .and_then(|it| match it {
                 plan::Item::Copy(i) => Some(i),
+                // A vault's item shows its first seed.
+                plan::Item::Vault(v) => {
+                    let b = self.backup.as_ref()?;
+                    b.answers.vault_seeds(shape.as_ref()?, v).first().copied()
+                }
                 _ => None,
             })
             .and_then(|i| {
@@ -5948,7 +5999,6 @@ impl Faraday {
     /// the stick or written, its seeds or the wallet in the open vault, the copy
     /// matched, the descriptor shown; the envelopes alone by a press.
     pub fn backup_item_done(&self, item: plan::Item) -> bool {
-        use crate::vault_screens::{vault_has_wallet, vault_key};
         let Some(b) = self.backup.as_ref() else {
             return false;
         };
@@ -5973,13 +6023,7 @@ impl Faraday {
                 .iter()
                 .find(|(j, _)| *j == i)
                 .is_some_and(|(_, k)| b.checked.contains(&k.master.fingerprint().0)),
-            plan::Item::SeedsVault => {
-                let v = self.vaults.current;
-                !here.is_empty()
-                    && here
-                        .iter()
-                        .all(|(_, k)| vault_key(self, v, k.master.fingerprint()).is_some())
-            }
+            plan::Item::Vault(v) => self.backup_vault_fits(v).is_some(),
             plan::Item::SeedFiles => {
                 !here.is_empty()
                     && here.iter().all(|(_, k)| {
@@ -5993,9 +6037,6 @@ impl Faraday {
                             })
                     })
             }
-            plan::Item::WalletVault => {
-                (0..self.vaults.open.len()).any(|v| vault_has_wallet(self, v, w))
-            }
             plan::Item::Sheets => {
                 if b.answers.split && backup::splits(w) {
                     let (_, n) = Session::quorum(w);
@@ -6008,6 +6049,85 @@ impl Faraday {
             plan::Item::ShowDescriptor => b.shown,
             plan::Item::Envelopes => b.envelopes,
         }
+    }
+
+    /// The fingerprints of the seeds the plan puts into vault `v`, and of
+    /// those it puts into another vault and not this one.
+    pub(crate) fn backup_vault_keys(
+        &self,
+        v: usize,
+    ) -> (
+        Vec<osk_bip::keys::Fingerprint>,
+        Vec<osk_bip::keys::Fingerprint>,
+    ) {
+        let Some(b) = self.backup.as_ref() else {
+            return (Vec::new(), Vec::new());
+        };
+        let shape = self.plan_shape(b.wallet);
+        let list = self.backup_seed_list(b.wallet);
+        let fp = |i: usize| {
+            let k = list.get(i)?.1?;
+            Some(self.session.keys.get(k)?.master.fingerprint())
+        };
+        let own = b.answers.vault_seeds(&shape, v);
+        let mut others: Vec<usize> = b
+            .answers
+            .vaults_made(&shape)
+            .into_iter()
+            .filter(|&u| u != v)
+            .flat_map(|u| b.answers.vault_seeds(&shape, u))
+            .filter(|i| !own.contains(i))
+            .collect();
+        others.sort_unstable();
+        others.dedup();
+        (
+            own.into_iter().filter_map(fp).collect(),
+            others.into_iter().filter_map(fp).collect(),
+        )
+    }
+
+    /// Whether open vault `o` holds a seed the plan puts into another
+    /// vault and not vault `v`: it is not offered for vault `v`.
+    pub fn backup_vault_taken(&self, v: usize, o: usize) -> bool {
+        use crate::vault_screens::vault_key;
+        let (_, others) = self.backup_vault_keys(v);
+        others.iter().any(|&f| vault_key(self, o, f).is_some())
+    }
+
+    /// The vault that does the plan's vault `v`: an open vault, or one
+    /// locked since this power-on by what it was seen to hold, that holds
+    /// every seed the plan puts into `v`, the wallet where the plan puts
+    /// it there, and no seed only another vault is to hold. Its name.
+    pub(crate) fn backup_vault_fits(&self, v: usize) -> Option<String> {
+        use crate::vault_screens::{vault_has_wallet, vault_key};
+        let b = self.backup.as_ref()?;
+        let w = self.session.wallets.get(b.wallet)?;
+        let (own, others) = self.backup_vault_keys(v);
+        let wallet_too = b.answers.wallet[plan::wallet::VAULT];
+        if own.is_empty() && !wallet_too {
+            return None;
+        }
+        let open = (0..self.vaults.open.len()).find(|&o| {
+            own.iter().all(|&f| vault_key(self, o, f).is_some())
+                && !others.iter().any(|&f| vault_key(self, o, f).is_some())
+                && (!wallet_too || vault_has_wallet(self, o, w))
+        });
+        if let Some(o) = open {
+            return Some(self.vaults.open[o].name.clone());
+        }
+        let sum = w.policy.checksum();
+        let text = |f: &osk_bip::keys::Fingerprint| fp_text(*f);
+        let salts: Vec<[u8; 32]> = self.vaults.open.iter().map(|o| o.header().salt).collect();
+        self.vaults
+            .summaries
+            .iter()
+            .filter(|s| !salts.contains(&s.salt))
+            .find(|s| {
+                own.iter().all(|f| s.keys.contains(&text(f)))
+                    && !others.iter().any(|f| s.keys.contains(&text(f)))
+                    && (!wallet_too || s.sums.contains(&sum))
+            })
+            .map(|s| s.file.clone())
     }
 
     /// What place `p` is called on screen: its name, kept in the vault, or
@@ -6093,7 +6213,7 @@ impl Faraday {
         for spot in plan::map(&shape, &b.answers) {
             let at = match spot.at {
                 plan::At::Place(p) => self.place_name(p),
-                plan::At::Vault => "Vault".to_string(),
+                plan::At::Vault(v) => b.answers.vault_name(&shape, v),
                 plan::At::Files => format!("{} of files", self.medium.cap()),
                 plan::At::Software => "Watch-only software".to_string(),
                 plan::At::Away => "On its own device".to_string(),
@@ -8704,11 +8824,11 @@ impl Faraday {
                     b.typed.pop();
                     return;
                 }
-                KeyIn::Down if b.open.is_some_and(|o| o >= bstep::COPY) => {
+                KeyIn::Down if b.open.is_some_and(bstep::is_copy) => {
                     b.pin += 1;
                     return;
                 }
-                KeyIn::Up if b.open.is_some_and(|o| o >= bstep::COPY) => {
+                KeyIn::Up if b.open.is_some_and(bstep::is_copy) => {
                     b.pin = b.pin.saturating_sub(1);
                     return;
                 }

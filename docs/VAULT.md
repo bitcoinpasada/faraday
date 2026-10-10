@@ -211,6 +211,11 @@ This computer has 1.5 GiB free." It does not attempt the derivation.
 
 Several vaults may be open at once, each with one open slot.
 
+A backup plan puts one seed in each vault by default, each vault on its
+own stick at its own place (2026-10-10, `docs/NEW-WALLET.md` §5,
+`docs/WALLETS.md` §5): a vault per seed, so no place and no passphrase
+reaches more than one key unless the person ticks more seeds into one.
+
 ## 5. Sealing
 
 Sealing writes the vault back to memory as a file:
@@ -223,8 +228,12 @@ Sealing writes the vault back to memory as a file:
   unused slot from one that another passphrase opens, so it never
   rewrites, re-randomises or clears one.
 
-Sealing happens on every lock (`PLAN.md` §5.3). The sealed file goes
-For the stick (Files' half that a stick visit writes).
+Sealing happens on every lock (`PLAN.md` §5.3), and for one vault alone
+when a backup's vault item locks it to make the next vault ("Lock it and
+make a new vault"); that vault closes and the rest stay open. The sealed
+file goes For the stick (Files' half that a stick visit writes). With
+more than one vault file For the stick, a visit ticks one, the first the
+last write did not write, so each vault goes to its own stick.
 
 ## 6. Writing back
 
@@ -293,7 +302,7 @@ exactly where its last field does, refuses the slot.
 | 8 | Secure Boot keys | 1 owner GUID (16 bytes); 2 PK private key, PKCS#8 DER; 3 PK certificate, DER; 4 KEK key; 5 KEK certificate; 6 db key; 7 db certificate |
 | 9 | Pending signing round | 1 scheme (`u8`: 1 MuSig2, 2 FROST); 2 SHA-256 of the unsigned transaction it is bound to; 3 the key's fingerprint; 4 the round's secret state, as `osk-psbt` serialises it; 5 used (`u8`), set when round 2 signs. Written by the flow in `docs/WALLETS.md` §4.2 and, for FROST, by the carry's secret sheet (`docs/FLOWS.md` decision 6), with the carry file as field 4; Faraday removes the record once its round has signed, so it is gone at the next seal |
 | 10 | Signed amounts | 1 SHA-256 of an unsigned transaction; 2 the amount each input stated, `u64` per input in order (repeatable per record: one record per transaction). Written by `docs/WALLETS.md` §3.3 when that setting is on; the oldest records are dropped first when the slot is full |
-| 11 | Backup plan | 1 the wallet, as a type 3 record's field 1 holds it; 2 the plan's answers, a line each (`name value`: `seeds`, `places`, `split`, `sticks`, `wallet`, `software`, `form`, `omit`, `pass i`); 3 a place's name (≤ 128 bytes, repeatable: one per place, in order, empty for "Place n"); 4 what one place, the vault, a stick of files, the software or the seeds on their own devices hold, a line (repeatable). Written when the backup's checklist is made with a vault open (`docs/WALLETS.md` §5), over the record this slot kept for the same wallet; the next backup of that wallet starts from it. The only place a place's name is kept |
+| 11 | Backup plan | 1 the wallet, as a type 3 record's field 1 holds it; 2 the plan's answers, a line each (`name value`: `seeds`, `places`, `split`, `wallet`, `software`, `form`, `omit`, `vault v` the seeds vault *v* holds, `sticks v` the places that keep its stick, `pass i`; a plan written before 2026-10-10 has one `sticks` line with no number and no `vault` line, and reads as one vault holding every seed here); 3 a place's name (≤ 128 bytes, repeatable: one per place, in order, empty for "Place n"); 4 what one place, a vault, a stick of files, the software or the seeds on their own devices hold, a line (repeatable). Written when the backup's checklist is made with a vault open (`docs/WALLETS.md` §5), over the record this slot kept for the same wallet; the next backup of that wallet starts from it. The only place a place's name is kept |
 
 In each type the first field is required and every other field is
 optional; type 10's field 2 is also required. Fields marked repeatable

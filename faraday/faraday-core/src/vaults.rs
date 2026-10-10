@@ -2661,25 +2661,37 @@ impl Faraday {
     pub(crate) fn vault_seal_all(&mut self) {
         // What each open vault holds, remembered across the lock.
         self.vault_summaries_refresh();
+        let mut sealed: Vec<(String, Vec<u8>)> = Vec::new();
+        for i in 0..self.vaults.open.len() {
+            sealed.extend(self.vault_sealed(i));
+        }
+        for (name, bytes) in sealed {
+            self.put_outbox(&name, bytes);
+        }
+        self.vaults.open.clear();
+    }
+
+    /// Open vault `i`, with the signed-amount memory added, sealed: its
+    /// name and bytes, or None when nobody changed it.
+    fn vault_sealed(&mut self, i: usize) -> Option<(String, Vec<u8>)> {
         // The signed-amount memory goes into every open vault that lacks
         // part of it, the oldest records leaving first when the slot is
         // full (`docs/VAULT.md` §7, type 10).
-        if self.seal_amounts {
-            for v in self.vaults.open.iter_mut() {
-                let have: Vec<[u8; 32]> = v
-                    .contents
-                    .of(kind::AMOUNTS)
-                    .filter_map(|(_, r)| crate::memory::from_record(r).map(|e| e.0))
-                    .collect();
-                let new: Vec<Record> = self
-                    .signed_amounts
-                    .iter()
-                    .filter(|e| !have.contains(&e.0))
-                    .map(crate::memory::record_of)
-                    .collect();
-                if new.is_empty() {
-                    continue;
-                }
+        if self.seal_amounts
+            && let Some(v) = self.vaults.open.get_mut(i)
+        {
+            let have: Vec<[u8; 32]> = v
+                .contents
+                .of(kind::AMOUNTS)
+                .filter_map(|(_, r)| crate::memory::from_record(r).map(|e| e.0))
+                .collect();
+            let new: Vec<Record> = self
+                .signed_amounts
+                .iter()
+                .filter(|e| !have.contains(&e.0))
+                .map(crate::memory::record_of)
+                .collect();
+            if !new.is_empty() {
                 v.contents.records.extend(new);
                 while v.contents.used() > v.header().slot_len as usize {
                     match v
@@ -2697,23 +2709,31 @@ impl Faraday {
                 v.changes += 1;
             }
         }
-        let mut sealed: Vec<(String, Vec<u8>)> = Vec::new();
-        for i in 0..self.vaults.open.len() {
-            if self.vaults.open[i].changes == 0 {
-                continue;
-            }
-            let draw = self.vault_draw(b"nonce");
-            let mut nonce = [0u8; fv::NONCE_LEN];
-            nonce.copy_from_slice(&draw[..fv::NONCE_LEN]);
-            let v = &self.vaults.open[i];
-            if let Ok(bytes) = v.opened.seal(&v.file, &v.contents, &nonce) {
-                sealed.push((v.name.clone(), bytes));
-            }
+        if self.vaults.open.get(i)?.changes == 0 {
+            return None;
         }
-        for (name, bytes) in sealed {
+        let draw = self.vault_draw(b"nonce");
+        let mut nonce = [0u8; fv::NONCE_LEN];
+        nonce.copy_from_slice(&draw[..fv::NONCE_LEN]);
+        let v = &self.vaults.open[i];
+        let bytes = v.opened.seal(&v.file, &v.contents, &nonce).ok()?;
+        Some((v.name.clone(), bytes))
+    }
+
+    /// Locks open vault `i` alone: sealed into the Outbox when changed,
+    /// what it holds remembered, and closed. The rest stay open.
+    pub(crate) fn vault_lock_one(&mut self, i: usize) {
+        if i >= self.vaults.open.len() {
+            return;
+        }
+        self.vault_summaries_refresh();
+        if let Some((name, bytes)) = self.vault_sealed(i) {
             self.put_outbox(&name, bytes);
         }
-        self.vaults.open.clear();
+        self.vaults.open.remove(i);
+        self.vaults.current = 0;
+        self.vaults.item_open = false;
+        self.vaults.form = None;
     }
 
     /// Typing on a vault screen. Returns whether the key was taken.

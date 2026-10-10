@@ -123,7 +123,6 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
             bstep::BLANK,
             bstep::COPY,
             bstep::VAULT,
-            bstep::WALLET,
             bstep::SHEETS,
             bstep::ENVELOPE
         ],
@@ -134,12 +133,7 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
     for item in [Item::Templates, Item::Sheets] {
         assert!(done(&app, item), "{item:?} not made with the checklist");
     }
-    for item in [
-        Item::Copy(0),
-        Item::SeedsVault,
-        Item::WalletVault,
-        Item::Envelopes,
-    ] {
+    for item in [Item::Copy(0), Item::Vault(0), Item::Envelopes] {
         assert!(!done(&app, item), "{item:?} done before anything");
     }
     // So the checklist opens on the copy, which is typed back.
@@ -154,14 +148,13 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
         std::str::from_utf8(digits.expose().as_bytes()).unwrap(),
     );
     assert!(done(&app, Item::Copy(0)));
-    assert!(!done(&app, Item::SeedsVault), "the copy is not the vault");
-    // The seed and the wallet, into the vault.
+    assert!(!done(&app, Item::Vault(0)), "the copy is not the vault");
+    // The seed and the wallet, into the vault, on the vault's one item.
     press_offered(&mut app, Action::BStep(bstep::VAULT));
     press_offered(&mut app, Action::BVault(false));
-    assert!(done(&app, Item::SeedsVault));
-    press_offered(&mut app, Action::BStep(bstep::WALLET));
+    assert!(!done(&app, Item::Vault(0)), "the wallet is not in it yet");
     press_offered(&mut app, Action::Vault(V::SaveWallet(w)));
-    assert!(done(&app, Item::WalletVault));
+    assert!(done(&app, Item::Vault(0)));
     // The sheet, For the stick since the checklist: its row offers
     // Remove, which undoes the item, and making it again redoes it.
     press_offered(&mut app, Action::BStep(bstep::SHEETS));
@@ -304,4 +297,121 @@ fn the_blank_template_has_a_line_per_place_and_no_name() {
     assert_eq!(count(b"(Place) Tj"), 3, "a line per place");
     assert_eq!(count(b"(holds) Tj"), 3);
     assert_eq!(count(NAME.as_bytes()), 0, "a place's name on the template");
+}
+
+/// Test keys 1 and 2 typed in and the 2-of-3 over the three test keys
+/// loaded: two of its seeds here, the third a cosigner's. Returns the
+/// wallet's index.
+fn two_of_three_two_here(app: &mut Faraday) -> usize {
+    for i in 0..8u8 {
+        app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+            [0x40 + i; 32],
+        )));
+    }
+    for k in 0..2 {
+        app.press(Action::Entry(None));
+        type_text(app, &testkit::test_words(testkit::TEST_SEEDS[k].0));
+        app.press(Action::EntryAdd);
+    }
+    assert_eq!(app.session.keys.len(), 2);
+    app.session
+        .add_wallet("Savings", &testkit::savings(), "test")
+        .unwrap()
+}
+
+/// Create a vault, opened from the backup: a passphrase typed twice, the
+/// vault made, unlocked, and back to the backup.
+fn make_the_vault(app: &mut Faraday) {
+    assert_eq!(app.screen, Screen::CreateVault);
+    let before = app.vaults.open.len();
+    for second in [false, true] {
+        app.press(Action::Vault(V::CFocus(0, second)));
+        type_text(app, "test phrase");
+    }
+    app.press(Action::Vault(V::CGo));
+    for t in 1..60u64 {
+        if app.screen == Screen::Unlock {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    type_text(app, "test phrase");
+    app.press(Action::Vault(V::Unlock));
+    for t in 60..120u64 {
+        if app.vaults.open.len() > before && app.screen == Screen::Backup {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.screen, Screen::Backup, "{:?}", app.vaults.unlock_error);
+}
+
+#[test]
+fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_filled() {
+    let mut app = device(Vec::new());
+    let w = two_of_three_two_here(&mut app);
+    app.press(Action::Backup(w));
+    press_offered(&mut app, Action::BPreset(1));
+    press_offered(&mut app, Action::BChecklist);
+    let items = app.backup_items();
+    assert!(
+        items.contains(&bstep::VAULT) && items.contains(&(bstep::VAULT + 1)),
+        "two vault items: {items:?}"
+    );
+    assert!(
+        !items.contains(&(bstep::VAULT + 2)),
+        "no vault for the cosigner's seed"
+    );
+    // Vault 1: made, its seed and the wallet saved into it.
+    press_offered(&mut app, Action::BStep(bstep::VAULT));
+    press_offered(&mut app, Action::Vault(V::CreateFrom(Screen::Backup)));
+    make_the_vault(&mut app);
+    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
+    press_offered(&mut app, Action::BVault(false));
+    press_offered(&mut app, Action::Vault(V::SaveWallet(w)));
+    assert!(done(&app, Item::Vault(0)));
+    assert!(!done(&app, Item::Vault(1)));
+    // Vault 2's item: the open vault holds Vault 1's seed, so it offers
+    // no save, only to lock it and make a new one.
+    press_offered(&mut app, Action::BStep(bstep::VAULT + 1));
+    let mut found = false;
+    for _ in 0..20 {
+        app.settle();
+        let _ = app.frame();
+        assert!(
+            !app.offers(Action::BVault(false)),
+            "Vault 2 offered into Vault 1's vault"
+        );
+        if app.offers(Action::BNewVault) {
+            found = true;
+            break;
+        }
+        app.event(Event::Scroll {
+            x: 400,
+            y: 384,
+            dy: 300,
+        });
+    }
+    assert!(found, "Lock it and make a new vault is not offered");
+    app.press(Action::BNewVault);
+    assert_eq!(app.vaults.open.len(), 0, "the first vault is locked");
+    make_the_vault(&mut app);
+    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT + 1));
+    press_offered(&mut app, Action::BVault(false));
+    press_offered(&mut app, Action::Vault(V::SaveWallet(w)));
+    assert!(done(&app, Item::Vault(1)));
+    assert!(
+        done(&app, Item::Vault(0)),
+        "the first vault, locked, still did its item"
+    );
+    assert_eq!(
+        app.outbox
+            .iter()
+            .filter(|i| i.name.ends_with(".ofv"))
+            .count(),
+        2,
+        "two vault files for the sticks"
+    );
 }

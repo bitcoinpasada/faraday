@@ -42,7 +42,8 @@ pub struct Spot {
     pub holds: Vec<String>,
     /// How what it holds may be read: the most exposed of its things.
     pub tag: Tag,
-    /// The seeds whose copy by hand it keeps, by fingerprint.
+    /// The seeds whose copy by hand it keeps, by fingerprint; for a
+    /// vault, the seeds sealed in it.
     pub copies: Vec<[u8; 4]>,
     /// The public files it holds, by name.
     pub files: Vec<String>,
@@ -102,7 +103,8 @@ fn kept_field(s: &str) -> String {
 fn at_text(at: At) -> String {
     match at {
         At::Place(p) => format!("place{p}"),
-        At::Vault => "vault".into(),
+        At::Vault(0) => "vault".into(),
+        At::Vault(v) => format!("vault{v}"),
         At::Files => "files".into(),
         At::Software => "software".into(),
         At::Away => "away".into(),
@@ -111,10 +113,11 @@ fn at_text(at: At) -> String {
 
 fn at_read(s: &str) -> Option<At> {
     Some(match s {
-        "vault" => At::Vault,
+        "vault" => At::Vault(0),
         "files" => At::Files,
         "software" => At::Software,
         "away" => At::Away,
+        v if v.starts_with("vault") => At::Vault(v.strip_prefix("vault")?.parse().ok()?),
         p => At::Place(p.strip_prefix("place")?.parse().ok()?),
     })
 }
@@ -280,7 +283,12 @@ impl Faraday {
                 };
                 for (what, _) in &spot.holds {
                     match *what {
-                        What::Words(i) | What::SeedQr(i) => {
+                        What::Words(i)
+                        | What::SeedQr(i)
+                        | What::Seed(i)
+                        | What::SeedPassphrase(i)
+                            if !matches!(spot.at, At::Away) =>
+                        {
                             if let Some(fp) = fp_of(i)
                                 && !out.copies.contains(&fp)
                             {
@@ -504,6 +512,12 @@ impl Faraday {
 
     /// A record's lines, each place named and given what was seen of it.
     fn record_lines(&self, r: &Record, sum: &str, names: &[String]) -> Vec<Line> {
+        // One vault is "Vault"; several are numbered.
+        let vaults = r
+            .spots
+            .iter()
+            .filter(|s| matches!(s.at, At::Vault(_)))
+            .count();
         r.spots
             .iter()
             .enumerate()
@@ -514,7 +528,8 @@ impl Faraday {
                         .map(|n| n.trim())
                         .filter(|n| !n.is_empty())
                         .map_or_else(|| format!("Place {}", p + 1), str::to_string),
-                    At::Vault => "Vault".to_string(),
+                    At::Vault(_) if vaults == 1 => "Vault".to_string(),
+                    At::Vault(v) => format!("Vault {}", v + 1),
                     At::Files => format!("{} of files", self.medium.cap()),
                     At::Software => "Watch-only software".to_string(),
                     At::Away => "Own devices".to_string(),
@@ -527,7 +542,7 @@ impl Faraday {
                             ("Not checked".to_string(), Tone::Warn)
                         }
                     }
-                    At::Vault => self.vault_state(sum),
+                    At::Vault(_) => self.vault_state(sum, &s.copies),
                     At::Away => ("Not here".to_string(), Tone::Dim),
                     _ if !s.secret.is_empty() && self.secret_out(&s.secret) => {
                         (format!("{}, unprotected", self.medium.for_box()), Tone::Err)
@@ -583,11 +598,24 @@ impl Faraday {
         ("Not made".to_string(), Tone::Warn)
     }
 
-    /// The vault that holds wallet `sum` and where its file stands: an
-    /// open vault holding it, else a locked one remembered to.
-    pub(crate) fn vault_state(&self, sum: &str) -> (String, Tone) {
+    /// The vault that holds the seeds `seeds`, or with none, wallet `sum`,
+    /// and where its file stands: an open vault holding them, else a
+    /// locked one remembered to.
+    pub(crate) fn vault_state(&self, sum: &str, seeds: &[[u8; 4]]) -> (String, Tone) {
         let files = self.vault_files();
+        let wanted: Vec<String> = seeds
+            .iter()
+            .map(|f| fp_text(osk_bip::keys::Fingerprint(*f)))
+            .collect();
         let holds = |o: &crate::vaults::OpenVault| {
+            if !wanted.is_empty() {
+                let keys: Vec<String> = o
+                    .contents
+                    .of(kind::KEY)
+                    .filter_map(|(_, r)| crate::vault_screens::key_fingerprint(self, r))
+                    .collect();
+                return wanted.iter().all(|f| keys.contains(f));
+            }
             o.contents.of(kind::WALLET).any(|(_, r)| {
                 r.text(field::WALLET)
                     .and_then(|t| crate::wallet::read_wallet(t).ok())
@@ -601,11 +629,13 @@ impl Faraday {
             .position(holds)
             .and_then(|v| files.iter().find(|f| f.open == Some(v)))
             .or_else(|| {
-                let s = self
-                    .vaults
-                    .summaries
-                    .iter()
-                    .find(|s| s.sums.iter().any(|c| c == sum))?;
+                let s = self.vaults.summaries.iter().find(|s| {
+                    if wanted.is_empty() {
+                        s.sums.iter().any(|c| c == sum)
+                    } else {
+                        wanted.iter().all(|f| s.keys.contains(f))
+                    }
+                })?;
                 files.iter().find(|f| f.header.salt == s.salt)
             });
         let Some(f) = file else {
@@ -658,7 +688,7 @@ impl Faraday {
         }
         for l in &lines {
             match l.at {
-                Some(At::Vault) => parts.push(l.state.clone()),
+                Some(At::Vault(_)) => parts.push(l.state.clone()),
                 Some(At::Files) => parts.push(format!("files {}", lower_first(&l.state))),
                 _ => {}
             }

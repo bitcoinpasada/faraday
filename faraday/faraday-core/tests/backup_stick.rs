@@ -320,3 +320,55 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
         "{lines:?}"
     );
 }
+
+/// Two vault files For the stick: a visit ticks one, the first the last
+/// write did not write, and the receipt names it; the next stick gets the
+/// other.
+#[test]
+fn with_two_vault_files_waiting_a_visit_ticks_one() {
+    let vault = testkit::test_vault().unwrap();
+    let mut app = Faraday::new();
+    display(&mut app);
+    app.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox: vec![
+            ("vault.ofv".into(), vault.clone()),
+            ("vault-2.ofv".into(), vault),
+        ],
+        kept: Vec::new(),
+    });
+    let stick = |label: &str| StickInfo {
+        id: label.into(),
+        label: label.into(),
+        boot: false,
+        files: Vec::new(),
+    };
+    let ticked = |app: &Faraday| -> Vec<String> {
+        app.visit
+            .out
+            .iter()
+            .filter(|n| n.ends_with(".ofv"))
+            .cloned()
+            .collect()
+    };
+    app.storage(StorageEvent::Sticks(vec![stick("FIRST")]));
+    app.press(Action::Nav(Screen::Visit));
+    assert_eq!(ticked(&app), vec!["vault.ofv".to_string()]);
+    app.press(Action::VisitWrite);
+    while let Some(c) = app.poll_storage() {
+        if let faraday_core::StorageCommand::Write { stick, name, .. } = c {
+            app.storage(StorageEvent::Written {
+                stick,
+                wrote_as: name.clone(),
+                name,
+            });
+        }
+    }
+    let r = app.receipt.as_ref().expect("a receipt");
+    assert_eq!(r.label, "FIRST");
+    assert!(r.wrote("vault.ofv") && !r.wrote("vault-2.ofv"));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.storage(StorageEvent::Sticks(vec![stick("SECOND")]));
+    app.press(Action::Nav(Screen::Visit));
+    assert_eq!(ticked(&app), vec!["vault-2.ofv".to_string()]);
+}

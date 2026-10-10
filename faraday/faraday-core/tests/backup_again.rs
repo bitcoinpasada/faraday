@@ -197,7 +197,7 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     // opens on the copy.
     assert!(app.backup_item_done(plan::Item::Templates));
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY));
-    press_offered(&mut app, Action::BStep(bstep::WALLET));
+    press_offered(&mut app, Action::BStep(bstep::VAULT));
     // The vault is locked: Unlock it, and back to this step.
     app.vaults.ms_per_unit = Some(180);
     press_offered(&mut app, Action::Vault(V::OpenFrom(0, Screen::Backup)));
@@ -212,7 +212,7 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     }
     assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
     assert_eq!(app.screen, Screen::Backup);
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::WALLET));
+    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
     assert_eq!(app.backup_kept().unwrap().wallet.1, Tone::Warn);
     press_offered(&mut app, Action::Vault(V::SaveWallet(w)));
     let kept = app.backup_kept().unwrap();
@@ -221,7 +221,10 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     // Saved once: the item says so rather than offering it again.
     let _ = app.frame();
     assert!(!app.offers(Action::Vault(V::SaveWallet(w))));
-    assert!(app.backup_item_done(plan::Item::WalletVault));
+    // The vault's item is done with its seed in it too.
+    assert!(!app.backup_item_done(plan::Item::Vault(0)));
+    press_offered(&mut app, Action::BVault(false));
+    assert!(app.backup_item_done(plan::Item::Vault(0)));
 }
 
 #[test]

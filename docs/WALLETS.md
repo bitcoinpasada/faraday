@@ -308,8 +308,12 @@ changeable. The questions are cards, each a multi-choice list (DESIGN
 §4.2), Continue under it; on the small panel one question per page:
 
 - **The seeds go**: on paper, words by hand · on paper, SeedQR by hand ·
-  in the vault · as a file, unprotected (the secret sheet's warning and
-  "I understand", below). Not asked for a wallet with no seed here.
+  into vaults · as a file, unprotected (the secret sheet's warning and
+  "I understand", below). Not asked for a wallet with no seed here. With
+  Into vaults ticked, a section per vault under the list, **Vault 1**,
+  **Vault 2** …, one per seed here, each a multi-choice of the seeds
+  here; a seed may be ticked into more than one vault, and a vault with
+  none ticked is not made (2026-10-10, `docs/NEW-WALLET.md` §5).
 - **Places**: how many places keep paper (1 to the wallet's seeds, at
   least 3); for a multisig, **Each place keeps** the whole wallet sheet
   (the default) or its own share, with **What is a share?** beside Its
@@ -318,12 +322,13 @@ changeable. The questions are cards, each a multi-choice list (DESIGN
   left off each share** on a slider from 0 to m − 1, the shares with
   their keys' fingerprints and the split audit's lines, drawn as the
   checklist's Shares card draws them (2026-10-10, `docs/NEW-WALLET.md`
-  §4); which places keep a stick with the vault; and, with a vault
-  open, each place's name (below). Seed *i* goes to place *i* mod the
+  §4); for each vault made, **Vault 1's stick**, the places that keep a
+  stick with it; and, with a vault open, each place's name (below). Seed *i* goes to place *i* mod the
   places, and a place past the last seed keeps another copy; shares are
   spread the same way.
 - **The wallet description goes**: a sheet (or share) in each place ·
-  in the vault · into watch-only software · as files on a stick.
+  in the vault (every vault made; with no seed in a vault, one vault
+  holds it alone) · into watch-only software · as files on a stick.
 - **Software** (asked when the description goes to software or files):
   Sparrow (the wallet file) · Coldcard, Keystone, Passport (the
   multisig config) · Nunchuk (the BSMS record) · Bitcoin Core (its
@@ -332,21 +337,31 @@ changeable. The questions are cards, each a multi-choice list (DESIGN
   which public files are offered at all.
 - **Passphrases** (asked when a seed was loaded with a BIP-39
   passphrase): where each passphrase is kept, a row per place and "In
-  the vault, with its seed"; a place that keeps its words is dimmed and
-  cannot be ticked.
+  the vault, with its seed", which is whichever vault holds the seed; a
+  place that keeps its words is dimmed and cannot be ticked.
 
 Defaults from the wallet: one key, paper words, two places, the sheet
 in each, the descriptor as a QR picture; a multisig, a place per seed,
 each with its seed and the whole wallet sheet, m − 1 keys left off each
 share should shares be ticked; seeds held elsewhere are listed "On
 its own device" and get no paper here; watch only, no seed question.
-"Paper and vault" adds the seeds and the wallet into the vault and its
-stick in place 1; the third preset adds watch-only software.
+"Paper and vault" puts one seed in each vault, vault *v* holding the
+*v*th seed here, and the wallet in every vault; the third preset adds
+watch-only software. Each vault's stick goes, in turn, to the first
+place that keeps no seed's words and no other vault's stick; failing
+that, to the last place that keeps only that vault's own seeds' words
+(a second copy of a key already there, never a second key). So no place
+holds two different keys, even behind vault passphrases, where the
+places allow it: a single key's vault stick at Place 2; a 2-of-3 with
+two seeds here, Vault 1's stick at Place 3 and Vault 2's at Place 2. A
+vault made later by a tick gets its stick the same way; one whose only
+stick was at a place removed is given another.
 
 **2. The map**, the side panel (on the small panel the plan's last page
 and the envelopes' item), redrawn as answers change: one box per place,
-the vault, a stick of unprotected files, watch-only software and the
-seeds on their own devices, each listing what it holds tagged secret,
+each vault made ("Vault 1 · 9a6a2580", by number and the seeds it
+holds), a stick of unprotected files, watch-only software and the seeds
+on their own devices, each listing what it holds tagged secret,
 sealed or public. Under it the check, found as `backup::audit` finds a
 split's, by trying each place lost and each place found:
 
@@ -357,13 +372,14 @@ split's, by trying each place lost and each place found:
   software counts as a copy of the description; a seed on its own
   device counts as kept.
 - **One place found: can spend**: Yes, **Only with the vault's
-  passphrase** (the place keeps the vault's stick and the vault holds
+  passphrase** (the place keeps a vault's stick and that vault holds
   what is missing), or No.
 - **One place found: sees the balance**: the same three values; the
   whole description, or a one-key wallet's seed, shows it.
 
-A place here is a paper place, a stick of files, or the vault's own
-stick when no place keeps one. Labels and values only; what each line
+A place here is a paper place, a stick of files, or a vault's own stick
+when no place keeps one; each vault is read, with its passphrase, from a
+place that keeps its stick. Labels and values only; what each line
 means is in Learn's Backups page.
 
 **3. The checklist**, the plan made (**Make the checklist**): only the
@@ -382,11 +398,17 @@ items the plan needs, each done by what it does, never by a tap:
    names the first word that differs) or, with no camera, **Type my
    copy's numbers** matched that seed. Seed XOR and codex32 are here
    too.
-3. **Save the seeds into {vault}**: done when the open vault holds
-   every seed here. Each seed: **Save into {vault}** (the key record
-   Vaults' Save writes, loaded at unlock) and **with its passphrase**
-   when it has one; with no vault open **Make a vault**, **Unlock
-   {name}** or **Unlock a vault**, which come back to this item.
+3. **Vault 1: {fp}**, one item per vault made: with no vault open
+   **Make a vault**, **Unlock {name}** or **Unlock a vault**, which come
+   back to this item; then each of its seeds, **Save into {vault}** (the
+   key record Vaults' Save writes, loaded at unlock) and **with its
+   passphrase** when it has one, and the wallet where the plan puts it
+   there. An open vault that holds a seed only another vault is to hold
+   is not offered: "{vault} holds another vault's seed", **Lock it and
+   make a new vault** (that vault alone is sealed For the stick and
+   closed). Done when an open vault, or one locked since and remembered,
+   holds every seed of the item, the wallet where planned, and no other
+   vault's seed. The wallet-into-the-vault item folds into these.
 4. **The seeds as files**: **Save as a file…** opens the secret sheet:
    "Save into {vault}" there writes the same key record; or, once "I
    understand: anyone who copies the stick or sees this file can spend
@@ -395,14 +417,13 @@ items the plan needs, each done by what it does, never by a tap:
    `-compactseedqr.png`) go For the stick under Unprotected secrets,
    unticked on a stick visit; never the passphrase. Done when each
    seed's file is there.
-5. **Save the wallet into {vault}**: done when an open vault holds it.
-6. **The wallet sheet** (descriptor, keys, first addresses, a PDF) or,
+5. **The wallet sheet** (descriptor, keys, first addresses, a PDF) or,
    split, **The shares**: each sheet omits at most M−1 keys, so any
    quorum rebuilds and no one share watches, with the measured minimum
    rebuild group; each share as its PDF, its text and
    `{name}-share-k-of-n.png`. Made For the stick with the checklist,
    with **Remove**; done while it is For the stick or on the receipt.
-7. **The public files** for the software and form chosen, drawn from
+6. **The public files** for the software and form chosen, drawn from
    the wallet (descriptor, wallet file, multisig config, BSMS record,
    Bitcoin Core's import), with each key whose seed is here
    (`xpub-{fp}.txt` and its BIP 129 record) for the cosigners. The
@@ -411,10 +432,15 @@ items the plan needs, each done by what it does, never by a tap:
    stick" with **Remove**, or "Written to {label}" once a visit wrote
    it, and **Make the file** where it is neither. Done when each chosen
    file is For the stick or on the receipt.
-8. **Show the descriptor to the software**: the descriptor as one code
+7. **Show the descriptor to the software**: the descriptor as one code
    or animated (`QrWallet`); done once shown.
-9. **One envelope per place**, listing what goes in it: done by
-   **Done**, the one thing the device cannot see.
+8. **One envelope per place**, listing what goes in it ("Stick with
+   Vault 2" names which vault's stick): done by **Done**, the one thing
+   the device cannot see.
+
+A stick visit with more than one vault file For the stick ticks one by
+default, the first the last write did not write; the rest wait for the
+next stick, and the receipt names the vault file each stick got.
 
 Under the list, **Change the plan** goes back to the questions. With
 every item done, "Backup done", the count of files for the stick,
@@ -444,7 +470,8 @@ in an open vault, or remembered of a locked one. Under each, the map as
 the plan draws it, a row per place with what it holds, its tag and what
 this device saw of it: a paper place **Checked** only once a copy of
 each seed it keeps matched here (the first check of a seed is the first
-place's copy, the second the second); the vault by its file and
+place's copy, the second the second); each vault ("Vault", or with
+several "Vault 1", "Vault 2") by the file that holds its seeds and its
 currency; public files on the stick the receipt names, For the stick,
 or not made; the software shown or not; the seeds away "Not here". A
 wallet with no plan reads **No backup plan** with **Back up**.

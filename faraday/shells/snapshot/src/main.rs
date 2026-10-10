@@ -1708,10 +1708,27 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     device_key(t, 2);
     t.press(Action::CNext(faraday_core::cstep::KEYS));
     t.press(Action::CNext(faraday_core::cstep::CHECK));
-    // After the check, the backup plan: Paper and vault puts the new
-    // keys and the wallet into the open vault from the checklist.
+    // After the check, the backup plan: Paper and vault, every seed
+    // ticked into Vault 1, puts the new keys and the wallet into the open
+    // vault from the checklist.
     let built = t.app.create.as_ref().and_then(|c| c.built).unwrap_or(0);
     t.press(Action::CBackup(1));
+    for i in t.app.plan_shape(built).here().into_iter().skip(1) {
+        t.press(Action::BAnswer(faraday_core::qrow::VAULTS, i as u8));
+    }
+    for (v, i) in t
+        .app
+        .plan_shape(built)
+        .here()
+        .into_iter()
+        .enumerate()
+        .skip(1)
+    {
+        t.press(Action::BAnswer(
+            faraday_core::qrow::VAULTS + v as u8,
+            i as u8,
+        ));
+    }
     // The description as files too, for the public files item below.
     t.press(Action::BAnswer(
         faraday_core::qrow::WALLET,
@@ -1726,7 +1743,6 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
         t.press(Action::BVault(false));
     }
     t.shot("create-backup-vault")?;
-    t.press(Action::BStep(faraday_core::bstep::WALLET));
     t.press(Action::Vault(V::SaveWallet(built)));
     t.shot("create-backup-vault-saved")?;
     // The wallet and the two new keys; test key 1 was there already.
@@ -2836,7 +2852,7 @@ fn again_tour(t: &mut Tour) -> Result<(), String> {
     let w = t.app.session.wallets.len() - 1;
     t.press(Action::Backup(w));
     to_checklist(t, 1, &[]);
-    t.press(Action::BStep(bstep::WALLET));
+    t.press(Action::BStep(bstep::VAULT));
     scroll_to(t, Action::Vault(V::OpenFrom(0, Screen::Backup)));
     t.shot("again-restored-locked")?;
     t.app.vaults.ms_per_unit = Some(180);
@@ -2929,6 +2945,31 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::SHEETS));
     t.shot("plan-shares-three-of-five")?;
+    // A vault per seed: Spending's one vault and its checklist item; then
+    // Savings with test key 2 typed in too, two seeds here and a vault
+    // each, on Seeds, Places, the map and the second vault's item.
+    t.press(Action::Backup(spending));
+    t.press(Action::BPreset(1));
+    t.press(Action::BChecklist);
+    t.press(Action::BStep(bstep::VAULT));
+    t.shot("plan-checklist-vault-one-key")?;
+    t.press(Action::Entry(None));
+    t.type_key(1);
+    t.press(Action::Backup(savings));
+    t.press(Action::BPreset(1));
+    if t.app.backup.as_ref().and_then(|b| b.q) != Some(qstep::SEEDS) {
+        t.press(Action::BQ(qstep::SEEDS));
+    }
+    t.shot("plan-seeds-vaults-two-of-three")?;
+    t.press(Action::BQ(qstep::PLACES));
+    t.shot("plan-places-vaults-two-of-three")?;
+    if t.app.backup_questions().contains(&qstep::MAP) {
+        t.press(Action::BQ(qstep::MAP));
+        t.shot("plan-map-vaults-two-of-three")?;
+    }
+    t.press(Action::BChecklist);
+    t.press(Action::BStep(bstep::VAULT + 1));
+    t.shot("plan-checklist-vaults-two-of-three")?;
     for item in t
         .app
         .outbox

@@ -358,6 +358,19 @@ to get it.
     0 to m − 1, then the shares' fingerprints and the split audit. The
     checklist's Shares card has the same slider in place of its number
     buttons. The page is listed among a multisig backup's Learn pages.
+41. **Back up puts one seed in each vault** (owner, 2026-10-10;
+    `docs/NEW-WALLET.md` §5, decision 9). The seeds' row reads **Into
+    vaults**; under it a section per vault, **Vault 1**, **Vault 2** …,
+    each a multi-choice of the seeds here, vault *v* holding the *v*th
+    seed by default; a seed may be ticked into more than one. Places
+    asks **Vault 1's stick** per vault made, each stick by default at a
+    place that adds no second key. The map names each vault ("Vault 1 ·
+    9a6a2580"). The checklist has one item per vault, **Vault 1:
+    9a6a2580**, which makes a vault and saves its seeds and the wallet;
+    an open vault holding another vault's seed is not offered there
+    (**Lock it and make a new vault**). The separate wallet-into-the-
+    vault item is gone. A stick visit with several vault files waiting
+    ticks one. Plans saved with one vault still load as one vault.
 
 ## Home
 
@@ -634,9 +647,9 @@ guarantees for this file's rule:
   files item is drawn from the
   wallet (descriptor, wallet file, multisig config, BSMS record, Bitcoin
   Core import, each key held here and its BSMS key record), the item
-  showing the rows the plan's software picks. **Save the wallet into
-  {vault}** is its own item (or the way to make or unlock one, back to
-  the item); the seeds' vault item has the seeds'.
+  showing the rows the plan's software picks. Each vault made has its
+  own item (or the way to make or unlock one, back to the item), with
+  its seeds and the wallet where planned (decision 41).
 - **The descriptor and its shares as pictures** (2026-10-09). The
   backup's public files item (**PNG** on the descriptor's row) write `{name}-descriptor.png`: the
   checksummed descriptor as one static code, with the wallet's name, its

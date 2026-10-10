@@ -118,11 +118,11 @@ fn seeds_held_elsewhere_get_no_paper_here_and_watch_only_asks_nothing_of_seeds()
     }
     let a = Answers::preset(&shape, Preset::PaperVault);
     assert!(!a.paper_seeds() && !a.seeds[seeds::VAULT]);
-    assert!(
-        !checklist(&shape, &a)
-            .iter()
-            .any(|i| matches!(i, Item::Templates | Item::Copy(_) | Item::SeedsVault))
-    );
+    assert!(!checklist(&shape, &a).iter().any(|i| match i {
+        Item::Templates | Item::Copy(_) => true,
+        Item::Vault(v) => !a.vault_seeds(&shape, *v).is_empty(),
+        _ => false,
+    }));
 }
 
 #[test]
@@ -167,9 +167,9 @@ fn a_place_with_a_quorum_of_seeds_on_paper_can_spend() {
 fn the_vault_counts_with_its_passphrase() {
     let shape = one_key();
     let mut a = Answers::preset(&shape, Preset::PaperVault);
-    // No paper seed: the seed is in the vault alone, its stick in place 1.
+    // No paper seed: the seed is in the vault alone, its stick in place 2.
     a.toggle(&shape, Question::Seeds, seeds::WORDS);
-    a.toggle(&shape, Question::Sticks, 1);
+    a.toggle(&shape, Question::Sticks(0), 0);
     let c = check(&shape, &a);
     assert_eq!(
         c.lost,
@@ -177,8 +177,8 @@ fn the_vault_counts_with_its_passphrase() {
         "the vault's sticks are in both places"
     );
     assert_eq!(c.spend, Found::OnlyWithVault);
-    // One stick, in place 1: losing it loses the seed.
-    a.toggle(&shape, Question::Sticks, 1);
+    // One stick, in place 2: losing it loses the seed.
+    a.toggle(&shape, Question::Sticks(0), 0);
     assert_eq!(check(&shape, &a).lost, Lost::No);
 }
 
@@ -213,7 +213,12 @@ fn the_checklist_lists_only_what_the_plan_needs() {
     );
     let mut a = Answers::preset(&shape, Preset::PaperVaultSoftware);
     let all = checklist(&shape, &a);
-    for item in [Item::SeedsVault, Item::WalletVault, Item::ShowDescriptor] {
+    for item in [
+        Item::Vault(0),
+        Item::Vault(1),
+        Item::Vault(2),
+        Item::ShowDescriptor,
+    ] {
         assert!(all.contains(&item), "{item:?}");
     }
     assert!(
@@ -289,7 +294,18 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
         "the checklist has the public files item"
     );
     app.press(Action::BStep(bstep::PUBLIC));
-    let _ = app.frame();
+    // Down the column to the item's rows, past a vault item per seed.
+    for _ in 0..10 {
+        let _ = app.frame();
+        if app.offers(Action::PublicOut(built, 1)) {
+            break;
+        }
+        app.event(Event::Scroll {
+            x: 400,
+            y: 400,
+            dy: 200,
+        });
+    }
     assert!(
         app.offers(Action::PublicOut(built, 1)),
         "the item is open on the descriptor"
@@ -448,4 +464,168 @@ fn what_is_a_share_opens_the_page_and_back_returns_to_places() {
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::PLACES));
+}
+
+/// A 2-of-3 with seeds 1 and 2 typed in here and the third a cosigner's.
+fn two_here() -> Shape {
+    let mut shape = two_of_three();
+    shape.seeds[2].here = false;
+    shape
+}
+
+/// Which seeds whoever finds place `p` alone holds a copy of: its words
+/// and SeedQRs, and the seeds in each vault whose stick it keeps.
+fn keys_at(shape: &Shape, a: &Answers, p: usize) -> Vec<usize> {
+    let boxes = map(shape, a);
+    let mut out: Vec<usize> = Vec::new();
+    let place = boxes.iter().find(|s| s.at == At::Place(p)).unwrap();
+    for (what, _) in &place.holds {
+        let seeds: Vec<usize> = match *what {
+            What::Words(i) | What::SeedQr(i) => vec![i],
+            What::VaultStick(v) => boxes
+                .iter()
+                .find(|s| s.at == At::Vault(v))
+                .unwrap()
+                .holds
+                .iter()
+                .filter_map(|(w, _)| match w {
+                    What::Seed(i) | What::SeedPassphrase(i) => Some(*i),
+                    _ => None,
+                })
+                .collect(),
+            _ => Vec::new(),
+        };
+        out.extend(seeds);
+    }
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
+fn sticks_at(shape: &Shape, a: &Answers, p: usize) -> Vec<usize> {
+    map(shape, a)
+        .into_iter()
+        .filter(|s| s.at == At::Place(p))
+        .flat_map(|s| s.holds)
+        .filter_map(|(w, _)| match w {
+            What::VaultStick(v) => Some(v),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn paper_and_vault_puts_one_seed_in_each_vault_each_stick_away_from_the_other_seeds_words() {
+    let shape = two_here();
+    let a = Answers::preset(&shape, Preset::PaperVault);
+    let vaults: Vec<(At, Vec<What>)> = map(&shape, &a)
+        .into_iter()
+        .filter(|s| matches!(s.at, At::Vault(_)))
+        .map(|s| (s.at, s.holds.into_iter().map(|(w, _)| w).collect()))
+        .collect();
+    assert_eq!(
+        vaults,
+        vec![
+            (At::Vault(0), vec![What::Seed(0), What::Wallet]),
+            (At::Vault(1), vec![What::Seed(1), What::Wallet]),
+        ],
+        "a vault per seed here, the description in each"
+    );
+    // Vault 1's stick at Place 3, which keeps no words; Vault 2's at
+    // Place 2, beside its own seed's words.
+    assert_eq!(sticks_at(&shape, &a, 0), Vec::<usize>::new());
+    assert_eq!(sticks_at(&shape, &a, 1), vec![1]);
+    assert_eq!(sticks_at(&shape, &a, 2), vec![0]);
+    assert_eq!(
+        map(&shape, &a)[2]
+            .holds
+            .iter()
+            .find(|(w, _)| matches!(w, What::VaultStick(_)))
+            .map(|(w, _)| w.label(&shape, faraday_core::Medium::Stick)),
+        Some("Stick with Vault 1".to_string())
+    );
+    // So no one place found spends, even with a vault's passphrase; any
+    // one lost leaves the rest to rebuild it.
+    let c = check(&shape, &a);
+    assert_eq!(c.spend, Found::No);
+    assert_eq!(c.lost, Lost::Yes);
+    assert_eq!(
+        checklist(&shape, &a)
+            .into_iter()
+            .filter(|i| matches!(i, Item::Vault(_)))
+            .collect::<Vec<_>>(),
+        vec![Item::Vault(0), Item::Vault(1)]
+    );
+}
+
+#[test]
+fn a_seed_ticked_into_a_second_vault_is_kept_in_both() {
+    let shape = two_here();
+    let mut a = Answers::preset(&shape, Preset::PaperVault);
+    a.toggle(&shape, Question::Vault(0), 1);
+    assert_eq!(a.vault_seeds(&shape, 0), vec![0, 1]);
+    assert_eq!(a.vault_seeds(&shape, 1), vec![1]);
+    assert_eq!(a.vaults_made(&shape), vec![0, 1]);
+    // The cosigner's seed is not here: it goes into no vault.
+    a.toggle(&shape, Question::Vault(0), 2);
+    assert_eq!(a.vault_seeds(&shape, 0), vec![0, 1]);
+    // A vault with no seed is not made.
+    a.toggle(&shape, Question::Vault(1), 1);
+    assert_eq!(a.vaults_made(&shape), vec![0]);
+    let text = a.to_text();
+    assert_eq!(Answers::from_text(&shape, &text), Some(a));
+}
+
+#[test]
+fn no_place_holds_two_different_keys_where_the_places_allow_it() {
+    let five = Shape {
+        m: 3,
+        keys: 5,
+        seeds: (1..=5)
+            .map(|k| seed(&format!("aaaa000{k}"), k <= 3))
+            .collect(),
+        splits: true,
+    };
+    for (shape, name) in [
+        (one_key(), "one key"),
+        (two_here(), "2-of-3, two here"),
+        (five, "3-of-5, three here"),
+    ] {
+        let a = Answers::preset(&shape, Preset::PaperVault);
+        for v in a.vaults_made(&shape) {
+            assert!(
+                (0..a.places).any(|p| a.stick_at(v, p)),
+                "{name}: vault {v} has a place"
+            );
+        }
+        for p in 0..a.places {
+            let keys = keys_at(&shape, &a, p);
+            assert!(keys.len() <= 1, "{name}: place {p} holds {keys:?}");
+        }
+    }
+    // A single key: its words at Place 1, the vault's stick at Place 2.
+    let shape = one_key();
+    let a = Answers::preset(&shape, Preset::PaperVault);
+    assert_eq!(a.words_at(&shape, 0), vec![0]);
+    assert_eq!(sticks_at(&shape, &a, 0), Vec::<usize>::new());
+    assert_eq!(sticks_at(&shape, &a, 1), vec![0]);
+}
+
+#[test]
+fn a_plan_saved_with_one_vault_still_loads() {
+    let shape = two_of_three();
+    // As plans were kept before a vault per seed: one `sticks` line, no
+    // `vault` line.
+    let old =
+        "seeds 1010\nplaces 3\nsplit 0\nsticks 100\nwallet 1100\nsoftware 00001\nform 10\nomit 1\n";
+    let a = Answers::from_text(&shape, old).expect("the old plan loads");
+    assert_eq!(a.vaults_made(&shape), vec![0], "one vault");
+    assert_eq!(a.vault_seeds(&shape, 0), vec![0, 1, 2], "every seed here");
+    assert_eq!(sticks_at(&shape, &a, 0), vec![0], "its stick at Place 1");
+    assert!(sticks_at(&shape, &a, 1).is_empty() && sticks_at(&shape, &a, 2).is_empty());
+    let vault = map(&shape, &a)
+        .into_iter()
+        .find(|s| s.at == At::Vault(0))
+        .unwrap();
+    assert_eq!(vault.holds.len(), 4, "three seeds and the wallet");
 }

@@ -133,7 +133,7 @@ pub(crate) fn backup(n: u8, m: usize, keys: usize, seeds_here: usize, medium: Me
              desktop app, and print one copy per seed. You write on it by hand in the next step.",
             medium.for_the()
         ),
-        n if n >= bstep::COPY => {
+        n if bstep::is_copy(n) => {
             let lead = if seeds_here == 0 {
                 "None of this wallet's seeds were typed into this session, so there is nothing to copy here. \
                  Each seed is backed up on the device that holds it."
