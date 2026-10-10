@@ -231,13 +231,6 @@ pub(crate) fn create(
                     keys - m
                 );
             }
-            cstep::BUILD => {
-                return "The deal computes the remaining shares and the group key, and the wallet's record \
-                    lists every public share. The record is public; it is what any device needs to sign \
-                    with a share or watch the wallet. The computed shares are loaded here so you can write \
-                    their words down in the backup step. Lock afterwards and this device forgets every share."
-                    .to_string();
-            }
             _ => {}
         }
     }
@@ -268,25 +261,13 @@ pub(crate) fn create(
                     .to_string()
             }
         }
-        cstep::BUILD => "This line is the whole wallet in xpubs. With it and the seeds, any wallet \
-            software can find the coins. Make the wallet to add it to the session."
-            .to_string(),
         cstep::CHECK => "Load the wallet into the software you will receive with, by the QR code or the \
             descriptor file, and compare these addresses. They must match before you send anything to it."
             .to_string(),
-        cstep::BACKUP => "The paper backup is the one that survives this device: the seeds copied by hand, \
-            the wallet's public sheet, and the envelopes they go in. Go through it before any money goes in."
+        cstep::BACKUP => "The plan says what keeps this wallet: the seeds on paper, a copy in a vault, \
+            the wallet in watch-only software. Each choice opens the backup with its checklist. Go through it \
+            before any money goes in."
             .to_string(),
-        cstep::VAULT => "Everything secret this wallet has here, the keys held on this device, goes into a \
-            vault, sealed under its passphrase; the wallet goes with them so the next session loads both in \
-            one step. Secrets leave this device only inside a vault file. The paper backup stays the \
-            backup; the vault is a copy."
-            .to_string(),
-        cstep::PUBLIC => format!(
-            "These files hold xpubs only: they can spend nothing, and the cosigners and your watch-only \
-             software need them. They go to the Outbox as they are, for the next {} visit.",
-            medium.noun()
-        ),
         _ => String::new(),
     }
 }

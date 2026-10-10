@@ -528,6 +528,8 @@ pub enum Action {
     EntryLanguages,
     /// Type another form of key, by its place in `forms::Form::ALL`.
     EntryForm(u8),
+    /// Shows the SLIP-39, codex32 and Seed XOR chips.
+    EntryOtherForms,
     /// The typed share, string or part, collected.
     EntryPart,
     /// The collected parts put together as a key.
@@ -628,12 +630,8 @@ pub enum Action {
     InputUse(u32),
     /// Keep a new device out until it is unplugged.
     InputIgnore(u32),
-    /// Save the wallet just made, and its keys held here, into the open
-    /// vault.
-    CSaveAll,
     /// One of wallet n's public files to the Outbox, as `public_out`
-    /// numbers them: what Create's Public files card and the backup's
-    /// public files item offer.
+    /// numbers them: what the backup's public files item offers.
     PublicOut(usize, u8),
     /// The account key in wallet n's slot k, held here, to the Outbox
     /// for the cosigners.
@@ -781,6 +779,8 @@ pub enum Action {
     CNext(u8),
     /// The kind, by index into `NewKind::ALL`.
     CKind(u8),
+    /// Expands the Kind card's other eight kinds.
+    CMoreKinds,
     /// Change the signatures needed.
     CM(i8),
     /// Change the number of keys.
@@ -977,8 +977,9 @@ pub enum Action {
     CKeyBsms(u8),
     /// Throw away the creation under way and start again.
     CreateOver,
-    /// Make the wallet.
-    CMake,
+    /// Create's Back up card: Back up a wallet on the wallet just made,
+    /// with the plan's preset `k` applied.
+    CBackup(u8),
     /// Start restoring a wallet.
     RestoreWallet,
     /// Open or close a restore card.
@@ -1392,6 +1393,9 @@ pub struct QrView {
     pub label: Vec<String>,
     /// The picture's file name.
     pub png_name: String,
+    /// The text the code holds, shown whole under it: a wallet's
+    /// descriptor, so it can be read against the code.
+    pub whole: Option<String>,
 }
 
 /// A code on screen may be a seed: what it was made from is wiped when
@@ -1601,6 +1605,7 @@ impl QrView {
             public: false,
             label: Vec::new(),
             png_name: String::new(),
+            whole: None,
         })
     }
 
@@ -1612,6 +1617,7 @@ impl QrView {
             v.public = self.public;
             v.label = self.label.clone();
             v.png_name = self.png_name.clone();
+            v.whole = self.whole.clone();
             v
         })
     }
@@ -1884,6 +1890,10 @@ pub struct EntryState {
     pub parts: forms::Parts,
     /// The lists other than English are shown to choose from.
     pub languages: bool,
+    /// The chips for SLIP-39, codex32 and Seed XOR are shown: pressed
+    /// directly, or set already by a Tools tile for one of those forms
+    /// (`docs/SIMPLIFY.md` §2.4).
+    pub other_forms: bool,
 }
 
 impl EntryState {
@@ -1945,6 +1955,10 @@ pub struct SpendState {
     pub carry_out: Option<zeroize::Zeroizing<Vec<u8>>>,
     /// The carry it arrived with has signed: a vault's round for it goes.
     pub round_spent: bool,
+    /// The open step has been set once, at entry (`refresh_spend`): once
+    /// true, closing every card (an interactive collapse) leaves `open`
+    /// at `None` rather than reopening one.
+    pub opened: bool,
 }
 
 /// An account key of a loaded wallet held here, as
@@ -2011,6 +2025,9 @@ pub struct BackupState {
     pub paper: Option<paper::PaperForm>,
     /// The list of loaded wallets is open under the wallet chip.
     pub pick: bool,
+    /// Opened from Create's Back up card: the chip says the way on is
+    /// the wallet card.
+    pub from_create: bool,
 }
 
 /// Signing a message: the cards' state.
@@ -2056,7 +2073,7 @@ pub struct CreateState {
     /// The open card.
     pub open: Option<u8>,
     /// Cards closed as done.
-    pub done: [bool; 8],
+    pub done: [bool; cstep::COUNT],
     /// The column's scroll.
     pub scroll: flow::Scroll,
     /// The kind.
@@ -2071,6 +2088,9 @@ pub struct CreateState {
     pub built: Option<usize>,
     /// The last refusal.
     pub error: Option<String>,
+    /// The Kind card's **More kinds** is expanded: the other eight kinds
+    /// are shown too.
+    pub more_kinds: bool,
     /// New keys made for this wallet.
     pub made: u32,
 }
@@ -2085,18 +2105,14 @@ pub mod cstep {
     pub const KIND: u8 = 0;
     /// The quorum.
     pub const QUORUM: u8 = 1;
-    /// The keys.
+    /// The keys; their Continue makes the wallet.
     pub const KEYS: u8 = 2;
-    /// The descriptor, and making it.
-    pub const BUILD: u8 = 3;
-    /// The first addresses.
-    pub const CHECK: u8 = 4;
-    /// The paper backup: seeds by hand, sheets and envelopes.
-    pub const BACKUP: u8 = 5;
-    /// The secrets: the keys held here, and the wallet, into a vault.
-    pub const VAULT: u8 = 6;
-    /// The public files: descriptor, wallet file, config, sheet, keys.
-    pub const PUBLIC: u8 = 7;
+    /// The descriptor and the first addresses.
+    pub const CHECK: u8 = 3;
+    /// The backup plan's presets, each opening Back up a wallet.
+    pub const BACKUP: u8 = 4;
+    /// How many cards there are.
+    pub const COUNT: usize = 5;
 }
 
 /// Restoring a wallet: the cards' state.
@@ -2353,6 +2369,9 @@ pub struct Faraday {
     /// The idle countdown's whole seconds last drawn, so a tick redraws
     /// only when the number on screen changes.
     idle_shown: Option<u64>,
+    /// Whole minutes without input when the idle warning opened: what
+    /// its text says, fixed while it is up.
+    pub(crate) idle_warn_min: u64,
     /// A secret has been held or typed in this process. Only a fresh
     /// process is clean (`PLAN.md` §5.1).
     tainted: bool,
@@ -2377,6 +2396,11 @@ pub struct Faraday {
     pub signed_amounts: Vec<memory::Signed>,
     /// Seal the signed-amount memory into an open vault on lock.
     pub seal_amounts: bool,
+    /// The wallets, by descriptor checksum, a person has pressed
+    /// Continue on Check (Sign a transaction, Create) or "It matches"
+    /// (Spend tab) for, this power-on, kept across a lock
+    /// (`docs/WALLETS.md` §4).
+    pub checked_wallets: Vec<String>,
     seed: [u8; 32],
     /// The session's seed has arrived.
     seeded: bool,
@@ -2628,6 +2652,7 @@ impl Faraday {
             idle_carry: 0,
             idle_locking: None,
             idle_shown: None,
+            idle_warn_min: 0,
             tainted: false,
             stick_held: false,
             inputs: Vec::new(),
@@ -2638,6 +2663,7 @@ impl Faraday {
             vaults: vaults::Vaults::default(),
             signed_amounts: Vec::new(),
             seal_amounts: true,
+            checked_wallets: Vec::new(),
             seed: [0; 32],
             seeded: false,
             sign_draws: 0,
@@ -3069,6 +3095,7 @@ impl Faraday {
             let changed = self.sheet != Some(Sheet::IdleWarn);
             if changed && self.sheet.is_none() {
                 self.sheet = Some(Sheet::IdleWarn);
+                self.idle_warn_min = idle / min;
             }
             let left = (lock - idle).div_ceil(1000);
             if self.sheet == Some(Sheet::IdleWarn) && self.idle_shown != Some(left) {
@@ -3469,7 +3496,10 @@ impl Faraday {
         let signers = spend.signers(&self.session).iter().map(|f| f.0).collect();
         let mut state = SpendState {
             spend,
-            open: Some(1),
+            // Computed in `refresh_spend`, once Check's done state is
+            // known: open at Check, or past it when this wallet is
+            // already checked this power-on.
+            open: None,
             done: [false; 10],
             table: false,
             error: None,
@@ -3490,6 +3520,7 @@ impl Faraday {
             carry,
             carry_out: None,
             round_spent: false,
+            opened: false,
         };
         state.done[0] = true;
         self.spend = Some(state);
@@ -3512,12 +3543,21 @@ impl Faraday {
             } else {
                 wallet::Kind::Single(osk_bip::keys::ScriptType::NativeSegwit)
             });
-            s.steps = kind.steps(wallet::txid_known(&s.spend.psbt));
+            s.steps = kind.steps();
             s.complete = s.spend.finished.is_some() || s.spend.finish().is_ok();
-            if let Some(open) = s.open
-                && !s.steps.contains(&open)
-            {
+            // Check is done already, this power-on, when this wallet was
+            // checked before (`docs/WALLETS.md` §4): the flow opens on
+            // the next card without a default instead.
+            if let Some(wallet) = wallet {
+                let checksum = wallet.policy.checksum();
+                if self.checked_wallets.contains(&checksum) {
+                    s.done[wallet::step::CHECK as usize] = true;
+                }
+            }
+            let stale = s.open.is_some_and(|open| !s.steps.contains(&open));
+            if stale || !s.opened {
                 s.open = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
+                s.opened = true;
             }
         }
     }
@@ -3774,8 +3814,12 @@ impl Faraday {
                     self.entry.wanted = wanted;
                     self.entry.back = back;
                     self.entry.form = f;
+                    // Chosen from the chips, or opened by a Tools tile
+                    // for this form: the chips stay in view.
+                    self.entry.other_forms = true;
                 }
             }
+            Action::EntryOtherForms => self.entry.other_forms = true,
             Action::EntryPart => self.form_add_part(),
             Action::EntryRecover => self.form_recover(),
             Action::PickWallet(i) => {
@@ -3818,6 +3862,15 @@ impl Faraday {
                     s.open = s.steps.iter().copied().find(|&i| !s.done[i as usize]);
                     s.error = None;
                     s.follow = true;
+                }
+                // Check's own Continue: this wallet is checked this
+                // power-on (`docs/WALLETS.md` §4), kept across a lock.
+                if n == wallet::step::CHECK
+                    && let Some(w) = self.spend.as_ref().and_then(|s| s.wallet)
+                    && let Some(wallet) = self.session.wallets.get(w)
+                {
+                    let checksum = wallet.policy.checksum();
+                    self.mark_checked(&checksum);
                 }
                 if self.screen == Screen::Family {
                     self.family_step_moved(true);
@@ -4021,7 +4074,6 @@ impl Faraday {
                 self.idle_off_min = m;
                 self.save_boxes();
             }
-            Action::CSaveAll => self.create_save_all(),
             Action::PublicOut(i, what) => self.public_out(i, what),
             Action::WalletKeyOut(i, k) => self.wallet_key_out(i, k),
             Action::WalletKeyBsms(i, k) => self.wallet_key_bsms(i, k),
@@ -4529,8 +4581,14 @@ impl Faraday {
                 self.screen = Screen::Create;
             }
             Action::CreateWallet | Action::CreateOver => {
+                // Kind defaults to single key, closed with Change and
+                // already counted done: the flow opens on the first
+                // card without one.
+                let mut done = [false; cstep::COUNT];
+                done[cstep::KIND as usize] = true;
                 self.create = Some(CreateState {
-                    open: Some(cstep::KIND),
+                    open: Some(cstep::KEYS),
+                    done,
                     m: 2,
                     n: 3,
                     slots: vec![create::Source::Empty; 1],
@@ -4544,6 +4602,13 @@ impl Faraday {
                     c.scroll.follow = true;
                 }
             }
+            // Keys' Continue makes the wallet, which opens Check; until
+            // it is made, a refusal keeps Keys open with the reason.
+            Action::CNext(k)
+                if k == cstep::KEYS && self.create.as_ref().is_some_and(|c| c.built.is_none()) =>
+            {
+                self.create_make();
+            }
             Action::CNext(k) => {
                 if let Some(c) = self.create.as_mut() {
                     c.done[k as usize] = true;
@@ -4551,11 +4616,26 @@ impl Faraday {
                     c.open = steps.iter().copied().find(|&i| !c.done[i as usize]);
                     c.scroll.follow = true;
                 }
+                // Check's own Continue: this wallet is checked this
+                // power-on (`docs/WALLETS.md` §4).
+                if k == cstep::CHECK
+                    && let Some(w) = self.create.as_ref().and_then(|c| c.built)
+                    && let Some(wallet) = self.session.wallets.get(w)
+                {
+                    let checksum = wallet.policy.checksum();
+                    self.mark_checked(&checksum);
+                }
             }
             Action::CKind(i) => {
                 if let Some(c) = self.create.as_mut()
                     && c.built.is_none()
                 {
+                    // Chosen while Kind is not open: this is Tools'
+                    // `Go::Create(kind)`, which opens with Kind closed,
+                    // whatever the kind, and Quorum closed on its
+                    // default too when the kind needs it (`DESIGN.md`
+                    // §4.14).
+                    let from_closed = c.open != Some(cstep::KIND);
                     c.kind = create::NewKind::ALL[i as usize % create::NewKind::ALL.len()];
                     if c.kind.multi() {
                         c.n = c.n.clamp(2, c.kind.max_keys());
@@ -4573,6 +4653,28 @@ impl Faraday {
                     }
                     c.slots.resize(n, create::Source::Empty);
                     c.slots.truncate(n);
+                    if from_closed {
+                        c.done[cstep::KIND as usize] = true;
+                        if c.kind.multi() {
+                            c.done[cstep::QUORUM as usize] = true;
+                        }
+                        let steps = create_steps(c.kind);
+                        c.open = steps.iter().copied().find(|&s| !c.done[s as usize]);
+                    }
+                }
+            }
+            Action::CBackup(k) => {
+                if let Some(i) = self.create.as_ref().and_then(|c| c.built) {
+                    self.act(Action::Backup(i));
+                    if let Some(b) = self.backup.as_mut() {
+                        b.from_create = true;
+                    }
+                    self.act(Action::BPreset(k));
+                }
+            }
+            Action::CMoreKinds => {
+                if let Some(c) = self.create.as_mut() {
+                    c.more_kinds = true;
                 }
             }
             Action::CM(d) => {
@@ -4670,7 +4772,6 @@ impl Faraday {
                     *s = create::Source::Empty;
                 }
             }
-            Action::CMake => self.create_make(),
             Action::Rename => {
                 // Pressing the name field again keeps what is typed.
                 if self.renaming.is_none() {
@@ -6104,7 +6205,7 @@ impl Faraday {
         if let Some(c) = self.create.as_mut() {
             c.built = Some(i);
             c.error = None;
-            c.done[cstep::BUILD as usize] = true;
+            c.done[cstep::KEYS as usize] = true;
             c.open = Some(cstep::CHECK);
             c.scroll.follow = true;
         }
@@ -6167,49 +6268,6 @@ impl Faraday {
         }
     }
 
-    fn create_save_all(&mut self) {
-        let Some(i) = self.create.as_ref().and_then(|c| c.built) else {
-            return;
-        };
-        let Some(w) = self.session.wallets.get(i) else {
-            return;
-        };
-        let v = self.vaults.current;
-        let fps: Vec<osk_bip::keys::Fingerprint> = self
-            .session
-            .slots(w)
-            .iter()
-            .filter(|s| s.held_by.is_some())
-            .filter_map(|s| s.fingerprint)
-            .collect();
-        let shares: Vec<osk_bip::keys::Fingerprint> = self
-            .session
-            .shares_here(w)
-            .iter()
-            .map(|(_, k)| k.master.fingerprint())
-            .collect();
-        if !vault_screens::vault_has_wallet(self, v, w) {
-            self.vault_act(vaults::VaultAction::SaveWallet(i));
-        }
-        let keys: Vec<usize> = self
-            .session
-            .keys
-            .iter()
-            .enumerate()
-            .filter(|(_, k)| {
-                let fp = k.master.fingerprint();
-                fps.contains(&fp) || shares.contains(&fp)
-            })
-            .map(|(n, _)| n)
-            .collect();
-        for k in keys {
-            let fp = self.session.keys[k].master.fingerprint();
-            if !vault_screens::vault_has_key(self, v, fp) {
-                self.vault_act(vaults::VaultAction::SaveKey(k));
-            }
-        }
-    }
-
     fn create_make(&mut self) {
         if self.create.as_ref().is_some_and(|c| c.kind.threshold()) {
             self.create_deal();
@@ -6235,7 +6293,7 @@ impl Faraday {
                 if let Some(c) = self.create.as_mut() {
                     c.built = Some(i);
                     c.error = None;
-                    c.done[cstep::BUILD as usize] = true;
+                    c.done[cstep::KEYS as usize] = true;
                     c.open = Some(cstep::CHECK);
                     c.scroll.follow = true;
                 }
@@ -6784,7 +6842,9 @@ impl Faraday {
                     }
                 };
                 lines.push("Public: watch only, spends nothing".to_string());
-                Ok(QrView::text(&title, &text)?.public(&name, lines))
+                let mut view = QrView::text(&title, &text)?.public(&name, lines);
+                view.whole = Some(text);
+                Ok(view)
             }
             Code::MultisigConfig(i) | Code::Bsms(i) => {
                 let w = wallet(i)?;
@@ -8622,6 +8682,13 @@ impl Faraday {
         Some(((r.x + r.w / 2) as u16, (r.y + r.h / 2) as u16))
     }
 
+    /// The box the last frame drawn offers `action` in, in pixels
+    /// (x, y, w, h): for a test that two controls do not overlap.
+    pub fn hit_box(&self, action: Action) -> Option<(u16, u16, u16, u16)> {
+        let (r, _) = self.hits.iter().rev().find(|(_, a)| *a == action)?;
+        Some((r.x as u16, r.y as u16, r.w as u16, r.h as u16))
+    }
+
     /// The width and height of the layout, in design units.
     pub fn size(&self) -> (f32, f32) {
         (self.w, self.h)
@@ -8650,14 +8717,7 @@ pub fn create_steps(kind: create::NewKind) -> Vec<u8> {
     if kind.multi() {
         v.push(cstep::QUORUM);
     }
-    v.extend([
-        cstep::KEYS,
-        cstep::BUILD,
-        cstep::CHECK,
-        cstep::VAULT,
-        cstep::PUBLIC,
-        cstep::BACKUP,
-    ]);
+    v.extend([cstep::KEYS, cstep::CHECK, cstep::BACKUP]);
     v
 }
 
@@ -8929,6 +8989,33 @@ impl App for Faraday {
 }
 
 impl Faraday {
+    /// The strings the current frame draws, for a test to check what a
+    /// title or a label actually reads.
+    pub fn drawn_texts(&mut self) -> Vec<String> {
+        if let Some(c) = self.canvas.as_mut() {
+            c.record_ink(true);
+        }
+        self.render();
+        let texts = self
+            .canvas
+            .as_ref()
+            .map(|c| {
+                c.ink()
+                    .iter()
+                    .filter_map(|i| match &i.kind {
+                        osk_ui::canvas::InkKind::Text { text, .. } => Some(text.clone()),
+                        osk_ui::canvas::InkKind::Icon(_) => None,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        if let Some(c) = self.canvas.as_mut() {
+            c.record_ink(false);
+        }
+        self.dirty = true;
+        texts
+    }
+
     fn display(&mut self, d: DisplayInfo) {
         self.last_display = Some(d);
         // The self-test runs once, at start, before any input: a display

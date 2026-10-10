@@ -2,10 +2,13 @@
 //! held here made and says which came from elsewhere; the finished
 //! transaction decodes to what it spends and pays, with its change marked
 //! as the wallet's own; and a raw transaction in a text file decodes too.
+//! Before signing, the card after Wallet is Transaction, with the txid
+//! at its foot, and a wallet checked once this power-on has Check closed
+//! on its next spend, across a lock, until the machine starts afresh.
 
 use faraday_core::testkit::{self, Kit};
-use faraday_core::wallet::FileKind;
-use faraday_core::{Action, Faraday, Screen, StorageEvent};
+use faraday_core::wallet::{FileKind, step};
+use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent};
 use osk_shell_api::{App, Event, Key};
 
 fn kit(id: &str) -> Kit {
@@ -168,4 +171,81 @@ fn a_raw_transaction_in_a_text_file_decodes() {
     ]);
     beside.press(Action::DecodeInbox(0));
     assert!(beside.decode.as_ref().unwrap().decoded.fee.is_some());
+}
+
+/// Spending offered to a process that starts from `kept`: the wallet
+/// loaded, test key 1 added and the spend opened, nothing signed.
+fn spending_offered(kept: Vec<(String, Vec<u8>)>) -> Faraday {
+    let k = kit("spending");
+    let psbt = testkit::unsigned(&k).unwrap();
+    let mut app = faraday_core::testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: vec![
+            ("spend.psbt".to_string(), psbt.to_bytes()),
+            ("spending-wallet.txt".to_string(), k.descriptor.into_bytes()),
+        ],
+        outbox: Vec::new(),
+        kept,
+    });
+    app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
+    add_key(&mut app, "bacon");
+    app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    assert_eq!(app.screen, Screen::Spend);
+    app
+}
+
+/// Whether the spend's Check card is closed, as for a wallet checked
+/// already.
+fn check_closed(app: &Faraday) -> bool {
+    app.spend.as_ref().unwrap().done[step::CHECK as usize]
+}
+
+/// What a lock keeps, as the shell is told to save it.
+fn kept_after_lock(app: &mut Faraday) -> Vec<(String, Vec<u8>)> {
+    app.press(Action::Lock);
+    let mut last = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes { kept, .. } = c {
+            last = kept;
+        }
+    }
+    last
+}
+
+#[test]
+fn the_card_after_wallet_is_transaction_and_it_carries_the_txid() {
+    let mut app = spending_offered(Vec::new());
+    let s = app.spend.as_ref().unwrap();
+    assert_eq!(&s.steps[..2], &[step::WALLET, step::TRANSACTION]);
+    let txid = s.spend.txid.to_string();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Txid"), "{texts:?}");
+    let head = format!("{} {}", &txid[..4], &txid[4..8]);
+    assert!(
+        texts.iter().any(|t| t.contains(&head)),
+        "the Transaction card shows the txid {txid}: {texts:?}"
+    );
+}
+
+#[test]
+fn a_wallet_never_checked_has_check_open() {
+    let app = spending_offered(Vec::new());
+    assert!(!check_closed(&app));
+}
+
+#[test]
+fn a_checked_wallet_has_check_closed_on_its_next_spend_and_after_a_lock() {
+    let mut app = spending_offered(Vec::new());
+    assert!(!check_closed(&app));
+    app.press(Action::StepNext(step::CHECK));
+    // The next spend from it, in this process.
+    app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    assert!(check_closed(&app), "checked this power-on");
+    // After a lock, the next process starts from what the lock kept.
+    let kept = kept_after_lock(&mut app);
+    let app = spending_offered(kept);
+    assert!(check_closed(&app), "still checked after a lock");
+    // A fresh process, with nothing kept, has checked nothing.
+    let app = spending_offered(Vec::new());
+    assert!(!check_closed(&app), "open again in a fresh process");
 }

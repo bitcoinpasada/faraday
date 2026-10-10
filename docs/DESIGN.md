@@ -272,7 +272,7 @@ share a screen. Both meanings are "look".
 |---|---|---|
 | Reference row | A row: label above, the elided value below as `xpub 6CUG … Au3f DVmz` (first 8 and last 8, in groups of four), chevron (`reference_row`). The value drops a size where the row is too narrow for it at the mono token. The whole row is the target. | Every long string wherever it appears inside another screen: xpubs, master keys, seed hex, signatures, txids, addresses in a transaction review. Tap opens the Compare screen. |
 | Comparison string | Whole, mono, chunked in fours with alternating colour, largest size that fits (`comparison_string`). | Only on the Compare screen and the Address detail screen. Never inside another screen. |
-| Descriptor | Structure: function, origin in the accent, the key as a reference value, suffix and checksum whole (`descriptor`). | On the Compare screen for a descriptor. Inside another screen a descriptor is a summary row, not an elision: the script type in §4.6's vocabulary, the origin fingerprint and the checksum, "SegWit · 73c5da0a · #qf45pmyh", label above, chevron, opening the Compare screen. |
+| Descriptor | Structure: function, origin in the accent, the key as a reference value, suffix and checksum whole (`descriptor`). | On the Compare screen for a descriptor. Inside another screen a descriptor is a summary row, not an elision: the script type in §4.6's vocabulary, the origin fingerprint and the checksum, "SegWit · 73c5da0a · #qf45pmyh", label above, chevron, opening the Compare screen. Faraday has no Compare screen: its row (Create's Check) opens the wallet's QR sheet, which carries the descriptor's whole text under the code. |
 
 PLANNING §13's "always the whole string" rule now means: whole on its own
 screen, one tap away.
@@ -360,6 +360,7 @@ secret panel captions.
 |---|---|
 | Progress | A bar with a count "2 of 5" above it. Entropy entry, scanning parts, animated codes. |
 | Countdown | Only the eye's ring (§4.10). The status line has none. |
+| Default | A step card whose value has a default is closed at entry, showing its value and a **Change** text button at the card's right in place of the chevron that opens it. The flow opens on the first card with no default; opening a closed card does not reset the cards after it. On a small panel the same: the paged flow starts on the first open card. |
 | Empty state | A row that starts the flow: Keys with nothing loaded is "Load a key" and "Create a key"; Wallets with nothing registered is "Add a wallet" and "Scan a wallet"; the builder's Keys list with no key gathered is "Add a key". Never a sentence about emptiness. The bottom action — "Add a key", "Add a wallet" — is on the screen in every state. |
 | Terminal state | Result layout with no action and no back chevron: "Session ended", "Self-test failed · vector 3". |
 | Leaving | Back where nothing is behind — Home, the lock screen, the stored key's pad — shows "Back again to exit and clear memory" on that screen's caption line for two seconds; a second Back inside the window clears memory, keeps a key kept on the device, and asks the shell to exit, ending on the terminal "Session ended" titled "Exit" with "Keys · cleared from memory". "Wipe and exit" is the only exit that forgets the device's copy. On desktop, Escape is Back. |

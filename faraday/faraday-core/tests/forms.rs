@@ -171,6 +171,44 @@ fn a_codex32_string_and_a_slip39_share_can_be_scanned_instead_of_typed() {
 }
 
 #[test]
+fn a_fresh_add_a_key_offers_the_words_form_and_no_share_form_until_other_forms() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Entry(None));
+    let _ = app.frame();
+    assert_eq!(app.entry.form, faraday_core::forms::Form::Words);
+    assert!(
+        !app.offers(Action::EntryForm(1)),
+        "SLIP-39 shares is behind Other forms"
+    );
+    assert!(app.offers(Action::EntryOtherForms));
+    app.press(Action::EntryOtherForms);
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::EntryForm(1)),
+        "Other forms shows the chips"
+    );
+}
+
+#[test]
+fn the_slip39_tile_opens_on_shares() {
+    let mut app = faraday_core::testkit::started();
+    let i = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "Restore from SLIP-39")
+        .expect("a Restore from SLIP-39 tile");
+    app.press(Action::Catalog(i as u8));
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Entry);
+    assert_eq!(app.entry.form, faraday_core::forms::Form::Slip39);
+    assert_eq!(app.entry.wanted, None, "not for a missing key in a wallet");
+    assert!(app.entry.other_forms, "the chips are shown");
+    assert!(
+        app.offers(Action::EntryForm(0)),
+        "the words form chip is still there to switch back"
+    );
+}
+
+#[test]
 fn an_unambiguous_word_moves_on_from_typing_alone() {
     // No other BIP-39 word starts with "zebra": its last letter typed
     // moves on to the next word, the same as Tab does, with no Tab

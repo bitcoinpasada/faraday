@@ -313,6 +313,15 @@ impl Faraday {
                 if let Some(c) = self.family.closed.get_mut(p as usize) {
                     *c = true;
                 }
+                // "It matches": this wallet is checked this power-on
+                // (`docs/WALLETS.md` §4).
+                if p == page::CHECK
+                    && let Some(w) = self.family_wallet()
+                    && let Some(wallet) = self.session.wallets.get(w)
+                {
+                    let checksum = wallet.policy.checksum();
+                    self.mark_checked(&checksum);
+                }
                 self.family_advance(p);
             }
             F::Holding(r) => {

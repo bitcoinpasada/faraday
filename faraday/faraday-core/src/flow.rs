@@ -26,6 +26,10 @@ pub struct Card {
     pub done: bool,
     /// Open now.
     pub open: bool,
+    /// The card's value has a default, so a flow may open closed on it
+    /// at entry; closed, it draws a **Change** text button at its right
+    /// in place of the chevron.
+    pub default: bool,
     /// What pressing its header does.
     pub toggle: Action,
     /// The walk-through shown in Guided mode while it is open.
@@ -251,25 +255,43 @@ pub fn column_foot(
             card.open,
         );
         ui.text_mid(x + 58.0, card_top, 56.0, 15.0, W::S, TEXT, &card.title);
+        // A closed card with a default shows a Change text button at the
+        // right, in place of the chevron, over the value it is set to.
+        let change = !card.open && card.default;
+        let change_w = if change {
+            ui.measure(13.0, W::S, "Change")
+        } else {
+            0.0
+        };
         if !card.open {
             let tw = ui.measure(15.0, W::S, &card.title);
-            let room = w - 58.0 - tw - 60.0;
+            let right_reserved = if change { 28.0 + change_w } else { 60.0 };
+            let room = w - 58.0 - tw - right_reserved;
             let face = if card.mono { W::M } else { W::R };
             let s = ui.fit(13.0, face, &card.summary, room);
-            ui.text_right(x + w - 46.0, card_top, 56.0, 13.0, face, MUTED, &s);
-        }
-        ui.icon(
-            x + w - 38.0,
-            card_top + 18.0,
-            20.0,
-            if card.open {
-                Icon::ChevronUp
+            let edge = if change {
+                x + w - 18.0 - change_w - 10.0
             } else {
-                Icon::ChevronRight
-            },
-            10.0,
-            DIM,
-        );
+                x + w - 46.0
+            };
+            ui.text_right(edge, card_top, 56.0, 13.0, face, MUTED, &s);
+        }
+        if change {
+            ui.text_right(x + w - 18.0, card_top, 56.0, 13.0, W::S, ACCENT, "Change");
+        } else {
+            ui.icon(
+                x + w - 38.0,
+                card_top + 18.0,
+                20.0,
+                if card.open {
+                    Icon::ChevronUp
+                } else {
+                    Icon::ChevronRight
+                },
+                10.0,
+                DIM,
+            );
+        }
         ui.hit(x, card_top, w, 56.0, card.toggle);
         y += card_h + 10.0;
     }
@@ -340,53 +362,11 @@ fn paged(
         y += 36.0;
     }
 
-    // The steps: a numbered dot each. When they do not all fit, as many
-    // as do, the open one among them, with an arrow where more are.
-    let dot = 26.0;
-    let fits = ((inner + 4.0) / (dot + 4.0)).floor().max(3.0) as usize;
-    let (first, last) = if cards.len() <= fits {
-        (0, cards.len())
-    } else {
-        let room = fits - 2;
-        let at = open.unwrap_or(0);
-        let first = at.saturating_sub(room / 2).min(cards.len() - room);
-        (first, first + room)
-    };
-    let shown = if cards.len() <= fits {
-        cards.len()
-    } else {
-        fits
-    };
-    let n = shown as f32;
-    let gap = ((inner - n * dot) / (n - 1.0).max(1.0)).clamp(2.0, 10.0);
-    let mut dx = M;
-    let more = |ui: &mut Ui, dx: f32, icon: Icon, to: usize| {
-        ui.icon(dx, y, dot, icon, 10.0, DIM);
-        ui.hit_around(dx, y, dot, dot, cards[to].toggle);
-    };
-    if cards.len() > fits {
-        if first > 0 {
-            more(ui, dx, Icon::ChevronLeft, first - 1);
-        }
-        dx += dot + gap;
-    }
-    for (i, card) in cards.iter().enumerate().take(last).skip(first) {
-        ui.badge(dx, y, &(i + 1).to_string(), card.done, card.open);
-        ui.hit_around(dx, y, dot, dot, card.toggle);
-        dx += dot + gap;
-    }
-    if last < cards.len() {
-        more(ui, dx, Icon::ChevronRight, last);
-    }
-    y += dot + 12.0;
-
     match open {
         Some(i) => {
             let card = &cards[i];
-            let count = format!("Step {} of {}", i + 1, cards.len());
-            ui.text(M, y, 12.0, W::R, MUTED, &count);
-            y += 18.0;
-            y += ui.wrap(M, y, inner, 18.0, W::S, TEXT, &card.title) + 10.0;
+            let title = format!("{} · {} of {}", card.title, i + 1, cards.len());
+            y += ui.wrap(M, y, inner, 18.0, W::S, TEXT, &title) + 10.0;
             y += body(ui, i, M, y, inner);
             // The walk-through comes after the controls, behind a tap:
             // on a small panel it would otherwise take the room the

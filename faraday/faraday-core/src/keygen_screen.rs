@@ -33,6 +33,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             mono: s == kstep::QUIZ && k.fingerprint.is_some(),
             done: k.done[usize::from(s)],
             open: k.open == Some(s),
+            default: s == kstep::LENGTH || s == kstep::SOURCE,
             toggle: Action::KStep(s),
             guide: Some(guide::keygen(s, k)),
         })

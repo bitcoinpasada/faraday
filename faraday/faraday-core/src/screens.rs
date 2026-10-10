@@ -7,7 +7,7 @@ use osk_ui::widgets::Icon;
 
 use crate::ui::pal::*;
 use crate::ui::{Style, Theme, Ui, W, btc, grouped, short, thousands};
-use crate::wallet::{FileKind, Session, fp_text, key_line, network_name};
+use crate::wallet::{FileKind, Session, fp_text, key_line, network_name, step, txid_known};
 use crate::{Action, Code, Faraday, Screen, Sheet, flow, guide};
 
 const SIDEBAR_W: f32 = 240.0;
@@ -3085,9 +3085,10 @@ fn spend(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .map(|&n| flow::Card {
                 title: STEPS[n as usize].to_string(),
                 summary: step_summary(app, n, wallet_idx, needed),
-                mono: n == 3 && s.done[3],
+                mono: false,
                 done: s.done[n as usize],
                 open: s.open == Some(n),
+                default: n == step::CHECK,
                 toggle: Action::Step(n),
                 guide: Some(guide::spend(n, kind, needed, s, app.medium)),
             })
@@ -3294,7 +3295,7 @@ pub(crate) fn step_summary(app: &Faraday, n: u8, wallet: Option<usize>, needed: 
             Some(w) => format!("{} · {}", w.name, Session::shape(w)),
             None => "No loaded wallet matches".to_string(),
         },
-        1 if reached => "Addresses shown".to_string(),
+        1 if reached => "Addresses · Compare".to_string(),
         2 if reached => format!(
             "Sends {} BTC · fee {} sat/vB",
             btc(i.amount_to_others.to_sat()),
@@ -3302,7 +3303,6 @@ pub(crate) fn step_summary(app: &Faraday, n: u8, wallet: Option<usize>, needed: 
                 .map(|r| format!("{r:.1}"))
                 .unwrap_or_else(|| "?".into())
         ),
-        3 if reached => short(&s.spend.txid.to_string()),
         4 if reached && threshold_of(s).is_some() => {
             let t = threshold_of(s).expect("threshold");
             format!("{} here · {needed} needed", t.ours.len())
@@ -3507,6 +3507,33 @@ pub(crate) fn step_body(
                     None
                 },
             ));
+            // The transaction's id, at the foot: known before signing
+            // for a segwit spend, not for a legacy one.
+            if txid_known(&s.spend.psbt) {
+                let segwit = i.inputs.iter().all(|inp| {
+                    !matches!(inp.script_type, osk_psbt::ScriptKind::P2pkh)
+                        && !format!("{:?}", inp.script_type).contains("Sh")
+                        || format!("{:?}", inp.script_type).contains("Wsh")
+                });
+                rows.push((
+                    "Txid".into(),
+                    short(&s.spend.txid.to_string()),
+                    if segwit {
+                        "Unchanged by signing"
+                    } else {
+                        "Changes when signed"
+                    }
+                    .to_string(),
+                    None,
+                ));
+            } else {
+                rows.push((
+                    "Txid".into(),
+                    "Not known until signed".to_string(),
+                    String::new(),
+                    None,
+                ));
+            }
             // On a small panel each row is two lines: what and how much,
             // then where and its note.
             let compact = ui.compact;
@@ -3636,34 +3663,6 @@ pub(crate) fn step_body(
                 },
                 Style::Secondary,
                 Action::ToggleTable,
-            );
-            next(ui, cy, "Continue");
-            cy += 44.0;
-        }
-        3 => {
-            let t = grouped(&s.spend.txid.to_string());
-            ui.fill(x, cy, w, 52.0, 10.0, BG);
-            ui.stroke(x, cy, w, 52.0, 10.0, INNER);
-            let t = ui.fit(14.0, W::M, &t, w - 28.0);
-            ui.text_mid(x + 14.0, cy, 52.0, 14.0, W::M, TEXT, &t);
-            cy += 64.0;
-            let segwit = i.inputs.iter().all(|inp| {
-                !matches!(inp.script_type, osk_psbt::ScriptKind::P2pkh)
-                    && !format!("{:?}", inp.script_type).contains("Sh")
-                    || format!("{:?}", inp.script_type).contains("Wsh")
-            });
-            ui.text_mid(
-                x,
-                cy,
-                40.0,
-                12.0,
-                W::R,
-                MUTED,
-                if segwit {
-                    "Unchanged by signing"
-                } else {
-                    "Changes when signed"
-                },
             );
             next(ui, cy, "Continue");
             cy += 44.0;
@@ -4768,6 +4767,7 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     mono: false,
                     done: crate::bstep::item(k).is_some_and(|it| app.backup_item_done(it)),
                     open: b.open == Some(k),
+                    default: false,
                     toggle: Action::BStep(k),
                     guide: Some(guide::backup(k, m, n, keys.len(), app.medium))
                         .filter(|g| !g.is_empty()),
@@ -4779,6 +4779,7 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     mono: false,
                     done: false,
                     open: b.q == Some(k),
+                    default: false,
                     toggle: Action::BQ(k),
                     guide: None,
                 }
@@ -4803,19 +4804,19 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x: col_x,
         w: col_w,
         h,
-        back: Some(
-            if app.create.as_ref().and_then(|c| c.built) == Some(b.wallet) {
-                ("Create a wallet", Action::Nav(Screen::Create))
-            } else {
-                ("Wallets", Action::OpenWallet(b.wallet))
-            },
-        ),
+        back: Some(("Wallets", Action::OpenWallet(b.wallet))),
         heading: &heading,
         guided: app.guided,
         switch: checklist,
         note: None,
-        chip: many.then_some(wallet.name.as_str()),
-        chip_tap: many.then_some(Action::BWallets),
+        // From Create the wallet is the one just made, and the way on is
+        // its card.
+        chip: if b.from_create {
+            Some("Then: Wallets")
+        } else {
+            many.then_some(wallet.name.as_str())
+        },
+        chip_tap: (many && !b.from_create).then_some(Action::BWallets),
     };
     let scroll = b.scroll;
     ui.chip_at = None;
@@ -4823,7 +4824,7 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         && steps
             .iter()
             .all(|&k| crate::bstep::item(k).is_some_and(|it| app.backup_item_done(it)));
-    let from_create = app.create.as_ref().and_then(|c| c.built) == Some(b.wallet);
+    let from_create = b.from_create;
     let (next, again) = {
         let app_ref: &Faraday = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
@@ -5314,9 +5315,9 @@ fn backup_done(app: &Faraday, ui: &mut Ui, from_create: bool, x: f32, y: f32, w:
     ));
     if from_create {
         items.push((
-            "Back to Create a wallet".to_string(),
+            "Open the wallet".to_string(),
             Style::Secondary,
-            Action::Nav(Screen::Create),
+            Action::OpenWallet(b.wallet),
         ));
     }
     let line = format!(
@@ -6421,6 +6422,7 @@ fn message_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             mono: k == mstep::ADDRESS && address.is_some(),
             done: m.done[k as usize],
             open: m.open == Some(k),
+            default: false,
             toggle: Action::MStep(k),
             guide: Some(guide::message(k)),
         })
@@ -6826,16 +6828,7 @@ fn check_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 // Create a wallet
 // ---------------------------------------------------------------------
 
-const CSTEPS: [&str; 8] = [
-    "Kind",
-    "Quorum",
-    "Keys",
-    "The wallet",
-    "Check",
-    "Paper backup",
-    "Secrets into a vault",
-    "Public files",
-];
+const CSTEPS: [&str; crate::cstep::COUNT] = ["Kind", "Quorum", "Keys", "Check", "Back up"];
 
 fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::cstep;
@@ -6864,44 +6857,16 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     0 => format!("{filled} of {} chosen", c.slots.len()),
                     k => format!("{} of {} chosen · {k} to come", filled - k, c.slots.len()),
                 },
-                cstep::BUILD => match c.built.and_then(|i| app.session.wallets.get(i)) {
-                    Some(w) => w.name.clone(),
+                cstep::CHECK => match c.built.and_then(|i| app.session.wallets.get(i)) {
+                    Some(w) => format!("{} · first addresses", w.name),
                     None => "Not made yet".to_string(),
                 },
-                cstep::CHECK => "First addresses".to_string(),
-                cstep::BACKUP => "Seeds by hand, sheets, envelopes".to_string(),
-                cstep::PUBLIC => {
-                    let n = c
-                        .built
-                        .and_then(|i| app.session.wallets.get(i))
-                        .map_or(0, |w| {
-                            let stem = crate::file_stem(&w.name);
-                            app.outbox
-                                .iter()
-                                .filter(|f| f.name.starts_with(&stem))
-                                .count()
-                        });
-                    match n {
-                        0 => "To the Outbox".to_string(),
-                        n => format!("{n} in the Outbox"),
-                    }
-                }
-                _ => match (
-                    c.built.and_then(|i| app.session.wallets.get(i)),
-                    app.vaults.open.get(app.vaults.current),
-                ) {
-                    (Some(w), Some(v))
-                        if crate::vault_screens::vault_has_wallet(app, app.vaults.current, w) =>
-                    {
-                        format!("In {}", v.name)
-                    }
-                    (_, Some(v)) => format!("{} open", v.name),
-                    _ => "No vault open".to_string(),
-                },
+                _ => "Paper, vault, watch-only software".to_string(),
             },
             mono: false,
             done: c.done[k as usize],
             open: c.open == Some(k),
+            default: k == cstep::KIND || k == cstep::QUORUM,
             toggle: Action::CStep(k),
             guide: Some(guide::create(k, c.kind, c.m, c.n, app.medium)),
         })
@@ -6945,7 +6910,15 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
     let mut cy = y;
     match n {
         cstep::KIND => {
-            for (i, k) in NewKind::ALL.iter().enumerate() {
+            // Single key and Multisig, both native SegWit, are the two
+            // everyday kinds; the other eight are behind More kinds.
+            let shown: Vec<usize> = if c.more_kinds {
+                (0..NewKind::ALL.len()).collect()
+            } else {
+                vec![0, 4]
+            };
+            for &i in &shown {
+                let k = &NewKind::ALL[i];
                 let on = c.kind == *k;
                 let action = Action::CKind(i as u8);
                 ui.fill(
@@ -6978,6 +6951,18 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     ui.hit(x, cy, w, 48.0, action);
                 }
                 cy += 54.0;
+            }
+            if !c.more_kinds {
+                ui.button(
+                    x,
+                    cy,
+                    None,
+                    34.0,
+                    "More kinds",
+                    Style::Ghost,
+                    Action::CMoreKinds,
+                );
+                cy += 44.0;
             }
             cy += 6.0;
             let over: &[(&str, Style, Action)] = if app.create_unfinished() {
@@ -7193,74 +7178,11 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             );
             cy += 48.0;
         }
-        cstep::BUILD => {
-            match (c.built, app.create_keys()) {
-                (Some(i), _) => {
-                    let wl = &app.session.wallets[i];
-                    ui.text(
-                        x,
-                        cy,
-                        14.0,
-                        W::S,
-                        OK,
-                        &format!("{} made · {}", wl.name, Session::shape(wl)),
-                    );
-                    cy += 28.0;
-                    cy += ui.wrap(
-                        x,
-                        cy,
-                        w,
-                        12.0,
-                        W::M,
-                        TEXT,
-                        &wl.policy.to_descriptor_checksummed(),
-                    ) + 12.0;
-                }
-                (None, Ok(keys)) if c.kind.threshold() => {
-                    ui.text(x, cy, 12.0, W::R, MUTED, "Chosen shares");
-                    cy += 20.0;
-                    cy += ui.wrap(x, cy, w, 13.0, W::M, TEXT, &keys.join("  ")) + 12.0;
-                    if pin_button(
-                        ui,
-                        x,
-                        cy,
-                        None,
-                        40.0,
-                        "Deal the shares",
-                        Style::Primary,
-                        Action::CMake,
-                    ) {
-                        cy += 52.0;
-                    }
-                }
-                (None, Ok(keys)) => {
-                    let d = c.kind.descriptor(c.m, &keys);
-                    ui.text(x, cy, 12.0, W::R, MUTED, "Descriptor");
-                    cy += 20.0;
-                    cy += ui.wrap(x, cy, w, 12.0, W::M, TEXT, &d) + 14.0;
-                    if pin_button(
-                        ui,
-                        x,
-                        cy,
-                        None,
-                        40.0,
-                        "Make the wallet",
-                        Style::Primary,
-                        Action::CMake,
-                    ) {
-                        cy += 52.0;
-                    }
-                }
-                (None, Err(e)) => {
-                    cy += ui.wrap(x, cy, w, 13.0, W::R, WARN, &e) + 12.0;
-                }
-            }
-            if let Some(e) = &c.error {
-                cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 6.0;
-            }
-        }
         cstep::CHECK => {
             if let Some(wl) = c.built.and_then(|i| app.session.wallets.get(i)) {
+                // The descriptor as a summary row: tapping it opens the
+                // wallet's code with the descriptor's full text under it.
+                cy += descriptor_row(ui, x, cy, w, wl, Action::QrWallet(c.built.unwrap_or(0)));
                 for (label, change, idx) in [
                     ("Receive 0/0", false, 0),
                     ("Receive 0/1", false, 1),
@@ -7277,226 +7199,43 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     cy += ui.wrap(x + ax, cy, w - ax, 13.0, W::M, TEXT, &a).max(20.0) + 10.0;
                 }
                 cy += 6.0;
-                cy += buttons_and_next(
-                    ui,
-                    x,
-                    cy,
-                    w,
-                    &[(
-                        "Show wallet QR",
+                cy += buttons_and_next(ui, x, cy, w, &[], Some(("Continue", Action::CNext(n))));
+            } else {
+                ui.text(x, cy, 13.0, W::R, DIM, "Make the wallet first");
+                cy += 30.0;
+            }
+        }
+        _ => {
+            // The backup plan's presets: each opens Back up a wallet on
+            // the wallet just made, with that preset applied.
+            if c.built.is_some() {
+                for (k, p) in crate::plan::Preset::ALL.iter().enumerate() {
+                    ui.button(
+                        x,
+                        cy,
+                        Some(w),
+                        40.0,
+                        p.name(),
                         Style::Secondary,
-                        Action::QrWallet(c.built.unwrap_or(0)),
-                    )],
-                    Some(("Continue", Action::CNext(n))),
-                );
+                        Action::CBackup(k as u8),
+                    );
+                    cy += 48.0;
+                }
             } else {
                 ui.text(x, cy, 13.0, W::R, DIM, "Make the wallet first");
                 cy += 30.0;
             }
         }
-        cstep::BACKUP => {
-            if let Some(i) = c.built {
-                cy += buttons_and_next(
-                    ui,
-                    x,
-                    cy,
-                    w,
-                    &[("Back up the wallet", Style::Primary, Action::Backup(i))],
-                    Some(("Open the wallet", Action::OpenWallet(i))),
-                ) + 4.0;
-            } else {
-                ui.text(x, cy, 13.0, W::R, DIM, "Make the wallet first");
-                cy += 30.0;
-            }
-        }
-        cstep::PUBLIC => cy += create_public_body(app, ui, x, cy, w),
-        _ => cy += create_vault_body(app, ui, x, cy, w),
     }
-    cy - y
-}
-
-/// The Vault card of Create: the wallet and the keys held here for it,
-/// saved into the open vault; or a vault made or unlocked first.
-fn create_vault_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    use crate::vault_screens::{vault_has_key, vault_has_wallet};
-    use crate::vaults::VaultAction as V;
-    let c = app.create.as_ref().expect("create");
-    let mut cy = y;
-    let Some(i) = c.built else {
-        ui.text(x, cy, 13.0, W::R, DIM, "Make the wallet first");
-        return 30.0;
-    };
-    let Some(wl) = app.session.wallets.get(i) else {
-        return 0.0;
-    };
-    let v = app.vaults.current;
-    let Some(open) = app.vaults.open.get(v) else {
-        // No vault open: make one, unlock one, or leave it.
-        let files = app.vault_files();
-        let mut bx = x;
-        bx += ui.button(
-            bx,
-            cy,
-            None,
-            40.0,
-            "Make a vault",
-            Style::Primary,
-            Action::Vault(V::CreateFrom(Screen::Create)),
-        ) + 8.0;
-        if let Some(k) = files.iter().position(|f| f.open.is_none()) {
-            ui.button(
-                bx,
-                cy,
-                None,
-                40.0,
-                &format!("Unlock {}", files[k].name),
-                Style::Secondary,
-                Action::Vault(V::OpenFrom(k, Screen::Create)),
-            );
-        }
-        let bw = ui.measure(14.0, W::S, "Not now") + 32.0;
-        ui.button(
-            x + w - bw,
-            cy,
-            Some(bw),
-            40.0,
-            "Not now",
-            Style::Ghost,
-            Action::CNext(crate::cstep::VAULT),
-        );
-        return 52.0;
-    };
-    let chip = ui.fit(
-        12.0,
-        W::R,
-        "Secret · sealed under the vault's passphrase",
-        w - 34.0,
-    );
-    let cw = ui.chip(x, cy, &chip, OK, OK.with_alpha(30));
-    let into = format!("Into {} · {}", open.name, open.label());
-    if ui.compact {
-        cy += 34.0;
-        let into = ui.fit(12.0, W::R, &into, w);
-        ui.text(x, cy, 12.0, W::R, MUTED, &into);
-        cy += 26.0;
-    } else {
-        ui.text_mid(x + cw + 12.0, cy, 26.0, 12.0, W::R, MUTED, &into);
-        cy += 38.0;
-    }
-    let mut rows: Vec<(String, String, bool, Action)> = vec![(
-        wl.name.clone(),
-        Session::shape(wl),
-        vault_has_wallet(app, v, wl),
-        Action::Vault(V::SaveWallet(i)),
-    )];
-    let slots = app.session.slots(wl);
-    let shares: Vec<_> = app
-        .session
-        .shares_here(wl)
-        .iter()
-        .map(|(_, k)| k.master.fingerprint())
-        .collect();
-    for (k, key) in app.session.keys.iter().enumerate() {
-        let fp = key.master.fingerprint();
-        let used = shares.contains(&fp) || slots.iter().any(|s| s.fingerprint == Some(fp));
-        if used {
-            rows.push((
-                key.label.clone(),
-                fp_text(fp),
-                vault_has_key(app, v, fp),
-                Action::Vault(V::SaveKey(k)),
-            ));
-        }
-    }
-    let all_in = rows.iter().all(|r| r.2);
-    for (name, detail, saved, action) in &rows {
-        cy += put_row(
-            ui,
-            x,
-            cy,
-            w,
-            name,
-            detail,
-            saved.then_some("In the vault"),
-            ("Save", *action),
-        );
-    }
-    cy += 10.0;
-    // On a small panel the one that leads on is pinned: Save all while
-    // something is not in the vault, then Continue.
-    if ui.pinning {
-        if all_in {
-            ui.pin = Some((
-                "Continue".to_string(),
-                Style::Primary,
-                Action::CNext(crate::cstep::VAULT),
-            ));
-        } else {
-            ui.pin = Some(("Save all".to_string(), Style::Primary, Action::CSaveAll));
-            ui.button(
-                x,
-                cy,
-                None,
-                40.0,
-                "Continue",
-                Style::Secondary,
-                Action::CNext(crate::cstep::VAULT),
-            );
-            cy += 52.0;
-        }
-        return cy - y;
-    }
-    if !all_in {
-        ui.button(
-            x,
-            cy,
-            None,
-            40.0,
-            "Save all",
-            Style::Primary,
-            Action::CSaveAll,
-        );
-    }
-    let bw = ui.measure(14.0, W::S, "Continue") + 32.0;
-    ui.button(
-        x + w - bw,
-        cy,
-        Some(bw),
-        40.0,
-        "Continue",
-        if all_in {
-            Style::Primary
-        } else {
-            Style::Secondary
-        },
-        Action::CNext(crate::cstep::VAULT),
-    );
-    cy += 52.0;
-    let _ = i;
     cy - y
 }
 
 /// One row of what goes somewhere: its name and what it is, and at the
-/// right either where it already is or the button that puts it there.
-/// On a small panel the name and what it is are two lines. Returns the
-/// row's height.
-#[allow(clippy::too_many_arguments)]
-fn put_row(
-    ui: &mut Ui,
-    x: f32,
-    y: f32,
-    w: f32,
-    name: &str,
-    detail: &str,
-    done: Option<&str>,
-    button: (&str, Action),
-) -> f32 {
-    file_row(ui, x, y, w, name, detail, done, button, &[])
-}
-
-/// A file's row as [`put_row`] draws it, with `extra` buttons before its
-/// own (Show as QR, PNG), which stay when the file is done. On a small
-/// panel the buttons go on a row under the name.
+/// right either where it already is or the button that puts it there,
+/// with `extra` buttons before its own (Show as QR, PNG), which stay when
+/// the file is done. On a small panel the name and what it is are two
+/// lines, and the buttons go on a row under the name. Returns the row's
+/// height.
 #[allow(clippy::too_many_arguments)]
 fn file_row(
     ui: &mut Ui,
@@ -7643,35 +7382,49 @@ fn file_row_extra(
     rh + 8.0
 }
 
-/// The Public files card of Create: what the wallet just made gives the
-/// cosigners and watch-only software, each to the Outbox.
-fn create_public_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let c = app.create.as_ref().expect("create");
-    let mut cy = y;
-    let Some(i) = c.built else {
-        ui.text(x, cy, 13.0, W::R, DIM, "Make the wallet first");
-        return 30.0;
-    };
-    ui.chip(x, cy, "Public · anyone may read these", MUTED, INNER);
-    cy += 38.0;
-    cy += public_rows(app, ui, x, cy, w, i);
-    cy += 10.0;
-    cy += buttons_and_next(
-        ui,
-        x,
-        cy,
-        w,
-        &[],
-        Some(("Continue", Action::CNext(crate::cstep::PUBLIC))),
+/// A wallet's descriptor as a summary row (`docs/DESIGN.md` §4.5): label
+/// above; the shape, the keys' fingerprints and the checksum below; a
+/// chevron; the whole row opens `action`. Returns its height.
+fn descriptor_row(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    wl: &crate::wallet::Wallet,
+    action: Action,
+) -> f32 {
+    let fps: Vec<String> = wl
+        .policy
+        .keys()
+        .iter()
+        .map(|k| crate::backup::fp_of(k.fingerprint()))
+        .collect();
+    let mut value = format!("{} · {}", Session::shape(wl), fps.join(", "));
+    if wl.policy.record().is_none() {
+        value.push_str(&format!(" · #{}", wl.policy.checksum()));
+    }
+    ui.text(x, y, 12.0, W::R, MUTED, "Descriptor");
+    let vh = ui
+        .wrap(x, y + 20.0, w - 28.0, 13.0, W::M, TEXT, &value)
+        .max(18.0);
+    let h = 20.0 + vh + 8.0;
+    ui.icon(
+        x + w - 20.0,
+        y + (h - 20.0) / 2.0,
+        20.0,
+        Icon::ChevronRight,
+        9.0,
+        DIM,
     );
-    cy + 4.0 - y
+    ui.hit(x, y - 4.0, w, h, action);
+    ui.rule(x, y + h, w, INNER);
+    h + 12.0
 }
 
-/// Wallet `i`'s public files, as Create's Public files card and the
-/// backup's public step both offer them: the descriptor, the wallet
-/// file, the multisig config, the backup sheet, the BSMS record, Bitcoin
-/// Core's import, and each key held here with its BSMS record, for the
-/// cosigners. Each has its own button, and Show as QR and PNG beside the
+/// Wallet `i`'s public files, as the backup's public step offers them:
+/// the descriptor, the wallet file, the multisig config, the backup
+/// sheet, the BSMS record, Bitcoin Core's import, and each key held here
+/// with its BSMS record, for the cosigners. Each has its own button, and Show as QR and PNG beside the
 /// ones a wallet or a person reads from a code.
 fn public_files(app: &Faraday, i: usize) -> Vec<FileRow<'static, String>> {
     use osk_bip::policy::{Template, Wrapper};
@@ -7780,13 +7533,8 @@ fn public_files(app: &Faraday, i: usize) -> Vec<FileRow<'static, String>> {
     rows
 }
 
-/// Draws [`public_files`] of wallet `i`, each marked once its file is in
-/// the Outbox. Returns their height.
-fn public_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) -> f32 {
-    public_rows_for(app, ui, x, y, w, i, None)
-}
-
-/// [`public_rows`], on the backup's checklist: only the files `only`
+/// Draws [`public_files`] of wallet `i` on the backup's checklist, each
+/// marked once its file is in the Outbox: only the files `only`
 /// names (as `public_out` numbers them) and the keys for the cosigners,
 /// the codes beside them only where the plan's form has QR pictures.
 fn public_rows_for(
@@ -7881,6 +7629,7 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             mono: k == 3,
             done: r.done[k as usize],
             open: r.open == Some(k),
+            default: false,
             toggle: Action::RStep(k),
             guide: Some(guide::restore(k, app.medium)),
         })
@@ -10883,35 +10632,44 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 22.0;
     let heading = match app.entry.wanted {
         Some(fp) => format!("Add key {}", fp_text(osk_bip::keys::Fingerprint(fp))),
+        None if app.entry.form != crate::forms::Form::Words => {
+            format!("Add a key · {}", app.entry.form.name())
+        }
         None => "Add a key".to_string(),
     };
     ui.text(x, y, 26.0, W::S, TEXT, &heading);
     y += 48.0;
-    // The form the key comes in.
-    let forms: Vec<(String, Style, Action)> = crate::forms::Form::ALL
-        .iter()
-        .enumerate()
-        .map(|(i, f)| {
-            (
-                f.name().to_string(),
-                if *f == app.entry.form {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                },
-                Action::EntryForm(i as u8),
-            )
-        })
-        .collect();
-    y += button_rows(ui, x, y, width, &forms) + 4.0;
+    // The words form is the one everyday way in; the other three are
+    // behind Other forms, or already shown when a Tools tile opened one
+    // of them (`docs/SIMPLIFY.md` §2.4).
+    if app.entry.other_forms {
+        let forms: Vec<(String, Style, Action)> = crate::forms::Form::ALL
+            .iter()
+            .enumerate()
+            .map(|(i, f)| {
+                (
+                    f.name().to_string(),
+                    if *f == app.entry.form {
+                        Style::Primary
+                    } else {
+                        Style::Secondary
+                    },
+                    Action::EntryForm(i as u8),
+                )
+            })
+            .collect();
+        y += button_rows(ui, x, y, width, &forms) + 4.0;
+    }
     if app.entry.form != crate::forms::Form::Words {
         entry_form(app, ui, x, y, width, h);
         return;
     }
-    // Which list the words are from: English, the others one press away.
+    // Which list the words are from: English, the others one press away;
+    // and, unless the chips are already shown, the way to them. Under the
+    // word fields, or above the keyboard of a list typed on its own keys.
     let lang = app.entry.language();
     let english = lang == osk_bip::bip39::Language::English;
-    let langs: Vec<(String, Style, Action)> = if english && !app.entry.languages {
+    let mut langs: Vec<(String, Style, Action)> = if english && !app.entry.languages {
         vec![(
             "Other languages".to_string(),
             Style::Ghost,
@@ -10934,8 +10692,18 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             })
             .collect()
     };
-    y += button_rows(ui, x, y, width, &langs);
+    if !app.entry.other_forms {
+        langs.insert(
+            0,
+            (
+                "Other forms".to_string(),
+                Style::Ghost,
+                Action::EntryOtherForms,
+            ),
+        );
+    }
     if let Some(w) = app.entry.keys.as_deref() {
+        y += button_rows(ui, x, y, width, &langs);
         y = keyed_words(app, w, ui, x, y, width, h);
         entry_finish(app, ui, x, y, width, h);
         return;
@@ -11018,6 +10786,7 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
     }
     y += 30.0;
+    y += button_rows(ui, x, y, width, &langs);
 
     // Status.
     let n = words.len();
@@ -12577,9 +12346,20 @@ fn qr_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         qr_sheet_compact(app, q, ui, w, h);
         return;
     }
-    let side = (h - 272.0).clamp(240.0, 560.0);
+    // A descriptor's whole text goes under the code, which gives up the
+    // height it takes.
+    let mut side = (h - 272.0).clamp(240.0, 560.0);
+    let mut whole_h = 0.0;
+    if let Some(t) = &q.whole {
+        for _ in 0..2 {
+            let tw = (side + 64.0).max(420.0) - 64.0;
+            whole_h = measure_wrap(ui, tw, 11.0, W::M, t) + 10.0;
+            side = (h - 272.0 - whole_h).clamp(240.0, 560.0);
+        }
+        whole_h = measure_wrap(ui, (side + 64.0).max(420.0) - 64.0, 11.0, W::M, t) + 10.0;
+    }
     let sw = (side + 64.0).max(420.0);
-    let sh = side + 242.0;
+    let sh = side + 242.0 + whole_h;
     let (x, y) = sheet_box(ui, w, h, sw, sh);
     let t = ui.fit(18.0, W::S, &q.title, sw - 64.0);
     ui.text(x + 32.0, y + 26.0, 18.0, W::S, TEXT, &t);
@@ -12604,6 +12384,17 @@ fn qr_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     ui.text(x + 32.0, y + 66.0, 12.0, W::S, tone, tag);
     if let Some(m) = q.frames.get(q.frame) {
         qr_code(ui, m, x + (sw - side) / 2.0, y + 86.0, side);
+    }
+    if let Some(t) = &q.whole {
+        ui.wrap(
+            x + 32.0,
+            y + 86.0 + side + 10.0,
+            sw - 64.0,
+            11.0,
+            W::M,
+            TEXT,
+            t,
+        );
     }
     // How it is written: the format, and for an animated code its speed
     // and how much each frame holds.
@@ -12689,6 +12480,14 @@ fn qr_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
+/// The height `s` takes wrapped to `width`, drawn nowhere.
+fn measure_wrap(ui: &mut Ui, width: f32, size: f32, w: W, s: &str) -> f32 {
+    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    let h = ui.wrap(0.0, 0.0, width, size, w, TEXT, s);
+    ui.c.pop_clip();
+    h
+}
+
 /// The QR sheet on a small panel: the code as large as the panel allows,
 /// and its format, speed and part size as buttons that step through the
 /// choices, with PNG beside them for one code of public content.
@@ -12765,11 +12564,21 @@ fn qr_sheet_compact(app: &Faraday, q: &crate::QrView, ui: &mut Ui, w: f32, h: f3
         let tag = ui.fit(12.0, W::S, tag, iw);
         ui.text(x, cy, 12.0, W::S, tone, &tag);
         cy += 22.0;
-        let side = iw.min(h - 16.0 - 32.0 - (cy - y) - rows_h - 8.0).max(120.0);
+        let whole_h = q
+            .whole
+            .as_ref()
+            .map_or(0.0, |t| measure_wrap(ui, iw, 11.0, W::M, t) + 8.0);
+        let side = iw
+            .min(h - 16.0 - 32.0 - (cy - y) - rows_h - 8.0 - whole_h)
+            .max(120.0);
         if let Some(m) = q.frames.get(q.frame) {
             qr_code(ui, m, x + (iw - side) / 2.0, cy, side);
         }
         cy += side + 8.0;
+        if let Some(t) = &q.whole {
+            ui.wrap(x, cy, iw, 11.0, W::M, TEXT, t);
+            cy += whole_h;
+        }
         if !cycles.is_empty() {
             let n = cycles.len() as f32;
             let bw = (iw - (n - 1.0) * 6.0) / n;
@@ -12963,14 +12772,12 @@ fn clock_text(ms: u64) -> String {
     format!("{}:{:02}", s / 60, s % 60)
 }
 
-/// The idle lock coming: how long until it, what it wipes, seals and
-/// keeps, and when the machine powers off after it.
+/// The idle lock coming: how long without input, when it locks, what it
+/// wipes, seals and keeps, and when the machine powers off after it.
 fn idle_warn_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
-    let Some((_, lock)) = app.idle_lock_at() else {
+    if app.idle_lock_at().is_none() {
         return;
-    };
-    let idle = app.idle_ms();
-    let left = lock.saturating_sub(idle);
+    }
     let keys = app.session.keys.len();
     let wallets = app.session.wallets.len();
     let sealed: Vec<String> = app
@@ -13012,19 +12819,21 @@ fn idle_warn_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         }
     };
     rows.push(("Then", off));
+    let minutes = |n: u64| format!("{n} {}", if n == 1 { "minute" } else { "minutes" });
+    let body = format!(
+        "No input for {} · locks at {} without input · any key or touch keeps it",
+        minutes(app.idle_warn_min),
+        minutes(u64::from(app.idle_lock_min))
+    );
     if ui.compact {
         let rows: Vec<(&str, String, osk_ui::Color)> =
             rows.into_iter().map(|(k, v)| (k, v, TEXT)).collect();
-        let title = format!("Locking in {}", clock_text(left));
         crate::compact::kv_sheet(
             ui,
             w,
             h,
-            (Icon::Lock, WARN, &title),
-            &format!(
-                "No input for {} minutes. Any key or touch keeps the session.",
-                idle / 60_000
-            ),
+            (Icon::Lock, WARN, "Locking soon"),
+            &body,
             &rows,
             &[("Keep working", Style::Primary, Action::Cancel)],
         );
@@ -13036,29 +12845,8 @@ fn idle_warn_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let ix = x + 32.0;
     let iw = sw - 64.0;
     ui.icon(ix, y + 30.0, 30.0, Icon::Lock, 18.0, WARN);
-    ui.text_mid(ix + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, "Locking in");
-    let tw = ui.measure(20.0, W::S, "Locking in ");
-    ui.text_mid(
-        ix + 42.0 + tw,
-        y + 30.0,
-        30.0,
-        20.0,
-        W::M,
-        WARN,
-        &clock_text(left),
-    );
-    ui.text(
-        ix,
-        y + 76.0,
-        13.0,
-        W::R,
-        MUTED,
-        &format!(
-            "No input for {} minutes. The session locks at {}; any key or touch keeps it.",
-            idle / 60_000,
-            app.idle_lock_min
-        ),
-    );
+    ui.text_mid(ix + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, "Locking soon");
+    ui.text(ix, y + 76.0, 13.0, W::R, MUTED, &body);
     let mut ry = y + 108.0;
     for (k, v) in &rows {
         ui.text_mid(ix, ry, 40.0, 13.0, W::R, MUTED, k);

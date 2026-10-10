@@ -4,7 +4,7 @@
 //! what would be lost.
 
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};
-use osk_shell_api::{App, Command, Event, Key};
+use osk_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
 
 const MIN: u64 = 60_000;
 
@@ -101,6 +101,55 @@ fn the_key_that_closes_the_warning_types_nothing() {
     tick(&mut app, 6 * MIN);
     app.event(Event::Key(Key::Char('x')));
     assert_eq!(app.renaming, before);
+}
+
+#[test]
+fn the_idle_warning_carries_no_clock() {
+    let mut app = with_wallet();
+    app.event(Event::Display(DisplayInfo {
+        width: 1280,
+        height: 800,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    tick(&mut app, 0);
+    tick(&mut app, 5 * MIN);
+    assert_eq!(app.sheet, Some(Sheet::IdleWarn));
+    let body = |texts: &[String]| -> String {
+        texts
+            .iter()
+            .find(|t| t.contains("No input for"))
+            .cloned()
+            .unwrap_or_default()
+    };
+    let first = app.drawn_texts();
+    assert!(
+        first.iter().any(|t| t == "Locking soon"),
+        "no countdown title: {first:?}"
+    );
+    let first_body = body(&first);
+    // The minutes without input when it opened, and the lock setting: two
+    // durations, never a clock time.
+    let lock = app.idle_lock_min;
+    assert_eq!(
+        first_body,
+        format!(
+            "No input for 5 minutes · locks at {lock} minutes without input · any key or touch keeps it"
+        ),
+    );
+    tick(&mut app, 5 * MIN + 1_000);
+    let second = app.drawn_texts();
+    assert_eq!(
+        first_body,
+        body(&second),
+        "the sheet's text does not change from one second to the next"
+    );
 }
 
 #[test]

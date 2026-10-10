@@ -22,6 +22,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             mono: s == pstep::KEY || s == pstep::INDEX,
             done: b.done[usize::from(s)],
             open: b.open == Some(s),
+            default: false,
             toggle: Action::PStep(s),
             guide: Some(guide(s, b.app)),
         })

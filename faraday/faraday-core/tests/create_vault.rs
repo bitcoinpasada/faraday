@@ -1,7 +1,8 @@
-//! Pausing a wallet's creation to make a vault for its keys: Make a vault
-//! opens the vault wizard, and finishing it lands on Unlock with the new
-//! vault picked and a way back; unlocking it, or going back, returns to
-//! the wallet still being made.
+//! Pausing a new wallet's backup to make a vault for its keys: the
+//! backup checklist's vault item, reached from Create's Back up card,
+//! offers Make a vault, which opens the vault wizard; finishing it lands
+//! on Unlock with the new vault picked and a way back; unlocking it, or
+//! going back, returns to the backup still under way.
 
 use faraday_core::keygen::Way;
 use faraday_core::vaults::VaultAction as V;
@@ -22,7 +23,8 @@ fn settle(app: &mut Faraday, from: u64) {
 }
 
 /// A single-key wallet, made and added to the session from the Create
-/// flow's own New key, stopping on the Vault card.
+/// flow's own New key, its backup opened on Paper and vault, stopping on
+/// the checklist's vault item.
 fn create_to_vault_step() -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
@@ -65,19 +67,29 @@ fn create_to_vault_step() -> Faraday {
     app.press(Action::KAdd);
     assert_eq!(app.screen, Screen::Create, "New key returns to Create");
     app.press(Action::CNext(faraday_core::cstep::KEYS));
-    app.press(Action::CMake);
     assert!(
         app.create.as_ref().unwrap().built.is_some(),
         "the wallet did not build"
     );
     app.press(Action::CNext(faraday_core::cstep::CHECK));
-    app.press(Action::CNext(faraday_core::cstep::BACKUP));
-    app.press(Action::CStep(faraday_core::cstep::VAULT));
+    let paper_and_vault = faraday_core::plan::Preset::ALL
+        .iter()
+        .position(|p| *p == faraday_core::plan::Preset::PaperVault)
+        .unwrap() as u8;
+    app.press(Action::CBackup(paper_and_vault));
+    assert_eq!(app.screen, Screen::Backup);
+    app.press(Action::BChecklist);
+    app.press(Action::BStep(faraday_core::bstep::VAULT));
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::Vault(V::CreateFrom(Screen::Backup))),
+        "the vault item offers Make a vault"
+    );
     app
 }
 
 fn make_a_vault(app: &mut Faraday) {
-    app.press(Action::Vault(V::CreateFrom(Screen::Create)));
+    app.press(Action::Vault(V::CreateFrom(Screen::Backup)));
     assert_eq!(app.screen, Screen::CreateVault);
     app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::WHERE)));
     app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::COST)));
@@ -97,14 +109,14 @@ fn make_a_vault(app: &mut Faraday) {
 }
 
 #[test]
-fn going_back_from_unlock_leaves_the_new_vault_locked_and_returns_to_create() {
+fn going_back_from_unlock_leaves_the_new_vault_locked_and_returns_to_the_backup() {
     let mut app = create_to_vault_step();
     make_a_vault(&mut app);
     app.press(Action::Vault(V::Back));
     assert_eq!(
         app.screen,
-        Screen::Create,
-        "the way back should return to the wallet still being made"
+        Screen::Backup,
+        "the way back should return to the backup still under way"
     );
     assert!(app.vaults.open.is_empty(), "the new vault stays locked");
 }
@@ -126,7 +138,7 @@ fn opening_a_just_made_vault_needs_its_passphrase_typed_again() {
 }
 
 #[test]
-fn opening_a_just_made_vault_with_its_passphrase_returns_to_create() {
+fn opening_a_just_made_vault_with_its_passphrase_returns_to_the_backup() {
     let mut app = create_to_vault_step();
     make_a_vault(&mut app);
     type_text(&mut app, "test phrase");
@@ -134,15 +146,15 @@ fn opening_a_just_made_vault_with_its_passphrase_returns_to_create() {
     settle(&mut app, 30);
     assert_eq!(
         app.screen,
-        Screen::Create,
-        "unlocking the vault just made should return to the wallet still being made"
+        Screen::Backup,
+        "unlocking the vault just made should return to the backup still under way"
     );
 }
 
 #[test]
 fn a_new_vaults_passphrases_wait_until_the_stick_is_pulled() {
     let mut app = create_to_vault_step();
-    app.press(Action::Vault(V::CreateFrom(Screen::Create)));
+    app.press(Action::Vault(V::CreateFrom(Screen::Backup)));
     app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::WHERE)));
     app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::COST)));
     app.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::SIZE)));

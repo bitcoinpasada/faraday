@@ -274,8 +274,17 @@ impl KeyGen {
     /// A fresh flow.
     pub fn new(slot: Option<u8>, back: Screen, only_24: bool) -> KeyGen {
         KeyGen {
-            open: Some(kstep::LENGTH),
-            done: [false; kstep::COUNT],
+            // Length and Randomness open closed on their defaults
+            // (`DESIGN.md` §4.14): the flow opens on the first card
+            // without one, and both count as done so a later card can
+            // still be reached directly.
+            open: Some(kstep::ENTER),
+            done: {
+                let mut d = [false; kstep::COUNT];
+                d[usize::from(kstep::LENGTH)] = true;
+                d[usize::from(kstep::SOURCE)] = true;
+                d
+            },
             scroll: flow::Scroll::default(),
             words: if only_24 { 24 } else { 12 },
             only_24,

@@ -233,3 +233,80 @@ fn the_answers_read_back_as_the_vault_keeps_them() {
     // Not for another shape.
     assert_eq!(Answers::from_text(&one_key(), &text), None);
 }
+
+/// A 2-of-3 made in Create over the three test keys, its backup opened
+/// from Create's Back up card with every software chosen and the
+/// description going as files: the public
+/// files item offers each file Create's Public files card offered, each
+/// named for the wallet.
+#[test]
+fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
+    use faraday_core::create::NewKind;
+    use faraday_core::{Action, bstep, cstep, qrow, testkit};
+    use osk_shell_api::{App, Event, Key};
+    let mut app = testkit::started();
+    for word in ["bacon", "zebra", "summer"] {
+        app.press(Action::Entry(None));
+        for c in testkit::test_words(word).chars() {
+            app.event(Event::Key(Key::Char(c)));
+        }
+        app.press(Action::EntryAdd);
+    }
+    let multi = NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::Multi)
+        .unwrap() as u8;
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(multi));
+    for slot in 0..3u8 {
+        let fp = app.session.keys[usize::from(slot)].master.fingerprint().0;
+        app.press(Action::CSlotHere(slot, fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    let built = app.create.as_ref().and_then(|c| c.built).expect("made");
+    app.press(Action::CNext(cstep::CHECK));
+    let k = Preset::ALL
+        .iter()
+        .position(|p| *p == Preset::PaperVaultSoftware)
+        .unwrap() as u8;
+    app.press(Action::CBackup(k));
+    for row in 0..5u8 {
+        if !app.backup.as_ref().unwrap().answers.software[usize::from(row)] {
+            app.press(Action::BAnswer(qrow::SOFTWARE, row));
+        }
+    }
+    // The description goes as files too: the public files item.
+    if !app.backup.as_ref().unwrap().answers.wallet[wallet::FILES] {
+        app.press(Action::BAnswer(qrow::WALLET, wallet::FILES as u8));
+    }
+    app.press(Action::BChecklist);
+    assert!(
+        app.backup_items().contains(&bstep::PUBLIC),
+        "the checklist has the public files item"
+    );
+    app.press(Action::BStep(bstep::PUBLIC));
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::PublicOut(built, 1)),
+        "the item is open on the descriptor"
+    );
+    let stem = faraday_core::file_stem(&app.session.wallets[built].name);
+    // Descriptor, multisig config, wallet file, BSMS record, Core import.
+    let files = [
+        (1u8, "descriptor.txt"),
+        (2, "multisig-config.txt"),
+        (5, "wallet.json"),
+        (6, "bsms.txt"),
+        (7, "bitcoin-core.json"),
+    ];
+    let offered = app.backup_public();
+    for (n, end) in files {
+        assert!(offered.contains(&n), "the item offers {end}");
+        app.press(Action::PublicOut(built, n));
+        let name = format!("{stem}-{end}");
+        assert!(
+            app.outbox.iter().any(|f| f.name == name),
+            "{name} reached the Outbox"
+        );
+    }
+}

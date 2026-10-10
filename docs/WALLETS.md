@@ -188,22 +188,29 @@ non-cryptographic and live in `faraday-core`:
 
 ## 4. Spending
 
-The Wallets tab's order, kept for every kind: **load the wallet → check →
-the transaction → the signers → sign → collect → finish.** Everything
-before the signers is watch-only, so any reason to stop is found before a
-key is used. In Faraday the keys are usually already loaded from a vault,
-so the signers step shows them rather than asking for them, and asks only
-for what is missing.
+The Wallets tab's order, kept for every kind: **load the wallet → the
+transaction → check → the signers → sign → collect → finish.** Check is
+open at entry only the first time a wallet (by descriptor checksum) is
+checked this power-on; once Continue has been pressed on it (here, on
+Create's own Check, or "It matches" on the Spend tab), it stays closed
+and done across a lock and the next process, open again only in a fresh
+one with no kept state (`docs/SIMPLIFY.md` §2.5). Everything before the
+signers is watch-only, so any reason to stop is found before a key is
+used. In Faraday the keys are usually already loaded from a vault, so
+the signers step shows them rather than asking for them, and asks only
+for what is missing. The transaction's id, where it is known before
+signing, is a row of the Transaction card's table, not a step of its
+own.
 
 | Kind | Flow | What differs |
 |---|---|---|
-| Single-sig | Load (or the vault's wallet) → Check → Transaction → Txid → Sign → Finish | No Signers or Collect: the vault key is the wallet. |
-| Multisig (`wsh`, `sh(wsh)`) | Load → Check → Transaction → Txid → Signers → Sign → Collect → Finish | The Wallets tab's flow as it stands. Txid refused for `sh(wsh)`. |
+| Single-sig | Load (or the vault's wallet) → Transaction → Check → Sign → Finish | No Signers or Collect: the vault key is the wallet. |
+| Multisig (`wsh`, `sh(wsh)`) | Load → Transaction → Check → Signers → Sign → Collect → Finish | The Wallets tab's flow as it stands. The txid row is refused for `sh(wsh)`. |
 | Taproot multisig, `tr(H, sortedmulti_a)` | as multisig | Script-path signatures only (the internal key is unspendable); the review says which leaf. |
-| Miniscript, Taproot tree (imported) | Load → Check → Transaction → Signers → Sign → Collect → Finish | Signs every signature its keys can give; Finish completes only when the script is satisfied, and says which condition is unmet (a cosigner, or a timelock not yet reached). |
-| Recovery (Liana shapes) | Load → Check → **Path** → Transaction → Signers → Sign → Collect → Finish | **Path**: the primary path, or a recovery path, with its timelock in blocks and whether the transaction's inputs have aged enough (from the PSBT's sequence values). |
-| MuSig2, `tr(musig(…))` | Load → Check → Transaction → **Round 1: nonces** → Collect nonces → **Round 2: sign** → Collect partial signatures → Finish | Two rounds; every signer must take part. See §4.2. |
-| FROST, m of n | Load (group record) → Check → Transaction → **Round 1** → Collect commitments → **Round 2** → Collect shares → Finish | Two rounds among the m chosen signers. See §4.2. |
+| Miniscript, Taproot tree (imported) | Load → **Path** → Transaction → Check → Signers → Sign → Collect → Finish | Signs every signature its keys can give; Finish completes only when the script is satisfied, and says which condition is unmet (a cosigner, or a timelock not yet reached). |
+| Recovery (Liana shapes) | Load → **Path** → Transaction → Check → Signers → Sign → Collect → Finish | **Path**: the primary path, or a recovery path, with its timelock in blocks and whether the transaction's inputs have aged enough (from the PSBT's sequence values). |
+| MuSig2, `tr(musig(…))` | Load → Transaction → Check → **Round 1: nonces** → Collect nonces → **Round 2: sign** → Collect partial signatures → Finish | Two rounds; every signer must take part. See §4.2. |
+| FROST, m of n | Load (group record) → Transaction → Check → **Round 1** → Collect commitments → **Round 2** → Collect shares → Finish | Two rounds among the m chosen signers. See §4.2. |
 | Message (any wallet with addresses) | Choose wallet and address → Message → Sign (BIP-137 or BIP-322) → Result as text and QR | Also **Check a signed message**. |
 
 ### 4.2 Rounds that hold a secret between them
@@ -239,19 +246,31 @@ secret nonce unencrypted, with the vault's encryption.
 
 | Kind | Flow |
 |---|---|
-| Single-sig | Kind (script type) → Key (from a vault, new, typed, scanned) → Account → Check → Backup → Save |
-| Multisig, Taproot multisig | Kind → Quorum → Slots → Build → Check → Backup → Save |
-| MuSig2 | Kind → Slots (N of N; every key's account key) → Build → Check → Backup → Save |
-| FROST | Kind → Quorum → **Deal** (on this device, as OpenSigner does) → each share to its own vault slot or exported to its holder → Check → Backup → Save |
-| Recovery | Kind → Primary keys → **Recovery paths** (up to three, each with keys and a timelock) → Build → Check → Backup → Save |
+| Single-sig | Kind (script type) → Keys (from a vault, new, typed, scanned) → Check → Back up |
+| Multisig, Taproot multisig | Kind → Quorum → Keys → Check → Back up |
+| MuSig2 | Kind → Keys (N of N; every key's account key) → Check → Back up |
+| FROST | Kind → Quorum → Keys, whose Continue **deals** (on this device, as OpenSigner does) → Check → Back up |
+| Recovery | Kind → Primary keys → **Recovery paths** (up to three, each with keys and a timelock) → Check → Back up |
+
+Create's cards are Kind · Quorum · Keys · Check · Back up (2026-10-10,
+`docs/SIMPLIFY.md` §2.3). Keys' Continue makes the wallet and opens
+Check; there is no card of its own for the descriptor. Check shows the
+descriptor as a summary row ("2 of 3 · native SegWit multisig ·
+9a6a2580, cf0e9805, 048ab54e · #qf45pmyh"), which opens the wallet's code
+with the descriptor's whole text under it, then the first addresses.
+**Back up** is the plan's three presets; each opens Back up a wallet on
+the wallet just made with that preset applied, its chip "Then: Wallets",
+its way back the wallet's card. The seeds and the wallet into a vault,
+the paper and the public files are the checklist's items below, not
+cards of Create.
 
 **Backup** is a plan, then a checklist of only what the plan needs
 (2026-10-09, the owner's proposal A; it replaced five fixed cards that
 each showed every option). Any loaded wallet can be backed up again,
 not only the one just made: from the wallet's card (**Back up**, that
 card's wallet), Start's **Back up a wallet** and the Tools tile (the
-wallet last picked on Wallets), Create's last step and Restore's **Back
-it up again**. With more than one wallet loaded, the flow's head reads
+wallet last picked on Wallets), Create's **Back up** card (with the
+preset chosen there) and Restore's **Back it up again**. With more than one wallet loaded, the flow's head reads
 "Back up a wallet" and the wallet's name is a chip; a press on it lists
 the loaded wallets, one row each with its shape, and a press on one
 starts the backup again on that wallet. The plan's logic is `plan.rs`,
@@ -349,8 +368,9 @@ items the plan needs, each done by what it does, never by a tap:
    quorum rebuilds and no one share watches, with the measured minimum
    rebuild group; each share as its PDF, its text and
    `{name}-share-k-of-n.png`. Done when it is in the Outbox.
-7. **The public files** for the software and form chosen, as Create's
-   Public files card lists them, with each key whose seed is here
+7. **The public files** for the software and form chosen, drawn from
+   the wallet (descriptor, wallet file, multisig config, BSMS record,
+   Bitcoin Core's import), with each key whose seed is here
    (`xpub-{fp}.txt` and its BIP 129 record) for the cosigners: done
    when each chosen file is in the Outbox.
 8. **Show the descriptor to the software**: the descriptor as one code

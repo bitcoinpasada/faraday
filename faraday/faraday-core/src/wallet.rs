@@ -930,17 +930,17 @@ impl Kind {
     }
 
     /// The steps of a spend from a wallet of this kind
-    /// (`docs/WALLETS.md` §4). `txid` is whether the transaction's id is
-    /// known before signing.
-    pub fn steps(self, txid: bool) -> Vec<u8> {
-        let mut v = vec![step::WALLET, step::CHECK];
+    /// (`docs/WALLETS.md` §4): Wallet, Transaction, Check, Signers, Sign,
+    /// Signatures for this transaction, Finish, with Path and Nonces
+    /// where the kind needs them. The transaction's id is a row of the
+    /// Transaction card's table, not a step of its own.
+    pub fn steps(self) -> Vec<u8> {
+        let mut v = vec![step::WALLET];
         if matches!(self, Kind::Miniscript | Kind::Tree) {
             v.push(step::PATH);
         }
         v.push(step::TRANSACTION);
-        if txid {
-            v.push(step::TXID);
-        }
+        v.push(step::CHECK);
         if self.has_cosigners() {
             v.push(step::SIGNERS);
         }

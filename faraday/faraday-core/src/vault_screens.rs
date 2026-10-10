@@ -862,6 +862,9 @@ pub(crate) fn create(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             mono: false,
             done: c.done[k as usize],
             open: c.open == Some(k),
+            // §3.1 gives this flow its defaults; until then every card
+            // opens as it does today.
+            default: false,
             toggle: va(V::CStep(k)),
             guide: Some(create_guide(k)),
         })

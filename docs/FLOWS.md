@@ -64,15 +64,16 @@ to get it.
    acknowledgement ("anyone who copies the stick or sees this file can
    spend these coins"), and never holds the BIP-39 passphrase. A seed's
    SeedQR never goes through the QR sheet's **PNG to the Outbox**, which
-   is for public content. Create a wallet says the
-   same in its cards: after Check come **Secrets into a vault** (the keys
-   held here and the wallet), then **Public files** (descriptor, wallet
-   file, multisig config, backup sheet, BSMS record, Bitcoin Core import,
-   each key's account key and its BSMS record; the descriptor, the
-   multisig config, the BSMS records and the keys each with **Show as QR**
-   and **PNG** beside **To the Outbox**), then **Paper backup**: the seeds copied by hand, each
-   copy checked by scanning its drawn SeedQR (by its words' typed numbers
-   where there is no camera).
+   is for public content. Create a wallet ends in the same doors
+   (2026-10-10, `docs/SIMPLIFY.md` §2.3): its last card, **Back up**,
+   offers the plan's presets and opens the backup on the wallet just
+   made, whose checklist puts the seeds and the wallet into a vault,
+   lists the public files (descriptor, wallet file, multisig config,
+   BSMS record, Bitcoin Core import, each key's account key and its BSMS
+   record; each with **Show as QR** and **PNG** beside **To the Outbox**
+   where a wallet reads it from a code) and has the seeds copied by hand,
+   each copy checked by scanning its drawn SeedQR (by its words' typed
+   numbers where there is no camera).
 
 7. **Words for keys** (2026-10-06). A **key** or **seed** is what signs:
    words, a SeedQR, a share of one. An account's public key with its
@@ -120,8 +121,7 @@ to get it.
     again on return; the backup's seeds and wallet vault items; Files (an entries file, an
     `.oskb`, a file added to a vault); Vault contents with none open; and
     Restore's seeds route, which offers Unlock only, as a new vault holds
-    no seed. Create a wallet's vault step keeps **Make a vault** /
-    **Unlock {name}** / **Not now**. Going back anywhere on the way, or
+    no seed. Going back anywhere on the way, or
     leaving for another page, ends it: a secret held for it is dropped,
     wiped, as Cancel on the sheet does.
 
@@ -152,6 +152,28 @@ to get it.
     **Bring in · Open · Work · Write out**, the current stage in the
     accent, computed from what is attached, loaded and waiting; tapping
     it opens Files.
+16. **A step card with a default opens closed** (owner, 2026-10-10;
+    `docs/SIMPLIFY.md` §2.1). Create a wallet, New key and Sign a
+    transaction open on the first card without one; a closed default
+    card shows **Change** in place of the chevron.
+17. **Create a wallet shows two kinds** (owner, 2026-10-10;
+    `docs/SIMPLIFY.md` §2.2). Kind offers Single key and Multisig, both
+    native SegWit; the other eight kinds are behind **More kinds**.
+18. **Add a key opens on words** (owner, 2026-10-10; `docs/SIMPLIFY.md`
+    §2.4). SLIP-39 shares, codex32 and Seed XOR are behind **Other
+    forms**, unless a Tools tile for one of them opened the screen.
+19. **Sign a transaction reviews the transaction before Check** (owner,
+    2026-10-10; `docs/SIMPLIFY.md` §2.5). The Transaction card comes
+    before Check, carries the txid as one of its rows, and Check stays
+    closed once a wallet has been checked this power-on.
+20. **Create a wallet ends in the backup plan** (owner, 2026-10-10;
+    `docs/SIMPLIFY.md` §2.3). The cards are Kind · Quorum · Keys · Check
+    · Back up. Keys' Continue makes the wallet; Check shows the
+    descriptor as a summary row that opens its code with the whole text
+    under it; Back up is the plan's three presets, each opening the
+    backup on the new wallet with that preset, its chip "Then: Wallets",
+    its way back the wallet's card. The vault, public-files and paper
+    cards are gone: they are the checklist's items.
 
 ## Home
 
@@ -360,20 +382,19 @@ guarantees for this file's rule:
 - **Any loaded wallet backs up again, with every file on offer**
   (owner, 2026-10-09; `docs/WALLETS.md` §5). Entries: the wallet's card
   (**Back up**, also on the small panel), Start's **Back up a wallet**,
-  the Tools tile, Create's last step and Restore's **Back it up
-  again**. With more than one wallet loaded the head is "Back up a
+  the Tools tile, Create's **Back up** card and Restore's **Back it
+  up again**. With more than one wallet loaded the head is "Back up a
   wallet" with the wallet's name as a chip, which lists the loaded
   wallets; a press on one starts the backup on it. A watch-only wallet
   (no seeds here) is asked nothing about seeds. The checklist's public
-  files item and Create's Public files card are one list drawn from the
+  files item is drawn from the
   wallet (descriptor, wallet file, multisig config, BSMS record, Bitcoin
   Core import, each key held here and its BSMS key record), the item
   showing the rows the plan's software picks. **Save the wallet into
   {vault}** is its own item (or the way to make or unlock one, back to
   the item); the seeds' vault item has the seeds'.
-- **The descriptor and its shares as pictures** (2026-10-09). Create's
-  Public files card and the backup's public files item (**PNG** on the
-  descriptor's row) write `{name}-descriptor.png`: the
+- **The descriptor and its shares as pictures** (2026-10-09). The
+  backup's public files item (**PNG** on the descriptor's row) write `{name}-descriptor.png`: the
   checksummed descriptor as one static code, with the wallet's name, its
   shape (and the network when not mainnet), the keys' fingerprints, the
   descriptor's checksum and "Public: watch only, spends nothing" under
@@ -387,11 +408,11 @@ guarantees for this file's rule:
 - **Every public file a flow makes as a code and a picture**
   (2026-10-09; `docs/QR.md` §4 item 4). Beside a file's **To the
   Outbox** sit **Show as QR** and **PNG** where a wallet or a person
-  reads it from a code: Create's Public files card (descriptor, multisig
-  config, BSMS descriptor record, each key held here and its BSMS key
-  record), Create's Keys card (**Show xpub QR**, **Xpub PNG to the
-  Outbox**, **Xpub file to the Outbox** under each key held here), the
-  backup's public files item (the same rows as Create's card), Sign a message
+  reads it from a code: the backup's public files item (descriptor,
+  multisig config, BSMS descriptor record, each key held here and its
+  BSMS key record), Create's Keys card (**Show xpub QR**, **Xpub PNG to
+  the Outbox**, **Xpub file to the Outbox** under each key held here),
+  Sign a message
   (**Put in the Outbox**, **Show as QR**, **PNG to the Outbox**) and
   Silent payments (**Record to the Outbox**, **Record as QR**, **Record
   as PNG**). The QR sheet carries **PNG to the Outbox** (**PNG** beside

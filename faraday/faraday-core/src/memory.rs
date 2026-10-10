@@ -163,6 +163,20 @@ impl Faraday {
         }
     }
 
+    /// Whether a wallet of this descriptor checksum has been checked
+    /// this power-on (`docs/WALLETS.md` §4).
+    pub fn is_checked(&self, checksum: &str) -> bool {
+        self.checked_wallets.iter().any(|c| c == checksum)
+    }
+
+    /// Remembers that a wallet of this descriptor checksum has been
+    /// checked.
+    pub fn mark_checked(&mut self, checksum: &str) {
+        if !self.is_checked(checksum) {
+            self.checked_wallets.push(checksum.to_string());
+        }
+    }
+
     /// What is kept across a lock: the settings and the memory.
     pub(crate) fn kept(&self) -> Vec<(String, Vec<u8>)> {
         let settings = format!(
@@ -174,6 +188,12 @@ impl Faraday {
             ("settings".to_string(), settings.into_bytes()),
             ("signed-amounts".to_string(), encode(&self.signed_amounts)),
         ];
+        if !self.checked_wallets.is_empty() {
+            out.push((
+                "checked-wallets".to_string(),
+                self.checked_wallets.join("\n").into_bytes(),
+            ));
+        }
         // Which Outbox files are secrets let out: read again by the next
         // process, a key's text would otherwise pass for public.
         let secret_out: Vec<&str> = self
@@ -233,6 +253,12 @@ impl Faraday {
                     self.stick_settings = Some(String::from_utf8_lossy(bytes).into_owned());
                 }
                 "signed-amounts" => self.signed_amounts = decode(bytes),
+                "checked-wallets" => {
+                    self.checked_wallets = String::from_utf8_lossy(bytes)
+                        .lines()
+                        .map(str::to_string)
+                        .collect();
+                }
                 "family" => self.family_restore(bytes),
                 "secret-out" => {
                     let text = String::from_utf8_lossy(bytes);

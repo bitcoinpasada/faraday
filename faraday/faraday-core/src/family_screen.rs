@@ -45,6 +45,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             mono: matches!(id, CardId::Step(step::TXID)),
             done: done(app, id),
             open: open == Some(id),
+            default: false,
             toggle: crate::family::toggle(id),
             guide: Some(text::lead(app, id)).filter(|s| !s.is_empty()),
         })

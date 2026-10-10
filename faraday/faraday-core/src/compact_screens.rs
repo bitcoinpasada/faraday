@@ -484,30 +484,33 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text(x, y, 13.0, W::S, ACCENT, &line);
         y += 22.0;
     }
-    let forms: Vec<(String, Style, Action)> = Form::ALL
-        .iter()
-        .enumerate()
-        .map(|(i, f)| {
-            (
-                f.name().to_string(),
-                if *f == app.entry.form {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                },
-                Action::EntryForm(i as u8),
-            )
-        })
-        .collect();
-    y += crate::screens::button_rows(ui, x, y, iw, &forms) - 4.0;
+    if app.entry.other_forms {
+        let forms: Vec<(String, Style, Action)> = Form::ALL
+            .iter()
+            .enumerate()
+            .map(|(i, f)| {
+                (
+                    f.name().to_string(),
+                    if *f == app.entry.form {
+                        Style::Primary
+                    } else {
+                        Style::Secondary
+                    },
+                    Action::EntryForm(i as u8),
+                )
+            })
+            .collect();
+        y += crate::screens::button_rows(ui, x, y, iw, &forms) - 4.0;
+    }
     if app.entry.form != Form::Words {
         entry_form(app, ui, x0, cw, h, x, y, iw, top);
         return;
     }
     let lang = app.entry.language();
     let english = lang == osk_bip::bip39::Language::English;
-    // One button for the list in use; the lists open from it.
-    let langs: Vec<(String, Style, Action)> = if !app.entry.languages {
+    // One button for the list in use; the lists open from it; unless
+    // the chips are already shown, Other forms beside it.
+    let mut langs: Vec<(String, Style, Action)> = if !app.entry.languages {
         vec![(
             if english {
                 "Other languages".to_string()
@@ -534,8 +537,18 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             })
             .collect()
     };
-    y += crate::screens::button_rows(ui, x, y, iw, &langs) - 6.0;
+    if !app.entry.other_forms {
+        langs.insert(
+            0,
+            (
+                "Other forms".to_string(),
+                Style::Ghost,
+                Action::EntryOtherForms,
+            ),
+        );
+    }
     let Some(w) = app.entry.keys.as_deref() else {
+        crate::screens::button_rows(ui, x, y, iw, &langs);
         return;
     };
     let taken: Vec<u16> = w.committed_indices().collect();
@@ -625,6 +638,8 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
     }
     y += (count / cols) as f32 * 32.0 + 10.0;
+    // Under the word fields.
+    y += crate::screens::button_rows(ui, x, y, iw, &langs) - 6.0;
     y += pass_field(
         ui,
         x,

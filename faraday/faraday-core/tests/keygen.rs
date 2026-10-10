@@ -499,3 +499,28 @@ fn a_key_is_added_only_after_the_quiz_or_skipping_it_twice() {
     app.press(Action::KAdd);
     assert_eq!(app.session.keys.len(), 1);
 }
+
+#[test]
+fn new_key_opens_on_the_entries_and_change_opens_length_keeping_what_follows() {
+    use faraday_core::keygen::kstep;
+    let mut app = opened();
+    let k = app.keygen.as_ref().unwrap();
+    assert_eq!(
+        k.open,
+        Some(kstep::ENTER),
+        "Length and Randomness have defaults: the flow opens on the entries"
+    );
+    let way = k.way();
+    assert!(way.is_some(), "Randomness has a default");
+    for _ in 0..7 {
+        app.press(Action::KRoll(3));
+    }
+    let rolled = app.keygen.as_ref().unwrap().dice.len();
+    assert!(rolled > 0, "the rolls were taken");
+    app.press(Action::KStep(kstep::LENGTH));
+    let k = app.keygen.as_ref().unwrap();
+    assert_eq!(k.open, Some(kstep::LENGTH), "Change opens Length");
+    assert_eq!(k.words, 12, "the length is kept");
+    assert_eq!(k.way(), way, "the randomness is kept");
+    assert_eq!(k.dice.len(), rolled, "the rolls are kept");
+}

@@ -113,11 +113,14 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     tap(&mut app, Action::Nav(Screen::Start));
     tap(&mut app, Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
-    tap(&mut app, Action::CKind(0));
-    tap(&mut app, Action::CNext(0));
+    // Kind already defaults to single key, closed with Change: the flow
+    // opens on Keys.
     tap(&mut app, Action::KeyGen(Some(0)));
     assert_eq!(app.screen, Screen::KeyGen);
-    tap(&mut app, Action::KWords(12));
+    // Length (12 words) and Randomness (dice, by words) are already the
+    // defaults, closed with Change: Randomness opened directly here, to
+    // choose dice hashed instead of what this test is not about.
+    app.press(Action::KStep(faraday_core::keygen::kstep::SOURCE));
     // Dice hashed into the words: its group opened first.
     tap(&mut app, Action::KGroup(Group::Computed as u8));
     tap(&mut app, Action::KWay(Way::DiceHashed.index()));
@@ -144,9 +147,8 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     tap(&mut app, Action::KAdd);
     assert_eq!(app.screen, Screen::Create, "the key fills its slot");
     tap(&mut app, Action::CNext(faraday_core::cstep::KEYS));
-    tap(&mut app, Action::CMake);
     let made = app.create.as_ref().and_then(|c| c.built);
-    assert!(made.is_some(), "Make the wallet made it");
+    assert!(made.is_some(), "Keys' Continue made the wallet");
 }
 
 #[test]
@@ -248,6 +250,13 @@ fn forward_in_view(mut app: Faraday, h: u16) {
     tap(&mut app, Action::Nav(Screen::Home));
     tap(&mut app, Action::Nav(Screen::Start));
     tap(&mut app, Action::CreateWallet);
+    // Kind defaults to single key and opens closed, with Change: pressed
+    // directly here, since reopening a closed default card is not what
+    // this test is about.
+    app.press(Action::CStep(faraday_core::cstep::KIND));
+    // Taproot (kind 1) is behind More kinds now; the two always-shown
+    // rows are Single key (0) and Multisig (4).
+    app.press(Action::CMoreKinds);
     for kind in 0..2u8 {
         tap(&mut app, Action::CKind(kind));
         assert!(
@@ -260,6 +269,59 @@ fn forward_in_view(mut app: Faraday, h: u16) {
 #[test]
 fn every_step_s_forward_action_is_on_a_2_8_inch_panel_without_scrolling() {
     forward_in_view(panel(), H);
+}
+
+/// Two boxes overlap.
+fn overlaps(a: (u16, u16, u16, u16), b: (u16, u16, u16, u16)) -> bool {
+    let (ax, ay, aw, ah) = a;
+    let (bx, by, bw, bh) = b;
+    ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah
+}
+
+/// Scan floats over the foot of Home; no tile's hit area is under it.
+#[test]
+fn scan_never_covers_a_tile() {
+    let mut app = panel();
+    let _ = app.frame();
+    let scan = app.hit_box(Action::Scan).expect("Scan is offered");
+    for action in [
+        Action::Nav(Screen::Family),
+        Action::Nav(Screen::Start),
+        Action::Nav(Screen::Vaults),
+        Action::Nav(Screen::Files),
+        Action::Learn,
+        Action::Nav(Screen::Catalog),
+        Action::Nav(Screen::Settings),
+    ] {
+        if let Some(tile) = app.hit_box(action) {
+            assert!(
+                !overlaps(scan, tile),
+                "{action:?}'s tile is under Scan: {tile:?} vs {scan:?}"
+            );
+        }
+    }
+}
+
+/// A flow's page carries no pip row and no "Step N of M" line: the title
+/// alone reads "{card} · {n} of {m}" (`DESIGN.md` §4.1).
+#[test]
+fn a_flow_s_page_title_carries_the_progress() {
+    let mut app = panel();
+    tap(&mut app, Action::Nav(Screen::Vaults));
+    tap(&mut app, Action::Vault(V::Create));
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Where will it open · 1 of 4"
+            || t == "Name and passphrases · 1 of 4"
+            || t.ends_with("· 1 of 4")),
+        "no title carries the progress: {texts:?}"
+    );
+    assert!(
+        !texts
+            .iter()
+            .any(|t| t.starts_with("Step ") && t.contains(" of ")),
+        "a \"Step N of M\" line is still drawn: {texts:?}"
+    );
 }
 
 #[test]

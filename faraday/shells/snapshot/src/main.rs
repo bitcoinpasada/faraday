@@ -482,13 +482,12 @@ fn run(
         .position(|i| i.name == "savings-unsigned.psbt")
         .ok_or("no psbt")?;
     t.press(Action::StartSpend(psbt));
-    t.shot("spend-check")?;
-    t.press(Action::StepNext(1));
     t.shot("spend-transaction")?;
     t.press(Action::ToggleTable);
     t.shot("spend-table")?;
     t.press(Action::StepNext(2));
-    t.press(Action::StepNext(3));
+    t.shot("spend-check")?;
+    t.press(Action::StepNext(1));
     t.shot("spend-signers")?;
     t.press(Action::StepNext(4));
     t.shot("spend-sign")?;
@@ -978,6 +977,9 @@ fn run(
     t.sticks(false);
     t.load_kit()?;
     t.press(Action::CreateWallet);
+    // Kind defaults to single key, closed with Change: opened to choose
+    // Multisig instead.
+    t.press(Action::CStep(faraday_core::cstep::KIND));
     t.press(Action::CKind(4));
     t.shot("create-kind")?;
     t.press(Action::CNext(0));
@@ -1018,8 +1020,8 @@ fn run(
         .ok_or("no key file")?;
     t.press(Action::CSlotFile(2, kf));
     t.shot("create-keys")?;
+    // Keys' Continue makes the wallet and opens Check.
     t.press(Action::CNext(2));
-    t.press(Action::CMake);
     t.shot("create-made")?;
     t.press(Action::OpenWallet(0));
     t.press(Action::QrWallet(0));
@@ -1041,9 +1043,9 @@ fn run(
     t.press(Action::CSlotHere(0, bacon));
     device_key(&mut t, 1);
     t.shot("create-frost-keys")?;
-    t.press(Action::CNext(2));
     let keys_before = t.app.session.keys.len();
-    t.press(Action::CMake);
+    // Keys' Continue deals the shares.
+    t.press(Action::CNext(2));
     t.shot("create-frost-dealt")?;
     let made = t.app.create.as_ref().and_then(|c| c.built).ok_or_else(|| {
         format!(
@@ -1602,26 +1604,39 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CSlotHere(0, bacon));
     device_key(t, 1);
     device_key(t, 2);
-    t.press(Action::CNext(2));
-    t.press(Action::CMake);
-    // After the check, the secrets go into the vault first.
-    t.press(Action::CNext(4));
-    t.shot("create-vault-step")?;
-    t.press(Action::CSaveAll);
-    t.shot("create-vault-saved")?;
+    t.press(Action::CNext(faraday_core::cstep::KEYS));
+    t.press(Action::CNext(faraday_core::cstep::CHECK));
+    // After the check, the backup plan: Paper and vault puts the new
+    // keys and the wallet into the open vault from the checklist.
+    let built = t.app.create.as_ref().and_then(|c| c.built).unwrap_or(0);
+    t.press(Action::CBackup(1));
+    // The description as files too, for the public files item below.
+    t.press(Action::BAnswer(
+        faraday_core::qrow::WALLET,
+        faraday_core::plan::wallet::FILES as u8,
+    ));
+    t.press(Action::BChecklist);
+    t.press(Action::BStep(faraday_core::bstep::VAULT));
+    // Making the checklist saved the plan into the vault already.
+    let before = t.app.vaults.open[0].changes;
+    for k in t.app.backup_keys(built) {
+        t.press(Action::BKey(k));
+        t.press(Action::BVault(false));
+    }
+    t.shot("create-backup-vault")?;
+    t.press(Action::BStep(faraday_core::bstep::WALLET));
+    t.press(Action::Vault(V::SaveWallet(built)));
+    t.shot("create-backup-vault-saved")?;
     // The wallet and the two new keys; test key 1 was there already.
-    if t.app.vaults.open[0].changes != 3 {
-        return Err(format!(
-            "Save all made {} changes, not 3",
-            t.app.vaults.open[0].changes
-        ));
+    let saved = t.app.vaults.open[0].changes - before;
+    if saved != 3 {
+        return Err(format!("the checklist saved {saved} records, not 3"));
     }
     // Then the public files, to the Outbox.
-    t.press(Action::CNext(6));
-    let built = t.app.create.as_ref().and_then(|c| c.built).unwrap_or(0);
+    t.press(Action::BStep(faraday_core::bstep::PUBLIC));
     t.press(Action::PublicOut(built, 1));
     t.press(Action::PublicOut(built, 2));
-    t.shot("create-public")?;
+    t.shot("create-backup-public")?;
     let outbox: Vec<_> = t.app.outbox.iter().map(|i| i.kind.exposure()).collect();
     if outbox.contains(&faraday_core::secrets::Exposure::Secret) {
         return Err("a secret reached the Outbox from Create".into());
@@ -1922,6 +1937,8 @@ fn compact_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("entry-foot")?;
     t.press(Action::Nav(Screen::Home));
     t.press(Action::CreateWallet);
+    // Kind defaults to single key, closed with Change.
+    t.press(Action::CStep(cstep::KIND));
     t.shot("create-kind")?;
     t.press(Action::CNext(cstep::KIND));
     t.shot("create-keys")?;
@@ -1955,17 +1972,15 @@ fn compact_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("keygen-quiz-passed")?;
     t.press(Action::KAdd);
     t.shot("create-keys-filled")?;
+    // Keys' Continue makes the wallet; Check shows the descriptor as a
+    // row and the first addresses.
     t.press(Action::CNext(cstep::KEYS));
-    t.shot("create-build")?;
-    t.press(Action::CMake);
-    t.shot("create-made")?;
+    t.shot("create-check")?;
     t.press(Action::CNext(cstep::CHECK));
-    t.shot("create-next")?;
-    let open = t.app.create.as_ref().and_then(|c| c.open);
-    if let Some(k) = open {
-        t.press(Action::CStep(k));
-    }
-    t.shot("create-overview")?;
+    t.shot("create-backup")?;
+    // Paper and vault: the backup on the new wallet, preset applied.
+    t.press(Action::CBackup(1));
+    t.shot("create-backup-plan")?;
     t.press(Action::Nav(Screen::Home));
     t.shot("home-loaded")?;
     // Add a key: two words typed, the third begun; then a SLIP-39 share.
@@ -2313,9 +2328,9 @@ fn scroll_to(t: &mut Tour, action: Action) {
 /// check; with one, Scan my copy, a copy with a word wrong on the sheet,
 /// and the match back on the step.
 /// Public files as codes and pictures: a signed message, Silent
-/// payments, Create's keys and Public files card for a 2-of-3 made here,
-/// the QR sheet with its PNG, the backup's public files item for Savings, and a
-/// GPG key made in the test vault.
+/// payments, Create's keys and the backup's public files item for a
+/// 2-of-3 made here, the QR sheet with its PNG, the backup's public files
+/// item for Savings, and a GPG key made in the test vault.
 fn public_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::Code;
     t.load_kit()?;
@@ -2347,13 +2362,36 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
     device_key(t, 2);
     scroll_to(t, Action::CodePng(Code::Key(0)));
     t.shot("public-keys")?;
-    t.press(Action::CNext(2));
-    t.press(Action::CMake);
-    for step in 3..=6 {
-        t.press(Action::CNext(step));
-    }
-    // Found while it is offered: once done, the row says so instead.
+    t.press(Action::CNext(faraday_core::cstep::KEYS));
+    t.press(Action::CNext(faraday_core::cstep::CHECK));
+    // The public files are the backup checklist's item; with every
+    // software chosen and the description going as files, it offers
+    // them all.
     let built = t.app.create.as_ref().and_then(|c| c.built).unwrap_or(0);
+    t.press(Action::CBackup(2));
+    for row in 0..5u8 {
+        let on = t
+            .app
+            .backup
+            .as_ref()
+            .is_some_and(|b| b.answers.software[usize::from(row)]);
+        if !on {
+            t.press(Action::BAnswer(faraday_core::qrow::SOFTWARE, row));
+        }
+    }
+    // The description goes as files too: the public files item.
+    let files = faraday_core::plan::wallet::FILES;
+    if !t
+        .app
+        .backup
+        .as_ref()
+        .is_some_and(|b| b.answers.wallet[files])
+    {
+        t.press(Action::BAnswer(faraday_core::qrow::WALLET, files as u8));
+    }
+    t.press(Action::BChecklist);
+    t.press(Action::BStep(faraday_core::bstep::PUBLIC));
+    // Found while it is offered: once done, the row says so instead.
     scroll_to(t, Action::PublicOut(built, 8));
     t.press(Action::PublicOut(built, 8));
     t.shot("public-create")?;
@@ -2905,9 +2943,9 @@ fn spend_tour(t: &mut Tour) -> Result<(), String> {
         .ok_or("the PSBT is not in Files")?;
     t.press(fam(F::UsePsbt(at)));
     t.shot("spend-transaction")?;
+    // Check is already closed: "It matches" on the Spend tab's own check
+    // page marked this wallet checked this power-on.
     t.press(Action::StepNext(faraday_core::wallet::step::TRANSACTION));
-    t.shot("spend-txid")?;
-    t.press(Action::StepNext(faraday_core::wallet::step::TXID));
     t.shot("spend-signers")?;
     let fp = {
         let w = &t.app.session.wallets[savings];

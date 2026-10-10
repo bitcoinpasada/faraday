@@ -44,7 +44,6 @@ fn a_musig2_wallet_made_here_is_bip390s_over_the_taproot_accounts() {
         app.press(Action::CSlotHere(slot, fp));
     }
     app.press(Action::CNext(cstep::KEYS));
-    app.press(Action::CMake);
     let built = app
         .create
         .as_ref()

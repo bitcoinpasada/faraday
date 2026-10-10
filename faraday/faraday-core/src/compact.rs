@@ -210,12 +210,19 @@ pub(crate) fn page(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) -> (f32, f32)
     (BAR_H, h - BAR_H)
 }
 
-/// The height Scan's floating button takes at the foot of Home, with the
-/// margin above it.
-const FAB_ROOM: f32 = 48.0;
+/// The height Scan's floating button takes at the foot of Home (its own
+/// height, the margin under it and a gap above it), so the scrollable
+/// list can be clipped above it.
+const FAB_ROOM: f32 = M + 40.0 + 8.0;
 
 /// Home: what is loaded, then a button for each place the sidebar goes.
 pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+    // Scan floats over the foot in a strip of its own: the scrollable
+    // list is clipped above it, so no tile's hit area ever falls under
+    // it, at any scroll position, not only at the bottom.
+    let view_h = (h - FAB_ROOM).max(0.0);
+    let clip = ui.rect(0.0, 0.0, w, view_h);
+    ui.c.push_clip(clip);
     let top = -app.list_offset;
     let mut y = top + 12.0;
     let inner = w - 2.0 * M;
@@ -403,16 +410,14 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     ui.icon(px, y, pw, Icon::Power, 15.0, MUTED);
     ui.hit(px, y, pw, 44.0, Action::PowerAsk);
     y += 44.0 + 16.0;
-    // Room under the last row for Scan, which floats over the foot: what
-    // it covers scrolls out from under it.
-    y += FAB_ROOM;
+
+    let content = y - top;
+    app.content_h.set(content);
+    ui.report_scroll(clip, content - view_h);
+    ui.c.pop_clip();
 
     test_strip(app, ui, w);
     ui.fab(w - M, h - M, Icon::Scan, "Scan", Action::Scan);
-    let content = y - top;
-    app.content_h.set(content);
-    let view = ui.rect(0.0, 0.0, w, h);
-    ui.report_scroll(view, content - h);
 }
 
 /// A tile: its icon, its name, a short count, where it goes, and
