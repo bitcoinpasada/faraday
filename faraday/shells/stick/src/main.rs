@@ -4,7 +4,9 @@
 //! it by the disk process over its two FIFOs (`PLAN.md` §4.3), or from
 //! `/proc/mounts` where there is no disk process, with their files read
 //! and written through `faraday-storage`; the clean marker
-//! `faraday-grant` checks, published while the app is clean (§5.1); the Inbox and Outbox kept in `/run/faraday`
+//! `faraday-grant` checks, published while the app is clean (§5.1), and
+//! the upgrade marker beside it while the app upgrades a stick, with the
+//! boot copier asked over its own two FIFOs (§5.5); the Inbox and Outbox kept in `/run/faraday`
 //! across a lock, exit code 75 when the app locks (the inittab's loop
 //! starts a fresh process), and a doubled density guess for a panel
 //! 2,800 pixels wide or more. The rest is upstream's, as it describes
@@ -128,7 +130,7 @@ use camera::{Camera, Capture};
 use cursor::{Cursor, Pointed};
 use faraday_core::{Faraday, Medium, StickInfo, StorageEvent};
 use faraday_scanner::Scanner;
-use faraday_storage::{Boxes, DiskProcess, serve, serve_with, stick_info};
+use faraday_storage::{Boot, BootProcess, Boxes, Dirs, DiskProcess, serve_all, stick_info};
 use fb::{Depth, Geometry};
 use files::Files;
 use osk_shell_api::{
@@ -289,6 +291,16 @@ const DISK_RESPONSES: &str = "/run/faraday-disk/responses";
 /// the clean state. `faraday-grant` hands a partition out only while it
 /// is there, and takes every one back when it goes.
 const CLEAN_MARKER: &str = "/run/faraday-clean/clean";
+
+/// The upgrade marker (`PLAN.md` §5.5): present while the app is clean
+/// and upgrading a stick. `faraday-grant` hands a boot partition to the
+/// boot copier only while it is there beside the clean marker.
+const UPGRADE_MARKER: &str = "/run/faraday-clean/upgrade";
+
+/// The boot copier's FIFOs, which `rcS` makes. Opened the first time the
+/// app asks it something.
+const BOOT_REQUESTS: &str = "/run/faraday-boot/requests";
+const BOOT_RESPONSES: &str = "/run/faraday-boot/responses";
 
 /// Everything the command line can change.
 struct Args {
@@ -604,6 +616,10 @@ struct Shell {
     disk: Option<DiskProcess>,
     /// What the clean marker last said: `None` before it was written.
     clean: Option<bool>,
+    /// The boot copier, when the image runs one.
+    boot: Option<BootProcess>,
+    /// What the upgrade marker last said: `None` before it was written.
+    upgrading: Option<bool>,
     /// Devices whose input is held back, and where each stands.
     held: std::collections::BTreeMap<u32, Hold>,
     /// The last frame went to the scanner inverted.
@@ -1014,10 +1030,16 @@ impl Shell {
                     Command::ForgetSecret => pending.push_back(Event::SecretForgotten),
                 }
             }
+            // A boot partition read or written takes seconds: what is on
+            // screen (Upgrade pressed, Writing) is drawn first.
+            if self.app.as_ref().is_some_and(Faraday::long_storage_queued) {
+                self.flush();
+            }
             if let Some(app) = self.app.as_mut() {
+                let boot = self.boot.as_mut().map(|b| b as &mut dyn Boot);
                 let said = match self.disk.as_mut() {
-                    Some(disk) => serve_with(app, &mut self.boxes, None, disk),
-                    None => serve(app, &mut self.boxes, None),
+                    Some(disk) => serve_all(app, &mut self.boxes, None, disk, boot),
+                    None => serve_all(app, &mut self.boxes, None, &mut Dirs, boot),
                 };
                 for line in said {
                     if self.verbose {
@@ -1029,6 +1051,7 @@ impl Shell {
                 }
             }
             self.publish_clean();
+            self.publish_upgrade();
             self.take_input_decisions();
         }
     }
@@ -1107,6 +1130,32 @@ impl Shell {
         }
     }
 
+    /// Writes or removes the upgrade marker: there only while the app is
+    /// clean and on the upgrade, and never left behind by a process
+    /// about to restart.
+    fn publish_upgrade(&mut self) {
+        let Some(app) = self.app.as_mut() else { return };
+        let on = app.upgrading() && app.clean() && !app.restart_requested();
+        if self.upgrading == Some(on) {
+            return;
+        }
+        let done = if on {
+            std::fs::write(UPGRADE_MARKER, b"upgrade\n")
+        } else {
+            match std::fs::remove_file(UPGRADE_MARKER) {
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                r => r,
+            }
+        };
+        if let Err(e) = done
+            && self.verbose
+            && self.upgrading.is_none()
+        {
+            eprintln!("upgrade marker {UPGRADE_MARKER}: {e}");
+        }
+        self.upgrading = Some(on);
+    }
+
     /// The sticks: from the disk process when there is one, else the boot
     /// medium's data partition and every partition init mounted under
     /// `/mnt/usb`, as `/proc/mounts` lists them now.
@@ -1154,6 +1203,21 @@ impl Shell {
             return;
         }
         self.next_scan = Instant::now() + STICK_SCAN;
+        // The boot partitions the copier has, while the app upgrades a
+        // stick: a stick put in shows there as soon as faraday-grant
+        // hands it over.
+        let mut upgrading = false;
+        if let (Some(app), Some(boot)) = (self.app.as_mut(), self.boot.as_mut()) {
+            faraday_storage::boot_poll(app, boot);
+            upgrading = app.upgrading();
+        }
+        // What the listing changed is drawn, and what it asked for (the
+        // source read) is served.
+        if upgrading {
+            self.send(Event::Tick {
+                now_ms: self.epoch.elapsed().as_millis() as u64,
+            });
+        }
         let now = self.mounted_sticks();
         if !force && now == self.sticks {
             return;
@@ -1270,6 +1334,10 @@ fn run(args: Args) -> Result<bool, String> {
             None
         },
         clean: None,
+        boot: Path::new(BOOT_REQUESTS)
+            .exists()
+            .then(|| BootProcess::new(Path::new(BOOT_REQUESTS), Path::new(BOOT_RESPONSES))),
+        upgrading: None,
         held: initial
             .iter()
             .map(|(id, ..)| (*id, Hold::Pending))

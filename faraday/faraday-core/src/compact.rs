@@ -60,6 +60,7 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
         Screen::Vanity => "Vanity address",
         Screen::Decode => "Transaction",
         Screen::Transfer => "Transfer",
+        Screen::Upgrade => medium.upgrade(),
     }
 }
 
@@ -202,6 +203,7 @@ pub(crate) fn page(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) -> (f32, f32)
             None => ("Tools", Action::Nav(Screen::Catalog)),
         },
         Screen::Tools | Screen::Lightning => ("Tools", Action::Nav(Screen::Catalog)),
+        Screen::Upgrade => ("Settings", Action::Nav(Screen::Settings)),
         _ => ("Home", Action::Nav(Screen::Home)),
     };
     bar(app, ui, w, back, name);

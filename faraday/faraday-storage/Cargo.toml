@@ -13,6 +13,11 @@ faraday-core = { path = "../faraday-core" }
 faraday-files = { path = "../faraday-files" }
 zeroize = { workspace = true, features = ["alloc"] }
 
+# The boot copier's pipe and, for the tests, the copier itself
+# (`PLAN.md` §5.5). Unix only: other targets have no device nodes.
+[target.'cfg(unix)'.dependencies]
+faraday-boot = { path = "../faraday-boot" }
+
 [dev-dependencies]
 # Transfer's tests: the desktop app and the device's app on either side
 # of the codes, as the test wallets make them.

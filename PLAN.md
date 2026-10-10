@@ -131,17 +131,17 @@ and are not Faraday targets.
 | `faraday-grant` | own user | `CAP_CHOWN` only | `/sys` attributes, nothing read from a stick |
 | `faraday-disk` | `ofdisk` (uid 201) | none | FAT16 and FAT32 filesystems on USB and SD partitions; PNG and JPEG files, read for QR codes |
 | `faraday` (the app) | `opensigner` (uid 200) | none | camera frames (QR), input events, file contents passed by the disk process, vault files |
-| `faraday-boot` (not built yet, §5.5) | `ofboot` (uid 203) | none | `/sys` attributes; a boot partition's release string, bounded; reads no FAT |
+| `faraday-boot` (§5.5) | `ofboot` (uid 203) | none | `/sys` attributes; `/proc/version`; a boot partition's release string, bounded; reads no FAT |
 
 `rcS` runs once as root at boot: it mounts `proc` and `sysfs`, starts
-`faraday-grant` and the disk process's restart loop, and mounts no
-storage; init then starts the app loop. Three root processes remain
-after boot, and none reads input: init, waiting to run `poweroff -f`
-when the app loop ends; the app loop's shell (`inittab`), which starts
-the app as `opensigner` with no new privileges and starts it again when
-it exits for a lock; and the disk process's restart loop (`rcS`), which
-starts `faraday-disk` as `ofdisk` the same way and again a second after
-it ends.
+`faraday-grant` and the restart loops of the disk process and the boot
+copier, and mounts no storage; init then starts the app loop. Four root
+processes remain after boot, and none reads input: init, waiting to run
+`poweroff -f` when the app loop ends; the app loop's shell (`inittab`),
+which starts the app as `opensigner` with no new privileges and starts
+it again when it exits for a lock; and the two restart loops (`rcS`),
+which start `faraday-disk` as `ofdisk` and `faraday-boot` as `ofboot`
+the same way and again a second after either ends.
 
 ### 4.2 The kernel
 
@@ -190,10 +190,14 @@ privileged action happens per partition:
    stick. A partition whose GPT name (`PARTNAME`, parsed by the kernel)
    is `OSKBOOT` is the boot partition, and so is the first partition of
    the Pi's own card (`mmcblk0p1`), which is MBR and has no names but a
-   fixed layout. The boot partition stays root's and is never handed
-   out. The disk process checks again: it refuses any partition whose
-   FAT label is `OSKBOOT`, which also covers an older stick, named
-   `esp`, plugged in as a second stick.
+   fixed layout. The boot partition stays root's and is never handed to
+   the disk process. The disk process checks again: it refuses any
+   partition whose FAT label is `OSKBOOT`, which also covers an older
+   stick, named `esp`, plugged in as a second stick. While the app
+   publishes the upgrade marker (`/run/faraday-clean/upgrade`) beside
+   the clean marker, a partition named `OSKBOOT` goes to the boot copier
+   (`ofboot`, mode `0600`) instead (§5.5), and back to root when either
+   marker goes; the Pi's `mmcblk0p1` does not, yet.
 4. Any other partition is handed to `ofdisk`, mode `0600`, but only while
    the app has published that it is in the clean state (§5.1). On removal
    the node goes away with the device.
@@ -216,7 +220,7 @@ Outbox (public) and sealed vaults (ciphertext). It never holds a secret.
 
 The boot partition is never handed out, so the running system cannot
 rewrite its own kernel. OpenSigner has the same property by never mounting
-it. The one exception, not built yet, is upgrading a stick (§5.5): while
+it. The one exception is upgrading a stick (§5.5, built for the PC): while
 the app is in that flow, a partition named `OSKBOOT` goes to
 `faraday-boot`, never to the disk process, and only for a raw copy of
 the Faraday that is running. This requires both images' `genimage.cfg` to name or label the boot
@@ -233,8 +237,8 @@ vault files (only the fixed header is read before an authentication tag
 is checked; Argon2id cost is capped before allocation), FAT metadata (in
 the unprivileged disk process), GPT and MBR partition tables (in the
 kernel), `/sys` attributes (in the grant helper), USB descriptors and input events (in the kernel and the
-app, §4.6), and, once §5.5 is built, a boot partition's release string
-(in `faraday-boot`, bounded).
+app, §4.6), and a boot partition's release string (in `faraday-boot`,
+bounded, §5.5).
 
 ### 4.5 What this does not defend against
 
@@ -302,7 +306,11 @@ secret is in memory.** A secret
 is an unlocked vault slot, a key loaded in OpenSigner, a GPG or Secure
 Boot private key, or a passphrase being typed. The app is in the *clean
 state* only after a fresh start with none of these; only then does it
-publish the clean marker that `faraday-grant` checks.
+publish the clean marker that `faraday-grant` checks
+(`/run/faraday-clean/clean`). While it is clean and on the upgrade
+screen (§5.5) it also publishes the upgrade marker beside it
+(`/run/faraday-clean/upgrade`), the only condition under which a boot
+partition is handed out, and then only to the boot copier.
 
 Applies to every stick and card, not only the boot medium. A reader with
 no media in it (a built-in USB card reader with no card) has no
@@ -474,8 +482,8 @@ Visit: the Outbox is written. QR signing needs no stick.
 
 ### 5.5 Upgrading a stick
 
-Not built yet (decided 2026-10-08, `docs/PLANNING.md` §16.142). Faraday
-copies itself onto another Faraday stick: the boot partition of the
+Built for the PC 2026-10-09 (decided 2026-10-08, `docs/PLANNING.md`
+§16.142); the Pi follows. Faraday copies itself onto another Faraday stick: the boot partition of the
 stick it started from is written over the other stick's, and that
 stick's data partition, with its vaults and settings file, is not
 touched. The stick holding vaults then never needs a computer other than
@@ -484,14 +492,31 @@ the one Faraday runs on.
 **The flow.** Settings → **Upgrade a Faraday stick** (**Upgrade a
 Faraday SD card** on the Pi, whose medium is named as §3 says). If anything is
 unlocked, the sheet for a stick inserted while unlocked (§5.4) comes
-first, so the copy happens in the clean state. Then:
+first, so the copy happens in the clean state: titled **Upgrade a
+Faraday stick**, its last row "A fresh start, and the upgrade", its
+button **Lock and upgrade**; the lock keeps `upgrade` in the kept set
+(§5.3) and the fresh process opens on the upgrade. Not in the online
+app. Then:
 
 1. "Insert the stick Faraday started from." Its boot partition is read
    whole into memory, and kept only if it holds this Faraday (below).
 2. "Remove it. Insert the stick to upgrade." The sheet shows the version
    on that stick and the one to be written. **Upgrade** writes, reads
    back and compares.
-3. Done; the stick is removed.
+3. Done; the stick is removed. **Upgrade another stick** goes back to
+   step 2 with the source still held; **Done** goes to Settings.
+
+The screen is labels and values only (`upgrade_screen.rs`): the version
+read, and for the stick to upgrade its disk, its data partition's file
+count, the version on it and the version to be written, with one line
+for what stops or qualifies the write: "Newer than this Faraday" (a
+warning; it can be written), "Already this version" (not written),
+"Boot partition 32 MB · needs 48 MB" (not written), or, after a pull,
+that it was removed during the write and does not start until upgraded
+again. With more than one stick to upgrade in, each is a row to choose.
+Leaving the screen ends the flow: the copier forgets the
+source, the marker goes, and grant takes the boot partitions back. A
+stick that arrives during the flow is not visited.
 
 With both sticks in at once there is no swap: the one holding this
 Faraday is the source. Taking the boot stick out after boot and putting
@@ -511,6 +536,15 @@ version is read the same way and shown: a stick that carries no such
 string (0.1.0 and earlier) shows as an earlier version, and a target
 newer than the running Faraday is warned about.
 
+The release string is `<kernel>-faraday-<version>+<commit>`, the
+version from `faraday-core`'s `Cargo.toml`, the commit's first twelve
+hex digits, and `.dirty` after them when tracked files differ from the
+commit (`faraday/image/run-build.sh`), so it comes from the tree and
+never the clock; `kernel.forbidden` keeps `LOCALVERSION_AUTO` out, and
+the build fails if the bzImage does not carry the string. The app shows
+a release as `0.2.0 (4d0680b1a2b3)`; newer is by the version number
+alone, so two builds of one version are neither newer nor older.
+
 **Who writes.** `faraday-boot`, user `ofboot` (uid 203), started by
 `rcS` as the disk process is. It copies the partition raw and reads no
 FAT on either stick; apart from `/sys`, the only bytes it reads from a
@@ -521,6 +555,30 @@ write the Faraday that is running. `faraday-grant` hands a partition
 named `OSKBOOT` to `ofboot`, never to `ofdisk`, and only while the app
 publishes an upgrade marker beside the clean marker (§5.1). Outside the
 flow no boot partition is handed out, as before (§4.3).
+
+As built: the copier takes a partition only if `/sys` says it is
+partition 1, named `OSKBOOT`, of a USB disk with exactly two partitions,
+the second named `OSKDATA`, and it can open the node (the grant gave it).
+The GPT UUIDs `stick-boot.sh` checks are on the whole-disk node, which is
+never handed out, so they are not checked. The source is read whole (64
+MB at most) and kept in the copier's memory until the next read or a
+Forget; a target's version is the first release string with
+`-faraday-` in it in its first 64 MB, kept per partition while it stays
+in. A write is the source's bytes from the partition's first byte,
+flushed; the node is closed (the kernel drops a block device's cached
+pages on its last close), opened again, read back and compared. An I/O
+error is a pull if the partition leaves `/sys` within three seconds.
+
+The pipe (`faraday-boot::proto`) is the disk process's framing (length,
+sequence number, payload) with its own limit, 4 KiB, since no file
+crosses it: requests List, ReadSource, Write { target } and Forget;
+answers Parts (id, size, release or none, source), Source (id, release,
+size), Written (id, release), Pulled, Forgotten and Failed (reason).
+Strings are at most 120 bytes and a listing at most 16 partitions. The
+FIFOs are `/run/faraday-boot/requests` and `responses`, `ofboot:opensigner`
+0660 in a 0750 directory. The stick shell opens them the first time the
+app asks, polls the listing while the upgrade is on screen, and draws
+the screen before a read or a write, which take seconds.
 
 **Limits.** The target's boot partition must be at least the source's
 size: 48 MB on the PC, about 11 MB of it used now. A release whose boot
@@ -549,11 +607,31 @@ A Learn page and the README take the person through these steps; the
 working screens do not explain them.
 
 **The Pi.** The same flow over the card's first partition
-(`mmcblk0p1`, 32 MB), swapping cards in the one slot. After the PC.
+(`mmcblk0p1`, 32 MB), swapping cards in the one slot. After the PC. Not
+built: the grant keeps `mmcblk0p1` back even with the marker, and the
+copier takes only `OSKBOOT` on USB. Open: the Pi's kernel is a zImage,
+whose release string is compressed, so a card's version has to be found
+another way (`run-build.sh` does put the release string in its kernel).
 
 **Test.** QEMU boots the new image with an older stick attached,
 upgrades it, boots it, and checks the version and that its data
-partition is byte for byte what it was.
+partition is byte for byte what it was: `just faraday-upgrade-check OLD`
+(`faraday/tools/upgrade-check.py`) over the dev image. No input in QEMU
+can drive the app, since every USB keyboard and mouse there is held back
+until it types a code shown on screen (§4.6), so root on the dev console
+stands in for the app: it writes the upgrade marker and sends the app's
+requests over the copier's pipes with `faraday-boot --ask`. Checked: the
+boot partitions are root's without the marker and `ofboot`'s with it, no
+data partition is `ofboot`'s, the boot stick is taken as the source and
+the older stick shows no version, the write reads back, the older stick
+then lists as the new release, the partitions go back to root with the
+marker gone, the older stick's boot partition is the new one's and its
+data partition and partition table are unchanged, and it boots the new
+release. The app's side is tested against a stand-in shell
+(`faraday-core/tests/upgrade.rs`) and against the copier over image
+files (`faraday-storage/tests/upgrade.rs`), the copier alone in
+`faraday-boot/tests/boot.rs`, and the grant rule in
+`faraday-grant/tests/grant.rs`.
 
 **For development** (built). `faraday-stick-image` also leaves the boot
 partition's own image (`esp.vfat`) as
@@ -772,7 +850,7 @@ other tab.
 | `faraday/shells/stick` | The x86 stick shell, from `shells/pi`: framebuffer, evdev, V4L2, the pipe to the disk process. |
 | `faraday/faraday-disk` | FAT16 and FAT32 in Rust, unprivileged. |
 | `faraday/faraday-grant` | The `CAP_CHOWN` helper. The only new crate with `unsafe` (ownership and capabilities). |
-| `faraday/faraday-boot` | Not built yet (§5.5): copies the running Faraday's boot partition raw onto another stick's. |
+| `faraday/faraday-boot` | The boot copier (§5.5): copies the running Faraday's boot partition raw onto another stick's, over its own pipe; reads no FAT. |
 
 New dependencies, each needing a note in `docs/deps/` under OpenSigner's
 policy: an Ed25519 implementation (`ed25519-dalek`), `sha1`, `hkdf`,
@@ -801,8 +879,8 @@ device graph, to be measured with `cargo tree` once a prototype exists.
 7. **Forms and look:** `faraday-ui`, kerning, scale, motion, the
    snapshot gallery.
 8. **Upgrading a stick** (§5.5): the boot-partition-only flash for
-   development (built), then `faraday-boot` and the flow on the PC, the
-   Learn page and README section, then the Pi.
+   development, then `faraday-boot` and the flow on the PC, the Learn
+   page and README section (all built, 2026-10-09), then the Pi.
 
 ## 12. Decided 2026-10-04
 

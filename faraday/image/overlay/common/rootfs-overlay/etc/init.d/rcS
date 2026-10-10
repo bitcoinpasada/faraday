@@ -33,7 +33,8 @@ for f in /sys/bus/usb/devices/usb*/interface_authorized_default; do
 done
 
 # The clean marker's directory (PLAN.md §5.1): the app writes the marker
-# while it is clean and removes it when it is not; faraday-grant reads it.
+# while it is clean and removes it when it is not, and the upgrade marker
+# beside it while it upgrades a stick (§5.5); faraday-grant reads both.
 mkdir -p /run/faraday-clean
 chown opensigner:opensigner /run/faraday-clean
 chmod 0755 /run/faraday-clean
@@ -46,6 +47,15 @@ mkfifo -m 0660 /run/faraday-disk/requests /run/faraday-disk/responses
 chown ofdisk:opensigner /run/faraday-disk /run/faraday-disk/requests \
     /run/faraday-disk/responses
 chmod 0750 /run/faraday-disk
+
+# The boot copier's two pipes (PLAN.md §5.5), made the same way: the
+# copier owns them and the app's group may use them. No file crosses
+# them; the app asks for the source to be read and a partition written.
+mkdir -p /run/faraday-boot
+mkfifo -m 0660 /run/faraday-boot/requests /run/faraday-boot/responses
+chown ofboot:opensigner /run/faraday-boot /run/faraday-boot/requests \
+    /run/faraday-boot/responses
+chmod 0750 /run/faraday-boot
 
 # The grant helper starts as root and gives up all but CAP_CHOWN before it
 # reads anything. It is started once: if it dies, no stick is handed out
@@ -62,6 +72,17 @@ chmod 0750 /run/faraday-disk
     while :; do
         /bin/setpriv --nnp /usr/bin/setuidgid ofdisk /usr/bin/faraday-disk \
             /run/faraday-disk/requests /run/faraday-disk/responses 2>/dev/kmsg
+        sleep 1
+    done
+) &
+
+# The boot copier, unprivileged, started again if it ends, as the disk
+# process is. It holds nothing until faraday-grant hands it a boot
+# partition, which happens only while the app upgrades a stick.
+(
+    while :; do
+        /bin/setpriv --nnp /usr/bin/setuidgid ofboot /usr/bin/faraday-boot \
+            /run/faraday-boot/requests /run/faraday-boot/responses 2>/dev/kmsg
         sleep 1
     done
 ) &

@@ -13,7 +13,8 @@
 //! is `/sys`, and it reads nothing from a stick.
 //!
 //! Then it looks at `/sys` twice a second for as long as the machine is
-//! up: partitions for the disk process (§4.3), USB devices and their
+//! up: partitions for the disk process (§4.3), boot partitions for the
+//! boot copier while the app upgrades a stick (§5.5), USB devices and their
 //! interfaces to authorise (§4.6), and the owners of input and video
 //! nodes that appeared after boot.
 //!
@@ -47,8 +48,13 @@ use faraday_grant::{Grant, Owner};
 const GRANT_ID: u32 = 202;
 /// The disk process's account.
 const DISK_ID: u32 = 201;
+/// The boot copier's account (`PLAN.md` §5.5).
+const BOOT_ID: u32 = 203;
 /// Where the app publishes that it is clean.
 const MARKER: &str = "/run/faraday-clean/clean";
+/// Where the app publishes, beside the clean marker, that it is
+/// upgrading a stick.
+const UPGRADE: &str = "/run/faraday-clean/upgrade";
 
 const CAP_CHOWN: u32 = 0;
 
@@ -80,6 +86,12 @@ impl Owner for Chown {
         let p = c_path(node)?;
         // SAFETY: as in `take`.
         check(unsafe { libc::chown(p.as_ptr(), DISK_ID, DISK_ID) })
+    }
+
+    fn give_boot(&mut self, node: &Path) -> std::io::Result<()> {
+        let p = c_path(node)?;
+        // SAFETY: as in `take`.
+        check(unsafe { libc::chown(p.as_ptr(), BOOT_ID, BOOT_ID) })
     }
 
     fn authorize(&mut self, attr: &Path) -> std::io::Result<()> {
@@ -206,6 +218,7 @@ fn main() -> ExitCode {
         Path::new("/sys"),
         Path::new("/dev"),
         Path::new(MARKER),
+        Path::new(UPGRADE),
         Chown,
     );
     loop {

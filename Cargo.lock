@@ -708,6 +708,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "faraday-boot"
+version = "0.1.0"
+
+[[package]]
 name = "faraday-core"
 version = "0.1.0"
 dependencies = [
@@ -852,6 +856,7 @@ dependencies = [
 name = "faraday-storage"
 version = "0.1.0"
 dependencies = [
+ "faraday-boot",
  "faraday-core",
  "faraday-files",
  "faraday-qr",

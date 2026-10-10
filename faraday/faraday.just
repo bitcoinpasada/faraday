@@ -91,10 +91,20 @@ faraday-snap size: faraday-testkit
 faraday-sb-ovmf out="out/sb-ovmf-check":
     python3 -B faraday/tools/sb-ovmf-check.py "{{out}}"
 
+# Upgrading a stick in QEMU (PLAN.md §5.5): the dev stick image boots, an
+# older stick image (OLD) is plugged in, and the boot copier writes the
+# new boot partition over the older stick's; then the upgraded stick boots
+# the new release, its data partition byte for byte what it was. Root on
+# the dev console stands in for the app, which no input in QEMU can drive
+# (faraday/tools/upgrade-check.py says what is and is not exercised).
+# Needs QEMU, OVMF and mtools; console logs in out/upgrade-check/.
+faraday-upgrade-check old out="out/upgrade-check":
+    python3 -B faraday/tools/upgrade-check.py out/stick/faraday-x86_64-uefi-dev.img "{{old}}" "{{out}}"
+
 # The stick shell for x86-64, static against musl, at
 # out/faraday/x86_64-uefi/opensigner-pi: the name upstream's Buildroot
-# package installs as /usr/bin/opensigner-pi. Beside it faraday-disk and
-# faraday-grant.
+# package installs as /usr/bin/opensigner-pi. Beside it faraday-disk,
+# faraday-grant and faraday-boot.
 faraday-stick-bin:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -106,15 +116,15 @@ faraday-stick-bin:
     export "CARGO_TARGET_${upper}_LINKER=$CC"
     export "CFLAGS_${under}=$CFLAGS"
     export RUSTFLAGS="-C target-feature=+crt-static"
-    cargo build --release --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant
+    cargo build --release --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant -p faraday-boot
     mkdir -p out/faraday/{{stick_board}}
     cp "target/$RUST_TARGET/release/faraday" out/faraday/{{stick_board}}/opensigner-pi
-    # The disk process and the grant helper (PLAN.md §4.3), which
-    # run-build.sh puts in the image's /usr/bin.
+    # The disk process, the grant helper (PLAN.md §4.3) and the boot
+    # copier (§5.5), which run-build.sh puts in the image's /usr/bin.
     cp "target/$RUST_TARGET/release/faraday-disk" "target/$RUST_TARGET/release/faraday-grant" \
-        out/faraday/{{stick_board}}/
+        "target/$RUST_TARGET/release/faraday-boot" out/faraday/{{stick_board}}/
     file out/faraday/{{stick_board}}/opensigner-pi out/faraday/{{stick_board}}/faraday-disk \
-        out/faraday/{{stick_board}}/faraday-grant
+        out/faraday/{{stick_board}}/faraday-grant out/faraday/{{stick_board}}/faraday-boot
 
 # The Faraday USB stick image, at out/stick/faraday-x86_64-uefi.img
 # (dev=1: -dev.img, with a console and a login on ttyS0), and beside it
@@ -170,7 +180,7 @@ faraday-stick-boot +args:
 # variable names (armv7, static against glibc, as upstream's own pi-bin
 # does), at out/faraday/<board>/opensigner-pi: the name upstream's
 # Buildroot package installs as /usr/bin/opensigner-pi. Beside it
-# faraday-disk and faraday-grant, same as the stick.
+# faraday-disk, faraday-grant and faraday-boot, same as the stick.
 #
 #   just faraday-pi-bin                  the owner's board (pi3)
 #   just board=pi02w faraday-pi-bin      the Zero 2 W
@@ -185,13 +195,13 @@ faraday-pi-bin:
     export "CARGO_TARGET_${upper}_LINKER=$CC"
     export "CFLAGS_${under}=$CFLAGS"
     export RUSTFLAGS="-C target-feature=+crt-static"
-    cargo build --release --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant
+    cargo build --release --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant -p faraday-boot
     mkdir -p out/faraday/{{board}}
     cp "target/$RUST_TARGET/release/faraday" out/faraday/{{board}}/opensigner-pi
     cp "target/$RUST_TARGET/release/faraday-disk" "target/$RUST_TARGET/release/faraday-grant" \
-        out/faraday/{{board}}/
+        "target/$RUST_TARGET/release/faraday-boot" out/faraday/{{board}}/
     file out/faraday/{{board}}/opensigner-pi out/faraday/{{board}}/faraday-disk \
-        out/faraday/{{board}}/faraday-grant
+        out/faraday/{{board}}/faraday-grant out/faraday/{{board}}/faraday-boot
 
 # The Faraday microSD card image, at
 # out/pi/faraday-<board>-<panel>.img (dev=1: -dev.img, with a console and
@@ -216,3 +226,4 @@ faraday-pi-image: faraday-pi-bin
     mkdir -p out/pi
     cp "out/pi/$variant/output/images/opensigner-pi.img" "out/pi/$name.img"
     ls -l "out/pi/$name.img"
+

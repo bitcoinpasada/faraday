@@ -31,6 +31,7 @@ members = [
     "faraday/faraday-qr",
     "faraday/faraday-disk",
     "faraday/faraday-grant",
+    "faraday/faraday-boot",
     "faraday/faraday-pgp",
     "faraday/faraday-sb",
     "faraday/shells/desktop",

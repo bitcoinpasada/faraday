@@ -1,7 +1,7 @@
 [package]
 name = "faraday-grant"
 version = "0.1.0"
-description = "The grant helper (PLAN.md §4.3): with CAP_CHOWN alone, it hands each USB or SD partition to the disk process while the app is clean, never the boot partition, deciding from /sys alone, and takes them back when the app is not"
+description = "The grant helper (PLAN.md §4.3): with CAP_CHOWN alone, it hands each USB or SD partition to the disk process while the app is clean, a partition named OSKBOOT to the boot copier only while the app is upgrading a stick and never to the disk process, deciding from /sys alone, and takes them back when the app is not"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true

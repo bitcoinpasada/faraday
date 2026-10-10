@@ -208,6 +208,11 @@ impl Faraday {
         if let Some(ms) = self.idle_locked_after() {
             out.push(("idle".to_string(), ms.to_string().into_bytes()));
         }
+        // Locking for the upgrade (`PLAN.md` §5.5): the next process, clean,
+        // opens on it.
+        if self.upgrade_after_lock || self.upgrade.is_some() {
+            out.push(("upgrade".to_string(), b"1".to_vec()));
+        }
         out
     }
 
@@ -252,6 +257,11 @@ impl Faraday {
                         for i in self.inbox.iter_mut().filter(|i| i.name == name) {
                             i.picture = Some(kind);
                         }
+                    }
+                }
+                "upgrade" => {
+                    if !self.online {
+                        self.upgrade_start();
                     }
                 }
                 "idle" => {

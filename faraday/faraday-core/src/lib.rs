@@ -48,6 +48,7 @@ pub mod testkit;
 pub mod tools;
 pub mod transfer;
 pub mod ui;
+pub mod upgrade;
 pub mod vanity;
 pub mod vaults;
 pub mod wallet;
@@ -71,6 +72,7 @@ mod seeds_screen;
 mod silent_screen;
 mod tools_screen;
 mod transfer_screen;
+mod upgrade_screen;
 mod vanity_screen;
 mod vault_screens;
 mod wordlist_screen;
@@ -109,6 +111,21 @@ pub struct StickInfo {
     pub boot: bool,
     /// The files at its top level, with their sizes.
     pub files: Vec<(String, u64)>,
+}
+
+/// A boot partition the boot copier has, while the app upgrades a stick
+/// (`PLAN.md` §5.5).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BootPart {
+    /// The copier's name for it; the app hands this back unchanged.
+    pub id: String,
+    /// Its size in bytes.
+    pub size: u64,
+    /// The Faraday release string found on it, or `None` for a stick
+    /// made before Faraday put one in its kernel.
+    pub release: Option<String>,
+    /// The source was read from it.
+    pub source: bool,
 }
 
 /// What the shell tells the app about storage.
@@ -270,6 +287,41 @@ pub enum StorageEvent {
         /// Why.
         reason: String,
     },
+    /// The boot partitions the boot copier has now, sent while
+    /// [`Faraday::upgrading`] and whenever they change.
+    Boots(Vec<BootPart>),
+    /// The source was read: the boot partition holding the running
+    /// Faraday.
+    BootSource {
+        /// The partition.
+        id: String,
+        /// The running kernel's release string, which it holds.
+        release: String,
+        /// Its size in bytes.
+        size: u64,
+    },
+    /// No source was taken.
+    BootSourceFailed {
+        /// Why.
+        reason: String,
+    },
+    /// A boot partition was written, read back and matched.
+    BootWritten {
+        /// The partition.
+        id: String,
+        /// The release string it now carries.
+        release: String,
+    },
+    /// A boot partition was not written.
+    BootWriteFailed {
+        /// The partition.
+        id: String,
+        /// Why.
+        reason: String,
+        /// The stick went during the write: it does not boot until it is
+        /// written again.
+        pulled: bool,
+    },
     /// The Inbox and Outbox the previous process left, after a lock.
     Restored {
         /// Inbox files.
@@ -336,6 +388,18 @@ pub enum StorageCommand {
     },
     /// Open Downloads in this computer's file manager.
     OpenDownloads,
+    /// Have the boot copier read the boot partition that holds the
+    /// running Faraday (`PLAN.md` §5.5).
+    BootRead,
+    /// Have the boot copier write the source over this boot partition,
+    /// read back and compare. The app names the partition; it never hands
+    /// the copier bytes.
+    BootWrite {
+        /// The partition, as [`BootPart::id`] named it.
+        target: String,
+    },
+    /// The upgrade has ended: the copier drops the source.
+    BootForget,
     /// Keep the Inbox and Outbox where the next process finds them. They
     /// hold nothing secret (`PLAN.md` §5.2).
     SaveBoxes {
@@ -410,6 +474,9 @@ pub enum Screen {
     /// The online app as the device's QR link: files out as codes, in by
     /// camera ([`transfer`]). Only when [`Faraday::online`].
     Transfer,
+    /// Upgrading another Faraday stick from the one Faraday started from
+    /// ([`upgrade`]). Never in the online app.
+    Upgrade,
 }
 
 /// A screen and the sheet over it, if any.
@@ -613,6 +680,14 @@ pub enum Action {
     TransferReceive,
     /// Transfer: open Downloads in the file manager.
     TransferOpenFolder,
+    /// Settings → Upgrade a Faraday stick.
+    UpgradeOpen,
+    /// The upgrade: the n-th stick in to upgrade, when more than one is.
+    UpgradePick(u8),
+    /// The upgrade: write the stick on show.
+    UpgradeWrite,
+    /// The upgrade: another stick, from the same source.
+    UpgradeAgain,
     /// The QR view as BBQr (`true`) or UR.
     QrFormat(u8),
     /// The QR view's bytes of data a frame.
@@ -2444,6 +2519,11 @@ pub struct Faraday {
     pub scan: Option<ScanState>,
     /// Transfer, in the online app.
     pub transfer: transfer::TransferState,
+    /// The upgrade, while it is on screen.
+    pub upgrade: Option<upgrade::UpgradeState>,
+    /// The lock sheet is up for the upgrade: the fresh process opens on
+    /// it.
+    pub upgrade_after_lock: bool,
     /// The chosen wallet's new name, while it is typed.
     pub renaming: Option<String>,
     /// All of the focused field is selected: Backspace clears it, and a
@@ -2620,6 +2700,8 @@ impl Faraday {
             camera_change: None,
             scan: None,
             transfer: transfer::TransferState::default(),
+            upgrade: None,
+            upgrade_after_lock: false,
             scanned: 0,
             renaming: None,
             select_all: false,
@@ -2675,6 +2757,7 @@ impl Faraday {
         let event = match self
             .settings_event(event)
             .and_then(|e| self.import_event(e))
+            .and_then(|e| self.upgrade_event(e))
         {
             Some(e) => e,
             None => {
@@ -2830,6 +2913,12 @@ impl Faraday {
             } => self.input_new(id, name, keyboard, pointer),
             StorageEvent::InputTyped { id, ch } => self.input_typed(id, ch),
             StorageEvent::InputGone { id } => self.input_gone(id),
+            // The boot copier's answers, taken by `upgrade_event`.
+            StorageEvent::Boots(_)
+            | StorageEvent::BootSource { .. }
+            | StorageEvent::BootSourceFailed { .. }
+            | StorageEvent::BootWritten { .. }
+            | StorageEvent::BootWriteFailed { .. } => {}
             StorageEvent::Restored {
                 inbox,
                 outbox,
@@ -3050,7 +3139,8 @@ impl Faraday {
         if self.sticks.is_empty() {
             self.stick_held = false;
             self.not_now = false;
-            if self.sheet == Some(Sheet::Lock) {
+            // The lock Upgrade asked for stays up: it waits on no stick.
+            if self.sheet == Some(Sheet::Lock) && !self.upgrade_after_lock {
                 self.sheet = None;
             }
             // A passphrase waiting on the stick takes typing now.
@@ -3124,7 +3214,11 @@ impl Faraday {
         let boot = self.sticks.iter().find(|s| s.boot).cloned();
         if !self.clean() {
             self.not_now = false;
+            self.upgrade_after_lock = false;
             self.sheet = Some(Sheet::Lock);
+        } else if self.upgrading() {
+            // The upgrade reads boot partitions; the data partitions the
+            // disk process lists stay where they are, unvisited.
         } else {
             self.visit.out = self.visit_default_out();
             if self.sheet == Some(Sheet::Import) {
@@ -3576,6 +3670,10 @@ impl Faraday {
             Action::TransferSend(i) => self.transfer_pick(i),
             Action::TransferReceive => self.transfer_receive(),
             Action::TransferOpenFolder => self.transfer_open_folder(),
+            Action::UpgradeOpen => self.upgrade_open(),
+            Action::UpgradePick(i) => self.upgrade_pick(i),
+            Action::UpgradeWrite => self.upgrade_write(),
+            Action::UpgradeAgain => self.upgrade_again(),
             Action::Nav(s) => {
                 self.screen = s;
                 self.osk_leave();
@@ -3883,7 +3981,8 @@ impl Faraday {
             }
             Action::NotNow => {
                 self.sheet = None;
-                self.not_now = true;
+                // Asked for by Upgrade, with no stick in: nothing waits.
+                self.not_now = !std::mem::take(&mut self.upgrade_after_lock);
             }
             Action::PowerAsk => {
                 if self.outbox.is_empty() {
@@ -7835,6 +7934,7 @@ impl Faraday {
             | Screen::Decode
             | Screen::Catalog
             | Screen::Transfer
+            | Screen::Upgrade
             | Screen::Settings => &mut self.list_offset,
             Screen::Home
             | Screen::Entry
@@ -8419,6 +8519,11 @@ impl Faraday {
         }
         if self.screen != Screen::Tools {
             self.tools = None;
+        }
+        // Leaving the upgrade ends it: the copier drops the source and
+        // the boot partitions go back to root.
+        if self.screen != Screen::Upgrade {
+            self.upgrade_leave();
         }
         if self.sheet != Some(Sheet::WordList) {
             self.wordlist = None;

@@ -159,6 +159,47 @@ driver, and the SD card it boots from is its only storage. Its screens say
 "SD card" wherever the PC's say "stick": "SD card visit", "Lock and use
 SD card", "Remove the SD card".
 
+## Upgrading a stick
+
+Faraday copies itself onto another Faraday stick: Settings → **Upgrade a
+Faraday stick**. The boot partition of the stick Faraday started from is
+written over the other stick's, read back and compared; the other
+stick's data partition, with its vaults and settings file, is not
+written. A stick that holds vaults then never needs another computer.
+
+1. If anything is unlocked, Faraday locks first and opens the upgrade in
+   the fresh session.
+2. Insert the stick Faraday started from (it may still be in). Faraday
+   takes it by what it holds: its kernel carries this Faraday's version
+   and commit. This identifies a version and is not a signature.
+3. Remove it and insert the stick to upgrade, or have both in at once.
+   The screen shows the version on that stick and the one to be written,
+   marks a stick that carries a newer Faraday, and refuses one whose
+   boot partition is smaller than 48 MB or that already carries this
+   version. **Upgrade** writes, reads back and compares.
+
+A stick pulled during the write does not start until it is upgraded
+again; its data partition is not touched. Sticks from Faraday 0.1.0 and
+earlier carry no version and show as "0.1.0 or earlier". The Raspberry
+Pi does not have the upgrade yet.
+
+**With Secure Boot.** The copy is byte for byte, so a stick whose
+`BOOTX64.EFI` carries your db signature passes it on. Faraday does not
+sign inside the upgrade. Sign each new release once through a spare
+stick, so that the stick holding your vaults never meets an online
+computer:
+
+1. On a computer, write the new release onto a spare stick, and copy
+   its `EFI/BOOT/BOOTX64.EFI` onto the spare's data partition as well.
+2. Start from your signed vault stick. Read `BOOTX64.EFI` from the spare
+   into the Inbox, unlock the vault that holds your db key, sign it,
+   lock, and write only the signed file back to the spare.
+3. On the computer, copy the signed file over `EFI/BOOT/BOOTX64.EFI` on
+   the spare's boot partition.
+4. Start from the spare, and upgrade the vault stick from it.
+
+The same steps are in the app, on the Upgrade screen's Learn page.
+
 ## Choosing a computer
 
 A laptop is the better machine for the stick image. Its screen,
@@ -195,13 +236,14 @@ fonts and writes the pixels into that framebuffer. Keys, clicks and
 touches arrive as raw kernel input events, read per device.
 
 The whole running system is the Linux kernel, BusyBox init with a short
-boot script, and three Rust programs:
+boot script, and four Rust programs:
 
 | Program | Runs as | Does |
 |---|---|---|
 | `faraday` | its own unprivileged user | The application. Holds every secret. |
 | `faraday-disk` | a second unprivileged user | Reads and writes FAT on sticks and cards. Holds no key or passphrase: files pass through it to and from a stick, and are wiped once passed. Cannot read the application's memory or files. |
 | `faraday-grant` | its own user, with `CAP_CHOWN` only | Hands a stick's partitions to `faraday-disk` and authorises USB interfaces, deciding from `/sys` alone. Reads nothing from a stick. |
+| `faraday-boot` | a fourth unprivileged user | Upgrades a Faraday stick: copies the boot partition of the stick Faraday started from, raw, over another stick's. Has a boot partition only while the application is on its Upgrade screen, reads no FAT, and is never handed bytes to write. |
 
 No process can trace another, and each user's processes are invisible
 to the others in `/proc`.
@@ -212,13 +254,15 @@ to the others in `/proc`.
   mounts `/proc`, `/sys` and `/dev` with nothing on them executable,
   sets the kernel's ptrace restriction, hides kernel addresses, sets the
   USB authorisation policy, creates the RAM directories and pipes the
-  programs use, and starts the three programs. It mounts no storage.
+  programs use, and starts the other three programs. It mounts no
+  storage.
 - **`faraday-grant`** starts as root and, before it reads anything,
   drops to its own user keeping only `CAP_CHOWN`, empties its capability
   bounding set and sets no-new-privileges.
-- **After boot**, the root processes are init and two shell loops: one
-  restarts the application under its user each time it locks, the other
-  restarts `faraday-disk` under its user if it exits. When the
+- **After boot**, the root processes are init and three shell loops: one
+  restarts the application under its user each time it locks, the others
+  restart `faraday-disk` and `faraday-boot` under their users if they
+  exit. When the
   application ends, init powers the machine off. None of these reads
   anything from a stick, a camera, a keyboard or a file.
 - **Nobody can become root.** There is no login prompt, no getty, no
@@ -569,6 +613,7 @@ just faraday-stick-bin                    # the stick binary, static musl
 just faraday-stick-image                  # out/stick/faraday-x86_64-uefi.img
 just dev=1 faraday-stick-image            # + a serial console and root login, for development
 just dev=1 faraday-stick-boot /dev/sdX    # development: rewrite a stick's boot partition alone
+just faraday-upgrade-check OLD.img        # QEMU: the dev image upgrades an older stick image
 ```
 
 `faraday-stick-boot` writes the image's boot partition
@@ -587,8 +632,10 @@ on mainnet. `faraday/image/run-build.sh` and
 The stick image is built in a container with the base image and every
 compiler pinned by version, the commit date as `SOURCE_DATE_EPOCH`, and
 host paths remapped out of the output, so that a second builder can
-check that it gets the same bytes. No second builder has checked a
-Faraday image yet. The pinned container build of the desktop app
+check that it gets the same bytes. The kernel's release string carries
+the Faraday version and the commit's first twelve hex digits (and
+`.dirty` for a tree that differs from it), never a date. No second
+builder has checked a Faraday image yet. The pinned container build of the desktop app
 (`just faraday-linux-bin`) is not set up yet.
 
 ## Verifying a release

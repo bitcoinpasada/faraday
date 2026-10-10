@@ -26,6 +26,10 @@ impl Owner for &mut Owners {
         self.by_node.insert(name(node), "disk");
         Ok(())
     }
+    fn give_boot(&mut self, node: &Path) -> std::io::Result<()> {
+        self.by_node.insert(name(node), "boot");
+        Ok(())
+    }
     fn back(&mut self, node: &Path) -> std::io::Result<()> {
         self.by_node.insert(name(node), "root");
         Ok(())
@@ -90,6 +94,16 @@ impl Machine {
         }
     }
 
+    /// The app's upgrade marker (`PLAN.md` §5.5).
+    fn upgrading(&self, on: bool) {
+        let m = self.root.join("run/upgrade");
+        if on {
+            fs::write(m, b"upgrade\n").unwrap();
+        } else {
+            let _ = fs::remove_file(m);
+        }
+    }
+
     /// A disk on `bus` (a path under devices/) with partitions of
     /// (GPT name, boot sector), linked from class/block as the kernel
     /// does, by a relative link.
@@ -124,6 +138,7 @@ impl Machine {
             &self.root.join("sys"),
             &self.root.join("dev"),
             &self.root.join("run/clean"),
+            &self.root.join("run/upgrade"),
             owners,
         )
     }
@@ -206,6 +221,86 @@ fn nothing_is_handed_out_until_clean_and_everything_comes_back_when_it_is_not() 
     m.clean(true);
     g.tick();
     assert_eq!(g.decided["sdb1#4"].1, Decision::Handed);
+}
+
+#[test]
+fn a_boot_partition_goes_to_the_boot_copier_only_while_the_app_upgrades_a_stick() {
+    let m = Machine::new("upgrade");
+    // The stick Faraday started from, an older stick to upgrade, and the
+    // Pi's own card.
+    let faraday = |bus: &str, disk: &str| {
+        m.disk(
+            bus,
+            disk,
+            &[
+                ("OSKBOOT", sector("OSKBOOT")),
+                ("OSKDATA", sector("OSKDATA")),
+            ],
+        )
+    };
+    faraday("pci0/usb1/1-1/block", "sda");
+    faraday("pci0/usb1/1-2/block", "sdb");
+    m.disk(
+        "soc/mmc0/block",
+        "mmcblk0",
+        &[("", sector("OSKBOOT")), ("", sector("OSKDATA"))],
+    );
+    let state = |g: &Grant<&mut Owners>, id: &str| g.decided[id].1;
+    let mut owners = Owners::default();
+    {
+        let mut g = m.grant(&mut owners);
+        // The upgrade marker alone, without the clean marker: nothing.
+        m.upgrading(true);
+        g.tick();
+        assert_eq!(state(&g, "sda1#4"), Decision::Boot);
+        assert_eq!(state(&g, "sda2#4"), Decision::Waiting);
+        // Clean, not upgrading: the boot partitions stay root's.
+        m.upgrading(false);
+        m.clean(true);
+        g.tick();
+        assert_eq!(state(&g, "sda1#4"), Decision::Boot);
+        assert_eq!(state(&g, "sdb1#4"), Decision::Boot);
+    }
+    assert_eq!(owners.by_node.get("sda1"), None);
+    assert_eq!(owners.by_node.get("sdb1"), None);
+    {
+        let mut g = m.grant(&mut owners);
+        // Clean and upgrading: each partition named OSKBOOT goes to the
+        // copier; the data partitions stay the disk process's; the Pi's
+        // card is not handed out.
+        m.upgrading(true);
+        g.tick();
+        assert_eq!(state(&g, "sda1#4"), Decision::Upgrade);
+        assert_eq!(state(&g, "sdb1#4"), Decision::Upgrade);
+        assert_eq!(state(&g, "sda2#4"), Decision::Handed);
+        assert_eq!(state(&g, "mmcblk0p1#4"), Decision::Boot);
+    }
+    assert_eq!(owners.by_node.get("sda1"), Some(&"boot"));
+    assert_eq!(owners.by_node.get("sdb1"), Some(&"boot"));
+    assert_eq!(owners.by_node.get("sda2"), Some(&"disk"));
+    assert_eq!(owners.by_node.get("mmcblk0p1"), None);
+    {
+        let mut g = m.grant(&mut owners);
+        g.tick();
+        // The flow ends: the boot partitions go back to root, the data
+        // partitions stay out.
+        m.upgrading(false);
+        g.tick();
+        assert_eq!(state(&g, "sda1#4"), Decision::Boot);
+        assert_eq!(state(&g, "sda2#4"), Decision::Handed);
+        // Upgrading again, then a secret: the clean marker goes, and
+        // everything comes back.
+        m.upgrading(true);
+        g.tick();
+        assert_eq!(state(&g, "sdb1#4"), Decision::Upgrade);
+        m.clean(false);
+        g.tick();
+        assert_eq!(state(&g, "sdb1#4"), Decision::Boot);
+        assert_eq!(state(&g, "sda2#4"), Decision::Waiting);
+    }
+    for node in ["sda1", "sdb1", "sda2", "sdb2"] {
+        assert_eq!(owners.by_node.get(node), Some(&"root"), "{node}");
+    }
 }
 
 impl Machine {

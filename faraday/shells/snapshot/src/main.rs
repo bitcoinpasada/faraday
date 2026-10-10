@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -43,7 +43,11 @@
 //! Transfer over a Downloads folder made in `OUT_DIR/downloads` (a PSBT,
 //! a descriptor, a 100 KB file and one over 256 KiB): the list, a PSBT
 //! sent, the larger file refused, and Receive saving a descriptor and a
-//! seed's words sent from a device.
+//! seed's words sent from a device; with `upgrade`, Upgrade a Faraday
+//! stick from Settings, the lock it asks for with a key loaded, and each
+//! step with the boot copier's answers given by hand: the source read, an
+//! older stick, a newer one beside it, one too small, one pulled during
+//! the write, and one written.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -56,7 +60,8 @@ use std::process::ExitCode;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{
-    Action, Faraday, Medium, Screen, StickInfo, StorageCommand, StorageEvent, bstep, qrow, qstep,
+    Action, BootPart, Faraday, Medium, Screen, StickInfo, StorageCommand, StorageEvent, bstep,
+    qrow, qstep,
 };
 use osk_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
 
@@ -191,7 +196,12 @@ impl Tour {
                     self.app.storage(ev);
                     self.app.storage(files);
                 }
-                StorageCommand::OpenDownloads | StorageCommand::SaveBoxes { .. } => {}
+                // The tour gives the upgrade's answers itself.
+                StorageCommand::OpenDownloads
+                | StorageCommand::SaveBoxes { .. }
+                | StorageCommand::BootRead
+                | StorageCommand::BootWrite { .. }
+                | StorageCommand::BootForget => {}
             }
         }
     }
@@ -380,6 +390,7 @@ fn run(
         Some("plan") => return plan_tour(&mut t),
         Some("inbox") => return inbox_tour(&mut t),
         Some("transfer") => return transfer_tour(&mut t),
+        Some("upgrade") => return upgrade_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -1678,6 +1689,112 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
 /// directory: the list newest first, a PSBT sent as codes, a file over
 /// 256 KiB refused, and Receive saving a descriptor and a seed's words
 /// that a device sent, each said as saved, the words as a secret.
+/// Upgrade a Faraday stick (`PLAN.md` §5.5), the boot copier's answers
+/// given by hand.
+fn upgrade_tour(t: &mut Tour) -> Result<(), String> {
+    const RUNNING: &str = "6.6.84-faraday-0.2.0+4d0680b1a2b3";
+    const MB: u64 = 1 << 20;
+    let part = |id: &str, size: u64, release: Option<&str>, source: bool| BootPart {
+        id: id.into(),
+        size,
+        release: release.map(str::to_string),
+        source,
+    };
+    let source = part("sda1@sda#1", 48 * MB, Some(RUNNING), true);
+    t.press(Action::Nav(Screen::Settings));
+    t.shot("settings")?;
+    // With a key loaded, the lock comes first.
+    t.press(Action::Entry(None));
+    t.type_key(0);
+    t.press(Action::Nav(Screen::Settings));
+    t.press(Action::UpgradeOpen);
+    t.shot("upgrade-lock")?;
+    t.press(Action::Lock);
+    // The fresh process, given what the lock kept.
+    t.app.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox: Vec::new(),
+        kept: vec![("upgrade".into(), b"1".to_vec())],
+    });
+    t.pump();
+    if t.app.screen != Screen::Upgrade {
+        return Err("the fresh process did not open on the upgrade".into());
+    }
+    t.shot("upgrade-insert")?;
+    t.app.storage(StorageEvent::Boots(vec![part(
+        "sda1@sda#1",
+        48 * MB,
+        Some(RUNNING),
+        false,
+    )]));
+    t.shot("upgrade-reading")?;
+    t.app.storage(StorageEvent::BootSource {
+        id: "sda1@sda#1".into(),
+        release: RUNNING.into(),
+        size: 48 * MB,
+    });
+    t.app.storage(StorageEvent::Boots(vec![source.clone()]));
+    t.shot("upgrade-source-read")?;
+    // The vault stick goes in: an older Faraday, its data partition with
+    // a vault and the settings file.
+    t.app.storage(StorageEvent::Sticks(vec![StickInfo {
+        id: "sdb2@sdb#2".into(),
+        label: "OSKDATA".into(),
+        boot: false,
+        files: vec![
+            ("vault.ofv".into(), 16_778_240),
+            ("faraday-settings.txt".into(), 120),
+        ],
+    }]));
+    let older = part("sdb1@sdb#2", 48 * MB, None, false);
+    t.app
+        .storage(StorageEvent::Boots(vec![source.clone(), older.clone()]));
+    t.shot("upgrade-older")?;
+    // A newer one beside it.
+    let newer = part(
+        "sdc1@sdc#3",
+        48 * MB,
+        Some("6.6.84-faraday-0.3.0+0123456789ab"),
+        false,
+    );
+    t.app.storage(StorageEvent::Boots(vec![
+        source.clone(),
+        older.clone(),
+        newer,
+    ]));
+    t.press(Action::UpgradePick(1));
+    t.shot("upgrade-newer")?;
+    // One too small.
+    t.app.storage(StorageEvent::Boots(vec![
+        source.clone(),
+        part("sdd1@sdd#4", 32 * MB, None, false),
+    ]));
+    t.shot("upgrade-too-small")?;
+    // Pulled during the write.
+    t.app
+        .storage(StorageEvent::Boots(vec![source.clone(), older.clone()]));
+    t.press(Action::UpgradeWrite);
+    t.shot("upgrade-writing")?;
+    t.app.storage(StorageEvent::BootWriteFailed {
+        id: older.id.clone(),
+        reason: "the stick was removed".into(),
+        pulled: true,
+    });
+    t.shot("upgrade-pulled")?;
+    // Put back, and written.
+    t.press(Action::UpgradeWrite);
+    t.app.storage(StorageEvent::BootWritten {
+        id: older.id.clone(),
+        release: RUNNING.into(),
+    });
+    t.app.storage(StorageEvent::Boots(vec![
+        source,
+        part("sdb1@sdb#2", 48 * MB, Some(RUNNING), false),
+    ]));
+    t.shot("upgrade-done")?;
+    Ok(())
+}
+
 fn transfer_tour(t: &mut Tour) -> Result<(), String> {
     let downloads = t.out.join("downloads");
     std::fs::create_dir_all(&downloads).map_err(|e| e.to_string())?;
@@ -3142,12 +3259,12 @@ fn main() -> ExitCode {
     if only.is_some_and(|m| {
         ![
             "spend", "themes", "compact", "seeds", "keys", "visit", "copy", "scan", "public",
-            "seedfile", "vaultway", "kept", "again", "plan", "inbox", "transfer",
+            "seedfile", "vaultway", "kept", "again", "plan", "inbox", "transfer", "upgrade",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox or transfer"
+            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer or upgrade"
         );
         return ExitCode::from(2);
     }

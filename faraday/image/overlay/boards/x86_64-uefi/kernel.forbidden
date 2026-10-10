@@ -74,3 +74,7 @@ HOTPLUG_PCI             nothing here is hot-plugged
 ACPI_TABLE_UPGRADE      replacing ACPI tables at boot, which nothing here needs
 EFI_CUSTOM_SSDT_OVERLAYS as ACPI_TABLE_UPGRADE
 EFI_RUNTIME_MAP         the EFI memory map in sysfs, which exists for kexec
+
+# Faraday (PLAN.md §5.5): the release string is the Faraday version and
+# commit run-build.sh puts in CONFIG_LOCALVERSION, which the upgrade reads.
+LOCALVERSION_AUTO  a suffix from the kernel tree's own version control, which would make the release string depend on where the tree was unpacked

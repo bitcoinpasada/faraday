@@ -4,7 +4,9 @@
 //! drifts. Each screen names the pages that explain it; a wallet's screens
 //! name the pages for its kind.
 
-use osk_learn::{EN, Page as LearnPage};
+use std::sync::OnceLock;
+
+use osk_learn::{EN, Page as LearnPage, Section};
 
 use crate::create::NewKind;
 use crate::wallet::Kind;
@@ -22,6 +24,62 @@ pub struct LearnState {
     pub scroll: f32,
     /// The furthest it can scroll, as last drawn.
     pub max: f32,
+}
+
+/// Faraday's own page on upgrading a stick (`PLAN.md` §5.5), which
+/// OpenSigner does not have. It is edited as
+/// `docs/learn/faraday/upgrade-a-stick.md`, beside OpenSigner's pages but
+/// outside the set `tools/learn/sync.py` keeps in step with
+/// `osk_learn::EN`, and read from that file when Faraday is built.
+const UPGRADE_MD: &str = include_str!("../../../docs/learn/faraday/upgrade-a-stick.md");
+
+/// A page from its Markdown, as `docs/learn/` writes pages: `# ` the
+/// title, `## ` a section, paragraphs separated by blank lines.
+fn page_of(md: &'static str) -> LearnPage {
+    let mut title = "";
+    let mut sections: Vec<(&'static str, Vec<&'static str>)> = Vec::new();
+    let mut para: Vec<&'static str> = Vec::new();
+    let flush = |para: &mut Vec<&'static str>,
+                 sections: &mut Vec<(&'static str, Vec<&'static str>)>| {
+        if para.is_empty() {
+            return;
+        }
+        let text: &'static str = Box::leak(para.join(" ").into_boxed_str());
+        para.clear();
+        if let Some(s) = sections.last_mut() {
+            s.1.push(text);
+        }
+    };
+    for line in md.lines() {
+        if let Some(t) = line.strip_prefix("# ") {
+            title = t;
+        } else if let Some(h) = line.strip_prefix("## ") {
+            flush(&mut para, &mut sections);
+            sections.push((h, Vec::new()));
+        } else if line.trim().is_empty() {
+            flush(&mut para, &mut sections);
+        } else {
+            para.push(line.trim());
+        }
+    }
+    flush(&mut para, &mut sections);
+    let sections: Vec<Section> = sections
+        .into_iter()
+        .map(|(heading, paragraphs)| Section {
+            heading,
+            paragraphs: Box::leak(paragraphs.into_boxed_slice()),
+        })
+        .collect();
+    LearnPage {
+        title,
+        sections: Box::leak(sections.into_boxed_slice()),
+    }
+}
+
+/// "Upgrading a Faraday stick", read once.
+pub fn upgrade_page() -> &'static LearnPage {
+    static PAGE: OnceLock<LearnPage> = OnceLock::new();
+    PAGE.get_or_init(|| page_of(UPGRADE_MD))
 }
 
 fn for_kind(kind: Kind) -> Vec<&'static LearnPage> {
@@ -96,7 +154,9 @@ impl Faraday {
             Screen::Vaults | Screen::CreateVault | Screen::Unlock | Screen::VaultContents => {
                 vec![&EN.encrypted_backups, &EN.passphrases]
             }
-            Screen::Settings => vec![&EN.secure_element, &EN.glossary],
+            Screen::Settings if self.online => vec![&EN.secure_element, &EN.glossary],
+            Screen::Settings => vec![&EN.secure_element, &EN.glossary, upgrade_page()],
+            Screen::Upgrade => vec![upgrade_page()],
             Screen::Decode => vec![&EN.transactions, &EN.verifying],
             Screen::Catalog => vec![&EN.tools, &EN.glossary],
             Screen::Transfer => vec![&EN.air_gap, &EN.coordinators],

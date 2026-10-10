@@ -10159,7 +10159,8 @@ them to guess at the passphrase offline, delete them, and plant files. The
 owner's ask: Faraday copies itself onto a stick that already holds
 Faraday and a data partition, and the data partition is not touched.
 
-**What it does** (Faraday's `PLAN.md` §5.5; not built yet). Settings →
+**What it does** (Faraday's `PLAN.md` §5.5; built for the PC
+2026-10-09, the Pi to follow). Settings →
 **Upgrade a Faraday stick**, in the clean state: the stick Faraday
 started from is read, then its boot partition is written raw over the
 target's, read back and compared. The source is accepted only if it
@@ -10190,6 +10191,18 @@ publishes an upgrade marker.
 - *A boot-partition-only flash for development* (`just
   faraday-stick-boot`), so a test stick keeps its vaults across builds.
   It is not offered to users: it puts the stick on the build computer.
+
+**As built** (2026-10-09). The release string is
+`<kernel>-faraday-<version>+<commit>` (`.dirty` after a tree that
+differs from the commit). The copier also lists the boot partitions it
+has with the release string found on each, for the screen's versions,
+and forgets the source when the flow ends; its pipe carries no file and
+has a 4 KiB frame limit. A target that already carries the running
+release is not written; a newer one is warned about and can be. The
+Learn page is Faraday's own, outside OpenSigner's set
+(`docs/learn/faraday/`). The QEMU test drives the copier from the dev
+console, since no input in QEMU reaches the app (Faraday's `PLAN.md`
+§4.6).
 
 ### 16.143 A multi-choice list beside Choice, for the backup's plan (2026-10-09)
 

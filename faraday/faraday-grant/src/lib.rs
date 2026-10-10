@@ -6,15 +6,20 @@
 //!
 //! 1. A partition is considered only when it is a partition, never a whole
 //!    disk, and its disk is on the USB bus or is an SD card.
-//! 2. The boot partition is kept back for good, so the running system
-//!    never gets to rewrite its own kernel: a partition whose GPT name is
-//!    `OSKBOOT`, or the first partition of the Pi's own card. Both are
-//!    known from `/sys`; nothing is read from a stick (`PLAN.md` §12,
-//!    decision 8).
+//! 2. The boot partition is kept back, so the running system never gets
+//!    to rewrite its own kernel: a partition whose GPT name is `OSKBOOT`,
+//!    or the first partition of the Pi's own card. Both are known from
+//!    `/sys`; nothing is read from a stick (`PLAN.md` §12, decision 8).
+//!    The one exception is upgrading a stick (`PLAN.md` §5.5): while the
+//!    app publishes its upgrade marker beside the clean marker, a
+//!    partition named `OSKBOOT` is handed to the boot copier, mode
+//!    `0600`, and never to the disk process. The Pi's own card is not,
+//!    yet.
 //! 3. Any other partition is handed to the disk process, mode `0600`, but
 //!    only while the app's clean marker is there.
-//! 4. When the marker goes, every partition handed out is taken back,
-//!    and is decided again when the marker returns.
+//! 4. When the clean marker goes, every partition handed out is taken
+//!    back, and is decided again when the marker returns; when either
+//!    marker goes, every boot partition handed to the copier is.
 //!
 //! It also applies the USB device policy (`PLAN.md` §4.6, layer 2). The
 //! kernel authorises only devices on hard-wired ports by itself
@@ -42,6 +47,8 @@ pub trait Owner {
     fn take(&mut self, node: &Path) -> std::io::Result<()>;
     /// Gives the node to the disk process.
     fn give(&mut self, node: &Path) -> std::io::Result<()>;
+    /// Gives a boot partition's node to the boot copier.
+    fn give_boot(&mut self, node: &Path) -> std::io::Result<()>;
     /// Gives the node back to root.
     fn back(&mut self, node: &Path) -> std::io::Result<()>;
     /// Writes `1` to a USB `authorized` attribute, first making it the
@@ -82,13 +89,23 @@ fn is_boot(name: &str, dir: &Path) -> bool {
     name == PI_BOOT || partname(dir).as_deref() == Some(BOOT)
 }
 
+/// Whether a boot partition may go to the boot copier while the app is
+/// upgrading a stick: one named `OSKBOOT`. The Pi's own card's first
+/// partition is not, until the Pi's upgrade is built (`PLAN.md` §5.5).
+fn is_upgradable(name: &str) -> bool {
+    name != PI_BOOT
+}
+
 /// What became of a partition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Decision {
     /// The disk process has it.
     Handed,
-    /// The boot partition: kept back for good.
+    /// The boot partition: kept back, root's.
     Boot,
+    /// A boot partition the boot copier has, while the app is upgrading
+    /// a stick.
+    Upgrade,
     /// Root's, waiting for the clean marker.
     Waiting,
     /// Could not be read or changed: tried again next tick.
@@ -100,6 +117,7 @@ pub struct Grant<O: Owner> {
     sys: PathBuf,
     dev: PathBuf,
     marker: PathBuf,
+    upgrade: PathBuf,
     /// Each partition by node and disk sequence, and what was decided.
     pub decided: BTreeMap<String, (PathBuf, Decision)>,
     /// Each USB interface by name and its device's number, and what was
@@ -140,13 +158,14 @@ fn partname(dir: &Path) -> Option<String> {
 }
 
 impl<O: Owner> Grant<O> {
-    /// The helper over these roots: `/sys`, `/dev` and the clean marker
-    /// on the device.
-    pub fn new(sys: &Path, dev: &Path, marker: &Path, owner: O) -> Grant<O> {
+    /// The helper over these roots: `/sys`, `/dev`, the clean marker and
+    /// the upgrade marker on the device.
+    pub fn new(sys: &Path, dev: &Path, marker: &Path, upgrade: &Path, owner: O) -> Grant<O> {
         Grant {
             sys: sys.to_path_buf(),
             dev: dev.to_path_buf(),
             marker: marker.to_path_buf(),
+            upgrade: upgrade.to_path_buf(),
             decided: BTreeMap::new(),
             usb: BTreeMap::new(),
             owner,
@@ -184,6 +203,20 @@ impl<O: Owner> Grant<O> {
             ));
         }
         out
+    }
+
+    /// Hands a boot partition to the boot copier.
+    fn decide_boot(&mut self, node: &Path) -> Decision {
+        if self.owner.take(node).is_err() {
+            return Decision::Failed;
+        }
+        match self.owner.give_boot(node) {
+            Ok(()) => Decision::Upgrade,
+            Err(_) => {
+                let _ = self.owner.back(node);
+                Decision::Failed
+            }
+        }
     }
 
     fn decide(&mut self, node: &Path) -> Decision {
@@ -308,29 +341,45 @@ impl<O: Owner> Grant<O> {
         self.usb_tick();
         self.devnodes_tick();
         let clean = self.marker.exists();
+        // Upgrading a stick: only ever beside the clean marker.
+        let upgrade = clean && self.upgrade.exists();
         let now = self.removable();
         // A partition gone from /sys is forgotten: its node went with it.
         self.decided
             .retain(|id, _| now.iter().any(|(n, _, _, _)| n == id));
-        if !clean {
-            for (node, d) in self.decided.values_mut() {
-                if *d == Decision::Handed {
-                    *d = if self.owner.back(node).is_ok() {
-                        Decision::Waiting
-                    } else {
-                        Decision::Failed
-                    };
-                }
-            }
+        for (node, d) in self.decided.values_mut() {
+            let back = match *d {
+                Decision::Handed if !clean => Decision::Waiting,
+                Decision::Upgrade if !upgrade => Decision::Boot,
+                _ => continue,
+            };
+            *d = if self.owner.back(node).is_ok() {
+                back
+            } else {
+                Decision::Failed
+            };
         }
         for (id, name, node, dir) in now {
             let before = self.decided.get(&id).map(|(_, d)| *d);
-            let d = match before {
-                Some(Decision::Boot) | Some(Decision::Handed) => continue,
-                // The boot partition, clean or not: never touched.
-                _ if is_boot(&name, &dir) => Decision::Boot,
-                _ if !clean => Decision::Waiting,
-                _ => self.decide(&node),
+            let d = if is_boot(&name, &dir) {
+                match before {
+                    Some(Decision::Upgrade) => continue,
+                    _ if upgrade && is_upgradable(&name) => self.decide_boot(&node),
+                    // Taken back from the copier, or never given: root's.
+                    None | Some(Decision::Boot) => Decision::Boot,
+                    // A give or a take-back that failed: back to root,
+                    // tried again each tick until it is.
+                    _ => match self.owner.back(&node) {
+                        Ok(()) => Decision::Boot,
+                        Err(_) => Decision::Failed,
+                    },
+                }
+            } else {
+                match before {
+                    Some(Decision::Handed) => continue,
+                    _ if !clean => Decision::Waiting,
+                    _ => self.decide(&node),
+                }
             };
             self.decided.insert(id, (node, d));
         }

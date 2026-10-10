@@ -1,0 +1,16 @@
+[package]
+name = "faraday-boot"
+version = "0.1.0"
+description = "The boot copier (PLAN.md §5.5): unprivileged, it reads the boot partition of the stick Faraday started from raw into memory, accepts it only if it carries the running kernel's release string, and writes it raw over another Faraday stick's boot partition, reading back and comparing; it reads no FAT"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+# No dependencies: it opens device nodes, reads /sys and /proc/version,
+# and speaks its pipe protocol with std alone.
+[dependencies]
+
+[lints]
+workspace = true

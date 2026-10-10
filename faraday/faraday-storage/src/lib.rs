@@ -10,7 +10,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use faraday_core::{Faraday, StickInfo, StorageCommand, StorageEvent};
+use faraday_core::{BootPart, Faraday, StickInfo, StorageCommand, StorageEvent};
 use faraday_files::{Dir, checked};
 
 pub use faraday_files::{MAX_PIXELS, MAX_READ};
@@ -64,6 +64,146 @@ pub trait Sticks {
     fn write(&mut self, stick: &str, name: &str, bytes: &[u8]) -> Result<String, String>;
     /// A picture: its bytes and its QR codes.
     fn read_qr(&mut self, stick: &str, name: &str) -> Result<faraday_files::Picture, String>;
+}
+
+/// The boot copier (`PLAN.md` §5.5), as a shell reaches it: the process
+/// over its pipes on the device, or the copier itself in a test.
+pub trait Boot {
+    /// The boot partitions it has now.
+    fn list(&mut self) -> Result<Vec<BootPart>, String>;
+    /// Reads the boot partition holding the running Faraday:
+    /// [`StorageEvent::BootSource`] or [`StorageEvent::BootSourceFailed`].
+    fn read_source(&mut self) -> StorageEvent;
+    /// Writes the source over `target`, reads back and compares:
+    /// [`StorageEvent::BootWritten`] or [`StorageEvent::BootWriteFailed`].
+    fn write(&mut self, target: &str) -> StorageEvent;
+    /// Drops the source.
+    fn forget(&mut self);
+}
+
+#[cfg(unix)]
+mod boot {
+    use std::path::{Path, PathBuf};
+
+    use faraday_boot::Boots;
+    use faraday_boot::client::Client;
+    use faraday_boot::proto::{Request, Response};
+    use faraday_core::{BootPart, StorageEvent};
+
+    /// One request to the copier, wherever it is.
+    pub trait Ask {
+        /// The answer, or why there is none.
+        fn ask(&mut self, req: Request) -> Result<Response, String>;
+    }
+
+    impl Ask for Client {
+        fn ask(&mut self, req: Request) -> Result<Response, String> {
+            Client::ask(self, &req)
+        }
+    }
+
+    impl Ask for Boots {
+        fn ask(&mut self, req: Request) -> Result<Response, String> {
+            Ok(self.handle(req))
+        }
+    }
+
+    /// The copier as the stick shell reaches it: its two FIFOs, opened
+    /// the first time the app asks, so nothing reads its answers until
+    /// then.
+    pub struct BootProcess {
+        requests: PathBuf,
+        responses: PathBuf,
+        client: Option<Client>,
+    }
+
+    impl BootProcess {
+        /// The copier behind these FIFOs, not opened yet.
+        pub fn new(requests: &Path, responses: &Path) -> BootProcess {
+            BootProcess {
+                requests: requests.to_path_buf(),
+                responses: responses.to_path_buf(),
+                client: None,
+            }
+        }
+    }
+
+    impl Ask for BootProcess {
+        fn ask(&mut self, req: Request) -> Result<Response, String> {
+            if self.client.is_none() {
+                self.client =
+                    Some(Client::open(&self.requests, &self.responses).map_err(|e| e.to_string())?);
+            }
+            match self.client.as_mut() {
+                Some(c) => c.ask(&req),
+                None => Err("the boot copier cannot be reached".into()),
+            }
+        }
+    }
+
+    impl<T: Ask> super::Boot for T {
+        fn list(&mut self) -> Result<Vec<BootPart>, String> {
+            match self.ask(Request::List)? {
+                Response::Parts(parts) => Ok(parts
+                    .into_iter()
+                    .map(|p| BootPart {
+                        id: p.id,
+                        size: p.size,
+                        release: p.release,
+                        source: p.source,
+                    })
+                    .collect()),
+                Response::Failed(why) => Err(why),
+                _ => Err("an answer that is not a listing".into()),
+            }
+        }
+
+        fn read_source(&mut self) -> StorageEvent {
+            let reason = match self.ask(Request::ReadSource) {
+                Ok(Response::Source { id, release, size }) => {
+                    return StorageEvent::BootSource { id, release, size };
+                }
+                Ok(Response::Failed(why)) | Err(why) => why,
+                Ok(_) => "an answer that is not the source".into(),
+            };
+            StorageEvent::BootSourceFailed { reason }
+        }
+
+        fn write(&mut self, target: &str) -> StorageEvent {
+            let (reason, pulled) = match self.ask(Request::Write {
+                target: target.to_string(),
+            }) {
+                Ok(Response::Written { id, release }) => {
+                    return StorageEvent::BootWritten { id, release };
+                }
+                Ok(Response::Pulled) => ("the stick was removed".to_string(), true),
+                Ok(Response::Failed(why)) | Err(why) => (why, false),
+                Ok(_) => ("an answer that is not a write".to_string(), false),
+            };
+            StorageEvent::BootWriteFailed {
+                id: target.to_string(),
+                reason,
+                pulled,
+            }
+        }
+
+        fn forget(&mut self) {
+            let _ = self.ask(Request::Forget);
+        }
+    }
+}
+
+#[cfg(unix)]
+pub use boot::BootProcess;
+
+/// While the app is upgrading a stick, tells it which boot partitions the
+/// copier has: the shell calls this as it looks at the sticks.
+pub fn boot_poll(app: &mut Faraday, boot: &mut dyn Boot) {
+    if app.upgrading()
+        && let Ok(parts) = boot.list()
+    {
+        app.storage(StorageEvent::Boots(parts));
+    }
 }
 
 /// Sticks that are folders, named by their paths.
@@ -311,6 +451,18 @@ pub fn serve_with(
     host: Option<&Host>,
     sticks: &mut dyn Sticks,
 ) -> Vec<String> {
+    serve_all(app, boxes, host, sticks, None)
+}
+
+/// [`serve_with`], and the boot copier's requests answered by `boot`
+/// (`PLAN.md` §5.5); without one they are refused.
+pub fn serve_all(
+    app: &mut Faraday,
+    boxes: &mut Boxes,
+    host: Option<&Host>,
+    sticks: &mut dyn Sticks,
+    mut boot: Option<&mut dyn Boot>,
+) -> Vec<String> {
     let print = host.map(|h| h.print.as_path());
     let mut said = Vec::new();
     while let Some(c) = app.poll_storage() {
@@ -428,6 +580,37 @@ pub fn serve_with(
                     && let Err(e) = open_folder(&h.downloads)
                 {
                     said.push(format!("cannot open {}: {e}", h.downloads.display()));
+                }
+            }
+            StorageCommand::BootRead => {
+                let ev = match boot.as_deref_mut() {
+                    Some(b) => b.read_source(),
+                    None => StorageEvent::BootSourceFailed {
+                        reason: "this device does not upgrade sticks".into(),
+                    },
+                };
+                said.push(format!("boot copier: {ev:?}"));
+                app.storage(ev);
+            }
+            StorageCommand::BootWrite { target } => {
+                let ev = match boot.as_deref_mut() {
+                    Some(b) => b.write(&target),
+                    None => StorageEvent::BootWriteFailed {
+                        id: target,
+                        reason: "this device does not upgrade sticks".into(),
+                        pulled: false,
+                    },
+                };
+                said.push(format!("boot copier: {ev:?}"));
+                app.storage(ev);
+                // What it wrote changes the listing.
+                if let Some(b) = boot.as_deref_mut() {
+                    boot_poll(app, b);
+                }
+            }
+            StorageCommand::BootForget => {
+                if let Some(b) = boot.as_deref_mut() {
+                    b.forget();
                 }
             }
             StorageCommand::SaveBoxes {

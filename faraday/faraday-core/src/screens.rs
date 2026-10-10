@@ -152,6 +152,7 @@ fn dispatch(app: &mut Faraday, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Decode => decode_screen(app, ui, x, cw, h),
         Screen::Catalog => catalog_screen(app, ui, x, cw, h),
         Screen::Transfer => crate::transfer_screen::draw(app, ui, x, cw, h),
+        Screen::Upgrade => crate::upgrade_screen::draw(app, ui, x, cw, h),
     }
 }
 
@@ -12007,6 +12008,18 @@ fn settings_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += wrap_buttons(ui, x, y, w, 38.0, &items) - 8.0;
         y - y0
     });
+    if !app.online {
+        y += section(ui, x, y, w, app.medium.caps(), &|ui, x, y0, w| {
+            wrap_buttons(
+                ui,
+                x,
+                y0,
+                w,
+                38.0,
+                &[(app.medium.upgrade(), Style::Secondary, Action::UpgradeOpen)],
+            ) - 8.0
+        });
+    }
     y += section(ui, x, y, w, "About", &|ui, x, y0, w| {
         let mut y = y0;
         let lines = [
@@ -12276,6 +12289,22 @@ fn settings(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ) + 8.0;
     }
     y += 132.0;
+    // Upgrading another stick from this one (`PLAN.md` §5.5): never in the
+    // online app, which has no boot partition to copy.
+    if !app.online {
+        ui.card(x, y, width, 112.0, LINE);
+        ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, app.medium.caps());
+        ui.button(
+            x + 22.0,
+            y + 54.0,
+            None,
+            38.0,
+            app.medium.upgrade(),
+            Style::Secondary,
+            Action::UpgradeOpen,
+        );
+        y += 132.0;
+    }
     // The note at its foot, measured first: it wraps on a narrow column.
     let note = "Visit nakamotoinstitute.org to learn about Bitcoin’s history, economics, and \
                 technology. Not affiliated.";
@@ -12442,6 +12471,13 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         .map(|s| s.label.clone())
         .unwrap_or_default();
     let keys = app.session.keys.len();
+    // Asked for by Upgrade rather than by a stick arriving.
+    let upgrade = app.upgrade_after_lock;
+    let then = if upgrade {
+        "A fresh start, and the upgrade".to_string()
+    } else {
+        format!("A fresh start, and the {} visit", app.medium.noun())
+    };
     let rows = [
         (
             "Wiped",
@@ -12458,10 +12494,7 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                 app.outbox.len()
             ),
         ),
-        (
-            "Then",
-            format!("A fresh start, and the {} visit", app.medium.noun()),
-        ),
+        ("Then", then),
     ];
     let sealed = (
         "Sealed",
@@ -12472,8 +12505,19 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     } else {
         vec![&sealed, &rows[0], &rows[1], &rows[2]]
     };
-    let attached = format!("{} is attached", app.medium.a_cap());
-    let use_it = format!("Lock and use {}", app.medium.noun());
+    let (attached, use_it, line) = if upgrade {
+        (
+            app.medium.upgrade().to_string(),
+            "Lock and upgrade".to_string(),
+            "The upgrade runs in a fresh session".to_string(),
+        )
+    } else {
+        (
+            format!("{} is attached", app.medium.a_cap()),
+            format!("Lock and use {}", app.medium.noun()),
+            format!("{label} · nothing has been read from it"),
+        )
+    };
     if ui.compact {
         let rows: Vec<(&str, String, osk_ui::Color)> =
             rows.iter().map(|(k, v)| (*k, v.clone(), TEXT)).collect();
@@ -12482,7 +12526,7 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             w,
             h,
             (app.medium.icon(), WARN, &attached),
-            &format!("{label} · nothing has been read from it"),
+            &line,
             &rows,
             &[
                 ("Not now", Style::Secondary, Action::NotNow),
@@ -12497,14 +12541,7 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let iw = 560.0 - 64.0;
     ui.icon(ix, y + 30.0, 30.0, app.medium.icon(), 18.0, WARN);
     ui.text_mid(ix + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, &attached);
-    ui.text(
-        ix,
-        y + 76.0,
-        13.0,
-        W::R,
-        MUTED,
-        &format!("{label} · nothing has been read from it"),
-    );
+    ui.text(ix, y + 76.0, 13.0, W::R, MUTED, &line);
     let mut ry = y + 112.0;
     for (k, v) in rows.iter() {
         ui.text_mid(ix, ry, 40.0, 13.0, W::R, MUTED, k);
