@@ -4,22 +4,28 @@ These are the current rules for anyone, human or agent, changing this
 repository. They are versioned here so that when one changes, this file
 changes and nothing else has to be kept in step.
 
-- The design system is `docs/DESIGN.md`; decisions and open questions are
-  `docs/PLANNING.md` §15 and §16. A screen is one of DESIGN §5's sixteen
-  screens, built from the §4 components; every dimension is a name in
-  `core/osk-ui/src/tokens.rs` (`tools/lint-tokens.sh` fails the build
-  otherwise); every user-facing string is in
-  `opensigner/opensigner-core/src/strings/en.rs`, except the Learn pages,
-  which are `core/osk-learn/src/en.rs` and are edited as `docs/learn/`,
-  and the self-test's check names in `core/osk-selftest`; a working
-  screen carries labels, values and actions and never an explanation;
-  explanations live in Learn and About, which are not working screens;
-  and text anywhere in the product is plain statement of fact, never
+- The design system is `docs/DESIGN.md`. OpenSigner's decisions and open
+  questions are `docs/PLANNING.md` §15 and §16. PLANNING.md is about
+  10,000 lines; read the section you need.
+- Faraday's decisions are `docs/DECISIONS.md`, numbered F1 onward.
+  `docs/PLANNING.md` is upstream's copy and is not edited here.
+- A screen is one of DESIGN §5's sixteen screens, built from the §4
+  components.
+- Every dimension is a name in `core/osk-ui/src/tokens.rs`;
+  `tools/lint-tokens.sh` fails the build otherwise.
+- Every user-facing string is in
+  `opensigner/opensigner-core/src/strings/en.rs`, with two exceptions: the
+  Learn pages (`core/osk-learn/src/en.rs`, edited as `docs/learn/`) and
+  the self-test's check names (`core/osk-selftest`).
+- A working screen carries labels, values and actions, never an
+  explanation. Explanations live in Learn and About, which are not
+  working screens.
+- Text anywhere in the product is plain statement of fact, never
   mannered prose.
 - `just` is the check: tests, clippy with warnings as errors, fmt and the
-  three lints. Keep every test passing or change it to the rule it now
-  encodes; do not delete a test to make the build pass. Run it once, at
-  the end; while working, run the one test file you touched
+  lints in the `lint` recipe. Keep every test passing or change it to the
+  rule it now encodes; do not delete a test to make the build pass. Run
+  it once, at the end; while working, run the one test file you touched
   (`cargo nextest run -p opensigner-core --test keep`). To look at a
   screen, render one script at one size (`just snap load-key 480x640`);
   `just snapshots`, all scripts at all sizes, is for a change to the

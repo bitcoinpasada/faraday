@@ -168,7 +168,9 @@ fn the_device_first_signed_fixture_finalizes() {
 }
 
 /// Signing the same PSBT twice under the deterministic auxiliary
-/// randomness gives the same partial signature.
+/// randomness gives the same partial signature. This holds for signing
+/// last, which draws no nonce to keep; a nonce drawn in round 1 is new
+/// every time it is drawn.
 #[test]
 fn signing_twice_gives_the_same_partial_signature() {
     let dir = vectors();
@@ -942,6 +944,75 @@ fn a_nonce_no_session_holds_is_replaced_and_earlier_signatures_dropped() {
         .find(|n| n.participant == established.ours[0].key)
         .unwrap();
     assert_ne!(ours.value, stale, "a new nonce, not the one it replaced");
+}
+
+/// A cosigner that strips this device's partial signature and changes
+/// its own nonce, while the session stays open under one seed, gets a
+/// new nonce from this device: two partial signatures under one secret
+/// nonce would give the key away.
+#[test]
+fn a_nonce_drawn_again_in_one_session_is_a_new_nonce() {
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let policy = two_key_policy(&abandon, &zoo);
+    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let wallets = [policy.clone()];
+    let mut psbt = two_key_psbt(&policy, &abandon, &zoo);
+    let ours_key = account_xpub(&abandon).public_key;
+    let zoo_key = account_xpub(&zoo).public_key;
+    let our_nonce = |p: &Psbt| {
+        osk_psbt::musig::pub_nonces(&p.inner().inputs[0])
+            .unwrap()
+            .into_iter()
+            .find(|n| n.participant == ours_key)
+            .unwrap()
+            .value
+    };
+
+    let mut session = None;
+    let ctx = context_with(&keys, &wallets, None);
+    pass(&mut psbt, &[&abandon], &ctx, &mut session, 0x61);
+    let first = our_nonce(&psbt);
+
+    // The other signer answers and round 2 signs.
+    let established = inspect(&psbt, &ctx).inputs[0].musig.clone().unwrap();
+    let msg = key_path_sighash(&psbt);
+    let agg = established.output_key.x_only_public_key().0.serialize();
+    let (_, other1) = other_nonce(&zoo, &agg, &msg, 0x71);
+    osk_psbt::musig::write_pub_nonce(
+        &mut psbt.inner_mut().inputs[0],
+        &zoo_key,
+        &established.output_key,
+        &other1,
+    );
+    {
+        let view = session.as_ref().unwrap().view();
+        let ctx = context_with(&keys, &wallets, Some(&view));
+        let out = pass(&mut psbt, &[&abandon], &ctx, &mut session, 0x61);
+        assert_eq!(out.signed_inputs.len(), 1);
+    }
+
+    // The transaction comes back with our partial signature gone and the
+    // other signer's nonce changed, and the same seed is passed.
+    osk_psbt::musig::clear_partial_sigs(&mut psbt.inner_mut().inputs[0]);
+    let (_, other2) = other_nonce(&zoo, &agg, &msg, 0x72);
+    osk_psbt::musig::write_pub_nonce(
+        &mut psbt.inner_mut().inputs[0],
+        &zoo_key,
+        &established.output_key,
+        &other2,
+    );
+    let out = {
+        let view = session.as_ref().unwrap().view();
+        let ctx = context_with(&keys, &wallets, Some(&view));
+        pass(&mut psbt, &[&abandon], &ctx, &mut session, 0x61)
+    };
+    assert_eq!(out.nonces_shared, 1);
+    assert_ne!(
+        our_nonce(&psbt),
+        first,
+        "a new nonce for the second signature"
+    );
 }
 
 /// Two of this device's keys in one wallet: neither can derive its nonce

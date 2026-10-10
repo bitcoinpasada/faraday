@@ -97,9 +97,15 @@ payment outputs is left, which waits on upstream (BIP-375).
   `bitcoinpasada/faraday`); upstream `maxmoney21m/opensignerkit` is the
   remote `upstream` again (re-added 2026-10-07), with no shared history.
   Upstream files are synced by applying `git diff <last> upstream/main`
-  (`git apply --3way`, then `git reset` to leave the index alone): last
-  synced to `96e2144` (§16.140, kernel hardening) on 2026-10-07; before
-  that `fa1ae03` (§16.139) and `c418768`.
+  (`git apply --3way`, then `git reset` to leave the index alone; pass
+  `--binary --full-index` to `git diff` when fixtures changed): last
+  synced to `d26b84e` (§16.141, MuSig2 nonce hardening from Faraday's
+  audit) on 2026-10-10, without upstream's `CLAUDE.md` change; before
+  that `96e2144` (§16.140), `fa1ae03` (§16.139) and `c418768`.
+  `docs/PLANNING.md` is upstream's copy, unedited; Faraday's decisions
+  are `docs/DECISIONS.md` (F1 onward). `CLAUDE.md` is Faraday's own:
+  upstream changes to it are merged by hand (at `d26b84e`, its rewording
+  taken; its release rule and `osk-implementer` routing not).
 - Faraday's files are committed on `main`; the owner commits. `origin`
   has the history up to `78f5a15`; later commits are not pushed.
 

@@ -348,7 +348,7 @@ wiped (decision 28) → off.
 
 On the Pi every medium is an SD card and every screen says so: "SD card"
 for "stick", **SD card visit** for **Stick visit**, **Lock and use SD
-card**, "Remove the SD card" (`docs/PLANNING.md` §16.144). The flows
+card**, "Remove the SD card" (`docs/DECISIONS.md` F4). The flows
 below use the PC's words.
 
 **A stick or card inserted while unlocked** → **Lock to use this stick**

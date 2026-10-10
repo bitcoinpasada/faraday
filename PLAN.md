@@ -115,7 +115,7 @@ Differences a person sees on the Pi:
   creates or opens (`docs/VAULT.md` §3.1).
 - Every screen says "SD card" where the PC says "stick" ("SD card
   visit", "Lock and use SD card", "no SD card" on Home), and draws the SD
-  card glyph where the PC draws a drive (`docs/PLANNING.md` §16.144). The
+  card glyph where the PC draws a drive (`docs/DECISIONS.md` F4). The
   stick shell tells the app which at start.
 
 The Android, iOS and desktop shells stay in the tree for upstream merges
@@ -493,8 +493,8 @@ Visit: the Outbox is written. QR signing needs no stick.
 
 ### 5.5 Upgrading a stick
 
-Built for the PC 2026-10-09 (decided 2026-10-08, `docs/PLANNING.md`
-§16.142); the Pi follows. Faraday copies itself onto another Faraday stick: the boot partition of the
+Built for the PC 2026-10-09 (decided 2026-10-08, `docs/DECISIONS.md`
+F2); the Pi follows. Faraday copies itself onto another Faraday stick: the boot partition of the
 stick it started from is written over the other stick's, and that
 stick's data partition, with its vaults and settings file, is not
 touched. The stick holding vaults then never needs a computer other than

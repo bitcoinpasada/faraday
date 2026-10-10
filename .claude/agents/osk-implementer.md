@@ -6,8 +6,7 @@ effort: medium
 ---
 
 Implement the brief you are given in this repository, following CLAUDE.md.
-Batch independent tool calls in one turn, and read ranges rather than
-whole files.
+Read the sections of the docs a change needs, not whole files.
 
 The check costs time, so spend it once. While working, run only the test
 file you touched (`cargo nextest run -p opensigner-core --test keep`) or

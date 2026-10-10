@@ -254,6 +254,10 @@ pub fn write_input_participants(input: &mut Input, participants: &Participants) 
 /// for.
 const RAND_TAG: &[u8] = b"OpenSigner/musig-rand";
 
+/// The tag a session's seed is hashed under after every draw, so that no
+/// two draws of one session use the same seed.
+const NEXT_SEED_TAG: &[u8] = b"OpenSigner/musig-next-seed";
+
 /// BIP-340's tagged hash.
 pub(crate) fn tagged(tag: &[u8], parts: &[&[u8]]) -> [u8; 32] {
     let prefix = bitcoin::hashes::sha256::Hash::hash(tag).to_byte_array();
@@ -273,6 +277,12 @@ pub(crate) fn tagged(tag: &[u8], parts: &[&[u8]]) -> [u8; 32] {
 /// nothing serialises it, signing takes each secret nonce out by value
 /// so none can sign twice, and dropping it wipes the seed and every
 /// nonce still in it.
+///
+/// The seed moves forward after every draw, so a nonce drawn again for
+/// an input whose nonce was already signed under is a different nonce.
+/// A cosigner that strips this device's partial signature and changes
+/// its own nonce gets a fresh nonce from this device, never a second
+/// signature under the first one, which would give away the key.
 pub struct MusigSession {
     txid: bitcoin::Txid,
     seed: [u8; 32],
@@ -322,18 +332,24 @@ impl MusigSession {
         }
     }
 
-    /// The `rand'` one `NonceGen` call uses: the seed with the input
-    /// index and the participant key hashed into it, so no two calls of
-    /// a session share one.
-    pub(crate) fn rand(&self, input: usize, participant: &PublicKey) -> [u8; 32] {
-        tagged(
+    /// The `rand'` for one `NonceGen` call: the seed with the input index
+    /// and the participant key hashed into it. The seed is then replaced
+    /// by its own hash, so no two calls of a session share one, even for
+    /// the same input and participant.
+    pub(crate) fn draw(&mut self, input: usize, participant: &PublicKey) -> [u8; 32] {
+        use osk_crypto::Zeroize;
+        let rand = tagged(
             RAND_TAG,
             &[
                 &self.seed,
                 &(input as u32).to_le_bytes(),
                 &participant.serialize(),
             ],
-        )
+        );
+        let mut next = tagged(NEXT_SEED_TAG, &[&self.seed]);
+        self.seed.copy_from_slice(&next);
+        next.zeroize();
+        rand
     }
 
     /// Keeps the secret nonce drawn for `participant` on `input`, with

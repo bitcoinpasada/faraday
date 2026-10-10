@@ -340,6 +340,28 @@ fn reading_the_same_carry_file_twice_gives_the_identical_signature() {
     assert_eq!(once.to_bytes(), twice.to_bytes());
 }
 
+/// The same seed on the same transaction with another cosigner chosen
+/// draws share 0 a new nonce: one nonce under two signer sets would sign
+/// two different challenges and give the share away.
+#[test]
+fn another_signer_set_under_one_seed_draws_a_new_nonce() {
+    let dealt = fixture::dealt();
+    let policy = policy();
+    let secp = Secp256k1::new();
+    let zero = dealt.shares[0].public_share(&secp);
+    let nonce_with = |other: u32| {
+        let mut psbt = funded();
+        pass(&mut psbt, &dealt, &policy, 0, &[other], None).expect("first location");
+        osk_psbt::threshold::pub_nonces(&psbt.inner().inputs[0])
+            .expect("the records")
+            .into_iter()
+            .find(|e| e.pubshare == zero)
+            .expect("share 0's nonce")
+            .value
+    };
+    assert_ne!(nonce_with(1), nonce_with(2));
+}
+
 #[test]
 fn a_substituted_nonce_breaks_the_first_share_s_partial_signature() {
     let dealt = fixture::dealt();

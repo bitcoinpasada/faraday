@@ -228,21 +228,21 @@ no change.
 | first location | this crate | `wallet-threshold-carry.osk`: both public nonces, share 0's partial signature, share 1's secret nonce |
 | second location | this crate | `wallet-threshold-signed.psbt`: aggregated, final, no `osk` record left |
 | `finalizepsbt` | Core | `complete: true` |
-| `testmempoolaccept` | Core | `allowed: true`, txid `0f140e0ee3b7339234c362e39488e93b726d1f3cc04f70fc2b9b313c02fbac68`, 154 vB, 616 WU, 1 550 sat, effective fee rate 0.000 100 64 BTC/kvB |
+| `testmempoolaccept` | Core | `allowed: true`, txid `ce596db4c3cad846649f13d1cf3390a97a50f05d5a0521fab6f6ab214a74a771`, 154 vB, 616 WU, 1 550 sat, effective fee rate 0.000 100 64 BTC/kvB |
 
 BIP 445's own reference implementation was then given share 1's secret
 share and the secret nonce out of the carry file and asked to sign the
 same session: `just threshold-reference` prints the partial signature
-`45add421…`, which is the one this crate wrote, verifies both partial
-signatures, and aggregates to `6c52734b…7fce29fd`, which is the signature
+`ed48f497…`, which is the one this crate wrote, verifies both partial
+signatures, and aggregates to `45714a1c…63f2e81a`, which is the signature
 in the finished transaction.
 
 | File | SHA-256 |
 |---|---|
-| `wallet-threshold-first.psbt` | `716b239d4d187b697ed5a706a3555a83e34ed953d850b113a3a662f895920c0d` |
-| `wallet-threshold-carry.osk` | `293aca1c0ee3e60f81a26ff1fa59a440df4c25ac222643a83ca8d0b49c3bc10a` |
-| `wallet-threshold-signed.psbt` | `89b953883a5c4a6fd5bb12b578c1b3ab1da53780c20ffc3ac1d3ad23f936c6f4` |
-| `wallet-threshold-transcript.json` | `db35e03a0c4e3356ab780763d5e7ce440f95300c1e8e9e4867d77d596e9c1d39` |
+| `wallet-threshold-first.psbt` | `0f10f48b934d8cd08e000934d02891e49a04ee65c58cef0240c3eea541a40d7a` |
+| `wallet-threshold-carry.osk` | `0976d38411d204047af3115c3a86beee7718da5a146a5dba740b18e6fa382f70` |
+| `wallet-threshold-signed.psbt` | `ae962b9f4cf2ff99663769ced8fb442fc2e2f7db1f336aef533a9a23a4b3bd3d` |
+| `wallet-threshold-transcript.json` | `67a767f642c0946014e75f0076e9c5165fe86fd6d594f5235ff531aa044d870c` |
 
 ## The taproot multisig, and what Bitcoin Core 31.1 checked
 

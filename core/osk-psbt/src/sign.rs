@@ -210,6 +210,16 @@ pub struct SignResult {
 /// combine with. A key-origin claim that the derived key does not match is
 /// [`Error::KeyMismatch`]. Inputs that are already final, or name none of
 /// the selected keys, are left alone.
+///
+/// `seed` is where every MuSig2 and threshold nonce this pass draws
+/// comes from, and it must be fresh, uniformly random bytes for every
+/// call: a seed used twice on one transaction can draw one secret nonce
+/// for two different signatures, which gives away the key. A MuSig2
+/// session takes the seed of the call that opens it and moves it forward
+/// after every draw, so nonces drawn while it stays open never repeat;
+/// a new session for the same transaction needs a new seed. OpenSigner
+/// derives one per signing press from its session key and a count of
+/// the draws.
 #[allow(clippy::too_many_arguments)]
 pub fn sign(
     psbt: &mut Psbt,
@@ -773,8 +783,9 @@ struct MusigPass {
 /// - Signing last, when no nonce of this participant's is on the input
 ///   and every other participant's is: BIP-327's `DeterministicSign`,
 ///   which needs nothing kept between rounds.
-/// - Round 1 otherwise: `NonceGen` from the session's seed, the public
-///   nonce written and the secret kept. Every partial signature already
+/// - Round 1 otherwise: `NonceGen` from the session's seed, which moves
+///   forward after every draw, the public nonce written and the secret
+///   kept. Every partial signature already
 ///   on the input is dropped, because each was made against an aggregate
 ///   nonce this one is not in.
 ///
@@ -854,6 +865,9 @@ fn sign_musig(
         if derived.to_xpub().public_key != participation.key {
             return Err(Error::KeyMismatch { input: index });
         }
+        // Every use of the secret key goes through the master key's
+        // blinded context, as the single-signature paths do.
+        let signer = master.secp();
         match round {
             MusigRound::Done | MusigRound::Wait => continue,
             MusigRound::Share { .. } => {
@@ -864,10 +878,10 @@ fn sign_musig(
                     *session = Some(MusigSession::new(txid, *seed));
                 }
                 let open = session.as_mut().expect("just set");
-                let rand = open.rand(index, &participation.key);
+                let rand = open.draw(index, &participation.key);
                 let aggpk = musig.output_key.x_only_public_key().0.serialize();
                 let (secnonce, pubnonce) = osk_bip::musig::nonce_gen(
-                    &secp,
+                    signer,
                     &rand,
                     Some(derived.secret_key()),
                     &participation.key,
@@ -903,7 +917,7 @@ fn sign_musig(
                 let values =
                     musig_session(&secp, musig, &nonces, &pubnonce, participation.key, &msg)
                         .ok_or(Error::Sighash { input: index })?;
-                let psig = osk_bip::musig::sign(&secp, secnonce, derived.secret_key(), &values)
+                let psig = osk_bip::musig::sign(signer, secnonce, derived.secret_key(), &values)
                     .map_err(|_| Error::Sighash { input: index })?;
                 osk_bip::musig::partial_sig_verify_internal(
                     &secp,
@@ -965,7 +979,7 @@ fn sign_musig(
                 };
                 let once = || {
                     osk_bip::musig::deterministic_sign(
-                        &secp,
+                        signer,
                         derived.secret_key(),
                         &aggothernonce,
                         &musig.participants,
@@ -1126,7 +1140,7 @@ fn hex33(key: &secp256k1::PublicKey) -> alloc::string::String {
 // ---------------------------------------------------------------------
 
 /// The tag one `NonceGen` call's `rand` is hashed under, so that one
-/// seed gives a different value for every input and signer.
+/// seed gives a different value for every input, signer and signer set.
 const THRESHOLD_RAND_TAG: &[u8] = b"OpenSigner/threshold-rand";
 
 /// One loaded share as the signer sees it: its public share, and the one
@@ -1328,11 +1342,15 @@ fn sign_threshold(
         }
         chosen.sort_unstable();
         let thresh_pk_xonly = ti.output_key.x_only_public_key().0.serialize();
+        // The signer set is in every `rand`: a seed reused on this
+        // transaction with another cosigner chosen would otherwise draw
+        // our nonce again for a different signature.
+        let set: Vec<u8> = chosen.iter().flat_map(|id| id.to_le_bytes()).collect();
         for id in &chosen {
             let key = pubshare(*id)?;
             let rand = crate::musig::tagged(
                 THRESHOLD_RAND_TAG,
-                &[seed, &(index as u32).to_le_bytes(), &key.serialize()],
+                &[seed, &(index as u32).to_le_bytes(), &key.serialize(), &set],
             );
             // Our own nonce takes this share's secret; every other
             // signer's takes none, and `extra_in` is none for all of
