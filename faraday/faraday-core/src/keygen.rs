@@ -274,17 +274,13 @@ impl KeyGen {
     /// A fresh flow.
     pub fn new(slot: Option<u8>, back: Screen, only_24: bool) -> KeyGen {
         KeyGen {
-            // Length and Randomness open closed on their defaults
-            // (`DESIGN.md` §4.14): the flow opens on the first card
-            // without one, and both count as done so a later card can
-            // still be reached directly.
-            open: Some(kstep::ENTER),
-            done: {
-                let mut d = [false; kstep::COUNT];
-                d[usize::from(kstep::LENGTH)] = true;
-                d[usize::from(kstep::SOURCE)] = true;
-                d
-            },
+            // New key opens on Length (`docs/NEW-WALLET.md` §2.1,
+            // reversing `SIMPLIFY.md` §2.1 for this flow): Length and
+            // Randomness still carry defaults and show Change once
+            // closed (`DESIGN.md` §4.14), but nothing is done until its
+            // own Continue is pressed.
+            open: Some(kstep::LENGTH),
+            done: [false; kstep::COUNT],
             scroll: flow::Scroll::default(),
             words: if only_24 { 24 } else { 12 },
             only_24,

@@ -4985,14 +4985,10 @@ impl Faraday {
                 self.screen = Screen::Create;
             }
             Action::CreateWallet | Action::CreateOver => {
-                // Kind defaults to single key, closed with Change and
-                // already counted done: the flow opens on the first
-                // card without one.
-                let mut done = [false; cstep::COUNT];
-                done[cstep::KIND as usize] = true;
+                // Create opens with Kind open, whatever opened it
+                // (`docs/NEW-WALLET.md` §2.1).
                 self.create = Some(CreateState {
-                    open: Some(cstep::KEYS),
-                    done,
+                    open: Some(cstep::KIND),
                     m: 2,
                     n: 3,
                     slots: vec![create::Source::Empty; 1],
@@ -5034,12 +5030,11 @@ impl Faraday {
                 if let Some(c) = self.create.as_mut()
                     && c.built.is_none()
                 {
-                    // Chosen while Kind is not open: this is Tools'
-                    // `Go::Create(kind)`, which opens with Kind closed,
-                    // whatever the kind, and Quorum closed on its
-                    // default too when the kind needs it (`DESIGN.md`
-                    // §4.14).
-                    let from_closed = c.open != Some(cstep::KIND);
+                    // Ticks the kind, whether chosen by hand on an open
+                    // Kind card or by a Tools tile opening Create with
+                    // its kind already ticked (`docs/NEW-WALLET.md`
+                    // §2.1): either way Kind stays open until its own
+                    // Continue closes it.
                     c.kind = create::NewKind::ALL[i as usize % create::NewKind::ALL.len()];
                     if c.kind.multi() {
                         c.n = c.n.clamp(2, c.kind.max_keys());
@@ -5057,14 +5052,6 @@ impl Faraday {
                     }
                     c.slots.resize(n, create::Source::Empty);
                     c.slots.truncate(n);
-                    if from_closed {
-                        c.done[cstep::KIND as usize] = true;
-                        if c.kind.multi() {
-                            c.done[cstep::QUORUM as usize] = true;
-                        }
-                        let steps = create_steps(c.kind);
-                        c.open = steps.iter().copied().find(|&s| !c.done[s as usize]);
-                    }
                 }
             }
             Action::CBackup(k) => {

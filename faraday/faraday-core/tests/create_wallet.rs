@@ -1,8 +1,9 @@
-//! Create a wallet opens on the first card that needs a person, not on
-//! Kind (`docs/SIMPLIFY.md` §2.1, §2.2): Kind defaults to single key,
-//! Multisig is the other everyday choice, and the other eight kinds are
-//! behind More kinds. It ends in the backup plan (§2.3): Keys' Continue
-//! makes the wallet, Check follows, and Back up offers the plan's presets.
+//! Create a wallet opens on Kind, whatever opened it
+//! (`docs/NEW-WALLET.md` §2.1, reversing `SIMPLIFY.md` §2.1 for this
+//! flow): Kind defaults to single key, Multisig is the other everyday
+//! choice, and the other eight kinds are behind More kinds. It ends in
+//! the backup plan (`SIMPLIFY.md` §2.3): Keys' Continue makes the
+//! wallet, Check follows, and Back up offers the plan's presets.
 
 use faraday_core::create::NewKind;
 use faraday_core::plan::{Answers, Preset};
@@ -16,6 +17,22 @@ fn frost_index() -> u8 {
         .expect("FROST is one of the ten kinds") as u8
 }
 
+fn multi_index() -> u8 {
+    NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::Multi)
+        .expect("Multisig is one of the ten kinds") as u8
+}
+
+/// Loads a test seed as a key in the session, through Add a key.
+fn add_key(app: &mut Faraday, seed: &str) {
+    app.press(Action::Entry(None));
+    for c in testkit::test_words(seed).chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+}
+
 fn opened() -> Faraday {
     let mut app = testkit::started();
     app.press(Action::CreateWallet);
@@ -24,21 +41,29 @@ fn opened() -> Faraday {
 }
 
 #[test]
-fn a_fresh_create_opens_on_keys_with_the_single_key_kind() {
+fn a_fresh_create_opens_on_kind_with_the_single_key_kind() {
     let app = opened();
     let c = app.create.as_ref().expect("create");
     assert_eq!(c.kind, NewKind::NativeSegwit);
-    assert_eq!(c.open, Some(cstep::KEYS), "Kind defaults closed");
-    assert!(c.done[cstep::KIND as usize], "Kind counts as answered");
+    assert_eq!(
+        c.open,
+        Some(cstep::KIND),
+        "Create opens on Kind, whatever opened it"
+    );
+    assert!(!c.done[cstep::KIND as usize], "not answered yet");
 }
 
 #[test]
-fn change_opens_kind_and_keeps_the_cards_after_it() {
+fn continue_closes_kind_and_change_reopens_it_keeping_the_choice() {
     let mut app = opened();
-    // Fill the one key slot so Keys' own value is something to keep.
-    app.press(Action::CKind(1)); // from a closed Kind: re-opens on Keys
-    let kept_kind = app.create.as_ref().map(|c| c.kind);
-    assert_eq!(kept_kind, Some(NewKind::Taproot));
+    app.press(Action::CKind(1)); // Taproot, ticked while Kind is open
+    app.press(Action::CNext(cstep::KIND)); // Kind's own Continue
+    assert_eq!(app.create.as_ref().map(|c| c.kind), Some(NewKind::Taproot));
+    assert_eq!(
+        app.create.as_ref().and_then(|c| c.open),
+        Some(cstep::KEYS),
+        "Continue closes Kind as done and opens Keys"
+    );
     app.press(Action::CStep(cstep::KIND));
     assert_eq!(
         app.create.as_ref().and_then(|c| c.open),
@@ -55,7 +80,7 @@ fn change_opens_kind_and_keeps_the_cards_after_it() {
 #[test]
 fn more_kinds_offers_frost() {
     let mut app = opened();
-    app.press(Action::CStep(cstep::KIND));
+    // Kind is already open: a fresh Create opens on it.
     let _ = app.frame();
     assert!(
         !app.offers(Action::CKind(frost_index())),
@@ -70,7 +95,7 @@ fn more_kinds_offers_frost() {
 }
 
 #[test]
-fn a_tools_tile_for_musig2_opens_create_with_musig2_chosen_and_kind_closed() {
+fn a_tools_tile_for_musig2_opens_create_on_kind_with_musig2_ticked() {
     let mut app = testkit::started();
     let i = faraday_core::catalog::TILES
         .iter()
@@ -80,12 +105,16 @@ fn a_tools_tile_for_musig2_opens_create_with_musig2_chosen_and_kind_closed() {
     assert_eq!(app.screen, Screen::Create);
     let c = app.create.as_ref().expect("create");
     assert_eq!(c.kind, NewKind::MuSig);
-    assert_ne!(c.open, Some(cstep::KIND), "Kind is closed");
-    assert!(c.done[cstep::KIND as usize]);
+    assert_eq!(
+        c.open,
+        Some(cstep::KIND),
+        "Create opens on Kind, with MuSig2 already ticked"
+    );
+    assert!(!c.done[cstep::KIND as usize]);
 }
 
 #[test]
-fn choosing_multisig_from_a_closed_kind_closes_quorum_on_its_default_too() {
+fn a_tools_tile_for_multisig_ticks_its_quorum_default_too() {
     let mut app = testkit::started();
     let i = faraday_core::catalog::TILES
         .iter()
@@ -96,8 +125,8 @@ fn choosing_multisig_from_a_closed_kind_closes_quorum_on_its_default_too() {
     assert_eq!(c.kind, NewKind::Multi);
     assert_eq!(c.m, 2, "2 of 3 default");
     assert_eq!(c.n, 3);
-    assert!(c.done[cstep::QUORUM as usize]);
-    assert_eq!(c.open, Some(cstep::KEYS), "the flow opens on Keys");
+    assert!(!c.done[cstep::QUORUM as usize]);
+    assert_eq!(c.open, Some(cstep::KIND), "the flow opens on Kind");
 }
 
 /// A single-key wallet made from Create over a key typed in, stopped on
@@ -110,6 +139,7 @@ fn made() -> (Faraday, usize) {
     }
     app.press(Action::EntryAdd);
     app.press(Action::CreateWallet);
+    app.press(Action::CNext(cstep::KIND)); // single key, the default: opens Keys
     let fp = app.session.keys[0].master.fingerprint().0;
     app.press(Action::CSlotHere(0, fp));
     app.press(Action::CNext(cstep::KEYS));
@@ -167,4 +197,61 @@ fn back_from_the_backup_returns_to_the_wallet_card() {
     app.press(Action::OpenWallet(built));
     assert_eq!(app.screen, Screen::Wallets);
     assert_eq!(app.wallet, built, "on the wallet just made");
+}
+
+#[test]
+fn checks_address_rows_are_named_the_wallets_first_addresses() {
+    let (mut app, _) = made();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "The wallet's first addresses"),
+        "Check names whose addresses the rows are: {texts:?}"
+    );
+}
+
+/// A 2-of-3 multisig, Create opened on Kind and advanced to Keys.
+fn multisig_on_keys() -> Faraday {
+    let mut app = testkit::started();
+    add_key(&mut app, "bacon");
+    add_key(&mut app, "zebra");
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(multi_index()));
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CNext(cstep::QUORUM)); // 2 of 3, the default
+    app
+}
+
+#[test]
+fn a_key_in_one_slot_is_offered_in_no_other_and_clearing_offers_it_again() {
+    let mut app = multisig_on_keys();
+    let fp = app.session.keys[0].master.fingerprint().0;
+    app.press(Action::CSlotHere(0, fp));
+    let _ = app.frame();
+    assert!(
+        !app.offers(Action::CSlotHere(1, fp)),
+        "Key 1's key is not offered for Key 2"
+    );
+    app.press(Action::CSlotClear(0));
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::CSlotHere(1, fp)),
+        "Clear on Key 1 offers it again"
+    );
+}
+
+#[test]
+fn the_keys_foot_button_opens_new_key_for_the_first_empty_slot() {
+    let mut app = multisig_on_keys();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "New key for Key 1"),
+        "the foot button names the first empty slot: {texts:?}"
+    );
+    let fp = app.session.keys[0].master.fingerprint().0;
+    app.press(Action::CSlotHere(0, fp));
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "New key for Key 2"),
+        "the foot button moves to the next empty slot: {texts:?}"
+    );
 }

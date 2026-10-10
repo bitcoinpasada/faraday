@@ -265,15 +265,15 @@ const MARK: &str = include_str!("../../image/overlay/common/faraday-mark.txt");
 pub enum Theme {
     /// Light text on a dark page: the prototype's palette.
     Dark,
-    /// Dark text on a light page.
+    /// Dark text on a light page. The theme a first start is in, on
+    /// every shell.
+    #[default]
     Light,
     /// Arctic Ice Studio's Nord: grey-blue, with its frost accent.
     Nord,
     /// Catppuccin Mocha: deep violet-grey, with its mauve accent.
     Catppuccin,
-    /// Tokyo Night: ink blue, with its blue accent. The theme a first
-    /// start is in, on every shell.
-    #[default]
+    /// Tokyo Night: ink blue, with its blue accent.
     TokyoNight,
     /// Gruvbox dark: warm brown-grey, with its yellow accent.
     Gruvbox,

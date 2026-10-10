@@ -279,6 +279,37 @@ to get it.
     Backups once a wallet is known (below, "Backups"). A paper place is
     checked only once a check of that copy matched here: one check, one
     copy.
+32. **Light is the default theme** (owner, 2026-10-10;
+    `docs/NEW-WALLET.md` §1.1). A device with no settings saved starts
+    in `Theme::Light`, not Tokyo Night.
+33. **No bar for a test network** (owner, 2026-10-10;
+    `docs/NEW-WALLET.md` §1.2). The 4-point `WARN` fill along the top on
+    a test network is gone, in the main area and in the sidebar; the
+    pill alone marks it.
+34. **Create a wallet and New key open on their first step** (owner,
+    2026-10-10; `docs/NEW-WALLET.md` §2.1, reversing decision 16 for
+    these two flows only; Sign, Back up and Create a vault keep it).
+    Create opens with Kind open, whatever opened it — Wallets, Home, or
+    a Tools tile with its kind already ticked; Kind's Continue closes it
+    as done and opens the next card. New key opens with Length open;
+    Length gains a Continue that takes the count shown and opens
+    Randomness (pressing a count does so already); Randomness's
+    Continue opens the entry card as now. A card with a default and not
+    open still shows its value and **Change**.
+35. **A key in one slot is offered in no other** (owner, 2026-10-10;
+    `docs/NEW-WALLET.md` §2.2). On the Keys card, a key loaded here
+    that fills one slot, or a cosigner's file whose key fills one slot,
+    is not offered for any other slot; clearing the slot offers it
+    again.
+36. **The Keys card's foot button opens the next empty slot** (owner,
+    2026-10-10; `docs/NEW-WALLET.md` §2.3). While a slot is empty, the
+    button at the foot of Keys reads **New key for Key N** (**Share N**
+    on a threshold wallet), N the first empty slot, and opens New key
+    for it; once no slot is empty it reads **Continue**, as now.
+37. **Check names whose addresses they are** (owner, 2026-10-10;
+    `docs/NEW-WALLET.md` §2.4). On Create's Check, a section label **The
+    wallet's first addresses** sits above the address rows, so that a
+    multisig's three rows do not read as one address per key.
 
 ## Home
 

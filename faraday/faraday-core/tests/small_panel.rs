@@ -121,18 +121,18 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     tap(&mut app, Action::Nav(Screen::Start));
     tap(&mut app, Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
-    // Kind already defaults to single key, closed with Change: the flow
-    // opens on Keys.
+    // Create opens on Kind (`docs/NEW-WALLET.md` §2.1); single key is
+    // the default, so Continue reaches Keys straight away.
+    tap(&mut app, Action::CNext(faraday_core::cstep::KIND));
     tap(&mut app, Action::KeyGen(Some(0)));
     assert_eq!(app.screen, Screen::KeyGen);
-    // Length (12 words) and Randomness (dice, by words) are already the
-    // defaults, closed with Change: the page carries each at its head, and
-    // Randomness's Change opens it, to choose dice hashed instead.
-    tap(&mut app, Action::KStep(faraday_core::keygen::kstep::SOURCE));
+    // New key opens on Length too; its Continue (12 words, the default)
+    // opens Randomness.
+    tap(&mut app, Action::KWords(12));
     assert_eq!(
         app.keygen.as_ref().and_then(|k| k.open),
         Some(faraday_core::keygen::kstep::SOURCE),
-        "Change opens Randomness"
+        "Length's Continue opens Randomness"
     );
     // Dice hashed into the words: its group opened first.
     tap(&mut app, Action::KGroup(Group::Computed as u8));
@@ -271,9 +271,8 @@ fn forward_in_view(mut app: Faraday, h: u16) {
     tap(&mut app, Action::Nav(Screen::Home));
     tap(&mut app, Action::Nav(Screen::Start));
     tap(&mut app, Action::CreateWallet);
-    // Kind defaults to single key and opens closed: its Change, at the
-    // head of the Keys page, opens it.
-    tap(&mut app, Action::CStep(faraday_core::cstep::KIND));
+    // Create opens on Kind (`docs/NEW-WALLET.md` §2.1): it is already
+    // open, nothing to tap to reach it.
     // Taproot (kind 1) is behind More kinds now; the two always-shown
     // rows are Single key (0) and Multisig (4).
     tap(&mut app, Action::CMoreKinds);
@@ -286,8 +285,9 @@ fn forward_in_view(mut app: Faraday, h: u16) {
     }
 }
 
-/// A card closed on its default is reached from the page that opens:
-/// Create a wallet opens on Keys, whose head carries Kind with Change.
+/// Create opens on Kind; its own Continue, with the single-key default,
+/// closes it as done and opens Keys, whose head then carries Kind with
+/// Change (`docs/NEW-WALLET.md` §2.1).
 #[test]
 fn kind_is_offered_on_the_keys_page_and_opens() {
     let mut app = panel();
@@ -295,8 +295,14 @@ fn kind_is_offered_on_the_keys_page_and_opens() {
     tap(&mut app, Action::CreateWallet);
     assert_eq!(
         app.create.as_ref().and_then(|c| c.open),
+        Some(faraday_core::cstep::KIND),
+        "Create opens on Kind"
+    );
+    tap(&mut app, Action::CNext(faraday_core::cstep::KIND));
+    assert_eq!(
+        app.create.as_ref().and_then(|c| c.open),
         Some(faraday_core::cstep::KEYS),
-        "it opens on Keys"
+        "Continue opens Keys"
     );
     let kind = Action::CStep(faraday_core::cstep::KIND);
     assert!(
@@ -318,18 +324,18 @@ fn the_page_title_shows_the_steps() {
     let mut app = panel();
     tap(&mut app, Action::Nav(Screen::Start));
     tap(&mut app, Action::CreateWallet);
-    let keys = Action::CStep(faraday_core::cstep::KEYS);
-    tap(&mut app, keys);
+    let kind = Action::CStep(faraday_core::cstep::KIND);
+    tap(&mut app, kind);
     assert_eq!(app.create.as_ref().and_then(|c| c.open), None);
     let back_up = Action::CStep(faraday_core::cstep::BACKUP);
     assert!(
         on_panel(&mut app, back_up).is_some(),
         "every step is listed"
     );
-    tap(&mut app, keys);
+    tap(&mut app, kind);
     assert_eq!(
         app.create.as_ref().and_then(|c| c.open),
-        Some(faraday_core::cstep::KEYS)
+        Some(faraday_core::cstep::KIND)
     );
 }
 

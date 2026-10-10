@@ -211,6 +211,19 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     let used = length_counts(k, ui, x, cy, w);
     cy += used;
+    if !k.slip39 {
+        cy += 4.0;
+        if next_button(
+            ui,
+            x,
+            cy,
+            w.min(760.0),
+            "Continue",
+            Action::KWords(k.words as u8),
+        ) {
+            cy += 52.0;
+        }
+    }
     if k.slip39 {
         for (label, value, minus, plus) in [
             (

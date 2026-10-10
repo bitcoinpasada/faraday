@@ -253,16 +253,27 @@ secret nonce unencrypted, with the vault's encryption.
 | Recovery | Kind → Primary keys → **Recovery paths** (up to three, each with keys and a timelock) → Check → Back up |
 
 Create's cards are Kind · Quorum · Keys · Check · Back up (2026-10-10,
-`docs/SIMPLIFY.md` §2.3). Keys' Continue makes the wallet and opens
-Check; there is no card of its own for the descriptor. Check shows the
+`docs/SIMPLIFY.md` §2.3). Create opens with Kind open, whatever opened
+it — Wallets, Home, or a Tools tile with its kind already ticked
+(2026-10-10, `docs/NEW-WALLET.md` §2.1, reversing `SIMPLIFY.md` §2.1 for
+this flow only); Kind's Continue closes it as done and opens the next
+card. Keys' Continue makes the wallet and opens Check; there is no card
+of its own for the descriptor. On the Keys card, a key chosen for one
+slot — loaded here, or a cosigner's file — is not offered for any other
+slot, until the slot is cleared (`docs/NEW-WALLET.md` §2.2); its foot
+button reads **New key for Key N** (**Share N** on a threshold wallet)
+while a slot is still empty, N the first one, and opens New key for it,
+else **Continue** (`docs/NEW-WALLET.md` §2.3). Check shows the
 descriptor as a summary row ("2 of 3 · native SegWit multisig ·
 9a6a2580, cf0e9805, 048ab54e · #qf45pmyh"), which opens the wallet's code
-with the descriptor's whole text under it, then the first addresses.
-**Back up** is the plan's three presets; each opens Back up a wallet on
-the wallet just made with that preset applied, its chip "Then: Wallets",
-its way back the wallet's card. The seeds and the wallet into a vault,
-the paper and the public files are the checklist's items below, not
-cards of Create.
+with the descriptor's whole text under it, then the first addresses
+under the section label **The wallet's first addresses**
+(`docs/NEW-WALLET.md` §2.4), so a multisig's three rows do not read as
+one per key. **Back up** is the plan's three presets; each opens Back
+up a wallet on the wallet just made with that preset applied, its chip
+"Then: Wallets", its way back the wallet's card. The seeds and the
+wallet into a vault, the paper and the public files are the checklist's
+items below, not cards of Create.
 
 **Backup** is a plan, then a checklist of only what the plan needs
 (2026-10-09, the owner's proposal A; it replaced five fixed cards that

@@ -84,7 +84,6 @@ pub(crate) fn bar(app: &Faraday, ui: &mut Ui, w: f32, back: (&str, Action), name
     ui.text(x, 5.0, 11.0, W::R, MUTED, &label);
     let name = ui.fit(16.0, W::S, name, room);
     ui.text(x, 19.0, 16.0, W::S, TEXT, &name);
-    test_strip(app, ui, w);
     BAR_H
 }
 
@@ -96,7 +95,6 @@ pub(crate) fn flow_bar_tools(app: &Faraday, ui: &mut Ui, w: f32) {
         ui.fill(right, 0.0, w - right, BAR_H - 1.0, 0.0, SIDEBAR);
         tools(app, ui, w);
     }
-    test_strip(app, ui, w);
 }
 
 /// The ? when the page has something in Learn, and the keyboard where
@@ -166,13 +164,6 @@ fn help(ui: &mut Ui, x: f32, y: f32) {
     let tw = ui.measure(14.0, W::S, "?");
     ui.text_mid(x + 15.0 - tw / 2.0, y, 30.0, 14.0, W::S, MUTED, "?");
     ui.hit(x - 6.0, y - 6.0, 42.0, 42.0, Action::Learn);
-}
-
-/// A test network is marked across the top of every page.
-pub(crate) fn test_strip(app: &Faraday, ui: &mut Ui, w: f32) {
-    if !app.session.network().is_mainnet() {
-        ui.fill(0.0, 0.0, w, 3.0, 0.0, WARN);
-    }
 }
 
 /// A page that is not one of the step flows: its bar, then the page
@@ -417,7 +408,6 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     ui.report_scroll(clip, content - view_h);
     ui.c.pop_clip();
 
-    test_strip(app, ui, w);
     ui.fab(w - M, h - M, Icon::Scan, "Scan", Action::Scan);
 }
 

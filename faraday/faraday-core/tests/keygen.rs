@@ -28,12 +28,17 @@ fn pass_quiz(app: &mut Faraday) {
     }
 }
 
-/// The app on Add a key, with New key opened from there.
+/// The app on Add a key, with New key opened from there and carried past
+/// Length and Randomness to the entries, each on its default
+/// (`docs/NEW-WALLET.md` §2.1: New key opens on Length, not the entries).
 fn opened() -> Faraday {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
     assert_eq!(app.screen, Screen::KeyGen);
+    let words = app.keygen.as_ref().unwrap().words as u8;
+    app.press(Action::KWords(words));
+    app.press(Action::KNext);
     app
 }
 
@@ -501,17 +506,42 @@ fn a_key_is_added_only_after_the_quiz_or_skipping_it_twice() {
 }
 
 #[test]
-fn new_key_opens_on_the_entries_and_change_opens_length_keeping_what_follows() {
+fn fresh_new_key_opens_on_length_and_two_continues_reach_the_entries() {
     use faraday_core::keygen::kstep;
-    let mut app = opened();
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Entry(None));
+    app.press(Action::KeyGen(None));
+    let k = app.keygen.as_ref().unwrap();
+    assert_eq!(
+        k.open,
+        Some(kstep::LENGTH),
+        "New key opens on Length (`docs/NEW-WALLET.md` §2.1)"
+    );
+    let words = k.words as u8;
+    let way = k.way();
+    assert!(way.is_some(), "Randomness has a default");
+    app.press(Action::KWords(words));
+    let k = app.keygen.as_ref().unwrap();
+    assert_eq!(
+        k.open,
+        Some(kstep::SOURCE),
+        "Length's Continue takes the count shown and opens Randomness"
+    );
+    app.press(Action::KNext);
     let k = app.keygen.as_ref().unwrap();
     assert_eq!(
         k.open,
         Some(kstep::ENTER),
-        "Length and Randomness have defaults: the flow opens on the entries"
+        "Randomness's Continue opens the entry card"
     );
+}
+
+#[test]
+fn change_opens_length_keeping_what_follows() {
+    use faraday_core::keygen::kstep;
+    let mut app = opened();
+    let k = app.keygen.as_ref().unwrap();
     let way = k.way();
-    assert!(way.is_some(), "Randomness has a default");
     for _ in 0..7 {
         app.press(Action::KRoll(3));
     }

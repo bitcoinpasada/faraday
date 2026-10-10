@@ -44,12 +44,12 @@ fn page_light(app: &mut Faraday, clock: &mut u64) -> u8 {
 fn light_draws_the_page_light_and_dark_turns_it_back() {
     let mut app = shown();
     let mut clock = 1_000;
-    assert!(page_light(&mut app, &mut clock) < 64, "dark at first");
-    assert!(app.offers(Action::Theme(Theme::Light)));
-    app.press(Action::Theme(Theme::Light));
-    assert!(page_light(&mut app, &mut clock) > 192, "light");
+    assert!(page_light(&mut app, &mut clock) > 192, "light at first");
+    assert!(app.offers(Action::Theme(Theme::Dark)));
     app.press(Action::Theme(Theme::Dark));
-    assert!(page_light(&mut app, &mut clock) < 64, "dark again");
+    assert!(page_light(&mut app, &mut clock) < 64, "dark");
+    app.press(Action::Theme(Theme::Light));
+    assert!(page_light(&mut app, &mut clock) > 192, "light again");
 }
 
 #[test]

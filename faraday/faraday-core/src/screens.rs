@@ -74,9 +74,6 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
         notices(app, ui, x, cw, h);
         ui.ox = 0.0;
         ui.oy = 0.0;
-        if !app.session.network().is_mainnet() {
-            ui.fill(SIDEBAR_W, 0.0, full_w - SIDEBAR_W, 4.0, 0.0, WARN);
-        }
     }
     let (w, h) = (full_w, full_h);
     if let Some(sheet) = app.sheet {
@@ -323,8 +320,7 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
     ui.text_mid(58.0, 22.0, 28.0, 17.0, W::S, TEXT, "Faraday");
     let net = app.session.network();
     if !net.is_mainnet() {
-        // A test network is marked on every screen.
-        ui.fill(0.0, 0.0, SIDEBAR_W, 4.0, 0.0, WARN);
+        // A test network is marked on every screen, by the pill alone.
         let label = network_name(net);
         let tw = ui.measure(12.0, W::S, label) + 24.0;
         let tx = SIDEBAR_W - 16.0 - tw;
@@ -7236,18 +7232,19 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             }
         }
         cstep::KEYS => {
-            let key_files: Vec<(usize, String)> = app
+            let key_files: Vec<(usize, String, String)> = app
                 .inbox
                 .iter()
                 .enumerate()
                 // Files with a key for this kind: an account xpub, or a
                 // wallet file that carries account keys (Coldcard's export).
-                .filter(|(_, it)| {
-                    matches!(it.kind, FileKind::Key | FileKind::Wallet)
-                        && crate::create::key_for(c.kind, &String::from_utf8_lossy(&it.bytes))
-                            .is_some()
+                .filter_map(|(i, it)| {
+                    if !matches!(it.kind, FileKind::Key | FileKind::Wallet) {
+                        return None;
+                    }
+                    let text = crate::create::key_for(c.kind, &String::from_utf8_lossy(&it.bytes))?;
+                    Some((i, it.name.clone(), text))
                 })
-                .map(|(i, it)| (i, it.name.clone()))
                 .collect();
             // The way on leads: New key on the first slot still empty,
             // Continue once every slot is filled.
@@ -7289,6 +7286,20 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 };
                 cy += 28.0;
                 if !locked {
+                    // A key chosen for one slot is offered in no other
+                    // (`docs/NEW-WALLET.md` §2.2): clearing the slot
+                    // offers it again.
+                    let used_elsewhere_here = |fp: [u8; 4]| {
+                        c.slots
+                            .iter()
+                            .enumerate()
+                            .any(|(i, s)| i != slot && *s == Source::Here(fp))
+                    };
+                    let used_elsewhere_cosigner = |text: &str| {
+                        c.slots.iter().enumerate().any(|(i, s)| {
+                            i != slot && matches!(s, Source::Cosigner(t) if t == text)
+                        })
+                    };
                     // The choices for the slot, wrapped to the card.
                     let mut row: Vec<(String, Style, Action)> = Vec::new();
                     for k in &app.session.keys {
@@ -7296,6 +7307,9 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                             continue;
                         }
                         let fp = k.master.fingerprint();
+                        if used_elsewhere_here(fp.0) {
+                            continue;
+                        }
                         let on = *src == Source::Here(fp.0);
                         row.push((
                             key_line(fp, &k.label),
@@ -7312,7 +7326,10 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                         },
                         Action::KeyGen(Some(slot as u8)),
                     ));
-                    for (i, name) in key_files.iter().filter(|_| !c.kind.threshold()) {
+                    for (i, name, text) in key_files.iter().filter(|_| !c.kind.threshold()) {
+                        if used_elsewhere_cosigner(text) {
+                            continue;
+                        }
                         row.push((
                             format!("From {name}"),
                             Style::Secondary,
@@ -7391,19 +7408,29 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             if let Some(e) = &c.error {
                 cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 6.0;
             }
-            let bw = ui.measure(14.0, W::S, "Continue") + 36.0;
+            // While a slot is empty, the foot button opens New key for
+            // it; once every slot is filled it reads Continue
+            // (`docs/NEW-WALLET.md` §2.3).
+            let (label, action) = match first_empty {
+                Some(slot) if !locked => (
+                    format!(
+                        "New key for {} {}",
+                        if c.kind.threshold() { "Share" } else { "Key" },
+                        slot + 1
+                    ),
+                    Action::KeyGen(Some(slot as u8)),
+                ),
+                _ => ("Continue".to_string(), Action::CNext(n)),
+            };
+            let bw = ui.measure(14.0, W::S, &label) + 36.0;
             ui.button(
                 x + w - bw,
                 cy,
                 Some(bw),
                 40.0,
-                "Continue",
-                if first_empty.is_some() && !locked {
-                    Style::Secondary
-                } else {
-                    Style::Primary
-                },
-                Action::CNext(n),
+                &label,
+                Style::Primary,
+                action,
             );
             cy += 48.0;
         }
@@ -7412,6 +7439,10 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 // The descriptor as a summary row: tapping it opens the
                 // wallet's code with the descriptor's full text under it.
                 cy += descriptor_row(ui, x, cy, w, wl, Action::QrWallet(c.built.unwrap_or(0)));
+                // So that a multisig's three rows do not read as one
+                // address per key (`docs/NEW-WALLET.md` §2.4).
+                section_label(ui, x, cy, "The wallet's first addresses");
+                cy += 24.0;
                 for (label, change, idx) in [
                     ("Receive 0/0", false, 0),
                     ("Receive 0/1", false, 1),

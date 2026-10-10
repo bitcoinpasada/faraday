@@ -990,9 +990,8 @@ fn run(
     t.sticks(false);
     t.load_kit()?;
     t.press(Action::CreateWallet);
-    // Kind defaults to single key, closed with Change: opened to choose
-    // Multisig instead.
-    t.press(Action::CStep(faraday_core::cstep::KIND));
+    // Create opens on Kind (`docs/NEW-WALLET.md` §2.1): single key is
+    // the default, ticked to Multisig instead.
     t.press(Action::CKind(4));
     t.shot("create-kind")?;
     t.press(Action::CNext(0));
@@ -1556,6 +1555,7 @@ fn run(
             .unwrap_or(0) as u8,
     ));
     t.press(Action::CNext(faraday_core::cstep::KIND));
+    t.press(Action::CNext(faraday_core::cstep::QUORUM));
     t.shot("create-musig")?;
     // Left alone for five minutes with a key loaded: the warning and its
     // countdown.
@@ -2036,8 +2036,8 @@ fn compact_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("entry-foot")?;
     t.press(Action::Nav(Screen::Home));
     t.press(Action::CreateWallet);
-    // Kind defaults to single key, closed with Change.
-    t.press(Action::CStep(cstep::KIND));
+    // Create opens on Kind, single key the default
+    // (`docs/NEW-WALLET.md` §2.1).
     t.shot("create-kind")?;
     t.press(Action::CNext(cstep::KIND));
     t.shot("create-keys")?;
