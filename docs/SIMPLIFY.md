@@ -5,9 +5,10 @@ rulings from handing out §1: later batches own the Home pieces they
 introduce, and "checked" is defined in §2.5 · decided by the owner from a
 user-perspective review of the built app (the snapshot tour at 1280×800
 and 480×640, `docs/FLOWS.md`, `docs/WALLETS.md`, the Home, Wallets,
-Create, Backup, Vault and Sign code). Not built. An implementing agent
-reads this file, `CLAUDE.md` and the docs each item names, and nothing
-else is needed to start.
+Create, Backup, Vault and Sign code). Built 2026-10-10, §1 to §6, one
+commit per batch; §3.5 was built with §4, after §4.3. Where the build
+and this file differ, `docs/FLOWS.md` and the code
+are the record.
 
 The problem it solves: the flows are sound and none ends on a dead end,
 but the everyday surfaces are cluttered. Home and Wallets both try to be
