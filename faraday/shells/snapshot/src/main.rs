@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|fromvault]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -321,8 +321,14 @@ impl Tour {
     }
 
     fn shot(&mut self, name: &str) -> Result<(), String> {
+        self.shot_after(name, 4000)
+    }
+
+    /// [`Tour::shot`] with `ms` passing first: none, for a toast that
+    /// has just come up.
+    fn shot_after(&mut self, name: &str, ms: u64) -> Result<(), String> {
         self.pump();
-        self.now += 4000;
+        self.now += ms;
         self.app.event(Event::Tick { now_ms: self.now });
         // A frame that asked for another (a scroll to the open step) is
         // drawn twice, as a shell would.
@@ -406,6 +412,7 @@ fn run(
         Some("transfer") => return transfer_tour(&mut t),
         Some("upgrade") => return upgrade_tour(&mut t),
         Some("glance") => return glance_tour(&mut t),
+        Some("fromvault") => return from_vault_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -1688,9 +1695,9 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     if t.app.vaults.open.len() != 1
         || t.app.import.is_some()
         || t.app.sheet.is_some()
-        || t.app.screen != Screen::Home
+        || t.app.screen != Screen::Wallets
     {
-        return Err("unlocking on the import sheet did not import and close on Home".into());
+        return Err("unlocking on the import sheet did not import and land on Wallets".into());
     }
     if t.app.session.wallets.len() < 12 || t.app.session.keys.is_empty() {
         return Err(format!(
@@ -3213,6 +3220,76 @@ fn themes_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// From the vault to a spend (`docs/NEW-WALLET.md` §11): the boot
+/// stick's vault unlocked after the pull lands on Wallets with a toast;
+/// a wallet's card leads with Spend from this wallet, which opens the
+/// Spend tab on Load the wallet in Sparrow with the shortcut; a 2-of-3
+/// with one key here, its PSBT in Files, reaches Signers with Add a key
+/// here and Collect a signature.
+fn from_vault_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::boot_import::ImportAction as I;
+    use faraday_core::family::{FamilyAction as F, page};
+    t.press(Action::Lock);
+    // The vault and the one PSBT Sparrow wrote, for Savings; no seed
+    // beside them, so Savings has only the vault's key here.
+    let mut boot = t.stick();
+    boot.boot = true;
+    boot.label = "FARADAY".into();
+    boot.files
+        .retain(|(n, _)| n == "vault.ofv" || n == "savings-unsigned.psbt");
+    t.app.storage(StorageEvent::Sticks(vec![boot]));
+    t.pump();
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.vaults.ms_per_unit = Some(180);
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    t.press(Action::Vault(V::FocusPassphrase));
+    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    t.press(Action::Import(I::Submit));
+    t.tick();
+    if t.app.screen != Screen::Wallets {
+        return Err(format!("the unlock landed on {:?}", t.app.screen));
+    }
+    t.shot_after("vault-landing", 0)?;
+    let at = |t: &Tour, name: &str| {
+        t.app
+            .session
+            .wallets
+            .iter()
+            .position(|w| w.name == name)
+            .ok_or_else(|| format!("{name} is not loaded"))
+    };
+    let spending = at(t, "Spending")?;
+    t.press(Action::OpenWallet(spending));
+    t.shot("vault-card-spend")?;
+    t.press(Action::Family(F::SpendFrom(spending)));
+    t.shot("vault-spend-first")?;
+    t.press(Action::Family(F::Next(page::CHECK)));
+    t.shot("vault-spend-write")?;
+    // A wallet of several keys with fewer here than sign, and its PSBT.
+    let short = (0..t.app.session.wallets.len()).find(|&w| {
+        let wl = &t.app.session.wallets[w];
+        let here = t
+            .app
+            .session
+            .slots(wl)
+            .iter()
+            .filter(|s| s.held_by.is_some())
+            .count();
+        here < faraday_core::wallet::needed(wl) && t.app.psbt_for(w).is_some()
+    });
+    let Some(short) = short else {
+        return Err("no wallet short of keys has its PSBT in Files".into());
+    };
+    t.press(Action::OpenWallet(short));
+    t.shot("vault-card-sign")?;
+    t.press(Action::Family(F::SpendFrom(short)));
+    t.press(Action::Step(faraday_core::wallet::step::SIGNERS));
+    t.shot("vault-spend-signers")
+}
+
 fn spend_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::family::{FamilyAction as F, Route, page};
     let fam = |a: F| Action::Family(a);
@@ -3613,7 +3690,7 @@ fn main() -> ExitCode {
     };
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance]"
+            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|fromvault]"
         );
         return ExitCode::from(2);
     }
@@ -3643,14 +3720,30 @@ fn main() -> ExitCode {
     let only = args.get(4).map(String::as_str);
     if only.is_some_and(|m| {
         ![
-            "spend", "themes", "compact", "seeds", "keys", "visit", "copy", "scan", "public",
-            "seedfile", "vaultway", "kept", "again", "plan", "inbox", "transfer", "upgrade",
+            "spend",
+            "themes",
+            "compact",
+            "seeds",
+            "keys",
+            "visit",
+            "copy",
+            "scan",
+            "public",
+            "seedfile",
+            "vaultway",
+            "kept",
+            "again",
+            "plan",
+            "inbox",
+            "transfer",
+            "upgrade",
             "glance",
+            "fromvault",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade or glance"
+            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance or fromvault"
         );
         return ExitCode::from(2);
     }

@@ -161,6 +161,10 @@ pub struct FamilyState {
     /// The seeds typed on the words route, and the wallet of several
     /// keys they make (`seeds.rs`).
     pub seeds: crate::seeds::SeedsState,
+    /// Entered on a wallet already open, by Spend from this wallet
+    /// (`docs/NEW-WALLET.md` §11.2): the column starts at Load the
+    /// wallet in Sparrow, and Write the payment brings the PSBT itself.
+    pub from_card: bool,
 }
 
 /// The single-key wallets typed words may open, the most common first.
@@ -191,6 +195,60 @@ impl Faraday {
             && (!self.session.keys.is_empty() || !self.session.wallets.is_empty())
     }
 
+    /// The PSBT in Files that spends from wallet `w`: of several, the
+    /// one with the fewest signatures, so a cosigner's signed copy never
+    /// stands in for the transaction.
+    pub fn psbt_for(&self, w: usize) -> Option<usize> {
+        self.inbox
+            .iter()
+            .enumerate()
+            .filter(|(_, it)| it.kind == FileKind::Psbt)
+            .filter_map(|(k, it)| {
+                let p = crate::wallet::read_psbt(&it.bytes)?;
+                (self.session.wallet_for(&p) == Some(w)).then(|| {
+                    let sigs: usize = p.inner().inputs.iter().map(|i| i.partial_sigs.len()).sum();
+                    (sigs, k)
+                })
+            })
+            .min()
+            .map(|(_, k)| k)
+    }
+
+    /// The spend under way, resumed where it was: on the Spend tab when it
+    /// went through it, else on Wallets' Sign.
+    pub fn carry_on(&self) -> Action {
+        let on_tab = self
+            .spend
+            .as_ref()
+            .and_then(|s| s.wallet)
+            .filter(|&w| self.family.route.is_some() && self.family_wallet() == Some(w));
+        match on_tab {
+            Some(w) => Action::Family(FamilyAction::SpendFrom(w)),
+            None => Action::Nav(Screen::Spend),
+        }
+    }
+
+    /// The wallet card's first button (`docs/NEW-WALLET.md` §11.2):
+    /// carry on this wallet's spend, sign its PSBT in Files, or spend from
+    /// it.
+    pub fn spend_button(&self, w: usize) -> (String, Action) {
+        if let Some(s) = self.spend.as_ref().filter(|s| s.wallet == Some(w)) {
+            return (
+                format!(
+                    "Carry on the spend · Signatures {} of {}",
+                    s.signers.len(),
+                    self.spend_needed()
+                ),
+                self.carry_on(),
+            );
+        }
+        let label = match self.psbt_for(w) {
+            Some(_) => format!("Sign the PSBT from the {}", self.medium.noun()),
+            None => "Spend from this wallet".to_string(),
+        };
+        (label, Action::Family(FamilyAction::SpendFrom(w)))
+    }
+
     /// The wallet chosen to spend from, by its place in the session.
     pub fn family_wallet(&self) -> Option<usize> {
         let name = self.family.wallet.as_deref()?;
@@ -204,6 +262,22 @@ impl Faraday {
 
     /// Whether a page is done.
     pub fn family_page_done(&self, p: u8) -> bool {
+        if self.family.from_card {
+            match p {
+                // Loaded in Sparrow: said so here, or the wallet checked
+                // this power-on.
+                page::CHECK => {
+                    return self.family_ready()
+                        && (self.family.closed[p as usize]
+                            || self.family_wallet().is_some_and(|i| {
+                                self.is_checked(&self.session.wallets[i].policy.checksum())
+                            }));
+                }
+                // Write the payment ends with the PSBT here.
+                page::WRITE => return self.spend.is_some(),
+                _ => {}
+            }
+        }
         match p {
             page::HOLDING => self.family.route.is_some(),
             page::OPEN => self.family_ready(),
@@ -218,7 +292,7 @@ impl Faraday {
     /// the spend's own steps (named ahead of time until there is one),
     /// then putting everything away.
     pub fn family_cards(&self) -> Vec<CardId> {
-        let mut v: Vec<CardId> = (0..=page::BRING).map(CardId::Page).collect();
+        let mut v: Vec<CardId> = self.family_pages().into_iter().map(CardId::Page).collect();
         match self.spend.as_ref() {
             Some(s) => v.extend(
                 s.steps
@@ -233,6 +307,26 @@ impl Faraday {
         v
     }
 
+    /// The tab's pages before the spend's steps. From a wallet's card
+    /// the wallet is open already: Load the wallet in Sparrow, then Write
+    /// the payment, which brings the PSBT too.
+    pub fn family_pages(&self) -> Vec<u8> {
+        if self.family.from_card {
+            vec![page::CHECK, page::WRITE]
+        } else {
+            (0..=page::BRING).collect()
+        }
+    }
+
+    /// The page that brings the transaction here.
+    pub fn family_bring_page(&self) -> u8 {
+        if self.family.from_card {
+            page::WRITE
+        } else {
+            page::BRING
+        }
+    }
+
     /// The card open now.
     pub fn family_open_card(&self) -> Option<CardId> {
         match self.family.open? {
@@ -245,7 +339,11 @@ impl Faraday {
     /// next step, or the last page. A page skipped before it stays where
     /// it is.
     fn family_first_open(&mut self, from: u8) -> Open {
-        if let Some(p) = (from + 1..=page::BRING).find(|&p| !self.family_page_done(p)) {
+        let pages = self.family_pages();
+        if let Some(p) = pages
+            .into_iter()
+            .find(|&p| p > from && !self.family_page_done(p))
+        {
             return Open::Page(p);
         }
         match self.spend.as_mut() {
@@ -274,6 +372,10 @@ impl Faraday {
     pub(crate) fn family_settle(&mut self) {
         self.family_auto_wallet();
         let ready = self.family_ready();
+        // The wallet the card opened on is gone: the whole column again.
+        if self.family.from_card && !ready {
+            self.family.from_card = false;
+        }
         let open = match self.family.open {
             Some(Open::Page(p))
                 if p > page::HOLDING && p != page::AWAY && self.family.route.is_none() =>
@@ -283,9 +385,11 @@ impl Faraday {
             Some(Open::Page(p)) if p > page::OPEN && p != page::AWAY && !ready => {
                 Some(Open::Page(page::OPEN))
             }
-            Some(Open::Spend) if self.spend.is_none() => {
-                Some(Open::Page(if ready { page::BRING } else { page::OPEN }))
-            }
+            Some(Open::Spend) if self.spend.is_none() => Some(Open::Page(if ready {
+                self.family_bring_page()
+            } else {
+                page::OPEN
+            })),
             o => o,
         };
         if open != self.family.open {
@@ -314,8 +418,9 @@ impl Faraday {
                     *c = true;
                 }
                 // "It matches": this wallet is checked this power-on
-                // (`docs/WALLETS.md` §4).
+                // (`docs/WALLETS.md` §4). "It is loaded" says less.
                 if p == page::CHECK
+                    && !self.family.from_card
                     && let Some(w) = self.family_wallet()
                     && let Some(wallet) = self.session.wallets.get(w)
                 {
@@ -325,6 +430,7 @@ impl Faraday {
                 self.family_advance(p);
             }
             F::Holding(r) => {
+                self.family.from_card = false;
                 self.family.route = Some(r);
                 self.family.help = false;
                 self.family.open = Some(Open::Page(page::OPEN));
@@ -376,8 +482,23 @@ impl Faraday {
                 let Some(w) = self.session.wallets.get(i) else {
                     return;
                 };
+                // Another wallet's pages said nothing of this one.
+                if self.family.wallet.as_deref() != Some(w.name.as_str()) {
+                    self.family.closed[page::CHECK as usize] = false;
+                    self.family.closed[page::WRITE as usize] = false;
+                    self.family.addresses = 0;
+                }
+                // Another wallet's spend gives way, as a new Sign does;
+                // its PSBT stays in Files.
+                if self.spend.as_ref().is_some_and(|s| s.wallet != Some(i)) {
+                    self.spend = None;
+                }
+                let w = &self.session.wallets[i];
                 self.family.wallet = Some(w.name.clone());
                 self.wallet = i;
+                self.family.from_card = true;
+                self.family.help = false;
+                self.screen = Screen::Family;
                 self.family.route = Some(match w.source.as_str() {
                     WORDS_SOURCE | crate::seeds::SOURCE => Route::Words,
                     "Vault" => Route::Vault,
@@ -388,12 +509,7 @@ impl Faraday {
                 self.family.closed[page::MAP as usize] = true;
                 self.family.closed[page::SAFE as usize] = true;
                 self.family.walkthrough = true;
-                let psbt = self.inbox.iter().position(|it| {
-                    it.kind == FileKind::Psbt
-                        && crate::wallet::read_psbt(&it.bytes)
-                            .and_then(|p| self.session.wallet_for(&p))
-                            == Some(i)
-                });
+                let psbt = self.psbt_for(i);
                 match (self.spend.as_ref().map(|s| s.wallet), psbt) {
                     (Some(Some(w)), _) if w == i => self.family.open = Some(Open::Spend),
                     (_, Some(k)) if self.spend.is_none() => self.family_use_psbt(k),
@@ -403,10 +519,12 @@ impl Faraday {
             }
             F::Walkthrough => {
                 self.family.walkthrough = true;
+                self.family.from_card = false;
                 self.family.open = Some(Open::Page(page::MAP));
                 self.family.scroll = Default::default();
             }
             F::SeedWallet => {
+                self.family.from_card = false;
                 self.family.route = Some(Route::Words);
                 self.family.walkthrough = true;
                 self.family.closed[page::MAP as usize] = true;
@@ -760,6 +878,9 @@ impl Faraday {
         if let Some(w) = &self.family.wallet {
             text.push_str(&format!("wallet={}\n", w.replace('\n', " ")));
         }
+        if self.family.from_card {
+            text.push_str("card=1\n");
+        }
         Some(text.into_bytes())
     }
 
@@ -787,6 +908,7 @@ impl Faraday {
                     }
                 }
                 Some(("wallet", v)) if !v.is_empty() => f.wallet = Some(v.to_string()),
+                Some(("card", v)) => f.from_card = v == "1",
                 _ => {}
             }
         }
@@ -811,10 +933,10 @@ pub fn kind_name(kind: NewKind) -> &'static str {
 }
 
 /// The action a card's header press takes.
-pub fn toggle(id: CardId) -> Action {
+pub fn toggle(app: &Faraday, id: CardId) -> Action {
     match id {
         CardId::Page(p) => Action::Family(FamilyAction::Card(p)),
         CardId::Step(n) => Action::Step(n),
-        CardId::Later(_) => Action::Family(FamilyAction::Card(page::BRING)),
+        CardId::Later(_) => Action::Family(FamilyAction::Card(app.family_bring_page())),
     }
 }

@@ -385,6 +385,29 @@ to get it.
     wallet with no plan in this vault: its wallet and key nodes, and "No
     backup plan in this vault". On a small panel the item's page stacks
     the same nodes in that order, with no lines.
+43. **From the vault to a spend** (owner, 2026-10-10;
+    `docs/NEW-WALLET.md` §11, decision 13). The boot sheet's Unlock that
+    loads wallets lands on Wallets, on the first loaded wallet with a key
+    here (else the first loaded), with the toast "Savings loaded from
+    vault.ofv" or "12 wallets loaded from vault.ofv" (the stick's label
+    when the stick's own files brought some). The Vaults list's Unlock
+    still loads nothing until Load (it lands on Files); an unlock from
+    inside a flow returns to it. The wallet card's first button, primary,
+    is **Spend from this wallet**; **Sign the PSBT from the stick** with
+    a PSBT for this wallet in Files, which opens its review at once;
+    **Carry on the spend · Signatures 1 of 2** while this wallet's spend
+    is under way, as Home's lead says too. It opens the Spend tab on the
+    wallet, past What are you holding? and Open the wallet: **Load the
+    wallet in Sparrow** (the wallet QR, receive address 0, **It is
+    loaded**; done already for a wallet checked this power-on) with **I
+    have the PSBT from Sparrow ready: Scan it** over it, then **Write the
+    payment in Sparrow** (**Scan the PSBT**, **On a stick**, this
+    wallet's PSBTs in Files), then the spend's steps unchanged. Who signs,
+    with fewer keys here than sign, adds **Add a key here** over its
+    SeedQR and Unlock buttons and **Collect a signature**, which opens
+    The other signatures. On a small panel the card's spend button sits
+    under the signatures box, and the shortcut is its line and **Scan
+    it**.
 
 ## Home
 
@@ -419,8 +442,10 @@ card to continue") → the moment no removable partition remains (decision
 27):
 - one vault from the medium → its passphrase field on the sheet →
   **Unlock** → everything imported (the vault's wallets and keys, the
-  stick's wallets, keys and files but a secret's file) → Home, which
-  leads by its ranking; a wrong passphrase → stays, says so;
+  stick's wallets, keys and files but a secret's file) → Wallets, on the
+  first wallet loaded that can sign here, with "Savings loaded from
+  vault.ofv" (decision 43; Home, leading by its ranking, when no wallet
+  loaded); a wrong passphrase → stays, says so;
 - several vaults → **Unlock** on each row opens the field under it; one
   unlocked imports everything; the others stay locked in Files;
 - **Choose what to import** → the wallets found, once each, ticked, each
@@ -736,8 +761,12 @@ guarantees for this file's rule:
 Spend left the sidebar and the small Home grid (`docs/SIMPLIFY.md`
 §6.2, 2026-10-10); it is reached from the Wallets empty state's
 **Spend from a backup, step by step**, the Learn sheet's first row
-**Spending, step by step**, and Home's lead when a spend is under way.
-The tab's own screen and steps below are unchanged.
+**Spending, step by step**, Home's lead when a spend is under way, and
+a wallet card's **Spend from this wallet** (decision 43), which opens it
+on that wallet at **Load the wallet in Sparrow**, then **Write the
+payment in Sparrow** (the PSBT by camera or stick), with **I have the
+PSBT from Sparrow ready: Scan it** over the first page. The tab's own
+screen and steps below are unchanged.
 
 Family mode for someone spending for the first time
 (`docs/FAMILY.md`): the map → the stick → **What are you holding?** (a

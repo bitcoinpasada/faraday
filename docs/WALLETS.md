@@ -92,12 +92,19 @@ SeedSigner and a Coldcard. The Wallets tab's central object is therefore a
 - the first receive address, to compare with the online wallet;
 - what is still needed, as one line ("Add 1 more key or collect 1 more
   signature").
+- its first and primary button, from the vault to a spend
+  (`docs/NEW-WALLET.md` §11.2, 2026-10-10): **Spend from this wallet**,
+  which opens the Spend tab on it at **Load the wallet in Sparrow**;
+  **Sign the PSBT from the stick** with a PSBT for this wallet in Files,
+  which opens its review; **Carry on the spend · Signatures 1 of 2**
+  while this wallet's spend is under way, which resumes it where it
+  was.
 
 **Every way in leads to the same card:**
 
 | Starting from | What happens |
 |---|---|
-| **A vault holding a wallet and one of its keys** | At unlock the wallet loads into the Wallets tab with its key attached. The card opens at "1 of 2 signatures possible here." Nothing to do. |
+| **A vault holding a wallet and one of its keys** | At unlock the wallet loads into the Wallets tab with its key attached. The card opens at "1 of 2 signatures possible here." Nothing to do. The boot sheet's Unlock lands on Wallets with "Savings loaded from vault.ofv", the first wallet loaded that can sign here selected (`docs/NEW-WALLET.md` §11.1). |
 | **A key with no wallet** (from a vault, or added on its own) | Listed under **Keys without a wallet**. With no wallet loaded the card offers **Make a wallet from this key** (Restore's seeds card with the key in, at 1 of 1, native SegWit, account 0), **Add another key** (the same at 2 keys) and **Load or restore a wallet**; with wallets loaded the key's row carries **Make a wallet from this key**. |
 | **A wallet description arriving** (scan, file, Files; any form in §3.2) | The Wallets tab derives each vault key's account key at the descriptor's paths and compares, attaches every match, and marks the rest watch-only. "This wallet uses 73c5da0a from Main" says which matched. **Save the wallet to a vault** is offered. |
 | **Pieces of a description** (split sheets, key lines, a partial config, SeedSigner exports one at a time) | The card exists from the first piece, with the quorum unknown or stated, and lists fingerprints in hand and still missing. It completes when the last piece arrives. Overlapping pieces deduplicate. |

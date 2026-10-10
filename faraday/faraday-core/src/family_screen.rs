@@ -46,21 +46,30 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             done: done(app, id),
             open: open == Some(id),
             default: false,
-            toggle: crate::family::toggle(id),
+            toggle: crate::family::toggle(app, id),
             guide: Some(text::lead(app, id)).filter(|s| !s.is_empty()),
         })
         .collect();
+    // From a wallet's card: the wallet's name, and no word on the
+    // walk-through.
+    let from = app
+        .family_wallet()
+        .filter(|_| app.family.from_card)
+        .map(|i| format!("Spend from {}", app.session.wallets[i].name));
     let col = flow::Column {
         area_x: x0,
         area_w: cw,
         x: col_x,
         w: col_w,
         h,
-        back: None,
-        heading: "Spend",
+        back: app
+            .family_wallet()
+            .filter(|_| app.family.from_card)
+            .map(|i| ("Wallets", Action::OpenWallet(i))),
+        heading: from.as_deref().unwrap_or("Spend"),
         guided: true,
         switch: false,
-        note: Some(
+        note: from.is_none().then_some(
             "This page takes someone spending for the first time through every step. With a \
              wallet or a seed already loaded, Spend opens on a shorter page instead: what is \
              loaded and what each wallet needs next.",
@@ -539,7 +548,17 @@ fn summary(app: &Faraday, id: CardId) -> String {
                 None => "Not open yet".to_string(),
             };
         }
+        CardId::Page(page::CHECK) if app.family.from_card && app.family_page_done(page::CHECK) => {
+            "Loaded in Sparrow"
+        }
         CardId::Page(page::CHECK) if app.family_page_done(page::CHECK) => "First address matches",
+        // From the wallet's card Write the payment brings the PSBT too.
+        CardId::Page(page::WRITE) if app.family.from_card => {
+            return match app.spend.as_ref() {
+                Some(s) => format!("Signing {}", s.spend.source),
+                None => String::new(),
+            };
+        }
         CardId::Page(page::WRITE) if app.family_page_done(page::WRITE) => "Done in Sparrow",
         CardId::Page(page::BRING) => {
             return match app.spend.as_ref() {
@@ -579,7 +598,9 @@ fn body(app: &Faraday, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
         }
         CardId::Page(page::HOLDING) => holding(app, ui, x, cy, w),
         CardId::Page(page::OPEN) => open(app, ui, x, cy, w),
+        CardId::Page(page::CHECK) if app.family.from_card => loaded_in_sparrow(app, ui, x, cy, w),
         CardId::Page(page::CHECK) => check(app, ui, x, cy, w),
+        CardId::Page(page::WRITE) if app.family.from_card => bring(app, ui, x, cy, w),
         CardId::Page(page::WRITE) => {
             if next_button(ui, x, cy, w, "I have the PSBT", fa(F::Next(page::WRITE))) {
                 52.0
@@ -1241,6 +1262,79 @@ fn opened(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy + (if drawn { 52.0 } else { 8.0 }) - y
 }
 
+/// The shortcut over a card's first page: the PSBT made in Sparrow
+/// already, scanned at once, which goes to its Check.
+fn shortcut(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    if app.spend.is_some() {
+        return 0.0;
+    }
+    if ui.compact {
+        // Too long for one button on a small panel: the line, then Scan it.
+        let lh = ui.wrap(
+            x,
+            y,
+            w,
+            14.0,
+            W::S,
+            TEXT,
+            "I have the PSBT from Sparrow ready",
+        ) + 8.0;
+        return lh
+            + crate::screens::wrap_buttons(
+                ui,
+                x,
+                y + lh,
+                w,
+                40.0,
+                &[("Scan it", Style::Secondary, Action::Scan)],
+            )
+            + 8.0;
+    }
+    crate::screens::wrap_buttons(
+        ui,
+        x,
+        y,
+        w,
+        40.0,
+        &[(SHORTCUT, Style::Secondary, Action::Scan)],
+    ) + 8.0
+}
+
+/// The shortcut's label.
+pub const SHORTCUT: &str = "I have the PSBT from Sparrow ready: Scan it";
+
+/// Load the wallet in Sparrow, from the wallet's card: the shortcut, the
+/// wallet QR, its first address, It is loaded.
+fn loaded_in_sparrow(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let mut cy = y;
+    let Some(i) = app.family_wallet() else {
+        return 0.0;
+    };
+    cy += shortcut(app, ui, x, cy, w);
+    let wl = &app.session.wallets[i];
+    cy += crate::screens::wrap_buttons(
+        ui,
+        x,
+        cy,
+        w,
+        40.0,
+        &[("Show the wallet QR", Style::Primary, Action::QrWallet(i))],
+    ) + 6.0;
+    ui.text(x, cy, 13.0, W::S, MUTED, "Receive address 0");
+    cy += 22.0;
+    cy += ui.wrap(
+        x,
+        cy,
+        w,
+        13.0,
+        W::M,
+        TEXT,
+        &grouped(&app.session.address_shown(wl, false, 0)),
+    ) + 14.0;
+    let drawn = next_button(ui, x, cy, w, "It is loaded", fa(F::Next(page::CHECK)));
+    cy + (if drawn { 52.0 } else { 8.0 }) - y
+}
+
 /// Check the money: the wallet as a QR code, and its addresses.
 fn check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
@@ -1308,12 +1402,15 @@ fn check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// Bring the transaction: scan it, copy it in, or one already in Files.
 fn bring(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
+    // From the wallet's card this is Write the payment's own: Scan the
+    // PSBT is the shortcut here.
+    let card = app.family.from_card;
     ui.button(
         x,
         cy,
         None,
         40.0,
-        "Scan",
+        if card { "Scan the PSBT" } else { "Scan" },
         if app.spend.is_some() {
             Style::Secondary
         } else {
@@ -1322,13 +1419,25 @@ fn bring(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Action::Scan,
     );
     cy += 52.0;
-    let label = format!("Copy it in from {}", app.medium.a());
+    let label = if card {
+        format!("On {}", app.medium.a())
+    } else {
+        format!("Copy it in from {}", app.medium.a())
+    };
     cy += stick_row(app, ui, x, cy, w, &label);
+    // From the wallet's card, only this wallet's.
+    let wallet = app.family_wallet();
     let psbts: Vec<(usize, &str)> = app
         .inbox
         .iter()
         .enumerate()
         .filter(|(_, i)| i.kind == FileKind::Psbt)
+        .filter(|(_, i)| {
+            !card
+                || crate::wallet::read_psbt(&i.bytes)
+                    .and_then(|p| app.session.wallet_for(&p))
+                    .is_some_and(|w| Some(w) == wallet)
+        })
         .map(|(k, i)| (k, i.name.as_str()))
         .collect();
     if !psbts.is_empty() {
@@ -1487,6 +1596,13 @@ fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             )
         })
         .collect();
+    // Fewer keys here than sign: add one here, or collect a signature
+    // from whoever holds one (`docs/NEW-WALLET.md` §11.2).
+    let short = here < needed;
+    if short {
+        ui.text(x, cy, 13.0, W::S, MUTED, "Add a key here");
+        cy += 24.0;
+    }
     let mut items: Vec<(&str, Style, Action)> = vec![("Scan a SeedQR", style, Action::ScanSeed)];
     items.extend(unlocks.iter().map(|(l, a)| (l.as_str(), style, *a)));
     cy += crate::screens::wrap_buttons(ui, x, cy, w, 38.0, &items) + 2.0;
@@ -1494,6 +1610,21 @@ fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let pull = format!("Remove the {} first", app.medium.noun());
         ui.text(x, cy, 13.0, W::S, WARN, &pull);
         cy += 28.0;
+    }
+    if short && s.steps.contains(&step::COLLECT) {
+        cy += 6.0;
+        cy += crate::screens::wrap_buttons(
+            ui,
+            x,
+            cy,
+            w,
+            38.0,
+            &[(
+                "Collect a signature",
+                Style::Secondary,
+                Action::Step(step::COLLECT),
+            )],
+        ) + 2.0;
     }
     ui.text_mid(
         x,

@@ -51,8 +51,9 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
   (`docs/SIMPLIFY.md` §6.2, 2026-10-10): reached from the Wallets empty
   state's fourth way in, **Spend from a backup, step by step** ("A
   stick, words, or paper"); the Learn sheet's first row, **Spending,
-  step by step**; and Home's lead when a spend started in it is under
-  way. The tab's screen and code are unchanged.
+  step by step**; Home's lead when a spend started in it is under
+  way; and a wallet card's **Spend from this wallet**, which opens it on
+  that wallet past pages 1 to 4 (§7).
 - Each page is a step card (`flow.rs`): one open, the others closed to a
   line saying what was done. A page that does not apply to the route is not
   in the column at all, so numbering closes over it.
@@ -484,3 +485,27 @@ The snapshot tour gains the Family pages at one size.
   a page skipped earlier stays where it is.
 - **Send it** adds **Show the finished transaction as QR** to Wallets'
   Finish step.
+
+## 7. From a wallet already open (2026-10-10, `docs/NEW-WALLET.md` §11)
+
+A wallet card's **Spend from this wallet** (and **Sign the PSBT from
+the stick**, **Carry on the spend**; the Loaded view's **Spend from
+it** too) opens the tab on that wallet, titled "Spend from {wallet}"
+with **Wallets** as its way back and no note. Pages 1 to 4 are not in
+the column; page 5 is **Load the wallet in Sparrow** and pages 6 and 7
+are one page, **Write the payment in Sparrow**:
+
+| Page | Lead | Controls |
+|---|---|---|
+| Load the wallet in Sparrow | In Sparrow: File, New Wallet, then scan the wallet QR. Its first address is receive address 0 here. | **I have the PSBT from Sparrow ready: Scan it** (the camera; once the PSBT reads, its review); **Show the wallet QR** (the descriptor, full text under it); receive address 0; **It is loaded**. Done already for a wallet checked this power-on. |
+| Write the payment in Sparrow | In Sparrow's Send tab: the address, the amount and a fee. Then Create Transaction, Finalize Transaction for Signing and Show QR. | **Scan the PSBT**; **On a stick** (the stick round trip); this wallet's PSBTs in Files. Done once a spend is loaded. |
+
+Then the spend's steps as they are. **Who signs**, with fewer keys here
+than sign, heads its SeedQR and Unlock buttons **Add a key here** and
+adds **Collect a signature**, which opens *The other signatures*. A PSBT
+for this wallet in Files starts the spend at once, on the transaction's
+review. Another wallet's spend gives way to this one, its PSBT staying
+in Files. **It is loaded** does not mark the wallet checked: it says
+Sparrow has the wallet, not that the addresses were compared. On a
+small panel the shortcut is its line and **Scan it**. What the tab
+keeps across a lock includes that it was entered from the card.

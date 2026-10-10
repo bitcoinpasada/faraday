@@ -110,12 +110,15 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
         return;
     }
 
-    // A PSBT waiting leads.
+    // A PSBT waiting leads, unless it is this wallet's: the card's first
+    // button is for that.
     let lead = match app.spend.as_ref() {
+        Some(s) if s.wallet == Some(app.wallet) => None,
         Some(s) => Some((
             format!("Continue signing {}", s.spend.source),
             Action::Nav(Screen::Spend),
         )),
+        None if app.psbt_for(app.wallet).is_some() => None,
         None => app.lead_psbt().map(|i| {
             (
                 format!("Review {}", app.inbox[i].name),
@@ -230,6 +233,17 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
     );
     cy += box_h + 16.0;
 
+    // The first thing to do with it, on the first screen: from the vault
+    // to a spend (`docs/NEW-WALLET.md` §11.2).
+    let (spend_label, spend_action) = app.spend_button(app.wallet);
+    cy += stack(
+        ui,
+        x,
+        cy,
+        iw,
+        &[(spend_label.as_str(), Style::Primary, spend_action)],
+    ) + 4.0;
+
     // The wallet at a glance, as its own page: its keys and its backup.
     let quorum_here =
         slots.iter().filter(|s| s.held_by.is_some()).count() >= crate::wallet::needed(wlt);
@@ -269,22 +283,8 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
     let addr = grouped(&app.session.address_shown(wlt, false, 0));
     cy += ui.wrap(x, cy, iw, 14.0, W::M, TEXT, &addr) + 18.0;
 
-    // What can be done with it.
-    let sign = match app.lead_psbt() {
-        _ if app.spend.is_some() && here > 0 => (
-            "Continue signing",
-            Style::Primary,
-            Action::Nav(Screen::Spend),
-        ),
-        Some(i) if here > 0 => ("Sign a transaction", Style::Primary, Action::StartSpend(i)),
-        _ => (
-            "No PSBT in Files",
-            Style::Disabled,
-            Action::Nav(Screen::Files),
-        ),
-    };
+    // What else can be done with it.
     let mut buttons = vec![
-        sign,
         (
             "Show wallet QR",
             Style::Secondary,

@@ -1933,7 +1933,11 @@ impl Faraday {
                 self.vault_summaries_refresh();
                 if for_import {
                     self.vaults.back_to = None;
+                    let before = self.session.wallets.len();
+                    let label = self.import.as_ref().map(|i| i.label.clone());
                     self.import_go();
+                    let file = self.vaults.open[v].name.clone();
+                    self.unlock_landed(before, &file, label.as_deref());
                     return;
                 }
                 // Unlocked from the Spend tab, or for it: everything loads.
@@ -1963,6 +1967,45 @@ impl Faraday {
                 self.vaults.unlock_error = Some(e.reason());
             }
         }
+    }
+
+    /// After an unlock that loaded wallets (`docs/NEW-WALLET.md` §11.1):
+    /// Wallets, on the first loaded that can sign here, else the first
+    /// loaded, and a toast naming what loaded from where. One that loaded
+    /// none stays where it landed.
+    fn unlock_landed(&mut self, before: usize, file: &str, stick: Option<&str>) {
+        let loaded: Vec<usize> = (before..self.session.wallets.len()).collect();
+        let Some(&first) = loaded.first() else {
+            return;
+        };
+        if self.sheet.is_some() {
+            return;
+        }
+        let signs = loaded.iter().copied().find(|&i| {
+            let w = &self.session.wallets[i];
+            self.session.slots(w).iter().any(|s| s.held_by.is_some())
+        });
+        self.wallet = signs.unwrap_or(first);
+        self.screen = Screen::Wallets;
+        self.card_offset = 0.0;
+        self.glance = false;
+        // From the vault, or from the stick it came on when the stick's
+        // own files brought some.
+        let from = match stick {
+            Some(s)
+                if loaded
+                    .iter()
+                    .any(|&i| self.session.wallets[i].source != "Vault") =>
+            {
+                s
+            }
+            _ => file,
+        };
+        let what = match loaded.len() {
+            1 => self.session.wallets[first].name.clone(),
+            n => format!("{n} wallets"),
+        };
+        self.toast(&format!("{what} loaded from {from}"));
     }
 
     /// The keys and wallets open vault `v` holds, each with whether the

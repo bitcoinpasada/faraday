@@ -264,7 +264,8 @@ fn a_right_passphrase_on_the_sheet_imports_everything_and_closes_it() {
     run_unlock(&mut app);
     assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
     assert!(app.import.is_none());
-    assert_eq!((app.screen, app.sheet), (Screen::Home, None));
+    // Wallets loaded: Wallets (`docs/NEW-WALLET.md` §11.1).
+    assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
     // The vault's wallets, the stick's own, and test keys 1, 2 and 3:
     // the vault's, the picture's and the words'.
     for name in ["Savings", "Spending", "Zebra"] {

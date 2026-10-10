@@ -680,7 +680,24 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
 /// stick first).
 pub(crate) fn home_lead(app: &Faraday) -> (Icon, String, String, Action, bool) {
     use crate::vaults::VaultAction as V;
-    // Rule 1: a spend under way.
+    // Rule 1: a spend under way; of a wallet loaded, as its card says it
+    // (`docs/NEW-WALLET.md` §11.2).
+    if let Some(s) = app.spend.as_ref()
+        && let Some(w) = s.wallet.and_then(|w| app.session.wallets.get(w))
+    {
+        return (
+            Icon::Sign,
+            "Carry on the spend".to_string(),
+            format!(
+                "{} · Signatures {} of {}",
+                w.name,
+                s.signers.len(),
+                app.spend_needed()
+            ),
+            app.carry_on(),
+            true,
+        );
+    }
     if let Some(s) = app.spend.as_ref() {
         return (
             Icon::Sign,
@@ -2873,22 +2890,9 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     // Actions: the first along the foot, Remove from session at the
     // end; a row more above when they do not fit the card's width.
-    let mut items: Vec<(&str, Style, Action)> = Vec::new();
-    match app.lead_psbt() {
-        _ if app.spend.is_some() && here > 0 => items.push((
-            "Continue signing",
-            Style::Primary,
-            Action::Nav(Screen::Spend),
-        )),
-        Some(i) if here > 0 => {
-            items.push(("Sign a transaction", Style::Primary, Action::StartSpend(i)))
-        }
-        _ => items.push((
-            "No PSBT in Files",
-            Style::Disabled,
-            Action::Nav(Screen::Files),
-        )),
-    }
+    // The first: from the vault to a spend (`docs/NEW-WALLET.md` §11.2).
+    let (spend_label, spend_action) = app.spend_button(app.wallet);
+    let mut items: Vec<(&str, Style, Action)> = vec![(&spend_label, Style::Primary, spend_action)];
     items.push((
         "Show wallet QR",
         Style::Secondary,

@@ -164,6 +164,8 @@ pub fn title(app: &Faraday, id: CardId) -> String {
             page::SAFE => return format!("Start from the {}", app.medium.noun()),
             page::HOLDING => "What are you holding?",
             page::OPEN => "Open the wallet",
+            page::CHECK if app.family.from_card => "Load the wallet in Sparrow",
+            page::WRITE if app.family.from_card => "Write the payment in Sparrow",
             page::CHECK => "Check the money is really there",
             page::WRITE => "Write the payment",
             page::BRING => "Bring the transaction here",
@@ -214,6 +216,15 @@ pub fn lead(app: &Faraday, id: CardId) -> String {
              anything is missing."
         }
         CardId::Page(page::OPEN) => return open_lead(app),
+        // From the wallet's card: what to press, no more.
+        CardId::Page(page::CHECK) if app.family.from_card => {
+            "In Sparrow: File, New Wallet, then scan the wallet QR. Its first address is receive \
+             address 0 here."
+        }
+        CardId::Page(page::WRITE) if app.family.from_card => {
+            "In Sparrow's Send tab: the address, the amount and a fee. Then Create Transaction, \
+             Finalize Transaction for Signing and Show QR."
+        }
         CardId::Page(page::CHECK) => {
             "Load this same wallet in Sparrow on your online computer to check the balance. The \
              code below is the wallet's description: enough for Sparrow to find every address \

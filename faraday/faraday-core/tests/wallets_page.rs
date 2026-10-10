@@ -74,7 +74,9 @@ fn the_wallet_card_offers_its_jobs() {
 }
 
 #[test]
-fn the_wallet_card_offers_sign_a_transaction_for_a_psbt_in_files() {
+fn another_wallets_psbt_in_files_leaves_the_card_on_spend_from_this_wallet() {
+    // The test kit's PSBT spends from a test-network wallet, not this one
+    // (`docs/NEW-WALLET.md` §11.2: only its own PSBT turns the button).
     let kit = faraday_core::testkit::kits()
         .into_iter()
         .find(|k| k.id == "spending")
@@ -89,7 +91,14 @@ fn the_wallet_card_offers_sign_a_transaction_for_a_psbt_in_files() {
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
     assert_eq!(app.screen, Screen::Wallets);
-    assert!(app.offers(Action::StartSpend(0)), "Sign a transaction");
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Spend from this wallet"),
+        "{texts:?}"
+    );
+    assert!(app.offers(Action::Family(
+        faraday_core::family::FamilyAction::SpendFrom(0)
+    )));
 }
 
 #[test]
