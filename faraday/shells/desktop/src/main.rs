@@ -1,8 +1,8 @@
 //! Faraday in a window.
 //!
 //! ```text
-//! faraday [--sticks DIR] [--size WxH] [--full-kit]
-//!         [--panel INCHES [--aspect W:H] [--ppi N]]
+//! faraday [--sticks DIR] [--size WxH] [--full-kit] [--transfer]
+//!         [--downloads DIR] [--panel INCHES [--aspect W:H] [--ppi N]]
 //! ```
 //!
 //! The window draws at the display's own resolution and can be resized;
@@ -40,6 +40,16 @@
 //! This is the online Faraday: a sheet file in the Inbox or the Outbox has
 //! Make PDF, which saves the PDF in `$HOME/faraday-print`.
 //!
+//! It is also the device's QR link: **Transfer** (in the sidebar here
+//! only; `--transfer` opens on it) sends any file of `$HOME/Downloads`
+//! (`--downloads DIR` for another folder), listed newest first, as
+//! animated codes for the device's camera, and receives the device's
+//! codes through the webcam, saving each whole file into that folder
+//! under its own name or `received-N`, never over a file already there
+//! (`name (2).ext`). A file dropped on the window is sent too, where
+//! winit reports the drop: on X11, not on native Wayland. Nothing
+//! received goes into the app's Inbox.
+//!
 //! Every session here starts on testnet, the test stick's network; the
 //! stick's app starts on mainnet.
 //!
@@ -57,9 +67,9 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use camera::Camera;
-use faraday_core::{Faraday, StickInfo, StorageEvent};
+use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent};
 use faraday_scanner::Scanner;
-use faraday_storage::{Boxes, serve, stick_info};
+use faraday_storage::{Boxes, Host, serve, stick_info};
 use osk_shell_api::{
     App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, SecureHardware, TouchPhase,
 };
@@ -136,8 +146,12 @@ struct Shell {
     panel: Option<Panel>,
     /// The finger pressing, on a touchscreen.
     finger: Option<u64>,
-    /// Where PDFs are saved.
-    print_dir: PathBuf,
+    /// Where PDFs are saved, and the Downloads folder Transfer uses.
+    host: Host,
+    /// The Downloads folder as last listed to the app.
+    listed: Option<StorageEvent>,
+    /// Open on Transfer once the window is up.
+    open_transfer: bool,
     size: (u32, u32),
     app: Option<Faraday>,
     boxes: Boxes,
@@ -246,7 +260,7 @@ impl Shell {
                     }
                     Command::Exit => {
                         if app.restart_requested() {
-                            for line in serve(app, &mut self.boxes, Some(&self.print_dir)) {
+                            for line in serve(app, &mut self.boxes, Some(&self.host)) {
                                 eprintln!("{line}");
                             }
                             self.restart(event_loop);
@@ -262,7 +276,7 @@ impl Shell {
             if let Some(id) = app.take_camera() {
                 self.camera.choose(PathBuf::from(id));
             }
-            for line in serve(app, &mut self.boxes, Some(&self.print_dir)) {
+            for line in serve(app, &mut self.boxes, Some(&self.host)) {
                 eprintln!("{line}");
             }
         }
@@ -292,6 +306,44 @@ impl Shell {
             },
         );
         self.rescan(event_loop, true);
+        self.listed = None;
+        self.relist();
+    }
+
+    /// Tells the app what Downloads holds, when that changed.
+    fn relist(&mut self) {
+        let now = self.host.files();
+        if self.listed.as_ref() == Some(&now) {
+            return;
+        }
+        if let Some(app) = self.app.as_mut() {
+            app.storage(now.clone());
+            self.listed = Some(now);
+            if let Some(w) = &self.window {
+                w.request_redraw();
+            }
+        }
+    }
+
+    /// A file dropped on the window, for Transfer to send.
+    fn dropped(&mut self, event_loop: &ActiveEventLoop, path: &Path) {
+        let Some(app) = self.app.as_mut() else { return };
+        let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+        app.storage(StorageEvent::Dropped {
+            path: path.display().to_string(),
+            size,
+        });
+        for line in serve(app, &mut self.boxes, Some(&self.host)) {
+            eprintln!("{line}");
+        }
+        while let Some(c) = app.poll_command() {
+            if c == Command::Exit && !app.restart_requested() {
+                event_loop.exit();
+            }
+        }
+        if let Some(w) = &self.window {
+            w.request_redraw();
+        }
     }
 
     fn rescan(&mut self, event_loop: &ActiveEventLoop, force: bool) {
@@ -313,7 +365,7 @@ impl Shell {
             // Which cameras there are, so a screen can offer the camera
             // or do without it.
             app.storage(StorageEvent::Cameras(camera::list()));
-            for line in serve(app, &mut self.boxes, Some(&self.print_dir)) {
+            for line in serve(app, &mut self.boxes, Some(&self.host)) {
                 eprintln!("{line}");
             }
             while let Some(c) = app.poll_command() {
@@ -366,6 +418,16 @@ impl Shell {
             }
         }
         let _ = buffer.present();
+    }
+
+    /// Presses `action` as the person would, and answers what it asks.
+    fn send_press(&mut self, event_loop: &ActiveEventLoop, action: Action) {
+        if let Some(app) = self.app.as_mut() {
+            app.press(action);
+        }
+        // Any event carries what the press asked for to the shell.
+        let now_ms = self.epoch.elapsed().as_millis() as u64;
+        self.send(event_loop, Event::Tick { now_ms });
     }
 
     fn touch(&mut self, event_loop: &ActiveEventLoop, phase: TouchPhase) {
@@ -458,6 +520,10 @@ impl ApplicationHandler for Shell {
         let display = self.display();
         self.send(event_loop, display);
         self.rescan(event_loop, true);
+        self.relist();
+        if std::mem::take(&mut self.open_transfer) {
+            self.send_press(event_loop, Action::Nav(Screen::Transfer));
+        }
         self.next_tick = Instant::now() + TICK;
         event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_tick));
     }
@@ -465,6 +531,9 @@ impl ApplicationHandler for Shell {
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
+            // Only X11 reports a drop in winit 0.30; the list is the way
+            // on native Wayland.
+            WindowEvent::DroppedFile(path) => self.dropped(event_loop, &path),
             WindowEvent::RedrawRequested => self.draw(),
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 self.scale = scale_factor;
@@ -686,6 +755,7 @@ impl ApplicationHandler for Shell {
         }
         if now >= self.next_scan {
             self.rescan(event_loop, false);
+            self.relist();
             self.next_scan = now + RESCAN;
         }
         event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_tick));
@@ -760,6 +830,10 @@ fn main() -> ExitCode {
     let mut panel: Option<f64> = None;
     let mut aspect: Option<(f64, f64)> = None;
     let mut ppi: Option<f64> = None;
+    let mut open_transfer = false;
+    let mut downloads = std::env::var_os("HOME")
+        .map(|h| PathBuf::from(h).join("Downloads"))
+        .unwrap_or_else(|| PathBuf::from("Downloads"));
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
@@ -771,6 +845,14 @@ fn main() -> ExitCode {
                 }
             },
             "--full-kit" => full_kit = true,
+            "--transfer" => open_transfer = true,
+            "--downloads" => match args.next() {
+                Some(d) => downloads = PathBuf::from(d),
+                None => {
+                    eprintln!("faraday: --downloads needs a directory");
+                    return ExitCode::from(2);
+                }
+            },
             "--panel" => match args
                 .next()
                 .and_then(|s| s.trim_end_matches("in").parse().ok())
@@ -816,7 +898,7 @@ fn main() -> ExitCode {
             }
             "--help" | "-h" => {
                 println!(
-                    "faraday [--sticks DIR] [--size WxH] [--full-kit] [--panel INCHES [--aspect W:H] [--ppi N]]\n  F2 test stick, F3 blank stick, F4 pull all, F5 plug every folder in DIR\n  --full-kit: the test stick carries the full test kit, not the backup test stick\n  --panel: a device's screen at its true size: 2.8 is the Pi's panel (3:4), 5 a phone (9:16)\n  --aspect: the panel's width to height · --ppi: this screen's pixels per inch, if its EDID is wrong"
+                    "faraday [--sticks DIR] [--size WxH] [--full-kit] [--transfer] [--downloads DIR] [--panel INCHES [--aspect W:H] [--ppi N]]\n  F2 test stick, F3 blank stick, F4 pull all, F5 plug every folder in DIR\n  --full-kit: the test stick carries the full test kit, not the backup test stick\n  --transfer: open on Transfer · --downloads: the folder Transfer sends from and saves into (default ~/Downloads)\n  --panel: a device's screen at its true size: 2.8 is the Pi's panel (3:4), 5 a phone (9:16)\n  --aspect: the panel's width to height · --ppi: this screen's pixels per inch, if its EDID is wrong"
                 );
                 return ExitCode::SUCCESS;
             }
@@ -866,7 +948,13 @@ fn main() -> ExitCode {
     let mut shell = Shell {
         panel,
         finger: None,
-        print_dir,
+        host: Host {
+            print: print_dir,
+            downloads,
+            opens: faraday_storage::can_open_folders(),
+        },
+        listed: None,
+        open_transfer,
         sticks_dir,
         size,
         app: Some(app),

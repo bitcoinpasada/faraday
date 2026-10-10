@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -39,7 +39,11 @@
 //! screens as `outbox-*`; with `inbox`, Stick visit offering the Inbox's
 //! files under "From the Inbox" (a wallet, a vault, a wallet's QR
 //! picture, seed words and text), Select all, and the secret sheet for
-//! the text and for the words.
+//! the text and for the words; with `transfer`, the desktop app's
+//! Transfer over a Downloads folder made in `OUT_DIR/downloads` (a PSBT,
+//! a descriptor, a 100 KB file and one over 256 KiB): the list, a PSBT
+//! sent, the larger file refused, and Receive saving a descriptor and a
+//! seed's words sent from a device.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -66,6 +70,8 @@ struct Tour {
     /// Entropy requests answered, so each answer differs.
     answers: u8,
     dpi: u16,
+    /// The online app's folders, for Transfer.
+    host: Option<faraday_storage::Host>,
 }
 
 impl Tour {
@@ -161,7 +167,31 @@ impl Tour {
                     };
                     self.app.storage(ev);
                 }
-                StorageCommand::SaveBoxes { .. } => {}
+                StorageCommand::ReadHost { path } => {
+                    let ev = match faraday_storage::read_host(Path::new(&path)) {
+                        Ok(bytes) => StorageEvent::HostRead { path, bytes },
+                        Err(reason) => StorageEvent::HostReadFailed { path, reason },
+                    };
+                    self.app.storage(ev);
+                }
+                StorageCommand::SaveDownload { name, bytes } => {
+                    let Some(host) = self.host.as_ref() else {
+                        self.app.storage(StorageEvent::SaveFailed {
+                            reason: "no Downloads folder".into(),
+                        });
+                        continue;
+                    };
+                    let ev = match faraday_storage::save_download(&host.downloads, &name, &bytes) {
+                        Ok(path) => StorageEvent::Saved {
+                            path: path.display().to_string(),
+                        },
+                        Err(reason) => StorageEvent::SaveFailed { reason },
+                    };
+                    let files = host.files();
+                    self.app.storage(ev);
+                    self.app.storage(files);
+                }
+                StorageCommand::OpenDownloads | StorageCommand::SaveBoxes { .. } => {}
             }
         }
     }
@@ -331,6 +361,7 @@ fn run(
         sticks: Vec::new(),
         answers: 0,
         dpi,
+        host: None,
     };
     match only {
         Some("spend") => return spend_tour(&mut t),
@@ -348,6 +379,7 @@ fn run(
         Some("again") => return again_tour(&mut t),
         Some("plan") => return plan_tour(&mut t),
         Some("inbox") => return inbox_tour(&mut t),
+        Some("transfer") => return transfer_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -1642,6 +1674,97 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
 /// signature and the result.
 /// Each theme on three screens, with the test kit loaded: the Wallets
 /// tab's first page, the wallets, and Settings.
+/// The desktop app's Transfer over a Downloads folder in the output
+/// directory: the list newest first, a PSBT sent as codes, a file over
+/// 256 KiB refused, and Receive saving a descriptor and a seed's words
+/// that a device sent, each said as saved, the words as a secret.
+fn transfer_tour(t: &mut Tour) -> Result<(), String> {
+    let downloads = t.out.join("downloads");
+    std::fs::create_dir_all(&downloads).map_err(|e| e.to_string())?;
+    let put = |name: &str, bytes: &[u8]| -> Result<(), String> {
+        let path = downloads.join(name);
+        if !path.exists() {
+            std::fs::write(&path, bytes).map_err(|e| format!("{name}: {e}"))?;
+        }
+        // Written apart in the order given, so the last is the newest.
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        Ok(())
+    };
+    let spending = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .ok_or("no spending kit")?;
+    put("photo-2026-10-01.jpg", &vec![0x5a; 300 * 1024])?;
+    put("notes-backup.tar", &vec![0x33; 100 * 1024])?;
+    put("spending-wallet.txt", spending.descriptor.as_bytes())?;
+    let psbt = std::fs::read(t.kit.join("savings-unsigned.psbt")).map_err(|e| e.to_string())?;
+    put("savings-unsigned.psbt", &psbt)?;
+    t.app.online = true;
+    t.app.session = faraday_core::wallet::Session::on(testkit::NET);
+    let host = faraday_storage::Host {
+        print: t.out.clone(),
+        downloads: downloads.clone(),
+        opens: true,
+    };
+    t.app.storage(host.files());
+    t.host = Some(host);
+    t.press(Action::Nav(Screen::Transfer));
+    if t.app.screen != Screen::Transfer {
+        return Err("Transfer did not open in the online app".into());
+    }
+    t.shot("transfer")?;
+    let at = |t: &Tour, name: &str| {
+        t.app
+            .transfer
+            .files
+            .iter()
+            .position(|(n, _)| n == name)
+            .ok_or(format!("{name} is not listed"))
+    };
+    let i = at(t, "savings-unsigned.psbt")?;
+    t.press(Action::TransferSend(i));
+    if t.app.qr.is_none() {
+        return Err("the PSBT was not shown as codes".into());
+    }
+    t.shot("transfer-send-psbt")?;
+    t.press(Action::Cancel);
+    let i = at(t, "photo-2026-10-01.jpg")?;
+    t.press(Action::TransferSend(i));
+    t.shot("transfer-refused")?;
+    // Receive: a frame, then what a device's Files sends as codes.
+    t.press(Action::TransferReceive);
+    let frame: Vec<u8> = (0..640u32 * 480)
+        .map(|i| ((i % 640) / 3 + (i / 640) / 4) as u8)
+        .collect();
+    t.app.event(Event::CameraFrame {
+        width: 640,
+        height: 480,
+        luma: frame,
+        chroma: None,
+    });
+    let envelope = |name: &str, bytes: &[u8]| -> Result<Vec<String>, String> {
+        let env = faraday_qr::envelope::pack(name, bytes, "file")?;
+        faraday_qr::bbqr::encode('J', &env, 160).ok_or_else(|| "too large".to_string())
+    };
+    for part in envelope("spending-wallet.txt", spending.descriptor.as_bytes())? {
+        t.app.event(Event::Scanned {
+            bytes: part.into_bytes(),
+        });
+    }
+    t.pump();
+    t.shot("transfer-received")?;
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
+    for part in envelope("seed-words.txt", words.as_bytes())? {
+        t.app.event(Event::Scanned {
+            bytes: part.into_bytes(),
+        });
+    }
+    t.pump();
+    t.shot("transfer-received-secret")?;
+    t.press(Action::Cancel);
+    t.shot("transfer-saved")
+}
+
 /// Home's Scan with a stick in: the sheet asks for it to be pulled, and
 /// the camera opens when it is.
 fn scan_tour(t: &mut Tour) -> Result<(), String> {
@@ -2988,7 +3111,7 @@ fn main() -> ExitCode {
     };
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan]"
+            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer]"
         );
         return ExitCode::from(2);
     }
@@ -3019,12 +3142,12 @@ fn main() -> ExitCode {
     if only.is_some_and(|m| {
         ![
             "spend", "themes", "compact", "seeds", "keys", "visit", "copy", "scan", "public",
-            "seedfile", "vaultway", "kept", "again", "plan", "inbox",
+            "seedfile", "vaultway", "kept", "again", "plan", "inbox", "transfer",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan or inbox"
+            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox or transfer"
         );
         return ExitCode::from(2);
     }

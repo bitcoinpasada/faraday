@@ -256,6 +256,19 @@ Faraday's own storage channel (`StorageEvent::Cameras`, `QrSeen`, and
 `Faraday::take_camera`), so no upstream API changed. A cosigner's key
 scanned while Create waits fills the waiting slot.
 
+Built 2026-10-09, the desktop app's **Transfer** (`docs/FLOWS.md`, QR
+transfer tab; `faraday-core/src/transfer.rs`): Send shows a file from
+`~/Downloads` (listed by the shell newest first, or dropped on the
+window where winit reports drops: X11) as the QR sheet shows an Outbox
+file, refused over 256 KiB; Receive is the scanner with the purpose
+`Transfer`, which takes anything, routes nothing and has the shell save
+each whole file into `~/Downloads` (`StorageCommand::SaveDownload`),
+never over a file, saying when it holds a secret. A file read again, or
+the device's animated code coming round again, is saved once. The
+device's Scan now files an envelope of any kind under its name, as §2's
+table says; before, a file Faraday does not read was refused there.
+Tests: `faraday-storage/tests/transfer.rs`.
+
 Not built: camera choice on the desktop shell (it opens the first camera);
 a descriptor scanned while Create waits goes to the Inbox, not into the
 flow.

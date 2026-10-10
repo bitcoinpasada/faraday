@@ -180,20 +180,138 @@ impl Boxes {
     }
 }
 
-/// Answers every storage request the app has queued. `print` is where an
-/// online shell saves PDFs; the device passes `None` and refuses. Returns
-/// the lines a verbose shell prints.
-pub fn serve(app: &mut Faraday, boxes: &mut Boxes, print: Option<&Path>) -> Vec<String> {
-    serve_with(app, boxes, print, &mut Dirs)
+/// What an online shell (the desktop app) has of its computer's own
+/// folders: where PDFs are saved, and the Downloads folder Transfer lists,
+/// reads and saves into.
+pub struct Host {
+    /// Where PDFs are saved.
+    pub print: PathBuf,
+    /// The folder Transfer sends from and saves into.
+    pub downloads: PathBuf,
+    /// This computer opens a folder in its file manager (`xdg-open`).
+    pub opens: bool,
+}
+
+impl Host {
+    /// The Downloads folder as the app sees it.
+    pub fn files(&self) -> StorageEvent {
+        StorageEvent::HostFiles {
+            dir: self.downloads.display().to_string(),
+            files: host_listing(&self.downloads),
+            opens: self.opens,
+        }
+    }
+}
+
+/// Whether `xdg-open` is on the path, to open a folder with.
+pub fn can_open_folders() -> bool {
+    std::env::var_os("PATH")
+        .is_some_and(|paths| std::env::split_paths(&paths).any(|d| d.join("xdg-open").is_file()))
+}
+
+/// The files in a folder of this computer's, newest first, with their
+/// sizes: no hidden ones, no folders.
+pub fn host_listing(dir: &Path) -> Vec<(String, u64)> {
+    let Ok(d) = fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut files: Vec<(std::time::SystemTime, String, u64)> = d
+        .flatten()
+        .filter_map(|e| {
+            let name = e.file_name().into_string().ok()?;
+            if name.starts_with('.') {
+                return None;
+            }
+            // A link is listed as what it points to.
+            let m = fs::metadata(e.path()).ok()?;
+            m.is_file().then(|| {
+                let when = m.modified().unwrap_or(std::time::UNIX_EPOCH);
+                (when, name, m.len())
+            })
+        })
+        .collect();
+    files.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+    files.into_iter().map(|(_, n, s)| (n, s)).collect()
+}
+
+/// Reads a file of this computer's that Transfer sends: no more than the
+/// file envelope carries and a byte, so that a larger one is known.
+pub fn read_host(path: &Path) -> Result<Vec<u8>, String> {
+    use std::io::Read;
+    let f = fs::File::open(path).map_err(|e| e.to_string())?;
+    let mut bytes = Vec::new();
+    f.take(faraday_core::transfer::MAX_SEND + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| e.to_string())?;
+    Ok(bytes)
+}
+
+/// Saves a file Transfer received into `dir` under `name`, or `name (2)`,
+/// `name (3)` and on before its extension when that is taken: a new file
+/// each time, never over one already there. Returns its path.
+pub fn save_download(dir: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf, String> {
+    use std::io::Write;
+    let name = checked(name)?;
+    fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let (stem, ext) = match name.rfind('.') {
+        Some(i) if i > 0 => (&name[..i], &name[i..]),
+        _ => (name, ""),
+    };
+    for n in 1..1000 {
+        let candidate = if n == 1 {
+            name.to_string()
+        } else {
+            format!("{stem} ({n}){ext}")
+        };
+        let path = dir.join(&candidate);
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+        {
+            Ok(mut f) => {
+                f.write_all(bytes)
+                    .and_then(|()| f.sync_all())
+                    .map_err(|e| e.to_string())?;
+                return Ok(path);
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+    Err(format!("no free name for {name}"))
+}
+
+/// Opens a folder in this computer's file manager.
+fn open_folder(dir: &Path) -> Result<(), String> {
+    let mut child = std::process::Command::new("xdg-open")
+        .arg(dir)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    // Reaped when it ends, without holding the shell up.
+    std::thread::spawn(move || child.wait());
+    Ok(())
+}
+
+/// Answers every storage request the app has queued. `host` is what an
+/// online shell has of its computer's folders; the device passes `None`
+/// and refuses to print, read or save there. Returns the lines a verbose
+/// shell prints.
+pub fn serve(app: &mut Faraday, boxes: &mut Boxes, host: Option<&Host>) -> Vec<String> {
+    serve_with(app, boxes, host, &mut Dirs)
 }
 
 /// [`serve`], with the sticks' files wherever `sticks` keeps them.
 pub fn serve_with(
     app: &mut Faraday,
     boxes: &mut Boxes,
-    print: Option<&Path>,
+    host: Option<&Host>,
     sticks: &mut dyn Sticks,
 ) -> Vec<String> {
+    let print = host.map(|h| h.print.as_path());
     let mut said = Vec::new();
     while let Some(c) = app.poll_storage() {
         match c {
@@ -268,6 +386,49 @@ pub fn serve_with(
                     }
                 };
                 app.storage(ev);
+            }
+            StorageCommand::ReadHost { path } => {
+                let ev = match host {
+                    None => StorageEvent::HostReadFailed {
+                        path,
+                        reason: "this device does not read this computer's files".into(),
+                    },
+                    Some(_) => match read_host(Path::new(&path)) {
+                        Ok(bytes) => StorageEvent::HostRead { path, bytes },
+                        Err(reason) => StorageEvent::HostReadFailed { path, reason },
+                    },
+                };
+                app.storage(ev);
+            }
+            StorageCommand::SaveDownload { name, mut bytes } => {
+                let ev = match host {
+                    None => StorageEvent::SaveFailed {
+                        reason: "this device does not save downloads".into(),
+                    },
+                    Some(h) => match save_download(&h.downloads, &name, &bytes) {
+                        Ok(path) => {
+                            said.push(format!("saved {}", path.display()));
+                            StorageEvent::Saved {
+                                path: path.display().to_string(),
+                            }
+                        }
+                        Err(reason) => StorageEvent::SaveFailed { reason },
+                    },
+                };
+                // The shell's copy goes; the file has it now.
+                zeroize::Zeroize::zeroize(&mut bytes);
+                app.storage(ev);
+                // The folder has a new file.
+                if let Some(h) = host {
+                    app.storage(h.files());
+                }
+            }
+            StorageCommand::OpenDownloads => {
+                if let Some(h) = host.filter(|h| h.opens)
+                    && let Err(e) = open_folder(&h.downloads)
+                {
+                    said.push(format!("cannot open {}: {e}", h.downloads.display()));
+                }
             }
             StorageCommand::SaveBoxes {
                 inbox,

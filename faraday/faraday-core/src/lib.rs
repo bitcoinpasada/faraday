@@ -46,6 +46,7 @@ pub mod stick_settings;
 #[cfg(feature = "testkit")]
 pub mod testkit;
 pub mod tools;
+pub mod transfer;
 pub mod ui;
 pub mod vanity;
 pub mod vaults;
@@ -69,6 +70,7 @@ mod screens;
 mod seeds_screen;
 mod silent_screen;
 mod tools_screen;
+mod transfer_screen;
 mod vanity_screen;
 mod vault_screens;
 mod wordlist_screen;
@@ -224,6 +226,50 @@ pub enum StorageEvent {
         /// The device.
         id: u32,
     },
+    /// The online app's Downloads folder, for Transfer: where it is, its
+    /// files newest first with their sizes, and whether the shell can
+    /// open it in a file manager. Sent at start and when it changes.
+    HostFiles {
+        /// The folder's path.
+        dir: String,
+        /// Its files, newest first.
+        files: Vec<(String, u64)>,
+        /// The shell opens it on [`StorageCommand::OpenDownloads`].
+        opens: bool,
+    },
+    /// A file dropped on the online app's window.
+    Dropped {
+        /// Its path.
+        path: String,
+        /// Its size in bytes.
+        size: u64,
+    },
+    /// A file of this computer's the app asked for
+    /// ([`StorageCommand::ReadHost`]).
+    HostRead {
+        /// Its path.
+        path: String,
+        /// Its contents.
+        bytes: Vec<u8>,
+    },
+    /// A read of this computer's files that failed.
+    HostReadFailed {
+        /// The path.
+        path: String,
+        /// Why.
+        reason: String,
+    },
+    /// A file received by Transfer was saved
+    /// ([`StorageCommand::SaveDownload`]).
+    Saved {
+        /// Where.
+        path: String,
+    },
+    /// A received file could not be saved, or this shell does not save.
+    SaveFailed {
+        /// Why.
+        reason: String,
+    },
     /// The Inbox and Outbox the previous process left, after a lock.
     Restored {
         /// Inbox files.
@@ -272,6 +318,24 @@ pub enum StorageCommand {
         /// The PDF.
         bytes: Vec<u8>,
     },
+    /// Read a file of this computer's for Transfer: one in Downloads, or
+    /// one dropped on the window. Only the online shell does.
+    ReadHost {
+        /// Its path, as [`StorageEvent::HostFiles`] or
+        /// [`StorageEvent::Dropped`] gave it.
+        path: String,
+    },
+    /// Save a file Transfer received into Downloads, under `name` or,
+    /// when that is taken, `name (2).ext` and on: never over a file.
+    /// Only the online shell does; the device refuses.
+    SaveDownload {
+        /// The name to save it under.
+        name: String,
+        /// The contents.
+        bytes: Vec<u8>,
+    },
+    /// Open Downloads in this computer's file manager.
+    OpenDownloads,
     /// Keep the Inbox and Outbox where the next process finds them. They
     /// hold nothing secret (`PLAN.md` §5.2).
     SaveBoxes {
@@ -343,6 +407,9 @@ pub enum Screen {
     Decode,
     /// Tools: every flow on one page, with its standards.
     Catalog,
+    /// The online app as the device's QR link: files out as codes, in by
+    /// camera ([`transfer`]). Only when [`Faraday::online`].
+    Transfer,
 }
 
 /// A screen and the sheet over it, if any.
@@ -540,6 +607,12 @@ pub enum Action {
     QrWallet(usize),
     /// Show an Outbox file as a QR code.
     QrOutbox(usize),
+    /// Transfer: send file n of the Downloads list as codes.
+    TransferSend(usize),
+    /// Transfer: receive by camera into Downloads.
+    TransferReceive,
+    /// Transfer: open Downloads in the file manager.
+    TransferOpenFolder,
     /// The QR view as BBQr (`true`) or UR.
     QrFormat(u8),
     /// The QR view's bytes of data a frame.
@@ -1170,6 +1243,9 @@ pub enum ScanPurpose {
     /// The hand-drawn copy of the seed with this fingerprint, on the
     /// backup's copy item: compared with it there, never loaded.
     CheckCopy(osk_bip::keys::Fingerprint),
+    /// Transfer's Receive: anything, saved by the shell into Downloads,
+    /// never into the Inbox.
+    Transfer,
 }
 
 /// What the camera sheet holds.
@@ -2366,6 +2442,8 @@ pub struct Faraday {
     camera_change: Option<String>,
     /// The camera sheet.
     pub scan: Option<ScanState>,
+    /// Transfer, in the online app.
+    pub transfer: transfer::TransferState,
     /// The chosen wallet's new name, while it is typed.
     pub renaming: Option<String>,
     /// All of the focused field is selected: Backspace clears it, and a
@@ -2541,6 +2619,7 @@ impl Faraday {
             camera: None,
             camera_change: None,
             scan: None,
+            transfer: transfer::TransferState::default(),
             scanned: 0,
             renaming: None,
             select_all: false,
@@ -2731,6 +2810,18 @@ impl Faraday {
                 self.save_boxes();
             }
             StorageEvent::PrintFailed { reason } => self.toast(&format!("Not printed: {reason}")),
+            StorageEvent::HostFiles { dir, files, opens } => {
+                if !self.transfer_listed(dir, files, opens) {
+                    return;
+                }
+            }
+            StorageEvent::Dropped { path, size } => self.transfer_dropped(path, size),
+            StorageEvent::HostRead { path, bytes } => self.transfer_read(path, bytes),
+            StorageEvent::HostReadFailed { path, reason } => {
+                self.transfer_read_failed(path, reason);
+            }
+            StorageEvent::Saved { path } => self.transfer_saved(Ok(path)),
+            StorageEvent::SaveFailed { reason } => self.transfer_saved(Err(reason)),
             StorageEvent::NewInput {
                 id,
                 name,
@@ -2798,8 +2889,15 @@ impl Faraday {
     }
 
     /// The camera is on, reading codes.
+    ///
+    /// Transfer's Receive, in the online app, does not count: that app is
+    /// never clean of the network, and no stick waits on its camera.
     fn camera_on(&self) -> bool {
-        self.sheet == Some(Sheet::Scan) || self.keygen_camera_on
+        let transfer = self
+            .scan
+            .as_ref()
+            .is_some_and(|s| s.purpose == ScanPurpose::Transfer);
+        (self.sheet == Some(Sheet::Scan) && !transfer) || self.keygen_camera_on
     }
 
     /// A stick held back while the camera was on arrives once it is off.
@@ -3474,6 +3572,10 @@ impl Faraday {
             | Action::KSlipN(_)
             | Action::KShare(_)
             | Action::KeyGenSlip39 => self.keygen_act(action),
+            Action::Nav(Screen::Transfer) => self.transfer_open(),
+            Action::TransferSend(i) => self.transfer_pick(i),
+            Action::TransferReceive => self.transfer_receive(),
+            Action::TransferOpenFolder => self.transfer_open_folder(),
             Action::Nav(s) => {
                 self.screen = s;
                 self.osk_leave();
@@ -3850,6 +3952,7 @@ impl Faraday {
                 // parts read so far wait for the next scan.
                 if let Some(s) = self.scan.as_mut()
                     && s.in_parts()
+                    && s.purpose != ScanPurpose::Transfer
                 {
                     self.scan_parts = Some((
                         std::mem::take(&mut s.decoder),
@@ -4674,13 +4777,7 @@ impl Faraday {
                 if let Some(item) = self.outbox.get(i).filter(|it| qr_fits(it)) {
                     // What a wallet reads goes as itself; any other file in
                     // the Faraday file envelope.
-                    let source = match item.kind {
-                        FileKind::Psbt => QrSource::Psbt(item.bytes.clone()),
-                        FileKind::Wallet | FileKind::Key | FileKind::Message | FileKind::Share => {
-                            QrSource::Text(String::from_utf8_lossy(&item.bytes).into_owned())
-                        }
-                        _ => QrSource::File(item.name.clone(), item.bytes.clone()),
-                    };
+                    let source = transfer::qr_source(&item.name, &item.bytes, item.kind);
                     let secret = item.secret;
                     let view =
                         QrView::of(&item.name, source, QrFormat::Ur, QR_PARTS[1]).map(|mut v| {
@@ -6091,6 +6188,10 @@ impl Faraday {
         let Some(scan) = self.scan.as_mut() else {
             return;
         };
+        // Transfer's Receive takes anything and files nothing.
+        if scan.purpose == ScanPurpose::Transfer {
+            return self.transfer_scanned(bytes);
+        }
         // A stick plugged in while the camera is on is held back, and no
         // key loads while it is attached: what loads one is not read.
         if camera && sticks && matches!(scan.purpose, ScanPurpose::Seed | ScanPurpose::KeyPart) {
@@ -6194,12 +6295,15 @@ impl Faraday {
             return;
         };
         self.scanned += 1;
+        // A file in the Faraday file envelope is a file sent as one, of
+        // whatever kind (`docs/QR.md` §2): it is filed under its name.
+        let enveloped = named.is_some();
         let name = match named {
             Some(n) => self.free_inbox_name(&n),
             None => format!("scanned-{}.{ext}", self.scanned),
         };
         let item = Item::new(&name, data);
-        if item.kind == FileKind::Other {
+        if item.kind == FileKind::Other && !enveloped {
             if let Some(scan) = self.scan.as_mut() {
                 scan.note =
                     Some("Not a PSBT, a descriptor, an xpub or a signed message".to_string());
@@ -7730,6 +7834,7 @@ impl Faraday {
             | Screen::Start
             | Screen::Decode
             | Screen::Catalog
+            | Screen::Transfer
             | Screen::Settings => &mut self.list_offset,
             Screen::Home
             | Screen::Entry

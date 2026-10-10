@@ -99,6 +99,7 @@ impl Faraday {
             Screen::Settings => vec![&EN.secure_element, &EN.glossary],
             Screen::Decode => vec![&EN.transactions, &EN.verifying],
             Screen::Catalog => vec![&EN.tools, &EN.glossary],
+            Screen::Transfer => vec![&EN.air_gap, &EN.coordinators],
         }
     }
 

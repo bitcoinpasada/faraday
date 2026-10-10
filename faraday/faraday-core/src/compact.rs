@@ -59,6 +59,7 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
         Screen::Tools | Screen::Catalog => "Tools",
         Screen::Vanity => "Vanity address",
         Screen::Decode => "Transaction",
+        Screen::Transfer => "Transfer",
     }
 }
 
@@ -473,6 +474,16 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
         Action::Nav(Screen::Catalog),
         true,
     ));
+    // The online app is the device's QR link.
+    if app.online {
+        t.push((
+            Icon::Qr,
+            "Transfer",
+            String::new(),
+            Action::Nav(Screen::Transfer),
+            true,
+        ));
+    }
     t.push((
         Icon::Settings,
         "Settings",

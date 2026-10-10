@@ -823,6 +823,7 @@ name = "faraday-snapshot"
 version = "0.1.0"
 dependencies = [
  "faraday-core",
+ "faraday-qr",
  "faraday-sb",
  "faraday-storage",
  "faraday-vault",
@@ -853,6 +854,9 @@ version = "0.1.0"
 dependencies = [
  "faraday-core",
  "faraday-files",
+ "faraday-qr",
+ "osk-codec",
+ "osk-shell-api",
  "zeroize",
 ]
 

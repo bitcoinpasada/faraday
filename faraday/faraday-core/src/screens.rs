@@ -151,6 +151,7 @@ fn dispatch(app: &mut Faraday, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Vanity => crate::vanity_screen::draw(app, ui, x, cw, h),
         Screen::Decode => decode_screen(app, ui, x, cw, h),
         Screen::Catalog => catalog_screen(app, ui, x, cw, h),
+        Screen::Transfer => crate::transfer_screen::draw(app, ui, x, cw, h),
     }
 }
 
@@ -346,6 +347,10 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
     ];
     if !app.sticks.is_empty() && !app.holds_secret() {
         items.push((app.medium.icon(), app.medium.visit(), Screen::Visit));
+    }
+    // The online app is the device's QR link.
+    if app.online {
+        items.push((Icon::Qr, "Transfer", Screen::Transfer));
     }
     items.push((Icon::Settings, "Settings", Screen::Settings));
     let mut y = 76.0;
@@ -12663,6 +12668,7 @@ fn scan_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let title = match sc.purpose {
         crate::ScanPurpose::Seed => "Scan a SeedQR",
         crate::ScanPurpose::CheckCopy(_) => "Scan your copy",
+        crate::ScanPurpose::Transfer => "Receive into Downloads",
         _ => "Scan a QR code",
     };
     ui.text(x + 32.0, y + 26.0, 18.0, W::S, TEXT, title);

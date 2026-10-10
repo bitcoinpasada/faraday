@@ -13,5 +13,13 @@ faraday-core = { path = "../faraday-core" }
 faraday-files = { path = "../faraday-files" }
 zeroize = { workspace = true, features = ["alloc"] }
 
+[dev-dependencies]
+# Transfer's tests: the desktop app and the device's app on either side
+# of the codes, as the test wallets make them.
+faraday-core = { path = "../faraday-core", features = ["testkit"] }
+faraday-qr = { path = "../faraday-qr" }
+osk-codec = { path = "../../core/osk-codec" }
+osk-shell-api = { path = "../../core/osk-shell-api" }
+
 [lints]
 workspace = true

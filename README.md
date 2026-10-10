@@ -523,7 +523,7 @@ a mainnet wallet into it, first shows **Not air-gapped**, which stays
 until **I understand** is pressed.
 
 ```
-./target/release/faraday [--sticks DIR] [--size WxH] [--full-kit]
+./target/release/faraday [--sticks DIR] [--size WxH] [--full-kit] [--transfer] [--downloads DIR]
 ```
 
 Sticks are folders under `--sticks` (default `~/faraday-sticks`), each
@@ -540,6 +540,18 @@ one a USB stick the app can see plugged in or pulled out:
 
 `--full-kit` carries the full test kit on the test stick instead of just
 the backup test stick. Every session starts on testnet.
+
+**Transfer**, in the desktop app's sidebar only, makes the computer the
+device's QR link. **Send** lists `~/Downloads` (`--downloads DIR` for
+another folder), newest first; a file pressed is shown as animated codes
+for the device's Scan, a PSBT as itself, a wallet, key, message or share
+as text, and any other file up to 256 KiB in the Faraday file envelope.
+On X11 a file dropped on the window is sent too; native Wayland does not
+report drops to the app, so there the list is the way. **Receive** reads
+the codes the device's Files shows through the webcam and saves each
+whole file into the same folder, under its own name or `received-N`,
+never over a file already there (`name (2).ext`). Nothing received goes
+into the desktop app's Inbox. `--transfer` opens the app on Transfer.
 
 Build the test kit on its own with:
 

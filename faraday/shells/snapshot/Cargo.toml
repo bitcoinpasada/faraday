@@ -11,6 +11,7 @@ publish = false
 [dependencies]
 faraday-core = { path = "../../faraday-core", features = ["testkit"] }
 faraday-storage = { path = "../../faraday-storage" }
+faraday-qr = { path = "../../faraday-qr" }
 osk-bip = { path = "../../../core/osk-bip" }
 faraday-vault = { path = "../../faraday-vault" }
 faraday-sb = { path = "../../faraday-sb" }

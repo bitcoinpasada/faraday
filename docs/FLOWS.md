@@ -454,14 +454,27 @@ partition on another computer.
 
 ## QR transfer tab
 
-**Receive** → scanner (any payload) → routed by `docs/QR.md` §2; a file
-lands in the Inbox and Files opens on it.
+On the device this is Files and Scan, already: Files' **Show as QR**
+sends an Inbox or Outbox file as codes (format, frame rate, part size,
+progress, **Done**), and **Scan** receives into the Inbox, routed by
+`docs/QR.md` §2.
 
-**Send** → choose: an Outbox file, an Inbox file, or a public item from an
-open vault (an account key, a descriptor, a GPG public key) → format
-(UR, BBQr, numbered parts where they apply) → animated code with frame
-rate and progress → **Done**. A secret item is never offered here; seed
-codes are shown only from the Wallets tab's backup step.
+**Transfer**, in the desktop app only (the online Faraday; never on the
+stick or the Pi), is the other end, the computer beside the device:
+
+**Send** → a file from the list of `~/Downloads`, newest first, or one
+dropped on the window (X11 only) → animated code, chosen by kind as Files
+chooses it (a PSBT as itself; a wallet, key, message or share as text;
+anything else in the file envelope) → format, frame rate and part size →
+**Done**. Over 256 KiB: "Larger than 256 KiB: carry it on a stick".
+
+**Receive** → the webcam reads anything, routes nothing → each whole
+file saved into `~/Downloads` under its own name (envelope) or
+`received-N.psbt` / `.txt`, never over a file ("name (2).ext") → "Saved
+{path}", or "Saved {path}: this file holds a secret" for words, a
+SeedQR, seed parts, entries or a carry file → the camera stays on for
+the next → **Cancel**. Nothing goes into the desktop app's Inbox; a file
+to use in the desktop Faraday is copied in from a stick folder.
 
 ## New devices and settings
 
