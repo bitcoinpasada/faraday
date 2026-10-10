@@ -1142,12 +1142,12 @@ fn run(
     t.shot("unlock")?;
     t.press(Action::Vault(V::Unlock));
     t.tick();
-    // Unlocked: its keys and wallets wait on Files until chosen.
-    if t.app.screen != Screen::Files || !t.app.session.keys.is_empty() {
-        return Err("an unlock loaded keys before they were chosen".into());
+    // Unlocked from the Vaults list (`docs/NEW-WALLET.md` §11.1a): its
+    // wallets and keys load now, landing on Wallets.
+    if t.app.screen != Screen::Wallets || t.app.session.keys.is_empty() {
+        return Err("the unlock did not load the vault's wallets".into());
     }
-    t.shot("files-vault-open")?;
-    t.press(Action::Vault(V::LoadChosen(0)));
+    t.shot("wallets-vault-open")?;
     t.press(Action::Nav(Screen::VaultContents));
     if t.app.vaults.open.len() != 1
         || t.app.session.keys.len() != 1

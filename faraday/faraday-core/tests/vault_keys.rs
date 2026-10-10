@@ -73,7 +73,10 @@ fn add_key(app: &mut Faraday, n: usize) {
 #[test]
 fn a_missing_key_in_an_open_vault_loads_from_the_wallet_card() {
     let mut app = device(vec![kit_file("spending-wallet.txt"), kit_file("vault.ofv")]);
-    app.press(Action::Vault(V::Open(0)));
+    // Opened from a flow (the vault way), not the Vaults list: it shows
+    // what it holds without loading it until asked, as today
+    // (`docs/NEW-WALLET.md` §11.1a).
+    app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     type_and_unlock(&mut app);
     assert!(app.session.keys.is_empty(), "unlocking loads nothing");
     let w = find(&app, "spending-wallet.txt");
@@ -143,7 +146,10 @@ fn a_key_the_quorum_needs_is_asked_for() {
 #[test]
 fn a_vaults_wallets_load_with_their_seeds_in_one_press() {
     let mut app = device(vec![kit_file("vault.ofv")]);
-    app.press(Action::Vault(V::Open(0)));
+    // Opened from a flow (the vault way), not the Vaults list: nothing
+    // loads until `LoadWithKeys` is pressed, as today
+    // (`docs/NEW-WALLET.md` §11.1a).
+    app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     type_and_unlock(&mut app);
     let together = app.vault_wallets_with_keys(0);
     assert!(
@@ -161,7 +167,9 @@ fn a_vaults_wallets_load_with_their_seeds_in_one_press() {
 #[test]
 fn only_the_chosen_wallets_load_with_their_seeds() {
     let mut app = device(vec![kit_file("vault.ofv")]);
-    app.press(Action::Vault(V::Open(0)));
+    // Opened from a flow (the vault way), not the Vaults list: nothing
+    // loads until chosen (`docs/NEW-WALLET.md` §11.1a).
+    app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     type_and_unlock(&mut app);
     let together = app.vault_wallets_with_keys(0);
     assert!(together.len() > 1);

@@ -299,7 +299,10 @@ fn a_silent_payments_wallet_saved_into_a_vault_reads_back_as_itself() {
             ("silent-1.txt", record.clone().into_bytes()),
         ],
     );
-    app.press(Action::Vault(V::Open(0)));
+    // Opened from a flow (the vault way), not the Vaults list: it shows
+    // what it holds without loading it, as today (`docs/NEW-WALLET.md`
+    // §11.1a), so the wallet picked below is the silent one just loaded.
+    app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     for c in testkit::VAULT_PASSPHRASES[0].chars() {
         app.event(Event::Key(Key::Char(c)));
     }

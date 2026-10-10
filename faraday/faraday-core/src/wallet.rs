@@ -190,6 +190,20 @@ pub fn fp_text(fp: Fingerprint) -> String {
     String::from_utf8_lossy(&fp.to_hex()).into_owned()
 }
 
+/// A wallet's source as a tag: "Vault" reads "From Vault" (`cap`) or
+/// "from Vault" (inline, after another phrase), but a source that
+/// already reads as a complete statement ("Made here", "Dealt here")
+/// reads on its own, with no "From"/"from" before it either way.
+pub fn source_tag(source: &str, cap: bool) -> String {
+    if source.ends_with(" here") {
+        source.to_string()
+    } else if cap {
+        format!("From {source}")
+    } else {
+        format!("from {source}")
+    }
+}
+
 /// A key as a line: its fingerprint, then its label when the label is
 /// not the fingerprint itself.
 pub fn key_line(fp: Fingerprint, label: &str) -> String {

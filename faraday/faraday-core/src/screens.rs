@@ -2872,7 +2872,7 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             );
         }
     }
-    let src = format!("From {}", wlt.source);
+    let src = crate::wallet::source_tag(&wlt.source, true);
     let sw = ui.measure(12.0, W::R, &src) + 24.0;
     ui.pill(ix + iw - sw, cy, 28.0, &src);
     cy += 34.0;

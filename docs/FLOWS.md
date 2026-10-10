@@ -393,8 +393,8 @@ to get it.
     here (else the first loaded), with the toast "Savings loaded from
     vault.ofv" or "12 wallets loaded from vault.ofv" (the stick's label
     when the stick's own files brought some). The Vaults list's Unlock
-    still loads nothing until Load (it lands on Files); an unlock from
-    inside a flow returns to it. The wallet card's first button, primary,
+    loads too (decision 46); an unlock from inside a flow returns to it.
+    The wallet card's first button, primary,
     is **Spend from this wallet**; **Sign the PSBT from the stick** with
     a PSBT for this wallet in Files, which opens its review at once;
     **Carry on the spend · Signatures 1 of 2** while this wallet's spend
@@ -467,6 +467,13 @@ to get it.
     chart's wallet node say "Back up before you receive". The done card,
     the wallet card and the open vault lead with the plan's three checks
     as a strip above the chart.
+46. **The Vaults list's Unlock loads too** (owner, 2026-10-10;
+    `docs/NEW-WALLET.md` §11.1a). Reversing decision 43's own rule for
+    it: an Unlock from the Vaults list loads the wallets the vault
+    holds, with their keys where the vault holds them, and lands on
+    Wallets with the same toast and wallet chosen as the boot sheet's
+    Unlock (decision 43). A vault that holds no wallet lands where it
+    does today; an unlock begun from inside a flow still returns to it.
 
 ## Home
 

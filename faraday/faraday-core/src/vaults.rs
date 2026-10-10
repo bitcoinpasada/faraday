@@ -1945,6 +1945,21 @@ impl Faraday {
                 if self.screen == Screen::Family || back == Some(Screen::Family) {
                     self.screen = Screen::Family;
                     self.family_unlocked(v);
+                } else if back.is_none() && !made {
+                    // The Vaults list's Unlock (`docs/NEW-WALLET.md`
+                    // §11.1a): the wallets it holds load now, with their
+                    // keys where it holds them, and it lands on Wallets
+                    // as the boot sheet's Unlock does. A vault opened
+                    // from inside a flow, or just made, keeps `back_to`
+                    // or `made` and takes the branch below instead.
+                    let before = self.session.wallets.len();
+                    self.vault_load(v, true);
+                    if self.session.wallets.len() > before {
+                        let file = self.vaults.open[v].name.clone();
+                        self.unlock_landed(before, &file, None);
+                    } else {
+                        self.screen = Screen::Files;
+                    }
                 } else {
                     self.screen = back.unwrap_or(if made {
                         Screen::VaultContents
@@ -1969,10 +1984,11 @@ impl Faraday {
         }
     }
 
-    /// After an unlock that loaded wallets (`docs/NEW-WALLET.md` §11.1):
-    /// Wallets, on the first loaded that can sign here, else the first
-    /// loaded, and a toast naming what loaded from where. One that loaded
-    /// none stays where it landed.
+    /// After an unlock that loaded wallets (`docs/NEW-WALLET.md` §11.1,
+    /// §11.1a: the boot sheet's Unlock or the Vaults list's): Wallets, on
+    /// the first loaded that can sign here, else the first loaded, and a
+    /// toast naming what loaded from where. One that loaded none stays
+    /// where it landed.
     fn unlock_landed(&mut self, before: usize, file: &str, stick: Option<&str>) {
         let loaded: Vec<usize> = (before..self.session.wallets.len()).collect();
         let Some(&first) = loaded.first() else {

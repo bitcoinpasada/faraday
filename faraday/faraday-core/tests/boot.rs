@@ -1,7 +1,9 @@
 //! A session at boot: the boot stick's vault comes into the Inbox with
 //! the import over Home, pulling the stick leaves Home with the import,
-//! not the passphrase prompt, and a vault unlocked on its own shows its
-//! wallets and keys on Files without loading them until asked.
+//! not the passphrase prompt, and a vault unlocked on its own
+//! (`docs/NEW-WALLET.md` §11.1a) loads the wallets and keys it holds and
+//! lands on Wallets. Opened from inside a flow, it still shows what it
+//! holds without loading it until asked.
 
 use faraday_core::boot_import::ImportAction as I;
 use faraday_core::testkit;
@@ -81,30 +83,24 @@ fn the_boot_sticks_vault_waits_on_home_and_pulling_the_stick_leaves_the_import_u
 }
 
 #[test]
-fn unlocking_loads_nothing_until_the_person_chooses() {
+fn unlocking_loads_the_vaults_wallets_and_keys_and_lands_on_wallets() {
     let (mut app, _) = later();
     app.storage(StorageEvent::Sticks(Vec::new()));
     app.press(Action::Vault(V::Open(0)));
     unlock(&mut app);
     assert_eq!(app.vaults.open.len(), 1);
-    assert_eq!(app.screen, Screen::Files);
-    assert!(app.session.keys.is_empty() && app.session.wallets.is_empty());
-
-    // Drop Savings, then load the chosen: every other wallet and the key.
-    let savings = app.vaults.open[0]
-        .contents
-        .records
-        .iter()
-        .position(|r| r.text(faraday_vault::records::field::WALLET_NAME) == Some("Savings"))
-        .unwrap();
-    app.press(Action::Vault(V::Choose(0, savings)));
-    app.press(Action::Vault(V::LoadChosen(0)));
+    assert_eq!(app.screen, Screen::Wallets);
     assert_eq!(app.session.keys.len(), 1);
-    assert_eq!(app.session.wallets.len(), 11);
-    assert!(!app.session.wallets.iter().any(|w| w.name == "Savings"));
-
-    app.press(Action::Vault(V::LoadAll(0)));
-    assert_eq!(app.session.wallets.len(), 12);
+    let n = app.session.wallets.len();
+    assert!(n > 1, "the test vault holds every test wallet");
+    assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
+    assert_eq!(
+        app.toast_text(),
+        Some(format!("{n} wallets loaded from vault.ofv").as_str())
+    );
+    // The wallet shown is the one with a key here (Savings' seed loaded).
+    let slots = app.session.slots(&app.session.wallets[app.wallet]);
+    assert!(slots.iter().any(|s| s.held_by.is_some()));
 }
 
 #[test]
@@ -118,7 +114,10 @@ fn restore_starts_with_the_transaction_to_sign() {
 fn select_all_and_load_counts_what_it_loads_and_files_stays_on_screen() {
     let (mut app, _) = later();
     app.storage(StorageEvent::Sticks(Vec::new()));
-    app.press(Action::Vault(V::Open(0)));
+    // Opened from inside a flow (the vault way), not the Vaults list's
+    // own Unlock: it still shows what it holds without loading it until
+    // asked (`docs/NEW-WALLET.md` §11.1a).
+    app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     unlock(&mut app);
     let rows = app.vault_rows(0);
     // Select all when some are chosen chooses all; again, none.

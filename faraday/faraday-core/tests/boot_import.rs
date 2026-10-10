@@ -451,20 +451,26 @@ fn choose_what_to_import_lists_a_wallet_with_its_key_from_a_picture() {
 }
 
 #[test]
-fn a_vault_unlocked_elsewhere_lists_its_wallets_on_the_sheet() {
+fn a_vault_unlocked_elsewhere_has_already_loaded_its_wallets_off_the_sheet() {
     let mut app = unlocked_elsewhere();
+    // Savings loaded already with the rest of the vault's wallets
+    // (`docs/NEW-WALLET.md` §11.1a), so the sheet leaves it out: only
+    // Zebra, from the stick's own file, still needs choosing.
+    assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
     app.press(boot_import::OPEN);
     assert_eq!(app.sheet, Some(Sheet::Import));
     let view = app.import_view().unwrap();
-    // Savings is 2 of 3 over test keys 1 (in the vault), 2 (the picture)
-    // and 3 (the words file).
-    let savings = wallet(&view, "Savings").expect("the vault's wallets are not listed");
-    assert_eq!(savings.status(), "Can sign");
-    assert!(savings.files.contains(&"vault.ofv".to_string()));
     assert!(
-        !view.keys.iter().any(|k| k.fingerprint == fp(2)),
-        "test key 3 is used by Savings now"
+        wallet(&view, "Savings").is_none(),
+        "a wallet loaded already is not offered again"
     );
+    let zebra = wallet(&view, "Zebra").expect("the stick's own wallet is not listed");
+    assert_eq!(zebra.status(), "Can sign");
+    // Test key 1, the vault's own, loaded with Savings; it is not
+    // offered again either. Test key 3 (the words file) is not used by
+    // any wallet left on the sheet, so it stands on its own now.
+    assert!(!view.keys.iter().any(|k| k.fingerprint == fp(0)));
+    assert!(view.keys.iter().any(|k| k.fingerprint == fp(2)));
     // An open vault's file stays From the stick, and has no field.
     let v = file(&view, "vault.ofv");
     assert!(v.chosen && !v.enabled);
@@ -710,13 +716,14 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
 }
 
 #[test]
-fn a_vault_unlocked_on_vaults_while_the_import_waits_imports_nothing() {
+fn a_vault_unlocked_on_vaults_while_the_import_waits_loads_its_own_wallets() {
     let app = unlocked_elsewhere();
-    // Unlocked through the list, not the sheet: Files, as any unlock,
-    // with the import still waiting and nothing loaded.
-    assert_eq!((app.screen, app.sheet), (Screen::Files, None));
+    // Unlocked through the list, not the sheet (`docs/NEW-WALLET.md`
+    // §11.1a): Wallets, with the vault's own wallets and keys loaded;
+    // the stick's import still waits, untouched.
+    assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
     assert!(app.import.is_some());
-    assert!(app.session.wallets.is_empty());
+    assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
     assert_eq!(app.vaults.back_to, None);
 }
 
