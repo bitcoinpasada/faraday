@@ -77,6 +77,11 @@ with shares a person has not heard of.
 12. Every node and line of the chart can be pressed to look after the
     backup: rename, check, print again, copy, move, mark lost or
     exposed (§9). An edit there makes the map the plan.
+13. From the vault to a spend with no detour: an unlock that loads
+    wallets lands on Wallets with a toast, and the wallet card's first
+    button is **Spend from this wallet**, which opens the step-by-step
+    spend on the first page this wallet still needs; a PSBT already made
+    in Sparrow can be scanned at once (§11).
 
 ## 1. Appearance
 
@@ -631,6 +636,69 @@ first: "Your changes on the chart are replaced".
    yes, in the vault only.
 4. Copies of a vault on more sticks, each its own line (§9.4): yes.
 
+## 11. From the vault to a spend
+
+### 11.1 The unlock lands on Wallets
+
+An unlock that loads one or more wallets (the boot sheet's Unlock after
+the pull, the Vaults list's Unlock, a vault way back from a flow) lands
+on **Wallets** with a toast: "Savings loaded from vault.ofv", or "2
+wallets loaded from vault.ofv". The wallet selected is the first one
+that can sign here, else the first loaded. An unlock that loads no
+wallet lands where it does today (SIMPLIFY §3.3). A vault way opened
+from inside a flow still returns to that flow.
+
+### 11.2 Spend from this wallet
+
+The wallet card's first and primary button is **Spend from this
+wallet**, in place of "No PSBT in Files". With a PSBT for this wallet in
+Files it reads **Sign the PSBT from the stick** and opens its Check at
+once. While a spend of this wallet is under way it reads **Carry on the
+spend · Signatures 1 of 2** and resumes where it was; Home's lead says
+the same (SIMPLIFY §1.2 rule 1).
+
+It opens the Spend flow (`Screen::Family`, `docs/FAMILY.md`) on this
+wallet, past **What are you holding?** and **Open the wallet**, on the
+first page the wallet still needs:
+
+1. **Load the wallet in Sparrow**: the wallet QR (the descriptor, full
+   text under it) and **It is loaded** (one tap when Sparrow has it).
+2. **Write the payment in Sparrow**: what to press there, then the way
+   to bring the PSBT: **Scan the PSBT** (camera) or **On a stick** (the
+   stick round trip that exists).
+
+Above both pages, on the first one shown, the shortcut **I have the
+PSBT from Sparrow ready: Scan it**, which opens the camera and, once the
+PSBT reads, goes to its Check, skipping the pages before.
+
+3. **Check, then Sign**: the spend's existing steps; amounts and
+   addresses are checked before anything is signed.
+4. **Signers**, when the keys here are fewer than the quorum: **Add a
+   key here** (unlock another vault, words, a SeedQR) and **Collect a
+   signature** (the PSBT to the cosigner as a QR or on a stick, and
+   their signed copy scanned back). The card's key nodes' **Add its
+   key** still works before the spend.
+5. **Finish**: the signed transaction back to Sparrow (QR or file) to
+   broadcast, then **Put everything away** as the Spend flow ends today.
+
+### 11.3 Where
+
+`lib.rs` (the unlock's landing, the toast), `vault_screens.rs` and
+`boot_import.rs` (the unlock paths), `screens.rs` (the wallet card's
+button), `family.rs`/`family_screen.rs` (entering the flow on a wallet
+already open, the shortcut), `compact_screens.rs`.
+
+**Tests.** A new `tests/spend_from_vault.rs`: unlocking a vault that
+holds a wallet lands on Wallets with that wallet selected and the toast;
+Spend from this wallet opens on Load the wallet in Sparrow; the shortcut
+scans a PSBT and opens its Check; with a PSBT for the wallet in Files
+the button reads Sign the PSBT from the stick and opens Check; a 2-of-3
+with one key here reaches Signers with Add a key here and Collect a
+signature; leaving and coming back resumes the spend.
+
+**Docs.** `docs/FAMILY.md`, `docs/FLOWS.md` (Session, Wallets tab,
+Spend tab), `docs/WALLETS.md`.
+
 ## 10. Order
 
 1. §1 and §2 together (mechanical).
@@ -645,7 +713,8 @@ first: "Your changes on the chart are replaced".
    no byte of the kept state (`Faraday::kept`) nor any file written to
    the stick holds the passphrase.
 7. §7.2.
-8. §9, in two batches: the sheets and the
+8. §11.
+9. §9, in two batches: the sheets and the
    actions that exist as flows today (§9.1–§9.4); then the edited map,
    the marks and lost/exposed (§9.5–§9.7).
 

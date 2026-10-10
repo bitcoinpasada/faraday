@@ -143,6 +143,13 @@ pub enum VaultAction {
     LoadKeyOf([u8; 4]),
     /// Load the chosen wallets of open vault v with their seeds in it.
     LoadWithKeys(usize),
+    /// From the vault's chart: load wallet record r of open vault v, with
+    /// its seeds there where keys may load, and open its card.
+    OpenWalletOf(usize, usize),
+    /// From the vault's chart: load wallet record r of open vault v as
+    /// [`VaultAction::OpenWalletOf`] does, and open its backup's
+    /// checklist.
+    ChecklistOf(usize, usize),
     /// Show or hide open vault v's seeds and wallets one by one.
     EachShown(usize),
     /// Choose or drop record n of open vault v for the next load.
@@ -1144,6 +1151,16 @@ impl Faraday {
                     if keys == 1 { "seed" } else { "seeds" }
                 ));
             }
+            V::OpenWalletOf(v, r) => {
+                if let Some(w) = self.vault_load_wallet(v, r) {
+                    self.act(Action::OpenWallet(w));
+                }
+            }
+            V::ChecklistOf(v, r) => {
+                if let Some(w) = self.vault_load_wallet(v, r) {
+                    self.act(Action::BackupChecklist(w));
+                }
+            }
             V::Back => {
                 self.vaults.just_made = None;
                 if let Some(s) = self.vaults.back_to.take() {
@@ -1334,10 +1351,12 @@ impl Faraday {
                     self.vaults.form = None;
                     self.vaults.saving = false;
                     self.vaults.item_open = false;
+                    self.vault_item_offset = 0.0;
                 }
             }
             V::Category(k) => {
                 self.vaults.category = k.min(CATEGORIES.len() - 1);
+                self.vault_item_offset = 0.0;
                 self.vaults.category_chosen = true;
                 self.vaults.add_menu = false;
                 self.vaults.form = None;
@@ -1346,6 +1365,7 @@ impl Faraday {
             }
             V::Item(k) => {
                 self.vaults.item[self.vaults.category] = k;
+                self.vault_item_offset = 0.0;
                 self.vaults.form = None;
                 self.vaults.saving = false;
                 self.vaults.item_open = true;
@@ -1876,10 +1896,15 @@ impl Faraday {
                             .iter()
                             .any(|r| kinds.contains(&r.kind))
                     };
-                    self.vaults.category = CATEGORIES
-                        .iter()
-                        .position(|(_, kinds)| held(kinds))
-                        .unwrap_or(0);
+                    // Its wallets first, each with its chart (§7.2).
+                    self.vaults.category = if held(CATEGORIES[1].1) {
+                        1
+                    } else {
+                        CATEGORIES
+                            .iter()
+                            .position(|(_, kinds)| held(kinds))
+                            .unwrap_or(0)
+                    };
                     self.vaults.category_chosen = false;
                 } else {
                     self.vaults.category_chosen = true;
@@ -2058,6 +2083,45 @@ impl Faraday {
             .filter(|i| all || !open.skip.contains(i))
             .collect();
         self.vault_load_set(v, &set)
+    }
+
+    /// Loads wallet record `r` of open vault `v`, with the seeds of it the
+    /// vault keeps where keys may load. Returns the wallet's place in the
+    /// session.
+    fn vault_load_wallet(&mut self, v: usize, r: usize) -> Option<usize> {
+        let open = self.vaults.open.get(v)?;
+        let rec = open
+            .contents
+            .records
+            .get(r)
+            .filter(|x| x.kind == kind::WALLET)?;
+        let policy = crate::wallet::read_wallet(rec.text(field::WALLET)?).ok()?;
+        let want = crate::wallet::same_wallet(&policy);
+        let mut set = BTreeSet::from([r]);
+        if self.may_load_keys() {
+            let fps: Vec<String> = policy
+                .keys()
+                .iter()
+                .filter_map(|k| k.fingerprint())
+                .map(crate::wallet::fp_text)
+                .collect();
+            set.extend(open.contents.of(kind::KEY).filter_map(|(i, k)| {
+                crate::vault_screens::key_fingerprint(self, k)
+                    .filter(|f| fps.contains(f))
+                    .map(|_| i)
+            }));
+        }
+        let (keys, _) = self.vault_load_set(v, &set);
+        if keys > 0 {
+            self.toast(&format!(
+                "{keys} {} loaded",
+                if keys == 1 { "seed" } else { "seeds" }
+            ));
+        }
+        self.session
+            .wallets
+            .iter()
+            .position(|w| crate::wallet::same_wallet(&w.policy) == want)
     }
 
     /// Loads the records `set` names of open vault `v`: its keys and

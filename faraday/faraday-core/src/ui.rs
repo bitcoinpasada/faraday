@@ -524,6 +524,8 @@ pub enum Slot {
     VisitOut,
     /// The wallet card's body on a desktop (`Faraday::card_offset`).
     Card,
+    /// Vault contents' item on a desktop (`Faraday::vault_item_offset`).
+    VaultItem,
 }
 
 /// A scrolled region as drawn: where it is and how far it goes.

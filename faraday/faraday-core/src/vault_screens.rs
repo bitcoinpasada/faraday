@@ -2267,7 +2267,26 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     // The detail: a form, the session's keys or wallets to save, or the item.
     ui.fill(detail_x - 16.0, top - 8.0, 1.0, h - top - 16.0, 0.0, LINE);
-    detail(app, ui, v, &items, sel, detail_x, top, detail_w);
+    // The item scrolls when it is taller than the room under the head: a
+    // wallet's chart may be.
+    let gap = osk_ui::tokens::GAP;
+    let view_top = top - gap;
+    let clip = ui.rect(detail_x - gap, view_top, detail_w + 2.0 * gap, h - view_top);
+    ui.c.push_clip(clip);
+    let foot = detail(
+        app,
+        ui,
+        v,
+        &items,
+        sel,
+        detail_x,
+        top - app.vault_item_offset,
+        detail_w,
+    );
+    ui.c.pop_clip();
+    let content = foot + app.vault_item_offset - top;
+    let max = content - (h - top);
+    ui.report_scroll_in(crate::ui::Slot::VaultItem, clip, max, app.vault_item_offset);
 }
 
 /// The contents' row that lists every kind to add.
@@ -2865,6 +2884,19 @@ fn detail(
             ));
         }
         kind::WALLET => {
+            // The wallet's chart the other way up (`docs/NEW-WALLET.md`
+            // §7.2): where each seed is kept, its keys, the wallet.
+            let up = crate::glance::Direction::BackupFirst;
+            if let Some(g) = app
+                .vault_selected_index()
+                .and_then(|i| crate::glance::of_vault(app, app.vaults.current, i))
+            {
+                dy += if ui.compact {
+                    crate::glance::draw_column(ui, &g, up, dx, dy, dw)
+                } else {
+                    crate::glance::draw(ui, &g, up, dx, dy, dw)
+                } + osk_ui::tokens::PAD;
+            }
             let text = r.text(field::WALLET).unwrap_or("");
             field_row(ui, &mut dy, "Descriptor", text, true);
             actions.push(("Open in Wallets", va(V::Load)));

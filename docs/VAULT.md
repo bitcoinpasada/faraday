@@ -304,6 +304,13 @@ exactly where its last field does, refuses the slot.
 | 10 | Signed amounts | 1 SHA-256 of an unsigned transaction; 2 the amount each input stated, `u64` per input in order (repeatable per record: one record per transaction). Written by `docs/WALLETS.md` §3.3 when that setting is on; the oldest records are dropped first when the slot is full |
 | 11 | Backup plan | 1 the wallet, as a type 3 record's field 1 holds it; 2 the plan's answers, a line each (`name value`: `seeds`, `places`, `split`, `wallet`, `software`, `form`, `omit`, `vault v` the seeds vault *v* holds, `sticks v` the places that keep its stick, `pass i`; a plan written before 2026-10-10 has one `sticks` line with no number and no `vault` line, and reads as one vault holding every seed here); 3 a place's name (≤ 128 bytes, repeatable: one per place, in order, empty for "Place n"); 4 what one place, a vault, a stick of files, the software or the seeds on their own devices hold, a line (repeatable). Written when the backup's checklist is made with a vault open (`docs/WALLETS.md` §5), over the record this slot kept for the same wallet; the next backup of that wallet starts from it. The only place a place's name is kept |
 
+An open slot's view shows each type 3 wallet with the type 11 plan this
+slot keeps for it, as a chart read from the backup up: the places,
+vaults, files and software of the plan, the wallet's keys under them (a
+key whose type 2 record is in this slot reads "In this vault"), the
+wallet at the foot (`docs/NEW-WALLET.md` §7.2). A wallet with no type 11
+record here reads "No backup plan in this vault".
+
 In each type the first field is required and every other field is
 optional; type 10's field 2 is also required. Fields marked repeatable
 may appear more than once; no other field may. A key's field 1 must be a

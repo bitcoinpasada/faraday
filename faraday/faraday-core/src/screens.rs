@@ -2965,7 +2965,7 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.text(ix, cy, 13.0, W::S, MUTED, "At a glance");
     cy += 24.0;
     if let Some(g) = crate::glance::of(app, app.wallet) {
-        cy += crate::glance::draw(ui, &g, app.wallet, ix, cy, iw);
+        cy += crate::glance::draw(ui, &g, crate::glance::Direction::WalletFirst, ix, cy, iw);
     }
     // Where the keys still missing may be.
     let quorum_here =

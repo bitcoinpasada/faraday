@@ -6,7 +6,9 @@
 //! after a lock, and from the vault that keeps it when the wallet loads
 //! from it on another power-on; on a small panel the chart is a page of
 //! its own. The chart's layout reads either way: the wallet on top, or
-//! the backup.
+//! the backup. An open vault shows each wallet it holds the other way up,
+//! its places above its keys and its keys above the wallet, which opens
+//! its card when pressed (§7.2).
 
 use faraday_core::glance::{Backup, BackupNode, Direction, Glance, layout};
 use faraday_core::vaults::VaultAction as V;
@@ -429,4 +431,96 @@ fn the_layout_reads_wallet_first_or_backup_first_and_no_line_crosses_a_node() {
             }
         }
     }
+}
+
+/// A vault made and unlocked; with `plan`, the backup of single-key
+/// wallet `w` planned with the Paper and vault preset while it is open,
+/// its seed saved into it; then the wallet saved into it. Then the
+/// vault's wallets, the first chosen.
+fn vault_holding(app: &mut Faraday, w: usize, plan: bool) {
+    for i in 0..8u8 {
+        app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+            [0x40 + i; 32],
+        )));
+    }
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    for second in [false, true] {
+        app.press(Action::Vault(V::CFocus(0, second)));
+        type_text(app, "test phrase");
+    }
+    app.press(Action::Vault(V::CGo));
+    settle(app, |a| a.screen == Screen::Unlock);
+    type_text(app, "test phrase");
+    app.press(Action::Vault(V::Unlock));
+    settle(app, |a| !a.vaults.open.is_empty());
+    assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
+    if plan {
+        planned(app, w, 1);
+        app.press(Action::Backup(w));
+        app.press(Action::BChecklist);
+        app.press(Action::BVault(false));
+    }
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::AddKind(1)));
+    app.press(Action::Vault(V::SaveWallet(w)));
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(1)));
+    app.press(Action::Vault(V::Item(0)));
+    let _ = app.frame();
+}
+
+/// The wallet record the open vault's view charts.
+fn vault_wallet(app: &Faraday) -> usize {
+    app.vault_selected_index().expect("a wallet is chosen")
+}
+
+#[test]
+fn an_open_vault_shows_its_wallet_from_the_places_down_to_the_wallet() {
+    let mut app = desktop();
+    let w = one_key(&mut app);
+    vault_holding(&mut app, w, true);
+    let r = vault_wallet(&app);
+    let texts = app.drawn_texts();
+    for want in ["Place 1", "Place 2", "Vault 1", "Spending"] {
+        assert!(texts.iter().any(|t| t == want), "no {want}: {texts:?}");
+    }
+    let fp = app.session.keys[0].master.fingerprint().0;
+    let place = app
+        .hit_box(Action::Vault(V::ChecklistOf(0, r)))
+        .expect("a place on the chart");
+    let key = app
+        .hit_box(Action::ExploreKey(fp))
+        .expect("the key on the chart");
+    let wallet = app
+        .hit_box(Action::Vault(V::OpenWalletOf(0, r)))
+        .expect("the wallet on the chart");
+    assert!(place.1 + place.3 <= key.1, "a place is not above the key");
+    assert!(key.1 + key.3 <= wallet.1, "the key is not above the wallet");
+    // The wallet pressed opens its card.
+    app.press(Action::Vault(V::OpenWalletOf(0, r)));
+    assert_eq!(app.screen, Screen::Wallets);
+    assert_eq!(app.wallet, w);
+    // A place pressed opens the backup's checklist.
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::ChecklistOf(0, r)));
+    assert_eq!(app.screen, Screen::Backup);
+    assert_eq!(
+        app.backup.as_ref().map(|b| b.stage),
+        Some(BStage::Checklist)
+    );
+}
+
+#[test]
+fn a_wallet_with_no_plan_in_the_vault_shows_its_wallet_and_keys_only() {
+    let mut app = desktop();
+    let w = one_key(&mut app);
+    vault_holding(&mut app, w, false);
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "No backup plan in this vault"),
+        "{texts:?}"
+    );
+    assert!(texts.iter().any(|t| t == "Spending"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t == "Place 1"), "{texts:?}");
 }

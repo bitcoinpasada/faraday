@@ -371,6 +371,20 @@ to get it.
     (**Lock it and make a new vault**). The separate wallet-into-the-
     vault item is gone. A stick visit with several vault files waiting
     ticks one. Plans saved with one vault still load as one vault.
+42. **An open vault shows each wallet the other way up** (owner,
+    2026-10-10; `docs/NEW-WALLET.md` §7.2, decision 11). Vault contents
+    unlocked opens on Wallets where the vault holds one. A wallet's item
+    shows the plan's three check lines, then the wallet's chart (DESIGN
+    §4.16) read from the backup up: the places, vaults, files and
+    software of the plan this vault keeps for it, each with what it
+    holds and what it gives whoever finds it alone; the keys under them,
+    a seed the vault keeps reading "In this vault"; the wallet at the
+    foot. Then its descriptor and **Open in Wallets**. The wallet's node
+    opens its card and a place its backup's checklist, each loading the
+    wallet, and its seeds the vault keeps where keys may load, first. A
+    wallet with no plan in this vault: its wallet and key nodes, and "No
+    backup plan in this vault". On a small panel the item's page stacks
+    the same nodes in that order, with no lines.
 
 ## Home
 
@@ -520,7 +534,7 @@ flow that needs a vault (decision 10), it shows "Then: {flow}" by its
 title, and the unlock goes back to the flow.
 
 **Vault contents**: the kinds it holds, then **Add…** → items →
-details.
+details. Unlocked, it opens on Wallets where it holds one (decision 42).
 - **Add an entry** → form (title, username, password with **Generate with
   dice**, URL, notes, TOTP secret typed or **Scan**) → saved → the entry
   selected in the list; vault marked unsaved.

@@ -2703,6 +2703,8 @@ pub struct Faraday {
     pub list_offset: f32,
     /// Design units scrolled past in the wallet card's body, on a desktop.
     pub card_offset: f32,
+    /// Design units scrolled past in Vault contents' item, on a desktop.
+    pub vault_item_offset: f32,
     /// The wallet's chart is open as its own page, on a small panel.
     pub glance: bool,
     /// The height a scrolled page last drew to, design units: how far its
@@ -2937,6 +2939,7 @@ impl Faraday {
             pin_h: std::cell::Cell::new(0.0),
             list_offset: 0.0,
             card_offset: 0.0,
+            vault_item_offset: 0.0,
             glance: false,
             content_h: std::cell::Cell::new(0.0),
             motion: motion::Motion::default(),
@@ -6209,26 +6212,36 @@ impl Faraday {
         wallet: &wallet::Wallet,
         shape: &plan::Shape,
     ) -> Option<(plan::Answers, Vec<String>)> {
+        (0..self.vaults.open.len()).find_map(|v| self.plan_in_vault(v, wallet, shape))
+    }
+
+    /// The plan open vault `v` keeps for `wallet` (its type 11 record),
+    /// read against `shape`, with the places' names.
+    pub(crate) fn plan_in_vault(
+        &self,
+        v: usize,
+        wallet: &wallet::Wallet,
+        shape: &plan::Shape,
+    ) -> Option<(plan::Answers, Vec<String>)> {
         use faraday_vault::records::{field, kind};
         let want = wallet::same_wallet(&wallet.policy);
-        self.vaults.open.iter().find_map(|o| {
-            o.contents.of(kind::PLAN).find_map(|(_, r)| {
-                let same = r
-                    .text(field::PLAN_WALLET)
-                    .and_then(|t| wallet::read_wallet(t).ok())
-                    .is_some_and(|p| wallet::same_wallet(&p) == want);
-                if !same {
-                    return None;
-                }
-                let a = plan::Answers::from_text(shape, r.text(field::PLAN_ANSWERS)?)?;
-                let names = r
-                    .fields
-                    .iter()
-                    .filter(|f| f.number == field::PLAN_PLACE)
-                    .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
-                    .collect();
-                Some((a, names))
-            })
+        let o = self.vaults.open.get(v)?;
+        o.contents.of(kind::PLAN).find_map(|(_, r)| {
+            let same = r
+                .text(field::PLAN_WALLET)
+                .and_then(|t| wallet::read_wallet(t).ok())
+                .is_some_and(|p| wallet::same_wallet(&p) == want);
+            if !same {
+                return None;
+            }
+            let a = plan::Answers::from_text(shape, r.text(field::PLAN_ANSWERS)?)?;
+            let names = r
+                .fields
+                .iter()
+                .filter(|f| f.number == field::PLAN_PLACE)
+                .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
+                .collect();
+            Some((a, names))
         })
     }
 
@@ -8922,6 +8935,7 @@ impl Faraday {
         match self.slot() {
             ui::Slot::VisitOut => Some(&mut self.visit.out_offset),
             ui::Slot::Card => Some(&mut self.card_offset),
+            ui::Slot::VaultItem => Some(&mut self.vault_item_offset),
             ui::Slot::Page => self.page_slot(),
         }
     }
@@ -8943,6 +8957,13 @@ impl Faraday {
                     && self.region_key().1.is_none() =>
             {
                 ui::Slot::Card
+            }
+            ui::Slot::VaultItem
+                if self.screen == Screen::VaultContents
+                    && !self.compact
+                    && self.region_key().1.is_none() =>
+            {
+                ui::Slot::VaultItem
             }
             _ => ui::Slot::Page,
         }

@@ -53,7 +53,8 @@
 //! then with Paper and vault, and a 2-of-3 with two keys here, the second
 //! with a passphrase, and a cosigner, with Paper and vault and the
 //! passphrase in the vault too; on a small panel the card's At a glance
-//! row and the chart's own page.
+//! row and the chart's own page; then an open vault holding the one-key
+//! wallet with its plan, its chart from the backup up (§7.2).
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -3068,6 +3069,80 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::BAnswer(qrow::PASS + 1, 3));
     t.press(Action::BChecklist);
     shot_card(t, two, "glance-two-of-three")?;
+    // The open vault's view (§7.2): a vault made and open, the one-key
+    // wallet's plan made with it, its seed and the wallet saved into it;
+    // the wallet's chart from the backup up.
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.vaults.ms_per_unit = Some(180);
+    t.press(Action::Nav(Screen::Vaults));
+    t.press(Action::Vault(V::Create));
+    for second in [false, true] {
+        t.press(Action::Vault(V::CFocus(0, second)));
+        type_text(t, "glance phrase");
+    }
+    t.press(Action::Vault(V::CGo));
+    for _ in 0..10 {
+        if t.app.screen == Screen::Unlock {
+            break;
+        }
+        t.tick();
+    }
+    type_text(t, "glance phrase");
+    t.press(Action::Vault(V::Unlock));
+    for _ in 0..10 {
+        if !t.app.vaults.open.is_empty() {
+            break;
+        }
+        t.tick();
+    }
+    if t.app.vaults.open.is_empty() {
+        return Err("the vault made for the glance tour did not open".to_string());
+    }
+    t.press(Action::Backup(one));
+    t.press(Action::BPreset(1));
+    t.press(Action::BChecklist);
+    t.press(Action::BVault(false));
+    t.press(Action::Nav(Screen::VaultContents));
+    t.press(Action::Vault(V::AddKind(1)));
+    t.press(Action::Vault(V::SaveWallet(one)));
+    t.press(Action::Nav(Screen::VaultContents));
+    t.press(Action::Vault(V::Category(1)));
+    t.press(Action::Vault(V::Item(0)));
+    let shot_item = |t: &mut Tour, name: &str| -> Result<(), String> {
+        t.shot(name)?;
+        if t.app.is_compact() {
+            for k in 1..=3 {
+                scroll(t, 500);
+                t.shot(&format!("{name}-{k}"))?;
+            }
+        } else {
+            // The item's own region, right of the list.
+            let _ = t.app.frame();
+            let (w, h) = t.size();
+            t.app.event(Event::Scroll {
+                x: w - w / 5,
+                y: h / 2,
+                dy: 600,
+            });
+            t.shot(&format!("{name}-foot"))?;
+        }
+        Ok(())
+    };
+    shot_item(t, "glance-vault")?;
+    // The 2-of-3's plan made with the vault open, and the wallet saved.
+    t.press(Action::Backup(two));
+    t.press(Action::BPreset(1));
+    t.press(Action::BAnswer(qrow::PASS + 1, 3));
+    t.press(Action::BChecklist);
+    t.press(Action::Nav(Screen::VaultContents));
+    t.press(Action::Vault(V::AddKind(1)));
+    t.press(Action::Vault(V::SaveWallet(two)));
+    t.press(Action::Nav(Screen::VaultContents));
+    t.press(Action::Vault(V::Category(1)));
+    t.press(Action::Vault(V::Item(1)));
+    shot_item(t, "glance-vault-two-of-three")?;
     Ok(())
 }
 

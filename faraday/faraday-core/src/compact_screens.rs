@@ -105,7 +105,7 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
     if app.glance
         && let Some(g) = crate::glance::of(app, app.wallet)
     {
-        cy += crate::glance::draw_column(ui, &g, app.wallet, x, cy, iw);
+        cy += crate::glance::draw_column(ui, &g, crate::glance::Direction::WalletFirst, x, cy, iw);
         finish(app, ui, x0, cw, h, cy - top + 8.0);
         return;
     }
