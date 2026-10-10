@@ -3001,9 +3001,20 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
 /// Paper and vault; a 2-of-3 with test keys 1 and 2 here, key 2 with a
 /// passphrase, and test key 3 a cosigner, with Paper and vault and key
 /// 2's passphrase in its vault too. On a small panel, each card's At a
-/// glance row and the chart's page.
+/// glance row and the chart's page. The sheets a press on the chart opens
+/// (`docs/NEW-WALLET.md` §9): the wallet, a key here, a cosigner's key, a
+/// place, a vault, a line inside a place; Where it is; and in the open
+/// vault's view, a place's.
 fn glance_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
+    use faraday_core::glance::Press;
+    use faraday_core::glance_sheet::{ChartAction as C, Target};
+    let shot_sheet = |t: &mut Tour, press: Press, target: Target, name: &str| {
+        t.press(Action::Chart(C::Open(press, target)));
+        let shot = t.shot(name);
+        t.press(Action::Cancel);
+        shot
+    };
     t.press(Action::Entry(None));
     t.type_key(0);
     let one = {
@@ -3037,6 +3048,13 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::BPreset(1));
     t.press(Action::BChecklist);
     shot_card(t, one, "glance-one-key")?;
+    let press = Press::Loaded(one);
+    t.press(Action::OpenWallet(one));
+    shot_sheet(t, press, Target::Wallet, "glance-sheet-wallet")?;
+    shot_sheet(t, press, Target::Key(0), "glance-sheet-key")?;
+    shot_sheet(t, press, Target::Node(0), "glance-sheet-place")?;
+    shot_sheet(t, press, Target::Node(2), "glance-sheet-vault")?;
+    shot_sheet(t, press, Target::Line(0, 0), "glance-sheet-words")?;
     // Test key 2 with a passphrase, test key 3 a cosigner's.
     t.app
         .session
@@ -3076,6 +3094,13 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::BAnswer(qrow::PASS + 1, 3));
     t.press(Action::BChecklist);
     shot_card(t, two, "glance-two-of-three")?;
+    let press = Press::Loaded(two);
+    t.press(Action::OpenWallet(two));
+    shot_sheet(t, press, Target::Key(2), "glance-sheet-cosigner")?;
+    if !t.app.is_compact() {
+        t.press(Action::Chart(C::Where(press, 1)));
+        t.shot("glance-where")?;
+    }
     // The open vault's view (§7.2): a vault made and open, the one-key
     // wallet's plan made with it, its seed and the wallet saved into it;
     // the wallet's chart from the backup up.
@@ -3150,6 +3175,15 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Vault(V::Category(1)));
     t.press(Action::Vault(V::Item(1)));
     shot_item(t, "glance-vault-two-of-three")?;
+    if let Some(r) = t.app.vault_selected_index() {
+        t.press(Action::Vault(V::Item(1)));
+        shot_sheet(
+            t,
+            Press::Vault(t.app.vaults.current, r),
+            Target::Node(0),
+            "glance-vault-sheet-place",
+        )?;
+    }
     Ok(())
 }
 

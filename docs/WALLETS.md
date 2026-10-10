@@ -390,7 +390,10 @@ place that keeps its stick. Labels and values only; what each line
 means is in Learn's Backups page.
 
 **3. The checklist**, the plan made (**Make the checklist**): only the
-items the plan needs, each done by what it does, never by a tap:
+items the plan needs, each done by what it does, never by a tap. Opened
+from an action on the wallet's chart (2026-10-10, `docs/NEW-WALLET.md`
+§9) it opens at that item with the plan the chart shows, and makes
+nothing For the stick: each item's own **Make it** does.
 
 1. **Print N blank templates** (one per paper copy of a seed): made For
    the stick with the checklist, again when the word count changes; done

@@ -379,9 +379,11 @@ to get it.
     software of the plan this vault keeps for it, each with what it
     holds and what it gives whoever finds it alone; the keys under them,
     a seed the vault keeps reading "In this vault"; the wallet at the
-    foot. Then its descriptor and **Open in Wallets**. The wallet's node
-    opens its card and a place its backup's checklist, each loading the
-    wallet, and its seeds the vault keeps where keys may load, first. A
+    foot. Then its descriptor and **Open in Wallets**. Each node opens
+    its sheet (decision 44); an action there loads the wallet, and its
+    seeds the vault keeps where keys may load, first. While a wallet's
+    item is shown the kinds and items columns narrow, so the chart has
+    room for five nodes on a line at the desktop window's size. A
     wallet with no plan in this vault: its wallet and key nodes, and "No
     backup plan in this vault". On a small panel the item's page stacks
     the same nodes in that order, with no lines.
@@ -408,6 +410,45 @@ to get it.
     The other signatures. On a small panel the card's spend button sits
     under the signatures box, and the shortcut is its line and **Scan
     it**.
+44. **The chart's sheets** (owner, 2026-10-10; `docs/NEW-WALLET.md`
+    §9.1–§9.4, decision 12, first of two batches). A press on a node of
+    the chart, on the card or in an open vault, or on a line of what a
+    backup node holds, opens a sheet (DESIGN §4.16): its title, what it
+    is and where (Shape and Checksum; Where, Its seed is at; Stick, Found
+    alone, Seen here; Kept at), then its actions as menu rows, each
+    leading into the flow that does it, and Close (Back on a small
+    panel, where the sheet is the page). Opening a sheet changes nothing
+    and puts nothing For the stick; nor does opening the backup's
+    checklist from the chart, whose items each offer what they make.
+    The wallet: **Open in Wallets** (in a vault), **Show wallet QR**,
+    **Public files** (the checklist's item), **Print the wallet sheet
+    again** (or the shares), **Rename the wallet** (its card's name
+    field), **Change the plan** (Back up's questions, with the plan the
+    chart shows). A key held here, or kept in the open vault: **Show
+    xpub QR**, **Xpub file**, **Explore this key**, **Where it is** (its
+    lines bold, the rest dimmed, until the next screen or sheet); **Make
+    another backup of this seed**: **By hand** (the checklist's copy, with
+    Seed XOR and codex32), **Into Vault n**, **As a file**, each where the
+    plan has that item; **Check a copy of this seed**: **Scan my copy**,
+    which leaves the chart under the camera, and **Type it back**. A key
+    not here: **Load this key** with its way in, where the quorum needs
+    it. A place: its lines, each opening its own sheet; **Rename** (the
+    plan's place names, with a vault open; else the vault way, "Open a
+    vault to keep this"); **What goes in its envelope**. A vault: the
+    vault way or **Open the vault**, **Save its seeds into it**, **Copy
+    to another stick** (the stick visit). Files: **Write the seed files
+    again**, **Write the public files again**. Software: **Show the
+    descriptor QR again**, **Public files for this software**. Lines:
+    words or SeedQR, **Scan my copy**, **Type it back**, **Make another
+    copy**; the wallet sheet, **Print it again**, **As a QR picture**,
+    **As text**; a share, **Print the shares again**, **Keys left off
+    each share** (the checklist's shares); a vault's stick, the vault way
+    and **Copy the vault to another stick**; a seed file, **Write it
+    again**; the description, **Show wallet QR**. A flow on Back up comes
+    back to the card, or to the vault opened from. Not yet: what only
+    edits the plan (Move, Add here, Remove the place, I destroyed this
+    copy), marks and dates, lost and exposed, a holder's name and Mark
+    checked for a key not held here (the second batch).
 
 ## Home
 
@@ -744,9 +785,10 @@ guarantees for this file's rule:
   is made, else the one recorded this power-on (kept across a lock),
   else an open vault's. No plan: "No backup plan" with **Back up**; a
   plan in a locked vault not remembered: "Plan in {vault}, locked" with
-  **Unlock**. A backup node opens Back up at its checklist; a key held
-  here opens Explore; a key the quorum still needs offers its way in
-  (**Load from vault**, **Add its key**) as the Keys list did. The card's
+  **Unlock**. Every node, and every line of what a backup node holds,
+  opens its sheet (decision 44); a key the quorum still needs keeps its
+  way in (**Load from vault**, **Add its key**) as a line of its own,
+  pressed as the Keys list's was. The card's
   body scrolls between its head and its buttons. On a small panel an
   **At a glance** row opens the chart as its own page, one column, no
   lines, each backup node naming the keys it holds ("Key 1 words · Key

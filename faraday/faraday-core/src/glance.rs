@@ -39,15 +39,20 @@ pub struct Glance {
     pub backup: Backup,
     /// Where the chart is drawn, which says what its presses do.
     pub press: Press,
+    /// A threshold wallet, whose keys are shares and not account keys.
+    pub threshold: bool,
+    /// The key whose lines are drawn bold, the rest dimmed: **Where it
+    /// is** on its sheet (`docs/NEW-WALLET.md` §9.3).
+    pub focus: Option<usize>,
 }
 
-/// Where a chart is drawn, and so what pressing its nodes does.
+/// Where a chart is drawn, and so what its sheets' actions act on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Press {
-    /// On the card of loaded wallet n: a place opens its checklist.
+    /// On the card of loaded wallet n.
     Loaded(usize),
-    /// In open vault v, for its wallet record r: the wallet opens its
-    /// card, a place its checklist, each loading the wallet first.
+    /// In open vault v, for its wallet record r: each action loads the
+    /// wallet, and its seeds in the vault, first.
     Vault(usize, usize),
 }
 
@@ -64,8 +69,14 @@ pub struct KeyNode {
     pub state: String,
     /// Held here: its lines go to whatever holds its seed.
     pub here: bool,
-    /// What a press on it does: Explore for a key here; for a key the
-    /// quorum still needs, its way in.
+    /// Loaded in this session, where it can sign.
+    pub held: bool,
+    /// Its master fingerprint, when the wallet names one.
+    pub fp: Option<[u8; 4]>,
+    /// Its seed among the plan's, by place.
+    pub seed: Option<usize>,
+    /// For a key the quorum still needs, its way in: a press on that
+    /// line.
     pub action: Option<Action>,
     /// The way in a key the quorum still needs is offered, by name.
     pub way_in: Option<&'static str>,
@@ -80,6 +91,8 @@ pub enum Backup {
         nodes: Vec<BackupNode>,
         /// The plan's check.
         check: plan::Check,
+        /// The plan's checklist: the flows that make each thing.
+        items: Vec<plan::Item>,
     },
     /// The plan is in a locked vault and not remembered: its name, and
     /// the press that unlocks it.
@@ -104,6 +117,9 @@ pub struct BackupNode {
     pub tag: Tag,
     /// What it holds: "Key 1 words", "Wallet sheet", "Vault 2 stick".
     pub holds: Vec<String>,
+    /// What each of [`BackupNode::holds`] is, on the plan's map; empty
+    /// for a node that holds nothing.
+    pub whats: Vec<What>,
     /// What it holds, naming the keys a vault's stick opens: "Key 1
     /// words · Key 2 in the vault", for the small panel.
     pub keys_held: String,
@@ -275,9 +291,7 @@ fn build(
                 (false, false, _, true) => "Cosigner · xpub only",
                 (false, false, _, false) => "On its own device",
             };
-            let (action, way_in) = if held {
-                (slot.fingerprint.map(|f| Action::ExploreKey(f.0)), None)
-            } else if quorum_here {
+            let (action, way_in) = if held || quorum_here {
                 (None, None)
             } else {
                 match slot.fingerprint.filter(|f| app.vault_key_for(*f).is_some()) {
@@ -301,7 +315,10 @@ fn build(
                 fingerprint,
                 state: state.to_string(),
                 here: held || kept(slot),
-                action: action.filter(|_| held || may),
+                held,
+                fp: slot.fingerprint.map(|f| f.0),
+                seed: seed_of(n, slot),
+                action: action.filter(|_| may),
                 way_in,
             }
         })
@@ -311,6 +328,7 @@ fn build(
         Some((a, names)) => backup_nodes(app, &sum, &shape, &a, &names, &slot_of, &keys, any_here),
         None => none,
     };
+    let focus = app.chart_focus.filter(|(p, _)| *p == press).map(|(_, k)| k);
     Some(Glance {
         name: wallet.name.clone(),
         shape: Session::shape(wallet),
@@ -318,6 +336,8 @@ fn build(
         keys,
         backup,
         press,
+        threshold,
+        focus,
     })
 }
 
@@ -463,6 +483,7 @@ fn backup_nodes(
                 at => Some(plan::alone(shape, a, at).text().to_string()),
             };
             BackupNode {
+                whats: spot.holds.iter().map(|(w, _)| *w).collect(),
                 at: spot.at,
                 name,
                 tag: if matches!(spot.at, At::Vault(_)) {
@@ -494,6 +515,7 @@ fn backup_nodes(
     Backup::Plan {
         nodes,
         check: plan::check(shape, a),
+        items: plan::checklist(shape, a),
     }
 }
 
@@ -501,12 +523,13 @@ fn backup_nodes(
 // Drawing
 // ---------------------------------------------------------------------
 
-/// A line of text in a node.
+/// A line of text in a node, and what a press on that line opens.
 struct Text {
     text: String,
     size: f32,
     weight: W,
     color: Color,
+    press: Option<Action>,
 }
 
 impl Text {
@@ -516,7 +539,13 @@ impl Text {
             size,
             weight,
             color,
+            press: None,
         }
+    }
+
+    /// The line, pressed on its own.
+    fn pressed(self, press: Option<Action>) -> Text {
+        Text { press, ..self }
     }
 }
 
@@ -549,9 +578,24 @@ impl Node {
     }
 
     /// Its height at width `w`.
+    /// Whether its tag goes under its title, the two not fitting side by
+    /// side at width `w`.
+    fn tag_under(&self, ui: &Ui, w: f32) -> bool {
+        self.tag.is_some_and(|(t, _)| {
+            let inner = w - 2.0 * tokens::CHART_NODE_PAD;
+            ui.measure(tokens::LABEL, W::S, &self.title)
+                + tokens::GAP
+                + ui.measure(tokens::CAPTION, W::R, t)
+                > inner
+        })
+    }
+
     fn height(&self, ui: &Ui, w: f32) -> f32 {
         let inner = w - 2.0 * tokens::CHART_NODE_PAD;
         let mut h = 2.0 * tokens::CHART_NODE_PAD + ui.line(tokens::LABEL, W::S);
+        if self.tag_under(ui, w) {
+            h += ui.line(tokens::CAPTION, W::R);
+        }
         for l in &self.lines {
             h += ui.wrap_lines(l.size, l.weight, &l.text, inner) as f32 * ui.line(l.size, l.weight);
         }
@@ -568,7 +612,9 @@ impl Node {
         ui.stroke(x, y, w, h, tokens::RADIUS, INNER);
         let inner = w - 2.0 * pad;
         let mut cy = y + pad;
+        let under = self.tag_under(ui, w);
         let tag_w = match self.tag {
+            Some(_) if under => 0.0,
             Some((t, c)) => {
                 let tw = ui.measure(tokens::CAPTION, W::R, t);
                 let lh = ui.line(tokens::LABEL, W::S);
@@ -577,11 +623,24 @@ impl Node {
             }
             None => 0.0,
         };
+        // The node's own press first: a line pressed on its own is found
+        // over it.
+        if let Some(a) = self.action {
+            ui.hit(x, y, w, h, a);
+        }
         let title = ui.fit(tokens::LABEL, W::S, &self.title, inner - tag_w);
         ui.text(x + pad, cy, tokens::LABEL, W::S, TEXT, &title);
         cy += ui.line(tokens::LABEL, W::S);
+        if let Some((t, c)) = self.tag.filter(|_| under) {
+            ui.text(x + pad, cy, tokens::CAPTION, W::R, c, t);
+            cy += ui.line(tokens::CAPTION, W::R);
+        }
         for l in &self.lines {
-            cy += ui.wrap(x + pad, cy, inner, l.size, l.weight, l.color, &l.text);
+            let lh = ui.wrap(x + pad, cy, inner, l.size, l.weight, l.color, &l.text);
+            if let Some(a) = l.press {
+                ui.hit(x + pad, cy, inner, lh, a);
+            }
+            cy += lh;
         }
         if let Some((label, style, action)) = &self.button {
             let label = ui.fit(tokens::CAPTION, W::S, label, inner);
@@ -594,9 +653,6 @@ impl Node {
                 *style,
                 *action,
             );
-        }
-        if let Some(a) = self.action {
-            ui.hit(x, y, w, h, a);
         }
     }
 }
@@ -632,18 +688,13 @@ fn alone_color(s: &str) -> Color {
     }
 }
 
-/// The three rows of nodes: the wallet, its keys, its backup.
+/// The three rows of nodes: the wallet, its keys, its backup. Each node
+/// pressed opens its sheet (`docs/NEW-WALLET.md` §9); on the wide chart
+/// each line of what a backup node holds opens that line's, and a key's
+/// way in is its own line's press.
 fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
-    use crate::vaults::VaultAction as V;
-    // A place opens the backup's checklist; in a vault's view the wallet
-    // opens its card, each loading the wallet first.
-    let (open, checklist) = match g.press {
-        Press::Loaded(w) => (None, Action::BackupChecklist(w)),
-        Press::Vault(v, r) => (
-            Some(Action::Vault(V::OpenWalletOf(v, r))),
-            Action::Vault(V::ChecklistOf(v, r)),
-        ),
-    };
+    use crate::glance_sheet::{ChartAction as C, Target};
+    let open = |t: Target| Some(Action::Chart(C::Open(g.press, t)));
     let wallet = vec![Node {
         title: g.name.clone(),
         tag: None,
@@ -654,12 +705,13 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
             MUTED,
         )],
         button: None,
-        action: open,
+        action: open(Target::Wallet),
     }];
     let keys = g
         .keys
         .iter()
-        .map(|k| {
+        .enumerate()
+        .map(|(i, k)| {
             let mut lines = Vec::new();
             if let Some(l) = &k.label {
                 lines.push(Text::new(l.clone(), tokens::CAPTION, W::R, MUTED));
@@ -672,27 +724,34 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
             ));
             if let Some(way) = k.way_in {
                 let tone = if k.action.is_some() { ACCENT } else { DIM };
-                lines.push(Text::new(way, tokens::CAPTION, W::S, tone));
+                lines.push(Text::new(way, tokens::CAPTION, W::S, tone).pressed(k.action));
             }
             Node {
                 title: format!("Key {} · {}", k.number, k.fingerprint),
                 tag: None,
                 lines,
                 button: None,
-                action: k.action,
+                action: open(Target::Key(i as u8)),
             }
         })
         .collect();
     let backup = match &g.backup {
         Backup::Plan { nodes, .. } => nodes
             .iter()
-            .map(|n| {
+            .enumerate()
+            .map(|(i, n)| {
                 let mut lines: Vec<Text> = if compact {
                     vec![Text::new(n.keys_held.clone(), tokens::CAPTION, W::R, TEXT)]
                 } else {
                     n.holds
                         .iter()
-                        .map(|h| Text::new(h.clone(), tokens::CAPTION, W::R, TEXT))
+                        .enumerate()
+                        .map(|(j, h)| {
+                            let line = (j < n.whats.len())
+                                .then(|| open(Target::Line(i as u8, j as u8)))
+                                .flatten();
+                            Text::new(h.clone(), tokens::CAPTION, W::R, TEXT).pressed(line)
+                        })
                         .collect()
                 };
                 if let Some(s) = &n.stick {
@@ -709,7 +768,7 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                     tag: Some((n.tag.name(), tag_color(n.tag))),
                     lines,
                     button: None,
-                    action: Some(checklist),
+                    action: open(Target::Node(i as u8)),
                 }
             })
             .collect(),
@@ -1023,7 +1082,8 @@ pub(crate) fn draw(
     // The lines' sources: the wallet to each key, each key held here to
     // every node that holds its seed, each in its colour and dashes.
     let mut sources: Vec<Source> = vec![((0, 0), (0..g.keys.len()).map(|k| (1, k)).collect())];
-    let mut looks: Vec<(Color, [f32; 4])> = vec![(BORDER, tokens::CHART_DASHES[0])];
+    let mut looks: Vec<(Color, [f32; 4], f32)> =
+        vec![(BORDER, tokens::CHART_DASHES[0], tokens::CHART_STROKE)];
     if let Backup::Plan { nodes, .. } = &g.backup {
         for (held, (k, _)) in g
             .keys
@@ -1039,11 +1099,21 @@ pub(crate) fn draw(
                 .map(|(i, _)| (2, i))
                 .collect();
             sources.push(((1, k), to));
+            // Where it is: this key's lines bold, every other dimmed.
+            let (color, stroke) = match g.focus {
+                Some(f) if f == k => (KEY_LINES[held % KEY_LINES.len()], tokens::CHART_STROKE_BOLD),
+                Some(_) => (INNER, tokens::CHART_STROKE),
+                None => (KEY_LINES[held % KEY_LINES.len()], tokens::CHART_STROKE),
+            };
             looks.push((
-                KEY_LINES[held % KEY_LINES.len()],
+                color,
                 tokens::CHART_DASHES[held % tokens::CHART_DASHES.len()],
+                stroke,
             ));
         }
+    }
+    if g.focus.is_some() {
+        looks[0].0 = INNER;
     }
     let wallet_w = rows[0].iter().map(|n| n.natural(ui)).fold(0.0, f32::max);
     let counts = [rows[0].len(), rows[1].len(), rows[2].len()];
@@ -1056,9 +1126,9 @@ pub(crate) fn draw(
     };
     // The lines, under the nodes.
     for (s, pts) in &laid.paths {
-        let (color, dash) = looks[*s];
+        let (color, dash, stroke) = looks[*s];
         for seg in pts.windows(2) {
-            segment(ui, seg[0], seg[1], color, dash);
+            segment(ui, seg[0], seg[1], color, dash, stroke);
         }
     }
     for (r, nodes) in rows.iter().enumerate() {
@@ -1076,23 +1146,24 @@ pub(crate) fn draw(
     cy - y
 }
 
-/// An orthogonal run from `a` to `b`, in `dash`.
-fn segment(ui: &mut Ui, a: (f32, f32), b: (f32, f32), color: Color, dash: [f32; 4]) {
+/// An orthogonal run from `a` to `b`, in `dash`, `stroke` wide.
+fn segment(ui: &mut Ui, a: (f32, f32), b: (f32, f32), color: Color, dash: [f32; 4], stroke: f32) {
     let across = (a.1 - b.1).abs() < f32::EPSILON;
     let (start, end) = if across {
         (a.0.min(b.0), a.0.max(b.0))
     } else {
         (a.1.min(b.1), a.1.max(b.1))
     };
-    let half = tokens::CHART_STROKE / 2.0;
+    let half = stroke / 2.0;
     let run = |from: f32, to: f32, ui: &mut Ui| {
         if to <= from {
             return;
         }
-        if across {
-            ui.rule(from, a.1 - half, to - from, color);
-        } else {
-            ui.vrule(a.0 - half, from, to - from, color);
+        match (across, stroke > tokens::CHART_STROKE) {
+            (true, false) => ui.rule(from, a.1 - half, to - from, color),
+            (false, false) => ui.vrule(a.0 - half, from, to - from, color),
+            (true, true) => ui.fill(from, a.1 - half, to - from, stroke, 0.0, color),
+            (false, true) => ui.fill(a.0 - half, from, stroke, to - from, 0.0, color),
         }
     };
     if dash[1] <= 0.0 {

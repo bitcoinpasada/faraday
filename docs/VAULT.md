@@ -309,7 +309,9 @@ slot keeps for it, as a chart read from the backup up: the places,
 vaults, files and software of the plan, the wallet's keys under them (a
 key whose type 2 record is in this slot reads "In this vault"), the
 wallet at the foot (`docs/NEW-WALLET.md` §7.2). A wallet with no type 11
-record here reads "No backup plan in this vault".
+record here reads "No backup plan in this vault". Each node opens its
+sheet (§9); its actions load the wallet, and its seeds this slot keeps,
+first. Opening one writes nothing into the slot.
 
 In each type the first field is required and every other field is
 optional; type 10's field 2 is also required. Fields marked repeatable

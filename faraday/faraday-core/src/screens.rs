@@ -109,6 +109,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::Potential => potential_sheet(app, ui, w, h),
             Sheet::Import => crate::boot_import_screen::draw(app, ui, w, h),
             Sheet::Pull => pull_sheet(app, ui, w, h),
+            Sheet::Chart => crate::glance_sheet::draw(app, ui, w, h),
         }
         ui.oy = 0.0;
     }
@@ -4900,7 +4901,11 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x: col_x,
         w: col_w,
         h,
-        back: Some(("Wallets", Action::OpenWallet(b.wallet))),
+        back: Some(if b.from_vault {
+            ("Vault contents", Action::Nav(Screen::VaultContents))
+        } else {
+            ("Wallets", Action::OpenWallet(b.wallet))
+        }),
         heading: &heading,
         guided: app.guided,
         switch: checklist,

@@ -2090,9 +2090,22 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ),
     );
 
-    // Three columns: kinds, items, the item.
-    let kinds_w = 190.0;
-    let items_w = ((w - kinds_w) * 0.38).clamp(220.0, 340.0);
+    // Three columns: kinds, items, the item. A wallet's chart takes the
+    // room the other two give up (`docs/NEW-WALLET.md` §7.2).
+    let chart_shown = !app.vaults.add_menu
+        && app
+            .vault_selected_index()
+            .and_then(|i| v.contents.records.get(i))
+            .is_some_and(|r| r.kind == kind::WALLET);
+    let (kinds_w, items_w) = if chart_shown {
+        (
+            osk_ui::tokens::CHART_PANE_KINDS,
+            osk_ui::tokens::CHART_PANE_ITEMS,
+        )
+    } else {
+        let kinds_w = 190.0;
+        (kinds_w, ((w - kinds_w) * 0.38).clamp(220.0, 340.0))
+    };
     let detail_x = x + kinds_w + items_w + 48.0;
     let detail_w = w - kinds_w - items_w - 48.0;
     let top = y;

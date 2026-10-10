@@ -967,6 +967,21 @@ pub const CHART_BAND: f32 = GRID + GAP_SMALL;
 pub const CHART_LANE: f32 = GAP_SMALL;
 /// A line's stroke in dp.
 pub const CHART_STROKE: f32 = 1.0;
+/// A key's lines while its sheet's **Where it is** shows them, the rest
+/// dimmed.
+pub const CHART_STROKE_BOLD: f32 = 2.0;
+/// Width in dp of the sheet a chart's node opens, on a wide display.
+pub const CHART_SHEET_WIDTH: f32 = 560.0;
+/// Height in dp of an action row on that sheet: one line, its value at
+/// the right.
+pub const CHART_SHEET_ROW: f32 = 44.0;
+/// The open vault's kinds column, in dp, while a wallet's chart is
+/// shown: narrower, so that the chart beside it has room for five nodes
+/// on a line at the desktop window's size.
+pub const CHART_PANE_KINDS: f32 = 128.0;
+/// The open vault's list of items, in dp, while a wallet's chart is
+/// shown.
+pub const CHART_PANE_ITEMS: f32 = 176.0;
 /// Height in dp of a button inside a node.
 pub const CHART_BUTTON: f32 = 32.0;
 /// Each key's dash pattern, in dp: on, off, on, off. The first is solid.

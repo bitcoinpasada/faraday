@@ -26,6 +26,7 @@ pub mod flow;
 pub mod forms;
 mod fresh;
 pub mod glance;
+pub mod glance_sheet;
 pub mod gpg;
 pub mod inbox;
 pub mod inputs;
@@ -531,11 +532,15 @@ pub enum Action {
     /// Open Backups on loaded wallet `i`.
     BackupsOf(usize),
     /// Open Back up a wallet on loaded wallet `i` at its checklist, from
-    /// the plan its chart shows (`docs/NEW-WALLET.md` §6.2).
+    /// the plan its chart shows (`docs/NEW-WALLET.md` §6.2). Nothing is
+    /// made For the stick by opening it: each item offers what it makes.
     BackupChecklist(usize),
     /// Open, or close, the wallet's chart as its own page on a small
     /// panel.
     Glance(bool),
+    /// A press on the wallet's chart or one of its sheets
+    /// (`docs/NEW-WALLET.md` §9).
+    Chart(glance_sheet::ChartAction),
     /// Show the Backups screen's wallet `i`, a page each on a small panel.
     BackupsPage(usize),
     /// A vault screen's action.
@@ -1339,6 +1344,9 @@ pub enum Sheet {
     /// Something pressed that loads a key, with a stick attached: it
     /// carries on once the stick is pulled ([`Faraday::pull`]).
     Pull,
+    /// A node or a line of the wallet's chart: what it is, where, and its
+    /// actions (`docs/NEW-WALLET.md` §9).
+    Chart,
 }
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
@@ -2093,6 +2101,9 @@ pub struct BackupState {
     /// Opened from Create's Back up card: the chip says the way on is
     /// the wallet card.
     pub from_create: bool,
+    /// Opened from a chart in an open vault's view: the way back is the
+    /// vault.
+    pub from_vault: bool,
 }
 
 /// Signing a message: the cards' state.
@@ -2707,6 +2718,11 @@ pub struct Faraday {
     pub vault_item_offset: f32,
     /// The wallet's chart is open as its own page, on a small panel.
     pub glance: bool,
+    /// The chart and the thing on it whose sheet is open.
+    pub chart: Option<(glance::Press, glance_sheet::Target)>,
+    /// A chart's key whose lines are drawn bold, by place among its keys:
+    /// **Where it is**.
+    pub chart_focus: Option<(glance::Press, usize)>,
     /// The height a scrolled page last drew to, design units: how far its
     /// scroll may go.
     pub(crate) content_h: std::cell::Cell<f32>,
@@ -2941,6 +2957,8 @@ impl Faraday {
             card_offset: 0.0,
             vault_item_offset: 0.0,
             glance: false,
+            chart: None,
+            chart_focus: None,
             content_h: std::cell::Cell::new(0.0),
             motion: motion::Motion::default(),
             motion_for: ((Screen::Home, None), ui::Slot::Page),
@@ -4068,6 +4086,12 @@ impl Faraday {
             }
             return;
         }
+        // A chart's sheet leads into a flow: whatever its rows press, the
+        // sheet goes first.
+        if self.sheet == Some(Sheet::Chart) && !matches!(action, Action::Chart(_)) {
+            self.sheet = None;
+            self.chart = None;
+        }
         // Keys load only with no stick attached: what loads one waits,
         // under a sheet, for the stick to be pulled.
         if self.selftest_passed() && !self.sticks.is_empty() && self.pull_what(action).is_some() {
@@ -4214,6 +4238,7 @@ impl Faraday {
                 self.list_offset = 0.0;
             }
             Action::Nav(s) => {
+                self.chart_focus = None;
                 if s == Screen::Backups {
                     self.backups_at = 0;
                 }
@@ -4617,6 +4642,7 @@ impl Faraday {
                 }
                 self.sheet = None;
                 self.qr = None;
+                self.chart = None;
                 if let Some(b) = self.backup.as_mut() {
                     b.pick = false;
                 }
@@ -4646,35 +4672,25 @@ impl Faraday {
                     self.screen = Screen::Wallets;
                     self.card_offset = 0.0;
                     self.glance = false;
+                    self.chart_focus = None;
                 }
             }
+            Action::Chart(c) => self.chart_act(c),
             Action::Glance(open) => {
                 self.glance = open && self.screen == Screen::Wallets;
                 self.list_offset = 0.0;
             }
             Action::BackupChecklist(i) => {
-                if i >= self.session.wallets.len() {
-                    return;
+                // The plan the chart shows, at its first item not done;
+                // nothing is made For the stick by opening it.
+                if self.chart_checklist(i, false) {
+                    let first = self
+                        .backup_items()
+                        .into_iter()
+                        .find(|&n| bstep::item(n).is_some_and(|it| !self.backup_item_done(it)));
+                    self.backup_item_open(first);
+                    self.screen = Screen::Backup;
                 }
-                let known = glance::plan_of(self, i);
-                if !self.backup.as_ref().is_some_and(|b| b.wallet == i) {
-                    self.act(Action::Backup(i));
-                }
-                if let Some(b) = self.backup.as_mut()
-                    && b.stage != BStage::Checklist
-                {
-                    // The plan the chart showed, when it is not the one
-                    // loaded.
-                    if let Some((answers, names)) = known {
-                        b.answers = answers;
-                        if b.names.iter().all(|n| n.trim().is_empty()) {
-                            b.names = names;
-                        }
-                        b.q = None;
-                        self.act(Action::BChecklist);
-                    }
-                }
-                self.screen = Screen::Backup;
             }
             Action::Backup(i) => {
                 if i < self.session.wallets.len() {

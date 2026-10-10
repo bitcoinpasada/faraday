@@ -2131,7 +2131,7 @@ impl Faraday {
     /// Loads wallet record `r` of open vault `v`, with the seeds of it the
     /// vault keeps where keys may load. Returns the wallet's place in the
     /// session.
-    fn vault_load_wallet(&mut self, v: usize, r: usize) -> Option<usize> {
+    pub(crate) fn vault_load_wallet(&mut self, v: usize, r: usize) -> Option<usize> {
         let open = self.vaults.open.get(v)?;
         let rec = open
             .contents

@@ -648,6 +648,18 @@ that can sign here, else the first loaded. An unlock that loads no
 wallet lands where it does today (SIMPLIFY §3.3). A vault way opened
 from inside a flow still returns to that flow.
 
+### 11.1a The Vaults list's Unlock loads too (owner, 2026-10-10)
+
+Built first for the boot sheet's Unlock only, because the Vaults list's
+Unlock loaded nothing until Load was pressed (`tests/boot.rs`
+`unlocking_loads_nothing_until_the_person_chooses`). The owner reversed
+that: an Unlock from the Vaults list loads the wallets the vault holds,
+with their keys where the vault holds them (as the boot sheet's Unlock
+does), and lands on Wallets with the same toast and selection. A vault
+that holds no wallet lands where it does today. That test changes to
+the new rule. It answers the question in `local/REMAINING.md`, "Unlock
+from the Vaults list lands on Files. Open the vault instead?".
+
 ### 11.2 Spend from this wallet
 
 The wallet card's first and primary button is **Spend from this
@@ -699,6 +711,257 @@ signature; leaving and coming back resumes the spend.
 **Docs.** `docs/FAMILY.md`, `docs/FLOWS.md` (Session, Wallets tab,
 Spend tab), `docs/WALLETS.md`.
 
+## 12. Restore a wallet: what it is, then its description or its seeds
+
+**Why** (owner, 2026-10-10). Restore is how a wallet made elsewhere
+comes to Faraday (a 2-of-3 with three SeedQRs, or three written seeds).
+It opens today on **A transaction to sign**, which belongs to spending
+(§11), not to restoring.
+
+### 12.1 The cards
+
+Restore (`Screen::Restore`, `RSTEPS`) becomes: **Kind · Quorum ·
+Description · Seeds · Check · Done**, opening on Kind (decision 3's
+rule). The transaction card goes; a spend from a backup is the Spend
+tab's (§11 and `docs/FAMILY.md`), whose routes keep working.
+
+1. **Kind**: Single key · native SegWit (ticked), Multisig · native
+   SegWit, and **More kinds** for the other eight, as Create's Kind
+   (§2.2). Above the rows, the shortcut **I have the wallet description:
+   Scan it**, with **From Files** beside it when a description is in
+   Files: a description read here fills Kind, Quorum and the cosigners'
+   keys, and the flow goes to Seeds.
+2. **Quorum** (a multisig kind): M of N on the two sliders the seeds
+   screen has (`seeds_screen.rs`), 2 of 3 by default.
+3. **Description**: skipped when the shortcut read one. Otherwise:
+   **Scan it**, **From Files**, or **I do not have it**: the wallet is
+   then made from the seeds and, for a seed not here, its cosigner's
+   xpub, at the kind's standard path, as the seeds screen does today.
+4. **Seeds**: a slot per key (N of them; one for a single key). Each
+   slot: **Scan a SeedQR**, **Type the words**, a seed an open vault
+   holds, a key already loaded; for a multisig, also **Their xpub**
+   (scan or Files) for a seed not here, and **Not here** once the
+   description gave its key. Under a seed: **Passphrase** (optional,
+   typed twice, `pass_field`, "Not set" when empty). With the
+   description known, each seed's fingerprint is matched to its key in
+   the description as it is entered: a match reads "Key 2 of the
+   wallet" in `OK`; no match reads "Not a key of this wallet: check the
+   words or the passphrase" in `ERR`, and the seed is not taken.
+   **Make the wallet** once every slot is filled.
+5. **Check**: the descriptor row and the wallet's first addresses
+   (Create's Check), to compare with the backup sheet or Sparrow.
+6. **Done**: **Back up this wallet** (Back up on it) and **Spend from
+   this wallet** (§11.2), and **Wallets**.
+
+### 12.2 Where
+
+`lib.rs` (`rstep`, Restore's state and actions), `screens.rs`
+(`restore_screen`, `restore_body`), `seeds.rs` and `seeds_screen.rs`
+(reused, not duplicated), `catalog.rs` (the tiles that open Restore),
+`compact_screens.rs`, the Spend tab's entry into what was Restore's
+transaction card.
+
+**Tests.** `tests/restore.rs` (new or the existing one): Restore opens
+on Kind with no transaction card; a 2-of-3 from three typed seeds, one
+with a passphrase, makes the wallet whose descriptor is the one Sparrow
+would make (compare with a fixed vector); the description scanned first
+fills the quorum and then rejects a seed that is not one of its keys and
+a right seed with the wrong passphrase; a 2-of-3 with two seeds and a
+cosigner's xpub is made; Done offers Back up and Spend from this wallet.
+
+**Docs.** `docs/FLOWS.md`, `docs/WALLETS.md`, `docs/FAMILY.md` (if a
+route went through the transaction card).
+
+## 13. Input: mouse back and forward, selecting text, the default count
+
+### 13.1 Back and forward buttons
+
+The desktop shell passes the mouse's back and forward buttons (winit
+`MouseButton::Back`, `MouseButton::Forward`) to the core as new events.
+**Back** does what the screen's back link (or Escape) does. **Forward**
+reopens the screen last left by Back, if nothing else has been opened
+since; a short history of screens left by Back, cleared by any other
+navigation. A flow's state is kept as it is kept today when leaving it.
+Other shells ignore the events.
+
+**Where.** `core/osk-shell-api` (the events), `faraday/shells/desktop`,
+`lib.rs` (back, forward, the history).
+
+### 13.2 Selecting part of a field
+
+In any text field (typed text, the masked passphrase fields, the dice
+or coin box): a press puts the caret there; a drag selects the
+characters dragged over; Shift with a press or the arrow keys extends
+the selection; a double press selects all (as a second press does
+today). Backspace or Delete removes the selection; a character typed
+replaces it. In a masked field the dots stand for the characters one
+to one, so a selection is by position. `SecretText` gains insert and
+delete at a position and keeps wiping what it drops; nothing is copied
+out of a masked field.
+
+**Where.** `ui.rs` (`selection`, `select_all`, the caret), the text
+fields' handling in `lib.rs`, `secret_text.rs`, `keygen.rs` (the
+entries' box: a deletion in the middle removes those entries).
+
+**Tests.** `tests/caret.rs` and `tests/select.rs`: a drag over three
+characters and Backspace leaves the rest; typing over a selection
+replaces it; in a passphrase field the same, and the key made is the
+words with the edited passphrase; in the dice box, deleting rolls 4 to
+6 leaves the others in order.
+
+### 13.3 The default word count is shown chosen
+
+New key's Length shows its default count (12, or 24 when only 24 will
+do) as the chosen button from the start, on the desktop and the small
+panel, as any choice shows its value.
+
+**Where.** `keygen_screen.rs` `length_counts` and the compact Length
+page. **Tests.** `tests/keygen.rs`: a fresh New key draws 12 words as
+chosen.
+
+### 13.4 An empty passphrase field says "No passphrase" in a pill
+
+Every BIP-39 passphrase field (`pass_field`, used by New key's Key card,
+Create's Add a passphrase and Restore's seeds; Add a key's "BIP-39
+passphrase" field on the desktop and the small panel; any other field
+that takes a BIP-39 passphrase) shows, while it is empty, a pill inside
+the box at its start reading **No passphrase** (`Ui::pill`, `DIM`
+text), in place of any "None" or "Not set" text. It stays while the
+field has focus and nothing is typed, with the caret after it; the
+first character typed replaces it with the dots. A field for a vault's
+passphrase, which is never optional, keeps no pill. The locked Key
+card's Set / Not set pill (§3.3) is unchanged.
+
+**Tests.** `tests/keygen.rs`: an empty Key card field draws "No
+passphrase" and no "None"; after one character it does not.
+
+## 14. The backup comes before spending
+
+**Decisions (owner, 2026-10-10).** A key made in Faraday cannot sign a
+spend until the backup its wallet's plan chose is done; receiving is
+warned about, not blocked; a checklist item that must be done has no way
+past it but doing it. Keys restored from words, a SeedQR or a vault
+with no backup pending are already backed up and sign at once.
+
+### 14.1 A checklist item's button is its next action
+
+In Back up's checklist, an item's foot button is the item's own next
+action until the item is done, and only then **Continue**. The same
+action is not drawn again in the body. For a vault item: **Make a
+vault** (with no vault open); then **one** button, **Save into
+{vault}**, which saves in one press everything the plan puts in that
+vault: each of its seeds, each passphrase the plan keeps there, and
+the wallet description where the plan puts it there (owner,
+2026-10-10: the separate per-seed and "Save the wallet into" buttons
+go); the body lists what that press will save, as plain rows; then,
+once the vault holds all of it, **Continue**. There is no Continue
+before that, and no way to pick only part of it: the plan chose. For
+a copy by hand: **Check my copy** until it is checked. For files:
+**Make it**. An item not done cannot be passed: the cards after it open
+only once it is done (as a flow's later cards do), and the card list
+says which item waits.
+
+### 14.2 Every vault's stick has a place
+
+The plan cannot leave a vault's stick at no place (the owner's
+screenshot: a single key whose words were unticked, its only copy in
+Vault 1 and Vault 1's stick at no place, so "Any one place lost: No").
+§5.1's rule gains a last fallback, the place holding the fewest keys;
+and Places' Continue, while a vault made has no stick ticked, is
+replaced by the line "Vault 1's stick needs a place" in `WARN`. A plan
+whose check reads "Any one place lost: No" says why under the line, in
+the map panel: "Seed 9a6a2580 is kept only in Vault 1, whose stick is
+at Place 1", or whatever the check found.
+
+### 14.3 Spending waits for the backup
+
+- **Which keys.** A key is *made here* when its words came from New
+  key, or when a passphrase was added to it here (§3.6): the passphrase
+  exists nowhere else. It stays made here until a backup checklist that
+  keeps its seed (and that passphrase) is complete: every item done.
+- **What waits.** Signing a transaction with that key: the wallet
+  card's first button reads **Finish the backup first** and opens the
+  wallet's checklist (or its plan when none is made); in a spend, Who
+  signs lists the key as "Waiting for its backup" with **Finish the
+  backup**. Signing a message is not a spend and is not held.
+- **Across a lock.** Which keys are made here, by fingerprint, is kept
+  in the vault beside the seed and in the backup record, never the
+  seed or passphrase; a key loaded from a vault with its backup pending
+  is still held.
+- **Receiving.** Every address shown for a wallet with a key made here
+  and pending (the card's first receive address, Create's Check, the
+  Key card's first address, the at-a-glance chart's wallet) carries
+  "Back up before you receive" in `WARN`. Nothing is hidden.
+
+### 14.4 Changing the plan part way
+
+**Change the plan** stays under every checklist item (owner, 2026-10-10:
+a person may decide after the fact that they want something else). It
+is the one way out of a forced item, so:
+
+1. Items already done that the new plan still has stay done. Work done
+   that the new plan drops stays on the map as what it is ("Vault 1
+   holds seed 9a6a2580"), because the copy exists until the person
+   destroys it; §9.4's I destroyed this copy takes it off.
+2. A plan that keeps no copy of a key made here cannot be chosen: in
+   place of **Make the checklist**, "Seed 9a6a2580 is kept nowhere" in
+   `WARN`.
+3. The hold on spending (§14.3) follows the plan now chosen: a simpler
+   plan is allowed, and its own checklist must still be completed.
+
+**Tests** (`tests/backup_first.rs`): changing from Paper and vault to
+Paper only after the vault item is done keeps the vault's copy on the
+map and holds the key until the paper items are done; a plan with the
+seed unticked everywhere offers no Make the checklist.
+
+### 14.5 The plan says so
+
+The first card of Back up's plan (the presets) carries one line of
+fact, as F1 allows: "A key made here signs only once this backup is
+done." It is shown only when the wallet has a key made here.
+
+### 14.6 The three checks lead, wherever the backup is shown whole
+
+The plan's three check lines ("Any one place lost: the rest rebuild the
+wallet", "One place found: can spend", "One place found: sees the
+balance", with their coloured values) are what the owner wants seen
+first (2026-10-10):
+
+- **The end of the backup.** When every checklist item is done, the
+  done card leads with them: a strip of three, each its line and its
+  value large in its colour (`OK`, the vault's accent, `WARN`, `ERR`
+  as now), then the wallet's at-a-glance chart of the plan just
+  completed (§6, wallet first), then what waits for the stick and
+  **Write to a stick**, **Open the wallet**, **Change the plan**.
+- **The wallet card and the open vault.** The same strip goes above
+  the chart (§6 put it under the chart, below the fold on a desktop;
+  §7.2 already puts it above), so it is on the first screen.
+- **The small panel.** The strip stacks as three rows at the top of the
+  chart's page and of the done card.
+
+One function draws the strip for all three (`glance::check_lines`,
+which the map panel shares).
+
+**Where.** `lib.rs` (the checklist's foot, the made-here set, signing's
+gate), `screens.rs` (`backup_body`, `plan_body`, the card's button,
+Who signs), `plan.rs` (the stick fallback, the why line), `vaults.rs`
+(the made-here flag in the key record), `backups.rs`, `family.rs` (Who
+signs on the Spend tab).
+
+**Tests.** `tests/backup_checklist.rs`: a vault item offers only Make a
+vault, then only Save into the vault, then Continue; the next item does
+not open before. `tests/backup_plan.rs`: a vault with no stick place
+holds Places; the single key with words unticked places Vault 1's
+stick. New `tests/backup_first.rs`: a key from New key cannot sign until
+its wallet's checklist is complete, and can after; a restored key signs
+at once; after a lock and an unlock from the vault the held key is still
+held; the card's address carries the warning until the backup is done; with
+every item done, the done card shows the three checks above the
+chart.
+
+**Docs.** `docs/WALLETS.md` §5, `docs/FLOWS.md`, `docs/DECISIONS.md`
+(F6: the backup before the spend), `docs/VAULT.md` (the flag).
+
 ## 10. Order
 
 1. §1 and §2 together (mechanical).
@@ -717,6 +980,10 @@ Spend tab), `docs/WALLETS.md`.
 9. §9, in two batches: the sheets and the
    actions that exist as flows today (§9.1–§9.4); then the edited map,
    the marks and lost/exposed (§9.5–§9.7).
+10. §14 (owner: ahead of §11.1a).
+11. §11.1a, after §9's first batch (both touch the vault code).
+12. §13 (with §13.3 and §13.4).
+13. §12.
 
 Then the owner's walk: a single key from Wallets to Backup done, with
 dice by hand and a passphrase; a 2-of-3 with two keys made here and one
