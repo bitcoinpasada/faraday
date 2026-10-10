@@ -584,3 +584,74 @@ fn home_lead_rule_6_a_vault_changed_since_written_offers_to_write_it() {
     tap(&mut app, Action::Nav(Screen::Files));
     assert_eq!(app.screen, Screen::Files);
 }
+
+/// `shown()` with the Spending test wallet loaded from Files.
+fn with_a_wallet() -> Faraday {
+    let wallet = faraday_core::testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == "spending-wallet.txt")
+        .unwrap();
+    let mut app = with_inbox(vec![("spending-wallet.txt", wallet.1)]);
+    app.press(Action::LoadWallet(0));
+    assert_eq!(app.session.wallets.len(), 1, "the wallet did not load");
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    app
+}
+
+/// The second secondary tile once a wallet is known: Backups, which
+/// opens the Backups screen; a stick attached with nothing held still
+/// puts Stick visit there (`docs/SIMPLIFY.md` §1.2, §5).
+#[test]
+fn homes_second_secondary_is_backups_once_a_wallet_is_known() {
+    let mut app = with_a_wallet();
+    assert!(
+        app.offers(Action::Nav(Screen::Backups)),
+        "a wallet known: Backups"
+    );
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "1 not backed up"),
+        "the tile counts the wallets with no plan: {texts:?}"
+    );
+    tap(&mut app, Action::Nav(Screen::Backups));
+    assert_eq!(app.screen, Screen::Backups);
+
+    app.press(Action::Nav(Screen::Home));
+    stick(&mut app, true);
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::Nav(Screen::Visit)),
+        "a stick in: Stick visit"
+    );
+    assert!(!app.offers(Action::Nav(Screen::Backups)));
+}
+
+/// The small Home's grid has Backups once a wallet is known, and not
+/// before.
+#[test]
+fn the_small_home_offers_backups_once_a_wallet_is_known() {
+    let small = |app: &mut Faraday| {
+        app.event(Event::Display(DisplayInfo {
+            width: 480,
+            height: 640,
+            dpi: 160,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: osk_shell_api::SecureHardware::None,
+            boot: osk_shell_api::BootState::Unknown,
+            memory_mib: None,
+        }));
+        let _ = app.frame();
+    };
+    let mut app = shown();
+    small(&mut app);
+    assert!(!app.offers(Action::Nav(Screen::Backups)), "no wallet known");
+    let mut app = with_a_wallet();
+    small(&mut app);
+    assert!(app.offers(Action::Nav(Screen::Backups)));
+}

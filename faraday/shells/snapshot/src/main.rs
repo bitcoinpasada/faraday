@@ -1238,6 +1238,37 @@ fn run(
     println!(
         "entries imported and scanned, a backup opened, a key saved with its BIP-39 passphrase"
     );
+    // The vault's Spending wallet backed up with Paper and vault, its
+    // copy checked once for each place: Backups, and the card's line.
+    let spending = t
+        .app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.name == "Spending")
+        .ok_or("Spending is not loaded")?;
+    t.press(Action::Backup(spending));
+    t.press(Action::BPreset(1));
+    t.press(Action::BChecklist);
+    if t.app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {
+        t.press(Action::BStep(bstep::COPY));
+    }
+    t.press(Action::BReveal);
+    t.press(Action::BCheck);
+    for k in 0..2 {
+        if k > 0 {
+            t.press(Action::BCheckClear);
+        }
+        for c in copy_digits(&t, None)? {
+            t.app.event(Event::Key(Key::Char(char::from(c))));
+        }
+    }
+    t.press(Action::BCheck);
+    t.press(Action::BackupsOf(spending));
+    t.shot("backups")?;
+    t.press(Action::OpenWallet(spending));
+    t.shot("wallet-card-backup")?;
+    t.press(Action::Nav(Screen::VaultContents));
     // A GPG key made in the vault, its certificate and revocation in the
     // Outbox, and a file signed with it.
     t.app.storage(StorageEvent::Clock {
@@ -1388,10 +1419,22 @@ fn run(
     // A stick for the vault sealed at lock: the visit goes to Unlock.
     t.sticks(true);
     t.shot("visit-then-unlock")?;
+    t.press(Action::VisitWrite);
     t.sticks(false);
     if t.app.screen != Screen::Unlock {
         return Err("pulling the stick after writing the vault did not go to Unlock".into());
     }
+    // After the visit: Spending is listed from what the vault was seen
+    // to hold, its vault line on the stick written.
+    t.press(Action::Nav(Screen::Backups));
+    let at = t
+        .app
+        .backups()
+        .iter()
+        .position(|e| e.name == "Spending")
+        .ok_or("Spending is not listed after the lock")?;
+    t.press(Action::BackupsPage(at));
+    t.shot("backups-after-visit")?;
     t.restart();
     // A new vault: two passphrases at the Light cost.
     t.app.storage(StorageEvent::Memory {

@@ -229,6 +229,14 @@ impl Faraday {
                 crate::vaults::summaries_encode(&self.vaults.summaries),
             ));
         }
+        // What was seen of each wallet's backup, for Backups and the
+        // wallet card (`docs/SIMPLIFY.md` §5).
+        if !self.backup_records.is_empty() {
+            out.push((
+                "backups".to_string(),
+                crate::backups::encode(&self.backup_records),
+            ));
+        }
         // What the last visit wrote, for Files, Home and each vault's
         // currency (§4.3).
         if let Some(r) = &self.receipt {
@@ -287,6 +295,7 @@ impl Faraday {
                 }
                 "family" => self.family_restore(bytes),
                 "receipt" => self.receipt = crate::Receipt::decode(bytes),
+                "backups" => self.backup_records = crate::backups::decode(bytes),
                 "vault-from" => {
                     for line in String::from_utf8_lossy(bytes).lines() {
                         let mut parts = line.splitn(3, '\t');

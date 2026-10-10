@@ -148,6 +148,7 @@ impl Faraday {
             Screen::Tools => vec![&EN.tools, &EN.glossary],
             Screen::Bip85 => vec![&EN.passphrases, &EN.glossary],
             Screen::Backup => vec![&EN.backups, &EN.other_backups, &EN.seed_xor],
+            Screen::Backups => vec![&EN.backups, &EN.encrypted_backups],
             Screen::Restore => vec![&EN.backups, &EN.inheritance],
             Screen::Message | Screen::CheckMessage => vec![&EN.message],
             Screen::Files | Screen::Visit => vec![&EN.air_gap, &EN.coordinators],

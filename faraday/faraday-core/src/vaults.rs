@@ -3014,6 +3014,10 @@ pub struct VaultSummary {
     pub name: String,
     /// Its wallets: name and shape.
     pub wallets: Vec<(String, String)>,
+    /// Its wallets' descriptor checksums, in the same order.
+    pub sums: Vec<String>,
+    /// The descriptor checksums of the wallets it keeps a plan for.
+    pub planned: Vec<String>,
     /// Its keys' fingerprints.
     pub keys: Vec<String>,
     /// How many entries it holds.
@@ -3098,6 +3102,12 @@ pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
         for k in &s.keys {
             out.push_str(&format!("key\t{}\n", kept_field(k)));
         }
+        for c in &s.sums {
+            out.push_str(&format!("sum\t{}\n", kept_field(c)));
+        }
+        for c in &s.planned {
+            out.push_str(&format!("planned\t{}\n", kept_field(c)));
+        }
         for m in &s.map {
             out.push_str(&format!("map\t{}\n", kept_field(m)));
         }
@@ -3138,6 +3148,16 @@ pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
             ["key", fp] => {
                 if let Some(s) = out.last_mut() {
                     s.keys.push(fp.to_string());
+                }
+            }
+            ["sum", c] => {
+                if let Some(s) = out.last_mut() {
+                    s.sums.push(c.to_string());
+                }
+            }
+            ["planned", c] => {
+                if let Some(s) = out.last_mut() {
+                    s.planned.push(c.to_string());
                 }
             }
             ["map", m] => {
@@ -3181,6 +3201,18 @@ impl Faraday {
                 .of(kind::KEY)
                 .filter_map(|(_, r)| crate::vault_screens::key_fingerprint(self, r))
                 .collect();
+            let sum_of =
+                |text: Option<&str>| crate::wallet::read_wallet(text?).ok().map(|p| p.checksum());
+            let sums = v
+                .contents
+                .of(kind::WALLET)
+                .map(|(_, r)| sum_of(r.text(field::WALLET)).unwrap_or_default())
+                .collect();
+            let planned = v
+                .contents
+                .of(kind::PLAN)
+                .filter_map(|(_, r)| sum_of(r.text(field::PLAN_WALLET)))
+                .collect();
             let map = v
                 .contents
                 .of(kind::PLAN)
@@ -3197,6 +3229,8 @@ impl Faraday {
                 salt: v.header().salt,
                 name: v.label(),
                 wallets,
+                sums,
+                planned,
                 keys,
                 entries: v.contents.of(kind::ENTRY).count(),
                 map,

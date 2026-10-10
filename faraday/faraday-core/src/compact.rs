@@ -50,6 +50,7 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
         Screen::Restore => "Load or restore a wallet",
         Screen::Settings => "Settings",
         Screen::Vaults | Screen::Unlock | Screen::VaultContents => "Vaults",
+        Screen::Backups => "Backups",
         Screen::CreateVault => "Create a vault",
         Screen::KeyGen => "New key",
         Screen::Bip85 => "BIP-85",
@@ -470,6 +471,25 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
         ),
         (Icon::Learn, "Learn", String::new(), Action::Learn, true),
     ];
+    // Backups once any wallet is known (§5), after Wallets.
+    let known = app.backups();
+    if !known.is_empty() {
+        let without = known.iter().filter(|e| e.lines.is_none()).count();
+        t.insert(
+            2,
+            (
+                Icon::Shield,
+                "Backups",
+                if without == 0 {
+                    String::new()
+                } else {
+                    format!("{without} not backed up")
+                },
+                Action::Nav(Screen::Backups),
+                true,
+            ),
+        );
+    }
     if !app.sticks.is_empty() && !app.holds_secret() {
         t.push((
             app.medium.icon(),

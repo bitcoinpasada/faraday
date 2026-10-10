@@ -162,7 +162,9 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
         }
     }
     let line = format!("{} · from {}", Session::shape(wlt), wlt.source);
-    cy += ui.wrap(x, cy, iw, 12.0, W::R, MUTED, &line) + 14.0;
+    cy += ui.wrap(x, cy, iw, 12.0, W::R, MUTED, &line) + 8.0;
+    // Where its backup is (§5.2): a press opens Backups on it.
+    cy += crate::screens::backup_line(app, ui, x, cy, iw, app.wallet);
 
     if let Some(r) = wlt.policy.silent() {
         silent_card(app, ui, r, x, iw, cy, top, h);

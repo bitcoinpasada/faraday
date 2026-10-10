@@ -272,6 +272,13 @@ to get it.
     "Then: Unlock" when a vault was sealed for it (For the stick, or on
     the last write's receipt), "Then: {flow}" when the stick came in
     during one, else "Then: Home"; pulling the stick goes there.
+31. **Backups: where each wallet's backup is** (owner, 2026-10-10;
+    `docs/SIMPLIFY.md` §5). A Backups screen lists every wallet known
+    and its backup map, each place with what this device saw of it; the
+    wallet card carries the same as one line, and Home's second tile is
+    Backups once a wallet is known (below, "Backups"). A paper place is
+    checked only once a check of that copy matched here: one check, one
+    copy.
 
 ## Home
 
@@ -440,6 +447,46 @@ details.
 carried over; the form says that slots whose passphrases are not entered
 are not carried (`docs/VAULT.md` §8) → new vault created → the old one
 offered for **Remove from this session**, and decision 4 for the stick.
+
+## Backups
+
+**Backups** is reached from Home's second tile (with no stick attached,
+once any wallet is known; on the small panel, a tile after Wallets) and
+from the wallet card's backup line. It lists every wallet known, once
+each by descriptor checksum: the loaded wallets, then those in an open
+vault, then those a locked vault was seen to hold (`docs/VAULT.md` §11).
+Under each, its backup map a row per place, as the plan draws it (each
+place, the vault, a stick of files, the watch-only software, the seeds
+on their own devices), each with what it holds, its tag (secret, sealed,
+public) and its state:
+
+- a paper place: **Checked** once a copy of each seed it keeps matched
+  here, typed back or scanned; the first check of a seed counts for the
+  first place that keeps it, the second for the second, and so on; else
+  **Not checked**. A place that keeps only a sheet reads its file.
+- the vault: the vault file holding the wallet and where it stands,
+  "vault.ofv · for the stick", "vault.ofv · on STICK, 14:02",
+  "vault.ofv · changed since written"; "Not in a vault" when none holds
+  it; "A vault is locked" when a locked vault not seen open this
+  power-on might.
+- public files: "On {label}, {time}" once the last visit wrote and read
+  them back, **For the stick** while they wait, "Not made"; seed files
+  For the stick read "For the stick, unprotected".
+- the software: its files' state, else **Shown** once the descriptor
+  was shown in the backup.
+- the seeds on their own devices: "Not here".
+
+A wallet with no plan reads **No backup plan** with **Back up** (on a
+loaded wallet). A locked vault's wallet with a plan in that vault and no
+record here reads "Plan · In {vault} · locked". What a plan holds is
+recorded when its checklist is made, and each check as it matches; the
+records are kept across a lock and gone at power-off. A place's name
+shows only from the plan an open vault keeps, else "Place 1". On the
+small panel one wallet a page, with **Previous** and **Next**.
+
+The wallet card's line, under its shape: "Backup: paper ×2 checked ·
+vault.ofv · for the stick" (paper "1 of 2 checked" while one is not), or
+"Not backed up"; a press opens Backups on that wallet.
 
 ## Wallets tab
 

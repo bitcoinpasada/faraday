@@ -143,6 +143,7 @@ fn dispatch(app: &mut Faraday, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Tools => crate::tools_screen::draw(app, ui, x, cw, h),
         Screen::Settings => settings(app, ui, x, cw, h),
         Screen::Vaults => crate::vault_screens::list(app, ui, x, cw, h),
+        Screen::Backups => crate::backups_screen::draw(app, ui, x, cw, h),
         Screen::CreateVault => crate::vault_screens::create(app, ui, x, cw, h),
         Screen::Unlock => crate::vault_screens::unlock(app, ui, x, cw, h),
         Screen::VaultContents => crate::vault_screens::contents(app, ui, x, cw, h),
@@ -394,6 +395,7 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
                         | Screen::Lightning
                         | Screen::Tools
                         | Screen::Backup
+                        | Screen::Backups
                         | Screen::Message
                         | Screen::CheckMessage
                         | Screen::Create
@@ -798,8 +800,24 @@ pub(crate) fn home_lead(app: &Faraday) -> (Icon, String, String, Action, bool) {
     )
 }
 
+/// The wallet card's backup line (`docs/SIMPLIFY.md` §5.2) for loaded
+/// wallet `i`, which opens Backups on it. Returns the height it took.
+pub(crate) fn backup_line(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) -> f32 {
+    let line = app.backup_line(i);
+    let action = Action::BackupsOf(i);
+    let tone = if ui.is_pressed(action) {
+        ACCENT
+    } else if line.starts_with("Backup:") {
+        MUTED
+    } else {
+        WARN
+    };
+    let h = ui.wrap(x, y, w, 13.0, W::R, tone, &line);
+    ui.hit(x, y - 6.0, w, h + 12.0, action);
+    h + 16.0
+}
+
 /// Home's secondary tiles: the first two of §1.2's list that apply.
-/// Backups (§5) joins the list later.
 pub(crate) fn home_secondaries(app: &Faraday) -> Vec<(Icon, String, String, Action)> {
     let wallets = app.session.wallets.len();
     let wallets_tile = (
@@ -821,14 +839,26 @@ pub(crate) fn home_secondaries(app: &Faraday) -> Vec<(Icon, String, String, Acti
             Screen::Wallets
         }),
     );
-    // Backups (§5) goes here, between Wallets and the second tile, once
-    // any wallet is known; it isn't built yet.
+    let known = app.backups();
     let second = if !app.sticks.is_empty() && !app.holds_secret() {
         (
             app.medium.icon(),
             app.medium.visit().to_string(),
             "A stick attached".to_string(),
             Action::Nav(Screen::Visit),
+        )
+    } else if !known.is_empty() {
+        // Backups once any wallet is known (§5).
+        let without = known.iter().filter(|e| e.lines.is_none()).count();
+        (
+            Icon::Shield,
+            "Backups".to_string(),
+            if without == 0 {
+                format!("{} with a plan", known.len())
+            } else {
+                format!("{without} not backed up")
+            },
+            Action::Nav(Screen::Backups),
         )
     } else {
         let vault_files = app.vault_files().len();
@@ -2779,7 +2809,9 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.pill(ix + iw - sw, cy, 28.0, &src);
     cy += 34.0;
     ui.text(ix, cy, 14.0, W::R, MUTED, &Session::shape(wlt));
-    cy += 34.0;
+    cy += 26.0;
+    // Where its backup is (§5.2): a press opens Backups on it.
+    cy += backup_line(app, ui, ix, cy, iw, app.wallet);
     if let Some(r) = wlt.policy.silent() {
         silent_wallet_card(app, ui, r, ix, iw, cy, y + ch);
         return;
@@ -2901,86 +2933,95 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let used = ui.wrap(ix, cy, iw, 15.0, W::M, TEXT, &addr);
     let _ = used;
 
-    // Actions.
-    let ay = y + ch - 62.0;
-    ui.rule(ix, ay - 14.0, iw, INNER);
-    let psbt = app.lead_psbt();
-    let mut bx = ix;
-    match psbt {
-        _ if app.spend.is_some() && here > 0 => {
-            bx += ui.button(
-                bx,
-                ay,
-                None,
-                40.0,
-                "Continue signing",
-                Style::Primary,
-                Action::Nav(Screen::Spend),
-            ) + 8.0;
-        }
+    // Actions: the first along the foot, Remove from session at the
+    // end; a row more above when they do not fit the card's width.
+    let mut items: Vec<(&str, Style, Action)> = Vec::new();
+    match app.lead_psbt() {
+        _ if app.spend.is_some() && here > 0 => items.push((
+            "Continue signing",
+            Style::Primary,
+            Action::Nav(Screen::Spend),
+        )),
         Some(i) if here > 0 => {
-            bx += ui.button(
-                bx,
-                ay,
-                None,
-                40.0,
-                "Sign a transaction",
-                Style::Primary,
-                Action::StartSpend(i),
-            ) + 8.0;
+            items.push(("Sign a transaction", Style::Primary, Action::StartSpend(i)))
         }
-        _ => {
-            bx += ui.button(
-                bx,
-                ay,
-                None,
-                40.0,
-                "No PSBT in Files",
-                Style::Disabled,
-                Action::Nav(Screen::Files),
-            ) + 8.0;
-        }
+        _ => items.push((
+            "No PSBT in Files",
+            Style::Disabled,
+            Action::Nav(Screen::Files),
+        )),
     }
-    let qw = ui.button(
-        bx,
-        ay,
-        None,
-        40.0,
+    items.push((
         "Show wallet QR",
         Style::Secondary,
         Action::QrWallet(app.wallet),
-    );
-    let mut bx2 = bx + qw + 8.0;
-    bx2 += ui.button(
-        bx2,
-        ay,
-        None,
-        40.0,
-        "Back up",
-        Style::Secondary,
-        Action::Backup(app.wallet),
-    ) + 8.0;
+    ));
+    items.push(("Back up", Style::Secondary, Action::Backup(app.wallet)));
     if app.session.message_wallets().contains(&app.wallet) {
+        items.push(("Sign a message", Style::Secondary, Action::SignMessage));
+    }
+    card_actions(
+        ui,
+        ix,
+        y + ch - 62.0,
+        iw,
+        &items,
+        (
+            "Remove from session",
+            Style::Ghost,
+            Action::RemoveWallet(app.wallet),
+        ),
+    );
+}
+
+/// A wallet card's actions along its foot, the last row's top at `ay`:
+/// `items` from the left, `end` at the right of the last row. Where they
+/// do not fit `w` they take more rows, upward, so the last row stays at
+/// the foot. A rule runs above the first row.
+fn card_actions(
+    ui: &mut Ui,
+    x: f32,
+    ay: f32,
+    w: f32,
+    items: &[(&str, Style, Action)],
+    end: (&str, Style, Action),
+) {
+    const H: f32 = 40.0;
+    const GAP: f32 = 8.0;
+    let width = |ui: &Ui, label: &str| (ui.measure(14.0, W::S, label) + 32.0).min(w);
+    // Each item's row and x, then the end's.
+    let mut placed: Vec<(usize, f32, f32)> = Vec::new();
+    let (mut row, mut bx) = (0usize, 0.0f32);
+    for &(label, ..) in items {
+        let bw = width(ui, label);
+        if bx > 0.0 && bx + bw > w {
+            row += 1;
+            bx = 0.0;
+        }
+        placed.push((row, bx, bw));
+        bx += bw + GAP;
+    }
+    let ew = width(ui, end.0);
+    if bx > 0.0 && bx + ew > w {
+        row += 1;
+    }
+    let rows = row + 1;
+    let top = ay - (rows - 1) as f32 * (H + GAP);
+    ui.rule(x, top - 14.0, w, INNER);
+    for (&(label, style, action), &(r, px, bw)) in items.iter().zip(&placed) {
+        let label = ui.fit(14.0, W::S, label, bw - 24.0);
         ui.button(
-            bx2,
-            ay,
-            None,
-            40.0,
-            "Sign a message",
-            Style::Secondary,
-            Action::SignMessage,
+            x + px,
+            top + r as f32 * (H + GAP),
+            Some(bw),
+            H,
+            &label,
+            style,
+            action,
         );
     }
-    let rw = ui.measure(13.0, W::S, "Remove from session") + 32.0;
-    ui.button(
-        ix + iw - rw,
-        ay,
-        Some(rw),
-        40.0,
-        "Remove from session",
-        Style::Ghost,
-        Action::RemoveWallet(app.wallet),
-    );
+    let label = ui.fit(14.0, W::S, end.0, ew - 24.0);
+    ui.button(x + w - ew, ay, Some(ew), H, &label, end.1, end.2);
 }
 
 /// A silent payments wallet's card: its key, its address and the labels
@@ -3046,36 +3087,28 @@ fn silent_wallet_card(
     ) + 18.0;
     ui.text(ix, cy, 13.0, W::S, MUTED, "Labels handed out");
     ui.text(ix + 180.0, cy, 13.0, W::M, TEXT, &r.labels.to_string());
-    // Actions.
-    let ay = bottom - 62.0;
-    ui.rule(ix, ay - 14.0, iw, INNER);
-    let ow = ui.button(
+    card_actions(
+        ui,
         ix,
-        ay,
-        None,
-        40.0,
-        "Address, labels and payments",
-        Style::Primary,
-        Action::SWallet(app.wallet),
-    );
-    ui.button(
-        ix + ow + 8.0,
-        ay,
-        None,
-        40.0,
-        "Show wallet QR",
-        Style::Secondary,
-        Action::QrWallet(app.wallet),
-    );
-    let rw = ui.measure(13.0, W::S, "Remove from session") + 32.0;
-    ui.button(
-        ix + iw - rw,
-        ay,
-        Some(rw),
-        40.0,
-        "Remove from session",
-        Style::Ghost,
-        Action::RemoveWallet(app.wallet),
+        bottom - 62.0,
+        iw,
+        &[
+            (
+                "Address, labels and payments",
+                Style::Primary,
+                Action::SWallet(app.wallet),
+            ),
+            (
+                "Show wallet QR",
+                Style::Secondary,
+                Action::QrWallet(app.wallet),
+            ),
+        ],
+        (
+            "Remove from session",
+            Style::Ghost,
+            Action::RemoveWallet(app.wallet),
+        ),
     );
 }
 

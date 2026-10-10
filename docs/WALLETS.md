@@ -404,6 +404,28 @@ printed map: where things are is sensitive.
 The vault is one more copy, not a replacement for paper. A file is the
 least safe of the three.
 
+### The Backups screen
+
+**Backups** (`docs/SIMPLIFY.md` §5, `docs/FLOWS.md` "Backups") lists
+every wallet the app knows, once each by descriptor checksum: loaded,
+in an open vault, or remembered of a locked one. Under each, the map as
+the plan draws it, a row per place with what it holds, its tag and what
+this device saw of it: a paper place **Checked** only once a copy of
+each seed it keeps matched here (the first check of a seed is the first
+place's copy, the second the second); the vault by its file and
+currency; public files on the stick the receipt names, For the stick,
+or not made; the software shown or not; the seeds away "Not here". A
+wallet with no plan reads **No backup plan** with **Back up**.
+
+The record of what a plan holds is made when its checklist is made;
+each matching check adds one copy. It holds the map's places, tags and
+file names and the counts by fingerprint, never a place's name, and is
+kept across a lock (kept state, `backups`) and gone at power-off. A
+backup of the wallet opened again starts with its seeds checked. The
+wallet card's line under its shape says the same in one line ("Backup:
+paper ×2 checked · vault.ofv · for the stick", or "Not backed up") and
+opens Backups on that wallet.
+
 ## 6. Guided mode
 
 The same steps and the same engine serve someone inheriting bitcoin, so

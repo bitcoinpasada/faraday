@@ -14,6 +14,7 @@
 //! stick (`testkit`, built only with the `testkit` feature).
 
 pub mod backup;
+pub mod backups;
 pub mod bip85;
 pub mod boot_import;
 pub mod catalog;
@@ -54,6 +55,7 @@ pub mod vaults;
 pub mod wallet;
 pub mod wordlist;
 
+mod backups_screen;
 mod bip85_screen;
 mod boot_import_screen;
 mod compact;
@@ -445,6 +447,9 @@ pub enum Screen {
     Settings,
     /// The vaults the Inbox and Outbox hold.
     Vaults,
+    /// Every wallet known and where its backup is (`docs/SIMPLIFY.md`
+    /// §5.1).
+    Backups,
     /// Making a vault.
     CreateVault,
     /// Making a new key.
@@ -507,6 +512,10 @@ struct Disclosed {
 pub enum Action {
     /// Go to a screen.
     Nav(Screen),
+    /// Open Backups on loaded wallet `i`.
+    BackupsOf(usize),
+    /// Show the Backups screen's wallet `i`, a page each on a small panel.
+    BackupsPage(usize),
     /// A vault screen's action.
     Vault(vaults::VaultAction),
     /// Open seed entry, for a slot's fingerprint or for any key.
@@ -2026,6 +2035,9 @@ pub struct BackupState {
     /// The seeds, by fingerprint, whose copy by hand matched when typed
     /// back or scanned, in this backup.
     pub checked: Vec<[u8; 4]>,
+    /// The digits typed back have matched and the match is counted: a
+    /// further copy is counted once Clear empties the field.
+    pub counted: bool,
     /// Template word count.
     pub words: usize,
     /// What went to the Outbox, for the summary.
@@ -2533,6 +2545,13 @@ pub struct Faraday {
     /// (Spend tab) for, this power-on, kept across a lock
     /// (`docs/WALLETS.md` §4).
     pub checked_wallets: Vec<String>,
+    /// What this power-on saw of each wallet's backup, by descriptor
+    /// checksum (`docs/SIMPLIFY.md` §5): kept across a lock, gone at
+    /// power-off.
+    pub backup_records: Vec<backups::Record>,
+    /// The wallet the Backups screen is on, by its place in
+    /// [`Faraday::backups`].
+    pub backups_at: usize,
     /// What the last stick visit wrote, this power-on (§4.3).
     pub receipt: Option<Receipt>,
     /// Each vault file read from a stick this power-on: its name, the
@@ -2801,6 +2820,8 @@ impl Faraday {
             signed_amounts: Vec::new(),
             seal_amounts: true,
             checked_wallets: Vec::new(),
+            backup_records: Vec::new(),
+            backups_at: 0,
             receipt: None,
             vault_from: Vec::new(),
             seed: [0; 32],
@@ -4048,7 +4069,27 @@ impl Faraday {
             Action::UpgradePick(i) => self.upgrade_pick(i),
             Action::UpgradeWrite => self.upgrade_write(),
             Action::UpgradeAgain => self.upgrade_again(),
+            Action::BackupsOf(i) => {
+                let sum = self.session.wallets.get(i).map(|w| w.policy.checksum());
+                let at = self
+                    .backups()
+                    .iter()
+                    .position(|e| Some(&e.sum) == sum.as_ref())
+                    .unwrap_or(0);
+                self.act(Action::Nav(Screen::Backups));
+                self.backups_at = at;
+                if !self.compact {
+                    self.list_offset = crate::backups_screen::offset_of(self, at);
+                }
+            }
+            Action::BackupsPage(i) => {
+                self.backups_at = i;
+                self.list_offset = 0.0;
+            }
             Action::Nav(s) => {
+                if s == Screen::Backups {
+                    self.backups_at = 0;
+                }
                 self.screen = s;
                 self.osk_leave();
                 self.list_offset = 0.0;
@@ -4491,11 +4532,14 @@ impl Faraday {
                             Some(qstep::PRESET),
                         ),
                     };
+                    // A copy checked this power-on stays checked.
+                    let checked = self.backups_checked(i);
                     self.backup = Some(BackupState {
                         wallet: i,
                         q,
                         answers,
                         names,
+                        checked,
                         key: first_key,
                         words: 24,
                         ..BackupState::default()
@@ -4568,6 +4612,7 @@ impl Faraday {
                     b.scroll = flow::Scroll::default();
                 }
                 self.backup_item_open(first);
+                self.backups_sync();
             }
             Action::BPlan => {
                 if let Some(b) = self.backup.as_mut() {
@@ -4606,6 +4651,7 @@ impl Faraday {
                     b.key = k;
                     b.reveal = false;
                     b.typed.clear();
+                    b.counted = false;
                     b.scanned = None;
                     b.paper = None;
                 }
@@ -4655,6 +4701,7 @@ impl Faraday {
             Action::BCheckClear => {
                 if let Some(b) = self.backup.as_mut() {
                     b.typed.clear();
+                    b.counted = false;
                 }
             }
             Action::BVault(with) => {
@@ -5299,6 +5346,7 @@ impl Faraday {
                     && self.screen == Screen::Backup
                 {
                     b.shown = true;
+                    self.backups_shown();
                 }
                 if i < self.session.wallets.len() {
                     let view = self.code_view(Code::Descriptor(i));
@@ -5412,6 +5460,11 @@ impl Faraday {
         let Some(w) = self.session.wallets.get(i) else {
             return Vec::new();
         };
+        self.backup_keys_of(w)
+    }
+
+    /// [`Faraday::backup_keys`] for a wallet that need not be loaded.
+    pub(crate) fn backup_keys_of(&self, w: &wallet::Wallet) -> Vec<usize> {
         // A threshold wallet's keys here are the shares it lists.
         if let Some(record) = w.policy.record() {
             return self
@@ -5558,7 +5611,15 @@ impl Faraday {
         let Some(wallet) = self.session.wallets.get(w) else {
             return Vec::new();
         };
-        let here = self.backup_keys(w);
+        self.backup_seed_list_of(wallet)
+    }
+
+    /// [`Faraday::backup_seed_list`] for a wallet that need not be loaded.
+    pub(crate) fn backup_seed_list_of(
+        &self,
+        wallet: &wallet::Wallet,
+    ) -> Vec<(String, Option<usize>)> {
+        let here = self.backup_keys_of(wallet);
         if let Some(record) = wallet.policy.record() {
             return record
                 .info
@@ -5605,9 +5666,14 @@ impl Faraday {
                 splits: false,
             };
         };
+        self.plan_shape_of(wallet)
+    }
+
+    /// [`Faraday::plan_shape`] for a wallet that need not be loaded.
+    pub(crate) fn plan_shape_of(&self, wallet: &wallet::Wallet) -> plan::Shape {
         let (m, n) = Session::quorum(wallet);
         let seeds: Vec<plan::Seed> = self
-            .backup_seed_list(w)
+            .backup_seed_list_of(wallet)
             .into_iter()
             .map(|(name, key)| plan::Seed {
                 name,
@@ -5689,6 +5755,7 @@ impl Faraday {
                 b.key = k;
                 b.reveal = false;
                 b.typed.clear();
+                b.counted = false;
                 b.scanned = None;
                 b.paper = None;
             }
@@ -5701,15 +5768,19 @@ impl Faraday {
     /// the BSMS record, Bitcoin Core its import, each the descriptor where
     /// the wallet has no such file; "Not sure" the descriptor.
     pub fn backup_public(&self) -> Vec<u8> {
-        use osk_bip::policy::{Template, Wrapper};
-        use plan::software as sw;
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
         let Some(w) = self.session.wallets.get(b.wallet) else {
             return Vec::new();
         };
-        let a = &b.answers;
+        Self::backup_public_for(w, &b.answers)
+    }
+
+    /// [`Faraday::backup_public`] for wallet `w` under answers `a`.
+    pub(crate) fn backup_public_for(w: &wallet::Wallet, a: &plan::Answers) -> Vec<u8> {
+        use osk_bip::policy::{Template, Wrapper};
+        use plan::software as sw;
         let config = backup::multisig_config(w, None).is_some();
         let bsms = matches!(
             w.policy.template(),
@@ -5750,16 +5821,19 @@ impl Faraday {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
-        let Some(w) = self.session.wallets.get(b.wallet) else {
+        self.backup_public_names_for(b.wallet, &b.answers)
+    }
+
+    /// [`Faraday::backup_public_names`] for loaded wallet `wi` under
+    /// answers `a`.
+    pub(crate) fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<String> {
+        let Some(w) = self.session.wallets.get(wi) else {
             return Vec::new();
         };
         let stem = file_stem(&w.name);
-        let (qr, text) = (
-            b.answers.form[plan::form::QR],
-            b.answers.form[plan::form::TEXT],
-        );
+        let (qr, text) = (a.form[plan::form::QR], a.form[plan::form::TEXT]);
         let mut out = Vec::new();
-        for what in self.backup_public() {
+        for what in Self::backup_public_for(w, a) {
             let file = match what {
                 1 => format!("{stem}-descriptor.txt"),
                 2 => format!("{stem}-multisig-config.txt"),
@@ -5768,10 +5842,7 @@ impl Faraday {
                 _ => format!("{stem}-bitcoin-core.json"),
             };
             let picture = match what {
-                1 => self
-                    .public_pictures(b.wallet, 8)
-                    .first()
-                    .map(|p| p.name.clone()),
+                1 => self.public_pictures(wi, 8).first().map(|p| p.name.clone()),
                 2 => Some(format!("{stem}-multisig-config.png")),
                 6 => Some(format!("{stem}-bsms.png")),
                 _ => None,
@@ -5879,8 +5950,16 @@ impl Faraday {
     /// answers and the places' names. None when no open vault has one,
     /// or it is not for a wallet of this shape.
     fn plan_load(&self, w: usize, shape: &plan::Shape) -> Option<(plan::Answers, Vec<String>)> {
+        self.plan_load_of(self.session.wallets.get(w)?, shape)
+    }
+
+    /// [`Faraday::plan_load`] for a wallet that need not be loaded.
+    pub(crate) fn plan_load_of(
+        &self,
+        wallet: &wallet::Wallet,
+        shape: &plan::Shape,
+    ) -> Option<(plan::Answers, Vec<String>)> {
         use faraday_vault::records::{field, kind};
-        let wallet = self.session.wallets.get(w)?;
         let want = wallet::same_wallet(&wallet.policy);
         self.vaults.open.iter().find_map(|o| {
             o.contents.of(kind::PLAN).find_map(|(_, r)| {
@@ -6998,11 +7077,14 @@ impl Faraday {
             return;
         };
         let digits = osk_codec::seedqr::to_digits(&mn);
-        if backup::check_copy(&b.typed, digits.expose().as_bytes()) == backup::CopyCheck::Matches {
+        // A match is counted once: a copy more is typed after Clear.
+        if !b.counted
+            && backup::check_copy(&b.typed, digits.expose().as_bytes())
+                == backup::CopyCheck::Matches
+        {
+            b.counted = true;
             let fp = key.master.fingerprint().0;
-            if !b.checked.contains(&fp) {
-                b.checked.push(fp);
-            }
+            self.copy_matched(fp);
         }
     }
 
@@ -7040,10 +7122,10 @@ impl Faraday {
         drop(copy);
         drop(seed);
         let matched = found == backup::CopyCheck::Matches;
+        if matched {
+            self.copy_matched(fp.0);
+        }
         if let Some(b) = self.backup.as_mut() {
-            if matched && !b.checked.contains(&fp.0) {
-                b.checked.push(fp.0);
-            }
             b.scanned = Some(found.clone());
         }
         if matched {
@@ -8519,6 +8601,7 @@ impl Faraday {
             | Screen::Catalog
             | Screen::Transfer
             | Screen::Upgrade
+            | Screen::Backups
             | Screen::Settings => &mut self.list_offset,
             Screen::Home
             | Screen::Entry
