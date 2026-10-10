@@ -6,7 +6,7 @@
 //! kit's wallets.
 
 use faraday_core::family::{FamilyAction as F, Open, Route, page};
-use faraday_core::rstep::CHECK;
+use faraday_core::rstep::{CHECK, KIND, QUORUM};
 use faraday_core::seeds::{Focus, SLIDE_M, SLIDE_N, SeedsAction as S};
 use faraday_core::testkit;
 use faraday_core::{Action, Faraday, Screen};
@@ -64,10 +64,18 @@ fn kit(id: &str) -> String {
         .descriptor
 }
 
-/// Restore, from the seeds alone.
-fn restore_from_seeds() -> Faraday {
+/// Restore, from the seeds alone: the kind (`multi`: Multisig · native
+/// SegWit at its 2 of 3) and I do not have it.
+fn restore_from_seeds(multi: bool) -> Faraday {
     let mut app = shown();
     app.press(Action::RestoreWallet);
+    if multi {
+        app.press(Action::RKind(4));
+        app.press(Action::RNext(KIND));
+        app.press(Action::RNext(QUORUM));
+    } else {
+        app.press(Action::RNext(KIND));
+    }
     app.press(Action::RSeeds);
     assert_eq!(app.screen, Screen::Restore);
     app
@@ -82,12 +90,11 @@ fn restored(app: &Faraday) -> String {
 
 #[test]
 fn three_seeds_on_restore_make_the_two_of_three() {
-    let mut app = restore_from_seeds();
+    let mut app = restore_from_seeds(true);
     for w in ["bacon", "zebra", "summer"] {
         add_seed(&mut app, w);
     }
-    app.press(Action::Seeds(S::Shape));
-    // Three seeds: three keys, two to sign, P2WSH at BIP-48 by default.
+    // Three keys, two to sign, P2WSH at BIP-48 by default.
     app.press(Action::Slide(SLIDE_M, 2));
     app.press(Action::Seeds(S::Make));
     assert_eq!(restored(&app), desc(&testkit::savings()));
@@ -95,10 +102,9 @@ fn three_seeds_on_restore_make_the_two_of_three() {
 
 #[test]
 fn two_seeds_and_the_third_cosigners_xpub_make_the_same_wallet() {
-    let mut app = restore_from_seeds();
+    let mut app = restore_from_seeds(true);
     add_seed(&mut app, "bacon");
     add_seed(&mut app, "zebra");
-    app.press(Action::Seeds(S::Shape));
     // The arrow keys move the slider last used: one more key.
     app.press(Action::Slide(SLIDE_N, 2));
     app.event(Event::Key(Key::Right));
@@ -111,9 +117,8 @@ fn two_seeds_and_the_third_cosigners_xpub_make_the_same_wallet() {
 
 #[test]
 fn one_seed_on_restore_makes_the_words_routes_wallet() {
-    let mut app = restore_from_seeds();
+    let mut app = restore_from_seeds(false);
     add_seed(&mut app, "bacon");
-    app.press(Action::Seeds(S::Shape));
     app.press(Action::Seeds(S::Make));
     let restored = restored(&app);
     assert_eq!(restored, desc(&kit("spending")));

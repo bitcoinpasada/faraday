@@ -284,35 +284,35 @@ pub(crate) fn create(
 }
 
 /// The walk-through for one card of restoring a wallet.
-pub(crate) fn restore(n: u8, m: Medium) -> String {
+pub(crate) fn restore(n: u8) -> String {
+    use crate::rstep;
     match n {
-        0 => format!(
-            "If a transaction is waiting to be signed, bring it in first: from {} now, while no key or \
-             vault is open, or as a QR code now or later. Once a key is loaded, no {} goes in until you \
-             lock.",
-            m.a(),
-            m.noun()
-        ),
-        1 => format!(
-            "Start with the wallet in xpubs: its descriptor, wallet file or multisig config from {}, \
-             the wallet saved in a vault, or the descriptor or split shares on paper as QR codes. Any \
-             quorum of shares holds every key; tick the ones you have and rebuild. With seed words \
-             alone and no description, Type the seeds.",
-            m.a()
-        ),
-        2 => "Type each seed you hold back in, from its sheet. Faraday checks that the words give the key \
-            that slot expects and refuses them if they do not, so a seed in the wrong envelope is caught \
-            here. Seeds held by other people stay with them; they sign on their own devices. \
-            From the seeds alone, add each one, then Make the wallet: how many keys and how many \
-            sign, an account key (xpub) for each cosigner whose words are not here, the kind and \
-            the path. The first address shows before the wallet is made."
+        rstep::KIND => {
+            "The kind of wallet the backup is. A wallet description, scanned or in Files, \
+            says the kind, the quorum and every key, and the seeds are then matched to its keys."
+                .to_string()
+        }
+        rstep::QUORUM => {
+            "How many keys the wallet has and how many sign, as written on the backup, \
+            often as 2 of 3."
+                .to_string()
+        }
+        rstep::DESCRIPTION => {
+            "The descriptor, wallet file, BIP 129 record or split sheets. Without \
+            one, the wallet is made from the seeds and the cosigners' xpubs at the kind's standard \
+            path."
+                .to_string()
+        }
+        rstep::SEEDS => "One slot per key: its seed with its passphrase, if it has one, or a \
+            cosigner's xpub. With the description known, a seed that is not one of its keys is \
+            refused, so a wrong word or passphrase is caught here."
             .to_string(),
-        3 => "Compare this address with the first address written on the backup sheet, and with the wallet \
-            software that holds the history. If they match, the wallet is back exactly as it was."
-            .to_string(),
-        _ => "The wallet is in this session. It is gone when you lock, so back it up again if the old copies \
-            are lost."
-            .to_string(),
+        rstep::CHECK => {
+            "Compare these addresses with the backup sheet or the wallet software that \
+            holds the history. If they match, the wallet is back as it was."
+                .to_string()
+        }
+        _ => "The wallet is in this session until you lock.".to_string(),
     }
 }
 

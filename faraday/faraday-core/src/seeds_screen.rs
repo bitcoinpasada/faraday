@@ -70,6 +70,24 @@ pub(crate) fn keys(
             Action::ScanSeed,
         ),
     ];
+    more_ways(app, &here, !words, &mut labels);
+    let items: Vec<(&str, Style, Action)> = labels
+        .iter()
+        .map(|(l, st, a)| (l.as_str(), *st, *a))
+        .collect();
+    cy += wrap_buttons(ui, x, cy, w, 40.0, &items);
+    cy - y
+}
+
+/// The other ways a seed comes in, after typing and scanning: a seed an
+/// open vault holds, Unlock for a vault in Files (`unlock`, and back to
+/// this step), a key already loaded and not in `here`.
+pub(crate) fn more_ways(
+    app: &Faraday,
+    here: &[[u8; 4]],
+    unlock: bool,
+    labels: &mut Vec<(String, Style, Action)>,
+) {
     for (v, r, fp) in seeds::vault_seeds(app) {
         let name = &app.vaults.open[v].name;
         labels.push((
@@ -78,9 +96,8 @@ pub(crate) fn keys(
             sa(S::FromVault(v, r)),
         ));
     }
-    // Restore with a vault file and none open: Unlock, and back to this
-    // step. A vault made now holds no seed, so there is no Make a vault.
-    if !words
+    // A vault made now holds no seed, so there is no Make a vault.
+    if unlock
         && let Some((label, a)) = app.vault_way(crate::Screen::Restore)
         && !matches!(a, Action::Vault(crate::vaults::VaultAction::CreateFrom(_)))
     {
@@ -96,32 +113,13 @@ pub(crate) fn keys(
             ));
         }
     }
-    let items: Vec<(&str, Style, Action)> = labels
-        .iter()
-        .map(|(l, st, a)| (l.as_str(), *st, *a))
-        .collect();
-    cy += wrap_buttons(ui, x, cy, w, 40.0, &items);
-    cy - y
 }
 
-/// The wallet's shape: M of N, the cosigners' account keys, the kind,
-/// the path, the first address, and Make the wallet. `back` adds Back
-/// to the seeds. Returns the height used.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn shape(
-    app: &Faraday,
-    ui: &mut Ui,
-    s: &SeedsState,
-    back: bool,
-    x: f32,
-    y: f32,
-    w: f32,
-) -> f32 {
+/// M of N, large, and its two sliders (one for MuSig2, where every key
+/// signs). Returns the height used.
+pub(crate) fn quorum(ui: &mut Ui, s: &SeedsState, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    let net = app.session.network();
     let n = s.n.max(1);
-    let have = app.seeds_here(s).len();
-    // M of N, large, and its two sliders.
     let big = format!("{} of {n}", s.m.max(1));
     ui.text(x, cy, 22.0, W::S, TEXT, &big);
     let bw = ui.measure(22.0, W::S, &big);
@@ -153,6 +151,111 @@ pub(crate) fn shape(
         }
         cy += ui.slider(sx, cy, sw, id, lo as u8, hi as u8, v as u8) + 4.0;
     }
+    cy - y
+}
+
+/// Cosigner `k`'s box, numbered `slot`: its key once one reads, with
+/// Change; else the field, and for the first box without a key, Scan and
+/// the key files in Files. Returns the height used.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn cosigner(
+    app: &Faraday,
+    ui: &mut Ui,
+    s: &SeedsState,
+    k: usize,
+    slot: usize,
+    x: f32,
+    y: f32,
+    w: f32,
+) -> f32 {
+    let mut cy = y;
+    let text = s.cosigners.get(k).map(String::as_str).unwrap_or("");
+    let focused = s.focus == Some(Focus::Cosigner(k as u8));
+    ui.text_mid(x, cy, 40.0, 12.0, W::R, DIM, &slot.to_string());
+    match seeds::cosigner_key(text).filter(|_| !focused) {
+        Some(key) => {
+            let cw = ui.measure(13.0, W::S, "Change") + 32.0;
+            let shown = ui.fit(14.0, W::M, &seeds::cosigner_label(&key), w - 34.0 - cw);
+            ui.text_mid(x + 22.0, cy, 40.0, 14.0, W::M, OK, &shown);
+            ui.button(
+                x + w - cw,
+                cy + 2.0,
+                Some(cw),
+                36.0,
+                "Change",
+                Style::Ghost,
+                sa(S::Clear(k as u8)),
+            );
+            cy += 46.0;
+        }
+        None => {
+            field(
+                ui,
+                x + 22.0,
+                cy,
+                w - 22.0,
+                text,
+                "Type or paste an xpub",
+                focused,
+                sa(S::Focus(Focus::Cosigner(k as u8))),
+            );
+            cy += 48.0;
+            if !text.trim().is_empty() && !focused {
+                cy += ui.wrap(
+                    x + 22.0,
+                    cy,
+                    w - 22.0,
+                    12.0,
+                    W::R,
+                    ERR,
+                    "Not an account key",
+                ) + 6.0;
+            }
+            // Scan and the key files in Files fill the box typing goes
+            // to, else the first open one.
+            let target = if s.fixed {
+                focused || s.focus.is_none() && s.open_cosigner() == Some(k)
+            } else {
+                s.open_cosigner() == Some(k)
+            };
+            if target {
+                let files: Vec<(usize, &str)> = app
+                    .inbox
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, i)| i.kind == FileKind::Key)
+                    .map(|(k, i)| (k, i.name.as_str()))
+                    .collect();
+                let labels: Vec<String> = files.iter().map(|(_, n)| format!("Use {n}")).collect();
+                let mut items: Vec<(&str, Style, Action)> =
+                    vec![("Scan", Style::Secondary, Action::Scan)];
+                for ((i, _), l) in files.iter().zip(&labels) {
+                    items.push((l.as_str(), Style::Secondary, sa(S::UseFile(*i))));
+                }
+                cy += wrap_buttons(ui, x + 22.0, cy, w - 22.0, 36.0, &items);
+            }
+        }
+    }
+    cy - y
+}
+
+/// The wallet's shape: M of N, the cosigners' account keys, the kind,
+/// the path, the first address, and Make the wallet. `back` adds Back
+/// to the seeds. Returns the height used.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn shape(
+    app: &Faraday,
+    ui: &mut Ui,
+    s: &SeedsState,
+    back: bool,
+    x: f32,
+    y: f32,
+    w: f32,
+) -> f32 {
+    let mut cy = y;
+    let net = app.session.network();
+    let have = app.seeds_here(s).len();
+    cy += quorum(ui, s, x, cy, w);
     // A box for each key whose seed is not here.
     if !s.cosigners.is_empty() {
         cy += 6.0;
@@ -165,71 +268,8 @@ pub(crate) fn shape(
             MUTED,
             "Cosigners' account keys (xpub)",
         ) + 10.0;
-        let files: Vec<(usize, &str)> = app
-            .inbox
-            .iter()
-            .enumerate()
-            .filter(|(_, i)| i.kind == FileKind::Key)
-            .map(|(k, i)| (k, i.name.as_str()))
-            .collect();
-        let open = s.open_cosigner();
-        for (k, text) in s.cosigners.iter().enumerate() {
-            let slot = have + k + 1;
-            let focused = s.focus == Some(Focus::Cosigner(k as u8));
-            ui.text_mid(x, cy, 40.0, 12.0, W::R, DIM, &slot.to_string());
-            match seeds::cosigner_key(text).filter(|_| !focused) {
-                Some(key) => {
-                    let cw = ui.measure(13.0, W::S, "Change") + 32.0;
-                    let shown = ui.fit(14.0, W::M, &seeds::cosigner_label(&key), w - 34.0 - cw);
-                    ui.text_mid(x + 22.0, cy, 40.0, 14.0, W::M, OK, &shown);
-                    ui.button(
-                        x + w - cw,
-                        cy + 2.0,
-                        Some(cw),
-                        36.0,
-                        "Change",
-                        Style::Ghost,
-                        sa(S::Clear(k as u8)),
-                    );
-                    cy += 46.0;
-                }
-                None => {
-                    field(
-                        ui,
-                        x + 22.0,
-                        cy,
-                        w - 22.0,
-                        text,
-                        "Type or paste an xpub",
-                        focused,
-                        sa(S::Focus(Focus::Cosigner(k as u8))),
-                    );
-                    cy += 48.0;
-                    if !text.trim().is_empty() && !focused {
-                        cy += ui.wrap(
-                            x + 22.0,
-                            cy,
-                            w - 22.0,
-                            12.0,
-                            W::R,
-                            ERR,
-                            "Not an account key",
-                        ) + 6.0;
-                    }
-                    // Scan and the key files in Files fill the first open
-                    // box.
-                    if open == Some(k) {
-                        let labels: Vec<String> =
-                            files.iter().map(|(_, n)| format!("Use {n}")).collect();
-                        let mut items: Vec<(&str, Style, Action)> =
-                            vec![("Scan", Style::Secondary, Action::Scan)];
-                        for ((i, _), l) in files.iter().zip(&labels) {
-                            items.push((l.as_str(), Style::Secondary, sa(S::UseFile(*i))));
-                        }
-                        cy += wrap_buttons(ui, x + 22.0, cy, w - 22.0, 36.0, &items);
-                    }
-                }
-            }
+        for k in 0..s.cosigners.len() {
+            cy += cosigner(app, ui, s, k, have + k + 1, x, cy, w);
         }
     }
     // The kind.

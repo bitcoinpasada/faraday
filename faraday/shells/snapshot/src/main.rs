@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|fromvault]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|fromvault|first|restore]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -54,7 +54,10 @@
 //! with a passphrase, and a cosigner, with Paper and vault and the
 //! passphrase in the vault too; on a small panel the card's At a glance
 //! row and the chart's own page; then an open vault holding the one-key
-//! wallet with its plan, its chart from the backup up (§7.2).
+//! wallet with its plan, its chart from the backup up (§7.2); with
+//! `restore`, Restore a wallet's cards (§12): Kind with the description
+//! shortcut, Quorum, Seeds with a seed matched and one refused, Check and
+//! Done.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -414,6 +417,7 @@ fn run(
         Some("glance") => return glance_tour(&mut t),
         Some("fromvault") => return from_vault_tour(&mut t),
         Some("first") => return first_tour(&mut t),
+        Some("restore") => return restore_tour(&mut t),
         _ => {}
     }
     t.shot("home-empty")?;
@@ -782,6 +786,7 @@ fn run(
             .ok_or(format!("no {name}"))?;
         t.press(Action::RShare(i));
     }
+    t.press(Action::RStep(faraday_core::rstep::DESCRIPTION));
     t.shot("restore-shares")?;
     t.press(Action::RRebuild);
     let fp = t
@@ -1846,13 +1851,13 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
         "xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V",
     );
     t.shot("tools-convert")?;
-    // Restore begins with the transaction to sign.
+    // Restore begins with the kind of wallet (`docs/NEW-WALLET.md` §12).
     t.press(Action::Lock);
     t.press(Action::Nav(Screen::Start));
     t.shot("start-empty")?;
     t.press(Action::RestoreWallet);
-    t.shot("restore-psbt")?;
-    t.press(Action::RNext(0));
+    t.shot("restore-kind")?;
+    t.press(Action::RNext(faraday_core::rstep::KIND));
     t.shot("restore-sources")?;
     Ok(())
 }
@@ -2169,9 +2174,68 @@ fn compact_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// A wallet from seed words alone: Restore's Type the seeds, two seeds
-/// typed with the next steps, the shape (M of N on its sliders, the
-/// third cosigner's xpub, the kind and the path) and the Check card;
+/// Restore a wallet made elsewhere (`docs/NEW-WALLET.md` §12): Kind with
+/// the description shortcut (Scan it, From Files), Quorum at 2 of 3,
+/// Savings' description from Files, then Seeds with test key 1 matched
+/// to its key and a seed of no test wallet refused, the other two keys
+/// Not here, Check and Done.
+fn restore_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::rstep;
+    use faraday_core::seeds::SeedsAction as S;
+    t.press(Action::Network(testkit::NET));
+    t.copy_wallets();
+    t.sticks(false);
+    t.press(Action::RestoreWallet);
+    t.shot("restore-kind")?;
+    t.press(Action::RKind(4));
+    t.press(Action::RNext(rstep::KIND));
+    t.shot("restore-quorum")?;
+    let i = t
+        .app
+        .inbox
+        .iter()
+        .position(|it| it.name == "savings-wallet.txt")
+        .ok_or("no savings-wallet.txt in Files")?;
+    t.press(Action::RUse(i));
+    t.press(Action::RSlotWords);
+    t.type_key(0);
+    t.shot("restore-seeds-matched")?;
+    t.press(Action::RSlotWords);
+    type_text(
+        t,
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+    );
+    t.press(Action::EntryAdd);
+    t.shot("restore-seeds-refused")?;
+    let w = t
+        .app
+        .restore
+        .as_ref()
+        .and_then(|r| r.wallet)
+        .ok_or("the description made no wallet")?;
+    let empty: Vec<u8> = t
+        .app
+        .session
+        .slots(&t.app.session.wallets[w])
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| s.held_by.is_none())
+        .map(|(k, _)| k as u8)
+        .collect();
+    for k in empty {
+        t.press(Action::RAbsent(k));
+    }
+    t.shot("restore-seeds-filled")?;
+    t.press(Action::Seeds(S::Make));
+    t.shot("restore-check")?;
+    t.press(Action::RNext(rstep::CHECK));
+    t.shot("restore-done")?;
+    Ok(())
+}
+
+/// A wallet from seed words alone: Restore on a 2-of-3 with no
+/// description, two seeds typed into their slots, the third cosigner's
+/// xpub in the last, and the Check card;
 /// then the Spend tab's words route with Add another seed and the
 /// sliders.
 fn seeds_tour(t: &mut Tour) -> Result<(), String> {
@@ -2182,31 +2246,23 @@ fn seeds_tour(t: &mut Tour) -> Result<(), String> {
     t.tick();
     t.press(Action::Network(testkit::NET));
     t.press(Action::RestoreWallet);
-    t.press(Action::RNext(0));
+    t.press(Action::RKind(4));
+    t.press(Action::RNext(faraday_core::rstep::KIND));
+    t.press(Action::RNext(faraday_core::rstep::QUORUM));
     t.shot("restore-type-seeds")?;
-    scroll(t, 300);
-    t.shot("restore-type-seeds-foot")?;
     t.press(Action::RSeeds);
     for n in [0, 1] {
-        t.press(Action::Entry(None));
+        t.press(Action::RSlotWords);
         t.type_key(n);
     }
     if t.app.screen != Screen::Restore {
         return Err("Add a key did not return to Restore".into());
     }
     t.shot("restore-seeds-first")?;
-    t.press(Action::Seeds(S::Shape));
-    t.press(Action::Slide(SLIDE_N, 3));
     t.press(Action::Seeds(S::Focus(Focus::Cosigner(0))));
     type_text(t, &testkit::key(2, "m/48'/1'/0'/2'"));
     t.app.event(Event::Key(Key::Enter));
     t.shot("restore-seeds-shape")?;
-    // Down the shape to Make the wallet: further on a small panel.
-    let steps = if t.size().0 < 700 { 5 } else { 2 };
-    for k in 1..=steps {
-        scroll(t, 300);
-        t.shot(&format!("restore-seeds-shape-{k}"))?;
-    }
     t.press(Action::Seeds(S::Make));
     t.shot("restore-seeds-check")?;
     if t.app.restore.as_ref().and_then(|r| r.wallet).is_none() {
@@ -2232,6 +2288,8 @@ fn seeds_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Seeds(S::Focus(Focus::Cosigner(0))));
     type_text(t, &testkit::key(2, "m/48'/1'/0'/2'"));
     t.app.event(Event::Key(Key::Enter));
+    // Down the shape to Make the wallet: further on a small panel.
+    let steps = if t.size().0 < 700 { 5 } else { 2 };
     for k in 1..=steps {
         scroll(t, 300);
         t.shot(&format!("spend-words-shape-{k}"))?;
@@ -3908,7 +3966,7 @@ fn main() -> ExitCode {
     };
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|fromvault|first]"
+            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|fromvault|first|restore]"
         );
         return ExitCode::from(2);
     }
@@ -3958,11 +4016,12 @@ fn main() -> ExitCode {
             "glance",
             "fromvault",
             "first",
+            "restore",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, fromvault or first"
+            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, fromvault, first or restore"
         );
         return ExitCode::from(2);
     }

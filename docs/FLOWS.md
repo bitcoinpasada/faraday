@@ -491,6 +491,29 @@ to get it.
     Create's Add a passphrase, Add a key) shows a **No passphrase** pill
     at its start, with the caret after it while focused; a vault's
     passphrase field has none.
+48. **Restore: what it is, then its description or its seeds** (owner,
+    2026-10-10; `docs/NEW-WALLET.md` §12). Restore opens on **Kind**
+    (Single key · native SegWit ticked, Multisig · native SegWit, More
+    kinds), with the shortcut **I have the wallet description: Scan it**
+    and **From Files** above it; then **Quorum** for a multisig (M of N
+    on the seeds piece's two sliders, 2 of 3 to start), **Description**
+    (Scan it, From a file in Files, the shares, the stick or a vault, or
+    **I do not have it**), **Seeds**, **Check** and **Done**. The
+    transaction card goes: a spend is the Spend tab's. A description
+    read on Kind or Description fills Kind and Quorum and opens Seeds.
+    Seeds has a slot per key; the first empty one has **Passphrase** and
+    **Passphrase again** (optional, the No passphrase pill), then **Type
+    the words**, **Scan a SeedQR**, a seed an open vault holds, a key
+    already loaded, and on a multisig **Their xpub** (no description) or
+    **Not here** (with one). The passphrase goes with the seed entered
+    from that slot. With the description known each seed is matched to
+    its keys as it is entered: a match reads "Key 2 of the wallet"; any
+    other reads "Not a key of this wallet: check the words or the
+    passphrase" and is not loaded. **Make the wallet** once every slot
+    is filled; Check shows the descriptor row and the first addresses;
+    Done offers **Back up this wallet**, the wallet card's spend button
+    (**Spend from this wallet**) and **Wallets**. A restored key is not
+    held for its backup (decision 45).
 
 ## Home
 
@@ -508,9 +531,9 @@ Wallets tab
 carries **Add a key** beside Create a wallet and Load or restore a wallet.
 A key added with no wallet loaded lands on Wallets, whose card says
 "Key 73c5da0a is loaded. No wallet uses it." with **Make a wallet from
-this key** (Restore's seeds card with the key in, at the shape: 1 of 1,
-Native SegWit, account 0 → **Make the wallet**), **Add another key** (the
-same card at 2 keys, for a multisig) and **Load or restore a wallet**.
+this key** (Restore's Seeds card with the key in its slot: single key,
+native SegWit, account 0 → **Make the wallet**), **Add another key** (the
+same card on a 2-of-2 multisig) and **Load or restore a wallet**.
 Several such keys: one line each, the buttons on the one picked. Back
 from the seeds card returns to Wallets with the key still loaded.
 
@@ -761,8 +784,8 @@ guarantees for this file's rule:
 - **Any loaded wallet backs up again, with every file on offer**
   (owner, 2026-10-09; `docs/WALLETS.md` §5). Entries: the wallet's card
   (**Back up**, also on the small panel), Start's **Back up a wallet**,
-  the Tools tile, Create's **Back up** card and Restore's **Back it
-  up again**. With more than one wallet loaded the head is "Back up a
+  the Tools tile, Create's **Back up** card and Restore's **Back up
+  this wallet**. With more than one wallet loaded the head is "Back up a
   wallet" with the wallet's name as a chip, which lists the loaded
   wallets; a press on one starts the backup on it. A watch-only wallet
   (no seeds here) is asked nothing about seeds. The checklist's public
@@ -835,10 +858,11 @@ guarantees for this file's rule:
   **At a glance** row opens the chart as its own page, one column, no
   lines, each backup node naming the keys it holds ("Key 1 words · Key
   2 in the vault"); Back returns to the card.
-- **Restore** takes the wallet's description (a stick, a vault, paper) or
-  **Type the seeds**: each seed through Add a key and back, **Add another
-  key**, then **Make the wallet**: M of N on two sliders, the cosigners'
-  xpubs, the kind and the path, the first address, Check.
+- **Restore** (decision 48): Kind (with **I have the wallet
+  description: Scan it**, **From Files**), Quorum for a multisig,
+  Description or **I do not have it**, Seeds (a slot per key: its seed
+  with an optional passphrase, a cosigner's xpub, or Not here), Check,
+  Done (**Back up this wallet**, **Spend from this wallet**, **Wallets**).
 
 ## Spend tab
 

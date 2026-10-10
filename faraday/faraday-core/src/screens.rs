@@ -7231,68 +7231,122 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
 }
 
+/// A Kind card's rows: Single key and Multisig, both native SegWit, the
+/// two everyday kinds, and the other eight behind **More kinds** until
+/// `more`. Create's Kind and Restore's draw it. Returns the height used.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn kind_rows(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    chosen: crate::create::NewKind,
+    more: bool,
+    enabled: bool,
+    pick: fn(u8) -> Action,
+    more_action: Action,
+) -> f32 {
+    use crate::create::NewKind;
+    let mut cy = y;
+    let shown: Vec<usize> = if more {
+        (0..NewKind::ALL.len()).collect()
+    } else {
+        vec![0, 4]
+    };
+    for &i in &shown {
+        let k = &NewKind::ALL[i];
+        let on = chosen == *k;
+        ui.fill(
+            x,
+            cy,
+            w,
+            48.0,
+            8.0,
+            if on { ACCENT.with_alpha(26) } else { BG },
+        );
+        ui.stroke(
+            x,
+            cy,
+            w,
+            48.0,
+            8.0,
+            if on { ACCENT.with_alpha(110) } else { INNER },
+        );
+        if ui.compact {
+            let name = ui.fit(14.0, W::S, k.name(), w - 28.0);
+            ui.text(x + 14.0, cy + 6.0, 14.0, W::S, TEXT, &name);
+            let line = ui.fit(12.0, W::R, k.line(), w - 28.0);
+            ui.text(x + 14.0, cy + 26.0, 12.0, W::R, MUTED, &line);
+        } else {
+            ui.text_mid(x + 14.0, cy, 48.0, 14.0, W::S, TEXT, k.name());
+            let line = ui.fit(12.0, W::R, k.line(), w - 260.0);
+            ui.text_right(x + w - 14.0, cy, 48.0, 12.0, W::R, MUTED, &line);
+        }
+        if enabled {
+            ui.hit(x, cy, w, 48.0, pick(i as u8));
+        }
+        cy += 54.0;
+    }
+    if !more && enabled {
+        ui.button(x, cy, None, 34.0, "More kinds", Style::Ghost, more_action);
+        cy += 44.0;
+    }
+    cy - y
+}
+
+/// A wallet's first two receive addresses and first change address,
+/// under a label, as Create's Check and Restore's show them, with the
+/// warning while a key made here waits for its backup. Returns the
+/// height used.
+pub(crate) fn first_addresses(app: &Faraday, ui: &mut Ui, i: usize, x: f32, y: f32, w: f32) -> f32 {
+    let Some(wl) = app.session.wallets.get(i) else {
+        return 0.0;
+    };
+    let mut cy = y;
+    // So that a multisig's three rows do not read as one address per
+    // key (`docs/NEW-WALLET.md` §2.4).
+    section_label(ui, x, cy, "The wallet's first addresses");
+    cy += 24.0;
+    if !app.wallet_held(i).is_empty() {
+        cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, crate::glance::RECEIVE_WARNING) + 8.0;
+    }
+    for (label, change, idx) in [
+        ("Receive 0/0", false, 0),
+        ("Receive 0/1", false, 1),
+        ("Change 1/0", true, 0),
+    ] {
+        ui.text(x, cy + 2.0, 12.0, W::R, MUTED, label);
+        let a = grouped(&app.session.address_shown(wl, change, idx));
+        let ax = if ui.compact {
+            cy += 20.0;
+            0.0
+        } else {
+            96.0
+        };
+        cy += ui.wrap(x + ax, cy, w - ax, 13.0, W::M, TEXT, &a).max(20.0) + 10.0;
+    }
+    cy - y
+}
+
 fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
-    use crate::create::{NewKind, Source};
+    use crate::create::Source;
     use crate::cstep;
     let c = app.create.as_ref().expect("create");
     let locked = c.built.is_some();
     let mut cy = y;
     match n {
         cstep::KIND => {
-            // Single key and Multisig, both native SegWit, are the two
-            // everyday kinds; the other eight are behind More kinds.
-            let shown: Vec<usize> = if c.more_kinds {
-                (0..NewKind::ALL.len()).collect()
-            } else {
-                vec![0, 4]
-            };
-            for &i in &shown {
-                let k = &NewKind::ALL[i];
-                let on = c.kind == *k;
-                let action = Action::CKind(i as u8);
-                ui.fill(
-                    x,
-                    cy,
-                    w,
-                    48.0,
-                    8.0,
-                    if on { ACCENT.with_alpha(26) } else { BG },
-                );
-                ui.stroke(
-                    x,
-                    cy,
-                    w,
-                    48.0,
-                    8.0,
-                    if on { ACCENT.with_alpha(110) } else { INNER },
-                );
-                if ui.compact {
-                    let name = ui.fit(14.0, W::S, k.name(), w - 28.0);
-                    ui.text(x + 14.0, cy + 6.0, 14.0, W::S, TEXT, &name);
-                    let line = ui.fit(12.0, W::R, k.line(), w - 28.0);
-                    ui.text(x + 14.0, cy + 26.0, 12.0, W::R, MUTED, &line);
-                } else {
-                    ui.text_mid(x + 14.0, cy, 48.0, 14.0, W::S, TEXT, k.name());
-                    let line = ui.fit(12.0, W::R, k.line(), w - 260.0);
-                    ui.text_right(x + w - 14.0, cy, 48.0, 12.0, W::R, MUTED, &line);
-                }
-                if !locked {
-                    ui.hit(x, cy, w, 48.0, action);
-                }
-                cy += 54.0;
-            }
-            if !c.more_kinds {
-                ui.button(
-                    x,
-                    cy,
-                    None,
-                    34.0,
-                    "More kinds",
-                    Style::Ghost,
-                    Action::CMoreKinds,
-                );
-                cy += 44.0;
-            }
+            cy += kind_rows(
+                ui,
+                x,
+                cy,
+                w,
+                c.kind,
+                c.more_kinds,
+                !locked,
+                Action::CKind,
+                Action::CMoreKinds,
+            );
             cy += 6.0;
             let over: &[(&str, Style, Action)] = if app.create_unfinished() {
                 &[("Start over", Style::Ghost, Action::CreateOver)]
@@ -7618,30 +7672,7 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 // The descriptor as a summary row: tapping it opens the
                 // wallet's code with the descriptor's full text under it.
                 cy += descriptor_row(ui, x, cy, w, wl, Action::QrWallet(c.built.unwrap_or(0)));
-                // So that a multisig's three rows do not read as one
-                // address per key (`docs/NEW-WALLET.md` §2.4).
-                section_label(ui, x, cy, "The wallet's first addresses");
-                cy += 24.0;
-                if let Some(i) = c.built
-                    && !app.wallet_held(i).is_empty()
-                {
-                    cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, crate::glance::RECEIVE_WARNING) + 8.0;
-                }
-                for (label, change, idx) in [
-                    ("Receive 0/0", false, 0),
-                    ("Receive 0/1", false, 1),
-                    ("Change 1/0", true, 0),
-                ] {
-                    ui.text(x, cy + 2.0, 12.0, W::R, MUTED, label);
-                    let a = grouped(&app.session.address_shown(wl, change, idx));
-                    let ax = if ui.compact {
-                        cy += 20.0;
-                        0.0
-                    } else {
-                        96.0
-                    };
-                    cy += ui.wrap(x + ax, cy, w - ax, 13.0, W::M, TEXT, &a).max(20.0) + 10.0;
-                }
+                cy += first_addresses(app, ui, c.built.unwrap_or(0), x, cy, w);
                 cy += 6.0;
                 cy += buttons_and_next(ui, x, cy, w, &[], Some(("Continue", Action::CNext(n))));
             } else {
@@ -8140,58 +8171,51 @@ fn public_rows_for(
 // Restore a wallet
 // ---------------------------------------------------------------------
 
-const RSTEPS: [&str; 5] = [
-    "A transaction to sign",
-    "The wallet",
-    "The seeds",
-    "Check",
-    "Done",
-];
+const RSTEPS: [&str; crate::rstep::COUNT as usize] =
+    ["Kind", "Quorum", "Description", "Seeds", "Check", "Done"];
 
 fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    use crate::rstep;
     let col_x = x0 + 40.0;
     let col_w = (cw - 80.0).min(900.0);
     let Some(r) = app.restore.as_ref() else {
         return;
     };
     let wl = r.wallet.and_then(|i| app.session.wallets.get(i));
-    let psbts = app
-        .inbox
+    let steps = r.steps();
+    let s = r.seeds.as_ref();
+    let cards: Vec<flow::Card> = steps
         .iter()
-        .filter(|i| i.kind == FileKind::Psbt)
-        .count();
-    let cards: Vec<flow::Card> = (0..crate::rstep::COUNT)
-        .map(|k| flow::Card {
+        .map(|&k| flow::Card {
             title: RSTEPS[k as usize].to_string(),
-            summary: match (k, wl) {
-                (0, _) => match (app.spend.as_ref(), psbts) {
-                    (Some(s), _) => format!("Signing {}", s.spend.source),
-                    (None, 0) => "None in Files".to_string(),
-                    (None, 1) => "1 PSBT in Files".to_string(),
-                    (None, n) => format!("{n} PSBTs in Files"),
+            summary: match k {
+                rstep::KIND => match wl.filter(|_| r.described) {
+                    Some(w) => Session::shape(w),
+                    None => r.kind().name().to_string(),
                 },
-                (1, Some(w)) => format!("{} · {}", w.name, Session::shape(w)),
-                (1, None) if r.seeds.is_some() => "From the seeds".to_string(),
-                (1, None) => "Not chosen yet".to_string(),
-                (2, None) => match r.seeds.as_ref().map(|s| app.seeds_here(s).len()) {
-                    Some(1) => "1 seed typed".to_string(),
-                    Some(n) => format!("{n} seeds typed"),
+                rstep::QUORUM => s.map(|s| format!("{} of {}", s.m, s.n)).unwrap_or_default(),
+                rstep::DESCRIPTION => match wl {
+                    Some(w) if r.described => w.name.clone(),
+                    _ if r.done[k as usize] => "None".to_string(),
+                    _ => String::new(),
+                },
+                rstep::SEEDS => {
+                    let (here, all) = restore_filled(app);
+                    format!("{here} of {all} filled")
+                }
+                rstep::CHECK => match wl.filter(|_| r.done[rstep::SEEDS as usize]) {
+                    Some(w) => short(&app.session.address_shown(w, false, 0)),
                     None => String::new(),
                 },
-                (2, Some(w)) => {
-                    let slots = app.session.slots(w);
-                    let here = slots.iter().filter(|s| s.held_by.is_some()).count();
-                    format!("{here} of {} seeds typed", slots.len())
-                }
-                (3, Some(w)) => short(&app.session.address_shown(w, false, 0)),
                 _ => String::new(),
             },
-            mono: k == 3,
+            mono: k == rstep::CHECK,
             done: r.done[k as usize],
             open: r.open == Some(k),
-            default: false,
+            // Read from a description, they are not to be changed.
+            default: !r.described && (k == rstep::KIND || k == rstep::QUORUM),
             toggle: Action::RStep(k),
-            guide: Some(guide::restore(k, app.medium)),
+            guide: Some(guide::restore(k)),
         })
         .collect();
     let col = flow::Column {
@@ -8219,7 +8243,7 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (next, again) = {
         let app_ref: &Faraday = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            restore_body(app_ref, ui, i as u8, x, y, w)
+            restore_body(app_ref, ui, steps[i], x, y, w)
         };
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
@@ -8232,367 +8256,417 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
 }
 
+/// Restore's slots: how many are filled (a seed here, a cosigner's
+/// xpub, or Not here), of how many.
+fn restore_filled(app: &Faraday) -> (usize, usize) {
+    let Some(r) = app.restore.as_ref() else {
+        return (0, 0);
+    };
+    if r.described
+        && let Some(w) = r.wallet.and_then(|i| app.session.wallets.get(i))
+    {
+        let slots = app.session.slots(w);
+        let filled = slots
+            .iter()
+            .enumerate()
+            .filter(|(k, s)| s.held_by.is_some() || r.absent.contains(&(*k as u8)))
+            .count();
+        return (filled, slots.len());
+    }
+    let Some(s) = r.seeds.as_ref() else {
+        return (0, 0);
+    };
+    let xpubs = s
+        .cosigners
+        .iter()
+        .filter(|c| crate::seeds::cosigner_key(c).is_some())
+        .count();
+    (app.seeds_here(s).len() + xpubs, s.n.max(1))
+}
+
+/// The wallet description's file names in Files, by place.
+fn description_files(app: &Faraday) -> Vec<(usize, &str)> {
+    app.inbox
+        .iter()
+        .enumerate()
+        .filter(|(_, i)| i.kind == FileKind::Wallet)
+        .map(|(k, i)| (k, i.name.as_str()))
+        .collect()
+}
+
 fn restore_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
+    use crate::rstep;
     let r = app.restore.as_ref().expect("restore");
-    let wl = r.wallet.and_then(|i| app.session.wallets.get(i));
     let mut cy = y;
     match n {
-        0 => cy += restore_psbt_body(app, ui, x, cy, w),
-        1 => {
-            cy += restore_sources(app, ui, x, cy, w);
-            let wallets: Vec<(usize, &str)> = app
-                .inbox
-                .iter()
-                .enumerate()
-                .filter(|(_, i)| i.kind == FileKind::Wallet)
-                .map(|(k, i)| (k, i.name.as_str()))
-                .collect();
-            let shares: Vec<(usize, &str)> = app
-                .inbox
-                .iter()
-                .enumerate()
-                .filter(|(_, i)| i.kind == FileKind::Share)
-                .map(|(k, i)| (k, i.name.as_str()))
-                .collect();
-            if wallets.is_empty() && shares.is_empty() {
-                ui.wrap(
-                    x,
-                    cy,
-                    w,
-                    13.0,
-                    W::R,
-                    MUTED,
-                    "No descriptor, config or share in Files",
-                );
-                cy += 30.0;
-            }
-            if !wallets.is_empty() {
-                ui.text(x, cy, 12.0, W::R, MUTED, "Whole wallets");
-                cy += 22.0;
-                for (k, name) in &wallets {
-                    // No wider than the column; a long name is cut.
-                    let label = format!("Restore from {name}");
-                    let bw = (ui.measure(13.0, W::S, &label) + 32.0).min(w);
-                    let label = ui.fit(13.0, W::S, &label, bw - 24.0);
-                    ui.button(
-                        x,
-                        cy,
-                        Some(bw),
-                        34.0,
-                        &label,
-                        Style::Secondary,
-                        Action::RUse(*k),
-                    );
-                    cy += 42.0;
-                }
-            }
-            if !shares.is_empty() {
-                ui.text(x, cy, 12.0, W::R, MUTED, "Shares of a split backup");
-                cy += 22.0;
-                for (k, name) in &shares {
-                    let on = r.shares.iter().any(|s| s == name);
-                    ui.checkbox(x, cy + 8.0, on, true);
-                    let name = ui.fit(13.0, W::M, name, w - 30.0);
-                    ui.text_mid(x + 30.0, cy, 34.0, 13.0, W::M, TEXT, &name);
-                    ui.hit(x, cy, w, 34.0, Action::RShare(*k));
-                    cy += 38.0;
-                }
-                let texts = app.restore_share_texts();
-                if !texts.is_empty() {
-                    match crate::restore::merge(&texts) {
-                        Ok(m) => {
-                            let line = format!(
-                                "{} of {} keys in hand · {}",
-                                m.have.len(),
-                                m.n,
-                                m.have.join(" ")
-                            );
-                            cy += ui.wrap(
-                                x,
-                                cy,
-                                w,
-                                13.0,
-                                W::M,
-                                if m.whole.is_some() { OK } else { WARN },
-                                &line,
-                            ) + 10.0;
-                            let style = if m.whole.is_some() {
-                                Style::Primary
-                            } else {
-                                Style::Disabled
-                            };
-                            ui.button(
-                                x,
-                                cy,
-                                None,
-                                38.0,
-                                "Rebuild the wallet",
-                                style,
-                                Action::RRebuild,
-                            );
-                            cy += 48.0;
-                        }
-                        Err(e) => {
-                            cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, &e) + 10.0;
-                        }
-                    }
-                }
-            }
-            if let Some(e) = &r.error {
-                cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 6.0;
-            }
-        }
-        2 => {
-            if let Some(w2) = wl {
-                let may = app.may_load_keys();
-                let slots = app.session.slots(w2);
-                let enough = slots.iter().filter(|s| s.held_by.is_some()).count()
-                    >= crate::wallet::needed(w2);
-                for (k, slot) in slots.iter().enumerate() {
-                    ui.text_mid(x, cy, 40.0, 12.0, W::R, DIM, &(k + 1).to_string());
-                    let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
-                    ui.text_mid(x + 22.0, cy, 40.0, 14.0, W::M, TEXT, &fp);
-                    match &slot.held_by {
-                        Some(l) => {
-                            let here = ui.fit(13.0, W::R, &format!("Here · {l}"), w - 124.0);
-                            ui.text_mid(x + 124.0, cy, 40.0, 13.0, W::R, OK, &here);
-                        }
-                        None if enough => {
-                            ui.text_right(x + w, cy, 40.0, 12.0, W::R, DIM, "Not needed");
-                        }
-                        None => {
-                            let style = if may {
-                                Style::Secondary
-                            } else {
-                                Style::Disabled
-                            };
-                            let (label, action) = match slot
-                                .fingerprint
-                                .filter(|f| app.vault_key_for(*f).is_some())
-                            {
-                                Some(f) => (
-                                    "Load from vault",
-                                    Action::Vault(crate::vaults::VaultAction::LoadKeyOf(f.0)),
-                                ),
-                                None => (
-                                    "Type its words",
-                                    Action::Entry(slot.fingerprint.map(|f| f.0)),
-                                ),
-                            };
-                            ui.button(
-                                x + w - 150.0,
-                                cy + 2.0,
-                                Some(150.0),
-                                36.0,
-                                label,
-                                style,
-                                action,
-                            );
-                        }
-                    }
-                    ui.rule(x, cy + 42.0, w, INNER);
-                    cy += 44.0;
-                }
-                if !enough {
-                    cy += 4.0;
-                    cy += missing_keys_line(app, ui, &slots, Screen::Restore, x, cy, w);
-                }
-                cy += 10.0;
-                if next_button(ui, x, cy, w, "Continue", Action::RNext(n)) {
-                    cy += 48.0;
-                }
-            } else if let Some(s) = r.seeds.as_ref() {
-                // Seeds first: the seeds, then the wallet they make.
-                if s.shaping {
-                    cy += crate::seeds_screen::shape(app, ui, s, true, x, cy, w);
+        rstep::KIND => {
+            // The shortcut: a description fills Kind, Quorum and the
+            // cosigners' keys, and the flow goes to Seeds.
+            if !r.described {
+                let label = "I have the wallet description";
+                if ui.compact {
+                    cy += ui.wrap(x, cy, w, 13.0, W::S, TEXT, label) + 8.0;
                 } else {
-                    cy += crate::seeds_screen::keys(app, ui, s, false, x, cy, w);
-                    if !app.seeds_here(s).is_empty() {
-                        cy += 4.0;
-                        cy += buttons_and_next(
-                            ui,
-                            x,
-                            cy,
-                            w,
-                            &[],
-                            Some((
-                                "Make the wallet",
-                                Action::Seeds(crate::seeds::SeedsAction::Shape),
-                            )),
-                        );
-                    }
+                    ui.text_mid(x, cy, 40.0, 13.0, W::S, TEXT, label);
                 }
-            } else {
-                ui.text(x, cy, 13.0, W::R, DIM, "Choose the wallet first");
-                cy += 30.0;
-                cy += wrap_buttons(
-                    ui,
-                    x,
-                    cy,
-                    w,
-                    40.0,
-                    &[("Type the seeds", Style::Secondary, Action::RSeeds)],
-                );
+                let mut items: Vec<(&str, Style, Action)> =
+                    vec![("Scan it", Style::Secondary, Action::Scan)];
+                if !description_files(app).is_empty() {
+                    items.push(("From Files", Style::Secondary, Action::RFromFiles));
+                }
+                if ui.compact {
+                    cy += wrap_buttons(ui, x, cy, w, 40.0, &items);
+                } else {
+                    let lw = ui.measure(13.0, W::S, label) + 16.0;
+                    cy += wrap_buttons(ui, x + lw, cy, w - lw, 40.0, &items);
+                }
+                cy += 8.0;
+                ui.rule(x, cy, w, INNER);
+                cy += 14.0;
             }
+            cy += kind_rows(
+                ui,
+                x,
+                cy,
+                w,
+                r.kind(),
+                r.more_kinds,
+                !r.described,
+                Action::RKind,
+                Action::RMoreKinds,
+            );
+            cy += 6.0;
+            cy += buttons_and_next(ui, x, cy, w, &[], Some(("Continue", Action::RNext(n))));
         }
-        3 => {
-            if let Some(w2) = wl {
-                ui.text(x, cy, 12.0, W::R, MUTED, "First receive address · 0/0");
-                cy += 22.0;
-                cy += ui.wrap(
-                    x,
-                    cy,
-                    w,
-                    15.0,
-                    W::M,
-                    TEXT,
-                    &grouped(&app.session.address_shown(w2, false, 0)),
-                ) + 14.0;
-                cy += buttons_and_next(
-                    ui,
-                    x,
-                    cy,
-                    w,
-                    &[(
-                        "Show wallet QR",
-                        Style::Secondary,
-                        Action::QrWallet(r.wallet.unwrap_or(0)),
-                    )],
-                    Some(("It matches", Action::RNext(n))),
-                );
+        rstep::QUORUM => {
+            if let Some(s) = r.seeds.as_ref() {
+                cy += crate::seeds_screen::quorum(ui, s, x, cy, w);
+            }
+            cy += 6.0;
+            cy += buttons_and_next(ui, x, cy, w, &[], Some(("Continue", Action::RNext(n))));
+        }
+        rstep::DESCRIPTION => cy += restore_description(app, ui, x, cy, w),
+        rstep::SEEDS => cy += restore_seeds(app, ui, x, cy, w),
+        rstep::CHECK => {
+            if let Some(i) = r.wallet.filter(|_| r.done[rstep::SEEDS as usize])
+                && let Some(wl) = app.session.wallets.get(i)
+            {
+                cy += descriptor_row(ui, x, cy, w, wl, Action::QrWallet(i));
+                cy += first_addresses(app, ui, i, x, cy, w);
+                cy += 6.0;
+                cy += buttons_and_next(ui, x, cy, w, &[], Some(("It matches", Action::RNext(n))));
+            } else {
+                ui.text(x, cy, 13.0, W::R, DIM, "Make the wallet first");
+                cy += 30.0;
             }
         }
         _ => {
-            if let Some(i) = r.wallet
-                && ui.compact
-            {
-                // Open the wallet pinned at the foot.
-                ui.pin = Some((
-                    "Open the wallet".to_string(),
-                    Style::Primary,
-                    Action::OpenWallet(i),
-                ));
-                cy += wrap_buttons(
-                    ui,
-                    x,
-                    cy,
-                    w,
-                    40.0,
-                    &[("Back it up again", Style::Secondary, Action::Backup(i))],
-                ) + 4.0;
-            } else if let Some(i) = r.wallet {
-                ui.button(
-                    x,
-                    cy,
-                    None,
-                    40.0,
-                    "Open the wallet",
-                    Style::Primary,
-                    Action::OpenWallet(i),
-                );
-                let bw = ui.measure(14.0, W::S, "Back it up again") + 32.0;
-                ui.button(
-                    x + w - bw,
-                    cy,
-                    Some(bw),
-                    40.0,
-                    "Back it up again",
-                    Style::Secondary,
-                    Action::Backup(i),
-                );
-                cy += 52.0;
+            if let Some(i) = r.wallet.filter(|_| r.done[rstep::SEEDS as usize]) {
+                let (spend, spend_action) = app.spend_button(i);
+                let items = [
+                    ("Back up this wallet", Style::Primary, Action::Backup(i)),
+                    (spend.as_str(), Style::Secondary, spend_action),
+                    ("Wallets", Style::Ghost, Action::OpenWallet(i)),
+                ];
+                cy += wrap_buttons(ui, x, cy, w, 40.0, &items) + 4.0;
             }
         }
     }
     cy - y
 }
 
-/// Restore's first card: a transaction to sign, by stick while nothing
-/// secret is open, or by QR now or later.
-fn restore_psbt_body(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+/// Restore's Description card: Scan it, From Files (each description,
+/// the shares of a split one), the stick and the vaults, or **I do not
+/// have it**.
+fn restore_description(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let r = app.restore.as_ref().expect("restore");
     let mut cy = y;
-    for it in app.inbox.iter().filter(|i| i.kind == FileKind::Psbt) {
-        ui.icon(x, cy + 8.0, 20.0, Icon::Done, 11.0, OK);
-        let name = ui.fit(14.0, W::M, &it.name, w - 28.0);
-        ui.text_mid(x + 28.0, cy, 36.0, 14.0, W::M, TEXT, &name);
-        cy += 38.0;
+    let files = description_files(app);
+    let labels: Vec<String> = files.iter().map(|(_, n)| format!("From {n}")).collect();
+    let mut items: Vec<(&str, Style, Action)> = vec![("Scan it", Style::Secondary, Action::Scan)];
+    for ((k, _), l) in files.iter().zip(&labels) {
+        items.push((l.as_str(), Style::Secondary, Action::RUse(*k)));
     }
-    let closed = app.holds_secret() || !app.vaults.open.is_empty();
-    let (style, sub) = match (closed, app.sticks.is_empty()) {
-        (true, _) => (
-            Style::Disabled,
-            format!("{} only before a key or vault is open", app.medium.a_cap()),
-        ),
-        (false, true) => (Style::Disabled, format!("Insert the {}", app.medium.noun())),
-        (false, false) => (Style::Secondary, String::new()),
-    };
-    let from = format!("From {}", app.medium.a());
-    if ui.compact {
-        // The two ways in, then why the stick cannot be used, each on
-        // its own line.
-        cy += wrap_buttons(
-            ui,
-            x,
-            cy,
-            w,
-            40.0,
-            &[
-                (from.as_str(), style, Action::VisitFrom(Screen::Restore)),
-                ("Scan a QR code", Style::Secondary, Action::Scan),
-            ],
-        );
-        if !sub.is_empty() {
-            cy += ui.wrap(x, cy, w, 13.0, W::R, WARN, &sub) + 10.0;
+    if !r.kind().threshold() {
+        items.push(("I do not have it", Style::Secondary, Action::RSeeds));
+    }
+    cy += wrap_buttons(ui, x, cy, w, 40.0, &items) + 8.0;
+    cy += restore_sources(app, ui, x, cy, w);
+    let shares: Vec<(usize, &str)> = app
+        .inbox
+        .iter()
+        .enumerate()
+        .filter(|(_, i)| i.kind == FileKind::Share)
+        .map(|(k, i)| (k, i.name.as_str()))
+        .collect();
+    if !shares.is_empty() {
+        ui.text(x, cy, 12.0, W::R, MUTED, "Shares of a split backup");
+        cy += 22.0;
+        for (k, name) in &shares {
+            let on = r.shares.iter().any(|s| s == name);
+            ui.checkbox(x, cy + 8.0, on, true);
+            let name = ui.fit(13.0, W::M, name, w - 30.0);
+            ui.text_mid(x + 30.0, cy, 34.0, 13.0, W::M, TEXT, &name);
+            ui.hit(x, cy, w, 34.0, Action::RShare(*k));
+            cy += 38.0;
         }
-        let has = app.spend.is_some() || app.inbox.iter().any(|i| i.kind == FileKind::Psbt);
-        let drawn = next_button(
+        let texts = app.restore_share_texts();
+        if !texts.is_empty() {
+            match crate::restore::merge(&texts) {
+                Ok(m) => {
+                    let line = format!(
+                        "{} of {} keys in hand · {}",
+                        m.have.len(),
+                        m.n,
+                        m.have.join(" ")
+                    );
+                    cy += ui.wrap(
+                        x,
+                        cy,
+                        w,
+                        13.0,
+                        W::M,
+                        if m.whole.is_some() { OK } else { WARN },
+                        &line,
+                    ) + 10.0;
+                    let style = if m.whole.is_some() {
+                        Style::Primary
+                    } else {
+                        Style::Disabled
+                    };
+                    ui.button(
+                        x,
+                        cy,
+                        None,
+                        38.0,
+                        "Rebuild the wallet",
+                        style,
+                        Action::RRebuild,
+                    );
+                    cy += 48.0;
+                }
+                Err(e) => {
+                    cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, &e) + 10.0;
+                }
+            }
+        }
+    }
+    if let Some(e) = &r.error {
+        cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 6.0;
+    }
+    cy - y
+}
+
+/// Restore's Seeds card: a slot per key. Each filled slot says what
+/// fills it; the first empty one takes a passphrase and its seed, typed,
+/// scanned, from an open vault or already loaded, or a cosigner's xpub;
+/// a key of the description can be Not here. **Make the wallet** once
+/// every slot is filled.
+fn restore_seeds(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    use crate::seeds::{Focus, SeedsAction as S};
+    let r = app.restore.as_ref().expect("restore");
+    let Some(s) = r.seeds.as_ref() else {
+        return 0.0;
+    };
+    let mut cy = y;
+    let multi = r.kind().multi();
+    let mut open_drawn = false;
+    // One row: the slot's number, its fingerprint, what fills it.
+    let row = |ui: &mut Ui, cy: f32, k: usize, fp: &str, line: &str, color| {
+        ui.text_mid(x, cy, 40.0, 12.0, W::R, DIM, &(k + 1).to_string());
+        ui.text_mid(x + 22.0, cy, 40.0, 14.0, W::M, TEXT, fp);
+        let line = ui.fit(13.0, W::R, line, w - 124.0);
+        ui.text_mid(x + 124.0, cy, 40.0, 13.0, W::R, color, &line);
+    };
+    if r.described
+        && let Some(wl) = r.wallet.and_then(|i| app.session.wallets.get(i))
+    {
+        let here: Vec<[u8; 4]> = app
+            .session
+            .keys
+            .iter()
+            .map(|k| k.master.fingerprint().0)
+            .collect();
+        for (k, slot) in app.session.slots(wl).iter().enumerate() {
+            let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
+            let absent = r.absent.contains(&(k as u8));
+            if slot.held_by.is_some() {
+                row(ui, cy, k, &fp, &format!("Key {} of the wallet", k + 1), OK);
+                cy += 42.0;
+            } else if absent {
+                row(ui, cy, k, &fp, "Not here", DIM);
+                let cw = ui.measure(13.0, W::S, "Change") + 32.0;
+                ui.button(
+                    x + w - cw,
+                    cy + 2.0,
+                    Some(cw),
+                    36.0,
+                    "Change",
+                    Style::Ghost,
+                    Action::RAbsent(k as u8),
+                );
+                cy += 42.0;
+            } else if !open_drawn {
+                open_drawn = true;
+                row(ui, cy, k, &fp, "Empty", DIM);
+                cy += 44.0;
+                let extra = multi.then_some(("Not here", Action::RAbsent(k as u8)));
+                cy += restore_open_slot(app, ui, r, &here, extra, x + 22.0, cy, w - 22.0);
+            } else {
+                row(ui, cy, k, &fp, "Empty", DIM);
+                if multi {
+                    let nw = ui.measure(13.0, W::S, "Not here") + 32.0;
+                    ui.button(
+                        x + w - nw,
+                        cy + 2.0,
+                        Some(nw),
+                        36.0,
+                        "Not here",
+                        Style::Ghost,
+                        Action::RAbsent(k as u8),
+                    );
+                }
+                cy += 42.0;
+            }
+            ui.rule(x, cy, w, INNER);
+            cy += 8.0;
+        }
+    } else {
+        let here = app.seeds_here(s);
+        for (k, fp) in here.iter().enumerate() {
+            let f = osk_bip::keys::Fingerprint(*fp);
+            let label = app.session.key_label(f).unwrap_or("");
+            let line = if label.is_empty() || label.eq_ignore_ascii_case(&fp_text(f)) {
+                "Here".to_string()
+            } else {
+                format!("Here · {label}")
+            };
+            row(ui, cy, k, &fp_text(f), &line, OK);
+            cy += 42.0;
+            ui.rule(x, cy, w, INNER);
+            cy += 8.0;
+        }
+        for (k, text) in s.cosigners.iter().enumerate() {
+            let slot = here.len() + k;
+            let focused = s.focus == Some(Focus::Cosigner(k as u8));
+            if focused || !text.trim().is_empty() {
+                cy += crate::seeds_screen::cosigner(app, ui, s, k, slot + 1, x, cy, w);
+            } else if !open_drawn {
+                open_drawn = true;
+                row(ui, cy, slot, "", "Empty", DIM);
+                cy += 44.0;
+                let extra = multi.then_some((
+                    "Their xpub",
+                    Action::Seeds(S::Focus(Focus::Cosigner(k as u8))),
+                ));
+                cy += restore_open_slot(app, ui, r, &here, extra, x + 22.0, cy, w - 22.0);
+            } else {
+                row(ui, cy, slot, "", "Empty", DIM);
+                if multi {
+                    let label = "Their xpub";
+                    let nw = ui.measure(13.0, W::S, label) + 32.0;
+                    ui.button(
+                        x + w - nw,
+                        cy + 2.0,
+                        Some(nw),
+                        36.0,
+                        label,
+                        Style::Ghost,
+                        Action::Seeds(S::Focus(Focus::Cosigner(k as u8))),
+                    );
+                }
+                cy += 42.0;
+            }
+            ui.rule(x, cy, w, INNER);
+            cy += 8.0;
+        }
+    }
+    // The open slot says why its seed was refused; with none open, here.
+    let error = if open_drawn { None } else { r.error.as_ref() };
+    if let Some(e) = error.or(s.error.as_ref()) {
+        cy += ui.wrap(x, cy, w, 13.0, W::S, ERR, e) + 8.0;
+    }
+    let (filled, all) = restore_filled(app);
+    let ready = filled >= all && (r.described || app.seeds_descriptor(s).is_ok());
+    if ready {
+        cy += 6.0;
+        cy += buttons_and_next(
             ui,
             x,
             cy,
             w,
-            if has { "Continue" } else { "Later" },
-            Action::RNext(0),
+            &[],
+            Some(("Make the wallet", Action::Seeds(S::Make))),
         );
-        return cy + (if drawn { 52.0 } else { 8.0 }) - y;
     }
-    let bw = ui.button(
-        x,
-        cy,
-        None,
-        40.0,
-        &from,
-        style,
-        Action::VisitFrom(Screen::Restore),
-    );
-    let sw = ui.button(
-        x + bw + 8.0,
-        cy,
-        None,
-        40.0,
-        "Scan a QR code",
-        Style::Secondary,
-        Action::Scan,
-    );
-    if !sub.is_empty() {
-        ui.text_mid(x + bw + sw + 24.0, cy, 40.0, 13.0, W::R, WARN, &sub);
+    cy - y
+}
+
+/// The open slot: why its last seed was refused, **Passphrase** and
+/// **Passphrase again** (optional, the No passphrase pill while empty),
+/// then the ways its seed comes in, and `extra` (Their xpub, Not here).
+/// Returns the height used.
+#[allow(clippy::too_many_arguments)]
+fn restore_open_slot(
+    app: &Faraday,
+    ui: &mut Ui,
+    r: &crate::RestoreState,
+    here: &[[u8; 4]],
+    extra: Option<(&str, Action)>,
+    x: f32,
+    y: f32,
+    w: f32,
+) -> f32 {
+    let mut cy = y;
+    if let Some(e) = &r.error {
+        cy += ui.wrap(x, cy, w, 13.0, W::S, ERR, e) + 10.0;
     }
-    cy += 52.0;
-    let has = app.spend.is_some() || app.inbox.iter().any(|i| i.kind == FileKind::Psbt);
-    if next_button(
+    cy += pass_field(
         ui,
         x,
         cy,
         w,
-        if has { "Continue" } else { "Later" },
-        Action::RNext(0),
-    ) {
-        cy += 52.0;
+        "Passphrase",
+        &r.pass,
+        r.pass_focus == Some(0),
+        Action::RPassField(0),
+    );
+    cy += pass_field(
+        ui,
+        x,
+        cy,
+        w,
+        "Passphrase again",
+        &r.pass2,
+        r.pass_focus == Some(1),
+        Action::RPassField(1),
+    );
+    let mut labels: Vec<(String, Style, Action)> = vec![
+        (
+            "Type the words".to_string(),
+            Style::Primary,
+            Action::RSlotWords,
+        ),
+        (
+            "Scan a SeedQR".to_string(),
+            Style::Secondary,
+            Action::RSlotScan,
+        ),
+    ];
+    crate::seeds_screen::more_ways(app, here, true, &mut labels);
+    if let Some((label, action)) = extra {
+        labels.push((label.to_string(), Style::Secondary, action));
     }
+    let items: Vec<(&str, Style, Action)> = labels
+        .iter()
+        .map(|(l, st, a)| (l.as_str(), *st, *a))
+        .collect();
+    cy += wrap_buttons(ui, x, cy, w, 40.0, &items) + 6.0;
     cy - y
 }
 
-/// Where a wallet comes back from: the files of a stick, a vault on a
-/// second stick, or paper.
+/// Where a wallet's description comes back from besides the camera and
+/// Files: the files of a stick, or a vault.
 fn restore_sources(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::vaults::VaultAction as V;
     use faraday_vault::records::{field, kind};
@@ -8680,27 +8754,6 @@ fn restore_sources(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         );
     }
     cy += 48.0;
-    // Paper.
-    ui.text_mid(x, cy, 40.0, 13.0, W::S, MUTED, "Paper");
-    let sw = ui.button(
-        x + 90.0,
-        cy,
-        None,
-        40.0,
-        "Scan the descriptor or a share",
-        Style::Secondary,
-        Action::Scan,
-    );
-    ui.button(
-        x + 90.0 + sw + 8.0,
-        cy,
-        None,
-        40.0,
-        "Type the seeds",
-        Style::Secondary,
-        Action::RSeeds,
-    );
-    cy += 56.0;
     ui.rule(x, cy - 6.0, w, INNER);
     cy += 10.0;
     cy - y
@@ -8780,24 +8833,6 @@ fn restore_sources_compact(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -
         cy += wrap_buttons(ui, x, cy, w, 40.0, &items);
     }
     cy += 8.0;
-    // Paper.
-    ui.text(x, cy, 13.0, W::S, MUTED, "Paper");
-    cy += 22.0;
-    cy += wrap_buttons(
-        ui,
-        x,
-        cy,
-        w,
-        40.0,
-        &[
-            (
-                "Scan the descriptor or a share",
-                Style::Secondary,
-                Action::Scan,
-            ),
-            ("Type the seeds", Style::Secondary, Action::RSeeds),
-        ],
-    ) + 6.0;
     ui.rule(x, cy - 6.0, w, INNER);
     cy += 10.0;
     cy - y

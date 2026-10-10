@@ -104,10 +104,13 @@ fn unlocking_loads_the_vaults_wallets_and_keys_and_lands_on_wallets() {
 }
 
 #[test]
-fn restore_starts_with_the_transaction_to_sign() {
+fn restore_starts_with_the_kind_of_wallet() {
     let mut app = Faraday::new();
     app.press(Action::RestoreWallet);
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(0));
+    assert_eq!(
+        app.restore.as_ref().unwrap().open,
+        Some(faraday_core::rstep::KIND)
+    );
 }
 
 #[test]

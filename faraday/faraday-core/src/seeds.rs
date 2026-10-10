@@ -101,6 +101,10 @@ pub struct SeedsState {
     pub slider: u8,
     /// The last refusal.
     pub error: Option<String>,
+    /// The kind was chosen first (Restore's Kind card): the number of
+    /// keys stays within it, and each slot is a seed or a cosigner's
+    /// box (`docs/NEW-WALLET.md` §12.1).
+    pub fixed: bool,
 }
 
 impl SeedsState {
@@ -117,12 +121,53 @@ impl SeedsState {
         }
     }
 
-    /// Takes a seed into the flow, once.
-    pub fn take(&mut self, fp: [u8; 4]) {
-        if !self.keys.contains(&fp) {
-            self.keys.push(fp);
-            self.fit();
+    /// Takes a seed into the flow, once. With the kind fixed it goes in
+    /// the first empty slot, and is refused when none is.
+    pub fn take(&mut self, fp: [u8; 4]) -> bool {
+        if self.keys.contains(&fp) {
+            return true;
         }
+        if self.fixed {
+            let Some(k) = self.first_empty() else {
+                return false;
+            };
+            self.cosigners.remove(k);
+            self.focus = None;
+            self.keys.push(fp);
+            return true;
+        }
+        self.keys.push(fp);
+        self.fit();
+        true
+    }
+
+    /// Fixes the kind, chosen before the seeds: the shape is open, one
+    /// slot for each key.
+    pub fn fix(&mut self, kind: NewKind) {
+        self.fixed = true;
+        self.shaping = true;
+        self.kind = kind;
+        if self.n == 0 {
+            self.n = 1;
+            self.m = 1;
+        }
+        self.set_n(self.n);
+    }
+
+    /// The first slot with neither a seed nor anything typed for a
+    /// cosigner, by its place among the cosigners' boxes.
+    pub fn first_empty(&self) -> Option<usize> {
+        self.cosigners.iter().position(|c| c.trim().is_empty())
+    }
+
+    /// The fewest keys the shape takes.
+    fn least(&self) -> usize {
+        let kind = if self.fixed && self.kind.multi() {
+            2
+        } else {
+            1
+        };
+        self.keys.len().max(kind)
     }
 
     /// Opens the shape at its defaults: as many keys as seeds, a
@@ -140,29 +185,54 @@ impl SeedsState {
     /// [`MAX_KEYS`]. The kind changes with it between one key and
     /// several, and the signatures needed stay within it.
     pub fn set_n(&mut self, n: usize) {
-        let n = n.clamp(self.keys.len().max(1), MAX_KEYS);
+        let n = n.clamp(self.least(), self.kind.max_keys().min(MAX_KEYS));
         let was_multi = self.n > 1;
         if n != self.n {
             // A majority again, unless the person chose otherwise.
-            if self.m == default_m(self.n) || self.m > n {
+            if self.m == default_m(self.n) || self.m > n || self.m == 0 {
                 self.m = default_m(n);
             }
         }
         self.n = n;
-        if was_multi != (n > 1) || !self.kinds().contains(&self.kind) {
+        if self.fixed {
+            if self.kind.all_sign() {
+                self.m = n;
+            }
+        } else if was_multi != (n > 1) || !self.kinds().contains(&self.kind) {
             self.kind = self.kinds()[0];
         }
         self.fit();
     }
 
-    /// Sets the signatures needed, 1 to N.
+    /// Sets the signatures needed, 1 to N; every key for MuSig2.
     pub fn set_m(&mut self, m: usize) {
-        self.m = m.clamp(1, self.n.max(1));
+        self.m = if self.fixed && self.kind.all_sign() {
+            self.n
+        } else {
+            m.clamp(1, self.n.max(1))
+        };
     }
 
     /// The cosigners' boxes, one for each key the seeds do not make.
     fn fit(&mut self) {
         if !self.shaping {
+            return;
+        }
+        if self.fixed {
+            // An empty slot goes first, then the last typed.
+            let want = self.n.saturating_sub(self.keys.len());
+            while self.cosigners.len() < want {
+                self.cosigners.push(String::new());
+            }
+            while self.cosigners.len() > want {
+                match self.cosigners.iter().rposition(|c| c.trim().is_empty()) {
+                    Some(k) => self.cosigners.remove(k),
+                    None => self.cosigners.pop().unwrap_or_default(),
+                };
+            }
+            if matches!(self.focus, Some(Focus::Cosigner(k)) if usize::from(k) >= want) {
+                self.focus = None;
+            }
             return;
         }
         if self.n < self.keys.len() {
@@ -189,8 +259,10 @@ impl SeedsState {
             return None;
         }
         match id {
+            // MuSig2: every key signs; there is nothing to choose.
+            SLIDE_M if self.fixed && self.kind.all_sign() => None,
             SLIDE_M => Some((1, self.n.max(1), self.m)),
-            SLIDE_N => Some((self.keys.len().max(1), MAX_KEYS, self.n)),
+            SLIDE_N => Some((self.least(), self.kind.max_keys().min(MAX_KEYS), self.n)),
             _ => None,
         }
     }
@@ -296,11 +368,7 @@ impl Faraday {
     /// route.
     pub(crate) fn seeds_took(&mut self, fp: osk_bip::keys::Fingerprint, back: Option<Screen>) {
         match back {
-            Some(Screen::Restore) => {
-                if let Some(s) = self.restore.as_mut().and_then(|r| r.seeds.as_mut()) {
-                    s.take(fp.0);
-                }
-            }
+            Some(Screen::Restore) => self.restore_took(fp),
             Some(Screen::Family) if self.family.route == Some(family::Route::Words) => {
                 // A seed typed before this flow kept its list, as the
                 // wallet the words route opened from it: it is the first.
@@ -367,7 +435,16 @@ impl Faraday {
         let Some(s) = self.seeds_mut() else {
             return false;
         };
-        let Some(slot) = s.shaping.then(|| s.open_cosigner()).flatten() else {
+        // The box typing goes to, else the first without a key.
+        let focused = match s.focus {
+            Some(Focus::Cosigner(k)) => Some(usize::from(k)),
+            _ => None,
+        };
+        let Some(slot) = s
+            .shaping
+            .then(|| focused.or_else(|| s.open_cosigner()))
+            .flatten()
+        else {
             return false;
         };
         let Some(key) = create::key_for(s.kind, &text).or_else(|| create::read_key(&text)) else {
@@ -559,6 +636,10 @@ impl Faraday {
     /// Makes the wallet the piece describes and carries on: Restore to
     /// its Check card, the Spend tab to its next page.
     fn seeds_make(&mut self) {
+        if self.screen == Screen::Restore && self.restore.as_ref().is_some_and(|r| r.described) {
+            self.restore_described_make();
+            return;
+        }
         let Some(s) = self.seeds().cloned() else {
             return;
         };
@@ -586,9 +667,9 @@ impl Faraday {
                 if let Some(r) = self.restore.as_mut()
                     && r.wallet.is_some()
                 {
-                    r.done[crate::rstep::SEEDS as usize] = true;
-                    r.open = Some(crate::rstep::CHECK);
-                    r.scroll.follow = true;
+                    // Made from the seeds, not read from a description.
+                    r.described = false;
+                    r.next(crate::rstep::SEEDS);
                 }
                 self.refresh_spend();
             }

@@ -60,6 +60,7 @@ impl Faraday {
                 }
             }
             Screen::Create => self.create.as_ref()?.pass_focus.map(Action::CPassField),
+            Screen::Restore => self.restore.as_ref()?.pass_focus.map(Action::RPassField),
             _ => None,
         }
     }
@@ -99,6 +100,8 @@ impl Faraday {
             Action::KTyping(_) => &self.keygen.as_ref()?.entered,
             Action::CPassField(0) => &self.create.as_ref()?.pass,
             Action::CPassField(_) => &self.create.as_ref()?.pass2,
+            Action::RPassField(0) => &self.restore.as_ref()?.pass,
+            Action::RPassField(_) => &self.restore.as_ref()?.pass2,
             _ => return None,
         };
         Some(SecretText::of(text))
