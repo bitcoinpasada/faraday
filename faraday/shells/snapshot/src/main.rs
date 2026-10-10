@@ -2057,26 +2057,27 @@ fn compact_tour(t: &mut Tour) -> Result<(), String> {
             t.shot("keygen-rolls")?;
         }
     }
+    // The randomness check is on the entry card once the last roll is
+    // in; its Continue opens Key (`docs/NEW-WALLET.md` §3.2).
     t.shot("keygen-rolls-done")?;
     t.press(Action::KNext);
-    t.shot("keygen-check")?;
+    t.shot("keygen-key")?;
+    t.press(Action::KPassField(0));
+    type_text(t, "Ride the 7 bus");
+    t.shot("keygen-key-passphrase")?;
+    t.press(Action::KPassField(1));
+    type_text(t, "Ride the 7 bus");
+    // Lock in adds the key and, a single key being the whole wallet,
+    // makes it: the Key card shows its descriptor and first address.
+    t.press(Action::KLock);
+    t.shot("keygen-key-locked")?;
     t.press(Action::KNext);
-    t.shot("keygen-words")?;
-    t.press(Action::KShow);
-    t.shot("keygen-words-shown")?;
-    t.press(Action::KShow);
-    t.press(Action::KNext);
-    t.shot("keygen-quiz")?;
-    pass_quiz(t);
-    t.shot("keygen-quiz-passed")?;
-    t.press(Action::KAdd);
-    t.shot("create-keys-filled")?;
-    // Keys' Continue makes the wallet; Check shows the descriptor as a
-    // row and the first addresses.
-    t.press(Action::CNext(cstep::KEYS));
-    t.shot("create-check")?;
-    t.press(Action::CNext(cstep::CHECK));
     t.shot("create-backup")?;
+    t.press(Action::CStep(cstep::KEYS));
+    t.shot("create-keys-filled")?;
+    t.press(Action::CStep(cstep::CHECK));
+    t.shot("create-check")?;
+    t.press(Action::CStep(cstep::BACKUP));
     // Paper and vault: the backup on the new wallet, preset applied.
     t.press(Action::CBackup(1));
     t.shot("create-backup-plan")?;
@@ -3134,10 +3135,8 @@ fn device_key(t: &mut Tour, slot: u8) {
     t.press(Action::KWay(device));
     t.press(Action::KNext);
     t.press(Action::KNext);
+    t.press(Action::KLock);
     t.press(Action::KNext);
-    t.press(Action::KNext);
-    pass_quiz(t);
-    t.press(Action::KAdd);
 }
 
 /// A new key for a Create slot from 99 dice rolls, with a picture of each
@@ -3163,9 +3162,7 @@ fn dice_key(t: &mut Tour, slot: u8) -> Result<(), String> {
         }
     }
     t.press(Action::KNext);
-    t.shot("keygen-check")?;
-    t.press(Action::KNext);
-    t.shot("keygen-words")?;
+    t.shot("keygen-slot-key")?;
     t.press(Action::Learn);
     t.shot("learn-keygen")?;
     // The next page, scrolled to the dice table's em dashes.
@@ -3178,11 +3175,9 @@ fn dice_key(t: &mut Tour, slot: u8) -> Result<(), String> {
     });
     t.shot("learn-randomness-sources")?;
     t.press(Action::Cancel);
+    t.press(Action::KLock);
+    t.shot("keygen-slot-key-locked")?;
     t.press(Action::KNext);
-    t.shot("keygen-quiz")?;
-    pass_quiz(t);
-    t.shot("keygen-quiz-passed")?;
-    t.press(Action::KAdd);
     Ok(())
 }
 
@@ -3277,6 +3272,23 @@ fn rolled_words(t: &mut Tour) -> Result<(), String> {
         t.app.event(Event::Key(Key::Down));
     }
     t.shot("keygen-bitbox-made")?;
+    // On its own, New key goes from Key to Words and the Quiz, the key
+    // added at Lock in and the Quiz's Done leaving the flow
+    // (`docs/NEW-WALLET.md` §3.4).
+    t.press(Action::KStep(kstep::KEY));
+    t.shot("keygen-key-own")?;
+    t.press(Action::KLock);
+    t.shot("keygen-key-own-locked")?;
+    t.press(Action::KNext);
+    t.shot("keygen-words")?;
+    t.press(Action::KShow);
+    t.shot("keygen-words-shown")?;
+    t.press(Action::KShow);
+    t.press(Action::KNext);
+    t.shot("keygen-quiz")?;
+    pass_quiz(t);
+    t.shot("keygen-quiz-passed")?;
+    t.press(Action::KAdd);
     t.press(Action::Nav(Screen::Catalog));
     Ok(())
 }

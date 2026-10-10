@@ -310,3 +310,40 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
         );
     }
 }
+
+/// A single-key wallet made in Create from a key whose New key was given
+/// a passphrase: its plan asks where the passphrase goes
+/// (`docs/NEW-WALLET.md` §3.5).
+#[test]
+fn a_single_key_create_with_a_passphrase_asks_where_the_passphrase_goes() {
+    use faraday_core::keygen::Way;
+    use faraday_core::{Action, cstep, qstep};
+    use osk_shell_api::{App, Event, Key};
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::CreateWallet);
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::KeyGen(Some(0)));
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Coins.index()));
+    app.press(Action::KNext);
+    for i in 0..128 {
+        app.press(Action::KFlip((i * 5 + i / 3) % 2 == 0));
+    }
+    app.press(Action::KNext);
+    for field in [0, 1] {
+        app.press(Action::KPassField(field));
+        for c in "Ride the 7 bus".chars() {
+            app.event(Event::Key(Key::Char(c)));
+        }
+    }
+    app.press(Action::KLock);
+    app.press(Action::KNext);
+    let c = app.create.as_ref().expect("create");
+    assert_eq!(c.open, Some(cstep::BACKUP));
+    app.press(Action::CBackup(0));
+    assert!(app.backup.is_some(), "the backup is open");
+    assert!(
+        app.backup_questions().contains(&qstep::PASSPHRASE),
+        "the plan asks where the passphrase goes"
+    );
+}

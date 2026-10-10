@@ -159,16 +159,21 @@ pub mod kstep {
     pub const LENGTH: u8 = 0;
     /// Which source.
     pub const SOURCE: u8 = 1;
-    /// Rolling, flipping, drawing, typing or taking frames.
+    /// Rolling, flipping, drawing, typing or taking frames; for BIP-39
+    /// words the randomness check too, once the last entry is in.
     pub const ENTER: u8 = 2;
-    /// Counts, statistics and cautions.
-    pub const CHECK: u8 = 3;
+    /// The words, a passphrase for a Create slot, and Lock in, which adds
+    /// the key; then its fingerprint and what it makes
+    /// (`docs/NEW-WALLET.md` §3.3). BIP-39 only.
+    pub const KEY: u8 = 3;
+    /// Counts, statistics and cautions: SLIP-39 shares only.
+    pub const CHECK: u8 = 4;
     /// The words.
-    pub const WORDS: u8 = 4;
-    /// OpenSigner's backup quiz over them, and adding the key.
-    pub const QUIZ: u8 = 5;
+    pub const WORDS: u8 = 5;
+    /// OpenSigner's backup quiz over them.
+    pub const QUIZ: u8 = 6;
     /// How many cards.
-    pub const COUNT: usize = 6;
+    pub const COUNT: usize = 7;
 }
 
 /// A new key being made. See the module documentation.
@@ -260,6 +265,20 @@ pub struct KeyGen {
     pub entered: crate::secret_text::SecretText,
     /// Where the flow returns to.
     pub back: Screen,
+    /// The passphrase typed on the Key card, for a Create slot.
+    pub passphrase: crate::secret_text::SecretText,
+    /// The same passphrase typed again.
+    pub passphrase2: crate::secret_text::SecretText,
+    /// Which of the two passphrase fields typing goes to, if either.
+    pub focus: Option<u8>,
+    /// The key is added: nothing about it changes after this
+    /// (`docs/NEW-WALLET.md` §3.4).
+    pub locked: bool,
+    /// It was locked in with a passphrase.
+    pub with_passphrase: bool,
+    /// The key as `[fingerprint/path]xpub` at the kind's path, once
+    /// locked in: the Create kind's for a slot, native SegWit on its own.
+    pub key_text: Option<String>,
 }
 
 impl Drop for KeyGen {
@@ -320,7 +339,38 @@ impl KeyGen {
             by_die: false,
             typing: true,
             entered: crate::secret_text::SecretText::new(),
+            passphrase: crate::secret_text::SecretText::new(),
+            passphrase2: crate::secret_text::SecretText::new(),
+            focus: None,
+            locked: false,
+            with_passphrase: false,
+            key_text: None,
         }
+    }
+
+    /// The cards this flow shows, in order (`docs/NEW-WALLET.md` §3.1):
+    /// BIP-39 words for a Create slot end on Key, since Back up shows
+    /// and checks the words; on their own they go on to Words and the
+    /// Quiz. SLIP-39 shares keep their Check card and add the key at the
+    /// end of the Quiz.
+    pub fn steps(&self) -> Vec<u8> {
+        use kstep::*;
+        if self.slip39 {
+            vec![LENGTH, SOURCE, ENTER, CHECK, WORDS, QUIZ]
+        } else if self.slot.is_some() {
+            vec![LENGTH, SOURCE, ENTER, KEY]
+        } else {
+            vec![LENGTH, SOURCE, ENTER, KEY, WORDS, QUIZ]
+        }
+    }
+
+    /// Whether the entries have counts the randomness check reads: not
+    /// this device's generator, the camera or a mix as a whole.
+    pub fn has_check(&self) -> bool {
+        !matches!(
+            self.active(),
+            None | Some(Source::Device | Source::Camera | Source::Mix | Source::SeedXor)
+        )
     }
 
     /// The word counts the Length card offers: BIP-39's, or a SLIP-39
@@ -605,7 +655,13 @@ impl KeyGen {
         self.skip_ask = false;
         self.skipped = false;
         self.note = None;
-        for k in [kstep::ENTER, kstep::CHECK, kstep::WORDS, kstep::QUIZ] {
+        for k in [
+            kstep::ENTER,
+            kstep::KEY,
+            kstep::CHECK,
+            kstep::WORDS,
+            kstep::QUIZ,
+        ] {
             self.done[usize::from(k)] = false;
         }
     }
@@ -1023,6 +1079,32 @@ impl crate::Faraday {
             self.keygen_add();
             return;
         }
+        let Some(k) = self.keygen.as_ref() else {
+            return;
+        };
+        // After lock-in nothing about the key changes: the cards before
+        // Key open to be read, and take no input (`docs/NEW-WALLET.md`
+        // §3.3).
+        let inputs_closed = k.locked
+            && match action {
+                A::KStep(_) | A::KShow | A::KQuiz(_) | A::KQuizRetry | A::KSkip => false,
+                A::KNext => matches!(
+                    k.open,
+                    Some(kstep::LENGTH | kstep::SOURCE | kstep::ENTER) | None
+                ),
+                _ => true,
+            };
+        if inputs_closed {
+            return;
+        }
+        if action == A::KLock || (action == A::KNext && k.open == Some(kstep::KEY)) {
+            if k.locked {
+                self.keygen_continue();
+            } else {
+                self.keygen_lock();
+            }
+            return;
+        }
         let Some(k) = self.keygen.as_mut() else {
             return;
         };
@@ -1031,9 +1113,21 @@ impl crate::Faraday {
             k.scroll.follow = true;
         };
         match action {
+            A::KPassField(f) => {
+                if k.open == Some(kstep::KEY) && k.slot.is_some() && f < 2 {
+                    k.focus = Some(f);
+                    k.note = None;
+                }
+            }
             A::KStep(s) => {
-                // A later card opens once the ones before it are done.
-                let reachable = (0..s).all(|i| k.done[usize::from(i)]);
+                // A later card opens once the ones before it in this
+                // flow are done.
+                let steps = k.steps();
+                let reachable = steps
+                    .iter()
+                    .take_while(|&&i| i != s)
+                    .all(|&i| k.done[usize::from(i)])
+                    && steps.contains(&s);
                 if k.open == Some(s) {
                     k.open = None;
                 } else if reachable {
@@ -1129,7 +1223,14 @@ impl crate::Faraday {
                             });
                         }
                         k.done[usize::from(kstep::ENTER)] = true;
-                        open(k, kstep::CHECK);
+                        if k.slip39 {
+                            open(k, kstep::CHECK);
+                        } else {
+                            // Words that showed as they came in stay on
+                            // screen; hashed ones wait for Show words.
+                            k.shown = k.reveals();
+                            open(k, kstep::KEY);
+                        }
                     }
                 }
                 Some(kstep::CHECK) => {
@@ -1186,7 +1287,7 @@ impl crate::Faraday {
             A::KUndo => k.undo(),
             A::KClear => k.clear_active(),
             A::KShow => {
-                if k.open == Some(kstep::WORDS) {
+                if matches!(k.open, Some(kstep::WORDS | kstep::KEY)) {
                     k.shown = !k.shown;
                 }
             }
@@ -1258,7 +1359,9 @@ impl crate::Faraday {
         }
     }
 
-    /// Loads the key the words spell and leaves the flow.
+    /// The Quiz's last button. SLIP-39 shares: loads the key and leaves
+    /// the flow. BIP-39 words, added at Lock in already: leaves the flow
+    /// (**Done**).
     fn keygen_add(&mut self) {
         // No key is accepted before the self-test has passed.
         if !self.selftest_passed() {
@@ -1276,14 +1379,20 @@ impl crate::Faraday {
         if !(passed || k.skipped) {
             return;
         }
-        let (slot, back, slip39) = (k.slot, k.back, k.slip39);
+        if !k.slip39 {
+            if k.locked {
+                self.keygen_done();
+            }
+            return;
+        }
+        let slot = k.slot;
         let label = format!("New key {}", self.new_keys + 1);
         // A session that hands out keys adds its next one in place of the
         // key just made, which goes unused (`Session::handout`).
         let added = if let Some(words) = self.session.next_handout() {
             let words = zeroize::Zeroizing::new(words);
             self.session.add_words(&words, &label, None)
-        } else if k.slip39 {
+        } else {
             match k.secret.as_ref() {
                 Some(s) => {
                     let s = s.clone();
@@ -1291,11 +1400,6 @@ impl crate::Faraday {
                 }
                 None => return,
             }
-        } else {
-            let Some(words) = k.phrase() else {
-                return;
-            };
-            self.session.add_words(&words, &label, None)
         };
         match added {
             Ok(fp) => {
@@ -1308,20 +1412,154 @@ impl crate::Faraday {
                         *s = crate::create::Source::Here(fp.0);
                     }
                 }
-                self.keygen = None;
-                self.screen = back;
+                if let Some(k) = self.keygen.as_mut() {
+                    k.fingerprint = Some(fp.0);
+                }
                 self.refresh_spend();
-                self.toast(&format!(
-                    "Key {} added; back up its {} before you rely on it",
-                    crate::wallet::fp_text(fp),
-                    if slip39 { "shares" } else { "words" }
-                ));
+                self.keygen_done();
             }
             Err(e) => {
                 if let Some(k) = self.keygen.as_mut() {
                     k.note = Some(e.text());
                 }
             }
+        }
+    }
+
+    /// Lock in, on the Key card: adds the key the words make, with the
+    /// passphrase typed for a Create slot, under the self-test gate. For
+    /// a slot it fills the slot, and on a single-key Create it makes the
+    /// wallet too (`docs/NEW-WALLET.md` §3.3).
+    fn keygen_lock(&mut self) {
+        if !self.selftest_passed() {
+            return;
+        }
+        let Some(k) = self.keygen.as_mut() else {
+            return;
+        };
+        if k.slip39 || k.locked || !k.done[usize::from(kstep::ENTER)] {
+            return;
+        }
+        let Some(words) = k.phrase() else {
+            return;
+        };
+        if k.slot.is_some() && k.passphrase.as_str() != k.passphrase2.as_str() {
+            k.note = Some("The two passphrases differ".to_string());
+            return;
+        }
+        // New key on its own makes the key alone: no passphrase
+        // (decision 4).
+        let mut pass = crate::secret_text::room();
+        if k.slot.is_some() {
+            pass.push_str(k.passphrase.as_str());
+        }
+        let slot = k.slot;
+        let label = format!("New key {}", self.new_keys + 1);
+        // A session that hands out keys adds its next one in place of the
+        // key just made, which goes unused (`Session::handout`).
+        let added = if let Some(handed) = self.session.next_handout() {
+            let handed = zeroize::Zeroizing::new(handed);
+            self.session.add_words_with(&handed, &pass, &label, None)
+        } else {
+            self.session.add_words_with(&words, &pass, &label, None)
+        };
+        let fp = match added {
+            Ok(fp) => fp,
+            Err(e) => {
+                if let Some(k) = self.keygen.as_mut() {
+                    k.note = Some(e.text());
+                }
+                return;
+            }
+        };
+        self.new_keys += 1;
+        let kind = match slot {
+            Some(_) => self.create.as_ref().map(|c| c.kind).unwrap_or_default(),
+            None => crate::create::NewKind::NativeSegwit,
+        };
+        let key_text = self
+            .session
+            .keys
+            .iter()
+            .find(|key| key.master.fingerprint() == fp)
+            .and_then(|key| kind.key_text(&key.master).ok());
+        if let Some(k) = self.keygen.as_mut() {
+            k.locked = true;
+            k.with_passphrase = !pass.is_empty();
+            k.fingerprint = Some(fp.0);
+            k.key_text = key_text;
+            k.passphrase.clear();
+            k.passphrase2.clear();
+            k.focus = None;
+            k.note = None;
+            k.scroll.follow = true;
+        }
+        if let Some(slot) = slot
+            && let Some(c) = self.create.as_mut()
+        {
+            c.made += 1;
+            if let Some(s) = c.slots.get_mut(usize::from(slot)) {
+                *s = crate::create::Source::Here(fp.0);
+            }
+            if !c.kind.multi() && c.built.is_none() {
+                // A single key is the whole wallet: made now, as Keys'
+                // Continue would, and Check is what the Key card shows.
+                self.create_make();
+                if let Some(c) = self.create.as_mut()
+                    && c.built.is_some()
+                {
+                    c.done[usize::from(crate::cstep::KEYS)] = true;
+                    c.done[usize::from(crate::cstep::CHECK)] = true;
+                    c.open = Some(crate::cstep::BACKUP);
+                    c.scroll.follow = true;
+                }
+                if let Some(w) = self.create.as_ref().and_then(|c| c.built)
+                    && let Some(wallet) = self.session.wallets.get(w)
+                {
+                    let checksum = wallet.policy.checksum();
+                    self.mark_checked(&checksum);
+                }
+            }
+        }
+        self.refresh_spend();
+    }
+
+    /// The Key card's Continue, once locked in: back to Create for a
+    /// slot, else on to Words (`docs/NEW-WALLET.md` §3.4).
+    fn keygen_continue(&mut self) {
+        let Some(k) = self.keygen.as_mut() else {
+            return;
+        };
+        k.done[usize::from(kstep::KEY)] = true;
+        if k.slot.is_some() {
+            self.keygen_done();
+            return;
+        }
+        k.open = Some(kstep::WORDS);
+        k.shown = false;
+        k.scroll.follow = true;
+    }
+
+    /// Leaves the flow with its key added: back where it was opened, a
+    /// multisig Create on Keys, with the toast that says to back it up.
+    fn keygen_done(&mut self) {
+        let Some(k) = self.keygen.take() else {
+            return;
+        };
+        self.screen = k.back;
+        if k.slot.is_some()
+            && let Some(c) = self.create.as_mut()
+            && c.built.is_none()
+        {
+            c.open = Some(crate::cstep::KEYS);
+            c.scroll.follow = true;
+        }
+        if let Some(fp) = k.fingerprint {
+            self.toast(&format!(
+                "Key {} added; back up its {} before you rely on it",
+                crate::wallet::fp_text(osk_bip::keys::Fingerprint(fp)),
+                if k.slip39 { "shares" } else { "words" }
+            ));
         }
     }
 
@@ -1395,6 +1633,34 @@ impl crate::Faraday {
         let Some(k) = self.keygen.as_mut() else {
             return false;
         };
+        // A passphrase field on the Key card takes printable ASCII, as
+        // BIP-39's `to_seed` reads it; Tab moves to the other field and
+        // Enter locks in.
+        if k.open == Some(kstep::KEY)
+            && !k.locked
+            && let Some(f) = k.focus
+        {
+            let field = if f == 0 {
+                &mut k.passphrase
+            } else {
+                &mut k.passphrase2
+            };
+            match key {
+                KeyIn::Char(c) if (' '..='~').contains(&c) => field.push(c),
+                KeyIn::Backspace => {
+                    field.pop();
+                }
+                KeyIn::Tab => k.focus = Some(1 - f.min(1)),
+                KeyIn::Escape => k.focus = None,
+                KeyIn::Enter => {
+                    self.keygen_lock();
+                    return true;
+                }
+                _ => return false,
+            }
+            k.note = None;
+            return true;
+        }
         if key == KeyIn::Escape {
             self.keygen_leave();
             return true;
@@ -1403,6 +1669,7 @@ impl crate::Faraday {
         // the box keeps every one, so nothing else on the page reads it.
         // Backspace and Enter are the page's, as with the buttons.
         if k.open == Some(kstep::ENTER)
+            && !k.locked
             && k.typing
             && k.flip_or_roll()
             && let KeyIn::Char(c) = key
@@ -1425,7 +1692,7 @@ impl crate::Faraday {
             }
             return false;
         }
-        if k.open != Some(kstep::ENTER) {
+        if k.open != Some(kstep::ENTER) || k.locked {
             return false;
         }
         match (k.active(), key) {

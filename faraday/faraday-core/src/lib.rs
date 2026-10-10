@@ -965,8 +965,14 @@ pub enum Action {
     SelfTestRun,
     /// Show or hide the words.
     KShow,
-    /// Load the key.
+    /// The Quiz's last button: loads SLIP-39 shares' key, or leaves the
+    /// flow once a BIP-39 key is locked in.
     KAdd,
+    /// Lock in, on New key's Key card: adds the key.
+    KLock,
+    /// Typing goes to the Key card's passphrase field: 0 the first, 1
+    /// the second.
+    KPassField(u8),
     /// The quiz's candidate in this slot.
     KQuiz(u8),
     /// Ask the word that was answered wrongly again.
@@ -995,6 +1001,13 @@ pub enum Action {
     CSlotFile(u8, usize),
     /// Empty a slot.
     CSlotClear(u8),
+    /// Open or close the passphrase fields under a slot whose key was
+    /// loaded from BIP-39 words without one.
+    CPassOpen(u8),
+    /// Typing goes to that passphrase field: 0 the first, 1 the second.
+    CPassField(u8),
+    /// Lock in the slot's key with the passphrase typed.
+    CPassLock,
     /// Leave a slot for a cosigner's key, to add later.
     CSlotLater(u8),
     /// This slot's account key to the Outbox, for the cosigners.
@@ -2132,6 +2145,31 @@ pub struct CreateState {
     pub more_kinds: bool,
     /// New keys made for this wallet.
     pub made: u32,
+    /// The slot whose passphrase fields are open (`docs/NEW-WALLET.md`
+    /// §3.6).
+    pub pass_slot: Option<u8>,
+    /// The passphrase typed there.
+    pub pass: secret_text::SecretText,
+    /// The same passphrase typed again.
+    pub pass2: secret_text::SecretText,
+    /// Which of the two fields typing goes to, if either.
+    pub pass_focus: Option<u8>,
+    /// Why the last Lock in did nothing.
+    pub pass_note: Option<String>,
+    /// Keys locked in with a passphrase here, by fingerprint: their slot
+    /// shows **Locked in**.
+    pub pass_locked: Vec<[u8; 4]>,
+}
+
+impl CreateState {
+    /// Closes a slot's passphrase fields, forgetting what was typed.
+    pub fn close_pass(&mut self) {
+        self.pass_slot = None;
+        self.pass.clear();
+        self.pass2.clear();
+        self.pass_focus = None;
+        self.pass_note = None;
+    }
 }
 
 /// What [`Action::About`] names for a page's walk-through rather than a
@@ -4077,6 +4115,8 @@ impl Faraday {
             | Action::KNext
             | Action::KShow
             | Action::KAdd
+            | Action::KLock
+            | Action::KPassField(_)
             | Action::KQuiz(_)
             | Action::KQuizRetry
             | Action::KSkip
@@ -5095,6 +5135,9 @@ impl Faraday {
                     && let Some(s) = c.slots.get_mut(k as usize)
                 {
                     *s = create::Source::Here(fp);
+                    if c.pass_slot == Some(k) {
+                        c.close_pass();
+                    }
                 }
             }
             Action::CSlotFile(k, i) => {
@@ -5161,8 +5204,32 @@ impl Faraday {
                     && let Some(s) = c.slots.get_mut(k as usize)
                 {
                     *s = create::Source::Empty;
+                    if c.pass_slot == Some(k) {
+                        c.close_pass();
+                    }
                 }
             }
+            Action::CPassOpen(k) => {
+                if let Some(c) = self.create.as_mut() {
+                    if c.pass_slot == Some(k) {
+                        c.close_pass();
+                    } else if c.built.is_none() {
+                        c.close_pass();
+                        c.pass_slot = Some(k);
+                        c.pass_focus = Some(0);
+                    }
+                }
+            }
+            Action::CPassField(f) => {
+                if let Some(c) = self.create.as_mut()
+                    && c.pass_slot.is_some()
+                    && f < 2
+                {
+                    c.pass_focus = Some(f);
+                    c.pass_note = None;
+                }
+            }
+            Action::CPassLock => self.create_pass_lock(),
             Action::Rename => {
                 // Pressing the name field again keeps what is typed.
                 if self.renaming.is_none() {
@@ -6810,6 +6877,124 @@ impl Faraday {
         }
     }
 
+    /// Whether the key in a Create slot can take a passphrase there: one
+    /// loaded here from BIP-39 words without one, on a wallet that is not
+    /// a threshold wallet (`docs/NEW-WALLET.md` §3.6).
+    pub fn create_pass_offered(&self, slot: usize) -> bool {
+        let Some(c) = self.create.as_ref() else {
+            return false;
+        };
+        let Some(create::Source::Here(fp)) = c.slots.get(slot) else {
+            return false;
+        };
+        !c.kind.threshold()
+            && c.built.is_none()
+            && self
+                .session
+                .keys
+                .iter()
+                .find(|k| k.master.fingerprint().0 == *fp)
+                .is_some_and(|k| k.words.is_some() && k.passphrase.is_none())
+    }
+
+    /// Lock in under a Create slot: adds the key the slot's words and the
+    /// passphrase typed make, and puts it in the slot in place of the
+    /// first, which stays loaded (`docs/NEW-WALLET.md` §3.6).
+    fn create_pass_lock(&mut self) {
+        if !self.selftest_passed() {
+            return;
+        }
+        let Some(slot) = self.create.as_ref().and_then(|c| c.pass_slot) else {
+            return;
+        };
+        if !self.create_pass_offered(usize::from(slot)) {
+            return;
+        }
+        let Some(c) = self.create.as_mut() else {
+            return;
+        };
+        if c.pass.as_str() != c.pass2.as_str() {
+            c.pass_note = Some("The two passphrases differ".to_string());
+            return;
+        }
+        // Empty means none: the key stays as it is.
+        if c.pass.as_str().is_empty() {
+            c.close_pass();
+            return;
+        }
+        let Some(create::Source::Here(first)) = c.slots.get(usize::from(slot)).cloned() else {
+            return;
+        };
+        let mut pass = secret_text::room();
+        pass.push_str(c.pass.as_str());
+        let Some(key) = self
+            .session
+            .keys
+            .iter()
+            .find(|k| k.master.fingerprint().0 == first)
+        else {
+            return;
+        };
+        let Some(words) = key.words.clone() else {
+            return;
+        };
+        let label = format!("{} · passphrase", key.label);
+        let added = match self.session.add_words_with(&words, &pass, &label, None) {
+            Ok(fp) => Ok(fp),
+            // Loaded already with this passphrase: that key is the one.
+            Err(wallet::Refusal::Duplicate(_)) => Session::default()
+                .add_words_with(&words, &pass, "", None)
+                .map_err(|e| e.text()),
+            Err(e) => Err(e.text()),
+        };
+        let Some(c) = self.create.as_mut() else {
+            return;
+        };
+        match added {
+            Ok(fp) => {
+                if let Some(s) = c.slots.get_mut(usize::from(slot)) {
+                    *s = create::Source::Here(fp.0);
+                }
+                if !c.pass_locked.contains(&fp.0) {
+                    c.pass_locked.push(fp.0);
+                }
+                c.close_pass();
+                self.refresh_spend();
+            }
+            Err(e) => c.pass_note = Some(e),
+        }
+    }
+
+    /// Keys typed while a Create slot's passphrase fields have focus.
+    /// Returns whether they took the key.
+    fn create_pass_key(&mut self, key: KeyIn) -> bool {
+        if self.screen != Screen::Create || self.sheet.is_some() {
+            return false;
+        }
+        let Some(c) = self.create.as_mut() else {
+            return false;
+        };
+        let (Some(_), Some(f)) = (c.pass_slot, c.pass_focus) else {
+            return false;
+        };
+        let field = if f == 0 { &mut c.pass } else { &mut c.pass2 };
+        match key {
+            KeyIn::Char(ch) if (' '..='~').contains(&ch) => field.push(ch),
+            KeyIn::Backspace => {
+                field.pop();
+            }
+            KeyIn::Tab => c.pass_focus = Some(1 - f.min(1)),
+            KeyIn::Escape => c.pass_focus = None,
+            KeyIn::Enter => {
+                self.create_pass_lock();
+                return true;
+            }
+            _ => return false,
+        }
+        c.pass_note = None;
+        true
+    }
+
     fn create_make(&mut self) {
         if self.create.as_ref().is_some_and(|c| c.kind.threshold()) {
             self.create_deal();
@@ -8205,6 +8390,13 @@ impl Faraday {
             Screen::Entry => true,
             Screen::Wallets => self.renaming.is_some(),
             Screen::Message => self.message.as_ref().is_some_and(|m| m.typing),
+            Screen::KeyGen => self.keygen.as_ref().is_some_and(|k| {
+                k.focus.is_some() && k.open == Some(keygen::kstep::KEY) && !k.locked
+            }),
+            Screen::Create => self
+                .create
+                .as_ref()
+                .is_some_and(|c| c.pass_slot.is_some() && c.pass_focus.is_some()),
             _ => false,
         }
     }
@@ -8232,6 +8424,24 @@ impl Faraday {
             Screen::Wallets => {
                 if let Some(n) = self.renaming.as_mut() {
                     n.clear();
+                }
+            }
+            Screen::KeyGen => {
+                if let Some(k) = self.keygen.as_mut() {
+                    match k.focus {
+                        Some(0) => k.passphrase.clear(),
+                        Some(_) => k.passphrase2.clear(),
+                        None => {}
+                    }
+                }
+            }
+            Screen::Create => {
+                if let Some(c) = self.create.as_mut() {
+                    match c.pass_focus {
+                        Some(0) => c.pass.clear(),
+                        Some(_) => c.pass2.clear(),
+                        None => {}
+                    }
                 }
             }
             Screen::Message => {
@@ -8338,6 +8548,9 @@ impl Faraday {
         if self.keygen_key(key) {
             self.keygen_camera();
             self.keygen_device();
+            return;
+        }
+        if self.create_pass_key(key) {
             return;
         }
         if self.screen == Screen::Entry && self.entry.on_passphrase {
@@ -9320,6 +9533,8 @@ fn field_action(a: Action) -> bool {
                 | V::FocusPrompt
                 | V::Dice(_)
         ) | Action::EntryPassphrase
+            | Action::KPassField(_)
+            | Action::CPassField(_)
             | Action::Rename
             | Action::MType
     )

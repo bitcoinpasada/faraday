@@ -8,32 +8,46 @@ use osk_entropy::{CameraNoise, CardDraws, CoinFlips, DiceProcedure, RANKS, SUITS
 use crate::keygen::{
     Group, KeyGen, MIX_SOURCES, Source, WAYS, Way, kstep, procedure_name, source_name,
 };
-use crate::screens::{buttons_and_next, next_button, section_label, stepper};
+use crate::screens::{
+    buttons_and_next, descriptor_row, locked_tag, next_button, pass_field, section_label, stepper,
+};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui, W, grouped};
 use crate::wallet::fp_text;
 use crate::{Action, Faraday, flow, guide};
 use osk_ui::Color;
 use osk_ui::widgets::Icon;
 
-const TITLES: [&str; kstep::COUNT] = ["Length", "Randomness", "Entries", "Check", "Words", "Quiz"];
+const TITLES: [&str; kstep::COUNT] = [
+    "Length",
+    "Randomness",
+    "Entries",
+    "Key",
+    "Check",
+    "Words",
+    "Quiz",
+];
 
 pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(k) = app.keygen.as_ref() else {
         return;
     };
-    let cards: Vec<flow::Card> = (0..kstep::COUNT as u8)
-        .map(|s| flow::Card {
+    let steps = k.steps();
+    let cards: Vec<flow::Card> = steps
+        .iter()
+        .map(|&s| flow::Card {
             title: if s == kstep::ENTER {
                 entries_title(k)
             } else {
                 TITLES[usize::from(s)].to_string()
             },
             summary: summary(k, s),
-            mono: s == kstep::QUIZ && k.fingerprint.is_some(),
-            done: k.done[usize::from(s)],
+            mono: (s == kstep::KEY && k.locked)
+                || (s == kstep::QUIZ && k.fingerprint.is_some() && k.done[usize::from(s)]),
+            done: k.done[usize::from(s)] || (s == kstep::KEY && k.locked),
             open: k.open == Some(s),
-            default: s == kstep::LENGTH || s == kstep::SOURCE,
+            // Once locked in, nothing before Key changes: no Change.
+            default: !k.locked && (s == kstep::LENGTH || s == kstep::SOURCE),
             toggle: Action::KStep(s),
             guide: Some(guide::keygen(s, k)),
         })
@@ -63,7 +77,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let app_ref: &Faraday = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             match app_ref.keygen.as_ref() {
-                Some(k) => card_body(k, ui, i as u8, x, y, w),
+                Some(k) => card_body(app_ref, k, ui, steps[i], x, y, w),
                 None => 0.0,
             }
         };
@@ -143,6 +157,17 @@ fn summary(k: &KeyGen, s: u8) -> String {
                 format!("{have} of {need}")
             }
         }
+        kstep::KEY => match k.fingerprint.filter(|_| k.locked) {
+            None => "Not locked in".to_string(),
+            Some(fp) => {
+                let fp = fp_text(osk_bip::keys::Fingerprint(fp));
+                match (k.slot, k.with_passphrase) {
+                    (None, _) => format!("{fp} · locked in"),
+                    (Some(_), true) => format!("{fp} · passphrase · locked in"),
+                    (Some(_), false) => format!("{fp} · no passphrase · locked in"),
+                }
+            }
+        },
         kstep::CHECK => match k.source {
             Some(Source::Device) => EN.create_trusts_device.to_string(),
             Some(Source::Mix) => format!("{} sources combined", k.mixed.len()),
@@ -171,15 +196,182 @@ fn summary(k: &KeyGen, s: u8) -> String {
     }
 }
 
-fn card_body(k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
+fn card_body(app: &Faraday, k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
     match s {
+        kstep::LENGTH | kstep::SOURCE | kstep::ENTER if k.locked => read_only(k, ui, s, x, y, w),
         kstep::LENGTH => length(k, ui, x, y, w),
         kstep::SOURCE => sources(k, ui, x, y, w),
         kstep::ENTER => entries(k, ui, x, y, w),
+        kstep::KEY => key_card(app, k, ui, x, y, w),
         kstep::CHECK => check(k, ui, x, y, w),
         kstep::WORDS => words(k, ui, x, y, w),
         _ => quiz(k, ui, x, y, w),
     }
+}
+
+/// A card before Key once the key is locked in: what was chosen and
+/// entered, to read, with nothing to press (`docs/NEW-WALLET.md` §3.3).
+fn read_only(k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
+    let mut cy = y;
+    match s {
+        kstep::LENGTH => {
+            cy = stat(ui, x, cy, "Length", &summary(k, s), TEXT);
+        }
+        kstep::SOURCE => {
+            cy = stat(ui, x, cy, "Randomness", &summary(k, s), TEXT);
+        }
+        _ => {
+            if k.has_check() {
+                cy = check_rows(k, k.active(), ui, x, cy, w);
+                cy = verdict(k, ui, x, cy);
+            } else {
+                cy = check_rows(k, k.source, ui, x, cy, w);
+            }
+        }
+    }
+    cy + 6.0 - y
+}
+
+/// The randomness check's verdict: "Fair: no cautions", or each caution
+/// in `WARN`. Returns where the next row starts.
+fn verdict(k: &KeyGen, ui: &mut Ui, x: f32, y: f32) -> f32 {
+    let mut cy = y;
+    let cautions = k.caution_lines();
+    if cautions.is_empty() {
+        ui.text(x, cy, 13.0, W::S, OK, "Fair: no cautions");
+        cy += 22.0;
+    }
+    for c in cautions {
+        ui.text(x, cy, 13.0, W::R, WARN, c);
+        cy += 22.0;
+    }
+    cy
+}
+
+/// A label over a long value, wrapped in the mono face: a key or an
+/// address. Returns the height used.
+fn long_row(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, value: &str) -> f32 {
+    ui.text(x, y, 12.0, W::R, MUTED, label);
+    let h = ui.wrap(x, y + 20.0, w, 13.0, W::M, TEXT, value).max(18.0);
+    20.0 + h + 10.0
+}
+
+/// The words in their numbered grid, shown or hidden. Returns the height
+/// used.
+fn word_grid(ui: &mut Ui, words: &[u16], shown: bool, x: f32, y: f32, w: f32) -> f32 {
+    let cols = if ui.compact { 2 } else { 4 };
+    let cellw = (w - (cols - 1) as f32 * 10.0) / cols as f32;
+    for (i, &idx) in words.iter().enumerate() {
+        let cx = x + (i % cols) as f32 * (cellw + 10.0);
+        let wy = y + (i / cols) as f32 * 46.0;
+        ui.fill(cx, wy, cellw, 38.0, 8.0, BG);
+        ui.stroke(cx, wy, cellw, 38.0, 8.0, INNER);
+        ui.text_mid(cx + 10.0, wy, 38.0, 11.0, W::R, DIM, &(i + 1).to_string());
+        let word = if shown {
+            Language::English.word(idx)
+        } else {
+            "••••••"
+        };
+        ui.text_mid(cx + 36.0, wy, 38.0, 14.0, W::M, TEXT, word);
+    }
+    words.len().div_ceil(cols) as f32 * 46.0 + 8.0
+}
+
+/// The Key card (`docs/NEW-WALLET.md` §3.3): the words, a passphrase
+/// for a Create slot, and Lock in; once locked in, the fingerprint and
+/// what the key makes, and Continue.
+fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let mut cy = y;
+    let Some(m) = k.mnemonic.as_ref() else {
+        ui.text(x, cy, 13.0, W::R, MUTED, "Not made yet");
+        return 26.0;
+    };
+    if k.locked {
+        locked_tag(ui, x, cy);
+        cy += 38.0;
+    }
+    cy += word_grid(ui, m.indices(), k.shown, x, cy, w);
+    let show = (
+        if k.shown { "Hide words" } else { "Show words" },
+        Style::Secondary,
+        Action::KShow,
+    );
+    if !k.locked {
+        if k.slot.is_some() {
+            cy += 4.0;
+            cy += pass_field(
+                ui,
+                x,
+                cy,
+                w,
+                "Passphrase",
+                &k.passphrase,
+                k.focus == Some(0),
+                Action::KPassField(0),
+            );
+            cy += pass_field(
+                ui,
+                x,
+                cy,
+                w,
+                "Passphrase again",
+                &k.passphrase2,
+                k.focus == Some(1),
+                Action::KPassField(1),
+            );
+        }
+        if let Some(n) = &k.note {
+            cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, n) + 6.0;
+        }
+        cy += 4.0;
+        cy += buttons_and_next(ui, x, cy, w, &[show], Some(("Lock in", Action::KLock)));
+        if !ui.compact {
+            ui.text(x, cy, 12.0, W::R, DIM, "Enter locks in");
+            cy += 24.0;
+        }
+        return cy - y;
+    }
+    if k.slot.is_some() {
+        let said = if k.with_passphrase { "set" } else { "none" };
+        cy = stat(ui, x, cy, "Passphrase", said, TEXT);
+    }
+    if let Some(fp) = k.fingerprint {
+        cy = stat(
+            ui,
+            x,
+            cy,
+            "Fingerprint",
+            &fp_text(osk_bip::keys::Fingerprint(fp)),
+            TEXT,
+        );
+    }
+    cy += 6.0;
+    let create = app.create.as_ref().filter(|_| k.slot.is_some());
+    match create {
+        // A single-key wallet is this key: its descriptor and its first
+        // address.
+        Some(c) if !c.kind.multi() => {
+            if let Some(i) = c.built
+                && let Some(wl) = app.session.wallets.get(i)
+            {
+                cy += descriptor_row(ui, x, cy, w, wl, Action::QrWallet(i));
+                let a = grouped(&app.session.address_shown(wl, false, 0));
+                cy += long_row(ui, x, cy, w, "First address", &a);
+            }
+        }
+        // A slot of a wallet of several keys, or the key on its own: the
+        // key as the wallet or a cosigner takes it.
+        _ => {
+            if let Some(t) = &k.key_text {
+                cy += long_row(ui, x, cy, w, "Key", t);
+            }
+        }
+    }
+    if let Some(n) = &k.note {
+        cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, n) + 6.0;
+    }
+    cy += buttons_and_next(ui, x, cy, w, &[show], Some(("Continue", Action::KNext)));
+    cy - y
 }
 
 /// What SLIP-39 shares reveal and what they do not, stated beside the
@@ -750,30 +942,61 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         _ => {}
     }
-    // Cautions as they appear, and what the last press did.
-    for c in k.caution_lines() {
-        ui.text(x, cy, 13.0, W::R, WARN, c);
-        cy += 22.0;
+    // Words for a Create slot are shown and checked again by Back up
+    // (`docs/NEW-WALLET.md` §3.2).
+    if !k.slip39 && k.reveals() && k.slot.is_some() {
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            12.0,
+            W::R,
+            MUTED,
+            "No need to write the words down yet: Back up shows them again.",
+        ) + 10.0;
     }
+    // BIP-39 words: the randomness check is here, once the last entry is
+    // in. Before that, and for shares, cautions as they appear.
+    let ready = k.ready();
+    let checked = !k.slip39 && ready && k.has_check();
+    if checked {
+        cy += 4.0;
+        section_label(ui, x, cy, "Randomness check");
+        cy += 26.0;
+        cy = check_rows(k, active, ui, x, cy, w);
+        cy = verdict(k, ui, x, cy);
+    } else {
+        for c in k.caution_lines() {
+            ui.text(x, cy, 13.0, W::R, WARN, c);
+            cy += 22.0;
+        }
+    }
+    // What the last press did.
     if let Some(n) = &k.note {
         cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, n) + 4.0;
     }
     cy += 6.0;
     let last_of_mix = k.source != Some(Source::Mix) || k.mix_at + 1 >= k.mix_list().len();
-    let label = if last_of_mix {
-        "Make the words"
-    } else {
+    let label = if !last_of_mix {
         "Next source"
-    };
-    let edits: &[(&str, Style, Action)] = if matches!(active, Some(Source::Device)) {
-        &[]
+    } else if !k.slip39 && k.reveals() {
+        "Continue"
     } else {
-        &[
-            ("Undo", Style::Ghost, Action::KUndo),
-            ("Clear", Style::Ghost, Action::KClear),
-        ]
+        "Make the words"
     };
-    cy += buttons_and_next(ui, x, cy, w, edits, Some((label, Action::KNext))) + 4.0;
+    let mut edits: Vec<(&str, Style, Action)> = Vec::new();
+    if !matches!(active, Some(Source::Device)) {
+        edits.push(("Undo", Style::Ghost, Action::KUndo));
+        edits.push(("Clear", Style::Ghost, Action::KClear));
+    }
+    // A caution is not a refusal: the foot button still works, and the
+    // source's word for starting again is beside it.
+    if checked && !k.caution_lines().is_empty() {
+        edits.push((again_label(k), Style::Ghost, Action::KAgain));
+    }
+    // Words' foot button waits for the last entry.
+    let next = (k.slip39 || ready).then_some((label, Action::KNext));
+    cy += buttons_and_next(ui, x, cy, w, &edits, next) + 4.0;
     if ui.compact {
         return cy - y;
     }
@@ -1265,9 +1488,41 @@ fn coin_check(coins: &CoinFlips, ui: &mut Ui, x: f32, y: f32) -> f32 {
     )
 }
 
+/// SLIP-39's Check card: the counts, the cautions, and Roll again.
 fn check(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let mut cy = check_rows(k, k.source, ui, x, y, w);
+    for c in k.caution_lines() {
+        ui.text(x, cy, 13.0, W::R, WARN, c);
+        cy += 22.0;
+    }
+    cy += 6.0;
+    cy += buttons_and_next(
+        ui,
+        x,
+        cy,
+        w,
+        &[(again_label(k), Style::Ghost, Action::KAgain)],
+        Some(("Continue", Action::KNext)),
+    );
+    cy - y
+}
+
+/// The source's word for starting the entries again.
+fn again_label(k: &KeyGen) -> &'static str {
+    match k.active().or(k.source) {
+        Some(Source::Cards) => EN.create_sanity_again_draw,
+        Some(Source::Camera) => EN.create_sanity_again_take,
+        Some(Source::Device) => "Start again",
+        _ => EN.create_sanity_again,
+    }
+}
+
+/// The randomness check's counts for source `src`: rolls, faces,
+/// chi-square and longest run, or the source's own. Returns where the
+/// next row starts.
+fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    match k.source {
+    match src {
         Some(Source::Dice) if k.by_die => {
             cy = coin_check(&k.coins, ui, x, cy);
         }
@@ -1376,26 +1631,7 @@ fn check(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Some(Source::Device) => cy = device_rows(ui, x, cy, w),
         _ => {}
     }
-    for c in k.caution_lines() {
-        ui.text(x, cy, 13.0, W::R, WARN, c);
-        cy += 22.0;
-    }
-    cy += 6.0;
-    let again = match k.source {
-        Some(Source::Cards) => EN.create_sanity_again_draw,
-        Some(Source::Camera) => EN.create_sanity_again_take,
-        Some(Source::Device) => "Start again",
-        _ => EN.create_sanity_again,
-    };
-    cy += buttons_and_next(
-        ui,
-        x,
-        cy,
-        w,
-        &[(again, Style::Ghost, Action::KAgain)],
-        Some(("Continue", Action::KNext)),
-    );
-    cy - y
+    cy
 }
 
 /// One SLIP-39 share at a time, its words numbered, with the way to the
@@ -1510,22 +1746,7 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     cy = stat(ui, x, cy, "Source", &summary(k, kstep::SOURCE), TEXT);
     cy += 6.0;
-    let cols = if ui.compact { 2 } else { 4 };
-    let cellw = (w - (cols - 1) as f32 * 10.0) / cols as f32;
-    for (i, &idx) in m.indices().iter().enumerate() {
-        let cx = x + (i % cols) as f32 * (cellw + 10.0);
-        let wy = cy + (i / cols) as f32 * 46.0;
-        ui.fill(cx, wy, cellw, 38.0, 8.0, BG);
-        ui.stroke(cx, wy, cellw, 38.0, 8.0, INNER);
-        ui.text_mid(cx + 10.0, wy, 38.0, 11.0, W::R, DIM, &(i + 1).to_string());
-        let shown = if k.shown {
-            Language::English.word(idx)
-        } else {
-            "••••••"
-        };
-        ui.text_mid(cx + 36.0, wy, 38.0, 14.0, W::M, TEXT, shown);
-    }
-    cy += m.indices().len().div_ceil(cols) as f32 * 46.0 + 8.0;
+    cy += word_grid(ui, m.indices(), k.shown, x, cy, w);
     if let Some(n) = &k.note {
         ui.text(x, cy, 13.0, W::R, ERR, n);
         cy += 24.0;
@@ -1579,7 +1800,11 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy += 24.0;
         }
         cy += 6.0;
-        let label = if k.slot.is_some() {
+        // A BIP-39 key was added at Lock in: the quiz's last button only
+        // ends the flow.
+        let label = if !k.slip39 {
+            "Done"
+        } else if k.slot.is_some() {
             "Use this key"
         } else {
             "Add key"
@@ -1676,7 +1901,11 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy,
             None,
             40.0,
-            "Skip and add the key",
+            if k.slip39 {
+                "Skip and add the key"
+            } else {
+                "Skip the quiz"
+            },
             Style::Secondary,
             Action::KSkip,
         );
@@ -1701,7 +1930,11 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         12.0,
         W::R,
         DIM,
-        "Type 1 to 4 to pick · Enter adds the key once it passes",
+        if k.slip39 {
+            "Type 1 to 4 to pick · Enter adds the key once it passes"
+        } else {
+            "Type 1 to 4 to pick · Enter is Done once it passes"
+        },
     );
     cy + 24.0 - y
 }

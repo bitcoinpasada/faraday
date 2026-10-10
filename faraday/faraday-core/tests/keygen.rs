@@ -3,7 +3,10 @@
 //! caution does not stop anyone, rolls that name words roll the last word
 //! too and the checksum replaces its low bits, this device's generator is asked for fresh
 //! bytes and the key is those bytes alone, a key made for a Create slot
-//! fills it, and leaving the screen forgets everything.
+//! fills it, and leaving the screen forgets everything. The randomness
+//! check is on the entry card, Lock in adds the key, with a passphrase
+//! for a Create slot, and a Create slot's flow ends there
+//! (`docs/NEW-WALLET.md` §3).
 
 use faraday_core::keygen::{Group, Source, Way};
 use faraday_core::{Action, Faraday, Screen};
@@ -11,6 +14,15 @@ use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::bitcoin::hashes::{Hash, sha256};
 use osk_entropy::DiceProcedure;
 use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
+
+/// From the Key card of a key on its own: Lock in, Continue to Words,
+/// the quiz passed, and Done.
+fn finish(app: &mut Faraday) {
+    app.press(Action::KLock);
+    app.press(Action::KNext);
+    pass_quiz(app);
+    app.press(Action::KAdd);
+}
 
 /// From the Words card: the quiz, every word answered rightly.
 fn pass_quiz(app: &mut Faraday) {
@@ -97,9 +109,7 @@ fn ninety_nine_rolls_make_the_key_coldcard_and_seedsigner_make() {
         app.press(Action::KRoll(*r));
     }
     app.press(Action::KNext);
-    app.press(Action::KNext);
-    pass_quiz(&mut app);
-    app.press(Action::KAdd);
+    finish(&mut app);
 
     // `echo -n 3246… | sha256sum`, as those signers document it.
     let ascii: String = rolls.iter().map(|r| char::from(b'0' + r)).collect();
@@ -121,9 +131,7 @@ fn one_hundred_twenty_eight_flips_are_a_twelve_word_key_bit_for_bit() {
         app.press(Action::KFlip(*f));
     }
     app.press(Action::KNext);
-    app.press(Action::KNext);
-    pass_quiz(&mut app);
-    app.press(Action::KAdd);
+    finish(&mut app);
 
     let mut bytes = [0u8; 16];
     for (i, f) in flips.iter().enumerate() {
@@ -167,9 +175,7 @@ fn dice_rolled_in_flip_mode_makes_the_key_the_same_flips_make() {
 
     for app in [&mut by_dice, &mut by_coin] {
         app.press(Action::KNext);
-        app.press(Action::KNext);
-        pass_quiz(app);
-        app.press(Action::KAdd);
+        finish(app);
     }
     assert_eq!(added(&by_dice), added(&by_coin));
 }
@@ -273,9 +279,7 @@ fn a_run_of_one_face_is_cautioned_and_does_not_stop_the_key() {
     }
     assert!(!app.keygen.as_ref().unwrap().caution_lines().is_empty());
     app.press(Action::KNext);
-    app.press(Action::KNext);
-    pass_quiz(&mut app);
-    app.press(Action::KAdd);
+    finish(&mut app);
     assert_eq!(app.session.keys.len(), 1);
 }
 
@@ -347,9 +351,7 @@ fn device_key(answer: [u8; 32]) -> Faraday {
     assert!(app.keygen.as_ref().unwrap().mnemonic.is_none());
     app.event(Event::Entropy(EntropyBytes::new(answer)));
     app.press(Action::KNext);
-    app.press(Action::KNext);
-    pass_quiz(&mut app);
-    app.press(Action::KAdd);
+    finish(&mut app);
     app
 }
 
@@ -376,9 +378,7 @@ fn a_session_that_hands_out_keys_makes_the_next_one_not_loaded() {
         // The words made are the generator's.
         let made = app.keygen.as_ref().and_then(|k| k.phrase()).unwrap();
         assert_ne!(made.as_str(), words("bacon"));
-        app.press(Action::KNext);
-        pass_quiz(&mut app);
-        app.press(Action::KAdd);
+        finish(&mut app);
         added(&app)
     };
     let seed = |w: &str| fingerprint(&Mnemonic::parse(Language::English, &words(w)).unwrap());
@@ -456,9 +456,8 @@ fn a_key_made_for_a_create_slot_fills_it() {
         app.press(Action::KFlip(i % 3 != 1));
     }
     app.press(Action::KNext);
+    app.press(Action::KLock);
     app.press(Action::KNext);
-    pass_quiz(&mut app);
-    app.press(Action::KAdd);
     assert_eq!(app.screen, Screen::Create);
     let fp = app.session.keys[0].master.fingerprint().0;
     let c = app.create.as_ref().unwrap();
@@ -479,7 +478,7 @@ fn leaving_new_key_forgets_the_entries() {
 }
 
 #[test]
-fn a_key_is_added_only_after_the_quiz_or_skipping_it_twice() {
+fn a_key_on_its_own_is_added_at_lock_in_and_done_waits_for_the_quiz_or_skipping_it_twice() {
     let mut app = opened();
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::Coins.index()));
@@ -488,21 +487,26 @@ fn a_key_is_added_only_after_the_quiz_or_skipping_it_twice() {
         app.press(Action::KFlip(i % 3 != 1));
     }
     app.press(Action::KNext);
+    assert!(app.session.keys.is_empty(), "nothing added before Lock in");
+    app.press(Action::KLock);
+    assert_eq!(app.session.keys.len(), 1, "Lock in adds the key");
     app.press(Action::KNext);
     app.press(Action::KNext);
-    // On the quiz: a wrong pick does not pass it, and Add does nothing.
+    // On the quiz: a wrong pick does not pass it, and Done does nothing.
     let q = app.keygen.as_ref().unwrap().quiz.as_ref().unwrap();
     let wrong = (q.correct_slot() as u8 + 1) % 4;
     app.press(Action::KQuiz(wrong));
     app.press(Action::KAdd);
-    assert!(app.session.keys.is_empty());
+    assert!(app.keygen.is_some(), "still on the quiz");
     // Skipping asks first.
     app.press(Action::KSkip);
     app.press(Action::KAdd);
-    assert!(app.session.keys.is_empty());
+    assert!(app.keygen.is_some());
     app.press(Action::KSkip);
     app.press(Action::KAdd);
-    assert_eq!(app.session.keys.len(), 1);
+    assert!(app.keygen.is_none(), "Done leaves the flow");
+    assert_eq!(app.screen, Screen::Entry);
+    assert_eq!(app.session.keys.len(), 1, "the key is added once");
 }
 
 #[test]
@@ -553,4 +557,268 @@ fn change_opens_length_keeping_what_follows() {
     assert_eq!(k.words, 12, "the length is kept");
     assert_eq!(k.way(), way, "the randomness is kept");
     assert_eq!(k.dice.len(), rolled, "the rolls are kept");
+}
+
+/// A tall display, so a whole card is drawn at once.
+fn tall(app: &mut Faraday) {
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 2400,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+}
+
+fn type_text(app: &mut Faraday, text: &str) {
+    for c in text.chars() {
+        app.event(Event::Key(osk_shell_api::Key::Char(c)));
+    }
+}
+
+/// Create a wallet, single key or a 2-of-3 multisig, with New key opened
+/// for its first slot and carried to the entry card on coin flips.
+fn slot_flow(multi: bool) -> Faraday {
+    use faraday_core::create::NewKind;
+    let mut app = faraday_core::testkit::started();
+    tall(&mut app);
+    app.press(Action::CreateWallet);
+    let kind = if multi {
+        NewKind::Multi
+    } else {
+        NewKind::NativeSegwit
+    };
+    let at = NewKind::ALL.iter().position(|k| *k == kind).unwrap() as u8;
+    app.press(Action::CKind(at));
+    app.press(Action::CNext(faraday_core::cstep::KIND));
+    if multi {
+        app.press(Action::CNext(faraday_core::cstep::QUORUM));
+    }
+    app.press(Action::KeyGen(Some(0)));
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Coins.index()));
+    app.press(Action::KNext);
+    app
+}
+
+/// Flips enough for twelve words.
+fn flip_all(app: &mut Faraday) {
+    for i in 0..128 {
+        app.press(Action::KFlip((i * 5 + i / 3) % 2 == 0));
+    }
+}
+
+fn texts(app: &mut Faraday) -> String {
+    app.drawn_texts().join(" ")
+}
+
+#[test]
+fn a_create_slot_new_key_shows_no_check_words_or_quiz_card() {
+    use faraday_core::keygen::kstep;
+    let mut app = slot_flow(true);
+    let _ = app.frame();
+    assert!(
+        !app.offers(Action::KNext),
+        "the foot button waits for the last entry"
+    );
+    assert!(!texts(&mut app).contains("Randomness check"));
+    flip_all(&mut app);
+    let _ = app.frame();
+    assert!(app.offers(Action::KNext));
+    for s in [kstep::LENGTH, kstep::SOURCE, kstep::ENTER, kstep::KEY] {
+        assert!(app.offers(Action::KStep(s)), "card {s} is shown");
+    }
+    for s in [kstep::CHECK, kstep::WORDS, kstep::QUIZ] {
+        assert!(!app.offers(Action::KStep(s)), "card {s} is not shown");
+    }
+}
+
+#[test]
+fn with_the_last_flip_in_the_entry_card_shows_the_checks_verdict() {
+    let mut app = slot_flow(true);
+    flip_all(&mut app);
+    let shown = texts(&mut app);
+    assert!(shown.contains("Randomness check"));
+    let cautions = app.keygen.as_ref().unwrap().caution_lines();
+    if cautions.is_empty() {
+        assert!(shown.contains("Fair: no cautions"));
+    }
+    for c in cautions {
+        assert!(shown.contains(c), "{c}");
+    }
+    assert!(
+        shown.contains("No need to write the words down yet"),
+        "a Create slot's words come back in Back up"
+    );
+}
+
+#[test]
+fn roll_again_on_a_caution_clears_the_entries_and_adds_no_key() {
+    use faraday_core::keygen::kstep;
+    let mut app = opened_tall();
+    app.press(Action::KWords(12));
+    app.press(Action::KGroup(1));
+    app.press(Action::KWay(Way::DiceHashed.index()));
+    app.press(Action::KNext);
+    for _ in 0..50 {
+        app.press(Action::KRoll(6));
+    }
+    assert!(!app.keygen.as_ref().unwrap().caution_lines().is_empty());
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::KAgain),
+        "Roll again beside the foot button"
+    );
+    assert!(app.offers(Action::KNext), "a caution is not a refusal");
+    app.press(Action::KAgain);
+    let k = app.keygen.as_ref().unwrap();
+    assert_eq!(k.dice.len(), 0);
+    assert_eq!(k.open, Some(kstep::ENTER));
+    assert!(app.session.keys.is_empty());
+}
+
+#[test]
+fn lock_in_with_a_passphrase_adds_the_key_of_the_words_with_that_passphrase() {
+    let mut app = slot_flow(true);
+    flip_all(&mut app);
+    app.press(Action::KNext);
+    let phrase = app.keygen.as_ref().unwrap().phrase().unwrap();
+    app.press(Action::KPassField(0));
+    type_text(&mut app, "Ride the 7 bus");
+    app.press(Action::KPassField(1));
+    type_text(&mut app, "Ride the 7 bus");
+    app.press(Action::KLock);
+    let mut probe = faraday_core::wallet::Session::default();
+    let with = probe
+        .add_words_with(&phrase, "Ride the 7 bus", "", None)
+        .unwrap()
+        .0;
+    let without = faraday_core::wallet::Session::default()
+        .add_words_with(&phrase, "", "", None)
+        .unwrap()
+        .0;
+    assert_ne!(with, without);
+    assert_eq!(added(&app), vec![with]);
+    let c = app.create.as_ref().unwrap();
+    assert_eq!(c.slots[0], faraday_core::create::Source::Here(with));
+    let shown = texts(&mut app);
+    assert!(shown.contains("Locked in"));
+    assert!(
+        shown.contains(&faraday_core::wallet::fp_text(osk_bip::keys::Fingerprint(
+            with
+        )))
+    );
+    // Continue returns to Create on Keys, with the slot filled.
+    app.press(Action::KNext);
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(
+        app.create.as_ref().unwrap().open,
+        Some(faraday_core::cstep::KEYS)
+    );
+}
+
+#[test]
+fn unequal_passphrases_lock_nothing_in() {
+    let mut app = slot_flow(true);
+    flip_all(&mut app);
+    app.press(Action::KNext);
+    app.press(Action::KPassField(0));
+    type_text(&mut app, "one");
+    app.press(Action::KPassField(1));
+    type_text(&mut app, "two");
+    app.press(Action::KLock);
+    assert!(app.session.keys.is_empty());
+    assert!(texts(&mut app).contains("The two passphrases differ"));
+    // Enter in a field locks in once the two agree.
+    app.event(Event::Key(osk_shell_api::Key::Backspace));
+    app.event(Event::Key(osk_shell_api::Key::Backspace));
+    app.event(Event::Key(osk_shell_api::Key::Backspace));
+    type_text(&mut app, "one");
+    app.event(Event::Key(osk_shell_api::Key::Enter));
+    assert_eq!(app.session.keys.len(), 1);
+}
+
+#[test]
+fn after_lock_in_pressing_a_count_on_length_changes_nothing() {
+    use faraday_core::keygen::kstep;
+    let mut app = opened_tall();
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Coins.index()));
+    app.press(Action::KNext);
+    flip_all(&mut app);
+    app.press(Action::KNext);
+    app.press(Action::KLock);
+    let before = added(&app);
+    app.press(Action::KStep(kstep::LENGTH));
+    assert_eq!(
+        app.keygen.as_ref().unwrap().open,
+        Some(kstep::LENGTH),
+        "Length opens to be read"
+    );
+    let _ = app.frame();
+    assert!(!app.offers(Action::KWords(24)), "no counts to press");
+    app.press(Action::KWords(24));
+    app.press(Action::KFlip(true));
+    app.press(Action::KAgain);
+    let k = app.keygen.as_ref().unwrap();
+    assert_eq!(k.words, 12);
+    assert_eq!(k.mnemonic.as_ref().map(|m| m.indices().len()), Some(12));
+    assert!(k.locked);
+    assert_eq!(added(&app), before);
+}
+
+#[test]
+fn a_single_key_create_opens_on_back_up_with_the_address_key_showed() {
+    let mut app = slot_flow(false);
+    flip_all(&mut app);
+    app.press(Action::KNext);
+    app.press(Action::KLock);
+    let on_key = texts(&mut app);
+    assert!(on_key.contains("First address"));
+    app.press(Action::KNext);
+    assert_eq!(app.screen, Screen::Create);
+    let c = app.create.as_ref().unwrap();
+    assert_eq!(c.open, Some(faraday_core::cstep::BACKUP));
+    assert!(c.done[faraday_core::cstep::KEYS as usize]);
+    assert!(c.done[faraday_core::cstep::CHECK as usize]);
+    let w = c.built.expect("the wallet is made");
+    let wallet = &app.session.wallets[w];
+    let first = faraday_core::ui::grouped(&app.session.address_shown(wallet, false, 0));
+    assert!(on_key.contains(&first), "{first} not in {on_key}");
+}
+
+#[test]
+fn a_multisig_slots_key_card_shows_its_key_and_no_address() {
+    let mut app = slot_flow(true);
+    flip_all(&mut app);
+    app.press(Action::KNext);
+    app.press(Action::KLock);
+    let shown = texts(&mut app);
+    assert!(!shown.contains("First address"));
+    assert!(!shown.contains("tb1") && !shown.contains("bc1"));
+    // The key as cosigners take it: at the multisig path.
+    assert!(shown.contains("/48h/"), "{shown}");
+}
+
+#[test]
+fn new_key_on_its_own_asks_for_no_passphrase_and_adds_the_key_without_one() {
+    let mut app = opened_tall();
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Coins.index()));
+    app.press(Action::KNext);
+    flip_all(&mut app);
+    app.press(Action::KNext);
+    let _ = app.frame();
+    assert!(!app.offers(Action::KPassField(0)));
+    assert!(!texts(&mut app).contains("Passphrase again"));
+    let phrase = app.keygen.as_ref().unwrap().phrase().unwrap();
+    let m = Mnemonic::parse(Language::English, &phrase).unwrap();
+    app.press(Action::KLock);
+    assert_eq!(added(&app), vec![fingerprint(&m)]);
+    assert!(app.session.keys[0].passphrase.is_none());
 }

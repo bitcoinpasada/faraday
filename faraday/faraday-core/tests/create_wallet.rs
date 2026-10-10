@@ -255,3 +255,121 @@ fn the_keys_foot_button_opens_new_key_for_the_first_empty_slot() {
         "the foot button moves to the next empty slot: {texts:?}"
     );
 }
+
+/// New key on its own, from this device's generator: locked in with no
+/// passphrase, the quiz skipped, and Done. Returns the key's fingerprint.
+fn key_made_on_its_own(app: &mut Faraday) -> [u8; 4] {
+    use faraday_core::keygen::Way;
+    app.press(Action::KeyGen(None));
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Device.index()));
+    app.press(Action::KNext);
+    app.event(Event::Entropy(osk_shell_api::EntropyBytes::new([0x6c; 32])));
+    app.press(Action::KNext);
+    app.press(Action::KLock);
+    app.press(Action::KNext);
+    app.press(Action::KNext);
+    app.press(Action::KSkip);
+    app.press(Action::KSkip);
+    app.press(Action::KAdd);
+    assert!(app.keygen.is_none(), "New key is done");
+    app.session.keys[0].master.fingerprint().0
+}
+
+fn type_text(app: &mut Faraday, text: &str) {
+    for c in text.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+}
+
+#[test]
+fn a_key_made_on_its_own_takes_a_passphrase_in_a_single_key_slot() {
+    let mut app = testkit::started();
+    let first = key_made_on_its_own(&mut app);
+    let words = app.session.keys[0].words.clone().expect("words");
+    app.press(Action::CreateWallet);
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CSlotHere(0, first));
+    let _ = app.frame();
+    assert!(app.offers(Action::CPassOpen(0)));
+    app.press(Action::CPassOpen(0));
+    type_text(&mut app, "Ride the 7 bus");
+    app.press(Action::CPassField(1));
+    type_text(&mut app, "Ride the 7 bus");
+    app.press(Action::CPassLock);
+    let with = faraday_core::wallet::Session::default()
+        .add_words_with(&words, "Ride the 7 bus", "", None)
+        .unwrap()
+        .0;
+    assert_ne!(with, first);
+    let c = app.create.as_ref().unwrap();
+    assert_eq!(c.slots[0], faraday_core::create::Source::Here(with));
+    assert!(
+        app.session
+            .keys
+            .iter()
+            .any(|k| k.master.fingerprint().0 == first),
+        "the key without the passphrase stays loaded"
+    );
+    assert!(app.drawn_texts().iter().any(|t| t == "Locked in"));
+    app.press(Action::CNext(cstep::KEYS));
+    let w = app
+        .create
+        .as_ref()
+        .unwrap()
+        .built
+        .expect("the wallet is made");
+    let fps: Vec<[u8; 4]> = app
+        .session
+        .slots(&app.session.wallets[w])
+        .iter()
+        .filter_map(|s| s.fingerprint.map(|f| f.0))
+        .collect();
+    assert_eq!(fps, vec![with], "the wallet is the passphrase key's");
+}
+
+#[test]
+fn a_slot_whose_key_has_a_passphrase_offers_no_add_a_passphrase() {
+    let mut app = testkit::started();
+    add_key(&mut app, "bacon");
+    let plain = app.session.keys[0].master.fingerprint().0;
+    let words = testkit::test_words("bacon");
+    let with = app
+        .session
+        .add_words_with(&words, "Ride the 7 bus", "with", None)
+        .unwrap()
+        .0;
+    app.press(Action::CreateWallet);
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CSlotHere(0, with));
+    let _ = app.frame();
+    assert!(!app.offers(Action::CPassOpen(0)));
+    app.press(Action::CSlotHere(0, plain));
+    let _ = app.frame();
+    assert!(app.offers(Action::CPassOpen(0)));
+}
+
+#[test]
+fn unequal_passphrases_in_a_slot_lock_nothing_in() {
+    let mut app = testkit::started();
+    add_key(&mut app, "bacon");
+    let plain = app.session.keys[0].master.fingerprint().0;
+    app.press(Action::CreateWallet);
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CSlotHere(0, plain));
+    app.press(Action::CPassOpen(0));
+    type_text(&mut app, "one");
+    app.press(Action::CPassField(1));
+    type_text(&mut app, "two");
+    app.press(Action::CPassLock);
+    assert_eq!(app.session.keys.len(), 1);
+    assert_eq!(
+        app.create.as_ref().unwrap().slots[0],
+        faraday_core::create::Source::Here(plain)
+    );
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "The two passphrases differ")
+    );
+}

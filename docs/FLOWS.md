@@ -310,6 +310,44 @@ to get it.
     `docs/NEW-WALLET.md` §2.4). On Create's Check, a section label **The
     wallet's first addresses** sits above the address rows, so that a
     multisig's three rows do not read as one address per key.
+38. **New key: the check on the entry card, Lock in, then back up**
+    (owner, 2026-10-10; `docs/NEW-WALLET.md` §3.1–§3.5, decisions 4–6).
+    New key's BIP-39 cards are Length · Randomness · *entry* · **Key**
+    for a Create slot, and Length · Randomness · *entry* · Key · Words ·
+    Quiz on its own (Tools, Seeds); SLIP-39 shares keep Length ·
+    Randomness · *entry* · Check · Words · Quiz. For BIP-39 the Check
+    card is gone: once the last entry is in, the entry card shows the
+    counts and the verdict ("Fair: no cautions", or each caution in
+    `WARN` with **Roll again**, or the source's word, beside the foot
+    button; a caution is not a refusal); this device's generator, the
+    camera and a mix as a whole show none. The foot button appears with
+    the last entry and reads **Continue** where the words showed as they
+    came in, else **Make the words**; for a Create slot a line under the
+    words so far says Back up shows them again. **Key** shows the words,
+    for a Create slot **Passphrase** and **Passphrase again** (masked,
+    empty is none; unequal ones lock nothing in), and **Lock in**, which
+    adds the key under the self-test gate, fills the slot, and on a
+    single-key Create makes the wallet and marks Keys and Check done.
+    After it the card shows **Locked in**, the fingerprint and, for a
+    single-key Create, the descriptor row and the first address; for a
+    slot of a wallet of several keys, or on its own, the key text and no
+    address. Length, Randomness and the entry card then open to be read
+    only. Key's **Continue** returns to Create (on Back up for a single
+    key, on Keys otherwise) or, on its own, goes on to Words and the
+    Quiz, whose last button reads **Done**. A key added with a
+    passphrase is a seed with a passphrase to Back up's plan, which asks
+    where it goes.
+39. **A passphrase for a key chosen in Create** (owner, 2026-10-10;
+    `docs/NEW-WALLET.md` §3.6). On the Keys card, a slot filled by a
+    key loaded here from BIP-39 words with no passphrase has **Add a
+    passphrase** (beside Show xpub QR on a multisig, on the slot's own
+    row on a single key). It opens **Passphrase**, **Passphrase again**
+    and **Lock in** under the slot; Lock in adds the key the words and
+    that passphrase make, labelled as the first with " · passphrase",
+    puts it in the slot with a **Locked in** tag, and leaves the first
+    key loaded. A key with a passphrase already, a cosigner's xpub, a
+    share, and a key from SLIP-39, codex32 or a bare seed have no such
+    button.
 
 ## Home
 

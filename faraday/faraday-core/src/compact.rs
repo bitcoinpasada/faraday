@@ -801,8 +801,13 @@ impl Faraday {
     fn osk_field(&self) -> Option<String> {
         self.osk_auto().then(|| {
             format!(
-                "{:?} {:?} {:?} {}",
-                self.screen, self.sheet, self.vaults.focus, self.entry.on_passphrase
+                "{:?} {:?} {:?} {} {:?} {:?}",
+                self.screen,
+                self.sheet,
+                self.vaults.focus,
+                self.entry.on_passphrase,
+                self.keygen.as_ref().and_then(|k| k.focus),
+                self.create.as_ref().and_then(|c| c.pass_focus)
             )
         })
     }

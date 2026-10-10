@@ -275,6 +275,20 @@ up a wallet on the wallet just made with that preset applied, its chip
 wallet into a vault, the paper and the public files are the checklist's
 items below, not cards of Create.
 
+New key opened from a Create slot ends on its **Key** card
+(2026-10-10, `docs/NEW-WALLET.md` §3): the randomness check is on the
+entry card once the last entry is in, and Key shows the words, an
+optional **Passphrase** typed twice, and **Lock in**, which adds the
+key and fills the slot. On a single-key wallet Lock in also makes the
+wallet, so Key shows its descriptor and first address and Continue
+returns to Create on **Back up**, Keys and Check done; on a wallet of
+several keys Key shows the key text and Continue returns to Keys. New
+key in Create neither asks for the words to be written down nor
+quizzes them: Back up shows them and checks the copy, and asks where a
+passphrase goes. A slot filled by a key loaded here from BIP-39 words
+without a passphrase has **Add a passphrase**, which locks in the key
+those words and a passphrase make in its place.
+
 **Backup** is a plan, then a checklist of only what the plan needs
 (2026-10-09, the owner's proposal A; it replaced five fixed cards that
 each showed every option). Any loaded wallet can be backed up again,

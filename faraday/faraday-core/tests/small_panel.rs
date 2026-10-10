@@ -142,26 +142,19 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     for i in 0..99u8 {
         tap(&mut app, Action::KRoll(i % 6 + 1));
     }
+    // The entry card's Continue opens Key; Lock in adds the key and,
+    // a single key being the whole wallet, makes it; Continue returns to
+    // Create on Back up (`docs/NEW-WALLET.md` §3.3, §3.4).
     tap(&mut app, Action::KNext);
+    tap(&mut app, Action::KLock);
     tap(&mut app, Action::KNext);
-    tap(&mut app, Action::KNext);
-    for _ in 0..30 {
-        let Some(slot) = app
-            .keygen
-            .as_ref()
-            .and_then(|k| k.quiz.as_ref())
-            .filter(|q| q.state() != opensigner_core::quiz::QuizState::Passed)
-            .map(|q| q.correct_slot() as u8)
-        else {
-            break;
-        };
-        tap(&mut app, Action::KQuiz(slot));
-    }
-    tap(&mut app, Action::KAdd);
     assert_eq!(app.screen, Screen::Create, "the key fills its slot");
-    tap(&mut app, Action::CNext(faraday_core::cstep::KEYS));
+    assert_eq!(
+        app.create.as_ref().and_then(|c| c.open),
+        Some(faraday_core::cstep::BACKUP)
+    );
     let made = app.create.as_ref().and_then(|c| c.built);
-    assert!(made.is_some(), "Keys' Continue made the wallet");
+    assert!(made.is_some(), "Lock in made the wallet");
 }
 
 #[test]

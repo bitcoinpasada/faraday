@@ -51,27 +51,14 @@ fn create_to_vault_step() -> Faraday {
     for i in 0..128 {
         app.press(Action::KFlip(i % 3 != 1));
     }
-    app.press(Action::KNext); // entries -> check
-    app.press(Action::KNext); // check -> words
-    app.press(Action::KNext); // words -> quiz
-    for _ in 0..30 {
-        let Some(q) = app.keygen.as_ref().and_then(|k| k.quiz.as_ref()) else {
-            break;
-        };
-        if q.state() == opensigner_core::quiz::QuizState::Passed {
-            break;
-        }
-        let slot = q.correct_slot() as u8;
-        app.press(Action::KQuiz(slot));
-    }
-    app.press(Action::KAdd);
+    app.press(Action::KNext); // entries -> key
+    app.press(Action::KLock); // adds the key and makes the wallet
+    app.press(Action::KNext); // back to Create, on Back up
     assert_eq!(app.screen, Screen::Create, "New key returns to Create");
-    app.press(Action::CNext(faraday_core::cstep::KEYS));
     assert!(
         app.create.as_ref().unwrap().built.is_some(),
         "the wallet did not build"
     );
-    app.press(Action::CNext(faraday_core::cstep::CHECK));
     let paper_and_vault = faraday_core::plan::Preset::ALL
         .iter()
         .position(|p| *p == faraday_core::plan::Preset::PaperVault)

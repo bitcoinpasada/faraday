@@ -396,6 +396,15 @@ pub(crate) fn keygen(n: u8, k: &crate::keygen::KeyGen) -> String {
                 opens. The key is those bytes, hashed. Nothing on the screen can show whether they were random."
                 .to_string(),
         },
+        kstep::KEY if k.slot.is_some() => "Lock in adds the key these words make, with the passphrase if one \
+            is typed, and puts it in its slot. A passphrase makes another key from the same words: both the \
+            words and the passphrase are then needed to spend, and Back up asks where each is kept. Leave \
+            the fields empty for none."
+            .to_string(),
+        kstep::KEY => "Lock in adds the key these words make. Its fingerprint and its key show at once, \
+            so you can see the words you entered are the key that was added. Words and Quiz follow, to \
+            write the words down and check the copy."
+            .to_string(),
         kstep::CHECK => "These counts catch the mistakes hands make: a die that favours one face, the same \
             result typed over and over, or a sequence counted out instead of rolled. A caution is not a \
             refusal; if one appears and you are not sure why, roll again."

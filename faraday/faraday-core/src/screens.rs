@@ -7256,6 +7256,14 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     slot + 1
                 );
                 ui.text(x, cy + 4.0, 13.0, W::S, TEXT, &label);
+                // A key locked in with a passphrase here says so
+                // (`docs/NEW-WALLET.md` §3.6).
+                if let Source::Here(fp) = src
+                    && c.pass_locked.contains(fp)
+                {
+                    let tw = ui.measure(12.0, W::S, "Locked in") + 40.0;
+                    locked_tag(ui, x + w - tw, cy);
+                }
                 let (state, color) = match src {
                     Source::Empty => ("Not chosen".to_string(), DIM),
                     Source::Here(fp) => {
@@ -7353,6 +7361,21 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                             Action::CSlotLater(slot as u8),
                         ));
                     }
+                    // A key from BIP-39 words with no passphrase can take
+                    // one here: on the slot's own row on a single-key
+                    // wallet, beside Show xpub QR on a multisig.
+                    let pass_offered = app.create_pass_offered(slot);
+                    if pass_offered && !c.kind.multi() {
+                        row.push((
+                            "Add a passphrase".to_string(),
+                            if c.pass_slot == Some(slot as u8) {
+                                Style::Primary
+                            } else {
+                                Style::Secondary
+                            },
+                            Action::CPassOpen(slot as u8),
+                        ));
+                    }
                     if *src != Source::Empty {
                         row.push((
                             "Clear".to_string(),
@@ -7366,7 +7389,7 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     // it to make the same wallet.
                     if c.kind.multi() && !c.kind.threshold() && matches!(src, Source::Here(_)) {
                         let k = slot as u8;
-                        let row = vec![
+                        let mut row = vec![
                             (
                                 "Show xpub QR".to_string(),
                                 Style::Secondary,
@@ -7383,7 +7406,59 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                                 Action::CKeyOut(k),
                             ),
                         ];
+                        if pass_offered {
+                            row.insert(
+                                1,
+                                (
+                                    "Add a passphrase".to_string(),
+                                    if c.pass_slot == Some(k) {
+                                        Style::Primary
+                                    } else {
+                                        Style::Secondary
+                                    },
+                                    Action::CPassOpen(k),
+                                ),
+                            );
+                        }
                         cy += button_rows(ui, x + indent, cy, w - indent, &row);
+                    }
+                    // The passphrase fields, under the slot they are for.
+                    if c.pass_slot == Some(slot as u8) && pass_offered {
+                        let (px, pw) = (x + indent, w - indent);
+                        cy += pass_field(
+                            ui,
+                            px,
+                            cy,
+                            pw,
+                            "Passphrase",
+                            &c.pass,
+                            c.pass_focus == Some(0),
+                            Action::CPassField(0),
+                        );
+                        cy += pass_field(
+                            ui,
+                            px,
+                            cy,
+                            pw,
+                            "Passphrase again",
+                            &c.pass2,
+                            c.pass_focus == Some(1),
+                            Action::CPassField(1),
+                        );
+                        if let Some(n) = &c.pass_note {
+                            cy += ui.wrap(px, cy, pw, 13.0, W::R, ERR, n) + 6.0;
+                        }
+                        let bw = ui.measure(14.0, W::S, "Lock in") + 36.0;
+                        ui.button(
+                            px + pw - bw,
+                            cy,
+                            Some(bw),
+                            40.0,
+                            "Lock in",
+                            Style::Primary,
+                            Action::CPassLock,
+                        );
+                        cy += 52.0;
                     }
                 }
                 ui.rule(x, cy, w, INNER);
@@ -7694,7 +7769,56 @@ fn file_row_extra(
 /// A wallet's descriptor as a summary row (`docs/DESIGN.md` §4.5): label
 /// above; the shape, the keys' fingerprints and the checksum below; a
 /// chevron; the whole row opens `action`. Returns its height.
-fn descriptor_row(
+/// A masked passphrase field with its label at the left (above it on a
+/// small panel): dots for what is typed, "None" while it is empty and
+/// not focused, the caret while it is. Returns the height used.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn pass_field(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    label: &str,
+    text: &crate::secret_text::SecretText,
+    on: bool,
+    action: Action,
+) -> f32 {
+    let (px, py, pw) = if ui.compact {
+        ui.text(x, y, 13.0, W::R, MUTED, label);
+        (x, y + 22.0, w)
+    } else {
+        ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, label);
+        (x + 150.0, y, 380.0f32.min(w - 150.0))
+    };
+    ui.fill(px, py, pw, 40.0, 8.0, BG);
+    ui.stroke(px, py, pw, 40.0, 8.0, if on { ACCENT } else { BORDER });
+    let (shown, tone) = if text.as_str().is_empty() && !on {
+        ("None".to_string(), DIM)
+    } else {
+        let mut d = "•".repeat(text.as_str().chars().count().min(40));
+        ui.selection(px + 12.0, py, 40.0, 14.0, W::M, &d, on);
+        if on && !ui.select_all {
+            d.push_str(ui.caret_char());
+        }
+        (d, TEXT)
+    };
+    ui.text_mid(px + 12.0, py, 40.0, 14.0, W::M, tone, &shown);
+    ui.hit(px, py, pw, 40.0, action);
+    py - y + 48.0
+}
+
+/// The **Locked in** tag: a lock and the words, in `OK`. Returns its
+/// width.
+pub(crate) fn locked_tag(ui: &mut Ui, x: f32, y: f32) -> f32 {
+    let label = "Locked in";
+    let width = ui.measure(12.0, W::S, label) + 40.0;
+    ui.fill(x, y, width, 26.0, 13.0, OK.with_alpha(30));
+    ui.icon(x + 6.0, y + 3.0, 20.0, Icon::Lock, 10.0, OK);
+    ui.text_mid(x + 28.0, y, 26.0, 12.0, W::S, OK, label);
+    width
+}
+
+pub(crate) fn descriptor_row(
     ui: &mut Ui,
     x: f32,
     y: f32,
