@@ -102,6 +102,27 @@ pub fn savings() -> String {
         .unwrap_or(d)
 }
 
+/// A 3-of-5 native SegWit multisig at BIP-48 account 0, over five keys
+/// made from the seeds 01…01 to 05…05 (64 bytes each), with its checksum:
+/// for the backup's shares, which a 3-of-5 can leave up to two keys off.
+pub fn three_of_five() -> String {
+    let p: DerivationPath = "m/48'/1'/0'/2'".parse().expect("path");
+    let keys: Vec<String> = (1u8..=5)
+        .map(|b| {
+            let m = MasterKey::from_seed(&osk_crypto::Secret::new([b; 64]), NET);
+            format!(
+                "[{}/48h/1h/0h/2h]{}/<0;1>/*",
+                m.fingerprint(),
+                m.derive(&p).to_xpub()
+            )
+        })
+        .collect();
+    let d = format!("wsh(sortedmulti(3,{}))", keys.join(","));
+    WalletPolicy::parse_any(&d)
+        .map(|w| w.to_descriptor_checksummed())
+        .unwrap_or(d)
+}
+
 /// Every test wallet, in the order the session loads them.
 pub fn kits() -> Vec<Kit> {
     let k1 = |p: &str| key(0, p);

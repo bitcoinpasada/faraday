@@ -348,6 +348,16 @@ to get it.
     key loaded. A key with a passphrase already, a cosigner's xpub, a
     share, and a key from SLIP-39, codex32 or a bare seed have no such
     button.
+40. **Back up leads with the whole wallet sheet; shares come second**
+    (owner, 2026-10-10; `docs/NEW-WALLET.md` §4, decision 8). On the
+    plan's Places question a multisig's **Each place keeps** lists **The
+    whole wallet sheet**, ticked by default, then **Its own share**,
+    with **What is a share?** beside it opening Learn on *Shares of a
+    wallet description*; closing Learn leaves the plan on Places. With
+    Its own share ticked, **Keys left off each share** is a slider from
+    0 to m − 1, then the shares' fingerprints and the split audit. The
+    checklist's Shares card has the same slider in place of its number
+    buttons. The page is listed among a multisig backup's Learn pages.
 
 ## Home
 

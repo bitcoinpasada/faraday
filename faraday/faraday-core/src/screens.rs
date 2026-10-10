@@ -5059,25 +5059,42 @@ fn plan_body(app: &Faraday, ui: &mut Ui, qs: &[u8], i: usize, x: f32, y: f32, w:
             if shape.splits && a.wallet[pw::PAPER] {
                 section_label(ui, x, cy, "Each place keeps");
                 cy += 28.0;
-                cy += ui.multi_list(
+                let list = ui.multi_list(
                     x,
                     cy,
                     w,
                     &[
                         (
-                            "Its own share".to_string(),
-                            a.split,
+                            "The whole wallet sheet".to_string(),
+                            !a.split,
                             true,
                             Action::BAnswer(qrow::SPLIT, 0),
                         ),
                         (
-                            "The whole wallet sheet".to_string(),
-                            !a.split,
+                            "Its own share".to_string(),
+                            a.split,
                             true,
                             Action::BAnswer(qrow::SPLIT, 1),
                         ),
                     ],
-                ) + 12.0;
+                );
+                // Beside Its own share, drawn over its row.
+                let label = "What is a share?";
+                let bw = ui.measure(13.0, W::S, label) + 24.0;
+                let rh = list / 2.0;
+                ui.button(
+                    x + w - bw,
+                    cy + rh + (rh - 32.0) / 2.0,
+                    Some(bw),
+                    32.0,
+                    label,
+                    Style::Ghost,
+                    Action::LearnShares,
+                );
+                cy += list + 12.0;
+                if a.split {
+                    cy += shares_card(app, ui, x, cy, w, b.wallet, a.omit);
+                }
             }
             if a.vault(&shape) {
                 section_label(ui, x, cy, &format!("{} with the vault", app.medium.a_cap()));
@@ -5724,11 +5741,95 @@ pub(crate) fn stepper(
     ui.button(bx + 84.0, y, Some(40.0), 40.0, "+", style, plus);
 }
 
+/// A multisig's shares: **Keys left off each share** on a slider from 0
+/// to the most the quorum allows, the shares and their keys'
+/// fingerprints, and what the split audit finds. The plan's Places
+/// question and the checklist's Shares card both draw it. Returns the
+/// height used.
+fn shares_card(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize, omit: usize) -> f32 {
+    let Some(wallet) = app.session.wallets.get(i) else {
+        return 0.0;
+    };
+    let (m, keys_n) = Session::quorum(wallet);
+    let most = m.saturating_sub(1).min(keys_n.saturating_sub(1));
+    let omit = omit.min(most);
+    let mut cy = y;
+    let label = "Keys left off each share";
+    if most == 0 {
+        ui.text_mid(x, cy, 36.0, 13.0, W::R, MUTED, label);
+        ui.text_mid(x + w - 20.0, cy, 36.0, 14.0, W::S, TEXT, "0");
+        cy += 44.0;
+    } else {
+        // On a small panel the slider goes under the label.
+        let (sx, sw) = if ui.compact {
+            ui.text(x, cy, 13.0, W::S, MUTED, label);
+            cy += 20.0;
+            (x, w)
+        } else {
+            ui.text_mid(x, cy, 40.0, 13.0, W::R, MUTED, label);
+            (x + 190.0, (w - 190.0).min(320.0))
+        };
+        let top = u8::try_from(most).unwrap_or(u8::MAX);
+        let at = u8::try_from(omit).unwrap_or(top);
+        cy += ui.slider(sx, cy, sw, crate::seeds::SLIDE_OMIT, 0, top, at) + 4.0;
+    }
+    let plan = crate::backup::split_plan(keys_n, m, omit);
+    let slots = app.session.slots(wallet);
+    for (k, row) in plan.iter().enumerate() {
+        let fps: Vec<String> = row
+            .iter()
+            .map(|&j| crate::backup::fp_of(slots.get(j).and_then(|s| s.fingerprint)))
+            .collect();
+        ui.text(x, cy, 12.0, W::R, MUTED, &format!("Share {}", k + 1));
+        // On a narrow panel a share's keys go over more than one line.
+        let gap = ui.measure(13.0, W::M, "  ");
+        let mut fx = x + 70.0;
+        for fp in &fps {
+            let fw = ui.measure(13.0, W::M, fp);
+            if fx > x + 70.0 && fx + fw > x + w {
+                fx = x + 70.0;
+                cy += 20.0;
+            }
+            ui.text(fx, cy, 13.0, W::M, TEXT, fp);
+            fx += fw + gap;
+        }
+        cy += 24.0;
+    }
+    let a = crate::backup::audit(&plan, m);
+    cy += 8.0;
+    let lines = [
+        (
+            if a.every_quorum_rebuilds {
+                format!("Any {m} shares rebuild the wallet")
+            } else {
+                format!("Some {m} shares do not rebuild the wallet")
+            },
+            a.every_quorum_rebuilds,
+        ),
+        (
+            format!("The fewest shares that rebuild it: {}", a.smallest_rebuild),
+            true,
+        ),
+        (format!("Each key is on {} shares", a.copies_per_key), true),
+        (
+            if a.keys_per_sheet < keys_n {
+                "No single share holds every key".to_string()
+            } else {
+                "Each share holds every key".to_string()
+            },
+            a.keys_per_sheet < keys_n,
+        ),
+    ];
+    for (l, ok) in lines.iter() {
+        cy += ui.wrap(x, cy, w, 13.0, W::R, if *ok { OK } else { WARN }, l) + 4.0;
+    }
+    cy + 10.0 - y
+}
+
 fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     use crate::bstep;
     let b = app.backup.as_ref().expect("backup");
     let wallet = &app.session.wallets[b.wallet];
-    let (m, keys_n) = Session::quorum(wallet);
     let mut cy = y;
     match n {
         bstep::BLANK => {
@@ -6099,71 +6200,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             }
         }
         bstep::SHEETS => {
-            ui.text_mid(x, cy, 36.0, 13.0, W::R, MUTED, "Keys left off each sheet");
-            // On a small panel the choices go under the label.
-            let mut bx = if ui.compact {
-                cy += 40.0;
-                x
-            } else {
-                x + 190.0
-            };
-            for k in 0..m {
-                let style = if b.answers.omit == k {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                };
-                bx += ui.button(
-                    bx,
-                    cy,
-                    Some(48.0),
-                    36.0,
-                    &k.to_string(),
-                    style,
-                    Action::BOmit(k),
-                ) + 6.0;
-            }
-            cy += 50.0;
-            let plan = crate::backup::split_plan(keys_n, m, b.answers.omit);
-            let slots = app.session.slots(wallet);
-            for (i, row) in plan.iter().enumerate() {
-                let fps: Vec<String> = row
-                    .iter()
-                    .map(|&k| crate::backup::fp_of(slots[k].fingerprint))
-                    .collect();
-                ui.text(x, cy, 12.0, W::R, MUTED, &format!("Share {}", i + 1));
-                ui.text(x + 70.0, cy, 13.0, W::M, TEXT, &fps.join("  "));
-                cy += 24.0;
-            }
-            let a = crate::backup::audit(&plan, m);
-            cy += 8.0;
-            let lines = [
-                (
-                    if a.every_quorum_rebuilds {
-                        format!("Any {m} shares rebuild the wallet")
-                    } else {
-                        format!("Some {m} shares do not rebuild the wallet")
-                    },
-                    a.every_quorum_rebuilds,
-                ),
-                (
-                    format!("The fewest shares that rebuild it: {}", a.smallest_rebuild),
-                    true,
-                ),
-                (format!("Each key is on {} shares", a.copies_per_key), true),
-                (
-                    if a.keys_per_sheet < keys_n {
-                        "No single share holds every key".to_string()
-                    } else {
-                        "Each share holds every key".to_string()
-                    },
-                    a.keys_per_sheet < keys_n,
-                ),
-            ];
-            for (l, ok) in lines.iter() {
-                cy += ui.wrap(x, cy, w, 13.0, W::R, if *ok { OK } else { WARN }, l) + 4.0;
-            }
-            cy += 10.0;
+            cy += shares_card(app, ui, x, cy, w, b.wallet, b.answers.omit);
             // Each share's sheet, text and picture, made For the stick
             // with the checklist; Remove takes them all.
             let stem = crate::file_stem(&wallet.name);

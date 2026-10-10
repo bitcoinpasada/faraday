@@ -311,11 +311,17 @@ changeable. The questions are cards, each a multi-choice list (DESIGN
   in the vault · as a file, unprotected (the secret sheet's warning and
   "I understand", below). Not asked for a wallet with no seed here.
 - **Places**: how many places keep paper (1 to the wallet's seeds, at
-  least 3); for a multisig, each place its own share (the default) or
-  the whole wallet sheet; which places keep a stick with the vault;
-  and, with a vault open, each place's name (below). Seed *i* goes to
-  place *i* mod the places, and a place past the last seed keeps
-  another copy; shares are spread the same way.
+  least 3); for a multisig, **Each place keeps** the whole wallet sheet
+  (the default) or its own share, with **What is a share?** beside Its
+  own share opening the Learn page *Shares of a wallet description*
+  (`docs/learn/faraday/shares.md`); with Its own share ticked, **Keys
+  left off each share** on a slider from 0 to m − 1, the shares with
+  their keys' fingerprints and the split audit's lines, drawn as the
+  checklist's Shares card draws them (2026-10-10, `docs/NEW-WALLET.md`
+  §4); which places keep a stick with the vault; and, with a vault
+  open, each place's name (below). Seed *i* goes to place *i* mod the
+  places, and a place past the last seed keeps another copy; shares are
+  spread the same way.
 - **The wallet description goes**: a sheet (or share) in each place ·
   in the vault · into watch-only software · as files on a stick.
 - **Software** (asked when the description goes to software or files):
@@ -331,7 +337,8 @@ changeable. The questions are cards, each a multi-choice list (DESIGN
 
 Defaults from the wallet: one key, paper words, two places, the sheet
 in each, the descriptor as a QR picture; a multisig, a place per seed,
-each with its seed and its share; seeds held elsewhere are listed "On
+each with its seed and the whole wallet sheet, m − 1 keys left off each
+share should shares be ticked; seeds held elsewhere are listed "On
 its own device" and get no paper here; watch only, no seed question.
 "Paper and vault" adds the seeds and the wallet into the vault and its
 stick in place 1; the third preset adds watch-only software.

@@ -176,14 +176,14 @@ impl Default for Answers {
 impl Answers {
     /// The wallet's defaults: one key, paper words, two places, the
     /// sheet in each, the descriptor as a QR picture; a multisig, a
-    /// place per seed, each with its seed and its share; no seed here, no
-    /// seed on paper.
+    /// place per seed, each with its seed and the whole wallet sheet; no
+    /// seed here, no seed on paper.
     pub fn defaults(shape: &Shape) -> Answers {
         let places = if shape.multi() { shape.seeds.len() } else { 2 };
         let mut a = Answers {
             seeds: [!shape.watch_only(), false, false, false],
             places,
-            split: shape.splits,
+            split: false,
             sticks: vec![false; places],
             wallet: [true, false, false, false],
             software: [false, false, false, false, true],
@@ -309,7 +309,7 @@ impl Answers {
             Question::Wallet => flip(&mut self.wallet, row),
             Question::Software => flip(&mut self.software, row),
             Question::Form => flip(&mut self.form, row),
-            Question::Split => self.split = row == 0,
+            Question::Split => self.split = row == 1,
             Question::Places => self.set_places(shape, row),
             Question::Sticks => {
                 if let Some(s) = self.sticks.get_mut(row) {
@@ -429,7 +429,8 @@ pub enum Question {
     Seeds,
     /// How many places keep paper: the row is the count.
     Places,
-    /// Each place its own share (row 0) or the whole sheet (row 1).
+    /// The whole sheet in each place (row 0) or each place its own share
+    /// (row 1).
     Split,
     /// Which places keep a stick with the vault.
     Sticks,

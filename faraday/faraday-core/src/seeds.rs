@@ -31,6 +31,8 @@ pub const MAX_KEYS: usize = 15;
 pub const SLIDE_M: u8 = 0;
 /// The slider of keys.
 pub const SLIDE_N: u8 = 1;
+/// The backup's slider of keys left off each share.
+pub const SLIDE_OMIT: u8 = 2;
 
 /// The source a wallet made from seeds is loaded under.
 pub const SOURCE: &str = "Typed seeds";
@@ -440,6 +442,10 @@ impl Faraday {
 
     /// A slider pressed, dragged or stepped to `value`.
     pub(crate) fn slide(&mut self, id: u8, value: u8) {
+        if id == SLIDE_OMIT {
+            self.act(crate::Action::BOmit(usize::from(value)));
+            return;
+        }
         let Some(s) = self.seeds_mut() else {
             return;
         };

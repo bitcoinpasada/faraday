@@ -34,9 +34,10 @@
 //! restored from test key 2, its checklist saving it into the test vault,
 //! and the wallet chip's list of the two; with `plan`, the backup's plan:
 //! the presets and the questions with the map for a one-key wallet and
-//! for Savings (2-of-3), the map's own page on a small panel, the
-//! checklist part done, and the blank template written beside the
-//! screens as `outbox-*`; with `inbox`, Stick visit offering the Inbox's
+//! for Savings (2-of-3) with the whole sheet and with shares, the page
+//! What is a share? opens, the map's own page on a small panel, the
+//! checklist part done, the blank template written beside the screens
+//! as `outbox-*`, and a 3-of-5's shares on Places and the checklist; with `inbox`, Stick visit offering the Inbox's
 //! files under "From the Inbox" (a wallet, a vault, a wallet's QR
 //! picture, seed words and text), Select all, and the secret sheet for
 //! the text and for the words; with `transfer`, the desktop app's
@@ -876,10 +877,12 @@ fn run(
     }
     t.press(Action::Nav(Screen::Wallets));
     t.shot("wallets-list")?;
-    // The backup of Savings: the presets, then paper only.
+    // The backup of Savings: the presets, then paper only, each place
+    // with its own share.
     t.press(Action::Backup(0));
     t.shot("backup-plan")?;
     t.press(Action::BPreset(0));
+    t.press(Action::BAnswer(qrow::SPLIT, 1));
     t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::BLANK));
     t.shot("backup-blank")?;
@@ -2862,9 +2865,11 @@ fn again_tour(t: &mut Tour) -> Result<(), String> {
 
 /// The backup's plan: for Spending (one key, test key 1 here), the
 /// presets, the seeds and the places with the map beside them; for
-/// Savings (2-of-3, one seed here), the seeds and the places, and on a
-/// small panel the map's own page; then the checklist part done, and the
-/// blank template written beside the screens.
+/// Savings (2-of-3, one seed here), the seeds and the places, with the
+/// whole sheet and then with its own share, the page What is a share?
+/// opens, and on a small panel the map's own page; then the checklist
+/// part done, and the blank template written beside the screens; then a
+/// 3-of-5's shares on Places and on the checklist.
 fn plan_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     let find = |t: &Tour, name: &str| {
@@ -2888,6 +2893,14 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("plan-seeds-two-of-three")?;
     t.press(Action::BQ(qstep::PLACES));
     t.shot("plan-places-two-of-three")?;
+    // Its own share: the slider, the shares and the audit; then the page
+    // What is a share? opens.
+    t.press(Action::BAnswer(qrow::SPLIT, 1));
+    scroll_to(t, Action::Slide(faraday_core::seeds::SLIDE_OMIT, 0));
+    t.shot("plan-places-shares-two-of-three")?;
+    t.press(Action::LearnShares);
+    t.shot("plan-learn-shares")?;
+    t.press(Action::Cancel);
     if t.app.backup_questions().contains(&qstep::MAP) {
         t.press(Action::BQ(qstep::MAP));
         t.shot("plan-map-two-of-three")?;
@@ -2897,6 +2910,25 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("plan-checklist-part-done")?;
     t.press(Action::BStep(bstep::ENVELOPE));
     t.shot("plan-envelopes")?;
+    // A 3-of-5's shares: up to two keys left off each, on Places and on
+    // the checklist's Shares card.
+    let five = t
+        .app
+        .session
+        .add_wallet("Five", &testkit::three_of_five(), "test")
+        .map_err(|e| e.text())?;
+    t.press(Action::Backup(five));
+    t.press(Action::BPreset(0));
+    // With no seed here the preset opens Places itself.
+    if t.app.backup.as_ref().and_then(|b| b.q) != Some(qstep::PLACES) {
+        t.press(Action::BQ(qstep::PLACES));
+    }
+    t.press(Action::BAnswer(qrow::SPLIT, 1));
+    scroll_to(t, Action::Slide(faraday_core::seeds::SLIDE_OMIT, 0));
+    t.shot("plan-places-shares-three-of-five")?;
+    t.press(Action::BChecklist);
+    t.press(Action::BStep(bstep::SHEETS));
+    t.shot("plan-shares-three-of-five")?;
     for item in t
         .app
         .outbox

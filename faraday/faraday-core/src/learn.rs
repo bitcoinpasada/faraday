@@ -33,6 +33,11 @@ pub struct LearnState {
 /// `osk_learn::EN`, and read from that file when Faraday is built.
 const UPGRADE_MD: &str = include_str!("../../../docs/learn/faraday/upgrade-a-stick.md");
 
+/// Faraday's own page on a multisig backup's shares
+/// (`docs/NEW-WALLET.md` §4.2), edited as `docs/learn/faraday/shares.md`
+/// and read as [`UPGRADE_MD`] is.
+const SHARES_MD: &str = include_str!("../../../docs/learn/faraday/shares.md");
+
 /// A page from its Markdown, as `docs/learn/` writes pages: `# ` the
 /// title, `## ` a section, paragraphs separated by blank lines.
 fn page_of(md: &'static str) -> LearnPage {
@@ -80,6 +85,12 @@ fn page_of(md: &'static str) -> LearnPage {
 pub fn upgrade_page() -> &'static LearnPage {
     static PAGE: OnceLock<LearnPage> = OnceLock::new();
     PAGE.get_or_init(|| page_of(UPGRADE_MD))
+}
+
+/// "Shares of a wallet description", read once.
+pub fn shares_page() -> &'static LearnPage {
+    static PAGE: OnceLock<LearnPage> = OnceLock::new();
+    PAGE.get_or_init(|| page_of(SHARES_MD))
 }
 
 fn for_kind(kind: Kind) -> Vec<&'static LearnPage> {
@@ -147,7 +158,19 @@ impl Faraday {
             Screen::Lightning => vec![&EN.glossary],
             Screen::Tools => vec![&EN.tools, &EN.glossary],
             Screen::Bip85 => vec![&EN.passphrases, &EN.glossary],
-            Screen::Backup => vec![&EN.backups, &EN.other_backups, &EN.seed_xor],
+            Screen::Backup => {
+                // A multisig's backup can keep shares of its description.
+                let splits = self
+                    .backup
+                    .as_ref()
+                    .and_then(|b| self.session.wallets.get(b.wallet))
+                    .is_some_and(crate::backup::splits);
+                if splits {
+                    vec![&EN.backups, shares_page(), &EN.other_backups, &EN.seed_xor]
+                } else {
+                    vec![&EN.backups, &EN.other_backups, &EN.seed_xor]
+                }
+            }
             Screen::Backups => vec![&EN.backups, &EN.encrypted_backups],
             Screen::Restore => vec![&EN.backups, &EN.inheritance],
             Screen::Message | Screen::CheckMessage => vec![&EN.message],
@@ -175,6 +198,26 @@ impl Faraday {
             ..LearnState::default()
         };
         self.sheet = Some(crate::Sheet::Learn);
+    }
+
+    /// Opens the Learn sheet on the page about shares; closing it leaves
+    /// the screen as it was.
+    pub(crate) fn learn_shares(&mut self) {
+        self.learn_open();
+        if let Some(i) = self
+            .learn
+            .pages
+            .iter()
+            .position(|p| std::ptr::eq(*p, shares_page()))
+        {
+            self.learn.page = i;
+        } else {
+            self.learn = LearnState {
+                pages: vec![shares_page()],
+                ..LearnState::default()
+            };
+            self.sheet = Some(crate::Sheet::Learn);
+        }
     }
 
     /// Shows the sheet's page `i`.

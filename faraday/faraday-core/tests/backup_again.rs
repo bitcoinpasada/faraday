@@ -175,10 +175,11 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
     for slot in 0..3 {
         assert!(!app.offers(Action::WalletKeyOut(w, slot)));
     }
-    // The shares, made with the checklist.
+    // The whole wallet sheet, the plan's default, made with the
+    // checklist.
     press_offered(&mut app, Action::BStep(bstep::SHEETS));
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::SHEETS));
-    assert!(in_outbox(&app, "savings-share-1-of-3.pdf"));
+    assert!(in_outbox(&app, "savings-backup.pdf"));
     assert!(app.backup_item_done(plan::Item::Sheets));
 }
 

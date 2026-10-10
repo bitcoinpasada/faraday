@@ -919,6 +919,9 @@ pub enum Action {
     /// The Learn sheet's first row, **Spending, step by step**: closes
     /// the sheet and opens the Spend tab (`docs/SIMPLIFY.md` §6.2).
     LearnSpend,
+    /// **What is a share?** beside the backup plan's Its own share: the
+    /// Learn sheet on the page about shares (`docs/NEW-WALLET.md` §4.2).
+    LearnShares,
     /// The word-list sheet, or a link to it.
     WordList(wordlist::WordListAction),
     /// Make a new key, for this Create slot or for the session.
@@ -2321,7 +2324,7 @@ pub mod qrow {
     pub const SEEDS: u8 = 0;
     /// How many places: the row is the count.
     pub const PLACES: u8 = 1;
-    /// A share each (row 0) or the whole sheet (row 1).
+    /// The whole sheet (row 0) or a share each (row 1).
     pub const SPLIT: u8 = 2;
     /// A stick with the vault, by place.
     pub const STICKS: u8 = 3;
@@ -4031,6 +4034,7 @@ impl Faraday {
             Action::Family(f) => self.family_act(f),
             Action::Vanity(v) => self.vanity_act(v),
             Action::Learn => self.learn_open(),
+            Action::LearnShares => self.learn_shares(),
             Action::LearnSpend => {
                 self.sheet = None;
                 self.screen = Screen::Family;

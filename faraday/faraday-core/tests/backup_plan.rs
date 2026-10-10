@@ -77,7 +77,7 @@ fn each_preset_fills_a_two_of_threes_answers() {
     for preset in Preset::ALL {
         let a = Answers::preset(&shape, preset);
         assert_eq!(a.places, 3, "{preset:?}: a place per key");
-        assert!(a.split, "{preset:?}: a share each");
+        assert!(!a.split, "{preset:?}: the whole sheet in each");
         assert_eq!(a.seeds[seeds::VAULT], preset != Preset::Paper, "{preset:?}");
         let places: Vec<_> = map(&shape, &a)
             .into_iter()
@@ -87,8 +87,11 @@ fn each_preset_fills_a_two_of_threes_answers() {
         for (p, spot) in places.iter().enumerate() {
             let holds: Vec<What> = spot.holds.iter().map(|(w, _)| *w).collect();
             assert!(holds.contains(&What::Words(p)), "{preset:?}: its seed");
-            assert!(holds.contains(&What::Share(p)), "{preset:?}: its share");
-            assert!(!holds.contains(&What::Sheet), "{preset:?}: no whole sheet");
+            assert!(holds.contains(&What::Sheet), "{preset:?}: the whole sheet");
+            assert!(
+                !holds.iter().any(|w| matches!(w, What::Share(_))),
+                "{preset:?}: no share"
+            );
         }
     }
 }
@@ -136,16 +139,17 @@ fn one_place_with_paper_only_does_not_survive_losing_it() {
 #[test]
 fn three_places_with_split_shares_survive_any_one_lost() {
     let shape = two_of_three();
-    let a = Answers::preset(&shape, Preset::Paper);
+    let whole = Answers::preset(&shape, Preset::Paper);
+    // The whole sheet in each place: one place found sees the balance.
+    assert_eq!(check(&shape, &whole).balance, Found::Yes);
+    let mut a = whole.clone();
+    a.toggle(&shape, Question::Split, 1);
+    assert!(a.split, "Its own share is the second row");
     let c = check(&shape, &a);
     assert_eq!(c.lost, Lost::Yes);
     // No one place holds two seeds, nor every key.
     assert_eq!(c.spend, Found::No);
     assert_eq!(c.balance, Found::No);
-    // The whole sheet in each place: one place found sees the balance.
-    let mut whole = a.clone();
-    whole.toggle(&shape, Question::Split, 1);
-    assert_eq!(check(&shape, &whole).balance, Found::Yes);
 }
 
 #[test]
@@ -346,4 +350,102 @@ fn a_single_key_create_with_a_passphrase_asks_where_the_passphrase_goes() {
         app.backup_questions().contains(&qstep::PASSPHRASE),
         "the plan asks where the passphrase goes"
     );
+}
+
+// ---------------------------------------------------------------------
+// `docs/NEW-WALLET.md` §4: the plan leads with the whole wallet sheet;
+// shares come second, with a Learn page and a slider.
+// ---------------------------------------------------------------------
+
+/// An app on the test network with Savings (2-of-3) and a 3-of-5 loaded,
+/// and the backup of wallet `name` open on its Places question with the
+/// Paper preset.
+fn places_of(name: &str) -> faraday_core::Faraday {
+    use faraday_core::{Action, qstep, testkit};
+    use osk_shell_api::App;
+    let mut app = testkit::started();
+    app.session = testkit::session();
+    app.session
+        .add_wallet("Savings", &testkit::savings(), "test")
+        .unwrap();
+    app.session
+        .add_wallet("Five", &testkit::three_of_five(), "test")
+        .unwrap();
+    let w = app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.name == name)
+        .unwrap();
+    app.press(Action::Backup(w));
+    app.press(Action::BPreset(0));
+    // With no seed here the preset opens Places itself.
+    if app.backup.as_ref().unwrap().q != Some(qstep::PLACES) {
+        app.press(Action::BQ(qstep::PLACES));
+    }
+    let _ = app.frame();
+    app
+}
+
+/// A multisig's plan keeps the whole wallet sheet in each place until
+/// the person ticks Its own share.
+#[test]
+fn a_fresh_multisig_plan_keeps_the_whole_sheet_in_each_place() {
+    use faraday_core::{Action, qrow};
+    let app = places_of("Savings");
+    let b = app.backup.as_ref().unwrap();
+    assert!(!b.answers.split);
+    let shape = app.plan_shape(b.wallet);
+    for p in 0..b.answers.places {
+        assert!(b.answers.sheet_at(&shape, p), "place {p}: the whole sheet");
+        assert!(b.answers.shares_at(&shape, p).is_empty(), "place {p}");
+    }
+    assert!(app.offers(Action::BAnswer(qrow::SPLIT, 1)), "Its own share");
+}
+
+/// Ticking Its own share on a 3-of-5 shows a slider of the keys left off
+/// each share, from 0 to 2; the checklist's Shares card has the same.
+#[test]
+fn its_own_share_on_a_three_of_five_offers_0_to_2_keys_left_off() {
+    use faraday_core::seeds::SLIDE_OMIT;
+    use faraday_core::{Action, bstep, qrow};
+    use osk_shell_api::App;
+    let mut app = places_of("Five");
+    assert!(!app.offers(Action::Slide(SLIDE_OMIT, 0)), "no slider yet");
+    app.press(Action::BAnswer(qrow::SPLIT, 1));
+    let _ = app.frame();
+    for k in 0..=2 {
+        assert!(
+            app.offers(Action::Slide(SLIDE_OMIT, k)),
+            "{k} keys left off"
+        );
+    }
+    assert!(!app.offers(Action::Slide(SLIDE_OMIT, 3)), "no stop past 2");
+    app.press(Action::Slide(SLIDE_OMIT, 1));
+    assert_eq!(app.backup.as_ref().unwrap().answers.omit, 1);
+    app.press(Action::BChecklist);
+    app.press(Action::BStep(bstep::SHEETS));
+    let _ = app.frame();
+    assert!(app.offers(Action::Slide(SLIDE_OMIT, 2)), "the Shares card");
+    app.press(Action::Slide(SLIDE_OMIT, 2));
+    assert_eq!(app.backup.as_ref().unwrap().answers.omit, 2);
+}
+
+/// What is a share? opens Learn on the page about shares; closing it
+/// leaves the plan on Places.
+#[test]
+fn what_is_a_share_opens_the_page_and_back_returns_to_places() {
+    use faraday_core::{Action, Screen, Sheet, qstep};
+    let mut app = places_of("Savings");
+    assert!(app.offers(Action::LearnShares));
+    app.press(Action::LearnShares);
+    assert_eq!(app.sheet, Some(Sheet::Learn));
+    assert_eq!(
+        app.learn.pages[app.learn.page].title,
+        "Shares of a wallet description"
+    );
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Backup);
+    assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::PLACES));
 }
