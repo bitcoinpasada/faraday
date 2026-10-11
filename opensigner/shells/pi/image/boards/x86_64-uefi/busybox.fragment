@@ -1,0 +1,16 @@
+# The stick can be sda on one machine and sdb on the next, so rcS asks
+# which node carries the partition labelled OSKDATA instead of naming one.
+# `findfs` is the applet that answers, and it reads the label out of the
+# FAT superblock through BusyBox's own volume_id.
+CONFIG_FINDFS=y
+CONFIG_VOLUMEID=y
+CONFIG_FEATURE_VOLUMEID_FAT=y
+
+# /usr/sbin/opensigner-usb-watch asks what is on a partition that turned
+# up while the app was running: `blkid` prints its TYPE and its LABEL, and
+# only a vfat is mounted. It reads the same volume_id as `findfs` above,
+# so the FAT support is already there. `umount` is what takes a mount away
+# again when the stick it is on is pulled.
+CONFIG_BLKID=y
+CONFIG_FEATURE_BLKID_TYPE=y
+CONFIG_UMOUNT=y

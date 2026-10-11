@@ -1,0 +1,24 @@
+[package]
+name = "faraday-snapshot"
+version = "0.1.1"
+description = "Renders Faraday's screens to PNG along a scripted tour, for review on the build machine"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+faraday-core = { path = "../../faraday-core", features = ["testkit"] }
+faraday-storage = { path = "../../faraday-storage" }
+faraday-qr = { path = "../../faraday-qr" }
+osk-bip = { path = "../../../core/osk-bip" }
+faraday-vault = { path = "../../faraday-vault" }
+faraday-sb = { path = "../../faraday-sb" }
+osk-shell-api = { path = "../../../core/osk-shell-api" }
+png.workspace = true
+osk-codec = { path = "../../../core/osk-codec" }
+osk-selftest = { path = "../../../core/osk-selftest" }
+
+[lints]
+workspace = true

@@ -1,0 +1,103 @@
+# cargo-deny (docs/PLANNING.md §5.4, §10.1): what the dependency graph is
+# allowed to contain. Run locally, like everything else here:
+#
+#     cargo deny check
+#
+# There is no hosted CI, so this file is the record of which duplicates
+# and which licences were looked at and accepted, and when one of them
+# stops being true the check says so.
+
+[graph]
+all-features = false
+
+# --- Advisories -------------------------------------------------------------
+#
+# A vulnerability in anything that reaches a signing device is a release
+# blocker, which is cargo-deny's own default and has no setting.
+# "Unmaintained" is a warning: it is a fact about a crate's upkeep, not a
+# defect, and it is answered by replacing the crate rather than by failing
+# a build.
+[advisories]
+yanked = "deny"
+unmaintained = "all"
+ignore = [
+    # RUSTSEC-2026-0192: ttf-parser is unmaintained. It is reached by
+    # `osk-fontbake`, the build tool that extracts glyph outlines into
+    # the repository (`just fonts`), and by `winit` on the desktop. No
+    # device binary links it, and it never reads an untrusted font: the
+    # faces it opens are the ones committed here. Named by advisory id,
+    # so a defect reported against the same crate still fails.
+    { id = "RUSTSEC-2026-0192", reason = "build tool and desktop only; the faces are committed here" },
+]
+
+# --- Licences ---------------------------------------------------------------
+#
+# Permissive only, and each one named rather than inferred from a class.
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CC0-1.0",      # the rust-bitcoin crates, and rust-miniscript
+    "Unicode-3.0",  # unicode-ident's data
+    "ISC",          # libloading, and rqrr's quirc-derived half
+    "Zlib",         # zlib-rs
+]
+
+# Two crates whose licence is permissive but not one of the above. Named
+# here so that a third does not arrive unnoticed.
+[[licenses.exceptions]]
+name = "hex_lit"
+allow = ["MITNFA"]
+
+# --- Bans -------------------------------------------------------------------
+#
+# Two copies of a crate mean two copies of its bugs, and in this graph
+# often two implementations of the same primitive. Each skip below is a
+# duplicate that exists today with the reason it does; the list shrinks as
+# §10.1's crate-count work lands and does not grow without a reason here.
+[bans]
+multiple-versions = "deny"
+# The seven `core/osk-*` crates are publishable and depend on each other
+# by path with no version requirement, which `allow-wildcard-paths` does
+# not cover for a publishable crate. A path dependency inside this
+# workspace resolves to the tree it is in, so it is not the unpinned
+# dependency this check is for; it becomes one the day these crates are
+# published, and the warning is the reminder.
+wildcards = "warn"
+allow-wildcard-paths = true
+
+skip = [
+    # jni-sys 0.4 arrives through android-activity, which is winit's
+    # Android backend and is in no device graph; opensigner-ffi pins
+    # =0.3.0 (docs/deps/jni-sys.md).
+    { crate = "jni-sys@0.4", reason = "android-activity, shell-only" },
+
+    # Everything below is reached only through winit, softbuffer and the
+    # desktop shell's platform layers, which no device binary links.
+    { crate = "bitflags@1", reason = "desktop platform crates" },
+    { crate = "getrandom@0.3", reason = "desktop platform crates" },
+    { crate = "linux-raw-sys", reason = "rustix generations, desktop only" },
+    { crate = "miniz_oxide@0.8", reason = "desktop only" },
+    { crate = "objc2@0.5", reason = "macOS platform crates" },
+    { crate = "objc2-foundation@0.2", reason = "macOS platform crates" },
+    { crate = "r-efi@5", reason = "getrandom generations" },
+    { crate = "redox_syscall", reason = "rustix generations, desktop only" },
+    { crate = "rustix@0.38", reason = "desktop only" },
+    { crate = "syn@2", reason = "build-time only" },
+    { crate = "thiserror@1", reason = "desktop only" },
+    { crate = "thiserror-impl@1", reason = "with thiserror 1" },
+    { crate = "tiny-skia@0.11", reason = "desktop only" },
+    { crate = "tiny-skia-path@0.11", reason = "desktop only" },
+    { crate = "windows-sys", reason = "Windows platform crates" },
+]
+
+# --- Sources ----------------------------------------------------------------
+#
+# crates.io and nothing else: no git dependencies, no private registry.
+# A vendored tree (§16.8) is checked in and is not a source.
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

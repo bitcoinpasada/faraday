@@ -1,0 +1,27 @@
+# Tools › Compare transactions (PLANNING §16.111 rule 4): the second
+# transaction's way in, the same transaction read twice, and two
+# different ones listed by what differs. The fixtures are
+# tools/vectors/psbt/wallet-2of3.psbt and wallet-liana.psbt.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 23                        # HOME_TILE_BASE + 3: Tools
+tapid 1714                      # TOOLS_COMPARE: the scanner
+camera off                      # the transactions arrive as files here
+file tools/vectors/psbt/wallet-2of3.psbt
+tapid 701                       # SCAN_FILE: "Read a file"
+snap compare-tx-01-first        # the first one read, and the way to the second
+tapid 1715                      # COMPARE_TX_SECOND
+camera off
+file tools/vectors/psbt/wallet-2of3.psbt
+tapid 701                       # SCAN_FILE: the same bytes again
+snap compare-tx-02-same         # one transaction
+tapid 1716                      # COMPARE_TX_DONE: Home
+tapid 23                        # HOME_TILE_BASE + 3: Tools
+tapid 1714                      # TOOLS_COMPARE
+camera off
+file tools/vectors/psbt/wallet-2of3.psbt
+tapid 701                       # SCAN_FILE
+tapid 1715                      # COMPARE_TX_SECOND
+camera off
+file tools/vectors/psbt/wallet-liana.psbt
+tapid 701                       # SCAN_FILE: another wallet's transaction
+snap compare-tx-03-different    # the fields that differ, one row each

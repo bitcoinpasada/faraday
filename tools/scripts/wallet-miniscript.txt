@@ -1,0 +1,98 @@
+# A miniscript wallet: the Liana shape, one key now and a recovery key
+# after a year of blocks. Loading it from Wallets, the review that names
+# its two spend paths, the addresses it pays to, the descriptor it
+# exports, a spend of it down each of its two paths — and then
+# Tools › Miniscript, which compiles the same policy back into the same
+# descriptor.
+#
+# The fixture is tools/vectors/psbt/wallet-liana.policy (made by
+# `just psbt-fixtures`): the loaded key and "zoo … wrong" on regtest.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # "Add key"
+pin 138 2580                    # LOAD_PIN_KEYBOARD: session PIN
+pin 138 2580                    # repeat it
+tapid 25                        # HOME_TILE_BASE + 5: Settings
+tapid 304                       # SETTINGS_NETWORK_ROW: the network Choice
+tapid 303                       # SETTINGS_NET_BASE + 3: Regtest, the wallet's chain
+tapid 2                         # BACK: close the Choice
+tapid 2                         # BACK to Home
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 2203                      # WALLETS_ADD: the kinds of wallet
+tapid 62                        # WALLETS_LOAD: "Scan a wallet"
+camera off                      # the policy arrives as a file here
+file tools/vectors/psbt/wallet-liana.policy
+tapid 701                       # SCAN_FILE: "Read a file"
+snap miniscript-01-review       # the kind, the two spend paths, the keys A and B
+tapid 720                       # INSPECT_TEXT: the descriptor, whole
+snap miniscript-02-descriptor
+tapid 208                       # COMPARE_DONE
+tapid 722                       # INSPECT_USE_WALLET: "Use this wallet"
+snap miniscript-03-menu         # the wallet's own menu
+tapid 810                       # WALLET_ADDRESSES
+snap miniscript-04-addresses    # the addresses the script pays to
+tapid 2                         # BACK to the menu
+tapid 811                       # WALLET_EXPORT
+snap miniscript-05-export       # the descriptor with its checksum
+tapid 2                         # BACK to the menu
+tapid 2                         # BACK to Home
+snap miniscript-06-home         # the wallet as a row, with the key glyph
+tapid 90                        # WALLETS_POLICY_ROW_BASE + 0: the wallet's page
+tapid 814                       # WALLET_SIGN: the scanner, expecting a transaction
+camera off
+file tools/vectors/psbt/wallet-liana.psbt
+tapid 701                       # SCAN_FILE
+snap miniscript-07-summary      # change verified, because the wallet is in use
+tapid 410                       # SIGN_CONTINUE: the recipient
+tapid 410                       # SIGN_CONTINUE: the change
+tapid 410                       # SIGN_CONTINUE: the inputs
+snap miniscript-08-inputs       # the input row names the path: Key A
+tapid 410                       # SIGN_CONTINUE: Confirm
+snap miniscript-09-confirm
+tapid 2                         # BACK through the review, leaving it unsigned:
+tapid 2                         # the inputs, the change, the recipient, the
+tapid 2                         # summary, and out to Home
+tapid 2
+tapid 2
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 90                        # WALLETS_POLICY_ROW_BASE + 0: the wallet again
+tapid 814                       # WALLET_SIGN again, for the recovery spend
+camera off
+file tools/vectors/psbt/wallet-liana-recovery.psbt
+tapid 701                       # SCAN_FILE
+snap miniscript-10-recovery     # the same wallet, the other way through it:
+                                # the coordinator names only the recovery key,
+                                # which this device does not hold, so the
+                                # review stops at the summary
+tapid 2                         # BACK to Home
+tapid 23                        # HOME_TILE_BASE + 3: Tools
+tapid 1708                      # TOOLS_CALC_BASE + 5: Miniscript
+snap miniscript-10a-policy-scan # the scanner, and its three ways in
+tapid 709                       # SCAN_TYPE: the policy field
+snap miniscript-11-policy-empty # the field, the Script and Keys rows, a dead tick
+text "or(pk(@0),and(pk(@1),older(52560)))"
+snap miniscript-12-policy-typed
+padkey 1710 enter               # TOOL_KEYBOARD: the tick compiles it
+snap miniscript-13-compiled     # the descriptor, the spend paths, the keys

@@ -1,0 +1,71 @@
+# Walks the Load wizard on the Traditional Chinese list, typing on the
+# 注音 keyboard: the 大千 layout, the syllable in bopomofo and then one
+# of the five tone marks. ˉ ends the second row, so the first tone is a
+# key like the other four and nothing is offered until it is pressed
+# (PLANNING §16.43). A character is one glyph, so the strip is ten cells
+# a row and two rows, and the largest tone group either list has —
+# twenty characters — is on the screen at once (PLANNING §16.45). Widget
+# ids are the constants in opensigner/opensigner-core/src/ids.rs.
+snap load-zh-hant-00-home
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD: "Load a key"
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+snap load-zh-hant-01-language   # Chinese (Traditional) is a row that takes now
+tapid 125                       # LOAD_LANG_BASE + 5
+tapid 104                       # LOAD_LANG_CONTINUE
+snap load-zh-hant-02-word-1-empty   # the 大千 rows, the marks in row 1 and ˉ
+                                    # ending row 2
+text "ㄉ"
+snap load-zh-hant-03-d          # dead keys: what no syllable continues
+text "ㄜ"
+snap load-zh-hant-04-de         # ㄉㄜ is a syllable: its marks wake, and the
+                                # strip stays empty until one is pressed
+text "˙"
+snap load-zh-hant-05-de5        # 的 and its homophones
+cand 132 0                      # LOAD_CANDIDATES cell 0: 的
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "ㄧ"
+snap load-zh-hant-06-yi         # a syllable without a tone: nothing offered
+text "ˋ"
+snap load-zh-hant-07-yi4        # the fourth tone brings the whole group: two
+                                # rows of ten, no chevron
+padkey 131 backspace
+padkey 131 backspace
+text "ㄧˉ"
+cand 132 0                      # 一
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "ㄕˋ"
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "ㄗㄞˋ"
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "ㄅㄨˋ"
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "ㄧㄡˇ"
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "ㄏㄜˊ"
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "ㄖㄣˊ"
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "ㄓㄜˋ"
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "ㄓㄨㄥˉ"
+snap load-zh-hant-08-zhong1     # 中 first, 忠 終 鐘 follow
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+text "ㄨㄟˋ"
+cand 132 0
+on small cand 132 0             # the panel takes two taps: this one accepts
+snap load-zh-hant-09-word-12
+text "ㄩˊ"                      # the checksum leaves one last word; it waits
+tapid 132                       # in the strip for the tap that takes it
+snap load-zh-hant-10-checksum

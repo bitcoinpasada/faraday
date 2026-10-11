@@ -1,0 +1,4 @@
+I hold the key behind the address below.
+
+Sending 0.5 BTC to it on 9 September 2026 pays
+invoice 2026-114, and nothing else.

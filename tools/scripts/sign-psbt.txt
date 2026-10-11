@@ -1,0 +1,78 @@
+# Loads "abandon ×11 about", switches to regtest, then signs the committed
+# demo PSBT (tools/vectors/psbt/demo-regtest.psbt) through every step of
+# the Sign flow: the entry menu, the no-file state, the review, one output
+# per screen, the inputs, the hold to sign, the result, the Signatures
+# menu and one signature whole on the Compare screen. The signed output
+# lands in --out as signed.txn.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # "Add key"
+pin 138 2580                    # LOAD_PIN_KEYBOARD: session PIN, first key of the session
+pin 138 2580                    # repeat it
+tapid 25                        # HOME_TILE_BASE + 5: Settings
+tapid 304                       # SETTINGS_NETWORK_ROW: the network Choice
+tapid 303                       # SETTINGS_NET_BASE + 3: Regtest, on the tap
+tapid 2                         # BACK: close the Choice
+tapid 2                         # BACK to Home
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 2203                      # WALLETS_ADD: the kinds of wallet
+tapid 63                        # BUILD_NEW: the one wizard
+tapid 1940                      # BUILD_KIND_BASE + 0: "Single-sig"
+tapid 1812                      # BUILD_KIND_CONTINUE
+tapid 1880                      # BUILD_WHICH_BASE + 0: the loaded key
+tapid 1802                      # BUILD_CONTINUE
+tapid 1822                      # BUILD_SCRIPT_BASE + 2: SegWit
+tapid 1800                      # BUILD_SCRIPT_CONTINUE
+tapid 1808                      # BUILD_ADD_WALLET: "Add this wallet"
+snap sign-01-wallet             # "Sign a transaction" is the first row
+tapid 814                       # WALLET_SIGN: the scanner, expecting a transaction
+camera off
+snap sign-02-no-camera          # "Read a file" is the way in without one
+file tools/vectors/psbt/demo-regtest.psbt
+tapid 701                       # SCAN_FILE
+snap sign-03-overview
+tapid 410                       # SIGN_CONTINUE: Review details
+snap sign-04-output-1
+tapid 410                       # SIGN_CONTINUE: the next output of the run
+snap sign-05-output-2
+tapid 410                       # SIGN_CONTINUE: the inputs
+snap sign-06-inputs
+tapid 410
+snap sign-07-confirm
+holdid 413                      # SIGN_HOLD
+snap sign-08-result
+tapid 414                       # SIGN_SAVE
+snap sign-09-saved
+tapid 415                       # SIGN_SIGNATURES
+snap sign-10-signatures
+tapid 480                       # SIGN_SIG_BASE + 0: the bytes, whole
+snap sign-10b-signature-compare
+tapid 208                       # COMPARE_DONE
+tapid 2                         # BACK to the result
+tapid 402                       # SIGN_QR
+snap sign-11-qr
+tapid 2                         # BACK to the result
+tapid 416                       # SIGN_DONE
+snap sign-12-home

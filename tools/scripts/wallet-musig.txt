@@ -1,0 +1,28 @@
+# A BIP-390 MuSig2 wallet (PLANNING §16.70): the policy loaded from
+# Home's "Scan a wallet" row, the review that says what it is, its page,
+# its
+# addresses and its export. The fixture is
+# tools/vectors/psbt/wallet-musig.policy, two BIP-390 vector keys on
+# mainnet, so no key of this device is in it and every cosigner carries
+# the eye.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 2203                      # WALLETS_ADD
+tapid 62                        # WALLETS_LOAD: "Scan a wallet"
+camera off                      # the policy arrives as a file here
+file tools/vectors/psbt/wallet-musig.policy
+tapid 701                       # SCAN_FILE: "Read a file"
+snap wallet-musig-00-review     # MuSig2, its keys, the script and the checksum
+tapid 720                       # INSPECT_TEXT: the descriptor, whole
+snap wallet-musig-01-descriptor
+tapid 208                       # COMPARE_DONE
+tapid 722                       # INSPECT_USE_WALLET: "Use this wallet"
+snap wallet-musig-02-menu       # the wallet's own menu
+tapid 810                       # WALLET_ADDRESSES
+snap wallet-musig-03-addresses  # the aggregate key's receive addresses
+tapid 1000                      # ADDR_ROW_BASE + 0: Receive 0
+snap wallet-musig-04-address    # one address and its code
+tapid 2                         # BACK to the list
+tapid 2                         # BACK to the menu
+tapid 811                       # WALLET_EXPORT
+snap wallet-musig-05-export     # the descriptor with its checksum

@@ -1,0 +1,81 @@
+# Tools › the six remaining tools (docs/UX.md §7.5): the hashes, the
+# encodings, the descriptor checksum, the key conversion, the units, and
+# a transaction read without signing it. Nothing here needs a key and
+# nothing is kept, so no screen carries the eye.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 23                        # HOME_TILE_BASE + 3: Tools
+snap more-00-tools              # every tool live, with nothing loaded
+tapid 1703                      # TOOLS_CALC_BASE + 0: Hashes
+snap more-01-hashes-scan        # the square and its three rows
+tapid 709                       # SCAN_TYPE
+snap more-01a-hashes-entry      # Read as · Automatic, and ✓ dead
+text "abc"
+key enter
+snap more-02-hashes             # the length and the three hashes
+tapid 1720                      # TOOL_ROW_BASE + 0: SHA-256 in Compare
+snap more-03-compare
+tapid 2                         # BACK closes Compare
+tapid 2                         # BACK to the field
+tapid 1711                      # TOOL_MODE: how the field is read
+snap more-04-read-as
+tapid 211                       # PICK_BASE + 1: Text
+tapid 209                       # PICK_CONTINUE
+snap more-05-hashes-as-text
+tapid 2
+tapid 1704                      # TOOLS_CALC_BASE + 1: Encodings
+tapid 709                       # SCAN_TYPE
+text "0014751e76e8199196d454941c45d1b3a323f1433bd6"
+key enter
+snap more-06-encodings          # hex, and the other spellings of it
+tapid 2
+tapid 2
+tapid 1705                      # TOOLS_CALC_BASE + 2: Descriptor checksum
+# The clipboard is the other way in: the same string, pasted.
+clipboard "raw(deadbeef)#89f8spxm"
+tapid 708                       # SCAN_PASTE
+key enter
+snap more-07-checksum           # the checksum, its verdict, and Wallet
+tapid 2
+tapid 2
+tapid 1706                      # TOOLS_CALC_BASE + 3: Convert key
+tapid 709                       # SCAN_TYPE
+text "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
+key enter
+snap more-08-convert-key        # every spelling of one key
+tapid 1720                      # TOOL_ROW_BASE + 0: the key in Compare
+tapid 696                       # COPY: a public string on the clipboard
+snap more-08a-copied            # "Copied" on the caption line
+tapid 2
+tapid 2
+tapid 2
+tapid 1707                      # TOOLS_CALC_BASE + 4: Units
+padkey 1710 1                   # TOOL_KEYBOARD: one satoshi
+snap more-09-units              # the mode row, and ✓ live
+padkey 1710 enter
+# A 240 dp panel has no room for the other three units beside the field,
+# so ✓ opens them as a Record.
+snap more-10-units-record
+tapid 2
+tapid 1711                      # TOOL_MODE: which unit is typed
+tapid 211                       # PICK_BASE + 1: BTC
+tapid 209
+snap more-11-units-btc
+tapid 2
+# Words in the clear are a secret: the clipboard is refused whatever the
+# scanner was opened for.
+tapid 1703                      # TOOLS_CALC_BASE + 0: Hashes
+clipboard "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+tapid 708                       # SCAN_PASTE
+snap more-14-paste-refused      # a secret is never pasted
+tapid 702                       # SCAN_AGAIN
+clipboard off
+tapid 708                       # SCAN_PASTE with nothing on the clipboard
+snap more-15-nothing-to-paste
+tapid 2
+tapid 1709                      # TOOLS_DECODE
+camera off
+file tools/vectors/psbt/demo-regtest.psbt
+tapid 701                       # SCAN_FILE
+snap more-12-decode-summary     # the review: no key loaded, and no confirm
+tapid 410                       # SIGN_CONTINUE
+snap more-13-decode-outputs

@@ -1,0 +1,51 @@
+# The same wallet read from the text file Sparrow, Nunchuk, Specter and
+# Coldcard export a multisig config as (tools/vectors/psbt/wallet-2of3.txt).
+# It reviews as the BIP-388 policy of the same wallet does, with the same
+# checksum, so this script is the short walk that proves it on screen.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # "Add key"
+pin 138 2580                    # LOAD_PIN_KEYBOARD: session PIN
+pin 138 2580                    # repeat it
+tapid 25                        # HOME_TILE_BASE + 5: Settings
+tapid 304                       # SETTINGS_NETWORK_ROW: the network Choice
+tapid 303                       # SETTINGS_NET_BASE + 3: Regtest, the wallet's chain
+tapid 2                         # BACK: close the Choice
+tapid 2                         # BACK to Home
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 2203                      # WALLETS_ADD: the kinds of wallet
+tapid 62                        # WALLETS_LOAD: "Scan a wallet"
+camera off                      # the config arrives as a file here
+file tools/vectors/psbt/wallet-2of3.txt
+tapid 701                       # SCAN_FILE: "Read a file"
+snap wallet-config-01-review    # the same quorum, keys and checksum
+tapid 722                       # INSPECT_USE_WALLET: "Use this wallet"
+snap wallet-config-02-menu      # the wallet's menu
+tapid 811                       # WALLET_EXPORT
+tapid 285                       # EXPORT_FORMAT: the two formats
+snap wallet-config-03-formats
+tapid 213                       # PICK_BASE + 3: Policy
+tapid 209                       # PICK_CONTINUE
+snap wallet-config-04-policy    # the BIP-388 two-part form

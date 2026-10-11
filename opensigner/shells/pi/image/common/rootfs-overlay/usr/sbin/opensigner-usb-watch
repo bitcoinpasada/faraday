@@ -1,0 +1,240 @@
+#!/bin/sh
+# Every FAT partition on a USB disk, mounted while the app runs.
+#
+# rcS mounts the boot medium's exchange partition once and would be done;
+# this keeps looking, so a person can unplug the stick, put a .psbt on it
+# from a computer and plug it back in, and so a second stick is read at
+# all. It is started by rcS only on a medium whose exchange line names a
+# label, which is the USB-booted stick: a Pi's card is fixed and its
+# kernel has no USB storage.
+#
+# Mounting is root's and stays here in init. The app runs as the
+# unprivileged `opensigner` user and never mounts anything; what it sees
+# is a directory that is there or is not.
+#
+# There is no uevent helper and no `mdev -d`: /sys is read once a second
+# instead. A person plugging a stick in does not notice a second, and
+# polling adds no daemon that takes the kernel's hotplug events.
+#
+# Reading /sys costs the disk nothing. Reading the disk does: `blkid`
+# opens the partition and reads its superblock, and a stick's light shows
+# every read. So a partition is probed once, when it first appears, and
+# never again while it stays. What "stays" means is decided by the
+# partition's identity rather than its node name: a stick pulled out and
+# put back is /dev/sda again, but the USB bus numbers it afresh on the
+# way in, and that number is part of the identity. A mount whose
+# identity has changed under it is a mount of a device that is gone, and
+# is taken down before the newcomer is looked at.
+
+# Which partition the boot medium's own is, as build.sh wrote the board's
+# EXCHANGE line there. `LABEL=OSKDATA` is the only form this is started
+# for; the label is what the partition is recognised by, whichever node
+# it comes back as.
+label="$(sed -n 's/^LABEL=//p' /etc/opensigner/exchange | head -n 1)"
+
+# The label the image gives its own boot partition
+# (boards/x86_64-uefi/genimage.cfg). That partition is the firmware's and
+# holds the kernel: it is never mounted, on the medium this booted from
+# or on any other, so nothing the app runs as can write to a boot image.
+boot_label=OSKBOOT
+
+# Where the boot medium's partition goes, and where every other one does.
+card=/mnt/microsd
+usb=/mnt/usb
+
+# The same options rcS gives the exchange partition: written out when it
+# is closed, no program run from it, and readable only by the app, which
+# is uid and gid 200 (common/users.table).
+opts=flush,noexec,nosuid,nodev,uid=200,gid=200,umask=077
+
+# One line per mount and unmount, into the kernel log. That is the only
+# channel a release image has: dmesg is what the dev variant's boot
+# report carries and what its console prints, and nothing here is written
+# to a medium.
+say() {
+    echo "opensigner: $*" > /dev/kmsg 2>/dev/null || true
+}
+
+# The disk a partition belongs to: sdb1 is on sdb. /sys/class/block/sdb1
+# is a symlink into the device tree, where the disk is its parent.
+disk_of() {
+    basename "$(dirname "$(readlink -f "/sys/class/block/$1")")"
+}
+
+# What a partition is, beyond its name: the sysfs path of the device its
+# disk sits on, and the number the USB bus gave that device when it was
+# enumerated. The path alone is not enough: the kernel frees a SCSI host
+# number when a disk goes and hands the same one to the next, and a
+# stick put back into the same port has the same port path. The device
+# number is what changes: each device enumerated on a bus gets the next
+# number, and a number is not handed out again until the count has gone
+# round 127. The same stick put back is the same name with a different
+# identity.
+usb_devnum() {
+    d="$1"
+    while [ "$d" != "/" ] && [ -n "$d" ]; do
+        if [ -f "$d/devnum" ]; then
+            cat "$d/devnum"
+            return
+        fi
+        d="$(dirname "$d")"
+    done
+}
+ident_of() {
+    dev="$(readlink -f "/sys/class/block/$(disk_of "$1")/device" 2>/dev/null)" \
+        || dev="$(readlink -f "/sys/class/block/$1")"
+    echo "$dev|$(usb_devnum "$dev")"
+}
+
+# The node mounted at a directory, or nothing.
+mounted_dev() {
+    while read -r dev point rest; do
+        if [ "$point" = "$1" ]; then
+            echo "$dev"
+            return
+        fi
+    done < /proc/mounts
+}
+
+# A name a directory can be called: the partition's label with everything
+# but letters, digits, `_` and `-` replaced, or nothing if the label was
+# only such characters. A dot is not kept: a FAT label has none, and `..`
+# as a name would be the directory above the mount root.
+as_name() {
+    printf '%s' "$1" | tr -c 'A-Za-z0-9_-' '_' | sed 's/^[_-]*$//'
+}
+
+# `$usb/NAME`, or `$usb/NAME-2`, `-3`, … when two partitions carry the
+# same label. Nothing is returned when all of them are taken, which is a
+# machine with nine sticks of the same name in it.
+free_point() {
+    n=2
+    point="$usb/$1"
+    while [ -n "$(mounted_dev "$point")" ]; do
+        point="$usb/$1-$n"
+        n=$((n + 1))
+        [ "$n" -gt 9 ] && return
+    done
+    echo "$point"
+}
+
+mkdir -p "$usb"
+
+# What has been looked at and what is mounted, one record a line:
+#   seen     NAME|IDENT
+#   mounts   POINT|NODE|IDENT
+# The mount rcS made before this started is taken in on the first pass,
+# with the identity its node has now.
+seen=""
+mounts=""
+dev="$(mounted_dev "$card")"
+if [ -n "$dev" ]; then
+    name="$(basename "$dev")"
+    mounts="$card|$dev|$(ident_of "$name")"
+    seen="$name|$(ident_of "$name")"
+fi
+
+while :; do
+    # Anything that went away, or came back as something else under the
+    # same name: the mount is of a device that is gone. `umount -l`
+    # detaches it whether or not the app still has a file open on it,
+    # and the directory goes with it.
+    kept=""
+    for record in $mounts; do
+        point="${record%%|*}"
+        rest="${record#*|}"
+        node="${rest%%|*}"
+        ident="${rest#*|}"
+        name="$(basename "$node")"
+        if [ -e "/sys/class/block/$name" ] && [ "$(ident_of "$name")" = "$ident" ]; then
+            kept="$kept
+$record"
+            continue
+        fi
+        umount -l "$point" 2>/dev/null
+        say "unmounted $point"
+        [ "$point" = "$card" ] || rmdir "$point" 2>/dev/null
+    done
+    mounts="$kept"
+
+    # Which disk the machine booted from, from wherever the exchange
+    # partition is mounted now. Nothing else on that disk is mounted: the
+    # EFI partition beside it is the firmware's, it holds no file anyone
+    # put there, and the image says it is never mounted.
+    dev="$(mounted_dev "$card")"
+    if [ -n "$dev" ]; then
+        boot_disk="$(disk_of "$(basename "$dev")")"
+    else
+        # The medium is out; the disk it was is whatever turns up next.
+        boot_disk=""
+    fi
+
+    # Anything new. Every partition the kernel knows about is under
+    # /sys/class/block with a `partition` file; a whole disk has none. A
+    # partition already seen under this identity was probed when it
+    # appeared and is left alone, mounted or not.
+    fresh=""
+    for part in /sys/class/block/*/partition; do
+        [ -e "$part" ] || continue
+        name="$(basename "$(dirname "$part")")"
+        node="/dev/$name"
+        [ -b "$node" ] || continue
+        ident="$(ident_of "$name")"
+        fresh="$fresh
+$name|$ident"
+        case "$seen" in
+            *"$name|$ident"*) continue ;;
+        esac
+        seen="$seen
+$name|$ident"
+
+        # Only vfat, whatever the partition holds. blkid reads the type
+        # and the label out of the superblock through BusyBox's own
+        # volume_id, the same code `findfs` answers rcS with.
+        info="$(blkid "$node" 2>/dev/null)"
+        case "$info" in
+            *'TYPE="vfat"'*) ;;
+            *) continue ;;
+        esac
+        found="$(echo "$info" | sed -n 's/.*LABEL="\([^"]*\)".*/\1/p')"
+        [ "$found" = "$boot_label" ] && continue
+
+        # The boot medium's own partition goes back where it was, so the
+        # settings and the dev variant's boot report stay at one path.
+        if [ -n "$label" ] && [ "$found" = "$label" ] && [ -z "$(mounted_dev "$card")" ]; then
+            mkdir -p "$card"
+            if mount -t vfat -o "$opts" "$node" "$card"; then
+                say "mounted $node at $card"
+                mounts="$mounts
+$card|$node|$ident"
+                boot_disk="$(disk_of "$name")"
+            fi
+            continue
+        fi
+        if [ -n "$boot_disk" ] && [ "$(disk_of "$name")" = "$boot_disk" ]; then
+            continue
+        fi
+
+        # Everything else is named by its label, or by its node when it
+        # has no label, so a person reading the list on the screen knows
+        # which stick a file is on.
+        called="$(as_name "$found")"
+        [ -n "$called" ] || called="$name"
+        point="$(free_point "$called")"
+        [ -n "$point" ] || continue
+        mkdir -p "$point"
+        if mount -t vfat -o "$opts" "$node" "$point"; then
+            say "mounted $node at $point"
+            mounts="$mounts
+$point|$node|$ident"
+        else
+            rmdir "$point" 2>/dev/null
+        fi
+    done
+    # A partition that is gone is forgotten, so the same stick coming
+    # back is looked at again even if the kernel ever gave it the same
+    # identity.
+    seen="$fresh"
+
+    sleep 1
+done

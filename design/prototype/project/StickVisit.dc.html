@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stick visit</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Source+Sans+3:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#83d8ef}a:hover{color:#b1e8f7}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; display: flex; background: #11161c; color: #e0e9ef; font-family: {{fontStack}}; overflow: hidden">
+<dc-import name="Sidebar" active="home" locked="{{ yes }}" font="{{ font }}" hint-size="240px,800px"></dc-import>
+<main style="flex: 1; min-width: 0; box-sizing: border-box; padding: 36px 48px 28px; display: flex; flex-direction: column; gap: 24px">
+<header style="display: flex; align-items: center; gap: 16px">
+<span style="flex: none; width: 48px; height: 48px; border-radius: 12px; background: rgba(131,216,239,0.12); color: #83d8ef; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="9" width="10" height="12" rx="2"></rect><path d="M9 9V3.5h6V9"></path><path d="M11 6v.5M13 6v.5"></path></svg></span>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.02em">SanDisk Cruzer</h1>
+<span style="font-size: 13px; color: #9aacb9">16 GB, as it describes itself · partition 1 · FAT32 · 14.8 GB free</span>
+</div>
+<span style="margin-left: auto; display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: 15px; background: #19212a; border: 1px solid #1f2933; font-size: 12px; color: #9aacb9"><span style="width: 7px; height: 7px; border-radius: 4px; background: #6f8291"></span>Locked · nothing secret in memory</span>
+</header>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; flex-grow: 1; min-height: 0">
+<section aria-labelledby="w-h" style="display: flex; flex-direction: column; gap: 14px; padding: 22px; border-radius: 12px; background: #19212a; border: 1px solid #1f2933">
+<div style="display: flex; align-items: center; gap: 10px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#83d8ef" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg><h2 id="w-h" style="margin: 0; font-size: 16px; font-weight: 600">Write from the Outbox</h2></div>
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{ outbox }}" as="f" hint-placeholder-count="2">
+<label style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #222c37; cursor: pointer"><input type="checkbox" checked="{{ f.on }}" onChange="{{ f.toggle }}" style="width: 18px; height: 18px; accent-color: #83d8ef; margin: 0"><span style="display: flex; flex-direction: column; gap: 3px"><span style="font-family: 'JetBrains Mono', monospace; font-size: 14px">{{ f.name }}</span><span style="font-size: 12px; color: #9aacb9">{{ f.what }}</span></span><span style="margin-left: auto; font-size: 12px; color: #9aacb9">{{ f.size }}</span></label>
+</sc-for>
+</div>
+<span style="font-size: 12px; color: #6f8291">Each file is read back and compared after writing.</span>
+<div style="flex-grow: 1"></div>
+<button type="button" style="align-self: flex-end; height: 44px; padding: 0 20px; border-radius: 10px; border: 0; background: #83d8ef; color: #0d1218; font-family: inherit; font-size: 14px; font-weight: 600">{{ writeLabel }}</button>
+</section>
+<section aria-labelledby="r-h" style="display: flex; flex-direction: column; gap: 14px; padding: 22px; border-radius: 12px; background: #19212a; border: 1px solid #1f2933">
+<div style="display: flex; align-items: center; gap: 10px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#83d8ef" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg><h2 id="r-h" style="margin: 0; font-size: 16px; font-weight: 600">Copy into the Inbox</h2></div>
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{ files }}" as="f" hint-placeholder-count="5">
+<sc-if value="{{ f.isFile }}" hint-placeholder-val="{{ true }}">
+<label style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #222c37; opacity: {{f.opacity}}; cursor: pointer"><input type="checkbox" checked="{{ f.on }}" disabled="{{ f.disabled }}" onChange="{{ f.toggle }}" style="width: 18px; height: 18px; accent-color: #83d8ef; margin: 0"><span style="display: flex; flex-direction: column; gap: 3px"><span style="font-family: 'JetBrains Mono', monospace; font-size: 14px">{{ f.name }}</span><span style="font-size: 12px; color: #9aacb9">{{ f.what }}</span></span><span style="margin-left: auto; font-size: 12px; color: #9aacb9">{{ f.size }}</span></label>
+</sc-if>
+<sc-if value="{{ f.isImage }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #222c37">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9aacb9" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"></rect><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"></rect><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"></rect><path d="M14 14h2.5v2.5H14zM20.5 14v.01M14 20.5h.01M17 20.5h3.5M20.5 17v3.5"></path></svg>
+<span style="display: flex; flex-direction: column; gap: 3px; min-width: 0"><span style="font-family: 'JetBrains Mono', monospace; font-size: 14px">{{ f.name }}</span><span style="font-size: 12px; color: {{f.whatColor}}">{{ f.what }}</span></span>
+<sc-if value="{{ f.unread }}" hint-placeholder-val="{{ true }}">
+<button type="button" onClick="{{ f.read }}" style="margin-left: auto; flex: none; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer">Read the QR codes</button>
+</sc-if>
+<sc-if value="{{ f.done }}" hint-placeholder-val="{{ false }}">
+<span style="margin-left: auto; flex: none; font-size: 12px; color: #8bd4b2">{{ f.result }}</span>
+</sc-if>
+</div>
+</sc-if>
+</sc-for>
+</div>
+<div style="flex-grow: 1"></div>
+<button type="button" style="align-self: flex-end; height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 14px; font-weight: 500">{{ copyLabel }}</button>
+</section>
+</div>
+<footer style="display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-radius: 12px; border: 1px solid #1f2933">
+<span style="font-size: 13px; color: #9aacb9">When you're done, remove the stick. Unlocking is offered once it's gone.</span>
+<a href="Unlock.dc.html" style="display: inline-flex; align-items: center; height: 40px; padding: 0 18px; border-radius: 10px; border: 1px solid #303d49; color: #e0e9ef; text-decoration: none; font-size: 14px; font-weight: 500">Done</a>
+</footer>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"font":{"editor":"enum","options":["Inter","IBM Plex Sans","Source Sans 3"],"default":"Inter","section":"Look"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { out: [true, true], inn: [true, false, false, false, false, false], read: {} };
+  }
+  renderVals() {
+    const stacks = { "Inter": "'Inter', sans-serif", "IBM Plex Sans": "'IBM Plex Sans', sans-serif", "Source Sans 3": "'Source Sans 3', sans-serif" };
+    const s = this.state;
+    const outDefs = [
+      { name: 'vault.ofv', what: 'Sealed vault · replaces the copy with the same identity', size: '1.0 MB' },
+      { name: 'signed.psbt', what: 'Signed PSBT from OpenSigner', size: '1.4 KB' }
+    ];
+    const inDefs = [
+      { name: 'unsigned.psbt', what: 'PSBT', size: '1.2 KB', ok: true },
+      { name: 'BOOTX64.EFI', what: 'Boot image', size: '9.7 MiB', ok: true },
+      { name: 'entries.txt', what: 'otpauth URIs and fields', size: '3 KB', ok: true },
+      { name: 'IMG_0412.jpg', image: true, what: 'JPEG · 2.3 MB', found: '1 code · signed PSBT for Savings · to Wallets' },
+      { name: 'cosigner.png', image: true, what: 'PNG · 180 KB', found: 'No QR code found' },
+      { name: 'statement.pdf', what: 'Not a kind of file Faraday reads', size: '410 KB', ok: false }
+    ];
+    const files = inDefs.map((f, i) => {
+      if (f.image) {
+        const done = !!s.read[f.name];
+        return {
+          isFile: false, isImage: true, name: f.name,
+          what: done ? 'Not copied' : f.what,
+          whatColor: done ? '#6f8291' : '#9aacb9',
+          unread: !done, done, result: f.found,
+          read: () => this.setState({ read: { ...s.read, [f.name]: true } })
+        };
+      }
+      return {
+        ...f,
+        isFile: true, isImage: false,
+        on: f.ok && s.inn[i],
+        disabled: !f.ok,
+        opacity: f.ok ? '1' : '0.45',
+        toggle: () => { if (!f.ok) return; const n = s.inn.slice(); n[i] = !n[i]; this.setState({ inn: n }); }
+      };
+    });
+    const nIn = files.filter((f) => f.on).length;
+    return {
+      font: this.props.font ?? 'Inter',
+      yes: true,
+      fontStack: stacks[this.props.font] || stacks.Inter,
+      outbox, files,
+      writeLabel: 'Write ' + nOut + (nOut === 1 ? ' file' : ' files'),
+      copyLabel: 'Copy ' + nIn + (nIn === 1 ? ' file' : ' files')
+    };
+  }
+}
+</script>
+</body>
+</html>

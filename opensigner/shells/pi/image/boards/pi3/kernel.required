@@ -1,0 +1,13 @@
+# What this board does not work without, on top of common/kernel.required.
+# The panel's own drivers are in the panel's file.
+
+MMC_BLOCK                 the card as a block device, which the exchange partition is mounted from
+SERIAL_AMBA_PL011_CONSOLE the PL011 on the GPIO header, the only console in the release image
+BCM2835_MBOX              the mailbox the framebuffer and the firmware driver run on
+RASPBERRYPI_FIRMWARE      the in-kernel firmware interface; clocks, power domains and the framebuffer all go through it
+RASPBERRYPI_POWER         the firmware power domains; the USB controller and the camera are behind them
+BCM2835_WDT               poweroff: this driver owns pm_power_off on a Pi, so the board does not power down without it
+DMA_BCM2835               the DMA channel that feeds the DPI panel
+PINCTRL_BCM2835           the pin multiplexing every other on-SoC driver depends on
+VIDEO_BCM2835             the legacy camera: the GPU runs the sensor and this publishes it as V4L2
+BCM2835_VCHIQ_MMAL        the transport VIDEO_BCM2835 talks to the GPU over

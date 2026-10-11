@@ -1,0 +1,139 @@
+# BIP-137 message signatures, copied from the test suites of the two
+# implementations most verifiers read (see README.md).
+#
+# Trezor's cases carry the mnemonic and path the key comes from; the
+# Trezor test seed is "all" twelve times with no passphrase. Its NFKD
+# twin of the "unusual characters" case is left out: Trezor normalises a
+# message to NFC before signing and this crate signs the text it was
+# given, byte for byte.
+#
+# Electrum's cases carry a WIF private key. Electrum writes a header in
+# the p2pkh range (31 to 34) whatever the address form, which is the case
+# `no-script-type: yes` stands for in Trezor's own vectors.
+
+case: trezor p2pkh mainnet
+source: trezor
+words: all all all all all all all all all all all all
+path: m/44h/0h/0h/0/0
+script: legacy
+address: 1JAd7XCBzGudGpJQSDSfpmJhiygtLQWaGL
+message: This is an example of a signed message.
+signature-hex: 20fd8f2f7db5238fcdd077d5204c3e6949c261d700269cefc1d9d2dcef6b95023630ee617f6c8acf9eb40c8edd704c9ca74ea4afc393f43f35b4e8958324cbdd1c
+
+case: trezor p2sh-p2wpkh mainnet
+source: trezor
+words: all all all all all all all all all all all all
+path: m/49h/0h/0h/0/0
+script: nested-segwit
+address: 3L6TyTisPBmrDAj6RoKmDzNnj4eQi54gD2
+message: This is an example of a signed message.
+signature-hex: 23744de4516fac5c140808015664516a32fead94de89775cec7e24dbc24fe133075ac09301c4cc8e197bea4b6481661d5b8e9bf19d8b7b8a382ecdb53c2ee0750d
+
+case: trezor p2wpkh mainnet
+source: trezor
+words: all all all all all all all all all all all all
+path: m/84h/0h/0h/0/0
+script: native-segwit
+address: bc1qannfxke2tfd4l7vhepehpvt05y83v3qsf6nfkk
+message: This is an example of a signed message.
+signature-hex: 28b55d7600d9e9a7e2a49155ddf3cfdb8e796c207faab833010fa41fb7828889bc47cf62348a7aaa0923c0832a589fab541e8f12eb54fb711c90e2307f0f66b194
+
+case: trezor p2sh-p2wpkh mainnet, p2pkh-range header
+source: trezor
+no-script-type: yes
+words: all all all all all all all all all all all all
+path: m/49h/0h/0h/0/0
+script: nested-segwit
+address: 3L6TyTisPBmrDAj6RoKmDzNnj4eQi54gD2
+message: This is an example of a signed message.
+signature-hex: 1f744de4516fac5c140808015664516a32fead94de89775cec7e24dbc24fe133075ac09301c4cc8e197bea4b6481661d5b8e9bf19d8b7b8a382ecdb53c2ee0750d
+
+case: trezor p2wpkh mainnet, p2pkh-range header
+source: trezor
+no-script-type: yes
+words: all all all all all all all all all all all all
+path: m/84h/0h/0h/0/0
+script: native-segwit
+address: bc1qannfxke2tfd4l7vhepehpvt05y83v3qsf6nfkk
+message: This is an example of a signed message.
+signature-hex: 20b55d7600d9e9a7e2a49155ddf3cfdb8e796c207faab833010fa41fb7828889bc47cf62348a7aaa0923c0832a589fab541e8f12eb54fb711c90e2307f0f66b194
+
+case: trezor p2pkh mainnet, unusual characters
+source: trezor
+words: all all all all all all all all all all all all
+path: m/44h/0h/0h/0/1
+script: legacy
+address: 1GWFxtwWmNVqotUPXLcKVL2mUKpshuJYo
+message: Příšerně žluťoučký kůň úpěl ďábelské ódy zákeřný učeň běží podél zóny úlů
+signature-hex: 2046a0b46e81492f82e0412c73701b9740e6462c603575ee2d36c7d7b4c20f0f33763ca8cb3027ea8e1ce5e83fda8b6746fea8f5c82655d78fd419e7c766a5e17a
+
+case: trezor p2pkh testnet
+source: trezor
+network: testnet
+words: all all all all all all all all all all all all
+path: m/44h/1h/0h/0/0
+script: legacy
+address: mvbu1Gdy8SUjTenqerxUaZyYjmveZvt33q
+message: This is an example of a signed message.
+signature-hex: 2030cd7f116c0481d1936cfef48137fd23ee56aaf00787bfa08a94837466ec9909390c3efacfc56bae5782f1db4cf49ae05f242b5f62a47f871ec46bf1a3253e7f
+
+case: trezor p2sh-p2wpkh testnet
+source: trezor
+network: testnet
+words: all all all all all all all all all all all all
+path: m/49h/1h/0h/0/0
+script: nested-segwit
+address: 2N4Q5FhU2497BryFfUgbqkAJE87aKHUhXMp
+message: This is an example of a signed message.
+signature-hex: 23ef39fd388c3425d6aaa04274dcd5c7dd4c283a411b616443474fbcde5dd966050d91bc7c57e9578f28efdd84c9a9bcba415f93c5727b5d3f2bf3de46d7084896
+
+case: trezor p2wpkh testnet
+source: trezor
+network: testnet
+words: all all all all all all all all all all all all
+path: m/84h/1h/0h/0/0
+script: native-segwit
+address: tb1qkvwu9g3k2pdxewfqr7syz89r3gj557l3uuf9r9
+message: This is an example of a signed message.
+signature-hex: 27758b3393396ad9fe48f6ce81f63410145e7b2b69a5dfc1d48b5e6e623e91e08e3afb60bda1546f9c6f9fb5bd0a41887b784c266036dd4b4015a0abc1137daa1d
+
+case: electrum p2pkh, compressed key
+source: electrum
+wif: L1TnU2zbNaAqMoVh65Cyvmcjzbrj41Gs9iTLcWbpJCMynXuap6UN
+script: legacy
+address: 15hETetDmcXm1mM4sEf7U2KXC9hDHFMSzz
+message: Chancellor on brink of second bailout for banks
+signature-base64: Hzsu0U/THAsPz/MSuXGBKSULz2dTfmrg1NsAhFp+wH5aKfmX4Db7ExLGa7FGn0m6Mf43KsbEOWpvUUUBTM3Uusw=
+
+case: electrum p2pkh, uncompressed key
+source: electrum
+wif: 5Hxn5C4SQuiV6e62A1MtZmbSeQyrLFhu5uYks62pU5VBUygK2KD
+script: legacy
+address: 1GPHVTY8UD9my6jyP4tb2TYJwUbDetyNC6
+message: Electrum
+signature-base64: HBQdYfv7kOrxmRewLJnG7sV6KlU71O04hUnE4tai97p7Pg+D+yKaWXsdGgHTrKw90caQMo/D6b//qX50ge9P9iI=
+
+case: electrum p2pkh, high-S signature accepted
+source: electrum
+address: 15hETetDmcXm1mM4sEf7U2KXC9hDHFMSzz
+script: legacy
+message: Chancellor on brink of second bailout for banks
+signature-base64: IDsu0U/THAsPz/MSuXGBKSULz2dTfmrg1NsAhFp+wH5a1gZoH8kE7O05lE65YLZFzLx3sh/rDzXMbo1dQAJhhnU=
+
+case: electrum p2sh-p2wpkh, p2pkh-range header
+source: electrum
+no-script-type: yes
+wif: L1cgMEnShp73r9iCukoPE3MogLeueNYRD9JVsfT1zVHyPBR3KqBY
+script: nested-segwit
+address: 3DYoBqQ5N6dADzyQjy9FT1Ls4amiYVaqTG
+message: Electrum
+signature-base64: HyFaND+87TtVbRhkTfT3mPNBCQcJ32XXtNZGW8sFldJsNpOPCegEmdcCf5Thy18hdMH88GLxZLkOby/EwVUuSeA=
+
+case: electrum p2wpkh, p2pkh-range header
+source: electrum
+no-script-type: yes
+wif: L1cgMEnShp73r9iCukoPE3MogLeueNYRD9JVsfT1zVHyPBR3KqBY
+script: native-segwit
+address: bc1qq2tmmcngng78nllq2pvrkchcdukemtj56uyue0
+message: Electrum
+signature-base64: HyFaND+87TtVbRhkTfT3mPNBCQcJ32XXtNZGW8sFldJsNpOPCegEmdcCf5Thy18hdMH88GLxZLkOby/EwVUuSeA=

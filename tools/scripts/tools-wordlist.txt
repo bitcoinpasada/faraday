@@ -1,0 +1,60 @@
+# Tools › Word list (docs/UX.md §7.5): the language Choice, the search in
+# each of its four notations, and one word's Record with the pager that
+# walks the list. Nothing here is a secret, so no screen carries the eye.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 23                        # HOME_TILE_BASE + 3: Tools
+snap wordlist-00-tools          # three tools live, five dimmed
+tapid 1701                      # TOOLS_WORD_LIST
+snap wordlist-01-language       # ten wordlists, English checked
+tapid 850                       # WORDLIST_LANG_BASE + 0: English
+tapid 860                       # WORDLIST_LANG_CONTINUE
+snap wordlist-02-search         # Search by · Word, and the Browse row
+text "zo"
+snap wordlist-03-candidates     # the words the list still has
+tapid 861                       # WORDLIST_BY: the notation Choice
+snap wordlist-04-by             # Word · Number · Binary · Hex · Browse
+tapid 211                       # PICK_BASE + 1: Number
+tapid 209                       # PICK_CONTINUE
+snap wordlist-05-number         # the digit pad
+padkey 863 2                    # WORDLIST_KEYBOARD
+padkey 863 0
+padkey 863 4
+padkey 863 9
+snap wordlist-06-out-of-range   # 2049: the reason, and ✓ dead
+key backspace
+key backspace
+key backspace
+key backspace
+padkey 863 1
+key enter
+snap wordlist-07-word           # abandon: number, index, binary, hex
+tapid 867                       # WORD_NEXT
+snap wordlist-08-next           # ability, and Previous live again
+tapid 2                         # BACK to the search
+tapid 861
+tapid 212                       # PICK_BASE + 2: Binary
+tapid 209
+snap wordlist-09-binary         # the two-key pad
+padkey 863 1
+padkey 863 1
+padkey 863 1
+padkey 863 1
+padkey 863 1
+padkey 863 1
+padkey 863 1
+padkey 863 1
+padkey 863 1
+padkey 863 1
+padkey 863 1
+key enter
+snap wordlist-10-binary-word    # zoo
+tapid 2
+tapid 861
+tapid 213                       # PICK_BASE + 3: Hex
+tapid 209
+snap wordlist-11-hex            # the hex keyboard
+padkey 863 7
+padkey 863 F
+padkey 863 F
+key enter
+snap wordlist-12-hex-word       # zoo again, by its three digits

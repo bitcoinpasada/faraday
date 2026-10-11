@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Wallets spend</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Source+Sans+3:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#83d8ef}a:hover{color:#b1e8f7}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; display: flex; background: #11161c; color: #e0e9ef; font-family: {{fontStack}}; overflow: hidden">
+<dc-import name="Sidebar" active="wallets" locked="{{ no }}" font="{{ font }}" hint-size="240px,800px"></dc-import>
+<main style="flex: 1; min-width: 0; display: flex">
+<div style="flex: 1; min-width: 0; overflow-y: auto; box-sizing: border-box; padding: 28px 32px 36px 40px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px">
+<a href="WalletsWallet.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #9aacb9; text-decoration: none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>Wallets</a>
+<h1 style="margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.02em">Sign a transaction</h1>
+</div>
+
+<section style="border-radius: 12px; background: #19212a; border: 1px solid {{s0.border}}">
+<button type="button" onClick="{{ s0.toggle }}" aria-expanded="{{ s0.expanded }}" style="width: 100%; display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 18px; border: 0; background: transparent; color: #e0e9ef; font-family: inherit; text-align: left; cursor: pointer">
+<span style="flex: none; width: 26px; height: 26px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: {{s0.badgeBg}}; color: {{s0.badgeFg}}">{{ s0.badge }}</span>
+<span style="font-size: 15px; font-weight: 600">Wallet</span>
+<sc-if value="{{ s0.closed }}" hint-placeholder-val="{{ true }}"><span style="margin-left: auto; font-size: 13px; color: #9aacb9">{{ s0.summary }}</span></sc-if>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6f8291" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-left: {{s0.chevMargin}}; transform: rotate({{s0.chevRot}})"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<sc-if value="{{ s0.open }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; gap: 16px; padding: 0 18px 18px 58px">
+<span style="display: flex; flex-direction: column; gap: 3px"><span style="font-size: 14px; font-weight: 500">Savings</span><span style="font-size: 12px; color: #9aacb9">2 of 3 · native SegWit multisig · from Main</span></span>
+<a href="WalletsWallet.dc.html" style="margin-left: auto; font-size: 13px">Other wallet</a>
+<button type="button" onClick="{{ s0.next }}" style="height: 40px; padding: 0 18px; border-radius: 10px; border: 0; background: #83d8ef; color: #0d1218; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Continue</button>
+</div>
+</sc-if>
+</section>
+
+<section style="border-radius: 12px; background: #19212a; border: 1px solid {{s1.border}}">
+<button type="button" onClick="{{ s1.toggle }}" aria-expanded="{{ s1.expanded }}" style="width: 100%; display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 18px; border: 0; background: transparent; color: #e0e9ef; font-family: inherit; text-align: left; cursor: pointer">
+<span style="flex: none; width: 26px; height: 26px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: {{s1.badgeBg}}; color: {{s1.badgeFg}}">{{ s1.badge }}</span>
+<span style="font-size: 15px; font-weight: 600">Check</span>
+<sc-if value="{{ s1.closed }}" hint-placeholder-val="{{ true }}"><span style="margin-left: auto; font-size: 13px; color: #9aacb9">{{ s1.summary }}</span></sc-if>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6f8291" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-left: {{s1.chevMargin}}; transform: rotate({{s1.chevRot}})"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<sc-if value="{{ s1.open }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 14px; padding: 0 18px 18px 58px">
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{ addrs }}" as="ad" hint-placeholder-count="3">
+<div style="display: flex; align-items: baseline; gap: 16px; padding: 8px 0; border-bottom: 1px solid #222c37">
+<span style="flex: none; width: 88px; font-size: 12px; color: #9aacb9">{{ ad.k }}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.5; word-spacing: 1px">{{ ad.v }}</span>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; gap: 8px">
+<button type="button" style="height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer">Show wallet QR</button>
+<button type="button" style="height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer">Is this address mine?</button>
+<button type="button" onClick="{{ s1.next }}" style="margin-left: auto; height: 40px; padding: 0 18px; border-radius: 10px; border: 0; background: #83d8ef; color: #0d1218; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Continue</button>
+</div>
+</div>
+</sc-if>
+</section>
+
+<section style="border-radius: 12px; background: #19212a; border: 1px solid {{s2.border}}">
+<button type="button" onClick="{{ s2.toggle }}" aria-expanded="{{ s2.expanded }}" style="width: 100%; display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 18px; border: 0; background: transparent; color: #e0e9ef; font-family: inherit; text-align: left; cursor: pointer">
+<span style="flex: none; width: 26px; height: 26px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: {{s2.badgeBg}}; color: {{s2.badgeFg}}">{{ s2.badge }}</span>
+<span style="font-size: 15px; font-weight: 600">Transaction</span>
+<sc-if value="{{ s2.closed }}" hint-placeholder-val="{{ true }}"><span style="margin-left: auto; font-size: 13px; color: #9aacb9">{{ s2.summary }}</span></sc-if>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6f8291" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-left: {{s2.chevMargin}}; transform: rotate({{s2.chevRot}})"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<sc-if value="{{ s2.open }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 14px; padding: 0 18px 18px 58px">
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<span style="display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border-radius: 17px; background: rgba(131,216,239,0.12); border: 1px solid rgba(131,216,239,0.35); font-size: 13px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#83d8ef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg><span style="font-family: 'JetBrains Mono', monospace">unsigned.psbt</span><span style="color: #9aacb9">Files</span></span>
+<button type="button" style="height: 34px; padding: 0 12px; border-radius: 17px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 13px; cursor: pointer">Scan</button>
+<button type="button" style="height: 34px; padding: 0 12px; border-radius: 17px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 13px; cursor: pointer">Type</button>
+</div>
+<div style="display: flex; flex-direction: column; border-radius: 10px; background: #11161c; border: 1px solid #222c37">
+<sc-for list="{{ review }}" as="r" hint-placeholder-count="4">
+<div style="display: flex; align-items: baseline; gap: 14px; padding: 10px 14px; border-bottom: 1px solid #19212a">
+<span style="flex: none; width: 64px; font-size: 12px; color: #9aacb9">{{ r.k }}</span>
+<span style="flex: none; font-family: 'JetBrains Mono', monospace; font-size: 14px; font-variant-numeric: tabular-nums">{{ r.amount }}</span>
+<span style="flex: 1; min-width: 0; font-size: 13px; color: #9aacb9">{{ r.rest }}</span>
+<span style="flex: none; font-size: 12px; color: {{r.noteColor}}">{{ r.note }}</span>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{ checks }}" as="c" hint-placeholder-count="4">
+<span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 13px; background: rgba(139,212,178,0.10); color: #8bd4b2; font-size: 12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>{{ c }}</span>
+</sc-for>
+</div>
+<sc-if value="{{ showTable }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; font-size: 12px">
+<div style="display: flex; gap: 12px; padding: 6px 0; color: #6f8291; border-bottom: 1px solid #222c37"><span style="width: 60px">Kind</span><span style="flex: 1">Address</span><span style="width: 110px; text-align: right">BTC</span></div>
+<sc-for list="{{ table }}" as="t" hint-placeholder-count="3">
+<div style="display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid #222c37">
+<span style="width: 60px; color: #9aacb9">{{ t.kind }}</span>
+<span style="flex: 1; min-width: 0; font-family: 'JetBrains Mono', monospace; word-break: break-all">{{ t.addr }}</span>
+<span style="width: 110px; text-align: right; font-family: 'JetBrains Mono', monospace">{{ t.btc }}</span>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<div style="display: flex; align-items: center; gap: 8px">
+<button type="button" onClick="{{ toggleTable }}" style="height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer">{{ tableLabel }}</button>
+<button type="button" onClick="{{ s2.next }}" style="margin-left: auto; height: 40px; padding: 0 18px; border-radius: 10px; border: 0; background: #83d8ef; color: #0d1218; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Continue</button>
+</div>
+</div>
+</sc-if>
+</section>
+
+<section style="border-radius: 12px; background: #19212a; border: 1px solid {{s3.border}}">
+<button type="button" onClick="{{ s3.toggle }}" aria-expanded="{{ s3.expanded }}" style="width: 100%; display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 18px; border: 0; background: transparent; color: #e0e9ef; font-family: inherit; text-align: left; cursor: pointer">
+<span style="flex: none; width: 26px; height: 26px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: {{s3.badgeBg}}; color: {{s3.badgeFg}}">{{ s3.badge }}</span>
+<span style="font-size: 15px; font-weight: 600">Transaction id</span>
+<sc-if value="{{ s3.closed }}" hint-placeholder-val="{{ true }}"><span style="margin-left: auto; font-size: 13px; color: #9aacb9; font-family: {{s3.sumFont}}">{{ s3.summary }}</span></sc-if>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6f8291" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-left: {{s3.chevMargin}}; transform: rotate({{s3.chevRot}})"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<sc-if value="{{ s3.open }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 0 18px 18px 58px">
+<div style="padding: 12px 14px; border-radius: 10px; background: #11161c; border: 1px solid #222c37; font-family: 'JetBrains Mono', monospace; font-size: 14px; line-height: 1.6; word-spacing: 2px">{{ txidGrouped }}</div>
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="font-size: 12px; color: #9aacb9">Unchanged by signing</span>
+<button type="button" onClick="{{ s3.next }}" style="margin-left: auto; height: 40px; padding: 0 18px; border-radius: 10px; border: 0; background: #83d8ef; color: #0d1218; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Continue</button>
+</div>
+</div>
+</sc-if>
+</section>
+
+<section style="border-radius: 12px; background: #19212a; border: 1px solid {{s4.border}}">
+<button type="button" onClick="{{ s4.toggle }}" aria-expanded="{{ s4.expanded }}" style="width: 100%; display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 18px; border: 0; background: transparent; color: #e0e9ef; font-family: inherit; text-align: left; cursor: pointer">
+<span style="flex: none; width: 26px; height: 26px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: {{s4.badgeBg}}; color: {{s4.badgeFg}}">{{ s4.badge }}</span>
+<span style="font-size: 15px; font-weight: 600">Signers</span>
+<sc-if value="{{ s4.closed }}" hint-placeholder-val="{{ true }}"><span style="margin-left: auto; font-size: 13px; color: #9aacb9">{{ s4.summary }}</span></sc-if>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6f8291" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-left: {{s4.chevMargin}}; transform: rotate({{s4.chevRot}})"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<sc-if value="{{ s4.open }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 0 18px 18px 58px">
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{ signers }}" as="k" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 14px; height: 46px; border-bottom: 1px solid #222c37">
+<span style="flex: none; width: 18px; font-size: 12px; color: #6f8291">{{ k.n }}</span>
+<span style="flex: none; width: 88px; font-family: 'JetBrains Mono', monospace; font-size: 14px">{{ k.fp }}</span>
+<span style="flex: 1; font-size: 13px; color: #9aacb9">{{ k.label }}</span>
+<span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 13px; background: {{k.chipBg}}; color: {{k.chipFg}}; font-size: 12px"><span style="width: 6px; height: 6px; border-radius: 3px; background: {{k.chipFg}}"></span>{{ k.role }}</span>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="font-size: 13px; color: #9aacb9">Needs 2 · 1 here</span>
+<button type="button" onClick="{{ s4.next }}" style="margin-left: auto; height: 40px; padding: 0 18px; border-radius: 10px; border: 0; background: #83d8ef; color: #0d1218; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Continue</button>
+</div>
+</div>
+</sc-if>
+</section>
+
+<section style="border-radius: 12px; background: #19212a; border: 1px solid {{s5.border}}">
+<button type="button" onClick="{{ s5.toggle }}" aria-expanded="{{ s5.expanded }}" style="width: 100%; display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 18px; border: 0; background: transparent; color: #e0e9ef; font-family: inherit; text-align: left; cursor: pointer">
+<span style="flex: none; width: 26px; height: 26px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: {{s5.badgeBg}}; color: {{s5.badgeFg}}">{{ s5.badge }}</span>
+<span style="font-size: 15px; font-weight: 600">Sign</span>
+<sc-if value="{{ s5.closed }}" hint-placeholder-val="{{ true }}"><span style="margin-left: auto; font-size: 13px; color: #9aacb9">{{ s5.summary }}</span></sc-if>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6f8291" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-left: {{s5.chevMargin}}; transform: rotate({{s5.chevRot}})"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<sc-if value="{{ s5.open }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; gap: 12px; padding: 0 18px 18px 58px">
+<sc-if value="{{ unsigned }}" hint-placeholder-val="{{ true }}">
+<span style="font-size: 13px; color: #9aacb9">9a6a2580 · Main · 1 input</span>
+<button type="button" onClick="{{ sign }}" style="margin-left: auto; height: 40px; padding: 0 18px; border-radius: 10px; border: 0; background: #83d8ef; color: #0d1218; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Sign with 9a6a2580</button>
+</sc-if>
+<sc-if value="{{ signed }}" hint-placeholder-val="{{ false }}">
+<span style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: #8bd4b2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Signed with 9a6a2580</span>
+<span style="font-size: 13px; color: #9aacb9">1 partly signed PSBT</span>
+</sc-if>
+</div>
+</sc-if>
+</section>
+
+<section style="border-radius: 12px; background: #19212a; border: 1px solid {{s6.border}}">
+<button type="button" onClick="{{ s6.toggle }}" aria-expanded="{{ s6.expanded }}" style="width: 100%; display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 18px; border: 0; background: transparent; color: #e0e9ef; font-family: inherit; text-align: left; cursor: pointer">
+<span style="flex: none; width: 26px; height: 26px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: {{s6.badgeBg}}; color: {{s6.badgeFg}}">{{ s6.badge }}</span>
+<span style="font-size: 15px; font-weight: 600">Signatures for this transaction</span>
+<sc-if value="{{ s6.closed }}" hint-placeholder-val="{{ true }}"><span style="margin-left: auto; font-size: 13px; color: #9aacb9">{{ s6.summary }}</span></sc-if>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6f8291" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-left: {{s6.chevMargin}}; transform: rotate({{s6.chevRot}})"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<sc-if value="{{ s6.open }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 0 18px 18px 58px">
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{ sigs }}" as="g" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 14px; height: 50px; border-bottom: 1px solid #222c37">
+<span style="flex: none; width: 88px; font-family: 'JetBrains Mono', monospace; font-size: 14px">{{ g.fp }}</span>
+<span style="flex: 1; font-size: 13px; color: #9aacb9">{{ g.label }}</span>
+<span style="font-size: 12px; color: {{g.stateColor}}">{{ g.state }}</span>
+<sc-if value="{{ g.canCollect }}" hint-placeholder-val="{{ false }}">
+<button type="button" onClick="{{ g.scan }}" style="height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer">Scan</button>
+<button type="button" onClick="{{ g.scan }}" style="height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer">From Files</button>
+</sc-if>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 8px">
+<button type="button" style="height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer">Show the PSBT as QR</button>
+<sc-if value="{{ complete }}" hint-placeholder-val="{{ false }}">
+<button type="button" onClick="{{ s6.next }}" style="margin-left: auto; height: 40px; padding: 0 18px; border-radius: 10px; border: 0; background: #83d8ef; color: #0d1218; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Continue</button>
+</sc-if>
+</div>
+</div>
+</sc-if>
+</section>
+
+<section style="border-radius: 12px; background: #19212a; border: 1px solid {{s7.border}}">
+<button type="button" onClick="{{ s7.toggle }}" aria-expanded="{{ s7.expanded }}" style="width: 100%; display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 18px; border: 0; background: transparent; color: #e0e9ef; font-family: inherit; text-align: left; cursor: pointer">
+<span style="flex: none; width: 26px; height: 26px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: {{s7.badgeBg}}; color: {{s7.badgeFg}}">{{ s7.badge }}</span>
+<span style="font-size: 15px; font-weight: 600">Finish</span>
+<sc-if value="{{ s7.closed }}" hint-placeholder-val="{{ true }}"><span style="margin-left: auto; font-size: 13px; color: #9aacb9">{{ s7.summary }}</span></sc-if>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6f8291" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-left: {{s7.chevMargin}}; transform: rotate({{s7.chevRot}})"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<sc-if value="{{ s7.open }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 0 18px 18px 58px">
+<sc-if value="{{ incomplete }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="font-size: 13px; color: #f0c077">{{ needLine }}</span>
+<button type="button" onClick="{{ goCollect }}" style="margin-left: auto; height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer">Collect</button>
+</div>
+</sc-if>
+<sc-if value="{{ complete }}" hint-placeholder-val="{{ true }}">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 10px; background: #11161c; border: 1px solid #222c37">
+<div style="display: flex; gap: 14px; align-items: flex-start">
+<div aria-label="QR code placeholder" style="flex: none; width: 92px; height: 92px; box-sizing: border-box; padding: 8px; border-radius: 6px; background: #ffffff; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 36px">
+<span style="width: 20px; height: 20px; box-sizing: border-box; border: 4px solid #0d1218"></span><span style="justify-self: end; width: 20px; height: 20px; box-sizing: border-box; border: 4px solid #0d1218"></span><span style="width: 20px; height: 20px; box-sizing: border-box; border: 4px solid #0d1218"></span><span></span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 3px">
+<span style="font-size: 14px; font-weight: 600">Signed PSBT</span>
+<span style="font-size: 12px; color: #9aacb9">For the wallet that wrote it · not finalised</span>
+<span style="font-size: 12px; color: #6f8291; font-family: 'JetBrains Mono', monospace">ur:crypto-psbt</span>
+</div>
+</div>
+<div style="display: flex; gap: 8px">
+<button type="button" style="height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer">Show as QR</button>
+<button type="button" onClick="{{ outPsbt }}" style="height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid {{psbtBtn.border}}; background: transparent; color: {{psbtBtn.fg}}; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer">{{ psbtBtn.label }}</button>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 10px; background: #11161c; border: 1px solid #222c37">
+<div style="display: flex; flex-direction: column; gap: 3px">
+<span style="font-size: 14px; font-weight: 600">Finished transaction</span>
+<span style="font-size: 12px; color: #9aacb9">Ready to broadcast · 189 vB</span>
+</div>
+<div style="padding: 8px 10px; border-radius: 8px; border: 1px solid #303d49; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.55; word-spacing: 1px">{{ txidGrouped }}</div>
+<div style="display: flex; gap: 8px">
+<button type="button" style="height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer">Decode this transaction</button>
+<button type="button" onClick="{{ outTx }}" style="height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid {{txBtn.border}}; background: transparent; color: {{txBtn.fg}}; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer">{{ txBtn.label }}</button>
+</div>
+</div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+</section>
+</div>
+
+<aside aria-label="This transaction" style="flex: none; width: 320px; box-sizing: border-box; background: #19212a; border-left: 1px solid #1f2933; padding: 32px 26px 26px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-size: 13px; font-weight: 500; color: #9aacb9">This transaction</h2>
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{ facts }}" as="f" hint-placeholder-count="6">
+<button type="button" onClick="{{ f.go }}" style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 0; border: 0; border-bottom: 1px solid #222c37; background: transparent; color: #e0e9ef; font-family: inherit; text-align: left; cursor: pointer">
+<span style="flex: none; font-size: 12px; color: #9aacb9">{{ f.k }}</span>
+<span style="font-size: 13px; color: {{f.color}}; font-family: {{f.font}}; text-align: right">{{ f.v }}</span>
+</button>
+</sc-for>
+</div>
+<div style="flex-grow: 1"></div>
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 12px; background: #11161c; border: 1px solid #222c37">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="font-size: 13px; color: #9aacb9">Signatures</span>
+<span style="margin-left: auto; display: flex; gap: 5px" aria-hidden="true">
+<sc-for list="{{ pips }}" as="p" hint-placeholder-count="2">
+<span style="width: 26px; height: 10px; border-radius: 5px; box-sizing: border-box; background: {{p.bg}}; border: 1px solid {{p.border}}"></span>
+</sc-for>
+</span>
+<span style="font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums">{{ countText }}</span>
+</div>
+<span style="font-size: 13px; color: {{needColor}}">{{ needLine }}</span>
+</div>
+<sc-if value="{{ error }}" hint-placeholder-val="{{ false }}">
+<span role="alert" style="font-size: 13px; color: #ef9b9b">{{ error }}</span>
+</sc-if>
+<sc-if value="{{ primaryIsLink }}" hint-placeholder-val="{{ false }}">
+<a href="Files.dc.html" style="display: flex; align-items: center; justify-content: center; height: 46px; border-radius: 10px; background: #83d8ef; color: #0d1218; text-decoration: none; font-size: 15px; font-weight: 600">Open Files</a>
+</sc-if>
+<sc-if value="{{ primaryIsButton }}" hint-placeholder-val="{{ true }}">
+<button type="button" onClick="{{ primary }}" style="height: 46px; border-radius: 10px; border: 0; background: #83d8ef; color: #0d1218; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer">{{ primaryLabel }}</button>
+</sc-if>
+</aside>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"font":{"editor":"enum","options":["Inter","IBM Plex Sans","Source Sans 3"],"default":"Inter","section":"Look"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      open: 1,
+      done: [true, false, false, false, false, false, false, false],
+      showTable: false,
+      signed: false,
+      got: { '5d388376': false, 'cf2e083d': false },
+      outPsbt: false,
+      outTx: false,
+      error: ''
+    };
+  }
+  renderVals() {
+    const stacks = { "Inter": "'Inter', sans-serif", "IBM Plex Sans": "'IBM Plex Sans', sans-serif", "Source Sans 3": "'Source Sans 3', sans-serif" };
+    const s = this.state;
+    const mono = "'JetBrains Mono', monospace";
+    const group = (a) => a.match(/.{1,4}/g).join(' ');
+    const short = (a) => { const g = a.match(/.{1,4}/g); return g.slice(0, 2).join(' ') + ' … ' + g[g.length - 1]; };
+
+    const rcpt = 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu';
+    const change = 'bc1q64r0d6sqdjh62p80ucxk52nec0tzgh0l4j5t4l2v3y6wftha23xqeqgnjv';
+    const input = 'bc1qjf9ay92pmy99ccnqcqc3skgvcd0mlqanju0we0dwuty9se2xp5ps50k8nx';
+    const txid = '6100a547510f86f1dd7ab039fad2825cbda05bbe2f83de9ebe5873b2f52ba08d';
+
+    const collected = Object.keys(s.got).filter((k) => s.got[k]).length;
+    const count = (s.signed ? 1 : 0) + collected;
+    const complete = count >= 2;
+    const missing = Math.max(0, 2 - count);
+    const finished = s.done[7] || (s.open === 7 && complete);
+
+    const summaries = [
+      'Savings · 2 of 3 · from Main',
+      'Addresses shown',
+      'Sends 0.01500000 BTC · fee 11.3 sat/vB',
+      short(txid),
+      '9a6a2580 here · 2 on other devices',
+      s.signed ? 'Signed with 9a6a2580' : 'Not signed yet',
+      count + ' of 2',
+      finished ? 'Signed PSBT and finished transaction' : 'Not finished yet'
+    ];
+
+    const advance = (i) => {
+      const done = s.done.slice();
+      done[i] = true;
+      const nextOpen = done.findIndex((d, j) => !d && j !== i);
+      this.setState({ done, open: nextOpen, error: '' });
+    };
+    const mkStep = (i) => {
+      const isOpen = s.open === i;
+      const done = s.done[i];
+      const reached = done || isOpen;
+      return {
+        open: isOpen,
+        closed: !isOpen,
+        expanded: isOpen ? 'true' : 'false',
+        summary: reached || i === 5 || i === 6 ? summaries[i] : 'Not reached yet',
+        sumFont: i === 3 && reached ? mono : 'inherit',
+        badge: done ? '✓' : String(i + 1),
+        badgeBg: done ? 'rgba(139,212,178,0.16)' : (isOpen ? '#83d8ef' : '#222c37'),
+        badgeFg: done ? '#8bd4b2' : (isOpen ? '#0d1218' : '#9aacb9'),
+        border: isOpen ? 'rgba(131,216,239,0.40)' : '#1f2933',
+        chevRot: isOpen ? '180deg' : '0deg',
+        chevMargin: isOpen ? 'auto' : '0',
+        toggle: () => this.setState({ open: isOpen ? -1 : i, error: '' }),
+        next: () => advance(i)
+      };
+    };
+
+    const addrs = [
+      { k: 'Receive 0/0', v: group(input) },
+      { k: 'Receive 0/1', v: group('bc1q83hunksrvhu0dr79feq0jz6p390xfwkgwmt26unwr36mndxgzuws7wzdvj') },
+      { k: 'Change 1/0', v: group(change) }
+    ];
+    const review = [
+      { k: 'Sends', amount: '0.01500000', rest: 'to ' + short(rcpt), note: '', noteColor: '#9aacb9' },
+      { k: 'Change', amount: '0.08497860', rest: 'to Savings 1/0', note: 'Verified', noteColor: '#8bd4b2' },
+      { k: 'Fee', amount: '0.00002140', rest: '11.3 sat/vB', note: '', noteColor: '#9aacb9' },
+      { k: 'Spends', amount: '0.10000000', rest: '1 input · Savings 0/0', note: 'Amount checked', noteColor: '#8bd4b2' }
+    ];
+    const checks = ['Change re-derives', 'Amount matches previous transaction', 'SIGHASH_ALL', 'Mainnet'];
+    const table = [
+      { kind: 'Input', addr: input, btc: '0.10000000' },
+      { kind: 'Output', addr: rcpt, btc: '0.01500000' },
+      { kind: 'Change', addr: change, btc: '0.08497860' }
+    ];
+    const signers = [
+      { n: 1, fp: '9a6a2580', label: 'Main', role: 'Signs here', chipBg: 'rgba(139,212,178,0.12)', chipFg: '#8bd4b2' },
+      { n: 2, fp: '5d388376', label: 'SeedSigner', role: 'Another device', chipBg: '#222c37', chipFg: '#9aacb9' },
+      { n: 3, fp: 'cf2e083d', label: 'Coldcard', role: 'Another device', chipBg: '#222c37', chipFg: '#9aacb9' }
+    ];
+    const sigs = [
+      { fp: '9a6a2580', label: 'Main', state: s.signed ? 'Signed here' : 'Not signed yet', stateColor: s.signed ? '#8bd4b2' : '#6f8291', canCollect: false }
+    ].concat([['5d388376', 'SeedSigner'], ['cf2e083d', 'Coldcard']].map(([fp, label]) => {
+      const have = s.got[fp];
+      const notNeeded = !have && complete;
+      return {
+        fp, label,
+        state: have ? 'Verified' : (notNeeded ? 'Not needed' : 'Waiting'),
+        stateColor: have ? '#8bd4b2' : '#6f8291',
+        canCollect: !have && !complete,
+        scan: () => this.setState({ got: { ...s.got, [fp]: true }, error: '' })
+      };
+    }));
+
+    const reachedTx = s.done[2] || s.open === 2;
+    const facts = [
+      { k: 'Wallet', v: 'Savings · 2 of 3', go: 0 },
+      { k: 'Sends', v: reachedTx ? '0.01500000 BTC' : 'Not read yet', go: 2, isMono: reachedTx },
+      { k: 'To', v: reachedTx ? short(rcpt) : '·', go: 2, isMono: reachedTx },
+      { k: 'Fee', v: reachedTx ? '2,140 sat · 11.3 sat/vB' : '·', go: 2 },
+      { k: 'Change', v: reachedTx ? '1/0 · verified' : '·', go: 2 },
+      { k: 'Txid', v: s.done[3] || s.open === 3 ? short(txid) : '·', go: 3, isMono: s.done[3] || s.open === 3 }
+    ].map((f) => ({
+      k: f.k, v: f.v,
+      color: f.v === 'Not read yet' || f.v === '·' ? '#6f8291' : '#e0e9ef',
+      font: f.isMono ? mono : 'inherit',
+      go: () => this.setState({ open: f.go, error: '' })
+    }));
+
+    const pips = [0, 1].map((i) => ({
+      bg: i < count ? '#8bd4b2' : 'transparent',
+      border: i < count ? '#8bd4b2' : '#303d49'
+    }));
+    let needLine = 'Complete';
+    if (!s.signed && missing === 2) needLine = 'Sign here and collect 1 more signature';
+    else if (missing > 0) needLine = 'Collect ' + missing + ' more signature';
+
+    const sign = () => {
+      const done = s.done.slice();
+      done[5] = true;
+      if (count + 1 >= 2) done[6] = true;
+      this.setState({ signed: true, done, open: count + 1 >= 2 ? 7 : 6, error: '' });
+    };
+
+    let primaryLabel = 'Sign with 9a6a2580';
+    let primary = () => {
+      const firstUndone = s.done.slice(0, 5).findIndex((d) => !d);
+      if (firstUndone !== -1) {
+        this.setState({ open: firstUndone, error: 'Finish step ' + (firstUndone + 1) + ' first.' });
+        return;
+      }
+      sign();
+    };
+    if (s.signed && !complete) {
+      primaryLabel = 'Collect ' + missing + ' more signature';
+      primary = () => this.setState({ open: 6, error: '' });
+    } else if (complete && !finished) {
+      primaryLabel = 'Finish';
+      primary = () => {
+        const done = s.done.slice();
+        done[5] = done[5] || s.signed;
+        done[6] = true;
+        done[7] = true;
+        this.setState({ done, open: 7, error: '' });
+      };
+    } else if (finished && !(s.outPsbt && s.outTx)) {
+      primaryLabel = 'Put both in the Outbox';
+      primary = () => this.setState({ outPsbt: true, outTx: true, error: '' });
+    }
+    const allOut = finished && s.outPsbt && s.outTx;
+    const outBtn = (on) => on
+      ? { label: 'In the Outbox', border: 'rgba(139,212,178,0.40)', fg: '#8bd4b2' }
+      : { label: 'Put in the Outbox', border: '#303d49', fg: '#e0e9ef' };
+
+    return {
+      font: this.props.font ?? 'Inter',
+      no: false,
+      fontStack: stacks[this.props.font] || stacks.Inter,
+      s0: mkStep(0), s1: mkStep(1), s2: mkStep(2), s3: mkStep(3),
+      s4: mkStep(4), s5: mkStep(5), s6: mkStep(6), s7: mkStep(7),
+      addrs, review, checks, table, signers, sigs, facts, pips,
+      showTable: s.showTable,
+      tableLabel: s.showTable ? 'Hide the table' : 'Show the table',
+      toggleTable: () => this.setState({ showTable: !s.showTable }),
+      txidGrouped: group(txid),
+      signed: s.signed,
+      unsigned: !s.signed,
+      sign,
+      complete,
+      incomplete: !complete,
+      goCollect: () => this.setState({ open: 6 }),
+      countText: count + ' of 2',
+      needLine: allOut ? 'Both in the Outbox · insert a stick to write them' : needLine,
+      needColor: complete ? '#8bd4b2' : '#f0c077',
+      psbtBtn: outBtn(s.outPsbt),
+      txBtn: outBtn(s.outTx),
+      outPsbt: () => this.setState({ outPsbt: true }),
+      outTx: () => this.setState({ outTx: true }),
+      error: s.error,
+      primaryLabel,
+      primary,
+      primaryIsLink: allOut,
+      primaryIsButton: !allOut
+    };
+  }
+}
+</script>
+</body>
+</html>

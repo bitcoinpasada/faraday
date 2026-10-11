@@ -1,0 +1,75 @@
+# The Files screen (DESIGN §5 Menu): what a shell that can list its files
+# answers a file request with, and what happens to the file that is
+# tapped. The listing is this shell's own dating of a real directory, so
+# the render is the same on every checkout.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # "Add key"
+pin 138 2580                    # LOAD_PIN_KEYBOARD: session PIN, first key of the session
+pin 138 2580                    # repeat it
+tapid 25                        # HOME_TILE_BASE + 5: Settings
+tapid 304                       # SETTINGS_NETWORK_ROW: the network Choice
+tapid 303                       # SETTINGS_NET_BASE + 3: Regtest, on the tap
+tapid 2                         # BACK: close the Choice
+tapid 2                         # BACK to Home
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 2203                      # WALLETS_ADD: the kinds of wallet
+tapid 63                        # BUILD_NEW: the one wizard
+tapid 1940                      # BUILD_KIND_BASE + 0: "Single-sig"
+tapid 1812                      # BUILD_KIND_CONTINUE
+tapid 1880                      # BUILD_WHICH_BASE + 0: the loaded key
+tapid 1802                      # BUILD_CONTINUE
+tapid 1822                      # BUILD_SCRIPT_BASE + 2: SegWit
+tapid 1800                      # BUILD_SCRIPT_CONTINUE
+tapid 1808                      # BUILD_ADD_WALLET: "Add this wallet"
+tapid 814                       # WALLET_SIGN: the scanner, expecting a transaction
+camera off
+files tools/vectors/psbt        # the card the shell can list
+tapid 701                       # SCAN_FILE: the request the list answers
+snap files-01-list              # one value row per file, newest first
+scrollid 4294967294 400        # ids::SCROLL: the rest of the list
+snap files-02-scrolled
+tapid 1303                      # FILES_ROW_BASE + 3: demo-regtest.psbt, the
+                                # request being for any file at all
+snap files-03-loaded            # the transaction the tap read
+tapid 2                         # BACK: leave the review, which lands on Home
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 90                        # WALLETS_POLICY_ROW_BASE + 0: the single-sig wallet
+tapid 814                       # WALLET_SIGN
+files tools/fixtures/qr         # a directory with no transaction on it
+tapid 701
+snap files-04-none              # the empty state
+tapid 2                         # BACK: no file chosen
+snap files-05-scanner           # the scanner is back as it was
+tapid 2                         # BACK to the wallet
+tapid 2                         # BACK to Wallets
+tapid 2                         # BACK to Home
+tapid 22                        # HOME_SCAN: HOME_TILE_BASE + 2
+files tools/vectors/psbt
+tapid 701                       # SCAN_FILE: the scanner's "Read a file"
+snap files-06-scanner-list
+tapid 1303                      # FILES_ROW_BASE + 3: demo-regtest.psbt, this
+                                # request being for any file at all
+snap files-07-scanner-read

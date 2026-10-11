@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The OpenSigner mark: a pixel key, 16 by 24 cells, drawn as exact squares
+  so it is crisp at every density and reads as pixels at every size. The
+  same grid is the Pi image's boot logo (opensigner/shells/pi/image/common/
+  mark.txt). Vector paths only: each path is the horizontal runs of one
+  colour, one rectangle per run, 2.5 dp a cell. The mark is 40 by 60 dp,
+  centred in the 108 dp canvas, inside the 66 dp safe zone, so no launcher
+  mask clips it. The body is the core's accent orange and the lit edge a
+  tint of it; the tile behind it is @color/launcher_background.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- The body of the key. -->
+    <path
+        android:fillColor="#FFFF9F0A"
+        android:pathData="M44,26.5h15v2.5h-15zM39,29h5v2.5h-5zM59,29h5v2.5h-5zM39,31.5h5v2.5h-5zM59,31.5h5v2.5h-5zM39,34h5v2.5h-5zM59,34h5v2.5h-5zM39,36.5h5v2.5h-5zM59,36.5h5v2.5h-5zM39,39h5v2.5h-5zM59,39h5v2.5h-5zM39,41.5h5v2.5h-5zM64,41.5h2.5v2.5h-2.5zM44,44h15v2.5h-15zM44,46.5h15v2.5h-15zM51.5,49h5v2.5h-5zM51.5,51.5h5v2.5h-5zM51.5,54h5v2.5h-5zM51.5,56.5h7.5v2.5h-7.5zM51.5,59h5v2.5h-5zM51.5,61.5h5v2.5h-5zM51.5,64h12.5v2.5h-12.5zM51.5,66.5h5v2.5h-5zM51.5,69h5v2.5h-5zM51.5,71.5h7.5v2.5h-7.5zM51.5,74h5v2.5h-5zM51.5,76.5h5v2.5h-5zM51.5,79h5v2.5h-5zM51.5,81.5h5v2.5h-5z" />
+
+    <!-- The lit edge along the top and left. -->
+    <path
+        android:fillColor="#FFFFC65A"
+        android:pathData="M44,24h15v2.5h-15zM39,26.5h5v2.5h-5zM59,26.5h5v2.5h-5zM36.5,29h2.5v2.5h-2.5zM64,29h2.5v2.5h-2.5zM36.5,31.5h2.5v2.5h-2.5zM44,31.5h15v2.5h-15zM64,31.5h2.5v2.5h-2.5zM36.5,34h2.5v2.5h-2.5zM44,34h2.5v2.5h-2.5zM56.5,34h2.5v2.5h-2.5zM64,34h2.5v2.5h-2.5zM36.5,36.5h2.5v2.5h-2.5zM44,36.5h2.5v2.5h-2.5zM56.5,36.5h2.5v2.5h-2.5zM64,36.5h2.5v2.5h-2.5zM36.5,39h2.5v2.5h-2.5zM44,39h15v2.5h-15zM64,39h2.5v2.5h-2.5zM36.5,41.5h2.5v2.5h-2.5zM39,44h5v2.5h-5zM59,44h5v2.5h-5zM49,49h2.5v2.5h-2.5zM49,51.5h2.5v2.5h-2.5zM49,54h2.5v2.5h-2.5zM49,56.5h2.5v2.5h-2.5zM49,59h2.5v2.5h-2.5zM49,61.5h2.5v2.5h-2.5zM49,64h2.5v2.5h-2.5zM49,66.5h2.5v2.5h-2.5zM49,69h2.5v2.5h-2.5zM49,71.5h2.5v2.5h-2.5zM49,74h2.5v2.5h-2.5zM49,76.5h2.5v2.5h-2.5zM49,79h2.5v2.5h-2.5zM49,81.5h2.5v2.5h-2.5z" />
+</vector>

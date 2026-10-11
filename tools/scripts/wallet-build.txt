@@ -1,0 +1,66 @@
+# The wallet builder (PLANNING §8.3 item 9): the 2-of-3 wallet of
+# tools/vectors/psbt/wallet-2of3.policy, built here instead of loaded.
+# The test key is loaded first and the device put on regtest, which is
+# the wallet's chain; the key's own BIP-48 account is the first cosigner
+# and the other two are read as files, one key per file.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # "Add key"
+pin 138 2580                    # LOAD_PIN_KEYBOARD: session PIN
+pin 138 2580                    # repeat it
+tapid 25                        # HOME_TILE_BASE + 5: Settings
+tapid 304                       # SETTINGS_NETWORK_ROW: the network Choice
+tapid 303                       # SETTINGS_NET_BASE + 3: Regtest, the wallet's chain
+tapid 2                         # BACK: close the Choice
+tapid 2                         # BACK to Home
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 2203                      # WALLETS_ADD: the kinds of wallet
+snap wallet-build-00-add        # the wizard and the scanner
+tapid 63                        # BUILD_NEW: the one wizard
+snap wallet-build-01-kind       # the six kinds, Single-sig checked
+tapid 1941                      # BUILD_KIND_BASE + 1: "Multisig"
+tapid 1812                      # BUILD_KIND_CONTINUE
+snap wallet-build-02-keys-none  # the loaded keys, none checked, Continue dead
+tapid 1880                      # BUILD_WHICH_BASE + 0: the loaded key
+snap wallet-build-04-keys-one   # one key checked, and Continue still dead
+tapid 1803                      # BUILD_WHICH_SCAN
+snap wallet-build-04a-scan      # a cosigner arrives by QR, file, clipboard or keyboard
+camera off                      # the cosigners arrive as files here
+file tools/vectors/psbt/wallet-2of3-cosigner-1.txt
+tapid 701                       # SCAN_FILE: "Read a file"
+tapid 1803                      # BUILD_WHICH_SCAN
+camera off
+file tools/vectors/psbt/wallet-2of3-cosigner-2.txt
+tapid 701                       # SCAN_FILE
+snap wallet-build-05-keys       # three keys: the device's, then the two scanned
+tapid 1802                      # BUILD_CONTINUE
+snap wallet-build-06-script     # which script type, SegWit checked
+tapid 1800                      # BUILD_SCRIPT_CONTINUE
+snap wallet-build-07-threshold  # how many must sign, 2 checked
+tapid 1921                      # BUILD_THRESHOLD_BASE + 1: two signatures
+tapid 1805                      # BUILD_THRESHOLD_CONTINUE
+snap wallet-build-08-review     # the wallet, read as any other wallet is
+tapid 1808                      # BUILD_ADD_WALLET: "Add this wallet"
+snap wallet-build-09-wallet     # its own page, with Home behind it

@@ -1,0 +1,8 @@
+# 12 words, 2 parts
+
+part 1 entropy: 593e46c0f75076c6ae771bfb77745bde
+part 1 words: float vendor rabbit upgrade alter globe right toddler window roof black rule
+part 2 entropy: 705f1142b2bd49a3a9835cbd62aea908
+part 2 words: icon weasel expose grace stand spike plastic high runway betray prevent axis
+seed entropy: 2961578245ed3f6507f4474615daf2d6
+seed words: city apple they mesh stadium raw cabin material ecology put royal public

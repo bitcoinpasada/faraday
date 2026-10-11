@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Files</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Source+Sans+3:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#83d8ef}a:hover{color:#b1e8f7}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; display: flex; background: #11161c; color: #e0e9ef; font-family: {{fontStack}}; overflow: hidden">
+<dc-import name="Sidebar" active="files" locked="{{ no }}" font="{{ font }}" hint-size="240px,800px"></dc-import>
+<main style="flex: 1; min-width: 0; box-sizing: border-box; padding: 36px 48px 32px; display: flex; flex-direction: column; gap: 24px">
+<header style="display: flex; align-items: center; justify-content: space-between">
+<h1 style="margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.02em">Files</h1>
+<span style="display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: 15px; background: #19212a; border: 1px solid #1f2933; font-size: 12px; color: #9aacb9">In memory · emptied at power-off</span>
+</header>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; flex-grow: 1; min-height: 0">
+<section aria-labelledby="in-h" style="display: flex; flex-direction: column; gap: 12px">
+<h2 id="in-h" style="margin: 0; display: flex; align-items: baseline; gap: 8px; font-size: 15px; font-weight: 600; color: #9aacb9">Inbox<span style="font-size: 13px; font-weight: 500; color: #6f8291">{{ inCount }}</span></h2>
+<sc-for list="{{ inbox }}" as="f" hint-placeholder-count="2">
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border-radius: 12px; background: #19212a; border: 1px solid #1f2933">
+<div style="display: flex; align-items: center; gap: 14px">
+<span style="flex: none; width: 36px; height: 36px; border-radius: 10px; background: rgba(131,216,239,0.10); color: #83d8ef; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg></span>
+<span style="display: flex; flex-direction: column; gap: 3px; min-width: 0"><span style="font-family: 'JetBrains Mono', monospace; font-size: 14px">{{ f.name }}</span><span style="font-size: 12px; color: #9aacb9">{{ f.what }}</span></span>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; padding-left: 50px">
+<a href="{{ f.href }}" style="display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 9px; background: #83d8ef; color: #0d1218; text-decoration: none; font-size: 13px; font-weight: 600">{{ f.action }}</a>
+<button type="button" onClick="{{ f.remove }}" style="height: 36px; padding: 0 12px; border-radius: 9px; border: 0; background: transparent; color: #9aacb9; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer">Remove</button>
+</div>
+</div>
+</sc-for>
+<sc-if value="{{ inEmpty }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; justify-content: center; min-height: 72px; border-radius: 12px; border: 1px dashed #303d49; font-size: 13px; color: #6f8291">Empty · files are copied in on a stick visit</div>
+</sc-if>
+</section>
+<section aria-labelledby="out-h" style="display: flex; flex-direction: column; gap: 12px">
+<h2 id="out-h" style="margin: 0; display: flex; align-items: baseline; gap: 8px; font-size: 15px; font-weight: 600; color: #9aacb9">Outbox<span style="font-size: 13px; font-weight: 500; color: #6f8291">1 ready</span></h2>
+<sc-for list="{{ outbox }}" as="f" hint-placeholder-count="2">
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border-radius: 12px; background: #19212a; border: 1px solid {{f.border}}">
+<div style="display: flex; align-items: center; gap: 14px">
+<span style="flex: none; width: 36px; height: 36px; border-radius: 10px; background: {{f.iconBg}}; color: {{f.iconFg}}; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg></span>
+<span style="display: flex; flex-direction: column; gap: 3px; min-width: 0"><span style="font-family: 'JetBrains Mono', monospace; font-size: 14px">{{ f.name }}</span><span style="font-size: 12px; color: #9aacb9">{{ f.what }}</span></span>
+<span style="margin-left: auto; font-size: 12px; color: {{f.stateColor}}; text-align: right">{{ f.state }}</span>
+</div>
+<sc-if value="{{ f.ready }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; align-items: center; gap: 8px; padding-left: 50px">
+<button type="button" style="height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer">Show as QR</button>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</section>
+</div>
+<div style="display: flex; align-items: center; gap: 16px">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #9aacb9"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v8.5"></path><path d="M6.5 6.5a7.8 7.8 0 1 0 11 0"></path></svg>Idle power-off waits while the Outbox holds files</span>
+<a href="LockSheet.dc.html" style="margin-left: auto; display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 20px; border-radius: 12px; border: 1px dashed rgba(131,216,239,0.45); background: rgba(131,216,239,0.06); color: #e0e9ef; text-decoration: none; font-size: 14px"><span style="width: 8px; height: 8px; border-radius: 4px; background: #83d8ef"></span>Waiting for a stick or card</a>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"font":{"editor":"enum","options":["Inter","IBM Plex Sans","Source Sans 3"],"default":"Inter","section":"Look"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { removed: {} };
+  }
+  renderVals() {
+    const stacks = { "Inter": "'Inter', sans-serif", "IBM Plex Sans": "'IBM Plex Sans', sans-serif", "Source Sans 3": "'Source Sans 3', sans-serif" };
+    const s = this.state;
+    const inDefs = [
+      { name: 'unsigned.psbt', what: 'PSBT · spends from Savings · 1.2 KB', action: 'Sign in Wallets', href: 'WalletsSpend.dc.html' },
+      { name: 'BOOTX64.EFI', what: 'Boot image · 9.7 MiB', action: 'Sign in Secure Boot', href: 'SecureBoot.dc.html' }
+    ];
+    const inbox = inDefs.filter((f) => !s.removed[f.name]).map((f) => ({
+      ...f,
+      remove: () => this.setState({ removed: { ...s.removed, [f.name]: true } })
+    }));
+    const outbox = [
+      { name: 'signed.psbt', what: 'Signed PSBT · Savings · 1.4 KB', state: 'Ready', ready: true },
+      { name: 'vault.ofv', what: 'Main · 2 unsaved changes', state: 'Added when you lock', ready: false }
+    ].map((f) => ({
+      ...f,
+      border: f.ready ? '#1f2933' : '#222c37',
+      iconBg: f.ready ? 'rgba(131,216,239,0.10)' : '#222c37',
+      iconFg: f.ready ? '#83d8ef' : '#9aacb9',
+      stateColor: f.ready ? '#8bd4b2' : '#f0c077'
+    }));
+    return {
+      font: this.props.font ?? 'Inter',
+      no: false,
+      fontStack: stacks[this.props.font] || stacks.Inter,
+      inbox, outbox,
+      inCount: String(inbox.length),
+      inEmpty: inbox.length === 0
+    };
+  }
+}
+</script>
+</body>
+</html>

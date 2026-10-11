@@ -1,0 +1,97 @@
+# The fuzz targets (`docs/PLANNING.md` §12, security review M5). This is
+# its own workspace, excluded from the root one, so that a nightly
+# `cargo fuzz` build with sanitizer flags never shares a target directory
+# or a resolved lock file with the pinned 1.97.0 workspace build.
+[package]
+name = "osk-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+osk-bip = { path = "../core/osk-bip" }
+osk-codec = { path = "../core/osk-codec" }
+osk-psbt = { path = "../core/osk-psbt" }
+osk-crypto = { path = "../core/osk-crypto" }
+osk-backup = { path = "../core/osk-backup" }
+osk-keep = { path = "../core/osk-keep" }
+opensigner-core = { path = "../opensigner/opensigner-core" }
+
+[profile.release]
+debug = true
+
+[[bin]]
+name = "classify"
+path = "fuzz_targets/classify.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "seedqr"
+path = "fuzz_targets/seedqr.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ur_receive"
+path = "fuzz_targets/ur_receive.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "psbt_parse"
+path = "fuzz_targets/psbt_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "policy"
+path = "fuzz_targets/policy.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "message_verify"
+path = "fuzz_targets/message_verify.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "settings_read"
+path = "fuzz_targets/settings_read.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "keep_open"
+path = "fuzz_targets/keep_open.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "xkey"
+path = "fuzz_targets/xkey.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "decode_luma"
+path = "fuzz_targets/decode_luma.rs"
+test = false
+doc = false
+bench = false

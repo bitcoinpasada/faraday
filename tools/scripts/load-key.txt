@@ -1,0 +1,85 @@
+# Walks the Load wizard with the BIP-39 test mnemonic
+# "abandon ×11 about" and the passphrase "TREZOR", snapping every step.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+snap load-00-home
+key tab                         # the ring is all a key adds (DESIGN §4.15)
+snap load-00b-home-focused
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD: "Load a key"
+snap load-01-source
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+snap load-02-count
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+snap load-03-language           # one list: English, then the rest
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+snap load-04-word-1-empty
+text "ab"
+snap load-05-word-1-ab
+# On the panel a candidate cell is 24 px and a fingertip covers it, so a
+# tap selects and the next accepts (PLANNING §16.50). On the larger
+# classes the word is typed out in full and one tap on it accepts
+# (PLANNING §16.118).
+on small cand 132 0             # LOAD_CANDIDATES cell 0: "abandon", selected
+on small snap load-05b-word-1-selected
+on small cand 132 0             # the second tap accepts it
+on mobile,wide word "andon"
+snap load-06-word-2                # the panel and the eye arrive with word 1
+on mobile,wide tapid 15         # SECRET_EYE: show the words so far (small has no panel, so no eye)
+on mobile,wide snap load-06b-word-2-eye
+on mobile,wide tapid 15         # eye off
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+snap load-07-word-12
+text "abo"
+snap load-08-word-12-abo
+key enter                       # the one word the checksum leaves; Enter takes
+                                # the candidate a tap would (PLANNING §16.118)
+snap load-09-checksum
+tapid 130                       # LOAD_CONTINUE
+snap load-10-passphrase-offer
+tapid 135                       # LOAD_ADD_PASSPHRASE
+tapid 105                       # LOAD_PASS_CONTINUE
+snap load-11-passphrase-empty
+text "TREZO"
+tick 100
+snap load-12-passphrase-typing  # last character still visible
+text "R"
+tick 600
+snap load-13-passphrase-masked
+key enter
+snap load-14-passphrase-confirm
+tapid 106                       # LOAD_WHICH_CONTINUE: the key with the passphrase
+snap load-15-confirm
+tapid 137                       # LOAD_HOLD: "Add key"
+snap load-16-pin                # first key of the session: set a session PIN
+pin 138 2580                    # LOAD_PIN_KEYBOARD
+snap load-17-pin-repeat
+pin 138 2580
+snap load-18-home-with-key
+# The other way in: an encrypted backup, read from a file rather than a
+# camera, and the passphrase that opens it. The vector is the one
+# tools/vectors/backup/README.md describes.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 2202                      # KEYS_ADD: the ways a key arrives
+tapid 60                        # KEYS_LOAD
+snap load-19-source-with-backup # the source list, "Encrypted backup" on it
+tapid 99                        # LOAD_SOURCE_BACKUP
+tapid 102                       # LOAD_SOURCE_CONTINUE: the scanner
+file tools/vectors/backup/backup-12-english.oskb
+tapid 701                       # SCAN_FILE: read it instead of scanning
+snap load-20-backup-passphrase
+text "correct horse battery staple"
+tick 600
+key enter
+snap load-21-backup-checksum    # the words are back: count, language, valid

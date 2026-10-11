@@ -1,0 +1,22 @@
+[package]
+name = "osk-qrgen"
+version = "0.1.0"
+description = "Writes the QR fixture PNGs the review scripts scan (tools/fixtures/qr); build-box tool"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "osk-qrgen"
+path = "src/main.rs"
+
+[dependencies]
+osk-codec = { path = "../../core/osk-codec", default-features = false }
+osk-bip = { path = "../../core/osk-bip" }
+osk-psbt = { path = "../../core/osk-psbt" }
+png.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,130 @@
+# Loads "abandon ×11 about", then reviews the QR outputs: the key's
+# wallet › Export (the menu, the string on the Compare screen, and the
+# code for each format and script type), Key detail › Backup › SeedQR
+# and CompactSeedQR (blank until held), and the Sign result as animated
+# BC-UR parts.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # "Add key"
+pin 138 2580                    # LOAD_PIN_KEYBOARD: session PIN, first key of the session
+pin 138 2580                    # repeat it
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 2203                      # WALLETS_ADD: the kinds of wallet
+tapid 63                        # BUILD_NEW: the one wizard
+tapid 1940                      # BUILD_KIND_BASE + 0: "Single-sig"
+tapid 1812                      # BUILD_KIND_CONTINUE
+tapid 1880                      # BUILD_WHICH_BASE + 0: the loaded key
+tapid 1802                      # BUILD_CONTINUE
+tapid 1822                      # BUILD_SCRIPT_BASE + 2: SegWit
+tapid 1800                      # BUILD_SCRIPT_CONTINUE
+tapid 1808                      # BUILD_ADD_WALLET: "Add this wallet"
+snap export-01-wallet-menu
+tapid 811                       # WALLET_EXPORT
+snap export-02-descriptor-menu
+tapid 296                       # EXPORT_TEXT: the descriptor as structure
+snap export-03b-descriptor-compare
+tapid 298                       # EXPORT_KEY: the account key inside it
+snap export-03c-account-key-compare
+tapid 208                       # COMPARE_DONE
+tapid 288                       # EXPORT_SHOW
+snap export-02-descriptor-code  # one code at the class's side, above the floor
+tapid 2                         # BACK to the export menu
+tapid 285                       # EXPORT_FORMAT
+tapid 212                       # PICK_BASE + 2: the SLIP-132 form
+tapid 209                       # PICK_CONTINUE
+snap export-06-slip132
+tapid 288                       # EXPORT_SHOW
+snap export-06b-slip132-code
+tapid 2                         # BACK to the export menu
+tapid 2                         # BACK to the wallet menu
+tapid 2                         # BACK to Wallets
+# A wallet pays to the script type it was added at, so the Taproot
+# addresses of the same key are a wallet of their own.
+tapid 2203                      # WALLETS_ADD
+tapid 63                        # BUILD_NEW: the one wizard
+tapid 1940                      # BUILD_KIND_BASE + 0: "Single-sig"
+tapid 1812                      # BUILD_KIND_CONTINUE
+tapid 1880                      # BUILD_WHICH_BASE + 0: the loaded key
+tapid 1802                      # BUILD_CONTINUE
+tapid 1823                      # BUILD_SCRIPT_BASE + 3: Taproot
+tapid 1800                      # BUILD_SCRIPT_CONTINUE
+tapid 1808                      # BUILD_ADD_WALLET: "Add this wallet"
+tapid 811                       # WALLET_EXPORT
+snap export-04-taproot-descriptor
+tapid 285                       # EXPORT_FORMAT
+snap export-04b-format-choice   # no SLIP-132 row: Taproot has no form
+tapid 211                       # PICK_BASE + 1: the account key
+tapid 209                       # PICK_CONTINUE
+snap export-05-account-key
+tapid 2                         # BACK to the wallet menu
+tapid 2                         # BACK to Wallets
+tapid 2                         # BACK to Home
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 2210                      # KEYS_ROW_BASE + 0: the loaded key
+snap export-01-key-menu
+tapid 202                       # DETAIL_BACKUP
+tapid 232                       # BACKUP_SEEDQR
+snap export-07-seedqr-masked
+pressid 635                     # CREATE_REVEAL: hold to show
+snap export-08-seedqr-held
+releaseid 635
+tapid 15                        # SECRET_EYE: 30 s with no finger on the panel
+snap export-08b-seedqr-eye
+tapid 15                        # eye off
+tapid 2                         # BACK to the backup menu
+tapid 233                       # BACKUP_COMPACT
+snap export-09-compact-masked
+pressid 635
+snap export-10-compact-held
+releaseid 635
+tapid 2                         # BACK to the backup menu
+tapid 2                         # BACK to the key menu
+tapid 2                         # BACK to the wallet
+tapid 2                         # BACK to Home
+tapid 25                        # HOME_TILE_BASE + 5: Settings
+tapid 304                       # SETTINGS_NETWORK_ROW: the network Choice
+tapid 303                       # Regtest, on the tap
+tapid 2                         # BACK: close the Choice
+tapid 2
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 90                        # WALLETS_POLICY_ROW_BASE + 0: the single-sig wallet
+tapid 814                       # WALLET_SIGN: the scanner, expecting a transaction
+camera off
+file tools/vectors/psbt/demo-regtest.psbt
+tapid 701                       # SCAN_FILE
+tapid 410                       # SIGN_CONTINUE: the outputs
+tapid 410                       # the second output
+tapid 410                       # the inputs
+tapid 410                       # confirm
+holdid 413                      # SIGN_HOLD
+snap export-11-sign-result
+tapid 402                       # SIGN_QR
+snap export-13-sign-ur-part-1
+tick 250
+snap export-14-sign-ur-part-2
+tick 250
+snap export-15-sign-ur-part-3
+tapid 2                         # BACK to the result
+tapid 2                         # BACK out of the Sign flow

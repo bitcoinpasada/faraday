@@ -1,0 +1,25 @@
+[package]
+name = "opensigner-snapshot"
+version = "0.1.0"
+description = "Headless shell that drives an App with a script and writes PNGs, for screen review"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "opensigner-snapshot"
+path = "src/main.rs"
+
+[dependencies]
+osk-shell-api = { path = "../../../core/osk-shell-api" }
+osk-ui = { path = "../../../core/osk-ui", features = ["gallery"] }
+opensigner-core = { path = "../../opensigner-core" }
+opensigner-scanner = { path = "../scanner" }
+png.workspace = true
+hmac.workspace = true
+sha2.workspace = true
+
+[lints]
+workspace = true

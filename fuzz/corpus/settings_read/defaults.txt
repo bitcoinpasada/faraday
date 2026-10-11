@@ -1,0 +1,9 @@
+opensigner-settings 1
+network=mainnet
+unit=btc
+lock_after_ms=60000
+wipe_after_ms=600000
+scramble_pin=off
+camera_rotation=0
+nonce=rfc6979
+schnorr=bip340

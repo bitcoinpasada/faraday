@@ -1,0 +1,88 @@
+#!/bin/sh
+# Faraday's rcS: upstream's (opensigner/shells/pi/image/common/
+# rootfs-overlay/etc/init.d/rcS at c418768) without a single mount of
+# storage (PLAN.md §4.1, §4.3). The kernel has no FAT driver; a stick's
+# partitions reach the disk process only through faraday-grant.
+#
+# The kernel mounts devtmpfs on /dev itself (CONFIG_DEVTMPFS_MOUNT), and
+# `mdev -s` applies /etc/mdev.conf's owners once. A stick's partition node
+# stays root's, mode 0600 or 0660, until faraday-grant decides.
+#
+# Upstream's mounts at 96e2144 (docs/PLANNING.md §16.140): nothing on
+# /proc, /sys or /dev is a program or a set-uid file, so none of the three
+# runs or honours one, and `hidepid=invisible` hides every process from
+# the processes of another user. The app, the disk process and the grant
+# helper read only /proc/cmdline, /proc/mounts and /proc/meminfo.
+mount -t proc -o nosuid,nodev,noexec,hidepid=invisible proc /proc
+mount -t sysfs -o nosuid,nodev,noexec sysfs /sys
+mount -o remount,nosuid,noexec /dev
+/sbin/mdev -s
+
+# Kernel addresses are hidden from every process, root's included, and no
+# process may trace another (Yama). Scope 3 cannot be lowered again until
+# the next boot.
+echo 2 > /proc/sys/kernel/kptr_restrict
+echo 3 > /proc/sys/kernel/yama/ptrace_scope
+
+# USB interfaces (PLAN.md §4.6): no root hub authorises an interface by
+# itself from here on. usbcore.authorized_default=2 already keeps every
+# device off a hard-wired port unauthorised; faraday-grant authorises
+# those devices and then their interfaces one class at a time.
+for f in /sys/bus/usb/devices/usb*/interface_authorized_default; do
+    [ -f "$f" ] && echo 0 > "$f"
+done
+
+# The clean marker's directory (PLAN.md §5.1): the app writes the marker
+# while it is clean and removes it when it is not, and the upgrade marker
+# beside it while it upgrades a stick (§5.5); faraday-grant reads both.
+mkdir -p /run/faraday-clean
+chown opensigner:opensigner /run/faraday-clean
+chmod 0755 /run/faraday-clean
+
+# The disk process's two pipes: requests from the app's shell, answers to
+# it. The disk process owns them and the app's group may use them; nobody
+# else can.
+mkdir -p /run/faraday-disk
+mkfifo -m 0660 /run/faraday-disk/requests /run/faraday-disk/responses
+chown ofdisk:opensigner /run/faraday-disk /run/faraday-disk/requests \
+    /run/faraday-disk/responses
+chmod 0750 /run/faraday-disk
+
+# The boot copier's two pipes (PLAN.md §5.5), made the same way: the
+# copier owns them and the app's group may use them. No file crosses
+# them; the app asks for the source to be read and a partition written.
+mkdir -p /run/faraday-boot
+mkfifo -m 0660 /run/faraday-boot/requests /run/faraday-boot/responses
+chown ofboot:opensigner /run/faraday-boot /run/faraday-boot/requests \
+    /run/faraday-boot/responses
+chmod 0750 /run/faraday-boot
+
+# The grant helper starts as root and gives up all but CAP_CHOWN before it
+# reads anything. It is started once: if it dies, no stick is handed out
+# again, which fails closed.
+/usr/bin/faraday-grant 2>/dev/kmsg &
+
+# Both helpers say what they say in the kernel log: the console this
+# script runs on refuses writes once it has ended.
+#
+# The disk process, unprivileged, started again if it ends. init cannot
+# do this itself: its `respawn` entries start only after the app loop, a
+# `wait` entry, has ended.
+(
+    while :; do
+        /bin/setpriv --nnp /usr/bin/setuidgid ofdisk /usr/bin/faraday-disk \
+            /run/faraday-disk/requests /run/faraday-disk/responses 2>/dev/kmsg
+        sleep 1
+    done
+) &
+
+# The boot copier, unprivileged, started again if it ends, as the disk
+# process is. It holds nothing until faraday-grant hands it a boot
+# partition, which happens only while the app upgrades a stick.
+(
+    while :; do
+        /bin/setpriv --nnp /usr/bin/setuidgid ofboot /usr/bin/faraday-boot \
+            /run/faraday-boot/requests /run/faraday-boot/responses 2>/dev/kmsg
+        sleep 1
+    done
+) &

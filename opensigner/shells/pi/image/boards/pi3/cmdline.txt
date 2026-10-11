@@ -1,0 +1,6 @@
+# The Raspberry Pi's part of the kernel command line.
+
+# The console is the PL011 on the GPIO header, which disable-bt in
+# config.txt frees for serial0, and nothing else: no kernel text can land
+# on the panel.
+console=serial0,115200

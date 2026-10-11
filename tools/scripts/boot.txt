@@ -1,0 +1,13 @@
+# The two screens a device gets at start instead of Home: what a Tier A
+# board says about secure boot, once, and the refusal a device whose
+# boot was not verified gets instead of the app. Each is a new start of
+# the app on that device (`restart`). The third start refusal, a failed
+# self-test, is made only by the core's own tests and no shell can ask
+# for it.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+restart tier=A                  # a board with no secure boot
+snap boot-01-no-secure-boot
+tapid 501                       # NO_SECURE_BOOT_CONTINUE: on to Home
+snap boot-02-home-tier-a
+restart tier=C boot=unverified  # an unlocked bootloader
+snap boot-03-refused            # the refusal and Exit, nothing else

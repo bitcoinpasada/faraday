@@ -1,0 +1,10 @@
+# The dev variant: an image for bringing up a new board or a new panel.
+#
+# It exists because the release image has no way in at all, which is the
+# point of it and useless when the question is why the panel is blank. It
+# never goes on a card that signs anything.
+
+# Root can log in, with an empty password, so the getty in the dev inittab
+# lets you in.
+BR2_TARGET_ENABLE_ROOT_LOGIN=y
+BR2_TARGET_GENERIC_ROOT_PASSWD=""

@@ -1,0 +1,167 @@
+# Kernel configuration for the Raspberry Pi 3B/3B+: the SoC's DMA engine,
+# its serial port, and the legacy camera stack.
+
+# ---- console ----
+# The kernel console is the PL011 on the GPIO header, which disable-bt in
+# config.txt frees for serial0.
+CONFIG_SERIAL_AMBA_PL011=y
+CONFIG_SERIAL_AMBA_PL011_CONSOLE=y
+
+# ---- DMA ----
+# The DPI framebuffer is fed by a DMA channel. The Pi defconfig has these,
+# and a build without them comes up with a blank panel.
+CONFIG_DMADEVICES=y
+CONFIG_DMA_BCM2835=y
+CONFIG_DMA_BCM2708=y
+
+# ---- camera, legacy stack (PLANNING.md 16.33) ----
+# start_x.elf runs the camera in the GPU; bcm2835-camera talks to it over
+# VCHIQ/MMAL and publishes the sensor as a plain V4L2 device, which is what
+# opensigner-v4l2 opens. This supports the OV5647 and the IMX219; the v3
+# module is not supported because it needs libcamera. The sensor is
+# addressed over the SoC's hardware i2c controller.
+CONFIG_I2C=y
+CONFIG_I2C_BCM2835=y
+CONFIG_MEDIA_SUPPORT=y
+# The filter narrows the media menu to one use. It has to be on: with it
+# off, every media type defaults to y and DVB_CORE, which has no prompt
+# and follows digital TV, cannot be turned off at all.
+CONFIG_MEDIA_SUPPORT_FILTER=y
+CONFIG_MEDIA_CAMERA_SUPPORT=y
+# CONFIG_MEDIA_ANALOG_TV_SUPPORT is not set
+# CONFIG_MEDIA_DIGITAL_TV_SUPPORT is not set
+# CONFIG_MEDIA_RADIO_SUPPORT is not set
+# CONFIG_MEDIA_SDR_SUPPORT is not set
+# CONFIG_MEDIA_PLATFORM_SUPPORT is not set
+# CONFIG_MEDIA_TEST_SUPPORT is not set
+CONFIG_VIDEO_DEV=y
+CONFIG_VIDEOBUF2_VMALLOC=y
+CONFIG_STAGING=y
+CONFIG_STAGING_MEDIA=y
+CONFIG_BCM2835_VCHIQ=y
+CONFIG_BCM2835_VCHIQ_MMAL=y
+CONFIG_VIDEO_BCM2835=y
+
+# ---- what the SoC needs, named because nothing else names it ----
+# With the defconfig's modules dropped (external/external.mk) a driver is
+# on this board only if a fragment says so. Every line below answers a
+# `compatible` string in bcm2710-rpi-3-b-plus.dtb; `strings` on the built
+# DTB is where the list comes from, not a guess.
+
+# brcm,bcm2835-gpio and the pin groups every other on-SoC driver takes
+# its pins from.
+CONFIG_GPIOLIB=y
+CONFIG_PINCTRL=y
+CONFIG_PINCTRL_BCM2835=y
+
+# brcm,bcm2835-cprman, and the clocks the firmware owns.
+CONFIG_COMMON_CLK=y
+CONFIG_CLK_BCM2835=y
+CONFIG_CLK_RASPBERRYPI=y
+
+# brcm,bcm2835-mbox and raspberrypi,bcm2835-firmware. The framebuffer,
+# the clocks and the power domains all go through the mailbox; what is
+# not built is the userspace door to it, /dev/vcio (common fragment).
+CONFIG_MAILBOX=y
+CONFIG_BCM2835_MBOX=y
+CONFIG_RASPBERRYPI_FIRMWARE=y
+
+# brcm,bcm2835-pm and the firmware power domains. The USB controller and
+# the camera sit behind them, so a kernel without these has neither.
+CONFIG_BCM2835_POWER=y
+CONFIG_RASPBERRYPI_POWER=y
+CONFIG_RESET_CONTROLLER=y
+
+# brcm,bcm2835-pm-wdt. This is the poweroff path: bcm2835_wdt takes
+# pm_power_off, and init's `poweroff -f` after the app exits is what
+# powers the board down. Nothing opens /dev/watchdog.
+CONFIG_WATCHDOG=y
+CONFIG_BCM2835_WDT=y
+
+# brcm,bcm2835-rng, the SoC's hardware generator, which feeds the pool
+# /dev/urandom draws the session key from.
+CONFIG_HW_RANDOM=y
+CONFIG_HW_RANDOM_BCM2835=y
+
+# ---- the card ----
+# brcm,bcm2835-sdhost and brcm,bcm2835-mmc are the two controllers the
+# Pi 3 boots and reads the exchange partition from. sdhci-iproc
+# (brcm,bcm2835-sdhci) is the SDIO controller the Wi-Fi chip is on, and
+# config.txt disables the radio, so it is not built.
+CONFIG_MMC=y
+CONFIG_MMC_BLOCK=y
+CONFIG_MMC_BCM2835_SDHOST=y
+CONFIG_MMC_BCM2835_MMC=y
+CONFIG_MMC_BCM2835_DMA=y
+# CONFIG_MMC_SDHCI_IPROC is not set
+
+# ---- USB: a webcam and nothing else (PLANNING.md 16.93) ----
+# brcm,bcm2708-usb is the board's host controller. It is kept on purpose,
+# with the USB video class on top, so a plain USB webcam appears as a
+# /dev/video* the shell can open — it takes the first one. Everything
+# else that USB could carry is out in the common fragment: gadget mode,
+# HID, mass storage, and the network adapters that went with CONFIG_NET.
+CONFIG_USB_SUPPORT=y
+CONFIG_USB=y
+CONFIG_USB_DWCOTG=y
+CONFIG_MEDIA_USB_SUPPORT=y
+CONFIG_USB_VIDEO_CLASS=y
+# The USB HID transport layer defaults to y whenever USB and INPUT are
+# both on, and it selects HID, which the common fragment turns off. Off
+# here is what makes that stick: the port carries a camera or nothing.
+# CONFIG_USB_HID is not set
+# CONFIG_HIDRAW is not set
+# CONFIG_USB_HIDDEV is not set
+
+# ---- what this board does not have (PLANNING.md 16.93) ----
+# The common fragment holds what no OpenSigner image builds. These four
+# are the Pi's own, and the stick board turns three of them on: a laptop's
+# keyboard and touchpad are HIDs and it boots from a USB disk.
+
+# The touch controller is the whole input device, and it is not a HID.
+# USB is kept for a webcam and for nothing else.
+# CONFIG_HID is not set
+
+# The only storage is the card the firmware booted from.
+# CONFIG_SCSI is not set
+# CONFIG_USB_STORAGE is not set
+
+# The firmware mailbox from userspace, /dev/vcio. This is the path
+# `vcgencmd otp_set` takes to burn the SoC's one-time-programmable rows:
+# 8 customer rows, 256 bits, exactly a 24-word seed, readable afterwards
+# with `vcgencmd otp_dump` on any card, and not wipeable at all.
+# CONFIG_BCM_VCIO is not set
+
+# ---- three things that stay on, each for one driver ----
+# CONFIG_PM, because the Raspberry Pi firmware power-domain driver depends
+# on it and both the USB controller and the camera sit behind those
+# domains; SUSPEND and HIBERNATION are out in the common fragment.
+# CONFIG_WATCHDOG, because BCM2835_WDT owns pm_power_off on a Pi and
+# `poweroff -f` — init's next line after the app exits — does nothing
+# without it. CONFIG_STAGING, because the legacy camera lives there.
+
+# ---- Faraday: no filesystem on the card is parsed by the kernel ----
+# (PLAN.md §4.2.) faraday-disk reads the card's data partition, unprivileged,
+# with its own FAT code; common/linux.fragment turns vfat on for upstream's
+# mount, and these lines turn it off again. MBR partitions stay, so the
+# card's partitions are their own nodes and the whole card is never handed
+# out.
+# CONFIG_FAT_FS is not set
+# CONFIG_VFAT_FS is not set
+# CONFIG_MSDOS_FS is not set
+# CONFIG_EXFAT_FS is not set
+# CONFIG_NTFS3_FS is not set
+# CONFIG_ISO9660_FS is not set
+# CONFIG_UDF_FS is not set
+CONFIG_PARTITION_ADVANCED=y
+CONFIG_MSDOS_PARTITION=y
+# USB is kept for a webcam (PLAN.md §4.6): no printer, no traffic monitor.
+# CONFIG_USB_PRINTER is not set
+# CONFIG_USB_MON is not set
+
+# ---- Faraday: no core dumps (PLAN.md §5.3) ----
+# A crashing app would write its memory, keys included, to a file. The
+# core limit is 0 by default; this takes the feature out of the kernel so
+# nothing in userspace can raise it. The prompt needs EXPERT.
+CONFIG_EXPERT=y
+# CONFIG_COREDUMP is not set

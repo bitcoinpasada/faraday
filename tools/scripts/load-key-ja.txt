@@ -1,0 +1,44 @@
+# Walks the Load wizard on the Japanese list, typing on the kana grid.
+# The mnemonic is the one 0x12 repeated sixteen times encodes; its first
+# word takes the 小 key (よ becomes ょ) and its second the ゛ key
+# (た becomes だ). No eye here: a Japanese word can be seven kana, which
+# is one column of the panel on a phone, so the entry screen carries no
+# panel there and no eye with it (docs/PLANNING.md §16.41);
+# load-key-ko.txt walks the panel and the eye. Widget ids are the
+# constants in opensigner/opensigner-core/src/ids.rs.
+snap load-ja-00-home
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD: "Load a key"
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+snap load-ja-01-language        # Japanese is a row that takes now
+tapid 121                       # LOAD_LANG_BASE + 1: Japanese
+tapid 104                       # LOAD_LANG_CONTINUE
+snap load-ja-02-word-1-empty    # the 五十音, every key live
+text "いん"
+snap load-ja-03-word-1-in       # dead keys dimmed by what いん leaves
+text "しよ"
+snap load-ja-04-before-small    # いんしよ: the 小 key is live
+text "小"
+snap load-ja-05-after-small     # いんしょ
+word "う"
+snap load-ja-06-word-2          # word 1 accepted
+text "た"
+snap load-ja-08-before-dakuten  # た: the ゛ key is live
+text "゛"
+snap load-ja-09-after-dakuten   # だ
+word "んち"
+word "たいけん"
+word "おつ小と"
+word "おき゛なう"
+word "いしき"
+word "けんか"
+word "け゛きやく"
+word "いんしよ小う"
+word "た゛んち"
+word "たいけん"
+snap load-ja-10-word-12
+word "おもいて゛"
+snap load-ja-11-checksum

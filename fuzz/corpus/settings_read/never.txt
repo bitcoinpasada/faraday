@@ -1,0 +1,4 @@
+opensigner-settings 1
+network=testnet
+wipe_after_ms=never
+lock_after_ms=18446744073709551615

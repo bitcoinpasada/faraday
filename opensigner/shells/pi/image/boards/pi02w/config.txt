@@ -1,0 +1,37 @@
+# OpenSigner: the firmware configuration, assembled by build.sh from this
+# header, the board's part and the panel's part.
+#
+# The GPU firmware reads this file before the ARM cores start. It picks the
+# firmware variant, sets the panel up, and hands Linux a ready framebuffer.
+# Everything here is editable on the FAT partition of a written card, so a
+# wrong value can be fixed without rebuilding the image.
+
+kernel=zImage
+boot_delay=0
+# No rainbow splash: the kernel's own logo, generated at the panel's size,
+# is what the panel shows until the app's first frame.
+disable_splash=1
+
+# ---- Raspberry Pi Zero 2 W ----
+# The same BCM2710 as the 3B+, so the same firmware settings.
+#
+# The camera variant of the firmware. start_x.elf carries the camera code
+# that publishes the sensor as a V4L2 device; start.elf does not.
+start_file=start_x.elf
+fixup_file=fixup_x.dat
+start_x=1
+
+# The firmware drives both a DPI panel and the camera out of GPU memory.
+# 128 MB is what that pair needs; the stock 64 MB is not enough.
+gpu_mem=128
+
+# SPI0 is on GPIO 7-11, which the DPI data lines and a bit-banged i2c bus
+# both use. Nothing here wants SPI.
+dtparam=spi=off
+
+# The device signs offline. No radios, and the analogue audio block is dead
+# weight. Turning Bluetooth off also returns the PL011 UART to serial0,
+# which is where the kernel console goes.
+dtoverlay=disable-wifi
+dtoverlay=disable-bt
+dtparam=audio=off

@@ -1,0 +1,5 @@
+# The dev variant's additions to the kernel command line. Which console
+# the probe lines go to is the board's: boards/<board>/dev/cmdline.txt.
+
+# The probe lines are only useful if they are printed.
+-quiet

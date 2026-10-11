@@ -1,0 +1,10 @@
+# 24 words, 3 parts
+
+part 1 entropy: 73a96f9c9114b9f5bf10ff23e52ed21793b93b5433500084d672b0b4ba28e4a1
+part 1 words: inhale enter transfer captain entire width wisdom cable catalog city region connect describe oval express head above chase original gesture entry behave myth coyote
+part 2 entropy: 7b443b6fb294a06ba139854cc731234606e027c0caa75ff27461043fa8b08788
+part 2 words: kitten canyon swim gown energy cupboard lumber cost error define emotion metal host become add female garment neck blue anchor whisper flame bullet boy
+part 3 entropy: fb818bdab5a33918b3a0e8afa8fe9f40023d3049354fd6220c0ebdbd0b67b258
+part 3 words: wine arrange wall hero crime middle soldier brown quick elevator pond length cat oblige cave prepare stomach away admit kiwi spawn record siren brand
+seed entropy: f36cdf2996232086ad8992c08ae16e1197642cddccb88954ae1d093619ffd171
+seed words: vibrant group skill clump craft drive renew crane scene finish fortune case iron biology jaguar novel matter pistol mansion bar ghost zoo easy cave

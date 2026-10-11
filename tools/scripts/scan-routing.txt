@@ -1,0 +1,158 @@
+# Drives Home › Scan through every row of the UX.md §4 routing table with
+# the fixtures in tools/fixtures/qr (made by `just qr-fixtures` from the
+# BIP-39 test mnemonic and the regtest demo PSBT), then the no-camera file
+# fallback, the "Scan" rows inside Load and Sign, and Verify › address,
+# whose entry menu now carries the scan row.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+snap scan-00-home
+tapid 22                        # HOME_SCAN: HOME_TILE_BASE + 2
+# A room with no QR in it: the square shows the camera's own frame, and
+# the brackets, the state line and the parts bar are drawn over it.
+frame tools/fixtures/camera/room.png
+snap scan-01-viewfinder
+frame tools/fixtures/qr/seedqr-abandon.png
+snap scan-02-seedqr-confirm     # entry and the language step both skipped
+tapid 139                       # LOAD_LANG_OTHER: the language is one tap away
+snap scan-03-word-language
+key escape                      # back to the result
+key escape                      # cancel the wizard
+tapid 22
+frame tools/fixtures/qr/compactseedqr-abandon.png
+snap scan-04-compact-confirm
+key escape
+tapid 22
+frame tools/fixtures/qr/words.png
+snap scan-05-words-caution
+tapid 705                       # SCAN_CONTINUE
+snap scan-06-words-confirm      # the words name their language
+key escape
+# Load the test key so that an address can be recognised.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # "Add key"
+pin 138 2580                    # LOAD_PIN_KEYBOARD: session PIN, first key of the session
+pin 138 2580                    # repeat it
+tapid 22
+frame tools/fixtures/qr/address.png
+snap scan-07-address-yours
+tapid 713                       # VERIFY_ADDRESS: the address, whole
+snap scan-07b-address-compare
+tapid 696                       # COPY: an address is a public string
+snap scan-07c-address-copied    # "Copied" on the caption line
+tapid 208                       # COMPARE_DONE
+tapid 714                       # VERIFY_CLEAR: back to the scanner
+snap scan-08-verify-scan        # the square, and the three ways in
+tapid 709                       # SCAN_TYPE: the address field
+text "bc1qw5"
+snap scan-09b-verify-typing-head   # §4.3: the block is there from the first character
+text "08d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"
+snap scan-09-verify-typing         # the whole address above the field
+key enter
+snap scan-10-verify-not-found   # the BIP-173 example address
+tapid 714                       # VERIFY_CLEAR
+clipboard "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"
+tapid 708                       # SCAN_PASTE: the clipboard through the same router
+snap scan-11-verify-pasted      # a pasted address is checked the same way
+tapid 2                         # BACK out of the result
+tapid 2                         # BACK to Home
+tapid 22
+frame tools/fixtures/qr/xpub.png
+snap scan-12a-xpub-script       # a bare key is asked what it pays to
+tapid 2                         # BACK: leave it as the document it is
+snap scan-12-xpub
+tapid 2
+tapid 22
+frame tools/fixtures/qr/descriptor.png
+snap scan-13-descriptor
+tapid 2
+tapid 22
+frame tools/fixtures/qr/unknown.png
+snap scan-14-unknown
+tapid 706                       # SCAN_HEX: the bytes, whole
+snap scan-14b-unknown-hex
+tapid 208                       # COMPARE_DONE
+tapid 704                       # SCAN_AS_TEXT
+snap scan-15-unknown-as-text
+tapid 2                         # The demo PSBT is regtest.
+tapid 25                        # HOME_TILE_BASE + 5: Settings
+tapid 304                       # SETTINGS_NETWORK_ROW: the network Choice
+tapid 303                       # SETTINGS_NET_BASE + 3: Regtest, on the tap
+tapid 2                         # BACK: close the Choice
+tapid 2                         # BACK: leave Settings
+tapid 22
+frame tools/fixtures/qr/psbt-demo.png
+snap scan-16-psbt-summary
+tapid 2                         # BACK: Home, since a transaction that arrived
+                                # has nothing behind it
+tapid 22
+frame tools/fixtures/qr/psbt-ur-3-of-4.png
+snap scan-17-ur-progress        # parts arrive in any order
+frame tools/fixtures/qr/psbt-ur-1-of-4.png
+frame tools/fixtures/qr/psbt-ur-2-of-4.png
+frame tools/fixtures/qr/psbt-ur-4-of-4.png
+snap scan-18-ur-psbt-summary
+tapid 2                         # BACK to Home
+# The Scan rows inside Load and a wallet, while there is still a camera.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 2202                      # KEYS_ADD: the ways a key arrives
+tapid 60                        # KEYS_LOAD
+snap scan-21-load-source
+tapid 101                       # LOAD_SOURCE_SCAN: check the scan row
+tapid 102                       # LOAD_SOURCE_CONTINUE: open the scanner
+snap scan-22-load-scan-expect
+tapid 2                         # BACK out of the scanner, to Add a key
+tapid 2                         # BACK to Keys
+tapid 2                         # BACK to Home
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 2203                      # WALLETS_ADD: the kinds of wallet
+tapid 63                        # BUILD_NEW: the one wizard
+tapid 1940                      # BUILD_KIND_BASE + 0: "Single-sig"
+tapid 1812                      # BUILD_KIND_CONTINUE
+tapid 1880                      # BUILD_WHICH_BASE + 0: the loaded key
+tapid 1802                      # BUILD_CONTINUE
+tapid 1822                      # BUILD_SCRIPT_BASE + 2: SegWit
+tapid 1800                      # BUILD_SCRIPT_CONTINUE
+tapid 1808                      # BUILD_ADD_WALLET: "Add this wallet"
+snap scan-23-wallet
+tapid 814                       # WALLET_SIGN: the scanner, expecting a transaction
+snap scan-24-sign-scan-expect
+tapid 2                         # BACK out of the scanner
+tapid 2                         # BACK to Wallets
+tapid 2                         # BACK to Home
+# No camera: the file row under the viewfinder, and from then on the
+# Load source list draws its scan row dead with the reason beside it.
+camera off
+tapid 22
+snap scan-19-no-camera
+file tools/vectors/psbt/demo-regtest.psbt
+tapid 701                       # SCAN_FILE
+snap scan-20-file-routed
+tapid 2                         # BACK to Home
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 2202                      # KEYS_ADD: the ways a key arrives
+tapid 60                        # KEYS_LOAD
+snap scan-26-load-source-no-camera
+key escape
+tapid 2
+snap scan-25-home

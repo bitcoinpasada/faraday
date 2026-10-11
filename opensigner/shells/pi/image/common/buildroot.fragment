@@ -1,0 +1,72 @@
+# Buildroot options that hold for every board and every panel.
+#
+# The board directory adds the architecture, the kernel and the firmware;
+# the panel directory adds whatever the panel itself needs; `build.sh`
+# adds the file paths, which depend on the combination being built. What
+# is here is the shape of the system: an initramfs, BusyBox, one program,
+# and nothing that could talk to a network or log anyone in.
+
+# Two builders must get the same bytes (PLANNING.md 11.1).
+BR2_REPRODUCIBLE=y
+
+# One compiler cache for every variant, mounted at /ccache. Building a
+# second board or panel then costs the packages that differ and not the
+# toolchain.
+BR2_CCACHE=y
+BR2_CCACHE_DIR="/ccache"
+
+BR2_TARGET_GENERIC_HOSTNAME="opensigner"
+BR2_TARGET_GENERIC_ISSUE=""
+# No account can be logged into, and no getty offers the chance. Root is
+# locked outright: with root login off, Buildroot writes "*" into the
+# password field, which no password matches. (Setting the password to "*"
+# would not do it: Buildroot hashes whatever it is given, and the result
+# is a real password of one character.)
+# BR2_TARGET_ENABLE_ROOT_LOGIN is not set
+BR2_TARGET_GENERIC_GETTY_PORT=""
+# Device nodes come from the kernel's devtmpfs. Buildroot's mdev mode is
+# not used, because it turns CONFIG_NET on in the kernel behind the
+# fragments' back (linux.mk's KCONFIG_FIXUP_CMDS: mdev in daemon mode
+# reads uevents from a netlink socket). This image never runs mdev as a
+# daemon — rcS runs `mdev -s` once, to apply common/rootfs-overlay/etc/
+# mdev.conf's ownership to the nodes the kernel already made — and it has
+# no hotplug helper, because nothing is plugged in after boot.
+BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_DEVTMPFS=y
+
+# ---- kernel ----
+# The tree, the defconfig and the DTBs are the board's; every board has a
+# kernel and every kernel takes our fragments.
+BR2_LINUX_KERNEL=y
+
+# ---- our packages ----
+BR2_PACKAGE_OPENSIGNER_PI=y
+BR2_PACKAGE_OPENSIGNER_PI_BINARY="/binary/opensigner-pi"
+
+# ---- userspace ----
+# musl, and only static libraries. BusyBox is the one package Buildroot
+# builds for the target — the shell binary is cross-compiled on the host
+# and installed as a file — so the 2.2 MB of glibc shared objects in the
+# rootfs existed for BusyBox alone. Static linking removes them; musl is
+# how, because Buildroot's "static only" is not offered with glibc
+# (BR2_STATIC_LIBS depends on !BR2_TOOLCHAIN_USES_GLIBC). Nothing in the
+# image dlopens anything, and nothing needs glibc's NSS.
+BR2_TOOLCHAIN_BUILDROOT_MUSL=y
+BR2_STATIC_LIBS=y
+
+# BusyBox is init, one shell and mdev; common/busybox.fragment takes the
+# rest away. No other package is selected: the device has no IP address,
+# so nothing that speaks to a network is built at all, and there is no
+# package here that could be persuaded to open a socket.
+
+# ---- filesystem and image ----
+# The rootfs is an initramfs linked into zImage. No ext4 root partition, no
+# swap, nothing on the card that the running system reads or writes.
+BR2_TARGET_ROOTFS_CPIO=y
+BR2_TARGET_ROOTFS_CPIO_GZIP=y
+BR2_TARGET_ROOTFS_INITRAMFS=y
+# BR2_TARGET_ROOTFS_TAR is not set
+
+# Tools that build the card image itself.
+BR2_PACKAGE_HOST_DOSFSTOOLS=y
+BR2_PACKAGE_HOST_GENIMAGE=y
+BR2_PACKAGE_HOST_MTOOLS=y

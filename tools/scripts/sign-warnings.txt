@@ -1,0 +1,81 @@
+# Loads "abandon ×11 about", switches to regtest, then walks three of the
+# committed warning fixtures (tools/vectors/psbt/warn-*.psbt, see the
+# README there) as far as the Warnings step of the Sign flow: a blocked
+# warning with no acknowledgement offered, a caution, and a piece of
+# information. Same key and network as sign-psbt.txt.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # "Add key"
+pin 138 2580                    # LOAD_PIN_KEYBOARD: session PIN, first key of the session
+pin 138 2580                    # repeat it
+tapid 25                        # HOME_TILE_BASE + 5: Settings
+tapid 304                       # SETTINGS_NETWORK_ROW: the network Choice
+tapid 303                       # SETTINGS_NET_BASE + 3: Regtest, on the tap
+tapid 2                         # BACK: close the Choice
+tapid 2                         # BACK to Home
+camera off                      # every transaction here arrives as a file
+
+# A blocked warning: the change output claims our key and pays the
+# recipient, and reuses that address, so ChangeSpoof (blocked) and
+# AddressReuse (caution) are on one screen. A blocked warning offers no
+# acknowledgement row (PLANNING #16.54): the signer refuses the
+# transaction outright and the step cannot pass.
+tapid 22                        # HOME_SCAN: HOME_TILE_BASE + 2
+file tools/vectors/psbt/warn-change-spoof.psbt
+tapid 701                       # SCAN_FILE
+tapid 410                       # SIGN_CONTINUE: the first output
+tapid 410                       # the second output
+tapid 410                       # the inputs
+tapid 410                       # the warnings
+snap sign-warn-01-blocked
+tapid 410                       # SIGN_CONTINUE is dead: there is no SIGN_ACK
+                                # to tap, and the step refuses to pass,
+                                # which is the state sign-warn-01-blocked
+                                # already shows
+tapid 2                         # BACK: the warnings, the inputs, the two outputs,
+tapid 2                         # and the entry
+tapid 2
+tapid 2
+tapid 2                         # A caution on its own: a 200 sat output, below the dust limit.
+tapid 22                        # HOME_SCAN: HOME_TILE_BASE + 2
+file tools/vectors/psbt/warn-dust-output.psbt
+tapid 701                       # SCAN_FILE
+tapid 410
+tapid 410
+tapid 410
+tapid 410
+snap sign-warn-03-caution
+tapid 2
+tapid 2
+tapid 2
+tapid 2
+tapid 2                         # Information on its own: a locktime this signer has no clock to check.
+tapid 22                        # HOME_SCAN: HOME_TILE_BASE + 2
+file tools/vectors/psbt/warn-locktime-in-future.psbt
+tapid 701                       # SCAN_FILE
+tapid 410                       # the one output
+tapid 410                       # the inputs
+tapid 410                       # the warnings
+snap sign-warn-04-info

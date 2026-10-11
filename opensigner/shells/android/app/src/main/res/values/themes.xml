@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- A framework theme: no AppCompat, no Material library, no
+         dependencies. The window is black behind the core's frame so the
+         area under the system bars matches the app. -->
+    <style name="Theme.OpenSigner" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

@@ -1,0 +1,18 @@
+# OpenSigner: mount the kernel filesystems, run the shell, power the board
+# off when it exits. There is no getty and no console login; the panel and
+# the touch controller are the whole user interface.
+#
+# The shell's arguments describe the panel and are generated from the
+# panel directory's panel.conf; /etc/opensigner/args is one line of them.
+#
+# The app is not root (security review 2026-09-11, M8): `setpriv --nnp`
+# gives up the right to gain privileges through an exec, and `setuidgid`
+# drops to the `opensigner` user, which owns the panel, the touch
+# controller, the capture device and the files on the card, and nothing
+# else. The card's raw block devices, /dev/i2c-* and the boot partition
+# are root's, and root is only init.
+::sysinit:/etc/init.d/rcS
+::wait:/bin/sh -c 'exec /bin/setpriv --nnp /usr/bin/setuidgid opensigner /usr/bin/opensigner-pi $(cat /etc/opensigner/args)'
+# Powering the board off is init's, not the app's: the app exits, and this
+# is the next line init runs.
+::wait:/sbin/poweroff -f

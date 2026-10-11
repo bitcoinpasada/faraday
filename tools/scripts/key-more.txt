@@ -1,0 +1,248 @@
+# What a key opens beyond its wallet and its backup. The first run's
+# key is created from hex (the quiz below is answered for the fixed tick
+# clock: no line before it may tick), and its Result offers an address
+# to check. Then, on that key: a passphrase key with a wallet named and
+# then forgotten, so the wallet's row asks for the key and Add a key
+# asks which loaded key to open it from; BIP-85's applications (a WIF, a
+# password, and a child seed's words); the vanity address grinder; and
+# Tools › Lightning node key over the loaded key and over a cipher seed.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+settings tools/scripts/first-run.settings
+tapid 502                       # START_HERE_CONTINUE: Add a key
+tapid 61                        # KEYS_CREATE
+tapid 602                       # CREATE_SOURCE_BASE + 2: Hex
+tapid 636                       # CREATE_SOURCE_CONTINUE
+tapid 610                       # CREATE_COUNT_BASE + 0: 12 words
+tapid 638                       # CREATE_COUNT_CONTINUE
+tapid 620                       # CREATE_LANG_BASE + 0: English
+tapid 639                       # CREATE_LANG_CONTINUE
+text "00000000000000000000000000000000"
+key enter
+tapid 630                       # CREATE_CONTINUE: past the sanity check
+on small tapid 657              # WORDS_NEXT: page two
+tapid 630                       # CREATE_CONTINUE: the quiz
+tapid 649                       # QUIZ_START
+tapid 640                       # QUIZ_CHOICE_BASE + 0: word 12, "about"
+tapid 654                       # QUIZ_CONTINUE
+tapid 642                       # word 6
+tapid 654
+tapid 641                       # word 7
+tapid 654
+tapid 641                       # word 8
+tapid 654
+tapid 641                       # word 5
+tapid 654
+tapid 641                       # word 2
+tapid 654
+tapid 642                       # word 3
+tapid 654
+tapid 640                       # word 11
+tapid 654
+tapid 642                       # word 4
+tapid 654
+tapid 643                       # word 1
+tapid 654
+tapid 641                       # word 10
+tapid 654
+tapid 641                       # word 9
+tapid 654
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # LOAD_HOLD: "Add key"
+pin 138 2580                    # LOAD_PIN_KEYBOARD: session PIN
+pin 138 2580                    # repeat it
+snap key-more-01-created            # the key and Check an address
+tapid 505                       # CREATED_DONE
+
+# A passphrase key, a wallet over it with a name, and the key forgotten.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 2210                      # KEYS_ROW_BASE + 0: the created key
+tapid 203                       # DETAIL_OPEN_PASSPHRASE
+text "winter"
+key enter                       # the Result: the passphrase key
+tapid 2                         # BACK to Keys
+tapid 2                         # BACK to Home
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 2203                      # WALLETS_ADD
+tapid 63                        # BUILD_NEW
+tapid 1940                      # BUILD_KIND_BASE + 0: "Single-sig"
+tapid 1812                      # BUILD_KIND_CONTINUE
+tapid 1881                      # BUILD_WHICH_BASE + 1: the passphrase key
+tapid 1802                      # BUILD_CONTINUE
+tapid 1822                      # BUILD_SCRIPT_BASE + 2: SegWit
+tapid 1800                      # BUILD_SCRIPT_CONTINUE
+tapid 1808                      # BUILD_ADD_WALLET: the wallet's page
+tapid 817                       # WALLET_NAME
+snap key-more-02-wallet-name        # the name field, empty
+text "Winter savings"
+snap key-more-02b-wallet-name-typed
+key enter
+snap key-more-02c-wallet-named      # the page, under its name
+tapid 2                         # BACK to Wallets
+tapid 2                         # BACK to Home
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 2211                      # KEYS_ROW_BASE + 1: the passphrase key
+tapid 2207                      # KEY_FORGET
+holdid 205                      # DETAIL_FORGET: the words stay loaded
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 90                        # WALLETS_POLICY_ROW_BASE + 0: the named wallet
+tapid 812                       # WALLET_KEYS: its one key, not loaded
+tapid 2270                      # WALLET_KEY_ROW_BASE + 0: Add a key, for this wallet
+tapid 2200                      # ADD_OPEN_PASSPHRASE: which key it is typed over
+tapid 2240                      # PICK_KEY_BASE + 0: the created key
+text "summer"
+key enter                       # a passphrase that gives some other key
+snap key-more-03a-wrong-passphrase
+tapid 2                         # BACK to Which key?
+tapid 2                         # BACK to Add a key
+tapid 2201                      # ADD_OPEN_CHILD
+snap key-more-03-pick-key           # which loaded key the child is opened from
+tapid 2240                      # PICK_KEY_BASE + 0: the created key
+snap key-more-03b-open-child        # the child's word count
+tapid 242                       # OPEN_CHILD_WORDS_BASE + 0: 12 words
+tapid 241                       # OPEN_CHILD_CONTINUE: the index
+snap key-more-03c-child-index
+pin 246 0                       # OPEN_CHILD_KEYBOARD: child 0
+snap key-more-03d-wrong-child   # not the key the wallet names
+tapid 2                         # BACK to the word count
+tapid 2                         # BACK to Which key?
+tapid 2                         # BACK to Add a key
+tapid 2                         # BACK to the wallet's keys
+tapid 2                         # BACK to the wallet's page
+tapid 2                         # BACK to Wallets
+tapid 2                         # BACK to Home
+
+# BIP-85 over the created key: a WIF, a password, a child seed.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 2210                      # KEYS_ROW_BASE + 0: the created key
+tapid 3000                      # DETAIL_BIP85: which application
+snap key-more-04-bip85-apps
+tapid 211                       # PICK_BASE + 1: WIF
+tapid 209                       # PICK_CONTINUE: the index
+snap key-more-04b-bip85-index
+padkey 3002 enter               # BIP85_INDEX_PAD: index 0
+snap key-more-04c-bip85-wif     # the derived key, masked
+pressid 3003                    # BIP85_REVEAL
+snap key-more-04d-bip85-wif-shown
+releaseid 3003
+tapid 3004                      # BIP85_DONE: back to the index
+tapid 2                         # BACK to the key's page
+tapid 3000                      # DETAIL_BIP85
+tapid 215                       # PICK_BASE + 5: Base85 password
+tapid 209                       # PICK_CONTINUE: the length
+snap key-more-05-bip85-length
+padkey 3001 enter               # BIP85_LENGTH_PAD: the default length
+padkey 3002 enter               # BIP85_INDEX_PAD: index 0
+pressid 3003                    # BIP85_REVEAL
+snap key-more-05b-bip85-password
+releaseid 3003
+tapid 3004                      # BIP85_DONE: back to the index
+tapid 2                         # BACK to the length
+tapid 2                         # BACK to the key's page
+tapid 3000                      # DETAIL_BIP85
+tapid 210                       # PICK_BASE + 0: Words, the child seed
+tapid 209                       # PICK_CONTINUE
+snap key-more-06-child-words    # the child's word count
+tapid 242                       # OPEN_CHILD_WORDS_BASE + 0: 12 words
+tapid 241                       # OPEN_CHILD_CONTINUE
+pin 246 0                       # OPEN_CHILD_KEYBOARD: child 0
+snap key-more-06b-child-opened  # the Result: the child key was added
+tapid 2                         # BACK to Keys
+
+# The vanity grinder over the created key: the passphrase dial, SegWit,
+# the prefix bc1qq, the run and its find.
+tapid 2210                      # KEYS_ROW_BASE + 0: the created key
+tapid 3500                      # DETAIL_VANITY: which dial
+snap key-more-07-vanity-dial
+tapid 210                       # PICK_BASE + 0: a passphrase counter
+tapid 209                       # PICK_CONTINUE: the script type
+snap key-more-07b-vanity-script
+tapid 3522                      # VANITY_SCRIPT_BASE + 2: SegWit
+tapid 3501                      # VANITY_SCRIPT_CONTINUE: the prefix
+snap key-more-07c-vanity-prefix
+padkey 3502 q                   # VANITY_KEYBOARD: bc1qq
+snap key-more-07d-vanity-typed
+padkey 3502 enter               # the run starts
+tick 16
+snap key-more-07e-vanity-running
+tick 16
+tick 16
+tick 16
+tick 16
+tick 16
+tick 16
+tick 16
+tick 16
+tick 16
+tick 16
+snap key-more-07f-vanity-found  # the address, and Use it
+tapid 3504                      # VANITY_ADDRESS: the address, whole
+snap key-more-07g-vanity-address
+tapid 2                         # BACK to the find
+tapid 3506                      # VANITY_SHOW: the passphrase that makes it
+snap key-more-07h-vanity-show
+pressid 3507                    # VANITY_REVEAL
+snap key-more-07i-vanity-shown
+releaseid 3507
+tapid 3508                      # VANITY_DONE: back to the find
+tapid 3505                      # VANITY_USE: open the key the find is on
+snap key-more-07j-vanity-used
+tapid 2                         # BACK to Keys
+tapid 2                         # BACK to Home
+
+# Tools › Lightning node key: over the loaded key, then over an LND
+# cipher seed (tests/lightning.rs) and its passphrase.
+tapid 23                        # HOME_TILE_BASE + 3: Tools
+tapid 3400                      # TOOLS_LIGHTNING: which source
+snap key-more-08-lightning-source
+tapid 211                       # PICK_BASE + 1: a loaded key
+tapid 209                       # PICK_CONTINUE
+snap key-more-08b-lightning-which-key
+tapid 209                       # PICK_CONTINUE: the created key
+snap key-more-08c-lightning-node    # the node's public key
+tapid 3402                      # LIGHTNING_NODE_KEY: the key, whole
+snap key-more-08d-lightning-node-key
+tapid 208                       # COMPARE_DONE
+tapid 3403                      # LIGHTNING_SECRET: the node's private key
+snap key-more-08e-lightning-secret
+pressid 3405                    # LIGHTNING_REVEAL
+snap key-more-08f-lightning-secret-shown
+releaseid 3405
+tapid 2                         # BACK to the Result
+tapid 3404                      # LIGHTNING_DONE: the tool is left
+tapid 23                        # HOME_TILE_BASE + 3: Tools
+tapid 3400                      # TOOLS_LIGHTNING
+tapid 210                       # PICK_BASE + 0: an LND cipher seed
+tapid 209                       # PICK_CONTINUE: the 24 words
+snap key-more-09-lightning-words
+word "absorb"
+word "century"
+word "submit"
+word "father"
+word "path"
+word "glove"
+word "gloom"
+word "super"
+word "divert"
+word "garden"
+word "ice"
+word "mirror"
+word "wisdom"
+word "grass"
+word "dice"
+word "kit"
+on small cand 132 0             # LOAD_CANDIDATES: kit has company, so small takes two taps
+word "ugly"
+word "castle"
+word "success"
+word "suggest"
+word "drink"
+word "monster"
+word "congress"
+word "flight"                   # the last word ends the entry
+snap key-more-09b-lightning-passphrase
+text "!very_safe_55345_password*"
+key enter
+snap key-more-09c-lightning-seed    # the node key, the birthday and the version
+tapid 3403                      # LIGHTNING_SECRET: the seed's entropy and the node's key
+snap key-more-09d-lightning-seed-secret

@@ -1,0 +1,3 @@
+# The Waveshare 2.8" DPI LCD needs its vendor's device tree overlays on
+# the boot partition; nothing else about the panel is a Buildroot option.
+BR2_PACKAGE_WAVESHARE_28DPI_OVERLAYS=y

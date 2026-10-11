@@ -1,0 +1,90 @@
+# Session security (UX.md I1-I4): loads "abandon ×11 about", sets the
+# session PIN, lets the auto-lock fire, enters a wrong PIN twice and then
+# the right one, reviews the timers in Settings, shuffles the PIN pad and
+# locks once to see it, and ends with wipe-and-exit. Widget ids are the
+# constants in opensigner/opensigner-core/src/ids.rs; the clock is
+# advanced with tick.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # "Add key"
+snap session-01-set-pin
+padkey 138 2
+padkey 138 5
+snap session-02-set-pin-typing
+padkey 138 8
+padkey 138 0
+padkey 138 enter
+snap session-03-repeat-pin
+pin 138 2581                    # a different PIN: start over
+snap session-04-pin-mismatch
+pin 138 2580
+pin 138 2580
+snap session-05-home
+key escape                      # one Back on Home: the caption says what a second does
+snap session-05b-back-again
+tick 2100                       # the window runs out; the badges are back
+tick 69900                      # 48 s before the 2 min auto-lock
+snap session-06-home-with-key   # a status line with no countdown (§4.14)
+tapid 21                        # Keys: a touch restarts the timer
+tapid 2                         # BACK
+tick 120000                     # the auto-lock fires
+snap session-07-locked
+pin 340 1111                    # LOCK_KEYBOARD: wrong
+snap session-08-locked-wrong-1
+pin 340 2222                    # wrong again
+snap session-09-locked-wrong-2
+padkey 340 2
+padkey 340 5
+padkey 340 8
+snap session-10-locked-typing
+padkey 340 0
+padkey 340 enter
+snap session-11-unlocked-home
+tapid 25                        # HOME_TILE_BASE + 5: Settings
+snap session-12-settings-session
+tapid 305                       # SETTINGS_UNIT_ROW: the unit Choice
+snap session-12b-unit-choice    # tap applies, the screen stays, no Continue
+tapid 2                         # BACK: close the Choice
+tapid 306                       # SETTINGS_LOCK_AFTER_ROW
+tapid 323                       # SETTINGS_LOCK_AFTER_BASE + 3: 15 min (wipe moves to 30 min)
+tapid 2
+tapid 307                       # SETTINGS_WIPE_AFTER_ROW
+tapid 334                       # SETTINGS_WIPE_AFTER_BASE + 4: never
+tapid 2
+snap session-13-settings-never  # the value carries the caution
+tapid 315                       # SETTINGS_SCRAMBLE: the shuffle on (§4.3 has it off)
+tapid 314                       # SETTINGS_LOCK: lock now, to see the shuffled pad
+snap session-13b-locked-shuffled
+pin 340 2580                    # LOCK_KEYBOARD: unlock, back to Home
+tapid 25                        # HOME_TILE_BASE + 5: Settings
+tapid 315                       # SETTINGS_SCRAMBLE: the shuffle off again
+tapid 370                       # SETTINGS_NONCE_ROW: the nonce Choice
+snap session-13c-nonce-choice   # Low R by default, First for a plain RFC 6979 signer
+tapid 2                         # BACK: close the Choice
+scrollid 4294967294 5000        # ids::SCROLL: to the end, wipe and exit
+snap session-14-settings-bottom
+tapid 312                       # SETTINGS_EXIT_ROW
+snap session-15-exit-screen
+holdid 316                      # SETTINGS_EXIT: hold to wipe and exit
+snap session-16-after-exit

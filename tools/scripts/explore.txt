@@ -1,0 +1,176 @@
+# Explore (docs/DESIGN.md §5): first with no key, typing "abandon ×11
+# about" as words to explore without loading them (the Load wizard's
+# entry as a sub-flow), then the two menus the area is — the key menu
+# with the path, the fingerprint, the encodings and the rows out, and
+# "Words and bits" with the Words screen and one Secret screen per long
+# secret — plus the path editor, a typed passphrase and the confirm
+# that guards the typed words; then the same
+# key loaded and Explore switched between two keys.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+tapid 23                        # HOME_TILE_BASE + 3: Tools
+snap explore-00-tools           # the key explorer live, the rest dimmed
+tapid 1700                      # TOOLS_EXPLORER: the key explorer
+snap explore-01-empty
+tapid 731                       # EXPLORE_TYPE: "Words"
+snap explore-01a-words-scan     # the scanner, with no Paste row: words are a secret
+tapid 709                       # SCAN_TYPE: the word entry
+snap explore-02-entry-count
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+snap explore-03-entry-language
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+snap explore-04-entry-checksum
+tapid 130                       # Explore: the words go to the workspace
+snap explore-05-keys
+tapid 800                       # EXPLORE_XPRV: the key on its own screen
+pressid 635                     # CREATE_REVEAL: hold to show it
+snap explore-08-xprv-held
+releaseid 635
+tapid 2                         # BACK to the key menu
+tapid 736                       # EXPLORE_PASSPHRASE: none, tap to type one
+text "TREZO"
+tick 100
+snap explore-09-passphrase-typing
+text "R"
+tick 600
+key enter
+snap explore-10-passphrase-applied
+tapid 738                       # EXPLORE_PATH: the editor
+snap explore-11-path-editor     # Purpose (four rows, one check) and Chain
+tapid 772                       # EXPLORE_CHANGE: the Chain pair's other half
+snap explore-11b-path-change
+tapid 740                       # EXPLORE_RECEIVE: back to the receive chain
+tapid 783                       # EXPLORE_PRESET_BASE + 3: Taproot
+snap explore-12-path-taproot
+key backspace
+key backspace
+key backspace
+key backspace
+key backspace
+key backspace
+key backspace
+key backspace
+key backspace
+text "45h/0/7"
+snap explore-13-path-typed
+text "/"
+snap explore-14-path-unfinished
+text "/"
+snap explore-15-path-invalid
+key backspace
+key backspace
+key enter                       # ✓ applies the path
+snap explore-16-keys-no-slip132
+tapid 738                       # the editor again
+tapid 782                       # SegWit
+tapid 740                       # EXPLORE_RECEIVE: the receive chain
+key enter
+snap explore-17-keys-zpub
+tapid 734                       # EXPLORE_BITS: Words and bits
+snap explore-18b-words-and-bits
+tapid 735                       # EXPLORE_WORDS: the words
+snap explore-18-words-masked
+pressid 635                     # CREATE_REVEAL
+snap explore-19-words-held
+releaseid 635
+tapid 15                        # SECRET_EYE: 30 s with no finger on the panel
+snap explore-20-words-eye
+tapid 15                        # eye off
+on small tapid 657              # WORDS_NEXT: page two, where a page is six
+on small snap explore-21-words-page-2
+tapid 747                       # EXPLORE_WORDS_DONE: back to the menu
+tapid 744                       # EXPLORE_CHECKSUM_BITS
+snap explore-22b-checksum-bits-secret
+pressid 635
+snap explore-22-checksum-held
+releaseid 635
+tapid 2                         # BACK to the menu
+tapid 742                       # EXPLORE_SEED
+pressid 635
+snap explore-23-seed-held
+releaseid 635
+tapid 2                         # BACK to the menu
+tapid 2                         # BACK to the key menu
+tapid 2                         # BACK: the typed words are not dropped silently
+snap explore-25-discard-confirm
+tapid 824                       # EXPLORE_DISCARD
+snap explore-26-tools           # the explorer's own area, one step out
+tapid 2                         # BACK to Home
+# Load the same words as a key, and a second key with a passphrase.
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE: "Type the words"
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 134                       # LOAD_SKIP: no passphrase
+tapid 105                       # LOAD_PASS_CONTINUE
+tapid 137                       # "Add key"
+pin 138 2580                    # session PIN, first key of the session
+pin 138 2580
+tapid 21                        # HOME_TILE_BASE + 1: Keys
+tapid 2202                      # KEYS_ADD: the ways a key arrives
+tapid 60                        # KEYS_LOAD
+tapid 100                       # LOAD_SOURCE_TYPE
+tapid 102                       # LOAD_SOURCE_CONTINUE
+tapid 110                       # LOAD_COUNT_BASE + 0: 12 words
+tapid 103                       # LOAD_COUNT_CONTINUE
+tapid 120                       # LOAD_LANG_BASE + 0: English
+tapid 104                       # LOAD_LANG_CONTINUE
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "abandon"
+word "about"
+tapid 130                       # checksum: Continue
+tapid 135                       # LOAD_ADD_PASSPHRASE
+tapid 105                       # LOAD_PASS_CONTINUE
+text "TREZOR"
+key enter
+tapid 106                       # LOAD_WHICH_CONTINUE: the key with the passphrase
+tapid 137
+tapid 23                        # HOME_TILE_BASE + 3: Tools
+tapid 1700                      # TOOLS_EXPLORER: the key explorer
+snap explore-27-keys-loaded
+tapid 730                       # EXPLORE_USING: which key?
+snap explore-28-chooser
+tapid 751                       # EXPLORE_KEY_BASE + 1: the passphrase key
+tapid 733                       # EXPLORE_CHOOSE_CONTINUE
+tapid 734                       # Words and bits
+tapid 735                       # the words
+snap explore-29-second-key-words

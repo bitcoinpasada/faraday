@@ -1,0 +1,15 @@
+[package]
+name = "osk-shell-api"
+version = "0.1.0"
+description = "The core-to-shell contract for OpenSignerKit: events in, commands and pixels out"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The one dependency: wiping `EntropyBytes` on drop (docs/deps/zeroize.md).
+zeroize.workspace = true
+
+[lints]
+workspace = true

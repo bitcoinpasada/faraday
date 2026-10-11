@@ -1,0 +1,384 @@
+//! A seed's passphrase, asked after the seed (owner, 2026-10-11): the
+//! choice of loading it without a passphrase or with one, typed twice
+//! here, each with the key it makes. A SeedQR holds no passphrase, so the
+//! scan sheet turns into this wherever a SeedQR is scanned: Add a key,
+//! Home's Scan, a slot of Create or Restore, the Spend tab's words. A
+//! key already loaded, or a vault's seed, taken into a slot of Restore or
+//! the Spend tab with words and no passphrase asks the same: a vault may
+//! keep a seed apart from its passphrase (decision 49).
+//!
+//! The words wait in memory, never drawn, until a choice loads them or
+//! the sheet closes, which wipes them.
+
+use osk_bip::keys::Fingerprint;
+use osk_shell_api::Key as KeyIn;
+use osk_ui::widgets::Icon;
+
+use crate::screens::{pass_field, sheet_box, wrap_buttons};
+use crate::secret_text::SecretText;
+use crate::ui::pal::*;
+use crate::ui::{Style, Ui, W};
+use crate::wallet::fp_text;
+use crate::{Action, Faraday, Screen, Sheet};
+
+/// What the sheet's presses do.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Choice {
+    /// Load the seed with no passphrase.
+    Plain,
+    /// Show the two passphrase fields.
+    AddPass,
+    /// Typing goes to passphrase field 0 or 1.
+    Field(u8),
+    /// Load the seed with the passphrase typed twice.
+    WithPass,
+}
+
+/// The seed read, waiting for its choice.
+#[derive(Default)]
+pub struct SeedRead {
+    /// Its words.
+    words: SecretText,
+    /// A key already loaded from these words with no passphrase, taken
+    /// into a slot; none for words the camera read, which load as Add a
+    /// key loads typed words.
+    loaded: Option<Fingerprint>,
+    /// The key it makes with no passphrase.
+    plain: Option<Fingerprint>,
+    /// Add a passphrase was pressed: the fields show.
+    pub adding: bool,
+    /// The passphrase.
+    pub pass: SecretText,
+    /// The passphrase again.
+    pub pass2: SecretText,
+    /// Which field typing goes to.
+    pub focus: Option<u8>,
+    /// Why the last choice did not load.
+    pub error: Option<String>,
+}
+
+/// The key `words` make with `pass`, if they are BIP-39 words.
+fn key_of(words: &str, pass: &str) -> Option<Fingerprint> {
+    crate::wallet::Session::default()
+        .add_words_with(words, pass, "", None)
+        .ok()
+}
+
+impl SeedRead {
+    /// The two fields hold the same passphrase, and it is not empty.
+    fn pass_ready(&self) -> bool {
+        !self.pass.is_empty() && self.pass.as_str() == self.pass2.as_str()
+    }
+
+    /// The key the passphrase typed makes, once it is typed twice alike.
+    fn with_key(&self) -> Option<Fingerprint> {
+        self.pass_ready()
+            .then(|| key_of(&self.words, &self.pass))
+            .flatten()
+    }
+
+    /// The text typing goes to.
+    pub(crate) fn field(&self) -> Option<&SecretText> {
+        match self.focus? {
+            0 => Some(&self.pass),
+            _ => Some(&self.pass2),
+        }
+    }
+}
+
+impl Faraday {
+    /// The camera read a seed's words: the camera closes and the sheet
+    /// asks how it loads. Words that are not a BIP-39 seed go to Add a
+    /// key as typed words, which says what is wrong with them.
+    pub(crate) fn seed_read_open(&mut self, words: &str) {
+        self.scan = None;
+        self.commands.push_back(osk_shell_api::Command::CameraOff);
+        let Some(plain) = key_of(words, "") else {
+            self.sheet = None;
+            self.seed_read_load(words, "");
+            return;
+        };
+        self.seed_read = Some(SeedRead {
+            words: SecretText::of(words),
+            plain: Some(plain),
+            ..SeedRead::default()
+        });
+        self.sheet = Some(Sheet::SeedRead);
+    }
+
+    /// Key `fp`, loaded, is being taken into a slot of Restore or the
+    /// Spend tab: with words and no passphrase it asks first whether it
+    /// has one. Returns whether it asked; else the slot takes it as is.
+    pub(crate) fn seed_read_loaded(&mut self, fp: Fingerprint) -> bool {
+        let Some(key) = self
+            .session
+            .keys
+            .iter()
+            .find(|k| k.master.fingerprint() == fp)
+        else {
+            return false;
+        };
+        let (Some(words), None) = (key.words.as_ref(), key.passphrase.as_ref()) else {
+            return false;
+        };
+        self.seed_read = Some(SeedRead {
+            words: SecretText::of(words),
+            loaded: Some(fp),
+            plain: Some(fp),
+            ..SeedRead::default()
+        });
+        self.sheet = Some(Sheet::SeedRead);
+        true
+    }
+
+    pub(crate) fn seed_read_act(&mut self, choice: Choice) {
+        let Some(s) = self.seed_read.as_mut() else {
+            return;
+        };
+        match choice {
+            Choice::AddPass => {
+                s.adding = true;
+                s.focus = Some(0);
+                s.error = None;
+            }
+            Choice::Field(f) => s.focus = Some(f.min(1)),
+            Choice::Plain => self.seed_read_choose(false),
+            Choice::WithPass => {
+                if s.pass.as_str() != s.pass2.as_str() {
+                    s.error = Some("The two passphrases differ".to_string());
+                } else if s.pass.is_empty() {
+                    s.error = Some("Type the passphrase".to_string());
+                } else {
+                    self.seed_read_choose(true);
+                }
+            }
+        }
+    }
+
+    /// Loads the seed as chosen, unless Restore already knows the wallet
+    /// and the key is not one of its keys: then the sheet says so and
+    /// stays, for the passphrase to be typed again.
+    fn seed_read_choose(&mut self, with_pass: bool) {
+        let Some(s) = self.seed_read.as_ref() else {
+            return;
+        };
+        let pass = if with_pass {
+            s.pass.clone()
+        } else {
+            SecretText::new()
+        };
+        let Some(fp) = key_of(&s.words, &pass) else {
+            return;
+        };
+        let restoring = self.entry.back == Some(Screen::Restore)
+            || (s.loaded.is_some() && self.screen == Screen::Restore);
+        if restoring && let Some(why) = self.restore_refusal(fp) {
+            if let Some(s) = self.seed_read.as_mut() {
+                s.error = Some(why);
+            }
+            return;
+        }
+        let Some(s) = self.seed_read.take() else {
+            return;
+        };
+        self.sheet = None;
+        match s.loaded {
+            None => self.seed_read_load(&s.words, &pass),
+            Some(plain) => self.seed_read_take(plain, &s.words, &pass),
+        }
+    }
+
+    /// A loaded key taken into the slot: itself, or with the passphrase
+    /// the key its words and it make, added beside it.
+    fn seed_read_take(&mut self, plain: Fingerprint, words: &str, pass: &str) {
+        let fp = if pass.is_empty() {
+            plain
+        } else {
+            let label = self
+                .session
+                .keys
+                .iter()
+                .find(|k| k.master.fingerprint() == plain)
+                .map(|k| format!("{} · passphrase", k.label))
+                .unwrap_or_default();
+            match self.session.add_words_with(words, pass, &label, None) {
+                Ok(fp) => fp,
+                Err(crate::wallet::Refusal::Duplicate(_)) => match key_of(words, pass) {
+                    Some(fp) => fp,
+                    None => return,
+                },
+                Err(e) => {
+                    self.toast(&e.text());
+                    return;
+                }
+            }
+        };
+        let back = Some(self.screen);
+        self.seeds_took(fp, back);
+        if self.screen == Screen::Family {
+            self.family_key_added();
+        }
+    }
+
+    /// The words and passphrase added as Add a key adds typed words, not
+    /// through the word keyboard, which a small panel gets back if they
+    /// are refused.
+    fn seed_read_load(&mut self, words: &str, pass: &str) {
+        self.entry.typed.set(words);
+        self.entry.passphrase.set(pass);
+        let keys = self.entry.keys.take();
+        self.entry_add();
+        if self.screen == Screen::Entry && keys.is_some() {
+            self.entry.keys = Some(crate::forms::word_typer(self.entry.language()));
+        }
+    }
+
+    /// Keys typed into the sheet's passphrase fields. Returns whether they
+    /// took the key.
+    pub(crate) fn seed_read_key(&mut self, key: KeyIn) -> bool {
+        if self.sheet != Some(Sheet::SeedRead) {
+            return false;
+        }
+        let Some(s) = self.seed_read.as_mut() else {
+            return false;
+        };
+        let Some(f) = s.focus else {
+            if key == KeyIn::Enter {
+                self.seed_read_act(Choice::Plain);
+                return true;
+            }
+            return false;
+        };
+        let field = if f == 0 { &mut s.pass } else { &mut s.pass2 };
+        match key {
+            // BIP-39 passphrases here are printable ASCII (`to_seed`).
+            KeyIn::Char(ch) if (' '..='~').contains(&ch) => field.push(ch),
+            KeyIn::Backspace => {
+                field.pop();
+            }
+            KeyIn::Tab | KeyIn::BackTab => s.focus = Some(1 - f.min(1)),
+            KeyIn::Escape => s.focus = None,
+            KeyIn::Enter => {
+                self.seed_read_act(Choice::WithPass);
+                return true;
+            }
+            _ => return false,
+        }
+        s.error = None;
+        true
+    }
+}
+
+/// The sheet: the key the seed makes without a passphrase and with the
+/// one typed, and the way it loads.
+pub(crate) fn sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+    let Some(s) = app.seed_read.as_ref() else {
+        return;
+    };
+    let with = s.with_key();
+    let differ = !s.pass.is_empty() && !s.pass2.is_empty() && s.pass.as_str() != s.pass2.as_str();
+    let use_with = if s.pass_ready() {
+        Style::Primary
+    } else {
+        Style::Disabled
+    };
+    let items: Vec<(&str, Style, Action)> = if s.adding {
+        vec![
+            (
+                "Use with this passphrase",
+                use_with,
+                Action::SeedRead(Choice::WithPass),
+            ),
+            (
+                "Without a passphrase",
+                Style::Secondary,
+                Action::SeedRead(Choice::Plain),
+            ),
+            ("Cancel", Style::Ghost, Action::Cancel),
+        ]
+    } else {
+        vec![
+            (
+                "Use without a passphrase",
+                Style::Primary,
+                Action::SeedRead(Choice::Plain),
+            ),
+            (
+                "Add a passphrase",
+                Style::Secondary,
+                Action::SeedRead(Choice::AddPass),
+            ),
+            ("Cancel", Style::Ghost, Action::Cancel),
+        ]
+    };
+    // A key's line: what it is made with, and its fingerprint.
+    let key_line = |ui: &mut Ui, x: f32, y: f32, iw: f32, label: &str, fp: Fingerprint| -> f32 {
+        ui.text_mid(x, y, 30.0, 13.0, W::R, MUTED, label);
+        ui.text_right(x + iw, y, 30.0, 14.0, W::M, TEXT, &fp_text(fp));
+        34.0
+    };
+    let body = |ui: &mut Ui, x: f32, y: f32, iw: f32| -> f32 {
+        let mut cy = y;
+        if let Some(fp) = s.plain {
+            cy += key_line(ui, x, cy, iw, "Without a passphrase", fp);
+        }
+        if s.adding {
+            cy += 6.0;
+            cy += pass_field(
+                ui,
+                x,
+                cy,
+                iw,
+                "Passphrase",
+                &s.pass,
+                s.focus == Some(0),
+                Action::SeedRead(Choice::Field(0)),
+            );
+            cy += pass_field(
+                ui,
+                x,
+                cy,
+                iw,
+                "Passphrase again",
+                &s.pass2,
+                s.focus == Some(1),
+                Action::SeedRead(Choice::Field(1)),
+            );
+            if let Some(fp) = with {
+                cy += key_line(ui, x, cy, iw, "With this passphrase", fp);
+            } else if differ {
+                cy += ui.wrap(x, cy, iw, 13.0, W::R, WARN, "The two passphrases differ") + 10.0;
+            }
+        }
+        if let Some(e) = &s.error {
+            cy += ui.wrap(x, cy + 4.0, iw, 13.0, W::S, ERR, e) + 14.0;
+        }
+        cy - y
+    };
+    let title = "SeedQR read";
+    if ui.compact {
+        crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
+            let mut cy = y;
+            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Keys, ACCENT, title);
+            cy += body(ui, x, cy, iw) + 8.0;
+            cy += crate::compact::buttons(ui, x, cy, iw, &items);
+            cy - y
+        });
+        return;
+    }
+    let sw = 600.0;
+    let (ix, iw) = (32.0, sw - 64.0);
+    // Measured first, out of sight, for the sheet's height.
+    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    let body_h = body(ui, 0.0, 0.0, iw);
+    let buttons_h = wrap_buttons(ui, 0.0, 0.0, iw, 44.0, &items);
+    ui.c.pop_clip();
+    let sh = 30.0 + 30.0 + 22.0 + body_h + 12.0 + buttons_h + 24.0;
+    let (x, y) = sheet_box(ui, w, h, sw, sh);
+    let x = x + ix;
+    ui.icon(x, y + 30.0, 30.0, Icon::Keys, 18.0, ACCENT);
+    ui.text_mid(x + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, title);
+    let mut cy = y + 82.0;
+    cy += body(ui, x, cy, iw) + 12.0;
+    wrap_buttons(ui, x, cy, iw, 44.0, &items);
+}

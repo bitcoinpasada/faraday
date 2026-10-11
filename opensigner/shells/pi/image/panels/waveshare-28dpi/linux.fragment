@@ -1,0 +1,17 @@
+# Kernel configuration for the Waveshare 2.8" DPI LCD: the framebuffer the
+# firmware hands over, and the touch controller.
+
+# ---- display ----
+# The firmware sets the DPI panel up and hands Linux a plain framebuffer.
+CONFIG_FB_BCM2708=y
+CONFIG_FB_SIMPLE=y
+
+# ---- touch ----
+# The Goodix GT911 sits on a bit-banged i2c bus that the Waveshare touch
+# overlay declares, not on either hardware i2c controller, so I2C_GPIO is
+# the one that matters here.
+CONFIG_I2C_GPIO=y
+CONFIG_INPUT=y
+CONFIG_INPUT_EVDEV=y
+CONFIG_INPUT_TOUCHSCREEN=y
+CONFIG_TOUCHSCREEN_GOODIX=y

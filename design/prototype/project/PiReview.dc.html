@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pi · Review</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Source+Sans+3:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 268px; height: 358px; box-sizing: border-box; display: flex; flex-direction: column; background: #11161c; color: #e0e9ef; font-family: {{fontStack}}">
+<div style="height: 56px; flex: none; display: flex; align-items: center; gap: 4px; padding: 0 8px; border-bottom: 1px solid #1f2933">
+<button type="button" aria-label="Back" style="width: 44px; height: 44px; border: 0; background: transparent; color: #e0e9ef; display: flex; align-items: center; justify-content: center; padding: 0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button>
+<h1 style="margin: 0; font-size: 20px; font-weight: 600">Review</h1>
+</div>
+<div style="flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 16px">
+<div style="display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #1f2933; font-size: 14px"><span style="color: #9aacb9">File</span><span style="font-family: 'JetBrains Mono', monospace">vault.ofv</span></div>
+<div style="display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #1f2933; font-size: 14px"><span style="color: #9aacb9">Size</span><span>1.0 MB</span></div>
+<div style="display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #1f2933; font-size: 14px"><span style="color: #9aacb9">Argon2id</span><span>256 MiB · 3</span></div>
+<div style="display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #1f2933; font-size: 14px"><span style="color: #9aacb9">Passphrases</span><span>1</span></div>
+<div style="display: flex; justify-content: space-between; padding: 9px 0; font-size: 14px"><span style="color: #9aacb9">Goes to</span><span>Outbox</span></div>
+</div>
+<div style="padding: 0 16px 16px">
+<button type="button" style="width: 100%; height: 52px; border-radius: 12px; border: 0; background: #83d8ef; color: #0d1218; font-family: inherit; font-size: 16px; font-weight: 600">Create vault</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"font":{"editor":"enum","options":["Inter","IBM Plex Sans","Source Sans 3"],"default":"Inter","section":"Look"},"$preview":{"width":268,"height":358}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const stacks = { "Inter": "'Inter', sans-serif", "IBM Plex Sans": "'IBM Plex Sans', sans-serif", "Source Sans 3": "'Source Sans 3', sans-serif" };
+    return { fontStack: stacks[this.props.font] || stacks.Inter };
+  }
+}
+</script>
+</body>
+</html>

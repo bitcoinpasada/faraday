@@ -1,0 +1,13 @@
+# The applets the release image takes away, put back so the serial login
+# works: getty is started from the dev inittab, login is what it runs, and
+# su and passwd are what a session needs to be worth having.
+CONFIG_GETTY=y
+CONFIG_LOGIN=y
+CONFIG_SU=y
+CONFIG_PASSWD=y
+CONFIG_SULOGIN=y
+
+# dmesg, which rcS writes to the exchange partition as the first half of
+# the boot report. A laptop has no serial port anybody can reach, so that
+# file is the only way a boot that went wrong says what it did.
+CONFIG_DMESG=y

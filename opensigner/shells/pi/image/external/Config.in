@@ -1,0 +1,2 @@
+source "$BR2_EXTERNAL_OPENSIGNER_PI_PATH/package/opensigner-pi/Config.in"
+source "$BR2_EXTERNAL_OPENSIGNER_PI_PATH/package/waveshare-28dpi-overlays/Config.in"

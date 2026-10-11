@@ -1,0 +1,32 @@
+[package]
+name = "faraday-vault"
+version = "0.1.1"
+description = "The Faraday vault file: four equal slots under Argon2id and XChaCha20-Poly1305, each opened by its own passphrase (docs/VAULT.md)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+osk-backup = { path = "../../core/osk-backup" }
+osk-bip = { path = "../../core/osk-bip" }
+osk-crypto = { path = "../../core/osk-crypto" }
+zeroize = { workspace = true, features = ["alloc"] }
+# Argon2id over the passphrase, as osk-backup stretches it.
+argon2 = { workspace = true }
+# Each slot's cipher.
+chacha20poly1305 = { workspace = true }
+# The keystream a new vault's salt, nonces and unused slots come from.
+chacha20 = { workspace = true }
+# HKDF-SHA256 from the stretched key to the slot key, written out over
+# HMAC: one extract and one expand block. Also the TOTP code's HMAC
+# (`docs/TOTP.md` §4): SHA-1, SHA-256 or SHA-512.
+sha2 = { workspace = true }
+hmac = { workspace = true }
+# A TOTP code's HMAC may be SHA-1 (RFC 6238's default); the version
+# `faraday-pgp` already uses, so no new crate enters the tree.
+sha1 = { version = "0.11", default-features = false }
+
+[lints]
+workspace = true

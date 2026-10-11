@@ -1,0 +1,44 @@
+# Learn (docs/DESIGN.md §5, UX.md §3's L jobs): the Menu that lists the
+# pages, then a page as a Document — its top, and its end after
+# a scroll, which is where a small panel needs the scrollbar — and the
+# glossary, which is the longest page and the one whose rows are terms.
+# Nothing here touches a key, a session or a setting, so the script runs
+# on an app that has never loaded anything. Widget ids are the constants
+# in opensigner/opensigner-core/src/ids.rs.
+tapid 24                        # HOME_TILE_BASE + 4: Learn
+snap learn-01-list
+tapid 851                       # LEARN_ROW_BASE + 1: "Seed words"
+snap learn-02-words
+scroll 100 150 400
+snap learn-03-words-end
+tapid 2                         # BACK to the list
+scroll 100 150 900              # the rows the list scrolls to
+snap learn-04-list-end
+tapid 863                       # LEARN_ROW_BASE + 13: "Multisig"
+snap learn-05-multisig
+tapid 2                         # BACK to the list
+scroll 100 150 900
+tapid 865                       # LEARN_ROW_BASE + 15: "Xpubs and privacy"
+snap learn-06-xpubs
+tapid 2                         # BACK to the list
+scroll 100 150 900
+tapid 866                       # LEARN_ROW_BASE + 16: "The secure element"
+snap learn-07-secure-element
+tapid 2                         # BACK to the list
+scroll 100 150 900
+tapid 867                       # LEARN_ROW_BASE + 17: "Inheritance"
+snap learn-08-inheritance
+tapid 2                         # BACK to the list
+scroll 100 150 900
+tapid 868                       # LEARN_ROW_BASE + 18: "Nonces"
+snap learn-08b-nonces
+tapid 2                         # BACK to the list
+scroll 100 150 900
+tapid 869                       # LEARN_ROW_BASE + 19: "Signing a message"
+snap learn-08c-message
+tapid 2                         # BACK to the list
+scroll 100 150 900
+tapid 870                       # LEARN_ROW_BASE + 20: "Glossary"
+snap learn-09-glossary
+scroll 100 150 400
+snap learn-10-glossary-scrolled

@@ -1,0 +1,24 @@
+[package]
+name = "osk-keep"
+version = "0.1.0"
+description = "The blob OpenSigner keeps keys, wallets and notes in on a device: its layout and its PIN, Argon2id and secure-element cryptography, no_std + alloc"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The Argon2id cost type and the device's cost, shared with the files.
+osk-backup = { path = "../osk-backup" }
+osk-bip = { path = "../osk-bip" }
+osk-crypto = { path = "../osk-crypto" }
+zeroize = { workspace = true, features = ["alloc"] }
+# Argon2id over the PIN, HMAC-SHA256 with the secure element's tag,
+# XChaCha20-Poly1305 over the records.
+argon2 = { workspace = true }
+hmac = { workspace = true }
+sha2 = { workspace = true }
+chacha20poly1305 = { workspace = true }
+
+[lints]
+workspace = true

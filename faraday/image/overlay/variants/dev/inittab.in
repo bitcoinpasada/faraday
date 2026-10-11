@@ -1,0 +1,17 @@
+# Faraday's dev inittab: the release one (common/rootfs-overlay/etc/
+# inittab) plus upstream's getty on the board's console tty, which
+# build.sh fills in for @TTY@. Upstream's template has no app loop, so
+# without this copy the dev image would not restart the app on a lock.
+#
+# BusyBox init starts `respawn` entries only after every `wait` entry has
+# ended, so with the app loop as a `wait` the getty never came. Here the
+# loop is a `once` entry that powers off when it ends, and the getty runs
+# beside it.
+::sysinit:/etc/init.d/rcS
+::sysinit:/bin/sh -c 'mkdir -p /run/faraday && chown opensigner:opensigner /run/faraday && chmod 0700 /run/faraday'
+# The app's error output goes to the kernel log, which a laptop shows on
+# its screen: a laptop has no serial port to read ttyS0 on. When the app
+# ends with anything but a lock, the code is said there too, and the
+# machine waits a minute before it powers off, so it can be read.
+::once:/bin/sh -c 'while :; do /bin/setpriv --nnp /usr/bin/setuidgid opensigner /usr/bin/opensigner-pi $(cat /etc/opensigner/args) 2>/dev/kmsg; code=$?; [ $code -eq 75 ] || break; done; echo "faraday: the app ended with code $code; power-off in 60 s" > /dev/kmsg; sleep 60; /sbin/poweroff -f'
+@TTY@::respawn:/sbin/getty -L @TTY@ 115200 vt100

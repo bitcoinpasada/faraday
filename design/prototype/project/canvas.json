@@ -1,0 +1,221 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-10-04T16:30:00Z"
+  },
+  "title": "Faraday interface prototype",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Boot.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "title": "Boot · remove the stick",
+      "is_interactive": true
+    },
+    "Unlock.dc.html": {
+      "x": 1360,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "title": "Unlock",
+      "is_interactive": true
+    },
+    "Main.dc.html": {
+      "x": 2720,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "title": "Home",
+      "is_interactive": true
+    },
+    "CreateVault.dc.html": {
+      "x": 2720,
+      "y": 1300,
+      "w": 1280,
+      "h": 800,
+      "title": "Create a vault · form with live summary",
+      "is_interactive": true
+    },
+    "OpenSigner.dc.html": {
+      "x": 4080,
+      "y": 1300,
+      "w": 1280,
+      "h": 800,
+      "title": "OpenSigner tab · keys from the vault",
+      "is_interactive": true
+    },
+    "SecureBoot.dc.html": {
+      "x": 5440,
+      "y": 1300,
+      "w": 1280,
+      "h": 800,
+      "title": "Secure Boot",
+      "is_interactive": true
+    },
+    "LockSheet.dc.html": {
+      "x": 1360,
+      "y": 2600,
+      "w": 1280,
+      "h": 800,
+      "title": "A stick inserted while unlocked",
+      "is_interactive": true
+    },
+    "StickVisit.dc.html": {
+      "x": 2720,
+      "y": 2600,
+      "w": 1280,
+      "h": 800,
+      "title": "Stick visit · Outbox and Inbox",
+      "is_interactive": true
+    },
+    "NewKeyboard.dc.html": {
+      "x": 4080,
+      "y": 2600,
+      "w": 1280,
+      "h": 800,
+      "title": "A new keyboard proves a person is there",
+      "is_interactive": true
+    },
+    "PiUnlock.dc.html": {
+      "x": 0,
+      "y": 3900,
+      "w": 268,
+      "h": 358,
+      "title": "Pi · Unlock"
+    },
+    "PiCost.dc.html": {
+      "x": 348,
+      "y": 3900,
+      "w": 268,
+      "h": 358,
+      "title": "Pi · Unlock cost",
+      "is_interactive": true
+    },
+    "PiReview.dc.html": {
+      "x": 696,
+      "y": 3900,
+      "w": 268,
+      "h": 358,
+      "title": "Pi · Review"
+    },
+    "PiLock.dc.html": {
+      "x": 1044,
+      "y": 3900,
+      "w": 268,
+      "h": 358,
+      "title": "Pi · Lock to use card"
+    },
+    "Sidebar.dc.html": {
+      "x": 1600,
+      "y": 3900,
+      "w": 240,
+      "h": 800,
+      "title": "Sidebar (shared)"
+    },
+    "Vaults.dc.html": {
+      "x": 0,
+      "y": 1300,
+      "w": 1280,
+      "h": 800,
+      "title": "Vaults overview",
+      "is_interactive": true
+    },
+    "VaultContents.dc.html": {
+      "x": 1360,
+      "y": 1300,
+      "w": 1280,
+      "h": 800,
+      "title": "Vault contents",
+      "is_interactive": true
+    },
+    "Files.dc.html": {
+      "x": 0,
+      "y": 2600,
+      "w": 1280,
+      "h": 800,
+      "title": "Files · Inbox and Outbox",
+      "is_interactive": true
+    },
+    "WalletsWallet.dc.html": {
+      "x": 0,
+      "y": 5200,
+      "w": 1280,
+      "h": 800,
+      "title": "Wallets · wallet card, 2 of 3 with one key in Main",
+      "is_interactive": true
+    },
+    "WalletsSpend.dc.html": {
+      "x": 1360,
+      "y": 5200,
+      "w": 1280,
+      "h": 800,
+      "title": "Wallets · sign a 2-of-3 spend",
+      "is_interactive": true
+    }
+  },
+  "order": [
+    "Boot.dc.html",
+    "Unlock.dc.html",
+    "Main.dc.html",
+    "Vaults.dc.html",
+    "VaultContents.dc.html",
+    "CreateVault.dc.html",
+    "OpenSigner.dc.html",
+    "SecureBoot.dc.html",
+    "WalletsWallet.dc.html",
+    "WalletsSpend.dc.html",
+    "Files.dc.html",
+    "LockSheet.dc.html",
+    "StickVisit.dc.html",
+    "NewKeyboard.dc.html",
+    "PiUnlock.dc.html",
+    "PiCost.dc.html",
+    "PiReview.dc.html",
+    "PiLock.dc.html",
+    "Sidebar.dc.html"
+  ],
+  "notes": {
+    "row1": {
+      "x": 0,
+      "y": -300,
+      "text": "Starting a session",
+      "kind": "title1",
+      "maxW": 4000
+    },
+    "row2": {
+      "x": 0,
+      "y": 1000,
+      "text": "Vaults, OpenSigner and boot signing",
+      "kind": "title1",
+      "maxW": 6720
+    },
+    "row3": {
+      "x": 0,
+      "y": 2300,
+      "text": "Files, sticks and new devices",
+      "kind": "title1",
+      "maxW": 5360
+    },
+    "row4": {
+      "x": 0,
+      "y": 3600,
+      "text": "Raspberry Pi panel, 268 × 358 dp",
+      "kind": "title1",
+      "maxW": 1312
+    },
+    "row5": {
+      "x": 0,
+      "y": 4900,
+      "text": "The Wallets tab",
+      "kind": "title1",
+      "maxW": 2640
+    }
+  },
+  "designSystems": []
+}

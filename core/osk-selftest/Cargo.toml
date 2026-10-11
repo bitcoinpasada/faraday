@@ -1,0 +1,17 @@
+[package]
+name = "osk-selftest"
+version = "0.1.0"
+description = "The start-up self-test of OpenSignerKit: published vectors for BIP-39, BIP-32, ECDSA, BIP-340 and the KDFs, run before any key is accepted"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+osk-backup = { path = "../osk-backup" }
+osk-bip = { path = "../osk-bip" }
+osk-crypto = { path = "../osk-crypto" }
+osk-psbt = { path = "../osk-psbt" }
+
+[lints]
+workspace = true

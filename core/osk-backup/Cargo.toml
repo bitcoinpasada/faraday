@@ -1,0 +1,25 @@
+[package]
+name = "osk-backup"
+version = "0.1.0"
+description = "OpenSigner's encrypted file formats: osk-backup (.oskb) and a KDBX 4 writer, no_std + alloc"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+osk-bip = { path = "../osk-bip" }
+osk-crypto = { path = "../osk-crypto" }
+zeroize = { workspace = true, features = ["alloc"] }
+# Argon2id over the passphrase, in both formats.
+argon2 = { workspace = true }
+# `osk-backup`'s cipher.
+chacha20poly1305 = { workspace = true }
+# KDBX 4: ChaCha20 over the body and the inner random stream, SHA-256
+# and SHA-512 for its keys, HMAC-SHA-256 over its header and blocks.
+chacha20 = { workspace = true }
+sha2 = { workspace = true }
+hmac = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The camera is the one permission the app asks for, and it is asked for at
+  the first scan rather than at install (docs/PLANNING.md §11.2). Refusing
+  it leaves the file channel, which is the whole app minus the scanner.
+  There is no INTERNET permission, so the app cannot reach the network even
+  by accident, and no storage permission: documents arrive through the
+  system picker.
+
+  The app keeps two files in its own private storage: the settings, and
+  the kept key's blob, which is ciphertext twice over — once by the core
+  under the person's PIN and the secure element, once again by a Keystore
+  key that never leaves the device. Both are excluded from backup and from
+  device-to-device transfer: `allowBackup` is false and
+  `dataExtractionRules` excludes the whole `file` domain, which is where
+  `filesDir` lives (§5.3).
+
+  USE_BIOMETRIC is the second permission, and it opens nothing on its own:
+  it lets the app show the system authentication prompt that authorises
+  one use of the Keystore key behind a kept key (§6). It is a normal
+  permission, granted at install, with no dialog and no access to any
+  biometric data.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
+    <!-- A device with no camera still runs everything but the scanner. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <application
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:hasFragileUserData="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="false"
+        android:theme="@style/Theme.OpenSigner">
+
+        <activity
+            android:name=".MainActivity"
+            android:enableOnBackInvokedCallback="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|keyboard|keyboardHidden|navigation|uiMode|fontScale|layoutDirection|locale">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

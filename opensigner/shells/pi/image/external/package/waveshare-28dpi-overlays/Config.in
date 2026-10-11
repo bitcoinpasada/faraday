@@ -1,0 +1,10 @@
+config BR2_PACKAGE_WAVESHARE_28DPI_OVERLAYS
+	bool "waveshare-28dpi-overlays"
+	help
+	  Waveshare's device tree overlays for the 2.8inch DPI LCD.
+
+	  Downloaded from Waveshare's own file server, the pack their wiki
+	  page links: https://www.waveshare.com/wiki/2.8inch_DPI_LCD
+	  Three of the five overlays are installed into the boot
+	  partition: the panel on a 3B/3B+, the 3B pin map, and the Goodix
+	  touch controller on its bit-banged i2c bus.

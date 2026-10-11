@@ -1,0 +1,32 @@
+# A wallet over a public key alone (PLANNING §16.72): an account key
+# arrives at Home's "Scan a wallet" row, the Choice asks what it pays to,
+# and the review that follows offers to use it. The key is BIP-84's test
+# vector for `abandon … about` in its SLIP-132 spelling
+# (tools/vectors/wallet/account-zpub.txt), so no key is loaded here and
+# the wallet is one this device can only watch.
+# Widget ids are the constants in opensigner/opensigner-core/src/ids.rs.
+snap wallet-xpub-00-home        # nothing loaded: the three start rows
+tapid 20                        # HOME_TILE_BASE + 0: Wallets
+tapid 2203                      # WALLETS_ADD
+tapid 62                        # WALLETS_LOAD: "Scan a wallet"
+camera off                      # the key arrives as a file here
+file tools/vectors/wallet/account-zpub.txt
+tapid 701                       # SCAN_FILE: "Read a file"
+snap wallet-xpub-01-script      # "Which script type?", SegWit from the prefix
+tapid 209                       # PICK_CONTINUE
+snap wallet-xpub-02-review      # one key, origin unknown, and the eye
+tapid 720                       # INSPECT_TEXT: the descriptor, whole
+snap wallet-xpub-03-descriptor
+tapid 208                       # COMPARE_DONE
+tapid 722                       # INSPECT_USE_WALLET: "Use this wallet"
+snap wallet-xpub-04-menu        # the wallet's own menu
+tapid 810                       # WALLET_ADDRESSES
+snap wallet-xpub-05-addresses   # BIP-84's first receive addresses
+tapid 2                         # BACK to the menu
+tapid 811                       # WALLET_EXPORT
+tapid 285                       # EXPORT_FORMAT
+snap wallet-xpub-06-formats     # the descriptor, and no BIP-388 policy
+tapid 2                         # BACK: close the Choice
+tapid 2                         # BACK to the menu
+tapid 2                         # BACK to Wallets
+snap wallet-xpub-07-wallets     # the wallet as a row, with the eye

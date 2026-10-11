@@ -1,0 +1,20 @@
+[package]
+name = "osk-psbt"
+version = "0.1.0"
+description = "PSBT (BIP-174) parsing, inspection, policy warnings, signing and finalization for OpenSignerKit, no_std + alloc"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+osk-bip = { path = "../osk-bip" }
+osk-crypto = { path = "../osk-crypto" }
+bitcoin.workspace = true
+miniscript.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

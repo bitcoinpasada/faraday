@@ -1,0 +1,11 @@
+# Faraday's inittab: upstream's (opensigner/shells/pi/image/common/
+# rootfs-overlay/etc/inittab at c418768) with the app in a loop. The app
+# exits 75 when it locks, and a fresh process starts with nothing of the
+# old one's memory (PLAN.md §5.3); any other exit ends the loop and init
+# powers off. /run/faraday holds the Inbox and Outbox between
+# processes, readable by the app's user alone. rcS starts the grant
+# helper and the disk process (PLAN.md §4.3).
+::sysinit:/etc/init.d/rcS
+::sysinit:/bin/sh -c 'mkdir -p /run/faraday && chown opensigner:opensigner /run/faraday && chmod 0700 /run/faraday'
+::wait:/bin/sh -c 'while /bin/setpriv --nnp /usr/bin/setuidgid opensigner /usr/bin/opensigner-pi $(cat /etc/opensigner/args); [ $? -eq 75 ]; do :; done'
+::wait:/sbin/poweroff -f

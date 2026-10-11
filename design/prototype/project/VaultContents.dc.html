@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vault contents</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Source+Sans+3:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#83d8ef}a:hover{color:#b1e8f7}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; display: flex; background: #11161c; color: #e0e9ef; font-family: {{fontStack}}; overflow: hidden">
+<dc-import name="Sidebar" active="vaults" locked="{{ no }}" font="{{ font }}" hint-size="240px,800px"></dc-import>
+<main style="flex: 1; min-width: 0; box-sizing: border-box; padding: 28px 40px 28px; display: flex; flex-direction: column; gap: 20px">
+<header style="display: flex; align-items: center; gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<a href="Vaults.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #9aacb9; text-decoration: none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>Vaults</a>
+<h1 style="margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.02em">Main</h1>
+</div>
+<span style="margin-left: 8px; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px; background: rgba(240,192,119,0.10); color: #f0c077; font-size: 12px"><span style="width: 7px; height: 7px; border-radius: 4px; background: #f0c077"></span>Open · 2 unsaved changes</span>
+<span style="font-size: 12px; color: #6f8291">vault.ofv · 256 MiB · 3 passes</span>
+<a href="Unlock.dc.html" style="margin-left: auto; display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid #303d49; color: #e0e9ef; text-decoration: none; font-size: 13px; font-weight: 500"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="11" width="15" height="10" rx="2"></rect><path d="M8 11V7.5a4 4 0 0 1 8 0V11"></path></svg>Lock</a>
+</header>
+<div style="display: flex; gap: 16px; flex-grow: 1; min-height: 0">
+<nav aria-label="Kinds" style="flex: none; width: 196px; display: flex; flex-direction: column; gap: 2px">
+<sc-for list="{{ cats }}" as="c" hint-placeholder-count="6">
+<button type="button" onClick="{{ c.pick }}" aria-current="{{ c.current }}" style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: {{c.bg}}; color: {{c.fg}}; font-family: inherit; font-size: 14px; font-weight: 500; text-align: left; cursor: pointer">{{ c.label }}<span style="margin-left: auto; font-size: 12px; color: #6f8291; font-variant-numeric: tabular-nums">{{ c.count }}</span></button>
+</sc-for>
+</nav>
+<section aria-label="{{ catLabel }}" style="flex: none; width: 300px; display: flex; flex-direction: column; border-radius: 12px; background: #19212a; border: 1px solid #1f2933; min-height: 0">
+<div style="display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 12px 0 16px; border-bottom: 1px solid #222c37">
+<span style="font-size: 14px; font-weight: 600">{{ catLabel }}</span>
+<button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid #303d49; background: transparent; color: #e0e9ef; font-family: inherit; font-size: 12px; font-weight: 500"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>{{ addLabel }}</button>
+</div>
+<div style="flex: 1; min-height: 0; overflow-y: auto; padding: 6px">
+<sc-for list="{{ items }}" as="it" hint-placeholder-count="4">
+<button type="button" onClick="{{ it.pick }}" aria-current="{{ it.current }}" style="width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 10px 12px; border: 0; border-radius: 8px; background: {{it.bg}}; color: #e0e9ef; font-family: inherit; text-align: left; cursor: pointer">
+<span style="font-size: 14px; font-weight: 500; font-family: {{it.titleFont}}">{{ it.title }}</span>
+<span style="font-size: 12px; color: #9aacb9">{{ it.sub }}</span>
+</button>
+</sc-for>
+</div>
+</section>
+<section aria-label="Details" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 20px 22px; border-radius: 12px; background: #19212a; border: 1px solid #1f2933; overflow-y: auto">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 600; font-family: {{detail.titleFont}}">{{ detail.title }}</h2>
+<span style="font-size: 13px; color: #9aacb9">{{ detail.sub }}</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 12px">
+<sc-for list="{{ detail.fields }}" as="f" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #9aacb9">{{ f.k }}</span>
+<sc-if value="{{ f.plain }}" hint-placeholder-val="{{ true }}">
+<span style="font-size: 14px; line-height: 1.5; font-family: {{f.font}}; word-break: break-all">{{ f.v }}</span>
+</sc-if>
+<sc-if value="{{ f.secret }}" hint-placeholder-val="{{ false }}">
+<button type="button" onMouseDown="{{ f.hold }}" onMouseUp="{{ release }}" onMouseLeave="{{ release }}" aria-label="Hold to show {{ f.k }}" style="width: 100%; font-family: inherit; color: #e0e9ef; text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px dashed {{f.ring}}; background: rgba(240,192,119,0.05); cursor: pointer; user-select: none">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; letter-spacing: {{f.spacing}}; word-break: break-all">{{ f.shown }}</span>
+<span style="flex: none; font-size: 11px; color: #f0c077">{{ f.hint }}</span>
+</button>
+</sc-if>
+</div>
+</sc-for>
+</div>
+<div style="flex-grow: 1"></div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; border-top: 1px solid #222c37">
+<sc-for list="{{ detail.actions }}" as="a" hint-placeholder-count="2">
+<button type="button" style="margin-top: 12px; height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid {{a.border}}; background: transparent; color: {{a.fg}}; font-family: inherit; font-size: 13px; font-weight: 500">{{ a.label }}</button>
+</sc-for>
+</div>
+</section>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"font":{"editor":"enum","options":["Inter","IBM Plex Sans","Source Sans 3"],"default":"Inter","section":"Look"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { cat: 2, sel: [0, 0, 0, 0, 0, 0], reveal: '' };
+  }
+  renderVals() {
+    const stacks = { "Inter": "'Inter', sans-serif", "IBM Plex Sans": "'IBM Plex Sans', sans-serif", "Source Sans 3": "'Source Sans 3', sans-serif" };
+    const mono = "'JetBrains Mono', monospace";
+    const st = this.state;
+    const del = { label: 'Hold to delete from vault', border: 'rgba(239,155,155,0.45)', fg: '#ef9b9b' };
+    const act = (label) => ({ label, border: '#303d49', fg: '#e0e9ef' });
+
+    const entryNames = ['Email', 'Second email', 'Code hosting', 'Bank', 'Brokerage', 'Domain registrar', 'Cloud storage', 'Router admin', 'Mobile carrier', 'Tax portal', 'Health portal', 'Exchange account', 'Work VPN', 'Library card'];
+    const entries = entryNames.map((n, i) => ({
+      title: n,
+      sub: i % 3 === 0 ? 'Password · TOTP' : 'Password',
+      fields: [
+        { k: 'Username', v: 'you@example.com' },
+        { k: 'Password', secret: '••••••••••••••••', value: 'correct-horse-battery-staple' },
+        { k: 'URL', v: '[site address]', mono: true }
+      ].concat(i % 3 === 0 ? [{ k: 'TOTP secret', secret: '••••••••••••••••••••••••', value: 'otpauth://totp/[issuer]:you?secret=[BASE32 SECRET]' }] : [])
+        .concat([{ k: 'Notes', v: i === 0 ? 'Recovery codes are in the Notes section.' : '—' }]),
+      actions: [act('Edit'), del]
+    }));
+
+    const cats = [
+      { label: 'Bitcoin keys', add: 'Add', items: [
+        { title: '73c5da0a', mono: true, sub: '12 words · English · loads at unlock', fields: [
+          { k: 'Fingerprint', v: '73c5da0a', mono: true },
+          { k: 'Words', secret: '••••  ••••  ••••  ••••  ••••  ••••', value: '[the 12 words appear here while held]' },
+          { k: 'BIP-39 passphrase', v: 'Not stored' },
+          { k: 'Load at unlock', v: 'Yes' }
+        ], actions: [act('Open in OpenSigner'), act("Don't load at unlock"), del] },
+        { title: 'f23a9b01', mono: true, sub: '24 words · English · loads at unlock', fields: [
+          { k: 'Fingerprint', v: 'f23a9b01', mono: true },
+          { k: 'Words', secret: '••••  ••••  ••••  ••••  ••••  ••••', value: '[the 24 words appear here while held]' },
+          { k: 'BIP-39 passphrase', v: 'Stored', },
+          { k: 'Load at unlock', v: 'Yes' }
+        ], actions: [act('Open in OpenSigner'), act("Don't load at unlock"), del] }
+      ] },
+      { label: 'Wallets', add: 'Add', items: [
+        { title: 'Savings', sub: '2 of 3 · Taproot', fields: [{ k: 'Policy', v: '[BIP-388 policy text]', mono: true }, { k: 'Keys here', v: '73c5da0a, f23a9b01' }], actions: [act('Open in OpenSigner'), del] },
+        { title: 'Spending', sub: 'SegWit · 73c5da0a', fields: [{ k: 'Descriptor', v: '[wpkh descriptor with checksum]', mono: true }, { k: 'Keys here', v: '73c5da0a' }], actions: [act('Open in OpenSigner'), del] },
+        { title: 'Cold storage', sub: 'SegWit · watch-only', fields: [{ k: 'Descriptor', v: '[wpkh descriptor with checksum]', mono: true }, { k: 'Keys here', v: 'None' }], actions: [act('Open in OpenSigner'), del] }
+      ] },
+      { label: 'Entries', add: 'Add an entry', items: entries },
+      { label: 'Notes', add: 'Add a note', items: [
+        { title: 'Recovery codes', sub: 'Note · 412 characters', fields: [{ k: 'Text', secret: '••••••••••••••••••••', value: '[note text appears here while held]' }], actions: [act('Edit'), del] },
+        { title: 'Savings recovery sheet', sub: 'Recovery sheet · Savings', fields: [{ k: 'Descriptor', v: '[descriptor with checksum]', mono: true }, { k: 'Note', v: 'Third key is with the lawyer.' }], actions: [act('Show as QR'), del] }
+      ] },
+      { label: 'GPG keys', add: 'Make a key', items: [
+        { title: '[Your name] <you@example.com>', sub: 'Ed25519 · signing subkey · expires 2028-10-04', fields: [
+          { k: 'Primary fingerprint', v: '[PRIMARY KEY FINGERPRINT]', mono: true },
+          { k: 'Signing subkey', v: '[SUBKEY FINGERPRINT]', mono: true },
+          { k: 'Revocation certificate', v: 'Made at creation' }
+        ], actions: [act('Export public key'), act('Sign a file'), act('Renew'), del] }
+      ] },
+      { label: 'Secure Boot', add: 'Make keys', items: [
+        { title: 'Owner keys', sub: 'PK, KEK, db · RSA-2048', fields: [
+          { k: 'Owner GUID', v: '[OWNER GUID]', mono: true },
+          { k: 'db certificate', v: '[db CERTIFICATE FINGERPRINT]', mono: true }
+        ], actions: [act('Open Secure Boot'), del] }
+      ] }
+    ];
+
+    const ci = st.cat;
+    const cat = cats[ci];
+    const si = Math.min(st.sel[ci], cat.items.length - 1);
+    const item = cat.items[si];
+    const detail = {
+      title: item.title,
+      titleFont: item.mono ? mono : 'inherit',
+      sub: item.sub,
+      actions: item.actions,
+      fields: item.fields.map((f, i) => {
+        const id = ci + '-' + si + '-' + i;
+        const shown = st.reveal === id;
+        return {
+          k: f.k,
+          plain: !f.secret,
+          secret: !!f.secret,
+          v: f.v,
+          font: f.mono ? mono : 'inherit',
+          shown: shown ? f.value : f.secret,
+          spacing: shown ? '0' : '2px',
+          ring: shown ? '#f0c077' : 'rgba(240,192,119,0.45)',
+          hint: shown ? 'Release to hide' : 'Hold to show',
+          hold: () => this.setState({ reveal: id })
+        };
+      })
+    };
+
+    return {
+      font: this.props.font ?? 'Inter',
+      no: false,
+      fontStack: stacks[this.props.font] || stacks.Inter,
+      cats: cats.map((c, i) => ({
+        label: c.label,
+        count: c.items.length,
+        current: i === ci ? 'true' : 'false',
+        bg: i === ci ? 'rgba(131,216,239,0.12)' : 'transparent',
+        fg: i === ci ? '#e0e9ef' : '#9aacb9',
+        pick: () => this.setState({ cat: i, reveal: '' })
+      })),
+      catLabel: cat.label,
+      addLabel: cat.add,
+      items: cat.items.map((it, i) => ({
+        title: it.title,
+        sub: it.sub,
+        titleFont: it.mono ? mono : 'inherit',
+        current: i === si ? 'true' : 'false',
+        bg: i === si ? '#222c37' : 'transparent',
+        pick: () => { const sel = st.sel.slice(); sel[ci] = i; this.setState({ sel, reveal: '' }); }
+      })),
+      detail,
+      release: () => this.setState({ reveal: '' })
+    };
+  }
+}
+</script>
+</body>
+</html>
