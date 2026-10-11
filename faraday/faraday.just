@@ -134,6 +134,8 @@ faraday-stick-bin:
     export "CARGO_TARGET_${upper}_LINKER=$CC"
     export "CFLAGS_${under}=$CFLAGS"
     export RUSTFLAGS="-C target-feature=+crt-static"
+    # No local path in the binaries (faraday/image/path-remap.sh).
+    . faraday/image/path-remap.sh
     # Not `export FARADAY_BUILD=$(...)`: with `set -e`, export's own exit
     # status hides a failure of the command inside it.
     FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV={{dev}} FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
@@ -222,6 +224,8 @@ faraday-pi-bin:
     export "CARGO_TARGET_${upper}_LINKER=$CC"
     export "CFLAGS_${under}=$CFLAGS"
     export RUSTFLAGS="-C target-feature=+crt-static"
+    # No local path in the binaries (faraday/image/path-remap.sh).
+    . faraday/image/path-remap.sh
     # Not `export FARADAY_BUILD=$(...)`: with `set -e`, export's own exit
     # status hides a failure of the command inside it.
     FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV={{dev}} FARADAY_VERSION={{version}} faraday/image/build-id.sh)"

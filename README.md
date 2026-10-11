@@ -609,6 +609,9 @@ cargo build -p faraday-desktop
 
 # Release build: target/release/faraday
 cargo build -p faraday-desktop --release
+
+# A published release, with no local path compiled into it
+. faraday/image/path-remap.sh && cargo build -p faraday-desktop --release
 ```
 
 ## Run the desktop shell
@@ -702,7 +705,9 @@ on mainnet. `faraday/image/run-build.sh` and
 The stick image is built in a container with the base image and every
 compiler pinned by version, the commit date as `SOURCE_DATE_EPOCH`, and
 host paths remapped out of the output, so that a second builder can
-check that it gets the same bytes. The kernel's release string carries
+check that it gets the same bytes. Faraday's own binaries, built outside
+that container, have their source paths rewritten the same way
+(`faraday/image/path-remap.sh`). The kernel's release string carries
 the Faraday build ID: a release's version alone, otherwise the version,
 the commit's first twelve hex digits and the kind of build, test or dev
 (and `.dirty-XXXXXXXX` for a tree that differs from its commit), never a
