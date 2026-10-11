@@ -1197,6 +1197,7 @@ impl Faraday {
                 let (keys, wallets) = self.vault_load_set(v, &set);
                 if self.screen == Screen::Family {
                     self.family_settle();
+                    self.family_vault_loaded();
                     self.family_opened();
                 }
                 self.toast(&format!(
@@ -1270,6 +1271,7 @@ impl Faraday {
                 // Spend tab goes on to what it needs next.
                 if self.screen == Screen::Family {
                     self.family_settle();
+                    self.family_vault_loaded();
                     self.family_opened();
                 }
                 self.toast(&format!(

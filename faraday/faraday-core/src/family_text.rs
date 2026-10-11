@@ -58,46 +58,18 @@ pub fn map(m: Medium) -> [(&'static str, &'static str, String); 6] {
 pub const WORDS_ARE_MONEY: &str = "The words are the money. Never photograph them, and never type \
     them into a phone, a website or a password manager. The same goes for the vault's passphrase.";
 
-/// The answers to What are you holding?: the route, its title, what it
-/// looks like.
-pub fn answers(m: Medium) -> [(Route, String, String); 3] {
-    [
-    (
-        Route::Vault,
-        format!("A Faraday {} and its passphrase", m.noun()),
-        format!(
-            "The {} this computer started from, or another one with a vault on it, and a \
-             passphrase written down apart from it. The vault holds the wallet and the keys \
-             that sign for it.",
-            m.noun()
-        ),
-    ),
-    (
-        Route::Words,
-        "Words, and nothing else".to_string(),
-        "Twelve, eighteen or twenty-four ordinary English words, numbered, in a fixed order, and \
-         nothing else that looks like a long code, a block of letter-and-number lines, or a QR \
-         code. A single list of words is usually the whole wallet. Several lists, perhaps with \
-         a line like 2 of 3, are one wallet of several keys and go here too."
-            .to_string(),
-    ),
-    (
-        Route::Paper,
-        "Words and something else".to_string(),
-        "As well as the words there is one long line starting wsh( or wpkh(, or lines pairing \
-         short codes with xpubs, or QR codes meant to be scanned, perhaps spread across several \
-         sheets. The wallet needs more than one key, and its description goes in before the \
-         words."
-            .to_string(),
-    ),
-    ]
-}
+/// What do you have?'s link to the list of what each thing looks like.
+pub const UNSURE: &str = "Not sure what you have?";
 
-/// The answer that opens the list below.
-pub const UNSURE: (&str, &str) = (
-    "I am not sure",
-    "What each thing in the envelope looks like, and how to tell them apart.",
-);
+/// The hint with one seed in: what else may be in the envelope.
+pub const ANYTHING_HINT: &str = "Another list of words, another QR code, a line starting wsh( or \
+    tr(, or a word kept apart from the list.";
+
+/// The hint with several seeds in and no description: what one looks
+/// like.
+pub const DESCRIPTION_HINT: &str = "Its description says how they fit together: a QR code \
+    labelled wallet, descriptor, setup or multisig; a long line starting wsh( or tr(; or sheets \
+    with lines like 73C5DA0A: xpub…";
 
 /// What each thing in the envelope looks like: its look, then what it is.
 pub fn looks(m: Medium) -> [(String, String); 8] {
@@ -162,9 +134,12 @@ pub fn title(app: &Faraday, id: CardId) -> String {
         CardId::Page(p) => match p {
             page::MAP => "How to spend bitcoin",
             page::SAFE => return format!("Start from the {}", app.medium.noun()),
-            page::HOLDING => "What are you holding?",
+            page::HOLDING => "What do you have?",
             page::OPEN => "Open the wallet",
             page::CHECK if app.family.from_card => "Load the wallet in Sparrow",
+            page::CHECK if app.family_guess().is_some() => {
+                "Check the money is there, on the online computer"
+            }
             page::WRITE if app.family.from_card => "Write the payment in Sparrow",
             page::CHECK => "Check the money is really there",
             page::WRITE => "Write the payment",
@@ -211,11 +186,10 @@ pub fn lead(app: &Faraday, id: CardId) -> String {
                 app.medium.noun()
             );
         }
-        CardId::Page(page::HOLDING) => {
-            "Lay out everything in the envelope first. Several items is normal and does not mean \
-             anything is missing."
+        CardId::Page(page::HOLDING | page::OPEN) => {
+            "Scan or type everything in the envelope, one thing at a time, in any order. Faraday \
+             works out the wallet from it."
         }
-        CardId::Page(page::OPEN) => return open_lead(app),
         // From the wallet's card: what to press, no more.
         CardId::Page(page::CHECK) if app.family.from_card => {
             "In Sparrow: File, New Wallet, then scan the wallet QR. Its first address is receive \
@@ -224,6 +198,11 @@ pub fn lead(app: &Faraday, id: CardId) -> String {
         CardId::Page(page::WRITE) if app.family.from_card => {
             "In Sparrow's Send tab: the address, the amount and a fee. Then Create Transaction, \
              Finalize Transaction for Signing and Show QR."
+        }
+        CardId::Page(page::CHECK) if app.family_guess().is_some() => {
+            "Words alone do not say which kind of wallet they made. Faraday made the most common \
+             kind from them. Open it in the wallet on the online computer, such as Sparrow, and \
+             look at its balance. If no money shows, Faraday makes the next kind."
         }
         CardId::Page(page::CHECK) => {
             "Load this same wallet in Sparrow on your online computer to check the balance. The \
@@ -333,40 +312,6 @@ fn signers_missing(app: &Faraday) -> bool {
     app.family.route != Some(Route::Paper) && here < app.spend_needed()
 }
 
-fn open_lead(app: &Faraday) -> String {
-    let s = match app.family.route {
-        Some(Route::Vault) => {
-            return format!(
-                "The vault comes in by itself from the {noun} this computer started from; one on \
-                 another {noun} is copied in on {a} visit. Faraday opens a vault only with no \
-                 {noun} attached: take the {noun} out and keep it with the papers. Then type the \
-                 vault's passphrase exactly as it is written, capital letters and spaces \
-                 included. Then the vault lists its wallets and seeds, all ticked: Load brings \
-                 them in, or untick what you do not need first.",
-                noun = app.medium.noun(),
-                a = app.medium.a()
-            );
-        }
-        Some(Route::Words) => {
-            "Type the words in the order they are written, separated by spaces. Spelling and \
-             order matter; nothing else does. Faraday checks them against the list of 2048 words \
-             and the backup's own checksum, so a mistyped or missing word is caught here. If a \
-             separate passphrase came with the words, put it in the passphrase box exactly as \
-             written. If there was none, leave it empty. Several lists are one wallet of several \
-             keys: add each with Add another seed, then choose how many keys there are and how \
-             many sign, the kind and the path."
-        }
-        Some(Route::Paper) => {
-            "Scan or type the long code exactly as it is written, including everything after the \
-             #. It cannot move money: it opens the wallet read-only, which is enough to see every \
-             address and to check the balance. The words come later, after the transaction has \
-             been read."
-        }
-        None => "Answer What are you holding? first.",
-    };
-    s.to_string()
-}
-
 /// A card's More about this, as separate paragraphs.
 pub fn more(app: &Faraday, id: CardId) -> Vec<String> {
     let m = app.medium;
@@ -417,43 +362,16 @@ pub fn more(app: &Faraday, id: CardId) -> Vec<String> {
                 ),
             ];
         }
-        CardId::Page(page::OPEN) => match app.family.route {
-            Some(Route::Vault) => &[
-                "Unlocking takes the time shown on purpose: it makes guessing the passphrase slow.",
-                "A wrong passphrase opens nothing and says so. Try again as often as you like.",
-                "A vault can have more than one passphrase, and each opens its own contents. If \
-                 what opens has no wallet in it, check the passphrase against the paper again.",
-                "A vault may hold only part of a wallet: its description and one key, say. The \
-                 other keys come from their own places, on the signing cards: words typed or \
-                 scanned from a SeedQR, another vault, or a cosigner who signs on their own \
-                 device and hands back the signed copy.",
-                "If the vault holds keys but not the wallet they belong to, load the wallet's \
-                 description from the paper below.",
-            ],
-            Some(Route::Words) => &[
-                "The wallet opens as native SegWit, account 0: addresses starting bc1q, what most \
-                 wallets make. If Sparrow shows nothing on the next page, the wallet may be another \
-                 kind; each kind's first address is listed, to compare with any address on the \
-                 paper.",
-                "When the transaction arrives, Faraday reads which kind it spends from its own key \
-                 paths and opens that kind.",
-                "With several lists of words, the wallet is a multisig. The number of keys and \
-                 how many must sign are often written down as 2 of 3 or similar. A key whose \
-                 words are not here, a cosigner's, goes in as its account key (an xpub): scanned, \
-                 from a key file in Files, or typed. Native SegWit multisig at the standard path \
-                 is what most wallets make; if Sparrow shows nothing on the next page, try \
-                 another kind or account.",
-            ],
-            Some(Route::Paper) => &[
-                "If it came in pieces, do one sheet at a time. Scan or copy in what one sheet \
-                 gives you; Faraday counts the keys in hand and waits. Order does not matter, a \
-                 sheet entered twice does no harm, and the wallet opens by itself when the last \
-                 part arrives.",
-                "The number of signatures needed is printed at the top of each sheet, as 2-of-3 or \
-                 Policy: 2 of 3.",
-            ],
-            None => &[],
-        },
+        CardId::Page(page::HOLDING | page::OPEN) => &[
+            "A vault unlocks in the time shown on purpose: it makes guessing the passphrase slow. \
+             A wrong passphrase opens nothing and says so.",
+            "Words go in in the order they are written. Faraday checks them against the list of \
+             2048 words and the backup's own checksum, so a mistyped or missing word is caught.",
+            "A wallet description opens the wallet read-only: enough to see every address and to \
+             check the balance. The words that sign come later, after the transaction is read.",
+            "Split sheets go in one at a time, in any order; the wallet opens when enough of \
+             them are in.",
+        ],
         CardId::Page(page::CHECK) => &[
             "In Sparrow: File, New Wallet, give it a name, then choose the way in that scans a \
              QR code or imports a descriptor, and hold this screen up to the webcam. Menu names \

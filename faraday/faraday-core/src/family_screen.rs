@@ -4,7 +4,7 @@
 
 use osk_ui::widgets::Icon;
 
-use crate::family::{CardId, FamilyAction as F, Route, more_bit, page};
+use crate::family::{Came, CardId, FamilyAction as F, Question, more_bit, page};
 use crate::family_text as text;
 use crate::screens::{next_button, step_body, step_summary};
 use crate::ui::pal::*;
@@ -537,26 +537,20 @@ fn summary(app: &Faraday, id: CardId) -> String {
         CardId::Page(page::MAP) => "Six stops",
         CardId::Page(page::SAFE) if app.online => "Desktop copy",
         CardId::Page(page::SAFE) => return format!("Running from the {}", app.medium.noun()),
-        CardId::Page(page::HOLDING) => {
-            return match app.family.route {
-                Some(r) => text::answers(app.medium)
-                    .into_iter()
-                    .find(|a| a.0 == r)
-                    .map(|a| a.1)
-                    .unwrap_or_default(),
-                None => "Not answered yet".to_string(),
-            };
-        }
-        CardId::Page(page::OPEN) => {
+        CardId::Page(page::HOLDING | page::OPEN) => {
             return match app.family_wallet().map(|i| &app.session.wallets[i]) {
-                Some(w) => format!("{} · {}", w.name, Session::shape(w)),
-                None => "Not open yet".to_string(),
+                Some(w) => wallet_once(w),
+                None => match came_rows(app).len() {
+                    0 => "Nothing in yet".to_string(),
+                    1 => "1 thing in".to_string(),
+                    n => format!("{n} things in"),
+                },
             };
         }
         CardId::Page(page::CHECK) if app.family.from_card && app.family_page_done(page::CHECK) => {
             "Loaded in Sparrow"
         }
-        CardId::Page(page::CHECK) if app.family_page_done(page::CHECK) => "First address matches",
+        CardId::Page(page::CHECK) if app.family_page_done(page::CHECK) => "Money shows",
         // From the wallet's card Write the payment brings the PSBT too.
         CardId::Page(page::WRITE) if app.family.from_card => {
             return match app.spend.as_ref() {
@@ -601,8 +595,7 @@ fn body(app: &Faraday, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
                 0.0
             }
         }
-        CardId::Page(page::HOLDING) => holding(app, ui, x, cy, w),
-        CardId::Page(page::OPEN) => open(app, ui, x, cy, w),
+        CardId::Page(page::HOLDING | page::OPEN) => holding(app, ui, x, cy, w),
         CardId::Page(page::CHECK) if app.family.from_card => loaded_in_sparrow(app, ui, x, cy, w),
         CardId::Page(page::CHECK) => check(app, ui, x, cy, w),
         CardId::Page(page::WRITE) if app.family.from_card => bring(app, ui, x, cy, w),
@@ -715,67 +708,322 @@ fn map(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy + (if drawn { 52.0 } else { 8.0 }) - y
 }
 
-/// What are you holding?: big answers that turn the page.
+/// What do you have? (`docs/SCAN-TO-SIGN.md` §4): a vault when one is
+/// found, the two ways in, what came in, the next question, and the
+/// wallet once it is worked out.
 fn holding(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    let answers = text::answers(app.medium)
-        .into_iter()
-        .map(|(r, head, sub)| (head, sub, fa(F::Holding(r)), app.family.route == Some(r)))
-        .chain(std::iter::once((
-            text::UNSURE.0.to_string(),
-            text::UNSURE.1.to_string(),
-            fa(F::Unsure),
-            app.family.help,
-        )));
-    for (head, sub, action, on) in answers {
-        let top = cy;
-        let pressed = ui.is_pressed(action);
-        // The answer wraps clear of the tick.
-        let hh = ui.wrap(x + 20.0, top + 16.0, w - 64.0, 16.0, W::S, TEXT, &head);
-        let th = ui.wrap(x + 20.0, top + 22.0 + hh, w - 40.0, 13.0, W::R, MUTED, &sub);
-        let bh = 38.0 + hh + th;
-        let edge = if on || pressed { ACCENT } else { BORDER };
-        ui.stroke(x, top, w, bh, 12.0, edge);
-        if on {
-            ui.icon(x + w - 40.0, top + 14.0, 24.0, Icon::Done, 12.0, ACCENT);
+    // A vault, only when one is found.
+    let files = app.vault_files();
+    let locked: Vec<&crate::vaults::VaultFile> =
+        files.iter().filter(|f| f.open.is_none()).collect();
+    if !locked.is_empty() || !app.vaults.open.is_empty() {
+        if let Some(f) = files
+            .get(app.vaults.pick)
+            .filter(|f| f.open.is_none())
+            .or(locked.first().copied())
+        {
+            let head = format!("Unlock {}", f.name);
+            cy += ui.wrap(x, cy, w, 15.0, W::S, TEXT, &head) + 12.0;
         }
-        ui.hit(x, top, w, bh, action);
-        cy += bh + 10.0;
+        cy += vault(app, ui, x, cy, w);
+        cy += 4.0;
+        ui.text(x, cy, 13.0, W::S, MUTED, "Or bring in what is on paper");
+        cy += 28.0;
     }
+    let ready = app.family_ready();
+    let may = app.may_load_keys();
+    cy += crate::screens::wrap_buttons(
+        ui,
+        x,
+        cy,
+        w,
+        40.0,
+        &[
+            (
+                "Scan the QR codes you have",
+                if ready {
+                    Style::Secondary
+                } else {
+                    Style::Primary
+                },
+                fa(F::Scan),
+            ),
+            (
+                "Type the words you have",
+                if may {
+                    Style::Secondary
+                } else {
+                    Style::Disabled
+                },
+                fa(F::TypeWords),
+            ),
+        ],
+    );
+    // A description already in Files, or on a stick to copy in.
+    if !ready {
+        let files: Vec<String> = app
+            .inbox
+            .iter()
+            .filter(|i| i.kind == FileKind::Wallet)
+            .map(|i| format!("Open {}", i.name))
+            .collect();
+        let items: Vec<(&str, Style, Action)> = app
+            .inbox
+            .iter()
+            .enumerate()
+            .filter(|(_, i)| i.kind == FileKind::Wallet)
+            .zip(&files)
+            .map(|((k, _), l)| (l.as_str(), Style::Secondary, fa(F::UseWallet(k))))
+            .collect();
+        if !items.is_empty() {
+            cy += crate::screens::wrap_buttons(ui, x, cy, w, 36.0, &items);
+        }
+        let label = format!("Copy files in from {}", app.medium.a());
+        cy += stick_row(app, ui, x, cy, w, &label);
+    }
+    ui.button(
+        x - 12.0,
+        cy,
+        None,
+        32.0,
+        text::UNSURE,
+        Style::Ghost,
+        fa(F::Unsure),
+    );
+    cy += 40.0;
     if app.family.help {
-        cy += 8.0;
         for (look, what) in text::looks(app.medium) {
             cy += ui.wrap(x, cy, w, 14.0, W::S, TEXT, &look) + 4.0;
             cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, &what) + 14.0;
         }
     }
-    cy - y + 6.0
-}
-
-fn open(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let mut cy = y;
-    match app.family.route {
-        Some(Route::Vault) => cy += vault(app, ui, x, cy, w),
-        Some(Route::Words) => cy += words(app, ui, x, cy, w),
-        Some(Route::Paper) => cy += paper(app, ui, x, cy, w),
-        None => {
-            ui.button(
+    // What came in, newest last.
+    let rows = came_rows(app);
+    if !rows.is_empty() {
+        cy += 6.0;
+        ui.text(x, cy, 13.0, W::S, MUTED, "What came in");
+        cy += 26.0;
+        for row in &rows {
+            let row = ui.fit(13.0, W::M, row, w);
+            ui.text_mid(x, cy, 34.0, 13.0, W::M, TEXT, &row);
+            ui.rule(x, cy + 34.0, w, INNER);
+            cy += 36.0;
+        }
+        cy += 12.0;
+    }
+    // Split sheets in Files that add up.
+    if !ready {
+        let sheets: Vec<String> = app
+            .inbox
+            .iter()
+            .filter(|i| i.kind == FileKind::Share)
+            .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
+            .collect();
+        if !sheets.is_empty() && crate::restore::merge(&sheets).is_ok_and(|m| m.whole.is_some()) {
+            cy += crate::screens::wrap_buttons(
+                ui,
                 x,
                 cy,
-                None,
+                w,
                 38.0,
-                "What are you holding?",
-                Style::Secondary,
-                fa(F::Card(page::HOLDING)),
+                &[("Rebuild the wallet", Style::Primary, fa(F::Rebuild))],
             );
-            return 50.0;
         }
     }
+    // A seed that is none of the described wallet's keys.
+    if let Some(wi) = app.family_described() {
+        let name = &app.session.wallets[wi].name;
+        for fp in app.family_strays() {
+            let line = format!("Seed {} is not one of {name}'s keys", fp_text(fp));
+            cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 8.0;
+            cy += crate::screens::wrap_buttons(
+                ui,
+                x,
+                cy,
+                w,
+                38.0,
+                &[(
+                    "Add its passphrase",
+                    if may {
+                        Style::Secondary
+                    } else {
+                        Style::Disabled
+                    },
+                    fa(F::StrayPass(fp.0)),
+                )],
+            ) + 4.0;
+        }
+    }
+    cy += question(app, ui, x, cy, w);
     if let Some(e) = &app.family.error {
         cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 10.0;
     }
     cy += opened(app, ui, x, cy, w);
+    if !rows.is_empty() || app.family.route.is_some() {
+        cy += crate::screens::wrap_buttons(
+            ui,
+            x - 12.0,
+            cy,
+            w,
+            36.0,
+            &[("Start over", Style::Ghost, fa(F::StartOver))],
+        );
+    }
     cy - y
+}
+
+/// The wallet, said once: its name and its shape, or the shape alone
+/// when the name already says it ("Words · native SegWit").
+fn wallet_once(w: &crate::wallet::Wallet) -> String {
+    let shape = Session::shape(w);
+    let kind = shape.rsplit(" · ").next().unwrap_or(&shape);
+    if w.name.to_lowercase().contains(&kind.to_lowercase()) {
+        shape
+    } else {
+        format!("{} · {shape}", w.name)
+    }
+}
+
+/// What came in, a line each, newest last: the seeds still loaded and
+/// the files still in Files.
+fn came_rows(app: &Faraday) -> Vec<String> {
+    let mut sheets = 0;
+    let mut texts: Vec<String> = Vec::new();
+    let mut rows = Vec::new();
+    // Split sheets already in Files, copied in from a stick say, are
+    // listed after what came in on the card.
+    let mut came = app.family.came.clone();
+    for it in app.inbox.iter().filter(|i| i.kind == FileKind::Share) {
+        let c = Came::File(it.name.clone());
+        if !came.contains(&c) {
+            came.push(c);
+        }
+    }
+    for c in &came {
+        match c {
+            Came::Seed(fp) => {
+                let f = osk_bip::keys::Fingerprint(*fp);
+                let Some(label) = app.session.key_label(f) else {
+                    continue;
+                };
+                let t = fp_text(f);
+                let label = label.trim();
+                rows.push(if label.is_empty() || label.eq_ignore_ascii_case(&t) {
+                    format!("Seed · {t}")
+                } else {
+                    format!("Seed · {t} · {label}")
+                });
+            }
+            Came::File(name) => {
+                let Some(item) = app.inbox.iter().find(|i| i.name == *name) else {
+                    continue;
+                };
+                rows.push(match item.kind {
+                    FileKind::Wallet => {
+                        match app.session.wallets.iter().find(|wl| wl.source == *name) {
+                            Some(wl) => {
+                                format!("Wallet description · {} · {}", wl.name, Session::shape(wl))
+                            }
+                            None => format!("Wallet description · {name}"),
+                        }
+                    }
+                    FileKind::Share => {
+                        sheets += 1;
+                        texts.push(String::from_utf8_lossy(&item.bytes).into_owned());
+                        match crate::restore::merge(&texts) {
+                            Ok(m) => {
+                                format!("Part {sheets} · {} of {} keys in hand", m.have.len(), m.n)
+                            }
+                            Err(_) => format!("Part {sheets}"),
+                        }
+                    }
+                    FileKind::Key => {
+                        let t = String::from_utf8_lossy(&item.bytes);
+                        let key = crate::create::read_key(&t).unwrap_or_default();
+                        let fp = key
+                            .strip_prefix('[')
+                            .and_then(|r| r.split(['/', ']']).next())
+                            .map(str::to_uppercase);
+                        match fp {
+                            Some(fp) => format!("Key · {fp} · xpub"),
+                            None => "Key · xpub".to_string(),
+                        }
+                    }
+                    FileKind::Psbt => "Transaction · kept for later".to_string(),
+                    _ => name.clone(),
+                });
+            }
+        }
+    }
+    rows
+}
+
+/// The next question, by what came in (`docs/SCAN-TO-SIGN.md` §4.3).
+fn question(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let mut cy = y;
+    let may = app.may_load_keys();
+    let typing = if may {
+        Style::Secondary
+    } else {
+        Style::Disabled
+    };
+    match app.family_question() {
+        Question::None => return 0.0,
+        Question::Anything => {
+            cy += ui.wrap(x, cy, w, 15.0, W::S, TEXT, "Anything else in the envelope?") + 6.0;
+            cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, text::ANYTHING_HINT) + 12.0;
+            cy += crate::screens::wrap_buttons(
+                ui,
+                x,
+                cy,
+                w,
+                40.0,
+                &[
+                    ("Scan more", Style::Secondary, fa(F::Scan)),
+                    ("Type more words", typing, fa(F::TypeWords)),
+                    ("That's everything", Style::Primary, fa(F::Everything)),
+                ],
+            );
+        }
+        Question::Description => {
+            cy += ui.wrap(
+                x,
+                cy,
+                w,
+                15.0,
+                W::S,
+                TEXT,
+                "These seeds are one wallet with several keys.",
+            ) + 6.0;
+            cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, text::DESCRIPTION_HINT) + 12.0;
+            cy += crate::screens::wrap_buttons(
+                ui,
+                x,
+                cy,
+                w,
+                40.0,
+                &[
+                    ("Scan the description", Style::Primary, fa(F::Scan)),
+                    ("I can't find one", Style::Secondary, fa(F::NoDescription)),
+                ],
+            );
+        }
+        Question::Shape => {
+            let s = &app.family.seeds;
+            let here = app.seeds_here(s).len();
+            if s.n > here {
+                let line = format!(
+                    "Without the description Faraday needs all {} keys: their seeds, or their \
+                     xpubs",
+                    s.n
+                );
+                cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 12.0;
+            }
+            cy += crate::seeds_screen::shape(app, ui, s, false, x, cy, w);
+        }
+    }
+    cy + 8.0 - y
 }
 
 /// The vault route: the vaults, the stick, the passphrase, Unlock.
@@ -792,25 +1040,6 @@ fn vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .enumerate()
         .filter(|(_, f)| f.open.is_none())
         .collect();
-    if locked.is_empty() && app.vaults.open.is_empty() {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            13.0,
-            W::R,
-            MUTED,
-            &format!(
-                "No vault in Files. The {noun} this computer started from brings its vault in by \
-                 itself; a vault on another {noun} is copied in on {a} visit.",
-                noun = app.medium.noun(),
-                a = app.medium.a()
-            ),
-        ) + 12.0;
-        let label = format!("Copy a vault in from {}", app.medium.a());
-        cy += stick_row(app, ui, x, cy, w, &label);
-        return cy - y;
-    }
     if locked.is_empty() {
         return cy - y;
     }
@@ -968,214 +1197,15 @@ fn stick_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) ->
     50.0
 }
 
-/// The words route: type or scan the words, and add another seed for a
-/// wallet of several; with one seed, the kind of wallet it opens, each
-/// with its first address; with more, the wallet's shape (`seeds.rs`).
-fn words(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let mut cy = y;
-    let s = &app.family.seeds;
-    let several = app.seeds_here(s).len() >= 2;
-    if several {
-        cy += crate::seeds_screen::keys(app, ui, s, true, x, cy, w) + 4.0;
-        if s.shaping {
-            ui.rule(x, cy, w, INNER);
-            cy += 16.0;
-            cy += crate::seeds_screen::shape(app, ui, s, false, x, cy, w);
-        }
-        return cy - y;
-    }
-    let typed = app
-        .session
-        .wallets
-        .iter()
-        .any(|wl| wl.source == crate::family::WORDS_SOURCE);
-    cy += crate::screens::wrap_buttons(
-        ui,
-        x,
-        cy,
-        w,
-        40.0,
-        &[
-            (
-                if typed {
-                    "Add another seed"
-                } else {
-                    "Type the words"
-                },
-                if typed {
-                    Style::Secondary
-                } else {
-                    Style::Primary
-                },
-                Action::Entry(None),
-            ),
-            ("Scan a SeedQR", Style::Secondary, Action::ScanSeed),
-        ],
-    ) + 4.0;
-    let (Some(key), Some(now)) = (app.family_words_key(), app.family_words_kind_now()) else {
-        return cy - y;
-    };
-    ui.text(
-        x,
-        cy,
-        13.0,
-        W::S,
-        MUTED,
-        &format!(
-            "Key {} · the kind of wallet",
-            fp_text(key.master.fingerprint())
-        ),
-    );
-    cy += 26.0;
-    for (k, kind) in crate::family::SINGLE.iter().enumerate() {
-        let on = *kind == now;
-        let addr = kind
-            .key_text(&key.master)
-            .ok()
-            .and_then(|t| crate::create::build(*kind, 1, &[t]).ok())
-            .and_then(|p| p.address_at(app.session.network(), false, 0).ok())
-            .map(|a| app.session.shown(&a.to_string()))
-            .unwrap_or_default();
-        ui.checkbox(x, cy + 11.0, on, true);
-        ui.text_mid(
-            x + 30.0,
-            cy,
-            40.0,
-            14.0,
-            W::S,
-            if on { TEXT } else { MUTED },
-            crate::family::kind_name(*kind),
-        );
-        // On a small panel the address goes under the kind.
-        let rh = if ui.compact {
-            let a = ui.fit(12.0, W::M, &addr, w - 30.0);
-            ui.text_mid(x + 30.0, cy + 30.0, 20.0, 12.0, W::M, MUTED, &a);
-            56.0
-        } else {
-            let a = ui.fit(12.0, W::M, &addr, w - 190.0);
-            ui.text_right(x + w, cy, 40.0, 12.0, W::M, MUTED, &a);
-            40.0
-        };
-        ui.hit(x, cy, w, rh, fa(F::Kind(k as u8)));
-        ui.rule(x, cy + rh, w, INNER);
-        cy += rh + 2.0;
-    }
-    cy + 12.0 - y
-}
-
-/// The paper route: the description by camera or from Files, whole or
-/// in split sheets.
-fn paper(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let mut cy = y;
-    let ready = app.family_ready();
-    ui.button(
-        x,
-        cy,
-        None,
-        40.0,
-        "Scan the QR code",
-        if ready {
-            Style::Secondary
-        } else {
-            Style::Primary
-        },
-        Action::Scan,
-    );
-    cy += 52.0;
-    let label = format!("Copy it in from {}", app.medium.a());
-    cy += stick_row(app, ui, x, cy, w, &label);
-    let wallets: Vec<(usize, &str)> = app
-        .inbox
-        .iter()
-        .enumerate()
-        .filter(|(_, i)| i.kind == FileKind::Wallet)
-        .map(|(k, i)| (k, i.name.as_str()))
-        .collect();
-    for (k, name) in &wallets {
-        let label = format!("Open {name}");
-        cy += crate::screens::wrap_buttons(
-            ui,
-            x,
-            cy,
-            w,
-            36.0,
-            &[(&label, Style::Secondary, fa(F::UseWallet(*k)))],
-        );
-    }
-    let shares: Vec<String> = app
-        .inbox
-        .iter()
-        .filter(|i| i.kind == FileKind::Share)
-        .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
-        .collect();
-    if !shares.is_empty() {
-        match crate::restore::merge(&shares) {
-            Ok(m) => {
-                let line = format!(
-                    "{} {} · {} of {} keys in hand · {}",
-                    shares.len(),
-                    if shares.len() == 1 { "sheet" } else { "sheets" },
-                    m.have.len(),
-                    m.n,
-                    m.have.join(" ")
-                );
-                cy += ui.wrap(
-                    x,
-                    cy + 8.0,
-                    w,
-                    13.0,
-                    W::M,
-                    if m.whole.is_some() { OK } else { WARN },
-                    &line,
-                ) + 22.0;
-                if m.whole.is_some() && !ready {
-                    ui.button(
-                        x,
-                        cy,
-                        None,
-                        38.0,
-                        "Rebuild the wallet",
-                        Style::Primary,
-                        fa(F::Rebuild),
-                    );
-                    cy += 50.0;
-                }
-            }
-            Err(e) => {
-                cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, &e) + 10.0;
-            }
-        }
-    }
-    cy - y
-}
-
 /// What opened: the wallet to spend from, its keys here, and its first
-/// address; a choice when the vault held several.
+/// address; a choice when several are loaded and none is chosen.
 fn opened(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let chosen = app.family_wallet();
     if app.session.wallets.is_empty() {
-        // Said only of a vault that holds no wallet at all, not of one
-        // whose wallets wait to be loaded.
-        let wallet_in_vault =
-            (0..app.vaults.open.len()).any(|v| app.vault_rows(v).iter().any(|r| !r.seed));
-        if app.family.route == Some(Route::Vault) && !app.vaults.open.is_empty() && !wallet_in_vault
-        {
-            cy += ui.wrap(
-                x,
-                cy,
-                w,
-                13.0,
-                W::R,
-                WARN,
-                "The vault holds keys but not the wallet they belong to. Load the wallet's \
-                 description from the paper: scan its QR code, or copy it in.",
-            ) + 12.0;
-            cy += paper(app, ui, x, cy, w);
-        }
-        return cy - y;
+        return 0.0;
     }
-    if app.session.wallets.len() > 1 {
+    if app.session.wallets.len() > 1 || chosen.is_none() {
         ui.text(x, cy, 13.0, W::S, MUTED, "Spend from");
         cy += 26.0;
         for (i, wl) in app.session.wallets.iter().enumerate() {
@@ -1263,7 +1293,7 @@ fn opened(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         TEXT,
         &grouped(&app.session.address_shown(wl, false, 0)),
     ) + 16.0;
-    let drawn = next_button(ui, x, cy, w, "Continue", fa(F::Next(page::OPEN)));
+    let drawn = next_button(ui, x, cy, w, "Continue", fa(F::Next(page::HOLDING)));
     cy + (if drawn { 52.0 } else { 8.0 }) - y
 }
 
@@ -1340,12 +1370,88 @@ fn loaded_in_sparrow(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
     cy + (if drawn { 52.0 } else { 8.0 }) - y
 }
 
-/// Check the money: the wallet as a QR code, and its addresses.
+/// Check the money: the wallet as a QR code, and its addresses. For a
+/// wallet worked out from seeds alone, the ways tried, the way tried
+/// now, and No money shows for the next (`docs/SCAN-TO-SIGN.md` §5).
 fn check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let Some(i) = app.family_wallet() else {
         return 0.0;
     };
+    let guess = app.family_guess();
+    if let Some(g) = guess {
+        // The ways tried, struck.
+        for t in &g.tried {
+            let lh = ui.wrap(x, cy, w, 13.0, W::R, DIM, t);
+            let tw = ui.measure(13.0, W::R, t).min(w);
+            ui.rule(x, cy + ui.line(13.0, W::R) / 2.0, tw, DIM);
+            cy += lh + 6.0;
+        }
+        if !g.tried.is_empty() {
+            cy += 8.0;
+        }
+        if g.none {
+            cy += ui.wrap(x, cy, w, 15.0, W::S, TEXT, "None of these show money.") + 6.0;
+            cy += ui.wrap(
+                x,
+                cy,
+                w,
+                13.0,
+                W::R,
+                MUTED,
+                "The words may belong to a wallet with several keys, or need a different \
+                 passphrase.",
+            ) + 12.0;
+            cy += crate::screens::wrap_buttons(
+                ui,
+                x,
+                cy,
+                w,
+                40.0,
+                &[
+                    ("Scan more", Style::Primary, fa(F::Again(true))),
+                    ("Type a passphrase", Style::Secondary, fa(F::Again(false))),
+                ],
+            );
+            return cy - y;
+        }
+        if g.asking {
+            cy += ui.wrap(
+                x,
+                cy,
+                w,
+                15.0,
+                W::S,
+                TEXT,
+                "Is there a word or sentence kept apart from the list?",
+            ) + 12.0;
+            cy += crate::screens::wrap_buttons(
+                ui,
+                x,
+                cy,
+                w,
+                40.0,
+                &[
+                    ("Yes, type it", Style::Primary, fa(F::Passphrase(true))),
+                    ("No", Style::Secondary, fa(F::Passphrase(false))),
+                ],
+            );
+            return cy - y;
+        }
+        let (kind, pass) = Faraday::guess_way(g, g.at);
+        let line = format!(
+            "Trying: {}, {} · {} of {}",
+            crate::family::kind_label(kind),
+            if pass {
+                "with a passphrase"
+            } else {
+                "no passphrase"
+            },
+            g.at + 1,
+            Faraday::guess_total(g)
+        );
+        cy += ui.wrap(x, cy, w, 13.0, W::S, TEXT, &line) + 12.0;
+    }
     let wl = &app.session.wallets[i];
     cy += crate::screens::wrap_buttons(
         ui,
@@ -1359,6 +1465,14 @@ fn check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Action::QrWallet(i),
         )],
     ) + 6.0;
+    if let Some(g) = guess {
+        let open = if g.tried.is_empty() {
+            "Open this in the wallet on the online computer"
+        } else {
+            "Open this one on the online computer too"
+        };
+        cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, open) + 14.0;
+    }
     let n = 3 + app.family.addresses;
     for (head, change) in [("Receive", false), ("Change", true)] {
         ui.text(x, cy, 13.0, W::S, MUTED, head);
@@ -1377,31 +1491,26 @@ fn check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         cy += 8.0;
     }
-    let more: &[(&str, Style, Action)] = if n < 50 {
-        &[(
+    let mut left: Vec<(&str, Style, Action)> = Vec::new();
+    if n < 50 {
+        left.push((
             "Show more addresses",
             Style::Secondary,
             fa(F::MoreAddresses),
-        )]
-    } else {
-        &[]
-    };
-    if ui.compact {
-        cy += crate::screens::buttons_and_next(
-            ui,
-            x,
-            cy,
-            w,
-            more,
-            Some(("It matches", fa(F::Next(page::CHECK)))),
-        );
-        return cy + 4.0 - y;
+        ));
     }
-    for &(label, style, action) in more {
-        ui.button(x, cy, None, 36.0, label, style, action);
+    if guess.is_some() {
+        left.push(("No money shows", Style::Secondary, fa(F::NoMoney)));
     }
-    let drawn = next_button(ui, x, cy, w, "It matches", fa(F::Next(page::CHECK)));
-    cy + (if drawn { 52.0 } else { 8.0 }) - y
+    cy += crate::screens::buttons_and_next(
+        ui,
+        x,
+        cy,
+        w,
+        &left,
+        Some(("Yes, my money shows", fa(F::Next(page::CHECK)))),
+    );
+    cy + 4.0 - y
 }
 
 /// Bring the transaction: scan it, copy it in, or one already in Files.

@@ -129,7 +129,7 @@ fn spend_from_this_wallet_opens_on_load_the_wallet_in_sparrow() {
     app.press(Action::Family(F::SpendFrom(w)));
     assert_eq!(app.screen, Screen::Family);
     assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));
-    // Past What are you holding? and Open the wallet.
+    // Past What do you have?.
     let cards = app.family_cards();
     assert_eq!(cards.first(), Some(&CardId::Page(page::CHECK)));
     assert!(!cards.contains(&CardId::Page(page::HOLDING)));

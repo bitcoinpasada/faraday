@@ -680,8 +680,9 @@ spend · Signatures 1 of 2** and resumes where it was; Home's lead says
 the same (SIMPLIFY §1.2 rule 1).
 
 It opens the Spend flow (`Screen::Family`, `docs/FAMILY.md`) on this
-wallet, past **What are you holding?** and **Open the wallet**, on the
-first page the wallet still needs:
+wallet, past **What do you have?** (changed by SCAN-TO-SIGN §4: it was
+**What are you holding?** and **Open the wallet**), on the first page
+the wallet still needs:
 
 1. **Load the wallet in Sparrow**: the wallet QR (the descriptor, full
    text under it) and **It is loaded** (one tap when Sparrow has it).

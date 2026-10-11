@@ -13298,12 +13298,15 @@ fn scan_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         _ => None,
     };
     let keys = for_wallet.map_or_else(Vec::new, |(wi, _)| app.wallet_key_lines(wi));
-    let keys_h = keys.len() as f32 * 20.0 + if keys.is_empty() { 0.0 } else { 6.0 };
-    let type_row = if for_wallet.is_some() && ui.compact {
-        52.0
-    } else {
-        0.0
-    };
+    // The Spend tab's intake: the hint its next question gives, and Type
+    // the words instead while keys may load (`docs/SCAN-TO-SIGN.md`
+    // §4.2).
+    let intake = sc.purpose == crate::ScanPurpose::Intake;
+    let hint = if intake { app.family_hint() } else { None };
+    let hint_h = hint.map_or(0.0, |t| measure_wrap(ui, side_w, 12.0, W::R, t) + 8.0);
+    let keys_h = keys.len() as f32 * 20.0 + if keys.is_empty() { 0.0 } else { 6.0 } + hint_h;
+    let typing = for_wallet.is_some() || (intake && app.may_load_keys());
+    let type_row = if typing && ui.compact { 52.0 } else { 0.0 };
     let extra = rows + keys_h + type_row;
     let side_h = side_h.min(h - 24.0 - 170.0 - extra).max(96.0);
     let sh = side_h + 170.0 + extra;
@@ -13312,6 +13315,7 @@ fn scan_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let sw = sw - 2.0 * (pad - 32.0);
     let title = match (sc.purpose, for_wallet) {
         (_, Some((_, wl))) => format!("Scan a key for {}", wl.name),
+        (crate::ScanPurpose::Intake, _) => "Scan what you have".to_string(),
         (crate::ScanPurpose::Seed, _) => "Scan a SeedQR".to_string(),
         (crate::ScanPurpose::CheckCopy(_), _) => "Scan your copy".to_string(),
         (crate::ScanPurpose::Transfer, _) => "Receive into Downloads".to_string(),
@@ -13328,6 +13332,10 @@ fn scan_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     for (k, key) in keys.iter().enumerate() {
         let key = ui.fit(13.0, W::M, key, sw - 64.0);
         ui.text(x + 32.0, y + 82.0 + k as f32 * 20.0, 13.0, W::M, TEXT, &key);
+    }
+    if let Some(t) = hint {
+        let ty = y + 82.0 + keys.len() as f32 * 20.0;
+        ui.wrap(x + 32.0, ty, side_w, 12.0, W::R, TEXT, t);
     }
     let y = y + keys_h;
     let rect = ui.rect(x + 32.0, y + 82.0, side_w, side_h);
@@ -13406,7 +13414,7 @@ fn scan_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                 )
             })
             .collect();
-        let typing = if for_wallet.is_some() { 220.0 } else { 0.0 };
+        let typing = if typing { 220.0 } else { 0.0 };
         button_rows(
             ui,
             x + 32.0,
@@ -13417,9 +13425,13 @@ fn scan_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     }
     // The foot, from the sheet's own top.
     let foot = y - keys_h + sh - 32.0 - 44.0;
-    if let Some((wi, _)) = for_wallet {
+    let type_instead = match for_wallet {
+        Some((wi, _)) => Some(Action::EntryWallet(wi)),
+        None if typing => Some(Action::Family(crate::family::FamilyAction::TypeWords)),
+        None => None,
+    };
+    if let Some(action) = type_instead {
         let label = "Type the words instead";
-        let action = Action::EntryWallet(wi);
         if ui.compact {
             ui.button(
                 x + 32.0,
@@ -13448,8 +13460,12 @@ fn scan_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         foot,
         Some(120.0),
         44.0,
-        "Cancel",
-        Style::Secondary,
+        if intake { "Done" } else { "Cancel" },
+        if intake {
+            Style::Primary
+        } else {
+            Style::Secondary
+        },
         Action::Cancel,
     );
 }

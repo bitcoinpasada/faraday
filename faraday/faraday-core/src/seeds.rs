@@ -369,7 +369,14 @@ impl Faraday {
     pub(crate) fn seeds_took(&mut self, fp: osk_bip::keys::Fingerprint, back: Option<Screen>) {
         match back {
             Some(Screen::Restore) => self.restore_took(fp),
-            Some(Screen::Family) if self.family.route == Some(family::Route::Words) => {
+            // On What do you have? with no wallet open yet: the seeds
+            // the wallet is worked out from (`docs/SCAN-TO-SIGN.md` §4).
+            // With a wallet open, a key fills its slot and no more.
+            Some(Screen::Family) if !self.family_ready() => {
+                self.family_came(family::Came::Seed(fp.0));
+                if self.family.route.is_none() {
+                    self.family.route = Some(family::Route::Words);
+                }
                 // A seed typed before this flow kept its list, as the
                 // wallet the words route opened from it: it is the first.
                 if self.family.seeds.keys.is_empty()
@@ -388,13 +395,15 @@ impl Faraday {
                     self.family_several_seeds();
                 }
             }
+            Some(Screen::Family) => self.family_came(family::Came::Seed(fp.0)),
             _ => {}
         }
     }
 
-    /// The words route with two seeds or more: the single-key wallet the
-    /// first opened goes, and the wallet's shape comes up.
-    fn family_several_seeds(&mut self) {
+    /// Two seeds or more and no description: the single-key wallet the
+    /// first opened goes, and once I can't find one is pressed, the
+    /// wallet's shape comes up.
+    pub(crate) fn family_several_seeds(&mut self) {
         let before = self.session.wallets.len();
         self.session
             .wallets
@@ -412,10 +421,11 @@ impl Faraday {
                 .wallet
                 .min(self.session.wallets.len().saturating_sub(1));
         }
+        self.family.everything = false;
         let s = &mut self.family.seeds;
         if s.shaping {
             s.fit();
-        } else {
+        } else if self.family.no_description {
             s.start_shape();
         }
     }
@@ -685,6 +695,9 @@ impl Faraday {
                 Ok(i) => {
                     self.family.wallet = Some(self.session.wallets[i].name.clone());
                     self.wallet = i;
+                    // Made without its description: a guess, which Check
+                    // the money walks through (`docs/SCAN-TO-SIGN.md` §5).
+                    self.family_guess_start(n > 1);
                     self.refresh_spend();
                     self.family_opened();
                     self.family_settle();

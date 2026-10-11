@@ -1563,6 +1563,9 @@ pub enum ScanPurpose {
     /// Any missing key of loaded wallet n, which Faraday works out from
     /// the seed read (`docs/SCAN-TO-SIGN.md` §2.1).
     WalletKey(usize),
+    /// The Spend tab's What do you have?: anything in the envelope, one
+    /// code after another, until Done (`docs/SCAN-TO-SIGN.md` §4.2).
+    Intake,
 }
 
 /// What the camera sheet holds.
@@ -3962,7 +3965,12 @@ impl Faraday {
     pub fn pull_what(&self, action: Action) -> Option<&'static str> {
         use catalog::Go;
         Some(match action {
-            Action::Scan | Action::BScan | Action::Vault(vaults::VaultAction::ScanEntry) => "scan",
+            Action::Scan
+            | Action::BScan
+            | Action::Vault(vaults::VaultAction::ScanEntry)
+            | Action::Family(family::FamilyAction::Scan | family::FamilyAction::Again(true)) => {
+                "scan"
+            }
             Action::Entry(_)
             | Action::EntryWallet(_)
             | Action::ScanSeed
@@ -8183,6 +8191,23 @@ impl Faraday {
             }
             return;
         }
+        // What do you have?: a seed asks how it loads, a share of a key
+        // goes to Add a key's form for it, anything else goes to Files
+        // below and the camera stays on.
+        let intake = scan.purpose == ScanPurpose::Intake;
+        if intake {
+            if let Some(words) = seed_in_code(&bytes) {
+                if sticks {
+                    scan.note = Some(stick_keys(medium));
+                    return;
+                }
+                self.family_intake_seed(&words);
+                return;
+            }
+            if self.intake_key_part(&bytes) {
+                return;
+            }
+        }
         // Home's Scan takes a seed too: a SeedQR, a CompactSeedQR or the
         // words go to Add a key, as its own Scan does, and never into a
         // box (`docs/QR.md` §2).
@@ -8222,6 +8247,10 @@ impl Faraday {
         let is_key = item.kind == FileKind::Key;
         self.inbox.push(item);
         self.save_boxes();
+        if intake {
+            self.family_intake_file(self.inbox.len() - 1);
+            return;
+        }
         self.scan = None;
         self.sheet = None;
         self.commands.push_back(Command::CameraOff);
@@ -8253,6 +8282,36 @@ impl Faraday {
         ) {
             self.screen = Screen::Files;
         }
+    }
+
+    /// A SLIP-39 share or a codex32 string read by the intake scanner:
+    /// Add a key opens on its form with it in, and returns to the Spend
+    /// tab once the key is put together. Returns whether it was one.
+    fn intake_key_part(&mut self, bytes: &[u8]) -> bool {
+        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_lowercase());
+        let form = if osk_bip::slip39::Share::parse(&text).is_ok() {
+            forms::Form::Slip39
+        } else if osk_bip::codex32::Codex32::parse(&text).is_ok() {
+            forms::Form::Codex32
+        } else {
+            return false;
+        };
+        if !self.may_load_keys() {
+            if let Some(scan) = self.scan.as_mut() {
+                scan.note = Some(stick_keys(self.medium));
+            }
+            return true;
+        }
+        self.scan = None;
+        self.sheet = None;
+        self.commands.push_back(Command::CameraOff);
+        self.act(Action::Entry(None));
+        if let Some(i) = forms::Form::ALL.iter().position(|f| *f == form) {
+            self.act(Action::EntryForm(i as u8));
+        }
+        self.entry.typed.set(&text);
+        self.form_add_part();
+        true
     }
 
     /// A seed's words read by the camera: the camera closes and the
@@ -8904,6 +8963,19 @@ impl Faraday {
                     None => Screen::Wallets,
                 };
                 if back == Some(Screen::Family) {
+                    self.family_key_added();
+                }
+            }
+            // A seed already loaded comes in on the Spend tab's What do
+            // you have? as it is (`docs/SCAN-TO-SIGN.md` §4).
+            Err(wallet::Refusal::Duplicate(_)) if back == Some(Screen::Family) => {
+                if let Ok(fp) =
+                    Session::default().add_mnemonic(&m, &self.entry.passphrase, "", None)
+                {
+                    self.seeds_took(fp, back);
+                    self.entry = EntryState::default();
+                    self.refresh_spend();
+                    self.screen = Screen::Family;
                     self.family_key_added();
                 }
             }

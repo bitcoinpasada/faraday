@@ -161,7 +161,7 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
 
 #[test]
 fn the_sticks_spend_signs_and_finishes_on_the_spend_tab() {
-    use faraday_core::family::{FamilyAction as F, Route};
+    use faraday_core::family::FamilyAction as F;
     let mut app = Faraday::new();
     display(&mut app);
     app.storage(StorageEvent::Restored {
@@ -169,8 +169,8 @@ fn the_sticks_spend_signs_and_finishes_on_the_spend_tab() {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
+    // What do you have? offers the stick's vault.
     app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::Holding(Route::Vault)));
     let v = app
         .vault_files()
         .iter()

@@ -1,6 +1,6 @@
 # Scan to sign, and the Spend tab's intake
 
-**Status:** spec v0.1 · 2026-10-11 · decided by the owner
+**Status:** built 2026-10-11: batch A `ceb06e4`, batch B in the commit after it; spec v0.1 · decided by the owner
 (`docs/DECISIONS.md` F8, HANDOFF item 67). Where the build and this file
 differ once built, `docs/FLOWS.md`, `docs/FAMILY.md` and the code are the
 record.

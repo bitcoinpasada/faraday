@@ -1,82 +1,18 @@
-//! A wallet made from the seeds in hand, drawn (`seeds.rs`): the seeds
-//! typed so far with the ways to add another, then the wallet's shape:
-//! M of N on two sliders, a box for each cosigner whose seed is not here,
-//! the kind, the path and the first address. Restore's seeds card and
-//! the Spend tab's words route draw it.
+//! A wallet made from the seeds in hand, drawn (`seeds.rs`): the wallet's
+//! shape: M of N on two sliders, a box for each cosigner whose seed is
+//! not here, the kind, the path and the first address. Restore's seeds
+//! card and the Spend tab's What do you have? draw it.
 
 use crate::create::NewKind;
 use crate::screens::{buttons_and_next, stepper, wrap_buttons};
 use crate::seeds::{self, Focus, SeedsAction as S, SeedsState};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W, grouped};
-use crate::wallet::{FileKind, fp_text};
+use crate::wallet::FileKind;
 use crate::{Action, Faraday};
 
 fn sa(a: S) -> Action {
     Action::Seeds(a)
-}
-
-/// The seeds typed so far, each with its fingerprint and label, and the
-/// ways to add another: Add a key, Scan a SeedQR, a seed an open vault
-/// holds, a seed already loaded. `words` names them as the Spend tab
-/// does. Returns the height used.
-pub(crate) fn keys(
-    app: &Faraday,
-    ui: &mut Ui,
-    s: &SeedsState,
-    words: bool,
-    x: f32,
-    y: f32,
-    w: f32,
-) -> f32 {
-    let mut cy = y;
-    let here = app.seeds_here(s);
-    for (k, fp) in here.iter().enumerate() {
-        let f = osk_bip::keys::Fingerprint(*fp);
-        let label = app.session.key_label(f).unwrap_or("");
-        ui.text_mid(x, cy, 40.0, 12.0, W::R, DIM, &(k + 1).to_string());
-        ui.text_mid(x + 22.0, cy, 40.0, 14.0, W::M, TEXT, &fp_text(f));
-        // A key named after its fingerprint is not named twice.
-        let line = if label.is_empty() || label.eq_ignore_ascii_case(&fp_text(f)) {
-            "Here".to_string()
-        } else {
-            format!("Here · {label}")
-        };
-        let line = ui.fit(13.0, W::R, &line, w - 124.0);
-        ui.text_mid(x + 124.0, cy, 40.0, 13.0, W::R, OK, &line);
-        ui.rule(x, cy + 40.0, w, INNER);
-        cy += 42.0;
-    }
-    if !here.is_empty() {
-        cy += 10.0;
-    }
-    let first = here.is_empty();
-    let add = match (words, first) {
-        (true, true) => "Type the words",
-        (true, false) => "Add another seed",
-        (false, true) => "Add a key",
-        (false, false) => "Add another key",
-    };
-    let add_style = if first {
-        Style::Primary
-    } else {
-        Style::Secondary
-    };
-    let mut labels: Vec<(String, Style, Action)> = vec![
-        (add.to_string(), add_style, Action::Entry(None)),
-        (
-            "Scan a SeedQR".to_string(),
-            Style::Secondary,
-            Action::ScanSeed,
-        ),
-    ];
-    more_ways(app, &here, !words, &mut labels);
-    let items: Vec<(&str, Style, Action)> = labels
-        .iter()
-        .map(|(l, st, a)| (l.as_str(), *st, *a))
-        .collect();
-    cy += wrap_buttons(ui, x, cy, w, 40.0, &items);
-    cy - y
 }
 
 /// The other ways a seed comes in, after typing and scanning: a seed an

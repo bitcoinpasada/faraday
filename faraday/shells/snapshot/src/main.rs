@@ -2313,10 +2313,12 @@ fn restore_tour(t: &mut Tour) -> Result<(), String> {
 /// A wallet from seed words alone: Restore on a 2-of-3 with no
 /// description, two seeds typed into their slots, the third cosigner's
 /// xpub in the last, and the Check card;
-/// then the Spend tab's words route with Add another seed and the
-/// sliders.
+/// then the Spend tab's What do you have? (`docs/SCAN-TO-SIGN.md` §4):
+/// empty, after one seed, after two, the intake scanner asking for the
+/// description, the shape made by hand, and Check the money guessed,
+/// after No money shows (§5).
 fn seeds_tour(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::family::{FamilyAction as F, Route, page};
+    use faraday_core::family::{FamilyAction as F, page};
     use faraday_core::seeds::{Focus, SLIDE_N, SeedsAction as S};
     t.press(Action::Lock);
     t.sticks(false);
@@ -2354,13 +2356,17 @@ fn seeds_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Family(F::StartOver));
     t.press(Action::Family(F::Next(page::MAP)));
     t.press(Action::Family(F::Next(page::SAFE)));
-    t.press(Action::Family(F::Holding(Route::Words)));
-    t.press(Action::Entry(None));
+    t.shot("spend-intake")?;
+    t.press(Action::Family(F::TypeWords));
     t.type_key(0);
     t.shot("spend-words-one-seed")?;
-    t.press(Action::Entry(None));
+    t.press(Action::Family(F::TypeWords));
     t.type_key(1);
     t.shot("spend-words-two-seeds")?;
+    t.press(Action::Family(F::Scan));
+    t.shot("spend-intake-scanner")?;
+    t.press(Action::Cancel);
+    t.press(Action::Family(F::NoDescription));
     t.press(Action::Slide(SLIDE_N, 3));
     t.press(Action::Seeds(S::Focus(Focus::Cosigner(0))));
     type_text(t, &testkit::key(2, "m/48'/1'/0'/2'"));
@@ -2375,6 +2381,22 @@ fn seeds_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("spend-words-made")?;
     if t.app.family_wallet().is_none() {
         return Err("the Spend tab's seeds made no wallet".into());
+    }
+    // Made without its description: No money shows tries the next kind.
+    t.press(Action::Family(F::NoMoney));
+    t.shot("spend-guess-multi")?;
+    // One seed and That's everything: native SegWit, guessed.
+    t.press(Action::Family(F::StartOver));
+    t.press(Action::Family(F::TypeWords));
+    t.type_key(0);
+    t.press(Action::Family(F::Everything));
+    t.shot("spend-guess-check")?;
+    t.press(Action::Family(F::NoMoney));
+    t.shot("spend-guess-passphrase")?;
+    t.press(Action::Family(F::Passphrase(false)));
+    t.shot("spend-guess-taproot")?;
+    if t.app.family_guess().is_none_or(|g| g.at != 2) {
+        return Err("No money shows did not go on to Taproot".into());
     }
     t.press(Action::Lock);
     Ok(())
@@ -3862,7 +3884,7 @@ fn from_vault_tour(t: &mut Tour) -> Result<(), String> {
 }
 
 fn spend_tour(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::family::{FamilyAction as F, Route, page};
+    use faraday_core::family::{FamilyAction as F, page};
     let fam = |a: F| Action::Family(a);
     t.press(Action::Lock);
     t.app.storage(StorageEvent::Memory {
@@ -3878,8 +3900,7 @@ fn spend_tour(t: &mut Tour) -> Result<(), String> {
     t.press(fam(F::Next(page::SAFE)));
     t.press(fam(F::Unsure));
     t.shot("spend-holding-unsure")?;
-    t.press(fam(F::Holding(Route::Vault)));
-    t.shot("spend-vault-none")?;
+    t.press(fam(F::Unsure));
     // The vault and the transaction from a stick: the visit, and back.
     t.press(Action::Nav(Screen::Family));
     t.sticks(true);
@@ -3911,9 +3932,10 @@ fn spend_tour(t: &mut Tour) -> Result<(), String> {
         .iter()
         .position(|w| w.name == "Savings")
         .ok_or("the vault did not load Savings")?;
-    t.press(fam(F::Choose(savings)));
-    t.shot("spend-wallet-chosen")?;
-    t.press(fam(F::Next(page::OPEN)));
+    // The PSBT in Files chose Savings: What do you have? is done.
+    if t.app.family_wallet() != Some(savings) {
+        return Err("the PSBT in Files did not choose Savings".into());
+    }
     t.shot("spend-check")?;
     t.press(fam(F::Next(page::CHECK)));
     t.shot("spend-write")?;
@@ -3927,8 +3949,8 @@ fn spend_tour(t: &mut Tour) -> Result<(), String> {
         .ok_or("the PSBT is not in Files")?;
     t.press(fam(F::UsePsbt(at)));
     t.shot("spend-transaction")?;
-    // Check is already closed: "It matches" on the Spend tab's own check
-    // page marked this wallet checked this power-on.
+    // Check is already closed: "Yes, my money shows" on the Spend tab's
+    // own check page marked this wallet checked this power-on.
     t.press(Action::StepNext(faraday_core::wallet::step::TRANSACTION));
     t.shot("spend-signers")?;
     // Who signs' Scan a key, and its Type the words instead.

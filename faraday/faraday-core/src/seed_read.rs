@@ -10,6 +10,12 @@
 //! passphrase is none of the wallet's, and then takes only a missing key
 //! of that wallet.
 //!
+//! The Spend tab's What do you have? opens it on every seed its intake
+//! scanner reads (with **Not this one** where the seed is none of a
+//! described wallet's keys, back to the camera), and on a seed already
+//! in for its passphrase: when Check the money asks for one, or after
+//! every kind was tried (`docs/SCAN-TO-SIGN.md` §4, §5).
+//!
 //! The words wait in memory, never drawn, until a choice loads them or
 //! the sheet closes, which wipes them.
 
@@ -36,6 +42,24 @@ pub enum Choice {
     Field(u8),
     /// Load the seed with the passphrase typed twice.
     WithPass,
+    /// Not this one: the words go, and the intake scanner comes back.
+    Skip,
+}
+
+/// What the Spend tab opened the sheet for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForFamily {
+    /// A seed the intake scanner read: the camera comes back after.
+    Intake,
+    /// The seed's passphrase, asked by Check the money: the guess goes
+    /// on with it.
+    Guess,
+    /// The seed's passphrase, typed after every kind was tried: the seed
+    /// is its key with the passphrase from now on.
+    Replace,
+    /// A seed that is none of the described wallet's keys: with a
+    /// passphrase that gives one of them, it is that key.
+    Stray,
 }
 
 /// The seed read, waiting for its choice.
@@ -65,6 +89,8 @@ pub struct SeedRead {
     /// Why the sheet asks: the seed with no passphrase is no key of that
     /// wallet.
     reason: Option<String>,
+    /// Opened by the Spend tab, and what for.
+    pub family: Option<ForFamily>,
 }
 
 impl SeedRead {
@@ -150,11 +176,51 @@ impl Faraday {
         true
     }
 
+    /// Key `fp`, loaded with its words, asked for its passphrase for the
+    /// Spend tab.
+    pub(crate) fn seed_read_family(&mut self, fp: Fingerprint, why: ForFamily) {
+        let Some(words) = self
+            .session
+            .keys
+            .iter()
+            .find(|k| k.master.fingerprint() == fp)
+            .and_then(|k| k.words.as_ref())
+        else {
+            return;
+        };
+        let start_adding = why != ForFamily::Intake;
+        self.seed_read = Some(SeedRead {
+            words: SecretText::of(words),
+            loaded: Some(fp),
+            plain: Some(fp),
+            adding: start_adding,
+            focus: start_adding.then_some(0),
+            family: Some(why),
+            ..SeedRead::default()
+        });
+        self.sheet = Some(Sheet::SeedRead);
+    }
+
+    /// Key `fp`, loaded, is none of described wallet `w`'s keys: its
+    /// passphrase is asked, and only a key of the wallet loads.
+    pub(crate) fn seed_read_stray(&mut self, fp: Fingerprint, w: usize, reason: String) {
+        self.seed_read_family(fp, ForFamily::Stray);
+        if let Some(s) = self.seed_read.as_mut() {
+            s.wallet = Some(w);
+            s.reason = Some(reason);
+        }
+    }
+
     pub(crate) fn seed_read_act(&mut self, choice: Choice) {
         let Some(s) = self.seed_read.as_mut() else {
             return;
         };
         match choice {
+            Choice::Skip => {
+                self.seed_read = None;
+                self.sheet = None;
+                self.family_intake_again(None);
+            }
             Choice::AddPass => {
                 s.adding = true;
                 s.focus = Some(0);
@@ -193,6 +259,23 @@ impl Faraday {
             self.seed_read_wallet(w, fp, &pass);
             return;
         }
+        // Check the money's passphrase, or one typed after every kind:
+        // the seed in place becomes its key with it.
+        if let (Some(why @ (ForFamily::Guess | ForFamily::Replace)), Some(plain)) =
+            (s.family, s.loaded)
+        {
+            let Some(s) = self.seed_read.take() else {
+                return;
+            };
+            self.sheet = None;
+            if why == ForFamily::Guess {
+                self.family_guess_pass(plain, &s.words, &pass);
+            } else if !pass.is_empty() {
+                self.family_seed_with(plain, &s.words, &pass);
+            }
+            self.family_settle();
+            return;
+        }
         let restoring = self.entry.back == Some(Screen::Restore)
             || (s.loaded.is_some() && self.screen == Screen::Restore);
         if restoring && let Some(why) = self.restore_refusal(fp) {
@@ -209,6 +292,10 @@ impl Faraday {
             None => self.seed_read_load(&s.words, &pass),
             Some(plain) => self.seed_read_take(plain, &s.words, &pass),
         }
+        // Read by the intake scanner and loaded: the camera again.
+        if s.family == Some(ForFamily::Intake) && self.screen == Screen::Family {
+            self.family_intake_again(Some(fp));
+        }
     }
 
     /// The choice made on a seed from wallet `w`'s key scanner, whose key
@@ -223,7 +310,22 @@ impl Faraday {
                 self.sheet = None;
                 let label = self.wallet_key_label(w, fp);
                 match self.session.add_words_with(&s.words, pass, &label, None) {
-                    Ok(_) => self.wallet_key_added(w, n),
+                    Ok(_) => {
+                        // A seed that came in on What do you have? is
+                        // this key from now on.
+                        if let Some(plain) = s.plain.filter(|_| s.family.is_some()) {
+                            for c in self.family.came.iter_mut() {
+                                if *c == crate::family::Came::Seed(plain.0) {
+                                    *c = crate::family::Came::Seed(fp.0);
+                                }
+                            }
+                            self.family_came(crate::family::Came::Seed(fp.0));
+                        }
+                        self.wallet_key_added(w, n);
+                        if s.family == Some(ForFamily::Intake) {
+                            self.family_intake_again(Some(fp));
+                        }
+                    }
                     Err(e) => self.toast(&e.text()),
                 }
                 return;
@@ -330,7 +432,13 @@ pub(crate) fn sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     } else {
         Style::Disabled
     };
-    let items: Vec<(&str, Style, Action)> = if s.adding {
+    let skip = s.family == Some(ForFamily::Intake) && s.wallet.is_some();
+    let cancel = if skip {
+        ("Not this one", Style::Ghost, Action::SeedRead(Choice::Skip))
+    } else {
+        ("Cancel", Style::Ghost, Action::Cancel)
+    };
+    let mut items: Vec<(&str, Style, Action)> = if s.adding {
         vec![
             (
                 "Use with this passphrase",
@@ -342,7 +450,6 @@ pub(crate) fn sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                 Style::Secondary,
                 Action::SeedRead(Choice::Plain),
             ),
-            ("Cancel", Style::Ghost, Action::Cancel),
         ]
     } else {
         vec![
@@ -356,9 +463,9 @@ pub(crate) fn sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                 Style::Secondary,
                 Action::SeedRead(Choice::AddPass),
             ),
-            ("Cancel", Style::Ghost, Action::Cancel),
         ]
     };
+    items.push(cancel);
     // A key's line: what it is made with, and its fingerprint.
     let key_line = |ui: &mut Ui, x: f32, y: f32, iw: f32, label: &str, fp: Fingerprint| -> f32 {
         ui.text_mid(x, y, 30.0, 13.0, W::R, MUTED, label);

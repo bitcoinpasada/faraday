@@ -200,7 +200,7 @@ The Wallets tab's order, kept for every kind: **load the wallet → the
 transaction → check → the signers → sign → collect → finish.** Check is
 open at entry only the first time a wallet (by descriptor checksum) is
 checked this power-on; once Continue has been pressed on it (here, on
-Create's own Check, or "It matches" on the Spend tab), it stays closed
+Create's own Check, or "Yes, my money shows" on the Spend tab), it stays closed
 and done across a lock and the next process, open again only in a fresh
 one with no kept state (`docs/SIMPLIFY.md` §2.5). Everything before the
 signers is watch-only, so any reason to stop is found before a key is

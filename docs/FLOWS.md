@@ -400,7 +400,7 @@ to get it.
     a PSBT for this wallet in Files, which opens its review at once;
     **Carry on the spend · Signatures 1 of 2** while this wallet's spend
     is under way, as Home's lead says too. It opens the Spend tab on the
-    wallet, past What are you holding? and Open the wallet: **Load the
+    wallet, past What do you have? (`docs/SCAN-TO-SIGN.md` §4): **Load the
     wallet in Sparrow** (the wallet QR, receive address 0, **It is
     loaded**; done already for a wallet checked this power-on) with **I
     have the PSBT from Sparrow ready: Scan it** over it, then **Write the
@@ -1087,17 +1087,27 @@ PSBT from Sparrow ready: Scan it** over the first page. The tab's own
 screen and steps below are unchanged.
 
 Family mode for someone spending for the first time
-(`docs/FAMILY.md`): the map → the stick → **What are you holding?** (a
-Faraday stick and its passphrase, words only, or words and a
-description) → **Open the wallet** (the vault's Unlock and load, word
-entry with **Add another seed** for a wallet of several seeds: M of N, the
-cosigners' xpubs, the kind and the path; or the description by camera or
-from Files) → check the money in
-Sparrow → write the payment in Sparrow → bring the PSBT (camera, or a
+(`docs/FAMILY.md`): the map → the stick → **What do you have?**
+(`docs/SCAN-TO-SIGN.md` §4, 2026-10-11: a vault in Files with its
+Unlock and list, **Scan the QR codes you have**, **Type the words you
+have**, **Not sure what you have?**, what came in, and the next
+question: with one seed **Anything else in the envelope?** and **That's
+everything**; with several and no description **Scan the description**
+or **I can't find one**, which shows the seeds' shape and **Make the
+wallet**; a description opens the wallet) → check the money in Sparrow
+(**Yes, my money shows**; for a wallet worked out from seeds alone,
+**Check the money is there, on the online computer** with **No money
+shows**, which tries a passphrase, Taproot, nested SegWit and legacy in
+turn, §5) → write the payment in Sparrow → bring the PSBT (camera, or a
 stick: the lock cycle, after which the tab opens on the same page) → the
 spend's own steps → **Put everything away** (lock, what waits for the
 stick written to it, power off). Every page that cannot be reached yet sends the
-person to the one that comes first.
+person to the one that comes first. The intake scanner, **Scan what you
+have**, reads one code after another until **Done**: a seed asks how it
+loads and the camera comes back, a description opens the wallet, split
+sheets rebuild it, an xpub fills a cosigner's box, a SLIP-39 share or a
+codex32 string goes to Add a key's form for it, and a PSBT waits for
+Bring the transaction here.
 
 ## OpenSigner tab (kept for now)
 

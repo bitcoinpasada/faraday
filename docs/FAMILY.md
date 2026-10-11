@@ -1,6 +1,7 @@
 # The Spend tab
 
-**Status:** v0.2 · 2026-10-06 · built: `faraday-core/src/family.rs`
+**Status:** v0.3 · 2026-10-11 (page 3 and the guessed Check,
+`docs/SCAN-TO-SIGN.md` §4 and §5) · built: `faraday-core/src/family.rs`
 (state and logic), `family_screen.rs`, `family_text.rs`,
 `tests/family.rs`, and the snapshot tool's `spend` tour
 (`cargo run -p faraday-snapshot -- 1366x768 out/testkit OUT spend`).
@@ -40,8 +41,11 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
    transaction read before any words are typed. On the vault route the
    vault holds the wallet and its key together, so both arrive at unlock;
    nothing is signed before the transaction has been read.
-5. **The question is the page.** *What are you holding?* has big answers
-   and no Next; the answer turns the page.
+5. **Data, not a classification** (`docs/SCAN-TO-SIGN.md` §4,
+   2026-10-11). *What do you have?* takes whatever is in the envelope,
+   scanned or typed, and asks only the next question; the wallet is
+   worked out from what came in. (It was *What are you holding?*, whose
+   answer chose a route.)
 6. **The landing page is the map.** Short working text on each page; the
    longer explanation is behind **More about this** on the same page.
 
@@ -53,7 +57,7 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
   stick, words, or paper"); the Learn sheet's first row, **Spending,
   step by step**; Home's lead when a spend started in it is under
   way; and a wallet card's **Spend from this wallet**, which opens it on
-  that wallet past pages 1 to 4 (§7).
+  that wallet past pages 1 to 3 (§7).
 - Each page is a step card (`flow.rs`): one open, the others closed to a
   line saying what was done. A page that does not apply to the route is not
   in the column at all, so numbering closes over it.
@@ -61,10 +65,12 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
   a wallet loaded, a spend loaded, signed, finished, written), not stored.
   So it is right after a lock, after work done on another tab, and after a
   stick visit.
-- What the tab stores is only the route chosen and the page open. That is
-  not secret; it is kept across a lock with the settings (`memory.rs`
-  `kept()`), so a lock for a stick visit or for idleness returns the
-  person to the same page after Unlock.
+- What the tab stores is the route what came in set, the page open and
+  the names of the files that came in on page 3. That is not secret; it
+  is kept across a lock with the settings (`memory.rs` `kept()`), so a
+  lock for a stick visit or for idleness returns the person to the same
+  page after Unlock, with those files still listed. Seeds come back by a
+  vault or not at all. A page 4 kept from before maps to page 3.
 - The Guided/Full switch does not apply here: the Spend tab always shows its text.
 
 ## 3. The pages
@@ -73,20 +79,22 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
 |---|---|---|---|
 | 1 | How to spend bitcoin | all | the map; **Start** |
 | 2 | Start from the stick | all | none; on the desktop app, a line saying it is the desktop copy |
-| 3 | What are you holding? | all | four answers |
-| 4 | Open the wallet | all, differs | Vault: the vault list, Remove the stick, passphrase, Unlock, what opened · Words: Type the words, Add another seed; with two seeds or more, M of N on two sliders, the cosigners' xpubs, the kind and the path · Paper: Restore (scan, type, sheets) |
-| 5 | Check the money is really there | all | the wallet as a QR; addresses, receive and change, more on request |
-| 6 | Write the payment | all | none |
-| 7 | Bring the transaction here | all | Scan its QR · Copy it from a stick (the lock cycle) · PSBTs already in Files |
-| 8 | Read the transaction | all | Wallets' Transaction and Txid steps |
-| 9 | Add the seeds that can sign | paper route, multisig | word entry per seed, Scan a SeedQR, the count |
-| 10 | Sign it | all | Wallets' Signers, Sign and Collect steps, as the wallet needs |
-| 11 | Send it | all | Wallets' Finish step: the finished transaction as a QR, or to the Outbox |
-| 12 | Put everything away | all | Lock; the stick visit for the Outbox; Power off |
+| 3 | What do you have? | all | a vault in Files: its Unlock and list; **Scan the QR codes you have**, **Type the words you have**; **Not sure what you have?**; what came in; the next question; the wallet once it is worked out |
+| 4 | Check the money is really there (guessed: Check the money is there, on the online computer) | all | the wallet as a QR; addresses, receive and change, more on request; **Yes, my money shows**; guessed: **No money shows** |
+| 5 | Write the payment | all | none |
+| 6 | Bring the transaction here | all | Scan its QR · Copy it from a stick (the lock cycle) · PSBTs already in Files |
+| 7 | Read the transaction | all | Wallets' Transaction and Txid steps |
+| 8 | Add the seeds that can sign | paper route, multisig | word entry per seed, Scan a SeedQR, the count |
+| 9 | Sign it | all | Wallets' Signers, Sign and Collect steps, as the wallet needs |
+| 10 | Send it | all | Wallets' Finish step: the finished transaction as a QR, or to the Outbox |
+| 11 | Put everything away | all | Lock; the stick visit for the Outbox; Power off |
 
-Routes: **Vault** (a Faraday stick and its passphrase), **Words** (words
-only: one key, or several lists of words and perhaps a line like 2 of 3),
-**Paper** (words and a wallet description).
+Pages 3 and 4 of the first build (*What are you holding?* and *Open the
+wallet*) are one page since `docs/SCAN-TO-SIGN.md` §4; the sections
+below keep their numbers. The route is not chosen: it is set from what
+came in. **Vault** when a vault was unlocked here, **Paper** when a
+wallet description came in (whole or rebuilt from split sheets),
+**Words** when only seeds did.
 
 ## 4. The prose, page by page
 
@@ -150,30 +158,79 @@ for testing. For real money, start a computer from the Faraday stick.
   use it. Do not use a stick you are unsure about: the words are the money,
   and taking longer costs nothing.
 
-### 3 · What are you holding?
+### 3 · What do you have? (`docs/SCAN-TO-SIGN.md` §4, 2026-10-11)
 
-**Lead:** Lay out everything in the envelope first. Several items is
-normal and does not mean anything is missing.
+**Lead:** Scan or type everything in the envelope, one thing at a time,
+in any order. Faraday works out the wallet from it.
 
-Answers:
+The card, top to bottom:
 
-- **A Faraday stick and its passphrase.** The stick this computer started
-  from, or another one with a vault on it, and a passphrase written down
-  apart from it. → Vault route.
-- **Words, and nothing else.** Twelve, eighteen or twenty-four ordinary
-  English words, numbered, in a fixed order, and nothing else that looks
-  like a long code, a block of letter-and-number lines, or a QR code. A
-  single list of words is usually the whole wallet. Several lists, perhaps
-  with a line like 2 of 3, are one wallet of several keys and go here too.
-  → Words route.
-- **Words and something else.** As well as the words there is one long
-  line starting `wsh(` or `wpkh(`, or lines pairing short codes with
-  `xpub`s, or QR codes meant to be scanned, perhaps spread across several
-  sheets. The wallet needs more than one key, and its description goes in
-  before the words. → Paper route.
-- **I am not sure.** Opens the list below.
+1. **A vault, when one is found** in Files (the stick this computer
+   started from brings its own in): headed **Unlock {vault}**, the
+   locked vaults to pick from, Remove the stick, the passphrase,
+   **Unlock**, then the vault's list and **Load**, as the vault route
+   drew them. Then **Or bring in what is on paper**. With no vault in
+   Files, nothing of the vault shows.
+2. **Scan the QR codes you have** (the intake scanner) and **Type the
+   words you have** (Add a key, returning here).
+   Under them, while no wallet is chosen: **Open {file}** for each
+   wallet description in Files, and **Copy files in from a stick** (the
+   stick visit, with its notes when a stick is not in or a key is open,
+   coming back to this card). Split sheets in Files are listed under What
+   came in, and **Rebuild the wallet** shows once they add up. A
+   description that arrives by camera while the card is open opens by
+   itself.
+3. **Not sure what you have?** shows and hides the list below.
+4. **What came in**, a row each, newest last: `Seed · {fp}` (and its
+   label), `Wallet description · {name} · {shape}`, `Part {k} · {have}
+   of {n} keys in hand` for split sheets, `Key · {fp} · xpub` for a
+   cosigner's public key, `Transaction · kept for later`.
+5. A seed that is none of the described wallet's keys: `Seed {fp} is not
+   one of {wallet}'s keys` and **Add its passphrase**.
+6. **The next question**, worked out each frame from what came in:
+   - one seed, nothing else: **Anything else in the envelope?** ("Another
+     list of words, another QR code, a line starting wsh( or tr(, or a
+     word kept apart from the list."), **Scan more**, **Type more
+     words**, **That's everything**, which opens the single-key wallet
+     as native SegWit, a guess (page 5);
+   - two seeds or more and no description: **These seeds are one wallet
+     with several keys.** (what a description looks like), **Scan the
+     description**, **I can't find one**;
+   - after I can't find one: the seeds' shape (M of N on two sliders, a
+     box per missing key filled by scan, a key file or typing, the kind,
+     the path, the first address) and **Make the wallet**, also a guess.
+     While N exceeds the seeds here: "Without the description Faraday
+     needs all {n} keys: their seeds, or their xpubs".
+   - a description in (whole, rebuilt, or a vault's): none. The wallet
+     opens and the column goes on to page 5; seeds already in fill its
+     slots.
+7. Once there is a wallet (the card's closed line says it once: its
+   name and shape, or the shape alone when the name says it): a choice
+   when several are loaded, then its name, shape, how many of its keys are here, receive address 0 and
+   **Continue**. The card is done once a wallet is chosen.
+8. The last refusal, and **Start over**.
 
-**The list, with Faraday's items added:**
+**The intake scanner**, titled **Scan what you have**, with the
+question's hint under the camera line, **Type the words instead** while
+keys may load, and **Done**. It reads one code after another until Done:
+
+| Read | Result |
+|---|---|
+| A SeedQR, CompactSeedQR or a code of BIP-39 words | The passphrase sheet; once it loads the seed, the camera comes back with `Seed {fp} read`. With a description in, a seed whose key with no passphrase is a missing key loads at once; `Key {n} · already here` for one here. |
+| A seed that is none of a description's keys | The passphrase sheet with `{fp} is not one of {wallet}'s keys`; a passphrase that gives a missing key loads it, the plain choice is refused, and **Not this one** drops the words and returns to the camera. |
+| A wallet description, whole or in UR/BBQr parts | Into Files; the wallet opens. `Wallet description read`. |
+| A split sheet | Into Files; `Part {k} read · {have} of {n} keys in hand`, or the wallet rebuilds once they add up. |
+| An xpub or similar | Into Files; it fills a box of the seeds' shape when one is open. `A public key: it shows the wallet but cannot sign`. |
+| A SLIP-39 share or a codex32 string | Add a key's form for it, with the share in, returning here once the key is put together. |
+| A PSBT | Into Files: `A transaction to sign · kept for later`. Bring the transaction here offers it; the spend does not start before. With one seed and nothing else, the single-key wallet of the kind it spends from opens: the transaction shows the kind, so it is not a guess. |
+| Anything else | Named, as the Files scanner names it. |
+
+**More:** a vault unlocks slowly on purpose; words are checked against
+the 2048 words and the checksum; a description opens the wallet
+read-only, and the words that sign come after the transaction is read;
+split sheets go in one at a time, in any order.
+
+**The list (Not sure what you have?), with Faraday's items added:**
 - *A USB stick labelled Faraday, and a passphrase on a separate card or
   sheet:* the stick starts the computer and carries the vault, a locked
   file named like `vault.ofv`; the passphrase opens it. The vault holds
@@ -205,86 +262,9 @@ Answers:
 
 ### 4 · Open the wallet
 
-#### Vault route
-
-The Unlock controls, in four parts, each closed to a line once done.
-
-1. **The vault.** Lead: The vault came in from the stick this computer
-   started from. It is listed here, locked. If it is on another stick, plug
-   that stick in and copy it in. *(Controls: the locked vaults with where
-   each came from; Copy one in from a stick, which opens the stick visit
-   and returns here.)*
-2. **Remove the stick.** Lead: Faraday opens a vault only with no stick
-   attached. Take the stick out now; keep it with the papers. *(Clears
-   itself when the last stick goes.)*
-3. **The passphrase.** Lead: Type the vault's passphrase exactly as it is
-   written, capital letters and spaces included. Unlocking takes about
-   {time} on this computer; the wait is on purpose and makes guessing slow.
-   More: A wrong passphrase opens nothing and says so; try again as often
-   as you like. A vault can have more than one passphrase, and each opens
-   its own contents. If what opens has no wallet in it, check the
-   passphrase against the paper again.
-4. **What opened.** Lead: the wallet's shape in a sentence, which of its
-   keys can sign here, and its first address. "Compare this address with
-   the one Sparrow shows on the next page." If the vault holds keys but no
-   wallet: "The vault holds a key but not the wallet it belongs to. Load
-   the wallet's description from the paper," which opens the Paper route's
-   Restore controls here. If it holds several wallets, a choice of which
-   one to spend from.
-
-#### Words route
-
-**Lead:** Type the words in the order they are written,
-separated by spaces. Spelling and order matter; nothing else does. Faraday
-checks them against the list of 2048 words and the backup's own checksum,
-so a mistyped or missing word is caught here instead of opening a wallet
-that is real, empty and not theirs. If a separate passphrase came with the
-words, put it in the second box exactly as written. If there was none,
-leave it empty. If you are unsure, try empty first.
-
-*(Controls: Type the words, which opens word entry and returns here; Scan
-a SeedQR. The wallet opened is native SegWit, account 0, and the page
-stays open with **Add another seed** and **Continue**.)* More: If Sparrow
-shows nothing on page 5, the wallet may be an older kind; **Try another
-kind** lists Taproot, nested SegWit and legacy for the same words.
-
-**Several seeds** (2026-10-08, the owner's request): for someone whose
-paper holds several lists of words and a wallet policy written by hand,
-with no descriptor. **Add another seed** opens word entry again (or Scan a
-SeedQR, a seed from an open vault, one already loaded). With two seeds or
-more the single-key wallet goes and the page lists the seeds by
-fingerprint, then the wallet's shape: **M of N** on two sliders, the
-number of keys (the seeds in hand up to 15) and the signatures needed (1
-up to that), each moved by tap, drag or the arrow keys; a box for each key
-whose seed is not here, filled with its account key (`xpub`, `zpub`,
-`Zpub`, `tpub`, with or without its key origin) by Scan, a key file in
-Files, or typing; the kind (native SegWit multisig by default, nested,
-legacy, Taproot); the path (the kind's standard path with an account
-number, or a custom path); the first address; **Make the wallet**. The
-wallet is the descriptor Create a wallet writes over the seeds' keys at
-that path, and the tab goes on to page 5 with it. The same piece is
-Restore's seeds-first route (`docs/WALLETS.md` §2), `seeds.rs`.
-
-More: the number of keys and how many sign are often written as 2 of 3;
-a cosigner's key goes in as its xpub; if Sparrow shows nothing, try
-another kind or account.
-
-#### Paper route
-
-**Lead:** Scan or type the long code
-exactly as it is written, including everything after the `#`. It cannot
-move money: it opens the wallet read-only, which is enough to see every
-address and to check the balance. The words come later.
-
-More: If it came in pieces, do one sheet at a time. Scan or type what one
-sheet gives you; Faraday says something like "3 of 5 parts collected" and
-waits. Order does not matter, a sheet entered twice does no harm, and the
-wallet opens by itself when the last part arrives. If the sheets do not
-say how many signatures are needed, Faraday asks; the number is printed at
-the top of the sheet, as 2-of-3 or similar.
-
-*(Controls: Scan the QR; Type it; a description in Files; the parts
-collected and still missing.)*
+One card with page 3 since `docs/SCAN-TO-SIGN.md` §4: the vault's
+Unlock and list, word entry, the seeds' shape and the description by
+camera all happen on *What do you have?*.
 
 ### 5 · Check the money is really there
 
@@ -299,7 +279,36 @@ read the same backup and agreed, and the balance Sparrow shows is the real
 one. If it does not match, stop: something was typed or scanned wrongly.
 
 *(Controls: Show the wallet as a QR; the first three receive and three
-change addresses; Show more.)*
+change addresses; Show more; **Yes, my money shows**, which marks the
+wallet checked this power-on.)*
+
+**When Faraday guessed** (`docs/SCAN-TO-SIGN.md` §5): a wallet worked
+out from seeds alone (one seed and That's everything, the Loaded view's
+Spend as a single-key wallet, or seeds shaped without a description).
+The title is **Check the money is there, on the online computer**; the
+lead says words alone do not say which kind of wallet they made, to open
+it in the wallet on the online computer and look at its balance, and
+that Faraday makes the next kind if no money shows. Under it: the ways
+tried, each `{kind} · no money`, struck; the line `Trying: {kind}, {no
+passphrase | with a passphrase} · {k} of {total}`; the wallet QR with
+"Open this in the wallet on the online computer" ("Open this one on the
+online computer too" after the first); the addresses; **Yes, my money
+shows**, the only way on, and **No money shows**, which makes the next
+way in place of the wallet:
+
+1. One key only, after native SegWit: **Is there a word or sentence
+   kept apart from the list?** **Yes, type it** opens the passphrase
+   sheet on the seed and tries native SegWit with it; **No** skips on.
+2. Taproot (one key) or Taproot multisig (several keys; native SegWit
+   multisig first).
+3. Nested SegWit.
+4. Legacy.
+
+After the last: **None of these show money.** "The words may belong to a
+wallet with several keys, or need a different passphrase." **Scan more**
+and **Type a passphrase** drop the guessed wallet and go back to page 3,
+with the camera or the seed's passphrase sheet. A wallet from a
+description or a vault was not guessed: its page is as above.
 
 **More:**
 - In Sparrow: File → New Wallet, give it a name, then the way in that
@@ -438,7 +447,7 @@ writing it back is safe and optional.)*
 | `FamilyState { route, open }`; which pages apply; each page's done line from app state | new `faraday-core/src/family.rs` |
 | Drawing: the column, the map, the answer tiles, the More folds | new `faraday-core/src/family_screen.rs`, on `flow::column` |
 | The text of §4 | new `faraday-core/src/family_text.rs`, one file, like `guide.rs` |
-| Unlock's controls without its title and back link, called by Unlock and by page 4 | `vault_screens.rs`: `unlock()` split into `unlock_body()` |
+| Unlock's controls without its title and back link, called by Unlock and by page 3 | `vault_screens.rs`: `unlock()` split into `unlock_body()` |
 | Pages 8, 10, 11 call Wallets' `step_body` for the spend's own steps; while one is open the Family card follows `spend.open` | `screens.rs` |
 | Word entry, Restore and the stick visit return to Family when opened from it (as `after_visit` does for Create) | `lib.rs` |
 | Route and page kept across a lock; after Unlock, Family opens if it was open | `memory.rs` `kept()` / `restore_kept()` |
@@ -462,10 +471,10 @@ The snapshot tour gains the Family pages at one size.
 
 ## 6. As built, beyond the proposal
 
-- **Loading after the unlock.** The vault's own list appears on page 4,
+- **Loading after the unlock.** The vault's own list appears on page 3,
   as on Files: every seed and wallet ticked, **Select all**, and a Load
   button that counts what it loads. Nothing loads before Load.
-- **Partial vaults.** Page 4 lists every wallet the vault loaded with how
+- **Partial vaults.** Page 3 lists every wallet the vault loaded with how
   many of its keys are here. The signing card (9, titled *Who signs*
   unless on the paper route) lists every key of the wallet: **Signs
   here** or **Not here**, and while short of signers **Scan a key**
@@ -474,15 +483,20 @@ The snapshot tour gains the Family pages at one size.
   (`docs/SCAN-TO-SIGN.md` §3). A key from another wallet is refused.
   A key held by someone else need not come at all: their signed copy is
   collected on *The other signatures*.
-- **A vault holding keys but no wallet** shows the paper route's
-  controls on page 4.
+- **A vault holding keys but no wallet**: its seeds come in on page 3
+  as seeds, and the next question asks for the rest; a description in
+  Files opens by itself.
 - **The wallet chooses itself** when there is only one, or when a PSBT
   in Files spends from one of those loaded.
-- **The words route** opens native SegWit and lists all four single-key
-  kinds with each one's first address; a transaction that spends from
-  another kind opens that kind on its own.
-- **The paper route** opens a wallet file or the split sheets in Files,
-  and does so by itself when one arrives by camera on the tab.
+- **Seeds alone** open nothing until the next question is answered
+  (`docs/SCAN-TO-SIGN.md` §4.3); the single-key wallet is native SegWit,
+  and Check the money walks through the other kinds (§5). A transaction
+  that spends from another kind opens that kind on its own.
+- **A description** opens the wallet as it comes in, by camera on
+  page 3; after a lock, a description that came in opens again from
+  Files.
+- **A seed already loaded** typed or scanned again on page 3 comes in as
+  it is.
 - **The next page** after one is done is the first not done *after* it;
   a page skipped earlier stays where it is.
 - **Send it** adds **Show the finished transaction as QR** to Wallets'
@@ -493,7 +507,7 @@ The snapshot tour gains the Family pages at one size.
 A wallet card's **Spend from this wallet** (and **Sign the PSBT from
 the stick**, **Carry on the spend**; the Loaded view's **Spend from
 it** too) opens the tab on that wallet, titled "Spend from {wallet}"
-with **Wallets** as its way back and no note. Pages 1 to 4 are not in
+with **Wallets** as its way back and no note. Pages 1 to 3 are not in
 the column; page 5 is **Load the wallet in Sparrow** and pages 6 and 7
 are one page, **Write the payment in Sparrow**:
 

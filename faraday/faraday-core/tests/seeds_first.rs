@@ -5,7 +5,7 @@
 //! the Spend tab, with the same descriptor and first address as the test
 //! kit's wallets.
 
-use faraday_core::family::{FamilyAction as F, Open, Route, page};
+use faraday_core::family::{FamilyAction as F, Open, Question, page};
 use faraday_core::rstep::{CHECK, KIND, QUORUM};
 use faraday_core::seeds::{Focus, SLIDE_M, SLIDE_N, SeedsAction as S};
 use faraday_core::testkit;
@@ -123,12 +123,12 @@ fn one_seed_on_restore_makes_the_words_routes_wallet() {
     let restored = restored(&app);
     assert_eq!(restored, desc(&kit("spending")));
 
-    // The Spend tab's words route opens the same wallet from the same
-    // words.
+    // The Spend tab opens the same wallet from the same words, once
+    // That's everything says there is nothing else.
     let mut tab = shown();
     tab.press(Action::Nav(Screen::Family));
-    tab.press(Action::Family(F::Holding(Route::Words)));
     add_seed(&mut tab, "bacon");
+    tab.press(Action::Family(F::Everything));
     let w = tab.family_wallet().expect("the words opened no wallet");
     let words = &tab.session.wallets[w];
     let r = app.restore.as_ref().unwrap().wallet.unwrap();
@@ -139,17 +139,22 @@ fn one_seed_on_restore_makes_the_words_routes_wallet() {
 }
 
 #[test]
-fn the_spend_tab_takes_two_seeds_and_an_xpub_to_page_five() {
+fn the_spend_tab_takes_two_seeds_and_an_xpub_to_check() {
     let mut app = shown();
     app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::Holding(Route::Words)));
+    app.press(Action::Family(F::Next(page::MAP)));
+    app.press(Action::Family(F::Next(page::SAFE)));
     add_seed(&mut app, "bacon");
-    // One seed opens native SegWit, and the page stays for another.
-    assert!(app.family_wallet().is_some());
-    assert_eq!(app.family.open, Some(Open::Page(page::OPEN)));
-    add_seed(&mut app, "zebra");
-    // Two: the single-key wallet goes; how many sign comes up.
+    // One seed opens nothing yet: anything else in the envelope?
     assert!(app.family_wallet().is_none());
+    assert_eq!(app.family_question(), Question::Anything);
+    assert_eq!(app.family.open, Some(Open::Page(page::HOLDING)));
+    add_seed(&mut app, "zebra");
+    // Two: the description is asked for; without one, how many sign
+    // comes up.
+    assert!(app.family_wallet().is_none());
+    assert_eq!(app.family_question(), Question::Description);
+    app.press(Action::Family(F::NoDescription));
     assert!(app.family.seeds.shaping);
     app.press(Action::Slide(SLIDE_N, 3));
     app.press(Action::Slide(SLIDE_M, 2));
