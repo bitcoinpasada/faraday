@@ -1,6 +1,7 @@
 # Making a wallet, second pass
 
-**Status:** spec v0.1 · 2026-10-10 · decided by the owner from a walk
+**Status:** built 2026-10-10, every section, `c065232` to `3be049a`;
+spec v0.1 · 2026-10-10 · decided by the owner from a walk
 through Create a wallet, New key and Back up a wallet on the built app
 (single key, then a 2-of-3). Where the build and this file differ once
 built, `docs/FLOWS.md` and the code are the record.

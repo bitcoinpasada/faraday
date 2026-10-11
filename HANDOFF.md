@@ -13,6 +13,31 @@ and QR transfer to OpenSigner. It was called openfaraday until
 (the owner's amnesic Arch desktop), whose repository is now
 `~/Projects/faraday-os-deprecated`. A first build exists (below).
 
+## Where we stopped (2026-10-10)
+
+Two passes since the section below, each specified in its own file and
+built batch by batch, every batch committed with `just` green:
+
+- `docs/SIMPLIFY.md` (§1–§6): Home and Wallets, flows opening on the
+  first step that needs the person, Create ending in the backup plan,
+  vaults remembered across a lock, From the stick / For the stick,
+  Backups, Guided by default.
+- `docs/NEW-WALLET.md` (every section, `c065232` to `3be049a`, 2060
+  tests): light theme by default; Create and New key open on step 1;
+  New key's randomness check on the entry card and lock-in with an
+  optional passphrase; the backup plan's whole sheet first, shares with
+  a Learn page and a slider, one seed per vault; the wallet at a glance
+  (DESIGN §4.16) on its card and, the other way up, in the open vault,
+  every node and line of it opening a sheet that edits the plan
+  (moves, copies, names, dates, lost and exposed); the unlock landing on
+  Wallets and Spend from this wallet; the backup before the spend
+  (DECISIONS F6); mouse back and forward and selecting part of a field;
+  Restore by kind, description and seeds.
+
+Desktop, stick and Pi were built from `3be049a` on 2026-10-10 as test
+releases. `origin` is at `a12a91e`; the 45 commits after it are not pushed. What the owner tries
+next is at the top of the owner-to-test list (`local/REMAINING.md`).
+
 ## Where we stopped (2026-10-08)
 
 Everything through item 64 is committed (`1eec0ff`, then the README's
