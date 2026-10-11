@@ -18,6 +18,7 @@ pub mod backups;
 pub mod bip85;
 pub mod boot_import;
 pub mod catalog;
+pub mod chart_edit;
 pub mod create;
 pub mod decode;
 pub mod explore;
@@ -1554,6 +1555,9 @@ pub enum Code {
     WalletKey(usize, u8),
     /// That key's signed BIP 129 key record.
     WalletKeyBsms(usize, u8),
+    /// The account key in wallet n's slot k, held elsewhere, as the
+    /// wallet's descriptor writes it (`docs/NEW-WALLET.md` §9.3).
+    CosignerKey(usize, u8),
     /// The silent payments address on show: as it is, or as a
     /// `bitcoin:` link.
     Silent(bool),
@@ -2827,6 +2831,9 @@ pub struct Faraday {
     /// A chart's key whose lines are drawn bold, by place among its keys:
     /// **Where it is**.
     pub chart_focus: Option<(glance::Press, usize)>,
+    /// What the chart's sheets hold between presses: a change asked for,
+    /// a name or a passphrase typed (`docs/NEW-WALLET.md` §9.5–§9.7).
+    pub chart_work: chart_edit::Work,
     /// The height a scrolled page last drew to, design units: how far its
     /// scroll may go.
     pub(crate) content_h: std::cell::Cell<f32>,
@@ -3078,6 +3085,7 @@ impl Faraday {
             glance: false,
             chart: None,
             chart_focus: None,
+            chart_work: chart_edit::Work::default(),
             content_h: std::cell::Cell::new(0.0),
             motion: motion::Motion::default(),
             motion_for: ((Screen::Home, None), ui::Slot::Page),
@@ -4769,6 +4777,8 @@ impl Faraday {
                 self.sheet = None;
                 self.qr = None;
                 self.chart = None;
+                self.chart_work.secret.clear();
+                self.chart_work.ask = None;
                 if let Some(b) = self.backup.as_mut() {
                     b.pick = false;
                 }
@@ -4929,6 +4939,20 @@ impl Faraday {
                 self.backups_sync();
             }
             Action::BPlan => {
+                // A map edited on the chart is the plan: changing it from
+                // the questions asks first (`docs/NEW-WALLET.md` §9.7).
+                if let Some(w) = self
+                    .backup
+                    .as_ref()
+                    .filter(|b| b.answers.map.is_some())
+                    .map(|b| b.wallet)
+                {
+                    self.chart_act(glance_sheet::ChartAction::Open(
+                        glance::Press::Loaded(w),
+                        glance_sheet::Target::Replan,
+                    ));
+                    return;
+                }
                 // What the checklist has put in vaults so far, should the
                 // new plan drop it.
                 self.backup_prior();
@@ -6444,7 +6468,7 @@ impl Faraday {
         let b = self.backup.as_ref()?;
         let w = self.session.wallets.get(b.wallet)?;
         let (own_seeds, other_seeds) = self.backup_vault_seeds(v);
-        let wallet_too = b.answers.wallet[plan::wallet::VAULT];
+        let wallet_too = b.answers.wallet_in_vault(v);
         if own_seeds.is_empty() && !wallet_too {
             return None;
         }
@@ -6545,37 +6569,87 @@ impl Faraday {
     /// Saves the backup's plan into the open vault as record type 11,
     /// over the one it kept for this wallet: the wallet, the answers, the
     /// places' names and what each holds. The names are kept nowhere
-    /// else.
+    /// else. The vault that already keeps a plan for the wallet is the one
+    /// written, else the current one.
     fn plan_save(&mut self) {
-        use faraday_vault::records::{Record, field, kind};
         let Some(b) = self.backup.as_ref() else {
             return;
         };
         let Some(w) = self.session.wallets.get(b.wallet) else {
             return;
         };
-        let v = self.vaults.current;
+        let v = self
+            .plan_vault_of(w)
+            .filter(|_| self.vaults.open.get(self.vaults.current).is_some())
+            .unwrap_or(self.vaults.current);
+        let (wi, answers, names, extras) = (
+            b.wallet,
+            b.answers.clone(),
+            b.names.clone(),
+            b.extras.clone(),
+        );
+        self.plan_store(v, wi, &answers, &names, &extras, None);
+    }
+
+    /// The open vault that keeps a plan (record type 11) for `wallet`.
+    pub(crate) fn plan_vault_of(&self, wallet: &wallet::Wallet) -> Option<usize> {
+        use faraday_vault::records::{field, kind};
+        let want = wallet::same_wallet(&wallet.policy);
+        (0..self.vaults.open.len()).find(|&v| {
+            self.vaults.open[v].contents.of(kind::PLAN).any(|(_, r)| {
+                r.text(field::PLAN_WALLET)
+                    .and_then(|t| wallet::read_wallet(t).ok())
+                    .is_some_and(|p| wallet::same_wallet(&p) == want)
+            })
+        })
+    }
+
+    /// Writes loaded wallet `wi`'s plan into open vault `v` as record type
+    /// 11, over the one it kept for the wallet: `answers`, the places'
+    /// `names`, what each spot holds, work a later plan dropped
+    /// (`extras`), and the notes on its map (§9.5): `notes`, or those the
+    /// record kept.
+    pub(crate) fn plan_store(
+        &mut self,
+        v: usize,
+        wi: usize,
+        answers: &plan::Answers,
+        names: &[String],
+        extras: &[String],
+        notes: Option<&[plan::Note]>,
+    ) {
+        use faraday_vault::records::{Record, field, kind};
+        let Some(w) = self.session.wallets.get(wi) else {
+            return;
+        };
         let Some(open) = self.vaults.open.get(v) else {
             return;
         };
-        let shape = self.plan_shape(b.wallet);
+        let shape = self.plan_shape(wi);
         // The keys made here with their backup pending, by fingerprint
         // (`docs/NEW-WALLET.md` §14.3).
-        let mut answers = b.answers.to_text();
-        for fp in self.wallet_held(b.wallet) {
-            answers.push_str(&format!("held {}\n", fp_text(fp)));
+        let mut text = answers.to_text();
+        for fp in self.wallet_held(wi) {
+            text.push_str(&format!("held {}\n", fp_text(fp)));
         }
         let mut record = Record::new(kind::PLAN)
             .with(field::PLAN_WALLET, Self::wallet_text(w).as_bytes())
-            .with(field::PLAN_ANSWERS, answers.as_bytes());
-        for p in 0..b.answers.places {
-            let name = b.names.get(p).map_or("", |n| n.trim());
+            .with(field::PLAN_ANSWERS, text.as_bytes());
+        for p in 0..answers.places {
+            let name = names.get(p).map_or("", |n| n.trim());
             record.push(field::PLAN_PLACE, name.as_bytes());
         }
-        for spot in plan::map(&shape, &b.answers) {
+        let place = |p: usize| {
+            names
+                .get(p)
+                .map(|n| n.trim())
+                .filter(|n| !n.is_empty())
+                .map_or_else(|| format!("Place {}", p + 1), str::to_string)
+        };
+        for spot in plan::map(&shape, answers) {
             let at = match spot.at {
-                plan::At::Place(p) => self.place_name(p),
-                plan::At::Vault(v) => b.answers.vault_name(&shape, v),
+                plan::At::Place(p) => place(p),
+                plan::At::Vault(v) => answers.vault_name(&shape, v),
                 plan::At::Files => format!("{} of files", self.medium.cap()),
                 plan::At::Software => "Watch-only software".to_string(),
                 plan::At::Away => "On its own device".to_string(),
@@ -6591,7 +6665,7 @@ impl Faraday {
             );
         }
         // Work a later plan dropped stays on the map as what it is.
-        for line in &b.extras {
+        for line in extras {
             record.push(field::PLAN_HOLDS, line.as_bytes());
         }
         let want = wallet::same_wallet(&w.policy);
@@ -6601,6 +6675,26 @@ impl Faraday {
                     .and_then(|t| wallet::read_wallet(t).ok())
                     .is_some_and(|p| wallet::same_wallet(&p) == want)
         };
+        // The notes on the map: those given, else those the record kept.
+        let kept: Vec<String> = match notes {
+            Some(n) => n.iter().map(plan::Note::to_text).collect(),
+            None => open
+                .contents
+                .records
+                .iter()
+                .filter(|r| same(r))
+                .flat_map(|r| {
+                    r.fields
+                        .iter()
+                        .filter(|f| f.number == field::PLAN_NOTE)
+                        .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
+                        .collect::<Vec<_>>()
+                })
+                .collect(),
+        };
+        for n in &kept {
+            record.push(field::PLAN_NOTE, n.as_bytes());
+        }
         // Kept as it was: nothing to write back.
         let unchanged = open.contents.records.iter().any(|r| {
             same(r)
@@ -6614,14 +6708,26 @@ impl Faraday {
             return;
         }
         let name = open.name.clone();
+        let old: Vec<faraday_vault::records::Record> = open
+            .contents
+            .records
+            .iter()
+            .filter(|r| same(r))
+            .cloned()
+            .collect();
         if let Some(open) = self.vaults.open.get_mut(v) {
-            let before = open.contents.records.len();
             open.contents.records.retain(|r| !same(r));
-            if open.contents.records.len() != before {
-                open.changes += 1;
-            }
         }
-        self.vault_push(record, &format!("The plan is in {name}"));
+        if !self.vault_push_in(v, record, &format!("The plan is in {name}")) {
+            // It did not fit: the record it kept stays.
+            if let Some(open) = self.vaults.open.get_mut(v) {
+                open.contents.records.extend(old);
+            }
+        } else if !old.is_empty()
+            && let Some(open) = self.vaults.open.get_mut(v)
+        {
+            open.changes += 1;
+        }
     }
 
     fn backup_out(&mut self, what: u8) {
@@ -7300,6 +7406,7 @@ impl Faraday {
                 let _ = self.session.add_words(&words, &label, None);
             }
         }
+        self.chart_work.moved_to(&self.session, i);
         self.wallet = i;
         if let Some(c) = self.create.as_mut() {
             c.built = Some(i);
@@ -7749,6 +7856,7 @@ impl Faraday {
         let name = format!("New wallet {}", self.session.wallets.len() + 1);
         match self.session.add_wallet(&name, &descriptor, "Made here") {
             Ok(i) => {
+                self.chart_work.moved_to(&self.session, i);
                 self.wallet = i;
                 if let Some(c) = self.create.as_mut() {
                     c.built = Some(i);
@@ -8399,6 +8507,37 @@ impl Faraday {
                     QR_PARTS[1],
                 )?
                 .public(&format!("xpub-{}.png", k.fp), lines))
+            }
+            Code::CosignerKey(i, slot) => {
+                let w = self
+                    .session
+                    .wallets
+                    .get(i)
+                    .ok_or("That wallet is no longer loaded")?;
+                if w.policy.record().is_some() || w.policy.silent().is_some() {
+                    return Err("This wallet's keys are not account keys".into());
+                }
+                let pk = w
+                    .policy
+                    .keys()
+                    .get(usize::from(slot))
+                    .ok_or("This wallet has no such key")?
+                    .clone();
+                let fp = pk
+                    .fingerprint()
+                    .map_or_else(|| "no origin".to_string(), fp_text);
+                let text = pk.key_text();
+                let lines = vec![
+                    format!("Key {fp} · {}", Session::shape(w)),
+                    "Public: spends nothing".to_string(),
+                ];
+                Ok(QrView::of(
+                    &format!("Xpub {fp}"),
+                    QrSource::Key(text, None),
+                    QrFormat::Ur,
+                    QR_PARTS[1],
+                )?
+                .public(&format!("xpub-{fp}.png"), lines))
             }
             Code::WalletKeyBsms(i, slot) => {
                 let k = self.wallet_key(i, slot)?;
@@ -9177,6 +9316,9 @@ impl Faraday {
 
     /// Whether typing goes to a text field now.
     pub(crate) fn typing_field(&self) -> bool {
+        if self.chart_typing() {
+            return true;
+        }
         if self.sheet == Some(Sheet::Import) {
             return self.vaults.focus == Some(vaults::Focus::Passphrase);
         }
@@ -9250,6 +9392,9 @@ impl Faraday {
             return;
         }
         if self.wordlist_key(key) {
+            return;
+        }
+        if self.chart_key(key) {
             return;
         }
         if self.potential_key(key) {

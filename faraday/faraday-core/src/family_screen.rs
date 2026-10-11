@@ -1405,6 +1405,22 @@ fn bring(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // From the wallet's card this is Write the payment's own: Scan the
     // PSBT is the shortcut here.
     let card = app.family.from_card;
+    // The money moving to a new wallet (`docs/NEW-WALLET.md` §9.6): every
+    // coin, to its first address.
+    if card && let Some((name, address)) = app.family_wallet().and_then(|i| app.moving_to(i)) {
+        let head = format!("Every coin to {name}");
+        cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &head) + 4.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::M, TEXT, &grouped(&address)) + 4.0;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            12.0,
+            W::R,
+            MUTED,
+            "Amount: Max, in Sparrow's Send tab",
+        ) + 12.0;
+    }
     ui.button(
         x,
         cy,

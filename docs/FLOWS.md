@@ -445,10 +445,9 @@ to get it.
     each share** (the checklist's shares); a vault's stick, the vault way
     and **Copy the vault to another stick**; a seed file, **Write it
     again**; the description, **Show wallet QR**. A flow on Back up comes
-    back to the card, or to the vault opened from. Not yet: what only
-    edits the plan (Move, Add here, Remove the place, I destroyed this
-    copy), marks and dates, lost and exposed, a holder's name and Mark
-    checked for a key not held here (the second batch).
+    back to the card, or to the vault opened from. What only edits the
+    plan, marks and dates, lost and exposed, and a holder's name came
+    with the second batch (decision 49).
 45. **The backup comes before spending** (owner, 2026-10-10;
     `docs/NEW-WALLET.md` §14, `docs/DECISIONS.md` F6). Back up's
     checklist: an item's foot button is its next action (a vault item's
@@ -514,6 +513,59 @@ to get it.
     Done offers **Back up this wallet**, the wallet card's spend button
     (**Spend from this wallet**) and **Wallets**. A restored key is not
     held for its backup (decision 45).
+49. **The chart changes the plan** (owner, 2026-10-10;
+    `docs/NEW-WALLET.md` §9.5–§9.7, §9's second batch). A change to
+    where something is kept is asked on a sheet first: its title says
+    the change ("Move Vault 1 stick to Place 1"), the plan's three check
+    lines read before → after, a line made worse in `WARN`, and
+    **Confirm** makes it; Close leaves the plan as it was. The changes:
+    **Move** (a line at a place, to another place or **A new place**);
+    **Another copy** (words or SeedQR by hand, a passphrase, the wallet
+    sheet, a vault's stick, at a place not holding it, a passphrase never
+    with its own words); **Add here** (a place: what is held here and is
+    not there yet); **Into Vault n** and the vault's **Save more into
+    it** (a seed held here, with its passphrase where it was loaded with
+    one, the description); **As a file**; **I destroyed this copy**, and
+    **Remove from the plan** for a marked line or the stick of files
+    ("Destroy what goes off the plan by hand"); **Remove the place**,
+    which first asks where each thing in it goes (another place, or
+    **Nowhere**) and is pressable once each has one. Once confirmed, the
+    flow that makes what was added follows: the copy by hand with its
+    check, the vault's item, the seed files, the sheet For the stick,
+    the stick visit for a vault's stick ("Vault 1 · copy", its own line,
+    counted by the check), a passphrase shown to copy (**Show it**) and
+    then **Check my copy**. From the first change the map is the plan:
+    the backup's record and the vault's plan record keep it, the chart
+    and the checklist read it, and it loads back the same on another
+    power-on. **Change the plan** (the wallet's sheet, the checklist's
+    foot) then asks first, "Your changes on the chart are replaced", and
+    the questions start from the answers. In the vault alone, never in
+    the kept state: the date each thing of a place was checked (a
+    place's **Mark checked**; a passphrase checked), **Lost** and
+    **Exposed** (a line, or **Mark lost**, **Mark exposed** on a place:
+    struck through on the chart until taken off the plan), a key not
+    held here's **Name its holder** and **Mark checked** (the date its
+    holder confirmed it), and a vault's **Rename**; with no vault open
+    these rows read "Open a vault to keep this" and lead to one. A mark
+    says what follows, in order: "Someone can now spend" (or "could …
+    with a vault's passphrase") with **Move the money** ("New
+    wallet": Create a wallet, whose last card then offers **Move the
+    money from {wallet}**,
+    the spend from the old wallet with "Every coin to {new wallet}" and
+    its first address on Write the payment); "The wallet can no longer
+    be rebuilt from what is left" with **Back up again now**; "Someone
+    can see the balance"; "Nothing lost that is not elsewhere" with
+    **Make a replacement copy**. **Check it** on a passphrase line (or
+    the key's **Its passphrase**): typed into a masked field, the key it
+    makes with the seed here compared by fingerprint, the typed text
+    wiped at once; "Matches: it makes key {fp}" or "Does not match", and
+    a match dates the line in the vault. Also on the sheets: the
+    wallet's **Check addresses** (the descriptor row and the first
+    addresses, as Create's Check); a key not held here's **Show its
+    xpub**, from the wallet's descriptor; a place's **The envelope
+    list** (a PDF For the stick, places by number, never by the names the
+    vault keeps); a vault stick's **Write it out again** while the vault
+    has changed since it was written.
 
 ## Home
 

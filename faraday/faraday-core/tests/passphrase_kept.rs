@@ -161,3 +161,87 @@ fn locking_after_a_vault_backup_never_keeps_the_passphrase_in_the_clear() {
         );
     }
 }
+
+/// A key loaded with a known passphrase and a one-key wallet over it,
+/// planned on paper; another copy of the passphrase added at a new place
+/// on the chart, then checked there, typed wrong and then right.
+#[test]
+fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
+    use faraday_core::glance::{Backup, Press};
+    use faraday_core::glance_sheet::{ChartAction as C, Target};
+    use faraday_core::plan::{At, Edit, What};
+    use osk_bip::bip39::{Language, Mnemonic};
+
+    let mut app = device();
+    let m = Mnemonic::parse(
+        Language::English,
+        &testkit::test_words(testkit::TEST_SEEDS[0].0),
+    )
+    .unwrap();
+    app.session
+        .add_mnemonic(&m, PASSPHRASE, "Key", None)
+        .unwrap();
+    let text = NewKind::NativeSegwit
+        .key_text(&app.session.keys[0].master)
+        .unwrap();
+    let w = app
+        .session
+        .add_wallet("Spending", &format!("wpkh({text}/<0;1>/*)"), "test")
+        .unwrap();
+    app.press(Action::Backup(w));
+    app.press(Action::BPreset(0));
+    app.press(Action::BChecklist);
+    app.press(Action::OpenWallet(w));
+    let _ = app.frame();
+    let press = Press::Loaded(w);
+    // Another copy of the passphrase, at a new place: it is shown to be
+    // copied, then checked.
+    app.press(Action::Chart(C::Open(
+        press,
+        Target::CopyTo(What::Passphrase(0)),
+    )));
+    app.press(Action::Chart(C::Edit(
+        press,
+        Edit::Add(At::Place(2), What::Passphrase(0)),
+    )));
+    app.press(Action::Chart(C::Confirm(press)));
+    let Some((_, Target::PassShow(k, n, j))) = app.chart else {
+        panic!("the passphrase is not shown to copy: {:?}", app.chart);
+    };
+    app.press(Action::Chart(C::Open(press, Target::PassCheck(k, n, j))));
+    type_text(&mut app, "not-the-passphrase");
+    app.press(Action::Chart(C::PassTry(press)));
+    assert_eq!(app.chart_work.result, Some(false));
+    type_text(&mut app, PASSPHRASE);
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(app.chart_work.result, Some(true));
+    assert!(
+        app.chart_work.secret.is_empty(),
+        "the typed passphrase is kept"
+    );
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t.starts_with("Matches")), "{texts:?}");
+    let g = faraday_core::glance::of(&app, w).unwrap();
+    let Backup::Plan { nodes, .. } = &g.backup else {
+        panic!("no plan");
+    };
+    assert!(
+        nodes[usize::from(n)].holds[usize::from(j)].starts_with("Passphrase"),
+        "{nodes:?}"
+    );
+
+    app.press(Action::Lock);
+    let mut found = None;
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes { kept, outbox, .. } = c {
+            found = Some((kept, outbox));
+        }
+    }
+    let (kept, outbox) = found.expect("the device did not ask to keep anything on locking");
+    for (name, bytes) in kept.iter().chain(&outbox) {
+        assert!(
+            !holds(bytes, PASSPHRASE.as_bytes()),
+            "{name} holds the passphrase checked"
+        );
+    }
+}

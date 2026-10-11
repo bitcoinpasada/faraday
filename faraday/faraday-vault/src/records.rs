@@ -107,6 +107,10 @@ pub mod field {
     pub const PLAN_PLACE: u8 = 3;
     /// Backup plan: what one place holds, a line (repeatable).
     pub const PLAN_HOLDS: u8 = 4;
+    /// Backup plan: a note on a thing of its map, a line (repeatable): the
+    /// date it was last checked here, a mark (lost, exposed), a key's
+    /// holder, a vault's name. Never a secret.
+    pub const PLAN_NOTE: u8 = 5;
 }
 
 /// Bit 0 of a key's flags: load it into the session at unlock.
@@ -242,6 +246,7 @@ const PLAN_RULES: &[Rule] = &[
     rule(2, false, false, TEXT),
     rule(3, false, true, Shape::Text(128)),
     rule(4, false, true, TEXT),
+    rule(5, false, true, TEXT),
 ];
 
 /// The fields of each record type (§7).

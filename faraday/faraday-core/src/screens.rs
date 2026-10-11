@@ -6414,7 +6414,7 @@ fn vault_item(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f
             Some((label, has))
         })
         .collect();
-    if b.answers.wallet[crate::plan::wallet::VAULT] {
+    if b.answers.wallet_in_vault(v) {
         let has = open.is_some()
             && app
                 .session
@@ -7693,6 +7693,22 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                         p.name(),
                         Style::Secondary,
                         Action::CBackup(k as u8),
+                    );
+                    cy += 48.0;
+                }
+                // Made to move a wallet's money to (`docs/NEW-WALLET.md`
+                // §9.6): the spend of every coin from the old wallet.
+                if let Some(old) = app.moving_from() {
+                    let label = format!("Move the money from {}", app.session.wallets[old].name);
+                    let label = ui.fit(14.0, W::S, &label, w - 32.0);
+                    ui.button(
+                        x,
+                        cy,
+                        Some(w),
+                        40.0,
+                        &label,
+                        Style::Primary,
+                        Action::Family(crate::family::FamilyAction::SpendFrom(old)),
                     );
                     cy += 48.0;
                 }

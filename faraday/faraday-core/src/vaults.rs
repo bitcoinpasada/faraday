@@ -2652,18 +2652,25 @@ impl Faraday {
     }
 
     pub(crate) fn vault_push(&mut self, record: Record, said: &str) {
-        let Some(v) = self.vaults.open.get_mut(self.vaults.current) else {
-            return;
+        self.vault_push_in(self.vaults.current, record, said);
+    }
+
+    /// Adds `record` to open vault `v`, saying `said`. False when it does
+    /// not fit in the vault's slot.
+    pub(crate) fn vault_push_in(&mut self, v: usize, record: Record, said: &str) -> bool {
+        let Some(open) = self.vaults.open.get_mut(v) else {
+            return false;
         };
-        let mut trial = v.contents.clone();
+        let mut trial = open.contents.clone();
         trial.records.push(record.clone());
-        if trial.used() > v.header().slot_len as usize {
+        if trial.used() > open.header().slot_len as usize {
             self.toast("That does not fit in this vault's slot size");
-            return;
+            return false;
         }
-        v.contents.records.push(record);
-        v.changes += 1;
+        open.contents.records.push(record);
+        open.changes += 1;
         self.toast(said);
+        true
     }
 
     fn vault_create_check(&mut self) {

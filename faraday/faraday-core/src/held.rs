@@ -299,7 +299,7 @@ impl Faraday {
             return;
         };
         let w = b.wallet;
-        let wallet_too = b.answers.wallet[plan::wallet::VAULT];
+        let wallet_too = b.answers.wallet_in_vault(v);
         let (own, _) = self.backup_vault_seeds(v);
         for (k, with) in own {
             if !self.vault_holds_seed(cur, k, with) {

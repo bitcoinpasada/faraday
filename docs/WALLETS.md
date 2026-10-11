@@ -398,7 +398,11 @@ after it open once it is done, each saying "After: {item}" meanwhile
 (2026-10-10, `docs/NEW-WALLET.md` §14.1). Opened
 from an action on the wallet's chart (2026-10-10, `docs/NEW-WALLET.md`
 §9) it opens at that item with the plan the chart shows, and makes
-nothing For the stick: each item's own **Make it** does.
+nothing For the stick: each item's own **Make it** does. A change made on the chart (a
+move, another copy, a thing destroyed, a place removed; `docs/NEW-WALLET.md`
+§9.7) makes the map itself the plan: the checklist is the map's, and
+**Change the plan** first says "Your changes on the chart are
+replaced".
 
 1. **Print N blank templates** (one per paper copy of a seed): made For
    the stick with the checklist, again when the word count changes; done

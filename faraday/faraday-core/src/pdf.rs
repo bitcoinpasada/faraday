@@ -239,6 +239,7 @@ pub fn sheet(text: &str) -> Result<Vec<u8>, String> {
         Some("wallet") => Ok(wallet_sheet(&f)),
         Some("blank") => blank_sheet(&f),
         Some("share") => Ok(share_sheet(&f)),
+        Some("envelopes") => Ok(envelopes_sheet(&f)),
         other => Err(format!(
             "a sheet of kind {other:?} is not one this build prints"
         )),
@@ -310,6 +311,34 @@ fn wallet_sheet(f: &[(String, String)]) -> Vec<u8> {
         y += 26.0;
     }
     p.text(MARGIN, PAGE_H - MARGIN, 8.0, Font::Sans, "Made by Faraday. Check the first address against your wallet software before relying on this sheet.");
+    document(vec![p])
+}
+
+/// What goes in each place's envelope: a heading per place, its things
+/// under it, a line to tick each.
+fn envelopes_sheet(f: &[(String, String)]) -> Vec<u8> {
+    let mut p = Page::default();
+    let name = get(f, "name").unwrap_or("Wallet");
+    let mut y = MARGIN;
+    p.text(MARGIN, y, 20.0, Font::Bold, &format!("{name} · envelopes"));
+    y += 30.0;
+    p.text(MARGIN, y, 11.0, Font::Sans, get(f, "shape").unwrap_or(""));
+    y += 30.0;
+    for (k, v) in f {
+        match k.as_str() {
+            "place" => {
+                y += 8.0;
+                p.text(MARGIN, y, 12.0, Font::Bold, v);
+                y += 20.0;
+            }
+            "thing" => {
+                p.line(MARGIN, y + 9.0, MARGIN + 9.0, y + 9.0, 0.5, 0.4);
+                p.text(MARGIN + 18.0, y, 10.0, Font::Sans, v);
+                y += 16.0;
+            }
+            _ => {}
+        }
+    }
     document(vec![p])
 }
 

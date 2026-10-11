@@ -47,6 +47,10 @@ pub struct Glance {
     /// A key of it made here waits for its backup: the wallet node says
     /// "Back up before you receive" (`docs/NEW-WALLET.md` §14.3).
     pub held: bool,
+    /// A vault is open to keep names, dates and marks in (§9.5).
+    pub keep: bool,
+    /// The plan charted, with the shape it is read against.
+    pub plan: Option<(plan::Shape, plan::Answers)>,
 }
 
 /// What every address of a wallet with a key made here and waiting for
@@ -90,6 +94,12 @@ pub struct KeyNode {
     pub action: Option<Action>,
     /// The way in a key the quorum still needs is offered, by name.
     pub way_in: Option<&'static str>,
+    /// Loaded, or kept, with a BIP-39 passphrase.
+    pub passphrase: bool,
+    /// Who holds it, for a key not held here, as the vault keeps it.
+    pub holder: Option<String>,
+    /// When its holder last confirmed its backup, as the vault keeps it.
+    pub checked: Option<String>,
 }
 
 /// The wallet's backup, as the chart's third row shows it.
@@ -103,6 +113,8 @@ pub enum Backup {
         check: plan::Check,
         /// The plan's checklist: the flows that make each thing.
         items: Vec<plan::Item>,
+        /// The map was edited on the chart, and is the plan (§9.7).
+        edited: bool,
     },
     /// The plan is in a locked vault and not remembered: its name, and
     /// the press that unlocks it.
@@ -142,6 +154,12 @@ pub struct BackupNode {
     /// The keys whose seed it holds, by index into [`Glance::keys`]: a
     /// line is drawn to it from each of them held here.
     pub keys: Vec<usize>,
+    /// Each of [`BackupNode::whats`] marked lost or exposed, as the vault
+    /// keeps it (§9.6).
+    pub marks: Vec<Option<plan::Mark>>,
+    /// When each of [`BackupNode::whats`] was last checked here, as the
+    /// vault keeps it.
+    pub checked: Vec<Option<String>>,
 }
 
 /// The plan the chart draws for loaded wallet `w`, with the places'
@@ -175,12 +193,14 @@ pub fn of(app: &Faraday, w: usize) -> Option<Glance> {
     let wallet = app.session.wallets.get(w)?;
     let plan = plan_of(app, w);
     let none = locked(app, &wallet.policy.checksum());
+    let notes = app.plan_notes(wallet, None);
     build(
         app,
         wallet,
         app.plan_shape(w),
         &[],
         plan,
+        &notes,
         none,
         Press::Loaded(w),
     )
@@ -235,26 +255,31 @@ pub fn of_vault(app: &Faraday, v: usize, r: usize) -> Option<Glance> {
         }
     }
     let plan = app.plan_in_vault(v, &wallet, &shape);
+    let notes = app.plan_notes(&wallet, Some(v));
     build(
         app,
         &wallet,
         shape,
         &in_vault,
         plan,
+        &notes,
         Backup::None,
         Press::Vault(v, r),
     )
 }
 
 /// The chart of `wallet`, read against plan shape `shape`, with the plan
-/// and place names `plan` (else `none` as its backup row); `in_vault`
-/// names the seeds the open vault drawing it keeps, which count as here.
+/// and place names `plan` (else `none` as its backup row) and the notes
+/// the vault keeps on it; `in_vault` names the seeds the open vault
+/// drawing it keeps, which count as here.
+#[allow(clippy::too_many_arguments)]
 fn build(
     app: &Faraday,
     wallet: &crate::wallet::Wallet,
     shape: plan::Shape,
     in_vault: &[String],
     plan: Option<(plan::Answers, Vec<String>)>,
+    notes: &[plan::Note],
     none: Backup,
     press: Press,
 ) -> Option<Glance> {
@@ -334,12 +359,28 @@ fn build(
                 seed: seed_of(n, slot),
                 action: action.filter(|_| may),
                 way_in,
+                passphrase,
+                holder: slot.fingerprint.and_then(|f| {
+                    notes.iter().find_map(|n| match n {
+                        plan::Note::Holder(fp, name) if *fp == f.0 => Some(name.clone()),
+                        _ => None,
+                    })
+                }),
+                checked: slot.fingerprint.and_then(|f| {
+                    notes.iter().find_map(|n| match n {
+                        plan::Note::KeyChecked(fp, d) if *fp == f.0 => Some(d.clone()),
+                        _ => None,
+                    })
+                }),
             }
         })
         .collect();
     let sum = wallet.policy.checksum();
+    let charted = plan.as_ref().map(|(a, _)| (shape.clone(), a.clone()));
     let backup = match plan {
-        Some((a, names)) => backup_nodes(app, &sum, &shape, &a, &names, &slot_of, &keys, any_here),
+        Some((a, names)) => backup_nodes(
+            app, &sum, &shape, &a, &names, notes, &slot_of, &keys, any_here,
+        ),
         None => none,
     };
     let focus = app.chart_focus.filter(|(p, _)| *p == press).map(|(_, k)| k);
@@ -356,6 +397,9 @@ fn build(
         threshold,
         focus,
         held,
+        keep: matches!(press, Press::Vault(..))
+            || app.vaults.open.get(app.vaults.current).is_some(),
+        plan: charted,
     })
 }
 
@@ -391,11 +435,25 @@ fn backup_nodes(
     shape: &plan::Shape,
     a: &plan::Answers,
     names: &[String],
+    notes: &[plan::Note],
     slot_of: &[Option<usize>],
     keys: &[KeyNode],
     any_here: bool,
 ) -> Backup {
     let number = |i: usize| slot_of.get(i).copied().flatten().map_or(i + 1, |n| n + 1);
+    // A vault of the plan by the name the vault keeps for it, else its
+    // number.
+    let vault_name = |v: usize| {
+        notes
+            .iter()
+            .find_map(|n| match n {
+                plan::Note::VaultName(u, name) if *u == v && !name.trim().is_empty() => {
+                    Some(name.trim().to_string())
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| format!("Vault {}", v + 1))
+    };
     let place = |p: usize| {
         names
             .get(p)
@@ -409,7 +467,7 @@ fn backup_nodes(
         What::Passphrase(i) => format!("Passphrase {}", number(i)),
         What::Sheet => "Wallet sheet".to_string(),
         What::Share(j) => format!("Share {} of {}", j + 1, shape.keys),
-        What::VaultStick(v) => format!("Vault {} stick", v + 1),
+        What::VaultStick(v) => format!("{} stick", vault_name(v)),
         What::Seed(i) => format!("Key {} seed", number(i)),
         What::SeedPassphrase(i) => format!("Key {} seed + passphrase", number(i)),
         What::Wallet => "Description".to_string(),
@@ -448,23 +506,60 @@ fn backup_nodes(
             .max_by_key(|t| rank(*t))
             .unwrap_or(Tag::Public)
     };
-    let nodes = plan::map(shape, a)
-        .into_iter()
+    let boxes = plan::map(shape, a);
+    // A vault's stick at more than one place: the first is its stick, each
+    // further one a copy, "Vault 1 · copy" (§9.4).
+    let stick_at = |at: At, v: usize| {
+        boxes
+            .iter()
+            .any(|s| s.at == at && s.holds.iter().any(|(w, _)| *w == What::VaultStick(v)))
+    };
+    let copy_of = |at: At, v: usize| match a.first_stick(v).map(At::Place) {
+        Some(first) if stick_at(first, v) => at != first,
+        _ => boxes
+            .iter()
+            .take_while(|s| s.at != at)
+            .any(|s| s.holds.iter().any(|(w, _)| *w == What::VaultStick(v))),
+    };
+    let note_of = |at: At, w: What| {
+        let mark = notes.iter().find_map(|n| match n {
+            plan::Note::Marked(x, y, m) if *x == at && *y == w => Some(*m),
+            _ => None,
+        });
+        let checked = notes.iter().find_map(|n| match n {
+            plan::Note::Checked(x, y, d) if *x == at && *y == w => Some(d.clone()),
+            _ => None,
+        });
+        (mark, checked)
+    };
+    let nodes = boxes
+        .iter()
         // A cosigner's seed is theirs to keep: no node of this backup.
         .filter(|spot| !(spot.at == At::Away && any_here))
         .map(|spot| {
+            let label = |w: What| match w {
+                What::VaultStick(v) if copy_of(spot.at, v) => format!("{} · copy", vault_name(v)),
+                w => label(w),
+            };
             let name = match spot.at {
                 At::Place(p) => place(p),
-                At::Vault(v) => format!("Vault {}", v + 1),
+                At::Vault(v) => vault_name(v),
                 At::Files => format!("{} of files", app.medium.cap()),
                 At::Software => "Watch-only software".to_string(),
                 At::Away => "On its own device".to_string(),
             };
             let stick = match spot.at {
                 At::Vault(v) => {
-                    let at: Vec<String> = (0..a.places)
-                        .filter(|&p| a.stick_at(v, p))
-                        .map(place)
+                    let at: Vec<String> = boxes
+                        .iter()
+                        .filter_map(|s| match s.at {
+                            At::Place(p)
+                                if s.holds.iter().any(|(w, _)| *w == What::VaultStick(v)) =>
+                            {
+                                Some(place(p))
+                            }
+                            _ => None,
+                        })
                         .collect();
                     Some(if at.is_empty() {
                         "Its own stick".to_string()
@@ -500,7 +595,11 @@ fn backup_nodes(
                 At::Away => None,
                 at => Some(plan::alone(shape, a, at).text().to_string()),
             };
+            let (marks, checked): (Vec<_>, Vec<_>) =
+                spot.holds.iter().map(|(w, _)| note_of(spot.at, *w)).unzip();
             BackupNode {
+                marks,
+                checked,
                 whats: spot.holds.iter().map(|(w, _)| *w).collect(),
                 at: spot.at,
                 name,
@@ -519,7 +618,10 @@ fn backup_nodes(
                 } else {
                     spot.holds
                         .iter()
-                        .map(|(w, _)| keys_label(*w))
+                        .map(|(w, _)| match note_of(spot.at, *w).0 {
+                            Some(m) => format!("{} ({})", keys_label(*w), m.name()),
+                            None => keys_label(*w),
+                        })
                         .collect::<Vec<_>>()
                         .join(" · ")
                 },
@@ -534,6 +636,7 @@ fn backup_nodes(
         nodes,
         check: plan::check(shape, a),
         items: plan::checklist(shape, a),
+        edited: a.map.is_some(),
     }
 }
 
@@ -548,6 +651,8 @@ struct Text {
     weight: W,
     color: Color,
     press: Option<Action>,
+    /// Struck through: a thing marked lost or exposed (§9.6).
+    struck: bool,
 }
 
 impl Text {
@@ -558,6 +663,15 @@ impl Text {
             weight,
             color,
             press: None,
+            struck: false,
+        }
+    }
+
+    /// The line, struck through.
+    fn struck(self) -> Text {
+        Text {
+            struck: true,
+            ..self
         }
     }
 
@@ -655,6 +769,11 @@ impl Node {
         }
         for l in &self.lines {
             let lh = ui.wrap(x + pad, cy, inner, l.size, l.weight, l.color, &l.text);
+            if l.struck {
+                let one = ui.line(l.size, l.weight);
+                let tw = ui.measure(l.size, l.weight, &l.text).min(inner);
+                ui.rule(x + pad, cy + one / 2.0, tw, l.color);
+            }
             if let Some(a) = l.press {
                 ui.hit(x + pad, cy, inner, lh, a);
             }
@@ -672,6 +791,16 @@ impl Node {
                 *action,
             );
         }
+    }
+}
+
+/// A date a thing was checked here, as a line: "Checked 2026-10-10", or
+/// "Checked" when the clock was not known.
+pub(crate) fn checked_text(d: &str) -> String {
+    if d.is_empty() {
+        "Checked".to_string()
+    } else {
+        format!("Checked {d}")
     }
 }
 
@@ -743,6 +872,12 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
             if let Some(l) = &k.label {
                 lines.push(Text::new(l.clone(), tokens::CAPTION, W::R, MUTED));
             }
+            if let Some(h) = &k.holder {
+                lines.push(Text::new(h.clone(), tokens::CAPTION, W::R, TEXT));
+            }
+            if let Some(d) = &k.checked {
+                lines.push(Text::new(checked_text(d), tokens::CAPTION, W::R, OK));
+            }
             lines.push(Text::new(
                 k.state.clone(),
                 tokens::CAPTION,
@@ -783,7 +918,19 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                             let line = (j < n.whats.len())
                                 .then(|| open(Target::Line(i as u8, j as u8)))
                                 .flatten();
-                            Text::new(h.clone(), tokens::CAPTION, W::R, TEXT).pressed(line)
+                            match n.marks.get(j).copied().flatten() {
+                                Some(m) => Text::new(
+                                    format!("{h} · {}", m.name()),
+                                    tokens::CAPTION,
+                                    W::R,
+                                    ERR,
+                                )
+                                .struck()
+                                .pressed(line),
+                                None => {
+                                    Text::new(h.clone(), tokens::CAPTION, W::R, TEXT).pressed(line)
+                                }
+                            }
                         })
                         .collect()
                 };
@@ -1364,4 +1511,36 @@ pub(crate) fn draw_column_with(
         cy += tokens::GAP;
     }
     cy - y
+}
+
+/// The line of the chart `g` that says what `what` is at `at`: "Key 1
+/// words", "Vault 1 · copy".
+pub(crate) fn label_of(g: &Glance, at: At, what: What) -> Option<String> {
+    let Backup::Plan { nodes, .. } = &g.backup else {
+        return None;
+    };
+    let node = nodes.iter().find(|n| n.at == at)?;
+    let j = node.whats.iter().position(|w| *w == what)?;
+    node.holds.get(j).cloned()
+}
+
+/// A thing as the chart names it, wherever it is: "Key 1 words", "Wallet
+/// sheet", "Vault 1 stick".
+pub(crate) fn thing_label(g: Option<&Glance>, what: What) -> String {
+    let number = |i: usize| {
+        g.and_then(|g| g.keys.iter().find(|k| k.seed == Some(i)))
+            .map_or(i + 1, |k| k.number)
+    };
+    match what {
+        What::Words(i) => format!("Key {} words", number(i)),
+        What::SeedQr(i) => format!("Key {} SeedQR", number(i)),
+        What::Passphrase(i) => format!("Passphrase {}", number(i)),
+        What::Sheet => "Wallet sheet".to_string(),
+        What::Share(j) => format!("Share {}", j + 1),
+        What::VaultStick(v) => format!("Vault {} · copy", v + 1),
+        What::Seed(i) => format!("Key {} seed", number(i)),
+        What::SeedPassphrase(i) => format!("Key {} seed + passphrase", number(i)),
+        What::Wallet => "The description".to_string(),
+        What::SeedFile(i) => format!("Key {}", number(i)),
+    }
 }
