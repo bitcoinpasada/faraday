@@ -3929,6 +3929,9 @@ fn dice_key(t: &mut Tour, slot: u8) -> Result<(), String> {
             t.shot("keygen-rolls")?;
         }
     }
+    // The randomness check, shown on the entry card once the last roll
+    // is in (`docs/NEW-WALLET.md` §3.2), before Continue moves on.
+    t.shot("keygen-rolls-done")?;
     t.press(Action::KNext);
     t.shot("keygen-slot-key")?;
     t.press(Action::Learn);

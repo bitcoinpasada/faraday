@@ -49,11 +49,12 @@ The stick image on a PC, at 1280×800.
 <td>Tools: every flow, with its standards</td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/screenshots/pc-new-key-dice.png" alt="A new key from die rolls" width="100%"></td>
+<td width="50%"><img src="docs/screenshots/pc-new-key-dice.png" alt="A new key from die rolls, its randomness check" width="100%"></td>
 <td width="50%"><img src="docs/screenshots/pc-settings.png" alt="Settings" width="100%"></td>
 </tr>
 <tr>
-<td>A new BIP-39 key from die rolls: each word's bits and the word</td>
+<td>A new BIP-39 key from 99 die rolls: the randomness check on the
+entry card once the last roll is in</td>
 <td>Settings</td>
 </tr>
 </table>
@@ -66,12 +67,12 @@ touch.
 <td width="25%"><img src="docs/screenshots/pi-home.png" alt="Home" width="100%"></td>
 <td width="25%"><img src="docs/screenshots/pi-new-key-rolls.png" alt="A new key from dice rolls" width="100%"></td>
 <td width="25%"><img src="docs/screenshots/pi-add-a-key.png" alt="Typing a seed's words" width="100%"></td>
-<td width="25%"><img src="docs/screenshots/pi-restore-m-of-n.png" alt="Choosing M of N" width="100%"></td>
+<td width="25%"><img src="docs/screenshots/pi-restore-m-of-n.png" alt="Restore's Quorum card, 2 of 3" width="100%"></td>
 </tr>
 </table>
 
 Left to right: Home; a new key from dice rolls; Add a key, typing a
-seed's words; Restore, 2 of 3.
+seed's words; Restore's Quorum card, 2 of 3.
 
 ## Starting a session: the boot import
 
