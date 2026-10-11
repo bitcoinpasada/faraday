@@ -325,13 +325,17 @@ never checked has Check open.
 
 ### 2.6 The small panel's step title
 
-**What.** `flow::paged` draws no pip row and no "Step N of M" line.
-The title carries the progress: "Kind · 1 of 8" (DESIGN §4.1, Title).
+**What.** `flow::paged` draws no pip row. The title is the card's name
+alone; the step count is its own muted "Step N of M" text beside it, so
+a step count can never be read as one of the card's own values — on
+Restore's Quorum card, beside the wallet's own "2 of 3" (DESIGN §4.1,
+Title). The step count moved off the title and beside it, 2026-10-10
+(owner).
 
 **Where.** `flow.rs` `fn paged`.
 
-**Tests.** `tests/small_panel.rs`: a flow's page title reads
-"{card} · {n} of {m}".
+**Tests.** `tests/small_panel.rs`: a flow's page title carries no
+count, and the step count is drawn as its own text.
 
 ### 2.7 Scan never covers a tile
 

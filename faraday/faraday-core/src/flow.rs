@@ -385,9 +385,16 @@ fn paged(
             }
             // The title says where the page is; tapping it closes the
             // card, which leaves the list of steps, any of which opens.
+            // The step count sits beside it, muted, so it is never read
+            // as a value next to the card's own numbers (`SIMPLIFY.md`
+            // §2.6).
             let card = &cards[i];
-            let title = format!("{} · {} of {}", card.title, i + 1, cards.len());
-            let th = ui.wrap(M, y, inner, 18.0, W::S, TEXT, &title);
+            let count = format!("Step {} of {}", i + 1, cards.len());
+            let count_w = ui.measure(12.0, W::R, &count);
+            let title_w = inner - count_w - 10.0;
+            let lh = ui.line(18.0, W::S);
+            let th = ui.wrap(M, y, title_w, 18.0, W::S, TEXT, &card.title);
+            ui.text_right(M + inner, y, lh, 12.0, W::R, MUTED, &count);
             ui.hit(M, y, inner, th, card.toggle);
             y += th + 10.0;
             y += body(ui, i, M, y, inner);

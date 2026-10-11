@@ -367,25 +367,30 @@ fn scan_never_covers_a_tile() {
     }
 }
 
-/// A flow's page carries no pip row and no "Step N of M" line: the title
-/// alone reads "{card} · {n} of {m}" (`DESIGN.md` §4.1).
+/// A flow's page title is the card's name alone, never a count next to
+/// it that could be read as one of the card's own values; the step
+/// count is its own muted "Step N of M" text beside the title
+/// (`DESIGN.md` §4.1, `SIMPLIFY.md` §2.6).
 #[test]
-fn a_flow_s_page_title_carries_the_progress() {
+fn a_flow_s_page_title_carries_no_count() {
     let mut app = panel();
     tap(&mut app, Action::Nav(Screen::Vaults));
     tap(&mut app, Action::Vault(V::Create));
     let texts = app.drawn_texts();
     // Create a vault is two cards, and opens on the second: the size
-    // has its default (`docs/SIMPLIFY.md` §3.1).
+    // has its default (`docs/SIMPLIFY.md` §3.1). The title wraps onto
+    // its own line or lines, with no count joined onto it.
     assert!(
-        texts.iter().any(|t| t == "Name and passphrases · 2 of 2"),
-        "no title carries the progress: {texts:?}"
+        texts.iter().any(|t| t == "Name and" || t == "passphrases"),
+        "the title's words are drawn on their own: {texts:?}"
     );
     assert!(
-        !texts
-            .iter()
-            .any(|t| t.starts_with("Step ") && t.contains(" of ")),
-        "a \"Step N of M\" line is still drawn: {texts:?}"
+        !texts.iter().any(|t| t.contains('·') && t.contains("of")),
+        "the title still carries a count next to it: {texts:?}"
+    );
+    assert!(
+        texts.iter().any(|t| t == "Step 2 of 2"),
+        "the step count is drawn as its own, muted text: {texts:?}"
     );
 }
 
