@@ -302,3 +302,37 @@ hold-to-reveal. Faraday never writes the computer's clock.
 **What it leaves.** HOTP codes, Google Authenticator's export QR and
 Steam's codes are not read. File dates on a stick still come from the
 system clock, 1970 on the Pi.
+
+### F8 Scan to sign, and a Spend tab that asks for data (2026-10-11)
+
+**Why.** In the demo's backup start the owner could not see how to bring
+in the second signer: "Add a key" opened a page for typing, the chart's
+"Add its key" links asked them to know which key their paper was, and
+scanning was a second press on the next page. The Spend tab, meant for a
+first-time spender, asked them to classify their envelope before
+anything was read.
+
+**What it does** (`docs/SCAN-TO-SIGN.md`).
+
+- *Scan a key.* Where a wallet is short of keys, one **Scan a key**
+  opens the camera and takes any of its missing keys; Faraday works out
+  which. A seed whose key matches a missing slot loads with no
+  passphrase question; one that matches nothing asks for its passphrase.
+- *Can spend.* A wallet with enough keys here shows a green **Can
+  spend** pill on its card, its list row and Who signs.
+- *Names.* Home's ways in read **Make a new wallet** and **Restore an
+  existing wallet**.
+- *The Spend tab's intake.* **Scan the QR codes you have** and **Type
+  the words you have**, a vault's Unlock only when one is found, and
+  the next question worked out from what came in: anything else after
+  one seed, the description after several, the wallet's shape when
+  there is none.
+- *A guessed wallet is checked online.* Continue only through **Yes, my
+  money shows**; **No money shows** tries a passphrase, Taproot, nested
+  SegWit and legacy in turn.
+- *GPG.* Sign a file signs several files ticked in a list.
+
+**The owner's decisions.** All of the above (2026-10-11), with: one
+seed and "That's everything" opens native SegWit; seeds without a
+description build standard multisig only with every key in hand;
+Restore on the Wallets tab stays the expert flow for now.

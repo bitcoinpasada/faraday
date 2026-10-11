@@ -134,13 +134,16 @@ fn a_key_the_quorum_needs_is_asked_for() {
     app.press(Action::LoadWallet(w));
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
+    // One Scan a key takes whichever missing key comes
+    // (`docs/SCAN-TO-SIGN.md` §2), not a way in per key.
+    assert!(app.offers(Action::ScanKey(0)));
     let slots = app.session.slots(&app.session.wallets[0]);
-    let asked = slots
+    let per_key = slots
         .iter()
         .filter(|s| s.held_by.is_none())
         .filter(|s| app.offers(Action::Entry(s.fingerprint.map(|f| f.0))))
         .count();
-    assert_eq!(asked, 2);
+    assert_eq!(per_key, 0);
 }
 
 #[test]

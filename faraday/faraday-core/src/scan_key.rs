@@ -1,0 +1,212 @@
+//! Scan a key (`docs/SCAN-TO-SIGN.md` §2): one way in for any key a
+//! loaded wallet is short of. The camera takes any of the wallet's
+//! missing keys and Faraday works out which; a seed whose key with no
+//! passphrase is one of them loads at once, since the match proves it
+//! has none, and one that matches nothing goes to the passphrase sheet
+//! (`seed_read`), which takes it only for a missing key of the wallet.
+
+use osk_bip::keys::Fingerprint;
+use osk_shell_api::Command;
+
+use crate::plan::{At, What};
+use crate::wallet::{Session, fp_text};
+use crate::{Faraday, Sheet};
+
+/// The key `words` make with `pass`, if they are BIP-39 words.
+pub(crate) fn key_of(words: &str, pass: &str) -> Option<Fingerprint> {
+    Session::default()
+        .add_words_with(words, pass, "", None)
+        .ok()
+}
+
+/// What a read or a choice found of a wallet's keys.
+pub(crate) enum Found {
+    /// Key n of the wallet, not here.
+    Missing(usize),
+    /// Key n of the wallet, here already.
+    Here(usize),
+    /// No key of the wallet.
+    None,
+}
+
+impl Faraday {
+    /// Whether loaded wallet `w` has enough keys here to sign.
+    pub fn can_spend(&self, w: usize) -> bool {
+        self.session
+            .wallets
+            .get(w)
+            .is_some_and(|wl| crate::screens::sign_readiness(self, wl) == 2)
+    }
+
+    /// Keys loaded wallet `w` still needs here before it can spend.
+    pub(crate) fn keys_short(&self, w: usize) -> usize {
+        let Some(wl) = self.session.wallets.get(w) else {
+            return 0;
+        };
+        let here = self
+            .session
+            .slots(wl)
+            .iter()
+            .filter(|s| s.held_by.is_some())
+            .count();
+        crate::wallet::needed(wl).saturating_sub(here)
+    }
+
+    /// Which of wallet `w`'s keys `fp` is.
+    pub(crate) fn wallet_key_found(&self, w: usize, fp: Fingerprint) -> Found {
+        let Some(wl) = self.session.wallets.get(w) else {
+            return Found::None;
+        };
+        let slots = self.session.slots(wl);
+        match slots.iter().position(|s| s.fingerprint == Some(fp)) {
+            Some(n) if slots[n].held_by.is_some() => Found::Here(n),
+            Some(n) => Found::Missing(n),
+            None => Found::None,
+        }
+    }
+
+    /// The name a key of wallet `w` loads under: who holds it, as the
+    /// backup's plan keeps it, else none.
+    pub(crate) fn wallet_key_label(&self, w: usize, fp: Fingerprint) -> String {
+        let Some(wl) = self.session.wallets.get(w) else {
+            return String::new();
+        };
+        self.plan_notes(wl, None)
+            .into_iter()
+            .find_map(|n| match n {
+                crate::plan::Note::Holder(f, name) if f == fp.0 => Some(name),
+                _ => None,
+            })
+            .unwrap_or_default()
+    }
+
+    /// The line a seed that is no key of wallet `w` is refused with.
+    pub(crate) fn not_a_wallet_key(&self, w: usize, fp: Fingerprint) -> String {
+        let name = self
+            .session
+            .wallets
+            .get(w)
+            .map(|wl| wl.name.as_str())
+            .unwrap_or_default();
+        format!("{} is not one of {name}'s keys", fp_text(fp))
+    }
+
+    /// The keys the key scanner for wallet `w` takes, a line each:
+    /// "Key 2 · 1A2B3C4D · Place 2", the place where the backup's plan
+    /// keeps that seed.
+    pub(crate) fn wallet_key_lines(&self, w: usize) -> Vec<String> {
+        let Some(wl) = self.session.wallets.get(w) else {
+            return Vec::new();
+        };
+        let glance = crate::glance::of(self, w);
+        let place = |n: usize| -> Option<String> {
+            let g = glance.as_ref()?;
+            let seed = g.keys.get(n)?.seed?;
+            let crate::glance::Backup::Plan { nodes, .. } = &g.backup else {
+                return None;
+            };
+            nodes
+                .iter()
+                .filter(|b| matches!(b.at, At::Place(_)))
+                .find(|b| {
+                    b.whats.iter().any(|x| {
+                        matches!(*x, What::Words(i) | What::SeedQr(i) | What::Seed(i)
+                            | What::SeedPassphrase(i) | What::SeedFile(i) if i == seed)
+                    })
+                })
+                .map(|b| b.name.clone())
+        };
+        self.session
+            .slots(wl)
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| s.held_by.is_none())
+            .filter_map(|(n, s)| {
+                let fp = s.fingerprint?;
+                let line = format!("Key {} · {}", n + 1, fp_text(fp));
+                Some(match place(n) {
+                    Some(p) => format!("{line} · {p}"),
+                    None => line,
+                })
+            })
+            .collect()
+    }
+
+    /// A seed's words read by wallet `w`'s key scanner.
+    pub(crate) fn wallet_key_scanned(&mut self, w: usize, words: &str) {
+        let Some(fp) = key_of(words, "") else {
+            if let Some(scan) = self.scan.as_mut() {
+                scan.note = Some("Not a SeedQR or a CompactSeedQR".to_string());
+            }
+            return;
+        };
+        match self.wallet_key_found(w, fp) {
+            Found::Here(n) => {
+                if let Some(scan) = self.scan.as_mut() {
+                    scan.note = Some(format!("Key {} · already here", n + 1));
+                }
+            }
+            Found::Missing(n) => {
+                let label = self.wallet_key_label(w, fp);
+                match self.session.add_words_with(words, "", &label, None) {
+                    Ok(_) => self.wallet_key_added(w, n),
+                    Err(e) => {
+                        if let Some(scan) = self.scan.as_mut() {
+                            scan.note = Some(e.text());
+                        }
+                    }
+                }
+            }
+            // Perhaps a seed with a passphrase: the sheet asks for it.
+            Found::None => {
+                let reason = self.not_a_wallet_key(w, fp);
+                self.seed_read_for_wallet(words, w, reason);
+            }
+        }
+    }
+
+    /// Key n of wallet `w` loaded from the key scanner or the passphrase
+    /// sheet: the spend and the Spend tab take it, and the camera says
+    /// how many more, or closes once the wallet can spend.
+    pub(crate) fn wallet_key_added(&mut self, w: usize, n: usize) {
+        self.refresh_spend();
+        // Scanned from Add a key: back where Add a key was opened from.
+        if self.screen == crate::Screen::Entry {
+            let back = self.entry.back;
+            self.entry = crate::EntryState::default();
+            self.screen = match back {
+                Some(s) => s,
+                None if self.spend.is_some() => crate::Screen::Spend,
+                None => crate::Screen::Wallets,
+            };
+        }
+        if self.screen == crate::Screen::Family {
+            self.family_key_added();
+        }
+        self.wallet_key_said(w, n);
+    }
+
+    /// What loading key n of wallet `w` says: with the camera on and the
+    /// wallet still short, the camera's note; else a toast, the camera
+    /// closed.
+    pub(crate) fn wallet_key_said(&mut self, w: usize, n: usize) {
+        let short = self.keys_short(w);
+        if short > 0
+            && let Some(scan) = self.scan.as_mut()
+        {
+            scan.note = Some(format!("Key {} added · {short} more", n + 1));
+            return;
+        }
+        if self.scan.take().is_some() {
+            self.commands.push_back(Command::CameraOff);
+            if self.sheet == Some(Sheet::Scan) {
+                self.sheet = None;
+            }
+        }
+        if short > 0 {
+            self.toast(&format!("Key {} added · {short} more", n + 1));
+        } else {
+            self.toast(&format!("Key {} added · Can spend", n + 1));
+        }
+    }
+}

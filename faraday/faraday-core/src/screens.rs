@@ -718,12 +718,12 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
 // ---------------------------------------------------------------------
 
 /// Home's one lead job: the first rule of §1.2's ranking that applies,
-/// rule 7 (Make a wallet) when none of the others does. `enabled` is
+/// rule 7 (Make a new wallet) when none of the others does. `enabled` is
 /// false for a prompt with no target of its own (pull the stick first).
 pub(crate) fn home_lead(app: &Faraday) -> (Icon, String, String, Action, bool) {
     home_job(app).unwrap_or((
         Icon::Wallet,
-        "Make a wallet".to_string(),
+        "Make a new wallet".to_string(),
         "Single key or multisig".to_string(),
         Action::CreateWallet,
         true,
@@ -886,13 +886,13 @@ pub(crate) fn home_ways(app: &Faraday) -> Vec<(Icon, &'static str, String, Actio
     let mut t = vec![
         (
             Icon::Flag,
-            "Make a wallet",
+            "Make a new wallet",
             "Single key or multisig".to_string(),
             Action::CreateWallet,
         ),
         (
             Icon::Wallet,
-            "Load or restore a wallet",
+            "Restore an existing wallet",
             "From its backups".to_string(),
             Action::RestoreWallet,
         ),
@@ -1170,7 +1170,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y,
             width,
             Some(Icon::Flag),
-            "Create a wallet",
+            "Make a new wallet",
             "Single key or multisig",
             MUTED,
             Some(Action::CreateWallet),
@@ -1181,7 +1181,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y,
             width,
             Some(Icon::Wallet),
-            "Load or restore a wallet",
+            "Restore an existing wallet",
             "From its backups",
             MUTED,
             Some(Action::RestoreWallet),
@@ -1235,13 +1235,13 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let ways = [
             (
                 Icon::Flag,
-                "Create a wallet",
+                "Make a new wallet",
                 "Single key or multisig",
                 Action::CreateWallet,
             ),
             (
                 Icon::Wallet,
-                "Load or restore a wallet",
+                "Restore an existing wallet",
                 "From its backups",
                 Action::RestoreWallet,
             ),
@@ -2543,7 +2543,7 @@ pub(crate) fn wallet_rows(
                 .count()
                 .min(m);
             let (state, tone) = match ready {
-                2 => (format!("Ready to sign · {here} of {m}"), OK),
+                2 => (format!("Can spend · {here} of {m}"), OK),
                 1 => (format!("{here} of {m} here"), TEXT),
                 _ => ("Watch only".to_string(), DIM),
             };
@@ -2605,7 +2605,7 @@ pub(crate) fn wallet_rows(
             .min(m);
         // The marker on the right: ready, how many here, or none.
         let marker = match ready {
-            2 => format!("Ready to sign · {here} of {m}"),
+            2 => format!("Can spend · {here} of {m}"),
             1 => format!("{here} of {m} here"),
             _ => "Watch only".to_string(),
         };
@@ -2693,7 +2693,7 @@ pub(crate) fn loose_card(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> 
             Action::KeyWallet(picked, 2),
         ),
         (
-            "Load or restore a wallet",
+            "Restore an existing wallet",
             Style::Secondary,
             Action::RestoreWallet,
         ),
@@ -2797,7 +2797,18 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         ui.fill(x, ly, listw, 54.0, 10.0, bg);
         ui.stroke(x, ly, listw, 54.0, 10.0, edge);
-        let name = ui.fit(14.0, W::S, &wlt.name, listw - 28.0);
+        // Can spend at the right of its name (`docs/SCAN-TO-SIGN.md`
+        // §2.4).
+        let can = sign_readiness(app, wlt) == 2;
+        let cw2 = if can {
+            let t = "Can spend";
+            let tw = ui.measure(12.0, W::S, t);
+            ui.text(x + listw - 14.0 - tw, ly + 11.0, 12.0, W::S, OK, t);
+            tw + 8.0
+        } else {
+            0.0
+        };
+        let name = ui.fit(14.0, W::S, &wlt.name, listw - 28.0 - cw2);
         ui.text(x + 14.0, ly + 9.0, 14.0, W::S, TEXT, &name);
         let (m, _) = Session::quorum(wlt);
         let here = app
@@ -2808,10 +2819,10 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .count()
             .min(m);
         let shape = Session::shape(wlt);
-        let (t, c) = if here == 0 {
+        let (t, c) = if can {
+            (shape, MUTED)
+        } else if here == 0 {
             (format!("{shape} · watch only"), DIM)
-        } else if sign_readiness(app, wlt) == 2 {
-            (format!("{shape} · {here} of {m} here"), OK)
         } else {
             (format!("{shape} · {here} of {m} here"), MUTED)
         };
@@ -2853,24 +2864,39 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ly,
             Some(listw),
             40.0,
-            "Load or restore a wallet",
+            "Restore an existing wallet",
             Style::Secondary,
             Action::RestoreWallet,
         );
         ly += 48.0;
     }
+    // With the wallet shown short of keys, its Scan a key
+    // (`docs/SCAN-TO-SIGN.md` §2.4).
+    let short = app
+        .session
+        .wallets
+        .get(app.wallet)
+        .filter(|wl| wl.policy.silent().is_none() && !app.can_spend(app.wallet));
+    let (add_label, add_action) = match short {
+        Some(wl) => (
+            format!("Scan a key for {}", wl.name),
+            Action::ScanKey(app.wallet),
+        ),
+        None => ("Add a key".to_string(), Action::Entry(None)),
+    };
+    let add_label = ui.fit(14.0, W::S, &add_label, listw - 24.0);
     ui.button(
         x,
         ly,
         Some(listw),
         40.0,
-        "Add a key",
+        &add_label,
         if may {
             Style::Secondary
         } else {
             Style::Disabled
         },
-        Action::Entry(None),
+        add_action,
     );
     ui.c.pop_clip();
     ui.report_scroll(clip, max_shift);
@@ -2997,31 +3023,29 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         TEXT,
         &format!("{here} of {m} signatures possible here"),
     );
-    let short_by = m - here;
-    let need = if short_by == 0 {
-        "Nothing missing".to_string()
+    // Short: one Scan a key for any missing key; enough: Can spend
+    // (`docs/SCAN-TO-SIGN.md` §2.2).
+    if app.can_spend(app.wallet) {
+        let t = "Can spend";
+        let chipw = ui.measure(12.0, W::R, t) + 34.0;
+        ui.chip(ix + iw - 16.0 - chipw, cy + 12.0, t, OK, OK.with_alpha(30));
     } else {
-        // "More" only once there is some already.
-        let more = if here > 0 { " more" } else { "" };
-        format!(
-            "Add {short_by}{more} {} or collect {short_by}{more} {}",
-            if short_by == 1 { "key" } else { "keys" },
-            if short_by == 1 {
-                "signature"
+        let label = "Scan a key";
+        let bw = ui.measure(14.0, W::S, label) + 32.0;
+        ui.button(
+            ix + iw - 9.0 - bw,
+            cy + 7.0,
+            Some(bw),
+            36.0,
+            label,
+            if app.may_load_keys() {
+                Style::Primary
             } else {
-                "signatures"
-            }
-        )
-    };
-    ui.text_right(
-        ix + iw - 16.0,
-        cy,
-        50.0,
-        13.0,
-        W::R,
-        if short_by == 0 { OK } else { WARN },
-        &need,
-    );
+                Style::Disabled
+            },
+            Action::ScanKey(app.wallet),
+        );
+    }
     cy += 66.0;
 
     // The wallet at a glance (`docs/NEW-WALLET.md` §6): its keys and
@@ -3901,72 +3925,67 @@ pub(crate) fn step_body(
             cy += 44.0;
         }
         4 => {
-            match wallet.and_then(|wi| app.session.wallets.get(wi)) {
-                Some(wl) => {
+            let wl = wallet.and_then(|wi| app.session.wallets.get(wi).map(|wl| (wi, wl)));
+            let may = app.may_load_keys();
+            match wl {
+                Some((_, wl)) => {
                     let slots = app.session.slots(wl);
-                    let enough = slots.iter().filter(|s| s.held_by.is_some()).count() >= needed;
                     // On a small panel a key is two lines: the key, then
-                    // where it signs and the way to bring it here.
+                    // whether it signs here and the way to bring it here.
                     let compact = ui.compact;
                     for (k, slot) in slots.iter().enumerate() {
                         ui.text_mid(x, cy, 42.0, 12.0, W::R, DIM, &(k + 1).to_string());
                         let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
                         ui.text_mid(x + 22.0, cy, 42.0, 14.0, W::M, TEXT, &fp);
-                        let label = slot.held_by.clone().unwrap_or_default();
-                        let label = ui.fit(13.0, W::R, &label, w - 124.0);
+                        // A label that is its fingerprint is not drawn
+                        // twice (`docs/SCAN-TO-SIGN.md` §3.3).
+                        let label = slot
+                            .held_by
+                            .as_deref()
+                            .map(str::trim)
+                            .filter(|l| !l.is_empty() && !l.eq_ignore_ascii_case(&fp))
+                            .unwrap_or_default();
+                        let label = ui.fit(13.0, W::R, label, w - 124.0);
                         ui.text_mid(x + 124.0, cy, 42.0, 13.0, W::R, MUTED, &label);
                         if compact {
                             cy += 36.0;
                         }
-                        let (t, fg, bg) = if slot.held_by.is_some() {
-                            ("Signs here", OK, OK.with_alpha(30))
-                        } else if enough {
-                            ("Not needed", DIM, INNER)
-                        } else {
-                            ("Another device", MUTED, INNER)
-                        };
-                        // A key not here can still be brought here: from an
-                        // open vault, or typed or scanned.
-                        let button = (slot.held_by.is_none() && !enough).then(|| {
-                            match slot.fingerprint.filter(|f| app.vault_key_for(*f).is_some()) {
-                                Some(f) => (
-                                    "Load from vault",
+                        // A key an open vault holds loads from it; any
+                        // other not here says so.
+                        let from_vault = slot
+                            .fingerprint
+                            .filter(|f| slot.held_by.is_none() && app.vault_key_for(*f).is_some());
+                        match from_vault {
+                            Some(f) => {
+                                let l = "Load from vault";
+                                let bw = ui.measure(13.0, W::S, l) + 28.0;
+                                ui.button(
+                                    x + w - bw,
+                                    cy + 5.0,
+                                    Some(bw),
+                                    32.0,
+                                    l,
+                                    if may {
+                                        Style::Secondary
+                                    } else {
+                                        Style::Disabled
+                                    },
                                     Action::Vault(crate::vaults::VaultAction::LoadKeyOf(f.0)),
-                                ),
-                                None => {
-                                    ("Add its key", Action::Entry(slot.fingerprint.map(|f| f.0)))
-                                }
+                                );
                             }
-                        });
-                        let bw = button.map_or(0.0, |(l, _)| ui.measure(13.0, W::S, l) + 28.0);
-                        let cw2 = ui.measure(12.0, W::R, t) + 34.0;
-                        let chip_x = if compact {
-                            x + 22.0
-                        } else {
-                            x + w - bw - 10.0 - cw2
-                        };
-                        ui.chip(chip_x, cy + 8.0, t, fg, bg);
-                        if let Some((l, a)) = button {
-                            ui.button(
-                                x + w - bw,
-                                cy + 5.0,
-                                Some(bw),
-                                32.0,
-                                l,
-                                if app.may_load_keys() {
-                                    Style::Secondary
+                            None => {
+                                let (t, fg, bg) = if slot.held_by.is_some() {
+                                    ("Signs here", OK, OK.with_alpha(30))
                                 } else {
-                                    Style::Disabled
-                                },
-                                a,
-                            );
+                                    ("Not here", MUTED, INNER)
+                                };
+                                let cw2 = ui.measure(12.0, W::R, t) + 34.0;
+                                let chip_x = if compact { x + 22.0 } else { x + w - cw2 };
+                                ui.chip(chip_x, cy + 8.0, t, fg, bg);
+                            }
                         }
                         ui.rule(x, cy + 42.0, w, INNER);
                         cy += 44.0;
-                    }
-                    if !enough {
-                        cy += 4.0;
-                        cy += missing_keys_line(app, ui, &slots, Screen::Spend, x, cy, w);
                     }
                 }
                 None => {
@@ -3982,15 +4001,55 @@ pub(crate) fn step_body(
                 .iter()
                 .filter(|fp| app.session.key_label(**fp).is_some())
                 .count();
-            ui.text_mid(
-                x,
-                cy,
-                40.0,
-                13.0,
-                W::R,
-                MUTED,
-                &format!("Needs {needed} · {here} here"),
-            );
+            // Short of signers: Scan a key, the vaults to unlock and
+            // Collect a signature; a wallet whose paths differ keeps them
+            // until the spend is signed (`docs/SCAN-TO-SIGN.md` §3.2).
+            let paths = wl.is_some_and(|(_, wl)| {
+                matches!(
+                    crate::wallet::Kind::of(&wl.policy),
+                    crate::wallet::Kind::Miniscript | crate::wallet::Kind::Tree
+                )
+            });
+            if here < needed || (paths && !s.complete) {
+                let style = if may {
+                    Style::Secondary
+                } else {
+                    Style::Disabled
+                };
+                let unlocks: Vec<(String, Action)> = app
+                    .vault_files()
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, f)| f.open.is_none())
+                    .map(|(k, f)| {
+                        (
+                            format!("Unlock {}", f.name),
+                            Action::Vault(crate::vaults::VaultAction::OpenFrom(k, Screen::Spend)),
+                        )
+                    })
+                    .collect();
+                let mut items: Vec<(&str, Style, Action)> = Vec::new();
+                if let Some((wi, _)) = wl {
+                    let scan = if may { Style::Primary } else { Style::Disabled };
+                    items.push(("Scan a key", scan, Action::ScanKey(wi)));
+                }
+                items.extend(unlocks.iter().map(|(l, a)| (l.as_str(), style, *a)));
+                if s.steps.contains(&step::COLLECT) {
+                    items.push((
+                        "Collect a signature",
+                        Style::Secondary,
+                        Action::Step(step::COLLECT),
+                    ));
+                }
+                cy += wrap_buttons(ui, x, cy, w, 38.0, &items) + 2.0;
+                if !may {
+                    let pull = format!("Remove the {} first", app.medium.noun());
+                    ui.text(x, cy, 13.0, W::S, WARN, &pull);
+                    cy += 28.0;
+                }
+                cy += 6.0;
+            }
+            cy = signers_count(ui, x, cy, w, here, needed);
             next(ui, cy, "Continue");
             cy += 44.0;
         }
@@ -5736,6 +5795,57 @@ pub(crate) fn pin_button(
     true
 }
 
+/// Who signs' count (`docs/SCAN-TO-SIGN.md` §3.1): enough, the count and
+/// a green Can spend beside it; short, the count and how many more are
+/// needed, in `WARN`. Returns the y its step's Continue goes at: beside
+/// it, or under it where both do not fit.
+pub(crate) fn signers_count(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    here: usize,
+    needed: usize,
+) -> f32 {
+    let enough = here >= needed;
+    let line = if enough {
+        format!("{here} of {needed} signatures here")
+    } else {
+        format!(
+            "{here} of {needed} signatures here · {} more needed",
+            needed - here
+        )
+    };
+    let line = ui.fit(13.0, W::S, &line, w);
+    let mut cy = y;
+    let mut used = ui.text_mid(
+        x,
+        cy,
+        40.0,
+        13.0,
+        W::S,
+        if enough { TEXT } else { WARN },
+        &line,
+    );
+    if enough {
+        let t = "Can spend";
+        let cw = ui.measure(12.0, W::R, t) + 34.0;
+        if used + 10.0 + cw > w {
+            cy += 36.0;
+            ui.chip(x, cy + 7.0, t, OK, OK.with_alpha(30));
+            used = cw;
+        } else {
+            ui.chip(x + used + 10.0, cy + 7.0, t, OK, OK.with_alpha(30));
+            used += 10.0 + cw;
+        }
+    }
+    let nw = ui.measure(14.0, W::S, "Continue") + 36.0;
+    if !ui.pinning && used + nw + 12.0 > w {
+        cy += 44.0;
+    }
+    cy
+}
+
 /// A step's next, at the column's right end; on a small panel pinned at
 /// its foot instead. Returns whether it was drawn here, so the caller
 /// makes room for it only then.
@@ -7206,7 +7316,7 @@ fn check_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 }
 
 // ---------------------------------------------------------------------
-// Create a wallet
+// Make a new wallet
 // ---------------------------------------------------------------------
 
 const CSTEPS: [&str; crate::cstep::COUNT] = ["Kind", "Quorum", "Keys", "Check", "Back up"];
@@ -7264,7 +7374,7 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         } else {
             ("Wallets", Action::Nav(Screen::Start))
         }),
-        heading: "Create a wallet",
+        heading: "Make a new wallet",
         guided: app.guided,
         switch: true,
         note: None,
@@ -8305,7 +8415,7 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         } else {
             ("Wallets", Action::Nav(Screen::Start))
         }),
-        heading: "Load or restore a wallet",
+        heading: "Restore an existing wallet",
         guided: app.guided,
         switch: true,
         note: None,
@@ -11389,13 +11499,20 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, back);
     ui.back(back);
     y += 22.0;
-    let heading = match app.entry.wanted {
-        Some(fp) => format!("Add key {}", fp_text(osk_bip::keys::Fingerprint(fp))),
-        None if app.entry.form != crate::forms::Form::Words => {
+    let for_wallet = app
+        .entry
+        .wallet
+        .and_then(|w| app.session.wallets.get(w))
+        .map(|wl| wl.name.as_str());
+    let heading = match (app.entry.wanted, for_wallet) {
+        (Some(fp), _) => format!("Add key {}", fp_text(osk_bip::keys::Fingerprint(fp))),
+        (None, Some(name)) => format!("Add a key for {name}"),
+        (None, None) if app.entry.form != crate::forms::Form::Words => {
             format!("Add a key · {}", app.entry.form.name())
         }
-        None => "Add a key".to_string(),
+        (None, None) => "Add a key".to_string(),
     };
+    let heading = ui.fit(26.0, W::S, &heading, width);
     ui.text(x, y, 26.0, W::S, TEXT, &heading);
     y += 48.0;
     // The words form is the one everyday way in; the other three are
@@ -11461,6 +11578,22 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ),
         );
     }
+    // Scan leads, above the words: primary until a word is typed, when
+    // Add key is (`docs/SCAN-TO-SIGN.md` §2.5).
+    ui.button(
+        x,
+        y,
+        Some(width),
+        40.0,
+        "Scan a SeedQR",
+        if entry_typed(app) {
+            Style::Secondary
+        } else {
+            Style::Primary
+        },
+        entry_scan(app),
+    );
+    y += 52.0;
     if let Some(w) = app.entry.keys.as_deref() {
         y += button_rows(ui, x, y, width, &langs);
         y = keyed_words(app, w, ui, x, y, width, h);
@@ -11848,7 +11981,11 @@ fn entry_finish(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) 
         Some(140.0),
         46.0,
         "Add key",
-        Style::Primary,
+        if entry_typed(app) {
+            Style::Primary
+        } else {
+            Style::Secondary
+        },
         Action::EntryAdd,
     );
     let clear_w = ui.button(
@@ -11860,17 +11997,7 @@ fn entry_finish(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) 
         Style::Ghost,
         Action::EntryClear,
     );
-    let scan_x = x + 152.0 + clear_w + 8.0;
-    let scan_w = ui.button(
-        scan_x,
-        by,
-        None,
-        46.0,
-        "Scan a SeedQR",
-        Style::Secondary,
-        Action::ScanSeed,
-    );
-    let new_x = scan_x + scan_w + 8.0;
+    let new_x = x + 152.0 + clear_w + 8.0;
     let new_w = ui.button(
         new_x,
         by,
@@ -11889,6 +12016,23 @@ fn entry_finish(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) 
         DIM,
         "Type on the keyboard · Enter adds · Esc goes back",
     );
+}
+
+/// Whether any of a key's words is typed on Add a key.
+pub(crate) fn entry_typed(app: &Faraday) -> bool {
+    match app.entry.keys.as_deref() {
+        Some(w) => w.committed_indices().next().is_some() || !w.prefix().is_empty(),
+        None => !app.entry.typed.trim().is_empty(),
+    }
+}
+
+/// Add a key's Scan a SeedQR: for a wallet's missing key, that wallet's
+/// key scanner; else the SeedQR scanner.
+pub(crate) fn entry_scan(app: &Faraday) -> Action {
+    match app.entry.wallet {
+        Some(w) if w < app.session.wallets.len() => Action::ScanKey(w),
+        _ => Action::ScanSeed,
+    }
 }
 
 /// Add a key's way in from a stick: a key file on it is copied in on the
@@ -13147,22 +13291,45 @@ fn scan_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     } else {
         0.0
     };
-    let sh = side_h + 170.0 + rows;
+    // A wallet's key scanner: a line per key it takes, and the way to
+    // type the words instead (`docs/SCAN-TO-SIGN.md` §2.1).
+    let for_wallet = match sc.purpose {
+        crate::ScanPurpose::WalletKey(wi) => app.session.wallets.get(wi).map(|wl| (wi, wl)),
+        _ => None,
+    };
+    let keys = for_wallet.map_or_else(Vec::new, |(wi, _)| app.wallet_key_lines(wi));
+    let keys_h = keys.len() as f32 * 20.0 + if keys.is_empty() { 0.0 } else { 6.0 };
+    let type_row = if for_wallet.is_some() && ui.compact {
+        52.0
+    } else {
+        0.0
+    };
+    let extra = rows + keys_h + type_row;
+    let side_h = side_h.min(h - 24.0 - 170.0 - extra).max(96.0);
+    let sh = side_h + 170.0 + extra;
     let (x, y) = sheet_box(ui, w, h, sw, sh);
     let x = x + pad - 32.0;
     let sw = sw - 2.0 * (pad - 32.0);
-    let title = match sc.purpose {
-        crate::ScanPurpose::Seed => "Scan a SeedQR",
-        crate::ScanPurpose::CheckCopy(_) => "Scan your copy",
-        crate::ScanPurpose::Transfer => "Receive into Downloads",
-        _ => "Scan a QR code",
+    let title = match (sc.purpose, for_wallet) {
+        (_, Some((_, wl))) => format!("Scan a key for {}", wl.name),
+        (crate::ScanPurpose::Seed, _) => "Scan a SeedQR".to_string(),
+        (crate::ScanPurpose::CheckCopy(_), _) => "Scan your copy".to_string(),
+        (crate::ScanPurpose::Transfer, _) => "Receive into Downloads".to_string(),
+        _ => "Scan a QR code".to_string(),
     };
-    ui.text(x + 32.0, y + 26.0, 18.0, W::S, TEXT, title);
+    let title = ui.fit(18.0, W::S, &title, sw - 64.0);
+    ui.text(x + 32.0, y + 26.0, 18.0, W::S, TEXT, &title);
     let line = sc
         .note
         .clone()
         .unwrap_or_else(|| "Hold the code in front of the camera".to_string());
+    let line = ui.fit(12.0, W::R, &line, sw - 64.0);
     ui.text(x + 32.0, y + 56.0, 12.0, W::R, MUTED, &line);
+    for (k, key) in keys.iter().enumerate() {
+        let key = ui.fit(13.0, W::M, key, sw - 64.0);
+        ui.text(x + 32.0, y + 82.0 + k as f32 * 20.0, 13.0, W::M, TEXT, &key);
+    }
+    let y = y + keys_h;
     let rect = ui.rect(x + 32.0, y + 82.0, side_w, side_h);
     ui.fill(x + 32.0, y + 82.0, side_w, side_h, 8.0, BG);
     if let Some((fw, fh, luma)) = sc.frame.as_ref() {
@@ -13239,17 +13406,46 @@ fn scan_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                 )
             })
             .collect();
+        let typing = if for_wallet.is_some() { 220.0 } else { 0.0 };
         button_rows(
             ui,
             x + 32.0,
-            y + sh - 32.0 - 44.0 + 6.0,
-            sw - 64.0 - 140.0,
+            y - keys_h + sh - 32.0 - 44.0 + 6.0,
+            sw - 64.0 - 140.0 - typing,
             &row,
         );
     }
+    // The foot, from the sheet's own top.
+    let foot = y - keys_h + sh - 32.0 - 44.0;
+    if let Some((wi, _)) = for_wallet {
+        let label = "Type the words instead";
+        let action = Action::EntryWallet(wi);
+        if ui.compact {
+            ui.button(
+                x + 32.0,
+                foot - 52.0,
+                Some(sw - 64.0),
+                44.0,
+                label,
+                Style::Secondary,
+                action,
+            );
+        } else {
+            let bw = ui.measure(14.0, W::S, label) + 32.0;
+            ui.button(
+                x + sw - 32.0 - 120.0 - 12.0 - bw,
+                foot,
+                Some(bw),
+                44.0,
+                label,
+                Style::Secondary,
+                action,
+            );
+        }
+    }
     ui.button(
         x + sw - 32.0 - 120.0,
-        y + sh - 32.0 - 44.0,
+        foot,
         Some(120.0),
         44.0,
         "Cancel",

@@ -21,6 +21,17 @@ fn va(a: V) -> Action {
     Action::Vault(a)
 }
 
+/// A file's size, for Sign a file's rows.
+fn gpg_file_size(bytes: u64) -> String {
+    if bytes >= 1_000_000 {
+        format!("{:.1} MB", bytes as f32 / 1e6)
+    } else if bytes >= 1000 {
+        format!("{:.1} KB", bytes as f32 / 1e3)
+    } else {
+        format!("{bytes} B")
+    }
+}
+
 /// A line of typing: masked for a passphrase or a secret field, with a
 /// caret while typing goes to it.
 #[allow(clippy::too_many_arguments)]
@@ -2886,8 +2897,18 @@ fn detail(
     if app.vaults.signing {
         ui.text(dx, dy, 18.0, W::S, TEXT, "Sign a file");
         dy += 40.0;
-        let files: Vec<(usize, &crate::Item)> = app.inbox.iter().enumerate().collect();
-        if files.is_empty() {
+        // (filtered position, raw Inbox index, the item): the filtered
+        // position is what `GpgTick` ticks by, the raw index is what
+        // `Code::GpgSignature` and the Outbox's `.asc` names use.
+        let signable: Vec<(usize, usize, &crate::Item)> = app
+            .inbox
+            .iter()
+            .enumerate()
+            .filter(|(_, i)| !i.name.ends_with(".asc"))
+            .enumerate()
+            .map(|(fi, (ri, it))| (fi, ri, it))
+            .collect();
+        if signable.is_empty() {
             ui.text(
                 dx,
                 dy,
@@ -2896,28 +2917,62 @@ fn detail(
                 DIM,
                 &format!("No file {}", app.medium.from_the()),
             );
+            dy += 30.0;
+        } else {
+            let all_ticked = signable
+                .iter()
+                .all(|(_, _, it)| app.vaults.sign_ticked.contains(&it.name));
+            ui.checkbox(dx, dy + 11.0, all_ticked, true);
+            ui.text_mid(dx + 30.0, dy, 40.0, 14.0, W::M, TEXT, "Select all");
+            ui.hit(dx, dy, dw, 40.0, va(V::GpgTickAll));
+            ui.rule(dx, dy + 40.0, dw, INNER);
+            dy += 42.0;
         }
-        for (k, it) in files {
-            // Sign puts the signature in the Outbox; beside it, the
-            // signature as a code and as a picture of it.
+        for (fi, ri, it) in &signable {
+            let ticked = app.vaults.sign_ticked.contains(&it.name);
+            let signed = app
+                .outbox
+                .iter()
+                .any(|o| o.name == format!("{}.asc", it.name));
+            // Show as QR and PNG hold one signature over this file each;
+            // ticking and Sign {n} files is the way to make it.
             let buttons = [
-                ("Show as QR", Action::ShowCode(Code::GpgSignature(k))),
-                ("PNG", Action::CodePng(Code::GpgSignature(k))),
-                ("Sign", va(V::GpgSign(k))),
+                ("Show as QR", Action::ShowCode(Code::GpgSignature(*ri))),
+                ("PNG", Action::CodePng(Code::GpgSignature(*ri))),
             ];
+            let signed_w = if signed {
+                ui.measure(12.0, W::S, "Signed") + 18.0
+            } else {
+                0.0
+            };
             let widths: Vec<f32> = buttons
                 .iter()
                 .map(|(l, _)| ui.measure(13.0, W::S, l) + 30.0)
                 .collect();
-            let all = widths.iter().sum::<f32>() + 12.0;
+            let all = widths.iter().sum::<f32>() + 6.0;
             let (name_w, by) = if ui.compact {
-                (dw, dy + 40.0)
+                (dw - 40.0 - signed_w - 8.0, dy + 40.0)
             } else {
-                (dw - all - 16.0, dy + 2.0)
+                (dw - 40.0 - all - signed_w - 24.0, dy + 2.0)
             };
-            let name = ui.fit(14.0, W::M, &it.name, name_w);
-            ui.text_mid(dx, dy, 40.0, 14.0, W::M, TEXT, &name);
-            let mut bx = if ui.compact { dx } else { dx + dw - all };
+            ui.checkbox(dx, dy + 11.0, ticked, true);
+            let line = format!("{} · {}", it.name, gpg_file_size(it.bytes.len() as u64));
+            let name = ui.fit(14.0, W::M, &line, name_w);
+            ui.text_mid(dx + 30.0, dy, 40.0, 14.0, W::M, TEXT, &name);
+            if signed {
+                ui.chip(
+                    dx + 30.0 + name_w + 8.0,
+                    dy + 10.0,
+                    "Signed",
+                    OK,
+                    OK.with_alpha(30),
+                );
+            }
+            // On a small panel the buttons are on the line below: the
+            // whole first line ticks.
+            let hit_w = if ui.compact { dw } else { dw - all - 16.0 };
+            ui.hit(dx, dy, hit_w, 40.0, va(V::GpgTick(*fi)));
+            let mut bx = if ui.compact { dx + 30.0 } else { dx + dw - all };
             for ((label, action), bw) in buttons.iter().zip(&widths) {
                 ui.button(bx, by, Some(*bw), 36.0, label, Style::Secondary, *action);
                 bx += bw + 6.0;
@@ -2927,16 +2982,31 @@ fn detail(
             dy += rh + 4.0;
         }
         dy += 8.0;
+        let n = signable
+            .iter()
+            .filter(|(_, _, it)| app.vaults.sign_ticked.contains(&it.name))
+            .count();
+        let label = match n {
+            0 => "Sign".to_string(),
+            1 => "Sign 1 file".to_string(),
+            n => format!("Sign {n} files"),
+        };
+        let style = if n == 0 {
+            Style::Disabled
+        } else {
+            Style::Primary
+        };
+        let w = ui.button(dx, dy, None, 40.0, &label, style, va(V::GpgSignTicked));
         ui.button(
-            dx,
+            dx + w + 8.0,
             dy,
             None,
-            36.0,
+            40.0,
             "Back to the key",
             Style::Ghost,
             va(V::GpgSignPick),
         );
-        return dy;
+        return dy + 40.0;
     }
     let Some(r) = items.get(sel) else {
         return dy;

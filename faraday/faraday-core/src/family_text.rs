@@ -273,8 +273,9 @@ pub fn lead(app: &Faraday, id: CardId) -> String {
              for the transaction it wrote; after sending, the id is how you follow it."
         }
         CardId::Step(step::SIGNERS) if signers_missing(app) => {
-            "Every key that signs is listed. A key not here yet comes from its own place: type \
-             its words, scan its SeedQR, or unlock the vault that holds it. Each is checked \
+            "Every key that signs is listed. A key not here yet comes from its own place: Scan \
+             a key reads its SeedQR, or its words typed instead, and a vault that holds it \
+             unlocks. Faraday works out which key it is. Each is checked \
              against the wallet, so a key from another wallet is refused. A key held by someone \
              else does not have to come here at all: they sign the same PSBT on their own device, \
              and their signed copy is collected after this device signs."

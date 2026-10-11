@@ -202,45 +202,33 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
     let (m, _) = Session::quorum(wlt);
     let slots = app.session.slots(wlt);
     let here = slots.iter().filter(|s| s.held_by.is_some()).count().min(m);
-    let short_by = m - here;
-    let need = if short_by == 0 {
-        "Nothing missing".to_string()
-    } else {
-        let more = if here > 0 { " more" } else { "" };
-        format!(
-            "Add {short_by}{more} {} or collect {short_by}{more} {}",
-            if short_by == 1 { "key" } else { "keys" },
-            if short_by == 1 {
-                "signature"
-            } else {
-                "signatures"
-            }
-        )
-    };
-    let need_h = {
-        let mark = ui.hits.len();
-        ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
-        let nh = ui.wrap(x + 14.0, 0.0, iw - 28.0, 12.0, W::R, TEXT, &need);
-        ui.c.pop_clip();
-        ui.hits.truncate(mark);
-        nh
-    };
-    let box_h = 40.0 + need_h + 10.0;
+    // Short: Scan a key under the line; enough: Can spend
+    // (`docs/SCAN-TO-SIGN.md` §2.2).
+    let can = app.can_spend(app.wallet);
+    let box_h = if can { 76.0 } else { 90.0 };
     ui.fill(x, cy, iw, box_h, 10.0, BG);
     ui.stroke(x, cy, iw, box_h, 10.0, INNER);
     let pw = ui.pips(x + 14.0, cy + 16.0, m, here);
     let sigs = format!("{here} of {m} signatures here");
     let sigs = ui.fit(14.0, W::S, &sigs, iw - pw - 40.0);
     ui.text_mid(x + 26.0 + pw, cy + 4.0, 32.0, 14.0, W::S, TEXT, &sigs);
-    ui.wrap(
-        x + 14.0,
-        cy + 38.0,
-        iw - 28.0,
-        12.0,
-        W::R,
-        if short_by == 0 { OK } else { WARN },
-        &need,
-    );
+    if can {
+        ui.chip(x + 14.0, cy + 38.0, "Can spend", OK, OK.with_alpha(30));
+    } else {
+        ui.button(
+            x + 10.0,
+            cy + 40.0,
+            Some(iw - 20.0),
+            40.0,
+            "Scan a key",
+            if app.may_load_keys() {
+                Style::Primary
+            } else {
+                Style::Disabled
+            },
+            Action::ScanKey(app.wallet),
+        );
+    }
     cy += box_h + 16.0;
 
     // The first thing to do with it, on the first screen: from the vault
@@ -484,8 +472,17 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, iw) = (x0 + M, cw - 2.0 * M);
     let top = -app.list_offset;
     let mut y = top + 10.0;
-    if let Some(fp) = app.entry.wanted {
-        let line = format!("For key {}", fp_text(osk_bip::keys::Fingerprint(fp)));
+    let for_wallet = app
+        .entry
+        .wallet
+        .and_then(|w| app.session.wallets.get(w))
+        .map(|wl| format!("For {}", wl.name));
+    let wanted = app
+        .entry
+        .wanted
+        .map(|fp| format!("For key {}", fp_text(osk_bip::keys::Fingerprint(fp))));
+    if let Some(line) = wanted.or(for_wallet) {
+        let line = ui.fit(13.0, W::S, &line, iw);
         ui.text(x, y, 13.0, W::S, ACCENT, &line);
         y += 22.0;
     }
@@ -552,6 +549,23 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ),
         );
     }
+    // Scan leads, above the word field: primary until a word is typed
+    // (`docs/SCAN-TO-SIGN.md` §2.5).
+    let typed = crate::screens::entry_typed(app);
+    ui.button(
+        x,
+        y,
+        Some(iw),
+        40.0,
+        "Scan a SeedQR",
+        if typed {
+            Style::Secondary
+        } else {
+            Style::Primary
+        },
+        crate::screens::entry_scan(app),
+    );
+    y += 48.0;
     let Some(w) = app.entry.keys.as_deref() else {
         crate::screens::button_rows(ui, x, y, iw, &langs);
         return;
@@ -656,14 +670,18 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Action::EntryPassphrase,
     );
     // Add key is pinned at the foot.
-    ui.pin = Some(("Add key".to_string(), Style::Primary, Action::EntryAdd));
+    let add = if typed {
+        Style::Primary
+    } else {
+        Style::Secondary
+    };
+    ui.pin = Some(("Add key".to_string(), add, Action::EntryAdd));
     y += stack(
         ui,
         x,
         y,
         iw,
         &[
-            ("Scan a SeedQR", Style::Secondary, Action::ScanSeed),
             ("Make a new key", Style::Secondary, Action::KeyGen(None)),
             ("Clear", Style::Ghost, Action::EntryClear),
         ],

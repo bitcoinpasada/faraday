@@ -112,11 +112,11 @@ SeedSigner and a Coldcard. The Wallets tab's central object is therefore a
 | **A description first, then its seeds** | Restore's Kind offers **I have the wallet description: Scan it** and **From Files**. A description read there, or on Description, fills Kind, Quorum and the cosigners' keys and opens Seeds, a slot per key of the description. Each seed entered (with the slot's passphrase, if any) is matched to its keys: a match reads "Key 2 of the wallet"; any other seed, or the right words with the wrong passphrase, reads "Not a key of this wallet: check the words or the passphrase" and is not loaded. A key whose seed is elsewhere is marked **Not here**. |
 | **A transaction arriving first** | The Wallets tab reads its key origins and finds the wallet it belongs to among loaded wallets, then among vault keys. "This transaction spends from Savings; you can sign with 73c5da0a." With no wallet known, it can still sign from the PSBT's own key origins, but change cannot be verified, and the review says so and offers **Load the wallet**. |
 
-**Adding a key to a slot.** Each slot row has **Add its key**: from another
-open vault, typed words, a scanned SeedQR, or a scanned account key (watch
-only). The key is matched against the slot before it is attached. A key for
-a different slot goes to that slot and says so ("that is key 2, not key
-3"). A key from no slot of this wallet is refused with its fingerprint. A
+**Adding a key to a slot.** A wallet short of keys has one **Scan a key**
+(`docs/SCAN-TO-SIGN.md` §2), which takes any of its missing keys and
+works out which; its words can be typed instead, and a key an open vault
+holds loads from it. A key from no slot of this wallet is refused with
+its fingerprint. A
 backup carrying a BIP-39 passphrase gets the passphrase field beside the
 words, because no SeedQR carries one.
 

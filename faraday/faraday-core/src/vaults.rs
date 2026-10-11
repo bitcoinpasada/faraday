@@ -289,10 +289,16 @@ pub enum VaultAction {
     GpgRevoke,
     /// New self-signatures with the chosen expiry.
     GpgRenew,
-    /// Choose an Inbox file for the selected GPG key to sign.
+    /// Choose Inbox files for the selected GPG key to sign.
     GpgSignPick,
-    /// Sign Inbox file n with the selected GPG key.
-    GpgSign(usize),
+    /// Tick or untick Inbox file n to sign.
+    GpgTick(usize),
+    /// Tick every signable file, or untick them all when every one is
+    /// already ticked.
+    GpgTickAll,
+    /// Sign every ticked file with the selected GPG key, one signature
+    /// each to the Outbox.
+    GpgSignTicked,
     /// Choose the Windows-compatible enrolment policy, or own keys only.
     SbOwnOnly(bool),
     /// The enrolment files to the Outbox.
@@ -638,8 +644,12 @@ pub struct Vaults {
     /// The expiry chosen for a GPG key being made or renewed, in years;
     /// 0 for never.
     pub gpg_years: u32,
-    /// Choosing an Inbox file for the selected GPG key to sign.
+    /// Choosing Inbox files for the selected GPG key to sign.
     pub signing: bool,
+    /// The signable Inbox files ticked to sign, by name. Set to its
+    /// default (the only file ticked, several none) whenever the page
+    /// opens.
+    pub sign_ticked: Vec<String>,
     /// What is typed into passphrase fields is shown in the clear.
     pub typed_shown: bool,
     /// The owner name Secure Boot keys are being made under.
@@ -1021,8 +1031,8 @@ impl Faraday {
     /// back's label and the "Then:" on Create a vault.
     pub fn back_name(&self, s: Screen) -> &'static str {
         match s {
-            Screen::Create => "Create a wallet",
-            Screen::Restore => "Load or restore a wallet",
+            Screen::Create => "Make a new wallet",
+            Screen::Restore => "Restore an existing wallet",
             Screen::Family => "Spend",
             Screen::Backup => "Back up a wallet",
             Screen::Bip85 => "Child seeds and passwords",
@@ -1613,8 +1623,31 @@ impl Faraday {
             V::GpgSignPick => {
                 self.vaults.signing = !self.vaults.signing;
                 self.vaults.form = None;
+                if self.vaults.signing {
+                    self.gpg_default_ticks();
+                } else {
+                    self.vaults.sign_ticked.clear();
+                }
             }
-            V::GpgSign(k) => self.gpg_sign(k),
+            V::GpgTick(k) => {
+                if let Some(name) = self.gpg_signable().get(k).map(|i| i.name.clone()) {
+                    if let Some(at) = self.vaults.sign_ticked.iter().position(|n| *n == name) {
+                        self.vaults.sign_ticked.remove(at);
+                    } else {
+                        self.vaults.sign_ticked.push(name);
+                    }
+                }
+            }
+            V::GpgTickAll => {
+                let names: Vec<String> =
+                    self.gpg_signable().iter().map(|i| i.name.clone()).collect();
+                if names.iter().all(|n| self.vaults.sign_ticked.contains(n)) {
+                    self.vaults.sign_ticked.clear();
+                } else {
+                    self.vaults.sign_ticked = names;
+                }
+            }
+            V::GpgSignTicked => self.gpg_sign_ticked(),
             V::SbOwnOnly(on) => self.vaults.sb_own_only = on,
             V::SbEnrol => self.sb_enrol(),
             V::SbImages => {

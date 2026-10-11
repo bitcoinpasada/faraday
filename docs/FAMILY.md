@@ -467,9 +467,11 @@ The snapshot tour gains the Family pages at one size.
   button that counts what it loads. Nothing loads before Load.
 - **Partial vaults.** Page 4 lists every wallet the vault loaded with how
   many of its keys are here. The signing card (9, titled *Who signs*
-  unless on the paper route) lists every key of the wallet: here, or
-  **Type its words** for that slot, **Scan a SeedQR**, or **Unlock** for
-  each other locked vault in Files. A key from another wallet is refused.
+  unless on the paper route) lists every key of the wallet: **Signs
+  here** or **Not here**, and while short of signers **Scan a key**
+  (any missing key, its words typed instead from its sheet) and
+  **Unlock** for each other locked vault in Files
+  (`docs/SCAN-TO-SIGN.md` §3). A key from another wallet is refused.
   A key held by someone else need not come at all: their signed copy is
   collected on *The other signatures*.
 - **A vault holding keys but no wallet** shows the paper route's
@@ -501,8 +503,9 @@ are one page, **Write the payment in Sparrow**:
 | Write the payment in Sparrow | In Sparrow's Send tab: the address, the amount and a fee. Then Create Transaction, Finalize Transaction for Signing and Show QR. | **Scan the PSBT**; **On a stick** (the stick round trip); this wallet's PSBTs in Files. Done once a spend is loaded. |
 
 Then the spend's steps as they are. **Who signs**, with fewer keys here
-than sign, heads its SeedQR and Unlock buttons **Add a key here** and
-adds **Collect a signature**, which opens *The other signatures*. A PSBT
+than sign, offers **Scan a key**, its Unlock buttons and **Collect a
+signature**, which opens *The other signatures*; with enough, **Can
+spend** (`docs/SCAN-TO-SIGN.md` §3). A PSBT
 for this wallet in Files starts the spend at once, on the transaction's
 review. Another wallet's spend gives way to this one, its PSBT staying
 in Files. **It is loaded** does not mark the wallet checked: it says

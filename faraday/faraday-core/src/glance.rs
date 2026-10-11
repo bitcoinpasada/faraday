@@ -89,10 +89,10 @@ pub struct KeyNode {
     pub fp: Option<[u8; 4]>,
     /// Its seed among the plan's, by place.
     pub seed: Option<usize>,
-    /// For a key the quorum still needs, its way in: a press on that
-    /// line.
+    /// For a key the quorum still needs that an open vault holds, its way
+    /// in: a press on that line.
     pub action: Option<Action>,
-    /// The way in a key the quorum still needs is offered, by name.
+    /// That way in, by name: "Load from vault".
     pub way_in: Option<&'static str>,
     /// Loaded, or kept, with a BIP-39 passphrase.
     pub passphrase: bool,
@@ -327,22 +327,24 @@ fn build(
                 (true, _, false, _) => "Can sign here",
                 (false, true, true, _) => "In this vault · passphrase",
                 (false, true, false, _) => "In this vault",
+                // Short of keys, one not here says so: the one Scan a key
+                // is the signatures bar's (`docs/SCAN-TO-SIGN.md` §2.3).
+                (false, false, _, _) if !quorum_here && matches!(press, Press::Loaded(_)) => {
+                    "Not here"
+                }
                 (false, false, _, true) => "Cosigner · xpub only",
                 (false, false, _, false) => "On its own device",
             };
-            let (action, way_in) = if held || quorum_here {
-                (None, None)
-            } else {
-                match slot.fingerprint.filter(|f| app.vault_key_for(*f).is_some()) {
-                    Some(f) => (
-                        Some(Action::Vault(crate::vaults::VaultAction::LoadKeyOf(f.0))),
-                        Some("Load from vault"),
-                    ),
-                    None => (
-                        Some(Action::Entry(slot.fingerprint.map(|f| f.0))),
-                        Some("Add its key"),
-                    ),
-                }
+            // A key an open vault holds loads from it, while short.
+            let (action, way_in) = match slot
+                .fingerprint
+                .filter(|f| !held && !quorum_here && app.vault_key_for(*f).is_some())
+            {
+                Some(f) => (
+                    Some(Action::Vault(crate::vaults::VaultAction::LoadKeyOf(f.0))),
+                    Some("Load from vault"),
+                ),
+                None => (None, None),
             };
             KeyNode {
                 number: n + 1,

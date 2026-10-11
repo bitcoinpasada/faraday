@@ -581,7 +581,7 @@ fn type_text(app: &mut Faraday, text: &str) {
     }
 }
 
-/// Create a wallet, single key or a 2-of-3 multisig, with New key opened
+/// Make a new wallet, single key or a 2-of-3 multisig, with New key opened
 /// for its first slot and carried to the entry card on coin flips.
 fn slot_flow(multi: bool) -> Faraday {
     use faraday_core::create::NewKind;

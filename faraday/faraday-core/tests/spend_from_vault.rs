@@ -186,7 +186,7 @@ fn with_its_psbt_in_files_the_button_signs_it_and_opens_its_review() {
 }
 
 #[test]
-fn a_two_of_three_with_one_key_here_offers_adding_a_key_and_collecting_a_signature() {
+fn a_two_of_three_with_one_key_here_offers_scanning_a_key_and_collecting_a_signature() {
     let (mut app, w) = on_card("Savings");
     assert_eq!(keys_here(&app, w), 1);
     app.press(Action::Family(F::SpendFrom(w)));
@@ -195,8 +195,15 @@ fn a_two_of_three_with_one_key_here_offers_adding_a_key_and_collecting_a_signatu
     assert_eq!(app.spend.as_ref().and_then(|s| s.wallet), Some(w));
     app.press(Action::Step(step::SIGNERS));
     let text = drawn(&mut app);
-    assert!(text.contains("Add a key here"), "{text}");
-    assert!(app.offers(Action::ScanSeed), "Scan a SeedQR");
+    assert!(
+        text.contains("1 of 2 signatures here · 1 more needed"),
+        "{text}"
+    );
+    assert!(text.contains("Not here"), "{text}");
+    assert!(!text.contains("Type its words"), "{text}");
+    assert!(app.offers(Action::ScanKey(w)), "Scan a key");
+    assert!(!app.offers(Action::ScanSeed), "Scan a SeedQR");
+    assert!(text.contains("Collect a signature"), "{text}");
     assert!(
         app.offers(Action::Step(step::COLLECT)),
         "Collect a signature"
@@ -204,6 +211,64 @@ fn a_two_of_three_with_one_key_here_offers_adding_a_key_and_collecting_a_signatu
     app.press(Action::Step(step::COLLECT));
     assert_eq!(app.family.open, Some(Open::Spend));
     assert_eq!(app.spend.as_ref().unwrap().open, Some(step::COLLECT));
+}
+
+/// On Savings' Who signs, with Test key 1 here.
+fn who_signs() -> (Faraday, usize) {
+    let (mut app, w) = on_card("Savings");
+    app.press(Action::Family(F::SpendFrom(w)));
+    let (psbt, _) = testkit::spend_of(&kit("savings")).unwrap();
+    scan_psbt(&mut app, &psbt.to_bytes());
+    app.press(Action::Step(step::SIGNERS));
+    let _ = app.frame();
+    (app, w)
+}
+
+/// The camera reads these words' SeedQR.
+fn scan_seedqr(app: &mut Faraday, words: &str) {
+    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, words).unwrap();
+    app.event(Event::Scanned {
+        bytes: osk_codec::seedqr::to_digits(&m)
+            .expose()
+            .as_bytes()
+            .to_vec(),
+    });
+    let _ = app.frame();
+}
+
+#[test]
+fn scan_a_key_on_who_signs_reaches_can_spend_and_the_buttons_go() {
+    let (mut app, w) = who_signs();
+    app.press(Action::ScanKey(w));
+    scan_seedqr(&mut app, &testkit::test_words("zebra"));
+    assert_eq!(app.sheet, None, "the camera stayed open");
+    assert_eq!(app.screen, Screen::Family);
+    let text = drawn(&mut app);
+    assert!(text.contains("2 of 2 signatures here"), "{text}");
+    assert!(!text.contains("more needed"), "{text}");
+    assert!(text.contains("Can spend"), "{text}");
+    assert!(!app.offers(Action::ScanKey(w)), "Scan a key");
+    assert!(!app.offers(Action::ScanSeed), "Scan a SeedQR");
+    assert!(!text.contains("Collect a signature"), "{text}");
+    assert!(app.offers(Action::StepNext(step::SIGNERS)), "Continue");
+}
+
+#[test]
+fn a_key_scanned_with_no_name_shows_its_fingerprint_once() {
+    let (mut app, w) = who_signs();
+    app.press(Action::ScanKey(w));
+    scan_seedqr(&mut app, &testkit::test_words("zebra"));
+    let fp = {
+        let mut s = testkit::session();
+        faraday_core::wallet::fp_text(
+            s.add_words(&testkit::test_words("zebra"), "", None)
+                .unwrap(),
+        )
+    };
+    // Its row: the fingerprint, then Signs here, with no name between.
+    let text = drawn(&mut app);
+    assert!(text.contains(&format!("{fp}\nSigns here")), "{text}");
+    assert!(!text.contains(&format!("{fp}\n{fp}")), "{text}");
 }
 
 #[test]
@@ -237,4 +302,32 @@ fn leaving_the_spend_and_coming_back_resumes_it() {
     assert_eq!(app.screen, Screen::Family);
     assert_eq!(app.family.open, Some(Open::Spend));
     assert_eq!(app.spend.as_ref().unwrap().open, open);
+}
+
+#[test]
+fn wallets_sign_step_says_how_many_more_and_offers_scan_a_key() {
+    let (mut app, w) = on_card("Savings");
+    let (psbt, _) = testkit::spend_of(&kit("savings")).unwrap();
+    app.storage(StorageEvent::Restored {
+        inbox: vec![("savings.psbt".to_string(), psbt.to_bytes())],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::StartSpend(0));
+    assert_eq!(app.screen, Screen::Spend);
+    app.press(Action::Step(step::SIGNERS));
+    let text = drawn(&mut app);
+    assert!(
+        text.contains("1 of 2 signatures here · 1 more needed"),
+        "{text}"
+    );
+    assert!(!text.contains("Add its key"), "{text}");
+    assert!(app.offers(Action::ScanKey(w)), "Scan a key");
+    app.press(Action::ScanKey(w));
+    scan_seedqr(&mut app, &testkit::test_words("summer"));
+    assert_eq!(app.screen, Screen::Spend);
+    let text = drawn(&mut app);
+    assert!(text.contains("2 of 2 signatures here"), "{text}");
+    assert!(text.contains("Can spend"), "{text}");
+    assert!(!app.offers(Action::ScanKey(w)), "Scan a key");
 }

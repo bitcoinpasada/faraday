@@ -53,7 +53,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         })
         .collect();
     let back_label = match k.back {
-        crate::Screen::Create => "Create a wallet",
+        crate::Screen::Create => "Make a new wallet",
         crate::Screen::Entry => "Add a key",
         crate::Screen::Catalog => "Tools",
         _ => "Back",

@@ -234,7 +234,7 @@ fn in_view(app: &mut Faraday, h: u16, action: Action) -> bool {
     app.where_offered(action).is_some_and(|(_, y)| y < h)
 }
 
-/// Each step of Create a vault and Create a wallet, opened on its own:
+/// Each step of Create a vault and Make a new wallet, opened on its own:
 /// its forward action is on the panel without scrolling.
 fn forward_in_view(mut app: Faraday, h: u16) {
     tap(&mut app, Action::Nav(Screen::Vaults));
@@ -273,7 +273,7 @@ fn forward_in_view(mut app: Faraday, h: u16) {
         tap(&mut app, Action::CKind(kind));
         assert!(
             in_view(&mut app, h, Action::CNext(faraday_core::cstep::KIND)),
-            "Create a wallet, Kind, with kind {kind} chosen"
+            "Make a new wallet, Kind, with kind {kind} chosen"
         );
     }
 }

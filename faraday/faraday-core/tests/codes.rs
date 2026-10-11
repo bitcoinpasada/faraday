@@ -392,7 +392,8 @@ fn a_gpg_signature_reads_back_from_its_code_and_its_picture() {
         .position(|i| i.name == "SHA256SUMS")
         .unwrap();
     app.press(Action::Vault(V::GpgSignPick));
-    app.press(Action::Vault(V::GpgSign(k)));
+    app.press(Action::Vault(V::GpgTick(k)));
+    app.press(Action::Vault(V::GpgSignTicked));
     let want = text(&outbox(&app, "SHA256SUMS.asc"));
     reads_back(
         &mut app,

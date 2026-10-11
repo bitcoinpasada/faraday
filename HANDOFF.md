@@ -1747,6 +1747,14 @@ as possible before the next build.
     Entries; the Code row on an entry; a bare Base32 key stored as a
     URI). Committed 9a6f4a3 and 576123a.
 
+67. [ ] 2026-10-11, owner (batch A built): **Scan to sign, and the Spend tab's intake**,
+    specified in `docs/SCAN-TO-SIGN.md` (DECISIONS F8). Batch A: Home's
+    names, Scan a key (the wallet's key scanner, the card's bar, the
+    chart's nodes, the Wallets list, Add a key leading with Scan), Can
+    spend, Who signs, GPG batch signing. Batch B: the Spend tab's
+    intake (What do you have?) and the guessed wallet's Check. The demo
+    vault's backup plan is the website repo's (its HANDOFF).
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:

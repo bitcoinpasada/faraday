@@ -5,7 +5,10 @@
 //! Home's Scan, a slot of Create or Restore, the Spend tab's words. A
 //! key already loaded, or a vault's seed, taken into a slot of Restore or
 //! the Spend tab with words and no passphrase asks the same: a vault may
-//! keep a seed apart from its passphrase (decision 49).
+//! keep a seed apart from its passphrase (decision 49). A wallet's key
+//! scanner (`scan_key`) opens it only for a seed whose key with no
+//! passphrase is none of the wallet's, and then takes only a missing key
+//! of that wallet.
 //!
 //! The words wait in memory, never drawn, until a choice loads them or
 //! the sheet closes, which wipes them.
@@ -14,6 +17,7 @@ use osk_bip::keys::Fingerprint;
 use osk_shell_api::Key as KeyIn;
 use osk_ui::widgets::Icon;
 
+use crate::scan_key::{Found, key_of};
 use crate::screens::{pass_field, sheet_box, wrap_buttons};
 use crate::secret_text::SecretText;
 use crate::ui::pal::*;
@@ -55,13 +59,12 @@ pub struct SeedRead {
     pub focus: Option<u8>,
     /// Why the last choice did not load.
     pub error: Option<String>,
-}
-
-/// The key `words` make with `pass`, if they are BIP-39 words.
-fn key_of(words: &str, pass: &str) -> Option<Fingerprint> {
-    crate::wallet::Session::default()
-        .add_words_with(words, pass, "", None)
-        .ok()
+    /// For a seed read by a wallet's key scanner: the wallet, whose
+    /// missing keys alone it may load as.
+    wallet: Option<usize>,
+    /// Why the sheet asks: the seed with no passphrase is no key of that
+    /// wallet.
+    reason: Option<String>,
 }
 
 impl SeedRead {
@@ -101,6 +104,22 @@ impl Faraday {
         self.seed_read = Some(SeedRead {
             words: SecretText::of(words),
             plain: Some(plain),
+            ..SeedRead::default()
+        });
+        self.sheet = Some(Sheet::SeedRead);
+    }
+
+    /// Wallet `w`'s key scanner read a seed whose key with no passphrase
+    /// is none of the wallet's: the camera closes and the sheet asks for
+    /// its passphrase, saying why.
+    pub(crate) fn seed_read_for_wallet(&mut self, words: &str, w: usize, reason: String) {
+        self.scan = None;
+        self.commands.push_back(osk_shell_api::Command::CameraOff);
+        self.seed_read = Some(SeedRead {
+            words: SecretText::of(words),
+            plain: key_of(words, ""),
+            wallet: Some(w),
+            reason: Some(reason),
             ..SeedRead::default()
         });
         self.sheet = Some(Sheet::SeedRead);
@@ -170,6 +189,10 @@ impl Faraday {
         let Some(fp) = key_of(&s.words, &pass) else {
             return;
         };
+        if let Some(w) = s.wallet {
+            self.seed_read_wallet(w, fp, &pass);
+            return;
+        }
         let restoring = self.entry.back == Some(Screen::Restore)
             || (s.loaded.is_some() && self.screen == Screen::Restore);
         if restoring && let Some(why) = self.restore_refusal(fp) {
@@ -185,6 +208,31 @@ impl Faraday {
         match s.loaded {
             None => self.seed_read_load(&s.words, &pass),
             Some(plain) => self.seed_read_take(plain, &s.words, &pass),
+        }
+    }
+
+    /// The choice made on a seed from wallet `w`'s key scanner, whose key
+    /// is `fp`: loaded for a missing key of the wallet, else refused and
+    /// the sheet stays.
+    fn seed_read_wallet(&mut self, w: usize, fp: Fingerprint, pass: &str) {
+        let refused = match self.wallet_key_found(w, fp) {
+            Found::Missing(n) => {
+                let Some(s) = self.seed_read.take() else {
+                    return;
+                };
+                self.sheet = None;
+                let label = self.wallet_key_label(w, fp);
+                match self.session.add_words_with(&s.words, pass, &label, None) {
+                    Ok(_) => self.wallet_key_added(w, n),
+                    Err(e) => self.toast(&e.text()),
+                }
+                return;
+            }
+            Found::Here(n) => format!("Key {} · already here", n + 1),
+            Found::None => self.not_a_wallet_key(w, fp),
+        };
+        if let Some(s) = self.seed_read.as_mut() {
+            s.error = Some(refused);
         }
     }
 
@@ -352,6 +400,8 @@ pub(crate) fn sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         }
         if let Some(e) = &s.error {
             cy += ui.wrap(x, cy + 4.0, iw, 13.0, W::S, ERR, e) + 14.0;
+        } else if let Some(r) = &s.reason {
+            cy += ui.wrap(x, cy + 4.0, iw, 13.0, W::S, WARN, r) + 14.0;
         }
         cy - y
     };

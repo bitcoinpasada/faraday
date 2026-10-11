@@ -163,7 +163,7 @@ fn loaded(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
             &Session::shape(wl),
         );
         let (marker, tone) = if ready {
-            (format!("Ready to sign · {} of {need}", here.min(need)), OK)
+            (format!("Can spend · {} of {need}", here.min(need)), OK)
         } else if here > 0 {
             (
                 format!(
@@ -352,7 +352,7 @@ fn loaded_compact(app: &mut Faraday, ui: &mut Ui, cw: f32, h: f32) {
         let need = crate::wallet::needed(wl);
         let ready = here >= need;
         let (marker, tone) = if ready {
-            (format!("Ready to sign · {} of {need}", here.min(need)), OK)
+            (format!("Can spend · {} of {need}", here.min(need)), OK)
         } else if here > 0 {
             (
                 format!(
@@ -1527,8 +1527,10 @@ fn first_step(app: &Faraday) -> u8 {
         .unwrap_or(step::TRANSACTION)
 }
 
-/// Who signs: each of the wallet's keys, here or not, and a way to add
-/// a missing one's seed.
+/// Who signs: each of the wallet's keys, here or not, how many sign
+/// here, and while that is short of what the spend needs, Scan a key,
+/// the vaults to unlock and Collect a signature (`docs/SCAN-TO-SIGN.md`
+/// §3).
 fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let Some(s) = app.spend.as_ref() else {
@@ -1536,8 +1538,11 @@ fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let needed = app.spend_needed();
     let may = app.may_load_keys();
-    match s.wallet.and_then(|i| app.session.wallets.get(i)) {
-        Some(wl) => {
+    let wallet = s
+        .wallet
+        .and_then(|i| app.session.wallets.get(i).map(|wl| (i, wl)));
+    match wallet {
+        Some((wi, wl)) => {
             // On a small panel a key's name has its line, and what it
             // does goes under it.
             let compact = ui.compact;
@@ -1545,72 +1550,81 @@ fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 ui.text_mid(x, cy, 42.0, 12.0, W::R, DIM, &(k + 1).to_string());
                 let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
                 ui.text_mid(x + 22.0, cy, 42.0, 14.0, W::M, TEXT, &fp);
-                if compact && slot.held_by.is_some() {
-                    let label = slot.held_by.as_deref().unwrap_or_default();
-                    let label = ui.fit(13.0, W::R, label, w - 124.0);
-                    ui.text_mid(x + 124.0, cy, 42.0, 13.0, W::R, MUTED, &label);
+                // A label that is its fingerprint is not drawn twice.
+                let label = slot
+                    .held_by
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|l| !l.is_empty() && !l.eq_ignore_ascii_case(&fp));
+                if compact {
+                    if let Some(label) = label {
+                        let label = ui.fit(13.0, W::R, label, w - 124.0);
+                        ui.text_mid(x + 124.0, cy, 42.0, 13.0, W::R, MUTED, &label);
+                    }
                     cy += 36.0;
                 }
                 // Made here, its backup not done: it waits
                 // (`docs/NEW-WALLET.md` §14.3).
                 let waits =
                     slot.held_by.is_some() && slot.fingerprint.is_some_and(|f| app.key_held(f));
-                match &slot.held_by {
-                    Some(_) if waits => {
-                        let t = crate::glance::WAITING;
-                        let label = "Finish the backup";
-                        let bw = ui.measure(13.0, W::S, label) + 32.0;
-                        let cw2 = ui.measure(12.0, W::R, t) + 34.0;
-                        let wi = s.wallet.unwrap_or(0);
-                        if compact {
-                            ui.chip(x + 22.0, cy + 8.0, t, WARN, WARN.with_alpha(30));
-                        } else {
-                            ui.chip(
-                                x + w - bw - 8.0 - cw2,
-                                cy + 8.0,
-                                t,
-                                WARN,
-                                WARN.with_alpha(30),
-                            );
-                        }
-                        ui.button(
-                            x + w - bw,
-                            cy + 3.0,
-                            Some(bw),
-                            36.0,
-                            label,
-                            Style::Secondary,
-                            Action::BackupFirst(wi),
+                let in_vault = slot
+                    .fingerprint
+                    .filter(|f| slot.held_by.is_none() && app.vault_key_for(*f).is_some());
+                if waits {
+                    let t = crate::glance::WAITING;
+                    let label = "Finish the backup";
+                    let bw = ui.measure(13.0, W::S, label) + 32.0;
+                    let cw2 = ui.measure(12.0, W::R, t) + 34.0;
+                    if compact {
+                        ui.chip(x + 22.0, cy + 8.0, t, WARN, WARN.with_alpha(30));
+                    } else {
+                        ui.chip(
+                            x + w - bw - 8.0 - cw2,
+                            cy + 8.0,
+                            t,
+                            WARN,
+                            WARN.with_alpha(30),
                         );
                     }
-                    Some(_) if compact => {
-                        let t = "Signs here";
-                        ui.chip(x + 22.0, cy + 8.0, t, OK, OK.with_alpha(30));
-                    }
-                    Some(label) => {
-                        let t = "Signs here";
-                        let cw2 = ui.measure(12.0, W::R, t) + 34.0;
+                    ui.button(
+                        x + w - bw,
+                        cy + 3.0,
+                        Some(bw),
+                        36.0,
+                        label,
+                        Style::Secondary,
+                        Action::BackupFirst(wi),
+                    );
+                } else if let Some(f) = in_vault {
+                    // A key an open vault holds loads from it.
+                    let label = "Load from vault";
+                    let bw = ui.measure(13.0, W::S, label) + 32.0;
+                    ui.button(
+                        x + w - bw,
+                        cy + 3.0,
+                        Some(bw),
+                        36.0,
+                        label,
+                        if may {
+                            Style::Secondary
+                        } else {
+                            Style::Disabled
+                        },
+                        Action::Vault(VaultAction::LoadKeyOf(f.0)),
+                    );
+                } else {
+                    let (t, fg, bg) = if slot.held_by.is_some() {
+                        ("Signs here", OK, OK.with_alpha(30))
+                    } else {
+                        ("Not here", MUTED, INNER)
+                    };
+                    let cw2 = ui.measure(12.0, W::R, t) + 34.0;
+                    let chip_x = if compact { x + 22.0 } else { x + w - cw2 };
+                    if !compact && let Some(label) = label {
                         let label = ui.fit(13.0, W::R, label, w - 124.0 - cw2 - 8.0);
                         ui.text_mid(x + 124.0, cy, 42.0, 13.0, W::R, MUTED, &label);
-                        ui.chip(x + w - cw2, cy + 8.0, t, OK, OK.with_alpha(30));
                     }
-                    None => {
-                        let label = "Type its words";
-                        let bw = ui.measure(13.0, W::S, label) + 32.0;
-                        ui.button(
-                            x + w - bw,
-                            cy + 3.0,
-                            Some(bw),
-                            36.0,
-                            label,
-                            if may {
-                                Style::Secondary
-                            } else {
-                                Style::Disabled
-                            },
-                            Action::Entry(slot.fingerprint.map(|f| f.0)),
-                        );
-                    }
+                    ui.chip(chip_x, cy + 8.0, t, fg, bg);
                 }
                 ui.rule(x, cy + 42.0, w, INNER);
                 cy += 44.0;
@@ -1630,63 +1644,53 @@ fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .iter()
         .filter(|fp| app.session.key_label(**fp).is_some())
         .count();
-    // The other keys: a SeedQR, typed words above, or another vault.
-    let style = if may {
-        Style::Secondary
-    } else {
-        Style::Disabled
-    };
-    let unlocks: Vec<(String, Action)> = app
-        .vault_files()
-        .iter()
-        .enumerate()
-        .filter(|(_, f)| f.open.is_none())
-        .map(|(k, f)| {
-            (
-                format!("Unlock {}", f.name),
-                Action::Vault(VaultAction::OpenFrom(k, crate::Screen::Family)),
-            )
-        })
-        .collect();
-    // Fewer keys here than sign: add one here, or collect a signature
-    // from whoever holds one (`docs/NEW-WALLET.md` §11.2).
+    // Fewer keys here than sign: bring one here, or collect a signature
+    // from whoever holds one (`docs/NEW-WALLET.md` §11.2). A wallet whose
+    // paths differ keeps them until the spend is signed, since a count
+    // of keys does not settle which path signs.
+    let paths =
+        wallet.is_some_and(|(_, wl)| matches!(Kind::of(&wl.policy), Kind::Miniscript | Kind::Tree));
     let short = here < needed;
-    if short {
-        ui.text(x, cy, 13.0, W::S, MUTED, "Add a key here");
-        cy += 24.0;
-    }
-    let mut items: Vec<(&str, Style, Action)> = vec![("Scan a SeedQR", style, Action::ScanSeed)];
-    items.extend(unlocks.iter().map(|(l, a)| (l.as_str(), style, *a)));
-    cy += crate::screens::wrap_buttons(ui, x, cy, w, 38.0, &items) + 2.0;
-    if !may {
-        let pull = format!("Remove the {} first", app.medium.noun());
-        ui.text(x, cy, 13.0, W::S, WARN, &pull);
-        cy += 28.0;
-    }
-    if short && s.steps.contains(&step::COLLECT) {
-        cy += 6.0;
-        cy += crate::screens::wrap_buttons(
-            ui,
-            x,
-            cy,
-            w,
-            38.0,
-            &[(
+    if short || (paths && !s.complete) {
+        let style = if may {
+            Style::Secondary
+        } else {
+            Style::Disabled
+        };
+        let unlocks: Vec<(String, Action)> = app
+            .vault_files()
+            .iter()
+            .enumerate()
+            .filter(|(_, f)| f.open.is_none())
+            .map(|(k, f)| {
+                (
+                    format!("Unlock {}", f.name),
+                    Action::Vault(VaultAction::OpenFrom(k, crate::Screen::Family)),
+                )
+            })
+            .collect();
+        let mut items: Vec<(&str, Style, Action)> = Vec::new();
+        if let Some((wi, _)) = wallet {
+            let scan = if may { Style::Primary } else { Style::Disabled };
+            items.push(("Scan a key", scan, Action::ScanKey(wi)));
+        }
+        items.extend(unlocks.iter().map(|(l, a)| (l.as_str(), style, *a)));
+        if s.steps.contains(&step::COLLECT) {
+            items.push((
                 "Collect a signature",
                 Style::Secondary,
                 Action::Step(step::COLLECT),
-            )],
-        ) + 2.0;
+            ));
+        }
+        cy += crate::screens::wrap_buttons(ui, x, cy, w, 38.0, &items) + 2.0;
+        if !may {
+            let pull = format!("Remove the {} first", app.medium.noun());
+            ui.text(x, cy, 13.0, W::S, WARN, &pull);
+            cy += 28.0;
+        }
+        cy += 6.0;
     }
-    ui.text_mid(
-        x,
-        cy,
-        40.0,
-        13.0,
-        W::R,
-        if here >= needed { OK } else { MUTED },
-        &format!("Needs {needed} · {here} here"),
-    );
+    let cy = crate::screens::signers_count(ui, x, cy, w, here, needed);
     let drawn = next_button(ui, x, cy, w, "Continue", Action::StepNext(step::SIGNERS));
     cy + (if drawn { 52.0 } else { 8.0 }) - y
 }

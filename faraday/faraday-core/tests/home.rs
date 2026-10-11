@@ -87,7 +87,7 @@ fn scan_on_home_starts_the_camera() {
 
 /// Add a key is reached from Wallets' empty state and from Tools now,
 /// not from Home (`docs/SIMPLIFY.md` §1.2): Home's lead, with nothing
-/// loaded, is Make a wallet instead.
+/// loaded, is Make a new wallet instead.
 #[test]
 fn home_does_not_offer_add_a_key_directly() {
     let app = shown();
@@ -419,10 +419,39 @@ fn home_lead_rule_7_with_nothing_loaded_offers_to_make_a_wallet() {
     assert!(app.offers(Action::CreateWallet));
 }
 
+/// SCAN-TO-SIGN §1: Home's two tiles for making and restoring a wallet
+/// read "Make a new wallet" and "Restore an existing wallet", and so
+/// does the empty Wallets tab.
+#[test]
+fn home_and_empty_wallets_name_the_two_flows() {
+    let mut app = shown();
+    let joined = app.drawn_texts().join(" ");
+    assert!(joined.contains("Make a new wallet"), "{joined}");
+    assert!(joined.contains("Restore an existing wallet"), "{joined}");
+    assert!(
+        !joined.contains("Create a wallet"),
+        "the old name is gone: {joined}"
+    );
+    assert!(
+        !joined.contains("Load or restore a wallet"),
+        "the old name is gone: {joined}"
+    );
+    tap(&mut app, Action::Nav(Screen::Start));
+    let joined = app.drawn_texts().join(" ");
+    assert!(
+        joined.contains("Make a new wallet"),
+        "the empty Wallets tab: {joined}"
+    );
+    assert!(
+        joined.contains("Restore an existing wallet"),
+        "the empty Wallets tab: {joined}"
+    );
+}
+
 /// Home's Start with nothing under way is its four ways in, each opening
-/// its flow, whose way back is Home: Make a wallet, Load or restore a
-/// wallet, Spend from a backup, and Vaults, which with no vault at all
-/// opens Create a vault.
+/// its flow, whose way back is Home: Make a new wallet, Restore an
+/// existing wallet, Spend from a backup, and Vaults, which with no vault
+/// at all opens Create a vault.
 #[test]
 fn homes_four_ways_in_open_their_flows_and_lead_back_home() {
     use faraday_core::vaults::VaultAction as V;

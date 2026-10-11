@@ -113,8 +113,9 @@ fn a_stick_visit_copies_in_files_of_no_kind_faraday_knows() {
     }
 }
 
-#[test]
-fn a_gpg_key_signs_each_file_into_the_outbox() {
+/// The app with the test vault unlocked, a GPG key made, and the Sign a
+/// file page open on the three files the stick visit copied in.
+fn signing() -> Faraday {
     let mut app = copied_in();
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
@@ -129,9 +130,36 @@ fn a_gpg_key_signs_each_file_into_the_outbox() {
     type_text(&mut app, "Release");
     app.press(Action::Vault(V::FormSave));
     app.press(Action::Vault(V::GpgSignPick));
-    for (name, _) in release_files() {
-        let k = app.inbox.iter().position(|i| i.name == name).unwrap();
-        app.press(Action::Vault(V::GpgSign(k)));
+    app
+}
+
+/// Sign a file is a checkbox list: ticking two files and pressing Sign 2
+/// files puts two signatures in the Outbox in one go, each verifying
+/// against its own file with the key's certificate, and the page stays
+/// open with the signed rows marked.
+#[test]
+fn ticking_two_files_and_signing_puts_two_signatures_in_the_outbox() {
+    let mut app = signing();
+    let names: Vec<String> = release_files().into_iter().map(|(n, _)| n).collect();
+    let signable = |app: &Faraday| -> Vec<String> {
+        app.inbox
+            .iter()
+            .filter(|i| !i.name.ends_with(".asc"))
+            .map(|i| i.name.clone())
+            .collect()
+    };
+    let ticks: Vec<usize> = names
+        .iter()
+        .take(2)
+        .map(|n| signable(&app).iter().position(|x| x == n).unwrap())
+        .collect();
+    for k in ticks {
+        app.press(Action::Vault(V::GpgTick(k)));
+    }
+    assert!(app.screen != Screen::Home, "still on the vault");
+    app.press(Action::Vault(V::GpgSignTicked));
+    assert!(app.vaults.signing, "the page stays open");
+    for name in names.iter().take(2) {
         let sig = app
             .outbox
             .iter()
@@ -141,6 +169,112 @@ fn a_gpg_key_signs_each_file_into_the_outbox() {
             sig.bytes.starts_with(b"-----BEGIN PGP SIGNATURE-----"),
             "{name}"
         );
-        app.press(Action::Vault(V::GpgSignPick));
     }
+    assert!(
+        !app.outbox
+            .iter()
+            .any(|i| i.name == format!("{}.asc", names[2])),
+        "the third file was never ticked"
+    );
+    assert!(app.vaults.sign_ticked.is_empty(), "the ticks clear");
+}
+
+/// A signature already made (`NAME.asc` in the Outbox) marks its file's
+/// row Signed, and an `.asc` file already in the Inbox (say, copied back
+/// in from another device) is not itself listed to sign again.
+#[test]
+fn a_signed_file_is_marked_and_an_asc_in_the_inbox_is_not_listed() {
+    let mut app = signing();
+    let name = &release_files()[0].0;
+    let signable = |app: &Faraday| -> Vec<String> {
+        app.inbox
+            .iter()
+            .filter(|i| !i.name.ends_with(".asc"))
+            .map(|i| i.name.clone())
+            .collect()
+    };
+    let k = signable(&app).iter().position(|x| x == name).unwrap();
+    app.press(Action::Vault(V::GpgTick(k)));
+    app.press(Action::Vault(V::GpgSignTicked));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Signed"),
+        "the signed row is marked: {texts:?}"
+    );
+    // An .asc file that lands in the Inbox is a signature, not something
+    // to sign.
+    app.inbox.push(faraday_core::Item {
+        name: format!("{name}.asc"),
+        bytes: b"-----BEGIN PGP SIGNATURE-----\n...".to_vec(),
+        kind: faraday_core::wallet::FileKind::Other,
+        secret: false,
+        picture: None,
+    });
+    assert!(
+        signable(&app).iter().all(|x| x != &format!("{name}.asc")),
+        "an .asc file is not itself signable"
+    );
+}
+
+/// With one file only in the Inbox, it starts ticked and Sign 1 file
+/// signs it.
+#[test]
+fn with_one_file_it_starts_ticked() {
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 768,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    for i in 0..6u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
+    }
+    let vault = testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == "vault.ofv")
+        .unwrap();
+    app.storage(StorageEvent::Restored {
+        inbox: vec![vault, ("SHA256SUMS".into(), b"hello".to_vec())],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.storage(StorageEvent::Clock {
+        unix_secs: 1_791_482_652,
+    });
+    app.vaults.ms_per_unit = Some(180);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    app.press(Action::Vault(V::Unlock));
+    settle(&mut app, 1);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(4)));
+    app.press(Action::Vault(V::Add));
+    app.press(Action::Vault(V::FocusField(0)));
+    type_text(&mut app, "Release");
+    app.press(Action::Vault(V::FormSave));
+    // The vault's own file stays in the Inbox once opened; drop it so
+    // SHA256SUMS is the one signable file, as a stick visit that only
+    // ever copied in the release would leave it.
+    app.inbox
+        .retain(|i| i.kind != faraday_core::wallet::FileKind::Vault);
+    app.press(Action::Vault(V::GpgSignPick));
+    assert_eq!(app.vaults.sign_ticked, vec!["SHA256SUMS".to_string()]);
+    app.press(Action::Vault(V::GpgSignTicked));
+    assert!(
+        app.outbox.iter().any(|i| i.name == "SHA256SUMS.asc"),
+        "Sign 1 file signed the one ticked file"
+    );
 }

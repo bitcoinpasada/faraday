@@ -7,7 +7,7 @@
 //! the wallet has and how many sign (`m` of `n`); an account key for
 //! each cosigner whose seed is not here; the kind; and the path. The
 //! seeds' account keys are derived at that path and the descriptor is
-//! [`NewKind::descriptor`]'s, the one Create a wallet writes.
+//! [`NewKind::descriptor`]'s, the one Make a new wallet writes.
 
 use crate::create::{self, NewKind};
 use crate::wallet::FileKind;

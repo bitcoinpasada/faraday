@@ -34,6 +34,6 @@ Shares decide who can see the balance and the history of payments, not who can s
 
 ## Rebuilding from shares
 
-Load or restore a wallet in Faraday reads shares from Files. Choose the shares under Shares of a split backup; once they hold every key between them, Rebuild the wallet puts the whole description back together and loads it.
+Restore an existing wallet in Faraday reads shares from Files. Choose the shares under Shares of a split backup; once they hold every key between them, Rebuild the wallet puts the whole description back together and loads it.
 
 Other software, such as Sparrow or a multisig coordinator, needs the whole description and does not read shares. Whoever rebuilds the wallet uses Faraday, or rebuilds the description in Faraday first and takes the whole description from there.

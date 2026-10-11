@@ -155,17 +155,14 @@ fn a_vault_with_the_wallet_and_one_key_takes_the_second_key_from_its_words() {
     let at = inbox_at(&app, "savings-unsigned.psbt");
     app.press(Action::Family(F::UsePsbt(at)));
     app.press(Action::Step(step::SIGNERS));
-    // Test key 2's slot, from the signing card.
-    let fp = {
-        let w = &app.session.wallets[savings];
-        app.session
-            .slots(w)
-            .iter()
-            .find(|s| s.held_by.is_none())
-            .and_then(|s| s.fingerprint)
-            .unwrap()
-    };
-    app.press(Action::Entry(Some(fp.0)));
+    // Who signs' Scan a key, then Type the words instead.
+    let _ = app.frame();
+    app.settle();
+    let _ = app.frame();
+    assert!(app.offers(Action::ScanKey(savings)));
+    app.press(Action::ScanKey(savings));
+    let _ = app.frame();
+    app.press(Action::EntryWallet(savings));
     assert_eq!(app.screen, Screen::Entry);
     type_text(&mut app, &testkit::test_words("zebra"));
     app.press(Action::EntryAdd);
@@ -185,21 +182,15 @@ fn a_key_from_another_wallet_is_refused_on_the_signing_card() {
     app.press(Action::Family(F::Choose(savings)));
     let at = inbox_at(&app, "savings-unsigned.psbt");
     app.press(Action::Family(F::UsePsbt(at)));
-    let fp = {
-        let w = &app.session.wallets[savings];
-        app.session
-            .slots(w)
-            .iter()
-            .find(|s| s.held_by.is_none())
-            .and_then(|s| s.fingerprint)
-            .unwrap()
-    };
-    app.press(Action::Entry(Some(fp.0)));
+    app.press(Action::Step(step::SIGNERS));
+    app.press(Action::ScanKey(savings));
+    app.press(Action::EntryWallet(savings));
     let unrelated = ["abandon"; 11].join(" ") + " about";
     type_text(&mut app, &unrelated);
     app.press(Action::EntryAdd);
     assert_eq!(app.screen, Screen::Entry, "a key for no slot was taken");
-    assert!(app.entry.error.is_some());
+    let error = app.entry.error.clone().unwrap_or_default();
+    assert!(error.ends_with("not a key of Savings"), "{error}");
     assert_eq!(app.session.keys.len(), 1);
 }
 

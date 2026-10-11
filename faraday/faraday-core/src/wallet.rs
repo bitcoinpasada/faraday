@@ -150,6 +150,14 @@ pub enum Refusal {
         /// The fingerprint the words give.
         got: String,
     },
+    /// Words for a wallet's missing key give a key that is none of the
+    /// wallet's.
+    NotOfWallet {
+        /// The fingerprint the words give.
+        got: String,
+        /// The wallet's name.
+        wallet: String,
+    },
     /// The text is not a wallet this build reads.
     NotAWallet(String),
     /// The wallet or transaction is on another network than the wallets
@@ -173,6 +181,9 @@ impl Refusal {
             Refusal::Duplicate(fp) => format!("{fp} is already loaded"),
             Refusal::WrongKey { wanted, got } => {
                 format!("These words give {got}, not {wanted}")
+            }
+            Refusal::NotOfWallet { got, wallet } => {
+                format!("These words give {got}, not a key of {wallet}")
             }
             Refusal::NotAWallet(e) => format!("Not a wallet: {e}"),
             Refusal::Network { offered, loaded } => format!(

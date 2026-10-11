@@ -307,7 +307,8 @@ impl Faraday {
     }
 
     /// A detached signature over Inbox file `k` by the selected key, to
-    /// the Outbox as `NAME.asc`.
+    /// the Outbox as `NAME.asc`. Used for each file `GpgSignTicked`
+    /// signs, and (through `gpg_code`) for its QR and PNG.
     pub(crate) fn gpg_sign(&mut self, k: usize) {
         let Some((_, key)) = self.gpg_selected() else {
             return;
@@ -322,8 +323,45 @@ impl Faraday {
         let name = format!("{}.asc", item.name);
         let sig = key.sign(&item.bytes, now, Hash::Sha512);
         self.put_outbox(&name, armor(Armor::Signature, &sig).into_bytes());
-        self.vaults.signing = false;
-        self.toast_out(&name);
+    }
+
+    /// The Inbox files a GPG key can sign: a `.asc` file is a signature
+    /// already, not something to sign again.
+    pub(crate) fn gpg_signable(&self) -> Vec<&crate::Item> {
+        self.inbox
+            .iter()
+            .filter(|i| !i.name.ends_with(".asc"))
+            .collect()
+    }
+
+    /// The signing page's ticks at their default: the only signable file
+    /// ticked, or none of several.
+    pub(crate) fn gpg_default_ticks(&mut self) {
+        let names: Vec<String> = self.gpg_signable().iter().map(|i| i.name.clone()).collect();
+        self.vaults.sign_ticked = match names.as_slice() {
+            [one] => vec![one.clone()],
+            _ => Vec::new(),
+        };
+    }
+
+    /// Every ticked file, signed in one go: one signature each to the
+    /// Outbox, one toast, the ticks cleared, the page stays open.
+    pub(crate) fn gpg_sign_ticked(&mut self) {
+        let ticked = std::mem::take(&mut self.vaults.sign_ticked);
+        let mut n = 0;
+        for name in &ticked {
+            if let Some(k) = self.inbox.iter().position(|i| i.name == *name) {
+                self.gpg_sign(k);
+                n += 1;
+            }
+        }
+        if n > 0 {
+            let text = match n {
+                1 => format!("1 signature waits {}", self.medium.for_the()),
+                n => format!("{n} signatures wait {}", self.medium.for_the()),
+            };
+            self.toast(&text);
+        }
     }
 }
 

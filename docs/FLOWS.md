@@ -70,7 +70,7 @@ to get it.
    acknowledgement ("anyone who copies the stick or sees this file can
    spend these coins"), and never holds the BIP-39 passphrase. A seed's
    SeedQR never goes through the QR sheet's **PNG for the stick**, which
-   is for public content. Create a wallet ends in the same doors
+   is for public content. Make a new wallet ends in the same doors
    (2026-10-10, `docs/SIMPLIFY.md` §2.3): its last card, **Back up**,
    offers the plan's presets and opens the backup on the wallet just
    made, whose checklist puts the seeds and the wallet into a vault,
@@ -99,7 +99,8 @@ to get it.
 
 9. **Every scan waits for the stick to be out** (2026-10-09). A camera
    frame may picture a seed, so the scanner opens only with no stick
-   attached: Scan, Scan a SeedQR, Scan your copy and a vault entry's Scan,
+   attached: Scan, Scan a SeedQR, Scan a key, Scan your copy and a vault
+   entry's Scan,
    pressed with a stick in, open the same sheet, "Pull the stick to scan",
    and the camera turns on once the stick is out. A stick plugged in while
    the camera is on is held back, nothing read from it, and arrives as any
@@ -138,7 +139,7 @@ to get it.
     the first job that applies (a spend under way, a PSBT in Files, an
     import waiting, what the last visit wrote with nothing loaded, a
     locked vault, a vault changed since it was written, otherwise Make a
-    wallet), then at
+    new wallet), then at
     most two secondary tiles (Wallets, Vaults; Stick visit when they
     leave room). Add a key is not on Home: it is reached from Wallets'
     empty state and from Tools.
@@ -162,10 +163,10 @@ to get it.
     it opens Files. **Write out** is files For the stick, or a vault
     changed since it was written (decision 26), with no stick attached.
 16. **A step card with a default opens closed** (owner, 2026-10-10;
-    `docs/SIMPLIFY.md` §2.1). Create a wallet, New key and Sign a
+    `docs/SIMPLIFY.md` §2.1). Make a new wallet, New key and Sign a
     transaction open on the first card without one; a closed default
     card shows **Change** in place of the chevron.
-17. **Create a wallet shows two kinds** (owner, 2026-10-10;
+17. **Make a new wallet shows two kinds** (owner, 2026-10-10;
     `docs/SIMPLIFY.md` §2.2). Kind offers Single key and Multisig, both
     native SegWit; the other eight kinds are behind **More kinds**.
 18. **Add a key opens on words** (owner, 2026-10-10; `docs/SIMPLIFY.md`
@@ -175,7 +176,7 @@ to get it.
     2026-10-10; `docs/SIMPLIFY.md` §2.5). The Transaction card comes
     before Check, carries the txid as one of its rows, and Check stays
     closed once a wallet has been checked this power-on.
-20. **Create a wallet ends in the backup plan** (owner, 2026-10-10;
+20. **Make a new wallet ends in the backup plan** (owner, 2026-10-10;
     `docs/SIMPLIFY.md` §2.3). The cards are Kind · Quorum · Keys · Check
     · Back up. Keys' Continue makes the wallet; Check shows the
     descriptor as a summary row that opens its code with the whole text
@@ -286,7 +287,7 @@ to get it.
     `docs/NEW-WALLET.md` §1.2). The 4-point `WARN` fill along the top on
     a test network is gone, in the main area and in the sidebar; the
     pill alone marks it.
-34. **Create a wallet and New key open on their first step** (owner,
+34. **Make a new wallet and New key open on their first step** (owner,
     2026-10-10; `docs/NEW-WALLET.md` §2.1, reversing decision 16 for
     these two flows only; Sign, Back up and Create a vault keep it).
     Create opens with Kind open, whatever opened it — Wallets, Home, or
@@ -405,9 +406,9 @@ to get it.
     have the PSBT from Sparrow ready: Scan it** over it, then **Write the
     payment in Sparrow** (**Scan the PSBT**, **On a stick**, this
     wallet's PSBTs in Files), then the spend's steps unchanged. Who signs,
-    with fewer keys here than sign, adds **Add a key here** over its
-    SeedQR and Unlock buttons and **Collect a signature**, which opens
-    The other signatures. On a small panel the card's spend button sits
+    with fewer keys here than sign, offers **Scan a key**, its Unlock
+    buttons and **Collect a signature**, which opens The other
+    signatures (decision 57). On a small panel the card's spend button sits
     under the signatures box, and the shortcut is its line and **Scan
     it**.
 44. **The chart's sheets** (owner, 2026-10-10; `docs/NEW-WALLET.md`
@@ -550,7 +551,7 @@ to get it.
     these rows read "Open a vault to keep this" and lead to one. A mark
     says what follows, in order: "Someone can now spend" (or "could …
     with a vault's passphrase") with **Move the money** ("New
-    wallet": Create a wallet, whose last card then offers **Move the
+    wallet": Make a new wallet, whose last card then offers **Move the
     money from {wallet}**,
     the spend from the old wallet with "Every coin to {new wallet}" and
     its first address on Write the payment); "The wallet can no longer
@@ -570,8 +571,8 @@ to get it.
 50. **Home's four ways in; Back goes where a flow was opened from**
     (owner, 2026-10-11). Home's Start is a lead tile, full width, only
     while something is under way or waiting (`docs/SIMPLIFY.md` §1.2
-    rules 1 to 6), then half-width tiles, two to a row: **Make a
-    wallet** (Create), **Load or restore a wallet** (Restore), **Spend
+    rules 1 to 6), then half-width tiles, two to a row: **Make a new
+    wallet** (Create), **Restore an existing wallet** (Restore), **Spend
     from a backup, step by step** (the Spend tab) and **Vaults**, which
     with no vault in Files or open reads **Create a vault** and opens
     it; then **Stick visit** while a stick is attached and nothing is
@@ -584,8 +585,8 @@ to get it.
     says a stick with a vault brings its wallets and keys. Restore's
     Description card leads, for a single key, with **I have the seed**
     (on to Seeds), then **Scan descriptor** and the files; a multisig
-    keeps **I do not have it**. Wallets' ways in are Create a wallet,
-    Load or restore a wallet, Spend from a backup, and last **Add a
+    keeps **I do not have it**. Wallets' ways in are Make a new wallet,
+    Restore an existing wallet, Spend from a backup, and last **Add a
     key**, "Keys first, wallets later".
 51. **Create a vault: one memory figure, This computer chosen**
     (owner, 2026-10-11). The size rows, the cost card and the summary
@@ -672,12 +673,46 @@ to get it.
     power-off; Faraday never calls `settimeofday` or `hwclock`. Every
     date or time shown to a person is local; what goes into a format
     (a GPG signature's time, Secure Boot's) stays UTC.
+57. **Scan a key; Can spend** (owner, 2026-10-11;
+    `docs/SCAN-TO-SIGN.md` §2–§3). Where a wallet is short of keys, one
+    **Scan a key** opens the camera at once, titled "Scan a key for
+    {wallet}", a line per missing key ("Key 2 · 5d388376", and " ·
+    {place}" where the backup's plan keeps that seed), with **Type the
+    words instead** and Cancel. A seed whose key with no passphrase is a
+    missing key loads at once, with no passphrase question: the camera
+    stays on with "Key 2 added · 1 more" while more are needed, else
+    closes with the toast "Key 2 added · Can spend". A key already here
+    says "Key 1 · already here"; a seed of no key of the wallet closes
+    the camera and opens the passphrase sheet (decision 52) with "{fp}
+    is not one of {wallet}'s keys", which takes only a passphrase giving
+    a missing key and refuses another with the same line; anything else
+    is named as Scan a SeedQR names it. **Type the words instead** opens
+    "Add a key for {wallet}", which refuses words of no missing key with
+    "These words give {fp}, not a key of {wallet}". A key loads under
+    its holder's name where the plan keeps one, else none; a name that
+    is the fingerprint is never drawn beside it. It is on the wallet
+    card's signatures bar in place of "Add 1 more key or collect 1 more
+    signature" (full width under the line on a small panel), on the
+    Wallets column as **Scan a key for {wallet}** in place of **Add a
+    key** while the wallet shown is short, and on Who signs (the Spend
+    tab's and Wallets' Sign step). The per-key **Add its key** and **Type
+    its words** go. A wallet with enough keys here to sign shows a green
+    **Can spend** on the card's bar (in place of "Nothing missing"), on
+    Who signs beside "{here} of {needed} signatures here", and at the
+    right of its Wallets row, whose sub-line is then its shape alone;
+    the small panel's list and Home's say "Can spend · 2 of 2". Short,
+    Who signs says "1 of 2 signatures here · 1 more needed" and a key
+    not here **Not here**; its Scan a key, Unlock and Collect a signature
+    show only while short, or, for a miniscript or tree wallet, until the
+    spend is signed.
 
 ## Home
 
 **Start** is decision 50's tiles. **Add a key** (type, scan or bring
-in a seed) is on Wallets and in Tools → the Add a key screen: a form (BIP-39 words, SLIP-39 shares, codex32, Seed
-XOR parts), **Scan a SeedQR**, **Make a new key**, and "From a stick ·
+in a seed) is on Wallets and in Tools → the Add a key screen: **Scan a
+SeedQR** first, full width over the words (primary until a word is
+typed, when **Add key** is), a form (BIP-39 words, SLIP-39 shares,
+codex32, Seed XOR parts), **Make a new key**, and "From a stick ·
 plug it in" (with a stick attached, **Copy files in** → Stick visit; a key
 file copied in loads when the stick is pulled). **Scan** floats in the
 bottom-right corner of Home on every panel → the scanner (with a stick
@@ -691,7 +726,7 @@ A key added with no wallet loaded lands on Wallets, whose card says
 "Key 73c5da0a is loaded. No wallet uses it." with **Make a wallet from
 this key** (Restore's Seeds card with the key in its slot: single key,
 native SegWit, account 0 → **Make the wallet**), **Add another key** (the
-same card on a 2-of-2 multisig) and **Load or restore a wallet**.
+same card on a 2-of-2 multisig) and **Restore an existing wallet**.
 Several such keys: one line each, the buttons on the one picked. Back
 from the seeds card returns to Wallets with the key still loaded.
 
@@ -904,9 +939,10 @@ guarantees for this file's rule:
 - **Every way in reaches a wallet card** (`docs/WALLETS.md` §2) that says what
   the wallet is, which keys can sign here, how many signatures the
   transaction has and needs, and the one thing still to do.
-- **A transaction never stops at "can't sign"**: a missing key opens **Add
-  its key** on its slot; a missing signature opens **Collect**; a missing
-  wallet opens **Load the wallet**.
+- **A transaction never stops at "can't sign"**: a missing key opens **Scan
+  a key**, which takes any of the wallet's missing keys (decision 57); a
+  missing signature opens **Collect**; a missing wallet opens **Load the
+  wallet**.
 - **Signing ends on two results**, the signed PSBT for the wallet that wrote
   the transaction and the finished transaction with its txid, each shown as
   a code and put For the stick the moment the transaction is finished
@@ -1022,9 +1058,11 @@ guarantees for this file's rule:
   else an open vault's. No plan: "No backup plan" with **Back up**; a
   plan in a locked vault not remembered: "Plan in {vault}, locked" with
   **Unlock**. Every node, and every line of what a backup node holds,
-  opens its sheet (decision 44); a key the quorum still needs keeps its
-  way in (**Load from vault**, **Add its key**) as a line of its own,
-  pressed as the Keys list's was. The card's
+  opens its sheet (decision 44); while the wallet is short of keys a
+  key not here reads **Not here**, and one an open vault holds keeps
+  **Load from vault** as a line of its own; the one way to scan any
+  missing key is the signatures bar's **Scan a key** (decision 57). The
+  card's
   body scrolls between its head and its buttons. On a small panel an
   **At a glance** row opens the chart as its own page, one column, no
   lines, each backup node naming the keys it holds ("Key 1 words · Key

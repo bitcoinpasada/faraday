@@ -415,7 +415,11 @@ when a loaded wallet is pressed), the **Keys** section is replaced by
    today: fingerprint, label, and where it is: "Can sign here", "On its
    own device", "Cosigner · xpub only", "Waiting for the cosigner's
    xpub"; "· passphrase" when it was loaded with one. A line from the
-   wallet to each key.
+   wallet to each key. *Changed by SCAN-TO-SIGN §2:* while the wallet
+   is short of keys, a key neither here nor in an open vault reads
+   **Not here**, with no "Add its key" line; one an open vault holds
+   keeps **Load from vault**. The node's own press still opens its
+   sheet.
 3. **Its backup**, a node per spot of the plan's map (`plan::map`):
    Place 1, Place 2 …, each vault ("Vault 1 · stick at Place 2"),
    unprotected files, watch-only software, on its own device. Each node
@@ -442,7 +446,11 @@ A wallet whose keys are all elsewhere (watch-only) shows its key row
 and backup row the same way.
 
 The card's other parts stay: the signatures bar, the first receive
-address, the buttons.
+address, the buttons. *Changed by SCAN-TO-SIGN §2:* the signatures bar,
+short of signers, carries a primary **Scan a key** on its right in place
+of "Add 1 more key or collect 1 more signature" (full width under the
+line on the small panel), which takes any of the wallet's missing keys;
+with enough, a green **Can spend** pill in place of "Nothing missing".
 
 ### 6.2 How it is drawn
 
@@ -687,11 +695,15 @@ PSBT reads, goes to its Check, skipping the pages before.
 
 3. **Check, then Sign**: the spend's existing steps; amounts and
    addresses are checked before anything is signed.
-4. **Signers**, when the keys here are fewer than the quorum: **Add a
-   key here** (unlock another vault, words, a SeedQR) and **Collect a
-   signature** (the PSBT to the cosigner as a QR or on a stick, and
-   their signed copy scanned back). The card's key nodes' **Add its
-   key** still works before the spend.
+4. **Signers**, when the keys here are fewer than the quorum: *changed
+   by SCAN-TO-SIGN §3:* "1 of 2 signatures here · 1 more needed", each
+   key not here **Not here**, then **Scan a key** (any missing key; its
+   words typed instead from its sheet), **Unlock {vault}** and **Collect
+   a signature** (the PSBT to the cosigner as a QR or on a stick, and
+   their signed copy scanned back). With enough: "2 of 2 signatures
+   here" and a green **Can spend**, and none of those buttons. The
+   card's signatures bar offers the same **Scan a key** before the
+   spend.
 5. **Finish**: the signed transaction back to Sparrow (QR or file) to
    broadcast, then **Put everything away** as the Spend flow ends today.
 
@@ -707,8 +719,9 @@ holds a wallet lands on Wallets with that wallet selected and the toast;
 Spend from this wallet opens on Load the wallet in Sparrow; the shortcut
 scans a PSBT and opens its Check; with a PSBT for the wallet in Files
 the button reads Sign the PSBT from the stick and opens Check; a 2-of-3
-with one key here reaches Signers with Add a key here and Collect a
-signature; leaving and coming back resumes the spend.
+with one key here reaches Signers with Scan a key and Collect a
+signature (*changed by SCAN-TO-SIGN §3*); leaving and coming back
+resumes the spend.
 
 **Docs.** `docs/FAMILY.md`, `docs/FLOWS.md` (Session, Wallets tab,
 Spend tab), `docs/WALLETS.md`.

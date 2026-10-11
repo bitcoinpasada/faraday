@@ -79,6 +79,7 @@ mod guide;
 mod keygen_screen;
 mod lightning_screen;
 mod motion;
+mod scan_key;
 mod screens;
 mod seeds_screen;
 mod silent_screen;
@@ -731,6 +732,11 @@ pub enum Action {
     LoadKey(usize),
     /// Scan a SeedQR into Add a key.
     ScanSeed,
+    /// Scan any missing key of loaded wallet n.
+    ScanKey(usize),
+    /// Add a key for loaded wallet n: its words typed, for any of its
+    /// missing keys.
+    EntryWallet(usize),
     /// Scan one part of a key into Add a key's other forms: a SLIP-39
     /// share, a codex32 string, or a Seed XOR part's SeedQR or words.
     ScanPart,
@@ -1554,6 +1560,9 @@ pub enum ScanPurpose {
     /// Transfer's Receive: anything, saved by the shell into Downloads,
     /// never into the Inbox.
     Transfer,
+    /// Any missing key of loaded wallet n, which Faraday works out from
+    /// the seed read (`docs/SCAN-TO-SIGN.md` §2.1).
+    WalletKey(usize),
 }
 
 /// What the camera sheet holds.
@@ -2104,6 +2113,8 @@ pub struct EntryState {
     pub typed: secret_text::SecretText,
     /// The slot fingerprint the key is meant for.
     pub wanted: Option<[u8; 4]>,
+    /// The loaded wallet any of whose missing keys the words may give.
+    pub wallet: Option<usize>,
     /// The label for the key.
     pub label: String,
     /// The last refusal.
@@ -3952,9 +3963,12 @@ impl Faraday {
         use catalog::Go;
         Some(match action {
             Action::Scan | Action::BScan | Action::Vault(vaults::VaultAction::ScanEntry) => "scan",
-            Action::Entry(_) | Action::ScanSeed | Action::ScanPart | Action::LoadKey(_) => {
-                "add a key"
-            }
+            Action::Entry(_)
+            | Action::EntryWallet(_)
+            | Action::ScanSeed
+            | Action::ScanKey(_)
+            | Action::ScanPart
+            | Action::LoadKey(_) => "add a key",
             Action::KeyGen(_) | Action::KeyGenSlip39 => "make a key",
             Action::PotentialOpen(_) => "load the wallet",
             Action::BackupOpen(_) => "open the backup",
@@ -5769,6 +5783,25 @@ impl Faraday {
                     self.scan = Some(scan);
                     self.sheet = Some(Sheet::Scan);
                     self.commands.push_back(Command::CameraOn);
+                }
+            }
+            Action::ScanKey(w) => {
+                if self.may_load_keys() && w < self.session.wallets.len() {
+                    let mut scan = ScanState::default();
+                    scan.purpose = ScanPurpose::WalletKey(w);
+                    self.scan = Some(scan);
+                    self.sheet = Some(Sheet::Scan);
+                    self.commands.push_back(Command::CameraOn);
+                }
+            }
+            Action::EntryWallet(w) => {
+                if self.may_load_keys() && w < self.session.wallets.len() {
+                    if self.scan.take().is_some() {
+                        self.commands.push_back(Command::CameraOff);
+                    }
+                    self.sheet = None;
+                    self.act(Action::Entry(None));
+                    self.entry.wallet = Some(w);
                 }
             }
             Action::Scan => {
@@ -8049,7 +8082,13 @@ impl Faraday {
         }
         // A stick plugged in while the camera is on is held back, and no
         // key loads while it is attached: what loads one is not read.
-        if camera && sticks && matches!(scan.purpose, ScanPurpose::Seed | ScanPurpose::KeyPart) {
+        if camera
+            && sticks
+            && matches!(
+                scan.purpose,
+                ScanPurpose::Seed | ScanPurpose::KeyPart | ScanPurpose::WalletKey(_)
+            )
+        {
             scan.note = Some(stick_keys(medium));
             return;
         }
@@ -8094,6 +8133,20 @@ impl Faraday {
         }
         if let ScanPurpose::CheckCopy(fp) = scan.purpose {
             self.copy_scanned(fp, bytes);
+            return;
+        }
+        if let ScanPurpose::WalletKey(w) = scan.purpose {
+            match seed_in_code(&bytes) {
+                Some(words) => self.wallet_key_scanned(w, &words),
+                None => {
+                    let text = String::from_utf8_lossy(&bytes).to_string();
+                    scan.note = Some(
+                        what_instead_of_a_seed(&text)
+                            .unwrap_or("Not a SeedQR or a CompactSeedQR")
+                            .to_string(),
+                    );
+                }
+            }
             return;
         }
         if scan.purpose == ScanPurpose::Seed {
@@ -8782,6 +8835,42 @@ impl Faraday {
             .entry
             .back
             .or(matches!(self.screen, Screen::Family | Screen::Restore).then_some(self.screen));
+        // Add a key for a wallet takes only a key the wallet is missing
+        // (`docs/SCAN-TO-SIGN.md` §2.1).
+        let mut label = label;
+        let mut for_wallet = None;
+        if let Some(w) = self.entry.wallet {
+            let fp = Session::default()
+                .add_mnemonic(&m, &self.entry.passphrase, "", None)
+                .ok();
+            if let Some(fp) = fp {
+                match self.wallet_key_found(w, fp) {
+                    scan_key::Found::None => {
+                        let wallet = self
+                            .session
+                            .wallets
+                            .get(w)
+                            .map(|wl| wl.name.clone())
+                            .unwrap_or_default();
+                        self.entry.error = Some(
+                            wallet::Refusal::NotOfWallet {
+                                got: fp_text(fp),
+                                wallet,
+                            }
+                            .text(),
+                        );
+                        return;
+                    }
+                    scan_key::Found::Missing(n) => {
+                        if label.trim().is_empty() {
+                            label = self.wallet_key_label(w, fp);
+                        }
+                        for_wallet = Some((w, n));
+                    }
+                    scan_key::Found::Here(_) => {}
+                }
+            }
+        }
         // Restore takes a seed only into a slot it fills: with the
         // description known, one of its keys (`docs/NEW-WALLET.md` §12.1).
         if back == Some(Screen::Restore) {
@@ -8802,7 +8891,10 @@ impl Faraday {
             .add_mnemonic(&m, &self.entry.passphrase, &label, wanted)
         {
             Ok(fp) => {
-                self.toast(&format!("Key {} added", fp_text(fp)));
+                match for_wallet {
+                    Some((w, n)) => self.wallet_key_said(w, n),
+                    None => self.toast(&format!("Key {} added", fp_text(fp))),
+                }
                 self.seeds_took(fp, back);
                 self.entry = EntryState::default();
                 self.refresh_spend();

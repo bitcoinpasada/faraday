@@ -1364,23 +1364,31 @@ fn run(
     }
     t.shot("vault-gpg-key")?;
     t.press(Action::Vault(V::GpgSignPick));
-    t.shot("vault-gpg-sign")?;
-    let signed = t
+    // Two files ticked: the checkbox list, before Sign 2 files.
+    let signable: Vec<String> = t
         .app
         .inbox
         .iter()
-        .position(|i| i.name == "vault-entries.txt")
-        .ok_or("no file to sign")?;
-    t.press(Action::Vault(V::GpgSign(signed)));
-    if !t
-        .app
-        .outbox
-        .iter()
-        .any(|i| i.name == "vault-entries.txt.asc")
-    {
-        return Err("signing left no signature in the Outbox".into());
+        .filter(|i| !i.name.ends_with(".asc"))
+        .map(|i| i.name.clone())
+        .collect();
+    for name in ["vault-entries.txt", "BOOTX64.EFI"] {
+        let k = signable
+            .iter()
+            .position(|n| n == name)
+            .ok_or(format!("no {name} to sign"))?;
+        t.press(Action::Vault(V::GpgTick(k)));
     }
-    println!("a GPG key made in the vault signed a file");
+    t.shot("vault-gpg-sign")?;
+    t.press(Action::Vault(V::GpgSignTicked));
+    for name in ["vault-entries.txt", "BOOTX64.EFI"] {
+        if !t.app.outbox.iter().any(|i| i.name == format!("{name}.asc")) {
+            return Err(format!(
+                "signing left no signature for {name} in the Outbox"
+            ));
+        }
+    }
+    println!("a GPG key made in the vault signed two files at once");
     // TOTP codes for the entries the imported file left in the vault
     // (`docs/TOTP.md` §9): the clock is the GPG step's fixed one, so the
     // codes are the same in every render.
@@ -2148,7 +2156,7 @@ fn scan_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("scan-after-pull")
 }
 
-/// The small panel's Home, and Create a wallet with a new key from dice,
+/// The small panel's Home, and Make a new wallet with a new key from dice,
 /// a step to a page.
 fn compact_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::cstep;
@@ -3743,8 +3751,9 @@ fn themes_tour(t: &mut Tour) -> Result<(), String> {
 /// stick's vault unlocked after the pull lands on Wallets with a toast;
 /// a wallet's card leads with Spend from this wallet, which opens the
 /// Spend tab on Load the wallet in Sparrow with the shortcut; a 2-of-3
-/// with one key here, its PSBT in Files, reaches Signers with Add a key
-/// here and Collect a signature.
+/// with one key here, its PSBT in Files, reaches Signers with Scan a key
+/// and Collect a signature; the card's Scan a key opens the key scanner,
+/// and a missing key's SeedQR makes the wallet able to spend.
 fn from_vault_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::boot_import::ImportAction as I;
     use faraday_core::family::{FamilyAction as F, page};
@@ -3806,7 +3815,50 @@ fn from_vault_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("vault-card-sign")?;
     t.press(Action::Family(F::SpendFrom(short)));
     t.press(Action::Step(faraday_core::wallet::step::SIGNERS));
-    t.shot("vault-spend-signers")
+    t.shot("vault-spend-signers")?;
+    // The card's Scan a key: the key scanner, then a missing key's
+    // SeedQR, which loads at once, and the card can spend.
+    t.press(Action::OpenWallet(short));
+    t.press(Action::ScanKey(short));
+    t.app.event(Event::CameraFrame {
+        width: 640,
+        height: 480,
+        luma: (0..640u32 * 480).map(|i| ((i % 640) / 3) as u8).collect(),
+        chroma: None,
+    });
+    t.shot("wallet-scan-key")?;
+    let missing: Vec<[u8; 4]> = {
+        let wl = &t.app.session.wallets[short];
+        t.app
+            .session
+            .slots(wl)
+            .iter()
+            .filter(|s| s.held_by.is_none())
+            .filter_map(|s| s.fingerprint.map(|f| f.0))
+            .collect()
+    };
+    let words = testkit::TEST_SEEDS
+        .iter()
+        .map(|(w, _)| testkit::test_words(w))
+        .find(|w| {
+            let mut s = testkit::session();
+            s.add_words(w, "", None)
+                .is_ok_and(|fp| missing.contains(&fp.0))
+        })
+        .ok_or("no test seed is a missing key")?;
+    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &words)
+        .map_err(|e| format!("{e:?}"))?;
+    let digits = osk_codec::seedqr::to_digits(&m);
+    t.app.event(Event::Scanned {
+        bytes: digits.expose().as_bytes().to_vec(),
+    });
+    t.pump();
+    if !t.app.can_spend(short) {
+        return Err("the scanned key did not make the wallet able to spend".into());
+    }
+    t.shot("vault-card-can-spend")?;
+    println!("Scan a key on a wallet's card loaded its missing key at once");
+    Ok(())
 }
 
 fn spend_tour(t: &mut Tour) -> Result<(), String> {
@@ -3879,17 +3931,9 @@ fn spend_tour(t: &mut Tour) -> Result<(), String> {
     // page marked this wallet checked this power-on.
     t.press(Action::StepNext(faraday_core::wallet::step::TRANSACTION));
     t.shot("spend-signers")?;
-    let fp = {
-        let w = &t.app.session.wallets[savings];
-        t.app
-            .session
-            .slots(w)
-            .iter()
-            .find(|s| s.held_by.is_none())
-            .and_then(|s| s.fingerprint)
-            .ok_or("every key is here already")?
-    };
-    t.press(Action::Entry(Some(fp.0)));
+    // Who signs' Scan a key, and its Type the words instead.
+    t.press(Action::ScanKey(savings));
+    t.press(Action::EntryWallet(savings));
     t.type_key(1);
     t.shot("spend-signers-two")?;
     t.press(Action::StepNext(faraday_core::wallet::step::SIGNERS));
