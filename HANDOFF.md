@@ -35,7 +35,8 @@ built batch by batch, every batch committed with `just` green:
   Restore by kind, description and seeds.
 
 Desktop, stick and Pi were built from `3be049a` on 2026-10-10 as test
-releases. `origin` is at `a12a91e`; the 45 commits after it are not pushed. What the owner tries
+releases (Pi only when the owner asks). Everything was pushed on
+2026-10-10, through the commit that wrote this line. What the owner tries
 next is at the top of the owner-to-test list (`local/REMAINING.md`).
 
 ## Where we stopped (2026-10-08)
