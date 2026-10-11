@@ -3229,6 +3229,25 @@ fn kept_field(s: &str) -> String {
     s.replace(['\t', '\n', '\r'], " ")
 }
 
+/// A record type 11 map line (field 4) with a leading place name
+/// replaced by "Place n": a vault written before place names moved out
+/// of this field named the place there; `names` are the same record's
+/// field 3 values, in place order. A line already naming the place by
+/// number, or one for a vault, files, software or an away seed, is
+/// returned unchanged.
+fn redact_place_name(line: &str, names: &[String]) -> String {
+    for (p, name) in names.iter().enumerate() {
+        let name = name.trim();
+        if name.is_empty() {
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix(name).and_then(|r| r.strip_prefix(':')) {
+            return format!("Place {}:{rest}", p + 1);
+        }
+    }
+    line.to_string()
+}
+
 /// The summaries as the kept state holds them: a `vault` line per
 /// vault, then its `wallet`, `key` and `map` lines, fields split by tabs.
 pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
@@ -3367,10 +3386,16 @@ impl Faraday {
                 .contents
                 .of(kind::PLAN)
                 .flat_map(|(_, r)| {
+                    let names: Vec<String> = r
+                        .fields
+                        .iter()
+                        .filter(|f| f.number == field::PLAN_PLACE)
+                        .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
+                        .collect();
                     r.fields
                         .iter()
                         .filter(|f| f.number == field::PLAN_HOLDS)
-                        .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
+                        .map(|f| redact_place_name(&String::from_utf8_lossy(&f.bytes), &names))
                         .collect::<Vec<_>>()
                 })
                 .collect();

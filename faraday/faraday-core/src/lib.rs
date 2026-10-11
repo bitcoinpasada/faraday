@@ -6639,16 +6639,11 @@ impl Faraday {
             let name = names.get(p).map_or("", |n| n.trim());
             record.push(field::PLAN_PLACE, name.as_bytes());
         }
-        let place = |p: usize| {
-            names
-                .get(p)
-                .map(|n| n.trim())
-                .filter(|n| !n.is_empty())
-                .map_or_else(|| format!("Place {}", p + 1), str::to_string)
-        };
         for spot in plan::map(&shape, answers) {
             let at = match spot.at {
-                plan::At::Place(p) => place(p),
+                // The map's field names a place by number only; the name
+                // itself lives in field 3 (`field::PLAN_PLACE`) alone.
+                plan::At::Place(p) => format!("Place {}", p + 1),
                 plan::At::Vault(v) => answers.vault_name(&shape, v),
                 plan::At::Files => format!("{} of files", self.medium.cap()),
                 plan::At::Software => "Watch-only software".to_string(),
