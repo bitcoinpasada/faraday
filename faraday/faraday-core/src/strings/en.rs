@@ -9769,7 +9769,7 @@ pub static EN: Strings = Strings {
     item_title_checked: "Checked",
     item_title_not_checked: "Not checked",
     item_title_vault_2: "Vault {}",
-    item_title_vault: "Vault {}: {}",
+    item_title_vault: "Vault {} · {}",
     item_title_in: "In {}",
     item_title_not_saved: "Not saved",
     item_title_the_seeds: "The seeds as files",
