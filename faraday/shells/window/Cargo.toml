@@ -1,0 +1,28 @@
+[package]
+name = "faraday-window"
+version = "0.1.1"
+description = "What the desktop app and the hub app share to run in a window: the frame pacing, the input, the copy to the window, and the camera with its scanner"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+faraday-core = { path = "../../faraday-core" }
+faraday-scanner = { path = "../../faraday-scanner" }
+osk-shell-api = { path = "../../../core/osk-shell-api" }
+winit.workspace = true
+softbuffer.workspace = true
+getrandom.workspace = true
+
+# The webcam, as upstream's desktop shell reads it (camera.rs is a copy
+# of opensigner/shells/desktop/src/camera.rs at c418768).
+[target.'cfg(target_os = "linux")'.dependencies]
+opensigner-v4l2 = { path = "../../../opensigner/shells/v4l2" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+opensigner-avfoundation = { path = "../../../opensigner/shells/avfoundation" }
+
+[lints]
+workspace = true

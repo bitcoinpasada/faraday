@@ -386,6 +386,10 @@ criteria = "safe-to-deploy"
 version = "0.9.11"
 criteria = "safe-to-deploy"
 
+[[exemptions.memoffset]]
+version = "0.7.1"
+criteria = "safe-to-deploy"
+
 [[exemptions.miniz_oxide]]
 version = "0.9.1"
 criteria = "safe-to-deploy"
@@ -396,6 +400,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.ndk-sys]]
 version = "0.6.0+11769913"
+criteria = "safe-to-deploy"
+
+[[exemptions.nix]]
+version = "0.26.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.num_enum]]
@@ -502,6 +510,10 @@ criteria = "safe-to-deploy"
 version = "0.2.17"
 criteria = "safe-to-deploy"
 
+[[exemptions.pin-utils]]
+version = "0.1.1"
+criteria = "safe-to-deploy"
+
 [[exemptions.pkg-config]]
 version = "0.3.34"
 criteria = "safe-to-deploy"
@@ -552,6 +564,14 @@ criteria = "safe-to-deploy"
 
 [[exemptions.redox_syscall]]
 version = "0.9.4"
+criteria = "safe-to-deploy"
+
+[[exemptions.rustbus]]
+version = "0.19.3"
+criteria = "safe-to-deploy"
+
+[[exemptions.rustbus_derive]]
+version = "0.5.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.rustix]]
@@ -636,6 +656,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.strict-num]]
 version = "0.1.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.syn]]
+version = "1.0.109"
 criteria = "safe-to-deploy"
 
 [[exemptions.syn]]

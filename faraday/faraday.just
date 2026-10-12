@@ -13,7 +13,7 @@ version := ""
 # 20.04 and later, Debian 11 and later, Fedora 32 and later and Arch
 # (docs/HUB.md §1.2). The Wayland and X11 libraries are loaded from the
 # desktop it runs on. The hub app is built the same way with
-# package=faraday-hub bin=faraday-hub.
+# package=faraday-hub-shell bin=faraday-hub.
 #
 # Sticks are folders in ~/faraday-sticks: BOOTSTICK, plugged in at start
 # as the stick the device booted from (renamed, the app starts with no
@@ -103,6 +103,26 @@ faraday-snap size: faraday-testkit
     esac
     cargo run -q -p faraday-snapshot -- "$arg" out/testkit "out/snapshots/faraday/{{size}}"
     echo "out/snapshots/faraday/{{size}}"
+
+# The hub app (docs/HUB.md), built and run here: `just faraday-hub`, or
+# `just faraday-hub --image out/stick/faraday-x86_64-uefi-dev.img` to write
+# a dev image. FARADAY_HUB_PAYLOAD=out/payload/VERSION builds that payload
+# in; without it the hub app offers only --image. release=1 makes a release
+# build with no local paths in it (faraday/image/path-remap.sh); the build
+# for publishing is `just faraday-linux-bin` with package=faraday-hub-shell
+# bin=faraday-hub, in the glibc 2.31 container.
+faraday-hub *args="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    profile=()
+    if [ "{{release}}" = 1 ]; then
+        . faraday/image/path-remap.sh
+        profile=(--release)
+    fi
+    cargo build -q "${profile[@]}" -p faraday-hub-shell --bin faraday-hub
+    dir=debug
+    [ "{{release}}" = 1 ] && dir=release
+    exec "target/$dir/faraday-hub" {{args}}
 
 # The hub app's pages in their states at one size, into
 # out/snapshots/hub/WxH/, one named PNG each: `just faraday-hub-snap

@@ -1,0 +1,43 @@
+# A Faraday stick, its two partitions where the desktop mounted them or
+# not: BOOT_MOUNT and DATA_MOUNT are replaced by the test with a folder,
+# or the MountPoints line is left empty.
+/org/freedesktop/UDisks2/drives/Acme_Flash_HHH888
+  Drive
+    Vendor s Acme
+    Model s Flash
+    Serial s HHH888
+    Size t 15728640000
+    ConnectionBus s usb
+    Removable b true
+/org/freedesktop/UDisks2/block_devices/sdg
+  Block
+    Device ay /dev/sdg
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Flash_HHH888
+  PartitionTable
+    Type s gpt
+/org/freedesktop/UDisks2/block_devices/sdg1
+  Block
+    Device ay /dev/sdg1
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Flash_HHH888
+    IdUsage s filesystem
+    IdType s vfat
+    IdLabel s OSKBOOT
+  Partition
+    Number u 1
+    Name s OSKBOOT
+    Table o /org/freedesktop/UDisks2/block_devices/sdg
+  Filesystem
+    MountPoints aay BOOT_MOUNT
+/org/freedesktop/UDisks2/block_devices/sdg2
+  Block
+    Device ay /dev/sdg2
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Flash_HHH888
+    IdUsage s filesystem
+    IdType s vfat
+    IdLabel s OSKDATA
+  Partition
+    Number u 2
+    Name s OSKDATA
+    Table o /org/freedesktop/UDisks2/block_devices/sdg
+  Filesystem
+    MountPoints aay DATA_MOUNT

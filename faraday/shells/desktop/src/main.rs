@@ -64,43 +64,26 @@
 //! with a fresh one in the same window, with the Inbox and Outbox carried
 //! over, which is what the device's app loop does.
 
-mod camera;
-
 use std::collections::BTreeSet;
-use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use camera::Camera;
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent};
-use faraday_scanner::Scanner;
 use faraday_storage::{Boxes, Host, serve, stick_info};
-use osk_shell_api::{
-    App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, SecureHardware, TouchPhase,
-};
-use softbuffer::{Context, Surface};
+use faraday_window::camera::{self, Camera};
+use faraday_window::entropy;
+use faraday_window::input::{Input, Pointer};
+use faraday_window::lens::{Lens, LensHost};
+use faraday_window::pace::{Pacer, TICK};
+use faraday_window::view::{self, View};
+use osk_shell_api::{App, Command, Event};
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalSize};
-use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
+use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
-use winit::keyboard::{Key as WinitKey, NamedKey};
-use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{Window, WindowId};
 
-const TICK: Duration = Duration::from_millis(50);
-
-/// The tick while something moves and the compositor does not pace the
-/// frames (X11): a refresh of a screen that does not say its rate, on a
-/// grid from the first one (`docs/MOTION.md` §3.2). On Wayland the
-/// ticks come with the screen's own refreshes instead.
-const FRAME: Duration = Duration::from_micros(16_667);
-/// How often `--timings` prints what the frames cost.
-const TIMINGS_EVERY: Duration = Duration::from_secs(1);
-/// A pause between two frames longer than this is a rest, not a dropped
-/// frame, and is left out of the frame-to-frame figures.
-const FRAME_REST: Duration = Duration::from_millis(100);
 /// How often the attached folders are looked at again.
 const RESCAN: Duration = Duration::from_millis(700);
 const TITLE: &str = "Faraday · F2 boot stick · F3 stick 2 · F4 pull all";
@@ -164,8 +147,6 @@ struct Shell {
     sticks_dir: PathBuf,
     /// A device's screen to stand for, when given.
     panel: Option<Panel>,
-    /// The finger pressing, on a touchscreen.
-    finger: Option<u64>,
     /// Where PDFs are saved, and the Downloads folder Transfer uses.
     host: Host,
     /// The Downloads folder as last listed to the app.
@@ -177,148 +158,28 @@ struct Shell {
     boxes: Boxes,
     attached: BTreeSet<String>,
     seen: Vec<StickInfo>,
-    window: Option<Rc<Window>>,
-    surface: Option<Surface<Rc<Window>, Rc<Window>>>,
+    /// The window and its surface (`faraday-window`).
+    view: Option<View>,
     shown: (u32, u32),
     /// The window's scale factor.
     scale: f64,
-    epoch: Instant,
-    next_tick: Instant,
+    /// The ticks and the frames' pace (`faraday-window`).
+    pace: Pacer,
     next_scan: Instant,
-    cursor: (u16, u16),
-    /// The webcam, when the app asks for it.
-    camera: Camera,
-    /// Reads the codes in the camera's frames on its own thread.
-    scanner: Option<Scanner>,
-    pressed: bool,
-    shift: bool,
-    wheel: f32,
-    /// The last tick asked for a frame: something is moving, so the next
-    /// tick comes a frame later rather than at the idle rate.
-    animating: bool,
-    /// The compositor paces the frames (Wayland): a redraw asked for is
-    /// delivered with the screen's next refresh, so the tick that moves
-    /// what moves is sent on each redraw and every frame is drawn for
-    /// the moment it will be shown. Without it (X11) the ticks come
-    /// from the timer, on the 60 Hz grid.
-    paced: bool,
-    /// What the frames cost, printed once a second with `--timings`.
-    timings: Option<FrameTimings>,
-    /// What recent frames cost (render and copy), weighted towards the
-    /// newest, and the whole refreshes the timer's grid steps by to hold
-    /// one: a machine that cannot draw a frame in a refresh gets every
-    /// other refresh, in even steps, rather than one and then two. Only
-    /// the timer's grid uses it; a compositor that paces the frames
-    /// settles the rate itself.
-    cost: Option<Duration>,
-    steps: u32,
-}
-
-/// The coarsest grid step, in refreshes. A machine slower than that
-/// draws as fast as it can.
-const MOST_STEPS: u32 = 4;
-/// A frame must fit the step with this much room for the step to be
-/// kept; a step that no longer holds it is lengthened at once.
-const KEEP: f64 = 1.25;
-/// The step is shortened only when a frame fits the shorter one with
-/// this much room, so the step does not flip at the boundary.
-const SHORTEN: f64 = 1.6;
-
-/// What a second's frames cost: the render, the copy into the window,
-/// and the time from one frame to the next while something moved.
-struct FrameTimings {
-    since: Instant,
-    /// When the last frame was presented.
-    last: Option<Instant>,
-    frames: u32,
-    /// Mean and worst, as a total and a maximum.
-    render: (Duration, Duration),
-    blit: (Duration, Duration),
-    /// Between consecutive frames of a motion, and how many of them.
-    gap: (Duration, Duration),
-    gaps: u32,
-}
-
-impl FrameTimings {
-    fn new() -> FrameTimings {
-        FrameTimings {
-            since: Instant::now(),
-            last: None,
-            frames: 0,
-            render: (Duration::ZERO, Duration::ZERO),
-            blit: (Duration::ZERO, Duration::ZERO),
-            gap: (Duration::ZERO, Duration::ZERO),
-            gaps: 0,
-        }
-    }
-
-    /// Records one frame presented at `now`, and prints a line once a
-    /// second.
-    fn frame(&mut self, render: Duration, blit: Duration, now: Instant) {
-        self.frames += 1;
-        self.render = (self.render.0 + render, self.render.1.max(render));
-        self.blit = (self.blit.0 + blit, self.blit.1.max(blit));
-        if let Some(last) = self.last {
-            let gap = now - last;
-            if gap < FRAME_REST {
-                self.gap = (self.gap.0 + gap, self.gap.1.max(gap));
-                self.gaps += 1;
-            }
-        }
-        self.last = Some(now);
-        if now - self.since < TIMINGS_EVERY {
-            return;
-        }
-        let ms = |d: Duration| d.as_secs_f64() * 1000.0;
-        let mean = |total: Duration, n: u32| ms(total) / f64::from(n.max(1));
-        eprintln!(
-            "faraday: {} frames · render {:.1} ms (worst {:.1}) · blit {:.1} ms (worst {:.1}) · frame to frame {:.1} ms (worst {:.1}) over {}",
-            self.frames,
-            mean(self.render.0, self.frames),
-            ms(self.render.1),
-            mean(self.blit.0, self.frames),
-            ms(self.blit.1),
-            mean(self.gap.0, self.gaps),
-            ms(self.gap.1),
-            self.gaps,
-        );
-        *self = FrameTimings {
-            since: now,
-            last: self.last,
-            ..FrameTimings::new()
-        };
-    }
-}
-
-fn entropy() -> Option<Event> {
-    let mut bytes = [0u8; 32];
-    getrandom::fill(&mut bytes)
-        .ok()
-        .map(|()| Event::Entropy(EntropyBytes::new(bytes)))
+    /// The mouse, a finger and the keyboard (`faraday-window`).
+    pointer: Pointer,
+    /// The webcam, when the app asks for it, and the scanner that reads
+    /// its frames on its own thread (`faraday-window`).
+    lens: Lens,
 }
 
 impl Shell {
     fn display(&self) -> Event {
-        let (w, h) = self.shown;
-        Event::Display(DisplayInfo {
-            width: w.clamp(320, u32::from(u16::MAX)) as u16,
-            height: h.clamp(240, u32::from(u16::MAX)) as u16,
-            // The compositor's scale for this window, as a density: the
-            // app grows no larger than a quarter beyond it. Standing for
-            // a device's screen, this screen's own density, so the app
-            // is laid out at that screen's true size.
-            dpi: match self.panel {
-                Some(p) => p.ppi.round().clamp(80.0, 640.0) as u16,
-                None => (160.0 * self.scale).round().clamp(80.0, 640.0) as u16,
-            },
-            inset_bottom: 0,
-            inset_top: 0,
-            buttons: 0,
-            camera_fixed: true,
-            secure: SecureHardware::None,
-            boot: BootState::Unknown,
-            memory_mib: None,
-        })
+        view::display(self.shown, self.scale, self.panel.map(|p| p.ppi))
+    }
+
+    fn window(&self) -> Option<&Window> {
+        self.view.as_ref().map(|v| &*v.window)
     }
 
     fn sticks(&self) -> Vec<StickInfo> {
@@ -336,20 +197,7 @@ impl Shell {
     /// starts a fresh app, as the device's app loop does.
     fn send(&mut self, event_loop: &ActiveEventLoop, event: Event) {
         let ticked = matches!(event, Event::Tick { .. });
-        // What may start something moving is followed by a tick within a
-        // frame, so the motion starts at once. With the compositor pacing
-        // the frames, the redraw it asks for brings that tick itself.
-        if !self.paced
-            && matches!(
-                event,
-                Event::Wheel { .. }
-                    | Event::Scroll { .. }
-                    | Event::ScrollEnd { .. }
-                    | Event::Touch { .. }
-            )
-        {
-            self.next_tick = self.next_tick.min(Instant::now() + FRAME);
-        }
+        self.pace.before(&event);
         let mut draw = false;
         let mut events = vec![event];
         while let Some(e) = events.pop() {
@@ -359,21 +207,8 @@ impl Shell {
                 match c {
                     Command::Draw => draw = true,
                     Command::RequestEntropy => events.extend(entropy()),
-                    Command::CameraOn => {
-                        // Which cameras there are, for the scan sheet's
-                        // choice, as of the moment it opens.
-                        app.storage(faraday_core::StorageEvent::Cameras(camera::list()));
-                        if let Err(reason) = self.camera.on() {
-                            eprintln!("faraday: camera unavailable: {reason}");
-                            events.push(Event::CameraUnavailable);
-                        } else if self.scanner.is_none() {
-                            self.scanner = Some(Scanner::new());
-                        }
-                    }
-                    Command::CameraOff => {
-                        self.camera.off();
-                        self.scanner = None;
-                    }
+                    Command::CameraOn => events.extend(self.lens.on(app)),
+                    Command::CameraOff => self.lens.off(),
                     Command::Exit => {
                         if app.restart_requested() {
                             for line in serve(app, &mut self.boxes, Some(&self.host)) {
@@ -389,19 +224,17 @@ impl Shell {
                 }
             }
             // A camera the person chose on the scan sheet.
-            if let Some(id) = app.take_camera() {
-                self.camera.choose(PathBuf::from(id));
-            }
+            self.lens.chosen(app);
             for line in serve(app, &mut self.boxes, Some(&self.host)) {
                 eprintln!("{line}");
             }
         }
         if ticked {
-            self.animating = draw;
+            self.pace.animating = draw;
         }
         // A write changes a stick's files: look again now.
         self.rescan(event_loop, false);
-        if draw && let Some(w) = &self.window {
+        if draw && let Some(w) = self.window() {
             w.request_redraw();
         }
     }
@@ -415,12 +248,8 @@ impl Shell {
             app.event(display);
             app.storage(restored);
         }
-        self.send(
-            event_loop,
-            Event::Tick {
-                now_ms: self.epoch.elapsed().as_millis() as u64,
-            },
-        );
+        let tick = self.pace.tick();
+        self.send(event_loop, tick);
         self.rescan(event_loop, true);
         self.listed = None;
         self.relist();
@@ -435,7 +264,7 @@ impl Shell {
         if let Some(app) = self.app.as_mut() {
             app.storage(now.clone());
             self.listed = Some(now);
-            if let Some(w) = &self.window {
+            if let Some(w) = self.window() {
                 w.request_redraw();
             }
         }
@@ -457,7 +286,7 @@ impl Shell {
                 event_loop.exit();
             }
         }
-        if let Some(w) = &self.window {
+        if let Some(w) = self.window() {
             w.request_redraw();
         }
     }
@@ -490,7 +319,7 @@ impl Shell {
                 }
             }
         }
-        if let Some(w) = &self.window {
+        if let Some(w) = self.window() {
             w.request_redraw();
         }
     }
@@ -503,106 +332,10 @@ impl Shell {
     }
 
     fn draw(&mut self) {
-        let (Some(window), Some(surface), Some(app)) =
-            (&self.window, self.surface.as_mut(), self.app.as_mut())
-        else {
+        let (Some(view), Some(app)) = (self.view.as_mut(), self.app.as_mut()) else {
             return;
         };
-        let size = window.inner_size();
-        let (Some(w), Some(h)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) else {
-            return;
-        };
-        if surface.resize(w, h).is_err() {
-            return;
-        }
-        let Ok(mut buffer) = surface.buffer_mut() else {
-            return;
-        };
-        let begun = Instant::now();
-        let timed = self.timings.is_some();
-        let start = timed.then_some(begun);
-        let frame = app.frame();
-        let rendered = timed.then(Instant::now);
-        let (fw, fh) = (usize::from(frame.width), usize::from(frame.height));
-        let sw = size.width as usize;
-        // The frame's premultiplied RGBA to the window's 0RGB, a row at a
-        // time: the window is the frame's size but for the moment after a
-        // resize, when what the frame does not cover is the page colour.
-        const BEYOND: u32 = 0x0011_161c;
-        let shown = fw.min(sw);
-        for (y, row) in buffer.chunks_exact_mut(sw).enumerate() {
-            if y < fh {
-                let src = &frame.rgba[y * fw * 4..(y * fw + shown) * 4];
-                for (dst, px) in row[..shown].iter_mut().zip(src.chunks_exact(4)) {
-                    *dst = (u32::from(px[0]) << 16) | (u32::from(px[1]) << 8) | u32::from(px[2]);
-                }
-                row[shown..].fill(BEYOND);
-            } else {
-                row.fill(BEYOND);
-            }
-        }
-        // Tells winit a frame is about to be shown: on Wayland it asks
-        // the compositor to say when the frame is on the screen, and
-        // holds the next redraw until then, which is what paces the
-        // frames to the screen's refresh.
-        window.pre_present_notify();
-        let _ = buffer.present();
-        // A frame that asks for the next one (a fade part of the way)
-        // gets it from here: no event is coming to ask on its behalf.
-        let mut again = false;
-        while let Some(c) = app.poll_command() {
-            again |= matches!(c, Command::Draw);
-        }
-        if again {
-            window.request_redraw();
-        }
-        if !self.paced {
-            self.drew(begun.elapsed());
-        }
-        if let (Some(start), Some(rendered), Some(t)) = (start, rendered, self.timings.as_mut()) {
-            let now = Instant::now();
-            t.frame(rendered - start, now - rendered, now);
-        }
-    }
-
-    /// A frame took `took` to render and copy: the timer's grid step is
-    /// the fewest refreshes that hold one with room. One slow frame (the
-    /// frame a sheet opens on) moves the smoothed cost a fifth of the
-    /// way and changes nothing; a machine slow every frame does.
-    fn drew(&mut self, took: Duration) {
-        let cost = match self.cost {
-            None => took,
-            Some(c) => (c * 4 + took) / 5,
-        };
-        self.cost = Some(cost);
-        let refresh = self.refresh();
-        let holds = |steps: u32, room: f64| refresh * steps >= cost.mul_f64(room);
-        if !holds(self.steps, KEEP) {
-            self.steps = (self.steps + 1..=MOST_STEPS)
-                .find(|&n| holds(n, KEEP))
-                .unwrap_or(MOST_STEPS);
-        } else if self.steps > 1 && holds(self.steps - 1, SHORTEN) {
-            self.steps -= 1;
-        }
-    }
-
-    /// The screen's refresh period, from the monitor the window is on;
-    /// 60 Hz when it does not say.
-    fn refresh(&self) -> Duration {
-        self.window
-            .as_ref()
-            .and_then(|w| w.current_monitor())
-            .and_then(|m| m.refresh_rate_millihertz())
-            .filter(|&mhz| mhz > 0)
-            .map_or(FRAME, |mhz| {
-                Duration::from_secs_f64(1000.0 / f64::from(mhz))
-            })
-    }
-
-    /// The timer's step between frames while something moves and the
-    /// compositor does not pace them.
-    fn step(&self) -> Duration {
-        self.refresh() * self.steps
+        view.draw(app, &mut self.pace);
     }
 
     /// Presses `action` as the person would, and answers what it asks.
@@ -611,42 +344,59 @@ impl Shell {
             app.press(action);
         }
         // Any event carries what the press asked for to the shell.
-        let now_ms = self.epoch.elapsed().as_millis() as u64;
-        self.send(event_loop, Event::Tick { now_ms });
+        let tick = self.pace.tick();
+        self.send(event_loop, tick);
     }
 
-    fn touch(&mut self, event_loop: &ActiveEventLoop, phase: TouchPhase) {
-        let (x, y) = self.cursor;
-        self.send(event_loop, Event::Touch { x, y, phase });
+    /// A function key: F2 plugs the boot stick in or pulls it out, F3
+    /// stick 2, F4 pulls every stick, F5 plugs every folder in.
+    fn function(&mut self, event_loop: &ActiveEventLoop, n: u8) {
+        match n {
+            2 => self.toggle(event_loop, BOOT),
+            3 => self.toggle(event_loop, SECOND),
+            4 => {
+                self.attached.clear();
+                self.rescan(event_loop, false);
+            }
+            5 => {
+                if let Ok(d) = std::fs::read_dir(&self.sticks_dir) {
+                    for e in d.flatten() {
+                        if e.path().is_dir() {
+                            self.attached
+                                .insert(e.file_name().to_string_lossy().into_owned());
+                        }
+                    }
+                }
+                self.rescan(event_loop, false);
+            }
+            _ => {}
+        }
     }
 }
 
-fn map_key(key: &WinitKey) -> Option<Key> {
-    match key {
-        WinitKey::Named(NamedKey::Backspace) => Some(Key::Backspace),
-        WinitKey::Named(NamedKey::Delete) => Some(Key::Delete),
-        WinitKey::Named(NamedKey::Enter) => Some(Key::Enter),
-        WinitKey::Named(NamedKey::Escape) => Some(Key::Escape),
-        WinitKey::Named(NamedKey::ArrowUp) => Some(Key::Up),
-        WinitKey::Named(NamedKey::ArrowDown) => Some(Key::Down),
-        WinitKey::Named(NamedKey::ArrowLeft) => Some(Key::Left),
-        WinitKey::Named(NamedKey::ArrowRight) => Some(Key::Right),
-        WinitKey::Named(NamedKey::Tab) => Some(Key::Tab),
-        WinitKey::Named(NamedKey::Space) => Some(Key::Char(' ')),
-        WinitKey::Character(s) => {
-            let mut chars = s.chars();
-            match (chars.next(), chars.next()) {
-                (Some(c), None) if !c.is_control() => Some(Key::Char(c)),
-                _ => None,
-            }
-        }
-        _ => None,
+/// The shell and its event loop, for the lens to deliver to.
+struct Pass<'a> {
+    shell: &'a mut Shell,
+    event_loop: &'a ActiveEventLoop,
+}
+
+impl LensHost for Pass<'_> {
+    fn lens(&mut self) -> &mut Lens {
+        &mut self.shell.lens
+    }
+
+    fn send(&mut self, event: Event) {
+        self.shell.send(self.event_loop, event);
+    }
+
+    fn faraday(&mut self) -> Option<&mut Faraday> {
+        self.shell.app.as_mut()
     }
 }
 
 impl ApplicationHandler for Shell {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        if self.window.is_some() {
+        if self.view.is_some() {
             return;
         }
         let attributes = match self.panel {
@@ -678,36 +428,19 @@ impl ApplicationHandler for Shell {
                 ))
                 .with_min_inner_size(LogicalSize::new(640.0, 400.0)),
         };
-        let window = match event_loop.create_window(attributes) {
-            Ok(w) => Rc::new(w),
+        let view = match View::open(event_loop, attributes) {
+            Ok(v) => v,
             Err(e) => {
-                eprintln!("faraday: cannot open a window: {e}");
+                eprintln!("faraday: {e}");
                 event_loop.exit();
                 return;
             }
         };
-        let Ok(context) = Context::new(window.clone()) else {
-            eprintln!("faraday: cannot create a drawing context");
-            event_loop.exit();
-            return;
-        };
-        let Ok(surface) = Surface::new(&context, window.clone()) else {
-            eprintln!("faraday: cannot create a drawing surface");
-            event_loop.exit();
-            return;
-        };
-        let size = window.inner_size();
+        let size = view.window.inner_size();
         self.shown = (size.width, size.height);
-        self.scale = window.scale_factor();
-        // Wayland delivers a redraw with the screen's refresh once a
-        // frame has been presented; X11 delivers it at once, so there
-        // the timer keeps the pace.
-        self.paced = matches!(
-            window.window_handle().map(|h| h.as_raw()),
-            Ok(RawWindowHandle::Wayland(_))
-        );
-        self.window = Some(window);
-        self.surface = Some(surface);
+        self.scale = view.window.scale_factor();
+        self.pace.paced = view.paced();
+        self.view = Some(view);
         let display = self.display();
         self.send(event_loop, display);
         self.rescan(event_loop, true);
@@ -715,8 +448,8 @@ impl ApplicationHandler for Shell {
         if std::mem::take(&mut self.open_transfer) {
             self.send_press(event_loop, Action::Nav(Screen::Transfer));
         }
-        self.next_tick = Instant::now() + TICK;
-        event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_tick));
+        self.pace.next_tick = Instant::now() + TICK;
+        event_loop.set_control_flow(ControlFlow::WaitUntil(self.pace.next_tick));
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
@@ -733,10 +466,10 @@ impl ApplicationHandler for Shell {
                 // asks for the next redraw, which comes with the refresh
                 // after; the timer stays as the idle tick, pushed back so
                 // it does not tick between two refreshes.
-                if self.paced {
-                    let now_ms = self.epoch.elapsed().as_millis() as u64;
-                    self.send(event_loop, Event::Tick { now_ms });
-                    self.next_tick = Instant::now() + TICK;
+                if self.pace.paced {
+                    let tick = self.pace.tick();
+                    self.send(event_loop, tick);
+                    self.pace.next_tick = Instant::now() + TICK;
                 }
                 self.draw();
             }
@@ -744,7 +477,7 @@ impl ApplicationHandler for Shell {
                 self.scale = scale_factor;
                 // A device's screen stays the same size in this screen's
                 // pixels at any scale.
-                if let (Some(p), Some(w)) = (self.panel, &self.window) {
+                if let (Some(p), Some(w)) = (self.panel, self.window()) {
                     let size = PhysicalSize::new(p.pixels().0, p.pixels().1);
                     w.set_min_inner_size(Some(size));
                     w.set_max_inner_size(Some(size));
@@ -759,248 +492,51 @@ impl ApplicationHandler for Shell {
                     let display = self.display();
                     self.send(event_loop, display);
                 }
-                if let Some(w) = &self.window {
+                if let Some(w) = self.window() {
                     w.request_redraw();
                 }
             }
-            WindowEvent::CursorMoved { position, .. } => {
-                let p = (
-                    position.x.clamp(0.0, 65535.0) as u16,
-                    position.y.clamp(0.0, 65535.0) as u16,
-                );
-                let moved = p != self.cursor;
-                self.cursor = p;
-                if self.pressed && moved {
-                    self.touch(event_loop, TouchPhase::Move);
-                } else if moved {
-                    self.send(event_loop, Event::Hover { x: p.0, y: p.1 });
-                }
-            }
-            WindowEvent::CursorLeft { .. } => {
-                if !self.pressed {
-                    self.send(event_loop, Event::HoverEnd);
-                }
-            }
-            WindowEvent::MouseInput {
-                state,
-                button: MouseButton::Left,
-                ..
-            } => match state {
-                ElementState::Pressed => {
-                    self.pressed = true;
-                    self.touch(event_loop, TouchPhase::Down);
-                }
-                ElementState::Released => {
-                    if self.pressed {
-                        self.pressed = false;
-                        self.touch(event_loop, TouchPhase::Up);
+            // The mouse, a finger, the wheel and the keyboard, as the
+            // shell API's events (`faraday-window`).
+            other => {
+                for input in self.pointer.translate(&other) {
+                    match input {
+                        Input::Event(e) => self.send(event_loop, e),
+                        Input::Function(n) => self.function(event_loop, n),
                     }
                 }
-            },
-            WindowEvent::Focused(false) => {
-                if self.pressed {
-                    self.pressed = false;
-                    self.touch(event_loop, TouchPhase::Up);
-                }
             }
-            // A finger on a touchscreen presses as on the device's panel:
-            // the first finger down is the press, others are ignored.
-            WindowEvent::Touch(t) => {
-                use winit::event::TouchPhase as T;
-                let p = (
-                    t.location.x.clamp(0.0, 65535.0) as u16,
-                    t.location.y.clamp(0.0, 65535.0) as u16,
-                );
-                match t.phase {
-                    T::Started if self.finger.is_none() => {
-                        self.finger = Some(t.id);
-                        self.cursor = p;
-                        self.pressed = true;
-                        self.touch(event_loop, TouchPhase::Down);
-                    }
-                    T::Moved if self.finger == Some(t.id) => {
-                        self.cursor = p;
-                        self.touch(event_loop, TouchPhase::Move);
-                    }
-                    T::Ended | T::Cancelled if self.finger == Some(t.id) => {
-                        self.cursor = p;
-                        self.finger = None;
-                        self.pressed = false;
-                        self.touch(event_loop, TouchPhase::Up);
-                    }
-                    _ => {}
-                }
-            }
-            WindowEvent::MouseWheel { delta, phase, .. } => {
-                // The shell API's scroll is pixels the content moves up;
-                // winit's positive is a wheel turned away or two fingers
-                // moved up, which move the content down. A wheel notch
-                // is 48 pixels, as on the stick, and glides; two fingers
-                // move the content with them and coast when they lift.
-                let (x, y) = self.cursor;
-                let (dy, notched) = match delta {
-                    MouseScrollDelta::LineDelta(_, lines) => (-lines * 48.0, true),
-                    MouseScrollDelta::PixelDelta(p) => (-(p.y as f32), false),
-                };
-                self.wheel += dy;
-                let whole = self.wheel.round();
-                self.wheel -= whole;
-                if whole != 0.0 {
-                    let dy = whole.clamp(-32768.0, 32767.0) as i16;
-                    let event = if notched {
-                        Event::Wheel { x, y, dy }
-                    } else {
-                        Event::Scroll { x, y, dy }
-                    };
-                    self.send(event_loop, event);
-                }
-                if !notched && phase == winit::event::TouchPhase::Ended {
-                    self.wheel = 0.0;
-                    self.send(event_loop, Event::ScrollEnd { x, y });
-                }
-            }
-            WindowEvent::ModifiersChanged(m) => {
-                let shift = m.state().shift_key();
-                if shift != self.shift {
-                    self.shift = shift;
-                    self.send(event_loop, Event::Shift { held: shift });
-                }
-            }
-            // The mouse's back and forward buttons.
-            WindowEvent::MouseInput {
-                state: ElementState::Pressed,
-                button: MouseButton::Back,
-                ..
-            } => self.send(event_loop, Event::Back),
-            WindowEvent::MouseInput {
-                state: ElementState::Pressed,
-                button: MouseButton::Forward,
-                ..
-            } => self.send(event_loop, Event::Forward),
-            WindowEvent::KeyboardInput { event, .. } => {
-                if event.state != ElementState::Pressed {
-                    return;
-                }
-                match &event.logical_key {
-                    WinitKey::Named(NamedKey::F2) => return self.toggle(event_loop, BOOT),
-                    WinitKey::Named(NamedKey::F3) => return self.toggle(event_loop, SECOND),
-                    WinitKey::Named(NamedKey::F4) => {
-                        self.attached.clear();
-                        return self.rescan(event_loop, false);
-                    }
-                    WinitKey::Named(NamedKey::F5) => {
-                        if let Ok(d) = std::fs::read_dir(&self.sticks_dir) {
-                            for e in d.flatten() {
-                                if e.path().is_dir() {
-                                    self.attached
-                                        .insert(e.file_name().to_string_lossy().into_owned());
-                                }
-                            }
-                        }
-                        return self.rescan(event_loop, false);
-                    }
-                    _ => {}
-                }
-                let Some(key) = map_key(&event.logical_key) else {
-                    return;
-                };
-                let key = if key == Key::Tab && self.shift {
-                    Key::BackTab
-                } else {
-                    key
-                };
-                self.send(event_loop, Event::Key(key));
-            }
-            _ => {}
         }
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        if self.window.is_none() {
+        if self.view.is_none() {
             return;
         }
         // The newest camera frame, to the app to draw and to the scanner
         // to read; and whatever the scanner has read since.
-        let mut newest = None;
-        let mut answers = Vec::new();
-        while let Some(event) = self.camera.poll() {
-            match event {
-                Event::CameraFrame { .. } => newest = Some(event),
-                other => answers.push(other),
-            }
-        }
-        for answer in answers {
-            self.scanner = None;
-            self.send(event_loop, answer);
-        }
-        if let Some(Event::CameraFrame {
-            width,
-            height,
-            luma,
-            chroma,
-        }) = newest
-        {
-            if let Some(scanner) = self.scanner.as_ref() {
-                scanner.offer(width, height, luma.clone());
-            }
-            self.send(
-                event_loop,
-                Event::CameraFrame {
-                    width,
-                    height,
-                    luma,
-                    chroma,
-                },
-            );
-        }
-        while let Some(bytes) = self.scanner.as_ref().and_then(Scanner::poll) {
-            self.send(event_loop, Event::Scanned { bytes });
-        }
-        // What the scanner saw of a code, for the outline and for "too
-        // fine for this camera".
-        if let Some(seen) = self.scanner.as_ref().and_then(Scanner::poll_seen)
-            && let Some(app) = self.app.as_mut()
-        {
-            app.storage(faraday_core::StorageEvent::QrSeen {
-                width: seen.width,
-                height: seen.height,
-                corners: seen.corners,
-                module_tenths: (seen.module_px * 10.0).clamp(0.0, 65535.0) as u16,
-                read: seen.read,
-            });
-        }
+        Lens::pump(&mut Pass {
+            shell: self,
+            event_loop,
+        });
         let now = Instant::now();
-        if now >= self.next_tick {
-            let now_ms = self.epoch.elapsed().as_millis() as u64;
-            self.send(event_loop, Event::Tick { now_ms });
-            // Without the compositor's pacing, a motion runs on a grid of
-            // frames from its first tick, not a frame after each pass, so
-            // the steps stay even; a pass that ran past its deadline
-            // starts the grid again from now. With the pacing, the ticks
-            // ride the redraws, and this one is the idle tick, or the
-            // one that keeps time while the window is hidden and the
-            // compositor sends no refreshes.
-            self.next_tick = if self.animating && !self.paced {
-                let step = self.step();
-                let on_grid = self.next_tick + step;
-                if on_grid > now { on_grid } else { now + step }
-            } else {
-                now + TICK
-            };
+        if now >= self.pace.next_tick {
+            let tick = self.pace.tick();
+            self.send(event_loop, tick);
+            let refresh = view::refresh(self.window());
+            self.pace.ticked_at(now, refresh);
         }
         if now >= self.next_scan {
             self.rescan(event_loop, false);
             self.relist();
             self.next_scan = now + RESCAN;
         }
-        event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_tick));
+        event_loop.set_control_flow(ControlFlow::WaitUntil(self.pace.next_tick));
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
-        self.camera.off();
-        self.scanner = None;
-        self.surface = None;
-        self.window = None;
+        self.lens.off();
+        self.view = None;
         self.app = None;
     }
 }
@@ -1210,14 +746,14 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let now = Instant::now();
     let print_dir = std::env::var_os("HOME")
         .map(|h| PathBuf::from(h).join("faraday-print"))
         .unwrap_or_else(|| PathBuf::from("faraday-print"));
     let app = desktop_app();
+    let pace = Pacer::new(timings);
+    let next_scan = pace.epoch;
     let mut shell = Shell {
         panel,
-        finger: None,
         host: Host {
             print: print_dir,
             downloads,
@@ -1235,24 +771,13 @@ fn main() -> ExitCode {
         },
         attached,
         seen: Vec::new(),
-        window: None,
-        surface: None,
+        view: None,
         shown: size,
         scale: 1.0,
-        epoch: now,
-        next_tick: now,
-        next_scan: now,
-        cursor: (0, 0),
-        camera: Camera::new(None, false),
-        scanner: None,
-        pressed: false,
-        shift: false,
-        wheel: 0.0,
-        animating: false,
-        paced: false,
-        timings: timings.then(FrameTimings::new),
-        cost: None,
-        steps: 1,
+        pace,
+        next_scan,
+        pointer: Pointer::new(),
+        lens: Lens::new(Camera::new(None, false)),
     };
     match event_loop.run_app(&mut shell) {
         Ok(()) => ExitCode::SUCCESS,
