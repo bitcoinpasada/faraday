@@ -65,6 +65,11 @@ pub struct Marker {
     pub volumes: Vec<String>,
     /// Whether Secure Boot was on when it suspended.
     pub secure_boot_was_on: bool,
+    /// The marker was written in the Windows session now running: the
+    /// person who suspended is still in it, and Resume would undo the
+    /// step just done (§6.3). A marker with no boot recorded is from an
+    /// earlier boot.
+    pub this_boot: bool,
 }
 
 /// BitLocker on this computer (Windows only, §6).
@@ -481,6 +486,27 @@ pub enum Reason {
     /// for (Windows' elevation prompt, polkit's password on Linux), so
     /// nothing was done.
     Declined,
+    /// The elevation prompt was declined on an account that is not an
+    /// administrator's (§6.4): an administrator has to do the step.
+    NoAdmin,
+    /// BitLocker refused to suspend (`DisableKeyProtectors`' return
+    /// value, or 0 when the volume was still protected after it): the
+    /// computer's BitLocker is managed (§6.4).
+    Managed(u32),
+    /// A BitLocker call failed: the method and its return value or
+    /// HRESULT.
+    BitLocker {
+        /// The method (`GetKeyProtectors`).
+        call: String,
+        /// What it returned.
+        code: u32,
+    },
+    /// The system drive is not encrypted: there is nothing to suspend.
+    NotEncrypted,
+    /// The system drive's protection could not be read: Windows did not
+    /// list it, or answered something else. It is not known, which the
+    /// guard treats as protected (§6.2).
+    NotRead,
     /// Not on this computer.
     Unsupported,
 }
@@ -533,6 +559,46 @@ pub enum HubEvent {
     /// place (Linux, §3.1), with why. Sent before
     /// [`HubEvent::UninstallDone`].
     BootEntryKept(Reason),
+    /// Another encryption product's driver is on this computer (§6.4):
+    /// its name ("VeraCrypt"), or `None`. Sent at start.
+    OtherEncryption(Option<String>),
+    /// [`BitLockerStep::ShowKey`] ended: the key, or why not. The shell
+    /// sends [`HubEvent::BitLocker`] after it, as read then.
+    KeyShown(Result<KeyShown, Reason>),
+    /// [`BitLockerStep::Suspend`] or [`BitLockerStep::Resume`] ended. The
+    /// shell sends [`HubEvent::BitLocker`] after it, as read then.
+    BitLockerDone {
+        /// Which step.
+        step: BitLockerStep,
+        /// Done, or why not.
+        result: Result<(), Reason>,
+    },
+    /// [`HubCommand::SaveKey`] ended: where the file went, or why not.
+    KeySaved(Result<String, Reason>),
+}
+
+/// The recovery key the elevated copy read (§6.2), for the guard's page.
+/// The key is wiped when this is dropped, and `Debug` prints none of it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeyShown {
+    /// The drive, its computer and its key, as the QR code carries them.
+    pub text: faraday_qr::bitlocker::KeyText,
+    /// The key protector's ID (`{6A0E…}`), whose first eight digits
+    /// Windows' recovery screen shows as the key ID.
+    pub id: String,
+}
+
+impl KeyShown {
+    /// The key ID Windows' recovery screen shows: the protector ID's
+    /// first eight hex digits.
+    pub fn key_id(&self) -> String {
+        self.id
+            .trim_start_matches('{')
+            .chars()
+            .take(8)
+            .collect::<String>()
+            .to_uppercase()
+    }
 }
 
 /// How a stick or card is written (§3.2 step 2).
@@ -584,7 +650,7 @@ pub struct WriteOrder {
 }
 
 /// A BitLocker step, done by the elevated copy (`--bitlocker <verb>`,
-/// §2, §6). The screens that send them are batch W's.
+/// §2, §6).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BitLockerStep {
     /// Read the recovery key, adding one when the volume has none.
@@ -622,6 +688,14 @@ pub enum HubCommand {
     },
     /// A BitLocker step through the elevated copy.
     BitLocker(BitLockerStep),
+    /// Save the key shown to a file on `disk` (§6.2): only a removable
+    /// disk that is not a Faraday stick, which the shell checks again.
+    SaveKey {
+        /// The disk's handle, from [`Disk::id`].
+        disk: String,
+        /// The key.
+        key: KeyShown,
+    },
 }
 
 /// What `--remind` does at logon (§6.3), decided by [`remind`].
@@ -652,6 +726,7 @@ pub fn remind(
     match marker {
         None => Remind::RemoveAndExit,
         Some(_) if matches!(protection, Protection::On | Protection::None) => Remind::RemoveAndExit,
+        Some(m) if m.this_boot => Remind::Exit,
         Some(m) if secure_boot == Some(m.secure_boot_was_on) => Remind::Open,
         Some(_) => Remind::Exit,
     }

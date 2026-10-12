@@ -27,10 +27,12 @@ use std::collections::VecDeque;
 use faraday_core::{Action, Faraday, Screen};
 use osk_shell_api::{App, Command, DisplayInfo, Event, Frame, Key, TouchPhase};
 use osk_ui::{Canvas, Rect};
+use zeroize::{Zeroize, Zeroizing};
 
 use api::{
-    Computer, DevImage, Disk, HubCommand, HubEvent, Installed, Mode, Os, Payload, PayloadFile,
-    PayloadKind, Reason, Source, WriteOrder, WriteStage,
+    BitLocker, BitLockerStep, Bus, Computer, DevImage, Disk, HubCommand, HubEvent, Installed,
+    KeyShown, Mode, Os, Payload, PayloadFile, PayloadKind, Protection, Reason, Source, WriteOrder,
+    WriteStage,
 };
 use decide::{Facts, Item, Target};
 
@@ -63,7 +65,8 @@ pub enum Page {
     Installed,
     /// About (§3.7).
     About,
-    /// BitLocker's state. The guard's own page (§6.5) is batch W's.
+    /// The BitLocker guard (§6.5): the state, the key, the groups typed
+    /// back, Suspend; and Resume later (§6.3).
     BitLocker,
 }
 
@@ -226,6 +229,23 @@ pub enum HubAction {
     About,
     /// BitLocker's page.
     BitLocker,
+    /// Show the recovery key: the elevation prompt, then the key (§6.2).
+    ShowKey,
+    /// I have kept it: the key is hidden and two groups are asked for.
+    KeptIt,
+    /// Show the key again, with new groups to ask for after.
+    ShowAgain,
+    /// Suspend BitLocker, once the two groups typed match the key.
+    Suspend,
+    /// Resume BitLocker (§6.3).
+    Resume,
+    /// Save the key to a file on a disk, by its number.
+    SaveKey(u16),
+    /// A group's field, to type into (0 or 1).
+    Group(u8),
+    /// I have its rescue disk or password: another encryption product
+    /// (§6.4).
+    Rescue,
 }
 
 /// A maker page's number in an action's code: this plus its place in
@@ -281,6 +301,14 @@ impl HubAction {
             ),
             HubAction::About => (24, 0),
             HubAction::BitLocker => (25, 0),
+            HubAction::ShowKey => (26, 0),
+            HubAction::KeptIt => (27, 0),
+            HubAction::ShowAgain => (28, 0),
+            HubAction::Suspend => (29, 0),
+            HubAction::Resume => (30, 0),
+            HubAction::SaveKey(n) => (31, u32::from(n)),
+            HubAction::Group(i) => (32, u32::from(i.min(1))),
+            HubAction::Rescue => (33, 0),
         };
         (kind << 16) | arg
     }
@@ -324,6 +352,14 @@ impl HubAction {
             23 => HubAction::LearnPage(*LearnId::ALL.get(arg as usize)?),
             24 => HubAction::About,
             25 => HubAction::BitLocker,
+            26 => HubAction::ShowKey,
+            27 => HubAction::KeptIt,
+            28 => HubAction::ShowAgain,
+            29 => HubAction::Suspend,
+            30 => HubAction::Resume,
+            31 => HubAction::SaveKey(arg as u16),
+            32 => HubAction::Group(u8::from(arg == 1)),
+            33 => HubAction::Rescue,
             _ => return None,
         })
     }
@@ -369,6 +405,72 @@ pub struct Image {
     pub dev: bool,
     /// A boot partition alone: keep data only.
     pub boot_only: bool,
+}
+
+/// The BitLocker guard's page (§6.2, §6.5): the key the elevated copy
+/// read, the two groups typed back with it hidden, and the step under
+/// way. The key and what is typed are wiped when dropped.
+#[derive(Default)]
+pub struct Guard {
+    /// The key, from Show the recovery key until the suspension, or
+    /// until the page is left.
+    pub key: Option<KeyShown>,
+    /// The key is hidden and two of its groups are asked for.
+    pub hidden: bool,
+    /// The two groups asked for (0 to 7, in order), chosen by the hub.
+    pub asked: Option<[usize; 2]>,
+    /// What was typed for each group asked for.
+    typed: [Zeroizing<String>; 2],
+    /// The field typing goes into.
+    pub focus: usize,
+    /// The group that did not match the key, after Suspend was pressed.
+    pub wrong: Option<usize>,
+    /// The step under way, sent and not yet answered.
+    pub busy: Option<BitLockerStep>,
+    /// Why the last step did not happen.
+    pub failed: Option<Reason>,
+    /// A save under way.
+    pub saving: bool,
+    /// Where Save put the key, or why not.
+    pub saved: Option<Result<String, Reason>>,
+    /// Random bytes for the next choice of groups.
+    pick: Option<[u8; 2]>,
+    /// Entropy was asked for and not yet answered.
+    wants_entropy: bool,
+}
+
+impl Guard {
+    /// What was typed for the `i`th group asked for.
+    pub fn typed(&self, i: usize) -> &str {
+        self.typed.get(i).map_or("", |t| t.as_str())
+    }
+
+    /// Clears what was typed, the groups asked for and the mismatch.
+    fn clear_typing(&mut self) {
+        for t in &mut self.typed {
+            t.zeroize();
+            // Room for six digits, so typing never moves the buffer.
+            *t = Zeroizing::new(String::with_capacity(8));
+        }
+        self.asked = None;
+        self.focus = 0;
+        self.wrong = None;
+    }
+
+    /// Forgets the key and everything typed.
+    fn forget(&mut self) {
+        self.key = None;
+        self.hidden = false;
+        self.clear_typing();
+        self.saved = None;
+    }
+}
+
+/// The two groups to ask for, from two random bytes: distinct, in order.
+fn groups_from(p: [u8; 2]) -> [usize; 2] {
+    let a = usize::from(p[0]) % 8;
+    let b = (a + 1 + usize::from(p[1]) % 7) % 8;
+    [a.min(b), a.max(b)]
 }
 
 /// The hub app.
@@ -426,6 +528,20 @@ pub struct Hub {
     pub entry_kept: Option<Reason>,
     /// Protection was resumed through the hub app this session.
     pub resumed: bool,
+    /// The hub app suspended BitLocker in this session.
+    pub suspended_here: bool,
+    /// The guard's elevated step read the system drive as not encrypted:
+    /// taken so for the rest of the session (§6.2).
+    not_encrypted_here: bool,
+    /// The BitLocker guard's page.
+    pub guard: Guard,
+    /// Another encryption product found here (§6.4), by name.
+    pub other: Option<String>,
+    /// The person said they have its rescue disk or password.
+    pub other_confirmed: bool,
+    /// The time the last tick carried, ms: a fallback for choosing the
+    /// groups when no entropy came.
+    clock: u64,
 
     /// How far the page is scrolled, units.
     offset: f32,
@@ -484,6 +600,12 @@ impl Hub {
             stick_restart_failed: None,
             entry_kept: None,
             resumed: false,
+            suspended_here: false,
+            not_encrypted_here: false,
+            guard: Guard::default(),
+            other: None,
+            other_confirmed: false,
+            clock: 0,
             offset: 0.0,
             max: 0.0,
             seen: Vec::new(),
@@ -499,7 +621,86 @@ impl Hub {
             bitlocker: self.bitlocker.as_ref(),
             disks: &self.disks,
             resumed: self.resumed,
+            suspended_here: self.suspended_here,
+            other_open: self.computer.os == Os::Windows
+                && self.other.is_some()
+                && !self.other_confirmed,
         }
+    }
+
+    /// The disks Save may write the key to (§6.2): a USB disk or a card
+    /// in a reader, not a Faraday stick, not one the computer uses, with
+    /// a file system on it. A disk inside the computer is never offered:
+    /// a key on it cannot be read from the recovery screen.
+    pub fn save_targets(&self) -> Vec<&Disk> {
+        self.disks
+            .iter()
+            .filter(|d| {
+                matches!(d.bus, Bus::Usb | Bus::SdReader)
+                    && d.faraday.is_none()
+                    && d.in_use.is_none()
+                    && d.volumes.iter().any(|v| v.files)
+            })
+            .collect()
+    }
+
+    /// Whether the two groups typed are the key's groups asked for.
+    fn groups_match(&self) -> Result<(), usize> {
+        let g = &self.guard;
+        let (Some(key), Some(asked)) = (g.key.as_ref(), g.asked) else {
+            return Err(0);
+        };
+        for (i, &n) in asked.iter().enumerate() {
+            if g.typed(i) != key.text.key.group(n) {
+                return Err(n);
+            }
+        }
+        Ok(())
+    }
+
+    /// Typing goes into the groups' fields.
+    fn typing(&self) -> bool {
+        self.page == Page::BitLocker
+            && self.sheet.is_none()
+            && self.guard.hidden
+            && self.guard.asked.is_some()
+            && self.guard.busy.is_none()
+    }
+
+    /// A key typed into the groups' fields: digits, up to six each.
+    fn type_key(&mut self, key: Key) {
+        let g = &mut self.guard;
+        let i = g.focus.min(1);
+        match key {
+            Key::Char(c) if c.is_ascii_digit() => {
+                if g.typed[i].len() < faraday_qr::bitlocker::DIGITS {
+                    g.typed[i].push(c);
+                    g.wrong = None;
+                }
+                if i == 0 && g.typed[0].len() == faraday_qr::bitlocker::DIGITS {
+                    g.focus = 1;
+                }
+            }
+            Key::Backspace | Key::Delete => {
+                if g.typed[i].is_empty() && i == 1 {
+                    g.focus = 0;
+                    g.typed[0].pop();
+                } else {
+                    g.typed[i].pop();
+                }
+                g.wrong = None;
+            }
+            Key::Tab | Key::BackTab | Key::Up | Key::Down => g.focus = 1 - i,
+            Key::Enter => self.act(HubAction::Suspend),
+            _ => {}
+        }
+    }
+
+    /// Asks the shell for random bytes to choose the groups from.
+    fn want_entropy(&mut self) {
+        self.guard.pick = None;
+        self.guard.wants_entropy = true;
+        self.commands.push_back(Command::RequestEntropy);
     }
 
     /// The This computer card's button (§3.1), the first that applies:
@@ -512,7 +713,7 @@ impl Hub {
     /// the stick did not happen.
     pub fn card(&self) -> Card {
         let f = self.facts();
-        if f.suspension_stands() {
+        if f.suspension_stands() && !self.suspended_here {
             match f.next_step() {
                 Some(Item::SecureBootOn) => return Card::Firmware,
                 Some(Item::Resume) => {
@@ -712,7 +913,12 @@ impl Hub {
     pub fn hub_event(&mut self, event: HubEvent) {
         match event {
             HubEvent::Computer(c) => self.computer = c,
-            HubEvent::BitLocker(b) => self.bitlocker = b,
+            HubEvent::BitLocker(b) => {
+                self.bitlocker = b;
+                if self.not_encrypted_here {
+                    self.take_as_not_encrypted();
+                }
+            }
             HubEvent::Disks(d) => {
                 for disk in &d {
                     if !self.seen.contains(&disk.id) {
@@ -772,12 +978,83 @@ impl Hub {
             HubEvent::RestartFailed(why) => self.restart_failed = Some(why),
             HubEvent::StickRestartFailed(why) => self.stick_restart_failed = Some(why),
             HubEvent::BootEntryKept(why) => self.entry_kept = Some(why),
+            HubEvent::OtherEncryption(o) => self.other = o,
+            HubEvent::KeyShown(r) => {
+                let g = &mut self.guard;
+                g.busy = None;
+                match r {
+                    Ok(key) => {
+                        g.forget();
+                        g.failed = None;
+                        g.key = Some(key);
+                        self.want_entropy();
+                    }
+                    Err(Reason::NotEncrypted) => {
+                        g.failed = None;
+                        self.take_as_not_encrypted();
+                    }
+                    Err(why) => g.failed = Some(why),
+                }
+            }
+            HubEvent::BitLockerDone { step, result } => {
+                let g = &mut self.guard;
+                g.busy = None;
+                match (step, result) {
+                    (BitLockerStep::Suspend, Ok(())) => {
+                        g.failed = None;
+                        g.forget();
+                        self.suspended_here = true;
+                        self.resumed = false;
+                    }
+                    (BitLockerStep::Resume, Ok(())) => {
+                        g.failed = None;
+                        self.resumed = true;
+                        self.suspended_here = false;
+                    }
+                    (_, Ok(())) => {}
+                    (BitLockerStep::Suspend, Err(Reason::NotEncrypted)) => {
+                        g.failed = None;
+                        self.take_as_not_encrypted();
+                    }
+                    (_, Err(why)) => g.failed = Some(why),
+                }
+            }
+            HubEvent::KeySaved(r) => {
+                self.guard.saving = false;
+                self.guard.saved = Some(r);
+            }
         }
         self.dirty = true;
         self.commands.push_back(Command::Draw);
     }
 
+    /// The guard's elevated step answered that the system drive is not
+    /// encrypted (`ProtectionStatus` 0 and `ConversionStatus` 0): it is
+    /// taken so for the rest of the session, and the firmware steps open.
+    /// A drive suspended through the hub app (its marker) stays so.
+    fn take_as_not_encrypted(&mut self) {
+        self.not_encrypted_here = true;
+        let drive = self
+            .bitlocker
+            .as_ref()
+            .map_or_else(|| String::from("C:"), |b| b.drive.clone());
+        match &mut self.bitlocker {
+            Some(b) if b.marker.is_some() => {}
+            _ => {
+                self.bitlocker = Some(BitLocker {
+                    drive,
+                    protection: Protection::None,
+                    marker: None,
+                });
+            }
+        }
+    }
+
     fn go(&mut self, page: Page) {
+        // The key stays only while its page is open.
+        if self.page == Page::BitLocker && page != Page::BitLocker {
+            self.guard.forget();
+        }
         self.page = page;
         self.sheet = None;
         self.offset = 0.0;
@@ -823,6 +1100,7 @@ impl Hub {
                 action,
                 HubAction::Cancel | HubAction::RestartNow | HubAction::UninstallNow
             )
+            && !(action == HubAction::Resume && self.sheet == Some(Sheet::Uninstall))
         {
             return;
         }
@@ -984,6 +1262,92 @@ impl Hub {
             }
             HubAction::About => self.go(Page::About),
             HubAction::BitLocker => self.go(Page::BitLocker),
+            HubAction::ShowKey => {
+                let (protected, other) = {
+                    let f = self.facts();
+                    (f.protected(), f.other_open)
+                };
+                if self.page == Page::BitLocker && self.guard.busy.is_none() && protected && !other
+                {
+                    self.guard.forget();
+                    self.guard.failed = None;
+                    self.guard.busy = Some(BitLockerStep::ShowKey);
+                    self.out
+                        .push_back(HubCommand::BitLocker(BitLockerStep::ShowKey));
+                }
+            }
+            HubAction::KeptIt => {
+                if self.page == Page::BitLocker && self.guard.key.is_some() && !self.guard.hidden {
+                    self.guard.clear_typing();
+                    let pick = self.guard.pick.take().unwrap_or_else(|| {
+                        let c = self.clock / 16;
+                        [(c & 0xff) as u8, ((c >> 8) & 0xff) as u8]
+                    });
+                    self.guard.asked = Some(groups_from(pick));
+                    self.guard.hidden = true;
+                    self.guard.saved = None;
+                }
+            }
+            HubAction::ShowAgain => {
+                if self.page == Page::BitLocker && self.guard.hidden && self.guard.busy.is_none() {
+                    self.guard.hidden = false;
+                    self.guard.clear_typing();
+                    self.want_entropy();
+                }
+            }
+            HubAction::Suspend => {
+                // Only with the key hidden and its two groups typed back.
+                if self.page != Page::BitLocker
+                    || !self.guard.hidden
+                    || self.guard.busy.is_some()
+                    || !self.facts().protected()
+                {
+                    return;
+                }
+                match self.groups_match() {
+                    Ok(()) => {
+                        self.guard.failed = None;
+                        self.guard.busy = Some(BitLockerStep::Suspend);
+                        self.out
+                            .push_back(HubCommand::BitLocker(BitLockerStep::Suspend));
+                    }
+                    Err(n) => self.guard.wrong = Some(n),
+                }
+            }
+            HubAction::Resume => {
+                if self.facts().resume_offered() && self.guard.busy.is_none() {
+                    self.sheet = None;
+                    self.go(Page::BitLocker);
+                    self.guard.failed = None;
+                    self.guard.busy = Some(BitLockerStep::Resume);
+                    self.out
+                        .push_back(HubCommand::BitLocker(BitLockerStep::Resume));
+                }
+            }
+            HubAction::SaveKey(n) => {
+                let Some(id) = self.seen.get(usize::from(n)).cloned() else {
+                    return;
+                };
+                let open = self.save_targets().iter().any(|d| d.id == id);
+                if self.page != Page::BitLocker || !open || self.guard.hidden || self.guard.saving {
+                    return;
+                }
+                if let Some(key) = self.guard.key.clone() {
+                    self.guard.saving = true;
+                    self.guard.saved = None;
+                    self.out.push_back(HubCommand::SaveKey { disk: id, key });
+                }
+            }
+            HubAction::Group(i) => {
+                if self.guard.hidden {
+                    self.guard.focus = usize::from(i.min(1));
+                }
+            }
+            HubAction::Rescue => {
+                if self.page == Page::BitLocker {
+                    self.other_confirmed = true;
+                }
+            }
         }
     }
 
@@ -1177,10 +1541,14 @@ pub enum ModeRefusal {
 }
 
 impl Facts<'_> {
-    /// Windows with a protected drive whose BitLocker step is not done:
-    /// the firmware steps' buttons are not offered (§3.4 step 1).
+    /// Windows with a drive the guard has not passed: the firmware
+    /// steps' buttons are not offered (§3.4 step 1, §6.4). Protected
+    /// means protected now: a drive resumed through the hub app is
+    /// protected again, and the firmware steps need the guard again.
+    /// Another encryption product closes them too, until the person says
+    /// they have its rescue disk or password.
     pub fn protected_open(&self) -> bool {
-        self.computer.os == Os::Windows && self.protected() && !self.guard_done()
+        self.computer.os == Os::Windows && (self.protected() || self.other_open)
     }
 }
 
@@ -1191,9 +1559,17 @@ impl App for Hub {
                 self.display(d);
                 self.held.event(Event::Display(d));
             }
-            Event::Tick { .. } => {
+            Event::Tick { now_ms } => {
+                self.clock = now_ms;
                 self.held.event(event);
                 self.held_after();
+                return;
+            }
+            Event::Entropy(bytes) if self.guard.wants_entropy => {
+                self.guard.wants_entropy = false;
+                let mut b = bytes.into_bytes();
+                self.guard.pick = Some([b[0], b[1]]);
+                b.zeroize();
                 return;
             }
             Event::Touch { x, y, phase } if !self.showing => {
@@ -1219,6 +1595,7 @@ impl App for Hub {
             }
             Event::Back if !self.showing => self.act(HubAction::Back),
             Event::Key(Key::Escape) if !self.showing => self.act(HubAction::Back),
+            Event::Key(k) if !self.showing && self.typing() => self.type_key(k),
             Event::Key(_) | Event::KeyUp(_) | Event::Shift { .. } | Event::Forward
                 if !self.showing =>
             {

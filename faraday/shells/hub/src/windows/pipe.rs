@@ -33,14 +33,14 @@ pub enum Message {
     Done(Result<(), Reason>),
 }
 
-fn escape(s: &str) -> String {
+pub(crate) fn escape(s: &str) -> String {
     s.replace('\\', "\\\\")
         .replace('\t', "\\t")
         .replace('\n', "\\n")
         .replace('\r', "\\r")
 }
 
-fn unescape(s: &str) -> Result<String, String> {
+pub(crate) fn unescape(s: &str) -> Result<String, String> {
     let mut out = String::new();
     let mut it = s.chars();
     while let Some(c) = it.next() {
@@ -60,7 +60,7 @@ fn unescape(s: &str) -> Result<String, String> {
 }
 
 /// A reason as a name and its fields.
-fn reason_fields(r: &Reason) -> (&'static str, Vec<String>) {
+pub(crate) fn reason_fields(r: &Reason) -> (&'static str, Vec<String>) {
     let s = |v: &str| v.to_string();
     let n = |v: u64| v.to_string();
     match r {
@@ -118,6 +118,11 @@ fn reason_fields(r: &Reason) -> (&'static str, Vec<String>) {
         Reason::NoStick => ("NoStick", vec![]),
         Reason::Declined => ("Declined", vec![]),
         Reason::Unsupported => ("Unsupported", vec![]),
+        Reason::NoAdmin => ("NoAdmin", vec![]),
+        Reason::Managed(c) => ("Managed", vec![n(u64::from(*c))]),
+        Reason::BitLocker { call, code } => ("BitLocker", vec![s(call), n(u64::from(*code))]),
+        Reason::NotEncrypted => ("NotEncrypted", vec![]),
+        Reason::NotRead => ("NotRead", vec![]),
     }
 }
 
@@ -147,7 +152,7 @@ fn fault_fields(f: &StickFault) -> Vec<String> {
 }
 
 /// Fields read in order.
-struct Fields<'a>(std::slice::Iter<'a, String>);
+pub(crate) struct Fields<'a>(pub(crate) std::slice::Iter<'a, String>);
 
 impl Fields<'_> {
     fn s(&mut self) -> Result<String, String> {
@@ -161,7 +166,7 @@ impl Fields<'_> {
         self.s()?.parse().map_err(|_| String::from("not a number"))
     }
 
-    fn end(&mut self) -> Result<(), String> {
+    pub(crate) fn end(&mut self) -> Result<(), String> {
         match self.0.next() {
             None => Ok(()),
             Some(_) => Err(String::from("a field too many")),
@@ -195,7 +200,11 @@ fn fault(f: &mut Fields<'_>) -> Result<StickFault, String> {
     })
 }
 
-fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
+fn code(n: u64) -> Result<u32, String> {
+    u32::try_from(n).map_err(|_| String::from("not a code"))
+}
+
+pub(crate) fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
     Ok(match name {
         "NoWriter" => Reason::NoWriter,
         "NotCarried" => Reason::NotCarried,
@@ -283,6 +292,14 @@ fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
         "NoStick" => Reason::NoStick,
         "Declined" => Reason::Declined,
         "Unsupported" => Reason::Unsupported,
+        "NoAdmin" => Reason::NoAdmin,
+        "Managed" => Reason::Managed(code(f.n()?)?),
+        "BitLocker" => Reason::BitLocker {
+            call: f.s()?,
+            code: code(f.n()?)?,
+        },
+        "NotEncrypted" => Reason::NotEncrypted,
+        "NotRead" => Reason::NotRead,
         other => return Err(format!("{other}: not a reason")),
     })
 }

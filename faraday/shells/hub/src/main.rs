@@ -6,9 +6,18 @@
 //! faraday-hub [--image FILE] [--downloads DIR] [--size WxH] [--timings]
 //! faraday-hub --version
 //! faraday-hub --uninstall
+//! faraday-hub --remind                        (Windows, at logon)
 //! faraday-hub --record-disks                  (Windows)
+//! faraday-hub --record-bitlocker              (Windows, as administrator)
 //! faraday-hub --write …                       (Windows, elevated)
+//! faraday-hub --bitlocker <verb> …            (Windows, elevated)
 //! ```
+//!
+//! `--remind` is the logon reminder's command while the hub app's
+//! BitLocker suspension stands (`docs/HUB.md` §6.3): it opens the window
+//! on the BitLocker page only when Resume BitLocker can be taken, and
+//! otherwise exits with no window, removing itself once there is nothing
+//! to resume.
 //!
 //! `--image FILE` writes a developer's own image in place of the
 //! payload's stick image (§1.1): an `.img`, an `.img.xz`, or a
@@ -37,7 +46,9 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
 
 use faraday_core::StorageEvent;
-use faraday_hub::api::{HubCommand, HubEvent, Reason, Source, WriteOrder};
+use faraday_hub::api::{
+    BitLockerStep, HubCommand, HubEvent, Reason, Remind, Source, WriteOrder, remind,
+};
 use faraday_hub::{Hub, HubAction};
 use faraday_hub_shell::payload::{Image, Payload};
 use faraday_hub_shell::platform::{self, Platform};
@@ -198,8 +209,44 @@ impl Shell {
                     ));
                 });
             }
-            // The BitLocker steps are Windows' (batch W).
-            HubCommand::BitLocker(_) => {}
+            HubCommand::BitLocker(step) => {
+                let (system, tx, _) = self.threaded();
+                std::thread::spawn(move || {
+                    let (event, read) = match step {
+                        BitLockerStep::ShowKey => {
+                            let (r, p) = system.show_key();
+                            (HubEvent::KeyShown(r), p)
+                        }
+                        BitLockerStep::Suspend => {
+                            let (result, p) = system.suspend();
+                            (HubEvent::BitLockerDone { step, result }, p)
+                        }
+                        BitLockerStep::Resume => {
+                            let (result, p) = system.resume();
+                            (HubEvent::BitLockerDone { step, result }, p)
+                        }
+                    };
+                    // The state first, as the elevated copy read it, so
+                    // the page never shows the step done over the old one.
+                    let state = system.bitlocker().map(|mut b| {
+                        if let Some(p) = read {
+                            b.protection = p;
+                        }
+                        b
+                    });
+                    let _ = tx.send(HubEvent::BitLocker(state));
+                    let _ = tx.send(event);
+                    if step != BitLockerStep::ShowKey {
+                        let _ = tx.send(HubEvent::Installed(system.installed()));
+                    }
+                });
+            }
+            HubCommand::SaveKey { disk, key } => {
+                let (system, tx, _) = self.threaded();
+                std::thread::spawn(move || {
+                    let _ = tx.send(HubEvent::KeySaved(system.save_key(&disk, &key)));
+                });
+            }
         }
     }
 
@@ -411,7 +458,8 @@ const HELP: &str = "faraday-hub [--image FILE] [--downloads DIR] [--size WxH] [-
   --downloads: the folder Transfer sends from and saves into (default ~/Downloads)
   --timings: once a second, what the frames cost on stderr
   --version: print this build's version and exit
-  --uninstall: open on Installed, with Uninstall asked once (Windows' uninstall entry runs this)";
+  --uninstall: open on Installed, with Uninstall asked once (Windows' uninstall entry runs this)
+  --remind: at logon, open on BitLocker when Resume BitLocker can be taken; otherwise exit (Windows' logon reminder runs this)";
 
 fn main() -> ExitCode {
     // The elevated writer on Windows, `--write`, runs before anything
@@ -438,6 +486,7 @@ fn main() -> ExitCode {
     let mut size = (1100, 760);
     let mut timings = false;
     let mut uninstall = false;
+    let mut reminded = false;
     let mut args = given.into_iter();
     while let Some(a) = args.next() {
         match a.as_str() {
@@ -472,6 +521,8 @@ fn main() -> ExitCode {
             // The Windows uninstall entry's command (§5.2): the window
             // opens on Installed with Uninstall asked once.
             "--uninstall" => uninstall = true,
+            // The logon reminder's command (§6.3).
+            "--remind" => reminded = true,
             "--help" | "-h" => {
                 println!("{HELP}");
                 return ExitCode::SUCCESS;
@@ -500,10 +551,27 @@ fn main() -> ExitCode {
             }
         },
     };
+    let computer = system.computer();
+    let bitlocker = system.bitlocker();
+    if reminded {
+        let (marker, protection) = match &bitlocker {
+            Some(b) => (b.marker.as_ref(), b.protection),
+            None => (None, faraday_hub::api::Protection::None),
+        };
+        match remind(marker, protection, computer.secure_boot) {
+            Remind::RemoveAndExit => {
+                system.remove_reminder();
+                return ExitCode::SUCCESS;
+            }
+            Remind::Exit => return ExitCode::SUCCESS,
+            Remind::Open => {}
+        }
+    }
     let payload = Payload::built_in();
     let mut hub = Hub::new();
-    hub.hub_event(HubEvent::Computer(system.computer()));
-    hub.hub_event(HubEvent::BitLocker(system.bitlocker()));
+    hub.hub_event(HubEvent::Computer(computer));
+    hub.hub_event(HubEvent::BitLocker(bitlocker));
+    hub.hub_event(HubEvent::OtherEncryption(system.other_encryption()));
     hub.hub_event(HubEvent::Payload(payload.as_ref().map(Payload::event)));
     if let Some(i) = &image {
         hub.hub_event(HubEvent::DevImage(i.event()));
@@ -513,6 +581,8 @@ fn main() -> ExitCode {
         hub.hub_event(HubEvent::Installed(system.installed()));
         hub.press(HubAction::Installed);
         hub.press(HubAction::Uninstall);
+    } else if reminded {
+        hub.press(HubAction::BitLocker);
     }
     // The installed copy is asked its version, which takes a moment.
     {

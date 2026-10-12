@@ -1,0 +1,10 @@
+# Win32_EncryptableVolume's answers, in the form
+# faraday_hub_shell::windows::bitlocker::Recorded reads, made by hand to
+# the class's documented methods and return values (`faraday-hub
+# --record-bitlocker` on a Windows computer prints the same form, with no
+# recovery password in it). The volumes, IDs and keys are made up.
+#
+# DisableKeyProtectors says yes, and a policy has the volume protected
+# again when it is read back.
+volume \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000c}\ C: type 0 protection 1
+call \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000c}\ DisableKeyProtectors RebootCount=u32:0 -> 0

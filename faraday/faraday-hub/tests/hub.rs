@@ -467,6 +467,7 @@ fn suspended(secure_boot_was_on: bool) -> BitLocker {
         marker: Some(Marker {
             volumes: vec!["C:".into()],
             secure_boot_was_on,
+            this_boot: false,
         }),
     }
 }
@@ -539,9 +540,14 @@ fn remind_shows_a_window_in_one_state_of_three() {
     let on = Marker {
         volumes: vec!["C:".into()],
         secure_boot_was_on: true,
+        this_boot: false,
     };
     let off = Marker {
         secure_boot_was_on: false,
+        ..on.clone()
+    };
+    let now = Marker {
+        this_boot: true,
         ..on.clone()
     };
     assert_eq!(
@@ -567,6 +573,11 @@ fn remind_shows_a_window_in_one_state_of_three() {
     );
     assert_eq!(
         remind(Some(&off), Protection::Suspended, Some(true)),
+        Remind::Exit
+    );
+    // In the boot that suspended, no window.
+    assert_eq!(
+        remind(Some(&now), Protection::Suspended, Some(true)),
         Remind::Exit
     );
 }

@@ -1,0 +1,13 @@
+# Win32_EncryptableVolume's answers, in the form
+# faraday_hub_shell::windows::bitlocker::Recorded reads, made by hand to
+# the class's documented methods and return values (`faraday-hub
+# --record-bitlocker` on a Windows computer prints the same form, with no
+# recovery password in it). The volumes, IDs and keys are made up.
+#
+# The same computer, resumed: EnableKeyProtectors on the marker's volume.
+volume \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000c}\ C: type 0 protection 0
+volume \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000d}\ D: type 1 protection 1
+then
+volume \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000c}\ C: type 0 protection 1
+volume \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000d}\ D: type 1 protection 1
+call \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000c}\ EnableKeyProtectors -> 0

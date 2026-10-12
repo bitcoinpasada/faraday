@@ -2363,6 +2363,8 @@ pub struct Strings {
     pub hub_resume_needs_secure_boot: &'static str,
     /// Why Resume is not offered, for a computer that had Secure Boot off.
     pub hub_resume_needs_secure_boot_off: &'static str,
+    /// Why Resume is not offered in the Windows session that suspended.
+    pub hub_resume_needs_restart: &'static str,
     /// Home row.
     pub hub_row_pi: &'static str,
     /// Home row.
@@ -2781,6 +2783,68 @@ pub struct Strings {
     pub hub_yes: &'static str,
     /// Value.
     pub hub_no: &'static str,
+    /// Why a BitLocker step did not happen: the account is not an administrator's (HUB §6.4).
+    pub hub_why_no_admin: &'static str,
+    /// Why BitLocker was not suspended: refused, with its code (HUB §6.4).
+    pub hub_why_managed: &'static str,
+    /// A BitLocker call that failed, and its code.
+    pub hub_why_bitlocker: &'static str,
+    /// Why there is nothing to suspend.
+    pub hub_why_not_encrypted: &'static str,
+    /// Why the drive's protection is not known.
+    pub hub_why_not_read: &'static str,
+    /// The guard's state line (HUB §6.5).
+    pub hub_guard_encrypted: &'static str,
+    /// The guard: suspended by Faraday, then protected again by something else (HUB §6.4).
+    pub hub_guard_undone: &'static str,
+    /// The guard's first action.
+    pub hub_show_key: &'static str,
+    /// While the elevation prompt is up.
+    pub hub_waiting_permission: &'static str,
+    /// The key's label.
+    pub hub_recovery_key: &'static str,
+    /// The key protector's ID, as the recovery screen shows it.
+    pub hub_key_id: &'static str,
+    /// Under the key's QR code (HUB §6.2, D18).
+    pub hub_key_photo: &'static str,
+    /// Save the key to a disk, by its name.
+    pub hub_key_save: &'static str,
+    /// While the key is saved.
+    pub hub_key_saving: &'static str,
+    /// Where the key was saved.
+    pub hub_key_saved: &'static str,
+    /// After the key is kept.
+    pub hub_key_kept: &'static str,
+    /// The two groups asked for, by number.
+    pub hub_key_type: &'static str,
+    /// A group's field, by number.
+    pub hub_key_group: &'static str,
+    /// A group typed back that is not the key's.
+    pub hub_key_wrong: &'static str,
+    /// Back to the key.
+    pub hub_key_show_again: &'static str,
+    /// The guard's second action.
+    pub hub_suspend: &'static str,
+    /// While BitLocker is suspended.
+    pub hub_suspending: &'static str,
+    /// While BitLocker is resumed.
+    pub hub_resuming: &'static str,
+    /// The guard's Done (HUB §6.5).
+    pub hub_guard_done: &'static str,
+    /// The guard's Done, for a hub app not installed (HUB §6.5).
+    pub hub_guard_open_again: &'static str,
+    /// After Resume BitLocker.
+    pub hub_guard_resumed: &'static str,
+    /// Another encryption product's driver found, by name (HUB §6.4).
+    pub hub_other_found: &'static str,
+    /// The person has that product's rescue disk or password.
+    pub hub_other_confirm: &'static str,
+    /// The checklist's BitLocker state with another encryption product.
+    pub hub_state_other: &'static str,
+    /// The file Save writes, by the key ID.
+    pub hub_key_file: &'static str,
+    /// Uninstall while suspended and Resume not offered (HUB §5.4).
+    pub hub_uninstall_suspended_where: &'static str,
 }
 
 /// The English wording.
@@ -3920,6 +3984,7 @@ pub static EN: Strings = Strings {
     hub_state_resumed: "Resumed",
     hub_resume_needs_secure_boot: "Needs Secure Boot on",
     hub_resume_needs_secure_boot_off: "Needs Secure Boot off, as it was",
+    hub_resume_needs_restart: "Needs Windows restarted first",
     hub_row_pi: "Make a Pi card",
     hub_row_transfer: "Transfer",
     hub_row_desktop: "Try the desktop app",
@@ -4128,5 +4193,36 @@ pub static EN: Strings = Strings {
     hub_secure_boot_now: "Secure Boot now",
     hub_yes: "Yes",
     hub_no: "No",
+    hub_why_no_admin: "An administrator of this computer has to do this step.",
+    hub_why_managed: "BitLocker was not suspended ({}). This computer's BitLocker is managed: its administrator has to suspend it.",
+    hub_why_bitlocker: "BitLocker refused {}: {}",
+    hub_why_not_encrypted: "The drive is not encrypted. There is nothing to suspend.",
+    hub_why_not_read: "BitLocker on the system drive could not be read. The drive is treated as protected.",
+    hub_guard_encrypted: "Drive {} is encrypted with BitLocker",
+    hub_guard_undone: "Protected again after Faraday suspended it",
+    hub_show_key: "Show the recovery key",
+    hub_waiting_permission: "Waiting for administrator permission",
+    hub_recovery_key: "Recovery key",
+    hub_key_id: "Key ID",
+    hub_key_photo: "Or take a photo of this screen.",
+    hub_key_save: "Save to {}",
+    hub_key_saving: "Saving",
+    hub_key_saved: "Saved to {}",
+    hub_key_kept: "I have kept it",
+    hub_key_type: "Type groups {} and {} of the key",
+    hub_key_group: "Group {}",
+    hub_key_wrong: "Group {} does not match the key.",
+    hub_key_show_again: "Show the key again",
+    hub_suspend: "Suspend BitLocker",
+    hub_suspending: "Suspending",
+    hub_resuming: "Resuming",
+    hub_guard_done: "Windows starts without the key until BitLocker is resumed. Resume it here once Secure Boot is back on.",
+    hub_guard_open_again: "Open Faraday again to do that.",
+    hub_guard_resumed: "BitLocker resumed",
+    hub_other_found: "An encrypted drive Faraday does not manage: {}",
+    hub_other_confirm: "I have its rescue disk or password",
+    hub_state_other: "Not managed by Faraday",
+    hub_key_file: "BitLocker recovery key {}.txt",
+    hub_uninstall_suspended_where: "BitLocker stays suspended until it is resumed: Control Panel, BitLocker Drive Encryption, Resume protection.",
     learn: &osk_learn::EN,
 };

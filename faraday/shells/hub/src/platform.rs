@@ -9,7 +9,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
 
-use faraday_hub::api::{BitLocker, Computer, HubEvent, Installed, Reason, WriteOrder};
+use faraday_hub::api::{
+    BitLocker, Computer, HubEvent, Installed, KeyShown, Protection, Reason, WriteOrder,
+};
 
 use crate::payload::Payload;
 use crate::writer::Job;
@@ -23,6 +25,43 @@ pub trait Platform: Send + Sync {
     fn bitlocker(&self) -> Option<BitLocker> {
         None
     }
+
+    /// Another encryption product's driver on this computer (§6.4), by
+    /// name; `None` where there is none.
+    fn other_encryption(&self) -> Option<String> {
+        None
+    }
+
+    /// Show the recovery key (§6.2), through the elevated copy: the key,
+    /// or why not; and the system drive's protection as the elevated copy
+    /// read it then, when it did.
+    fn show_key(&self) -> (Result<KeyShown, Reason>, Option<Protection>) {
+        (Err(Reason::Unsupported), None)
+    }
+
+    /// Suspend BitLocker (§6.2), through the elevated copy, then the
+    /// marker and, for an installed copy, the logon reminder (§6.3); and
+    /// the protection read then.
+    fn suspend(&self) -> (Result<(), Reason>, Option<Protection>) {
+        (Err(Reason::Unsupported), None)
+    }
+
+    /// Resume BitLocker on the marker's volumes (§6.3), through the
+    /// elevated copy, then the marker and the logon reminder go; and the
+    /// protection read then.
+    fn resume(&self) -> (Result<(), Reason>, Option<Protection>) {
+        (Err(Reason::Unsupported), None)
+    }
+
+    /// Saves the key shown to a file on `disk` (§6.2), which must still
+    /// be a removable disk that is not a Faraday stick. Where it went.
+    fn save_key(&self, disk: &str, key: &KeyShown) -> Result<String, Reason> {
+        let _ = (disk, key);
+        Err(Reason::Unsupported)
+    }
+
+    /// Removes the logon reminder (§6.3), when it is the hub app's.
+    fn remove_reminder(&self) {}
 
     /// Starts following the disks on a thread of its own: sends
     /// [`HubEvent::Disks`] now and whenever they change, or

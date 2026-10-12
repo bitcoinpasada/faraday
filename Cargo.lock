@@ -782,12 +782,14 @@ name = "faraday-hub"
 version = "0.1.1"
 dependencies = [
  "faraday-core",
+ "faraday-qr",
  "opensigner-core",
  "osk-codec",
  "osk-learn",
  "osk-shell-api",
  "osk-ui",
  "png",
+ "zeroize",
 ]
 
 [[package]]
@@ -799,6 +801,7 @@ dependencies = [
  "faraday-fat",
  "faraday-hub",
  "faraday-payload",
+ "faraday-qr",
  "faraday-storage",
  "faraday-window",
  "opensigner-core",
@@ -806,6 +809,7 @@ dependencies = [
  "rustbus",
  "windows-sys 0.52.0",
  "winit",
+ "zeroize",
 ]
 
 [[package]]
@@ -834,6 +838,7 @@ dependencies = [
  "miniz_oxide 0.8.9",
  "osk-bip",
  "osk-codec",
+ "zeroize",
 ]
 
 [[package]]

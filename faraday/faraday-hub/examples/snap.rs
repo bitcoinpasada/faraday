@@ -13,12 +13,14 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use faraday_hub::api::{
-    BitLocker, Bus, Computer, DevImage, Disk, FaradayStick, HubEvent, InUse, InstallItem,
-    Installed, Marker, Mode, Os, Payload, PayloadFile, Protection, Reason, Volume, WriteStage,
+    BitLocker, BitLockerStep, Bus, Computer, DevImage, Disk, FaradayStick, HubEvent, InUse,
+    InstallItem, Installed, KeyShown, Marker, Mode, Os, Payload, PayloadFile, Protection, Reason,
+    Volume, WriteStage,
 };
 use faraday_hub::decide::Target;
 use faraday_hub::{Hub, HubAction};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_qr::bitlocker::{KeyText, RecoveryKey};
+use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 const GB: u64 = 1_000_000_000;
 
@@ -202,8 +204,156 @@ fn suspended(was_on: bool) -> BitLocker {
         marker: Some(Marker {
             volumes: vec!["C:".into()],
             secure_boot_was_on: was_on,
+            this_boot: false,
         }),
     }
+}
+
+fn protected() -> BitLocker {
+    BitLocker {
+        drive: "C:".into(),
+        protection: Protection::On,
+        marker: None,
+    }
+}
+
+/// A made-up recovery key.
+fn recovery_key() -> KeyShown {
+    KeyShown {
+        text: KeyText {
+            computer: "DESKTOP-4K2Q".into(),
+            drive: "C:".into(),
+            key: RecoveryKey::parse("205568-492019-108251-336446-650375-210331-584155-047520")
+                .expect("a key"),
+        },
+        id: "{6A0E1F2C-3B4D-4E5F-8A9B-0C1D2E3F4A5B}".into(),
+    }
+}
+
+/// A Windows laptop with BitLocker on, on the guard's page.
+fn guard(s: &Snap, b: BitLocker) -> Hub {
+    let mut h = s.hub();
+    h.hub_event(HubEvent::Computer(laptop(Os::Windows, true)));
+    h.hub_event(HubEvent::BitLocker(Some(b)));
+    h.press(HubAction::BitLocker);
+    h
+}
+
+/// The guard's page in each of its states (docs/HUB.md §6.5).
+fn guard_shots(s: &Snap) -> Result<(), String> {
+    let mut h = guard(s, protected());
+    s.shot(&mut h, "bitlocker-1-protected")?;
+    h.press(HubAction::ShowKey);
+    s.shot(&mut h, "bitlocker-1-waiting")?;
+    h.hub_event(HubEvent::KeyShown(Err(Reason::Declined)));
+    s.shot(&mut h, "bitlocker-1-declined")?;
+    h.hub_event(HubEvent::KeyShown(Err(Reason::NoAdmin)));
+    s.shot(&mut h, "bitlocker-1-no-admin")?;
+    h.hub_event(HubEvent::Disks(vec![disk(
+        "sdb",
+        "Kingston",
+        "DataTraveler",
+        64 * GB,
+        &[("PHOTOS", true)],
+    )]));
+    h.press(HubAction::ShowKey);
+    h.hub_event(HubEvent::KeyShown(Ok(recovery_key())));
+    while h.poll_command().is_some() {}
+    let mut bytes = [0u8; 32];
+    bytes[..2].copy_from_slice(&[3, 2]);
+    h.event(Event::Entropy(EntropyBytes::new(bytes)));
+    s.shot(&mut h, "bitlocker-2-key")?;
+    s.shot_end(&mut h, "bitlocker-2-key-end")?;
+    h.press(HubAction::KeptIt);
+    s.shot(&mut h, "bitlocker-3-groups")?;
+    for c in "336446".chars() {
+        h.event(Event::Key(Key::Char(c)));
+    }
+    for c in "58415".chars() {
+        h.event(Event::Key(Key::Char(c)));
+    }
+    s.shot_end(&mut h, "bitlocker-3-groups-typing")?;
+    h.event(Event::Key(Key::Char('6')));
+    h.press(HubAction::Suspend);
+    s.shot_end(&mut h, "bitlocker-3-groups-wrong")?;
+    h.event(Event::Key(Key::Backspace));
+    h.event(Event::Key(Key::Char('5')));
+    h.press(HubAction::Suspend);
+    s.shot_end(&mut h, "bitlocker-4-suspending")?;
+    h.hub_event(HubEvent::BitLocker(Some(protected())));
+    h.hub_event(HubEvent::BitLockerDone {
+        step: BitLockerStep::Suspend,
+        result: Err(Reason::Managed(0x8031_003A)),
+    });
+    s.shot_end(&mut h, "bitlocker-4-managed")?;
+    let mut now = suspended(true);
+    if let Some(m) = &mut now.marker {
+        m.this_boot = true;
+    }
+    h.hub_event(HubEvent::BitLocker(Some(now)));
+    h.hub_event(HubEvent::BitLockerDone {
+        step: BitLockerStep::Suspend,
+        result: Ok(()),
+    });
+    s.shot(&mut h, "bitlocker-5-done")?;
+    h.press(HubAction::Home);
+    s.shot(&mut h, "bitlocker-5-done-home")?;
+
+    // Later: Resume, with Secure Boot as recorded and not.
+    let mut h = guard(s, suspended(true));
+    s.shot(&mut h, "bitlocker-6-resume")?;
+    h.hub_event(HubEvent::Computer(laptop(Os::Windows, false)));
+    s.shot(&mut h, "bitlocker-6-resume-needs-secure-boot")?;
+    let mut h = guard(s, suspended(true));
+    h.press(HubAction::Resume);
+    h.hub_event(HubEvent::BitLocker(Some(protected())));
+    h.hub_event(HubEvent::BitLockerDone {
+        step: BitLockerStep::Resume,
+        result: Ok(()),
+    });
+    s.shot(&mut h, "bitlocker-6-resumed")?;
+
+    // Undone by a policy, another product, nothing read.
+    let mut undone = suspended(true);
+    undone.protection = Protection::On;
+    let mut h = guard(s, undone);
+    s.shot(&mut h, "bitlocker-7-undone")?;
+    let mut h = guard(
+        s,
+        BitLocker {
+            drive: "C:".into(),
+            protection: Protection::None,
+            marker: None,
+        },
+    );
+    h.hub_event(HubEvent::OtherEncryption(Some("VeraCrypt".into())));
+    s.shot(&mut h, "bitlocker-7-veracrypt")?;
+    let mut h = s.hub();
+    h.hub_event(HubEvent::Computer(laptop(Os::Windows, true)));
+    h.hub_event(HubEvent::BitLocker(None));
+    h.press(HubAction::BitLocker);
+    s.shot(&mut h, "bitlocker-7-not-read")?;
+
+    // Uninstall while suspended (§5.4).
+    for (on, name) in [
+        (true, "uninstall-suspended-resume"),
+        (false, "uninstall-suspended-stays"),
+    ] {
+        let mut h = s.hub();
+        h.hub_event(HubEvent::Computer(laptop(Os::Windows, on)));
+        h.hub_event(HubEvent::BitLocker(Some(suspended(true))));
+        h.hub_event(HubEvent::Installed(Some(Installed {
+            version: "0.2.0".into(),
+            items: vec![(
+                InstallItem::App,
+                r"%LOCALAPPDATA%\Programs\Faraday\Faraday.exe".into(),
+            )],
+        })));
+        h.press(HubAction::Installed);
+        h.press(HubAction::Uninstall);
+        s.shot(&mut h, name)?;
+    }
+    Ok(())
 }
 
 fn run(s: &Snap) -> Result<(), String> {
@@ -430,11 +580,7 @@ fn run(s: &Snap) -> Result<(), String> {
     h.press(HubAction::About);
     s.shot(&mut h, "about")?;
     s.shot_end(&mut h, "about-end")?;
-    let mut h = s.hub();
-    h.hub_event(HubEvent::Computer(laptop(Os::Windows, false)));
-    h.hub_event(HubEvent::BitLocker(Some(suspended(true))));
-    h.press(HubAction::BitLocker);
-    s.shot(&mut h, "bitlocker")?;
+    guard_shots(s)?;
 
     // The desktop app's own Transfer and Learn.
     let mut h = s.hub();

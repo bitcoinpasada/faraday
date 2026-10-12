@@ -13,6 +13,8 @@ osk-bip = { path = "../../core/osk-bip" }
 # BBQr's `Z` encoding is raw DEFLATE; decompressed here with the size bounded
 # (docs/QR.md §4). Already in the build through `png` (docs/deps/miniz_oxide.md).
 miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
+# A BitLocker recovery key's text is wiped when dropped (bitlocker.rs).
+zeroize = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
 faraday-files = { path = "../faraday-files" }

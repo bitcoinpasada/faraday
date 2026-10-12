@@ -1,0 +1,12 @@
+# Win32_EncryptableVolume's answers, in the form
+# faraday_hub_shell::windows::bitlocker::Recorded reads, made by hand to
+# the class's documented methods and return values (`faraday-hub
+# --record-bitlocker` on a Windows computer prints the same form, with no
+# recovery password in it). The volumes, IDs and keys are made up.
+#
+# Windows 11 Pro with BitLocker on: the system drive C: and a fixed data
+# drive D:, both protected. C: has a recovery password.
+volume \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000c}\ C: type 0 protection 1
+volume \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000d}\ D: type 1 protection 1
+call \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000c}\ GetKeyProtectors KeyProtectorType=u32:3 -> 0 VolumeKeyProtectorID=strs:{6A0E1F2C-3B4D-4E5F-8A9B-0C1D2E3F4A5B}
+call \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000c}\ GetKeyProtectorNumericalPassword VolumeKeyProtectorID=str:{6A0E1F2C-3B4D-4E5F-8A9B-0C1D2E3F4A5B} -> 0 NumericalPassword=str:205568-492019-108251-336446-650375-210331-584155-047520

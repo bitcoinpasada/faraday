@@ -517,6 +517,17 @@ impl Registry for Map {
     fn exists(&mut self, key: &str) -> bool {
         self.0.contains_key(key)
     }
+
+    fn get(&mut self, key: &str, name: &str) -> Option<Data> {
+        self.0.get(key)?.get(name).cloned()
+    }
+
+    fn delete_value(&mut self, key: &str, name: &str) -> Result<(), String> {
+        if let Some(k) = self.0.get_mut(key) {
+            k.remove(name);
+        }
+        Ok(())
+    }
 }
 
 /// A file that answers `--version` as the hub app when it starts so.
@@ -537,7 +548,10 @@ fn computer(name: &str) -> (PathBuf, Dirs, PathBuf) {
     };
     for (file, text) in [
         ("Downloads/received.txt", "a received file"),
-        ("AppData/Local/faraday/bitlocker-suspended", "C:\non"),
+        (
+            "AppData/Local/faraday/bitlocker-suspended",
+            "faraday bitlocker-suspended 1\nvolume \\\\?\\Volume{1b2c3d4e-0000-4000-8000-00000000000c}\\ C:\nsecure-boot on\n",
+        ),
         ("AppData/Local/Programs/Other/other.exe", "another program"),
         (
             "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Other.lnk",
@@ -618,12 +632,15 @@ fn install_puts_the_app_the_shortcut_and_the_uninstall_entry_and_uninstall_takes
             InstallItem::UninstallEntry
         ]
     );
-    // Run from Downloads: everything goes at once.
+    // Run from Downloads: everything goes at once, with the BitLocker
+    // marker (§5.4; the window has said first that the suspension stays).
     assert_eq!(
         install::uninstall(&dirs, &running, &ask, &mut reg),
         Ok(Left::Nothing)
     );
-    assert_eq!(tree(&root), before);
+    let mut left = before.clone();
+    left.retain(|f| f != "AppData/Local/faraday/bitlocker-suspended");
+    assert_eq!(tree(&root), left);
     assert!(reg.0.is_empty());
     assert!(install::installed(&dirs, &ask, &mut reg).is_none());
 }

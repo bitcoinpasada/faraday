@@ -11,8 +11,10 @@ use opensigner_core::strings::{EN, Strings, fill};
 use osk_ui::Color;
 use osk_ui::widgets::Icon;
 
+use faraday_qr::bitlocker::RecoveryKey;
+
 use crate::api::{
-    InUse, InstallItem, Mode, Os, PayloadKind, Protection, Reason, StickFault, WriteStage,
+    InUse, InstallItem, KeyShown, Mode, Os, PayloadKind, Protection, Reason, StickFault, WriteStage,
 };
 use crate::decide::{Item, Refusal, State, Target};
 use crate::{Card, Hub, HubAction, LearnId, ModeRefusal, Page, RestartTo, Sheet};
@@ -423,6 +425,13 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         Reason::NoStick => S.hub_why_no_stick.to_string(),
         Reason::Declined => S.hub_why_declined.to_string(),
         Reason::Unsupported => S.hub_why_unsupported.to_string(),
+        Reason::NoAdmin => S.hub_why_no_admin.to_string(),
+        Reason::Managed(code) => fill(S.hub_why_managed, &[&format!("0x{code:08X}")]),
+        Reason::BitLocker { call, code } => {
+            fill(S.hub_why_bitlocker, &[call, &format!("0x{code:08X}")])
+        }
+        Reason::NotEncrypted => S.hub_why_not_encrypted.to_string(),
+        Reason::NotRead => S.hub_why_not_read.to_string(),
     }
 }
 
@@ -553,6 +562,7 @@ fn state_text(state: &State) -> String {
         State::Protected => S.hub_state_protected.to_string(),
         State::Suspended => S.hub_state_suspended.to_string(),
         State::Resumed => S.hub_state_resumed.to_string(),
+        State::Other => S.hub_state_other.to_string(),
         State::SecureBoot(on) => secure_boot_text(*on),
     }
 }
@@ -746,7 +756,7 @@ fn computer_card(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let button = Some(match card {
         Card::Make => (S.hub_item_make, true),
         Card::BitLocker => (S.hub_bitlocker_step, true),
-        Card::Resume { offered } => (S.hub_item_resume, offered),
+        Card::Resume { offered } => (S.hub_item_resume, offered && hub.guard.busy.is_none()),
         Card::Firmware => (S.hub_restart, true),
         Card::Stick => (S.hub_restart_stick, true),
     });
@@ -1262,11 +1272,11 @@ fn start(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 /// Why Resume BitLocker is not offered: Secure Boot is not as the
 /// marker recorded it.
 fn resume_needs(hub: &Hub) -> &'static str {
-    let was_on = hub
-        .bitlocker
-        .as_ref()
-        .and_then(|b| b.marker.as_ref())
-        .is_none_or(|m| m.secure_boot_was_on);
+    let marker = hub.bitlocker.as_ref().and_then(|b| b.marker.as_ref());
+    if marker.is_some_and(|m| m.this_boot) {
+        return S.hub_resume_needs_restart;
+    }
+    let was_on = marker.is_none_or(|m| m.secure_boot_was_on);
     if was_on {
         S.hub_resume_needs_secure_boot
     } else {
@@ -1435,26 +1445,38 @@ fn installed(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     )
 }
 
+/// Uninstall, asked once. While the hub app's BitLocker suspension
+/// stands (§5.4) it first offers Resume BitLocker where Resume can be
+/// taken now, and otherwise says that protection stays suspended and
+/// where Windows resumes it; uninstalling removes the marker and the
+/// logon reminder either way.
 fn uninstall_sheet(hub: &Hub, ui: &mut Ui, w: f32, h: f32) {
-    let stands = hub.facts().suspension_stands();
+    let f = hub.facts();
+    let stands = f.suspension_stands();
+    let resume = stands && f.resume_offered();
     sheet(ui, w, h, &mut |ui, x, y0, iw| {
         let mut y = y0;
         y += ui.wrap(x, y, iw, 17.0, W::S, TEXT, S.hub_uninstall_ask) + 10.0;
         y += line(ui, x, y, iw, S.hub_uninstall_keeps, MUTED);
-        if stands {
+        if resume {
             y += line(ui, x, y, iw, S.hub_uninstall_suspended, WARN);
+        } else if stands {
+            y += line(ui, x, y, iw, S.hub_uninstall_suspended_where, WARN);
         }
         y += 6.0;
-        y + buttons(
-            ui,
-            x,
-            y,
-            iw,
+        let items: &[(&str, Style, HubAction)] = if resume {
+            &[
+                (S.hub_cancel, Style::Secondary, HubAction::Cancel),
+                (S.hub_item_resume, Style::Primary, HubAction::Resume),
+                (S.hub_uninstall, Style::Secondary, HubAction::UninstallNow),
+            ]
+        } else {
             &[
                 (S.hub_cancel, Style::Secondary, HubAction::Cancel),
                 (S.hub_uninstall, Style::Primary, HubAction::UninstallNow),
-            ],
-        ) - y0
+            ]
+        };
+        y + buttons(ui, x, y, iw, items) - y0
     });
 }
 
@@ -1509,45 +1531,247 @@ fn about(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y
 }
 
+/// The BitLocker guard (§6.5): the state; Show the recovery key; the
+/// key, its QR code and Save; I have kept it; the key hidden and two
+/// groups typed back; Suspend BitLocker; Done. The same page resumes
+/// later (§6.3). Another encryption product's line comes first (§6.4).
 fn bitlocker(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0 + title(hub, ui, x, y0);
-    let Some(b) = &hub.bitlocker else {
-        return y + line(ui, x, y, w, S.hub_drive_unread, DIM);
-    };
-    let protection = match b.protection {
-        Protection::None => S.hub_protection_none,
-        Protection::On => S.hub_state_protected,
-        Protection::Suspended => S.hub_protection_suspended,
-        Protection::Unknown => S.hub_protection_unknown,
-    };
-    y += value_row(ui, x, y, w, S.hub_drive, &b.drive, TEXT);
-    y += value_row(ui, x, y, w, S.hub_protection, protection, TEXT);
-    let by_us = if b.marker.is_some() {
-        S.hub_yes
-    } else {
-        S.hub_no
-    };
-    y += value_row(ui, x, y, w, S.hub_suspended_by_faraday, by_us, TEXT);
-    if let Some(m) = &b.marker {
-        y += value_row(
-            ui,
-            x,
-            y,
-            w,
-            S.hub_secure_boot_when_suspended,
-            &secure_boot_text(Some(m.secure_boot_was_on)),
-            TEXT,
-        );
+    let f = hub.facts();
+    let g = &hub.guard;
+    if hub.computer.os == Os::Windows
+        && let Some(name) = &hub.other
+    {
+        let found = fill(S.hub_other_found, &[name]);
+        if f.other_open {
+            y += warning(ui, x, y, w, &found, WARN);
+            y += buttons(
+                ui,
+                x,
+                y,
+                w,
+                &[(S.hub_other_confirm, Style::Secondary, HubAction::Rescue)],
+            ) + 20.0;
+        } else {
+            y += line(ui, x, y, w, &found, MUTED) + 6.0;
+        }
     }
-    y += value_row(
+    let stands = f.suspension_stands();
+    let state = match &hub.bitlocker {
+        None => S.hub_drive_unread.to_string(),
+        Some(b) => match b.protection {
+            _ if stands => fill(S.hub_drive_suspended, &[&b.drive]),
+            Protection::On => fill(S.hub_guard_encrypted, &[&b.drive]),
+            Protection::None => fill(S.hub_drive_plain, &[&b.drive]),
+            Protection::Suspended => fill(S.hub_drive_suspended_other, &[&b.drive]),
+            Protection::Unknown => fill(S.hub_drive_unknown, &[&b.drive]),
+        },
+    };
+    y += ui.wrap(x, y, w, 16.0, W::S, TEXT, &state) + 14.0;
+    let undone = hub
+        .bitlocker
+        .as_ref()
+        .is_some_and(|b| b.marker.is_some() && b.protection == Protection::On);
+    if undone {
+        y += warning(ui, x, y, w, S.hub_guard_undone, WARN);
+    } else if hub.resumed && !stands {
+        y += line(ui, x, y, w, S.hub_guard_resumed, OK);
+    }
+    if let Some(why) = &g.failed {
+        y += line(ui, x, y, w, &reason_text(why), ERR);
+    }
+    if stands {
+        y += guard_done(hub, ui, x, y, w);
+    } else if f.protected() && !f.other_open {
+        y += match (&g.key, g.hidden) {
+            (None, _) => {
+                let (label, style) = if g.busy == Some(crate::api::BitLockerStep::ShowKey) {
+                    (S.hub_waiting_permission, Style::Disabled)
+                } else {
+                    (S.hub_show_key, Style::Primary)
+                };
+                buttons(ui, x, y, w, &[(label, style, HubAction::ShowKey)]) + 16.0
+            }
+            (Some(k), false) => key_shown(hub, ui, x, y, w, k),
+            (Some(_), true) => key_asked(hub, ui, x, y, w),
+        };
+    }
+    y += 12.0;
+    y + guide_line(ui, x, y, w, LearnId::BitLocker)
+}
+
+/// The suspension stands: Done's lines, then Start and Resume, whichever
+/// comes next first. Returns its height.
+fn guard_done(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let f = hub.facts();
+    let mut y = y0;
+    y += line(ui, x, y, w, S.hub_guard_done, TEXT);
+    if hub.installed.is_none() {
+        y += line(ui, x, y, w, S.hub_guard_open_again, TEXT);
+    }
+    y += 8.0;
+    let resuming = hub.guard.busy == Some(crate::api::BitLockerStep::Resume);
+    let resume = if resuming {
+        (S.hub_resuming, Style::Disabled, HubAction::Resume)
+    } else {
+        (S.hub_item_resume, Style::Primary, HubAction::Resume)
+    };
+    let start = (S.hub_item_start, Style::Primary, HubAction::Start);
+    if !f.resume_offered() {
+        y += line(ui, x, y, w, resume_needs(hub), MUTED);
+        return y + buttons(ui, x, y, w, &[start]) + 16.0 - y0;
+    }
+    let items = if hub.suspended_here {
+        // Just suspended: the firmware is still ahead.
+        let quiet = if resuming {
+            Style::Disabled
+        } else {
+            Style::Secondary
+        };
+        [start, (resume.0, quiet, resume.2)]
+    } else {
+        [resume, (start.0, Style::Secondary, start.2)]
+    };
+    y + buttons(ui, x, y, w, &items) + 16.0 - y0
+}
+
+/// The key's eight groups in a secret panel, each under its number;
+/// masked, the same panel with dots. Returns its height.
+fn key_panel(ui: &mut Ui, x: f32, y: f32, w: f32, key: Option<&RecoveryKey>) -> f32 {
+    let cols = if w >= 380.0 { 4 } else { 2 };
+    let rows = 8 / cols;
+    let size = if ui.compact { 17.0 } else { 20.0 };
+    let pad = 14.0;
+    let cw = (w - 2.0 * pad) / cols as f32;
+    let rh = 18.0 + ui.line(size, W::M) + 8.0;
+    let h = 2.0 * pad + rows as f32 * rh - 8.0;
+    ui.fill(x, y, w, h, 10.0, BG);
+    let edge = if key.is_some() {
+        WARN
+    } else {
+        WARN.with_alpha(110)
+    };
+    ui.stroke(x, y, w, h, 10.0, edge);
+    for i in 0..8 {
+        let (c, r) = (i % cols, i / cols);
+        let cx = x + pad + c as f32 * cw;
+        let cy = y + pad + r as f32 * rh;
+        ui.text(cx, cy, 11.0, W::R, MUTED, &(i + 1).to_string());
+        match key {
+            Some(k) => ui.text(cx, cy + 16.0, size, W::M, TEXT, k.group(i)),
+            None => ui.text(cx, cy + 16.0, size, W::M, MUTED, "••••••"),
+        };
+    }
+    h + 12.0
+}
+
+/// The key shown: the panel, its ID, its QR code, Save where a disk for
+/// it is attached, and I have kept it. Returns its height.
+fn key_shown(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32, k: &KeyShown) -> f32 {
+    let mut y = y0;
+    y += label(ui, x, y, S.hub_recovery_key);
+    y += key_panel(ui, x, y, w, Some(&k.text.key));
+    y += value_row(ui, x, y, w, S.hub_key_id, &k.key_id(), TEXT) + 16.0;
+    if let Some(text) = k.text.write()
+        && let Ok(m) = osk_codec::qr::encode(
+            osk_codec::qr::Payload::Bytes(text.as_bytes()),
+            osk_codec::qr::Ecc::Medium,
+        )
+    {
+        let side = if ui.compact { 180.0f32 } else { 220.0 }.min(w);
+        faraday_core::qr_code(ui, &m, x, y, side);
+        y += side + 10.0;
+    }
+    y += line(ui, x, y, w, S.hub_key_photo, MUTED) + 6.0;
+    for d in hub.save_targets() {
+        let name = fill(S.hub_key_save, &[&disk_name(d)]);
+        let (label, style) = if hub.guard.saving {
+            (S.hub_key_saving.to_string(), Style::Disabled)
+        } else {
+            (name, Style::Secondary)
+        };
+        let n = HubAction::SaveKey(hub.disk_number(&d.id));
+        y += buttons(ui, x, y, w, &[(&label, style, n)]) + 10.0;
+    }
+    match &hub.guard.saved {
+        Some(Ok(at)) => y += line(ui, x, y, w, &fill(S.hub_key_saved, &[at]), OK),
+        Some(Err(why)) => y += line(ui, x, y, w, &reason_text(why), ERR),
+        None => {}
+    }
+    y += 6.0;
+    y + buttons(
         ui,
         x,
         y,
         w,
-        S.hub_secure_boot_now,
-        &secure_boot_text(hub.computer.secure_boot),
-        TEXT,
+        &[(S.hub_key_kept, Style::Primary, HubAction::KeptIt)],
+    ) + 16.0
+        - y0
+}
+
+/// The key hidden and two groups asked for, then Suspend BitLocker.
+/// Returns its height.
+fn key_asked(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let g = &hub.guard;
+    let mut y = y0;
+    y += label(ui, x, y, S.hub_recovery_key);
+    y += key_panel(ui, x, y, w, None);
+    let Some([a, b]) = g.asked else {
+        return y - y0;
+    };
+    let ask = fill(
+        S.hub_key_type,
+        &[&(a + 1).to_string(), &(b + 1).to_string()],
     );
-    y += 12.0;
-    y + guide_line(ui, x, y, w, LearnId::BitLocker)
+    y += ui.wrap(x, y, w, 15.0, W::S, TEXT, &ask) + 12.0;
+    let fw = ((w - 12.0) / 2.0).min(180.0);
+    for (i, n) in [a, b].into_iter().enumerate() {
+        let fx = x + i as f32 * (fw + 12.0);
+        ui.text(
+            fx,
+            y,
+            12.0,
+            W::R,
+            MUTED,
+            &fill(S.hub_key_group, &[&(n + 1).to_string()]),
+        );
+        let by = y + 18.0;
+        let focused = g.focus == i && g.busy.is_none();
+        ui.fill(fx, by, fw, 44.0, 8.0, BG);
+        ui.stroke(fx, by, fw, 44.0, 8.0, if focused { ACCENT } else { BORDER });
+        let typed = g.typed(i);
+        ui.text_mid(fx + 12.0, by, 44.0, 18.0, W::M, TEXT, typed);
+        if focused {
+            let tw = ui.measure(18.0, W::M, typed);
+            ui.caret(fx + 13.0 + tw, by + 11.0, 22.0);
+        }
+        ui.hit(fx, by, fw, 44.0, HubAction::Group(i as u8).host());
+    }
+    y += 18.0 + 44.0 + 14.0;
+    if let Some(n) = g.wrong {
+        y += line(
+            ui,
+            x,
+            y,
+            w,
+            &fill(S.hub_key_wrong, &[&(n + 1).to_string()]),
+            ERR,
+        );
+    }
+    let suspend = if g.busy == Some(crate::api::BitLockerStep::Suspend) {
+        (S.hub_suspending, Style::Disabled, HubAction::Suspend)
+    } else {
+        (S.hub_suspend, Style::Primary, HubAction::Suspend)
+    };
+    y + buttons(
+        ui,
+        x,
+        y,
+        w,
+        &[
+            (S.hub_key_show_again, Style::Secondary, HubAction::ShowAgain),
+            suspend,
+        ],
+    ) + 16.0
+        - y0
 }

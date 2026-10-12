@@ -643,7 +643,13 @@ Device encryption. Nothing parses `manage-bde`'s localised text.
 Knowing whether the guard is needed does not need elevation: Home
 reads the volume's BitLocker protection state through the shell
 property `System.Volume.BitLockerProtection`. If that cannot be read,
-the hub app treats the drive as protected.
+the hub app treats the drive as protected. Only the elevated WMI
+reading concludes that the drive is not encrypted, and only from
+`ProtectionStatus` 0 with `ConversionStatus` 0 (fully decrypted); a
+drive WMI does not list, and every shell value whose meaning Microsoft
+does not document (2 among them, until batch W's first run on a
+Windows computer records what each state reads), counts as not known
+(orchestrator, 2026-10-12).
 
 If the person declines the elevation prompt, the guard stays open: the
 firmware steps are not shown and the buttons are not offered. The page
@@ -665,7 +671,11 @@ elevation prompt and keeps the hub app out of the boot path).
   Home's Turn Secure Boot back on know Secure Boot was on before. It
   is deleted when protection is resumed through the hub app, and by
   Uninstall.
-- **Resume BitLocker** is offered, on Home's checklist and on the
+- **Resume BitLocker** is never offered in the Windows session that
+  suspended (the marker records that boot; a marker without it counts
+  as from an earlier boot), so nobody undoes the step they have just
+  taken; it shows "Needs Windows restarted first" instead.
+  After that it is offered, on Home's checklist and on the
   guard's page, only while the marker exists and Secure Boot is now as
   the marker recorded it: on, for a computer that had it on when the
   hub app suspended, which is nearly every one; off, for one that

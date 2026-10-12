@@ -15,6 +15,10 @@ pub const SETUP: &str = r"SYSTEM\Setup";
 /// `HKLM\…\Memory Management`: `ExistingPageFiles`.
 pub const MEMORY: &str = r"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management";
 
+/// `HKLM\…\Services\veracrypt`: VeraCrypt's driver is installed
+/// (§6.4). Any value there, `Start` read, counts.
+pub const VERACRYPT: &str = r"SYSTEM\CurrentControlSet\Services\veracrypt";
+
 /// `GetFirmwareType`'s `FirmwareTypeUefi`.
 pub const FIRMWARE_UEFI: u32 = 2;
 /// `IMAGE_FILE_MACHINE_*` values that are ARM.
