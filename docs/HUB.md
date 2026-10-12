@@ -405,9 +405,14 @@ TV**, which asks once. The Learn page "Screens that record" says why.
 
 On the stick, Faraday has no graphics driver (DRM is forbidden; the
 picture is the firmware's framebuffer), so it reads no EDID today. A
-batch looks for a way to read the screen's EDID that the firmware
-already has (UEFI GOP's EDID, passed on by the boot stub) without
-adding a graphics driver; until then the stick's first screen carries
+way to read the screen's EDID without a graphics driver exists from
+Linux 6.19: the EFI stub reads GOP's EDID and puts its base block in
+`boot_params` at 0x140, in `/sys/kernel/boot_params/data`, which the
+stick already reads. The stick's kernel is 6.6, pinned in upstream's
+board file; moving it (6.18 longterm with those few commits) is an open
+issue with upstream (owner, 2026-10-12: nothing added to the kernel
+meanwhile). With the EDID read, the stick names a TV itself and asks
+only when the firmware passes none; until then the stick's first screen carries
 one line: "On a TV? Stop: a smart TV can record its screen." The
 stick's own device check (above) warns at start, before anything is
 unlocked, and the same hold applies to showing a secret.
