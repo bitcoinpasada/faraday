@@ -518,3 +518,41 @@ tell more.
 families at a time, never one alone, each checked against the maker's
 own documentation. No page names a model, and nothing published says
 which families were tried (`docs/HUB.md` §7.2, §7.6, D6).
+
+### F15 Faraday Companion: an Android app with no network access (2026-10-12)
+
+**Why.** The device and the hub app both hand things to a phone, and
+the phone has nothing of Faraday's to take them: the Pi's codes are its
+only way out and a webcam reads its panel badly, the hub app's guides
+are on the website, and the BitLocker recovery key goes into a notes app
+that may sync it. An app that also checked balances or broadcast would
+need the network, and the owner does not want Faraday to become an
+online wallet.
+
+**Decision** (owner, 2026-10-12; the spec is `docs/COMPANION.md`).
+
+- An Android app, **Faraday Companion**, offline only. Its manifest
+  asks for the camera and no network permission, which anyone can
+  check on the APK; the release build is reproducible.
+- It reads the device's codes and shows codes for it, keeps what
+  arrives, keeps wallet descriptions and BitLocker recovery keys, and
+  carries the Learn pages, opening the hub app's guide addresses as
+  its own pages.
+- It never takes a seed, a private key, an encrypted backup, a sealed
+  vault or a TOTP secret, by any way in, and never signs.
+- A kept recovery key is offered for deletion once the person is back
+  in Windows: a key Windows did not ask for is not needed there, and
+  the hub app shows it again the next time Faraday is set up on that
+  computer.
+- Online use, if ever, is a separate app, so this one never gains the
+  network permission.
+- Wallet descriptions and BitLocker recovery keys open only after the phone's
+  own unlock, their file's Keystore key bound to it.
+- Its core is its own, without Faraday's vault, signer or key loaders,
+  checked from its dependency list by a lint.
+- Published on the release page and on F-Droid under the project's
+  name, application ID `app.faradayoffline.companion`, signed with an
+  APK key the owner generates and keeps. Not registered with Google's
+  developer verification, for the pseudonym; the install route on a
+  phone that asks is documented. No iPhone app in phase 1. Every point
+  is `docs/COMPANION.md` §12, D1–D10.

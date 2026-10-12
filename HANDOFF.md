@@ -1986,6 +1986,35 @@ as possible before the next build.
     2026-10-12): no Mac batch starts until the owner says to pick up
     the Mac work**; the hub work comes first.
 
+72. [ ] 2026-10-12, owner: **Faraday Companion**, specified in
+    `docs/COMPANION.md` (DECISIONS F15). An Android app with no network
+    permission (its manifest asks for the camera and the unlock prompt
+    only, checked by a lint and on the reproducible APK): it reads the
+    device's codes and shows codes for it (the Pi's only way out), keeps
+    received files, wallet descriptions and BitLocker recovery keys from
+    the hub app, and carries the Learn pages, opening the hub app's
+    guide addresses as its own pages. It refuses every seed, private
+    key, encrypted backup, sealed vault and TOTP secret on every way in,
+    and never signs. Built on a copy of upstream's
+    `opensigner/shells/android` (Kotlin, no libraries), with a core of
+    its own that leaves out Faraday's vault, signer and key loaders
+    (D1). Wallet descriptions and BitLocker keys open only after the
+    phone's own unlock (D4); a kept BitLocker key is offered for
+    deletion through **Back in Windows** (D5). Application ID
+    `app.faradayoffline.companion`; release page and F-Droid, not
+    registered with Google's developer verification (D8). Every decision
+    taken (COMPANION §12, D1–D10). Wording: the app keeps no keys that
+    spend, and nothing it shows may say it keeps "keys" (owner). Batches
+    A (the core split, the core, FFI and shell, Receive, Send, Received,
+    Learn, About, the routing and refusals, the lint), B (Wallet
+    descriptions, BitLocker keys with the text format shared with the
+    hub app's batch W, the encrypted store and the unlock, share in and
+    out, the guide addresses, the Learn page), C (the pinned
+    reproducible release APK, the staging check, F-Droid's fastlane
+    metadata), then the owner tries it on a phone with a stick and the
+    Pi. The APK signing key and the F-Droid merge request are the
+    owner's. **Queued: after the hub work.**
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:
