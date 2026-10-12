@@ -119,6 +119,7 @@ mod panel;
 mod pointer;
 mod timings;
 mod touch;
+mod usb;
 
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
@@ -285,6 +286,14 @@ fn medium() -> Medium {
 /// The kernel's boot parameters, and the firmware's maker string.
 const BOOT_PARAMS: &str = "/sys/kernel/boot_params/data";
 const SYS_VENDOR: &str = "/sys/class/dmi/id/sys_vendor";
+/// The computer's model, for the device check's virtual machine.
+const PRODUCT_NAME: &str = "/sys/class/dmi/id/product_name";
+/// The computer's enclosure type: whether its screen is a separate one.
+const CHASSIS_TYPE: &str = "/sys/class/dmi/id/chassis_type";
+/// The CPU's flags: `hypervisor` inside a virtual machine.
+const CPUINFO: &str = "/proc/cpuinfo";
+/// Every USB device and interface, as `faraday-grant` reads them.
+const USB_DEVICES: &str = "/sys/bus/usb/devices";
 
 /// How often the mounts are looked at again.
 const STICK_SCAN: Duration = Duration::from_millis(700);
@@ -627,6 +636,9 @@ struct Shell {
     boot: Option<BootProcess>,
     /// What the upgrade marker last said: `None` before it was written.
     upgrading: Option<bool>,
+    /// The USB devices last reported to the app's device check: `None`
+    /// before the first report.
+    usb: Option<Vec<faraday_core::devices::UsbDevice>>,
     /// Devices whose input is held back, and where each stands.
     held: std::collections::BTreeMap<u32, Hold>,
     /// The last frame went to the scanner inverted.
@@ -1265,6 +1277,17 @@ impl Shell {
                 now_ms: self.epoch.elapsed().as_millis() as u64,
             });
         }
+        // The device check: on a computer, what is attached now, told
+        // to the app when it changes (`docs/HUB.md` §3.1a).
+        if let Some(app) = self.app.as_mut()
+            && app.devices.read
+        {
+            let usb = usb::devices(Path::new(USB_DEVICES));
+            if self.usb.as_ref() != Some(&usb) {
+                app.usb_devices(&usb);
+                self.usb = Some(usb);
+            }
+        }
         let now = self.mounted_sticks();
         if !force && now == self.sticks {
             return;
@@ -1398,6 +1421,15 @@ fn run(args: Args) -> Result<bool, String> {
                 app.maker = std::fs::read_to_string(SYS_VENDOR)
                     .map(|m| m.trim().to_string())
                     .unwrap_or_default();
+                // What the machine says of itself, once: a virtual
+                // machine, and whether its screen is a separate one.
+                let text = |p: &str| std::fs::read_to_string(p).unwrap_or_default();
+                app.devices = faraday_core::devices::DeviceCheck::machine(
+                    &text(CPUINFO),
+                    &app.maker,
+                    &text(PRODUCT_NAME),
+                    &text(CHASSIS_TYPE),
+                );
             }
             app
         }),
@@ -1414,6 +1446,7 @@ fn run(args: Args) -> Result<bool, String> {
             .exists()
             .then(|| BootProcess::new(Path::new(BOOT_REQUESTS), Path::new(BOOT_RESPONSES))),
         upgrading: None,
+        usb: None,
         held: initial
             .iter()
             .map(|(id, ..)| (*id, Hold::Pending))

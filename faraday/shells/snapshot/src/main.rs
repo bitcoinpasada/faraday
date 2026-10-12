@@ -235,6 +235,9 @@ impl Tour {
         let medium = self.app.medium;
         self.app = Faraday::new();
         self.app.medium = medium;
+        if medium == Medium::Stick {
+            self.app.devices = laptop();
+        }
         self.app.event(display(size, self.dpi));
     }
 
@@ -375,6 +378,76 @@ impl Tour {
     }
 }
 
+/// The stick on a laptop, as its shell reads the machine at start: no
+/// virtual machine, a panel of its own.
+fn laptop() -> faraday_core::devices::DeviceCheck {
+    faraday_core::devices::DeviceCheck::machine("flags\t: fpu vme", "LENOVO", "20XW", "10")
+}
+
+/// The stick's device check (`docs/HUB.md` §3.1a): Home's TV line; a
+/// wireless receiver at start, named, and Continue anyway asking; a
+/// virtual machine with an IP-KVM, which has no way on; a desktop's
+/// question whether its screen is a TV. Home empty ends it.
+fn devices_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::devices::{DeviceCheck, Interface, UsbDevice};
+    let hid = |protocol| Interface {
+        class: 3,
+        subclass: 1,
+        protocol,
+    };
+    let receiver = UsbDevice {
+        port: "1-2".into(),
+        vendor: 0x046d,
+        product: 0xc52b,
+        manufacturer: "Logitech".into(),
+        name: "USB Receiver".into(),
+        interfaces: vec![hid(1), hid(2)],
+    };
+    let kvm = UsbDevice {
+        port: "1-1".into(),
+        vendor: 0x1d6b,
+        product: 0x0104,
+        manufacturer: "PiKVM".into(),
+        name: "Composite KVM Device".into(),
+        interfaces: vec![
+            hid(1),
+            hid(2),
+            Interface {
+                class: 8,
+                subclass: 6,
+                protocol: 0x50,
+            },
+        ],
+    };
+    t.app.devices = laptop();
+    t.app.usb_devices(&[receiver]);
+    t.pump();
+    t.shot("devices-receiver")?;
+    t.press(Action::DevicesContinue);
+    t.shot("devices-continue-ask")?;
+    t.app.usb_devices(&[]);
+    t.press(Action::DevicesCheck);
+    t.app.devices = DeviceCheck::machine(
+        "flags\t: fpu vme hypervisor",
+        "QEMU",
+        "Standard PC (Q35 + ICH9, 2009)",
+        "1",
+    );
+    t.app.usb_devices(&[kvm]);
+    t.pump();
+    t.shot("devices-virtual-machine")?;
+    t.press(Action::Cancel);
+    t.app.devices = DeviceCheck::machine("flags\t: fpu vme", "Dell Inc.", "OptiPlex 7090", "3");
+    t.app.usb_devices(&[]);
+    t.pump();
+    t.shot("devices-tv-ask")?;
+    t.press(Action::DevicesTv(false));
+    t.app.devices = laptop();
+    t.app.usb_devices(&[]);
+    t.pump();
+    t.shot("home-empty")
+}
+
 fn display((width, height): (u16, u16), dpi: u16) -> Event {
     Event::Display(DisplayInfo {
         width,
@@ -438,7 +511,11 @@ fn run(
         Some("restore") => return restore_tour(&mut t),
         _ => {}
     }
-    t.shot("home-empty")?;
+    if medium == Medium::Stick {
+        devices_tour(&mut t)?;
+    } else {
+        t.shot("home-empty")?;
+    }
     // Settings' Time section, and Set the time with the clock not known
     // yet (`docs/TOTP.md` §9).
     t.press(Action::Nav(Screen::Settings));

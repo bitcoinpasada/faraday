@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
 
 use faraday_hub::api::{
-    BitLocker, Computer, HubEvent, Installed, KeyShown, Protection, Reason, WriteOrder,
+    BitLocker, Computer, Concern, HubEvent, Installed, KeyShown, Protection, Reason, WriteOrder,
 };
 
 use crate::payload::Payload;
@@ -98,6 +98,20 @@ pub trait Platform: Send + Sync {
     /// §3.1); uninstall runs it after its files are gone.
     fn remove_stick_entry(&self) -> Result<(), Reason> {
         Ok(())
+    }
+
+    /// Whether the firmware's `Faraday stick` entry exists (Linux,
+    /// §3.1c), read without privilege; other systems have none.
+    fn boot_entry(&self) -> bool {
+        false
+    }
+
+    /// What is attached now that is of concern (§3.1a): the screens, the
+    /// USB devices, a virtual machine, a remote session. Called every
+    /// few seconds off the window's thread. A system not read yet
+    /// (macOS) knows nothing, which holds nothing and says nothing.
+    fn concerns(&self) -> Vec<Concern> {
+        Vec::new()
     }
 
     /// The hub app is exiting: on Windows an uninstall run from the

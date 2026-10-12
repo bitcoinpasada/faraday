@@ -14,7 +14,8 @@ use osk_ui::widgets::Icon;
 use faraday_qr::bitlocker::RecoveryKey;
 
 use crate::api::{
-    InUse, InstallItem, KeyShown, Mode, Os, PayloadKind, Protection, Reason, StickFault, WriteStage,
+    Concern, InUse, InstallItem, KeyShown, Kind, Mode, Os, PayloadKind, Protection, Reason,
+    StickFault, WriteStage,
 };
 use crate::decide::{Item, Refusal, State, Target};
 use crate::{Card, Hub, HubAction, LearnId, ModeRefusal, Page, RestartTo, Sheet};
@@ -79,6 +80,7 @@ pub(crate) fn frame(hub: &Hub, ui: &mut Ui) -> f32 {
         match sheet {
             Sheet::Restart(to) => restart_sheet(hub, ui, w, h, to),
             Sheet::Uninstall => uninstall_sheet(hub, ui, w, h),
+            Sheet::LetThrough => let_through_sheet(hub, ui, w, h),
         }
         ui.in_sheet = false;
     }
@@ -306,6 +308,84 @@ fn warning(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str, tone: Color) -> f32 {
     ui.stroke(x, y, w, bh, 10.0, tone.with_alpha(110));
     ui.wrap(x + 14.0, y + 10.0, w - 28.0, 13.0, W::S, tone, s);
     bh + 12.0
+}
+
+/// A link to a Learn page: a line in the accent colour that opens it,
+/// drawn only when the page exists (another batch writes some of them).
+/// Returns its height, nothing when the page does not exist.
+pub(crate) fn link(ui: &mut Ui, x: f32, y: f32, w: f32, id: LearnId) -> f32 {
+    if id.page().is_none() {
+        return 0.0;
+    }
+    let label = learn_title(id);
+    let action = HubAction::LearnPage(id).host();
+    let label = ui.fit(13.0, W::S, label, w);
+    let tw = ui.measure(13.0, W::S, &label);
+    let tone = if ui.is_pressed(action) || ui.is_hovered(action) {
+        TEXT
+    } else {
+        ACCENT
+    };
+    ui.text_mid(x, y, 28.0, 13.0, W::S, tone, &label);
+    ui.hit(x - 4.0, y, tw + 8.0, 28.0, action);
+    32.0
+}
+
+/// An item of concern's line (§3.1a), naming it.
+pub(crate) fn concern_text(c: &Concern) -> String {
+    let fallback = match c.kind {
+        Kind::Tv | Kind::WirelessDisplay => S.hub_concern_screen,
+        Kind::Kvm | Kind::Receiver => S.hub_concern_device,
+        Kind::VirtualMachine => S.hub_concern_computer,
+        Kind::RemoteSession => S.hub_concern_session,
+    };
+    let name = if c.name.trim().is_empty() {
+        fallback
+    } else {
+        c.name.trim()
+    };
+    let line = match c.kind {
+        Kind::Tv => S.hub_concern_tv,
+        Kind::Kvm => S.hub_concern_kvm,
+        Kind::Receiver => S.hub_concern_receiver,
+        Kind::VirtualMachine => S.hub_concern_vm,
+        Kind::RemoteSession => S.hub_concern_remote,
+        Kind::WirelessDisplay => S.hub_concern_wireless_display,
+    };
+    fill(line, &[name])
+}
+
+/// What is attached that holds a step (§3.1a): each item's line, its
+/// Continue anyway (never for a virtual machine), Check again, and the
+/// Learn page. Returns its height with the gap under it; nothing when
+/// nothing holds.
+fn concern_block(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32, items: &[&Concern]) -> f32 {
+    if items.is_empty() {
+        return 0.0;
+    }
+    let mut y = y0;
+    for c in items {
+        y += warning(ui, x, y, w, &concern_text(c), WARN);
+        if c.kind != Kind::VirtualMachine {
+            let n = HubAction::ContinueAnyway(hub.concern_number(&c.id));
+            y += buttons(
+                ui,
+                x,
+                y - 4.0,
+                w,
+                &[(S.hub_continue_anyway, Style::Ghost, n)],
+            ) + 8.0;
+        }
+    }
+    y += buttons(
+        ui,
+        x,
+        y,
+        w,
+        &[(S.hub_check_again, Style::Secondary, HubAction::CheckAgain)],
+    ) + 8.0;
+    y += link(ui, x, y, w, LearnId::ScreensThatRecord);
+    y + 12.0 - y0
 }
 
 /// One button, or a row of them (a column on a small panel when they do
@@ -592,6 +672,7 @@ fn home(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let next = facts.next_step();
     let rows = facts.checklist();
     y += computer_card(hub, ui, x, y, w) + 20.0;
+    y += concern_block(hub, ui, x, y, w, &hub.restart_holds());
 
     // The checklist.
     y += label(ui, x, y, S.hub_checklist);
@@ -639,6 +720,31 @@ fn home(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         ui.rule(x, y, w, INNER);
     }
     y += 24.0;
+
+    // The firmware's Faraday stick entry, once back from a session.
+    if hub.entry_offered() {
+        let failed = hub.entry_remove_failed.as_ref().map(reason_text);
+        let (sub, action) = if hub.entry_removing {
+            (S.hub_removing_entry.to_string(), None)
+        } else {
+            (
+                failed.unwrap_or_else(|| S.hub_remove_entry_sub.to_string()),
+                Some(HubAction::RemoveEntry),
+            )
+        };
+        y += nav_row(
+            ui,
+            x,
+            y,
+            w,
+            Icon::Drive,
+            S.hub_remove_entry,
+            &sub,
+            "",
+            action,
+        );
+        y += 8.0;
+    }
 
     // The other rows.
     let pi = hub.image(Target::Pi).is_some();
@@ -753,13 +859,15 @@ fn computer_card(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             lines.push((reason_text(why), ERR));
         }
     }
+    let free = hub.restart_holds().is_empty();
     let button = Some(match card {
         Card::Make => (S.hub_item_make, true),
         Card::BitLocker => (S.hub_bitlocker_step, true),
         Card::Resume { offered } => (S.hub_item_resume, offered && hub.guard.busy.is_none()),
-        Card::Firmware => (S.hub_restart, true),
-        Card::Stick => (S.hub_restart_stick, true),
+        Card::Firmware => (S.hub_restart, free),
+        Card::Stick => (S.hub_restart_stick, free),
     });
+    let linked = LearnId::SecureBootBitLocker.page().is_some();
     // The lines wrap: measured first, drawing nothing.
     let n = ui.hits.len();
     ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
@@ -770,6 +878,9 @@ fn computer_card(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     ui.c.pop_clip();
     ui.hits.truncate(n);
     let mut h = pad + 20.0 + 26.0 + lines_h;
+    if linked {
+        h += 32.0;
+    }
     if button.is_some() {
         h += 14.0 + 44.0;
     }
@@ -784,6 +895,7 @@ fn computer_card(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     for (l, tone) in &lines {
         y += ui.wrap(x + pad, y, iw, 13.0, W::R, *tone, l) + 4.0;
     }
+    y += link(ui, x + pad, y, iw, LearnId::SecureBootBitLocker);
     if let Some((label, offered)) = button {
         y += 14.0;
         let style = if offered {
@@ -1145,6 +1257,9 @@ fn learn_title(id: LearnId) -> &'static str {
         LearnId::NoStart => S.hub_learn_no_start,
         LearnId::KeepData => S.hub_learn_keep_data,
         LearnId::Maker(_) => id.page().map_or("", |p| p.title),
+        LearnId::SecureBootBitLocker => S.hub_learn_secure_boot_bitlocker,
+        LearnId::ScreensThatRecord => S.hub_learn_screens,
+        LearnId::BootEntry => S.hub_learn_boot_entry,
     }
 }
 
@@ -1162,8 +1277,11 @@ fn start(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     if !c.uefi {
         y += warning(ui, x, y, w, S.hub_cannot_start_bios, WARN);
     }
+    let held = hub.restart_holds();
+    y += concern_block(hub, ui, x, y, w, &held);
     let guide = LearnId::for_computer(c);
     y += guide_line(ui, x, y, w, guide);
+    y += link(ui, x, y, w, LearnId::SecureBootBitLocker);
     y += 8.0;
     let ix = x + 38.0;
     let iw = w - 38.0;
@@ -1198,7 +1316,7 @@ fn start(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     if let Some(why) = &hub.restart_failed {
         y += line(ui, ix, y, iw, &reason_text(why), ERR);
     }
-    let style = if open {
+    let style = if open || !held.is_empty() {
         Style::Disabled
     } else {
         Style::Secondary
@@ -1325,6 +1443,7 @@ fn sheet(ui: &mut Ui, w: f32, h: f32, body: &mut dyn FnMut(&mut Ui, f32, f32, f3
 
 fn restart_sheet(hub: &Hub, ui: &mut Ui, w: f32, h: f32, to: RestartTo) {
     let address = LearnId::for_computer(&hub.computer).address();
+    let os = hub.computer.os;
     let head = match to {
         RestartTo::Firmware => S.hub_restart,
         RestartTo::Stick => S.hub_restart_stick,
@@ -1333,6 +1452,9 @@ fn restart_sheet(hub: &Hub, ui: &mut Ui, w: f32, h: f32, to: RestartTo) {
         let mut y = y0;
         y += ui.wrap(x, y, iw, 17.0, W::S, TEXT, head) + 10.0;
         y += line(ui, x, y, iw, S.hub_restart_save, WARN) + 4.0;
+        if to == RestartTo::Stick && os == Os::Linux {
+            y += link(ui, x, y, iw, LearnId::BootEntry);
+        }
         // Small enough on a small panel that the sheet's buttons fit.
         let side = if ui.compact { 104.0 } else { 160.0 };
         y += phone_code(ui, x, y, iw, side, &address) + 8.0;
@@ -1344,6 +1466,40 @@ fn restart_sheet(hub: &Hub, ui: &mut Ui, w: f32, h: f32, to: RestartTo) {
             &[
                 (S.hub_cancel, Style::Secondary, HubAction::Cancel),
                 (S.hub_restart_now, Style::Primary, HubAction::RestartNow),
+            ],
+        ) - y0
+    });
+}
+
+/// Continue anyway, asked once, naming the item (§3.1a).
+fn let_through_sheet(hub: &Hub, ui: &mut Ui, w: f32, h: f32) {
+    let Some(c) = hub
+        .asking
+        .as_ref()
+        .and_then(|id| hub.concerns.iter().find(|c| &c.id == id))
+    else {
+        return;
+    };
+    let name = if c.name.trim().is_empty() {
+        concern_text(c)
+    } else {
+        c.name.trim().to_string()
+    };
+    let ask = fill(S.hub_let_through_ask, &[&name]);
+    let line_text = concern_text(c);
+    sheet(ui, w, h, &mut |ui, x, y0, iw| {
+        let mut y = y0;
+        y += ui.wrap(x, y, iw, 17.0, W::S, TEXT, &ask) + 10.0;
+        y += line(ui, x, y, iw, &line_text, WARN);
+        y += line(ui, x, y, iw, S.hub_let_through_until, MUTED) + 4.0;
+        y + buttons(
+            ui,
+            x,
+            y,
+            iw,
+            &[
+                (S.hub_cancel, Style::Secondary, HubAction::Cancel),
+                (S.hub_continue_anyway, Style::Primary, HubAction::LetThrough),
             ],
         ) - y0
     });
@@ -1580,8 +1736,12 @@ fn bitlocker(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     if let Some(why) = &g.failed {
         y += line(ui, x, y, w, &reason_text(why), ERR);
     }
+    let holds = hub.key_holds();
     if stands {
         y += guard_done(hub, ui, x, y, w);
+    } else if f.protected() && !f.other_open && !holds.is_empty() && !g.hidden {
+        // Nothing secret on a screen that can keep it.
+        y += concern_block(hub, ui, x, y, w, &holds);
     } else if f.protected() && !f.other_open {
         y += match (&g.key, g.hidden) {
             (None, _) => {
@@ -1597,6 +1757,7 @@ fn bitlocker(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         };
     }
     y += 12.0;
+    y += link(ui, x, y, w, LearnId::SecureBootBitLocker);
     y + guide_line(ui, x, y, w, LearnId::BitLocker)
 }
 

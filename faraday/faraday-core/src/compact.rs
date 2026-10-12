@@ -248,6 +248,12 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     }
     y += 38.0;
 
+    // The stick cannot read the screen: every start says it.
+    if app.devices.read {
+        let line = opensigner_core::strings::EN.devices_tv_line;
+        y += ui.wrap(M, y, inner, 13.0, W::S, WARN, line) + 10.0;
+    }
+
     // What this session holds.
     let keys = app.session.keys.len();
     let wallets = app.session.wallets.len();

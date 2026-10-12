@@ -124,6 +124,8 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::Delete => crate::stick_wipe::delete_sheet(app, ui, w, h),
             Sheet::Zeroing => crate::stick_wipe::zeroing_sheet(app, ui, w, h),
             Sheet::Taken => crate::visit_taken::taken_sheet(app, ui, w, h),
+            Sheet::Devices => devices_sheet(app, ui, w, h),
+            Sheet::TvAsk => tv_ask_sheet(ui, w, h),
         }
         ui.oy = 0.0;
     }
@@ -1013,6 +1015,14 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     title(ui, x, y, "Home");
     network_pill(app, ui, x + width, y + 2.0);
     y += 64.0;
+    // The stick cannot read the screen: every start says it.
+    if app.devices.read {
+        let line = opensigner_core::strings::EN.devices_tv_line;
+        ui.icon(x - 4.0, y - 6.0, 28.0, Icon::Warning, 14.0, WARN);
+        let line = ui.fit(14.0, W::S, line, width - 28.0);
+        ui.text(x + 26.0, y, 14.0, W::S, WARN, &line);
+        y += 36.0;
+    }
 
     section_label(ui, x, y, "Start");
     y += 30.0;
@@ -13211,6 +13221,153 @@ pub(crate) fn sheet_box(ui: &mut Ui, w: f32, h: f32, sw: f32, sh: f32) -> (f32, 
     ui.fill(x, y, sw, sh, 16.0, SURFACE);
     ui.stroke(x, y, sw, sh, 16.0, BORDER);
     (x, y)
+}
+
+/// The device check's buttons: Check again, then Continue anyway (asked
+/// once), or Power off on a virtual machine, which has no way on.
+fn devices_buttons(app: &Faraday) -> Vec<(&'static str, Style, Action)> {
+    let s = &opensigner_core::strings::EN;
+    let d = &app.devices;
+    let mut b = vec![(
+        s.devices_check_again,
+        Style::Secondary,
+        Action::DevicesCheck,
+    )];
+    if d.refuses() {
+        b.push((s.devices_power_off, Style::Primary, Action::PowerAsk));
+    } else if d.asking {
+        b.push((
+            s.devices_continue_yes,
+            Style::Primary,
+            Action::DevicesContinue,
+        ));
+    } else {
+        b.push((
+            s.devices_continue,
+            Style::Secondary,
+            Action::DevicesContinue,
+        ));
+    }
+    b
+}
+
+/// What is attached that can capture the screen or the keys
+/// (`docs/HUB.md` §3.1a): a line for each, and what holds them.
+fn devices_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+    let s = &opensigner_core::strings::EN;
+    let d = &app.devices;
+    let lines: Vec<String> = d.held.iter().map(crate::devices::Concern::line).collect();
+    let foot = if d.refuses() {
+        Some((s.devices_real_computer, ERR))
+    } else if d.asking {
+        Some((s.devices_continue_ask, WARN))
+    } else {
+        None
+    };
+    let buttons = devices_buttons(app);
+    if ui.compact {
+        crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
+            let mut cy = y;
+            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, WARN, s.devices_title);
+            for l in &lines {
+                cy += ui.wrap(x, cy, iw, 14.0, W::R, TEXT, l) + 8.0;
+            }
+            if let Some((f, tone)) = foot {
+                cy += 4.0;
+                cy += ui.wrap(x, cy, iw, 14.0, W::S, tone, f) + 8.0;
+            }
+            cy += 8.0;
+            cy += crate::compact::buttons(ui, x, cy, iw, &buttons);
+            cy - y
+        });
+        return;
+    }
+    let sw = 560.0f32.min(w - 48.0);
+    let iw = sw - 64.0;
+    let line_h = ui.line(14.0, W::R);
+    let mut body = 0.0;
+    for l in &lines {
+        body += ui.wrap_lines(14.0, W::R, l, iw) as f32 * line_h + 10.0;
+    }
+    if let Some((f, _)) = foot {
+        body += ui.wrap_lines(14.0, W::S, f, iw) as f32 * line_h + 14.0;
+    }
+    let sh = 28.0 + 30.0 + 26.0 + body + 22.0 + 46.0 + 32.0;
+    let (x, y) = sheet_box(ui, w, h, sw, sh);
+    let ix = x + 32.0;
+    ui.icon(ix, y + 28.0, 30.0, Icon::Warning, 17.0, WARN);
+    ui.text_mid(ix + 42.0, y + 28.0, 30.0, 20.0, W::S, TEXT, s.devices_title);
+    let mut cy = y + 28.0 + 30.0 + 26.0;
+    for l in &lines {
+        cy += ui.wrap(ix, cy, iw, 14.0, W::R, TEXT, l) + 10.0;
+    }
+    if let Some((f, tone)) = foot {
+        cy += 4.0;
+        ui.wrap(ix, cy, iw, 14.0, W::S, tone, f);
+    }
+    let by = y + sh - 32.0 - 46.0;
+    let n = buttons.len() as f32;
+    let each = (iw - 12.0 * (n - 1.0)) / n;
+    for (i, (label, style, action)) in buttons.into_iter().enumerate() {
+        ui.button(
+            ix + i as f32 * (each + 12.0),
+            by,
+            Some(each),
+            46.0,
+            label,
+            style,
+            action,
+        );
+    }
+}
+
+/// Is this screen a TV? Asked once on a computer whose screen is a
+/// separate one: the stick cannot read the screen's name.
+fn tv_ask_sheet(ui: &mut Ui, w: f32, h: f32) {
+    let s = &opensigner_core::strings::EN;
+    let buttons = [
+        (s.devices_tv_yes, Style::Secondary, Action::DevicesTv(true)),
+        (s.devices_tv_no, Style::Primary, Action::DevicesTv(false)),
+    ];
+    if ui.compact {
+        crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
+            let mut cy = y;
+            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, WARN, s.devices_tv_ask);
+            cy += ui.wrap(x, cy, iw, 14.0, W::R, MUTED, s.devices_tv_line) + 16.0;
+            cy += crate::compact::buttons(ui, x, cy, iw, &buttons);
+            cy - y
+        });
+        return;
+    }
+    let sw = 480.0f32.min(w - 48.0);
+    let iw = sw - 64.0;
+    let sh = 196.0;
+    let (x, y) = sheet_box(ui, w, h, sw, sh);
+    let ix = x + 32.0;
+    ui.icon(ix, y + 30.0, 30.0, Icon::Warning, 17.0, WARN);
+    ui.text_mid(
+        ix + 42.0,
+        y + 30.0,
+        30.0,
+        20.0,
+        W::S,
+        TEXT,
+        s.devices_tv_ask,
+    );
+    let line = ui.fit(13.0, W::R, s.devices_tv_line, iw);
+    ui.text(ix, y + 78.0, 13.0, W::R, MUTED, &line);
+    let each = (iw - 12.0) / 2.0;
+    for (i, (label, style, action)) in buttons.into_iter().enumerate() {
+        ui.button(
+            ix + i as f32 * (each + 12.0),
+            y + sh - 32.0 - 46.0,
+            Some(each),
+            46.0,
+            label,
+            style,
+            action,
+        );
+    }
 }
 
 /// Something that loads a key or turns the camera on was pressed with a

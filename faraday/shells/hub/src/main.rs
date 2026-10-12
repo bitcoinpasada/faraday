@@ -69,6 +69,12 @@ use winit::window::{Window, WindowId};
 
 /// How often the Downloads folder and the cameras are looked at again.
 const RESCAN: Duration = Duration::from_millis(700);
+/// How often what is attached is read again for what is of concern
+/// (docs/HUB.md §3.1a): polling, the same on every system, since no
+/// system tells an unprivileged program about every screen and USB
+/// device without a window or a bus of its own; Check again reads at
+/// once.
+const CONCERNS_EVERY: Duration = Duration::from_secs(3);
 const TITLE: &str = "Faraday";
 
 struct Shell {
@@ -82,6 +88,8 @@ struct Shell {
     tx: Sender<HubEvent>,
     /// A disk written, to have what is on it read again.
     forget: Sender<String>,
+    /// Check again: what is attached read at once.
+    check: Sender<()>,
     /// The disk being written.
     writing: Option<String>,
     /// The Downloads folder Transfer uses.
@@ -199,6 +207,7 @@ impl Shell {
                     }
                     let _ = tx.send(HubEvent::UninstallDone(done));
                     let _ = tx.send(HubEvent::Installed(system.installed()));
+                    let _ = tx.send(HubEvent::BootEntry(system.boot_entry()));
                 });
             }
             HubCommand::RunDesktop => {
@@ -239,6 +248,16 @@ impl Shell {
                     if step != BitLockerStep::ShowKey {
                         let _ = tx.send(HubEvent::Installed(system.installed()));
                     }
+                });
+            }
+            HubCommand::CheckAgain => {
+                let _ = self.check.send(());
+            }
+            HubCommand::RemoveBootEntry => {
+                let (system, tx, _) = self.threaded();
+                std::thread::spawn(move || {
+                    let _ = tx.send(HubEvent::BootEntryRemoved(system.remove_stick_entry()));
+                    let _ = tx.send(HubEvent::BootEntry(system.boot_entry()));
                 });
             }
             HubCommand::SaveKey { disk, key } => {
@@ -453,6 +472,30 @@ impl ApplicationHandler for Shell {
     }
 }
 
+/// Reads what is attached that is of concern now, then every
+/// [`CONCERNS_EVERY`] and whenever Check again asks, on a thread of its
+/// own; sends it when it changed, and always after Check again.
+fn watch_concerns(system: Arc<dyn Platform>, out: Sender<HubEvent>, checks: Receiver<()>) {
+    std::thread::spawn(move || {
+        let mut last = None;
+        let mut asked = true;
+        loop {
+            let now = system.concerns();
+            if (asked || last.as_ref() != Some(&now))
+                && out.send(HubEvent::Concerns(now.clone())).is_err()
+            {
+                return;
+            }
+            last = Some(now);
+            asked = match checks.recv_timeout(CONCERNS_EVERY) {
+                Ok(()) => true,
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => false,
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return,
+            };
+        }
+    });
+}
+
 const HELP: &str = "faraday-hub [--image FILE] [--downloads DIR] [--size WxH] [--timings] [--uninstall] | --version
   --image: write FILE (.img, .img.xz, or -boot.vfat for keep data) in place of the payload's stick image
   --downloads: the folder Transfer sends from and saves into (default ~/Downloads)
@@ -584,13 +627,17 @@ fn main() -> ExitCode {
     } else if reminded {
         hub.press(HubAction::BitLocker);
     }
-    // The installed copy is asked its version, which takes a moment.
+    // The installed copy is asked its version, which takes a moment;
+    // the firmware's entry is listed by a program too.
     {
         let (system, tx) = (Arc::clone(&system), tx.clone());
         std::thread::spawn(move || {
             let _ = tx.send(HubEvent::Installed(system.installed()));
+            let _ = tx.send(HubEvent::BootEntry(system.boot_entry()));
         });
     }
+    let (check, checks) = channel();
+    watch_concerns(Arc::clone(&system), tx.clone(), checks);
     let (forget, forgotten) = channel();
     system.watch(tx.clone(), forgotten);
     let event_loop = match EventLoop::new() {
@@ -614,6 +661,7 @@ fn main() -> ExitCode {
         events,
         tx,
         forget,
+        check,
         writing: None,
         host: Host {
             print,

@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 
 use faraday_hub::api::Reason;
 use faraday_hub_shell::linux::boot::{
-    self, Entry, Tools, entries, faraday_entries, free_number, remove_entry,
+    self, Entry, Tools, entries, entry_exists, faraday_entries, free_number, remove_entry,
 };
 
 const SEVERAL: &str = include_str!("efibootmgr/several.txt");
@@ -221,4 +221,32 @@ fn uninstall_declined_leaves_the_entry_and_says_why() {
     fs::write(dir.join("pkexec-exit"), "126").expect("exit code");
     assert_eq!(remove_entry(dir.as_os_str()), Err(Reason::Declined));
     assert_eq!(log(&dir, "efibootmgr"), vec![""]);
+}
+
+#[test]
+fn home_knows_the_entry_from_the_listing_read_as_the_person() {
+    let dir = fakes("exists", FARADAY, &ALL);
+    assert!(entry_exists(dir.as_os_str()));
+    // Read without a password: pkexec never ran.
+    assert!(log(&dir, "pkexec").is_empty());
+    assert!(!entry_exists(
+        fakes("exists-none", SEVERAL, &ALL).as_os_str()
+    ));
+    assert!(!entry_exists(
+        fakes("exists-no-efibootmgr", FARADAY, &["pkexec"]).as_os_str()
+    ));
+    let dir = fakes("exists-list-fails", FARADAY, &ALL);
+    fs::write(dir.join("list-fails"), "").expect("flag");
+    assert!(!entry_exists(dir.as_os_str()));
+}
+
+#[test]
+fn removing_the_entry_from_home_asks_once_and_declined_keeps_it() {
+    let dir = fakes("home-remove", FARADAY, &ALL);
+    assert_eq!(remove_entry(dir.as_os_str()), Ok(()));
+    assert_eq!(log(&dir, "pkexec").len(), 1);
+    let dir = fakes("home-remove-declined", FARADAY, &ALL);
+    fs::write(dir.join("pkexec-exit"), "127").expect("exit code");
+    assert_eq!(remove_entry(dir.as_os_str()), Err(Reason::Declined));
+    assert!(entry_exists(dir.as_os_str()));
 }

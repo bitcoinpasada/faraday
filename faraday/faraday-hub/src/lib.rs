@@ -14,6 +14,7 @@
 //! [`Hub::held`].
 
 pub mod api;
+pub mod concern;
 pub mod decide;
 mod draw;
 
@@ -30,9 +31,9 @@ use osk_ui::{Canvas, Rect};
 use zeroize::{Zeroize, Zeroizing};
 
 use api::{
-    BitLocker, BitLockerStep, Bus, Computer, DevImage, Disk, HubCommand, HubEvent, Installed,
-    KeyShown, Mode, Os, Payload, PayloadFile, PayloadKind, Protection, Reason, Source, WriteOrder,
-    WriteStage,
+    BitLocker, BitLockerStep, Bus, Computer, Concern, DevImage, Disk, HubCommand, HubEvent,
+    Installed, KeyShown, Kind, Mode, Os, Payload, PayloadFile, PayloadKind, Protection, Reason,
+    Source, WriteOrder, WriteStage,
 };
 use decide::{Facts, Item, Target};
 
@@ -77,6 +78,9 @@ pub enum Sheet {
     Restart(RestartTo),
     /// Uninstall, asked once (§3.5).
     Uninstall,
+    /// Continue anyway, asked once for the item [`Hub::asking`] names
+    /// (§3.1a).
+    LetThrough,
 }
 
 /// Where a restart goes.
@@ -125,6 +129,12 @@ pub enum LearnId {
     /// A maker family's page, by its id in `faraday_core::learn::MAKERS`
     /// (§7.6).
     Maker(&'static str),
+    /// What Secure Boot and BitLocker are (§3.1b).
+    SecureBootBitLocker,
+    /// Screens and devices that can record (§3.1a).
+    ScreensThatRecord,
+    /// About the boot entry (§3.1c).
+    BootEntry,
 }
 
 impl LearnId {
@@ -138,6 +148,9 @@ impl LearnId {
             LearnId::NoStart => "not-starting",
             LearnId::KeepData => "replace-faraday",
             LearnId::Maker(id) => id,
+            LearnId::SecureBootBitLocker => "secure-boot-bitlocker",
+            LearnId::ScreensThatRecord => "screens-that-record",
+            LearnId::BootEntry => "boot-entry",
         }
     }
 
@@ -164,12 +177,15 @@ impl LearnId {
         }
     }
 
-    const ALL: [LearnId; 5] = [
+    const ALL: [LearnId; 8] = [
         LearnId::StartWindows,
         LearnId::StartLinux,
         LearnId::BitLocker,
         LearnId::NoStart,
         LearnId::KeepData,
+        LearnId::SecureBootBitLocker,
+        LearnId::ScreensThatRecord,
+        LearnId::BootEntry,
     ];
 }
 
@@ -246,6 +262,15 @@ pub enum HubAction {
     /// I have its rescue disk or password: another encryption product
     /// (§6.4).
     Rescue,
+    /// Check again: what is attached read again now (§3.1a).
+    CheckAgain,
+    /// Continue anyway for an item of concern, by the number the hub
+    /// gave it when it was first seen: asks once.
+    ContinueAnyway(u16),
+    /// Continue anyway, as the sheet asked.
+    LetThrough,
+    /// Remove the Faraday boot entry (Linux, §3.1c).
+    RemoveEntry,
 }
 
 /// A maker page's number in an action's code: this plus its place in
@@ -309,6 +334,10 @@ impl HubAction {
             HubAction::SaveKey(n) => (31, u32::from(n)),
             HubAction::Group(i) => (32, u32::from(i.min(1))),
             HubAction::Rescue => (33, 0),
+            HubAction::CheckAgain => (34, 0),
+            HubAction::ContinueAnyway(n) => (35, u32::from(n)),
+            HubAction::LetThrough => (36, 0),
+            HubAction::RemoveEntry => (37, 0),
         };
         (kind << 16) | arg
     }
@@ -360,6 +389,10 @@ impl HubAction {
             31 => HubAction::SaveKey(arg as u16),
             32 => HubAction::Group(u8::from(arg == 1)),
             33 => HubAction::Rescue,
+            34 => HubAction::CheckAgain,
+            35 => HubAction::ContinueAnyway(arg as u16),
+            36 => HubAction::LetThrough,
+            37 => HubAction::RemoveEntry,
             _ => return None,
         })
     }
@@ -543,6 +576,21 @@ pub struct Hub {
     /// groups when no entropy came.
     clock: u64,
 
+    /// What is attached that is of concern (§3.1a), as last read.
+    pub concerns: Vec<Concern>,
+    /// Every concern's id seen, so its Continue anyway keeps its number.
+    concern_seen: Vec<String>,
+    /// The ids let through with Continue anyway, for the session.
+    pub let_through: Vec<String>,
+    /// The item Continue anyway's sheet asks about.
+    pub asking: Option<String>,
+    /// The firmware's `Faraday stick` boot entry exists (Linux, §3.1c).
+    pub boot_entry: bool,
+    /// Its removal is under way.
+    pub entry_removing: bool,
+    /// Why its removal did not happen.
+    pub entry_remove_failed: Option<Reason>,
+
     /// How far the page is scrolled, units.
     offset: f32,
     /// How far it can scroll, as last drawn.
@@ -606,6 +654,13 @@ impl Hub {
             other: None,
             other_confirmed: false,
             clock: 0,
+            concerns: Vec::new(),
+            concern_seen: Vec::new(),
+            let_through: Vec::new(),
+            asking: None,
+            boot_entry: false,
+            entry_removing: false,
+            entry_remove_failed: None,
             offset: 0.0,
             max: 0.0,
             seen: Vec::new(),
@@ -735,6 +790,45 @@ impl Hub {
         } else {
             Card::Firmware
         }
+    }
+
+    /// The items that hold the restart buttons (§3.1a): a TV, a KVM and
+    /// a wireless receiver not let through, and a virtual machine always
+    /// (the stick must start on the real computer). Home's card and the
+    /// Start page name them.
+    pub fn restart_holds(&self) -> Vec<&Concern> {
+        self.concerns
+            .iter()
+            .filter(|c| match c.kind {
+                Kind::VirtualMachine => true,
+                Kind::Tv | Kind::Kvm | Kind::Receiver => !self.let_through.contains(&c.id),
+                Kind::RemoteSession | Kind::WirelessDisplay => false,
+            })
+            .collect()
+    }
+
+    /// The items that hold the BitLocker guard's Show the recovery key
+    /// (§3.1a, §6.5): a TV, a KVM, a wireless receiver, a remote session
+    /// and a wireless display, each not let through. A virtual machine's
+    /// host holds its disk already; it holds only the restarts.
+    pub fn key_holds(&self) -> Vec<&Concern> {
+        self.concerns
+            .iter()
+            .filter(|c| c.kind != Kind::VirtualMachine && !self.let_through.contains(&c.id))
+            .collect()
+    }
+
+    /// The number an item of concern's Continue anyway carries.
+    pub fn concern_number(&self, id: &str) -> u16 {
+        self.concern_seen.iter().position(|s| s == id).unwrap_or(0) as u16
+    }
+
+    /// Whether Remove the Faraday boot entry is offered on Home (§3.1c):
+    /// on Linux, while the entry exists and no Faraday stick is attached.
+    /// With a stick attached the person is about to start from it, which
+    /// uses the entry again, so it is not offered then.
+    pub fn entry_offered(&self) -> bool {
+        self.computer.os == Os::Linux && self.boot_entry && self.facts().stick().is_none()
     }
 
     /// The held desktop app, for its storage channel
@@ -1023,6 +1117,40 @@ impl Hub {
                 self.guard.saving = false;
                 self.guard.saved = Some(r);
             }
+            HubEvent::Concerns(c) => {
+                for item in &c {
+                    if !self.concern_seen.contains(&item.id) {
+                        self.concern_seen.push(item.id.clone());
+                    }
+                }
+                self.concerns = c;
+                // The item asked about is gone: nothing to ask.
+                if self.sheet == Some(Sheet::LetThrough)
+                    && !self
+                        .asking
+                        .as_ref()
+                        .is_some_and(|id| self.concerns.iter().any(|c| &c.id == id))
+                {
+                    self.sheet = None;
+                    self.asking = None;
+                }
+                // A restart asked about while nothing held it waits again.
+                if matches!(self.sheet, Some(Sheet::Restart(_))) && !self.restart_holds().is_empty()
+                {
+                    self.sheet = None;
+                }
+            }
+            HubEvent::BootEntry(e) => self.boot_entry = e,
+            HubEvent::BootEntryRemoved(r) => {
+                self.entry_removing = false;
+                match r {
+                    Ok(()) => {
+                        self.boot_entry = false;
+                        self.entry_remove_failed = None;
+                    }
+                    Err(why) => self.entry_remove_failed = Some(why),
+                }
+            }
         }
         self.dirty = true;
         self.commands.push_back(Command::Draw);
@@ -1098,9 +1226,14 @@ impl Hub {
         if self.sheet.is_some()
             && !matches!(
                 action,
-                HubAction::Cancel | HubAction::RestartNow | HubAction::UninstallNow
+                HubAction::Cancel
+                    | HubAction::RestartNow
+                    | HubAction::UninstallNow
+                    | HubAction::LetThrough
             )
             && !(action == HubAction::Resume && self.sheet == Some(Sheet::Uninstall))
+            && !(action == HubAction::LearnPage(LearnId::BootEntry)
+                && self.sheet == Some(Sheet::Restart(RestartTo::Stick)))
         {
             return;
         }
@@ -1123,6 +1256,7 @@ impl Hub {
                 Card::Make => self.act(HubAction::Make(Target::Stick)),
                 Card::BitLocker | Card::Resume { offered: true } => self.go(Page::BitLocker),
                 Card::Resume { offered: false } => {}
+                Card::Firmware | Card::Stick if !self.restart_holds().is_empty() => {}
                 Card::Firmware => {
                     self.restart_failed = None;
                     self.sheet = Some(Sheet::Restart(RestartTo::Firmware));
@@ -1187,11 +1321,15 @@ impl Hub {
             }
             HubAction::Start => self.go(Page::Start),
             HubAction::Restart => {
-                if self.page == Page::Start && !self.facts().protected_open() {
+                if self.page == Page::Start
+                    && !self.facts().protected_open()
+                    && self.restart_holds().is_empty()
+                {
                     self.restart_failed = None;
                     self.sheet = Some(Sheet::Restart(RestartTo::Firmware));
                 }
             }
+            HubAction::RestartNow if !self.restart_holds().is_empty() => self.sheet = None,
             HubAction::RestartNow => match self.sheet {
                 Some(Sheet::Restart(RestartTo::Firmware)) => {
                     self.sheet = None;
@@ -1208,7 +1346,10 @@ impl Hub {
                 }
                 _ => {}
             },
-            HubAction::Cancel => self.sheet = None,
+            HubAction::Cancel => {
+                self.sheet = None;
+                self.asking = None;
+            }
             HubAction::Install => {
                 self.install_result = None;
                 self.go(Page::Install);
@@ -1267,7 +1408,11 @@ impl Hub {
                     let f = self.facts();
                     (f.protected(), f.other_open)
                 };
-                if self.page == Page::BitLocker && self.guard.busy.is_none() && protected && !other
+                if self.page == Page::BitLocker
+                    && self.guard.busy.is_none()
+                    && protected
+                    && !other
+                    && self.key_holds().is_empty()
                 {
                     self.guard.forget();
                     self.guard.failed = None;
@@ -1346,6 +1491,37 @@ impl Hub {
             HubAction::Rescue => {
                 if self.page == Page::BitLocker {
                     self.other_confirmed = true;
+                }
+            }
+            HubAction::CheckAgain => self.out.push_back(HubCommand::CheckAgain),
+            HubAction::ContinueAnyway(n) => {
+                let Some(id) = self.concern_seen.get(usize::from(n)).cloned() else {
+                    return;
+                };
+                // A virtual machine is never let through.
+                let open = self.concerns.iter().any(|c| {
+                    c.id == id
+                        && c.kind != Kind::VirtualMachine
+                        && !self.let_through.contains(&c.id)
+                });
+                if open {
+                    self.asking = Some(id);
+                    self.sheet = Some(Sheet::LetThrough);
+                }
+            }
+            HubAction::LetThrough => {
+                if self.sheet == Some(Sheet::LetThrough) {
+                    self.sheet = None;
+                    if let Some(id) = self.asking.take() {
+                        self.let_through.push(id);
+                    }
+                }
+            }
+            HubAction::RemoveEntry => {
+                if self.page == Page::Home && self.entry_offered() && !self.entry_removing {
+                    self.entry_removing = true;
+                    self.entry_remove_failed = None;
+                    self.out.push_back(HubCommand::RemoveBootEntry);
                 }
             }
         }

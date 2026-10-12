@@ -2310,6 +2310,45 @@ pub struct Strings {
     pub learn_try_miniscript: &'static str,
     /// Power-off sheet on a stick that started with Secure Boot off.
     pub power_secure_boot_off: &'static str,
+    // ----- The stick's device check (docs/HUB.md §3.1a), faraday-core -----
+    /// Title of the sheet that names what is attached.
+    pub devices_title: &'static str,
+    /// What an IP-KVM or KVM can do, after its name and a colon.
+    pub devices_kvm: &'static str,
+    /// What a wireless keyboard or mouse receiver lets happen.
+    pub devices_receiver: &'static str,
+    /// What a virtual machine's host can do.
+    pub devices_virtual_machine: &'static str,
+    /// The name a virtual machine goes by when its maker is not known.
+    pub devices_virtual_machine_unknown: &'static str,
+    /// The line under a virtual machine: there is no way on.
+    pub devices_real_computer: &'static str,
+    /// The name of the screen the person said is a TV.
+    pub devices_this_screen: &'static str,
+    /// What a TV can do.
+    pub devices_tv: &'static str,
+    /// A USB device that gives no name: `{}` is its vendor:product ID.
+    pub devices_unnamed: &'static str,
+    /// The button that reads what is attached again.
+    pub devices_check_again: &'static str,
+    /// The button that goes on with them attached.
+    pub devices_continue: &'static str,
+    /// The line Continue anyway asks with.
+    pub devices_continue_ask: &'static str,
+    /// The button that answers it.
+    pub devices_continue_yes: &'static str,
+    /// Toast: Check again found them still attached.
+    pub devices_still: &'static str,
+    /// The sheet's Power off, for a virtual machine.
+    pub devices_power_off: &'static str,
+    /// The stick's first screen, always: it cannot read the screen.
+    pub devices_tv_line: &'static str,
+    /// Title of the question a desktop computer's screen gets once.
+    pub devices_tv_ask: &'static str,
+    /// The answer: it is a TV.
+    pub devices_tv_yes: &'static str,
+    /// The answer: it is not.
+    pub devices_tv_no: &'static str,
     // ----- The hub app (docs/HUB.md), faraday-hub -----
     /// Title of the hub app's Home, where the way back goes.
     pub hub_home: &'static str,
@@ -2845,6 +2884,46 @@ pub struct Strings {
     pub hub_key_file: &'static str,
     /// Uninstall while suspended and Resume not offered (HUB §5.4).
     pub hub_uninstall_suspended_where: &'static str,
+    /// A screen read as a TV (HUB §3.1a), by name.
+    pub hub_concern_tv: &'static str,
+    /// A KVM switch or IP-KVM attached (HUB §3.1a), by name.
+    pub hub_concern_kvm: &'static str,
+    /// A wireless keyboard or mouse receiver (HUB §3.1a), by name.
+    pub hub_concern_receiver: &'static str,
+    /// The hub app runs in a virtual machine (HUB §3.1a), by its name.
+    pub hub_concern_vm: &'static str,
+    /// A remote session, around the recovery key (HUB §3.1a).
+    pub hub_concern_remote: &'static str,
+    /// A wireless display, around the recovery key (HUB §3.1a), by name.
+    pub hub_concern_wireless_display: &'static str,
+    /// The name of a screen whose EDID has none.
+    pub hub_concern_screen: &'static str,
+    /// The name of a USB device with no strings.
+    pub hub_concern_device: &'static str,
+    /// The name of a virtual machine whose firmware names none.
+    pub hub_concern_computer: &'static str,
+    /// The name of a remote session.
+    pub hub_concern_session: &'static str,
+    /// Reads what is attached again (HUB §3.1a).
+    pub hub_check_again: &'static str,
+    /// Lets one item of concern through for the session (HUB §3.1a).
+    pub hub_continue_anyway: &'static str,
+    /// Continue anyway's sheet, by the item's name.
+    pub hub_let_through_ask: &'static str,
+    /// Continue anyway's sheet: how long it lasts.
+    pub hub_let_through_until: &'static str,
+    /// The link to the Learn page of that name (HUB §3.1b).
+    pub hub_learn_secure_boot_bitlocker: &'static str,
+    /// The link to the Learn page on screens that record (HUB §3.1a).
+    pub hub_learn_screens: &'static str,
+    /// The link on Restart from the stick's sheet (HUB §3.1c).
+    pub hub_learn_boot_entry: &'static str,
+    /// Home's row removing the firmware's Faraday stick entry (HUB §3.1c).
+    pub hub_remove_entry: &'static str,
+    /// That row's second line.
+    pub hub_remove_entry_sub: &'static str,
+    /// That row while the removal runs.
+    pub hub_removing_entry: &'static str,
 }
 
 /// The English wording.
@@ -3957,6 +4036,25 @@ pub static EN: Strings = Strings {
     learn_try_passphrase: "Open a passphrase",
     learn_try_miniscript: "Miniscript tool",
     power_secure_boot_off: "Secure Boot is off. Turn it back on before starting Windows.",
+    devices_title: "Attached to this computer",
+    devices_kvm: "a KVM can show this screen and type on this computer from elsewhere",
+    devices_receiver: "a wireless keyboard's keys travel over the air",
+    devices_virtual_machine: "a virtual machine's host sees and can change everything in it",
+    devices_virtual_machine_unknown: "This computer",
+    devices_real_computer: "Faraday must start on a real computer.",
+    devices_this_screen: "This screen",
+    devices_tv: "a TV can record what it shows",
+    devices_unnamed: "USB device {}",
+    devices_check_again: "Check again",
+    devices_continue: "Continue anyway",
+    devices_continue_ask: "What is listed stays possible while they are attached.",
+    devices_continue_yes: "Yes, continue",
+    devices_still: "Still attached",
+    devices_power_off: "Power off",
+    devices_tv_line: "On a TV? Stop: a smart TV can record its screen.",
+    devices_tv_ask: "Is this screen a TV?",
+    devices_tv_yes: "It is a TV",
+    devices_tv_no: "It is not a TV",
     // The hub app (docs/HUB.md).
     hub_home: "Home",
     hub_computer: "This computer",
@@ -4224,5 +4322,25 @@ pub static EN: Strings = Strings {
     hub_state_other: "Not managed by Faraday",
     hub_key_file: "BitLocker recovery key {}.txt",
     hub_uninstall_suspended_where: "BitLocker stays suspended until it is resumed: Control Panel, BitLocker Drive Encryption, Resume protection.",
+    hub_concern_tv: "{} is a TV. A TV can record what it shows: use another screen or computer.",
+    hub_concern_kvm: "{} is a KVM switch. It can capture the screen and type: connect the screen and keyboard directly.",
+    hub_concern_receiver: "{} is a wireless receiver. What is typed travels over the air: use a wired keyboard.",
+    hub_concern_vm: "{} is a virtual machine. Faraday must start on the real computer, and this app cannot see the host's screens and devices.",
+    hub_concern_remote: "{} is a remote session. What it shows is sent to another computer.",
+    hub_concern_wireless_display: "{} is a wireless display. What it shows goes over the air.",
+    hub_concern_screen: "The screen",
+    hub_concern_device: "A USB device",
+    hub_concern_computer: "This computer",
+    hub_concern_session: "This session",
+    hub_check_again: "Check again",
+    hub_continue_anyway: "Continue anyway",
+    hub_let_through_ask: "Continue with {} attached?",
+    hub_let_through_until: "Until this app is closed.",
+    hub_learn_secure_boot_bitlocker: "What Secure Boot and BitLocker are",
+    hub_learn_screens: "Screens and devices that can record",
+    hub_learn_boot_entry: "About the boot entry",
+    hub_remove_entry: "Remove the Faraday boot entry",
+    hub_remove_entry_sub: "In this computer's boot list",
+    hub_removing_entry: "Removing",
     learn: &osk_learn::EN,
 };

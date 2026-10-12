@@ -13,9 +13,9 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use faraday_hub::api::{
-    BitLocker, BitLockerStep, Bus, Computer, DevImage, Disk, FaradayStick, HubEvent, InUse,
-    InstallItem, Installed, KeyShown, Marker, Mode, Os, Payload, PayloadFile, Protection, Reason,
-    Volume, WriteStage,
+    BitLocker, BitLockerStep, Bus, Computer, Concern, DevImage, Disk, FaradayStick, HubEvent,
+    InUse, InstallItem, Installed, KeyShown, Kind, Marker, Mode, Os, Payload, PayloadFile,
+    Protection, Reason, Volume, WriteStage,
 };
 use faraday_hub::decide::Target;
 use faraday_hub::{Hub, HubAction};
@@ -356,6 +356,54 @@ fn guard_shots(s: &Snap) -> Result<(), String> {
     Ok(())
 }
 
+fn concern(kind: Kind, name: &str, id: &str) -> Concern {
+    Concern {
+        kind,
+        name: name.into(),
+        id: id.into(),
+    }
+}
+
+/// The holds of §3.1a, the Continue anyway sheet, and the boot entry's
+/// row (§3.1c).
+fn concern_shots(s: &Snap) -> Result<(), String> {
+    let mut h = s.hub();
+    h.hub_event(HubEvent::Computer(laptop(Os::Linux, false)));
+    h.hub_event(HubEvent::Disks(vec![stick("sde", "6.6.84-faraday-0.2.0")]));
+    h.hub_event(HubEvent::Concerns(vec![
+        concern(Kind::Tv, "EXAMPLE TV", "drm:card1-HDMI-A-1"),
+        concern(Kind::Receiver, "Example USB Receiver", "usb:1-2"),
+    ]));
+    s.shot(&mut h, "concern-home-tv-receiver")?;
+    let n = HubAction::ContinueAnyway(h.concern_number("drm:card1-HDMI-A-1"));
+    h.press(n);
+    s.shot(&mut h, "concern-continue-anyway-sheet")?;
+    h.press(HubAction::LetThrough);
+    s.shot(&mut h, "concern-home-tv-let-through")?;
+    h.press(HubAction::Start);
+    s.shot(&mut h, "concern-start-receiver")?;
+    let mut h = s.hub();
+    h.hub_event(HubEvent::Concerns(vec![concern(
+        Kind::VirtualMachine,
+        "QEMU",
+        "vm",
+    )]));
+    s.shot(&mut h, "concern-home-virtual-machine")?;
+    let mut h = guard(s, protected());
+    h.hub_event(HubEvent::Concerns(vec![
+        concern(Kind::RemoteSession, "", "session"),
+        concern(Kind::Kvm, "PiKVM V4", "drm:card0-HDMI-A-1"),
+    ]));
+    s.shot(&mut h, "concern-bitlocker-held")?;
+    let mut h = s.hub();
+    h.hub_event(HubEvent::BootEntry(true));
+    s.shot_end(&mut h, "home-remove-boot-entry")?;
+    h.press(HubAction::RemoveEntry);
+    h.hub_event(HubEvent::BootEntryRemoved(Err(Reason::Declined)));
+    s.shot_end(&mut h, "home-remove-boot-entry-declined")?;
+    Ok(())
+}
+
 fn run(s: &Snap) -> Result<(), String> {
     // Home in each state.
     let mut h = s.hub();
@@ -411,6 +459,9 @@ fn run(s: &Snap) -> Result<(), String> {
     arm.model = "Surface Example".into();
     h.hub_event(HubEvent::Computer(arm));
     s.shot(&mut h, "home-arm")?;
+
+    // What is attached that can capture the screen or the keys (§3.1a).
+    concern_shots(s)?;
 
     // Make a Faraday stick.
     let mut h = s.hub();

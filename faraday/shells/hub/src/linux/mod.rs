@@ -1,13 +1,15 @@
 //! The hub app on Linux (`docs/HUB.md` §2, §4, §7): disks through
 //! udisks2 over D-Bus, never as root; this computer's facts from `/sys`
 //! and `/etc/crypttab`; the restart into firmware settings through
-//! systemd; the restart from the stick through `efibootmgr` ([`boot`]).
+//! systemd; the restart from the stick through `efibootmgr` ([`boot`]);
+//! what is attached that is of concern from `/sys` ([`devices`]).
 //!
 //! udisks2's answers are read by [`udisks`], with no D-Bus in it, so the
 //! tests feed it recorded answers; [`bus`] is the transport.
 
 pub mod boot;
 pub mod bus;
+pub mod devices;
 pub mod install;
 pub mod udisks;
 
@@ -17,7 +19,9 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use std::time::Duration;
 
-use faraday_hub::api::{Computer, Disk, FaradayStick, HubEvent, Installed, Os, Reason, WriteOrder};
+use faraday_hub::api::{
+    Computer, Concern, Disk, FaradayStick, HubEvent, Installed, Os, Reason, WriteOrder,
+};
 
 use crate::payload::Payload;
 use crate::platform::Platform;
@@ -105,6 +109,14 @@ impl Platform for Linux {
 
     fn remove_stick_entry(&self) -> Result<(), Reason> {
         boot::remove_entry(&std::env::var_os("PATH").unwrap_or_default())
+    }
+
+    fn boot_entry(&self) -> bool {
+        boot::entry_exists(&std::env::var_os("PATH").unwrap_or_default())
+    }
+
+    fn concerns(&self) -> Vec<Concern> {
+        devices::read(Path::new("/"), std::env::var("DISPLAY").ok().as_deref())
     }
 
     fn installed(&self) -> Option<Installed> {

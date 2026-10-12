@@ -15,9 +15,10 @@ use std::time::{Duration, Instant};
 
 use faraday_core::{Program, parse_version_output};
 use faraday_hub::api::{
-    BitLocker, Bus, Computer, Disk, FaradayStick, HubEvent, Installed, KeyShown, Protection,
-    Reason, Source, WriteOrder, WriteStage,
+    BitLocker, Bus, Computer, Concern, Disk, FaradayStick, HubEvent, Installed, KeyShown,
+    Protection, Reason, Source, WriteOrder, WriteStage,
 };
+use faraday_hub::concern;
 use faraday_payload::{ImageKind, ImageSum, Sha256Sum};
 use faraday_qr::bitlocker::KeyText;
 use opensigner_core::strings::EN;
@@ -36,6 +37,7 @@ use windows_sys::Win32::UI::Shell::{FOLDERID_Downloads, FOLDERID_LocalAppData, F
 use zeroize::Zeroizing;
 
 use super::bitlocker::{self, Answer, Order, Reply, Verb};
+use super::devices::{self, Output};
 use super::disks::{RawDisk, RawVolume, Snapshot, disk_id, disk_number};
 use super::elevated::{self, Elevated};
 use super::install::{self, Dirs, Left};
@@ -98,6 +100,20 @@ impl Platform for Windows {
             protection,
             marker: marker.map(|m| m.marker(sys::boot_time())),
         })
+    }
+
+    fn concerns(&self) -> Vec<Concern> {
+        let c = self.computer();
+        let vm = concern::virtual_machine(&c.maker, &c.model, sys::hypervisor_guest());
+        let outputs: Vec<Output> = sys::display_outputs()
+            .into_iter()
+            .map(|mut o| {
+                o.edid = devices::edid_key(&o.path)
+                    .and_then(|k| sys::reg_get(HKEY_LOCAL_MACHINE, &k, "EDID"));
+                o
+            })
+            .collect();
+        devices::concerns(vm, sys::remote_session(), &outputs, &sys::usb_devices())
     }
 
     fn other_encryption(&self) -> Option<String> {

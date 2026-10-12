@@ -209,7 +209,17 @@ pub fn restart_from_stick(tools: &Tools, device: &str) -> Result<(), Reason> {
     }
 }
 
-/// Uninstall's part (§3.1, §5.4): removes the `Faraday stick` entries,
+/// Whether the firmware has a `Faraday stick` entry (§3.1c), from the
+/// listing read as the person. Without `efibootmgr`, or when it cannot
+/// list, none is known.
+pub fn entry_exists(path: &OsStr) -> bool {
+    which("efibootmgr", path)
+        .and_then(|e| listing(&e).ok())
+        .is_some_and(|l| !faraday_entries(&l).is_empty())
+}
+
+/// Uninstall's part (§3.1, §5.4), and Home's Remove the Faraday boot
+/// entry (§3.1c): removes the `Faraday stick` entries,
 /// when there are any, and nothing else. Without `efibootmgr` there can
 /// be none.
 pub fn remove_entry(path: &OsStr) -> Result<(), Reason> {

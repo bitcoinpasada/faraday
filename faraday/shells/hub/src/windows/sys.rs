@@ -1323,3 +1323,209 @@ impl bitlocker::Wmi for WmiSession {
         Ok(Outputs { ret, values })
     }
 }
+
+// ---------------------------------------------------------------------
+// What is attached that is of concern (docs/HUB.md §3.1a)
+// ---------------------------------------------------------------------
+
+use windows_sys::Win32::Devices::DeviceAndDriverInstallation::{
+    DIGCF_ALLCLASSES, DIGCF_PRESENT, SP_DEVINFO_DATA, SPDRP_COMPATIBLEIDS, SPDRP_DEVICEDESC,
+    SPDRP_HARDWAREID, SPDRP_MFG, SetupDiDestroyDeviceInfoList, SetupDiEnumDeviceInfo,
+    SetupDiGetClassDevsW, SetupDiGetDevicePropertyW, SetupDiGetDeviceRegistryPropertyW,
+};
+use windows_sys::Win32::Devices::Display::{
+    DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME, DISPLAYCONFIG_MODE_INFO, DISPLAYCONFIG_PATH_INFO,
+    DISPLAYCONFIG_TARGET_DEVICE_NAME, DisplayConfigGetDeviceInfo, GetDisplayConfigBufferSizes,
+    QDC_ONLY_ACTIVE_PATHS, QueryDisplayConfig,
+};
+use windows_sys::Win32::Devices::Properties::{DEVPKEY_Device_BusReportedDeviceDesc, DEVPROPTYPE};
+use windows_sys::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_REMOTESESSION};
+
+use super::devices::{Output, RawUsb};
+
+/// Each active display output: its technology, the monitor's friendly
+/// name and its device path, from `QueryDisplayConfig` and
+/// `DisplayConfigGetDeviceInfo`. The EDID is the caller's to read.
+pub fn display_outputs() -> Vec<Output> {
+    let (mut np, mut nm) = (0u32, 0u32);
+    // SAFETY: writes two counts.
+    if unsafe { GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &mut np, &mut nm) }
+        != ERROR_SUCCESS
+    {
+        return Vec::new();
+    }
+    // SAFETY: both structures are plain data, valid when zeroed.
+    let mut paths: Vec<DISPLAYCONFIG_PATH_INFO> = vec![unsafe { std::mem::zeroed() }; np as usize];
+    // SAFETY: as above.
+    let mut modes: Vec<DISPLAYCONFIG_MODE_INFO> = vec![unsafe { std::mem::zeroed() }; nm as usize];
+    // SAFETY: the arrays hold the counts given; the call writes at most
+    // that many and the counts it wrote.
+    let e = unsafe {
+        QueryDisplayConfig(
+            QDC_ONLY_ACTIVE_PATHS,
+            &mut np,
+            paths.as_mut_ptr(),
+            &mut nm,
+            modes.as_mut_ptr(),
+            ptr::null_mut(),
+        )
+    };
+    if e != ERROR_SUCCESS {
+        return Vec::new();
+    }
+    paths.truncate(np as usize);
+    paths
+        .iter()
+        .filter_map(|p| {
+            // SAFETY: plain data, valid when zeroed.
+            let mut name: DISPLAYCONFIG_TARGET_DEVICE_NAME = unsafe { std::mem::zeroed() };
+            name.header.r#type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+            name.header.size = std::mem::size_of::<DISPLAYCONFIG_TARGET_DEVICE_NAME>() as u32;
+            name.header.adapterId = p.targetInfo.adapterId;
+            name.header.id = p.targetInfo.id;
+            // SAFETY: the header says the packet's type and size.
+            if unsafe { DisplayConfigGetDeviceInfo(&mut name.header) } != 0 {
+                return None;
+            }
+            Some(Output {
+                technology: name.outputTechnology as u32,
+                name: narrow(&name.monitorFriendlyDeviceName),
+                path: narrow(&name.monitorDevicePath),
+                edid: None,
+            })
+        })
+        .collect()
+}
+
+/// `GetSystemMetrics(SM_REMOTESESSION)`: this session is a remote one.
+pub fn remote_session() -> bool {
+    // SAFETY: no pointers.
+    unsafe { GetSystemMetrics(SM_REMOTESESSION) != 0 }
+}
+
+/// A `REG_MULTI_SZ` or `REG_SZ` registry property of a device.
+fn device_property(set: isize, data: &SP_DEVINFO_DATA, property: u32) -> Option<Vec<u8>> {
+    let mut need = 0u32;
+    // SAFETY: a null buffer of size 0 asks only for the size.
+    unsafe {
+        SetupDiGetDeviceRegistryPropertyW(
+            set,
+            data,
+            property,
+            ptr::null_mut(),
+            ptr::null_mut(),
+            0,
+            &mut need,
+        )
+    };
+    if need == 0 {
+        return None;
+    }
+    let mut buf = vec![0u8; need as usize];
+    // SAFETY: `buf` holds `need` bytes.
+    let ok = unsafe {
+        SetupDiGetDeviceRegistryPropertyW(
+            set,
+            data,
+            property,
+            ptr::null_mut(),
+            buf.as_mut_ptr(),
+            need,
+            &mut need,
+        )
+    };
+    (ok != 0).then_some(buf)
+}
+
+/// The device's own product string, `DEVPKEY_Device_BusReportedDeviceDesc`.
+fn bus_description(set: isize, data: &SP_DEVINFO_DATA) -> String {
+    let mut kind: DEVPROPTYPE = 0;
+    let mut buf = vec![0u8; 512];
+    let mut need = 0u32;
+    // SAFETY: `buf` holds the size given; the key is a static.
+    let ok = unsafe {
+        SetupDiGetDevicePropertyW(
+            set,
+            data,
+            &DEVPKEY_Device_BusReportedDeviceDesc,
+            &mut kind,
+            buf.as_mut_ptr(),
+            buf.len() as u32,
+            &mut need,
+            0,
+        )
+    };
+    if ok == 0 {
+        return String::new();
+    }
+    buf.truncate(need as usize);
+    super::registry::sz(&buf).unwrap_or_default()
+}
+
+/// Every present device under the `USB` enumerator, through SetupAPI.
+pub fn usb_devices() -> Vec<RawUsb> {
+    let usb = wide("USB");
+    // SAFETY: the enumerator is NUL-terminated; no class or window.
+    let set = unsafe {
+        SetupDiGetClassDevsW(
+            ptr::null(),
+            usb.as_ptr(),
+            0,
+            DIGCF_ALLCLASSES | DIGCF_PRESENT,
+        )
+    };
+    if set == INVALID_HANDLE_VALUE {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    for i in 0.. {
+        // SAFETY: plain data, valid when zeroed.
+        let mut data: SP_DEVINFO_DATA = unsafe { std::mem::zeroed() };
+        data.cbSize = std::mem::size_of::<SP_DEVINFO_DATA>() as u32;
+        // SAFETY: `data` says its size.
+        if unsafe { SetupDiEnumDeviceInfo(set, i, &mut data) } == 0 {
+            break;
+        }
+        let multi = |p| {
+            device_property(set, &data, p)
+                .map(|b| super::registry::multi_sz(&b))
+                .unwrap_or_default()
+        };
+        let single = |p| {
+            device_property(set, &data, p)
+                .and_then(|b| super::registry::sz(&b))
+                .unwrap_or_default()
+        };
+        out.push(RawUsb {
+            hardware_ids: multi(SPDRP_HARDWAREID),
+            compatible_ids: multi(SPDRP_COMPATIBLEIDS),
+            bus_description: bus_description(set, &data),
+            description: single(SPDRP_DEVICEDESC),
+            maker: single(SPDRP_MFG),
+        });
+    }
+    // SAFETY: the set came from SetupDiGetClassDevsW and is freed once.
+    unsafe { SetupDiDestroyDeviceInfoList(set) };
+    out
+}
+
+/// Whether Windows runs as a guest of a hypervisor, from `CPUID`
+/// (`devices::guest`). Not x86_64: not known, so not a guest.
+pub fn hypervisor_guest() -> bool {
+    #[cfg(target_arch = "x86_64")]
+    {
+        use std::arch::x86_64::__cpuid;
+        // SAFETY: CPUID exists on every x86_64 processor.
+        #[allow(unused_unsafe)]
+        let (l1, hv, feat) = unsafe { (__cpuid(1), __cpuid(0x4000_0000), __cpuid(0x4000_0003)) };
+        let mut vendor = [0u8; 12];
+        vendor[..4].copy_from_slice(&hv.ebx.to_le_bytes());
+        vendor[4..8].copy_from_slice(&hv.ecx.to_le_bytes());
+        vendor[8..].copy_from_slice(&hv.edx.to_le_bytes());
+        super::devices::guest(l1.ecx, &vendor, feat.ebx)
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        false
+    }
+}

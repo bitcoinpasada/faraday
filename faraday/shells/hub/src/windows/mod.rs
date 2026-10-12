@@ -22,6 +22,7 @@
 //! module) and `win` puts them behind [`crate::platform::Platform`].
 
 pub mod bitlocker;
+pub mod devices;
 pub mod disks;
 pub mod elevated;
 pub mod install;

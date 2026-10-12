@@ -511,6 +511,41 @@ pub enum Reason {
     Unsupported,
 }
 
+/// What an attached thing of concern is (§3.1a): something that can
+/// capture what Faraday shows or what is typed without Faraday's help.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    /// A TV or other screen that records (its EDID).
+    Tv,
+    /// A KVM switch or IP-KVM (its USB identity, or its capture side's
+    /// EDID name).
+    Kvm,
+    /// A wireless keyboard or mouse receiver.
+    Receiver,
+    /// This computer is a virtual machine: the stick must start on the
+    /// real computer, and the hub app cannot see the host's devices.
+    VirtualMachine,
+    /// A remote session (Windows `SM_REMOTESESSION`, X11 over the
+    /// network). Held only around the recovery key.
+    RemoteSession,
+    /// A wireless display (Miracast). Held only around the recovery key.
+    WirelessDisplay,
+}
+
+/// One thing attached that is of concern (§3.1a), as the shell reads it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Concern {
+    /// What it is.
+    pub kind: Kind,
+    /// Its name as the system reads it (the EDID's monitor name, the USB
+    /// maker and product strings); empty when it has none.
+    pub name: String,
+    /// The shell's handle for it, the same while it stays attached (the
+    /// connector, the USB port, `vm`): what Continue anyway lets through
+    /// for the session.
+    pub id: String,
+}
+
 /// What the shell tells the hub.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HubEvent {
@@ -575,6 +610,15 @@ pub enum HubEvent {
     },
     /// [`HubCommand::SaveKey`] ended: where the file went, or why not.
     KeySaved(Result<String, Reason>),
+    /// What is attached that is of concern (§3.1a), all of it. Sent at
+    /// start, whenever it changes, and after [`HubCommand::CheckAgain`].
+    Concerns(Vec<Concern>),
+    /// Whether the firmware's `Faraday stick` boot entry exists (Linux,
+    /// §3.1c), from the unprivileged `efibootmgr` listing. Sent at start
+    /// and after the entry is made or removed.
+    BootEntry(bool),
+    /// [`HubCommand::RemoveBootEntry`] ended: removed, or why not.
+    BootEntryRemoved(Result<(), Reason>),
 }
 
 /// The recovery key the elevated copy read (§6.2), for the guard's page.
@@ -696,6 +740,12 @@ pub enum HubCommand {
         /// The key.
         key: KeyShown,
     },
+    /// Read what is attached again now (§3.1a, Check again), and send
+    /// [`HubEvent::Concerns`].
+    CheckAgain,
+    /// Remove the firmware's `Faraday stick` boot entry (Linux, §3.1c),
+    /// through one polkit prompt.
+    RemoveBootEntry,
 }
 
 /// What `--remind` does at logon (§6.3), decided by [`remind`].

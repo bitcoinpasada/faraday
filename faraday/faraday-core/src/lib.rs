@@ -22,6 +22,7 @@ pub mod chart_edit;
 pub mod codes;
 pub mod create;
 pub mod decode;
+pub mod devices;
 pub mod explore;
 pub mod family;
 pub mod flow;
@@ -811,6 +812,12 @@ pub enum Action {
     NotNow,
     /// Ask to power off.
     PowerAsk,
+    /// The device check's Check again.
+    DevicesCheck,
+    /// The device check's Continue anyway: asks first.
+    DevicesContinue,
+    /// The answer to Is this screen a TV?
+    DevicesTv(bool),
     /// Power off.
     PowerOff,
     /// Minutes without input before locking; 0 for never.
@@ -1580,6 +1587,12 @@ pub enum Sheet {
     /// A stick visit's write would go over files already on the stick:
     /// Replace, Keep both or Cancel (`visit_taken`).
     Taken,
+    /// What is attached that can capture the screen or the keys, each
+    /// named with what it can do (`devices`).
+    Devices,
+    /// Is this screen a TV? Asked once, on a computer whose screen is a
+    /// separate one (`devices`).
+    TvAsk,
 }
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
@@ -3267,6 +3280,9 @@ pub struct Faraday {
     pub secure_boot: SecureBootAtStart,
     /// The computer's maker (`sys_vendor`), as the stick shell read it.
     pub maker: String,
+    /// What is attached that can capture the screen or the keys, as the
+    /// stick shell read it (`devices`).
+    pub devices: devices::DeviceCheck,
     /// The online app's warning that this computer is not air-gapped has
     /// been acknowledged this session: it comes before mainnet does.
     airgap_warned: bool,
@@ -3449,6 +3465,7 @@ impl Faraday {
             medium: Medium::Stick,
             secure_boot: SecureBootAtStart::Unknown,
             maker: String::new(),
+            devices: devices::DeviceCheck::default(),
             airgap_warned: false,
             mainnet_asked: None,
         }
@@ -3476,6 +3493,7 @@ impl Faraday {
         self.backup_settle();
         // A device still waiting comes back up once no other sheet is.
         self.input_sheet();
+        self.device_sheet();
     }
 
     fn storage_event(&mut self, event: StorageEvent) {
@@ -4545,6 +4563,13 @@ impl Faraday {
             self.sheet = None;
             self.chart = None;
         }
+        // While something that can capture the screen or the keys is
+        // attached and not let through, what shows a secret waits under
+        // its sheet (`docs/HUB.md` §3.1a).
+        if self.device_holds(action) {
+            self.device_hold(action);
+            return;
+        }
         // Keys load only with no stick attached: what loads one waits,
         // under a sheet, for the stick to be pulled.
         if self.selftest_passed() && !self.sticks.is_empty() && self.pull_what(action).is_some() {
@@ -5048,8 +5073,12 @@ impl Faraday {
                 }
                 Err(e) => self.toast(&e.text()),
             },
+            Action::DevicesCheck => self.device_check(),
+            Action::DevicesContinue => self.device_continue(),
+            Action::DevicesTv(tv) => self.device_tv(tv),
             Action::Cancel => {
                 self.pull = None;
+                self.devices.after = None;
                 // A seed read and not loaded is wiped.
                 self.seed_read = None;
                 self.delete_ask = None;
@@ -10765,6 +10794,7 @@ impl Faraday {
         self.release_held_stick();
         // A device still waiting comes back up once no other sheet is.
         self.input_sheet();
+        self.device_sheet();
         self.dirty = true;
         self.commands.push_back(Command::Draw);
     }

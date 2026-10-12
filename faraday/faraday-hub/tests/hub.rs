@@ -762,8 +762,12 @@ fn transfer_is_the_desktop_apps_and_back_returns_to_home() {
 #[test]
 fn checklist_items_that_do_not_apply_are_not_shown() {
     let mut hub = hub_with(Vec::new());
-    // Linux: no BitLocker items.
-    assert!(!shows(&mut hub, "BitLocker"));
+    // Linux: no BitLocker items (the Learn link's title names it).
+    let t = texts(&mut hub);
+    assert!(
+        !t.iter()
+            .any(|t| t == "BitLocker" || t.contains("Resume BitLocker"))
+    );
     let _ = Item::Resume;
     // An ARM computer: only Make a stick, and the line that says why.
     let mut arm = windows(true);
