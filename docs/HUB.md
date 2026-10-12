@@ -773,8 +773,10 @@ text (§7.4). Pages:
   (where it hides USB); Start from the stick; Turn Secure Boot back on
   (including restoring factory keys where turning it off cleared
   them); Known quirks. Each ends with a line of where it comes from:
-  the maker's support page and the date it was read, and the model it
-  was tried on.
+  the maker's support page and the date it was read. No page names
+  the model it was tried on: the computers tried are the owner's, and
+  their make and model are personal information (the owner's rule;
+  MAC.md M6 decided the same for Macs).
 - *When the stick does not start*: not in the boot menu (Fast Boot,
   USB boot off, a USB-C port that does not boot, CSM), a black screen,
   a firmware password set by an employer.
@@ -842,8 +844,10 @@ is written.
 | Dynabook, Toshiba | F12 | F2 | |
 
 A maker without a page, or not read, gets the general Windows or Linux
-page, whose firmware route (§7.3) needs no key. The maker of the
-computer batch W tries on is the first family with a page.
+page, whose firmware route (§7.3) needs no key. Which maker's page
+comes first is not written down anywhere published, for the same
+reason. Open for the owner: a page published for one family alone
+would itself tell which maker the owner tried.
 
 ### 7.7 Keeping Secure Boot on (later)
 
