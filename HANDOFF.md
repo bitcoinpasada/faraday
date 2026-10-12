@@ -1870,6 +1870,17 @@ as possible before the next build.
     a frame part of the way asks for the next. Built in the working
     tree; waits for the owner's check.
 
+70. [ ] 2026-10-12, owner: **the hub app**, specified in `docs/HUB.md`
+    (DECISIONS F11): one download per operating system (Windows, Linux)
+    that makes a Faraday stick or Pi card (whole, or keeping the data
+    partition), guides starting a computer from the stick with a
+    BitLocker guard that never leaves anyone at a recovery-key prompt,
+    transfers files by QR code, opens the desktop app for testing, and
+    installs itself or runs without installing. Plain files stay in the
+    release (`.xz` images, renamed), no dev images. Batches R, L, G, W,
+    C, P, S (HUB §11); §12's decisions D1–D11 carry defaults for the
+    owner to confirm before the batch that needs each. Not started.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:

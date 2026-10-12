@@ -377,3 +377,47 @@ so every theme draws the name as it draws its text, and no font is
 added to the bake. The sidebar sets its capitals 10 units tall, which
 leaves the widest network pill (Regtest) its gap; the Pi's header, with
 more room, 11. The boot logo's 5×7 pixel name is unchanged.
+
+### F11 The hub app: one download that makes sticks and cards (2026-10-12)
+
+**Why.** Getting Faraday onto a stick or a Pi card, and a laptop to
+start from it, took a terminal, `dd`, a firmware menu and a Secure Boot
+setting; on Windows a wrong step can leave the computer asking for a
+BitLocker recovery key nobody has. The release offered only the plain
+files.
+
+**Decision** (owner, 2026-10-12; the spec is `docs/HUB.md`).
+
+- A separate app, the hub app, shown to people as Faraday, is the main
+  download: `Faraday-X.Y.Z-Windows.exe` and `Faraday-X.Y.Z-Linux`. It
+  makes a Faraday stick or a Pi card, guides starting a computer from
+  the stick and putting its Secure Boot back, transfers files by QR
+  code, opens the desktop app, and installs itself to the Start menu or
+  app menu, or runs without installing. It has no network code.
+- The desktop app stays a testing app, opened on its own or from the
+  hub app. Installing the hub app on Linux asks whether to install the
+  desktop app too, unticked. There is no Windows desktop app.
+- The plain files stay in every release, under the hub app, with new
+  names (`faraday-desktop-…`, `faraday-stick-….img.xz`,
+  `faraday-pi-….img.xz`). Images are published as `.xz` only, with the
+  `.img` inside listed in `SHA256SUMS` as well.
+- No dev images are published, plain or inside the hub app; developers
+  build them and write them with `tools/flash-stick`.
+- Replacing Faraday on a stick while keeping its data partition is
+  offered to everyone, not only developers. This changes F2, which kept
+  the boot-partition-only flash for development ("It is not offered to
+  users"). The hub app
+  never reads or writes the data partition, and its Learn page says
+  that plugging the stick into an online computer is what exposes it,
+  and that Settings → Upgrade a Faraday stick avoids that.
+- Nobody who follows the hub app's steps is ever asked for a BitLocker
+  recovery key: before any firmware step it suspends BitLocker until
+  Secure Boot is back on, and shows the recovery key, which the person
+  confirms by typing part of it back (`docs/HUB.md` §6).
+- The Windows hub app is not code-signed: a certificate names a
+  verified person or company, and Faraday is published under a
+  pseudonym, for privacy. Windows' first-run warning is documented, with
+  how to check the file against `SHA256SUMS` and its signature instead.
+- The Pi image aims at as many Pis and screens as can be tried: the
+  layout already follows the screen's size and density; the screen
+  that cannot be detected is chosen when the card is made.
