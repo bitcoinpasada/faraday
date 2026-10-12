@@ -88,6 +88,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
         // Everything under a sheet is out of reach.
         ui.hits.clear();
         ui.in_sheet = true;
+        ui.offset = app.sheet_offset;
         ui.backdrop();
         // A press beside the sheet leaves it as its own way out does. The
         // word list takes such a press itself.
@@ -14329,7 +14330,11 @@ fn power_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         w,
         h,
         (Icon::Power, TEXT, "Power off"),
-        "",
+        if app.secure_boot_reminder() {
+            opensigner_core::strings::EN.power_secure_boot_off
+        } else {
+            ""
+        },
         &kept_sections(app, true, "The computer powers off".to_string()),
         &[
             ("Cancel", Style::Secondary, Action::Cancel),

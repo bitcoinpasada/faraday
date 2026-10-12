@@ -131,7 +131,7 @@ use std::time::{Duration, Instant};
 
 use camera::{Camera, Capture};
 use cursor::{Cursor, Pointed};
-use faraday_core::{Faraday, Medium, StickInfo, StorageEvent};
+use faraday_core::{Faraday, Medium, SecureBootAtStart, StickInfo, StorageEvent};
 use faraday_scanner::Scanner;
 use faraday_storage::{Boot, BootProcess, Boxes, Dirs, DiskProcess, serve_all, stick_info};
 use fb::{Depth, Geometry};
@@ -281,6 +281,10 @@ fn medium() -> Medium {
         Medium::Stick
     }
 }
+
+/// The kernel's boot parameters, and the firmware's maker string.
+const BOOT_PARAMS: &str = "/sys/kernel/boot_params/data";
+const SYS_VENDOR: &str = "/sys/class/dmi/id/sys_vendor";
 
 /// How often the mounts are looked at again.
 const STICK_SCAN: Duration = Duration::from_millis(700);
@@ -1387,6 +1391,14 @@ fn run(args: Args) -> Result<bool, String> {
         app: Some({
             let mut app = Faraday::new();
             app.medium = medium();
+            if app.medium == Medium::Stick {
+                app.secure_boot = std::fs::read(BOOT_PARAMS)
+                    .map(|d| SecureBootAtStart::from_boot_params(&d))
+                    .unwrap_or_default();
+                app.maker = std::fs::read_to_string(SYS_VENDOR)
+                    .map(|m| m.trim().to_string())
+                    .unwrap_or_default();
+            }
             app
         }),
         boxes: Boxes::Dir(PathBuf::from(BOXES)),

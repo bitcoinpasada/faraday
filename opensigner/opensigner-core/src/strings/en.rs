@@ -2308,6 +2308,8 @@ pub struct Strings {
     pub learn_try_passphrase: &'static str,
     /// The last row of Learn › "Spend paths and timelocks".
     pub learn_try_miniscript: &'static str,
+    /// Power-off sheet on a stick that started with Secure Boot off.
+    pub power_secure_boot_off: &'static str,
     // ----- The hub app (docs/HUB.md), faraday-hub -----
     /// Title of the hub app's Home, where the way back goes.
     pub hub_home: &'static str,
@@ -3750,6 +3752,7 @@ pub static EN: Strings = Strings {
     learn_try_encrypted: "Make an encrypted backup",
     learn_try_passphrase: "Open a passphrase",
     learn_try_miniscript: "Miniscript tool",
+    power_secure_boot_off: "Secure Boot is off. Turn it back on before starting Windows.",
     // The hub app (docs/HUB.md).
     hub_home: "Home",
     hub_computer: "This computer",

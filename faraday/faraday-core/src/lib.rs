@@ -44,6 +44,7 @@ pub mod plan;
 pub mod restore;
 pub mod secret_text;
 pub mod secrets;
+pub mod secure_boot_state;
 pub mod secureboot;
 pub mod seed_read;
 pub mod seeds;
@@ -73,6 +74,7 @@ mod held;
 pub use compact::OskPress;
 pub use medium::Medium;
 pub use screens::qr_code;
+pub use secure_boot_state::SecureBootAtStart;
 mod compact_screens;
 mod explore_screen;
 mod family_screen;
@@ -2969,6 +2971,8 @@ pub struct Faraday {
     /// How far a sheet taller than a small panel is scrolled, and which
     /// sheet it was: another sheet starts at its top.
     sheet_scroll: (f32, Option<Sheet>),
+    /// The open sheet's offset as the frame draws it.
+    sheet_offset: f32,
     /// A small panel's docked keyboard.
     osk: compact::Osk,
     /// The Wallets tab's session.
@@ -3219,6 +3223,11 @@ pub struct Faraday {
     /// What the removable medium is called and drawn as: a stick, or an
     /// SD card on the Pi. The shell sets it at start.
     pub medium: Medium,
+    /// Whether the machine started with Secure Boot on, as the stick shell
+    /// read it once at start. Unknown everywhere else.
+    pub secure_boot: SecureBootAtStart,
+    /// The computer's maker (`sys_vendor`), as the stick shell read it.
+    pub maker: String,
     /// The online app's warning that this computer is not air-gapped has
     /// been acknowledged this session: it comes before mainnet does.
     airgap_warned: bool,
@@ -3295,6 +3304,7 @@ impl Faraday {
             screen: Screen::Home,
             sheet: None,
             sheet_scroll: (0.0, None),
+            sheet_offset: 0.0,
             osk: compact::Osk::default(),
             session: Session::default(),
             spend: None,
@@ -3398,6 +3408,8 @@ impl Faraday {
             held: false,
             shell_keys: None,
             medium: Medium::Stick,
+            secure_boot: SecureBootAtStart::Unknown,
+            maker: String::new(),
             airgap_warned: false,
             mainnet_asked: None,
         }
@@ -4942,7 +4954,7 @@ impl Faraday {
                 self.not_now = !std::mem::take(&mut self.upgrade_after_lock);
             }
             Action::PowerAsk => {
-                if self.outbox.is_empty() {
+                if self.outbox.is_empty() && !self.secure_boot_reminder() {
                     self.commands.push_back(Command::Exit);
                 } else {
                     self.sheet = Some(Sheet::Power);
@@ -10009,21 +10021,28 @@ impl Faraday {
             .map_or(ui::Slot::Page, |e| e.slot);
     }
 
-    /// The screen's region's offset, or the scrolling sheet's.
+    /// The open sheet's offset, or the screen's region's. A sheet starts
+    /// at its top each time it opens: with none open the sheet's offset
+    /// is cleared, and another kind of sheet starts afresh.
     fn page_slot(&mut self) -> Option<&mut f32> {
         match self.sheet {
-            Some(Sheet::Learn) => return Some(&mut self.learn.scroll),
-            Some(Sheet::WordList) => return self.wordlist.as_mut().map(|w| &mut w.scroll),
-            Some(s)
-                if self.compact || matches!(s, Sheet::Import | Sheet::Delete | Sheet::Taken) =>
-            {
+            Some(Sheet::Learn) => Some(&mut self.learn.scroll),
+            Some(Sheet::WordList) => self.wordlist.as_mut().map(|w| &mut w.scroll),
+            Some(s) => {
                 if self.sheet_scroll.1 != Some(s) {
                     self.sheet_scroll = (0.0, Some(s));
                 }
-                return Some(&mut self.sheet_scroll.0);
+                Some(&mut self.sheet_scroll.0)
             }
-            _ => {}
+            None => {
+                self.sheet_scroll = (0.0, None);
+                self.screen_slot()
+            }
         }
+    }
+
+    /// The screen's region's offset, whatever sheet is over it.
+    fn screen_slot(&mut self) -> Option<&mut f32> {
         Some(match self.screen {
             Screen::Visit
             | Screen::Files
@@ -10069,20 +10088,7 @@ impl Faraday {
     /// that sheet scrolls. A sheet that does not scroll leaves the screen
     /// the region, so what moves on it carries on under the sheet.
     fn region_key(&self) -> ScreenKey {
-        (
-            self.screen,
-            self.sheet.filter(|s| {
-                self.compact
-                    || matches!(
-                        s,
-                        Sheet::Learn
-                            | Sheet::WordList
-                            | Sheet::Import
-                            | Sheet::Delete
-                            | Sheet::Taken
-                    )
-            }),
-        )
+        (self.screen, self.sheet)
     }
 
     /// The motion belongs to the region that scrolls now: what moved
@@ -10421,7 +10427,8 @@ impl Faraday {
         let key = self.region_key();
         let slot = self.slot();
         let offset = self.scroll_slot().map_or(0.0, |o| *o);
-        let page_offset = self.page_slot().map_or(0.0, |o| *o);
+        let page_offset = self.screen_slot().map_or(0.0, |o| *o);
+        self.sheet_offset = self.page_slot().map_or(0.0, |o| *o);
         let (seen_key, seen_offset, moved_at) = self.bar_seen;
         let moved_at = if seen_key != (key, slot) {
             0

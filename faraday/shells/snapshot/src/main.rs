@@ -1680,6 +1680,12 @@ fn run(
     t.press(Action::PowerAsk);
     t.shot("power-sheet")?;
     t.app.event(Event::Key(Key::Escape));
+    // A stick that started with Secure Boot off reminds at power-off.
+    t.app.secure_boot = faraday_core::SecureBootAtStart::Off;
+    t.press(Action::PowerAsk);
+    t.shot("power-sheet-secure-boot-off")?;
+    t.app.event(Event::Key(Key::Escape));
+    t.app.secure_boot = faraday_core::SecureBootAtStart::Unknown;
     // New key's hint for cards, with its en dash.
     t.press(Action::KeyGen(None));
     t.press(Action::KWords(12));
