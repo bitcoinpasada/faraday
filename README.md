@@ -763,9 +763,13 @@ that container, have their source paths rewritten the same way
 the Faraday build ID: a release's version alone, otherwise the version,
 the commit's first twelve hex digits and the kind of build, test or dev
 (and `.dirty-XXXXXXXX` for a tree that differs from its commit), never a
-date (`docs/DECISIONS.md` F5). No second builder has checked a Faraday
-image yet. The pinned container build of the desktop app
-(`just faraday-linux-bin`) is not set up yet.
+date (`docs/DECISIONS.md` F5). The Pi image carries the same string in
+`faraday-build.txt` on its boot partition, since its kernel is
+compressed. No second builder has checked a Faraday image yet. The
+desktop app for Linux is built by `just faraday-linux-bin` in a pinned
+Debian 11 container (`faraday/build/linux`), against glibc 2.31, with
+the same path rewriting, so one file runs on Ubuntu 20.04 and later,
+Debian 11 and later, Fedora 32 and later and Arch.
 
 ## Verifying a release
 

@@ -2,10 +2,12 @@
 # Stages a Faraday release's plain files under out/release/VERSION/, named
 # as docs/HUB.md §1.1 names them, with SHA256SUMS for the owner to sign.
 #
-#   faraday/tools/stage-release.sh VERSION [--any-build] [--out DIR]
+#   faraday/tools/stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR]
 #
 # Takes what the builds left:
-#   target/release/faraday                  -> faraday-desktop-VERSION-linux-x86_64
+#   out/linux/faraday                       -> faraday-desktop-VERSION-linux-x86_64
+#       (`just faraday-linux-bin`: the glibc 2.31 container build, HUB §1.2;
+#       target/release/faraday needs the build machine's newer glibc)
 #   out/stick/faraday-x86_64-uefi.img       -> faraday-stick-VERSION-x86_64-uefi.img.xz
 #   out/pi/faraday-pi3-waveshare-28dpi.img  -> faraday-pi-VERSION-pi3-waveshare-28dpi.img.xz
 #
@@ -17,33 +19,58 @@
 #
 # The stick image must carry VERSION as its build ID (a release build,
 # DECISIONS F5); --any-build skips that, for trying the script on a test
-# build. The Pi image's build ID cannot be read from its bytes yet. xz runs single-threaded at -9e, so the same image always gives
-# the same .xz.
+# build. The three builds (stick, Pi, desktop app) must carry the same
+# build ID, --any-build or not. Each is read from the file it describes:
+# the stick's and the Pi's from the kernel release string on their boot
+# partitions (the Pi's in faraday-build.txt, which its image build
+# writes: its kernel is compressed), the desktop app's from the build
+# string compiled into it. xz runs single-threaded at -9e, so the same
+# image always gives the same .xz.
+#
+# Second, the payload the hub app embeds (HUB §1.3), in out/payload/VERSION/
+# (with --out DIR, in DIR.payload; --payload DIR names it): hard links to
+# the two image .xz, the desktop app as .xz, and MANIFEST.
+#
+# Last, the published-file check (HUB §2): every file published, and every
+# .img, binary and inner file inside one, goes through `strings`. The
+# script refuses one carrying this account's home folder, its user name
+# and an @, the computer's host name as a word, /home/<name>/,
+# /Users/<name>/ or C:\Users\<name>\, and says which file and which
+# string. The values are read here, when it runs; none is written in the
+# repository.
 set -euo pipefail
 
 die() { printf 'stage-release: %s\n' "$1" >&2; exit 1; }
 
-[ $# -ge 1 ] || die "usage: stage-release.sh VERSION [--any-build] [--out DIR]"
+[ $# -ge 1 ] || die "usage: stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR]"
 version="$1"
 shift
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "VERSION must look like X.Y.Z, got '$version'"
 any=0
 out=""
+payload=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --any-build) any=1; shift ;;
         --out) [ $# -ge 2 ] || die "--out needs a directory"; out="$2"; shift 2 ;;
+        --payload) [ $# -ge 2 ] || die "--payload needs a directory"; payload="$2"; shift 2 ;;
         *) die "unknown argument $1" ;;
     esac
 done
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+if [ -z "$payload" ]; then
+    if [ -n "$out" ]; then payload="$out.payload"; else payload="out/payload/$version"; fi
+fi
 out="${out:-out/release/$version}"
 
-desktop=target/release/faraday
+desktop=out/linux/faraday
 stick=out/stick/faraday-x86_64-uefi.img
 pi=out/pi/faraday-pi3-waveshare-28dpi.img
 for f in "$desktop" "$stick" "$pi"; do
     [ -f "$f" ] || die "$f: not built"
+done
+for tool in xz strings mtype; do
+    command -v "$tool" >/dev/null || die "$tool is not installed"
 done
 
 # The build ID an image carries, from its kernel's release string.
@@ -53,22 +80,47 @@ build_id() {
     { grep -a -o -m1 -E '[0-9]+\.[0-9]+\.[0-9]+-faraday-[0-9A-Za-z.+-]+' "$1" || true; } \
         | head -1 | sed 's/.*-faraday-//' || true
 }
-# The Pi's kernel is a compressed zImage, so its release string is not
-# in the image's bytes and the Pi image's build cannot be read here; the
-# stick image's is. HANDOFF item 70 has the Pi image carry its build ID
-# where it can be read.
-echo "$pi: build ID not readable (compressed kernel); check it was built from $(git rev-parse --short=12 HEAD)"
-for img in "$stick"; do
-    id="$(build_id "$img")"
-    [ -n "$id" ] || die "$img carries no Faraday build ID"
-    if [ "$any" = 0 ] && [ "$id" != "$version" ]; then
-        die "$img is build $id, not the release $version (build it with release=1, or pass --any-build)"
+# The Pi image's build ID: the release string in faraday-build.txt on
+# its boot partition (the first MBR partition), read as the stick's is.
+pi_build_id() {
+    local lba
+    lba="$(od -An -t u4 --endian=little -j 454 -N 4 "$1" | tr -d ' ')"
+    [ -n "$lba" ] && [ "$lba" -gt 0 ] || die "$1: no boot partition"
+    mtype -i "$1@@$((lba * 512))" ::faraday-build.txt 2>/dev/null | build_id /dev/stdin
+}
+# The desktop app's: the build string compiled into it. A release's is
+# the version alone, found by the version being there and no other
+# form; a plain cargo build has none (it carries "(local build)").
+desktop_build_id() {
+    local id
+    id="$(grep -a -o -m1 -E '[0-9]+\.[0-9]+\.[0-9]+\+[0-9a-f]{12}(\.dirty-[0-9a-f]{8})?\.(test|dev)' "$1" || true)"
+    if [ -z "$id" ]; then
+        grep -aqF '(local build)' "$1" && return 0
+        grep -aqF "$version" "$1" && id="$version"
     fi
-    echo "$img: $id"
-done
+    printf '%s' "$id"
+}
+
+stick_id="$(build_id "$stick")"
+pi_id="$(pi_build_id "$pi")"
+desktop_id="$(desktop_build_id "$desktop")"
+[ -n "$stick_id" ] || die "$stick carries no Faraday build ID"
+[ -n "$pi_id" ] || die "$pi carries no Faraday build ID (faraday-build.txt on its boot partition)"
+[ -n "$desktop_id" ] || die "$desktop carries no Faraday build ID (a plain cargo build, or not this version)"
+echo "$stick: $stick_id"
+echo "$pi: $pi_id"
+echo "$desktop: $desktop_id"
+if [ "$stick_id" != "$pi_id" ] || [ "$stick_id" != "$desktop_id" ]; then
+    die "the builds are not one build: stick $stick_id, Pi $pi_id, desktop app $desktop_id"
+fi
+if [ "$any" = 0 ] && [ "$stick_id" != "$version" ]; then
+    die "the builds are $stick_id, not the release $version (build them with release=1, or pass --any-build)"
+fi
+build="$stick_id"
 
 [ ! -e "$out" ] || die "$out exists; move it aside first"
-mkdir -p "$out"
+[ ! -e "$payload" ] || die "$payload exists; move it aside first"
+mkdir -p "$out" "$payload"
 
 stick_name="faraday-stick-$version-x86_64-uefi.img"
 pi_name="faraday-pi-$version-pi3-waveshare-28dpi.img"
@@ -101,6 +153,92 @@ for name in "$stick_name" "$pi_name"; do
 done
 cp "$out/SHA256SUMS" "$check/"
 (cd "$check" && sha256sum -c --quiet --ignore-missing SHA256SUMS)
+
+# The payload the hub app embeds (HUB §1.3): the images' .xz as hard
+# links to the staged ones, the desktop app as .xz, and MANIFEST. One
+# line per file, tab-separated: the payload file, its SHA-256, what is
+# inside it, that file's SHA-256 and size, the build ID it carries.
+desktop_xz="$desktop_name.xz"
+echo "Compressing $desktop_xz"
+xz -9e -T1 -c "$desktop" > "$payload/$desktop_xz"
+xz -t "$payload/$desktop_xz"
+ln "$out/$stick_name.xz" "$payload/$stick_name.xz"
+ln "$out/$pi_name.xz" "$payload/$pi_name.xz"
+manifest_line() { # payload file, inner name, inner file
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$(sha256sum < "$payload/$1" | cut -d' ' -f1)" \
+        "$2" "$(sha256sum < "$3" | cut -d' ' -f1)" "$(stat -c %s "$3")" "$build"
+}
+{
+    echo "# Faraday hub payload $version, commit $commit"
+    manifest_line "$stick_name.xz" "$stick_name" "$stick"
+    manifest_line "$pi_name.xz" "$pi_name" "$pi"
+    manifest_line "$desktop_xz" "$desktop_name" "$desktop"
+} > "$payload/MANIFEST"
+# The payload files decompress to what the manifest says.
+xz -d -c "$payload/$desktop_xz" | cmp - "$desktop"
+
+# The published-file check (HUB §2). The values come from the account and
+# the computer this runs on.
+home_dir="${HOME:-}"
+user_name="$(id -un)"
+host_name="$(hostname)"
+patterns="$check/patterns"
+{
+    [ -z "$home_dir" ] || [ "$home_dir" = / ] || printf '%s\n' "$home_dir"
+    printf '%s\n' "$user_name@" "/home/$user_name/" "/Users/$user_name/" "C:\\Users\\$user_name\\"
+} > "$patterns"
+# Prints each forbidden string found in FILE's printable strings.
+forbidden_in() {
+    local strs="$check/strings"
+    strings -a "$1" > "$strs"
+    grep -a -i -F -f "$patterns" "$strs" | head -3 || true
+    [ -z "$host_name" ] || grep -a -i -w -F "$host_name" "$strs" | head -3 || true
+}
+refuse() {
+    rm -rf "$out" "$payload"
+    die "$1 (nothing staged)"
+}
+# FILE and, inside it, every gzip or xz stream found by its magic bytes
+# (a kernel image holds its kernel and the initramfs that way), to a depth
+# of three. LABEL names it in what is printed.
+scanned=0
+scan() {
+    local file="$1" label="$2" depth="$3" hit magic off tmp n
+    scanned=$((scanned + 1))
+    [ -z "${STAGE_RELEASE_VERBOSE:-}" ] || echo "  checking $label"
+    hit="$(forbidden_in "$file")"
+    [ -z "$hit" ] || refuse "$label carries: $(printf '%s' "$hit" | head -1 | cut -c1-200)"
+    [ "$depth" -lt 3 ] || return 0
+    for magic in 'gzip:\x1f\x8b\x08' 'xz:\xfd7zXZ\x00'; do
+        n=0
+        for off in $(LC_ALL=C grep -obUaP "${magic#*:}" "$file" | cut -d: -f1 | head -16); do
+            tmp="$(mktemp -p "$check")"
+            tail -c +$((off + 1)) "$file" | "${magic%%:*}" -dc > "$tmp" 2>/dev/null || true
+            if [ "$(stat -c %s "$tmp")" -gt 65536 ]; then
+                scan "$tmp" "$label (${magic%%:*} stream at byte $off)" $((depth + 1))
+            fi
+            rm -f "$tmp"
+        done
+    done
+}
+for f in "$out"/* "$payload"/*; do
+    # The payload's image .xz are the release's own files.
+    if [ "$(dirname "$f")" = "$payload" ] && [ -e "$out/$(basename "$f")" ]; then continue; fi
+    case "$f" in
+        *.xz)
+            xz -d -c "$f" > "$check/inner"
+            scan "$check/inner" "$f" 0 ;;
+        *.tar.gz)
+            gzip -dc "$f" > "$check/inner"
+            scan "$check/inner" "$f" 0
+            mkdir "$check/untar"
+            tar -C "$check/untar" -xf "$f"
+            for g in "$check"/untar/*; do scan "$g" "$f: ${g#"$check"/untar/}" 0; done
+            rm -rf "$check/untar" ;;
+        *) scan "$f" "$f" 0 ;;
+    esac
+done
+echo "Checked $scanned files and streams for the home folder, user name, host name and /home, /Users and C:\\Users paths: none found."
 
 echo
 cat "$out/SHA256SUMS"

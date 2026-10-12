@@ -8,8 +8,12 @@
 release := "0"
 version := ""
 
-# The desktop app at out/linux/faraday: glibc 2.36 or newer, which
-# winit needs to load the Wayland and X11 libraries.
+# The desktop app at out/linux/faraday, built in a Debian 11 container
+# (faraday/build/linux) against glibc 2.31, so one file runs on Ubuntu
+# 20.04 and later, Debian 11 and later, Fedora 32 and later and Arch
+# (docs/HUB.md §1.2). The Wayland and X11 libraries are loaded from the
+# desktop it runs on. The hub app is built the same way with
+# package=faraday-hub bin=faraday-hub.
 #
 # Sticks are folders in ~/faraday-sticks: BOOTSTICK, plugged in at start
 # as the stick the device booted from (renamed, the app starts with no
@@ -21,7 +25,7 @@ version := ""
 # its three seeds), all testnet, and every session starts on testnet;
 # run the app with --full-kit for the full test kit. The stick image's
 # app starts on mainnet.
-faraday-linux-bin out="out/linux" cache="out/build/run":
+faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop" bin="faraday":
     #!/usr/bin/env bash
     set -euo pipefail
     root="$(pwd)"
@@ -32,7 +36,7 @@ faraday-linux-bin out="out/linux" cache="out/build/run":
     # at 0 rather than following a `dev` variable.
     FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV=0 FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
     export FARADAY_BUILD
-    {{docker}} build -t opensigner-build-linux tools/build/linux
+    {{docker}} build -t faraday-build-linux -f faraday/build/linux/Containerfile faraday/build/linux
     {{docker}} run --rm \
         -e SOURCE_DATE_EPOCH="{{source_date_epoch}}" \
         -e FARADAY_BUILD="$FARADAY_BUILD" \
@@ -40,10 +44,9 @@ faraday-linux-bin out="out/linux" cache="out/build/run":
         -v "$root/{{out}}":/out \
         -v "$root/{{cache}}/linux":/build \
         -v "$root/{{build_cache}}/cargo":/cargo \
-        opensigner-build-linux /src/faraday/build/linux/build.sh
-    file "{{out}}/faraday"
-    echo "needs $(objdump -T "{{out}}/faraday" | grep -o 'GLIBC_[0-9.]*' | sort -t. -k2,2n -u | tail -1)"
-    sha256sum "{{out}}/faraday"
+        faraday-build-linux /src/faraday/build/linux/build.sh "{{package}}" "{{bin}}"
+    file "{{out}}/{{bin}}"
+    sha256sum "{{out}}/{{bin}}"
 
 # The desktop app standing for a device's screen at its true size on
 # this one, to try the small-panel layout by touch: 2.8 is the Pi's
@@ -100,6 +103,21 @@ faraday-snap size: faraday-testkit
     esac
     cargo run -q -p faraday-snapshot -- "$arg" out/testkit "out/snapshots/faraday/{{size}}"
     echo "out/snapshots/faraday/{{size}}"
+
+# The hub app's pages in their states at one size, into
+# out/snapshots/hub/WxH/, one named PNG each: `just faraday-hub-snap
+# 1280x800`. 480x640 and 240x320 carry their panels' dpi; any other size
+# renders at 160 unless spelled `WxH@DPI`.
+faraday-hub-snap size:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    arg="{{size}}"
+    case "{{size}}" in
+        480x640) arg="480x640@286" ;;
+        240x320) arg="240x320@143" ;;
+    esac
+    cargo run -q -p faraday-hub --example snap -- "$arg" "out/snapshots/hub/{{size}}" > /dev/null
+    echo "out/snapshots/hub/{{size}}"
 
 # Secure Boot in real UEFI firmware: OVMF in QEMU enrols the keys
 # faraday-sb makes from their .auth updates, then runs only the image
@@ -280,8 +298,11 @@ faraday-pi-image: faraday-pi-bin
 # Stages a release's plain files under out/release/VERSION/ with the
 # names docs/HUB.md §1.1 gives them, images as .xz, and SHA256SUMS
 # listing each file and each image inside its .xz, for the owner to
-# sign. The stick image must be the release build (release=1); --any-build
-# tries it on a test build.
+# sign, and the hub app's payload and MANIFEST under out/payload/VERSION/
+# (HUB §1.3); refuses files carrying a home folder, user name or host
+# name. The stick image must be the release build (release=1); the stick,
+# Pi and desktop builds (out/linux, from faraday-linux-bin) must carry
+# one build ID; --any-build tries it on a test build.
 #
 #   just faraday-release-stage 0.2.0
 #   just faraday-release-stage 0.2.0 --any-build --out DIR

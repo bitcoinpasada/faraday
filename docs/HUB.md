@@ -97,7 +97,9 @@ Ubuntu 24.04 (2.39) and Debian 12 (2.36) do not have. The hub app and
 the desktop app for release are built in a pinned container against
 glibc 2.31 (Debian 11), so one x86_64 file runs on Ubuntu 20.04 and
 later, Debian 11 and later, Fedora 32 and later, and Arch. This is the
-`just faraday-linux-bin` the README says is not set up yet. Every other
+`just faraday-linux-bin` the README said was not set up (built in batch R:
+`faraday/build/linux/`; Debian 11 has reached end of life, so the
+container takes its packages from `archive.debian.org`). Every other
 library the apps use at run time (X11 or Wayland, xkbcommon) is loaded
 from the desktop the app runs on, as today.
 

@@ -36,3 +36,6 @@ local.properties
 /fuzz/coverage/
 /fuzz/Cargo.lock
 __pycache__/
+
+# faraday/build/ is the same: the Linux apps' container recipe.
+!/faraday/build/
