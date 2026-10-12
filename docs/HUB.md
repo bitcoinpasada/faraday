@@ -428,10 +428,18 @@ reports success.
 **What the hub app reads from a Faraday stick.** Only the boot
 partition, and only to learn which Faraday it holds: the build string
 (F5) the stick's own Upgrade a Faraday stick reads from another stick
-(`faraday-core/src/upgrade.rs`), through `faraday-fat` on the OSKBOOT
-partition, read-only. That version is shown on Which stick and Confirm
-and drives the keep-data rules (§3.2). OSKDATA is never opened, read
-or written (§4.4).
+(`faraday-core/src/upgrade.rs`): the kernel release string in
+`EFI/BOOT/BOOTX64.EFI` on a stick, or `faraday-build.txt` on a Pi
+card (§1.3). On Linux it is read from the desktop's own mount of
+OSKBOOT; when OSKBOOT is not mounted, the hub app has udisks2 mount it
+read-only without asking for a password (`auth.no_user_interaction`),
+reads it and unmounts it (batch L: opening the raw partition needs
+`OpenDevice`, whose polkit prompt would ask for a password just to list
+disks, and `faraday-fat` does not enter subdirectories; it only checks
+the boot sector's OSKBOOT label). A stick whose version cannot be read
+shows as one made before versions were recorded. That version is shown
+on Which stick and Confirm and drives the keep-data rules (§3.2).
+OSKDATA is never mounted, opened, read or written (§4.4).
 
 ### 4.2 Which disks are offered
 
@@ -768,8 +776,8 @@ text (§7.4). Pages:
   Boot back on.
 - *Starting a Linux computer from the stick*, with §6.4's TPM line.
 - *BitLocker and starting from a stick* (§6).
-- One page per maker family tried on a computer (§7.6, D6). Each has
-  the same sections: Keys; Turn Secure Boot off; Turn Fast Boot off
+- One page per maker family, published several at a time (§7.6,
+  D6). Each has the same sections: Keys; Turn Secure Boot off; Turn Fast Boot off
   (where it hides USB); Start from the stick; Turn Secure Boot back on
   (including restoring factory keys where turning it off cleared
   them); Known quirks. Each ends with a line of where it comes from:
@@ -817,12 +825,14 @@ byte `0x1ec` = 2 with the SecureBoot variable 0.
 ### 7.6 Maker families and where to start
 
 The first release carries the general Windows and Linux pages, whose
-firmware route (§7.3) needs no key on any maker, and a maker page only
-for a family that has been tried on a computer (owner, D6: a page of
-untested keys helps nobody and misleads some). The table is the
-backlog: each family gets its page when a computer of it is tried, and
-the keys here are starting points from common knowledge, **every one
-to be checked against the maker's own documentation** before its page
+firmware route (§7.3) needs no key on any maker. Maker pages are
+published several families at a time, never one alone, each from the
+maker's own documentation (owner, D6 as changed by F14: a page for
+one family alone would tell which maker the owner tried). A family
+tried on a computer is checked there before its group is published,
+and nothing published says which families were tried. The keys here
+are starting points from common knowledge, **every one to be checked
+against the maker's own documentation** before its page
 is written.
 
 | Family | Boot menu | Firmware settings | To check |
@@ -844,10 +854,8 @@ is written.
 | Dynabook, Toshiba | F12 | F2 | |
 
 A maker without a page, or not read, gets the general Windows or Linux
-page, whose firmware route (§7.3) needs no key. Which maker's page
-comes first is not written down anywhere published, for the same
-reason. Open for the owner: a page published for one family alone
-would itself tell which maker the owner tried.
+page, whose firmware route (§7.3) needs no key. Which makers were
+tried is not written down anywhere published.
 
 ### 7.7 Keeping Secure Boot on (later)
 
@@ -995,8 +1003,8 @@ installed, its logon reminder (§6), a restart. Uninstall takes back what instal
 |---|---|---|---|
 | R | Release groundwork: the glibc 2.31 container for the desktop app; `.xz` images; the new names; the Linux `.tar.gz`; `SHA256SUMS` with the `.img` and inner-file lines; the hub's payload build; the xz decoder and its `docs/deps` note; README "Verifying a release" for Windows and the two Linux steps | decided | first |
 | L | The hub app on Linux: crates (§2), the D-Bus crate and its `docs/deps` note, Home as a checklist, Make a stick through udisks2 (with what each tried distribution asks for), the stick's version read from OSKBOOT and the keep-data rules, Make a Pi card for the one image, Install and uninstall, Try the desktop app, Transfer and Learn, About, `--image` for developers; then `tools/flash-stick` removed and the README's mention of it with it | decided | after R |
-| G | Guides: the general Windows and Linux pages and §7.2's other pages with their sources; detection on Linux; Restart into firmware settings on Linux; the stick's power-off reminder (§7.5); the website item in its own repository | decided | after R, independent of L and W |
-| W | The hub app on Windows: window, install and uninstall, disks and writing, detection, the BitLocker guard with the marker and the logon reminder and §6.6's acceptance, the firmware buttons, Transfer Send; the first maker page (the family tried); Defender run; the report on what Windows does to a written stick (D11) | decided; D11 is answered by this batch's report | after L; needs G's general Windows page only |
+| G | Guides: the general Windows and Linux pages and §7.2's other pages with their sources; detection on Linux; Restart into firmware settings on Linux; the stick's power-off reminder (§7.5); the first group of maker pages, several families at once (D6, F14); the website item in its own repository | decided | after R, independent of L and W |
+| W | The hub app on Windows: window, install and uninstall, disks and writing, detection, the BitLocker guard with the marker and the logon reminder and §6.6's acceptance, the firmware buttons, Transfer Send; Defender run; the report on what Windows does to a written stick (D11) | decided; D11 is answered by this batch's report | after L; needs G's general Windows page only |
 | C | Windows camera for Transfer Receive, shared with the desktop app; the desktop app on Windows (§2's three changes) and its install | decided | after W |
 | P | Pi: one image for the 2.8 inch panel, Make a Pi card tried on hardware; profiles, boards and other sizes when a second screen is tried | decided (D1, D2, D3, D5) | after L, independent of G, W and C |
 | S | Keeping Secure Boot on (§7.7) | D9 | last |
@@ -1034,8 +1042,11 @@ what moved.
 - **D4 Windows Transfer:** ships with Send; Receive follows batch C.
 - **D5 Panel profiles (§9.3) and layout checks at other sizes (§9.1):**
   deferred until a second screen is tried.
-- **D6 Makers:** the general Windows and Linux pages, and a maker page
-  only for a family tried on a computer; §7.6's table is the backlog.
+- **D6 Makers:** the general Windows and Linux pages, and maker pages
+  published for several families at once, each checked against the
+  maker's own documentation (owner, 2026-10-12, DECISIONS F14,
+  changing "only for a family tried on a computer": a page for one
+  tried family alone would tell which maker the owner has).
 - **D7 BitLocker:** the guard as §6 describes: the key shown and
   confirmed, then suspended until resumed.
 - **D8 The stick's power-off reminder:** yes, as §7.5.
