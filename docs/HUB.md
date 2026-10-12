@@ -79,8 +79,7 @@ inner name, so a person can check either.
   stick image, through the same screens and the same writer, with the
   Confirm page saying the image is not the hub app's own and showing
   its SHA-256. `tools/flash-stick` (the window, `write.sh`, the
-  launcher) is removed in batch L once this works (owner, 2026-10-12),
-  and `local/REMAINING.md` carries the item until then.
+  launcher) was removed in batch L, when this worked (owner, 2026-10-12).
 - The README's "Verifying a release" gains: verifying on Windows
   (`Get-FileHash -Algorithm SHA256` for the sums, Gpg4win for the
   signature), and why the Windows hub app is unsigned (§10.2).
@@ -413,8 +412,8 @@ file is unsigned (§10.2).
 
 ### 4.1 What the writer does
 
-As `tools/flash-stick/write.sh` did (it goes in batch L, D21; from then
-this section is the reference): refuse unless
+As `tools/flash-stick/write.sh` did (removed in batch L, D21; this
+section is the reference): refuse unless
 the device is still the stick that was confirmed (serial and size);
 unmount what the desktop mounted from it; write; flush; read the whole
 write back and compare; ask the system to read the partition table
@@ -504,7 +503,12 @@ Per user, never needing administrator rights.
 | Logon reminder | — | only while the hub app's BitLocker suspension stands (§6.3) |
 
 The menu file names are reverse-DNS, so they never collide with a
-developer's own `faraday.desktop`.
+developer's own `faraday.desktop`. The two executables' names are plain, so
+install replaces, and uninstall removes, `faraday` and
+`faraday-desktop` only when the file there answers `--version` as a
+Faraday hub app or desktop app (orchestrator, 2026-10-12); a file of
+the same name that does not is left alone, and Install says it is in
+the way.
 
 ### 5.3 The desktop app from the hub app
 

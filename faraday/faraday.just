@@ -13,7 +13,13 @@ version := ""
 # 20.04 and later, Debian 11 and later, Fedora 32 and later and Arch
 # (docs/HUB.md §1.2). The Wayland and X11 libraries are loaded from the
 # desktop it runs on. The hub app is built the same way with
-# package=faraday-hub-shell bin=faraday-hub.
+# the arguments `out/linux out/build/run faraday-hub-shell faraday-hub`, against the payload a first
+# `just faraday-release-stage` left: FARADAY_HUB_PAYLOAD=out/payload/VERSION
+# in the environment is mounted into the container and built in (HUB
+# §1.3); without it the hub app carries no payload. Then
+# `just faraday-release-stage-hub VERSION` adds it to the release.
+#
+#   FARADAY_HUB_PAYLOAD=out/payload/0.2.0 just faraday-linux-bin out/linux out/build/run faraday-hub-shell faraday-hub
 #
 # Sticks are folders in ~/faraday-sticks: BOOTSTICK, plugged in at start
 # as the stick the device booted from (renamed, the app starts with no
@@ -37,9 +43,16 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop
     FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV=0 FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
     export FARADAY_BUILD
     {{docker}} build -t faraday-build-linux -f faraday/build/linux/Containerfile faraday/build/linux
+    # The hub app's payload, mounted where build.rs reads it.
+    payload=()
+    if [ -n "${FARADAY_HUB_PAYLOAD:-}" ]; then
+        [ -f "$FARADAY_HUB_PAYLOAD/MANIFEST" ] || { echo "$FARADAY_HUB_PAYLOAD/MANIFEST: not there" >&2; exit 1; }
+        payload=(-v "$(realpath "$FARADAY_HUB_PAYLOAD")":/payload:ro -e FARADAY_HUB_PAYLOAD=/payload)
+    fi
     {{docker}} run --rm \
         -e SOURCE_DATE_EPOCH="{{source_date_epoch}}" \
         -e FARADAY_BUILD="$FARADAY_BUILD" \
+        ${payload[@]+"${payload[@]}"} \
         -v "$root":/src:ro \
         -v "$root/{{out}}":/out \
         -v "$root/{{cache}}/linux":/build \
@@ -106,11 +119,13 @@ faraday-snap size: faraday-testkit
 
 # The hub app (docs/HUB.md), built and run here: `just faraday-hub`, or
 # `just faraday-hub --image out/stick/faraday-x86_64-uefi-dev.img` to write
-# a dev image. FARADAY_HUB_PAYLOAD=out/payload/VERSION builds that payload
+# a dev image, through the same screens and writer as a release's (what
+# `tools/flash-stick` did, removed). FARADAY_HUB_PAYLOAD=out/payload/VERSION builds that payload
 # in; without it the hub app offers only --image. release=1 makes a release
 # build with no local paths in it (faraday/image/path-remap.sh); the build
-# for publishing is `just faraday-linux-bin` with package=faraday-hub-shell
-# bin=faraday-hub, in the glibc 2.31 container.
+# for publishing is `just faraday-linux-bin` with the arguments
+# `out/linux out/build/run faraday-hub-shell faraday-hub`, in the glibc 2.31 container (`just faraday-linux-bin`'s
+# comment).
 faraday-hub *args="":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -138,6 +153,12 @@ faraday-hub-snap size:
     esac
     cargo run -q -p faraday-hub --example snap -- "$arg" "out/snapshots/hub/{{size}}" > /dev/null
     echo "out/snapshots/hub/{{size}}"
+
+# Draws the hub app's menu icon again from the app's own mark
+# (faraday-hub's examples/icon.rs) into shells/hub/assets/. Run it when
+# the mark changes; the PNG is committed and the hub app embeds it.
+faraday-hub-icon:
+    cargo run -q -p faraday-hub --example icon -- faraday/shells/hub/assets/app.faradayoffline.Faraday.png
 
 # Secure Boot in real UEFI firmware: OVMF in QEMU enrols the keys
 # faraday-sb makes from their .auth updates, then runs only the image
@@ -243,18 +264,6 @@ faraday-stick-boot +args:
     [ $# -eq 1 ] || { echo "usage: just [dev=1] faraday-stick-boot [--dry-run] /dev/sdX" >&2; exit 1; }
     exec faraday/image/stick-boot.sh $dry "out/stick/$name-boot.vfat" "$1"
 
-# For development and testing: a window that writes a stick from this
-# checkout's out/stick/. It lists the USB sticks attached, with maker,
-# model, size, serial and partitions, and writes the stick build or the
-# dev build, to the whole stick or to the boot partition alone, keeping
-# the data partition. The write runs as root through pkexec and is
-# tools/flash-stick/write.sh; tools/flash-stick/install-launcher.sh puts
-# the window in the desktop's app menu.
-#
-#   just faraday-flash-stick
-faraday-flash-stick:
-    tools/flash-stick/flash-stick.py
-
 # The Pi shell, cross-compiled for the board the root justfile's `board`
 # variable names (armv7, static against glibc, as upstream's own pi-bin
 # does), at out/faraday/<board>/opensigner-pi: the name upstream's
@@ -328,3 +337,15 @@ faraday-pi-image: faraday-pi-bin
 #   just faraday-release-stage 0.2.0 --any-build --out DIR
 faraday-release-stage VERSION *args:
     faraday/tools/stage-release.sh {{VERSION}} {{args}}
+
+# The second pass of staging (HUB §1.3): adds the Linux hub app,
+# out/linux/faraday-hub, built against the payload the first pass wrote, to
+# the folder the first pass staged: Faraday-VERSION-Linux.tar.gz holding
+# Faraday-VERSION-Linux, and both in SHA256SUMS. Refuses a hub app that does
+# not carry that payload. With --out DIR it adds to DIR, as the first pass
+# was given.
+#
+#   just faraday-release-stage-hub 0.2.0
+#   just faraday-release-stage-hub 0.2.0 --out DIR
+faraday-release-stage-hub VERSION *args:
+    faraday/tools/stage-release.sh {{VERSION}} --hub out/linux/faraday-hub {{args}}

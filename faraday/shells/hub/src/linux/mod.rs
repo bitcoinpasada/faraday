@@ -7,6 +7,7 @@
 //! tests feed it recorded answers; [`bus`] is the transport.
 
 pub mod bus;
+pub mod install;
 pub mod udisks;
 
 use std::collections::BTreeMap;
@@ -15,8 +16,9 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use std::time::Duration;
 
-use faraday_hub::api::{Computer, Disk, FaradayStick, HubEvent, Os, WriteOrder};
+use faraday_hub::api::{Computer, Disk, FaradayStick, HubEvent, Installed, Os, Reason, WriteOrder};
 
+use crate::payload::Payload;
 use crate::platform::Platform;
 use crate::stick;
 use crate::writer::{self, Device, Identity, Job};
@@ -74,25 +76,53 @@ impl Platform for Linux {
     fn write(&self, order: WriteOrder, job: Job, out: Sender<HubEvent>) {
         let block = order.disk.clone();
         writer::spawn(order, job, out, move || {
-            let bus = bus::Bus::connect()?;
+            let bus = bus::Bus::connect().map_err(Reason::Bus)?;
             Ok(Box::new(Target { bus, block }) as Box<dyn Device>)
         });
     }
 
-    fn restart_into_firmware(&self) -> Result<(), String> {
+    fn restart_into_firmware(&self) -> Result<(), Reason> {
         let out = std::process::Command::new("systemctl")
             .args(["reboot", "--firmware-setup"])
             .output()
-            .map_err(|e| format!("systemctl: {e}"))?;
+            .map_err(|e| Reason::Restart(format!("systemctl: {e}")))?;
         if out.status.success() {
             return Ok(());
         }
         let said = String::from_utf8_lossy(&out.stderr).trim().to_string();
-        Err(if said.is_empty() {
+        Err(Reason::Restart(if said.is_empty() {
             format!("systemctl reboot --firmware-setup: {}", out.status)
         } else {
             said
-        })
+        }))
+    }
+
+    fn installed(&self) -> Option<Installed> {
+        install::installed(&install::Dirs::from_env().ok()?)
+    }
+
+    fn install(&self, desktop: bool, payload: Option<&Payload>) -> Result<String, Reason> {
+        let dirs = install::Dirs::from_env()?;
+        let running = std::env::current_exe().map_err(|e| Reason::File {
+            path: String::from("faraday"),
+            detail: e.to_string(),
+        })?;
+        let app = if desktop {
+            Some(payload.ok_or(Reason::NoDesktopApp)?.desktop_app()?.1)
+        } else {
+            None
+        };
+        install::install(&dirs, &running, app.as_deref())
+    }
+
+    fn uninstall(&self) -> Result<(), Reason> {
+        install::uninstall(&install::Dirs::from_env()?)
+    }
+
+    fn run_desktop(&self, payload: Option<&Payload>) -> Result<(), Reason> {
+        let dirs = install::Dirs::from_env()?;
+        let path = install::desktop_app(&dirs, payload)?;
+        install::start(&dirs, &path)
     }
 
     fn downloads(&self) -> PathBuf {
@@ -221,38 +251,37 @@ pub struct Target<U: Udisks> {
 }
 
 impl<U: Udisks> Device for Target<U> {
-    fn identity(&mut self) -> Result<Identity, String> {
+    fn identity(&mut self) -> Result<Identity, Reason> {
         self.bus
-            .objects()?
+            .objects()
+            .map_err(Reason::Bus)?
             .identity(&self.block)
-            .ok_or_else(|| String::from("the disk is no longer attached; nothing was written"))
+            .ok_or(Reason::Gone)
     }
 
-    fn unmount(&mut self) -> Result<(), String> {
-        let objects = self.bus.objects()?;
+    fn unmount(&mut self) -> Result<(), Reason> {
+        let objects = self.bus.objects().map_err(Reason::Bus)?;
         for fs in objects.desktop_mounted(&self.block) {
-            self.bus
-                .unmount(&fs)
-                .map_err(|e| format!("unmounting it: {e}; nothing was written"))?;
+            self.bus.unmount(&fs).map_err(Reason::Unmounting)?;
         }
         Ok(())
     }
 
-    fn open_write(&mut self) -> Result<File, String> {
+    fn open_write(&mut self) -> Result<File, Reason> {
         self.bus
             .open(&self.block, Open::Write)
-            .map_err(|e| format!("opening it to write: {e}; nothing was written"))
+            .map_err(Reason::OpenWrite)
     }
 
-    fn open_read(&mut self) -> Result<File, String> {
+    fn open_read(&mut self) -> Result<File, Reason> {
         self.bus
             .open(&self.block, Open::ReadDirect)
             .or_else(|_| self.bus.open(&self.block, Open::Read))
-            .map_err(|e| format!("opening it to read back: {e}"))
+            .map_err(Reason::OpenRead)
     }
 
-    fn rescan(&mut self) -> Result<(), String> {
-        self.bus.rescan(&self.block)
+    fn rescan(&mut self) -> Result<(), Reason> {
+        self.bus.rescan(&self.block).map_err(Reason::Bus)
     }
 }
 

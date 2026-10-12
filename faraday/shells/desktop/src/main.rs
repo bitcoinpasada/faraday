@@ -619,6 +619,18 @@ fn prepare(dir: &Path, full: bool) -> Result<(), String> {
 }
 
 fn main() -> ExitCode {
+    // `--version` answers before anything else is initialised: the hub
+    // app asks an installed copy this (docs/HUB.md §5.2).
+    if std::env::args().nth(1).as_deref() == Some("--version") {
+        println!(
+            "{}",
+            faraday_core::version_line(
+                faraday_core::Program::DesktopApp,
+                faraday_core::BUILD.unwrap_or(faraday_core::VERSION)
+            )
+        );
+        return ExitCode::SUCCESS;
+    }
     let mut sticks_dir = std::env::var_os("HOME")
         .map(|h| PathBuf::from(h).join("faraday-sticks"))
         .unwrap_or_else(|| PathBuf::from("faraday-sticks"));

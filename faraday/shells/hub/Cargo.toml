@@ -24,6 +24,8 @@ faraday-payload = { path = "../../faraday-payload" }
 faraday-fat = { path = "../../faraday-fat" }
 faraday-storage = { path = "../../faraday-storage" }
 faraday-window = { path = "../window" }
+# The menu entries' names are strings (strings/en.rs).
+opensigner-core = { path = "../../../opensigner/opensigner-core" }
 osk-shell-api = { path = "../../../core/osk-shell-api" }
 winit.workspace = true
 

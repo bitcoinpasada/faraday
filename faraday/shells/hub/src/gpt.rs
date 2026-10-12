@@ -8,6 +8,8 @@
 
 use std::io;
 
+use faraday_hub::api::StickFault;
+
 /// Faraday's disk UUID (`genimage.cfg`).
 pub const DISK_UUID: &str = "4F70656E-5369-676E-6572-4B6974000000";
 /// The OSKBOOT partition's UUID.
@@ -102,8 +104,8 @@ pub fn crc32(data: &[u8]) -> u32 {
 pub fn read(
     read_at: &mut dyn FnMut(u64, &mut [u8]) -> io::Result<()>,
     len: u64,
-) -> Result<Table, String> {
-    let mut last = String::from("no GPT header");
+) -> Result<Table, StickFault> {
+    let mut last = StickFault::NoHeader;
     for sector in [512u64, 4096] {
         match read_with(read_at, len, sector) {
             Ok(t) => return Ok(t),
@@ -117,38 +119,37 @@ fn read_with(
     read_at: &mut dyn FnMut(u64, &mut [u8]) -> io::Result<()>,
     len: u64,
     sector: u64,
-) -> Result<Table, String> {
+) -> Result<Table, StickFault> {
     let ss = sector as usize;
     let mut header = vec![0u8; ss];
-    read_at(sector, &mut header).map_err(|e| format!("reading the partition table: {e}"))?;
+    read_at(sector, &mut header).map_err(|e| StickFault::Reading(e.to_string()))?;
     if &header[..8] != b"EFI PART" {
-        return Err(String::from("its partition table is not GPT"));
+        return Err(StickFault::NotGpt);
     }
     let size = le32(&header, 12) as usize;
     if !(92..=ss).contains(&size) {
-        return Err(String::from("its GPT header is damaged"));
+        return Err(StickFault::HeaderDamaged);
     }
     let mut check = header[..size].to_vec();
     check[16..20].fill(0);
     if crc32(&check) != le32(&header, 16) {
-        return Err(String::from("its GPT header's checksum is wrong"));
+        return Err(StickFault::HeaderChecksum);
     }
     let alternate = le64(&header, 32);
     let entries_lba = le64(&header, 72);
     let count = le32(&header, 80) as usize;
     let entry_size = le32(&header, 84) as usize;
     if !(128..=4096).contains(&entry_size) || count == 0 || count > 1024 {
-        return Err(String::from("its GPT entries are damaged"));
+        return Err(StickFault::EntriesDamaged);
     }
     let entries_len = count * entry_size;
     if entries_lba.saturating_mul(sector) + entries_len as u64 > len {
-        return Err(String::from("its GPT entries lie past the end of the disk"));
+        return Err(StickFault::EntriesPastEnd);
     }
     let mut entries = vec![0u8; entries_len];
-    read_at(entries_lba * sector, &mut entries)
-        .map_err(|e| format!("reading the partition table: {e}"))?;
+    read_at(entries_lba * sector, &mut entries).map_err(|e| StickFault::Reading(e.to_string()))?;
     if crc32(&entries) != le32(&header, 88) {
-        return Err(String::from("its GPT entries' checksum is wrong"));
+        return Err(StickFault::EntriesChecksum);
     }
     let mut parts = Vec::new();
     for e in entries.chunks_exact(entry_size) {
@@ -188,39 +189,36 @@ fn read_with(
 /// Where a Faraday stick's boot partition is, when `table` is a Faraday
 /// stick's and its boot partition holds `needs` bytes; otherwise why it
 /// is not, in `stick-boot.sh`'s words.
-pub fn faraday_boot(table: &Table, needs: u64) -> Result<Boot, String> {
+pub fn faraday_boot(table: &Table, needs: u64) -> Result<Boot, StickFault> {
     if !table.disk_guid.eq_ignore_ascii_case(DISK_UUID) {
-        return Err(String::from("its disk UUID is not a Faraday stick's"));
+        return Err(StickFault::DiskUuid);
     }
     if table.parts.len() != 2 {
-        return Err(format!("it has {} partitions, not two", table.parts.len()));
+        return Err(StickFault::Partitions(table.parts.len()));
     }
     let (boot, data) = (&table.parts[0], &table.parts[1]);
     if boot.name != "OSKBOOT" {
-        return Err(String::from("its first partition is not named OSKBOOT"));
+        return Err(StickFault::BootName);
     }
     if !boot.guid.eq_ignore_ascii_case(BOOT_UUID) || !boot.type_guid.eq_ignore_ascii_case(ESP_TYPE)
     {
-        return Err(String::from(
-            "its first partition is not a Faraday EFI system partition",
-        ));
+        return Err(StickFault::BootType);
     }
     if data.name != "OSKDATA" || !data.guid.eq_ignore_ascii_case(DATA_UUID) {
-        return Err(String::from(
-            "its second partition is not a Faraday OSKDATA partition",
-        ));
+        return Err(StickFault::DataType);
     }
     if boot.last < boot.first {
-        return Err(String::from("its OSKBOOT partition is damaged"));
+        return Err(StickFault::BootDamaged);
     }
     let len = (boot.last - boot.first + 1) * table.sector;
     if len < needs {
-        return Err(format!(
-            "its OSKBOOT partition ({len} bytes) is smaller than the image ({needs} bytes)"
-        ));
+        return Err(StickFault::BootSmall {
+            boot: len,
+            image: needs,
+        });
     }
     if boot.last >= data.first {
-        return Err(String::from("its partitions overlap"));
+        return Err(StickFault::Overlap);
     }
     Ok(Boot {
         offset: boot.first * table.sector,

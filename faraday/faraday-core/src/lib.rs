@@ -109,6 +109,45 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// `cargo build`, which sets no such environment variable.
 pub const BUILD: Option<&str> = option_env!("FARADAY_BUILD");
 
+/// Which Faraday program printed a `--version` line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Program {
+    /// The hub app.
+    HubApp,
+    /// The desktop app.
+    DesktopApp,
+}
+
+impl Program {
+    /// The fixed words a program's `--version` line starts with.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Program::HubApp => "Faraday hub app",
+            Program::DesktopApp => "Faraday desktop app",
+        }
+    }
+}
+
+/// The line `--version` prints: the program's name, a space, the build
+/// string.
+pub fn version_line(program: Program, build: &str) -> String {
+    format!("{} {build}", program.name())
+}
+
+/// Which program, and which build string, a `--version` output is: its
+/// first line must be exactly [`version_line`] for one of them. Anything
+/// else is `None`; this is how the hub app tells its own and the
+/// desktop app's files from another program's of the same name.
+pub fn parse_version_output(output: &str) -> Option<(Program, &str)> {
+    let line = output.lines().next()?.trim();
+    [Program::HubApp, Program::DesktopApp]
+        .into_iter()
+        .find_map(|p| {
+            let build = line.strip_prefix(p.name())?.strip_prefix(' ')?.trim();
+            (!build.is_empty()).then_some((p, build))
+        })
+}
+
 /// Whether this is a release build: a build ID with nothing after the
 /// version (`upgrade::describe`). Test releases, dev builds and a plain
 /// `cargo build` are not.

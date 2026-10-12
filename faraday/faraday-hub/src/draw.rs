@@ -11,7 +11,9 @@ use opensigner_core::strings::{EN, Strings, fill};
 use osk_ui::Color;
 use osk_ui::widgets::Icon;
 
-use crate::api::{InUse, InstallItem, Mode, Os, PayloadKind, Protection, WriteStage};
+use crate::api::{
+    InUse, InstallItem, Mode, Os, PayloadKind, Protection, Reason, StickFault, WriteStage,
+};
 use crate::decide::{Item, Refusal, State, Target};
 use crate::{Hub, HubAction, LearnId, ModeRefusal, Page, Sheet};
 
@@ -351,6 +353,100 @@ fn step_head(ui: &mut Ui, x: f32, y: f32, w: f32, n: usize, text: &str, done: bo
     th.max(26.0) + 10.0
 }
 
+/// What a reason reads as, from `strings/en.rs`.
+pub(crate) fn reason_text(r: &Reason) -> String {
+    let n = |v: u64| v.to_string();
+    let bytes = |v: u64| fill(S.hub_why_bytes, &[&v.to_string()]);
+    match r {
+        Reason::NoWriter => S.hub_no_writer.to_string(),
+        Reason::NotCarried => S.hub_why_not_carried.to_string(),
+        Reason::Changed {
+            device,
+            serial,
+            size,
+        } => {
+            let serial = if serial.is_empty() {
+                S.hub_why_no_serial
+            } else {
+                serial
+            };
+            fill(S.hub_why_changed, &[device, serial, &bytes(*size)])
+        }
+        Reason::InUse(InUse::Mounted(at)) => fill(S.hub_why_mounted, &[at]),
+        Reason::InUse(InUse::Swap) => S.hub_why_swap.to_string(),
+        Reason::InUse(InUse::System) => S.hub_why_system.to_string(),
+        Reason::BootOnly => S.hub_why_boot_only.to_string(),
+        Reason::TooSmall { disk, image } => {
+            fill(S.hub_why_too_small, &[&bytes(*disk), &bytes(*image)])
+        }
+        Reason::PayloadSum => S.hub_why_payload_sum.to_string(),
+        Reason::ImageChanged { path, sha256 } => fill(S.hub_why_image_changed, &[path, sha256]),
+        Reason::Gone => S.hub_why_gone.to_string(),
+        Reason::Bus(d) => fill(S.hub_why_bus, &[d]),
+        Reason::Unmounting(d) => fill(S.hub_why_unmounting, &[d]),
+        Reason::OpenWrite(d) => fill(S.hub_why_open_write, &[d]),
+        Reason::OpenRead(d) => fill(S.hub_why_open_read, &[d]),
+        Reason::Device { device, detail } => fill(S.hub_why_device, &[device, detail]),
+        Reason::Flush { device, detail } => fill(S.hub_why_flush, &[device, detail]),
+        Reason::NotStick { device, fault } => {
+            fill(S.hub_why_not_stick, &[device, &fault_text(fault)])
+        }
+        Reason::NotStickImage(fault) => fill(S.hub_why_not_stick_image, &[&fault_text(fault)]),
+        Reason::BootLarger { image, stick } => {
+            fill(S.hub_why_boot_larger, &[&bytes(*image), &bytes(*stick)])
+        }
+        Reason::BootLabel => S.hub_why_boot_label.to_string(),
+        Reason::BootShort => S.hub_why_boot_short.to_string(),
+        Reason::TableChanged(device) => fill(S.hub_why_table_changed, &[device]),
+        Reason::ReadingTable(d) => fill(S.hub_why_reading_table, &[d]),
+        Reason::BackEnds { device, at } => fill(S.hub_why_back_ends, &[device, &n(*at)]),
+        Reason::BackDiffers { device, at } => fill(S.hub_why_back_differs, &[device, &n(*at)]),
+        Reason::BackFailed { device, detail } => fill(S.hub_why_back_failed, &[device, detail]),
+        Reason::SourceRead(d) => fill(S.hub_why_source_read, &[d]),
+        Reason::WriteFailed(d) => fill(S.hub_why_write_failed, &[d]),
+        Reason::PayloadChanged => S.hub_why_payload_changed.to_string(),
+        Reason::Damaged(d) => fill(S.hub_why_damaged, &[d]),
+        Reason::Longer(v) => fill(S.hub_why_longer, &[&n(*v)]),
+        Reason::Shorter { expected, actual } => {
+            fill(S.hub_why_shorter, &[&n(*actual), &n(*expected)])
+        }
+        Reason::WrongSum(sum) => fill(S.hub_why_wrong_sum, &[sum]),
+        Reason::NoHome => S.hub_why_no_home.to_string(),
+        Reason::NoDesktopApp => S.hub_why_no_desktop.to_string(),
+        Reason::CacheSum(sum) => fill(S.hub_why_cache_sum, &[sum]),
+        Reason::File { path, detail } => fill(S.hub_why_file, &[path, detail]),
+        Reason::InTheWay { path } => fill(S.hub_why_in_the_way, &[path]),
+        Reason::Start { path, detail } => fill(S.hub_why_start, &[path, detail]),
+        Reason::Restart(d) => fill(S.hub_why_restart, &[d]),
+        Reason::Unsupported => S.hub_why_unsupported.to_string(),
+    }
+}
+
+fn fault_text(f: &StickFault) -> String {
+    let bytes = |v: u64| fill(S.hub_why_bytes, &[&v.to_string()]);
+    match f {
+        StickFault::Reading(d) => fill(S.hub_fault_reading, &[d]),
+        StickFault::NoHeader => S.hub_fault_no_header.to_string(),
+        StickFault::NotGpt => S.hub_fault_not_gpt.to_string(),
+        StickFault::HeaderDamaged => S.hub_fault_header_damaged.to_string(),
+        StickFault::HeaderChecksum => S.hub_fault_header_checksum.to_string(),
+        StickFault::EntriesDamaged => S.hub_fault_entries_damaged.to_string(),
+        StickFault::EntriesPastEnd => S.hub_fault_entries_past_end.to_string(),
+        StickFault::EntriesChecksum => S.hub_fault_entries_checksum.to_string(),
+        StickFault::DiskUuid => S.hub_fault_disk_uuid.to_string(),
+        StickFault::Partitions(n) => fill(S.hub_fault_partitions, &[&n.to_string()]),
+        StickFault::BootName => S.hub_fault_boot_name.to_string(),
+        StickFault::BootType => S.hub_fault_boot_type.to_string(),
+        StickFault::DataType => S.hub_fault_data_type.to_string(),
+        StickFault::BootDamaged => S.hub_fault_boot_damaged.to_string(),
+        StickFault::BootSmall { boot, image } => {
+            fill(S.hub_fault_boot_small, &[&bytes(*boot), &bytes(*image)])
+        }
+        StickFault::Overlap => S.hub_fault_overlap.to_string(),
+        StickFault::BootPastEnd => S.hub_fault_boot_past_end.to_string(),
+    }
+}
+
 /// A size as people read it: "16 GB", "7.8 GB", "512 MB".
 pub(crate) fn size_text(bytes: u64) -> String {
     let gb = bytes as f64 / 1e9;
@@ -555,10 +651,8 @@ fn home(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         Some(HubAction::Transfer),
     );
     if hub.offers_desktop() {
-        let sub = hub
-            .desktop_failed
-            .as_deref()
-            .unwrap_or(S.hub_row_desktop_sub);
+        let failed = hub.desktop_failed.as_ref().map(reason_text);
+        let sub = failed.as_deref().unwrap_or(S.hub_row_desktop_sub);
         y += nav_row(
             ui,
             x,
@@ -979,7 +1073,7 @@ fn done(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             y += buttons(ui, x, y, w, items);
         }
         Some(Err(why)) => {
-            y += line(ui, x, y, w, why, ERR) + 8.0;
+            y += line(ui, x, y, w, &reason_text(why), ERR) + 8.0;
             y += buttons(
                 ui,
                 x,
@@ -1079,7 +1173,7 @@ fn start(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     n += 1;
     y += step_head(ui, x, y, w, n, S.hub_restart, false);
     if let Some(why) = &hub.restart_failed {
-        y += line(ui, ix, y, iw, why, ERR);
+        y += line(ui, ix, y, iw, &reason_text(why), ERR);
     }
     let style = if open {
         Style::Disabled
@@ -1270,7 +1364,7 @@ fn install(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         }
     }
     if let Some(Err(why)) = &hub.install_result {
-        y += line(ui, x, y, w, why, ERR);
+        y += line(ui, x, y, w, &reason_text(why), ERR);
     }
     let (label, style) = if hub.installing {
         (S.hub_installing, Style::Disabled)
@@ -1303,7 +1397,7 @@ fn installed(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     }
     y += 16.0;
     if let Some(why) = &hub.uninstall_failed {
-        y += line(ui, x, y, w, why, ERR);
+        y += line(ui, x, y, w, &reason_text(why), ERR);
     }
     y + buttons(
         ui,

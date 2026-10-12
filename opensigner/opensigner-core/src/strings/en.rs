@@ -2587,6 +2587,130 @@ pub struct Strings {
     pub hub_uninstall_keeps: &'static str,
     /// Under it, while the suspension stands.
     pub hub_uninstall_suspended: &'static str,
+    /// Reason.
+    pub hub_why_not_carried: &'static str,
+    /// Reason. `{}` device, `{}` serial, `{}` size.
+    pub hub_why_changed: &'static str,
+    /// Reason. The serial of a disk that reports none.
+    pub hub_why_no_serial: &'static str,
+    /// Reason. A size in bytes.
+    pub hub_why_bytes: &'static str,
+    /// Reason. `{}` mount point.
+    pub hub_why_mounted: &'static str,
+    /// Reason.
+    pub hub_why_swap: &'static str,
+    /// Reason.
+    pub hub_why_system: &'static str,
+    /// Reason.
+    pub hub_why_boot_only: &'static str,
+    /// Reason. `{}` disk size, `{}` image size.
+    pub hub_why_too_small: &'static str,
+    /// Reason.
+    pub hub_why_payload_sum: &'static str,
+    /// Reason. `{}` file, `{}` sum.
+    pub hub_why_image_changed: &'static str,
+    /// Reason.
+    pub hub_why_gone: &'static str,
+    /// Reason. `{}` the system's words.
+    pub hub_why_bus: &'static str,
+    /// Reason. `{}` the system's words.
+    pub hub_why_unmounting: &'static str,
+    /// Reason. `{}` the system's words.
+    pub hub_why_open_write: &'static str,
+    /// Reason. `{}` the system's words.
+    pub hub_why_open_read: &'static str,
+    /// Reason. `{}` device, `{}` the system's words.
+    pub hub_why_device: &'static str,
+    /// Reason. `{}` device, `{}` the system's words.
+    pub hub_why_flush: &'static str,
+    /// Reason. `{}` device, `{}` the fault.
+    pub hub_why_not_stick: &'static str,
+    /// Reason. `{}` the fault.
+    pub hub_why_not_stick_image: &'static str,
+    /// Reason. `{}` sizes.
+    pub hub_why_boot_larger: &'static str,
+    /// Reason.
+    pub hub_why_boot_label: &'static str,
+    /// Reason.
+    pub hub_why_boot_short: &'static str,
+    /// Reason. `{}` device.
+    pub hub_why_table_changed: &'static str,
+    /// Reason. `{}` the system's words.
+    pub hub_why_reading_table: &'static str,
+    /// Reason. `{}` device, `{}` byte.
+    pub hub_why_back_ends: &'static str,
+    /// Reason. `{}` device, `{}` byte.
+    pub hub_why_back_differs: &'static str,
+    /// Reason. `{}` device, `{}` the system's words.
+    pub hub_why_back_failed: &'static str,
+    /// Reason. `{}` the system's words.
+    pub hub_why_source_read: &'static str,
+    /// Reason. `{}` the system's words.
+    pub hub_why_write_failed: &'static str,
+    /// Reason.
+    pub hub_why_payload_changed: &'static str,
+    /// Reason. `{}` the decoder's words.
+    pub hub_why_damaged: &'static str,
+    /// Reason. `{}` bytes.
+    pub hub_why_longer: &'static str,
+    /// Reason. `{}` bytes.
+    pub hub_why_shorter: &'static str,
+    /// Reason. `{}` sum.
+    pub hub_why_wrong_sum: &'static str,
+    /// Reason.
+    pub hub_why_no_home: &'static str,
+    /// Reason.
+    pub hub_why_no_desktop: &'static str,
+    /// Reason. `{}` sum.
+    pub hub_why_cache_sum: &'static str,
+    /// Reason. `{}` path, `{}` the system's words.
+    pub hub_why_file: &'static str,
+    /// Reason. `{}` path of a file that is another program's.
+    pub hub_why_in_the_way: &'static str,
+    /// Reason. `{}` program, `{}` the system's words.
+    pub hub_why_start: &'static str,
+    /// Reason. `{}` the system's words.
+    pub hub_why_restart: &'static str,
+    /// Reason.
+    pub hub_why_unsupported: &'static str,
+    /// The app menu entry's name, in the desktop entry file install writes.
+    pub hub_menu_name: &'static str,
+    /// The desktop app's app menu entry's name.
+    pub hub_menu_desktop_name: &'static str,
+    /// Fault. `{}` the system's words.
+    pub hub_fault_reading: &'static str,
+    /// Fault.
+    pub hub_fault_no_header: &'static str,
+    /// Fault.
+    pub hub_fault_not_gpt: &'static str,
+    /// Fault.
+    pub hub_fault_header_damaged: &'static str,
+    /// Fault.
+    pub hub_fault_header_checksum: &'static str,
+    /// Fault.
+    pub hub_fault_entries_damaged: &'static str,
+    /// Fault.
+    pub hub_fault_entries_past_end: &'static str,
+    /// Fault.
+    pub hub_fault_entries_checksum: &'static str,
+    /// Fault.
+    pub hub_fault_disk_uuid: &'static str,
+    /// Fault. `{}` count.
+    pub hub_fault_partitions: &'static str,
+    /// Fault.
+    pub hub_fault_boot_name: &'static str,
+    /// Fault.
+    pub hub_fault_boot_type: &'static str,
+    /// Fault.
+    pub hub_fault_data_type: &'static str,
+    /// Fault.
+    pub hub_fault_boot_damaged: &'static str,
+    /// Fault. `{}` sizes.
+    pub hub_fault_boot_small: &'static str,
+    /// Fault.
+    pub hub_fault_overlap: &'static str,
+    /// Fault.
+    pub hub_fault_boot_past_end: &'static str,
     /// About row.
     pub hub_version: &'static str,
     /// About row.
@@ -3892,6 +4016,68 @@ pub static EN: Strings = Strings {
     hub_uninstall_ask: "Uninstall Faraday?",
     hub_uninstall_keeps: "Removes the files listed. Received files and settings stay.",
     hub_uninstall_suspended: "BitLocker stays suspended until it is resumed.",
+    hub_why_not_carried: "This Faraday app does not carry what was confirmed. Nothing was written.",
+    hub_why_changed: "{} is no longer the disk that was confirmed (serial {}, {}). Nothing was written.",
+    hub_why_no_serial: "none",
+    hub_why_bytes: "{} bytes",
+    hub_why_mounted: "A partition on it is mounted at {}. Nothing was written.",
+    hub_why_swap: "A partition on it is in use as swap. Nothing was written.",
+    hub_why_system: "It holds this computer's system. Nothing was written.",
+    hub_why_boot_only: "A boot partition alone is written only over a Faraday stick, keeping its data.",
+    hub_why_too_small: "The disk ({}) is smaller than the image ({}). Nothing was written.",
+    hub_why_payload_sum: "The payload file does not match the manifest. Nothing was written.",
+    hub_why_image_changed: "{} has changed since the app started: its SHA-256 is now {}. Nothing was written.",
+    hub_why_gone: "The disk is no longer attached. Nothing was written.",
+    hub_why_bus: "udisks2 did not answer: {}",
+    hub_why_unmounting: "Unmounting it failed: {}. Nothing was written.",
+    hub_why_open_write: "Opening it to write failed: {}. Nothing was written.",
+    hub_why_open_read: "Opening it to read back failed: {}",
+    hub_why_device: "{}: {}",
+    hub_why_flush: "Flushing {} failed: {}",
+    hub_why_not_stick: "{} is not a Faraday stick: {}. Nothing was written.",
+    hub_why_not_stick_image: "The image is not a Faraday stick image: {}",
+    hub_why_boot_larger: "The image's boot partition ({}) is larger than the stick's ({})",
+    hub_why_boot_label: "The image's boot partition is not a FAT32 filesystem labelled OSKBOOT",
+    hub_why_boot_short: "The boot partition image is shorter than one sector",
+    hub_why_table_changed: "The partition table on {} changed",
+    hub_why_reading_table: "Reading the partition table failed: {}",
+    hub_why_back_ends: "Reading back {}: the disk ends at byte {}",
+    hub_why_back_differs: "Reading back {}: what was read differs from what was written at byte {}",
+    hub_why_back_failed: "Reading back {} failed: {}",
+    hub_why_source_read: "Reading the source failed: {}",
+    hub_why_write_failed: "Writing failed: {}",
+    hub_why_payload_changed: "The payload file changed while it was read",
+    hub_why_damaged: "The .xz file is damaged: {}",
+    hub_why_longer: "The decompressed image is longer than {} bytes",
+    hub_why_shorter: "The decompressed image is {} bytes, not {}",
+    hub_why_wrong_sum: "The decompressed image's SHA-256 is {}, not the expected one",
+    hub_why_no_home: "The home folder is not known",
+    hub_why_no_desktop: "This Faraday app carries no desktop app",
+    hub_why_cache_sum: "The desktop app does not match the manifest: its SHA-256 is {}",
+    hub_why_file: "{}: {}",
+    hub_why_in_the_way: "{} is another program's, and is in the way",
+    hub_why_start: "Starting {} failed: {}",
+    hub_why_restart: "Restarting into firmware settings failed: {}",
+    hub_why_unsupported: "Not on this computer",
+    hub_menu_name: "Faraday",
+    hub_menu_desktop_name: "Faraday desktop (testing)",
+    hub_fault_reading: "reading the partition table failed: {}",
+    hub_fault_no_header: "it has no GPT header",
+    hub_fault_not_gpt: "its partition table is not GPT",
+    hub_fault_header_damaged: "its GPT header is damaged",
+    hub_fault_header_checksum: "its GPT header's checksum is wrong",
+    hub_fault_entries_damaged: "its GPT entries are damaged",
+    hub_fault_entries_past_end: "its GPT entries lie past the end of the disk",
+    hub_fault_entries_checksum: "its GPT entries' checksum is wrong",
+    hub_fault_disk_uuid: "its disk UUID is not a Faraday stick's",
+    hub_fault_partitions: "it has {} partitions, not two",
+    hub_fault_boot_name: "its first partition is not named OSKBOOT",
+    hub_fault_boot_type: "its first partition is not a Faraday EFI system partition",
+    hub_fault_data_type: "its second partition is not a Faraday OSKDATA partition",
+    hub_fault_boot_damaged: "its OSKBOOT partition is damaged",
+    hub_fault_boot_small: "its OSKBOOT partition ({}) is smaller than the image ({})",
+    hub_fault_overlap: "its partitions overlap",
+    hub_fault_boot_past_end: "its boot partition runs past its end",
     hub_version: "Version",
     hub_release: "Release",
     hub_commit: "Commit",

@@ -801,6 +801,7 @@ dependencies = [
  "faraday-payload",
  "faraday-storage",
  "faraday-window",
+ "opensigner-core",
  "osk-shell-api",
  "rustbus",
  "winit",

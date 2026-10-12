@@ -597,6 +597,29 @@ Faraday builds are `osk-crypto` (locking secret pages in RAM), the camera crate
 `opensigner-v4l2` (its `ioctl`s), and `faraday-grant` (dropping
 privileges); each says why in its crate documentation.
 
+## The hub app
+
+The hub app makes a Faraday stick or a Raspberry Pi card, shows how to
+start a computer from the stick, moves files to and from the device by
+QR code, and opens the desktop app for testing. It is one file for your
+operating system. Linux first, from 0.2.0:
+
+1. Download `Faraday-X.Y.Z-Linux.tar.gz` from the release and extract it:
+   double-click it in the file manager, or `tar xf Faraday-X.Y.Z-Linux.tar.gz`.
+2. Open the file `Faraday-X.Y.Z-Linux` inside: double-click it, or run
+   `./Faraday-X.Y.Z-Linux`. Nothing needs `chmod`.
+
+It runs on Ubuntu 20.04 and later, Debian 11 and later, Fedora 32 and
+later and Arch, on x86-64. Writing a stick needs udisks2, which desktop
+distributions have; the system may ask for a password. Check the
+download first, as [Verifying a release](#verifying-a-release) says.
+**Install** in its window puts it in your app menu, in `~/.local/bin`;
+**Uninstall** removes exactly what that put there.
+
+Without the hub app, Raspberry Pi Imager and balenaEtcher take the
+`.img.xz` as it is; other tools need it decompressed (`xz -d` on Linux,
+7-Zip on Windows).
+
 ## Build
 
 Prerequisites: stable Rust (see `rust-toolchain.toml`), a C compiler
@@ -678,7 +701,7 @@ just faraday-stick-bin                    # the stick binary, static musl
 just faraday-stick-image                  # out/stick/faraday-x86_64-uefi.img
 just dev=1 faraday-stick-image            # + a serial console and root login, for development
 just dev=1 faraday-stick-boot /dev/sdX    # development: rewrite a stick's boot partition alone
-just faraday-flash-stick                  # a window that writes a stick (below)
+just faraday-hub --image out/stick/faraday-x86_64-uefi-dev.img   # write a dev image (below)
 just faraday-upgrade-check OLD.img        # QEMU: the dev image upgrades an older stick image
 ```
 
@@ -701,56 +724,23 @@ Flash the image to a stick and boot a PC from it; the stick image starts
 on mainnet. `faraday/image/run-build.sh` and
 `opensigner/shells/pi/image/README.md` describe the image layout.
 
-### Writing a stick
+### Writing a developer's image
 
-For development and testing, a window writes a stick from `out/stick/`.
-Double-click `tools/flash-stick/flash-stick.desktop` ("Flash a Faraday
-stick") in a file manager that runs launchers, such as Thunar, Dolphin
-or Nemo, or run `just faraday-flash-stick`. A file manager may ask once
-whether to trust the launcher. The window shows:
-
-- **Stick**: the USB sticks attached now, with maker, model, size,
-  serial, partitions and what is mounted, and which are Faraday sticks
-  already. The list follows sticks as they are plugged in and pulled
-  out. A disk the computer is using is shown and not offered.
-- **What to write**, each with the build ID the image carries:
-  - *Stick build, whole stick*: `faraday-x86_64-uefi.img` over the whole
-    stick; everything on it is lost.
-  - *Stick build, keep data*: `faraday-x86_64-uefi-boot.vfat` over the
-    `OSKBOOT` partition of a Faraday stick; `OSKDATA`, with its vaults
-    and settings, is kept. Offered only for a Faraday stick.
-  - *Dev build, whole stick* and *Dev build, keep data*: the same with
-    the `-dev` images, which have a root login on the serial port and
-    show the kernel log on the screen.
-
-Write asks again, naming the stick by device, maker, size and serial;
-then the system asks for the password, because the write runs as root
-through `pkexec`. It needs Python 3 with PyGObject and GTK 4
-(`python-gobject` and `gtk4` on Arch; `python3-gi` and
-`gir1.2-gtk-4.0` on Debian and Ubuntu), polkit with the desktop's
-password agent, and util-linux.
-
-The privileged half is `tools/flash-stick/write.sh`, which can be run
-by hand too:
+The hub app writes an image built here in place of its own:
 
 ```
-sudo tools/flash-stick/write.sh whole out/stick/faraday-x86_64-uefi.img /dev/sdX
-sudo tools/flash-stick/write.sh boot out/stick/faraday-x86_64-uefi-boot.vfat /dev/sdX
+just dev=1 faraday-stick-image
+just faraday-hub --image out/stick/faraday-x86_64-uefi-dev.img
 ```
 
-It refuses a disk that is not on USB, not removable or hot-pluggable,
-smaller than the image, or in use: a partition mounted anywhere but under
-`/run/media`, `/media` or `/mnt`, or used as swap. Partitions the desktop
-mounted are unmounted first. By hand, the device is typed back; from the
-window, the stick must still have the serial and size that were
-confirmed. A whole write is read back and compared; *keep data* is
-`faraday/image/stick-boot.sh`, with its own checks.
-
-To open the window from the desktop's app menu as well, run
-`tools/flash-stick/install-launcher.sh` once; `--desktop` also puts an
-icon on the desktop, for desktops that show one. The entry runs the
-window in that checkout. GNOME Files (Nautilus) runs neither launchers
-nor scripts on a double-click, so there the menu entry is the way.
+`--image` takes an `.img`, an `.img.xz`, or a `-boot.vfat`, which only
+*keep data* can write (the boot partition, with the vaults and settings
+on the data partition left alone). The screens and the writer are the
+release's: Confirm says the image is not the hub app's own and shows its
+SHA-256. A hub app built without a payload offers only `--image`. On
+Linux the write goes through udisks2 and the desktop may ask for a
+password; the hub app never runs as root. `docs/HUB.md` §4.1 says what
+the writer checks and in what order.
 
 ## Reproducible builds
 
@@ -796,7 +786,9 @@ sha256sum -c --ignore-missing SHA256SUMS
 
 From 0.2.0 the images are published as `.xz` only. `SHA256SUMS` lists
 each `.xz` and, under the `.img` name, the image inside it, so the same
-command checks a download and, after `xz -d`, the image.
+command checks a download and, after `xz -d`, the image. It lists the
+Linux hub app's `.tar.gz` and, under its own name, the file inside it, so
+either can be checked.
 
 On Windows, Gpg4win's `gpg` takes the same first three commands, and
 PowerShell prints a file's sum to compare with its line in

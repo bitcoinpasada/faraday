@@ -4,6 +4,7 @@
 //!
 //! ```text
 //! faraday-hub [--image FILE] [--downloads DIR] [--size WxH] [--timings]
+//! faraday-hub --version
 //! ```
 //!
 //! `--image FILE` writes a developer's own image in place of the
@@ -14,7 +15,9 @@
 //!
 //! Transfer sends from and saves into `$HOME/Downloads`, or `--downloads
 //! DIR`, as the desktop app's does; the camera is the desktop app's too.
-//! `--timings` prints what the frames cost once a second.
+//! `--timings` prints what the frames cost once a second. `--version`
+//! prints the build string and exits before anything is initialised;
+//! install reads the installed copy's version that way.
 //!
 //! The window, its pacing and its input are the desktop app's
 //! (`faraday-window`); everything that differs between operating systems
@@ -30,7 +33,7 @@ use std::time::{Duration, Instant};
 
 use faraday_core::StorageEvent;
 use faraday_hub::Hub;
-use faraday_hub::api::{HubCommand, HubEvent, Source, WriteOrder};
+use faraday_hub::api::{HubCommand, HubEvent, Reason, Source, WriteOrder};
 use faraday_hub_shell::payload::{Image, Payload};
 use faraday_hub_shell::platform::{self, Platform};
 use faraday_hub_shell::writer::Job;
@@ -51,9 +54,6 @@ use winit::window::{Window, WindowId};
 /// How often the Downloads folder and the cameras are looked at again.
 const RESCAN: Duration = Duration::from_millis(700);
 const TITLE: &str = "Faraday";
-/// Install, uninstall and Try the desktop app are the next part of
-/// batch L; until then the hub says so when asked.
-const NOT_YET: &str = "Not in this build of the hub app yet";
 
 struct Shell {
     hub: Hub,
@@ -150,18 +150,45 @@ impl Shell {
                     }
                 });
             }
-            HubCommand::Install { .. } => {
-                let _ = self.tx.send(HubEvent::InstallDone(Err(NOT_YET.into())));
+            HubCommand::Install { desktop } => {
+                let (system, tx, payload) = self.threaded();
+                std::thread::spawn(move || {
+                    let done = system.install(desktop, payload.as_ref());
+                    let ok = done.is_ok();
+                    let _ = tx.send(HubEvent::InstallDone(done));
+                    if ok {
+                        let _ = tx.send(HubEvent::Installed(system.installed()));
+                    }
+                });
             }
             HubCommand::Uninstall => {
-                let _ = self.tx.send(HubEvent::UninstallDone(Err(NOT_YET.into())));
+                let (system, tx, _) = self.threaded();
+                std::thread::spawn(move || {
+                    let _ = tx.send(HubEvent::UninstallDone(system.uninstall()));
+                    let _ = tx.send(HubEvent::Installed(system.installed()));
+                });
             }
             HubCommand::RunDesktop => {
-                let _ = self.tx.send(HubEvent::DesktopStarted(Err(NOT_YET.into())));
+                let (system, tx, payload) = self.threaded();
+                std::thread::spawn(move || {
+                    let _ = tx.send(HubEvent::DesktopStarted(
+                        system.run_desktop(payload.as_ref()),
+                    ));
+                });
             }
             // The BitLocker steps are Windows' (batch W).
             HubCommand::BitLocker(_) => {}
         }
+    }
+
+    /// What a thread of its own needs to answer the system's slow
+    /// commands.
+    fn threaded(&self) -> (Arc<dyn Platform>, Sender<HubEvent>, Option<Payload>) {
+        (
+            Arc::clone(&self.system),
+            self.tx.clone(),
+            self.payload.clone(),
+        )
     }
 
     /// Starts a confirmed write, from the payload or the developer's
@@ -181,9 +208,7 @@ impl Shell {
                 .map(|i| Job::Image(i.clone())),
         };
         let Some(job) = job else {
-            let _ = self.tx.send(HubEvent::Written(Err(String::from(
-                "the hub app does not carry what was confirmed; nothing was written",
-            ))));
+            let _ = self.tx.send(HubEvent::Written(Err(Reason::NotCarried)));
             return;
         };
         self.writing = Some(order.disk.clone());
@@ -358,12 +383,25 @@ impl ApplicationHandler for Shell {
     }
 }
 
-const HELP: &str = "faraday-hub [--image FILE] [--downloads DIR] [--size WxH] [--timings]
+const HELP: &str = "faraday-hub [--image FILE] [--downloads DIR] [--size WxH] [--timings] | --version
   --image: write FILE (.img, .img.xz, or -boot.vfat for keep data) in place of the payload's stick image
   --downloads: the folder Transfer sends from and saves into (default ~/Downloads)
-  --timings: once a second, what the frames cost on stderr";
+  --timings: once a second, what the frames cost on stderr
+  --version: print this build's version and exit";
 
 fn main() -> ExitCode {
+    // `--version` answers before anything else is initialised: the
+    // installed copy is asked this (docs/HUB.md §5.2).
+    if std::env::args().nth(1).as_deref() == Some("--version") {
+        println!(
+            "{}",
+            faraday_core::version_line(
+                faraday_core::Program::HubApp,
+                faraday_core::BUILD.unwrap_or(faraday_hub::VERSION)
+            )
+        );
+        return ExitCode::SUCCESS;
+    }
     let system = platform::this_computer();
     let mut image: Option<PathBuf> = None;
     let mut downloads = system.downloads();
@@ -436,8 +474,14 @@ fn main() -> ExitCode {
     if let Some(i) = &image {
         hub.hub_event(HubEvent::DevImage(i.event()));
     }
-    hub.hub_event(HubEvent::Installed(None));
     let (tx, events) = channel();
+    // The installed copy is asked its version, which takes a moment.
+    {
+        let (system, tx) = (Arc::clone(&system), tx.clone());
+        std::thread::spawn(move || {
+            let _ = tx.send(HubEvent::Installed(system.installed()));
+        });
+    }
     let (forget, forgotten) = channel();
     system.watch(tx.clone(), forgotten);
     let event_loop = match EventLoop::new() {

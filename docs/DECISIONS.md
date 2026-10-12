@@ -402,7 +402,7 @@ files.
   `faraday-pi-….img.xz`). Images are published as `.xz` only, with the
   `.img` inside listed in `SHA256SUMS` as well.
 - No dev images are published, plain or inside the hub app; developers
-  build them and write them with `tools/flash-stick`.
+  build them and write them with the hub app's `--image`.
 - Replacing Faraday on a stick while keeping its data partition is
   offered to everyone, not only developers. This changes F2, which kept
   the boot-partition-only flash for development ("It is not offered to
@@ -456,8 +456,9 @@ D12 to D21) and §13 lists what moved.
   camera module the Windows hub app needs serves both.
 - One Pi screen for now, the 2.8 inch panel; panel profiles and other
   sizes wait for a second screen.
-- `tools/flash-stick` is removed once the hub app writes a developer's
-  own image (`--image`); the window and its launcher were a stopgap.
+- `tools/flash-stick` was removed, in batch L, when the hub app wrote a
+  developer's own image (`--image`); the window and its launcher were a
+  stopgap.
 
 ### F13 Faraday on Macs: the stick, the desktop app and the hub app (2026-10-12)
 

@@ -271,6 +271,209 @@ pub enum WriteStage {
     ReadingBack,
 }
 
+/// Why a partition table is not a Faraday stick's (§4.1), in
+/// `faraday/image/stick-boot.sh`'s terms.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StickFault {
+    /// The table could not be read: the system's words.
+    Reading(String),
+    /// No GPT header at all.
+    NoHeader,
+    /// The table is not GPT.
+    NotGpt,
+    /// The GPT header is damaged.
+    HeaderDamaged,
+    /// The GPT header's checksum is wrong.
+    HeaderChecksum,
+    /// The GPT entries are damaged.
+    EntriesDamaged,
+    /// The GPT entries lie past the end of the disk.
+    EntriesPastEnd,
+    /// The GPT entries' checksum is wrong.
+    EntriesChecksum,
+    /// The disk UUID is not a Faraday stick's.
+    DiskUuid,
+    /// The number of partitions is not two.
+    Partitions(usize),
+    /// The first partition is not named OSKBOOT.
+    BootName,
+    /// The first partition is not a Faraday EFI system partition.
+    BootType,
+    /// The second partition is not a Faraday OSKDATA partition.
+    DataType,
+    /// The OSKBOOT partition is damaged.
+    BootDamaged,
+    /// The OSKBOOT partition is smaller than the image.
+    BootSmall {
+        /// The partition's size in bytes.
+        boot: u64,
+        /// The image's.
+        image: u64,
+    },
+    /// The partitions overlap.
+    Overlap,
+    /// The image's boot partition runs past the image's end.
+    BootPastEnd,
+}
+
+/// Why something the shell was asked to do did not happen: the one list
+/// the screens turn into `hub_` strings (`strings/en.rs`). Where a
+/// reason carries text (`detail`), it is the operating system's own
+/// words for what failed, shown after the hub's.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Reason {
+    /// This computer cannot write a disk from here.
+    NoWriter,
+    /// The hub app does not carry what was confirmed.
+    NotCarried,
+    /// The disk is not the one confirmed.
+    Changed {
+        /// The device confirmed.
+        device: String,
+        /// The serial it has now; empty for none.
+        serial: String,
+        /// The size it has now, bytes.
+        size: u64,
+    },
+    /// The computer uses the disk.
+    InUse(InUse),
+    /// A boot partition alone was ordered over a whole disk.
+    BootOnly,
+    /// The disk is smaller than the image.
+    TooSmall {
+        /// The disk's size, bytes.
+        disk: u64,
+        /// The image's.
+        image: u64,
+    },
+    /// The payload file's SHA-256 is not the manifest's.
+    PayloadSum,
+    /// A developer's image changed since the hub app started.
+    ImageChanged {
+        /// The file.
+        path: String,
+        /// Its SHA-256 now.
+        sha256: String,
+    },
+    /// The disk is no longer attached.
+    Gone,
+    /// The system bus (udisks2) said no.
+    Bus(String),
+    /// Unmounting what the desktop mounted failed.
+    Unmounting(String),
+    /// Opening the disk to write failed.
+    OpenWrite(String),
+    /// Opening the disk to read back failed.
+    OpenRead(String),
+    /// Reaching the disk failed.
+    Device {
+        /// The device.
+        device: String,
+        /// The system's words.
+        detail: String,
+    },
+    /// Flushing the disk failed.
+    Flush {
+        /// The device.
+        device: String,
+        /// The system's words.
+        detail: String,
+    },
+    /// The disk is not a Faraday stick (keep data).
+    NotStick {
+        /// The device.
+        device: String,
+        /// Why.
+        fault: StickFault,
+    },
+    /// The image is not a Faraday stick image.
+    NotStickImage(StickFault),
+    /// The image's boot partition is larger than the stick's.
+    BootLarger {
+        /// The image's boot partition, bytes.
+        image: u64,
+        /// The stick's.
+        stick: u64,
+    },
+    /// The image's boot partition is not FAT32 labelled OSKBOOT.
+    BootLabel,
+    /// The boot partition image is shorter than one sector.
+    BootShort,
+    /// The partition table changed during the write.
+    TableChanged(String),
+    /// Reading the partition table failed.
+    ReadingTable(String),
+    /// Reading back: the disk ends early.
+    BackEnds {
+        /// The device.
+        device: String,
+        /// The byte it ends at.
+        at: u64,
+    },
+    /// Reading back: the disk differs from what was written.
+    BackDiffers {
+        /// The device.
+        device: String,
+        /// The first byte that differs.
+        at: u64,
+    },
+    /// Reading back failed.
+    BackFailed {
+        /// The device.
+        device: String,
+        /// The system's words.
+        detail: String,
+    },
+    /// Reading the source failed.
+    SourceRead(String),
+    /// Writing failed.
+    WriteFailed(String),
+    /// The payload file changed while it was read.
+    PayloadChanged,
+    /// The `.xz` is damaged.
+    Damaged(String),
+    /// The decompressed image is longer than expected.
+    Longer(u64),
+    /// The decompressed image is shorter than expected.
+    Shorter {
+        /// The expected size.
+        expected: u64,
+        /// The actual size.
+        actual: u64,
+    },
+    /// The decompressed image's SHA-256 is not the expected one.
+    WrongSum(String),
+    /// The home folder is not known.
+    NoHome,
+    /// The payload carries no desktop app.
+    NoDesktopApp,
+    /// The cached desktop app does not match the manifest.
+    CacheSum(String),
+    /// A file or folder could not be written, read or removed.
+    File {
+        /// Where.
+        path: String,
+        /// The system's words.
+        detail: String,
+    },
+    /// A file of the name install would write is another program's.
+    InTheWay {
+        /// Where it is, as a person reads it.
+        path: String,
+    },
+    /// A program could not be started.
+    Start {
+        /// Which.
+        path: String,
+        /// The system's words.
+        detail: String,
+    },
+    /// The restart into firmware settings failed: the system's words.
+    Restart(String),
+    /// Not on this computer.
+    Unsupported,
+}
+
 /// What the shell tells the hub.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HubEvent {
@@ -302,16 +505,16 @@ pub enum HubEvent {
         total: u64,
     },
     /// The write ended: read back and matched, or the writer's reason.
-    Written(Result<(), String>),
+    Written(Result<(), Reason>),
     /// The install ended: where the hub app went, or why not.
-    InstallDone(Result<String, String>),
+    InstallDone(Result<String, Reason>),
     /// The uninstall ended.
-    UninstallDone(Result<(), String>),
+    UninstallDone(Result<(), Reason>),
     /// The desktop app was started, or why not.
-    DesktopStarted(Result<(), String>),
+    DesktopStarted(Result<(), Reason>),
     /// The restart into firmware settings was refused or failed, with
     /// why (a restart that happens sends nothing).
-    RestartFailed(String),
+    RestartFailed(Reason),
 }
 
 /// How a stick or card is written (§3.2 step 2).

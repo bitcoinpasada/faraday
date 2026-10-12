@@ -28,7 +28,7 @@ use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom, Write};
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 
-use faraday_hub::api::{HubEvent, InUse, Mode, WriteOrder, WriteStage};
+use faraday_hub::api::{HubEvent, InUse, Mode, Reason, StickFault, WriteOrder, WriteStage};
 use faraday_payload::{ImageKind, PayloadError, PayloadFile, Sha256Sum};
 
 use crate::gpt::{self, Boot};
@@ -57,17 +57,17 @@ pub struct Identity {
 /// A disk to write, as an operating system reaches it.
 pub trait Device {
     /// The disk as it is now, or why it cannot be found.
-    fn identity(&mut self) -> Result<Identity, String>;
+    fn identity(&mut self) -> Result<Identity, Reason>;
     /// Unmounts what the desktop mounted from it.
-    fn unmount(&mut self) -> Result<(), String>;
+    fn unmount(&mut self) -> Result<(), Reason>;
     /// Opens it to write: no one else may hold it open exclusively,
     /// and each write reaches the disk before it returns.
-    fn open_write(&mut self) -> Result<File, String>;
+    fn open_write(&mut self) -> Result<File, Reason>;
     /// Opens it to read back what was written, from the disk itself
     /// rather than from what the system keeps of it in memory.
-    fn open_read(&mut self) -> Result<File, String>;
+    fn open_read(&mut self) -> Result<File, Reason>;
     /// Asks the system to read its partition table again.
-    fn rescan(&mut self) -> Result<(), String>;
+    fn rescan(&mut self) -> Result<(), Reason>;
 }
 
 /// What a write takes its bytes from, held by the writer's thread.
@@ -101,7 +101,7 @@ const PROGRESS_EVERY: Duration = Duration::from_millis(100);
 /// `open` reaches, sending progress and the result to `out`.
 pub fn spawn<F>(order: WriteOrder, job: Job, out: Sender<HubEvent>, open: F)
 where
-    F: FnOnce() -> Result<Box<dyn Device>, String> + Send + 'static,
+    F: FnOnce() -> Result<Box<dyn Device>, Reason> + Send + 'static,
 {
     std::thread::spawn(move || {
         let result = open().and_then(|mut device| {
@@ -172,26 +172,25 @@ impl Source<'_> {
 
     /// Checks the source before the disk is touched: a payload file
     /// against its manifest, an image against the sum Confirm showed.
-    fn check(&self) -> Result<(), String> {
+    fn check(&self) -> Result<(), Reason> {
         match self {
             Source::Payload { file, bytes } => {
                 let actual = sum(Cursor::new(*bytes), ImageKind::Plain)?.0;
                 if actual != file.sha256 {
-                    return Err(PayloadError::PayloadSum {
-                        expected: file.sha256,
-                        actual,
-                    }
-                    .to_string());
+                    return Err(Reason::PayloadSum);
                 }
             }
             Source::Image(i) => {
-                let f = File::open(&i.path).map_err(|e| format!("{}: {e}", i.path.display()))?;
+                let f = File::open(&i.path).map_err(|e| Reason::File {
+                    path: i.path.display().to_string(),
+                    detail: e.to_string(),
+                })?;
                 let (actual, size) = sum(BufReader::with_capacity(1 << 20, f), i.kind)?;
                 if actual != i.sum.sha256 || size != i.sum.size {
-                    return Err(format!(
-                        "{} has changed since the hub app started: its SHA-256 is now {actual}; nothing was written",
-                        i.path.display()
-                    ));
+                    return Err(Reason::ImageChanged {
+                        path: i.path.display().to_string(),
+                        sha256: actual.to_string(),
+                    });
                 }
             }
         }
@@ -199,42 +198,91 @@ impl Source<'_> {
     }
 }
 
-fn sum<R: Read>(src: R, kind: ImageKind) -> Result<(Sha256Sum, u64), String> {
-    let s = faraday_payload::hash_image(src, kind).map_err(|e| e.to_string())?;
+fn sum<R: Read>(src: R, kind: ImageKind) -> Result<(Sha256Sum, u64), Reason> {
+    let s = faraday_payload::hash_image(src, kind).map_err(payload_reason)?;
     Ok((s.sha256, s.size))
 }
 
-/// Why the computer's use of a disk stops a write.
-pub fn in_use_reason(why: &InUse) -> String {
-    match why {
-        InUse::Mounted(at) => format!("a partition on it is mounted at {at}; nothing was written"),
-        InUse::Swap => String::from("a partition on it is in use as swap; nothing was written"),
-        InUse::System => String::from("it holds this computer's system; nothing was written"),
+/// A reason carried through an `io::Error`, for the places the writer
+/// is reached through `Write`.
+#[derive(Debug)]
+struct Fail(Reason);
+
+impl std::fmt::Display for Fail {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.0)
     }
+}
+
+impl std::error::Error for Fail {}
+
+fn fail(reason: Reason) -> io::Error {
+    io::Error::other(Fail(reason))
+}
+
+/// The reason an `io::Error` carries, when [`fail`] made it.
+fn carried(e: &io::Error) -> Option<Reason> {
+    e.get_ref()?.downcast_ref::<Fail>().map(|f| f.0.clone())
+}
+
+/// The reason for a decoder or writer failure while writing.
+pub fn payload_reason(e: PayloadError) -> Reason {
+    match e {
+        PayloadError::Read(e) => Reason::SourceRead(e.to_string()),
+        PayloadError::Write(e) => carried(&e).unwrap_or_else(|| Reason::WriteFailed(e.to_string())),
+        PayloadError::PayloadSum { .. } => Reason::PayloadSum,
+        PayloadError::PayloadChanged => Reason::PayloadChanged,
+        PayloadError::Damaged(d) => Reason::Damaged(d),
+        PayloadError::Longer { expected } => Reason::Longer(expected),
+        PayloadError::Shorter { expected, actual } => Reason::Shorter { expected, actual },
+        PayloadError::Sum { actual, .. } => Reason::WrongSum(actual.to_string()),
+    }
+}
+
+/// The same while reading the disk back, which names the device.
+fn read_back_reason(e: PayloadError, device: &str) -> Reason {
+    match e {
+        PayloadError::Write(e) => match carried(&e) {
+            Some(Reason::BackEnds { at, .. }) => Reason::BackEnds {
+                device: device.to_string(),
+                at,
+            },
+            Some(Reason::BackDiffers { at, .. }) => Reason::BackDiffers {
+                device: device.to_string(),
+                at,
+            },
+            Some(other) => other,
+            None => Reason::BackFailed {
+                device: device.to_string(),
+                detail: e.to_string(),
+            },
+        },
+        other => payload_reason(other),
+    }
+}
+
+/// Why the computer's use of a disk stops a write.
+pub fn in_use_reason(why: &InUse) -> Reason {
+    Reason::InUse(why.clone())
 }
 
 /// Writes `source` to `device` as `order` says, reads it back and
 /// compares, reporting progress as it goes. The error is the reason a
-/// person is shown.
+/// person is shown (as `faraday_hub::reason_text` words it).
 pub fn write(
     order: &WriteOrder,
     source: Source<'_>,
     device: &mut dyn Device,
     progress: &mut dyn FnMut(WriteStage, u64, u64),
-) -> Result<(), String> {
+) -> Result<(), Reason> {
     // 1. Still the disk that was confirmed.
     let now = device.identity()?;
     if now.device != order.device || now.serial != order.serial || now.size != order.size {
-        return Err(format!(
-            "{} is no longer the disk that was confirmed (serial {}, {} bytes); nothing was written",
-            order.device,
-            if now.serial.is_empty() {
-                "none"
-            } else {
-                &now.serial
-            },
-            now.size
-        ));
+        return Err(Reason::Changed {
+            device: order.device.clone(),
+            serial: now.serial,
+            size: now.size,
+        });
     }
     if let Some(why) = &now.in_use {
         return Err(in_use_reason(why));
@@ -243,42 +291,35 @@ pub fn write(
     let total = source.size();
     if order.mode == Mode::Whole {
         if source.boot_only() {
-            return Err(String::from(
-                "a boot partition alone is written only over a Faraday stick, keeping its data",
-            ));
+            return Err(Reason::BootOnly);
         }
         if total > now.size {
-            return Err(format!(
-                "the disk ({} bytes) is smaller than the image ({total} bytes); nothing was written",
-                now.size
-            ));
+            return Err(Reason::TooSmall {
+                disk: now.size,
+                image: total,
+            });
         }
     }
     source.check()?;
     // 3. Unmounted, and opened.
     device.unmount()?;
     let mut disk = device.open_write()?;
-    let len = disk
-        .seek(SeekFrom::End(0))
-        .map_err(|e| format!("{}: {e}", order.device))?;
+    let len = disk.seek(SeekFrom::End(0)).map_err(|e| Reason::Device {
+        device: order.device.clone(),
+        detail: e.to_string(),
+    })?;
     // 4. Where it goes.
     let (plan, table) = match order.mode {
         Mode::Whole => (Plan::At(0), None),
         Mode::KeepData => {
-            let table =
-                gpt::read(&mut |at, buf| read_exact_at(&mut disk, at, buf), len).map_err(|e| {
-                    format!(
-                        "{} is not a Faraday stick: {e}; nothing was written",
-                        order.device
-                    )
-                })?;
+            let not_stick = |fault| Reason::NotStick {
+                device: order.device.clone(),
+                fault,
+            };
+            let table = gpt::read(&mut |at, buf| read_exact_at(&mut disk, at, buf), len)
+                .map_err(not_stick)?;
             let needs = if source.boot_only() { total } else { 0 };
-            let boot = gpt::faraday_boot(&table, needs).map_err(|e| {
-                format!(
-                    "{} is not a Faraday stick: {e}; nothing was written",
-                    order.device
-                )
-            })?;
+            let boot = gpt::faraday_boot(&table, needs).map_err(not_stick)?;
             let before = regions(&mut disk, &table)?;
             let plan = if source.boot_only() {
                 Plan::Boot(boot)
@@ -293,10 +334,12 @@ pub fn write(
         let mut out = plan.writer(Writing(&mut disk));
         source
             .pump(&mut *out, &mut |d, t| progress(WriteStage::Writing, d, t))
-            .map_err(|e| e.to_string())?;
+            .map_err(payload_reason)?;
     }
-    disk.sync_all()
-        .map_err(|e| format!("flushing {}: {e}", order.device))?;
+    disk.sync_all().map_err(|e| Reason::Flush {
+        device: order.device.clone(),
+        detail: e.to_string(),
+    })?;
     // Closed before it is read back: the last close drops what the
     // system kept of it in memory, so the read comes from the disk.
     drop(disk);
@@ -308,35 +351,31 @@ pub fn write(
             .pump(&mut *out, &mut |d, t| {
                 progress(WriteStage::ReadingBack, d, t)
             })
-            .map_err(|e| match e {
-                PayloadError::Write(e) => format!("reading back {}: {e}", order.device),
-                other => format!("reading back {}: {other}", order.device),
-            })?;
+            .map_err(|e| read_back_reason(e, &order.device))?;
     }
     // 7. The partition table as it was.
     if let Some((table, before)) = table
         && regions(&mut back, &table)? != before
     {
-        return Err(format!("the partition table on {} changed", order.device));
+        return Err(Reason::TableChanged(order.device.clone()));
     }
     drop(back);
     // 8. The system reads the new table. The write has been read back
     // and matched whatever this says.
     if let Err(e) = device.rescan() {
-        eprintln!("faraday-hub: {}: {e}", order.device);
+        eprintln!("faraday-hub: {}: {e:?}", order.device);
     }
     Ok(())
 }
 
 /// The bytes of the partition table's regions.
-fn regions(disk: &mut File, table: &gpt::Table) -> Result<Vec<Vec<u8>>, String> {
+fn regions(disk: &mut File, table: &gpt::Table) -> Result<Vec<Vec<u8>>, Reason> {
     table
         .regions
         .iter()
         .map(|&(from, to)| {
             let mut buf = vec![0u8; (to - from) as usize];
-            read_exact_at(disk, from, &mut buf)
-                .map_err(|e| format!("reading the partition table: {e}"))?;
+            read_exact_at(disk, from, &mut buf).map_err(|e| Reason::ReadingTable(e.to_string()))?;
             Ok(buf)
         })
         .collect()
@@ -422,23 +461,20 @@ impl Flush for Comparing<'_> {
             }
         }
         if got < skip + data.len() {
-            return Err(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                format!("the disk ends at byte {}", start + got as u64),
-            ));
+            return Err(fail(Reason::BackEnds {
+                device: String::new(),
+                at: start + got as u64,
+            }));
         }
         if let Some(i) = buf[skip..skip + data.len()]
             .iter()
             .zip(data)
             .position(|(a, b)| a != b)
         {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "what was read back differs from what was written at byte {}",
-                    at + i as u64
-                ),
-            ));
+            return Err(fail(Reason::BackDiffers {
+                device: String::new(),
+                at: at + i as u64,
+            }));
         }
         Ok(())
     }
@@ -518,10 +554,7 @@ fn oskboot(sector: &[u8]) -> io::Result<()> {
     if fat32 && faraday_fat::boot_sector_label(sector) == Some(*b"OSKBOOT    ") {
         Ok(())
     } else {
-        Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "the image's boot partition is not a FAT32 filesystem labelled OSKBOOT",
-        ))
+        Err(fail(Reason::BootLabel))
     }
 }
 
@@ -548,10 +581,7 @@ impl<K: Flush> Write for Placed<K> {
 
     fn flush(&mut self) -> io::Result<()> {
         if self.label {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "the boot partition image is shorter than one sector",
-            ));
+            return Err(fail(Reason::BootShort));
         }
         self.out.done()
     }
@@ -596,25 +626,17 @@ impl<K: Flush> Window<K> {
             buf.copy_from_slice(src);
             Ok(())
         };
-        let bad = |e: String| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("the image is not a Faraday stick image: {e}"),
-            )
-        };
+        let bad = |fault: StickFault| fail(Reason::NotStickImage(fault));
         let table = gpt::read(&mut read_at, self.total).map_err(bad)?;
         let boot = gpt::faraday_boot(&table, 0).map_err(bad)?;
         if boot.offset + boot.len > self.total {
-            return Err(bad(String::from("its boot partition runs past its end")));
+            return Err(bad(StickFault::BootPastEnd));
         }
         if boot.len > self.target.len {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "the image's boot partition ({} bytes) is larger than the stick's ({} bytes)",
-                    boot.len, self.target.len
-                ),
-            ));
+            return Err(fail(Reason::BootLarger {
+                image: boot.len,
+                stick: self.target.len,
+            }));
         }
         self.range = Some((boot.offset, boot.offset + boot.len));
         let held = std::mem::take(&mut self.head);

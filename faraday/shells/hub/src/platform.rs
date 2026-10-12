@@ -9,8 +9,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
 
-use faraday_hub::api::{BitLocker, Computer, HubEvent, WriteOrder};
+use faraday_hub::api::{BitLocker, Computer, HubEvent, Installed, Reason, WriteOrder};
 
+use crate::payload::Payload;
 use crate::writer::Job;
 
 /// What the hub app asks of the operating system.
@@ -36,7 +37,24 @@ pub trait Platform: Send + Sync {
     fn write(&self, order: WriteOrder, job: Job, out: Sender<HubEvent>);
 
     /// Restarts into the firmware's settings (§7.3), or says why not.
-    fn restart_into_firmware(&self) -> Result<(), String>;
+    fn restart_into_firmware(&self) -> Result<(), Reason>;
+
+    /// What is installed (§5.2), found on disk; `None` when nothing is.
+    /// May run the installed copy, so it is called off the window's
+    /// thread.
+    fn installed(&self) -> Option<Installed>;
+
+    /// Installs the running hub app, and with `desktop` the payload's
+    /// desktop app, per user (§5.2). Where the hub app went.
+    fn install(&self, desktop: bool, payload: Option<&Payload>) -> Result<String, Reason>;
+
+    /// Removes exactly what [`Platform::install`] put here and the
+    /// desktop app's cache (§5.4).
+    fn uninstall(&self) -> Result<(), Reason>;
+
+    /// Runs the installed desktop app, or the payload's from the cache
+    /// after checking it against the manifest (§5.3).
+    fn run_desktop(&self, payload: Option<&Payload>) -> Result<(), Reason>;
 
     /// The folder Transfer sends from and saves into.
     fn downloads(&self) -> PathBuf;
@@ -67,13 +85,27 @@ impl Platform for Elsewhere {
     }
 
     fn write(&self, _order: WriteOrder, _job: Job, out: Sender<HubEvent>) {
-        let _ = out.send(HubEvent::Written(Err(String::from(
-            "this computer cannot write a disk from here",
-        ))));
+        let _ = out.send(HubEvent::Written(Err(Reason::NoWriter)));
     }
 
-    fn restart_into_firmware(&self) -> Result<(), String> {
-        Err(String::from("not on this computer"))
+    fn restart_into_firmware(&self) -> Result<(), Reason> {
+        Err(Reason::Unsupported)
+    }
+
+    fn installed(&self) -> Option<Installed> {
+        None
+    }
+
+    fn install(&self, _desktop: bool, _payload: Option<&Payload>) -> Result<String, Reason> {
+        Err(Reason::Unsupported)
+    }
+
+    fn uninstall(&self) -> Result<(), Reason> {
+        Err(Reason::Unsupported)
+    }
+
+    fn run_desktop(&self, _payload: Option<&Payload>) -> Result<(), Reason> {
+        Err(Reason::Unsupported)
     }
 
     fn downloads(&self) -> PathBuf {

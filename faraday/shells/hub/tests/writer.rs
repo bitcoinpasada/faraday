@@ -5,7 +5,7 @@
 use std::fs::{File, OpenOptions};
 use std::path::{Path, PathBuf};
 
-use faraday_hub::api::{Mode, Source as Confirmed, WriteOrder, WriteStage};
+use faraday_hub::api::{Mode, Reason, Source as Confirmed, StickFault, WriteOrder, WriteStage};
 use faraday_hub_shell::gpt;
 use faraday_hub_shell::payload::{Image, Payload};
 use faraday_hub_shell::writer::{self, Device, Identity, Job};
@@ -69,27 +69,27 @@ impl FileDisk {
 }
 
 impl Device for FileDisk {
-    fn identity(&mut self) -> Result<Identity, String> {
+    fn identity(&mut self) -> Result<Identity, Reason> {
         self.calls.push("identity");
         Ok(self.now.clone())
     }
-    fn unmount(&mut self) -> Result<(), String> {
+    fn unmount(&mut self) -> Result<(), Reason> {
         self.calls.push("unmount");
         Ok(())
     }
-    fn open_write(&mut self) -> Result<File, String> {
+    fn open_write(&mut self) -> Result<File, Reason> {
         self.calls.push("open_write");
         OpenOptions::new()
             .read(true)
             .write(true)
             .open(&self.path)
-            .map_err(|e| e.to_string())
+            .map_err(|e| Reason::OpenWrite(e.to_string()))
     }
-    fn open_read(&mut self) -> Result<File, String> {
+    fn open_read(&mut self) -> Result<File, Reason> {
         self.calls.push("open_read");
-        File::open(&self.path).map_err(|e| e.to_string())
+        File::open(&self.path).map_err(|e| Reason::OpenRead(e.to_string()))
     }
-    fn rescan(&mut self) -> Result<(), String> {
+    fn rescan(&mut self) -> Result<(), Reason> {
         self.calls.push("rescan");
         Ok(())
     }
@@ -117,7 +117,7 @@ fn run(
     order: &WriteOrder,
     job: &Job,
     disk: &mut FileDisk,
-) -> (Result<(), String>, Vec<WriteStage>) {
+) -> (Result<(), Reason>, Vec<WriteStage>) {
     let mut stages = Vec::new();
     let r = writer::write(order, job.source(), disk, &mut |stage, done, total| {
         assert!(done <= total);
@@ -157,8 +157,7 @@ fn a_payload_file_that_does_not_match_its_manifest_writes_nothing() {
     damaged[200] ^= 1;
     let job = payload(&damaged).job(NAME, IMG_SHA).expect("carried");
     let (r, _) = run(&order, &job, &mut disk);
-    let why = r.expect_err("refused");
-    assert!(why.contains("manifest"), "{why}");
+    assert_eq!(r, Err(Reason::PayloadSum));
     assert!(
         std::fs::read(&path)
             .expect("read")
@@ -181,11 +180,7 @@ fn a_disk_whose_serial_or_size_changed_since_confirm_is_refused_before_any_byte(
             _ => disk.now.size += 512,
         }
         let (r, _) = run(&order, &job, &mut disk);
-        let why = r.expect_err("refused");
-        assert!(
-            why.contains("no longer the disk that was confirmed"),
-            "{why}"
-        );
+        assert!(matches!(r, Err(Reason::Changed { .. })), "{r:?}");
         assert_eq!(disk.calls, ["identity"]);
         assert!(
             std::fs::read(&path)
@@ -394,8 +389,16 @@ fn keep_data_over_a_disk_that_is_not_a_faraday_stick_writes_nothing() {
         Mode::KeepData,
     );
     let (r, _) = run(&order, &Job::Image(image), &mut disk);
-    let why = r.expect_err("refused");
-    assert!(why.contains("not a Faraday stick"), "{why}");
+    assert!(
+        matches!(
+            r,
+            Err(Reason::NotStick {
+                fault: StickFault::DiskUuid,
+                ..
+            })
+        ),
+        "{r:?}"
+    );
     assert_eq!(std::fs::read(&path).expect("read"), before);
 }
 
@@ -430,5 +433,32 @@ fn a_developer_image_written_whole_reads_back_equal() {
     assert_eq!(
         &std::fs::read(&path).expect("read")[..IMG_SIZE],
         fixture_img().as_slice()
+    );
+}
+
+// ---- what a refusal reads as ------------------------------------------------
+
+#[test]
+fn a_refused_write_reads_as_its_string_from_the_strings_file() {
+    use opensigner_core::strings::{EN, fill};
+    let path = tmp("reads-as");
+    std::fs::write(&path, vec![0xEE; 64 << 10]).expect("a disk");
+    let job = payload(XZ).job(NAME, IMG_SHA).expect("carried");
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(payload_source(), Mode::Whole);
+    disk.now.serial = String::from("SERIAL2");
+    let size = disk.now.size.to_string();
+    let (r, _) = run(&order, &job, &mut disk);
+    let reason = r.expect_err("refused");
+    assert_eq!(
+        faraday_hub::reason_text(&reason),
+        fill(
+            EN.hub_why_changed,
+            &[
+                &disk.now.device,
+                "SERIAL2",
+                &fill(EN.hub_why_bytes, &[&size])
+            ]
+        )
     );
 }

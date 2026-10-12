@@ -17,6 +17,11 @@ pub mod api;
 pub mod decide;
 mod draw;
 
+/// What a [`api::Reason`] reads as on screen, from `strings/en.rs`.
+pub fn reason_text(reason: &api::Reason) -> String {
+    draw::reason_text(reason)
+}
+
 use std::collections::VecDeque;
 
 use faraday_core::{Action, Faraday, Screen};
@@ -25,7 +30,7 @@ use osk_ui::{Canvas, Rect};
 
 use api::{
     Computer, DevImage, Disk, HubCommand, HubEvent, Installed, Mode, Os, Payload, PayloadFile,
-    PayloadKind, Source, WriteOrder, WriteStage,
+    PayloadKind, Reason, Source, WriteOrder, WriteStage,
 };
 use decide::{Facts, Item, Target};
 
@@ -291,7 +296,7 @@ pub struct Making {
     /// The write's progress: stage, done, total.
     pub progress: Option<(WriteStage, u64, u64)>,
     /// How the write ended.
-    pub result: Option<Result<(), String>>,
+    pub result: Option<Result<(), Reason>>,
 }
 
 /// What a stick or card is written from: a payload file, or a developer's
@@ -353,13 +358,13 @@ pub struct Hub {
     /// An install under way.
     pub installing: bool,
     /// How the last install ended.
-    pub install_result: Option<Result<String, String>>,
+    pub install_result: Option<Result<String, Reason>>,
     /// Why the last uninstall failed.
-    pub uninstall_failed: Option<String>,
+    pub uninstall_failed: Option<Reason>,
     /// Why the desktop app did not start.
-    pub desktop_failed: Option<String>,
+    pub desktop_failed: Option<Reason>,
     /// Why the restart into firmware settings did not happen.
-    pub restart_failed: Option<String>,
+    pub restart_failed: Option<Reason>,
     /// Protection was resumed through the hub app this session.
     pub resumed: bool,
 
@@ -869,13 +874,19 @@ impl Hub {
             })
     }
 
-    /// Whether the running copy is newer than the installed one.
+    /// Whether the running copy is newer than the installed one (or the
+    /// installed one reports no version).
     pub fn update_offered(&self) -> bool {
         let Some(i) = &self.installed else {
             return false;
         };
         let n = faraday_core::upgrade::version_number;
-        matches!((n(VERSION), n(&i.version)), (Some(r), Some(i)) if r > i)
+        // A copy that does not report a version is older than any.
+        match (n(VERSION), n(&i.version)) {
+            (Some(r), Some(i)) => r > i,
+            (Some(_), None) => true,
+            _ => false,
+        }
     }
 
     /// Confirm's action: the disk checked again, then the write asked of

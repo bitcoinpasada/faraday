@@ -14,7 +14,7 @@ use std::process::ExitCode;
 
 use faraday_hub::api::{
     BitLocker, Bus, Computer, DevImage, Disk, FaradayStick, HubEvent, InUse, InstallItem,
-    Installed, Marker, Mode, Os, Payload, PayloadFile, Protection, Volume, WriteStage,
+    Installed, Marker, Mode, Os, Payload, PayloadFile, Protection, Reason, Volume, WriteStage,
 };
 use faraday_hub::decide::Target;
 use faraday_hub::{Hub, HubAction};
@@ -306,9 +306,10 @@ fn run(s: &Snap) -> Result<(), String> {
     h.hub_event(HubEvent::Disks(many()));
     to(&mut h, "sdf", Mode::Whole);
     h.press(HubAction::Write);
-    h.hub_event(HubEvent::Written(Err(
-        "Read back did not match at 1.2 GB".into()
-    )));
+    h.hub_event(HubEvent::Written(Err(Reason::BackDiffers {
+        device: "/dev/sdf".into(),
+        at: 1_200_000_000,
+    })));
     s.shot(&mut h, "stick-5-failed")?;
 
     // Make a Pi card.

@@ -8,10 +8,10 @@
 
 use std::borrow::Cow;
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, Cursor};
 use std::path::{Path, PathBuf};
 
-use faraday_hub::api::{self, DevImage};
+use faraday_hub::api::{self, DevImage, Reason};
 use faraday_payload::{ImageKind, ImageSum, Manifest, PayloadFile};
 
 mod built {
@@ -20,6 +20,7 @@ mod built {
 
 /// The payload built into this hub app, when there is one: its manifest
 /// and the files it lists.
+#[derive(Clone)]
 pub struct Payload {
     /// The manifest.
     pub manifest: Manifest,
@@ -67,6 +68,35 @@ impl Payload {
             file: line.clone(),
             bytes,
         })
+    }
+
+    /// The desktop app's manifest line, when the payload carries it.
+    pub fn desktop_line(&self) -> Option<&PayloadFile> {
+        self.manifest.files().iter().find(|f| {
+            matches!(
+                api::PayloadKind::of(&f.name),
+                Some(api::PayloadKind::Desktop)
+            )
+        })
+    }
+
+    /// The desktop app, decompressed. [`faraday_payload::write_payload`]
+    /// checks the `.xz` against the manifest before it decodes and the
+    /// decoded bytes against its size and SHA-256 as it goes, so what
+    /// comes back is what the manifest names.
+    pub fn desktop_app(&self) -> Result<(PayloadFile, Vec<u8>), Reason> {
+        let line = self.desktop_line().ok_or(Reason::NoDesktopApp)?;
+        let bytes = self
+            .files
+            .iter()
+            .find(|(n, _)| *n == line.name)
+            .ok_or(Reason::NoDesktopApp)?
+            .1
+            .as_ref();
+        let mut out = Vec::with_capacity(line.inner_size as usize);
+        faraday_payload::write_payload(Cursor::new(bytes), line, &mut out, |_, _| {})
+            .map_err(crate::writer::payload_reason)?;
+        Ok((line.clone(), out))
     }
 
     /// The manifest as the hub shows it (Confirm, About).

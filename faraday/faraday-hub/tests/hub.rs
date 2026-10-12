@@ -3,7 +3,7 @@
 
 use faraday_hub::api::{
     BitLocker, Bus, Computer, DevImage, Disk, FaradayStick, HubCommand, HubEvent, InUse, Marker,
-    Mode, Os, Payload, PayloadFile, Protection, Remind, Source, Volume, remind,
+    Mode, Os, Payload, PayloadFile, Protection, Reason, Remind, Source, Volume, remind,
 };
 use faraday_hub::decide::{Item, Target};
 use faraday_hub::{Hub, HubAction, Page};
@@ -409,8 +409,11 @@ fn writing_shows_progress_then_done_or_the_writers_reason() {
         total: 4 * GB,
     });
     assert!(shows(&mut hub, "Reading back"));
-    hub.hub_event(HubEvent::Written(Err("Read back did not match".into())));
-    assert!(shows(&mut hub, "Read back did not match"));
+    hub.hub_event(HubEvent::Written(Err(Reason::BackDiffers {
+        device: "/dev/sdb".into(),
+        at: 12,
+    })));
+    assert!(shows(&mut hub, "differs from what was written at byte 12"));
     assert!(!shows(&mut hub, "can be pulled out"));
 
     let mut hub = hub_with(vec![disk("sdb", "Stick", 16 * GB)]);
@@ -644,7 +647,7 @@ fn install_offers_the_desktop_app_only_where_the_payload_carries_it() {
     let mut p = payload("0.2.0");
     p.files.retain(|f| !f.name.starts_with("faraday-desktop-"));
     hub.hub_event(HubEvent::Payload(Some(p)));
-    hub.hub_event(HubEvent::InstallDone(Err("no".into())));
+    hub.hub_event(HubEvent::InstallDone(Err(Reason::NoHome)));
     hub.press(HubAction::Install);
     assert!(!shows(&mut hub, "Also install the desktop app"));
     hub.press(HubAction::Home);
