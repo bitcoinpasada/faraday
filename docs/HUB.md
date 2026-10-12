@@ -971,17 +971,16 @@ from `/sys/class/dmi/id/sys_vendor`. Checked on a laptop 2026-10-12:
 byte `0x1ec` = 2 with the SecureBoot variable 0.
 
 Beside that line the power-off sheet shows the QR code of the guide
-for this computer (owner, 2026-10-12): the maker's page when one
-matches the firmware's maker, family and model (`learn::maker`, as the
-hub app chooses it, read on the stick from `/sys/class/dmi/id/`), the
-general Windows page otherwise, at the section that turns Secure Boot
-back on: `https://faradayoffline.app/start/<page>#<section>`, where
-`<section>` is that section heading's slug (lower case, words joined
-by hyphens, as the website makes its heading anchors; the Companion
-scrolls to it, COMPANION §4.7). It is the moment the person is about
-to go into the firmware, with the computer about to switch off. Only
-on the stick, only when it started with Secure Boot off; the code is
-an address, so the stick reaches nothing.
+for this computer (owner, 2026-10-12): one code per computer, the same
+the hub app shows on its Start page and its restart confirmation
+(§3.4, §7.4), so a person scans one code for the whole procedure. The
+guide holds both halves: turning Secure Boot off and turning it back
+on. It is the maker's page when one matches the firmware's maker,
+family and model (`learn::maker`, as the hub app chooses it, read on
+the stick from `/sys/class/dmi/id/`), the general Windows page
+otherwise: `https://faradayoffline.app/start/<page>`, with no section
+anchor. Only on the stick, only when it started with Secure Boot off;
+the code is an address, so the stick reaches nothing.
 
 ### 7.6 Maker families and where to start
 
