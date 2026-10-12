@@ -114,16 +114,19 @@ mod fb;
 mod files;
 mod hid;
 mod keyboard;
+mod pace;
+mod panel;
 mod pointer;
 mod timings;
 mod touch;
 
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
-use std::os::unix::fs::FileExt;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender, sync_channel};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use camera::{Camera, Capture};
@@ -136,16 +139,12 @@ use files::Files;
 use osk_shell_api::{
     App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, SecureHardware, TouchPhase,
 };
+use pace::Pace;
+use panel::{Panel, lock};
 use timings::{Bucket, Timings};
 
 /// How long the main loop waits to be woken before sending a tick.
 const TICK: Duration = Duration::from_millis(50);
-
-/// One frame at 60 Hz. While a finger is on the panel, or the last pass
-/// drew (something is moving), the loop runs on a grid of these: input
-/// that arrives between two deadlines goes in together at the second, so
-/// every frame moves the content by an even step (`docs/MOTION.md` §3.2).
-const FRAME: Duration = Duration::from_micros(16_667);
 
 /// Wakes the channel holds. A pass takes every one of them, so the
 /// depth only has to cover the touches a controller can report between
@@ -167,6 +166,10 @@ enum Wake {
     /// One motion from a mouse or a touchpad, in device units: the
     /// cursor, which the main loop owns, turns it into a touch.
     Pointer(pointer::Motion),
+    /// What a pointer move the input thread applied as it read it meant
+    /// ([`Arrow::moved`]): the arrow is already where it is, and this is
+    /// what the core is told at the frame's deadline.
+    Pointed(Option<Pointed>),
     /// One key from a keyboard, going down.
     Key(Key),
     /// One key from a keyboard, coming up: a hold is held with Enter the
@@ -628,16 +631,22 @@ struct Shell {
     announce: Vec<(u32, String, bool, bool)>,
     /// The app locked: exit with the restart code.
     restart: bool,
-    fb: File,
+    /// The framebuffer and what is on it, shared with the input threads,
+    /// which move the arrow on it themselves.
+    panel: Arc<Mutex<Panel>>,
     geometry: Geometry,
     /// The converted frame, kept between draws so a redraw allocates
     /// nothing. The cursor is drawn into this copy, never into the
     /// core's frame.
     scratch: Vec<u8>,
     /// Where a mouse or a touchpad is pointing, on a machine that has
-    /// one. A machine with only a touchscreen has no cursor and draws no
-    /// arrow.
-    cursor: Option<Cursor>,
+    /// one, shared with the input threads that move it. A machine with
+    /// only a touchscreen has no cursor and draws no arrow.
+    cursor: Option<Arc<Mutex<Cursor>>>,
+    /// For each held-back device, the flag its reader watches: set once
+    /// a person says the device is theirs, and the reader sends its
+    /// input straight through from then on.
+    believed: std::collections::BTreeMap<u32, Arc<AtomicBool>>,
     epoch: Instant,
     /// Frames drawn so far, for `--frames`.
     drawn: u64,
@@ -713,12 +722,15 @@ impl Shell {
                 ));
             }
             if (device.mouse || device.touchpad) && self.cursor.is_none() {
-                self.cursor = Some(Cursor::new(
+                self.cursor = Some(Arc::new(Mutex::new(Cursor::new(
                     self.geometry.width,
                     self.geometry.height,
                     self.pointer_speed,
-                ));
-                self.dirty = true;
+                ))));
+            }
+            let believed = Arc::new(AtomicBool::new(device.trusted));
+            if !device.trusted {
+                self.believed.insert(id, believed.clone());
             }
             evdev::spawn(
                 id,
@@ -727,7 +739,32 @@ impl Shell {
                 self.geometry.height,
                 self.grid,
                 tx.clone(),
+                evdev::Direct {
+                    arrow: self.arrow(),
+                    believed,
+                },
             );
+        }
+    }
+
+    /// What an input thread needs to move the arrow itself, once there
+    /// is a cursor to move.
+    fn arrow(&self) -> Option<Arrow> {
+        self.cursor.clone().map(|cursor| Arrow {
+            cursor,
+            panel: self.panel.clone(),
+        })
+    }
+
+    /// Puts the arrow on the panel where the cursor is, or takes it away
+    /// if the cursor is hidden: its rows only, now.
+    fn move_arrow(&mut self) {
+        let at = self.cursor.as_ref().and_then(|c| {
+            let c = lock(c);
+            c.visible().then(|| c.at())
+        });
+        if let Err(e) = lock(&self.panel).move_arrow(at) {
+            self.say(&format!("framebuffer write failed: {e}"));
         }
     }
 
@@ -743,11 +780,14 @@ impl Shell {
         if let Some(watch) = self.watch.as_mut() {
             watch.ended(id);
             if !watch.pointing()
-                && let Some(c) = self.cursor.as_mut()
-                && c.visible()
+                && let Some(c) = self.cursor.clone()
             {
-                c.hide();
-                self.dirty = true;
+                let mut c = lock(&c);
+                if c.visible() {
+                    c.hide();
+                    drop(c);
+                    self.move_arrow();
+                }
             }
         }
     }
@@ -764,22 +804,13 @@ impl Shell {
         }
     }
 
-    /// Converts the core's frame and writes it to the framebuffer.
-    ///
-    /// One `pwrite` when the rows are packed, one per row when the kernel
-    /// pads them. `write_all_at` needs no seek and no `mmap`, so the whole
-    /// path stays inside safe `std`.
-    /// Paints the panel if a `Draw` is pending. Called once per loop
-    /// pass, after every event of the pass has gone in.
     /// Paints the panel black: what was on it is gone before the power is.
     fn blank(&mut self) {
-        let g = self.geometry;
-        let row = vec![0u8; g.row_bytes()];
-        for y in 0..usize::from(g.height) {
-            let _ = self.fb.write_all_at(&row, (y * g.stride) as u64);
-        }
+        lock(&self.panel).blank();
     }
 
+    /// Paints the panel if a `Draw` is pending. Called once per loop
+    /// pass, after every event of the pass has gone in.
     fn flush(&mut self) {
         if self.dirty {
             self.dirty = false;
@@ -787,6 +818,16 @@ impl Shell {
         }
     }
 
+    /// Converts the core's frame and writes it to the panel.
+    ///
+    /// Only the rows that differ from the frame on the panel are written
+    /// (`panel.rs`): a frame that moves a caret, a toast or the scrollbar
+    /// writes a strip; a scroll writes the scrolled region and not the
+    /// bars around it. The firmware framebuffer has no vsync, so a frame
+    /// can be caught half written; fewer bytes make that window shorter.
+    /// The frame goes out in bands of rows, each under its own hold of
+    /// the panel's lock, so a mouse move from an input thread slips in
+    /// between two bands and the arrow never waits for a frame.
     fn draw(&mut self) {
         let g = self.geometry;
         let pixels = usize::from(g.width) * usize::from(g.height);
@@ -826,26 +867,25 @@ impl Shell {
             return;
         }
 
-        if let Some(c) = self.cursor.as_ref()
-            && c.visible()
-        {
-            cursor::draw(&mut scratch, g, c.at());
-        }
-
-        let row = g.row_bytes();
         let start = self.timings.is_some().then(Instant::now);
-        let result = if g.stride == row {
-            self.fb.write_all_at(&scratch, 0)
-        } else {
-            (0..usize::from(g.height)).try_for_each(|y| {
-                self.fb
-                    .write_all_at(&scratch[y * row..(y + 1) * row], (y * g.stride) as u64)
-            })
-        };
+        let rows = usize::from(g.height);
+        let mut result = Ok(());
+        let mut first = 0;
+        while first < rows && result.is_ok() {
+            let last = (first + panel::CHUNK_ROWS - 1).min(rows - 1);
+            result = lock(&self.panel).write_rows(&scratch, first, last);
+            first = last + 1;
+        }
+        if result.is_ok() {
+            lock(&self.panel).complete();
+        }
         if let (Some(start), Some(t)) = (start, self.timings.as_mut()) {
             t.add(Bucket::Write, start.elapsed());
         }
         match result {
+            // A frame the core drew counts whether or not a pixel
+            // changed: `--frames` and the frame grid follow the core's
+            // draws, not the panel's bytes.
             Ok(()) => self.drawn += 1,
             Err(e) => self.say(&format!("framebuffer write failed: {e}")),
         }
@@ -1079,6 +1119,9 @@ impl Shell {
                     Hold::Ignored
                 };
             }
+            if believed && let Some(flag) = self.believed.get(&id) {
+                flag.store(true, Ordering::Relaxed);
+            }
         }
     }
 
@@ -1304,7 +1347,24 @@ fn run(args: Args) -> Result<bool, String> {
         .filter(|(_, d)| !d.trusted)
         .map(|(id, d)| (*id, d.name.clone(), d.keyboard, d.mouse || d.touchpad))
         .collect();
+    let panel = Arc::new(Mutex::new(Panel::new(fb, geometry)));
+    let cursor = pointing.then(|| {
+        Arc::new(Mutex::new(Cursor::new(
+            geometry.width,
+            geometry.height,
+            args.pointer_speed,
+        )))
+    });
+    let arrow = cursor.clone().map(|cursor| Arrow {
+        cursor,
+        panel: panel.clone(),
+    });
+    let mut believed = std::collections::BTreeMap::new();
     for (id, device) in found {
+        let flag = Arc::new(AtomicBool::new(device.trusted));
+        if !device.trusted {
+            believed.insert(id, flag.clone());
+        }
         evdev::spawn(
             id,
             device,
@@ -1312,6 +1372,10 @@ fn run(args: Args) -> Result<bool, String> {
             geometry.height,
             args.touch_grid,
             tx.clone(),
+            evdev::Direct {
+                arrow: arrow.clone(),
+                believed: flag,
+            },
         );
     }
     // On the device the sender is kept, because a device plugged in later
@@ -1345,10 +1409,11 @@ fn run(args: Args) -> Result<bool, String> {
         announce: initial,
         inverted: false,
         restart: false,
-        fb,
+        panel,
         geometry,
         scratch: Vec::new(),
-        cursor: pointing.then(|| Cursor::new(geometry.width, geometry.height, args.pointer_speed)),
+        cursor,
+        believed,
         epoch: Instant::now(),
         drawn: 0,
         limit: args.frames,
@@ -1489,8 +1554,80 @@ fn collapse_moves(batch: &mut Vec<Wake>) {
                 batch[i + 1] = Wake::Pointer(pointer::Motion::Pan { dy: dy + by });
                 batch.remove(i);
             }
+            // Moves already applied to the arrow: the core wants where
+            // it is now, not every place it passed.
+            (
+                Wake::Pointed(Some(Pointed::Hover { .. })),
+                Wake::Pointed(Some(Pointed::Hover { .. })),
+            ) => {
+                batch.remove(i);
+            }
+            (Wake::Pointed(Some(Pointed::Touch(a))), Wake::Pointed(Some(Pointed::Touch(b))))
+                if a.phase == TouchPhase::Move && b.phase == TouchPhase::Move =>
+            {
+                batch.remove(i);
+            }
             _ => i += 1,
         }
+    }
+}
+
+/// Delivers what the cursor made of a motion to the core.
+fn deliver(shell: &mut Shell, pointed: Option<Pointed>, contact: &mut bool) {
+    match pointed {
+        Some(Pointed::Touch(t)) => {
+            *contact = t.phase != TouchPhase::Up;
+            shell.touch(t);
+        }
+        // A tap is a contact that arrives whole: down and up at one
+        // place, with nothing between.
+        Some(Pointed::Click { x, y }) => {
+            *contact = false;
+            for phase in [TouchPhase::Down, TouchPhase::Up] {
+                shell.touch(touch::Touch { x, y, phase });
+            }
+        }
+        Some(Pointed::Scroll { x, y, dy }) => {
+            shell.send_timed(Bucket::Touch, Event::Scroll { x, y, dy });
+        }
+        Some(Pointed::ScrollEnd { x, y }) => {
+            shell.send_timed(Bucket::Touch, Event::ScrollEnd { x, y });
+        }
+        Some(Pointed::Wheel { x, y, dy }) => {
+            shell.send_timed(Bucket::Touch, Event::Wheel { x, y, dy });
+        }
+        Some(Pointed::Hover { x, y }) => {
+            shell.send_timed(Bucket::Touch, Event::Hover { x, y });
+        }
+        None => {}
+    }
+}
+
+/// What an input thread needs to move the arrow itself
+/// (`docs/MOTION.md` §3.2): the cursor it moves and the panel it paints
+/// on, both shared with the main loop.
+#[derive(Clone)]
+struct Arrow {
+    cursor: Arc<Mutex<Cursor>>,
+    panel: Arc<Mutex<Panel>>,
+}
+
+impl Arrow {
+    /// Applies one pointer move to the cursor and paints the arrow where
+    /// it now is, on the thread that read the move, so the arrow follows
+    /// the hand at the mouse's own rate whatever the main loop is doing.
+    /// What the move meant to the core (a hover, a drag) is the wake the
+    /// loop gets in its place, at the frame's deadline as before.
+    fn moved(&self, motion: pointer::Motion) -> Wake {
+        let (pointed, at) = {
+            let mut c = lock(&self.cursor);
+            let pointed = c.apply(motion);
+            (pointed, c.visible().then(|| c.at()))
+        };
+        // A write that fails is noticed by the main loop's next frame,
+        // which writes the panel whole.
+        let _ = lock(&self.panel).move_arrow(at);
+        Wake::Pointed(pointed)
     }
 }
 
@@ -1513,9 +1650,16 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
     // next move rather than for the tick, so a drag moves with the
     // finger.
     let mut contact = false;
-    // The next frame's deadline while the loop is on the 60 Hz grid: a
-    // finger is down, or the last pass drew.
+    // The next frame's deadline while the loop is on the frame grid: a
+    // finger is down, or the last pass drew. While a finger is on the
+    // panel, or the last pass drew (something is moving), the loop runs
+    // on a grid: input that arrives between two deadlines goes in
+    // together at the second, so every frame moves the content by an
+    // even step (`docs/MOTION.md` §3.2). The grid's step is one frame at
+    // 60 Hz on a machine that keeps up, and whole frames more on one
+    // that does not (`pace.rs`).
     let mut next_frame: Option<Instant> = None;
+    let mut pace = Pace::new();
     while !shell.done && !shell.enough() {
         // Everything the controller has reported since the last pass
         // goes in now. It reports a moving finger a hundred times a
@@ -1554,6 +1698,9 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
                 Err(RecvTimeoutError::Disconnected) => unwoken = true,
             }
         }
+        // What this pass costs, should it draw: everything from here to
+        // the frame written.
+        let began = Instant::now();
         for wake in wakes {
             match wake {
                 // The frame is taken below, from the camera's channel;
@@ -1577,50 +1724,31 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
                     // A finger on the screen is where the person is
                     // looking; the arrow gets out of the way, and with it
                     // whatever it was over.
-                    if let Some(c) = shell.cursor.as_mut()
-                        && c.visible()
-                    {
-                        c.hide();
-                        shell.send_timed(Bucket::Touch, Event::HoverEnd);
+                    if let Some(c) = shell.cursor.clone() {
+                        let mut c = lock(&c);
+                        if c.visible() {
+                            c.hide();
+                            drop(c);
+                            shell.move_arrow();
+                            shell.send_timed(Bucket::Touch, Event::HoverEnd);
+                        }
                     }
                     contact = t.phase != TouchPhase::Up;
                     shell.touch(t);
                 }
+                // A move the input thread applied as it read it
+                // (`Arrow::moved`); this is what it meant.
+                Wake::Pointed(pointed) => deliver(shell, pointed, &mut contact),
+                // Everything else a pointing device does, and the moves
+                // of a device still held back, go through the cursor
+                // here.
                 Wake::Pointer(motion) => {
-                    let Some(c) = shell.cursor.as_mut() else {
+                    let Some(c) = shell.cursor.clone() else {
                         continue;
                     };
-                    let pointed = c.apply(motion);
-                    // The arrow has moved, so the panel is repainted even
-                    // when the core asks for nothing.
-                    shell.dirty = true;
-                    match pointed {
-                        Some(Pointed::Touch(t)) => {
-                            contact = t.phase != TouchPhase::Up;
-                            shell.touch(t);
-                        }
-                        // A tap is a contact that arrives whole: down
-                        // and up at one place, with nothing between.
-                        Some(Pointed::Click { x, y }) => {
-                            contact = false;
-                            for phase in [TouchPhase::Down, TouchPhase::Up] {
-                                shell.touch(touch::Touch { x, y, phase });
-                            }
-                        }
-                        Some(Pointed::Scroll { x, y, dy }) => {
-                            shell.send_timed(Bucket::Touch, Event::Scroll { x, y, dy });
-                        }
-                        Some(Pointed::ScrollEnd { x, y }) => {
-                            shell.send_timed(Bucket::Touch, Event::ScrollEnd { x, y });
-                        }
-                        Some(Pointed::Wheel { x, y, dy }) => {
-                            shell.send_timed(Bucket::Touch, Event::Wheel { x, y, dy });
-                        }
-                        Some(Pointed::Hover { x, y }) => {
-                            shell.send_timed(Bucket::Touch, Event::Hover { x, y });
-                        }
-                        None => {}
-                    }
+                    let pointed = lock(&c).apply(motion);
+                    shell.move_arrow();
+                    deliver(shell, pointed, &mut contact);
                 }
                 Wake::Key(key) => shell.send_timed(Bucket::Touch, Event::Key(key)),
                 Wake::KeyUp(key) => shell.send_timed(Bucket::Touch, Event::KeyUp(key)),
@@ -1723,14 +1851,18 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         let drawn = shell.drawn;
         shell.flush();
         // Drawing, or a finger down, keeps the loop on the grid: the
-        // next deadline is a frame after this one, or a frame from now
+        // next deadline is a step after this one, or a step from now
         // when this pass ran past it.
+        if shell.drawn != drawn {
+            pace.drew(began.elapsed());
+        }
         next_frame = (contact || shell.drawn != drawn).then(|| {
             let now = Instant::now();
+            let step = pace.step();
             next_frame
-                .map(|d| d + FRAME)
+                .map(|d| d + step)
                 .filter(|d| *d > now)
-                .unwrap_or(now + FRAME)
+                .unwrap_or(now + step)
         });
         if let Some(timings) = shell.timings.as_mut() {
             timings.pass();

@@ -438,6 +438,12 @@ impl Canvas {
         self.pixmap.data().to_vec()
     }
 
+    /// The same copy into `into`, reusing its room.
+    pub fn snapshot_into(&self, into: &mut Vec<u8>) {
+        into.clear();
+        into.extend_from_slice(self.pixmap.data());
+    }
+
     /// Shows `t` (0 to 1) of the way from `before`, a [`Canvas::snapshot`]
     /// of this canvas, to what is drawn now: a cross-fade. A snapshot of
     /// another size leaves the canvas as it is.
@@ -708,6 +714,12 @@ impl Canvas {
             (b.right() + grow) as i32 + 1,
             (b.bottom() + grow) as i32 + 1,
         );
+        // A shape wholly outside the clip reaches no pixel the clip
+        // keeps: a card scrolled off the page costs its layout and
+        // nothing more, however long the page.
+        if r <= clip.x || l >= clip.right() || bo <= clip.y || t >= clip.bottom() {
+            return;
+        }
         let inside_columns = l >= clip.x && r <= clip.right();
         if inside_columns && t >= clip.y && bo <= clip.bottom() {
             draw(&mut self.pixmap.as_mut(), 0.0, None);
@@ -1239,11 +1251,16 @@ mod tests {
     /// with the part outside the region cut away: the same pixels inside,
     /// nothing outside. Whether the shape crosses the region's top and
     /// bottom (drawn in the region's rows) or its side (drawn through the
-    /// mask), and for fills, strokes and circles alike.
+    /// mask), and for fills, strokes and circles alike. A card scrolled
+    /// wholly out of the region leaves it as it was.
     #[test]
     fn a_shape_cut_by_a_clip_is_the_whole_shape_cut() {
         let region = Rect::new(8, 6, 48, 20);
-        let shapes: [&dyn Fn(&mut Canvas); 4] = [
+        let shapes: [&dyn Fn(&mut Canvas); 7] = [
+            // Wholly above, below and beside the region.
+            &|c| c.fill_rounded_rect(Rect::new(12, 0, 30, 4), 2.0, Color::rgb(90, 160, 220)),
+            &|c| c.fill_rounded_rect(Rect::new(12, 29, 40, 3), 1.0, Color::rgb(90, 160, 220)),
+            &|c| c.stroke_rounded_rect(Rect::new(0, 10, 5, 10), 1.0, 1.0, Color::WHITE),
             // Across the top and bottom.
             &|c| c.fill_rounded_rect(Rect::new(12, 2, 30, 28), 6.5, Color::rgb(90, 160, 220)),
             &|c| {

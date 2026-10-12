@@ -86,13 +86,21 @@ use winit::dpi::{LogicalSize, PhysicalSize};
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{Key as WinitKey, NamedKey};
+use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{Window, WindowId};
 
 const TICK: Duration = Duration::from_millis(50);
 
-/// The tick while something moves: a frame at 60 Hz (`docs/MOTION.md`
-/// §3.2).
+/// The tick while something moves and the compositor does not pace the
+/// frames (X11): a refresh of a screen that does not say its rate, on a
+/// grid from the first one (`docs/MOTION.md` §3.2). On Wayland the
+/// ticks come with the screen's own refreshes instead.
 const FRAME: Duration = Duration::from_micros(16_667);
+/// How often `--timings` prints what the frames cost.
+const TIMINGS_EVERY: Duration = Duration::from_secs(1);
+/// A pause between two frames longer than this is a rest, not a dropped
+/// frame, and is left out of the frame-to-frame figures.
+const FRAME_REST: Duration = Duration::from_millis(100);
 /// How often the attached folders are looked at again.
 const RESCAN: Duration = Duration::from_millis(700);
 const TITLE: &str = "Faraday · F2 boot stick · F3 stick 2 · F4 pull all";
@@ -188,6 +196,98 @@ struct Shell {
     /// The last tick asked for a frame: something is moving, so the next
     /// tick comes a frame later rather than at the idle rate.
     animating: bool,
+    /// The compositor paces the frames (Wayland): a redraw asked for is
+    /// delivered with the screen's next refresh, so the tick that moves
+    /// what moves is sent on each redraw and every frame is drawn for
+    /// the moment it will be shown. Without it (X11) the ticks come
+    /// from the timer, on the 60 Hz grid.
+    paced: bool,
+    /// What the frames cost, printed once a second with `--timings`.
+    timings: Option<FrameTimings>,
+    /// What recent frames cost (render and copy), weighted towards the
+    /// newest, and the whole refreshes the timer's grid steps by to hold
+    /// one: a machine that cannot draw a frame in a refresh gets every
+    /// other refresh, in even steps, rather than one and then two. Only
+    /// the timer's grid uses it; a compositor that paces the frames
+    /// settles the rate itself.
+    cost: Option<Duration>,
+    steps: u32,
+}
+
+/// The coarsest grid step, in refreshes. A machine slower than that
+/// draws as fast as it can.
+const MOST_STEPS: u32 = 4;
+/// A frame must fit the step with this much room for the step to be
+/// kept; a step that no longer holds it is lengthened at once.
+const KEEP: f64 = 1.25;
+/// The step is shortened only when a frame fits the shorter one with
+/// this much room, so the step does not flip at the boundary.
+const SHORTEN: f64 = 1.6;
+
+/// What a second's frames cost: the render, the copy into the window,
+/// and the time from one frame to the next while something moved.
+struct FrameTimings {
+    since: Instant,
+    /// When the last frame was presented.
+    last: Option<Instant>,
+    frames: u32,
+    /// Mean and worst, as a total and a maximum.
+    render: (Duration, Duration),
+    blit: (Duration, Duration),
+    /// Between consecutive frames of a motion, and how many of them.
+    gap: (Duration, Duration),
+    gaps: u32,
+}
+
+impl FrameTimings {
+    fn new() -> FrameTimings {
+        FrameTimings {
+            since: Instant::now(),
+            last: None,
+            frames: 0,
+            render: (Duration::ZERO, Duration::ZERO),
+            blit: (Duration::ZERO, Duration::ZERO),
+            gap: (Duration::ZERO, Duration::ZERO),
+            gaps: 0,
+        }
+    }
+
+    /// Records one frame presented at `now`, and prints a line once a
+    /// second.
+    fn frame(&mut self, render: Duration, blit: Duration, now: Instant) {
+        self.frames += 1;
+        self.render = (self.render.0 + render, self.render.1.max(render));
+        self.blit = (self.blit.0 + blit, self.blit.1.max(blit));
+        if let Some(last) = self.last {
+            let gap = now - last;
+            if gap < FRAME_REST {
+                self.gap = (self.gap.0 + gap, self.gap.1.max(gap));
+                self.gaps += 1;
+            }
+        }
+        self.last = Some(now);
+        if now - self.since < TIMINGS_EVERY {
+            return;
+        }
+        let ms = |d: Duration| d.as_secs_f64() * 1000.0;
+        let mean = |total: Duration, n: u32| ms(total) / f64::from(n.max(1));
+        eprintln!(
+            "faraday: {} frames · render {:.1} ms (worst {:.1}) · blit {:.1} ms (worst {:.1}) · frame to frame {:.1} ms (worst {:.1}) over {}",
+            self.frames,
+            mean(self.render.0, self.frames),
+            ms(self.render.1),
+            mean(self.blit.0, self.frames),
+            ms(self.blit.1),
+            mean(self.gap.0, self.gaps),
+            ms(self.gap.1),
+            self.gaps,
+        );
+        *self = FrameTimings {
+            since: now,
+            last: self.last,
+            ..FrameTimings::new()
+        };
+    }
 }
 
 fn entropy() -> Option<Event> {
@@ -237,14 +337,17 @@ impl Shell {
     fn send(&mut self, event_loop: &ActiveEventLoop, event: Event) {
         let ticked = matches!(event, Event::Tick { .. });
         // What may start something moving is followed by a tick within a
-        // frame, so the motion starts at once.
-        if matches!(
-            event,
-            Event::Wheel { .. }
-                | Event::Scroll { .. }
-                | Event::ScrollEnd { .. }
-                | Event::Touch { .. }
-        ) {
+        // frame, so the motion starts at once. With the compositor pacing
+        // the frames, the redraw it asks for brings that tick itself.
+        if !self.paced
+            && matches!(
+                event,
+                Event::Wheel { .. }
+                    | Event::Scroll { .. }
+                    | Event::ScrollEnd { .. }
+                    | Event::Touch { .. }
+            )
+        {
             self.next_tick = self.next_tick.min(Instant::now() + FRAME);
         }
         let mut draw = false;
@@ -415,22 +518,91 @@ impl Shell {
         let Ok(mut buffer) = surface.buffer_mut() else {
             return;
         };
+        let begun = Instant::now();
+        let timed = self.timings.is_some();
+        let start = timed.then_some(begun);
         let frame = app.frame();
+        let rendered = timed.then(Instant::now);
         let (fw, fh) = (usize::from(frame.width), usize::from(frame.height));
-        let (sw, sh) = (size.width as usize, size.height as usize);
-        for y in 0..sh {
-            for x in 0..sw {
-                let px = if x < fw && y < fh {
-                    let i = (y * fw + x) * 4;
-                    let p = &frame.rgba[i..i + 4];
-                    (u32::from(p[0]) << 16) | (u32::from(p[1]) << 8) | u32::from(p[2])
-                } else {
-                    0x0011_161c
-                };
-                buffer[y * sw + x] = px;
+        let sw = size.width as usize;
+        // The frame's premultiplied RGBA to the window's 0RGB, a row at a
+        // time: the window is the frame's size but for the moment after a
+        // resize, when what the frame does not cover is the page colour.
+        const BEYOND: u32 = 0x0011_161c;
+        let shown = fw.min(sw);
+        for (y, row) in buffer.chunks_exact_mut(sw).enumerate() {
+            if y < fh {
+                let src = &frame.rgba[y * fw * 4..(y * fw + shown) * 4];
+                for (dst, px) in row[..shown].iter_mut().zip(src.chunks_exact(4)) {
+                    *dst = (u32::from(px[0]) << 16) | (u32::from(px[1]) << 8) | u32::from(px[2]);
+                }
+                row[shown..].fill(BEYOND);
+            } else {
+                row.fill(BEYOND);
             }
         }
+        // Tells winit a frame is about to be shown: on Wayland it asks
+        // the compositor to say when the frame is on the screen, and
+        // holds the next redraw until then, which is what paces the
+        // frames to the screen's refresh.
+        window.pre_present_notify();
         let _ = buffer.present();
+        // A frame that asks for the next one (a fade part of the way)
+        // gets it from here: no event is coming to ask on its behalf.
+        let mut again = false;
+        while let Some(c) = app.poll_command() {
+            again |= matches!(c, Command::Draw);
+        }
+        if again {
+            window.request_redraw();
+        }
+        if !self.paced {
+            self.drew(begun.elapsed());
+        }
+        if let (Some(start), Some(rendered), Some(t)) = (start, rendered, self.timings.as_mut()) {
+            let now = Instant::now();
+            t.frame(rendered - start, now - rendered, now);
+        }
+    }
+
+    /// A frame took `took` to render and copy: the timer's grid step is
+    /// the fewest refreshes that hold one with room. One slow frame (the
+    /// frame a sheet opens on) moves the smoothed cost a fifth of the
+    /// way and changes nothing; a machine slow every frame does.
+    fn drew(&mut self, took: Duration) {
+        let cost = match self.cost {
+            None => took,
+            Some(c) => (c * 4 + took) / 5,
+        };
+        self.cost = Some(cost);
+        let refresh = self.refresh();
+        let holds = |steps: u32, room: f64| refresh * steps >= cost.mul_f64(room);
+        if !holds(self.steps, KEEP) {
+            self.steps = (self.steps + 1..=MOST_STEPS)
+                .find(|&n| holds(n, KEEP))
+                .unwrap_or(MOST_STEPS);
+        } else if self.steps > 1 && holds(self.steps - 1, SHORTEN) {
+            self.steps -= 1;
+        }
+    }
+
+    /// The screen's refresh period, from the monitor the window is on;
+    /// 60 Hz when it does not say.
+    fn refresh(&self) -> Duration {
+        self.window
+            .as_ref()
+            .and_then(|w| w.current_monitor())
+            .and_then(|m| m.refresh_rate_millihertz())
+            .filter(|&mhz| mhz > 0)
+            .map_or(FRAME, |mhz| {
+                Duration::from_secs_f64(1000.0 / f64::from(mhz))
+            })
+    }
+
+    /// The timer's step between frames while something moves and the
+    /// compositor does not pace them.
+    fn step(&self) -> Duration {
+        self.refresh() * self.steps
     }
 
     /// Presses `action` as the person would, and answers what it asks.
@@ -527,6 +699,13 @@ impl ApplicationHandler for Shell {
         let size = window.inner_size();
         self.shown = (size.width, size.height);
         self.scale = window.scale_factor();
+        // Wayland delivers a redraw with the screen's refresh once a
+        // frame has been presented; X11 delivers it at once, so there
+        // the timer keeps the pace.
+        self.paced = matches!(
+            window.window_handle().map(|h| h.as_raw()),
+            Ok(RawWindowHandle::Wayland(_))
+        );
         self.window = Some(window);
         self.surface = Some(surface);
         let display = self.display();
@@ -546,7 +725,21 @@ impl ApplicationHandler for Shell {
             // Only X11 reports a drop in winit 0.30; the list is the way
             // on native Wayland.
             WindowEvent::DroppedFile(path) => self.dropped(event_loop, &path),
-            WindowEvent::RedrawRequested => self.draw(),
+            WindowEvent::RedrawRequested => {
+                // With the compositor pacing the frames, this is the
+                // moment before the screen's next refresh: the tick moves
+                // whatever moves to now, and the frame is drawn for the
+                // moment it will be seen. A tick that asks for a frame
+                // asks for the next redraw, which comes with the refresh
+                // after; the timer stays as the idle tick, pushed back so
+                // it does not tick between two refreshes.
+                if self.paced {
+                    let now_ms = self.epoch.elapsed().as_millis() as u64;
+                    self.send(event_loop, Event::Tick { now_ms });
+                    self.next_tick = Instant::now() + TICK;
+                }
+                self.draw();
+            }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 self.scale = scale_factor;
                 // A device's screen stays the same size in this screen's
@@ -780,7 +973,20 @@ impl ApplicationHandler for Shell {
         if now >= self.next_tick {
             let now_ms = self.epoch.elapsed().as_millis() as u64;
             self.send(event_loop, Event::Tick { now_ms });
-            self.next_tick = now + if self.animating { FRAME } else { TICK };
+            // Without the compositor's pacing, a motion runs on a grid of
+            // frames from its first tick, not a frame after each pass, so
+            // the steps stay even; a pass that ran past its deadline
+            // starts the grid again from now. With the pacing, the ticks
+            // ride the redraws, and this one is the idle tick, or the
+            // one that keeps time while the window is hidden and the
+            // compositor sends no refreshes.
+            self.next_tick = if self.animating && !self.paced {
+                let step = self.step();
+                let on_grid = self.next_tick + step;
+                if on_grid > now { on_grid } else { now + step }
+            } else {
+                now + TICK
+            };
         }
         if now >= self.next_scan {
             self.rescan(event_loop, false);
@@ -886,6 +1092,7 @@ fn main() -> ExitCode {
     let mut aspect: Option<(f64, f64)> = None;
     let mut ppi: Option<f64> = None;
     let mut open_transfer = false;
+    let mut timings = false;
     let mut downloads = std::env::var_os("HOME")
         .map(|h| PathBuf::from(h).join("Downloads"))
         .unwrap_or_else(|| PathBuf::from("Downloads"));
@@ -901,6 +1108,7 @@ fn main() -> ExitCode {
             },
             "--full-kit" => full_kit = true,
             "--transfer" => open_transfer = true,
+            "--timings" => timings = true,
             "--downloads" => match args.next() {
                 Some(d) => downloads = PathBuf::from(d),
                 None => {
@@ -953,7 +1161,7 @@ fn main() -> ExitCode {
             }
             "--help" | "-h" => {
                 println!(
-                    "faraday [--sticks DIR] [--size WxH] [--full-kit] [--transfer] [--downloads DIR] [--panel INCHES [--aspect W:H] [--ppi N]]\n  F2 boot stick, F3 stick 2, F4 pull all, F5 plug every folder in DIR\n  --full-kit: the boot stick carries the full test kit, not the backup test kit\n  --transfer: open on Transfer · --downloads: the folder Transfer sends from and saves into (default ~/Downloads)\n  --panel: a device's screen at its true size: 2.8 is the Pi's panel (3:4), 5 a phone (9:16)\n  --aspect: the panel's width to height · --ppi: this screen's pixels per inch, if its EDID is wrong"
+                    "faraday [--sticks DIR] [--size WxH] [--full-kit] [--transfer] [--downloads DIR] [--panel INCHES [--aspect W:H] [--ppi N]] [--timings]\n  F2 boot stick, F3 stick 2, F4 pull all, F5 plug every folder in DIR\n  --full-kit: the boot stick carries the full test kit, not the backup test kit\n  --transfer: open on Transfer · --downloads: the folder Transfer sends from and saves into (default ~/Downloads)\n  --panel: a device's screen at its true size: 2.8 is the Pi's panel (3:4), 5 a phone (9:16)\n  --aspect: the panel's width to height · --ppi: this screen's pixels per inch, if its EDID is wrong\n  --timings: once a second, what the frames cost (render, copy to the window, frame to frame) on stderr"
                 );
                 return ExitCode::SUCCESS;
             }
@@ -1041,6 +1249,10 @@ fn main() -> ExitCode {
         shift: false,
         wheel: 0.0,
         animating: false,
+        paced: false,
+        timings: timings.then(FrameTimings::new),
+        cost: None,
+        steps: 1,
     };
     match event_loop.run_app(&mut shell) {
         Ok(()) => ExitCode::SUCCESS,

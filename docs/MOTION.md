@@ -107,6 +107,76 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
 - Animation positions are computed from `now_ms`, so a slow frame does
   not slow the motion, it only skips a step.
 - The pan's sub-pixel remainder is carried (`cursor.rs`).
+- **The desktop window on Wayland is paced by the compositor**
+  (2026-10-12). A timer at 60 Hz beside a screen at 60 Hz drifts in and
+  out of phase with it: every few seconds a frame is shown twice or not
+  at all, and a step of the scroll is doubled or missed, which reads as
+  judder however even the steps are. So the shell tells winit before
+  each present (`Window::pre_present_notify`), winit holds the next
+  `RedrawRequested` until the compositor reports the frame on the
+  screen, and the shell sends the `Tick` that moves the content on each
+  redraw, just before drawing. Every frame is then computed for the
+  refresh that shows it, at the screen's own rate whatever it is, and a
+  tick that asks for a frame asks for the next redraw, so the loop runs
+  exactly while the core wants frames. The 50 ms timer stays as the idle
+  tick, and keeps time (the clock, the idle lock, the physics) while the
+  window is hidden and the compositor sends no refreshes. Under X11,
+  which delivers a redraw at once, the timer keeps the 60 Hz grid.
+- **The grid's step follows what a frame costs** (2026-10-12; the stick,
+  and the desktop under X11). A grid finer than the machine can keep
+  gives one step of one frame and the next of two, and the content
+  stutters however exact its positions. The shell keeps a smoothed cost
+  of the passes that drew (each pass moves it a fifth of the way, so the
+  40 ms frame a sheet opens on changes nothing) and steps by the fewest
+  whole refreshes that hold it with a quarter's room: one at 60 Hz on a
+  machine that draws in a few milliseconds, two (30 Hz) on one that
+  takes twenty, up to four. A step is shortened again only when the
+  shorter one holds the cost with 60 % room, so it does not flip at the
+  boundary (`faraday/shells/stick/src/pace.rs`, with tests;
+  `Shell::drew` in the desktop shell, which also takes the refresh
+  period from the monitor the window is on). On Wayland the compositor
+  settles the rate the same way by itself: a frame that misses a refresh
+  is shown at the next, and the frame after is asked for from there.
+- **A shape wholly outside the clip is not drawn** (`Canvas::draw_path`,
+  2026-10-12). A page's cards are all drawn every frame, inside the
+  scroll region's clip; one scrolled off the page used to be filled in
+  full and the rows outside the region put back. Now it costs its layout
+  and nothing more, on every machine, so a long page scrolls at the cost
+  of the cards in view. The pixel-equality test in `canvas.rs` covers
+  shapes wholly above, below and beside the region.
+- **The stick's arrow moves at the mouse's own rate** (2026-10-12,
+  owner: the mouse was jumpy, and still jumped when the main loop
+  painted it as moves arrived, since the loop stalls for 5 to 15 ms
+  whenever a pass renders, converts and writes a frame). A desktop's
+  arrow is a hardware sprite that moves with every report from the
+  mouse, whatever the program is doing; here the input thread that reads
+  the mouse paints it. The framebuffer, a copy of the frame it shows
+  without the arrow, and the arrow's place live in one `Panel` behind a
+  lock (`faraday/shells/stick/src/panel.rs`), shared by the main loop
+  and the input threads. A reader that decodes a move applies it to the
+  shared cursor and calls `Panel::move_arrow`, which rewrites only the
+  rows the arrow leaves (put back from the kept copy) and the rows it
+  lands on, then sends the loop what the move meant (`Wake::Pointed`: a
+  hover, a drag) for the frame's deadline, runs of them collapsed to the
+  last. The loop writes a frame in bands of 64 rows, each under its own
+  hold of the lock (`Panel::write_rows`, the changed rows of the band
+  only, the arrow drawn in where it falls), so a move slips in between
+  two bands and the arrow waits at most half a millisecond. A device
+  held back until a person claims it moves the arrow through the loop
+  until then, and from its own thread after (`evdev::spawn`'s believed
+  flag). A finger on the touchscreen takes the arrow away at once. The
+  panel's tests write to a file and read it back.
+- **The stick writes only the rows that changed** since the last frame
+  (`fb::changed_rows`, 2026-10-12): a caret, a toast or the fading bar
+  is a strip, a scroll is the scrolled region without the bars around
+  it. Fewer bytes cross to the framebuffer each frame, and the window in
+  which the beam can catch a frame half written is shorter. The frame
+  count and the 60 Hz grid still follow the core's draws, not the bytes.
+- `faraday --timings` prints once a second what the frames cost on the
+  machine it runs on: the render, the copy into the window, and the time
+  from one frame to the next while something moved. A frame-to-frame
+  mean near the screen's period with a worst case under twice it is a
+  motion with no dropped frame.
 
 ### 3.3 Scroll physics (`faraday-core/src/motion.rs`)
 
@@ -129,7 +199,13 @@ extent; a motion left from another screen or sheet is stopped.
 - **Wheel**: each `Wheel` adds to a remaining distance; each tick moves
   `remaining · (1 − e^(−dt/τ))`, τ = 45 ms, so a notch settles in about
   140 ms, and notches that arrive while it glides add up and speed it.
-  Keys (Up, Down) use the same glide.
+  Keys (Up, Down) use the same glide. Since 2026-10-12 the notch's
+  distance is the layout's, not the screen's: the shells send 48 pixels
+  a notch (`motion::SHELL_NOTCH_PX`), which the core reads as a count of
+  notches and glides `motion::WHEEL_NOTCH` = 56 units each, the keys the
+  same. Before, 48 device pixels a notch was 48 units on a 1× screen but
+  24 on a scale-2 panel, half of a browser's notch (Chrome 53 CSS pixels,
+  Firefox about 57); the owner asked for a shade over a browser's.
 - **Rubber band**: a pan or coast that pushes past an end stretches
   instead: the displayed overscroll for a pushed distance `x` is
   `(1 − 1 / (x · 0.55 / d + 1)) · d` with `d` the viewport height (the
@@ -188,7 +264,35 @@ extent; a motion left from another screen or sheet is stopped.
   - a step card opens with its height growing over 180 ms (ease-out
     cubic), and the jump that brings the open card into view
     (`Scroll::follow`) is a glide;
-  - changing screen shows the new one at once;
+  - a change of screen or sheet cross-fades from the frame before it
+    over 200 ms, linear (`motion::FADE_MS`; 2026-10-12, phase 4.6; an
+    eased 150 ms was over in three frames and read as a flash): the
+    frame that shows the change is all the old one, and the fade's clock
+    starts at the tick after it, backdated one frame, so a slow first
+    frame does not use the fade up; each frame after, the new one is
+    drawn in full and blended over a copy of the old
+    (`Canvas::blend_from`); a frame part of the way asks for the next
+    itself, so the shell keeps drawing from the first one (the desktop
+    shell answers a frame's own asks after presenting it). At once with
+    reduce motion, and at once on a machine whose frames come too far
+    apart for a fade to read as one: the core keeps the last nine gaps
+    between the ticks that follow a tick that asked for a frame, and
+    fades while their median is 35 ms or under, 30 Hz or better
+    (`motion::FADE_GAP_MS`, `Faraday::fades`); with fewer than five gaps
+    known it fades. A fade under way runs to its end. The median, and
+    the late clock, are there because the frame a sheet opens on frosts
+    the page under it, the slowest frame the app draws (40 ms at 1080p,
+    about twice that in a window with twice 1080p's pixels): a smoothed mean counted it, judged
+    the machine too slow and cancelled the very fade the sheet had
+    started, which is why the owner saw none on the ? button (2026-10-12;
+    `tests/transitions.rs`). `Faraday::settle` ends a
+    fade and the next frame is drawn at rest, so the snapshot tool and a
+    test that reads pixels see the screen itself;
+
+    The 2026-10-07 removal (item 3.9) judged fades under the timer
+    pacing, which doubled or dropped a frame every few seconds: a fade
+    shows every such slip as a flicker in brightness. With frames paced
+    by the compositor (§3.2) they are tried again;
   - the Guided / Steps only switch's pill slides between its options.
 - **Depth**: soft shadows only under what floats (sheets, toasts, the
   network menu), pre-blurred once per radius and blur and drawn as nine
@@ -376,6 +480,41 @@ Phase 3 — appearance:
       once; a sheet no longer rises. `Canvas::blend_from` is left in
       `osk-ui`, unused here.
 
+Phase 4 — pacing (2026-10-12, owner: scrolling still did not read as
+smooth as a native window):
+
+- [x] 4.1 Desktop shell: frames paced by the compositor on Wayland
+      (§3.2), the 60 Hz grid kept under X11; the copy into the window
+      goes a row at a time instead of a pixel at a time with a bounds
+      test each; `--timings`.
+- [x] 4.2 Stick shell: only the rows that changed are written (§3.2),
+      with the test in `fb.rs`.
+- [x] 4.3 The grid's step follows the frame cost on the stick and under
+      X11 (§3.2, `pace.rs`); the desktop's timer takes the monitor's
+      refresh period.
+- [x] 4.4 A shape wholly outside the clip is not drawn (§3.2): off-page
+      cards no longer cost a fill and a restore each frame.
+- [x] 4.6 Cross-fades back, for a change of screen or sheet, gated on
+      the frame cadence the core measures (§3.5); `tests/transitions.rs`
+      covers the fade, reduce motion and the slow machine.
+- [x] 4.7 The wheel notch and the arrow keys move 56 units (§3.3),
+      the same amount of page on every screen; `tests/scroll.rs`.
+- [x] 4.8 The stick's arrow is painted by the input thread that read
+      the move, a few rows at a time, on a panel shared under a lock and
+      written in bands (§3.2; `panel.rs` and its tests, the band test in
+      `cursor.rs`). Owner's stick tests: scrolling good; the mouse jumpy,
+      better once the loop painted it as moves arrived, still jumping
+      whenever the loop drew a frame, hence the thread; the 150 ms fades
+      not seen; the fade is 200 ms linear now. Then still no fade on
+      the ? button: the gate is a median over nine gaps at 35 ms, and a
+      slow first frame neither ends a fade nor uses it up.
+- [ ] 4.5 Owner's check, with `--timings`: on a dense screen the
+      window has about twice 1080p's pixels, so the render alone is
+      near twice §6's 1080p figures. If the render is
+      still the limit on a slow machine, the next step is §3.4's last
+      item: scroll by copying the rows that stay and draw only the
+      exposed strip.
+
 ## 6. After (measured 2026-10-07)
 
 Same harness and machine as §2, release profile.
@@ -411,4 +550,15 @@ Same harness and machine as §2, release profile.
 - Tests that read pixels after a change tick at 16 ms first, as a shell
   does (`tests/transitions.rs`, `tests/scroll.rs`).
 - Settings scrolls now: it outgrew 800 units with Appearance and Motion.
+- On the desktop, a `Tick` is sent on every `RedrawRequested` when the
+  window is Wayland's (`Shell::paced`); a change that needs a tick before
+  a frame gets one there and must not add a second. A shell on a
+  compositor that does not send frame callbacks to a hidden window
+  relies on the 50 ms timer for its ticks meanwhile; do not remove it.
+- The stick compares the converted frame with the one on the panel
+  before writing; anything that writes to the framebuffer around the
+  shell's `draw` (as `blank` does) clears `previous`, or the next frame
+  is written in part over something else. A console sharing the
+  framebuffer on a developer's machine is not noticed: its marks stay
+  until the rows under them change. The image has no console.
 

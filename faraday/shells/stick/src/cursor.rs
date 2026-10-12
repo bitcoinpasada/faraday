@@ -28,8 +28,10 @@ use crate::fb::{self, Geometry};
 use crate::pointer::{Finger, Motion};
 use crate::touch::Touch;
 
-/// Frame pixels of scroll per notch of the wheel, the same distance the
-/// desktop shell moves a line.
+/// What one notch of the wheel is sent as, the same as the desktop
+/// shell sends for a line: 48 pixels, which the core reads as a count of
+/// notches and glides by its own distance in the layout's units
+/// (`docs/MOTION.md` §3.3).
 const WHEEL_NOTCH_PX: f32 = 48.0;
 
 /// What a wheel reports one notch as (`REL_WHEEL_HI_RES` units).
@@ -292,11 +294,24 @@ pub fn scale(lines: u16) -> u16 {
     (lines.saturating_add(ARROW_LINES / 2) / ARROW_LINES).max(1)
 }
 
-/// Draws the arrow into a converted frame, whose rows are packed.
-///
-/// `out` is the shell's own copy of the frame, in the panel's format;
-/// the core's frame is untouched.
-pub fn draw(out: &mut [u8], geometry: Geometry, at: (u16, u16)) {
+/// The rows of the panel the arrow drawn at `at` covers: the first and
+/// the last, inclusive.
+pub fn rows(geometry: Geometry, at: (u16, u16)) -> (usize, usize) {
+    let scale = usize::from(scale(geometry.width.min(geometry.height)));
+    let top = usize::from(at.1);
+    let height = usize::from(geometry.height).max(1);
+    (
+        top.min(height - 1),
+        (top + ARROW.len() * scale - 1).min(height - 1),
+    )
+}
+
+/// Draws the part of the arrow that falls in `out`, a band of the
+/// frame's packed rows starting at row `first`, in the panel's format:
+/// what a frame with the arrow in it holds there, so a band written over
+/// the panel shows the arrow where the whole frame would. `out` is the
+/// shell's own copy; the core's frame is untouched.
+pub fn draw_rows(out: &mut [u8], geometry: Geometry, at: (u16, u16), first: usize) {
     let scale = usize::from(scale(geometry.width.min(geometry.height)));
     let bytes = geometry.depth.bytes_per_pixel();
     let row = geometry.row_bytes();
@@ -320,6 +335,9 @@ pub fn draw(out: &mut [u8], geometry: Geometry, at: (u16, u16)) {
                 if y >= height {
                     break;
                 }
+                let Some(y) = y.checked_sub(first) else {
+                    continue;
+                };
                 for sx in 0..scale {
                     let x = left + c * scale + sx;
                     if x >= width {
@@ -339,6 +357,11 @@ pub fn draw(out: &mut [u8], geometry: Geometry, at: (u16, u16)) {
 mod tests {
     use super::*;
     use crate::fb::Depth;
+
+    /// The arrow drawn into a whole frame.
+    fn draw(out: &mut [u8], geometry: Geometry, at: (u16, u16)) {
+        draw_rows(out, geometry, at, 0);
+    }
 
     fn geometry(depth: Depth) -> Geometry {
         Geometry {
@@ -451,6 +474,29 @@ mod tests {
         assert!(cursor.visible());
         cursor.hide();
         assert!(!cursor.visible());
+    }
+
+    #[test]
+    fn a_band_of_rows_shows_the_arrow_as_the_whole_frame_does() {
+        let g = geometry(Depth::Rgb565);
+        let row = g.row_bytes();
+        let at = (20, 30);
+        let mut whole = vec![0x55u8; row * usize::from(g.height)];
+        draw(&mut whole, g, at);
+        let (first, last) = rows(g, at);
+        assert_eq!((first, last), (30, 48), "nineteen rows at 1:1");
+        // The band the arrow covers, and one that cuts it in half.
+        for (from, to) in [(first, last), (first + 7, first + 12)] {
+            let mut band = vec![0x55u8; row * (to - from + 1)];
+            draw_rows(&mut band, g, at, from);
+            assert_eq!(band, whole[from * row..(to + 1) * row]);
+        }
+        // At the bottom edge the arrow is cut by the panel.
+        let low = (20, g.height - 5);
+        assert_eq!(
+            rows(g, low),
+            (usize::from(g.height) - 5, usize::from(g.height) - 1)
+        );
     }
 
     #[test]

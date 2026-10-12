@@ -41,6 +41,8 @@
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::SyncSender;
 use std::thread;
 
@@ -505,11 +507,22 @@ impl Readers {
 /// Returns once the device gives an error or ends (which a regular file
 /// used with `--input` does); the caller then sends [`Wake::InputEnded`]
 /// and the loop keeps ticking without that source.
+/// What a reader may do without the main loop: move the arrow itself,
+/// once the device is believed.
+pub struct Direct {
+    /// The arrow to move on a pointer move, when the machine has one.
+    pub arrow: Option<crate::Arrow>,
+    /// Set once a person says the device is theirs; a trusted device
+    /// starts with it set. Until then every event is held back.
+    pub believed: Arc<AtomicBool>,
+}
+
 pub fn read_loop(
     device: &Device,
     readers: &mut Readers,
     tx: &SyncSender<Wake>,
     hold: Option<u32>,
+    direct: &Direct,
 ) -> std::io::Result<()> {
     let mut file = fs::File::open(&device.node)?;
     // Room for a whole packet's worth of events and then some.
@@ -533,12 +546,24 @@ pub fn read_loop(
         // the bytes read are written over once decoded.
         zeroize::Zeroize::zeroize(&mut buf[..n]);
         zeroize::Zeroize::zeroize(held.spare_capacity_mut());
+        // A device not yet believed is named on every event, so the main
+        // loop can hold it back; once a person says it is theirs, its
+        // input goes straight through.
+        let held_back = hold.is_some() && !direct.believed.load(Ordering::Relaxed);
         for wake in out.drain(..) {
-            // A device not yet believed is named on every event, so the
-            // main loop can hold it back.
-            let wake = match (hold, crate::HeldInput::of(wake)) {
-                (Some(id), Some(input)) => Wake::Held(id, input),
-                _ => wake,
+            let wake = match (wake, hold, direct.arrow.as_ref()) {
+                // A mouse move is applied here and the arrow painted
+                // now, before the main loop hears of it.
+                (Wake::Pointer(m @ crate::pointer::Motion::Move { .. }), _, Some(arrow))
+                    if !held_back =>
+                {
+                    arrow.moved(m)
+                }
+                (wake, Some(id), _) if held_back => match crate::HeldInput::of(wake) {
+                    Some(input) => Wake::Held(id, input),
+                    None => wake,
+                },
+                (wake, ..) => wake,
             };
             if tx.send(wake).is_err() {
                 return Ok(());
@@ -557,13 +582,14 @@ pub fn spawn(
     height: u16,
     grid: (u16, u16),
     tx: SyncSender<Wake>,
+    direct: Direct,
 ) {
     let mut readers = Readers::new(&device, width, height, grid);
     let hold = (!device.trusted).then_some(id);
     thread::Builder::new()
         .name(String::from("input"))
         .spawn(move || {
-            let _ = read_loop(&device, &mut readers, &tx, hold);
+            let _ = read_loop(&device, &mut readers, &tx, hold, &direct);
             let _ = tx.send(Wake::InputEnded(id));
         })
         .ok();

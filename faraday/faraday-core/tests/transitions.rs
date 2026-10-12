@@ -1,6 +1,7 @@
-//! How changes show (`docs/MOTION.md` §5): a new screen is there at once,
-//! with no fade, and a step card grows open and comes to rest where it
-//! would have jumped to.
+//! How changes show (`docs/MOTION.md` §3.5): a new screen fades in over
+//! the old one and is then still; at once with reduce motion, and on a
+//! machine whose frames come too far apart for a fade to read as one; a
+//! step card grows open and comes to rest where it would have jumped to.
 
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
@@ -40,12 +41,82 @@ fn frames(app: &mut Faraday, from: u64, to: u64) -> Vec<u8> {
 }
 
 #[test]
-fn a_new_screen_is_there_at_once() {
+fn a_new_screen_fades_in_over_the_old_and_is_then_still() {
     let mut app = shown();
+    let home = app.frame().rgba.to_vec();
     app.press(Action::Nav(Screen::Settings));
     let first = frames(&mut app, 1_016, 1_016);
-    let rest = frames(&mut app, 1_032, 2_000);
+    let second = frames(&mut app, 1_032, 1_032);
+    let rest = frames(&mut app, 1_048, 2_000);
+    assert!(first == home, "the fade starts from the old screen");
+    assert!(
+        second != home && second != rest,
+        "and the next frame is part of the way to the new"
+    );
+    assert!(frames(&mut app, 2_016, 2_400) == rest, "then it is still");
+}
+
+#[test]
+fn with_reduce_motion_a_new_screen_is_there_at_once() {
+    let mut app = shown();
+    app.press(Action::ReduceMotion(true));
+    let _ = frames(&mut app, 1_016, 1_400);
+    app.press(Action::Nav(Screen::Settings));
+    let first = frames(&mut app, 1_416, 1_416);
+    let rest = frames(&mut app, 1_432, 2_400);
     assert!(first == rest, "the first frame is the screen at rest");
+}
+
+#[test]
+fn the_learn_sheet_fades_in_though_the_frame_it_opens_on_is_slow() {
+    let mut app = shown();
+    let _ = frames(&mut app, 1_016, 1_400);
+    let page = app.frame().rgba.to_vec();
+    // The ? button.
+    app.press(Action::Learn);
+    let first = frames(&mut app, 1_416, 1_416);
+    assert!(first == page, "the fade starts from the page");
+    // Frosting the page under a sheet makes its first frame the slowest
+    // there is: the next tick comes 90 ms later.
+    let second = frames(&mut app, 1_506, 1_506);
+    let rest = frames(&mut app, 1_522, 2_400);
+    assert!(
+        second != page && second != rest,
+        "the slow frame neither ends the fade nor uses it up"
+    );
+    // And so does the next sheet, once the slow frame is past.
+    app.press(Action::Cancel);
+    let _ = frames(&mut app, 2_416, 3_000);
+    let page = app.frame().rgba.to_vec();
+    app.press(Action::Learn);
+    let first = frames(&mut app, 3_016, 3_016);
+    let second = frames(&mut app, 3_032, 3_032);
+    assert!(first == page && second != page, "the next one fades too");
+}
+
+#[test]
+fn a_machine_whose_frames_come_far_apart_gets_the_new_screen_at_once() {
+    let mut app = shown();
+    app.press(Action::Nav(Screen::Settings));
+    // Settings is taller than the panel: a notch glides it, and the
+    // frames of the glide come 40 ms apart, as on a slow machine.
+    let _ = frames(&mut app, 1_016, 1_400);
+    app.event(Event::Wheel {
+        x: 700,
+        y: 400,
+        dy: 48,
+    });
+    let mut now = 1_400;
+    for _ in 0..12 {
+        now += 40;
+        app.event(Event::Tick { now_ms: now });
+        while app.poll_command().is_some() {}
+        let _ = app.frame();
+    }
+    app.press(Action::Nav(Screen::Home));
+    let first = frames(&mut app, now + 40, now + 40);
+    let rest = frames(&mut app, now + 80, now + 1_000);
+    assert!(first == rest, "no fade: it would show as steps");
 }
 
 #[test]

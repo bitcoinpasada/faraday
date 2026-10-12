@@ -1835,6 +1835,41 @@ as possible before the next build.
     `docs/TOTP.md` §2 (the card's line, the asking), `docs/DESIGN.md`
     only if a component changes.
 
+69. [x] 2026-10-12, owner: **smoother frames** (`docs/MOTION.md` §3.2,
+    §5 phase 4). The desktop window on Wayland lets the compositor pace
+    its frames (`Window::pre_present_notify` before each present, the
+    `Tick` sent on each `RedrawRequested`) instead of a free-running
+    60 Hz timer that beat against the screen's refresh and doubled or
+    dropped a frame every few seconds; under X11 the timer runs the
+    grid. The copy into the window goes a row at a time. `--timings`
+    prints what the frames cost once a second. The stick writes only the
+    rows that changed since the last frame (`fb::changed_rows`, tested).
+    For every machine (owner, the same day: not one machine only, and
+    adaptive where it can be): the frame grid's step follows the
+    smoothed frame cost on the stick (`pace.rs`, tested) and under X11,
+    where the timer also takes the monitor's refresh period; and
+    `Canvas::draw_path` skips a shape wholly outside the clip, so cards
+    scrolled off the page cost nothing to draw (the canvas test covers
+    it). Then (owner, the same day): cross-fades on a change of screen or
+    sheet are back, 150 ms, gated on the frame cadence the core measures
+    from its ticks so a machine that cannot show them as one fade draws
+    the change at once (MOTION §3.5, `tests/transitions.rs`); and the
+    wheel notch and the arrow keys move 56 units, the layout's, where 48
+    device pixels was half a browser's notch on a dense screen (MOTION
+    §3.3, `tests/scroll.rs`). Owner's first test of the stick: scrolling
+    good, the mouse jumpy, the fades not seen. So: the stick's arrow is
+    painted by the input thread that read the move, only its rows, on a
+    panel shared under a lock and written in bands (`panel.rs`, MOTION
+    §3.2; the loop painting it as moves arrived still jumped at every
+    frame it drew); the fade gate takes the median of the last nine
+    frame gaps, 35 ms or under, and a fade's clock starts after the
+    frame that showed the change, since the slow frame that frosts the
+    page under a new sheet had cancelled that sheet's own fade (the
+    owner saw none on the ? button);
+    the fade is 200 ms linear from the frame that shows the change, and
+    a frame part of the way asks for the next. Built in the working
+    tree; waits for the owner's check.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:

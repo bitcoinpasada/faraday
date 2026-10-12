@@ -32,6 +32,32 @@ const MAX_STEP_MS: u64 = 50;
 /// The step assumed for the first tick of a motion, which has no tick
 /// before it to measure from.
 const FIRST_STEP_MS: u64 = 16;
+/// How far a wheel notch or an arrow key moves the content, in units.
+/// Chrome scrolls 53 CSS pixels a notch and Firefox about 57, the feel
+/// people know; a shade over was asked for (owner, 2026-10-12). In units
+/// rather than pixels, so a notch covers the same amount of page on a
+/// dense screen as on a coarse one.
+pub const WHEEL_NOTCH: f32 = 56.0;
+/// What the shells send for one notch (`docs/MOTION.md` §3.1): 48
+/// pixels. Here it is read as a count of notches, not as a distance.
+pub const SHELL_NOTCH_PX: f32 = 48.0;
+/// How long a change of screen or sheet takes to cross-fade in: linear,
+/// since an eased fade of this length is over in a few frames and reads
+/// as a flash, where a straight one reads as a fade. Desktops sit
+/// between 200 and 250 ms.
+pub const FADE_MS: u64 = 200;
+/// The widest the median gap between frames may be for a fade still to
+/// read as one: 30 Hz, six steps in a fade, or better. Frames further
+/// apart are steps of brightness, and the change is drawn at once
+/// instead.
+pub const FADE_GAP_MS: f32 = 35.0;
+/// How many recent frame gaps the median is taken over.
+pub const FADE_GAPS_KEPT: usize = 9;
+/// How many gaps must be known before a machine is judged too slow to
+/// fade.
+pub const FADE_GAPS_KNOWN: usize = 5;
+/// The step the fade's first frame after the change is taken to be.
+pub const FADE_FIRST_STEP_MS: u64 = 16;
 
 /// What the content itself is doing.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]

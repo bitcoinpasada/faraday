@@ -238,9 +238,69 @@ pub fn convert_into(rgba: &[u8], depth: Depth, out: &mut [u8]) {
     }
 }
 
+/// The rows of `next` that differ from `prev`, both converted frames of
+/// `row` bytes a row: the first and the last (inclusive), or `None` when
+/// the two are the same. A `prev` of another size (none yet) makes every
+/// row a changed one. Only these rows need writing to the panel: fewer
+/// bytes cross to the framebuffer, and the beam has less of a window to
+/// catch the write half done in.
+pub fn changed_rows(prev: &[u8], next: &[u8], row: usize) -> Option<(usize, usize)> {
+    let rows = next.len() / row.max(1);
+    if rows == 0 {
+        return None;
+    }
+    if prev.len() != next.len() {
+        return Some((0, rows - 1));
+    }
+    let differs = |y: usize| prev[y * row..(y + 1) * row] != next[y * row..(y + 1) * row];
+    let first = (0..rows).find(|&y| differs(y))?;
+    let last = (first..rows).rev().find(|&y| differs(y)).unwrap_or(first);
+    Some((first, last))
+}
+
+/// Bands of rows, each a first and last row inclusive, sorted and with
+/// the ones that touch or overlap joined, so each row is written once.
+pub fn merge_bands(mut bands: Vec<(usize, usize)>) -> Vec<(usize, usize)> {
+    bands.sort_unstable();
+    let mut merged: Vec<(usize, usize)> = Vec::with_capacity(bands.len());
+    for (first, last) in bands {
+        match merged.last_mut() {
+            Some((_, end)) if first <= *end + 1 => *end = (*end).max(last),
+            _ => merged.push((first, last)),
+        }
+    }
+    merged
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bands_that_touch_are_written_as_one() {
+        assert_eq!(
+            merge_bands(vec![(40, 58), (10, 20), (21, 30), (50, 60)]),
+            vec![(10, 30), (40, 60)]
+        );
+        assert_eq!(merge_bands(Vec::new()), Vec::<(usize, usize)>::new());
+    }
+
+    #[test]
+    fn only_the_rows_that_changed_are_written() {
+        // Four rows of two 16-bit pixels.
+        let prev = [0u8; 16];
+        let mut next = prev;
+        assert_eq!(changed_rows(&prev, &next, 4), None);
+        next[5] = 1;
+        assert_eq!(changed_rows(&prev, &next, 4), Some((1, 1)));
+        next[13] = 1;
+        assert_eq!(changed_rows(&prev, &next, 4), Some((1, 3)));
+        next[0] = 1;
+        assert_eq!(changed_rows(&prev, &next, 4), Some((0, 3)));
+        // Nothing drawn before: every row is new.
+        assert_eq!(changed_rows(&[], &next, 4), Some((0, 3)));
+        assert_eq!(changed_rows(&prev, &[], 4), None);
+    }
 
     /// A sysfs framebuffer directory of this test's own. The last path
     /// element is `fb0`, because that is the name the reasons carry.

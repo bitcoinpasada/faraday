@@ -1,6 +1,9 @@
 //! Scrolling as the shell API states it: `dy` pixels the content moves
-//! up. A wheel notch (48 pixels) moves a page by 48, not half a page; a
-//! list moves by the same pixels too, continuously, not a row at a time.
+//! up. A pan of 48 pixels moves a page by 48, not half a page; a list
+//! moves by the same pixels too, continuously, not a row at a time. A
+//! wheel notch, which the shells send as 48 pixels, glides the content
+//! by the notch's distance in the layout's units (56, `motion.rs`), so
+//! it covers the same amount of page on every screen.
 
 use faraday_core::testkit;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
@@ -122,11 +125,14 @@ fn a_wheel_notch_glides_and_lands_on_its_pixels() {
     tick(&mut app, 1_016);
     let first = app.list_offset;
     assert!(
-        first > 0.0 && first < 48.0,
+        first > 0.0 && first < 56.0,
         "the first frame is part of the way: {first}"
     );
     run(&mut app, 1_016, 400);
-    assert_eq!(app.list_offset, 48.0);
+    assert_eq!(
+        app.list_offset, 56.0,
+        "a notch is 56 units, one unit a pixel here"
+    );
 }
 
 #[test]
@@ -137,7 +143,7 @@ fn notches_in_quick_succession_add_up() {
     wheel(&mut app, 48);
     wheel(&mut app, 48);
     run(&mut app, 1_016, 500);
-    assert_eq!(app.list_offset, 144.0);
+    assert_eq!(app.list_offset, 168.0, "three notches");
 }
 
 #[test]
@@ -165,7 +171,9 @@ fn every_offset_is_a_whole_number_of_pixels() {
         let px = app.list_offset * 0.96;
         assert!((px - px.round()).abs() < 1e-3, "{px} pixels");
     }
-    assert!((app.list_offset * 0.96 - 48.0).abs() < 1e-3);
+    // A notch is 56 units, 53.76 pixels here: it lands on the whole
+    // pixel nearest.
+    assert!((app.list_offset * 0.96 - 56.0 * 0.96).abs() <= 0.5);
 }
 
 #[test]
@@ -259,7 +267,7 @@ fn a_scrollbar_shows_while_the_content_moves_and_then_fades() {
     let moved = pixels(&mut app);
     // The same list put at the same place and left to rest: no bar.
     let mut still = long_files(1280, 800);
-    still.list_offset = 48.0;
+    still.list_offset = 56.0;
     scroll(&mut still, 0);
     run(&mut still, 1_000, 1_500);
     let still = pixels(&mut still);
@@ -278,7 +286,7 @@ fn a_small_panel_shows_no_scrollbar_and_its_right_edge_scrolls_the_page() {
     run(&mut app, 1_000, 300);
     let moved = pixels(&mut app);
     let mut still = long_files(480, 640);
-    still.list_offset = 48.0;
+    still.list_offset = 56.0;
     scroll(&mut still, 0);
     run(&mut still, 1_000, 300);
     assert!(moved == pixels(&mut still), "no bar beside the moving list");
@@ -314,7 +322,7 @@ fn with_reduce_motion_a_notch_moves_at_once_and_nothing_stretches() {
     app.press(Action::ReduceMotion(true));
     let _ = app.frame();
     wheel(&mut app, 48);
-    assert_eq!(app.list_offset, 48.0, "no glide");
+    assert_eq!(app.list_offset, 56.0, "no glide");
     wheel(&mut app, -48);
     let rest = pixels(&mut app);
     scroll(&mut app, -80);
@@ -330,6 +338,9 @@ fn with_reduce_motion_a_notch_moves_at_once_and_nothing_stretches() {
 fn settings() -> Faraday {
     let mut app = long_files(1280, 800);
     app.press(Action::Nav(Screen::Settings));
+    // At rest, past the fade from Files, as a driver that reads pixels
+    // does.
+    app.settle();
     tick(&mut app, 1_000);
     let _ = app.frame();
     app

@@ -3172,6 +3172,23 @@ pub struct Faraday {
     /// The frosted page under the open sheet, and the screen, sheet and
     /// theme it was made for.
     frost: Option<((ScreenKey, ui::Theme), Vec<u8>)>,
+    /// The frame before a change of screen or sheet, kept while the new
+    /// one fades in over it, and when the fade's clock started: `None`
+    /// for the frame that showed the change, whose cost (frosting the
+    /// page under a sheet is the slowest frame there is) is not taken
+    /// out of the fade.
+    fade: Option<(Vec<u8>, Option<u64>)>,
+    /// The screen and sheet the last frame drew, so that a change is
+    /// known at the next.
+    last_drawn: Option<ScreenKey>,
+    /// The last tick asked for a frame: the gap to the next tick is then
+    /// the shell's frame cadence.
+    tick_drew: bool,
+    /// The last few gaps between ticks while frames were asked for, in
+    /// milliseconds, oldest first: how fast this machine shows frames.
+    /// Their median is what counts, so one slow frame, such as the one
+    /// that frosts the page under a new sheet, does not count.
+    frame_gaps: Vec<u16>,
     /// The Guided switch's pill sliding: where it started, 0 on Steps
     /// only and 1 on Guided, and the tick it started at.
     guided_moving: Option<(f32, Option<u64>)>,
@@ -3359,6 +3376,10 @@ impl Faraday {
             toast_at: None,
             disclosed: None,
             frost: None,
+            fade: None,
+            last_drawn: None,
+            tick_drew: false,
+            frame_gaps: Vec::new(),
             guided_moving: None,
             selftest: None,
             hovered: None,
@@ -9885,8 +9906,8 @@ impl Faraday {
                     self.act(Action::Cancel);
                 }
             }
-            KeyIn::Down => self.glide(60.0),
-            KeyIn::Up => self.glide(-60.0),
+            KeyIn::Down => self.glide(motion::WHEEL_NOTCH),
+            KeyIn::Up => self.glide(-motion::WHEEL_NOTCH),
             _ => {}
         }
     }
@@ -10354,6 +10375,24 @@ impl Faraday {
         {
             self.sheet = Some(Sheet::NotAirgapped);
         }
+        // A change of screen or sheet fades in from the frame before it,
+        // which the canvas still holds. The first frame ever, and the
+        // first after a resize, have nothing to fade from.
+        let drawn_key = (self.screen, self.sheet);
+        if self.last_drawn != Some(drawn_key) {
+            // This frame is all the old one; the fade's clock starts at
+            // the next tick (`Event::Tick`), however long this frame
+            // takes.
+            self.fade = match (self.last_drawn.is_some() && self.fades(), self.fade.take()) {
+                (false, _) => None,
+                (true, Some((mut before, _))) => {
+                    canvas.snapshot_into(&mut before);
+                    Some((before, None))
+                }
+                (true, None) => Some((canvas.snapshot(), None)),
+            };
+            self.last_drawn = Some(drawn_key);
+        }
         let mut hits = std::mem::take(&mut self.hits);
         hits.clear();
         // Offsets in whole pixels, whoever set them last, so a scrolled
@@ -10457,6 +10496,21 @@ impl Faraday {
         self.caret_drawn = caret;
         self.vaults.drawn = true;
         self.hits = hits;
+        // The new screen or sheet shown part of the way from the old,
+        // until the fade's time is up. A frame part of the way asks for
+        // the next, so the shell keeps drawing from the first one.
+        if let Some((before, at)) = &self.fade {
+            let t = at.map_or(0.0, |at| {
+                motion::progress(Some(at), self.now_ms, motion::FADE_MS)
+            });
+            if t >= 1.0 {
+                self.fade = None;
+            } else {
+                canvas.blend_from(before, t);
+                self.dirty = true;
+                self.commands.push_back(Command::Draw);
+            }
+        }
         self.canvas = Some(canvas);
         // The frame moved things under a still pointer: the next frame
         // shows what it is over now.
@@ -10464,6 +10518,22 @@ impl Faraday {
             self.dirty = true;
             self.commands.push_back(Command::Draw);
         }
+    }
+
+    /// Whether a change of screen or sheet fades in: not with reduce
+    /// motion, and not on a machine whose frames, while something moved,
+    /// came too far apart for a fade to read as one rather than as steps.
+    /// Until a few frames have been timed, it does.
+    fn fades(&self) -> bool {
+        if self.reduce_motion {
+            return false;
+        }
+        if self.frame_gaps.len() < motion::FADE_GAPS_KNOWN {
+            return true;
+        }
+        let mut gaps = self.frame_gaps.clone();
+        gaps.sort_unstable();
+        f32::from(gaps[gaps.len() / 2]) <= motion::FADE_GAP_MS
     }
 
     /// Whether the text caret shows now: it blinks, on for a half period
@@ -10558,6 +10628,10 @@ impl Faraday {
         if self.toast.is_some() {
             self.toast_at = Some(self.now_ms.saturating_sub(motion::TOAST_MS));
         }
+        // The next frame is the screen at rest, not part of the way from
+        // the one before.
+        self.fade = None;
+        self.last_drawn = None;
         self.dirty = true;
     }
 
@@ -10806,7 +10880,10 @@ impl App for Faraday {
                     self.sheet = None;
                 }
                 self.point_region(i32::from(x), i32::from(y));
-                self.glide(f32::from(dy) / self.f.max(0.1));
+                // The shells send 48 pixels a notch; the notch's distance
+                // is this layout's, in units, so it covers the same amount
+                // of page on every screen.
+                self.glide(f32::from(dy) / motion::SHELL_NOTCH_PX * motion::WHEEL_NOTCH);
             }
             Event::ScrollEnd { .. } => {
                 self.scroll_at = None;
@@ -10830,6 +10907,25 @@ impl App for Faraday {
                 }
             }
             Event::Tick { now_ms } => {
+                // The gap from a tick that asked for a frame to the next
+                // is how fast this machine shows frames; a fade is drawn
+                // only while they come close enough to read as one.
+                if self.tick_drew {
+                    let gap = now_ms.saturating_sub(self.now_ms).min(1000) as u16;
+                    if self.frame_gaps.len() == motion::FADE_GAPS_KEPT {
+                        self.frame_gaps.remove(0);
+                    }
+                    self.frame_gaps.push(gap);
+                }
+                // A fade under way runs to its end whatever the gaps
+                // say. Its clock starts now if the frame that showed the
+                // change was the last one, a frame back, so this frame
+                // is the first step of it rather than the old screen
+                // again.
+                if let Some((_, at @ None)) = self.fade.as_mut() {
+                    *at = Some(now_ms.saturating_sub(motion::FADE_FIRST_STEP_MS));
+                }
+                let before = self.commands.len();
                 // The scrollbar was showing at the last tick: this one
                 // draws its next step of fading, the last one included.
                 let fading = motion::bar_alpha(self.bar_seen.2, self.now_ms) > 0;
@@ -10856,6 +10952,7 @@ impl App for Faraday {
                     self.toast_at = Some(now_ms);
                 }
                 let fading = fading
+                    || self.fade.is_some()
                     || self.caret_drawn.is_some_and(|on| on != self.caret_on())
                     || self.disclosed.is_some_and(|d| d.moving)
                     || self.guided_moving.is_some()
@@ -10880,6 +10977,7 @@ impl App for Faraday {
                 if self.idle_tick(now_ms) {
                     self.dirty = true;
                     self.commands.push_back(Command::Draw);
+                    self.tick_drew = true;
                     return;
                 }
                 if self.vault_tick(now_ms) {
@@ -10907,10 +11005,13 @@ impl App for Faraday {
                     self.dirty = true;
                     self.commands.push_back(Command::Draw);
                 }
+                // Everything a tick pushes is a frame asked for.
+                self.tick_drew = self.commands.len() > before;
                 if let Some((_, until)) = &self.toast
                     && now_ms > *until
                 {
                     self.toast = None;
+                    self.tick_drew = true;
                 } else {
                     return;
                 }
@@ -11027,6 +11128,8 @@ impl Faraday {
             self.selftest = Some(osk_selftest::run());
         }
         self.frost = None;
+        self.fade = None;
+        self.last_drawn = None;
         // Fill a small display; on a large one, stop at a quarter more
         // than its density asks for, so a 4K monitor shows the screens
         // at a sensible size rather than magnified. The person's own
