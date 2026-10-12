@@ -349,6 +349,70 @@ the checklist writes to the computer except what its items do.
 - **About** → §3.7
 - **Learn** → the hub's Learn pages (§7)
 
+### 3.1a Screens that can keep what they show (owner, 2026-10-12)
+
+A TV, or any screen with its own network, can keep what Faraday
+shows: smart TVs capture frames of their inputs for automatic content
+recognition, a casting receiver shows the picture on another device,
+and a remote session sends it elsewhere. The hub app reads this
+computer's screens and warns, by name, when one is:
+
+- **a TV**: from its EDID (Linux: `/sys/class/drm/*/edid`, readable by
+  every user; Windows: the monitor's EDID in the registry and
+  `DisplayConfigGetDeviceInfo`'s output technology; macOS: its IOKit
+  display entry): a monitor name naming a TV, a TV maker's PNP ID with
+  the HDMI vendor block and TV timings, or the HDMI-CEC address a TV
+  carries. The rule is one pure function over EDID bytes, tested
+  against made-up EDIDs for a TV, a monitor and a laptop panel;
+- **a wireless display** (Windows' Miracast output technology, a
+  macOS AirPlay display);
+- **a remote session** (Windows `SM_REMOTESESSION`; an X11 or Wayland
+  session over the network where the platform says so).
+
+The warning is on Home's This computer card and on the Start page,
+and it holds the steps that would put a secret on that screen: the
+restart buttons and the BitLocker guard's Show the recovery key stay
+closed while such a screen is attached, with **Check again**. Its
+line names the screen ("Samsung QN65 is a TV. A TV can record what it
+shows: use another screen or computer."). A screen read as a TV that
+is not one can be let through once per session with **This is not a
+TV**, which asks once. The Learn page "Screens that record" says why.
+
+On the stick, Faraday has no graphics driver (DRM is forbidden; the
+picture is the firmware's framebuffer), so it reads no EDID today. A
+batch looks for a way to read the screen's EDID that the firmware
+already has (UEFI GOP's EDID, passed on by the boot stub) without
+adding a graphics driver; until then the stick's first screen carries
+one line: "On a TV? Stop: a smart TV can record its screen."
+
+### 3.1b What Secure Boot and BitLocker are (owner, 2026-10-12)
+
+Wherever the hub app shows Secure Boot or BitLocker (Home's card and
+checklist, the Start page, the guard's page) a small link, **What
+Secure Boot and BitLocker are**, opens the Learn page of that name
+(id `secure-boot-bitlocker`): what each is and what it guards against;
+why starting Faraday from a stick puts neither the computer nor its
+data at risk (the stick's kernel has no driver for the computer's own
+drives, SATA, NVMe or eMMC, so it cannot read or write them, and no
+network); what suspending BitLocker does, in plain terms (the drive
+stays encrypted; its key is left readable on the drive until resumed);
+the risk that remains, and that it is short (while suspended, someone
+holding the computer could read its drive; while Secure Boot is off,
+the computer would start software Microsoft has not signed); and that
+the hub app offers turning both back on after every Faraday session.
+
+### 3.1c The boot entry on Linux
+
+The Faraday stick entry that Restart from the stick makes (§3.1) is
+explained by a link on its confirmation, **About the boot entry**
+(Learn: what an entry in the firmware's boot list is, that this one
+is never in the boot order and starts only when asked, and that it
+names Faraday to anyone who lists the firmware's entries). Once the
+computer is back from a Faraday session, Home offers **Remove the
+Faraday boot entry** beside the checklist; keeping it saves a password
+prompt next time, removing it leaves no trace of Faraday in the
+firmware. Uninstall removes it too.
+
 ### 3.2 Make a Faraday stick
 
 1. **Which stick?** (Navigate) The USB disks attached now, each as a
