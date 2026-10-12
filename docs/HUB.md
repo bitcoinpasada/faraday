@@ -369,35 +369,26 @@ computer's screens and warns, by name, when one is:
 - **a remote session** (Windows `SM_REMOTESESSION`; an X11 or Wayland
   session over the network where the platform says so).
 
-**Other devices that can intercept or reach a network** (owner, the
-same day). Beside the screens, the hub app and the stick read what
-else is attached and warn the same way, by name:
+**What else can capture what Faraday shows or what is typed** (owner,
+the same day: think the cases through; warn ahead of time in the hub
+app, and on the stick do the best with what it knows; never warn
+about what the stick makes harmless). The question for each device is
+whether it can capture the screen or the keys without Faraday's help:
 
-- **a KVM switch, above all an IP-KVM** (PiKVM, TinyPilot, JetKVM and
-  the like capture the screen and type over the network): the USB
-  keyboard and mass-storage composite such devices present (the Linux
-  USB-gadget vendor ID `1d6b` with a keyboard and a disk, product
-  strings naming KVM), and the EDID a KVM's capture side reports;
-- **a virtual machine**: Faraday started inside one (the CPU's
-  hypervisor flag, the firmware's maker string: QEMU, VMware,
-  VirtualBox, Hyper-V, Xen, Parallels), whose host sees and can change
-  everything; the hub app on a virtual machine says the stick must
-  start on a real computer;
-- **radios and networks on USB**: wireless keyboard and mouse
-  receivers (HID devices whose strings name a receiver, dongle or
-  wireless, and the common receivers' IDs), Bluetooth and other
-  wireless controllers (USB class `0xE0`), Wi-Fi adapters, and USB
-  network adapters (CDC Ethernet, NCM, RNDIS);
-- **video capture devices** on USB (UVC devices whose strings name
-  capture, HDMI or a grabber).
+| Threat | The hub app, ahead of time | The stick, at start |
+|---|---|---|
+| A TV or other screen that records, on HDMI | the screen's EDID, as above | no EDID (no graphics driver). On a desktop or mini PC (DMI chassis type), whose screen is external, it asks once whether the screen is a TV; every start carries the TV line |
+| A KVM switch or IP-KVM (captures the screen, types from afar) | its USB identity (the Linux USB-gadget vendor `1d6b` with a keyboard and a disk; strings naming KVM) and the EDID name its capture side reports | its USB identity, from what `faraday-grant` reads |
+| A wireless keyboard or mouse receiver (keys travel over the air) | its USB identity (strings naming a receiver, dongle or wireless; the common receivers' IDs) | the same, warned before anything secret is typed |
+| Running inside a virtual machine (its host sees and can change everything) | says the stick must start on the real computer, and that the hub app cannot see the host's devices | refuses to go on: no Continue anyway |
+| Remote desktop, screen sharing, a wireless display | only around showing the BitLocker recovery key (§6.5) | none: the stick has no network |
 
-On the stick these come from what `faraday-grant` already reads of
-every USB device before it authorises one; nothing new is bound. The
-stick has no network and no radio driver, so a radio cannot reach
-anything from it; a wireless keyboard's keystrokes still travel over
-the air before they reach it, which is why it is named. What cannot
-be detected is said once on the Learn page: a passive HDMI splitter,
-and a keylogger inside a cable or keyboard.
+Not warned about: Wi-Fi, Bluetooth and USB network adapters, and USB
+video capture cards. The stick has no driver for any of them, so they
+are inert while Faraday runs, and naming them would confuse. Not
+detectable, and said once on the Learn page: a passive HDMI splitter,
+a keylogger inside a cable or keyboard, a camera pointed at the
+screen.
 
 The warning is on Home's This computer card and on the Start page,
 and it holds the steps that would put a secret on that screen: the
