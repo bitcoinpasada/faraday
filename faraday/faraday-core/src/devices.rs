@@ -15,7 +15,7 @@
 //! instead ([`Faraday::device_holds`]). A virtual machine is never let
 //! through.
 
-use opensigner_core::strings::EN;
+use crate::strings::EN;
 
 use crate::{Action, Faraday, Screen, Sheet};
 

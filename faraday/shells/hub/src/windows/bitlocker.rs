@@ -1252,7 +1252,7 @@ pub fn after_resume(dirs: &Dirs, reg: &mut dyn Registry) -> Result<(), Reason> {
 
 /// Save (§6.2): the key's text, as the QR code carries it, written to a
 /// new file in `folder` named from `name` (with `{}` for the key ID, as
-/// `strings/en.rs` gives it). Never over a file already there. Where it
+/// `faraday_core::strings` gives it). Never over a file already there. Where it
 /// went.
 pub fn save_key_to(folder: &Path, key: &KeyShown, name: &str) -> Result<PathBuf, Reason> {
     let text = key.text.write().ok_or(Reason::Unsupported)?;

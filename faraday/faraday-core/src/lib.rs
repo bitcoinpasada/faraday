@@ -53,6 +53,7 @@ pub mod set_time;
 pub mod silent;
 pub mod stick_settings;
 pub mod stick_wipe;
+pub mod strings;
 #[cfg(feature = "testkit")]
 pub mod testkit;
 pub mod tools;

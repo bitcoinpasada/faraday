@@ -7,11 +7,11 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
+use faraday_core::strings::EN;
 use faraday_hub::Hub;
 use faraday_hub::api::{HubEvent, Reason};
 use faraday_hub_shell::linux::install::{self, Dirs, exec_quote};
 use faraday_hub_shell::payload::Payload;
-use opensigner_core::strings::EN;
 
 const DESKTOP_SH: &[u8] = include_bytes!("vectors/desktop-app.sh");
 const DESKTOP_XZ: &[u8] = include_bytes!("vectors/desktop-app.sh.xz");

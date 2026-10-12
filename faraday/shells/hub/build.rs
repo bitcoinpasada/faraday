@@ -87,7 +87,7 @@ fn windows_resources() {
     let manifest_dir =
         PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").expect("cargo sets it"));
     let png_path = manifest_dir.join("assets/app.faradayoffline.Faraday.png");
-    let strings_path = manifest_dir.join("../../../opensigner/opensigner-core/src/strings/en.rs");
+    let strings_path = manifest_dir.join("../../faraday-core/src/strings/en.rs");
     println!("cargo:rerun-if-changed={}", png_path.display());
     println!("cargo:rerun-if-changed={}", strings_path.display());
     println!("cargo:rerun-if-env-changed=FARADAY_BUILD");
@@ -104,13 +104,13 @@ fn windows_resources() {
     ico.extend(&png);
     std::fs::write(out.join("app.ico"), ico).expect("OUT_DIR is writable");
 
-    // The name people see, as the Start menu shortcut's: strings/en.rs.
-    let strings = std::fs::read_to_string(&strings_path).expect("strings/en.rs");
+    // The name people see, as the Start menu shortcut's: faraday-core's strings/en.rs.
+    let strings = std::fs::read_to_string(&strings_path).expect("faraday-core/src/strings/en.rs");
     let name = strings
         .split("hub_menu_name: \"")
         .nth(1)
         .and_then(|rest| rest.split('"').next())
-        .expect("hub_menu_name in strings/en.rs");
+        .expect("hub_menu_name in faraday-core/src/strings/en.rs");
     let version = std::env::var("CARGO_PKG_VERSION").expect("cargo sets it");
     let build = std::env::var("FARADAY_BUILD")
         .ok()

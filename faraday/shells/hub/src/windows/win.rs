@@ -13,6 +13,7 @@ use std::sync::Mutex;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use std::time::{Duration, Instant};
 
+use faraday_core::strings::EN;
 use faraday_core::{Program, parse_version_output};
 use faraday_hub::api::{
     BitLocker, Bus, Computer, Concern, Disk, FaradayStick, HubEvent, Installed, KeyShown,
@@ -21,7 +22,6 @@ use faraday_hub::api::{
 use faraday_hub::concern;
 use faraday_payload::{ImageKind, ImageSum, Sha256Sum};
 use faraday_qr::bitlocker::KeyText;
-use opensigner_core::strings::EN;
 use windows_sys::Win32::Foundation::GENERIC_READ;
 use windows_sys::Win32::Storage::FileSystem::{
     FILE_FLAG_NO_BUFFERING, FILE_FLAG_WRITE_THROUGH, FILE_SHARE_READ, FILE_SHARE_WRITE,

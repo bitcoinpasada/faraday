@@ -1017,7 +1017,7 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 64.0;
     // The stick cannot read the screen: every start says it.
     if app.devices.read {
-        let line = opensigner_core::strings::EN.devices_tv_line;
+        let line = crate::strings::EN.devices_tv_line;
         ui.icon(x - 4.0, y - 6.0, 28.0, Icon::Warning, 14.0, WARN);
         let line = ui.fit(14.0, W::S, line, width - 28.0);
         ui.text(x + 26.0, y, 14.0, W::S, WARN, &line);
@@ -13226,7 +13226,7 @@ pub(crate) fn sheet_box(ui: &mut Ui, w: f32, h: f32, sw: f32, sh: f32) -> (f32, 
 /// The device check's buttons: Check again, then Continue anyway (asked
 /// once), or Power off on a virtual machine, which has no way on.
 fn devices_buttons(app: &Faraday) -> Vec<(&'static str, Style, Action)> {
-    let s = &opensigner_core::strings::EN;
+    let s = &crate::strings::EN;
     let d = &app.devices;
     let mut b = vec![(
         s.devices_check_again,
@@ -13254,7 +13254,7 @@ fn devices_buttons(app: &Faraday) -> Vec<(&'static str, Style, Action)> {
 /// What is attached that can capture the screen or the keys
 /// (`docs/HUB.md` §3.1a): a line for each, and what holds them.
 fn devices_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
-    let s = &opensigner_core::strings::EN;
+    let s = &crate::strings::EN;
     let d = &app.devices;
     let lines: Vec<String> = d.held.iter().map(crate::devices::Concern::line).collect();
     let foot = if d.refuses() {
@@ -13324,7 +13324,7 @@ fn devices_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 /// Is this screen a TV? Asked once on a computer whose screen is a
 /// separate one: the stick cannot read the screen's name.
 fn tv_ask_sheet(ui: &mut Ui, w: f32, h: f32) {
-    let s = &opensigner_core::strings::EN;
+    let s = &crate::strings::EN;
     let buttons = [
         (s.devices_tv_yes, Style::Secondary, Action::DevicesTv(true)),
         (s.devices_tv_no, Style::Primary, Action::DevicesTv(false)),
@@ -14488,7 +14488,7 @@ fn power_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         h,
         (Icon::Power, TEXT, "Power off"),
         if app.secure_boot_reminder() {
-            opensigner_core::strings::EN.power_secure_boot_off
+            crate::strings::EN.power_secure_boot_off
         } else {
             ""
         },

@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # User-facing-strings lint (UX.md §6; opensigner-core/src/strings/).
 #
-# Every word a user can read lives in `strings/en.rs`, so that a second
+# Every word a user can read lives in a strings file, so that a second
 # language is one more static and a wording change is a change to one
-# file. This lint fails when a file under
+# file: OpenSigner's words in opensigner-core's `strings/en.rs`,
+# Faraday's in faraday-core's `strings/en.rs` (CLAUDE.md). Both files are
+# held to the same tidiness below. This lint fails when a file under
 # opensigner/opensigner-core/src/views/ holds a string literal whose first
 # character is a letter: a label, a sentence, a badge.
 #
@@ -21,6 +23,7 @@ cd "$(dirname "$0")/.."
 
 VIEWS="opensigner/opensigner-core/src/views"
 STRINGS="opensigner/opensigner-core/src/strings/en.rs"
+FARADAY_STRINGS="faraday/faraday-core/src/strings/en.rs"
 
 # Lines whose literal is notation rather than wording, as one extended
 # regular expression. `m/` is a derivation path; `BIP-` names a standard.
@@ -45,31 +48,33 @@ if [ -n "$hits" ]; then
     status=1
 fi
 
-if [ ! -f "$STRINGS" ]; then
-    echo "lint-strings: missing $STRINGS"
-    status=1
-else
-    # Every string in en.rs is tidy: not empty, no double or edge spaces,
-    # and none of the filler UX.md §6 forbids. The literals are what sits
-    # between the quotes of a `name: "…"` line; a `\"` inside one is
-    # notation and left alone.
-    untidy=$(
-        grep -nE '^[[:space:]]*[a-z_0-9]+: "' "$STRINGS" \
-        | sed -E 's/^([0-9]+):[[:space:]]*([a-z_0-9]+): "(.*)",?[[:space:]]*$/\1\t\2\t\3/' \
-        | awk -F'\t' '
-            $3 == ""            { print $1 ": " $2 " is empty"; next }
-            $3 ~ /  /           { print $1 ": " $2 " has a double space"; next }
-            $3 ~ /^ / || $3 ~ / $/ { print $1 ": " $2 " starts or ends with a space"; next }
-            $3 ~ / just /       { print $1 ": " $2 " says \"just\""; next }
-            $3 ~ /don.t worry/  { print $1 ": " $2 " reassures"; next }
-        '
-    )
-    if [ -n "$untidy" ]; then
-        echo "lint-strings: untidy wording in $STRINGS"
-        echo "$untidy" | sed "s,^,$STRINGS:,"
+for file in "$STRINGS" "$FARADAY_STRINGS"; do
+    if [ ! -f "$file" ]; then
+        echo "lint-strings: missing $file"
         status=1
+    else
+        # Every string in en.rs is tidy: not empty, no double or edge spaces,
+        # and none of the filler UX.md §6 forbids. The literals are what sits
+        # between the quotes of a `name: "…"` line; a `\"` inside one is
+        # notation and left alone.
+        untidy=$(
+            grep -nE '^[[:space:]]*[a-z_0-9]+: "' "$file" \
+            | sed -E 's/^([0-9]+):[[:space:]]*([a-z_0-9]+): "(.*)",?[[:space:]]*$/\1\t\2\t\3/' \
+            | awk -F'\t' '
+                $3 == ""            { print $1 ": " $2 " is empty"; next }
+                $3 ~ /  /           { print $1 ": " $2 " has a double space"; next }
+                $3 ~ /^ / || $3 ~ / $/ { print $1 ": " $2 " starts or ends with a space"; next }
+                $3 ~ / just /       { print $1 ": " $2 " says \"just\""; next }
+                $3 ~ /don.t worry/  { print $1 ": " $2 " reassures"; next }
+            '
+        )
+        if [ -n "$untidy" ]; then
+            echo "lint-strings: untidy wording in $file"
+            echo "$untidy" | sed "s,^,$file:,"
+            status=1
+        fi
     fi
-fi
+done
 
 if [ "$status" -eq 0 ]; then
     echo "lint-strings: ok"

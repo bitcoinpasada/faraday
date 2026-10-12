@@ -322,7 +322,7 @@ pub enum StickFault {
 }
 
 /// Why something the shell was asked to do did not happen: the one list
-/// the screens turn into `hub_` strings (`strings/en.rs`). Where a
+/// the screens turn into `hub_` strings (`faraday_core::strings`). Where a
 /// reason carries text (`detail`), it is the operating system's own
 /// words for what failed, shown after the hub's.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -26,10 +26,10 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
+use faraday_core::strings::EN;
 use faraday_core::{Program, parse_version_output};
 use faraday_hub::api::{InstallItem, Installed, Reason};
 use faraday_payload::{ImageKind, Sha256Sum};
-use opensigner_core::strings::EN;
 
 use crate::payload::Payload;
 

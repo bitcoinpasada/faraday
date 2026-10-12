@@ -18,7 +18,7 @@ pub mod concern;
 pub mod decide;
 mod draw;
 
-/// What a [`api::Reason`] reads as on screen, from `strings/en.rs`.
+/// What a [`api::Reason`] reads as on screen, from `faraday_core::strings`.
 pub fn reason_text(reason: &api::Reason) -> String {
     draw::reason_text(reason)
 }

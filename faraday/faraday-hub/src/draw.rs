@@ -4,10 +4,11 @@
 //! (`compact`) a bar across the top carries the way back and the page's
 //! name, as the desktop app's small-panel pages do.
 
+use faraday_core::strings::{EN, Strings};
 use faraday_core::ui::pal::*;
 use faraday_core::ui::{Style, Ui, W};
 use faraday_core::upgrade::{Fit, describe, version};
-use opensigner_core::strings::{EN, Strings, fill};
+use opensigner_core::strings::fill;
 use osk_ui::Color;
 use osk_ui::widgets::Icon;
 
@@ -435,7 +436,7 @@ fn step_head(ui: &mut Ui, x: f32, y: f32, w: f32, n: usize, text: &str, done: bo
     th.max(26.0) + 10.0
 }
 
-/// What a reason reads as, from `strings/en.rs`.
+/// What a reason reads as, from `faraday_core::strings`.
 pub(crate) fn reason_text(r: &Reason) -> String {
     let n = |v: u64| v.to_string();
     let bytes = |v: u64| fill(S.hub_why_bytes, &[&v.to_string()]);

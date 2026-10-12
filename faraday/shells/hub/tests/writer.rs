@@ -449,7 +449,8 @@ fn a_developer_image_written_whole_reads_back_equal() {
 
 #[test]
 fn a_refused_write_reads_as_its_string_from_the_strings_file() {
-    use opensigner_core::strings::{EN, fill};
+    use faraday_core::strings::EN;
+    use opensigner_core::strings::fill;
     let path = tmp("reads-as");
     std::fs::write(&path, vec![0xEE; 64 << 10]).expect("a disk");
     let job = payload(XZ).job(NAME, IMG_SHA).expect("carried");
