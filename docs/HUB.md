@@ -298,6 +298,35 @@ apply to this computer are not shown.
 | **Turn Secure Boot back on** → §3.4 at step 5 (shown while Secure Boot is off, unless §6.3's marker says it was already off when the hub app suspended BitLocker; a computer with no marker is shown it whenever Secure Boot is off, since the hub app keeps no other record) | "Secure Boot: off" | Secure Boot is on |
 | **Resume BitLocker** → §6.3 (Windows, only while the hub app's suspension stands) | "Suspended by Faraday"; offered only with Secure Boot as the marker recorded it (§6.3) | protection is on |
 
+**The card's button** (owner, 2026-10-12) names the next action for
+this computer's state, and a button that restarts asks once first: a
+sheet, "This restarts the computer now. Save your work first.", with
+**Restart** and **Cancel**, and the QR code of this computer's guide
+(§7.4). In this order, the first that applies:
+
+| This computer | Button | After Restart |
+|---|---|---|
+| no Faraday stick attached | **Make a Faraday stick** | opens §3.2; no sheet |
+| Windows, a drive protected and the BitLocker step not done | **Do the BitLocker step** | opens §6.5; no sheet |
+| Secure Boot on, or not known | **Restart into firmware settings** | §7.3's firmware restart |
+| Secure Boot off | **Restart from the stick** | Windows: `shutdown /r /o /t 0`, Windows' *Use a device*; Linux: the stick, once (below) |
+
+**Restart from the stick on Linux** starts the attached Faraday stick
+at the next start, once, so the person presses nothing at power-on.
+Every Faraday stick's boot partition carries the same partition GUID
+and lies at the same place (the image's genimage.cfg), so one firmware
+boot entry, labelled `Faraday stick`, starts any of them. The hub app
+runs `efibootmgr` through `pkexec` (polkit asks for the password; the
+hub app itself stays unprivileged, D13): it creates that entry once
+with `--create-only`, so it is never added to `BootOrder`, pointing at
+`\EFI\BOOT\BOOTX64.EFI` on the attached stick's boot partition, reuses
+it when it already exists, sets `BootNext` to it, and then runs
+`systemctl reboot`. Uninstall removes the entry. Where `efibootmgr` or
+`pkexec` is missing, or the password is declined, the button falls
+back to **Restart into firmware settings** with one line saying why.
+The stick cannot start with Secure Boot on, which is why that state
+offers the firmware restart instead.
+
 A person who comes back with Secure Boot off and BitLocker suspended
 sees Turn Secure Boot back on as the next step, and after that Resume
 BitLocker; a first-time visitor sees Make a Faraday stick. Nothing in
