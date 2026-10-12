@@ -1,8 +1,9 @@
 # The hub app
 
-**Status:** spec v0.1 · 2026-10-12 · decided by the owner in discussion
-(`docs/DECISIONS.md` F11). Not built. §12 lists what the owner has
-not yet confirmed, each with the default this spec assumes.
+**Status:** spec v0.2 · 2026-10-12 · decided by the owner in discussion
+(`docs/DECISIONS.md` F11 and F12). Not built. v0.2 is v0.1 with the
+owner's answers to a review of it: §12 records each decision, §13 lists
+what changed. One decision stays open (D11).
 
 The problem it solves: getting Faraday onto a stick or a Pi card, and a
 laptop to start from it, takes a terminal, `dd`, a firmware menu and a
@@ -25,11 +26,18 @@ unrelated. People see the app as **Faraday**.
   prose, on working screens (explanations go in Learn pages); tests for
   user-facing behaviour only; `just` once at the end of a batch; no
   `rm`; no commits; no agents.
-- Batches in §11's order, one review and one completion report each. A
-  batch that needs an owner decision from §12 does not start until the
-  owner has confirmed it.
+- Batches in §11's order, except where §11 says a batch is independent;
+  one review and one completion report each. A batch that needs an
+  owner decision from §12 does not start until the owner has confirmed
+  it.
 - §6 (the BitLocker guard) is a hard requirement. Nothing in batch W
-  ships until §6.6's acceptance run passes in full.
+  ships until §6.6's acceptance runs pass in full.
+- The Windows builds are tried on a Windows computer the owner
+  provides. §6.6 says which of its runs may happen on an owner's
+  computer (the Home run, with the owner) and which never do (anything
+  that resets firmware keys or leaves Secure Boot off).
+- The implementing agent never runs a writer against a disk it has not
+  been given for the purpose.
 - Nothing in the hub app reaches a network. No HTTP client, no update
   check, no telemetry, no crash reporting. The one link it shows (the
   guides on the website, §7.4) is a QR code a phone opens.
@@ -49,19 +57,30 @@ downloads".
 | File | What it is |
 |---|---|
 | `Faraday-X.Y.Z-Windows.exe` | the hub app for Windows (x86_64) |
-| `Faraday-X.Y.Z-Linux` | the hub app for Linux (x86_64) |
+| `Faraday-X.Y.Z-Linux.tar.gz` | the hub app for Linux (x86_64): one file inside, `Faraday-X.Y.Z-Linux`, with its executable bit (§1.2) |
 | `faraday-desktop-X.Y.Z-linux-x86_64` | the desktop app alone (today's `faraday-X.Y.Z-linux-x86_64`, renamed) |
+| `faraday-desktop-X.Y.Z-windows-x86_64.exe` | the desktop app for Windows, from batch C on (§2) |
 | `faraday-stick-X.Y.Z-x86_64-uefi.img.xz` | the stick image |
-| `faraday-pi-X.Y.Z-….img.xz` | the Pi image; its name follows §9's board and panel decision |
+| `faraday-pi-X.Y.Z-pi3-waveshare-28dpi.img.xz` | the Pi image: the board family, then the one panel it is built for (§9); the panel part goes when §9.3's profiles arrive |
+
+`SHA256SUMS` lists the `.tar.gz` and the file inside it, under the
+inner name, so a person can check either.
 
 - Images are published as `.xz` only. `SHA256SUMS` lists each `.xz` and
   also the `.img` inside it, under the `.img` name, so `sha256sum -c
   --ignore-missing SHA256SUMS` checks a download, and after
   decompressing, the image; the hub app shows the `.img` line for what
   it writes.
-- No dev image is published, as a file or inside the hub app. Developers
-  build dev images (`just dev=1 faraday-stick-image`) and write them
-  with `tools/flash-stick`, which stays the developer's tool.
+- No dev image is published, as a file or inside the hub app.
+  Developers build dev images (`just dev=1 faraday-stick-image`) and
+  write them with the hub app itself: `faraday-hub --image
+  out/stick/faraday-x86_64-uefi-dev.img` (or a `.img.xz`, or a
+  `-boot.vfat` for keep data) puts that file in place of the payload's
+  stick image, through the same screens and the same writer, with the
+  Confirm page saying the image is not the hub app's own and showing
+  its SHA-256. `tools/flash-stick` (the window, `write.sh`, the
+  launcher) is removed in batch L once this works (owner, 2026-10-12),
+  and `local/REMAINING.md` carries the item until then.
 - The README's "Verifying a release" gains: verifying on Windows
   (`Get-FileHash -Algorithm SHA256` for the sums, Gpg4win for the
   signature), and why the Windows hub app is unsigned (§10.2).
@@ -82,10 +101,12 @@ later, Debian 11 and later, Fedora 32 and later, and Arch. This is the
 library the apps use at run time (X11 or Wayland, xkbcommon) is loaded
 from the desktop the app runs on, as today.
 
-No `.deb`, `.rpm`, Flatpak, Snap or AppImage. A browser drops the
-executable bit from a download, so on Linux the person marks the file
-executable once (the website and the README show the file manager's
-"Allow executing" and `chmod +x`). Formats for software centres are a
+No `.deb`, `.rpm`, Flatpak, Snap or AppImage. The Linux hub app is
+published inside a `.tar.gz` (owner, D14): a browser drops the
+executable bit from a bare download, and a `.tar.gz` keeps it, so the
+person extracts the archive (a double-click in every file manager, or
+`tar xf`) and opens the file inside. Nobody runs `chmod`. The README
+and the website show the two steps. Formats for software centres are a
 later decision, if people get stuck there.
 
 ### 1.3 What is inside the hub app
@@ -99,12 +120,15 @@ and is the same bytes the release publishes beside it.
 | Hub app | Carries |
 |---|---|
 | Linux | stick image, Pi image, desktop app (as `.xz`) |
-| Windows | stick image, Pi image |
+| Windows | stick image, Pi image; the desktop app (as `.xz`) from batch C on |
 
-At start the hub app checks every payload file against its manifest and
-refuses to write one that does not match. That catches corruption, not
-tampering: the defence against tampering is `SHA256SUMS` and its
-signature over the hub app file itself, which About (§3.7) explains.
+Before a payload file is written to a disk or extracted to run, the hub
+app checks it against its manifest and refuses one that does not match.
+It does not hash the whole payload at start: a start is instant, and
+the check matters at the moment the bytes are used. That catches
+corruption, not tampering: the defence against tampering is
+`SHA256SUMS` and its signature over the hub app file itself, which
+About (§3.7) explains.
 
 Decompression is a pure-Rust xz decoder with an entry in `docs/deps/`
 (the choice is batch R's, after reading the candidates). Faraday does
@@ -113,8 +137,9 @@ and a C decompressor is the wrong place to take that risk again. The
 decoder streams: an image is decompressed as it is written, never into
 a temporary file.
 
-Estimated size: Linux about 40 MB (11 + 12 MB images, 4 MB desktop app,
-the hub itself about 13 MB), Windows about 36 MB.
+Estimated size: about 40 MB on each system (11 + 12 MB images, 4 MB
+desktop app, the hub itself about 13 MB); Windows about 36 MB until
+batch C adds the desktop app.
 
 ## 2. How it is built
 
@@ -132,18 +157,52 @@ the hub itself about 13 MB), Windows about 36 MB.
   Home. The desktop app's `--transfer` already opens it this way. Batch
   R checks that `faraday-core` can be held this way and adds what is
   missing, without changing what the desktop app does.
-- **The privileged writer is the same binary.** `--write` with the
-  mode, the payload file, the device and the confirmed serial and size,
-  as `tools/flash-stick/write.sh` takes them. On Linux the hub app runs
-  `pkexec <its own path> --write …`; polkit asks for the password. On
-  Windows it starts itself elevated (`ShellExecuteExW` with `runas`)
-  and the elevated copy reports progress over a named pipe only the
-  person's account can open. The writer checks the device again before
-  it writes (§4.3) and never takes a path from anything but its
-  arguments.
+- **On Linux the hub app writes through udisks2 and never runs as
+  root** (owner, D13). It talks to udisks2 over D-Bus through a
+  pure-Rust D-Bus crate with a `docs/deps/` entry (batch L chooses it).
+  Disks come from udisks2's objects: `Drive` (vendor, model, serial,
+  size, `ConnectionBus`, `Removable`, `Ejectable`), `Block` and
+  `Partition` (the partitions, their names and sizes), `Filesystem`
+  (labels, mount points). Partitions the desktop mounted are unmounted
+  through `Filesystem.Unmount`; the disk is opened with
+  `Block.OpenDevice` in `rw` mode with `O_EXCL` and `O_SYNC`, and the
+  descriptor udisks2 hands back is what the hub app writes, flushes,
+  reads back from and `Block.Rescan`s. polkit decides whether a
+  password is asked for (`org.freedesktop.udisks2.open-device`); batch
+  L records what each distribution it tries asks, and the Learn page
+  says a password may be asked. A distribution without udisks2 gets
+  one line, "This computer cannot write a stick from here", and the
+  README's plain-image route. The v0.1 path (`pkexec <its own path>
+  --write …`, as `tools/flash-stick/write.sh` did) is not built unless
+  batch L finds a tried desktop distribution without udisks2; if it is,
+  `--write` runs before anything else in the binary is initialised.
+- **On Windows the privileged writer is the same binary.** The hub app
+  starts itself elevated (`ShellExecuteExW` with `runas`) with
+  `--write` and the mode, the payload file, the device and the
+  confirmed serial and size; the elevated copy reports progress over a
+  named pipe only the person's account can open. `--write` is handled
+  before anything else in the binary is initialised: no window, no
+  payload beyond the one file named, nothing read from the environment.
+  The writer checks the device again before it writes (§4.3) and never
+  takes a path from anything but its arguments. The BitLocker calls
+  (§6) go through the same elevated copy, as `--bitlocker <verb>`.
 - On Windows, winit already brings in `windows-sys`; the Win32 calls
   the shell needs (disks, volumes, registry, shortcuts, elevation) go
   through it, and no other Windows crate is added.
+- **The desktop app runs on Windows too** (owner, 2026-10-12, D20;
+  F11 said there was none). Nothing in it is Linux by design: it draws
+  through winit and softbuffer as the hub app does. Batch C makes the
+  three changes it needs: the camera module it shares with the hub app
+  (§8); the home folder read from `USERPROFILE` where `HOME` is read
+  today (`faraday/shells/desktop/src/main.rs`); and `osk-crypto`'s
+  `pin-pages` feature pinning through `VirtualLock` and `VirtualUnlock`
+  where it calls `mlock` and `munlock`, under the same audited-unsafe
+  rules as the Unix pair. From batch C the Windows hub app carries the
+  desktop app, Try the desktop app and the install check box appear on
+  Windows, and the release has
+  `faraday-desktop-X.Y.Z-windows-x86_64.exe`. Its sticks folder is
+  `%USERPROFILE%\faraday-sticks` and Downloads is the Windows Downloads
+  folder.
 - Builds: Linux in the §1.2 container; Windows cross-compiled for
   `x86_64-pc-windows-gnu` in a pinned container on the build machine.
   No hosted CI (`CLAUDE.md`). Batch W tries the Windows hub app on a
@@ -159,45 +218,79 @@ Every screen uses DESIGN §4's components and §5's intents. Titles and
 labels are the defaults; the build may tighten wording, not change
 what a screen does.
 
-### 3.1 Home (Navigate)
+### 3.1 Home (Navigate): a checklist, then the rows
 
-Title: the wordmark. A card for this computer, then the rows.
+Title: the wordmark. A card for this computer, then the checklist of
+the path from download to a running stick, then the other rows (owner,
+D12: Home leads with the next step for this computer's state, not with
+a menu).
 
-- **This computer:** maker and model (§7.1); on Windows and Linux,
-  whether Secure Boot is on; on Windows, whether the system drive is
-  encrypted. On a computer that cannot start a Faraday stick (§7.1:
-  an ARM computer, or one that started in legacy BIOS mode), one line
-  says so; Make a stick stays, for another computer.
-- **Make a Faraday stick** → §3.2
+**This computer** (a card): maker and model (§7.1); whether Secure
+Boot is on; on Windows, whether the system drive is encrypted and, if
+the hub app suspended BitLocker, that it is suspended (§6.3). On a
+computer that cannot start a Faraday stick (§7.1: an ARM computer, or
+one that started in legacy BIOS mode), one line says so; Make a stick
+stays, for another computer.
+
+**The checklist.** Each item carries its state, read live each time
+Home is drawn, never from a file the hub app keeps (§5.1). The first
+item not done is marked as the next step and is the one a tap on the
+card's action opens. Items that do not apply to this computer are not
+shown.
+
+| Item | State shown | Done when |
+|---|---|---|
+| **Make a Faraday stick** → §3.2 | "No Faraday stick attached" or the attached stick's Faraday version (read as §4.1 reads it) | a Faraday stick is attached |
+| **BitLocker** → §6.5 (Windows, only when a drive is protected) | "Protected", "Suspended by Faraday" or "Resumed" | protection is suspended by the hub app, or it was and is now resumed with Secure Boot on |
+| **Start this computer from the stick** → §3.4 | "Secure Boot: on" or "off" | never ticked; it is where the firmware steps live |
+| **Turn Secure Boot back on** → §3.4 at step 5 (shown while Secure Boot is off, unless §6.3's marker says it was already off when the hub app suspended BitLocker; a computer with no marker is shown it whenever Secure Boot is off, since the hub app keeps no other record) | "Secure Boot: off" | Secure Boot is on |
+| **Resume BitLocker** → §6.3 (Windows, only while the hub app's suspension stands) | "Suspended by Faraday"; offered only with Secure Boot on | protection is on |
+
+A person who comes back with Secure Boot off and BitLocker suspended
+sees Turn Secure Boot back on as the next step, and after that Resume
+BitLocker; a first-time visitor sees Make a Faraday stick. Nothing in
+the checklist writes to the computer except what its items do.
+
+**The rows**, under the checklist:
+
 - **Make a Pi card** → §3.3
-- **Start this computer from the stick** → §3.4
 - **Transfer** → the desktop app's Transfer (§2)
-- **Try the desktop app** (Linux only) → opens it (§5.3). Its row says
-  "Test seeds only".
+- **Try the desktop app** → opens it (§5.3). Its row says "Test seeds
+  only". On Windows from batch C (§2).
 - **Install** or **Installed** → §3.5
 - **About** → §3.7
 - **Learn** → the hub's Learn pages (§7)
 
 ### 3.2 Make a Faraday stick
 
-1. **Which stick?** (Navigate) The USB disks attached now, as
-   `tools/flash-stick` lists them: maker and model, size, device,
-   serial, partitions with names and sizes, what is mounted, and
-   "Faraday stick" for one whose partition table is a Faraday stick's.
-   The list follows sticks plugged in and pulled out. A disk the
-   computer uses (§4.2) is shown dimmed with the reason and cannot be
-   chosen. With one stick it is chosen; with more, none is until one is
-   tapped.
+1. **Which stick?** (Navigate) The USB disks attached now, each as a
+   row for a person, not for a developer: maker and model, size, and
+   what is on it. A Faraday stick says "Faraday stick" and the Faraday
+   version it holds (§4.1); any other disk says the names of its
+   volumes and that it holds files ("2 volumes, files on them"), or
+   "Empty". The device path and serial are not on this screen; Confirm
+   has them. Faraday sticks come first, then the others by size, the
+   smallest first. The list follows sticks plugged in and pulled out. A
+   disk the computer uses (§4.2) is shown dimmed with the reason and
+   cannot be chosen. **No disk is ever chosen for the person**, even
+   when there is one (owner, 2026-10-12): the one attached USB disk is
+   as often a backup drive as a stick.
 2. **What to write?** (Choose)
    - *New Faraday stick*: the whole stick; everything on it is lost.
    - *Replace Faraday, keep data*: only on a Faraday stick. The boot
      partition is written; the data partition, with its vaults and
      settings, is not read and not written. One line under it states
-     the fact the Learn page explains (§4.4).
+     the fact the Learn page explains (§4.4). The stick's own upgrade
+     rules apply (F2, F5; owner, D15): the same build string as the
+     stick already holds is refused with the reason; an older Faraday
+     over a newer stick is warned about on Confirm and can still be
+     written; anything else is written.
 3. **Confirm** (Record) the stick (maker, model, size, device, serial),
-   what is written (the build ID and the `.img` SHA-256), and the
-   action button: *Erase and write* or *Write*. Then the system's own
-   prompt (§2).
+   what is on it (its Faraday version, when it is a Faraday stick),
+   what is written (the build ID and the `.img` SHA-256), the warning
+   from step 2 if there is one, and the action button: *Erase and
+   write* or *Write*. Then the system's own prompt where there is one
+   (§2).
 4. **Writing** (Progress): written of total, then *Reading back*.
 5. **Done** (Result): "The stick can be pulled out." and the next
    step: **Start this computer from the stick** (§3.4). On failure the
@@ -205,33 +298,48 @@ Title: the wordmark. A card for this computer, then the rows.
 
 ### 3.3 Make a Pi card
 
-As §3.2, with two choices before the card: **Which Pi?** and **Which
-screen?** (§9). The card list also offers the computer's own SD card
-reader (§4.2). *Replace Faraday, keep data* is offered once the Pi
-image can be replaced that way (§9.5).
+As §3.2. Two choices come before the card once there is something to
+choose: **Which Pi?** once there is more than one Pi image (§9.4), and
+**Which screen?** once there is more than one panel profile (§9.3).
+With one image for the 2.8 inch panel (D1), neither is shown and the
+page says which Pi and screen the card is for. The card list also
+offers the computer's own SD card reader (§4.2). *Replace Faraday,
+keep data* is offered once the Pi image can be replaced that way
+(§9.5).
 
 ### 3.4 Start this computer from the stick
 
-The guide for this computer (§7), opened at its maker's page, with the
-steps in order and the buttons the operating system allows:
+The guide for this computer (§7), opened at its maker's page where
+there is one and at the general page otherwise, with the steps in
+order and the buttons the operating system allows. The steps shown
+follow this computer's state:
 
 1. On Windows, the BitLocker step (§6), before anything else. Until it
    is done, steps 2 and on are shown and their buttons are not offered.
-2. **Restart into firmware settings** (§7.3).
+2. **Restart into firmware settings** (§7.3). Its confirmation ("Save
+   your work first: this restarts the computer") carries the QR code
+   of this page's address on the website (§7.4), because that is the
+   moment the person needs the steps on a phone; the same code is at
+   the end of the page.
 3. The firmware steps for this maker: turn Secure Boot off; turn Fast
-   Boot off where it hides USB.
+   Boot off where it hides USB. When Secure Boot is already off, this
+   step says so and has nothing to do.
 4. **Start from the stick:** the maker's boot menu key, or Windows'
    *Use a device*.
 5. **Afterwards:** turn Secure Boot back on before starting Windows.
-6. A QR code of this page's address on the website (§7.4), to read the
-   steps on a phone while the computer is in its firmware.
+   Not shown when §6.3's marker says Secure Boot was already off when
+   the hub app suspended BitLocker: that computer's owner chose to
+   have it off and is not told to turn it on. With no marker the hub
+   app keeps no record and shows the step whenever Secure Boot is off.
+   On Windows, Resume BitLocker follows (§6.3).
 
 ### 3.5 Install and uninstall
 
-**Install** (Choose): one check box, Linux only, *Also install the
-desktop app, for testing with test seeds only*, unchecked; then
-**Install**. Done shows where it went. When the running copy is newer
-than the installed one, the row reads **Update the installed Faraday**.
+**Install** (Choose): one check box, *Also install the desktop app,
+for testing with test seeds only*, unchecked (on Windows from batch C,
+§2); then **Install**. Done shows where it went. When the running copy
+is newer than the installed one, the row reads **Update the installed
+Faraday**.
 
 **Installed** opens a Record of what is installed and where, with
 **Uninstall**, which asks once. §5 says what each does.
@@ -252,7 +360,8 @@ file is unsigned (§10.2).
 
 ### 4.1 What the writer does
 
-As `tools/flash-stick/write.sh`, which is the reference: refuse unless
+As `tools/flash-stick/write.sh` did (it goes in batch L, D21; from then
+this section is the reference): refuse unless
 the device is still the stick that was confirmed (serial and size);
 unmount what the desktop mounted from it; write; flush; read the whole
 write back and compare; ask the system to read the partition table
@@ -263,15 +372,27 @@ decompressed from the payload while it is written, and the SHA-256 of
 the decompressed stream must equal the manifest's before the writer
 reports success.
 
+**What the hub app reads from a Faraday stick.** Only the boot
+partition, and only to learn which Faraday it holds: the build string
+(F5) the stick's own Upgrade a Faraday stick reads from another stick
+(`faraday-core/src/upgrade.rs`), through `faraday-fat` on the OSKBOOT
+partition, read-only. That version is shown on Which stick and Confirm
+and drives the keep-data rules (§3.2). OSKDATA is never opened, read
+or written (§4.4).
+
 ### 4.2 Which disks are offered
 
-- A whole disk on USB, removable or hot-pluggable; or, for a Pi card,
-  an SD card in the computer's own reader (Linux `mmcblk*`; Windows bus
-  types SD and MMC).
+- A whole disk on USB, removable or hot-pluggable (Linux: udisks2's
+  `Drive.ConnectionBus` = `usb`, `Removable` or `Ejectable`); or, for
+  a Pi card, an SD card in the computer's own reader (Linux `mmcblk*`;
+  Windows bus types SD and MMC).
 - Never a disk with a partition the computer uses: on Linux mounted
-  anywhere but `/run/media`, `/media` or `/mnt`, or swap; on Windows
+  anywhere but `/run/media`, `/media` or `/mnt` (udisks2's
+  `Filesystem.MountPoints`), or swap (`Swapspace.Active`); on Windows
   the disk holding the Windows, boot or page-file volume.
 - Never a disk smaller than the image.
+- A disk is dimmed, not hidden, when refused, with the reason in one
+  line, so the person sees why their disk is not offered.
 
 ### 4.3 Windows specifics
 
@@ -304,7 +425,9 @@ stick from another stick without an online computer.
 
 Opening the downloaded file runs the hub app. It writes nothing to the
 computer except what the person asks for (a stick, a card, a received
-file, the desktop app's cache under §5.3).
+file, the desktop app's cache under §5.3) and, on Windows, the one
+marker §6.3 describes when it suspends BitLocker. Home's checklist
+(§3.1) reads its state live; there is no settings or state file.
 
 ### 5.2 Installing
 
@@ -312,11 +435,12 @@ Per user, never needing administrator rights.
 
 | | Linux | Windows |
 |---|---|---|
-| The hub app | `~/.local/share/faraday/faraday` | `%LOCALAPPDATA%\Programs\Faraday\Faraday.exe` |
-| The desktop app, if ticked | `~/.local/share/faraday/faraday-desktop` | not offered |
-| Menu | `~/.local/share/applications/app.faradayoffline.Faraday.desktop`, and `…FaradayDesktop.desktop` "Faraday desktop (testing)" | Start menu shortcut `Faraday` |
+| The hub app | `~/.local/bin/faraday` (the XDG place for a user's executables, and on PATH on most desktops) | `%LOCALAPPDATA%\Programs\Faraday\Faraday.exe` |
+| The desktop app, if ticked | `~/.local/bin/faraday-desktop` | `%LOCALAPPDATA%\Programs\Faraday\faraday-desktop.exe` (from batch C) |
+| Menu | `~/.local/share/applications/app.faradayoffline.Faraday.desktop`, and `…FaradayDesktop.desktop` "Faraday desktop (testing)" | Start menu shortcuts `Faraday` and, with the desktop app, `Faraday desktop (testing)` |
 | Icon | `~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.Faraday.png` | in the `.exe` |
 | Uninstall entry | — | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday`: name, version, publisher "Faraday", icon, size, `UninstallString` = `"…\Faraday.exe" --uninstall` |
+| Logon reminder | — | only while the hub app's BitLocker suspension stands (§6.3) |
 
 The menu file names are reverse-DNS, so they never collide with a
 developer's own `faraday.desktop`.
@@ -325,8 +449,9 @@ developer's own `faraday.desktop`.
 
 Try the desktop app runs the installed desktop app if there is one;
 otherwise the hub app decompresses it from its payload into
-`$XDG_CACHE_HOME/faraday/X.Y.Z/` (default `~/.cache/faraday/X.Y.Z/`),
-checks its SHA-256 against the manifest, and runs it. Every start
+`$XDG_CACHE_HOME/faraday/X.Y.Z/` (default `~/.cache/faraday/X.Y.Z/`;
+on Windows `%LOCALAPPDATA%\faraday\cache\X.Y.Z\`), checks its SHA-256
+against the manifest, and runs it. Every start
 checks the cached copy again. The desktop app opens on its own; it is
 the same program as the plain release file, and can also be opened
 without the hub app.
@@ -339,6 +464,15 @@ files, the desktop app's `~/faraday-sticks` and settings. On Windows
 the running copy cannot delete itself; the uninstaller finishes by
 starting a short command that removes the folder once the hub app has
 exited.
+
+On Windows, while the hub app's BitLocker suspension stands (§6.3),
+Uninstall first offers **Resume BitLocker** when Secure Boot is on,
+and when it is off says in one line that protection stays suspended
+until it is resumed, and where Windows itself resumes it (Control
+Panel → BitLocker Drive Encryption → Resume protection). Either way
+the logon reminder and the marker are removed with the rest; the
+suspension itself is never undone silently and never left without the
+person having read that line.
 
 ## 6. The BitLocker guard (Windows)
 
@@ -361,25 +495,40 @@ stick does not, on its own: Windows is not running then.
 
 Before §3.4 shows its firmware steps or offers its buttons, the hub app
 finds out whether any Windows volume on this computer is protected, and
-if one is, two things must both be done, in this order:
+if one is, two things must both be done, in this order (owner, D16:
+the key first, so that a person who stops midway has changed nothing
+on the computer):
 
-1. **Protection is suspended.** The hub app suspends BitLocker on every
+1. **The recovery key is in hand.** The hub app reads the volume's
+   recovery password (`GetKeyProtectorNumericalPassword`) and shows it,
+   the way Windows' own "Back up your recovery key" does. A volume with
+   no recovery password gets one added first
+   (`ProtectKeyWithNumericalPassword`), and that is the one shown. The
+   person keeps it one of these ways (owner, D18):
+   - writes it down or prints it;
+   - scans the QR code beside it with a phone: the code holds the key
+     as plain text (eight groups of six digits, with a line naming the
+     computer and the drive), which the phone's camera shows and offers
+     to copy, so it can be pasted into the phone's notes. Under the
+     code one line: "Or take a photo of this screen.";
+   - **Save**, to a file, offered only when a drive other than the
+     protected ones is attached and it is not a Faraday stick;
+     otherwise the button is not shown.
+   Then the person types two of its eight groups back, chosen by the
+   hub app, **with the key hidden** (DESIGN §4.10's secret, concealed)
+   from the moment the groups are asked for; a copy still on screen
+   would prove nothing about the written one. The key is never written
+   anywhere by the hub app unless the person chooses Save, and never
+   to the Faraday stick.
+2. **Protection is suspended.** The hub app suspends BitLocker on every
    protected operating-system volume, with no restart count, so it
    stays suspended until resumed (`Win32_EncryptableVolume.
    DisableKeyProtectors` with a count of 0; batch W confirms against
    Microsoft's documentation and §6.6 that 0 means until resumed, as
-   `Suspend-BitLocker -RebootCount 0` does). While suspended, Windows starts without
-   the key whatever the firmware and the TPM report: Secure Boot off,
-   Secure Boot on with other keys, a cleared TPM.
-2. **The recovery key is in hand.** The hub app reads the volume's
-   recovery password (`GetKeyProtectorNumericalPassword`) and shows it,
-   the way Windows' own "Back up your recovery key" does. The person
-   writes it down or prints it, or saves it to a file on a drive other
-   than the encrypted one, and then types two of its eight groups back,
-   chosen by the hub app. A volume with no recovery password gets one
-   added first (`ProtectKeyWithNumericalPassword`), and that is the one
-   shown. The key is never written anywhere by the hub app unless the
-   person chooses Save, and never to the Faraday stick.
+   `Suspend-BitLocker -RebootCount 0` does). While suspended, Windows
+   starts without the key whatever the firmware and the TPM report:
+   Secure Boot off, Secure Boot on with other keys, a cleared TPM. At
+   this moment the hub app writes its marker (§6.3).
 
 Suspending alone already prevents the prompt; the key in hand covers
 what the guard cannot see (a firmware update, a repair shop, a
@@ -401,20 +550,44 @@ says why in one line and offers the step again.
 
 ### 6.3 Resuming, only when it is safe
 
-The hub app registers one startup task, as SYSTEM, named "Faraday:
-resume BitLocker", at the moment it suspends. At each Windows start the
-task checks that Secure Boot is on (`Confirm-SecureBootUEFI`) and only
-then resumes protection (`EnableKeyProtectors`) and deletes itself.
-Resuming seals the key to how this start was measured, so a start with
-Secure Boot on as before resumes cleanly. If Secure Boot is still off,
-the task does nothing and protection stays suspended, which costs
-protection, never access. The hub app's Home shows "BitLocker is
-suspended" while it is, with **Resume BitLocker** once Secure Boot is
-on again.
+Resuming is the person's act, through the hub app, never a task that
+runs at boot (owner, D17: v0.1's SYSTEM startup task was boot-time
+persistence by an unsigned program, and its action would have had to
+live somewhere no user can write; a reminder costs one click and one
+elevation prompt and keeps the hub app out of the boot path).
 
-Secure Boot turned back on with different keys (a firmware that
-cleared its keys and needed "restore factory keys") also resumes
-cleanly, because the task seals to whatever this start measured.
+- **The marker.** When it suspends, the hub app writes one small file,
+  `%LOCALAPPDATA%\faraday\bitlocker-suspended`, holding the volumes it
+  suspended and whether Secure Boot was on at that moment (§7.1's
+  registry value). The marker is how the hub app knows the suspension
+  is its own and not an administrator's, and how §3.4 step 5 and
+  Home's Turn Secure Boot back on know Secure Boot was on before. It
+  is deleted when protection is resumed through the hub app, and by
+  Uninstall.
+- **Resume BitLocker** is offered, on Home's checklist and on the
+  guard's page, only while the marker exists and Secure Boot is on
+  now. It resumes protection on the marker's volumes
+  (`EnableKeyProtectors`, through the elevated copy, §2) and deletes
+  the marker. Resuming seals the key to how this start was measured,
+  so a start with Secure Boot on as before, or on with different keys
+  (a firmware that cleared its keys and needed "restore factory
+  keys"), resumes cleanly. While Secure Boot is off the button is not
+  offered and the row says why; protection stays suspended, which
+  costs protection, never access.
+- **The logon reminder.** An installed hub app (§5.2) adds, at the
+  moment it suspends, one per-user Run entry
+  (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Faraday` =
+  `"…\Faraday.exe" --remind`). At logon, `--remind` reads the marker
+  and the Secure Boot state and does one of three things: no marker,
+  or protection already on, it removes the Run entry and exits with no
+  window; marker and Secure Boot off, it exits with no window; marker
+  and Secure Boot on, it opens the hub app on the guard's page with
+  Resume BitLocker as the one thing to do. A hub app run without
+  installing has no logon entry: the guard's Done page says "Open
+  Faraday again after Secure Boot is back on, to resume BitLocker",
+  and Home shows it as the next step whenever the hub app is opened.
+  The Run entry points at the installed copy only, never at a file in
+  Downloads.
 
 ### 6.4 Where the guard cannot reach
 
@@ -432,38 +605,77 @@ cleanly, because the task seals to whatever this start measured.
   --tpm2-pcrs=7`): the Linux guide says the passphrase will be asked
   for, and to have it. The hub app detects a `tpm2-device` in
   `/etc/crypttab` and shows that line first.
+- A person without an administrator account. The elevation prompt
+  asks for an administrator's password they do not have. The guard's
+  page says so in one line ("An administrator of this computer has to
+  do this step") and offers it again; the firmware steps stay hidden.
+- A computer whose BitLocker an employer manages. The suspension may
+  be refused (`DisableKeyProtectors` fails) or undone by policy at the
+  next start. On a refusal the page says the computer's BitLocker is
+  managed and that its administrator has to suspend it; the firmware
+  steps stay hidden. A suspension undone later is caught by the
+  checklist's live state ("Protected" again, with the marker still
+  present): the page says so and offers the step again.
 
 ### 6.5 What the person sees
 
-One page, before anything else on Windows, when a drive is protected:
-the state ("Drive C: is encrypted with BitLocker"), **Suspend BitLocker
-and show the recovery key**, then the key and the two groups to type,
-then "Done: Windows will start without the key until Secure Boot is
-back on." Learn: "BitLocker and starting from a stick".
+One page, before anything else on Windows, when a drive is protected,
+in this order: the state ("Drive C: is encrypted with BitLocker");
+**Show the recovery key** (the elevation prompt); the key, its QR
+code, "Or take a photo of this screen." and Save where §6.2 allows it;
+**I have kept it**, after which the key is hidden and the two groups
+are asked for; **Suspend BitLocker**; then Done: "Windows starts
+without the key until BitLocker is resumed. Resume it here once Secure
+Boot is back on." and, for a hub app not installed, "Open Faraday
+again to do that." The page is the same one Resume BitLocker opens
+later (§6.3). Learn: "BitLocker and starting from a stick".
 
 ### 6.6 Acceptance, before batch W ships
 
-In a Windows 11 virtual machine with a virtual
-TPM and Secure Boot on (QEMU with OVMF's Microsoft-key variables and
-`swtpm`, or Hyper-V), with BitLocker on the system drive, for Home and
-Pro:
+Two places, because Windows Home cannot be tested in a virtual machine
+(owner, D19): Home has no BitLocker switch, only Device encryption,
+which Windows turns on by itself and only on hardware that passes its
+checks, which a virtual machine fails.
+
+**Pro, in a virtual machine first:** Windows 11 Pro with a virtual TPM
+and Secure Boot on (QEMU with OVMF's Microsoft-key variables and
+`swtpm`, or Hyper-V where there is one), with BitLocker turned on on
+the system drive:
 
 1. Through the hub app: guard, then Secure Boot off in the firmware,
    start the Faraday stick image, power off, Secure Boot on, start
-   Windows. **No recovery prompt**; protection resumed (the task ran and
-   is gone).
+   Windows. **No recovery prompt**; Resume BitLocker offered at logon
+   (the reminder, with the hub app installed) and on Home; resuming
+   works; the marker and the Run entry are gone.
 2. As 1, but start Windows with Secure Boot still off. **No recovery
-   prompt**; protection still suspended; Home says so; turning Secure
-   Boot on and starting again resumes it.
+   prompt**; protection still suspended; the reminder shows nothing;
+   Home says so and does not offer Resume; turning Secure Boot on and
+   starting again offers it.
 3. As 1, with the firmware's keys reset to default before turning
    Secure Boot on. **No recovery prompt.**
 4. The elevation declined: the firmware steps are not shown.
 5. Without the hub app, Secure Boot off and Windows started: the
    recovery prompt appears. This shows the virtual machine reproduces
    the problem, so 1–3 prove something.
+6. Uninstall while suspended, with Secure Boot on and with it off
+   (§5.4).
+
+**Home, on a computer of the owner's, with the owner, after the Pro
+runs pass:** a Windows 11 Home computer with Device encryption on,
+provided by the owner. The owner runs it, following the hub app on the
+screen, with the agent's steps written beforehand. Before the run the
+owner checks that the drive's recovery key is in their Microsoft
+account, where Home puts it, so the worst case is typing it once. Runs
+1 and 2 only. Never 3 (the firmware's keys reset) and never 5 (the
+deliberate recovery prompt) there: those stay in the virtual machine.
+A Home virtual machine on 24H2 or later, signed in with a Microsoft
+account, may turn Device encryption on by itself; if batch W gets one,
+Home's runs 1 to 5 may happen there instead, and the owner's run
+becomes a check of run 1 alone.
 
 Each run is recorded in the completion report: the steps, and a
-screenshot of Windows' first screen after each start.
+screenshot of Windows' first screen after each start (a photo of the
+screen for the owner's runs).
 
 ## 7. Starting a computer from the stick
 
@@ -497,13 +709,13 @@ text (§7.4). Pages:
   Boot back on.
 - *Starting a Linux computer from the stick*, with §6.4's TPM line.
 - *BitLocker and starting from a stick* (§6).
-- One page per maker family. Each has the same sections: Keys; Turn
-  Secure Boot off; Turn Fast Boot off (where it hides USB); Start from
-  the stick; Turn Secure Boot back on (including restoring factory keys
-  where turning it off cleared them); Known quirks. Each ends with a
-  line of where it comes from: the maker's support page and the date it
-  was read, and the model it was tried on, or "Not yet tried on a
-  computer".
+- One page per maker family tried on a computer (§7.6, D6). Each has
+  the same sections: Keys; Turn Secure Boot off; Turn Fast Boot off
+  (where it hides USB); Start from the stick; Turn Secure Boot back on
+  (including restoring factory keys where turning it off cleared
+  them); Known quirks. Each ends with a line of where it comes from:
+  the maker's support page and the date it was read, and the model it
+  was tried on.
 - *When the stick does not start*: not in the boot menu (Fast Boot,
   USB boot off, a USB-C port that does not boot, CSM), a black screen,
   a firmware password set by an employer.
@@ -543,10 +755,14 @@ byte `0x1ec` = 2 with the SecureBoot variable 0.
 
 ### 7.6 Maker families and where to start
 
-The first release covers these families (§12, D6). The keys are
-starting points from common knowledge, **every one to be checked
-against the maker's own documentation** before its page is written,
-and the page says which were tried on a computer.
+The first release carries the general Windows and Linux pages, whose
+firmware route (§7.3) needs no key on any maker, and a maker page only
+for a family that has been tried on a computer (owner, D6: a page of
+untested keys helps nobody and misleads some). The table is the
+backlog: each family gets its page when a computer of it is tried, and
+the keys here are starting points from common knowledge, **every one
+to be checked against the maker's own documentation** before its page
+is written.
 
 | Family | Boot menu | Firmware settings | To check |
 |---|---|---|---|
@@ -566,8 +782,9 @@ and the page says which were tried on a computer.
 | Huawei, Honor | F12 | F2 | |
 | Dynabook, Toshiba | F12 | F2 | |
 
-A maker not in the table, or not read, gets the general Windows or
-Linux page, whose firmware route (§7.3) needs no key.
+A maker without a page, or not read, gets the general Windows or Linux
+page, whose firmware route (§7.3) needs no key. The maker of the
+computer batch W tries on is the first family with a page.
 
 ### 7.7 Keeping Secure Boot on (later)
 
@@ -579,6 +796,13 @@ Microsoft keys be removed (on some laptops that stops the graphics
 firmware loading). Surface has no custom keys. Not in the first
 release (§12, D9).
 
+Enrolling a key does not escape §6: the db's contents are part of the
+TPM's PCR 7 measurement, so adding a key changes it exactly as turning
+Secure Boot off does, and Windows asks for the recovery key unless
+BitLocker is suspended. The guard runs once before the enrolment, and
+Resume after it. What the guide removes is the second firmware visit
+every time, not the first.
+
 ## 8. Transfer
 
 Transfer is the desktop app's (`faraday-core/src/transfer.rs`): Send
@@ -588,9 +812,17 @@ Downloads folder. On Linux the camera is `opensigner-v4l2`, as the
 desktop app's. On Windows, batch C adds a camera module on Media
 Foundation, written as `opensigner-v4l2` is (the calls declared in the
 module, every `unsafe` block with its `SAFETY` comment, a `docs/deps`
-note for anything added); until then Windows Transfer offers Send only.
+note for anything added), used by the hub app and by the Windows
+desktop app alike (§2); until then Windows Transfer offers Send only.
 
 ## 9. Pi compatibility
+
+**For now, one screen** (owner, D1: the Waveshare 2.8 inch DPI panel
+only). §9.1's checks at other sizes and §9.3's profile mechanism are
+deferred until a second screen has been tried on a Pi (owner, D5):
+with one panel the card is the image as it is built today, written
+whole. §9.2 to §9.3 stay as the design for that day; nothing in them
+is built before it.
 
 ### 9.1 Layout already follows the screen
 
@@ -628,9 +860,10 @@ serves every panel. A card made from the plain image (without the hub
 app) starts with the 2.8 inch profile, and the README says which one
 line to change on its boot partition for each other screen.
 
-Batch P starts by checking each mechanism on the Pi 3 (does the
-firmware take `include` as this needs; does the shell get the command
-line) and writes down what it found before building.
+When the day comes, that batch starts by checking each mechanism on
+the Pi 3 (does the firmware take `include` as this needs; does the
+shell get the command line) and writes down what it found before
+building.
 
 ### 9.4 Boards (§12, D3)
 
@@ -643,8 +876,9 @@ line) and writes down what it found before building.
 
 ### 9.5 Screens and cameras
 
-The first profiles are the screens tried on a Pi (§12, D1). A USB
-webcam works on every Pi, because the Pi's USB already allows cameras
+The first and, for now, only screen is the 2.8 inch panel (§12, D1);
+the next profile comes with the next screen tried. A USB webcam works
+on every Pi, because the Pi's USB already allows cameras
 (PLAN.md §3); a camera module works on the legacy camera stack, which
 reads Camera Module v1 and v2, not v3. The hub app's Pi card page says
 which. HDMI with no touch needs a USB keyboard and mouse, which the Pi
@@ -673,56 +907,134 @@ with `SHA256SUMS` and its signature instead. Batch W runs the hub app
 under Microsoft Defender on a Windows computer and reports any
 detection.
 
+A detection is likely at some point, not only at that run: an unsigned
+download that asks for elevation and suspends BitLocker matches
+heuristics that change monthly, and §6.3's design (no boot-time task)
+exists partly to give them less to match. So the plan for the day it
+happens is written now, not then: the website's download page and the
+README carry a short section, "If Windows or an antivirus blocks the
+file", that says what the hub app does to a computer (§10.3) and how
+to check the file against `SHA256SUMS` and its signature; the hub app
+itself cannot say anything, since it is the thing blocked. Whether to
+submit the file to Microsoft's false-positive form is the owner's call
+at the time, since the form asks for an identity; this spec does not
+assume it.
+
 ### 10.3 What it does to the computer
 
 Only what the person asks for: a written stick or card, an install, a
-saved file, the BitLocker suspension and its startup task (§6), a
-restart. Uninstall takes back what install did (§5.4).
+saved file, the BitLocker suspension with its marker and, when
+installed, its logon reminder (§6), a restart. Uninstall takes back what install did (§5.4).
 
 ## 11. Batches
 
-| Batch | What | Needs |
-|---|---|---|
-| R | Release groundwork: the glibc 2.31 container for the desktop app; `.xz` images; the new names; `SHA256SUMS` with the `.img` lines; the hub's payload build; the xz decoder and its `docs/deps` note; README "Verifying a release" for Windows | no decision |
-| L | The hub app on Linux: crates (§2), Home, Make a stick, Install and uninstall, Try the desktop app, Transfer and Learn, About; the writer through `pkexec` | no decision |
-| G | Guides: the Learn pages of §7.2 with their sources; detection on Linux; Restart into firmware settings on Linux; the stick's power-off reminder (§7.5); the website item in its own repository | D6, D8 |
-| W | The hub app on Windows: window, install and uninstall, disks and writing, detection, the BitLocker guard with §6.6's acceptance, the firmware buttons, Transfer Send; Defender run | D7, D11 |
-| C | Windows camera for Transfer Receive | D4 |
-| P | Pi: profiles, boards, Make a Pi card, layout checks at the new sizes; tried on hardware | D1, D2, D3 |
-| S | Keeping Secure Boot on (§7.7) | D9 |
+| Batch | What | Needs | Order |
+|---|---|---|---|
+| R | Release groundwork: the glibc 2.31 container for the desktop app; `.xz` images; the new names; the Linux `.tar.gz`; `SHA256SUMS` with the `.img` and inner-file lines; the hub's payload build; the xz decoder and its `docs/deps` note; README "Verifying a release" for Windows and the two Linux steps | decided | first |
+| L | The hub app on Linux: crates (§2), the D-Bus crate and its `docs/deps` note, Home as a checklist, Make a stick through udisks2 (with what each tried distribution asks for), the stick's version read from OSKBOOT and the keep-data rules, Make a Pi card for the one image, Install and uninstall, Try the desktop app, Transfer and Learn, About, `--image` for developers; then `tools/flash-stick` removed and the README's mention of it with it | decided | after R |
+| G | Guides: the general Windows and Linux pages and §7.2's other pages with their sources; detection on Linux; Restart into firmware settings on Linux; the stick's power-off reminder (§7.5); the website item in its own repository | decided | after R, independent of L and W |
+| W | The hub app on Windows: window, install and uninstall, disks and writing, detection, the BitLocker guard with the marker and the logon reminder and §6.6's acceptance, the firmware buttons, Transfer Send; the first maker page (the family tried); Defender run; the report on what Windows does to a written stick (D11) | decided; D11 is answered by this batch's report | after L; needs G's general Windows page only |
+| C | Windows camera for Transfer Receive, shared with the desktop app; the desktop app on Windows (§2's three changes) and its install | decided | after W |
+| P | Pi: one image for the 2.8 inch panel, Make a Pi card tried on hardware; profiles, boards and other sizes when a second screen is tried | decided (D1, D2, D3, D5) | after L, independent of G, W and C |
+| S | Keeping Secure Boot on (§7.7) | D9 | last |
 
-Tests, by batch, state what a person sees or can do: the disks offered
-and refused (a stand-in `/sys` on Linux, as `faraday-grant`'s tests
-do; recorded answers on Windows); a stick that is not the confirmed one
-refused; keep data offered only for a Faraday stick and never writing
-past the boot partition (against a regular file holding a stick image,
-as `stick-boot.sh` allows); install writing exactly §5.2's files into a
-temporary home, and uninstall removing exactly them; the BitLocker
-guard's order (no firmware step before both parts are done; resume only
-with Secure Boot on) against a recorded WMI; the guide chosen for a
-maker string; a payload file that does not match its manifest refused;
-the stick's power-off line for each Secure Boot byte.
+Tests, by batch, state what a person sees or can do: the disks offered,
+refused and their order (recorded udisks2 answers on Linux, as a
+stand-in `/sys` serves `faraday-grant`'s tests; recorded answers on
+Windows); no disk chosen until tapped; a stick that is not the
+confirmed one refused; keep data offered only for a Faraday stick,
+refusing the same build string and warning on an older one, and never
+writing past the boot partition (against a regular file holding a
+stick image, as `stick-boot.sh` allows); Home's checklist showing the
+next step for each state (no stick, stick attached, protected,
+suspended with Secure Boot off, suspended with it on); install writing
+exactly §5.2's files into a temporary home, and uninstall removing
+exactly them; the BitLocker guard's order (the key confirmed with it
+hidden before suspension; no firmware step before both parts are done;
+Resume offered only with the marker and Secure Boot on; `--remind`
+showing a window in one state of three) against a recorded WMI; the
+guide chosen for a maker string; a payload file that does not match
+its manifest refused; the stick's power-off line for each Secure Boot
+byte.
 
-## 12. Decisions the owner has not confirmed
+## 12. Decisions
 
-Each has the default this spec assumes. The owner confirms or changes
-them before the batch that needs them (§11).
+All taken by the owner on 2026-10-12 in discussion, except D11, which
+waits for batch W's report. Where a decision changed v0.1, §13 says
+what moved.
 
-- **D1 First Pi screens:** the Waveshare 2.8 inch DPI and the Raspberry
-  Pi Touch Display (7 inch DSI, first version), then others as they are
-  tried on a Pi.
+- **D1 Pi screens:** the Waveshare 2.8 inch DPI panel only, for now.
+  Others as they are tried on a Pi.
 - **D2 HDMI on the Pi:** not in the first round; it needs USB keyboard
   and mouse on the Pi, with the stick's new-keyboard approval code.
 - **D3 Boards:** Pi 3B, 3B+ and Zero 2 W first, Pi 4 next, Pi 5 later.
 - **D4 Windows Transfer:** ships with Send; Receive follows batch C.
-- **D5 Where the screens are specified:** here, built from DESIGN §4,
-  with `CLAUDE.md`'s screen rule naming this document.
-- **D6 Makers:** every family in §7.6 in the first release, each marked
-  tried or not.
-- **D7 BitLocker:** the guard as §6 describes, including suspending,
-  showing the key, and the self-deleting startup task.
+- **D5 Panel profiles (§9.3) and layout checks at other sizes (§9.1):**
+  deferred until a second screen is tried.
+- **D6 Makers:** the general Windows and Linux pages, and a maker page
+  only for a family tried on a computer; §7.6's table is the backlog.
+- **D7 BitLocker:** the guard as §6 describes: the key shown and
+  confirmed, then suspended until resumed.
 - **D8 The stick's power-off reminder:** yes, as §7.5.
 - **D9 Keeping Secure Boot on:** a later batch.
 - **D10 Names:** "Faraday" to people; `faraday-hub` in the code.
-- **D11 OSKDATA on Windows:** decided after batch W reports what
+- **D11 OSKDATA on Windows:** open. Decided after batch W reports what
   Windows writes to a stick.
+- **D12 Home:** a checklist that leads with this computer's next step,
+  then the rows (§3.1).
+- **D13 Linux writer:** udisks2 over D-Bus, no root in the hub app;
+  the pkexec path only if a tried distribution lacks udisks2 (§2).
+- **D14 Linux download:** a `.tar.gz`, so the executable bit survives
+  and nobody runs `chmod` (§1.2).
+- **D15 Keep data reads the stick's version** from the boot partition
+  and applies the stick's own upgrade rules (§3.2, §4.1).
+- **D16 Guard order:** the key in hand first, then suspend (§6.2).
+- **D17 Resuming:** the person's act through the hub app, with a logon
+  reminder for an installed copy; no boot-time task (§6.3).
+- **D18 The key on a phone:** a plain-text QR code and "Or take a
+  photo of this screen"; Save to a file only when a drive for it is
+  attached (§6.2).
+- **D19 Acceptance for Windows Home:** on a Home computer of the
+  owner's, with the owner, after Pro passes in a virtual machine
+  (§6.6).
+- **D20 The desktop app on Windows:** yes, from batch C, carried by
+  the Windows hub app and offered by its Install (§2, §3.5).
+- **D21 `tools/flash-stick`:** removed once the hub app writes a
+  developer's own image (`--image`, §1.1), in batch L.
+
+## 13. What changed from v0.1
+
+- Home is a checklist of the path, with live state, not a menu (D12).
+- Linux writes through udisks2 without root; pkexec is the fallback
+  only (D13). The Linux download is a `.tar.gz` (D14).
+- Which stick never pre-selects a disk, shows what is on each disk
+  and the Faraday version a stick holds, and keeps the device path and
+  serial for Confirm. Keep data refuses the same build and warns about
+  an older one (D15).
+- The guard shows and confirms the key before suspending, hides the
+  key while the groups are typed back, offers a QR code and a photo
+  for the phone, and offers Save only when there is somewhere to save
+  (D16, D18). It names the two cases it cannot pass (no administrator
+  account, a managed computer).
+- No SYSTEM startup task. A marker file, Resume BitLocker offered only
+  with Secure Boot on, and a per-user logon reminder for an installed
+  copy (D17). Uninstall handles a standing suspension.
+- §6.6 tests Pro in a virtual machine and Home on a computer of the
+  owner's, with the owner (D19).
+- §3.4 shows only the steps that apply, including the case of Secure
+  Boot already off, and puts the phone QR on the restart confirmation.
+- §7.6 ships the general pages plus tried makers (D6). §7.7 notes that
+  enrolling a key also changes PCR 7.
+- The desktop app comes to Windows in batch C (D20); its install check
+  box is on both systems. `HOME` and `mlock` get their Windows
+  equivalents.
+- One Pi screen for now; profiles and other sizes wait for a second
+  screen (D1, D5). The Pi image name carries the board and, for now,
+  the panel.
+- Payload files are checked when used, not at start. Linux installs to
+  `~/.local/bin`. Batch W no longer waits on D11; G is independent of
+  L and W; P of G, W and C.
+- `tools/flash-stick` is replaced by the hub app's `--image` and
+  removed in batch L (D21).
+- §10.2 writes down what the website and README say when an antivirus
+  blocks the file.

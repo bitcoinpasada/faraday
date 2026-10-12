@@ -421,3 +421,40 @@ files.
 - The Pi image aims at as many Pis and screens as can be tried: the
   layout already follows the screen's size and density; the screen
   that cannot be detected is chosen when the card is made.
+
+### F12 The hub app, reviewed: what the owner changed in v0.2 (2026-10-12)
+
+**Why.** A review of `docs/HUB.md` v0.1 found places where the spec
+made the person do more than needed, two security holes in the
+BitLocker guard's resume path, a test the spec could not run, and a
+Windows exclusion with no technical ground. The owner answered each
+point the same day; `docs/HUB.md` v0.2 carries the answers (its §12,
+D12 to D21) and §13 lists what moved.
+
+**Decisions** (owner, 2026-10-12).
+
+- Home leads with the next step for this computer's state (make a
+  stick, the BitLocker step, restart into firmware, turn Secure Boot
+  back on, resume BitLocker), read live, with the menu rows below.
+- The Linux hub app writes sticks through udisks2 and never runs as
+  root; the Linux download is a `.tar.gz`, so the executable bit
+  survives and nobody runs `chmod`.
+- No disk is ever chosen for the person. Keep data reads the stick's
+  Faraday version from its boot partition and applies F2 and F5's
+  rules: the same build refused, an older one warned about.
+- The guard shows and confirms the recovery key before suspending, and
+  hides it while the person types two groups back. The phone gets it as
+  a plain-text QR code or a photo of the screen. No startup task
+  resumes BitLocker: the hub app offers Resume only with Secure Boot
+  on, with a per-user logon reminder for an installed copy. Windows
+  Home is proved on a Home computer of the owner's, since a virtual
+  machine cannot turn Device encryption on; Pro in a virtual machine.
+- Maker pages only for families tried on a computer; the general pages
+  carry everyone else.
+- The desktop app comes to Windows (changing F11's "there is no
+  Windows desktop app"): nothing in it is Linux by design, and the
+  camera module the Windows hub app needs serves both.
+- One Pi screen for now, the 2.8 inch panel; panel profiles and other
+  sizes wait for a second screen.
+- `tools/flash-stick` is removed once the hub app writes a developer's
+  own image (`--image`); the window and its launcher were a stopgap.

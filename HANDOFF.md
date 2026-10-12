@@ -1911,6 +1911,29 @@ as possible before the next build.
     hub's payload build from `out/release/VERSION/` (manifest: name,
     `.xz` sum, `.img` sum, build ID). Then batch L.
 
+    **HUB.md v0.2 (2026-10-12, 12:55; DECISIONS F12).** The owner
+    answered a review of v0.1 the same day; every decision is now
+    taken (HUB §12, D1–D21) except D11, which batch W's report answers;
+    HUB §13 lists what moved. In the tree, uncommitted, with F12 in
+    `docs/DECISIONS.md` and the item in `local/REMAINING.md`: the
+    orchestrator reviews and commits. What it changes for the work
+    already started: (a) batch R's staging script, when it comes to
+    stage the hub apps, stages the Linux one as
+    `Faraday-X.Y.Z-Linux.tar.gz` with the inner file also in
+    `SHA256SUMS` (D14); its Pi image name already matches v0.2 (one
+    panel, D1); `faraday-desktop-X.Y.Z-windows-x86_64.exe` joins with
+    batch C (D20); (b) batch L writes through udisks2 over D-Bus, never as root
+    (D13), builds Home as a live-state checklist (D12), reads a stick's
+    version from OSKBOOT for keep data (D15), takes a developer's image
+    with `--image`, and then removes `tools/flash-stick` (D21); (c)
+    batch W has no SYSTEM task: a marker file, Resume only with Secure
+    Boot on, a per-user logon reminder (D17), the key shown and
+    confirmed hidden before suspending (D16), a plain-text QR for the
+    phone (D18), Pro proved in a VM and Home on a computer of the
+    owner's with the owner (D19); (d) batch C also brings the desktop
+    app to Windows (D20). G is independent of L and W; P of G, W and
+    C; W no longer waits on D11.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:
