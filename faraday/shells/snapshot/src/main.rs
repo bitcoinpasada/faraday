@@ -1759,6 +1759,9 @@ fn run(
     t.app.event(Event::Key(Key::Escape));
     // A stick that started with Secure Boot off reminds at power-off.
     t.app.secure_boot = faraday_core::SecureBootAtStart::Off;
+    t.app.maker = "LENOVO".into();
+    t.app.maker_family = "ThinkPad X1 Carbon".into();
+    t.app.maker_model = "Example 14".into();
     t.press(Action::PowerAsk);
     t.shot("power-sheet-secure-boot-off")?;
     t.app.event(Event::Key(Key::Escape));

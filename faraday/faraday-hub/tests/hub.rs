@@ -957,3 +957,30 @@ fn uninstall_says_when_the_firmwares_entry_remains() {
         "The firmware's Faraday stick entry remains: Administrator permission was declined."
     ));
 }
+
+#[test]
+fn the_stick_and_the_hub_show_the_same_address_for_a_computer() {
+    for (maker, family, model) in [
+        ("Dell Inc.", "Example", "Example 14"),
+        ("LENOVO", "ThinkPad Example 14", "21XX0000"),
+        ("Example Computers", "Example", "Example 14"),
+    ] {
+        let c = Computer {
+            os: Os::Windows,
+            maker: maker.into(),
+            family: family.into(),
+            model: model.into(),
+            ..windows(false)
+        };
+        let mut app = faraday_core::Faraday::new();
+        app.secure_boot = faraday_core::SecureBootAtStart::Off;
+        app.maker = maker.into();
+        app.maker_family = family.into();
+        app.maker_model = model.into();
+        assert_eq!(
+            app.secure_boot_guide(),
+            Some(LearnId::for_computer(&c).address()),
+            "{maker}"
+        );
+    }
+}

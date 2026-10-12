@@ -14043,7 +14043,7 @@ fn kept_sheet(
     w: f32,
     h: f32,
     head: (Icon, osk_ui::Color, &str),
-    line: &str,
+    (line, code): (&str, &str),
     sections: &[(&str, Vec<(String, osk_ui::Color)>)],
     actions: &[(&str, Style, Action)],
 ) {
@@ -14065,6 +14065,18 @@ fn kept_sheet(
         }
         if !line.is_empty() {
             cy += ui.wrap(x, cy, iw, 13.0, W::R, MUTED, line) + 12.0;
+        }
+        if !code.is_empty() {
+            // The same size the hub app's restart sheet draws its code.
+            let side = if ui.compact { 104.0f32 } else { 160.0 }.min(iw);
+            if let Ok(m) = osk_codec::qr::encode(
+                osk_codec::qr::Payload::Bytes(code.as_bytes()),
+                osk_codec::qr::Ecc::Medium,
+            ) {
+                qr_code(ui, &m, x, cy, side);
+                cy += side + 10.0;
+                cy += ui.wrap(x, cy, iw, 12.0, W::M, MUTED, code) + 12.0;
+            }
         }
         for (name, lines) in sections {
             if lines.is_empty() {
@@ -14116,7 +14128,7 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         w,
         h,
         (app.medium.icon(), WARN, &attached),
-        &line,
+        (&line, ""),
         &kept_sections(app, false, then),
         &[
             (EN.lock_not_now, Style::Secondary, Action::NotNow),
@@ -14135,7 +14147,7 @@ fn write_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         w,
         h,
         (app.medium.icon(), ACCENT, &title),
-        "",
+        ("", ""),
         &kept_sections(app, false, then),
         &[
             (EN.write_out_not_now, Style::Secondary, Action::Cancel),
@@ -15109,11 +15121,14 @@ fn power_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         w,
         h,
         (Icon::Power, TEXT, EN.power_power_off),
-        if app.secure_boot_reminder() {
-            crate::strings::EN.power_secure_boot_off
-        } else {
-            ""
-        },
+        (
+            if app.secure_boot_reminder() {
+                crate::strings::EN.power_secure_boot_off
+            } else {
+                ""
+            },
+            &app.secure_boot_guide().unwrap_or_default(),
+        ),
         &kept_sections(app, true, EN.power_the_computer.to_string()),
         &[
             (EN.power_cancel, Style::Secondary, Action::Cancel),

@@ -3295,6 +3295,11 @@ pub struct Faraday {
     pub secure_boot: SecureBootAtStart,
     /// The computer's maker (`sys_vendor`), as the stick shell read it.
     pub maker: String,
+    /// The computer's product family (`product_family`), as the stick
+    /// shell read it.
+    pub maker_family: String,
+    /// The computer's model (`product_name`), as the stick shell read it.
+    pub maker_model: String,
     /// What is attached that can capture the screen or the keys, as the
     /// stick shell read it (`devices`).
     pub devices: devices::DeviceCheck,
@@ -3480,6 +3485,8 @@ impl Faraday {
             medium: Medium::Stick,
             secure_boot: SecureBootAtStart::Unknown,
             maker: String::new(),
+            maker_family: String::new(),
+            maker_model: String::new(),
             devices: devices::DeviceCheck::default(),
             airgap_warned: false,
             mainnet_asked: None,

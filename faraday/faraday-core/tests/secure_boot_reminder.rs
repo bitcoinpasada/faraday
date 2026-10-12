@@ -152,3 +152,70 @@ fn the_sheet_opens_at_its_top_every_time() {
         assert!(in_view(&mut app), "reopened at {w}x{h}");
     }
 }
+
+const GUIDE: &str = "https://faradayoffline.app/start/";
+
+fn guide_texts(
+    medium: Medium,
+    secure_boot: SecureBootAtStart,
+    maker: (&str, &str, &str),
+) -> Vec<String> {
+    let mut app = Faraday::new();
+    app.medium = medium;
+    app.secure_boot = secure_boot;
+    app.maker = maker.0.into();
+    app.maker_family = maker.1.into();
+    app.maker_model = maker.2.into();
+    app.press(Action::PowerAsk);
+    shown(app)
+}
+
+fn address(t: &[String]) -> Option<&String> {
+    t.iter().find(|s| s.starts_with(GUIDE))
+}
+
+#[test]
+fn the_sheet_shows_the_makers_guide_as_a_code() {
+    let t = guide_texts(
+        Medium::Stick,
+        SecureBootAtStart::Off,
+        ("Dell Inc.", "Example", "Example 14"),
+    );
+    assert_eq!(address(&t).unwrap(), &format!("{GUIDE}maker-dell"));
+    let t = guide_texts(
+        Medium::Stick,
+        SecureBootAtStart::Off,
+        ("LENOVO", "ThinkPad Example 14", "21XX0000"),
+    );
+    assert_eq!(
+        address(&t).unwrap(),
+        &format!("{GUIDE}maker-lenovo-thinkpad")
+    );
+}
+
+#[test]
+fn an_unknown_maker_gets_the_general_windows_guide() {
+    let t = guide_texts(
+        Medium::Stick,
+        SecureBootAtStart::Off,
+        ("Example Computers", "Example", "Example 14"),
+    );
+    assert_eq!(address(&t).unwrap(), &format!("{GUIDE}windows"));
+}
+
+#[test]
+fn no_guide_code_unless_a_stick_started_with_secure_boot_off() {
+    let dell = ("Dell Inc.", "Example", "Example 14");
+    for (medium, state) in [
+        (Medium::Stick, SecureBootAtStart::On),
+        (Medium::Stick, SecureBootAtStart::Unknown),
+        (Medium::SdCard, SecureBootAtStart::Off),
+    ] {
+        assert!(address(&guide_texts(medium, state, dell)).is_none());
+    }
+    // The desktop app keeps the defaults.
+    let mut app = Faraday::new();
+    app.maker = dell.0.into();
+    app.press(Action::PowerAsk);
+    assert!(address(&shown(app)).is_none());
+}

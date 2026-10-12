@@ -46,4 +46,19 @@ impl Faraday {
     pub fn secure_boot_reminder(&self) -> bool {
         self.medium == Medium::Stick && self.secure_boot == SecureBootAtStart::Off
     }
+
+    /// The address of the guide for this computer, when the power-off
+    /// sheet shows its code: the same the hub app shows for the same
+    /// computer (`docs/HUB.md` §7.5).
+    pub fn secure_boot_guide(&self) -> Option<String> {
+        self.secure_boot_reminder().then(|| {
+            let id = crate::learn::guide_id(
+                &self.maker,
+                &self.maker_family,
+                &self.maker_model,
+                "windows",
+            );
+            crate::learn::guide_address(id)
+        })
+    }
 }

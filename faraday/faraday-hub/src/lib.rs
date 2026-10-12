@@ -37,8 +37,8 @@ use api::{
 };
 use decide::{Facts, Item, Target};
 
-/// The website's guides (§7.4): the only address the hub app contains.
-pub const GUIDES: &str = "https://faradayoffline.app/start/";
+/// The website's guides (§7.4), shared with the stick.
+pub use faraday_core::learn::GUIDES;
 
 /// The hub app's own version, which About shows and Install compares.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -161,19 +161,20 @@ impl LearnId {
 
     /// Its address on the website (§7.4).
     pub fn address(self) -> String {
-        format!("{GUIDES}{}", self.id())
+        faraday_core::learn::guide_address(self.id())
     }
 
     /// The guide for this computer (§3.4): its maker's page where there
     /// is one (§7.6), and otherwise the general page for its operating
     /// system.
     pub fn for_computer(c: &Computer) -> LearnId {
-        if let Some(m) = faraday_core::learn::maker(&c.maker, &c.family, &c.model) {
-            return LearnId::Maker(m.id);
-        }
-        match c.os {
+        let general = match c.os {
             Os::Windows => LearnId::StartWindows,
             Os::Linux => LearnId::StartLinux,
+        };
+        match faraday_core::learn::guide_id(&c.maker, &c.family, &c.model, general.id()) {
+            id if id == general.id() => general,
+            id => LearnId::Maker(id),
         }
     }
 

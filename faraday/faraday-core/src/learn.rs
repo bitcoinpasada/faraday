@@ -227,6 +227,21 @@ pub fn maker(vendor: &str, family: &str, model: &str) -> Option<&'static Maker> 
     })
 }
 
+/// The website's guides (`docs/HUB.md` §7.4): the only address the hub
+/// app and the stick contain.
+pub const GUIDES: &str = "https://faradayoffline.app/start/";
+
+/// The guide's page for a computer (`docs/HUB.md` §3.4, §7.6): its
+/// maker's page where there is one, otherwise `general`.
+pub fn guide_id(vendor: &str, family: &str, model: &str, general: &'static str) -> &'static str {
+    maker(vendor, family, model).map_or(general, |m| m.id)
+}
+
+/// A guide's address on the website.
+pub fn guide_address(id: &str) -> String {
+    format!("{GUIDES}{id}")
+}
+
 /// Faraday's own pages, read once, in [`OWN`]'s order.
 fn own() -> &'static [LearnPage] {
     static PAGES: OnceLock<Vec<LearnPage>> = OnceLock::new();

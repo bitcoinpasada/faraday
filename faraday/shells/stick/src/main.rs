@@ -288,6 +288,7 @@ fn medium() -> Medium {
 const BOOT_PARAMS: &str = "/sys/kernel/boot_params/data";
 const SYS_VENDOR: &str = "/sys/class/dmi/id/sys_vendor";
 /// The computer's model, for the device check's virtual machine.
+const PRODUCT_FAMILY: &str = "/sys/class/dmi/id/product_family";
 const PRODUCT_NAME: &str = "/sys/class/dmi/id/product_name";
 /// The computer's enclosure type: whether its screen is a separate one.
 const CHASSIS_TYPE: &str = "/sys/class/dmi/id/chassis_type";
@@ -1422,6 +1423,13 @@ fn run(args: Args) -> Result<bool, String> {
                 app.maker = std::fs::read_to_string(SYS_VENDOR)
                     .map(|m| m.trim().to_string())
                     .unwrap_or_default();
+                let read = |p: &str| {
+                    std::fs::read_to_string(p)
+                        .map(|m| m.trim().to_string())
+                        .unwrap_or_default()
+                };
+                app.maker_family = read(PRODUCT_FAMILY);
+                app.maker_model = read(PRODUCT_NAME);
                 // What the machine says of itself, once: a virtual
                 // machine, and whether its screen is a separate one.
                 let text = |p: &str| std::fs::read_to_string(p).unwrap_or_default();
