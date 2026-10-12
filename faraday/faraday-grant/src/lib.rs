@@ -262,6 +262,8 @@ impl<O: Owner> Grant<O> {
             }
         }
         let mut seen = Vec::new();
+        // Devices with an interface authorised on this tick.
+        let mut touched = Vec::new();
         for (name, dir) in &interfaces {
             let Some(device) = name.split(':').next() else {
                 continue;
@@ -292,14 +294,31 @@ impl<O: Owner> Grant<O> {
                 None => false,
             };
             let d = if ok && self.owner.authorize(&dir.join("authorized")).is_ok() {
-                let _ = self
-                    .owner
-                    .probe(&self.sys.join("bus/usb/drivers_probe"), name);
+                touched.push(device.to_string());
                 Usb::Authorized
             } else {
                 Usb::Refused
             };
             self.usb.insert(id, d);
+        }
+        // Drivers are asked for only once every interface of the device
+        // that may be is authorised. A driver claims its device's other
+        // interfaces as it binds, and the kernel refuses a claim on one
+        // not yet authorised: uvcvideo, bound to a webcam's control
+        // interface before its streaming interface was authorised, makes
+        // no /dev/video at all. An interface authorised on an earlier
+        // tick that has no driver yet is asked again with its siblings.
+        for (name, dir) in &interfaces {
+            let device = name.split(':').next().unwrap_or_default();
+            if !touched.iter().any(|t| t == device)
+                || read(&dir.join("authorized")).as_deref() != Some("1")
+                || dir.join("driver").exists()
+            {
+                continue;
+            }
+            let _ = self
+                .owner
+                .probe(&self.sys.join("bus/usb/drivers_probe"), name);
         }
         // An interface gone with its device is forgotten.
         self.usb.retain(|id, _| seen.contains(id));

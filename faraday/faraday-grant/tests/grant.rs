@@ -13,6 +13,8 @@ struct Owners {
     by_node: std::collections::BTreeMap<String, &'static str>,
     /// Interfaces a driver was asked for.
     probed: Vec<String>,
+    /// Webcams whose camera came up, by device.
+    cameras: Vec<String>,
     /// Who each input or video node was given to.
     assigned: std::collections::BTreeMap<String, (u32, u32)>,
 }
@@ -41,8 +43,28 @@ impl Owner for &mut Owners {
     fn owner_of(&mut self, node: &Path) -> std::io::Result<(u32, u32)> {
         Ok(self.assigned.get(&name(node)).copied().unwrap_or((0, 0)))
     }
-    fn probe(&mut self, _drivers_probe: &Path, interface: &str) -> std::io::Result<()> {
+    /// uvcvideo as the kernel runs it: bound to a webcam's first video
+    /// interface, it claims the device's other video interfaces, and a
+    /// claim on one not yet authorised fails and leaves no camera.
+    fn probe(&mut self, drivers_probe: &Path, interface: &str) -> std::io::Result<()> {
         self.probed.push(interface.to_string());
+        let devices = drivers_probe.parent().unwrap().join("devices");
+        let read =
+            |n: &str, f: &str| fs::read_to_string(devices.join(n).join(f)).unwrap_or_default();
+        let video = |n: &str| read(n, "bInterfaceClass").trim() == "0e";
+        let (device, number) = interface.split_once(':').unwrap();
+        if number != "1.0" || !video(interface) {
+            return Ok(());
+        }
+        let claimed = fs::read_dir(&devices)?
+            .flatten()
+            .map(|e| name(&e.path()))
+            .filter(|n| n.starts_with(&format!("{device}:")) && video(n))
+            .all(|n| read(&n, "authorized").trim() == "1");
+        if claimed {
+            fs::create_dir_all(devices.join(interface).join("driver"))?;
+            self.cameras.push(device.to_string());
+        }
         Ok(())
     }
     fn authorize(&mut self, attr: &Path) -> std::io::Result<()> {
@@ -324,14 +346,22 @@ impl Machine {
         let _ = fs::remove_file(bus.join(port));
         symlink(&d, bus.join(port)).unwrap();
         for (k, c) in classes.iter().enumerate() {
-            let name = format!("{port}:1.{k}");
-            let i = d.join(&name);
-            fs::create_dir_all(&i).unwrap();
-            fs::write(i.join("bInterfaceClass"), format!("{c:02x}\n")).unwrap();
-            fs::write(i.join("authorized"), "0\n").unwrap();
-            let _ = fs::remove_file(bus.join(&name));
-            symlink(&i, bus.join(&name)).unwrap();
+            self.interface(port, k, *c);
         }
+    }
+
+    /// Interface `k` of the device on `port`, of class `class`, not
+    /// authorised: a root hub after `rcS` authorises none by itself.
+    fn interface(&self, port: &str, k: usize, class: u8) {
+        let d = self.root.join("sys/devices/pci0/usb1").join(port);
+        let bus = self.root.join("sys/bus/usb/devices");
+        let name = format!("{port}:1.{k}");
+        let i = d.join(&name);
+        fs::create_dir_all(&i).unwrap();
+        fs::write(i.join("bInterfaceClass"), format!("{class:02x}\n")).unwrap();
+        fs::write(i.join("authorized"), "0\n").unwrap();
+        let _ = fs::remove_file(bus.join(&name));
+        symlink(&i, bus.join(&name)).unwrap();
     }
 
     fn authorized(&self, port: &str, iface: &str) -> bool {
@@ -373,6 +403,35 @@ fn a_stick_that_says_it_is_a_keyboard_types_nothing() {
         !m.authorized("1-4", "0") && !m.authorized("1-4", "1"),
         "a network adapter"
     );
+}
+
+#[test]
+fn a_webcam_comes_up_as_a_camera() {
+    let m = Machine::new("webcam");
+    // A webcam with its control and streaming interfaces and a
+    // microphone, and one with two cameras on it (colour and infrared).
+    m.usb("1-3", 4, &[0x0e, 0x0e, 0x01]);
+    m.usb("1-5", 6, &[0x0e, 0x0e, 0x0e, 0x0e]);
+    let mut owners = Owners::default();
+    let mut g = m.grant(&mut owners);
+    g.tick();
+    g.tick();
+    drop(g);
+    assert_eq!(owners.cameras, ["1-3", "1-5"]);
+}
+
+#[test]
+fn a_webcam_whose_interfaces_appear_a_tick_apart_comes_up_as_a_camera() {
+    let m = Machine::new("webcam-late");
+    m.usb("1-3", 4, &[0x0e]);
+    let mut owners = Owners::default();
+    let mut g = m.grant(&mut owners);
+    g.tick();
+    m.interface("1-3", 1, 0x0e);
+    g.tick();
+    g.tick();
+    drop(g);
+    assert_eq!(owners.cameras, ["1-3"]);
 }
 
 #[test]

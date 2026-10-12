@@ -349,7 +349,7 @@ internal error rather than carrying on.
   | USB stick | Yes | No: the kernel has no USB storage driver |
   | SD card | Only in a USB card reader that presents itself as USB mass storage. A built-in SD slot is not read: its driver is the one many laptops use for their internal eMMC disk. | Yes, its own slot |
   | Keyboard and pointer | Built-in keyboard, touchpad and touchscreen, and USB | The touch panel only: the kernel has no HID driver |
-  | Camera | USB webcam | Pi camera or USB webcam |
+  | Camera | A USB webcam, plugged in or built in, that offers uncompressed frames. Not a built-in camera on a MIPI lane, as in many recent thin laptops: its driver needs firmware and an image processor Faraday does not have. | Pi camera or USB webcam |
 
 - **Why the stick comes out.** Nothing reaches a stick except through
   a stick visit, which writes only what waits For the stick, and only while

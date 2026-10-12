@@ -113,38 +113,61 @@ pub struct Frame {
 }
 
 /// The first `/dev/videoN` that is a video capture node, can stream, and
-/// accepts one of the four pixel formats we read.
+/// accepts one of the four pixel formats we read, preferring one that
+/// gives colour.
 ///
 /// The Pi exposes ISP, codec and metadata nodes alongside the camera;
-/// they fail one of those three tests, which is how they are skipped. No
-/// device is chosen by name and there is no chooser: the first one that
-/// passes is the camera. Nothing is set on a node that is only probed —
-/// the format test is `VIDIOC_TRY_FMT`.
+/// they fail one of those three tests, which is how they are skipped. A
+/// laptop with face login has an infrared camera beside its colour one,
+/// which offers `GREY` alone and sees nothing on a phone's screen; it is
+/// taken only when no node gives colour. No device is chosen by name:
+/// the first one that passes is the camera. Nothing is set on a node
+/// that is only probed — the format test is `VIDIOC_TRY_FMT`.
 pub fn find() -> Option<PathBuf> {
-    (0..MAX_NODES).find_map(|n| {
+    let mut grey = None;
+    for n in 0..MAX_NODES {
         let path = PathBuf::from(format!("/dev/video{n}"));
-        can_capture(&path).then_some(path)
-    })
+        match capture(&path) {
+            Some(Capture::Colour) => return Some(path),
+            Some(Capture::Grey) => {
+                grey.get_or_insert(path);
+            }
+            None => {}
+        }
+    }
+    grey
+}
+
+/// What a node that can capture gives.
+enum Capture {
+    /// One of the formats with chroma.
+    Colour,
+    /// `GREY` alone.
+    Grey,
 }
 
 /// Whether one node is a streaming video capture device that takes a
-/// format we can convert.
-fn can_capture(path: &Path) -> bool {
-    let Ok(file) = open_rw(path) else {
-        return false;
-    };
+/// format we can convert, and whether that format has colour.
+fn capture(path: &Path) -> Option<Capture> {
+    let file = open_rw(path).ok()?;
     let fd = file.as_raw_fd();
-    let Ok(cap) = query_cap(fd) else {
-        return false;
-    };
-    let caps = cap.node_caps();
+    let caps = query_cap(fd).ok()?.node_caps();
     if caps & abi::CAP_VIDEO_CAPTURE == 0 || caps & abi::CAP_STREAMING == 0 {
-        return false;
+        return None;
     }
-    abi::FORMATS.iter().any(|&want| {
-        try_format(fd, abi::VIDIOC_TRY_FMT, want, Size::VGA)
-            .is_ok_and(|f| convert::luma_step(f.pix.pixelformat).is_some())
-    })
+    let granted: Vec<u32> = abi::FORMATS
+        .iter()
+        .filter_map(|&want| try_format(fd, abi::VIDIOC_TRY_FMT, want, Size::VGA).ok())
+        .map(|f| f.pix.pixelformat)
+        .filter(|&f| convert::luma_step(f).is_some())
+        .collect();
+    if granted.iter().any(|&f| f != abi::PIX_FMT_GREY) {
+        Some(Capture::Colour)
+    } else if granted.is_empty() {
+        None
+    } else {
+        Some(Capture::Grey)
+    }
 }
 
 /// A streaming camera: the device, its negotiated format, and the four
@@ -548,8 +571,19 @@ fn try_format(fd: RawFd, request: u32, format: u32, want: Size) -> io::Result<ab
 /// driver's own substitute is one of them, that one is set instead.
 fn negotiate(fd: RawFd, want: Size) -> io::Result<abi::PixFormat> {
     let mut substitute = None;
+    // A driver that refuses a format outright, rather than substituting
+    // one as the specification asks, is asked for the next; its error is
+    // kept for when none is granted, since a device another program holds
+    // refuses them all.
+    let mut refused = None;
     for &format in &abi::FORMATS {
-        let fmt = try_format(fd, abi::VIDIOC_S_FMT, format, want)?;
+        let fmt = match try_format(fd, abi::VIDIOC_S_FMT, format, want) {
+            Ok(fmt) => fmt,
+            Err(e) => {
+                refused.get_or_insert(e);
+                continue;
+            }
+        };
         if fmt.pix.pixelformat == format {
             return Ok(fmt.pix);
         }
@@ -558,9 +592,9 @@ fn negotiate(fd: RawFd, want: Size) -> io::Result<abi::PixFormat> {
         }
     }
     let Some(format) = substitute else {
-        return Err(io::Error::other(
-            "the camera offers none of YUYV, NV12, YU12 or GREY",
-        ));
+        return Err(refused.unwrap_or_else(|| {
+            io::Error::other("the camera offers none of YUYV, NV12, YU12 or GREY")
+        }));
     };
     let fmt = try_format(fd, abi::VIDIOC_S_FMT, format, want)?;
     if fmt.pix.pixelformat == format {
