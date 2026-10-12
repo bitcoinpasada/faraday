@@ -87,7 +87,16 @@ impl Device for FileDisk {
     }
     fn open_read(&mut self) -> Result<File, Reason> {
         self.calls.push("open_read");
-        File::open(&self.path).map_err(|e| Reason::OpenRead(e.to_string()))
+        // As udisks2 hands it back: a read straight from the disk
+        // (`O_DIRECT`), which refuses an unaligned offset, length or
+        // buffer, as a real stick does.
+        use std::os::unix::fs::OpenOptionsExt;
+        const O_DIRECT: i32 = 0o40_000;
+        OpenOptions::new()
+            .read(true)
+            .custom_flags(O_DIRECT)
+            .open(&self.path)
+            .map_err(|e| Reason::OpenRead(e.to_string()))
     }
     fn rescan(&mut self) -> Result<(), Reason> {
         self.calls.push("rescan");
@@ -461,4 +470,50 @@ fn a_refused_write_reads_as_its_string_from_the_strings_file() {
             ]
         )
     );
+}
+
+/// A disk that answers only reads a stick opened straight (`O_DIRECT`)
+/// answers: an offset, a length and a buffer address all on a 4096-byte
+/// boundary. Anything else is refused, as the kernel refuses it (EINVAL),
+/// whatever the filesystem these tests run on allows.
+struct StrictDisk(std::io::Cursor<Vec<u8>>);
+
+impl std::io::Read for StrictDisk {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let pos = self.0.position();
+        if !pos.is_multiple_of(4096)
+            || !buf.len().is_multiple_of(4096)
+            || !(buf.as_ptr() as usize).is_multiple_of(4096)
+        {
+            return Err(std::io::Error::from_raw_os_error(22));
+        }
+        self.0.read(buf)
+    }
+}
+
+impl std::io::Seek for StrictDisk {
+    fn seek(&mut self, to: std::io::SeekFrom) -> std::io::Result<u64> {
+        self.0.seek(to)
+    }
+}
+
+#[test]
+fn keep_data_checks_the_partition_table_with_reads_a_stick_accepts() {
+    let image = stick_image(gpt::DISK_UUID, 0xDA);
+    let table = gpt::read(
+        &mut |at, buf| {
+            buf.copy_from_slice(&image[at as usize..at as usize + buf.len()]);
+            Ok(())
+        },
+        image.len() as u64,
+    )
+    .expect("a Faraday stick's table");
+    let mut disk = StrictDisk(std::io::Cursor::new(image.clone()));
+    let read = writer::regions(&mut disk, &table).expect("read the way a stick allows");
+    let expected: Vec<Vec<u8>> = table
+        .regions
+        .iter()
+        .map(|&(from, to)| image[from as usize..to as usize].to_vec())
+        .collect();
+    assert_eq!(read, expected);
 }

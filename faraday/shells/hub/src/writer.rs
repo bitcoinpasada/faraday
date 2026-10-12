@@ -368,17 +368,79 @@ pub fn write(
     Ok(())
 }
 
-/// The bytes of the partition table's regions.
-fn regions(disk: &mut File, table: &gpt::Table) -> Result<Vec<Vec<u8>>, Reason> {
+/// The bytes of the partition table's regions. Read in aligned blocks:
+/// after the write the disk is open for reads straight from it
+/// (`O_DIRECT`), which refuses an unaligned offset, length or buffer.
+pub fn regions<R: Read + Seek>(disk: &mut R, table: &gpt::Table) -> Result<Vec<Vec<u8>>, Reason> {
     table
         .regions
         .iter()
         .map(|&(from, to)| {
-            let mut buf = vec![0u8; (to - from) as usize];
-            read_exact_at(disk, from, &mut buf).map_err(|e| Reason::ReadingTable(e.to_string()))?;
-            Ok(buf)
+            let len = (to - from) as usize;
+            let (raw, skip, got) = aligned_read_at(disk, from, len)
+                .map_err(|e| Reason::ReadingTable(e.to_string()))?;
+            if got < skip + len {
+                return Err(Reason::ReadingTable(String::from(
+                    "the disk ends inside its partition table",
+                )));
+            }
+            Ok(raw[skip..skip + len].to_vec())
         })
         .collect()
+}
+
+/// Reads the `len` bytes at `at` from an aligned offset, for an aligned
+/// length, into an aligned buffer, as a read straight from the disk
+/// needs. Returns the buffer, where the bytes at `at` start in it, and
+/// how many bytes were read (fewer at the disk's end).
+fn aligned_read_at<R: Read + Seek>(
+    r: &mut R,
+    at: u64,
+    len: usize,
+) -> io::Result<(AlignedBuf, usize, usize)> {
+    let start = at - at % ALIGN as u64;
+    let skip = (at - start) as usize;
+    let want = (skip + len).div_ceil(ALIGN) * ALIGN;
+    let mut raw = AlignedBuf::new(want);
+    r.seek(SeekFrom::Start(start))?;
+    let mut got = 0;
+    while got < want {
+        match r.read(&mut raw[got..]) {
+            Ok(0) => break,
+            Ok(n) => got += n,
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => {}
+            Err(e) => return Err(e),
+        }
+    }
+    Ok((raw, skip, got))
+}
+
+/// A buffer whose first byte is aligned to [`ALIGN`].
+struct AlignedBuf {
+    raw: Vec<u8>,
+    off: usize,
+    len: usize,
+}
+
+impl AlignedBuf {
+    fn new(len: usize) -> Self {
+        let raw = vec![0u8; len + ALIGN];
+        let off = raw.as_ptr().align_offset(ALIGN);
+        AlignedBuf { raw, off, len }
+    }
+}
+
+impl std::ops::Deref for AlignedBuf {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        &self.raw[self.off..self.off + self.len]
+    }
+}
+
+impl std::ops::DerefMut for AlignedBuf {
+    fn deref_mut(&mut self) -> &mut [u8] {
+        &mut self.raw[self.off..self.off + self.len]
+    }
 }
 
 fn read_exact_at(f: &mut File, at: u64, buf: &mut [u8]) -> io::Result<()> {
@@ -442,24 +504,8 @@ impl Flush for Writing<'_> {
 
 impl Flush for Comparing<'_> {
     fn flush_at(&mut self, at: u64, data: &[u8]) -> io::Result<()> {
-        // Read from an aligned offset, an aligned length, into an
-        // aligned buffer, as a read straight from the disk needs.
-        let start = at - at % ALIGN as u64;
-        let skip = (at - start) as usize;
-        let want = (skip + data.len()).div_ceil(ALIGN) * ALIGN;
-        let mut raw = vec![0u8; want + ALIGN];
-        let off = raw.as_ptr().align_offset(ALIGN);
-        let buf = &mut raw[off..off + want];
-        self.0.seek(SeekFrom::Start(start))?;
-        let mut got = 0;
-        while got < want {
-            match self.0.read(&mut buf[got..]) {
-                Ok(0) => break,
-                Ok(n) => got += n,
-                Err(e) if e.kind() == io::ErrorKind::Interrupted => {}
-                Err(e) => return Err(e),
-            }
-        }
+        let (buf, skip, got) = aligned_read_at(&mut *self.0, at, data.len())?;
+        let start = at - skip as u64;
         if got < skip + data.len() {
             return Err(fail(Reason::BackEnds {
                 device: String::new(),
