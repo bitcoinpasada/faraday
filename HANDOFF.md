@@ -1879,7 +1879,37 @@ as possible before the next build.
     installs itself or runs without installing. Plain files stay in the
     release (`.xz` images, renamed), no dev images. Batches R, L, G, W,
     C, P, S (HUB §11); §12's decisions D1–D11 carry defaults for the
-    owner to confirm before the batch that needs each. Not started.
+    owner to confirm before the batch that needs each.
+
+    **Where it stopped (2026-10-12 12:40, session ended for the owner's
+    usage reset).** Batch R, first piece done:
+    `faraday/tools/stage-release.sh` and `just faraday-release-stage
+    VERSION [--any-build] [--out DIR]` stage the plain files under
+    `out/release/VERSION/` with HUB §1.1's names, images as `xz -9e
+    -T1` (checked: the same image gives the same `.xz`), and
+    `SHA256SUMS` with a `# Faraday VERSION, commit …` line, each
+    published file, and each image's `.img` line; it checks every sum,
+    decompressed too, before it ends. Tried with `--any-build` on the
+    0.1.1 test builds of 192431b (stick 12.0 MB, Pi 12.2 MB as `.xz`).
+    The README's "Verifying a release" says how `.xz` and the `.img`
+    lines check, and how to check on Windows.
+
+    Found: the Pi image's build ID cannot be read from its bytes (the
+    kernel is a compressed zImage, so the release string is not in the
+    image), so the script checks the stick image's build ID only and
+    prints a line for the Pi's. Batch R should give the Pi image a
+    readable build ID (a small file on its boot partition written by
+    the image build, say `faraday-build.txt`), and the script and the
+    hub app's manifest should read it.
+
+    **Next, batch R in order:** (1) the Pi image's readable build ID,
+    above; (2) the glibc 2.31 container build of the desktop app (HUB
+    §1.2), `just faraday-linux-bin`, checked with `objdump -T` that
+    nothing needs more than `GLIBC_2.31`, and the app run on the
+    owner's desktop; (3) the pure-Rust xz decoder chosen, with its
+    `docs/deps/` note (read the candidates; never liblzma); (4) the
+    hub's payload build from `out/release/VERSION/` (manifest: name,
+    `.xz` sum, `.img` sum, build ID). Then batch L.
 
 ## Next steps
 

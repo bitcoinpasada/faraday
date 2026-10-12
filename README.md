@@ -790,6 +790,18 @@ gpg --verify SHA256SUMS.asc SHA256SUMS
 sha256sum -c --ignore-missing SHA256SUMS
 ```
 
+From 0.2.0 the images are published as `.xz` only. `SHA256SUMS` lists
+each `.xz` and, under the `.img` name, the image inside it, so the same
+command checks a download and, after `xz -d`, the image.
+
+On Windows, Gpg4win's `gpg` takes the same first three commands, and
+PowerShell prints a file's sum to compare with its line in
+`SHA256SUMS`:
+
+```
+Get-FileHash -Algorithm SHA256 .\faraday-stick-0.2.0-x86_64-uefi.img.xz
+```
+
 The release tags are signed with the same key: `git tag -v v0.1.1`.
 
 ## Relationship to OpenSigner

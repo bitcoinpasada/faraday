@@ -276,3 +276,14 @@ faraday-pi-image: faraday-pi-bin
     cp "out/pi/$variant/output/images/opensigner-pi.img" "out/pi/$name.img"
     ls -l "out/pi/$name.img"
 
+
+# Stages a release's plain files under out/release/VERSION/ with the
+# names docs/HUB.md §1.1 gives them, images as .xz, and SHA256SUMS
+# listing each file and each image inside its .xz, for the owner to
+# sign. The stick image must be the release build (release=1); --any-build
+# tries it on a test build.
+#
+#   just faraday-release-stage 0.2.0
+#   just faraday-release-stage 0.2.0 --any-build --out DIR
+faraday-release-stage VERSION *args:
+    faraday/tools/stage-release.sh {{VERSION}} {{args}}
