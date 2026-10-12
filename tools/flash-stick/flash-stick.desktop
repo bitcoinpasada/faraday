@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Flash a Faraday stick
+Comment=Write a Faraday stick image from this checkout to a USB stick
+Exec=sh -c "exec \\"\\$(dirname \\"\\$0\\")/flash-stick.py\\"" %k
+Icon=drive-removable-media
+Terminal=false
+Categories=Development;
+StartupNotify=true

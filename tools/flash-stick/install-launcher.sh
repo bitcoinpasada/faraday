@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Puts "Flash a Faraday stick" in the desktop's app menu, so the window
-# (tools/flash-stick/flash-stick.py) opens with a click. The entry runs
-# the script in this checkout, so it always writes this checkout's
+# (tools/flash-stick/flash-stick.py) opens with a click where the file
+# manager does not run flash-stick.desktop on a double-click. The entry
+# runs the script in this checkout, so it always writes this checkout's
 # out/stick/ images.
 #
 #   tools/flash-stick/install-launcher.sh             the app menu

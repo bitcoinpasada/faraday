@@ -5,6 +5,9 @@ written.
 
   tools/flash-stick/flash-stick.py      or   just faraday-flash-stick
 
+or a double-click on flash-stick.desktop beside it, in a file manager
+that runs launchers (Thunar, Dolphin, Nemo).
+
 It lists the USB disks attached now, with their maker, model, size,
 serial and partitions, and says which are Faraday sticks already. The
 list follows sticks as they are plugged in and pulled out. Then one of:

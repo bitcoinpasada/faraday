@@ -703,8 +703,11 @@ on mainnet. `faraday/image/run-build.sh` and
 
 ### Writing a stick
 
-For development and testing, `just faraday-flash-stick` opens a window
-that writes a stick from `out/stick/`:
+For development and testing, a window writes a stick from `out/stick/`.
+Double-click `tools/flash-stick/flash-stick.desktop` ("Flash a Faraday
+stick") in a file manager that runs launchers, such as Thunar, Dolphin
+or Nemo, or run `just faraday-flash-stick`. A file manager may ask once
+whether to trust the launcher. The window shows:
 
 - **Stick**: the USB sticks attached now, with maker, model, size,
   serial, partitions and what is mounted, and which are Faraday sticks
@@ -743,10 +746,11 @@ window, the stick must still have the serial and size that were
 confirmed. A whole write is read back and compared; *keep data* is
 `faraday/image/stick-boot.sh`, with its own checks.
 
-To open the window from the desktop's app menu, run
+To open the window from the desktop's app menu as well, run
 `tools/flash-stick/install-launcher.sh` once; `--desktop` also puts an
 icon on the desktop, for desktops that show one. The entry runs the
-window in that checkout.
+window in that checkout. GNOME Files (Nautilus) runs neither launchers
+nor scripts on a double-click, so there the menu entry is the way.
 
 ## Reproducible builds
 
