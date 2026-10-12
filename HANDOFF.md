@@ -1934,6 +1934,26 @@ as possible before the next build.
     app to Windows (D20). G is independent of L and W; P of G, W and
     C; W no longer waits on D11.
 
+71. [ ] 2026-10-12, owner: **Faraday on Macs**, specified in
+    `docs/MAC.md` (DECISIONS F13, superseding F11's "no macOS app").
+    Intel Macs start the PC stick (its kernel gains `applespi` and OHCI;
+    `bcm5974` forbidden; SPI keyboards trusted by bus). M1 and M2 Macs
+    start a new `arm64-apple` image through a start-up file (m1n1 +
+    device trees + U-Boot) sealed in the Mac's recovery system, with
+    nothing loaded from the Mac's disk; the person chooses at setup
+    between any Faraday stick and only their own signed one, and types
+    the sealing commands after checking the file's hash (MAC §2.3,
+    §4.3–§4.5 are requirements: a batch that cannot meet one stops and
+    reports). The desktop and hub apps run on macOS. Batches I, D, A1,
+    A2, A3, A4 (MAC §8); A3 waits for HUB batch L. MAC §6 lists what
+    HUB.md gains, for whoever owns HUB.md to fold in after batch R.
+    Every decision taken (MAC §9): the published Mac list says
+    Expected or Not supported from cited documentation, never which
+    models were tried (M6); no Mac yet, so I, A1, A2 and A4 can go
+    ahead without one and D and A3 wait (M7). **Queued (owner,
+    2026-10-12): no Mac batch starts until the owner says to pick up
+    the Mac work**; the hub work comes first.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:

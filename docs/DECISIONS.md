@@ -459,6 +459,52 @@ D12 to D21) and §13 lists what moved.
 - `tools/flash-stick` is removed once the hub app writes a developer's
   own image (`--image`); the window and its launcher were a stopgap.
 
+### F13 Faraday on Macs: the stick, the desktop app and the hub app (2026-10-12)
+
+**Why.** F11 said there is no macOS app, and the stick started only on
+PCs. Intel Macs can start the PC stick with little change, and Apple
+Silicon Macs can start Faraday through Asahi Linux's boot chain. The
+owner asked for Mac support across the board, provided none of the
+security properties Faraday relies on is weakened.
+
+**Decision** (owner, 2026-10-12; the spec is `docs/MAC.md`). This
+supersedes F11's "no macOS app".
+
+- Intel Macs with 64-bit EFI start the PC stick. Its kernel gains
+  `applespi` (2015–2017 MacBook keyboards, reachable only through the
+  firmware-described device) and OHCI; `bcm5974` is forbidden, for
+  `HID_APPLE`'s reason. T2 Macs are used with Startup Security lowered
+  and are told to set it back; their built-in keyboard needs t2bce,
+  which is not carried, so they take a USB keyboard.
+- M1 and M2 Macs start a new image, `arm64-apple`, through a start-up
+  file sealed by the Mac's recovery system: m1n1, the device trees and
+  U-Boot in one file, with nothing loaded from the Mac's disk, no
+  command line, no USB debug mode and no initrd from outside. M3 waits
+  for Asahi's release; M4 and M5 for m1n1.
+- There is no project key. At setup the person chooses: any Faraday
+  stick starts, or only one signed with their own Secure Boot key,
+  preseeded into U-Boot. Nobody holds a key that starts Faraday on
+  every set-up Mac.
+- Sealing is typed by the person in Recovery's Terminal, after checking
+  the file's SHA-256 against a value from outside that Mac (the release
+  page on a phone, or Faraday's Secure Boot screen), because setup is
+  done from a macOS that may be compromised.
+- Apple's restore-file parts the start-up volume needs are downloaded
+  by the hub app through macOS's own `curl`, pinned by SHA-256; the hub
+  carries no network code.
+- Asahi's two keyboard drivers are the only out-of-tree code, in the
+  Apple Silicon kernel only. The M2 trackpad, which needs a firmware
+  file copied from macOS, is not supported.
+- The desktop app and the hub app run on macOS, ad-hoc signed and not
+  notarized, for the reason F11 gives for Windows.
+- The hub app can remove the start-up volume again, for privacy.
+- The README lists the supported Macs by model identifier, each claim
+  cited, as Expected or Not supported. Nothing published says which
+  models were tried: those are the owner's own Macs.
+- There is no Mac to build on yet: the Intel Mac work, the Apple
+  Silicon image and its start-up file go ahead; the macOS apps and the
+  Apple Silicon setup wait for one.
+
 ### F14 Maker pages are published several families at once (2026-10-12)
 
 **Why.** HUB D6 published a maker page only for a family tried on a
