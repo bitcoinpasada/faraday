@@ -205,6 +205,18 @@ faraday-stick-boot +args:
     [ $# -eq 1 ] || { echo "usage: just [dev=1] faraday-stick-boot [--dry-run] /dev/sdX" >&2; exit 1; }
     exec faraday/image/stick-boot.sh $dry "out/stick/$name-boot.vfat" "$1"
 
+# For development and testing: a window that writes a stick from this
+# checkout's out/stick/. It lists the USB sticks attached, with maker,
+# model, size, serial and partitions, and writes the stick build or the
+# dev build, to the whole stick or to the boot partition alone, keeping
+# the data partition. The write runs as root through pkexec and is
+# tools/flash-stick/write.sh; tools/flash-stick/install-launcher.sh puts
+# the window in the desktop's app menu.
+#
+#   just faraday-flash-stick
+faraday-flash-stick:
+    tools/flash-stick/flash-stick.py
+
 # The Pi shell, cross-compiled for the board the root justfile's `board`
 # variable names (armv7, static against glibc, as upstream's own pi-bin
 # does), at out/faraday/<board>/opensigner-pi: the name upstream's

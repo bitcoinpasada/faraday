@@ -678,6 +678,7 @@ just faraday-stick-bin                    # the stick binary, static musl
 just faraday-stick-image                  # out/stick/faraday-x86_64-uefi.img
 just dev=1 faraday-stick-image            # + a serial console and root login, for development
 just dev=1 faraday-stick-boot /dev/sdX    # development: rewrite a stick's boot partition alone
+just faraday-flash-stick                  # a window that writes a stick (below)
 just faraday-upgrade-check OLD.img        # QEMU: the dev image upgrades an older stick image
 ```
 
@@ -699,6 +700,53 @@ checks. It is for development only.
 Flash the image to a stick and boot a PC from it; the stick image starts
 on mainnet. `faraday/image/run-build.sh` and
 `opensigner/shells/pi/image/README.md` describe the image layout.
+
+### Writing a stick
+
+For development and testing, `just faraday-flash-stick` opens a window
+that writes a stick from `out/stick/`:
+
+- **Stick**: the USB sticks attached now, with maker, model, size,
+  serial, partitions and what is mounted, and which are Faraday sticks
+  already. The list follows sticks as they are plugged in and pulled
+  out. A disk the computer is using is shown and not offered.
+- **What to write**, each with the build ID the image carries:
+  - *Stick build, whole stick*: `faraday-x86_64-uefi.img` over the whole
+    stick; everything on it is lost.
+  - *Stick build, keep data*: `faraday-x86_64-uefi-boot.vfat` over the
+    `OSKBOOT` partition of a Faraday stick; `OSKDATA`, with its vaults
+    and settings, is kept. Offered only for a Faraday stick.
+  - *Dev build, whole stick* and *Dev build, keep data*: the same with
+    the `-dev` images, which have a root login on the serial port and
+    show the kernel log on the screen.
+
+Write asks again, naming the stick by device, maker, size and serial;
+then the system asks for the password, because the write runs as root
+through `pkexec`. It needs Python 3 with PyGObject and GTK 4
+(`python-gobject` and `gtk4` on Arch; `python3-gi` and
+`gir1.2-gtk-4.0` on Debian and Ubuntu), polkit with the desktop's
+password agent, and util-linux.
+
+The privileged half is `tools/flash-stick/write.sh`, which can be run
+by hand too:
+
+```
+sudo tools/flash-stick/write.sh whole out/stick/faraday-x86_64-uefi.img /dev/sdX
+sudo tools/flash-stick/write.sh boot out/stick/faraday-x86_64-uefi-boot.vfat /dev/sdX
+```
+
+It refuses a disk that is not on USB, not removable or hot-pluggable,
+smaller than the image, or in use: a partition mounted anywhere but under
+`/run/media`, `/media` or `/mnt`, or used as swap. Partitions the desktop
+mounted are unmounted first. By hand, the device is typed back; from the
+window, the stick must still have the serial and size that were
+confirmed. A whole write is read back and compared; *keep data* is
+`faraday/image/stick-boot.sh`, with its own checks.
+
+To open the window from the desktop's app menu, run
+`tools/flash-stick/install-launcher.sh` once; `--desktop` also puts an
+icon on the desktop, for desktops that show one. The entry runs the
+window in that checkout.
 
 ## Reproducible builds
 
