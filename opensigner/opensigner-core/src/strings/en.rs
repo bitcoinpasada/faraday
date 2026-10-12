@@ -2308,6 +2308,337 @@ pub struct Strings {
     pub learn_try_passphrase: &'static str,
     /// The last row of Learn › "Spend paths and timelocks".
     pub learn_try_miniscript: &'static str,
+    // ----- The hub app (docs/HUB.md), faraday-hub -----
+    /// Title of the hub app's Home, where the way back goes.
+    pub hub_home: &'static str,
+    /// Label of Home's This computer card.
+    pub hub_computer: &'static str,
+    /// The card's name when the maker and model could not be read.
+    pub hub_computer_unknown: &'static str,
+    /// Label above Home's checklist.
+    pub hub_checklist: &'static str,
+    /// Secure Boot state.
+    pub hub_secure_boot_on: &'static str,
+    /// Secure Boot state.
+    pub hub_secure_boot_off: &'static str,
+    /// Secure Boot state that could not be read.
+    pub hub_secure_boot_unknown: &'static str,
+    /// The system drive: `{}` is its letter.
+    pub hub_drive_encrypted: &'static str,
+    /// The system drive, not encrypted.
+    pub hub_drive_plain: &'static str,
+    /// The system drive, suspended by the hub app.
+    pub hub_drive_suspended: &'static str,
+    /// The system drive, suspended by someone else.
+    pub hub_drive_suspended_other: &'static str,
+    /// The system drive whose protection could not be read.
+    pub hub_drive_unknown: &'static str,
+    /// An ARM computer.
+    pub hub_cannot_start_arm: &'static str,
+    /// A computer started in legacy BIOS mode.
+    pub hub_cannot_start_bios: &'static str,
+    /// Checklist item and its page.
+    pub hub_item_make: &'static str,
+    /// Checklist item and its page.
+    pub hub_item_bitlocker: &'static str,
+    /// Checklist item and its page.
+    pub hub_item_start: &'static str,
+    /// Checklist item.
+    pub hub_item_secure_boot: &'static str,
+    /// Checklist item and its button.
+    pub hub_item_resume: &'static str,
+    /// Make a Faraday stick's state.
+    pub hub_state_no_stick: &'static str,
+    /// Make a Faraday stick's state: `{}` the version.
+    pub hub_state_stick: &'static str,
+    /// BitLocker's state.
+    pub hub_state_protected: &'static str,
+    /// BitLocker's state.
+    pub hub_state_suspended: &'static str,
+    /// BitLocker's state.
+    pub hub_state_resumed: &'static str,
+    /// Why Resume is not offered.
+    pub hub_resume_needs_secure_boot: &'static str,
+    /// Why Resume is not offered, for a computer that had Secure Boot off.
+    pub hub_resume_needs_secure_boot_off: &'static str,
+    /// Home row.
+    pub hub_row_pi: &'static str,
+    /// Home row.
+    pub hub_row_transfer: &'static str,
+    /// Home row.
+    pub hub_row_desktop: &'static str,
+    /// Its second line.
+    pub hub_row_desktop_sub: &'static str,
+    /// Home row and page.
+    pub hub_row_install: &'static str,
+    /// Home row and page.
+    pub hub_row_installed: &'static str,
+    /// Home row and page, when the running copy is newer.
+    pub hub_row_update: &'static str,
+    /// Home row and page.
+    pub hub_row_about: &'static str,
+    /// Home row.
+    pub hub_row_learn: &'static str,
+    /// Title: which disk becomes the stick.
+    pub hub_disks_stick: &'static str,
+    /// Title: which card becomes the Pi card.
+    pub hub_disks_card: &'static str,
+    /// The Pi card page: which Pi and screen.
+    pub hub_pi_for: &'static str,
+    /// The Pi card page: which cameras.
+    pub hub_pi_cameras: &'static str,
+    /// A hub app with no stick image.
+    pub hub_no_stick_image: &'static str,
+    /// A hub app with no Pi image.
+    pub hub_no_pi_image: &'static str,
+    /// A computer that cannot write a disk from here.
+    pub hub_no_writer: &'static str,
+    /// Which stick? with none attached.
+    pub hub_no_disks_stick: &'static str,
+    /// Which card? with none attached.
+    pub hub_no_disks_card: &'static str,
+    /// A disk with no maker or model.
+    pub hub_disk_unnamed: &'static str,
+    /// What is on a disk: `{}` the version.
+    pub hub_on_faraday: &'static str,
+    /// What is on a disk.
+    pub hub_on_empty: &'static str,
+    /// One volume with no name.
+    pub hub_on_volume: &'static str,
+    /// Volumes with no names: `{}` how many.
+    pub hub_on_volumes: &'static str,
+    /// After the volume's name.
+    pub hub_on_files_it: &'static str,
+    /// After the volumes' names.
+    pub hub_on_files_them: &'static str,
+    /// After the volumes' names.
+    pub hub_on_no_files: &'static str,
+    /// A disk the computer uses: `{}` the mount point.
+    pub hub_refused_mounted: &'static str,
+    /// A disk the computer uses.
+    pub hub_refused_swap: &'static str,
+    /// A disk the computer uses.
+    pub hub_refused_system: &'static str,
+    /// A disk too small: `{}` the size needed.
+    pub hub_refused_small: &'static str,
+    /// A size: `{}` the number.
+    pub hub_size_gb: &'static str,
+    /// A size: `{}` the number.
+    pub hub_size_mb: &'static str,
+    /// Title: what to write.
+    pub hub_mode_title: &'static str,
+    /// Option.
+    pub hub_mode_whole_stick: &'static str,
+    /// Option.
+    pub hub_mode_whole_card: &'static str,
+    /// Its second line.
+    pub hub_mode_whole_sub: &'static str,
+    /// Option.
+    pub hub_mode_keep: &'static str,
+    /// Its second line.
+    pub hub_mode_keep_sub: &'static str,
+    /// The fact under it (docs/HUB.md §4.4).
+    pub hub_mode_keep_fact: &'static str,
+    /// Keep data refused.
+    pub hub_mode_same: &'static str,
+    /// The whole stick refused for a boot partition image.
+    pub hub_mode_boot_only: &'static str,
+    /// Button.
+    pub hub_continue: &'static str,
+    /// Title.
+    pub hub_confirm_title: &'static str,
+    /// Confirm row.
+    pub hub_stick: &'static str,
+    /// Confirm row.
+    pub hub_card: &'static str,
+    /// Confirm row.
+    pub hub_size: &'static str,
+    /// Confirm row.
+    pub hub_device: &'static str,
+    /// Confirm row.
+    pub hub_serial: &'static str,
+    /// A disk with no serial.
+    pub hub_serial_none: &'static str,
+    /// Confirm row.
+    pub hub_on_it: &'static str,
+    /// Confirm row.
+    pub hub_writes: &'static str,
+    /// Confirm and About row.
+    pub hub_build: &'static str,
+    /// An image with no build ID.
+    pub hub_build_unknown: &'static str,
+    /// Confirm row.
+    pub hub_img_sha: &'static str,
+    /// Confirm and About row for a developer's image.
+    pub hub_image_sha: &'static str,
+    /// About row for a developer's image.
+    pub hub_image_file: &'static str,
+    /// A developer's image (--image).
+    pub hub_dev_image: &'static str,
+    /// Keep data over a newer stick: `{}` its version.
+    pub hub_keep_newer: &'static str,
+    /// Keep data writing a dev build.
+    pub hub_keep_dev: &'static str,
+    /// Confirm refused.
+    pub hub_not_confirmed_stick: &'static str,
+    /// Confirm refused.
+    pub hub_not_confirmed_card: &'static str,
+    /// Button.
+    pub hub_erase_and_write: &'static str,
+    /// Button.
+    pub hub_write: &'static str,
+    /// Title.
+    pub hub_writing_title: &'static str,
+    /// Progress: `{}` done, `{}` in all.
+    pub hub_of: &'static str,
+    /// Progress while writing.
+    pub hub_written_of: &'static str,
+    /// Progress while reading back.
+    pub hub_reading_back: &'static str,
+    /// Result title.
+    pub hub_done_title: &'static str,
+    /// Result title.
+    pub hub_failed_title: &'static str,
+    /// Result line.
+    pub hub_pull_stick: &'static str,
+    /// Result line.
+    pub hub_pull_card: &'static str,
+    /// Button.
+    pub hub_done: &'static str,
+    /// Button.
+    pub hub_try_again: &'static str,
+    /// A guide whose Learn page is not there: `{}` its title.
+    pub hub_guide_placeholder: &'static str,
+    /// Guide title.
+    pub hub_learn_start_windows: &'static str,
+    /// Guide title.
+    pub hub_learn_start_linux: &'static str,
+    /// Guide title.
+    pub hub_learn_bitlocker: &'static str,
+    /// Guide title.
+    pub hub_learn_no_start: &'static str,
+    /// Guide title.
+    pub hub_learn_keep_data: &'static str,
+    /// Linux with a TPM-unlocked disk (docs/HUB.md §6.4).
+    pub hub_tpm_line: &'static str,
+    /// Button.
+    pub hub_bitlocker_step: &'static str,
+    /// Step and button.
+    pub hub_restart: &'static str,
+    /// The restart's confirmation.
+    pub hub_restart_save: &'static str,
+    /// Button.
+    pub hub_restart_now: &'static str,
+    /// Button.
+    pub hub_cancel: &'static str,
+    /// Step.
+    pub hub_secure_boot_turn_off: &'static str,
+    /// Step, when it is.
+    pub hub_secure_boot_already_off: &'static str,
+    /// Under it.
+    pub hub_fast_boot: &'static str,
+    /// Step.
+    pub hub_boot_from_stick: &'static str,
+    /// Under it.
+    pub hub_boot_how: &'static str,
+    /// Under it, on Windows.
+    pub hub_boot_how_windows: &'static str,
+    /// Step.
+    pub hub_afterwards: &'static str,
+    /// Step, on Windows.
+    pub hub_afterwards_windows: &'static str,
+    /// Label above the guide's code.
+    pub hub_on_a_phone: &'static str,
+    /// Install's check box.
+    pub hub_install_desktop: &'static str,
+    /// Button.
+    pub hub_install_now: &'static str,
+    /// Button while installing.
+    pub hub_installing: &'static str,
+    /// Install done: `{}` where.
+    pub hub_installed_in: &'static str,
+    /// Row.
+    pub hub_installed_version: &'static str,
+    /// Row.
+    pub hub_this_version: &'static str,
+    /// Installed row.
+    pub hub_installed_app: &'static str,
+    /// Installed row.
+    pub hub_installed_desktop: &'static str,
+    /// Installed row.
+    pub hub_installed_menu: &'static str,
+    /// Installed row.
+    pub hub_installed_desktop_menu: &'static str,
+    /// Installed row.
+    pub hub_installed_icon: &'static str,
+    /// Installed row.
+    pub hub_installed_entry: &'static str,
+    /// Installed row.
+    pub hub_installed_reminder: &'static str,
+    /// Installed with nothing installed.
+    pub hub_not_installed: &'static str,
+    /// Button.
+    pub hub_uninstall: &'static str,
+    /// The uninstall's question.
+    pub hub_uninstall_ask: &'static str,
+    /// Under it.
+    pub hub_uninstall_keeps: &'static str,
+    /// Under it, while the suspension stands.
+    pub hub_uninstall_suspended: &'static str,
+    /// About row.
+    pub hub_version: &'static str,
+    /// About row.
+    pub hub_release: &'static str,
+    /// About row.
+    pub hub_commit: &'static str,
+    /// About label.
+    pub hub_payload: &'static str,
+    /// About, with no payload.
+    pub hub_no_payload: &'static str,
+    /// About row.
+    pub hub_sha_xz: &'static str,
+    /// About row: `{}` the file inside.
+    pub hub_sha_inner: &'static str,
+    /// About label.
+    pub hub_release_key: &'static str,
+    /// About label.
+    pub hub_check_title: &'static str,
+    /// About.
+    pub hub_check_text: &'static str,
+    /// About: a command.
+    pub hub_check_cmd_import: &'static str,
+    /// About: a command.
+    pub hub_check_cmd_verify: &'static str,
+    /// About: a command.
+    pub hub_check_cmd_sums: &'static str,
+    /// About, on Windows.
+    pub hub_check_windows: &'static str,
+    /// About label, on Windows.
+    pub hub_unsigned_title: &'static str,
+    /// About, on Windows.
+    pub hub_unsigned_text: &'static str,
+    /// BitLocker row.
+    pub hub_drive: &'static str,
+    /// BitLocker, not read.
+    pub hub_drive_unread: &'static str,
+    /// BitLocker row.
+    pub hub_protection: &'static str,
+    /// Its value.
+    pub hub_protection_none: &'static str,
+    /// Its value.
+    pub hub_protection_suspended: &'static str,
+    /// Its value.
+    pub hub_protection_unknown: &'static str,
+    /// BitLocker row.
+    pub hub_suspended_by_faraday: &'static str,
+    /// BitLocker row.
+    pub hub_secure_boot_when_suspended: &'static str,
+    /// BitLocker row.
+    pub hub_secure_boot_now: &'static str,
+    /// Value.
+    pub hub_yes: &'static str,
+    /// Value.
+    pub hub_no: &'static str,
 }
 
 /// The English wording.
@@ -3419,5 +3750,171 @@ pub static EN: Strings = Strings {
     learn_try_encrypted: "Make an encrypted backup",
     learn_try_passphrase: "Open a passphrase",
     learn_try_miniscript: "Miniscript tool",
+    // The hub app (docs/HUB.md).
+    hub_home: "Home",
+    hub_computer: "This computer",
+    hub_computer_unknown: "This computer",
+    hub_checklist: "Checklist",
+    hub_secure_boot_on: "Secure Boot: on",
+    hub_secure_boot_off: "Secure Boot: off",
+    hub_secure_boot_unknown: "Secure Boot: not read",
+    hub_drive_encrypted: "Drive {} encrypted with BitLocker",
+    hub_drive_plain: "Drive {} not encrypted",
+    hub_drive_suspended: "Drive {} BitLocker suspended by Faraday",
+    hub_drive_suspended_other: "Drive {} BitLocker suspended",
+    hub_drive_unknown: "Drive {} encryption not read",
+    hub_cannot_start_arm: "This computer cannot start a Faraday stick",
+    hub_cannot_start_bios: "Started in legacy BIOS mode: UEFI has to be on",
+    hub_item_make: "Make a Faraday stick",
+    hub_item_bitlocker: "BitLocker",
+    hub_item_start: "Start this computer from the stick",
+    hub_item_secure_boot: "Turn Secure Boot back on",
+    hub_item_resume: "Resume BitLocker",
+    hub_state_no_stick: "No Faraday stick attached",
+    hub_state_stick: "Faraday stick attached · {}",
+    hub_state_protected: "Protected",
+    hub_state_suspended: "Suspended by Faraday",
+    hub_state_resumed: "Resumed",
+    hub_resume_needs_secure_boot: "Needs Secure Boot on",
+    hub_resume_needs_secure_boot_off: "Needs Secure Boot off, as it was",
+    hub_row_pi: "Make a Pi card",
+    hub_row_transfer: "Transfer",
+    hub_row_desktop: "Try the desktop app",
+    hub_row_desktop_sub: "Test seeds only",
+    hub_row_install: "Install",
+    hub_row_installed: "Installed",
+    hub_row_update: "Update the installed Faraday",
+    hub_row_about: "About",
+    hub_row_learn: "Learn",
+    hub_disks_stick: "Which stick?",
+    hub_disks_card: "Which card?",
+    hub_pi_for: "For a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8 inch screen",
+    hub_pi_cameras: "Cameras: a USB webcam, or Camera Module v1 or v2",
+    hub_no_stick_image: "This Faraday app carries no stick image",
+    hub_no_pi_image: "This Faraday app carries no Pi image",
+    hub_no_writer: "This computer cannot write a stick from here",
+    hub_no_disks_stick: "No USB stick attached",
+    hub_no_disks_card: "No SD card or USB stick attached",
+    hub_disk_unnamed: "Disk",
+    hub_on_faraday: "Faraday stick · {}",
+    hub_on_empty: "Empty",
+    hub_on_volume: "1 volume",
+    hub_on_volumes: "{} volumes",
+    hub_on_files_it: "files on it",
+    hub_on_files_them: "files on them",
+    hub_on_no_files: "no files",
+    hub_refused_mounted: "Used by this computer: mounted at {}",
+    hub_refused_swap: "Used by this computer: swap",
+    hub_refused_system: "Holds this computer's system",
+    hub_refused_small: "Smaller than the image: needs {}",
+    hub_size_gb: "{} GB",
+    hub_size_mb: "{} MB",
+    hub_mode_title: "What to write?",
+    hub_mode_whole_stick: "New Faraday stick",
+    hub_mode_whole_card: "New Faraday card",
+    hub_mode_whole_sub: "Everything on it is lost",
+    hub_mode_keep: "Replace Faraday, keep data",
+    hub_mode_keep_sub: "Only the boot partition is written",
+    hub_mode_keep_fact: "This computer can read and change the data partition while the stick is attached.",
+    hub_mode_same: "Already this build",
+    hub_mode_boot_only: "The image is a boot partition alone",
+    hub_continue: "Continue",
+    hub_confirm_title: "Confirm",
+    hub_stick: "Stick",
+    hub_card: "Card",
+    hub_size: "Size",
+    hub_device: "Device",
+    hub_serial: "Serial",
+    hub_serial_none: "None",
+    hub_on_it: "On it",
+    hub_writes: "Writes",
+    hub_build: "Build",
+    hub_build_unknown: "Not known",
+    hub_img_sha: "SHA-256 of the image",
+    hub_image_sha: "SHA-256 of this image",
+    hub_image_file: "Image file",
+    hub_dev_image: "Not the Faraday app's own image",
+    hub_keep_newer: "This stick holds a newer Faraday: {}",
+    hub_keep_dev: "Writes a dev build, with a serial console",
+    hub_not_confirmed_stick: "Not the stick confirmed: it was removed or changed",
+    hub_not_confirmed_card: "Not the card confirmed: it was removed or changed",
+    hub_erase_and_write: "Erase and write",
+    hub_write: "Write",
+    hub_writing_title: "Writing",
+    hub_of: "{} of {}",
+    hub_written_of: "Written {}",
+    hub_reading_back: "Reading back · {}",
+    hub_done_title: "Written",
+    hub_failed_title: "Not written",
+    hub_pull_stick: "The stick can be pulled out.",
+    hub_pull_card: "The card can be pulled out.",
+    hub_done: "Done",
+    hub_try_again: "Try again",
+    hub_guide_placeholder: "Learn: {}",
+    hub_learn_start_windows: "Starting a Windows computer from the stick",
+    hub_learn_start_linux: "Starting a Linux computer from the stick",
+    hub_learn_bitlocker: "BitLocker and starting from a stick",
+    hub_learn_no_start: "When the stick does not start",
+    hub_learn_keep_data: "Replacing Faraday on a stick",
+    hub_tpm_line: "A disk here is unlocked by the TPM: have its passphrase ready",
+    hub_bitlocker_step: "Do the BitLocker step",
+    hub_restart: "Restart into firmware settings",
+    hub_restart_save: "Save your work first: this restarts the computer",
+    hub_restart_now: "Restart",
+    hub_cancel: "Cancel",
+    hub_secure_boot_turn_off: "Turn Secure Boot off",
+    hub_secure_boot_already_off: "Secure Boot is already off",
+    hub_fast_boot: "Turn Fast Boot off where it hides USB",
+    hub_boot_from_stick: "Start from the stick",
+    hub_boot_how: "The boot menu key",
+    hub_boot_how_windows: "The boot menu key, or Use a device in Advanced startup",
+    hub_afterwards: "Turn Secure Boot back on",
+    hub_afterwards_windows: "Turn Secure Boot back on before starting Windows",
+    hub_on_a_phone: "On a phone",
+    hub_install_desktop: "Also install the desktop app, for testing with test seeds only",
+    hub_install_now: "Install",
+    hub_installing: "Installing",
+    hub_installed_in: "Installed in {}",
+    hub_installed_version: "Installed version",
+    hub_this_version: "This version",
+    hub_installed_app: "Faraday",
+    hub_installed_desktop: "Desktop app",
+    hub_installed_menu: "Menu entry",
+    hub_installed_desktop_menu: "Desktop app's menu entry",
+    hub_installed_icon: "Icon",
+    hub_installed_entry: "Installed apps entry",
+    hub_installed_reminder: "Logon reminder",
+    hub_not_installed: "Not installed",
+    hub_uninstall: "Uninstall",
+    hub_uninstall_ask: "Uninstall Faraday?",
+    hub_uninstall_keeps: "Removes the files listed. Received files and settings stay.",
+    hub_uninstall_suspended: "BitLocker stays suspended until it is resumed.",
+    hub_version: "Version",
+    hub_release: "Release",
+    hub_commit: "Commit",
+    hub_payload: "Carried in this app",
+    hub_no_payload: "This Faraday app carries no images",
+    hub_sha_xz: "SHA-256",
+    hub_sha_inner: "SHA-256 of {}",
+    hub_release_key: "Release key",
+    hub_check_title: "Checking this file",
+    hub_check_text: "Check this file against SHA256SUMS and its signature, SHA256SUMS.asc, from the release, with the release key above.",
+    hub_check_cmd_import: "gpg --fingerprint F1536BE07E234CFD",
+    hub_check_cmd_verify: "gpg --verify SHA256SUMS.asc SHA256SUMS",
+    hub_check_cmd_sums: "sha256sum -c --ignore-missing SHA256SUMS",
+    hub_check_windows: "On Windows: Get-FileHash -Algorithm SHA256 for the sum, Gpg4win for the signature.",
+    hub_unsigned_title: "Not code-signed",
+    hub_unsigned_text: "A code-signing certificate names a verified person or company, and Faraday is published under a pseudonym. Windows warns on first run; More info, then Run anyway, opens it. The sums and the signature are the check.",
+    hub_drive: "Drive",
+    hub_drive_unread: "BitLocker not read",
+    hub_protection: "Protection",
+    hub_protection_none: "Not encrypted",
+    hub_protection_suspended: "Suspended",
+    hub_protection_unknown: "Not read",
+    hub_suspended_by_faraday: "Suspended by Faraday",
+    hub_secure_boot_when_suspended: "Secure Boot when suspended",
+    hub_secure_boot_now: "Secure Boot now",
+    hub_yes: "Yes",
+    hub_no: "No",
     learn: &osk_learn::EN,
 };

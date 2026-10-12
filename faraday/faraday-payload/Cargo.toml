@@ -1,0 +1,16 @@
+[package]
+name = "faraday-payload"
+version = "0.1.1"
+description = "The hub app's payload: MANIFEST's parser and the verifying, streaming xz decoder that writes a payload file or a developer's own image (docs/HUB.md §1.3)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+sha2 = { workspace = true }
+lzma-rust2 = { workspace = true }
+
+[lints]
+workspace = true

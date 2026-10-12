@@ -1,0 +1,1432 @@
+//! The hub's pages, drawn each frame from its state with `faraday-core`'s
+//! `Ui`, in the desktop app's palette and sizes. On a wide display a page
+//! is a centred column under a strip with the way back; on a small panel
+//! (`compact`) a bar across the top carries the way back and the page's
+//! name, as the desktop app's small-panel pages do.
+
+use faraday_core::ui::pal::*;
+use faraday_core::ui::{Style, Ui, W};
+use faraday_core::upgrade::{Fit, describe, version};
+use opensigner_core::strings::{EN, Strings, fill};
+use osk_ui::Color;
+use osk_ui::widgets::Icon;
+
+use crate::api::{InUse, InstallItem, Mode, Os, PayloadKind, Protection, WriteStage};
+use crate::decide::{Item, Refusal, State, Target};
+use crate::{Hub, HubAction, LearnId, ModeRefusal, Page, Sheet};
+
+const S: &Strings = &EN;
+
+/// The small panel's side margin.
+const M: f32 = 12.0;
+/// The small panel's bar.
+const BAR_H: f32 = 44.0;
+/// The wide strip with the way back.
+const STRIP_H: f32 = 52.0;
+/// The widest the column grows.
+const COL_W: f32 = 720.0;
+
+/// Draws the frame. Returns how far the page can scroll, units.
+pub(crate) fn frame(hub: &Hub, ui: &mut Ui) -> f32 {
+    let (w, h) = (hub.w, hub.h);
+    ui.clear(BG);
+    let compact = hub.compact;
+    let top = if hub.page == Page::Home {
+        0.0
+    } else if compact {
+        BAR_H
+    } else {
+        STRIP_H
+    };
+    let (x, cw) = if compact {
+        (M, w - 2.0 * M)
+    } else {
+        let cw = (w - 96.0).min(COL_W);
+        ((w - cw) / 2.0, cw)
+    };
+    let clip = ui.rect(0.0, top, w, h - top);
+    ui.c.push_clip(clip);
+    let pad = if compact { 12.0 } else { 28.0 };
+    let y0 = top + pad - hub.offset;
+    let end = match hub.page {
+        Page::Home => home(hub, ui, x, y0, cw),
+        Page::Disks => disks(hub, ui, x, y0, cw),
+        Page::Mode => mode(hub, ui, x, y0, cw),
+        Page::Confirm => confirm(hub, ui, x, y0, cw),
+        Page::Writing => writing(hub, ui, x, y0, cw),
+        Page::Done => done(hub, ui, x, y0, cw),
+        Page::Start => start(hub, ui, x, y0, cw),
+        Page::Install => install(hub, ui, x, y0, cw),
+        Page::Installed => installed(hub, ui, x, y0, cw),
+        Page::About => about(hub, ui, x, y0, cw),
+        Page::BitLocker => bitlocker(hub, ui, x, y0, cw),
+    };
+    ui.c.pop_clip();
+    let content = end - y0 + pad + 16.0;
+    let max = (content - (h - top)).max(0.0);
+    ui.report_scroll(clip, max);
+    if hub.page != Page::Home {
+        head(hub, ui, w);
+    }
+    if let Some(sheet) = hub.sheet {
+        ui.hits.clear();
+        ui.in_sheet = true;
+        ui.backdrop();
+        match sheet {
+            Sheet::Restart => restart_sheet(hub, ui, w, h),
+            Sheet::Uninstall => uninstall_sheet(hub, ui, w, h),
+        }
+        ui.in_sheet = false;
+    }
+    max
+}
+
+// ---------------------------------------------------------------------
+// The frame's pieces
+// ---------------------------------------------------------------------
+
+/// A page's name, as its title and its bar say it.
+fn page_name(hub: &Hub) -> String {
+    let target = hub.making.as_ref().map_or(Target::Stick, |m| m.target);
+    match hub.page {
+        Page::Home => String::new(),
+        Page::Disks => match target {
+            Target::Stick => S.hub_disks_stick,
+            Target::Pi => S.hub_disks_card,
+        }
+        .to_string(),
+        Page::Mode => S.hub_mode_title.to_string(),
+        Page::Confirm => S.hub_confirm_title.to_string(),
+        Page::Writing => S.hub_writing_title.to_string(),
+        Page::Done => match hub.making.as_ref().and_then(|m| m.result.as_ref()) {
+            Some(Ok(())) => S.hub_done_title,
+            _ => S.hub_failed_title,
+        }
+        .to_string(),
+        Page::Start => S.hub_item_start.to_string(),
+        Page::Install if hub.update_offered() => S.hub_row_update.to_string(),
+        Page::Install => S.hub_row_install.to_string(),
+        Page::Installed => S.hub_row_installed.to_string(),
+        Page::About => S.hub_row_about.to_string(),
+        Page::BitLocker => S.hub_item_bitlocker.to_string(),
+    }
+}
+
+/// Where the way back goes, by name; none while a write runs.
+fn back_name(hub: &Hub) -> Option<String> {
+    match hub.page {
+        Page::Home | Page::Writing => None,
+        Page::Mode => {
+            let target = hub.making.as_ref().map_or(Target::Stick, |m| m.target);
+            Some(
+                match target {
+                    Target::Stick => S.hub_disks_stick,
+                    Target::Pi => S.hub_disks_card,
+                }
+                .to_string(),
+            )
+        }
+        Page::Confirm => Some(S.hub_mode_title.to_string()),
+        _ => Some(S.hub_home.to_string()),
+    }
+}
+
+/// The bar (small panel) or the strip (wide) across the top.
+fn head(hub: &Hub, ui: &mut Ui, w: f32) {
+    let back = HubAction::Back.host();
+    let name = page_name(hub);
+    let back_to = back_name(hub);
+    if hub.compact {
+        ui.fill(0.0, 0.0, w, BAR_H, 0.0, SIDEBAR);
+        ui.fill(0.0, BAR_H - 1.0, w, 1.0, 0.0, LINE);
+        let x = if back_to.is_some() { BAR_H } else { M };
+        if let Some(label) = &back_to {
+            if ui.is_pressed(back) {
+                ui.fill(4.0, 4.0, BAR_H - 8.0, BAR_H - 8.0, 8.0, INNER);
+            }
+            ui.icon(4.0, 4.0, BAR_H - 8.0, Icon::ChevronLeft, 13.0, TEXT);
+            ui.hit(0.0, 0.0, BAR_H + 8.0, BAR_H, back);
+            ui.back(back);
+            let label = ui.fit(11.0, W::R, label, w - x - M);
+            ui.text(x, 5.0, 11.0, W::R, MUTED, &label);
+            let name = ui.fit(16.0, W::S, &name, w - x - M);
+            ui.text(x, 19.0, 16.0, W::S, TEXT, &name);
+        } else {
+            let name = ui.fit(16.0, W::S, &name, w - x - M);
+            ui.text_mid(x, 0.0, BAR_H, 16.0, W::S, TEXT, &name);
+        }
+        return;
+    }
+    ui.fill(0.0, 0.0, w, STRIP_H, 0.0, BG);
+    if let Some(label) = back_to {
+        let bw = ui.measure(14.0, W::S, &label) + 44.0;
+        let (bx, by) = (24.0, 10.0);
+        if ui.is_pressed(back) || ui.is_hovered(back) {
+            ui.fill(bx, by, bw, 34.0, 8.0, INNER);
+        }
+        ui.icon(bx + 4.0, by + 5.0, 24.0, Icon::ChevronLeft, 12.0, MUTED);
+        ui.text_mid(bx + 30.0, by, 34.0, 14.0, W::S, MUTED, &label);
+        ui.hit(bx, by, bw, 34.0, back);
+        ui.back(back);
+    }
+}
+
+/// A page's title on a wide display; the bar carries it on a small
+/// panel. Returns the height it took.
+fn title(hub: &Hub, ui: &mut Ui, x: f32, y: f32) -> f32 {
+    if hub.compact {
+        return 0.0;
+    }
+    let name = page_name(hub);
+    ui.text(x, y, 28.0, W::S, TEXT, &name);
+    ui.line(28.0, W::S) + 20.0
+}
+
+/// A section's label. Returns its height.
+fn label(ui: &mut Ui, x: f32, y: f32, s: &str) -> f32 {
+    ui.text(x, y, 13.0, W::S, MUTED, s);
+    24.0
+}
+
+/// A line of fact, wrapped. Returns its height with the gap under it.
+fn line(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str, tone: Color) -> f32 {
+    ui.wrap(x, y, w, 13.0, W::R, tone, s) + 10.0
+}
+
+/// A label and its value: on one row with the value at the right on a
+/// wide display, the value under the label on a small panel. Returns
+/// its height.
+fn value_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: Color) -> f32 {
+    if ui.compact {
+        ui.text(x, y, 12.0, W::R, MUTED, key);
+        let vh = ui.wrap(x, y + 18.0, w, 14.0, W::R, tone, value);
+        ui.rule(x, y + 24.0 + vh, w, INNER);
+        return vh + 32.0;
+    }
+    let kw = ui.measure(13.0, W::R, key) + 24.0;
+    ui.text_mid(x, y, 36.0, 13.0, W::R, MUTED, key);
+    let v = ui.fit(14.0, W::R, value, w - kw);
+    ui.text_right(x + w, y, 36.0, 14.0, W::R, tone, &v);
+    ui.rule(x, y + 36.0, w, INNER);
+    38.0
+}
+
+/// A label over a long value in the mono face, in groups of four,
+/// wrapped (a SHA-256, a fingerprint, a path). Returns its height.
+fn mono_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str) -> f32 {
+    ui.text(x, y + 8.0, 12.0, W::R, MUTED, key);
+    let vh = ui.wrap(x, y + 28.0, w, 13.0, W::M, TEXT, value);
+    ui.rule(x, y + 36.0 + vh, w, INNER);
+    vh + 40.0
+}
+
+/// A row that opens something: an icon, its label, a second line, and a
+/// value at the right. Dimmed, it takes no press and its second line is
+/// the reason. Returns its height with the gap under it.
+#[allow(clippy::too_many_arguments)]
+fn nav_row(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    icon: Icon,
+    head: &str,
+    sub: &str,
+    tail: &str,
+    action: Option<HubAction>,
+) -> f32 {
+    let compact = ui.compact;
+    let h = if compact { 54.0 } else { 58.0 };
+    let enabled = action.is_some();
+    let pressed = action.is_some_and(|a| ui.is_pressed(a.host()));
+    ui.fill(x, y, w, h, 10.0, if pressed { INNER } else { SURFACE });
+    ui.stroke(x, y, w, h, 10.0, LINE);
+    let ib = if compact { 28.0 } else { 32.0 };
+    let (ibg, ifg) = if enabled {
+        (ACCENT.with_alpha(26), ACCENT)
+    } else {
+        (INNER, DIM)
+    };
+    ui.fill(x + 10.0, y + (h - ib) / 2.0, ib, ib, 8.0, ibg);
+    ui.icon(x + 10.0, y + (h - ib) / 2.0, ib, icon, 14.0, ifg);
+    let tx = x + 20.0 + ib;
+    let tail_w = if tail.is_empty() {
+        0.0
+    } else {
+        ui.measure(12.0, W::R, tail) + 12.0
+    };
+    let chevron = if enabled { 22.0 } else { 0.0 };
+    let room = w - (tx - x) - 12.0 - tail_w - chevron;
+    let head = ui.fit(14.0, W::S, head, room);
+    let fg = if enabled { TEXT } else { DIM };
+    if sub.is_empty() {
+        ui.text_mid(tx, y, h, 14.0, W::S, fg, &head);
+    } else {
+        ui.text(tx, y + 9.0, 14.0, W::S, fg, &head);
+        let sub = ui.fit(12.0, W::R, sub, w - (tx - x) - 12.0 - chevron);
+        let tone = if enabled { MUTED } else { WARN };
+        ui.text(tx, y + 30.0, 12.0, W::R, tone, &sub);
+    }
+    if !tail.is_empty() {
+        ui.text_right(
+            x + w - 12.0 - chevron,
+            y,
+            if sub.is_empty() { h } else { 30.0 },
+            12.0,
+            W::R,
+            if enabled { MUTED } else { DIM },
+            tail,
+        );
+    }
+    if let Some(a) = action {
+        ui.icon(
+            x + w - 28.0,
+            y + (h - 20.0) / 2.0,
+            20.0,
+            Icon::ChevronRight,
+            9.0,
+            DIM,
+        );
+        ui.hit(x, y, w, h, a.host());
+    }
+    h + 8.0
+}
+
+/// A warning: a tinted box with the line in it. Returns its height with
+/// the gap under it.
+fn warning(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str, tone: Color) -> f32 {
+    let th = ui.wrap(x + 14.0, y + 10.0, w - 28.0, 13.0, W::S, tone, s);
+    // Drawn again over its box, which needs the text's height first.
+    let bh = th + 20.0;
+    ui.fill(x, y, w, bh, 10.0, tone.with_alpha(26));
+    ui.stroke(x, y, w, bh, 10.0, tone.with_alpha(110));
+    ui.wrap(x + 14.0, y + 10.0, w - 28.0, 13.0, W::S, tone, s);
+    bh + 12.0
+}
+
+/// One button, or a row of them (a column on a small panel when they do
+/// not fit). Returns their height.
+fn buttons(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, Style, HubAction)]) -> f32 {
+    if items.is_empty() {
+        return 0.0;
+    }
+    if ui.compact {
+        let n = items.len() as f32;
+        let share = (w - (n - 1.0) * 8.0) / n;
+        let fits = items
+            .iter()
+            .all(|(l, ..)| ui.measure(15.0, W::S, l) + 24.0 <= share);
+        if fits {
+            for (i, &(l, s, a)) in items.iter().enumerate() {
+                ui.button(
+                    x + i as f32 * (share + 8.0),
+                    y,
+                    Some(share),
+                    46.0,
+                    l,
+                    s,
+                    a.host(),
+                );
+            }
+            return 46.0;
+        }
+        for (i, &(l, s, a)) in items.iter().enumerate() {
+            let l = ui.fit(15.0, W::S, l, w - 24.0);
+            ui.button(x, y + i as f32 * 54.0, Some(w), 46.0, &l, s, a.host());
+        }
+        return n * 54.0 - 8.0;
+    }
+    let mut bx = x;
+    for &(l, s, a) in items {
+        bx += ui.button(bx, y, None, 44.0, l, s, a.host()) + 10.0;
+    }
+    44.0
+}
+
+/// A numbered step's heading, or a tick once it is done. Returns its
+/// height.
+fn step_head(ui: &mut Ui, x: f32, y: f32, w: f32, n: usize, text: &str, done: bool) -> f32 {
+    ui.badge(x, y, &n.to_string(), done, !done);
+    let th = ui.wrap(x + 38.0, y + 3.0, w - 38.0, 15.0, W::S, TEXT, text);
+    th.max(26.0) + 10.0
+}
+
+/// A size as people read it: "16 GB", "7.8 GB", "512 MB".
+pub(crate) fn size_text(bytes: u64) -> String {
+    let gb = bytes as f64 / 1e9;
+    if gb >= 10.0 {
+        fill(S.hub_size_gb, &[&format!("{gb:.0}")])
+    } else if gb >= 1.0 {
+        fill(S.hub_size_gb, &[&format!("{gb:.1}")])
+    } else {
+        fill(S.hub_size_mb, &[&format!("{:.0}", bytes as f64 / 1e6)])
+    }
+}
+
+/// A SHA-256 in groups of four.
+fn grouped(hex: &str) -> String {
+    faraday_core::ui::grouped(hex)
+}
+
+/// A disk's name: maker and model.
+fn disk_name(d: &crate::api::Disk) -> String {
+    let name = format!("{} {}", d.vendor.trim(), d.model.trim());
+    let name = name.trim();
+    if name.is_empty() {
+        S.hub_disk_unnamed.to_string()
+    } else {
+        name.to_string()
+    }
+}
+
+/// What is on a disk, in a few words (§3.2 step 1).
+fn on_it(d: &crate::api::Disk) -> String {
+    if let Some(f) = &d.faraday {
+        return fill(S.hub_on_faraday, &[&version(f.release.as_deref())]);
+    }
+    if d.volumes.is_empty() {
+        return S.hub_on_empty.to_string();
+    }
+    let names: Vec<&str> = d
+        .volumes
+        .iter()
+        .filter_map(|v| v.label.as_deref())
+        .collect();
+    let n = d.volumes.len();
+    let what = if names.is_empty() {
+        if n == 1 {
+            S.hub_on_volume.to_string()
+        } else {
+            fill(S.hub_on_volumes, &[&n.to_string()])
+        }
+    } else {
+        names.join(", ")
+    };
+    let files = d.volumes.iter().any(|v| v.files);
+    let tail = match (files, n == 1) {
+        (true, true) => S.hub_on_files_it,
+        (true, false) => S.hub_on_files_them,
+        (false, _) => S.hub_on_no_files,
+    };
+    format!("{what}, {tail}")
+}
+
+/// Why a disk cannot be chosen, in one line.
+fn refusal_text(r: &Refusal) -> String {
+    match r {
+        Refusal::InUse(InUse::Mounted(at)) => fill(S.hub_refused_mounted, &[at]),
+        Refusal::InUse(InUse::Swap) => S.hub_refused_swap.to_string(),
+        Refusal::InUse(InUse::System) => S.hub_refused_system.to_string(),
+        Refusal::TooSmall(needs) => fill(S.hub_refused_small, &[&size_text(*needs)]),
+    }
+}
+
+/// The line Confirm shows when the disk is no longer the one confirmed.
+pub(crate) fn not_confirmed(target: Target) -> String {
+    match target {
+        Target::Stick => S.hub_not_confirmed_stick,
+        Target::Pi => S.hub_not_confirmed_card,
+    }
+    .to_string()
+}
+
+// ---------------------------------------------------------------------
+// Home
+// ---------------------------------------------------------------------
+
+/// What an item is called.
+fn item_label(item: Item) -> &'static str {
+    match item {
+        Item::MakeStick => S.hub_item_make,
+        Item::BitLocker => S.hub_item_bitlocker,
+        Item::Start => S.hub_item_start,
+        Item::SecureBootOn => S.hub_item_secure_boot,
+        Item::Resume => S.hub_item_resume,
+    }
+}
+
+/// What a state reads as.
+fn state_text(state: &State) -> String {
+    match state {
+        State::NoStick => S.hub_state_no_stick.to_string(),
+        State::Stick(v) => fill(S.hub_state_stick, &[v]),
+        State::Protected => S.hub_state_protected.to_string(),
+        State::Suspended => S.hub_state_suspended.to_string(),
+        State::Resumed => S.hub_state_resumed.to_string(),
+        State::SecureBoot(on) => secure_boot_text(*on),
+    }
+}
+
+fn secure_boot_text(on: Option<bool>) -> String {
+    match on {
+        Some(true) => S.hub_secure_boot_on,
+        Some(false) => S.hub_secure_boot_off,
+        None => S.hub_secure_boot_unknown,
+    }
+    .to_string()
+}
+
+fn home(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0;
+    // The title is the wordmark.
+    if hub.compact {
+        ui.mark(x, y, 20.0, 23.0);
+        ui.wordmark(x + 28.0, y + 6.0, 11.0, TEXT);
+        y += 38.0;
+    } else {
+        ui.mark(x, y, 28.0, 32.0);
+        ui.wordmark(x + 38.0, y + 11.0, 12.0, TEXT);
+        y += 56.0;
+    }
+    let facts = hub.facts();
+    let next = facts.next_step();
+    let rows = facts.checklist();
+    y += computer_card(hub, ui, x, y, w, next, &rows) + 20.0;
+
+    // The checklist.
+    y += label(ui, x, y, S.hub_checklist);
+    ui.rule(x, y, w, INNER);
+    for (i, row) in rows.iter().enumerate() {
+        let action = HubAction::Item(row.item);
+        let is_next = next == Some(row.item);
+        let rh = 54.0;
+        let pressed = ui.is_pressed(action.host());
+        if is_next || pressed {
+            let tint = if pressed {
+                INNER
+            } else {
+                ACCENT.with_alpha(22)
+            };
+            ui.fill(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0, tint);
+        }
+        ui.badge(
+            x + 4.0,
+            y + (rh - 26.0) / 2.0,
+            &(i + 1).to_string(),
+            row.done,
+            is_next,
+        );
+        let tx = x + 44.0;
+        let fg = if row.done { MUTED } else { TEXT };
+        let head = ui.fit(14.0, W::S, item_label(row.item), w - 80.0);
+        ui.text(tx, y + 8.0, 14.0, W::S, fg, &head);
+        let mut state = state_text(&row.state);
+        if row.item == Item::Resume && !row.offered {
+            state = format!("{state} · {}", resume_needs(hub));
+        }
+        let state = ui.fit(12.0, W::R, &state, w - 80.0);
+        ui.text(tx, y + 30.0, 12.0, W::R, MUTED, &state);
+        ui.icon(
+            x + w - 24.0,
+            y + (rh - 20.0) / 2.0,
+            20.0,
+            Icon::ChevronRight,
+            9.0,
+            DIM,
+        );
+        ui.hit(x - 6.0, y, w + 12.0, rh, action.host());
+        y += rh;
+        ui.rule(x, y, w, INNER);
+    }
+    y += 24.0;
+
+    // The other rows.
+    let pi = hub.image(Target::Pi).is_some();
+    y += nav_row(
+        ui,
+        x,
+        y,
+        w,
+        Icon::SdCard,
+        S.hub_row_pi,
+        if pi { "" } else { S.hub_no_pi_image },
+        "",
+        pi.then_some(HubAction::Make(Target::Pi)),
+    );
+    y += nav_row(
+        ui,
+        x,
+        y,
+        w,
+        Icon::Qr,
+        S.hub_row_transfer,
+        "",
+        "",
+        Some(HubAction::Transfer),
+    );
+    if hub.offers_desktop() {
+        let sub = hub
+            .desktop_failed
+            .as_deref()
+            .unwrap_or(S.hub_row_desktop_sub);
+        y += nav_row(
+            ui,
+            x,
+            y,
+            w,
+            Icon::Tools,
+            S.hub_row_desktop,
+            sub,
+            "",
+            Some(HubAction::TryDesktop),
+        );
+    }
+    let (install, action) = match &hub.installed {
+        Some(_) if hub.update_offered() => (S.hub_row_update, HubAction::Install),
+        Some(_) => (S.hub_row_installed, HubAction::Installed),
+        None => (S.hub_row_install, HubAction::Install),
+    };
+    y += nav_row(ui, x, y, w, Icon::Download, install, "", "", Some(action));
+    y += nav_row(
+        ui,
+        x,
+        y,
+        w,
+        Icon::Info,
+        S.hub_row_about,
+        "",
+        "",
+        Some(HubAction::About),
+    );
+    y += nav_row(
+        ui,
+        x,
+        y,
+        w,
+        Icon::Learn,
+        S.hub_row_learn,
+        "",
+        "",
+        Some(HubAction::Learn),
+    );
+    y
+}
+
+/// The This computer card: what it is, its Secure Boot and encryption,
+/// and the next step as its action. Returns its height.
+fn computer_card(
+    hub: &Hub,
+    ui: &mut Ui,
+    x: f32,
+    y0: f32,
+    w: f32,
+    next: Option<Item>,
+    rows: &[crate::decide::Row],
+) -> f32 {
+    let c = &hub.computer;
+    let pad = if hub.compact { 12.0 } else { 18.0 };
+    let iw = w - 2.0 * pad;
+    let name = format!("{} {}", c.maker.trim(), c.model.trim());
+    let name = if name.trim().is_empty() {
+        S.hub_computer_unknown.to_string()
+    } else {
+        name.trim().to_string()
+    };
+    let mut lines: Vec<(String, Color)> = vec![(secure_boot_text(c.secure_boot), TEXT)];
+    if c.os == Os::Windows
+        && let Some(b) = &hub.bitlocker
+    {
+        let suspended = hub.facts().suspension_stands();
+        let t = match b.protection {
+            _ if suspended => S.hub_drive_suspended,
+            Protection::None => S.hub_drive_plain,
+            Protection::On => S.hub_drive_encrypted,
+            Protection::Suspended => S.hub_drive_suspended_other,
+            Protection::Unknown => S.hub_drive_unknown,
+        };
+        lines.push((fill(t, &[&b.drive]), TEXT));
+    }
+    if c.arm {
+        lines.push((S.hub_cannot_start_arm.to_string(), WARN));
+    } else if !c.uefi {
+        lines.push((S.hub_cannot_start_bios.to_string(), WARN));
+    }
+    let button = next.map(|item| {
+        let offered = rows.iter().any(|r| r.item == item && r.offered);
+        (item_label(item), offered)
+    });
+    // The lines wrap: measured first, drawing nothing.
+    let n = ui.hits.len();
+    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    let lines_h: f32 = lines
+        .iter()
+        .map(|(l, _)| ui.wrap(0.0, 0.0, iw, 13.0, W::R, TEXT, l) + 4.0)
+        .sum();
+    ui.c.pop_clip();
+    ui.hits.truncate(n);
+    let mut h = pad + 20.0 + 26.0 + lines_h;
+    if button.is_some() {
+        h += 14.0 + 44.0;
+    }
+    h += pad;
+    ui.card(x, y0, w, h, LINE);
+    let mut y = y0 + pad;
+    ui.text(x + pad, y, 12.0, W::S, MUTED, S.hub_computer);
+    y += 20.0;
+    let name = ui.fit(16.0, W::S, &name, iw);
+    ui.text(x + pad, y, 16.0, W::S, TEXT, &name);
+    y += 26.0;
+    for (l, tone) in &lines {
+        y += ui.wrap(x + pad, y, iw, 13.0, W::R, *tone, l) + 4.0;
+    }
+    if let Some((label, offered)) = button {
+        y += 14.0;
+        let style = if offered {
+            Style::Primary
+        } else {
+            Style::Disabled
+        };
+        let bw = if hub.compact { Some(iw) } else { None };
+        let label = ui.fit(15.0, W::S, label, iw - 24.0);
+        ui.button(x + pad, y, bw, 44.0, &label, style, HubAction::Next.host());
+    }
+    h
+}
+
+// ---------------------------------------------------------------------
+// Make a Faraday stick, make a Pi card
+// ---------------------------------------------------------------------
+
+fn target_of(hub: &Hub) -> Target {
+    hub.making.as_ref().map_or(Target::Stick, |m| m.target)
+}
+
+fn disks(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(hub, ui, x, y0);
+    let target = target_of(hub);
+    if target == Target::Pi {
+        y += line(ui, x, y, w, S.hub_pi_for, MUTED);
+        y += line(ui, x, y, w, S.hub_pi_cameras, MUTED);
+    }
+    if hub.image(target).is_none() {
+        let s = match target {
+            Target::Stick => S.hub_no_stick_image,
+            Target::Pi => S.hub_no_pi_image,
+        };
+        return y + line(ui, x, y, w, s, ERR);
+    }
+    if hub.no_writer {
+        y += line(ui, x, y, w, S.hub_no_writer, WARN);
+    }
+    let offers = hub.offers();
+    if offers.is_empty() {
+        let s = match target {
+            Target::Stick => S.hub_no_disks_stick,
+            Target::Pi => S.hub_no_disks_card,
+        };
+        return y + line(ui, x, y + 8.0, w, s, DIM);
+    }
+    y += 4.0;
+    for o in &offers {
+        let d = o.disk;
+        let icon = match d.bus {
+            crate::api::Bus::SdReader => Icon::SdCard,
+            _ => Icon::Drive,
+        };
+        let (sub, action) = match &o.refused {
+            Some(r) => (refusal_text(r), None),
+            None if hub.no_writer => (on_it(d), None),
+            None => (on_it(d), Some(HubAction::Disk(hub.disk_number(&d.id)))),
+        };
+        y += nav_row(
+            ui,
+            x,
+            y,
+            w,
+            icon,
+            &disk_name(d),
+            &sub,
+            &size_text(d.size),
+            action,
+        );
+    }
+    y
+}
+
+fn mode(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(hub, ui, x, y0);
+    let target = target_of(hub);
+    if let Some(d) = hub.chosen_disk() {
+        let s = format!("{} · {}", disk_name(d), size_text(d.size));
+        y += line(ui, x, y, w, &s, MUTED);
+    }
+    y += 4.0;
+    let chosen = hub.making.as_ref().and_then(|m| m.mode);
+    let whole = match target {
+        Target::Stick => S.hub_mode_whole_stick,
+        Target::Pi => S.hub_mode_whole_card,
+    };
+    let options = [
+        (Mode::Whole, whole, S.hub_mode_whole_sub),
+        (Mode::KeepData, S.hub_mode_keep, S.hub_mode_keep_sub),
+    ];
+    ui.rule(x, y, w, INNER);
+    for (m, head, sub) in options {
+        let refused = hub.mode_refusal(m);
+        // Keep data is shown only on a Faraday stick (§3.2).
+        if m == Mode::KeepData
+            && matches!(refused, Some(ModeRefusal::NotFaraday | ModeRefusal::NotYet))
+        {
+            continue;
+        }
+        let action = HubAction::Mode(m).host();
+        let on = chosen == Some(m);
+        let enabled = refused.is_none();
+        let rh = 60.0;
+        if enabled && (ui.is_pressed(action) || ui.is_hovered(action)) {
+            ui.fill(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0, INNER);
+        }
+        // The check: a ring, filled when chosen.
+        let cy = y + rh / 2.0;
+        if on {
+            ui.dot(x + 12.0, cy, 9.0, ACCENT);
+            ui.dot(x + 12.0, cy, 4.0, ON_ACCENT);
+        } else {
+            ui.stroke(
+                x + 3.0,
+                cy - 9.0,
+                18.0,
+                18.0,
+                9.0,
+                if enabled { MUTED } else { INNER },
+            );
+        }
+        let tx = x + 36.0;
+        ui.text(
+            tx,
+            y + 10.0,
+            15.0,
+            W::S,
+            if enabled { TEXT } else { DIM },
+            head,
+        );
+        let (sub, tone) = match refused {
+            Some(ModeRefusal::Same) => (S.hub_mode_same, WARN),
+            Some(ModeRefusal::BootOnly) => (S.hub_mode_boot_only, WARN),
+            _ => (sub, MUTED),
+        };
+        let sub = ui.fit(12.0, W::R, sub, w - 40.0);
+        ui.text(tx, y + 34.0, 12.0, W::R, tone, &sub);
+        if enabled {
+            ui.hit(x - 6.0, y, w + 12.0, rh, action);
+        }
+        y += rh;
+        // The one fact the Learn page explains (§4.4).
+        if m == Mode::KeepData {
+            y += ui.wrap(tx, y, w - 36.0, 12.0, W::R, MUTED, S.hub_mode_keep_fact) + 6.0;
+            y += guide_line(ui, tx, y, w - 36.0, LearnId::KeepData);
+        }
+        ui.rule(x, y, w, INNER);
+    }
+    y += 20.0;
+    let style = if chosen.is_some() {
+        Style::Primary
+    } else {
+        Style::Disabled
+    };
+    y + buttons(ui, x, y, w, &[(S.hub_continue, style, HubAction::Continue)])
+}
+
+fn confirm(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(hub, ui, x, y0);
+    let Some(m) = hub.making.as_ref() else {
+        return y;
+    };
+    let target = m.target;
+    let Some(image) = hub.image(target) else {
+        return y;
+    };
+    let Some((id, device, serial, size)) = m.confirmed.as_ref() else {
+        return y;
+    };
+    let mode = m.mode.unwrap_or(Mode::Whole);
+    let disk = hub.disks.iter().find(|d| &d.id == id);
+    let noun = match target {
+        Target::Stick => S.hub_stick,
+        Target::Pi => S.hub_card,
+    };
+    if let Some(d) = disk {
+        y += value_row(ui, x, y, w, noun, &disk_name(d), TEXT);
+    }
+    y += value_row(ui, x, y, w, S.hub_size, &size_text(*size), TEXT);
+    y += value_row(ui, x, y, w, S.hub_device, device, TEXT);
+    let serial = if serial.is_empty() {
+        S.hub_serial_none
+    } else {
+        serial.as_str()
+    };
+    y += value_row(ui, x, y, w, S.hub_serial, serial, TEXT);
+    if let Some(d) = disk {
+        y += value_row(ui, x, y, w, S.hub_on_it, &on_it(d), TEXT);
+    }
+    let writes = match (mode, target) {
+        (Mode::KeepData, _) => S.hub_mode_keep,
+        (Mode::Whole, Target::Stick) => S.hub_mode_whole_stick,
+        (Mode::Whole, Target::Pi) => S.hub_mode_whole_card,
+    };
+    y += value_row(ui, x, y, w, S.hub_writes, writes, TEXT);
+    let build = image
+        .build
+        .as_deref()
+        .map_or_else(|| S.hub_build_unknown.to_string(), describe);
+    y += value_row(ui, x, y, w, S.hub_build, &build, TEXT);
+    let sha_key = if image.dev {
+        S.hub_image_sha
+    } else {
+        S.hub_img_sha
+    };
+    y += mono_row(ui, x, y, w, sha_key, &grouped(&image.sha256));
+    y += 12.0;
+    if image.dev {
+        y += warning(ui, x, y, w, S.hub_dev_image, WARN);
+    }
+    if mode == Mode::KeepData
+        && let Some(stick) = disk.and_then(|d| d.faraday.as_ref())
+    {
+        match crate::decide::keep_data(stick, image.build.as_deref()) {
+            Fit::Newer => {
+                let s = fill(S.hub_keep_newer, &[&version(stick.release.as_deref())]);
+                y += warning(ui, x, y, w, &s, WARN);
+            }
+            Fit::Dev => y += warning(ui, x, y, w, S.hub_keep_dev, WARN),
+            _ => {}
+        }
+    }
+    let matches = hub.confirmed_matches();
+    if !matches {
+        y += line(ui, x, y, w, &not_confirmed(target), ERR);
+    } else if let Some(why) = &m.refused {
+        y += line(ui, x, y, w, why, ERR);
+    }
+    if hub.no_writer {
+        y += line(ui, x, y, w, S.hub_no_writer, WARN);
+    }
+    let label = match mode {
+        Mode::Whole => S.hub_erase_and_write,
+        Mode::KeepData => S.hub_write,
+    };
+    let style = if matches && !hub.no_writer {
+        Style::Primary
+    } else {
+        Style::Disabled
+    };
+    y += 4.0;
+    y + buttons(ui, x, y, w, &[(label, style, HubAction::Write)])
+}
+
+fn writing(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(hub, ui, x, y0);
+    let Some(m) = hub.making.as_ref() else {
+        return y;
+    };
+    if let Some(d) = m
+        .confirmed
+        .as_ref()
+        .and_then(|c| hub.disks.iter().find(|d| d.id == c.0))
+    {
+        let s = format!("{} · {}", disk_name(d), size_text(d.size));
+        y += line(ui, x, y, w, &s, MUTED);
+    }
+    let (stage, done, total) = m.progress.unwrap_or((WriteStage::Writing, 0, 0));
+    y += 8.0;
+    let t = if total == 0 {
+        0.0
+    } else {
+        (done as f32 / total as f32).clamp(0.0, 1.0)
+    };
+    ui.fill(x, y, w, 10.0, 5.0, INNER);
+    if t > 0.0 {
+        ui.fill(x, y, (w * t).max(10.0), 10.0, 5.0, ACCENT);
+    }
+    y += 24.0;
+    let of = fill(S.hub_of, &[&size_text(done), &size_text(total)]);
+    let s = match stage {
+        WriteStage::Writing => fill(S.hub_written_of, &[&of]),
+        WriteStage::ReadingBack => fill(S.hub_reading_back, &[&of]),
+    };
+    y + line(ui, x, y, w, &s, TEXT)
+}
+
+fn done(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0;
+    let Some(m) = hub.making.as_ref() else {
+        return y;
+    };
+    let ok = matches!(m.result, Some(Ok(())));
+    let (icon, tone) = if ok {
+        (Icon::Success, OK)
+    } else {
+        (Icon::Error, ERR)
+    };
+    ui.icon(x - 4.0, y, 40.0, icon, 26.0, tone);
+    let name = page_name(hub);
+    ui.text_mid(x + 44.0, y, 40.0, 22.0, W::S, tone, &name);
+    y += 56.0;
+    match &m.result {
+        Some(Ok(())) => {
+            let s = match m.target {
+                Target::Stick => S.hub_pull_stick,
+                Target::Pi => S.hub_pull_card,
+            };
+            y += line(ui, x, y, w, s, TEXT) + 8.0;
+            let items: &[(&str, Style, HubAction)] = match m.target {
+                Target::Stick => &[
+                    (S.hub_item_start, Style::Primary, HubAction::Start),
+                    (S.hub_done, Style::Secondary, HubAction::Home),
+                ],
+                Target::Pi => &[(S.hub_done, Style::Primary, HubAction::Home)],
+            };
+            y += buttons(ui, x, y, w, items);
+        }
+        Some(Err(why)) => {
+            y += line(ui, x, y, w, why, ERR) + 8.0;
+            y += buttons(
+                ui,
+                x,
+                y,
+                w,
+                &[
+                    (S.hub_try_again, Style::Primary, HubAction::Again),
+                    (S.hub_done, Style::Secondary, HubAction::Home),
+                ],
+            );
+        }
+        None => {}
+    }
+    y
+}
+
+// ---------------------------------------------------------------------
+// Start this computer from the stick
+// ---------------------------------------------------------------------
+
+/// The guide's line: a row that opens its Learn page, or until batch G
+/// writes it, its title as a line.
+fn guide_line(ui: &mut Ui, x: f32, y: f32, w: f32, id: LearnId) -> f32 {
+    let title = learn_title(id);
+    match id.page() {
+        Some(_) => nav_row(
+            ui,
+            x,
+            y,
+            w,
+            Icon::Learn,
+            title,
+            "",
+            "",
+            Some(HubAction::LearnPage(id)),
+        ),
+        None => line(ui, x, y, w, &fill(S.hub_guide_placeholder, &[title]), DIM),
+    }
+}
+
+/// A guide's title, as its Learn page will carry it.
+fn learn_title(id: LearnId) -> &'static str {
+    match id {
+        LearnId::StartWindows => S.hub_learn_start_windows,
+        LearnId::StartLinux => S.hub_learn_start_linux,
+        LearnId::BitLocker => S.hub_learn_bitlocker,
+        LearnId::NoStart => S.hub_learn_no_start,
+        LearnId::KeepData => S.hub_learn_keep_data,
+    }
+}
+
+fn start(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(hub, ui, x, y0);
+    let c = &hub.computer;
+    let facts = hub.facts();
+    let windows = c.os == Os::Windows;
+    if c.tpm_unlock {
+        y += warning(ui, x, y, w, S.hub_tpm_line, WARN);
+    }
+    if c.arm {
+        return y + line(ui, x, y, w, S.hub_cannot_start_arm, WARN);
+    }
+    if !c.uefi {
+        y += warning(ui, x, y, w, S.hub_cannot_start_bios, WARN);
+    }
+    let guide = LearnId::for_computer(c);
+    y += guide_line(ui, x, y, w, guide);
+    y += 8.0;
+    let ix = x + 38.0;
+    let iw = w - 38.0;
+    let mut n = 0;
+    // 1. BitLocker, before anything else.
+    let open = facts.protected_open();
+    if windows && (facts.protected() || facts.guard_done()) {
+        n += 1;
+        y += step_head(ui, x, y, w, n, S.hub_item_bitlocker, facts.guard_done());
+        let state = if facts.suspension_stands() {
+            State::Suspended
+        } else if facts.resumed {
+            State::Resumed
+        } else {
+            State::Protected
+        };
+        y += line(ui, ix, y, iw, &state_text(&state), MUTED);
+        if open {
+            y += buttons(
+                ui,
+                ix,
+                y,
+                iw,
+                &[(S.hub_bitlocker_step, Style::Primary, HubAction::BitLocker)],
+            ) + 16.0;
+        }
+        y += 8.0;
+    }
+    // 2. Restart into firmware settings.
+    n += 1;
+    y += step_head(ui, x, y, w, n, S.hub_restart, false);
+    if let Some(why) = &hub.restart_failed {
+        y += line(ui, ix, y, iw, why, ERR);
+    }
+    let style = if open {
+        Style::Disabled
+    } else {
+        Style::Secondary
+    };
+    y += buttons(ui, ix, y, iw, &[(S.hub_restart, style, HubAction::Restart)]) + 16.0;
+    // 3. The firmware steps.
+    n += 1;
+    let sb_off = c.secure_boot == Some(false);
+    let head = if sb_off {
+        S.hub_secure_boot_already_off
+    } else {
+        S.hub_secure_boot_turn_off
+    };
+    y += step_head(ui, x, y, w, n, head, sb_off);
+    y += line(ui, ix, y, iw, S.hub_fast_boot, MUTED) + 6.0;
+    // 4. Start from the stick.
+    n += 1;
+    y += step_head(ui, x, y, w, n, S.hub_boot_from_stick, false);
+    let how = if windows {
+        S.hub_boot_how_windows
+    } else {
+        S.hub_boot_how
+    };
+    y += line(ui, ix, y, iw, how, MUTED) + 6.0;
+    // 5. Afterwards, unless Secure Boot was off before the hub app came.
+    let was_off = hub
+        .bitlocker
+        .as_ref()
+        .and_then(|b| b.marker.as_ref())
+        .is_some_and(|m| !m.secure_boot_was_on);
+    if !was_off {
+        n += 1;
+        let s = if windows {
+            S.hub_afterwards_windows
+        } else {
+            S.hub_afterwards
+        };
+        y += step_head(
+            ui,
+            x,
+            y,
+            w,
+            n,
+            s,
+            c.secure_boot == Some(true) && facts.suspension_stands(),
+        );
+        y += line(ui, ix, y, iw, &secure_boot_text(c.secure_boot), MUTED) + 6.0;
+    }
+    if windows && facts.suspension_stands() {
+        n += 1;
+        y += step_head(ui, x, y, w, n, S.hub_item_resume, false);
+        if facts.resume_offered() {
+            y += buttons(
+                ui,
+                ix,
+                y,
+                iw,
+                &[(S.hub_item_resume, Style::Primary, HubAction::BitLocker)],
+            ) + 16.0;
+        } else {
+            y += line(ui, ix, y, iw, resume_needs(hub), MUTED);
+        }
+    }
+    // The same page on a phone.
+    y += 16.0;
+    y += label(ui, x, y, S.hub_on_a_phone);
+    let side = if ui.compact { 150.0 } else { 180.0 };
+    y + phone_code(ui, x, y, w, side, &guide.address())
+}
+
+/// Why Resume BitLocker is not offered: Secure Boot is not as the
+/// marker recorded it.
+fn resume_needs(hub: &Hub) -> &'static str {
+    let was_on = hub
+        .bitlocker
+        .as_ref()
+        .and_then(|b| b.marker.as_ref())
+        .is_none_or(|m| m.secure_boot_was_on);
+    if was_on {
+        S.hub_resume_needs_secure_boot
+    } else {
+        S.hub_resume_needs_secure_boot_off
+    }
+}
+
+/// The guide's address as a QR code, with the address under it. Returns
+/// its height.
+fn phone_code(ui: &mut Ui, x: f32, y: f32, w: f32, side: f32, address: &str) -> f32 {
+    let side = side.min(w);
+    let Ok(m) = osk_codec::qr::encode(
+        osk_codec::qr::Payload::Bytes(address.as_bytes()),
+        osk_codec::qr::Ecc::Medium,
+    ) else {
+        return 0.0;
+    };
+    faraday_core::qr_code(ui, &m, x, y, side);
+    let th = ui.wrap(x, y + side + 10.0, w, 12.0, W::M, MUTED, address);
+    side + 10.0 + th + 8.0
+}
+
+/// A sheet: a card centred over the frosted page, as tall as what `body`
+/// draws (measured first, drawing nothing).
+fn sheet(ui: &mut Ui, w: f32, h: f32, body: &mut dyn FnMut(&mut Ui, f32, f32, f32) -> f32) {
+    let compact = ui.compact;
+    let sw = if compact {
+        w - 2.0 * M
+    } else {
+        460.0f32.min(w - 48.0)
+    };
+    let pad = if compact { 14.0 } else { 24.0 };
+    let n = ui.hits.len();
+    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    let bh = body(ui, 0.0, 0.0, sw - 2.0 * pad);
+    ui.c.pop_clip();
+    ui.hits.truncate(n);
+    let sh = bh + 2.0 * pad;
+    let sx = (w - sw) / 2.0;
+    let sy = ((h - sh) / 2.0).max(8.0);
+    ui.shadow(sx, sy, sw, sh, 14.0);
+    ui.fill(sx, sy, sw, sh, 14.0, SURFACE);
+    ui.stroke(sx, sy, sw, sh, 14.0, LINE);
+    body(ui, sx + pad, sy + pad, sw - 2.0 * pad);
+}
+
+fn restart_sheet(hub: &Hub, ui: &mut Ui, w: f32, h: f32) {
+    let address = LearnId::for_computer(&hub.computer).address();
+    sheet(ui, w, h, &mut |ui, x, y0, iw| {
+        let mut y = y0;
+        y += ui.wrap(x, y, iw, 17.0, W::S, TEXT, S.hub_restart) + 10.0;
+        y += line(ui, x, y, iw, S.hub_restart_save, WARN) + 4.0;
+        // Small enough on a small panel that the sheet's buttons fit.
+        let side = if ui.compact { 104.0 } else { 160.0 };
+        y += phone_code(ui, x, y, iw, side, &address) + 8.0;
+        y + buttons(
+            ui,
+            x,
+            y,
+            iw,
+            &[
+                (S.hub_cancel, Style::Secondary, HubAction::Cancel),
+                (S.hub_restart_now, Style::Primary, HubAction::RestartNow),
+            ],
+        ) - y0
+    });
+}
+
+// ---------------------------------------------------------------------
+// Install, Installed, About, BitLocker
+// ---------------------------------------------------------------------
+
+fn install(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(hub, ui, x, y0);
+    if hub.update_offered()
+        && let Some(i) = &hub.installed
+    {
+        y += value_row(ui, x, y, w, S.hub_installed_version, &i.version, TEXT);
+        y += value_row(ui, x, y, w, S.hub_this_version, crate::VERSION, TEXT);
+        y += 12.0;
+    }
+    if let Some(Ok(place)) = &hub.install_result {
+        y += line(ui, x, y, w, &fill(S.hub_installed_in, &[place]), OK) + 8.0;
+        return y + buttons(
+            ui,
+            x,
+            y,
+            w,
+            &[(S.hub_done, Style::Primary, HubAction::Home)],
+        );
+    }
+    if hub.payload_file(PayloadKind::Desktop).is_some() {
+        let rows = [(
+            S.hub_install_desktop.to_string(),
+            hub.install_desktop,
+            !hub.installing,
+            HubAction::InstallDesktop.host(),
+        )];
+        // The label is long: on a small panel, wrapped beside the box.
+        if hub.compact {
+            let action = rows[0].3;
+            let th = ui.wrap(x + 32.0, y + 2.0, w - 32.0, 14.0, W::R, TEXT, &rows[0].0);
+            ui.checkbox(x + 2.0, y + 2.0, hub.install_desktop, !hub.installing);
+            ui.hit(x, y - 6.0, w, th + 12.0, action);
+            y += th + 18.0;
+        } else {
+            y += ui.multi_list(x, y, w, &rows) + 16.0;
+        }
+    }
+    if let Some(Err(why)) = &hub.install_result {
+        y += line(ui, x, y, w, why, ERR);
+    }
+    let (label, style) = if hub.installing {
+        (S.hub_installing, Style::Disabled)
+    } else {
+        (S.hub_install_now, Style::Primary)
+    };
+    y + buttons(ui, x, y, w, &[(label, style, HubAction::InstallNow)])
+}
+
+fn item_name(item: InstallItem) -> &'static str {
+    match item {
+        InstallItem::App => S.hub_installed_app,
+        InstallItem::Desktop => S.hub_installed_desktop,
+        InstallItem::Menu => S.hub_installed_menu,
+        InstallItem::DesktopMenu => S.hub_installed_desktop_menu,
+        InstallItem::Icon => S.hub_installed_icon,
+        InstallItem::UninstallEntry => S.hub_installed_entry,
+        InstallItem::Reminder => S.hub_installed_reminder,
+    }
+}
+
+fn installed(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(hub, ui, x, y0);
+    let Some(i) = &hub.installed else {
+        return y + line(ui, x, y, w, S.hub_not_installed, DIM);
+    };
+    y += value_row(ui, x, y, w, S.hub_installed_version, &i.version, TEXT);
+    for (item, place) in &i.items {
+        y += mono_row(ui, x, y, w, item_name(*item), place);
+    }
+    y += 16.0;
+    if let Some(why) = &hub.uninstall_failed {
+        y += line(ui, x, y, w, why, ERR);
+    }
+    y + buttons(
+        ui,
+        x,
+        y,
+        w,
+        &[(S.hub_uninstall, Style::Secondary, HubAction::Uninstall)],
+    )
+}
+
+fn uninstall_sheet(hub: &Hub, ui: &mut Ui, w: f32, h: f32) {
+    let stands = hub.facts().suspension_stands();
+    sheet(ui, w, h, &mut |ui, x, y0, iw| {
+        let mut y = y0;
+        y += ui.wrap(x, y, iw, 17.0, W::S, TEXT, S.hub_uninstall_ask) + 10.0;
+        y += line(ui, x, y, iw, S.hub_uninstall_keeps, MUTED);
+        if stands {
+            y += line(ui, x, y, iw, S.hub_uninstall_suspended, WARN);
+        }
+        y += 6.0;
+        y + buttons(
+            ui,
+            x,
+            y,
+            iw,
+            &[
+                (S.hub_cancel, Style::Secondary, HubAction::Cancel),
+                (S.hub_uninstall, Style::Primary, HubAction::UninstallNow),
+            ],
+        ) - y0
+    });
+}
+
+/// The release key's fingerprint, as the README prints it.
+const FINGERPRINT: &str = "D1AF A712 ABEF 9010 9A1B  587F F153 6BE0 7E23 4CFD";
+
+fn about(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(hub, ui, x, y0);
+    y += value_row(ui, x, y, w, S.hub_version, crate::VERSION, TEXT);
+    match &hub.payload {
+        Some(p) => {
+            y += value_row(ui, x, y, w, S.hub_release, &p.version, TEXT);
+            y += mono_row(ui, x, y, w, S.hub_commit, &p.commit);
+            y += 16.0;
+            y += label(ui, x, y, S.hub_payload);
+            for f in &p.files {
+                y += 4.0;
+                y += ui.wrap(x, y, w, 14.0, W::S, TEXT, &f.name) + 4.0;
+                y += value_row(ui, x, y, w, S.hub_build, &describe(&f.build_id), TEXT);
+                y += mono_row(ui, x, y, w, S.hub_sha_xz, &grouped(&f.sha256));
+                let inner = fill(S.hub_sha_inner, &[&f.inner]);
+                y += mono_row(ui, x, y, w, &inner, &grouped(&f.inner_sha256));
+                y += 8.0;
+            }
+        }
+        None => y += line(ui, x, y + 8.0, w, S.hub_no_payload, DIM) + 8.0,
+    }
+    if let Some(d) = &hub.dev {
+        y += 8.0;
+        y += warning(ui, x, y, w, S.hub_dev_image, WARN);
+        y += mono_row(ui, x, y, w, S.hub_image_file, &d.path);
+        y += mono_row(ui, x, y, w, S.hub_image_sha, &grouped(&d.sha256));
+    }
+    y += 16.0;
+    y += label(ui, x, y, S.hub_release_key);
+    y += ui.wrap(x, y, w, 13.0, W::M, TEXT, FINGERPRINT) + 18.0;
+    y += label(ui, x, y, S.hub_check_title);
+    y += line(ui, x, y, w, S.hub_check_text, TEXT);
+    for cmd in [
+        S.hub_check_cmd_import,
+        S.hub_check_cmd_verify,
+        S.hub_check_cmd_sums,
+    ] {
+        y += ui.wrap(x, y, w, 12.0, W::M, MUTED, cmd) + 6.0;
+    }
+    if hub.computer.os == Os::Windows {
+        y += 12.0;
+        y += line(ui, x, y, w, S.hub_check_windows, TEXT);
+        y += label(ui, x, y + 8.0, S.hub_unsigned_title) + 8.0;
+        y += line(ui, x, y, w, S.hub_unsigned_text, TEXT);
+    }
+    y
+}
+
+fn bitlocker(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(hub, ui, x, y0);
+    let Some(b) = &hub.bitlocker else {
+        return y + line(ui, x, y, w, S.hub_drive_unread, DIM);
+    };
+    let protection = match b.protection {
+        Protection::None => S.hub_protection_none,
+        Protection::On => S.hub_state_protected,
+        Protection::Suspended => S.hub_protection_suspended,
+        Protection::Unknown => S.hub_protection_unknown,
+    };
+    y += value_row(ui, x, y, w, S.hub_drive, &b.drive, TEXT);
+    y += value_row(ui, x, y, w, S.hub_protection, protection, TEXT);
+    let by_us = if b.marker.is_some() {
+        S.hub_yes
+    } else {
+        S.hub_no
+    };
+    y += value_row(ui, x, y, w, S.hub_suspended_by_faraday, by_us, TEXT);
+    if let Some(m) = &b.marker {
+        y += value_row(
+            ui,
+            x,
+            y,
+            w,
+            S.hub_secure_boot_when_suspended,
+            &secure_boot_text(Some(m.secure_boot_was_on)),
+            TEXT,
+        );
+    }
+    y += value_row(
+        ui,
+        x,
+        y,
+        w,
+        S.hub_secure_boot_now,
+        &secure_boot_text(hub.computer.secure_boot),
+        TEXT,
+    );
+    y += 12.0;
+    y + guide_line(ui, x, y, w, LearnId::BitLocker)
+}

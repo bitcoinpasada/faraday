@@ -26,3 +26,46 @@ fn the_question_mark_opens_the_pages_for_the_screen() {
     app.press(Action::Learn);
     assert_eq!(shown(&app), "Randomness");
 }
+
+// The guides to starting a computer from the stick (docs/HUB.md §7.2),
+// which the hub app's screens open by id: each id finds its page, and a
+// guide puts what has to be in hand before any firmware step first.
+
+fn guide(id: &str) -> &'static osk_learn::Page {
+    faraday_core::learn::page(id).unwrap_or_else(|| panic!("no page {id}"))
+}
+
+#[test]
+fn every_guide_the_hub_links_to_is_there() {
+    let titles: Vec<&str> = faraday_core::learn::BOOT
+        .iter()
+        .map(|id| guide(id).title)
+        .collect();
+    assert_eq!(
+        titles,
+        [
+            "Starting a Windows computer from the stick",
+            "Starting a Linux computer from the stick",
+            "BitLocker and starting from a stick",
+            "When the stick does not start",
+            "Replacing Faraday on a stick",
+        ]
+    );
+    assert!(faraday_core::learn::page("no-such-page").is_none());
+}
+
+#[test]
+fn the_windows_guide_does_the_bitlocker_step_before_any_firmware_step() {
+    let first = &guide("windows").sections[0];
+    assert_eq!(first.heading, "BitLocker first");
+    assert!(first.paragraphs[0].starts_with(
+        "Do the BitLocker step in the Faraday app on this computer before changing any firmware setting."
+    ));
+}
+
+#[test]
+fn the_linux_guide_asks_for_the_tpm_unlocked_disk_s_passphrase_first() {
+    let first = &guide("linux").sections[0];
+    assert_eq!(first.heading, "A disk unlocked by the TPM");
+    assert!(first.paragraphs[0].contains("passphrase or recovery key"));
+}

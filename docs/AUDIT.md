@@ -140,8 +140,8 @@ replaces or what it is pinned against): `argon2.md`, `chacha20.md`,
 `chacha20poly1305.md`, `ed25519-dalek.md`, `hmac.md`, `pbkdf2.md`,
 `rand_core.md`, `rsa.md`, `sha1.md`, `sha2.md`, `subtle.md`, `getrandom.md`,
 `rqrr.md`, plus non-cryptographic build/platform deps (`cc.md`,
-`libc.md`, `jni-sys.md`, `miniz_oxide.md`, `clipboard.md`, `ur.md`,
-`miniscript.md`). `deny.toml` (advisories, licences, duplicate and source
+`libc.md`, `jni-sys.md`, `miniz_oxide.md`, `lzma-rust2.md`, `clipboard.md`,
+`ur.md`, `miniscript.md`). `deny.toml` (advisories, licences, duplicate and source
 checks) and `supply-chain/` (`cargo vet`'s `audits.toml`, `config.toml`,
 `imports.lock`) are the mechanism that keeps those pins themselves
 reviewed, not just the code calling them.

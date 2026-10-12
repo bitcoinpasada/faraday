@@ -44,6 +44,9 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
     if !frosted && app.is_compact() {
         ui.clear(BG);
         draw_compact(app, ui, full_w, full_h, kb > 0.0);
+    } else if !frosted && app.held {
+        ui.clear(BG);
+        held_frame(app, ui, full_w, full_h);
     } else if !frosted {
         ui.clear(BG);
         sidebar(app, ui, full_h);
@@ -140,6 +143,56 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
     }
 }
 
+/// The height of the strip across the top of a held app's frame
+/// ([`Faraday::held`]): the way back to the holder's Home.
+const HELD_TOP: f32 = 52.0;
+
+/// A held app's frame on a wide display: no sidebar, the way back to the
+/// holder's Home across the top, and the screen under it in the width
+/// the sidebar frame gives it. Its Home draws nothing: the holder's Home
+/// is the one a person sees.
+fn held_frame(app: &mut Faraday, ui: &mut Ui, full_w: f32, full_h: f32) {
+    let cw = full_w.min(MAX_W - SIDEBAR_W);
+    ui.ox = (full_w - cw) / 2.0;
+    if app.screen != Screen::Home {
+        // The screen's own top margin sits under the strip.
+        ui.oy = HELD_TOP - 24.0;
+        dispatch(app, ui, 0.0, cw, full_h - ui.oy);
+        ui.oy = 0.0;
+        ui.fill(-ui.ox, 0.0, full_w, HELD_TOP, 0.0, BG);
+    }
+    let back = Action::Nav(Screen::Home);
+    let label = "Home";
+    let bw = ui.measure(14.0, W::S, label) + 44.0;
+    let (bx, by) = (24.0, 10.0);
+    if ui.is_pressed(back) || ui.is_hovered(back) {
+        ui.fill(bx, by, bw, 34.0, 8.0, INNER);
+    }
+    ui.icon(bx + 4.0, by + 5.0, 24.0, Icon::ChevronLeft, 12.0, MUTED);
+    ui.text_mid(bx + 30.0, by, 34.0, 14.0, W::S, MUTED, label);
+    ui.hit(bx, by, bw, 34.0, back);
+    ui.back(back);
+    if app.screen != Screen::Home && !app.learn_pages().is_empty() {
+        let (qx, qy) = (cw - 38.0, 12.0);
+        let pressed = ui.is_pressed(Action::Learn);
+        ui.fill(
+            qx,
+            qy,
+            28.0,
+            28.0,
+            14.0,
+            if pressed { INNER } else { SURFACE },
+        );
+        ui.stroke(qx, qy, 28.0, 28.0, 14.0, BORDER);
+        let tw = ui.measure(14.0, W::S, "?");
+        ui.text_mid(qx + 14.0 - tw / 2.0, qy, 28.0, 14.0, W::S, MUTED, "?");
+        ui.hit(qx - 6.0, qy - 6.0, 40.0, 40.0, Action::Learn);
+    }
+    notices(app, ui, 0.0, cw, full_h);
+    ui.ox = 0.0;
+    ui.oy = 0.0;
+}
+
 /// The screen itself, in the column at `x`, `cw` wide.
 fn dispatch(app: &mut Faraday, ui: &mut Ui, x: f32, cw: f32, h: f32) {
     match app.screen {
@@ -188,7 +241,9 @@ const PIN_H: f32 = 64.0;
 /// it, except while the keyboard is up, whose Done puts it away.
 fn draw_compact(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32, kb: bool) {
     let mut foot = h;
-    if app.screen == Screen::Home {
+    if app.screen == Screen::Home && app.held {
+        // The holder's Home is the one a person sees.
+    } else if app.screen == Screen::Home {
         crate::compact::home(app, ui, w, h);
     } else {
         // Room for the bar as the last frame had it; a change draws again.
@@ -13799,7 +13854,7 @@ fn qr_sheet_compact(app: &Faraday, q: &crate::QrView, ui: &mut Ui, w: f32, h: f3
 }
 
 /// A QR code on a white card, square modules, the quiet zone included.
-pub(crate) fn qr_code(ui: &mut Ui, m: &osk_codec::qr::QrMatrix, x: f32, y: f32, side: f32) {
+pub fn qr_code(ui: &mut Ui, m: &osk_codec::qr::QrMatrix, x: f32, y: f32, side: f32) {
     ui.fill(x, y, side, side, 8.0, osk_ui::Color::WHITE);
     let n = m.size();
     let quiet = 4.0;
@@ -14308,9 +14363,10 @@ fn learn_sheet(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
         Action::Cancel,
     );
     // The sheet's first row (`docs/SIMPLIFY.md` §6.2): a direct way to
-    // the Spend tab, except from the Spend tab itself.
+    // the Spend tab, except from the Spend tab itself and in a held app
+    // (`Faraday::held`), which has none.
     let mut tabs: Vec<(String, Style, Action)> = Vec::new();
-    if app.screen != Screen::Family {
+    if app.screen != Screen::Family && !app.held {
         tabs.push((
             "Spending, step by step".to_string(),
             Style::Secondary,

@@ -26,21 +26,77 @@ pub struct LearnState {
     pub max: f32,
 }
 
-/// Faraday's own page on upgrading a stick (`PLAN.md` §5.5), which
-/// OpenSigner does not have. It is edited as
-/// `docs/learn/faraday/upgrade-a-stick.md`, beside OpenSigner's pages but
-/// outside the set `tools/learn/sync.py` keeps in step with
-/// `osk_learn::EN`, and read from that file when Faraday is built.
-const UPGRADE_MD: &str = include_str!("../../../docs/learn/faraday/upgrade-a-stick.md");
+/// Faraday's own pages, which OpenSigner does not have, each by its id.
+/// They are edited as `docs/learn/faraday/<id>.md` (the guides to
+/// starting a computer from the stick as `docs/learn/faraday/boot/<id>.md`,
+/// `docs/HUB.md` §7.2), beside OpenSigner's pages but outside the set
+/// `tools/learn/sync.py` keeps in step with `osk_learn::EN`, and read from
+/// those files when Faraday is built, so the desktop app, the stick and
+/// the hub app carry the same text. The id is the file's name and stays
+/// as it is: the hub app's screens open a page by it, and the website
+/// publishes each guide at `https://faradayoffline.app/start/<id>`
+/// (§7.4).
+const OWN: [(&str, &str); 8] = [
+    // Upgrading a stick from another stick (`PLAN.md` §5.5).
+    (
+        "upgrade-a-stick",
+        include_str!("../../../docs/learn/faraday/upgrade-a-stick.md"),
+    ),
+    // A multisig backup's shares (`docs/NEW-WALLET.md` §4.2).
+    (
+        "shares",
+        include_str!("../../../docs/learn/faraday/shares.md"),
+    ),
+    // The clock and TOTP codes (`docs/TOTP.md`).
+    ("time", include_str!("../../../docs/learn/faraday/time.md")),
+    (
+        "windows",
+        include_str!("../../../docs/learn/faraday/boot/windows.md"),
+    ),
+    (
+        "linux",
+        include_str!("../../../docs/learn/faraday/boot/linux.md"),
+    ),
+    (
+        "bitlocker",
+        include_str!("../../../docs/learn/faraday/boot/bitlocker.md"),
+    ),
+    (
+        "not-starting",
+        include_str!("../../../docs/learn/faraday/boot/not-starting.md"),
+    ),
+    (
+        "replace-faraday",
+        include_str!("../../../docs/learn/faraday/boot/replace-faraday.md"),
+    ),
+];
 
-/// Faraday's own page on a multisig backup's shares
-/// (`docs/NEW-WALLET.md` §4.2), edited as `docs/learn/faraday/shares.md`
-/// and read as [`UPGRADE_MD`] is.
-const SHARES_MD: &str = include_str!("../../../docs/learn/faraday/shares.md");
+/// The guides to starting a computer from the stick (`docs/HUB.md` §7.2),
+/// by id, in the order they are read: Windows, Linux, BitLocker, when the
+/// stick does not start, and replacing Faraday on a stick.
+pub const BOOT: [&str; 5] = [
+    "windows",
+    "linux",
+    "bitlocker",
+    "not-starting",
+    "replace-faraday",
+];
 
-/// Faraday's own page on the clock and TOTP codes (`docs/TOTP.md`),
-/// edited as `docs/learn/faraday/time.md` and read as [`UPGRADE_MD`] is.
-const TIME_MD: &str = include_str!("../../../docs/learn/faraday/time.md");
+/// Faraday's own pages, read once, in [`OWN`]'s order.
+fn own() -> &'static [LearnPage] {
+    static PAGES: OnceLock<Vec<LearnPage>> = OnceLock::new();
+    PAGES.get_or_init(|| OWN.iter().map(|(_, md)| page_of(md)).collect())
+}
+
+/// Faraday's own page with this id, or `None` for an id it does not have.
+pub fn page(id: &str) -> Option<&'static LearnPage> {
+    OWN.iter().position(|(i, _)| *i == id).map(|n| &own()[n])
+}
+
+/// Faraday's own page with an id from [`OWN`].
+fn known(id: &str) -> &'static LearnPage {
+    page(id).expect("an id from OWN")
+}
 
 /// A page from its Markdown, as `docs/learn/` writes pages: `# ` the
 /// title, `## ` a section, paragraphs separated by blank lines.
@@ -85,22 +141,19 @@ fn page_of(md: &'static str) -> LearnPage {
     }
 }
 
-/// "Upgrading a Faraday stick", read once.
+/// "Upgrading a Faraday stick".
 pub fn upgrade_page() -> &'static LearnPage {
-    static PAGE: OnceLock<LearnPage> = OnceLock::new();
-    PAGE.get_or_init(|| page_of(UPGRADE_MD))
+    known("upgrade-a-stick")
 }
 
-/// "Shares of a wallet description", read once.
+/// "Shares of a wallet description".
 pub fn shares_page() -> &'static LearnPage {
-    static PAGE: OnceLock<LearnPage> = OnceLock::new();
-    PAGE.get_or_init(|| page_of(SHARES_MD))
+    known("shares")
 }
 
-/// "Time and TOTP codes", read once.
+/// "Time and TOTP codes".
 pub fn time_page() -> &'static LearnPage {
-    static PAGE: OnceLock<LearnPage> = OnceLock::new();
-    PAGE.get_or_init(|| page_of(TIME_MD))
+    known("time")
 }
 
 fn for_kind(kind: Kind) -> Vec<&'static LearnPage> {
@@ -191,6 +244,11 @@ impl Faraday {
             Screen::Settings if self.online => vec![&EN.secure_element, &EN.glossary],
             Screen::Settings => vec![&EN.secure_element, &EN.glossary, upgrade_page()],
             Screen::SetTime | Screen::Codes => vec![time_page()],
+            // A stick can also be replaced from a computer, keeping its
+            // data (`docs/HUB.md` §4.4); a Pi card cannot yet (§3.3).
+            Screen::Upgrade if self.medium == crate::medium::Medium::Stick => {
+                vec![upgrade_page(), known("replace-faraday")]
+            }
             Screen::Upgrade => vec![upgrade_page()],
             Screen::Decode => vec![&EN.transactions, &EN.verifying],
             Screen::Catalog => vec![&EN.tools, &EN.glossary],
@@ -229,6 +287,22 @@ impl Faraday {
             };
             self.sheet = Some(crate::Sheet::Learn);
         }
+    }
+
+    /// Opens the Learn sheet on `pages` over the screen on show: for the
+    /// app holding this one ([`Faraday::held`]), whose own screens name
+    /// the pages. Closing the sheet leaves the screen as it was.
+    pub fn learn_with(&mut self, pages: Vec<&'static LearnPage>) {
+        if pages.is_empty() {
+            return;
+        }
+        self.learn = LearnState {
+            pages,
+            ..LearnState::default()
+        };
+        self.sheet = Some(crate::Sheet::Learn);
+        self.dirty = true;
+        self.commands.push_back(osk_shell_api::Command::Draw);
     }
 
     /// Shows the sheet's page `i`.

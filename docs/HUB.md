@@ -137,6 +137,33 @@ and a C decompressor is the wrong place to take that risk again. The
 decoder streams: an image is decompressed as it is written, never into
 a temporary file.
 
+**The manifest and where it is built** (orchestrator, 2026-10-12).
+A release is staged in two passes. The first, `just
+faraday-release-stage`, stages the plain files and also writes the
+payload to `out/payload/VERSION/`, outside the folder that is
+uploaded: the two image `.xz` files (hard links to the staged ones),
+the desktop app compressed as `faraday-desktop-VERSION-linux-x86_64.xz`
+by the same `xz -9e -T1`, and `MANIFEST`. `MANIFEST` is plain text: a
+first line `# Faraday hub payload VERSION, commit <full hash>`, then
+one line per file, its fields separated by one tab: the payload file's
+name, its SHA-256, the name of what is inside it, that file's SHA-256,
+that file's size in bytes, and the build ID it carries. The hub's
+build embeds that folder, named by `FARADAY_HUB_PAYLOAD`; a hub built
+without it carries no payload and offers only `--image`. The second
+pass (batch L) builds the hub apps against the payload and adds them,
+the `.tar.gz` and its inner file to the release folder and its
+`SHA256SUMS`. The manifest's parser and the verifying, streaming
+decoder are a crate of their own, `faraday/faraday-payload`, no I/O
+beyond `Read` and `Write`, so its refusals are tested without a disk.
+
+**The Pi image's build ID.** The Pi's kernel is a compressed zImage,
+so its release string is not in the image's bytes. The Pi image build
+writes `faraday-build.txt` to the boot partition, holding the kernel's
+release string and a newline (`6.6.84-faraday-0.2.0`), so
+`faraday-boot`'s `find_release` reads a Pi card's boot partition as it
+reads a stick's, and the staging script and the hub app read the Pi's
+build ID the same way.
+
 Estimated size: about 40 MB on each system (11 + 12 MB images, 4 MB
 desktop app, the hub itself about 13 MB); Windows about 36 MB until
 batch C adds the desktop app.
@@ -207,6 +234,23 @@ batch C adds the desktop app.
   `x86_64-pc-windows-gnu` in a pinned container on the build machine.
   No hosted CI (`CLAUDE.md`). Batch W tries the Windows hub app on a
   Windows computer, natively.
+- **No path and nothing about the build computer in a published
+  file** (owner, 2026-10-12). Every recipe that builds something
+  published sources `faraday/image/path-remap.sh` or does the same
+  inside its container (Rust's `--remap-path-prefix`, C's
+  `-ffile-prefix-map`, for the home folder, cargo's registry and git
+  checkouts, and the source tree); no code compiles in
+  `CARGO_MANIFEST_DIR`, `HOME` or `USER`; a kernel names
+  `buildroot@buildroot`, as Buildroot sets it; a `.tar.gz` is made
+  with `--owner=0 --group=0 --numeric-owner --sort=name
+  --mtime=@$SOURCE_DATE_EPOCH` and `gzip -n`, so it records no user
+  name, file time or file name. The staging script checks every file
+  it publishes, and every `.img`, binary and inner file inside one,
+  with `strings`: it refuses one carrying the building account's home
+  folder, its user name followed by `@`, the computer's host name as a
+  word, `/home/<name>/`, `/Users/<name>/` or `C:\Users\<name>\`, and
+  says which file and which string. The repository names none of
+  these values; the script reads them on the computer it runs on.
 - Strings are in `opensigner/opensigner-core/src/strings/en.rs` with a
   `hub_` prefix, as `CLAUDE.md` requires. `CLAUDE.md`'s screen rule
   gains: the hub app's screens are this document's §3, built from
@@ -233,10 +277,17 @@ one that started in legacy BIOS mode), one line says so; Make a stick
 stays, for another computer.
 
 **The checklist.** Each item carries its state, read live each time
-Home is drawn, never from a file the hub app keeps (§5.1). The first
-item not done is marked as the next step and is the one a tap on the
-card's action opens. Items that do not apply to this computer are not
-shown.
+Home is drawn, never from a file the hub app keeps (§5.1). One item is
+marked as the next step, and a tap on the card's action opens it:
+while the hub app's BitLocker suspension stands, Turn Secure Boot back
+on and then Resume BitLocker, whichever applies first; otherwise the
+first of Make a Faraday stick, BitLocker and Start this computer from
+the stick that is not done (Start is never ticked, so it is the next
+step once the others are). Without a marker (Linux, or a Windows
+computer the hub app never suspended) Turn Secure Boot back on is
+listed and never marked. "Resumed" is known only in the session that
+resumed, since the marker goes with the suspension. Items that do not
+apply to this computer are not shown.
 
 | Item | State shown | Done when |
 |---|---|---|
@@ -244,7 +295,7 @@ shown.
 | **BitLocker** → §6.5 (Windows, only when a drive is protected) | "Protected", "Suspended by Faraday" or "Resumed" | protection is suspended by the hub app, or it was and is now resumed with Secure Boot on |
 | **Start this computer from the stick** → §3.4 | "Secure Boot: on" or "off" | never ticked; it is where the firmware steps live |
 | **Turn Secure Boot back on** → §3.4 at step 5 (shown while Secure Boot is off, unless §6.3's marker says it was already off when the hub app suspended BitLocker; a computer with no marker is shown it whenever Secure Boot is off, since the hub app keeps no other record) | "Secure Boot: off" | Secure Boot is on |
-| **Resume BitLocker** → §6.3 (Windows, only while the hub app's suspension stands) | "Suspended by Faraday"; offered only with Secure Boot on | protection is on |
+| **Resume BitLocker** → §6.3 (Windows, only while the hub app's suspension stands) | "Suspended by Faraday"; offered only with Secure Boot as the marker recorded it (§6.3) | protection is on |
 
 A person who comes back with Secure Boot off and BitLocker suspended
 sees Turn Secure Boot back on as the next step, and after that Resume
@@ -565,14 +616,19 @@ elevation prompt and keeps the hub app out of the boot path).
   is deleted when protection is resumed through the hub app, and by
   Uninstall.
 - **Resume BitLocker** is offered, on Home's checklist and on the
-  guard's page, only while the marker exists and Secure Boot is on
-  now. It resumes protection on the marker's volumes
+  guard's page, only while the marker exists and Secure Boot is now as
+  the marker recorded it: on, for a computer that had it on when the
+  hub app suspended, which is nearly every one; off, for one that
+  already had it off (orchestrator, 2026-10-12, after batch G: with
+  "on" alone such a computer would stay suspended for good, and
+  Windows Home has no Control Panel route to resume it). It resumes protection on the marker's volumes
   (`EnableKeyProtectors`, through the elevated copy, §2) and deletes
   the marker. Resuming seals the key to how this start was measured,
   so a start with Secure Boot on as before, or on with different keys
   (a firmware that cleared its keys and needed "restore factory
-  keys"), resumes cleanly. While Secure Boot is off the button is not
-  offered and the row says why; protection stays suspended, which
+  keys"), resumes cleanly. While Secure Boot is off on a computer
+  whose marker recorded it on, the button is not offered and the row
+  says why; protection stays suspended, which
   costs protection, never access.
 - **The logon reminder.** An installed hub app (§5.2) adds, at the
   moment it suspends, one per-user Run entry
@@ -580,9 +636,10 @@ elevation prompt and keeps the hub app out of the boot path).
   `"…\Faraday.exe" --remind`). At logon, `--remind` reads the marker
   and the Secure Boot state and does one of three things: no marker,
   or protection already on, it removes the Run entry and exits with no
-  window; marker and Secure Boot off, it exits with no window; marker
-  and Secure Boot on, it opens the hub app on the guard's page with
-  Resume BitLocker as the one thing to do. A hub app run without
+  window; marker and Secure Boot not as the marker recorded it, it
+  exits with no window; marker and Secure Boot as recorded, it opens
+  the hub app on the guard's page with Resume BitLocker as the one
+  thing to do. A hub app run without
   installing has no logon entry: the guard's Done page says "Open
   Faraday again after Secure Boot is back on, to resume BitLocker",
   and Home shows it as the next step whenever the hub app is opened.
@@ -951,7 +1008,7 @@ suspended with Secure Boot off, suspended with it on); install writing
 exactly §5.2's files into a temporary home, and uninstall removing
 exactly them; the BitLocker guard's order (the key confirmed with it
 hidden before suspension; no firmware step before both parts are done;
-Resume offered only with the marker and Secure Boot on; `--remind`
+Resume offered only with the marker and Secure Boot as it recorded; `--remind`
 showing a window in one state of three) against a recorded WMI; the
 guide chosen for a maker string; a payload file that does not match
 its manifest refused; the stick's power-off line for each Secure Boot

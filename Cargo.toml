@@ -23,6 +23,7 @@ members = [
     "tools/fontbake",
     "tools/qrgen",
     "faraday/faraday-core",
+    "faraday/faraday-hub",
     "faraday/faraday-storage",
     "faraday/faraday-vault",
     "faraday/faraday-fat",
@@ -34,6 +35,7 @@ members = [
     "faraday/faraday-boot",
     "faraday/faraday-pgp",
     "faraday/faraday-sb",
+    "faraday/faraday-payload",
     "faraday/shells/desktop",
     "faraday/shells/stick",
     "faraday/shells/snapshot",
@@ -112,6 +114,14 @@ miniscript = { version = "12.0", default-features = false, features = ["no-std",
 # the crates.io release (§16.138). The fuzz workspace reaches the copy
 # the same way, through `osk-codec`.
 rqrr = { path = "third_party/rqrr", default-features = false }
+
+# The hub app's xz decoder (docs/HUB.md §1.3; docs/deps/lzma-rust2.md),
+# used by `faraday-payload` alone. Pure Rust: Faraday never links
+# liblzma. `default-features = false` drops the encoder, lzip and the
+# `optimization` feature, the crate's only `unsafe`, so it builds under
+# its own `forbid(unsafe_code)`. `xz` brings `sha2` 0.11, already in the
+# graph; no other crate enters it.
+lzma-rust2 = { version = "0.22", default-features = false, features = ["std", "xz"] }
 
 # Rendering (§4.3, §16.3): pure Rust, no_std with `no-std-float` (libm).
 tiny-skia = { version = "0.12", default-features = false, features = ["no-std-float"] }

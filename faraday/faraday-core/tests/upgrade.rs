@@ -405,6 +405,17 @@ fn the_upgrade_s_learn_page_takes_secure_boot_through_a_spare_stick() {
     );
 }
 
+#[test]
+fn the_upgrade_s_learn_names_replacing_faraday_from_a_computer() {
+    let mut app = device();
+    open(&mut app);
+    let titles: Vec<&str> = app.learn_pages().iter().map(|p| p.title).collect();
+    assert_eq!(
+        titles,
+        ["Upgrading a Faraday stick", "Replacing Faraday on a stick"]
+    );
+}
+
 // Build kinds (docs/DECISIONS.md F5): a test release written over another
 // commit's test release fits and is written; two builds of the same
 // commit with different uncommitted changes are not the same build; the

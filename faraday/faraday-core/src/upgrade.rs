@@ -129,22 +129,39 @@ pub fn describe(id: &str) -> String {
     }
 }
 
-/// Whether a release string names a dev build: the part after
-/// `-faraday-` ends with `.dev`. A target with no release string is not
-/// dev.
-fn is_dev(release: Option<&str>) -> bool {
-    release
-        .and_then(|r| r.split_once("-faraday-"))
-        .is_some_and(|(_, v)| v.ends_with(".dev"))
+/// The build ID in a kernel release string (`docs/DECISIONS.md` F5):
+/// `0.2.0+4d0680b1a2b3.test` from `6.6.84-faraday-0.2.0+4d0680b1a2b3.test`.
+/// `None` for a release string Faraday did not make.
+pub fn build_id(release: &str) -> Option<&str> {
+    release.split_once("-faraday-").map(|(_, id)| id)
 }
 
-/// The version number in a release string, to compare: `None` for a
-/// stick with none, which is earlier than any.
-fn number(release: Option<&str>) -> Option<(u64, u64, u64)> {
-    let v = release?.split_once("-faraday-")?.1;
-    let v = v.split(['+', '-']).next()?;
+/// The version number a build ID carries, to compare: `(0, 2, 0)` from
+/// `0.2.0+4d0680b1a2b3.test`.
+pub fn version_number(id: &str) -> Option<(u64, u64, u64)> {
+    let v = id.split(['+', '-']).next()?;
     let mut n = v.split('.').map(|p| p.parse::<u64>().ok());
     Some((n.next()??, n.next()??, n.next()??))
+}
+
+/// How writing build `source` over a stick that holds build `target`
+/// stands under F2 and F5's rules, by build ID: the same build is
+/// refused; a dev build over a stick that does not hold one, and a stick
+/// with a higher version number, are warned about; anything else is
+/// written. `target` is `None` for a stick made before Faraday put its
+/// version in the kernel, which is earlier than any. Settings → Upgrade
+/// and the hub app's keep data both decide by this.
+pub fn compare(target: Option<&str>, source: &str) -> Fit {
+    if target == Some(source) {
+        return Fit::Same;
+    }
+    if source.ends_with(".dev") && !target.is_some_and(|t| t.ends_with(".dev")) {
+        return Fit::Dev;
+    }
+    match (target.and_then(version_number), version_number(source)) {
+        (Some(t), Some(s)) if t > s => Fit::Newer,
+        _ => Fit::Fits,
+    }
 }
 
 fn mb(bytes: u64) -> u64 {
@@ -193,12 +210,9 @@ impl UpgradeState {
         if part.release.as_deref() == Some(release.as_str()) {
             return Fit::Same;
         }
-        if is_dev(Some(release)) && !is_dev(part.release.as_deref()) {
-            return Fit::Dev;
-        }
-        match (number(part.release.as_deref()), number(Some(release))) {
-            (Some(t), Some(s)) if t > s => Fit::Newer,
-            _ => Fit::Fits,
+        match build_id(release) {
+            Some(source) => compare(part.release.as_deref().and_then(build_id), source),
+            None => Fit::Fits,
         }
     }
 }

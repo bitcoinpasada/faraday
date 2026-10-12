@@ -72,6 +72,7 @@ mod edit;
 mod held;
 pub use compact::OskPress;
 pub use medium::Medium;
+pub use screens::qr_code;
 mod compact_screens;
 mod explore_screen;
 mod family_screen;
@@ -1287,6 +1288,10 @@ pub enum Action {
     WriteAsk,
     /// The boot import's sheet.
     Import(boot_import::ImportAction),
+    /// A press on a screen the app holding this one draws with
+    /// [`ui::Ui`] (the hub app, `docs/HUB.md` §2), in that app's own
+    /// numbering. This app does nothing with it.
+    Host(u32),
 }
 
 /// The largest file read from a stick, as the disk process reads them
@@ -3202,6 +3207,12 @@ pub struct Faraday {
     /// Running on an online machine (the desktop app), where sheets are
     /// turned into PDFs. Never set on the device.
     pub online: bool,
+    /// Held by another app that shows only Transfer and the Learn sheet
+    /// (the hub app, `docs/HUB.md` §2), set with [`Faraday::online`]:
+    /// no sidebar and no Home of its own. Its way back goes to this
+    /// app's Home, which draws nothing; the holder takes leaving
+    /// Transfer and the sheets as going back to its own Home.
+    pub held: bool,
     /// The shell's own keys, pinned in small text at the top of the
     /// window (the desktop's F2 to F5); none on the device.
     pub shell_keys: Option<String>,
@@ -3384,6 +3395,7 @@ impl Faraday {
             selftest: None,
             hovered: None,
             online: false,
+            held: false,
             shell_keys: None,
             medium: Medium::Stick,
             airgap_warned: false,
@@ -4502,6 +4514,7 @@ impl Faraday {
                 self.vault_summaries_refresh();
             }
             Action::Import(a) => self.import_act(a),
+            Action::Host(_) => {}
             Action::Family(f) => self.family_act(f),
             Action::Vanity(v) => self.vanity_act(v),
             Action::Learn => self.learn_open(),
@@ -10369,6 +10382,7 @@ impl Faraday {
         // The online app reached mainnet some other way (a mainnet wallet
         // or transaction loaded): the warning comes up over it.
         if self.online
+            && !self.held
             && self.session.network().is_mainnet()
             && !self.airgap_warned
             && self.sheet.is_none()

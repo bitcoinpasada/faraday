@@ -1,0 +1,27 @@
+[package]
+name = "faraday-hub"
+version = "0.1.1"
+description = "The hub app's state, screens and decisions (docs/HUB.md): events in, commands out, no I/O"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+osk-shell-api = { path = "../../core/osk-shell-api" }
+osk-ui = { path = "../../core/osk-ui" }
+osk-codec = { path = "../../core/osk-codec" }
+osk-learn = { path = "../../core/osk-learn" }
+opensigner-core = { path = "../../opensigner/opensigner-core" }
+# The desktop app's own Transfer and Learn, held in online mode
+# (docs/HUB.md §2), and the drawing every Faraday screen uses.
+faraday-core = { path = "../faraday-core" }
+
+[dev-dependencies]
+# The screens written as PNG by `examples/snap.rs` (`just
+# faraday-hub-snap`); never in the hub app itself.
+png.workspace = true
+
+[lints]
+workspace = true
