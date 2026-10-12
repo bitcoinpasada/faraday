@@ -155,6 +155,15 @@ impl Shell {
                     }
                 });
             }
+            HubCommand::RestartFromStick { device } => {
+                let system = Arc::clone(&self.system);
+                let tx = self.tx.clone();
+                std::thread::spawn(move || {
+                    if let Err(why) = system.restart_from_stick(&device) {
+                        let _ = tx.send(HubEvent::StickRestartFailed(why));
+                    }
+                });
+            }
             HubCommand::Install { desktop } => {
                 let (system, tx, payload) = self.threaded();
                 std::thread::spawn(move || {
@@ -169,7 +178,15 @@ impl Shell {
             HubCommand::Uninstall => {
                 let (system, tx, _) = self.threaded();
                 std::thread::spawn(move || {
-                    let _ = tx.send(HubEvent::UninstallDone(system.uninstall()));
+                    let done = system.uninstall();
+                    // The firmware's entry goes too; declined, the
+                    // uninstall still finishes and says it remains.
+                    if done.is_ok()
+                        && let Err(why) = system.remove_stick_entry()
+                    {
+                        let _ = tx.send(HubEvent::BootEntryKept(why));
+                    }
+                    let _ = tx.send(HubEvent::UninstallDone(done));
                     let _ = tx.send(HubEvent::Installed(system.installed()));
                 });
             }

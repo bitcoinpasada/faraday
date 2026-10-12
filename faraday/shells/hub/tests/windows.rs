@@ -442,6 +442,9 @@ fn every_reason() -> Vec<Reason> {
             detail: s(),
         },
         Reason::Restart(s()),
+        Reason::Missing(s()),
+        Reason::BootEntry(s()),
+        Reason::NoStick,
         Reason::Declined,
         Reason::Unsupported,
     ]

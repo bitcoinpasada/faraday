@@ -70,10 +70,39 @@ pub enum Page {
 /// A sheet over a page.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Sheet {
-    /// Restart into firmware settings, asked once (§3.4 step 2, §7.3).
-    Restart,
+    /// A restart, asked once (§3.1, §3.4 step 2, §7.3).
+    Restart(RestartTo),
     /// Uninstall, asked once (§3.5).
     Uninstall,
+}
+
+/// Where a restart goes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RestartTo {
+    /// The firmware's settings (§7.3).
+    Firmware,
+    /// The attached Faraday stick (§3.1).
+    Stick,
+}
+
+/// The This computer card's button (§3.1): the next action for this
+/// computer's state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Card {
+    /// Make a Faraday stick: opens §3.2.
+    Make,
+    /// Do the BitLocker step: opens §6.5.
+    BitLocker,
+    /// Resume BitLocker, while the hub app's suspension stands: opens
+    /// §6.3's page when Secure Boot is as the marker recorded it.
+    Resume {
+        /// It can be taken now.
+        offered: bool,
+    },
+    /// Restart into firmware settings, after the sheet.
+    Firmware,
+    /// Restart from the stick, after the sheet.
+    Stick,
 }
 
 /// A guide, by its Learn page (§7.2, `docs/learn/faraday/boot/`). A page
@@ -150,7 +179,7 @@ pub enum HubAction {
     Home,
     /// Make a Faraday stick, or a Pi card: the disk list.
     Make(Target),
-    /// The checklist's next step (the This computer card's action).
+    /// The This computer card's button ([`Card`]).
     Next,
     /// A checklist item.
     Item(Item),
@@ -167,9 +196,9 @@ pub enum HubAction {
     Again,
     /// Start this computer from the stick.
     Start,
-    /// Restart into firmware settings: asks first.
+    /// The Start page's Restart into firmware settings: asks first.
     Restart,
-    /// Restart now.
+    /// The restart the sheet asks about, now.
     RestartNow,
     /// Close the sheet.
     Cancel,
@@ -390,6 +419,11 @@ pub struct Hub {
     pub desktop_failed: Option<Reason>,
     /// Why the restart into firmware settings did not happen.
     pub restart_failed: Option<Reason>,
+    /// Why the restart from the stick did not happen: the card offers
+    /// the restart into firmware settings instead (§3.1).
+    pub stick_restart_failed: Option<Reason>,
+    /// Why uninstall left the firmware's `Faraday stick` entry.
+    pub entry_kept: Option<Reason>,
     /// Protection was resumed through the hub app this session.
     pub resumed: bool,
 
@@ -447,6 +481,8 @@ impl Hub {
             uninstall_failed: None,
             desktop_failed: None,
             restart_failed: None,
+            stick_restart_failed: None,
+            entry_kept: None,
             resumed: false,
             offset: 0.0,
             max: 0.0,
@@ -463,6 +499,40 @@ impl Hub {
             bitlocker: self.bitlocker.as_ref(),
             disks: &self.disks,
             resumed: self.resumed,
+        }
+    }
+
+    /// The This computer card's button (§3.1), the first that applies:
+    /// while the hub app's BitLocker suspension stands, its next step
+    /// (Secure Boot back on through the firmware, then Resume); then
+    /// Make a Faraday stick with no stick attached, or on a computer
+    /// that cannot start one; then the BitLocker step on Windows; then
+    /// Restart from the stick with Secure Boot off, and Restart into
+    /// firmware settings with it on, unknown, or when the restart from
+    /// the stick did not happen.
+    pub fn card(&self) -> Card {
+        let f = self.facts();
+        if f.suspension_stands() {
+            match f.next_step() {
+                Some(Item::SecureBootOn) => return Card::Firmware,
+                Some(Item::Resume) => {
+                    return Card::Resume {
+                        offered: f.resume_offered(),
+                    };
+                }
+                _ => {}
+            }
+        }
+        if f.stick().is_none() || !f.can_start() || !self.computer.uefi {
+            return Card::Make;
+        }
+        if f.protected_open() {
+            return Card::BitLocker;
+        }
+        if self.computer.secure_boot == Some(false) && self.stick_restart_failed.is_none() {
+            Card::Stick
+        } else {
+            Card::Firmware
         }
     }
 
@@ -686,6 +756,11 @@ impl Hub {
                 self.install_result = Some(r);
             }
             HubEvent::UninstallDone(r) => match r {
+                // The entry left in the firmware is said on Installed.
+                Ok(()) if self.entry_kept.is_some() => {
+                    self.uninstall_failed = None;
+                    self.installed = None;
+                }
                 Ok(()) => {
                     self.uninstall_failed = None;
                     self.installed = None;
@@ -695,6 +770,8 @@ impl Hub {
             },
             HubEvent::DesktopStarted(r) => self.desktop_failed = r.err(),
             HubEvent::RestartFailed(why) => self.restart_failed = Some(why),
+            HubEvent::StickRestartFailed(why) => self.stick_restart_failed = Some(why),
+            HubEvent::BootEntryKept(why) => self.entry_kept = Some(why),
         }
         self.dirty = true;
         self.commands.push_back(Command::Draw);
@@ -764,11 +841,16 @@ impl Hub {
                 });
                 self.go(Page::Disks);
             }
-            HubAction::Next => {
-                if let Some(item) = self.facts().next_step() {
-                    self.act(HubAction::Item(item));
+            HubAction::Next => match self.card() {
+                Card::Make => self.act(HubAction::Make(Target::Stick)),
+                Card::BitLocker | Card::Resume { offered: true } => self.go(Page::BitLocker),
+                Card::Resume { offered: false } => {}
+                Card::Firmware => {
+                    self.restart_failed = None;
+                    self.sheet = Some(Sheet::Restart(RestartTo::Firmware));
                 }
-            }
+                Card::Stick => self.sheet = Some(Sheet::Restart(RestartTo::Stick)),
+            },
             HubAction::Item(item) => match item {
                 Item::MakeStick => self.act(HubAction::Make(Target::Stick)),
                 Item::BitLocker | Item::Resume => self.go(Page::BitLocker),
@@ -829,15 +911,25 @@ impl Hub {
             HubAction::Restart => {
                 if self.page == Page::Start && !self.facts().protected_open() {
                     self.restart_failed = None;
-                    self.sheet = Some(Sheet::Restart);
+                    self.sheet = Some(Sheet::Restart(RestartTo::Firmware));
                 }
             }
-            HubAction::RestartNow => {
-                if self.sheet == Some(Sheet::Restart) {
+            HubAction::RestartNow => match self.sheet {
+                Some(Sheet::Restart(RestartTo::Firmware)) => {
                     self.sheet = None;
                     self.out.push_back(HubCommand::RestartIntoFirmware);
                 }
-            }
+                Some(Sheet::Restart(RestartTo::Stick)) => {
+                    self.sheet = None;
+                    // A stick pulled out while the sheet was up: nothing
+                    // to start, and the card says so by offering Make.
+                    if let Some(d) = self.facts().stick() {
+                        let device = d.device.clone();
+                        self.out.push_back(HubCommand::RestartFromStick { device });
+                    }
+                }
+                _ => {}
+            },
             HubAction::Cancel => self.sheet = None,
             HubAction::Install => {
                 self.install_result = None;
@@ -859,6 +951,7 @@ impl Hub {
             }
             HubAction::Installed => {
                 self.uninstall_failed = None;
+                self.entry_kept = None;
                 self.go(Page::Installed);
             }
             HubAction::Uninstall => {
@@ -869,6 +962,7 @@ impl Hub {
             HubAction::UninstallNow => {
                 if self.sheet == Some(Sheet::Uninstall) {
                     self.sheet = None;
+                    self.entry_kept = None;
                     self.out.push_back(HubCommand::Uninstall);
                 }
             }

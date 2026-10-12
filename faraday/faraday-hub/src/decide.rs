@@ -153,12 +153,14 @@ impl Facts<'_> {
     }
 
     /// A drive is protected and the guard is needed (§6.2): on, or not
-    /// readable.
+    /// readable. On Windows, no BitLocker information at all is "not
+    /// readable": only a drive read as not encrypted lets the firmware
+    /// steps through without the guard.
     pub fn protected(&self) -> bool {
         self.computer.os == Os::Windows
             && self
                 .bitlocker
-                .is_some_and(|b| matches!(b.protection, Protection::On | Protection::Unknown))
+                .is_none_or(|b| matches!(b.protection, Protection::On | Protection::Unknown))
     }
 
     /// The BitLocker step is done: the suspension stands, or it was
@@ -195,13 +197,18 @@ impl Facts<'_> {
         !self.computer.arm
     }
 
+    /// The first Faraday stick attached, when one is.
+    pub fn stick(&self) -> Option<&Disk> {
+        self.disks
+            .iter()
+            .find(|d| d.bus == Bus::Usb && d.faraday.is_some())
+    }
+
     /// The Faraday version of the first Faraday stick attached, when one
     /// is.
     pub fn stick_version(&self) -> Option<String> {
-        self.disks
-            .iter()
-            .filter(|d| d.bus == Bus::Usb)
-            .find_map(|d| d.faraday.as_ref())
+        self.stick()
+            .and_then(|d| d.faraday.as_ref())
             .map(|f| faraday_core::upgrade::version(f.release.as_deref()))
     }
 

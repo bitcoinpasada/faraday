@@ -15,7 +15,7 @@ use crate::api::{
     InUse, InstallItem, Mode, Os, PayloadKind, Protection, Reason, StickFault, WriteStage,
 };
 use crate::decide::{Item, Refusal, State, Target};
-use crate::{Hub, HubAction, LearnId, ModeRefusal, Page, Sheet};
+use crate::{Card, Hub, HubAction, LearnId, ModeRefusal, Page, RestartTo, Sheet};
 
 const S: &Strings = &EN;
 
@@ -75,7 +75,7 @@ pub(crate) fn frame(hub: &Hub, ui: &mut Ui) -> f32 {
         ui.in_sheet = true;
         ui.backdrop();
         match sheet {
-            Sheet::Restart => restart_sheet(hub, ui, w, h),
+            Sheet::Restart(to) => restart_sheet(hub, ui, w, h, to),
             Sheet::Uninstall => uninstall_sheet(hub, ui, w, h),
         }
         ui.in_sheet = false;
@@ -418,6 +418,9 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         Reason::InTheWay { path } => fill(S.hub_why_in_the_way, &[path]),
         Reason::Start { path, detail } => fill(S.hub_why_start, &[path, detail]),
         Reason::Restart(d) => fill(S.hub_why_restart, &[d]),
+        Reason::Missing(program) => fill(S.hub_why_missing, &[program]),
+        Reason::BootEntry(d) => fill(S.hub_why_boot_entry, &[d]),
+        Reason::NoStick => S.hub_why_no_stick.to_string(),
         Reason::Declined => S.hub_why_declined.to_string(),
         Reason::Unsupported => S.hub_why_unsupported.to_string(),
     }
@@ -578,7 +581,7 @@ fn home(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let facts = hub.facts();
     let next = facts.next_step();
     let rows = facts.checklist();
-    y += computer_card(hub, ui, x, y, w, next, &rows) + 20.0;
+    y += computer_card(hub, ui, x, y, w) + 20.0;
 
     // The checklist.
     y += label(ui, x, y, S.hub_checklist);
@@ -699,15 +702,7 @@ fn home(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 
 /// The This computer card: what it is, its Secure Boot and encryption,
 /// and the next step as its action. Returns its height.
-fn computer_card(
-    hub: &Hub,
-    ui: &mut Ui,
-    x: f32,
-    y0: f32,
-    w: f32,
-    next: Option<Item>,
-    rows: &[crate::decide::Row],
-) -> f32 {
+fn computer_card(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let c = &hub.computer;
     let pad = if hub.compact { 12.0 } else { 18.0 };
     let iw = w - 2.0 * pad;
@@ -736,9 +731,24 @@ fn computer_card(
     } else if !c.uefi {
         lines.push((S.hub_cannot_start_bios.to_string(), WARN));
     }
-    let button = next.map(|item| {
-        let offered = rows.iter().any(|r| r.item == item && r.offered);
-        (item_label(item), offered)
+    let card = hub.card();
+    if card == Card::Firmware {
+        // Why the card offers the firmware's settings, not the stick.
+        if c.secure_boot == Some(false)
+            && let Some(why) = &hub.stick_restart_failed
+        {
+            lines.push((fill(S.hub_stick_restart_failed, &[&reason_text(why)]), WARN));
+        }
+        if let Some(why) = &hub.restart_failed {
+            lines.push((reason_text(why), ERR));
+        }
+    }
+    let button = Some(match card {
+        Card::Make => (S.hub_item_make, true),
+        Card::BitLocker => (S.hub_bitlocker_step, true),
+        Card::Resume { offered } => (S.hub_item_resume, offered),
+        Card::Firmware => (S.hub_restart, true),
+        Card::Stick => (S.hub_restart_stick, true),
     });
     // The lines wrap: measured first, drawing nothing.
     let n = ui.hits.len();
@@ -1303,11 +1313,15 @@ fn sheet(ui: &mut Ui, w: f32, h: f32, body: &mut dyn FnMut(&mut Ui, f32, f32, f3
     body(ui, sx + pad, sy + pad, sw - 2.0 * pad);
 }
 
-fn restart_sheet(hub: &Hub, ui: &mut Ui, w: f32, h: f32) {
+fn restart_sheet(hub: &Hub, ui: &mut Ui, w: f32, h: f32, to: RestartTo) {
     let address = LearnId::for_computer(&hub.computer).address();
+    let head = match to {
+        RestartTo::Firmware => S.hub_restart,
+        RestartTo::Stick => S.hub_restart_stick,
+    };
     sheet(ui, w, h, &mut |ui, x, y0, iw| {
         let mut y = y0;
-        y += ui.wrap(x, y, iw, 17.0, W::S, TEXT, S.hub_restart) + 10.0;
+        y += ui.wrap(x, y, iw, 17.0, W::S, TEXT, head) + 10.0;
         y += line(ui, x, y, iw, S.hub_restart_save, WARN) + 4.0;
         // Small enough on a small panel that the sheet's buttons fit.
         let side = if ui.compact { 104.0 } else { 160.0 };
@@ -1391,6 +1405,16 @@ fn item_name(item: InstallItem) -> &'static str {
 
 fn installed(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0 + title(hub, ui, x, y0);
+    if let Some(why) = &hub.entry_kept {
+        y += line(
+            ui,
+            x,
+            y,
+            w,
+            &fill(S.hub_entry_kept, &[&reason_text(why)]),
+            WARN,
+        );
+    }
     let Some(i) = &hub.installed else {
         return y + line(ui, x, y, w, S.hub_not_installed, DIM);
     };

@@ -1,0 +1,9 @@
+BootCurrent: 0001
+Timeout: 1 seconds
+BootNext: 0003
+BootOrder: 0001,0000,2001,2002
+Boot0000* Windows Boot Manager
+Boot0001* Linux Boot Manager
+Boot0002* UEFI: USB Flash Disk
+Boot2001* EFI USB Device
+Boot2002* EFI Network

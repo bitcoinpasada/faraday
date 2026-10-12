@@ -2527,8 +2527,16 @@ pub struct Strings {
     pub hub_bitlocker_step: &'static str,
     /// Step and button.
     pub hub_restart: &'static str,
+    /// Card button and the sheet's head (docs/HUB.md §3.1).
+    pub hub_restart_stick: &'static str,
     /// The restart's confirmation.
     pub hub_restart_save: &'static str,
+    /// Card line, when the restart from the stick did not happen. `{}`
+    /// the reason.
+    pub hub_stick_restart_failed: &'static str,
+    /// Installed, after an uninstall that left the firmware's boot entry.
+    /// `{}` the reason.
+    pub hub_entry_kept: &'static str,
     /// Button.
     pub hub_restart_now: &'static str,
     /// Button.
@@ -2671,8 +2679,14 @@ pub struct Strings {
     pub hub_why_start: &'static str,
     /// Reason. `{}` the system's words.
     pub hub_why_restart: &'static str,
-    /// Reason: the administrator permission was declined (Windows).
+    /// Reason: the administrator permission was declined.
     pub hub_why_declined: &'static str,
+    /// Reason. `{}` a program's name.
+    pub hub_why_missing: &'static str,
+    /// Reason. `{}` efibootmgr's words.
+    pub hub_why_boot_entry: &'static str,
+    /// Reason.
+    pub hub_why_no_stick: &'static str,
     /// Reason.
     pub hub_why_unsupported: &'static str,
     /// The app menu entry's name, in the desktop entry file install writes.
@@ -3988,7 +4002,10 @@ pub static EN: Strings = Strings {
     hub_tpm_line: "A disk here is unlocked by the TPM: have its passphrase ready",
     hub_bitlocker_step: "Do the BitLocker step",
     hub_restart: "Restart into firmware settings",
-    hub_restart_save: "Save your work first: this restarts the computer",
+    hub_restart_stick: "Restart from the stick",
+    hub_restart_save: "This restarts the computer now. Save your work first.",
+    hub_stick_restart_failed: "Restart from the stick did not happen: {}",
+    hub_entry_kept: "The firmware's Faraday stick entry remains: {}",
     hub_restart_now: "Restart",
     hub_cancel: "Cancel",
     hub_secure_boot_turn_off: "Turn Secure Boot off",
@@ -4062,6 +4079,9 @@ pub static EN: Strings = Strings {
     hub_why_restart: "Restarting into firmware settings failed: {}",
     hub_why_declined: "Administrator permission was declined. Nothing was changed.",
     hub_why_unsupported: "Not on this computer",
+    hub_why_missing: "{} is not installed",
+    hub_why_boot_entry: "efibootmgr failed: {}",
+    hub_why_no_stick: "No Faraday stick is attached",
     hub_menu_name: "Faraday",
     hub_menu_desktop_name: "Faraday desktop (testing)",
     hub_fault_reading: "reading the partition table failed: {}",

@@ -1,11 +1,12 @@
 //! The hub app on Linux (`docs/HUB.md` §2, §4, §7): disks through
 //! udisks2 over D-Bus, never as root; this computer's facts from `/sys`
 //! and `/etc/crypttab`; the restart into firmware settings through
-//! systemd.
+//! systemd; the restart from the stick through `efibootmgr` ([`boot`]).
 //!
 //! udisks2's answers are read by [`udisks`], with no D-Bus in it, so the
 //! tests feed it recorded answers; [`bus`] is the transport.
 
+pub mod boot;
 pub mod bus;
 pub mod install;
 pub mod udisks;
@@ -95,6 +96,15 @@ impl Platform for Linux {
         } else {
             said
         }))
+    }
+
+    fn restart_from_stick(&self, device: &str) -> Result<(), Reason> {
+        let path = std::env::var_os("PATH").unwrap_or_default();
+        boot::restart_from_stick(&boot::Tools::find(&path)?, device)
+    }
+
+    fn remove_stick_entry(&self) -> Result<(), Reason> {
+        boot::remove_entry(&std::env::var_os("PATH").unwrap_or_default())
     }
 
     fn installed(&self) -> Option<Installed> {

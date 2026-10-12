@@ -1,0 +1,3 @@
+BootCurrent: 0000
+BootOrder: 0000
+Boot0000* Linux Boot Manager

@@ -6,7 +6,7 @@ use faraday_hub::api::{
     Mode, Os, Payload, PayloadFile, Protection, Reason, Remind, Source, Volume, remind,
 };
 use faraday_hub::decide::{Item, Target};
-use faraday_hub::{Hub, HubAction, LearnId, Page};
+use faraday_hub::{Hub, HubAction, LearnId, Page, RestartTo, Sheet};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 const GB: u64 = 1_000_000_000;
@@ -445,15 +445,20 @@ fn a_pi_card_is_offered_sd_card_readers_and_no_keep_data() {
     assert!(!shows(&mut hub, "keep data"));
 }
 
-/// Home's card action, by its label, and where a press on it goes.
-fn next_step(hub: &mut Hub) -> (bool, Page) {
+/// Home's card button: whether it can be pressed, and the page and
+/// sheet a press on it opens (the sheet is closed again with Cancel).
+fn next_step(hub: &mut Hub) -> (bool, Page, Option<Sheet>) {
     let _ = hub.drawn_texts();
     let offered = hub.offers_action(HubAction::Next);
     hub.press(HubAction::Next);
-    let page = hub.page;
+    let opened = (offered, hub.page, hub.sheet);
+    hub.press(HubAction::Cancel);
     hub.press(HubAction::Home);
-    (offered, page)
+    opened
 }
+
+const FIRMWARE: Option<Sheet> = Some(Sheet::Restart(RestartTo::Firmware));
+const STICK: Option<Sheet> = Some(Sheet::Restart(RestartTo::Stick));
 
 fn suspended(secure_boot_was_on: bool) -> BitLocker {
     BitLocker {
@@ -472,7 +477,7 @@ fn home_leads_with_the_next_step_for_each_state() {
     let mut hub = hub_with(Vec::new());
     assert!(position(&mut hub, "Make a Faraday stick") < position(&mut hub, "Checklist"));
     assert!(shows(&mut hub, "No Faraday stick attached"));
-    assert_eq!(next_step(&mut hub), (true, Page::Disks));
+    assert_eq!(next_step(&mut hub), (true, Page::Disks, None));
 
     // A stick attached.
     let mut hub = hub_with(vec![faraday_stick(
@@ -482,7 +487,7 @@ fn home_leads_with_the_next_step_for_each_state() {
         Some("6.6.84-faraday-0.2.0"),
     )]);
     assert!(shows(&mut hub, "Faraday stick attached · 0.2.0"));
-    assert_eq!(next_step(&mut hub), (true, Page::Start));
+    assert_eq!(next_step(&mut hub), (true, Page::Home, FIRMWARE));
 
     // Windows, protected: the BitLocker step.
     hub.hub_event(HubEvent::Computer(windows(true)));
@@ -492,22 +497,23 @@ fn home_leads_with_the_next_step_for_each_state() {
         marker: None,
     })));
     assert!(shows(&mut hub, "Protected"));
-    assert_eq!(next_step(&mut hub), (true, Page::BitLocker));
+    assert_eq!(next_step(&mut hub), (true, Page::BitLocker, None));
 
     // Suspended by Faraday, Secure Boot off: turn it back on, even with
     // no stick attached.
     hub.hub_event(HubEvent::Disks(Vec::new()));
     hub.hub_event(HubEvent::Computer(windows(false)));
     hub.hub_event(HubEvent::BitLocker(Some(suspended(true))));
-    assert!(position(&mut hub, "Turn Secure Boot back on") < position(&mut hub, "Checklist"));
+    assert!(card_says(&mut hub, "Restart into firmware settings"));
+    assert!(shows(&mut hub, "Turn Secure Boot back on"));
     assert!(shows(&mut hub, "Needs Secure Boot on"));
-    assert_eq!(next_step(&mut hub), (true, Page::Start));
+    assert_eq!(next_step(&mut hub), (true, Page::Home, FIRMWARE));
 
     // Suspended, Secure Boot on again: resume.
     hub.hub_event(HubEvent::Computer(windows(true)));
     assert!(position(&mut hub, "Resume BitLocker") < position(&mut hub, "Checklist"));
     assert!(!shows(&mut hub, "Turn Secure Boot back on"));
-    assert_eq!(next_step(&mut hub), (true, Page::BitLocker));
+    assert_eq!(next_step(&mut hub), (true, Page::BitLocker, None));
 }
 
 #[test]
@@ -520,7 +526,7 @@ fn resume_follows_secure_boot_as_the_marker_recorded_it() {
     assert!(!shows(&mut hub, "Turn Secure Boot back on"));
     assert!(!shows(&mut hub, "Needs Secure Boot"));
     assert!(position(&mut hub, "Resume BitLocker") < position(&mut hub, "Checklist"));
-    assert_eq!(next_step(&mut hub), (true, Page::BitLocker));
+    assert_eq!(next_step(&mut hub), (true, Page::BitLocker, None));
 
     // Recorded off, on now: not offered.
     hub.hub_event(HubEvent::Computer(windows(true)));
@@ -584,7 +590,7 @@ fn start_holds_the_firmware_buttons_until_the_bitlocker_step_is_done() {
     tap(&mut hub, HubAction::Restart);
     assert!(shows(
         &mut hub,
-        "Save your work first: this restarts the computer"
+        "This restarts the computer now. Save your work first."
     ));
     // The guide's address is on the confirmation as a code.
     assert!(shows(&mut hub, "https://faradayoffline.app/start/windows"));
@@ -757,4 +763,182 @@ fn checklist_items_that_do_not_apply_are_not_shown() {
         "This computer cannot start a Faraday stick"
     ));
     assert!(!shows(&mut hub, "Start this computer from the stick"));
+}
+
+fn stick_attached() -> Vec<Disk> {
+    vec![faraday_stick(
+        "sdb",
+        "Mine",
+        16 * GB,
+        Some("6.6.84-faraday-0.2.0"),
+    )]
+}
+
+/// Whether the frame reads `s`, across the lines it wraps into.
+fn reads(hub: &mut Hub, s: &str) -> bool {
+    texts(hub).join(" ").contains(s)
+}
+
+/// Whether the card (above the checklist) carries `label`.
+fn card_says(hub: &mut Hub, label: &str) -> bool {
+    matches!(
+        (position(hub, label), position(hub, "Checklist")),
+        (Some(a), Some(b)) if a < b
+    )
+}
+
+#[test]
+fn the_cards_button_follows_this_computers_state() {
+    // No stick: Make a Faraday stick, no sheet.
+    let mut hub = hub_with(Vec::new());
+    hub.hub_event(HubEvent::Computer(linux(false)));
+    assert!(card_says(&mut hub, "Make a Faraday stick"));
+    assert_eq!(next_step(&mut hub), (true, Page::Disks, None));
+
+    // Windows, protected, the BitLocker step not done.
+    let mut hub = hub_with(stick_attached());
+    hub.hub_event(HubEvent::Computer(windows(false)));
+    hub.hub_event(HubEvent::BitLocker(Some(BitLocker {
+        drive: "C:".into(),
+        protection: Protection::On,
+        marker: None,
+    })));
+    assert!(card_says(&mut hub, "Do the BitLocker step"));
+    assert_eq!(next_step(&mut hub), (true, Page::BitLocker, None));
+
+    // Secure Boot on: the firmware's settings, after the sheet.
+    let mut hub = hub_with(stick_attached());
+    assert!(card_says(&mut hub, "Restart into firmware settings"));
+    assert_eq!(next_step(&mut hub), (true, Page::Home, FIRMWARE));
+
+    // Secure Boot not known: the same.
+    let mut c = linux(true);
+    c.secure_boot = None;
+    hub.hub_event(HubEvent::Computer(c));
+    assert!(card_says(&mut hub, "Restart into firmware settings"));
+    assert_eq!(next_step(&mut hub), (true, Page::Home, FIRMWARE));
+
+    // Secure Boot off, a stick attached, Linux: the stick.
+    hub.hub_event(HubEvent::Computer(linux(false)));
+    assert!(card_says(&mut hub, "Restart from the stick"));
+    assert_eq!(next_step(&mut hub), (true, Page::Home, STICK));
+
+    // And Windows with no encrypted drive.
+    hub.hub_event(HubEvent::Computer(windows(false)));
+    hub.hub_event(HubEvent::BitLocker(Some(BitLocker {
+        drive: "C:".into(),
+        protection: Protection::None,
+        marker: None,
+    })));
+    assert!(card_says(&mut hub, "Restart from the stick"));
+    assert_eq!(next_step(&mut hub), (true, Page::Home, STICK));
+}
+
+#[test]
+fn a_restart_asks_first_and_cancel_sends_nothing() {
+    for (computer, label, sent) in [
+        (
+            linux(false),
+            "Restart from the stick",
+            HubCommand::RestartFromStick {
+                device: "/dev/sdb".into(),
+            },
+        ),
+        (
+            linux(true),
+            "Restart into firmware settings",
+            HubCommand::RestartIntoFirmware,
+        ),
+    ] {
+        let mut hub = hub_with(stick_attached());
+        hub.hub_event(HubEvent::Computer(computer));
+        tap(&mut hub, HubAction::Next);
+        // The sheet, and nothing sent yet.
+        assert!(shows(
+            &mut hub,
+            "This restarts the computer now. Save your work first."
+        ));
+        assert!(shows(&mut hub, label));
+        assert!(shows(&mut hub, "https://faradayoffline.app/start/linux"));
+        assert!(commands(&mut hub).is_empty());
+        tap(&mut hub, HubAction::Cancel);
+        assert!(hub.sheet.is_none());
+        assert!(commands(&mut hub).is_empty());
+        // Restart sends exactly one.
+        tap(&mut hub, HubAction::Next);
+        tap(&mut hub, HubAction::RestartNow);
+        assert_eq!(commands(&mut hub), vec![sent]);
+        assert!(hub.sheet.is_none());
+    }
+}
+
+#[test]
+fn a_restart_from_the_stick_that_did_not_happen_offers_the_firmware_with_why() {
+    for (why, says) in [
+        (
+            Reason::Missing("efibootmgr".into()),
+            "efibootmgr is not installed",
+        ),
+        (Reason::Missing("pkexec".into()), "pkexec is not installed"),
+        (
+            Reason::Declined,
+            "Administrator permission was declined. Nothing was changed.",
+        ),
+        (
+            Reason::BootEntry("Could not set BootNext".into()),
+            "efibootmgr failed: Could not set BootNext",
+        ),
+    ] {
+        let mut hub = hub_with(stick_attached());
+        hub.hub_event(HubEvent::Computer(linux(false)));
+        tap(&mut hub, HubAction::Next);
+        tap(&mut hub, HubAction::RestartNow);
+        let _ = commands(&mut hub);
+        hub.hub_event(HubEvent::StickRestartFailed(why));
+        assert!(card_says(&mut hub, "Restart into firmware settings"));
+        assert!(reads(
+            &mut hub,
+            &format!("Restart from the stick did not happen: {says}")
+        ));
+        tap(&mut hub, HubAction::Next);
+        tap(&mut hub, HubAction::RestartNow);
+        assert_eq!(commands(&mut hub), vec![HubCommand::RestartIntoFirmware]);
+    }
+}
+
+#[test]
+fn uninstall_says_when_the_firmwares_entry_remains() {
+    let installed = || {
+        Some(faraday_hub::api::Installed {
+            version: "0.2.0".into(),
+            items: vec![(
+                faraday_hub::api::InstallItem::App,
+                "~/.local/bin/faraday".into(),
+            )],
+        })
+    };
+    // Removed, or there was none: Home.
+    let mut hub = hub_with(Vec::new());
+    hub.hub_event(HubEvent::Installed(installed()));
+    hub.press(HubAction::Installed);
+    tap(&mut hub, HubAction::Uninstall);
+    tap(&mut hub, HubAction::UninstallNow);
+    assert_eq!(commands(&mut hub), vec![HubCommand::Uninstall]);
+    hub.hub_event(HubEvent::UninstallDone(Ok(())));
+    assert_eq!(hub.page, Page::Home);
+
+    // Declined: uninstalled, and the entry remains, said on Installed.
+    let mut hub = hub_with(Vec::new());
+    hub.hub_event(HubEvent::Installed(installed()));
+    hub.press(HubAction::Installed);
+    tap(&mut hub, HubAction::Uninstall);
+    tap(&mut hub, HubAction::UninstallNow);
+    hub.hub_event(HubEvent::BootEntryKept(Reason::Declined));
+    hub.hub_event(HubEvent::UninstallDone(Ok(())));
+    assert_eq!(hub.page, Page::Installed);
+    assert!(hub.installed.is_none());
+    assert!(reads(
+        &mut hub,
+        "The firmware's Faraday stick entry remains: Administrator permission was declined."
+    ));
 }

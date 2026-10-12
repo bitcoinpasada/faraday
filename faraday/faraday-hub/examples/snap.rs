@@ -214,6 +214,31 @@ fn run(s: &Snap) -> Result<(), String> {
     let mut h = s.hub();
     h.hub_event(HubEvent::Disks(vec![stick("sde", "6.6.84-faraday-0.2.0")]));
     s.shot(&mut h, "home-stick")?;
+    h.press(HubAction::Next);
+    s.shot(&mut h, "home-restart-firmware-sheet")?;
+    h.press(HubAction::Cancel);
+    let mut c = laptop(Os::Linux, true);
+    c.secure_boot = None;
+    h.hub_event(HubEvent::Computer(c));
+    s.shot(&mut h, "home-secure-boot-unknown")?;
+    h.hub_event(HubEvent::Computer(laptop(Os::Linux, false)));
+    s.shot(&mut h, "home-stick-secure-boot-off")?;
+    h.press(HubAction::Next);
+    s.shot(&mut h, "home-restart-stick-sheet")?;
+    h.press(HubAction::Cancel);
+    h.hub_event(HubEvent::StickRestartFailed(Reason::Missing(
+        "efibootmgr".into(),
+    )));
+    s.shot(&mut h, "home-stick-restart-failed")?;
+    let mut h = s.hub();
+    h.hub_event(HubEvent::Computer(laptop(Os::Windows, false)));
+    h.hub_event(HubEvent::Disks(vec![stick("sde", "6.6.84-faraday-0.2.0")]));
+    h.hub_event(HubEvent::BitLocker(Some(BitLocker {
+        drive: "C:".into(),
+        protection: Protection::None,
+        marker: None,
+    })));
+    s.shot(&mut h, "home-windows-stick-secure-boot-off")?;
     let mut h = s.hub();
     h.hub_event(HubEvent::Computer(laptop(Os::Windows, true)));
     h.hub_event(HubEvent::Disks(vec![stick("sde", "6.6.84-faraday-0.2.0")]));
@@ -397,6 +422,10 @@ fn run(s: &Snap) -> Result<(), String> {
     s.shot(&mut h, "installed")?;
     h.press(HubAction::Uninstall);
     s.shot(&mut h, "installed-uninstall-sheet")?;
+    h.press(HubAction::UninstallNow);
+    h.hub_event(HubEvent::BootEntryKept(Reason::Declined));
+    h.hub_event(HubEvent::UninstallDone(Ok(())));
+    s.shot(&mut h, "installed-entry-kept")?;
     let mut h = s.hub();
     h.press(HubAction::About);
     s.shot(&mut h, "about")?;

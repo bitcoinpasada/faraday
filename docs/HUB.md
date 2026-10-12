@@ -311,6 +311,13 @@ sheet, "This restarts the computer now. Save your work first.", with
 | Secure Boot on, or not known | **Restart into firmware settings** | §7.3's firmware restart |
 | Secure Boot off | **Restart from the stick** | Windows: `shutdown /r /o /t 0`, Windows' *Use a device*; Linux: the stick, once (below) |
 
+While the hub app's BitLocker suspension stands, the checklist's own
+next step leads instead: Turn Secure Boot back on gives **Restart into
+firmware settings**, and Resume BitLocker gives **Resume BitLocker**,
+offered once Secure Boot is as the marker recorded it. On a computer
+that cannot start a Faraday stick (§7.1) the button stays **Make a
+Faraday stick**, for another computer.
+
 **Restart from the stick on Linux** starts the attached Faraday stick
 at the next start, once, so the person presses nothing at power-on.
 Every Faraday stick's boot partition carries the same partition GUID
@@ -833,8 +840,7 @@ text (§7.4). Pages:
   many computers without the boot menu key. Offered once Secure Boot is
   off.
 
-Each button asks once ("Save your work first: this restarts the
-computer").
+Each button asks once ("This restarts the computer now. Save your work first.").
 
 ### 7.4 On a phone
 

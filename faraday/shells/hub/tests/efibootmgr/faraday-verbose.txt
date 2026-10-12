@@ -1,0 +1,6 @@
+BootCurrent: 0001
+Timeout: 1 seconds
+BootOrder: 0001,0000
+Boot0000* Windows Boot Manager	HD(1,GPT,0b3b2b6e-1c2d-4e5f-8a9b-0c1d2e3f4a5b,0x800,0x32000)/File(\EFI\Microsoft\Boot\bootmgfw.efi)WINDOWS.........
+Boot0001* Linux Boot Manager	HD(1,GPT,6c2e0f1a-2b3c-4d5e-9f0a-1b2c3d4e5f60,0x800,0x100000)/File(\EFI\systemd\systemd-bootx64.efi)
+Boot0004  Faraday stick	HD(1,GPT,4f70656e-5369-676e-6572-4b6974000001,0x800,0x18000)/File(\EFI\BOOT\BOOTX64.EFI)

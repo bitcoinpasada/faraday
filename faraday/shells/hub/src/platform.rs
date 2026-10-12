@@ -45,6 +45,22 @@ pub trait Platform: Send + Sync {
         Err(Reason::Unsupported)
     }
 
+    /// Restarts from the attached Faraday stick at `device` (§3.1), or
+    /// says why not: by default Windows' advanced startup
+    /// ([`Platform::restart_to_choose_device`]); Linux starts the stick
+    /// once at the next start.
+    fn restart_from_stick(&self, device: &str) -> Result<(), Reason> {
+        let _ = device;
+        self.restart_to_choose_device()
+    }
+
+    /// Removes the firmware's `Faraday stick` boot entry that
+    /// [`Platform::restart_from_stick`] made, when there is one (Linux,
+    /// §3.1); uninstall runs it after its files are gone.
+    fn remove_stick_entry(&self) -> Result<(), Reason> {
+        Ok(())
+    }
+
     /// The hub app is exiting: on Windows an uninstall run from the
     /// installed copy leaves its last step for now (§5.4).
     fn exiting(&self) {}

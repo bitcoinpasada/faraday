@@ -470,8 +470,16 @@ pub enum Reason {
     },
     /// The restart into firmware settings failed: the system's words.
     Restart(String),
-    /// Windows: the person declined the administrator permission a
-    /// step asks for (the elevation prompt), so nothing was done.
+    /// A program the step needs is not on this computer: its name.
+    Missing(String),
+    /// `efibootmgr` failed while choosing the stick for the next start
+    /// (§3.1): its words.
+    BootEntry(String),
+    /// No Faraday stick is attached.
+    NoStick,
+    /// The person declined the administrator permission a step asks
+    /// for (Windows' elevation prompt, polkit's password on Linux), so
+    /// nothing was done.
     Declined,
     /// Not on this computer.
     Unsupported,
@@ -518,6 +526,13 @@ pub enum HubEvent {
     /// The restart into firmware settings was refused or failed, with
     /// why (a restart that happens sends nothing).
     RestartFailed(Reason),
+    /// The restart from the stick was refused or failed, with why; the
+    /// card offers the restart into firmware settings instead (§3.1).
+    StickRestartFailed(Reason),
+    /// Uninstall left the firmware's `Faraday stick` boot entry in
+    /// place (Linux, §3.1), with why. Sent before
+    /// [`HubEvent::UninstallDone`].
+    BootEntryKept(Reason),
 }
 
 /// How a stick or card is written (§3.2 step 2).
@@ -597,6 +612,14 @@ pub enum HubCommand {
     RunDesktop,
     /// Restart into firmware settings (§7.3).
     RestartIntoFirmware,
+    /// Restart from the stick (§3.1): Windows' advanced startup, whose
+    /// *Use a device* starts it; on Linux the attached stick once, at
+    /// the next start.
+    RestartFromStick {
+        /// The attached Faraday stick's device (`/dev/sdb`), from
+        /// [`Disk::device`].
+        device: String,
+    },
     /// A BitLocker step through the elevated copy.
     BitLocker(BitLockerStep),
 }
