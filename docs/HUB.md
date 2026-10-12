@@ -352,8 +352,9 @@ the checklist writes to the computer except what its items do.
 ### 3.1a Screens that can keep what they show (owner, 2026-10-12)
 
 A TV, or any screen with its own network, can keep what Faraday
-shows: smart TVs capture frames of their inputs for automatic content
-recognition, a casting receiver shows the picture on another device,
+shows: smart TVs sample what is on the screen, second by second, from
+every input, for automatic content recognition (the US FTC's 2017
+case against Vizio), a casting receiver shows the picture on another device,
 and a remote session sends it elsewhere. The hub app reads this
 computer's screens and warns, by name, when one is:
 
@@ -383,9 +384,12 @@ whether it can capture the screen or the keys without Faraday's help:
 | Running inside a virtual machine (its host sees and can change everything) | says the stick must start on the real computer, and that the hub app cannot see the host's devices | refuses to go on: no Continue anyway |
 | Remote desktop, screen sharing, a wireless display | only around showing the BitLocker recovery key (§6.5) | none: the stick has no network |
 
-Not warned about: Wi-Fi, Bluetooth and USB network adapters, and USB
-video capture cards. The stick has no driver for any of them, so they
-are inert while Faraday runs, and naming them would confuse. Not
+Not warned about: Wi-Fi, Bluetooth and USB network adapters, for which
+the stick has no driver (NET, WLAN and BT are forbidden), so they are
+inert while Faraday runs; and USB video capture cards, which the stick
+does bind as a camera (UVC, for the QR scanner) but which carry what
+is plugged into them, not what Faraday shows, to a computer with no
+network. Naming them would confuse. Not
 detectable, and said once on the Learn page: a passive HDMI splitter,
 a keylogger inside a cable or keyboard, a camera pointed at the
 screen.
@@ -421,7 +425,8 @@ network); what suspending BitLocker does, in plain terms (the drive
 stays encrypted; its key is left readable on the drive until resumed);
 the risk that remains, and that it is short (while suspended, someone
 holding the computer could read its drive; while Secure Boot is off,
-the computer would start software Microsoft has not signed); and that
+the computer would start software not signed by a key its firmware
+trusts, Microsoft's on most computers sold with Windows); and that
 the hub app offers turning both back on after every Faraday session.
 
 ### 3.1c The boot entry on Linux
@@ -432,9 +437,10 @@ explained by a link on its confirmation, **About the boot entry**
 is never in the boot order and starts only when asked, and that it
 names Faraday to anyone who lists the firmware's entries). Once the
 computer is back from a Faraday session, Home offers **Remove the
-Faraday boot entry** beside the checklist; keeping it saves a password
-prompt next time, removing it leaves no trace of Faraday in the
-firmware. Uninstall removes it too.
+Faraday boot entry** beside the checklist. Setting the next start
+asks for the password every time, kept entry or not; keeping it only
+spares creating it again, and removing it leaves no trace of Faraday
+in the firmware. Uninstall removes it too.
 
 ### 3.2 Make a Faraday stick
 

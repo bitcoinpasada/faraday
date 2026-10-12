@@ -47,11 +47,18 @@ fn every_guide_the_hub_links_to_is_there() {
             "Starting a Windows computer from the stick",
             "Starting a Linux computer from the stick",
             "BitLocker and starting from a stick",
+            "What Secure Boot and BitLocker are",
+            "Screens and devices that can record",
             "When the stick does not start",
             "Replacing Faraday on a stick",
         ]
     );
     assert!(faraday_core::learn::page("no-such-page").is_none());
+}
+
+#[test]
+fn the_boot_entry_page_is_there() {
+    assert_eq!(guide("boot-entry").title, "The Faraday boot entry on Linux");
 }
 
 #[test]

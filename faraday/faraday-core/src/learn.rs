@@ -36,7 +36,7 @@ pub struct LearnState {
 /// as it is: the hub app's screens open a page by it, and the website
 /// publishes each guide at `https://faradayoffline.app/start/<id>`
 /// (§7.4).
-const OWN: [(&str, &str); 17] = [
+const OWN: [(&str, &str); 20] = [
     // Upgrading a stick from another stick (`PLAN.md` §5.5).
     (
         "upgrade-a-stick",
@@ -60,6 +60,19 @@ const OWN: [(&str, &str); 17] = [
     (
         "bitlocker",
         include_str!("../../../docs/learn/faraday/boot/bitlocker.md"),
+    ),
+    (
+        "secure-boot-bitlocker",
+        include_str!("../../../docs/learn/faraday/boot/secure-boot-bitlocker.md"),
+    ),
+    (
+        "screens-that-record",
+        include_str!("../../../docs/learn/faraday/boot/screens-that-record.md"),
+    ),
+    // The Faraday stick boot entry on Linux (`docs/HUB.md` §3.1c).
+    (
+        "boot-entry",
+        include_str!("../../../docs/learn/faraday/boot/boot-entry.md"),
     ),
     (
         "not-starting",
@@ -108,12 +121,16 @@ const OWN: [(&str, &str); 17] = [
 ];
 
 /// The guides to starting a computer from the stick (`docs/HUB.md` §7.2),
-/// by id, in the order they are read: Windows, Linux, BitLocker, when the
-/// stick does not start, and replacing Faraday on a stick.
-pub const BOOT: [&str; 5] = [
+/// by id, in the order they are read: Windows, Linux, BitLocker, what
+/// Secure Boot and BitLocker are (§3.1b), screens and devices that can
+/// record (§3.1a), when the stick does not start, and replacing Faraday
+/// on a stick.
+pub const BOOT: [&str; 7] = [
     "windows",
     "linux",
     "bitlocker",
+    "secure-boot-bitlocker",
+    "screens-that-record",
     "not-starting",
     "replace-faraday",
 ];
