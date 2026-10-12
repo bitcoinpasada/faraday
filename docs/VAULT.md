@@ -255,7 +255,10 @@ stick visit:
 
 1. Find the file on the visited stick whose salt and length equal the
    sealed vault's. None: offer to write it as a new file. More than one:
-   refuse and name both.
+   refuse and name both. A different vault under the name asked for is
+   never written over, whatever the visit's Already on the stick sheet
+   chose (`docs/FLOWS.md` decision 58): the new one goes beside it as
+   `name-2.ofv`.
 2. Write the sealed vault as a new file beside it, read it back and
    compare byte for byte.
 3. Delete the original and rename the new file to the original's name.

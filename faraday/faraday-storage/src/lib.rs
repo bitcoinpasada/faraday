@@ -60,8 +60,15 @@ pub fn read_qr_png(stick: &str, name: &str) -> Result<faraday_files::Picture, St
 pub trait Sticks {
     /// One file's bytes.
     fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, String>;
-    /// A file written; the name it went under.
-    fn write(&mut self, stick: &str, name: &str, bytes: &[u8]) -> Result<String, String>;
+    /// A file written, over a file of its name when `replace`; the name
+    /// it went under.
+    fn write(
+        &mut self,
+        stick: &str,
+        name: &str,
+        bytes: &[u8],
+        replace: bool,
+    ) -> Result<String, String>;
     /// Deletes a file, zeros over it first.
     fn wipe(&mut self, stick: &str, name: &str) -> Result<(), String>;
     /// The free space and the whole data space, in bytes.
@@ -222,8 +229,14 @@ impl Sticks for Dirs {
     fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, String> {
         read(stick, name)
     }
-    fn write(&mut self, stick: &str, name: &str, bytes: &[u8]) -> Result<String, String> {
-        faraday_files::write_any(&mut dir(stick), name, bytes)
+    fn write(
+        &mut self,
+        stick: &str,
+        name: &str,
+        bytes: &[u8],
+        replace: bool,
+    ) -> Result<String, String> {
+        faraday_files::write_any(&mut dir(stick), name, bytes, replace)
     }
     fn wipe(&mut self, stick: &str, name: &str) -> Result<(), String> {
         faraday_files::wipe(&mut dir(stick), name)
@@ -500,8 +513,13 @@ pub fn serve_all(
                 };
                 app.storage(ev);
             }
-            StorageCommand::Write { stick, name, bytes } => {
-                let written = sticks.write(&stick, &name, &bytes);
+            StorageCommand::Write {
+                stick,
+                name,
+                bytes,
+                replace,
+            } => {
+                let written = sticks.write(&stick, &name, &bytes, replace);
                 let ev = match written {
                     Ok(wrote_as) => {
                         said.push(format!("wrote {stick}/{wrote_as}"));
@@ -821,11 +839,18 @@ impl Sticks for DiskProcess {
         }
     }
 
-    fn write(&mut self, stick: &str, name: &str, bytes: &[u8]) -> Result<String, String> {
+    fn write(
+        &mut self,
+        stick: &str,
+        name: &str,
+        bytes: &[u8],
+        replace: bool,
+    ) -> Result<String, String> {
         use faraday_files::proto::{Request, Response};
         let mut req = Request::Write {
             stick: stick.into(),
             name: name.into(),
+            replace,
             bytes: bytes.to_vec(),
         };
         let answer = self.ask(&req);

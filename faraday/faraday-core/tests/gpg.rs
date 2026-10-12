@@ -113,9 +113,9 @@ fn a_stick_visit_copies_in_files_of_no_kind_faraday_knows() {
     }
 }
 
-/// The app with the test vault unlocked, a GPG key made, and the Sign a
-/// file page open on the three files the stick visit copied in.
-fn signing() -> Faraday {
+/// The app with the test vault unlocked on its GPG keys, after the stick
+/// visit.
+fn unlocked() -> Faraday {
     let mut app = copied_in();
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
@@ -125,12 +125,86 @@ fn signing() -> Faraday {
     assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
+    app
+}
+
+/// Settings' Set the time, then Keep this time: the clock checked, as a
+/// person on the stick does before making or signing.
+fn keep_the_time(app: &mut Faraday) {
+    app.press(Action::OpenSetTime);
+    app.press(Action::SetTimeKeep);
+}
+
+/// Add, a name, Save: a GPG key made, as a person makes one.
+fn make_key(app: &mut Faraday, name: &str) {
     app.press(Action::Vault(V::Add));
     app.press(Action::Vault(V::FocusField(0)));
-    type_text(&mut app, "Release");
+    type_text(app, name);
     app.press(Action::Vault(V::FormSave));
+}
+
+fn gpg_keys(app: &Faraday) -> usize {
+    app.vaults.open[app.vaults.current]
+        .contents
+        .of(faraday_vault::records::kind::GPG)
+        .count()
+}
+
+/// The app with the test vault unlocked, a GPG key made, and the Sign a
+/// file page open on the three files the stick visit copied in.
+fn signing() -> Faraday {
+    let mut app = unlocked();
+    keep_the_time(&mut app);
+    make_key(&mut app, "Release");
     app.press(Action::Vault(V::GpgSignPick));
     app
+}
+
+/// On the stick, with the clock not checked, Make a key opens Set the
+/// time and makes nothing: a GPG key's creation time is part of its
+/// fingerprint. After Keep this time, Save again makes it. The desktop
+/// app, whose clock is the computer's, never asks.
+#[test]
+fn on_the_stick_make_a_key_asks_for_the_time_first() {
+    let mut app = unlocked();
+    let before = gpg_keys(&app);
+    make_key(&mut app, "Release");
+    assert_eq!(app.screen, Screen::SetTime);
+    assert_eq!(gpg_keys(&app), before, "nothing made");
+    app.press(Action::SetTimeKeep);
+    assert_eq!(app.screen, Screen::VaultContents, "back on the same page");
+    app.press(Action::Vault(V::FormSave));
+    assert_eq!(gpg_keys(&app), before + 1);
+
+    let mut app = unlocked();
+    app.online = true;
+    make_key(&mut app, "Release");
+    assert_eq!(
+        app.screen,
+        Screen::VaultContents,
+        "the desktop app never asks"
+    );
+    assert_eq!(gpg_keys(&app), before + 1);
+}
+
+/// Signing on the stick asks for the time first too, and signs nothing
+/// until it is checked.
+#[test]
+fn on_the_stick_signing_asks_for_the_time_first() {
+    let mut app = unlocked();
+    app.online = true;
+    make_key(&mut app, "Release");
+    app.online = false;
+    app.press(Action::Vault(V::GpgSignPick));
+    app.press(Action::Vault(V::GpgTick(0)));
+    let files = app.outbox.len();
+    app.press(Action::Vault(V::GpgSignTicked));
+    assert_eq!(app.screen, Screen::SetTime);
+    assert_eq!(app.outbox.len(), files, "nothing signed");
+    app.press(Action::SetTimeKeep);
+    app.press(Action::Vault(V::GpgSignTicked));
+    assert_eq!(app.screen, Screen::VaultContents);
+    assert_eq!(app.toast_text(), Some("1 signature waits for the stick"));
 }
 
 /// Sign a file is a checkbox list: ticking two files and pressing Sign 2
@@ -261,10 +335,8 @@ fn with_one_file_it_starts_ticked() {
     settle(&mut app, 1);
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
-    app.press(Action::Vault(V::Add));
-    app.press(Action::Vault(V::FocusField(0)));
-    type_text(&mut app, "Release");
-    app.press(Action::Vault(V::FormSave));
+    keep_the_time(&mut app);
+    make_key(&mut app, "Release");
     // The vault's own file stays in the Inbox once opened; drop it so
     // SHA256SUMS is the one signable file, as a stick visit that only
     // ever copied in the release would leave it.

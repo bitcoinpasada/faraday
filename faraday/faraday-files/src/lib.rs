@@ -6,8 +6,9 @@
 //!   disk process's partitions on the device.
 //!
 //! Only the top level of a stick is used. A write is a new file, read
-//! back and compared, then renamed into place; it never goes over a file
-//! already there, except a sealed vault going back over its own file,
+//! back and compared, then renamed into place; it goes over a file
+//! already there only when the person chose Replace for it
+//! ([`write_replacing`]), a sealed vault going back over its own file,
 //! found by salt and length, and the settings file over the settings
 //! file. A vault write-back a pulled stick interrupted is finished on the
 //! next visit. Pictures are decoded for QR codes here, and only here: the
@@ -313,6 +314,39 @@ pub fn write(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<String, 
     Ok(name)
 }
 
+/// Writes a file over the one of the same name on the stick, ignoring
+/// case, when there is one: the new bytes under a hidden temp name, read
+/// back and compared, then the old file removed and the temp renamed to
+/// its name, as [`write_vault`] does. A read-back that differs leaves the
+/// old file as it was. With no file of that name, the same as [`write`].
+/// Returns the name it was written under.
+pub fn write_replacing(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<String, String> {
+    let name = checked(name)?;
+    let Some(old) = place
+        .files()?
+        .into_iter()
+        .map(|(n, _)| n)
+        .find(|n| n.eq_ignore_ascii_case(name))
+    else {
+        return write(place, name, bytes);
+    };
+    // A vault on the stick is never removed by a replacing write: only
+    // `write_vault` goes over a vault, and only over the same one.
+    if old.to_ascii_lowercase().ends_with(".ofv") {
+        return write(place, name, bytes);
+    }
+    let temp = format!(".faraday-{old}.part");
+    put_checked(place, &temp, bytes)?;
+    // FAT has no atomic replace: the old file goes, then the copy that
+    // read back whole takes its name.
+    if let Err(e) = place.remove(&old) {
+        let _ = place.remove(&temp);
+        return Err(e);
+    }
+    place.rename(&temp, &old)?;
+    Ok(old)
+}
+
 /// A vault's identity: its salt and its length (`docs/VAULT.md` §6).
 /// `None` for anything that is not a vault.
 fn vault_identity(bytes: &[u8], len: u64) -> Option<([u8; 32], u64)> {
@@ -426,12 +460,21 @@ pub fn write_settings(place: &mut dyn Place, bytes: &[u8]) -> Result<String, Str
 }
 
 /// Writes what the app put in the Outbox: a sealed vault back over its
-/// own file, the settings over the settings, anything else as a new file.
-pub fn write_any(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<String, String> {
+/// own file, the settings over the settings, anything else over a file of
+/// its name when `replace` ([`write_replacing`]) or else as a new file.
+/// A vault is never written over another vault, whatever `replace` says.
+pub fn write_any(
+    place: &mut dyn Place,
+    name: &str,
+    bytes: &[u8],
+    replace: bool,
+) -> Result<String, String> {
     if name.ends_with(".ofv") && bytes.starts_with(b"OFVT") {
         write_vault(place, name, bytes)
     } else if name.eq_ignore_ascii_case(SETTINGS_FILE) && bytes.starts_with(b"faraday-settings ") {
         write_settings(place, bytes)
+    } else if replace {
+        write_replacing(place, name, bytes)
     } else {
         write(place, name, bytes)
     }

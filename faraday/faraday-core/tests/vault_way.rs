@@ -429,7 +429,7 @@ fn create_a_vault_lands_on_unlock_asking_for_the_passphrase_once_more() {
 }
 
 #[test]
-fn an_empty_open_vault_offers_a_wallet_and_a_stick() {
+fn an_empty_open_vault_offers_every_add_and_a_stick() {
     let mut app = device(Vec::new());
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
@@ -440,22 +440,31 @@ fn an_empty_open_vault_offers_a_wallet_and_a_stick() {
         Screen::VaultContents,
         "the vault just made opens on its contents"
     );
+    let texts = app.drawn_texts();
     assert!(
-        app.drawn_texts().iter().any(|t| t == "Nothing in it yet"),
+        texts.iter().any(|t| t == "Nothing in it yet"),
         "it says it is empty"
     );
+    // Every way to add, with no press first.
+    for add in [
+        "Save a bitcoin key",
+        "Save a wallet",
+        "Add an entry",
+        "Add a note",
+        "Make a GPG key",
+        "Make Secure Boot keys",
+    ] {
+        assert!(texts.iter().any(|t| t == add), "{add}: {texts:?}");
+    }
     let _ = app.frame();
-    assert!(
-        app.offers(Action::Vault(V::PutWallet)),
-        "Put a wallet in it"
-    );
+    for k in 0..faraday_core::vaults::CATEGORIES.len() {
+        assert!(app.offers(Action::Vault(V::AddKind(k))), "add kind {k}");
+    }
     assert!(
         app.offers(Action::Vault(V::WriteOut)),
         "Write it to a stick"
     );
-    app.press(Action::Vault(V::PutWallet));
-    assert_eq!(app.screen, Screen::Start, "Wallets, with none loaded");
-    app.press(Action::Nav(Screen::VaultContents));
+    assert!(texts.iter().any(|t| t == "Write it to a stick"));
     app.press(Action::Vault(V::WriteOut));
     assert_eq!(app.screen, Screen::Files);
 }

@@ -678,3 +678,167 @@ fn zeroing_stops_on_stop_and_on_a_pull() {
     assert!(app.zeroing.is_none());
     assert_eq!(app.sheet, None);
 }
+
+/// A stick holding `on_stick`, the Outbox holding `outbox`, every one of
+/// them chosen on the visit.
+fn writing_over(on_stick: &[(&str, u64)], outbox: Vec<(&str, Vec<u8>)>) -> Faraday {
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 768,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    for (name, bytes) in outbox {
+        app.outbox.push(Item {
+            name: name.into(),
+            bytes,
+            kind: FileKind::Pdf,
+            secret: false,
+            picture: None,
+        });
+    }
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        id: "S".into(),
+        label: "TESTSTICK".into(),
+        boot: false,
+        files: on_stick.iter().map(|(n, s)| (n.to_string(), *s)).collect(),
+    }]));
+    app.press(Action::Nav(Screen::Visit));
+    let names: Vec<String> = app.outbox.iter().map(|i| i.name.clone()).collect();
+    for (i, n) in names.iter().enumerate() {
+        if !app.visit.out.contains(n) {
+            app.press(Action::VisitOut(i));
+        }
+    }
+    let _ = app.frame();
+    app
+}
+
+/// The files a write sends, settings left out: each name and whether it
+/// goes over the old file.
+fn writes(app: &mut Faraday) -> Vec<(String, bool)> {
+    asked(app)
+        .into_iter()
+        .filter_map(|c| match c {
+            StorageCommand::Write { name, replace, .. }
+                if name != faraday_core::stick_settings::FILE =>
+            {
+                Some((name, replace))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn a_taken_name_asks_first_and_replace_writes_over_it() {
+    let mut app = writing_over(
+        &[("Backup-00.pdf", 10)],
+        vec![
+            ("backup-00.pdf", b"new".to_vec()),
+            ("backup-01.pdf", b"new".to_vec()),
+        ],
+    );
+    asked(&mut app);
+    app.press(Action::VisitWrite);
+    assert!(
+        writes(&mut app).is_empty(),
+        "nothing written before a choice"
+    );
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Already on the stick"),
+        "{texts:?}"
+    );
+    assert!(
+        texts
+            .iter()
+            .any(|t| t == "backup-00.pdf · Keep both: backup-00-2.pdf"),
+        "the row says the name Keep both gives: {texts:?}"
+    );
+    assert!(
+        !texts.iter().any(|t| t.starts_with("backup-01.pdf ·")),
+        "a name not taken is not listed"
+    );
+    app.press(Action::VisitReplace);
+    assert_eq!(
+        writes(&mut app),
+        [
+            ("backup-00.pdf".to_string(), true),
+            ("backup-01.pdf".to_string(), false)
+        ]
+    );
+}
+
+#[test]
+fn keep_both_writes_beside_and_cancel_writes_nothing() {
+    let outbox = || vec![("backup-00.pdf", b"new".to_vec())];
+    let mut app = writing_over(&[("backup-00.pdf", 10)], outbox());
+    asked(&mut app);
+    app.press(Action::VisitWrite);
+    app.press(Action::VisitKeepBoth);
+    assert_eq!(writes(&mut app), [("backup-00.pdf".to_string(), false)]);
+
+    let mut app = writing_over(&[("backup-00.pdf", 10)], outbox());
+    asked(&mut app);
+    app.press(Action::VisitWrite);
+    app.press(Action::Cancel);
+    assert!(writes(&mut app).is_empty(), "Cancel writes nothing");
+    assert_eq!(app.screen, Screen::Visit, "the visit stays open");
+    // Nothing taken: no sheet, written at once.
+    let mut app = writing_over(&[], outbox());
+    asked(&mut app);
+    app.press(Action::VisitWrite);
+    assert_eq!(writes(&mut app), [("backup-00.pdf".to_string(), false)]);
+}
+
+#[test]
+fn the_same_vault_is_replaced_and_another_vault_never_is() {
+    let vault = faraday_core::testkit::test_vault().unwrap();
+    let len = vault.len() as u64;
+    let mut app = writing_over(
+        &[
+            ("vault.ofv", len),
+            ("old.ofv", len + 1),
+            ("backup-00.pdf", 10),
+        ],
+        vec![
+            ("vault.ofv", vault.clone()),
+            ("old.ofv", vault.clone()),
+            ("backup-00.pdf", b"new".to_vec()),
+        ],
+    );
+    asked(&mut app);
+    app.press(Action::VisitWrite);
+    let texts = app.drawn_texts();
+    for row in [
+        "vault.ofv · the same vault, updated here",
+        "old.ofv · another vault · kept, this one as old-2.ofv",
+    ] {
+        assert!(texts.iter().any(|t| t == row), "{row}: {texts:?}");
+    }
+    // Replace goes over the file only; the vaults are left to the
+    // vault write-back, which goes over the same vault and never another.
+    app.press(Action::VisitReplace);
+    assert_eq!(
+        writes(&mut app),
+        [
+            ("vault.ofv".to_string(), false),
+            ("old.ofv".to_string(), false),
+            ("backup-00.pdf".to_string(), true)
+        ]
+    );
+    // The same vault alone, sealed again here, is written back with no
+    // question.
+    let mut app = writing_over(&[("vault.ofv", len)], vec![("vault.ofv", vault)]);
+    asked(&mut app);
+    app.press(Action::VisitWrite);
+    assert_eq!(writes(&mut app), [("vault.ofv".to_string(), false)]);
+}

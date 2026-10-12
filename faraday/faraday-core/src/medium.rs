@@ -111,6 +111,15 @@ impl Medium {
         }
     }
 
+    /// Mid-sentence, where a file already is: "on the stick", "on the SD
+    /// card".
+    pub const fn on_the(self) -> &'static str {
+        match self {
+            Medium::Stick => "on the stick",
+            Medium::SdCard => "on the SD card",
+        }
+    }
+
     /// Mid-sentence, where a file waits to go: "for the stick", "for the
     /// SD card".
     pub const fn for_the(self) -> &'static str {

@@ -91,6 +91,13 @@ fn gpg_created(app: &Faraday) -> u32 {
     gpg::key_of(r).expect("a readable key").created
 }
 
+fn gpg_count(app: &Faraday) -> usize {
+    app.vaults.open[app.vaults.current]
+        .contents
+        .of(kind::GPG)
+        .count()
+}
+
 fn stick(id: &str, boot: bool, file: Option<&[u8]>) -> StickInfo {
     StickInfo {
         id: id.into(),
@@ -127,14 +134,30 @@ fn booted(file: Option<&[u8]>) -> Faraday {
 
 #[test]
 fn a_clock_before_2020_is_not_known() {
-    // The Pi at boot: its real-time clock starts at 1970.
-    let mut app = vault_app(Some(1000));
-    make_gpg_key(&mut app);
-    assert_eq!(app.toast_text(), Some("This computer's clock is not known"));
-    // With no reading at all, the same.
-    let mut app = vault_app(None);
-    make_gpg_key(&mut app);
-    assert_eq!(app.toast_text(), Some("This computer's clock is not known"));
+    // The Pi at boot: its real-time clock starts at 1970. Make a key asks
+    // for the time, makes nothing, and offers no Keep this time.
+    for clock in [Some(1000), None] {
+        let mut app = vault_app(clock);
+        let before = gpg_count(&app);
+        make_gpg_key(&mut app);
+        assert_eq!(app.screen, Screen::SetTime, "{clock:?}");
+        assert_eq!(app.now_local_text(), "Not known");
+        let _ = app.frame();
+        assert!(!app.offers(Action::SetTimeKeep), "{clock:?}");
+        assert_eq!(gpg_count(&app), before, "{clock:?}");
+    }
+}
+
+/// Settings' Time card says what reads the clock.
+#[test]
+fn the_time_card_says_what_the_time_is_for() {
+    let mut app = vault_app(Some(1_791_000_000));
+    app.press(Action::Nav(Screen::Settings));
+    let texts = app.drawn_texts().join(" ");
+    assert!(
+        texts.contains("For TOTP codes, GPG and Secure Boot signatures"),
+        "{texts}"
+    );
 }
 
 #[test]

@@ -229,17 +229,16 @@ fn new_open_vault(app: &mut Faraday) {
 }
 
 #[test]
-fn a_vault_with_one_key_lists_keys_and_add_and_no_other_kind() {
+fn a_vault_with_one_key_lists_keys_every_add_and_no_other_kind() {
     let mut app = device(Vec::new());
     add_key(&mut app, 0);
     new_open_vault(&mut app);
     app.press(Action::Nav(Screen::VaultContents));
-    app.press(Action::Vault(V::AddMenu));
     let _ = app.frame();
     for k in 0..faraday_core::vaults::CATEGORIES.len() {
         assert!(
             app.offers(Action::Vault(V::AddKind(k))),
-            "Add… lists kind {k}"
+            "an empty vault offers kind {k} to add"
         );
     }
     app.press(Action::Vault(V::AddKind(0)));
@@ -247,7 +246,12 @@ fn a_vault_with_one_key_lists_keys_and_add_and_no_other_kind() {
     app.press(Action::Vault(V::ItemBack));
     let _ = app.frame();
     assert!(app.offers(Action::Vault(V::Category(0))), "Bitcoin keys");
-    assert!(app.offers(Action::Vault(V::AddMenu)), "Add…");
+    for k in 0..faraday_core::vaults::CATEGORIES.len() {
+        assert!(
+            app.offers(Action::Vault(V::AddKind(k))),
+            "a vault with a key still offers kind {k} to add"
+        );
+    }
     for k in 1..faraday_core::vaults::CATEGORIES.len() {
         assert!(
             !app.offers(Action::Vault(V::Category(k))),

@@ -112,7 +112,15 @@ session's secrets.
 `clock_checked: bool`, true once the person has pressed **Set** or
 **Keep this time** (§3) in this power-on, and kept across a lock with
 the offset. The desktop app (`app.online`) counts as checked whenever
-its clock is known. §5 uses this.
+its clock is known. §5 uses this, and so does everything else that
+keeps the time it reads (HANDOFF item 68, 2026-10-11): GPG's Make a
+key, Renew, Revoke, Sign and the revocation's and a signature's QR and
+PNG, and Secure Boot's Make keys and enrolment files. With the clock
+not checked (the stick and the Pi), pressing one opens Set the time
+(§3) over the same page, which it returns to, and does nothing else;
+the person then presses again. A GPG key's creation time is part of its
+fingerprint, so a wrong clock is not put right later. Signing an image
+with the db key reads no clock and does not ask.
 
 ## 2. The time zone
 
@@ -122,7 +130,9 @@ its clock is known. §5 uses this.
 −720 to +840 (−12:00 to +14:00) in steps of 15. That covers every
 offset in use, including +05:30 and +05:45.
 
-- **Settings** gains a section **Time** after **Session**. It holds a
+- **Settings** gains a section **Time** after **Session**. Under its
+  title the line **For TOTP codes, GPG and Secure Boot signatures, and
+  backup check dates** (everything that reads `clock_now`). It holds a
   value row **Now**, the live local date and time (`2026-10-11
   14:02:37`) or `Not known`; a row **Time zone** showing `UTC+02:00`
   (`UTC+00:00` for zero, `UTC−03:30` with a minus sign) between a −

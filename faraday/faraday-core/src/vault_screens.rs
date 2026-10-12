@@ -2132,11 +2132,10 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     // Three columns: kinds, items, the item. A wallet's chart takes the
     // room the other two give up (`docs/NEW-WALLET.md` §7.2).
-    let chart_shown = !app.vaults.add_menu
-        && app
-            .vault_selected_index()
-            .and_then(|i| v.contents.records.get(i))
-            .is_some_and(|r| r.kind == kind::WALLET);
+    let chart_shown = app
+        .vault_selected_index()
+        .and_then(|i| v.contents.records.get(i))
+        .is_some_and(|r| r.kind == kind::WALLET);
     let (kinds_w, items_w) = if chart_shown {
         (
             osk_ui::tokens::CHART_PANE_KINDS,
@@ -2150,9 +2149,10 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let detail_w = w - kinds_w - items_w - 48.0;
     let top = y;
     let mut ky = top;
-    // The kinds it holds, then Add….
+    // The kinds it holds, then a row for each kind to add.
+    let empty = shows_empty(app, v);
     for (k, label, count) in listed_kinds(app, v) {
-        let on = k == app.vaults.category && !app.vaults.add_menu;
+        let on = k == app.vaults.category;
         if on {
             ui.fill(x, ky, kinds_w, 38.0, 8.0, ACCENT.with_alpha(30));
         }
@@ -2177,26 +2177,15 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.hit(x, ky, kinds_w, 38.0, va(V::Category(k)));
         ky += 42.0;
     }
-    if app.vaults.add_menu {
-        ui.fill(x, ky, kinds_w, 38.0, 8.0, ACCENT.with_alpha(30));
+    if !empty {
+        if ky > top {
+            ky += 8.0;
+        }
+        add_rows(ui, x, ky, kinds_w, 38.0);
     }
-    ui.text_mid(
-        x + 12.0,
-        ky,
-        38.0,
-        14.0,
-        W::S,
-        if app.vaults.add_menu { TEXT } else { MUTED },
-        ADD_ROW,
-    );
-    ui.hit(x, ky, kinds_w, 38.0, va(V::AddMenu));
 
     let ix = x + kinds_w + 16.0;
-    if app.vaults.add_menu {
-        add_list(ui, ix, top, items_w);
-        return;
-    }
-    if shows_empty(app, v) {
+    if empty {
         ui.text(ix, top + 6.0, 15.0, W::S, TEXT, NOTHING_YET);
         let mut by = top + 40.0;
         for (label, style, action) in empty_buttons(app) {
@@ -2356,8 +2345,6 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.report_scroll_in(crate::ui::Slot::VaultItem, clip, max, app.vault_item_offset);
 }
 
-/// The contents' row that lists every kind to add.
-const ADD_ROW: &str = "Add…";
 /// What an open vault with nothing in it says.
 const NOTHING_YET: &str = "Nothing in it yet";
 
@@ -2390,10 +2377,7 @@ fn listed_kinds(app: &Faraday, v: &vaults::OpenVault) -> Vec<(usize, &'static st
                 .count();
             (k, *label, n)
         })
-        .filter(|&(k, _, n)| {
-            n > 0
-                || (k == app.vaults.category && app.vaults.category_chosen && !app.vaults.add_menu)
-        })
+        .filter(|&(k, _, n)| n > 0 || (k == app.vaults.category && app.vaults.category_chosen))
         .collect()
 }
 
@@ -2403,41 +2387,69 @@ fn shows_empty(app: &Faraday, v: &vaults::OpenVault) -> bool {
     let held = CATEGORIES
         .iter()
         .any(|(_, kinds)| v.contents.records.iter().any(|r| kinds.contains(&r.kind)));
-    !held && !app.vaults.category_chosen && !app.vaults.add_menu && !contents_detail(app)
+    !held && !app.vaults.category_chosen && !contents_detail(app)
 }
 
-/// An empty vault's next steps.
-fn empty_buttons(app: &Faraday) -> [(String, Style, Action); 2] {
-    [
-        (
-            "Put a wallet in it".to_string(),
-            Style::Primary,
-            va(V::PutWallet),
-        ),
-        (
-            format!("Write it to {}", app.medium.a()),
-            Style::Secondary,
-            va(V::WriteOut),
-        ),
-    ]
+/// An empty vault's next steps: every way to add, then writing it out.
+fn empty_buttons(app: &Faraday) -> Vec<(String, Style, Action)> {
+    let mut out: Vec<(String, Style, Action)> = (0..CATEGORIES.len())
+        .filter_map(|k| add_full(k).map(|a| (a.to_string(), Style::Secondary, va(V::AddKind(k)))))
+        .collect();
+    out.push((
+        format!("Write it to {}", app.medium.a()),
+        Style::Secondary,
+        va(V::WriteOut),
+    ));
+    out
 }
 
-/// The Add… list at (x, y), w wide: every kind, each with its Add action.
-/// Returns its height.
-fn add_list(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+/// What adds an item of kind `k` where no category says which: an empty
+/// vault's buttons.
+fn add_full(k: usize) -> Option<&'static str> {
+    match k {
+        0 => Some("Save a bitcoin key"),
+        1 => Some("Save a wallet"),
+        2 => Some("Add an entry"),
+        3 => Some("Add a note"),
+        4 => Some("Make a GPG key"),
+        5 => Some("Make Secure Boot keys"),
+        _ => None,
+    }
+}
+
+/// The same, short, for the add rows under the kinds.
+fn add_short(k: usize) -> Option<&'static str> {
+    match k {
+        0 => Some("Bitcoin key"),
+        1 => Some("Wallet"),
+        2 => Some("Entry"),
+        3 => Some("Note"),
+        4 => Some("GPG key"),
+        5 => Some("Secure Boot"),
+        _ => None,
+    }
+}
+
+/// A row for each kind to add at (x, y), w wide and `row` tall, the Add
+/// icon in the accent colour before its label. Returns their height.
+fn add_rows(ui: &mut Ui, x: f32, y: f32, w: f32, row: f32) -> f32 {
     let mut cy = y;
-    for (k, (label, _)) in CATEGORIES.iter().enumerate() {
-        let Some(add) = add_label(k) else {
+    for k in 0..CATEGORIES.len() {
+        let Some(add) = add_short(k) else {
             continue;
         };
-        ui.fill(x, cy, w, 52.0, 8.0, BG);
-        ui.stroke(x, cy, w, 52.0, 8.0, LINE);
-        let t = ui.fit(14.0, W::S, add, w - 24.0);
-        ui.text(x + 12.0, cy + 8.0, 14.0, W::S, TEXT, &t);
-        let l = ui.fit(12.0, W::R, label, w - 24.0);
-        ui.text(x + 12.0, cy + 30.0, 12.0, W::R, MUTED, &l);
-        ui.hit(x, cy, w, 52.0, va(V::AddKind(k)));
-        cy += 58.0;
+        ui.icon(
+            x + 4.0,
+            cy + (row - 20.0) / 2.0,
+            20.0,
+            Icon::Add,
+            12.0,
+            ACCENT,
+        );
+        let t = ui.fit(13.0, W::S, add, w - 34.0);
+        ui.text_mid(x + 30.0, cy, row, 13.0, W::S, TEXT, &t);
+        ui.hit(x, cy, w, row, va(V::AddKind(k)));
+        cy += row + 4.0;
     }
     cy - y
 }
@@ -2541,16 +2553,17 @@ fn contents_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .collect();
         y += wrap_buttons(ui, x, y, w, 32.0, &items) + 4.0;
     }
-    // The kinds it holds, each with how many, then Add….
+    // The kinds it holds, each with how many, then a row for each kind
+    // to add.
     let listed = listed_kinds(app, v);
     let kind_labels: Vec<(usize, String)> = listed
         .iter()
         .map(|(k, label, n)| (*k, format!("{label} {n}")))
         .collect();
-    let mut kind_items: Vec<(&str, Style, Action)> = kind_labels
+    let kind_items: Vec<(&str, Style, Action)> = kind_labels
         .iter()
         .map(|(k, l)| {
-            let style = if *k == app.vaults.category && !app.vaults.add_menu {
+            let style = if *k == app.vaults.category {
                 Style::Primary
             } else {
                 Style::Secondary
@@ -2558,24 +2571,16 @@ fn contents_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             (l.as_str(), style, va(V::Category(*k)))
         })
         .collect();
-    kind_items.push((
-        ADD_ROW,
-        if app.vaults.add_menu {
-            Style::Primary
-        } else {
-            Style::Secondary
-        },
-        va(V::AddMenu),
-    ));
-    y += wrap_buttons(ui, x, y, w, 34.0, &kind_items) + 8.0;
+    let empty = shows_empty(app, v);
+    if !kind_items.is_empty() {
+        y += wrap_buttons(ui, x, y, w, 34.0, &kind_items) + 4.0;
+    }
+    if !empty {
+        y += add_rows(ui, x, y, w, 36.0) + 4.0;
+    }
     ui.rule(x, y, w, LINE);
     y += 14.0;
-    if app.vaults.add_menu {
-        y += add_list(ui, x, y, w) + 8.0;
-        finish(app, ui, x0, cw, h, y - top + 16.0);
-        return;
-    }
-    if shows_empty(app, v) {
+    if empty {
         ui.text(x, y, 15.0, W::S, TEXT, NOTHING_YET);
         y += 34.0;
         for (label, style, action) in empty_buttons(app) {

@@ -59,6 +59,7 @@ pub mod ui;
 pub mod upgrade;
 pub mod vanity;
 pub mod vaults;
+pub mod visit_taken;
 pub mod wallet;
 pub mod wordlist;
 
@@ -424,8 +425,9 @@ pub enum StorageCommand {
         /// The file.
         name: String,
     },
-    /// Write a file to a stick: a new file, read back and compared, never
-    /// over a file already there.
+    /// Write a file to a stick: a new file, read back and compared; over
+    /// a file of its name only when `replace`, which the person chose on
+    /// the visit's Already on the stick sheet.
     Write {
         /// The stick's id.
         stick: String,
@@ -433,6 +435,8 @@ pub enum StorageCommand {
         name: String,
         /// The contents.
         bytes: Vec<u8>,
+        /// Over the file of that name, rather than beside it.
+        replace: bool,
     },
     /// Read the QR codes in a PNG on a stick. The shell decodes the image;
     /// the app sees only what the codes hold.
@@ -670,6 +674,8 @@ pub enum Action {
     EntryRecover,
     /// Clear the typed words.
     EntryClear,
+    /// How many words the key has: 12, 15, 18, 21 or 24 boxes shown.
+    EntryWordCount(u8),
     /// Choose a wallet on the Wallets tab.
     PickWallet(usize),
     /// Choose a key in no wallet on the Wallets tab, by fingerprint.
@@ -721,8 +727,14 @@ pub enum Action {
     VisitOutAll,
     /// A stick visit column's scrollbar: held and dragged.
     VisitBar(Column),
-    /// Write the chosen Outbox files.
+    /// Write the chosen Outbox files: first the Already on the stick
+    /// sheet, when a name is taken there.
     VisitWrite,
+    /// That sheet's Replace: the taken files written over the old ones.
+    VisitReplace,
+    /// That sheet's Keep both: the taken files written beside the old
+    /// ones, under the names the sheet shows.
+    VisitKeepBoth,
     /// Copy the chosen stick files.
     VisitCopy,
     /// Copy the chosen stick files, and load as keys any that are once
@@ -1519,6 +1531,9 @@ pub enum Sheet {
     Delete,
     /// Zeroing under way: how far, and Stop.
     Zeroing,
+    /// A stick visit's write would go over files already on the stick:
+    /// Replace, Keep both or Cancel (`visit_taken`).
+    Taken,
 }
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
@@ -2147,9 +2162,31 @@ pub struct EntryState {
     /// directly, or set already by a Tools tile for one of those forms
     /// (`docs/SIMPLIFY.md` §2.4).
     pub other_forms: bool,
+    /// How many words were chosen, 0 until one is: 12 boxes.
+    pub word_count: u8,
 }
 
 impl EntryState {
+    /// The word counts a BIP-39 key can have.
+    pub const COUNTS: [u8; 5] = [12, 15, 18, 21, 24];
+
+    /// How many word boxes the choice asks for: 12 until another count
+    /// is chosen.
+    pub fn words_chosen(&self) -> usize {
+        if Self::COUNTS.contains(&self.word_count) {
+            usize::from(self.word_count)
+        } else {
+            12
+        }
+    }
+
+    /// How many word boxes to show with `filled` words in: the count
+    /// chosen, or all 24 once the words run past it.
+    pub fn word_boxes(&self, filled: usize) -> usize {
+        let chosen = self.words_chosen();
+        if filled > chosen { 24 } else { chosen }
+    }
+
     /// The BIP-39 list the words are typed from.
     pub fn language(&self) -> osk_bip::bip39::Language {
         forms::LANGUAGES[usize::from(self.language_at) % forms::LANGUAGES.len()]
@@ -2668,6 +2705,9 @@ pub struct VisitState {
     /// The write under way: the stick's label, and each file sent with
     /// the SHA-256 of its bytes. Its first answer starts a new receipt.
     pub writing: Option<Writing>,
+    /// The files the write would write whose names are taken on the
+    /// stick, while the Already on the stick sheet asks.
+    pub taken: Vec<visit_taken::Taken>,
 }
 
 /// A write under way: the stick's label, each file sent with its
@@ -4620,7 +4660,13 @@ impl Faraday {
                     self.screen = Screen::Entry;
                 }
             }
+            Action::EntryWordCount(n) => {
+                if EntryState::COUNTS.contains(&n) {
+                    self.entry.word_count = n;
+                }
+            }
             Action::EntryClear => {
+                self.entry.word_count = 0;
                 self.entry.typed.clear();
                 if self.entry.keys.is_some() {
                     self.entry.keys = Some(forms::word_typer(self.entry.language()));
@@ -4827,59 +4873,9 @@ impl Faraday {
             }
             Action::VisitInbox(i) => self.visit_inbox(i),
             Action::VisitBar(_) => {}
-            Action::VisitWrite => {
-                if let Some(stick) = self.sticks.get(self.visit.stick) {
-                    let id = stick.id.clone();
-                    let label = stick.label.clone();
-                    self.visit.log.clear();
-                    let before = self.storage_out.len();
-                    if self.visit_settings_on() {
-                        self.storage_out.push_back(StorageCommand::Write {
-                            stick: id.clone(),
-                            name: stick_settings::FILE.to_string(),
-                            bytes: self.settings_file_text().into_bytes(),
-                        });
-                    }
-                    for item in &self.outbox {
-                        if self.visit.out.contains(&item.name) {
-                            self.storage_out.push_back(StorageCommand::Write {
-                                stick: id.clone(),
-                                name: item.name.clone(),
-                                bytes: item.bytes.clone(),
-                            });
-                        }
-                    }
-                    // A copy from another stick: its bytes as they came,
-                    // a picture's too. Only those the visit lists.
-                    let listed = self.visit_inbox_rows();
-                    for &k in &listed {
-                        let item = &self.inbox[k];
-                        if self.visit.from_inbox.contains(&item.name) {
-                            self.visit.writing_inbox.insert(item.name.clone());
-                            self.storage_out.push_back(StorageCommand::Write {
-                                stick: id.clone(),
-                                name: item.name.clone(),
-                                bytes: item.bytes.clone(),
-                            });
-                        }
-                    }
-                    // What this write sends, for its receipt.
-                    let sent: Vec<(String, [u8; 32])> = self
-                        .storage_out
-                        .iter()
-                        .skip(before)
-                        .filter_map(|c| match c {
-                            StorageCommand::Write { name, bytes, .. } => {
-                                Some((name.clone(), sha256_of(bytes)))
-                            }
-                            _ => None,
-                        })
-                        .collect();
-                    if !sent.is_empty() {
-                        self.visit.writing = Some((label, sent, false));
-                    }
-                }
-            }
+            Action::VisitWrite => self.visit_write_ask(),
+            Action::VisitReplace => self.visit_write(true),
+            Action::VisitKeepBoth => self.visit_write(false),
             Action::VisitCopy => self.visit_copy(),
             Action::VisitCopyAndLoad => {
                 self.visit.load_after.extend(self.visit.inn.iter().cloned());
@@ -4972,6 +4968,7 @@ impl Faraday {
                 // A seed read and not loaded is wiped.
                 self.seed_read = None;
                 self.delete_ask = None;
+                self.visit.taken.clear();
                 self.mainnet_asked = None;
                 self.secret_cancel();
                 self.wordlist = None;
@@ -6050,6 +6047,9 @@ impl Faraday {
                     self.open_qr(view);
                 }
             }
+            Action::ShowCode(c) | Action::CodePng(c)
+                if matches!(c, Code::GpgRevocation | Code::GpgSignature(_))
+                    && self.time_asked() => {}
             Action::ShowCode(c) => {
                 let view = self.code_view(c);
                 self.open_qr(view);
@@ -9980,7 +9980,9 @@ impl Faraday {
         match self.sheet {
             Some(Sheet::Learn) => return Some(&mut self.learn.scroll),
             Some(Sheet::WordList) => return self.wordlist.as_mut().map(|w| &mut w.scroll),
-            Some(s) if self.compact || matches!(s, Sheet::Import | Sheet::Delete) => {
+            Some(s)
+                if self.compact || matches!(s, Sheet::Import | Sheet::Delete | Sheet::Taken) =>
+            {
                 if self.sheet_scroll.1 != Some(s) {
                     self.sheet_scroll = (0.0, Some(s));
                 }
@@ -10039,7 +10041,11 @@ impl Faraday {
                 self.compact
                     || matches!(
                         s,
-                        Sheet::Learn | Sheet::WordList | Sheet::Import | Sheet::Delete
+                        Sheet::Learn
+                            | Sheet::WordList
+                            | Sheet::Import
+                            | Sheet::Delete
+                            | Sheet::Taken
                     )
             }),
         )

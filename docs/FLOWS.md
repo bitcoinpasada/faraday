@@ -196,10 +196,10 @@ to get it.
     (owner, 2026-10-10; `docs/SIMPLIFY.md` §3.3). This replaces decision
     2: **Create vault** always goes to Unlock with the new vault picked,
     under "Type the passphrase once more to open it"; unlocked, it opens
-    on Vault contents, which says "Nothing in it yet" with **Put a wallet
-    in it** (Wallets) and **Write it to a stick** (Files). Vault contents
-    lists only the kinds a slot holds something of, then **Add…**, which
-    lists every kind with its Add action.
+    on Vault contents, which says "Nothing in it yet" with every add
+    action as a button (decision 58) and **Write it to a stick** (Files).
+    Vault contents lists only the kinds a slot holds something of, then
+    a row per add action.
 23. **A locked vault says what it held** (owner, 2026-10-10;
     `docs/SIMPLIFY.md` §3.4, `docs/VAULT.md` §11). What a vault held when
     last seen open is kept across a lock until power-off: its Vaults row
@@ -505,7 +505,7 @@ to get it.
     Seeds has a slot per key; the first empty one has **Passphrase** and
     **Passphrase again** (optional, the No passphrase pill), then **Type
     the words**, **Scan a SeedQR**, a seed an open vault holds, a key
-    already loaded, and on a multisig **Their xpub** (no description) or
+    already loaded, and on a multisig **Its xpub** (no description) or
     **Not here** (with one). The passphrase goes with the seed entered
     from that slot. With the description known each seed is matched to
     its keys as it is entered: a match reads "Key 2 of the wallet"; any
@@ -613,7 +613,7 @@ to get it.
     passphrase to be typed again. The words wait in memory, never shown,
     and Cancel or a press beside the sheet wipes them. Restore's Seeds
     slot loses its passphrase fields: its ways in (Type the words, Scan a
-    SeedQR, a vault's seed or a key already loaded, Their xpub or Not
+    SeedQR, a vault's seed or a key already loaded, Its xpub or Not
     here) stand over the slot they fill, and typed words take their
     passphrase on Add a key. A key already loaded, or a vault's seed,
     taken into a slot of Restore or the Spend tab with words and no
@@ -705,14 +705,29 @@ to get it.
     not here **Not here**; its Scan a key, Unlock and Collect a signature
     show only while short, or, for a miniscript or tree wallet, until the
     spend is signed.
+58. **Every way to add, the word count, the time, a taken name** (owner,
+    2026-10-11; HANDOFF item 68). An open vault shows every add action
+    (Save a key, Save a wallet, Add an entry, Add a note, Make a key,
+    Make keys) with no press first: an empty vault as buttons under
+    "Nothing in it yet", then **Write it to a stick**; one with contents
+    as a row each under its kinds, the Add icon in the accent colour.
+    **Put a wallet in it** and the **Add…** row go. Add a key's words
+    take a count first, **12 · 15 · 18 · 21 · 24** above the boxes, 12
+    chosen; typing past the boxes still grows them to 24; Clear starts
+    the count over. A key's xpub is its own: **Its xpub**, "waiting for
+    its xpub file", **Scan its xpub**. GPG and Secure Boot ask for the
+    time first where TOTP codes does (`docs/TOTP.md` §1.3). A stick
+    visit's write asks before going over a file of the same name (the
+    stick visit, below).
 
 ## Home
 
 **Start** is decision 50's tiles. **Add a key** (type, scan or bring
 in a seed) is on Wallets and in Tools → the Add a key screen: **Scan a
 SeedQR** first, full width over the words (primary until a word is
-typed, when **Add key** is), a form (BIP-39 words, SLIP-39 shares,
-codex32, Seed XOR parts), **Make a new key**, and "From a stick ·
+typed, when **Add key** is), a form (BIP-39 words, with the count
+**12 · 15 · 18 · 21 · 24** above as many boxes, 12 first; SLIP-39
+shares, codex32, Seed XOR parts), **Make a new key**, and "From a stick ·
 plug it in" (with a stick attached, **Copy files in** → Stick visit; a key
 file copied in loads when the stick is pulled). **Scan** floats in the
 bottom-right corner of Home on every panel → the scanner (with a stick
@@ -795,7 +810,17 @@ visit** directly.
 - **Write to the stick**: chosen files written, read back, compared:
   those For the stick, then those from it under **From the stick** (below).
   What is written and matched leaves For the stick for the receipt
-  (decision 25). A sealed vault replaces the file with its identity, or is written
+  (decision 25). When a file to write has a name the stick already
+  holds (ignoring case), the sheet **Already on the stick** comes first,
+  a row each, with **Replace** (written over the old file: the new bytes
+  under a hidden name, read back, then the old file removed and the new
+  one renamed to its name), **Keep both** (written beside it as
+  `name-2.ext`; the row says "{name} · Keep both: {name-2}") and
+  **Cancel** (nothing written, the visit stays). A vault of the same
+  length under its own name is listed "{name} · the same vault, updated
+  here" and is always replaced; a vault under another vault's name
+  "{name} · another vault · kept, this one as {name-2}", whatever is
+  chosen. Those two alone bring no sheet, nor does the settings file. A sealed vault replaces the file with its identity, or is written
   under its own name (`name.ofv`, `name-2.ofv` when the stick has one;
   `docs/VAULT.md` §6) where there is none. A failed comparison
   leaves the file For the stick and says which. The first row is the
@@ -851,14 +876,14 @@ cost, a locked one with what it held when last seen open (decision 23);
 **Customise** puts where it opens, unlock cost and space per passphrase
 in Size's place; decision 21) → **Create vault** → Unlock with the new
 vault picked, "Type the passphrase once more to open it", sealed copy
-For the stick → **Unlock** → Vault contents, "Nothing in it yet", **Put a
-wallet in it** (Wallets) and **Write it to a stick** (Files), with
-**Add…** listing an Add action per kind (decision 22). Opened from a
+For the stick → **Unlock** → Vault contents, "Nothing in it yet", a
+button per add action and **Write it to a stick** (Files) (decisions 22
+and 58). Opened from a
 flow that needs a vault (decision 10), it shows "Then: {flow}" by its
 title, and the unlock goes back to the flow.
 
-**Vault contents**: the kinds it holds, then **Add…** → items →
-details. Unlocked, it opens on Wallets where it holds one (decision 42).
+**Vault contents**: the kinds it holds, then a row per add action
+(decision 58) → items → details. Unlocked, it opens on Wallets where it holds one (decision 42).
 - **Add an entry** → form (title, username, password with **Generate with
   dice**, URL, notes, TOTP secret typed or **Scan**) → saved → the entry
   selected in the list; vault marked unsaved.

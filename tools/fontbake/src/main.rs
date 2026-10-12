@@ -128,6 +128,7 @@ const ICONS: &[u32] = &[
     0xF02D, // book
     0xF03A, // list
     0xF066, // compress
+    0xF067, // plus
     0xF06E, // eye
     0xF070, // eye-slash
     0xF0A0, // hard-drive

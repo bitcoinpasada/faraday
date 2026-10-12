@@ -119,6 +119,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::SeedRead => crate::seed_read::sheet(app, ui, w, h),
             Sheet::Delete => crate::stick_wipe::delete_sheet(app, ui, w, h),
             Sheet::Zeroing => crate::stick_wipe::zeroing_sheet(app, ui, w, h),
+            Sheet::Taken => crate::visit_taken::taken_sheet(app, ui, w, h),
         }
         ui.oy = 0.0;
     }
@@ -7604,7 +7605,7 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                         MUTED,
                     ),
                     Source::Later => (
-                        "A cosigner adds it later · waiting for their xpub file".to_string(),
+                        "A cosigner adds it later · waiting for its xpub file".to_string(),
                         WARN,
                     ),
                 };
@@ -7673,11 +7674,7 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                         && !c.kind.threshold()
                         && matches!(src, Source::Empty | Source::Later)
                     {
-                        row.push((
-                            "Scan their xpub".to_string(),
-                            Style::Secondary,
-                            Action::Scan,
-                        ));
+                        row.push(("Scan its xpub".to_string(), Style::Secondary, Action::Scan));
                     }
                     if c.kind.multi() && !c.kind.threshold() && *src == Source::Empty {
                         row.push((
@@ -8743,7 +8740,7 @@ fn restore_seeds(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             } else if !open_drawn {
                 open_drawn = true;
                 let extra = multi.then_some((
-                    "Their xpub",
+                    "Its xpub",
                     Action::Seeds(S::Focus(Focus::Cosigner(k as u8))),
                 ));
                 cy += restore_open_slot(app, ui, r, &here, extra, x, cy, w);
@@ -8752,7 +8749,7 @@ fn restore_seeds(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             } else {
                 row(ui, cy, slot, "", "Empty", DIM);
                 if multi {
-                    let label = "Their xpub";
+                    let label = "Its xpub";
                     let nw = ui.measure(13.0, W::S, label) + 32.0;
                     ui.button(
                         x + w - nw,
@@ -8793,7 +8790,7 @@ fn restore_seeds(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 /// The open slot's ways in, drawn over it: why its last seed was
 /// refused, then **Type the words**, **Scan a SeedQR**, a seed an open
-/// vault holds or one already loaded, and `extra` (Their xpub, Not here).
+/// vault holds or one already loaded, and `extra` (Its xpub, Not here).
 /// The passphrase is asked after the seed: on Add a key for typed words,
 /// on the scan's sheet for a SeedQR (`seed_read`). Returns the height
 /// used.
@@ -11613,14 +11610,11 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     let words: Vec<&str> = app.entry.typed.split_whitespace().collect();
     let typing_word = !app.entry.typed.is_empty() && !app.entry.typed.ends_with(' ');
-    // A grid of 24 numbered word cells.
+    y += word_count_row(app, ui, x, y, width, true);
+    // A grid of numbered word cells, as many as the count chosen.
     let cols = 4;
     let cellw = (width - 3.0 * 10.0) / cols as f32;
-    let shown = if words.len() > 12 || app.entry.typed.len() > 80 {
-        24
-    } else {
-        12
-    };
+    let shown = app.entry.word_boxes(words.len());
     for k in 0..shown {
         let cx = x + (k % cols) as f32 * (cellw + 10.0);
         let cy = y + (k / cols) as f32 * 46.0;
@@ -11654,7 +11648,7 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ui.caret(cx + 37.0, cy + 10.0, 18.0);
         }
     }
-    y += (shown / cols) as f32 * 46.0 + 12.0;
+    y += shown.div_ceil(cols) as f32 * 46.0 + 12.0;
 
     // Candidates for the word being typed.
     if typing_word && let Some(prefix) = words.last() {
@@ -11689,6 +11683,46 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let m = complete.then(|| crate::forms::typed_mnemonic(lang, &app.entry.typed));
     y = entry_status(app, ui, x, y, n, m);
     entry_finish(app, ui, x, y, width, h);
+}
+
+/// Add a key's word count: 12 · 15 · 18 · 21 · 24 as a row of equal
+/// chips, the chosen one primary, with "Words" before them when
+/// `labelled`. Returns its height and the gap under it.
+pub(crate) fn word_count_row(
+    app: &Faraday,
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    labelled: bool,
+) -> f32 {
+    let chosen = app.entry.words_chosen();
+    let mut bx = x;
+    if labelled {
+        ui.text_mid(x, y, 32.0, 13.0, W::S, MUTED, "Words");
+        bx += ui.measure(13.0, W::S, "Words") + 14.0;
+    }
+    let counts = crate::EntryState::COUNTS;
+    let gap = 6.0;
+    let bw = ((x + w - bx - gap * (counts.len() - 1) as f32) / counts.len() as f32).min(64.0);
+    for n in counts {
+        let style = if usize::from(n) == chosen {
+            Style::Primary
+        } else {
+            Style::Secondary
+        };
+        ui.button(
+            bx,
+            y,
+            Some(bw),
+            32.0,
+            &n.to_string(),
+            style,
+            Action::EntryWordCount(n),
+        );
+        bx += bw + gap;
+    }
+    44.0
 }
 
 /// Words typed on a list's own on-screen keyboard, through OpenSigner's
@@ -11736,7 +11770,8 @@ fn keyed_words(
     );
     // The words taken, in a grid, the next one's keys in its cell.
     let taken: Vec<u16> = w.committed_indices().collect();
-    let shown = if taken.len() >= 12 { 24 } else { 12 };
+    y += word_count_row(app, ui, x, y, width, true);
+    let shown = app.entry.word_boxes(taken.len() + 1);
     let cols = 6;
     let cellw = (width - (cols - 1) as f32 * 8.0) / cols as f32;
     let prefix: String = w.prefix().iter().collect();
@@ -11774,7 +11809,7 @@ fn keyed_words(
             ui.caret(cx + 31.0 + tw, cy + 9.0, 18.0);
         }
     }
-    y += (shown / cols) as f32 * 42.0 + 8.0;
+    y += shown.div_ceil(cols) as f32 * 42.0 + 8.0;
     // The count and, when the words are a whole key, its checksum and
     // fingerprint, or the last refusal: on the line above the
     // candidates, to keep the keyboard on screen.
@@ -12295,16 +12330,38 @@ fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
 /// Settings' Time section (`docs/TOTP.md` §2): Now, the time zone and
 /// Set the time. Returns its height.
 fn time_section(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
-    let h = 208.0;
+    // What reads the clock, under the title (`docs/TOTP.md` §2.1).
+    let what = crate::compact_screens::measured(ui, |ui| {
+        ui.wrap(
+            x + 22.0,
+            y + 44.0,
+            width - 44.0,
+            13.0,
+            W::R,
+            MUTED,
+            TIME_FOR,
+        )
+    });
+    let d = what + 8.0;
+    let h = 208.0 + d;
     ui.card(x, y, width, h, LINE);
     ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, "Time");
-    ui.text_mid(x + 22.0, y + 50.0, 32.0, 13.0, W::R, MUTED, "Now");
+    ui.wrap(
+        x + 22.0,
+        y + 44.0,
+        width - 44.0,
+        13.0,
+        W::R,
+        MUTED,
+        TIME_FOR,
+    );
+    ui.text_mid(x + 22.0, y + 50.0 + d, 32.0, 13.0, W::R, MUTED, "Now");
     let now = app.now_local_text();
-    ui.text_right(x + width - 22.0, y + 50.0, 32.0, 15.0, W::S, TEXT, &now);
-    tz_row(ui, x + 22.0, y + 94.0, width - 44.0, app.tz_min);
+    ui.text_right(x + width - 22.0, y + 50.0 + d, 32.0, 15.0, W::S, TEXT, &now);
+    tz_row(ui, x + 22.0, y + 94.0 + d, width - 44.0, app.tz_min);
     ui.button(
         x + 22.0,
-        y + 150.0,
+        y + 150.0 + d,
         Some(160.0),
         38.0,
         "Set the time",
@@ -12313,6 +12370,10 @@ fn time_section(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
     );
     h
 }
+
+/// What the Time card says reads the clock: everything that calls
+/// `clock_now`.
+const TIME_FOR: &str = "For TOTP codes, GPG and Secure Boot signatures, and backup check dates";
 
 /// `Screen::SetTime` (`docs/TOTP.md` §3): the Enter screen that sets the
 /// time by hand.
@@ -12529,6 +12590,7 @@ fn settings_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     });
     y += section(ui, x, y, w, "Time", &|ui, x, y0, w| {
         let mut y = y0;
+        y += ui.wrap(x, y, w, 13.0, W::R, MUTED, TIME_FOR) + 12.0;
         ui.text(x, y, 13.0, W::R, MUTED, "Now");
         y += 20.0;
         y += ui.wrap(x, y, w, 15.0, W::S, TEXT, &app.now_local_text()) + 10.0;

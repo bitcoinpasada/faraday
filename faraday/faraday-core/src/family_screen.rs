@@ -1014,8 +1014,7 @@ fn question(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let here = app.seeds_here(s).len();
             if s.n > here {
                 let line = format!(
-                    "Without the description Faraday needs all {} keys: their seeds, or their \
-                     xpubs",
+                    "Without the description Faraday needs all {} keys: their seeds or xpubs",
                     s.n
                 );
                 cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 12.0;

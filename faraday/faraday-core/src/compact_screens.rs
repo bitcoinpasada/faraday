@@ -628,10 +628,11 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !app.entry.on_passphrase {
         y = crate::screens::word_keys(app, w, ui, x - 4.0, y, iw + 8.0, 34.0);
     }
-    // The words taken.
-    let count = if taken.len() >= 12 { 24 } else { 12 };
+    // The words taken, as many boxes as the count chosen.
+    let count = app.entry.word_boxes(taken.len() + 1);
     y += 6.0;
     y += heading(ui, x, y, "Words");
+    y += crate::screens::word_count_row(app, ui, x, y, iw, false);
     let cols = 3;
     let cellw = (iw - (cols - 1) as f32 * 6.0) / cols as f32;
     for k in 0..count {
@@ -656,7 +657,7 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ui.text_mid(cx + 22.0, cy, 28.0, 12.0, W::M, TEXT, &t);
         }
     }
-    y += (count / cols) as f32 * 32.0 + 10.0;
+    y += count.div_ceil(cols) as f32 * 32.0 + 10.0;
     // Under the word fields.
     y += crate::screens::button_rows(ui, x, y, iw, &langs) - 6.0;
     y += pass_field(

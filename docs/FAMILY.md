@@ -200,7 +200,7 @@ The card, top to bottom:
      box per missing key filled by scan, a key file or typing, the kind,
      the path, the first address) and **Make the wallet**, also a guess.
      While N exceeds the seeds here: "Without the description Faraday
-     needs all {n} keys: their seeds, or their xpubs".
+     needs all {n} keys: their seeds or xpubs".
    - a description in (whole, rebuilt, or a vault's): none. The wallet
      opens and the column goes on to page 5; seeds already in fill its
      slots.

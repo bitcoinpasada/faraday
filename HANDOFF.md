@@ -1756,6 +1756,85 @@ as possible before the next build.
     vault's backup plan is the website repo's (its HANDOFF). Batch A
     ceb06e4; batch B in the commit after it.
 
+68. [x] 2026-10-11, owner's batch (vault contents, word count, wording,
+    the time, overwriting on a stick):
+    1. **An open vault shows every way to add.** `vault_screens.rs`: an
+       empty vault's "Nothing in it yet" is followed by every add action
+       as buttons (`add_label`: Save a key, Save a wallet, Add an entry,
+       Add a note, Make a key, Make keys; each `V::AddKind(k)`), then
+       **Write it to {a stick}**; "Put a wallet in it" goes (Save a wallet
+       is in the list). A vault with contents keeps its kinds column and
+       lists the same add actions under it, each a visible row with the
+       Add icon in the accent colour, in place of the faint "Add…" row and
+       its separate list (`V::AddMenu`, `add_menu`, `ADD_ROW` go). Small
+       panel alike: the add rows follow the kinds. Tests
+       (`tests/vault_keys.rs` or the vault tests that pressed Add…): an
+       empty vault offers all six adds and Write it to a stick with no
+       press first; a vault with a key offers them too.
+    2. **Add a key says how many words.** Above the word boxes, a choice
+       of **12 · 15 · 18 · 21 · 24** words (DESIGN §4 Choice), 12 chosen at
+       first; choosing N shows N boxes (desktop and small panel, every
+       list, `screens.rs` entry grid and the word keyboard's grid,
+       `compact_screens.rs`). Typing past the boxes shown still grows them
+       as now. A SLIP-39 share or codex32 form keeps its own counts. The
+       choice resets with Clear. Tests (`tests/forms.rs`): choosing 24
+       shows 24 boxes before any word is typed, and 24 typed words add a
+       24-word key; choosing 18 then typing 18 words adds an 18-word key.
+    3. **"its xpub".** A key's xpub is the key's, not a person's:
+       Restore's slot button "Their xpub" → **Its xpub**; Create's "A
+       cosigner adds it later · waiting for their xpub file" → "… waiting
+       for its xpub file"; "Scan their xpub" → **Scan its xpub**; and
+       `family_screen.rs` "their seeds, or their xpubs" → "their seeds or
+       xpubs" is about several keys and stays plural. Grep the strings for
+       any other "their xpub". Tests that press the old labels press the
+       new.
+    4. **The time is for TOTP, GPG and Secure Boot.** Settings' Time card
+       (`screens.rs` `time_section`, the small panel's) gains the line
+       **For TOTP codes, GPG and Secure Boot signatures, and backup check
+       dates** under its title (all of them read `clock_now`). GPG's Make
+       a key, Renew, Revoke and Sign, and Secure Boot's signing, open Set
+       the time first where TOTP codes does (`clock_checked()` false on
+       the stick and the Pi), returning to the same page; the person then
+       presses again. A GPG key's creation time is part of its
+       fingerprint, so a wrong clock is not fixed later. Tests
+       (`tests/gpg.rs`, `tests/clock.rs`): on the stick with the clock
+       not checked, Make a key opens Set the time and makes nothing; after
+       Keep this time it makes the key; the desktop app never asks.
+    5. **Writing over a file on a stick asks first.** Today
+       `faraday_files::write` never overwrites: a name taken gets
+       `name-2.ext` silently; a vault replaces the same vault (same salt
+       and length) and the settings file replaces itself. Now, before a
+       stick visit's write (`lib.rs`, the visit's Write), the files it
+       would write whose names are already on the stick (case-insensitive,
+       from the stick's listing) bring up a sheet, **Already on {the
+       stick}**, a row each, and:
+       - **Replace** (primary): those files are written over the old ones
+         (new `faraday_files::write_replacing`: the new bytes under a
+         temp name, read back and compared, then the old file removed and
+         the temp renamed, as `write_vault` does; `StorageCommand::Write`
+         gains `replace: bool`, through `faraday-storage` and
+         `faraday-disk`).
+       - **Keep both**: written as now, beside the old, as `name-2.ext`
+         (the existing `free_name`); the row says the name each gets.
+       - **Cancel**: nothing is written, the visit stays open.
+       A vault that is the same vault, newer, is listed as "{name} · the
+       same vault, updated here" and is always replaced (Keep both would
+       leave two copies of one vault, which `write_vault` refuses). A
+       different vault under a taken name is never replaced: its row says
+       "{name} · another vault · kept, this one as {name-2}" whatever is
+       chosen. The settings file is Faraday's own and is not listed. No
+       sheet when nothing is taken. Tests: `faraday-files` (replacing
+       writes the new bytes under the old name and leaves no temp; a
+       failed read-back leaves the old file), `faraday-core`
+       (`tests/visit.rs`: a taken name brings the sheet; Replace writes
+       with replace, Keep both without, Cancel writes nothing; a newer
+       same vault is listed and replaced; another vault is never
+       replaced), and `faraday-disk` if it has write tests.
+    Docs: `docs/FLOWS.md` (the vault's contents, Add a key, the stick
+    visit), `docs/VAULT.md` §6 where it describes writing back,
+    `docs/TOTP.md` §2 (the card's line, the asking), `docs/DESIGN.md`
+    only if a component changes.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:

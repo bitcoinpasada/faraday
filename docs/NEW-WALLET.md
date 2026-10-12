@@ -755,7 +755,7 @@ tab's (§11 and `docs/FAMILY.md`), whose routes keep working.
    xpub, at the kind's standard path, as the seeds screen does today.
 4. **Seeds**: a slot per key (N of them; one for a single key). Each
    slot: **Scan a SeedQR**, **Type the words**, a seed an open vault
-   holds, a key already loaded; for a multisig, also **Their xpub**
+   holds, a key already loaded; for a multisig, also **Its xpub**
    (scan or Files) for a seed not here, and **Not here** once the
    description gave its key. Under a seed: **Passphrase** (optional,
    typed twice, `pass_field`, "Not set" when empty). With the

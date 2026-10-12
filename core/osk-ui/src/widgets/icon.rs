@@ -144,11 +144,13 @@ pub enum Icon {
     Ellipsis,
     /// A masked figure: the duress PIN.
     UserSecret,
+    /// A plus: a row that adds something of its kind.
+    Add,
 }
 
 impl Icon {
     /// Every icon, for the gallery and for the completeness test.
-    pub const ALL: [Icon; 62] = [
+    pub const ALL: [Icon; 63] = [
         Icon::Scan,
         Icon::Keys,
         Icon::Sign,
@@ -211,6 +213,7 @@ impl Icon {
         Icon::Superscript,
         Icon::Ellipsis,
         Icon::UserSecret,
+        Icon::Add,
     ];
 
     /// The code point in the baked icon face.
@@ -266,6 +269,7 @@ impl Icon {
             Icon::File => '\u{f15b}',
             Icon::Trash => '\u{f1f8}',
             Icon::UserSecret => '\u{f21b}',
+            Icon::Add => '\u{f067}',
             Icon::Hashtag => '\u{f292}',
             Icon::Swap => '\u{f362}',
             Icon::Shield => '\u{f3ed}',
@@ -346,6 +350,7 @@ impl Icon {
             Icon::Superscript => "Superscript",
             Icon::Ellipsis => "Ellipsis",
             Icon::UserSecret => "UserSecret",
+            Icon::Add => "Add",
         }
     }
 }

@@ -179,6 +179,7 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
     let w = |name: &str, bytes: &[u8]| Request::Write {
         stick: id.clone(),
         name: name.into(),
+        replace: false,
         bytes: bytes.to_vec(),
     };
     assert_eq!(
@@ -189,6 +190,23 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
     assert_eq!(
         d.handle(w("savings-signed.psbt", b"other")),
         Response::Written("savings-signed-2.psbt".into())
+    );
+    // Replace, chosen by the person, goes over the old one.
+    assert_eq!(
+        d.handle(Request::Write {
+            stick: id.clone(),
+            name: "savings-signed-2.psbt".into(),
+            replace: true,
+            bytes: b"replaced".to_vec(),
+        }),
+        Response::Written("savings-signed-2.psbt".into())
+    );
+    assert_eq!(
+        d.handle(Request::Read {
+            stick: id.clone(),
+            name: "savings-signed-2.psbt".into()
+        }),
+        Response::Bytes(b"replaced".to_vec())
     );
     let mut vault = vec![7u8; 53 + 4 * (65_536 + 40)];
     vault[0..4].copy_from_slice(b"OFVT");

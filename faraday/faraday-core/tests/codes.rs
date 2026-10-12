@@ -336,6 +336,9 @@ fn with_gpg_key() -> Faraday {
     assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
+    // The clock checked, as on the stick before making a key.
+    app.press(Action::OpenSetTime);
+    app.press(Action::SetTimeKeep);
     app.press(Action::Vault(V::Add));
     app.press(Action::Vault(V::FocusField(0)));
     type_text(&mut app, "Release");

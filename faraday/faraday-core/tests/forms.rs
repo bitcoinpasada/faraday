@@ -236,3 +236,68 @@ fn an_unambiguous_slip39_word_moves_on_from_typing_alone() {
     typed(&mut app, "academic");
     assert_eq!(&*app.entry.typed, "academic ");
 }
+
+/// Add a key with the words form, `count` chosen first, the vector's
+/// words typed and its passphrase, TREZOR.
+fn words_key(count: u8, words: &str) -> Faraday {
+    let mut app = adding(0);
+    app.press(Action::EntryWordCount(count));
+    typed(&mut app, words);
+    app.press(Action::EntryPassphrase);
+    typed(&mut app, "TREZOR");
+    app.press(Action::EntryAdd);
+    app
+}
+
+#[test]
+fn choosing_24_words_shows_24_boxes_before_a_word_is_typed() {
+    let mut app = adding(0);
+    let texts = app.drawn_texts();
+    assert!(
+        !texts.iter().any(|t| t == "13"),
+        "12 boxes at first: {texts:?}"
+    );
+    app.press(Action::EntryWordCount(24));
+    let texts = app.drawn_texts();
+    for n in ["13", "22", "23"] {
+        assert!(texts.iter().any(|t| t == n), "box {n}: {texts:?}");
+    }
+    // Clear starts the count over.
+    app.press(Action::EntryClear);
+    assert!(!app.drawn_texts().iter().any(|t| t == "13"));
+}
+
+#[test]
+fn twenty_four_typed_words_add_a_24_word_key() {
+    // BIP-39's English vector for 7f…7f, 256 bits.
+    let app = words_key(
+        24,
+        "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title",
+    );
+    assert_eq!(
+        only_key(&app),
+        fingerprint_of(
+            "xprv9s21ZrQH143K3Y1sd2XVu9wtqxJRvybCfAetjUrMMco6r3v9qZTBeXiBZkS8JxWbcGJZyio8TrZtm6pkbzG8SYt1sxwNLh3Wx7to5pgiVFU"
+        )
+    );
+}
+
+#[test]
+fn choosing_18_then_typing_18_words_adds_an_18_word_key() {
+    let mut app = adding(0);
+    app.press(Action::EntryWordCount(18));
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "17"), "box 17: {texts:?}");
+    assert!(!texts.iter().any(|t| t == "19"), "no box 19: {texts:?}");
+    // BIP-39's English vector for 7f…7f, 192 bits.
+    let app = words_key(
+        18,
+        "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal will",
+    );
+    assert_eq!(
+        only_key(&app),
+        fingerprint_of(
+            "xprv9s21ZrQH143K3Lv9MZLj16np5GzLe7tDKQfVusBni7toqJGcnKRtHSxUwbKUyUWiwpK55g1DUSsw76TF1T93VT4gz4wt5RM23pkaQLnvBh7"
+        )
+    );
+}

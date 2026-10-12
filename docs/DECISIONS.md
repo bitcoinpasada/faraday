@@ -336,3 +336,27 @@ anything was read.
 seed and "That's everything" opens native SegWit; seeds without a
 description build standard multisig only with every key in hand;
 Restore on the Wallets tab stays the expert flow for now.
+
+### F9 Writing over a file on a stick, and an Add glyph (2026-10-11)
+
+**Why.** A stick visit never wrote over a file: a taken name became
+`name-2.ext` without a word, so a second copy of a wallet or a PSBT
+piled up beside the first. And the vault's add actions hid behind a
+faint **Add…** row.
+
+**Decision** (owner: HANDOFF item 68; `docs/FLOWS.md` decision 58).
+A visit's write whose names are taken on the stick asks first:
+**Replace**, **Keep both** or **Cancel**. Replace is
+`faraday_files::write_replacing`: the new bytes under a hidden name,
+read back and compared, then the old file removed and the new one
+renamed, as a vault write-back does; `StorageCommand::Write` and the
+disk process's `Request::Write` carry `replace`. A vault is never
+written over another vault, and the same vault is always written back,
+whatever the choice; neither alone brings the sheet, so the everyday
+vault write-back is not asked about.
+
+The vault's add rows carry `Icon::Add`, Font Awesome 6 Free Solid
+`plus` (U+F067). `osk-ui` is shared with upstream OpenSigner, so, as
+with F4's `SdCard`, the variant, its place in `Icon::ALL`, its code
+point and name, the `tools/fontbake` entry and the rebaked
+`core/osk-ui/assets/icon.outl` are an upstream change.

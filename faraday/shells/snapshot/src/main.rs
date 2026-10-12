@@ -1352,6 +1352,13 @@ fn run(
     type_text(&mut t, "test@example.com");
     t.shot("vault-gpg-make")?;
     t.press(Action::Vault(V::FormSave));
+    // On the stick, with the clock not checked, Save asks for the time
+    // first (`docs/TOTP.md` §2.2); Keep this time, then Save again.
+    if t.app.screen != Screen::SetTime {
+        return Err("making a GPG key did not ask for the time".into());
+    }
+    t.press(Action::SetTimeKeep);
+    t.press(Action::Vault(V::FormSave));
     let gpg_files: Vec<String> = t
         .app
         .outbox
@@ -2814,6 +2821,10 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
     t.app.event(Event::Key(Key::Tab));
     type_text(t, "test@example.com");
     t.press(Action::Vault(V::FormSave));
+    if t.app.screen == Screen::SetTime {
+        t.press(Action::SetTimeKeep);
+        t.press(Action::Vault(V::FormSave));
+    }
     // On a small panel the key's page is opened from the list.
     t.press(Action::Vault(V::Item(0)));
     scroll_to(t, Action::CodePng(Code::GpgRevocation));

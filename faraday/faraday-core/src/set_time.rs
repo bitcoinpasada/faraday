@@ -137,6 +137,21 @@ impl Faraday {
         self.screen = Screen::SetTime;
     }
 
+    /// Before something that keeps the time it reads (a GPG key's
+    /// creation, a signature, a Secure Boot certificate): with the clock
+    /// not checked (the stick and the Pi until the person says), opens
+    /// Set the time over the page, which it returns to, and says so. The
+    /// person then presses again. A GPG key's creation time is part of
+    /// its fingerprint, so a wrong clock is not put right later
+    /// (`docs/TOTP.md` §1.3).
+    pub(crate) fn time_asked(&mut self) -> bool {
+        if self.clock_checked() {
+            return false;
+        }
+        self.open_set_time();
+        true
+    }
+
     /// Whether Set the time's Set button is enabled: a real date and a
     /// real 24-hour time are typed.
     pub(crate) fn set_time_ready(&self) -> bool {

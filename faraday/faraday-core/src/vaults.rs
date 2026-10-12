@@ -225,12 +225,8 @@ pub enum VaultAction {
     Edit,
     /// Add an item of the current kind.
     Add,
-    /// The contents' Add… row: every kind, each with its Add action.
-    AddMenu,
-    /// Add an item of kind n, from the Add… list.
+    /// Add an item of kind n: the contents' row for that kind.
     AddKind(usize),
-    /// An empty vault's Put a wallet in it: Wallets.
-    PutWallet,
     /// An empty vault's Write it to a stick: Files.
     WriteOut,
     /// Save session key n into the vault.
@@ -591,8 +587,6 @@ pub struct Vaults {
     /// the contents, rather than set at unlock: it is listed even while it
     /// holds nothing.
     pub category_chosen: bool,
-    /// The contents show the Add… list: every kind with its Add action.
-    pub add_menu: bool,
     /// The item shown in each kind.
     pub item: [usize; 6],
     /// On a small panel, the chosen item is the page, not the list.
@@ -1101,7 +1095,13 @@ impl Faraday {
         // at its top.
         if matches!(
             a,
-            V::Item(_) | V::ItemBack | V::Add | V::AddMenu | V::Edit | V::Rename | V::Category(_)
+            V::Item(_)
+                | V::ItemBack
+                | V::Add
+                | V::AddKind(_)
+                | V::Edit
+                | V::Rename
+                | V::Category(_)
         ) {
             self.list_offset = 0.0;
         }
@@ -1421,7 +1421,6 @@ impl Faraday {
                 self.vaults.category = k.min(CATEGORIES.len() - 1);
                 self.vault_item_offset = 0.0;
                 self.vaults.category_chosen = true;
-                self.vaults.add_menu = false;
                 self.vaults.form = None;
                 self.vaults.saving = false;
                 self.vaults.item_open = false;
@@ -1461,22 +1460,9 @@ impl Faraday {
             }
             V::Load => self.vault_load_selected(),
             V::Edit => self.vault_form(true),
-            V::AddMenu => {
-                self.vaults.add_menu = true;
-                self.vaults.form = None;
-                self.vaults.saving = false;
-                self.vaults.item_open = false;
-            }
             V::AddKind(k) => {
                 self.vault_act(V::Category(k));
                 self.vault_act(V::Add);
-            }
-            V::PutWallet => {
-                self.screen = if self.session.wallets.is_empty() {
-                    Screen::Start
-                } else {
-                    Screen::Wallets
-                };
             }
             V::WriteOut => self.screen = Screen::Files,
             V::Add => {
@@ -1620,8 +1606,16 @@ impl Faraday {
             }
             V::GpgYears(y) => self.vaults.gpg_years = y,
             V::GpgExport => self.gpg_export(),
-            V::GpgRevoke => self.gpg_revoke(),
-            V::GpgRenew => self.gpg_renew(),
+            V::GpgRevoke => {
+                if !self.time_asked() {
+                    self.gpg_revoke();
+                }
+            }
+            V::GpgRenew => {
+                if !self.time_asked() {
+                    self.gpg_renew();
+                }
+            }
             V::GpgSignPick => {
                 self.vaults.signing = !self.vaults.signing;
                 self.vaults.form = None;
@@ -1649,9 +1643,17 @@ impl Faraday {
                     self.vaults.sign_ticked = names;
                 }
             }
-            V::GpgSignTicked => self.gpg_sign_ticked(),
+            V::GpgSignTicked => {
+                if !self.time_asked() {
+                    self.gpg_sign_ticked();
+                }
+            }
             V::SbOwnOnly(on) => self.vaults.sb_own_only = on,
-            V::SbEnrol => self.sb_enrol(),
+            V::SbEnrol => {
+                if !self.time_asked() {
+                    self.sb_enrol();
+                }
+            }
             V::SbImages => {
                 self.vaults.sb_images = !self.vaults.sb_images;
                 self.vaults.sb_sign = None;
@@ -1982,7 +1984,6 @@ impl Faraday {
                 self.vaults.current = self.vaults.open.len() - 1;
                 // Unlocked for a vault category from Tools: that category.
                 // Otherwise the first kind it holds.
-                self.vaults.add_menu = false;
                 if self.vaults.back_to != Some(Screen::VaultContents) {
                     let held = |kinds: &[u8]| {
                         self.vaults.open[self.vaults.open.len() - 1]
@@ -2546,6 +2547,10 @@ impl Faraday {
             return;
         };
         self.vaults.focus = None;
+        if (form.kind == kind::SECURE_BOOT || form.kind == kind::GPG) && self.time_asked() {
+            self.vaults.form = Some(form);
+            return;
+        }
         if form.kind == kind::SECURE_BOOT {
             if self.clock_now().is_none() {
                 self.vaults.form = Some(form);

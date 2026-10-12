@@ -5,8 +5,8 @@
 //! the answer repeats, and that many bytes. A shell that gave up waiting
 //! for an answer knows the late one when it comes. The bytes are a tag
 //! and the fields in order: a string is a 2-byte length
-//! and UTF-8, bytes are a 4-byte length and the bytes, a list is a 2-byte
-//! count and its items. Every length is checked against what is left of
+//! and UTF-8, bytes are a 4-byte length and the bytes, a flag is one byte,
+//! 0 or 1, a list is a 2-byte count and its items. Every length is checked against what is left of
 //! the frame, and a frame against [`MAX_FRAME`], before anything is
 //! allocated: each side treats the other as hostile.
 //!
@@ -41,6 +41,8 @@ pub enum Request {
         stick: String,
         /// The name asked for.
         name: String,
+        /// Over a file of that name, the person having chosen Replace.
+        replace: bool,
         /// The contents.
         bytes: Vec<u8>,
     },
@@ -228,10 +230,16 @@ impl Request {
                 o.str(name);
                 o
             }
-            Request::Write { stick, name, bytes } => {
-                let mut o = Out::sized(3, 4 + stick.len() + name.len() + 4 + bytes.len());
+            Request::Write {
+                stick,
+                name,
+                replace,
+                bytes,
+            } => {
+                let mut o = Out::sized(3, 4 + stick.len() + name.len() + 1 + 4 + bytes.len());
                 o.str(stick);
                 o.str(name);
+                o.0.push(u8::from(*replace));
                 o.bytes(bytes);
                 o
             }
@@ -279,6 +287,11 @@ impl Request {
             3 => Request::Write {
                 stick: i.str()?,
                 name: i.str()?,
+                replace: match i.u8()? {
+                    0 => false,
+                    1 => true,
+                    _ => return Err(Malformed),
+                },
                 bytes: i.bytes()?,
             },
             4 => Request::ReadQr {
@@ -480,7 +493,14 @@ mod tests {
             Request::Write {
                 stick: "sdb1@7".into(),
                 name: "vault.ofv".into(),
+                replace: false,
                 bytes: vec![1, 2, 3],
+            },
+            Request::Write {
+                stick: "sdb1@7".into(),
+                name: "wallet.json".into(),
+                replace: true,
+                bytes: vec![4, 5],
             },
             Request::ReadQr {
                 stick: "sdb1@7".into(),
