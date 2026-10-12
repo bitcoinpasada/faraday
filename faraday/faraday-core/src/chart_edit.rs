@@ -10,7 +10,9 @@ use crate::glance::{self, Press};
 use crate::glance_sheet::Target;
 use crate::plan::{self, At, Edit, Mark, Note, What};
 use crate::secret_text::SecretText;
+use crate::strings::EN;
 use crate::{Action, Faraday, Sheet};
+use opensigner_core::strings::fill;
 
 /// What the chart's sheets hold between presses.
 #[derive(Default)]
@@ -183,7 +185,7 @@ impl Faraday {
             }
         }
         if trial.used() > open.header().slot_len as usize {
-            self.toast("That does not fit in this vault's slot size");
+            self.toast(EN.chart_edit_that_does);
             return false;
         }
         open.contents = trial;
@@ -260,13 +262,16 @@ impl Faraday {
                 _ => 0,
             });
             if p >= places {
-                "a new place".to_string()
+                EN.chart_edit_a_new_place.to_string()
             } else {
                 names
                     .get(p)
                     .map(|n| n.trim())
                     .filter(|n| !n.is_empty())
-                    .map_or_else(|| format!("Place {}", p + 1), str::to_string)
+                    .map_or_else(
+                        || fill(EN.chart_edit_place, &[&(p + 1).to_string()]),
+                        str::to_string,
+                    )
             }
         };
         let spot = |at: At| match at {
@@ -280,9 +285,9 @@ impl Faraday {
                     _ => None,
                 })
                 .unwrap_or_else(|| match other {
-                    At::Vault(v) => format!("Vault {}", v + 1),
-                    At::Files => format!("{} of files", self.medium.cap()),
-                    _ => "Watch-only software".to_string(),
+                    At::Vault(v) => fill(EN.chart_edit_vault, &[&(v + 1).to_string()]),
+                    At::Files => fill(EN.chart_edit_of_files, &[self.medium.cap()]),
+                    _ => EN.chart_edit_watch_only.to_string(),
                 }),
         };
         let label = |at: At, what: What| {
@@ -291,23 +296,31 @@ impl Faraday {
                 .unwrap_or_else(|| what.label(&self.plan_shape(w), self.medium))
         };
         match edit {
-            Edit::Add(at @ At::Vault(_), what) => {
-                format!(
-                    "Save {} into {}",
-                    glance::thing_label(g.as_ref(), what),
-                    spot(at)
-                )
-            }
-            Edit::Add(At::Files, what) => {
-                format!("{} as a file", glance::thing_label(g.as_ref(), what))
-            }
-            Edit::Add(at, what) => {
-                format!("{} at {}", glance::thing_label(g.as_ref(), what), spot(at))
-            }
-            Edit::Move(from, what, to) => format!("Move {} to {}", label(from, what), spot(to)),
-            Edit::Drop(at, what) => format!("{} off the plan", label(at, what)),
-            Edit::RemovePlace(p) => format!("Remove {}", place(p)),
-            Edit::Clear(at) => format!("{} off the plan", spot(at)),
+            Edit::Add(at @ At::Vault(_), what) => fill(
+                EN.chart_edit_save_into,
+                &[
+                    &glance::thing_label(g.as_ref(), what).to_string(),
+                    &spot(at).to_string(),
+                ],
+            ),
+            Edit::Add(At::Files, what) => fill(
+                EN.chart_edit_as_a_file,
+                &[&glance::thing_label(g.as_ref(), what).to_string()],
+            ),
+            Edit::Add(at, what) => fill(
+                EN.chart_edit_at,
+                &[
+                    &glance::thing_label(g.as_ref(), what).to_string(),
+                    &spot(at).to_string(),
+                ],
+            ),
+            Edit::Move(from, what, to) => fill(
+                EN.chart_edit_move_to,
+                &[&label(from, what).to_string(), &spot(to).to_string()],
+            ),
+            Edit::Drop(at, what) => fill(EN.chart_edit_off_the, &[&label(at, what).to_string()]),
+            Edit::RemovePlace(p) => fill(EN.chart_edit_remove, &[&place(p).to_string()]),
+            Edit::Clear(at) => fill(EN.chart_edit_off_the, &[&spot(at).to_string()]),
         }
     }
 
@@ -359,6 +372,11 @@ impl Faraday {
     fn plan_extras(&self, wallet: &crate::wallet::Wallet, v: usize) -> Vec<String> {
         use faraday_vault::records::{field, kind};
         let want = crate::wallet::same_wallet(&wallet.policy);
+        // What stands between the vault and the seed in such a line.
+        let holds_seed = EN
+            .held_holds_seed
+            .trim_start_matches("{}")
+            .trim_end_matches("{}");
         let Some(open) = self.vaults.open.get(v) else {
             return Vec::new();
         };
@@ -374,7 +392,7 @@ impl Faraday {
                     .iter()
                     .filter(|f| f.number == field::PLAN_HOLDS)
                     .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
-                    .filter(|l| l.contains(" holds seed ") && !l.contains(": "))
+                    .filter(|l| l.contains(holds_seed) && !l.contains(": "))
                     .collect::<Vec<_>>()
             })
             .collect()
@@ -462,7 +480,7 @@ impl Faraday {
             }
         });
         if kept {
-            self.toast("Checked today");
+            self.toast(EN.chart_edit_checked);
         }
     }
 
@@ -476,7 +494,7 @@ impl Faraday {
             notes.retain(|x| !matches!(x, Note::KeyChecked(f, _) if *f == fp));
             notes.push(Note::KeyChecked(fp, today.clone()));
         }) {
-            self.toast("Checked today");
+            self.toast(EN.chart_edit_checked);
         }
     }
 
@@ -709,7 +727,7 @@ impl Faraday {
             text.push_str(&format!("place: Place {}\n", p + 1));
             for what in &n.whats {
                 let label = match what {
-                    What::VaultStick(v) => format!("Vault {} stick", v + 1),
+                    What::VaultStick(v) => fill(EN.chart_edit_vault_stick, &[&(v + 1).to_string()]),
                     w => glance::thing_label(Some(&g), *w),
                 };
                 text.push_str(&format!("thing: {label}\n"));

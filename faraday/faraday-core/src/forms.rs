@@ -5,6 +5,8 @@
 //! crates OpenSigner's own Load reads them with. A SLIP-39 or codex32 key
 //! is a master seed and has no words; a Seed XOR key is BIP-39 words again.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::codex32::Codex32;
 use osk_bip::slip39;
@@ -34,10 +36,10 @@ impl Form {
     /// Its name.
     pub fn name(self) -> &'static str {
         match self {
-            Form::Words => "BIP-39 words",
-            Form::Slip39 => "SLIP-39 shares",
-            Form::Codex32 => "codex32",
-            Form::Xor => "Seed XOR parts",
+            Form::Words => EN.forms_bip_39_words,
+            Form::Slip39 => EN.forms_slip_39_shares,
+            Form::Codex32 => EN.forms_codex32,
+            Form::Xor => EN.forms_seed_xor_parts,
         }
     }
 }
@@ -76,13 +78,15 @@ impl Parts {
                 .slip39
                 .iter()
                 .map(|s| {
-                    format!(
-                        "Group {} of {}, member {} · {} of the group needed · id {:04x}",
-                        s.group_index() + 1,
-                        s.group_count(),
-                        s.member_index() + 1,
-                        s.member_threshold(),
-                        s.identifier()
+                    fill(
+                        EN.forms_group_of_member,
+                        &[
+                            &(s.group_index() + 1).to_string(),
+                            &s.group_count().to_string(),
+                            &(s.member_index() + 1).to_string(),
+                            &s.member_threshold().to_string(),
+                            &format!("{:04x}", s.identifier()),
+                        ],
                     )
                 })
                 .collect(),
@@ -92,12 +96,15 @@ impl Parts {
                 .map(|c| {
                     let id = String::from_utf8_lossy(&c.identifier()).into_owned();
                     if c.is_secret() {
-                        format!("The secret · id {id}")
+                        fill(EN.forms_the_secret_id, &[&id.to_string()])
                     } else {
-                        format!(
-                            "Share {} · id {id} · {} needed",
-                            char::from(c.share_index()),
-                            c.threshold()
+                        fill(
+                            EN.forms_share_id_needed,
+                            &[
+                                &char::from(c.share_index()).to_string(),
+                                &id.to_string(),
+                                &c.threshold().to_string(),
+                            ],
                         )
                     }
                 })
@@ -105,7 +112,7 @@ impl Parts {
             Form::Xor => (1..=self.xor.parts())
                 .map(|i| {
                     let words = self.xor.strength().map_or(0, |s| s.words());
-                    format!("Part {i} · {words} words")
+                    fill(EN.forms_part_words, &[&i.to_string(), &words.to_string()])
                 })
                 .collect(),
             Form::Words => Vec::new(),
@@ -138,7 +145,7 @@ impl Faraday {
         let text = zeroize::Zeroizing::new(self.entry.typed.trim().to_lowercase());
         let result: Result<(), String> = match form {
             Form::Slip39 => slip39::Share::parse(&text)
-                .map_err(|e| format!("Not a SLIP-39 share: {e:?}"))
+                .map_err(|e| fill(EN.forms_not_a_slip_39, &[&format!("{e:?}")]))
                 .and_then(|s| {
                     if self
                         .entry
@@ -147,18 +154,18 @@ impl Faraday {
                         .iter()
                         .any(|t| t.indices() == s.indices())
                     {
-                        return Err("That share is in already".to_string());
+                        return Err(EN.forms_that_share_is.to_string());
                     }
                     self.entry.parts.slip39.push(s);
                     Ok(())
                 }),
             Form::Codex32 => Codex32::parse(&text)
-                .map_err(|e| format!("Not a codex32 string: {e}"))
+                .map_err(|e| fill(EN.forms_not_a_codex32, &[&e.to_string()]))
                 .and_then(|c| {
                     if let Some(first) = self.entry.parts.codex32.first()
                         && first.identifier() != c.identifier()
                     {
-                        return Err("That string is of another seed: its id differs".to_string());
+                        return Err(EN.forms_that_string_is.to_string());
                     }
                     if self
                         .entry
@@ -167,20 +174,20 @@ impl Faraday {
                         .iter()
                         .any(|d| d.share_index() == c.share_index())
                     {
-                        return Err("That share is in already".to_string());
+                        return Err(EN.forms_that_share_is.to_string());
                     }
                     self.entry.parts.codex32.push(c);
                     Ok(())
                 }),
             Form::Xor => Mnemonic::parse(Language::English, &text)
-                .map_err(|e| format!("Not BIP-39 words: {e}"))
+                .map_err(|e| fill(EN.forms_not_bip_39_words, &[&e.to_string()]))
                 .and_then(|m| {
                     let e = m.entropy();
                     self.entry
                         .parts
                         .xor
                         .push(e.expose().as_bytes())
-                        .map_err(|_| "Every part has the same number of words".to_string())
+                        .map_err(|_| EN.forms_every_part_has.to_string())
                 }),
             Form::Words => Ok(()),
         };
@@ -204,14 +211,14 @@ impl Faraday {
         }
         let form = self.entry.form;
         let label = match form {
-            Form::Slip39 => "SLIP-39 key",
-            Form::Codex32 => "codex32 key",
-            _ => "Seed XOR key",
+            Form::Slip39 => EN.forms_slip_39_key,
+            Form::Codex32 => EN.forms_codex32_key,
+            _ => EN.forms_seed_xor_key,
         };
         let added = match form {
             Form::Slip39 => {
                 slip39::recover(&self.entry.parts.slip39, self.entry.passphrase.as_bytes())
-                    .map_err(|e| format!("The shares do not make a key: {e:?}"))
+                    .map_err(|e| fill(EN.forms_the_shares_do, &[&format!("{e:?}")]))
                     .and_then(|secret| {
                         self.session
                             .add_seed(secret.expose().as_bytes(), label)
@@ -224,7 +231,7 @@ impl Faraday {
                     Some(s) => s.to_seed(),
                     None => Codex32::recover(parts).and_then(|s| s.to_seed()),
                 };
-                seed.map_err(|e| format!("The strings do not make a key: {e}"))
+                seed.map_err(|e| fill(EN.forms_the_strings_do, &[&e.to_string()]))
                     .and_then(|seed| {
                         self.session
                             .add_seed(seed.expose().bytes(), label)
@@ -236,7 +243,7 @@ impl Faraday {
                 .parts
                 .xor
                 .entropy()
-                .map_err(|_| "Seed XOR needs two parts or more".to_string())
+                .map_err(|_| EN.forms_seed_xor_needs.to_string())
                 .and_then(|e| {
                     Mnemonic::from_entropy(Language::English, e.as_bytes())
                         .map_err(|e| e.to_string())
@@ -256,7 +263,7 @@ impl Faraday {
         };
         match added {
             Ok(fp) => {
-                self.toast(&format!("Key {} added", fp_text(fp)));
+                self.toast(&fill(EN.forms_key_added, &[&fp_text(fp).to_string()]));
                 let back = self.entry.back;
                 self.seeds_took(fp, back);
                 self.entry = crate::EntryState::default();
@@ -310,16 +317,16 @@ pub fn word_typer(lang: Language) -> Box<opensigner_core::load::LoadWizard> {
 /// A list's name.
 pub fn language_name(lang: Language) -> &'static str {
     match lang {
-        Language::English => "English",
-        Language::Spanish => "Spanish",
-        Language::French => "French",
-        Language::Italian => "Italian",
-        Language::Czech => "Czech",
-        Language::Portuguese => "Portuguese",
-        Language::Japanese => "Japanese",
-        Language::Korean => "Korean",
-        Language::ChineseSimplified => "Chinese (Simplified)",
-        Language::ChineseTraditional => "Chinese (Traditional)",
+        Language::English => EN.forms_english,
+        Language::Spanish => EN.forms_spanish,
+        Language::French => EN.forms_french,
+        Language::Italian => EN.forms_italian,
+        Language::Czech => EN.forms_czech,
+        Language::Portuguese => EN.forms_portuguese,
+        Language::Japanese => EN.forms_japanese,
+        Language::Korean => EN.forms_korean,
+        Language::ChineseSimplified => EN.forms_chinese_simplified,
+        Language::ChineseTraditional => EN.forms_chinese_traditional,
     }
 }
 
@@ -397,11 +404,12 @@ pub fn file_words(text: &str) -> zeroize::Zeroizing<String> {
 pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, String> {
     let mut idx = Vec::new();
     for (k, w) in typed.split_whitespace().enumerate() {
-        idx.push(
-            typed_index(lang, w).ok_or_else(|| {
-                format!("Word {} is not on the {} list", k + 1, language_name(lang))
-            })?,
-        );
+        idx.push(typed_index(lang, w).ok_or_else(|| {
+            fill(
+                EN.forms_word_is_not_on,
+                &[&(k + 1).to_string(), language_name(lang)],
+            )
+        })?);
     }
     let m = Mnemonic::from_indices(lang, &idx).map_err(|e| e.to_string());
     zeroize::Zeroize::zeroize(&mut idx);

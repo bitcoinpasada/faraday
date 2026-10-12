@@ -8,13 +8,14 @@
 //! New key at the card it was on, or to Create a vault's passphrases with
 //! the rolls still typed.
 
+use crate::strings::EN;
 use osk_bip::bip39::Language;
 use osk_bip::diceware::List;
 
 use crate::{Faraday, Sheet};
 
 /// Said once beside words shown as pills, each of which opens its list.
-pub const PRESS_A_WORD: &str = "Press a word to see it in the list";
+pub const PRESS_A_WORD: &str = EN.wordlist_press_a_word;
 
 /// One of the lists the sheet shows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,10 +39,10 @@ impl WordList {
     /// Its name on the sheet.
     pub fn name(self) -> &'static str {
         match self {
-            WordList::Bip39 => "BIP-39 English",
-            WordList::Eff(List::Large) => "EFF large",
-            WordList::Eff(List::Short1) => "EFF short 1",
-            WordList::Eff(List::Short2) => "EFF short 2",
+            WordList::Bip39 => EN.wordlist_bip_39_english,
+            WordList::Eff(List::Large) => EN.wordlist_eff_large,
+            WordList::Eff(List::Short1) => EN.wordlist_eff_short_1,
+            WordList::Eff(List::Short2) => EN.wordlist_eff_short,
         }
     }
 
@@ -75,8 +76,8 @@ impl WordList {
     /// The heading over the codes.
     pub fn code_heading(self) -> &'static str {
         match self {
-            WordList::Bip39 => "Bits",
-            WordList::Eff(_) => "Dice",
+            WordList::Bip39 => EN.wordlist_bits,
+            WordList::Eff(_) => EN.wordlist_dice,
         }
     }
 

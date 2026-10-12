@@ -3,6 +3,7 @@
 //! computing is `faraday_vault::totp`; this module is what comes first
 //! on the way in and what a row is.
 
+use crate::strings::EN;
 use faraday_vault::records::{field, kind};
 use faraday_vault::totp::{self, NotTotp};
 
@@ -61,7 +62,7 @@ pub fn codes_rows(app: &Faraday, now: u64) -> Vec<CodeRow> {
             let Some(t) = r.text(field::TOTP) else {
                 continue;
             };
-            let title = r.text(field::TITLE).unwrap_or("Entry").to_string();
+            let title = r.text(field::TITLE).unwrap_or(EN.codes_entry).to_string();
             let account = faraday_vault::entries::otpauth_names(t)
                 .map(|(_, a)| a)
                 .filter(|a| !a.is_empty())

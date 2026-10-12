@@ -7,6 +7,8 @@
 //! the top of the card while it is open (`docs/WALLETS.md` §6). Steps only
 //! hides it; the controls are the same in both.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
 
 use crate::Action;
@@ -131,8 +133,8 @@ pub fn column_foot(
     let mut bx = x + w;
     let switch: &[(&str, bool, bool)] = if col.switch {
         &[
-            ("Guided", col.guided, true),
-            ("Steps only", !col.guided, false),
+            (EN.flow_guided, col.guided, true),
+            (EN.flow_steps_only, !col.guided, false),
         ]
     } else {
         &[]
@@ -260,7 +262,7 @@ pub fn column_foot(
         // right, in place of the chevron, over the value it is set to.
         let change = !card.open && card.default;
         let change_w = if change {
-            ui.measure(13.0, W::S, "Change")
+            ui.measure(13.0, W::S, EN.flow_change)
         } else {
             0.0
         };
@@ -278,7 +280,15 @@ pub fn column_foot(
             ui.text_right(edge, card_top, 56.0, 13.0, face, MUTED, &s);
         }
         if change {
-            ui.text_right(x + w - 18.0, card_top, 56.0, 13.0, W::S, ACCENT, "Change");
+            ui.text_right(
+                x + w - 18.0,
+                card_top,
+                56.0,
+                13.0,
+                W::S,
+                ACCENT,
+                EN.flow_change,
+            );
         } else {
             ui.icon(
                 x + w - 38.0,
@@ -369,12 +379,12 @@ fn paged(
             // Change, which opens it.
             let mut defaults = false;
             for c in cards[..i].iter().filter(|c| c.default && !c.open) {
-                let cw = ui.measure(13.0, W::S, "Change");
+                let cw = ui.measure(13.0, W::S, EN.flow_change);
                 let line = format!("{} · {}", c.title, c.summary);
                 let face = if c.mono { W::M } else { W::R };
                 let line = ui.fit(13.0, face, &line, inner - cw - 16.0);
                 ui.text_mid(M, y, 34.0, 13.0, face, MUTED, &line);
-                ui.text_right(M + inner, y, 34.0, 13.0, W::S, ACCENT, "Change");
+                ui.text_right(M + inner, y, 34.0, 13.0, W::S, ACCENT, EN.flow_change);
                 ui.hit(M, y, inner, 34.0, c.toggle);
                 y += 36.0;
                 defaults = true;
@@ -389,7 +399,10 @@ fn paged(
             // as a value next to the card's own numbers (`SIMPLIFY.md`
             // §2.6).
             let card = &cards[i];
-            let count = format!("Step {} of {}", i + 1, cards.len());
+            let count = fill(
+                EN.flow_step_of,
+                &[&(i + 1).to_string(), &cards.len().to_string()],
+            );
             let count_w = ui.measure(12.0, W::R, &count);
             let title_w = inner - count_w - 10.0;
             let lh = ui.line(18.0, W::S);
@@ -405,7 +418,7 @@ fn paged(
             // tab) has a lead that is its own text, always shown.
             if let Some(text) = card.guide.as_deref() {
                 if col.switch {
-                    y += about(ui, M, y, inner, "About this step", i as u8, text);
+                    y += about(ui, M, y, inner, EN.flow_about_this_step, i as u8, text);
                 } else {
                     y += 8.0;
                     let gh = ui.wrap(M + 12.0, y, inner - 12.0, 13.0, W::R, MUTED, text);
@@ -461,7 +474,7 @@ fn paged(
     // The bar goes over whatever has scrolled under it.
     let back = col
         .back
-        .unwrap_or(("Home", Action::Nav(crate::Screen::Home)));
+        .unwrap_or((EN.flow_home, Action::Nav(crate::Screen::Home)));
     ui.fill(0.0, 0.0, w, BAR_H, 0.0, SIDEBAR);
     ui.fill(0.0, BAR_H - 1.0, w, 1.0, 0.0, LINE);
     if ui.is_pressed(back.1) {

@@ -3,6 +3,8 @@
 //! brought, each unlocked on the sheet, and "Choose what to import", which
 //! lists the wallets, keys and files with a checkbox each.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
 
 use crate::boot_import::{ImportAction as I, ImportCount, ImportView};
@@ -80,12 +82,18 @@ fn present(
         cy,
         w,
         app.medium.icon(),
-        &format!("Read from {label}"),
+        &fill(EN.boot_import_read_from, &[label]),
     );
     cy += counted(ui, x, cy, w, c);
-    let pull = format!("Pull the {} to continue", app.medium.noun());
+    let pull = fill(EN.boot_import_pull_the, &[app.medium.noun()]);
     cy += stick_banner(ui, x, cy, w, &pull);
-    cy += buttons(ui, x, cy, w, &[("Not now", Style::Secondary, ia(I::Later))]);
+    cy += buttons(
+        ui,
+        x,
+        cy,
+        w,
+        &[(EN.boot_import_not_now, Style::Secondary, ia(I::Later))],
+    );
     cy - y
 }
 
@@ -119,8 +127,8 @@ fn body(
     {
         let cy = y + typing(app, ui, x, y, w, &vault.title, vault.file);
         let foot = [
-            ("Not now", Style::Secondary, ia(I::Later)),
-            ("Unlock", Style::Primary, ia(I::Submit)),
+            (EN.boot_import_not_now, Style::Secondary, ia(I::Later)),
+            (EN.boot_import_unlock, Style::Primary, ia(I::Submit)),
         ];
         let n = if app.vaults.working == Some(Work::Unlock) {
             1
@@ -130,10 +138,17 @@ fn body(
         return cy + buttons(ui, x, cy, w, &foot[..n]) - y;
     }
     let mut cy = y;
-    cy += head(ui, x, cy, w, Icon::Download, &format!("Read from {label}"));
+    cy += head(
+        ui,
+        x,
+        cy,
+        w,
+        Icon::Download,
+        &fill(EN.boot_import_read_from, &[label]),
+    );
     cy += counted(ui, x, cy, w, c);
     if !may {
-        let pull = format!("Pull the {} to continue", app.medium.noun());
+        let pull = fill(EN.boot_import_pull_the, &[app.medium.noun()]);
         cy += stick_banner(ui, x, cy, w, &pull);
     }
 
@@ -144,7 +159,7 @@ fn body(
         let open = vault.open.is_some();
         let button = several && !open && field != Some(i);
         let (bw, room) = if button {
-            let bw = ui.measure(13.0, W::S, "Unlock") + 32.0;
+            let bw = ui.measure(13.0, W::S, EN.boot_import_unlock) + 32.0;
             (bw, w - 28.0 - bw - 12.0)
         } else {
             (0.0, w - 28.0)
@@ -160,8 +175,11 @@ fn body(
         let name = ui.fit(14.0, W::M, &vault.title, room);
         ui.text(x + 28.0, cy + 2.0, 14.0, W::M, TEXT, &name);
         let line = match &vault.open {
-            Some(slot) => format!("Open · {slot}"),
-            None => format!("Locked · {}", crate::vaults::file_text(vault.len)),
+            Some(slot) => fill(EN.boot_import_open, &[&slot.to_string()]),
+            None => fill(
+                EN.boot_import_locked,
+                &[&crate::vaults::file_text(vault.len).to_string()],
+            ),
         };
         let line = ui.fit(12.0, W::R, &line, room);
         ui.text(
@@ -178,7 +196,7 @@ fn body(
                 cy + 4.0,
                 Some(bw),
                 36.0,
-                "Unlock",
+                EN.boot_import_unlock,
                 if may {
                     Style::Secondary
                 } else {
@@ -195,7 +213,7 @@ fn body(
 
     // What to import, ticked, once asked for.
     if !choosing {
-        let t = "Choose what to import";
+        let t = EN.boot_import_choose;
         let tw = ui.measure(13.0, W::S, t);
         ui.text_mid(x, cy, 36.0, 13.0, W::S, ACCENT, t);
         ui.hit(x - 6.0, cy, tw + 12.0, 36.0, ia(I::Choose));
@@ -209,7 +227,7 @@ fn body(
     // two, and a tap beside the sheet is Not now there.
     let mut foot: Vec<(&str, Style, Action)> = Vec::new();
     if !(ui.compact && choosing) {
-        foot.push(("Not now", Style::Secondary, ia(I::Later)));
+        foot.push((EN.boot_import_not_now, Style::Secondary, ia(I::Later)));
     }
     if choosing {
         let style = match (may, field.is_none()) {
@@ -217,11 +235,11 @@ fn body(
             (true, true) => Style::Primary,
             (true, false) => Style::Secondary,
         };
-        foot.push(("Import", style, ia(I::Go)));
+        foot.push((EN.boot_import_import, style, ia(I::Go)));
     }
     if field.is_some() && app.vaults.working != Some(Work::Unlock) {
         foot.push((
-            "Unlock",
+            EN.boot_import_unlock,
             if may { Style::Primary } else { Style::Disabled },
             ia(I::Submit),
         ));
@@ -297,7 +315,7 @@ fn unlocking(app: &Faraday, file: usize) -> String {
                 .time_text(f.header.cost.memory_kib / 1024, f.header.cost.passes)
         })
         .unwrap_or_default();
-    format!("Unlocking · {time}")
+    fill(EN.boot_import_unlocking, &[&time.to_string()])
 }
 
 /// The wallets, the keys no wallet here uses, and every file, each with
@@ -306,7 +324,7 @@ fn lists(ui: &mut Ui, x: f32, y: f32, w: f32, v: &ImportView) -> f32 {
     let mut cy = y;
     // The wallets, with whether they sign here and what carries them.
     if !v.wallets.is_empty() {
-        cy += group(ui, x, cy, w, "Wallets");
+        cy += group(ui, x, cy, w, EN.boot_import_wallets);
         for (i, wt) in v.wallets.iter().enumerate() {
             let top = cy;
             ui.checkbox(x, cy + 4.0, wt.chosen, true);
@@ -352,7 +370,7 @@ fn lists(ui: &mut Ui, x: f32, y: f32, w: f32, v: &ImportView) -> f32 {
 
     // The keys no wallet here uses.
     if !v.keys.is_empty() {
-        cy += group(ui, x, cy, w, "Keys with no wallet here");
+        cy += group(ui, x, cy, w, EN.boot_import_keys_with);
         for (i, k) in v.keys.iter().enumerate() {
             let top = cy;
             ui.checkbox(x, cy + 4.0, k.chosen, true);
@@ -372,7 +390,7 @@ fn lists(ui: &mut Ui, x: f32, y: f32, w: f32, v: &ImportView) -> f32 {
 
     // Every file, for From the stick.
     if !v.files.is_empty() {
-        cy += group(ui, x, cy, w, "Files");
+        cy += group(ui, x, cy, w, EN.boot_import_files);
         for (i, f) in v.files.iter().enumerate() {
             let top = cy;
             ui.checkbox(x, cy + 4.0, f.chosen, f.enabled);

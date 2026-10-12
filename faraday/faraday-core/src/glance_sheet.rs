@@ -18,6 +18,8 @@
 //! action loads it first, with its seeds in that vault, as the chart's
 //! presses did before.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
 use osk_ui::{Color, tokens};
 
@@ -275,7 +277,7 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
         Some((label, a)) => Some(row(label, "", Some(a))),
         None => matches!(press, Press::Loaded(_)).then(|| {
             row(
-                "Open the vault",
+                EN.glance_sheet_open_the,
                 "",
                 Some(Action::Nav(Screen::VaultContents)),
             )
@@ -289,7 +291,7 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
         } else {
             row(
                 label,
-                "Open a vault to keep this",
+                EN.glance_sheet_open_a,
                 app.vault_way(back).map(|(_, a)| a),
             )
         }
@@ -327,34 +329,42 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             let mut rows = Vec::new();
             if let Press::Vault(v, r) = press {
                 rows.push(row(
-                    "Open in Wallets",
+                    EN.glance_sheet_open_in,
                     "",
                     Some(Action::Vault(V::OpenWalletOf(v, r))),
                 ));
             }
-            rows.push(row("Show wallet QR", "The descriptor", doing(Step::Qr)));
             rows.push(row(
-                "Check addresses",
-                "The first three",
+                EN.glance_sheet_show_wallet,
+                EN.glance_sheet_the_descriptor,
+                doing(Step::Qr),
+            ));
+            rows.push(row(
+                EN.glance_sheet_check_addresses,
+                EN.glance_sheet_the_first,
                 doing(Step::Addresses),
             ));
             if let Some(a) = item(Item::PublicFiles) {
-                rows.push(row("Public files", "For the software", Some(a)));
+                rows.push(row(
+                    EN.glance_sheet_public_files,
+                    EN.glance_sheet_for_the_software,
+                    Some(a),
+                ));
             }
             if matches!(g.backup, Backup::Plan { .. }) {
                 let (label, sub, what) = if split {
-                    ("Print the shares again", "PDFs, text and pictures", 4)
+                    (EN.glance_sheet_print, EN.glance_sheet_pdfs_text, 4)
                 } else {
-                    ("Print the wallet sheet again", "PDF", 3)
+                    (EN.glance_sheet_print_the, "PDF", 3)
                 };
                 rows.push(row(label, sub, doing(Step::Out(what))));
             }
-            rows.push(row("Rename the wallet", "", doing(Step::Rename)));
-            rows.push(row("Change the plan", "", change_plan()));
+            rows.push(row(EN.glance_sheet_rename_the, "", doing(Step::Rename)));
+            rows.push(row(EN.glance_sheet_change, "", change_plan()));
             let mut v = View::new(Icon::Wallet, g.name.clone());
             v.facts = vec![
-                ("Shape", g.shape.clone(), TEXT),
-                ("Checksum", format!("#{}", g.checksum), TEXT),
+                (EN.glance_sheet_shape, g.shape.clone(), TEXT),
+                (EN.glance_sheet_checksum, format!("#{}", g.checksum), TEXT),
             ];
             v.groups = vec![(String::new(), rows)];
             Some(v)
@@ -362,18 +372,18 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
         Target::Key(k) => {
             let key = g.keys.get(usize::from(k))?;
             let mut facts = vec![(
-                "Where",
+                EN.glance_sheet_where_2,
                 key.state.clone(),
                 if key.here { OK } else { MUTED },
             )];
             if let Some(l) = &key.label {
-                facts.insert(0, ("Label", l.clone(), TEXT));
+                facts.insert(0, (EN.glance_sheet_label, l.clone(), TEXT));
             }
             if let Some(h) = &key.holder {
-                facts.push(("Holder", h.clone(), TEXT));
+                facts.push((EN.glance_sheet_holder, h.clone(), TEXT));
             }
             if let Some(d) = &key.checked {
-                facts.push(("Last checked", glance::checked_text(d), OK));
+                facts.push((EN.glance_sheet_last_checked_2, glance::checked_text(d), OK));
             }
             let seed = key.seed;
             let of_seed = |w: What| {
@@ -388,23 +398,31 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                 .map(|n| n.name.as_str())
                 .collect();
             if !at.is_empty() {
-                facts.push(("Its seed is at", at.join(" · "), TEXT));
+                facts.push((EN.glance_sheet_its_seed, at.join(" · "), TEXT));
             }
             let mut groups = Vec::new();
             if key.here {
                 let mut public = Vec::new();
                 if !g.threshold {
-                    public.push(row("Show xpub QR", "", doing(Step::KeyQr(k))));
-                    public.push(row("Xpub file", "For the stick", doing(Step::KeyFile(k))));
+                    public.push(row(EN.glance_sheet_show_xpub, "", doing(Step::KeyQr(k))));
+                    public.push(row(
+                        EN.glance_sheet_xpub_file,
+                        EN.glance_sheet_for_the,
+                        doing(Step::KeyFile(k)),
+                    ));
                 }
                 if key.held
                     && let Some(fp) = key.fp
                 {
-                    public.push(row("Explore this key", "", Some(Action::ExploreKey(fp))));
+                    public.push(row(
+                        EN.glance_sheet_explore,
+                        "",
+                        Some(Action::ExploreKey(fp)),
+                    ));
                 }
                 if !app.is_compact() {
                     public.push(row(
-                        "Where it is",
+                        EN.glance_sheet_where,
                         "",
                         Some(Action::Chart(ChartAction::Where(press, k))),
                     ));
@@ -415,17 +433,21 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                     // By hand, at a place: the plan gains the copy, and
                     // the copy's flow makes and checks it.
                     make.push(row(
-                        "Words, by hand",
-                        "Then a place",
+                        EN.glance_sheet_words,
+                        EN.glance_sheet_then_a,
                         open(Target::CopyTo(What::Words(s))),
                     ));
                     make.push(row(
-                        "SeedQR, by hand",
-                        "Then a place",
+                        EN.glance_sheet_seedqr,
+                        EN.glance_sheet_then_a,
                         open(Target::CopyTo(What::SeedQr(s))),
                     ));
                     if let Some(a) = item(Item::Copy(s)) {
-                        make.push(row("Seed XOR or codex32", "By hand", Some(a)));
+                        make.push(row(
+                            EN.glance_sheet_seed_xor,
+                            EN.glance_sheet_by_hand,
+                            Some(a),
+                        ));
                     }
                     let sealed = if key.passphrase {
                         What::SeedPassphrase(s)
@@ -440,7 +462,11 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                                 edit(Edit::Add(n.at, sealed))
                             };
                             if a.is_some() {
-                                make.push(row(format!("Into {}", n.name), "", a));
+                                make.push(row(
+                                    fill(EN.glance_sheet_into, &[&n.name.to_string()]),
+                                    "",
+                                    a,
+                                ));
                             }
                         }
                     }
@@ -449,38 +475,38 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                     } else {
                         edit(Edit::Add(At::Files, What::SeedFile(s)))
                     };
-                    make.push(row("As a file", "For the stick", a));
+                    make.push(row(EN.glance_sheet_as_a_file, EN.glance_sheet_for_the, a));
                 }
                 if !make.is_empty() {
-                    groups.push(("Make another backup of this seed".to_string(), make));
+                    groups.push((EN.glance_sheet_make_another_backup.to_string(), make));
                 }
                 let mut check = Vec::new();
                 let by_hand =
                     seed.is_some_and(|s| holds(&|w| w == What::Words(s) || w == What::SeedQr(s)));
                 if by_hand && let Some(fp) = key.fp {
-                    check.push(row("Scan my copy", "", doing(Step::Scan(fp))));
+                    check.push(row(EN.glance_sheet_scan_my, "", doing(Step::Scan(fp))));
                     if let Some(a) = seed.and_then(|s| item(Item::Copy(s))) {
-                        check.push(row("Type it back", "", Some(a)));
+                        check.push(row(EN.glance_sheet_type_it_back, "", Some(a)));
                     }
                 }
                 if !check.is_empty() {
-                    groups.push(("Check a copy of this seed".to_string(), check));
+                    groups.push((EN.glance_sheet_check_a.to_string(), check));
                 }
                 if key.passphrase
                     && key.held
                     && let Some(s) = seed
                 {
                     groups.push((
-                        "Its passphrase".to_string(),
+                        EN.glance_sheet_its_passphrase.to_string(),
                         vec![
                             row(
-                                "Check it",
-                                "By the key it makes",
+                                EN.glance_sheet_check_it,
+                                EN.glance_sheet_by_the,
                                 open(Target::PassCheck(k, NO_LINE, NO_LINE)),
                             ),
                             row(
-                                "Another copy",
-                                "Then a place",
+                                EN.glance_sheet_another_copy,
+                                EN.glance_sheet_then_a,
                                 open(Target::CopyTo(What::Passphrase(s))),
                             ),
                         ],
@@ -491,21 +517,32 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                 // date its holder confirmed its backup (§9.3).
                 let mut rows = Vec::new();
                 if !g.threshold {
-                    rows.push(row("Show its xpub", "", doing(Step::CosignerQr(k))));
+                    rows.push(row(
+                        EN.glance_sheet_show_its,
+                        "",
+                        doing(Step::CosignerQr(k)),
+                    ));
                 }
-                rows.push(keeping("Name its holder", open(Target::Holder(k))));
+                rows.push(keeping(EN.glance_sheet_name_its, open(Target::Holder(k))));
                 rows.push(keeping(
-                    "Mark checked",
+                    EN.glance_sheet_mark_checked,
                     chart_do(ChartAction::KeyChecked(press, k)),
                 ));
                 if let Some(a) = key.action {
-                    rows.push(row("Load this key", key.way_in.unwrap_or(""), Some(a)));
+                    rows.push(row(
+                        EN.glance_sheet_load_this_key,
+                        key.way_in.unwrap_or(""),
+                        Some(a),
+                    ));
                 }
                 groups.push((String::new(), rows));
             }
             let mut v = View::new(
                 Icon::Fingerprint,
-                format!("Key {} · {}", key.number, key.fingerprint),
+                fill(
+                    EN.glance_sheet_key,
+                    &[&key.number.to_string(), &key.fingerprint.to_string()],
+                ),
             );
             v.facts = facts;
             v.groups = groups;
@@ -515,20 +552,24 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             let node = nodes.get(usize::from(n))?;
             let mut facts = Vec::new();
             if let Some(s) = &node.stick {
-                facts.push(("Stick", s.clone(), TEXT));
+                facts.push((EN.glance_sheet_stick, s.clone(), TEXT));
             }
             if let Some(s) = &node.alone {
-                facts.push(("Found alone", s.clone(), TEXT));
+                facts.push((EN.glance_sheet_found, s.clone(), TEXT));
             }
             if let Some((s, t)) = &node.state {
-                facts.push(("Seen here", s.clone(), tone_color(*t)));
+                facts.push((EN.glance_sheet_seen_here, s.clone(), tone_color(*t)));
             }
             if matches!(node.at, At::Place(_)) && !node.whats.is_empty() {
                 // The oldest of its things' dates, when each was checked.
                 let dates: Option<Vec<&String>> = node.checked.iter().map(Option::as_ref).collect();
                 facts.push(match dates.and_then(|d| d.into_iter().min()) {
-                    Some(d) => ("Last checked here", glance::checked_text(d), OK),
-                    None => ("Last checked here", "Not yet".to_string(), MUTED),
+                    Some(d) => (EN.glance_sheet_last_checked, glance::checked_text(d), OK),
+                    None => (
+                        EN.glance_sheet_last_checked,
+                        EN.glance_sheet_not_yet.to_string(),
+                        MUTED,
+                    ),
                 });
             }
             let lines: Vec<Row> = node
@@ -538,7 +579,7 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                 .filter(|(j, _)| *j < node.whats.len())
                 .map(|(j, h)| {
                     let h = match node.marks.get(j).copied().flatten() {
-                        Some(m) => format!("{h} · {}", m.name()),
+                        Some(m) => format!("{h} · {}", m.label()),
                         None => h.clone(),
                     };
                     row(h, "", open(Target::Line(n, j as u8)))
@@ -548,50 +589,54 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             let icon = match node.at {
                 At::Place(p) => {
                     rows.push(if vault_open {
-                        row("Rename", "", doing(Step::RenamePlace(p as u8)))
+                        row(
+                            EN.glance_sheet_rename,
+                            "",
+                            doing(Step::RenamePlace(p as u8)),
+                        )
                     } else {
                         let way = app.vault_way(back).map(|(_, a)| a);
-                        row("Rename", "Open a vault to keep this", way)
+                        row(EN.glance_sheet_rename, EN.glance_sheet_open_a, way)
                     });
                     if !node.whats.is_empty() {
                         rows.push(keeping(
-                            "Mark checked",
+                            EN.glance_sheet_mark_checked,
                             chart_do(ChartAction::Checked(press, n)),
                         ));
                     }
                     if let Some(a) = item(Item::Envelopes) {
-                        rows.push(row("What goes in its envelope", "", Some(a)));
+                        rows.push(row(EN.glance_sheet_what_goes, "", Some(a)));
                     }
                     rows.push(row(
-                        "The envelope list",
-                        "PDF, for the stick",
+                        EN.glance_sheet_the_envelope,
+                        EN.glance_sheet_pdf_for,
                         doing(Step::Envelopes),
                     ));
-                    rows.push(row("Add here", "", open(Target::AddAt(n))));
+                    rows.push(row(EN.glance_sheet_add_here, "", open(Target::AddAt(n))));
                     if !node.whats.is_empty() {
                         rows.push(keeping(
-                            "Mark lost",
+                            EN.glance_sheet_mark_lost,
                             chart_do(ChartAction::Mark(press, n, None, Mark::Lost)),
                         ));
                         rows.push(keeping(
-                            "Mark exposed",
+                            EN.glance_sheet_mark_exposed,
                             chart_do(ChartAction::Mark(press, n, None, Mark::Exposed)),
                         ));
                     }
                     if places.len() > 1 {
-                        rows.push(row("Remove the place", "", open(Target::Remove(n))));
+                        rows.push(row(EN.glance_sheet_remove_the, "", open(Target::Remove(n))));
                     }
                     Icon::House
                 }
                 At::Vault(v) => {
                     rows.extend(vault_way());
-                    rows.push(keeping("Rename", open(Target::VaultName(n))));
+                    rows.push(keeping(EN.glance_sheet_rename, open(Target::VaultName(n))));
                     if let Some(a) = item(Item::Vault(v)) {
-                        rows.push(row("Save its seeds into it", "", Some(a)));
+                        rows.push(row(EN.glance_sheet_save_its, "", Some(a)));
                     }
                     rows.push(row(
-                        "Copy to another stick",
-                        "Then a place",
+                        EN.glance_sheet_copy_to,
+                        EN.glance_sheet_then_a,
                         open(Target::CopyTo(What::VaultStick(v))),
                     ));
                     Icon::Lock
@@ -600,24 +645,24 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                     if node.whats.iter().any(|w| matches!(w, What::SeedFile(_)))
                         && let Some(a) = item(Item::SeedFiles)
                     {
-                        rows.push(row("Write the seed files again", "", Some(a)));
+                        rows.push(row(EN.glance_sheet_write_the_seed, "", Some(a)));
                     }
                     if node.whats.contains(&What::Wallet)
                         && let Some(a) = item(Item::PublicFiles)
                     {
-                        rows.push(row("Write the public files again", "", Some(a)));
+                        rows.push(row(EN.glance_sheet_write_the, "", Some(a)));
                     }
                     rows.push(row(
-                        "Remove from the plan",
-                        "Destroy its copies by hand",
+                        EN.glance_sheet_remove_from,
+                        EN.glance_sheet_destroy_its,
                         edit(Edit::Clear(At::Files)),
                     ));
                     Icon::File
                 }
                 At::Software => {
-                    rows.push(row("Show the descriptor QR again", "", doing(Step::Qr)));
+                    rows.push(row(EN.glance_sheet_show_the, "", doing(Step::Qr)));
                     if let Some(a) = item(Item::PublicFiles) {
-                        rows.push(row("Public files for this software", "", Some(a)));
+                        rows.push(row(EN.glance_sheet_public, "", Some(a)));
                     }
                     Icon::Eye
                 }
@@ -625,7 +670,7 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             };
             let mut groups = Vec::new();
             if !lines.is_empty() {
-                groups.push(("In it".to_string(), lines));
+                groups.push((EN.glance_sheet_in_it.to_string(), lines));
             }
             if !rows.is_empty() {
                 groups.push((String::new(), rows));
@@ -646,9 +691,9 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                         && !node.whats.contains(&What::SeedPassphrase(s))
                     {
                         more.push(row(
-                            format!("Key {} seed", key.number),
+                            fill(EN.glance_sheet_key_seed, &[&key.number.to_string()]),
                             if key.passphrase {
-                                "With its passphrase"
+                                EN.glance_sheet_with_its
                             } else {
                                 ""
                             },
@@ -658,13 +703,13 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                 }
                 if !node.whats.contains(&What::Wallet) {
                     more.push(row(
-                        "The description",
+                        EN.glance_sheet_the_description,
                         "",
                         edit(Edit::Add(node.at, What::Wallet)),
                     ));
                 }
                 if !more.is_empty() {
-                    groups.push(("Save more into it".to_string(), more));
+                    groups.push((EN.glance_sheet_save_more.to_string(), more));
                 }
             }
             let mut v = View::new(icon, node.name.clone());
@@ -677,19 +722,19 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             let what = *node.whats.get(usize::from(j))?;
             let label = node.holds.get(usize::from(j))?.clone();
             let mark = node.marks.get(usize::from(j)).copied().flatten();
-            let mut facts = vec![("Kept at", node.name.clone(), TEXT)];
+            let mut facts = vec![(EN.glance_sheet_kept_at, node.name.clone(), TEXT)];
             if let Some((s, t)) = &node.state {
-                facts.push(("Seen here", s.clone(), tone_color(*t)));
+                facts.push((EN.glance_sheet_seen_here, s.clone(), tone_color(*t)));
             }
             if let Some(d) = node.checked.get(usize::from(j)).cloned().flatten() {
-                facts.push(("Last checked here", glance::checked_text(&d), OK));
+                facts.push((EN.glance_sheet_last_checked, glance::checked_text(&d), OK));
             }
             if let Some(m) = mark {
                 let m = match m {
-                    Mark::Lost => "Lost",
-                    Mark::Exposed => "Exposed",
+                    Mark::Lost => EN.glance_sheet_lost,
+                    Mark::Exposed => EN.glance_sheet_exposed,
                 };
-                facts.push(("Marked", m.to_string(), ERR));
+                facts.push((EN.glance_sheet_marked, m.to_string(), ERR));
             }
             // A secret's actions, with its seed here; else the way to it.
             let secret = |s: usize, rows: &mut Vec<Row>, with: &dyn Fn(&mut Vec<Row>, [u8; 4])| {
@@ -700,7 +745,11 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                     (true, Some(fp)) => with(rows, fp),
                     _ => {
                         if let Some(a) = key.action {
-                            rows.push(row("Load this key", key.way_in.unwrap_or(""), Some(a)));
+                            rows.push(row(
+                                EN.glance_sheet_load_this_key,
+                                key.way_in.unwrap_or(""),
+                                Some(a),
+                            ));
                         }
                     }
                 }
@@ -710,23 +759,31 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             match what {
                 What::Words(s) | What::SeedQr(s) => secret(s, &mut rows, &|rows, fp| {
                     rows.push(row(
-                        "Scan my copy",
-                        "Check this copy",
+                        EN.glance_sheet_scan_my,
+                        EN.glance_sheet_check_this,
                         doing(Step::Scan(fp)),
                     ));
                     if let Some(a) = item(Item::Copy(s)) {
-                        rows.push(row("Type it back", "Check this copy", Some(a)));
+                        rows.push(row(
+                            EN.glance_sheet_type_it_back,
+                            EN.glance_sheet_check_this,
+                            Some(a),
+                        ));
                     }
                     rows.push(row(
-                        "Make another copy",
-                        "Elsewhere",
+                        EN.glance_sheet_make_another,
+                        EN.glance_sheet_elsewhere,
                         open(Target::CopyTo(what)),
                     ));
                 }),
                 What::Seed(s) | What::SeedPassphrase(s) => secret(s, &mut rows, &|_, _| {}),
                 What::SeedFile(_) => {
                     if let Some(a) = item(Item::SeedFiles) {
-                        rows.push(row("Write it again", "For the stick", Some(a)));
+                        rows.push(row(
+                            EN.glance_sheet_write_it,
+                            EN.glance_sheet_for_the,
+                            Some(a),
+                        ));
                     }
                 }
                 What::Passphrase(s) => {
@@ -734,60 +791,88 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                         && g.keys.get(k).is_some_and(|key| key.held)
                     {
                         rows.push(row(
-                            "Check it",
-                            "By the key it makes",
+                            EN.glance_sheet_check_it,
+                            EN.glance_sheet_by_the,
                             open(Target::PassCheck(k as u8, n, j)),
                         ));
                     }
-                    rows.push(row("Another copy", "Elsewhere", open(Target::CopyTo(what))));
+                    rows.push(row(
+                        EN.glance_sheet_another_copy,
+                        EN.glance_sheet_elsewhere,
+                        open(Target::CopyTo(what)),
+                    ));
                 }
                 What::Sheet => {
-                    rows.push(row("Print it again", "PDF", doing(Step::Out(3))));
-                    rows.push(row("As a QR picture", "PNG", doing(Step::Out(8))));
-                    rows.push(row("As text", "The descriptor", doing(Step::Out(1))));
-                    rows.push(row("Another copy", "Elsewhere", open(Target::CopyTo(what))));
+                    rows.push(row(EN.glance_sheet_print_it, "PDF", doing(Step::Out(3))));
+                    rows.push(row(EN.glance_sheet_as_a_qr, "PNG", doing(Step::Out(8))));
+                    rows.push(row(
+                        EN.glance_sheet_as_text,
+                        EN.glance_sheet_the_descriptor,
+                        doing(Step::Out(1)),
+                    ));
+                    rows.push(row(
+                        EN.glance_sheet_another_copy,
+                        EN.glance_sheet_elsewhere,
+                        open(Target::CopyTo(what)),
+                    ));
                 }
                 What::Share(_) => {
                     rows.push(row(
-                        "Print the shares again",
-                        "PDFs, text and pictures",
+                        EN.glance_sheet_print,
+                        EN.glance_sheet_pdfs_text,
                         doing(Step::Out(4)),
                     ));
                     if let Some(a) = item(Item::Sheets) {
-                        rows.push(row("Keys left off each share", "", Some(a)));
+                        rows.push(row(EN.glance_sheet_keys_left, "", Some(a)));
                     }
                 }
                 What::VaultStick(_) => {
                     rows.extend(vault_way());
                     rows.push(row(
-                        "Copy the vault to another stick",
-                        "Then a place",
+                        EN.glance_sheet_copy_the,
+                        EN.glance_sheet_then_a,
                         open(Target::CopyTo(what)),
                     ));
                     if app.vault_changed().is_some() {
                         rows.push(row(
-                            "Write it out again",
-                            "Changed since written",
+                            EN.glance_sheet_write,
+                            EN.glance_sheet_changed,
                             Some(Action::WriteAsk),
                         ));
                     }
                 }
-                What::Wallet => rows.push(row("Show wallet QR", "The descriptor", doing(Step::Qr))),
+                What::Wallet => rows.push(row(
+                    EN.glance_sheet_show_wallet,
+                    EN.glance_sheet_the_descriptor,
+                    doing(Step::Qr),
+                )),
             }
             // Where it is kept: moved, destroyed, lost or exposed.
             if at_place {
-                rows.push(row("Move", "To another place", open(Target::MoveTo(n, j))));
+                rows.push(row(
+                    EN.glance_sheet_move,
+                    EN.glance_sheet_to_another,
+                    open(Target::MoveTo(n, j)),
+                ));
                 rows.push(match mark {
-                    Some(_) => row("Remove from the plan", "", edit(Edit::Drop(node.at, what))),
-                    None => row("I destroyed this copy", "", edit(Edit::Drop(node.at, what))),
+                    Some(_) => row(
+                        EN.glance_sheet_remove_from,
+                        "",
+                        edit(Edit::Drop(node.at, what)),
+                    ),
+                    None => row(
+                        EN.glance_sheet_i_destroyed,
+                        "",
+                        edit(Edit::Drop(node.at, what)),
+                    ),
                 });
                 if mark.is_none() {
                     rows.push(keeping(
-                        "Lost",
+                        EN.glance_sheet_lost,
                         chart_do(ChartAction::Mark(press, n, Some(j), Mark::Lost)),
                     ));
                     rows.push(keeping(
-                        "Exposed",
+                        EN.glance_sheet_exposed,
                         chart_do(ChartAction::Mark(press, n, Some(j), Mark::Exposed)),
                     ));
                 }
@@ -821,11 +906,14 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                 })
                 .collect();
             rows.push(row(
-                "A new place",
+                EN.glance_sheet_a_new,
                 "",
                 edit(Edit::Move(node.at, what, At::Place(new_place))),
             ));
-            let mut v = View::new(Icon::House, format!("Move {label} to"));
+            let mut v = View::new(
+                Icon::House,
+                fill(EN.glance_sheet_move_to, &[&label.to_string()]),
+            );
             v.groups = vec![(String::new(), rows)];
             Some(v)
         }
@@ -836,13 +924,16 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                 .map(|(p, x)| row(x.name.clone(), "", edit(Edit::Add(At::Place(*p), what))))
                 .collect();
             rows.push(row(
-                "A new place",
+                EN.glance_sheet_a_new,
                 "",
                 edit(Edit::Add(At::Place(new_place), what)),
             ));
             let mut v = View::new(
                 Icon::House,
-                format!("Another copy of {}", glance::thing_label(Some(&g), what)),
+                fill(
+                    EN.glance_sheet_another,
+                    &[&glance::thing_label(Some(&g), what).to_string()],
+                ),
             );
             v.groups = vec![(String::new(), rows)];
             Some(v)
@@ -855,9 +946,18 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                     continue;
                 };
                 for (what, label) in [
-                    (What::Words(s), format!("Key {} words", key.number)),
-                    (What::SeedQr(s), format!("Key {} SeedQR", key.number)),
-                    (What::Passphrase(s), format!("Passphrase {}", key.number)),
+                    (
+                        What::Words(s),
+                        fill(EN.glance_sheet_key_words, &[&key.number.to_string()]),
+                    ),
+                    (
+                        What::SeedQr(s),
+                        fill(EN.glance_sheet_key_seedqr, &[&key.number.to_string()]),
+                    ),
+                    (
+                        What::Passphrase(s),
+                        fill(EN.glance_sheet_passphrase_n, &[&key.number.to_string()]),
+                    ),
                 ] {
                     if matches!(what, What::Passphrase(_)) && !(key.passphrase && key.held) {
                         continue;
@@ -872,7 +972,7 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                     let what = What::Share(j);
                     if !node.whats.contains(&what) {
                         rows.push(row(
-                            format!("Share {}", j + 1),
+                            fill(EN.glance_sheet_share, &[&(j + 1).to_string()]),
                             "",
                             edit(Edit::Add(node.at, what)),
                         ));
@@ -880,7 +980,7 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                 }
             } else if !node.whats.contains(&What::Sheet) {
                 rows.push(row(
-                    "Wallet sheet",
+                    EN.glance_sheet_wallet,
                     "",
                     edit(Edit::Add(node.at, What::Sheet)),
                 ));
@@ -890,13 +990,16 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                     && !node.whats.contains(&What::VaultStick(v))
                 {
                     rows.push(row(
-                        format!("{} stick", x.name),
-                        "A copy of the vault",
+                        fill(EN.glance_sheet_stick_n, &[&x.name.to_string()]),
+                        EN.glance_sheet_a_copy,
                         edit(Edit::Add(node.at, What::VaultStick(v))),
                     ));
                 }
             }
-            let mut v = View::new(Icon::House, format!("Add at {}", node.name));
+            let mut v = View::new(
+                Icon::House,
+                fill(EN.glance_sheet_add_at, &[&node.name.to_string()]),
+            );
             v.groups = vec![(String::new(), rows)];
             Some(v)
         }
@@ -905,10 +1008,12 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             let mut v = View::new(Icon::House, ask.title.clone());
             v.facts = check_facts(ask.before, ask.after);
             if let Edit::Drop(..) | Edit::Clear(_) | Edit::RemovePlace(_) = ask.edit {
-                v.lines
-                    .push(("Destroy what goes off the plan by hand".to_string(), MUTED));
+                v.lines.push((EN.glance_sheet_destroy.to_string(), MUTED));
             }
-            v.go = Some(("Confirm".to_string(), chart_do(ChartAction::Confirm(press))));
+            v.go = Some((
+                EN.glance_sheet_confirm.to_string(),
+                chart_do(ChartAction::Confirm(press)),
+            ));
             Some(v)
         }
         Target::Marked(n, line) => {
@@ -947,48 +1052,35 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             };
             // In order of what to do (§9.6).
             match f.found.spend {
-                plan::Found::Yes => v.lines.push(("Someone can now spend".to_string(), ERR)),
-                plan::Found::OnlyWithVault => v.lines.push((
-                    "Someone could spend with a vault's passphrase".to_string(),
-                    ERR,
-                )),
+                plan::Found::Yes => v.lines.push((EN.glance_sheet_someone_can.to_string(), ERR)),
+                plan::Found::OnlyWithVault => v
+                    .lines
+                    .push((EN.glance_sheet_someone_could.to_string(), ERR)),
                 plan::Found::No => {}
             }
             if f.found.spend != plan::Found::No {
                 rows.push(row(
-                    "Move the money",
-                    "New wallet",
+                    EN.glance_sheet_move_the,
+                    EN.glance_sheet_new_wallet,
                     chart_do(ChartAction::MoveMoney(press)),
                 ));
             }
             if f.any_lost && f.rebuilds == plan::Lost::No {
-                v.lines.push((
-                    "The wallet can no longer be rebuilt from what is left".to_string(),
-                    ERR,
-                ));
-                rows.push(row("Back up again now", "", change_plan()));
+                v.lines.push((EN.glance_sheet_the_wallet.to_string(), ERR));
+                rows.push(row(EN.glance_sheet_back_up, "", change_plan()));
             }
             if f.found.spend == plan::Found::No && f.found.balance != plan::Found::No {
-                v.lines
-                    .push(("Someone can see the balance".to_string(), WARN));
+                v.lines.push((EN.glance_sheet_someone.to_string(), WARN));
             }
             if f.any_lost && f.elsewhere {
-                v.lines
-                    .push(("Nothing lost that is not elsewhere".to_string(), OK));
+                v.lines.push((EN.glance_sheet_nothing_lost.to_string(), OK));
                 let what = here.iter().find(|(_, m)| *m == Mark::Lost).map(|(w, _)| *w);
                 if let Some(what) = what {
-                    rows.push(row(
-                        "Make a replacement copy",
-                        "",
-                        open(Target::CopyTo(what)),
-                    ));
+                    rows.push(row(EN.glance_sheet_make_a, "", open(Target::CopyTo(what))));
                 }
             }
             if v.lines.is_empty() && exposed {
-                v.lines.push((
-                    "Nothing it holds spends or shows the balance".to_string(),
-                    OK,
-                ));
+                v.lines.push((EN.glance_sheet_nothing.to_string(), OK));
             }
             v.groups = vec![(String::new(), rows)];
             Some(v)
@@ -998,7 +1090,10 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             let At::Place(p) = node.at else {
                 return None;
             };
-            let mut v = View::new(Icon::House, format!("Remove {}", node.name));
+            let mut v = View::new(
+                Icon::House,
+                fill(EN.glance_sheet_remove, &[&node.name.to_string()]),
+            );
             for (j, label) in node.holds.iter().enumerate().take(node.whats.len()) {
                 let chosen = app.chart_work.dest.get(j).copied().flatten();
                 let mut rows: Vec<Row> = places
@@ -1008,7 +1103,7 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                         row(
                             x.name.clone(),
                             if chosen == Some(*q as u8) {
-                                "Chosen"
+                                EN.glance_sheet_chosen
                             } else {
                                 ""
                             },
@@ -1017,20 +1112,21 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                     })
                     .collect();
                 rows.push(row(
-                    "Nowhere",
+                    EN.glance_sheet_nowhere,
                     if chosen == Some(OFF) {
-                        "Chosen"
+                        EN.glance_sheet_chosen
                     } else {
-                        "Destroyed"
+                        EN.glance_sheet_destroyed
                     },
                     chart_do(ChartAction::Dest(j as u8, OFF)),
                 ));
-                v.groups.push((format!("{label} goes to"), rows));
+                v.groups
+                    .push((fill(EN.glance_sheet_goes_to, &[&label.to_string()]), rows));
             }
             let all = (0..node.whats.len())
                 .all(|j| app.chart_work.dest.get(j).copied().flatten().is_some());
             v.go = Some((
-                format!("Remove {}", node.name),
+                fill(EN.glance_sheet_remove, &[&node.name.to_string()]),
                 all.then_some(Action::Chart(ChartAction::Edit(
                     press,
                     Edit::RemovePlace(p),
@@ -1042,15 +1138,25 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             let key = g.keys.get(usize::from(k))?;
             let mut v = View::new(
                 Icon::Fingerprint,
-                format!("Key {} · {}", key.number, key.fingerprint),
+                fill(
+                    EN.glance_sheet_key,
+                    &[&key.number.to_string(), &key.fingerprint.to_string()],
+                ),
             );
             let t = &app.chart_work.text;
             v.field = Some(if t.is_empty() {
-                ("Holder", "Name".to_string(), true)
+                (
+                    EN.glance_sheet_holder,
+                    EN.glance_sheet_name.to_string(),
+                    true,
+                )
             } else {
-                ("Holder", t.clone(), false)
+                (EN.glance_sheet_holder, t.clone(), false)
             });
-            v.go = Some(("Keep".to_string(), chart_do(ChartAction::Save(press))));
+            v.go = Some((
+                EN.glance_sheet_keep.to_string(),
+                chart_do(ChartAction::Save(press)),
+            ));
             Some(v)
         }
         Target::VaultName(n) => {
@@ -1058,38 +1164,52 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             let mut v = View::new(Icon::Lock, node.name.clone());
             let t = &app.chart_work.text;
             v.field = Some(if t.is_empty() {
-                ("Name", "Name".to_string(), true)
+                (EN.glance_sheet_name, EN.glance_sheet_name.to_string(), true)
             } else {
-                ("Name", t.clone(), false)
+                (EN.glance_sheet_name, t.clone(), false)
             });
-            v.go = Some(("Keep".to_string(), chart_do(ChartAction::Save(press))));
+            v.go = Some((
+                EN.glance_sheet_keep.to_string(),
+                chart_do(ChartAction::Save(press)),
+            ));
             Some(v)
         }
         Target::PassCheck(k, ..) => {
             let key = g.keys.get(usize::from(k))?;
-            let mut v = View::new(Icon::Passphrase, format!("Passphrase {}", key.number));
+            let mut v = View::new(
+                Icon::Passphrase,
+                fill(EN.glance_sheet_passphrase_n, &[&key.number.to_string()]),
+            );
             let typed = app.chart_work.secret.chars().count();
             v.field = Some(if typed == 0 {
-                ("Passphrase", "Type it".to_string(), true)
+                (
+                    EN.glance_sheet_passphrase,
+                    EN.glance_sheet_type_it.to_string(),
+                    true,
+                )
             } else {
-                ("Passphrase", "•".repeat(typed), false)
+                (EN.glance_sheet_passphrase, "•".repeat(typed), false)
             });
             match app.chart_work.result {
-                Some(true) => v
-                    .lines
-                    .push((format!("Matches: it makes key {}", key.fingerprint), OK)),
-                Some(false) => v.lines.push(("Does not match".to_string(), ERR)),
+                Some(true) => v.lines.push((
+                    fill(EN.glance_sheet_matches, &[&key.fingerprint.to_string()]),
+                    OK,
+                )),
+                Some(false) => v.lines.push((EN.glance_sheet_does_not.to_string(), ERR)),
                 None => {}
             }
             v.go = Some((
-                "Check".to_string(),
+                EN.glance_sheet_check_2.to_string(),
                 (typed > 0).then_some(Action::Chart(ChartAction::PassTry(press))),
             ));
             Some(v)
         }
         Target::PassShow(k, n, j) => {
             let key = g.keys.get(usize::from(k))?;
-            let mut v = View::new(Icon::Passphrase, format!("Passphrase {}", key.number));
+            let mut v = View::new(
+                Icon::Passphrase,
+                fill(EN.glance_sheet_passphrase_n, &[&key.number.to_string()]),
+            );
             let shown = key.fp.and_then(|fp| {
                 app.session
                     .keys
@@ -1102,17 +1222,15 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                 (Some(_), false) => v.groups.push((
                     String::new(),
                     vec![row(
-                        "Show it",
-                        "To copy by hand",
+                        EN.glance_sheet_show_it,
+                        EN.glance_sheet_to_copy,
                         chart_do(ChartAction::Reveal),
                     )],
                 )),
-                (None, _) => v
-                    .lines
-                    .push(("Load this key with its passphrase".to_string(), MUTED)),
+                (None, _) => v.lines.push((EN.glance_sheet_load_this.to_string(), MUTED)),
             }
             v.go = Some((
-                "Check my copy".to_string(),
+                EN.glance_sheet_check.to_string(),
                 open(Target::PassCheck(k, n, j)),
             ));
             Some(v)
@@ -1126,11 +1244,11 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             Some(v)
         }
         Target::Replan => {
-            let mut v = View::new(Icon::Wallet, "Change the plan");
+            let mut v = View::new(Icon::Wallet, EN.glance_sheet_change);
             v.lines
-                .push(("Your changes on the chart are replaced".to_string(), WARN));
+                .push((EN.glance_sheet_your_changes.to_string(), WARN));
             v.go = Some((
-                "Change the plan".to_string(),
+                EN.glance_sheet_change.to_string(),
                 chart_do(ChartAction::Replan(press)),
             ));
             Some(v)
@@ -1176,7 +1294,11 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         let sw = (w - 2.0 * tokens::TOUCH).min(tokens::CHART_SHEET_WIDTH);
         (((w - sw) / 2.0, sw), tokens::PAD, 2.0 * tokens::PAD)
     };
-    let close = if ui.compact { "Back" } else { "Close" };
+    let close = if ui.compact {
+        EN.glance_sheet_back
+    } else {
+        EN.glance_sheet_close
+    };
     crate::compact::scroll_sheet(ui, place, h, margin, pad, &mut |ui, x, y, iw| {
         let mut cy = y;
         cy += crate::compact::sheet_head(ui, x, cy, iw, v.icon, ACCENT, &v.title);
@@ -1335,7 +1457,11 @@ impl Faraday {
                                 }
                                 _ => None,
                             })
-                            .filter(|name| !name.starts_with("Vault "))
+                            .filter(|name| {
+                                !name.starts_with(
+                                    EN.glance_vault.split("{}").next().unwrap_or_default(),
+                                )
+                            })
                             .unwrap_or_default();
                     }
                     Target::PassCheck(..) => {

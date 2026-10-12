@@ -3,6 +3,8 @@
 //! §2 and §4). Every piece of cryptography is `osk-bip`'s or
 //! `osk-psbt`'s; this module only decides which call comes next.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::bitcoin::consensus::encode::serialize_hex;
 use osk_bip::bitcoin::{Transaction, Txid};
@@ -18,10 +20,10 @@ pub const START_NETWORK: Network = Network::Mainnet;
 /// What a network is called on screen.
 pub fn network_name(n: Network) -> &'static str {
     match n {
-        Network::Mainnet => "Mainnet",
-        Network::Testnet => "Testnet",
-        Network::Signet => "Signet",
-        Network::Regtest => "Regtest",
+        Network::Mainnet => EN.wallet_mainnet,
+        Network::Testnet => EN.wallet_testnet,
+        Network::Signet => EN.wallet_signet,
+        Network::Regtest => EN.wallet_regtest,
     }
 }
 
@@ -177,21 +179,22 @@ impl Refusal {
     /// The sentence a screen shows.
     pub fn text(&self) -> String {
         match self {
-            Refusal::Words(e) => format!("Not a valid seed: {e}"),
-            Refusal::Duplicate(fp) => format!("{fp} is already loaded"),
-            Refusal::WrongKey { wanted, got } => {
-                format!("These words give {got}, not {wanted}")
-            }
-            Refusal::NotOfWallet { got, wallet } => {
-                format!("These words give {got}, not a key of {wallet}")
-            }
-            Refusal::NotAWallet(e) => format!("Not a wallet: {e}"),
-            Refusal::Network { offered, loaded } => format!(
-                "{} is not {}, the network of the loaded wallets",
-                network_name(*offered),
-                network_name(*loaded)
+            Refusal::Words(e) => fill(EN.wallet_not_a_valid, &[&e.to_string()]),
+            Refusal::Duplicate(fp) => fill(EN.wallet_is_already_loaded, &[&fp.to_string()]),
+            Refusal::WrongKey { wanted, got } => fill(
+                EN.wallet_these_words_give,
+                &[&got.to_string(), &wanted.to_string()],
             ),
-            Refusal::NotAllowed(fp) => format!("{fp} is not a key this session takes"),
+            Refusal::NotOfWallet { got, wallet } => fill(
+                EN.wallet_these_words,
+                &[&got.to_string(), &wallet.to_string()],
+            ),
+            Refusal::NotAWallet(e) => fill(EN.wallet_not_a_wallet, &[&e.to_string()]),
+            Refusal::Network { offered, loaded } => fill(
+                EN.wallet_is_not_the_network,
+                &[network_name(*offered), network_name(*loaded)],
+            ),
+            Refusal::NotAllowed(fp) => fill(EN.wallet_is_not_a_key, &[&fp.to_string()]),
         }
     }
 }
@@ -209,9 +212,9 @@ pub fn source_tag(source: &str, cap: bool) -> String {
     if source.ends_with(" here") {
         source.to_string()
     } else if cap {
-        format!("From {source}")
+        fill(EN.wallet_from, &[source])
     } else {
-        format!("from {source}")
+        fill(EN.wallet_from_inline, &[source])
     }
 }
 
@@ -495,7 +498,7 @@ impl Session {
     /// carries one: there are no words to copy by hand.
     pub fn add_seed(&mut self, seed: &[u8], label: &str) -> Result<Fingerprint, Refusal> {
         let bytes = osk_crypto::SeedBytes::new(seed)
-            .ok_or_else(|| Refusal::Words("a master seed is 16 to 64 bytes".to_string()))?;
+            .ok_or_else(|| Refusal::Words(EN.wallet_a_master_seed.to_string()))?;
         let master = MasterKey::from_seed_bytes(&osk_crypto::Secret::new(bytes), self.network);
         let fp = master.fingerprint();
         self.allowed(fp)?;
@@ -622,30 +625,42 @@ impl Session {
     /// The wallet's shape in a few words.
     pub fn shape(wallet: &Wallet) -> String {
         let script = |t: ScriptType| match t {
-            ScriptType::Legacy => "legacy",
-            ScriptType::NestedSegwit => "nested SegWit",
-            ScriptType::NativeSegwit => "native SegWit",
-            ScriptType::Taproot => "Taproot",
+            ScriptType::Legacy => EN.wallet_legacy,
+            ScriptType::NestedSegwit => EN.wallet_nested_segwit,
+            ScriptType::NativeSegwit => EN.wallet_native_segwit,
+            ScriptType::Taproot => EN.wallet_taproot,
         };
         let (m, n) = Self::quorum(wallet);
         match Kind::of(&wallet.policy) {
-            Kind::Single(t) => format!("Single key · {}", script(t)),
-            Kind::Multi(Wrapper::Sh) => format!("{m} of {n} · legacy multisig"),
-            Kind::Multi(Wrapper::ShWsh) => format!("{m} of {n} · nested SegWit multisig"),
-            Kind::Multi(_) => format!("{m} of {n} · native SegWit multisig"),
-            Kind::TapMulti => format!("{m} of {n} · Taproot multisig"),
-            Kind::Miniscript => format!(
-                "{} keys · miniscript with conditions",
-                wallet.policy.keys().len()
+            Kind::Single(t) => fill(EN.wallet_single_key, &[script(t)]),
+            Kind::Multi(Wrapper::Sh) => fill(
+                EN.wallet_of_legacy_multisig,
+                &[&m.to_string(), &n.to_string()],
             ),
-            Kind::Tree => format!(
-                "{} keys · Taproot key and leaves",
-                wallet.policy.keys().len()
+            Kind::Multi(Wrapper::ShWsh) => fill(
+                EN.wallet_of_nested_segwit,
+                &[&m.to_string(), &n.to_string()],
             ),
-            Kind::MuSig => format!("{n} of {n} · MuSig2"),
-            Kind::Threshold => format!("{m} of {n} · FROST"),
-            Kind::Silent => "1 key · silent payments".to_string(),
-            Kind::Other => "Wallet".to_string(),
+            Kind::Multi(_) => fill(
+                EN.wallet_of_native_segwit,
+                &[&m.to_string(), &n.to_string()],
+            ),
+            Kind::TapMulti => fill(
+                EN.wallet_of_taproot_multisig,
+                &[&m.to_string(), &n.to_string()],
+            ),
+            Kind::Miniscript => fill(
+                EN.wallet_keys_miniscript,
+                &[&wallet.policy.keys().len().to_string()],
+            ),
+            Kind::Tree => fill(
+                EN.wallet_keys_taproot,
+                &[&wallet.policy.keys().len().to_string()],
+            ),
+            Kind::MuSig => fill(EN.wallet_of_musig2, &[&n.to_string(), &n.to_string()]),
+            Kind::Threshold => fill(EN.wallet_of_frost, &[&m.to_string(), &n.to_string()]),
+            Kind::Silent => EN.wallet_1_key_silent.to_string(),
+            Kind::Other => EN.wallet_wallet.to_string(),
         }
     }
 
@@ -655,7 +670,7 @@ impl Session {
             .policy
             .address_at(self.network, change, index)
             .map(|a| a.to_string())
-            .unwrap_or_else(|e| format!("no address: {e}"))
+            .unwrap_or_else(|e| fill(EN.wallet_no_address, &[&e.to_string()]))
     }
 
     /// The words New key hands out next ([`Session::handout`]): the first
@@ -821,7 +836,7 @@ impl Session {
             .iter()
             .any(|i| i.threshold.as_ref().is_some_and(|t| !t.ours.is_empty()));
         if selection.is_empty() && !shares_sign {
-            return Err("No key in this session signs this transaction".to_string());
+            return Err(EN.wallet_no_key_in_this.to_string());
         }
         let masters: Vec<&MasterKey> = self.keys.iter().map(|k| &k.master).collect();
         // A share's scalar is rebuilt from its words only inside the call
@@ -1088,7 +1103,7 @@ pub fn read_wallet(text: &str) -> Result<WalletPolicy, Refusal> {
     if text.trim_start().starts_with('{') {
         let d = json_string(text, "descriptor")
             .or_else(|| json_string(text, "desc"))
-            .ok_or_else(|| Refusal::NotAWallet("a .json file with no descriptor".into()))?;
+            .ok_or_else(|| Refusal::NotAWallet(EN.wallet_a_json_file.into()))?;
         return WalletPolicy::parse_any(&d).or_else(|e| {
             let mut all = json_strings(text, "descriptor");
             all.extend(json_strings(text, "desc"));
@@ -1106,7 +1121,7 @@ pub fn read_wallet(text: &str) -> Result<WalletPolicy, Refusal> {
     if osk_bip::bsms::looks_like_record(text) && !osk_bip::bsms::is_signer_record(text) {
         return osk_bip::bsms::DescriptorRecord::parse(text)
             .map(|r| r.policy)
-            .map_err(|e| Refusal::NotAWallet(format!("BSMS: {e:?}")));
+            .map_err(|e| Refusal::NotAWallet(fill(EN.wallet_bsms, &[&format!("{e:?}")])));
     }
     if osk_bip::multisig_config::looks_like_config(text) {
         return osk_bip::multisig_config::parse(text)
@@ -1231,8 +1246,8 @@ fn json_strings(text: &str, key: &str) -> Vec<String> {
 /// takes the inner one, so the file is read here. Where the account
 /// states its first address, the wallet read must give the same one.
 fn coldcard_export(text: &str) -> Result<WalletPolicy, Refusal> {
-    let bad = |why: &str| Refusal::NotAWallet(format!("Coldcard export: {why}"));
-    let master = json_string(text, "xfp").ok_or_else(|| bad("no xfp"))?;
+    let bad = |why: &str| Refusal::NotAWallet(fill(EN.wallet_coldcard_export, &[why]));
+    let master = json_string(text, "xfp").ok_or_else(|| bad(EN.wallet_no_xfp))?;
     for (field, wrap) in [
         ("bip84", "wpkh(K)"),
         ("bip86", "tr(K)"),
@@ -1259,12 +1274,15 @@ fn coldcard_export(text: &str) -> Result<WalletPolicy, Refusal> {
                     .is_ok_and(|a| a.to_string() == first)
             });
             if !found {
-                return Err(bad(&format!("its first {field} address is not {first}")));
+                return Err(bad(&fill(
+                    EN.wallet_its_first_address,
+                    &[field, &first.to_string()],
+                )));
             }
         }
         return Ok(policy);
     }
-    Err(bad("no single-sig account"))
+    Err(bad(EN.wallet_no_single_sig))
 }
 
 /// The object under `key` in a JSON text, from its name to its closing
@@ -1391,14 +1409,21 @@ pub enum FileKind {
 /// before any is in, "Collect 1 more signature" after. "More" is said
 /// only once there is one.
 pub fn collect_line(missing: usize, collected: usize) -> String {
-    format!(
-        "Collect {missing}{} {}",
-        if collected == 0 { "" } else { " more" },
-        if missing == 1 {
-            "signature"
-        } else {
-            "signatures"
-        }
+    fill(
+        EN.wallet_collect,
+        &[
+            &missing.to_string(),
+            &(if collected == 0 {
+                String::new()
+            } else {
+                format!(" {}", EN.wallet_more)
+            }),
+            (if missing == 1 {
+                EN.wallet_signature
+            } else {
+                EN.wallet_signatures
+            }),
+        ],
     )
 }
 
@@ -1574,15 +1599,15 @@ impl Spend {
         bytes: &[u8],
         source: &str,
     ) -> Result<Vec<Fingerprint>, String> {
-        let other = read_psbt(bytes).ok_or("Not a PSBT")?;
+        let other = read_psbt(bytes).ok_or(EN.wallet_not_a_psbt)?;
         if other.unsigned_tx().compute_txid() != self.txid {
-            return Err(format!("{source} is a PSBT for another transaction"));
+            return Err(fill(EN.wallet_is_a_psbt_for, &[source]));
         }
         let before = self.signers(session);
         let mut merged = self.psbt.inner().clone();
         merged
             .combine(other.into_inner())
-            .map_err(|e| format!("Cannot combine: {e}"))?;
+            .map_err(|e| fill(EN.wallet_cannot_combine, &[&e.to_string()]))?;
         // `combine` keeps the fields it has no type for, MuSig2's among them.
         let merged = Psbt::from(merged);
         if session
@@ -1590,7 +1615,7 @@ impl Spend {
             .present_signatures()
             .any(|s| s.verdict.is_invalid())
         {
-            return Err(format!("A signature in {source} does not verify"));
+            return Err(fill(EN.wallet_a_signature, &[source]));
         }
         self.psbt = merged;
         let added: Vec<Fingerprint> = self
@@ -1612,7 +1637,7 @@ impl Spend {
                 self.finished = Some(tx);
                 Ok(())
             }
-            Ok(None) => Err("Not enough signatures yet".to_string()),
+            Ok(None) => Err(EN.wallet_not_enough_signatures.to_string()),
             Err(e) => Err(e.to_string()),
         }
     }
@@ -1622,10 +1647,7 @@ impl Spend {
         let mut copy = self.psbt.clone();
         match osk_psbt::finalize(&mut copy) {
             Ok(Some(_)) => None,
-            Ok(None) => Some(
-                "The script is not satisfied yet: another signature, or a timelock not yet reached"
-                    .to_string(),
-            ),
+            Ok(None) => Some(EN.wallet_the_script_is.to_string()),
             Err(e) => Some(e.to_string()),
         }
     }
@@ -1674,19 +1696,19 @@ impl Session {
         message: &str,
         format: osk_psbt::message::Format,
     ) -> Result<osk_psbt::message::Signed, String> {
-        let w = self.wallets.get(wallet).ok_or("no such wallet")?;
+        let w = self.wallets.get(wallet).ok_or(EN.wallet_no_such_wallet)?;
         let Kind::Single(script) = Kind::of(&w.policy) else {
-            return Err("Messages are signed with single-key wallets".into());
+            return Err(EN.wallet_messages_are.into());
         };
-        let key = w.policy.keys().first().ok_or("the wallet has no key")?;
-        let fp = key.fingerprint().ok_or("the wallet's xpub has no origin")?;
+        let key = w.policy.keys().first().ok_or(EN.wallet_the_wallet_has)?;
+        let fp = key.fingerprint().ok_or(EN.wallet_the_wallet_s_xpub)?;
         let master = &self
             .keys
             .iter()
             .find(|k| k.master.fingerprint() == fp)
-            .ok_or("the wallet's key is not loaded here")?
+            .ok_or(EN.wallet_the_wallet_s_key)?
             .master;
-        let origin = key.path().ok_or("the wallet's xpub has no path")?;
+        let origin = key.path().ok_or(EN.wallet_the_wallet_s)?;
         let path = origin
             .child(
                 osk_bip::bitcoin::bip32::ChildNumber::from_normal_idx(0)
@@ -1787,21 +1809,21 @@ pub fn paths(session: &Session, wallet: &Wallet, psbt: &Psbt) -> Vec<PathView> {
                 .map(|l| match l {
                     Lock::Blocks(n) => {
                         ok &= relative && !in_time && value >= *n;
-                        format!(
-                            "{n} blocks after the coins arrived (about {} days)",
-                            n / 144
+                        fill(
+                            EN.wallet_blocks_after,
+                            &[&n.to_string(), &(n / 144).to_string()],
                         )
                     }
                     Lock::Intervals(n) => {
                         ok &= relative && in_time && value >= *n;
-                        format!(
-                            "{} days after the coins arrived",
-                            u64::from(*n) * 512 / 86_400
+                        fill(
+                            EN.wallet_days_after_the,
+                            &[&(u64::from(*n) * 512 / 86_400).to_string()],
                         )
                     }
-                    Lock::Height(h) => format!("after block {h}"),
-                    Lock::Time(t) => format!("after time {t}"),
-                    Lock::Preimage => "a secret preimage".to_string(),
+                    Lock::Height(h) => fill(EN.wallet_after_block, &[&h.to_string()]),
+                    Lock::Time(t) => fill(EN.wallet_after_time, &[&t.to_string()]),
+                    Lock::Preimage => EN.wallet_a_secret_preimage.to_string(),
                 })
                 .collect();
             PathView {

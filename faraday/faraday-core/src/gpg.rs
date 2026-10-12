@@ -5,9 +5,11 @@
 //! record (`docs/VAULT.md` §7) and only its public results reach the
 //! Outbox.
 
+use crate::strings::EN;
 use faraday_pgp::{Armor, Hash, Key, Reason, armor};
 use faraday_vault::Record;
 use faraday_vault::records::kind;
+use opensigner_core::strings::fill;
 use zeroize::Zeroize;
 
 use crate::Faraday;
@@ -137,7 +139,7 @@ impl Faraday {
     fn clock(&self) -> Result<u32, String> {
         self.clock_now()
             .map(|t| t as u32)
-            .ok_or_else(|| "This computer's clock is not known".to_string())
+            .ok_or_else(|| EN.gpg_this_computer_s.to_string())
     }
 
     /// The GPG key selected in the open vault, with its record's place.
@@ -160,14 +162,14 @@ impl Faraday {
     pub(crate) fn gpg_make(&mut self, name: &str, email: &str) -> Result<(), String> {
         let now = self.clock()?;
         let uid = match (name.trim(), email.trim()) {
-            ("", "") => return Err("A key needs a name or an email".to_string()),
+            ("", "") => return Err(EN.gpg_a_key_needs_a_name.to_string()),
             (n, "") => n.to_string(),
             ("", e) => format!("<{e}>"),
             (n, e) => format!("{n} <{e}>"),
         };
         let (Some(primary), Some(subkey)) = (self.fresh(b"gpg primary"), self.fresh(b"gpg subkey"))
         else {
-            return Err("No randomness from the system yet. Try again".to_string());
+            return Err(EN.gpg_no_randomness_from.to_string());
         };
         let key = Key {
             primary_seed: primary,
@@ -180,7 +182,7 @@ impl Faraday {
         let cert = key.certificate(now);
         let stem = file_stem(&key);
         let revocation = key.revocation(now, Reason::Unspecified, "");
-        self.vault_push(record_of(&key, &cert), "The key is in the vault");
+        self.vault_push(record_of(&key, &cert), EN.gpg_the_key_is_in_the);
         self.put_outbox(
             &format!("{stem}.asc"),
             armor(Armor::PublicKey, &cert).into_bytes(),
@@ -218,51 +220,53 @@ impl Faraday {
     /// its picture.
     pub(crate) fn gpg_code(&self, code: crate::Code) -> Result<crate::QrView, String> {
         use crate::Code;
-        let (_, key) = self.gpg_selected().ok_or("No GPG key is selected")?;
+        let (_, key) = self.gpg_selected().ok_or(EN.gpg_no_gpg_key_is_selected)?;
         let stem = file_stem(&key);
-        let fp = format!(
-            "Fingerprint {}",
-            faraday_pgp::fingerprint_text(&key.fingerprint())
+        let fp = fill(
+            EN.gpg_fingerprint,
+            &[&faraday_pgp::fingerprint_text(&key.fingerprint()).to_string()],
         );
         let who = key.user_ids.first().cloned().unwrap_or_default();
         let (title, text, name, lines) = match code {
             Code::GpgKey => {
-                let (_, text) = self.gpg_certificate().ok_or("No GPG key is selected")?;
+                let (_, text) = self
+                    .gpg_certificate()
+                    .ok_or(EN.gpg_no_gpg_key_is_selected)?;
                 (
-                    "GPG public key".to_string(),
+                    EN.gpg_gpg_public_key.to_string(),
                     text,
                     format!("{stem}.png"),
-                    vec![
-                        who,
-                        fp,
-                        "Public: checks signatures, signs nothing".to_string(),
-                    ],
+                    vec![who, fp, EN.gpg_public_checks_signatures.to_string()],
                 )
             }
             Code::GpgRevocation => {
                 let rev = key.revocation(self.clock()?, Reason::Unspecified, "");
                 (
-                    "GPG revocation certificate".to_string(),
+                    EN.gpg_gpg_revocation.to_string(),
                     armor(Armor::PublicKey, &rev),
                     format!("{stem}-revocation.png"),
                     vec![
-                        format!("Revokes {who}"),
+                        fill(EN.gpg_revokes, &[&who.to_string()]),
                         fp,
-                        "Whoever has it can revoke the key".to_string(),
+                        EN.gpg_whoever_has_it.to_string(),
                     ],
                 )
             }
             Code::GpgSignature(k) => {
-                let item = self.inbox.get(k).ok_or("That file is no longer in Files")?;
+                let item = self.inbox.get(k).ok_or(EN.gpg_that_file_is_no)?;
                 let sig = key.sign(&item.bytes, self.clock()?, Hash::Sha512);
                 (
-                    format!("GPG signature · {}", item.name),
+                    fill(EN.gpg_gpg_signature, &[&item.name.to_string()]),
                     armor(Armor::Signature, &sig),
                     format!("{}-signature.png", item.name),
-                    vec![format!("Signs {}", item.name), format!("By {who}"), fp],
+                    vec![
+                        fill(EN.gpg_signs, &[&item.name.to_string()]),
+                        fill(EN.gpg_by, &[&who.to_string()]),
+                        fp,
+                    ],
                 )
             }
-            _ => return Err("Not a GPG file".to_string()),
+            _ => return Err(EN.gpg_not_a_gpg_file.to_string()),
         };
         Ok(crate::QrView::text(&title, &text)?.public(&name, lines))
     }
@@ -303,7 +307,10 @@ impl Faraday {
             v.changes += 1;
         }
         self.put_outbox(&name, armor(Armor::PublicKey, &cert).into_bytes());
-        self.toast(&format!("Renewed · {name} waits {}", self.medium.for_the()));
+        self.toast(&fill(
+            EN.gpg_renewed_waits,
+            &[&name.to_string(), self.medium.for_the()],
+        ));
     }
 
     /// A detached signature over Inbox file `k` by the selected key, to
@@ -357,8 +364,11 @@ impl Faraday {
         }
         if n > 0 {
             let text = match n {
-                1 => format!("1 signature waits {}", self.medium.for_the()),
-                n => format!("{n} signatures wait {}", self.medium.for_the()),
+                1 => fill(EN.gpg_1_signature_waits, &[self.medium.for_the()]),
+                n => fill(
+                    EN.gpg_signatures_wait,
+                    &[&n.to_string(), self.medium.for_the()],
+                ),
             };
             self.toast(&text);
         }
@@ -394,7 +404,7 @@ pub fn shown(r: &Record, tz_min: i16) -> Option<Shown> {
         user_ids: key.user_ids.clone(),
         created: local(u64::from(key.created)),
         expires: if key.expiry == 0 {
-            "Never".to_string()
+            EN.gpg_never.to_string()
         } else {
             local(u64::from(key.created) + u64::from(key.expiry))
         },

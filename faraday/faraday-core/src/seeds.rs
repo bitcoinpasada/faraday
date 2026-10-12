@@ -10,8 +10,10 @@
 //! [`NewKind::descriptor`]'s, the one Make a new wallet writes.
 
 use crate::create::{self, NewKind};
+use crate::strings::EN;
 use crate::wallet::FileKind;
 use crate::{Faraday, Screen, family};
+use opensigner_core::strings::fill;
 
 /// The kinds a wallet of one key can be.
 pub const SINGLE: [NewKind; 4] = family::SINGLE;
@@ -35,7 +37,7 @@ pub const SLIDE_N: u8 = 1;
 pub const SLIDE_OMIT: u8 = 2;
 
 /// The source a wallet made from seeds is loaded under.
-pub const SOURCE: &str = "Typed seeds";
+pub const SOURCE: &str = EN.seeds_typed_seeds;
 
 /// Where typing goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -458,7 +460,7 @@ impl Faraday {
             return false;
         };
         let Some(key) = create::key_for(s.kind, &text).or_else(|| create::read_key(&text)) else {
-            s.error = Some("No account key in that file".to_string());
+            s.error = Some(EN.seeds_no_account_key.to_string());
             return false;
         };
         s.cosigners[slot] = key;
@@ -473,14 +475,14 @@ impl Faraday {
         let path = s.path(net);
         let path = create::normal_path(&path)
             .filter(|p| p != "m")
-            .ok_or_else(|| "Type a derivation path, like m/48'/0'/0'/2'".to_string())?;
+            .ok_or_else(|| EN.seeds_type_a_derivation.to_string())?;
         let mut keys = Vec::new();
         for fp in self.seeds_here(s) {
-            let key = self.session_key(fp).ok_or("A seed is no longer loaded")?;
+            let key = self.session_key(fp).ok_or(EN.seeds_a_seed_is_no)?;
             keys.push(create::key_text_at(&key.master, &path)?);
         }
         if keys.is_empty() {
-            return Err("No seed yet".to_string());
+            return Err(EN.seeds_no_seed_yet.to_string());
         }
         for c in &s.cosigners {
             let at = keys.len() + 1;
@@ -490,23 +492,29 @@ impl Faraday {
                     if let Ok(k) = osk_bip::policy::PolicyKey::parse(&key) {
                         let kn = crate::wallet::network_of_key(&k, net);
                         if kn.is_mainnet() != net.is_mainnet() {
-                            return Err(format!(
-                                "Key {at} is a {} key; this session is on {}",
-                                crate::wallet::network_name(kn),
-                                crate::wallet::network_name(net)
+                            return Err(fill(
+                                EN.seeds_key_is_a_key,
+                                &[
+                                    &at.to_string(),
+                                    crate::wallet::network_name(kn),
+                                    crate::wallet::network_name(net),
+                                ],
                             ));
                         }
                     }
                     keys.push(key);
                 }
                 None if c.trim().is_empty() => {
-                    return Err(format!("Key {at} has no account key yet"));
+                    return Err(fill(EN.seeds_key_has_no_account, &[&at.to_string()]));
                 }
-                None => return Err(format!("Key {at} is not an account key")),
+                None => return Err(fill(EN.seeds_key_is_not_an, &[&at.to_string()])),
             }
         }
         if keys.len() != s.n.max(1) {
-            return Err(format!("{} of {} keys in hand", keys.len(), s.n));
+            return Err(fill(
+                EN.seeds_of_keys_in_hand,
+                &[&keys.len().to_string(), &s.n.to_string()],
+            ));
         }
         let kind = if keys.len() == 1 && s.kind.multi() {
             NewKind::NativeSegwit
@@ -639,7 +647,10 @@ impl Faraday {
             return;
         };
         if n > 0 {
-            self.toast(&format!("{want} loaded from {}", self.vaults.open[v].name));
+            self.toast(&fill(
+                EN.seeds_loaded_from,
+                &[&want.to_string(), &self.vaults.open[v].name.to_string()],
+            ));
         }
         // A vault may keep a seed apart from its passphrase: asked.
         if self.seed_read_loaded(fp) {
@@ -672,7 +683,11 @@ impl Faraday {
         };
         let n = s.n.max(1);
         // Named for where it came from; the shape is shown beside it.
-        let base = if n == 1 { "Typed seed" } else { "Typed seeds" };
+        let base = if n == 1 {
+            EN.seeds_typed_seed
+        } else {
+            EN.seeds_typed_seeds
+        };
         let taken = |x: &str| self.session.wallets.iter().any(|w| w.name == x);
         let name = std::iter::once(base.to_string())
             .chain((2..).map(|k| format!("{base} {k}")))

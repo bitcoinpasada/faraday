@@ -46,6 +46,7 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
 
 use faraday_core::StorageEvent;
+use faraday_core::strings::EN;
 use faraday_hub::api::{
     BitLockerStep, HubCommand, HubEvent, Reason, Remind, Source, WriteOrder, remind,
 };
@@ -75,7 +76,7 @@ const RESCAN: Duration = Duration::from_millis(700);
 /// device without a window or a bus of its own; Check again reads at
 /// once.
 const CONCERNS_EVERY: Duration = Duration::from_secs(3);
-const TITLE: &str = "Faraday";
+const TITLE: &str = EN.hub_window_title;
 
 struct Shell {
     hub: Hub,

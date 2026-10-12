@@ -7,10 +7,12 @@
 //! only through the secret sheet (`docs/FLOWS.md` decision 6). The value
 //! is derived where it is used and kept nowhere.
 
+use crate::strings::EN as FEN;
 use faraday_vault::Record;
 use faraday_vault::records::{self, field, kind};
 use opensigner_core::Bip85App;
 use opensigner_core::strings::EN;
+use opensigner_core::strings::fill;
 use osk_bip::bip39::Language;
 use osk_bip::bip85;
 use zeroize::Zeroizing;
@@ -109,7 +111,7 @@ impl Faraday {
     /// Opens the flow.
     pub(crate) fn bip85_open(&mut self) {
         if self.session.keys.is_empty() {
-            self.toast("Load a key first");
+            self.toast(FEN.bip85_load_a_key_first);
             return;
         }
         let key =
@@ -186,10 +188,13 @@ impl Faraday {
             .key
             .map(|f| fp_text(osk_bip::keys::Fingerprint(f)))
             .unwrap_or_default();
-        format!(
-            "BIP-85 {} · {fp} · index {}",
-            app_name(b.app),
-            b.index().unwrap_or(0)
+        fill(
+            FEN.bip85_bip_85_index,
+            &[
+                app_name(b.app),
+                &fp.to_string(),
+                &b.index().unwrap_or(0).to_string(),
+            ],
         )
     }
 
@@ -197,7 +202,7 @@ impl Faraday {
     /// as a key, anything else as a note.
     pub(crate) fn bip85_to_vault(&mut self) {
         if self.vaults.open.get(self.vaults.current).is_none() {
-            self.toast("No vault is open");
+            self.toast(FEN.bip85_no_vault_is_open);
             return;
         }
         let (Some(value), Some(b)) = (self.bip85_value(), self.bip85.as_ref()) else {
@@ -223,13 +228,16 @@ impl Faraday {
                 Record::new(kind::NOTE).with(field::NOTE, note.as_bytes())
             }
         };
-        self.vault_push(record, &format!("{title} is in the vault"));
+        self.vault_push(
+            record,
+            &fill(FEN.bip85_is_in_the_vault, &[&title.to_string()]),
+        );
     }
 
     /// Child words load as a key of this session.
     pub(crate) fn bip85_load(&mut self) {
         if !self.may_load_keys() {
-            self.toast(&format!("Remove the {} first", self.medium.noun()));
+            self.toast(&fill(FEN.bip85_remove_the_first, &[self.medium.noun()]));
             return;
         }
         let Some(value) = self.bip85_value() else {
@@ -237,7 +245,7 @@ impl Faraday {
         };
         let title = self.bip85_title();
         match self.session.add_words(&value, &title, None) {
-            Ok(fp) => self.toast(&format!("Key {} added", fp_text(fp))),
+            Ok(fp) => self.toast(&fill(FEN.bip85_key_added, &[&fp_text(fp).to_string()])),
             Err(e) => self.toast(&e.text()),
         }
     }
@@ -258,16 +266,16 @@ impl Faraday {
         );
         let text = Zeroizing::new(format!("{}\n{}\n", b.path(), value.as_str()));
         let what = match b.app {
-            Bip85App::Words => "A child seed's words",
-            Bip85App::Wif | Bip85App::Xprv => "A private key",
-            Bip85App::Hex => "Secret bytes",
-            Bip85App::Base64 | Bip85App::Base85 => "A password",
+            Bip85App::Words => FEN.bip85_a_child_seed,
+            Bip85App::Wif | Bip85App::Xprv => FEN.bip85_a_private_key,
+            Bip85App::Hex => FEN.bip85_secret_bytes,
+            Bip85App::Base64 | Bip85App::Base85 => FEN.bip85_a_password,
         };
         self.offer_secret(crate::secrets::SecretOut::new(
             name,
             Zeroizing::new(text.as_bytes().to_vec()),
             what,
-            "Whoever has it has what it protects or spends",
+            FEN.bip85_whoever_has_it,
         ));
     }
 

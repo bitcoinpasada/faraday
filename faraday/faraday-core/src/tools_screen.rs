@@ -1,5 +1,7 @@
 //! The Tools screen: OpenSigner's calculators, one at a time.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use opensigner_core::tools::Tool;
 use osk_bip::compile::{PolicyScript, compile};
 use osk_bip::descriptor::checksum_facts;
@@ -17,8 +19,7 @@ fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
-const GUIDE: &str = "Calculators: each takes what you type, works one thing out and keeps nothing. \
-                     None of them touches a key; an extended private key is refused.";
+const GUIDE: &str = EN.tools_calculators_each;
 
 pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if app.tools.is_none() {
@@ -54,11 +55,11 @@ fn header(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         10.0,
         MUTED,
     );
-    ui.text(x + 14.0, y, 12.0, W::R, MUTED, "Wallets");
+    ui.text(x + 14.0, y, 12.0, W::R, MUTED, EN.tools_wallets);
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, Action::Nav(t.back));
     ui.back(Action::Nav(t.back));
     y += 22.0;
-    title(ui, x, y, "Tools");
+    title(ui, x, y, EN.tools_tools);
     y += 52.0;
     y + guide_text(app, ui, x, y, width, GUIDE)
 }
@@ -91,9 +92,9 @@ fn body(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
             .iter()
             .map(|r| {
                 let n = match r {
-                    ReadAs::Auto => "Read as: automatic",
-                    ReadAs::Text => "Text",
-                    ReadAs::Hex => "Hex",
+                    ReadAs::Auto => EN.tools_read_as_automatic,
+                    ReadAs::Text => EN.tools_text,
+                    ReadAs::Hex => EN.tools_hex,
                 };
                 (n.to_string(), *r == t.read_as)
             })
@@ -101,7 +102,7 @@ fn body(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         Tool::Units => UNITS
             .iter()
             .enumerate()
-            .map(|(i, (n, _))| (format!("In {n}"), usize::from(t.unit) == i))
+            .map(|(i, (n, _))| (fill(EN.tools_in, &[n]), usize::from(t.unit) == i))
             .collect(),
         Tool::Miniscript => PolicyScript::ALL
             .iter()
@@ -132,12 +133,12 @@ fn body(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
     // The field.
     let shown = if t.typed.is_empty() {
         crate::secret_text::SecretText::of(match t.tool {
-            Tool::Hashes => "Text or hex",
-            Tool::Encodings => "Base58, bech32 or hex",
-            Tool::Descriptor => "A descriptor",
-            Tool::ConvertKey => "An xpub, ypub, zpub, tpub…",
-            Tool::Units => "An amount",
-            Tool::Miniscript => "A policy, e.g. or(pk(9a6a2580),and(pk(…),older(1000)))",
+            Tool::Hashes => EN.tools_text_or_hex,
+            Tool::Encodings => EN.tools_base58_bech32,
+            Tool::Descriptor => EN.tools_a_descriptor,
+            Tool::ConvertKey => EN.tools_an_xpub_ypub,
+            Tool::Units => EN.tools_an_amount,
+            Tool::Miniscript => EN.tools_a_policy_e_g,
         })
     } else {
         let mut s = crate::secret_text::SecretText::of(&t.typed);
@@ -161,7 +162,7 @@ fn body(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         y + 6.0,
         Some(68.0),
         32.0,
-        "Clear",
+        EN.tools_clear,
         Style::Ghost,
         Action::TClear,
     );
@@ -174,72 +175,81 @@ fn body(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
     match t.tool {
         Tool::Hashes => {
             let h = hashes(&read_input(t.typed.trim(), t.read_as));
-            rows.push(("Bytes".into(), h.len.to_string()));
+            rows.push((EN.tools_bytes.into(), h.len.to_string()));
             rows.push(("SHA-256".into(), hex(&h.sha256)));
             rows.push(("SHA-256d".into(), hex(&h.sha256d)));
             rows.push(("HASH160".into(), hex(&h.hash160)));
         }
         Tool::Encodings => match encoding_of(t.typed.trim()) {
             Some(r) => {
-                rows.push(("Encoding".into(), format!("{:?}", r.encoding)));
+                rows.push((EN.tools_encoding.into(), format!("{:?}", r.encoding)));
                 if let Some(h) = &r.hrp {
-                    rows.push(("Prefix".into(), h.clone()));
+                    rows.push((EN.tools_prefix.into(), h.clone()));
                 }
                 if let Some(v) = r.version {
-                    rows.push(("Version".into(), format!("{v}")));
+                    rows.push((EN.tools_version.into(), format!("{v}")));
                 }
                 if let Some(c) = r.checksum {
                     rows.push((
-                        "Checksum".into(),
-                        if c { "holds" } else { "does not hold" }.into(),
+                        EN.tools_checksum.into(),
+                        if c {
+                            EN.tools_holds
+                        } else {
+                            EN.tools_does_not_hold
+                        }
+                        .into(),
                     ));
                 }
-                rows.push(("Bytes".into(), hex(&r.bytes)));
+                rows.push((EN.tools_bytes.into(), hex(&r.bytes)));
             }
-            None => note = Some("Not Base58, bech32, bech32m or hex".into()),
+            None => note = Some(EN.tools_not_base58_bech32.into()),
         },
         Tool::Descriptor => match checksum_facts(&t.typed) {
             Some(f) => {
-                rows.push(("Checksum".into(), f.checksum.clone()));
+                rows.push((EN.tools_checksum.into(), f.checksum.clone()));
                 if let Some((g, holds)) = &f.given {
                     rows.push((
-                        "Given".into(),
-                        format!("{g} · {}", if *holds { "holds" } else { "does not hold" }),
+                        EN.tools_given.into(),
+                        format!(
+                            "{g} · {}",
+                            if *holds {
+                                EN.tools_holds
+                            } else {
+                                EN.tools_does_not_hold
+                            }
+                        ),
                     ));
                 }
-                rows.push(("With it".into(), f.with_checksum.clone()));
+                rows.push((EN.tools_with_it.into(), f.with_checksum.clone()));
                 rows.push((
-                    "Wallet".into(),
+                    EN.tools_wallet.into(),
                     if f.wallet.is_some() {
-                        "one this device loads".into()
+                        EN.tools_one_this_device.into()
                     } else {
-                        "not one this device loads".into()
+                        EN.tools_not_one_this.into()
                     },
                 ));
             }
-            None => note = Some("Not a descriptor".into()),
+            None => note = Some(EN.tools_not_a_descriptor.into()),
         },
         Tool::ConvertKey => match key_facts(&t.typed, app.session.network()) {
             KeyReading::Public(f) => {
                 rows.push(("BIP-32".into(), f.bip32.clone()));
                 for (s, k) in &f.slip132 {
                     let name = match s {
-                        osk_bip::keys::ScriptType::Legacy => "Legacy",
-                        osk_bip::keys::ScriptType::NestedSegwit => "Nested SegWit",
-                        osk_bip::keys::ScriptType::NativeSegwit => "Native SegWit",
-                        osk_bip::keys::ScriptType::Taproot => "Taproot",
+                        osk_bip::keys::ScriptType::Legacy => EN.tools_legacy,
+                        osk_bip::keys::ScriptType::NestedSegwit => EN.tools_nested_segwit,
+                        osk_bip::keys::ScriptType::NativeSegwit => EN.tools_native_segwit,
+                        osk_bip::keys::ScriptType::Taproot => EN.tools_taproot,
                     };
                     rows.push((name.to_string(), k.clone()));
                 }
-                rows.push(("Depth".into(), f.depth.to_string()));
-                rows.push(("Fingerprint".into(), f.fingerprint.clone()));
-                rows.push(("Child".into(), f.child.clone()));
+                rows.push((EN.tools_depth.into(), f.depth.to_string()));
+                rows.push((EN.tools_fingerprint.into(), f.fingerprint.clone()));
+                rows.push((EN.tools_child.into(), f.child.clone()));
             }
-            KeyReading::Private => {
-                note =
-                    Some("That is an extended private key: this tool takes public keys only".into())
-            }
-            KeyReading::None => note = Some("Not an extended key".into()),
+            KeyReading::Private => note = Some(EN.tools_that_is_an_extended.into()),
+            KeyReading::None => note = Some(EN.tools_not_an_extended.into()),
         },
         Tool::Units => {
             let digits: u64 = t.typed.parse().unwrap_or(0);
@@ -259,14 +269,14 @@ fn body(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         }
         Tool::Miniscript => match compile(&t.typed, t.script, &app.tools_keys()) {
             Ok(f) => {
-                rows.push(("Descriptor".into(), f.descriptor.clone()));
-                rows.push(("Spend paths".into(), f.paths.len().to_string()));
+                rows.push((EN.tools_descriptor.into(), f.descriptor.clone()));
+                rows.push((EN.tools_spend_paths.into(), f.paths.len().to_string()));
                 rows.push((
-                    "Wallet".into(),
+                    EN.tools_wallet.into(),
                     if f.wallet.is_some() {
-                        "one this device loads".into()
+                        EN.tools_one_this_device.into()
                     } else {
-                        "keys need origins and both chains to load".into()
+                        EN.tools_keys_need_origins.into()
                     },
                 ));
             }

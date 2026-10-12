@@ -1,5 +1,6 @@
 //! The Explore screen: a loaded key's public side at a path.
 
+use crate::strings::EN;
 use osk_bip::keys::ScriptType;
 
 use crate::explore::PRESETS;
@@ -22,9 +23,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let top = 12.0 - app.list_offset;
     let mut y = if compact { top } else { 36.0 };
-    let guide = "The public side of a loaded key at any path: the extended public key, the public key and \
-                 the address there. Compare them with what another wallet shows for the same path. \
-                 Nothing private is shown.";
+    let guide = EN.explore_the_public;
     if !compact {
         y = header(app, ui, x, y, width, guide);
     }
@@ -47,7 +46,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .collect();
     y += button_rows(ui, x, y, width, &keys) + 4.0;
     // The path.
-    ui.text_mid(x, y, 44.0, 13.0, W::R, MUTED, "Path");
+    ui.text_mid(x, y, 44.0, 13.0, W::R, MUTED, EN.explore_path);
     let (px, pw) = if compact {
         y += 34.0;
         (x, width)
@@ -76,8 +75,16 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .enumerate()
         .map(|(i, (name, _))| (name.to_string(), Style::Ghost, Action::XPreset(i as u8)))
         .chain([
-            ("Index -1".to_string(), Style::Ghost, Action::XIndex(-1)),
-            ("Index +1".to_string(), Style::Ghost, Action::XIndex(1)),
+            (
+                EN.explore_index_1_2.to_string(),
+                Style::Ghost,
+                Action::XIndex(-1),
+            ),
+            (
+                EN.explore_index_1.to_string(),
+                Style::Ghost,
+                Action::XIndex(1),
+            ),
         ])
         .collect();
     y += button_rows(ui, px, y, pw, &presets) + 8.0;
@@ -88,10 +95,10 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     };
     let script_name = |s: ScriptType| match s {
-        ScriptType::NativeSegwit => "Native SegWit",
-        ScriptType::Taproot => "Taproot",
-        ScriptType::NestedSegwit => "Nested SegWit",
-        ScriptType::Legacy => "Legacy",
+        ScriptType::NativeSegwit => EN.explore_native_segwit,
+        ScriptType::Taproot => EN.explore_taproot,
+        ScriptType::NestedSegwit => EN.explore_nested_segwit,
+        ScriptType::Legacy => EN.explore_legacy,
     };
     let scripts: Vec<(String, Style, Action)> = ScriptType::ALL
         .iter()
@@ -108,16 +115,16 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             )
         })
         .collect();
-    ui.text_mid(x, y, 32.0, 13.0, W::R, MUTED, "Script");
+    ui.text_mid(x, y, 32.0, 13.0, W::R, MUTED, EN.explore_script);
     if compact {
         y += 32.0;
     }
     y += button_rows(ui, px, y, pw, &scripts) + 6.0;
     let shown = app.session.shown(&r.address);
     for (label, value) in [
-        ("Address", shown.as_str()),
-        ("Public key", r.public_key.as_str()),
-        ("Extended key", r.xpub.as_str()),
+        (EN.explore_address, shown.as_str()),
+        (EN.explore_public_key, r.public_key.as_str()),
+        (EN.explore_extended_key, r.xpub.as_str()),
     ] {
         ui.text(x, y, 13.0, W::R, MUTED, label);
         if compact {
@@ -145,11 +152,11 @@ fn header(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &st
         10.0,
         MUTED,
     );
-    ui.text(x + 14.0, y, 12.0, W::R, MUTED, "Wallets");
+    ui.text(x + 14.0, y, 12.0, W::R, MUTED, EN.explore_wallets);
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, Action::Nav(e.back));
     ui.back(Action::Nav(e.back));
     y += 22.0;
-    title(ui, x, y, "Explore");
+    title(ui, x, y, EN.explore_explore);
     y += 52.0;
     y += guide_text(app, ui, x, y, width, guide);
     y

@@ -7,6 +7,8 @@
 //! stays live and Stop lands. A find is a fact about the key, the same on
 //! any device that turns the same dial.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use opensigner_core::vanity::{Dial, Grind, Step};
 use osk_bip::bip39::Mnemonic;
 use osk_bip::keys::{Fingerprint, ScriptType};
@@ -84,13 +86,13 @@ pub struct VanityState {
 /// addresses begin with on `net`.
 pub fn script_name(s: ScriptType, net: osk_bip::keys::Network) -> String {
     let name = match s {
-        ScriptType::Legacy => "Legacy",
-        ScriptType::NestedSegwit => "Nested SegWit",
-        ScriptType::NativeSegwit => "Native SegWit",
-        ScriptType::Taproot => "Taproot",
+        ScriptType::Legacy => EN.vanity_legacy,
+        ScriptType::NestedSegwit => EN.vanity_nested_segwit,
+        ScriptType::NativeSegwit => EN.vanity_native_segwit,
+        ScriptType::Taproot => EN.vanity_taproot,
     };
     match engine::fixed_prefix(s, net) {
-        "" => format!("{name} · m… or n…"),
+        "" => fill(EN.vanity_m_or_n, &[name]),
         p => format!("{name} · {p}…"),
     }
 }
@@ -98,24 +100,15 @@ pub fn script_name(s: ScriptType, net: osk_bip::keys::Network) -> String {
 /// A dial's name and what it changes.
 pub fn dial_name(d: Dial) -> (&'static str, &'static str) {
     match d {
-        Dial::Account => (
-            "Account number",
-            "The same words and passphrase, a different account: fast. The wallet is the key's \
-             own, at the account found.",
-        ),
-        Dial::Passphrase => (
-            "Passphrase",
-            "A few characters added to the key's BIP-39 passphrase: slow, one PBKDF2 a try. \
-             The words with that passphrase are another wallet, which needs the passphrase \
-             kept with them.",
-        ),
+        Dial::Account => (EN.vanity_account_number, EN.vanity_the_same_words),
+        Dial::Passphrase => (EN.vanity_passphrase, EN.vanity_a_few_characters),
     }
 }
 
 impl Faraday {
     fn vanity_open(&mut self) {
         if self.session.keys.is_empty() {
-            self.toast("Load a key first");
+            self.toast(EN.vanity_load_a_key_first);
             return;
         }
         let key =
@@ -184,7 +177,7 @@ impl Faraday {
             }
             V::Next(s) => {
                 if s == vstep::PREFIX && !v.grind.prefix.has_free(v.grind.script, net) {
-                    v.error = Some("Type at least one character after the fixed part".into());
+                    v.error = Some(EN.vanity_type_at_least.into());
                     return;
                 }
                 v.done[usize::from(s)] = true;
@@ -203,10 +196,7 @@ impl Faraday {
             V::Dial(i) => {
                 if let Some(&d) = Dial::ALL.get(usize::from(i)) {
                     if d == Dial::Passphrase && !words {
-                        v.error = Some(
-                            "This key was not loaded from BIP-39 words: only its account turns"
-                                .into(),
-                        );
+                        v.error = Some(EN.vanity_this_key_was.into());
                         return;
                     }
                     v.grind.dial = d;
@@ -293,7 +283,7 @@ impl Faraday {
             v.running = false;
         } else if v.grind.exhausted {
             v.running = false;
-            v.error = Some("Every counter was tried: no address begins that way".into());
+            v.error = Some(EN.vanity_every_counter.into());
         }
         self.dirty = true;
         self.commands.push_back(osk_shell_api::Command::Draw);
@@ -335,7 +325,7 @@ impl Faraday {
                 match self.session.add_mnemonic(
                     &m,
                     &passphrase,
-                    &format!("{label} · vanity passphrase"),
+                    &fill(EN.vanity_vanity_passphrase, &[&label.to_string()]),
                     None,
                 ) {
                     Ok(fp) => (fp, 0),
@@ -379,14 +369,14 @@ impl Faraday {
         );
         match self
             .session
-            .add_wallet(&name, &kind.descriptor(1, &[text]), "Vanity search")
+            .add_wallet(&name, &kind.descriptor(1, &[text]), EN.vanity_vanity_search)
         {
             Ok(i) => {
                 self.refresh_spend();
                 self.vanity = None;
                 self.wallet = i;
                 self.screen = Screen::Wallets;
-                self.toast(&format!("{name} is open"));
+                self.toast(&fill(EN.vanity_is_open, &[&name.to_string()]));
             }
             Err(e) => self.toast(&e.text()),
         }
@@ -410,7 +400,7 @@ impl Faraday {
             }
             K::Char(c) if v.open == Some(vstep::PREFIX) && !v.running => {
                 if !v.grind.prefix.push(c, v.grind.script, net) {
-                    v.error = Some(format!("{c} cannot stand there in this kind of address"));
+                    v.error = Some(fill(EN.vanity_cannot_stand, &[&c.to_string()]));
                 } else {
                     v.error = None;
                 }

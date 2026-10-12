@@ -10,6 +10,8 @@
 //! [`StorageCommand::SaveDownload`]); the app does no I/O. Transfer
 //! exists only when [`Faraday::online`] is set, never on the device.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use std::collections::VecDeque;
 
 use osk_shell_api::Command;
@@ -136,12 +138,15 @@ fn read_any(scan: &mut ScanState, bytes: &[u8]) -> Option<(Option<String>, &'sta
             }
             Ok(false) => {
                 if let Some((have, of)) = scan.decoder.progress() {
-                    scan.note = Some(format!("UR: part {have} of {of}"));
+                    scan.note = Some(fill(
+                        EN.transfer_ur_part_of,
+                        &[&have.to_string(), &of.to_string()],
+                    ));
                 }
                 None
             }
             Err(e) => {
-                scan.note = Some(format!("Not a part of this code: {e:?}"));
+                scan.note = Some(fill(EN.transfer_not_a_part, &[&format!("{e:?}")]));
                 None
             }
         };
@@ -180,14 +185,11 @@ impl Faraday {
     fn transfer_send(&mut self, path: String, size: u64) {
         self.transfer.refused = None;
         if size > MAX_SEND {
-            self.transfer.refused = Some(format!(
-                "Larger than 256 KiB: carry it on {}",
-                self.medium.a()
-            ));
+            self.transfer.refused = Some(fill(EN.transfer_larger_than, &[self.medium.a()]));
             return;
         }
         if size == 0 {
-            self.transfer.refused = Some(format!("{} is empty", base_name(&path)));
+            self.transfer.refused = Some(fill(EN.transfer_is_empty, &[base_name(&path)]));
             return;
         }
         self.transfer.reading = Some(path.clone());
@@ -312,7 +314,7 @@ impl Faraday {
             || crate::seed_in_code(&bytes).is_some()
             || crate::secret_text(&String::from_utf8_lossy(&data)).is_some();
         if let Some(scan) = self.scan.as_mut() {
-            scan.note = Some(format!("Saving {name}"));
+            scan.note = Some(fill(EN.transfer_saving, &[&name.to_string()]));
         }
         self.transfer.saving.push_back(secret);
         self.storage_out
@@ -324,9 +326,9 @@ impl Faraday {
         let secret = self.transfer.saving.pop_front().unwrap_or(false);
         let warn = secret || saved.is_err();
         let line = match saved {
-            Ok(path) if secret => format!("Saved {path}: this file holds a secret"),
-            Ok(path) => format!("Saved {path}"),
-            Err(reason) => format!("Not saved: {reason}"),
+            Ok(path) if secret => fill(EN.transfer_saved_this, &[&path.to_string()]),
+            Ok(path) => fill(EN.transfer_saved, &[&path.to_string()]),
+            Err(reason) => fill(EN.transfer_not_saved, &[&reason.to_string()]),
         };
         if let Some(scan) = self.scan.as_mut()
             && scan.purpose == ScanPurpose::Transfer

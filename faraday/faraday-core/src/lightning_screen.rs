@@ -2,9 +2,11 @@
 
 use crate::lightning::NodeSource;
 use crate::screens::{button_rows, guide_text, title};
+use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::{Action, Faraday};
+use opensigner_core::strings::fill;
 
 pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if app.lightning.is_none() {
@@ -25,9 +27,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let below = if compact { 20.0 } else { 0.0 };
     let top = 12.0 - app.list_offset;
-    let guide = "A Lightning node's key, made the way its software makes it: ldk-node from a BIP-39 key, \
-                 LND from its own 24-word cipher seed. Its public key is the node id, safe to share; its \
-                 private key is the node, and goes into a vault.";
+    let guide = EN.lightning_a_lightning_node;
     let mut y = if compact { top } else { 36.0 };
     if !compact {
         y = header(app, ui, x, y, width, guide);
@@ -53,11 +53,11 @@ fn header(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &st
         10.0,
         MUTED,
     );
-    ui.text(x + 14.0, y, 12.0, W::R, MUTED, "Wallets");
+    ui.text(x + 14.0, y, 12.0, W::R, MUTED, EN.lightning_wallets);
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, Action::Nav(l.back));
     ui.back(Action::Nav(l.back));
     y += 22.0;
-    title(ui, x, y, "Lightning node key");
+    title(ui, x, y, EN.lightning_lightning_node);
     y += 52.0;
     y + guide_text(app, ui, x, y, width, guide)
 }
@@ -83,7 +83,10 @@ fn body(
         .map(|k| {
             let fp = k.master.fingerprint();
             (
-                format!("ldk-node · {}", crate::wallet::key_line(fp, &k.label)),
+                fill(
+                    EN.lightning_ldk_node,
+                    &[&crate::wallet::key_line(fp, &k.label).to_string()],
+                ),
                 if l.source == Some(NodeSource::Key(fp.0)) {
                     Style::Primary
                 } else {
@@ -94,7 +97,7 @@ fn body(
         })
         .collect();
     row.push((
-        "LND · type an aezeed".to_string(),
+        EN.lightning_lnd_type.to_string(),
         if l.source == Some(NodeSource::Aezeed) {
             Style::Primary
         } else {
@@ -115,7 +118,7 @@ fn body(
         );
         let n = l.typed.split_whitespace().count();
         let shown = if l.typed.is_empty() {
-            crate::secret_text::SecretText::of("The 24 words")
+            crate::secret_text::SecretText::of(EN.lightning_the_24_words)
         } else {
             let mut s = l.typed.clone();
             s.push_str(ui.caret_char());
@@ -130,10 +133,10 @@ fn body(
             12.0,
             W::R,
             DIM,
-            &format!("{n} of 24"),
+            &fill(EN.lightning_of_24, &[&n.to_string()]),
         );
         y += 52.0;
-        ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, "Passphrase");
+        ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, EN.lightning_passphrase);
         // On a small panel the field goes under its name, Read it under
         // the field.
         let (px, pw) = if below > 0.0 {
@@ -152,7 +155,7 @@ fn body(
             if l.on_passphrase { ACCENT } else { BORDER },
         );
         let p = if l.passphrase.is_empty() && !l.on_passphrase {
-            "aezeed (LND's default)".to_string()
+            EN.lightning_aezeed_lnd.to_string()
         } else {
             format!("{}{}", "•".repeat(l.passphrase.len()), ui.caret_char())
         };
@@ -169,7 +172,7 @@ fn body(
             ry,
             None,
             40.0,
-            "Read it",
+            EN.lightning_read_it,
             Style::Primary,
             Action::LResolve,
         );
@@ -182,16 +185,16 @@ fn body(
         return y;
     };
     let id: String = n.public.iter().map(|b| format!("{b:02x}")).collect();
-    ui.text(x, y, 13.0, W::R, MUTED, "Node id");
+    ui.text(x, y, 13.0, W::R, MUTED, EN.lightning_node_id);
     y += below;
     y += ui.wrap(vx, y, vw, 14.0, W::M, TEXT, &id).max(20.0) + 10.0;
     if let Some((yy, m, d)) = n.birthday {
-        ui.text(x, y, 13.0, W::R, MUTED, "Made");
+        ui.text(x, y, 13.0, W::R, MUTED, EN.lightning_made);
         y += below;
         ui.text(vx, y, 14.0, W::M, TEXT, &format!("{yy}-{m:02}-{d:02}"));
         y += 30.0;
     }
-    ui.text(x, y, 13.0, W::R, MUTED, "Private key");
+    ui.text(x, y, 13.0, W::R, MUTED, EN.lightning_private_key);
     y += below;
     let private: zeroize::Zeroizing<String> = if l.shown {
         crate::secret_text::hex(&n.private[..])
@@ -200,13 +203,18 @@ fn body(
     };
     y += ui.wrap(vx, y, vw, 14.0, W::M, TEXT, &private).max(20.0) + 12.0;
     let mut row = vec![(
-        if l.shown { "Hide" } else { "Show" }.to_string(),
+        if l.shown {
+            EN.lightning_hide
+        } else {
+            EN.lightning_show
+        }
+        .to_string(),
         Style::Secondary,
         Action::LShow,
     )];
     match app.vaults.open.get(app.vaults.current) {
         Some(v) => row.push((
-            format!("Save into {}", v.name),
+            fill(EN.lightning_save_into, &[&v.name.to_string()]),
             Style::Primary,
             Action::LVault,
         )),
@@ -216,6 +224,10 @@ fn body(
                 .map(|(label, a)| (label, Style::Primary, a)),
         ),
     }
-    row.push(("Out unprotected…".to_string(), Style::Ghost, Action::LOut));
+    row.push((
+        EN.lightning_out_unprotected.to_string(),
+        Style::Ghost,
+        Action::LOut,
+    ));
     y + button_rows(ui, vx, y, vw, &row)
 }

@@ -204,17 +204,17 @@ pub fn usb_name(d: &UsbDevice) -> String {
 pub fn virtual_machine(cpuinfo: &str, sys_vendor: &str, product_name: &str) -> Option<String> {
     let (v, p) = (sys_vendor.trim(), product_name.trim());
     let named = if v.contains("QEMU") || p.contains("QEMU") {
-        Some("QEMU")
+        Some(EN.vm_qemu)
     } else if v.contains("VMware") || p.contains("VMware") {
-        Some("VMware")
+        Some(EN.vm_vmware)
     } else if v.contains("innotek") || p.contains("VirtualBox") {
-        Some("VirtualBox")
+        Some(EN.vm_virtualbox)
     } else if v.starts_with("Microsoft") && p == "Virtual Machine" {
-        Some("Hyper-V")
+        Some(EN.vm_hyper_v)
     } else if v.contains("Xen") || p.contains("HVM domU") {
-        Some("Xen")
+        Some(EN.vm_xen)
     } else if v.contains("Parallels") || p.contains("Parallels") {
-        Some("Parallels")
+        Some(EN.vm_parallels)
     } else {
         None
     };

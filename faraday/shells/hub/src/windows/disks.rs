@@ -17,7 +17,9 @@
 
 use std::fmt::Write as _;
 
+use faraday_core::strings::EN;
 use faraday_hub::api::{Bus, Disk, FaradayStick, InUse, Volume};
+use opensigner_core::strings::fill;
 
 use crate::writer::Identity;
 
@@ -297,7 +299,7 @@ pub fn disk_id(n: u32) -> String {
 
 /// What a person reads as disk `n`: Disk Management's name for it.
 pub fn disk_device(n: u32) -> String {
-    format!("Disk {n}")
+    fill(EN.hub_disk_number, &[&n.to_string()])
 }
 
 /// Disk `n` from its id, when the id is `\\.\PhysicalDriveN`.

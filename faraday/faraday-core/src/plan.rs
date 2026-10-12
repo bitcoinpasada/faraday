@@ -10,6 +10,8 @@
 //! the vault alone and are put on screen by the caller.
 
 use crate::backup::split_plan;
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 
 /// Where the seeds go, by row of the seeds question.
 pub mod seeds {
@@ -79,9 +81,9 @@ impl Preset {
     /// What the preset is called.
     pub fn name(self) -> &'static str {
         match self {
-            Preset::Paper => "Paper only",
-            Preset::PaperVault => "Paper and vault",
-            Preset::PaperVaultSoftware => "Paper, vault and watch-only software",
+            Preset::Paper => EN.plan_paper_only,
+            Preset::PaperVault => EN.plan_paper_and_vault,
+            Preset::PaperVaultSoftware => EN.plan_paper_vault_and,
         }
     }
 }
@@ -378,9 +380,12 @@ impl Answers {
             .map(|i| shape.seeds[i].name.as_str())
             .collect();
         if names.is_empty() {
-            format!("Vault {}", v + 1)
+            fill(EN.plan_vault, &[&(v + 1).to_string()])
         } else {
-            format!("Vault {} · {}", v + 1, names.join(", "))
+            fill(
+                EN.plan_vault_2,
+                &[&(v + 1).to_string(), &names.join(", ").to_string()],
+            )
         }
     }
 
@@ -978,6 +983,15 @@ impl Tag {
             Tag::Public => "public",
         }
     }
+
+    /// The tag as a screen shows it.
+    pub fn label(self) -> &'static str {
+        match self {
+            Tag::Secret => EN.plan_tag_secret,
+            Tag::Sealed => EN.plan_tag_sealed,
+            Tag::Public => EN.plan_tag_public,
+        }
+    }
 }
 
 /// One box of the map: where, and what it holds.
@@ -1000,16 +1014,19 @@ impl What {
                 .to_string()
         };
         match self {
-            What::Words(i) => format!("Seed {}: words", seed(i)),
-            What::SeedQr(i) => format!("Seed {}: SeedQR", seed(i)),
-            What::Passphrase(i) => format!("Passphrase of {}", seed(i)),
-            What::Sheet => "Wallet sheet".to_string(),
-            What::Share(j) => format!("Share {} of {}", j + 1, shape.keys),
-            What::VaultStick(v) => format!("{} with Vault {}", medium.cap(), v + 1),
-            What::Seed(i) => format!("Seed {}", seed(i)),
-            What::SeedPassphrase(i) => format!("Seed {} with its passphrase", seed(i)),
-            What::Wallet => "Wallet description".to_string(),
-            What::SeedFile(i) => format!("Seed {}: file", seed(i)),
+            What::Words(i) => fill(EN.plan_seed_words, &[&seed(i).to_string()]),
+            What::SeedQr(i) => fill(EN.plan_seed_seedqr, &[&seed(i).to_string()]),
+            What::Passphrase(i) => fill(EN.plan_passphrase_of, &[&seed(i).to_string()]),
+            What::Sheet => EN.plan_wallet_sheet.to_string(),
+            What::Share(j) => fill(
+                EN.plan_share_of,
+                &[&(j + 1).to_string(), &shape.keys.to_string()],
+            ),
+            What::VaultStick(v) => fill(EN.plan_with_vault, &[medium.cap(), &(v + 1).to_string()]),
+            What::Seed(i) => fill(EN.plan_seed, &[&seed(i).to_string()]),
+            What::SeedPassphrase(i) => fill(EN.plan_seed_with_its, &[&seed(i).to_string()]),
+            What::Wallet => EN.plan_wallet_description.to_string(),
+            What::SeedFile(i) => fill(EN.plan_seed_file, &[&seed(i).to_string()]),
         }
     }
 }
@@ -1131,9 +1148,9 @@ impl Lost {
     /// The value as the check writes it.
     pub fn text(self) -> &'static str {
         match self {
-            Lost::Yes => "Yes",
-            Lost::WithVault => "Yes, with the vault's passphrase",
-            Lost::No => "No",
+            Lost::Yes => EN.plan_yes,
+            Lost::WithVault => EN.plan_yes_with_the_vault,
+            Lost::No => EN.plan_no,
         }
     }
 }
@@ -1142,9 +1159,9 @@ impl Found {
     /// The value as the check writes it.
     pub fn text(self) -> &'static str {
         match self {
-            Found::Yes => "Yes",
-            Found::OnlyWithVault => "Only with the vault's passphrase",
-            Found::No => "No",
+            Found::Yes => EN.plan_yes,
+            Found::OnlyWithVault => EN.plan_only_with_the,
+            Found::No => EN.plan_no,
         }
     }
 }
@@ -1162,9 +1179,9 @@ pub struct Check {
 
 /// The check's three lines, labelled.
 pub const CHECK_LINES: [&str; 3] = [
-    "Any one place lost: the rest rebuild the wallet",
-    "One place found: can spend",
-    "One place found: sees the balance",
+    EN.plan_any_one_place,
+    EN.plan_one_place_found_can,
+    EN.plan_one_place_found,
 ];
 
 /// What can be read at once: seeds, passphrases, the whole description,
@@ -1286,14 +1303,12 @@ impl Alone {
     /// the balance", "Can spend", "Can spend with the vault's passphrase".
     pub fn text(self) -> &'static str {
         match (self.spend, self.balance) {
-            (Found::Yes, _) => "Can spend",
-            (Found::OnlyWithVault, Found::Yes) => {
-                "Sees the balance · can spend with the vault's passphrase"
-            }
-            (Found::OnlyWithVault, _) => "Can spend with the vault's passphrase",
-            (Found::No, Found::Yes) => "Sees the balance",
-            (Found::No, Found::OnlyWithVault) => "Sees the balance with the vault's passphrase",
-            (Found::No, Found::No) => "Nothing",
+            (Found::Yes, _) => EN.plan_can_spend,
+            (Found::OnlyWithVault, Found::Yes) => EN.plan_sees_the_balance_can,
+            (Found::OnlyWithVault, _) => EN.plan_can_spend_with,
+            (Found::No, Found::Yes) => EN.plan_sees_the_balance_2,
+            (Found::No, Found::OnlyWithVault) => EN.plan_sees_the_balance,
+            (Found::No, Found::No) => EN.plan_nothing,
         }
     }
 }
@@ -1484,9 +1499,9 @@ pub fn lost_why(
     let stick_text = |v: usize| -> String {
         let at: Vec<String> = sticks_of(&boxes, v).into_iter().map(name).collect();
         if at.is_empty() {
-            "at no place".to_string()
+            EN.plan_at_no_place.to_string()
         } else {
-            format!("at {}", at.join(", "))
+            fill(EN.plan_at, &[&at.join(", ").to_string()])
         }
     };
     // A thing kept at `at` is lost with `gone`: there, or in a vault whose
@@ -1499,13 +1514,12 @@ pub fn lost_why(
     };
     let only = |list: &[At]| -> Option<String> {
         match list {
-            [At::Vault(v)] => Some(format!(
-                "Vault {}, whose {noun} is {}",
-                v + 1,
-                stick_text(*v)
+            [At::Vault(v)] => Some(fill(
+                EN.plan_vault_whose_is,
+                &[&(v + 1).to_string(), noun, &stick_text(*v).to_string()],
             )),
             [At::Place(p)] => Some(name(*p)),
-            [At::Files] => Some(format!("the {noun} of files")),
+            [At::Files] => Some(fill(EN.plan_the_of_files, &[noun])),
             _ => None,
         }
     };
@@ -1513,33 +1527,36 @@ pub fn lost_why(
         let seed = &shape.seeds[i].name;
         let kept = seed_spots(&boxes, i);
         if kept.is_empty() {
-            return Some(format!("Seed {seed} is kept nowhere"));
+            return Some(fill(EN.plan_seed_is_kept_nowhere, &[&seed.to_string()]));
         }
         if kept.iter().all(|&at| with_gone(at)) {
             let line = match only(&kept) {
-                Some(w) if matches!(kept[0], At::Vault(_)) => format!("in {w}"),
-                Some(w) if kept[0] == At::Files => format!("on {w}"),
-                Some(w) => format!("at {w}"),
-                None => format!("with {}", name_at(gone, name, noun)),
+                Some(w) if matches!(kept[0], At::Vault(_)) => fill(EN.plan_in, &[&w.to_string()]),
+                Some(w) if kept[0] == At::Files => fill(EN.plan_on, &[&w.to_string()]),
+                Some(w) => fill(EN.plan_at, &[&w.to_string()]),
+                None => fill(EN.plan_with, &[&name_at(gone, name, noun).to_string()]),
             };
-            return Some(format!("Seed {seed} is kept only {line}"));
+            return Some(fill(
+                EN.plan_seed_is_kept_only,
+                &[&seed.to_string(), &line.to_string()],
+            ));
         }
         if shape.seeds[i].passphrase {
             let pass = pass_spots(&boxes, i);
             if pass.is_empty() {
-                return Some(format!("The passphrase of {seed} is kept nowhere"));
+                return Some(fill(EN.plan_the_passphrase, &[&seed.to_string()]));
             }
             if pass.iter().all(|&at| with_gone(at)) {
-                return Some(format!(
-                    "The passphrase of {seed} is kept only with {}",
-                    name_at(gone, name, noun)
+                return Some(fill(
+                    EN.plan_the_passphrase_of,
+                    &[&seed.to_string(), &name_at(gone, name, noun).to_string()],
                 ));
             }
         }
     }
-    Some(format!(
-        "Without {}, the rest do not rebuild the wallet",
-        name_at(gone, name, noun)
+    Some(fill(
+        EN.plan_without_the_rest,
+        &[&name_at(gone, name, noun).to_string()],
     ))
 }
 
@@ -1547,10 +1564,10 @@ pub fn lost_why(
 fn name_at(at: At, name: &dyn Fn(usize) -> String, noun: &str) -> String {
     match at {
         At::Place(p) => name(p),
-        At::Vault(v) => format!("Vault {}", v + 1),
-        At::Files => format!("the {noun} of files"),
-        At::Software => "the software".to_string(),
-        At::Away => "the devices".to_string(),
+        At::Vault(v) => fill(EN.plan_vault, &[&(v + 1).to_string()]),
+        At::Files => fill(EN.plan_the_of_files, &[noun]),
+        At::Software => EN.plan_the_software.to_string(),
+        At::Away => EN.plan_the_devices.to_string(),
     }
 }
 
@@ -1564,10 +1581,13 @@ pub fn kept_nowhere(shape: &Shape, a: &Answers, seeds: &[usize]) -> Option<Strin
             continue;
         };
         if seed_spots(&boxes, i).is_empty() {
-            return Some(format!("Seed {} is kept nowhere", seed.name));
+            return Some(fill(
+                EN.plan_seed_is_kept_nowhere,
+                &[&seed.name.to_string()],
+            ));
         }
         if seed.passphrase && pass_spots(&boxes, i).is_empty() {
-            return Some(format!("The passphrase of {} is kept nowhere", seed.name));
+            return Some(fill(EN.plan_the_passphrase, &[&seed.name.to_string()]));
         }
     }
     None
@@ -1787,6 +1807,14 @@ impl Mark {
         match self {
             Mark::Lost => "lost",
             Mark::Exposed => "exposed",
+        }
+    }
+
+    /// The mark as a screen shows it.
+    pub fn label(self) -> &'static str {
+        match self {
+            Mark::Lost => EN.plan_mark_lost,
+            Mark::Exposed => EN.plan_mark_exposed,
         }
     }
 }

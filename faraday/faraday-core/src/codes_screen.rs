@@ -4,22 +4,27 @@
 
 use crate::codes::{CodeKind, CodeRow, codes_rows, va};
 use crate::screens::title;
+use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::vaults::VaultAction as V;
 use crate::{Action, Faraday};
+use opensigner_core::strings::fill;
 
 /// The value row at the top: local time with seconds under its label and
 /// the zone, and Set the time (§5.3). The zone is in the label, so the
 /// time itself is never cut short on a narrow panel.
 fn now_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let label = format!("Now · UTC{}", crate::vaults::tz_offset_text(app.tz_min));
+    let label = fill(
+        EN.codes_now_utc,
+        &[&crate::vaults::tz_offset_text(app.tz_min).to_string()],
+    );
     ui.text(x, y + 10.0, 12.0, W::R, MUTED, &label);
     let text = match app.clock_now() {
         Some(t) => crate::vaults::time_of_day_secs(crate::vaults::local_secs(t, app.tz_min)),
-        None => "Not known".to_string(),
+        None => EN.codes_not_known.to_string(),
     };
-    let bw = ui.measure(14.0, W::S, "Set the time") + 32.0;
+    let bw = ui.measure(14.0, W::S, EN.codes_set_the_time) + 32.0;
     let text = ui.fit(16.0, W::S, &text, (w - bw - 12.0).max(0.0));
     ui.text(x, y + 28.0, 16.0, W::S, TEXT, &text);
     ui.button(
@@ -27,7 +32,7 @@ fn now_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         y + 8.0,
         Some(bw),
         40.0,
-        "Set the time",
+        EN.codes_set_the_time,
         Style::Secondary,
         Action::OpenSetTime,
     );
@@ -89,7 +94,7 @@ fn code_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &CodeRow) -> f32 {
             ui.text_right(x + w - 16.0, y + 51.0, 18.0, 11.0, W::R, MUTED, &secs);
         }
         CodeKind::Hotp => pill_right(ui, x + w - 16.0, y + 14.0, "HOTP"),
-        CodeKind::Unreadable => pill_right(ui, x + w - 16.0, y + 14.0, "Unreadable"),
+        CodeKind::Unreadable => pill_right(ui, x + w - 16.0, y + 14.0, EN.codes_unreadable),
     }
     h + 12.0
 }
@@ -102,13 +107,13 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let x = x0 + 48.0;
     let w = cw - 96.0;
     let mut y = 36.0;
-    title(ui, x, y, "TOTP codes");
+    title(ui, x, y, EN.codes_totp_codes);
     y += 60.0;
     y += now_row(app, ui, x, y, w) + 12.0;
     let now = app.clock_now().unwrap_or(0);
     let rows = codes_rows(app, now);
     if rows.is_empty() {
-        ui.text(x, y, 14.0, W::R, DIM, "No entries with a TOTP secret");
+        ui.text(x, y, 14.0, W::R, DIM, EN.codes_no_entries_with);
         y += 36.0;
     } else {
         for r in &rows {
@@ -119,8 +124,8 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if app.vaults.form.is_some() {
         crate::vault_screens::codes_form(app, ui, x, y, w);
     } else {
-        let scan = "Scan a setup code";
-        let add = "Add an entry";
+        let scan = EN.codes_scan_a_setup;
+        let add = EN.codes_add_an_entry;
         let sw = ui.measure(14.0, W::S, scan) + 32.0;
         ui.button(
             x,
@@ -156,7 +161,7 @@ fn compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let now = app.clock_now().unwrap_or(0);
     let rows = codes_rows(app, now);
     if rows.is_empty() {
-        ui.text(x, y, 13.0, W::R, DIM, "No entries with a TOTP secret");
+        ui.text(x, y, 13.0, W::R, DIM, EN.codes_no_entries_with);
         y += 32.0;
     } else {
         for r in &rows {
@@ -172,7 +177,7 @@ fn compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y,
             None,
             44.0,
-            "Scan a setup code",
+            EN.codes_scan_a_setup,
             Style::Secondary,
             va(V::ScanEntry),
         );
@@ -182,7 +187,7 @@ fn compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y,
             None,
             44.0,
-            "Add an entry",
+            EN.codes_add_an_entry,
             Style::Secondary,
             Action::CodesAdd,
         );

@@ -6,6 +6,7 @@
 //! Sans and Noto Sans Mono: the Inter and JetBrains Mono of `PLAN.md` §9.2
 //! wait for `faraday-ui`.
 
+use crate::strings::EN;
 use osk_ui::fonts::Family;
 use osk_ui::text::{self, TextAlign};
 use osk_ui::widgets::Icon;
@@ -421,17 +422,17 @@ impl Theme {
     /// What Settings calls it.
     pub fn name(self) -> &'static str {
         match self {
-            Theme::Dark => "Dark",
-            Theme::Light => "Light",
-            Theme::Cobalt => "Cobalt",
-            Theme::Nord => "Nord",
-            Theme::Catppuccin => "Catppuccin",
-            Theme::TokyoNight => "Tokyo Night",
-            Theme::Gruvbox => "Gruvbox",
-            Theme::RosePine => "Rosé Pine",
-            Theme::BitcoinOrange => "Bitcoin Orange",
-            Theme::BitcoinOrangeLight => "Bitcoin Orange Light",
-            Theme::Lamplight => "Lamplight",
+            Theme::Dark => EN.ui_dark,
+            Theme::Light => EN.ui_light,
+            Theme::Cobalt => EN.ui_cobalt,
+            Theme::Nord => EN.ui_nord,
+            Theme::Catppuccin => EN.ui_catppuccin,
+            Theme::TokyoNight => EN.ui_tokyo_night,
+            Theme::Gruvbox => EN.ui_gruvbox,
+            Theme::RosePine => EN.ui_rose_pine,
+            Theme::BitcoinOrange => EN.ui_bitcoin_orange,
+            Theme::BitcoinOrangeLight => EN.ui_bitcoin_orange_light,
+            Theme::Lamplight => EN.ui_lamplight,
         }
     }
 

@@ -15,6 +15,8 @@
 //! Seed XOR parts are BIP-39 words on their own, so each reads as a seed
 //! here; they are put together in Add a key.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use std::collections::BTreeSet;
 
 use osk_bip::bip39::{Language, Mnemonic};
@@ -46,10 +48,10 @@ impl SeedSource {
     pub fn name(&self, app: &Faraday) -> String {
         match self {
             SeedSource::Words(k) => app.inbox.get(*k).map_or(String::new(), |i| i.name.clone()),
-            SeedSource::Slip39(ks) => format!("{} SLIP-39 shares", ks.len()),
+            SeedSource::Slip39(ks) => fill(EN.inbox_slip_39_shares_2, &[&ks.len().to_string()]),
             SeedSource::Codex32(ks) if ks.len() == 1 => "codex32".to_string(),
-            SeedSource::Codex32(ks) => format!("{} codex32 shares", ks.len()),
-            SeedSource::Loaded => "Loaded".to_string(),
+            SeedSource::Codex32(ks) => fill(EN.inbox_codex32_shares, &[&ks.len().to_string()]),
+            SeedSource::Loaded => EN.inbox_loaded.to_string(),
         }
     }
 
@@ -438,12 +440,15 @@ impl Faraday {
                 Some(fp) => add_seed(
                     &mut found,
                     fp,
-                    "SLIP-39 seed".to_string(),
+                    EN.inbox_slip_39_seed.to_string(),
                     src,
                     loaded_fp(fp),
                 ),
                 None => found.waiting.push(Waiting {
-                    line: format!("SLIP-39 shares · {} of {need} in Files", ks.len()),
+                    line: fill(
+                        EN.inbox_slip_39_shares,
+                        &[&ks.len().to_string(), &need.to_string()],
+                    ),
                     backup: None,
                 }),
             }
@@ -457,12 +462,15 @@ impl Faraday {
                 Some(fp) => add_seed(
                     &mut found,
                     fp,
-                    "codex32 seed".to_string(),
+                    EN.inbox_codex32_seed.to_string(),
                     src,
                     loaded_fp(fp),
                 ),
                 None => found.waiting.push(Waiting {
-                    line: format!("codex32 shares · {} of {need} in Files", ks.len()),
+                    line: fill(
+                        EN.inbox_codex32_shares_inline,
+                        &[&ks.len().to_string(), &need.to_string()],
+                    ),
                     backup: None,
                 }),
             }
@@ -479,7 +487,7 @@ impl Faraday {
         for (k, item) in items.iter().enumerate() {
             if item.kind == FileKind::Backup {
                 found.waiting.push(Waiting {
-                    line: format!("{} · OpenSigner backup, sealed", item.name),
+                    line: fill(EN.inbox_opensigner_backup, &[&item.name.to_string()]),
                     backup: Some(k),
                 });
             }
@@ -566,18 +574,21 @@ impl Faraday {
                         let name = osk_bip::multisig_config::parse_named(&whole)
                             .ok()
                             .and_then(|(_, n)| n)
-                            .unwrap_or_else(|| "Restored wallet".to_string());
+                            .unwrap_or_else(|| EN.inbox_restored_wallet.to_string());
                         let loaded = crate::wallet::read_wallet(&whole)
                             .is_ok_and(|p| loaded_desc.contains(&crate::wallet::same_wallet(&p)));
                         push_wallet(&mut found, name, &whole, None, true, loaded);
                     }
                     None => found.waiting.push(Waiting {
-                        line: format!("Split sheets · {} of {} keys in hand", m.have.len(), m.n),
+                        line: fill(
+                            EN.inbox_split_sheets_of,
+                            &[&m.have.len().to_string(), &m.n.to_string()],
+                        ),
                         backup: None,
                     }),
                 },
                 Err(e) => found.waiting.push(Waiting {
-                    line: format!("Split sheets · {e}"),
+                    line: fill(EN.inbox_split_sheets, &[&e.to_string()]),
                     backup: None,
                 }),
             }
@@ -723,7 +734,7 @@ impl Faraday {
             let source = w
                 .files
                 .first()
-                .map_or("its shares".to_string(), |k| items[*k].name.clone());
+                .map_or(EN.inbox_its_shares.to_string(), |k| items[*k].name.clone());
             if self.session.add_wallet(&name, &text, &source).is_ok() {
                 wallets += 1;
             }
@@ -755,7 +766,7 @@ impl Faraday {
                 None => (
                     w.name.clone(),
                     w.descriptor.clone(),
-                    "its shares".to_string(),
+                    EN.inbox_its_shares.to_string(),
                 ),
             };
             if self.session.add_wallet(&name, &text, &source).is_ok() {
@@ -839,21 +850,25 @@ impl Faraday {
             return;
         };
         let descriptor = kind.descriptor(1, &[key]);
-        let name = format!(
-            "{} · {} · watch-only",
-            fp.map(fp_text).unwrap_or_else(|| "Xpub".to_string()),
-            crate::family::kind_name(kind)
+        let name = fill(
+            EN.inbox_watch_only,
+            &[
+                &fp.map(fp_text)
+                    .unwrap_or_else(|| EN.inbox_xpub.to_string())
+                    .to_string(),
+                crate::family::kind_name(kind),
+            ],
         );
         match self
             .session
-            .add_wallet(&name, &descriptor, "an xpub in Files")
+            .add_wallet(&name, &descriptor, EN.inbox_an_xpub_in_files)
         {
             Ok(i) => {
                 self.wallet = i;
                 self.potential = None;
                 self.sheet = None;
                 self.refresh_spend();
-                self.toast(&format!("{name} is a wallet"));
+                self.toast(&fill(EN.inbox_is_a_wallet, &[&name.to_string()]));
             }
             Err(e) => {
                 if let Some(p) = self.potential.as_mut() {
@@ -943,7 +958,7 @@ impl Faraday {
             return;
         }
         if !self.may_load_keys() {
-            let error = format!("Remove the {} first", self.medium.noun());
+            let error = fill(EN.inbox_remove_the_first, &[self.medium.noun()]);
             if let Some(p) = self.potential.as_mut() {
                 p.error = Some(error);
             }
@@ -964,7 +979,7 @@ impl Faraday {
         let label = if pass.is_empty() {
             seed.label.clone()
         } else {
-            format!("{} with passphrase", seed.label)
+            fill(EN.inbox_with_passphrase, &[&seed.label.to_string()])
         };
         // The key itself: already loaded with no passphrase, or added now.
         let added = match (&secret, pass.is_empty()) {
@@ -979,10 +994,7 @@ impl Faraday {
                     .and_then(|k| k.words.clone());
                 match words {
                     Some(w) => self.session.add_words_with(&w, &pass, &label, None),
-                    None => Err(Refusal::Words(
-                        "This seed was loaded without its words; a passphrase cannot be added"
-                            .to_string(),
-                    )),
+                    None => Err(Refusal::Words(EN.inbox_this_seed_was.to_string())),
                 }
             }
             (None, true) => Ok(seed.fingerprint),
@@ -1014,7 +1026,7 @@ impl Faraday {
             self.inbox_load_named();
             self.potential = None;
             self.sheet = None;
-            self.toast(&format!("{} loaded with its wallet", fp_text(fp)));
+            self.toast(&fill(EN.inbox_loaded_with_its, &[&fp_text(fp).to_string()]));
             return;
         }
         // Else a single-key wallet of the kind chosen.
@@ -1039,14 +1051,14 @@ impl Faraday {
         let name = format!("{} · {}", fp_text(fp), crate::family::kind_name(kind));
         match self
             .session
-            .add_wallet(&name, &descriptor, "a seed in Files")
+            .add_wallet(&name, &descriptor, EN.inbox_a_seed_in_files)
         {
             Ok(i) => {
                 self.wallet = i;
                 self.potential = None;
                 self.sheet = None;
                 self.refresh_spend();
-                self.toast(&format!("{name} is a wallet"));
+                self.toast(&fill(EN.inbox_is_a_wallet, &[&name.to_string()]));
             }
             Err(e) => {
                 if let Some(p) = self.potential.as_mut() {
@@ -1076,12 +1088,12 @@ impl Faraday {
             Ok(Opened::Words(m)) => self
                 .session
                 .add_words(&phrase(&m), &label, None)
-                .map(|fp| format!("{} loaded", fp_text(fp)))
+                .map(|fp| fill(EN.inbox_loaded_n, &[&fp_text(fp).to_string()]))
                 .map_err(|e| e.text()),
             Ok(Opened::Seed(s)) => self
                 .session
                 .add_seed(&s, &label)
-                .map(|fp| format!("{} loaded", fp_text(fp)))
+                .map(|fp| fill(EN.inbox_loaded_n, &[&fp_text(fp).to_string()]))
                 .map_err(|e| e.text()),
             Ok(Opened::Sheet(sheet)) => {
                 let text = String::from_utf8_lossy(&sheet.descriptor).into_owned();
@@ -1093,13 +1105,11 @@ impl Faraday {
                 };
                 self.session
                     .add_wallet(&name, &text, &item_name(self, k))
-                    .map(|_| format!("{name} loaded"))
+                    .map(|_| fill(EN.inbox_loaded_n, &[&name.to_string()]))
                     .map_err(|e| e.text())
             }
-            Ok(Opened::Note(_)) => {
-                Err("This backup holds a note: import it into a vault".to_string())
-            }
-            Err(Error::Passphrase) => Err("Not this backup's passphrase".to_string()),
+            Ok(Opened::Note(_)) => Err(EN.inbox_this_backup_holds.to_string()),
+            Err(Error::Passphrase) => Err(EN.inbox_not_this_backup.to_string()),
             Err(e) => Err(format!("{e:?}")),
         };
         match result {

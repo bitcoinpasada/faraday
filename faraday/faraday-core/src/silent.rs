@@ -8,8 +8,10 @@
 //! address, so it is a secret: into the vault, or out only through the
 //! secret sheet. Nothing here is kept; the keys are derived when used.
 
+use crate::strings::EN;
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
+use opensigner_core::strings::fill;
 use osk_bip::silent::Receiver;
 use osk_bip::silent_wallet::{MAX_LABELS, SilentWallet};
 use zeroize::Zeroizing;
@@ -58,7 +60,7 @@ impl Faraday {
     /// Opens the flow.
     pub(crate) fn silent_open(&mut self) {
         if self.session.keys.is_empty() {
-            self.toast("Load a key first");
+            self.toast(EN.silent_load_a_key_first);
             return;
         }
         let key =
@@ -201,19 +203,19 @@ impl Faraday {
     /// The QR view of the address on show (as it is, or as a `bitcoin:`
     /// link) or of the record, with the name and label of its picture.
     pub(crate) fn silent_code(&self, code: crate::Code) -> Result<QrView, String> {
-        let s = self.silent.as_ref().ok_or("Silent payments is not open")?;
+        let s = self.silent.as_ref().ok_or(EN.silent_silent_payments_is)?;
         let fp = fp_text(osk_bip::keys::Fingerprint(
-            s.key.ok_or("Choose a key first")?,
+            s.key.ok_or(EN.silent_choose_a_key)?,
         ));
-        let mut lines = vec![format!("Silent payment address · {fp}")];
+        let mut lines = vec![fill(EN.silent_silent_payment, &[&fp.to_string()])];
         let (title, text, name) = match code {
             crate::Code::Silent(uri) => {
                 let a = self
                     .session
-                    .shown(&self.silent_address().ok_or("No address for this key")?);
+                    .shown(&self.silent_address().ok_or(EN.silent_no_address_for)?);
                 let mut name = format!("silent-{fp}");
                 if s.label > 0 {
-                    lines.push(format!("Label {}", s.label));
+                    lines.push(fill(EN.silent_label, &[&s.label.to_string()]));
                     name.push_str(&format!("-label-{}", s.label));
                 }
                 let text = if uri {
@@ -224,14 +226,14 @@ impl Faraday {
                 } else {
                     a
                 };
-                lines.push("Public: receives payments, spends nothing".to_string());
-                ("Silent payments address", text, name)
+                lines.push(EN.silent_public_receives.to_string());
+                (EN.silent_silent_payments_address, text, name)
             }
             _ => {
-                let text = self.silent_record().ok_or("No record for this key")?;
-                lines.push("Public: watch only, spends nothing".to_string());
+                let text = self.silent_record().ok_or(EN.silent_no_record_for)?;
+                lines.push(EN.silent_public_watch.to_string());
                 (
-                    "Silent payments record",
+                    EN.silent_silent_payments_record,
                     text,
                     format!("silent-{fp}-record"),
                 )
@@ -269,20 +271,20 @@ impl Faraday {
             }
             A::SScanVault => {
                 if self.vaults.open.get(self.vaults.current).is_none() {
-                    return self.toast("No vault is open");
+                    return self.toast(EN.silent_no_vault_is);
                 }
                 let (Some(key), Some((_, fp))) = (self.silent_scan_key(), self.silent_receiver())
                 else {
                     return;
                 };
-                let title = format!(
-                    "Silent payments scan key · {}",
-                    fp_text(osk_bip::keys::Fingerprint(fp))
+                let title = fill(
+                    EN.silent_silent_payments_scan,
+                    &[&fp_text(osk_bip::keys::Fingerprint(fp)).to_string()],
                 );
                 let note = Zeroizing::new(format!("{title}\n{}", key.as_str()));
                 self.vault_push(
                     Record::new(kind::NOTE).with(field::NOTE, note.as_bytes()),
-                    &format!("{title} is in the vault"),
+                    &fill(EN.silent_is_in_the_vault, &[&title.to_string()]),
                 );
                 return;
             }
@@ -295,8 +297,8 @@ impl Faraday {
                 self.offer_secret(crate::secrets::SecretOut::new(
                     name,
                     Zeroizing::new(format!("{}\n", key.as_str()).into_bytes()),
-                    "A silent payments scan key",
-                    "Whoever has it sees every payment to this address; it cannot spend them",
+                    EN.silent_a_silent_payments,
+                    EN.silent_whoever_has,
                 ));
                 return;
             }
@@ -358,21 +360,24 @@ impl Faraday {
     /// two public keys, the key's origin and the labels handed out.
     fn silent_add_wallet(&mut self) {
         let Some(text) = self.silent_record() else {
-            return self.toast("Load the key first");
+            return self.toast(EN.silent_load_the_key);
         };
         let Some(fp) = self.silent.as_ref().and_then(|s| s.key) else {
             return;
         };
-        let name = format!(
-            "Silent payments {}",
-            fp_text(osk_bip::keys::Fingerprint(fp))
+        let name = fill(
+            EN.silent_silent_payments_n,
+            &[&fp_text(osk_bip::keys::Fingerprint(fp)).to_string()],
         );
-        match self.session.add_wallet(&name, &text, "Silent payments") {
+        match self
+            .session
+            .add_wallet(&name, &text, EN.silent_silent_payments)
+        {
             Ok(i) => {
                 if let Some(s) = self.silent.as_mut() {
                     s.wallet = Some(i);
                 }
-                self.toast("Added to your wallets");
+                self.toast(EN.silent_added_to_your);
             }
             Err(e) => self.toast(&e.text()),
         }
@@ -386,7 +391,7 @@ impl Faraday {
             return;
         };
         let Some(mut check) = opensigner_core::silent::Check::read(&item.bytes) else {
-            return self.toast("Not a transaction");
+            return self.toast(EN.silent_not_a_transaction);
         };
         let name = item.name.clone();
         // Each pass takes a transaction Files has for an input still

@@ -132,6 +132,7 @@ use std::time::{Duration, Instant};
 
 use camera::{Camera, Capture};
 use cursor::{Cursor, Pointed};
+use faraday_core::strings::{EN, fill};
 use faraday_core::{Faraday, Medium, SecureBootAtStart, StickInfo, StorageEvent};
 use faraday_scanner::Scanner;
 use faraday_storage::{Boot, BootProcess, Boxes, Dirs, DiskProcess, serve_all, stick_info};
@@ -1246,7 +1247,7 @@ impl Shell {
                 let label = if name.starts_with("sd")
                     && name[2..].chars().skip(1).all(|c| c.is_ascii_digit())
                 {
-                    format!("USB stick ({name})")
+                    fill(EN.stick_usb_stick, &[name])
                 } else {
                     name.to_string()
                 };

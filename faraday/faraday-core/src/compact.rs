@@ -3,6 +3,8 @@
 //! a bar across its top that goes back to it. Flows are a page per step
 //! (`flow::column`).
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
 
 use crate::ui::pal::*;
@@ -37,32 +39,32 @@ pub(crate) fn draws_own_bar(s: Screen) -> bool {
 /// What a page's bar calls it.
 pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
     match s {
-        Screen::Home => "Home",
-        Screen::Start | Screen::Wallets => "Wallets",
-        Screen::Spend | Screen::Family => "Spend",
-        Screen::Files => "Files",
+        Screen::Home => EN.compact_home,
+        Screen::Start | Screen::Wallets => EN.compact_wallets,
+        Screen::Spend | Screen::Family => EN.compact_spend,
+        Screen::Files => EN.compact_files,
         Screen::Visit => medium.visit(),
-        Screen::Entry => "Add a key",
-        Screen::Backup => "Back up",
-        Screen::Message => "Sign a message",
-        Screen::CheckMessage => "Check a message",
-        Screen::Create => "Make a new wallet",
-        Screen::Restore => "Restore an existing wallet",
-        Screen::Settings => "Settings",
-        Screen::SetTime => "Set the time",
-        Screen::Codes => "TOTP codes",
-        Screen::Vaults | Screen::Unlock | Screen::VaultContents => "Vaults",
-        Screen::Backups => "Backups",
-        Screen::CreateVault => "Create a vault",
-        Screen::KeyGen => "New key",
-        Screen::Bip85 => "BIP-85",
-        Screen::Silent => "Silent payments",
-        Screen::Explore => "Explore a key",
-        Screen::Lightning => "Lightning",
-        Screen::Tools | Screen::Catalog => "Tools",
-        Screen::Vanity => "Vanity address",
-        Screen::Decode => "Transaction",
-        Screen::Transfer => "Transfer",
+        Screen::Entry => EN.compact_add_a_key,
+        Screen::Backup => EN.compact_back_up,
+        Screen::Message => EN.compact_sign_a_message,
+        Screen::CheckMessage => EN.compact_check_a_message,
+        Screen::Create => EN.compact_make_a_new,
+        Screen::Restore => EN.compact_restore_an,
+        Screen::Settings => EN.compact_settings,
+        Screen::SetTime => EN.compact_set_the_time,
+        Screen::Codes => EN.compact_totp_codes,
+        Screen::Vaults | Screen::Unlock | Screen::VaultContents => EN.compact_vaults,
+        Screen::Backups => EN.compact_backups,
+        Screen::CreateVault => EN.compact_create_a_vault,
+        Screen::KeyGen => EN.compact_new_key,
+        Screen::Bip85 => EN.compact_bip_85,
+        Screen::Silent => EN.compact_silent_payments,
+        Screen::Explore => EN.compact_explore_a_key,
+        Screen::Lightning => EN.compact_lightning,
+        Screen::Tools | Screen::Catalog => EN.compact_tools,
+        Screen::Vanity => EN.compact_vanity_address,
+        Screen::Decode => EN.compact_transaction,
+        Screen::Transfer => EN.compact_transfer,
         Screen::Upgrade => medium.upgrade(),
     }
 }
@@ -173,7 +175,7 @@ fn help(ui: &mut Ui, x: f32, y: f32) {
 /// under it as the desktop draws it, in the panel's width.
 pub(crate) fn page(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
     let name = match app.session.wallets.get(app.wallet) {
-        Some(_) if app.screen == Screen::Wallets && app.glance => "At a glance",
+        Some(_) if app.screen == Screen::Wallets && app.glance => EN.compact_at_a_glance,
         Some(w) if app.screen == Screen::Wallets => w.name.as_str(),
         _ => screen_name(app.screen, app.medium),
     };
@@ -183,19 +185,19 @@ pub(crate) fn page(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) -> (f32, f32)
             app.session
                 .wallets
                 .get(app.wallet)
-                .map_or("Wallets", |w| w.name.as_str()),
+                .map_or(EN.compact_wallets, |w| w.name.as_str()),
             Action::Glance(false),
         ),
         Screen::Wallets | Screen::Explore | Screen::Entry | Screen::CheckMessage => {
-            ("Wallets", Action::Nav(Screen::Start))
+            (EN.compact_wallets, Action::Nav(Screen::Start))
         }
         // An item of a vault goes back to the vault's list.
         Screen::VaultContents if crate::vault_screens::contents_detail(app) => (
-            "Vault contents",
+            EN.compact_vault_contents,
             Action::Vault(crate::vaults::VaultAction::ItemBack),
         ),
         Screen::Unlock => crate::vault_screens::unlock_back(app),
-        Screen::VaultContents => ("Vaults", Action::Nav(Screen::Vaults)),
+        Screen::VaultContents => (EN.compact_vaults, Action::Nav(Screen::Vaults)),
         // Made from another flow: the way back to it.
         Screen::Vaults if let Some(s) = app.vaults.back_to => (
             app.back_link_name(s),
@@ -204,13 +206,13 @@ pub(crate) fn page(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) -> (f32, f32)
         // Decode goes back where it was opened from.
         Screen::Decode => match app.decode.as_ref() {
             Some(d) => (crate::screens::decode_back(d.back), Action::Nav(d.back)),
-            None => ("Tools", Action::Nav(Screen::Catalog)),
+            None => (EN.compact_tools, Action::Nav(Screen::Catalog)),
         },
         Screen::Tools | Screen::Lightning | Screen::Codes => {
-            ("Tools", Action::Nav(Screen::Catalog))
+            (EN.compact_tools, Action::Nav(Screen::Catalog))
         }
-        Screen::Upgrade => ("Settings", Action::Nav(Screen::Settings)),
-        _ => ("Home", Action::Nav(Screen::Home)),
+        Screen::Upgrade => (EN.compact_settings, Action::Nav(Screen::Settings)),
+        _ => (EN.compact_home, Action::Nav(Screen::Home)),
     };
     bar(app, ui, w, back, name);
     (BAR_H, h - BAR_H)
@@ -259,18 +261,36 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let wallets = app.session.wallets.len();
     let vaults = app.vaults.open.len();
     let (dot, line) = match (keys + wallets, vaults) {
-        (0, 0) => (DIM, "Nothing loaded".to_string()),
+        (0, 0) => (DIM, EN.compact_nothing_loaded.to_string()),
         (_, 0) => (
             OK,
             format!(
                 "{keys} {} · {wallets} {}",
-                if keys == 1 { "key" } else { "keys" },
-                if wallets == 1 { "wallet" } else { "wallets" }
+                if keys == 1 {
+                    EN.compact_key_inline
+                } else {
+                    EN.compact_keys
+                },
+                if wallets == 1 {
+                    EN.compact_wallet
+                } else {
+                    EN.compact_wallets_inline
+                }
             ),
         ),
         (_, v) => (
             OK,
-            format!("{v} {} open", if v == 1 { "vault" } else { "vaults" }),
+            fill(
+                EN.compact_open_3,
+                &[
+                    &v.to_string(),
+                    (if v == 1 {
+                        EN.compact_vault
+                    } else {
+                        EN.compact_vaults_inline
+                    }),
+                ],
+            ),
         ),
     };
     let sub = app.home_files_line();
@@ -307,9 +327,14 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             ui.fill(M, y, inner, 22.0, 6.0, INNER);
         }
         let mut sx = M + 4.0;
-        for (i, label) in ["Bring in", "Open", "Work", "Write out"]
-            .into_iter()
-            .enumerate()
+        for (i, label) in [
+            EN.compact_bring_in,
+            EN.compact_open_2,
+            EN.compact_work,
+            EN.compact_write_out,
+        ]
+        .into_iter()
+        .enumerate()
         {
             if i > 0 {
                 sx += ui.text_mid(sx, y, 22.0, 11.0, W::R, DIM, " · ");
@@ -409,7 +434,7 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             y,
             Some(inner - pw - gap),
             44.0,
-            "Lock",
+            EN.compact_lock,
             Style::Secondary,
             Action::LockAsk,
         );
@@ -428,7 +453,7 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     ui.report_scroll(clip, content - view_h);
     ui.c.pop_clip();
 
-    ui.fab(w - M, h - M, Icon::Scan, "Scan", Action::Scan);
+    ui.fab(w - M, h - M, Icon::Scan, EN.compact_scan, Action::Scan);
 }
 
 /// A tile: its icon, its name, a short count, where it goes, and
@@ -446,7 +471,7 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
     let mut t: Vec<Tile> = vec![
         (
             Icon::Wallet,
-            "Wallets",
+            EN.compact_wallets,
             if wallets == 0 {
                 String::new()
             } else {
@@ -457,23 +482,29 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
         ),
         (
             Icon::Lock,
-            "Vaults",
+            EN.compact_vaults,
             match (open, vault_files) {
                 (0, 0) => String::new(),
-                (0, n) => format!("{n} locked"),
-                (o, _) => format!("{o} open"),
+                (0, n) => fill(EN.compact_locked, &[&n.to_string()]),
+                (o, _) => fill(EN.compact_open, &[&o.to_string()]),
             },
             Action::Nav(Screen::Vaults),
             true,
         ),
         (
             Icon::File,
-            "Files",
+            EN.compact_files,
             format!("{} · {}", app.inbox.len(), app.outbox.len()),
             Action::Nav(Screen::Files),
             true,
         ),
-        (Icon::Learn, "Learn", String::new(), Action::Learn, true),
+        (
+            Icon::Learn,
+            EN.compact_learn,
+            String::new(),
+            Action::Learn,
+            true,
+        ),
     ];
     // Backups once any wallet is known (§5), after Wallets.
     let known = app.backups();
@@ -483,11 +514,11 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
             2,
             (
                 Icon::Shield,
-                "Backups",
+                EN.compact_backups,
                 if without == 0 {
                     String::new()
                 } else {
-                    format!("{without} not backed up")
+                    fill(EN.compact_not_backed, &[&without.to_string()])
                 },
                 Action::Nav(Screen::Backups),
                 true,
@@ -505,7 +536,7 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
     }
     t.push((
         Icon::Tools,
-        "Tools",
+        EN.compact_tools,
         String::new(),
         Action::Nav(Screen::Catalog),
         true,
@@ -514,7 +545,7 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
     if app.online {
         t.push((
             Icon::Qr,
-            "Transfer",
+            EN.compact_transfer,
             String::new(),
             Action::Nav(Screen::Transfer),
             true,
@@ -522,7 +553,7 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
     }
     t.push((
         Icon::Settings,
-        "Settings",
+        EN.compact_settings,
         String::new(),
         Action::Nav(Screen::Settings),
         true,
@@ -932,7 +963,7 @@ pub(crate) fn keyboard(app: &Faraday, ui: &mut Ui, w: f32, y: f32) {
             KeyInput::Char(' ') => (String::new(), Style::Secondary, OskPress::Char(' ')),
             KeyInput::Char(c) => (c.to_string(), Style::Secondary, OskPress::Char(c)),
             KeyInput::Backspace => (String::new(), Style::Secondary, OskPress::Back),
-            KeyInput::Done => ("Done".to_string(), Style::Primary, OskPress::Done),
+            KeyInput::Done => (EN.compact_done.to_string(), Style::Primary, OskPress::Done),
             KeyInput::Shift => (
                 "⇧".to_string(),
                 if app.osk.shift {
@@ -981,7 +1012,7 @@ impl Faraday {
         } else if !self.inbox.is_empty() {
             format!("{} {}", self.inbox.len(), self.medium.from_the())
         } else {
-            "none".to_string()
+            EN.compact_none.to_string()
         }
     }
 
@@ -989,7 +1020,7 @@ impl Faraday {
     /// what is attached, by its label or by how many.
     pub fn home_files_line(&self) -> String {
         let sticks = match self.sticks.len() {
-            0 => format!("no {}", self.medium.noun()),
+            0 => fill(EN.compact_no, &[self.medium.noun()]),
             1 => self.sticks[0].label.clone(),
             k => format!("{k} {}", self.medium.nouns()),
         };

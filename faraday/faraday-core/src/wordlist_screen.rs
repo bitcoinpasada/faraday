@@ -6,9 +6,11 @@
 use crate::Action;
 use crate::Faraday;
 use crate::screens::sheet_box;
+use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wordlist::{LISTS, WordListAction as WL};
+use opensigner_core::strings::fill;
 
 /// A row's height, in design units.
 const ROW: f32 = 28.0;
@@ -32,7 +34,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
         y + 14.0,
         Some(back_w),
         34.0,
-        "Back",
+        EN.wordlist_back,
         Style::Secondary,
         Action::WordList(WL::Close),
     );
@@ -61,21 +63,23 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
     // What the list is, and what is typed to find a word.
     let mut cy = y + 14.0 + tabs_h + 18.0;
     let about = match st.mark {
-        Some(m) => format!(
-            "{} words · word {} of {} marked",
-            words.len(),
-            m + 1,
-            words.len()
+        Some(m) => fill(
+            EN.wordlist_words_word,
+            &[
+                &words.len().to_string(),
+                &(m + 1).to_string(),
+                &words.len().to_string(),
+            ],
         ),
-        None => format!("{} words", words.len()),
+        None => fill(EN.wordlist_words, &[&words.len().to_string()]),
     };
     ui.text(bx, cy, 13.0, W::R, MUTED, &about);
     // No keyboard on a small panel: nothing to say about typing.
     if !compact || !st.find.is_empty() {
         let find = if st.find.is_empty() {
-            "Type to find a word".to_string()
+            EN.wordlist_type_to_find.to_string()
         } else {
-            format!("Find: {}", st.find)
+            fill(EN.wordlist_find, &[&st.find.to_string()])
         };
         ui.text_right(bx + bw, cy - 6.0, 28.0, 13.0, W::M, DIM, &find);
     }
@@ -84,9 +88,9 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
     let num_w = ui.measure(14.0, W::M, "0000");
     let code_w = ui.measure(14.0, W::M, &st.list.code(0));
     let (nx, cx, wx) = (bx + 12.0, bx + 24.0 + num_w, bx + 48.0 + num_w + code_w);
-    ui.text(nx, cy, 12.0, W::S, MUTED, "No.");
+    ui.text(nx, cy, 12.0, W::S, MUTED, EN.wordlist_no);
     ui.text(cx, cy, 12.0, W::S, MUTED, st.list.code_heading());
-    ui.text(wx, cy, 12.0, W::S, MUTED, "Word");
+    ui.text(wx, cy, 12.0, W::S, MUTED, EN.wordlist_word);
     cy += 22.0;
     ui.rule(bx, cy - 4.0, bw, INNER);
     let top = cy;

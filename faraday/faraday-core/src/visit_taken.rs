@@ -6,6 +6,8 @@
 //! under another vault's name never is, and the settings file is
 //! Faraday's own and not listed. With nothing taken there is no sheet.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
 
 use crate::compact::{buttons, scroll_sheet};
@@ -45,14 +47,15 @@ impl Taken {
     /// The row as the sheet says it.
     pub fn line(&self) -> String {
         match &self.fate {
-            Fate::File { keep_as } => format!("{} · Keep both: {keep_as}", self.name),
-            Fate::SameVault => format!("{} · the same vault, updated here", self.name),
-            Fate::OtherVault { keep_as } => {
-                format!(
-                    "{} · another vault · kept, this one as {keep_as}",
-                    self.name
-                )
-            }
+            Fate::File { keep_as } => fill(
+                EN.visit_taken_keep_both_n,
+                &[&self.name.to_string(), &keep_as.to_string()],
+            ),
+            Fate::SameVault => fill(EN.visit_taken_the_same, &[&self.name.to_string()]),
+            Fate::OtherVault { keep_as } => fill(
+                EN.visit_taken_another,
+                &[&self.name.to_string(), &keep_as.to_string()],
+            ),
         }
     }
 }
@@ -202,7 +205,7 @@ impl Faraday {
 /// The Already on the stick sheet: a row per taken file, then Replace,
 /// Keep both and Cancel.
 pub(crate) fn taken_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
-    let title = format!("Already {}", app.medium.on_the());
+    let title = fill(EN.visit_taken_already, &[app.medium.on_the()]);
     let rows: Vec<String> = app.visit.taken.iter().map(Taken::line).collect();
     let place = if ui.compact {
         (8.0, w - 16.0)
@@ -232,9 +235,13 @@ pub(crate) fn taken_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             cy,
             iw,
             &[
-                ("Replace", Style::Primary, Action::VisitReplace),
-                ("Keep both", Style::Secondary, Action::VisitKeepBoth),
-                ("Cancel", Style::Ghost, Action::Cancel),
+                (EN.visit_taken_replace, Style::Primary, Action::VisitReplace),
+                (
+                    EN.visit_taken_keep_both,
+                    Style::Secondary,
+                    Action::VisitKeepBoth,
+                ),
+                (EN.visit_taken_cancel, Style::Ghost, Action::Cancel),
             ],
         );
         cy - y

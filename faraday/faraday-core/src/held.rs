@@ -7,7 +7,9 @@
 //! flags beside its seed, and in the backup plan's record as a `held`
 //! line. A key loaded from a vault that says so is held again.
 
+use crate::strings::EN;
 use faraday_vault::records::{self, Record, field, kind};
+use opensigner_core::strings::fill;
 use osk_bip::keys::Fingerprint;
 
 use crate::wallet::{self, fp_text};
@@ -240,7 +242,10 @@ impl Faraday {
             }
         }
         let names: Vec<String> = released.iter().map(|(fp, _)| fp_text(*fp)).collect();
-        self.toast(&format!("{} signs from now on", names.join(", ")));
+        self.toast(&fill(
+            EN.held_signs_from_now,
+            &[&names.join(", ").to_string()],
+        ));
     }
 
     /// Finish the backup first: the wallet's checklist, or its plan when
@@ -368,7 +373,7 @@ impl Faraday {
                 continue;
             }
             for seed in seeds {
-                let line = format!("{name} holds seed {seed}");
+                let line = fill(EN.held_holds_seed, &[&name.to_string(), &seed.to_string()]);
                 if !extras.contains(&line) {
                     extras.push(line);
                 }

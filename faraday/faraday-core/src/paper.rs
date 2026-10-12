@@ -7,6 +7,8 @@
 //! written to a file; only the seed itself goes into a vault or, past
 //! the secret sheet, a file (`crate::secrets`).
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_bip::bip39::Mnemonic;
 use osk_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 use osk_bip::codex32::{self, Codex32};
@@ -62,10 +64,10 @@ impl Faraday {
     /// Splits the key's words into `parts` Seed XOR parts.
     pub(crate) fn paper_xor(&mut self, parts: u8) {
         let Some((m, _, _)) = self.paper_key() else {
-            return self.toast("This key has no words to split");
+            return self.toast(EN.paper_this_key_has_no);
         };
         let Some(draw) = self.fresh(b"seed xor") else {
-            return self.toast("No randomness from the system yet. Try again");
+            return self.toast(EN.paper_no_randomness);
         };
         let lang = m.language();
         let entropy = m.entropy();
@@ -108,13 +110,13 @@ impl Faraday {
     /// codex32 shares of the key's BIP-32 seed, `k` of `n`.
     pub(crate) fn paper_codex32(&mut self, k: u8, n: u8) {
         let Some((m, passphrase, fp)) = self.paper_key() else {
-            return self.toast("This key has no words to make a seed from");
+            return self.toast(EN.paper_this_key_has);
         };
         let Ok(seed) = m.to_seed(passphrase.as_bytes()) else {
             return;
         };
         let Some(draw) = self.fresh(b"codex32") else {
-            return self.toast("No randomness from the system yet. Try again");
+            return self.toast(EN.paper_no_randomness);
         };
         let need = usize::from(k.saturating_sub(1)) * codex32::symbols_for(seed.expose().len());
         let fresh = spread(&draw, b"codex32 shares", need);
@@ -130,7 +132,7 @@ impl Faraday {
                     b.paper = Some(PaperForm::Codex32 { k, strings });
                 }
             }
-            Err(e) => self.toast(&format!("codex32: {e}")),
+            Err(e) => self.toast(&fill(EN.paper_codex32, &[&e.to_string()])),
         }
     }
 }

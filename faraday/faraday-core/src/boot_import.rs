@@ -14,6 +14,8 @@
 //! the files chosen move From the stick, and the rest is dropped, its
 //! bytes wiped as each [`Item`] drops.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use std::collections::BTreeSet;
 
 use faraday_vault::records::{field, kind};
@@ -139,12 +141,15 @@ impl ImportWallet {
     pub fn status(&self) -> String {
         let n = self.keys.len().max(1);
         if self.can_sign() {
-            "Can sign".to_string()
+            EN.boot_import_can_sign.to_string()
         } else if self.here > 0 {
             let more = self.needed - self.here;
-            format!("{} of {n} keys here · {more} more needed", self.here)
+            fill(
+                EN.boot_import_of_keys,
+                &[&self.here.to_string(), &n.to_string(), &more.to_string()],
+            )
         } else {
-            "Watch-only".to_string()
+            EN.boot_import_watch_only.to_string()
         }
     }
 }
@@ -231,16 +236,20 @@ impl ImportCount {
             |k: usize, one: &str, many: &str| format!("{k} {}", if k == 1 { one } else { many });
         let other = self.copied - self.vaults - self.psbts;
         let parts: Vec<String> = [
-            (self.vaults, "vault", "vaults"),
-            (self.psbts, "PSBT", "PSBTs"),
-            (other, "other file", "other files"),
+            (
+                self.vaults,
+                EN.boot_import_vault_inline,
+                EN.boot_import_vaults,
+            ),
+            (self.psbts, EN.boot_import_psbt, EN.boot_import_psbts),
+            (other, EN.boot_import_other_file, EN.boot_import_other_files),
         ]
         .into_iter()
         .filter(|(k, ..)| *k > 0)
         .map(|(k, one, many)| n(k, one, many))
         .collect();
         if parts.is_empty() {
-            "No files read".to_string()
+            EN.boot_import_no_files.to_string()
         } else {
             parts.join(" · ")
         }
@@ -459,7 +468,7 @@ impl Faraday {
             if let Some((named, ext, data)) = self.read_code(zeroize::Zeroizing::new(p)) {
                 let item = Item::new(&named.unwrap_or_else(|| format!("{stem}.{ext}")), data);
                 if item.kind == FileKind::Other {
-                    note = Some("Not a PSBT, a descriptor, an xpub or a signed message".into());
+                    note = Some(EN.boot_import_not_a_psbt.into());
                 } else {
                     got.push(item);
                 }
@@ -473,19 +482,26 @@ impl Faraday {
             return;
         };
         let said = if codes == 0 {
-            "No QR code found".to_string()
+            EN.boot_import_no_qr_code.to_string()
         } else if got.is_empty() {
-            note.unwrap_or_else(|| "Its codes are not complete".to_string())
+            note.unwrap_or_else(|| EN.boot_import_its_codes.to_string())
         } else {
             let kinds: Vec<String> = got
                 .iter()
                 .map(|i| crate::screens::kind_name(i.kind).to_string())
                 .collect();
             let n = codes;
-            format!(
-                "{n} QR {} · {}",
-                if n == 1 { "code" } else { "codes" },
-                kinds.join(", ")
+            fill(
+                EN.boot_import_qr,
+                &[
+                    &n.to_string(),
+                    (if n == 1 {
+                        EN.boot_import_code
+                    } else {
+                        EN.boot_import_codes
+                    }),
+                    &kinds.join(", ").to_string(),
+                ],
             )
         };
         imp.files[f].state = Staged::Codes(said);
@@ -515,7 +531,7 @@ impl Faraday {
         }
         for f in imp.files.iter_mut() {
             if f.state == Staged::Reading {
-                f.state = Staged::Failed(format!("the {noun} was removed before it was read"));
+                f.state = Staged::Failed(fill(EN.boot_import_the_was, &[noun]));
             }
         }
         if !self.may_load_keys() {
@@ -744,7 +760,10 @@ impl Faraday {
                     continue;
                 };
                 let wallet = Wallet {
-                    name: r.text(field::WALLET_NAME).unwrap_or("Wallet").to_string(),
+                    name: r
+                        .text(field::WALLET_NAME)
+                        .unwrap_or(EN.boot_import_wallet)
+                        .to_string(),
                     policy,
                     source: String::new(),
                 };
@@ -802,19 +821,20 @@ impl Faraday {
 
         // Every file, for the Inbox.
         for (f, file) in imp.files.iter().enumerate() {
-            let size = crate::screens::kind_line(FileKind::Other, file.size as usize);
-            let size = size.trim_start_matches("File · ").to_string();
+            let size = crate::screens::size_text(file.size as usize);
             let open_vault = file.state == Staged::Vault
                 && view
                     .vaults
                     .iter()
                     .any(|v| v.name == file.name && v.open.is_some());
             let (line, enabled) = match &file.state {
-                Staged::Reading => (format!("Being read · {size}"), false),
-                Staged::NotRead => (format!("Not a kind of file Faraday reads · {size}"), false),
-                Staged::Failed(why) => (format!("Not read: {why}"), false),
-                Staged::Vault if open_vault => (format!("Vault, open · {size}"), false),
-                Staged::Vault => (format!("Vault · {size}"), true),
+                Staged::Reading => (fill(EN.boot_import_being_read, &[&size.to_string()]), false),
+                Staged::NotRead => (fill(EN.boot_import_not_a_kind, &[&size.to_string()]), false),
+                Staged::Failed(why) => (fill(EN.boot_import_not_read, &[&why.to_string()]), false),
+                Staged::Vault if open_vault => {
+                    (fill(EN.boot_import_vault_open, &[&size.to_string()]), false)
+                }
+                Staged::Vault => (fill(EN.boot_import_vault_n, &[&size.to_string()]), true),
                 Staged::Codes(said) => {
                     let any = imp.item_file.contains(&f);
                     (said.clone(), any)
@@ -1046,11 +1066,18 @@ impl Faraday {
         let wallets = self.session.wallets.len() - wallets_before;
         let count =
             |n: usize, one: &str, many: &str| format!("{n} {}", if n == 1 { one } else { many });
-        self.toast(&format!(
-            "Imported {} · {} · {}",
-            count(wallets, "wallet", "wallets"),
-            count(keys, "key", "keys"),
-            count(moved, "file", "files")
+        self.toast(&fill(
+            EN.boot_import_imported,
+            &[
+                &count(
+                    wallets,
+                    EN.boot_import_wallet_inline,
+                    EN.boot_import_wallets_inline,
+                )
+                .to_string(),
+                &count(keys, EN.boot_import_key, EN.boot_import_keys).to_string(),
+                &count(moved, EN.boot_import_file, EN.boot_import_files_inline).to_string(),
+            ],
         ));
     }
 }

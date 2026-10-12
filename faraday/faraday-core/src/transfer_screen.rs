@@ -2,9 +2,11 @@
 //! pressed shown as codes) and Receive (the camera, and what it saved).
 
 use crate::screens::{section_label, title};
+use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::{Action, Faraday};
+use opensigner_core::strings::fill;
 
 /// A row of the Downloads list.
 const ROW: f32 = 44.0;
@@ -12,9 +14,9 @@ const ROW: f32 = 44.0;
 /// A size as the Downloads list gives it.
 fn size_text(bytes: u64) -> String {
     if bytes >= 1_000_000 {
-        format!("{:.1} MB", bytes as f32 / 1e6)
+        fill(EN.transfer_mb, &[&format!("{:.1}", bytes as f32 / 1e6)])
     } else if bytes >= 1000 {
-        format!("{:.1} KB", bytes as f32 / 1e3)
+        fill(EN.transfer_kb, &[&format!("{:.1}", bytes as f32 / 1e3)])
     } else {
         format!("{bytes} B")
     }
@@ -32,7 +34,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let top = if compact { 14.0 } else { 36.0 } - app.list_offset;
     let mut y = top;
     if !compact {
-        title(ui, x, y, "Transfer");
+        title(ui, x, y, EN.transfer_transfer);
         y += 52.0;
     }
     let side = !compact && w >= 600.0;
@@ -56,7 +58,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 fn send(app: &Faraday, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let t = &app.transfer;
     let mut y = y0;
-    section_label(ui, x, y, "Send");
+    section_label(ui, x, y, EN.transfer_send);
     y += 24.0;
     if !t.dir.is_empty() {
         let dir = ui.fit(12.0, W::M, &t.dir, w);
@@ -65,14 +67,14 @@ fn send(app: &Faraday, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     }
     if let Some(path) = t.reading.as_deref() {
         let name = path.rsplit('/').next().unwrap_or(path);
-        let line = ui.fit(13.0, W::R, &format!("Reading {name}"), w);
+        let line = ui.fit(13.0, W::R, &fill(EN.transfer_reading, &[name]), w);
         ui.text(x, y, 13.0, W::R, MUTED, &line);
         y += 24.0;
     } else if let Some(why) = t.refused.as_deref() {
         y += ui.wrap(x, y, w, 13.0, W::S, ERR, why) + 10.0;
     }
     if t.files.is_empty() {
-        ui.text(x, y + 4.0, 13.0, W::R, DIM, "No files");
+        ui.text(x, y + 4.0, 13.0, W::R, DIM, EN.transfer_no_files);
         return y + 28.0 - y0;
     }
     ui.rule(x, y, w, INNER);
@@ -83,7 +85,7 @@ fn send(app: &Faraday, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         }
         let over = *size > crate::transfer::MAX_SEND;
         let tail = if over {
-            "Over 256 KiB".to_string()
+            EN.transfer_over_256_kib.to_string()
         } else {
             size_text(*size)
         };
@@ -111,14 +113,14 @@ fn send(app: &Faraday, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 fn receive(app: &Faraday, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let t = &app.transfer;
     let mut y = y0;
-    section_label(ui, x, y, "Receive");
+    section_label(ui, x, y, EN.transfer_receive);
     y += 28.0;
     let bw = ui.button(
         x,
         y,
         None,
         44.0,
-        "Scan with the camera",
+        EN.transfer_scan_with,
         Style::Primary,
         Action::TransferReceive,
     );
@@ -128,7 +130,7 @@ fn receive(app: &Faraday, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             y,
             None,
             44.0,
-            "Open folder",
+            EN.transfer_open_folder,
             Style::Secondary,
             Action::TransferOpenFolder,
         );

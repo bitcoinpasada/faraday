@@ -10,7 +10,9 @@
 //! device** keeps it out until it is unplugged; ignored devices are listed
 //! in Settings.
 
+use crate::strings::EN;
 use crate::{Faraday, Sheet};
+use opensigner_core::strings::fill;
 
 /// How long the code is.
 pub const CODE_LEN: usize = 6;
@@ -98,7 +100,7 @@ impl Faraday {
         };
         let d = self.inputs.remove(i);
         self.input_decisions.push_back((id, true));
-        self.toast(&format!("{} is in use", d.name));
+        self.toast(&fill(EN.inputs_is_in_use, &[&d.name.to_string()]));
         self.input_sheet();
     }
 

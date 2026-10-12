@@ -1,7 +1,9 @@
 //! The New key screen: the step-card column over [`crate::keygen`]. The
 //! options and their names are OpenSigner's; this file only lays them out.
 
+use crate::strings::EN as FEN;
 use opensigner_core::strings::EN;
+use opensigner_core::strings::fill;
 use osk_bip::bip39::Language;
 use osk_entropy::{CameraNoise, CardDraws, CoinFlips, DiceProcedure, RANKS, SUITS};
 
@@ -19,13 +21,13 @@ use osk_ui::Color;
 use osk_ui::widgets::Icon;
 
 const TITLES: [&str; kstep::COUNT] = [
-    "Length",
-    "Randomness",
-    "Entries",
-    "Key",
-    "Check",
-    "Words",
-    "Quiz",
+    FEN.keygen_length,
+    FEN.keygen_randomness,
+    FEN.keygen_entries,
+    FEN.keygen_key,
+    FEN.keygen_check,
+    FEN.keygen_words,
+    FEN.keygen_quiz,
 ];
 
 pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -53,10 +55,10 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         })
         .collect();
     let back_label = match k.back {
-        crate::Screen::Create => "Make a new wallet",
-        crate::Screen::Entry => "Add a key",
-        crate::Screen::Catalog => "Tools",
-        _ => "Back",
+        crate::Screen::Create => FEN.keygen_make_a_new_wallet,
+        crate::Screen::Entry => FEN.keygen_add_a_key,
+        crate::Screen::Catalog => FEN.keygen_tools,
+        _ => FEN.keygen_back,
     };
     let col = flow::Column {
         area_x: x0,
@@ -65,7 +67,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         w: (cw - 80.0).min(900.0),
         h,
         back: Some((back_label, Action::Nav(k.back))),
-        heading: "New key",
+        heading: FEN.keygen_new_key,
         guided: app.guided,
         switch: true,
         note: None,
@@ -94,17 +96,20 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 fn entries_title(k: &KeyGen) -> String {
     let what = match k.active() {
-        Some(Source::Dice) => "Rolls",
-        Some(Source::Coins) => "Flips",
-        Some(Source::Cards) => "Cards",
-        Some(Source::Hex) => "Digits",
-        Some(Source::Camera) => "Pictures",
-        Some(Source::Device) => "Generator",
-        _ => "Entries",
+        Some(Source::Dice) => FEN.keygen_rolls,
+        Some(Source::Coins) => FEN.keygen_flips,
+        Some(Source::Cards) => FEN.keygen_cards,
+        Some(Source::Hex) => FEN.keygen_digits,
+        Some(Source::Camera) => FEN.keygen_pictures,
+        Some(Source::Device) => FEN.keygen_generator,
+        _ => FEN.keygen_entries,
     };
     if k.source == Some(Source::Mix) {
         let n = k.mix_list().len();
-        format!("{what} · source {} of {n}", (k.mix_at + 1).min(n))
+        fill(
+            FEN.keygen_source_of,
+            &[what, &((k.mix_at + 1).min(n)).to_string(), &n.to_string()],
+        )
     } else {
         what.to_string()
     }
@@ -114,31 +119,41 @@ fn entries_title(k: &KeyGen) -> String {
 fn asks(k: &KeyGen, s: Source) -> String {
     let st = k.strength();
     match s {
-        Source::Dice => format!("{} rolls of a six-sided die", k.dice_needed()),
-        Source::Coins => format!(
-            "{} flips, or rolls of a die read as flips",
-            CoinFlips::needed(st)
+        Source::Dice => fill(FEN.keygen_rolls_of_a_six, &[&k.dice_needed().to_string()]),
+        Source::Coins => fill(
+            FEN.keygen_flips_or_rolls,
+            &[&CoinFlips::needed(st).to_string()],
         ),
-        Source::Cards => format!("{} cards from a shuffled deck", CardDraws::needed(st)),
-        Source::Hex => format!("{} digits made elsewhere", st.hex_digits()),
-        Source::Camera => format!("{} pictures", CameraNoise::needed(st)),
-        Source::Mix => "Two or more of these, combined".to_string(),
-        Source::Device => format!("{} · getrandom(2)", EN.create_device_os),
+        Source::Cards => fill(
+            FEN.keygen_cards_from_a,
+            &[&CardDraws::needed(st).to_string()],
+        ),
+        Source::Hex => fill(FEN.keygen_digits_made, &[&st.hex_digits().to_string()]),
+        Source::Camera => fill(
+            FEN.keygen_pictures_n,
+            &[&CameraNoise::needed(st).to_string()],
+        ),
+        Source::Mix => FEN.keygen_two_or_more.to_string(),
+        Source::Device => fill(FEN.keygen_getrandom_2, &[EN.create_device_os]),
         Source::SeedXor => String::new(),
     }
 }
 
 fn summary(k: &KeyGen, s: u8) -> String {
     match s {
-        kstep::LENGTH if k.slip39 => format!(
-            "SLIP-39 · {} of {} shares · {} words each",
-            k.slip_m, k.slip_n, k.words
+        kstep::LENGTH if k.slip39 => fill(
+            FEN.keygen_slip_39_of_shares,
+            &[
+                &k.slip_m.to_string(),
+                &k.slip_n.to_string(),
+                &k.words.to_string(),
+            ],
         ),
-        kstep::LENGTH => format!("{} words", k.words),
+        kstep::LENGTH => fill(FEN.keygen_words_n, &[&k.words.to_string()]),
         kstep::SOURCE => match k.source {
             Some(Source::Dice) => k.way().map(way_name).unwrap_or_default(),
             Some(Source::Coins) if k.by_die => {
-                format!("{} · read from a die", source_name(Source::Coins))
+                fill(FEN.keygen_read_from_a, &[source_name(Source::Coins)])
             }
             Some(Source::Mix) => k
                 .mix_list()
@@ -147,50 +162,50 @@ fn summary(k: &KeyGen, s: u8) -> String {
                 .collect::<Vec<_>>()
                 .join(" + "),
             Some(s) => source_name(s).to_string(),
-            None => "Not chosen".to_string(),
+            None => FEN.keygen_not_chosen.to_string(),
         },
         kstep::ENTER => {
             if k.done[usize::from(kstep::ENTER)] {
-                "Complete".to_string()
+                FEN.keygen_complete.to_string()
             } else {
                 let (have, need) = k.progress();
-                format!("{have} of {need}")
+                fill(FEN.keygen_of, &[&have.to_string(), &need.to_string()])
             }
         }
         kstep::KEY => match k.fingerprint.filter(|_| k.locked) {
-            None => "Not locked in".to_string(),
+            None => FEN.keygen_not_locked_in.to_string(),
             Some(fp) => {
                 let fp = fp_text(osk_bip::keys::Fingerprint(fp));
                 match (k.slot, k.with_passphrase) {
-                    (None, _) => format!("{fp} · locked in"),
-                    (Some(_), true) => format!("{fp} · passphrase set · locked in"),
-                    (Some(_), false) => format!("{fp} · passphrase not set · locked in"),
+                    (None, _) => fill(FEN.keygen_locked_in, &[&fp.to_string()]),
+                    (Some(_), true) => fill(FEN.keygen_passphrase_set, &[&fp.to_string()]),
+                    (Some(_), false) => fill(FEN.keygen_passphrase_not, &[&fp.to_string()]),
                 }
             }
         },
         kstep::CHECK => match k.source {
             Some(Source::Device) => EN.create_trusts_device.to_string(),
-            Some(Source::Mix) => format!("{} sources combined", k.mixed.len()),
-            _ if !k.done[usize::from(kstep::ENTER)] => "Not yet".to_string(),
+            Some(Source::Mix) => fill(FEN.keygen_sources_combined, &[&k.mixed.len().to_string()]),
+            _ if !k.done[usize::from(kstep::ENTER)] => FEN.keygen_not_yet.to_string(),
             _ => match k.caution_lines().len() {
-                0 => "No cautions".to_string(),
-                1 => "1 caution".to_string(),
-                n => format!("{n} cautions"),
+                0 => FEN.keygen_no_cautions.to_string(),
+                1 => FEN.keygen_1_caution.to_string(),
+                n => fill(FEN.keygen_cautions, &[&n.to_string()]),
             },
         },
         kstep::WORDS if k.slip39 => match k.shares.len() {
-            0 => "Not made yet".to_string(),
-            n => format!("{n} shares"),
+            0 => FEN.keygen_not_made_yet.to_string(),
+            n => fill(FEN.keygen_shares_n, &[&n.to_string()]),
         },
         kstep::WORDS => match k.mnemonic.as_ref() {
-            Some(m) => format!("{} words", m.indices().len()),
-            None => "Not made yet".to_string(),
+            Some(m) => fill(FEN.keygen_words_n, &[&m.indices().len().to_string()]),
+            None => FEN.keygen_not_made_yet.to_string(),
         },
         _ => match (k.fingerprint, k.done[usize::from(kstep::QUIZ)]) {
             (Some(fp), true) => fp_text(osk_bip::keys::Fingerprint(fp)),
             _ => match k.quiz.as_ref().map(|q| q.progress()) {
-                Some((d, n)) => format!("{d} of {n}"),
-                None => "Not yet".to_string(),
+                Some((d, n)) => fill(FEN.keygen_of, &[&d.to_string(), &n.to_string()]),
+                None => FEN.keygen_not_yet.to_string(),
             },
         },
     }
@@ -215,10 +230,10 @@ fn read_only(k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     match s {
         kstep::LENGTH => {
-            cy = stat(ui, x, cy, "Length", &summary(k, s), TEXT);
+            cy = stat(ui, x, cy, FEN.keygen_length, &summary(k, s), TEXT);
         }
         kstep::SOURCE => {
-            cy = stat(ui, x, cy, "Randomness", &summary(k, s), TEXT);
+            cy = stat(ui, x, cy, FEN.keygen_randomness, &summary(k, s), TEXT);
         }
         _ => {
             if k.has_check() {
@@ -238,7 +253,7 @@ fn verdict(k: &KeyGen, ui: &mut Ui, x: f32, y: f32) -> f32 {
     let mut cy = y;
     let cautions = k.caution_lines();
     if cautions.is_empty() {
-        ui.text(x, cy, 13.0, W::S, OK, "Fair: no cautions");
+        ui.text(x, cy, 13.0, W::S, OK, FEN.keygen_fair_no_cautions);
         cy += 22.0;
     }
     for c in cautions {
@@ -283,7 +298,7 @@ fn word_grid(ui: &mut Ui, words: &[u16], shown: bool, x: f32, y: f32, w: f32) ->
 fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let Some(m) = k.mnemonic.as_ref() else {
-        ui.text(x, cy, 13.0, W::R, MUTED, "Not made yet");
+        ui.text(x, cy, 13.0, W::R, MUTED, FEN.keygen_not_made_yet);
         return 26.0;
     };
     if k.locked {
@@ -292,7 +307,11 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
     }
     cy += word_grid(ui, m.indices(), k.shown, x, cy, w);
     let show = (
-        if k.shown { "Hide words" } else { "Show words" },
+        if k.shown {
+            FEN.keygen_hide_words
+        } else {
+            FEN.keygen_show_words
+        },
         Style::Secondary,
         Action::KShow,
     );
@@ -304,7 +323,7 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
                 x,
                 cy,
                 w,
-                "Passphrase",
+                FEN.keygen_passphrase,
                 &k.passphrase,
                 k.focus == Some(0),
                 Action::KPassField(0),
@@ -314,7 +333,7 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
                 x,
                 cy,
                 w,
-                "Passphrase again",
+                FEN.keygen_passphrase_again,
                 &k.passphrase2,
                 k.focus == Some(1),
                 Action::KPassField(1),
@@ -324,9 +343,16 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
             cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, n) + 6.0;
         }
         cy += 4.0;
-        cy += buttons_and_next(ui, x, cy, w, &[show], Some(("Lock in", Action::KLock)));
+        cy += buttons_and_next(
+            ui,
+            x,
+            cy,
+            w,
+            &[show],
+            Some((FEN.keygen_lock_in, Action::KLock)),
+        );
         if !ui.compact {
-            ui.text(x, cy, 12.0, W::R, DIM, "Enter locks in");
+            ui.text(x, cy, 12.0, W::R, DIM, FEN.keygen_enter_locks);
             cy += 24.0;
         }
         return cy - y;
@@ -336,8 +362,12 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
             ui,
             x,
             cy,
-            "Passphrase",
-            if k.with_passphrase { "Set" } else { "Not set" },
+            FEN.keygen_passphrase,
+            if k.with_passphrase {
+                FEN.keygen_set
+            } else {
+                FEN.keygen_not_set
+            },
         );
     }
     if let Some(fp) = k.fingerprint {
@@ -345,7 +375,7 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
             ui,
             x,
             cy,
-            "Fingerprint",
+            FEN.keygen_fingerprint,
             &fp_text(osk_bip::keys::Fingerprint(fp)),
             TEXT,
         );
@@ -361,7 +391,7 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
             {
                 cy += descriptor_row(ui, x, cy, w, wl, Action::QrWallet(i));
                 let a = grouped(&app.session.address_shown(wl, false, 0));
-                cy += long_row(ui, x, cy, w, "First address", &a);
+                cy += long_row(ui, x, cy, w, FEN.keygen_first_address, &a);
                 if !app.wallet_held(i).is_empty() {
                     cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, crate::glance::RECEIVE_WARNING) + 8.0;
                 }
@@ -371,27 +401,34 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         // key as the wallet or a cosigner takes it.
         _ => {
             if let Some(t) = &k.key_text {
-                cy += long_row(ui, x, cy, w, "Key", t);
+                cy += long_row(ui, x, cy, w, FEN.keygen_key, t);
             }
         }
     }
     if let Some(n) = &k.note {
         cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, n) + 6.0;
     }
-    cy += buttons_and_next(ui, x, cy, w, &[show], Some(("Continue", Action::KNext)));
+    cy += buttons_and_next(
+        ui,
+        x,
+        cy,
+        w,
+        &[show],
+        Some((FEN.keygen_continue, Action::KNext)),
+    );
     cy - y
 }
 
 /// What SLIP-39 shares reveal and what they do not, stated beside the
 /// choice so the person can weigh it.
 const SLIP39_FACTS: [&str; 7] = [
-    "Fewer shares than the threshold say nothing about the seed: with them, every seed stays as likely as every other. No entropy is lost to a holder of too few shares.",
-    "Each share states in the clear its backup's identifier, the shares needed, how many were dealt and its own number: one share tells its holder how many others to look for.",
-    "The threshold of shares rebuilds the whole seed on one device, and that device holds all of it while it signs.",
-    "The split's own randomness comes from the device that deals it, here this device's system generator. A dealer with weak randomness gives the seed away in its shares.",
-    "A share cannot be checked on its own against the seed; a wrong or mixed-up share shows only when the threshold is put together, by a 4-byte digest.",
-    "Shares restore only in software that reads SLIP-39, such as Trezor's and OpenSigner's; a wallet that reads only BIP-39 words cannot.",
-    "A share is 20 words for a 128-bit seed, the strength of 12 BIP-39 words, or 33 words for 256 bits.",
+    FEN.keygen_fewer_shares,
+    FEN.keygen_each_share_states,
+    FEN.keygen_the_threshold,
+    FEN.keygen_the_split_s,
+    FEN.keygen_a_share_cannot,
+    FEN.keygen_shares_restore,
+    FEN.keygen_a_share_is_20,
 ];
 
 fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -399,7 +436,10 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // Words or shares.
     if !k.only_24 {
         let mut bx = x;
-        for (label, on) in [("BIP-39 words", false), ("SLIP-39 shares", true)] {
+        for (label, on) in [
+            (FEN.keygen_bip_39_words, false),
+            (FEN.keygen_slip_39_shares, true),
+        ] {
             let style = if k.slip39 == on {
                 Style::Primary
             } else {
@@ -418,7 +458,7 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             x,
             cy,
             w.min(760.0),
-            "Continue",
+            FEN.keygen_continue,
             Action::KWords(k.words as u8),
         ) {
             cy += 52.0;
@@ -427,13 +467,13 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if k.slip39 {
         for (label, value, minus, plus) in [
             (
-                "Shares needed",
+                FEN.keygen_shares_needed,
                 k.slip_m,
                 Action::KSlipM(-1),
                 Action::KSlipM(1),
             ),
             (
-                "Shares dealt",
+                FEN.keygen_shares_dealt,
                 k.slip_n,
                 Action::KSlipN(-1),
                 Action::KSlipN(1),
@@ -449,12 +489,12 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             13.0,
             W::S,
             TEXT,
-            &format!(
-                "Any {} of the {} shares restore the key",
-                k.slip_m, k.slip_n
+            &fill(
+                FEN.keygen_any_of_the_shares,
+                &[&k.slip_m.to_string(), &k.slip_n.to_string()],
             ),
         ) + 12.0;
-        ui.text(x, cy, 13.0, W::S, MUTED, "What shares reveal");
+        ui.text(x, cy, 13.0, W::S, MUTED, FEN.keygen_what_shares);
         cy += 24.0;
         for f in SLIP39_FACTS {
             ui.fill(x + 2.0, cy + 7.0, 4.0, 4.0, 2.0, MUTED);
@@ -466,7 +506,7 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             x,
             cy,
             w.min(760.0),
-            "Continue",
+            FEN.keygen_continue,
             Action::KWords(k.words as u8),
         ) {
             cy += 52.0;
@@ -500,7 +540,7 @@ fn length_counts(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             y,
             Some(104.0),
             40.0,
-            &format!("{n} words"),
+            &fill(FEN.keygen_words_n, &[&n.to_string()]),
             style,
             if k.slip39 {
                 Action::KSlipWords(n)
@@ -511,14 +551,7 @@ fn length_counts(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     let mut used = y - top + 52.0;
     if k.only_24 {
-        ui.text(
-            x,
-            y + used,
-            13.0,
-            W::R,
-            MUTED,
-            "A threshold wallet's keys are 24 words",
-        );
+        ui.text(x, y + used, 13.0, W::R, MUTED, FEN.keygen_a_threshold);
         used += 26.0;
     }
     used
@@ -562,7 +595,7 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
 /// An option's name on the Randomness card and in its summary.
 fn way_name(w: Way) -> String {
     match w {
-        Way::DiceFlips => format!("{} · Flip mode", source_name(Source::Dice)),
+        Way::DiceFlips => fill(FEN.keygen_flip_mode, &[source_name(Source::Dice)]),
         Way::DiceWords | Way::DiceHashed | Way::DiceSixAsZero => format!(
             "{} · {}",
             source_name(Source::Dice),
@@ -580,7 +613,10 @@ fn way_name(w: Way) -> String {
 fn way_line(k: &KeyGen, w: Way) -> String {
     let st = k.strength();
     match w {
-        Way::DiceFlips => format!("{} rolls, read as flips", CoinFlips::needed(st)),
+        Way::DiceFlips => fill(
+            FEN.keygen_rolls_read_as,
+            &[&CoinFlips::needed(st).to_string()],
+        ),
         Way::DiceWords | Way::DiceHashed | Way::DiceSixAsZero => {
             let p = match w {
                 Way::DiceWords => DiceProcedure::Words,
@@ -598,9 +634,9 @@ fn way_line(k: &KeyGen, w: Way) -> String {
 /// at the start); a closed one names the option chosen in it.
 fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 {
     let title = match g {
-        Group::ByHand => "Your own entropy, words verifiable by hand",
-        Group::Computed => "Your entropy, computer generates words",
-        Group::Device => "Made by this device",
+        Group::ByHand => FEN.keygen_your_own_entropy,
+        Group::Computed => FEN.keygen_your_entropy,
+        Group::Device => FEN.keygen_made_by_this,
     };
     if ui.compact {
         let mut cy = y;
@@ -612,7 +648,7 @@ fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 
             cy += 4.0;
             let mut bx = x;
             if g == Group::ByHand {
-                bx += ui.chip(x, cy, "Recommended", OK, OK.with_alpha(30)) + 8.0;
+                bx += ui.chip(x, cy, FEN.keygen_recommended, OK, OK.with_alpha(30)) + 8.0;
             }
             if let Some(way) = chosen.filter(|_| !open) {
                 let name = ui.fit(13.0, W::S, &way_name(way), x + w - bx);
@@ -639,7 +675,13 @@ fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 
     let i = group_index(g);
     if g == Group::ByHand {
         let lw = ui.measure(14.0, W::S, title);
-        ui.chip(x + lw + 12.0, y - 4.0, "Recommended", OK, OK.with_alpha(30));
+        ui.chip(
+            x + lw + 12.0,
+            y - 4.0,
+            FEN.keygen_recommended,
+            OK,
+            OK.with_alpha(30),
+        );
     }
     let open = k.groups_open[usize::from(i)];
     ui.icon(
@@ -732,7 +774,7 @@ fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if let Some(n) = &k.note {
         ui.text(x, cy + 10.0, 13.0, W::R, ERR, n);
     }
-    let drawn = next_button(ui, x, cy, w, "Continue", Action::KNext);
+    let drawn = next_button(ui, x, cy, w, FEN.keygen_continue, Action::KNext);
     cy + (if drawn { 48.0 } else { 8.0 }) - y
 }
 
@@ -743,13 +785,23 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // How far along, as a count and a bar.
     if active != Some(Source::Device) {
         let unit = match active {
-            Some(Source::Dice) => "rolls",
-            Some(Source::Coins) => "flips",
-            Some(Source::Cards) => "cards",
-            Some(Source::Hex) => "digits",
-            _ => "pictures",
+            Some(Source::Dice) => FEN.keygen_rolls_inline,
+            Some(Source::Coins) => FEN.keygen_flips_inline,
+            Some(Source::Cards) => FEN.keygen_cards_inline,
+            Some(Source::Hex) => FEN.keygen_digits_inline,
+            _ => FEN.keygen_pictures_inline,
         };
-        ui.text(x, cy, 15.0, W::S, TEXT, &format!("{have} of {need} {unit}"));
+        ui.text(
+            x,
+            cy,
+            15.0,
+            W::S,
+            TEXT,
+            &fill(
+                FEN.keygen_of_2,
+                &[&have.to_string(), &need.to_string(), unit],
+            ),
+        );
         if let Some(last) = last_entry(k) {
             ui.text_right(
                 x + w,
@@ -758,7 +810,7 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 13.0,
                 W::M,
                 MUTED,
-                &format!("Last: {last}"),
+                &fill(FEN.keygen_last, &[&last.to_string()]),
             );
         }
         cy += 28.0;
@@ -893,10 +945,9 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     Action::KSuit(s as u8),
                 );
             }
-            let deck = format!(
-                "Deck {} · {} drawn from it",
-                k.cards.deck(),
-                k.cards.in_deck()
+            let deck = fill(
+                FEN.keygen_deck_drawn_from,
+                &[&k.cards.deck().to_string(), &k.cards.in_deck().to_string()],
             );
             if ui.compact {
                 cy += 52.0;
@@ -940,9 +991,9 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 Action::KFrame,
             );
             let state = match k.camera.last() {
-                Some(st) => format!("{} luma values in the last picture", st.distinct),
-                None if k.frame.is_some() => "Camera on".to_string(),
-                None => "Waiting for the camera".to_string(),
+                Some(st) => fill(FEN.keygen_luma_values, &[&st.distinct.to_string()]),
+                None if k.frame.is_some() => FEN.keygen_camera_on.to_string(),
+                None => FEN.keygen_waiting_for.to_string(),
             };
             ui.text_mid(x + bw + 16.0, cy, 48.0, 13.0, W::R, MUTED, &state);
             cy += 60.0;
@@ -955,15 +1006,7 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // Words for a Create slot are shown and checked again by Back up
     // (`docs/NEW-WALLET.md` §3.2).
     if !k.slip39 && k.reveals() && k.slot.is_some() {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            12.0,
-            W::R,
-            MUTED,
-            "No need to write the words down yet: Back up shows them again.",
-        ) + 10.0;
+        cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, FEN.keygen_no_need_to_write) + 10.0;
     }
     // BIP-39 words: the randomness check is here, once the last entry is
     // in. Before that, and for shares, cautions as they appear.
@@ -971,7 +1014,7 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let checked = !k.slip39 && ready && k.has_check();
     if checked {
         cy += 4.0;
-        section_label(ui, x, cy, "Randomness check");
+        section_label(ui, x, cy, FEN.keygen_randomness_check);
         cy += 26.0;
         cy = check_rows(k, active, ui, x, cy, w);
         cy = verdict(k, ui, x, cy);
@@ -988,16 +1031,16 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += 6.0;
     let last_of_mix = k.source != Some(Source::Mix) || k.mix_at + 1 >= k.mix_list().len();
     let label = if !last_of_mix {
-        "Next source"
+        FEN.keygen_next_source
     } else if !k.slip39 && k.reveals() {
-        "Continue"
+        FEN.keygen_continue
     } else {
-        "Make the words"
+        FEN.keygen_make_the_words
     };
     let mut edits: Vec<(&str, Style, Action)> = Vec::new();
     if !matches!(active, Some(Source::Device)) {
-        edits.push(("Undo", Style::Ghost, Action::KUndo));
-        edits.push(("Clear", Style::Ghost, Action::KClear));
+        edits.push((FEN.keygen_undo, Style::Ghost, Action::KUndo));
+        edits.push((FEN.keygen_clear, Style::Ghost, Action::KClear));
     }
     // A caution is not a refusal: the foot button still works, and the
     // source's word for starting again is beside it.
@@ -1011,15 +1054,13 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return cy - y;
     }
     let hint = match active {
-        Some(Source::Dice) => "Type 1 to 6 · Backspace takes one back · Enter continues",
-        Some(Source::Coins) if k.by_die => {
-            "Type 1 to 6 · Backspace takes one back · Enter continues"
-        }
-        Some(Source::Coins) => "Type H or T · Backspace takes one back · Enter continues",
-        Some(Source::Cards) => "Type the rank (A 2–9 T J Q K), then the suit (S H D C)",
-        Some(Source::Hex) => "Type 0–9 and a–f · Backspace takes one back · Enter continues",
-        Some(Source::Camera) => "Space takes a picture · Enter continues",
-        _ => "Enter continues",
+        Some(Source::Dice) => FEN.keygen_type_1_to_6,
+        Some(Source::Coins) if k.by_die => FEN.keygen_type_1_to_6,
+        Some(Source::Coins) => FEN.keygen_type_h_or_t,
+        Some(Source::Cards) => FEN.keygen_type_the_rank,
+        Some(Source::Hex) => FEN.keygen_type_09_and,
+        Some(Source::Camera) => FEN.keygen_space_takes,
+        _ => FEN.keygen_enter_continues,
     };
     ui.text(x, cy, 12.0, W::R, DIM, hint);
     cy + 24.0 - y
@@ -1033,7 +1074,7 @@ fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let style = |on: bool| if on { Style::Primary } else { Style::Secondary };
     let mut bx = x;
     if k.active() == Some(Source::Coins) {
-        for (label, on) in [("Coin", false), ("Die", true)] {
+        for (label, on) in [(FEN.keygen_coin, false), (FEN.keygen_die, true)] {
             bx += ui.button(
                 bx,
                 cy,
@@ -1047,7 +1088,7 @@ fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         bx += 18.0;
         // Typed and Buttons go on a row of their own when the four do
         // not fit.
-        let need: f32 = ["Typed", "Buttons"]
+        let need: f32 = [FEN.keygen_typed, FEN.keygen_buttons]
             .iter()
             .map(|l| ui.measure(13.0, W::S, l) + 38.0)
             .sum();
@@ -1056,7 +1097,7 @@ fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy += 42.0;
         }
     }
-    for (label, on) in [("Typed", true), ("Buttons", false)] {
+    for (label, on) in [(FEN.keygen_typed, true), (FEN.keygen_buttons, false)] {
         bx += ui.button(
             bx,
             cy,
@@ -1070,9 +1111,9 @@ fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += 46.0;
     if k.active() == Some(Source::Coins) {
         let line = if k.by_die {
-            "Each roll is one flip: 1, 2, 3 are 0 (tails); 4, 5, 6 are 1 (heads). The key is the one these flips make"
+            FEN.keygen_each_roll_is
         } else {
-            "Heads is 1, tails is 0"
+            FEN.keygen_heads_is_1_tails
         };
         cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, line) + 10.0;
     }
@@ -1100,8 +1141,8 @@ fn typed_box(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     );
     ui.hit(x, y, w, 40.0, Action::KTyping(true));
     let what = match k.active() {
-        Some(Source::Coins) if !k.by_die => "H or 1 for heads, T or 0 for tails",
-        _ => "Faces 1 to 6, as rolled",
+        Some(Source::Coins) if !k.by_die => FEN.keygen_h_or_1_for_heads,
+        _ => FEN.keygen_faces_1_to_6,
     };
     ui.text(x, y + 48.0, 12.0, W::R, DIM, what);
     y + 76.0
@@ -1116,7 +1157,7 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return rolled_words(k, ui, x, y, w);
     }
     let mut cy = y + 4.0;
-    section_label(ui, x, cy, "Words so far");
+    section_label(ui, x, cy, FEN.keygen_words_so_far);
     cy += 24.0;
     ui.text(x, cy, 12.0, W::R, MUTED, crate::wordlist::PRESS_A_WORD);
     cy += 24.0;
@@ -1199,9 +1240,9 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let part = entered.saturating_sub(at * per);
     if at < last && part > 0 {
         let note = if coins {
-            format!("{part} of 11 bits")
+            fill(FEN.keygen_of_11_bits, &[&part.to_string()])
         } else {
-            format!("{part} of {per} rolls")
+            fill(FEN.keygen_of_rolls, &[&part.to_string(), &per.to_string()])
         };
         row(ui, cy, at, &code_of(at, part.min(per)), None, &note);
         cy += step;
@@ -1216,14 +1257,7 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         _ => code_of(last, per),
     };
-    row(
-        ui,
-        cy,
-        last,
-        &code,
-        made,
-        "From the checksum, once the rest is in",
-    );
+    row(ui, cy, last, &code, made, FEN.keygen_from_the_checksum);
     cy += step;
     if coins && made.is_some() {
         cy += ui.wrap(
@@ -1233,9 +1267,9 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             12.0,
             W::R,
             DIM,
-            &format!(
-                "The last {checksum} bits of word {} are the checksum",
-                last + 1
+            &fill(
+                FEN.keygen_the_last_bits,
+                &[&checksum.to_string(), &(last + 1).to_string()],
             ),
         ) + 8.0;
     }
@@ -1249,20 +1283,11 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// last bits are the checksum, shown as soon as the last of them is in.
 fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y + 4.0;
-    section_label(ui, x, cy, "Words so far");
+    section_label(ui, x, cy, FEN.keygen_words_so_far);
     cy += 24.0;
     ui.text(x, cy, 12.0, W::R, MUTED, crate::wordlist::PRESS_A_WORD);
     cy += 20.0;
-    cy += ui.wrap(
-        x,
-        cy,
-        w,
-        12.0,
-        W::R,
-        MUTED,
-        "Rolls 1 to 5 of a word: 1 = 00, 2 = 01, 3 = 10, 4 = 11 · Roll 6: 1 to 3 = 0, 4 to 6 = 1 · \
-         The 11 bits are the word's number in the list, from 0",
-    ) + 12.0;
+    cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, FEN.keygen_rolls_1_to_5) + 12.0;
     let per = osk_entropy::DICE_WORD_ROLLS;
     let faces = osk_entropy::DICE_WORD_FACES;
     let rolls = k.dice.rolls();
@@ -1308,10 +1333,10 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let mut info_x = if compact { cells_x } else { info_x };
         if let Some(sum) = sum {
             let sx = cells_x + cells.len() as f32 * cell + 6.0;
-            ui.text_mid(sx, cy, 22.0, 11.0, W::R, DIM, "checksum");
+            ui.text_mid(sx, cy, 22.0, 11.0, W::R, DIM, FEN.keygen_checksum);
             ui.text_mid(sx, cy + 22.0, 22.0, 13.0, W::M, MUTED, sum);
             let sw = ui
-                .measure(11.0, W::R, "checksum")
+                .measure(11.0, W::R, FEN.keygen_checksum)
                 .max(ui.measure(13.0, W::M, sum));
             if !compact {
                 info_x = info_x.max(sx + sw + 14.0);
@@ -1321,7 +1346,7 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         match index {
             Some(i) if compact => {
                 let pw = ui.word_pill(info_x, cy - 3.0, Language::English.word(i), open_word(i));
-                let line = format!("= {i} · word {}", i + 1);
+                let line = fill(FEN.keygen_word, &[&i.to_string(), &(i + 1).to_string()]);
                 ui.text_mid(info_x + pw + 8.0, cy - 3.0, 26.0, 12.0, W::R, MUTED, &line);
             }
             Some(i) => {
@@ -1333,7 +1358,10 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     12.0,
                     W::R,
                     MUTED,
-                    &format!("= {i} · word {} of the list", i + 1),
+                    &fill(
+                        FEN.keygen_word_of_the,
+                        &[&i.to_string(), &(i + 1).to_string()],
+                    ),
                 );
             }
             None if compact => {
@@ -1367,7 +1395,10 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 ),
             })
             .collect();
-        let note = format!("{} of {per} rolls", got.len());
+        let note = fill(
+            FEN.keygen_of_rolls,
+            &[&got.len().to_string(), &per.to_string()],
+        );
         row(ui, cy, slot, &cells, None, live.get(slot).copied(), &note);
         cy += 50.0 + info_y;
     }
@@ -1408,7 +1439,7 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         &cells,
         Some(&sum),
         made,
-        "The checksum, from all the other bits, once every roll is in",
+        FEN.keygen_the_checksum,
     );
     cy + 58.0 + info_y
 }
@@ -1443,7 +1474,7 @@ fn device_rows(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let rows = [
         (EN.create_device_row, EN.create_device_os, TEXT),
         (EN.create_trust_row, EN.create_trust_device, WARN),
-        ("Result", EN.create_device_result, WARN),
+        (FEN.keygen_result, EN.create_device_result, WARN),
     ];
     let mut cy = y;
     for (label, value, tone) in rows {
@@ -1514,7 +1545,7 @@ fn check(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy,
         w,
         &[(again_label(k), Style::Ghost, Action::KAgain)],
-        Some(("Continue", Action::KNext)),
+        Some((FEN.keygen_continue, Action::KNext)),
     );
     cy - y
 }
@@ -1524,7 +1555,7 @@ fn again_label(k: &KeyGen) -> &'static str {
     match k.active().or(k.source) {
         Some(Source::Cards) => EN.create_sanity_again_draw,
         Some(Source::Camera) => EN.create_sanity_again_take,
-        Some(Source::Device) => "Start again",
+        Some(Source::Device) => FEN.keygen_start_again,
         _ => EN.create_sanity_again,
     }
 }
@@ -1541,7 +1572,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
         Some(Source::Dice) => {
             let st = k.dice.stats();
             let n = k.dice.len();
-            cy = stat(ui, x, cy, "Rolls", &n.to_string(), TEXT);
+            cy = stat(ui, x, cy, FEN.keygen_rolls, &n.to_string(), TEXT);
             let counts = st
                 .counts
                 .iter()
@@ -1549,7 +1580,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 .map(|(i, c)| format!("{}:{c}", i + 1))
                 .collect::<Vec<_>>()
                 .join("  ");
-            cy = stat(ui, x, cy, "Faces", &counts, TEXT);
+            cy = stat(ui, x, cy, FEN.keygen_faces, &counts, TEXT);
             if !k.procedure().direct() {
                 let high = st.chi_square > osk_entropy::DICE_CHI_SQUARE_LIMIT
                     && n >= osk_entropy::DICE_SKEW_MIN;
@@ -1602,10 +1633,10 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 .map(|(s, c)| format!("{s} {c}"))
                 .collect::<Vec<_>>()
                 .join("   ");
-            cy = stat(ui, x, cy, "Suits", &suits, TEXT);
+            cy = stat(ui, x, cy, FEN.keygen_suits, &suits, TEXT);
         }
         Some(Source::Hex) => {
-            cy = stat(ui, x, cy, "Digits", &k.hex.len().to_string(), TEXT);
+            cy = stat(ui, x, cy, FEN.keygen_digits, &k.hex.len().to_string(), TEXT);
         }
         Some(Source::Camera) => {
             cy = stat(
@@ -1635,7 +1666,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                     x,
                     cy,
                     &format!("{}. {}", i + 1, source_name(*s)),
-                    &format!("SHA-256 {hex}…"),
+                    &fill(FEN.keygen_sha_256, &[&hex.to_string()]),
                     TEXT,
                 );
             }
@@ -1651,7 +1682,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
 fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let Some(ind) = k.share_indices(k.share_at) else {
-        ui.text(x, cy, 13.0, W::R, MUTED, "Not made yet");
+        ui.text(x, cy, 13.0, W::R, MUTED, FEN.keygen_not_made_yet);
         return 26.0;
     };
     if let Some(fp) = k.fingerprint {
@@ -1659,7 +1690,7 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ui,
             x,
             cy,
-            "Fingerprint",
+            FEN.keygen_fingerprint,
             &fp_text(osk_bip::keys::Fingerprint(fp)),
             TEXT,
         );
@@ -1668,12 +1699,14 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ui,
         x,
         cy,
-        "Share",
-        &format!(
-            "{} of {} · {} needed",
-            k.share_at + 1,
-            k.shares.len(),
-            k.slip_m
+        FEN.keygen_share,
+        &fill(
+            FEN.keygen_of_needed,
+            &[
+                &(k.share_at + 1).to_string(),
+                &k.shares.len().to_string(),
+                &k.slip_m.to_string(),
+            ],
         ),
         TEXT,
     );
@@ -1700,7 +1733,11 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy,
         None,
         40.0,
-        if k.shown { "Hide words" } else { "Show words" },
+        if k.shown {
+            FEN.keygen_hide_words
+        } else {
+            FEN.keygen_show_words
+        },
         Style::Secondary,
         Action::KShow,
     ) + 8.0;
@@ -1710,7 +1747,7 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy,
             None,
             40.0,
-            "Previous share",
+            FEN.keygen_previous_share,
             Style::Secondary,
             Action::KShare(-1),
         ) + 8.0;
@@ -1719,20 +1756,24 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // small panel.
     if k.share_at + 1 < k.shares.len() {
         if ui.pinning {
-            ui.pin = Some(("Next share".to_string(), Style::Primary, Action::KShare(1)));
+            ui.pin = Some((
+                FEN.keygen_next_share.to_string(),
+                Style::Primary,
+                Action::KShare(1),
+            ));
         } else {
             ui.button(
                 bx,
                 cy,
                 None,
                 40.0,
-                "Next share",
+                FEN.keygen_next_share,
                 Style::Primary,
                 Action::KShare(1),
             );
         }
     } else {
-        let _ = next_button(ui, x, cy, w, "I wrote them all down", Action::KNext);
+        let _ = next_button(ui, x, cy, w, FEN.keygen_i_wrote_them_all, Action::KNext);
     }
     cy + 48.0 - y
 }
@@ -1743,7 +1784,7 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     let mut cy = y;
     let Some(m) = k.mnemonic.as_ref() else {
-        ui.text(x, cy, 13.0, W::R, MUTED, "Not made yet");
+        ui.text(x, cy, 13.0, W::R, MUTED, FEN.keygen_not_made_yet);
         return 26.0;
     };
     if let Some(fp) = k.fingerprint {
@@ -1751,12 +1792,19 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ui,
             x,
             cy,
-            "Fingerprint",
+            FEN.keygen_fingerprint,
             &fp_text(osk_bip::keys::Fingerprint(fp)),
             TEXT,
         );
     }
-    cy = stat(ui, x, cy, "Source", &summary(k, kstep::SOURCE), TEXT);
+    cy = stat(
+        ui,
+        x,
+        cy,
+        FEN.keygen_source,
+        &summary(k, kstep::SOURCE),
+        TEXT,
+    );
     cy += 6.0;
     cy += word_grid(ui, m.indices(), k.shown, x, cy, w);
     if let Some(n) = &k.note {
@@ -1769,11 +1817,15 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy,
         w,
         &[(
-            if k.shown { "Hide words" } else { "Show words" },
+            if k.shown {
+                FEN.keygen_hide_words
+            } else {
+                FEN.keygen_show_words
+            },
             Style::Secondary,
             Action::KShow,
         )],
-        Some(("I wrote them down", Action::KNext)),
+        Some((FEN.keygen_i_wrote_them, Action::KNext)),
     );
     cy - y
 }
@@ -1784,7 +1836,7 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use opensigner_core::quiz::QuizState;
     let mut cy = y;
     let Some(q) = k.quiz.as_ref() else {
-        ui.text(x, cy, 13.0, W::R, DIM, "Show the words first");
+        ui.text(x, cy, 13.0, W::R, DIM, FEN.keygen_show_the_words_first);
         return 26.0;
     };
     let (done, n) = q.progress();
@@ -1794,19 +1846,22 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 ui,
                 x,
                 cy,
-                "Fingerprint",
+                FEN.keygen_fingerprint,
                 &fp_text(osk_bip::keys::Fingerprint(fp)),
                 TEXT,
             );
         }
         let (said, tone) = if q.state() == QuizState::Passed && k.slip39 {
-            (format!("All {} shares right", k.shares.len()), OK)
+            (
+                fill(FEN.keygen_all_shares_right, &[&k.shares.len().to_string()]),
+                OK,
+            )
         } else if q.state() == QuizState::Passed {
-            (format!("All {n} words right"), OK)
+            (fill(FEN.keygen_all_words_right, &[&n.to_string()]), OK)
         } else {
-            ("Skipped: the copy is not checked".to_string(), WARN)
+            (FEN.keygen_skipped_the.to_string(), WARN)
         };
-        cy = stat(ui, x, cy, "Quiz", &said, tone);
+        cy = stat(ui, x, cy, FEN.keygen_quiz, &said, tone);
         if let Some(e) = &k.note {
             ui.text(x, cy, 13.0, W::R, ERR, e);
             cy += 24.0;
@@ -1815,23 +1870,27 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         // A BIP-39 key was added at Lock in: the quiz's last button only
         // ends the flow.
         let label = if !k.slip39 {
-            "Done"
+            FEN.keygen_done
         } else if k.slot.is_some() {
-            "Use this key"
+            FEN.keygen_use_this_key
         } else {
-            "Add key"
+            FEN.keygen_add_key
         };
         let drawn = next_button(ui, x, cy, w, label, Action::KAdd);
         return cy + (if drawn { 48.0 } else { 8.0 }) - y;
     }
     let progress = if k.slip39 {
-        format!(
-            "Share {} of {} · {done} of {n} right",
-            k.quiz_share + 1,
-            k.shares.len()
+        fill(
+            FEN.keygen_share_of_of,
+            &[
+                &(k.quiz_share + 1).to_string(),
+                &k.shares.len().to_string(),
+                &done.to_string(),
+                &n.to_string(),
+            ],
         )
     } else {
-        format!("{done} of {n} right")
+        fill(FEN.keygen_of_right, &[&done.to_string(), &n.to_string()])
     };
     ui.text(x, cy, 13.0, W::R, MUTED, &progress);
     cy += 26.0;
@@ -1841,7 +1900,7 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         18.0,
         W::S,
         TEXT,
-        &format!("Which is word {}?", q.position() + 1),
+        &fill(FEN.keygen_which_is_word, &[&(q.position() + 1).to_string()]),
     );
     cy += 40.0;
     let wrong = q.wrong_slot();
@@ -1869,21 +1928,13 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     cy += q.choices().len().div_ceil(per) as f32 * 56.0 + 4.0;
     if q.state() == QuizState::Wrong {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            13.0,
-            W::R,
-            ERR,
-            "Not that one. Check your copy against the words",
-        ) + 10.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, FEN.keygen_not_that_one) + 10.0;
         let aw = ui.button(
             x,
             cy,
             None,
             40.0,
-            "Ask it again",
+            FEN.keygen_ask_it_again,
             Style::Secondary,
             Action::KQuizRetry,
         );
@@ -1892,31 +1943,23 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy,
             None,
             40.0,
-            "Show the words",
+            FEN.keygen_show_the_words,
             Style::Ghost,
             Action::KStep(kstep::WORDS),
         );
         cy += 52.0;
     }
     if k.skip_ask {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            13.0,
-            W::R,
-            WARN,
-            "Without the quiz, a word copied wrongly is found only when the backup is needed",
-        ) + 10.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, WARN, FEN.keygen_without_the) + 10.0;
         ui.button(
             x,
             cy,
             None,
             40.0,
             if k.slip39 {
-                "Skip and add the key"
+                FEN.keygen_skip_and_add
             } else {
-                "Skip the quiz"
+                FEN.keygen_skip_the_quiz
             },
             Style::Secondary,
             Action::KSkip,
@@ -1927,7 +1970,7 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy,
             None,
             40.0,
-            "Skip the quiz",
+            FEN.keygen_skip_the_quiz,
             Style::Ghost,
             Action::KSkip,
         );
@@ -1943,9 +1986,9 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         W::R,
         DIM,
         if k.slip39 {
-            "Type 1 to 4 to pick · Enter adds the key once it passes"
+            FEN.keygen_type_1_to_4_to
         } else {
-            "Type 1 to 4 to pick · Enter is Done once it passes"
+            FEN.keygen_type_1_to_4
         },
     );
     cy + 24.0 - y

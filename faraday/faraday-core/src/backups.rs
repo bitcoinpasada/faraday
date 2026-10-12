@@ -9,7 +9,9 @@
 //! power-off, as the checked wallets are. A place's name is never in
 //! them: names are kept in the vault alone.
 
+use crate::strings::EN;
 use faraday_vault::records::{field, kind};
+use opensigner_core::strings::fill;
 
 use crate::backup::Tone;
 use crate::plan::{self, At, Tag, What};
@@ -458,9 +460,12 @@ impl Faraday {
                     continue;
                 }
                 let w = Wallet {
-                    name: r.text(field::WALLET_NAME).unwrap_or("Wallet").to_string(),
+                    name: r
+                        .text(field::WALLET_NAME)
+                        .unwrap_or(EN.backups_wallet)
+                        .to_string(),
                     policy,
-                    source: "Vault".to_string(),
+                    source: EN.backups_vault.to_string(),
                 };
                 out.push(Entry {
                     lines: self.backup_lines(&w, None, &sum),
@@ -482,10 +487,10 @@ impl Faraday {
                 let lines = match self.backup_records.iter().find(|r| &r.sum == sum) {
                     Some(r) => Some(self.record_lines(r, sum, &[])),
                     None if s.planned.contains(sum) => Some(vec![Line {
-                        place: "Plan".to_string(),
+                        place: EN.backups_plan.to_string(),
                         holds: String::new(),
                         tag: None,
-                        state: format!("In {} · locked", s.name),
+                        state: fill(EN.backups_in_locked, &[&s.name.to_string()]),
                         tone: Tone::Dim,
                         at: None,
                         paper: false,
@@ -546,35 +551,39 @@ impl Faraday {
                         .get(p)
                         .map(|n| n.trim())
                         .filter(|n| !n.is_empty())
-                        .map_or_else(|| format!("Place {}", p + 1), str::to_string),
-                    At::Vault(_) if vaults == 1 => "Vault".to_string(),
-                    At::Vault(v) => format!("Vault {}", v + 1),
-                    At::Files => format!("{} of files", self.medium.cap()),
-                    At::Software => "Watch-only software".to_string(),
-                    At::Away => "Own devices".to_string(),
+                        .map_or_else(
+                            || fill(EN.backups_place, &[&(p + 1).to_string()]),
+                            str::to_string,
+                        ),
+                    At::Vault(_) if vaults == 1 => EN.backups_vault.to_string(),
+                    At::Vault(v) => fill(EN.backups_vault_n, &[&(v + 1).to_string()]),
+                    At::Files => fill(EN.backups_of_files, &[self.medium.cap()]),
+                    At::Software => EN.backups_watch_only.to_string(),
+                    At::Away => EN.backups_own_devices.to_string(),
                 };
                 let (state, tone) = match s.at {
                     At::Place(_) if !s.copies.is_empty() => {
                         if r.place_checked(i) {
-                            ("Checked".to_string(), Tone::Ok)
+                            (EN.backups_checked.to_string(), Tone::Ok)
                         } else {
-                            ("Not checked".to_string(), Tone::Warn)
+                            (EN.backups_not_checked.to_string(), Tone::Warn)
                         }
                     }
                     At::Vault(_) => self.vault_state(sum, &s.copies),
-                    At::Away => ("Not here".to_string(), Tone::Dim),
-                    _ if !s.secret.is_empty() && self.secret_out(&s.secret) => {
-                        (format!("{}, unprotected", self.medium.for_box()), Tone::Err)
-                    }
+                    At::Away => (EN.backups_not_here.to_string(), Tone::Dim),
+                    _ if !s.secret.is_empty() && self.secret_out(&s.secret) => (
+                        fill(EN.backups_unprotected, &[self.medium.for_box()]),
+                        Tone::Err,
+                    ),
                     _ if !s.files.is_empty() => self.files_state(&s.files),
-                    At::Software if r.shown => ("Shown".to_string(), Tone::Ok),
-                    At::Software => ("Not shown".to_string(), Tone::Warn),
-                    _ => ("Not seen".to_string(), Tone::Dim),
+                    At::Software if r.shown => (EN.backups_shown.to_string(), Tone::Ok),
+                    At::Software => (EN.backups_not_shown.to_string(), Tone::Warn),
+                    _ => (EN.backups_not_seen.to_string(), Tone::Dim),
                 };
                 Line {
                     place,
                     holds: if s.holds.is_empty() {
-                        "Nothing".to_string()
+                        EN.backups_nothing.to_string()
                     } else {
                         s.holds.join(", ")
                     },
@@ -614,7 +623,7 @@ impl Faraday {
         {
             return (self.medium.for_box().to_string(), Tone::Warn);
         }
-        ("Not made".to_string(), Tone::Warn)
+        (EN.backups_not_made.to_string(), Tone::Warn)
     }
 
     /// The vault that holds the seeds `seeds`, or with none, wallet `sum`,
@@ -663,9 +672,9 @@ impl Faraday {
                 .iter()
                 .any(|f| f.open.is_none() && self.vault_summary(f).is_none());
             return if unknown {
-                ("A vault is locked".to_string(), Tone::Dim)
+                (EN.backups_a_vault_is.to_string(), Tone::Dim)
             } else {
-                ("Not saved yet".to_string(), Tone::Warn)
+                (EN.backups_not_saved_yet.to_string(), Tone::Warn)
             };
         };
         let (state, tone) = match self.currency(f) {
@@ -678,8 +687,8 @@ impl Faraday {
                 (lower_first(&on_stick(&label, time, self.tz_min)), Tone::Ok)
             }
             Some(Currency::NeverWritten) => (self.medium.for_the().to_string(), Tone::Warn),
-            Some(Currency::Changed) => ("changed since written".to_string(), Tone::Warn),
-            Some(Currency::Unchanged) | None => ("unchanged".to_string(), Tone::Ok),
+            Some(Currency::Changed) => (EN.backups_changed_since.to_string(), Tone::Warn),
+            Some(Currency::Unchanged) | None => (EN.backups_unchanged.to_string(), Tone::Ok),
         };
         (format!("{} · {state}", f.name), tone)
     }
@@ -692,7 +701,7 @@ impl Faraday {
         };
         let entry = self.backups().into_iter().find(|e| e.sum == sum);
         let Some(lines) = entry.and_then(|e| e.lines) else {
-            return "Not backed up".to_string();
+            return EN.backups_not_backed.to_string();
         };
         let mut parts: Vec<String> = Vec::new();
         let paper: Vec<&Line> = lines.iter().filter(|l| l.paper).collect();
@@ -700,33 +709,42 @@ impl Faraday {
             let n = paper.len();
             let k = paper.iter().filter(|l| l.tone == Tone::Ok).count();
             parts.push(if k == n {
-                format!("paper ×{n} checked")
+                fill(EN.backups_paper_checked, &[&n.to_string()])
             } else {
-                format!("paper {k} of {n} checked")
+                fill(
+                    EN.backups_paper_of_checked,
+                    &[&k.to_string(), &n.to_string()],
+                )
             });
         }
         for l in &lines {
             match l.at {
                 Some(At::Vault(_)) => parts.push(l.state.clone()),
-                Some(At::Files) => parts.push(format!("files {}", lower_first(&l.state))),
+                Some(At::Files) => parts.push(fill(
+                    EN.backups_files,
+                    &[&lower_first(&l.state).to_string()],
+                )),
                 _ => {}
             }
         }
         if parts.is_empty() {
-            parts.push("planned".to_string());
+            parts.push(EN.backups_planned.to_string());
         }
-        format!("Backup: {}", parts.join(" · "))
+        fill(EN.backups_backup, &[&parts.join(" · ").to_string()])
     }
 }
 
 /// "On STICK, 14:02", or without the time when the clock is not known.
 fn on_stick(label: &str, time: Option<u64>, tz_min: i16) -> String {
     match time {
-        Some(t) => format!(
-            "On {label}, {}",
-            crate::vaults::time_of_day(crate::vaults::local_secs(t, tz_min))
+        Some(t) => fill(
+            EN.backups_on_2,
+            &[
+                label,
+                &crate::vaults::time_of_day(crate::vaults::local_secs(t, tz_min)).to_string(),
+            ],
         ),
-        None => format!("On {label}"),
+        None => fill(EN.backups_on, &[label]),
     }
 }
 

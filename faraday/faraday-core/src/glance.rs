@@ -15,6 +15,8 @@
 //! plan record, for the vault's view (§7.2), which draws it the other way
 //! up: the backup on top, through the keys, to the wallet at the foot.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_ui::{Color, tokens};
 
 use crate::backup::Tone;
@@ -55,10 +57,10 @@ pub struct Glance {
 
 /// What every address of a wallet with a key made here and waiting for
 /// its backup carries, in `WARN` (`docs/NEW-WALLET.md` §14.3).
-pub const RECEIVE_WARNING: &str = "Back up before you receive";
+pub const RECEIVE_WARNING: &str = EN.glance_back_up_before;
 
 /// A key node's state while its key, made here, waits for its backup.
-pub const WAITING: &str = "Waiting for its backup";
+pub const WAITING: &str = EN.glance_waiting_for;
 
 /// Where a chart is drawn, and so what its sheets' actions act on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -219,7 +221,10 @@ pub fn of_vault(app: &Faraday, v: usize, r: usize) -> Option<Glance> {
         .get(r)
         .filter(|x| x.kind == kind::WALLET)?;
     let wallet = crate::wallet::Wallet {
-        name: rec.text(field::WALLET_NAME).unwrap_or("Wallet").to_string(),
+        name: rec
+            .text(field::WALLET_NAME)
+            .unwrap_or(EN.glance_wallet)
+            .to_string(),
         policy: crate::wallet::read_wallet(rec.text(field::WALLET)?).ok()?,
         source: String::new(),
     };
@@ -316,24 +321,24 @@ fn build(
             let fingerprint = slot
                 .fingerprint
                 .map(fp_text)
-                .unwrap_or_else(|| "no origin".to_string());
+                .unwrap_or_else(|| EN.glance_no_origin.to_string());
             let passphrase = seed_of(n, slot).is_some_and(|i| shape.seeds[i].passphrase);
             let held = slot.held_by.is_some();
             // Made here, its backup not done (`docs/NEW-WALLET.md` §14.3).
             let waits = held && slot.fingerprint.is_some_and(|f| held_keys.contains(&f));
             let state = match (held, kept(slot), passphrase, any_here) {
                 _ if waits => WAITING,
-                (true, _, true, _) => "Can sign · passphrase",
-                (true, _, false, _) => "Can sign here",
-                (false, true, true, _) => "In this vault · passphrase",
-                (false, true, false, _) => "In this vault",
+                (true, _, true, _) => EN.glance_can_sign_passphrase,
+                (true, _, false, _) => EN.glance_can_sign_here,
+                (false, true, true, _) => EN.glance_in_this_vault_passphrase,
+                (false, true, false, _) => EN.glance_in_this_vault,
                 // Short of keys, one not here says so: the one Scan a key
                 // is the signatures bar's (`docs/SCAN-TO-SIGN.md` §2.3).
                 (false, false, _, _) if !quorum_here && matches!(press, Press::Loaded(_)) => {
-                    "Not here"
+                    EN.glance_not_here
                 }
-                (false, false, _, true) => "Cosigner · xpub only",
-                (false, false, _, false) => "On its own device",
+                (false, false, _, true) => EN.glance_cosigner_xpub,
+                (false, false, _, false) => EN.glance_on_its_own_device,
             };
             // A key an open vault holds loads from it, while short.
             let (action, way_in) = match slot
@@ -342,7 +347,7 @@ fn build(
             {
                 Some(f) => (
                     Some(Action::Vault(crate::vaults::VaultAction::LoadKeyOf(f.0))),
-                    Some("Load from vault"),
+                    Some(EN.glance_load_from_vault),
                 ),
                 None => (None, None),
             };
@@ -454,26 +459,32 @@ fn backup_nodes(
                 }
                 _ => None,
             })
-            .unwrap_or_else(|| format!("Vault {}", v + 1))
+            .unwrap_or_else(|| fill(EN.glance_vault, &[&(v + 1).to_string()]))
     };
     let place = |p: usize| {
         names
             .get(p)
             .map(|n| n.trim())
             .filter(|n| !n.is_empty())
-            .map_or_else(|| format!("Place {}", p + 1), str::to_string)
+            .map_or_else(
+                || fill(EN.glance_place, &[&(p + 1).to_string()]),
+                str::to_string,
+            )
     };
     let label = |what: What| match what {
-        What::Words(i) => format!("Key {} words", number(i)),
-        What::SeedQr(i) => format!("Key {} SeedQR", number(i)),
-        What::Passphrase(i) => format!("Passphrase {}", number(i)),
-        What::Sheet => "Wallet sheet".to_string(),
-        What::Share(j) => format!("Share {} of {}", j + 1, shape.keys),
-        What::VaultStick(v) => format!("{} stick", vault_name(v)),
-        What::Seed(i) => format!("Key {} seed", number(i)),
-        What::SeedPassphrase(i) => format!("Key {} seed + passphrase", number(i)),
-        What::Wallet => "Description".to_string(),
-        What::SeedFile(i) => format!("Key {} file", number(i)),
+        What::Words(i) => fill(EN.glance_key_words, &[&number(i).to_string()]),
+        What::SeedQr(i) => fill(EN.glance_key_seedqr, &[&number(i).to_string()]),
+        What::Passphrase(i) => fill(EN.glance_passphrase, &[&number(i).to_string()]),
+        What::Sheet => EN.glance_wallet_sheet.to_string(),
+        What::Share(j) => fill(
+            EN.glance_share_of,
+            &[&(j + 1).to_string(), &shape.keys.to_string()],
+        ),
+        What::VaultStick(v) => fill(EN.glance_stick, &[&vault_name(v).to_string()]),
+        What::Seed(i) => fill(EN.glance_key_seed, &[&number(i).to_string()]),
+        What::SeedPassphrase(i) => fill(EN.glance_key_seed_passphrase, &[&number(i).to_string()]),
+        What::Wallet => EN.glance_description.to_string(),
+        What::SeedFile(i) => fill(EN.glance_key_file, &[&number(i).to_string()]),
     };
     // The small panel names the keys a vault's stick opens.
     let keys_label = |what: What| match what {
@@ -481,12 +492,12 @@ fn backup_nodes(
             let inside: Vec<String> = a
                 .vault_seeds(shape, v)
                 .into_iter()
-                .map(|i| format!("Key {}", number(i)))
+                .map(|i| fill(EN.glance_key, &[&number(i).to_string()]))
                 .collect();
             if inside.is_empty() {
                 label(what)
             } else {
-                format!("{} in the vault", inside.join(", "))
+                fill(EN.glance_in_the_vault, &[&inside.join(", ").to_string()])
             }
         }
         _ => label(what),
@@ -540,15 +551,17 @@ fn backup_nodes(
         .filter(|spot| !(spot.at == At::Away && any_here))
         .map(|spot| {
             let label = |w: What| match w {
-                What::VaultStick(v) if copy_of(spot.at, v) => format!("{} · copy", vault_name(v)),
+                What::VaultStick(v) if copy_of(spot.at, v) => {
+                    fill(EN.glance_copy, &[&vault_name(v).to_string()])
+                }
                 w => label(w),
             };
             let name = match spot.at {
                 At::Place(p) => place(p),
                 At::Vault(v) => vault_name(v),
-                At::Files => format!("{} of files", app.medium.cap()),
-                At::Software => "Watch-only software".to_string(),
-                At::Away => "On its own device".to_string(),
+                At::Files => fill(EN.glance_of_files, &[app.medium.cap()]),
+                At::Software => EN.glance_watch_only_software.to_string(),
+                At::Away => EN.glance_on_its_own_device.to_string(),
             };
             let stick = match spot.at {
                 At::Vault(v) => {
@@ -564,9 +577,9 @@ fn backup_nodes(
                         })
                         .collect();
                     Some(if at.is_empty() {
-                        "Its own stick".to_string()
+                        EN.glance_its_own_stick.to_string()
                     } else {
-                        format!("Stick at {}", at.join(", "))
+                        fill(EN.glance_stick_at, &[&at.join(", ").to_string()])
                     })
                 }
                 _ => None,
@@ -586,14 +599,14 @@ fn backup_nodes(
                 }
             }
             let state = match spot.at {
-                At::Away => Some(("Not here".to_string(), Tone::Dim)),
+                At::Away => Some((EN.glance_not_here.to_string(), Tone::Dim)),
                 at => lines
                     .iter()
                     .find(|l| l.at == Some(at))
                     .map(|l| (l.state.clone(), l.tone)),
             };
             let alone = match spot.at {
-                At::Vault(_) => Some("Sealed".to_string()),
+                At::Vault(_) => Some(EN.glance_sealed.to_string()),
                 At::Away => None,
                 at => Some(plan::alone(shape, a, at).text().to_string()),
             };
@@ -611,17 +624,17 @@ fn backup_nodes(
                     worst(&spot.holds)
                 },
                 holds: if spot.holds.is_empty() {
-                    vec!["Nothing".to_string()]
+                    vec![EN.glance_nothing.to_string()]
                 } else {
                     spot.holds.iter().map(|(w, _)| label(*w)).collect()
                 },
                 keys_held: if spot.holds.is_empty() {
-                    "Nothing".to_string()
+                    EN.glance_nothing.to_string()
                 } else {
                     spot.holds
                         .iter()
                         .map(|(w, _)| match note_of(spot.at, *w).0 {
-                            Some(m) => format!("{} ({})", keys_label(*w), m.name()),
+                            Some(m) => format!("{} ({})", keys_label(*w), m.label()),
                             None => keys_label(*w),
                         })
                         .collect::<Vec<_>>()
@@ -800,9 +813,9 @@ impl Node {
 /// "Checked" when the clock was not known.
 pub(crate) fn checked_text(d: &str) -> String {
     if d.is_empty() {
-        "Checked".to_string()
+        EN.glance_checked.to_string()
     } else {
-        format!("Checked {d}")
+        fill(EN.glance_checked_n, &[d])
     }
 }
 
@@ -826,11 +839,11 @@ fn tone_color(t: Tone) -> Color {
 /// How what a spot gives alone reads: spending in the clear is a warning,
 /// a vault's seal the accent, nothing at all is good.
 fn alone_color(s: &str) -> Color {
-    if s == "Can spend" {
+    if s == EN.glance_can_spend {
         WARN
-    } else if s == "Nothing" {
+    } else if s == EN.glance_nothing {
         OK
-    } else if s.contains("vault") || s == "Sealed" {
+    } else if s.contains("vault") || s == EN.glance_sealed {
         ACCENT
     } else {
         MUTED
@@ -897,7 +910,10 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                 lines.push(Text::new(way, tokens::CAPTION, W::S, tone).pressed(k.action));
             }
             Node {
-                title: format!("Key {} · {}", k.number, k.fingerprint),
+                title: fill(
+                    EN.glance_key_2,
+                    &[&k.number.to_string(), &k.fingerprint.to_string()],
+                ),
                 tag: None,
                 lines,
                 button: None,
@@ -922,7 +938,7 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                                 .flatten();
                             match n.marks.get(j).copied().flatten() {
                                 Some(m) => Text::new(
-                                    format!("{h} · {}", m.name()),
+                                    format!("{h} · {}", m.label()),
                                     tokens::CAPTION,
                                     W::R,
                                     ERR,
@@ -947,7 +963,7 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                 }
                 Node {
                     title: n.name.clone(),
-                    tag: Some((n.tag.name(), tag_color(n.tag))),
+                    tag: Some((n.tag.label(), tag_color(n.tag))),
                     lines,
                     button: None,
                     action: open(Target::Node(i as u8)),
@@ -955,22 +971,26 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
             })
             .collect(),
         Backup::Locked { vault, unlock } => vec![Node {
-            title: format!("Plan in {vault}, locked"),
+            title: fill(EN.glance_plan_in_locked, &[&vault.to_string()]),
             tag: None,
             lines: Vec::new(),
-            button: Some(("Unlock".to_string(), Style::Secondary, *unlock)),
+            button: Some((EN.glance_unlock.to_string(), Style::Secondary, *unlock)),
             action: None,
         }],
         Backup::None => vec![match g.press {
             Press::Loaded(w) => Node {
-                title: "No backup plan".to_string(),
+                title: EN.glance_no_backup_plan_2.to_string(),
                 tag: None,
                 lines: Vec::new(),
-                button: Some(("Back up".to_string(), Style::Secondary, Action::Backup(w))),
+                button: Some((
+                    EN.glance_back_up.to_string(),
+                    Style::Secondary,
+                    Action::Backup(w),
+                )),
                 action: None,
             },
             Press::Vault(..) => Node {
-                title: "No backup plan in this vault".to_string(),
+                title: EN.glance_no_backup_plan.to_string(),
                 tag: None,
                 lines: Vec::new(),
                 button: None,
@@ -1498,8 +1518,16 @@ pub(crate) fn draw_column_with(
         cy += check_lines(ui, x, cy, width, c, false) + tokens::PAD;
     }
     let order = match direction {
-        Direction::WalletFirst => [("", wallet), ("Keys", keys), ("Backup", backup)],
-        Direction::BackupFirst => [("Backup", backup), ("Keys", keys), ("Wallet", wallet)],
+        Direction::WalletFirst => [
+            ("", wallet),
+            (EN.glance_keys, keys),
+            (EN.glance_backup, backup),
+        ],
+        Direction::BackupFirst => [
+            (EN.glance_backup, backup),
+            (EN.glance_keys, keys),
+            (EN.glance_wallet, wallet),
+        ],
     };
     for (heading, nodes) in order {
         if !heading.is_empty() {
@@ -1534,15 +1562,15 @@ pub(crate) fn thing_label(g: Option<&Glance>, what: What) -> String {
             .map_or(i + 1, |k| k.number)
     };
     match what {
-        What::Words(i) => format!("Key {} words", number(i)),
-        What::SeedQr(i) => format!("Key {} SeedQR", number(i)),
-        What::Passphrase(i) => format!("Passphrase {}", number(i)),
-        What::Sheet => "Wallet sheet".to_string(),
-        What::Share(j) => format!("Share {}", j + 1),
-        What::VaultStick(v) => format!("Vault {} · copy", v + 1),
-        What::Seed(i) => format!("Key {} seed", number(i)),
-        What::SeedPassphrase(i) => format!("Key {} seed + passphrase", number(i)),
-        What::Wallet => "The description".to_string(),
-        What::SeedFile(i) => format!("Key {}", number(i)),
+        What::Words(i) => fill(EN.glance_key_words, &[&number(i).to_string()]),
+        What::SeedQr(i) => fill(EN.glance_key_seedqr, &[&number(i).to_string()]),
+        What::Passphrase(i) => fill(EN.glance_passphrase, &[&number(i).to_string()]),
+        What::Sheet => EN.glance_wallet_sheet.to_string(),
+        What::Share(j) => fill(EN.glance_share, &[&(j + 1).to_string()]),
+        What::VaultStick(v) => fill(EN.glance_vault_copy, &[&(v + 1).to_string()]),
+        What::Seed(i) => fill(EN.glance_key_seed, &[&number(i).to_string()]),
+        What::SeedPassphrase(i) => fill(EN.glance_key_seed_passphrase, &[&number(i).to_string()]),
+        What::Wallet => EN.glance_the_description.to_string(),
+        What::SeedFile(i) => fill(EN.glance_key, &[&number(i).to_string()]),
     }
 }

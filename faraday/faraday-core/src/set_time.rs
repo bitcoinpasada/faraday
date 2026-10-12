@@ -3,6 +3,8 @@
 //! the shell's own clock; Faraday never writes the computer's clock
 //! itself (`docs/TOTP.md` decision 7).
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_shell_api::Key as KeyIn;
 
 use crate::vaults::TextBox;
@@ -112,7 +114,7 @@ impl Faraday {
                     crate::vaults::time_of_day_secs(local)
                 )
             }
-            None => "Not known".to_string(),
+            None => EN.set_time_not_known.to_string(),
         }
     }
 
@@ -175,7 +177,10 @@ impl Faraday {
             + (self.now_ms.saturating_sub(self.vaults.clock_at_ms) / 1000) as i64;
         self.vaults.clock_offset = Some(utc - raw);
         self.vaults.clock_checked = true;
-        self.toast(&format!("Time set to {h:02}:{mi:02}"));
+        self.toast(&fill(
+            EN.set_time_time_set_to,
+            &[&format!("{h:02}"), &format!("{mi:02}")],
+        ));
         self.screen = self.set_time.back_to;
         self.save_boxes();
     }

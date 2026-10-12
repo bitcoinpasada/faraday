@@ -5,6 +5,8 @@
 //! go to the Outbox as PDFs on every shell; the device itself prints
 //! nothing. Neither sheet carries a secret ([`crate::backup`]).
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_codec::qr::{Ecc, Payload, QrMatrix, encode};
 
 use crate::backup::structural_fixed;
@@ -171,12 +173,12 @@ fn document(pages: Vec<Page>) -> Vec<u8> {
         &mut offsets,
         format!("<< /Type /Pages /Kids [{}] /Count {n} >>", kids.join(" ")).as_bytes(),
     );
-    for base in ["Helvetica", "Helvetica-Bold", "Courier"] {
+    for base in ["/Helvetica", "/Helvetica-Bold", "/Courier"] {
         obj(
             &mut out,
             &mut offsets,
             format!(
-                "<< /Type /Font /Subtype /Type1 /BaseFont /{base} /Encoding /WinAnsiEncoding >>"
+                "<< /Type /Font /Subtype /Type1 /BaseFont {base} /Encoding /WinAnsiEncoding >>"
             )
             .as_bytes(),
         );
@@ -218,7 +220,7 @@ fn document(pages: Vec<Page>) -> Vec<u8> {
 fn fields(text: &str) -> Result<Vec<(String, String)>, String> {
     let mut lines = text.lines();
     if lines.next().map(str::trim) != Some("faraday-sheet 1") {
-        return Err("not a Faraday sheet".into());
+        return Err(EN.pdf_not_a_faraday_sheet.into());
     }
     Ok(lines
         .filter_map(|l| {
@@ -240,40 +242,32 @@ pub fn sheet(text: &str) -> Result<Vec<u8>, String> {
         Some("blank") => blank_sheet(&f),
         Some("share") => Ok(share_sheet(&f)),
         Some("envelopes") => Ok(envelopes_sheet(&f)),
-        other => Err(format!(
-            "a sheet of kind {other:?} is not one this build prints"
-        )),
+        other => Err(fill(EN.pdf_a_sheet_of_kind, &[&format!("{other:?}")])),
     }
 }
 
 fn wallet_sheet(f: &[(String, String)]) -> Vec<u8> {
     let mut p = Page::default();
-    let name = get(f, "name").unwrap_or("Wallet");
+    let name = get(f, "name").unwrap_or(EN.pdf_wallet);
     let mut y = MARGIN;
     p.text(
         MARGIN,
         y,
         20.0,
         Font::Bold,
-        &format!("{name} · wallet backup"),
+        &fill(EN.pdf_wallet_backup, &[name]),
     );
     y += 30.0;
     p.text(MARGIN, y, 11.0, Font::Sans, get(f, "shape").unwrap_or(""));
     y += 18.0;
-    p.text(
-        MARGIN,
-        y,
-        10.0,
-        Font::Sans,
-        "Xpubs only. This sheet spends nothing; with the seeds it rebuilds the wallet.",
-    );
+    p.text(MARGIN, y, 10.0, Font::Sans, EN.pdf_xpubs_only_this);
     y += 28.0;
     let descriptor = get(f, "descriptor").unwrap_or("");
     let qr_side = 190.0;
     if let Ok(m) = encode(Payload::Bytes(descriptor.as_bytes()), Ecc::Medium) {
         p.qr(&m, PAGE_W - MARGIN - qr_side, y, qr_side);
     }
-    p.text(MARGIN, y, 10.0, Font::Bold, "Descriptor");
+    p.text(MARGIN, y, 10.0, Font::Bold, EN.pdf_descriptor);
     y += 16.0;
     let used = p.wrapped(
         MARGIN,
@@ -284,21 +278,21 @@ fn wallet_sheet(f: &[(String, String)]) -> Vec<u8> {
         descriptor,
     );
     y = (y + used).max(y + qr_side - 16.0) + 24.0;
-    p.text(MARGIN, y, 10.0, Font::Bold, "Xpubs");
+    p.text(MARGIN, y, 10.0, Font::Bold, EN.pdf_xpubs);
     y += 16.0;
     for (k, v) in f.iter().filter(|(k, _)| k == "key") {
         let _ = k;
         y += p.wrapped(MARGIN, y, PAGE_W - 2.0 * MARGIN, 8.0, Font::Mono, v) + 6.0;
     }
     y += 14.0;
-    p.text(MARGIN, y, 10.0, Font::Bold, "First addresses");
+    p.text(MARGIN, y, 10.0, Font::Bold, EN.pdf_first_addresses);
     y += 16.0;
     for (_, v) in f.iter().filter(|(k, _)| k == "address") {
         p.text(MARGIN, y, 8.5, Font::Mono, v);
         y += 13.0;
     }
     y += 30.0;
-    for label in ["Written on", "Kept at", "Goes with seed of key"] {
+    for label in [EN.pdf_written_on, EN.pdf_kept_at, EN.pdf_goes_with_seed] {
         p.text(MARGIN, y, 10.0, Font::Sans, label);
         p.line(
             MARGIN + 130.0,
@@ -310,7 +304,13 @@ fn wallet_sheet(f: &[(String, String)]) -> Vec<u8> {
         );
         y += 26.0;
     }
-    p.text(MARGIN, PAGE_H - MARGIN, 8.0, Font::Sans, "Made by Faraday. Check the first address against your wallet software before relying on this sheet.");
+    p.text(
+        MARGIN,
+        PAGE_H - MARGIN,
+        8.0,
+        Font::Sans,
+        EN.pdf_made_by_faraday_check,
+    );
     document(vec![p])
 }
 
@@ -318,9 +318,15 @@ fn wallet_sheet(f: &[(String, String)]) -> Vec<u8> {
 /// under it, a line to tick each.
 fn envelopes_sheet(f: &[(String, String)]) -> Vec<u8> {
     let mut p = Page::default();
-    let name = get(f, "name").unwrap_or("Wallet");
+    let name = get(f, "name").unwrap_or(EN.pdf_wallet);
     let mut y = MARGIN;
-    p.text(MARGIN, y, 20.0, Font::Bold, &format!("{name} · envelopes"));
+    p.text(
+        MARGIN,
+        y,
+        20.0,
+        Font::Bold,
+        &fill(EN.pdf_envelopes, &[name]),
+    );
     y += 30.0;
     p.text(MARGIN, y, 11.0, Font::Sans, get(f, "shape").unwrap_or(""));
     y += 30.0;
@@ -346,7 +352,7 @@ fn envelopes_sheet(f: &[(String, String)]) -> Vec<u8> {
 /// and its lines as text and as a QR code to scan.
 fn share_sheet(f: &[(String, String)]) -> Vec<u8> {
     let mut p = Page::default();
-    let name = get(f, "name").unwrap_or("Wallet");
+    let name = get(f, "name").unwrap_or(EN.pdf_wallet);
     let part = get(f, "part").unwrap_or("");
     let quorum = get(f, "quorum").unwrap_or("");
     let mut y = MARGIN;
@@ -355,7 +361,7 @@ fn share_sheet(f: &[(String, String)]) -> Vec<u8> {
         y,
         20.0,
         Font::Bold,
-        &format!("{name} · split backup, sheet {part}"),
+        &fill(EN.pdf_split_backup_sheet, &[name, part]),
     );
     y += 30.0;
     p.text(MARGIN, y, 11.0, Font::Sans, get(f, "shape").unwrap_or(""));
@@ -365,10 +371,7 @@ fn share_sheet(f: &[(String, String)]) -> Vec<u8> {
         y,
         10.0,
         Font::Sans,
-        &format!(
-            "Part of the wallet's descriptor: xpubs only, it spends nothing. Sheets enough to \
-             hold every xpub ({quorum} wallet) rebuild it."
-        ),
+        &fill(EN.pdf_part_of_the_wallet, &[quorum]),
     );
     y += 28.0;
     let lines: Vec<&str> = f
@@ -396,7 +399,7 @@ fn share_sheet(f: &[(String, String)]) -> Vec<u8> {
         PAGE_H - MARGIN,
         8.0,
         Font::Sans,
-        "Made by Faraday. Scan the code into Faraday, or type the lines, one sheet at a time.",
+        EN.pdf_made_by_faraday,
     );
     document(vec![p])
 }
@@ -404,7 +407,7 @@ fn share_sheet(f: &[(String, String)]) -> Vec<u8> {
 fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
     let words: usize = get(f, "words").and_then(|w| w.parse().ok()).unwrap_or(24);
     if words != 12 && words != 24 {
-        return Err("the template is for 12 or 24 words".into());
+        return Err(EN.pdf_the_template_is.into());
     }
     let mut p = Page::default();
     let mut y = MARGIN;
@@ -413,7 +416,7 @@ fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
         y,
         18.0,
         Font::Bold,
-        &format!("Seed sheet · {words} words"),
+        &fill(EN.pdf_seed_sheet_words, &[&words.to_string()]),
     );
     y += 26.0;
     if let Some(name) = get(f, "name") {
@@ -426,17 +429,11 @@ fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
         );
         y += 16.0;
     }
-    p.text(
-        MARGIN,
-        y,
-        9.0,
-        Font::Sans,
-        "Written by hand. Never photographed, scanned or printed once filled in.",
-    );
+    p.text(MARGIN, y, 9.0, Font::Sans, EN.pdf_written_by_hand);
     y += 26.0;
     // The fields to fill after a test restore.
-    let network = format!("Network: {}", get(f, "network").unwrap_or("mainnet"));
-    for (i, label) in ["Fingerprint", "First address", network.as_str()]
+    let network = fill(EN.pdf_network, &[get(f, "network").unwrap_or("mainnet")]);
+    for (i, label) in [EN.pdf_fingerprint, EN.pdf_first_address, network.as_str()]
         .iter()
         .enumerate()
     {
@@ -490,7 +487,13 @@ fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
             p.text(MARGIN, gy + o + 1.0, 6.5, Font::Mono, &i.to_string());
         }
     }
-    p.text(MARGIN, PAGE_H - MARGIN, 8.0, Font::Sans, "There is no line for a passphrase. Written beside the words, it would stop being a second factor.");
+    p.text(
+        MARGIN,
+        PAGE_H - MARGIN,
+        8.0,
+        Font::Sans,
+        EN.pdf_there_is_no_line,
+    );
     // The places, to fill in by hand: a line each, nothing printed on it.
     let places: usize = get(f, "places")
         .and_then(|v| v.parse().ok())
@@ -498,13 +501,13 @@ fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
         .clamp(1, 20);
     let mut q = Page::default();
     let mut y = MARGIN;
-    q.text(MARGIN, y, 18.0, Font::Bold, "Places");
+    q.text(MARGIN, y, 18.0, Font::Bold, EN.pdf_places);
     y += 40.0;
     let right = PAGE_W - MARGIN;
     for _ in 0..places {
-        q.text(MARGIN, y, 11.0, Font::Sans, "Place");
+        q.text(MARGIN, y, 11.0, Font::Sans, EN.pdf_place);
         q.line(MARGIN + 36.0, y + 12.0, MARGIN + 196.0, y + 12.0, 0.5, 0.55);
-        q.text(MARGIN + 204.0, y, 11.0, Font::Sans, "holds");
+        q.text(MARGIN + 204.0, y, 11.0, Font::Sans, EN.pdf_holds);
         q.line(MARGIN + 238.0, y + 12.0, right, y + 12.0, 0.5, 0.55);
         q.line(MARGIN + 238.0, y + 34.0, right, y + 34.0, 0.5, 0.55);
         y += 56.0;

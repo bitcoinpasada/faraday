@@ -3,10 +3,12 @@
 //! through it are on its Learn page.
 
 use crate::screens::title;
+use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::upgrade::{Fit, Step, UpgradeState, version};
 use crate::{Action, BootPart, Faraday, Screen};
+use opensigner_core::strings::fill;
 
 /// A row of the list of sticks to upgrade.
 const ROW: f32 = 44.0;
@@ -108,7 +110,7 @@ fn source(
     w: f32,
 ) -> f32 {
     let mut y = y0;
-    let label = format!("Insert the {} Faraday started from", app.medium.noun());
+    let label = fill(EN.upgrade_insert_the, &[app.medium.noun()]);
     y += heading(
         ui,
         x,
@@ -121,9 +123,17 @@ fn source(
     let ix = x + 38.0;
     let iw = w - 38.0;
     if let Some((_, release, _)) = &u.source {
-        y += value_row(ui, ix, y, iw, "Read", &version(Some(release)), TEXT);
+        y += value_row(
+            ui,
+            ix,
+            y,
+            iw,
+            EN.upgrade_read,
+            &version(Some(release)),
+            TEXT,
+        );
     } else if u.reading {
-        y += value_row(ui, ix, y, iw, "Reading", "", MUTED);
+        y += value_row(ui, ix, y, iw, EN.upgrade_reading, "", MUTED);
     } else if let Some(why) = &u.refused {
         y += ui.wrap(ix, y, iw, 13.0, W::S, ERR, why) + 8.0;
     }
@@ -142,7 +152,7 @@ fn target(
     w: f32,
 ) -> f32 {
     let mut y = y0;
-    let label = format!("Remove it. Insert the {} to upgrade", app.medium.noun());
+    let label = fill(EN.upgrade_remove_it_insert, &[app.medium.noun()]);
     y += heading(
         ui,
         x,
@@ -185,23 +195,47 @@ fn target(
     y += value_row(ui, ix, y, iw, app.medium.cap(), disk(t), TEXT);
     if let Some(data) = app.upgrade_data_of(t) {
         let n = data.files.len();
-        let files = format!("{n} {}", if n == 1 { "file" } else { "files" });
-        y += value_row(ui, ix, y, iw, "Its data partition", &files, TEXT);
+        let files = format!(
+            "{n} {}",
+            if n == 1 {
+                EN.upgrade_file
+            } else {
+                EN.upgrade_files
+            }
+        );
+        y += value_row(ui, ix, y, iw, EN.upgrade_its_data_partition, &files, TEXT);
     }
-    y += value_row(ui, ix, y, iw, "On it", &version(t.release.as_deref()), TEXT);
-    y += value_row(ui, ix, y, iw, "To be written", &version(release), TEXT);
+    y += value_row(
+        ui,
+        ix,
+        y,
+        iw,
+        EN.upgrade_on_it,
+        &version(t.release.as_deref()),
+        TEXT,
+    );
+    y += value_row(
+        ui,
+        ix,
+        y,
+        iw,
+        EN.upgrade_to_be_written,
+        &version(release),
+        TEXT,
+    );
     let fit = u.fit(t);
     let note = match &fit {
         Fit::Fits => None,
-        Fit::Newer => Some(("Newer than this Faraday".to_string(), WARN)),
-        Fit::Dev => Some((
-            "Writes a dev build, with a serial console".to_string(),
-            WARN,
+        Fit::Newer => Some((EN.upgrade_newer_than.to_string(), WARN)),
+        Fit::Dev => Some((EN.upgrade_writes_a_dev.to_string(), WARN)),
+        Fit::Same => Some((EN.upgrade_already_this.to_string(), MUTED)),
+        Fit::TooSmall(has, needs) => Some((
+            fill(
+                EN.upgrade_boot_partition,
+                &[&has.to_string(), &needs.to_string()],
+            ),
+            ERR,
         )),
-        Fit::Same => Some(("Already this version".to_string(), MUTED)),
-        Fit::TooSmall(has, needs) => {
-            Some((format!("Boot partition {has} MB · needs {needs} MB"), ERR))
-        }
     };
     y += 8.0;
     if let Some((line, tone)) = note {
@@ -209,21 +243,19 @@ fn target(
     }
     if let Some((why, pulled)) = &u.failed {
         let line = if *pulled {
-            "Removed during the write: it does not start until upgraded again · its data \
-             partition was not written"
-                .to_string()
+            EN.upgrade_removed_during.to_string()
         } else {
-            format!("Not written: {why}")
+            fill(EN.upgrade_not_written, &[&why.to_string()])
         };
         y += ui.wrap(ix, y, iw, 13.0, W::S, ERR, &line) + 8.0;
     }
     let blocked = matches!(fit, Fit::TooSmall(..) | Fit::Same);
     let (label, style) = if u.writing.is_some() {
-        ("Writing", Style::Disabled)
+        (EN.upgrade_writing, Style::Disabled)
     } else if blocked {
-        ("Upgrade", Style::Disabled)
+        (EN.upgrade_upgrade, Style::Disabled)
     } else {
-        ("Upgrade", Style::Primary)
+        (EN.upgrade_upgrade, Style::Primary)
     };
     y += 4.0;
     ui.button(
@@ -241,7 +273,7 @@ fn target(
 /// Step 3: written, and the stick out. Returns its height.
 fn done(app: &Faraday, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    y += heading(ui, x, y, w, 3, "Done", (step == Step::Done, false));
+    y += heading(ui, x, y, w, 3, EN.upgrade_done, (step == Step::Done, false));
     let Some((id, release)) = &u.done else {
         return y - y0;
     };
@@ -252,20 +284,24 @@ fn done(app: &Faraday, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f3
         ix,
         y,
         iw,
-        "Written, read back and matched",
+        EN.upgrade_written_read,
         &version(Some(release)),
         OK,
     );
     let still_in = u.parts.iter().any(|p| &p.id == id);
     if still_in {
-        let line = format!("Remove the {}", app.medium.noun());
+        let line = fill(EN.upgrade_remove_the, &[app.medium.noun()]);
         y += value_row(ui, ix, y, iw, &line, "", MUTED);
     }
     y += 12.0;
-    let again = format!("Upgrade another {}", app.medium.noun());
+    let again = fill(EN.upgrade_upgrade_another, &[app.medium.noun()]);
     let items = [
         (again.as_str(), Style::Secondary, Action::UpgradeAgain),
-        ("Done", Style::Primary, Action::Nav(Screen::Settings)),
+        (
+            EN.upgrade_done,
+            Style::Primary,
+            Action::Nav(Screen::Settings),
+        ),
     ];
     if ui.compact {
         y += crate::compact::buttons(ui, ix, y, iw, &items);

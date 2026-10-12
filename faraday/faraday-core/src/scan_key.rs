@@ -5,6 +5,8 @@
 //! has none, and one that matches nothing goes to the passphrase sheet
 //! (`seed_read`), which takes it only for a missing key of the wallet.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_bip::keys::Fingerprint;
 use osk_shell_api::Command;
 
@@ -88,7 +90,7 @@ impl Faraday {
             .get(w)
             .map(|wl| wl.name.as_str())
             .unwrap_or_default();
-        format!("{} is not one of {name}'s keys", fp_text(fp))
+        fill(EN.scan_key_is_not_one, &[&fp_text(fp).to_string(), name])
     }
 
     /// The keys the key scanner for wallet `w` takes, a line each:
@@ -123,7 +125,10 @@ impl Faraday {
             .filter(|(_, s)| s.held_by.is_none())
             .filter_map(|(n, s)| {
                 let fp = s.fingerprint?;
-                let line = format!("Key {} · {}", n + 1, fp_text(fp));
+                let line = fill(
+                    EN.scan_key_key,
+                    &[&(n + 1).to_string(), &fp_text(fp).to_string()],
+                );
                 Some(match place(n) {
                     Some(p) => format!("{line} · {p}"),
                     None => line,
@@ -136,14 +141,14 @@ impl Faraday {
     pub(crate) fn wallet_key_scanned(&mut self, w: usize, words: &str) {
         let Some(fp) = key_of(words, "") else {
             if let Some(scan) = self.scan.as_mut() {
-                scan.note = Some("Not a SeedQR or a CompactSeedQR".to_string());
+                scan.note = Some(EN.scan_key_not_a_seedqr.to_string());
             }
             return;
         };
         match self.wallet_key_found(w, fp) {
             Found::Here(n) => {
                 if let Some(scan) = self.scan.as_mut() {
-                    scan.note = Some(format!("Key {} · already here", n + 1));
+                    scan.note = Some(fill(EN.scan_key_key_already, &[&(n + 1).to_string()]));
                 }
             }
             Found::Missing(n) => {
@@ -194,7 +199,10 @@ impl Faraday {
         if short > 0
             && let Some(scan) = self.scan.as_mut()
         {
-            scan.note = Some(format!("Key {} added · {short} more", n + 1));
+            scan.note = Some(fill(
+                EN.scan_key_key_added_more,
+                &[&(n + 1).to_string(), &short.to_string()],
+            ));
             return;
         }
         if self.scan.take().is_some() {
@@ -204,9 +212,12 @@ impl Faraday {
             }
         }
         if short > 0 {
-            self.toast(&format!("Key {} added · {short} more", n + 1));
+            self.toast(&fill(
+                EN.scan_key_key_added_more,
+                &[&(n + 1).to_string(), &short.to_string()],
+            ));
         } else {
-            self.toast(&format!("Key {} added · Can spend", n + 1));
+            self.toast(&fill(EN.scan_key_key_added, &[&(n + 1).to_string()]));
         }
     }
 }

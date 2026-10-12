@@ -4,6 +4,7 @@
 //! extended public key, the public key and the address at the path are
 //! derived when drawn. Nothing private is shown or kept.
 
+use crate::strings::EN as FEN;
 use opensigner_core::explore::{implied_script, parse_path};
 use opensigner_core::strings::EN;
 use osk_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
@@ -52,7 +53,7 @@ impl Faraday {
     /// Opens Explore.
     pub(crate) fn explore_open(&mut self) {
         if self.session.keys.is_empty() {
-            return self.toast("Load a key first");
+            return self.toast(FEN.explore_load_a_key);
         }
         let coin = if self.session.network().is_mainnet() {
             "0"

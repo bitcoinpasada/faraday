@@ -14,6 +14,7 @@
 //! and USB video capture cards. The stick has no driver for any of them.
 
 use crate::api::Kind;
+use faraday_core::strings::EN;
 
 /// The EDID's fixed header.
 const HEADER: [u8; 8] = [0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00];
@@ -231,14 +232,14 @@ pub fn usb(d: &Usb) -> Option<Kind> {
 /// Hypervisors by a word of the firmware's maker or model strings, and
 /// the name the line gives them.
 const HYPERVISORS: [(&str, &str); 8] = [
-    ("QEMU", "QEMU"),
-    ("KVM", "KVM"),
-    ("VMWARE", "VMware"),
-    ("VIRTUALBOX", "VirtualBox"),
-    ("INNOTEK", "VirtualBox"),
-    ("XEN", "Xen"),
-    ("PARALLELS", "Parallels"),
-    ("BOCHS", "Bochs"),
+    ("QEMU", EN.vm_qemu),
+    ("KVM", EN.vm_kvm),
+    ("VMWARE", EN.vm_vmware),
+    ("VIRTUALBOX", EN.vm_virtualbox),
+    ("INNOTEK", EN.vm_virtualbox),
+    ("XEN", EN.vm_xen),
+    ("PARALLELS", EN.vm_parallels),
+    ("BOCHS", EN.vm_bochs),
 ];
 
 /// Whether this computer is a virtual machine, and its name for the
@@ -260,7 +261,7 @@ pub fn virtual_machine(maker: &str, model: &str, guest: bool) -> Option<String> 
     if words(maker).first().is_some_and(|m| m == "MICROSOFT")
         && model.to_ascii_lowercase().contains("virtual machine")
     {
-        return Some(String::from("Hyper-V"));
+        return Some(EN.vm_hyper_v.to_string());
     }
     guest.then(|| both.trim().to_string())
 }

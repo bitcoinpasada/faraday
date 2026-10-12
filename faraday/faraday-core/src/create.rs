@@ -3,6 +3,8 @@
 //! here, made here from fresh entropy, or arrive from a cosigner as an
 //! account key in a file. Nothing secret leaves the session.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, MultisigScriptType, ScriptType};
 use osk_bip::policy::{PolicyKey, WalletPolicy};
@@ -57,32 +59,32 @@ impl NewKind {
     /// The kind's name on the card.
     pub fn name(self) -> &'static str {
         match self {
-            NewKind::NativeSegwit => "Single key · native SegWit",
-            NewKind::Taproot => "Single key · Taproot",
-            NewKind::NestedSegwit => "Single key · nested SegWit",
-            NewKind::Legacy => "Single key · legacy",
-            NewKind::Multi => "Multisig · native SegWit",
-            NewKind::MultiNested => "Multisig · nested SegWit",
-            NewKind::MultiLegacy => "Multisig · legacy",
-            NewKind::TapMulti => "Multisig · Taproot",
-            NewKind::Threshold => "Threshold · FROST",
-            NewKind::MuSig => "All keys · MuSig2",
+            NewKind::NativeSegwit => EN.create_single_key_native,
+            NewKind::Taproot => EN.create_single_key_taproot,
+            NewKind::NestedSegwit => EN.create_single_key_nested,
+            NewKind::Legacy => EN.create_single_key_legacy,
+            NewKind::Multi => EN.create_multisig_native,
+            NewKind::MultiNested => EN.create_multisig_nested,
+            NewKind::MultiLegacy => EN.create_multisig_legacy,
+            NewKind::TapMulti => EN.create_multisig_taproot,
+            NewKind::Threshold => EN.create_threshold_frost,
+            NewKind::MuSig => EN.create_all_keys_musig2,
         }
     }
 
     /// One line on what it is for.
     pub fn line(self) -> &'static str {
         match self {
-            NewKind::NativeSegwit => "bc1q addresses; what most wallets make",
-            NewKind::Taproot => "bc1p addresses; the smallest signatures",
-            NewKind::NestedSegwit => "3… addresses, for services that cannot pay bc1",
-            NewKind::Legacy => "1… addresses, for old software only",
-            NewKind::Multi => "Several keys, a quorum signs; Sparrow, Coldcard, SeedSigner",
-            NewKind::MultiNested => "Multisig with 3… addresses",
-            NewKind::MultiLegacy => "Multisig with 3… addresses, old style; avoid unless required",
-            NewKind::TapMulti => "Multisig on Taproot, one script leaf; Sparrow and Nunchuk",
-            NewKind::Threshold => "Any m of n shares sign one Taproot key; single-key on chain",
-            NewKind::MuSig => "Every key signs together, one Taproot key; single-key on chain",
+            NewKind::NativeSegwit => EN.create_bc1q_addresses,
+            NewKind::Taproot => EN.create_bc1p_addresses,
+            NewKind::NestedSegwit => EN.create_3_addresses,
+            NewKind::Legacy => EN.create_1_addresses,
+            NewKind::Multi => EN.create_several_keys,
+            NewKind::MultiNested => EN.create_multisig_with_3,
+            NewKind::MultiLegacy => EN.create_multisig_with,
+            NewKind::TapMulti => EN.create_multisig_on,
+            NewKind::Threshold => EN.create_any_m_of_n_shares,
+            NewKind::MuSig => EN.create_every_key_signs,
         }
     }
 
@@ -172,7 +174,7 @@ impl NewKind {
     /// `[fingerprint/path]xpub` of a master key, at this kind's path.
     pub fn key_text(self, master: &MasterKey) -> Result<String, String> {
         let (xpub, fp, path) = match self {
-            NewKind::Threshold => return Err("A share has no account xpub".to_string()),
+            NewKind::Threshold => return Err(EN.create_a_share_has.to_string()),
             NewKind::NativeSegwit
             | NewKind::Taproot
             | NewKind::NestedSegwit
@@ -277,7 +279,7 @@ impl NewKind {
 /// `m/48'/0'/0'/2'` or `48h/0h/0h/2h`: what [`NewKind::key_text`] gives
 /// at a kind's own path, at any other.
 pub fn key_text_at(master: &MasterKey, path: &str) -> Result<String, String> {
-    let path = normal_path(path).ok_or_else(|| format!("Not a derivation path: {path}"))?;
+    let path = normal_path(path).ok_or_else(|| fill(EN.create_not_a_derivation, &[path]))?;
     let parsed: osk_bip::bitcoin::bip32::DerivationPath =
         path.parse().map_err(|e| format!("{e}"))?;
     let d = master.derive(&parsed);

@@ -1,6 +1,8 @@
 //! The BIP-85 screen: the step-card column over [`crate::bip85`].
 
+use crate::strings::EN;
 use opensigner_core::Bip85App;
+use opensigner_core::strings::fill;
 
 use crate::bip85::{APPS, Bip85State, app_name, lengths, pstep};
 use crate::screens::{button_rows, next_button};
@@ -9,7 +11,12 @@ use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Faraday, flow};
 
-const TITLES: [&str; pstep::COUNT] = ["Key", "Application", "Index", "Value"];
+const TITLES: [&str; pstep::COUNT] = [
+    EN.bip85_key,
+    EN.bip85_application,
+    EN.bip85_index,
+    EN.bip85_value,
+];
 
 pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(b) = app.bip85.as_ref() else {
@@ -33,8 +40,8 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x: x0 + 40.0,
         w: (cw - 80.0).min(900.0),
         h,
-        back: Some(("Wallets", Action::Nav(b.back))),
-        heading: "Derive with BIP-85",
+        back: Some((EN.bip85_wallets, Action::Nav(b.back))),
+        heading: EN.bip85_derive_with_bip,
         guided: app.guided,
         switch: true,
         note: None,
@@ -63,9 +70,11 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 fn length_label(b: &Bip85State) -> Option<String> {
     match b.app {
-        Bip85App::Words => Some(format!("{} words", b.length)),
-        Bip85App::Hex => Some(format!("{} bytes", b.length)),
-        Bip85App::Base64 | Bip85App::Base85 => Some(format!("{} characters", b.length)),
+        Bip85App::Words => Some(fill(EN.bip85_words, &[&b.length.to_string()])),
+        Bip85App::Hex => Some(fill(EN.bip85_bytes, &[&b.length.to_string()])),
+        Bip85App::Base64 | Bip85App::Base85 => {
+            Some(fill(EN.bip85_characters, &[&b.length.to_string()]))
+        }
         Bip85App::Wif | Bip85App::Xprv => None,
     }
 }
@@ -80,7 +89,7 @@ fn summary(app: &Faraday, b: &Bip85State, s: u8) -> String {
                     .unwrap_or("");
                 format!("{} · {label}", fp_text(osk_bip::keys::Fingerprint(fp)))
             }
-            None => "Not chosen".to_string(),
+            None => EN.bip85_not_chosen.to_string(),
         },
         pstep::APP => match length_label(b) {
             Some(l) => format!("{} · {l}", app_name(b.app)),
@@ -93,27 +102,14 @@ fn summary(app: &Faraday, b: &Bip85State, s: u8) -> String {
 
 fn guide(s: u8, app: Bip85App) -> String {
     match s {
-        pstep::KEY => "BIP-85 turns one key you already back up into many others: child seeds for other \
-            wallets, passwords, keys. Each comes back from the same key, application and index, so the \
-            key's backup is theirs too."
-            .to_string(),
+        pstep::KEY => EN.bip85_bip_85_turns.to_string(),
         pstep::APP => match app {
-            Bip85App::Words => "A child seed is a key of its own, for another wallet or another device. \
-                It reveals nothing about this key."
-                .to_string(),
-            Bip85App::Base64 | Bip85App::Base85 => "A password for a website or a program, as long as \
-                it allows. Keep it in a vault entry; the index makes the next one."
-                .to_string(),
-            _ => "The value is made the way BIP-85 specifies, so any implementation gives the same one \
-                from the same key."
-                .to_string(),
+            Bip85App::Words => EN.bip85_a_child_seed_is.to_string(),
+            Bip85App::Base64 | Bip85App::Base85 => EN.bip85_a_password_for.to_string(),
+            _ => EN.bip85_the_value_is_made.to_string(),
         },
-        pstep::INDEX => "Index 0 is the first of its kind; each number gives another. Write down the index \
-            with what you use it for: it is all that is needed to make the value again."
-            .to_string(),
-        _ => "The value is a secret. It goes into the open vault, sealed under its passphrase; out of \
-            the vault it goes only after the warning."
-            .to_string(),
+        pstep::INDEX => EN.bip85_index_0_is_the.to_string(),
+        _ => EN.bip85_the_value_is.to_string(),
     }
 }
 
@@ -185,7 +181,7 @@ fn card(app: &Faraday, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f3
                     Style::Secondary,
                     Action::PLength(1),
                 );
-                let range = format!("{lo} to {hi}");
+                let range = fill(EN.bip85_to, &[&lo.to_string(), &hi.to_string()]);
                 if ui.compact {
                     cy += 46.0;
                     ui.text(x, cy, 12.0, W::R, DIM, &range);
@@ -195,7 +191,7 @@ fn card(app: &Faraday, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f3
                     cy += 52.0;
                 }
             }
-            if next_button(ui, x, cy, w, "Continue", Action::PNext) {
+            if next_button(ui, x, cy, w, EN.bip85_continue, Action::PNext) {
                 cy += 48.0;
             }
         }
@@ -224,12 +220,12 @@ fn card(app: &Faraday, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f3
             );
             cy += 56.0;
             if b.index().is_none() {
-                ui.text(x, cy, 13.0, W::R, ERR, "An index is 0 to 2147483647");
+                ui.text(x, cy, 13.0, W::R, ERR, EN.bip85_an_index_is_0);
                 cy += 24.0;
             }
-            ui.text(x, cy, 12.0, W::R, DIM, "Type the digits · Enter continues");
+            ui.text(x, cy, 12.0, W::R, DIM, EN.bip85_type_the_digits);
             cy += 24.0;
-            if next_button(ui, x, cy, w, "Continue", Action::PNext) {
+            if next_button(ui, x, cy, w, EN.bip85_continue, Action::PNext) {
                 cy += 48.0;
             }
         }
@@ -240,7 +236,7 @@ fn card(app: &Faraday, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f3
             } else {
                 (120.0, 0.0)
             };
-            ui.text(x, cy, 12.0, W::R, MUTED, "Path");
+            ui.text(x, cy, 12.0, W::R, MUTED, EN.bip85_path);
             cy += below;
             cy += ui
                 .wrap(x + vx, cy, w - vx, 13.0, W::M, TEXT, &b.path())
@@ -257,13 +253,18 @@ fn card(app: &Faraday, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f3
                 .max(20.0)
                 + 12.0;
             let mut row: Vec<(String, Style, Action)> = vec![(
-                if b.shown { "Hide" } else { "Show" }.to_string(),
+                if b.shown {
+                    EN.bip85_hide
+                } else {
+                    EN.bip85_show
+                }
+                .to_string(),
                 Style::Secondary,
                 Action::PShow,
             )];
             match app.vaults.open.get(app.vaults.current) {
                 Some(v) => row.push((
-                    format!("Save into {}", v.name),
+                    fill(EN.bip85_save_into, &[&v.name.to_string()]),
                     Style::Primary,
                     Action::PVault,
                 )),
@@ -274,9 +275,17 @@ fn card(app: &Faraday, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f3
                 ),
             }
             if b.app == Bip85App::Words {
-                row.push(("Load as a key".to_string(), Style::Secondary, Action::PLoad));
+                row.push((
+                    EN.bip85_load_as_a_key.to_string(),
+                    Style::Secondary,
+                    Action::PLoad,
+                ));
             }
-            row.push(("Out unprotected…".to_string(), Style::Ghost, Action::POut));
+            row.push((
+                EN.bip85_out_unprotected.to_string(),
+                Style::Ghost,
+                Action::POut,
+            ));
             cy += button_rows(ui, x, cy, w, &row);
         }
     }

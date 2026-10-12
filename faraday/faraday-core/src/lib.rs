@@ -96,6 +96,8 @@ mod vanity_screen;
 mod vault_screens;
 mod wordlist_screen;
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use std::collections::{BTreeSet, VecDeque};
 
 use osk_shell_api::{App, Command, DisplayInfo, Event, Frame, Key as KeyIn, TouchPhase};
@@ -124,8 +126,8 @@ impl Program {
     /// The fixed words a program's `--version` line starts with.
     pub const fn name(self) -> &'static str {
         match self {
-            Program::HubApp => "Faraday hub app",
-            Program::DesktopApp => "Faraday desktop app",
+            Program::HubApp => EN.name_faraday_hub_app,
+            Program::DesktopApp => EN.name_faraday_desktop,
         }
     }
 }
@@ -163,7 +165,7 @@ pub fn is_release() -> bool {
 pub fn version_label() -> String {
     match BUILD {
         Some(build) => crate::upgrade::describe(build),
-        None => format!("{VERSION} (local build)"),
+        None => fill(EN.version_label_local, &[VERSION]),
     }
 }
 
@@ -1366,16 +1368,16 @@ pub fn stick_kind(name: &str) -> Option<&'static str> {
     let lower = name.to_ascii_lowercase();
     let ext = lower.rsplit('.').next().unwrap_or("");
     match ext {
-        "psbt" => Some("PSBT"),
-        "txt" | "json" | "descriptor" => Some("Text"),
-        "txn" => Some("Transaction"),
-        "faraday-sheet" => Some("Sheet for printing"),
-        "ofv" => Some("Vault"),
-        "efi" => Some("EFI image"),
-        "osk" => Some("Threshold spend, part-signed"),
-        "oskb" => Some("OpenSigner backup"),
-        "png" => Some("QR codes in a PNG"),
-        _ => Some("File"),
+        "psbt" => Some(EN.stick_kind_psbt),
+        "txt" | "json" | "descriptor" => Some(EN.stick_kind_text),
+        "txn" => Some(EN.stick_kind_transaction),
+        "faraday-sheet" => Some(EN.stick_kind_sheet_for),
+        "ofv" => Some(EN.stick_kind_vault),
+        "efi" => Some(EN.stick_kind_efi_image),
+        "osk" => Some(EN.stick_kind_threshold),
+        "oskb" => Some(EN.stick_kind_opensigner),
+        "png" => Some(EN.stick_kind_qr_codes),
+        _ => Some(EN.stick_kind_file),
     }
 }
 
@@ -1450,7 +1452,7 @@ fn seed_in_code(payload: &[u8]) -> Option<zeroize::Zeroizing<String>> {
 /// Said on the camera when what it read would load a key with a stick
 /// attached.
 fn stick_keys(m: Medium) -> String {
-    format!("Keys load only with no {} attached", m.noun())
+    fill(EN.stick_keys_keys_load, &[m.noun()])
 }
 
 /// A transaction being decoded, and where the person came from.
@@ -1862,14 +1864,14 @@ impl QrView {
                 if let Ok(m) =
                     encode_bounded(Payload::Alphanumeric(single.as_bytes()), Ecc::Low, 20)
                 {
-                    ("ur:crypto-psbt · one code".to_string(), vec![m])
+                    (EN.of_ur_crypto_psbt_one.to_string(), vec![m])
                 } else {
                     let frames = animated(
                         osk_codec::ur::Encoder::psbt(bytes, part).map_err(|e| format!("{e:?}"))?,
                         bytes.len(),
                         part,
                     )?;
-                    let sub = format!("ur:crypto-psbt · {} frames, shown in turn", frames.len());
+                    let sub = fill(EN.of_ur_crypto_psbt_frames, &[&frames.len().to_string()]);
                     (sub, frames)
                 }
             }
@@ -1881,7 +1883,7 @@ impl QrView {
             }
             (QrSource::Text(text), QrFormat::Ur) => {
                 if let Ok(m) = encode_bounded(Payload::Bytes(text.as_bytes()), Ecc::Medium, 25) {
-                    ("Text · one code".to_string(), vec![m])
+                    (EN.of_text_one_code.to_string(), vec![m])
                 } else {
                     ur_bytes_frames(text.as_bytes(), "ur:bytes", part)?
                 }
@@ -1896,18 +1898,18 @@ impl QrView {
                     20,
                 )
                 .map_err(|e| format!("{e:?}"))?;
-                ("ur:crypto-account · one code".to_string(), vec![m])
+                (EN.of_ur_crypto_account.to_string(), vec![m])
             }
             (QrSource::Key(text, None), QrFormat::Ur) => {
                 let m = encode_bounded(Payload::Bytes(text.as_bytes()), Ecc::Medium, 25)
                     .map_err(|e| format!("{e:?}"))?;
-                ("Key · one code".to_string(), vec![m])
+                (EN.of_key_one_code.to_string(), vec![m])
             }
             (QrSource::File(name, data), f) => {
                 let env = faraday_qr::envelope::pack(&envelope_name(name), data, "file")
                     .map_err(str::to_string)?;
                 match f {
-                    QrFormat::Ur => ur_bytes_frames(&env, "File · ur:bytes", part)?,
+                    QrFormat::Ur => ur_bytes_frames(&env, EN.of_file_ur_bytes, part)?,
                     QrFormat::Bbqr | QrFormat::Parts => bbqr_frames('J', &env, part)?,
                 }
             }
@@ -1991,9 +1993,9 @@ fn parts_frames(text: &str, part: usize) -> Result<Frames, String> {
         .map(|p| encode(Payload::Bytes(p.as_bytes()), Ecc::Low).map_err(|e| format!("{e:?}")))
         .collect::<Result<Vec<_>, _>>()?;
     let sub = if frames.len() == 1 {
-        "Text · one code".to_string()
+        EN.parts_frames_text_one.to_string()
     } else {
-        format!("Numbered parts · {} frames, shown in turn", frames.len())
+        fill(EN.parts_frames_numbered, &[&frames.len().to_string()])
     };
     Ok((sub, frames))
 }
@@ -2001,7 +2003,7 @@ fn parts_frames(text: &str, part: usize) -> Result<Frames, String> {
 /// BBQr parts in encoding `2`, one code each.
 fn bbqr_frames(t: char, data: &[u8], part: usize) -> Result<Frames, String> {
     use osk_codec::qr::{Ecc, Payload, encode};
-    let parts = faraday_qr::bbqr::encode(t, data, part).ok_or("Too large for BBQr")?;
+    let parts = faraday_qr::bbqr::encode(t, data, part).ok_or(EN.bbqr_frames_too_large)?;
     let frames = parts
         .iter()
         .map(|p| {
@@ -2009,9 +2011,12 @@ fn bbqr_frames(t: char, data: &[u8], part: usize) -> Result<Frames, String> {
         })
         .collect::<Result<Vec<_>, _>>()?;
     let sub = if frames.len() == 1 {
-        format!("BBQr {t} · one code")
+        fill(EN.bbqr_frames_bbqr_one, &[&t.to_string()])
     } else {
-        format!("BBQr {t} · {} frames, shown in turn", frames.len())
+        fill(
+            EN.bbqr_frames_bbqr_frames,
+            &[&t.to_string(), &frames.len().to_string()],
+        )
     };
     Ok((sub, frames))
 }
@@ -2038,8 +2043,8 @@ fn key_label(fp: &str, kind: &str, key: &str) -> String {
         .and_then(|(origin, _)| origin.split_once('/'))
         .map(|(_, p)| format!("m/{p}"));
     match path {
-        Some(p) => format!("Key {fp} · {kind} · {p}"),
-        None => format!("Key {fp} · {kind}"),
+        Some(p) => fill(EN.key_label_key_2, &[fp, kind, &p.to_string()]),
+        None => fill(EN.key_label_key, &[fp, kind]),
     }
 }
 
@@ -2048,7 +2053,7 @@ fn ur_bytes_frames(data: &[u8], what: &str, part: usize) -> Result<Frames, Strin
     use osk_codec::qr::{Ecc, Payload, encode_bounded};
     let single = osk_codec::ur::encode_bytes(data).to_ascii_uppercase();
     if let Ok(m) = encode_bounded(Payload::Alphanumeric(single.as_bytes()), Ecc::Low, 20) {
-        return Ok((format!("{what} · one code"), vec![m]));
+        return Ok((fill(EN.ur_bytes_frames_one, &[what]), vec![m]));
     }
     let frames = animated(
         osk_codec::ur::Encoder::bytes(data, part).map_err(|e| format!("{e:?}"))?,
@@ -2056,7 +2061,10 @@ fn ur_bytes_frames(data: &[u8], what: &str, part: usize) -> Result<Frames, Strin
         part,
     )?;
     Ok((
-        format!("{what} · {} frames, shown in turn", frames.len()),
+        fill(
+            EN.ur_bytes_frames_frames,
+            &[what, &frames.len().to_string()],
+        ),
         frames,
     ))
 }
@@ -2137,9 +2145,15 @@ fn arrival(a: faraday_qr::Arrived) -> (Option<String>, &'static str, Vec<u8>) {
 fn part_note(what: &str, have: usize, total: usize, missing: &[usize]) -> String {
     let list: Vec<String> = missing.iter().take(8).map(usize::to_string).collect();
     let more = if missing.len() > 8 { ", …" } else { "" };
-    format!(
-        "{what}: {have} of {total} · missing {}{more}",
-        list.join(", ")
+    fill(
+        EN.part_note_of_missing,
+        &[
+            what,
+            &have.to_string(),
+            &total.to_string(),
+            &list.join(", ").to_string(),
+            more,
+        ],
     )
 }
 
@@ -2151,7 +2165,7 @@ fn secret_text(text: &str) -> Option<&'static str> {
     if matches!(words, 12 | 15 | 18 | 21 | 24)
         && osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, t).is_ok()
     {
-        return Some("Those are a seed's words. Seeds go in through Add a key, not Files");
+        return Some(EN.secret_text_those_are);
     }
     let key = t.split(']').next_back().unwrap_or(t);
     if [
@@ -2160,9 +2174,7 @@ fn secret_text(text: &str) -> Option<&'static str> {
     .iter()
     .any(|p| key.starts_with(p))
     {
-        return Some(
-            "That is a private key. Faraday takes keys as words or a SeedQR, in Add a key",
-        );
+        return Some(EN.secret_text_that_is);
     }
     None
 }
@@ -2173,13 +2185,13 @@ fn what_instead_of_a_seed(text: &str) -> Option<&'static str> {
     if wallet::read_psbt(t.as_bytes()).is_some()
         || t.to_ascii_lowercase().starts_with("ur:crypto-psbt")
     {
-        return Some("That is a transaction, not a seed. Scan it from Files");
+        return Some(EN.what_instead_of_a_seed_that_is_a);
     }
     if faraday_qr::bbqr::is_part(t) || osk_codec::ur::is_ur(t) {
-        return Some("That is a code for Files, not a seed");
+        return Some(EN.what_instead_of_a_seed_that_is);
     }
     if wallet::read_wallet(t).is_ok() || crate::create::read_key(t).is_some() {
-        return Some("That is a public wallet or key, not a seed: it cannot sign");
+        return Some(EN.what_instead_of_a_seed_that);
     }
     None
 }
@@ -2579,7 +2591,7 @@ impl RestoreState {
 }
 
 /// What Restore says of a seed that is not one of the description's keys.
-pub const NOT_A_KEY: &str = "Not a key of this wallet: check the words or the passphrase";
+pub const NOT_A_KEY: &str = EN.app_not_a_key_of_this;
 
 /// The restore cards, in order (`docs/NEW-WALLET.md` §12.1).
 pub mod rstep {
@@ -2805,12 +2817,14 @@ impl Receipt {
     /// is not known. The time is local (`docs/TOTP.md` §2.3).
     pub fn heading(&self, tz_min: i16) -> String {
         match self.time {
-            Some(t) => format!(
-                "Written to {} at {}",
-                self.label,
-                vaults::time_of_day(vaults::local_secs(t, tz_min))
+            Some(t) => fill(
+                EN.heading_written_to_at,
+                &[
+                    &self.label.to_string(),
+                    &vaults::time_of_day(vaults::local_secs(t, tz_min)).to_string(),
+                ],
             ),
-            None => format!("Written to {}", self.label),
+            None => fill(EN.heading_written_to, &[&self.label.to_string()]),
         }
     }
 
@@ -3527,12 +3541,12 @@ impl Faraday {
                 }
                 let line = if item.kind == FileKind::Words && self.visit.load_after.contains(&name)
                 {
-                    format!(
-                        "Copied {name}: a key's words, loaded when the {} is removed",
-                        self.medium.noun()
+                    fill(
+                        EN.storage_event_copied_a,
+                        &[&name.to_string(), self.medium.noun()],
                     )
                 } else {
-                    format!("Copied {name}")
+                    fill(EN.storage_event_copied, &[&name.to_string()])
                 };
                 self.inbox.retain(|i| i.name != name);
                 self.inbox.push(item);
@@ -3569,9 +3583,12 @@ impl Faraday {
                     self.visit.out.remove(&name);
                 }
                 let line = if wrote_as == name {
-                    format!("Wrote {name}, read back and matched")
+                    fill(EN.storage_event_wrote_read, &[&name.to_string()])
                 } else {
-                    format!("Wrote {name} as {wrote_as}, read back and matched")
+                    fill(
+                        EN.storage_event_wrote,
+                        &[&name.to_string(), &wrote_as.to_string()],
+                    )
                 };
                 self.visit.log.push((line, true));
                 self.save_boxes();
@@ -3579,13 +3596,17 @@ impl Faraday {
             StorageEvent::WriteFailed { name, reason, .. } => {
                 self.receipt_add(&name, Some(reason.clone()));
                 let stays = if self.visit.writing_inbox.remove(&name) {
-                    "It stays in Files".to_string()
+                    EN.storage_event_it_stays.to_string()
                 } else {
-                    format!("It still waits {}", self.medium.for_the())
+                    fill(EN.storage_event_it_still, &[self.medium.for_the()])
                 };
-                self.visit
-                    .log
-                    .push((format!("{name} not written: {reason}. {stays}"), false));
+                self.visit.log.push((
+                    fill(
+                        EN.storage_event_not_written,
+                        &[&name.to_string(), &reason.to_string(), &stays.to_string()],
+                    ),
+                    false,
+                ));
             }
             StorageEvent::Wiped { name, .. } => self.wiped(&name, None),
             StorageEvent::StickSpace { free, size, .. } => self.zero_space(free, size),
@@ -3594,7 +3615,9 @@ impl Faraday {
             } => self.zero_step(next, total, done),
             StorageEvent::ZeroFailed { reason, .. } => self.zero_failed(&reason),
             StorageEvent::WipeFailed { name, reason, .. } => self.wiped(&name, Some(&reason)),
-            StorageEvent::Printed { path } => self.toast(&format!("Saved {path}")),
+            StorageEvent::Printed { path } => {
+                self.toast(&fill(EN.storage_event_saved, &[&path.to_string()]))
+            }
             StorageEvent::Clock { unix_secs } => {
                 self.vaults.unix_secs = Some(unix_secs);
                 self.vaults.clock_at_ms = self.now_ms;
@@ -3638,11 +3661,7 @@ impl Faraday {
                         s.too_fine = 0;
                     }
                     if s.too_fine >= TOO_FINE_PASSES {
-                        s.note = Some(
-                            "Too fine for this camera: show it as an animated code with smaller \
-                             parts, bring it closer, or carry it as a file"
-                                .to_string(),
-                        );
+                        s.note = Some(EN.storage_event_too_fine.to_string());
                     }
                 }
             }
@@ -3670,7 +3689,9 @@ impl Faraday {
                 self.inbox.push(item);
                 self.save_boxes();
             }
-            StorageEvent::PrintFailed { reason } => self.toast(&format!("Not printed: {reason}")),
+            StorageEvent::PrintFailed { reason } => {
+                self.toast(&fill(EN.storage_event_not_printed, &[&reason.to_string()]))
+            }
             StorageEvent::HostFiles { dir, files, opens } => {
                 if !self.transfer_listed(dir, files, opens) {
                     return;
@@ -3947,12 +3968,19 @@ impl Faraday {
             if had {
                 let loaded = self.load_after_pull();
                 let said = if loaded == 0 {
-                    format!("{} removed", self.medium.cap())
+                    fill(EN.sticks_changed_removed_2, &[self.medium.cap()])
                 } else {
-                    format!(
-                        "{} removed · {loaded} {} loaded",
-                        self.medium.cap(),
-                        if loaded == 1 { "key" } else { "keys" }
+                    fill(
+                        EN.sticks_changed_removed,
+                        &[
+                            self.medium.cap(),
+                            &loaded.to_string(),
+                            (if loaded == 1 {
+                                EN.sticks_changed_key
+                            } else {
+                                EN.sticks_changed_keys
+                            }),
+                        ],
                     )
                 };
                 self.toast(&said);
@@ -4066,7 +4094,7 @@ impl Faraday {
     /// A file, or files, a flow made and put For the stick: "{what}
     /// waits for the stick".
     fn toast_out(&mut self, what: &str) {
-        let text = format!("{what} waits {}", self.medium.for_the());
+        let text = fill(EN.toast_out_waits, &[what, self.medium.for_the()]);
         self.toast(&text);
     }
 
@@ -4112,36 +4140,36 @@ impl Faraday {
             | Action::BScan
             | Action::Vault(vaults::VaultAction::ScanEntry)
             | Action::Family(family::FamilyAction::Scan | family::FamilyAction::Again(true)) => {
-                "scan"
+                EN.pull_what_scan
             }
             Action::Entry(_)
             | Action::EntryWallet(_)
             | Action::ScanSeed
             | Action::ScanKey(_)
             | Action::ScanPart
-            | Action::LoadKey(_) => "add a key",
-            Action::KeyGen(_) | Action::KeyGenSlip39 => "make a key",
-            Action::PotentialOpen(_) => "load the wallet",
-            Action::BackupOpen(_) => "open the backup",
+            | Action::LoadKey(_) => EN.pull_what_add_a_key,
+            Action::KeyGen(_) | Action::KeyGenSlip39 => EN.pull_what_make_a_key,
+            Action::PotentialOpen(_) => EN.pull_what_load_the,
+            Action::BackupOpen(_) => EN.pull_what_open_the,
             // Unlocking for another flow: the Pull sheet asks first, and
             // Unlock opens once the stick is out.
             Action::Vault(vaults::VaultAction::OpenFrom(i, _))
                 if self.vault_files().get(i).is_some_and(|f| f.open.is_none()) =>
             {
-                "unlock"
+                EN.pull_what_unlock
             }
-            Action::Vault(vaults::VaultAction::ListFrom(_)) => "unlock",
+            Action::Vault(vaults::VaultAction::ListFrom(_)) => EN.pull_what_unlock,
             Action::Catalog(i) => match catalog::TILES.get(usize::from(i))?.go {
                 Go::VaultCategory(_)
                     if self.vaults.open.is_empty() && !self.vault_files().is_empty() =>
                 {
-                    "unlock"
+                    EN.pull_what_unlock
                 }
-                Go::NewKey | Go::NewShares => "make a key",
-                Go::AddKey(_) | Go::SeedQr => "add a key",
+                Go::NewKey | Go::NewShares => EN.pull_what_make_a_key,
+                Go::AddKey(_) | Go::SeedQr => EN.pull_what_add_a_key,
                 // Sign and Decode with nothing to open scan: the Scan
                 // they press waits instead.
-                Go::CheckAddress | Go::Scan => "scan",
+                Go::CheckAddress | Go::Scan => EN.pull_what_scan,
                 _ => return None,
             },
             _ => return None,
@@ -4244,9 +4272,9 @@ impl Faraday {
     /// when a vault was sealed for the visit, else Home.
     pub fn visit_then(&self) -> String {
         match self.after_visit {
-            Some(s) => format!("Then: {}", self.back_name(s)),
-            None if self.visit_unlocks().is_some() => "Then: Unlock".to_string(),
-            None => "Then: Home".to_string(),
+            Some(s) => fill(EN.visit_then_then, &[self.back_name(s)]),
+            None if self.visit_unlocks().is_some() => EN.visit_then_then_unlock.to_string(),
+            None => EN.visit_then_then_home.to_string(),
         }
     }
 
@@ -4364,7 +4392,7 @@ impl Faraday {
                 Ok(c) => match osk_psbt::Psbt::parse_bytes(&c.psbt) {
                     Ok(p) => (p, Some(c.section)),
                     Err(_) => {
-                        self.toast("The carry file holds no PSBT");
+                        self.toast(EN.start_spend_the_carry);
                         return;
                     }
                 },
@@ -4375,7 +4403,7 @@ impl Faraday {
             }
         } else {
             let Some(psbt) = wallet::read_psbt(&item.bytes) else {
-                self.toast("Not a PSBT");
+                self.toast(EN.start_spend_not_a_psbt);
                 return;
             };
             // A round an open vault keeps for this transaction.
@@ -4514,13 +4542,13 @@ impl Faraday {
     /// since it was written (§3.5), with no stick attached.
     pub fn session_stage(&self) -> &'static str {
         if !self.sticks.is_empty() || self.import.is_some() {
-            "Bring in"
+            EN.session_stage_bring
         } else if !self.outbox.is_empty() || self.vault_changed().is_some() {
-            "Write out"
+            EN.session_stage_write
         } else if self.holds_secret() || !self.session.wallets.is_empty() {
-            "Work"
+            EN.session_stage_work
         } else {
-            "Open"
+            EN.session_stage_open
         }
     }
 
@@ -5448,10 +5476,18 @@ impl Faraday {
             Action::Catalog(i) => self.catalog_go(usize::from(i)),
             Action::InboxLoad => {
                 let (w, k) = self.inbox_load();
-                self.toast(&format!(
-                    "{w} {} and {k} {} loaded",
-                    if w == 1 { "wallet" } else { "wallets" },
-                    if k == 1 { "seed" } else { "seeds" }
+                self.toast(&fill(
+                    EN.act_and_loaded,
+                    &[
+                        &w.to_string(),
+                        (if w == 1 {
+                            EN.act_wallet
+                        } else {
+                            EN.act_wallets
+                        }),
+                        &k.to_string(),
+                        (if k == 1 { EN.act_seed } else { EN.act_seeds }),
+                    ],
                 ));
             }
             Action::InboxChoose(i) => {
@@ -5466,7 +5502,7 @@ impl Faraday {
                 if self.may_load_keys() {
                     self.potential_open(osk_bip::keys::Fingerprint(fp));
                 } else {
-                    self.toast(&format!("Remove the {} first", self.medium.noun()));
+                    self.toast(&fill(EN.act_remove_the_first, &[self.medium.noun()]));
                 }
             }
             Action::XpubOpen(i) => self.xpub_open(i),
@@ -5474,7 +5510,7 @@ impl Faraday {
                 if self.may_load_keys() {
                     self.backup_open(k);
                 } else {
-                    self.toast(&format!("Remove the {} first", self.medium.noun()));
+                    self.toast(&fill(EN.act_remove_the_first, &[self.medium.noun()]));
                 }
             }
             Action::PotentialKind(k) => {
@@ -5500,7 +5536,7 @@ impl Faraday {
                     && let Some(tx) = s.spend.finished.as_ref()
                 {
                     let prevouts = decode::prevouts_of(&s.spend.psbt);
-                    let source = format!("Finished from {}", s.spend.source);
+                    let source = fill(EN.act_finished_from, &[&s.spend.source.to_string()]);
                     let decoded = decode::decode(tx, &prevouts, &self.session, &source);
                     self.decode = Some(DecodeState {
                         decoded,
@@ -5543,7 +5579,7 @@ impl Faraday {
             Action::QrDecoded => {
                 if let Some(d) = self.decode.as_ref() {
                     let hex = d.decoded.hex.clone();
-                    self.open_qr(QrView::text("Transaction", &hex));
+                    self.open_qr(QrView::text(EN.act_transaction, &hex));
                 }
             }
             Action::DecodeHex => {
@@ -5560,10 +5596,7 @@ impl Faraday {
                 if !self.clean() {
                     self.sheet = Some(Sheet::WriteOut);
                 } else if self.sticks.is_empty() {
-                    self.toast(&format!(
-                        "Plug in {}: the visit writes what waits for it",
-                        self.medium.a()
-                    ));
+                    self.toast(&fill(EN.act_plug_in_the_visit, &[self.medium.a()]));
                 } else {
                     self.act(Action::Nav(Screen::Visit));
                 }
@@ -5844,7 +5877,7 @@ impl Faraday {
                     self.put_outbox(&name, text.into_bytes());
                     self.toast_out(&name);
                 }
-                None => self.toast("BIP 129 covers wsh and sh(wsh) multisig keys"),
+                None => self.toast(EN.act_bip_129_covers),
             },
             Action::CSlotClear(k) => {
                 if let Some(c) = self.create.as_mut()
@@ -5929,7 +5962,7 @@ impl Faraday {
                 if let Some((decoder, assembler)) = self.scan_parts.take() {
                     scan.decoder = decoder;
                     scan.assembler = assembler;
-                    scan.note = Some("Carrying on with the parts read before".to_string());
+                    scan.note = Some(EN.act_carrying_on_with.to_string());
                 }
                 self.scan = Some(scan);
                 self.sheet = Some(Sheet::Scan);
@@ -6039,12 +6072,15 @@ impl Faraday {
                             let name = osk_bip::multisig_config::parse_named(&whole)
                                 .ok()
                                 .and_then(|(_, n)| n)
-                                .unwrap_or_else(|| "Restored wallet".to_string());
-                            self.restore_wallet(&name, &whole, "its shares");
+                                .unwrap_or_else(|| EN.act_restored_wallet.to_string());
+                            self.restore_wallet(&name, &whole, EN.act_its_shares);
                         }
                         None => {
                             if let Some(r) = self.restore.as_mut() {
-                                r.error = Some(format!("{} of {} keys in hand", m.have.len(), m.n));
+                                r.error = Some(fill(
+                                    EN.act_of_keys_in_hand,
+                                    &[&m.have.len().to_string(), &m.n.to_string()],
+                                ));
                             }
                         }
                     },
@@ -6105,18 +6141,18 @@ impl Faraday {
                         let name = osk_bip::multisig_config::parse_named(&whole)
                             .ok()
                             .and_then(|(_, n)| n)
-                            .unwrap_or_else(|| "Restored wallet".to_string());
-                        match self.session.add_wallet(&name, &whole, "its shares") {
+                            .unwrap_or_else(|| EN.act_restored_wallet.to_string());
+                        match self.session.add_wallet(&name, &whole, EN.act_its_shares) {
                             Ok(i) => {
                                 self.wallet = i;
                                 self.screen = Screen::Wallets;
                                 self.refresh_spend();
-                                self.toast(&format!("{name} restored from its shares"));
+                                self.toast(&fill(EN.act_restored_from_its, &[&name.to_string()]));
                             }
                             Err(e) => self.toast(&e.text()),
                         }
                     }
-                    Ok(None) => self.toast("Not every key is in hand yet"),
+                    Ok(None) => self.toast(EN.act_not_every_key_is),
                     Err(e) => self.toast(&e),
                 }
             }
@@ -6141,9 +6177,9 @@ impl Faraday {
             Action::QrSigned | Action::QrPart => {
                 if let Some(s) = self.spend.as_ref() {
                     let title = if action == Action::QrSigned {
-                        "Signed PSBT"
+                        EN.act_signed_psbt
                     } else {
-                        "PSBT for the next signer"
+                        EN.act_psbt_for_the_next
                     };
                     let bytes = s.spend.psbt.to_bytes();
                     self.open_qr(QrView::psbt(title, &bytes));
@@ -6237,8 +6273,8 @@ impl Faraday {
                     let mut out = secrets::SecretOut::new(
                         format!("{stem}-partly-signed.osk"),
                         bytes,
-                        "The secret nonce the next share signs this transaction with",
-                        "Whoever has it and a share's signature can work out that share",
+                        EN.act_the_secret_nonce,
+                        EN.act_whoever_has_it,
                     );
                     out.keep = secrets::Keep::Round(round);
                     Some(out)
@@ -6319,11 +6355,17 @@ impl Faraday {
         let open = 0..self.vaults.open.len();
         // A locked vault cannot be looked into.
         let unknown = self.vaults.open.is_empty() && !self.vault_files().is_empty();
-        let not_known = || ("Not checked: no vault unlocked".to_string(), Tone::Dim);
+        let not_known = || (EN.backup_kept_not_checked.to_string(), Tone::Dim);
         let wallet_line = match open.clone().find(|&v| vault_has_wallet(self, v, wallet)) {
-            Some(v) => (format!("Wallet in {}", self.vaults.open[v].name), Tone::Ok),
+            Some(v) => (
+                fill(
+                    EN.backup_kept_wallet_in,
+                    &[&self.vaults.open[v].name.to_string()],
+                ),
+                Tone::Ok,
+            ),
             None if unknown => not_known(),
-            None => ("Wallet not in a vault".to_string(), Tone::Warn),
+            None => (EN.backup_kept_wallet.to_string(), Tone::Warn),
         };
         let stem = file_stem(&wallet.name);
         let here = self.backup_keys(b.wallet);
@@ -6336,21 +6378,27 @@ impl Faraday {
                     .find_map(|v| vault_key(self, v, fp).map(|p| (v, p)))
                 {
                     Some((v, with)) => (
-                        format!(
-                            "In {}{}",
-                            self.vaults.open[v].name,
-                            if with { " with its passphrase" } else { "" }
+                        fill(
+                            EN.backup_kept_in,
+                            &[
+                                &self.vaults.open[v].name.to_string(),
+                                &(if with {
+                                    format!(" {}", EN.backup_with_its_passphrase)
+                                } else {
+                                    String::new()
+                                }),
+                            ],
                         ),
                         Tone::Ok,
                     ),
                     None if unknown => not_known(),
-                    None => ("Not in a vault".to_string(), Tone::Warn),
+                    None => (EN.backup_kept_not_in.to_string(), Tone::Warn),
                 },
             );
             lines.push(if b.checked.contains(&fp.0) {
-                ("Paper copy checked".to_string(), Tone::Ok)
+                (EN.backup_kept_paper_copy.to_string(), Tone::Ok)
             } else {
-                ("Paper: not checked".to_string(), Tone::Warn)
+                (EN.backup_kept_paper_not.to_string(), Tone::Warn)
             });
             let fps = fp_text(fp).to_lowercase();
             let files = ["words.txt", "seedqr.png", "compactseedqr.png"]
@@ -6361,18 +6409,13 @@ impl Faraday {
                 .any(|i| i.secret && files.contains(&i.name))
             {
                 lines.push((
-                    format!("File {}, unprotected", self.medium.for_the()),
+                    fill(EN.backup_kept_file_unprotected, &[self.medium.for_the()]),
                     Tone::Err,
                 ));
             }
             lines
         };
-        let away = || {
-            vec![(
-                "Not here: backed up on its own device".to_string(),
-                Tone::Dim,
-            )]
-        };
+        let away = || vec![(EN.backup_kept_not_here.to_string(), Tone::Dim)];
         let mut seeds = Vec::new();
         if let Some(record) = wallet.policy.record() {
             // A threshold wallet's keys are its shares, by number.
@@ -6387,7 +6430,7 @@ impl Faraday {
                         lines: seed_lines(key),
                     },
                     None => KeptSeed {
-                        name: format!("Share {}", id + 1),
+                        name: fill(EN.backup_kept_share, &[&(id + 1).to_string()]),
                         lines: away(),
                     },
                 });
@@ -6445,7 +6488,10 @@ impl Faraday {
                     });
                     match key {
                         Some(k) => (fp_text(self.session.keys[k].master.fingerprint()), Some(k)),
-                        None => (format!("Share {}", id + 1), None),
+                        None => (
+                            fill(EN.backup_seed_list_of_share, &[&(id + 1).to_string()]),
+                            None,
+                        ),
                     }
                 })
                 .collect();
@@ -6861,7 +6907,10 @@ impl Faraday {
             .and_then(|b| b.names.get(p))
             .map(|n| n.trim())
             .filter(|n| !n.is_empty())
-            .map_or_else(|| format!("Place {}", p + 1), str::to_string)
+            .map_or_else(
+                || fill(EN.place_name_place, &[&(p + 1).to_string()]),
+                str::to_string,
+            )
     }
 
     /// The text a vault keeps a wallet under, as Vaults saves it.
@@ -6996,11 +7045,11 @@ impl Faraday {
             let at = match spot.at {
                 // The map's field names a place by number only; the name
                 // itself lives in field 3 (`field::PLAN_PLACE`) alone.
-                plan::At::Place(p) => format!("Place {}", p + 1),
+                plan::At::Place(p) => fill(EN.plan_store_place, &[&(p + 1).to_string()]),
                 plan::At::Vault(v) => answers.vault_name(&shape, v),
-                plan::At::Files => format!("{} of files", self.medium.cap()),
-                plan::At::Software => "Watch-only software".to_string(),
-                plan::At::Away => "On its own device".to_string(),
+                plan::At::Files => fill(EN.plan_store_of_files, &[self.medium.cap()]),
+                plan::At::Software => EN.plan_store_watch_only.to_string(),
+                plan::At::Away => EN.plan_store_on_its_own.to_string(),
             };
             let holds: Vec<String> = spot
                 .holds
@@ -7066,7 +7115,11 @@ impl Faraday {
         if let Some(open) = self.vaults.open.get_mut(v) {
             open.contents.records.retain(|r| !same(r));
         }
-        if !self.vault_push_in(v, record, &format!("The plan is in {name}")) {
+        if !self.vault_push_in(
+            v,
+            record,
+            &fill(EN.plan_store_the_plan, &[&name.to_string()]),
+        ) {
             // It did not fit: the record it kept stays.
             if let Some(open) = self.vaults.open.get_mut(v) {
                 open.contents.records.extend(old);
@@ -7122,7 +7175,10 @@ impl Faraday {
                     } else {
                         (
                             format!("{name}{part}{}-of-{k}.png", j + 1),
-                            vec![format!("Part {} of {k}", j + 1)],
+                            vec![fill(
+                                EN.public_pictures_part,
+                                &[&(j + 1).to_string(), &k.to_string()],
+                            )],
                         )
                     };
                     label.extend(lines.iter().cloned());
@@ -7141,13 +7197,17 @@ impl Faraday {
                 let all = fps(&|_| true);
                 let mut lines = vec![shape];
                 if !all.is_empty() {
-                    let word = if all.len() == 1 { "Key" } else { "Keys" };
+                    let word = if all.len() == 1 {
+                        EN.public_pictures_key
+                    } else {
+                        EN.public_pictures_keys
+                    };
                     lines.push(format!("{word} {}", all.join(" · ")));
                 }
                 if let Some((_, sum)) = text.rsplit_once('#') {
-                    lines.push(format!("Descriptor checksum {sum}"));
+                    lines.push(fill(EN.public_pictures_descriptor, &[sum]));
                 }
-                lines.push("Public: watch only, spends nothing".to_string());
+                lines.push(EN.public_pictures_public_watch.to_string());
                 pictures(&format!("{stem}-descriptor"), "-", &text, lines)
             }
             4 => {
@@ -7164,23 +7224,32 @@ impl Faraday {
                         continue;
                     };
                     let mut lines = vec![
-                        format!(
-                            "Share {} of {} · any {m} rebuild the wallet",
-                            i + 1,
-                            plan.len()
+                        fill(
+                            EN.public_pictures_share,
+                            &[
+                                &(i + 1).to_string(),
+                                &plan.len().to_string(),
+                                &m.to_string(),
+                            ],
                         ),
                         shape.clone(),
                     ];
                     let held = fps(&|k| row.contains(&k));
                     if !held.is_empty() {
-                        lines.push(format!("Holds {}", held.join(" · ")));
+                        lines.push(fill(
+                            EN.public_pictures_holds,
+                            &[&held.join(" · ").to_string()],
+                        ));
                     }
                     let off = fps(&|k| !row.contains(&k));
                     if !off.is_empty() {
-                        lines.push(format!("Leaves off {}", off.join(" · ")));
+                        lines.push(fill(
+                            EN.public_pictures_leaves,
+                            &[&off.join(" · ").to_string()],
+                        ));
                     }
-                    lines.push("Not a wallet on its own".to_string());
-                    lines.push("Public: spends nothing".to_string());
+                    lines.push(EN.public_pictures_not.to_string());
+                    lines.push(EN.public_pictures_public.to_string());
                     out.extend(pictures(
                         &format!("{stem}-share-{}-of-{n}", i + 1),
                         "-part-",
@@ -7209,7 +7278,7 @@ impl Faraday {
         match names.len() {
             0 => {}
             1 => self.toast_out(&names[0]),
-            k => self.toast_out(&format!("{k} files")),
+            k => self.toast_out(&fill(EN.public_out_files, &[&k.to_string()])),
         }
     }
 
@@ -7315,7 +7384,7 @@ impl Faraday {
         match names.len() {
             0 => {}
             1 => self.toast_out(&names[0]),
-            k => self.toast_out(&format!("{k} files")),
+            k => self.toast_out(&fill(EN.backup_files_make_files, &[&k.to_string()])),
         }
     }
 
@@ -7341,7 +7410,7 @@ impl Faraday {
                 self.backup.as_ref().map_or(1, |b| b.answers.places),
             )) {
                 Ok(p) => files.push((format!("blank-template-{words}-words.pdf"), p)),
-                Err(e) => self.toast(&format!("No PDF: {e}")),
+                Err(e) => self.toast(&fill(EN.public_made_no_pdf, &[&e.to_string()])),
             },
             1 => {
                 files.push((
@@ -7381,7 +7450,7 @@ impl Faraday {
             }
             3 => match pdf::sheet(&backup::sheet_wallet(&self.session, w)) {
                 Ok(p) => files.push((format!("{stem}-backup.pdf"), p)),
-                Err(e) => self.toast(&format!("No PDF: {e}")),
+                Err(e) => self.toast(&fill(EN.public_made_no_pdf, &[&e.to_string()])),
             },
             4 => {
                 let (m, n) = Session::quorum(w);
@@ -7440,22 +7509,22 @@ impl Faraday {
             .session
             .wallets
             .get(i)
-            .ok_or("That wallet is no longer loaded")?;
+            .ok_or(EN.wallet_key_that_wallet)?;
         if w.policy.record().is_some() || w.policy.silent().is_some() {
-            return Err("This wallet's keys are not account keys".into());
+            return Err(EN.wallet_key_this_wallet_s.into());
         }
         let pk = w
             .policy
             .keys()
             .get(usize::from(slot))
-            .ok_or("This wallet has no such key")?;
-        let fp = pk.fingerprint().ok_or("That key names no master")?;
+            .ok_or(EN.wallet_key_this_wallet)?;
+        let fp = pk.fingerprint().ok_or(EN.wallet_key_that_key_names)?;
         let key = self
             .session
             .keys
             .iter()
             .find(|k| k.master.fingerprint() == fp)
-            .ok_or("That key is not held here")?;
+            .ok_or(EN.wallet_key_that_key)?;
         let kind = create::NewKind::of(&w.policy);
         // Create's own account for its kind: what its BIP 129 record and
         // its account code are made at. A key elsewhere has neither.
@@ -7504,7 +7573,7 @@ impl Faraday {
         k.standard
             .and_then(|kind| kind.bsms_record(k.master, &format!("Faraday key {}", k.fp)))
             .map(|r| (k.fp.clone(), r))
-            .ok_or_else(|| "BIP 129 covers wsh and sh(wsh) multisig keys".to_string())
+            .ok_or_else(|| EN.wallet_key_record_bip.to_string())
     }
 
     fn wallet_key_out(&mut self, i: usize, slot: u8) {
@@ -7553,16 +7622,16 @@ impl Faraday {
     /// The account key expression for a slot held here, with its
     /// fingerprint, for the cosigners.
     fn create_key_text(&self, slot: u8) -> Result<(String, String), String> {
-        let c = self.create.as_ref().ok_or("nothing being created")?;
+        let c = self.create.as_ref().ok_or(EN.create_key_text_nothing)?;
         let Some(create::Source::Here(fp)) = c.slots.get(slot as usize) else {
-            return Err("That key is not held here".into());
+            return Err(EN.create_key_text_that.into());
         };
         let key = self
             .session
             .keys
             .iter()
             .find(|k| k.master.fingerprint().0 == *fp)
-            .ok_or("a chosen key is no longer loaded")?;
+            .ok_or(EN.create_key_text_a_chosen)?;
         Ok((
             fp_text(osk_bip::keys::Fingerprint(*fp)),
             c.kind.key_text(&key.master)?,
@@ -7604,7 +7673,7 @@ impl Faraday {
 
     /// The key texts of a creation's slots, or why they are not ready.
     pub fn create_keys(&self) -> Result<Vec<String>, String> {
-        let c = self.create.as_ref().ok_or("nothing being created")?;
+        let c = self.create.as_ref().ok_or(EN.create_keys_nothing)?;
         if c.kind.threshold() {
             return self.create_shares().map(|keys| {
                 keys.iter()
@@ -7615,14 +7684,13 @@ impl Faraday {
         let mut out = Vec::new();
         for (i, s) in c.slots.iter().enumerate() {
             match s {
-                create::Source::Empty => return Err(format!("Key {} has no key yet", i + 1)),
+                create::Source::Empty => {
+                    return Err(fill(EN.create_keys_key_has, &[&(i + 1).to_string()]));
+                }
                 create::Source::Later => {
-                    return Err(format!(
-                        "Key {} waits for its cosigner's xpub file. Copy it in on {} visit, \
-                         then choose it for Key {} under Keys",
-                        i + 1,
-                        self.medium.a(),
-                        i + 1
+                    return Err(fill(
+                        EN.create_keys_key_waits,
+                        &[&(i + 1).to_string(), self.medium.a(), &(i + 1).to_string()],
                     ));
                 }
                 create::Source::Here(fp) => {
@@ -7631,7 +7699,7 @@ impl Faraday {
                         .keys
                         .iter()
                         .find(|k| k.master.fingerprint().0 == *fp)
-                        .ok_or("a chosen key is no longer loaded")?;
+                        .ok_or(EN.create_keys_a_chosen)?;
                     out.push(c.kind.key_text(&key.master)?);
                 }
                 create::Source::Cosigner(text) => out.push(text.clone()),
@@ -7641,7 +7709,7 @@ impl Faraday {
         seen.sort();
         seen.dedup();
         if seen.len() != out.len() {
-            return Err("The same key is in two slots".into());
+            return Err(EN.create_keys_the_same.into());
         }
         Ok(out)
     }
@@ -7663,23 +7731,23 @@ impl Faraday {
     /// The loaded keys a threshold creation deals from, in slot order:
     /// each must be 24 words, since 24 words are a share's 32 bytes.
     fn create_shares(&self) -> Result<Vec<&wallet::Key>, String> {
-        let c = self.create.as_ref().ok_or("nothing being created")?;
+        let c = self.create.as_ref().ok_or(EN.create_shares_nothing)?;
         let mut out: Vec<&wallet::Key> = Vec::new();
         for (i, s) in c.slots.iter().enumerate() {
             let create::Source::Here(fp) = s else {
-                return Err(format!("Share {} has no key yet", i + 1));
+                return Err(fill(EN.create_shares_share_has, &[&(i + 1).to_string()]));
             };
             let key = self
                 .session
                 .keys
                 .iter()
                 .find(|k| k.master.fingerprint().0 == *fp)
-                .ok_or("a chosen key is no longer loaded")?;
+                .ok_or(EN.create_shares_a_chosen)?;
             if key.share.is_none() {
-                return Err(format!("Share {} needs a 24-word key", i + 1));
+                return Err(fill(EN.create_shares_share, &[&(i + 1).to_string()]));
             }
             if out.iter().any(|k| k.master.fingerprint().0 == *fp) {
-                return Err("The same key is in two slots".into());
+                return Err(EN.create_shares_the_same.into());
             }
             out.push(key);
         }
@@ -7705,7 +7773,7 @@ impl Faraday {
                     got = osk_bip::frost::SecShare::from_bytes(&b).ok();
                     zeroize::Zeroize::zeroize(&mut b);
                 });
-                chosen.push((id as u32, got.ok_or("a chosen key is not a share")?));
+                chosen.push((id as u32, got.ok_or(EN.create_deal_a_chosen)?));
             }
             osk_bip::frost::deal(&secp, n, m, &chosen).map_err(|e| format!("{e:?}"))
         });
@@ -7722,10 +7790,13 @@ impl Faraday {
             dealt.info.clone(),
             self.session.network().kind(),
         );
-        let name = format!("New wallet {}", self.session.wallets.len() + 1);
+        let name = fill(
+            EN.create_deal_new_wallet,
+            &[&(self.session.wallets.len() + 1).to_string()],
+        );
         let i = match self
             .session
-            .add_wallet(&name, &record.to_text(), "Dealt here")
+            .add_wallet(&name, &record.to_text(), EN.create_deal_dealt_here)
         {
             Ok(i) => i,
             Err(e) => {
@@ -7750,7 +7821,10 @@ impl Faraday {
                     });
             zeroize::Zeroize::zeroize(&mut bytes);
             if let Ok(words) = words {
-                let label = format!("Share {} of {name}", id + 1);
+                let label = fill(
+                    EN.create_deal_share_of,
+                    &[&(id + 1).to_string(), &name.to_string()],
+                );
                 let _ = self.session.add_words(&words, &label, None);
             }
         }
@@ -7806,7 +7880,7 @@ impl Faraday {
         }
         let s = r.seeds.as_ref()?;
         (!s.keys.contains(&fp.0) && s.first_empty().is_none())
-            .then(|| "Every slot is filled".to_string())
+            .then(|| EN.restore_refusal_every.to_string())
     }
 
     /// A seed for Restore's open slot, loaded: matched to the
@@ -7896,9 +7970,16 @@ impl Faraday {
             return;
         };
         if open > 0 {
-            r.error = Some(format!(
-                "{open} {} still empty",
-                if open == 1 { "slot" } else { "slots" }
+            r.error = Some(fill(
+                EN.restore_described_make_still,
+                &[
+                    &open.to_string(),
+                    (if open == 1 {
+                        EN.restore_described_make_slot
+                    } else {
+                        EN.restore_described_make_slots
+                    }),
+                ],
             ));
             return;
         }
@@ -7916,7 +7997,9 @@ impl Faraday {
         };
         let (Some(text), name) = (
             rec.text(field::WALLET).map(str::to_string),
-            rec.text(field::WALLET_NAME).unwrap_or("Wallet").to_string(),
+            rec.text(field::WALLET_NAME)
+                .unwrap_or(EN.restore_from_vault_wallet)
+                .to_string(),
         ) else {
             return;
         };
@@ -7956,9 +8039,17 @@ impl Faraday {
         self.vaults.open[v].skip = saved;
         self.screen = Screen::Restore;
         if keys > 0 {
-            self.toast(&format!(
-                "{keys} {} from {source}",
-                if keys == 1 { "key" } else { "keys" }
+            self.toast(&fill(
+                EN.restore_from_vault_from,
+                &[
+                    &keys.to_string(),
+                    (if keys == 1 {
+                        EN.restore_from_vault_key
+                    } else {
+                        EN.restore_from_vault_keys
+                    }),
+                    &source.to_string(),
+                ],
             ));
         }
     }
@@ -8000,7 +8091,7 @@ impl Faraday {
             return;
         };
         if c.pass.as_str() != c.pass2.as_str() {
-            c.pass_note = Some("The two passphrases differ".to_string());
+            c.pass_note = Some(EN.create_pass_lock_the.to_string());
             return;
         }
         // Empty means none: the key stays as it is.
@@ -8024,7 +8115,7 @@ impl Faraday {
         let Some(words) = key.words.clone() else {
             return;
         };
-        let label = format!("{} · passphrase", key.label);
+        let label = fill(EN.create_pass_lock_passphrase, &[&key.label.to_string()]);
         let (added, new) = match self.session.add_words_with(&words, &pass, &label, None) {
             Ok(fp) => (Ok(fp), true),
             // Loaded already with this passphrase: that key is the one.
@@ -8107,8 +8198,14 @@ impl Faraday {
             return;
         };
         let descriptor = c.kind.descriptor(c.m, &keys);
-        let name = format!("New wallet {}", self.session.wallets.len() + 1);
-        match self.session.add_wallet(&name, &descriptor, "Made here") {
+        let name = fill(
+            EN.create_make_new_wallet,
+            &[&(self.session.wallets.len() + 1).to_string()],
+        );
+        match self
+            .session
+            .add_wallet(&name, &descriptor, EN.create_make_made_here)
+        {
             Ok(i) => {
                 self.chart_work.moved_to(&self.session, i);
                 self.wallet = i;
@@ -8183,10 +8280,10 @@ impl Faraday {
         }
         match pdf::sheet(&String::from_utf8_lossy(bytes)) {
             Ok(pdf) => self.storage_out.push_back(StorageCommand::Print {
-                name: format!("{}.pdf", stem(name)),
+                name: fill(EN.make_pdf_pdf, &[&stem(name).to_string()]),
                 bytes: pdf,
             }),
-            Err(e) => self.toast(&format!("Not printed: {e}")),
+            Err(e) => self.toast(&fill(EN.make_pdf_not_printed, &[&e.to_string()])),
         }
     }
 
@@ -8265,7 +8362,7 @@ impl Faraday {
                     let text = String::from_utf8_lossy(&bytes).to_string();
                     scan.note = Some(
                         what_instead_of_a_seed(&text)
-                            .unwrap_or("Not a SeedQR or a CompactSeedQR")
+                            .unwrap_or(EN.scanned_not_a_seedqr)
                             .to_string(),
                     );
                 }
@@ -8299,7 +8396,7 @@ impl Faraday {
                     let text = String::from_utf8_lossy(&bytes).to_string();
                     scan.note = Some(
                         what_instead_of_a_seed(&text)
-                            .unwrap_or("Not a SeedQR or a CompactSeedQR")
+                            .unwrap_or(EN.scanned_not_a_seedqr)
                             .to_string(),
                     );
                 }
@@ -8353,8 +8450,7 @@ impl Faraday {
         let item = Item::new(&name, data);
         if item.kind == FileKind::Other && !enveloped {
             if let Some(scan) = self.scan.as_mut() {
-                scan.note =
-                    Some("Not a PSBT, a descriptor, an xpub or a signed message".to_string());
+                scan.note = Some(EN.scanned_not_a_psbt.to_string());
                 scan.decoder = osk_codec::ur::Decoder::new();
             }
             return;
@@ -8372,7 +8468,7 @@ impl Faraday {
         // A cosigner's account key scanned while a wallet is made from
         // seeds fills the box waiting for one.
         if is_key && self.seeds_take_file(self.inbox.len() - 1) {
-            self.toast(&format!("{name} is a cosigner's key"));
+            self.toast(&fill(EN.scanned_is_a_cosigner, &[&name.to_string()]));
             return;
         }
         // A cosigner's key scanned while a wallet is being made fills the
@@ -8380,7 +8476,10 @@ impl Faraday {
         if is_key && let Some(slot) = self.create_waiting_slot() {
             let at = self.inbox.len() - 1;
             self.act(Action::CSlotFile(slot, at));
-            self.toast(&format!("{name} is Key {}", slot + 1));
+            self.toast(&fill(
+                EN.scanned_is_key,
+                &[&name.to_string(), &(slot + 1).to_string()],
+            ));
             self.screen = Screen::Create;
             return;
         }
@@ -8390,7 +8489,7 @@ impl Faraday {
         if self.screen == Screen::Restore && self.restore_arrived(self.inbox.len() - 1) {
             return;
         }
-        self.toast(&format!("{name} is in Files"));
+        self.toast(&fill(EN.scanned_is_in_files, &[&name.to_string()]));
         if !matches!(
             self.screen,
             Screen::Spend | Screen::Visit | Screen::Restore | Screen::Home | Screen::Family
@@ -8472,7 +8571,7 @@ impl Faraday {
         drop(bytes);
         let Some(copy) = copy else {
             if let Some(scan) = self.scan.as_mut() {
-                scan.note = Some("Not a SeedQR".to_string());
+                scan.note = Some(EN.copy_scanned_not_a.to_string());
             }
             return;
         };
@@ -8528,15 +8627,12 @@ impl Faraday {
             && text.bytes().all(|b| b.is_ascii_digit())
             && (text.len() == 48 || text.len() == 96)
         {
-            scan.note =
-                Some("That is a SeedQR. Seeds go in through Add a key, not Files".to_string());
+            scan.note = Some(EN.read_code_that_is_a.to_string());
             return None;
         }
         // A CompactSeedQR is 16 or 32 bytes of entropy, not text.
         if matches!(bytes.len(), 16 | 32) && std::str::from_utf8(&bytes).is_err() {
-            scan.note = Some(
-                "That may be a CompactSeedQR. Seeds go in through Add a key, not Files".to_string(),
-            );
+            scan.note = Some(EN.read_code_that_may.to_string());
             return None;
         }
         // A wrong arrival is named, not refused generically (`docs/QR.md`
@@ -8585,7 +8681,7 @@ impl Faraday {
                             }
                             Ok(None) => {
                                 scan.note =
-                                    Some(format!("ur:{ur_type} is not a kind this build reads"));
+                                    Some(fill(EN.read_code_ur_is_not, &[&ur_type.to_string()]));
                             }
                             Err(why) => scan.note = Some(why),
                         }
@@ -8598,12 +8694,15 @@ impl Faraday {
                 },
                 Ok(false) => {
                     if let Some((have, of)) = scan.decoder.progress() {
-                        scan.note = Some(format!("UR: part {have} of {of}"));
+                        scan.note = Some(fill(
+                            EN.read_code_ur_part_of,
+                            &[&have.to_string(), &of.to_string()],
+                        ));
                     }
                     return None;
                 }
                 Err(e) => {
-                    scan.note = Some(format!("Not a part of this code: {e:?}"));
+                    scan.note = Some(fill(EN.read_code_not_a_part, &[&format!("{e:?}")]));
                     return None;
                 }
             }
@@ -8644,29 +8743,31 @@ impl Faraday {
                 && osk_bip::keys::Network::ALL
                     .iter()
                     .any(|&n| osk_bip::address::is_address_prefix(t, n));
-            return whole.then(|| {
-                "That address fails its checksum: a character in it is wrong".to_string()
-            });
+            return whole.then(|| EN.address_note_that_address_fails.to_string());
         };
         let Ok(addr) = addr.require_network(net.into()) else {
-            return Some(format!(
-                "That address is not on {}",
-                wallet::network_name(net)
+            return Some(fill(
+                EN.address_note_that_address_is_not,
+                &[wallet::network_name(net)],
             ));
         };
         for w in &self.session.wallets {
             if let Some((change, index)) = w.policy.find_address(net, &addr, 100) {
-                let chain = if change { "change" } else { "receive" };
-                return Some(format!(
-                    "That address is {}'s {chain} address {index}",
-                    w.name
+                let chain = if change {
+                    EN.address_note_change
+                } else {
+                    EN.address_note_receive
+                };
+                return Some(fill(
+                    EN.address_note_that_address_is,
+                    &[&w.name.to_string(), chain, &index.to_string()],
                 ));
             }
         }
         Some(if self.session.wallets.is_empty() {
-            "That is an address. Load a wallet to check whether it is yours".to_string()
+            EN.address_note_that_is.to_string()
         } else {
-            "That address is not among the first 100 of any loaded wallet".to_string()
+            EN.address_note_that_address.to_string()
         })
     }
 
@@ -8692,7 +8793,7 @@ impl Faraday {
                 self.qr = Some(v);
                 self.sheet = Some(Sheet::Qr);
             }
-            Err(e) => self.toast(&format!("Cannot make a code: {e}")),
+            Err(e) => self.toast(&fill(EN.open_qr_cannot_make, &[&e.to_string()])),
         }
     }
 
@@ -8701,7 +8802,7 @@ impl Faraday {
     fn code_png(&mut self, view: Result<&QrView, &String>) {
         let v = match view {
             Ok(v) => v,
-            Err(e) => return self.toast(&format!("Cannot make a code: {e}")),
+            Err(e) => return self.toast(&fill(EN.code_png_cannot_make, &[&e.to_string()])),
         };
         match v.png() {
             Some((name, bytes)) => {
@@ -8709,7 +8810,7 @@ impl Faraday {
                 self.toast_out(&name);
             }
             None if v.public && v.frames.len() > 1 => {
-                self.toast(&format!("{} is more than one code", v.title));
+                self.toast(&fill(EN.code_png_is_more_than, &[&v.title.to_string()]));
             }
             None => {}
         }
@@ -8722,7 +8823,7 @@ impl Faraday {
             self.session
                 .wallets
                 .get(i)
-                .ok_or_else(|| "That wallet is no longer loaded".to_string())
+                .ok_or_else(|| EN.code_view_that_wallet.to_string())
         };
         match code {
             Code::Descriptor(i) => {
@@ -8731,23 +8832,23 @@ impl Faraday {
                 let mut lines = self.wallet_label(w);
                 let (title, text, name) = match w.policy.record() {
                     Some(r) => (
-                        format!("{} · threshold record", w.name),
+                        fill(EN.code_view_threshold, &[&w.name.to_string()]),
                         r.to_text(),
                         format!("{stem}-record.png"),
                     ),
                     None => {
                         let text = w.policy.to_descriptor_checksummed();
                         if let Some((_, sum)) = text.rsplit_once('#') {
-                            lines.push(format!("Descriptor checksum {sum}"));
+                            lines.push(fill(EN.code_view_descriptor, &[sum]));
                         }
                         (
-                            format!("{} · wallet descriptor", w.name),
+                            fill(EN.code_view_wallet_descriptor, &[&w.name.to_string()]),
                             text,
                             format!("{stem}-descriptor.png"),
                         )
                     }
                 };
-                lines.push("Public: watch only, spends nothing".to_string());
+                lines.push(EN.code_view_public_watch.to_string());
                 let mut view = QrView::text(&title, &text)?.public(&name, lines);
                 view.whole = Some(text);
                 Ok(view)
@@ -8762,20 +8863,20 @@ impl Faraday {
                 };
                 let text = self
                     .wallet_file_text(i, what)
-                    .ok_or("This wallet has no such file")?;
+                    .ok_or(EN.code_view_this_wallet_has)?;
                 let (title, name) = if what == 2 {
                     (
-                        format!("{} · multisig config", w.name),
+                        fill(EN.code_view_multisig, &[&w.name.to_string()]),
                         format!("{stem}-multisig-config.png"),
                     )
                 } else {
                     (
-                        format!("{} · BSMS descriptor record", w.name),
+                        fill(EN.code_view_bsms_descriptor, &[&w.name.to_string()]),
                         format!("{stem}-bsms.png"),
                     )
                 };
                 let mut lines = self.wallet_label(w);
-                lines.push("Public: watch only, spends nothing".to_string());
+                lines.push(EN.code_view_public_watch.to_string());
                 Ok(QrView::text(&title, &text)?.public(&name, lines))
             }
             Code::Key(k) => {
@@ -8784,10 +8885,10 @@ impl Faraday {
                 let account = self.create_key_account(k);
                 let lines = vec![
                     key_label(&fp, kind, &text),
-                    "Public: spends nothing".to_string(),
+                    EN.code_view_public_spends.to_string(),
                 ];
                 Ok(QrView::of(
-                    &format!("Xpub {fp} · {kind}"),
+                    &fill(EN.code_view_xpub_2, &[&fp.to_string(), kind]),
                     QrSource::Key(text, account),
                     QrFormat::Ur,
                     QR_PARTS[1],
@@ -8797,26 +8898,29 @@ impl Faraday {
             Code::KeyBsms(k) => {
                 let (fp, key) = self.create_key_text(k)?;
                 let kind = self.create.as_ref().map_or("", |c| c.kind.name());
-                let (_, text) = self
-                    .create_key_bsms(k)
-                    .ok_or("BIP 129 covers wsh and sh(wsh) multisig keys")?;
+                let (_, text) = self.create_key_bsms(k).ok_or(EN.code_view_bip_129_covers)?;
                 let lines = vec![
                     key_label(&fp, kind, &key),
-                    "BIP 129 key record, signed by the key".to_string(),
-                    "Public: spends nothing".to_string(),
+                    EN.code_view_bip_129_key.to_string(),
+                    EN.code_view_public_spends.to_string(),
                 ];
-                Ok(QrView::text(&format!("Key {fp} · BSMS record"), &text)?
-                    .public(&format!("xpub-{fp}-bsms.png"), lines))
+                Ok(
+                    QrView::text(&fill(EN.code_view_key_bsms, &[&fp.to_string()]), &text)?
+                        .public(&format!("xpub-{fp}-bsms.png"), lines),
+                )
             }
             Code::WalletKey(i, slot) => {
                 let k = self.wallet_key(i, slot)?;
                 let account = k.standard.and_then(|kind| kind.account_ur(k.master));
                 let lines = vec![
                     key_label(&k.fp, &k.kind, &k.text),
-                    "Public: spends nothing".to_string(),
+                    EN.code_view_public_spends.to_string(),
                 ];
                 Ok(QrView::of(
-                    &format!("Xpub {} · {}", k.fp, k.kind),
+                    &fill(
+                        EN.code_view_xpub_2,
+                        &[&k.fp.to_string(), &k.kind.to_string()],
+                    ),
                     QrSource::Key(k.text.clone(), account),
                     QrFormat::Ur,
                     QR_PARTS[1],
@@ -8828,26 +8932,29 @@ impl Faraday {
                     .session
                     .wallets
                     .get(i)
-                    .ok_or("That wallet is no longer loaded")?;
+                    .ok_or(EN.code_view_that_wallet)?;
                 if w.policy.record().is_some() || w.policy.silent().is_some() {
-                    return Err("This wallet's keys are not account keys".into());
+                    return Err(EN.code_view_this_wallet_s.into());
                 }
                 let pk = w
                     .policy
                     .keys()
                     .get(usize::from(slot))
-                    .ok_or("This wallet has no such key")?
+                    .ok_or(EN.code_view_this_wallet)?
                     .clone();
                 let fp = pk
                     .fingerprint()
-                    .map_or_else(|| "no origin".to_string(), fp_text);
+                    .map_or_else(|| EN.code_view_no_origin.to_string(), fp_text);
                 let text = pk.key_text();
                 let lines = vec![
-                    format!("Key {fp} · {}", Session::shape(w)),
-                    "Public: spends nothing".to_string(),
+                    fill(
+                        EN.code_view_key,
+                        &[&fp.to_string(), &Session::shape(w).to_string()],
+                    ),
+                    EN.code_view_public_spends.to_string(),
                 ];
                 Ok(QrView::of(
-                    &format!("Xpub {fp}"),
+                    &fill(EN.code_view_xpub, &[&fp.to_string()]),
                     QrSource::Key(text, None),
                     QrFormat::Ur,
                     QR_PARTS[1],
@@ -8859,26 +8966,28 @@ impl Faraday {
                 let (_, text) = self.wallet_key_record(i, slot)?;
                 let lines = vec![
                     key_label(&k.fp, &k.kind, &k.text),
-                    "BIP 129 key record, signed by the key".to_string(),
-                    "Public: spends nothing".to_string(),
+                    EN.code_view_bip_129_key.to_string(),
+                    EN.code_view_public_spends.to_string(),
                 ];
-                Ok(QrView::text(&format!("Key {} · BSMS record", k.fp), &text)?
-                    .public(&format!("xpub-{}-bsms.png", k.fp), lines))
+                Ok(
+                    QrView::text(&fill(EN.code_view_key_bsms, &[&k.fp.to_string()]), &text)?
+                        .public(&format!("xpub-{}-bsms.png", k.fp), lines),
+                )
             }
             Code::Silent(_) | Code::SilentRecord => self.silent_code(code),
             Code::Message => {
-                let m = self.message.as_ref().ok_or("No message is signed")?;
-                let sig = m.signed.as_ref().ok_or("The message is not signed yet")?;
+                let m = self.message.as_ref().ok_or(EN.code_view_no_message)?;
+                let sig = m.signed.as_ref().ok_or(EN.code_view_the_message)?;
                 let text = osk_psbt::message::signed_text(&sig.address, &sig.signature, &m.text);
                 let name = format!(
                     "message-{}.png",
                     &sig.address[sig.address.len().saturating_sub(6)..]
                 );
                 let lines = vec![
-                    format!("Signed by {}", sig.address),
-                    "Public: proves who signed, spends nothing".to_string(),
+                    fill(EN.code_view_signed_by, &[&sig.address.to_string()]),
+                    EN.code_view_public_proves.to_string(),
                 ];
-                Ok(QrView::text("Signed message", &text)?.public(&name, lines))
+                Ok(QrView::text(EN.code_view_signed_message, &text)?.public(&name, lines))
             }
             Code::GpgKey | Code::GpgRevocation | Code::GpgSignature(_) => self.gpg_code(code),
         }
@@ -8901,7 +9010,11 @@ impl Faraday {
             .filter_map(|k| k.fingerprint().map(fp_text))
             .collect();
         if !all.is_empty() {
-            let word = if all.len() == 1 { "Key" } else { "Keys" };
+            let word = if all.len() == 1 {
+                EN.wallet_label_key
+            } else {
+                EN.wallet_label_keys
+            };
             lines.push(format!("{word} {}", all.join(" · ")));
         }
         lines
@@ -9067,7 +9180,7 @@ impl Faraday {
             Ok(fp) => {
                 match for_wallet {
                     Some((w, n)) => self.wallet_key_said(w, n),
-                    None => self.toast(&format!("Key {} added", fp_text(fp))),
+                    None => self.toast(&fill(EN.entry_add_key_added, &[&fp_text(fp).to_string()])),
                 }
                 self.seeds_took(fp, back);
                 self.entry = EntryState::default();
@@ -9154,7 +9267,7 @@ impl Faraday {
         let words = forms::file_words(text);
         match self.session.add_words(&words, &label, None) {
             Ok(fp) => {
-                self.toast(&format!("Key {} added", fp_text(fp)));
+                self.toast(&fill(EN.load_key_key_added, &[&fp_text(fp).to_string()]));
                 self.screen = Screen::Wallets;
                 self.refresh_spend();
                 true
@@ -9193,7 +9306,7 @@ impl Faraday {
         if payloads.is_empty() {
             self.visit
                 .log
-                .push((format!("Copied {name}: no QR code read"), true));
+                .push((fill(EN.qr_read_copied_no_qr, &[name]), true));
         } else {
             // An image is read as the camera reads: a UR in parts can
             // span several images.
@@ -9214,10 +9327,9 @@ impl Faraday {
                     self.save_boxes();
                     seeds += 1;
                     self.visit.log.push((
-                        format!(
-                            "{name}: a SeedQR, copied in as {got}; its key loads when the \
-                                     {} is removed",
-                            self.medium.noun()
+                        fill(
+                            EN.qr_read_a_seedqr_copied,
+                            &[name, &got.to_string(), self.medium.noun()],
                         ),
                         true,
                     ));
@@ -9258,13 +9370,14 @@ impl Faraday {
                     got = last.name.clone();
                 }
                 self.save_boxes();
-                self.toast(&format!("{got} is in Files"));
-                self.visit
-                    .log
-                    .push((format!("{name} read into Files as {got}"), true));
+                self.toast(&fill(EN.qr_read_is_in_files, &[&got.to_string()]));
+                self.visit.log.push((
+                    fill(EN.qr_read_read_into_files, &[name, &got.to_string()]),
+                    true,
+                ));
             } else if seeds == 0 {
                 self.visit.log.push((
-                    format!("{name}: {}", note.unwrap_or_else(|| "read".into())),
+                    format!("{name}: {}", note.unwrap_or_else(|| EN.qr_read_read.into())),
                     true,
                 ));
             }
@@ -9339,17 +9452,20 @@ impl Faraday {
         };
         let holds = item.holds();
         let what = match (item.picture, holds) {
-            (Some(FileKind::Other), _) => "A PNG with no QR code read".to_string(),
-            (Some(k), _) => format!("A PNG of {}", screens::kind_name(k).to_lowercase()),
-            (None, FileKind::Other) => "A file Faraday does not read".to_string(),
+            (Some(FileKind::Other), _) => EN.visit_inbox_a_png_with.to_string(),
+            (Some(k), _) => fill(
+                EN.visit_inbox_a_png_of,
+                &[&screens::kind_name(k).to_lowercase().to_string()],
+            ),
+            (None, FileKind::Other) => EN.visit_inbox_a_file.to_string(),
             (None, k) => screens::kind_name(k).to_string(),
         };
         let gives = match holds {
-            FileKind::Words => "Whoever has it holds the key: spends its coins, or signs as it",
-            FileKind::SeedPart => "Whoever has enough parts holds the key",
-            FileKind::Entries => "Whoever has it reads every password and code in it",
-            FileKind::Carry => "Whoever has it and a share's signature can work out that share",
-            _ => "Whoever has it reads it",
+            FileKind::Words => EN.visit_inbox_whoever_has_it_holds,
+            FileKind::SeedPart => EN.visit_inbox_whoever_has_enough,
+            FileKind::Entries => EN.visit_inbox_whoever_has_it,
+            FileKind::Carry => EN.visit_inbox_whoever_has,
+            _ => EN.visit_inbox_whoever,
         };
         // Text goes into a vault as a note; a picture or a file Faraday
         // does not read only to a stick.
@@ -9410,9 +9526,9 @@ impl Faraday {
             .unwrap_or_default();
         if !waiting.is_empty() {
             if let Some(s) = self.spend.as_mut() {
-                s.error = Some(format!(
-                    "{} waits for its backup: finish the backup first",
-                    waiting.join(", ")
+                s.error = Some(fill(
+                    EN.sign_here_waits_for,
+                    &[&waiting.join(", ").to_string()],
                 ));
                 s.open = Some(wallet::step::SIGNERS);
                 s.follow = true;
@@ -9430,7 +9546,7 @@ impl Faraday {
             Some(seed) => seed,
             None if opens_round => {
                 if let Some(s) = self.spend.as_mut() {
-                    s.error = Some("No randomness from the system yet. Try again".to_string());
+                    s.error = Some(EN.sign_here_no_randomness.to_string());
                 }
                 return;
             }
@@ -9444,11 +9560,7 @@ impl Faraday {
             .is_some_and(|s| self.amounts_refused(&s.spend.psbt))
         {
             if let Some(s) = self.spend.as_mut() {
-                s.error = Some(
-                    "This transaction was signed here before with other amounts for its inputs. \
-                     It is refused."
-                        .to_string(),
-                );
+                s.error = Some(EN.sign_here_this_transaction.to_string());
             }
             return;
         }
@@ -9469,9 +9581,16 @@ impl Faraday {
             && s.others.len() + 1 != needed
         {
             let want = needed.saturating_sub(1);
-            s.error = Some(format!(
-                "Choose {want} other {} under Signers",
-                if want == 1 { "share" } else { "shares" }
+            s.error = Some(fill(
+                EN.sign_here_choose_other,
+                &[
+                    &want.to_string(),
+                    (if want == 1 {
+                        EN.sign_here_share
+                    } else {
+                        EN.sign_here_shares
+                    }),
+                ],
             ));
             s.open = Some(wallet::step::SIGNERS);
             s.follow = true;
@@ -9545,7 +9664,7 @@ impl Faraday {
                 s.open = Some(wallet::step::NONCES);
                 s.follow = true;
             }
-            self.toast("This device's nonce is on the PSBT: carry it to the other signers");
+            self.toast(EN.sign_here_this_device);
             return;
         }
         self.refresh_spend();
@@ -9584,7 +9703,7 @@ impl Faraday {
         let before = s.spend.psbt.to_bytes();
         match s.spend.collect(&self.session, &bytes, &name) {
             Ok(added) if added.is_empty() && s.spend.psbt.to_bytes() == before => {
-                s.error = Some(format!("{name} has nothing this copy lacks"));
+                s.error = Some(fill(EN.collect_has_nothing, &[&name.to_string()]));
             }
             Ok(_) => s.error = None,
             Err(e) => s.error = Some(e),
@@ -9608,7 +9727,7 @@ impl Faraday {
                     }
                 }
                 None => {
-                    s.error = Some("No randomness from the system yet. Try again".to_string());
+                    s.error = Some(EN.collect_no_randomness.to_string());
                 }
             }
         }
@@ -9671,7 +9790,7 @@ impl Faraday {
             if let Some(pos) = before.iter().position(|&n| !s.done[n as usize]) {
                 s.open = Some(before[pos]);
                 s.follow = true;
-                s.error = Some(format!("Finish step {} first", pos + 1));
+                s.error = Some(fill(EN.primary_finish_step, &[&(pos + 1).to_string()]));
             } else {
                 self.sign_here();
             }
@@ -11151,7 +11270,7 @@ impl App for Faraday {
             Event::CameraUnavailable => {
                 if self.scan.take().is_some() {
                     self.sheet = None;
-                    self.toast("No camera, or the camera was refused");
+                    self.toast(EN.event_no_camera_or);
                 }
                 self.release_held_stick();
             }

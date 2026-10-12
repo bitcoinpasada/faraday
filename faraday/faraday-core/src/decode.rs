@@ -7,6 +7,8 @@
 //! The parsing is rust-bitcoin's, through `osk_psbt::transaction`; this
 //! module only arranges what it read.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_bip::bitcoin::consensus::encode::serialize_hex;
 use osk_bip::bitcoin::{Address, Amount, Script, Transaction, TxOut};
 use osk_bip::keys::Network;
@@ -81,20 +83,20 @@ fn script_kind(s: &Script) -> &'static str {
     } else if s.is_op_return() {
         "OP_RETURN"
     } else {
-        "Other script"
+        EN.decode_other_script
     }
 }
 
 /// What a sequence number says.
 fn sequence_text(n: u32) -> String {
     let what = if n == 0xffff_ffff {
-        "final"
+        EN.decode_final
     } else if n == 0xffff_fffe {
-        "locktime on, no replace-by-fee"
+        EN.decode_locktime_on
     } else if n & (1 << 31) == 0 && n & (1 << 22) != 0 {
-        "relative time lock, replace-by-fee"
+        EN.decode_relative_time
     } else if n & (1 << 31) == 0 {
-        "relative block lock, replace-by-fee"
+        EN.decode_relative_block
     } else {
         "replace-by-fee"
     };
@@ -104,9 +106,9 @@ fn sequence_text(n: u32) -> String {
 /// What a locktime says.
 fn locktime_text(n: u32) -> String {
     match n {
-        0 => "0 · none".to_string(),
-        n if n < 500_000_000 => format!("{n} · block height"),
-        n => format!("{n} · Unix time"),
+        0 => EN.decode_0_none.to_string(),
+        n if n < 500_000_000 => fill(EN.decode_block_height, &[&n.to_string()]),
+        n => fill(EN.decode_unix_time, &[&n.to_string()]),
     }
 }
 
@@ -197,7 +199,10 @@ pub fn prevouts_of(psbt: &osk_psbt::Psbt) -> Vec<Option<TxOut>> {
 
 /// Satoshis as bitcoin, eight places.
 pub fn btc(sats: u64) -> String {
-    format!("{} BTC", Amount::from_sat(sats).to_btc())
+    fill(
+        EN.decode_btc,
+        &[&Amount::from_sat(sats).to_btc().to_string()],
+    )
 }
 
 fn hex(bytes: impl AsRef<[u8]>) -> String {

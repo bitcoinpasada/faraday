@@ -17,6 +17,8 @@
 //! they go to the Outbox as PDFs ([`crate::pdf`]), printed wherever the
 //! stick goes next.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_bip::keys::{Fingerprint, Network};
 
 use crate::wallet::{Kind, Session, Wallet, fp_text};
@@ -376,8 +378,8 @@ pub struct Kept {
 /// What the camera found of a copy, as the copy item says it.
 pub fn copy_scan_line(found: &CopyCheck) -> String {
     match found {
-        CopyCheck::WrongWord(k) => format!("Your copy scans but word {k} differs"),
-        _ => "Your copy scans and matches the seed".to_string(),
+        CopyCheck::WrongWord(k) => fill(EN.backup_your_copy_scans_but, &[&k.to_string()]),
+        _ => EN.backup_your_copy_scans.to_string(),
     }
 }
 
@@ -393,14 +395,20 @@ pub fn envelope(session: &Session, wallet: &Wallet, plan: Option<&[Vec<usize>]>)
                 .map(fp_text)
                 .unwrap_or_else(|| "--------".into());
             let sheet = match plan {
-                Some(p) => format!("share {} of {}", i + 1, p.len()),
-                None => "the backup sheet".to_string(),
+                Some(p) => fill(
+                    EN.backup_share_of,
+                    &[&(i + 1).to_string(), &p.len().to_string()],
+                ),
+                None => EN.backup_the_backup_sheet.to_string(),
             };
-            format!(
-                "Envelope {}: the seed of key {} {}, with {sheet}",
-                i + 1,
-                i + 1,
-                fp
+            fill(
+                EN.backup_envelope_the,
+                &[
+                    &(i + 1).to_string(),
+                    &(i + 1).to_string(),
+                    &fp.to_string(),
+                    &sheet.to_string(),
+                ],
             )
         })
         .collect()

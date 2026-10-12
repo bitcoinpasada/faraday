@@ -2,6 +2,8 @@
 //! desktop's layout has columns side by side that a 268 dp panel has no
 //! room for. Each is a single scrolled column under the page's bar.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
 
 use crate::compact::M;
@@ -94,7 +96,7 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
     let mut cy = top + 12.0;
     let Some(wlt) = app.session.wallets.get(app.wallet) else {
         if app.session.loose_keys().is_empty() {
-            ui.text(x, cy, 14.0, W::R, MUTED, "No wallet loaded");
+            ui.text(x, cy, 14.0, W::R, MUTED, EN.compact_no_wallet_loaded);
         } else {
             cy += crate::screens::loose_card(app, ui, x, cy, iw);
             finish(app, ui, x0, cw, h, cy - top + 8.0);
@@ -115,13 +117,13 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
     let lead = match app.spend.as_ref() {
         Some(s) if s.wallet == Some(app.wallet) => None,
         Some(s) => Some((
-            format!("Continue signing {}", s.spend.source),
+            fill(EN.compact_continue_signing, &[&s.spend.source.to_string()]),
             Action::Nav(Screen::Spend),
         )),
         None if app.psbt_for(app.wallet).is_some() => None,
         None => app.lead_psbt().map(|i| {
             (
-                format!("Review {}", app.inbox[i].name),
+                fill(EN.compact_review, &[&app.inbox[i].name.to_string()]),
                 Action::StartSpend(i),
             )
         }),
@@ -170,14 +172,14 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
             cy += 52.0;
         }
         None => {
-            let rw = ui.measure(13.0, W::S, "Rename") + 24.0;
+            let rw = ui.measure(13.0, W::S, EN.compact_rename) + 24.0;
             let name_h = ui.wrap(x, cy + 4.0, iw - rw - 8.0, 18.0, W::S, TEXT, &wlt.name);
             ui.button(
                 x + iw - rw,
                 cy,
                 Some(rw),
                 34.0,
-                "Rename",
+                EN.compact_rename,
                 Style::Ghost,
                 Action::Rename,
             );
@@ -209,18 +211,27 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
     ui.fill(x, cy, iw, box_h, 10.0, BG);
     ui.stroke(x, cy, iw, box_h, 10.0, INNER);
     let pw = ui.pips(x + 14.0, cy + 16.0, m, here);
-    let sigs = format!("{here} of {m} signatures here");
+    let sigs = fill(
+        EN.compact_of_signatures,
+        &[&here.to_string(), &m.to_string()],
+    );
     let sigs = ui.fit(14.0, W::S, &sigs, iw - pw - 40.0);
     ui.text_mid(x + 26.0 + pw, cy + 4.0, 32.0, 14.0, W::S, TEXT, &sigs);
     if can {
-        ui.chip(x + 14.0, cy + 38.0, "Can spend", OK, OK.with_alpha(30));
+        ui.chip(
+            x + 14.0,
+            cy + 38.0,
+            EN.compact_can_spend,
+            OK,
+            OK.with_alpha(30),
+        );
     } else {
         ui.button(
             x + 10.0,
             cy + 40.0,
             Some(iw - 20.0),
             40.0,
-            "Scan a key",
+            EN.compact_scan_a_key,
             if app.may_load_keys() {
                 Style::Primary
             } else {
@@ -249,15 +260,26 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
         let sub = format!(
             "{} {} · {}",
             g.keys.len(),
-            if g.keys.len() == 1 { "key" } else { "keys" },
+            if g.keys.len() == 1 {
+                EN.compact_key_inline
+            } else {
+                EN.compact_keys
+            },
             match &g.backup {
-                crate::glance::Backup::Plan { nodes, .. } => format!(
-                    "{} backup {}",
-                    nodes.len(),
-                    if nodes.len() == 1 { "place" } else { "places" }
+                crate::glance::Backup::Plan { nodes, .. } => fill(
+                    EN.compact_backup,
+                    &[
+                        &nodes.len().to_string(),
+                        (if nodes.len() == 1 {
+                            EN.compact_place
+                        } else {
+                            EN.compact_places
+                        })
+                    ]
                 ),
-                crate::glance::Backup::Locked { vault, .. } => format!("plan in {vault}, locked"),
-                crate::glance::Backup::None => "no backup plan".to_string(),
+                crate::glance::Backup::Locked { vault, .. } =>
+                    fill(EN.compact_plan_in_locked, &[&vault.to_string()]),
+                crate::glance::Backup::None => EN.compact_no_backup_plan.to_string(),
             }
         );
         cy += row(
@@ -266,7 +288,7 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
             cy,
             iw,
             None,
-            "At a glance",
+            EN.compact_at_a_glance,
             &sub,
             MUTED,
             Some(Action::Glance(true)),
@@ -277,7 +299,7 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
         cy += missing_keys_line(app, ui, &slots, Screen::Wallets, x, cy, iw);
     }
     cy += 10.0;
-    cy += heading(ui, x, cy, "First receive address · 0/0");
+    cy += heading(ui, x, cy, EN.compact_first_receive);
     let addr = grouped(&app.session.address_shown(wlt, false, 0));
     cy += ui.wrap(x, cy, iw, 14.0, W::M, TEXT, &addr) + 18.0;
     if !app.wallet_held(app.wallet).is_empty() {
@@ -287,17 +309,25 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
     // What else can be done with it.
     let mut buttons = vec![
         (
-            "Show wallet QR",
+            EN.compact_show_wallet,
             Style::Secondary,
             Action::QrWallet(app.wallet),
         ),
-        ("Back up", Style::Secondary, Action::Backup(app.wallet)),
+        (
+            EN.compact_back_up,
+            Style::Secondary,
+            Action::Backup(app.wallet),
+        ),
     ];
     if app.session.message_wallets().contains(&app.wallet) {
-        buttons.push(("Sign a message", Style::Secondary, Action::SignMessage));
+        buttons.push((
+            EN.compact_sign_a_message,
+            Style::Secondary,
+            Action::SignMessage,
+        ));
     }
     buttons.push((
-        "Remove from session",
+        EN.compact_remove_from,
         Style::Ghost,
         Action::RemoveWallet(app.wallet),
     ));
@@ -319,13 +349,13 @@ fn silent_card(
 ) {
     let may = app.may_load_keys();
     let mut cy = y;
-    cy += heading(ui, x, cy, "Key");
+    cy += heading(ui, x, cy, EN.compact_key);
     let held = app.session.key_label(r.fingerprint);
     ui.text_mid(x, cy, 30.0, 14.0, W::M, TEXT, &fp_text(r.fingerprint));
     let (state, fg, bg) = if held.is_some() {
-        ("Here", OK, OK.with_alpha(30))
+        (EN.compact_here, OK, OK.with_alpha(30))
     } else {
-        ("Not here", MUTED, INNER)
+        (EN.compact_not_here, MUTED, INNER)
     };
     let chipw = ui.measure(12.0, W::R, state) + 34.0;
     ui.chip(x + iw - chipw, cy + 3.0, state, fg, bg);
@@ -338,13 +368,13 @@ fn silent_card(
     } else {
         let (label, style, action) = if app.vault_key_for(r.fingerprint).is_some() {
             (
-                "Load from vault",
+                EN.compact_load_from_vault,
                 Style::Primary,
                 Action::Vault(crate::vaults::VaultAction::LoadKeyOf(r.fingerprint.0)),
             )
         } else {
             (
-                "Add its key",
+                EN.compact_add_its_key,
                 Style::Secondary,
                 Action::Entry(Some(r.fingerprint.0)),
             )
@@ -354,7 +384,7 @@ fn silent_card(
         cy += 44.0;
     }
     cy += 10.0;
-    cy += heading(ui, x, cy, "Address");
+    cy += heading(ui, x, cy, EN.compact_address);
     cy += ui.wrap(
         x,
         cy,
@@ -364,7 +394,7 @@ fn silent_card(
         TEXT,
         &app.session.shown(&r.address()),
     ) + 14.0;
-    ui.text(x, cy, 13.0, W::S, MUTED, "Labels handed out");
+    ui.text(x, cy, 13.0, W::S, MUTED, EN.compact_labels_handed);
     ui.text_right(
         x + iw,
         cy - 6.0,
@@ -382,17 +412,17 @@ fn silent_card(
         iw,
         &[
             (
-                "Address, labels and payments",
+                EN.compact_address_labels,
                 Style::Primary,
                 Action::SWallet(app.wallet),
             ),
             (
-                "Show wallet QR",
+                EN.compact_show_wallet,
                 Style::Secondary,
                 Action::QrWallet(app.wallet),
             ),
             (
-                "Remove from session",
+                EN.compact_remove_from,
                 Style::Ghost,
                 Action::RemoveWallet(app.wallet),
             ),
@@ -404,7 +434,7 @@ fn silent_card(
 /// What explains a page, after its controls and behind a tap, as a
 /// step's is. Returns its height.
 pub(crate) fn about(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
-    crate::flow::about(ui, x, y, w, "About this page", crate::ABOUT_PAGE, text)
+    crate::flow::about(ui, x, y, w, EN.compact_about_this, crate::ABOUT_PAGE, text)
 }
 
 /// The height `draw` takes, drawing nothing and keeping no hits: what a
@@ -476,11 +506,13 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .entry
         .wallet
         .and_then(|w| app.session.wallets.get(w))
-        .map(|wl| format!("For {}", wl.name));
-    let wanted = app
-        .entry
-        .wanted
-        .map(|fp| format!("For key {}", fp_text(osk_bip::keys::Fingerprint(fp))));
+        .map(|wl| fill(EN.compact_for, &[&wl.name.to_string()]));
+    let wanted = app.entry.wanted.map(|fp| {
+        fill(
+            EN.compact_for_key,
+            &[&fp_text(osk_bip::keys::Fingerprint(fp)).to_string()],
+        )
+    });
     if let Some(line) = wanted.or(for_wallet) {
         let line = ui.fit(13.0, W::S, &line, iw);
         ui.text(x, y, 13.0, W::S, ACCENT, &line);
@@ -515,9 +547,9 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut langs: Vec<(String, Style, Action)> = if !app.entry.languages {
         vec![(
             if english {
-                "Other languages".to_string()
+                EN.compact_other_languages.to_string()
             } else {
-                format!("{} · other lists", crate::forms::language_name(lang))
+                fill(EN.compact_other_lists, &[crate::forms::language_name(lang)])
             },
             Style::Ghost,
             Action::EntryLanguages,
@@ -543,7 +575,7 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         langs.insert(
             0,
             (
-                "Other forms".to_string(),
+                EN.compact_other_forms.to_string(),
                 Style::Ghost,
                 Action::EntryOtherForms,
             ),
@@ -557,7 +589,7 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y,
         Some(iw),
         40.0,
-        "Scan a SeedQR",
+        EN.compact_scan_a_seedqr,
         if typed {
             Style::Secondary
         } else {
@@ -579,7 +611,7 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         12.0,
         W::R,
         MUTED,
-        &format!("Word {}", taken.len() + 1),
+        &fill(EN.compact_word, &[&(taken.len() + 1).to_string()]),
     );
     let on = !app.entry.on_passphrase;
     let shown = if prefix.is_empty() && !on {
@@ -603,11 +635,11 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let cands: Vec<u16> = w.candidates().collect();
     if cands.is_empty() {
         let line = if prefix.is_empty() {
-            "Type the next word"
+            EN.compact_type_the_next
         } else if w.awaiting_tone() {
-            "Now its tone"
+            EN.compact_now_its_tone
         } else {
-            "No word starts with that"
+            EN.compact_no_word_starts
         };
         ui.text_mid(x, y, 30.0, 13.0, W::R, MUTED, line);
         y += 34.0;
@@ -631,7 +663,7 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The words taken, as many boxes as the count chosen.
     let count = app.entry.word_boxes(taken.len() + 1);
     y += 6.0;
-    y += heading(ui, x, y, "Words");
+    y += heading(ui, x, y, EN.compact_words);
     y += crate::screens::word_count_row(app, ui, x, y, iw, false);
     let cols = 3;
     let cellw = (iw - (cols - 1) as f32 * 6.0) / cols as f32;
@@ -665,7 +697,7 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         iw,
-        "BIP-39 passphrase",
+        EN.compact_bip_39_passphrase,
         &app.entry.passphrase,
         app.entry.on_passphrase,
         Action::EntryPassphrase,
@@ -676,15 +708,19 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         Style::Secondary
     };
-    ui.pin = Some(("Add key".to_string(), add, Action::EntryAdd));
+    ui.pin = Some((EN.compact_add_key.to_string(), add, Action::EntryAdd));
     y += stack(
         ui,
         x,
         y,
         iw,
         &[
-            ("Make a new key", Style::Secondary, Action::KeyGen(None)),
-            ("Clear", Style::Ghost, Action::EntryClear),
+            (
+                EN.compact_make_a_new_key,
+                Style::Secondary,
+                Action::KeyGen(None),
+            ),
+            (EN.compact_clear, Style::Ghost, Action::EntryClear),
         ],
     );
     crate::screens::entry_stick(app, ui, x, y + 4.0);
@@ -714,7 +750,7 @@ fn entry_form(
     let typed = if empty {
         match form {
             Form::Codex32 => "ms1…".to_string(),
-            _ => "Words of one share".to_string(),
+            _ => EN.compact_words_of_one.to_string(),
         }
     } else {
         let mut t = app.entry.typed.to_string();
@@ -751,9 +787,9 @@ fn entry_form(
         x,
         y,
         &match lines.len() {
-            0 => "Nothing in yet".to_string(),
-            1 => "1 in".to_string(),
-            n => format!("{n} in"),
+            0 => EN.compact_nothing_in.to_string(),
+            1 => EN.compact_1_in.to_string(),
+            n => fill(EN.compact_in, &[&n.to_string()]),
         },
     );
     for l in &lines {
@@ -767,7 +803,7 @@ fn entry_form(
             x,
             y,
             iw,
-            "Passphrase",
+            EN.compact_passphrase,
             &app.entry.passphrase,
             app.entry.on_passphrase,
             Action::EntryPassphrase,
@@ -781,7 +817,7 @@ fn entry_form(
         iw,
         &[
             (
-                "Add this one",
+                EN.compact_add_this_one,
                 if app.entry.typed.trim().is_empty() {
                     Style::Disabled
                 } else {
@@ -789,9 +825,13 @@ fn entry_form(
                 },
                 Action::EntryPart,
             ),
-            ("Scan a QR code", Style::Secondary, Action::ScanPart),
             (
-                "Make the key",
+                EN.compact_scan_a_qr_code,
+                Style::Secondary,
+                Action::ScanPart,
+            ),
+            (
+                EN.compact_make_the_key,
                 if ready {
                     Style::Primary
                 } else {

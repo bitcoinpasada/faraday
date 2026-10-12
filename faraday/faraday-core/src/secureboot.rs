@@ -4,9 +4,11 @@
 //! keys live in an open vault as a type-8 record (`docs/VAULT.md` §7) and
 //! only certificates, signed updates and signed images reach the Outbox.
 
+use crate::strings::EN;
 use faraday_sb::{Check, Keys, Pair, Policy};
 use faraday_vault::Record;
 use faraday_vault::records::kind;
+use opensigner_core::strings::fill;
 use osk_bip::bitcoin::hashes::{Hash, sha256};
 
 use crate::Faraday;
@@ -121,15 +123,15 @@ impl Faraday {
     /// Makes an owner's three keys into the open vault.
     pub(crate) fn sb_make(&mut self) {
         let Some(now) = self.clock_now() else {
-            return self.toast("This computer's clock is not known");
+            return self.toast(EN.secureboot_this_computer);
         };
         let Some(seed) = self.fresh(b"secure boot") else {
-            return self.toast("No randomness from the system yet. Try again");
+            return self.toast(EN.secureboot_no_randomness);
         };
         let owner = self.vaults.sb_owner.clone();
         match faraday_sb::make(&seed, &owner, now) {
             Ok(keys) => {
-                self.vault_push(record_of(&keys), "PK, KEK and db are in the vault");
+                self.vault_push(record_of(&keys), EN.secureboot_pk_kek_and);
                 let n = self
                     .vaults
                     .open
@@ -147,7 +149,7 @@ impl Faraday {
             return;
         };
         let Some(now) = self.clock_now() else {
-            return self.toast("This computer's clock is not known");
+            return self.toast(EN.secureboot_this_computer);
         };
         let policy = if self.vaults.sb_own_only {
             Policy::OwnKeysOnly
@@ -160,7 +162,7 @@ impl Faraday {
                 for (name, bytes) in files {
                     self.put_outbox(&name, bytes);
                 }
-                self.toast_out(&format!("{n} enrolment files"));
+                self.toast_out(&fill(EN.secureboot_enrolment, &[&n.to_string()]));
             }
             Err(e) => self.toast(e.reason()),
         }
@@ -181,7 +183,7 @@ impl Faraday {
                 self.put_outbox(&name, signed);
                 self.vaults.sb_sign = None;
                 self.vaults.sb_images = false;
-                self.toast_out(&format!("{name}, signed,"));
+                self.toast_out(&fill(EN.secureboot_signed, &[&name.to_string()]));
             }
             Err(e) => self.toast(e.reason()),
         }
@@ -196,11 +198,11 @@ impl Faraday {
             return;
         };
         let said = match faraday_sb::pe::check(&item.bytes, &keys.db.cert) {
-            Ok(Check::Valid) => "Signed by this vault's db key",
-            Ok(Check::OtherSigner) => "Signed by another key",
-            Ok(Check::Altered) => "Changed since it was signed",
-            Ok(Check::Unsigned) => "Not signed",
-            Ok(Check::Unreadable) => "Its signature could not be read",
+            Ok(Check::Valid) => EN.secureboot_signed_by_this,
+            Ok(Check::OtherSigner) => EN.secureboot_signed_by,
+            Ok(Check::Altered) => EN.secureboot_changed,
+            Ok(Check::Unsigned) => EN.secureboot_not_signed,
+            Ok(Check::Unreadable) => EN.secureboot_its_signature,
             Err(e) => e.reason(),
         };
         let line = format!("{}: {said}", item.name);

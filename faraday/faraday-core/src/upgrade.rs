@@ -22,6 +22,8 @@
 //! ([`Faraday::upgrading`]), and only then does `faraday-grant` hand the
 //! copier a boot partition.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_shell_api::Command;
 
 use crate::{BootPart, Faraday, Screen, Sheet, StorageCommand, StorageEvent};
@@ -86,7 +88,7 @@ pub enum Fit {
 pub fn version(release: Option<&str>) -> String {
     match release.and_then(|r| r.split_once("-faraday-")) {
         Some((_, build_id)) => describe(build_id),
-        None => "0.1.0 or earlier".to_string(),
+        None => EN.upgrade_0_1_0_or_earlier.to_string(),
     }
 }
 
@@ -121,10 +123,10 @@ pub fn describe(id: &str) -> String {
         _ => (None, None),
     };
     match (kind, changes) {
-        (Some("test"), None) => format!("{number} test release ({commit})"),
-        (Some("test"), Some(fp)) => format!("{number} test release ({commit}, changes {fp})"),
-        (Some("dev"), None) => format!("{number} dev ({commit})"),
-        (Some("dev"), Some(fp)) => format!("{number} dev ({commit}, changes {fp})"),
+        (Some("test"), None) => fill(EN.upgrade_test_release_2, &[number, commit]),
+        (Some("test"), Some(fp)) => fill(EN.upgrade_test_release, &[number, commit, fp]),
+        (Some("dev"), None) => fill(EN.upgrade_dev, &[number, commit]),
+        (Some("dev"), Some(fp)) => fill(EN.upgrade_dev_changes, &[number, commit, fp]),
         _ => format!("{number} ({rest})"),
     }
 }

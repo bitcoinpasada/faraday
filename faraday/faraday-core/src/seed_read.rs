@@ -19,6 +19,8 @@
 //! The words wait in memory, never drawn, until a choice loads them or
 //! the sheet closes, which wipes them.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_bip::keys::Fingerprint;
 use osk_shell_api::Key as KeyIn;
 use osk_ui::widgets::Icon;
@@ -230,9 +232,9 @@ impl Faraday {
             Choice::Plain => self.seed_read_choose(false),
             Choice::WithPass => {
                 if s.pass.as_str() != s.pass2.as_str() {
-                    s.error = Some("The two passphrases differ".to_string());
+                    s.error = Some(EN.seed_read_the_two_passphrases.to_string());
                 } else if s.pass.is_empty() {
-                    s.error = Some("Type the passphrase".to_string());
+                    s.error = Some(EN.seed_read_type_the.to_string());
                 } else {
                     self.seed_read_choose(true);
                 }
@@ -330,7 +332,7 @@ impl Faraday {
                 }
                 return;
             }
-            Found::Here(n) => format!("Key {} · already here", n + 1),
+            Found::Here(n) => fill(EN.seed_read_key_already, &[&(n + 1).to_string()]),
             Found::None => self.not_a_wallet_key(w, fp),
         };
         if let Some(s) = self.seed_read.as_mut() {
@@ -349,7 +351,7 @@ impl Faraday {
                 .keys
                 .iter()
                 .find(|k| k.master.fingerprint() == plain)
-                .map(|k| format!("{} · passphrase", k.label))
+                .map(|k| fill(EN.seed_read_passphrase_3, &[&k.label.to_string()]))
                 .unwrap_or_default();
             match self.session.add_words_with(words, pass, &label, None) {
                 Ok(fp) => fp,
@@ -434,19 +436,23 @@ pub(crate) fn sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     };
     let skip = s.family == Some(ForFamily::Intake) && s.wallet.is_some();
     let cancel = if skip {
-        ("Not this one", Style::Ghost, Action::SeedRead(Choice::Skip))
+        (
+            EN.seed_read_not_this,
+            Style::Ghost,
+            Action::SeedRead(Choice::Skip),
+        )
     } else {
-        ("Cancel", Style::Ghost, Action::Cancel)
+        (EN.seed_read_cancel, Style::Ghost, Action::Cancel)
     };
     let mut items: Vec<(&str, Style, Action)> = if s.adding {
         vec![
             (
-                "Use with this passphrase",
+                EN.seed_read_use_with,
                 use_with,
                 Action::SeedRead(Choice::WithPass),
             ),
             (
-                "Without a passphrase",
+                EN.seed_read_without_a,
                 Style::Secondary,
                 Action::SeedRead(Choice::Plain),
             ),
@@ -454,12 +460,12 @@ pub(crate) fn sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     } else {
         vec![
             (
-                "Use without a passphrase",
+                EN.seed_read_use_without,
                 Style::Primary,
                 Action::SeedRead(Choice::Plain),
             ),
             (
-                "Add a passphrase",
+                EN.seed_read_add_a_passphrase,
                 Style::Secondary,
                 Action::SeedRead(Choice::AddPass),
             ),
@@ -475,7 +481,7 @@ pub(crate) fn sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let body = |ui: &mut Ui, x: f32, y: f32, iw: f32| -> f32 {
         let mut cy = y;
         if let Some(fp) = s.plain {
-            cy += key_line(ui, x, cy, iw, "Without a passphrase", fp);
+            cy += key_line(ui, x, cy, iw, EN.seed_read_without_a, fp);
         }
         if s.adding {
             cy += 6.0;
@@ -484,7 +490,7 @@ pub(crate) fn sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                 x,
                 cy,
                 iw,
-                "Passphrase",
+                EN.seed_read_passphrase_2,
                 &s.pass,
                 s.focus == Some(0),
                 Action::SeedRead(Choice::Field(0)),
@@ -494,15 +500,23 @@ pub(crate) fn sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                 x,
                 cy,
                 iw,
-                "Passphrase again",
+                EN.seed_read_passphrase,
                 &s.pass2,
                 s.focus == Some(1),
                 Action::SeedRead(Choice::Field(1)),
             );
             if let Some(fp) = with {
-                cy += key_line(ui, x, cy, iw, "With this passphrase", fp);
+                cy += key_line(ui, x, cy, iw, EN.seed_read_with_this, fp);
             } else if differ {
-                cy += ui.wrap(x, cy, iw, 13.0, W::R, WARN, "The two passphrases differ") + 10.0;
+                cy += ui.wrap(
+                    x,
+                    cy,
+                    iw,
+                    13.0,
+                    W::R,
+                    WARN,
+                    EN.seed_read_the_two_passphrases,
+                ) + 10.0;
             }
         }
         if let Some(e) = &s.error {
@@ -512,7 +526,7 @@ pub(crate) fn sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         }
         cy - y
     };
-    let title = "SeedQR read";
+    let title = EN.seed_read_seedqr_read;
     if ui.compact {
         crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
             let mut cy = y;

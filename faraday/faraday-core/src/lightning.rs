@@ -5,8 +5,10 @@
 //! public; its private key is a secret, into the vault or out only
 //! through the secret sheet.
 
+use crate::strings::{EN, fill_secret};
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
+use opensigner_core::strings::fill;
 use osk_bip::aezeed;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_crypto::Secret;
@@ -94,7 +96,7 @@ impl Faraday {
                     .iter()
                     .find(|k| k.master.fingerprint().0 == fp);
                 match key.and_then(|k| Some((k, k.words.as_ref()?))) {
-                    None => Err("This key has no BIP-39 seed".to_string()),
+                    None => Err(EN.lightning_this_key.to_string()),
                     Some((k, words)) => Mnemonic::parse(k.language, words)
                         .map_err(|e| e.to_string())
                         .and_then(|m| {
@@ -108,18 +110,18 @@ impl Faraday {
                 let mut idx = [0u16; aezeed::NUM_WORDS];
                 let words: Vec<&str> = l.typed.split_whitespace().collect();
                 if words.len() != aezeed::NUM_WORDS {
-                    Err(format!("An aezeed is 24 words; {} are typed", words.len()))
+                    Err(fill(EN.lightning_an_aezeed, &[&words.len().to_string()]))
                 } else if let Some(k) = words
                     .iter()
                     .position(|w| Language::English.index_of(w).is_none())
                 {
-                    Err(format!("Word {} is not on the list", k + 1))
+                    Err(fill(EN.lightning_word_is_not, &[&(k + 1).to_string()]))
                 } else {
                     for (slot, w) in idx.iter_mut().zip(&words) {
                         *slot = Language::English.index_of(w).unwrap_or(0);
                     }
                     let r = aezeed::decode(&idx, l.passphrase.as_bytes())
-                        .map_err(|e| format!("Not an aezeed for this passphrase: {e:?}"))
+                        .map_err(|e| fill(EN.lightning_not_an_aezeed, &[&format!("{e:?}")]))
                         .map(|seed| {
                             let birthday = aezeed::birthday_date(seed.birthday);
                             let mut entropy = Secret::new([0u8; aezeed::ENTROPY_SIZE]);
@@ -159,18 +161,15 @@ impl Faraday {
             A::LResolve => return self.lightning_resolve(),
             A::LVault => {
                 if self.vaults.open.get(self.vaults.current).is_none() {
-                    return self.toast("No vault is open");
+                    return self.toast(EN.lightning_no_vault);
                 }
                 let Some((id, private)) = self.lightning_secret_text() else {
                     return;
                 };
-                let note = Zeroizing::new(format!(
-                    "Lightning node key\nnode id {id}\nprivate key {}",
-                    private.as_str()
-                ));
+                let note = fill_secret(EN.lightning_lightning, &[&id, private.as_str()]);
                 self.vault_push(
                     Record::new(kind::NOTE).with(field::NOTE, note.as_bytes()),
-                    "The node key is in the vault",
+                    EN.lightning_the_node,
                 );
                 return;
             }
@@ -183,8 +182,8 @@ impl Faraday {
                     Zeroizing::new(
                         format!("node id {id}\nprivate key {}\n", private.as_str()).into_bytes(),
                     ),
-                    "A Lightning node's private key",
-                    "Whoever has it is the node: its channels and their money",
+                    EN.lightning_a_lightning,
+                    EN.lightning_whoever_has,
                 ));
                 return;
             }

@@ -4,9 +4,11 @@
 use crate::backup::Tone;
 use crate::backups::{Entry, Line};
 use crate::screens::title;
+use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::{Action, Faraday};
+use opensigner_core::strings::fill;
 
 /// A line's state colour.
 fn tone(t: Tone) -> osk_ui::Color {
@@ -62,10 +64,10 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.c.push_clip(clip);
     let top = TOP - app.list_offset;
     let mut y = top;
-    title(ui, x, y, "Backups");
+    title(ui, x, y, EN.backups_backups);
     y += HEAD;
     if entries.is_empty() {
-        ui.text(x, y, 15.0, W::R, MUTED, "No wallet");
+        ui.text(x, y, 15.0, W::R, MUTED, EN.backups_no_wallet);
         y += 30.0;
     }
     for (k, e) in entries.iter().enumerate() {
@@ -81,7 +83,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let iw = w - 40.0;
         let mut bw = 0.0;
         if let Some(i) = e.wallet {
-            let label = "Back up";
+            let label = EN.backups_back_up;
             bw = ui.measure(14.0, W::S, label) + 36.0;
             ui.button(
                 ix + iw - bw,
@@ -100,7 +102,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let mut ry = y + CARD_HEAD;
         match e.lines.as_ref() {
             None => {
-                ui.text_mid(ix, ry, ROW, 13.0, W::S, WARN, "No backup plan");
+                ui.text_mid(ix, ry, ROW, 13.0, W::S, WARN, EN.backups_no_backup_plan);
             }
             Some(lines) => {
                 for l in lines {
@@ -152,7 +154,7 @@ fn compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32, entries: &[Entr
     let mut y = top;
     let n = entries.len();
     let Some(e) = entries.get(app.backups_at.min(n.saturating_sub(1))) else {
-        ui.text(x, y, 14.0, W::R, MUTED, "No wallet");
+        ui.text(x, y, 14.0, W::R, MUTED, EN.backups_no_wallet);
         return;
     };
     let at = app.backups_at.min(n - 1);
@@ -160,7 +162,7 @@ fn compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32, entries: &[Entr
     y += ui.wrap(x, y, w, 12.0, W::R, MUTED, &e.shape) + 14.0;
     match e.lines.as_ref() {
         None => {
-            ui.text(x, y, 13.0, W::S, WARN, "No backup plan");
+            ui.text(x, y, 13.0, W::S, WARN, EN.backups_no_backup_plan);
             y += 28.0;
         }
         Some(lines) => {
@@ -176,7 +178,7 @@ fn compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32, entries: &[Entr
             y,
             Some(w),
             44.0,
-            "Back up",
+            EN.backups_back_up,
             Style::Secondary,
             Action::Backup(i),
         );
@@ -184,7 +186,10 @@ fn compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32, entries: &[Entr
     }
     if n > 1 {
         let half = (w - 8.0) / 2.0;
-        let page = format!("Wallet {} of {n}", at + 1);
+        let page = fill(
+            EN.backups_wallet_of,
+            &[&(at + 1).to_string(), &n.to_string()],
+        );
         ui.text(x, y, 12.0, W::R, DIM, &page);
         y += 24.0;
         let (prev, next) = (at.checked_sub(1), (at + 1 < n).then_some(at + 1));
@@ -193,7 +198,7 @@ fn compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32, entries: &[Entr
             y,
             Some(half),
             44.0,
-            "Previous",
+            EN.backups_previous,
             if prev.is_some() {
                 Style::Secondary
             } else {
@@ -206,7 +211,7 @@ fn compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32, entries: &[Entr
             y,
             Some(half),
             44.0,
-            "Next",
+            EN.backups_next,
             if next.is_some() {
                 Style::Secondary
             } else {

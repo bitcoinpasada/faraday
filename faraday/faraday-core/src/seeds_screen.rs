@@ -6,10 +6,12 @@
 use crate::create::NewKind;
 use crate::screens::{buttons_and_next, stepper, wrap_buttons};
 use crate::seeds::{self, Focus, SeedsAction as S, SeedsState};
+use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W, grouped};
 use crate::wallet::FileKind;
 use crate::{Action, Faraday};
+use opensigner_core::strings::fill;
 
 fn sa(a: S) -> Action {
     Action::Seeds(a)
@@ -27,7 +29,7 @@ pub(crate) fn more_ways(
     for (v, r, fp) in seeds::vault_seeds(app) {
         let name = &app.vaults.open[v].name;
         labels.push((
-            format!("Load {fp} from {name}"),
+            fill(EN.seeds_load_from, &[&fp.to_string(), &name.to_string()]),
             Style::Secondary,
             sa(S::FromVault(v, r)),
         ));
@@ -43,7 +45,10 @@ pub(crate) fn more_ways(
         let f = k.master.fingerprint();
         if !here.contains(&f.0) {
             labels.push((
-                format!("Use {}", crate::wallet::key_line(f, &k.label)),
+                fill(
+                    EN.seeds_use,
+                    &[&crate::wallet::key_line(f, &k.label).to_string()],
+                ),
                 Style::Secondary,
                 sa(S::UseLoaded(f.0)),
             ));
@@ -56,16 +61,23 @@ pub(crate) fn more_ways(
 pub(crate) fn quorum(ui: &mut Ui, s: &SeedsState, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let n = s.n.max(1);
-    let big = format!("{} of {n}", s.m.max(1));
+    let big = fill(EN.seeds_of, &[&s.m.max(1).to_string(), &n.to_string()]);
     ui.text(x, cy, 22.0, W::S, TEXT, &big);
     let bw = ui.measure(22.0, W::S, &big);
     let line = if n == 1 {
-        "one key signs".to_string()
+        EN.seeds_one_key_signs.to_string()
     } else {
-        format!(
-            "{} {} of {n} keys",
-            s.m,
-            if s.m == 1 { "signature" } else { "signatures" }
+        fill(
+            EN.seeds_of_keys,
+            &[
+                &s.m.to_string(),
+                (if s.m == 1 {
+                    EN.seeds_signature
+                } else {
+                    EN.seeds_signatures_inline
+                }),
+                &n.to_string(),
+            ],
         )
     };
     ui.text_mid(x + bw + 14.0, cy, 30.0, 13.0, W::R, MUTED, &line);
@@ -75,7 +87,10 @@ pub(crate) fn quorum(ui: &mut Ui, s: &SeedsState, x: f32, y: f32, w: f32) -> f32
     } else {
         (x + 130.0, (w - 130.0).min(520.0))
     };
-    for (id, label) in [(seeds::SLIDE_M, "Signatures"), (seeds::SLIDE_N, "Keys")] {
+    for (id, label) in [
+        (seeds::SLIDE_M, EN.seeds_signatures),
+        (seeds::SLIDE_N, EN.seeds_keys),
+    ] {
         let Some((lo, hi, v)) = s.slider_at(id) else {
             continue;
         };
@@ -110,7 +125,7 @@ pub(crate) fn cosigner(
     ui.text_mid(x, cy, 40.0, 12.0, W::R, DIM, &slot.to_string());
     match seeds::cosigner_key(text).filter(|_| !focused) {
         Some(key) => {
-            let cw = ui.measure(13.0, W::S, "Change") + 32.0;
+            let cw = ui.measure(13.0, W::S, EN.seeds_change) + 32.0;
             let shown = ui.fit(14.0, W::M, &seeds::cosigner_label(&key), w - 34.0 - cw);
             ui.text_mid(x + 22.0, cy, 40.0, 14.0, W::M, OK, &shown);
             ui.button(
@@ -118,7 +133,7 @@ pub(crate) fn cosigner(
                 cy + 2.0,
                 Some(cw),
                 36.0,
-                "Change",
+                EN.seeds_change,
                 Style::Ghost,
                 sa(S::Clear(k as u8)),
             );
@@ -131,7 +146,7 @@ pub(crate) fn cosigner(
                 cy,
                 w - 22.0,
                 text,
-                "Type or paste an xpub",
+                EN.seeds_type_or_paste,
                 focused,
                 sa(S::Focus(Focus::Cosigner(k as u8))),
             );
@@ -144,7 +159,7 @@ pub(crate) fn cosigner(
                     12.0,
                     W::R,
                     ERR,
-                    "Not an account key",
+                    EN.seeds_not_an_account,
                 ) + 6.0;
             }
             // Scan and the key files in Files fill the box typing goes
@@ -162,9 +177,12 @@ pub(crate) fn cosigner(
                     .filter(|(_, i)| i.kind == FileKind::Key)
                     .map(|(k, i)| (k, i.name.as_str()))
                     .collect();
-                let labels: Vec<String> = files.iter().map(|(_, n)| format!("Use {n}")).collect();
+                let labels: Vec<String> = files
+                    .iter()
+                    .map(|(_, n)| fill(EN.seeds_use, &[n]))
+                    .collect();
                 let mut items: Vec<(&str, Style, Action)> =
-                    vec![("Scan", Style::Secondary, Action::Scan)];
+                    vec![(EN.seeds_scan, Style::Secondary, Action::Scan)];
                 for ((i, _), l) in files.iter().zip(&labels) {
                     items.push((l.as_str(), Style::Secondary, sa(S::UseFile(*i))));
                 }
@@ -195,22 +213,14 @@ pub(crate) fn shape(
     // A box for each key whose seed is not here.
     if !s.cosigners.is_empty() {
         cy += 6.0;
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            13.0,
-            W::S,
-            MUTED,
-            "Cosigners' account keys (xpub)",
-        ) + 10.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::S, MUTED, EN.seeds_cosigners_account) + 10.0;
         for k in 0..s.cosigners.len() {
             cy += cosigner(app, ui, s, k, have + k + 1, x, cy, w);
         }
     }
     // The kind.
     cy += 8.0;
-    ui.text(x, cy, 13.0, W::S, MUTED, "Kind");
+    ui.text(x, cy, 13.0, W::S, MUTED, EN.seeds_kind);
     cy += 24.0;
     for (k, kind) in s.kinds().iter().enumerate() {
         let on = *kind == s.kind;
@@ -241,13 +251,13 @@ pub(crate) fn shape(
     }
     // The path.
     cy += 12.0;
-    ui.text(x, cy, 13.0, W::S, MUTED, "Derivation path");
+    ui.text(x, cy, 13.0, W::S, MUTED, EN.seeds_derivation_path);
     cy += 24.0;
     let standard = s.custom.is_none();
     ui.checkbox(x, cy + 11.0, standard, true);
     let std_path = s.kind.path_at(net, s.account);
-    ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::S, TEXT, "Standard");
-    let pw = ui.measure(14.0, W::S, "Standard") + 44.0;
+    ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::S, TEXT, EN.seeds_standard);
+    let pw = ui.measure(14.0, W::S, EN.seeds_standard) + 44.0;
     ui.text_mid(
         x + pw,
         cy,
@@ -266,7 +276,7 @@ pub(crate) fn shape(
             x + 30.0,
             cy,
             w - 30.0,
-            "Account",
+            EN.seeds_account,
             s.account as usize,
             sa(S::Account(false)),
             sa(S::Account(true)),
@@ -275,7 +285,7 @@ pub(crate) fn shape(
         cy += 50.0;
     }
     ui.checkbox(x, cy + 11.0, !standard, true);
-    ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::S, TEXT, "Custom path");
+    ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::S, TEXT, EN.seeds_custom_path);
     ui.hit(x, cy, w, 40.0, sa(S::Custom));
     cy += 44.0;
     if let Some(p) = &s.custom {
@@ -296,7 +306,7 @@ pub(crate) fn shape(
     cy += 8.0;
     match app.seeds_address(s) {
         Ok(a) => {
-            ui.text(x, cy, 12.0, W::R, MUTED, "First receive address · 0/0");
+            ui.text(x, cy, 12.0, W::R, MUTED, EN.seeds_first_receive);
             cy += 22.0;
             cy += ui.wrap(x, cy, w, 15.0, W::M, TEXT, &grouped(&app.session.shown(&a))) + 14.0;
         }
@@ -308,11 +318,18 @@ pub(crate) fn shape(
         cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 10.0;
     }
     let left: &[(&str, Style, Action)] = if back {
-        &[("Back to the seeds", Style::Secondary, sa(S::Keys))]
+        &[(EN.seeds_back_to_the_seeds, Style::Secondary, sa(S::Keys))]
     } else {
         &[]
     };
-    cy += buttons_and_next(ui, x, cy, w, left, Some(("Make the wallet", sa(S::Make))));
+    cy += buttons_and_next(
+        ui,
+        x,
+        cy,
+        w,
+        left,
+        Some((EN.seeds_make_the_wallet, sa(S::Make))),
+    );
     cy - y
 }
 

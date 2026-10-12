@@ -17,6 +17,8 @@
 //! asked. A wallet worked out from seeds alone is a guess, and Check the
 //! money walks through the other kinds until the money shows (§5).
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_bip::keys::Fingerprint;
 use osk_shell_api::Command;
 
@@ -264,7 +266,7 @@ pub const SINGLE: [NewKind; 4] = [
 ];
 
 /// The source a wallet opened from typed words is loaded under.
-pub const WORDS_SOURCE: &str = "Typed words";
+pub const WORDS_SOURCE: &str = EN.family_typed_words;
 
 /// The bit of `FamilyState::more` a card's More about this uses.
 pub fn more_bit(id: CardId) -> u8 {
@@ -325,23 +327,25 @@ impl Faraday {
         // (`docs/NEW-WALLET.md` §14.3).
         if !self.wallet_held(w).is_empty() {
             return (
-                "Finish the backup first".to_string(),
+                EN.family_finish_the_backup.to_string(),
                 Action::BackupFirst(w),
             );
         }
         if let Some(s) = self.spend.as_ref().filter(|s| s.wallet == Some(w)) {
             return (
-                format!(
-                    "Carry on the spend · Signatures {} of {}",
-                    s.signers.len(),
-                    self.spend_needed()
+                fill(
+                    EN.family_carry_on_the,
+                    &[
+                        &s.signers.len().to_string(),
+                        &self.spend_needed().to_string(),
+                    ],
                 ),
                 self.carry_on(),
             );
         }
         let label = match self.psbt_for(w) {
-            Some(_) => format!("Sign the PSBT from the {}", self.medium.noun()),
-            None => "Spend from this wallet".to_string(),
+            Some(_) => fill(EN.family_sign_the_psbt, &[self.medium.noun()]),
+            None => EN.family_spend_from_this.to_string(),
         };
         (label, Action::Family(FamilyAction::SpendFrom(w)))
     }
@@ -623,7 +627,7 @@ impl Faraday {
             F::MoreAddresses => self.family.addresses = (self.family.addresses + 5).min(47),
             F::QrTx => {
                 if let Some(hex) = self.spend.as_ref().and_then(|s| s.spend.finished_hex()) {
-                    self.open_qr(QrView::text("Finished transaction", &hex));
+                    self.open_qr(QrView::text(EN.family_finished_transaction, &hex));
                 }
             }
             F::SpendFrom(i) => {
@@ -647,11 +651,16 @@ impl Faraday {
                 self.family.from_card = true;
                 self.family.help = false;
                 self.screen = Screen::Family;
-                self.family.route = Some(match w.source.as_str() {
-                    WORDS_SOURCE | crate::seeds::SOURCE => Route::Words,
-                    "Vault" => Route::Vault,
-                    _ => Route::Paper,
-                });
+                let source = w.source.as_str();
+                self.family.route = Some(
+                    if source == WORDS_SOURCE || source == crate::seeds::SOURCE {
+                        Route::Words
+                    } else if source == EN.vaults_vault {
+                        Route::Vault
+                    } else {
+                        Route::Paper
+                    },
+                );
                 // Someone who loaded a wallet already knows the map and
                 // the stick.
                 self.family.closed[page::MAP as usize] = true;
@@ -920,7 +929,7 @@ impl Faraday {
     pub(crate) fn family_intake_seed(&mut self, words: &str) {
         let Some(fp) = key_of(words, "") else {
             if let Some(scan) = self.scan.as_mut() {
-                scan.note = Some("Not a SeedQR or a CompactSeedQR".to_string());
+                scan.note = Some(EN.family_not_a_seedqr.to_string());
             }
             return;
         };
@@ -938,12 +947,12 @@ impl Faraday {
                     Ok(_) => {
                         self.family_came(Came::Seed(fp.0));
                         self.refresh_spend();
-                        format!("Seed {} read", fp_text(fp))
+                        fill(EN.family_seed_read, &[&fp_text(fp).to_string()])
                     }
                     Err(e) => e.text(),
                 }
             }
-            Found::Here(n) => format!("Key {} · already here", n + 1),
+            Found::Here(n) => fill(EN.family_key_already, &[&(n + 1).to_string()]),
             Found::None => {
                 let reason = self.not_a_wallet_key(w, fp);
                 self.seed_read_for_wallet(words, w, reason);
@@ -969,10 +978,10 @@ impl Faraday {
         let note = match kind {
             FileKind::Wallet => {
                 if self.family_ready() && self.family_described().is_some() {
-                    "Wallet description read · a wallet is open already".to_string()
+                    EN.family_wallet_description_read.to_string()
                 } else {
                     self.family_use_wallet(index);
-                    "Wallet description read".to_string()
+                    EN.family_wallet_description.to_string()
                 }
             }
             FileKind::Share => {
@@ -983,21 +992,24 @@ impl Faraday {
                 }
                 match crate::restore::merge(&sheets) {
                     Ok(m) if m.whole.is_some() && self.family_ready() => {
-                        format!("Part {k} read · the wallet is rebuilt")
+                        fill(EN.family_part_read_the, &[&k.to_string()])
                     }
-                    Ok(m) => format!("Part {k} read · {} of {} keys in hand", m.have.len(), m.n),
+                    Ok(m) => fill(
+                        EN.family_part_read_of,
+                        &[&k.to_string(), &m.have.len().to_string(), &m.n.to_string()],
+                    ),
                     Err(e) => e,
                 }
             }
             FileKind::Key => {
                 self.seeds_take_file(index);
-                "A public key: it shows the wallet but cannot sign".to_string()
+                EN.family_a_public_key.to_string()
             }
             FileKind::Psbt => {
                 self.family_psbt_kinds(index);
-                "A transaction to sign · kept for later".to_string()
+                EN.family_a_transaction.to_string()
             }
-            _ => format!("{name} is in Files"),
+            _ => fill(EN.family_is_in_files, &[&name.to_string()]),
         };
         let note = self.family.error.clone().unwrap_or(note);
         if let Some(scan) = self.scan.as_mut() {
@@ -1051,7 +1063,7 @@ impl Faraday {
     /// A seed whose sheet loaded it from the intake scanner: the camera
     /// comes back on for the next code.
     pub(crate) fn family_intake_again(&mut self, fp: Option<Fingerprint>) {
-        let note = fp.map(|fp| format!("Seed {} read", fp_text(fp)));
+        let note = fp.map(|fp| fill(EN.family_seed_read, &[&fp_text(fp).to_string()]));
         self.family_scan(note);
     }
 
@@ -1124,9 +1136,11 @@ impl Faraday {
         let (kind, pass) = Self::guess_way(g, g.at);
         let mut label = kind_label(kind).to_string();
         if pass {
-            label.push_str(" with a passphrase");
+            label.push(' ');
+            label.push_str(EN.family_with_a_passphrase);
         }
-        g.tried.push(format!("{label} · no money"));
+        g.tried
+            .push(fill(EN.family_no_money, &[&label.to_string()]));
         if !g.multi && g.at == 0 {
             g.asking = true;
             return;
@@ -1215,9 +1229,9 @@ impl Faraday {
             .key_label(plain)
             .map(|l| {
                 if l.is_empty() || l.eq_ignore_ascii_case(&fp_text(plain)) {
-                    "passphrase".to_string()
+                    EN.family_passphrase_inline.to_string()
                 } else {
-                    format!("{l} · passphrase")
+                    fill(EN.family_passphrase_n, &[l])
                 }
             })
             .unwrap_or_default();
@@ -1301,7 +1315,7 @@ impl Faraday {
         };
         let descriptor = kind.descriptor(1, &[text]);
         self.session.wallets.retain(|w| w.source != WORDS_SOURCE);
-        let name = format!("Words · {}", kind_name(kind));
+        let name = fill(EN.family_words, &[kind_name(kind)]);
         match self.session.add_wallet(&name, &descriptor, WORDS_SOURCE) {
             Ok(i) => {
                 self.family.wallet = Some(name);
@@ -1320,7 +1334,7 @@ impl Faraday {
             .find(|w| w.source == WORDS_SOURCE)?;
         SINGLE
             .into_iter()
-            .find(|k| w.name == format!("Words · {}", kind_name(*k)))
+            .find(|k| w.name == fill(EN.family_words, &[kind_name(*k)]))
     }
 
     fn family_use_wallet(&mut self, index: usize) {
@@ -1381,8 +1395,8 @@ impl Faraday {
                     let name = osk_bip::multisig_config::parse_named(&whole)
                         .ok()
                         .and_then(|(_, n)| n)
-                        .unwrap_or_else(|| "Restored wallet".to_string());
-                    match self.session.add_wallet(&name, &whole, "its shares") {
+                        .unwrap_or_else(|| EN.family_restored_wallet.to_string());
+                    match self.session.add_wallet(&name, &whole, EN.family_its_shares) {
                         Ok(i) => {
                             self.family.wallet = Some(self.session.wallets[i].name.clone());
                             self.wallet = i;
@@ -1394,7 +1408,10 @@ impl Faraday {
                     }
                 }
                 None if loud => {
-                    self.family.error = Some(format!("{} of {} keys in hand", m.have.len(), m.n));
+                    self.family.error = Some(fill(
+                        EN.family_of_keys_in_hand,
+                        &[&m.have.len().to_string(), &m.n.to_string()],
+                    ));
                 }
                 None => {}
             },
@@ -1570,10 +1587,10 @@ impl Faraday {
 /// A single-key kind's name, as the words route shows it.
 pub fn kind_name(kind: NewKind) -> &'static str {
     match kind {
-        NewKind::NativeSegwit => "native SegWit",
-        NewKind::Taproot => "Taproot",
-        NewKind::NestedSegwit => "nested SegWit",
-        NewKind::Legacy => "legacy",
+        NewKind::NativeSegwit => EN.family_native_segwit_2,
+        NewKind::Taproot => EN.family_taproot,
+        NewKind::NestedSegwit => EN.family_nested_segwit_2,
+        NewKind::Legacy => EN.family_legacy,
         _ => "",
     }
 }
@@ -1582,10 +1599,10 @@ pub fn kind_name(kind: NewKind) -> &'static str {
 /// single-key names, and the multisig kinds named as such.
 pub fn kind_label(kind: NewKind) -> &'static str {
     match kind {
-        NewKind::Multi => "native SegWit multisig",
-        NewKind::TapMulti => "Taproot multisig",
-        NewKind::MultiNested => "nested SegWit multisig",
-        NewKind::MultiLegacy => "legacy multisig",
+        NewKind::Multi => EN.family_native_segwit,
+        NewKind::TapMulti => EN.family_taproot_multisig,
+        NewKind::MultiNested => EN.family_nested_segwit,
+        NewKind::MultiLegacy => EN.family_legacy_multisig,
         k => kind_name(k),
     }
 }

@@ -8,122 +8,75 @@
 //! Wallets shows them.
 
 use crate::family::{CardId, Route, page};
+use crate::strings::EN;
 use crate::wallet::{Kind, step};
 use crate::{Faraday, Medium, guide};
+use opensigner_core::strings::fill;
 
 /// The map: where each stop happens, its name, and what is done there.
 pub fn map(m: Medium) -> [(&'static str, &'static str, String); 6] {
     [
         (
-            "Paper",
-            "What you have",
-            format!(
-                "The Faraday {} and its passphrase, or words written down, and often a sheet \
-                 describing the wallet.",
-                m.noun()
-            ),
+            EN.family_paper,
+            EN.family_what_you_have,
+            fill(EN.family_the_faraday, &[m.noun()]),
         ),
         (
-            "Offline",
-            "Open the wallet here",
-            format!(
-                "Start a computer from the Faraday {} and open the wallet.",
-                m.noun()
-            ),
+            EN.family_offline,
+            EN.family_open_the_wallet_here,
+            fill(EN.family_start_a_computer, &[m.noun()]),
         ),
         (
-            "Online",
-            "Check the balance",
-            "Put the wallet's description into Sparrow on an online computer.".to_string(),
+            EN.family_online,
+            EN.family_check_the_balance,
+            EN.family_put_the_wallet.to_string(),
         ),
         (
-            "Online",
-            "Write the payment",
-            "Make the transaction in Sparrow. It gives you a PSBT.".to_string(),
+            EN.family_online,
+            EN.family_write_the_payment,
+            EN.family_make_the_transaction.to_string(),
         ),
         (
-            "Offline",
-            "Sign it here",
-            "Bring the PSBT to Faraday, read what it does, and sign it.".to_string(),
+            EN.family_offline,
+            EN.family_sign_it_here,
+            EN.family_bring_the_psbt.to_string(),
         ),
         (
-            "Online",
-            "Send it",
-            "Take the signed transaction back to Sparrow and broadcast it.".to_string(),
+            EN.family_online,
+            EN.family_send_it,
+            EN.family_take_the_signed.to_string(),
         ),
     ]
 }
 
 /// The line under the map that is never folded away.
-pub const WORDS_ARE_MONEY: &str = "The words are the money. Never photograph them, and never type \
-    them into a phone, a website or a password manager. The same goes for the vault's passphrase.";
+pub const WORDS_ARE_MONEY: &str = EN.family_the_words_are;
 
 /// What do you have?'s link to the list of what each thing looks like.
-pub const UNSURE: &str = "Not sure what you have?";
+pub const UNSURE: &str = EN.family_not_sure_what;
 
 /// The hint with one seed in: what else may be in the envelope.
-pub const ANYTHING_HINT: &str = "Another list of words, another QR code, a line starting wsh( or \
-    tr(, or a word kept apart from the list.";
+pub const ANYTHING_HINT: &str = EN.family_another_list;
 
 /// The hint with several seeds in and no description: what one looks
 /// like.
-pub const DESCRIPTION_HINT: &str = "Its description says how they fit together: a QR code \
-    labelled wallet, descriptor, setup or multisig; a long line starting wsh( or tr(; or sheets \
-    with lines like 73C5DA0A: xpub…";
+pub const DESCRIPTION_HINT: &str = EN.family_its_description;
 
 /// What each thing in the envelope looks like: its look, then what it is.
 pub fn looks(m: Medium) -> [(String, String); 8] {
     let looks: [(&str, &str); 7] = [
-        (
-            "A square black-and-white pattern",
-            "A QR code: the same information in a form a camera can read. Several numbered 1 of 5 \
-         and so on are one thing in parts: scan them one after another. Never scan a QR code \
-         that sits beside seed words into anything but Faraday.",
-        ),
-        (
-            "Words numbered 1 to 12, 18 or 24",
-            "The seed phrase. Often headed recovery phrase, seed words or backup, or stamped into \
-         steel.",
-        ),
-        (
-            "One long line starting wpkh(, wsh(, tr(, xpub, zpub or tpub",
-            "A descriptor or an xpub. It shows the addresses and the balance but cannot spend. \
-         Do not post it publicly: it shows the wallet's whole history.",
-        ),
-        (
-            "Several sheets each holding a few lines, like 73C5DA0A: xpub…",
-            "One description split up on purpose, often under a heading such as this sheet carries 2 \
-         of 3 wallet descriptor parts. Enough of the sheets, in any order, add up to the whole. \
-         A line such as Policy: 2 of 3 says how many signatures the wallet needs.",
-        ),
-        (
-            "A word or sentence kept apart from the list, called a passphrase or a 25th word",
-            "If one exists, the words alone open a wallet that is real but empty, and the money is \
-         in the wallet the words and the passphrase open. This is not the vault's passphrase: \
-         the vault's passphrase opens the vault file, and this one changes which wallet the \
-         words open.",
-        ),
-        (
-            "A short line starting bc1, 3 or 1",
-            "One address, not a backup.",
-        ),
-        (
-            "A small device with a screen and buttons",
-            "A hardware wallet. It is a way of using the words, not a replacement for them.",
-        ),
+        (EN.family_a_square_black, EN.family_a_qr_code_the),
+        (EN.family_words_numbered, EN.family_the_seed_phrase),
+        (EN.family_one_long_line, EN.family_a_descriptor),
+        (EN.family_several_sheets, EN.family_one_description),
+        (EN.family_a_word_or_sentence, EN.family_if_one_exists),
+        (EN.family_a_short_line, EN.family_one_address),
+        (EN.family_a_small_device, EN.family_a_hardware_wallet),
     ];
     let [a, b, c, d, e, f, g] = looks.map(|(look, what)| (look.to_string(), what.to_string()));
     let medium = (
-        format!(
-            "{} labelled Faraday, and a passphrase on a separate card",
-            m.a_full_cap()
-        ),
-        format!(
-            "The {} starts the computer and carries the vault, a locked file named like \
-             vault.ofv. The passphrase opens it. The vault holds the wallet and the keys that \
-             sign for it.",
-            m.noun()
-        ),
+        fill(EN.family_labelled_faraday, &[m.a_full_cap()]),
+        fill(EN.family_the_starts_the, &[m.noun()]),
     );
     [medium, a, b, c, d, e, f, g]
 }
@@ -132,32 +85,28 @@ pub fn looks(m: Medium) -> [(String, String); 8] {
 pub fn title(app: &Faraday, id: CardId) -> String {
     let s = match id {
         CardId::Page(p) => match p {
-            page::MAP => "How to spend bitcoin",
-            page::SAFE => return format!("Start from the {}", app.medium.noun()),
-            page::HOLDING => "What do you have?",
-            page::OPEN => "Open the wallet",
-            page::CHECK if app.family.from_card => "Load the wallet in Sparrow",
-            page::CHECK if app.family_guess().is_some() => {
-                "Check the money is there, on the online computer"
-            }
-            page::WRITE if app.family.from_card => "Write the payment in Sparrow",
-            page::CHECK => "Check the money is really there",
-            page::WRITE => "Write the payment",
-            page::BRING => "Bring the transaction here",
-            _ => "Put everything away",
+            page::MAP => EN.family_how_to_spend,
+            page::SAFE => return fill(EN.family_start_from_the, &[app.medium.noun()]),
+            page::HOLDING => EN.family_what_do_you,
+            page::OPEN => EN.family_open_the_wallet,
+            page::CHECK if app.family.from_card => EN.family_load_the_wallet,
+            page::CHECK if app.family_guess().is_some() => EN.family_check_the_money_is,
+            page::WRITE if app.family.from_card => EN.family_write_the_payment_in,
+            page::CHECK => EN.family_check_the_money,
+            page::WRITE => EN.family_write_the_payment,
+            page::BRING => EN.family_bring_the_transaction,
+            _ => EN.family_put_everything,
         },
         CardId::Step(n) | CardId::Later(n) => match n {
-            step::TRANSACTION => "Read the transaction",
-            step::TXID => "The transaction id",
-            step::PATH => "Which way it spends",
-            step::NONCES => "Nonces",
-            step::SIGNERS if app.family.route == Some(Route::Paper) => {
-                "Add the seeds that can sign"
-            }
-            step::SIGNERS => "Who signs",
-            step::SIGN => "Sign it",
-            step::COLLECT => "The other signatures",
-            step::FINISH => "Send it",
+            step::TRANSACTION => EN.family_read_the_transaction,
+            step::TXID => EN.family_the_transaction,
+            step::PATH => EN.family_which_way_it,
+            step::NONCES => EN.family_nonces,
+            step::SIGNERS if app.family.route == Some(Route::Paper) => EN.family_add_the_seeds,
+            step::SIGNERS => EN.family_who_signs,
+            step::SIGN => EN.family_sign_it,
+            step::COLLECT => EN.family_the_other_signatures,
+            step::FINISH => EN.family_send_it,
             _ => "",
         },
     };
@@ -167,121 +116,47 @@ pub fn title(app: &Faraday, id: CardId) -> String {
 /// A card's lead: what to do on it, always shown while it is open.
 pub fn lead(app: &Faraday, id: CardId) -> String {
     let s: &str = match id {
-        CardId::Page(page::MAP) => {
-            "Six stops, three on this computer and three on an online one. Nothing moves until \
-             the last."
-        }
+        CardId::Page(page::MAP) => EN.family_six_stops_three,
         CardId::Page(page::SAFE) if app.online => {
-            return format!(
-                "This is the desktop copy of Faraday, which runs on an ordinary computer that has \
-                 been online. It is for testing. For real money, start a computer from the \
-                 Faraday {}.",
-                app.medium.noun()
-            );
+            return fill(EN.family_this_is_the, &[app.medium.noun()]);
         }
         CardId::Page(page::SAFE) => {
-            return format!(
-                "This computer is running Faraday from the {}. It has no network, and it forgets \
-                 everything when it is switched off.",
-                app.medium.noun()
-            );
+            return fill(EN.family_this_computer_is, &[app.medium.noun()]);
         }
-        CardId::Page(page::HOLDING | page::OPEN) => {
-            "Scan or type everything in the envelope, one thing at a time, in any order. Faraday \
-             works out the wallet from it."
-        }
+        CardId::Page(page::HOLDING | page::OPEN) => EN.family_scan_or_type,
         // From the wallet's card: what to press, no more.
-        CardId::Page(page::CHECK) if app.family.from_card => {
-            "In Sparrow: File, New Wallet, then scan the wallet QR. Its first address is receive \
-             address 0 here."
-        }
-        CardId::Page(page::WRITE) if app.family.from_card => {
-            "In Sparrow's Send tab: the address, the amount and a fee. Then Create Transaction, \
-             Finalize Transaction for Signing and Show QR."
-        }
-        CardId::Page(page::CHECK) if app.family_guess().is_some() => {
-            "Words alone do not say which kind of wallet they made. Faraday made the most common \
-             kind from them. Open it in the wallet on the online computer, such as Sparrow, and \
-             look at its balance. If no money shows, Faraday makes the next kind."
-        }
-        CardId::Page(page::CHECK) => {
-            "Load this same wallet in Sparrow on your online computer to check the balance. The \
-             code below is the wallet's description: enough for Sparrow to find every address \
-             the wallet uses and add up what is on all of them. It cannot spend. Then check that \
-             the first address Sparrow shows is character for character the same as receive \
-             address 0 below. If it matches, two separate programs have read the same backup \
-             and agreed. If it does not match, stop: something was typed or scanned wrongly."
-        }
-        CardId::Page(page::WRITE) => {
-            "This part happens on the online computer. In Sparrow, open the wallet's Send tab, \
-             enter the address to pay and the amount, and choose a fee. Press Create Transaction, \
-             then Finalize Transaction for Signing, then Show QR: an animated code, which is what \
-             Faraday reads. Sparrow can also save it as a .psbt file."
-        }
+        CardId::Page(page::CHECK) if app.family.from_card => EN.family_in_sparrow_file_new,
+        CardId::Page(page::WRITE) if app.family.from_card => EN.family_in_sparrow_s,
+        CardId::Page(page::CHECK) if app.family_guess().is_some() => EN.family_words_alone,
+        CardId::Page(page::CHECK) => EN.family_load_this_same,
+        CardId::Page(page::WRITE) => EN.family_this_part_happens,
         CardId::Page(page::BRING) => {
-            return format!(
-                "Two ways. Scanning is the simpler: nothing has to lock. Press Scan and hold \
-                 Sparrow's QR code up to this computer's camera; an animation is read as it \
-                 loops. Or save the .psbt onto {a} and copy it in. Faraday reads {a} only while \
-                 no vault or key is open, so with one open it locks first: it seals the vault, \
-                 forgets the keys and starts again. Copy the PSBT in, remove the {noun}, and \
-                 unlock with the same passphrase. This tab comes back on this page.",
-                a = app.medium.a(),
-                noun = app.medium.noun()
+            return fill(
+                EN.family_two_ways_scanning,
+                &[app.medium.a(), app.medium.a(), app.medium.noun()],
             );
         }
         CardId::Page(_) => {
-            return format!(
-                "Lock Faraday. The vault is sealed again and the keys are forgotten. If a file \
-                 you still need waits for the {noun}, plug {a} in and the {noun} visit writes \
-                 it. Then switch off, take the {noun} out, and put it back with the papers.",
-                a = app.medium.a(),
-                noun = app.medium.noun()
+            return fill(
+                EN.family_lock_faraday,
+                &[
+                    app.medium.noun(),
+                    app.medium.a(),
+                    app.medium.noun(),
+                    app.medium.noun(),
+                ],
             );
         }
-        CardId::Later(_) => "This opens once the transaction is here.",
-        CardId::Step(step::TRANSACTION) => {
-            "Read the summary before you sign, every time: what leaves, what comes back, and the \
-             fee. Change is the rest coming back to the same wallet, not money leaving. Signing \
-             is the one step that cannot be taken back. If this is not what you meant to do, a \
-             different amount, an address you do not recognise, or a warning of any kind, do not \
-             sign. Declining costs nothing."
-        }
-        CardId::Step(step::TXID) => {
-            "Write down the first and last few characters of this id. Sparrow shows the same id \
-             for the transaction it wrote; after sending, the id is how you follow it."
-        }
-        CardId::Step(step::SIGNERS) if signers_missing(app) => {
-            "Every key that signs is listed. A key not here yet comes from its own place: Scan \
-             a key reads its SeedQR, or its words typed instead, and a vault that holds it \
-             unlocks. Faraday works out which key it is. Each is checked \
-             against the wallet, so a key from another wallet is refused. A key held by someone \
-             else does not have to come here at all: they sign the same PSBT on their own device, \
-             and their signed copy is collected after this device signs."
-        }
+        CardId::Later(_) => EN.family_this_opens_once,
+        CardId::Step(step::TRANSACTION) => EN.family_read_the_summary,
+        CardId::Step(step::TXID) => EN.family_write_down_the,
+        CardId::Step(step::SIGNERS) if signers_missing(app) => EN.family_every_key_that,
         CardId::Step(step::SIGNERS) if app.family.route == Some(Route::Paper) => {
-            "One seed at a time: put its words in, add it, and the count goes up. Order does not \
-             matter and the same seed twice does no harm. Each list is checked against the \
-             wallet's own keys, so one belonging to a different wallet is refused. A seed kept \
-             as a QR code beside the words does not have to be typed: scan it. If that backup \
-             has a separate passphrase, type it in the passphrase box before adding."
+            EN.family_one_seed_at
         }
-        CardId::Step(step::SIGN) => {
-            "Signing adds the signature of every key loaded here. For a wallet that needs \
-             signatures from elsewhere, the next card lists who still has to sign and takes \
-             their signed copies; each is checked against its key and this transaction before \
-             it counts."
-        }
+        CardId::Step(step::SIGN) => EN.family_signing_adds,
         CardId::Step(step::FINISH) => {
-            return format!(
-                "The finished transaction is what the network accepts. Show the signed PSBT as a \
-                 QR code; in Sparrow, on the same transaction, press Scan QR and hold it up to \
-                 the webcam, then Broadcast Transaction. Or carry the finished transaction, which \
-                 waits in Files, on {}. It is safe to hand to anyone: nobody can change \
-                 where the money goes without breaking the signatures, and a broken transaction \
-                 is rejected, not redirected.",
-                app.medium.a()
-            );
+            return fill(EN.family_the_finished, &[app.medium.a()]);
         }
         CardId::Step(n) => {
             let s = app.spend.as_ref();
@@ -318,106 +193,42 @@ pub fn more(app: &Faraday, id: CardId) -> Vec<String> {
     let fixed: &[&str] = match id {
         CardId::Page(page::MAP) => {
             let mut paras = strings(&[
-                "Anyone who reads the words can spend the money from anywhere in the world, and it \
-             cannot be reversed. Where a wallet needs several lists, anyone with enough of them \
-             can. Treat every list as if it were the only one. No legitimate bitcoin company will \
-             ever ask for them: not a support line, not someone helping you, not an AI.",
-                "Nothing done here is irreversible until the last step, and that step does not happen \
-             in Faraday. Opening the vault, typing words, looking at addresses and reading a \
-             transaction move nothing and notify no one. You can stop and come back.",
-                "There is no deadline; bitcoin does not expire. Rushing is how people get robbed, by \
-             scammers and by helpers acting in their own interest. Take your time, and find \
-             someone you trust.",
+                EN.family_anyone_who_reads,
+                EN.family_nothing_done,
+                EN.family_there_is_no,
             ]);
-            paras.push(format!(
-                "If any of this stops making sense, stop. Put the {} and the paper somewhere safe \
-                 and get help from someone you would trust with the money itself. Waiting costs \
-                 nothing.",
-                m.noun()
-            ));
+            paras.push(fill(EN.family_if_any_of_this, &[m.noun()]));
             return paras;
         }
         CardId::Page(page::SAFE) => {
             return vec![
-                "Shut the computer down completely, not sleep or restart. Unplug any network \
-                 cable."
-                    .to_string(),
-                format!(
-                    "Plug the Faraday {} in, switch the computer on and press the boot menu key \
-                     straight away, repeatedly. It is usually F12, F9, Esc or F2. The first \
-                     screen often names the key for a second or two.",
-                    m.noun()
-                ),
-                format!(
-                    "Pick the {} from the list that appears. If no list appears, the key was \
-                     wrong or came too late: shut down and try another one.",
-                    m.full()
-                ),
-                format!(
-                    "If the {noun} is missing, or someone else has opened the envelope, do not \
-                     use it. Do not use {a} you are unsure about: the words are the money, and \
-                     taking longer costs nothing.",
-                    noun = m.noun(),
-                    a = m.a()
-                ),
+                EN.family_shut_the_computer.to_string(),
+                fill(EN.family_plug_the_faraday, &[m.noun()]),
+                fill(EN.family_pick_the_from, &[m.full()]),
+                fill(EN.family_if_the_is_missing, &[m.noun(), m.a()]),
             ];
         }
         CardId::Page(page::HOLDING | page::OPEN) => &[
-            "A vault unlocks in the time shown on purpose: it makes guessing the passphrase slow. \
-             A wrong passphrase opens nothing and says so.",
-            "Words go in in the order they are written. Faraday checks them against the list of \
-             2048 words and the backup's own checksum, so a mistyped or missing word is caught.",
-            "A wallet description opens the wallet read-only: enough to see every address and to \
-             check the balance. The words that sign come later, after the transaction is read.",
-            "Split sheets go in one at a time, in any order; the wallet opens when enough of \
-             them are in.",
+            EN.family_a_vault_unlocks,
+            EN.family_words_go_in,
+            EN.family_a_wallet_description,
+            EN.family_split_sheets,
         ],
         CardId::Page(page::CHECK) => &[
-            "In Sparrow: File, New Wallet, give it a name, then choose the way in that scans a \
-             QR code or imports a descriptor, and hold this screen up to the webcam. Menu names \
-             change between versions; look for an import that takes a descriptor or a scan. If \
-             the code is animated, let it loop once.",
-            "Only load it into wallet software you chose and trust.",
-            "Faraday can work out every address the wallet owns, but not which were used. Money is \
-             often spread over several addresses, including change addresses from old payments, \
-             so the first few can be empty while the money is further down. Sparrow adds them \
-             all up.",
-            "On a phone you can also look an address up on a block explorer such as \
-             mempool.space. That moves nothing; it does tell the website you looked.",
+            EN.family_in_sparrow_file,
+            EN.family_only_load_it,
+            EN.family_faraday_can,
+            EN.family_on_a_phone_you,
         ],
-        CardId::Page(page::WRITE) => &[
-            "Paying into an exchange: the exchange gives a deposit address for bitcoin in your \
-             account. Copy it exactly, and compare the first and last few characters after \
-             pasting.",
-            "Faraday locks after a few minutes without input. That is expected. Unlock again with \
-             the same passphrase and this tab opens where you left it.",
-        ],
-        CardId::Step(step::SIGN) => &[
-            "If the envelope held a hardware wallet that came with the papers and looks \
-             untouched, you can sign the same PSBT on it too and compare. Follow the device's \
-             own guide to restore from the same words. Compare what both screens say before \
-             approving anything: the amount, the fee and the address. They must match.",
-            "Faraday on its own is enough to do the whole job.",
-        ],
+        CardId::Page(page::WRITE) => &[EN.family_paying_into, EN.family_faraday_locks],
+        CardId::Step(step::SIGN) => &[EN.family_if_the_envelope, EN.family_faraday_on_its],
         CardId::Step(step::FINISH) => &[
-            "Any of these sends it: Sparrow, which opens a transaction from a QR code, a file or \
-             pasted text and broadcasts it; a block explorer's broadcast page, such as \
-             mempool.space or blockstream.info; or someone you trust.",
-            "Then check the id. Whatever sends it should report the id Faraday showed. If the id \
-             you see anywhere differs, what was sent is not what you signed here: stop and find \
-             out why.",
-            "The first confirmation usually takes about ten minutes but can take hours if the fee \
-             was low. Exchanges usually want one to six confirmations before the money shows in \
-             the account.",
+            EN.family_any_of_these,
+            EN.family_then_check_the,
+            EN.family_the_first_confirmation,
         ],
         CardId::Page(page::AWAY) => {
-            return vec![format!(
-                "When Faraday signs with a vault open, it records the amounts it signed inside \
-                 that vault, so locking seals a changed copy of the vault to write back. \
-                 Writing it back to the {} keeps that record; leaving it out changes nothing \
-                 else.",
-                m.noun()
-            )];
+            return vec![fill(EN.family_when_faraday, &[m.noun()])];
         }
         _ => &[],
     };

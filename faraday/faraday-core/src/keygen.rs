@@ -15,6 +15,8 @@
 //! The accumulators and the words are erased on drop; leaving the flow
 //! drops them all.
 
+use crate::strings::EN as FEN;
+use opensigner_core::strings::fill;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_entropy::{
     CameraNoise, CardDraws, CoinFlips, DiceProcedure, DiceRolls, MIN_MIX, Mixed, RawHex, Strength,
@@ -42,7 +44,7 @@ pub fn source_name(s: Source) -> &'static str {
         Source::Camera => EN.create_source_camera,
         Source::Mix => EN.create_source_mix,
         Source::Device => EN.create_source_device,
-        Source::SeedXor => "Seed XOR",
+        Source::SeedXor => FEN.keygen_seed_xor,
     }
 }
 
@@ -52,7 +54,7 @@ pub fn procedure_name(p: DiceProcedure) -> &'static str {
         DiceProcedure::Hashed => EN.dice_procedure_hashed,
         DiceProcedure::SixAsZero => EN.dice_procedure_six_as_zero,
         // OpenSigner's name less its "(BitBox)".
-        DiceProcedure::Words => "Words chosen by the dice",
+        DiceProcedure::Words => FEN.keygen_words_chosen,
     }
 }
 
@@ -418,7 +420,7 @@ impl KeyGen {
     pub fn deal(&mut self, random: [u8; 32]) -> Result<(), String> {
         use osk_bip::slip39;
         let Some(secret) = self.secret.as_ref() else {
-            return Err("No secret yet".to_string());
+            return Err(FEN.keygen_no_secret_yet.to_string());
         };
         // The draw, stretched: SHA-256 over the draw and a counter, as
         // much as the split asks for.
@@ -446,7 +448,9 @@ impl KeyGen {
         let n = slip39::split(
             secret, b"", identifier, true, 1, 1, &groups, &mut fill, &mut out,
         )
-        .map_err(|e| format!("The shares could not be made: {e:?}"))?;
+        .map_err(|e| {
+            opensigner_core::strings::fill(FEN.keygen_the_shares_could, &[&format!("{e:?}")])
+        })?;
         out.truncate(n);
         self.shares = out;
         self.share_at = 0;
@@ -624,13 +628,13 @@ impl KeyGen {
         let w = self.warnings();
         let mut out = Vec::new();
         if w.long_run {
-            out.push("A long run of one result");
+            out.push(FEN.keygen_a_long_run_of);
         }
         if w.skewed {
-            out.push("Far from even: one result came up much more than the others");
+            out.push(FEN.keygen_far_from_even);
         }
         if w.sequential {
-            out.push("A long run counting up or down");
+            out.push(FEN.keygen_a_long_run_counting);
         }
         out
     }
@@ -759,9 +763,9 @@ impl KeyGen {
         }
         self.note = (!taken).then(|| {
             if self.procedure().direct() {
-                "A 5 or a 6 is rolled again in a word's first five rolls".to_string()
+                FEN.keygen_a_5_or_a_6_is.to_string()
             } else {
-                "A die has six faces".to_string()
+                FEN.keygen_a_die_has_six.to_string()
             }
         });
     }
@@ -786,7 +790,7 @@ impl KeyGen {
             return;
         }
         if !(1..=6).contains(&face) {
-            self.note = Some("A die has six faces".to_string());
+            self.note = Some(FEN.keygen_a_die_has_six.to_string());
             return;
         }
         self.note = None;
@@ -814,7 +818,7 @@ impl KeyGen {
             return;
         }
         if self.progress().0 >= self.progress().1 {
-            self.note = Some("No more are needed".to_string());
+            self.note = Some(FEN.keygen_no_more_are.to_string());
             return;
         }
         match (self.active(), c) {
@@ -919,7 +923,7 @@ impl KeyGen {
             }
             self.note = match osk_entropy::card_index(r, s) {
                 Some(i) if self.cards.push(i) => None,
-                Some(_) => Some("That card is already out of this deck".to_string()),
+                Some(_) => Some(FEN.keygen_that_card_is.to_string()),
                 None => None,
             };
             self.rank = None;
@@ -940,11 +944,11 @@ impl KeyGen {
             return;
         }
         let Some(luma) = self.frame.as_ref() else {
-            self.note = Some("No picture from the camera yet".to_string());
+            self.note = Some(FEN.keygen_no_picture_from.to_string());
             return;
         };
         let (_, taken) = self.camera.push(luma);
-        self.note = (!taken).then(|| "Too little variation in that picture".to_string());
+        self.note = (!taken).then(|| FEN.keygen_too_little_variation.to_string());
     }
 
     /// SHA-256 of the active source's input, which a mix combines.
@@ -965,7 +969,7 @@ impl KeyGen {
     pub fn finish_entry(&mut self) -> bool {
         if !self.ready() {
             let (have, need) = self.progress();
-            self.note = Some(format!("{have} of {need}"));
+            self.note = Some(fill(FEN.keygen_of, &[&have.to_string(), &need.to_string()]));
             return false;
         }
         self.note = None;
@@ -1036,7 +1040,7 @@ impl crate::Faraday {
     /// Opens the flow, for a Create slot or for the session.
     pub(crate) fn keygen_open(&mut self, slot: Option<u8>) {
         if !self.may_load_keys() {
-            self.toast(&format!("Remove the {} first", self.medium.noun()));
+            self.toast(&fill(FEN.keygen_remove_the_first, &[self.medium.noun()]));
             return;
         }
         let only_24 = slot.is_some() && self.create.as_ref().is_some_and(|c| c.kind.threshold());
@@ -1191,15 +1195,15 @@ impl crate::Faraday {
                         open(k, kstep::ENTER);
                     } else {
                         k.note = Some(if k.source.is_some() {
-                            "Choose two sources or more".to_string()
+                            FEN.keygen_choose_two_sources.to_string()
                         } else {
-                            "Choose a source".to_string()
+                            FEN.keygen_choose_a_source.to_string()
                         });
                     }
                 }
                 Some(kstep::ENTER) => {
                     if k.slip39 && draw.is_none() {
-                        k.note = Some("No randomness from the system yet. Try again".to_string());
+                        k.note = Some(FEN.keygen_no_randomness.to_string());
                         return;
                     }
                     if k.finish_entry() {
@@ -1386,7 +1390,7 @@ impl crate::Faraday {
             return;
         }
         let slot = k.slot;
-        let label = format!("New key {}", self.new_keys + 1);
+        let label = fill(FEN.keygen_new_key_n, &[&(self.new_keys + 1).to_string()]);
         // A session that hands out keys adds its next one in place of the
         // key just made, which goes unused (`Session::handout`).
         let added = if let Some(words) = self.session.next_handout() {
@@ -1444,7 +1448,7 @@ impl crate::Faraday {
             return;
         };
         if k.slot.is_some() && k.passphrase.as_str() != k.passphrase2.as_str() {
-            k.note = Some("The two passphrases differ".to_string());
+            k.note = Some(FEN.keygen_the_two_passphrases.to_string());
             return;
         }
         // New key on its own makes the key alone: no passphrase
@@ -1454,7 +1458,7 @@ impl crate::Faraday {
             pass.push_str(k.passphrase.as_str());
         }
         let slot = k.slot;
-        let label = format!("New key {}", self.new_keys + 1);
+        let label = fill(FEN.keygen_new_key_n, &[&(self.new_keys + 1).to_string()]);
         // A session that hands out keys adds its next one in place of the
         // key just made, which goes unused (`Session::handout`).
         let added = if let Some(handed) = self.session.next_handout() {
@@ -1558,10 +1562,16 @@ impl crate::Faraday {
             c.scroll.follow = true;
         }
         if let Some(fp) = k.fingerprint {
-            self.toast(&format!(
-                "Key {} added; back up its {} before you rely on it",
-                crate::wallet::fp_text(osk_bip::keys::Fingerprint(fp)),
-                if k.slip39 { "shares" } else { "words" }
+            self.toast(&fill(
+                FEN.keygen_key_added_back,
+                &[
+                    &crate::wallet::fp_text(osk_bip::keys::Fingerprint(fp)).to_string(),
+                    (if k.slip39 {
+                        FEN.keygen_shares_inline
+                    } else {
+                        FEN.keygen_words_inline
+                    }),
+                ],
             ));
         }
     }

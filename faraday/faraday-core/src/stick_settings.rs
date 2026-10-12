@@ -15,7 +15,9 @@
 //! unticked on any other stick. The disk process writes it over the file
 //! already there (`faraday_files::SETTINGS_FILE`, the same name).
 
+use crate::strings::EN;
 use crate::{Faraday, StorageEvent};
+use opensigner_core::strings::fill;
 
 /// The file's name on a stick.
 pub const FILE: &str = "faraday-settings.txt";
@@ -190,14 +192,19 @@ impl Faraday {
                     self.settings_on_stick_known();
                 }
                 self.visit.settings = None;
-                self.visit
-                    .log
-                    .push((format!("Wrote {wrote_as}, read back and matched"), true));
+                self.visit.log.push((
+                    fill(EN.stick_settings_wrote, &[&wrote_as.to_string()]),
+                    true,
+                ));
             }
             StorageEvent::WriteFailed { name, reason, .. } if is_file(&name) => {
-                self.visit
-                    .log
-                    .push((format!("{name} not written: {reason}"), false));
+                self.visit.log.push((
+                    fill(
+                        EN.stick_settings_not,
+                        &[&name.to_string(), &reason.to_string()],
+                    ),
+                    false,
+                ));
             }
             other => return Some(other),
         }

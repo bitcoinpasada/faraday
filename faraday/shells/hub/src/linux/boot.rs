@@ -23,10 +23,11 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
+use faraday_core::strings::EN;
 use faraday_hub::api::Reason;
 
 /// The entry's label.
-pub const LABEL: &str = "Faraday stick";
+pub const LABEL: &str = EN.hub_boot_entry_label;
 /// What the entry starts, on the stick's boot partition.
 pub const LOADER: &str = r"\EFI\BOOT\BOOTX64.EFI";
 /// The boot partition's number on every Faraday stick.

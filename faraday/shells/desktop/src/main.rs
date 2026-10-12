@@ -69,6 +69,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
+use faraday_core::strings::{EN, fill};
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent};
 use faraday_storage::{Boxes, Host, serve, stick_info};
 use faraday_window::camera::{self, Camera};
@@ -86,10 +87,10 @@ use winit::window::{Window, WindowId};
 
 /// How often the attached folders are looked at again.
 const RESCAN: Duration = Duration::from_millis(700);
-const TITLE: &str = "Faraday · F2 boot stick · F3 stick 2 · F4 pull all";
-const TITLE_KEYS: &str = "F2 boot stick · F3 stick 2 · F4 pull all";
+const TITLE: &str = EN.desktop_title;
+const TITLE_KEYS: &str = EN.desktop_title_keys;
 /// The keys, pinned at the top of the window in small text.
-const KEYS_LINE: &str = "F2 boot stick · F3 stick 2 · F4 pull all · F5 every folder";
+const KEYS_LINE: &str = EN.desktop_keys_line;
 /// The two stick folders.
 const BOOT: &str = "BOOTSTICK";
 const SECOND: &str = "STICK-2";
@@ -414,7 +415,10 @@ impl ApplicationHandler for Shell {
                     .map_or(1.0, |m| m.scale_factor());
                 let size = LogicalSize::new(f64::from(w) / scale, f64::from(h) / scale);
                 Window::default_attributes()
-                    .with_title(format!("Faraday · {} in panel · {TITLE_KEYS}", p.inches))
+                    .with_title(fill(
+                        EN.desktop_title_panel,
+                        &[&p.inches.to_string(), TITLE_KEYS],
+                    ))
                     .with_inner_size(size)
                     .with_min_inner_size(size)
                     .with_max_inner_size(size)

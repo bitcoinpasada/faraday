@@ -3,6 +3,7 @@
 //! a multisig, which are merged as they arrive until every key is in hand;
 //! then the seeds, typed back in.
 
+use crate::strings::EN;
 use osk_bip::multisig_config;
 
 /// What one multisig config file, whole or a share, says.
@@ -82,12 +83,12 @@ pub struct Merged {
 pub fn merge(texts: &[String]) -> Result<Merged, String> {
     let mut all: Option<ConfigParts> = None;
     for t in texts {
-        let p = parts(t).ok_or("not a multisig config")?;
+        let p = parts(t).ok_or(EN.restore_not_a_multisig)?;
         match all.as_mut() {
             None => all = Some(p),
             Some(a) => {
                 if a.m != p.m || a.n != p.n || !a.format.eq_ignore_ascii_case(&p.format) {
-                    return Err("these shares are of different wallets".into());
+                    return Err(EN.restore_these_shares.into());
                 }
                 for k in p.keys {
                     if !a.keys.iter().any(|x| x.0.eq_ignore_ascii_case(&k.0)) {
@@ -97,7 +98,7 @@ pub fn merge(texts: &[String]) -> Result<Merged, String> {
             }
         }
     }
-    let a = all.ok_or("no shares")?;
+    let a = all.ok_or(EN.restore_no_shares)?;
     let have: Vec<String> = a.keys.iter().map(|k| k.0.to_lowercase()).collect();
     // A Taproot multisig's sheets rebuild its descriptor: Coldcard's
     // config has no Taproot format.

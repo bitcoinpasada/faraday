@@ -5,6 +5,7 @@
 //! article, its plural and the forms that start a sentence, so that no
 //! string builds "a {noun}" by hand.
 
+use crate::strings::EN;
 use osk_ui::widgets::Icon;
 
 /// The medium files move on.
@@ -21,48 +22,48 @@ impl Medium {
     /// The noun mid-sentence: "stick", "SD card".
     pub const fn noun(self) -> &'static str {
         match self {
-            Medium::Stick => "stick",
-            Medium::SdCard => "SD card",
+            Medium::Stick => EN.medium_stick_inline,
+            Medium::SdCard => EN.medium_sd_card,
         }
     }
 
     /// The plural mid-sentence: "sticks", "SD cards".
     pub const fn nouns(self) -> &'static str {
         match self {
-            Medium::Stick => "sticks",
-            Medium::SdCard => "SD cards",
+            Medium::Stick => EN.medium_sticks_inline,
+            Medium::SdCard => EN.medium_sd_cards,
         }
     }
 
     /// With its article mid-sentence: "a stick", "an SD card".
     pub const fn a(self) -> &'static str {
         match self {
-            Medium::Stick => "a stick",
-            Medium::SdCard => "an SD card",
+            Medium::Stick => EN.medium_a_stick_inline,
+            Medium::SdCard => EN.medium_an_sd_card_inline,
         }
     }
 
     /// The noun starting a label or sentence: "Stick", "SD card".
     pub const fn cap(self) -> &'static str {
         match self {
-            Medium::Stick => "Stick",
-            Medium::SdCard => "SD card",
+            Medium::Stick => EN.medium_stick,
+            Medium::SdCard => EN.medium_sd_card,
         }
     }
 
     /// The plural starting a label or sentence: "Sticks", "SD cards".
     pub const fn caps(self) -> &'static str {
         match self {
-            Medium::Stick => "Sticks",
-            Medium::SdCard => "SD cards",
+            Medium::Stick => EN.medium_sticks,
+            Medium::SdCard => EN.medium_sd_cards,
         }
     }
 
     /// With its article starting a sentence: "A stick", "An SD card".
     pub const fn a_cap(self) -> &'static str {
         match self {
-            Medium::Stick => "A stick",
-            Medium::SdCard => "An SD card",
+            Medium::Stick => EN.medium_a_stick,
+            Medium::SdCard => EN.medium_an_sd_card,
         }
     }
 
@@ -70,8 +71,8 @@ impl Medium {
     /// "SD card".
     pub const fn full(self) -> &'static str {
         match self {
-            Medium::Stick => "USB stick",
-            Medium::SdCard => "SD card",
+            Medium::Stick => EN.medium_usb_stick,
+            Medium::SdCard => EN.medium_sd_card,
         }
     }
 
@@ -79,8 +80,8 @@ impl Medium {
     /// stick", "An SD card".
     pub const fn a_full_cap(self) -> &'static str {
         match self {
-            Medium::Stick => "A USB stick",
-            Medium::SdCard => "An SD card",
+            Medium::Stick => EN.medium_a_usb_stick,
+            Medium::SdCard => EN.medium_an_sd_card,
         }
     }
 
@@ -88,8 +89,8 @@ impl Medium {
     /// "From the stick", "From the SD card".
     pub const fn from_box(self) -> &'static str {
         match self {
-            Medium::Stick => "From the stick",
-            Medium::SdCard => "From the SD card",
+            Medium::Stick => EN.medium_from_the_stick,
+            Medium::SdCard => EN.medium_from_the_sd_card,
         }
     }
 
@@ -97,8 +98,8 @@ impl Medium {
     /// label: "For the stick", "For the SD card".
     pub const fn for_box(self) -> &'static str {
         match self {
-            Medium::Stick => "For the stick",
-            Medium::SdCard => "For the SD card",
+            Medium::Stick => EN.medium_for_the_stick,
+            Medium::SdCard => EN.medium_for_the_sd_card,
         }
     }
 
@@ -106,8 +107,8 @@ impl Medium {
     /// the SD card".
     pub const fn from_the(self) -> &'static str {
         match self {
-            Medium::Stick => "from the stick",
-            Medium::SdCard => "from the SD card",
+            Medium::Stick => EN.medium_from_the_stick_inline,
+            Medium::SdCard => EN.medium_from_the_sd,
         }
     }
 
@@ -115,8 +116,8 @@ impl Medium {
     /// card".
     pub const fn on_the(self) -> &'static str {
         match self {
-            Medium::Stick => "on the stick",
-            Medium::SdCard => "on the SD card",
+            Medium::Stick => EN.medium_on_the_stick,
+            Medium::SdCard => EN.medium_on_the_sd_card,
         }
     }
 
@@ -124,8 +125,8 @@ impl Medium {
     /// SD card".
     pub const fn for_the(self) -> &'static str {
         match self {
-            Medium::Stick => "for the stick",
-            Medium::SdCard => "for the SD card",
+            Medium::Stick => EN.medium_for_the_stick_inline,
+            Medium::SdCard => EN.medium_for_the_sd_card_inline,
         }
     }
 
@@ -133,8 +134,8 @@ impl Medium {
     /// "Stick visit", "SD card visit".
     pub const fn visit(self) -> &'static str {
         match self {
-            Medium::Stick => "Stick visit",
-            Medium::SdCard => "SD card visit",
+            Medium::Stick => EN.medium_stick_visit,
+            Medium::SdCard => EN.medium_sd_card_visit,
         }
     }
 
@@ -142,16 +143,16 @@ impl Medium {
     /// the device started from (`PLAN.md` §5.5), and the screen's name.
     pub const fn upgrade(self) -> &'static str {
         match self {
-            Medium::Stick => "Upgrade a Faraday stick",
-            Medium::SdCard => "Upgrade a Faraday SD card",
+            Medium::Stick => EN.medium_upgrade_a_faraday_stick,
+            Medium::SdCard => EN.medium_upgrade_a_faraday,
         }
     }
 
     /// What the medium the device started from is called.
     pub const fn boot(self) -> &'static str {
         match self {
-            Medium::Stick => "Boot stick",
-            Medium::SdCard => "Boot SD card",
+            Medium::Stick => EN.medium_boot_stick,
+            Medium::SdCard => EN.medium_boot_sd_card,
         }
     }
 

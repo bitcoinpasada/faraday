@@ -17,8 +17,10 @@
 //! a labelled PNG, one of the two, picked on the sheet, and never holds
 //! a BIP-39 passphrase.
 
+use crate::strings::EN;
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
+use opensigner_core::strings::fill;
 use osk_bip::bitcoin::hashes::{Hash, sha256};
 
 use crate::wallet::FileKind;
@@ -133,13 +135,9 @@ impl Ack {
     pub fn text(self, medium: crate::Medium) -> String {
         let noun = medium.noun();
         match self {
-            Ack::Any => format!("Anyone who copies the {noun} or sees the code can read it"),
-            Ack::Seed => format!(
-                "I understand: anyone who copies the {noun} or sees this file can spend these coins"
-            ),
-            Ack::Unknown => format!(
-                "Faraday cannot tell whether this is a secret: anyone who copies the {noun} can read it"
-            ),
+            Ack::Any => fill(EN.secrets_anyone_who, &[noun]),
+            Ack::Seed => fill(EN.secrets_i_understand, &[noun]),
+            Ack::Unknown => fill(EN.secrets_faraday_cannot, &[noun]),
         }
     }
 }
@@ -218,7 +216,7 @@ impl Faraday {
         text.extend_from_slice(words.as_bytes());
         text.push(b'\n');
         let mut forms = vec![SecretFile {
-            label: "Words",
+            label: EN.secrets_words,
             name: format!("{stem}-words.txt"),
             bytes: zeroize::Zeroizing::new(text),
         }];
@@ -230,14 +228,17 @@ impl Faraday {
                 osk_codec::seedqr::encode_seedqr(&m)
             };
             if let Ok(mx) = matrix {
-                let title = format!("Seed {fps}");
-                let line = format!("{} words · secret: spends", m.word_count());
+                let title = fill(EN.secrets_seed, &[&fps.to_string()]);
+                let line = fill(EN.secrets_words_secret, &[&m.word_count().to_string()]);
                 let png =
                     zeroize::Zeroizing::new(crate::picture::labelled_png(&mx, &title, &[line]));
                 let (label, name) = if compact {
-                    ("Compact SeedQR PNG", format!("{stem}-compactseedqr.png"))
+                    (
+                        EN.secrets_compact_seedqr,
+                        format!("{stem}-compactseedqr.png"),
+                    )
                 } else {
-                    ("SeedQR PNG", format!("{stem}-seedqr.png"))
+                    (EN.secrets_seedqr_png, format!("{stem}-seedqr.png"))
                 };
                 forms.push(SecretFile {
                     label,
@@ -248,19 +249,27 @@ impl Faraday {
         }
         let (need, _) = crate::wallet::Session::quorum(wallet);
         let gives = if need <= 1 {
-            "Whoever has it spends this wallet's coins".to_string()
+            EN.secrets_whoever_has_it.to_string()
         } else {
             let more = need - 1;
-            format!(
-                "Whoever has it signs as key {fps}; with {more} more {}, spends",
-                if more == 1 { "key" } else { "keys" }
+            fill(
+                EN.secrets_whoever_has,
+                &[
+                    &fps.to_string(),
+                    &more.to_string(),
+                    (if more == 1 {
+                        EN.secrets_key
+                    } else {
+                        EN.secrets_keys
+                    }),
+                ],
             )
         };
         let first = &forms[0];
         let out = SecretOut {
             name: first.name.clone(),
             bytes: first.bytes.clone(),
-            what: "A wallet's seed".to_string(),
+            what: EN.secrets_a_wallet_s.to_string(),
             gives,
             keep: Keep::Key { key: k, fp },
             forms,
@@ -286,7 +295,7 @@ impl Faraday {
     /// the Outbox.
     pub(crate) fn secret_to_vault(&mut self) {
         let Some(v) = self.vaults.open.get(self.vaults.current) else {
-            self.toast("No vault is open");
+            self.toast(EN.secrets_no_vault_is);
             return;
         };
         let vault = v.name.clone();
@@ -344,10 +353,13 @@ impl Faraday {
         match out.keep {
             Keep::Round(r) => {
                 self.put_outbox(&r.psbt_name, r.psbt);
-                self.toast(&format!(
-                    "The nonce is in {vault}; {} waits {}",
-                    r.psbt_name,
-                    self.medium.for_the()
+                self.toast(&fill(
+                    EN.secrets_the_nonce_is,
+                    &[
+                        &vault.to_string(),
+                        &r.psbt_name.to_string(),
+                        self.medium.for_the(),
+                    ],
                 ));
             }
             Keep::Key { key, .. } => {
@@ -357,9 +369,15 @@ impl Faraday {
                     .get(key)
                     .map(|k| k.label.clone())
                     .unwrap_or_default();
-                self.toast(&format!("{label} is in {vault}"));
+                self.toast(&fill(
+                    EN.secrets_is_in,
+                    &[&label.to_string(), &vault.to_string()],
+                ));
             }
-            Keep::Note => self.toast(&format!("{} is in {vault}", out.name)),
+            Keep::Note => self.toast(&fill(
+                EN.secrets_is_in,
+                &[&out.name.to_string(), &vault.to_string()],
+            )),
             Keep::None => {}
         }
     }
@@ -391,9 +409,9 @@ impl Faraday {
         item.secret = true;
         self.outbox.push(item);
         self.save_boxes();
-        self.toast(&format!(
-            "{name} waits {}, unprotected",
-            self.medium.for_the()
+        self.toast(&fill(
+            EN.secrets_waits_unprotected,
+            &[&name.to_string(), self.medium.for_the()],
         ));
     }
 

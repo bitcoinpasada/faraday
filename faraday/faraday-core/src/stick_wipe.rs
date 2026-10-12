@@ -15,6 +15,8 @@
 //! its controller writes a block's new bytes elsewhere in the chip and
 //! may keep the old ones until it reuses the place.
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
 
 use crate::compact::{buttons, scroll_sheet};
@@ -24,23 +26,14 @@ use crate::ui::{Style, Ui, W};
 use crate::{Action, Faraday, Sheet, StorageCommand};
 
 /// What zeros do not reach.
-const LIMIT: &str = "No zeroing is a certain erase. A USB stick or SD card can keep old copies \
-                     of a file's blocks where no write reaches: its controller moves data around \
-                     inside the chip. Zeros stop recovery tools; a lab that reads the chip itself \
-                     may still find them. Only destroying the stick is certain.";
+const LIMIT: &str = EN.stick_wipe_no_zeroing;
 /// What the partition holds of Faraday's.
-const REACH: &str = "Faraday only ever writes into this partition, so zeroing it reaches \
-                     everything Faraday ever wrote to the stick.";
+const REACH: &str = EN.stick_wipe_faraday;
 /// What only destroying the stick removes.
-const SECRET: &str = "If a seed or other secret was ever saved to this stick unencrypted, the \
-                      only sure way to remove it is to destroy the stick.";
+const SECRET: &str = EN.stick_wipe_if_a_seed;
 /// That nothing outside the files partition is written, and why.
-const WITHIN: &str = "Only this stick's files partition is written. Its other partitions, its \
-                      partition table and any space outside a partition are not touched.";
-const BOUNDARY: &str = "Why: the process that reads sticks takes in whatever a stick brings, so \
-                        it is given the files partition and nothing else. It can never write a \
-                        boot partition or a partition table, where a bad stick could leave code \
-                        for the next computer to boot.";
+const WITHIN: &str = EN.stick_wipe_only_this;
+const BOUNDARY: &str = EN.stick_wipe_why_the;
 
 /// How fast a typical stick is written and read back, MB a second, for
 /// the time the sheet says before the first step measures it.
@@ -119,20 +112,26 @@ impl Zeroing {
 /// Bytes as a person reads them: GB, MB or KB.
 fn size_text(b: u64) -> String {
     if b >= 1 << 30 {
-        format!("{:.1} GB", b as f64 / f64::from(1u32 << 30))
+        fill(
+            EN.stick_wipe_gb,
+            &[&format!("{:.1}", b as f64 / f64::from(1u32 << 30))],
+        )
     } else if b >= 1 << 20 {
-        format!("{} MB", b >> 20)
+        fill(EN.stick_wipe_mb, &[&(b >> 20).to_string()])
     } else {
-        format!("{} KB", (b >> 10).max(1))
+        fill(EN.stick_wipe_kb, &[&((b >> 10).max(1)).to_string()])
     }
 }
 
 /// Minutes, at least one, as words.
 fn minutes_text(ms: u64) -> String {
     match ms.div_ceil(60_000).max(1) {
-        1 => "about a minute".to_string(),
-        m if m < 90 => format!("about {m} minutes"),
-        m => format!("about {:.1} hours", m as f64 / 60.0),
+        1 => EN.stick_wipe_about_a.to_string(),
+        m if m < 90 => fill(EN.stick_wipe_about_minutes, &[&m.to_string()]),
+        m => fill(
+            EN.stick_wipe_about_hours,
+            &[&format!("{:.1}", m as f64 / 60.0)],
+        ),
     }
 }
 
@@ -241,12 +240,12 @@ impl Faraday {
                 self.visit.inn.retain(|n| n != name);
                 self.visit
                     .log
-                    .push((format!("{name} deleted, zeros over it first"), true));
+                    .push((fill(EN.stick_wipe_deleted, &[name]), true));
             }
             Some(why) => self
                 .visit
                 .log
-                .push((format!("{name} not deleted: {why}"), false)),
+                .push((fill(EN.stick_wipe_not_deleted, &[name, why]), false)),
         }
     }
 
@@ -263,7 +262,10 @@ impl Faraday {
             return;
         };
         if z.due {
-            let line = format!("Stopped at {}%", (z.done_share() * 100.0) as u32);
+            let line = fill(
+                EN.stick_wipe_stopped_at,
+                &[&((z.done_share() * 100.0) as u32).to_string()],
+            );
             self.zero_end(line, false);
         } else {
             z.stop = true;
@@ -284,7 +286,7 @@ impl Faraday {
         }
         let share = (z.done_share() * 100.0) as u32;
         if z.stop {
-            self.zero_end(format!("Stopped at {share}%"), false);
+            self.zero_end(fill(EN.stick_wipe_stopped_at, &[&share.to_string()]), false);
             return;
         }
         if done && z.pass < z.passes {
@@ -294,9 +296,12 @@ impl Faraday {
             z.due = true;
         } else if done {
             let line = match (z.whole, z.passes) {
-                (false, _) => format!("Free space on {} zeroed", z.label),
-                (true, 1) => format!("{}'s partition zeroed", z.label),
-                (true, n) => format!("{}'s partition zeroed, {n} passes", z.label),
+                (false, _) => fill(EN.stick_wipe_free_space, &[&z.label.to_string()]),
+                (true, 1) => fill(EN.stick_wipe_s_partition_zeroed, &[&z.label.to_string()]),
+                (true, n) => fill(
+                    EN.stick_wipe_s_partition,
+                    &[&z.label.to_string(), &n.to_string()],
+                ),
             };
             self.zero_end(line, true);
         } else {
@@ -322,7 +327,10 @@ impl Faraday {
     pub(crate) fn zero_failed(&mut self, why: &str) {
         if let Some(z) = self.zeroing.as_ref() {
             let share = (z.done_share() * 100.0) as u32;
-            self.zero_end(format!("Stopped at {share}%: {why}"), false);
+            self.zero_end(
+                fill(EN.stick_wipe_stopped, &[&share.to_string(), why]),
+                false,
+            );
         }
     }
 
@@ -337,7 +345,7 @@ impl Faraday {
             }
         }
         if self.zeroing.as_ref().is_some_and(|z| !here(&z.stick)) {
-            self.zero_failed(&format!("the {} was pulled", self.medium.noun()));
+            self.zero_failed(&fill(EN.stick_wipe_the_was, &[self.medium.noun()]));
         }
     }
 
@@ -361,15 +369,22 @@ pub(crate) fn delete_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         .sticks
         .get(app.visit.stick)
         .map_or(&[], |s| s.files.as_slice());
-    let title = format!("Delete files from {}", d.label);
+    let title = fill(EN.stick_wipe_delete_files, &[&d.label.to_string()]);
     let n = d.chosen.len();
     let go = match d.what {
-        What::Files => format!(
-            "Delete {n} {} with zeros",
-            if n == 1 { "file" } else { "files" }
+        What::Files => fill(
+            EN.stick_wipe_delete_with,
+            &[
+                &n.to_string(),
+                (if n == 1 {
+                    EN.stick_wipe_file
+                } else {
+                    EN.stick_wipe_files
+                }),
+            ],
         ),
-        What::Free => "Zero the free space".to_string(),
-        What::Whole => "Zero the whole partition".to_string(),
+        What::Free => EN.stick_wipe_zero_the_free.to_string(),
+        What::Whole => EN.stick_wipe_zero_the.to_string(),
     };
     let go_style = if d.what == What::Files && n == 0 {
         Style::Disabled
@@ -378,18 +393,17 @@ pub(crate) fn delete_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     };
     let amount = |whole: bool| -> String {
         match d.space {
-            Some((_, 0)) => "Nothing to write: a folder standing for a stick".to_string(),
+            Some((_, 0)) => EN.stick_wipe_nothing.to_string(),
             Some((free, size)) => {
                 let shown = if whole { size } else { free };
                 let passes = if whole { u64::from(d.passes) } else { 1 };
                 let ms = shown * passes / (TYPICAL_MBPS << 20) * 1000;
-                format!(
-                    "{} to write · {} on a typical stick",
-                    size_text(shown),
-                    minutes_text(ms)
+                fill(
+                    EN.stick_wipe_to_write,
+                    &[&size_text(shown).to_string(), &minutes_text(ms).to_string()],
                 )
             }
-            None => "Reading the stick's space".to_string(),
+            None => EN.stick_wipe_reading.to_string(),
         }
     };
     let place = if ui.compact {
@@ -416,30 +430,21 @@ pub(crate) fn delete_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         ui.fill(x, cy, iw, bh, 8.0, ERR.with_alpha(26));
         ui.stroke(x, cy, iw, bh, 8.0, ERR.with_alpha(110));
         ui.icon(x + 10.0, cy + 10.0, 20.0, Icon::Error, 13.0, ERR);
-        let band = ui.fit(
-            13.0,
-            W::S,
-            "Danger zone: what is deleted here cannot be undone",
-            iw - 48.0,
-        );
+        let band = ui.fit(13.0, W::S, EN.stick_wipe_danger_zone, iw - 48.0);
         ui.text_mid(x + 38.0, cy, bh, 13.0, W::S, ERR, &band);
         cy += bh + 14.0;
         // What: three choices.
         let choices = [
             (
                 What::Files,
-                "Chosen files",
-                "Zeros over each, then it is removed with its name",
+                EN.stick_wipe_chosen_files,
+                EN.stick_wipe_zeros_over,
             ),
-            (
-                What::Free,
-                "The free space",
-                "The files stay; what earlier deletes left is zeroed",
-            ),
+            (What::Free, EN.stick_wipe_the_free, EN.stick_wipe_the_files),
             (
                 What::Whole,
-                "The whole partition",
-                "Every file is deleted, then all of it is zeroed",
+                EN.stick_wipe_the_whole,
+                EN.stick_wipe_every_file,
             ),
         ];
         for (k, (what, label, line)) in choices.iter().enumerate() {
@@ -475,7 +480,7 @@ pub(crate) fn delete_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         match d.what {
             What::Files => {
                 if files.is_empty() {
-                    let none = format!("No files on this {}", app.medium.noun());
+                    let none = fill(EN.stick_wipe_no_files, &[app.medium.noun()]);
                     ui.text(x, cy, 13.0, W::R, DIM, &none);
                     cy += 28.0;
                 }
@@ -511,20 +516,19 @@ pub(crate) fn delete_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                     iw,
                     34.0,
                     &[
-                        ("One pass", pass_style(1), Action::DeletePasses(1)),
-                        ("Two passes", pass_style(2), Action::DeletePasses(2)),
+                        (
+                            EN.stick_wipe_one_pass,
+                            pass_style(1),
+                            Action::DeletePasses(1),
+                        ),
+                        (
+                            EN.stick_wipe_two_passes_2,
+                            pass_style(2),
+                            Action::DeletePasses(2),
+                        ),
                     ],
                 );
-                cy += ui.wrap(
-                    x,
-                    cy,
-                    iw,
-                    12.0,
-                    W::R,
-                    MUTED,
-                    "Two passes write it all twice, which makes a stick replace more of its old \
-                     blocks.",
-                ) + 12.0;
+                cy += ui.wrap(x, cy, iw, 12.0, W::R, MUTED, EN.stick_wipe_two_passes) + 12.0;
             }
         }
         cy += ui.wrap(x, cy, iw, 13.0, W::S, TEXT, WITHIN) + 8.0;
@@ -539,7 +543,7 @@ pub(crate) fn delete_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             iw,
             &[
                 (go.as_str(), go_style, Action::DeleteGo),
-                ("Cancel", Style::Secondary, Action::Cancel),
+                (EN.stick_wipe_cancel, Style::Secondary, Action::Cancel),
             ],
         );
         cy - y
@@ -552,9 +556,9 @@ pub(crate) fn zeroing_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         return;
     };
     let title = if z.whole {
-        format!("Zeroing the whole partition on {}", z.label)
+        fill(EN.stick_wipe_zeroing_the, &[&z.label.to_string()])
     } else {
-        format!("Zeroing the free space on {}", z.label)
+        fill(EN.stick_wipe_zeroing, &[&z.label.to_string()])
     };
     let share = z.done_share();
     let left = z.since.and_then(|(at, from)| {
@@ -568,15 +572,26 @@ pub(crate) fn zeroing_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         })
     });
     let line = match left {
-        Some(ms) => format!("{}% · {} left", (share * 100.0) as u32, minutes_text(ms)),
+        Some(ms) => fill(
+            EN.stick_wipe_left,
+            &[
+                &((share * 100.0) as u32).to_string(),
+                &minutes_text(ms).to_string(),
+            ],
+        ),
         None => format!("{}%", (share * 100.0) as u32),
     };
-    let pass = (z.passes > 1).then(|| format!("Pass {} of {}", z.pass, z.passes));
-    let keep = format!("Keep the {} in until it is done", app.medium.noun());
+    let pass = (z.passes > 1).then(|| {
+        fill(
+            EN.stick_wipe_pass_of,
+            &[&z.pass.to_string(), &z.passes.to_string()],
+        )
+    });
+    let keep = fill(EN.stick_wipe_keep_the, &[app.medium.noun()]);
     let (stop_label, stop_style) = if z.stop {
-        ("Stopping", Style::Disabled)
+        (EN.stick_wipe_stopping, Style::Disabled)
     } else {
-        ("Stop", Style::Secondary)
+        (EN.stick_wipe_stop, Style::Secondary)
     };
     let place = if ui.compact {
         (8.0, w - 16.0)

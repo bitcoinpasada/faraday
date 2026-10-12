@@ -1,5 +1,7 @@
 //! The vanity screen: the step-card column over [`crate::vanity`].
 
+use crate::strings::EN;
+use opensigner_core::strings::fill;
 use opensigner_core::vanity::Dial;
 use osk_bip::keys::ScriptType;
 
@@ -10,11 +12,11 @@ use crate::vanity::{VanityAction as V, VanityState, dial_name, fp, script_name, 
 use crate::{Action, Faraday, flow};
 
 const TITLES: [&str; vstep::COUNT] = [
-    "Key",
-    "What turns",
-    "Kind of address",
-    "Characters",
-    "Search",
+    EN.vanity_key,
+    EN.vanity_what_turns,
+    EN.vanity_kind_of_address,
+    EN.vanity_characters,
+    EN.vanity_search,
 ];
 
 fn va(a: V) -> Action {
@@ -43,8 +45,8 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x: x0 + 40.0,
         w: (cw - 80.0).min(900.0),
         h,
-        back: Some(("Wallets", Action::Nav(v.back))),
-        heading: "Vanity address",
+        back: Some((EN.vanity_wallets, Action::Nav(v.back))),
+        heading: EN.vanity_vanity_address,
         guided: app.guided,
         switch: true,
         note: None,
@@ -73,29 +75,18 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 fn guide(s: u8) -> &'static str {
     match s {
-        vstep::KEY => "The key whose address is searched. Nothing about the key changes.",
-        vstep::DIAL => {
-            "A search tries one account number, or one passphrase, after another until the first \
-             receive address begins with the characters chosen. The same key and the same number \
-             give the same address on any device."
-        }
-        vstep::SCRIPT => "The kind of address decides the characters it starts with.",
-        vstep::PREFIX => {
-            "Type the characters the address should begin with, after the part every address of \
-             this kind shares. Each character more takes 32 times as long to find for a bech32 \
-             address, and 58 times for a legacy one."
-        }
-        _ => {
-            "The search runs while this screen is open and stops at the first match. The time is \
-             an expectation, not a promise: a find can come much sooner or later."
-        }
+        vstep::KEY => EN.vanity_the_key_whose,
+        vstep::DIAL => EN.vanity_a_search_tries,
+        vstep::SCRIPT => EN.vanity_the_kind_of,
+        vstep::PREFIX => EN.vanity_type_the_characters,
+        _ => EN.vanity_the_search_runs,
     }
 }
 
 fn summary(app: &Faraday, v: &VanityState, s: u8) -> String {
     let net = app.session.network();
     match s {
-        vstep::KEY => v.key.map(fp).unwrap_or_else(|| "Not chosen".into()),
+        vstep::KEY => v.key.map(fp).unwrap_or_else(|| EN.vanity_not_chosen.into()),
         vstep::DIAL => dial_name(v.grind.dial).0.to_string(),
         vstep::SCRIPT => script_name(v.grind.script, net),
         vstep::PREFIX if v.grind.prefix.has_free(v.grind.script, net) => {
@@ -103,7 +94,7 @@ fn summary(app: &Faraday, v: &VanityState, s: u8) -> String {
         }
         vstep::RUN => match (&v.grind.find, v.running) {
             (Some(f), _) => app.session.shown(f.address.as_str()),
-            (None, true) => format!("{} tried", thousands(v.grind.tested)),
+            (None, true) => fill(EN.vanity_tried_2, &[&thousands(v.grind.tested).to_string()]),
             (None, false) => String::new(),
         },
         _ => String::new(),
@@ -146,7 +137,7 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
                 }
                 cy += used + 34.0;
             }
-            if next_button(ui, x, cy, w, "Continue", va(V::Next(vstep::DIAL))) {
+            if next_button(ui, x, cy, w, EN.vanity_continue, va(V::Next(vstep::DIAL))) {
                 cy += 52.0;
             }
         }
@@ -159,7 +150,7 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
                 cy += 42.0;
             }
             cy += 8.0;
-            if next_button(ui, x, cy, w, "Continue", va(V::Next(vstep::SCRIPT))) {
+            if next_button(ui, x, cy, w, EN.vanity_continue, va(V::Next(vstep::SCRIPT))) {
                 cy += 52.0;
             }
         }
@@ -180,20 +171,20 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
                     13.0,
                     W::R,
                     MUTED,
-                    &format!("About {} tries", thousands(expected)),
+                    &fill(EN.vanity_about_tries, &[&thousands(expected).to_string()]),
                 );
                 cy += 26.0;
             }
             if let Some(e) = &v.error {
                 cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 8.0;
             }
-            if next_button(ui, x, cy, w, "Continue", va(V::Next(vstep::PREFIX))) {
+            if next_button(ui, x, cy, w, EN.vanity_continue, va(V::Next(vstep::PREFIX))) {
                 cy += 52.0;
             }
         }
         _ => match (&v.grind.find, v.running) {
             (Some(f), _) => {
-                ui.text(x, cy, 12.0, W::R, MUTED, "Found");
+                ui.text(x, cy, 12.0, W::R, MUTED, EN.vanity_found);
                 cy += 22.0;
                 cy += ui.wrap(
                     x,
@@ -212,10 +203,12 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
                             13.0,
                             W::R,
                             TEXT,
-                            &format!(
-                                "Account {} of this key, after {} tries",
-                                f.account,
-                                thousands(v.grind.tested)
+                            &fill(
+                                EN.vanity_account_of_this,
+                                &[
+                                    &f.account.to_string(),
+                                    &thousands(v.grind.tested).to_string(),
+                                ],
                             ),
                         );
                         cy += 30.0;
@@ -226,30 +219,25 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
                         } else {
                             "•".repeat(f.suffix.as_str().len())
                         };
-                        ui.text_mid(x, cy, 36.0, 13.0, W::R, TEXT, "Added to the passphrase:");
-                        let lw = ui.measure(13.0, W::R, "Added to the passphrase:");
+                        ui.text_mid(x, cy, 36.0, 13.0, W::R, TEXT, EN.vanity_added_to_the);
+                        let lw = ui.measure(13.0, W::R, EN.vanity_added_to_the);
                         ui.text_mid(x + lw + 10.0, cy, 36.0, 15.0, W::M, TEXT, &shown);
                         ui.button(
                             x + w - 90.0,
                             cy,
                             Some(90.0),
                             36.0,
-                            if v.shown { "Hide" } else { "Show" },
+                            if v.shown {
+                                EN.vanity_hide
+                            } else {
+                                EN.vanity_show
+                            },
                             Style::Secondary,
                             va(V::Show),
                         );
                         cy += 44.0;
-                        cy += ui.wrap(
-                            x,
-                            cy,
-                            w,
-                            13.0,
-                            W::R,
-                            WARN,
-                            "These characters are part of the passphrase: write them down \
-                                 with it. The words with any other passphrase open another \
-                                 wallet.",
-                        ) + 12.0;
+                        cy +=
+                            ui.wrap(x, cy, w, 13.0, W::R, WARN, EN.vanity_these_characters) + 12.0;
                     }
                 }
                 let bw = ui.button(
@@ -257,7 +245,7 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
                     cy,
                     None,
                     40.0,
-                    "Open this wallet",
+                    EN.vanity_open_this_wallet,
                     Style::Primary,
                     va(V::Use),
                 );
@@ -266,7 +254,7 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
                     cy,
                     None,
                     40.0,
-                    "Search again",
+                    EN.vanity_search_again,
                     Style::Secondary,
                     va(V::Start),
                 );
@@ -276,12 +264,12 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
                 let rate = v
                     .grind
                     .per_second()
-                    .map(|r| format!("{} a second", thousands(r as u64)))
-                    .unwrap_or_else(|| "Measuring".into());
+                    .map(|r| fill(EN.vanity_a_second, &[&thousands(r as u64).to_string()]))
+                    .unwrap_or_else(|| EN.vanity_measuring.into());
                 let left = v
                     .grind
                     .expected_seconds(net)
-                    .map(|s| format!(" · about {} expected", seconds_text(s)))
+                    .map(|s| format!(" {}", fill(EN.vanity_about_expected, &[&seconds_text(s)])))
                     .unwrap_or_default();
                 ui.text(
                     x,
@@ -289,7 +277,7 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
                     14.0,
                     W::S,
                     ACCENT,
-                    &format!("Searching for {}", v.grind.prefix.as_str()),
+                    &fill(EN.vanity_searching_for, &[v.grind.prefix.as_str()]),
                 );
                 cy += 26.0;
                 ui.text(
@@ -298,10 +286,25 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
                     13.0,
                     W::R,
                     MUTED,
-                    &format!("{} tried · {rate}{left}", thousands(v.grind.tested)),
+                    &fill(
+                        EN.vanity_tried,
+                        &[
+                            &thousands(v.grind.tested).to_string(),
+                            &rate.to_string(),
+                            &left.to_string(),
+                        ],
+                    ),
                 );
                 cy += 30.0;
-                ui.button(x, cy, None, 40.0, "Stop", Style::Secondary, va(V::Stop));
+                ui.button(
+                    x,
+                    cy,
+                    None,
+                    40.0,
+                    EN.vanity_stop,
+                    Style::Secondary,
+                    va(V::Stop),
+                );
                 cy += 52.0;
             }
             (None, false) => {
@@ -313,7 +316,7 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
                     cy,
                     None,
                     40.0,
-                    &format!("Search for {}", v.grind.prefix.as_str()),
+                    &fill(EN.vanity_search_for, &[v.grind.prefix.as_str()]),
                     Style::Primary,
                     va(V::Start),
                 );
@@ -327,8 +330,8 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
 fn seconds_text(s: u64) -> String {
     match s {
         0..=59 => format!("{s} s"),
-        60..=3599 => format!("{} min", s / 60),
+        60..=3599 => fill(EN.vanity_min, &[&(s / 60).to_string()]),
         3600..=86_399 => format!("{} h", s / 3600),
-        _ => format!("{} days", s / 86_400),
+        _ => fill(EN.vanity_days, &[&(s / 86_400).to_string()]),
     }
 }
