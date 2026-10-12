@@ -5,6 +5,9 @@
 //! ```text
 //! faraday-hub [--image FILE] [--downloads DIR] [--size WxH] [--timings]
 //! faraday-hub --version
+//! faraday-hub --uninstall
+//! faraday-hub --record-disks                  (Windows)
+//! faraday-hub --write …                       (Windows, elevated)
 //! ```
 //!
 //! `--image FILE` writes a developer's own image in place of the
@@ -24,6 +27,8 @@
 //! is behind `faraday_hub_shell::platform::Platform`.
 
 #![deny(unsafe_code)]
+// A window program on Windows: no console opens beside it.
+#![cfg_attr(windows, windows_subsystem = "windows")]
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -32,8 +37,8 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
 
 use faraday_core::StorageEvent;
-use faraday_hub::Hub;
 use faraday_hub::api::{HubCommand, HubEvent, Reason, Source, WriteOrder};
+use faraday_hub::{Hub, HubAction};
 use faraday_hub_shell::payload::{Image, Payload};
 use faraday_hub_shell::platform::{self, Platform};
 use faraday_hub_shell::writer::Job;
@@ -380,19 +385,27 @@ impl ApplicationHandler for Shell {
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
         self.lens.off();
         self.view = None;
+        self.system.exiting();
     }
 }
 
-const HELP: &str = "faraday-hub [--image FILE] [--downloads DIR] [--size WxH] [--timings] | --version
+const HELP: &str = "faraday-hub [--image FILE] [--downloads DIR] [--size WxH] [--timings] [--uninstall] | --version
   --image: write FILE (.img, .img.xz, or -boot.vfat for keep data) in place of the payload's stick image
   --downloads: the folder Transfer sends from and saves into (default ~/Downloads)
   --timings: once a second, what the frames cost on stderr
-  --version: print this build's version and exit";
+  --version: print this build's version and exit
+  --uninstall: open on Installed, with Uninstall asked once (Windows' uninstall entry runs this)";
 
 fn main() -> ExitCode {
+    // The elevated writer on Windows, `--write`, runs before anything
+    // else is initialised (docs/HUB.md §2).
+    let given: Vec<String> = std::env::args().skip(1).collect();
+    if let Some(code) = platform::early(&given) {
+        return code;
+    }
     // `--version` answers before anything else is initialised: the
     // installed copy is asked this (docs/HUB.md §5.2).
-    if std::env::args().nth(1).as_deref() == Some("--version") {
+    if given.first().map(String::as_str) == Some("--version") {
         println!(
             "{}",
             faraday_core::version_line(
@@ -407,7 +420,8 @@ fn main() -> ExitCode {
     let mut downloads = system.downloads();
     let mut size = (1100, 760);
     let mut timings = false;
-    let mut args = std::env::args().skip(1);
+    let mut uninstall = false;
+    let mut args = given.into_iter();
     while let Some(a) = args.next() {
         match a.as_str() {
             "--image" => match args.next() {
@@ -438,6 +452,9 @@ fn main() -> ExitCode {
                 }
             }
             "--timings" => timings = true,
+            // The Windows uninstall entry's command (§5.2): the window
+            // opens on Installed with Uninstall asked once.
+            "--uninstall" => uninstall = true,
             "--help" | "-h" => {
                 println!("{HELP}");
                 return ExitCode::SUCCESS;
@@ -475,6 +492,11 @@ fn main() -> ExitCode {
         hub.hub_event(HubEvent::DevImage(i.event()));
     }
     let (tx, events) = channel();
+    if uninstall {
+        hub.hub_event(HubEvent::Installed(system.installed()));
+        hub.press(HubAction::Installed);
+        hub.press(HubAction::Uninstall);
+    }
     // The installed copy is asked its version, which takes a moment.
     {
         let (system, tx) = (Arc::clone(&system), tx.clone());
@@ -492,6 +514,7 @@ fn main() -> ExitCode {
         }
     };
     let print = std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
         .map(|h| PathBuf::from(h).join("faraday-print"))
         .unwrap_or_else(|| PathBuf::from("faraday-print"));
     let pace = Pacer::new(timings);

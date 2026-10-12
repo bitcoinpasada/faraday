@@ -68,6 +68,12 @@ pub trait Device {
     fn open_read(&mut self) -> Result<File, Reason>;
     /// Asks the system to read its partition table again.
     fn rescan(&mut self) -> Result<(), Reason>;
+    /// The length in bytes of the disk `file` (from [`Device::open_write`])
+    /// reaches: where it ends, unless the system answers otherwise (a
+    /// Windows physical disk says it in an IOCTL).
+    fn length(&mut self, file: &mut File) -> io::Result<u64> {
+        file.seek(SeekFrom::End(0))
+    }
 }
 
 /// What a write takes its bytes from, held by the writer's thread.
@@ -304,7 +310,7 @@ pub fn write(
     // 3. Unmounted, and opened.
     device.unmount()?;
     let mut disk = device.open_write()?;
-    let len = disk.seek(SeekFrom::End(0)).map_err(|e| Reason::Device {
+    let len = device.length(&mut disk).map_err(|e| Reason::Device {
         device: order.device.clone(),
         detail: e.to_string(),
     })?;
@@ -331,7 +337,7 @@ pub fn write(
     };
     // 5. Written and flushed.
     {
-        let mut out = plan.writer(Writing(&mut disk));
+        let mut out = plan.writer(Writing(&mut disk, None));
         source
             .pump(&mut *out, &mut |d, t| progress(WriteStage::Writing, d, t))
             .map_err(payload_reason)?;
@@ -443,9 +449,15 @@ impl std::ops::DerefMut for AlignedBuf {
     }
 }
 
+/// Reads `buf.len()` bytes at `at` through aligned blocks, as a disk
+/// opened for unbuffered writing (Windows) also takes its reads.
 fn read_exact_at(f: &mut File, at: u64, buf: &mut [u8]) -> io::Result<()> {
-    f.seek(SeekFrom::Start(at))?;
-    f.read_exact(buf)
+    let (raw, skip, got) = aligned_read_at(f, at, buf.len())?;
+    if got < skip + buf.len() {
+        return Err(io::Error::from(io::ErrorKind::UnexpectedEof));
+    }
+    buf.copy_from_slice(&raw[skip..skip + buf.len()]);
+    Ok(())
 }
 
 /// Where the source's bytes go on the disk.
@@ -471,7 +483,11 @@ impl Plan {
 }
 
 /// Writes to the disk, a few megabytes at a time.
-struct Writing<'a>(&'a mut File);
+///
+/// Each stretch goes out from a buffer aligned to [`ALIGN`], as a disk
+/// opened unbuffered (Windows) needs; its offset and length are already
+/// whole sectors, since an image and a partition are.
+struct Writing<'a>(&'a mut File, Option<AlignedBuf>);
 
 /// Compares with the disk, a few megabytes at a time.
 struct Comparing<'a>(&'a mut File);
@@ -497,8 +513,14 @@ trait Flush {
 
 impl Flush for Writing<'_> {
     fn flush_at(&mut self, at: u64, data: &[u8]) -> io::Result<()> {
+        let buf = self.1.get_or_insert_with(|| AlignedBuf::new(CHUNK));
         self.0.seek(SeekFrom::Start(at))?;
-        self.0.write_all(data)
+        for part in data.chunks(CHUNK) {
+            let out = &mut buf[..part.len()];
+            out.copy_from_slice(part);
+            self.0.write_all(out)?;
+        }
+        Ok(())
     }
 }
 

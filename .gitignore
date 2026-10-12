@@ -1,5 +1,5 @@
 # Rust
-/target/
+/target
 **/target/
 
 # Private notes and scratch files; never committed

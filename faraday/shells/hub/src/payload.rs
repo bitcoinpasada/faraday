@@ -175,16 +175,10 @@ impl Image {
 /// image or boot partition carries, read as the stick's upgrade reads a
 /// stick's. A `.xz` is not decompressed a second time for it; the
 /// Confirm page shows its SHA-256 instead.
-#[cfg(unix)]
 fn build_id(path: &Path, kind: ImageKind) -> Option<String> {
     if kind != ImageKind::Plain {
         return None;
     }
     let release = crate::stick::release_in_file(path)?;
     faraday_core::upgrade::build_id(&release).map(str::to_string)
-}
-
-#[cfg(not(unix))]
-fn build_id(_path: &Path, _kind: ImageKind) -> Option<String> {
-    None
 }

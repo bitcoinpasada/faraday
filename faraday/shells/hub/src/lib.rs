@@ -7,7 +7,8 @@
 //!   [`writer::Device`] each system opens its own way; [`gpt`] checks a
 //!   Faraday stick's partition table for keep data.
 //! - [`platform`]: the seam. Everything that differs between operating
-//!   systems is behind [`platform::Platform`]; [`linux`] is Linux's.
+//!   systems is behind [`platform::Platform`]; [`linux`] is Linux's,
+//!   [`windows`] Windows'.
 //! - [`stick`]: which Faraday a stick holds, read from its boot
 //!   partition alone.
 //!
@@ -19,6 +20,6 @@ pub mod gpt;
 pub mod linux;
 pub mod payload;
 pub mod platform;
-#[cfg(unix)]
 pub mod stick;
+pub mod windows;
 pub mod writer;

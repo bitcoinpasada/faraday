@@ -96,9 +96,9 @@ fn stick(id: &str, release: &str) -> Disk {
 fn laptop(os: Os, secure_boot: bool) -> Computer {
     Computer {
         os,
-        maker: "LENOVO".into(),
-        model: "ThinkPad T14 Gen 3".into(),
-        family: "ThinkPad".into(),
+        maker: "Example Computers".into(),
+        model: "Example 14".into(),
+        family: "Example".into(),
         uefi: true,
         arm: false,
         secure_boot: Some(secure_boot),
@@ -233,7 +233,7 @@ fn run(s: &Snap) -> Result<(), String> {
     let mut arm = laptop(Os::Windows, true);
     arm.arm = true;
     arm.maker = "Microsoft Corporation".into();
-    arm.model = "Surface Laptop 7".into();
+    arm.model = "Surface Example".into();
     h.hub_event(HubEvent::Computer(arm));
     s.shot(&mut h, "home-arm")?;
 
@@ -356,6 +356,16 @@ fn run(s: &Snap) -> Result<(), String> {
     s.shot_end(&mut h, "start-windows-suspended-end")?;
     h.press(HubAction::Restart);
     s.shot(&mut h, "start-restart-sheet")?;
+    // A maker with a page of its own (§7.6).
+    let mut h = s.hub();
+    let mut c = laptop(Os::Windows, true);
+    c.maker = "Dell Inc.".into();
+    h.hub_event(HubEvent::Computer(c));
+    h.hub_event(HubEvent::BitLocker(Some(suspended(true))));
+    h.press(HubAction::Start);
+    s.shot(&mut h, "start-maker")?;
+    h.press(HubAction::Restart);
+    s.shot(&mut h, "start-maker-restart-sheet")?;
 
     // Install, Installed, About, BitLocker.
     let mut h = s.hub();

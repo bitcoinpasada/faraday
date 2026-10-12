@@ -2671,6 +2671,8 @@ pub struct Strings {
     pub hub_why_start: &'static str,
     /// Reason. `{}` the system's words.
     pub hub_why_restart: &'static str,
+    /// Reason: the administrator permission was declined (Windows).
+    pub hub_why_declined: &'static str,
     /// Reason.
     pub hub_why_unsupported: &'static str,
     /// The app menu entry's name, in the desktop entry file install writes.
@@ -4058,6 +4060,7 @@ pub static EN: Strings = Strings {
     hub_why_in_the_way: "{} is another program's, and is in the way",
     hub_why_start: "Starting {} failed: {}",
     hub_why_restart: "Restarting into firmware settings failed: {}",
+    hub_why_declined: "Administrator permission was declined. Nothing was changed.",
     hub_why_unsupported: "Not on this computer",
     hub_menu_name: "Faraday",
     hub_menu_desktop_name: "Faraday desktop (testing)",

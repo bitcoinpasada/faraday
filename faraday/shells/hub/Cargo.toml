@@ -28,11 +28,8 @@ faraday-window = { path = "../window" }
 opensigner-core = { path = "../../../opensigner/opensigner-core" }
 osk-shell-api = { path = "../../../core/osk-shell-api" }
 winit.workspace = true
-
 # A Faraday stick's release string (`find_release`), as the stick's own
-# upgrade reads it. Unix only, as the crate is: batch W moves what the
-# Windows hub app needs of it.
-[target.'cfg(unix)'.dependencies]
+# upgrade reads it.
 faraday-boot = { path = "../../faraday-boot" }
 
 # udisks2 over the system bus, with the file descriptor `OpenDevice`
@@ -40,15 +37,39 @@ faraday-boot = { path = "../../faraday-boot" }
 [target.'cfg(target_os = "linux")'.dependencies]
 rustbus = "=0.19.3"
 
+# The Win32 calls of the windows module (docs/HUB.md §2): the same
+# windows-sys release winit already brings on Windows, with the features
+# those calls need. No other Windows crate.
+[target.'cfg(windows)'.dependencies.windows-sys]
+version = "=0.52.0"
+features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Com",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_IO",
+    "Win32_System_Ioctl",
+    "Win32_System_Pipes",
+    "Win32_System_Registry",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+]
+
 # MANIFEST read and checked when the payload is built in.
 [build-dependencies]
 faraday-payload = { path = "../../faraday-payload" }
 
 [lints.rust]
-# Not `workspace = true`: one function needs `unsafe`, taking ownership
-# of the file descriptor udisks2 passes back from `Block.OpenDevice`
-# (std has no safe way from a raw descriptor to a `File`). `deny`, not
-# `forbid`, so that function alone can allow it, as osk-crypto's
-# `pinned.rs` does; the other workspace lint is repeated by hand.
+# Not `workspace = true`: on Linux one function needs `unsafe`, taking
+# ownership of the file descriptor udisks2 passes back from
+# `Block.OpenDevice` (std has no safe way from a raw descriptor to a
+# `File`); on Windows the Win32 calls std does not make (src/windows/sys.rs
+# alone). `deny`, not `forbid`, so those alone can allow it, as
+# osk-crypto's `pinned.rs` does; the other workspace lint is repeated by
+# hand.
 unsafe_code = "deny"
 missing_docs = "warn"

@@ -61,6 +61,44 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop
     file "{{out}}/{{bin}}"
     sha256sum "{{out}}/{{bin}}"
 
+# The Windows hub app (docs/HUB.md §2), cross-compiled for
+# x86_64-pc-windows-gnu in the pinned container (faraday/build/windows/),
+# into OUT/Faraday.exe, with its icon, version and asInvoker manifest,
+# and checked: no library beside Windows' own, no local path in its
+# strings. FARADAY_HUB_PAYLOAD=out/payload/VERSION builds that payload in
+# (the stick and Pi images; the desktop app from batch C); without it the
+# hub app offers only --image. `just faraday-windows-bin clippy` runs
+# clippy for the Windows target instead.
+#
+#   FARADAY_HUB_PAYLOAD=out/payload/0.2.0 just faraday-windows-bin
+faraday-windows-bin what="build" out="out/windows" cache="out/build/run":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    root="$(pwd)"
+    mkdir -p "{{out}}" "{{cache}}/windows" "{{build_cache}}/cargo"
+    FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV=0 FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
+    export FARADAY_BUILD
+    {{docker}} build -t faraday-build-windows -f faraday/build/windows/Containerfile faraday/build/windows
+    payload=()
+    if [ -n "${FARADAY_HUB_PAYLOAD:-}" ]; then
+        [ -f "$FARADAY_HUB_PAYLOAD/MANIFEST" ] || { echo "$FARADAY_HUB_PAYLOAD/MANIFEST: not there" >&2; exit 1; }
+        payload=(-v "$(realpath "$FARADAY_HUB_PAYLOAD")":/payload:ro -e FARADAY_HUB_PAYLOAD=/payload)
+    fi
+    arg=()
+    [ "{{what}}" = clippy ] && arg=(clippy)
+    {{docker}} run --rm \
+        -e SOURCE_DATE_EPOCH="{{source_date_epoch}}" \
+        -e FARADAY_BUILD="$FARADAY_BUILD" \
+        ${payload[@]+"${payload[@]}"} \
+        -v "$root":/src:ro \
+        -v "$root/{{out}}":/out \
+        -v "$root/{{cache}}/windows":/build \
+        -v "$root/{{build_cache}}/cargo":/cargo \
+        faraday-build-windows /src/faraday/build/windows/build.sh ${arg[@]+"${arg[@]}"}
+    if [ "{{what}}" != clippy ]; then
+        sha256sum "{{out}}/Faraday.exe"
+    fi
+
 # The desktop app standing for a device's screen at its true size on
 # this one, to try the small-panel layout by touch: 2.8 is the Pi's
 # Waveshare panel (3:4), 5 a phone (9:16). Under Hyprland it opens on

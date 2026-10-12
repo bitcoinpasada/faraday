@@ -470,6 +470,9 @@ pub enum Reason {
     },
     /// The restart into firmware settings failed: the system's words.
     Restart(String),
+    /// Windows: the person declined the administrator permission a
+    /// step asks for (the elevation prompt), so nothing was done.
+    Declined,
     /// Not on this computer.
     Unsupported,
 }

@@ -1,8 +1,8 @@
 //! The seam between the hub app's window and the operating system
 //! (`docs/HUB.md` §2): everything that differs from one system to
 //! another is behind [`Platform`], and the window calls nothing else.
-//! Linux is [`crate::linux`]; Windows comes in batch W, macOS from its
-//! own spec. A system without a module of its own gets [`Elsewhere`],
+//! Linux is [`crate::linux`], Windows [`crate::windows`]; macOS comes
+//! from its own spec. A system without a module of its own gets [`Elsewhere`],
 //! which writes nothing.
 
 use std::path::PathBuf;
@@ -39,6 +39,16 @@ pub trait Platform: Send + Sync {
     /// Restarts into the firmware's settings (§7.3), or says why not.
     fn restart_into_firmware(&self) -> Result<(), Reason>;
 
+    /// Restarts into Windows' advanced startup, whose *Use a device*
+    /// starts the stick (§7.3); other systems have none.
+    fn restart_to_choose_device(&self) -> Result<(), Reason> {
+        Err(Reason::Unsupported)
+    }
+
+    /// The hub app is exiting: on Windows an uninstall run from the
+    /// installed copy leaves its last step for now (§5.4).
+    fn exiting(&self) {}
+
     /// What is installed (§5.2), found on disk; `None` when nothing is.
     /// May run the installed copy, so it is called off the window's
     /// thread.
@@ -66,9 +76,28 @@ pub fn this_computer() -> Arc<dyn Platform> {
     {
         Arc::new(crate::linux::Linux)
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(windows)]
+    {
+        Arc::new(crate::windows::Windows)
+    }
+    #[cfg(not(any(target_os = "linux", windows)))]
     {
         Arc::new(Elsewhere)
+    }
+}
+
+/// What a system runs before anything else when the arguments (after
+/// the program's name) ask for it, and the exit code it ended with:
+/// on Windows the elevated writer, `--write` (§2).
+pub fn early(args: &[String]) -> Option<std::process::ExitCode> {
+    #[cfg(windows)]
+    {
+        crate::windows::early(args)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = args;
+        None
     }
 }
 

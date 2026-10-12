@@ -90,6 +90,9 @@ pub enum LearnId {
     NoStart,
     /// Replacing Faraday on a stick.
     KeepData,
+    /// A maker family's page, by its id in `faraday_core::learn::MAKERS`
+    /// (§7.6).
+    Maker(&'static str),
 }
 
 impl LearnId {
@@ -102,6 +105,7 @@ impl LearnId {
             LearnId::BitLocker => "bitlocker",
             LearnId::NoStart => "not-starting",
             LearnId::KeepData => "replace-faraday",
+            LearnId::Maker(id) => id,
         }
     }
 
@@ -115,9 +119,13 @@ impl LearnId {
         format!("{GUIDES}{}", self.id())
     }
 
-    /// The guide for this computer (§3.4): by its operating system, until
-    /// a maker has a page of its own (§7.6).
+    /// The guide for this computer (§3.4): its maker's page where there
+    /// is one (§7.6), and otherwise the general page for its operating
+    /// system.
     pub fn for_computer(c: &Computer) -> LearnId {
+        if let Some(m) = faraday_core::learn::maker(&c.maker, &c.family, &c.model) {
+            return LearnId::Maker(m.id);
+        }
         match c.os {
             Os::Windows => LearnId::StartWindows,
             Os::Linux => LearnId::StartLinux,
@@ -191,6 +199,10 @@ pub enum HubAction {
     BitLocker,
 }
 
+/// A maker page's number in an action's code: this plus its place in
+/// `faraday_core::learn::MAKERS`.
+const MAKER_CODE: u32 = 0x100;
+
 const ITEMS: [Item; 5] = [
     Item::MakeStick,
     Item::BitLocker,
@@ -226,6 +238,14 @@ impl HubAction {
             HubAction::TryDesktop => (20, 0),
             HubAction::Transfer => (21, 0),
             HubAction::Learn => (22, 0),
+            HubAction::LearnPage(LearnId::Maker(id)) => (
+                23,
+                MAKER_CODE
+                    + faraday_core::learn::MAKERS
+                        .iter()
+                        .position(|m| m.id == id)
+                        .unwrap_or(0) as u32,
+            ),
             HubAction::LearnPage(id) => (
                 23,
                 LearnId::ALL.iter().position(|x| *x == id).unwrap_or(0) as u32,
@@ -267,6 +287,11 @@ impl HubAction {
             20 => HubAction::TryDesktop,
             21 => HubAction::Transfer,
             22 => HubAction::Learn,
+            23 if arg >= MAKER_CODE => HubAction::LearnPage(LearnId::Maker(
+                faraday_core::learn::MAKERS
+                    .get((arg - MAKER_CODE) as usize)?
+                    .id,
+            )),
             23 => HubAction::LearnPage(*LearnId::ALL.get(arg as usize)?),
             24 => HubAction::About,
             25 => HubAction::BitLocker,
@@ -705,6 +730,11 @@ impl Hub {
     pub fn learn_pages(&self) -> Vec<&'static osk_learn::Page> {
         let mut pages: Vec<&'static osk_learn::Page> =
             LearnId::ALL.iter().filter_map(|id| id.page()).collect();
+        if let id @ LearnId::Maker(_) = LearnId::for_computer(&self.computer)
+            && let Some(page) = id.page()
+        {
+            pages.insert(0, page);
+        }
         pages.push(faraday_core::learn::upgrade_page());
         pages
     }

@@ -13,8 +13,10 @@ use faraday_boot::{MAX_PARTITION, MAX_RELEASE, find_release};
 /// The Pi's boot partition names its kernel's release here (§1.3): its
 /// zImage is compressed, so the string is not in its bytes.
 pub const BUILD_FILE: &str = "faraday-build.txt";
-/// The PC stick's one file, the kernel with the whole system inside.
-pub const KERNEL_FILE: &str = "EFI/BOOT/BOOTX64.EFI";
+/// The PC stick's one file, the kernel with the whole system inside,
+/// folder by folder (joined one at a time, so a Windows volume's
+/// `\\?\Volume{…}\` root takes it as it takes any path).
+pub const KERNEL_FILE: [&str; 3] = ["EFI", "BOOT", "BOOTX64.EFI"];
 
 /// What is read at a time.
 const CHUNK: usize = 1 << 20;
@@ -33,7 +35,10 @@ pub fn release_at(root: &Path) -> Option<String> {
             return Some(r);
         }
     }
-    release_in_file(&root.join(KERNEL_FILE))
+    let kernel = KERNEL_FILE
+        .iter()
+        .fold(root.to_path_buf(), |p, c| p.join(c));
+    release_in_file(&kernel)
 }
 
 /// The first release string in the first [`MAX_PARTITION`] bytes of

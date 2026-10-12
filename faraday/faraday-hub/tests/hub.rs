@@ -6,7 +6,7 @@ use faraday_hub::api::{
     Mode, Os, Payload, PayloadFile, Protection, Reason, Remind, Source, Volume, remind,
 };
 use faraday_hub::decide::{Item, Target};
-use faraday_hub::{Hub, HubAction, Page};
+use faraday_hub::{Hub, HubAction, LearnId, Page};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 const GB: u64 = 1_000_000_000;
@@ -95,8 +95,8 @@ fn faraday_stick(id: &str, model: &str, size: u64, release: Option<&str>) -> Dis
 fn linux(secure_boot: bool) -> Computer {
     Computer {
         os: Os::Linux,
-        maker: "Lenovo".into(),
-        model: "ThinkPad T14".into(),
+        maker: "Example Computers".into(),
+        model: "Example 14".into(),
         family: String::new(),
         uefi: true,
         arm: false,
@@ -590,6 +590,71 @@ fn start_holds_the_firmware_buttons_until_the_bitlocker_step_is_done() {
     assert!(shows(&mut hub, "https://faradayoffline.app/start/windows"));
     tap(&mut hub, HubAction::RestartNow);
     assert_eq!(commands(&mut hub), vec![HubCommand::RestartIntoFirmware]);
+}
+
+// The guide chosen for a maker string (§3.4, §7.6): the maker's page
+// where there is one, by the maker and, for a maker with families, the
+// family or model; the general page for the operating system otherwise.
+// The Start page links it and the restart confirmation carries its
+// address.
+
+fn guide_for(maker: &str, family: &str, model: &str, os: Os) -> &'static str {
+    let c = Computer {
+        os,
+        maker: maker.into(),
+        family: family.into(),
+        model: model.into(),
+        ..linux(true)
+    };
+    LearnId::for_computer(&c).id()
+}
+
+#[test]
+fn the_guide_is_the_makers_page_where_there_is_one() {
+    assert_eq!(
+        guide_for("Dell Inc.", "Example", "Example 14", Os::Windows),
+        "maker-dell"
+    );
+    assert_eq!(
+        guide_for("LENOVO", "ThinkPad Example 14", "21XX0000", Os::Linux),
+        "maker-lenovo-thinkpad"
+    );
+    assert_eq!(
+        guide_for("LENOVO", "IdeaPad Example 14", "82XX", Os::Windows),
+        "maker-lenovo-ideapad"
+    );
+    // A Lenovo of a family without a page gets the general page.
+    assert_eq!(
+        guide_for("LENOVO", "Example 14", "Example 14", Os::Windows),
+        "windows"
+    );
+    assert_eq!(
+        guide_for("Example Computers", "Example", "Example 14", Os::Windows),
+        "windows"
+    );
+    assert_eq!(guide_for("", "", "", Os::Linux), "linux");
+    assert_eq!(guide_for("", "", "", Os::Windows), "windows");
+    // Every maker page is there to open.
+    for m in faraday_core::learn::MAKERS {
+        assert!(LearnId::Maker(m.id).page().is_some(), "no page {}", m.id);
+    }
+}
+
+#[test]
+fn start_opens_the_makers_page_and_its_address_is_on_the_restart() {
+    let mut hub = hub_with(Vec::new());
+    let mut c = windows(true);
+    c.maker = "Dell Inc.".into();
+    hub.hub_event(HubEvent::Computer(c));
+    hub.hub_event(HubEvent::BitLocker(Some(suspended(true))));
+    hub.press(HubAction::Start);
+    assert!(shows(&mut hub, "Starting a Dell computer from the stick"));
+    assert!(hub.offers_action(HubAction::LearnPage(LearnId::Maker("maker-dell"))));
+    tap(&mut hub, HubAction::Restart);
+    assert!(shows(
+        &mut hub,
+        "https://faradayoffline.app/start/maker-dell"
+    ));
 }
 
 #[test]

@@ -1,0 +1,48 @@
+# The build container for the Windows hub app (docs/HUB.md §2): the
+# x86_64-pc-windows-gnu target, linked by mingw-w64, cross-compiled on
+# Linux. Nothing in it runs Windows code.
+#
+# The base image is pinned by digest, not by tag: a tag moves with every
+# point release. This digest is what debian:trixie-slim pointed at on
+# 2026-10-12. The Rust toolchain is the release named by
+# rust-toolchain.toml (build.sh refuses a different one), installed from
+# the standalone tarball and the Windows target's standard library
+# tarball, each with its SHA-256 written here, so a changed tarball fails
+# the build. mingw-w64 (the linker, windres for the .exe's icon, version
+# and manifest, and objdump for the check after the build) is Debian's
+# own package.
+FROM debian:trixie-slim@sha256:918311b7b6c4c6f68b232ba516584925f6c78ad82b6fd534b98979df6438e483
+
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        binutils binutils-mingw-w64-x86-64 ca-certificates curl gcc gcc-mingw-w64-x86-64-win32 \
+        git libc6-dev xz-utils \
+    && apt-get clean && find /var/lib/apt/lists -type f -delete
+
+ARG RUST_VERSION=1.97.0
+ARG RUST_SHA256=1cf17e4905b841d4c8e3f76467ac148d55fb3f54bf213c86f0d287a36471d904
+ARG RUST_STD_WINDOWS_SHA256=98e6ef703b003b1f7d75c3249a831f4ac07f0deb41b0e1dfe41054847ac2816f
+RUN set -eu; \
+    host="rust-${RUST_VERSION}-x86_64-unknown-linux-gnu"; \
+    std="rust-std-${RUST_VERSION}-x86_64-pc-windows-gnu"; \
+    for name in "$host" "$std"; do \
+        curl --proto '=https' --tlsv1.2 -fsSL -o "/tmp/$name.tar.xz" \
+            "https://static.rust-lang.org/dist/$name.tar.xz"; \
+    done; \
+    echo "$RUST_SHA256  /tmp/$host.tar.xz" | sha256sum -c -; \
+    echo "$RUST_STD_WINDOWS_SHA256  /tmp/$std.tar.xz" | sha256sum -c -; \
+    tar -C /tmp -xf "/tmp/$host.tar.xz"; \
+    tar -C /tmp -xf "/tmp/$std.tar.xz"; \
+    "/tmp/$host/install.sh" --prefix=/usr/local \
+        --components=rustc,cargo,rust-std-x86_64-unknown-linux-gnu,clippy-preview; \
+    "/tmp/$std/install.sh" --prefix=/usr/local; \
+    rm -rf "/tmp/$host" "/tmp/$std" "/tmp/$host.tar.xz" "/tmp/$std.tar.xz"
+
+# Mounted by faraday.just: /src (the checkout, read-only), /out, /build
+# (the target directory) and /cargo (the registry cache).
+ENV CARGO_HOME=/cargo \
+    CARGO_TARGET_DIR=/build/target \
+    CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc \
+    WINDRES=x86_64-w64-mingw32-windres \
+    LC_ALL=C
+WORKDIR /src

@@ -418,6 +418,7 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         Reason::InTheWay { path } => fill(S.hub_why_in_the_way, &[path]),
         Reason::Start { path, detail } => fill(S.hub_why_start, &[path, detail]),
         Reason::Restart(d) => fill(S.hub_why_restart, &[d]),
+        Reason::Declined => S.hub_why_declined.to_string(),
         Reason::Unsupported => S.hub_why_unsupported.to_string(),
     }
 }
@@ -1114,7 +1115,8 @@ fn guide_line(ui: &mut Ui, x: f32, y: f32, w: f32, id: LearnId) -> f32 {
     }
 }
 
-/// A guide's title, as its Learn page will carry it.
+/// A guide's title, as its Learn page will carry it; a maker page's is
+/// its page's own.
 fn learn_title(id: LearnId) -> &'static str {
     match id {
         LearnId::StartWindows => S.hub_learn_start_windows,
@@ -1122,6 +1124,7 @@ fn learn_title(id: LearnId) -> &'static str {
         LearnId::BitLocker => S.hub_learn_bitlocker,
         LearnId::NoStart => S.hub_learn_no_start,
         LearnId::KeepData => S.hub_learn_keep_data,
+        LearnId::Maker(_) => id.page().map_or("", |p| p.title),
     }
 }
 

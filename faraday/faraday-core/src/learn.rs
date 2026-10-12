@@ -36,7 +36,7 @@ pub struct LearnState {
 /// as it is: the hub app's screens open a page by it, and the website
 /// publishes each guide at `https://faradayoffline.app/start/<id>`
 /// (§7.4).
-const OWN: [(&str, &str); 8] = [
+const OWN: [(&str, &str); 17] = [
     // Upgrading a stick from another stick (`PLAN.md` §5.5).
     (
         "upgrade-a-stick",
@@ -69,6 +69,42 @@ const OWN: [(&str, &str); 8] = [
         "replace-faraday",
         include_str!("../../../docs/learn/faraday/boot/replace-faraday.md"),
     ),
+    (
+        "maker-dell",
+        include_str!("../../../docs/learn/faraday/boot/maker-dell.md"),
+    ),
+    (
+        "maker-hp",
+        include_str!("../../../docs/learn/faraday/boot/maker-hp.md"),
+    ),
+    (
+        "maker-lenovo-thinkpad",
+        include_str!("../../../docs/learn/faraday/boot/maker-lenovo-thinkpad.md"),
+    ),
+    (
+        "maker-lenovo-ideapad",
+        include_str!("../../../docs/learn/faraday/boot/maker-lenovo-ideapad.md"),
+    ),
+    (
+        "maker-asus",
+        include_str!("../../../docs/learn/faraday/boot/maker-asus.md"),
+    ),
+    (
+        "maker-acer",
+        include_str!("../../../docs/learn/faraday/boot/maker-acer.md"),
+    ),
+    (
+        "maker-msi",
+        include_str!("../../../docs/learn/faraday/boot/maker-msi.md"),
+    ),
+    (
+        "maker-framework",
+        include_str!("../../../docs/learn/faraday/boot/maker-framework.md"),
+    ),
+    (
+        "maker-surface",
+        include_str!("../../../docs/learn/faraday/boot/maker-surface.md"),
+    ),
 ];
 
 /// The guides to starting a computer from the stick (`docs/HUB.md` §7.2),
@@ -81,6 +117,98 @@ pub const BOOT: [&str; 5] = [
     "not-starting",
     "replace-faraday",
 ];
+
+/// A maker family's guide (`docs/HUB.md` §7.6): its page's id, and the
+/// computers it is for, by what the firmware reports (§7.1).
+#[derive(Debug)]
+pub struct Maker {
+    /// The page's id among [`OWN`], `maker-<family>`.
+    pub id: &'static str,
+    /// The maker (`sys_vendor`, `SystemManufacturer`) begins with one of
+    /// these, ignoring case.
+    pub vendors: &'static [&'static str],
+    /// The family (`product_family`, `SystemFamily`) or the model
+    /// (`product_name`, `SystemProductName`) begins with one of these,
+    /// ignoring case; empty for every computer of the maker.
+    pub families: &'static [&'static str],
+}
+
+/// The maker pages, each checked against the maker's own documentation
+/// (§7.6). The first that matches a computer is its guide; a computer
+/// none matches gets the general page for its operating system.
+pub const MAKERS: [Maker; 9] = [
+    Maker {
+        id: "maker-dell",
+        vendors: &["Dell"],
+        families: &[],
+    },
+    Maker {
+        id: "maker-hp",
+        vendors: &["HP", "Hewlett-Packard"],
+        families: &[],
+    },
+    Maker {
+        id: "maker-lenovo-thinkpad",
+        vendors: &["LENOVO"],
+        families: &["ThinkPad"],
+    },
+    Maker {
+        id: "maker-lenovo-ideapad",
+        vendors: &["LENOVO"],
+        families: &["IdeaPad", "Yoga", "Legion"],
+    },
+    Maker {
+        id: "maker-asus",
+        vendors: &["ASUSTeK", "ASUS"],
+        families: &[],
+    },
+    Maker {
+        id: "maker-acer",
+        vendors: &["Acer"],
+        families: &[],
+    },
+    Maker {
+        id: "maker-msi",
+        vendors: &["Micro-Star", "MSI"],
+        families: &[],
+    },
+    Maker {
+        id: "maker-framework",
+        vendors: &["Framework"],
+        families: &[],
+    },
+    Maker {
+        id: "maker-surface",
+        vendors: &["Microsoft"],
+        families: &["Surface"],
+    },
+];
+
+/// Whether `s`, trimmed, begins with `prefix`, ignoring ASCII case; a
+/// vendor prefix must end at a word's end ("HP", not "HPE").
+fn begins(s: &str, prefix: &str, word: bool) -> bool {
+    let s = s.trim();
+    s.len() >= prefix.len()
+        && s.is_char_boundary(prefix.len())
+        && s[..prefix.len()].eq_ignore_ascii_case(prefix)
+        && (!word
+            || s[prefix.len()..]
+                .chars()
+                .next()
+                .is_none_or(|c| !c.is_ascii_alphanumeric()))
+}
+
+/// The maker page for a computer, by its maker, family and model as the
+/// firmware reports them (§7.1), or `None` when no page is for it.
+pub fn maker(vendor: &str, family: &str, model: &str) -> Option<&'static Maker> {
+    MAKERS.iter().find(|m| {
+        m.vendors.iter().any(|v| begins(vendor, v, true))
+            && (m.families.is_empty()
+                || m.families
+                    .iter()
+                    .any(|f| begins(family, f, false) || begins(model, f, false)))
+    })
+}
 
 /// Faraday's own pages, read once, in [`OWN`]'s order.
 fn own() -> &'static [LearnPage] {

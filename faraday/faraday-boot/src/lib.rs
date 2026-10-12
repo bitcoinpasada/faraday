@@ -32,14 +32,17 @@
 //!
 //! Where `/sys`, `/dev` and `/proc/version` are is a parameter, so the
 //! tests can stand a directory tree and image files in for them.
+//!
+//! It uses std alone, with no Unix-only call, so the crate also builds
+//! for Windows: the hub app there reads a stick's version with
+//! [`find_release`] as the stick's own upgrade does (`docs/HUB.md` §4.1).
 
 pub mod client;
 pub mod proto;
 
 use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
-use std::io::{Read, Seek, SeekFrom};
-use std::os::unix::fs::FileExt;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -282,7 +285,8 @@ impl Boots {
         let mut at = 0u64;
         while at < len {
             let n = (len - at).min(buf.len() as u64) as usize;
-            f.read_exact_at(&mut buf[..n], at)?;
+            f.seek(SeekFrom::Start(at))?;
+            f.read_exact(&mut buf[..n])?;
             if let Some(r) = find_release(&buf[..n]) {
                 return Ok(Some(r));
             }
@@ -344,7 +348,7 @@ impl Boots {
                 continue;
             }
             let mut bytes = vec![0u8; len as usize];
-            if h.read_exact_at(&mut bytes, 0).is_err() {
+            if h.seek(SeekFrom::Start(0)).is_err() || h.read_exact(&mut bytes).is_err() {
                 continue;
             }
             if holds(&bytes, &release) {
@@ -418,13 +422,13 @@ impl Boots {
                 mb(need)
             ));
         }
-        let mut at = 0usize;
-        while at < src.bytes.len() {
-            let end = (at + CHUNK).min(src.bytes.len());
-            if let Err(e) = file.write_all_at(&src.bytes[at..end], at as u64) {
+        if let Err(e) = file.seek(SeekFrom::Start(0)) {
+            return self.failed(target, &e);
+        }
+        for chunk in src.bytes.chunks(CHUNK) {
+            if let Err(e) = file.write_all(chunk) {
                 return self.failed(target, &e);
             }
-            at = end;
         }
         if let Err(e) = file.sync_all() {
             return self.failed(target, &e);
