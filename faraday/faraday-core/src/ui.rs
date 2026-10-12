@@ -10,6 +10,7 @@ use osk_ui::fonts::Family;
 use osk_ui::text::{self, TextAlign};
 use osk_ui::widgets::Icon;
 use osk_ui::{Canvas, Color, Font, Rect};
+use std::sync::OnceLock;
 
 use crate::Action;
 
@@ -284,6 +285,90 @@ use pal::*;
 
 /// Faraday's mark as a pixel grid, the one the boot logo is drawn from.
 const MARK: &str = include_str!("../../image/overlay/common/faraday-mark.txt");
+
+/// Faraday's name as outlines: SVG path data in font units.
+const WORDMARK: &str = include_str!("../assets/wordmark.txt");
+
+/// The wordmark's cap height in its font units.
+const WORDMARK_CAP: f32 = 687.0;
+
+/// The wordmark's outlines, each curve as straight pieces, and the left
+/// and right edges of them all, in font units.
+struct Wordmark {
+    outlines: Vec<Vec<(f32, f32)>>,
+    left: f32,
+    right: f32,
+}
+
+fn wordmark_outlines() -> &'static Wordmark {
+    static OUTLINES: OnceLock<Wordmark> = OnceLock::new();
+    OUTLINES.get_or_init(|| {
+        let outlines = path_outlines(WORDMARK);
+        let xs = || outlines.iter().flatten().map(|p| p.0);
+        let left = xs().fold(f32::MAX, f32::min);
+        let right = xs().fold(f32::MIN, f32::max);
+        Wordmark {
+            outlines,
+            left,
+            right,
+        }
+    })
+}
+
+/// The closed outlines of SVG path data made of absolute M, L, Q and Z,
+/// with `#` lines skipped; each quadratic curve becomes straight pieces.
+fn path_outlines(src: &str) -> Vec<Vec<(f32, f32)>> {
+    const PIECES: usize = 6;
+    let mut spaced = String::new();
+    for line in src.lines().filter(|l| !l.starts_with('#')) {
+        for c in line.chars() {
+            if c.is_ascii_alphabetic() {
+                spaced.extend([' ', c, ' ']);
+            } else {
+                spaced.push(c);
+            }
+        }
+        spaced.push(' ');
+    }
+    let words: Vec<&str> = spaced.split_whitespace().collect();
+    let num = |i: usize| words.get(i).and_then(|w| w.parse().ok()).unwrap_or(0.0);
+    let mut out: Vec<Vec<(f32, f32)>> = Vec::new();
+    let mut at = (0.0, 0.0);
+    let mut i = 0;
+    while i < words.len() {
+        match words[i] {
+            "M" => {
+                at = (num(i + 1), num(i + 2));
+                out.push(vec![at]);
+                i += 3;
+            }
+            "L" => {
+                at = (num(i + 1), num(i + 2));
+                if let Some(o) = out.last_mut() {
+                    o.push(at);
+                }
+                i += 3;
+            }
+            "Q" => {
+                let (c, to) = ((num(i + 1), num(i + 2)), (num(i + 3), num(i + 4)));
+                if let Some(o) = out.last_mut() {
+                    o.extend((1..=PIECES).map(|k| {
+                        let t = k as f32 / PIECES as f32;
+                        let u = 1.0 - t;
+                        (
+                            u * u * at.0 + 2.0 * u * t * c.0 + t * t * to.0,
+                            u * u * at.1 + 2.0 * u * t * c.1 + t * t * to.1,
+                        )
+                    }));
+                }
+                at = to;
+                i += 5;
+            }
+            _ => i += 1,
+        }
+    }
+    out
+}
 
 /// Which palette the screens are drawn in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -1160,6 +1245,28 @@ impl<'a> Ui<'a> {
         let inner = shield(ox + rim, oy + rim, sw - 2.0 * rim, sh - 2.4 * rim);
         self.c.fill_contours(&[&outer, &hole], lit);
         self.c.fill_contours(&[&inner, &hole], stroke);
+    }
+
+    /// Faraday's name, the wordmark of `assets/wordmark.txt`, its capitals
+    /// `cap` units tall with their top-left at (x, y). Returns its width.
+    pub fn wordmark(&mut self, x: f32, y: f32, cap: f32, color: Color) -> f32 {
+        let mark = wordmark_outlines();
+        let s = cap / WORDMARK_CAP;
+        let k = s * self.f;
+        let (ox, oy) = ((x + self.ox) * self.f, (y + self.oy) * self.f);
+        let outlines: Vec<Vec<(f32, f32)>> = mark
+            .outlines
+            .iter()
+            .map(|o| {
+                o.iter()
+                    .map(|&(fx, fy)| (ox + (fx - mark.left) * k, oy + (fy + WORDMARK_CAP) * k))
+                    .collect()
+            })
+            .collect();
+        let contours: Vec<&[(f32, f32)]> = outlines.iter().map(Vec::as_slice).collect();
+        let color = self.col(color);
+        self.c.fill_contours(&contours, color);
+        (mark.right - mark.left) * s
     }
 
     /// The caret of the field typing goes to, `h` units tall at (x, y),

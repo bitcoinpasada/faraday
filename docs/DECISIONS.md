@@ -360,3 +360,20 @@ The vault's add rows carry `Icon::Add`, Font Awesome 6 Free Solid
 with F4's `SdCard`, the variant, its place in `Icon::ALL`, its code
 point and name, the `tools/fontbake` entry and the rebaked
 `core/osk-ui/assets/icon.outl` are an upstream change.
+
+### F10 The name as a wordmark (2026-10-11)
+
+**Why.** The headers set "Faraday" in Noto Sans SemiBold, the face of
+every label on the screen, so the name beside the mark read as one more
+label.
+
+**Decision** (owner, from mockups of three faces). The name is a
+wordmark: FARADAY in Archivo Expanded SemiBold (wdth 125, wght 600),
+hand-kerned, each A's crossbar cut free of its legs. The keyhole shield
+beside it is unchanged. The outlines are SVG path data in
+`faraday/faraday-core/assets/wordmark.txt`, with Archivo's SIL Open
+Font License beside them; `Ui::wordmark` fills them in the text colour,
+so every theme draws the name as it draws its text, and no font is
+added to the bake. The sidebar sets its capitals 10 units tall, which
+leaves the widest network pill (Regtest) its gap; the Pi's header, with
+more room, 11. The boot logo's 5×7 pixel name is unchanged.

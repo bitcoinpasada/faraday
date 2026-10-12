@@ -236,7 +236,7 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     // The mark and the name; off mainnet, a badge on the right that
     // opens nothing. The chooser is in Settings.
     ui.mark(M, y, 20.0, 23.0);
-    ui.text_mid(M + 28.0, y, 24.0, 17.0, W::S, TEXT, "Faraday");
+    ui.wordmark(M + 28.0, y + 6.0, 11.0, TEXT);
     let net = app.session.network();
     if !net.is_mainnet() {
         let label = network_name(net);

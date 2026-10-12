@@ -342,7 +342,9 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
     ui.fill(0.0, 0.0, SIDEBAR_W, h, 0.0, SIDEBAR);
     ui.fill(SIDEBAR_W - 1.0, 0.0, 1.0, h, 0.0, LINE);
     ui.mark(22.0, 20.0, 28.0, 32.0);
-    ui.text_mid(58.0, 22.0, 28.0, 17.0, W::S, TEXT, "Faraday");
+    // The name centred on the mark, its capitals 10 tall: at 11, as on the
+    // Pi, it reaches the widest network pill (Regtest).
+    ui.wordmark(58.0, 31.0, 10.0, TEXT);
     let net = app.session.network();
     if !net.is_mainnet() {
         // A test network is marked on every screen, by the pill alone.
