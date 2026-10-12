@@ -377,6 +377,27 @@ your key, fingerprint …", read from the volume's file through
 `faraday-macboot`; the line says it is what the volume holds, which is
 what was sealed only if the setup's check passed.
 
+### 4.5a Explained, and the person's to keep or remove (owner, 2026-10-12)
+
+Every screen of §4.5, and Home's line about the start-up volume, has a
+small link, **About the Faraday start-up volume**, to a Learn page that
+says in plain words: what the volume is (a small start-up volume beside
+macOS, holding Apple's own start-up code and one sealed file that
+starts a Faraday stick); why an Apple Silicon Mac needs it (it starts
+only what its security policy allows, and the policy is set in
+recovery, by the person); what it can and cannot do (it starts a stick
+only when the person holds the power button and chooses Faraday;
+macOS stays the Mac's default; it reads nothing of macOS's data); what
+setup automates and the one part it cannot (the recovery commands,
+§4.5 step 6, which the person types by design); and that keeping it
+or removing it is the person's choice: kept, Faraday starts next time
+with no setup; removed (§4.6), nothing of Faraday stays on the Mac
+except what only recovery can see, for anyone who does not want the
+Mac to show that Faraday was used. Home offers **Remove Faraday from
+this Mac** whenever the volume is there. On an Intel Mac there is no
+volume or entry to explain: the stick starts from the Option-key menu,
+and the link says so. As in HUB §3.1c for Linux's boot entry.
+
 ### 4.6 Removing it
 
 "Remove Faraday from this Mac" (owner, 2026-10-12, for privacy):
