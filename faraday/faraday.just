@@ -157,9 +157,9 @@ faraday-snap size: faraday-testkit
 
 # The hub app (docs/HUB.md), built and run here: `just faraday-hub`, or
 # `just faraday-hub --image out/stick/faraday-x86_64-uefi-dev.img` to write
-# a dev image, through the same screens and writer as a release's (what
-# `tools/flash-stick` did, removed). FARADAY_HUB_PAYLOAD=out/payload/VERSION builds that payload
-# in; without it the hub app offers only --image. release=1 makes a release
+# a dev image, through the same screens and writer as a release's.
+# FARADAY_HUB_PAYLOAD=out/payload/VERSION builds that payload in; without
+# it the hub app offers only --image. release=1 makes a release
 # build with no local paths in it (faraday/image/path-remap.sh); the build
 # for publishing is `just faraday-linux-bin` with the arguments
 # `out/linux out/build/run faraday-hub-shell faraday-hub`, in the glibc 2.31 container (`just faraday-linux-bin`'s
