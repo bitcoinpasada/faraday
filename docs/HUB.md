@@ -369,6 +369,36 @@ computer's screens and warns, by name, when one is:
 - **a remote session** (Windows `SM_REMOTESESSION`; an X11 or Wayland
   session over the network where the platform says so).
 
+**Other devices that can intercept or reach a network** (owner, the
+same day). Beside the screens, the hub app and the stick read what
+else is attached and warn the same way, by name:
+
+- **a KVM switch, above all an IP-KVM** (PiKVM, TinyPilot, JetKVM and
+  the like capture the screen and type over the network): the USB
+  keyboard and mass-storage composite such devices present (the Linux
+  USB-gadget vendor ID `1d6b` with a keyboard and a disk, product
+  strings naming KVM), and the EDID a KVM's capture side reports;
+- **a virtual machine**: Faraday started inside one (the CPU's
+  hypervisor flag, the firmware's maker string: QEMU, VMware,
+  VirtualBox, Hyper-V, Xen, Parallels), whose host sees and can change
+  everything; the hub app on a virtual machine says the stick must
+  start on a real computer;
+- **radios and networks on USB**: wireless keyboard and mouse
+  receivers (HID devices whose strings name a receiver, dongle or
+  wireless, and the common receivers' IDs), Bluetooth and other
+  wireless controllers (USB class `0xE0`), Wi-Fi adapters, and USB
+  network adapters (CDC Ethernet, NCM, RNDIS);
+- **video capture devices** on USB (UVC devices whose strings name
+  capture, HDMI or a grabber).
+
+On the stick these come from what `faraday-grant` already reads of
+every USB device before it authorises one; nothing new is bound. The
+stick has no network and no radio driver, so a radio cannot reach
+anything from it; a wireless keyboard's keystrokes still travel over
+the air before they reach it, which is why it is named. What cannot
+be detected is said once on the Learn page: a passive HDMI splitter,
+and a keylogger inside a cable or keyboard.
+
 The warning is on Home's This computer card and on the Start page,
 and it holds the steps that would put a secret on that screen: the
 restart buttons and the BitLocker guard's Show the recovery key stay
@@ -383,7 +413,9 @@ picture is the firmware's framebuffer), so it reads no EDID today. A
 batch looks for a way to read the screen's EDID that the firmware
 already has (UEFI GOP's EDID, passed on by the boot stub) without
 adding a graphics driver; until then the stick's first screen carries
-one line: "On a TV? Stop: a smart TV can record its screen."
+one line: "On a TV? Stop: a smart TV can record its screen." The
+stick's own device check (above) warns at start, before anything is
+unlocked, and the same hold applies to showing a secret.
 
 ### 3.1b What Secure Boot and BitLocker are (owner, 2026-10-12)
 
