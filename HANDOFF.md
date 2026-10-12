@@ -1934,6 +1934,38 @@ as possible before the next build.
     app to Windows (D20). G is independent of L and W; P of G, W and
     C; W no longer waits on D11.
 
+    **Built (2026-10-12, afternoon; Opus orchestrator, agents per
+    model).** Committed: bd51291 (v0.2), 79ecced (`faraday-hub`, the
+    hub's state and screens, no I/O; `faraday-payload` with
+    `lzma-rust2`; the five boot Learn pages, ids `windows`, `linux`,
+    `bitlocker`, `not-starting`, `replace-faraday`), 98013bc (the Pi's
+    `faraday-build.txt`; the glibc 2.31 container `faraday/build/linux`;
+    the payload pass; the published-file check), f851603 (the stick's
+    power-off Secure Boot line; sheets open at their top), e372242 and
+    508206d (F14: maker pages several families at once, none naming a
+    model), c3519bc (`faraday/shells/hub` on Linux through udisks2 and
+    `rustbus`; `faraday/shells/window` shared with the desktop shell),
+    d7437f6 (install and uninstall, Try the desktop app, writer reasons
+    in en.rs, staging pass 2 with the `.tar.gz`, the icon from the
+    app's mark, `tools/flash-stick` removed). Spec changes made on the
+    way, each in HUB.md: Resume BitLocker when Secure Boot is as the
+    marker recorded it; Home's next-step rule; a stick's version read
+    from the desktop's mount of OSKBOOT or a read-only udisks2 mount;
+    install touches `faraday` and `faraday-desktop` only when they
+    answer `--version` as Faraday's. A staged try of the whole release
+    (desktop, both images, the hub with its payload, the `.tar.gz`,
+    SHA256SUMS, the PII check over 16 files and streams) ran on the
+    build machine.
+
+    **Next.** (1) The owner tries the Linux hub app on the desktop
+    (`just faraday-hub`, run through `local/remote-run.sh --fetch`), and
+    one real write to a spare stick the owner names, recording what
+    polkit asks. (2) G's first group of maker pages (F14). (3) W's code,
+    cross-compiled and tested on recorded answers; W's acceptance
+    (§6.6) needs a Windows 11 Pro virtual machine and then the owner's
+    Home computer with the owner, and nothing of W ships before it
+    passes. (4) C, P (on the Pi), S.
+
 71. [ ] 2026-10-12, owner: **Faraday on Macs**, specified in
     `docs/MAC.md` (DECISIONS F13, superseding F11's "no macOS app").
     Intel Macs start the PC stick (its kernel gains `applespi` and OHCI;
