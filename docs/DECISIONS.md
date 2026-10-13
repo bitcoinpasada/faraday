@@ -557,26 +557,30 @@ online wallet.
   phone that asks is documented. No iPhone app in phase 1. Every point
   is `docs/COMPANION.md` §12, D1–D10.
 
-### F16 The hub app is Faraday Setup; the desktop app is Faraday Desktop (2026-10-12)
+### F16 The hub app is Faraday Starter; the desktop app is Faraday Desktop (2026-10-12)
 
 **Why.** HUB D10 named the hub app plain "Faraday" to people. Installed
 beside the desktop app, two menu entries began "Faraday", and the
 desktop app's "Faraday desktop (testing)" was cut off in a launcher.
 "Faraday Hub" was chosen first and withdrawn the same evening for its
-unwanted associations; "Setup" says what a person comes to it for.
+unwanted associations, and "Setup" the same evening for "Starter":
+the app is what a person opens each time Faraday is to start on this
+computer (the stick made, BitLocker suspended, Secure Boot turned off,
+the restart into the stick), not only the first time.
 
 **Decision** (owner, 2026-10-12).
 
-- The hub app is **Faraday Setup**: its window title, menu entry, Start
+- The hub app is **Faraday Starter**: its window title, menu entry, Start
   menu shortcut, installed name and uninstall entry, and the release
-  files `Faraday-Setup-X.Y.Z-Linux.tar.gz` and
-  `Faraday-Setup-X.Y.Z-Windows.exe`. In the code it stays `faraday-hub`.
+  files `Faraday-Starter-X.Y.Z-Linux.tar.gz` and
+  `Faraday-Starter-X.Y.Z-Windows.exe`. In the code it stays `faraday-hub`.
 - The desktop app is **Faraday Desktop**, with no "(testing)": it opens
   on testnet, so its purpose shows; its menu description says test
   seeds only.
 - Their headers show the wordmark with the second word beside it,
-  SETUP or DESKTOP, in the same Archivo Expanded (wdth 125) at weight
+  STARTER or DESKTOP, in the same Archivo Expanded (wdth 125) at weight
   400, in the grey of secondary text, so FARADAY stays the name. The
-  outlines join the wordmark's in `faraday-core/assets/`.
+  outlines join the wordmark's in `faraday-core/assets/`; STARTER's A
+  has its crossbar cut free of its legs, as FARADAY's A's do.
 - The stick, the Pi card and the project remain **Faraday**, with the
   wordmark alone.
