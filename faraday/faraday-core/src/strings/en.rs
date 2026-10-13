@@ -13,8 +13,12 @@ pub struct Strings {
     pub devices_title: &'static str,
     /// What an IP-KVM or KVM can do, after its name and a colon.
     pub devices_kvm: &'static str,
-    /// What a wireless keyboard or mouse receiver lets happen.
-    pub devices_receiver: &'static str,
+    /// A wireless receiver attached (HUB §3.1a): one line that holds
+    /// nothing, on the stick's Home and the hub app's.
+    pub devices_receiver_notice: &'static str,
+    /// A Logitech Bolt receiver attached: its keyboards' typing is
+    /// encrypted. In place of the receiver line.
+    pub devices_bolt_notice: &'static str,
     /// What a virtual machine's host can do.
     pub devices_virtual_machine: &'static str,
     /// The name a virtual machine goes by when its maker is not known.
@@ -590,8 +594,6 @@ pub struct Strings {
     pub hub_concern_tv: &'static str,
     /// A KVM switch or IP-KVM attached (HUB §3.1a), by name.
     pub hub_concern_kvm: &'static str,
-    /// A wireless keyboard or mouse receiver (HUB §3.1a), by name.
-    pub hub_concern_receiver: &'static str,
     /// The hub app runs in a virtual machine (HUB §3.1a), by its name.
     pub hub_concern_vm: &'static str,
     /// A remote session, around the recovery key (HUB §3.1a).
@@ -7564,7 +7566,8 @@ pub static EN: Strings = Strings {
     power_secure_boot_off: "Secure Boot is off. Turn it back on before starting Windows.",
     devices_title: "Attached to this computer",
     devices_kvm: "a KVM can show this screen and type on this computer from elsewhere",
-    devices_receiver: "a wireless keyboard's keys travel over the air",
+    devices_receiver_notice: "Wireless receiver attached. A wireless keyboard's typing can be picked up nearby: use a wired keyboard or the on-screen keyboard.",
+    devices_bolt_notice: "Logitech Bolt receiver attached. A Bolt keyboard's typing is encrypted.",
     devices_virtual_machine: "a virtual machine's host sees and can change everything in it",
     devices_virtual_machine_unknown: "This computer",
     devices_real_computer: "Faraday must start on a real computer.",
@@ -7852,7 +7855,6 @@ pub static EN: Strings = Strings {
     hub_uninstall_suspended_where: "BitLocker stays suspended until it is resumed: Control Panel, BitLocker Drive Encryption, Resume protection.",
     hub_concern_tv: "{} is a TV. A TV can record what it shows: use another screen or computer.",
     hub_concern_kvm: "{} is a KVM switch. It can capture the screen and type: connect the screen and keyboard directly.",
-    hub_concern_receiver: "{} is a wireless receiver. What is typed travels over the air: use a wired keyboard.",
     hub_concern_vm: "{} is a virtual machine. Faraday must start on the real computer, and this app cannot see the host's screens and devices.",
     hub_concern_remote: "{} is a remote session. What it shows is sent to another computer.",
     hub_concern_wireless_display: "{} is a wireless display. What it shows goes over the air.",

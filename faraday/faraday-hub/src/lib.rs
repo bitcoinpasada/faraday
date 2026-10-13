@@ -793,30 +793,53 @@ impl Hub {
         }
     }
 
-    /// The items that hold the restart buttons (§3.1a): a TV, a KVM and
-    /// a wireless receiver not let through, and a virtual machine always
-    /// (the stick must start on the real computer). Home's card and the
-    /// Start page name them.
+    /// The items that hold the restart buttons (§3.1a): a TV and a KVM
+    /// not let through, and a virtual machine always (the stick must
+    /// start on the real computer). Home's card and the Start page name
+    /// them. A wireless receiver holds nothing ([`Hub::receiver_line`]).
     pub fn restart_holds(&self) -> Vec<&Concern> {
         self.concerns
             .iter()
             .filter(|c| match c.kind {
                 Kind::VirtualMachine => true,
-                Kind::Tv | Kind::Kvm | Kind::Receiver => !self.let_through.contains(&c.id),
-                Kind::RemoteSession | Kind::WirelessDisplay => false,
+                Kind::Tv | Kind::Kvm => !self.let_through.contains(&c.id),
+                Kind::Receiver
+                | Kind::BoltReceiver
+                | Kind::RemoteSession
+                | Kind::WirelessDisplay => false,
             })
             .collect()
     }
 
     /// The items that hold the BitLocker guard's Show the recovery key
-    /// (§3.1a, §6.5): a TV, a KVM, a wireless receiver, a remote session
-    /// and a wireless display, each not let through. A virtual machine's
-    /// host holds its disk already; it holds only the restarts.
+    /// (§3.1a, §6.5): a TV, a KVM, a remote session and a wireless
+    /// display, each not let through. A virtual machine's host holds its
+    /// disk already; it holds only the restarts. A wireless receiver
+    /// holds nothing.
     pub fn key_holds(&self) -> Vec<&Concern> {
         self.concerns
             .iter()
-            .filter(|c| c.kind != Kind::VirtualMachine && !self.let_through.contains(&c.id))
+            .filter(|c| {
+                !matches!(
+                    c.kind,
+                    Kind::VirtualMachine | Kind::Receiver | Kind::BoltReceiver
+                ) && !self.let_through.contains(&c.id)
+            })
             .collect()
+    }
+
+    /// Home's line for a wireless receiver attached (§3.1a), which holds
+    /// nothing: the warning for any receiver but Logitech's Bolt, the
+    /// Bolt's own line when it is the only kind attached.
+    pub fn receiver_line(&self) -> Option<&'static str> {
+        let has = |k: Kind| self.concerns.iter().any(|c| c.kind == k);
+        if has(Kind::Receiver) {
+            Some(faraday_core::strings::EN.devices_receiver_notice)
+        } else if has(Kind::BoltReceiver) {
+            Some(faraday_core::strings::EN.devices_bolt_notice)
+        } else {
+            None
+        }
     }
 
     /// The number an item of concern's Continue anyway carries.

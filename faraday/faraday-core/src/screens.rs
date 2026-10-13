@@ -32,9 +32,20 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
         }
         kb
     } else {
+        // The wide layout's keyboard, when brought up from its button,
+        // takes the foot of the page area, beside the sidebar.
+        app.osk_track();
+        app.osk_height()
+    };
+    let win_h = full_h;
+    let full_h = full_h - kb;
+    // The wide layout's page keeps its height under its keyboard, drawn
+    // up as far as keeps the focused field in view.
+    let lift = if kb > 0.0 && !app.is_compact() && app.sheet.is_none() {
+        app.osk_lift(full_h, ui.f)
+    } else {
         0.0
     };
-    let full_h = full_h - kb;
     // A failed self-test is the whole screen: no sidebar, no sheet.
     if let Some(Err(check)) = app.selftest() {
         selftest_failed(ui, full_w, full_h, check);
@@ -48,22 +59,29 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
         draw_compact(app, ui, full_w, full_h, kb > 0.0);
     } else if !frosted && app.held {
         ui.clear(BG);
-        held_frame(app, ui, full_w, full_h);
+        let page_h = if kb > 0.0 { win_h } else { full_h };
+        held_frame(app, ui, full_w, full_h, (page_h, lift));
     } else if !frosted {
         ui.clear(BG);
-        sidebar(app, ui, full_h);
+        sidebar(app, ui, win_h);
         let room = full_w - SIDEBAR_W;
         let cw = room.min(MAX_W - SIDEBAR_W);
         let h = full_h;
         ui.ox = (room - cw) / 2.0;
         let x = SIDEBAR_W;
-        dispatch(app, ui, x, cw, h);
+        ui.oy = -lift;
+        dispatch(app, ui, x, cw, if kb > 0.0 { win_h } else { h });
+        ui.oy = 0.0;
         // The shell's keys' strip, over whatever scrolls under it; the
         // keys themselves are drawn last, over any sheet.
         if app.shell_keys.is_some() {
             ui.fill(x, 0.0, cw, 18.0, 0.0, BG);
         }
-        header_network_pill(app, ui, x + cw - 38.0);
+        let kx = header_network_pill(app, ui, x + cw - 38.0);
+        // Under a sheet the keyboard button is drawn over it, below.
+        if app.sheet.is_none() {
+            crate::compact::wide_keyboard_button(app, ui, kx);
+        }
         // The ? at the top right opens what explains this screen.
         if !app.learn_pages().is_empty() {
             // In the right margin, clear of every screen's own title row.
@@ -132,8 +150,29 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
         }
         ui.oy = 0.0;
     }
+    // A sheet with a field of its own: the wide layout's keyboard button
+    // stays within reach, over it, where the page has it.
+    if !app.is_compact() && app.sheet.is_some() && app.osk_wanted() {
+        let (x, cw) = wide_page(app, full_w);
+        ui.ox = 0.0;
+        let right = if app.held {
+            x + cw - 38.0 - osk_ui::tokens::GAP
+        } else {
+            network_pill_left(app, ui, x + cw - 38.0)
+        };
+        crate::compact::wide_keyboard_button(app, ui, right);
+    }
     if kb > 0.0 {
-        crate::compact::keyboard(app, ui, full_w, full_h);
+        if app.is_compact() {
+            crate::compact::keyboard(app, ui, 0.0, full_w, full_h);
+        } else {
+            let (x, w) = if app.held {
+                (0.0, full_w)
+            } else {
+                (SIDEBAR_W, full_w - SIDEBAR_W)
+            };
+            crate::compact::keyboard(app, ui, x, w, full_h);
+        }
     }
     // The shell's keys, pinned at the top over the page and any sheet:
     // the boot stick's sheet is up when the desktop opens, and F2 is
@@ -157,13 +196,17 @@ const HELD_TOP: f32 = 52.0;
 /// holder's Home across the top, and the screen under it in the width
 /// the sidebar frame gives it. Its Home draws nothing: the holder's Home
 /// is the one a person sees.
-fn held_frame(app: &mut Faraday, ui: &mut Ui, full_w: f32, full_h: f32) {
+/// `page` is the page's height and how far it is drawn up: under the
+/// keyboard, the window's height, drawn up to keep the field in view.
+fn held_frame(app: &mut Faraday, ui: &mut Ui, full_w: f32, full_h: f32, page: (f32, f32)) {
+    let (page_h, lift) = page;
     let cw = full_w.min(MAX_W - SIDEBAR_W);
     ui.ox = (full_w - cw) / 2.0;
     if app.screen != Screen::Home {
         // The screen's own top margin sits under the strip.
-        ui.oy = HELD_TOP - 24.0;
-        dispatch(app, ui, 0.0, cw, full_h - ui.oy);
+        let top = HELD_TOP - 24.0;
+        ui.oy = top - lift;
+        dispatch(app, ui, 0.0, cw, page_h - top);
         ui.oy = 0.0;
         ui.fill(-ui.ox, 0.0, full_w, HELD_TOP, 0.0, BG);
     }
@@ -193,6 +236,9 @@ fn held_frame(app: &mut Faraday, ui: &mut Ui, full_w: f32, full_h: f32) {
         let tw = ui.measure(14.0, W::S, "?");
         ui.text_mid(qx + 14.0 - tw / 2.0, qy, 28.0, 14.0, W::S, MUTED, "?");
         ui.hit(qx - 6.0, qy - 6.0, 40.0, 40.0, Action::Learn);
+    }
+    if app.screen != Screen::Home && app.sheet.is_none() {
+        crate::compact::wide_keyboard_button(app, ui, cw - 38.0 - osk_ui::tokens::GAP);
     }
     notices(app, ui, 0.0, cw, full_h);
     ui.ox = 0.0;
@@ -394,11 +440,13 @@ pub(crate) fn name_suffix(app: &Faraday) -> NameSuffix {
 
 /// The network the session is on, at the top right of every page beside
 /// the ? (at `qx`, where the ? is or would be), centred on it, a token
-/// gap to its left. A badge, off mainnet only: it opens nothing.
-fn header_network_pill(app: &Faraday, ui: &mut Ui, qx: f32) {
+/// gap to its left. A badge, off mainnet only: it opens nothing. Returns
+/// where the next thing in the row ends, a gap to its left.
+fn header_network_pill(app: &Faraday, ui: &mut Ui, qx: f32) -> f32 {
     let net = app.session.network();
+    let left = network_pill_left(app, ui, qx);
     if net.is_mainnet() {
-        return;
+        return left;
     }
     let label = network_name(net);
     let (h, qy, qh) = (28.0, 12.0, 28.0);
@@ -408,6 +456,33 @@ fn header_network_pill(app: &Faraday, ui: &mut Ui, qx: f32) {
     ui.fill(px, py, pw, h, h / 2.0, WARN.with_alpha(30));
     ui.stroke(px, py, pw, h, h / 2.0, WARN.with_alpha(110));
     ui.text_mid(px + 12.0, py, h, 12.0, W::S, WARN, label);
+    left
+}
+
+/// Where the top-right row's next item ends, left of the ? (at `qx`)
+/// and the network pill when there is one, a gap between each.
+fn network_pill_left(app: &Faraday, ui: &Ui, qx: f32) -> f32 {
+    let net = app.session.network();
+    let gap = osk_ui::tokens::GAP;
+    if net.is_mainnet() {
+        return qx - gap;
+    }
+    let pw = ui.measure(12.0, W::S, network_name(net)) + 24.0;
+    qx - gap - pw - gap
+}
+
+/// The wide layout's page area: its left edge and width, the screen
+/// centred beside the sidebar on a wide display (or, held, centred in
+/// the window), as the frame draws it.
+fn wide_page(app: &Faraday, full_w: f32) -> (f32, f32) {
+    if app.held {
+        let cw = full_w.min(MAX_W - SIDEBAR_W);
+        ((full_w - cw) / 2.0, cw)
+    } else {
+        let room = full_w - SIDEBAR_W;
+        let cw = room.min(MAX_W - SIDEBAR_W);
+        (SIDEBAR_W + (room - cw) / 2.0, cw)
+    }
 }
 
 fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
@@ -1053,6 +1128,16 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let line = ui.fit(14.0, W::S, line, width - 28.0);
         ui.text(x + 26.0, y, 14.0, W::S, WARN, &line);
         y += 36.0;
+    }
+    // A wireless receiver: a line, which holds nothing.
+    if let Some(line) = app.devices.receiver_line() {
+        let tone = if line == crate::strings::EN.devices_bolt_notice {
+            MUTED
+        } else {
+            WARN
+        };
+        ui.icon(x - 4.0, y - 6.0, 28.0, Icon::Keyboard, 14.0, tone);
+        y += ui.wrap(x + 26.0, y, width - 28.0, 14.0, W::S, tone, line) + 18.0;
     }
 
     section_label(ui, x, y, EN.home_start);

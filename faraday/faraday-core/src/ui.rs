@@ -756,6 +756,9 @@ pub struct Ui<'a> {
     /// A caret was drawn this frame, shown or in the off half of its
     /// blink, so the next half wants a frame.
     pub caret_drawn: bool,
+    /// The foot of the caret drawn this frame, units down the window:
+    /// what the wide layout's keyboard keeps in view above it.
+    pub caret_foot: Option<f32>,
 }
 
 /// A step card opening and the one closing, part of the way.
@@ -850,6 +853,7 @@ impl<'a> Ui<'a> {
             outside: None,
             caret_on: true,
             caret_drawn: false,
+            caret_foot: None,
         }
     }
 
@@ -1374,6 +1378,7 @@ impl<'a> Ui<'a> {
     /// in the off half of its blink not drawn.
     pub fn caret(&mut self, x: f32, y: f32, h: f32) {
         self.caret_drawn = true;
+        self.caret_foot = Some(y + h + self.oy);
         if self.caret_on {
             self.fill(x, y, 2.0, h, 1.0, ACCENT);
         }

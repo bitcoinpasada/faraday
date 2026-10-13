@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -384,8 +384,28 @@ fn laptop() -> faraday_core::devices::DeviceCheck {
     faraday_core::devices::DeviceCheck::machine("flags\t: fpu vme", "LENOVO", "20XW", "10")
 }
 
+/// A wireless receiver: Logitech's Unifying receiver, or with `bolt` its
+/// Bolt receiver.
+fn receiver(bolt: bool) -> faraday_core::devices::UsbDevice {
+    use faraday_core::devices::{Interface, UsbDevice};
+    let hid = |protocol| Interface {
+        class: 3,
+        subclass: 1,
+        protocol,
+    };
+    UsbDevice {
+        port: "1-2".into(),
+        vendor: 0x046d,
+        product: if bolt { 0xc548 } else { 0xc52b },
+        manufacturer: "Logitech".into(),
+        name: "USB Receiver".into(),
+        interfaces: vec![hid(1), hid(2)],
+    }
+}
+
 /// The stick's device check (`docs/HUB.md` §3.1a): Home's TV line; a
-/// wireless receiver at start, named, and Continue anyway asking; a
+/// wireless receiver at start, a line on Home that holds nothing, and a
+/// Bolt receiver's; an IP-KVM named, and Continue anyway asking; a
 /// virtual machine with an IP-KVM, which has no way on; a desktop's
 /// question whether its screen is a TV. Home empty ends it.
 fn devices_tour(t: &mut Tour) -> Result<(), String> {
@@ -394,14 +414,6 @@ fn devices_tour(t: &mut Tour) -> Result<(), String> {
         class: 3,
         subclass: 1,
         protocol,
-    };
-    let receiver = UsbDevice {
-        port: "1-2".into(),
-        vendor: 0x046d,
-        product: 0xc52b,
-        manufacturer: "Logitech".into(),
-        name: "USB Receiver".into(),
-        interfaces: vec![hid(1), hid(2)],
     };
     let kvm = UsbDevice {
         port: "1-1".into(),
@@ -420,9 +432,15 @@ fn devices_tour(t: &mut Tour) -> Result<(), String> {
         ],
     };
     t.app.devices = laptop();
-    t.app.usb_devices(&[receiver]);
+    t.app.usb_devices(&[receiver(false)]);
     t.pump();
     t.shot("devices-receiver")?;
+    t.app.usb_devices(&[receiver(true)]);
+    t.pump();
+    t.shot("devices-receiver-bolt")?;
+    t.app.usb_devices(std::slice::from_ref(&kvm));
+    t.pump();
+    t.shot("devices-kvm")?;
     t.press(Action::DevicesContinue);
     t.shot("devices-continue-ask")?;
     t.app.usb_devices(&[]);
@@ -461,6 +479,29 @@ fn display((width, height): (u16, u16), dpi: u16) -> Event {
         boot: BootState::Unknown,
         memory_mib: None,
     })
+}
+
+/// The wide layout's on-screen keyboard: a receiver's line on Home, the
+/// keyboard brought up from its button on a passphrase entry, and on
+/// Tools.
+fn osk_tour(t: &mut Tour) -> Result<(), String> {
+    t.app.devices = laptop();
+    t.app.usb_devices(&[receiver(false)]);
+    t.pump();
+    t.shot("osk-home-receiver")?;
+    t.press(Action::Entry(None));
+    type_text(t, &testkit::test_words(testkit::TEST_SEEDS[2].0));
+    t.press(Action::EntryPassphrase);
+    type_text(t, "TREZOR");
+    t.shot("osk-passphrase-button")?;
+    t.press(Action::Osk(faraday_core::OskPress::Show));
+    for c in ['a', 'b'] {
+        t.press(Action::Osk(faraday_core::OskPress::Char(c)));
+    }
+    t.shot("osk-passphrase-keyboard")?;
+    t.press(Action::Nav(Screen::Catalog));
+    t.press(Action::Osk(faraday_core::OskPress::Show));
+    t.shot("osk-tools-keyboard")
 }
 
 fn run(
@@ -509,6 +550,7 @@ fn run(
         Some("fromvault") => return from_vault_tour(&mut t),
         Some("first") => return first_tour(&mut t),
         Some("restore") => return restore_tour(&mut t),
+        Some("osk") => return osk_tour(&mut t),
         _ => {}
     }
     if medium == Medium::Stick {
@@ -4379,7 +4421,7 @@ fn main() -> ExitCode {
     };
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore]"
+            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk]"
         );
         return ExitCode::from(2);
     }
@@ -4431,11 +4473,12 @@ fn main() -> ExitCode {
             "fromvault",
             "first",
             "restore",
+            "osk",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first or restore"
+            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore or osk"
         );
         return ExitCode::from(2);
     }

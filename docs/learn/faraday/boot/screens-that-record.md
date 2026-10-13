@@ -18,11 +18,21 @@ So whoever can reach the IP-KVM over its network sees the screen and can type on
 
 Faraday Starter and the stick name one by its USB identity: the USB-gadget vendor ID that many such devices present with a keyboard and a disk, or a name that says KVM.
 
-## A wireless keyboard or mouse
+## A wireless keyboard
 
-A wireless keyboard sends each key over the air to its receiver. Some send them unencrypted or poorly encrypted. In 2016 Bastille Networks disclosed MouseJack, in which wireless mice and keyboards from several makers on the 2.4 GHz band let someone in radio range type on the computer or read keystrokes (CERT/CC vulnerability note VU#981271), and KeySniffer, in which keyboards from eight makers sent every key unencrypted, readable from up to several hundred feet away.
+A wireless keyboard sends each key over the air to its receiver, plugged into the computer. The keys are in the air before they reach the computer, so the stick having no radio does not stop anyone listening.
 
-The keys are in the air before they reach the computer, so the stick having no radio does not stop it. Faraday Starter and the stick name a wireless receiver by its USB identity, and the stick warns before anything secret is typed.
+Many inexpensive wireless keyboards send them unencrypted. In 2016 Bastille Networks disclosed KeySniffer: non-Bluetooth wireless keyboards from Anker, EagleTec, General Electric, Hewlett-Packard, Insignia, Kensington, Radio Shack and Toshiba sent every key unencrypted, readable from several hundred feet away with less than $100 of equipment. Bastille says the list is not exhaustive and that the affected receivers take no firmware update. The same year it disclosed MouseJack (CERT/CC vulnerability note VU#981271): wireless mice and keyboards from several makers on a 2.4 GHz protocol without proper encryption let someone within range, typically a few meters, inject keystrokes or read them. Logitech was listed as affected and released updated firmware.
+
+Logitech's Unifying receivers encrypt the link to their keyboards. In 2019 a researcher reported further flaws in them: two ways to get the encryption key (CVE-2019-13052, CVE-2019-13053) and one way past the barriers to injecting keystrokes (CVE-2019-13054/55). Logitech's firmware updates since August 2019 fix the last; Logitech says it will not fix the first two with a firmware update. Its support page offers an updating tool for Windows and macOS, and on Linux the updates come through fwupd.
+
+Logitech's Bolt receivers use Bluetooth Low Energy in Secure Connections Only mode (security mode 1, level 4): pairing is authenticated LE Secure Connections, with Elliptic Curve Diffie-Hellman P-256, and the link is encrypted with AES-128-CCM. Logitech says the link between a Bolt keyboard and its receiver is always encrypted, and that Bolt devices pair only with Bolt receivers.
+
+A mouse reveals next to nothing: where it moved and what it clicked, not what was typed.
+
+Faraday Starter and the stick name a wireless receiver by its USB identity, in one line that holds nothing back. A Bolt receiver, known by its ID, gets a line that says its typing is encrypted.
+
+What to do: type with a Bolt keyboard or another whose link is encrypted, a wired keyboard, or the laptop's own; or with no keyboard at all, on Faraday's on-screen keyboard, worked with a mouse: the keyboard button beside the ? brings it up wherever typing goes.
 
 ## A virtual machine
 
@@ -56,7 +66,7 @@ Look at what is between the computer and its screen and keyboard, and at the roo
 
 Use the laptop's own screen, or a plain monitor rather than a TV.
 
-Use a wired keyboard, or the laptop's own.
+Use a wired keyboard, the laptop's own, or the on-screen keyboard.
 
 Unplug what Faraday names before going on.
 
@@ -64,4 +74,4 @@ Start the stick on a real computer, never a virtual machine.
 
 ## Where this comes from
 
-US Federal Trade Commission: complaint in FTC and State of New Jersey v. Vizio, Inc., case 2:17-cv-00758, District of New Jersey, filed 6 February 2017 (ftc.gov). PiKVM: its project description (github.com/pikvm/pikvm). Bastille Networks: KeySniffer (bastille.net, research). CERT/CC: vulnerability note VU#981271, public 23 February 2016 (kb.cert.org). All read 2026-10-12. What the stick's kernel has and lacks: OpenSigner's common kernel.forbidden (NET, WLAN, BT, DRM) and the Faraday image's common kernel.required (VIDEO_DEV, the camera the scanner opens), in Faraday's repository.
+US Federal Trade Commission: complaint in FTC and State of New Jersey v. Vizio, Inc., case 2:17-cv-00758, District of New Jersey, filed 6 February 2017 (ftc.gov). PiKVM: its project description (github.com/pikvm/pikvm). Bastille Networks: KeySniffer and its list of affected devices (bastille.net, research). CERT/CC: vulnerability note VU#981271, public 23 February 2016 (kb.cert.org). Logitech: "Logitech Unifying Receiver Update", support article 360026159553 (support.logi.com); the Logi Bolt white paper and the Logi Bolt wireless technology page (logitech.com). Linux: drivers/hid/hid-ids.h, USB_DEVICE_ID_LOGITECH_BOLT_RECEIVER 0xc548 (github.com/torvalds/linux). All read 2026-10-12. What the stick's kernel has and lacks: OpenSigner's common kernel.forbidden (NET, WLAN, BT, DRM) and the Faraday image's common kernel.required (VIDEO_DEV, the camera the scanner opens), in Faraday's repository.

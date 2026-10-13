@@ -157,12 +157,17 @@ fn strings_naming_a_kvm_are_a_kvm() {
 
 #[test]
 fn a_known_receiver_or_one_named_so_is_a_receiver() {
-    for product in [0xc52b, 0xc548, 0xc534] {
+    for product in [0xc52b, 0xc534] {
         assert_eq!(
             usb(&device(0x046d, product, "", "", &[])),
             Some(Kind::Receiver)
         );
     }
+    // Logitech's Bolt receiver, told apart by its ID.
+    assert_eq!(
+        usb(&device(0x046d, 0xc548, "", "", &[])),
+        Some(Kind::BoltReceiver)
+    );
     for name in ["2.4G Receiver", "Wireless Mouse", "Nano Dongle"] {
         assert_eq!(
             usb(&device(0x1234, 0x0001, "Example", name, &[KEYBOARD, MOUSE])),

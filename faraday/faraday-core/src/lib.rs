@@ -10703,6 +10703,7 @@ impl Faraday {
                 ui.caret_on = self.caret_on();
                 screens::draw(self, &mut ui);
                 caret = ui.caret_drawn.then_some(ui.caret_on);
+                self.osk_caret(ui.caret_foot);
                 self.fields = std::mem::take(&mut ui.fields);
                 self.back_link = ui.back_link;
                 scrolled = std::mem::take(&mut ui.scrolled);

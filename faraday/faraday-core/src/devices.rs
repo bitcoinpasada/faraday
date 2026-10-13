@@ -14,6 +14,9 @@
 //! would put a secret on the screen or have one typed opens the sheet
 //! instead ([`Faraday::device_holds`]). A virtual machine is never let
 //! through.
+//!
+//! A wireless receiver is not held: it is one line on Home
+//! ([`DeviceCheck::receiver_line`]), about keyboards only.
 
 use crate::strings::EN;
 
@@ -54,7 +57,11 @@ pub enum Kind {
     /// A KVM switch or an IP-KVM: it can see the screen and type.
     Kvm,
     /// A wireless keyboard or mouse receiver: keys travel over the air.
+    /// A notice on Home; it holds nothing.
     Receiver,
+    /// Logitech's Bolt receiver, whose link is encrypted: a line on Home
+    /// that says so, in place of the receiver's.
+    BoltReceiver,
     /// Faraday is running inside a virtual machine.
     VirtualMachine,
     /// The person said the screen is a TV.
@@ -62,11 +69,17 @@ pub enum Kind {
 }
 
 impl Kind {
+    /// A wireless receiver of either kind.
+    pub fn receiver(self) -> bool {
+        matches!(self, Kind::Receiver | Kind::BoltReceiver)
+    }
+
     /// What it can do, in the words the sheet uses after its name.
     pub fn what(self) -> &'static str {
         match self {
             Kind::Kvm => EN.devices_kvm,
-            Kind::Receiver => EN.devices_receiver,
+            Kind::Receiver => EN.devices_receiver_notice,
+            Kind::BoltReceiver => EN.devices_bolt_notice,
             Kind::VirtualMachine => EN.devices_virtual_machine,
             Kind::Tv => EN.devices_tv,
         }
@@ -130,7 +143,7 @@ pub const RECEIVERS: &[(u16, u16)] = &[
     (0x046d, 0xc543), // NANO_RECEIVER_LIGHTSPEED_1_2
     (0x046d, 0xc545), // NANO_RECEIVER_LIGHTSPEED_1_5
     (0x046d, 0xc547), // NANO_RECEIVER_LIGHTSPEED_1_3
-    (0x046d, 0xc548), // BOLT_RECEIVER
+    (0x046d, BOLT_RECEIVER.1),
     (0x046d, 0xc54d), // NANO_RECEIVER_LIGHTSPEED_1_4
     // Microsoft (0x045e), from usb.ids.
     (0x045e, 0x00f9),
@@ -145,6 +158,13 @@ pub const RECEIVERS: &[(u16, u16)] = &[
     (0x24ae, 0x2015), // RAPOO_2_4G_RECEIVER
 ];
 
+/// Logitech's Bolt receiver: `USB_VENDOR_ID_LOGITECH` and
+/// `USB_DEVICE_ID_LOGITECH_BOLT_RECEIVER` in Linux's
+/// `drivers/hid/hid-ids.h` (read 2026-10-12). Its link to a Bolt keyboard
+/// is Bluetooth Low Energy in Secure Connections Only mode, encrypted
+/// (Logitech's Logi Bolt white paper).
+pub const BOLT_RECEIVER: (u16, u16) = (0x046d, 0xc548);
+
 fn names_any(d: &UsbDevice, words: &[&str]) -> bool {
     let s = format!("{} {}", d.manufacturer, d.name).to_ascii_lowercase();
     words.iter().any(|w| s.contains(w))
@@ -153,7 +173,8 @@ fn names_any(d: &UsbDevice, words: &[&str]) -> bool {
 /// What a USB device is, when it is one the stick warns about: a KVM
 /// (its strings name one, or the Linux gadget vendor with a keyboard and
 /// a disk), or a wireless receiver (a known receiver's ID, or a HID
-/// device whose strings name a receiver, a dongle or wireless).
+/// device whose strings name a receiver, a dongle or wireless), Logitech's
+/// Bolt receiver told apart by its ID.
 pub fn usb_kind(d: &UsbDevice) -> Option<Kind> {
     let has = |class: u8| d.interfaces.iter().any(|i| i.class == class);
     let keyboard = d
@@ -164,6 +185,9 @@ pub fn usb_kind(d: &UsbDevice) -> Option<Kind> {
         || (d.vendor == LINUX_FOUNDATION && keyboard && has(STORAGE))
     {
         return Some(Kind::Kvm);
+    }
+    if (d.vendor, d.product) == BOLT_RECEIVER {
+        return Some(Kind::BoltReceiver);
     }
     if RECEIVERS.contains(&(d.vendor, d.product))
         || (has(HID) && names_any(d, &["receiver", "dongle", "wireless"]))
@@ -302,7 +326,8 @@ impl DeviceCheck {
                 kind: Kind::Tv,
             });
         }
-        out.extend(self.present.iter().cloned());
+        // A receiver is a line on Home and holds nothing.
+        out.extend(self.present.iter().filter(|c| !c.kind.receiver()).cloned());
         out.retain(|c| !self.let_through.contains(&c.key));
         out
     }
@@ -316,6 +341,20 @@ impl DeviceCheck {
     /// screen's question is not answered.
     pub fn holding(&self) -> bool {
         !self.held.is_empty() || self.tv_unasked()
+    }
+
+    /// Home's line for a wireless receiver attached now: the warning for
+    /// any receiver but Logitech's Bolt, the Bolt's own line when it is
+    /// the only kind attached; nothing without one.
+    pub fn receiver_line(&self) -> Option<&'static str> {
+        let kinds = || self.present.iter().map(|c| c.kind);
+        if kinds().any(|k| k == Kind::Receiver) {
+            Some(Kind::Receiver.what())
+        } else if kinds().any(|k| k == Kind::BoltReceiver) {
+            Some(Kind::BoltReceiver.what())
+        } else {
+            None
+        }
     }
 
     /// A virtual machine is among the items: no Continue anyway.

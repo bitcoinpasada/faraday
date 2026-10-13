@@ -199,6 +199,11 @@ pub const RECEIVERS: [(u16, u16); 6] = [
     (0x046d, 0xc548),
 ];
 
+/// Logitech's Bolt receiver: `USB_DEVICE_ID_LOGITECH_BOLT_RECEIVER` in
+/// Linux's `drivers/hid/hid-ids.h` (read 2026-10-12). Its link to a Bolt
+/// keyboard is encrypted (Logitech's Logi Bolt white paper).
+pub const BOLT_RECEIVER: (u16, u16) = (0x046d, 0xc548);
+
 /// Words in a HID keyboard's or mouse's strings that name a receiver.
 const RECEIVER_WORDS: [&str; 4] = ["RECEIVER", "DONGLE", "WIRELESS", "TRANSCEIVER"];
 
@@ -206,7 +211,8 @@ const RECEIVER_WORDS: [&str; 4] = ["RECEIVER", "DONGLE", "WIRELESS", "TRANSCEIVE
 /// KVM when it is the Linux gadget vendor with a keyboard and a disk, or
 /// its strings name a KVM; a wireless receiver when its IDs are a known
 /// receiver's, or it is a HID keyboard or mouse whose strings name a
-/// receiver, a dongle, wireless or 2.4G. `None` for anything else,
+/// receiver, a dongle, wireless or 2.4G (Logitech's Bolt receiver, by
+/// its ID, apart). `None` for anything else,
 /// root hubs and webcams among them.
 pub fn usb(d: &Usb) -> Option<Kind> {
     let strings = format!("{} {}", d.manufacturer, d.name);
@@ -218,6 +224,9 @@ pub fn usb(d: &Usb) -> Option<Kind> {
     let disk = d.interfaces.iter().any(|&(c, ..)| c == 0x08);
     if (d.vendor == GADGET_VENDOR && keyboard && disk) || names_kvm(&strings) {
         return Some(Kind::Kvm);
+    }
+    if (d.vendor, d.product) == BOLT_RECEIVER {
+        return Some(Kind::BoltReceiver);
     }
     if RECEIVERS.contains(&(d.vendor, d.product)) {
         return Some(Kind::Receiver);

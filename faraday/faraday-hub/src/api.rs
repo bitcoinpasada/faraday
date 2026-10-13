@@ -520,8 +520,12 @@ pub enum Kind {
     /// A KVM switch or IP-KVM (its USB identity, or its capture side's
     /// EDID name).
     Kvm,
-    /// A wireless keyboard or mouse receiver.
+    /// A wireless keyboard or mouse receiver: a line on Home, which
+    /// holds nothing.
     Receiver,
+    /// Logitech's Bolt receiver, whose link is encrypted: a line on Home
+    /// that says so, in place of the receiver's.
+    BoltReceiver,
     /// This computer is a virtual machine: the stick must start on the
     /// real computer, and the hub app cannot see the host's devices.
     VirtualMachine,

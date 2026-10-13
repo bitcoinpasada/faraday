@@ -168,6 +168,41 @@ fn tools(app: &Faraday, ui: &mut Ui, w: f32) -> f32 {
     right
 }
 
+/// The wide layout's keyboard button, in the top-right row its right
+/// edge at `right`, beside the network and the ?: on a page where typing
+/// goes somewhere, it brings the docked keyboard up and puts it away.
+pub(crate) fn wide_keyboard_button(app: &Faraday, ui: &mut Ui, right: f32) {
+    if !app.osk_wanted() {
+        return;
+    }
+    let shown = app.osk_shown();
+    let action = Action::Osk(if shown {
+        OskPress::Hide
+    } else {
+        OskPress::Show
+    });
+    let (s, y) = (28.0, 12.0);
+    let x = right - s;
+    let tint = if shown {
+        ACCENT.with_alpha(40)
+    } else if ui.is_pressed(action) || ui.is_hovered(action) {
+        INNER
+    } else {
+        SURFACE
+    };
+    ui.fill(x, y, s, s, s / 2.0, tint);
+    ui.stroke(x, y, s, s, s / 2.0, if shown { ACCENT } else { BORDER });
+    ui.icon(
+        x,
+        y,
+        s,
+        Icon::Keyboard,
+        13.0,
+        if shown { ACCENT } else { MUTED },
+    );
+    ui.hit(x - 6.0, y - 6.0, s + 12.0, s + 12.0, action);
+}
+
 /// The ? that opens what explains the page.
 fn help(ui: &mut Ui, x: f32, y: f32) {
     let pressed = ui.is_pressed(Action::Learn);
@@ -274,6 +309,15 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     if app.devices.read {
         let line = crate::strings::EN.devices_tv_line;
         y += ui.wrap(M, y, inner, 13.0, W::S, WARN, line) + 10.0;
+    }
+    // A wireless receiver: a line, which holds nothing.
+    if let Some(line) = app.devices.receiver_line() {
+        let tone = if line == EN.devices_bolt_notice {
+            MUTED
+        } else {
+            WARN
+        };
+        y += ui.wrap(M, y, inner, 13.0, W::S, tone, line) + 10.0;
     }
 
     // What this session holds.
@@ -792,6 +836,15 @@ pub(crate) struct Osk {
     hidden: bool,
     /// Which field had focus on the last frame, when one did.
     was_field: Option<String>,
+    /// Where the press that focused that field was, pixels down the
+    /// window: what the wide layout keeps in view above the keyboard.
+    field_at: i32,
+    /// The foot of the focused field's caret as the page would draw it
+    /// unmoved, units down the window, when one was drawn.
+    caret: Option<f32>,
+    /// How far the wide layout drew the page up, units, on the last
+    /// frame.
+    lift: f32,
 }
 
 /// One row of keys, design units.
@@ -846,10 +899,22 @@ impl Faraday {
             )
     }
 
-    /// Whether the keyboard is up.
+    /// Whether the keyboard is up. On a small panel it rises by itself
+    /// where a field takes typing; in the wide layout it is up only once
+    /// brought up by hand, and only while typing goes somewhere.
     pub(crate) fn osk_shown(&self) -> bool {
-        self.compact
-            && ((self.osk_auto() && !self.osk.hidden) || (self.osk.manual && self.osk_offered()))
+        if self.compact {
+            (self.osk_auto() && !self.osk.hidden) || (self.osk.manual && self.osk_offered())
+        } else {
+            self.osk.manual && self.osk_wanted()
+        }
+    }
+
+    /// Typing goes somewhere on this page: a field has focus, or the page
+    /// takes typing with no field. Where the wide layout offers its
+    /// keyboard button.
+    pub(crate) fn osk_wanted(&self) -> bool {
+        self.osk_auto() || self.osk_offered()
     }
 
     /// Which of OpenSigner's keyboards: the path pad for a derivation
@@ -896,8 +961,14 @@ impl Faraday {
         let rose = field.is_some() && field != self.osk.was_field;
         if rose {
             self.osk.hidden = false;
+            self.osk.field_at = self.down_at.1;
         }
         self.osk.was_field = field;
+        // In the wide layout the keyboard goes once nothing takes typing,
+        // and does not come back by itself with the next field.
+        if !self.compact && !self.osk_wanted() {
+            self.osk.manual = false;
+        }
         rose
     }
 
@@ -906,7 +977,11 @@ impl Faraday {
     /// page scrolls that far, so the field stays in view. `f` is pixels a
     /// design unit; `visible` the height left above the keyboard.
     pub(crate) fn osk_reveal(&mut self, f: f32, visible: f32) {
-        let tapped = self.down_at.1 as f32 / f.max(0.01);
+        self.osk_reveal_at(self.down_at.1, f, visible);
+    }
+
+    fn osk_reveal_at(&mut self, at: i32, f: f32, visible: f32) {
+        let tapped = at as f32 / f.max(0.01);
         let over = tapped + 56.0 - visible;
         if over > 0.0
             && let Some(slot) = self.scroll_slot()
@@ -914,6 +989,31 @@ impl Faraday {
             *slot += over;
             self.dirty = true;
             self.commands.push_back(osk_shell_api::Command::Draw);
+        }
+    }
+
+    /// How far the wide layout draws the page up while its keyboard is
+    /// up, so the focused field stays in view above it: the page keeps
+    /// its own height and moves up no further than the keyboard is tall.
+    /// `visible` is the height left above the keyboard; `f` pixels a unit.
+    pub(crate) fn osk_lift(&mut self, visible: f32, f: f32) -> f32 {
+        let foot = if self.osk_auto() {
+            self.osk
+                .caret
+                .or(Some(self.osk.field_at as f32 / f.max(0.01) + 24.0))
+        } else {
+            self.osk.caret
+        };
+        let lift = foot.map_or(0.0, |y| (y + 24.0 - visible).clamp(0.0, self.osk_height()));
+        self.osk.lift = lift;
+        lift
+    }
+
+    /// The caret the frame drew, where it would be unmoved.
+    pub(crate) fn osk_caret(&mut self, foot: Option<f32>) {
+        self.osk.caret = foot.map(|y| y + self.osk.lift);
+        if self.compact || !self.osk_shown() {
+            self.osk.lift = 0.0;
         }
     }
 
@@ -955,17 +1055,24 @@ impl Faraday {
     }
 }
 
-/// The keyboard, across the foot of the panel from `y`.
-pub(crate) fn keyboard(app: &Faraday, ui: &mut Ui, w: f32, y: f32) {
+/// The widest the keys grow in the wide layout, design units: past it
+/// they sit centred in the strip.
+const KEYS_MAX_W: f32 = 720.0;
+
+/// The keyboard, across the foot of the panel from `y`, or in the wide
+/// layout across the page area from `x`, `w` wide.
+pub(crate) fn keyboard(app: &Faraday, ui: &mut Ui, x: f32, w: f32, y: f32) {
     use osk_ui::widgets::keyboard::{self, KeyInput, Modifiers};
     let kind = app.osk_kind();
     let rows = keyboard::rows(kind) as f32;
-    ui.fill(0.0, y, w, rows * KEY_ROW + 8.0, 0.0, SIDEBAR);
-    ui.fill(0.0, y, w, 1.0, 0.0, LINE);
+    ui.fill(x, y, w, rows * KEY_ROW + 8.0, 0.0, SIDEBAR);
+    ui.fill(x, y, w, 1.0, 0.0, LINE);
+    let kw = if app.compact { w } else { w.min(KEYS_MAX_W) };
+    let kx = x + (w - kw) / 2.0;
     let area = osk_ui::geom::Rect::new(
-        4,
+        (kx + 4.0) as i32,
         (y + 6.0) as i32,
-        (w - 4.0) as i32,
+        (kw - 4.0) as i32,
         (rows * KEY_ROW) as i32,
     );
     let ctx = osk_ui::layout::LayoutCtx::new(

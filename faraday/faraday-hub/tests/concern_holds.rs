@@ -119,14 +119,13 @@ fn can_restart(hub: &mut Hub) -> bool {
     card
 }
 
-const CAPTURING: [(Kind, &str, &str); 3] = [
+const CAPTURING: [(Kind, &str, &str); 2] = [
     (Kind::Tv, "EXAMPLE TV", "is a TV"),
     (Kind::Kvm, "Example KVM", "is a KVM switch"),
-    (Kind::Receiver, "Example Receiver", "is a wireless receiver"),
 ];
 
 #[test]
-fn a_tv_a_kvm_or_a_receiver_holds_the_restarts_and_is_named() {
+fn a_tv_or_a_kvm_holds_the_restarts_and_is_named() {
     for (kind, name, says) in CAPTURING {
         let mut hub = linux();
         assert!(can_restart(&mut hub));
@@ -145,7 +144,7 @@ fn a_tv_a_kvm_or_a_receiver_holds_the_restarts_and_is_named() {
 }
 
 #[test]
-fn a_tv_a_kvm_or_a_receiver_holds_show_the_recovery_key() {
+fn a_tv_or_a_kvm_holds_show_the_recovery_key() {
     for (kind, name, says) in CAPTURING {
         let mut hub = guard();
         assert!(offers(&mut hub, HubAction::ShowKey));
@@ -192,8 +191,8 @@ fn check_again_reads_again_and_a_removed_item_releases() {
 fn continue_anyway_asks_once_and_lets_that_item_through_for_the_session() {
     let mut hub = linux();
     let tv = item(Kind::Tv, "EXAMPLE TV", "drm:card0-HDMI-A-1");
-    let receiver = item(Kind::Receiver, "Example Receiver", "usb:1-2");
-    hub.hub_event(HubEvent::Concerns(vec![tv.clone(), receiver.clone()]));
+    let kvm = item(Kind::Kvm, "Example KVM", "usb:1-2");
+    hub.hub_event(HubEvent::Concerns(vec![tv.clone(), kvm.clone()]));
     let n = HubAction::ContinueAnyway(hub.concern_number(&tv.id));
     tap(&mut hub, n);
     assert_eq!(hub.sheet, Some(Sheet::LetThrough));
@@ -204,7 +203,7 @@ fn continue_anyway_asks_once_and_lets_that_item_through_for_the_session() {
     tap(&mut hub, n);
     tap(&mut hub, HubAction::LetThrough);
     assert_eq!(hub.sheet, None);
-    // The receiver still holds; the TV is not named any more.
+    // The KVM still holds; the TV is not named any more.
     assert!(!can_restart(&mut hub));
     assert!(!shows(&mut hub, "EXAMPLE TV is a TV"));
     hub.hub_event(HubEvent::Concerns(vec![tv.clone()]));
@@ -219,6 +218,38 @@ fn continue_anyway_asks_once_and_lets_that_item_through_for_the_session() {
         item(Kind::Tv, "OTHER TV", "drm:card0-HDMI-A-2"),
     ]));
     assert!(!can_restart(&mut hub));
+}
+
+#[test]
+fn a_receiver_holds_nothing_and_is_one_line_about_keyboards() {
+    let receiver = item(Kind::Receiver, "Example Receiver", "usb:1-2");
+    let mut hub = linux();
+    hub.hub_event(HubEvent::Concerns(vec![receiver.clone()]));
+    assert!(can_restart(&mut hub));
+    assert!(shows(&mut hub, "Wireless receiver attached."));
+    let n = HubAction::ContinueAnyway(hub.concern_number(&receiver.id));
+    assert!(!offers(&mut hub, n));
+    assert!(!offers(&mut hub, HubAction::CheckAgain));
+    // Nor the recovery key.
+    let mut hub = guard();
+    hub.hub_event(HubEvent::Concerns(vec![receiver]));
+    assert!(offers(&mut hub, HubAction::ShowKey));
+}
+
+#[test]
+fn a_bolt_receiver_says_its_typing_is_encrypted() {
+    let bolt = item(Kind::BoltReceiver, "Logitech USB Receiver", "usb:1-2");
+    let mut hub = linux();
+    hub.hub_event(HubEvent::Concerns(vec![bolt.clone()]));
+    assert!(can_restart(&mut hub));
+    assert!(shows(&mut hub, "Logitech Bolt receiver attached."));
+    assert!(!shows(&mut hub, "Wireless receiver attached."));
+    // An unknown receiver beside it: the warning.
+    hub.hub_event(HubEvent::Concerns(vec![
+        bolt,
+        item(Kind::Receiver, "Example Dongle", "usb:1-3"),
+    ]));
+    assert!(shows(&mut hub, "Wireless receiver attached."));
 }
 
 #[test]

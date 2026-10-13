@@ -3,7 +3,9 @@
 //! while it is attached and not let through, nothing that shows a secret
 //! is offered. Check again after it is pulled releases; Continue anyway
 //! asks once; a virtual machine has no Continue anyway; a desktop's
-//! screen is asked about once; Home always carries the TV line.
+//! screen is asked about once; Home always carries the TV line. A
+//! wireless receiver holds nothing: it is a line on Home, and a Bolt
+//! receiver's line says its typing is encrypted.
 
 use faraday_core::devices::{
     DeviceCheck, Interface, Kind, UsbDevice, screen_external, usb_kind, usb_name, virtual_machine,
@@ -51,6 +53,16 @@ fn receiver() -> UsbDevice {
     )
 }
 
+fn kvm() -> UsbDevice {
+    device(
+        0x1d6b,
+        0x0104,
+        "PiKVM",
+        "Composite KVM Device",
+        vec![hid(1), hid(2), storage()],
+    )
+}
+
 // ----- The rules -----
 
 #[test]
@@ -77,9 +89,11 @@ fn a_linux_gadget_with_a_keyboard_and_a_disk_is_a_kvm() {
 
 #[test]
 fn receivers_are_known_by_id_or_by_what_they_call_themselves() {
-    // Logitech's Bolt receiver, by its ID alone.
+    // Logitech's Bolt receiver, by its ID alone, told apart.
     let bolt = device(0x046d, 0xc548, "", "", vec![hid(1)]);
-    assert_eq!(usb_kind(&bolt), Some(Kind::Receiver));
+    assert_eq!(usb_kind(&bolt), Some(Kind::BoltReceiver));
+    // Its Unifying receiver, by its ID alone.
+    assert_eq!(usb_kind(&receiver()), Some(Kind::Receiver));
     // An unknown maker's receiver, by its strings.
     let dongle = device(0x1234, 0x5678, "Acme", "2.4G Wireless Dongle", vec![hid(1)]);
     assert_eq!(usb_kind(&dongle), Some(Kind::Receiver));
@@ -199,16 +213,54 @@ fn says(app: &mut Faraday, text: &str) -> bool {
 }
 
 #[test]
-fn a_receiver_attached_at_start_is_named_on_a_sheet() {
+fn a_kvm_attached_at_start_is_named_on_a_sheet() {
     let mut app = shown(laptop());
-    app.usb_devices(&[receiver()]);
+    app.usb_devices(&[kvm()]);
     assert_eq!(app.sheet, Some(Sheet::Devices));
     assert!(says(
         &mut app,
-        "Logitech USB Receiver: a wireless keyboard's keys travel over the air"
+        "PiKVM Composite KVM Device: a KVM can show this screen"
     ));
     assert!(app.where_offered(Action::DevicesCheck).is_some());
     assert!(app.where_offered(Action::DevicesContinue).is_some());
+}
+
+#[test]
+fn a_receiver_is_a_line_on_home_and_holds_nothing() {
+    let mut app = shown(laptop());
+    app.usb_devices(&[receiver()]);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Home);
+    assert!(says(&mut app, "Wireless receiver attached."));
+    assert!(!says(&mut app, "Bolt"));
+    // Typing a key goes on.
+    app.press(Action::Entry(None));
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Entry);
+    // Pulled, the line goes.
+    app.usb_devices(&[]);
+    app.press(Action::Nav(Screen::Home));
+    assert!(!says(&mut app, "Wireless receiver attached."));
+}
+
+#[test]
+fn a_bolt_receiver_says_its_typing_is_encrypted() {
+    let mut app = shown(laptop());
+    let bolt = device(
+        0x046d,
+        0xc548,
+        "Logitech",
+        "USB Receiver",
+        vec![hid(1), hid(2)],
+    );
+    app.usb_devices(std::slice::from_ref(&bolt));
+    assert_eq!(app.sheet, None);
+    assert!(says(&mut app, "Logitech Bolt receiver attached."));
+    assert!(!says(&mut app, "Wireless receiver attached."));
+    // An unknown receiver beside it: the warning.
+    let dongle = device(0x1234, 0x5678, "Acme", "2.4G Wireless Dongle", vec![hid(1)]);
+    app.usb_devices(&[bolt, dongle]);
+    assert!(says(&mut app, "Wireless receiver attached."));
 }
 
 #[test]
@@ -223,7 +275,7 @@ fn nothing_attached_brings_no_sheet() {
 #[test]
 fn nothing_that_shows_a_secret_is_offered_while_held() {
     let mut app = shown(laptop());
-    app.usb_devices(&[receiver()]);
+    app.usb_devices(&[kvm()]);
     app.press(Action::Cancel);
     assert_eq!(app.sheet, None);
     // Typing a key, unlocking a vault and showing a seed bring the sheet
@@ -247,7 +299,7 @@ fn nothing_that_shows_a_secret_is_offered_while_held() {
 #[test]
 fn check_again_after_it_is_pulled_releases_and_carries_on() {
     let mut app = shown(laptop());
-    app.usb_devices(&[receiver()]);
+    app.usb_devices(&[kvm()]);
     app.press(Action::Cancel);
     app.press(Action::Entry(None));
     // Still in: Check again keeps the sheet.
@@ -265,7 +317,7 @@ fn check_again_after_it_is_pulled_releases_and_carries_on() {
 #[test]
 fn continue_anyway_asks_once_then_lets_it_through() {
     let mut app = shown(laptop());
-    app.usb_devices(&[receiver()]);
+    app.usb_devices(&[kvm()]);
     app.press(Action::DevicesContinue);
     assert_eq!(app.sheet, Some(Sheet::Devices));
     assert!(says(&mut app, "What is listed stays possible"));
@@ -273,12 +325,12 @@ fn continue_anyway_asks_once_then_lets_it_through() {
     assert_eq!(app.sheet, None);
     app.press(Action::Entry(None));
     assert_eq!(app.screen, Screen::Entry);
-    // It stays let through; another receiver is new and named.
-    app.usb_devices(&[receiver()]);
+    // It stays let through; another KVM is new and named.
+    app.usb_devices(&[kvm()]);
     assert_eq!(app.sheet, None);
-    let mut other = receiver();
+    let mut other = kvm();
     other.port = "1-3".into();
-    app.usb_devices(&[receiver(), other]);
+    app.usb_devices(&[kvm(), other]);
     assert_eq!(app.sheet, Some(Sheet::Devices));
 }
 

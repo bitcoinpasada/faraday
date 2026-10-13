@@ -336,7 +336,7 @@ pub(crate) fn link(ui: &mut Ui, x: f32, y: f32, w: f32, id: LearnId) -> f32 {
 pub(crate) fn concern_text(c: &Concern) -> String {
     let fallback = match c.kind {
         Kind::Tv | Kind::WirelessDisplay => S.hub_concern_screen,
-        Kind::Kvm | Kind::Receiver => S.hub_concern_device,
+        Kind::Kvm | Kind::Receiver | Kind::BoltReceiver => S.hub_concern_device,
         Kind::VirtualMachine => S.hub_concern_computer,
         Kind::RemoteSession => S.hub_concern_session,
     };
@@ -348,12 +348,24 @@ pub(crate) fn concern_text(c: &Concern) -> String {
     let line = match c.kind {
         Kind::Tv => S.hub_concern_tv,
         Kind::Kvm => S.hub_concern_kvm,
-        Kind::Receiver => S.hub_concern_receiver,
+        Kind::Receiver => S.devices_receiver_notice,
+        Kind::BoltReceiver => S.devices_bolt_notice,
         Kind::VirtualMachine => S.hub_concern_vm,
         Kind::RemoteSession => S.hub_concern_remote,
         Kind::WirelessDisplay => S.hub_concern_wireless_display,
     };
     fill(line, &[name])
+}
+
+/// A wireless receiver's line (§3.1a), which holds nothing: the warning,
+/// or a Bolt receiver's plain line. Returns its height with the gap
+/// under it; nothing without a receiver.
+fn receiver_line(hub: &Hub, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    match hub.receiver_line() {
+        Some(l) if l == S.devices_bolt_notice => line(ui, x, y, w, l, MUTED),
+        Some(l) => warning(ui, x, y, w, l, WARN),
+        None => 0.0,
+    }
 }
 
 /// What is attached that holds a step (§3.1a): each item's line, its
@@ -674,6 +686,7 @@ fn home(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let rows = facts.checklist();
     y += computer_card(hub, ui, x, y, w) + 20.0;
     y += concern_block(hub, ui, x, y, w, &hub.restart_holds());
+    y += receiver_line(hub, ui, x, y, w);
 
     // The checklist.
     y += label(ui, x, y, S.hub_checklist);
@@ -1280,6 +1293,7 @@ fn start(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     }
     let held = hub.restart_holds();
     y += concern_block(hub, ui, x, y, w, &held);
+    y += receiver_line(hub, ui, x, y, w);
     let guide = LearnId::for_computer(c);
     y += guide_line(ui, x, y, w, guide);
     y += link(ui, x, y, w, LearnId::SecureBootBitLocker);

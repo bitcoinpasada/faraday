@@ -398,7 +398,7 @@ mod windows {
                 (Kind::RemoteSession, ""),
                 (Kind::Tv, "EXAMPLE TV"),
                 (Kind::WirelessDisplay, "Example Cast"),
-                (Kind::Receiver, "Logitech USB Receiver"),
+                (Kind::BoltReceiver, "Logitech USB Receiver"),
             ]
         );
         assert!(concerns(None, false, &[], &[]).is_empty());
