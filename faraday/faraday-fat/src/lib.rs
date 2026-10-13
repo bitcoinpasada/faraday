@@ -11,8 +11,11 @@
 //! Every number on the disk is untrusted. The boot sector is checked
 //! before anything else is read, every cluster number is checked against
 //! the volume before it is followed, every chain is bounded by the
-//! volume's cluster count, and every size is bounded by the caller's
-//! limit before memory is allocated for it.
+//! volume's cluster count, a FAT32 root directory by the most a FAT
+//! directory may hold ([`MAX_ROOT_BYTES`]), and every size is bounded by
+//! the caller's limit before memory is allocated for it. The FAT is read
+//! a piece at a time ([`FAT_PIECE`]), never whole, so no allocation grows
+//! with the volume.
 //!
 //! Writes go in the order a crash can least hurt: a new file's data,
 //! then its clusters in every copy of the FAT, then its directory
@@ -30,6 +33,18 @@ extern crate alloc;
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
+
+/// The most a directory holds: FAT numbers a directory's entries with 16
+/// bits, 65536 of 32 bytes each. A FAT32 root directory whose chain is
+/// longer is not read, and one is not grown past it.
+pub const MAX_ROOT_BYTES: usize = 65536 * 32;
+
+/// How much of the FAT is read at a time when it is searched or counted.
+pub const FAT_PIECE: usize = 64 << 10;
+
+/// The most clusters FAT32's 28-bit cluster numbers can name, short of
+/// the reserved values at the top.
+const FAT32_MAX_CLUSTERS: u32 = 0x0FFF_FFF5;
 
 /// What the filesystem is read from and written to: a partition, as
 /// bytes at offsets.
@@ -259,6 +274,9 @@ impl<D: Disk> Volume<D> {
             if root_entries != 0 {
                 return Err(Error::NotFat("a FAT32 volume with a FAT16 root directory"));
             }
+            if clusters > FAT32_MAX_CLUSTERS {
+                return Err(Error::NotFat("too many clusters"));
+            }
             Kind::Fat32
         } else if clusters < 4085 {
             return Err(Error::Fat12);
@@ -403,14 +421,25 @@ impl<D: Disk> Volume<D> {
 
     /// The clusters of a chain, in order, bounded by the volume.
     fn chain(&mut self, first: u32) -> Result<Vec<u32>, Error> {
+        self.chain_within(first, self.clusters, "a cluster chain that loops")
+    }
+
+    /// The clusters of a chain, in order, refused as `too_long` past
+    /// `max` of them.
+    fn chain_within(
+        &mut self,
+        first: u32,
+        max: u32,
+        too_long: &'static str,
+    ) -> Result<Vec<u32>, Error> {
         let mut out = Vec::new();
         let mut c = first;
         loop {
             if !self.valid(c) {
                 return Err(Error::Corrupt("a cluster outside the volume"));
             }
-            if out.len() as u32 >= self.clusters {
-                return Err(Error::Corrupt("a cluster chain that loops"));
+            if out.len() as u32 >= max {
+                return Err(Error::Corrupt(too_long));
             }
             out.push(c);
             let next = self.fat_get(c)?;
@@ -421,6 +450,40 @@ impl<D: Disk> Volume<D> {
         }
     }
 
+    /// The first `n` clusters of a chain: all a file of its size uses,
+    /// none of them twice. What follows them, if anything, is not
+    /// followed.
+    fn chain_start(&mut self, first: u32, n: usize) -> Result<Vec<u32>, Error> {
+        let mut out = Vec::with_capacity(n);
+        let mut c = first;
+        while out.len() < n {
+            if !self.valid(c) {
+                return Err(Error::Corrupt("a cluster outside the volume"));
+            }
+            out.push(c);
+            if out.len() == n {
+                break;
+            }
+            let next = self.fat_get(c)?;
+            if self.is_end(next) {
+                return Err(Error::Corrupt("a file longer than its clusters"));
+            }
+            c = next;
+        }
+        // A cluster twice among them: the chain loops back on itself.
+        let mut sorted = out.clone();
+        sorted.sort_unstable();
+        if sorted.windows(2).any(|w| w[0] == w[1]) {
+            return Err(Error::Corrupt("a cluster chain that loops"));
+        }
+        Ok(out)
+    }
+
+    /// The most clusters a FAT32 root directory may have.
+    fn max_root_clusters(&self) -> u32 {
+        (MAX_ROOT_BYTES as u32 / self.cluster_bytes).max(1)
+    }
+
     fn cluster_at(&self, c: u32) -> u64 {
         self.data_start + u64::from(c - 2) * u64::from(self.cluster_bytes)
     }
@@ -429,7 +492,11 @@ impl<D: Disk> Volume<D> {
     fn root_chain(&mut self) -> Result<Vec<u32>, Error> {
         match self.kind {
             Kind::Fat16 => Ok(Vec::new()),
-            Kind::Fat32 => self.chain(self.root_cluster),
+            Kind::Fat32 => self.chain_within(
+                self.root_cluster,
+                self.max_root_clusters(),
+                "a top folder longer than FAT allows",
+            ),
         }
     }
 
@@ -490,12 +557,9 @@ impl<D: Disk> Volume<D> {
         if e.size == 0 {
             return Ok(Vec::new());
         }
-        let chain = self.chain(e.cluster)?;
         let size = e.size as usize;
         let cb = self.cluster_bytes as usize;
-        if chain.len() < size.div_ceil(cb) {
-            return Err(Error::Corrupt("a file longer than its clusters"));
-        }
+        let chain = self.chain_start(e.cluster, size.div_ceil(cb))?;
         let mut out = vec![0u8; size];
         for (k, part) in out.chunks_mut(cb).enumerate() {
             let at = self.cluster_at(chain[k]);
@@ -504,32 +568,55 @@ impl<D: Disk> Volume<D> {
         Ok(out)
     }
 
+    /// Every cluster's FAT entry from `from` on, in order, read a
+    /// [`FAT_PIECE`] at a time, handed to `each` until it returns false.
+    /// Returns the cluster it stopped before: the end when it did not.
+    fn scan_fat(
+        &mut self,
+        from: u32,
+        mut each: impl FnMut(u32, u32) -> bool,
+    ) -> Result<u32, Error> {
+        let size: usize = if self.kind == Kind::Fat16 { 2 } else { 4 };
+        let end = self.clusters + 2;
+        let per = (FAT_PIECE / size) as u32;
+        let mut piece = vec![0u8; FAT_PIECE];
+        let mut c = from.max(2);
+        while c < end {
+            let n = per.min(end - c);
+            let bytes = &mut piece[..n as usize * size];
+            self.disk.read_at(self.fat_entry_at(c), bytes)?;
+            for (k, e) in bytes.chunks_exact(size).enumerate() {
+                let v = if size == 2 {
+                    u16_at(e, 0)
+                } else {
+                    u32_at(e, 0) & 0x0FFF_FFFF
+                };
+                if !each(c + k as u32, v) {
+                    return Ok(c + k as u32);
+                }
+            }
+            c += n;
+        }
+        Ok(end)
+    }
+
     /// Free clusters, enough for `n`, lowest first.
     fn free_clusters(&mut self, n: usize) -> Result<Vec<u32>, Error> {
         let mut out = Vec::with_capacity(n);
         if n == 0 {
             return Ok(out);
         }
-        // The FAT is read whole: one read rather than one per cluster.
-        let size = if self.kind == Kind::Fat16 { 2 } else { 4 };
-        let len = (u64::from(self.clusters) + 2) * size;
-        let mut fat = vec![0u8; len as usize];
-        self.disk.read_at(self.fat_start, &mut fat)?;
-        for c in 2..self.clusters + 2 {
-            let at = c as usize * size as usize;
-            let v = if size == 2 {
-                u32_at(&[fat[at], fat[at + 1], 0, 0], 0)
-            } else {
-                u32_at(&fat, at) & 0x0FFF_FFFF
-            };
+        self.scan_fat(2, |c, v| {
             if v == 0 {
                 out.push(c);
-                if out.len() == n {
-                    return Ok(out);
-                }
             }
+            out.len() < n
+        })?;
+        if out.len() == n {
+            Ok(out)
+        } else {
+            Err(Error::Full)
         }
-        Err(Error::Full)
     }
 
     /// FSInfo's free count and next free cluster, marked unknown: a
@@ -601,7 +688,7 @@ impl<D: Disk> Volume<D> {
                     run = 0;
                 }
             }
-            if self.kind == Kind::Fat16 {
+            if self.kind == Kind::Fat16 || chain.len() as u32 >= self.max_root_clusters() {
                 return Err(Error::DirFull);
             }
             // A new, empty cluster at the end of the root's chain.
@@ -739,29 +826,13 @@ impl<D: Disk> Volume<D> {
     /// The volume's data space and how much of it no file holds, in
     /// bytes.
     pub fn space(&mut self) -> Result<(u64, u64), Error> {
-        let fat = self.fat_bytes_read()?;
-        let free = (2..self.clusters + 2)
-            .filter(|&c| self.entry_in(&fat, c) == 0)
-            .count() as u64;
+        let mut free = 0u64;
+        self.scan_fat(2, |_, v| {
+            free += u64::from(v == 0);
+            true
+        })?;
         let cb = u64::from(self.cluster_bytes);
         Ok((free * cb, u64::from(self.clusters) * cb))
-    }
-
-    /// The first FAT, whole.
-    fn fat_bytes_read(&mut self) -> Result<Vec<u8>, Error> {
-        let size = if self.kind == Kind::Fat16 { 2 } else { 4 };
-        let mut fat = vec![0u8; ((u64::from(self.clusters) + 2) * size) as usize];
-        self.disk.read_at(self.fat_start, &mut fat)?;
-        Ok(fat)
-    }
-
-    /// Cluster `c`'s entry in a FAT read whole.
-    fn entry_in(&self, fat: &[u8], c: u32) -> u32 {
-        let at = c as usize;
-        match self.kind {
-            Kind::Fat16 => u16_at(fat, at * 2),
-            Kind::Fat32 => u32_at(fat, at * 4) & 0x0FFF_FFFF,
-        }
     }
 
     /// One step of writing zeros over the free space: every cluster no
@@ -775,23 +846,25 @@ impl<D: Disk> Volume<D> {
         if from <= 2 {
             self.zero_leftovers()?;
         }
-        let fat = self.fat_bytes_read()?;
         let end = self.clusters + 2;
         let cb = u64::from(self.cluster_bytes);
+        let data_start = self.data_start;
         let mut runs: Vec<(u64, u64)> = Vec::new();
         let mut written = 0u64;
-        let mut c = from.max(2);
-        while c < end && written < budget {
-            if self.entry_in(&fat, c) == 0 {
-                let at = self.cluster_at(c);
+        let c = self.scan_fat(from, |c, v| {
+            if written >= budget {
+                return false;
+            }
+            if v == 0 {
+                let at = data_start + u64::from(c - 2) * cb;
                 match runs.last_mut() {
                     Some((start, len)) if *start + *len == at => *len += cb,
                     _ => runs.push((at, cb)),
                 }
                 written += cb;
             }
-            c += 1;
-        }
+            true
+        })?;
         self.zero_runs(&runs)?;
         Ok(Zeroed {
             next: c,

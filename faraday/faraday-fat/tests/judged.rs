@@ -11,7 +11,7 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use faraday_fat::{Error, Kind, Volume, boot_sector_label};
+use faraday_fat::{Disk, Error, FAT_PIECE, Kind, MAX_ROOT_BYTES, Volume, boot_sector_label};
 
 fn tool(name: &str) -> PathBuf {
     if let Some(dir) = std::env::var_os("FARADAY_FATTOOLS") {
@@ -645,4 +645,114 @@ fn the_whole_partition_zeroed_is_an_empty_volume_with_its_label() {
         save(v, &img);
         fsck_clean(&img);
     }
+}
+
+/// A partition that remembers the most it was asked to read at once: what
+/// the disk process holds in memory for it.
+struct Watched {
+    bytes: Vec<u8>,
+    largest: usize,
+}
+
+impl Disk for Watched {
+    fn size(&self) -> u64 {
+        self.bytes.len() as u64
+    }
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<(), Error> {
+        self.largest = self.largest.max(buf.len());
+        self.bytes.read_at(offset, buf)
+    }
+    fn write_at(&mut self, offset: u64, buf: &[u8]) -> Result<(), Error> {
+        self.bytes.write_at(offset, buf)
+    }
+}
+
+/// A FAT32 volume's root directory chained through `clusters` clusters,
+/// in every copy of the FAT.
+fn long_root(base: &[u8], clusters: u32) -> Vec<u8> {
+    let mut bytes = base.to_vec();
+    let le16 = |at: usize| u16::from_le_bytes([bytes[at], bytes[at + 1]]) as usize;
+    let le32 = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
+    let bps = le16(11);
+    let fat = le16(14) * bps;
+    let fat_bytes = le32(36) as usize * bps;
+    let copies = bytes[16] as usize;
+    let root = le32(44);
+    for k in 0..copies {
+        let at = fat + k * fat_bytes;
+        for c in root..root + clusters {
+            let next = if c + 1 == root + clusters {
+                0x0FFF_FFFF
+            } else {
+                c + 1
+            };
+            let e = at + c as usize * 4;
+            bytes[e..e + 4].copy_from_slice(&next.to_le_bytes());
+        }
+    }
+    bytes
+}
+
+/// A stick can make a FAT32 root directory's chain as long as its
+/// partition. It is read only as far as a FAT directory can reach; one
+/// longer is refused as damaged, and nothing on the way reads more than
+/// a piece of the disk at once.
+#[test]
+fn a_fat32_root_longer_than_fat_allows_is_refused() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("longroot");
+    // 512-byte clusters: the most a directory holds is 4096 of them.
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let base = std::fs::read(&img).unwrap();
+    let most = (MAX_ROOT_BYTES / 512) as u32;
+
+    let mut v = Volume::open(Watched {
+        bytes: long_root(&base, most + 1),
+        largest: 0,
+    })
+    .unwrap();
+    assert!(matches!(v.list(), Err(Error::Corrupt(_))));
+    assert!(matches!(
+        v.read("anything.txt", 1 << 20),
+        Err(Error::Corrupt(_))
+    ));
+    assert!(matches!(
+        v.create("new.txt", b"faraday"),
+        Err(Error::Corrupt(_))
+    ));
+    assert!(v.into_disk().largest <= FAT_PIECE);
+
+    // As long as a directory may be: read, and written to.
+    let mut v = Volume::open(long_root(&base, most)).unwrap();
+    assert!(v.list().unwrap().is_empty());
+    v.create("new.txt", b"faraday").unwrap();
+    assert_eq!(v.read("new.txt", 1 << 20).unwrap(), b"faraday");
+}
+
+/// Counting the free space and finding room for a file read the FAT a
+/// piece at a time, however large the volume's FAT is.
+#[test]
+fn the_fat_is_read_a_piece_at_a_time() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("fatpiece");
+    // About 80,000 clusters: a FAT of over 300 KiB.
+    let img = mkfs(&dir, &["-F", "32", "-s", "1"], 40 * 1024);
+    let bytes = std::fs::read(&img).unwrap();
+    let mut v = Volume::open(Watched { bytes, largest: 0 }).unwrap();
+    let (free, total) = v.space().unwrap();
+    v.create("one.psbt", &pattern(3_000, 1)).unwrap();
+    v.create("two.psbt", &pattern(700, 2)).unwrap();
+    let (after, same) = v.space().unwrap();
+    assert_eq!(same, total);
+    // 3,000 bytes take six clusters and 700 two.
+    assert_eq!(free - after, 8 * 512);
+    assert_eq!(v.read("two.psbt", 1 << 20).unwrap(), pattern(700, 2));
+    let w = v.into_disk();
+    assert!(w.largest <= FAT_PIECE, "{}", w.largest);
+    std::fs::write(&img, w.bytes).unwrap();
+    fsck_clean(&img);
 }
