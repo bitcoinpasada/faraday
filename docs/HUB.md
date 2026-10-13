@@ -387,7 +387,7 @@ whether it can capture the screen or the keys without Faraday's help:
 |---|---|---|
 | A TV or other screen that records, on HDMI | the screen's EDID, as above | no EDID (no graphics driver). On a desktop or mini PC (DMI chassis type), whose screen is external, it asks once whether the screen is a TV; every start carries the TV line |
 | A KVM switch or IP-KVM (captures the screen, types from afar) | its USB identity (the Linux USB-gadget vendor `1d6b` with a keyboard and a disk; strings naming KVM) and the EDID name its capture side reports | its USB identity, from what `faraday-grant` reads |
-| A wireless keyboard or mouse receiver (keys travel over the air) | its USB identity (strings naming a receiver, dongle or wireless; the common receivers' IDs) | the same, warned before anything secret is typed |
+| A wireless keyboard receiver (keys travel over the air; owner, 2026-10-12: a notice, not a hold, about keyboards only, since a mouse's movements reveal next to nothing and the hub cannot tell what a receiver has paired) | its USB identity (strings naming a receiver, dongle or wireless; the common receivers' IDs), as one line that holds nothing: "Wireless receiver attached. A wireless keyboard's typing can be picked up nearby: use a wired keyboard or the on-screen keyboard." | the same line, and the on-screen keyboard is offered in every layout (the wide one included) |
 | Running inside a virtual machine (its host sees and can change everything) | says the stick must start on the real computer, and that the hub app cannot see the host's devices | refuses to go on: no Continue anyway |
 | Remote desktop, screen sharing, a wireless display | only around showing the BitLocker recovery key (§6.5) | none: the stick has no network |
 
