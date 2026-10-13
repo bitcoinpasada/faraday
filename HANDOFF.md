@@ -3017,6 +3017,17 @@ as possible before the next build.
        `linux` and `mac-intel` has a page (the stick's QR names an
        address the Starter and the website must have); every
        existing test passes, changed only in a `use` path.
+    F18's footprint, as its session describes it: the sketches are
+    `faraday-learn/src/sketch.rs` (`pub mod sketch;` and `pub use
+    sketch::{SKETCHES, Sketch, is_marker, sketch_of};` in `lib.rs`)
+    with `faraday-learn/tests/sketches.rs`; both move to
+    `faraday-guides`. `faraday-ui/src/firmware.rs` (the drawing) stays.
+    `faraday-core`'s `screens.rs` drops `::sketch` paragraphs on the
+    stick, the Pi and the desktop app; once no page those apps carry
+    has one, that skip and its test in `faraday-core/tests/learn.rs`
+    go, replaced by a test in `faraday-learn` that none of its pages
+    carries a `::sketch` line.
+
     5. **`docs/HUB.md` §7.2**: the guides are carried by the hub app
        and the Companion, and published by the website; the desktop
        app and the stick carry only the address of the one for this
