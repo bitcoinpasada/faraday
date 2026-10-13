@@ -449,6 +449,9 @@ fn a_drive_suspended_by_someone_else_still_needs_the_guard() {
     b.protection = Protection::Suspended;
     let mut hub = with(true, b);
     assert!(!firmware_open(&mut hub));
+    // Home's checklist says what the drive is, not "Protected".
+    assert!(shows(&mut hub, "Suspended"));
+    assert!(!shows(&mut hub, "Protected"));
     hub.press(HubAction::BitLocker);
     assert!(offered(&mut hub, HubAction::ShowKey));
 }

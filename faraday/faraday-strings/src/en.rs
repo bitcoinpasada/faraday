@@ -98,6 +98,8 @@ pub struct Strings {
     pub hub_state_protected: &'static str,
     /// BitLocker's state.
     pub hub_state_suspended: &'static str,
+    /// BitLocker's state: suspended, not by the hub app.
+    pub hub_state_suspended_other: &'static str,
     /// BitLocker's state.
     pub hub_state_resumed: &'static str,
     /// Why Resume is not offered.
@@ -7851,6 +7853,7 @@ pub static EN: Strings = Strings {
     hub_state_stick: "Faraday stick attached · {}",
     hub_state_protected: "Protected",
     hub_state_suspended: "Suspended by Faraday",
+    hub_state_suspended_other: "Suspended",
     hub_state_resumed: "Resumed",
     hub_resume_needs_secure_boot: "Needs Secure Boot on",
     hub_resume_needs_secure_boot_off: "Needs Secure Boot off, as it was",
@@ -7967,7 +7970,7 @@ pub static EN: Strings = Strings {
     hub_installed_reminder: "Logon reminder",
     hub_not_installed: "Not installed",
     hub_uninstall: "Uninstall",
-    hub_uninstall_ask: "Uninstall Faraday?",
+    hub_uninstall_ask: "Uninstall Faraday Starter?",
     hub_uninstall_keeps: "Removes the files listed. Received files and settings stay.",
     hub_uninstall_suspended: "BitLocker stays suspended until it is resumed.",
     hub_why_not_carried: "Faraday Starter does not carry what was confirmed. Nothing was written.",

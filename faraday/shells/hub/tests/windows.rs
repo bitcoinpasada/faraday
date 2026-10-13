@@ -149,11 +149,16 @@ fn a_faraday_stick_is_known_by_its_partitions_and_read_from_its_boot_volume_alon
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("EFI/BOOT")).expect("folder");
     let mut kernel = vec![0u8; 4096];
-    kernel.extend(b"\x006.6.84-faraday-0.2.0+4d0680b1a2b3 (buildroot@buildroot)\x00");
-    fs::write(root.join("EFI/BOOT/BOOTX64.EFI"), kernel).expect("file");
+    // A test build's, as the 0.1.1 image's kernel holds it.
+    kernel.extend(b"\x006.6.84-faraday-0.1.1+a18020f88663.test (buildroot@buildroot) #1 SMP PREEMPT_DYNAMIC Thu Apr 17 13:23:26 UTC 2025\x00");
+    fs::write(root.join("EFI/BOOT/BOOTX64.EFI"), &kernel).expect("file");
     assert_eq!(
         stick::release_at(&root).as_deref(),
-        Some("6.6.84-faraday-0.2.0+4d0680b1a2b3")
+        Some("6.6.84-faraday-0.1.1+a18020f88663.test")
+    );
+    assert_eq!(
+        faraday_core::upgrade::version(stick::release_at(&root).as_deref()),
+        "0.1.1 test release (a18020f88663)"
     );
 }
 

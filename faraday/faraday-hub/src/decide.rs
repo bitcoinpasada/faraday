@@ -110,6 +110,9 @@ pub enum State {
     Protected,
     /// The hub app's suspension stands.
     Suspended,
+    /// Suspended, not by the hub app: the guard is still needed, as for
+    /// a protected drive (§6.2).
+    SuspendedOther,
     /// Protection was resumed through the hub app this session.
     Resumed,
     /// Another encryption product, not yet confirmed (§6.4).
@@ -249,6 +252,11 @@ impl Facts<'_> {
                 State::Suspended
             } else if self.resumed {
                 State::Resumed
+            } else if self
+                .bitlocker
+                .is_some_and(|b| b.protection == Protection::Suspended)
+            {
+                State::SuspendedOther
             } else {
                 State::Protected
             };

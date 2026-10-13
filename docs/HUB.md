@@ -797,7 +797,7 @@ elevation prompt and keeps the hub app out of the boot path).
   costs protection, never access.
 - **The logon reminder.** An installed hub app (§5.2) adds, at the
   moment it suspends, one per-user Run entry
-  (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Faraday` =
+  (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Faraday Starter` =
   `"…\Faraday Starter.exe" --remind`). At logon, `--remind` reads the marker
   and the Secure Boot state and does one of three things: no marker,
   or protection already on, it removes the Run entry and exits with no

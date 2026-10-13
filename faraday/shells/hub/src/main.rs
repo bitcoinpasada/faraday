@@ -206,6 +206,10 @@ impl Shell {
                     {
                         let _ = tx.send(HubEvent::BootEntryKept(why));
                     }
+                    // The uninstall took the BitLocker marker with it
+                    // (§5.4): the state is read again first, so Home
+                    // never shows the suspension as the hub app's.
+                    let _ = tx.send(HubEvent::BitLocker(system.bitlocker()));
                     let _ = tx.send(HubEvent::UninstallDone(done));
                     let _ = tx.send(HubEvent::Installed(system.installed()));
                     let _ = tx.send(HubEvent::BootEntry(system.boot_entry()));

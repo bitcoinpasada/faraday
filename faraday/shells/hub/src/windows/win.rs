@@ -315,8 +315,11 @@ impl Platform for Windows {
     fn exiting(&self) {
         let pending = AFTER_EXIT.lock().ok().and_then(|mut p| p.take());
         if let (Some(args), Some(dir)) = (pending, sys::system_dir()) {
+            // Started in the system folder: a command whose own folder
+            // is the one it removes cannot remove it.
             let _ = Command::new(dir.join("cmd.exe"))
                 .raw_arg(args)
+                .current_dir(&dir)
                 .creation_flags(NO_WINDOW)
                 .stdin(Stdio::null())
                 .stdout(Stdio::null())

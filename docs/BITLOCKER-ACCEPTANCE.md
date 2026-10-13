@@ -27,7 +27,7 @@ only, never 3 or 5.
   Keep the recovery password the install wrote (`out\recovery.txt` on
   the answer disk): run 5 needs it, and so does any run that goes wrong.
 - A second account, a standard user, for run 4b.
-- On the machine's answer disk or a second USB image: `Faraday.exe`
+- On the machine's answer disk or a second USB image: `Faraday Starter.exe`
   from `just faraday-windows-bin` with the release payload
   (`FARADAY_HUB_PAYLOAD=out/payload/X.Y.Z`), and nothing else of the
   hub app's.
@@ -50,7 +50,8 @@ answers, with no Windows computer. Three of its readings are checked
 here before anything else, from an administrator's command prompt in
 the machine:
 
-- [ ] `Faraday.exe --record-bitlocker > C:\record-on.txt`. Its first
+- [ ] `Faraday Starter.exe --record-bitlocker` into `C:\record-on.txt`
+      (below). Its first
       line is the shell's `System.Volume.BitLockerProtection` for C:,
       read without elevation; with BitLocker on it must be `Some(1)`.
       The rest is `Win32_EncryptableVolume` as
@@ -69,13 +70,22 @@ the machine:
       digit for digit, and its key ID is the first eight hex digits of
       that protector's ID.
 
+`Faraday Starter.exe` is a GUI-subsystem program: PowerShell's pipe
+and `>` do not reliably capture what it prints. Run the recording as
+
+    Start-Process -FilePath '.\Faraday Starter.exe' -ArgumentList '--record-bitlocker' -RedirectStandardOutput C:\record-on.txt -Wait -NoNewWindow
+
+The recording's `DisableKeyProtectors` lines name its parameter
+`DisableCount`, WMI's own name; PowerShell's `Suspend-BitLocker` calls
+the same count `RebootCount`.
+
 Copy `record-on.txt` and `record-suspended.txt` off the machine; they
 replace the hand-made recordings once checked (the volume GUIDs are the
 virtual machine's own and name nothing else).
 
 ## Run 1: through the hub app, Secure Boot back on
 
-1. Start the machine (Secure Boot on). Sign in. Run `Faraday.exe`,
+1. Start the machine (Secure Boot on). Sign in. Run `Faraday Starter.exe`,
    choose Install, install. Attach the second USB image.
 2. Home: the card says **Do the BitLocker step** once a Faraday stick
    is attached; the checklist shows BitLocker "Protected". Open it.
@@ -95,7 +105,7 @@ virtual machine's own and name nothing else).
    `manage-bde -status C:` "Protection Off";
    `type %LOCALAPPDATA%\faraday\bitlocker-suspended` (the volume and
    `secure-boot on`, nothing else);
-   `reg query HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v Faraday`
+   `reg query HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v "Faraday Starter"`
    (the installed copy, `--remind`);
    `findstr /s /m /c:"<the key's first group>" %LOCALAPPDATA%\* %TEMP%\* %USERPROFILE%\Downloads\*`
    finds nothing.
@@ -158,7 +168,7 @@ a. On the administrator's account: steps 1 and 2 of run 1, then **Show
    the recovery key** and **No** at the prompt. Again, through to step
    6, and **No** at Suspend's prompt.
 
-b. Install nothing; sign in as the standard user, run `Faraday.exe`,
+b. Install nothing; sign in as the standard user, run `Faraday Starter.exe`,
    open the BitLocker page, **Show the recovery key**: the prompt asks
    for an administrator's password; Cancel.
 
@@ -188,8 +198,8 @@ Must see:
 ## Run 6: Uninstall while suspended
 
 a. Steps 1 to 7 of run 1 (Secure Boot on). Installed, **Uninstall**.
-   Then the same from Windows' Settings, Apps, Installed apps, Faraday,
-   Uninstall, which runs `Faraday.exe --uninstall`.
+   Then the same from Windows' Settings, Apps, Installed apps, Faraday Starter,
+   Uninstall, which runs `Faraday Starter.exe --uninstall`.
 
 b. Steps 1 to 9 of run 1, start Windows with Secure Boot off, open the
    installed Faraday, Installed, **Uninstall**.
@@ -212,7 +222,7 @@ Must see:
 
 For each run, in the completion report:
 
-- the date, the build (`Faraday.exe --version`, its SHA-256) and the
+- the date, the build (`Faraday Starter.exe --version`, its SHA-256) and the
   snapshot it started from;
 - each step as done, with anything that differed from this file;
 - a screenshot of Windows' first screen after every start

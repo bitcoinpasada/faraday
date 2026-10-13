@@ -494,6 +494,12 @@ fn clear_cache(dirs: &Dirs) -> Result<(), Reason> {
 /// `Faraday Starter.exe` and removes the folder if that left it empty, and stops
 /// when the folder is gone. Only that file and an empty folder. `None`
 /// for a folder whose name `cmd.exe` would read as more than a name.
+///
+/// The second is waited by `ping` to the loopback address: `timeout`
+/// ends at once when its input is not a console, as it is here, and a
+/// deleted file still open elsewhere (the exiting process, a scanner)
+/// stays in the folder until it is closed, so the tries need the time
+/// between them.
 pub fn after_exit_command(folder: &Path) -> Option<String> {
     let f = folder.display().to_string();
     if f.contains(['"', '%', '^', '\n', '\r']) {
@@ -501,7 +507,7 @@ pub fn after_exit_command(folder: &Path) -> Option<String> {
     }
     let app = format!("{f}\\{APP}");
     Some(format!(
-        "/d /q /s /c \"for /l %i in (1,1,30) do (timeout /t 1 /nobreak >nul 2>&1 & del /f /q \"{app}\" >nul 2>&1 & rmdir \"{f}\" >nul 2>&1 & if not exist \"{f}\" exit /b 0)\""
+        "/d /q /s /c \"for /l %i in (1,1,30) do (ping -n 2 127.0.0.1 >nul 2>&1 & del /f /q \"{app}\" >nul 2>&1 & rmdir \"{f}\" >nul 2>&1 & if not exist \"{f}\" exit /b 0)\""
     ))
 }
 

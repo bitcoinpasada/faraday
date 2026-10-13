@@ -2047,14 +2047,20 @@ as possible before the next build.
     and its QR scan, Home's firmware-restart button (greyed in the
     machine), run 4b (a standard user), run 6a through Settings'
     Installed apps; then the Home runs on a computer of the owner's.
-    Smaller findings: Home kept showing "suspended by Faraday" after an
-    Uninstall had removed the marker; the install folder was left empty
-    once (the exe gone) when the window was closed by its button; the
-    uninstall sheet's title says "Uninstall Faraday?"; the Run value is
-    named `Faraday Starter`, where HUB.md §6.3 says `Faraday`; the
-    stick row read "0.1.0 or earlier" for a 0.1.1 stick; Ctrl+A, Home
-    and End do nothing in text fields; the stick took no input from
-    QEMU's USB keyboard or tablet and ignored the ACPI power button.
+    Smaller findings, fixed and checked in the machine: Home re-reads
+    BitLocker after Uninstall, and a suspension that is not Faraday's
+    reads "Suspended", not "Protected"; the after-exit command waits
+    with `ping` (`timeout` ends at once with no console) from the
+    system folder, so the install folder goes; the sheet says "Uninstall
+    Faraday Starter?"; HUB.md and the acceptance file name the Run value
+    `Faraday Starter`. Open: the stick row reads "0.1.0 or earlier" for
+    a 0.1.1 stick because OSKBOOT is an EFI system partition, which
+    Windows lets only an administrator read (checked in the machine:
+    access denied unelevated, BOOTX64.EFI read elevated), so reading
+    the version needs elevation or another place to read it from;
+    Ctrl+A, Home and End do nothing in text fields; the stick took no
+    input from QEMU's USB keyboard or tablet and ignored the ACPI power
+    button.
     §6.6 run 4 asks that the firmware steps not be shown when elevation
     is declined, while §3.4 shows them without their buttons, which is
     what the build does: the spec needs one rule. (c) Three places still decide by displayed

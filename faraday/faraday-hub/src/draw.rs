@@ -660,6 +660,7 @@ fn state_text(state: &State) -> String {
         State::Stick(v) => fill(S.hub_state_stick, &[v]),
         State::Protected => S.hub_state_protected.to_string(),
         State::Suspended => S.hub_state_suspended.to_string(),
+        State::SuspendedOther => S.hub_state_suspended_other.to_string(),
         State::Resumed => S.hub_state_resumed.to_string(),
         State::Other => S.hub_state_other.to_string(),
         State::SecureBoot(on) => secure_boot_text(*on),

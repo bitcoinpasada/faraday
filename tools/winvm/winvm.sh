@@ -150,6 +150,8 @@ type_text() {
 		'#') k=shift-3 ;; '$') k=shift-4 ;; '%') k=shift-5 ;; '*') k=shift-8 ;;
 		'(') k=shift-9 ;; ')') k=shift-0 ;; '"') k=shift-apostrophe ;; "'") k=apostrophe ;;
 		'>') k=shift-dot ;; '<') k=shift-comma ;; '&') k=shift-7 ;; '|') k=shift-backslash ;;
+		'[') k=bracket_left ;; ']') k=bracket_right ;; '{') k=shift-bracket_left ;;
+		'}') k=shift-bracket_right ;; '+') k=shift-equal ;; '?') k=shift-slash ;;
 		*) die "cannot type '$c'" ;;
 		esac
 		send_key "$k"
