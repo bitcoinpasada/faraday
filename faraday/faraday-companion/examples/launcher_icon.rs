@@ -9,7 +9,8 @@
 //! The PNG is the foreground layer of an Android adaptive icon: 432 x 432
 //! pixels for its 108 dp canvas at the densest screens, the mark centred
 //! inside the 66 dp circle no launcher's mask clips, on nothing. The tile
-//! behind it is the shell's `launcher_background` colour. RGBA, 8 bits,
+//! behind it is the shell's `launcher_background` colour, white or dark
+//! with the phone's mode; the keyhole shows it. RGBA, 8 bits,
 //! with no chunks beyond what PNG needs.
 
 use std::fs::File;

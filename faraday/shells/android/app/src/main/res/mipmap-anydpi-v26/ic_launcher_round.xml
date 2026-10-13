@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Faraday's mark on its dark tile (`just companion-icon` draws the
-     foreground from faraday-ui's mark, as the Starter's icon is drawn). -->
+<!-- Faraday's mark on a tile that follows the phone's light or dark mode
+     (values/ and values-night/colors.xml); `just companion-icon` draws
+     the foreground from faraday-ui's mark, as the Starter's icon is drawn. -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/launcher_background" />
     <foreground android:drawable="@drawable/ic_launcher_foreground" />

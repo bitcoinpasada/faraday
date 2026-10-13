@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The launcher tile in the phone's dark mode: Faraday's dark page
+         (faraday-ui's `pal::BG`); white otherwise (values/colors.xml). -->
+    <color name="launcher_background">#FF11161C</color>
+</resources>
