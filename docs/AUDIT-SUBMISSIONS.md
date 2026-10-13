@@ -116,9 +116,9 @@ GitHub's private vulnerability reporting on `bitcoinpasada/faraday`. A
 report is seen only by the repository's owner and the reporter. Issues,
 discussions and pull requests on a public repository are all public, so
 this is the only private route through GitHub, and the process needs it.
-It is off (checked 2026-10-13). The owner turns it on:
-Settings → Code security → Private vulnerability reporting, or
-`gh api -X PUT repos/bitcoinpasada/faraday/private-vulnerability-reporting`.
+It is on since 2026-10-13 (owner). It is turned off under Settings →
+Code security → Private vulnerability reporting, or with
+`gh api -X DELETE repos/bitcoinpasada/faraday/private-vulnerability-reporting`.
 
 ## 5. Faraday's response
 
@@ -163,7 +163,8 @@ several.
 
 ## 8. To build
 
-- [ ] The owner turns on private vulnerability reporting (§4).
+- [x] The owner turns on private vulnerability reporting (§4); on
+      2026-10-13.
 - [ ] A test report with a file attached, to see whether private reports
       take attachments. If they take pasted text only, the pasted copy
       may not match the hash byte for byte; then `private.md` goes in a
