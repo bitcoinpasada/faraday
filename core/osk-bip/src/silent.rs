@@ -251,7 +251,12 @@ fn scan_hrp(network: Network) -> &'static str {
 /// is what routing reads before parsing anything.
 pub fn looks_like_address(text: &str) -> bool {
     let text = text.trim();
-    let lower = |p: &str| text.len() > p.len() && text[..p.len()].eq_ignore_ascii_case(p);
+    let lower = |p: &str| {
+        text.len() > p.len()
+            && text
+                .get(..p.len())
+                .is_some_and(|t| t.eq_ignore_ascii_case(p))
+    };
     lower("sp1q") || lower("tsp1q")
 }
 
@@ -284,11 +289,12 @@ pub fn address_of(text: &str) -> Option<&str> {
 /// human-readable part names.
 pub fn decode_address(text: &str) -> Result<(Network, PublicKey, PublicKey), Error> {
     let text = text.trim();
-    let (network, hrp) = if text.len() > 4 && text[..2].eq_ignore_ascii_case("sp") {
-        (Network::Mainnet, "sp")
-    } else {
-        (Network::Testnet, "tsp")
-    };
+    let (network, hrp) =
+        if text.len() > 4 && text.get(..2).is_some_and(|t| t.eq_ignore_ascii_case("sp")) {
+            (Network::Mainnet, "sp")
+        } else {
+            (Network::Testnet, "tsp")
+        };
     let mut payload = [0u8; 66];
     decode_v0(text, hrp, &mut payload)?;
     let scan = PublicKey::from_slice(&payload[..33]).map_err(|_| Error::Key)?;

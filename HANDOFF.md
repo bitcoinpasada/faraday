@@ -147,6 +147,20 @@ outputs) and `osk-bip` (address parsing, `WalletPolicy::find_address`).
 still app-only (Tools calculators, the self-test vectors, `inspect.rs`'s key
 origins through `osk-ui`).
 
+**Where Faraday's upstream files differ from upstream** (carried until
+upstream takes them; a sync with `git apply --3way` keeps them, and each
+is dropped here when upstream has it):
+
+- 2026-10-12, offered upstream by the owner: `core/osk-bip/src/silent.rs`,
+  `looks_like_address` and `decode_address` read the text's first bytes
+  with `str::get` instead of slicing, so text whose first characters are
+  not ASCII (a Chinese seed's words, scanned or pasted) is not taken for
+  a silent payment address instead of stopping the program inside
+  `osk_codec::classify`. Test: `core/osk-bip/tests/silent.rs`,
+  `text_that_begins_with_other_scripts_is_not_an_address`. Found by
+  Companion batch A1; `faraday-intake`'s `kind_of` guards against the
+  same panic and can go once upstream has the fix.
+
 ## Decisions so far (all in the docs)
 
 - Trust model kept from OpenSigner; no upstream file edited; variants of
@@ -2197,6 +2211,92 @@ as possible before the next build.
     against it, the device does not yet (asked of the owner). Russian
     and Turkish words in `tools/vectors/bip39/vectors.json` are not
     BIP-39 lists and are not refused.
+
+    **Batch A2, the Companion's core** (Opus: a new app's state and
+    screens). Rust only; the FFI, the Kotlin shell and the APK are A3.
+    Wallet descriptions, BitLocker keys, the unlock, Share and the
+    guide addresses are batch B. Upstream's files are not edited.
+
+    1. **The QR sender, shared.** `faraday-core/src/lib.rs`'s making
+       of codes from a thing to send (`QrSource`, `QrFormat`,
+       `QR_PARTS`, the frame rates, `bbqr_frames`, `ur_bytes_frames`,
+       `animated`, `envelope_name` and what they call) moves to
+       `faraday-qr`, without strings: captions stay with the callers.
+       `faraday-core` calls it, and its renders stay byte for byte (the
+       orchestrator compares, as for A1).
+    2. **`faraday/faraday-companion`**: the Companion's state and
+       screens, no I/O, driven by events in and commands out as
+       `faraday-core` is. It takes `osk_shell_api::Event`s and gives
+       `osk_shell_api::Command`s, and has its own event and command
+       types for what upstream's API lacks, each named so A3 can encode
+       it: the wall-clock time, the received files handed back at start,
+       the received files to keep (the whole store, as bytes, after each
+       change), keep the screen on or let it sleep, and About's
+       facts from the system (the signing certificate's SHA-256, the
+       permissions held). Screens are built from `osk_ui::screens` on
+       the `mobile` class, portrait, as `opensigner-core`'s views are.
+       Strings in `faraday-strings` with a `companion_` prefix.
+       Depends on `osk-ui`, `osk-shell-api`, `osk-codec`, `osk-learn`,
+       `osk-bip`, `faraday-qr`, `faraday-intake`, `faraday-learn`,
+       `faraday-strings`, `zeroize`; added, with nothing else, to
+       `tools/lint-companion-deps.sh`'s list.
+    3. **Screens**, COMPANION §4: Home (§4.1, without the Wallet
+       descriptions and BitLocker rows until B); Receive from Faraday
+       (§4.2: the scanner from camera frames through `osk-codec`'s
+       decoder, Paste through `RequestClipboard`, no Type; parts shown
+       as the device's scanner shows them; a whole arrival kept in
+       Received once by its SHA-256, named, with Open); Send to Faraday
+       (§4.3: from Received or the document picker; a PSBT as
+       `ur:crypto-psbt` with BBQr one choice away, a description as
+       text, anything else in the envelope up to 256 KiB; Animated and
+       the frame rate as the QR sheet has them; the screen kept on
+       while a code shows); Received (§4.4: newest first, name, kind,
+       size, when; a Record with Show as QR, Save through `WriteFile`,
+       Delete; Delete all); Learn (§4.7: every `osk-learn` page and
+       Faraday's own, Start from the stick opening the boot pages);
+       About (§4.8).
+    4. **Routing**, COMPANION §5, every scan and paste through one
+       function: `faraday_intake::secret` first (and `secret_ur` once a
+       multi-part UR is whole); a refusal shows its one line, naming
+       the kind, and keeps nothing; the bytes are wiped when the line
+       shows. Then `faraday-qr`'s `Assembler` and `classify_text`. A
+       BitLocker recovery key's text (`faraday_qr::bitlocker`) is
+       recognised and kept nowhere until B, shown masked, never in
+       Received. A web address is shown as text and never opened; any
+       other text is shown, with Keep.
+    5. **The received store**: a versioned byte format of the
+       Companion's own (name, kind, size, time kept, SHA-256, bytes),
+       written whole after each change; a store the core cannot read
+       is not overwritten until the person deletes it (say so on
+       Received).
+    6. **Renders**: `just companion-snap SIZE` (as `faraday-hub-snap`,
+       an example in the crate) draws every screen and state above into
+       `out/snapshots/companion/SIZE/`, one named PNG each, at
+       1080x2340 with the 420 dpi and 63 px bottom inset `snapshots`
+       uses for a phone.
+
+    Tests (`faraday-companion/tests/`, user-facing, COMPANION §11 as
+    far as A2 reaches; `faraday-core` may be a dev-dependency, which
+    the lint's `-e normal` leaves out):
+    - The device's own codes for a file, a PSBT and a description,
+      made by `faraday-core`'s QR sheet, single and animated, with
+      frames dropped and the loop read again, arrive whole and are
+      kept once.
+    - A PSBT and a description picked from a file come out as codes
+      that `faraday-core`'s scanner reads back as the same bytes.
+    - Every `Secret` kind, by camera and by paste, shows its line and
+      leaves the store as it was; a BitLocker key is not in the store.
+    - A web address shows as text, and nothing opens it.
+    - The store written and read back gives the same files; a store
+      it cannot read is left alone.
+    - Delete and Delete all leave the store without the file.
+
+    Done when: `just` passes once at the end; `cargo tree -e normal -p
+    faraday-companion` shows none of the forbidden list; the renders
+    are fetched for the orchestrator (`local/remote-run.sh --fetch
+    out/snapshots/companion/1080x2340 just companion-snap 1080x2340`).
+    Report: as COMPANION §0, plus the event and command types A3 must
+    encode, and every screen rendered, by file name.
 
 ## Next steps
 

@@ -566,3 +566,19 @@ fn the_keys_come_from_the_paths_the_bip_names() {
     let other = Receiver::derive(&testnet, 0);
     assert_ne!(other.spend_public_key(), receiver.spend_public_key());
 }
+
+#[test]
+fn text_that_begins_with_other_scripts_is_not_an_address() {
+    // A seed in Chinese, scanned or pasted, reaches routing as text. Its
+    // characters are three bytes each, so its fifth byte is inside one.
+    for text in [
+        "的 的 的 的 的 的 的 的 的 的 的 在",
+        "s的 的",
+        "bitcoin:?sp=的的的的",
+        "bitcoin:?sp=t的的的",
+    ] {
+        assert!(!silent::looks_like_address(text), "{text}");
+        assert_eq!(silent::address_of(text), None, "{text}");
+        assert!(silent::decode_address(text).is_err(), "{text}");
+    }
+}
