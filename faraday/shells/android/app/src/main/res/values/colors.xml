@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The page of Faraday's default theme, Cobalt (faraday-ui's
+         `pal::COBALT`), so the window behind the frame and the system bars
+         match the first frame the core draws. Once the core is running the
+         shell paints them in the theme on show (`Core.pageColor`). -->
+    <color name="window_background">#FFF1F4FB</color>
+    <!-- The tile behind the launcher mark: Faraday's dark page
+         (faraday-ui's `pal::BG`), as the Starter's menu icon has it. -->
+    <color name="launcher_background">#FF11161C</color>
+</resources>

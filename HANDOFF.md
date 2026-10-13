@@ -2503,6 +2503,33 @@ as possible before the next build.
     Report: as COMPANION §0, plus what of upstream's shell was left out,
     the APK's size, and the emulator steps with their screenshots.
 
+    **A3 built and audited (2026-10-13).** `faraday/faraday-companion-ffi`
+    (its library `libfaraday_companion_ffi.so`, copied into the APK as
+    `libfaraday_companion.so`: the core crate's own library has that
+    name in `target/`), `faraday/shells/android` (Kotlin, no libraries;
+    README names d26b84e and what was left out), the received store in
+    AES-256-GCM under a Keystore key of its own, `tools/lint-companion-
+    android.sh` in `just lint`, recipes `companion-lib`, `companion-apk`,
+    `companion-run`, `companion-icon`. The core gained `Picked` (a
+    picked file's name), `KeepTheme`/`Theme`, `Seen` (the found-code
+    outline; frames decode on `faraday-scanner`'s worker), and About's
+    permissions with granted or not. Debug APK 10.5 MB;
+    `aapt2 dump permissions`: CAMERA and USE_BIOMETRIC only; no home or
+    registry path in the `.so` or `.dex`. On the emulator: Home, About,
+    the camera asked for and shown, a picked file sent under its own
+    name with the screen kept on, a pasted text kept and still there
+    after a force-stop, seed words refused with Received unchanged, no
+    INTERNET. The audit found About not following a permission granted
+    after start (the facts were sent once); fixed in the shell (sent
+    again on resume and after the camera's dialog) and seen on the
+    emulator: Not granted, then Granted after `pm grant` and a return
+    to the app. One `just` run failed six of the Companion's camera
+    tests while another checkout built into the same cache; the next
+    run and five more of the Companion's tests passed (2434 tests).
+    For later: the emulator started by `companion-run` dies with the
+    ssh session (upstream's `android-run` too); start it with `setsid`.
+
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:

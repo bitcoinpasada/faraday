@@ -33,9 +33,38 @@ pub enum CompanionEvent {
         /// The SHA-256 of the APK's signing certificate, the digest
         /// `apksigner verify --print-certs` prints.
         certificate_sha256: [u8; 32],
-        /// The permissions the system says the app holds, by their
-        /// names (`android.permission.CAMERA`).
-        permissions: Vec<String>,
+        /// The permissions the app's manifest asks for, by their names
+        /// (`android.permission.CAMERA`), each with whether the system
+        /// has granted it.
+        permissions: Vec<(String, bool)>,
+    },
+    /// The answer to [`osk_shell_api::Command::RequestFile`] from a shell
+    /// that knows the picked file's name: sent in place of
+    /// [`osk_shell_api::Event::File`], so the codes go under that name.
+    Picked {
+        /// The name the document provider gives it.
+        name: String,
+        /// The file's bytes, unmodified.
+        bytes: Vec<u8>,
+    },
+    /// The theme a [`CompanionCommand::KeepTheme`] kept, sent once at
+    /// start by a shell that has one.
+    Theme {
+        /// [`faraday_ui::Theme::id`].
+        id: String,
+    },
+    /// What the shell's scanner worker saw of a code in the camera's
+    /// frame (`faraday-scanner`'s `Seen`), so Receive can outline it.
+    Seen {
+        /// The frame's width, in pixels.
+        width: u16,
+        /// The frame's height, in pixels.
+        height: u16,
+        /// The code's corners in the frame: top-left, top-right,
+        /// bottom-right, bottom-left.
+        corners: [(u16, u16); 4],
+        /// It read.
+        read: bool,
     },
 }
 
@@ -54,5 +83,11 @@ pub enum CompanionCommand {
     KeepScreenOn {
         /// Whether the screen stays on.
         on: bool,
+    },
+    /// Keep the theme chosen on About, and hand it back in
+    /// [`CompanionEvent::Theme`] next time.
+    KeepTheme {
+        /// [`faraday_ui::Theme::id`].
+        id: String,
     },
 }

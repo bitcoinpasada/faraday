@@ -25,6 +25,7 @@ members = [
     "faraday/faraday-core",
     "faraday/faraday-hub",
     "faraday/faraday-companion",
+    "faraday/faraday-companion-ffi",
     "faraday/faraday-ui",
     "faraday/faraday-storage",
     "faraday/faraday-vault",

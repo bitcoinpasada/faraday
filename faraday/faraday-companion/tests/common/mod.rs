@@ -58,15 +58,20 @@ pub fn kept_store(cmds: &[CompanionCommand]) -> Option<Vec<u8>> {
     })
 }
 
-/// The camera seeing one code, as a frame of luma.
+/// The camera seeing one code: the frame of luma for the preview, and
+/// what the shell's scanner reads in it, as the shell hands both over.
 pub fn show(c: &mut Companion, code: &QrMatrix) {
     let (w, h, luma) = code.to_luma(3, osk_codec::qr::QUIET_ZONE);
+    let found = osk_codec::decode_luma(w, h, &luma);
     c.event(Event::CameraFrame {
         width: w as u16,
         height: h as u16,
         luma,
         chroma: None,
     });
+    for d in found {
+        c.event(Event::Scanned { bytes: d.bytes });
+    }
 }
 
 /// A code made of `bytes`, in byte mode.

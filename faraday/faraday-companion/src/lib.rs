@@ -328,8 +328,23 @@ pub struct System {
     pub build: String,
     /// The signing certificate's SHA-256.
     pub certificate_sha256: [u8; 32],
-    /// The permissions held.
-    pub permissions: Vec<String>,
+    /// The permissions asked for, each with whether it is granted.
+    pub permissions: Vec<(String, bool)>,
+}
+
+/// What the shell's scanner last saw of a code in the camera's frame
+/// ([`CompanionEvent::Seen`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SeenCode {
+    /// The frame's size, in pixels.
+    pub width: u16,
+    /// The frame's height, in pixels.
+    pub height: u16,
+    /// The code's corners in the frame: top-left, top-right,
+    /// bottom-right, bottom-left.
+    pub corners: [(u16, u16); 4],
+    /// It read.
+    pub read: bool,
 }
 
 /// The Companion.
@@ -381,6 +396,10 @@ pub struct Companion {
     /// The camera's last frame on Receive: its size, its luma and its
     /// chroma, wiped when it is replaced.
     preview: Option<Preview>,
+    /// Camera frames shown on Receive since it opened.
+    frames: u32,
+    /// What the scanner last saw of a code, and at which frame.
+    seen: Option<(SeenCode, u32)>,
     camera: bool,
     screen_on: bool,
     pasting: bool,
@@ -439,6 +458,8 @@ impl Companion {
             reader: Reader::default(),
             scan_line: ScanLine::Waiting,
             preview: None,
+            frames: 0,
+            seen: None,
             camera: false,
             screen_on: false,
             pasting: false,
@@ -507,6 +528,37 @@ impl Companion {
                     certificate_sha256,
                     permissions,
                 });
+            }
+            CompanionEvent::Picked { name, bytes } => {
+                if std::mem::take(&mut self.picking) && self.page == Page::SendList {
+                    self.picked(file_name(&name), bytes);
+                    self.sync();
+                } else {
+                    let mut bytes = bytes;
+                    bytes.zeroize();
+                }
+            }
+            CompanionEvent::Theme { id } => {
+                if let Some(t) = Theme::from_id(&id) {
+                    self.theme = t;
+                }
+            }
+            CompanionEvent::Seen {
+                width,
+                height,
+                corners,
+                read,
+            } => {
+                if self.page != Page::Receive {
+                    return;
+                }
+                let code = SeenCode {
+                    width,
+                    height,
+                    corners,
+                    read,
+                };
+                self.seen = Some((code, self.frames));
             }
         }
         self.render();
@@ -731,8 +783,13 @@ impl Companion {
             }
             Act::Eye => self.revealed = !self.revealed,
             Act::Theme(n) => {
-                if let Some(t) = Theme::ALL.get(n) {
+                if let Some(t) = Theme::ALL.get(n)
+                    && *t != self.theme
+                {
                     self.theme = *t;
+                    self.out.push_back(CompanionCommand::KeepTheme {
+                        id: t.id().to_string(),
+                    });
                 }
             }
             Act::Animated => {
@@ -798,6 +855,8 @@ impl Companion {
         self.reader.reset();
         self.scan_line = ScanLine::Waiting;
         self.preview = None;
+        self.frames = 0;
+        self.seen = None;
     }
 
     /// `bytes` of `kind`, shown as codes.
@@ -827,9 +886,10 @@ impl Companion {
         }
     }
 
-    /// A file the person picked: refused whole when it holds a secret,
-    /// and otherwise shown as codes.
-    fn picked(&mut self, bytes: Vec<u8>) {
+    /// A file the person picked, with the name its provider gave when
+    /// the shell knows it: refused whole when it holds a secret, and
+    /// otherwise shown as codes under that name.
+    fn picked(&mut self, name: Option<String>, bytes: Vec<u8>) {
         let mut bytes = bytes;
         if let Some(s) = faraday_intake::secret(&bytes) {
             bytes.zeroize();
@@ -842,7 +902,9 @@ impl Companion {
             Kind::Description | Kind::Text | Kind::Transaction => "txt",
             Kind::File => "bin",
         };
-        let name = faraday_strings::fill(faraday_strings::EN.companion_send_picked, &[ext]);
+        let name = name.unwrap_or_else(|| {
+            faraday_strings::fill(faraday_strings::EN.companion_send_picked, &[ext])
+        });
         self.send(name, kind, bytes);
     }
 
@@ -941,6 +1003,7 @@ impl Companion {
         }
         if self.page != Page::Receive {
             self.preview = None;
+            self.seen = None;
         }
         self.sync();
     }
@@ -1053,8 +1116,9 @@ impl Companion {
         }
     }
 
-    /// A frame from the camera, on Receive: the preview, and the codes
-    /// in it.
+    /// A frame from the camera, on Receive: the preview. The codes in it
+    /// are the shell's to read, off this thread (`faraday-scanner`), and
+    /// arrive as [`Event::Scanned`].
     fn camera_frame(&mut self, width: u16, height: u16, luma: Vec<u8>, chroma: Option<Vec<u8>>) {
         let luma = Zeroizing::new(luma);
         let chroma = chroma.map(Zeroizing::new);
@@ -1064,21 +1128,13 @@ impl Companion {
         if matches!(self.scan_line, ScanLine::Waiting | ScanLine::NoCamera) {
             self.scan_line = ScanLine::Looking;
         }
-        let found = osk_codec::decode_luma(usize::from(width), usize::from(height), &luma);
+        self.frames = self.frames.wrapping_add(1);
         self.preview = Some(Preview {
             width,
             height,
             luma,
             chroma,
         });
-        for d in found {
-            if self.page != Page::Receive {
-                let mut b = d.bytes;
-                b.zeroize();
-                continue;
-            }
-            self.arrive(Zeroizing::new(d.bytes));
-        }
     }
 
     /// One tick: the animated code's next frame when it is due.
@@ -1096,6 +1152,25 @@ impl Companion {
         false
     }
 }
+
+/// A picked file's name as the document provider gave it, made fit to
+/// show and to save under: its last path part, no control characters,
+/// trimmed, at most [`NAME_MAX`] characters. `None` when nothing is left.
+fn file_name(name: &str) -> Option<String> {
+    let last = name.rsplit(['/', '\\']).next().unwrap_or(name);
+    let clean: String = last
+        .chars()
+        .filter(|c| !c.is_control())
+        .collect::<String>()
+        .trim()
+        .chars()
+        .take(NAME_MAX)
+        .collect();
+    (!clean.is_empty() && clean != "." && clean != "..").then_some(clean)
+}
+
+/// The longest file name kept, in characters.
+const NAME_MAX: usize = 120;
 
 impl App for Companion {
     fn event(&mut self, event: Event) {
@@ -1147,7 +1222,7 @@ impl App for Companion {
             }
             Event::File { bytes, .. } => {
                 if std::mem::take(&mut self.picking) && self.page == Page::SendList {
-                    self.picked(bytes);
+                    self.picked(None, bytes);
                     self.sync();
                 } else {
                     let mut bytes = bytes;

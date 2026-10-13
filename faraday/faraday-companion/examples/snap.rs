@@ -129,6 +129,14 @@ fn run(s: &Snap) -> Result<(), String> {
         chroma: None,
     });
     s.shot(&mut c, "receive-looking")?;
+    // The shell's scanner finds a code it has not read yet: outlined.
+    c.companion_event(CompanionEvent::Seen {
+        width: w,
+        height: h,
+        corners: [(220, 140), (420, 150), (410, 350), (210, 340)],
+        read: false,
+    });
+    s.shot(&mut c, "receive-found")?;
     let parts = faraday_qr::bbqr::encode('P', &psbt(), 60).ok_or("BBQr")?;
     scanned(&mut c, &parts[1]);
     s.shot(&mut c, "receive-bbqr-parts")?;
@@ -287,7 +295,10 @@ fn run(s: &Snap) -> Result<(), String> {
     c.companion_event(CompanionEvent::System {
         build: "0.1.1 (3)".into(),
         certificate_sha256: [0x5a; 32],
-        permissions: vec!["android.permission.CAMERA".into()],
+        permissions: vec![
+            ("android.permission.CAMERA".into(), true),
+            ("android.permission.USE_BIOMETRIC".into(), true),
+        ],
     });
     s.shot(&mut c, "about")?;
     Ok(())

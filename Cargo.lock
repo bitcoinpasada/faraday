@@ -732,6 +732,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "faraday-companion-ffi"
+version = "0.1.1"
+dependencies = [
+ "faraday-companion",
+ "faraday-scanner",
+ "faraday-ui",
+ "jni-sys 0.3.0",
+ "osk-shell-api",
+ "zeroize",
+]
+
+[[package]]
 name = "faraday-core"
 version = "0.1.1"
 dependencies = [

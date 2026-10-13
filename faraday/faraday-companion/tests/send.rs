@@ -9,7 +9,7 @@ mod common;
 use std::rc::Rc;
 
 use common::*;
-use faraday_companion::{Act, Companion, CompanionCommand, Page};
+use faraday_companion::{Act, Companion, CompanionCommand, CompanionEvent, Page};
 use faraday_core::wallet::FileKind as DeviceKind;
 use faraday_core::{Action, Faraday, StorageEvent};
 use osk_codec::QrMatrix;
@@ -157,4 +157,38 @@ fn a_file_that_holds_a_seed_is_refused_whole() {
     assert_eq!(c.page, Page::Refused(faraday_intake::Secret::Bip39Words));
     assert!(c.sending.is_none());
     assert!(shows(&mut c, faraday_strings::EN.companion_refuse_words));
+}
+
+#[test]
+fn a_file_picked_with_its_name_goes_as_codes_under_that_name() {
+    let mut c = phone();
+    c.press(Act::Send);
+    c.press(Act::Choose);
+    drain(&mut c);
+    c.companion_event(CompanionEvent::Picked {
+        name: String::from("Meeting notes.txt"),
+        bytes: b"Meet at noon.\n".to_vec(),
+    });
+    assert_eq!(c.page, Page::Send);
+    assert_eq!(
+        c.sending.as_ref().map(|s| s.name.as_str()),
+        Some("Meeting notes.txt")
+    );
+    assert!(shows(&mut c, "Meeting notes.txt"));
+}
+
+#[test]
+fn a_picked_name_is_shown_without_its_folders_or_control_characters() {
+    let mut c = phone();
+    c.press(Act::Send);
+    c.press(Act::Choose);
+    drain(&mut c);
+    c.companion_event(CompanionEvent::Picked {
+        name: String::from("../../shared/notes\u{7}.txt"),
+        bytes: b"Meet at noon.\n".to_vec(),
+    });
+    assert_eq!(
+        c.sending.as_ref().map(|s| s.name.as_str()),
+        Some("notes.txt")
+    );
 }

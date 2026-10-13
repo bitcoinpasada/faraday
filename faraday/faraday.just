@@ -405,3 +405,96 @@ companion-snap size:
     esac
     cargo run -q -p faraday-companion --example snap -- "$arg" "out/snapshots/companion/{{size}}" "$inset" > /dev/null
     echo "out/snapshots/companion/{{size}}"
+
+# --- Faraday Companion's Android app (faraday/shells/android) ------------
+#
+# As upstream's Android recipes in the root justfile: ANDROID_HOME (the
+# SDK) and ANDROID_NDK_HOME (one NDK) from the environment, a JDK 21,
+# `cargo ndk` and the Rust targets aarch64-linux-android and
+# x86_64-linux-android; Gradle from the wrapper in the shell directory.
+#
+#   just companion-lib    the core for a phone (arm64-v8a) and the emulator
+#                         (x86_64), into the app's jniLibs
+#   just companion-apk    the debug APK, at out/android/faraday-companion-debug.apk,
+#                         and its permissions checked
+#   just companion-run    the emulator started if it is not up, the APK
+#                         installed and launched, and its screen snapped
+#                         into out/android/companion/
+#   just companion-icon   the launcher icon drawn again from Faraday's mark
+#
+# The app sets FLAG_SECURE, so `adb exec-out screencap` returns black; the
+# screenshot goes through the emulator console (tools/android-screenshot.py).
+
+companion_dir := "faraday/shells/android"
+companion_apk := "faraday/shells/android/app/build/outputs/apk/debug/app-debug.apk"
+companion_avd := env_var_or_default("FARADAY_AVD", "headless")
+
+# The core for both ABIs. The crate's library is libfaraday_companion_ffi.so
+# (the core's own crate has the name faraday_companion); the app loads it
+# as libfaraday_companion.so. Built with the path remaps, so the library
+# carries no local path (docs/COMPANION.md §3).
+companion-lib:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    . faraday/image/path-remap.sh
+    cargo ndk -t arm64-v8a -t x86_64 -P 26 build --release -p faraday-companion-ffi
+    for pair in arm64-v8a:aarch64-linux-android x86_64:x86_64-linux-android; do
+        abi="${pair%%:*}"
+        triple="${pair#*:}"
+        mkdir -p "{{companion_dir}}/app/src/main/jniLibs/$abi"
+        cp "target/$triple/release/libfaraday_companion_ffi.so" \
+            "{{companion_dir}}/app/src/main/jniLibs/$abi/libfaraday_companion.so"
+    done
+
+# The debug APK, a clean Gradle build (the incremental packager can leave
+# an old library as dead space in the archive), copied to a stable path.
+# Then the permissions the APK asks for, as anyone checks them
+# (docs/COMPANION.md §6.2): exactly CAMERA and USE_BIOMETRIC, or this fails.
+companion-apk: companion-lib
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${ANDROID_HOME:?set ANDROID_HOME to the Android SDK root}"
+    (cd {{companion_dir}} && ./gradlew --quiet clean assembleDebug)
+    mkdir -p out/android
+    cp {{companion_apk}} out/android/faraday-companion-debug.apk
+    aapt2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2"
+    asked="$("$aapt2" dump permissions out/android/faraday-companion-debug.apk)"
+    echo "$asked"
+    got="$(echo "$asked" | sed -n "s/^uses-permission: name='\([^']*\)'.*/\1/p" | sort | tr '\n' ' ')"
+    want="android.permission.CAMERA android.permission.USE_BIOMETRIC "
+    if [ "$got" != "$want" ]; then
+        echo "companion-apk: the APK asks for: ${got:-nothing}; it may ask for: $want" >&2
+        exit 1
+    fi
+    if echo "$asked" | grep -qvE "^(package: |uses-permission: name='android\.permission\.(CAMERA|USE_BIOMETRIC)'$)"; then
+        echo "companion-apk: aapt2 lists more than the two permissions" >&2
+        exit 1
+    fi
+    ls -l out/android/faraday-companion-debug.apk
+
+# Install on the emulator (starting it if needed), launch, and screenshot.
+companion-run: companion-apk
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${ANDROID_HOME:?set ANDROID_HOME to the Android SDK root}"
+    adb="$ANDROID_HOME/platform-tools/adb"
+    if ! "$adb" devices | grep -qE '^emulator-[0-9]+[[:space:]]+device$'; then
+        nohup "$ANDROID_HOME/emulator/emulator" -avd "{{companion_avd}}" \
+            -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim \
+            >/dev/null 2>&1 &
+        disown
+        "$adb" wait-for-device
+        until [ "$("$adb" shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; do
+            sleep 2
+        done
+    fi
+    "$adb" install -r out/android/faraday-companion-debug.apk
+    "$adb" shell am start -n app.faradayoffline.companion/.MainActivity
+    sleep 5
+    tools/android-screenshot.py out/android/companion/home.png
+
+# The launcher icon's foreground, drawn from Faraday's mark
+# (faraday-companion's examples/icon.rs). Run it when the mark changes;
+# the PNG is committed.
+companion-icon:
+    cargo run -q -p faraday-companion --example launcher_icon -- {{companion_dir}}/app/src/main/res/drawable-nodpi/ic_launcher_foreground.png

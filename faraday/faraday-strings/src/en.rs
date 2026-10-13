@@ -7778,8 +7778,12 @@ pub struct Strings {
     pub companion_network: &'static str,
     /// About: no network access, no permissions.
     pub companion_none: &'static str,
-    /// About: the permissions the system says the app holds.
+    /// About: the permissions the app asks for.
     pub companion_permissions: &'static str,
+    /// About: a permission the system has granted.
+    pub companion_granted: &'static str,
+    /// About: a permission the system has not granted.
+    pub companion_not_granted: &'static str,
     /// About: a fact the phone has not given.
     pub companion_not_reported: &'static str,
     /// About: how to check the APK.
@@ -11576,6 +11580,8 @@ pub static EN: Strings = Strings {
     companion_network: "Network access",
     companion_none: "None",
     companion_permissions: "Permissions",
+    companion_granted: "Granted",
+    companion_not_granted: "Not granted",
     companion_not_reported: "Not reported",
     companion_about_check: "Each release lists this app's file in SHA256SUMS, and the release's OpenPGP key signs that list. The file's SHA-256 is checked against the list, and the list's signature against the key, as the README's Verifying a release says.",
     companion_about_certificate: "The signing certificate's SHA-256 above is the one apksigner verify --print-certs prints for the release's file. The release notes state it.",

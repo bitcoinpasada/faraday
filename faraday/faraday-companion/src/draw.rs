@@ -681,13 +681,16 @@ fn receive(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let rect = ui.rect(x + pad, y, iw, side_h);
     ui.fill(x + pad, y, iw, side_h, 8.0, BG);
     match app.preview.as_ref() {
-        Some(p) => ui.c.luma(
-            rect,
-            p.width,
-            p.height,
-            &p.luma,
-            p.chroma.as_deref().map(|c| &c[..]),
-        ),
+        Some(p) => {
+            ui.c.luma(
+                rect,
+                p.width,
+                p.height,
+                &p.luma,
+                p.chroma.as_deref().map(|c| &c[..]),
+            );
+            outline(app, ui, rect, p.width, p.height);
+        }
         None => {
             let t = S.companion_scan_waiting;
             let tw = ui.measure(13.0, W::R, t);
@@ -710,6 +713,39 @@ fn receive(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         &[(S.companion_paste, Style::Secondary, Act::Paste)],
     );
     y0 + h
+}
+
+/// The code the scanner last found, outlined where it is in the
+/// preview, as the desktop's Scan sheet outlines it: green once read,
+/// amber while it is found and not read, gone ten frames after the
+/// scanner stops seeing it.
+fn outline(app: &Companion, ui: &mut Ui, rect: osk_ui::Rect, fw: u16, fh: u16) {
+    let Some((seen, at)) = app.seen else {
+        return;
+    };
+    if app.frames.wrapping_sub(at) > 10 || seen.width == 0 || seen.height == 0 {
+        return;
+    }
+    // The preview fills its box and crops the longer side, as
+    // `Canvas::luma` draws it: the same scale and crop here.
+    let (fw, fh) = (f32::from(fw), f32::from(fh));
+    let scale = (rect.w as f32 / fw).max(rect.h as f32 / fh);
+    let left = (fw - rect.w as f32 / scale) / 2.0;
+    let top = (fh - rect.h as f32 / scale) / 2.0;
+    let map = |(cx, cy): (u16, u16)| {
+        let px = f32::from(cx) * fw / f32::from(seen.width);
+        let py = f32::from(cy) * fh / f32::from(seen.height);
+        (
+            rect.x as f32 + (px - left) * scale,
+            rect.y as f32 + (py - top) * scale,
+        )
+    };
+    let color = ui.col(if seen.read { OK } else { WARN });
+    let lw = (3.0 * ui.f).max(2.0);
+    for i in 0..4 {
+        let (a, b) = (map(seen.corners[i]), map(seen.corners[(i + 1) % 4]));
+        ui.c.line(a.0, a.1, b.0, b.1, lw, color);
+    }
 }
 
 /// A whole file arrived and is kept: named, with Open.
@@ -1275,14 +1311,26 @@ fn about(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         }
     }
     y += value_row(ui, x, y, w, S.companion_network, S.companion_none, TEXT);
-    let permissions = s.map_or_else(not_reported, |s| {
-        if s.permissions.is_empty() {
-            S.companion_none.to_string()
-        } else {
-            s.permissions.join(", ")
+    match s.map(|s| &s.permissions) {
+        Some(p) if !p.is_empty() => {
+            y += 8.0;
+            y += label(ui, x, y, S.companion_permissions);
+            for (name, granted) in p {
+                let state = if *granted {
+                    S.companion_granted
+                } else {
+                    S.companion_not_granted
+                };
+                y += value_row(ui, x, y, w, name, state, TEXT);
+            }
         }
-    });
-    y += value_row(ui, x, y, w, S.companion_permissions, &permissions, TEXT);
+        Some(_) => {
+            y += value_row(ui, x, y, w, S.companion_permissions, S.companion_none, TEXT);
+        }
+        None => {
+            y += value_row(ui, x, y, w, S.companion_permissions, &not_reported(), TEXT);
+        }
+    }
     y += 16.0;
     y += label(ui, x, y, S.companion_check_title);
     y += line(ui, x, y, w, S.companion_about_check, TEXT);
