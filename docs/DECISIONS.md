@@ -584,3 +584,48 @@ the restart into the stick), not only the first time.
   has its crossbar cut free of its legs, as FARADAY's A's do.
 - The stick, the Pi card and the project remain **Faraday**, with the
   wordmark alone.
+
+### F17 The BitLocker step is the recovery key; suspending is the extra-safe choice (2026-10-13)
+
+**Why.** HUB §6 made suspending BitLocker the one way through to the
+firmware steps on Windows. BitLocker checks Secure Boot only when
+Windows starts: a person who turns Secure Boot off, starts the stick,
+and turns Secure Boot back on before Windows starts again is never
+asked for the key, as a computer of the owner's showed. The prompt
+comes when Windows starts while Secure Boot is off, most often on the
+restart that saves the firmware setting when the stick is not chosen
+in time, or when the firmware's keys change. Suspending covers those
+slips, at the cost of an elevation prompt, a typed-back key, a logon
+reminder and a Resume step for everyone. §6.6's runs in a virtual
+machine (2026-10-13) showed the suspension and the resume work.
+
+**Decision** (owner, 2026-10-13).
+
+- On Windows with a protected drive, the BitLocker step by default is
+  the recovery key in hand: where it is kept, **Show the recovery
+  key** for whoever wants it written down (one elevation prompt), and
+  **I have my recovery key**, which opens the firmware steps. Nothing
+  on the computer changes.
+- **Extra safe: suspend BitLocker** on the same page leads to the
+  guard as §6 built it: the key shown and typed back, the suspension,
+  the marker, the logon reminder and Resume. It is offered, never
+  required, and is unchanged.
+- The guides say, at the step that turns Secure Boot off, to choose
+  the stick from the boot menu before Windows starts, and to turn
+  Secure Boot back on before starting Windows.
+
+### F18 Firmware sketches in Faraday Starter and the Companion (2026-10-13)
+
+**Why.** The maker pages describe the firmware's menus in words. A
+picture of the screen to look for helps more, but the makers' own
+screens are theirs, and differ by model.
+
+**Decision** (owner, 2026-10-13).
+
+- The maker pages carry sketches of the firmware's screens (where
+  Secure Boot is, the save step, the boot menu), drawn by Faraday's
+  own code in its own style from the makers' simulators and manuals.
+  No maker's screenshot is published.
+- One sketch serves a family of menus; none names a model (F14).
+- Only Faraday Starter and the Companion draw them. The stick, the Pi
+  and Faraday Desktop show the pages without them.

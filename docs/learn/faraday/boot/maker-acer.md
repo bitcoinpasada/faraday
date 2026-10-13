@@ -2,7 +2,7 @@
 
 ## BitLocker first
 
-On Windows, do the BitLocker step in Faraday Starter on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, have the drive's BitLocker recovery key in hand before changing any firmware setting: Faraday Starter's BitLocker step on this computer shows it. Its extra-safe choice also suspends BitLocker until it is resumed. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
 
 ## Keys
 
@@ -15,6 +15,8 @@ Faraday Starter's Restart into firmware settings opens BIOS Setup without a key.
 On many Acer computers Secure Boot is greyed out until a supervisor password is set. In BIOS Setup, open the Security tab, choose Set Supervisor Password, and enter a password twice. Keep it written down until it is removed again.
 
 Then open the Boot tab, set Secure Boot to Disabled, and press F10 to save and exit.
+
+On Windows, choose the stick from the boot menu on the restart that follows the save, before Windows starts, and turn Secure Boot back on before Windows starts again. Windows started with Secure Boot off asks for the BitLocker recovery key, unless Faraday Starter suspended BitLocker.
 
 ## Turn Fast Boot off where it hides USB
 

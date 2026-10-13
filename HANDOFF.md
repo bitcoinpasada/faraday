@@ -2063,7 +2063,16 @@ as possible before the next build.
     button.
     §6.6 run 4 asks that the firmware steps not be shown when elevation
     is declined, while §3.4 shows them without their buttons, which is
-    what the build does: the spec needs one rule. (c) Three places still decide by displayed
+    what the build does: the spec needs one rule. **F17 (2026-10-13,
+    owner):** the BitLocker step's default is now the recovery key in
+    hand (where it is kept, Show the recovery key, I have my recovery
+    key), which opens the firmware steps with nothing changed on the
+    computer; "Extra safe: suspend BitLocker" leads to the guard above,
+    unchanged. The guides say to choose the stick from the boot menu
+    before Windows starts. §6.6 runs 7 and 8 (the default path) are new
+    and not yet run. **F18:** firmware sketches on the maker pages, in
+    Starter and the Companion only; research in local/firmware-sketches/,
+    spec next. (c) Three places still decide by displayed
     text and want an enum (`local/REMAINING.md`).
 
     **In flight at the time of writing.** Nothing of this item; the

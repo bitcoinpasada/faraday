@@ -26,13 +26,15 @@ It is also why turning Secure Boot off and then starting Windows makes Windows a
 
 ## How Faraday Starter keeps the recovery key prompt away
 
-Before it shows any firmware step, Faraday Starter does two things, in this order. First it shows the drive's recovery key and asks for two of its groups back, so the key is in hand. Then it suspends BitLocker until it is resumed.
+The TPM is asked for the key only when Windows starts. A computer whose Secure Boot is turned off, which starts the stick, and whose Secure Boot is turned back on before Windows starts again, is never asked for the recovery key. The guides say to choose the stick from the boot menu on the restart that saves Secure Boot off, and to turn Secure Boot back on before starting Windows.
 
-The key comes first, so stopping between the two changes nothing on the computer. Once BitLocker is suspended, Windows starts without asking for the recovery key, whatever the Secure Boot state.
+Before any firmware step, Faraday Starter's BitLocker step is to have the drive's recovery key in hand: it shows the key, and says where else it is kept. If Windows does start with Secure Boot off, that key opens it.
+
+The extra-safe choice also suspends BitLocker until it is resumed. It shows the key and asks for two of its groups back first, so stopping between the two changes nothing on the computer. Once BitLocker is suspended, Windows starts without asking for the recovery key, whatever the Secure Boot state.
 
 ## What suspending does
 
-The drive stays encrypted. What is written to it while suspended is encrypted too. Nothing is decrypted.
+This applies only to the extra-safe choice. The drive stays encrypted. What is written to it while suspended is encrypted too. Nothing is decrypted.
 
 What changes is the key. While suspended, the key that opens the drive is kept on the drive itself, in the clear, instead of sealed in the TPM. Windows uses it to start without checking how the computer started. Resuming seals the key in the TPM again and removes the clear copy.
 
@@ -48,7 +50,7 @@ Nothing left behind. Faraday runs in the computer's memory and from the stick. W
 
 ## The risk that remains
 
-While BitLocker is suspended, someone holding the computer could read its drive: by taking it out, or by starting another system, because the key is on the drive in the clear. This is the protection BitLocker normally gives, set aside for as long as the suspension lasts.
+While BitLocker is suspended by the extra-safe choice, someone holding the computer could read its drive: by taking it out, or by starting another system, because the key is on the drive in the clear. This is the protection BitLocker normally gives, set aside for as long as the suspension lasts.
 
 While Secure Boot is off, the computer starts boot programs that nobody has signed. A program with administrator rights in Windows could put a bootkit in place in that time, and the firmware would start it. Someone at the computer could also start any system from a stick.
 
@@ -56,13 +58,13 @@ Both last only until they are turned back on. Keep the computer with you, and do
 
 ## Turning both back on
 
-After every Faraday session Faraday Starter offers both steps, in this order.
+After every Faraday session Faraday Starter offers these steps, in this order.
 
-1. Turn Secure Boot back on, in the firmware settings. Faraday Starter's Restart into firmware settings opens them.
+1. Turn Secure Boot back on, in the firmware settings, before Windows starts. Faraday Starter's Restart into firmware settings opens them.
 
-2. Resume BitLocker, in Faraday Starter, once Windows has started again with Secure Boot on. Resuming seals the key to that start, so the next start with Secure Boot on does not ask for the recovery key. Faraday Starter does not offer it in the same Windows session that suspended it.
+2. After the extra-safe choice only: Resume BitLocker, in Faraday Starter, once Windows has started again with Secure Boot on. Resuming seals the key to that start, so the next start with Secure Boot on does not ask for the recovery key. Faraday Starter does not offer it in the same Windows session that suspended it.
 
-Then the computer is as it was: Secure Boot on, the drive's key sealed in the TPM, and no copy of it in the clear.
+Then the computer is as it was: Secure Boot on, the drive's key sealed in the TPM, and no copy of it in the clear. Without the extra-safe choice, BitLocker was never suspended, and turning Secure Boot back on is the whole of it.
 
 ## Where this comes from
 

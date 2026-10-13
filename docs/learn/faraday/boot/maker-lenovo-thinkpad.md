@@ -2,7 +2,7 @@
 
 ## BitLocker first
 
-On Windows, do the BitLocker step in Faraday Starter on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, have the drive's BitLocker recovery key in hand before changing any firmware setting: Faraday Starter's BitLocker step on this computer shows it. Its extra-safe choice also suspends BitLocker until it is resumed. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
 
 ## Keys
 
@@ -13,6 +13,8 @@ With Windows' Fast Startup on, Shut down does not close Windows and the keys can
 ## Turn Secure Boot off
 
 In BIOS Setup, open the Security tab, then Secure Boot, and set Secure Boot to Disabled (Off on some models). Press F10 to save and restart.
+
+On Windows, choose the stick from the boot menu on the restart that follows the save, before Windows starts, and turn Secure Boot back on before Windows starts again. Windows started with Secure Boot off asks for the BitLocker recovery key, unless Faraday Starter suspended BitLocker.
 
 ## Turn Fast Boot off where it hides USB
 

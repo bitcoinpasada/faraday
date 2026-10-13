@@ -546,6 +546,16 @@ pub struct Strings {
     pub hub_guard_undone: &'static str,
     /// The guard's first action.
     pub hub_show_key: &'static str,
+    /// Where the recovery key is also kept: the label (F17).
+    pub hub_key_also_kept: &'static str,
+    /// Where the recovery key is also kept: the value (F17).
+    pub hub_key_also_kept_where: &'static str,
+    /// The default BitLocker step: the person has the key (F17).
+    pub hub_key_in_hand: &'static str,
+    /// The extra-safe path: suspend BitLocker (F17).
+    pub hub_extra_safe: &'static str,
+    /// The BitLocker state once the person has the key (F17).
+    pub hub_state_key_kept: &'static str,
     /// While the elevation prompt is up.
     pub hub_waiting_permission: &'static str,
     /// The key's label.
@@ -8172,6 +8182,11 @@ pub static EN: Strings = Strings {
     hub_guard_encrypted: "Drive {} is encrypted with BitLocker",
     hub_guard_undone: "Protected again after Faraday suspended it",
     hub_show_key: "Show the recovery key",
+    hub_key_also_kept: "Also kept in",
+    hub_key_also_kept_where: "Microsoft account: aka.ms/myrecoverykey",
+    hub_key_in_hand: "I have my recovery key",
+    hub_extra_safe: "Extra safe: suspend BitLocker",
+    hub_state_key_kept: "Recovery key kept",
     hub_waiting_permission: "Waiting for administrator permission",
     hub_recovery_key: "Recovery key",
     hub_key_id: "Key ID",

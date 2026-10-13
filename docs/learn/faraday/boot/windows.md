@@ -2,7 +2,9 @@
 
 ## BitLocker first
 
-Do the BitLocker step in Faraday Starter on this computer before changing any firmware setting. On a computer whose drive is encrypted with BitLocker or Device encryption, starting Windows after Secure Boot is turned off makes Windows ask for the drive's 48-digit recovery key. Faraday Starter shows the key, asks for two of its groups once you have kept it, and suspends BitLocker until you resume it. Windows then starts without the key. The page "BitLocker and starting from a stick" says why.
+Do the BitLocker step in Faraday Starter on this computer before changing any firmware setting. On a computer whose drive is encrypted with BitLocker or Device encryption, starting Windows while Secure Boot is off makes Windows ask for the drive's 48-digit recovery key. The step is to have that key in hand: Faraday Starter shows it, and says where else it is kept. Then I have my recovery key opens the firmware steps; nothing on the computer changes.
+
+The extra-safe choice, Extra safe: suspend BitLocker, also asks for two of the key's groups once you have kept it, and suspends BitLocker until you resume it. Windows then starts without the key whatever the Secure Boot setting, at the cost of a Resume step afterwards. The page "BitLocker and starting from a stick" says why.
 
 A computer whose drive is not encrypted has no BitLocker step, and Faraday Starter says so.
 
@@ -34,6 +36,8 @@ The Faraday on the stick is not signed with Microsoft's keys, so a computer star
 
 Leave the Secure Boot keys as they are. Do not delete or clear them.
 
+Saving restarts the computer. On that restart choose the stick from the boot menu, before Windows starts, and turn Secure Boot back on before Windows starts again: Windows started with Secure Boot off asks for the recovery key, unless Faraday Starter suspended BitLocker.
+
 ## Turn Fast Boot off where it hides USB
 
 The firmware's own Fast Boot, which is not Windows' Fast Startup, makes some computers skip USB disks at power-on, so the stick is not offered. If the stick is missing from the list in the next step, set Fast Boot to Disabled, or to Thorough where that is the choice, and save.
@@ -44,15 +48,17 @@ Plug the stick in. Faraday Starter's Restart to choose a device, offered once Se
 
 By hand: open Advanced startup as above, and on Choose an option choose Use a device, then the stick. Use a device is offered only on computers started in UEFI mode, and not on every one. Without it, use the maker's boot menu key at power-on, or the boot override list in the firmware settings.
 
+Use a device and Restart to choose a device are reached from Windows, so Windows has to have started with Secure Boot off; with BitLocker not suspended, that start asks for the recovery key. Use the maker's boot menu key on the restart that saves Secure Boot off instead.
+
 Where the stick is listed twice, choose the entry that begins with UEFI.
 
 ## Afterwards: Secure Boot back on
 
-Turn the computer off from Faraday and pull the stick out. Turn Secure Boot back on before starting Windows: open the firmware settings with the maker's key at power-on, set Secure Boot to Enabled, save and exit. Without the maker's key, start Windows, which starts without the recovery key while BitLocker is suspended, use Restart into firmware settings again, and turn Secure Boot on there.
+Turn the computer off from Faraday and pull the stick out. Turn Secure Boot back on before starting Windows: open the firmware settings with the maker's key at power-on, set Secure Boot to Enabled, save and exit. Without the maker's key, start Windows, use Restart into firmware settings again, and turn Secure Boot on there; Windows asks for the recovery key on that start unless BitLocker is suspended, and the key in hand opens it.
 
 If the firmware does not let Secure Boot be enabled, or Windows does not start with it on, load the computer's own Secure Boot keys: on some firmware this is Restore Factory Keys or a Custom setting that loads the keys built into the computer.
 
-Then open Faraday Starter in Windows and choose Resume BitLocker. It is offered only while Secure Boot is on. An installed Faraday Starter offers it at sign-in; one run without installing offers it when opened again.
+If BitLocker was suspended with the extra-safe choice, open Faraday Starter in Windows and choose Resume BitLocker. It is offered only while Secure Boot is on. An installed Faraday Starter offers it at sign-in; one run without installing offers it when opened again.
 
 A computer whose Secure Boot was already off before the BitLocker step is not asked to turn it on.
 

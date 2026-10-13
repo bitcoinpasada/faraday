@@ -662,6 +662,7 @@ fn state_text(state: &State) -> String {
         State::Suspended => S.hub_state_suspended.to_string(),
         State::SuspendedOther => S.hub_state_suspended_other.to_string(),
         State::Resumed => S.hub_state_resumed.to_string(),
+        State::KeyKept => S.hub_state_key_kept.to_string(),
         State::Other => S.hub_state_other.to_string(),
         State::SecureBoot(on) => secure_boot_text(*on),
     }
@@ -1313,14 +1314,7 @@ fn start(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     if windows && (facts.protected() || facts.guard_done()) {
         n += 1;
         y += step_head(ui, x, y, w, n, S.hub_item_bitlocker, facts.guard_done());
-        let state = if facts.suspension_stands() {
-            State::Suspended
-        } else if facts.resumed {
-            State::Resumed
-        } else {
-            State::Protected
-        };
-        y += line(ui, ix, y, iw, &state_text(&state), MUTED);
+        y += line(ui, ix, y, iw, &state_text(&facts.bitlocker_state()), MUTED);
         if open {
             y += buttons(
                 ui,
@@ -1357,7 +1351,10 @@ fn start(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     // 4. Start from the stick.
     n += 1;
     y += step_head(ui, x, y, w, n, S.hub_boot_from_stick, false);
-    let how = if windows {
+    // Use a device is reached from Windows, which with a protected drive
+    // and Secure Boot off asks for the recovery key: the boot menu key
+    // only, unless the drive is not protected or is suspended (F17).
+    let how = if windows && !facts.protected() {
         S.hub_boot_how_windows
     } else {
         S.hub_boot_how
@@ -1709,10 +1706,13 @@ fn about(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y
 }
 
-/// The BitLocker guard (§6.5): the state; Show the recovery key; the
-/// key, its QR code and Save; I have kept it; the key hidden and two
-/// groups typed back; Suspend BitLocker; Done. The same page resumes
-/// later (§6.3). Another encryption product's line comes first (§6.4).
+/// The BitLocker step (§6.5, F17): the state; where the key is also
+/// kept; Show the recovery key; I have my recovery key; Extra safe:
+/// suspend BitLocker. The extra-safe path is the guard as §6 built it:
+/// the key, its QR code and Save; I have kept it; the key hidden and
+/// two groups typed back; Suspend BitLocker; Done. The same page
+/// resumes later (§6.3). Another encryption product's line comes first
+/// (§6.4).
 fn bitlocker(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0 + title(hub, ui, x, y0);
     let f = hub.facts();
@@ -1761,6 +1761,8 @@ fn bitlocker(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let holds = hub.key_holds();
     if stands {
         y += guard_done(hub, ui, x, y, w);
+    } else if f.protected() && !f.other_open && !g.extra {
+        y += key_step(hub, ui, x, y, w, &holds);
     } else if f.protected() && !f.other_open && !holds.is_empty() && !g.hidden {
         // Nothing secret on a screen that can keep it.
         y += concern_block(hub, ui, x, y, w, &holds);
@@ -1774,13 +1776,70 @@ fn bitlocker(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
                 };
                 buttons(ui, x, y, w, &[(label, style, HubAction::ShowKey)]) + 16.0
             }
-            (Some(k), false) => key_shown(hub, ui, x, y, w, k),
+            (Some(k), false) => key_shown(hub, ui, x, y, w, k, true),
             (Some(_), true) => key_asked(hub, ui, x, y, w),
         };
     }
     y += 12.0;
     y += link(ui, x, y, w, LearnId::SecureBootBitLocker);
     y + guide_line(ui, x, y, w, LearnId::BitLocker)
+}
+
+/// The default BitLocker step (F17): where the key is also kept; Show
+/// the recovery key and the key, without I have kept it; I have my
+/// recovery key, or once pressed, the state and Start; then Extra safe:
+/// suspend BitLocker. Returns its height.
+fn key_step(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32, holds: &[&Concern]) -> f32 {
+    let g = &hub.guard;
+    let mut y = y0;
+    y += value_row(
+        ui,
+        x,
+        y,
+        w,
+        S.hub_key_also_kept,
+        S.hub_key_also_kept_where,
+        TEXT,
+    ) + 16.0;
+    if hub.key_kept {
+        y += line(ui, x, y, w, S.hub_state_key_kept, OK);
+        y += buttons(
+            ui,
+            x,
+            y,
+            w,
+            &[(S.hub_item_start, Style::Primary, HubAction::Start)],
+        ) + 16.0;
+    } else {
+        if !holds.is_empty() {
+            // Nothing secret on a screen that can keep it.
+            y += concern_block(hub, ui, x, y, w, holds);
+        } else if let Some(k) = &g.key {
+            y += key_shown(hub, ui, x, y, w, k, false);
+        } else {
+            let (label, style) = if g.busy == Some(crate::api::BitLockerStep::ShowKey) {
+                (S.hub_waiting_permission, Style::Disabled)
+            } else {
+                (S.hub_show_key, Style::Secondary)
+            };
+            y += buttons(ui, x, y, w, &[(label, style, HubAction::ShowKey)]) + 16.0;
+        }
+        y += buttons(
+            ui,
+            x,
+            y,
+            w,
+            &[(S.hub_key_in_hand, Style::Primary, HubAction::KeyInHand)],
+        ) + 16.0;
+    }
+    y + buttons(
+        ui,
+        x,
+        y,
+        w,
+        &[(S.hub_extra_safe, Style::Secondary, HubAction::ExtraSafe)],
+    ) + 16.0
+        - y0
 }
 
 /// The suspension stands: Done's lines, then Start and Resume, whichever
@@ -1849,8 +1908,9 @@ fn key_panel(ui: &mut Ui, x: f32, y: f32, w: f32, key: Option<&RecoveryKey>) -> 
 }
 
 /// The key shown: the panel, its ID, its QR code, Save where a disk for
-/// it is attached, and I have kept it. Returns its height.
-fn key_shown(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32, k: &KeyShown) -> f32 {
+/// it is attached, and on the extra-safe path (`kept`) I have kept it.
+/// Returns its height.
+fn key_shown(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32, k: &KeyShown, kept: bool) -> f32 {
     let mut y = y0;
     y += label(ui, x, y, S.hub_recovery_key);
     y += key_panel(ui, x, y, w, Some(&k.text.key));
@@ -1882,6 +1942,9 @@ fn key_shown(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32, k: &KeyShown) -> f
         None => {}
     }
     y += 6.0;
+    if !kept {
+        return y + 10.0 - y0;
+    }
     y + buttons(
         ui,
         x,

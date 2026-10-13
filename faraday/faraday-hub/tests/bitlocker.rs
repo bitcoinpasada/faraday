@@ -1,8 +1,11 @@
-//! The BitLocker guard as a person meets it (`docs/HUB.md` §6, §11): the
-//! key shown, kept and confirmed with it hidden before anything is
-//! suspended; the firmware steps closed until both parts are done; the
-//! cases the guard cannot pass; Resume, and Uninstall while suspended.
-//! The shell's answers are made up here as the elevated copy gives them.
+//! The BitLocker step as a person meets it (`docs/HUB.md` §6, §11, F17):
+//! by default the recovery key in hand, which opens the firmware steps
+//! and changes nothing on the computer; on the extra-safe path, the key
+//! shown, kept and confirmed with it hidden before anything is
+//! suspended, and the firmware steps closed until both parts are done;
+//! the cases the guard cannot pass; Resume, and Uninstall while
+//! suspended. The shell's answers are made up here as the elevated copy
+//! gives them.
 
 use faraday_hub::api::{
     BitLocker, BitLockerStep, Bus, Computer, Disk, FaradayStick, HubCommand, HubEvent, InstallItem,
@@ -146,9 +149,11 @@ fn firmware_open(hub: &mut Hub) -> bool {
     open
 }
 
-/// Shows the key: the elevation prompt's step, answered.
+/// On the extra-safe path, shows the key: the elevation prompt's step,
+/// answered.
 fn show(hub: &mut Hub, entropy: [u8; 2]) {
     hub.press(HubAction::BitLocker);
+    hub.press(HubAction::ExtraSafe);
     hub.press(HubAction::ShowKey);
     assert_eq!(
         commands(hub),
@@ -173,9 +178,78 @@ fn type_digits(hub: &mut Hub, s: &str) {
 }
 
 #[test]
+fn the_recovery_key_in_hand_opens_the_firmware_steps_and_changes_nothing() {
+    let mut hub = with(true, protected());
+    assert!(!firmware_open(&mut hub));
+    hub.press(HubAction::BitLocker);
+    assert!(shows(&mut hub, "Drive C: is encrypted with BitLocker"));
+    assert!(shows(&mut hub, "Also kept in"));
+    assert!(shows(&mut hub, "Microsoft account: aka.ms/myrecoverykey"));
+    assert!(offered(&mut hub, HubAction::ShowKey));
+    assert!(offered(&mut hub, HubAction::ExtraSafe));
+    assert!(!offered(&mut hub, HubAction::Suspend));
+    // Pressed without showing the key first: no elevation prompt, no
+    // suspension, nothing sent to the shell at all.
+    hub.press(HubAction::KeyInHand);
+    assert!(commands(&mut hub).is_empty());
+    assert!(shows(&mut hub, "Recovery key kept"));
+    assert!(!offered(&mut hub, HubAction::KeyInHand));
+    assert!(firmware_open(&mut hub));
+    // Home's checklist says so.
+    hub.press(HubAction::Home);
+    assert!(shows(&mut hub, "Recovery key kept"));
+}
+
+#[test]
+fn the_key_is_shown_on_the_default_path_without_typing_back() {
+    let mut hub = with(true, protected());
+    hub.press(HubAction::BitLocker);
+    hub.press(HubAction::ShowKey);
+    assert_eq!(
+        commands(&mut hub),
+        vec![HubCommand::BitLocker(BitLockerStep::ShowKey)]
+    );
+    hub.hub_event(HubEvent::KeyShown(Ok(key())));
+    assert!(key_on_screen(&mut hub));
+    assert!(shows(&mut hub, "Or take a photo of this screen."));
+    assert!(offered(&mut hub, HubAction::KeyInHand));
+    // No groups asked for, nothing hidden, nothing to suspend.
+    assert!(!offered(&mut hub, HubAction::KeptIt));
+    hub.press(HubAction::KeptIt);
+    assert!(key_on_screen(&mut hub));
+    assert!(!shows(&mut hub, "Type groups"));
+    hub.press(HubAction::Suspend);
+    assert!(commands(&mut hub).is_empty());
+    // In hand: the key leaves the screen and the firmware steps open.
+    hub.press(HubAction::KeyInHand);
+    assert!(!key_on_screen(&mut hub));
+    assert!(commands(&mut hub).is_empty());
+    assert!(firmware_open(&mut hub));
+}
+
+#[test]
+fn extra_safe_leads_to_the_suspension_path() {
+    let mut hub = with(true, protected());
+    hub.press(HubAction::BitLocker);
+    hub.press(HubAction::ExtraSafe);
+    assert!(!offered(&mut hub, HubAction::KeyInHand));
+    hub.press(HubAction::KeyInHand);
+    assert!(!firmware_open(&mut hub));
+    show(&mut hub, [3, 2]);
+    assert!(offered(&mut hub, HubAction::KeptIt));
+    hub.press(HubAction::KeptIt);
+    assert!(shows(&mut hub, "Type groups 4 and 7 of the key"));
+    // Left, the page opens on the default step again.
+    hub.press(HubAction::Home);
+    hub.press(HubAction::BitLocker);
+    assert!(offered(&mut hub, HubAction::KeyInHand));
+}
+
+#[test]
 fn the_key_is_confirmed_with_it_hidden_before_bitlocker_is_suspended() {
     let mut hub = with(true, protected());
     hub.press(HubAction::BitLocker);
+    hub.press(HubAction::ExtraSafe);
     assert!(shows(&mut hub, "Drive C: is encrypted with BitLocker"));
     assert!(offered(&mut hub, HubAction::ShowKey));
     assert!(!offered(&mut hub, HubAction::Suspend));
@@ -243,6 +317,7 @@ fn a_wrong_group_is_refused_and_nothing_is_suspended() {
 fn suspend_is_never_sent_before_the_key_is_confirmed() {
     let mut hub = with(true, protected());
     hub.press(HubAction::BitLocker);
+    hub.press(HubAction::ExtraSafe);
     // No key yet.
     hub.press(HubAction::Suspend);
     assert!(commands(&mut hub).is_empty());
@@ -270,7 +345,7 @@ fn suspend_is_never_sent_before_the_key_is_confirmed() {
 }
 
 #[test]
-fn no_firmware_step_before_both_parts_are_done() {
+fn on_the_extra_safe_path_no_firmware_step_before_both_parts_are_done() {
     let mut hub = with(true, protected());
     assert!(!firmware_open(&mut hub));
     show(&mut hub, [1, 1]);

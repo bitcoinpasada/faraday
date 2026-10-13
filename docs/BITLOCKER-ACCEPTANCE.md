@@ -1,7 +1,9 @@
 # BitLocker guard: acceptance runs
 
-The steps for `docs/HUB.md` §6.6's runs 1 to 6, in a Windows 11 Pro
-virtual machine, before batch W ships. Each run starts from the same
+The steps for `docs/HUB.md` §6.6's runs 1 to 8, in a Windows 11 Pro
+virtual machine, before batch W ships. Runs 1 to 6 test the extra-safe
+path (BitLocker suspended); runs 7 and 8 test the default path, the
+recovery key in hand and nothing suspended (F17). Each run starts from the same
 saved state of the machine, follows the hub app on its screen, and is
 recorded as the end of this file says. A run passes only when every
 "Must see" line holds; one that does not stops the batch until the
@@ -88,7 +90,8 @@ virtual machine's own and name nothing else).
 1. Start the machine (Secure Boot on). Sign in. Run `Faraday Starter.exe`,
    choose Install, install. Attach the second USB image.
 2. Home: the card says **Do the BitLocker step** once a Faraday stick
-   is attached; the checklist shows BitLocker "Protected". Open it.
+   is attached; the checklist shows BitLocker "Protected". Open it,
+   and choose **Extra safe: suspend BitLocker**.
 3. **Show the recovery key**: the elevation prompt; Yes.
 4. The page shows the key (eight groups), its key ID, the QR code, "Or
    take a photo of this screen.", **Save to …** naming the USB image,
@@ -164,8 +167,8 @@ Must see:
 
 ## Run 4: elevation declined
 
-a. On the administrator's account: steps 1 and 2 of run 1, then **Show
-   the recovery key** and **No** at the prompt. Again, through to step
+a. On the administrator's account: steps 1 and 2 of run 1 (Extra safe
+   chosen), then **Show the recovery key** and **No** at the prompt. Again, through to step
    6, and **No** at Suspend's prompt.
 
 b. Install nothing; sign in as the standard user, run `Faraday Starter.exe`,
@@ -218,6 +221,55 @@ Must see:
       Boot on, start Windows (no recovery prompt), and Control Panel's
       Resume protection resumes it.
 
+## Run 7: the default path, the key in hand
+
+1. Start the machine (Secure Boot on). Sign in. Run `Faraday Starter.exe`
+   (not installed). Attach the stick image.
+2. Home: the card says **Do the BitLocker step**; the checklist shows
+   BitLocker "Protected". Open it. The page shows "Also kept in:
+   Microsoft account: aka.ms/myrecoverykey", **Show the recovery key**,
+   **I have my recovery key** and **Extra safe: suspend BitLocker**.
+3. **Show the recovery key**: the elevation prompt; Yes. The key, its
+   key ID, the QR code and "Or take a photo of this screen."; no **I
+   have kept it**, no groups asked for. Compare the key with
+   `manage-bde -protectors -get C: -Type RecoveryPassword`.
+4. **I have my recovery key**: the key leaves the screen; the page reads
+   "Recovery key kept". Outside the hub app: `manage-bde -status C:`
+   still "Protection On"; no `%LOCALAPPDATA%aradayitlocker-suspended`;
+   no Run value.
+5. Home: BitLocker reads "Recovery key kept"; the card offers the
+   firmware restart. Choose it; the sheet; **Restart**.
+6. Secure Boot off in OVMF's setup, save, and on the restart that
+   follows choose the stick from the boot menu before Windows starts
+   (or `winvm.sh start --secure-boot off --usb-stick
+   out/stick/faraday-x86_64-uefi.img` with the machine off). Faraday
+   starts. Power it off from Faraday.
+7. Secure Boot on (`winvm.sh start --secure-boot on`, stick detached).
+   Windows starts.
+
+Must see:
+
+- [ ] Step 2 to 4: nothing changed on the computer: "Protection On"
+      throughout, no marker, no Run value.
+- [ ] **No recovery prompt** at step 7: Windows' sign-in screen.
+- [ ] `manage-bde -status C:` "Protection On".
+- [ ] Faraday Starter opened again: BitLocker reads "Protected" (the
+      confirmation was for that session only).
+
+## Run 8: the default path, Windows started with Secure Boot off
+
+Steps 1 to 5 of run 7. Secure Boot off in OVMF's setup, save, and let
+Windows start with the stick not chosen (or `winvm.sh start
+--secure-boot off` with no stick).
+
+Must see:
+
+- [ ] **The BitLocker recovery screen**, with the key ID Faraday Starter
+      showed at step 3 of run 7.
+- [ ] The key Faraday Starter showed unlocks it (`winvm.sh type …`):
+      Windows starts. Then Secure Boot on, start Windows: no recovery
+      prompt. Restore `clean`.
+
 ## What to record
 
 For each run, in the completion report:
@@ -229,7 +281,8 @@ For each run, in the completion report:
   (`winvm.sh screenshot`), named by run and start;
 - screenshots of the hub app's BitLocker page at each step it changes;
 - `manage-bde -status C:` before the run, after Suspend and after
-  Resume; the marker's text and the Run value where the run checks
+  Resume (runs 7 and 8: before the run and after I have my recovery
+  key); the marker's text and the Run value where the run checks
   them;
 - the two `--record-bitlocker` files of the first check;
 - each "Must see" line, passed or not.

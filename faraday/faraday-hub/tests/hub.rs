@@ -850,6 +850,33 @@ fn the_cards_button_follows_this_computers_state() {
 }
 
 #[test]
+fn homes_next_step_moves_on_once_the_recovery_key_is_in_hand() {
+    let mut hub = hub_with(stick_attached());
+    hub.hub_event(HubEvent::Computer(windows(true)));
+    hub.hub_event(HubEvent::BitLocker(Some(BitLocker {
+        drive: "C:".into(),
+        protection: Protection::On,
+        marker: None,
+    })));
+    assert!(shows(&mut hub, "Protected"));
+    assert!(card_says(&mut hub, "Do the BitLocker step"));
+    hub.press(HubAction::Next);
+    assert_eq!(hub.page, Page::BitLocker);
+    hub.press(HubAction::KeyInHand);
+    hub.press(HubAction::Home);
+    // The item reads as done, and the card leads to the firmware.
+    assert!(shows(&mut hub, "Recovery key kept"));
+    assert!(card_says(&mut hub, "Restart into firmware settings"));
+    assert_eq!(next_step(&mut hub), (true, Page::Home, FIRMWARE));
+    // The Start page offers its restart too.
+    hub.press(HubAction::Start);
+    let _ = hub.drawn_texts();
+    assert!(hub.offers_action(HubAction::Restart));
+    // Nothing was sent to the computer for it.
+    assert!(commands(&mut hub).is_empty());
+}
+
+#[test]
 fn a_restart_asks_first_and_cancel_sends_nothing() {
     for (computer, label, sent) in [
         (

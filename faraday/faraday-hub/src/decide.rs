@@ -115,6 +115,8 @@ pub enum State {
     SuspendedOther,
     /// Protection was resumed through the hub app this session.
     Resumed,
+    /// The person said they have the recovery key, this session (F17).
+    KeyKept,
     /// Another encryption product, not yet confirmed (§6.4).
     Other,
     /// Secure Boot on, off, or not read.
@@ -149,6 +151,9 @@ pub struct Facts<'a> {
     /// The hub app suspended BitLocker in this session: the person has
     /// not been to the firmware yet, so the next step is still Start.
     pub suspended_here: bool,
+    /// The person said they have the recovery key, this session: the
+    /// default BitLocker step (F17). Nothing on the computer changed.
+    pub key_kept: bool,
     /// Another encryption product's driver is here and the person has
     /// not yet said they have its rescue disk or password (§6.4).
     pub other_open: bool,
@@ -180,10 +185,31 @@ impl Facts<'_> {
             })
     }
 
-    /// The BitLocker step is done: the suspension stands, or it was
-    /// resumed here with Secure Boot on.
+    /// The BitLocker step is done: the recovery key is in hand (F17),
+    /// or the extra-safe suspension stands, or it was resumed here with
+    /// Secure Boot on.
     pub fn guard_done(&self) -> bool {
-        self.suspension_stands() || self.resumed
+        self.key_kept || self.suspension_stands() || self.resumed
+    }
+
+    /// What the BitLocker item shows, on Home and on the Start page.
+    pub fn bitlocker_state(&self) -> State {
+        if self.other_open {
+            State::Other
+        } else if self.suspension_stands() {
+            State::Suspended
+        } else if self.resumed {
+            State::Resumed
+        } else if self.key_kept {
+            State::KeyKept
+        } else if self
+            .bitlocker
+            .is_some_and(|b| b.protection == Protection::Suspended)
+        {
+            State::SuspendedOther
+        } else {
+            State::Protected
+        }
     }
 
     /// The step back to Secure Boot on applies: Secure Boot is off now,
@@ -246,23 +272,9 @@ impl Facts<'_> {
         }
         let windows = self.computer.os == Os::Windows;
         if windows && (self.protected() || self.guard_done() || self.other_open) {
-            let state = if self.other_open {
-                State::Other
-            } else if self.suspension_stands() {
-                State::Suspended
-            } else if self.resumed {
-                State::Resumed
-            } else if self
-                .bitlocker
-                .is_some_and(|b| b.protection == Protection::Suspended)
-            {
-                State::SuspendedOther
-            } else {
-                State::Protected
-            };
             rows.push(Row {
                 item: Item::BitLocker,
-                state,
+                state: self.bitlocker_state(),
                 done: self.guard_done() && !self.other_open,
                 offered: true,
             });

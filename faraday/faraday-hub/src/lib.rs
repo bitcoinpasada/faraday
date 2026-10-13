@@ -250,7 +250,13 @@ pub enum HubAction {
     BitLocker,
     /// Show the recovery key: the elevation prompt, then the key (§6.2).
     ShowKey,
-    /// I have kept it: the key is hidden and two groups are asked for.
+    /// I have my recovery key: the default BitLocker step is done for
+    /// the session, and the firmware steps open (F17).
+    KeyInHand,
+    /// Extra safe: suspend BitLocker, the guard's suspension path (F17).
+    ExtraSafe,
+    /// I have kept it, on the extra-safe path: the key is hidden and two
+    /// groups are asked for.
     KeptIt,
     /// Show the key again, with new groups to ask for after.
     ShowAgain,
@@ -341,6 +347,8 @@ impl HubAction {
             HubAction::ContinueAnyway(n) => (35, u32::from(n)),
             HubAction::LetThrough => (36, 0),
             HubAction::RemoveEntry => (37, 0),
+            HubAction::KeyInHand => (38, 0),
+            HubAction::ExtraSafe => (39, 0),
         };
         (kind << 16) | arg
     }
@@ -394,6 +402,8 @@ impl HubAction {
             35 => HubAction::ContinueAnyway(arg as u16),
             36 => HubAction::LetThrough,
             37 => HubAction::RemoveEntry,
+            38 => HubAction::KeyInHand,
+            39 => HubAction::ExtraSafe,
             _ => return None,
         })
     }
@@ -446,6 +456,9 @@ pub struct Image {
 /// way. The key and what is typed are wiped when dropped.
 #[derive(Default)]
 pub struct Guard {
+    /// The extra-safe path was chosen (F17): the key is typed back and
+    /// BitLocker suspended. Until the page is left.
+    pub extra: bool,
     /// The key, from Show the recovery key until the suspension, or
     /// until the page is left.
     pub key: Option<KeyShown>,
@@ -564,6 +577,9 @@ pub struct Hub {
     pub resumed: bool,
     /// The hub app suspended BitLocker in this session.
     pub suspended_here: bool,
+    /// The person said they have the recovery key, this session (F17).
+    /// Kept in memory only: Home reads it live and nothing is written.
+    pub key_kept: bool,
     /// The guard's elevated step read the system drive as not encrypted:
     /// taken so for the rest of the session (§6.2).
     not_encrypted_here: bool,
@@ -650,6 +666,7 @@ impl Hub {
             entry_kept: None,
             resumed: false,
             suspended_here: false,
+            key_kept: false,
             not_encrypted_here: false,
             guard: Guard::default(),
             other: None,
@@ -678,6 +695,7 @@ impl Hub {
             disks: &self.disks,
             resumed: self.resumed,
             suspended_here: self.suspended_here,
+            key_kept: self.key_kept,
             other_open: self.computer.os == Os::Windows
                 && self.other.is_some()
                 && !self.other_confirmed,
@@ -1211,6 +1229,7 @@ impl Hub {
         // The key stays only while its page is open.
         if self.page == Page::BitLocker && page != Page::BitLocker {
             self.guard.forget();
+            self.guard.extra = false;
         }
         self.page = page;
         self.sheet = None;
@@ -1450,8 +1469,33 @@ impl Hub {
                         .push_back(HubCommand::BitLocker(BitLockerStep::ShowKey));
                 }
             }
+            HubAction::KeyInHand => {
+                let (protected, other) = {
+                    let f = self.facts();
+                    (f.protected(), f.other_open)
+                };
+                if self.page == Page::BitLocker
+                    && self.guard.busy.is_none()
+                    && !self.guard.extra
+                    && protected
+                    && !other
+                {
+                    // The key leaves the screen once it is in hand.
+                    self.guard.forget();
+                    self.key_kept = true;
+                }
+            }
+            HubAction::ExtraSafe => {
+                if self.page == Page::BitLocker && self.guard.busy.is_none() {
+                    self.guard.extra = true;
+                }
+            }
             HubAction::KeptIt => {
-                if self.page == Page::BitLocker && self.guard.key.is_some() && !self.guard.hidden {
+                if self.page == Page::BitLocker
+                    && self.guard.extra
+                    && self.guard.key.is_some()
+                    && !self.guard.hidden
+                {
                     self.guard.clear_typing();
                     let pick = self.guard.pick.take().unwrap_or_else(|| {
                         let c = self.clock / 16;
@@ -1741,14 +1785,15 @@ pub enum ModeRefusal {
 }
 
 impl Facts<'_> {
-    /// Windows with a drive the guard has not passed: the firmware
-    /// steps' buttons are not offered (§3.4 step 1, §6.4). Protected
-    /// means protected now: a drive resumed through the hub app is
-    /// protected again, and the firmware steps need the guard again.
-    /// Another encryption product closes them too, until the person says
-    /// they have its rescue disk or password.
+    /// Windows with a drive whose BitLocker step is not done: the
+    /// firmware steps' buttons are not offered (§3.4 step 1, §6.4). The
+    /// step is done by the recovery key in hand (F17) or by the
+    /// extra-safe suspension. Protected means protected now: a drive
+    /// resumed through the hub app is protected again, and the firmware
+    /// steps need the step again. Another encryption product closes them
+    /// too, until the person says they have its rescue disk or password.
     pub fn protected_open(&self) -> bool {
-        self.computer.os == Os::Windows && (self.protected() || self.other_open)
+        self.computer.os == Os::Windows && ((self.protected() && !self.key_kept) || self.other_open)
     }
 }
 

@@ -243,6 +243,9 @@ fn guard(s: &Snap, b: BitLocker) -> Hub {
 fn guard_shots(s: &Snap) -> Result<(), String> {
     let mut h = guard(s, protected());
     s.shot(&mut h, "bitlocker-1-protected")?;
+    let mut kept = guard(s, protected());
+    kept.press(HubAction::KeyInHand);
+    s.shot(&mut kept, "bitlocker-1-key-kept")?;
     h.press(HubAction::ShowKey);
     s.shot(&mut h, "bitlocker-1-waiting")?;
     h.hub_event(HubEvent::KeyShown(Err(Reason::Declined)));
@@ -264,6 +267,8 @@ fn guard_shots(s: &Snap) -> Result<(), String> {
     h.event(Event::Entropy(EntropyBytes::new(bytes)));
     s.shot(&mut h, "bitlocker-2-key")?;
     s.shot_end(&mut h, "bitlocker-2-key-end")?;
+    h.press(HubAction::ExtraSafe);
+    s.shot_end(&mut h, "bitlocker-2-key-extra-safe")?;
     h.press(HubAction::KeptIt);
     s.shot(&mut h, "bitlocker-3-groups")?;
     for c in "336446".chars() {
