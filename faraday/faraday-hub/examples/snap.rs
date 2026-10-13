@@ -108,6 +108,20 @@ fn laptop(os: Os, secure_boot: bool) -> Computer {
     }
 }
 
+/// A Mac on macOS, by its model identifier.
+fn mac(model: &str) -> Computer {
+    Computer {
+        os: Os::MacOs,
+        maker: "Apple Inc.".into(),
+        model: model.into(),
+        family: String::new(),
+        uefi: true,
+        arm: false,
+        secure_boot: None,
+        tpm_unlock: false,
+    }
+}
+
 fn many() -> Vec<Disk> {
     let mut backup = disk("sdc", "WD", "Elements 2TB", 2_000 * GB, &[("BACKUP", true)]);
     backup.in_use = Some(InUse::Mounted("/srv/backup".into()));
@@ -464,6 +478,40 @@ fn run(s: &Snap) -> Result<(), String> {
     arm.model = "Surface Example".into();
     h.hub_event(HubEvent::Computer(arm));
     s.shot(&mut h, "home-arm")?;
+
+    // On a Mac (§3.1's "On a Mac", §3.4): an Intel Mac and a T2 Mac,
+    // Home with a stick attached and the Start page.
+    for (model, name) in [
+        ("MacBookPro11,1", "mac-intel"),
+        ("MacBookPro15,1", "mac-t2"),
+    ] {
+        let mut h = s.hub();
+        h.hub_event(HubEvent::Computer(mac(model)));
+        s.shot(&mut h, &format!("home-{name}-no-stick"))?;
+        h.hub_event(HubEvent::Disks(vec![stick(
+            "disk4",
+            "6.6.84-faraday-0.2.0",
+        )]));
+        s.shot(&mut h, &format!("home-{name}"))?;
+        h.press(HubAction::Next);
+        s.shot(&mut h, &format!("start-{name}"))?;
+    }
+    let mut h = s.hub();
+    h.hub_event(HubEvent::Computer(Computer {
+        arm: true,
+        uefi: false,
+        ..mac("Mac14,2")
+    }));
+    s.shot(&mut h, "home-mac-m2")?;
+    // For which computer?, with a stand-in Apple silicon image.
+    let mut p = payload();
+    let mut apple = p.files[0].clone();
+    apple.name = "faraday-stick-0.2.0-arm64-apple.img.xz".into();
+    apple.inner = "faraday-stick-0.2.0-arm64-apple.img".into();
+    p.files.push(apple);
+    h.hub_event(HubEvent::Payload(Some(p)));
+    h.press(HubAction::Make(Target::Stick));
+    s.shot(&mut h, "stick-0-which-mac-m2")?;
 
     // What is attached that can capture the screen or the keys (§3.1a).
     concern_shots(s)?;

@@ -21,6 +21,7 @@ use crate::api::{
     StickFault, WriteStage,
 };
 use crate::decide::{Item, Refusal, State, Target};
+use crate::macs::{self, StickFor};
 use crate::{Card, Hub, HubAction, LearnId, ModeRefusal, Page, RestartTo, Sheet};
 
 /// Faraday's drawing, a press being the desktop app's action that carries
@@ -62,6 +63,7 @@ pub(crate) fn frame(hub: &Hub, ui: &mut Ui) -> f32 {
     let y0 = top + pad - hub.offset;
     let end = match hub.page {
         Page::Home => home(hub, ui, x, y0, cw),
+        Page::Which => which(hub, ui, x, y0, cw),
         Page::Disks => disks(hub, ui, x, y0, cw),
         Page::Mode => mode(hub, ui, x, y0, cw),
         Page::Confirm => confirm(hub, ui, x, y0, cw),
@@ -103,6 +105,7 @@ fn page_name(hub: &Hub) -> String {
     let target = hub.making.as_ref().map_or(Target::Stick, |m| m.target);
     match hub.page {
         Page::Home => String::new(),
+        Page::Which => S.hub_which_title.to_string(),
         Page::Disks => match target {
             Target::Stick => S.hub_disks_stick,
             Target::Pi => S.hub_disks_card,
@@ -116,7 +119,7 @@ fn page_name(hub: &Hub) -> String {
             _ => S.hub_failed_title,
         }
         .to_string(),
-        Page::Start => S.hub_item_start.to_string(),
+        Page::Start => start_label(hub).to_string(),
         Page::Install if hub.update_offered() => S.hub_row_update.to_string(),
         Page::Install => S.hub_row_install.to_string(),
         Page::Installed => S.hub_row_installed.to_string(),
@@ -140,6 +143,9 @@ fn back_name(hub: &Hub) -> Option<String> {
             )
         }
         Page::Confirm => Some(S.hub_mode_title.to_string()),
+        Page::Disks if hub.asks_which() && target_of(hub) == Target::Stick => {
+            Some(S.hub_which_title.to_string())
+        }
         _ => Some(S.hub_home.to_string()),
     }
 }
@@ -642,12 +648,22 @@ pub(crate) fn not_confirmed(target: Target) -> String {
 // Home
 // ---------------------------------------------------------------------
 
+/// Start this computer from the stick, or on a Mac, Start this Mac
+/// from the stick.
+fn start_label(hub: &Hub) -> &'static str {
+    if hub.facts().mac().is_some() {
+        S.hub_item_start_mac
+    } else {
+        S.hub_item_start
+    }
+}
+
 /// What an item is called.
-fn item_label(item: Item) -> &'static str {
+fn item_label(hub: &Hub, item: Item) -> &'static str {
     match item {
         Item::MakeStick => S.hub_item_make,
         Item::BitLocker => S.hub_item_bitlocker,
-        Item::Start => S.hub_item_start,
+        Item::Start => start_label(hub),
         Item::SecureBootOn => S.hub_item_secure_boot,
         Item::Resume => S.hub_item_resume,
     }
@@ -665,6 +681,9 @@ fn state_text(state: &State) -> String {
         State::KeyKept => S.hub_state_key_kept.to_string(),
         State::Other => S.hub_state_other.to_string(),
         State::SecureBoot(on) => secure_boot_text(*on),
+        State::MacStart(Some(false)) => S.hub_state_mac_option.to_string(),
+        State::MacStart(Some(true)) => S.hub_state_mac_t2.to_string(),
+        State::MacStart(None) => S.hub_state_mac_unknown.to_string(),
     }
 }
 
@@ -721,7 +740,7 @@ fn home(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         );
         let tx = x + 44.0;
         let fg = if row.done { MUTED } else { TEXT };
-        let head = ui.fit(14.0, W::S, item_label(row.item), w - 80.0);
+        let head = ui.fit(14.0, W::S, item_label(hub, row.item), w - 80.0);
         ui.text(tx, y + 8.0, 14.0, W::S, fg, &head);
         let mut state = state_text(&row.state);
         if row.item == Item::Resume && !row.offered {
@@ -844,13 +863,33 @@ fn computer_card(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let c = &hub.computer;
     let pad = if hub.compact { 12.0 } else { 18.0 };
     let iw = w - 2.0 * pad;
-    let name = format!("{} {}", c.maker.trim(), c.model.trim());
+    let mac = hub.facts().mac();
+    let row = mac.and(macs::mac(&c.model));
+    let name = match row {
+        // On a Mac, its name from the table; the identifier is a line.
+        Some(m) => m.name.to_string(),
+        None => format!("{} {}", c.maker.trim(), c.model.trim()),
+    };
     let name = if name.trim().is_empty() {
         S.hub_computer_unknown.to_string()
     } else {
         name.trim().to_string()
     };
-    let mut lines: Vec<(String, Color)> = vec![(secure_boot_text(c.secure_boot), TEXT)];
+    // A Mac shows no Secure Boot line: before the T2 chip its firmware
+    // has no such setting, and Startup Security is not read.
+    let mut lines: Vec<(String, Color)> = match mac {
+        Some(_) => {
+            let mut l = Vec::new();
+            if row.is_some() {
+                l.push((c.model.trim().to_string(), MUTED));
+            }
+            if row.is_some_and(|m| m.t2) {
+                l.push((S.hub_mac_t2.to_string(), TEXT));
+            }
+            l
+        }
+        None => vec![(secure_boot_text(c.secure_boot), TEXT)],
+    };
     if c.os == Os::Windows
         && let Some(b) = &hub.bitlocker
     {
@@ -864,10 +903,15 @@ fn computer_card(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         };
         lines.push((fill(t, &[&b.drive]), TEXT));
     }
-    if c.arm {
-        lines.push((S.hub_cannot_start_arm.to_string(), WARN));
-    } else if !c.uefi {
-        lines.push((S.hub_cannot_start_bios.to_string(), WARN));
+    match mac {
+        Some(macs::Start::NotYet) => lines.push((S.hub_cannot_start_mac_yet.to_string(), WARN)),
+        Some(macs::Start::Firmware32) => {
+            lines.push((S.hub_cannot_start_mac_firmware.to_string(), WARN));
+        }
+        Some(macs::Start::Intel { .. }) => {}
+        None if c.arm => lines.push((S.hub_cannot_start_arm.to_string(), WARN)),
+        None if !c.uefi => lines.push((S.hub_cannot_start_bios.to_string(), WARN)),
+        None => {}
     }
     let card = hub.card();
     if card == Card::Firmware {
@@ -888,8 +932,12 @@ fn computer_card(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         Card::Resume { offered } => (S.hub_item_resume, offered && hub.guard.busy.is_none()),
         Card::Firmware => (S.hub_restart, free),
         Card::Stick => (S.hub_restart_stick, free),
+        Card::StartMac => (S.hub_item_start_mac, true),
     });
-    let linked = LearnId::SecureBootBitLocker.page().is_some();
+    // Secure Boot's page, where Secure Boot or BitLocker is in play: not
+    // on a Mac, unless it runs Windows.
+    let linked =
+        LearnId::SecureBootBitLocker.page().is_some() && (mac.is_none() || c.os == Os::Windows);
     // The lines wrap: measured first, drawing nothing.
     let n = ui.hits.len();
     ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
@@ -897,9 +945,11 @@ fn computer_card(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         .iter()
         .map(|(l, _)| ui.wrap(0.0, 0.0, iw, 13.0, W::R, TEXT, l) + 4.0)
         .sum();
+    // A Mac's name can be long (one identifier, several years): it wraps.
+    let name_h = ui.wrap(0.0, 0.0, iw, 16.0, W::S, TEXT, &name).max(20.0) + 6.0;
     ui.c.pop_clip();
     ui.hits.truncate(n);
-    let mut h = pad + 20.0 + 26.0 + lines_h;
+    let mut h = pad + 20.0 + name_h + lines_h;
     if linked {
         h += 32.0;
     }
@@ -911,13 +961,14 @@ fn computer_card(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0 + pad;
     ui.text(x + pad, y, 12.0, W::S, MUTED, S.hub_computer);
     y += 20.0;
-    let name = ui.fit(16.0, W::S, &name, iw);
-    ui.text(x + pad, y, 16.0, W::S, TEXT, &name);
-    y += 26.0;
+    ui.wrap(x + pad, y, iw, 16.0, W::S, TEXT, &name);
+    y += name_h;
     for (l, tone) in &lines {
         y += ui.wrap(x + pad, y, iw, 13.0, W::R, *tone, l) + 4.0;
     }
-    y += link(ui, x + pad, y, iw, LearnId::SecureBootBitLocker);
+    if linked {
+        y += link(ui, x + pad, y, iw, LearnId::SecureBootBitLocker);
+    }
     if let Some((label, offered)) = button {
         y += 14.0;
         let style = if offered {
@@ -938,6 +989,31 @@ fn computer_card(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 
 fn target_of(hub: &Hub) -> Target {
     hub.making.as_ref().map_or(Target::Stick, |m| m.target)
+}
+
+/// For which computer? (§3.2 step 0): the two stick images, nothing
+/// chosen, the row that fits this computer tagged.
+fn which(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(hub, ui, x, y0);
+    let fits = macs::stick_for(&hub.computer);
+    for (k, head) in [
+        (StickFor::Pc, S.hub_which_pc),
+        (StickFor::AppleSilicon, S.hub_which_apple),
+    ] {
+        let tag = if fits == Some(k) { S.hub_computer } else { "" };
+        y += nav_row(
+            ui,
+            x,
+            y,
+            w,
+            Icon::Drive,
+            head,
+            tag,
+            "",
+            Some(HubAction::StickFor(k)),
+        );
+    }
+    y
 }
 
 fn disks(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
@@ -1220,7 +1296,7 @@ fn done(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             y += line(ui, x, y, w, s, TEXT) + 8.0;
             let items: &[(&str, Style, HubAction)] = match m.target {
                 Target::Stick => &[
-                    (S.hub_item_start, Style::Primary, HubAction::Start),
+                    (start_label(hub), Style::Primary, HubAction::Start),
                     (S.hub_done, Style::Secondary, HubAction::Home),
                 ],
                 Target::Pi => &[(S.hub_done, Style::Primary, HubAction::Home)],
@@ -1282,6 +1358,7 @@ fn learn_title(id: LearnId) -> &'static str {
         LearnId::SecureBootBitLocker => S.hub_learn_secure_boot_bitlocker,
         LearnId::ScreensThatRecord => S.hub_learn_screens,
         LearnId::BootEntry => S.hub_learn_boot_entry,
+        LearnId::MacIntel => S.hub_learn_mac_intel,
     }
 }
 
@@ -1292,6 +1369,9 @@ fn start(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let windows = c.os == Os::Windows;
     if c.tpm_unlock {
         y += warning(ui, x, y, w, S.hub_tpm_line, WARN);
+    }
+    if let Some(mac) = facts.mac() {
+        return mac_start(hub, ui, x, y, w, mac);
     }
     if c.arm {
         return y + line(ui, x, y, w, S.hub_cannot_start_arm, WARN);
@@ -1400,6 +1480,74 @@ fn start(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         }
     }
     // The same page on a phone.
+    y += 16.0;
+    y += label(ui, x, y, S.hub_on_a_phone);
+    let side = if ui.compact { 150.0 } else { 180.0 };
+    y + phone_code(ui, x, y, w, side, &guide.address())
+}
+
+/// The Start page on a Mac (§3.4, `docs/MAC.md` §3.1–§3.2): the Mac's
+/// steps, none of them a button. On a T2 Mac, Startup Security lowered
+/// in macOS Recovery; then Option at power-on and EFI Boot; on a T2 Mac,
+/// Startup Security back afterwards. A Mac the table does not know gets
+/// the T2 steps marked as for a T2 Mac only. On Windows through Boot
+/// Camp, the BitLocker step comes first, as on any Windows computer.
+fn mac_start(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32, mac: macs::Start) -> f32 {
+    let mut y = y0;
+    let t2 = match mac {
+        macs::Start::Intel { t2 } => t2,
+        macs::Start::Firmware32 => {
+            return y + line(ui, x, y, w, S.hub_cannot_start_mac_firmware, WARN);
+        }
+        macs::Start::NotYet => return y + line(ui, x, y, w, S.hub_cannot_start_mac_yet, WARN),
+    };
+    let facts = hub.facts();
+    let held = hub.restart_holds();
+    y += concern_block(hub, ui, x, y, w, &held);
+    y += receiver_line(hub, ui, x, y, w);
+    let guide = LearnId::MacIntel;
+    y += guide_line(ui, x, y, w, guide);
+    y += 8.0;
+    let ix = x + 38.0;
+    let iw = w - 38.0;
+    let mut n = 0;
+    if hub.computer.os == Os::Windows && (facts.protected() || facts.guard_done()) {
+        n += 1;
+        y += step_head(ui, x, y, w, n, S.hub_item_bitlocker, facts.guard_done());
+        y += line(ui, ix, y, iw, &state_text(&facts.bitlocker_state()), MUTED);
+        if facts.protected_open() {
+            y += buttons(
+                ui,
+                ix,
+                y,
+                iw,
+                &[(S.hub_bitlocker_step, Style::Primary, HubAction::BitLocker)],
+            ) + 16.0;
+        }
+        y += 8.0;
+    }
+    let t2_steps = t2 != Some(false);
+    if t2_steps {
+        n += 1;
+        y += step_head(ui, x, y, w, n, S.hub_mac_lower, false);
+        if t2.is_none() {
+            y += line(ui, ix, y, iw, S.hub_mac_t2_only, WARN);
+        }
+        y += line(ui, ix, y, iw, S.hub_mac_recovery, MUTED);
+        y += line(ui, ix, y, iw, S.hub_mac_utility_lower, MUTED) + 6.0;
+    }
+    n += 1;
+    y += step_head(ui, x, y, w, n, S.hub_boot_from_stick, false);
+    y += line(ui, ix, y, iw, S.hub_mac_option, MUTED);
+    y += line(ui, ix, y, iw, S.hub_mac_firmware_password, MUTED) + 6.0;
+    if t2_steps {
+        n += 1;
+        y += step_head(ui, x, y, w, n, S.hub_mac_afterwards, false);
+        if t2.is_none() {
+            y += line(ui, ix, y, iw, S.hub_mac_t2_only, WARN);
+        }
+        y += line(ui, ix, y, iw, S.hub_mac_utility_full, MUTED) + 6.0;
+    }
     y += 16.0;
     y += label(ui, x, y, S.hub_on_a_phone);
     let side = if ui.compact { 150.0 } else { 180.0 };
@@ -1808,7 +1956,7 @@ fn key_step(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32, holds: &[&Concern])
             x,
             y,
             w,
-            &[(S.hub_item_start, Style::Primary, HubAction::Start)],
+            &[(start_label(hub), Style::Primary, HubAction::Start)],
         ) + 16.0;
     } else {
         if !holds.is_empty() {
@@ -1858,7 +2006,7 @@ fn guard_done(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     } else {
         (S.hub_item_resume, Style::Primary, HubAction::Resume)
     };
-    let start = (S.hub_item_start, Style::Primary, HubAction::Start);
+    let start = (start_label(hub), Style::Primary, HubAction::Start);
     if !f.resume_offered() {
         y += line(ui, x, y, w, resume_needs(hub), MUTED);
         return y + buttons(ui, x, y, w, &[start]) + 16.0 - y0;

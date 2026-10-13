@@ -1,12 +1,13 @@
 //! What the hub decides from what the shell reports, with no drawing:
 //! the disks offered and refused and their order (§3.2, §4.2), keep
 //! data's rules (§3.2 step 2), and Home's checklist and its next step
-//! (§3.1). The screens draw these; the tests check them through the
+//! (§3.1), on a Mac too (§3.1's "On a Mac", `docs/MAC.md` §6). The screens draw these; the tests check them through the
 //! screens.
 
 use faraday_core::upgrade::{Fit, compare};
 
 use crate::api::{BitLocker, Bus, Computer, Disk, FaradayStick, InUse, Os, Protection};
+use crate::macs;
 
 /// What is being made.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,7 +92,8 @@ pub enum Item {
     MakeStick,
     /// BitLocker (Windows, a protected drive).
     BitLocker,
-    /// Start this computer from the stick.
+    /// Start this computer from the stick; on an Intel Mac, Start this
+    /// Mac from the stick.
     Start,
     /// Turn Secure Boot back on.
     SecureBootOn,
@@ -121,6 +123,9 @@ pub enum State {
     Other,
     /// Secure Boot on, off, or not read.
     SecureBoot(Option<bool>),
+    /// An Intel Mac's way to the stick: with the T2 chip's Startup
+    /// Security first, or not; `None` for a Mac the table does not know.
+    MacStart(Option<bool>),
 }
 
 /// One row of the checklist.
@@ -237,9 +242,20 @@ impl Facts<'_> {
                 })
     }
 
-    /// This computer can start the x86_64 stick at all.
+    /// This computer as a Mac (§3.1's "On a Mac"), or `None` when it is
+    /// not one.
+    pub fn mac(&self) -> Option<macs::Start> {
+        macs::start(self.computer)
+    }
+
+    /// This computer can start the x86_64 stick at all: not an ARM
+    /// computer, and not a Mac with 32-bit firmware or Apple silicon.
     pub fn can_start(&self) -> bool {
         !self.computer.arm
+            && !matches!(
+                self.mac(),
+                Some(macs::Start::Firmware32 | macs::Start::NotYet)
+            )
     }
 
     /// The first Faraday stick attached, when one is.
@@ -279,13 +295,19 @@ impl Facts<'_> {
                 offered: true,
             });
         }
+        let mac = self.mac();
         rows.push(Row {
             item: Item::Start,
-            state: State::SecureBoot(self.computer.secure_boot),
+            state: match mac {
+                Some(macs::Start::Intel { t2 }) => State::MacStart(t2),
+                _ => State::SecureBoot(self.computer.secure_boot),
+            },
             done: false,
             offered: true,
         });
-        if self.secure_boot_back() {
+        // A Mac's steps put its Startup Security back themselves; its
+        // firmware has no Secure Boot setting to turn back on.
+        if mac.is_none() && self.secure_boot_back() {
             rows.push(Row {
                 item: Item::SecureBootOn,
                 state: State::SecureBoot(Some(false)),

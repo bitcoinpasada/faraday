@@ -2952,6 +2952,23 @@ as possible before the next build.
     Home and Start at 1280x800 for an Intel and a T2 Mac
     (`just faraday-hub-snap`'s script gains a Mac computer).
 
+    **A3b built and audited (2026-10-13).** As specified: `macs.rs`
+    with the 173-row table as data (`macs.tsv`, read with
+    `include_str!`, because the string lint reads marketing names in
+    screen code as literals); `mac-intel` in `BOOT` and `OWN`; Home,
+    This computer and the Start page on a Mac; *For which computer?*
+    with `PayloadKind::AppleStick`; 19 `hub_` strings; 11 tests in
+    `faraday-hub/tests/mac.rs`. Rows changed from the research:
+    MacPro2,1 is 32-bit EFI (the same firmware as MacPro1,1);
+    iMac5,2 and Mac17,5 named from EveryMac and Asahi's device list,
+    which Apple's pages do not list. Windows through Boot Camp keeps
+    the BitLocker step. The orchestrator corrected the Learn page's
+    keyboard section: the stick's kernel has no UHCI or OHCI (MAC §3.3,
+    for batch I), so a keyboard on a Mac before 2011 may not be found,
+    and the SPI keyboards wait for `applespi`. Follow-ups outside A3b:
+    the stick's power-off QR for an Apple maker (batch I) and the
+    website's `/start/mac-intel` page (website session).
+
     **A3c, with a Mac** (M7): the bundle (`Info.plist` with
     `NSCameraUsageDescription`, the icon), `just faraday-mac-starter`
     (a universal binary, ad-hoc signed, `ditto`'s zip), and on the Mac:

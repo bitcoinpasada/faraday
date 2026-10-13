@@ -17,6 +17,7 @@ pub mod api;
 pub mod concern;
 pub mod decide;
 mod draw;
+pub mod macs;
 
 /// What a [`api::Reason`] reads as on screen, from `faraday_core::strings`.
 pub fn reason_text(reason: &api::Reason) -> String {
@@ -36,6 +37,7 @@ use api::{
     Source, WriteOrder, WriteStage,
 };
 use decide::{Facts, Item, Target};
+use macs::StickFor;
 
 /// The website's guides (§7.4), shared with the stick.
 pub use faraday_learn::GUIDES;
@@ -48,6 +50,9 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub enum Page {
     /// Home: This computer, the checklist, the rows (§3.1).
     Home,
+    /// For which computer? (§3.2 step 0), once the payload carries both
+    /// stick images.
+    Which,
     /// Which stick? or Which card? (§3.2 step 1, §3.3).
     Disks,
     /// What to write? (§3.2 step 2).
@@ -110,6 +115,9 @@ pub enum Card {
     Firmware,
     /// Restart from the stick, after the sheet.
     Stick,
+    /// Start this Mac from the stick: opens §3.4's Mac steps. A Mac has
+    /// no restart into firmware settings or from the stick.
+    StartMac,
 }
 
 /// A guide, by its Learn page (§7.2, `docs/learn/faraday/boot/`). A page
@@ -135,6 +143,8 @@ pub enum LearnId {
     ScreensThatRecord,
     /// About the boot entry (§3.1c).
     BootEntry,
+    /// Starting an Intel Mac from the stick (`docs/MAC.md` §3.1–§3.2).
+    MacIntel,
 }
 
 impl LearnId {
@@ -151,6 +161,7 @@ impl LearnId {
             LearnId::SecureBootBitLocker => "secure-boot-bitlocker",
             LearnId::ScreensThatRecord => "screens-that-record",
             LearnId::BootEntry => "boot-entry",
+            LearnId::MacIntel => "mac-intel",
         }
     }
 
@@ -164,15 +175,19 @@ impl LearnId {
         faraday_learn::guide_address(self.id())
     }
 
-    /// The guide for this computer (§3.4): its maker's page where there
-    /// is one (§7.6), and otherwise the general page for its operating
-    /// system.
+    /// The guide for this computer (§3.4): on a Mac, whatever system it
+    /// runs, the Mac guide; otherwise its maker's page where there is one
+    /// (§7.6), and the general page for its operating system where there
+    /// is not.
     pub fn for_computer(c: &Computer) -> LearnId {
+        if macs::is_apple(&c.maker) {
+            return LearnId::MacIntel;
+        }
         let general = match c.os {
             Os::Windows => LearnId::StartWindows,
-            Os::Linux => LearnId::StartLinux,
-            // A3b: the Mac guide, `mac-intel`.
-            Os::MacOs => LearnId::StartLinux,
+            // macOS on a computer whose maker is not Apple: none is
+            // expected, and Linux's page is the nearer of the two.
+            Os::Linux | Os::MacOs => LearnId::StartLinux,
         };
         match faraday_learn::guide_id(&c.maker, &c.family, &c.model, general.id()) {
             id if id == general.id() => general,
@@ -180,7 +195,7 @@ impl LearnId {
         }
     }
 
-    const ALL: [LearnId; 8] = [
+    const ALL: [LearnId; 9] = [
         LearnId::StartWindows,
         LearnId::StartLinux,
         LearnId::BitLocker,
@@ -189,6 +204,7 @@ impl LearnId {
         LearnId::SecureBootBitLocker,
         LearnId::ScreensThatRecord,
         LearnId::BootEntry,
+        LearnId::MacIntel,
     ];
 }
 
@@ -280,6 +296,8 @@ pub enum HubAction {
     LetThrough,
     /// Remove the Faraday boot entry (Linux, §3.1c).
     RemoveEntry,
+    /// For which computer? answered (§3.2 step 0).
+    StickFor(StickFor),
 }
 
 /// A maker page's number in an action's code: this plus its place in
@@ -349,6 +367,7 @@ impl HubAction {
             HubAction::RemoveEntry => (37, 0),
             HubAction::KeyInHand => (38, 0),
             HubAction::ExtraSafe => (39, 0),
+            HubAction::StickFor(k) => (40, u32::from(k == StickFor::AppleSilicon)),
         };
         (kind << 16) | arg
     }
@@ -404,6 +423,11 @@ impl HubAction {
             37 => HubAction::RemoveEntry,
             38 => HubAction::KeyInHand,
             39 => HubAction::ExtraSafe,
+            40 => HubAction::StickFor(if arg == 1 {
+                StickFor::AppleSilicon
+            } else {
+                StickFor::Pc
+            }),
             _ => return None,
         })
     }
@@ -419,6 +443,9 @@ impl HubAction {
 pub struct Making {
     /// A stick or a Pi card.
     pub target: Target,
+    /// For which computer the stick is (§3.2 step 0): nothing until a
+    /// person answers, and nothing when the question is not asked.
+    pub stick_for: Option<StickFor>,
     /// The disk tapped, by its id. Nothing until a person taps one.
     pub disk: Option<String>,
     /// What to write, once ticked.
@@ -798,11 +825,17 @@ impl Hub {
                 _ => {}
             }
         }
-        if f.stick().is_none() || !f.can_start() || !self.computer.uefi {
+        // A Mac's firmware starts the stick whatever mode Windows was
+        // started in through Boot Camp.
+        let mac = f.mac().is_some();
+        if f.stick().is_none() || !f.can_start() || (!self.computer.uefi && !mac) {
             return Card::Make;
         }
         if f.protected_open() {
             return Card::BitLocker;
+        }
+        if mac {
+            return Card::StartMac;
         }
         if self.computer.secure_boot == Some(false) && self.stick_restart_failed.is_none() {
             Card::Stick
@@ -922,7 +955,12 @@ impl Hub {
                 boot_only: d.boot_only,
             });
         }
+        let apple = self
+            .making
+            .as_ref()
+            .is_some_and(|m| m.stick_for == Some(StickFor::AppleSilicon));
         let kind = match target {
+            Target::Stick if apple => PayloadKind::AppleStick,
             Target::Stick => PayloadKind::Stick,
             Target::Pi => PayloadKind::Pi,
         };
@@ -938,6 +976,15 @@ impl Hub {
             dev: false,
             boot_only: false,
         })
+    }
+
+    /// Whether Make a Faraday stick asks For which computer? first
+    /// (§3.2 step 0): only when the payload carries both stick images,
+    /// and no developer's image stands in for the PC one.
+    pub fn asks_which(&self) -> bool {
+        self.dev.is_none()
+            && self.payload_file(PayloadKind::Stick).is_some()
+            && self.payload_file(PayloadKind::AppleStick).is_some()
     }
 
     /// The bytes a disk must hold for `target`: none for a boot
@@ -1291,6 +1338,7 @@ impl Hub {
             HubAction::Make(target) => {
                 self.making = Some(Making {
                     target,
+                    stick_for: None,
                     disk: None,
                     mode: None,
                     confirmed: None,
@@ -1298,7 +1346,21 @@ impl Hub {
                     progress: None,
                     result: None,
                 });
-                self.go(Page::Disks);
+                if target == Target::Stick && self.asks_which() {
+                    self.go(Page::Which);
+                } else {
+                    self.go(Page::Disks);
+                }
+            }
+            HubAction::StickFor(k) => {
+                if self.page == Page::Which
+                    && let Some(m) = self.making.as_mut()
+                {
+                    m.stick_for = Some(k);
+                    m.disk = None;
+                    m.mode = None;
+                    self.go(Page::Disks);
+                }
             }
             HubAction::Next => match self.card() {
                 Card::Make => self.act(HubAction::Make(Target::Stick)),
@@ -1310,6 +1372,7 @@ impl Hub {
                     self.sheet = Some(Sheet::Restart(RestartTo::Firmware));
                 }
                 Card::Stick => self.sheet = Some(Sheet::Restart(RestartTo::Stick)),
+                Card::StartMac => self.go(Page::Start),
             },
             HubAction::Item(item) => match item {
                 Item::MakeStick => self.act(HubAction::Make(Target::Stick)),
@@ -1370,6 +1433,7 @@ impl Hub {
             HubAction::Start => self.go(Page::Start),
             HubAction::Restart => {
                 if self.page == Page::Start
+                    && self.facts().mac().is_none()
                     && !self.facts().protected_open()
                     && self.restart_holds().is_empty()
                 {
@@ -1674,6 +1738,15 @@ impl Hub {
             Page::Home => return,
             Page::Mode => Page::Disks,
             Page::Confirm => Page::Mode,
+            Page::Disks
+                if self.asks_which()
+                    && self
+                        .making
+                        .as_ref()
+                        .is_some_and(|m| m.target == Target::Stick) =>
+            {
+                Page::Which
+            }
             // A write under way goes on: its page stays.
             Page::Writing => return,
             _ => Page::Home,

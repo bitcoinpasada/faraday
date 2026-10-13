@@ -51,6 +51,7 @@ fn every_guide_the_hub_links_to_is_there() {
             "Screens and devices that can record",
             "When the stick does not start",
             "Replacing Faraday on a stick",
+            "Starting an Intel Mac from the stick",
         ]
     );
     assert!(faraday_core::learn::page("no-such-page").is_none());

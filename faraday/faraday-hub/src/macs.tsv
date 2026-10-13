@@ -1,0 +1,180 @@
+# The Mac table (docs/MAC.md §1, §7), read by src/macs.rs, whose doc
+# comment names the sources and the date they were read. One row per
+# model identifier, tab-separated:
+# identifier, marketing names (" / " between the names that share it),
+# year of the first, line, chip ("intel" or the Apple chip), T2 chip
+# (yes/no), 32-bit EFI (yes/no), built-in keyboard (usb, spi, t2,
+# apple-silicon, none).
+MacBookPro1,1	MacBook Pro (15-inch)	2006	macbook-pro	intel	no	yes	usb
+MacBookPro1,2	MacBook Pro (17-inch)	2006	macbook-pro	intel	no	yes	usb
+MacBookPro2,1	MacBook Pro (17-inch, Late 2006)	2006	macbook-pro	intel	no	yes	usb
+MacBookPro2,2	MacBook Pro (15-inch, Late 2006)	2006	macbook-pro	intel	no	yes	usb
+MacBookPro3,1	MacBook Pro (15-inch, Mid 2007) / MacBook Pro (17-inch, Mid 2007)	2007	macbook-pro	intel	no	no	usb
+MacBookPro4,1	MacBook Pro (15-inch, Early 2008) / MacBook Pro (17-inch, Early 2008)	2008	macbook-pro	intel	no	no	usb
+MacBookPro5,1	MacBook Pro (15-inch, Late 2008)	2008	macbook-pro	intel	no	no	usb
+MacBookPro5,2	MacBook Pro (17-inch, Early 2009) / MacBook Pro (17-inch, Mid 2009)	2009	macbook-pro	intel	no	no	usb
+MacBookPro5,3	MacBook Pro (15-inch, Mid 2009)	2009	macbook-pro	intel	no	no	usb
+MacBookPro5,5	MacBook Pro (13-inch, Mid 2009)	2009	macbook-pro	intel	no	no	usb
+MacBookPro6,1	MacBook Pro (17-inch, Mid 2010)	2010	macbook-pro	intel	no	no	usb
+MacBookPro6,2	MacBook Pro (15-inch, Mid 2010)	2010	macbook-pro	intel	no	no	usb
+MacBookPro7,1	MacBook Pro (13-inch, Mid 2010)	2010	macbook-pro	intel	no	no	usb
+MacBookPro8,1	MacBook Pro (13-inch, Early 2011) / MacBook Pro (13-inch, Late 2011)	2011	macbook-pro	intel	no	no	usb
+MacBookPro8,2	MacBook Pro (15-inch, Early 2011) / MacBook Pro (15-inch, Late 2011)	2011	macbook-pro	intel	no	no	usb
+MacBookPro8,3	MacBook Pro (17-inch, Early 2011) / MacBook Pro (17-inch, Late 2011)	2011	macbook-pro	intel	no	no	usb
+MacBookPro9,1	MacBook Pro (15-inch, Mid 2012)	2012	macbook-pro	intel	no	no	usb
+MacBookPro9,2	MacBook Pro (13-inch, Mid 2012)	2012	macbook-pro	intel	no	no	usb
+MacBookPro10,1	MacBook Pro (Retina, 15-inch, Mid 2012) / MacBook Pro (Retina, 15-inch, Early 2013)	2012	macbook-pro	intel	no	no	usb
+MacBookPro10,2	MacBook Pro (Retina, 13-inch, Late 2012) / MacBook Pro (Retina, 13-inch, Early 2013)	2012	macbook-pro	intel	no	no	usb
+MacBookPro11,1	MacBook Pro (Retina, 13-inch, Mid 2014) / MacBook Pro (Retina, 13-inch, Late 2013)	2013	macbook-pro	intel	no	no	usb
+MacBookPro11,2	MacBook Pro (Retina, 15-inch, Mid 2014) / MacBook Pro (Retina, 15-inch, Late 2013)	2013	macbook-pro	intel	no	no	usb
+MacBookPro11,3	MacBook Pro (Retina, 15-inch, Mid 2014) / MacBook Pro (Retina, 15-inch, Late 2013)	2013	macbook-pro	intel	no	no	usb
+MacBookPro11,4	MacBook Pro (Retina, 15-inch, Mid 2015)	2015	macbook-pro	intel	no	no	usb
+MacBookPro11,5	MacBook Pro (Retina, 15-inch, Mid 2015)	2015	macbook-pro	intel	no	no	usb
+MacBookPro12,1	MacBook Pro (Retina, 13-inch, Early 2015)	2015	macbook-pro	intel	no	no	usb
+MacBookPro13,1	MacBook Pro (13-inch, 2016, Two Thunderbolt 3 ports)	2016	macbook-pro	intel	no	no	spi
+MacBookPro13,2	MacBook Pro (13-inch, 2016, Four Thunderbolt 3 ports)	2016	macbook-pro	intel	no	no	spi
+MacBookPro13,3	MacBook Pro (15-inch, 2016)	2016	macbook-pro	intel	no	no	spi
+MacBookPro14,1	MacBook Pro (13-inch, 2017, Two Thunderbolt 3 ports)	2017	macbook-pro	intel	no	no	spi
+MacBookPro14,2	MacBook Pro (13-inch, 2017, Four Thunderbolt 3 ports)	2017	macbook-pro	intel	no	no	spi
+MacBookPro14,3	MacBook Pro (15-inch, 2017)	2017	macbook-pro	intel	no	no	spi
+MacBookPro15,1	MacBook Pro (15-inch, 2018) / MacBook Pro (15-inch, 2019)	2018	macbook-pro	intel	yes	no	t2
+MacBookPro15,2	MacBook Pro (13-inch, 2018, Four Thunderbolt 3 ports) / MacBook Pro (13-inch, 2019, Four Thunderbolt 3 ports)	2018	macbook-pro	intel	yes	no	t2
+MacBookPro15,3	MacBook Pro (15-inch, 2019)	2019	macbook-pro	intel	yes	no	t2
+MacBookPro15,4	MacBook Pro (13-inch, 2019, Two Thunderbolt 3 ports)	2019	macbook-pro	intel	yes	no	t2
+MacBookPro16,1	MacBook Pro (16-inch, 2019)	2019	macbook-pro	intel	yes	no	t2
+MacBookPro16,2	MacBook Pro (13-inch, 2020, Four Thunderbolt 3 ports)	2020	macbook-pro	intel	yes	no	t2
+MacBookPro16,3	MacBook Pro (13-inch, 2020, Two Thunderbolt 3 ports)	2020	macbook-pro	intel	yes	no	t2
+MacBookPro16,4	MacBook Pro (16-inch, 2019)	2019	macbook-pro	intel	yes	no	t2
+MacBookPro17,1	MacBook Pro (13-inch, M1, 2020)	2020	macbook-pro	M1	no	no	apple-silicon
+MacBookPro18,1	MacBook Pro (16-inch, 2021)	2021	macbook-pro	M1 Pro	no	no	apple-silicon
+MacBookPro18,2	MacBook Pro (16-inch, 2021)	2021	macbook-pro	M1 Max	no	no	apple-silicon
+MacBookPro18,3	MacBook Pro (14-inch, 2021)	2021	macbook-pro	M1 Pro	no	no	apple-silicon
+MacBookPro18,4	MacBook Pro (14-inch, 2021)	2021	macbook-pro	M1 Max	no	no	apple-silicon
+Mac14,7	MacBook Pro (13-inch, M2, 2022)	2022	macbook-pro	M2	no	no	apple-silicon
+Mac14,9	MacBook Pro (14-inch, 2023)	2023	macbook-pro	M2 Pro	no	no	apple-silicon
+Mac14,10	MacBook Pro (16-inch, 2023)	2023	macbook-pro	M2 Pro	no	no	apple-silicon
+Mac14,5	MacBook Pro (14-inch, 2023)	2023	macbook-pro	M2 Max	no	no	apple-silicon
+Mac14,6	MacBook Pro (16-inch, 2023)	2023	macbook-pro	M2 Max	no	no	apple-silicon
+Mac15,3	MacBook Pro (14-inch, Nov 2023)	2023	macbook-pro	M3	no	no	apple-silicon
+Mac15,6	MacBook Pro (14-inch, Nov 2023)	2023	macbook-pro	M3 Pro	no	no	apple-silicon
+Mac15,8	MacBook Pro (14-inch, Nov 2023)	2023	macbook-pro	M3 Max	no	no	apple-silicon
+Mac15,10	MacBook Pro (14-inch, Nov 2023)	2023	macbook-pro	M3 Max	no	no	apple-silicon
+Mac15,7	MacBook Pro (16-inch, Nov 2023)	2023	macbook-pro	M3 Pro	no	no	apple-silicon
+Mac15,9	MacBook Pro (16-inch, Nov 2023)	2023	macbook-pro	M3 Max	no	no	apple-silicon
+Mac15,11	MacBook Pro (16-inch, Nov 2023)	2023	macbook-pro	M3 Max	no	no	apple-silicon
+Mac16,1	MacBook Pro (14-inch, 2024)	2024	macbook-pro	M4	no	no	apple-silicon
+Mac16,6	MacBook Pro (14-inch, 2024)	2024	macbook-pro	M4 Max	no	no	apple-silicon
+Mac16,8	MacBook Pro (14-inch, 2024)	2024	macbook-pro	M4 Pro	no	no	apple-silicon
+Mac16,7	MacBook Pro (16-inch, 2024)	2024	macbook-pro	M4 Pro	no	no	apple-silicon
+Mac16,5	MacBook Pro (16-inch, 2024)	2024	macbook-pro	M4 Max	no	no	apple-silicon
+Mac17,2	MacBook Pro (14-inch, M5)	2025	macbook-pro	M5	no	no	apple-silicon
+Mac17,7	MacBook Pro (14-inch, M5 Pro or M5 Max)	2026	macbook-pro	M5 Max	no	no	apple-silicon
+Mac17,9	MacBook Pro (14-inch, M5 Pro or M5 Max)	2026	macbook-pro	M5 Pro	no	no	apple-silicon
+Mac17,6	MacBook Pro (16-inch, M5 Pro or M5 Max)	2026	macbook-pro	M5 Max	no	no	apple-silicon
+Mac17,8	MacBook Pro (16-inch, M5 Pro or M5 Max)	2026	macbook-pro	M5 Pro	no	no	apple-silicon
+MacBookAir1,1	MacBook Air (Original)	2008	macbook-air	intel	no	no	usb
+MacBookAir2,1	MacBook Air (Mid 2009)	2009	macbook-air	intel	no	no	usb
+MacBookAir3,1	MacBook Air (11-inch, Late 2010)	2010	macbook-air	intel	no	no	usb
+MacBookAir3,2	MacBook Air (13-inch, Late 2010)	2010	macbook-air	intel	no	no	usb
+MacBookAir4,1	MacBook Air (11-inch, Mid 2011)	2011	macbook-air	intel	no	no	usb
+MacBookAir4,2	MacBook Air (13-inch, Mid 2011)	2011	macbook-air	intel	no	no	usb
+MacBookAir5,1	MacBook Air (11-inch, Mid 2012)	2012	macbook-air	intel	no	no	usb
+MacBookAir5,2	MacBook Air (13-inch, Mid 2012)	2012	macbook-air	intel	no	no	usb
+MacBookAir6,1	MacBook Air (11-inch, Mid 2013) / MacBook Air (11-inch, Early 2014)	2013	macbook-air	intel	no	no	usb
+MacBookAir6,2	MacBook Air (13-inch, Mid 2013) / MacBook Air (13-inch, Early 2014)	2013	macbook-air	intel	no	no	usb
+MacBookAir7,1	MacBook Air (11-inch, Early 2015)	2015	macbook-air	intel	no	no	usb
+MacBookAir7,2	MacBook Air (13-inch, Early 2015) / MacBook Air (13-inch, 2017)	2015	macbook-air	intel	no	no	usb
+MacBookAir8,1	MacBook Air (Retina, 13-inch, 2018)	2018	macbook-air	intel	yes	no	t2
+MacBookAir8,2	MacBook Air (Retina, 13-inch, 2019)	2019	macbook-air	intel	yes	no	t2
+MacBookAir9,1	MacBook Air (Retina, 13-inch, 2020)	2020	macbook-air	intel	yes	no	t2
+MacBookAir10,1	MacBook Air (M1, 2020)	2020	macbook-air	M1	no	no	apple-silicon
+Mac14,2	MacBook Air (M2, 2022)	2022	macbook-air	M2	no	no	apple-silicon
+Mac14,15	MacBook Air (15-inch, M2, 2023)	2023	macbook-air	M2	no	no	apple-silicon
+Mac15,12	MacBook Air (13-inch, M3, 2024)	2024	macbook-air	M3	no	no	apple-silicon
+Mac15,13	MacBook Air (15-inch, M3, 2024)	2024	macbook-air	M3	no	no	apple-silicon
+Mac16,12	MacBook Air (13-inch, M4, 2025)	2025	macbook-air	M4	no	no	apple-silicon
+Mac16,13	MacBook Air (15-inch, M4, 2025)	2025	macbook-air	M4	no	no	apple-silicon
+Mac17,3	MacBook Air (13-inch, M5)	2026	macbook-air	M5	no	no	apple-silicon
+Mac17,4	MacBook Air (15-inch, M5)	2026	macbook-air	M5	no	no	apple-silicon
+MacBook1,1	MacBook	2006	macbook	intel	no	yes	usb
+MacBook2,1	MacBook (13-inch, Late 2006) / MacBook (13-inch, Mid 2007)	2006	macbook	intel	no	yes	usb
+MacBook3,1	MacBook (13-inch, Late 2007)	2007	macbook	intel	no	no	usb
+MacBook4,1	MacBook (13-inch, Early 2008)	2008	macbook	intel	no	no	usb
+MacBook5,1	MacBook (13-inch, Aluminum, Late 2008)	2008	macbook	intel	no	no	usb
+MacBook5,2	MacBook (13-inch, Early 2009) / MacBook (13-inch, Mid 2009)	2009	macbook	intel	no	no	usb
+MacBook6,1	MacBook (13-inch, Late 2009)	2009	macbook	intel	no	no	usb
+MacBook7,1	MacBook (13-inch, Mid 2010)	2010	macbook	intel	no	no	usb
+MacBook8,1	MacBook (Retina, 12-inch, Early 2015)	2015	macbook	intel	no	no	spi
+MacBook9,1	MacBook (Retina, 12-inch, Early 2016)	2016	macbook	intel	no	no	spi
+MacBook10,1	MacBook (Retina, 12-inch, 2017)	2017	macbook	intel	no	no	spi
+Mac17,5	MacBook Neo (A18 Pro, 2026)	2026	macbook	A18 Pro	no	no	apple-silicon
+iMac4,1	iMac (17-inch, Early 2006) / iMac (20-inch, Early 2006)	2006	imac	intel	no	yes	none
+iMac4,2	iMac (17-inch, Mid 2006)	2006	imac	intel	no	yes	none
+iMac5,1	iMac (17-inch, Late 2006) / iMac (20-inch, Late 2006)	2006	imac	intel	no	yes	none
+iMac5,2	iMac (17-inch, Late 2006 CD)	2006	imac	intel	no	yes	none
+iMac6,1	iMac (24-inch, Late 2006)	2006	imac	intel	no	yes	none
+iMac7,1	iMac (20-inch, Mid 2007) / iMac (24-inch, Mid 2007)	2007	imac	intel	no	no	none
+iMac8,1	iMac (20-inch, Early 2008) / iMac (24-inch, Early 2008)	2008	imac	intel	no	no	none
+iMac9,1	iMac (20-inch, Early 2009) / iMac (24-inch, Early 2009)	2009	imac	intel	no	no	none
+iMac10,1	iMac (21.5-inch, Late 2009) / iMac (27-inch, Late 2009)	2009	imac	intel	no	no	none
+iMac11,2	iMac (21.5-inch, Mid 2010)	2010	imac	intel	no	no	none
+iMac11,3	iMac (27-inch, Mid 2010)	2010	imac	intel	no	no	none
+iMac12,1	iMac (21.5-inch, Mid 2011)	2011	imac	intel	no	no	none
+iMac12,2	iMac (27-inch, Mid 2011)	2011	imac	intel	no	no	none
+iMac13,1	iMac (21.5-inch, Late 2012)	2012	imac	intel	no	no	none
+iMac13,2	iMac (27-inch, Late 2012)	2012	imac	intel	no	no	none
+iMac14,1	iMac (21.5-inch, Late 2013)	2013	imac	intel	no	no	none
+iMac14,2	iMac (27-inch, Late 2013)	2013	imac	intel	no	no	none
+iMac14,4	iMac (21.5-inch, Mid 2014)	2014	imac	intel	no	no	none
+iMac15,1	iMac (Retina 5K, 27-inch, Late 2014) / iMac (Retina 5K, 27-inch, Mid 2015)	2014	imac	intel	no	no	none
+iMac16,1	iMac (21.5-inch, Late 2015)	2015	imac	intel	no	no	none
+iMac16,2	iMac (Retina 4K, 21.5-inch, Late 2015)	2015	imac	intel	no	no	none
+iMac17,1	iMac (Retina 5K, 27-inch, Late 2015)	2015	imac	intel	no	no	none
+iMac18,1	iMac (21.5-inch, 2017)	2017	imac	intel	no	no	none
+iMac18,2	iMac (Retina 4K, 21.5-inch, 2017)	2017	imac	intel	no	no	none
+iMac18,3	iMac (Retina 5K, 27-inch, 2017)	2017	imac	intel	no	no	none
+iMac19,1	iMac (Retina 5K, 27-inch, 2019)	2019	imac	intel	no	no	none
+iMac19,2	iMac (Retina 4K, 21.5-inch, 2019)	2019	imac	intel	no	no	none
+iMac20,1	iMac (Retina 5K, 27-inch, 2020)	2020	imac	intel	yes	no	none
+iMac20,2	iMac (Retina 5K, 27-inch, 2020)	2020	imac	intel	yes	no	none
+iMac21,1	iMac (24-inch, M1, 2021)	2021	imac	M1	no	no	none
+iMac21,2	iMac (24-inch, M1, 2021)	2021	imac	M1	no	no	none
+Mac15,4	iMac (24-inch, 2023, Two ports)	2023	imac	M3	no	no	none
+Mac15,5	iMac (24-inch, 2023, Four ports)	2023	imac	M3	no	no	none
+Mac16,2	iMac (24-inch, 2024, Two ports)	2024	imac	M4	no	no	none
+Mac16,3	iMac (24-inch, 2024, Four ports)	2024	imac	M4	no	no	none
+iMacPro1,1	iMac Pro	2017	imac-pro	intel	yes	no	none
+Macmini1,1	Mac mini (Early 2006) / Mac mini (Late 2006)	2006	mac-mini	intel	no	yes	none
+Macmini2,1	Mac mini (Mid 2007)	2007	mac-mini	intel	no	yes	none
+Macmini3,1	Mac mini (Early 2009) / Mac mini (Late 2009)	2009	mac-mini	intel	no	no	none
+Macmini4,1	Mac mini (Mid 2010)	2010	mac-mini	intel	no	no	none
+Macmini5,1	Mac mini (Mid 2011)	2011	mac-mini	intel	no	no	none
+Macmini5,2	Mac mini (Mid 2011)	2011	mac-mini	intel	no	no	none
+Macmini6,1	Mac mini (Late 2012)	2012	mac-mini	intel	no	no	none
+Macmini6,2	Mac mini (Late 2012)	2012	mac-mini	intel	no	no	none
+Macmini7,1	Mac mini (Late 2014)	2014	mac-mini	intel	no	no	none
+Macmini8,1	Mac mini (2018)	2018	mac-mini	intel	yes	no	none
+Macmini9,1	Mac mini (M1, 2020)	2020	mac-mini	M1	no	no	none
+Mac14,3	Mac mini (2023)	2023	mac-mini	M2	no	no	none
+Mac14,12	Mac mini (2023)	2023	mac-mini	M2 Pro	no	no	none
+Mac16,10	Mac mini (2024)	2024	mac-mini	M4	no	no	none
+Mac16,11	Mac mini (2024)	2024	mac-mini	M4 Pro	no	no	none
+Mac17,16	Mac mini (M5 Pro)	2026	mac-mini	M5 Pro	no	no	none
+Mac18,5	Mac mini (M6)	2026	mac-mini	M6	no	no	none
+MacPro1,1	Mac Pro (Original, 2006)	2006	mac-pro	intel	no	yes	none
+MacPro2,1	Mac Pro ("Eight Core")	2007	mac-pro	intel	no	yes	none
+MacPro3,1	Mac Pro (Early 2008)	2008	mac-pro	intel	no	no	none
+MacPro4,1	Mac Pro (Early 2009)	2009	mac-pro	intel	no	no	none
+MacPro5,1	Mac Pro (Mid 2010) / Mac Pro Server (Mid 2010) / Mac Pro (Mid 2012) / Mac Pro Server (Mid 2012)	2010	mac-pro	intel	no	no	none
+MacPro6,1	Mac Pro (Late 2013)	2013	mac-pro	intel	no	no	none
+MacPro7,1	Mac Pro (2019) / Mac Pro (Rack, 2019)	2019	mac-pro	intel	yes	no	none
+Mac14,8	Mac Pro (2023) / Mac Pro (Rack, 2023)	2023	mac-pro	M2 Ultra	no	no	none
+Mac13,1	Mac Studio (M1 Max)	2022	mac-studio	M1 Max	no	no	none
+Mac13,2	Mac Studio (M1 Ultra)	2022	mac-studio	M1 Ultra	no	no	none
+Mac14,13	Mac Studio (M2 Max)	2023	mac-studio	M2 Max	no	no	none
+Mac14,14	Mac Studio (M2 Ultra)	2023	mac-studio	M2 Ultra	no	no	none
+Mac15,14	Mac Studio (M3 Ultra)	2025	mac-studio	M3 Ultra	no	no	none
+Mac16,9	Mac Studio (M4 Max)	2025	mac-studio	M4 Max	no	no	none
+Mac17,14	Mac Studio (M5 Max)	2026	mac-studio	M5 Max	no	no	none
+Mac17,15	Mac Studio (M5 Ultra)	2026	mac-studio	M5 Ultra	no	no	none
+Xserve1,1	Xserve (Late 2006)	2006	xserve	intel	no	yes	none

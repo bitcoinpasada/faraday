@@ -19,7 +19,7 @@ use osk_learn::{Page as LearnPage, Section};
 /// as it is: the hub app's screens open a page by it, and the website
 /// publishes each guide at `https://faradayoffline.app/start/<id>`
 /// (§7.4).
-const OWN: [(&str, &str); 21] = [
+const OWN: [(&str, &str); 22] = [
     // Upgrading a stick from another stick (`PLAN.md` §5.5).
     (
         "upgrade-a-stick",
@@ -67,6 +67,10 @@ const OWN: [(&str, &str); 21] = [
         include_str!("../../../docs/learn/faraday/boot/not-starting.md"),
     ),
     (
+        "mac-intel",
+        include_str!("../../../docs/learn/faraday/boot/mac-intel.md"),
+    ),
+    (
         "replace-faraday",
         include_str!("../../../docs/learn/faraday/boot/replace-faraday.md"),
     ),
@@ -111,9 +115,9 @@ const OWN: [(&str, &str); 21] = [
 /// The guides to starting a computer from the stick (`docs/HUB.md` §7.2),
 /// by id, in the order they are read: Windows, Linux, BitLocker, what
 /// Secure Boot and BitLocker are (§3.1b), screens and devices that can
-/// record (§3.1a), when the stick does not start, and replacing Faraday
-/// on a stick.
-pub const BOOT: [&str; 7] = [
+/// record (§3.1a), when the stick does not start, replacing Faraday on
+/// a stick, and starting an Intel Mac (`docs/MAC.md` §3.1–§3.2).
+pub const BOOT: [&str; 8] = [
     "windows",
     "linux",
     "bitlocker",
@@ -121,6 +125,7 @@ pub const BOOT: [&str; 7] = [
     "screens-that-record",
     "not-starting",
     "replace-faraday",
+    "mac-intel",
 ];
 
 /// A maker family's guide (`docs/HUB.md` §7.6): its page's id, and the

@@ -158,6 +158,15 @@ In `faraday/image/overlay/boards/x86_64-uefi/`:
   NVIDIA chipsets put full-speed USB, the built-in keyboard included,
   on OHCI. A host controller driver, bound by PCI class, reachable by
   no USB device's IDs.
+- `USB_UHCI_HCD` too (found 2026-10-13, orchestrator, while writing
+  the Intel Mac Learn page): the stick builds only xHCI and EHCI, and
+  on the Intel chipsets of 2006 to 2010 a full- or low-speed device on
+  a root port (the built-in keyboard, a USB keyboard plugged straight
+  in) is handed to EHCI's UHCI companion controller, so Faraday sees
+  no keyboard there. From 2011 the chipset's own hub matches rates and
+  EHCI alone serves it. Bound by PCI class, as OHCI. Until batch I
+  (which waits for the kernel move), the Learn page says a keyboard on
+  a pre-2011 Mac may not be found and a USB 2.0 hub between works.
 - `kernel.forbidden`: `MOUSE_BCM5974`, with `HID_APPLE`'s reason: it
   binds by Apple's USB vendor and product IDs, which any device can
   claim. Pre-2015 trackpads stay off (F13).

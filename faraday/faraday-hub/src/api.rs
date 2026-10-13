@@ -163,8 +163,11 @@ pub struct Disk {
 /// What a payload file holds, from its name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PayloadKind {
-    /// The stick image (`faraday-stick-…`).
+    /// The stick image for a PC or an Intel Mac (`faraday-stick-…`).
     Stick,
+    /// The stick image for a Mac with M1 or M2
+    /// (`faraday-stick-…-arm64-apple.img.xz`, `docs/MAC.md` §4.1).
+    AppleStick,
     /// The Pi image (`faraday-pi-…`).
     Pi,
     /// The desktop app (`faraday-desktop-…`).
@@ -175,7 +178,9 @@ impl PayloadKind {
     /// The kind a payload file's name says, or `None` for a name the hub
     /// does not know.
     pub fn of(name: &str) -> Option<PayloadKind> {
-        if name.starts_with("faraday-stick-") {
+        if name.starts_with("faraday-stick-") && name.ends_with("-arm64-apple.img.xz") {
+            Some(PayloadKind::AppleStick)
+        } else if name.starts_with("faraday-stick-") {
             Some(PayloadKind::Stick)
         } else if name.starts_with("faraday-pi-") {
             Some(PayloadKind::Pi)

@@ -80,6 +80,44 @@ pub struct Strings {
     pub hub_cannot_start_arm: &'static str,
     /// A computer started in legacy BIOS mode.
     pub hub_cannot_start_bios: &'static str,
+    /// A Mac with 32-bit EFI firmware (docs/MAC.md §1).
+    pub hub_cannot_start_mac_firmware: &'static str,
+    /// A Mac with Apple silicon, until its image exists (docs/MAC.md §4).
+    pub hub_cannot_start_mac_yet: &'static str,
+    /// Card line: a Mac with the T2 chip.
+    pub hub_mac_t2: &'static str,
+    /// Checklist item, card button and page, on an Intel Mac.
+    pub hub_item_start_mac: &'static str,
+    /// Start this Mac's state: a Mac without the T2 chip.
+    pub hub_state_mac_option: &'static str,
+    /// Start this Mac's state: a Mac with the T2 chip.
+    pub hub_state_mac_t2: &'static str,
+    /// Start this Mac's state: a Mac the table does not know.
+    pub hub_state_mac_unknown: &'static str,
+    /// Over the T2 steps, for a Mac the table does not know.
+    pub hub_mac_t2_only: &'static str,
+    /// Step.
+    pub hub_mac_lower: &'static str,
+    /// Under it.
+    pub hub_mac_recovery: &'static str,
+    /// Under it.
+    pub hub_mac_utility_lower: &'static str,
+    /// Under Start from the stick, on a Mac.
+    pub hub_mac_option: &'static str,
+    /// Under it.
+    pub hub_mac_firmware_password: &'static str,
+    /// Step.
+    pub hub_mac_afterwards: &'static str,
+    /// Under it.
+    pub hub_mac_utility_full: &'static str,
+    /// Guide title.
+    pub hub_learn_mac_intel: &'static str,
+    /// Make a Faraday stick's first choice, once the payload carries both stick images (docs/MAC.md §6).
+    pub hub_which_title: &'static str,
+    /// Row.
+    pub hub_which_pc: &'static str,
+    /// Row.
+    pub hub_which_apple: &'static str,
     /// Checklist item and its page.
     pub hub_item_make: &'static str,
     /// Checklist item and its page.
@@ -7950,6 +7988,25 @@ pub static EN: Strings = Strings {
     hub_drive_unknown: "Drive {} encryption not read",
     hub_cannot_start_arm: "This computer cannot start a Faraday stick",
     hub_cannot_start_bios: "Started in legacy BIOS mode: UEFI has to be on",
+    hub_cannot_start_mac_firmware: "This Mac's firmware cannot start Faraday",
+    hub_cannot_start_mac_yet: "This Mac cannot start Faraday yet",
+    hub_mac_t2: "Apple T2 Security Chip",
+    hub_item_start_mac: "Start this Mac from the stick",
+    hub_state_mac_option: "Option key at power-on",
+    hub_state_mac_t2: "Startup Security, then the Option key",
+    hub_state_mac_unknown: "Option key at power-on · Startup Security on a T2 Mac",
+    hub_mac_t2_only: "Only on a Mac with the T2 chip",
+    hub_mac_lower: "Lower Startup Security",
+    hub_mac_recovery: "macOS Recovery: hold Command-R at power-on",
+    hub_mac_utility_lower: "Utilities, Startup Security Utility: No Security, and Allow booting from external or removable media",
+    hub_mac_option: "Shut down. Hold Option at power-on and choose EFI Boot",
+    hub_mac_firmware_password: "A firmware password, when one is set, is asked for first",
+    hub_mac_afterwards: "Afterwards: Startup Security back to Full",
+    hub_mac_utility_full: "macOS Recovery, Startup Security Utility: Full Security, and Disallow booting from external or removable media",
+    hub_learn_mac_intel: "Starting an Intel Mac from the stick",
+    hub_which_title: "For which computer?",
+    hub_which_pc: "A PC or an Intel Mac",
+    hub_which_apple: "A Mac with M1 or M2",
     hub_item_make: "Make a Faraday stick",
     hub_item_bitlocker: "BitLocker",
     hub_item_start: "Start this computer from the stick",
