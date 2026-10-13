@@ -438,6 +438,77 @@ pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_system(
     });
 }
 
+/// `Core.kept(handle, bytes)`: the kept store, opened after the unlock.
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_kept(
+    env: *mut JNIEnv,
+    _this: jobject,
+    handle: jlong,
+    bytes: jbyteArray,
+) {
+    crate::guard((), || {
+        // SAFETY: `bytes` is the JVM's `ByteArray` argument to this method.
+        if let Some(bytes) = unsafe { read_bytes(env, bytes) } {
+            crate::kept(handle, bytes);
+        }
+    });
+}
+
+/// `Core.keptClosed(handle, why)`: the kept store was not opened.
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_keptClosed(
+    _env: *mut JNIEnv,
+    _this: jobject,
+    handle: jlong,
+    why: jint,
+) {
+    crate::guard((), || crate::kept_closed(handle, why));
+}
+
+/// `Core.locked(handle)`: the app went to the background.
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_locked(
+    _env: *mut JNIEnv,
+    _this: jobject,
+    handle: jlong,
+) {
+    crate::guard((), || crate::locked(handle));
+}
+
+/// `Core.keptCounts(handle, descriptions, keys)`: the counts kept beside
+/// the store.
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_keptCounts(
+    _env: *mut JNIEnv,
+    _this: jobject,
+    handle: jlong,
+    descriptions: jint,
+    keys: jint,
+) {
+    crate::guard((), || crate::kept_counts(handle, descriptions, keys));
+}
+
+/// `Core.sharedIn(handle, name, bytes)`: one file or text shared to the
+/// app; `name` is null for text.
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_sharedIn(
+    env: *mut JNIEnv,
+    _this: jobject,
+    handle: jlong,
+    name: jstring,
+    bytes: jbyteArray,
+) {
+    crate::guard((), || {
+        // SAFETY: `name` and `bytes` are the JVM's `String?` and
+        // `ByteArray` arguments to this method.
+        let name = unsafe { read_string(env, name) };
+        // SAFETY: as above, for `bytes`.
+        if let Some(bytes) = unsafe { read_bytes(env, bytes) } {
+            crate::shared_in(handle, name, bytes);
+        }
+    });
+}
+
 /// `Core.pollCommand(handle): Int`: the next command's code.
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_pollCommand(
@@ -513,6 +584,28 @@ pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_commandOn(
     handle: jlong,
 ) -> jboolean {
     jboolean::from(crate::guard(false, || crate::command_on(handle)))
+}
+
+/// `Core.commandDescriptions(handle): Int`: the kept store's count of
+/// wallet descriptions.
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_commandDescriptions(
+    _env: *mut JNIEnv,
+    _this: jobject,
+    handle: jlong,
+) -> jint {
+    crate::guard(0, || crate::command_descriptions(handle))
+}
+
+/// `Core.commandKeys(handle): Int`: the kept store's count of BitLocker
+/// keys.
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_commandKeys(
+    _env: *mut JNIEnv,
+    _this: jobject,
+    handle: jlong,
+) -> jint {
+    crate::guard(0, || crate::command_keys(handle))
 }
 
 /// `Core.pageColor(handle): Int`: the page's colour, opaque ARGB.

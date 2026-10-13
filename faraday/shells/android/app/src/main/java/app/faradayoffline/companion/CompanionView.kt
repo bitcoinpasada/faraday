@@ -23,14 +23,15 @@ import java.util.TimeZone
  * no text field and no system keyboard here. What this class does:
  *
  *  - create the core once, at the first settled size, hand it what was
- *    kept (the received files, the theme), the wall clock and About's facts,
- *    and free it on destroy;
+ *    kept (the received files, the kept store's counts, the theme), the
+ *    wall clock, About's facts and anything shared in at start, and free
+ *    it on destroy;
  *  - turn touches into `Touch` events in frame pixels, and Back into Escape;
  *  - tick every [TICK_MS] while the activity is on screen, which moves an
  *    animated code on and hands the core what the scanner read;
  *  - drain the commands each event produces and act on them, keeping the
  *    theme here and handing documents, the clipboard, the camera, the
- *    store and the screen to the [Host].
+ *    stores, the unlock, Share and the screen to the [Host].
  */
 internal class CompanionView(context: Context, private val host: Host) : View(context) {
 
@@ -62,6 +63,21 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
 
         /** Keep the screen on, or let it sleep. */
         fun keepScreenOn(on: Boolean)
+
+        /**
+         * Ask the phone's unlock and open the kept store; answer with
+         * [keptAnswer] or [keptClosed] exactly once.
+         */
+        fun unlockKept(title: String?)
+
+        /** Keep the kept store, encrypted, with its two counts; empty bytes delete it. */
+        fun keepKept(bytes: ByteArray?, descriptions: Int, keys: Int)
+
+        /** The two counts kept beside the kept store, for the core at start. */
+        fun keptCounts(): Pair<Int, Int>
+
+        /** Hand one file to the system's share sheet. */
+        fun share(name: String?, mime: String?, bytes: ByteArray?)
 
         /** The window behind the frame, in the theme's page colour. */
         fun pageColor(color: Int, light: Boolean)
@@ -103,6 +119,9 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
     /** Whether the activity is between `onStart` and `onStop`. */
     private var onScreen = false
 
+    /** What was shared in before the core existed, for it at start. */
+    private var sharedWaiting: Pair<String?, ByteArray>? = null
+
     private val tick = object : Runnable {
         override fun run() {
             if (handle == 0L) return
@@ -128,6 +147,7 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
         // The display is in. What was kept goes in behind it, before any
         // input can change it, with the clock and About's facts.
         val received = host.loadReceived()
+        val (descriptions, keys) = host.keptCounts()
         val theme = readTheme()
         val system = host.system()
         send {
@@ -137,12 +157,17 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
                 it.fill(0)
             }
         }
+        send { Core.keptCounts(handle, descriptions, keys) }
         send { theme?.let { Core.theme(handle, it) } }
         send { system?.let { (build, cert, permissions) -> Core.system(handle, build, cert, permissions) } }
         sendTime()
         // In the theme the core now has, the kept one or the default.
         host.pageColor(Core.pageColor(handle), Core.pageLight(handle))
         if (onScreen) ticker.postDelayed(tick, TICK_MS)
+        sharedWaiting?.let { (name, bytes) ->
+            sharedWaiting = null
+            sharedIn(name, bytes)
+        }
     }
 
     /** `onStart`: the clock again, and the ticker runs. */
@@ -257,6 +282,47 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
         }
     }
 
+    /** The answer to a [Host.unlockKept]: the store's bytes, or `null` when they cannot be read. */
+    fun keptAnswer(bytes: ByteArray?) {
+        if (handle == 0L) return
+        send {
+            if (bytes != null) {
+                Core.kept(handle, bytes)
+                bytes.fill(0)
+            } else {
+                Core.keptClosed(handle, Core.CLOSED_UNREADABLE)
+            }
+        }
+    }
+
+    /** The answer to a [Host.unlockKept] when the store stays closed: a `CLOSED_*` code. */
+    fun keptClosed(why: Int) {
+        if (handle == 0L) return
+        send { Core.keptClosed(handle, why) }
+    }
+
+    /** The app went to the background: the core lets go of the kept store. */
+    fun locked() {
+        if (handle == 0L) return
+        send { Core.locked(handle) }
+    }
+
+    /**
+     * One file or text shared in; held until the core exists when it
+     * arrives with the app's start.
+     */
+    fun sharedIn(name: String?, bytes: ByteArray) {
+        if (handle == 0L) {
+            sharedWaiting?.second?.fill(0)
+            sharedWaiting = Pair(name, bytes)
+            return
+        }
+        send {
+            Core.sharedIn(handle, name, bytes)
+            bytes.fill(0)
+        }
+    }
+
     /** One camera frame after a [Host.cameraOn], through the same queue. */
     fun cameraFrame(width: Int, height: Int, luma: ByteArray, chroma: ByteArray) {
         if (handle == 0L) return
@@ -274,6 +340,8 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
         ticker.removeCallbacksAndMessages(null)
         removeCallbacks(start)
         pending.clear()
+        sharedWaiting?.second?.fill(0)
+        sharedWaiting = null
         val dying = handle
         handle = 0L
         bitmap?.recycle()
@@ -321,6 +389,14 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
                 Core.CMD_CAMERA_OFF -> host.cameraOff()
                 Core.CMD_KEEP_RECEIVED -> host.keepReceived(Core.commandBytes(handle))
                 Core.CMD_KEEP_SCREEN_ON -> host.keepScreenOn(Core.commandOn(handle))
+                Core.CMD_UNLOCK_KEPT -> host.unlockKept(Core.commandText(handle))
+                Core.CMD_KEEP_KEPT -> host.keepKept(
+                    Core.commandBytes(handle),
+                    Core.commandDescriptions(handle),
+                    Core.commandKeys(handle),
+                )
+                Core.CMD_SHARE ->
+                    host.share(Core.commandName(handle), Core.commandText(handle), Core.commandBytes(handle))
                 Core.CMD_KEEP_THEME -> {
                     writeTheme(Core.commandText(handle))
                     needsColor = true

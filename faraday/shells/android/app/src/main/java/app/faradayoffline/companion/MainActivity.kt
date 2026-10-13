@@ -2,16 +2,21 @@ package app.faradayoffline.companion
 
 import android.Manifest
 import android.app.Activity
+import android.app.KeyguardManager
 import android.content.ActivityNotFoundException
+import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.graphics.drawable.ColorDrawable
+import android.hardware.biometrics.BiometricManager
+import android.hardware.biometrics.BiometricPrompt
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.CancellationSignal
 import android.provider.OpenableColumns
 import android.view.View
 import android.view.WindowInsets
@@ -28,8 +33,9 @@ import java.security.MessageDigest
  * asks for: it owns a [CompanionView] and answers what the view cannot do
  * for itself: the document picker and creator, the clipboard's read for
  * Paste, the camera and its permission, the received files' store, the
- * screen kept on while a code shows, the window's colour, About's facts
- * from the package manager, and leaving.
+ * kept store and the phone's unlock in front of it, Share out and the
+ * share target in, the screen kept on while a code shows, the window's
+ * colour, About's facts from the package manager, and leaving.
  *
  * Nothing the core produces is logged. The app never writes the clipboard
  * and never opens a link (docs/COMPANION.md §0, §6.3).
@@ -43,6 +49,30 @@ class MainActivity : Activity(), CompanionView.Host, Camera.Listener {
 
     /** The received files, encrypted under a Keystore key of their own. */
     private lateinit var store: ReceivedStore
+
+    /** Wallet descriptions and BitLocker keys, behind the phone's unlock. */
+    private lateinit var kept: KeptStore
+
+    /**
+     * Whether the system's unlock prompt is up for the kept store. While
+     * it is, `onStop` (the device-credential screen is an activity of the
+     * system's) is not the app going to the background: the core is not
+     * told `Locked`, which would drop the unlock it is waiting for.
+     */
+    private var unlocking = false
+
+    /** The prompt now up on Android 11 and later, to cancel when superseded. */
+    private var prompting: CancellationSignal? = null
+
+    /** An unlock asked for before the activity was resumed: its title. */
+    private var unlockWaiting: String? = null
+    private var unlockIsWaiting = false
+
+    /** Whether the activity is between `onResume` and `onPause`. */
+    private var resumed = false
+
+    /** Whether a share went out and has not been withdrawn yet. */
+    private var sharing = false
 
     /** Whether the core's last camera command was on. */
     private var wantsCamera = false
@@ -71,6 +101,7 @@ class MainActivity : Activity(), CompanionView.Host, Camera.Listener {
         )
 
         store = ReceivedStore(this)
+        kept = KeptStore(this)
         view = CompanionView(this, this)
         camera = Camera(this, this)
         val root = FrameLayout(this)
@@ -103,6 +134,16 @@ class MainActivity : Activity(), CompanionView.Host, Camera.Listener {
                 OnBackInvokedDispatcher.PRIORITY_DEFAULT,
             ) { view.back() }
         }
+
+        // Started by another app's share: handed to the view, which keeps
+        // it until the core exists.
+        if (savedInstanceState == null) sharedIn(intent)
+    }
+
+    /** Another app shared to the Companion while it was running. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        sharedIn(intent)
     }
 
     /** The back gesture below API 33, where the manifest opt-in has no effect. */
@@ -114,28 +155,59 @@ class MainActivity : Activity(), CompanionView.Host, Camera.Listener {
 
     /** A backgrounded app does not hold the camera; [onResume] reopens it. */
     override fun onPause() {
+        resumed = false
         camera.off()
         super.onPause()
     }
 
     override fun onResume() {
         super.onResume()
+        resumed = true
         view.systemChanged()
         if (wantsCamera && hasCameraPermission()) camera.on()
+        if (unlockIsWaiting) {
+            val title = unlockWaiting
+            unlockIsWaiting = false
+            unlockWaiting = null
+            unlockKept(title)
+        }
     }
 
+    /**
+     * Back after a share: the person has come back from the app the file
+     * went to, so the share has ended and its grant goes.
+     */
     override fun onStart() {
         super.onStart()
+        if (sharing) {
+            sharing = false
+            ShareProvider.withdraw(this)
+        }
         view.foreground()
     }
 
+    /**
+     * In the background: the kept store's data key is wiped and the core
+     * told `Locked`, so the next kept page asks for the unlock again;
+     * unless what stopped the activity is the system's own unlock prompt.
+     */
     override fun onStop() {
+        if (!unlocking) {
+            unlockIsWaiting = false
+            unlockWaiting = null
+            kept.lock()
+            view.locked()
+        }
         view.background()
         super.onStop()
     }
 
     override fun onDestroy() {
         camera.off()
+        prompting?.cancel()
+        prompting = null
+        kept.lock()
+        ShareProvider.withdraw(this)
         view.destroy()
         super.onDestroy()
     }
@@ -224,6 +296,186 @@ class MainActivity : Activity(), CompanionView.Host, Camera.Listener {
     }
 
     override fun loadReceived(): ByteArray? = store.load()
+
+    override fun keptCounts(): Pair<Int, Int> = kept.counts()
+
+    override fun keepKept(bytes: ByteArray?, descriptions: Int, keys: Int) {
+        if (bytes == null) return
+        kept.keep(bytes, descriptions, keys)
+        bytes.fill(0)
+    }
+
+    /**
+     * The phone's unlock, then the kept store opened (docs/COMPANION.md
+     * §7). Android 11 and later: `BiometricPrompt`, strong biometric or
+     * the device credential, authorising the Keystore cipher itself.
+     * Android 8 to 10: the system's confirm-credential screen, after which
+     * the Keystore key works for 30 seconds. A phone with no screen lock is
+     * answered at once, and nothing is kept.
+     */
+    override fun unlockKept(title: String?) {
+        // A prompt still standing is one whose answer never came: it goes,
+        // and the store held from any earlier unlock is let go of.
+        prompting?.cancel()
+        prompting = null
+        unlocking = false
+        kept.lock()
+        if (!kept.deviceSecure()) {
+            view.keptClosed(Core.CLOSED_NO_SCREEN_LOCK)
+            return
+        }
+        // The prompt needs a resumed activity: a share that arrives with the
+        // app's start asks before then.
+        if (!resumed) {
+            unlockWaiting = title
+            unlockIsWaiting = true
+            return
+        }
+        val heading = title?.takeIf { it.isNotEmpty() } ?: getString(R.string.app_name)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            promptUnlock(heading)
+        } else {
+            val keyguard = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+            @Suppress("DEPRECATION")
+            val confirm = keyguard?.createConfirmDeviceCredentialIntent(heading, null)
+            if (confirm == null) {
+                view.keptClosed(Core.CLOSED_NO_SCREEN_LOCK)
+                return
+            }
+            unlocking = true
+            try {
+                startActivityForResult(confirm, REQUEST_UNLOCK)
+            } catch (_: ActivityNotFoundException) {
+                unlocking = false
+                view.keptClosed(Core.CLOSED_CANCELLED)
+            }
+        }
+    }
+
+    /** Android 11 and later: the prompt authorises the cipher that opens the store. */
+    private fun promptUnlock(heading: String) {
+        val ready = when (val begun = kept.begin()) {
+            is KeptStore.Begin.Ready -> begun
+            KeptStore.Begin.NoScreenLock -> return view.keptClosed(Core.CLOSED_NO_SCREEN_LOCK)
+            KeptStore.Begin.NotAuthenticated -> return view.keptClosed(Core.CLOSED_CANCELLED)
+            KeptStore.Begin.Unreadable -> return view.keptClosed(Core.CLOSED_UNREADABLE)
+        }
+        val signal = CancellationSignal()
+        prompting = signal
+        unlocking = true
+        var answered = false
+        // One answer per prompt, and none for a prompt superseded since.
+        fun answer(act: () -> Unit) {
+            if (answered) return
+            answered = true
+            if (prompting !== signal) return
+            prompting = null
+            unlocking = false
+            act()
+        }
+        val prompt = BiometricPrompt.Builder(this)
+            .setTitle(heading)
+            .setAllowedAuthenticators(
+                BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                    BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+            )
+            .build()
+        prompt.authenticate(
+            BiometricPrompt.CryptoObject(ready.cipher),
+            signal,
+            mainExecutor,
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    answer {
+                        val cipher = result.cryptoObject?.cipher ?: ready.cipher
+                        view.keptAnswer(kept.finish(ready, cipher))
+                    }
+                }
+
+                override fun onAuthenticationError(code: Int, message: CharSequence) {
+                    answer {
+                        view.keptClosed(
+                            if (code == BiometricPrompt.BIOMETRIC_ERROR_NO_DEVICE_CREDENTIAL) {
+                                Core.CLOSED_NO_SCREEN_LOCK
+                            } else {
+                                Core.CLOSED_CANCELLED
+                            },
+                        )
+                    }
+                }
+
+                override fun onAuthenticationFailed() {
+                    // A finger not recognised; the prompt stays up.
+                }
+            },
+        )
+    }
+
+    /** Android 8 to 10: the confirm-credential screen answered. */
+    private fun unlockConfirmed(ok: Boolean) {
+        unlocking = false
+        if (!ok) return view.keptClosed(Core.CLOSED_CANCELLED)
+        when (val begun = kept.begin()) {
+            is KeptStore.Begin.Ready -> view.keptAnswer(kept.finish(begun))
+            KeptStore.Begin.NoScreenLock -> view.keptClosed(Core.CLOSED_NO_SCREEN_LOCK)
+            KeptStore.Begin.NotAuthenticated -> view.keptClosed(Core.CLOSED_CANCELLED)
+            KeptStore.Begin.Unreadable -> view.keptClosed(Core.CLOSED_UNREADABLE)
+        }
+    }
+
+    /**
+     * Share (docs/COMPANION.md §6.3): one file, on offer from the app's own
+     * read-only provider, through `ACTION_SEND` and the system's chooser,
+     * with a read grant for that file's address alone. The grant is
+     * revoked when the person comes back to the app, or when it ends.
+     */
+    override fun share(name: String?, mime: String?, bytes: ByteArray?) {
+        if (name == null || bytes == null) {
+            bytes?.fill(0)
+            return
+        }
+        val type = mime?.takeIf { it.isNotEmpty() } ?: "application/octet-stream"
+        val uri = ShareProvider.offer(this, name, type, bytes)
+        bytes.fill(0)
+        val send = Intent(Intent.ACTION_SEND)
+            .setType(type)
+            .putExtra(Intent.EXTRA_STREAM, uri)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        send.clipData = ClipData.newRawUri(name, uri)
+        try {
+            startActivity(Intent.createChooser(send, null))
+            sharing = true
+        } catch (_: ActivityNotFoundException) {
+            ShareProvider.withdraw(this)
+        }
+    }
+
+    /**
+     * The share target (docs/COMPANION.md §6.3): one file or one text
+     * another app shared. The file's bytes and name, or the text, go to the
+     * core; nothing else is read from the intent. A file that cannot be
+     * read goes as no bytes, which the core says it could not read.
+     */
+    private fun sharedIn(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND) return
+        // From the recents list after the process ended: the share was
+        // handed in when it came.
+        if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
+        val stream = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri
+        }
+        if (stream != null) {
+            view.sharedIn(displayName(stream), readAll(stream) ?: ByteArray(0))
+        } else {
+            val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
+            if (!text.isNullOrEmpty()) view.sharedIn(null, text.toByteArray(Charsets.UTF_8))
+        }
+        // Handled once: not again if the activity is recreated.
+        setIntent(Intent(this, MainActivity::class.java))
+    }
 
     override fun keepScreenOn(on: Boolean) {
         if (on) {
@@ -356,6 +608,7 @@ class MainActivity : Activity(), CompanionView.Host, Camera.Listener {
             // RESULT_CANCELED is the person backing out of the picker, which
             // is not the same fact as a phone with no picker at all.
             REQUEST_OPEN -> answerFile(uri?.let(::displayName), uri?.let(::readAll), resultCode != RESULT_OK)
+            REQUEST_UNLOCK -> unlockConfirmed(resultCode == RESULT_OK)
             REQUEST_CREATE -> {
                 val bytes = awaitingWrite
                 awaitingWrite = null
@@ -419,6 +672,7 @@ class MainActivity : Activity(), CompanionView.Host, Camera.Listener {
         const val REQUEST_OPEN = 1
         const val REQUEST_CREATE = 2
         const val REQUEST_CAMERA = 3
+        const val REQUEST_UNLOCK = 4
         const val MAX_FILE = 4 * 1024 * 1024
         const val DEFAULT_NAME = "received.bin"
     }

@@ -26,8 +26,8 @@
 //!
 //! [`poll`] returns one command code and parks that command's payload on
 //! the instance, which the shell reads with [`command_kind`],
-//! [`command_bytes`], [`command_name`], [`command_text`] and
-//! [`command_on`]. It answers upstream's commands first and then the
+//! [`command_bytes`], [`command_name`], [`command_text`], [`command_on`],
+//! [`command_descriptions`] and [`command_keys`]. It answers upstream's commands first and then the
 //! Companion's own ([`CompanionCommand`]), under codes of their own.
 //!
 //! Only the commands a Companion gives reach the shell. Upstream's
@@ -65,7 +65,7 @@
 use std::cell::RefCell;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-use faraday_companion::{Companion, CompanionCommand, CompanionEvent};
+use faraday_companion::{Closed, Companion, CompanionCommand, CompanionEvent};
 use faraday_scanner::Scanner;
 use osk_shell_api::{
     App, BootState, Command, DisplayInfo, Event, FileKind, Key, SecureHardware, TouchPhase,
@@ -115,6 +115,29 @@ pub const CMD_KEEP_SCREEN_ON: i32 = 17;
 /// its id is in [`command_text`]. The shell hands it back with [`theme`]
 /// next time, and the page's colour ([`page_color`]) has changed.
 pub const CMD_KEEP_THEME: i32 = 18;
+
+/// [`poll`]: ask the phone's unlock and open the kept store
+/// ([`CompanionCommand::UnlockKept`]); the prompt's title is in
+/// [`command_text`]. The shell answers with exactly one [`kept`] or
+/// [`kept_closed`]. What the store is opened for stays in the core: the
+/// shell asks the same way for each.
+pub const CMD_UNLOCK_KEPT: i32 = 19;
+/// [`poll`]: keep the kept store ([`CompanionCommand::KeepKept`]); the
+/// bytes are in [`command_bytes`], the two counts in
+/// [`command_descriptions`] and [`command_keys`]. Empty bytes: delete the
+/// store, its wrapped key and the counts.
+pub const CMD_KEEP_KEPT: i32 = 20;
+/// [`poll`]: hand one file to the system's share sheet
+/// ([`CompanionCommand::Share`]); its name, media type and bytes are in
+/// [`command_name`], [`command_text`] and [`command_bytes`].
+pub const CMD_SHARE: i32 = 21;
+
+/// [`kept_closed`]: the person cancelled the unlock ([`Closed::Cancelled`]).
+pub const CLOSED_CANCELLED: i32 = 0;
+/// [`kept_closed`]: the phone has no screen lock ([`Closed::NoScreenLock`]).
+pub const CLOSED_NO_SCREEN_LOCK: i32 = 1;
+/// [`kept_closed`]: the store could not be opened ([`Closed::Unreadable`]).
+pub const CLOSED_UNREADABLE: i32 = 2;
 
 /// Returned by [`poll`] for an unknown handle or a caught panic.
 pub const CMD_ERROR: i32 = -1;
@@ -182,6 +205,17 @@ pub fn file_kind_of(code: i32) -> Option<FileKind> {
     }
 }
 
+/// [`kept_closed`]'s code → [`Closed`].
+#[must_use]
+pub fn closed_of(code: i32) -> Option<Closed> {
+    match code {
+        CLOSED_CANCELLED => Some(Closed::Cancelled),
+        CLOSED_NO_SCREEN_LOCK => Some(Closed::NoScreenLock),
+        CLOSED_UNREADABLE => Some(Closed::Unreadable),
+        _ => None,
+    }
+}
+
 /// [`FileKind`] → the code the shell reads from [`command_kind`].
 #[must_use]
 pub fn file_kind_code(kind: FileKind) -> i32 {
@@ -207,6 +241,8 @@ struct Payload {
     name: Option<String>,
     text: Option<String>,
     on: bool,
+    /// [`CMD_KEEP_KEPT`]'s two counts: descriptions, keys.
+    counts: (u32, u32),
 }
 
 impl Payload {
@@ -306,14 +342,34 @@ fn encode_companion(command: CompanionCommand) -> Option<(i32, Payload)> {
                 ..none()
             },
         ),
-        // The kept store and Share come with batch B2's shell; until
-        // then they are dropped, their bytes wiped.
-        CompanionCommand::UnlockKept { .. } => return None,
-        CompanionCommand::KeepKept { mut bytes, .. }
-        | CompanionCommand::Share { mut bytes, .. } => {
-            bytes.zeroize();
-            return None;
-        }
+        CompanionCommand::UnlockKept { purpose: _, title } => (
+            CMD_UNLOCK_KEPT,
+            Payload {
+                text: Some(title),
+                ..none()
+            },
+        ),
+        CompanionCommand::KeepKept {
+            bytes,
+            descriptions,
+            keys,
+        } => (
+            CMD_KEEP_KEPT,
+            Payload {
+                bytes: Some(bytes),
+                counts: (descriptions, keys),
+                ..none()
+            },
+        ),
+        CompanionCommand::Share { name, mime, bytes } => (
+            CMD_SHARE,
+            Payload {
+                bytes: Some(bytes),
+                name: Some(name),
+                text: Some(mime),
+                ..none()
+            },
+        ),
     })
 }
 
@@ -686,6 +742,42 @@ pub fn system(handle: i64, build: String, certificate: &[u8], permissions: &str)
     );
 }
 
+/// The answer to [`CMD_UNLOCK_KEPT`]: the person gave the phone's unlock,
+/// and these are the bytes the last [`CMD_KEEP_KEPT`] handed over,
+/// decrypted; empty when nothing is kept yet.
+pub fn kept(handle: i64, bytes: Vec<u8>) {
+    send_companion(handle, CompanionEvent::Kept { bytes });
+}
+
+/// The answer to [`CMD_UNLOCK_KEPT`] when the store was not opened, and
+/// why: one of the `CLOSED_*` codes. An unknown code is ignored.
+pub fn kept_closed(handle: i64, why: i32) {
+    if let Some(why) = closed_of(why) {
+        send_companion(handle, CompanionEvent::KeptClosed { why });
+    }
+}
+
+/// The app went to the background: the core wipes what it held of the
+/// kept store. Not sent while the system's own unlock prompt is what
+/// stopped the activity, or the unlock it answers would be dropped.
+pub fn locked(handle: i64) {
+    send_companion(handle, CompanionEvent::Locked);
+}
+
+/// The two counts the shell keeps beside the kept store, sent once at
+/// start. A negative count is ignored.
+pub fn kept_counts(handle: i64, descriptions: i32, keys: i32) {
+    if let (Ok(descriptions), Ok(keys)) = (u32::try_from(descriptions), u32::try_from(keys)) {
+        send_companion(handle, CompanionEvent::KeptCounts { descriptions, keys });
+    }
+}
+
+/// One file (with the name the sharing app gave it, if any) or one text
+/// (no name, its UTF-8) shared to the Companion.
+pub fn shared_in(handle: i64, name: Option<String>, bytes: Vec<u8>) {
+    send_companion(handle, CompanionEvent::SharedIn { name, bytes });
+}
+
 /// Takes the next pending command as a `CMD_*` code, parking its payload
 /// for the accessors below: upstream's commands first, then the
 /// Companion's own. [`CMD_NONE`] when both queues are empty, [`CMD_ERROR`]
@@ -745,6 +837,25 @@ pub fn command_text(handle: i64) -> Option<String> {
 #[must_use]
 pub fn command_on(handle: i64) -> bool {
     with(handle, |i| i.payload.on).unwrap_or(false)
+}
+
+/// [`CMD_KEEP_KEPT`]'s count of wallet descriptions; `0` after any other
+/// command.
+#[must_use]
+pub fn command_descriptions(handle: i64) -> i32 {
+    with(handle, |i| clamp(i.payload.counts.0)).unwrap_or(0)
+}
+
+/// [`CMD_KEEP_KEPT`]'s count of BitLocker keys; `0` after any other
+/// command.
+#[must_use]
+pub fn command_keys(handle: i64) -> i32 {
+    with(handle, |i| clamp(i.payload.counts.1)).unwrap_or(0)
+}
+
+/// A count as the shell's `Int`.
+fn clamp(n: u32) -> i32 {
+    i32::try_from(n).unwrap_or(i32::MAX)
 }
 
 /// The colour of the page in the theme on show, as Android's opaque
@@ -1063,6 +1174,176 @@ mod tests {
         assert_eq!(phase_of(3), None);
         assert_eq!(file_kind_of(FILE_NONE), None);
         assert_eq!(file_kind_code(FileKind::Any), FILE_ANY);
+        assert_eq!(closed_of(CLOSED_UNREADABLE), Some(Closed::Unreadable));
+        assert_eq!(closed_of(-1), None);
+    }
+
+    /// A wallet description another wallet wrote (`docs/INTEROP.md`).
+    const DESCRIPTION: &str =
+        include_str!("../../faraday-core/tests/vectors/interop/sparrow/descriptor-multipath.txt");
+
+    /// One command as the shell reads it.
+    struct Read {
+        code: i32,
+        bytes: Option<Vec<u8>>,
+        name: Option<String>,
+        text: Option<String>,
+        counts: (i32, i32),
+    }
+
+    /// Every command until the queues are empty, with what each carried
+    /// read as the shell reads it.
+    fn drain_read(handle: i64) -> Vec<Read> {
+        let mut out = Vec::new();
+        loop {
+            match poll(handle) {
+                CMD_NONE | CMD_ERROR => return out,
+                code => out.push(Read {
+                    code,
+                    bytes: command_bytes(handle),
+                    name: command_name(handle),
+                    text: command_text(handle),
+                    counts: (command_descriptions(handle), command_keys(handle)),
+                }),
+            }
+        }
+    }
+
+    /// The phone on Wallet descriptions, opened after the unlock with
+    /// `store` (empty the first time).
+    fn on_descriptions(store: Vec<u8>) -> i64 {
+        let handle = phone();
+        press(handle, Act::Descriptions);
+        let asked = drain_read(handle);
+        let title = asked
+            .iter()
+            .find(|c| c.code == CMD_UNLOCK_KEPT)
+            .and_then(|c| c.text.clone());
+        assert!(title.is_some_and(|t| !t.is_empty()), "the unlock's title");
+        assert!(matches!(page(handle), Some(Page::Unlocking(_))));
+        kept(handle, store);
+        assert_eq!(page(handle), Some(Page::Descriptions));
+        drain(handle);
+        handle
+    }
+
+    #[test]
+    fn a_description_kept_after_the_unlock_reaches_the_shell_and_opens_again() {
+        let handle = on_descriptions(Vec::new());
+        press(handle, Act::AddDescription);
+        drain(handle);
+        assert_eq!(poll(handle), CMD_NONE);
+        press(handle, Act::Paste);
+        drain(handle);
+        clipboard(handle, FILE_TEXT, DESCRIPTION.to_string());
+        let written = drain_read(handle)
+            .into_iter()
+            .rfind(|c| c.code == CMD_KEEP_KEPT)
+            .expect("the kept store handed over");
+        let store = written.bytes.expect("its bytes");
+        assert!(!store.is_empty());
+        assert_eq!(written.counts, (1, 0));
+        destroy(handle);
+
+        // The next start: the counts while locked, the store after the
+        // unlock.
+        let again = phone();
+        kept_counts(again, 1, 0);
+        assert_eq!(with(again, |i| i.app.kept().is_none()), Some(true));
+        destroy(again);
+        let again = on_descriptions(store);
+        let count = with(again, |i| i.app.kept().map(|k| k.counts()));
+        assert_eq!(count.flatten(), Some((1, 0)));
+        destroy(again);
+    }
+
+    #[test]
+    fn going_to_the_background_leaves_nothing_of_the_store_and_asks_again() {
+        let handle = on_descriptions(Vec::new());
+        locked(handle);
+        assert_eq!(page(handle), Some(Page::Home));
+        assert_eq!(with(handle, |i| i.app.kept().is_none()), Some(true));
+        press(handle, Act::Descriptions);
+        assert!(drain(handle).contains(&CMD_UNLOCK_KEPT));
+        assert!(matches!(page(handle), Some(Page::Unlocking(_))));
+        destroy(handle);
+    }
+
+    #[test]
+    fn each_reason_the_store_stayed_closed_reaches_the_core() {
+        for (code, why) in [
+            (CLOSED_CANCELLED, Closed::Cancelled),
+            (CLOSED_NO_SCREEN_LOCK, Closed::NoScreenLock),
+            (CLOSED_UNREADABLE, Closed::Unreadable),
+        ] {
+            let handle = phone();
+            press(handle, Act::Keys);
+            drain(handle);
+            // A code the core does not know leaves the question open.
+            kept_closed(handle, 9);
+            assert!(matches!(page(handle), Some(Page::Unlocking(_))));
+            kept_closed(handle, code);
+            assert_eq!(page(handle), Some(Page::Closed(why)));
+            let codes = drain(handle);
+            assert!(!codes.contains(&CMD_KEEP_KEPT));
+            destroy(handle);
+        }
+    }
+
+    #[test]
+    fn a_shared_description_asks_for_the_unlock_and_shared_text_is_shown() {
+        let handle = phone();
+        shared_in(
+            handle,
+            Some(String::from("vault.txt")),
+            DESCRIPTION.as_bytes().to_vec(),
+        );
+        assert!(drain(handle).contains(&CMD_UNLOCK_KEPT));
+        destroy(handle);
+
+        let handle = phone();
+        shared_in(handle, None, b"Meet at noon.".to_vec());
+        assert!(matches!(page(handle), Some(Page::Shown(_))));
+        assert!(!drain(handle).contains(&CMD_UNLOCK_KEPT));
+        destroy(handle);
+    }
+
+    #[test]
+    fn share_hands_the_shell_one_file_with_its_name_and_type() {
+        let handle = on_descriptions(Vec::new());
+        press(handle, Act::AddDescription);
+        press(handle, Act::Paste);
+        drain(handle);
+        clipboard(handle, FILE_TEXT, DESCRIPTION.to_string());
+        drain(handle);
+        press(handle, Act::Share);
+        let share = drain_read(handle)
+            .into_iter()
+            .find(|c| c.code == CMD_SHARE)
+            .expect("a share");
+        // The description as it arrived, less the line's end.
+        assert_eq!(share.bytes.as_deref(), Some(DESCRIPTION.trim().as_bytes()));
+        assert!(share.name.is_some_and(|n| !n.is_empty()));
+        assert_eq!(share.text.as_deref(), Some("text/plain"));
+        destroy(handle);
+    }
+
+    #[test]
+    fn deleting_a_store_it_cannot_read_tells_the_shell_with_empty_bytes() {
+        let handle = phone();
+        press(handle, Act::Descriptions);
+        drain(handle);
+        kept(handle, b"FCKS\x09".to_vec());
+        assert_eq!(page(handle), Some(Page::Closed(Closed::Unreadable)));
+        press(handle, Act::DeleteKeptStore);
+        press(handle, Act::ConfirmDelete);
+        let written = drain_read(handle)
+            .into_iter()
+            .rfind(|c| c.code == CMD_KEEP_KEPT)
+            .expect("the store's deletion");
+        assert_eq!(written.bytes.as_deref(), Some(&[][..]));
+        assert_eq!(written.counts, (0, 0));
+        destroy(handle);
     }
 
     #[test]

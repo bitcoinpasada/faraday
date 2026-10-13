@@ -15,8 +15,8 @@ package app.faradayoffline.companion
  * and answers a handle it does not recognise by doing nothing.
  *
  * Nothing here is logged. What crosses this boundary is pixels, camera
- * frames, the files and text the person chose, and the received files'
- * store; none of it belongs in logcat.
+ * frames, the files and text the person chose or shared in, and the two
+ * stores; none of it belongs in logcat.
  */
 internal object Core {
 
@@ -59,8 +59,29 @@ internal object Core {
     /** Keep the theme [commandText]; hand it back at start. */
     const val CMD_KEEP_THEME = 18
 
+    /**
+     * Ask the phone's unlock and open the kept store; the prompt's title is
+     * [commandText]. Answer with exactly one [kept] or [keptClosed].
+     */
+    const val CMD_UNLOCK_KEPT = 19
+
+    /**
+     * Keep [commandBytes] as the kept store, with [commandDescriptions] and
+     * [commandKeys] beside it; empty bytes delete the store and its key.
+     */
+    const val CMD_KEEP_KEPT = 20
+
+    /** Share [commandBytes] as [commandName], of type [commandText]. */
+    const val CMD_SHARE = 21
+
     /** The handle names nothing. */
     const val CMD_ERROR = -1
+
+    // --- why the kept store stayed closed ---
+
+    const val CLOSED_CANCELLED = 0
+    const val CLOSED_NO_SCREEN_LOCK = 1
+    const val CLOSED_UNREADABLE = 2
 
     // --- file kinds ---
 
@@ -151,6 +172,24 @@ internal object Core {
      */
     external fun system(handle: Long, build: String, certificate: ByteArray, permissions: String)
 
+    /** The answer to [CMD_UNLOCK_KEPT]: the kept store, decrypted; empty when nothing is kept. */
+    external fun kept(handle: Long, bytes: ByteArray)
+
+    /** The answer to [CMD_UNLOCK_KEPT] when the store stayed closed: a `CLOSED_*` code. */
+    external fun keptClosed(handle: Long, why: Int)
+
+    /**
+     * The app went to the background: the core wipes what it held of the
+     * kept store. Never while the system's own unlock prompt stopped us.
+     */
+    external fun locked(handle: Long)
+
+    /** The two counts kept beside the kept store, at start. */
+    external fun keptCounts(handle: Long, descriptions: Int, keys: Int)
+
+    /** One file (with its name) or one text (null name, UTF-8) shared to the app. */
+    external fun sharedIn(handle: Long, name: String?, bytes: ByteArray)
+
     /** Takes the next command as a `CMD_*` code and parks its payload. */
     external fun pollCommand(handle: Long): Int
 
@@ -165,6 +204,12 @@ internal object Core {
 
     /** The text of the last polled command ([CMD_KEEP_THEME]), once. */
     external fun commandText(handle: Long): String?
+
+    /** [CMD_KEEP_KEPT]'s count of wallet descriptions. */
+    external fun commandDescriptions(handle: Long): Int
+
+    /** [CMD_KEEP_KEPT]'s count of BitLocker keys. */
+    external fun commandKeys(handle: Long): Int
 
     /** Whether the last polled command says on ([CMD_KEEP_SCREEN_ON]). */
     external fun commandOn(handle: Long): Boolean

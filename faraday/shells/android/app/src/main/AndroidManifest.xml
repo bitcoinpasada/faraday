@@ -15,8 +15,14 @@
   excludes every domain, so none of it goes to a cloud backup or to a new
   phone (§7).
 
+  Data leaves only through Share (the provider below, not exported) and
+  arrives through the share target (ACTION_SEND), the picker, the camera
+  and Paste (§6.3).
+
   `tools/lint-companion-android.sh` fails `just lint` on any other
-  <uses-permission> and on any <uses-library>.
+  <uses-permission>, on any <uses-library>, on any other provider, service
+  or receiver, on an exported provider, and on any intent filter beyond
+  the launcher's and SEND's.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
@@ -47,6 +53,22 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- The share target (§6.3): one file or one text from another
+                 app, routed as a scan is. Nothing but SEND. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
         </activity>
+
+        <!-- Share (§6.3): the one file the person pressed Share for, read
+             only, from memory. Not exported: another app reads it only
+             through the grant the share carries for that file's address. -->
+        <provider
+            android:name=".ShareProvider"
+            android:authorities="app.faradayoffline.companion.share"
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
 </manifest>

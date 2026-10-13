@@ -2692,6 +2692,37 @@ as possible before the next build.
     Files app; with the screen lock removed, both say so and keep
     nothing while Received still works; `aapt2` and `dumpsys` as A3.
 
+    **B2 built and audited (2026-10-13).** The FFI carries B1's events
+    and commands (`CMD_UNLOCK_KEPT` 19, `CMD_KEEP_KEPT` 20, `CMD_SHARE`
+    21). `KeptStore.kt`: `kept` under a random 256-bit data key
+    (AES-GCM), `kept.key` that key wrapped by the Keystore key
+    `companion.kept` (Android 11+: auth per use, strong biometric or
+    device credential, through `BiometricPrompt` with the cipher as its
+    `CryptoObject`; 8 to 10: 30 seconds after the confirm-credential
+    screen; not invalidated by a new fingerprint), `kept.counts` in
+    plain text. Every unlock request wipes the open key first, `onStop`
+    wipes it and sends `Locked` except while the system's prompt has
+    the app stopped, and the core asks only when it holds no store, so
+    nothing kept is in memory behind a prompt. `ShareProvider.kt`: one
+    file from memory under a random token, read-only, not exported;
+    the grant is revoked in `onStart` and `onDestroy` (a receiving app
+    reads after the Companion stops). Share in: `EXTRA_STREAM` (up to
+    4 MiB) or `EXTRA_TEXT` only. The lint now also bounds the
+    manifest's components, actions, categories and filters. Debug APK
+    14.2 MB (the `.so` 6.5 MB on arm64, up from 4.7 with B1's reader
+    and keyboard); permissions CAMERA and USE_BIOMETRIC only. On the
+    emulator (API 36, a PIN): the unlock asked, opened, asked again
+    after the background; a description shared in from Files kept and
+    there after an emulator restart; a key shared in, masked; Share to
+    Messages with the grant only to it and none after; with no screen
+    lock both say so and Received works. `just` passes (2487 tests).
+    Not tried: the Android 8 to 10 path (no such image installed); a
+    share target reading the bytes (Files is no SEND target on this
+    image). For the phone trial: screens after a prompt looked dimmed
+    on the emulator (stray system dim layers, the agent's reading).
+    For later, in the core: a text file shared in loses its name and
+    its final newline when kept in Received.
+
 73. [ ] 2026-10-13, owner: **Faraday Starter on macOS, the part that
     needs no Mac.** The owner picked up the Mac work with the Starter
     (MAC §6, item 71). There is still no Mac (M7), so MAC §8's batch A3

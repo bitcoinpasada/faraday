@@ -6,12 +6,15 @@ upstream's `opensigner/shells/android` at d26b84e. It drives the core
 (`faraday/faraday-companion-ffi`), blits the frame the core draws, and
 does for it what only the platform can: the camera, the document picker
 and creator, the clipboard's read for Paste, the received files' store,
-the screen kept on while a code shows.
+the kept store behind the phone's unlock, Share and the share target, the
+screen kept on while a code shows.
 
 Platform API and the Kotlin standard library only: `dependencies {}` is
 empty, and the manifest asks for `CAMERA` and `USE_BIOMETRIC` and nothing
-else. `tools/lint-companion-android.sh` (in `just lint`) checks both, and
-that the Kotlin opens no link and writes no clipboard;
+else. `tools/lint-companion-android.sh` (in `just lint`) checks both,
+that the manifest declares only the activity and the unexported share
+provider with the launcher's and SEND's filters, and that the Kotlin
+opens no link and writes no clipboard;
 `just companion-apk` checks the built APK's permissions with
 `aapt2 dump permissions`.
 
@@ -34,10 +37,11 @@ wrapper and the two plugins; the Keystore wrapping-key handling of
 
 ## Left out
 
-- Everything of `KeptSecret.kt` that keeps a signing key: the MAC key and
-  its per-use authentication, the authentication prompt, key attestation
-  and the verified-boot reading, the kept blob. The received store's key
-  is a plain AES-GCM Keystore key that needs no unlock.
+- Everything of `KeptSecret.kt` that keeps a signing key: the MAC key,
+  StrongBox, key attestation and the verified-boot reading, the kept
+  blob. The received store's key is a plain AES-GCM Keystore key that
+  needs no unlock; the kept store's prompt follows upstream's
+  `secureMac`, with a cipher in place of the MAC.
 - The secure element's MAC, the tier, entropy, the settings file, the
   vibrator, the total-memory reading.
 - The clipboard write ("Copy").
@@ -60,5 +64,18 @@ wrapper and the two plugins; the Keystore wrapping-key handling of
   it is granted.
 - `FLAG_KEEP_SCREEN_ON` while a code shows.
 
-The share target and share source (`docs/COMPANION.md` §6.3) and the
-unlock prompt's key (§7) are batch B's.
+- Wallet descriptions and BitLocker keys (`KeptStore.kt`, §7): the store
+  in AES-256-GCM under a random data key, the data key wrapped by a
+  Keystore key bound to the phone's unlock (Android 11 and later: every
+  use, strong biometric or the device credential, through `BiometricPrompt`
+  with the cipher as its `CryptoObject`; Android 8 to 10: 30 seconds after
+  the system's confirm-credential screen). One prompt opens the store and
+  the data key stays in memory until `onStop`, which wipes it and tells the
+  core `Locked`, unless the system's prompt is what stopped the activity.
+  The two counts Home shows while locked sit beside it, unencrypted.
+- Share (§6.3): `ShareProvider.kt`, a platform `ContentProvider`, not
+  exported, serving the one file from memory under a random address, with
+  a read grant for that address alone; revoked when the person comes back
+  to the app, and when the activity ends.
+- The share target (§6.3): `ACTION_SEND` for one file or text; only the
+  stream's bytes and display name, or the text, are read from the intent.

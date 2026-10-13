@@ -7,6 +7,14 @@
 #
 #   - the manifest has a <uses-permission> (of any form) other than CAMERA
 #     and USE_BIOMETRIC, or any <uses-library>;
+#   - the manifest declares a component beyond the one activity
+#     (.MainActivity) and the one provider (.ShareProvider, the source of
+#     Share, which must say android:exported="false"): any service,
+#     receiver, activity alias or other provider;
+#   - an intent filter names an action other than MAIN (the launcher) and
+#     SEND (the share target), a category other than LAUNCHER and DEFAULT,
+#     a <data> with anything but a mimeType, or there are more than those
+#     two filters;
 #   - a Gradle file declares a dependency: app/build.gradle.kts's
 #     `dependencies {}` is not empty, or any Gradle file names a
 #     configuration that brings a library in;
@@ -79,6 +87,79 @@ done < <(awk '
         }
         if (out ~ /[^[:space:]]/) printf "%d\t%s\n", NR, out
     }' "$MANIFEST")
+
+# The manifest's components and intent filters: one element a line, with
+# the line it starts on, comments removed and attributes joined.
+elements() {
+    awk '
+        { line = $0; out = "" }
+        {
+            while (length(line) > 0) {
+                if (incomment) {
+                    end = index(line, "-->")
+                    if (end == 0) { line = ""; break }
+                    line = substr(line, end + 3); incomment = 0
+                } else {
+                    start = index(line, "<!--")
+                    if (start == 0) { out = out line; line = ""; break }
+                    out = out substr(line, 1, start - 1)
+                    line = substr(line, start + 4); incomment = 1
+                }
+            }
+            print out
+        }' "$MANIFEST" | awk 'BEGIN { RS = "<"; line = 1 }
+        {
+            text = $0; gsub(/[[:space:]]+/, " ", text)
+            if (NR > 1 && text !~ /^\//) printf "%d\t%s\n", line, text
+            line += gsub(/\n/, "\n", $0)
+        }'
+}
+attr() { echo "$1" | sed -n "s/.* android:$2=\"\([^\"]*\)\".*/\1/p"; }
+activities=0
+providers=0
+filters=0
+while IFS=$'\t' read -r line text; do
+    case "$text" in
+    "activity-alias"* | "service"* | "receiver"*)
+        fail "$MANIFEST:$line: <${text%% *}> is not allowed"
+        ;;
+    "activity "* | "activity>"*)
+        activities=$((activities + 1))
+        name=$(attr "$text" name)
+        [ "$name" = ".MainActivity" ] || fail "$MANIFEST:$line: activity ${name:-?} is not .MainActivity"
+        ;;
+    "provider "* | "provider>"*)
+        providers=$((providers + 1))
+        name=$(attr "$text" name)
+        [ "$name" = ".ShareProvider" ] || fail "$MANIFEST:$line: provider ${name:-?} is not .ShareProvider"
+        [ "$(attr "$text" exported)" = "false" ] || fail "$MANIFEST:$line: the provider must say android:exported=\"false\""
+        ;;
+    "intent-filter"*)
+        filters=$((filters + 1))
+        ;;
+    "action "*)
+        name=$(attr "$text" name)
+        case "$name" in
+        android.intent.action.MAIN | android.intent.action.SEND) ;;
+        *) fail "$MANIFEST:$line: action ${name:-?} is not MAIN or SEND" ;;
+        esac
+        ;;
+    "category "*)
+        name=$(attr "$text" name)
+        case "$name" in
+        android.intent.category.LAUNCHER | android.intent.category.DEFAULT) ;;
+        *) fail "$MANIFEST:$line: category ${name:-?} is not LAUNCHER or DEFAULT" ;;
+        esac
+        ;;
+    "data "* | "data>"* | "data/"*)
+        rest=$(echo "$text" | sed 's/ android:mimeType="[^"]*"//; s/^data//; s/[ \/>]//g')
+        [ -z "$rest" ] || fail "$MANIFEST:$line: <data> may carry a mimeType only"
+        ;;
+    esac
+done < <(elements)
+[ "$activities" -le 1 ] || fail "$MANIFEST: more than one activity"
+[ "$providers" -le 1 ] || fail "$MANIFEST: more than one provider"
+[ "$filters" -le 2 ] || fail "$MANIFEST: more than the launcher's and SEND's intent filters"
 
 # Gradle: no dependency, and only the two plugins.
 gradle_files=$(find "$SHELL_DIR" -name '*.gradle.kts' -not -path '*/build/*' | sort)
