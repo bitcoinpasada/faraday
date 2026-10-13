@@ -11356,7 +11356,13 @@ impl Faraday {
         // A panel under 600 dp wide (the Pi's 2.8" is 268) gets the
         // one-column layout at its own density, not the desktop shrunk.
         self.compact = f32::from(d.width) / density < 600.0;
-        let base = if self.compact {
+        // Held inside the hub, the screens draw at the desktop's own
+        // density, and take the one-column layout in any window narrower
+        // than the wide layout's 1280 dp, rather than shrinking it.
+        if self.held && f32::from(d.width) / density < 1280.0 {
+            self.compact = true;
+        }
+        let base = if self.compact || self.held {
             density
         } else {
             fit.min(density * 1.25)

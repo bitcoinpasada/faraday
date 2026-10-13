@@ -984,3 +984,39 @@ fn the_stick_and_the_hub_show_the_same_address_for_a_computer() {
         );
     }
 }
+
+fn sized(width: u16, height: u16, dpi: u16) -> Hub {
+    let mut hub = hub_with(Vec::new());
+    hub.event(display(width, height, dpi));
+    hub
+}
+
+#[test]
+fn the_hub_draws_at_the_desktops_density_in_any_window() {
+    let half = sized(1600, 1800, 320);
+    let full = sized(3200, 1800, 320);
+    let small = sized(1100, 760, 160);
+    assert_eq!(half.scale(), 2.0);
+    assert_eq!(full.scale(), 2.0);
+    assert_eq!(small.scale(), 1.0);
+}
+
+#[test]
+fn a_narrow_window_is_one_column_and_still_shows_home() {
+    let mut hub = sized(640, 400, 160);
+    assert_eq!(hub.scale(), 1.0);
+    assert!(shows(&mut hub, "Checklist"));
+    let mut half = sized(1600, 1800, 320);
+    assert!(shows(&mut half, "Checklist"));
+}
+
+#[test]
+fn transfer_in_a_half_screen_window_is_one_column() {
+    let mut hub = sized(1600, 1800, 320);
+    hub.press(HubAction::Transfer);
+    assert!(hub.showing_held());
+    assert!(hub.held().is_compact());
+    assert!(shows(&mut hub, "Transfer"));
+    hub.event(display(3200, 1800, 320));
+    assert!(!hub.held().is_compact());
+}

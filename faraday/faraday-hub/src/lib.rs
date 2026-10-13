@@ -832,6 +832,11 @@ impl Hub {
         self.computer.os == Os::Linux && self.boot_entry && self.facts().stick().is_none()
     }
 
+    /// Pixels per dp the pages are drawn at: the window's density.
+    pub fn scale(&self) -> f32 {
+        self.f
+    }
+
     /// The held desktop app, for its storage channel
     /// (`Faraday::storage`, `Faraday::poll_storage`): Transfer's
     /// Downloads folder and the files it saves.
@@ -1622,17 +1627,12 @@ impl Hub {
     }
 
     fn display(&mut self, d: DisplayInfo) {
-        let fit = (f32::from(d.width) / 1280.0).min(f32::from(d.height) / 800.0);
+        // The pages are a column that lays out to the width: they draw at
+        // the desktop's density at every window size, and a window under
+        // 600 dp wide gets the one-column layout.
         let density = f32::from(d.dpi.max(1)) / 160.0;
-        // As the desktop app lays out: a panel under 600 dp wide gets the
-        // one-column layout at its own density.
         self.compact = f32::from(d.width) / density < 600.0;
-        let f = if self.compact {
-            density
-        } else {
-            fit.min(density * 1.25)
-        }
-        .max(0.5);
+        let f = density.max(0.5);
         let scaled = DisplayInfo {
             dpi: (160.0 * f).round().max(1.0) as u16,
             ..d
