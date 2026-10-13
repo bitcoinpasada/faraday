@@ -75,13 +75,7 @@ pub fn otpauth_names(uri: &str) -> Option<(String, String)> {
     Some((title, account))
 }
 
-/// Whether text looks like entries: an `otpauth://` line, or a `title:`
-/// line.
-pub fn looks_like_entries(text: &str) -> bool {
-    text.lines()
-        .map(str::trim)
-        .any(|l| l.starts_with("otpauth://") || l.to_ascii_lowercase().starts_with("title:"))
-}
+pub use faraday_intake::looks_like_entries;
 
 /// The entries in text, as records. A block with nothing to call it by is
 /// left out.

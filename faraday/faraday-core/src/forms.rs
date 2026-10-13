@@ -374,31 +374,7 @@ pub fn slip39_completion(typed: &str) -> Option<String> {
     Some(slip39::word(only).to_string())
 }
 
-/// The words in a file of them, as a person or a backup tool writes one:
-/// lines starting `#` are notes, and a number before a word (`1.`, `2)`,
-/// `03`) is its place, not a word.
-pub fn file_words(text: &str) -> zeroize::Zeroizing<String> {
-    let mut out = crate::secret_text::room();
-    for line in text.lines().map(str::trim) {
-        if line.starts_with('#') {
-            continue;
-        }
-        for t in line.split_whitespace() {
-            let place = t
-                .trim_end_matches(['.', ')', ':'])
-                .bytes()
-                .all(|b| b.is_ascii_digit());
-            if place {
-                continue;
-            }
-            if !out.is_empty() {
-                out.push(' ');
-            }
-            out.push_str(t);
-        }
-    }
-    out
-}
+pub use faraday_intake::file_words;
 
 /// The typed words as a mnemonic in `lang`, when every one is a word.
 pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, String> {

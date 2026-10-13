@@ -248,22 +248,7 @@ fn words_of(text: &str) -> Option<Mnemonic> {
         .find_map(|lang| Mnemonic::parse(lang, &typed).ok())
 }
 
-/// A text file's SLIP-39 share or codex32 string, read.
-pub(crate) enum Part {
-    /// A SLIP-39 share.
-    Slip39(slip39::Share),
-    /// A codex32 string.
-    Codex32(Codex32),
-}
-
-/// Reads a text file as one part of a split seed.
-pub(crate) fn part_of(text: &str) -> Option<Part> {
-    let t = Zeroizing::new(text.trim().to_lowercase());
-    if let Ok(s) = slip39::Share::parse(&t) {
-        return Some(Part::Slip39(s));
-    }
-    Codex32::parse(&t).ok().map(Part::Codex32)
-}
+pub(crate) use faraday_intake::{Part, part_of};
 
 impl Faraday {
     /// The fingerprint of a seed with no passphrase, remembered by a hash

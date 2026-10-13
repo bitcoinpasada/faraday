@@ -92,7 +92,7 @@ fn windows_resources() {
     let manifest_dir =
         PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").expect("cargo sets it"));
     let png_path = manifest_dir.join("assets/icon.png");
-    let strings_path = manifest_dir.join("../../faraday-core/src/strings/en.rs");
+    let strings_path = manifest_dir.join("../../faraday-strings/src/en.rs");
     println!("cargo:rerun-if-changed={}", png_path.display());
     println!("cargo:rerun-if-changed={}", strings_path.display());
     println!("cargo:rerun-if-env-changed=FARADAY_BUILD");
@@ -109,14 +109,14 @@ fn windows_resources() {
     ico.extend(&png);
     std::fs::write(out.join("app.ico"), ico).expect("OUT_DIR is writable");
 
-    // The name people see, as the Start menu shortcut's: faraday-core's strings/en.rs.
-    let strings = std::fs::read_to_string(&strings_path).expect("faraday-core/src/strings/en.rs");
+    // The name people see, as the Start menu shortcut's: faraday-strings's en.rs.
+    let strings = std::fs::read_to_string(&strings_path).expect("faraday-strings/src/en.rs");
     let field = |key: &str| -> String {
         strings
             .split(&format!("{key}: \""))
             .nth(1)
             .and_then(|rest| rest.split('"').next())
-            .unwrap_or_else(|| panic!("{key} in faraday-core/src/strings/en.rs"))
+            .unwrap_or_else(|| panic!("{key} in faraday-strings/src/en.rs"))
             .to_string()
     };
     let name = field("hub_menu_name");

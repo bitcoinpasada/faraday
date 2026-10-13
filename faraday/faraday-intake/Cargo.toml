@@ -1,0 +1,27 @@
+[package]
+name = "faraday-intake"
+version = "0.1.1"
+description = "What arrives at a Faraday app, and whether it is a secret that stays on the device: answers in enums, no strings"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+# Nothing on docs/COMPANION.md §3's list: the Companion's core uses this
+# crate, and `tools/lint-companion-deps.sh` checks its tree.
+[dependencies]
+# The payload classifier, SeedQR and UR. The QR decoder (`decode`) is not
+# needed to recognise bytes already read.
+osk-codec = { path = "../../core/osk-codec", default-features = false }
+osk-bip = { path = "../../core/osk-bip" }
+# The Faraday file envelope, what a whole transfer arrived as, and CBOR.
+faraday-qr = { path = "../faraday-qr" }
+zeroize = { workspace = true, features = ["alloc"] }
+
+[dev-dependencies]
+# The published vectors' JSON files.
+serde_json.workspace = true
+
+[lints]
+workspace = true

@@ -8,11 +8,13 @@ rust-version.workspace = true
 repository.workspace = true
 publish = false
 
-# The decode policy is still `opensigner_core::scan`'s reduction, and the
-# detector is the workspace's vendored `rqrr`, read directly so that a
-# pass can say where a code was and how fine it is.
+# The decode policy is `opensigner_core::scan`'s reduction, copied into
+# `src/scan.rs` so that the Companion's scanner holds no part of
+# OpenSigner's core; the preview's size is `osk-ui`'s token. The detector
+# is the workspace's vendored `rqrr`, read directly so that a pass can say
+# where a code was and how fine it is.
 [dependencies]
-opensigner-core = { path = "../../opensigner/opensigner-core" }
+osk-ui = { path = "../../core/osk-ui" }
 rqrr = { workspace = true }
 zeroize = { workspace = true, features = ["alloc"] }
 

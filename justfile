@@ -11,7 +11,8 @@ test:
     cargo test --workspace --doc
 
 # Clippy with warnings as errors, formatting check, the secret-hygiene
-# lint, the user-facing-strings lint and the design-token lint.
+# lint, the user-facing-strings lint, the design-token lint and the
+# Companion's crate graph (docs/COMPANION.md §3).
 lint:
     cargo clippy --workspace --all-targets -- -D warnings
     # Advisories, licences, duplicates and sources, against deny.toml.
@@ -22,6 +23,7 @@ lint:
     tools/lint-secrets.sh
     tools/lint-strings.sh
     tools/lint-tokens.sh
+    tools/lint-companion-deps.sh
     python3 tools/learn/sync.py check
 
 # BIP 445's reference implementation as the second share of the

@@ -1460,8 +1460,7 @@ pub fn classify(name: &str, bytes: &[u8]) -> FileKind {
     if bytes.starts_with(b"%PDF-") {
         return FileKind::Pdf;
     }
-    // KeePass's two signatures, little-endian.
-    if bytes.starts_with(&[0x03, 0xD9, 0xA2, 0x9A, 0x67, 0xFB, 0x4B, 0xB5]) {
+    if faraday_intake::is_kdbx(bytes) {
         return FileKind::Kdbx;
     }
     if crate::secureboot::is_image(name) && bytes.starts_with(b"MZ") {

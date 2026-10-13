@@ -38,7 +38,7 @@ use api::{
 use decide::{Facts, Item, Target};
 
 /// The website's guides (§7.4), shared with the stick.
-pub use faraday_core::learn::GUIDES;
+pub use faraday_learn::GUIDES;
 
 /// The hub app's own version, which About shows and Install compares.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -126,7 +126,7 @@ pub enum LearnId {
     NoStart,
     /// Replacing Faraday on a stick.
     KeepData,
-    /// A maker family's page, by its id in `faraday_core::learn::MAKERS`
+    /// A maker family's page, by its id in `faraday_learn::MAKERS`
     /// (§7.6).
     Maker(&'static str),
     /// What Secure Boot and BitLocker are (§3.1b).
@@ -138,7 +138,7 @@ pub enum LearnId {
 }
 
 impl LearnId {
-    /// The page's id among Faraday's own (`faraday_core::learn::BOOT`),
+    /// The page's id among Faraday's own (`faraday_learn::BOOT`),
     /// which is also its name on the website.
     pub fn id(self) -> &'static str {
         match self {
@@ -156,12 +156,12 @@ impl LearnId {
 
     /// The page.
     pub fn page(self) -> Option<&'static osk_learn::Page> {
-        faraday_core::learn::page(self.id())
+        faraday_learn::page(self.id())
     }
 
     /// Its address on the website (§7.4).
     pub fn address(self) -> String {
-        faraday_core::learn::guide_address(self.id())
+        faraday_learn::guide_address(self.id())
     }
 
     /// The guide for this computer (§3.4): its maker's page where there
@@ -172,7 +172,7 @@ impl LearnId {
             Os::Windows => LearnId::StartWindows,
             Os::Linux => LearnId::StartLinux,
         };
-        match faraday_core::learn::guide_id(&c.maker, &c.family, &c.model, general.id()) {
+        match faraday_learn::guide_id(&c.maker, &c.family, &c.model, general.id()) {
             id if id == general.id() => general,
             id => LearnId::Maker(id),
         }
@@ -275,7 +275,7 @@ pub enum HubAction {
 }
 
 /// A maker page's number in an action's code: this plus its place in
-/// `faraday_core::learn::MAKERS`.
+/// `faraday_learn::MAKERS`.
 const MAKER_CODE: u32 = 0x100;
 
 const ITEMS: [Item; 5] = [
@@ -316,7 +316,7 @@ impl HubAction {
             HubAction::LearnPage(LearnId::Maker(id)) => (
                 23,
                 MAKER_CODE
-                    + faraday_core::learn::MAKERS
+                    + faraday_learn::MAKERS
                         .iter()
                         .position(|m| m.id == id)
                         .unwrap_or(0) as u32,
@@ -375,9 +375,7 @@ impl HubAction {
             21 => HubAction::Transfer,
             22 => HubAction::Learn,
             23 if arg >= MAKER_CODE => HubAction::LearnPage(LearnId::Maker(
-                faraday_core::learn::MAKERS
-                    .get((arg - MAKER_CODE) as usize)?
-                    .id,
+                faraday_learn::MAKERS.get((arg - MAKER_CODE) as usize)?.id,
             )),
             23 => HubAction::LearnPage(*LearnId::ALL.get(arg as usize)?),
             24 => HubAction::About,
@@ -1246,7 +1244,7 @@ impl Hub {
         {
             pages.insert(0, page);
         }
-        pages.push(faraday_core::learn::upgrade_page());
+        pages.push(faraday_learn::upgrade_page());
         pages
     }
 

@@ -255,7 +255,7 @@ batch C adds the desktop app.
   says which file and which string. The repository names none of
   these values; the script reads them on the computer it runs on.
 - Strings are in Faraday's strings file,
-  `faraday/faraday-core/src/strings/en.rs`, with a `hub_` prefix, as
+  `faraday/faraday-strings/src/en.rs`, with a `hub_` prefix, as
   `CLAUDE.md` requires. `CLAUDE.md`'s screen rule
   gains: the hub app's screens are this document's §3, built from
   DESIGN §4's components.

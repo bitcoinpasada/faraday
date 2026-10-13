@@ -44,7 +44,7 @@ pub use osk_backup::Cost;
 pub use records::{Contents, Field, Record};
 
 /// The first four bytes of every vault.
-pub const MAGIC: [u8; 4] = *b"OFVT";
+pub const MAGIC: [u8; 4] = faraday_intake::VAULT_MAGIC;
 /// The only version this build reads and writes.
 pub const VERSION: u8 = 1;
 /// The header: magic, version, memory, passes, lanes, slot length, salt.
@@ -177,11 +177,7 @@ pub fn file_len(slot_len: u32) -> usize {
     HEADER_LEN + SLOTS * (slot_len as usize + NONCE_LEN + TAG_LEN)
 }
 
-/// Whether the bytes begin as a vault does. Says nothing of whether the
-/// rest is sound.
-pub fn is_vault(bytes: &[u8]) -> bool {
-    bytes.len() >= 4 && bytes[0..4] == MAGIC
-}
+pub use faraday_intake::is_vault;
 
 /// Checks a vault's header and length (§4 step 1).
 pub fn read_header(bytes: &[u8]) -> Result<Header, Error> {

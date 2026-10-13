@@ -3,7 +3,7 @@
 //! own wording stays in `opensigner/opensigner-core/src/strings/en.rs`;
 //! Faraday never adds to that file. Same house style as upstream's.
 
-/// Every string Faraday shows that OpenSigner's [`opensigner_core::strings::Strings`]
+/// Every string Faraday shows that OpenSigner's `opensigner_core::strings::Strings`
 /// does not carry, grouped by screen.
 pub struct Strings {
     /// Power-off sheet on a stick that started with Secure Boot off.

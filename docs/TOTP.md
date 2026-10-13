@@ -431,7 +431,7 @@ Batch 1:
 - `docs/FLOWS.md`, "New devices and settings": Settings → Time, Set the
   time; a dated decision line (decision 56).
 - `docs/learn/faraday/time.md`, a Learn page **Time and TOTP codes**,
-  included by `faraday-core/src/learn.rs` as the upgrade and shares pages
+  included by `faraday-learn/src/lib.rs` as the upgrade and shares pages
   are, opened by Set the time's ?: what a TOTP code is made from; why
   the time must be right to within about half a minute; the Pi has no
   clock and starts at 1970; a PC that runs Windows keeps its clock in

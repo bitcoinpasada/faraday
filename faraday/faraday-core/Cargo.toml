@@ -23,6 +23,9 @@ osk-selftest = { path = "../../core/osk-selftest" }
 opensigner-core = { path = "../../opensigner/opensigner-core" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-qr = { path = "../faraday-qr" }
+faraday-strings = { path = "../faraday-strings" }
+faraday-learn = { path = "../faraday-learn" }
+faraday-intake = { path = "../faraday-intake" }
 faraday-pgp = { path = "../faraday-pgp" }
 faraday-sb = { path = "../faraday-sb" }
 osk-backup = { path = "../../core/osk-backup" }

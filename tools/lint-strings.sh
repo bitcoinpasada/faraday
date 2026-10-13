@@ -4,7 +4,7 @@
 # Every word a user can read lives in a strings file, so that a second
 # language is one more static and a wording change is a change to one
 # file: OpenSigner's words in opensigner-core's `strings/en.rs`,
-# Faraday's in faraday-core's `strings/en.rs` (CLAUDE.md). Both files are
+# Faraday's in faraday-strings' `en.rs` (CLAUDE.md). Both files are
 # held to the same tidiness below. This lint fails when a file under
 # opensigner/opensigner-core/src/views/ holds a string literal whose first
 # character is a letter: a label, a sentence, a badge; and when Faraday's
@@ -25,7 +25,7 @@ cd "$(dirname "$0")/.."
 
 VIEWS="opensigner/opensigner-core/src/views"
 STRINGS="opensigner/opensigner-core/src/strings/en.rs"
-FARADAY_STRINGS="faraday/faraday-core/src/strings/en.rs"
+FARADAY_STRINGS="faraday/faraday-strings/src/en.rs"
 
 # Lines whose literal is notation rather than wording, as one extended
 # regular expression. `m/` is a derivation path; `BIP-` names a standard.
@@ -52,10 +52,12 @@ fi
 
 # Faraday's screen code: faraday-core (every module but the test kit:
 # the screens, and the modules whose toasts, errors and labels they
-# show), the hub app's faraday-hub, and the two shells' main files, which
-# title their windows. The shells' other files and the stick's shell are
-# platform code: system calls, the writer's pipe, command lines and
-# stderr; the one label each puts on screen is in the strings file too.
+# show), the two crates split from it that hold no wording
+# (faraday-learn, faraday-intake), the hub app's faraday-hub, and the two
+# shells' main files, which title their windows. The shells' other files
+# and the stick's shell are platform code: system calls, the writer's
+# pipe, command lines and stderr; the one label each puts on screen is in
+# the strings file too.
 #
 # A literal fails when, with its `{…}` holes taken out, it still has a
 # letter and is none of the kinds below. Test modules (from the first
@@ -90,6 +92,8 @@ fi
 # are outside this lint, as CLAUDE.md says.
 FARADAY_SCREENS="$(ls faraday/faraday-core/src/*.rs | grep -v '/testkit\.rs$\|/names\.rs$')
 faraday/faraday-hub/src/*.rs
+faraday/faraday-learn/src/*.rs
+faraday/faraday-intake/src/*.rs
 faraday/shells/desktop/src/main.rs
 faraday/shells/hub/src/main.rs"
 

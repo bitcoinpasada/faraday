@@ -120,7 +120,7 @@ is a second app with its own name, so that this one never gains the
   desktop app or the hub app does, and reports anything it could not
   leave behind.
 - Strings are in Faraday's strings file,
-  `faraday/faraday-core/src/strings/en.rs`, with a `companion_` prefix,
+  `faraday/faraday-strings/src/en.rs`, with a `companion_` prefix,
   as `CLAUDE.md` requires; the Kotlin shell holds
   only the launcher label. `CLAUDE.md`'s screen rule gains: the
   Companion's screens are this document's §4, built from DESIGN §4's

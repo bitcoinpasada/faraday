@@ -717,9 +717,12 @@ version = "0.1.1"
 dependencies = [
  "faraday-core",
  "faraday-files",
+ "faraday-intake",
+ "faraday-learn",
  "faraday-pgp",
  "faraday-qr",
  "faraday-sb",
+ "faraday-strings",
  "faraday-vault",
  "opensigner-core",
  "osk-backup",
@@ -782,6 +785,7 @@ name = "faraday-hub"
 version = "0.1.1"
 dependencies = [
  "faraday-core",
+ "faraday-learn",
  "faraday-qr",
  "opensigner-core",
  "osk-codec",
@@ -810,6 +814,24 @@ dependencies = [
  "windows-sys 0.52.0",
  "winit",
  "zeroize",
+]
+
+[[package]]
+name = "faraday-intake"
+version = "0.1.1"
+dependencies = [
+ "faraday-qr",
+ "osk-bip",
+ "osk-codec",
+ "serde_json",
+ "zeroize",
+]
+
+[[package]]
+name = "faraday-learn"
+version = "0.1.1"
+dependencies = [
+ "osk-learn",
 ]
 
 [[package]]
@@ -856,8 +878,8 @@ dependencies = [
 name = "faraday-scanner"
 version = "0.1.1"
 dependencies = [
- "opensigner-core",
  "osk-codec",
+ "osk-ui",
  "rqrr",
  "zeroize",
 ]
@@ -906,6 +928,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "faraday-strings"
+version = "0.1.1"
+dependencies = [
+ "zeroize",
+]
+
+[[package]]
 name = "faraday-testkit"
 version = "0.1.1"
 dependencies = [
@@ -921,6 +950,7 @@ dependencies = [
  "argon2",
  "chacha20",
  "chacha20poly1305",
+ "faraday-intake",
  "hmac",
  "osk-backup",
  "osk-bip",

@@ -20,8 +20,9 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::JoinHandle;
 
-use opensigner_core::scan;
 use zeroize::{Zeroize, Zeroizing};
+
+mod scan;
 
 /// How many frames the reduced copy may find nothing in before the full
 /// frame is read as well (upstream's value).

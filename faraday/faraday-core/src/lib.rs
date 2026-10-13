@@ -54,7 +54,8 @@ pub mod set_time;
 pub mod silent;
 pub mod stick_settings;
 pub mod stick_wipe;
-pub mod strings;
+/// Faraday's wording, in its own crate so that the Companion can use it.
+pub use faraday_strings as strings;
 #[cfg(feature = "testkit")]
 pub mod testkit;
 pub mod tools;
@@ -98,6 +99,7 @@ mod vault_screens;
 mod wordlist_screen;
 
 use crate::strings::EN;
+use faraday_intake::{arrival, seed_in_code, seedqr_words};
 use opensigner_core::strings::fill;
 use std::collections::{BTreeSet, VecDeque};
 
@@ -1422,49 +1424,6 @@ fn copy_indices(bytes: &[u8]) -> Option<zeroize::Zeroizing<Vec<u16>>> {
     Some(zeroize::Zeroizing::new(m.indices().to_vec()))
 }
 
-/// The words a SeedQR holds, standard (digits) or compact (entropy), in
-/// English; `None` for any other code.
-fn seedqr_words(payload: &[u8]) -> Option<zeroize::Zeroizing<String>> {
-    let lang = osk_bip::bip39::Language::English;
-    let digits = payload.iter().all(u8::is_ascii_digit);
-    let m = if digits && matches!(payload.len(), 48 | 96) {
-        osk_codec::seedqr::from_digits(payload, lang).ok()?
-    } else if matches!(payload.len(), 16 | 32) && std::str::from_utf8(payload).is_err() {
-        osk_codec::seedqr::from_entropy(payload, lang).ok()?
-    } else {
-        return None;
-    };
-    let words = lang.words();
-    let mut out = crate::secret_text::room();
-    for (k, &i) in m.indices().iter().enumerate() {
-        if k > 0 {
-            out.push(' ');
-        }
-        out.push_str(words[usize::from(i)]);
-    }
-    Some(out)
-}
-
-/// The seed a code holds: a SeedQR, a CompactSeedQR, or a seed's words in
-/// English, as words; `None` for anything else.
-fn seed_in_code(payload: &[u8]) -> Option<zeroize::Zeroizing<String>> {
-    if let Some(words) = seedqr_words(payload) {
-        return Some(words);
-    }
-    let text = zeroize::Zeroizing::new(String::from_utf8_lossy(payload).into_owned());
-    let mut out = crate::secret_text::room();
-    for (k, w) in text.split_whitespace().enumerate() {
-        if k > 0 {
-            out.push(' ');
-        }
-        out.push_str(w);
-    }
-    let words = out.split(' ').count();
-    (matches!(words, 12 | 15 | 18 | 21 | 24)
-        && osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, out.as_str()).is_ok())
-    .then_some(out)
-}
-
 /// Said on the camera when what it read would load a key with a stick
 /// attached.
 fn stick_keys(m: Medium) -> String {
@@ -2135,28 +2094,6 @@ fn animated(
         .collect()
 }
 
-/// What a whole transfer becomes in the Inbox: a name when it brought
-/// one, an extension, and the bytes.
-fn arrival(a: faraday_qr::Arrived) -> (Option<String>, &'static str, Vec<u8>) {
-    use faraday_qr::Arrived;
-    match a {
-        Arrived::Psbt(p) => (None, "psbt", p),
-        // A finished transaction is kept as hex, as one written here is.
-        Arrived::Transaction(t) => (
-            None,
-            "txn",
-            t.iter()
-                .map(|b| format!("{b:02x}"))
-                .collect::<String>()
-                .into_bytes(),
-        ),
-        Arrived::File(name, data, _) => (Some(name), "", data),
-        Arrived::Keys(t) | Arrived::Descriptor(t) | Arrived::Text(t) => {
-            (None, "txt", t.into_bytes())
-        }
-    }
-}
-
 /// The progress of a multi-part code: parts read, and which are missing.
 fn part_note(what: &str, have: usize, total: usize, missing: &[usize]) -> String {
     let list: Vec<String> = missing.iter().take(8).map(usize::to_string).collect();
@@ -2176,23 +2113,10 @@ fn part_note(what: &str, have: usize, total: usize, missing: &[usize]) -> String
 /// Why scanned text is refused for holding a secret: a seed's words or a
 /// private key.
 fn secret_text(text: &str) -> Option<&'static str> {
-    let t = text.trim();
-    let words = t.split_whitespace().count();
-    if matches!(words, 12 | 15 | 18 | 21 | 24)
-        && osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, t).is_ok()
-    {
-        return Some(EN.secret_text_those_are);
-    }
-    let key = t.split(']').next_back().unwrap_or(t);
-    if [
-        "xprv", "tprv", "yprv", "zprv", "Yprv", "Zprv", "uprv", "vprv", "Uprv", "Vprv",
-    ]
-    .iter()
-    .any(|p| key.starts_with(p))
-    {
-        return Some(EN.secret_text_that_is);
-    }
-    None
+    faraday_intake::secret_text(text).map(|s| match s {
+        faraday_intake::TextSecret::Words => EN.secret_text_those_are,
+        faraday_intake::TextSecret::ExtendedPrivateKey => EN.secret_text_that_is,
+    })
 }
 
 /// What a code is when a SeedQR was wanted and something else came.

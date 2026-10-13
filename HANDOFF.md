@@ -2181,6 +2181,23 @@ as possible before the next build.
     or copied and from where, and anything that could not be left
     behind.
 
+    **A1 built and audited (2026-10-12).** As specified, with
+    `faraday-intake::secret` answering seventeen kinds (KeePass 1,
+    and a private `hdkey` inside a `crypto-account` or
+    `crypto-output`, beyond the brief), a Faraday file envelope opened
+    and its file judged, and `secret_ur` for a multi-part UR once A2
+    has put it together. `faraday-vault` now depends on
+    `faraday-intake` for the vault magic and the entries check. The
+    desktop app's and the hub app's renders at 480x640 are byte for
+    byte those of be9c9b3 (1201 files); `just` passes (2391 tests).
+    Found: upstream's `osk_bip::silent::looks_like_address`
+    (`core/osk-bip/src/silent.rs`) slices text at bytes 4 and 5
+    without checking character bounds, so `osk_codec::classify`
+    panics on text such as a Chinese seed's words; intake guards
+    against it, the device does not yet (asked of the owner). Russian
+    and Turkish words in `tools/vectors/bip39/vectors.json` are not
+    BIP-39 lists and are not refused.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:

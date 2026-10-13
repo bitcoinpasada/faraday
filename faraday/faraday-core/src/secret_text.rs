@@ -15,16 +15,11 @@ use std::ops::Deref;
 
 use zeroize::Zeroize;
 
-/// The room a fresh one starts with, bytes: more than 24 words of the
-/// longest BIP-39 list, so a seed phrase never moves.
-const ROOM: usize = 512;
+// The room a fresh one starts with, bytes: more than 24 words of the
+// longest BIP-39 list, so a seed phrase never moves.
+use faraday_intake::ROOM;
 
-/// An empty `Zeroizing<String>` with room for a whole seed phrase, for
-/// building one a word at a time: a string that has to grow leaves its
-/// old buffer behind unwiped.
-pub fn room() -> zeroize::Zeroizing<String> {
-    zeroize::Zeroizing::new(String::with_capacity(ROOM))
-}
+pub use faraday_intake::room;
 
 /// `bytes` as lowercase hex, written into a buffer of the right size
 /// with no piece of it made anywhere else: for a private key.

@@ -1,0 +1,15 @@
+[package]
+name = "faraday-learn"
+version = "0.1.1"
+description = "Faraday's own Learn pages and the website's guides: read from docs/learn/faraday when built, by id"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+osk-learn = { path = "../../core/osk-learn" }
+
+[lints]
+workspace = true

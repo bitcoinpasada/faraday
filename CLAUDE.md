@@ -16,7 +16,7 @@ changes and nothing else has to be kept in step.
   `tools/lint-tokens.sh` fails the build otherwise.
 - Every user-facing string is in OpenSigner's
   `opensigner/opensigner-core/src/strings/en.rs` when it is OpenSigner's,
-  and in Faraday's `faraday/faraday-core/src/strings/en.rs` when it is
+  and in Faraday's `faraday/faraday-strings/src/en.rs` when it is
   Faraday's; Faraday never adds to OpenSigner's file. Two exceptions: the
   Learn pages (`core/osk-learn/src/en.rs`, edited as `docs/learn/`) and
   the self-test's check names (`core/osk-selftest`).
