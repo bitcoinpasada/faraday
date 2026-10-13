@@ -2979,6 +2979,57 @@ as possible before the next build.
     Transfer's camera. Then, after A1 and A2, the Apple Silicon setup
     and removal (MAC §4.5–§4.6) and keep data refusing the other kind.
 
+74. [ ] 2026-10-13, owner: **the guides only in the apps that show
+    them.** Every page in `docs/learn/faraday/boot/` is compiled into
+    the desktop app, the stick and the Pi through `faraday-learn`'s
+    `OWN`, yet of them those apps show only "Replacing Faraday on a
+    stick" (`faraday-core/src/learn.rs`, `known("replace-faraday")`);
+    the stick's power-off sheet needs only the maker table and the
+    guide's address (`secure_boot_state.rs`). So a guide's edit
+    (A3b's Mac page, F18's sketches) changes three images that never
+    show it (owner: "I don't see why starter related learn content
+    needs to be in faraday builds"). Starts once F18 is on main
+    (Sonnet: a specified move; the orchestrator tells the session
+    working on F18 when).
+
+    1. **`faraday/faraday-guides`** (new crate, in the workspace):
+       every page in `docs/learn/faraday/boot/` except
+       `replace-faraday.md`, with its `include_str!`; `BOOT` (its ids,
+       `replace-faraday` still among them, found through
+       `faraday_learn::page`); `page(id)` answering a guide or, failing
+       that, `faraday_learn::page(id)`; `ids()`; and whatever F18 put
+       in `faraday-learn` for the guides' sketches. Depends on
+       `faraday-learn` and `osk-learn` only; added to
+       `tools/lint-companion-deps.sh`'s list and to `lint-strings.sh`'s
+       paths beside `faraday-learn`.
+    2. **`faraday-learn` keeps** the pages the desktop app and the
+       stick show (`upgrade-a-stick`, `shares`, `time`, `companion`,
+       `replace-faraday`), the page reader (made `pub` for the new
+       crate), `MAKERS`, `maker`, `GUIDES`, `guide_id` and
+       `guide_address`: the stick's QR code needs the address, not the
+       page. Its doc comment says which crate holds the guides and why.
+       `faraday-core`'s re-export loses `BOOT`.
+    3. **`faraday-hub` and `faraday-companion`** read guides from
+       `faraday-guides`; the Companion's list of every page is
+       `faraday_learn::ids()` then `faraday_guides::ids()`, in today's
+       order.
+    4. **Tests**: in `faraday-guides`, every `MAKERS` id, `windows`,
+       `linux` and `mac-intel` has a page (the stick's QR names an
+       address the Starter and the website must have); every
+       existing test passes, changed only in a `use` path.
+    5. **`docs/HUB.md` §7.2**: the guides are carried by the hub app
+       and the Companion, and published by the website; the desktop
+       app and the stick carry only the address of the one for this
+       computer.
+
+    Done when: `just` passes once; the desktop, Starter and Companion
+    renders at one size each are byte for byte those of the commit
+    before; built in release, `strings` on the desktop binary
+    (`target/release/faraday`) finds none of the guides' text ("Startup
+    Security Utility", the Windows guide's first section heading) and
+    the Starter's finds it. Then the desktop, stick and Pi builds
+    (`local/remote-build.sh`), once, carrying A3b and F18 too.
+
 
 ## Next steps
 
