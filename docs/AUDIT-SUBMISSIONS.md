@@ -68,7 +68,9 @@ line saying what it is.
 >   access, a non-default setting, a rare input); a vault slot opens
 >   without its passphrase or reveals how many slots are used; the air
 >   gap fails; secrets outlive the session; a tampered image or upgrade
->   is accepted; Faraday Starter writes to the wrong disk.
+>   is accepted; Faraday Starter writes to the wrong disk; the design
+>   makes a mistake that loses funds or exposes a key likely, through a
+>   missing warning or confirmation or a misleading label.
 > - **Medium:** a protection is weaker than intended but holds (a lower
 >   key-stretching cost); a crash from crafted input with no code run;
 >   public wallet data leaked.
@@ -109,6 +111,14 @@ The page offers them as a starting point for the audit's scope:
 >   keys, the upgrade, Faraday Starter's disk writing and checks, and
 >   what Faraday Companion stores.
 > - **Access:** the keyboard code and the passphrase prompts.
+> - **Mistakes a person can make:** where Faraday, Faraday Starter or
+>   Faraday Companion make an easy mistake possible that loses funds,
+>   exposes a key or locks a person out of their computer: a misleading
+>   label, steps in a confusing order, a risky action with no
+>   confirmation, a risky setup with no warning (a TV, a capture card or
+>   KVM, a wireless keyboard), a backup that can be skipped or left
+>   unchecked, and whether the warnings that exist come at the moment
+>   they are needed.
 
 The areas are named generally, never after a known open finding.
 
