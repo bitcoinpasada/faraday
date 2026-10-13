@@ -2062,7 +2062,118 @@ as possible before the next build.
     reproducible release APK, the staging check, F-Droid's fastlane
     metadata), then the owner tries it on a phone with a stick and the
     Pi. The APK signing key and the F-Droid merge request are the
-    owner's. **Queued: after the hub work.**
+    owner's. **Started 2026-10-12 evening (owner), ahead of the hub
+    work's end.**
+
+    COMPANION §10's batch A is three pieces: **A1** the crate split
+    (below), **A2** the Companion's core, FFI and renders (Rust only,
+    specified after A1's audit), **A3** the Kotlin shell, the APK and
+    the emulator. A3 waits for the Android SDK, NDK and emulator on the
+    build machine (the SDK licence is the owner's to accept).
+
+    **Batch A1, the crate split** (Opus: what moves where is
+    judgement). Nothing a person sees changes: the desktop app, the
+    stick, the Pi and the hub app behave and render as before. What it
+    leaves is crates the Companion's core (A2) can use without
+    depending on any of COMPANION §3's forbidden list: `faraday-core`,
+    `opensigner-core`, `faraday-vault`, `faraday-pgp`, `faraday-sb`,
+    `osk-keep`, `osk-backup`, `osk-psbt`, `osk-entropy`.
+
+    Upstream's files (`core/`, `opensigner/`) are not edited: a small
+    pure function needed from them is copied, with the upstream commit
+    it was copied at (`d26b84e`) named in a comment. Moving code
+    between Faraday's own crates is preferred to copying it; where a
+    Faraday crate keeps a recogniser that now lives in a new crate, it
+    calls the new one.
+
+    1. `faraday/faraday-strings` (new): `faraday-core/src/strings/`
+       (`mod.rs`, `en.rs`) moves here whole, `fill_secret` with it,
+       and a `fill` of its own that behaves as
+       `opensigner_core::strings::fill`. Its only dependency is
+       `zeroize`. `faraday-core` re-exports it as `strings`, so
+       `crate::strings::EN` and `faraday_core::strings::*` still
+       resolve. The path changes in `tools/lint-strings.sh`,
+       `faraday/shells/hub/build.rs`, `CLAUDE.md`'s strings rule,
+       `docs/HUB.md` and `docs/COMPANION.md` §3 (and anything else
+       `grep -rn 'faraday-core/src/strings'` finds outside `target/`
+       and `.claude/`). The generated `Text in …` doc comments in
+       `en.rs` stay as they are.
+    2. `faraday/faraday-learn` (new): from `faraday-core/src/learn.rs`
+       everything that names no `faraday-core` type: `OWN` (the
+       `include_str!` paths fixed), `BOOT`, `MAKERS`, `GUIDES`, the
+       page reader, `page`, `guide_address`, `guide_id`. Depends on
+       `osk-learn` only. `faraday-core::learn` keeps the screen-to-page
+       mapping and the sheet's state and uses the new crate;
+       `faraday-hub` imports from `faraday-learn` directly.
+    3. `faraday/faraday-intake` (new): what arrives, and whether it is
+       a secret that stays on the device. No strings: it answers in
+       enums, and the callers say them.
+       - Moved from `faraday-core/src/lib.rs`: `seedqr_words`,
+         `seed_in_code`, `secret_text` (now answering which of its two
+         kinds, which `faraday-core` turns into the two strings it shows
+         today), and `arrival` (a whole transfer as a name, an
+         extension and bytes). `faraday-core` calls them from here.
+       - New: `secret(bytes: &[u8]) -> Option<Secret>`, COMPANION §5's
+         last row, one variant per kind: BIP-39 words (every language,
+         12 to 24, and a file of words as `faraday-core`'s
+         `forms::file_words` reads one), SeedQR, CompactSeedQR,
+         codex32, a SLIP-39 share, an extended private key (any
+         SLIP-132 prefix, with or without an origin, or inside a
+         descriptor), a WIF private key, `ur:crypto-seed` and
+         `ur:crypto-bip39` (and their unprefixed names), a
+         `crypto-hdkey` that holds a private key, an encrypted backup
+         (`OSKB`), a KeePass database, a Faraday vault, a threshold
+         carry (`OSKC`: it holds secret nonces), and vault entries
+         (`otpauth://`, `otpauth-migration://`, and what
+         `faraday_vault::entries::looks_like_entries` accepts).
+         Recognisers in `faraday-vault` and `faraday-core` that this
+         needs move here and their old homes call them; ones in
+         upstream crates are reached through `osk-codec`'s `classify`
+         or copied.
+       - Depends on `osk-codec` (without default features if it
+         compiles so), `osk-bip`, `faraday-qr`, `zeroize`; nothing on
+         the forbidden list.
+    4. `faraday-scanner`: no longer depends on `opensigner-core`;
+       `reduce_factor` and `reduce` are copied from
+       `opensigner-core/src/scan.rs`.
+    5. `tools/lint-companion-deps.sh`, run by `just lint`: for each
+       crate in a list at its top (now `faraday-strings`,
+       `faraday-learn`, `faraday-intake`, `faraday-qr`,
+       `faraday-scanner`, `osk-ui`, `osk-learn`, `osk-codec`,
+       `osk-bip`; A2 adds the Companion's two),
+       `cargo tree -e normal --target all -p <crate>` lists none of the
+       forbidden crates, or the lint names the crate and the path to
+       it and fails.
+
+    Tests (user-facing: what a phone holding the Companion would let
+    in):
+    - `faraday-intake/tests/secret.rs`: each `Secret` kind refused,
+      from published vectors where one exists (BIP-39's, SeedSigner's
+      SeedQR and CompactSeedQR, BIP-93's codex32, SLIP-39's, BIP-32's
+      `xprv`, a WIF from BIP-32's first key, BCR's `crypto-seed` and
+      private `crypto-hdkey`) and from Faraday's own writers for the
+      vault, backup, KeePass and carry; and none refused of BIP-174's
+      PSBTs, BIP-84's account `xpub`, a descriptor and a multisig
+      config from `docs/INTEROP.md`'s files, an address, a finished
+      transaction in hex, a Faraday file envelope of a PSBT, and a
+      line of plain text.
+    - `faraday-core/tests/intake_agrees.rs`: every file the testkit
+      and `tools/fixtures/` hold that `wallet::classify` calls `Words`,
+      `SeedPart`, `Vault`, `Backup`, `Kdbx`, `Carry` or `Entries`,
+      `faraday_intake::secret` refuses; every one it calls `Psbt`,
+      `Wallet`, `Key`, `Share`, `Message` or `Transaction`, it does
+      not.
+    - Every existing test passes unchanged, except a `use` path; the
+      report lists each test file touched and why.
+
+    Done when: `just` passes once at the end; `cargo tree -e normal -p
+    faraday-intake` (and the lint's other crates) shows none of the
+    forbidden list; `opensigner-core` is gone from `faraday-scanner`'s
+    tree. The orchestrator compares `just faraday-snap` and `just
+    faraday-hub-snap` renders at one size each from before and after,
+    byte for byte. Report: as COMPANION §0, plus each recogniser moved
+    or copied and from where, and anything that could not be left
+    behind.
 
 ## Next steps
 
