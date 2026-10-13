@@ -336,6 +336,20 @@ pub struct Strings {
     pub hub_boot_how: &'static str,
     /// Under it, on Windows.
     pub hub_boot_how_windows: &'static str,
+    /// Label (Done, and the Start page's boot-from-stick step): the
+    /// expected boot menu entry's row.
+    pub hub_boot_menu_label: &'static str,
+    /// Value for `hub_boot_menu_label`: `{}` the expected entry.
+    pub hub_boot_menu_value: &'static str,
+    /// The boot menu entry's pattern for most makers (`decide::
+    /// boot_menu_entry`): `{}` the stick's vendor and model.
+    pub hub_boot_menu_default: &'static str,
+    /// The boot menu entry's pattern for Lenovo's IdeaPad family and
+    /// Framework: `{}` the stick's vendor and model.
+    pub hub_boot_menu_efi_usb_device: &'static str,
+    /// The boot menu entry's pattern for HP: `{}` the stick's vendor and
+    /// model.
+    pub hub_boot_menu_hp: &'static str,
     /// Step.
     pub hub_afterwards: &'static str,
     /// Step, on Windows.
@@ -8161,6 +8175,11 @@ pub static EN: Strings = Strings {
     hub_boot_from_stick: "Start from the stick",
     hub_boot_how: "The boot menu key",
     hub_boot_how_windows: "The boot menu key, or Use a device in Advanced startup",
+    hub_boot_menu_label: "In the boot menu",
+    hub_boot_menu_value: "something like {}",
+    hub_boot_menu_default: "UEFI: {}, Partition 1",
+    hub_boot_menu_efi_usb_device: "EFI USB Device ({})",
+    hub_boot_menu_hp: "USB Hard Drive - {}",
     hub_afterwards: "Turn Secure Boot back on",
     hub_afterwards_windows: "Turn Secure Boot back on before starting Windows",
     hub_on_a_phone: "On a phone",

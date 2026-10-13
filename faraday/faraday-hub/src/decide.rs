@@ -4,7 +4,9 @@
 //! (§3.1), on a Mac too (§3.1's "On a Mac", `docs/MAC.md` §6). The screens draw these; the tests check them through the
 //! screens.
 
+use faraday_core::strings::EN;
 use faraday_core::upgrade::{Fit, compare};
+use opensigner_core::strings::fill1;
 
 use crate::api::{BitLocker, Bus, Computer, Disk, FaradayStick, InUse, Os, Protection};
 use crate::macs;
@@ -67,6 +69,67 @@ pub fn offers(disks: &[Disk], target: Target, image: Option<u64>) -> Vec<Offer<'
         ))
     });
     list
+}
+
+/// An INQUIRY or USB descriptor string, trimmed and its interior
+/// whitespace collapsed to single spaces (those fields are
+/// space-padded).
+fn clean(s: &str) -> String {
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Whether `vendor` (already [`clean`]ed) is one a boot menu entry
+/// drops rather than repeat: empty, or one of the generic strings a
+/// stick without its own vendor reports, ignoring case. Matched as
+/// `faraday_learn::Maker`'s own `vendors` and `families` are (not
+/// shown).
+fn generic_vendor(vendor: &str) -> bool {
+    let vendors: &[&str] = &["USB", "GENERIC", "MASS STORAGE"];
+    vendor.is_empty() || vendors.contains(&vendor.to_ascii_uppercase().as_str())
+}
+
+/// What the computer's firmware is expected to list a stick as in its
+/// boot menu (owner's idea, local research, read 2026-10-13, already
+/// applied in the guides): the stick's own vendor and model
+/// (`Disk::vendor`, `Disk::model`; trimmed and collapsed, since those
+/// are space-padded INQUIRY or USB descriptor fields), under the
+/// pattern this computer's maker family (`faraday_learn::maker`, §7.6)
+/// is known to use:
+///
+/// - Lenovo's IdeaPad family (IdeaPad, Yoga, Legion) and Framework:
+///   `EFI USB Device (<vendor> <model>)`.
+/// - HP: `USB Hard Drive - <vendor> <model>`.
+/// - Dell, ASUS, MSI, Acer, and the default for any other maker
+///   (ThinkPad and Surface are not verified): `UEFI: <vendor> <model>,
+///   Partition 1`.
+///
+/// A vendor that is empty or generic (`USB`, `Generic`, `Mass
+/// Storage`) is dropped when the model already carries it, so the
+/// entry does not repeat it. `None` when the stick reports neither a
+/// vendor nor a model: nothing to show.
+pub fn boot_menu_entry(vendor: &str, model: &str, computer: &Computer) -> Option<String> {
+    let vendor = clean(vendor);
+    let model = clean(model);
+    let drop_vendor = generic_vendor(&vendor)
+        && (vendor.is_empty()
+            || model
+                .to_ascii_uppercase()
+                .contains(&vendor.to_ascii_uppercase()));
+    let label = match (drop_vendor, model.is_empty()) {
+        (true, _) => model,
+        (false, true) => vendor,
+        (false, false) => format!("{vendor} {model}"),
+    };
+    if label.is_empty() {
+        return None;
+    }
+    let maker = faraday_learn::maker(&computer.maker, &computer.family, &computer.model);
+    let template = match maker.map(|m| m.id) {
+        Some("maker-lenovo-ideapad" | "maker-framework") => EN.hub_boot_menu_efi_usb_device,
+        Some("maker-hp") => EN.hub_boot_menu_hp,
+        _ => EN.hub_boot_menu_default,
+    };
+    Some(fill1(template, &label))
 }
 
 /// Keep data's rule for writing build `build` over `stick` (F2, F5, D15):

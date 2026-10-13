@@ -1294,6 +1294,21 @@ fn done(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
                 Target::Pi => S.hub_pull_card,
             };
             y += line(ui, x, y, w, s, TEXT) + 8.0;
+            if m.target == Target::Stick
+                && let Some(disk) = hub.chosen_disk()
+                && let Some(entry) =
+                    crate::decide::boot_menu_entry(&disk.vendor, &disk.model, &hub.computer)
+            {
+                y += value_row(
+                    ui,
+                    x,
+                    y,
+                    w,
+                    S.hub_boot_menu_label,
+                    &fill(S.hub_boot_menu_value, &[&entry]),
+                    TEXT,
+                ) + 8.0;
+            }
             let items: &[(&str, Style, HubAction)] = match m.target {
                 Target::Stick => &[
                     (start_label(hub), Style::Primary, HubAction::Start),
@@ -1440,6 +1455,19 @@ fn start(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         S.hub_boot_how
     };
     y += line(ui, ix, y, iw, how, MUTED) + 6.0;
+    if let Some(stick) = facts.stick()
+        && let Some(entry) = crate::decide::boot_menu_entry(&stick.vendor, &stick.model, c)
+    {
+        y += value_row(
+            ui,
+            ix,
+            y,
+            iw,
+            S.hub_boot_menu_label,
+            &fill(S.hub_boot_menu_value, &[&entry]),
+            TEXT,
+        ) + 8.0;
+    }
     // 5. Afterwards, unless Secure Boot was off before the hub app came.
     let was_off = hub
         .bitlocker

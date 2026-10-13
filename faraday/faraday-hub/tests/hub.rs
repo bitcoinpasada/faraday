@@ -92,6 +92,23 @@ fn faraday_stick(id: &str, model: &str, size: u64, release: Option<&str>) -> Dis
     }
 }
 
+/// A disk with its own vendor and model strings, as an INQUIRY or USB
+/// descriptor answers them (space-padded).
+fn padded_disk(id: &str, vendor: &str, model: &str, size: u64) -> Disk {
+    Disk {
+        vendor: vendor.into(),
+        ..disk(id, model, size)
+    }
+}
+
+/// A Faraday stick with its own vendor and model strings, space-padded.
+fn padded_faraday_stick(id: &str, vendor: &str, model: &str, size: u64) -> Disk {
+    Disk {
+        vendor: vendor.into(),
+        ..faraday_stick(id, model, size, Some("6.6.84-faraday-0.1.0"))
+    }
+}
+
 fn linux(secure_boot: bool) -> Computer {
     Computer {
         os: Os::Linux,
@@ -109,6 +126,26 @@ fn windows(secure_boot: bool) -> Computer {
     Computer {
         os: Os::Windows,
         ..linux(secure_boot)
+    }
+}
+
+/// A Dell computer: its boot menu follows the default pattern.
+fn dell() -> Computer {
+    Computer {
+        maker: "Dell Inc.".into(),
+        model: "XPS 13 9310".into(),
+        family: "XPS".into(),
+        ..linux(true)
+    }
+}
+
+/// A Lenovo IdeaPad computer: its boot menu follows its own pattern.
+fn lenovo_ideapad() -> Computer {
+    Computer {
+        maker: "LENOVO".into(),
+        model: "81CT".into(),
+        family: "IdeaPad".into(),
+        ..linux(true)
     }
 }
 
@@ -423,6 +460,67 @@ fn writing_shows_progress_then_done_or_the_writers_reason() {
     assert!(shows(&mut hub, "The stick can be pulled out."));
     hub.press(HubAction::Start);
     assert_eq!(hub.page, Page::Start);
+}
+
+#[test]
+fn done_shows_the_expected_boot_menu_entry_by_maker() {
+    // Dell: the default pattern.
+    let mut hub = hub_with(vec![padded_disk(
+        "sdb",
+        "SanDisk  ",
+        "  Cruzer Blade ",
+        16 * GB,
+    )]);
+    hub.hub_event(HubEvent::Computer(dell()));
+    to_confirm(&mut hub, "sdb", Mode::Whole);
+    hub.press(HubAction::Write);
+    hub.hub_event(HubEvent::Written(Ok(())));
+    assert!(shows(
+        &mut hub,
+        "something like UEFI: SanDisk Cruzer Blade, Partition 1"
+    ));
+
+    // Lenovo IdeaPad: its own pattern.
+    let mut hub = hub_with(vec![padded_disk(
+        "sdb",
+        "SanDisk  ",
+        "  Cruzer Blade ",
+        16 * GB,
+    )]);
+    hub.hub_event(HubEvent::Computer(lenovo_ideapad()));
+    to_confirm(&mut hub, "sdb", Mode::Whole);
+    hub.press(HubAction::Write);
+    hub.hub_event(HubEvent::Written(Ok(())));
+    assert!(shows(
+        &mut hub,
+        "something like EFI USB Device (SanDisk Cruzer Blade)"
+    ));
+}
+
+#[test]
+fn done_shows_no_boot_menu_row_when_the_stick_reports_neither() {
+    let mut hub = hub_with(vec![padded_disk("sdb", "", "", 16 * GB)]);
+    hub.hub_event(HubEvent::Computer(dell()));
+    to_confirm(&mut hub, "sdb", Mode::Whole);
+    hub.press(HubAction::Write);
+    hub.hub_event(HubEvent::Written(Ok(())));
+    assert!(!shows(&mut hub, "In the boot menu"));
+}
+
+#[test]
+fn start_shows_the_boot_menu_entry_with_a_stick_attached() {
+    let mut hub = hub_with(vec![padded_faraday_stick(
+        "sdb",
+        "SanDisk  ",
+        "  Cruzer Blade ",
+        16 * GB,
+    )]);
+    hub.hub_event(HubEvent::Computer(dell()));
+    hub.press(HubAction::Start);
+    assert!(shows(
+        &mut hub,
+        "something like UEFI: SanDisk Cruzer Blade, Partition 1"
+    ));
 }
 
 #[test]

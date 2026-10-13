@@ -533,8 +533,15 @@ in the firmware. Uninstall removes it too.
    write* or *Write*. Then the system's own prompt where there is one
    (§2).
 4. **Writing** (Progress): written of total, then *Reading back*.
-5. **Done** (Result): "The stick can be pulled out." and the next
-   step: **Start this computer from the stick** (§3.4). On failure the
+5. **Done** (Result): "The stick can be pulled out."; a row **In the
+   boot menu**, "something like" the entry this computer's boot menu
+   will list the stick as, from the stick's own vendor and model and
+   this computer's maker (Dell, ASUS, MSI, Acer and any other: `UEFI:
+   <name>, Partition 1`; Lenovo consumer and Framework: `EFI USB Device
+   (<name>)`; HP: `USB Hard Drive - <name>`), shown also on §3.4's
+   step that chooses the stick while a Faraday stick is attached, and
+   not shown when the stick reports neither; then the next step:
+   **Start this computer from the stick** (§3.4). On failure the
    reason the writer gave, and nothing claims success.
 
 ### 3.3 Make a Pi card
