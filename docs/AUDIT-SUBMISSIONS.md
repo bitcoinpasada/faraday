@@ -32,9 +32,9 @@ line saying what it is.
 >    (`https://github.com/bitcoinpasada/faraday`), the commit
 >    (`git rev-parse HEAD`), the date, any tools run, and for an AI, the
 >    model and its version.
-> 2. State the scope: which of the areas below were covered, the parts
->    of the code read, and the parts not read. `docs/AUDIT.md` lists
->    where the cryptography is.
+> 2. State the scope: the areas covered, the parts of the code read,
+>    and the parts not read. `docs/AUDIT.md` lists where the
+>    cryptography is.
 > 3. For each finding, give: a severity, the file and line, what goes
 >    wrong, how to trigger it, and whether it was confirmed by running
 >    code or only found by reading.
@@ -56,6 +56,36 @@ line saying what it is.
 > 7. If `private.md` exists, hash it last, after step 6: run
 >    `sha256sum private.md > private.md.sha256`. If you cannot run
 >    commands, do not write a hash; say that it still needs to be made.
+>
+> Severities:
+>
+> - **Critical:** a key, seed or passphrase can be extracted; the device
+>   signs, or shows as approved, something the user did not approve;
+>   Faraday's output is wrong in a way that loses funds (an address it
+>   cannot spend from, a backup or shares that do not restore); or
+>   crafted input runs code on Faraday.
+> - **High:** the same, but only under specific conditions (physical
+>   access, a non-default setting, a rare input); a vault slot opens
+>   without its passphrase or reveals how many slots are used; the air
+>   gap fails; secrets outlive the session; a tampered image or upgrade
+>   is accepted; Faraday Starter writes to the wrong disk.
+> - **Medium:** a protection is weaker than intended but holds (a lower
+>   key-stretching cost, no attempt limit); a crash from crafted input
+>   with no code run; public wallet data leaked.
+> - **Low:** a defect with no direct security effect, including a wrong
+>   result that Faraday detects and refuses.
+> - **Note:** an observation, not a defect.
+
+The severities grade by what happens to the person using Faraday, not
+by how a defect works: a wrong result that loses funds is critical, as
+theft is.
+
+The areas to cover are a second text, copied on its own, so that people
+writing their own prompt can take them, change them or leave them out.
+The page offers them as a starting point for the audit's scope:
+
+> **Areas to cover.** A starting point for the audit's scope. Add them
+> to the prompt as they are, change them, or write your own.
 >
 > Areas to cover:
 >
@@ -79,30 +109,8 @@ line saying what it is.
 >   keys, the upgrade, Faraday Starter's disk writing and checks, and
 >   what Faraday Companion stores.
 > - **Access:** the keyboard code and the passphrase prompts.
->
-> Severities:
->
-> - **Critical:** a key, seed or passphrase can be extracted; the device
->   signs, or shows as approved, something the user did not approve;
->   Faraday's output is wrong in a way that loses funds (an address it
->   cannot spend from, a backup or shares that do not restore); or
->   crafted input runs code on Faraday.
-> - **High:** the same, but only under specific conditions (physical
->   access, a non-default setting, a rare input); a vault slot opens
->   without its passphrase or reveals how many slots are used; the air
->   gap fails; secrets outlive the session; a tampered image or upgrade
->   is accepted; Faraday Starter writes to the wrong disk.
-> - **Medium:** a protection is weaker than intended but holds (a lower
->   key-stretching cost, no attempt limit); a crash from crafted input
->   with no code run; public wallet data leaked.
-> - **Low:** a defect with no direct security effect, including a wrong
->   result that Faraday detects and refuses.
-> - **Note:** an observation, not a defect.
 
-The severities grade by what happens to the person using Faraday, not
-by how a defect works: a wrong result that loses funds is critical, as
-theft is. The areas are named generally, never after a known open
-finding.
+The areas are named generally, never after a known open finding.
 
 An expert audit has no `prompt.md`; `audit.md` describes its method.
 The files carry no names (step 6). A submitter who wants credit gives a
