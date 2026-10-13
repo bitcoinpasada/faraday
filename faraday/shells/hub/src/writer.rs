@@ -36,8 +36,9 @@ use crate::payload::Image;
 
 /// What is written and compared at a time.
 const CHUNK: usize = 4 << 20;
-/// The alignment a read straight from the disk needs (`O_DIRECT`).
-const ALIGN: usize = 4096;
+/// The alignment a read straight from the disk needs (`O_DIRECT`), and
+/// the largest block a disk may have.
+pub const ALIGN: usize = 4096;
 /// The start of an image held back until its partition table is read.
 const HEAD: usize = 64 << 10;
 
@@ -73,6 +74,14 @@ pub trait Device {
     /// Windows physical disk says it in an IOCTL).
     fn length(&mut self, file: &mut File) -> io::Result<u64> {
         file.seek(SeekFrom::End(0))
+    }
+    /// The size in bytes of the disk's blocks. Every write the writer
+    /// makes is a whole number of them at a multiple of it, and every
+    /// read a whole number of [`ALIGN`] bytes at a multiple of that, so a
+    /// disk that refuses anything else (macOS's raw `/dev/rdiskN`) is
+    /// written as any other. A power of two from 512 to [`ALIGN`].
+    fn block(&mut self) -> u64 {
+        512
     }
 }
 
@@ -307,6 +316,13 @@ pub fn write(
         }
     }
     source.check()?;
+    let block = device.block();
+    if !block.is_power_of_two() || !(512..=ALIGN as u64).contains(&block) {
+        return Err(Reason::Device {
+            device: order.device.clone(),
+            detail: format!("block size {block}"),
+        });
+    }
     // 3. Unmounted, and opened.
     device.unmount()?;
     let mut disk = device.open_write()?;
@@ -337,7 +353,11 @@ pub fn write(
     };
     // 5. Written and flushed.
     {
-        let mut out = plan.writer(Writing(&mut disk, None));
+        let mut out = plan.writer(Writing {
+            disk: &mut disk,
+            buf: None,
+            block: block as usize,
+        });
         source
             .pump(&mut *out, &mut |d, t| progress(WriteStage::Writing, d, t))
             .map_err(payload_reason)?;
@@ -485,9 +505,17 @@ impl Plan {
 /// Writes to the disk, a few megabytes at a time.
 ///
 /// Each stretch goes out from a buffer aligned to [`ALIGN`], as a disk
-/// opened unbuffered (Windows) needs; its offset and length are already
-/// whole sectors, since an image and a partition are.
-struct Writing<'a>(&'a mut File, Option<AlignedBuf>);
+/// opened unbuffered (Windows) needs, as whole blocks at a multiple of
+/// the block size, as a raw disk (macOS) needs: a stretch that starts
+/// or ends inside a block (an image whose length is not a whole number
+/// of blocks, or of 4096-byte blocks on a disk that has them) is
+/// written as the whole blocks it touches, with what the disk held
+/// around it read first and written back unchanged.
+struct Writing<'a> {
+    disk: &'a mut File,
+    buf: Option<AlignedBuf>,
+    block: usize,
+}
 
 /// Compares with the disk, a few megabytes at a time.
 struct Comparing<'a>(&'a mut File);
@@ -513,12 +541,35 @@ trait Flush {
 
 impl Flush for Writing<'_> {
     fn flush_at(&mut self, at: u64, data: &[u8]) -> io::Result<()> {
-        let buf = self.1.get_or_insert_with(|| AlignedBuf::new(CHUNK));
-        self.0.seek(SeekFrom::Start(at))?;
-        for part in data.chunks(CHUNK) {
-            let out = &mut buf[..part.len()];
-            out.copy_from_slice(part);
-            self.0.write_all(out)?;
+        let block = self.block as u64;
+        let end = at + data.len() as u64;
+        let (start, stop) = (at - at % block, end.div_ceil(block) * block);
+        if start == at && stop == end {
+            let buf = self.buf.get_or_insert_with(|| AlignedBuf::new(CHUNK));
+            self.disk.seek(SeekFrom::Start(at))?;
+            for part in data.chunks(CHUNK) {
+                let out = &mut buf[..part.len()];
+                out.copy_from_slice(part);
+                self.disk.write_all(out)?;
+            }
+            return Ok(());
+        }
+        // The whole blocks the stretch touches: the first and the last
+        // as the disk holds them, then the stretch over them.
+        let mut whole = AlignedBuf::new((stop - start) as usize);
+        let b = self.block;
+        if start < at {
+            read_exact_at(self.disk, start, &mut whole[..b])?;
+        }
+        if end < stop {
+            let last = whole.len() - b;
+            read_exact_at(self.disk, stop - block, &mut whole[last..])?;
+        }
+        let from = (at - start) as usize;
+        whole[from..from + data.len()].copy_from_slice(data);
+        self.disk.seek(SeekFrom::Start(start))?;
+        for part in whole.chunks(CHUNK) {
+            self.disk.write_all(part)?;
         }
         Ok(())
     }

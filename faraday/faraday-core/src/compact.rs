@@ -634,32 +634,15 @@ fn prompts(app: &Faraday) -> Vec<(Icon, String, Option<Action>, osk_ui::Color)> 
     vec![(icon, label, enabled.then_some(action), tone)]
 }
 
-/// A press on the docked keyboard, or the bar's keyboard button.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OskPress {
-    /// A character key.
-    Char(char),
-    /// Backspace.
-    Back,
-    /// Done: Enter.
-    Done,
-    /// Shift.
-    Shift,
-    /// The symbol layer.
-    Symbols,
-    /// Bring the keyboard up.
-    Show,
-    /// Put it away.
-    Hide,
-}
+pub use faraday_ui::keyboard::OskPress;
 
 /// The docked keyboard: OpenSigner's own, at the foot of a small panel
 /// while something on the page takes typing. A press is the key a
 /// physical keyboard would send.
 #[derive(Debug, Default)]
 pub(crate) struct Osk {
-    shift: bool,
-    symbols: bool,
+    /// Shift and the symbol layer.
+    keys: faraday_ui::keyboard::Keys,
     /// Brought up from the bar on a page that types with no field.
     manual: bool,
     /// Put away while a field has focus.
@@ -676,9 +659,6 @@ pub(crate) struct Osk {
     /// frame.
     lift: f32,
 }
-
-/// One row of keys, design units.
-const KEY_ROW: f32 = 32.0;
 
 impl Faraday {
     /// A field with focus takes typing now.
@@ -761,7 +741,7 @@ impl Faraday {
     /// The keyboard's height when it is up, else nothing.
     pub(crate) fn osk_height(&self) -> f32 {
         if self.osk_shown() {
-            osk_ui::widgets::keyboard::rows(self.osk_kind()) as f32 * KEY_ROW + 8.0
+            faraday_ui::keyboard::height(self.osk_kind())
         } else {
             0.0
         }
@@ -850,20 +830,13 @@ impl Faraday {
     /// Leaving a page puts away a keyboard brought up by hand.
     pub(crate) fn osk_leave(&mut self) {
         self.osk.manual = false;
-        self.osk.shift = false;
-        self.osk.symbols = false;
+        self.osk.keys.reset();
     }
 
     pub(crate) fn osk_press(&mut self, p: OskPress) {
+        use faraday_ui::keyboard::Typed;
         use osk_shell_api::Key as K;
         match p {
-            OskPress::Char(c) => {
-                self.key(K::Char(c));
-                if c.is_alphabetic() {
-                    self.osk.shift = false;
-                }
-            }
-            OskPress::Back => self.key(K::Backspace),
             // Done is Enter, and puts the keyboard away, so the page's
             // pinned action shows again; another field brings it back.
             OskPress::Done => {
@@ -871,8 +844,6 @@ impl Faraday {
                 self.osk.hidden = true;
                 self.osk.manual = false;
             }
-            OskPress::Shift => self.osk.shift = !self.osk.shift,
-            OskPress::Symbols => self.osk.symbols = !self.osk.symbols,
             OskPress::Show => {
                 self.osk.manual = true;
                 self.osk.hidden = false;
@@ -881,83 +852,29 @@ impl Faraday {
                 self.osk.manual = false;
                 self.osk.hidden = true;
             }
+            _ => match self.osk.keys.press(p) {
+                Some(Typed::Char(c)) => self.key(K::Char(c)),
+                Some(Typed::Backspace) => self.key(K::Backspace),
+                Some(Typed::Enter) => self.key(K::Enter),
+                None => {}
+            },
         }
     }
 }
 
-/// The widest the keys grow in the wide layout, design units: past it
-/// they sit centred in the strip.
-const KEYS_MAX_W: f32 = 720.0;
-
 /// The keyboard, across the foot of the panel from `y`, or in the wide
-/// layout across the page area from `x`, `w` wide.
+/// layout across the page area from `x`, `w` wide (`faraday-ui`'s).
 pub(crate) fn keyboard(app: &Faraday, ui: &mut Ui, x: f32, w: f32, y: f32) {
-    use osk_ui::widgets::keyboard::{self, KeyInput, Modifiers};
-    let kind = app.osk_kind();
-    let rows = keyboard::rows(kind) as f32;
-    ui.fill(x, y, w, rows * KEY_ROW + 8.0, 0.0, SIDEBAR);
-    ui.fill(x, y, w, 1.0, 0.0, LINE);
-    let kw = if app.compact { w } else { w.min(KEYS_MAX_W) };
-    let kx = x + (w - kw) / 2.0;
-    let area = osk_ui::geom::Rect::new(
-        (kx + 4.0) as i32,
-        (y + 6.0) as i32,
-        (kw - 4.0) as i32,
-        (rows * KEY_ROW) as i32,
+    faraday_ui::keyboard::keyboard(
+        ui,
+        x,
+        w,
+        y,
+        app.osk_kind(),
+        app.osk.keys,
+        app.compact,
+        Action::Osk,
     );
-    let ctx = osk_ui::layout::LayoutCtx::new(
-        osk_ui::geom::Scale::new(160),
-        osk_ui::geom::SizeClass::Small,
-    );
-    let mods = Modifiers {
-        shift: app.osk.shift,
-        symbols: app.osk.symbols,
-    };
-    for cap in keyboard::keys(kind, area, &ctx, keyboard::ALL_KEYS, None, mods) {
-        let r = cap.rect;
-        let (kx, ky, kw, kh) = (r.x as f32, r.y as f32, r.w as f32 - 3.0, r.h as f32 - 3.0);
-        let (label, style, press) = match cap.input {
-            KeyInput::Char(' ') => (String::new(), Style::Secondary, OskPress::Char(' ')),
-            KeyInput::Char(c) => (c.to_string(), Style::Secondary, OskPress::Char(c)),
-            KeyInput::Backspace => (String::new(), Style::Secondary, OskPress::Back),
-            KeyInput::Done => (EN.compact_done.to_string(), Style::Primary, OskPress::Done),
-            KeyInput::Shift => (
-                "⇧".to_string(),
-                if app.osk.shift {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                },
-                OskPress::Shift,
-            ),
-            KeyInput::Symbols => (
-                if app.osk.symbols { "abc" } else { "#+=" }.to_string(),
-                Style::Secondary,
-                OskPress::Symbols,
-            ),
-        };
-        let style = if cap.enabled { style } else { Style::Disabled };
-        ui.button(kx, ky, Some(kw), kh, &label, style, Action::Osk(press));
-        match cap.input {
-            KeyInput::Backspace => ui.icon(
-                kx + kw / 2.0 - 9.0,
-                ky + kh / 2.0 - 9.0,
-                18.0,
-                Icon::Delete,
-                12.0,
-                TEXT,
-            ),
-            KeyInput::Char(' ') => ui.icon(
-                kx + kw / 2.0 - 9.0,
-                ky + kh / 2.0 - 9.0,
-                18.0,
-                Icon::Space,
-                12.0,
-                MUTED,
-            ),
-            _ => {}
-        }
-    }
 }
 
 impl Faraday {

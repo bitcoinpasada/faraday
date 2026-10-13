@@ -19,7 +19,7 @@ use osk_learn::{Page as LearnPage, Section};
 /// as it is: the hub app's screens open a page by it, and the website
 /// publishes each guide at `https://faradayoffline.app/start/<id>`
 /// (§7.4).
-const OWN: [(&str, &str); 20] = [
+const OWN: [(&str, &str); 21] = [
     // Upgrading a stick from another stick (`PLAN.md` §5.5).
     (
         "upgrade-a-stick",
@@ -32,6 +32,11 @@ const OWN: [(&str, &str); 20] = [
     ),
     // The clock and TOTP codes (`docs/TOTP.md`).
     ("time", include_str!("../../../docs/learn/faraday/time.md")),
+    // Faraday Companion, the phone app (`docs/COMPANION.md` §4.7).
+    (
+        "companion",
+        include_str!("../../../docs/learn/faraday/companion.md"),
+    ),
     (
         "windows",
         include_str!("../../../docs/learn/faraday/boot/windows.md"),
@@ -303,4 +308,9 @@ pub fn shares_page() -> &'static LearnPage {
 /// "Time and TOTP codes".
 pub fn time_page() -> &'static LearnPage {
     known("time")
+}
+
+/// "Faraday Companion".
+pub fn companion_page() -> &'static LearnPage {
+    known("companion")
 }

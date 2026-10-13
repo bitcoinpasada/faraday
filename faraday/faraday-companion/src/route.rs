@@ -51,6 +51,10 @@ pub enum Outcome {
         /// A silent payment address rather than an ordinary one.
         silent: bool,
     },
+    /// The address of one of the website's guides that `faraday-learn`
+    /// has (`docs/COMPANION.md` §4.7): the Companion's own copy opens,
+    /// by the page's id.
+    Guide(&'static str),
     /// A web address: shown as text and never opened.
     Web(String),
     /// Any other text: shown, and kept only when the person says so.
@@ -227,6 +231,9 @@ impl Reader {
         if let Some(key) = KeyText::read(text) {
             return Outcome::BitLocker(key);
         }
+        if let Some(id) = guide(text) {
+            return Outcome::Guide(id);
+        }
         match faraday_qr::classify_text(text) {
             Arrived::File(name, data, _) => {
                 return Outcome::Arrived {
@@ -257,6 +264,11 @@ impl Reader {
                 silent: true,
             },
             _ if is_web(text) => Outcome::Web(text.to_string()),
+            // Any other form the device's description reader reads: a
+            // Coldcard export, a wallet .json, `listdescriptors`.
+            _ if faraday_intake::wallet::read_wallet(text).is_ok() => {
+                arrived(Kind::Description, text.as_bytes().to_vec(), "txt")
+            }
             _ => Outcome::Text(text.to_string()),
         }
     }
@@ -303,6 +315,15 @@ pub fn kind_of_file(bytes: &[u8]) -> Kind {
         k if is_description(&k) => Kind::Description,
         _ => Kind::File,
     }
+}
+
+/// The id of the page a website guide's address names
+/// (`https://faradayoffline.app/start/<id>`, `docs/HUB.md` §7.4), when
+/// `faraday-learn` has that page.
+pub fn guide(text: &str) -> Option<&'static str> {
+    let rest = text.strip_prefix(faraday_learn::GUIDES)?;
+    let id = rest.strip_suffix('/').unwrap_or(rest);
+    faraday_learn::ids().find(|i| *i == id)
 }
 
 /// Whether `text` is one web address.

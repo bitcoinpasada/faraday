@@ -7,12 +7,15 @@
 //! everything (`docs/COMPANION.md` §5): is this a secret ([`secret`])?
 //!
 //! Nothing here holds a word a person reads. Each answer is an enum, and
-//! the app that asked says it in its own strings.
+//! the app that asked says it in its own strings; the one exception is
+//! [`wallet`], the description reader, whose refusals are Faraday's own
+//! lines (`faraday-strings`).
 //!
 //! [`secret_buf`] holds text a person types that may be a secret, wiped
 //! wherever it has been.
 
 pub mod secret_buf;
+pub mod wallet;
 
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::bitcoin::base58;

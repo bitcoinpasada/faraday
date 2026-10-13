@@ -2630,6 +2630,25 @@ as possible before the next build.
     what moved and from where, and each new screen with the screen it
     was drawn after.
 
+    **B1 built and audited (2026-10-13).** As briefed. The reader moved
+    to `faraday-intake/src/wallet.rs` (with the network helpers it
+    needs; `first_address` new); the keyboard to `faraday-ui/src/
+    keyboard.rs`; the kept store is `FCKS` v1 (`faraday-companion/src/
+    kept.rs`). For B2 (`api.rs`): events `Kept { bytes }` (empty the
+    first time), `KeptClosed { why: Cancelled | NoScreenLock |
+    Unreadable }`, `Locked`, `KeptCounts { descriptions, keys }`,
+    `SharedIn { name: Option<String>, bytes }` (no name for text);
+    commands `UnlockKept { purpose, title }`, `KeepKept { bytes,
+    descriptions, keys }` (empty bytes: delete the store and its
+    wrapped key), `Share { name, mime, bytes }`; until B2 the FFI drops
+    the three commands and wipes their bytes. `Locked` wipes the store
+    in the core and drops a pending unlock, so the shell must not send
+    it while the system's own prompt has the app stopped. Desktop and
+    hub renders byte for byte (1201); `just` passes (2454 tests). Found
+    in the audit, fixed after: the stick's keyboard labels Shift with
+    "⇧", which Faraday's font lacks, so it has shown "?"; and §4.6's
+    second line named "the hub app", now Faraday Starter (F16).
+
     **B2, Android** (Opus), after B1's audit.
 
     1. **The kept store's encryption** (§7, D4): a data key, random,

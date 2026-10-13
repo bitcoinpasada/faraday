@@ -179,6 +179,15 @@ fn refused(c: &mut Companion, kind: Secret, before: &[u8], how: &str) {
         None,
         "{kind:?} by {how}: the store was written"
     );
+    assert_eq!(
+        kept_kept(&ours),
+        None,
+        "{kind:?} by {how}: the kept store was written"
+    );
+    assert!(
+        !asked_unlock(&ours),
+        "{kind:?} by {how}: the unlock was asked"
+    );
     assert_eq!(c.store_bytes(), before, "{kind:?} by {how}");
     assert_eq!(c.received().len(), 1);
 }
@@ -236,4 +245,26 @@ fn a_secret_sent_in_parts_is_refused_once_whole_and_the_parts_go_with_it() {
         "{:?}",
         c.texts()
     );
+}
+
+#[test]
+fn every_secret_shared_in_is_refused_whole_and_both_stores_stay_as_they_were() {
+    for (kind, bytes) in samples() {
+        // From anywhere: Received open, and Wallet descriptions open.
+        let mut c = holding();
+        let before = c.store_bytes();
+        c.companion_event(CompanionEvent::SharedIn {
+            name: Some("shared.txt".into()),
+            bytes: bytes.clone(),
+        });
+        refused(&mut c, kind, &before, "share");
+        let mut c = holding();
+        c.press(Act::Back);
+        c.press(Act::Descriptions);
+        unlock(&mut c, &[]);
+        assert!(c.kept().is_some_and(|k| k.is_empty()));
+        c.companion_event(CompanionEvent::SharedIn { name: None, bytes });
+        refused(&mut c, kind, &before, "share, Wallet descriptions open");
+        assert!(c.kept().is_some_and(|k| k.is_empty()));
+    }
 }

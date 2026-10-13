@@ -39,6 +39,10 @@ struct FileDisk {
     path: PathBuf,
     now: Identity,
     calls: Vec<&'static str>,
+    /// Its blocks, when it is a raw disk that takes whole blocks only:
+    /// then it is written straight to the disk too (`O_DIRECT`), which
+    /// refuses an unaligned offset or length.
+    raw: Option<u64>,
 }
 
 impl FileDisk {
@@ -52,6 +56,7 @@ impl FileDisk {
                 in_use: None,
             },
             calls: Vec::new(),
+            raw: None,
         }
     }
 
@@ -79,11 +84,17 @@ impl Device for FileDisk {
     }
     fn open_write(&mut self) -> Result<File, Reason> {
         self.calls.push("open_write");
+        use std::os::unix::fs::OpenOptionsExt;
+        const O_DIRECT: i32 = 0o40_000;
         OpenOptions::new()
             .read(true)
             .write(true)
+            .custom_flags(if self.raw.is_some() { O_DIRECT } else { 0 })
             .open(&self.path)
             .map_err(|e| Reason::OpenWrite(e.to_string()))
+    }
+    fn block(&mut self) -> u64 {
+        self.raw.unwrap_or(512)
     }
     fn open_read(&mut self) -> Result<File, Reason> {
         self.calls.push("open_read");
@@ -517,4 +528,33 @@ fn keep_data_checks_the_partition_table_with_reads_a_stick_accepts() {
         .map(|&(from, to)| image[from as usize..to as usize].to_vec())
         .collect();
     assert_eq!(read, expected);
+}
+
+#[test]
+fn an_image_that_ends_inside_a_block_is_written_to_a_disk_that_takes_whole_blocks_only() {
+    // A developer's image 100 bytes past a whole number of sectors, to a
+    // disk written straight to the disk, as macOS's raw disk is: the
+    // write succeeds, the image is on the disk, and the rest of the last
+    // block keeps what the disk held there.
+    let path = tmp("raw-blocks");
+    let before = vec![0xA5u8; 64 << 10];
+    std::fs::write(&path, &before).expect("a disk");
+    let mut bytes = fixture_img();
+    bytes.truncate(IMG_SIZE - 512 + 100);
+    let image = image_file("raw-blocks.img", &bytes);
+    let mut disk = FileDisk::new(&path);
+    disk.raw = Some(4096);
+    let order = disk.order(
+        Confirmed::Image {
+            path: image.path.display().to_string(),
+            sha256: image.sum.sha256.to_string(),
+        },
+        Mode::Whole,
+    );
+    let (r, stages) = run(&order, &Job::Image(image), &mut disk);
+    assert_eq!(r, Ok(()));
+    assert_eq!(stages, [WriteStage::Writing, WriteStage::ReadingBack]);
+    let after = std::fs::read(&path).expect("read");
+    assert_eq!(&after[..bytes.len()], bytes.as_slice());
+    untouched_outside(&before, &after, 0, bytes.len());
 }

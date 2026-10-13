@@ -18,6 +18,8 @@ osk-bip = { path = "../../core/osk-bip" }
 # The Faraday file envelope, what a whole transfer arrived as, and CBOR.
 faraday-qr = { path = "../faraday-qr" }
 zeroize = { workspace = true, features = ["alloc"] }
+# The description reader's refusal lines (`wallet`).
+faraday-strings = { path = "../faraday-strings" }
 
 [dev-dependencies]
 # The published vectors' JSON files.

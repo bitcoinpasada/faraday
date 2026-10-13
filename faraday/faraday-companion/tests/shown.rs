@@ -1,20 +1,22 @@
 //! What arrives and is shown rather than kept (`docs/COMPANION.md` §5,
 //! §11): a web address is shown as text and nothing opens it; an address
 //! is shown with its kind; other text is kept only when the person says
-//! so; a BitLocker recovery key is shown masked and kept nowhere.
+//! so; the address of one of the website's guides opens the
+//! Companion's own copy of that page (§4.7).
 
 mod common;
 
 use common::*;
 use faraday_companion::store::Kind;
-use faraday_companion::{Act, Page, Shown};
+use faraday_companion::{Act, Doc, Page, Shown};
 use osk_shell_api::Command;
 
 #[test]
 fn a_web_address_is_shown_as_text_and_nothing_opens_it() {
     for address in [
-        faraday_learn::guide_address("windows"),
         "https://example.com/pay?to=me".to_string(),
+        // The website, but no guide the Companion has.
+        faraday_learn::guide_address("no-such-guide"),
     ] {
         let mut c = receiving();
         show(&mut c, &code_of(address.as_bytes()));
@@ -69,36 +71,25 @@ fn other_text_is_kept_only_when_the_person_says_so() {
 }
 
 #[test]
-fn a_bitlocker_recovery_key_is_shown_masked_and_kept_nowhere() {
-    let key = faraday_qr::bitlocker::KeyText {
-        computer: "DESKTOP-4K2Q".into(),
-        drive: "C:".into(),
-        key: faraday_qr::bitlocker::RecoveryKey::parse(
-            "205568-492019-108251-336446-650375-210331-584155-047520",
-        )
-        .expect("a key"),
-    };
-    let text = key.write().expect("the hub app's text");
-    let mut c = receiving();
-    let before = c.store_bytes();
-    show(&mut c, &code_of(text.as_bytes()));
-    assert_eq!(c.page, Page::BitLocker);
-    assert_eq!(c.bitlocker(), Some(&key));
-    let texts = c.texts();
-    assert!(texts.iter().any(|t| t == "DESKTOP-4K2Q"), "{texts:?}");
-    assert!(
-        !texts.iter().any(|t| t.contains("205568")),
-        "the key is shown unmasked: {texts:?}"
-    );
-    let (_, ours) = drain(&mut c);
-    assert_eq!(kept_store(&ours), None);
-    assert_eq!(c.store_bytes(), before);
-    assert!(c.received().is_empty());
-    // Pasted the same, and gone from memory once the screen is left.
-    let mut c = receiving();
-    paste(&mut c, &text);
-    assert_eq!(c.page, Page::BitLocker);
-    c.press(Act::Done);
-    assert_eq!(c.bitlocker(), None);
-    assert!(c.received().is_empty());
+fn a_guide_address_opens_the_companions_own_page_and_asks_nothing_of_the_shell() {
+    for id in ["windows", "maker-dell"] {
+        let address = faraday_learn::guide_address(id);
+        let mut c = receiving();
+        show(&mut c, &code_of(address.as_bytes()));
+        assert_eq!(c.page, Page::Doc(Doc::Own(id)), "{address}");
+        let title = faraday_learn::known(id).title;
+        assert!(shows(&mut c, title), "{address}: {:?}", c.texts());
+        let (cmds, ours) = drain(&mut c);
+        assert!(ours.is_empty(), "{ours:?}");
+        assert!(
+            cmds.iter()
+                .all(|k| matches!(k, Command::Draw | Command::CameraOff)),
+            "{cmds:?}"
+        );
+        assert!(c.received().is_empty());
+        // Pasted, the same.
+        let mut c = receiving();
+        paste(&mut c, &address);
+        assert_eq!(c.page, Page::Doc(Doc::Own(id)));
+    }
 }

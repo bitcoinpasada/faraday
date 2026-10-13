@@ -14,13 +14,17 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use faraday_companion::{Act, Companion, CompanionEvent};
+use faraday_companion::{Act, Closed, Companion, CompanionEvent};
 use faraday_core::testkit;
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_ui::keyboard::OskPress;
+use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 const WORDS: &str =
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 const ADDRESS: &str = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu";
+/// BIP-84's account 0 of "abandon … about", as Jade writes it.
+const JADE: &str =
+    include_str!("../../faraday-core/tests/vectors/interop/sparrow/jade-keystore.txt");
 const BITLOCKER: &str = "BitLocker recovery key for DESKTOP-4K2Q, drive C:\n205568-492019-108251-336446-650375-210331-584155-047520";
 
 struct Snap<'a> {
@@ -190,13 +194,120 @@ fn run(s: &Snap) -> Result<(), String> {
     scanned(&mut c, ADDRESS);
     s.shot(&mut c, "shown-address")?;
     c.press(Act::ScanAgain);
-    scanned(&mut c, &faraday_learn::guide_address("windows"));
+    scanned(&mut c, "https://example.com/pay?to=me");
     s.shot(&mut c, "shown-web")?;
+    // A guide's address opens the Companion's own page (§4.7).
     c.press(Act::ScanAgain);
+    scanned(&mut c, &faraday_learn::guide_address("windows"));
+    s.shot(&mut c, "guide-opened")?;
+
+    // What another app shares (§6.3).
+    let mut c = s.app();
+    c.companion_event(CompanionEvent::SharedIn {
+        name: Some("spend.psbt".into()),
+        bytes: psbt(),
+    });
+    s.shot(&mut c, "shared-psbt")?;
+    let mut c = s.app();
+    c.companion_event(CompanionEvent::SharedIn {
+        name: None,
+        bytes: WORDS.as_bytes().to_vec(),
+    });
+    s.shot(&mut c, "shared-refused")?;
+
+    // The unlock (§7).
+    let mut c = s.app();
+    c.companion_event(CompanionEvent::KeptCounts {
+        descriptions: 2,
+        keys: 1,
+    });
+    s.shot(&mut c, "home-locked")?;
+    c.press(Act::Descriptions);
+    s.shot(&mut c, "unlocking")?;
+    c.companion_event(CompanionEvent::KeptClosed {
+        why: Closed::NoScreenLock,
+    });
+    s.shot(&mut c, "closed-no-screen-lock")?;
+    c.press(Act::Done);
+    c.press(Act::Keys);
+    c.companion_event(CompanionEvent::KeptClosed {
+        why: Closed::Cancelled,
+    });
+    s.shot(&mut c, "closed-cancelled")?;
+    c.press(Act::Done);
+    c.press(Act::Descriptions);
+    c.companion_event(CompanionEvent::Kept {
+        bytes: b"FCKS\x09".to_vec(),
+    });
+    s.shot(&mut c, "closed-unreadable")?;
+
+    // Wallet descriptions (§4.5).
+    let mut c = s.app();
+    c.press(Act::Descriptions);
+    c.companion_event(CompanionEvent::Kept { bytes: Vec::new() });
+    s.shot(&mut c, "descriptions-empty")?;
+    c.press(Act::AddDescription);
+    s.shot(&mut c, "descriptions-scanner")?;
+    scanned(&mut c, &kit("spending").descriptor);
+    s.shot(&mut c, "description")?;
+    c.press(Act::Rename);
+    for _ in 0..8 {
+        c.press(Act::Osk(OskPress::Back));
+    }
+    c.press(Act::Osk(OskPress::Shift));
+    for ch in "Savings".chars() {
+        c.press(Act::Osk(OskPress::Char(ch)));
+    }
+    s.shot(&mut c, "description-rename")?;
+    c.press(Act::SaveName);
+    c.press(Act::Back);
+    c.press(Act::AddDescription);
+    scanned(&mut c, JADE);
+    c.press(Act::Back);
+    s.shot(&mut c, "descriptions")?;
+    c.press(Act::DescriptionRecord(1));
+    c.press(Act::Delete);
+    s.shot(&mut c, "description-delete")?;
+    c.press(Act::KeepIt);
+    c.press(Act::Back);
+    c.press(Act::AddDescription);
+    scanned(&mut c, "wpkh(xpub-not-a-key/<0;1>/*)");
+    s.shot(&mut c, "description-not-read")?;
+    // A description in Received, with Keep in Wallet descriptions.
+    let mut c = s.holding();
+    c.press(Act::Received);
+    c.press(Act::Record(1));
+    s.shot(&mut c, "record-description")?;
+
+    // BitLocker keys (§4.6).
+    let mut c = s.app();
+    c.press(Act::Receive);
     scanned(&mut c, BITLOCKER);
-    s.shot(&mut c, "bitlocker")?;
-    c.press(Act::Eye);
-    s.shot(&mut c, "bitlocker-shown")?;
+    s.shot(&mut c, "key-unlocking")?;
+    c.companion_event(CompanionEvent::Kept { bytes: Vec::new() });
+    s.shot(&mut c, "key")?;
+    let (x, y) = c.where_offered(Act::Hold).ok_or("Hold to show")?;
+    c.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Down,
+    });
+    s.shot(&mut c, "key-shown")?;
+    c.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Up,
+    });
+    c.press(Act::BackInWindows);
+    s.shot(&mut c, "key-back-in-windows")?;
+    c.press(Act::KeepIt);
+    c.press(Act::Delete);
+    s.shot(&mut c, "key-delete")?;
+    c.press(Act::KeepIt);
+    c.press(Act::Back);
+    s.shot(&mut c, "home-with-key")?;
+    c.press(Act::Keys);
+    s.shot(&mut c, "keys")?;
 
     // Send to Faraday (§4.3).
     let mut c = s.app();

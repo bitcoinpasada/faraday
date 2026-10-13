@@ -287,9 +287,10 @@ fn encode(command: Command) -> Option<(i32, Payload)> {
     })
 }
 
-/// Splits one of the Companion's own commands into its code and payload.
-fn encode_companion(command: CompanionCommand) -> (i32, Payload) {
-    match command {
+/// Splits one of the Companion's own commands into its code and payload;
+/// `None` for one this shell does not take yet.
+fn encode_companion(command: CompanionCommand) -> Option<(i32, Payload)> {
+    Some(match command {
         CompanionCommand::KeepReceived { bytes } => (
             CMD_KEEP_RECEIVED,
             Payload {
@@ -305,7 +306,15 @@ fn encode_companion(command: CompanionCommand) -> (i32, Payload) {
                 ..none()
             },
         ),
-    }
+        // The kept store and Share come with batch B2's shell; until
+        // then they are dropped, their bytes wiped.
+        CompanionCommand::UnlockKept { .. } => return None,
+        CompanionCommand::KeepKept { mut bytes, .. }
+        | CompanionCommand::Share { mut bytes, .. } => {
+            bytes.zeroize();
+            return None;
+        }
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -695,17 +704,14 @@ pub fn poll(handle: i64) -> i32 {
                 return code;
             }
         }
-        match i.app.poll_companion() {
-            Some(command) => {
-                let (code, payload) = encode_companion(command);
+        while let Some(command) = i.app.poll_companion() {
+            if let Some((code, payload)) = encode_companion(command) {
                 i.park(payload);
-                code
-            }
-            None => {
-                i.park(Payload::default());
-                CMD_NONE
+                return code;
             }
         }
+        i.park(Payload::default());
+        CMD_NONE
     })
     .unwrap_or(CMD_ERROR)
 }

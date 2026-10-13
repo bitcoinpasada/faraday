@@ -171,6 +171,8 @@ impl LearnId {
         let general = match c.os {
             Os::Windows => LearnId::StartWindows,
             Os::Linux => LearnId::StartLinux,
+            // A3b: the Mac guide, `mac-intel`.
+            Os::MacOs => LearnId::StartLinux,
         };
         match faraday_learn::guide_id(&c.maker, &c.family, &c.model, general.id()) {
             id if id == general.id() => general,

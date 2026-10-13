@@ -133,3 +133,70 @@ pub fn repo(path: &str) -> Vec<u8> {
 pub fn json(path: &str) -> serde_json::Value {
     serde_json::from_slice(&repo(path)).expect(path)
 }
+
+/// Whether the core asked the shell for the phone's unlock.
+pub fn asked_unlock(cmds: &[CompanionCommand]) -> bool {
+    cmds.iter()
+        .any(|c| matches!(c, CompanionCommand::UnlockKept { .. }))
+}
+
+/// The last kept store the core handed the shell, with its two counts.
+pub fn kept_kept(cmds: &[CompanionCommand]) -> Option<(Vec<u8>, u32, u32)> {
+    cmds.iter().rev().find_map(|c| match c {
+        CompanionCommand::KeepKept {
+            bytes,
+            descriptions,
+            keys,
+        } => Some((bytes.clone(), *descriptions, *keys)),
+        _ => None,
+    })
+}
+
+/// The person gives the phone's unlock the core asked for, and the
+/// shell hands over the kept store `bytes` (none the first time).
+/// Returns what the core asked for before the answer.
+pub fn unlock(c: &mut Companion, bytes: &[u8]) -> Vec<CompanionCommand> {
+    let (_, ours) = drain(c);
+    assert!(asked_unlock(&ours), "no unlock asked: {ours:?}");
+    c.companion_event(CompanionEvent::Kept {
+        bytes: bytes.to_vec(),
+    });
+    ours
+}
+
+/// The phone on Wallet descriptions, the kept store opened with `bytes`.
+pub fn on_descriptions(bytes: &[u8]) -> Companion {
+    let mut c = phone();
+    c.press(Act::Descriptions);
+    unlock(&mut c, bytes);
+    assert_eq!(c.page, Page::Descriptions);
+    drain(&mut c);
+    c
+}
+
+/// Every string on the screen run together without spaces, so a value
+/// drawn in groups or wrapped across lines reads whole.
+pub fn screen_joined(c: &mut Companion) -> String {
+    c.texts().concat().replace(' ', "")
+}
+
+/// A file under `faraday-core`'s copies of other wallets' files
+/// (`docs/INTEROP.md`).
+pub fn interop(path: &str) -> String {
+    String::from_utf8(repo(&format!(
+        "faraday/faraday-core/tests/vectors/interop/{path}"
+    )))
+    .expect("text")
+}
+
+/// The hub app's text for a BitLocker recovery key.
+pub fn hub_key() -> faraday_qr::bitlocker::KeyText {
+    faraday_qr::bitlocker::KeyText {
+        computer: "DESKTOP-4K2Q".into(),
+        drive: "C:".into(),
+        key: faraday_qr::bitlocker::RecoveryKey::parse(
+            "205568-492019-108251-336446-650375-210331-584155-047520",
+        )
+        .expect("a key"),
+    }
+}

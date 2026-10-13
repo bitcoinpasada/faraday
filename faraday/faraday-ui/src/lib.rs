@@ -7,6 +7,7 @@
 //! Noto Sans and Noto Sans Mono. [`Ui`] is generic over the app's own
 //! action type: what a press on a region does is the caller's to name.
 
+pub mod keyboard;
 pub mod parts;
 pub mod sheet;
 

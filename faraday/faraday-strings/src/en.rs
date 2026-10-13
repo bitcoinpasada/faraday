@@ -7802,12 +7802,104 @@ pub struct Strings {
     pub companion_learn_bitcoin: &'static str,
     /// About: the palettes the screens can be drawn in.
     pub companion_theme: &'static str,
-    /// A BitLocker recovery key: show its digits.
-    pub companion_show_key: &'static str,
-    /// A BitLocker recovery key: mask its digits again.
-    pub companion_hide_key: &'static str,
     /// About: the heading over how a release is checked.
     pub companion_check_title: &'static str,
+    /// Home row, and the list of kept wallet descriptions (§4.5).
+    pub companion_home_descriptions: &'static str,
+    /// Home row while a key is kept, and the list of kept BitLocker keys (§4.6).
+    pub companion_home_bitlocker: &'static str,
+    /// The phone's unlock prompt's title, opening Wallet descriptions (§7).
+    pub companion_unlock_descriptions: &'static str,
+    /// The unlock prompt's title, opening BitLocker keys.
+    pub companion_unlock_keys: &'static str,
+    /// The unlock prompt's title, keeping a description that arrived.
+    pub companion_unlock_keep_description: &'static str,
+    /// The unlock prompt's title, keeping a BitLocker key that arrived.
+    pub companion_unlock_keep_key: &'static str,
+    /// The page behind the unlock prompt.
+    pub companion_unlock_waiting: &'static str,
+    /// A kept description's name before it is renamed: its number.
+    pub companion_description_name: &'static str,
+    /// What another app shared that is nothing read whole.
+    pub companion_shared_not_read: &'static str,
+    /// Wallet descriptions' button, and its scanner's title.
+    pub companion_descriptions_add: &'static str,
+    /// Wallet descriptions with none kept.
+    pub companion_descriptions_empty: &'static str,
+    /// A received description's button (§4.4).
+    pub companion_keep_in_descriptions: &'static str,
+    /// A record's button: the system's share sheet (§6.3).
+    pub companion_share: &'static str,
+    /// A description's button, and the page that renames it.
+    pub companion_rename: &'static str,
+    /// Asked before a kept description is deleted.
+    pub companion_delete_description_ask: &'static str,
+    /// Back in Windows' sheet title, and a key's Delete (§4.6).
+    pub companion_delete_key_ask: &'static str,
+    /// Asked before a kept store that cannot be read is deleted.
+    pub companion_delete_kept_store_ask: &'static str,
+    /// Back in Windows' primary button (§4.6).
+    pub companion_delete_the_key: &'static str,
+    /// A wallet's script type.
+    pub companion_script_legacy: &'static str,
+    /// A wallet's script type.
+    pub companion_script_nested: &'static str,
+    /// A wallet's script type.
+    pub companion_script_native: &'static str,
+    /// A wallet's script type.
+    pub companion_script_taproot: &'static str,
+    /// A kind of wallet.
+    pub companion_wallet_single: &'static str,
+    /// A kind of wallet.
+    pub companion_wallet_multisig: &'static str,
+    /// A kind of wallet.
+    pub companion_wallet_musig: &'static str,
+    /// A kind of wallet.
+    pub companion_wallet_threshold: &'static str,
+    /// A kind of wallet.
+    pub companion_wallet_silent: &'static str,
+    /// A kind of wallet.
+    pub companion_wallet_miniscript: &'static str,
+    /// A kind of wallet.
+    pub companion_wallet_tree: &'static str,
+    /// A wallet's keys: how many sign of how many.
+    pub companion_k_of_n: &'static str,
+    /// A wallet's keys where it states no number that signs.
+    pub companion_n_keys: &'static str,
+    /// A description's record: the label over k of n.
+    pub companion_keys: &'static str,
+    /// A key whose fingerprint the description does not give.
+    pub companion_no_fingerprint: &'static str,
+    /// A description's record: the label over a key's fingerprint.
+    pub companion_key_n: &'static str,
+    /// A description's record: the network its keys name.
+    pub companion_wallet_network: &'static str,
+    /// A description's record: its first receive address.
+    pub companion_first_address: &'static str,
+    /// A wallet with no address at an index (silent payments).
+    pub companion_no_address: &'static str,
+    /// BitLocker keys with none kept.
+    pub companion_keys_empty: &'static str,
+    /// A kept key's card: its drive, and when it was kept.
+    pub companion_drive_line: &'static str,
+    /// A kept key's button: its digits show while it is held.
+    pub companion_hold_to_show: &'static str,
+    /// A kept key's one action (§4.6).
+    pub companion_back_in_windows: &'static str,
+    /// Back in Windows' first line (§4.6), word for word.
+    pub companion_key_not_needed: &'static str,
+    /// Back in Windows' second line (§4.6), word for word.
+    pub companion_key_shown_again: &'static str,
+    /// The kept store was not opened.
+    pub companion_closed_title: &'static str,
+    /// Why: the unlock prompt was cancelled.
+    pub companion_closed_cancelled: &'static str,
+    /// Why: the phone has no screen lock (§7), word for word.
+    pub companion_closed_no_lock: &'static str,
+    /// The way to delete a kept store that cannot be read.
+    pub companion_delete_kept_store: &'static str,
+    /// A description that the reader does not read.
+    pub companion_not_description: &'static str,
 }
 
 /// The English wording.
@@ -11591,7 +11683,53 @@ pub static EN: Strings = Strings {
     companion_learn_faraday: "Faraday",
     companion_learn_bitcoin: "Bitcoin",
     companion_theme: "Theme",
-    companion_show_key: "Show the key",
-    companion_hide_key: "Hide the key",
     companion_check_title: "Checking a release",
+    companion_home_descriptions: "Wallet descriptions",
+    companion_home_bitlocker: "BitLocker keys",
+    companion_unlock_descriptions: "Open Wallet descriptions",
+    companion_unlock_keys: "Open BitLocker keys",
+    companion_unlock_keep_description: "Keep a wallet description",
+    companion_unlock_keep_key: "Keep a BitLocker key",
+    companion_unlock_waiting: "Waiting for the phone's unlock",
+    companion_description_name: "Wallet {}",
+    companion_shared_not_read: "Not read",
+    companion_descriptions_add: "Scan or paste a description",
+    companion_descriptions_empty: "No wallet descriptions",
+    companion_keep_in_descriptions: "Keep in Wallet descriptions",
+    companion_share: "Share",
+    companion_rename: "Rename",
+    companion_delete_description_ask: "Delete this wallet description?",
+    companion_delete_key_ask: "Delete this key?",
+    companion_delete_kept_store_ask: "Delete the kept descriptions and keys?",
+    companion_delete_the_key: "Delete the key",
+    companion_script_legacy: "Legacy",
+    companion_script_nested: "Nested SegWit",
+    companion_script_native: "Native SegWit",
+    companion_script_taproot: "Taproot",
+    companion_wallet_single: "Single key",
+    companion_wallet_multisig: "Multisig",
+    companion_wallet_musig: "MuSig2",
+    companion_wallet_threshold: "FROST threshold",
+    companion_wallet_silent: "Silent payments",
+    companion_wallet_miniscript: "Miniscript",
+    companion_wallet_tree: "Taproot tree",
+    companion_k_of_n: "{} of {}",
+    companion_n_keys: "{} keys",
+    companion_keys: "Keys",
+    companion_no_fingerprint: "None",
+    companion_key_n: "Key {}",
+    companion_wallet_network: "Network",
+    companion_first_address: "First receive address",
+    companion_no_address: "None at an index",
+    companion_keys_empty: "No BitLocker keys",
+    companion_drive_line: "Drive {} · {}",
+    companion_hold_to_show: "Hold to show",
+    companion_back_in_windows: "Back in Windows",
+    companion_key_not_needed: "Not needed if Windows started without asking for it.",
+    companion_key_shown_again: "The hub app shows it again the next time Faraday is set up on this computer.",
+    companion_closed_title: "Not opened",
+    companion_closed_cancelled: "Unlock cancelled",
+    companion_closed_no_lock: "Set a screen lock on this phone to keep wallet descriptions and BitLocker keys.",
+    companion_delete_kept_store: "Delete the kept descriptions and keys",
+    companion_not_description: "Not a wallet description",
 };

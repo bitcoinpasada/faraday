@@ -17,6 +17,8 @@ pub enum Os {
     Linux,
     /// Windows.
     Windows,
+    /// macOS (`docs/MAC.md` §6).
+    MacOs,
 }
 
 /// What the hub app reads about this computer (§7.1). Read locally and

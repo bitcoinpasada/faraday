@@ -192,3 +192,36 @@ fn a_picked_name_is_shown_without_its_folders_or_control_characters() {
         Some("notes.txt")
     );
 }
+
+#[test]
+fn a_psbt_and_a_description_shared_in_go_out_as_codes_the_device_reads_back() {
+    let psbt = psbt();
+    let mut c = phone();
+    c.companion_event(CompanionEvent::SharedIn {
+        name: Some("spend.psbt".into()),
+        bytes: psbt.clone(),
+    });
+    assert!(matches!(c.page, Page::Arrived { .. }));
+    assert_eq!(c.received()[0].name, "spend.psbt");
+    c.press(Act::Open);
+    c.press(Act::ShowAsQr);
+    assert_eq!(c.page, Page::Send);
+    assert_eq!(device_reads(&frames(&c)), Some((DeviceKind::Psbt, psbt)));
+
+    // A description shared in is kept in Wallet descriptions, and its
+    // record shows it as codes the same way.
+    let text = description();
+    let mut c = phone();
+    c.companion_event(CompanionEvent::SharedIn {
+        name: None,
+        bytes: text.as_bytes().to_vec(),
+    });
+    let (_, ours) = drain(&mut c);
+    assert!(asked_unlock(&ours));
+    c.companion_event(CompanionEvent::Kept { bytes: Vec::new() });
+    assert_eq!(c.page, Page::Description(0));
+    c.press(Act::ShowAsQr);
+    let (kind, bytes) = device_reads(&frames(&c)).expect("read");
+    assert_eq!(kind, DeviceKind::Wallet);
+    assert_eq!(String::from_utf8(bytes).expect("text").trim(), text.trim());
+}
