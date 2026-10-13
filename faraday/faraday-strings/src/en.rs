@@ -2681,6 +2681,8 @@ pub struct Strings {
     pub inputs_is_in_use: &'static str,
     /// Toast in `input_typed`. `{}`: `name`.
     pub inputs_wrong_code: &'static str,
+    /// Toast in `input_typed` and `input_new`.
+    pub inputs_new_keyboards_ignored: &'static str,
     // ----- keygen (faraday-core/src/keygen.rs) -----
     /// Text in `source_name`.
     pub keygen_seed_xor: &'static str,
@@ -9333,6 +9335,7 @@ pub static EN: Strings = Strings {
     inbox_not_this_backup: "Not this backup's passphrase",
     inputs_is_in_use: "{} is in use",
     inputs_wrong_code: "{} typed the wrong code. Unplug it to try again.",
+    inputs_new_keyboards_ignored: "New keyboards are ignored until Faraday starts again.",
     keygen_seed_xor: "Seed XOR",
     keygen_words_chosen: "Words chosen by the dice",
     keygen_no_secret_yet: "No secret yet",

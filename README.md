@@ -394,8 +394,9 @@ internal error rather than carrying on.
   stick that also claims to be a keyboard is never authorised as one. A
   keyboard other than the computer's built-in one is ignored until it
   types a random code shown on the screen, and until it is unplugged if
-  it types three codes' worth of letters without it; a new pointer is
-  ignored until a person approves it with trusted input.
+  it types three codes' worth of letters without it; after three such
+  keyboards, new ones are ignored until Faraday starts again. A new
+  pointer is ignored until a person approves it with trusted input.
 - **Also absent:** swap, suspend, hibernation, core dumps, `/dev/mem`,
   `/proc/kcore`, kexec, debugfs, BPF, kernel probes and tracing,
   io_uring, asynchronous I/O, System V IPC, the kernel keyring, one

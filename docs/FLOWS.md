@@ -1217,7 +1217,8 @@ to use in the desktop Faraday is copied in from a stick folder.
 code shown, or clicks the target drawn → **Ignore this device** lists it
 in Settings until unplugged. A keyboard that types three codes' worth of
 letters without the code is ignored the same way, with a toast saying
-to unplug it to try again.
+to unplug it to try again. After three keyboards are ignored that way,
+new keyboards are ignored without a code until Faraday starts again.
 
 **No camera, or the camera is refused** → the scanner says which, and
 offers Type and Read a file.

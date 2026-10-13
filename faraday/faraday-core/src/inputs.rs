@@ -6,8 +6,11 @@
 //! instead: a new keyboard is believed once it types the code shown on
 //! screen, which a device that cannot see the screen cannot do, and one
 //! that types [`CODE_TRIES`] codes' worth of letters without it is kept
-//! out until it is unplugged, so it cannot try codes one after another;
-//! a new pointer is believed once a person says so with input already
+//! out until it is unplugged, so it cannot try codes one after another.
+//! Once [`KEPT_OUT_LIMIT`] keyboards have been kept out that way, new
+//! keyboards are ignored until Faraday starts again, so a device that
+//! unplugs and plugs itself back in gets no fresh codes to try. A new
+//! pointer is believed once a person says so with input already
 //! trusted, or with the code typed on a keyboard that comes with it.
 //! **Ignore this device** keeps it out until it is unplugged; ignored
 //! devices are listed in Settings.
@@ -22,6 +25,10 @@ pub const CODE_LEN: usize = 6;
 /// How many codes' worth of letters a keyboard may type before it is
 /// kept out: a person who mistypes has room to type it again.
 pub const CODE_TRIES: usize = 3;
+
+/// How many keyboards may be kept out for the wrong code in a session
+/// before new keyboards are ignored without a code.
+pub const KEPT_OUT_LIMIT: usize = 3;
 
 /// The code's letters: no two that look alike.
 const LETTERS: &[u8] = b"acdefhjkmnprtvwxy";
@@ -49,6 +56,12 @@ impl Faraday {
     /// A device the shell holds back.
     pub(crate) fn input_new(&mut self, id: u32, name: String, keyboard: bool, pointer: bool) {
         if self.inputs.iter().any(|i| i.id == id) {
+            return;
+        }
+        if keyboard && self.inputs_kept_out >= KEPT_OUT_LIMIT {
+            self.input_decisions.push_back((id, false));
+            self.ignored_inputs.push((id, name));
+            self.toast(EN.inputs_new_keyboards_ignored);
             return;
         }
         let draw = self.input_code_bytes(id);
@@ -103,7 +116,12 @@ impl Faraday {
         } else if d.letters >= CODE_LEN * CODE_TRIES {
             let name = d.name.clone();
             self.input_ignore(id);
-            self.toast(&fill(EN.inputs_wrong_code, &[&name]));
+            self.inputs_kept_out += 1;
+            if self.inputs_kept_out >= KEPT_OUT_LIMIT {
+                self.toast(EN.inputs_new_keyboards_ignored);
+            } else {
+                self.toast(&fill(EN.inputs_wrong_code, &[&name]));
+            }
         }
     }
 

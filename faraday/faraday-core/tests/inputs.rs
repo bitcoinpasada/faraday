@@ -1,7 +1,8 @@
 //! A new input device is believed only once a person at the screen says
 //! so (`PLAN.md` §4.6): a keyboard by typing the code shown, a pointer by
 //! input already believed; ignored devices, and keyboards that keep
-//! guessing the code, stay out until unplugged.
+//! guessing the code, stay out until unplugged, and after three such
+//! keyboards new ones get no code until Faraday starts again.
 
 use faraday_core::{Action, Faraday, Sheet, StorageEvent};
 
@@ -56,6 +57,48 @@ fn a_keyboard_that_keeps_guessing_is_kept_out_until_it_is_unplugged() {
     let code = app.inputs[0].code.clone();
     type_on(&mut app, 6, &code);
     assert_eq!(app.poll_input_decision(), Some((6, true)));
+}
+
+#[test]
+fn after_three_keyboards_are_kept_out_new_keyboards_get_no_code() {
+    let mut app = Faraday::new();
+    // A device that unplugs and plugs itself back in, guessing each time.
+    for id in 1..=3 {
+        new_device(&mut app, id, true, false);
+        type_on(&mut app, id, &"z".repeat(18));
+        assert_eq!(app.poll_input_decision(), Some((id, false)));
+        app.storage(StorageEvent::InputGone { id });
+    }
+    new_device(&mut app, 4, true, false);
+    assert_eq!(app.poll_input_decision(), Some((4, false)));
+    assert!(app.inputs.is_empty());
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.ignored_inputs.len(), 1);
+    // A new pointer is still asked about.
+    new_device(&mut app, 5, false, true);
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    app.press(Action::InputUse(5));
+    assert_eq!(app.poll_input_decision(), Some((5, true)));
+    // Faraday started again asks new keyboards for a code again.
+    let mut app = Faraday::new();
+    new_device(&mut app, 6, true, false);
+    let code = app.inputs[0].code.clone();
+    type_on(&mut app, 6, &code);
+    assert_eq!(app.poll_input_decision(), Some((6, true)));
+}
+
+#[test]
+fn keyboards_a_person_ignores_do_not_count_against_new_ones() {
+    let mut app = Faraday::new();
+    for id in 1..=3 {
+        new_device(&mut app, id, true, false);
+        app.press(Action::InputIgnore(id));
+        assert_eq!(app.poll_input_decision(), Some((id, false)));
+    }
+    new_device(&mut app, 4, true, false);
+    let code = app.inputs[0].code.clone();
+    type_on(&mut app, 4, &code);
+    assert_eq!(app.poll_input_decision(), Some((4, true)));
 }
 
 #[test]

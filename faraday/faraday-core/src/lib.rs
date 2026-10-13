@@ -2790,6 +2790,8 @@ pub struct Faraday {
     pub inputs: Vec<inputs::NewInput>,
     /// Devices kept out until unplugged, by id and name.
     pub ignored_inputs: Vec<(u32, String)>,
+    /// Keyboards kept out this session for typing the wrong code.
+    inputs_kept_out: usize,
     /// The boot import's sheet waits under the new-device sheet, and
     /// comes up once every waiting device is decided.
     import_under_input: bool,
@@ -3167,6 +3169,7 @@ impl Faraday {
             stick_held: false,
             inputs: Vec::new(),
             ignored_inputs: Vec::new(),
+            inputs_kept_out: 0,
             import_under_input: false,
             input_decisions: VecDeque::new(),
             new_keys: 0,
