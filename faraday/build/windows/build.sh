@@ -4,7 +4,7 @@
 # checks it. `just faraday-windows-bin` starts it; there is nothing here
 # to run on the host.
 #
-#   build.sh            the release build, into /out/Faraday.exe
+#   build.sh            the release build, into /out/faraday-hub.exe
 #   build.sh clippy     clippy for the Windows target, warnings as errors
 #
 # Container paths: /src is the checkout (read-only), /out and /build are
@@ -38,20 +38,20 @@ export RUSTFLAGS="$RUSTFLAGS --remap-path-prefix=$CARGO_TARGET_DIR=/target"
 export CARGO_PROFILE_RELEASE_STRIP=symbols
 
 cargo build --release --locked --target "$target" -p faraday-hub-shell --bin faraday-hub
-install -m 0644 "$CARGO_TARGET_DIR/$target/release/faraday-hub.exe" /out/Faraday.exe
-exe=/out/Faraday.exe
+install -m 0644 "$CARGO_TARGET_DIR/$target/release/faraday-hub.exe" /out/faraday-hub.exe
+exe=/out/faraday-hub.exe
 
 # Only Windows' own libraries: nothing of mingw-w64's (libgcc_s,
 # libwinpthread, libstdc++) may be needed beside it.
 dlls="$(x86_64-w64-mingw32-objdump -p "$exe" | sed -n 's/^\s*DLL Name: //p' | sort -u)"
-echo "Faraday.exe imports: $(echo "$dlls" | tr '\n' ' ')"
+echo "faraday-hub.exe imports: $(echo "$dlls" | tr '\n' ' ')"
 bad="$(echo "$dlls" | grep -iE '^(lib|mingw)' || true)"
-[ -z "$bad" ] || die "Faraday.exe needs a library Windows does not have: $bad"
+[ -z "$bad" ] || die "faraday-hub.exe needs a library Windows does not have: $bad"
 
 # Its resources: the manifest asks for no elevation.
 # (Not grep -q: it would end the pipe early, and pipefail would take that
 # for a failure.)
-[ "$(strings -a "$exe" | grep -c 'level="asInvoker"' || true)" -gt 0 ] || die "Faraday.exe carries no asInvoker manifest"
+[ "$(strings -a "$exe" | grep -c 'level="asInvoker"' || true)" -gt 0 ] || die "faraday-hub.exe carries no asInvoker manifest"
 
 # Nothing of the container's own paths, nor a home folder, may be left in
 # it. (grep -m1 would end the pipe early, and pipefail would take that for
@@ -59,5 +59,5 @@ bad="$(echo "$dlls" | grep -iE '^(lib|mingw)' || true)"
 hit="$( { strings -a "$exe"; strings -a -el "$exe"; } \
     | grep -E '(^|[^[:alnum:]_.-])/(src|root|payload)/|/build/target|/cargo/registry|/home/|/Users/|[A-Za-z]:\\Users\\' \
     | head -1 || true)"
-[ -z "$hit" ] || die "Faraday.exe carries a path: $hit"
-echo "Faraday.exe: $(stat -c %s "$exe") bytes, no path in its strings"
+[ -z "$hit" ] || die "faraday-hub.exe carries a path: $hit"
+echo "faraday-hub.exe: $(stat -c %s "$exe") bytes, no path in its strings"

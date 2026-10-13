@@ -2,13 +2,13 @@
 
 ## BitLocker first
 
-On Windows, do the BitLocker step in the Faraday app on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, do the BitLocker step in Faraday Starter on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
 
 ## Keys
 
 Firmware settings (BIOS Setup): F2, tapped as the Acer logo appears. Boot menu: F12, once it is turned on in BIOS Setup; on many Acer notebooks it is off until then, and some have none.
 
-The Faraday app's Restart into firmware settings opens BIOS Setup without a key.
+Faraday Starter's Restart into firmware settings opens BIOS Setup without a key.
 
 ## Turn Secure Boot off
 

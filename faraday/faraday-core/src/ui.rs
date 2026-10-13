@@ -290,6 +290,26 @@ const MARK: &str = include_str!("../../image/overlay/common/faraday-mark.txt");
 /// Faraday's name as outlines: SVG path data in font units.
 const WORDMARK: &str = include_str!("../assets/wordmark.txt");
 
+/// The letters of the word after the wordmark: `assets/wordmark-suffix.txt`.
+const WORDMARK_SUFFIX: &str = include_str!("../assets/wordmark-suffix.txt");
+
+/// Font units from the wordmark's right edge to where the suffix's first
+/// letter starts (its pen, before the letter's own left bearing).
+const SUFFIX_GAP: f32 = 364.0;
+
+/// The word drawn after the wordmark in an app's name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NameSuffix {
+    /// Faraday alone: the stick, the Pi card.
+    None,
+    /// Faraday Starter.
+    Starter,
+    /// Faraday Desktop.
+    Desktop,
+    /// The Android app, Faraday Companion.
+    Companion,
+}
+
 /// The wordmark's cap height in its font units.
 const WORDMARK_CAP: f32 = 687.0;
 
@@ -314,6 +334,64 @@ fn wordmark_outlines() -> &'static Wordmark {
             right,
         }
     })
+}
+
+/// Closed outlines in font units.
+type Outlines = Vec<Vec<(f32, f32)>>;
+
+/// One suffix's outlines in font units from the pen's start, and the
+/// right edge of the last letter.
+struct SuffixWord {
+    outlines: Vec<Vec<(f32, f32)>>,
+    right: f32,
+}
+
+/// The suffix `which` spelled in the letters of `assets/wordmark-suffix.txt`.
+fn suffix_word(which: NameSuffix) -> Option<&'static SuffixWord> {
+    static WORDS: OnceLock<[SuffixWord; 3]> = OnceLock::new();
+    let key = match which {
+        NameSuffix::None => return None,
+        NameSuffix::Starter => 0,
+        NameSuffix::Desktop => 1,
+        NameSuffix::Companion => 2,
+    };
+    let words = WORDS.get_or_init(|| {
+        let mut letters: Vec<(char, f32, Outlines)> = Vec::new();
+        let mut spelled: Vec<&str> = Vec::new();
+        for line in WORDMARK_SUFFIX.lines().filter(|l| !l.starts_with('#')) {
+            let parts: Vec<&str> = line.split('\t').collect();
+            match parts.as_slice() {
+                [name, word] if name.starts_with('@') => spelled.push(word),
+                [letter, advance, path] => letters.push((
+                    letter.chars().next().unwrap_or(' '),
+                    advance.parse().unwrap_or(0.0),
+                    path_outlines(path),
+                )),
+                _ => {}
+            }
+        }
+        let build = |word: &str| {
+            let (mut pen, mut right) = (0.0_f32, 0.0_f32);
+            let mut outlines = Vec::new();
+            for c in word.chars() {
+                if let Some((_, advance, shapes)) = letters.iter().find(|l| l.0 == c) {
+                    for o in shapes {
+                        let o: Vec<(f32, f32)> = o.iter().map(|&(x, y)| (x + pen, y)).collect();
+                        right = o.iter().fold(right, |r, p| r.max(p.0));
+                        outlines.push(o);
+                    }
+                    pen += advance;
+                }
+            }
+            SuffixWord { outlines, right }
+        };
+        [
+            build(spelled.first().copied().unwrap_or("")),
+            build(spelled.get(1).copied().unwrap_or("")),
+            build(spelled.get(2).copied().unwrap_or("")),
+        ]
+    });
+    words.get(key)
 }
 
 /// The closed outlines of SVG path data made of absolute M, L, Q and Z,
@@ -1251,23 +1329,45 @@ impl<'a> Ui<'a> {
     /// Faraday's name, the wordmark of `assets/wordmark.txt`, its capitals
     /// `cap` units tall with their top-left at (x, y). Returns its width.
     pub fn wordmark(&mut self, x: f32, y: f32, cap: f32, color: Color) -> f32 {
+        self.wordmark_named(x, y, cap, color, NameSuffix::None)
+    }
+
+    /// The wordmark with the word of an app's name after it
+    /// ("Faraday Starter", "Faraday Desktop"), as one name in one lettering.
+    /// The suffix is in Archivo Expanded Regular, in the grey of
+    /// secondary text (`docs/DECISIONS.md` F16).
+    pub fn wordmark_named(
+        &mut self,
+        x: f32,
+        y: f32,
+        cap: f32,
+        color: Color,
+        suffix: NameSuffix,
+    ) -> f32 {
         let mark = wordmark_outlines();
         let s = cap / WORDMARK_CAP;
         let k = s * self.f;
         let (ox, oy) = ((x + self.ox) * self.f, (y + self.oy) * self.f);
-        let outlines: Vec<Vec<(f32, f32)>> = mark
-            .outlines
-            .iter()
-            .map(|o| {
-                o.iter()
-                    .map(|&(fx, fy)| (ox + (fx - mark.left) * k, oy + (fy + WORDMARK_CAP) * k))
-                    .collect()
-            })
-            .collect();
+        let place = |o: &Vec<(f32, f32)>, dx: f32| -> Vec<(f32, f32)> {
+            o.iter()
+                .map(|&(fx, fy)| (ox + (fx + dx - mark.left) * k, oy + (fy + WORDMARK_CAP) * k))
+                .collect()
+        };
+        let outlines: Vec<Vec<(f32, f32)>> = mark.outlines.iter().map(|o| place(o, 0.0)).collect();
         let contours: Vec<&[(f32, f32)]> = outlines.iter().map(Vec::as_slice).collect();
-        let color = self.col(color);
-        self.c.fill_contours(&contours, color);
-        (mark.right - mark.left) * s
+        let fill = self.col(color);
+        self.c.fill_contours(&contours, fill);
+        let mut right = mark.right;
+        if let Some(word) = suffix_word(suffix) {
+            let start = mark.right + SUFFIX_GAP;
+            let outlines: Vec<Vec<(f32, f32)>> =
+                word.outlines.iter().map(|o| place(o, start)).collect();
+            let contours: Vec<&[(f32, f32)]> = outlines.iter().map(Vec::as_slice).collect();
+            let grey = self.col(DIM);
+            self.c.fill_contours(&contours, grey);
+            right = start + word.right;
+        }
+        (right - mark.left) * s
     }
 
     /// The caret of the field typing goes to, `h` units tall at (x, y),

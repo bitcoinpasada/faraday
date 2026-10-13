@@ -6,15 +6,21 @@
 //!
 //! | | |
 //! |---|---|
-//! | the hub app | `~/.local/bin/faraday`, a copy of the running file |
+//! | the hub app | `~/.local/bin/faraday-starter`, a copy of the running file |
 //! | the desktop app, if ticked | `~/.local/bin/faraday-desktop` |
-//! | the menu entries | `~/.local/share/applications/app.faradayoffline.Faraday.desktop` and `…FaradayDesktop.desktop` |
-//! | the icon | `~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.Faraday.png` |
+//! | the menu entries | `~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop` and `…FaradayDesktop.desktop` |
+//! | the icon | `~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.FaradayStarter.png` |
+//!
+//! Earlier installs (`names::LEGACY`: the hub app as `~/.local/bin/faraday`
+//! or `faraday-hub`, with the menu entry and icon of the same old name)
+//! are replaced by install and removed by uninstall, the executable only
+//! when it answers `--version` as Faraday's hub app (old words included);
+//! nothing else of the old names. The names are in `faraday-core/src/names.rs`.
 //!
 //! Folders an install had to make (`~/.local/bin` and the rest) are the
 //! desktop's shared places; uninstall leaves them. The installed copy's
-//! version is what `faraday --version` prints (the build string, or the
-//! version for a build without one), after "Faraday hub app ". A file of
+//! version is what `--version` prints (the build string, or the
+//! version for a build without one), after "Faraday Starter ". A file of
 //! either executable's name that does not answer `--version` as a
 //! Faraday app is another program's, and is left alone (§5.2).
 
@@ -26,6 +32,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
+use faraday_core::names;
 use faraday_core::strings::EN;
 use faraday_core::{Program, parse_version_output};
 use faraday_hub::api::{InstallItem, Installed, Reason};
@@ -34,10 +41,10 @@ use faraday_payload::{ImageKind, Sha256Sum};
 use crate::payload::Payload;
 
 /// The icon, made by `just faraday-hub-icon` from Faraday's mark.
-const ICON: &[u8] = include_bytes!("../../assets/app.faradayoffline.Faraday.png");
+const ICON: &[u8] = include_bytes!("../../assets/icon.png");
 /// The menu entries' and the icon's reverse-DNS names (§5.2).
-const MENU: &str = "app.faradayoffline.Faraday";
-const MENU_DESKTOP: &str = "app.faradayoffline.FaradayDesktop";
+const MENU: &str = names::MENU_ID;
+const MENU_DESKTOP: &str = names::MENU_DESKTOP_ID;
 /// How long a copy gets to say its version, and how long a started
 /// desktop app gets to fail before it counts as started.
 const VERSION_WAIT: Duration = Duration::from_secs(5);
@@ -71,11 +78,28 @@ impl Dirs {
     }
 
     fn bin(&self) -> PathBuf {
-        self.home.join(".local/bin/faraday")
+        self.home.join(".local/bin").join(names::LINUX_BIN)
+    }
+
+    /// An earlier install's hub app.
+    fn legacy_bin(&self, l: &names::Legacy) -> PathBuf {
+        self.home.join(".local/bin").join(l.linux_bin)
+    }
+
+    /// An earlier install's files other than the executable: its menu
+    /// entry and icon.
+    fn legacy_extras(&self, l: &names::Legacy) -> [PathBuf; 2] {
+        [
+            self.menu(l.menu_id),
+            self.home.join(format!(
+                ".local/share/icons/hicolor/256x256/apps/{}.png",
+                l.menu_id
+            )),
+        ]
     }
 
     fn desktop_bin(&self) -> PathBuf {
-        self.home.join(".local/bin/faraday-desktop")
+        self.home.join(".local/bin").join(names::LINUX_DESKTOP_BIN)
     }
 
     fn menu(&self, name: &str) -> PathBuf {
@@ -127,7 +151,7 @@ impl Dirs {
 pub fn installed(dirs: &Dirs) -> Option<Installed> {
     let version = match faraday_of(&dirs.bin()) {
         Ok((Program::HubApp, build)) => build,
-        Ok(_) | Err(_) => return None,
+        Ok(_) | Err(_) => return installed_legacy(dirs),
     };
     let items = dirs
         .files()
@@ -140,6 +164,52 @@ pub fn installed(dirs: &Dirs) -> Option<Installed> {
         .map(|(item, p)| (item, dirs.shown(&p)))
         .collect();
     Some(Installed { version, items })
+}
+
+/// An install made under earlier names, found by its hub app.
+fn installed_legacy(dirs: &Dirs) -> Option<Installed> {
+    names::LEGACY.iter().find_map(|l| {
+        let bin = dirs.legacy_bin(l);
+        let version = match faraday_of(&bin) {
+            Ok((Program::HubApp, build)) => build,
+            Ok(_) | Err(_) => return None,
+        };
+        let mut items = vec![(InstallItem::App, dirs.shown(&bin))];
+        items.extend(
+            dirs.legacy_extras(l)
+                .into_iter()
+                .filter(|p| p.is_file())
+                .map(|p| {
+                    let item = if p.extension().is_some_and(|e| e == "png") {
+                        InstallItem::Icon
+                    } else {
+                        InstallItem::Menu
+                    };
+                    (item, dirs.shown(&p))
+                }),
+        );
+        Some(Installed { version, items })
+    })
+}
+
+/// Removes the earlier installs' files. One set goes when its executable
+/// is ours or not there; an executable there that is another program's
+/// keeps the names it came with. A file already gone is not an error.
+fn remove_legacy(dirs: &Dirs) -> Result<(), Reason> {
+    for l in &names::LEGACY {
+        let bin = dirs.legacy_bin(l);
+        if bin.exists() && !ours(&bin, Program::HubApp) {
+            continue;
+        }
+        for path in std::iter::once(bin).chain(dirs.legacy_extras(l)) {
+            match fs::remove_file(&path) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(dirs.file_error(&path, &e)),
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Whether `path` answers `--version` as `program`.
@@ -219,20 +289,29 @@ pub fn install(dirs: &Dirs, running: &Path, desktop: Option<&[u8]>) -> Result<St
         place(dirs, &dirs.desktop_bin(), 0o755, |to| fs::write(to, bytes))?;
     }
     place(dirs, &dirs.icon(), 0o644, |to| fs::write(to, ICON))?;
-    let entry = |name: &str, exec: &Path| {
+    let entry = |name: &str, comment: Option<&str>, exec: &Path| {
+        let comment = comment.map_or_else(String::new, |c| format!("Comment={c}\n"));
         format!(
-            "[Desktop Entry]\nType=Application\nName={name}\nExec={}\nIcon={MENU}\nTerminal=false\nCategories=Utility;\n",
+            "[Desktop Entry]\nType=Application\nName={name}\n{comment}Exec={}\nIcon={MENU}\nTerminal=false\nCategories=Utility;\n",
             exec_quote(exec)
         )
     };
     place(dirs, &dirs.menu(MENU), 0o644, |to| {
-        fs::write(to, entry(EN.hub_menu_name, &app))
+        fs::write(to, entry(EN.hub_menu_name, None, &app))
     })?;
     if desktop.is_some() || ours(&dirs.desktop_bin(), Program::DesktopApp) {
         place(dirs, &dirs.menu(MENU_DESKTOP), 0o644, |to| {
-            fs::write(to, entry(EN.hub_menu_desktop_name, &dirs.desktop_bin()))
+            fs::write(
+                to,
+                entry(
+                    EN.hub_menu_desktop_name,
+                    Some(EN.hub_menu_desktop_comment),
+                    &dirs.desktop_bin(),
+                ),
+            )
         })?;
     }
+    remove_legacy(dirs)?;
     Ok(dirs.shown(&app))
 }
 
@@ -304,6 +383,7 @@ pub fn uninstall(dirs: &Dirs) -> Result<(), Reason> {
             Err(e) => return Err(dirs.file_error(&path, &e)),
         }
     }
+    remove_legacy(dirs)?;
     clear_cache(dirs)
 }
 

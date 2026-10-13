@@ -6,7 +6,7 @@
 
 use faraday_core::strings::{EN, Strings};
 use faraday_core::ui::pal::*;
-use faraday_core::ui::{Style, Ui, W};
+use faraday_core::ui::{NameSuffix, Style, Ui, W};
 use faraday_core::upgrade::{Fit, describe, version};
 use opensigner_core::strings::fill;
 use osk_ui::Color;
@@ -662,11 +662,11 @@ fn home(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     // The title is the wordmark.
     if hub.compact {
         ui.mark(x, y, 20.0, 23.0);
-        ui.wordmark(x + 28.0, y + 6.0, 11.0, TEXT);
+        ui.wordmark_named(x + 28.0, y + 6.0, 11.0, TEXT, NameSuffix::Starter);
         y += 38.0;
     } else {
         ui.mark(x, y, 28.0, 32.0);
-        ui.wordmark(x + 38.0, y + 11.0, 12.0, TEXT);
+        ui.wordmark_named(x + 38.0, y + 11.0, 12.0, TEXT, NameSuffix::Starter);
         y += 56.0;
     }
     let facts = hub.facts();

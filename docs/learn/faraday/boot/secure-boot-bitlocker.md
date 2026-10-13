@@ -24,9 +24,9 @@ This is what stops someone from starting the computer from a stick of their own 
 
 It is also why turning Secure Boot off and then starting Windows makes Windows ask for the drive's 48-digit recovery key. PCR 7 has changed, the TPM does not release the key, and the recovery key is the only other way in.
 
-## How the Faraday app keeps the recovery key prompt away
+## How Faraday Starter keeps the recovery key prompt away
 
-Before it shows any firmware step, the Faraday app does two things, in this order. First it shows the drive's recovery key and asks for two of its groups back, so the key is in hand. Then it suspends BitLocker until it is resumed.
+Before it shows any firmware step, Faraday Starter does two things, in this order. First it shows the drive's recovery key and asks for two of its groups back, so the key is in hand. Then it suspends BitLocker until it is resumed.
 
 The key comes first, so stopping between the two changes nothing on the computer. Once BitLocker is suspended, Windows starts without asking for the recovery key, whatever the Secure Boot state.
 
@@ -56,11 +56,11 @@ Both last only until they are turned back on. Keep the computer with you, and do
 
 ## Turning both back on
 
-After every Faraday session the Faraday app offers both steps, in this order.
+After every Faraday session Faraday Starter offers both steps, in this order.
 
-1. Turn Secure Boot back on, in the firmware settings. The Faraday app's Restart into firmware settings opens them.
+1. Turn Secure Boot back on, in the firmware settings. Faraday Starter's Restart into firmware settings opens them.
 
-2. Resume BitLocker, in the Faraday app, once Windows has started again with Secure Boot on. Resuming seals the key to that start, so the next start with Secure Boot on does not ask for the recovery key. The Faraday app does not offer it in the same Windows session that suspended it.
+2. Resume BitLocker, in Faraday Starter, once Windows has started again with Secure Boot on. Resuming seals the key to that start, so the next start with Secure Boot on does not ask for the recovery key. Faraday Starter does not offer it in the same Windows session that suspended it.
 
 Then the computer is as it was: Secure Boot on, the drive's key sealed in the TPM, and no copy of it in the clear.
 

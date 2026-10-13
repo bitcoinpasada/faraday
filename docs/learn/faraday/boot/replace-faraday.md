@@ -8,7 +8,7 @@ The rules are the stick's own Upgrade a Faraday stick's. A stick that already ho
 
 ## What the computer can see
 
-Plugging the stick into this computer is what exposes its data partition, whatever the Faraday app does. The computer can read and write it, and Windows gives it a drive letter. The vaults there are encrypted with their passphrases. The settings file is not encrypted. A program on this computer could read the settings file, and could change or delete anything on the data partition.
+Plugging the stick into this computer is what exposes its data partition, whatever Faraday Starter does. The computer can read and write it, and Windows gives it a drive letter. The vaults there are encrypted with their passphrases. The settings file is not encrypted. A program on this computer could read the settings file, and could change or delete anything on the data partition.
 
 ## Without a computer
 

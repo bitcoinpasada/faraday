@@ -2,13 +2,13 @@
 
 ## BitLocker first
 
-On Windows, do the BitLocker step in the Faraday app on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, do the BitLocker step in Faraday Starter on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
 
 ## Keys
 
 Firmware settings (BIOS Setup): tap F1 repeatedly when the Lenovo or ThinkPad logo appears. Boot menu: F12 as soon as the ThinkPad logo appears. On some models, press Enter at the logo instead; the Startup Interrupt Menu opens, and F1 there opens BIOS Setup.
 
-With Windows' Fast Startup on, Shut down does not close Windows and the keys can be missed. Restart instead, or hold Shift while choosing Shut down for a full shut down. The Faraday app's Restart into firmware settings opens BIOS Setup without a key.
+With Windows' Fast Startup on, Shut down does not close Windows and the keys can be missed. Restart instead, or hold Shift while choosing Shut down for a full shut down. Faraday Starter's Restart into firmware settings opens BIOS Setup without a key.
 
 ## Turn Secure Boot off
 

@@ -4,13 +4,13 @@
 
 If this computer's disk is unlocked by the TPM bound to PCR 7, Linux asks for the disk's passphrase or recovery key at the next start after Secure Boot is turned off. Have it before changing any firmware setting. PCR 7 holds the Secure Boot state: it changes when Secure Boot is turned on or off and when its keys change, and the TPM releases the disk's key only for the state it was bound to.
 
-Such a disk has a line with tpm2-device in /etc/crypttab, and was set up with systemd-cryptenroll --tpm2-pcrs=7 or bound to PCR 7 another way. The Faraday app shows this first when /etc/crypttab names a tpm2-device. With Secure Boot back on and its keys as they were, the TPM unlocks the disk again.
+Such a disk has a line with tpm2-device in /etc/crypttab, and was set up with systemd-cryptenroll --tpm2-pcrs=7 or bound to PCR 7 another way. Faraday Starter shows this first when /etc/crypttab names a tpm2-device. With Secure Boot back on and its keys as they were, the TPM unlocks the disk again.
 
 A disk unlocked by a passphrase alone, or not encrypted, has nothing to do here.
 
 ## Open the firmware settings
 
-The Faraday app's Restart into firmware settings does this in one step. By hand, in a terminal:
+Faraday Starter's Restart into firmware settings does this in one step. By hand, in a terminal:
 
 systemctl reboot --firmware-setup
 

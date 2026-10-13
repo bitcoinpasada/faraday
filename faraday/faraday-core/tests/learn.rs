@@ -66,7 +66,7 @@ fn the_windows_guide_does_the_bitlocker_step_before_any_firmware_step() {
     let first = &guide("windows").sections[0];
     assert_eq!(first.heading, "BitLocker first");
     assert!(first.paragraphs[0].starts_with(
-        "Do the BitLocker step in the Faraday app on this computer before changing any firmware setting."
+        "Do the BitLocker step in Faraday Starter on this computer before changing any firmware setting."
     ));
 }
 

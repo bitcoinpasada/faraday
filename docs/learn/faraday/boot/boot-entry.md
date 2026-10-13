@@ -10,7 +10,7 @@ A third setting, BootNext, names one entry to start at the next start only. The 
 
 On Linux, Restart from the stick adds one entry named Faraday stick, the first time it is used. It points at the boot program on a Faraday stick's boot partition. Every Faraday stick's boot partition has the same identity, so the one entry starts any Faraday stick.
 
-The entry is never in the boot order. The firmware starts it only when the Faraday app sets BootNext to it, which it does just before it restarts the computer. The start after that is the usual one, whether or not a stick is plugged in.
+The entry is never in the boot order. The firmware starts it only when Faraday Starter sets BootNext to it, which it does just before it restarts the computer. The start after that is the usual one, whether or not a stick is plugged in.
 
 Adding the entry and setting BootNext change the firmware's settings, so Linux asks for an administrator's password each time.
 

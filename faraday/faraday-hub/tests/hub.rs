@@ -381,7 +381,7 @@ fn a_developers_image_says_it_is_not_the_apps_own_and_shows_its_sum() {
         build_id: Some("0.2.0+4d0680b1a2b3.dev".into()),
     }));
     to_confirm(&mut hub, "sdb", Mode::Whole);
-    assert!(shows(&mut hub, "Not the Faraday app's own image"));
+    assert!(shows(&mut hub, "Not Faraday Starter's own image"));
     assert!(shows(&mut hub, "dddd dddd"));
     assert!(shows(&mut hub, "0.2.0 dev (4d0680b1a2b3)"));
     hub.press(HubAction::Write);
@@ -928,7 +928,7 @@ fn uninstall_says_when_the_firmwares_entry_remains() {
             version: "0.2.0".into(),
             items: vec![(
                 faraday_hub::api::InstallItem::App,
-                "~/.local/bin/faraday".into(),
+                "~/.local/bin/faraday-hub".into(),
             )],
         })
     };

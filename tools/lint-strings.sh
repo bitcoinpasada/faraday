@@ -88,7 +88,7 @@ fi
 #     Debug prints it
 # The Learn pages (docs/learn, osk-learn) and the self-test's check names
 # are outside this lint, as CLAUDE.md says.
-FARADAY_SCREENS="$(ls faraday/faraday-core/src/*.rs | grep -v '/testkit\.rs$')
+FARADAY_SCREENS="$(ls faraday/faraday-core/src/*.rs | grep -v '/testkit\.rs$\|/names\.rs$')
 faraday/faraday-hub/src/*.rs
 faraday/shells/desktop/src/main.rs
 faraday/shells/hub/src/main.rs"

@@ -2,13 +2,13 @@
 
 ## BitLocker first
 
-On Windows, do the BitLocker step in the Faraday app on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, do the BitLocker step in Faraday Starter on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
 
 ## Keys
 
 Firmware settings (BIOS): with the computer fully shut down, hold F2 and press the power button; let go of F2 when the BIOS screen appears. Boot menu: the same with Esc. Inside the BIOS, F8 or Boot Menu opens the boot menu, and F7 switches to Advanced Mode.
 
-The Faraday app's Restart into firmware settings opens the BIOS without a key.
+Faraday Starter's Restart into firmware settings opens the BIOS without a key.
 
 ## Turn Secure Boot off
 

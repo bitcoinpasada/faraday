@@ -7,14 +7,19 @@
 //!
 //! | | |
 //! |---|---|
-//! | the hub app | `%LOCALAPPDATA%\Programs\Faraday\Faraday.exe`, a copy of the running file |
-//! | the Start menu shortcut | `Faraday.lnk` in the person's Start menu Programs folder |
-//! | the uninstall entry | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday` |
+//! | the hub app | `%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Starter.exe`, a copy of the running file |
+//! | the Start menu shortcut | `Faraday Starter.lnk` in the person's Start menu Programs folder |
+//! | the uninstall entry | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday Starter` |
 //! | the icon | in the `.exe` |
-//! | the logon reminder | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Faraday`, only while the hub app's BitLocker suspension stands (§6.3) |
+//! | the logon reminder | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Faraday Starter`, only while the hub app's BitLocker suspension stands (§6.3) |
+//!
+//! Earlier installs (`names::LEGACY`: folder, executable, shortcut,
+//! uninstall key and Run value) are found and removed by install and
+//! uninstall, when their executable is not there or answers `--version`
+//! as Faraday's hub app; one that does not leaves all its old names alone.
 //!
 //! The desktop app is not installed on Windows until batch C (§2). A
-//! `Faraday.exe` that does not answer `--version` as Faraday's hub app
+//! `Faraday Starter.exe` that does not answer `--version` as Faraday's hub app
 //! is another program's, and is neither replaced nor removed (§5.2).
 //! A running copy cannot be deleted on Windows: an install renames the
 //! old file aside first, and an uninstall run from the installed copy
@@ -24,24 +29,41 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use faraday_core::Program;
+use faraday_core::strings::EN;
+use faraday_core::{Program, names};
 use faraday_hub::api::{InstallItem, Installed, Reason};
 
 use super::shortcut;
 
 /// The uninstall entry, under `HKEY_CURRENT_USER`.
-pub const UNINSTALL_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday";
+pub fn uninstall_key() -> String {
+    format!(
+        r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{}",
+        names::WIN_NAME
+    )
+}
+/// An earlier install's uninstall entry.
+fn legacy_uninstall_key(l: &names::Legacy) -> String {
+    format!(
+        r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{}",
+        l.win_name
+    )
+}
 /// The per-user Run key the logon reminder is a value of (§6.3).
 pub const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
 /// The logon reminder's value name.
-pub const RUN_VALUE: &str = "Faraday";
+pub const RUN_VALUE: &str = names::WIN_NAME;
 /// The hub app's file name.
-pub const APP: &str = "Faraday.exe";
+pub const APP: &str = names::WIN_EXE;
 /// The shortcut's file name.
-pub const SHORTCUT: &str = "Faraday.lnk";
+pub const SHORTCUT: &str = names::WIN_SHORTCUT;
 /// Beside the hub app while it is replaced.
-const NEW: &str = ".Faraday.exe.new";
-const OLD: &str = ".Faraday.exe.old";
+fn new_name() -> String {
+    format!(".{}.new", names::WIN_EXE)
+}
+fn old_name() -> String {
+    format!(".{}.old", names::WIN_EXE)
+}
 
 /// The folders an install works in.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,9 +75,22 @@ pub struct Dirs {
 }
 
 impl Dirs {
-    /// `%LOCALAPPDATA%\Programs\Faraday`.
+    /// `%LOCALAPPDATA%\Programs\Faraday Starter`.
     pub fn folder(&self) -> PathBuf {
-        self.local.join("Programs").join("Faraday")
+        self.local.join("Programs").join(names::WIN_NAME)
+    }
+
+    /// An earlier install's folder, executable and shortcut.
+    fn legacy_folder(&self, l: &names::Legacy) -> PathBuf {
+        self.local.join("Programs").join(l.win_name)
+    }
+
+    fn legacy_app(&self, l: &names::Legacy) -> PathBuf {
+        self.legacy_folder(l).join(l.win_exe)
+    }
+
+    fn legacy_shortcut(&self, l: &names::Legacy) -> PathBuf {
+        self.programs.join(l.win_shortcut)
     }
 
     /// The installed hub app.
@@ -90,7 +125,7 @@ pub enum Step {
     CopySelf(PathBuf),
     /// A file written whole.
     Write(PathBuf, Vec<u8>),
-    /// A value under [`UNINSTALL_KEY`].
+    /// A value under [`uninstall_key`].
     Value(&'static str, Data),
 }
 
@@ -108,7 +143,7 @@ pub fn plan(dirs: &Dirs, version: &str, name: &str, size: u64) -> Vec<Step> {
         ),
         Step::Value("DisplayName", Data::Sz(name.to_string())),
         Step::Value("DisplayVersion", Data::Sz(version.to_string())),
-        Step::Value("Publisher", Data::Sz(name.to_string())),
+        Step::Value("Publisher", Data::Sz(EN.hub_publisher.to_string())),
         Step::Value("DisplayIcon", Data::Sz(format!("{shown},0"))),
         Step::Value(
             "InstallLocation",
@@ -155,10 +190,55 @@ fn our_reminder(dirs: &Dirs, data: &Data) -> bool {
         Data::Sz(s) => {
             *s == reminder_command(dirs)
                 || s.to_ascii_lowercase()
-                    .ends_with(r#"\programs\faraday\faraday.exe" --remind"#)
+                    .ends_with(&reminder_tail(names::WIN_NAME, names::WIN_EXE))
         }
         Data::Dword(_) => false,
     }
+}
+
+/// How a reminder's command ends, in lower case: the same install under
+/// another `%LOCALAPPDATA%`.
+fn reminder_tail(folder: &str, exe: &str) -> String {
+    format!("\\programs\\{folder}\\{exe}\" --remind").to_ascii_lowercase()
+}
+
+/// Whether a Run value is an earlier install's reminder.
+fn legacy_reminder(l: &names::Legacy, data: &Data) -> bool {
+    match data {
+        Data::Sz(s) => s
+            .to_ascii_lowercase()
+            .ends_with(&reminder_tail(l.win_name, l.win_exe)),
+        Data::Dword(_) => false,
+    }
+}
+
+/// Removes the earlier installs: each one's file and folder, shortcut,
+/// uninstall key and Run value (the value only when it is that
+/// install's reminder), when its executable is not there or answers as
+/// the hub app.
+fn remove_legacy(dirs: &Dirs, ask: Ask<'_>, reg: &mut dyn Registry) -> Result<(), Reason> {
+    for l in &names::LEGACY {
+        let app = dirs.legacy_app(l);
+        if app.exists() && !ours(ask, &app) {
+            continue;
+        }
+        // A copy of it that is running cannot be deleted; that is left.
+        let _ = fs::remove_file(&app);
+        let _ = fs::remove_dir(dirs.legacy_folder(l));
+        match fs::remove_file(dirs.legacy_shortcut(l)) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(file_error(&dirs.legacy_shortcut(l), &e)),
+        }
+        reg.delete(&legacy_uninstall_key(l)).map_err(key_error)?;
+        if reg
+            .get(RUN_KEY, l.win_name)
+            .is_some_and(|d| legacy_reminder(l, &d))
+        {
+            reg.delete_value(RUN_KEY, l.win_name).map_err(run_error)?;
+        }
+    }
+    Ok(())
 }
 
 fn run_error(e: String) -> Reason {
@@ -209,7 +289,7 @@ fn file_error(path: &Path, e: &std::io::Error) -> Reason {
 
 fn key_error(e: String) -> Reason {
     Reason::File {
-        path: format!(r"HKEY_CURRENT_USER\{UNINSTALL_KEY}"),
+        path: format!(r"HKEY_CURRENT_USER\{}", uninstall_key()),
         detail: e,
     }
 }
@@ -222,7 +302,7 @@ fn same(a: &Path, b: &Path) -> bool {
     }
 }
 
-/// Applies `steps`: `running` is the hub app being run. A `Faraday.exe`
+/// Applies `steps`: `running` is the hub app being run. A `Faraday Starter.exe`
 /// already there that is not Faraday's stops it before anything is
 /// written. Where the hub app went.
 pub fn install(
@@ -248,9 +328,10 @@ pub fn install(
                 }
                 fs::write(path, bytes).map_err(fail)?;
             }
-            Step::Value(name, data) => reg.set(UNINSTALL_KEY, name, data).map_err(key_error)?,
+            Step::Value(name, data) => reg.set(&uninstall_key(), name, data).map_err(key_error)?,
         }
     }
+    remove_legacy(dirs, ask, reg)?;
     Ok(app.display().to_string())
 }
 
@@ -264,7 +345,7 @@ fn copy_self(running: &Path, to: &Path) -> Result<(), Reason> {
     let fail = |e: std::io::Error| file_error(to, &e);
     let folder = to.parent().unwrap_or(Path::new("."));
     fs::create_dir_all(folder).map_err(fail)?;
-    let (new, old) = (folder.join(NEW), folder.join(OLD));
+    let (new, old) = (folder.join(new_name()), folder.join(old_name()));
     if let Err(e) = fs::copy(running, &new) {
         let _ = fs::remove_file(&new);
         return Err(fail(e));
@@ -292,16 +373,16 @@ pub fn installed(dirs: &Dirs, ask: Ask<'_>, reg: &mut dyn Registry) -> Option<In
     let app = dirs.app();
     let version = match ask(&app) {
         Some((Program::HubApp, build)) => build,
-        _ => return None,
+        _ => return installed_legacy(dirs, ask, reg),
     };
     let mut items = vec![(InstallItem::App, app.display().to_string())];
     if dirs.shortcut().is_file() {
         items.push((InstallItem::Menu, dirs.shortcut().display().to_string()));
     }
-    if reg.exists(UNINSTALL_KEY) {
+    if reg.exists(&uninstall_key()) {
         items.push((
             InstallItem::UninstallEntry,
-            format!(r"HKEY_CURRENT_USER\{UNINSTALL_KEY}"),
+            format!(r"HKEY_CURRENT_USER\{}", uninstall_key()),
         ));
     }
     if reg
@@ -314,6 +395,31 @@ pub fn installed(dirs: &Dirs, ask: Ask<'_>, reg: &mut dyn Registry) -> Option<In
         ));
     }
     Some(Installed { version, items })
+}
+
+/// An install made under earlier names, found by its executable.
+fn installed_legacy(dirs: &Dirs, ask: Ask<'_>, reg: &mut dyn Registry) -> Option<Installed> {
+    names::LEGACY.iter().find_map(|l| {
+        let app = dirs.legacy_app(l);
+        let version = match ask(&app) {
+            Some((Program::HubApp, build)) => build,
+            _ => return None,
+        };
+        let mut items = vec![(InstallItem::App, app.display().to_string())];
+        if dirs.legacy_shortcut(l).is_file() {
+            items.push((
+                InstallItem::Menu,
+                dirs.legacy_shortcut(l).display().to_string(),
+            ));
+        }
+        if reg.exists(&legacy_uninstall_key(l)) {
+            items.push((
+                InstallItem::UninstallEntry,
+                format!(r"HKEY_CURRENT_USER\{}", legacy_uninstall_key(l)),
+            ));
+        }
+        Some(Installed { version, items })
+    })
 }
 
 /// What is left once uninstall returns.
@@ -348,16 +454,17 @@ pub fn uninstall(
             fs::remove_file(&app).map_err(|e| file_error(&app, &e))?;
         }
     }
-    let _ = fs::remove_file(folder.join(OLD));
-    let _ = fs::remove_file(folder.join(NEW));
+    let _ = fs::remove_file(folder.join(old_name()));
+    let _ = fs::remove_file(folder.join(new_name()));
     match fs::remove_file(dirs.shortcut()) {
         Ok(()) => {}
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
         Err(e) => return Err(file_error(&dirs.shortcut(), &e)),
     }
-    reg.delete(UNINSTALL_KEY).map_err(key_error)?;
+    reg.delete(&uninstall_key()).map_err(key_error)?;
     remove_reminder(dirs, reg)?;
     super::bitlocker::remove_marker(&dirs.local)?;
+    remove_legacy(dirs, ask, reg)?;
     clear_cache(dirs)?;
     let _ = fs::remove_dir(&folder);
     let _ = fs::remove_dir(dirs.local.join("Programs"));
@@ -384,7 +491,7 @@ fn clear_cache(dirs: &Dirs) -> Result<(), Reason> {
 
 /// The command that removes the hub app from `folder` once it has
 /// exited: for up to thirty seconds, once a second, it deletes
-/// `Faraday.exe` and removes the folder if that left it empty, and stops
+/// `Faraday Starter.exe` and removes the folder if that left it empty, and stops
 /// when the folder is gone. Only that file and an empty folder. `None`
 /// for a folder whose name `cmd.exe` would read as more than a name.
 pub fn after_exit_command(folder: &Path) -> Option<String> {

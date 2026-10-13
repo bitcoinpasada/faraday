@@ -2,7 +2,7 @@
 
 ## BitLocker first
 
-On Windows, do the BitLocker step in the Faraday app on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, do the BitLocker step in Faraday Starter on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
 
 ## Keys
 
@@ -12,7 +12,7 @@ Firmware settings (Surface UEFI): hold Volume Up, press and release the power bu
 
 Start from a USB disk: hold Volume Down, press and release the power button, and keep holding Volume Down until spinning dots appear under the logo.
 
-The Faraday app's Restart into firmware settings opens Surface UEFI without the buttons.
+Faraday Starter's Restart into firmware settings opens Surface UEFI without the buttons.
 
 ## Turn Secure Boot off
 
@@ -36,7 +36,7 @@ While Secure Boot is off, the Surface shows a red bar with an open padlock at po
 
 ## Known quirks
 
-A Surface with a Snapdragon processor is an ARM computer and cannot start the stick. The Faraday app says so on such a computer.
+A Surface with a Snapdragon processor is an ARM computer and cannot start the stick. Faraday Starter says so on such a computer.
 
 Surface Go uses a UEFI made by another company, and Surface Pro 3 and earlier have different menus; Microsoft's pages for those name their own settings.
 

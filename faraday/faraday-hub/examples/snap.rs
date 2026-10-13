@@ -346,7 +346,7 @@ fn guard_shots(s: &Snap) -> Result<(), String> {
             version: "0.2.0".into(),
             items: vec![(
                 InstallItem::App,
-                r"%LOCALAPPDATA%\Programs\Faraday\Faraday.exe".into(),
+                r"%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Starter.exe".into(),
             )],
         })));
         h.press(HubAction::Installed);
@@ -600,21 +600,22 @@ fn run(s: &Snap) -> Result<(), String> {
     h.press(HubAction::InstallDesktop);
     h.press(HubAction::InstallNow);
     s.shot(&mut h, "install-installing")?;
-    h.hub_event(HubEvent::InstallDone(Ok("~/.local/bin/faraday".into())));
+    h.hub_event(HubEvent::InstallDone(Ok("~/.local/bin/faraday-hub".into())));
     s.shot(&mut h, "install-done")?;
     let mut h = s.hub();
     h.hub_event(HubEvent::Installed(Some(Installed {
         version: "0.2.0".into(),
         items: vec![
-            (InstallItem::App, "~/.local/bin/faraday".into()),
+            (InstallItem::App, "~/.local/bin/faraday-hub".into()),
             (InstallItem::Desktop, "~/.local/bin/faraday-desktop".into()),
             (
                 InstallItem::Menu,
-                "~/.local/share/applications/app.faradayoffline.Faraday.desktop".into(),
+                "~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop".into(),
             ),
             (
                 InstallItem::Icon,
-                "~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.Faraday.png".into(),
+                "~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.FaradayStarter.png"
+                    .into(),
             ),
         ],
     })));

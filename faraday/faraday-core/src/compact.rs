@@ -8,7 +8,7 @@ use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
 
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{NameSuffix, Style, Ui, W};
 use crate::wallet::network_name;
 use crate::{Action, Faraday, Screen};
 
@@ -238,15 +238,27 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     // The mark and the name; off mainnet, a badge on the right that
     // opens nothing. The chooser is in Settings.
     ui.mark(M, y, 20.0, 23.0);
-    ui.wordmark(M + 28.0, y + 6.0, 11.0, TEXT);
+    ui.wordmark_named(
+        M + 28.0,
+        y + 6.0,
+        11.0,
+        TEXT,
+        crate::screens::name_suffix(app),
+    );
     let net = app.session.network();
     if !net.is_mainnet() {
         let label = network_name(net);
         let pw = ui.measure(12.0, W::S, label) + 24.0;
-        let px = w - M - pw;
-        ui.fill(px, y - 2.0, pw, 28.0, 14.0, WARN.with_alpha(30));
-        ui.stroke(px, y - 2.0, pw, 28.0, 14.0, WARN.with_alpha(110));
-        ui.text_mid(px + 12.0, y - 2.0, 28.0, 12.0, W::S, WARN, label);
+        // The name with its word fills the row: the pill goes under it.
+        let (px, py) = if crate::screens::name_suffix(app) == NameSuffix::None {
+            (w - M - pw, y - 2.0)
+        } else {
+            y += 30.0;
+            (M, y - 2.0)
+        };
+        ui.fill(px, py, pw, 28.0, 14.0, WARN.with_alpha(30));
+        ui.stroke(px, py, pw, 28.0, 14.0, WARN.with_alpha(110));
+        ui.text_mid(px + 12.0, py, 28.0, 12.0, W::S, WARN, label);
     }
     y += 38.0;
 

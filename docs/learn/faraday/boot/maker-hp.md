@@ -2,13 +2,13 @@
 
 ## BitLocker first
 
-On Windows, do the BitLocker step in the Faraday app on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, do the BitLocker step in Faraday Starter on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
 
 ## Keys
 
 Turn the computer off, turn it on, and press Esc repeatedly until the Startup Menu opens. From it, F10 opens BIOS Setup and F9 opens Boot Device Options. On an HP desktop, F10 at power-on opens Computer Setup directly.
 
-The Faraday app's Restart into firmware settings opens the Startup Menu without a key.
+Faraday Starter's Restart into firmware settings opens the Startup Menu without a key.
 
 HP's business computers are EliteBook, ProBook and Z workstations. Its consumer computers are OmniBook, OMEN, Victus, Spectre, Pavilion, ENVY and the numbered HP 14, 15 and 17 notebooks. The two have different menus.
 

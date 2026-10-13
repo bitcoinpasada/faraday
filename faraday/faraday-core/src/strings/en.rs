@@ -430,8 +430,12 @@ pub struct Strings {
     pub hub_why_unsupported: &'static str,
     /// The app menu entry's name, in the desktop entry file install writes.
     pub hub_menu_name: &'static str,
+    /// The publisher in the hub app's installed-apps entry and the `.exe`'s properties.
+    pub hub_publisher: &'static str,
     /// The desktop app's app menu entry's name.
     pub hub_menu_desktop_name: &'static str,
+    /// The desktop app's app menu entry's description.
+    pub hub_menu_desktop_comment: &'static str,
     /// Fault. `{}` the system's words.
     pub hub_fault_reading: &'static str,
     /// Fault.
@@ -2950,8 +2954,14 @@ pub struct Strings {
     // ----- name (faraday-core/src/lib.rs) -----
     /// Text in `name`.
     pub name_faraday_hub_app: &'static str,
+    /// The hub app's name in `--version` before F16, still recognised.
+    pub name_faraday_hub_app_old: &'static str,
+    /// The hub app's name in `--version` as "Faraday Hub", still recognised.
+    pub name_faraday_hub_app_old2: &'static str,
     /// Text in `name`.
     pub name_faraday_desktop: &'static str,
+    /// The desktop app's name in `--version` before F16, still recognised.
+    pub name_faraday_desktop_old: &'static str,
     // ----- version_label (faraday-core/src/lib.rs) -----
     /// Text in `version_label`. `{}`: `VERSION`.
     pub version_label_local: &'static str,
@@ -7612,8 +7622,8 @@ pub static EN: Strings = Strings {
     hub_disks_card: "Which card?",
     hub_pi_for: "For a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8 inch screen",
     hub_pi_cameras: "Cameras: a USB webcam, or Camera Module v1 or v2",
-    hub_no_stick_image: "This Faraday app carries no stick image",
-    hub_no_pi_image: "This Faraday app carries no Pi image",
+    hub_no_stick_image: "Faraday Starter carries no stick image",
+    hub_no_pi_image: "Faraday Starter carries no Pi image",
     hub_no_writer: "This computer cannot write a stick from here",
     hub_no_disks_stick: "No USB stick attached",
     hub_no_disks_card: "No SD card or USB stick attached",
@@ -7655,7 +7665,7 @@ pub static EN: Strings = Strings {
     hub_img_sha: "SHA-256 of the image",
     hub_image_sha: "SHA-256 of this image",
     hub_image_file: "Image file",
-    hub_dev_image: "Not the Faraday app's own image",
+    hub_dev_image: "Not Faraday Starter's own image",
     hub_keep_newer: "This stick holds a newer Faraday: {}",
     hub_keep_dev: "Writes a dev build, with a serial console",
     hub_not_confirmed_stick: "Not the stick confirmed: it was removed or changed",
@@ -7702,7 +7712,7 @@ pub static EN: Strings = Strings {
     hub_installed_in: "Installed in {}",
     hub_installed_version: "Installed version",
     hub_this_version: "This version",
-    hub_installed_app: "Faraday",
+    hub_installed_app: "Faraday Starter",
     hub_installed_desktop: "Desktop app",
     hub_installed_menu: "Menu entry",
     hub_installed_desktop_menu: "Desktop app's menu entry",
@@ -7714,7 +7724,7 @@ pub static EN: Strings = Strings {
     hub_uninstall_ask: "Uninstall Faraday?",
     hub_uninstall_keeps: "Removes the files listed. Received files and settings stay.",
     hub_uninstall_suspended: "BitLocker stays suspended until it is resumed.",
-    hub_why_not_carried: "This Faraday app does not carry what was confirmed. Nothing was written.",
+    hub_why_not_carried: "Faraday Starter does not carry what was confirmed. Nothing was written.",
     hub_why_changed: "{} is no longer the disk that was confirmed (serial {}, {}). Nothing was written.",
     hub_why_no_serial: "none",
     hub_why_bytes: "{} bytes",
@@ -7750,7 +7760,7 @@ pub static EN: Strings = Strings {
     hub_why_shorter: "The decompressed image is {} bytes, not {}",
     hub_why_wrong_sum: "The decompressed image's SHA-256 is {}, not the expected one",
     hub_why_no_home: "The home folder is not known",
-    hub_why_no_desktop: "This Faraday app carries no desktop app",
+    hub_why_no_desktop: "Faraday Starter carries no desktop app",
     hub_why_cache_sum: "The desktop app does not match the manifest: its SHA-256 is {}",
     hub_why_file: "{}: {}",
     hub_why_in_the_way: "{} is another program's, and is in the way",
@@ -7761,8 +7771,10 @@ pub static EN: Strings = Strings {
     hub_why_missing: "{} is not installed",
     hub_why_boot_entry: "efibootmgr failed: {}",
     hub_why_no_stick: "No Faraday stick is attached",
-    hub_menu_name: "Faraday",
-    hub_menu_desktop_name: "Faraday desktop (testing)",
+    hub_menu_name: "Faraday Starter",
+    hub_publisher: "Faraday",
+    hub_menu_desktop_name: "Faraday Desktop",
+    hub_menu_desktop_comment: "Test seeds only",
     hub_fault_reading: "reading the partition table failed: {}",
     hub_fault_no_header: "it has no GPT header",
     hub_fault_not_gpt: "its partition table is not GPT",
@@ -7784,7 +7796,7 @@ pub static EN: Strings = Strings {
     hub_release: "Release",
     hub_commit: "Commit",
     hub_payload: "Carried in this app",
-    hub_no_payload: "This Faraday app carries no images",
+    hub_no_payload: "Faraday Starter carries no images",
     hub_sha_xz: "SHA-256",
     hub_sha_inner: "SHA-256 of {}",
     hub_release_key: "Release key",
@@ -9005,8 +9017,11 @@ pub static EN: Strings = Strings {
     keygen_skip_the_quiz: "Skip the quiz",
     keygen_type_1_to_4_to: "Type 1 to 4 to pick · Enter adds the key once it passes",
     keygen_type_1_to_4: "Type 1 to 4 to pick · Enter is Done once it passes",
-    name_faraday_hub_app: "Faraday hub app",
-    name_faraday_desktop: "Faraday desktop app",
+    name_faraday_hub_app: "Faraday Starter",
+    name_faraday_hub_app_old: "Faraday hub app",
+    name_faraday_hub_app_old2: "Faraday Hub",
+    name_faraday_desktop: "Faraday Desktop",
+    name_faraday_desktop_old: "Faraday desktop app",
     version_label_local: "{} (local build)",
     stick_kind_psbt: "PSBT",
     stick_kind_text: "Text",
@@ -11192,7 +11207,7 @@ pub static EN: Strings = Strings {
     desktop_title_keys: "F2 boot stick · F3 stick 2 · F4 pull all",
     desktop_keys_line: "F2 boot stick · F3 stick 2 · F4 pull all · F5 every folder",
     desktop_title_panel: "Faraday · {} in panel · {}",
-    hub_window_title: "Faraday",
+    hub_window_title: "Faraday Starter",
     hub_disk_number: "Disk {}",
     hub_boot_entry_label: "Faraday stick",
     stick_usb_stick: "USB stick ({})",

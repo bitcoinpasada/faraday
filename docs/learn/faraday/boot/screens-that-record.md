@@ -8,7 +8,7 @@ In 2017 the US Federal Trade Commission and the State of New Jersey brought a ca
 
 What such a TV keeps or sends is decided by its own software, which cannot be checked from the computer. A recovery phrase or a key shown on it may leave the room.
 
-The Faraday app reads each screen's identity (its EDID) and names one that is a TV. On the stick, Faraday has no graphics driver and cannot read the screen's identity, so on a computer whose screen is a separate one it asks once whether the screen is a TV, and every start carries the line "On a TV? Stop: a smart TV can record its screen."
+Faraday Starter reads each screen's identity (its EDID) and names one that is a TV. On the stick, Faraday has no graphics driver and cannot read the screen's identity, so on a computer whose screen is a separate one it asks once whether the screen is a TV, and every start carries the line "On a TV? Stop: a smart TV can record its screen."
 
 ## A KVM switch or an IP-KVM
 
@@ -16,25 +16,25 @@ A KVM switch shares one keyboard, screen and mouse between computers. An IP-KVM 
 
 So whoever can reach the IP-KVM over its network sees the screen and can type on the computer. This works without any help from the computer: the stick having no network does not stop it.
 
-The Faraday app and the stick name one by its USB identity: the USB-gadget vendor ID that many such devices present with a keyboard and a disk, or a name that says KVM.
+Faraday Starter and the stick name one by its USB identity: the USB-gadget vendor ID that many such devices present with a keyboard and a disk, or a name that says KVM.
 
 ## A wireless keyboard or mouse
 
 A wireless keyboard sends each key over the air to its receiver. Some send them unencrypted or poorly encrypted. In 2016 Bastille Networks disclosed MouseJack, in which wireless mice and keyboards from several makers on the 2.4 GHz band let someone in radio range type on the computer or read keystrokes (CERT/CC vulnerability note VU#981271), and KeySniffer, in which keyboards from eight makers sent every key unencrypted, readable from up to several hundred feet away.
 
-The keys are in the air before they reach the computer, so the stick having no radio does not stop it. The Faraday app and the stick name a wireless receiver by its USB identity, and the stick warns before anything secret is typed.
+The keys are in the air before they reach the computer, so the stick having no radio does not stop it. Faraday Starter and the stick name a wireless receiver by its USB identity, and the stick warns before anything secret is typed.
 
 ## A virtual machine
 
 A virtual machine is a computer inside another computer, its host. The host sees the virtual machine's memory, screen and keys, and can change any of them. Nothing running inside can tell what the host does.
 
-The stick refuses to go on inside a virtual machine. The Faraday app on a virtual machine says the stick must start on the real computer, and that it cannot see the host's devices.
+The stick refuses to go on inside a virtual machine. Faraday Starter on a virtual machine says the stick must start on the real computer, and that it cannot see the host's devices.
 
 ## Remote desktop, screen sharing, a wireless display
 
 These send the picture to another device over a network. The stick has no network, so none of them can reach Faraday on the stick.
 
-The Faraday app checks for them only when it is about to show the BitLocker recovery key, which is on the computer's own screen while Windows runs.
+Faraday Starter checks for them only when it is about to show the BitLocker recovery key, which is on the computer's own screen while Windows runs.
 
 ## Not a concern on the stick
 

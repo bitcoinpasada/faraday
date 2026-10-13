@@ -11,8 +11,8 @@
 # out/payload/VERSION just faraday-linux-bin out/linux out/build/run
 # faraday-hub-shell faraday-hub`, which leaves out/linux/faraday-hub), and the second
 # pass, `--hub out/linux/faraday-hub` (`just faraday-release-stage-hub
-# VERSION`), adds it to the folder the first made: Faraday-VERSION-Linux.tar.gz
-# holding one file, Faraday-VERSION-Linux, with its executable bit, made
+# VERSION`), adds it to the folder the first made: Faraday-Starter-VERSION-Linux.tar.gz
+# holding one file, Faraday-Starter-VERSION-Linux, with its executable bit, made
 # as HUB §2 says (--owner=0 --group=0 --numeric-owner --sort=name
 # --mtime=@$SOURCE_DATE_EPOCH, gzip -n; SOURCE_DATE_EPOCH is the last
 # commit's time unless set), and two more lines in SHA256SUMS: the .tar.gz,
@@ -227,8 +227,9 @@ refuse() {
     rm -rf "$out" "$payload"
     die "$1 (nothing staged)"
 }
-tar_name="Faraday-$version-Linux.tar.gz"
-inner_name="Faraday-$version-Linux"
+hub_release_name="Faraday-Starter" # the one place the release files are named (F16)
+tar_name="$hub_release_name-$version-Linux.tar.gz"
+inner_name="$hub_release_name-$version-Linux"
 # FILE and, inside it, every gzip or xz stream found by its magic bytes
 # (a kernel image holds its kernel and the initramfs that way), to a depth
 # of three. LABEL names it in what is printed.

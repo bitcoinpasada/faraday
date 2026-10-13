@@ -2,13 +2,13 @@
 
 ## BitLocker first
 
-On Windows, do the BitLocker step in the Faraday app on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, do the BitLocker step in Faraday Starter on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
 
 ## Keys
 
 Firmware settings (BIOS): Delete, pressed when the MSI logo appears. Boot menu: F11, pressed when the MSI logo appears.
 
-The Faraday app's Restart into firmware settings opens the BIOS without a key.
+Faraday Starter's Restart into firmware settings opens the BIOS without a key.
 
 ## Turn Secure Boot off
 

@@ -482,11 +482,12 @@ fn installed() -> Option<Installed> {
         items: vec![
             (
                 InstallItem::App,
-                r"%LOCALAPPDATA%\Programs\Faraday\Faraday.exe".into(),
+                r"%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Starter.exe".into(),
             ),
             (
                 InstallItem::Reminder,
-                r"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run\Faraday".into(),
+                r"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run\Faraday Starter"
+                    .into(),
             ),
         ],
     })

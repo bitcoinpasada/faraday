@@ -2,13 +2,13 @@
 
 ## BitLocker first
 
-On Windows, do the BitLocker step in the Faraday app on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, do the BitLocker step in Faraday Starter on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
 
 ## Keys
 
 Firmware settings (System Setup): F2. Boot menu (One Time Boot): F12. Tap the key about once a second as soon as the Dell logo appears; holding it down can give a keyboard error instead. On a laptop whose top row changes brightness and volume, press Fn+F2 or Fn+F12.
 
-With Windows' Fast Startup on, Shut down does not close Windows and the keys can be missed. Restart instead, then tap the key. The Faraday app's Restart into firmware settings opens System Setup without a key. The F12 menu also lists BIOS Setup.
+With Windows' Fast Startup on, Shut down does not close Windows and the keys can be missed. Restart instead, then tap the key. Faraday Starter's Restart into firmware settings opens System Setup without a key. The F12 menu also lists BIOS Setup.
 
 ## Turn Secure Boot off
 

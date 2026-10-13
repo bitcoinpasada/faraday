@@ -2,9 +2,9 @@
 
 ## BitLocker first
 
-Do the BitLocker step in the Faraday app on this computer before changing any firmware setting. On a computer whose drive is encrypted with BitLocker or Device encryption, starting Windows after Secure Boot is turned off makes Windows ask for the drive's 48-digit recovery key. The Faraday app shows the key, asks for two of its groups once you have kept it, and suspends BitLocker until you resume it. Windows then starts without the key. The page "BitLocker and starting from a stick" says why.
+Do the BitLocker step in Faraday Starter on this computer before changing any firmware setting. On a computer whose drive is encrypted with BitLocker or Device encryption, starting Windows after Secure Boot is turned off makes Windows ask for the drive's 48-digit recovery key. Faraday Starter shows the key, asks for two of its groups once you have kept it, and suspends BitLocker until you resume it. Windows then starts without the key. The page "BitLocker and starting from a stick" says why.
 
-A computer whose drive is not encrypted has no BitLocker step, and the Faraday app says so.
+A computer whose drive is not encrypted has no BitLocker step, and Faraday Starter says so.
 
 ## Restart, not Shut down
 
@@ -18,7 +18,7 @@ Windows 10: Power & sleep settings → Additional power settings, then the same 
 
 ## Open the firmware settings
 
-The Faraday app's Restart into firmware settings does this in one step, on any maker's computer started in UEFI mode. By hand:
+Faraday Starter's Restart into firmware settings does this in one step, on any maker's computer started in UEFI mode. By hand:
 
 Windows 11: Settings → System → Recovery, and Restart now beside Advanced startup.
 
@@ -40,7 +40,7 @@ The firmware's own Fast Boot, which is not Windows' Fast Startup, makes some com
 
 ## Start from the stick
 
-Plug the stick in. The Faraday app's Restart to choose a device, offered once Secure Boot is off, opens Use a device in one step.
+Plug the stick in. Faraday Starter's Restart to choose a device, offered once Secure Boot is off, opens Use a device in one step.
 
 By hand: open Advanced startup as above, and on Choose an option choose Use a device, then the stick. Use a device is offered only on computers started in UEFI mode, and not on every one. Without it, use the maker's boot menu key at power-on, or the boot override list in the firmware settings.
 
@@ -52,7 +52,7 @@ Turn the computer off from Faraday and pull the stick out. Turn Secure Boot back
 
 If the firmware does not let Secure Boot be enabled, or Windows does not start with it on, load the computer's own Secure Boot keys: on some firmware this is Restore Factory Keys or a Custom setting that loads the keys built into the computer.
 
-Then open the Faraday app in Windows and choose Resume BitLocker. It is offered only while Secure Boot is on. An installed Faraday app offers it at sign-in; one run without installing offers it when opened again.
+Then open Faraday Starter in Windows and choose Resume BitLocker. It is offered only while Secure Boot is on. An installed Faraday Starter offers it at sign-in; one run without installing offers it when opened again.
 
 A computer whose Secure Boot was already off before the BitLocker step is not asked to turn it on.
 

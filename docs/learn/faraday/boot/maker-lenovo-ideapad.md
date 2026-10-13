@@ -2,7 +2,7 @@
 
 ## BitLocker first
 
-On Windows, do the BitLocker step in the Faraday app on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, do the BitLocker step in Faraday Starter on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
 
 ## Keys
 
@@ -10,7 +10,7 @@ Firmware settings (BIOS): F2, or Fn+F2, pressed repeatedly right after turning t
 
 The Novo button opens both from a computer that is off: a small button or pinhole marked with a curved arrow, on the side or near the power button, pressed with the tip of an unfolded paper clip. Its Novo Button Menu has BIOS Setup and Boot Menu.
 
-The Faraday app's Restart into firmware settings opens the BIOS without a key.
+Faraday Starter's Restart into firmware settings opens the BIOS without a key.
 
 ## Turn Secure Boot off
 
@@ -34,7 +34,7 @@ Lenovo's IdeaPad articles do not describe restoring the Secure Boot keys. If Sec
 
 Lenovo's article for booting from USB loads the BIOS defaults with F9 before changing Secure Boot. That sets every other BIOS setting back to its default as well.
 
-The same article turns BitLocker off, which decrypts the drive. The Faraday app's BitLocker step suspends it instead.
+The same article turns BitLocker off, which decrypts the drive. Faraday Starter's BitLocker step suspends it instead.
 
 ## Where this comes from
 

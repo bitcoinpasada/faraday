@@ -63,7 +63,7 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop
 
 # The Windows hub app (docs/HUB.md §2), cross-compiled for
 # x86_64-pc-windows-gnu in the pinned container (faraday/build/windows/),
-# into OUT/Faraday.exe, with its icon, version and asInvoker manifest,
+# into OUT/faraday-hub.exe, with its icon, version and asInvoker manifest,
 # and checked: no library beside Windows' own, no local path in its
 # strings. FARADAY_HUB_PAYLOAD=out/payload/VERSION builds that payload in
 # (the stick and Pi images; the desktop app from batch C); without it the
@@ -96,7 +96,7 @@ faraday-windows-bin what="build" out="out/windows" cache="out/build/run":
         -v "$root/{{build_cache}}/cargo":/cargo \
         faraday-build-windows /src/faraday/build/windows/build.sh ${arg[@]+"${arg[@]}"}
     if [ "{{what}}" != clippy ]; then
-        sha256sum "{{out}}/Faraday.exe"
+        sha256sum "{{out}}/faraday-hub.exe"
     fi
 
 # The desktop app standing for a device's screen at its true size on
@@ -196,7 +196,7 @@ faraday-hub-snap size:
 # (faraday-hub's examples/icon.rs) into shells/hub/assets/. Run it when
 # the mark changes; the PNG is committed and the hub app embeds it.
 faraday-hub-icon:
-    cargo run -q -p faraday-hub --example icon -- faraday/shells/hub/assets/app.faradayoffline.Faraday.png
+    cargo run -q -p faraday-hub --example icon -- faraday/shells/hub/assets/icon.png
 
 # Secure Boot in real UEFI firmware: OVMF in QEMU enrols the keys
 # faraday-sb makes from their .auth updates, then runs only the image

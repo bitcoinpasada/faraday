@@ -597,26 +597,30 @@ Faraday builds are `osk-crypto` (locking secret pages in RAM), the camera crate
 `opensigner-v4l2` (its `ioctl`s), and `faraday-grant` (dropping
 privileges); each says why in its crate documentation.
 
-## The hub app
+## Faraday Starter
 
-The hub app makes a Faraday stick or a Raspberry Pi card, shows how to
+Faraday Starter makes a Faraday stick or a Raspberry Pi card, shows how to
 start a computer from the stick, moves files to and from the device by
-QR code, and opens the desktop app for testing. It is one file for your
+QR code, and opens Faraday Desktop for testing. It is one file for your
 operating system. Linux first, from 0.2.0:
 
-1. Download `Faraday-X.Y.Z-Linux.tar.gz` from the release and extract it:
-   double-click it in the file manager, or `tar xf Faraday-X.Y.Z-Linux.tar.gz`.
-2. Open the file `Faraday-X.Y.Z-Linux` inside: double-click it, or run
-   `./Faraday-X.Y.Z-Linux`. Nothing needs `chmod`.
+1. Download `Faraday-Starter-X.Y.Z-Linux.tar.gz` from the release and extract it:
+   double-click it in the file manager, or `tar xf Faraday-Starter-X.Y.Z-Linux.tar.gz`.
+2. Open the file `Faraday-Starter-X.Y.Z-Linux` inside: double-click it, or run
+   `./Faraday-Starter-X.Y.Z-Linux`. Nothing needs `chmod`.
+
+On Windows, download `Faraday-Starter-X.Y.Z-Windows.exe` and open it.
 
 It runs on Ubuntu 20.04 and later, Debian 11 and later, Fedora 32 and
 later and Arch, on x86-64. Writing a stick needs udisks2, which desktop
 distributions have; the system may ask for a password. Check the
 download first, as [Verifying a release](#verifying-a-release) says.
-**Install** in its window puts it in your app menu, in `~/.local/bin`;
+**Install** in its window puts Faraday Starter in your app menu, in
+`~/.local/bin/faraday-hub` (on Windows, in
+`%LOCALAPPDATA%\Programs\Faraday Starter`, with a Start menu entry);
 **Uninstall** removes exactly what that put there.
 
-Without the hub app, Raspberry Pi Imager and balenaEtcher take the
+Without Faraday Starter, Raspberry Pi Imager and balenaEtcher take the
 `.img.xz` as it is; other tools need it decompressed (`xz -d` on Linux,
 7-Zip on Windows).
 
@@ -726,7 +730,7 @@ on mainnet. `faraday/image/run-build.sh` and
 
 ### Writing a developer's image
 
-The hub app writes an image built here in place of its own:
+Faraday Starter writes an image built here in place of its own:
 
 ```
 just dev=1 faraday-stick-image
@@ -736,8 +740,8 @@ just faraday-hub --image out/stick/faraday-x86_64-uefi-dev.img
 `--image` takes an `.img`, an `.img.xz`, or a `-boot.vfat`, which only
 *keep data* can write (the boot partition, with the vaults and settings
 on the data partition left alone). The screens and the writer are the
-release's: Confirm says the image is not the hub app's own and shows its
-SHA-256. A hub app built without a payload offers only `--image`. On
+release's: Confirm says the image is not Faraday Starter's own and shows its
+SHA-256. A Faraday Starter built without a payload offers only `--image`. On
 Linux the write goes through udisks2 and the desktop may ask for a
 password; the hub app never runs as root. `docs/HUB.md` §4.1 says what
 the writer checks and in what order.

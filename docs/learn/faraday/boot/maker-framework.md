@@ -2,13 +2,13 @@
 
 ## BitLocker first
 
-On Windows, do the BitLocker step in the Faraday app on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, do the BitLocker step in Faraday Starter on this computer before changing any firmware setting. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
 
 ## Keys
 
 Firmware settings (BIOS): tap F2 repeatedly right after turning the computer on, at the Framework logo. Boot menu: tap F12 repeatedly as soon as the power light comes on.
 
-The Faraday app's Restart into firmware settings opens the BIOS without a key.
+Faraday Starter's Restart into firmware settings opens the BIOS without a key.
 
 ## Turn Secure Boot off
 
@@ -32,7 +32,7 @@ Framework's guides do not describe restoring the Secure Boot keys. If Secure Boo
 
 F2 is tapped while the Framework logo is on screen, from the moment the computer is turned on; a press that comes too late misses the BIOS.
 
-Framework's guides say to turn BitLocker off before turning Secure Boot off. The Faraday app's BitLocker step suspends it instead.
+Framework's guides say to turn BitLocker off before turning Secure Boot off. Faraday Starter's BitLocker step suspends it instead.
 
 ## Where this comes from
 

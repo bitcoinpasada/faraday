@@ -8,7 +8,7 @@ use osk_psbt::{Level, OutputKind};
 use osk_ui::widgets::Icon;
 
 use crate::ui::pal::*;
-use crate::ui::{Style, Theme, Ui, W, btc, grouped, short, thousands};
+use crate::ui::{NameSuffix, Style, Theme, Ui, W, btc, grouped, short, thousands};
 use crate::wallet::{FileKind, Session, fp_text, key_line, network_name, step, txid_known};
 use crate::{Action, Code, Faraday, Screen, Sheet, flow, guide};
 
@@ -398,22 +398,43 @@ pub(crate) fn sign_readiness(app: &Faraday, w: &crate::wallet::Wallet) -> u8 {
     }
 }
 
+/// The word after the wordmark: the desktop app's, none on the device.
+pub(crate) fn name_suffix(app: &Faraday) -> NameSuffix {
+    if app.online {
+        NameSuffix::Desktop
+    } else {
+        NameSuffix::None
+    }
+}
+
 fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
     ui.fill(0.0, 0.0, SIDEBAR_W, h, 0.0, SIDEBAR);
     ui.fill(SIDEBAR_W - 1.0, 0.0, 1.0, h, 0.0, LINE);
     ui.mark(22.0, 20.0, 28.0, 32.0);
     // The name centred on the mark, its capitals 10 tall: at 11, as on the
     // Pi, it reaches the widest network pill (Regtest).
-    ui.wordmark(58.0, 31.0, 10.0, TEXT);
+    // With its word it is 9 tall, to stay inside the sidebar.
+    let suffix = name_suffix(app);
+    let cap = if suffix == NameSuffix::None {
+        10.0
+    } else {
+        9.0
+    };
+    ui.wordmark_named(58.0, 31.0 + (10.0 - cap) / 2.0, cap, TEXT, suffix);
     let net = app.session.network();
     if !net.is_mainnet() {
         // A test network is marked on every screen, by the pill alone.
         let label = network_name(net);
         let tw = ui.measure(12.0, W::S, label) + 24.0;
-        let tx = SIDEBAR_W - 16.0 - tw;
-        ui.fill(tx, 23.0, tw, 26.0, 13.0, WARN.with_alpha(30));
-        ui.stroke(tx, 23.0, tw, 26.0, 13.0, WARN.with_alpha(110));
-        ui.text_mid(tx + 12.0, 23.0, 26.0, 12.0, W::S, WARN, label);
+        // The name with its word fills the row: the pill goes under it.
+        let (tx, ty, th) = if name_suffix(app) == NameSuffix::None {
+            (SIDEBAR_W - 16.0 - tw, 23.0, 26.0)
+        } else {
+            (58.0, 54.0, 18.0)
+        };
+        ui.fill(tx, ty, tw, th, th / 2.0, WARN.with_alpha(30));
+        ui.stroke(tx, ty, tw, th, th / 2.0, WARN.with_alpha(110));
+        ui.text_mid(tx + 12.0, ty, th, 12.0, W::S, WARN, label);
     }
 
     // The places that are always offered, in order; Learn (not a place,

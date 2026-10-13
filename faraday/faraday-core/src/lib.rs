@@ -38,6 +38,7 @@ pub mod learn;
 pub mod lightning;
 pub mod medium;
 pub mod memory;
+pub mod names;
 pub mod paper;
 pub mod pdf;
 pub mod picture;
@@ -132,6 +133,18 @@ impl Program {
     }
 }
 
+impl Program {
+    /// The words the program's `--version` line started with under
+    /// earlier names (F16). A file that answers with them is still ours,
+    /// so an install made with the old names is found and replaced.
+    pub const fn old_names(self) -> [&'static str; 2] {
+        match self {
+            Program::HubApp => [EN.name_faraday_hub_app_old, EN.name_faraday_hub_app_old2],
+            Program::DesktopApp => [EN.name_faraday_desktop_old, EN.name_faraday_desktop_old],
+        }
+    }
+}
+
 /// The line `--version` prints: the program's name, a space, the build
 /// string.
 pub fn version_line(program: Program, build: &str) -> String {
@@ -147,7 +160,10 @@ pub fn parse_version_output(output: &str) -> Option<(Program, &str)> {
     [Program::HubApp, Program::DesktopApp]
         .into_iter()
         .find_map(|p| {
-            let build = line.strip_prefix(p.name())?.strip_prefix(' ')?.trim();
+            let rest = std::iter::once(p.name())
+                .chain(p.old_names())
+                .find_map(|n| line.strip_prefix(n).filter(|r| r.starts_with(' ')))?;
+            let build = rest.strip_prefix(' ')?.trim();
             (!build.is_empty()).then_some((p, build))
         })
 }

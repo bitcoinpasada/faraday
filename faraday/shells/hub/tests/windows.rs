@@ -9,7 +9,8 @@ use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-use faraday_core::Program;
+use faraday_core::strings::EN;
+use faraday_core::{Program, names};
 use faraday_hub::api::{
     Bus, InUse, InstallItem, Mode, Os, Reason, Source, StickFault, WriteOrder, WriteStage,
 };
@@ -17,7 +18,7 @@ use faraday_hub::decide::{Refusal, Target, offers};
 use faraday_hub_shell::stick;
 use faraday_hub_shell::windows::disks::{Found, Snapshot};
 use faraday_hub_shell::windows::elevated::{Elevated, command_line, split};
-use faraday_hub_shell::windows::install::{self, Data, Dirs, Left, Registry, UNINSTALL_KEY};
+use faraday_hub_shell::windows::install::{self, Data, Dirs, Left, Registry, uninstall_key};
 use faraday_hub_shell::windows::pipe::{self, Message};
 use faraday_hub_shell::windows::registry::{self, Facts};
 use faraday_hub_shell::windows::shortcut;
@@ -562,7 +563,7 @@ fn computer(name: &str) -> (PathBuf, Dirs, PathBuf) {
         fs::create_dir_all(p.parent().expect("a folder")).expect("folder");
         fs::write(p, text).expect("file");
     }
-    let running = root.join("Downloads/Faraday-0.2.0-Windows.exe");
+    let running = root.join("Downloads/Faraday-Starter-0.2.0-Windows.exe");
     fs::write(&running, "FARADAY HUB 0.2.0").expect("file");
     (root, dirs, running)
 }
@@ -589,7 +590,7 @@ fn install_puts_the_app_the_shortcut_and_the_uninstall_entry_and_uninstall_takes
     let (root, dirs, running) = computer("install");
     let before = tree(&root);
     let mut reg = Map::default();
-    let steps = install::plan(&dirs, "0.2.0", "Faraday", 10_138_112);
+    let steps = install::plan(&dirs, "0.2.0", EN.hub_menu_name, 10_138_112);
     let app = dirs.app();
     let shown = app.display().to_string();
     assert_eq!(
@@ -598,8 +599,15 @@ fn install_puts_the_app_the_shortcut_and_the_uninstall_entry_and_uninstall_takes
     );
     let mut after = before.clone();
     after.extend([
-        "AppData/Local/Programs/Faraday/Faraday.exe".to_string(),
-        "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Faraday.lnk".to_string(),
+        format!(
+            "AppData/Local/Programs/{}/{}",
+            names::WIN_NAME,
+            names::WIN_EXE
+        ),
+        format!(
+            "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/{}",
+            names::WIN_SHORTCUT
+        ),
     ]);
     after.sort();
     assert_eq!(tree(&root), after);
@@ -609,12 +617,12 @@ fn install_puts_the_app_the_shortcut_and_the_uninstall_entry_and_uninstall_takes
     );
     let lnk = fs::read(dirs.shortcut()).expect("shortcut");
     assert_eq!(shortcut::target(&lnk).as_deref(), Some(shown.as_str()));
-    let values = &reg.0[UNINSTALL_KEY];
+    let values = &reg.0[&uninstall_key()];
     let text = |k: &str| match values.get(k) {
         Some(Data::Sz(s)) => s.clone(),
         other => panic!("{k}: {other:?}"),
     };
-    assert_eq!(text("DisplayName"), "Faraday");
+    assert_eq!(text("DisplayName"), EN.hub_menu_name);
     assert_eq!(text("Publisher"), "Faraday");
     assert_eq!(text("DisplayVersion"), "0.2.0");
     assert_eq!(text("UninstallString"), format!("\"{shown}\" --uninstall"));
@@ -649,7 +657,7 @@ fn install_puts_the_app_the_shortcut_and_the_uninstall_entry_and_uninstall_takes
 fn installing_again_replaces_faradays_own_file_and_never_another_programs() {
     let (_root, dirs, running) = computer("again");
     let mut reg = Map::default();
-    let steps = install::plan(&dirs, "0.2.0", "Faraday", 1);
+    let steps = install::plan(&dirs, "0.2.0", EN.hub_menu_name, 1);
     fs::create_dir_all(dirs.folder()).expect("folder");
     fs::write(dirs.app(), "FARADAY HUB 0.1.1").expect("older");
     assert!(install::install(&dirs, &steps, &running, &ask, &mut reg).is_ok());
@@ -662,7 +670,7 @@ fn installing_again_replaces_faradays_own_file_and_never_another_programs() {
         1,
         "nothing set aside is left"
     );
-    // Someone else's Faraday.exe is in the way, and stays.
+    // Someone else's Faraday Starter.exe is in the way, and stays.
     let (_root, dirs, running) = computer("in-the-way");
     fs::create_dir_all(dirs.folder()).expect("folder");
     fs::write(dirs.app(), "another program").expect("other");
@@ -689,18 +697,93 @@ fn installing_again_replaces_faradays_own_file_and_never_another_programs() {
 fn uninstall_from_the_installed_copy_leaves_its_last_step_for_after_it_exits() {
     let (_root, dirs, running) = computer("self");
     let mut reg = Map::default();
-    let steps = install::plan(&dirs, "0.2.0", "Faraday", 1);
+    let steps = install::plan(&dirs, "0.2.0", EN.hub_menu_name, 1);
     install::install(&dirs, &steps, &running, &ask, &mut reg).expect("installed");
     let left = install::uninstall(&dirs, &dirs.app(), &ask, &mut reg).expect("uninstalled");
     let folder = dirs.folder().display().to_string();
     let Left::AfterExit(command) = left else {
         panic!("nothing left for after exit");
     };
-    assert!(command.contains(&format!("del /f /q \"{folder}\\Faraday.exe\"")));
+    assert!(command.contains(&format!("del /f /q \"{folder}\\{}\"", names::WIN_EXE)));
     assert!(command.contains(&format!("rmdir \"{folder}\"")));
     assert!(!command.contains("/s /q \""), "never a recursive remove");
     // The rest is gone already; the running file waits for its exit.
     assert!(dirs.app().exists());
     assert!(!dirs.shortcut().exists());
     assert!(reg.0.is_empty());
+}
+
+const RUN: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
+
+fn old_key(l: &names::Legacy) -> String {
+    format!(
+        r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{}",
+        l.win_name
+    )
+}
+
+/// An earlier install (`names::LEGACY[which]`), in `dirs`.
+fn old_install(dirs: &Dirs, reg: &mut Map, which: usize, exe: &str) {
+    let l = &names::LEGACY[which];
+    let folder = dirs.local.join("Programs").join(l.win_name);
+    fs::create_dir_all(&folder).expect("folder");
+    fs::write(folder.join(l.win_exe), exe).expect("exe");
+    fs::write(dirs.programs.join(l.win_shortcut), "old shortcut").expect("lnk");
+    reg.set(&old_key(l), "DisplayName", &Data::Sz(l.win_name.into()))
+        .expect("key");
+    let command = format!(
+        r#""C:\Users\a\AppData\Local\Programs\{}\{}" --remind"#,
+        l.win_name, l.win_exe
+    );
+    reg.set(RUN, l.win_name, &Data::Sz(command)).expect("run");
+}
+
+#[test]
+fn an_earlier_install_is_replaced_by_install_and_removed_by_uninstall() {
+    for which in 0..names::LEGACY.len() {
+        let l = &names::LEGACY[which];
+        let (root, dirs, running) = computer(&format!("old-names-{which}"));
+        let mut reg = Map::default();
+        old_install(&dirs, &mut reg, which, "FARADAY HUB 0.1.9");
+        let found = install::installed(&dirs, &ask, &mut reg).expect("old install found");
+        assert_eq!(found.version, "0.1.9");
+
+        let steps = install::plan(&dirs, "0.2.0", EN.hub_menu_name, 1);
+        install::install(&dirs, &steps, &running, &ask, &mut reg).expect("installed");
+        assert!(!dirs.local.join("Programs").join(l.win_name).exists());
+        assert!(!dirs.programs.join(l.win_shortcut).exists());
+        assert!(!reg.0.contains_key(&old_key(l)));
+        assert!(reg.0.get(RUN).is_none_or(|k| !k.contains_key(l.win_name)));
+        assert!(dirs.app().is_file());
+
+        // Uninstall of an earlier install alone.
+        let (root2, dirs, running) = computer(&format!("old-names-uninstall-{which}"));
+        let before = tree(&root2);
+        let mut reg = Map::default();
+        old_install(&dirs, &mut reg, which, "FARADAY HUB 0.1.9");
+        install::uninstall(&dirs, &running, &ask, &mut reg).expect("uninstalled");
+        let mut left = before;
+        left.retain(|f| f != "AppData/Local/faraday/bitlocker-suspended");
+        assert_eq!(tree(&root2), left);
+        assert!(!reg.0.contains_key(&old_key(l)));
+        let _ = root;
+    }
+}
+
+#[test]
+fn an_old_exe_that_is_not_ours_keeps_its_old_names() {
+    for which in 0..names::LEGACY.len() {
+        let l = &names::LEGACY[which];
+        let (_root, dirs, running) = computer(&format!("old-foreign-{which}"));
+        let mut reg = Map::default();
+        old_install(&dirs, &mut reg, which, "another program");
+        let steps = install::plan(&dirs, "0.2.0", EN.hub_menu_name, 1);
+        install::install(&dirs, &steps, &running, &ask, &mut reg).expect("installed");
+        install::uninstall(&dirs, &running, &ask, &mut reg).expect("uninstalled");
+        let old = dirs.local.join("Programs").join(l.win_name).join(l.win_exe);
+        assert_eq!(fs::read_to_string(old).expect("kept"), "another program");
+        assert!(dirs.programs.join(l.win_shortcut).is_file());
+        assert!(reg.0.contains_key(&old_key(l)));
+        assert!(reg.0[RUN].contains_key(l.win_name));
+    }
 }
