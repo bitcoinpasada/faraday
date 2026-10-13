@@ -8,7 +8,7 @@ Do the BitLocker step in Faraday Starter first: it shows the drive's recovery ke
 
 1. Plug the stick in.
 
-2. Open the firmware settings with Faraday Starter's Restart into firmware settings.
+2. Open the BIOS with Faraday Starter's Restart into the BIOS.
 
 By hand: Settings → System → Recovery (Windows 10: Settings → Update & Security → Recovery), Restart now beside Advanced startup, then Troubleshoot → Advanced options → UEFI Firmware Settings → Restart.
 
@@ -22,7 +22,9 @@ Leave the Secure Boot keys as they are. Do not delete or clear them.
 
 4. Saving restarts the computer. On that restart, press the maker's boot menu key and choose the stick, before Windows starts. If it is listed twice, choose the one that starts with UEFI.
 
-Without a boot menu key: choose the stick in the boot override list in the firmware settings.
+The stick is usually listed under its maker's name, the one printed on it (SanDisk, Kingston…), often after "UEFI:". It is not Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.
+
+Without a boot menu key: choose the stick in the boot override list in the BIOS.
 
 If the stick is not listed: see "If something is different" below.
 
@@ -30,7 +32,7 @@ If the stick is not listed: see "If something is different" below.
 
 5. Turn the computer off from Faraday and pull the stick out.
 
-6. Open the firmware settings with the maker's key at power-on, set Secure Boot to Enabled, save and exit. Do it before Windows starts: with Secure Boot off, Windows asks for the recovery key unless Faraday Starter suspended BitLocker.
+6. Open the BIOS with the maker's key at power-on, set Secure Boot to Enabled, save and exit. Do it before Windows starts: with Secure Boot off, Windows asks for the recovery key unless Faraday Starter suspended BitLocker.
 
 If Secure Boot cannot be enabled, or Windows does not start with it on: load the computer's own Secure Boot keys (Restore Factory Keys, or a Custom setting that loads the keys built into the computer).
 
@@ -38,9 +40,9 @@ If Secure Boot cannot be enabled, or Windows does not start with it on: load the
 
 ## If something is different
 
-Stick not in the list: the firmware's own Fast Boot, which is not Windows' Fast Startup, makes some computers skip USB disks at power-on. Set Fast Boot to Disabled, or to Thorough where that is the choice, and save.
+Stick not in the list: the BIOS's own Fast Boot, which is not Windows' Fast Startup, makes some computers skip USB disks at power-on. Set Fast Boot to Disabled, or to Thorough where that is the choice, and save.
 
-No UEFI Firmware Settings entry in Windows: Windows started in legacy BIOS mode. Faraday Starter's Restart into firmware settings works on any maker's computer started in UEFI mode, so not on this one; the screen at power-on often names the maker's key. Holding Shift while choosing Power → Restart also opens the Choose an option screen.
+No UEFI Firmware Settings entry in Windows: Windows started in legacy BIOS mode. Faraday Starter's Restart into the BIOS works on any maker's computer started in UEFI mode, so not on this one; the screen at power-on often names the maker's key. Holding Shift while choosing Power → Restart also opens the Choose an option screen.
 
 Why Secure Boot goes off: the Faraday on the stick is not signed with Microsoft's keys, so a computer starts it only with Secure Boot off.
 
@@ -48,7 +50,7 @@ Why Restart and not Shut down: with Fast Startup, which is on by default, Shut d
 
 Other ways to choose the stick: Faraday Starter's Restart to choose a device, offered once Secure Boot is off, and Use a device on the Choose an option screen. Both are reached from Windows, so Windows has to start with Secure Boot off, and with BitLocker not suspended that start asks for the recovery key. Use a device is offered only on computers started in UEFI mode, and not on every one.
 
-Without the maker's key to turn Secure Boot back on: start Windows, use Restart into firmware settings again, and turn Secure Boot on there. Windows asks for the recovery key on that start unless BitLocker is suspended, and the key in hand opens it.
+Without the maker's key to turn Secure Boot back on: start Windows, use Restart into the BIOS again, and turn Secure Boot on there. Windows asks for the recovery key on that start unless BitLocker is suspended, and the key in hand opens it.
 
 A computer whose Secure Boot was already off before the BitLocker step is not asked to turn it on.
 

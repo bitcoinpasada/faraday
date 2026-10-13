@@ -12,7 +12,7 @@ HP's business computers are EliteBook, ProBook and Z workstations. Its consumer 
 
 2. Turn the computer off, then on, and press Esc repeatedly until the Startup Menu opens. Press F10 for BIOS Setup.
 
-On an HP desktop, F10 at power-on opens Computer Setup directly. Faraday Starter's Restart into firmware settings opens the Startup Menu without a key.
+On an HP desktop, F10 at power-on opens Computer Setup directly. Faraday Starter's Restart into the BIOS opens the Startup Menu without a key.
 
 3. Consumer notebooks: open the Boot Options tab, set Secure Boot to Disabled, then press F10 and choose Yes to save and exit.
 

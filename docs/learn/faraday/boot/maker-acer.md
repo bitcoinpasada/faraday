@@ -12,7 +12,7 @@ On Windows, have the BitLocker recovery key ready: Faraday Starter's BitLocker s
 
 3. When the Acer logo appears, tap F2.
 
-If it doesn't open: use Faraday Starter's Restart into firmware settings.
+If it doesn't open: use Faraday Starter's Restart into the BIOS.
 
 4. Open the Security tab, choose Set Supervisor Password, and enter a password twice. Write it down: step 10 removes it again.
 
@@ -33,6 +33,8 @@ On many Acer notebooks the F12 boot menu is off until it is turned on here, and 
 7. The computer restarts. Press F12 as the Acer logo appears. On Windows, do it on this restart, before Windows starts.
 
 8. Choose the stick. If it is listed twice, choose the one that starts with UEFI.
+
+The stick is usually listed under its maker's name, the one printed on it (SanDisk, Kingston…), often after "UEFI:". It is not Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.
 
 If the stick is not listed: see "If something is different" below.
 

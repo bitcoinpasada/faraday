@@ -505,7 +505,7 @@ fn home_leads_with_the_next_step_for_each_state() {
     hub.hub_event(HubEvent::Disks(Vec::new()));
     hub.hub_event(HubEvent::Computer(windows(false)));
     hub.hub_event(HubEvent::BitLocker(Some(suspended(true))));
-    assert!(card_says(&mut hub, "Restart into firmware settings"));
+    assert!(card_says(&mut hub, "Restart into the BIOS"));
     assert!(shows(&mut hub, "Turn Secure Boot back on"));
     assert!(shows(&mut hub, "Needs Secure Boot on"));
     assert_eq!(next_step(&mut hub), (true, Page::Home, FIRMWARE));
@@ -592,7 +592,7 @@ fn start_holds_the_firmware_buttons_until_the_bitlocker_step_is_done() {
         marker: None,
     })));
     hub.press(HubAction::Start);
-    assert!(shows(&mut hub, "Restart into firmware settings"));
+    assert!(shows(&mut hub, "Restart into the BIOS"));
     assert!(!hub.offers_action(HubAction::Restart));
     hub.press(HubAction::Restart);
     assert!(hub.sheet.is_none());
@@ -823,14 +823,14 @@ fn the_cards_button_follows_this_computers_state() {
 
     // Secure Boot on: the firmware's settings, after the sheet.
     let mut hub = hub_with(stick_attached());
-    assert!(card_says(&mut hub, "Restart into firmware settings"));
+    assert!(card_says(&mut hub, "Restart into the BIOS"));
     assert_eq!(next_step(&mut hub), (true, Page::Home, FIRMWARE));
 
     // Secure Boot not known: the same.
     let mut c = linux(true);
     c.secure_boot = None;
     hub.hub_event(HubEvent::Computer(c));
-    assert!(card_says(&mut hub, "Restart into firmware settings"));
+    assert!(card_says(&mut hub, "Restart into the BIOS"));
     assert_eq!(next_step(&mut hub), (true, Page::Home, FIRMWARE));
 
     // Secure Boot off, a stick attached, Linux: the stick.
@@ -866,7 +866,7 @@ fn homes_next_step_moves_on_once_the_recovery_key_is_in_hand() {
     hub.press(HubAction::Home);
     // The item reads as done, and the card leads to the firmware.
     assert!(shows(&mut hub, "Recovery key kept"));
-    assert!(card_says(&mut hub, "Restart into firmware settings"));
+    assert!(card_says(&mut hub, "Restart into the BIOS"));
     assert_eq!(next_step(&mut hub), (true, Page::Home, FIRMWARE));
     // The Start page offers its restart too.
     hub.press(HubAction::Start);
@@ -888,7 +888,7 @@ fn a_restart_asks_first_and_cancel_sends_nothing() {
         ),
         (
             linux(true),
-            "Restart into firmware settings",
+            "Restart into the BIOS",
             HubCommand::RestartIntoFirmware,
         ),
     ] {
@@ -937,7 +937,7 @@ fn a_restart_from_the_stick_that_did_not_happen_offers_the_firmware_with_why() {
         tap(&mut hub, HubAction::RestartNow);
         let _ = commands(&mut hub);
         hub.hub_event(HubEvent::StickRestartFailed(why));
-        assert!(card_says(&mut hub, "Restart into firmware settings"));
+        assert!(card_says(&mut hub, "Restart into the BIOS"));
         assert!(reads(
             &mut hub,
             &format!("Restart from the stick did not happen: {says}")
@@ -981,7 +981,7 @@ fn uninstall_says_when_the_firmwares_entry_remains() {
     assert!(hub.installed.is_none());
     assert!(reads(
         &mut hub,
-        "The firmware's Faraday stick entry remains: Administrator permission was declined."
+        "The BIOS's Faraday stick entry remains: Administrator permission was declined."
     ));
 }
 

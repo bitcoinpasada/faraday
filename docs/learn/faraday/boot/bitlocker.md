@@ -10,19 +10,19 @@ Starting Faraday from the stick does not, on its own: Windows is not running the
 
 ## Why only when Windows starts
 
-The TPM is asked for the key only when Windows starts: Windows' boot manager asks for it, and the TPM checks the measurements of that start before it releases it. Changing a firmware setting asks nothing, and neither does starting Faraday. So a computer whose Secure Boot is turned off, which then starts the stick, and whose Secure Boot is turned back on before Windows starts again, is never asked for the key: Windows only ever sees the start it was sealed to.
+The TPM is asked for the key only when Windows starts: Windows' boot manager asks for it, and the TPM checks the measurements of that start before it releases it. Changing a BIOS setting asks nothing, and neither does starting Faraday. So a computer whose Secure Boot is turned off, which then starts the stick, and whose Secure Boot is turned back on before Windows starts again, is never asked for the key: Windows only ever sees the start it was sealed to.
 
-The prompt comes when Windows starts while Secure Boot is off. Most often that is the restart that saves the firmware setting, when the stick is not chosen from the boot menu in time and Windows starts instead. It also comes when Secure Boot is turned back on with other keys than before.
+The prompt comes when Windows starts while Secure Boot is off. Most often that is the restart that saves the BIOS setting, when the stick is not chosen from the boot menu in time and Windows starts instead. It also comes when Secure Boot is turned back on with other keys than before.
 
 ## What Faraday Starter does
 
-On a Windows computer with an encrypted drive, Faraday Starter's BitLocker step comes before any firmware step. By default it is the recovery key in hand.
+On a Windows computer with an encrypted drive, Faraday Starter's BitLocker step comes before any BIOS step. By default it is the recovery key in hand.
 
 Show the recovery key. Windows asks for an administrator's permission, then the app shows the drive's recovery key; a drive without one gets one added first, and that is the one shown. Keep it: write it down or print it, scan its QR code with a phone, or take a photo of the screen. Save writes it to a file, offered only when a drive other than the encrypted ones is attached, and never onto a Faraday stick.
 
-I have my recovery key. This opens the firmware steps, for as long as Faraday Starter stays open. Nothing on the computer changes: BitLocker stays on, and a slip that starts Windows with Secure Boot off asks for the key that is in hand.
+I have my recovery key. This opens the BIOS steps, for as long as Faraday Starter stays open. Nothing on the computer changes: BitLocker stays on, and a slip that starts Windows with Secure Boot off asks for the key that is in hand.
 
-Extra safe: suspend BitLocker. This choice covers those slips. The key is shown as above; then it is hidden and the app asks for two of its eight groups, typed from what you kept. Then the app suspends BitLocker on the encrypted Windows drives until it is resumed. While it is suspended, Windows starts without the recovery key whatever the firmware reports: Secure Boot off, Secure Boot on with other keys, or a cleared TPM. The key comes first, so stopping between the two changes nothing on the computer.
+Extra safe: suspend BitLocker. This choice covers those slips. The key is shown as above; then it is hidden and the app asks for two of its eight groups, typed from what you kept. Then the app suspends BitLocker on the encrypted Windows drives until it is resumed. While it is suspended, Windows starts without the recovery key whatever the BIOS reports: Secure Boot off, Secure Boot on with other keys, or a cleared TPM. The key comes first, so stopping between the two changes nothing on the computer.
 
 ## What suspended means
 
@@ -30,7 +30,7 @@ This applies only to the extra-safe choice.
 
 The drive stays encrypted, and what is written to it is encrypted. The key that opens it is kept on the drive in the clear, so anyone holding the computer can read the drive until BitLocker is resumed. Suspending costs protection while it lasts, never access.
 
-Suspend protection in Windows' Control Panel ends at the next restart, which would be the restart into the firmware settings. Faraday Starter's suspension has no restart count: it lasts until BitLocker is resumed.
+Suspend protection in Windows' Control Panel ends at the next restart, which would be the restart into the BIOS. Faraday Starter's suspension has no restart count: it lasts until BitLocker is resumed.
 
 ## Resume, with Secure Boot on
 
@@ -42,15 +42,15 @@ Windows' own route, on Windows Pro, Enterprise and Education: Start, type BitLoc
 
 ## Where Faraday Starter cannot help
 
-Firmware settings changed without Faraday Starter. Have the recovery key in hand, with Faraday Starter's BitLocker step, before any firmware step.
+BIOS settings changed without Faraday Starter. Have the recovery key in hand, with Faraday Starter's BitLocker step, before any BIOS step.
 
-Another encryption product, such as VeraCrypt system encryption or a maker's own. Faraday Starter does not manage it. Have its rescue disk or password before changing any firmware setting.
+Another encryption product, such as VeraCrypt system encryption or a maker's own. Faraday Starter does not manage it. Have its rescue disk or password before changing any BIOS setting.
 
 An account that is not an administrator. An administrator of this computer has to do the BitLocker step.
 
 A computer whose BitLocker an employer manages. Its recovery key is kept by the employer: its IT department has it. Suspending may be refused, or undone at the next start. Its administrator has to suspend it. Faraday Starter shows the drive as protected again if that happens.
 
-A firmware update, a repair shop, or someone resuming BitLocker in between. The kept recovery key is what opens the drive then.
+A BIOS update, a repair shop, or someone resuming BitLocker in between. The kept recovery key is what opens the drive then.
 
 Windows started while Secure Boot is off, without the extra-safe choice. Windows asks for the recovery key. Type the kept key; Windows starts. Then turn Secure Boot back on before the next start.
 

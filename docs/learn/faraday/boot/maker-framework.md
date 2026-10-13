@@ -14,7 +14,7 @@ Framework's guides say to turn BitLocker off before turning Secure Boot off. Far
 
 3. Tap F2 repeatedly from the moment the computer turns on, while the Framework logo is on screen. A press that comes too late misses the BIOS.
 
-If it doesn't open: use Faraday Starter's Restart into firmware settings.
+If it doesn't open: use Faraday Starter's Restart into the BIOS.
 
 4. Choose Administer Secure Boot and set Enforce Secure Boot to Disabled with the arrow keys. Press F10 to save and restart.
 

@@ -14,7 +14,7 @@ A Surface has no keys for this; it uses its volume buttons.
 
 3. Hold Volume Up, press and release the power button, and keep holding Volume Up until the Surface UEFI screen appears.
 
-If it doesn't open: use Faraday Starter's Restart into firmware settings, which opens Surface UEFI without the buttons.
+If it doesn't open: use Faraday Starter's Restart into the BIOS, which opens Surface UEFI without the buttons.
 
 4. Choose Security. Under Secure Boot, choose Change configuration, choose None, and choose OK.
 

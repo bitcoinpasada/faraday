@@ -12,7 +12,7 @@ On Windows, have the BitLocker recovery key ready: Faraday Starter's BitLocker s
 
 3. When the Dell logo appears, tap F2 about once a second. Don't hold it down.
 
-If it doesn't open: tap Fn+F2, or tap F12 and choose BIOS Setup, or use Faraday Starter's Restart into firmware settings.
+If it doesn't open: tap Fn+F2, or tap F12 and choose BIOS Setup, or use Faraday Starter's Restart into the BIOS.
 
 4. Choose Boot Configuration, turn Secure Boot off, then Apply Changes and Exit.
 
@@ -29,6 +29,8 @@ Leave Secure Boot Mode and Expert Key Management as they are.
 6. Choose the stick. If it is listed twice, choose the one that starts with UEFI. This starts the stick once; the boot order stays as it was.
 
 ::sketch dell-boot-menu
+
+The stick is usually listed under its maker's name, the one printed on it (SanDisk, Kingston…), often after "UEFI:". It is not Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.
 
 If the stick is not listed: see "If something is different" below.
 

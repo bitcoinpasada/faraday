@@ -12,7 +12,7 @@ On Windows, have the BitLocker recovery key ready: Faraday Starter's BitLocker s
 
 3. When the Lenovo or ThinkPad logo appears, tap F1 repeatedly.
 
-If it doesn't open: press Enter at the logo, then F1 in the Startup Interrupt Menu, or use Faraday Starter's Restart into firmware settings.
+If it doesn't open: press Enter at the logo, then F1 in the Startup Interrupt Menu, or use Faraday Starter's Restart into the BIOS.
 
 4. Open the Security tab, then Secure Boot, and set Secure Boot to Disabled (Off on some models). Press F10 and choose Yes to save and restart.
 
@@ -27,6 +27,8 @@ Leave every other setting on the Secure Boot page as it is: the stick needs Secu
 5. The computer restarts. Press F12 as soon as the ThinkPad logo appears. On Windows, do it on this restart, before Windows starts.
 
 6. Choose the stick with the arrow keys and press Enter. If it is listed twice, choose the one that starts with UEFI.
+
+The stick is usually listed under its maker's name, the one printed on it (SanDisk, Kingston…), often after "UEFI:". It is not Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.
 
 If the stick is not listed: see "If something is different" below.
 

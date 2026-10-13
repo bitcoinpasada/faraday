@@ -51,7 +51,7 @@ fn the_boot_entry_page_is_there() {
 }
 
 #[test]
-fn the_windows_guide_does_the_bitlocker_step_before_any_firmware_step() {
+fn the_windows_guide_does_the_bitlocker_step_before_any_bios_step() {
     let first = &guide("windows").sections[0];
     assert_eq!(first.heading, "Before you start");
     assert!(first.paragraphs[0].starts_with("Do the BitLocker step in Faraday Starter first"));

@@ -14,7 +14,7 @@ These steps are from MSI's article for its notebooks, which does not cover deskt
 
 3. When the MSI logo appears, press Delete.
 
-If it doesn't open: use Faraday Starter's Restart into firmware settings.
+If it doesn't open: use Faraday Starter's Restart into the BIOS.
 
 4. Open Security → Secure Boot and set Secure Boot Support to Disabled. Press F10, Save & Reset, to save and restart.
 
@@ -25,6 +25,8 @@ If it doesn't open: use Faraday Starter's Restart into firmware settings.
 6. Choose the stick. If it is listed twice, choose the one that starts with UEFI.
 
 ::sketch msi-boot-menu
+
+The stick is usually listed under its maker's name, the one printed on it (SanDisk, Kingston…), often after "UEFI:". It is not Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.
 
 If the stick is not listed: see "If something is different" below.
 

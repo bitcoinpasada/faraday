@@ -2,13 +2,13 @@
 
 ## Not in the boot menu
 
-Fast Boot. The firmware's Fast Boot makes some computers skip USB disks at power-on. Set it to Disabled, or to Thorough where that is the choice.
+Fast Boot. The BIOS's Fast Boot makes some computers skip USB disks at power-on. Set it to Disabled, or to Thorough where that is the choice.
 
-USB boot turned off. Some firmware has a setting that allows starting from USB at all, such as Enable USB Boot Support. Turn it on.
+USB boot turned off. On some computers the BIOS has a setting that allows starting from USB at all, such as Enable USB Boot Support. Turn it on.
 
-A USB-C or Thunderbolt port. On some computers these ports start nothing until the firmware's Thunderbolt or USB-C boot support is turned on. Use a USB-A port, or turn that setting on.
+A USB-C or Thunderbolt port. On some computers these ports start nothing until the BIOS's Thunderbolt or USB-C boot support is turned on. Use a USB-A port, or turn that setting on.
 
-Legacy mode or CSM. The stick starts in UEFI mode only. A computer set to start in legacy BIOS or CSM mode does not offer it: set the firmware's boot mode to UEFI. Turning CSM on does not help. Where the stick is listed twice, choose the entry that begins with UEFI.
+Legacy mode or CSM. The stick starts in UEFI mode only. A computer set to start in legacy BIOS or CSM mode does not offer it: set the BIOS's boot mode to UEFI. Turning CSM on does not help. Where the stick is listed twice, choose the entry that begins with UEFI.
 
 Not a PC with an Intel or AMD processor. A computer with an ARM processor, such as a Windows laptop with a Snapdragon processor, cannot start the stick.
 
@@ -18,11 +18,11 @@ If choosing the stick returns to the menu or shows a Secure Boot message, Secure
 
 ## A black screen
 
-Faraday shows its logo a few seconds after it starts, then its first screen. A screen that stays black with no logo means the firmware did not start the stick: check that Secure Boot is off, and try another USB port. A logo followed by a screen that stays black for more than a minute means Faraday did not start its screen on this computer: hold the power button until the computer turns off.
+Faraday shows its logo a few seconds after it starts, then its first screen. A screen that stays black with no logo means the BIOS did not start the stick: check that Secure Boot is off, and try another USB port. A logo followed by a screen that stays black for more than a minute means Faraday did not start its screen on this computer: hold the power button until the computer turns off.
 
-## A firmware password
+## A BIOS password
 
-If the firmware settings ask for a password that you do not have, set by an employer or a previous owner, only whoever set it can open them. Without it Secure Boot stays on, and this computer cannot start the stick.
+If the BIOS asks for a password that you do not have, set by an employer or a previous owner, only whoever set it can open it. Without it Secure Boot stays on, and this computer cannot start the stick.
 
 ## Where this comes from
 

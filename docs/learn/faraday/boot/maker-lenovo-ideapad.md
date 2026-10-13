@@ -12,7 +12,7 @@ On Windows, have the BitLocker recovery key ready: Faraday Starter's BitLocker s
 
 3. Right after it turns on, press F2, or Fn+F2, repeatedly. It can take several tries.
 
-If it doesn't open: with the computer off, press the Novo button and choose BIOS Setup, or use Faraday Starter's Restart into firmware settings. The Novo button is a small button or pinhole marked with a curved arrow, on the side or near the power button, pressed with the tip of an unfolded paper clip.
+If it doesn't open: with the computer off, press the Novo button and choose BIOS Setup, or use Faraday Starter's Restart into the BIOS. The Novo button is a small button or pinhole marked with a curved arrow, on the side or near the power button, pressed with the tip of an unfolded paper clip.
 
 4. Open the Security tab and set Secure Boot to Disabled. Press F10, or Fn+F10, and choose Yes to save and exit.
 

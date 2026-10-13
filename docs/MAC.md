@@ -512,7 +512,7 @@ Home goes on to the next step (HANDOFF item 73, A3a).
   Apple Silicon setup guide (§4.5–§4.7), as Learn pages
   `docs/learn/faraday/boot/mac-intel.md` and `mac-apple-silicon.md`,
   ids `mac-intel` and `mac-apple-silicon` in `learn::BOOT`, published
-  at `faradayoffline.app/start/<id>`. *Restart into firmware settings*
+  at `faradayoffline.app/start/<id>`. *Restart into the BIOS*
   has no Mac form; the Intel page's step is "Shut down, then hold
   Option".
 - **§5.2 Install on macOS:** `~/Applications/Faraday.app` and, if

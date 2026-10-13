@@ -8,7 +8,7 @@ If the disk is unlocked by the TPM (a line with tpm2-device in /etc/crypttab), h
 
 1. Plug the stick in.
 
-2. Open the firmware settings with Faraday Starter's Restart into firmware settings.
+2. Open the BIOS with Faraday Starter's Restart into the BIOS.
 
 By hand, in a terminal:
 
@@ -22,7 +22,9 @@ Leave the Secure Boot keys as they are. Do not delete or clear them.
 
 4. Saving restarts the computer. Press the maker's boot menu key at power-on and choose the stick. If it is listed twice, choose the one that starts with UEFI.
 
-Without a boot menu key: choose the stick in the boot override list in the firmware settings.
+The stick is usually listed under its maker's name, the one printed on it (SanDisk, Kingston…), often after "UEFI:". It is not Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.
+
+Without a boot menu key: choose the stick in the boot override list in the BIOS.
 
 If the stick is not listed: see "If something is different" below.
 
@@ -30,15 +32,15 @@ If the stick is not listed: see "If something is different" below.
 
 5. Turn the computer off from Faraday and pull the stick out.
 
-6. Open the firmware settings, set Secure Boot back to Enabled, save and exit.
+6. Open the BIOS, set Secure Boot back to Enabled, save and exit.
 
 If Secure Boot cannot be enabled: load the computer's own Secure Boot keys (Restore Factory Keys, or a Custom setting that loads the keys built into the computer).
 
 ## If something is different
 
-Stick not in the boot menu: the firmware's Fast Boot makes some computers skip USB disks at power-on. Set Fast Boot to Disabled, or to Thorough where that is the choice, and save.
+Stick not in the boot menu: the BIOS's Fast Boot makes some computers skip USB disks at power-on. Set Fast Boot to Disabled, or to Thorough where that is the choice, and save.
 
-systemctl reboot --firmware-setup works only on a computer started in UEFI mode whose firmware offers it. The screen at power-on often names the maker's key.
+systemctl reboot --firmware-setup works only on a computer started in UEFI mode whose BIOS offers it. The screen at power-on often names the maker's key.
 
 Why Secure Boot goes off: the Faraday on the stick is not signed with Microsoft's keys, so a computer starts it only with Secure Boot off.
 

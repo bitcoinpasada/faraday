@@ -341,7 +341,7 @@ sheet, "This restarts the computer now. Save your work first.", with
 |---|---|---|
 | no Faraday stick attached | **Make a Faraday stick** | opens §3.2; no sheet |
 | Windows, a drive protected and the BitLocker step not done | **Do the BitLocker step** | opens §6.5; no sheet |
-| Secure Boot on, or not known | **Restart into firmware settings** | §7.3's firmware restart |
+| Secure Boot on, or not known | **Restart into the BIOS** | §7.3's firmware restart |
 | Secure Boot off | **Restart from the stick** | Windows: `shutdown /r /o /t 0`, Windows' *Use a device*; Linux: the stick, once (below) |
 
 While the hub app's BitLocker suspension stands, the checklist's own
@@ -363,7 +363,7 @@ with `--create-only`, so it is never added to `BootOrder`, pointing at
 it when it already exists, sets `BootNext` to it, and then runs
 `systemctl reboot`. Uninstall removes the entry. Where `efibootmgr` or
 `pkexec` is missing, or the password is declined, the button falls
-back to **Restart into firmware settings** with one line saying why.
+back to **Restart into the BIOS** with one line saying why.
 The stick cannot start with Secure Boot on, which is why that state
 offers the firmware restart instead.
 
@@ -556,7 +556,7 @@ follow this computer's state:
    default the recovery key in hand, or the extra-safe suspension
    (F17). Until it is done, steps 2 and on are shown and their buttons
    are not offered.
-2. **Restart into firmware settings** (§7.3). Its confirmation ("Save
+2. **Restart into the BIOS** (§7.3). Its confirmation ("Save
    your work first: this restarts the computer") carries the QR code
    of this page's address on the website (§7.4), because that is the
    moment the person needs the steps on a phone; the same code is at
@@ -1062,7 +1062,7 @@ guide for this computer, not its text. Pages:
 
 ### 7.3 Buttons that remove steps
 
-- **Restart into firmware settings**: Windows `shutdown /r /fw /t 0`
+- **Restart into the BIOS**: Windows `shutdown /r /fw /t 0`
   (elevated); Linux `systemctl reboot --firmware-setup`. Both work on
   any maker in UEFI mode, so nobody has to catch a key at power-on to
   reach Secure Boot.
@@ -1352,7 +1352,7 @@ this Mac* takes back.
 |---|---|---|---|
 | R | Release groundwork: the glibc 2.31 container for the desktop app; `.xz` images; the new names; the Linux `.tar.gz`; `SHA256SUMS` with the `.img` and inner-file lines; the hub's payload build; the xz decoder and its `docs/deps` note; README "Verifying a release" for Windows and the two Linux steps | decided | first |
 | L | The hub app on Linux: crates (§2), the D-Bus crate and its `docs/deps` note, Home as a checklist, Make a stick through udisks2 (with what each tried distribution asks for), the stick's version read from OSKBOOT and the keep-data rules, Make a Pi card for the one image, Install and uninstall, Try the desktop app, Transfer and Learn, About, `--image` for developers; then `tools/flash-stick` removed and the README's mention of it with it | decided | after R |
-| G | Guides: the general Windows and Linux pages and §7.2's other pages with their sources; detection on Linux; Restart into firmware settings on Linux; the stick's power-off reminder (§7.5); the first group of maker pages, several families at once (D6, F14); the website item in its own repository | decided | after R, independent of L and W |
+| G | Guides: the general Windows and Linux pages and §7.2's other pages with their sources; detection on Linux; Restart into the BIOS on Linux; the stick's power-off reminder (§7.5); the first group of maker pages, several families at once (D6, F14); the website item in its own repository | decided | after R, independent of L and W |
 | W | The hub app on Windows: window, install and uninstall, disks and writing, detection, the BitLocker guard with the marker and the logon reminder and §6.6's acceptance, the firmware buttons, Transfer Send; Defender run; the report on what Windows does to a written stick (D11) | decided; D11 is answered by this batch's report | after L; needs G's general Windows page only |
 | C | Windows camera for Transfer Receive, shared with the desktop app; the desktop app on Windows (§2's three changes) and its install | decided | after W |
 | P | Pi: one image for the 2.8 inch panel, Make a Pi card tried on hardware; profiles, boards and other sizes when a second screen is tried | decided (D1, D2, D3, D5) | after L, independent of G, W and C |

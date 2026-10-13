@@ -12,7 +12,7 @@ On Windows, have the BitLocker recovery key ready: Faraday Starter's BitLocker s
 
 3. Hold F2 and press the power button. Let go of F2 when the BIOS screen appears.
 
-If it doesn't open: use Faraday Starter's Restart into firmware settings.
+If it doesn't open: use Faraday Starter's Restart into the BIOS.
 
 4. Notebooks: press F7 for Advanced Mode, open Security → Secure Boot, and set Secure Boot Control to Disabled. Press F10 and confirm: Save & Reset on newer notebooks, Save & Exit Setup on older ones.
 
@@ -37,6 +37,8 @@ From a computer that is shut down: hold Esc and press the power button. If the m
 6. Choose the stick and press Enter. If it is listed twice, choose the one that starts with UEFI.
 
 ::sketch asus-boot-menu
+
+The stick is usually listed under its maker's name, the one printed on it (SanDisk, Kingston…), often after "UEFI:". It is not Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.
 
 If the stick is not listed: see "If something is different" below.
 
