@@ -1672,7 +1672,7 @@ impl Hub {
         hits.clear();
         self.offset = self.offset.clamp(0.0, self.max.max(0.0));
         let max = {
-            let mut ui = faraday_core::ui::Ui::new(&mut canvas, self.f, &mut hits, self.pressed);
+            let mut ui = faraday_ui::Ui::new(&mut canvas, self.f, &mut hits, self.pressed);
             ui.hovered = self.hovered;
             ui.compact = self.compact;
             ui.offset = self.offset;

@@ -1,13 +1,15 @@
-//! The hub's pages, drawn each frame from its state with `faraday-core`'s
+//! The hub's pages, drawn each frame from its state with `faraday-ui`'s
 //! `Ui`, in the desktop app's palette and sizes. On a wide display a page
 //! is a centred column under a strip with the way back; on a small panel
 //! (`compact`) a bar across the top carries the way back and the page's
 //! name, as the desktop app's small-panel pages do.
 
+use faraday_core::Action;
 use faraday_core::strings::{EN, Strings};
-use faraday_core::ui::pal::*;
-use faraday_core::ui::{NameSuffix, Style, Ui, W};
 use faraday_core::upgrade::{Fit, describe, version};
+use faraday_ui::pal::*;
+use faraday_ui::parts::qr_code;
+use faraday_ui::{NameSuffix, Style, W};
 use opensigner_core::strings::fill;
 use osk_ui::Color;
 use osk_ui::widgets::Icon;
@@ -20,6 +22,10 @@ use crate::api::{
 };
 use crate::decide::{Item, Refusal, State, Target};
 use crate::{Card, Hub, HubAction, LearnId, ModeRefusal, Page, RestartTo, Sheet};
+
+/// Faraday's drawing, a press being the desktop app's action that carries
+/// the hub's own ([`HubAction::host`]).
+type Ui<'a> = faraday_ui::Ui<'a, Action>;
 
 const S: &Strings = &EN;
 
@@ -567,7 +573,7 @@ pub(crate) fn size_text(bytes: u64) -> String {
 
 /// A SHA-256 in groups of four.
 fn grouped(hex: &str) -> String {
-    faraday_core::ui::grouped(hex)
+    faraday_ui::grouped(hex)
 }
 
 /// A disk's name: maker and model.
@@ -1427,7 +1433,7 @@ fn phone_code(ui: &mut Ui, x: f32, y: f32, w: f32, side: f32, address: &str) -> 
     ) else {
         return 0.0;
     };
-    faraday_core::qr_code(ui, &m, x, y, side);
+    qr_code(ui, &m, x, y, side);
     let th = ui.wrap(x, y + side + 10.0, w, 12.0, W::M, MUTED, address);
     side + 10.0 + th + 8.0
 }
@@ -1855,7 +1861,7 @@ fn key_shown(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32, k: &KeyShown) -> f
         )
     {
         let side = if ui.compact { 180.0f32 } else { 220.0 }.min(w);
-        faraday_core::qr_code(ui, &m, x, y, side);
+        qr_code(ui, &m, x, y, side);
         y += side + 10.0;
     }
     y += line(ui, x, y, w, S.hub_key_photo, MUTED) + 6.0;

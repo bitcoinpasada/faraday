@@ -24,6 +24,8 @@ opensigner-core = { path = "../../opensigner/opensigner-core" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-qr = { path = "../faraday-qr" }
 faraday-strings = { path = "../faraday-strings" }
+# Faraday's drawing, shared with the Starter and the Companion.
+faraday-ui = { path = "../faraday-ui" }
 faraday-learn = { path = "../faraday-learn" }
 faraday-intake = { path = "../faraday-intake" }
 faraday-pgp = { path = "../faraday-pgp" }

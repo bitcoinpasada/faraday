@@ -172,11 +172,7 @@ fn holding() -> Companion {
 /// `c` refused `kind` with its line and kept nothing.
 fn refused(c: &mut Companion, kind: Secret, before: &[u8], how: &str) {
     assert_eq!(c.page, Page::Refused(kind), "{kind:?} by {how}");
-    assert!(
-        c.texts().iter().any(|t| t == line(kind)),
-        "{kind:?} by {how}: {:?}",
-        c.texts()
-    );
+    assert!(shows(c, line(kind)), "{kind:?} by {how}: {:?}", c.texts());
     let (_, ours) = drain(c);
     assert_eq!(
         kept_store(&ours),

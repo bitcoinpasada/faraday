@@ -8,9 +8,13 @@ use osk_psbt::{Level, OutputKind};
 use osk_ui::widgets::Icon;
 
 use crate::ui::pal::*;
-use crate::ui::{NameSuffix, Style, Theme, Ui, W, btc, grouped, short, thousands};
+use crate::ui::{CoreUi, NameSuffix, Style, Theme, Ui, W, btc, grouped, short, thousands};
 use crate::wallet::{FileKind, Session, fp_text, key_line, network_name, step, txid_known};
 use crate::{Action, Code, Faraday, Screen, Sheet, flow, guide};
+pub use faraday_ui::parts::qr_code;
+pub(crate) use faraday_ui::parts::{
+    button_rows, measure_wrap, section_label, sheet_box, title, wrap_buttons,
+};
 
 const SIDEBAR_W: f32 = 240.0;
 
@@ -371,11 +375,6 @@ fn notices(app: &Faraday, ui: &mut Ui, x: f32, cw: f32, h: f32) {
     }
 }
 
-pub(crate) fn title(ui: &mut Ui, x: f32, y: f32, s: &str) -> f32 {
-    ui.text(x, y, 28.0, W::S, TEXT, s);
-    ui.line(28.0, W::S)
-}
-
 /// A screen's walk-through in Guided mode, under its title. Returns the
 /// height it took: nothing in Steps only.
 pub(crate) fn guide_text(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
@@ -385,10 +384,6 @@ pub(crate) fn guide_text(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, tex
     let h = ui.wrap(x + 14.0, y, w - 14.0, 14.0, W::R, TEXT, text);
     ui.fill(x, y, 3.0, h, 1.5, ACCENT.with_alpha(140));
     h + 18.0
-}
-
-pub(crate) fn section_label(ui: &mut Ui, x: f32, y: f32, s: &str) {
-    ui.text(x, y, 14.0, W::S, MUTED, s);
 }
 
 // ---------------------------------------------------------------------
@@ -6095,29 +6090,6 @@ fn backup_done(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
-/// Buttons laid left to right, wrapping to a new row at the width.
-/// Returns the height they took, a row being 44.
-pub(crate) fn button_rows(
-    ui: &mut Ui,
-    x: f32,
-    y: f32,
-    w: f32,
-    items: &[(String, Style, Action)],
-) -> f32 {
-    let (mut bx, mut by) = (x, y);
-    for (label, style, action) in items {
-        // No wider than the row; a long label is cut.
-        let bw = (ui.measure(13.0, W::S, label) + 32.0).min(w);
-        if bx > x && bx + bw > x + w {
-            bx = x;
-            by += 40.0;
-        }
-        let label = ui.fit(13.0, W::S, label, bw - 24.0);
-        bx += ui.button(bx, by, Some(bw), 32.0, &label, *style, *action) + 6.0;
-    }
-    by - y + 44.0
-}
-
 /// `button_rows`, except a label too wide for the row even alone is
 /// never cut (`docs/DESIGN.md` "Menu row"): it takes the row whole and
 /// wraps onto further lines, its chip growing to hold them. Used where
@@ -6166,31 +6138,6 @@ pub(crate) fn learn_tabs(
         }
     }
     by - y + 44.0
-}
-
-/// Buttons `h` high laid left to right, wrapping to a new row at the
-/// width, as a narrow column needs. Returns the height they took and the
-/// gap under them.
-pub(crate) fn wrap_buttons(
-    ui: &mut Ui,
-    x: f32,
-    y: f32,
-    w: f32,
-    h: f32,
-    items: &[(&str, Style, Action)],
-) -> f32 {
-    let size = if h >= 38.0 { 14.0 } else { 13.0 };
-    let (mut bx, mut by) = (x, y);
-    for &(label, style, action) in items {
-        let bw = (ui.measure(size, W::S, label) + 32.0).min(w);
-        if bx > x && bx + bw > x + w {
-            bx = x;
-            by += h + 8.0;
-        }
-        let label = ui.fit(size, W::S, label, bw - 24.0);
-        bx += ui.button(bx, by, Some(bw), h, &label, style, action) + 8.0;
-    }
-    by - y + h + 8.0
 }
 
 /// The page's forward action, `h` high, `w` wide or as wide as its
@@ -13889,18 +13836,6 @@ fn selftest_failed(ui: &mut Ui, w: f32, h: f32, check: &str) {
 // Sheets
 // ---------------------------------------------------------------------
 
-pub(crate) fn sheet_box(ui: &mut Ui, w: f32, h: f32, sw: f32, sh: f32) -> (f32, f32) {
-    let x = (w - sw) / 2.0;
-    let y = (h - sh) / 2.0;
-    if let Some(a) = ui.outside {
-        ui.hit_around(x, y, sw, sh, a);
-    }
-    ui.shadow(x, y, sw, sh, 16.0);
-    ui.fill(x, y, sw, sh, 16.0, SURFACE);
-    ui.stroke(x, y, sw, sh, 16.0, BORDER);
-    (x, y)
-}
-
 /// The device check's buttons: Check again, then Continue anyway (asked
 /// once), or Power off on a virtual machine, which has no way on.
 fn devices_buttons(app: &Faraday) -> Vec<(&'static str, Style, Action)> {
@@ -14585,14 +14520,6 @@ fn qr_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
-/// The height `s` takes wrapped to `width`, drawn nowhere.
-fn measure_wrap(ui: &mut Ui, width: f32, size: f32, w: W, s: &str) -> f32 {
-    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
-    let h = ui.wrap(0.0, 0.0, width, size, w, TEXT, s);
-    ui.c.pop_clip();
-    h
-}
-
 /// The QR sheet on a small panel: the code as large as the panel allows,
 /// an animated code's frame in the title, and its format, speed and part
 /// size as buttons that step through the choices, with PNG beside them
@@ -14720,40 +14647,6 @@ fn qr_sheet_compact(app: &Faraday, q: &crate::QrView, ui: &mut Ui, w: f32, h: f3
         );
         cy - y
     });
-}
-
-/// A QR code on a white card, square modules, the quiet zone included.
-pub fn qr_code(ui: &mut Ui, m: &osk_codec::qr::QrMatrix, x: f32, y: f32, side: f32) {
-    ui.fill(x, y, side, side, 8.0, osk_ui::Color::WHITE);
-    let n = m.size();
-    let quiet = 4.0;
-    // Whole pixels per module, so every module is the same size.
-    let px_side = ui.px(side);
-    let module_px = (px_side as f32 / (n as f32 + 2.0 * quiet)).floor().max(1.0) as i32;
-    let used = module_px * n as i32;
-    let r = ui.rect(x, y, side, side);
-    let ox = r.x + (r.w - used) / 2;
-    let oy = r.y + (r.h - used) / 2;
-    for row in 0..n {
-        let mut col = 0;
-        while col < n {
-            if m.module(col, row) {
-                let start = col;
-                while col < n && m.module(col, row) {
-                    col += 1;
-                }
-                let rect = osk_ui::Rect::new(
-                    ox + start as i32 * module_px,
-                    oy + row as i32 * module_px,
-                    (col - start) as i32 * module_px,
-                    module_px,
-                );
-                ui.c.fill_rect(rect, osk_ui::Color::BLACK);
-            } else {
-                col += 1;
-            }
-        }
-    }
 }
 
 /// A new input device (`PLAN.md` §4.6): its name as it gives it, the

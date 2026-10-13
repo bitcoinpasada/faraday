@@ -54,7 +54,7 @@ fi
 # the screens, and the modules whose toasts, errors and labels they
 # show), the two crates split from it that hold no wording
 # (faraday-learn, faraday-intake), the hub app's faraday-hub, the
-# Companion's faraday-companion, and the two
+# Companion's faraday-companion, Faraday's drawing in faraday-ui, and the two
 # shells' main files, which title their windows. The shells' other files
 # and the stick's shell are platform code: system calls, the writer's
 # pipe, command lines and stderr; the one label each puts on screen is in
@@ -94,6 +94,7 @@ fi
 FARADAY_SCREENS="$(ls faraday/faraday-core/src/*.rs | grep -v '/testkit\.rs$\|/names\.rs$')
 faraday/faraday-hub/src/*.rs
 faraday/faraday-companion/src/*.rs
+faraday/faraday-ui/src/*.rs
 faraday/faraday-learn/src/*.rs
 faraday/faraday-intake/src/*.rs
 faraday/shells/desktop/src/main.rs

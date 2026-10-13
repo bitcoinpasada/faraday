@@ -9,9 +9,11 @@ use osk_ui::widgets::Icon;
 use crate::compact::M;
 use crate::screens::missing_keys_line;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W, grouped};
+use crate::ui::{CoreUi, Style, Ui, W, grouped};
 use crate::wallet::{Session, fp_text};
 use crate::{Action, Faraday, Screen};
+
+pub(crate) use faraday_ui::parts::measured;
 
 /// A row that goes somewhere: an icon, a name, a line under it, and a
 /// chevron when it can be pressed. Returns the height it took.
@@ -435,17 +437,6 @@ fn silent_card(
 /// step's is. Returns its height.
 pub(crate) fn about(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
     crate::flow::about(ui, x, y, w, EN.compact_about_this, crate::ABOUT_PAGE, text)
-}
-
-/// The height `draw` takes, drawing nothing and keeping no hits: what a
-/// card is measured with before its surface goes down.
-pub(crate) fn measured(ui: &mut Ui, draw: impl FnOnce(&mut Ui) -> f32) -> f32 {
-    let mark = ui.hits.len();
-    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
-    let h = draw(ui);
-    ui.c.pop_clip();
-    ui.hits.truncate(mark);
-    h
 }
 
 /// Reports how tall the page is, so it scrolls.

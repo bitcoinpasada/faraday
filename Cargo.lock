@@ -720,6 +720,7 @@ dependencies = [
  "faraday-learn",
  "faraday-qr",
  "faraday-strings",
+ "faraday-ui",
  "osk-bip",
  "osk-codec",
  "osk-learn",
@@ -742,6 +743,7 @@ dependencies = [
  "faraday-qr",
  "faraday-sb",
  "faraday-strings",
+ "faraday-ui",
  "faraday-vault",
  "opensigner-core",
  "osk-backup",
@@ -806,6 +808,7 @@ dependencies = [
  "faraday-core",
  "faraday-learn",
  "faraday-qr",
+ "faraday-ui",
  "opensigner-core",
  "osk-codec",
  "osk-learn",
@@ -960,6 +963,15 @@ dependencies = [
  "faraday-core",
  "osk-bip",
  "osk-psbt",
+]
+
+[[package]]
+name = "faraday-ui"
+version = "0.1.1"
+dependencies = [
+ "faraday-strings",
+ "osk-codec",
+ "osk-ui",
 ]
 
 [[package]]

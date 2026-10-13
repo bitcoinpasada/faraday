@@ -7784,6 +7784,24 @@ pub struct Strings {
     pub companion_about_check: &'static str,
     /// About: what the certificate's SHA-256 is compared with.
     pub companion_about_certificate: &'static str,
+    /// The way back to Home, named in the bar.
+    pub companion_home: &'static str,
+    /// Home's card: what is kept on this phone.
+    pub companion_on_phone: &'static str,
+    /// Home's card: the file kept last.
+    pub companion_newest: &'static str,
+    /// Learn: Faraday's own pages after the boot and maker pages.
+    pub companion_learn_faraday: &'static str,
+    /// Learn: the pages about Bitcoin that Faraday's apps show.
+    pub companion_learn_bitcoin: &'static str,
+    /// About: the palettes the screens can be drawn in.
+    pub companion_theme: &'static str,
+    /// A BitLocker recovery key: show its digits.
+    pub companion_show_key: &'static str,
+    /// A BitLocker recovery key: mask its digits again.
+    pub companion_hide_key: &'static str,
+    /// About: the heading over how a release is checked.
+    pub companion_check_title: &'static str,
 }
 
 /// The English wording.
@@ -11558,4 +11576,13 @@ pub static EN: Strings = Strings {
     companion_not_reported: "Not reported",
     companion_about_check: "Each release lists this app's file in SHA256SUMS, and the release's OpenPGP key signs that list. The file's SHA-256 is checked against the list, and the list's signature against the key, as the README's Verifying a release says.",
     companion_about_certificate: "The signing certificate's SHA-256 above is the one apksigner verify --print-certs prints for the release's file. The release notes state it.",
+    companion_home: "Home",
+    companion_on_phone: "On this phone",
+    companion_newest: "Newest",
+    companion_learn_faraday: "Faraday",
+    companion_learn_bitcoin: "Bitcoin",
+    companion_theme: "Theme",
+    companion_show_key: "Show the key",
+    companion_hide_key: "Hide the key",
+    companion_check_title: "Checking a release",
 };

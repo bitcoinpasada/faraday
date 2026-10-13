@@ -8,7 +8,7 @@ use crate::screens::{buttons_and_next, stepper, wrap_buttons};
 use crate::seeds::{self, Focus, SeedsAction as S, SeedsState};
 use crate::strings::EN;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W, grouped};
+use crate::ui::{CoreUi, Style, Ui, W, grouped};
 use crate::wallet::FileKind;
 use crate::{Action, Faraday};
 use opensigner_core::strings::fill;

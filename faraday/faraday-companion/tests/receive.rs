@@ -150,5 +150,5 @@ fn parts_read_say_how_many_and_which_are_missing() {
     assert_eq!(c.page, Page::Receive);
     let missing: Vec<String> = (1..=n).filter(|&k| k != 2).map(|k| k.to_string()).collect();
     let line = format!("1 of {n} · missing {}", missing.join(", "));
-    assert!(c.texts().contains(&line), "{:?}", c.texts());
+    assert!(shows(&mut c, &line), "{:?}", c.texts());
 }

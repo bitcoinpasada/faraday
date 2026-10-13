@@ -2373,6 +2373,20 @@ as possible before the next build.
     caller's, and each screen with the desktop or Starter screen it
     was drawn after.
 
+    **A2b built and audited (2026-10-12).** `faraday/faraday-ui` holds
+    Faraday's drawing (`ui.rs` whole, `parts.rs`, `sheet.rs`, the
+    wordmark assets), with `Ui<'a, A>` taking the caller's action type;
+    `faraday-core` keeps three methods that need its own types as
+    `ui::CoreUi` and re-exports the rest at the old paths;
+    `SecretText` is `faraday_intake::secret_buf`. The Companion draws
+    with it (`draw.rs`), after the Starter's Home and bar and the
+    desktop's Scan, QR and result sheets, Inbox, Learn and About; the
+    BitLocker key as the Starter's numbered groups. Desktop and hub
+    renders byte for byte (1201 files); `just` passes (2416 tests).
+    For A3: the theme chosen on About is not kept across restarts
+    (needs a Companion command); no found-code outline on the scanner
+    (`decode_luma` gives no corners; `faraday-scanner`'s `Seen` does).
+
     **Batch A3, the Android app** (Opus: the platform boundary, where a
     mistake is a permission or a leak). The build machine has JDK 21,
     the SDK (platform 36, build-tools 36.0.0, NDK 29.0.14206865), the

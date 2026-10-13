@@ -4,7 +4,7 @@ use crate::lightning::NodeSource;
 use crate::screens::{button_rows, guide_text, title};
 use crate::strings::EN;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{CoreUi, Style, Ui, W};
 use crate::{Action, Faraday};
 use opensigner_core::strings::fill;
 

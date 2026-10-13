@@ -12,6 +12,8 @@ publish = false
 # checks this crate's tree.
 [dependencies]
 osk-ui = { path = "../../core/osk-ui" }
+# Faraday's drawing, as Faraday Starter draws with it.
+faraday-ui = { path = "../faraday-ui" }
 osk-shell-api = { path = "../../core/osk-shell-api" }
 # What arrives, and the QR decoder the camera's frames are read with.
 osk-codec = { path = "../../core/osk-codec" }

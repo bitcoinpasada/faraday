@@ -44,7 +44,8 @@ pub mod pdf;
 pub mod picture;
 pub mod plan;
 pub mod restore;
-pub mod secret_text;
+/// Text a person types that may be a secret (`faraday_intake`'s).
+pub use faraday_intake::secret_buf as secret_text;
 pub mod secrets;
 pub mod secure_boot_state;
 pub mod secureboot;

@@ -14,6 +14,7 @@ cd "$(dirname "$0")/.."
 
 CRATES="
 faraday-companion
+faraday-ui
 faraday-strings
 faraday-learn
 faraday-intake

@@ -31,6 +31,12 @@ pub fn phone() -> Companion {
     c
 }
 
+/// Whether the screen on show draws `text`, a line that wraps read
+/// across its lines.
+pub fn shows(c: &mut Companion, text: &str) -> bool {
+    c.texts().join(" ").contains(text)
+}
+
 /// Everything the core has asked of the shell since the last drain.
 pub fn drain(c: &mut Companion) -> (Vec<Command>, Vec<CompanionCommand>) {
     let mut a = Vec::new();

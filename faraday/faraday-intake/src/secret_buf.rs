@@ -17,9 +17,9 @@ use zeroize::Zeroize;
 
 // The room a fresh one starts with, bytes: more than 24 words of the
 // longest BIP-39 list, so a seed phrase never moves.
-use faraday_intake::ROOM;
+use crate::ROOM;
 
-pub use faraday_intake::room;
+pub use crate::room;
 
 /// `bytes` as lowercase hex, written into a buffer of the right size
 /// with no piece of it made anywhere else: for a private key.

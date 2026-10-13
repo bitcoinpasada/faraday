@@ -74,11 +74,10 @@ fn a_store_it_cannot_read_is_left_alone_until_the_person_deletes_it() {
         // Received says so, and offers the deletion.
         c.press(Act::Back);
         c.press(Act::Received);
-        assert!(
-            c.texts()
-                .iter()
-                .any(|t| t == faraday_strings::EN.companion_unreadable_value)
-        );
+        assert!(shows(
+            &mut c,
+            faraday_strings::EN.companion_unreadable_value
+        ));
         c.press(Act::DeleteStore);
         c.press(Act::KeepIt);
         let (_, ours) = drain(&mut c);

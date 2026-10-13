@@ -153,12 +153,8 @@ fn a_file_too_large_for_the_envelope_is_not_sent() {
 #[test]
 fn a_file_that_holds_a_seed_is_refused_whole() {
     let words = b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about\n";
-    let c = picked(words);
+    let mut c = picked(words);
     assert_eq!(c.page, Page::Refused(faraday_intake::Secret::Bip39Words));
     assert!(c.sending.is_none());
-    assert!(
-        c.texts()
-            .iter()
-            .any(|t| t == faraday_strings::EN.companion_refuse_words)
-    );
+    assert!(shows(&mut c, faraday_strings::EN.companion_refuse_words));
 }

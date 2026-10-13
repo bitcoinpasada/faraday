@@ -90,7 +90,7 @@ with shares a person has not heard of.
 
 **What.** A device with no settings saved starts in `Theme::Light`. Since 2026-10-11 (owner) it starts in `Theme::Cobalt`, a blue-white page
 with a #0062A3 accent (`docs/MOTION.md` §3.7).
-**Where.** `faraday/faraday-core/src/ui.rs` `enum Theme` (the
+**Where.** `faraday/faraday-ui/src/lib.rs` `enum Theme` (the
 `#[default]` and the doc comments that name the first-start theme).
 **Tests.** `tests/appearance.rs`: a first start is in the light theme
 (change the test that says otherwise).

@@ -371,7 +371,7 @@ label.
 wordmark: FARADAY in Archivo Expanded SemiBold (wdth 125, wght 600),
 hand-kerned, each A's crossbar cut free of its legs. The keyhole shield
 beside it is unchanged. The outlines are SVG path data in
-`faraday/faraday-core/assets/wordmark.txt`, with Archivo's SIL Open
+`faraday/faraday-ui/assets/wordmark.txt`, with Archivo's SIL Open
 Font License beside them; `Ui::wordmark` fills them in the text colour,
 so every theme draws the name as it draws its text, and no font is
 added to the bake. The sidebar sets its capitals 10 units tall, which
@@ -580,7 +580,7 @@ the restart into the stick), not only the first time.
 - Their headers show the wordmark with the second word beside it,
   STARTER or DESKTOP, in the same Archivo Expanded (wdth 125) at weight
   400, in the grey of secondary text, so FARADAY stays the name. The
-  outlines join the wordmark's in `faraday-core/assets/`; STARTER's A
+  outlines join the wordmark's in `faraday-ui/assets/`; STARTER's A
   has its crossbar cut free of its legs, as FARADAY's A's do.
 - The stick, the Pi card and the project remain **Faraday**, with the
   wordmark alone.

@@ -19,7 +19,7 @@ fn a_web_address_is_shown_as_text_and_nothing_opens_it() {
         let mut c = receiving();
         show(&mut c, &code_of(address.as_bytes()));
         assert_eq!(c.page, Page::Shown(Shown::Web(address.clone())));
-        assert!(c.texts().contains(&address), "{:?}", c.texts());
+        assert!(shows(&mut c, &address), "{:?}", c.texts());
         let (cmds, ours) = drain(&mut c);
         assert!(ours.is_empty(), "{ours:?}");
         // The camera goes off and the screen is drawn: nothing else.

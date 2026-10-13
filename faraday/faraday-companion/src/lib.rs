@@ -7,27 +7,28 @@
 //! shell reports through [`Companion::companion_event`] and takes what
 //! the core asks for from [`Companion::poll_companion`].
 //!
-//! Its screens are `osk-ui`'s §5 screens on the `mobile` class, portrait,
-//! as `opensigner-core`'s views are. It holds no part of Faraday's vault,
+//! Its screens are drawn with Faraday's own drawing (`faraday-ui`), as
+//! Faraday Starter's are, on a phone's width, portrait ([`draw`]). It
+//! holds no part of Faraday's vault,
 //! signer or key loaders (§3): a seed, a private key or a sealed file that
 //! arrives is refused by [`route`], and nothing of it is kept.
 
 pub mod api;
+mod draw;
 pub mod route;
 pub mod store;
-mod view;
 
 use std::collections::VecDeque;
 use std::rc::Rc;
+
+pub use faraday_ui::Theme;
 
 use faraday_intake::Secret;
 use faraday_qr::bitlocker::KeyText;
 use faraday_qr::send::{Format, Made, PARTS, SPEEDS, Source};
 use osk_codec::QrMatrix;
-use osk_shell_api::{App, Command, DisplayInfo, Event, FileKind, Frame};
-use osk_ui::components::Preview;
-use osk_ui::layout::{self, Layout, LayoutCtx, Node};
-use osk_ui::{Action, Canvas, Id, Scale, SizeClass, Theme, UiState};
+use osk_shell_api::{App, Command, DisplayInfo, Event, FileKind, Frame, Key, TouchPhase};
+use osk_ui::{Canvas, Rect};
 use zeroize::{Zeroize, Zeroizing};
 
 pub use api::{CompanionCommand, CompanionEvent};
@@ -130,7 +131,8 @@ pub enum Page {
     About,
 }
 
-/// Everything a press can do.
+/// Everything a press can do: the action type the Companion draws its
+/// screens with (`faraday_ui::Ui<Act>`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Act {
     /// The app bar's chevron.
@@ -189,85 +191,8 @@ pub enum Act {
     StartPage(usize),
     /// The eye over the recovery key.
     Eye,
-}
-
-const BASE_RECORD: u32 = 1000;
-const BASE_SEND: u32 = 2000;
-const BASE_LEARN: u32 = 3000;
-const BASE_START: u32 = 4000;
-const SPAN: u32 = 1000;
-
-impl Act {
-    /// The id the screens give it.
-    pub fn id(self) -> Id {
-        Id(match self {
-            Act::Back => 1,
-            Act::Receive => 2,
-            Act::Send => 3,
-            Act::Received => 4,
-            Act::Start => 5,
-            Act::Learn => 6,
-            Act::About => 7,
-            Act::Paste => 8,
-            Act::ScanAgain => 9,
-            Act::Open => 10,
-            Act::Keep => 11,
-            Act::Done => 12,
-            Act::Choose => 13,
-            Act::Animated => 14,
-            Act::Format => 15,
-            Act::Rate => 16,
-            Act::ShowAsQr => 17,
-            Act::Save => 18,
-            Act::Delete => 19,
-            Act::DeleteAll => 20,
-            Act::DeleteStore => 21,
-            Act::ConfirmDelete => 22,
-            Act::KeepIt => 23,
-            Act::Eye => 24,
-            Act::Record(n) => BASE_RECORD + n.min(SPAN as usize - 1) as u32,
-            Act::SendKept(n) => BASE_SEND + n.min(SPAN as usize - 1) as u32,
-            Act::LearnPage(n) => BASE_LEARN + n.min(SPAN as usize - 1) as u32,
-            Act::StartPage(n) => BASE_START + n.min(SPAN as usize - 1) as u32,
-        })
-    }
-
-    /// The act a screen's id stands for.
-    pub fn of(id: Id) -> Option<Act> {
-        let n = id.0;
-        let at = |base: u32| (n - base) as usize;
-        Some(match n {
-            1 => Act::Back,
-            2 => Act::Receive,
-            3 => Act::Send,
-            4 => Act::Received,
-            5 => Act::Start,
-            6 => Act::Learn,
-            7 => Act::About,
-            8 => Act::Paste,
-            9 => Act::ScanAgain,
-            10 => Act::Open,
-            11 => Act::Keep,
-            12 => Act::Done,
-            13 => Act::Choose,
-            14 => Act::Animated,
-            15 => Act::Format,
-            16 => Act::Rate,
-            17 => Act::ShowAsQr,
-            18 => Act::Save,
-            19 => Act::Delete,
-            20 => Act::DeleteAll,
-            21 => Act::DeleteStore,
-            22 => Act::ConfirmDelete,
-            23 => Act::KeepIt,
-            24 => Act::Eye,
-            _ if (BASE_RECORD..BASE_RECORD + SPAN).contains(&n) => Act::Record(at(BASE_RECORD)),
-            _ if (BASE_SEND..BASE_SEND + SPAN).contains(&n) => Act::SendKept(at(BASE_SEND)),
-            _ if (BASE_LEARN..BASE_LEARN + SPAN).contains(&n) => Act::LearnPage(at(BASE_LEARN)),
-            _ if (BASE_START..BASE_START + SPAN).contains(&n) => Act::StartPage(at(BASE_START)),
-            _ => return None,
-        })
-    }
+    /// About's theme `n`, in [`Theme::ALL`]'s order.
+    Theme(usize),
 }
 
 /// What the scanner says inside its square.
@@ -409,14 +334,35 @@ pub struct System {
 
 /// The Companion.
 pub struct Companion {
-    display: Option<DisplayInfo>,
     canvas: Option<Canvas>,
-    ctx: Option<LayoutCtx>,
-    ui: Option<UiState>,
-    theme: Theme,
-    tree: Option<Node>,
-    layout: Option<Layout>,
-    dirty: bool,
+    /// Pixels per design unit.
+    f: f32,
+    /// The page's width and height in design units, the system's insets
+    /// left out.
+    w: f32,
+    h: f32,
+    /// The system's bars over the top and the bottom of the screen, in
+    /// design units.
+    inset_top: f32,
+    inset_bottom: f32,
+    /// The display is under 600 dp wide: one column, the touch sizes of
+    /// the stick's small panel.
+    compact: bool,
+    /// The palette.
+    pub theme: Theme,
+    /// Where each act can be pressed, as last drawn, in pixels.
+    hits: Vec<(Rect, Act)>,
+    /// The act under a finger that is down.
+    pressed: Option<Act>,
+    /// The act under the pointer, with no button down.
+    hovered: Option<Act>,
+    /// Where a finger went down, the offset then, and whether it has
+    /// moved far enough to scroll rather than press.
+    drag: Option<(i32, f32, bool)>,
+    /// How far the page, or the sheet over it, is scrolled, units.
+    offset: f32,
+    /// How far it can scroll, as last drawn.
+    max: f32,
     commands: VecDeque<Command>,
     out: VecDeque<CompanionCommand>,
     /// The page on show.
@@ -432,6 +378,8 @@ pub struct Companion {
     reader: Reader,
     /// What the scanner says.
     pub scan_line: ScanLine,
+    /// The camera's last frame on Receive: its size, its luma and its
+    /// chroma, wiped when it is replaced.
     preview: Option<Preview>,
     camera: bool,
     screen_on: bool,
@@ -448,6 +396,14 @@ pub struct Companion {
     pub system: Option<System>,
 }
 
+/// A frame from the camera, as the scanner shows it.
+struct Preview {
+    width: u16,
+    height: u16,
+    luma: Zeroizing<Vec<u8>>,
+    chroma: Option<Zeroizing<Vec<u8>>>,
+}
+
 impl Default for Companion {
     fn default() -> Self {
         Companion::new()
@@ -458,14 +414,20 @@ impl Companion {
     /// A Companion on Home, with nothing kept.
     pub fn new() -> Companion {
         Companion {
-            display: None,
             canvas: None,
-            ctx: None,
-            ui: None,
-            theme: Theme::DARK,
-            tree: None,
-            layout: None,
-            dirty: false,
+            f: 1.0,
+            w: 0.0,
+            h: 0.0,
+            inset_top: 0.0,
+            inset_bottom: 0.0,
+            compact: true,
+            theme: Theme::default(),
+            hits: Vec::new(),
+            pressed: None,
+            hovered: None,
+            drag: None,
+            offset: 0.0,
+            max: 0.0,
             commands: VecDeque::new(),
             out: VecDeque::new(),
             page: Page::Home,
@@ -562,35 +524,42 @@ impl Companion {
         self.render();
     }
 
-    /// Whether the screen on show offers `act`.
+    /// Whether the screen on show offers `act` to a press.
     pub fn offers(&self, act: Act) -> bool {
-        let id = act.id();
-        self.layout
-            .as_ref()
-            .is_some_and(|l| l.items.iter().any(|p| p.id == Some(id) && p.hit.is_some()))
+        self.hits.iter().any(|(_, a)| *a == act)
     }
 
     /// Where the screen on show offers `act`, in pixels: the middle of
     /// it, for a test that touches it.
     pub fn where_offered(&self, act: Act) -> Option<(u16, u16)> {
-        let id = act.id();
-        let p = self
-            .layout
-            .as_ref()?
-            .items
-            .iter()
-            .find(|p| p.id == Some(id) && p.hit.is_some())?;
-        let r = p.rect;
+        let (r, _) = self.hits.iter().rev().find(|(_, a)| *a == act)?;
         Some(((r.x + r.w / 2) as u16, (r.y + r.h / 2) as u16))
     }
 
-    /// Every string the screen on show draws, in tree order.
-    pub fn texts(&self) -> Vec<String> {
-        let mut out = Vec::new();
-        if let Some(tree) = &self.tree {
-            view::texts(tree, &mut out);
+    /// Every string the screen on show draws, in the order drawn. A
+    /// masked secret draws its dots, not itself.
+    pub fn texts(&mut self) -> Vec<String> {
+        if let Some(c) = self.canvas.as_mut() {
+            c.record_ink(true);
         }
-        out
+        self.render();
+        let texts = self
+            .canvas
+            .as_ref()
+            .map(|c| {
+                c.ink()
+                    .iter()
+                    .filter_map(|i| match &i.kind {
+                        osk_ui::canvas::InkKind::Text { text, .. } => Some(text.clone()),
+                        osk_ui::canvas::InkKind::Icon(_) => None,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        if let Some(c) = self.canvas.as_mut() {
+            c.record_ink(false);
+        }
+        texts
     }
 
     /// The wall-clock time now, seconds since the epoch, or 0 before the
@@ -609,16 +578,19 @@ impl Companion {
     fn go(&mut self, page: Page) {
         let was = std::mem::replace(&mut self.page, page);
         self.stack.push(was);
+        self.offset = 0.0;
     }
 
     /// Shows `page` in place of the one on show.
     fn replace(&mut self, page: Page) {
         self.page = page;
+        self.offset = 0.0;
     }
 
     /// Back one page.
     fn back(&mut self) {
         self.page = self.stack.pop().unwrap_or(Page::Home);
+        self.offset = 0.0;
         self.leaving();
     }
 
@@ -748,16 +720,21 @@ impl Companion {
                 }
             }
             Act::LearnPage(n) => {
-                if let Some(d) = view::learn_docs().get(n) {
+                if let Some(d) = draw::learn_docs().get(n) {
                     self.go(Page::Doc(*d));
                 }
             }
             Act::StartPage(n) => {
-                if let Some(d) = view::start_docs().get(n) {
+                if let Some(d) = draw::start_docs().get(n) {
                     self.go(Page::Doc(*d));
                 }
             }
             Act::Eye => self.revealed = !self.revealed,
+            Act::Theme(n) => {
+                if let Some(t) = Theme::ALL.get(n) {
+                    self.theme = *t;
+                }
+            }
             Act::Animated => {
                 if let Some(s) = self.sending.as_mut()
                     && !s.forced
@@ -986,24 +963,94 @@ impl Companion {
         }
     }
 
-    /// The frame for the state as it is.
+    /// Draws the frame for the state as it is, and asks the shell to
+    /// show it.
     fn render(&mut self) {
-        let (Some(ctx), Some(display)) = (self.ctx, self.display) else {
+        let Some(mut canvas) = self.canvas.take() else {
             return;
         };
-        let tree = view::build(self, &display);
-        let Some(canvas) = self.canvas.as_ref() else {
-            return;
+        let mut hits = std::mem::take(&mut self.hits);
+        hits.clear();
+        self.offset = self.offset.clamp(0.0, self.max.max(0.0));
+        let max = {
+            let mut ui = faraday_ui::Ui::new(&mut canvas, self.f, &mut hits, self.pressed);
+            ui.hovered = self.hovered;
+            ui.compact = self.compact;
+            ui.offset = self.offset;
+            ui.theme = self.theme;
+            draw::frame(self, &mut ui)
         };
-        let Some(ui) = self.ui.as_mut() else {
-            return;
-        };
-        let layout = layout::solve_with(&tree, canvas.bounds(), &ctx, ui.scroll_offsets());
-        ui.retain_focus(&layout);
-        self.layout = Some(layout);
-        self.tree = Some(tree);
-        self.dirty = true;
+        self.max = max;
+        self.hits = hits;
+        self.canvas = Some(canvas);
         self.commands.push_back(Command::Draw);
+    }
+
+    /// The display's size and density: the page draws at the desktop's
+    /// density, 160 dpi a unit, and a display under 600 dp wide gets the
+    /// one column and the touch sizes of the stick's small panel.
+    fn display(&mut self, d: DisplayInfo) {
+        let density = f32::from(d.dpi.max(1)) / 160.0;
+        let f = density.max(0.5);
+        self.compact = f32::from(d.width) / density < 600.0;
+        let scaled = DisplayInfo {
+            dpi: (160.0 * f).round().max(1.0) as u16,
+            ..d
+        };
+        self.f = f;
+        self.w = f32::from(d.width) / f;
+        self.inset_top = f32::from(d.inset_top) / f;
+        self.inset_bottom = f32::from(d.inset_bottom) / f;
+        self.h = f32::from(d.height) / f - self.inset_top - self.inset_bottom;
+        self.canvas = Some(Canvas::new(&scaled));
+    }
+
+    /// The act drawn under pixel (x, y), the last drawn on top.
+    fn hit_at(&self, x: i32, y: i32) -> Option<Act> {
+        self.hits
+            .iter()
+            .rev()
+            .find(|(r, _)| x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h)
+            .map(|(_, a)| *a)
+    }
+
+    /// A finger on the screen: a press where it lifts on what it went
+    /// down on, and a scroll once it has moved further than a press
+    /// would. Returns whether a frame is due.
+    fn touch(&mut self, x: i32, y: i32, phase: TouchPhase) -> bool {
+        // How far a finger moves, in units, before it scrolls.
+        const SLOP: f32 = 8.0;
+        match phase {
+            TouchPhase::Down => {
+                self.pressed = self.hit_at(x, y);
+                self.drag = Some((y, self.offset, false));
+                true
+            }
+            TouchPhase::Move => {
+                let Some((y0, from, moving)) = self.drag else {
+                    return false;
+                };
+                let moved = (y - y0) as f32 / self.f;
+                if !moving && moved.abs() < SLOP {
+                    return false;
+                }
+                self.drag = Some((y0, from, true));
+                self.pressed = None;
+                self.offset = (from - moved).clamp(0.0, self.max.max(0.0));
+                true
+            }
+            TouchPhase::Up => {
+                let pressed = self.pressed.take();
+                let moving = self.drag.take().is_some_and(|d| d.2);
+                if let Some(a) = pressed
+                    && !moving
+                    && self.hit_at(x, y) == Some(a)
+                {
+                    self.act(a);
+                }
+                true
+            }
+        }
     }
 
     /// A frame from the camera, on Receive: the preview, and the codes
@@ -1021,8 +1068,8 @@ impl Companion {
         self.preview = Some(Preview {
             width,
             height,
-            pixels: Rc::new(luma),
-            chroma: chroma.map(Rc::new),
+            luma,
+            chroma,
         });
         for d in found {
             if self.page != Page::Receive {
@@ -1054,30 +1101,17 @@ impl App for Companion {
     fn event(&mut self, event: Event) {
         match event {
             Event::Display(info) => {
-                let info = DisplayInfo {
+                self.display(DisplayInfo {
                     width: info.width.max(1),
                     height: info.height.max(1),
                     ..info
-                };
-                let scale = Scale::new(info.dpi);
-                self.display = Some(info);
-                self.canvas = Some(Canvas::new(&info));
-                self.ctx = Some(LayoutCtx::new(scale, SizeClass::of(&info)).with_insets(
-                    f32::from(info.inset_top) / scale.factor(),
-                    f32::from(info.inset_bottom) / scale.factor(),
-                ));
-                self.ui = Some(UiState::new(scale));
-                self.render();
-                return;
+                });
             }
             Event::Tick { now_ms } => {
                 self.now_ms = now_ms;
-                let moved = self.tick();
-                let redraw = self.ui_event(Event::Tick { now_ms });
-                if moved || redraw {
-                    self.render();
+                if !self.tick() {
+                    return;
                 }
-                return;
             }
             Event::CameraFrame {
                 width,
@@ -1136,16 +1170,36 @@ impl App for Companion {
                     self.saved = Some((sha, false));
                 }
             }
-            Event::Back => {
+            Event::Back | Event::Key(Key::Escape) => {
                 if self.page != Page::Home {
                     self.act(Act::Back);
                 }
             }
-            other => {
-                if !self.ui_event(other) {
+            Event::Touch { x, y, phase } => {
+                if !self.touch(i32::from(x), i32::from(y), phase) {
                     return;
                 }
             }
+            Event::Hover { x, y } => {
+                let now = self.hit_at(i32::from(x), i32::from(y));
+                if now == self.hovered {
+                    return;
+                }
+                self.hovered = now;
+            }
+            Event::HoverEnd => {
+                if self.hovered.take().is_none() {
+                    return;
+                }
+            }
+            Event::Wheel { dy, .. } | Event::Scroll { dy, .. } => {
+                let to = (self.offset + f32::from(dy) / self.f).clamp(0.0, self.max.max(0.0));
+                if to == self.offset {
+                    return;
+                }
+                self.offset = to;
+            }
+            _ => return,
         }
         self.render();
     }
@@ -1155,24 +1209,6 @@ impl App for Companion {
     }
 
     fn frame(&mut self) -> Frame<'_> {
-        if self.dirty {
-            let Self {
-                canvas,
-                tree,
-                layout,
-                theme,
-                ui,
-                dirty,
-                ..
-            } = self;
-            if let (Some(canvas), Some(tree), Some(layout), Some(ui)) =
-                (canvas.as_mut(), tree.as_ref(), layout.as_ref(), ui.as_ref())
-            {
-                canvas.clear(theme.background);
-                osk_ui::widgets::draw_tree(canvas, tree, layout, theme, ui);
-                *dirty = false;
-            }
-        }
         self.canvas.as_ref().map_or(
             Frame {
                 width: 0,
@@ -1181,30 +1217,5 @@ impl App for Companion {
             },
             Canvas::frame,
         )
-    }
-}
-
-impl Companion {
-    /// An input event through `osk-ui`'s state; whether a frame is due.
-    fn ui_event(&mut self, event: Event) -> bool {
-        let (Some(ui), Some(layout)) = (self.ui.as_mut(), self.layout.as_ref()) else {
-            return false;
-        };
-        match ui.event(layout, event) {
-            Some(Action::Tap(id)) | Some(Action::HoldCompleted(id)) => {
-                if let Some(act) = Act::of(id) {
-                    self.act(act);
-                }
-                true
-            }
-            Some(Action::Back) => {
-                if self.page != Page::Home {
-                    self.act(Act::Back);
-                }
-                true
-            }
-            Some(_) => true,
-            None => false,
-        }
     }
 }

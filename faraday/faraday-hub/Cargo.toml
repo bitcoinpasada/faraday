@@ -17,6 +17,8 @@ opensigner-core = { path = "../../opensigner/opensigner-core" }
 # The desktop app's own Transfer and Learn, held in online mode
 # (docs/HUB.md §2), and the drawing every Faraday screen uses.
 faraday-core = { path = "../faraday-core" }
+# Faraday's drawing.
+faraday-ui = { path = "../faraday-ui" }
 # Faraday's own Learn pages and the website's guides.
 faraday-learn = { path = "../faraday-learn" }
 # The BitLocker recovery key's text and its QR code (docs/HUB.md §6.2),
