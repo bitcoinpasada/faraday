@@ -23,8 +23,13 @@ use osk_ui::Canvas;
 
 /// The canvas: 108 dp at 4 pixels a dp.
 const SIZE: u16 = 432;
-/// The mark's box, in pixels: inside the 66 dp (264 px) safe circle.
-const MARK: f32 = 236.0;
+/// The mark's box, in pixels: 46 dp, well inside the 66 dp (264 px) safe
+/// circle, so that a launcher's round mask leaves room around the shield.
+const MARK: f32 = 184.0;
+/// How far below the canvas's centre the mark's box sits, in pixels: a
+/// shield is wide at the top and a point at the bottom, so centred by its
+/// box it looks high.
+const DROP: f32 = 6.0;
 
 fn main() -> ExitCode {
     let Some(out) = std::env::args().nth(1) else {
@@ -46,7 +51,7 @@ fn main() -> ExitCode {
     let mut hits: Vec<(osk_ui::Rect, ())> = Vec::new();
     let mut ui = Ui::new(&mut canvas, 1.0, &mut hits, None);
     let at = (f32::from(SIZE) - MARK) / 2.0;
-    ui.mark(at, at, MARK, MARK);
+    ui.mark(at, at + DROP, MARK, MARK);
 
     // The canvas holds premultiplied pixels; PNG wants straight ones.
     let frame = canvas.frame();
