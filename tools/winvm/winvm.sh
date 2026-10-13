@@ -65,6 +65,7 @@ winvm.sh COMMAND [ARGS]
   screenshot OUT.png         save the screen as PNG
   keys KEY...                press keys; KEY is a QEMU qcode or a combination
                              such as ctrl-alt-delete; "sleep:N" waits N seconds
+  click X Y                  click at a pixel of the screen (as in a screenshot)
   type TEXT                  type text (letters, digits, common punctuation)
   snapshot NAME              save the disk (qemu-img snapshot), the firmware
                              variables and the TPM's state, while off
@@ -158,6 +159,21 @@ screenshot() {
 	out=$(realpath -m "$1")
 	echo "{\"execute\":\"screendump\",\"arguments\":{\"filename\":\"$out\",\"format\":\"png\"}}" | qmp >/dev/null
 	echo "$out"
+}
+
+# A click at a pixel of the screen, through the USB tablet, whose
+# coordinates run 0 to 32767 across the screen whatever its size.
+click() {
+	local probe=$DIR/.probe.ppm size w h
+	echo "{\"execute\":\"screendump\",\"arguments\":{\"filename\":\"$probe\",\"format\":\"ppm\"}}" | qmp >/dev/null
+	size=$(head -c 32 "$probe" | tr -s ' \n' ' ' | cut -d' ' -f2,3)
+	read -r w h <<<"$size"
+	local x=$(($1 * 32767 / (w - 1))) y=$(($2 * 32767 / (h - 1)))
+	echo "{\"execute\":\"input-send-event\",\"arguments\":{\"events\":[{\"type\":\"abs\",\"data\":{\"axis\":\"x\",\"value\":$x}},{\"type\":\"abs\",\"data\":{\"axis\":\"y\",\"value\":$y}}]}}" | qmp >/dev/null
+	sleep 0.1
+	echo '{"execute":"input-send-event","arguments":{"events":[{"type":"btn","data":{"down":true,"button":"left"}}]}}' | qmp >/dev/null
+	sleep 0.1
+	echo '{"execute":"input-send-event","arguments":{"events":[{"type":"btn","data":{"down":false,"button":"left"}}]}}' | qmp >/dev/null
 }
 
 # The firmware's own setting, read from its variable store: the newest
@@ -387,6 +403,7 @@ quit) if running; then echo '{"execute":"quit"}' | qmp >/dev/null || true; fi; w
 wait-off) wait_off "${1:-600}" ;;
 screenshot) screenshot "${1:?screenshot OUT.png}" ;;
 keys) keys "$@" ;;
+click) click "${1:?click X Y}" "${2:?click X Y}" ;;
 type) type_text "${1:?type TEXT}" ;;
 snapshot) snapshot "$@" ;;
 -h | --help) usage ;;
