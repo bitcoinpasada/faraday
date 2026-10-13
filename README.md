@@ -636,6 +636,12 @@ Prerequisites: stable Rust (see `rust-toolchain.toml`), a C compiler
 (`secp256k1-sys` builds libsecp256k1 from source), and on Linux the X11
 or Wayland client libraries at runtime, including `libxkbcommon-x11`.
 
+The check, `just`, runs the tests with cargo-nextest and checks the
+dependency graph against `deny.toml` with cargo-deny; install both once
+with `cargo install --locked cargo-nextest cargo-deny`. The FAT tests
+also use `mkfs.fat`, `fsck.fat` and mtools (Debian: `dosfstools`,
+`mtools`), and skip with a note when they are missing.
+
 ```
 # Quick dev build, for iterating: target/debug/faraday
 cargo build -p faraday-desktop

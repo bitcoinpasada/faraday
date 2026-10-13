@@ -82,11 +82,15 @@ pub fn make(seed: &[u8; 32], owner: &str, now: u64) -> Result<Keys, Error> {
     };
     let name = |what: &str| -> String { alloc::format!("{owner} {what}") };
     let mut keys_rng = rng::Stream::new(seed, 1);
+    let mut blind = rng::Stream::new(seed, 2);
+    let mut generate = |what: &str, serial: &[u8; 16]| {
+        x509::generate(&mut keys_rng, &mut blind, &name(what), serial, now, YEARS)
+    };
     Ok(Keys {
         owner: guid,
-        pk: x509::generate(&mut keys_rng, &name("PK"), &serials[0], now, YEARS)?,
-        kek: x509::generate(&mut keys_rng, &name("KEK"), &serials[1], now, YEARS)?,
-        db: x509::generate(&mut keys_rng, &name("db"), &serials[2], now, YEARS)?,
+        pk: generate("PK", &serials[0])?,
+        kek: generate("KEK", &serials[1])?,
+        db: generate("db", &serials[2])?,
     })
 }
 
@@ -157,8 +161,14 @@ pub const MICROSOFT: [Microsoft; 4] = [
 /// The enrolment files, by name: each store's signature list (`.esl`),
 /// its signed update (`.auth`: PK signed by PK, KEK by PK, db by KEK) and
 /// each of the owner's certificates (`.cer`), for firmware that enrols
-/// from any of them.
-pub fn enrolment(keys: &Keys, policy: Policy, now: u64) -> Result<Vec<(String, Vec<u8>)>, Error> {
+/// from any of them. `rng`, a stream of the system's entropy, blinds
+/// the signing.
+pub fn enrolment(
+    rng: &mut rng::Stream,
+    keys: &Keys,
+    policy: Policy,
+    now: u64,
+) -> Result<Vec<(String, Vec<u8>)>, Error> {
     let extra = |store: Store| -> Vec<([u8; 16], &'static [u8])> {
         if policy == Policy::OwnKeysOnly {
             return Vec::new();
@@ -179,15 +189,22 @@ pub fn enrolment(keys: &Keys, policy: Policy, now: u64) -> Result<Vec<(String, V
     Ok(alloc::vec![
         (
             "PK.auth".into(),
-            efi::auth("PK", &efi::GLOBAL_VARIABLE, &pk, now, &keys.pk)?
+            efi::auth(rng, "PK", &efi::GLOBAL_VARIABLE, &pk, now, &keys.pk)?
         ),
         (
             "KEK.auth".into(),
-            efi::auth("KEK", &efi::GLOBAL_VARIABLE, &kek, now, &keys.pk)?
+            efi::auth(rng, "KEK", &efi::GLOBAL_VARIABLE, &kek, now, &keys.pk)?
         ),
         (
             "db.auth".into(),
-            efi::auth("db", &efi::IMAGE_SECURITY_DATABASE, &db, now, &keys.kek)?
+            efi::auth(
+                rng,
+                "db",
+                &efi::IMAGE_SECURITY_DATABASE,
+                &db,
+                now,
+                &keys.kek
+            )?
         ),
         ("PK.esl".into(), pk),
         ("KEK.esl".into(), kek),

@@ -93,8 +93,10 @@ pub fn efi_time(unix: u64) -> [u8; 16] {
 
 /// A signed update of variable `name` (UTF-16, as firmware names it)
 /// under `vendor`, holding `data`, signed at `unix` by `signer`'s key: an
-/// `EFI_VARIABLE_AUTHENTICATION_2` followed by the data.
+/// `EFI_VARIABLE_AUTHENTICATION_2` followed by the data. `rng` blinds
+/// the signing.
 pub fn auth(
+    rng: &mut crate::rng::Stream,
     name: &str,
     vendor: &[u8; 16],
     data: &[u8],
@@ -110,7 +112,7 @@ pub fn auth(
     signed.extend_from_slice(&ATTRIBUTES.to_le_bytes());
     signed.extend_from_slice(&time);
     signed.extend_from_slice(data);
-    let sig = x509::sign(&signer.key, &signed)?;
+    let sig = x509::sign(rng, &signer.key, &signed)?;
     // A detached SignedData with no signed attributes, as
     // `sign-efi-sig-list` writes it: the firmware hashes the data itself.
     let info = x509::signer_info(&signer.cert, None, &sig)?;

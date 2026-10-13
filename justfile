@@ -18,9 +18,9 @@ test:
 lint:
     cargo clippy --workspace --all-targets -- -D warnings
     # Advisories, licences, duplicates and sources, against deny.toml.
-    # Commented out until `cargo install cargo-deny` is part of the
-    # documented setup, so that `just` still runs on a machine without it.
-    # cargo deny check
+    # `cargo install --locked cargo-deny` puts it on a machine (README,
+    # Build).
+    cargo deny check
     cargo fmt --all --check
     tools/lint-secrets.sh
     tools/lint-strings.sh

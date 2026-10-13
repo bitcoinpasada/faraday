@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 use rsa::RsaPrivateKey;
 use rsa::pkcs1v15::{SigningKey, VerifyingKey};
 use rsa::pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey};
-use rsa::signature::{SignatureEncoding, Signer, Verifier};
+use rsa::signature::{RandomizedSigner, SignatureEncoding, Verifier};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
@@ -79,10 +79,14 @@ fn private(key: &[u8]) -> Result<RsaPrivateKey, Error> {
     RsaPrivateKey::from_pkcs8_der(key).map_err(|_| Error::Key)
 }
 
-/// An RSA PKCS #1 v1.5 signature with SHA-256 over `data`.
-pub fn sign(key: &[u8], data: &[u8]) -> Result<Vec<u8>, Error> {
+/// An RSA PKCS #1 v1.5 signature with SHA-256 over `data`. The private
+/// key operation is blinded with draws from `rng`, so its timing says
+/// nothing of the key; the signature itself is the same for any `rng`.
+pub fn sign(rng: &mut crate::rng::Stream, key: &[u8], data: &[u8]) -> Result<Vec<u8>, Error> {
     let k = SigningKey::<Sha256>::new(private(key)?);
-    Ok(k.try_sign(data).map_err(|_| Error::Key)?.to_vec())
+    Ok(k.try_sign_with_rng(rng, data)
+        .map_err(|_| Error::Key)?
+        .to_vec())
 }
 
 /// Whether `sig` is the certificate's key's signature over `data`.
@@ -101,10 +105,12 @@ pub fn verify(cert: &[u8], data: &[u8], sig: &[u8]) -> bool {
         .is_ok()
 }
 
-/// A new key with a self-signed certificate: common name `cn`, serial
-/// `serial`, valid from `now` for `years`.
+/// A new key, drawn from `rng`, with a self-signed certificate: common
+/// name `cn`, serial `serial`, valid from `now` for `years`; `blind`
+/// blinds the signing.
 pub fn generate(
     rng: &mut crate::rng::Stream,
+    blind: &mut crate::rng::Stream,
     cn: &str,
     serial: &[u8; 16],
     now: u64,
@@ -151,7 +157,7 @@ pub fn generate(
         &spki,
         &explicit(3, &extensions),
     ]);
-    let sig = sign(&der, &tbs)?;
+    let sig = sign(blind, &der, &tbs)?;
     Ok(Pair {
         key: der,
         cert: seq(&[&tbs, &alg(SHA256_RSA), &bits(&sig)]),

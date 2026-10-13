@@ -10,6 +10,7 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use faraday_sb::rng::Stream;
 use faraday_sb::{Check, Keys, Policy, efi, enrolment, make, pe};
 use sha2::{Digest, Sha256};
 
@@ -17,6 +18,11 @@ const NOW: u64 = 1_791_000_000;
 
 fn keys() -> Keys {
     make(&[0x42; 32], "Test", NOW).unwrap()
+}
+
+/// The stream that blinds a test's signing.
+fn blind() -> Stream {
+    Stream::new(&[0x43; 32], 0)
 }
 
 /// A test's own scratch tree; removed when it drops.
@@ -94,7 +100,7 @@ fn openssl_verifies_the_certificates_and_the_auth_signatures() {
         let (ok, said) = run("openssl", &["verify", "-check_ss_sig", "-CAfile", c, c]).unwrap();
         assert!(ok, "{said}");
     }
-    let files = enrolment(&k, Policy::Windows, NOW).unwrap();
+    let files = enrolment(&mut blind(), &k, Policy::Windows, NOW).unwrap();
     for (name, vendor, signer) in [
         ("PK", efi::GLOBAL_VARIABLE, &pk),
         ("KEK", efi::GLOBAL_VARIABLE, &pk),
@@ -201,7 +207,7 @@ fn a_signed_image_checks_and_an_altered_one_does_not() {
     let db = pem(&dir, "db", &k.db.cert);
     for (name, image) in images {
         assert_eq!(pe::check(&image, &k.db.cert).unwrap(), Check::Unsigned);
-        let signed = pe::sign(&image, &k.db).unwrap();
+        let signed = pe::sign(&mut blind(), &image, &k.db).unwrap();
         assert_eq!(
             pe::check(&signed, &k.db.cert).unwrap(),
             Check::Valid,
@@ -213,7 +219,7 @@ fn a_signed_image_checks_and_an_altered_one_does_not() {
             "{name}"
         );
         // Signing again replaces the signature rather than adding one.
-        let again = pe::sign(&signed, &k.db).unwrap();
+        let again = pe::sign(&mut blind(), &signed, &k.db).unwrap();
         assert_eq!(again.len(), signed.len(), "{name}");
         let mut altered = signed.clone();
         altered[0x200] ^= 1;
@@ -236,4 +242,54 @@ fn a_signed_image_checks_and_an_altered_one_does_not() {
             }
         }
     }
+}
+
+/// Blinding changes how the key's operation runs, never its result:
+/// PKCS #1 v1.5 signatures are deterministic, so a signature made under
+/// any blinding stream is the very bytes RustCrypto's unblinded signer
+/// gives, and `openssl` gives, for the same key and message; and a signed
+/// image is the same file whatever stream blinded it.
+#[test]
+fn blinding_leaves_the_signature_as_it_was() {
+    use rsa::pkcs1v15::SigningKey;
+    use rsa::pkcs8::DecodePrivateKey;
+    use rsa::signature::{SignatureEncoding, Signer};
+
+    let k = keys();
+    let message = b"Faraday signs this with its db key";
+    let a = faraday_sb::x509::sign(&mut Stream::new(&[1; 32], 0), &k.db.key, message).unwrap();
+    let b = faraday_sb::x509::sign(&mut Stream::new(&[2; 32], 7), &k.db.key, message).unwrap();
+    let plain = SigningKey::<Sha256>::new(rsa::RsaPrivateKey::from_pkcs8_der(&k.db.key).unwrap())
+        .sign(message)
+        .to_vec();
+    assert_eq!(a.len(), 256);
+    assert_eq!(a, plain);
+    assert_eq!(b, plain);
+
+    let dir = scratch("blinding");
+    let key = dir.join("db.key.der");
+    let msg = dir.join("message");
+    std::fs::write(&key, &k.db.key[..]).unwrap();
+    std::fs::write(&msg, message).unwrap();
+    let out = Command::new("openssl")
+        .args([
+            "dgst",
+            "-sha256",
+            "-keyform",
+            "DER",
+            "-sign",
+            key.to_str().unwrap(),
+            msg.to_str().unwrap(),
+        ])
+        .output();
+    match out {
+        Ok(o) if o.status.success() => assert_eq!(o.stdout, plain),
+        Ok(o) => panic!("openssl: {}", String::from_utf8_lossy(&o.stderr)),
+        Err(_) => eprintln!("openssl is not installed: skipped"),
+    }
+
+    let image = tiny_pe();
+    let one = pe::sign(&mut Stream::new(&[3; 32], 0), &image, &k.db).unwrap();
+    let two = pe::sign(&mut Stream::new(&[4; 32], 0), &image, &k.db).unwrap();
+    assert_eq!(one, two);
 }

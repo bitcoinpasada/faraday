@@ -34,7 +34,10 @@ fn main() {
     let now = 1_791_331_200;
     let keys =
         faraday_sb::make(&[0x5b; 32], "Faraday test", now).unwrap_or_else(|e| fail(e.reason()));
-    let files = faraday_sb::enrolment(&keys, policy, now).unwrap_or_else(|e| fail(e.reason()));
+    // The keys are a fixed test seed's, so the blinding stream is too.
+    let mut blind = faraday_sb::rng::Stream::new(&[0x5c; 32], 0);
+    let files =
+        faraday_sb::enrolment(&mut blind, &keys, policy, now).unwrap_or_else(|e| fail(e.reason()));
     // Where systemd-boot enrols from by itself (`secure-boot-enroll`).
     let keys_dir = out.join("loader/keys/auto");
     fs::create_dir_all(&keys_dir).unwrap_or_else(|e| fail(&e.to_string()));
@@ -46,7 +49,8 @@ fn main() {
         };
         fs::write(dir.join(name), bytes).unwrap_or_else(|e| fail(&e.to_string()));
     }
-    let signed = faraday_sb::pe::sign(&image, &keys.db).unwrap_or_else(|e| fail(e.reason()));
+    let signed =
+        faraday_sb::pe::sign(&mut blind, &image, &keys.db).unwrap_or_else(|e| fail(e.reason()));
     // One byte of the image's own body, well before the signature that
     // ends the file, so the hash it was signed over no longer holds.
     let mut altered = signed.clone();

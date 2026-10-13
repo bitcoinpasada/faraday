@@ -135,8 +135,12 @@ fn spc_content(digest: &[u8; 32]) -> Vec<u8> {
 
 /// The image signed by `signer` (the db key): any certificate table it
 /// had is dropped, the image is padded to eight bytes, and the signature
-/// goes after it as the new table.
-pub fn sign(pe: &[u8], signer: &x509::Pair) -> Result<Vec<u8>, Error> {
+/// goes after it as the new table. `rng` blinds the signing.
+pub fn sign(
+    rng: &mut crate::rng::Stream,
+    pe: &[u8],
+    signer: &x509::Pair,
+) -> Result<Vec<u8>, Error> {
     let l = layout(pe)?;
     let mut image = pe.to_vec();
     if let Some((at, _)) = l.certs {
@@ -156,7 +160,7 @@ pub fn sign(pe: &[u8], signer: &x509::Pair) -> Result<Vec<u8>, Error> {
         seq(&[&oid(MESSAGE_DIGEST), &set(&[&octets(&content_digest)])]),
     ];
     let attr_set = set(&[&attrs[0], &attrs[1], &attrs[2]]);
-    let sig = x509::sign(&signer.key, &attr_set)?;
+    let sig = x509::sign(rng, &signer.key, &attr_set)?;
     let mut implicit = attr_set.clone();
     implicit[0] = 0xa0;
     let info = x509::signer_info(&signer.cert, Some(&implicit), &sig)?;

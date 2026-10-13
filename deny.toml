@@ -28,6 +28,10 @@ ignore = [
     # faces it opens are the ones committed here. Named by advisory id,
     # so a defect reported against the same crate still fails.
     { id = "RUSTSEC-2026-0192", reason = "build tool and desktop only; the faces are committed here" },
+    # RUSTSEC-2023-0071 ("Marvin"): the timing of `rsa`'s private-key
+    # operation can leak the key. Faraday never decrypts with RSA, and it
+    # signs with blinding (`faraday-sb` `x509::sign`, fresh system bytes).
+    { id = "RUSTSEC-2023-0071", reason = "Faraday signs with blinding and never decrypts with RSA; no fixed release" },
 ]
 
 # --- Licences ---------------------------------------------------------------
@@ -85,6 +89,7 @@ skip = [
     { crate = "r-efi@5", reason = "getrandom generations" },
     { crate = "redox_syscall", reason = "rustix generations, desktop only" },
     { crate = "rustix@0.38", reason = "desktop only" },
+    { crate = "syn@1", reason = "rustbus_derive, the Starter's D-Bus on Linux; build-time only" },
     { crate = "syn@2", reason = "build-time only" },
     { crate = "thiserror@1", reason = "desktop only" },
     { crate = "thiserror-impl@1", reason = "with thiserror 1" },

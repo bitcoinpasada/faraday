@@ -156,7 +156,12 @@ impl Faraday {
         } else {
             Policy::Windows
         };
-        match faraday_sb::enrolment(&keys, policy, now) {
+        // The signing is blinded with fresh bytes of the system's.
+        let Some(seed) = self.fresh(b"secure boot enrolment") else {
+            return self.toast(EN.secureboot_no_randomness);
+        };
+        let mut blind = faraday_sb::rng::Stream::new(&seed, 0);
+        match faraday_sb::enrolment(&mut blind, &keys, policy, now) {
             Ok(files) => {
                 let n = files.len();
                 for (name, bytes) in files {
@@ -174,11 +179,19 @@ impl Faraday {
         let Some(keys) = self.sb_selected() else {
             return;
         };
+        if self.inbox.get(k).is_none() {
+            return;
+        }
+        // The signing is blinded with fresh bytes of the system's.
+        let Some(seed) = self.fresh(b"secure boot signing") else {
+            return self.toast(EN.secureboot_no_randomness);
+        };
+        let mut blind = faraday_sb::rng::Stream::new(&seed, 0);
         let Some(item) = self.inbox.get(k) else {
             return;
         };
         let name = item.name.clone();
-        match faraday_sb::pe::sign(&item.bytes, &keys.db) {
+        match faraday_sb::pe::sign(&mut blind, &item.bytes, &keys.db) {
             Ok(signed) => {
                 self.put_outbox(&name, signed);
                 self.vaults.sb_sign = None;
