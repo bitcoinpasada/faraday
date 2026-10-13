@@ -401,7 +401,7 @@ fn run(s: &Snap) -> Result<(), String> {
     // A maker's page with its firmware sketches (DECISIONS F18).
     let mut c = s.app();
     c.press(Act::Start);
-    c.press(Act::StartPage(faraday_learn::BOOT.len()));
+    c.press(Act::StartPage(faraday_guides::BOOT.len()));
     s.shot(&mut c, "start-maker-dell")?;
 
     // About (§4.8).

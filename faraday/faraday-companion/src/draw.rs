@@ -82,7 +82,7 @@ fn osk_pages() -> Vec<usize> {
 /// The pages Start from the stick lists: the boot guides, then the
 /// makers' pages.
 pub(crate) fn start_docs() -> Vec<Doc> {
-    faraday_learn::BOOT
+    faraday_guides::BOOT
         .iter()
         .copied()
         .chain(faraday_learn::MAKERS.iter().map(|m| m.id))
@@ -95,6 +95,7 @@ pub(crate) fn start_docs() -> Vec<Doc> {
 fn own_rest() -> Vec<Doc> {
     let start = start_docs();
     faraday_learn::ids()
+        .chain(faraday_guides::ids())
         .map(Doc::Own)
         .filter(|d| !start.contains(d) && *d != COMPANION)
         .collect()
@@ -121,7 +122,7 @@ fn doc_page(d: Doc) -> &'static osk_learn::Page {
             let pages = osk_learn::EN.pages();
             pages[i.min(pages.len() - 1)]
         }
-        Doc::Own(id) => faraday_learn::known(id),
+        Doc::Own(id) => faraday_guides::page(id).expect("a known page"),
     }
 }
 
@@ -1364,7 +1365,7 @@ fn document(ui: &mut Ui, x: f32, y0: f32, w: f32, d: Doc) -> f32 {
             // A firmware sketch's marker (DECISIONS F18): the sketch drawn
             // in its place, and the marker never printed as text.
             if faraday_learn::is_marker(para) {
-                if let Some(s) = faraday_learn::sketch_of(para) {
+                if let Some(s) = faraday_guides::sketch_of(para) {
                     y += faraday_ui::sketch(ui, s, x, y, w) + 12.0;
                 }
                 continue;

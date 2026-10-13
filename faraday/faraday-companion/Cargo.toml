@@ -25,6 +25,8 @@ faraday-qr = { path = "../faraday-qr" }
 # What is refused (docs/COMPANION.md §5).
 faraday-intake = { path = "../faraday-intake" }
 faraday-learn = { path = "../faraday-learn" }
+# The maker pages' firmware sketches (docs/HUB.md §7.8, F18).
+faraday-guides = { path = "../faraday-guides" }
 faraday-strings = { path = "../faraday-strings" }
 zeroize = { workspace = true, features = ["alloc"] }
 

@@ -2,8 +2,9 @@
 //! marker on a page draws a sketch, each sketch shows the person which
 //! row to look for, and none names a maker or a model.
 
-use faraday_learn::sketch::{Mark, Row, SKETCHES, Sketch};
-use faraday_learn::{ids, is_marker, page, sketch_of};
+use faraday_guides::{SKETCHES, ids, page, sketch_of};
+use faraday_learn::sketch::{Mark, Row, Sketch};
+use faraday_learn::{MAKERS, is_marker};
 
 /// Every marker paragraph, with the page it is on.
 fn markers() -> Vec<(&'static str, &'static str)> {
@@ -58,7 +59,7 @@ fn every_sketch_marks_the_row_to_look_for() {
 
 #[test]
 fn every_maker_page_shows_where_secure_boot_is_turned_off() {
-    for m in faraday_learn::MAKERS {
+    for m in MAKERS {
         let p = page(m.id).expect("a maker page");
         let section = p
             .sections

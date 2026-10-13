@@ -78,7 +78,7 @@ fn a_guide_address_opens_the_companions_own_page_and_asks_nothing_of_the_shell()
         let mut c = receiving();
         show(&mut c, &code_of(address.as_bytes()));
         assert_eq!(c.page, Page::Doc(Doc::Own(id)), "{address}");
-        let title = faraday_learn::known(id).title;
+        let title = faraday_guides::page(id).expect("a known page").title;
         assert!(shows(&mut c, title), "{address}: {:?}", c.texts());
         let (cmds, ours) = drain(&mut c);
         assert!(ours.is_empty(), "{ours:?}");

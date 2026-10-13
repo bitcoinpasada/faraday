@@ -8,7 +8,7 @@ use osk_learn::{EN, Page as LearnPage};
 
 use faraday_learn::known;
 pub use faraday_learn::{
-    BOOT, GUIDES, MAKERS, Maker, guide_address, guide_id, maker, page, shares_page, time_page,
+    GUIDES, MAKERS, Maker, guide_address, guide_id, maker, page, shares_page, time_page,
     upgrade_page,
 };
 

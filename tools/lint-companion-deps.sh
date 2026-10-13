@@ -18,6 +18,7 @@ faraday-companion-ffi
 faraday-ui
 faraday-strings
 faraday-learn
+faraday-guides
 faraday-intake
 faraday-qr
 faraday-scanner

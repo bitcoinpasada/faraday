@@ -15197,13 +15197,14 @@ fn learn_sheet(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
             ) + 8.0;
         }
         for para in section.paragraphs {
-            // A firmware sketch's marker (`docs/HUB.md` §7.8, F18): Faraday
-            // Starter, which holds this app, draws the sketch; the stick,
-            // the Pi and Faraday Desktop leave the paragraph out.
+            // A firmware sketch's marker (`docs/HUB.md` §7.8, F18): none
+            // of faraday-learn's own pages carries one (the guides that
+            // do are faraday-guides', read only behind the `guides`
+            // feature), so only Faraday Starter, which turns that
+            // feature on, ever draws one here.
             if faraday_learn::is_marker(para) {
-                if app.held
-                    && let Some(s) = faraday_learn::sketch_of(para)
-                {
+                #[cfg(feature = "guides")]
+                if let Some(s) = faraday_guides::sketch_of(para) {
                     cy += faraday_ui::sketch(ui, s, bx, cy, bw) + 12.0;
                 }
                 continue;

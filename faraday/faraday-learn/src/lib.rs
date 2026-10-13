@@ -1,9 +1,14 @@
-//! Faraday's own Learn pages, which OpenSigner does not have, and the
-//! website's guides to starting a computer from the stick
-//! (`docs/HUB.md` §7). Read from `docs/learn/faraday/` when Faraday is
-//! built, so the desktop app, the stick, the hub app and the Companion
-//! carry the same text. Nothing here names a screen of any app: each app
-//! maps its own screens to pages.
+//! Faraday's own Learn pages, which OpenSigner does not have: read from
+//! `docs/learn/faraday/` when Faraday is built, so the desktop app, the
+//! stick, the hub app and the Companion carry the same text. Nothing
+//! here names a screen of any app: each app maps its own screens to
+//! pages.
+//!
+//! The website's guides to starting a computer from the stick
+//! (`docs/HUB.md` §7) are not here: they are `faraday-guides`' (read by
+//! the hub app and the Companion, and published by the website). The
+//! desktop app and the stick carry only the address of the guide for
+//! this computer ([`guide_address`]), not its text.
 
 use std::sync::OnceLock;
 
@@ -11,19 +16,18 @@ use osk_learn::{Page as LearnPage, Section};
 
 pub mod sketch;
 
-pub use sketch::{SKETCHES, Sketch, is_marker, sketch_of};
+pub use sketch::{Sketch, is_marker};
 
 /// Faraday's own pages, which OpenSigner does not have, each by its id.
-/// They are edited as `docs/learn/faraday/<id>.md` (the guides to
-/// starting a computer from the stick as `docs/learn/faraday/boot/<id>.md`,
-/// `docs/HUB.md` §7.2), beside OpenSigner's pages but outside the set
-/// `tools/learn/sync.py` keeps in step with `osk_learn::EN`, and read from
-/// those files when Faraday is built, so the desktop app, the stick and
-/// the hub app carry the same text. The id is the file's name and stays
-/// as it is: the hub app's screens open a page by it, and the website
-/// publishes each guide at `https://faradayoffline.app/start/<id>`
-/// (§7.4).
-const OWN: [(&str, &str); 22] = [
+/// They are edited as `docs/learn/faraday/<id>.md`, beside OpenSigner's
+/// pages but outside the set `tools/learn/sync.py` keeps in step with
+/// `osk_learn::EN`, and read from those files when Faraday is built, so
+/// the desktop app, the stick and the hub app carry the same text. The
+/// guides to starting a computer from the stick
+/// (`docs/learn/faraday/boot/*.md`) are `faraday-guides`' own table, not
+/// this one, except `replace-faraday`, which the stick's Upgrade screen
+/// shows directly ([`known`]).
+const OWN: [(&str, &str); 5] = [
     // Upgrading a stick from another stick (`PLAN.md` §5.5).
     (
         "upgrade-a-stick",
@@ -42,101 +46,16 @@ const OWN: [(&str, &str); 22] = [
         include_str!("../../../docs/learn/faraday/companion.md"),
     ),
     (
-        "windows",
-        include_str!("../../../docs/learn/faraday/boot/windows.md"),
-    ),
-    (
-        "linux",
-        include_str!("../../../docs/learn/faraday/boot/linux.md"),
-    ),
-    (
-        "bitlocker",
-        include_str!("../../../docs/learn/faraday/boot/bitlocker.md"),
-    ),
-    (
-        "secure-boot-bitlocker",
-        include_str!("../../../docs/learn/faraday/boot/secure-boot-bitlocker.md"),
-    ),
-    (
-        "screens-that-record",
-        include_str!("../../../docs/learn/faraday/boot/screens-that-record.md"),
-    ),
-    // The Faraday stick boot entry on Linux (`docs/HUB.md` §3.1c).
-    (
-        "boot-entry",
-        include_str!("../../../docs/learn/faraday/boot/boot-entry.md"),
-    ),
-    (
-        "not-starting",
-        include_str!("../../../docs/learn/faraday/boot/not-starting.md"),
-    ),
-    (
-        "mac-intel",
-        include_str!("../../../docs/learn/faraday/boot/mac-intel.md"),
-    ),
-    (
         "replace-faraday",
         include_str!("../../../docs/learn/faraday/boot/replace-faraday.md"),
     ),
-    (
-        "maker-dell",
-        include_str!("../../../docs/learn/faraday/boot/maker-dell.md"),
-    ),
-    (
-        "maker-hp",
-        include_str!("../../../docs/learn/faraday/boot/maker-hp.md"),
-    ),
-    (
-        "maker-lenovo-thinkpad",
-        include_str!("../../../docs/learn/faraday/boot/maker-lenovo-thinkpad.md"),
-    ),
-    (
-        "maker-lenovo-ideapad",
-        include_str!("../../../docs/learn/faraday/boot/maker-lenovo-ideapad.md"),
-    ),
-    (
-        "maker-asus",
-        include_str!("../../../docs/learn/faraday/boot/maker-asus.md"),
-    ),
-    (
-        "maker-acer",
-        include_str!("../../../docs/learn/faraday/boot/maker-acer.md"),
-    ),
-    (
-        "maker-msi",
-        include_str!("../../../docs/learn/faraday/boot/maker-msi.md"),
-    ),
-    (
-        "maker-framework",
-        include_str!("../../../docs/learn/faraday/boot/maker-framework.md"),
-    ),
-    (
-        "maker-surface",
-        include_str!("../../../docs/learn/faraday/boot/maker-surface.md"),
-    ),
-];
-
-/// The guides to starting a computer from the stick (`docs/HUB.md` §7.2),
-/// by id, in the order they are read: Windows, Linux, BitLocker, what
-/// Secure Boot and BitLocker are (§3.1b), screens and devices that can
-/// record (§3.1a), when the stick does not start, replacing Faraday on
-/// a stick, and starting an Intel Mac (`docs/MAC.md` §3.1–§3.2).
-pub const BOOT: [&str; 8] = [
-    "windows",
-    "linux",
-    "bitlocker",
-    "secure-boot-bitlocker",
-    "screens-that-record",
-    "not-starting",
-    "replace-faraday",
-    "mac-intel",
 ];
 
 /// A maker family's guide (`docs/HUB.md` §7.6): its page's id, and the
 /// computers it is for, by what the firmware reports (§7.1).
 #[derive(Debug)]
 pub struct Maker {
-    /// The page's id among [`OWN`], `maker-<family>`.
+    /// The page's id in `faraday-guides`' table, `maker-<family>`.
     pub id: &'static str,
     /// The maker (`sys_vendor`, `SystemManufacturer`) begins with one of
     /// these, ignoring case.
@@ -262,8 +181,9 @@ pub fn known(id: &str) -> &'static LearnPage {
 }
 
 /// A page from its Markdown, as `docs/learn/` writes pages: `# ` the
-/// title, `## ` a section, paragraphs separated by blank lines.
-fn page_of(md: &'static str) -> LearnPage {
+/// title, `## ` a section, paragraphs separated by blank lines. Public
+/// so `faraday-guides` reads its own pages the same way.
+pub fn page_of(md: &'static str) -> LearnPage {
     let mut title = "";
     let mut sections: Vec<(&'static str, Vec<&'static str>)> = Vec::new();
     let mut para: Vec<&'static str> = Vec::new();

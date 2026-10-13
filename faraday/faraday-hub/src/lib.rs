@@ -148,8 +148,8 @@ pub enum LearnId {
 }
 
 impl LearnId {
-    /// The page's id among Faraday's own (`faraday_learn::BOOT`),
-    /// which is also its name on the website.
+    /// The page's id among the guides (`faraday_guides::BOOT`), which
+    /// is also its name on the website.
     pub fn id(self) -> &'static str {
         match self {
             LearnId::StartWindows => "windows",
@@ -167,7 +167,7 @@ impl LearnId {
 
     /// The page.
     pub fn page(self) -> Option<&'static osk_learn::Page> {
-        faraday_learn::page(self.id())
+        faraday_guides::page(self.id())
     }
 
     /// Its address on the website (§7.4).

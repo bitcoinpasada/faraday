@@ -1035,9 +1035,10 @@ Mac.
 ### 7.2 The guides are Learn pages
 
 Each guide is a Learn page in `docs/learn/faraday/boot/`, round-tripped
-into `osk-learn` as every Learn page is, so the hub app, the desktop
-app and the stick all carry them, and the website publishes the same
-text (§7.4). Pages:
+into `osk-learn` as every Learn page is. The hub app and the Companion
+carry them (`faraday-guides`), and the website publishes the same text
+(§7.4); the desktop app and the stick carry only the address of the
+guide for this computer, not its text. Pages:
 
 - *Starting a Windows computer from the stick*: BitLocker first (§6),
   Fast Startup (Windows' Shut down is not a full shut down; restart, or

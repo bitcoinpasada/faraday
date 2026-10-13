@@ -716,6 +716,7 @@ name = "faraday-companion"
 version = "0.1.1"
 dependencies = [
  "faraday-core",
+ "faraday-guides",
  "faraday-intake",
  "faraday-learn",
  "faraday-qr",
@@ -749,6 +750,7 @@ version = "0.1.1"
 dependencies = [
  "faraday-core",
  "faraday-files",
+ "faraday-guides",
  "faraday-intake",
  "faraday-learn",
  "faraday-pgp",
@@ -814,10 +816,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "faraday-guides"
+version = "0.1.1"
+dependencies = [
+ "faraday-learn",
+ "osk-learn",
+]
+
+[[package]]
 name = "faraday-hub"
 version = "0.1.1"
 dependencies = [
  "faraday-core",
+ "faraday-guides",
  "faraday-learn",
  "faraday-qr",
  "faraday-ui",

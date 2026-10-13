@@ -41,6 +41,7 @@ members = [
     "faraday/faraday-payload",
     "faraday/faraday-strings",
     "faraday/faraday-learn",
+    "faraday/faraday-guides",
     "faraday/faraday-intake",
     "faraday/shells/window",
     "faraday/shells/desktop",
