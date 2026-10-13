@@ -565,8 +565,9 @@ as possible before the next build.
     strings, which `docs/WALLETS.md` rule 5 would have moved into `core/`;
     the ask upstream is to move `SOURCE_ROWS`, `MIX_SOURCES` and `COUNTS`
     into `osk-entropy`. Still drawn from the session's bytes and a counter:
-    vault creation seeds and nonces, GPG keys and Secure Boot keys
-    (`vault_draw`), and the new-keyboard code.
+    a vault's seal nonce (`vault_draw`) and the new-keyboard code, neither
+    before those bytes arrived; vault creation, GPG keys and Secure Boot
+    keys take fresh bytes of their own (`fresh.rs`).
 25. [x] Stick pointer, 2026-10-05: the arrow is sized from the panel's
     pixels, not the 160 dpi the command line gives every laptop: 12×19 up
     to 1,799 lines on the short side, doubled from 1,800 (2880×1800, 4K).

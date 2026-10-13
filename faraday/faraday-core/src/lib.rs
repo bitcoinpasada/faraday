@@ -828,6 +828,9 @@ pub enum Action {
     SealAmounts(bool),
     /// Lock: wipe the session and start a fresh process.
     Lock,
+    /// Lock with the open vaults' changes not sealed, asked for when the
+    /// system has given no randomness to seal with: they are lost.
+    LockUnsealed,
     /// Lock, first listing what is not saved in a vault when one is open.
     LockAsk,
     /// Leave the stick untouched and keep working.
@@ -1520,7 +1523,7 @@ pub enum Sheet {
     /// A stick arrived while a secret is held.
     Lock,
     /// Lock asked for while a vault is open: what is sealed and what is
-    /// not saved.
+    /// not saved; or, with no seed to seal with, what is lost.
     LockAsk,
     /// Power off with files in the Outbox.
     Power,
@@ -2827,9 +2830,14 @@ pub struct Faraday {
     /// Each vault file read from a stick this power-on: its name, the
     /// hash of its bytes as read, and the stick's label (§3.5).
     pub vault_from: Vec<(String, [u8; 32], String)>,
-    seed: [u8; 32],
-    /// The session's seed has arrived.
-    seeded: bool,
+    /// The session's seed, once the shell's first answer arrived
+    /// (`fresh.rs`).
+    seed: Option<fresh::Seed>,
+    /// When the wait for the seed started: the first tick after the
+    /// display.
+    seed_wait_from: Option<u64>,
+    /// Whether the last frame said the seed is missing.
+    seed_missing_drawn: bool,
     /// Signing passes that drew a seed of their own (`fresh.rs`).
     sign_draws: u64,
     /// Fresh answers waiting for the next key (`fresh.rs`).
@@ -3127,14 +3135,6 @@ impl Default for Faraday {
     }
 }
 
-/// The session's own seed for fresh randomness goes with the app; the
-/// rest of what it holds wipes itself as it drops.
-impl Drop for Faraday {
-    fn drop(&mut self) {
-        zeroize::Zeroize::zeroize(&mut self.seed);
-    }
-}
-
 impl Faraday {
     /// A fresh app: no keys, empty boxes, Home.
     pub fn new() -> Self {
@@ -3182,8 +3182,9 @@ impl Faraday {
             backups_at: 0,
             receipt: None,
             vault_from: Vec::new(),
-            seed: [0; 32],
-            seeded: false,
+            seed: None,
+            seed_wait_from: None,
+            seed_missing_drawn: false,
             sign_draws: 0,
             pool: Vec::new(),
             now_ms: 0,
@@ -3716,7 +3717,10 @@ impl Faraday {
             && self.idle_locking.is_none()
         {
             self.idle_locking = Some(idle);
-            self.lock();
+            // No one is there to ask: the lock goes ahead, and an open
+            // vault's changes with no seed to seal them are lost, as the
+            // warning before it said.
+            self.lock_now();
             return true;
         }
         if self.idle_off_min > 0
@@ -4171,7 +4175,26 @@ impl Faraday {
         out
     }
 
+    /// Whether a lock would lose an open vault's changes: the session's
+    /// seed, which every seal's nonce is drawn from, has not arrived.
+    pub fn seal_waits(&self) -> bool {
+        !self.seeded() && self.vaults.open.iter().any(|v| v.changes > 0)
+    }
+
+    /// Lock, unless it would lose an open vault's changes: then nothing
+    /// is sealed or wiped, the vaults stay open with their changes, and
+    /// the Lock sheet says what a lock without sealing loses.
     fn lock(&mut self) {
+        if self.seal_waits() {
+            self.commands.push_back(Command::RequestEntropy);
+            self.sheet = Some(Sheet::LockAsk);
+            return;
+        }
+        self.lock_now();
+    }
+
+    /// Lock: what can be sealed is, and the session goes.
+    fn lock_now(&mut self) {
         self.vault_seal_all();
         // What the boot stick brought and was not imported is not kept:
         // its bytes are wiped as it drops.
@@ -4850,12 +4873,14 @@ impl Faraday {
                 }
             }
             Action::Lock => self.lock(),
+            Action::LockUnsealed => self.lock_now(),
             Action::EntryPassphrase => self.entry.on_passphrase = !self.entry.on_passphrase,
             Action::LockAsk => {
                 let (keys, wallets) = self.unsaved();
                 let sealed = self.vaults.open.iter().any(|v| v.changes > 0);
-                if !self.vaults.open.is_empty()
-                    && (sealed || !keys.is_empty() || !wallets.is_empty())
+                if self.seal_waits()
+                    || !self.vaults.open.is_empty()
+                        && (sealed || !keys.is_empty() || !wallets.is_empty())
                 {
                     self.sheet = Some(Sheet::LockAsk);
                 } else {
@@ -4868,7 +4893,10 @@ impl Faraday {
                 self.not_now = !std::mem::take(&mut self.upgrade_after_lock);
             }
             Action::PowerAsk => {
-                if self.outbox.is_empty() && !self.secure_boot_reminder() {
+                // An open vault's changes are never sealed at power-off:
+                // the sheet says they are lost.
+                let changed = self.vaults.open.iter().any(|v| v.changes > 0);
+                if self.outbox.is_empty() && !self.secure_boot_reminder() && !changed {
                     self.commands.push_back(Command::Exit);
                 } else {
                     self.sheet = Some(Sheet::Power);
@@ -5255,8 +5283,9 @@ impl Faraday {
             }
             Action::BackupFirst(w) => self.backup_first(w),
             Action::BNewVault => {
-                self.vault_lock_one(self.vaults.current);
-                self.vault_act(vaults::VaultAction::CreateFrom(Screen::Backup));
+                if self.vault_lock_one(self.vaults.current) {
+                    self.vault_act(vaults::VaultAction::CreateFrom(Screen::Backup));
+                }
             }
             Action::BFile => {
                 // The seeds' files item makes the first one not yet made.
@@ -11033,6 +11062,10 @@ impl App for Faraday {
                     return;
                 }
                 if self.vault_tick(now_ms) {
+                    self.dirty = true;
+                    self.commands.push_back(Command::Draw);
+                }
+                if self.seed_tick() {
                     self.dirty = true;
                     self.commands.push_back(Command::Draw);
                 }

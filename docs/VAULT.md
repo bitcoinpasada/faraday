@@ -227,9 +227,15 @@ reaches more than one key unless the person ticks more seeds into one.
 Sealing writes the vault back to memory as a file:
 
 - The header is unchanged.
-- The open slot is re-encrypted under the same `K_slot` with a fresh
-  24-byte nonce drawn from the shell's entropy. A random 24-byte nonce
-  is the reason the cipher is XChaCha20 and not ChaCha20.
+- The open slot is re-encrypted under the same `K_slot` with a new
+  24-byte nonce: the first 24 bytes of SHA-256 over a label, the
+  session's seed (the shell's first 32 bytes of entropy) and a count of
+  the seals this process has made. No two seals of a process share a
+  nonce, and two processes share one only if the system gave both the
+  same seed. Nothing is sealed before the seed arrived: a lock with a
+  changed vault open then seals nothing and says so, and the vault stays
+  open with its changes. A 24-byte nonce is the reason the cipher is
+  XChaCha20 and not ChaCha20.
 - **Every other slot is copied byte for byte.** A session cannot tell an
   unused slot from one that another passphrase opens, so it never
   rewrites, re-randomises or clears one.

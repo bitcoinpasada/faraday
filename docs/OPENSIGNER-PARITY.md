@@ -84,7 +84,8 @@ person notices, in the order below. Nothing here edits an upstream file.
 3. Done 2026-10-06: vault creation, GPG and Secure Boot keys take fresh
    shell bytes of their own (`faraday-core/src/fresh.rs`). A vault's seal
    nonce and the new-keyboard code keep the session's bytes and a counter:
-   neither is a key, and a seal at lock must not wait.
+   neither is a key, and a seal at lock must not wait for more than the
+   session's first bytes. Neither is made before those arrive.
 
 **B. Keys in every form OpenSigner reads**
 

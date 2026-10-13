@@ -553,8 +553,11 @@ fn sysfs_dir(fb: &Path) -> Option<PathBuf> {
 /// initialised and never afterwards. The board seeds it from the SoC's
 /// hardware RNG (`CONFIG_HW_RANDOM_BCM2835`), so the wait is over before
 /// the first frame. A read that fails or comes up short is answered with
-/// nothing at all, which the contract allows: the core then runs a weak
-/// session and says so.
+/// nothing at all, which the contract allows. Faraday's core then has no
+/// session seed: it seals no vault (a lock with a changed vault open asks
+/// before it loses the changes), gives a new keyboard no code, makes no
+/// key and opens no signing round, and Home says the system gave no
+/// randomness and Faraday has to restart.
 fn entropy() -> Option<Event> {
     let mut bytes = [0u8; 32];
     let mut file = File::open("/dev/random").ok()?;
@@ -1075,7 +1078,9 @@ impl Shell {
                         if let Some(e) = entropy() {
                             pending.push_back(e);
                         } else {
-                            self.say("no entropy from /dev/random; the session is weak");
+                            self.say(
+                                "no entropy from /dev/random; nothing is sealed until it comes",
+                            );
                         }
                     }
                     // No secure element and nowhere to keep a blob:

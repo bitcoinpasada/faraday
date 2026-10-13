@@ -13,7 +13,9 @@
 //! pointer is believed once a person says so with input already
 //! trusted, or with the code typed on a keyboard that comes with it.
 //! **Ignore this device** keeps it out until it is unplugged; ignored
-//! devices are listed in Settings.
+//! devices are listed in Settings. The code is drawn from the session's
+//! seed: a keyboard that arrives before the seed waits without one, held
+//! back, and gets one when the seed arrives.
 
 use crate::strings::EN;
 use crate::{Faraday, Sheet};
@@ -44,8 +46,8 @@ pub struct NewInput {
     pub keyboard: bool,
     /// It points.
     pub pointer: bool,
-    /// The code it must type.
-    pub code: String,
+    /// The code it must type; `None` until the session's seed arrived.
+    pub code: Option<String>,
     /// What it has typed so far, the last few letters.
     pub typed: String,
     /// How many letters it has typed in all.
@@ -64,12 +66,7 @@ impl Faraday {
             self.toast(EN.inputs_new_keyboards_ignored);
             return;
         }
-        let draw = self.input_code_bytes(id);
-        let code = draw
-            .iter()
-            .take(CODE_LEN)
-            .map(|b| char::from(LETTERS[usize::from(*b) % LETTERS.len()]))
-            .collect();
+        let code = self.input_code(id);
         self.inputs.push(NewInput {
             id,
             name,
@@ -90,15 +87,27 @@ impl Faraday {
         }
     }
 
-    /// A code from the session's entropy, one per device.
-    fn input_code_bytes(&self, id: u32) -> [u8; 32] {
-        use osk_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
-        let mut e = sha256::Hash::engine();
-        e.input(b"faraday input code");
-        e.input(&self.seed);
-        e.input(&id.to_le_bytes());
-        e.input(&self.now_ms.to_le_bytes());
-        sha256::Hash::from_engine(e).to_byte_array()
+    /// A code from the session's seed, one per device; `None` before the
+    /// seed arrived.
+    fn input_code(&self, id: u32) -> Option<String> {
+        let count = [id.to_le_bytes().as_slice(), &self.now_ms.to_le_bytes()].concat();
+        let draw = self.seed.as_ref()?.draw(b"faraday input code", &count);
+        Some(
+            draw.iter()
+                .take(CODE_LEN)
+                .map(|b| char::from(LETTERS[usize::from(*b) % LETTERS.len()]))
+                .collect(),
+        )
+    }
+
+    /// The seed arrived: each device waiting without a code gets one.
+    pub(crate) fn inputs_coded(&mut self) {
+        for i in 0..self.inputs.len() {
+            if self.inputs[i].code.is_none() {
+                let code = self.input_code(self.inputs[i].id);
+                self.inputs[i].code = code;
+            }
+        }
     }
 
     /// A key a held-back keyboard typed.
@@ -107,11 +116,15 @@ impl Faraday {
             return;
         };
         let d = &mut self.inputs[i];
+        // With no code to type, typing is held back and counts for nothing.
+        if d.code.is_none() {
+            return;
+        }
         d.typed.push(ch.to_ascii_lowercase());
         d.letters += 1;
         let keep = d.typed.chars().count().saturating_sub(CODE_LEN);
         d.typed = d.typed.chars().skip(keep).collect();
-        if d.typed == d.code {
+        if d.code.as_deref() == Some(d.typed.as_str()) {
             self.input_believe(id);
         } else if d.letters >= CODE_LEN * CODE_TRIES {
             let name = d.name.clone();

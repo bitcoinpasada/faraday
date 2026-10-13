@@ -7,7 +7,7 @@ use faraday_core::keygen::Way;
 use faraday_core::plan::Preset;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, bstep, cstep, testkit};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 const PASSPHRASE: &str = "lantern-orchid-41";
 
@@ -26,6 +26,8 @@ fn kit_file(name: &str) -> (String, Vec<u8>) {
 /// backup's checklist can save a key into it.
 fn device() -> Faraday {
     let mut app = Faraday::new();
+    // The shell's randomness, which a lock seals a vault with.
+    app.event(Event::Entropy(EntropyBytes::new([3u8; 32])));
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 2400,

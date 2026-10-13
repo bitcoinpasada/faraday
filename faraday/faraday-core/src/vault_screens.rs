@@ -3598,8 +3598,27 @@ fn save_panel(
 }
 
 /// Lock, asked for while a vault is open: what is sealed into the Outbox
-/// and what is in the session but in no open vault.
+/// and what is in the session but in no open vault. With no seed to seal
+/// with, what is not sealed, and a lock that loses it.
 pub(crate) fn lock_ask(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+    let waits = app.seal_waits();
+    let (icon, tone, sub, sealed_label, lock) = if waits {
+        (
+            Icon::Error,
+            ERR,
+            FEN.seed_missing,
+            FEN.vault_not_sealed,
+            (FEN.vault_lock_without_sealing, Action::LockUnsealed),
+        )
+    } else {
+        (
+            Icon::Lock,
+            ACCENT,
+            FEN.vault_everything_not,
+            FEN.vault_sealed,
+            (FEN.vault_lock, Action::Lock),
+        )
+    };
     let (keys, wallets) = app.unsaved();
     let sealed: Vec<String> = app
         .vaults
@@ -3609,7 +3628,7 @@ pub(crate) fn lock_ask(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         .map(|v| v.label())
         .collect();
     let rows: Vec<(&str, String)> = [
-        (FEN.vault_sealed, sealed.join(", ")),
+        (sealed_label, sealed.join(", ")),
         (
             FEN.vault_keys_not_saved,
             if keys.is_empty() {
@@ -3631,14 +3650,23 @@ pub(crate) fn lock_ask(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     .filter(|(_, v)| !v.is_empty())
     .collect();
     if ui.compact {
-        let rows: Vec<(&str, String, osk_ui::Color)> =
-            rows.into_iter().map(|(k, v)| (k, v, TEXT)).collect();
+        let rows: Vec<(&str, String, osk_ui::Color)> = rows
+            .into_iter()
+            .map(|(k, v)| {
+                let tone = if waits && k == sealed_label {
+                    ERR
+                } else {
+                    TEXT
+                };
+                (k, v, tone)
+            })
+            .collect();
         crate::compact::kv_sheet(
             ui,
             w,
             h,
-            (Icon::Lock, ACCENT, FEN.vault_lock),
-            FEN.vault_everything_not,
+            (icon, tone, FEN.vault_lock),
+            sub,
             &rows,
             &[
                 (
@@ -3646,7 +3674,7 @@ pub(crate) fn lock_ask(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                     Style::Secondary,
                     Action::Cancel,
                 ),
-                (FEN.vault_lock, Style::Primary, Action::Lock),
+                (lock.0, Style::Primary, lock.1),
             ],
         );
         return;
@@ -3655,14 +3683,20 @@ pub(crate) fn lock_ask(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let (x, y) = crate::screens::sheet_box(ui, w, h, 560.0, sh);
     let ix = x + 32.0;
     let iw = 560.0 - 64.0;
-    ui.icon(ix, y + 30.0, 30.0, Icon::Lock, 18.0, ACCENT);
+    ui.icon(ix, y + 30.0, 30.0, icon, 18.0, tone);
     ui.text_mid(ix + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, FEN.vault_lock);
-    ui.text(ix, y + 76.0, 13.0, W::R, MUTED, FEN.vault_everything_not);
+    let sub_tone = if waits { ERR } else { MUTED };
+    ui.text(ix, y + 76.0, 13.0, W::R, sub_tone, sub);
     let mut ry = y + 106.0;
     for (k, v) in &rows {
         ui.text_mid(ix, ry, 40.0, 13.0, W::R, MUTED, k);
         let v = ui.fit(14.0, W::R, v, iw - 150.0);
-        ui.text_mid(ix + 150.0, ry, 40.0, 14.0, W::R, TEXT, &v);
+        let fg = if waits && *k == sealed_label {
+            ERR
+        } else {
+            TEXT
+        };
+        ui.text_mid(ix + 150.0, ry, 40.0, 14.0, W::R, fg, &v);
         ui.rule(ix, ry + 40.0, iw, INNER);
         ry += 44.0;
     }
@@ -3682,9 +3716,9 @@ pub(crate) fn lock_ask(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         by,
         Some(bw),
         46.0,
-        FEN.vault_lock,
+        lock.0,
         Style::Primary,
-        Action::Lock,
+        lock.1,
     );
 }
 

@@ -11,7 +11,7 @@ use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 fn names() -> Vec<String> {
     testkit::backup_files()
@@ -263,6 +263,8 @@ fn the_lock_sheet_lists_a_seed_in_memory_only_as_nowhere_else() {
 fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     use faraday_core::bstep;
     let mut app = testkit::started();
+    // The shell's randomness, which a lock seals the vault with.
+    app.event(Event::Entropy(EntropyBytes::new([3u8; 32])));
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });

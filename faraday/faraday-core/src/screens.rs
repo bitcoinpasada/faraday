@@ -1125,6 +1125,13 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text(x + 26.0, y, 14.0, W::S, WARN, &line);
         y += 36.0;
     }
+    // The system gave no randomness: nothing seals until a restart.
+    if app.seed_missing() {
+        ui.icon(x - 4.0, y - 6.0, 28.0, Icon::Error, 14.0, ERR);
+        let line = ui.fit(14.0, W::S, EN.seed_missing, width - 28.0);
+        ui.text(x + 26.0, y, 14.0, W::S, ERR, &line);
+        y += 36.0;
+    }
     // A wireless receiver: a line, which holds nothing.
     if let Some(line) = app.devices.receiver_line() {
         let tone = if line == crate::strings::EN.devices_bolt_notice {
@@ -9945,8 +9952,13 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 .flatten()
                 .and_then(|h| app.vaults.open.iter().find(|v| v.header().salt == h.salt));
             let line = match open_here {
+                // With no seed to seal with, Lock does not seal it.
                 Some(v) if v.changes > 0 => fill(
-                    EN.files_vault_open_unsaved,
+                    if app.seeded() {
+                        EN.files_vault_open_unsaved
+                    } else {
+                        EN.vault_open_unsaved
+                    },
                     &[
                         &v.changes.to_string(),
                         (if v.changes == 1 {
@@ -11178,8 +11190,13 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 .flatten()
                 .and_then(|h| app.vaults.open.iter().find(|v| v.header().salt == h.salt));
             let line = match open_here {
+                // With no seed to seal with, Lock does not seal it.
                 Some(v) if v.changes > 0 => fill(
-                    EN.files_vault_open_unsaved,
+                    if app.seeded() {
+                        EN.files_vault_open_unsaved
+                    } else {
+                        EN.vault_open_unsaved
+                    },
                     &[
                         &v.changes.to_string(),
                         (if v.changes == 1 {
@@ -14697,14 +14714,19 @@ fn new_input_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, WARN, what);
             cy += ui.wrap(x, cy, iw, 14.0, W::M, TEXT, &d.name) + 6.0;
             cy += ui.wrap(x, cy, iw, 12.0, W::R, MUTED, EN.new_input_the_name) + 12.0;
-            if d.keyboard {
+            if d.keyboard && d.code.is_none() && app.seed_missing() {
+                cy += ui.wrap(x, cy, iw, 13.0, W::S, ERR, EN.new_input_no_code) + 12.0;
+            }
+            if d.keyboard
+                && let Some(code) = d.code.as_deref()
+            {
                 ui.text(x, cy, 13.0, W::S, MUTED, EN.new_input_type_this);
                 cy += 24.0;
-                let n = d.code.chars().count().max(1) as f32;
+                let n = code.chars().count().max(1) as f32;
                 let bw = ((iw - (n - 1.0) * 6.0) / n).min(52.0);
                 let typed = d.typed.chars().count();
-                for (k, c) in d.code.chars().enumerate() {
-                    let done = d.code.starts_with(&d.typed) && k < typed;
+                for (k, c) in code.chars().enumerate() {
+                    let done = code.starts_with(&d.typed) && k < typed;
                     let cx = x + k as f32 * (bw + 6.0);
                     ui.fill(
                         cx,
@@ -14753,14 +14775,21 @@ fn new_input_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     ui.text(ix, y + 76.0, 14.0, W::M, TEXT, &name);
     ui.text(ix, y + 100.0, 13.0, W::R, MUTED, EN.new_input_the_name);
     let mut by = y + 140.0;
-    if d.keyboard {
+    if d.keyboard && d.code.is_none() && app.seed_missing() {
+        let line = ui.fit(13.0, W::S, EN.new_input_no_code, iw);
+        ui.text(ix, by, 13.0, W::S, ERR, &line);
+        by += 112.0;
+    }
+    if d.keyboard
+        && let Some(code) = d.code.as_deref()
+    {
         ui.text(ix, by, 13.0, W::S, MUTED, EN.new_input_type_this);
         by += 28.0;
         let mut cx = ix;
         let typed: Vec<char> = d.typed.chars().collect();
-        for (k, c) in d.code.chars().enumerate() {
+        for (k, c) in code.chars().enumerate() {
             // A letter already typed in order is marked.
-            let done = d.code.starts_with(&d.typed) && k < typed.len();
+            let done = code.starts_with(&d.typed) && k < typed.len();
             ui.fill(
                 cx,
                 by,
@@ -14850,11 +14879,14 @@ fn idle_warn_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             ],
         ),
     )];
-    if !sealed.is_empty() {
+    if !sealed.is_empty() && app.seeded() {
         rows.push((
             EN.idle_warn_sealed,
             format!("{} · {}", sealed.join(", "), app.medium.for_the()),
         ));
+    } else if !sealed.is_empty() {
+        // No seed to seal with: the idle lock loses the changes.
+        rows.push((EN.vault_not_sealed, sealed.join(", ")));
     }
     rows.push((
         EN.idle_warn_kept,

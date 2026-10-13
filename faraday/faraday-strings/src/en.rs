@@ -45,6 +45,9 @@ pub struct Strings {
     pub devices_power_off: &'static str,
     /// The stick's first screen, always: it cannot read the screen.
     pub devices_tv_line: &'static str,
+    /// Home, while the system has given no randomness well after the
+    /// start: nothing is sealed and no keyboard gets a code.
+    pub seed_missing: &'static str,
     /// Title of the question a desktop computer's screen gets once.
     pub devices_tv_ask: &'static str,
     /// The answer: it is a TV.
@@ -5900,6 +5903,9 @@ pub struct Strings {
     pub new_input_the_name: &'static str,
     /// Line in `new_input_sheet`.
     pub new_input_type_this: &'static str,
+    /// Line in `new_input_sheet`, in place of the code while the system
+    /// has given no randomness.
+    pub new_input_no_code: &'static str,
     /// Button in `new_input_sheet`.
     pub new_input_ignore_this: &'static str,
     /// Button in `new_input_sheet`.
@@ -7146,6 +7152,12 @@ pub struct Strings {
     pub vault_every_wallet: &'static str,
     /// Text in `lock_ask`.
     pub vault_sealed: &'static str,
+    /// Text in `lock_ask`, in place of Sealed while the system has given
+    /// no randomness.
+    pub vault_not_sealed: &'static str,
+    /// Button in `lock_ask`, in place of Lock while the system has given
+    /// no randomness: the changes are lost.
+    pub vault_lock_without_sealing: &'static str,
     /// Text in `lock_ask`.
     pub vault_keys_not_saved: &'static str,
     /// Text in `lock_ask`.
@@ -7415,6 +7427,9 @@ pub struct Strings {
     pub vaults_on_current: &'static str,
     /// Text in `line`.
     pub vaults_changed_since: &'static str,
+    /// A vault's state in what a lock wipes, while the system has given
+    /// no randomness.
+    pub vaults_changes_not_sealed: &'static str,
     /// Text in `line`.
     pub vaults_unchanged: &'static str,
     /// Text in `line`. `{}`: `self.wallets.len()`.
@@ -8039,6 +8054,7 @@ pub static EN: Strings = Strings {
     devices_still: "Still attached",
     devices_power_off: "Power off",
     devices_tv_line: "On a TV? Stop: a smart TV can record its screen.",
+    seed_missing: "No randomness from the system. Faraday has to restart",
     devices_tv_ask: "Is this screen a TV?",
     devices_tv_yes: "It is a TV",
     devices_tv_no: "It is not a TV",
@@ -10865,6 +10881,7 @@ pub static EN: Strings = Strings {
     new_input_a_new_pointer: "A new pointer",
     new_input_the_name: "The name is what the device says about itself",
     new_input_type_this: "Type this code on it",
+    new_input_no_code: "This keyboard cannot be let in until Faraday restarts",
     new_input_ignore_this: "Ignore this device",
     new_input_use_this: "Use this pointer",
     idle_warn_wiped: "Wiped",
@@ -11474,6 +11491,8 @@ pub static EN: Strings = Strings {
     vault_save: "Save",
     vault_every_wallet: "Every wallet in this session is in the vault",
     vault_sealed: "Sealed",
+    vault_not_sealed: "Not sealed",
+    vault_lock_without_sealing: "Lock without sealing",
     vault_keys_not_saved: "Keys not saved",
     vault_wallets_not_saved: "Wallets not saved",
     vault_everything_not: "Everything not in a vault is wiped with the session",
@@ -11608,6 +11627,7 @@ pub static EN: Strings = Strings {
     vaults_never_written: "Never written",
     vaults_on_current: "On {} · current",
     vaults_changed_since: "Changed since written",
+    vaults_changes_not_sealed: "Changes not sealed",
     vaults_unchanged: "Unchanged",
     vaults_wallets_n: "{} wallets",
     vaults_key: "key {}",

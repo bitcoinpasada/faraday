@@ -17,7 +17,7 @@ use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, bstep, plan, qrow};
 use faraday_vault::records::kind;
 use osk_bip::keys::Fingerprint;
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 /// Test key 2: the test vault holds test key 1 only.
 const SEED: usize = 1;
@@ -33,6 +33,8 @@ fn kit_file(name: &str) -> (String, Vec<u8>) {
 
 fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = Faraday::new();
+    // The shell's randomness, which a lock seals a vault with.
+    app.event(Event::Entropy(EntropyBytes::new([3u8; 32])));
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,

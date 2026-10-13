@@ -903,7 +903,12 @@ impl Faraday {
             let line = format!("{title} · {state}");
             let lost =
                 power_off && matches!(currency, Some(Currency::NeverWritten | Currency::Changed));
-            if lost {
+            // A lock with no seed to seal with loses the changes.
+            let unsealed = !power_off && !self.seeded() && open.is_some_and(|v| v.changes > 0);
+            if unsealed {
+                out.wiped
+                    .push((format!("{title} · {}", EN.vaults_changes_not_sealed), true));
+            } else if lost {
                 out.wiped.push((line, true));
             } else {
                 out.kept.push(line);
@@ -1099,18 +1104,22 @@ impl Faraday {
             .map(|i| i.bytes.clone())
     }
 
-    /// 32 bytes for a vault's seal nonce: the session's entropy, hashed
-    /// with a counter and what they are for. A nonce has only to differ
-    /// each time, and a seal at lock must not wait for the system; every
-    /// key comes from [`Faraday::fresh`] instead.
-    pub(crate) fn vault_draw(&mut self, what: &[u8]) -> [u8; 32] {
+    /// 32 bytes for a vault's seal nonce: the session's seed, hashed with
+    /// what they are for and a count of the draws, so no two seals of a
+    /// process share a nonce and two processes share one only if the
+    /// system gave both the same bytes. A seal at lock does not wait for
+    /// the system beyond its first answer; every key comes from
+    /// [`Faraday::fresh`] instead. `None` before the seed arrived: nothing
+    /// is sealed then, and the shell is asked again.
+    pub(crate) fn vault_draw(&mut self, what: &[u8]) -> Option<[u8; 32]> {
+        let Some(seed) = self.seed.as_ref() else {
+            self.commands
+                .push_back(osk_shell_api::Command::RequestEntropy);
+            return None;
+        };
         self.vaults.draws += 1;
-        let mut e = sha256::Hash::engine();
-        e.input(b"faraday vault draw");
-        e.input(what);
-        e.input(&self.seed);
-        e.input(&self.vaults.draws.to_le_bytes());
-        sha256::Hash::from_engine(e).to_byte_array()
+        let what = [b"faraday vault draw".as_slice(), what].concat();
+        Some(seed.draw(&what, &self.vaults.draws.to_le_bytes()))
     }
 
     /// Runs a vault action.
@@ -3051,7 +3060,9 @@ impl Faraday {
     /// Seals every open vault with changes into the Outbox (`PLAN.md`
     /// §5.3). A vault nobody changed is not rewritten: a slot's bytes
     /// change only when there is something to keep, which is all a second
-    /// copy can compare (`docs/VAULT.md` §9).
+    /// copy can compare (`docs/VAULT.md` §9). Before the session's seed
+    /// arrived nothing is sealed: the lock that calls this asked first
+    /// ([`Faraday::seal_waits`]).
     pub(crate) fn vault_seal_all(&mut self) {
         // What each open vault holds, remembered across the lock.
         self.vault_summaries_refresh();
@@ -3066,7 +3077,8 @@ impl Faraday {
     }
 
     /// Open vault `i`, with the signed-amount memory added, sealed: its
-    /// name and bytes, or None when nobody changed it.
+    /// name and bytes, or None when nobody changed it or the session's
+    /// seed has not arrived.
     fn vault_sealed(&mut self, i: usize) -> Option<(String, Vec<u8>)> {
         // A held key's record says so before the vault goes
         // (`docs/NEW-WALLET.md` §14.3).
@@ -3109,7 +3121,7 @@ impl Faraday {
         if self.vaults.open.get(i)?.changes == 0 {
             return None;
         }
-        let draw = self.vault_draw(b"nonce");
+        let draw = self.vault_draw(b"nonce")?;
         let mut nonce = [0u8; fv::NONCE_LEN];
         nonce.copy_from_slice(&draw[..fv::NONCE_LEN]);
         let v = &self.vaults.open[i];
@@ -3118,10 +3130,18 @@ impl Faraday {
     }
 
     /// Locks open vault `i` alone: sealed into the Outbox when changed,
-    /// what it holds remembered, and closed. The rest stay open.
-    pub(crate) fn vault_lock_one(&mut self, i: usize) {
+    /// what it holds remembered, and closed. The rest stay open. A
+    /// changed vault stays open, its changes kept, while the session's
+    /// seed has not arrived: then this returns false.
+    pub(crate) fn vault_lock_one(&mut self, i: usize) -> bool {
         if i >= self.vaults.open.len() {
-            return;
+            return true;
+        }
+        if !self.seeded() && self.vaults.open[i].changes > 0 {
+            self.commands
+                .push_back(osk_shell_api::Command::RequestEntropy);
+            self.toast(EN.seed_missing);
+            return false;
         }
         self.vault_summaries_refresh();
         if let Some((name, bytes)) = self.vault_sealed(i) {
@@ -3131,6 +3151,7 @@ impl Faraday {
         self.vaults.current = 0;
         self.vaults.item_open = false;
         self.vaults.form = None;
+        true
     }
 
     /// Typing on a vault screen. Returns whether the key was taken.
