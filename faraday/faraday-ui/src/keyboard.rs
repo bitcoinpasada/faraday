@@ -138,8 +138,9 @@ pub fn keyboard<A: Copy + PartialEq>(
             KeyInput::Char(c) => (c.to_string(), Style::Secondary, OskPress::Char(c)),
             KeyInput::Backspace => (String::new(), Style::Secondary, OskPress::Back),
             KeyInput::Done => (EN.compact_done.to_string(), Style::Primary, OskPress::Done),
+            // Drawn as an icon below: Faraday's fonts have no "⇧".
             KeyInput::Shift => (
-                "⇧".to_string(),
+                String::new(),
                 if keys.shift {
                     Style::Primary
                 } else {
@@ -171,6 +172,14 @@ pub fn keyboard<A: Copy + PartialEq>(
                 Icon::Space,
                 12.0,
                 MUTED,
+            ),
+            KeyInput::Shift => ui.icon(
+                kx + kw / 2.0 - 9.0,
+                ky + kh / 2.0 - 9.0,
+                18.0,
+                Icon::ChevronUp,
+                12.0,
+                if keys.shift { ON_ACCENT } else { TEXT },
             ),
             _ => {}
         }

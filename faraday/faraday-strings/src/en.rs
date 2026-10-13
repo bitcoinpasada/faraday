@@ -11726,7 +11726,7 @@ pub static EN: Strings = Strings {
     companion_hold_to_show: "Hold to show",
     companion_back_in_windows: "Back in Windows",
     companion_key_not_needed: "Not needed if Windows started without asking for it.",
-    companion_key_shown_again: "The hub app shows it again the next time Faraday is set up on this computer.",
+    companion_key_shown_again: "Faraday Starter shows it again the next time Faraday is set up on this computer.",
     companion_closed_title: "Not opened",
     companion_closed_cancelled: "Unlock cancelled",
     companion_closed_no_lock: "Set a screen lock on this phone to keep wallet descriptions and BitLocker keys.",

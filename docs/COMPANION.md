@@ -213,8 +213,8 @@ opens a sheet titled **Delete this key?** with two lines of fact, as
 F1's sheet carries one:
 
 - "Not needed if Windows started without asking for it."
-- "The hub app shows it again the next time Faraday is set up on this
-  computer."
+- "Faraday Starter shows it again the next time Faraday is set up on
+  this computer."
 
 and **Delete the key** (primary) and **Keep it**. Both close the
 sheet. **Delete** on the Record asks once, without the two lines. The
