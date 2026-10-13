@@ -14,7 +14,11 @@ With Windows' Fast Startup on, Shut down does not close Windows and the keys can
 
 Computers made in 2021 or later: in System Setup, choose Boot Configuration in the left menu, turn Secure Boot off, then Apply Changes and exit.
 
+::sketch dell-secure-boot
+
 Computers made before 2021: choose Secure Boot in the left menu, clear Secure Boot Enable, then Apply and exit.
+
+::sketch dell-secure-boot-before-2021
 
 Leave Secure Boot Mode and Expert Key Management as they are.
 
@@ -30,6 +34,8 @@ Enable USB Boot Support has to be on: Integrated Devices → USB/Thunderbolt Con
 
 Plug the stick in, restart, and tap F12. Choose the stick in the One Time Boot menu. Where it is listed twice, choose the entry that begins with UEFI. The F12 menu starts the stick once and leaves the boot order as it was.
 
+::sketch dell-boot-menu
+
 ## Turn Secure Boot back on
 
 Turn the computer off from Faraday and pull the stick out. Tap F2 at power-on, turn Secure Boot on where it was turned off, then Apply and exit.
@@ -44,4 +50,6 @@ The menu names differ between Dell models and BIOS versions. Dell's System Manua
 
 ## Where this comes from
 
-Dell: "How to Enter BIOS or UEFI Setup on a Dell Computer" (knowledge base 000126121), "How to Enable Secure Boot on Dell Devices for Windows 11" (knowledge base 000190116), the video "How To Enable Secure Boot", and "BIOS Settings to Allow PXE Boot on Certain Dell Latitude Laptops" (knowledge base 000131551), all on dell.com/support; the Secure Boot and Pre-boot Behavior pages of Dell's Latitude service manuals (dell.com/support/manuals). All read 2026-10-12.
+Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
+
+Dell: "How to Enter BIOS or UEFI Setup on a Dell Computer" (knowledge base 000126121), "How to Enable Secure Boot on Dell Devices for Windows 11" (knowledge base 000190116), the video "How To Enable Secure Boot", and "BIOS Settings to Allow PXE Boot on Certain Dell Latitude Laptops" (knowledge base 000131551), all on dell.com/support; the Secure Boot and Pre-boot Behavior pages of Dell's Latitude service manuals (dell.com/support/manuals). All read 2026-10-12. The same video frame by frame, knowledge base 000136959, and the System setup and One Time Boot pages of Dell's Latitude owner's manuals, read 2026-10-13.

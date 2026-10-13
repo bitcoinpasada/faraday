@@ -35,6 +35,10 @@ pub enum Family {
     SemiBoldNarrow,
     /// Noto Sans Mono: addresses, fingerprints, keys.
     Mono,
+    /// Terminus: a text-mode face for the firmware screens Faraday
+    /// sketches (`docs/HUB.md` §7.8). ASCII and a few arrows only; a
+    /// code point it lacks falls back like any text face's.
+    Firmware,
     /// The icon face: SeedSigner's icons and the Font Awesome glyphs the
     /// UI names ([`crate::widgets::Icon`]).
     Icon,
@@ -542,7 +546,7 @@ mod tests {
     fn text_faces() -> impl Iterator<Item = &'static Face> {
         FACES
             .iter()
-            .filter(|f| !matches!(f.family, Family::Icon | Family::Cjk))
+            .filter(|f| !matches!(f.family, Family::Icon | Family::Cjk | Family::Firmware))
     }
 
     fn text_set() -> Vec<char> {

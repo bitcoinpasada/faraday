@@ -12,9 +12,17 @@ Faraday Starter's Restart into firmware settings opens the BIOS without a key.
 
 ## Turn Secure Boot off
 
-Notebooks: in the BIOS, press F7 for Advanced Mode (Advanced Settings in MyASUS in UEFI). Open the Security screen, then Secure Boot, and set Secure Boot Control to Disabled. Press F10 and confirm, or choose Save Changes and Exit on the Save & Exit page.
+Notebooks: in the BIOS, press F7 for Advanced Mode (Advanced Settings in MyASUS in UEFI). Open the Security screen, then Secure Boot, and set Secure Boot Control to Disabled. Press F10 and confirm: the box is Save & Reset on newer notebooks, Save & Exit Setup on older ones.
 
-Desktops: Boot → Secure Boot, and set OS Type to Other OS. Save and exit.
+::sketch asus-secure-boot
+
+::sketch asus-save
+
+Desktops: Boot → Secure Boot, and set OS Type to Other OS. Press F10 and choose Ok in the Save Changes & Reset box; the last tab is Exit.
+
+::sketch asus-desktop-secure-boot
+
+::sketch asus-desktop-save
 
 On Windows, choose the stick from the boot menu on the restart that follows the save, before Windows starts, and turn Secure Boot back on before Windows starts again. Windows started with Secure Boot off asks for the BitLocker recovery key, unless Faraday Starter suspended BitLocker.
 
@@ -25,6 +33,8 @@ If the stick is missing from the boot menu, open the Boot screen in Advanced Mod
 ## Start from the stick
 
 Plug the stick in. With the computer shut down, hold Esc and press the power button, let go when the boot menu appears, choose the stick, and press Enter. If the menu does not appear, open the BIOS and press F8, or choose Boot Menu. Where the stick is listed twice, choose the entry that begins with UEFI.
+
+::sketch asus-boot-menu
 
 ## Turn Secure Boot back on
 
@@ -40,4 +50,6 @@ Leave Launch CSM as it is: the stick starts in UEFI mode, and CSM is for legacy 
 
 ## Where this comes from
 
-ASUS: "How to Enable/Disable Secure Boot" (FAQ 1050047), "How to Boot from a USB Flash Drive/CD-ROM (Changing Boot Options)" (FAQ 1013017) and "[Notebook] How to disable Fast Boot in BIOS configuration" (FAQ 1044641), on asus.com/support. All read 2026-10-12.
+Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
+
+ASUS: "How to Enable/Disable Secure Boot" (FAQ 1050047), "How to Boot from a USB Flash Drive/CD-ROM (Changing Boot Options)" (FAQ 1013017) and "[Notebook] How to disable Fast Boot in BIOS configuration" (FAQ 1044641), on asus.com/support. All read 2026-10-12; the first two read again, with their screen images, 2026-10-13.

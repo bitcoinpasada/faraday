@@ -12,6 +12,7 @@ to `tools/fontbake` only; no font file and no TTF parser ships on a device
 | `NotoSans-SemiCondensedSemiBold.ttf` | Noto Sans SemiCondensed | titles, row labels, buttons on `small` |
 | `NotoSansMono-Regular.ttf` | Noto Sans Mono | the arrows and triangles the other faces lack |
 | `iosevka/Iosevka-Regular.ttf` | Iosevka | everything read character by character: keycaps, candidates, fingerprints, hex, paths, addresses, chunked strings |
+| `TerminusTTF-4.49.3.ttf` | Terminus (TTF) | the firmware sketches' text-mode face (`docs/HUB.md` §7.8): ASCII and a few arrows |
 | `seedsigner-icons.otf` | SeedSigner icons | the `U+E9xx` icons of the `Icon` set |
 | `Font_Awesome_6_Free-Solid-900.otf` | Font Awesome 6 Free Solid | the rest of the `Icon` set |
 | `cjk/NotoSans{JP,KR,TC,SC}-Regular.otf` | Noto Sans CJK | the wordlist and keyboard glyphs the faces above lack |
@@ -71,6 +72,17 @@ swaps them in on `small`.
 - **Noto Sans, Noto Sans SemiCondensed, Noto Sans Mono, Noto Sans CJK**: SIL Open Font License 1.1,
   reproduced in `OFL.txt`. The OFL permits embedding rasterised glyphs in a binary and
   redistribution under the same licence; the reserved font name is not
+  used for any derived font.
+- **TerminusTTF-4.49.3.ttf**: Terminus TTF 4.49.3, the outline cut of
+  Dimitar Zhekov's Terminus bitmap font made by Tilman Blumenbach, SIL
+  Open Font License 1.1, reproduced with its copyright lines in
+  `LICENSE-terminus.txt`. Copied unmodified from the release archive
+  `https://files.ax86.net/terminus-ttf/files/4.49.3/terminus-ttf-4.49.3.zip`
+  (the `latest.zip` of 2026-10-13; archive SHA-256
+  `0ead921d98d99a4590ffe6cd66dc037fc0a2ceea1c735d866ba73fe058257577`,
+  TTF SHA-256
+  `f668ad7884635e112bcfa2ced6ccb9550128f643bf539cb049bd90bd8afbf4b3`).
+  The reserved font names "Terminus Font" and "Terminus (TTF)" are not
   used for any derived font.
 - **seedsigner-icons.otf**: from the SeedSigner project, MIT licence,
   reproduced in `LICENSE-seedsigner-icons.txt`. Copied unmodified from the

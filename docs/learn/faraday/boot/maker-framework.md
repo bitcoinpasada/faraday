@@ -14,6 +14,10 @@ Faraday Starter's Restart into firmware settings opens the BIOS without a key.
 
 In the BIOS, choose Administer Secure Boot and set Enforce Secure Boot to Disabled with the arrow keys. Press F10 to save and restart.
 
+::sketch framework-front-page
+
+::sketch framework-secure-boot
+
 On Windows, choose the stick from the boot menu on the restart that follows the save, before Windows starts, and turn Secure Boot back on before Windows starts again. Windows started with Secure Boot off asks for the BitLocker recovery key, unless Faraday Starter suspended BitLocker.
 
 ## Turn Fast Boot off where it hides USB
@@ -22,7 +26,9 @@ Framework's guides do not describe a setting that hides USB disks from the boot 
 
 ## Start from the stick
 
-Plug the stick in, turn the computer on, and tap F12 as soon as the power light comes on. Choose the stick. Where it is listed twice, choose the entry that begins with UEFI. With no system on the internal drive, the computer starts from the stick without the menu.
+Plug the stick in, turn the computer on, and tap F12 as soon as the power light comes on. Choose the stick: it is listed as EFI USB Device, under EFI Boot Devices. With no system on the internal drive, the computer starts from the stick without the menu.
+
+::sketch framework-boot-menu
 
 ## Turn Secure Boot back on
 
@@ -38,4 +44,6 @@ Framework's guides say to turn BitLocker off before turning Secure Boot off. Far
 
 ## Where this comes from
 
-Framework: "Arch Linux on the Framework Laptop 13", "Arch Linux on the Framework Laptop 16" and "Bazzite Installation on the Framework Laptop 13", on guides.frame.work. All read 2026-10-12.
+Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
+
+Framework: "Arch Linux on the Framework Laptop 13", "Arch Linux on the Framework Laptop 16" and "Bazzite Installation on the Framework Laptop 13", on guides.frame.work, read 2026-10-12. "Enabling Battery Saver Functionality in BIOS" and the first and third again, with their screen images, on guides.frame.work, read 2026-10-13.

@@ -9,6 +9,10 @@ use std::sync::OnceLock;
 
 use osk_learn::{Page as LearnPage, Section};
 
+pub mod sketch;
+
+pub use sketch::{SKETCHES, Sketch, is_marker, sketch_of};
+
 /// Faraday's own pages, which OpenSigner does not have, each by its id.
 /// They are edited as `docs/learn/faraday/<id>.md` (the guides to
 /// starting a computer from the stick as `docs/learn/faraday/boot/<id>.md`,

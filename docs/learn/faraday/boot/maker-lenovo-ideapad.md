@@ -14,17 +14,25 @@ Faraday Starter's Restart into firmware settings opens the BIOS without a key.
 
 ## Turn Secure Boot off
 
-In the BIOS, open the Security tab and set Secure Boot to Disabled. Press F10, or Fn+F10, and choose Yes to save and exit.
+In the BIOS, open the Security tab and set Secure Boot to Disabled. Secure Boot cannot be changed while Device Guard, on the same tab, is Enabled. Press F10, or Fn+F10, and choose Yes to save and exit.
+
+::sketch ideapad-secure-boot
+
+::sketch ideapad-save
 
 On Windows, choose the stick from the boot menu on the restart that follows the save, before Windows starts, and turn Secure Boot back on before Windows starts again. Windows started with Secure Boot off asks for the BitLocker recovery key, unless Faraday Starter suspended BitLocker.
 
 ## Turn Fast Boot off where it hides USB
 
-Lenovo's IdeaPad articles do not describe a setting that hides USB disks on computers from 2020 on. On computers from 2019 or before, the Boot tab has USB Boot, which has to be Enabled.
+Lenovo's IdeaPad articles do not describe a setting that hides USB disks. The Boot tab has USB Boot, which has to be Enabled.
+
+::sketch ideapad-usb-boot
 
 ## Start from the stick
 
-Plug the stick in, restart, and press F12, or Fn+F12, during power-on. Or, with the computer off, press the Novo button and choose Boot Menu. Choose the stick with the arrow keys and press Enter. Where it is listed twice, choose the entry that begins with UEFI.
+Plug the stick in, restart, and press F12, or Fn+F12, during power-on. Or, with the computer off, press the Novo button and choose Boot Menu. Choose the stick with the arrow keys and press Enter. Where it is listed twice, choose the entry that begins with EFI USB Device; the other is for legacy BIOS mode.
+
+::sketch ideapad-boot-menu
 
 ## Turn Secure Boot back on
 
@@ -40,4 +48,6 @@ The same article turns BitLocker off, which decrypts the drive. Faraday Starter'
 
 ## Where this comes from
 
-Lenovo: "Recommended way to enter BIOS - ideapad" (HT500216), "How to boot from USB disk in the BIOS (Boot Menu) - ideapad, Lenovo" (HT500207) and "Introduction to NOVO button - ideapad" (HT062552), on support.lenovo.com; "Get to know UEFI/BIOS" in a Legion user guide, on download.lenovo.com. All read 2026-10-12.
+Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
+
+Lenovo: "Recommended way to enter BIOS - ideapad" (HT500216), "How to boot from USB disk in the BIOS (Boot Menu) - ideapad, Lenovo" (HT500207) and "Introduction to NOVO button - ideapad" (HT062552), on support.lenovo.com; "Get to know UEFI/BIOS" in a Legion user guide, on download.lenovo.com, read 2026-10-12. Lenovo BIOS Simulator Center, on download.lenovo.com, read 2026-10-13.

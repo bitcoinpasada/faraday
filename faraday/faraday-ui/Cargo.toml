@@ -17,6 +17,8 @@ osk-ui = { path = "../../core/osk-ui" }
 osk-codec = { path = "../../core/osk-codec", default-features = false }
 # The themes' names.
 faraday-strings = { path = "../faraday-strings" }
+# The firmware sketches' data (`docs/HUB.md` §7.8).
+faraday-learn = { path = "../faraday-learn" }
 
 [lints]
 workspace = true

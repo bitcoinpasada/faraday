@@ -12,7 +12,9 @@ Faraday Starter's Restart into firmware settings opens the BIOS without a key.
 
 ## Turn Secure Boot off
 
-In the BIOS, open Security → Secure Boot and set it to Disable. Press F10 to save and restart.
+In the BIOS, open Security → Secure Boot and set Secure Boot Support to Disabled. Press F10, Save & Reset, to save and restart.
+
+::sketch msi-secure-boot
 
 On Windows, choose the stick from the boot menu on the restart that follows the save, before Windows starts, and turn Secure Boot back on before Windows starts again. Windows started with Secure Boot off asks for the BitLocker recovery key, unless Faraday Starter suspended BitLocker.
 
@@ -24,9 +26,11 @@ MSI's notebook article does not describe a setting that hides USB disks from the
 
 Plug the stick in, restart, and press F11 when the MSI logo appears. Choose the stick. Where it is listed twice, choose the entry that begins with UEFI.
 
+::sketch msi-boot-menu
+
 ## Turn Secure Boot back on
 
-Turn the computer off from Faraday and pull the stick out. Press Delete when the MSI logo appears, set Security → Secure Boot to Enable, and press F10.
+Turn the computer off from Faraday and pull the stick out. Press Delete when the MSI logo appears, set Security → Secure Boot → Secure Boot Support to Enabled, and press F10.
 
 MSI's notebook article does not describe restoring the Secure Boot keys. If Secure Boot does not stay on, the step on the general Windows page applies.
 
@@ -36,4 +40,6 @@ These steps are from MSI's article for its notebooks, which does not cover deskt
 
 ## Where this comes from
 
-MSI: "[Troubleshooting] Secure Boot Violation Error at Startup" (FAQ 11370, which applies to all MSI notebooks), on msi.com/faq. Read 2026-10-12.
+Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
+
+MSI: "[Troubleshooting] Secure Boot Violation Error at Startup" (FAQ 11370, which applies to all MSI notebooks), on msi.com/faq. Read 2026-10-12, and again, with its screen images, 2026-10-13.

@@ -6485,6 +6485,9 @@ pub struct Strings {
     /// Button in `receive`.
     pub transfer_open_folder: &'static str,
     // ----- ui (faraday-core/src/ui.rs) -----
+    /// Under a firmware sketch (`docs/HUB.md` §7.8, faraday-ui's
+    /// `sketch`): it is Faraday's drawing, not the screen itself.
+    pub ui_sketch_mock_up: &'static str,
     /// Text in `name`.
     pub ui_dark: &'static str,
     /// Text in `name`.
@@ -11080,6 +11083,7 @@ pub static EN: Strings = Strings {
     transfer_receive: "Receive",
     transfer_scan_with: "Scan with the camera",
     transfer_open_folder: "Open folder",
+    ui_sketch_mock_up: "Mock-up: the real screen may look different.",
     ui_dark: "Dark",
     ui_light: "Light",
     ui_cobalt: "Cobalt",

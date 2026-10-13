@@ -14,7 +14,11 @@ Faraday Starter's Restart into firmware settings opens BIOS Setup without a key.
 
 On many Acer computers Secure Boot is greyed out until a supervisor password is set. In BIOS Setup, open the Security tab, choose Set Supervisor Password, and enter a password twice. Keep it written down until it is removed again.
 
+::sketch acer-supervisor
+
 Then open the Boot tab, set Secure Boot to Disabled, and press F10 to save and exit.
+
+::sketch acer-secure-boot
 
 On Windows, choose the stick from the boot menu on the restart that follows the save, before Windows starts, and turn Secure Boot back on before Windows starts again. Windows started with Secure Boot off asks for the BitLocker recovery key, unless Faraday Starter suspended BitLocker.
 
@@ -25,6 +29,8 @@ Acer's articles do not describe a setting that hides USB disks from the boot men
 ## Start from the stick
 
 Turn the F12 boot menu on first: in BIOS Setup, open the Main tab, set F12 Boot Menu to Enabled, and press F10 and Enter to save and restart.
+
+::sketch acer-boot-menu-key
 
 Plug the stick in, restart, and press F12 as the Acer logo appears. Choose the stick. Where it is listed twice, choose the entry that begins with UEFI.
 
@@ -41,5 +47,7 @@ Acer's articles do not describe restoring the Secure Boot keys. If Secure Boot d
 Menu names and where they are differ between Acer models and BIOS versions; on some, the supervisor password is not needed.
 
 ## Where this comes from
+
+Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
 
 Acer: "Enable or disable Secure Boot on an Acer notebook" (knowledge base article 88), "Enable or disable Secure Boot on an Acer desktop" (article 87) and "Why can't I get the F12 Boot Menu to work on my notebook or netbook?" (article 563), Acer's knowledge base on community.acer.com. All read 2026-10-12.

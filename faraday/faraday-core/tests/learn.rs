@@ -77,3 +77,39 @@ fn the_linux_guide_asks_for_the_tpm_unlocked_disk_s_passphrase_first() {
     assert_eq!(first.heading, "A disk unlocked by the TPM");
     assert!(first.paragraphs[0].contains("passphrase or recovery key"));
 }
+
+// The maker pages' firmware sketches (docs/HUB.md §7.8, F18) are drawn
+// only by Faraday Starter and Faraday Companion: the desktop app, the
+// stick and the Pi show the pages without them, and never print a
+// marker.
+
+#[test]
+fn the_desktop_and_the_stick_never_print_a_sketch_marker() {
+    let mut app = faraday_core::testkit::started();
+    let mut markers = 0;
+    for id in faraday_learn::ids() {
+        let page = guide(id);
+        markers += page
+            .sections
+            .iter()
+            .flat_map(|s| s.paragraphs.iter())
+            .filter(|p| faraday_learn::is_marker(p))
+            .count();
+        app.learn_with(vec![page]);
+        app.learn.scroll = 0.0;
+        loop {
+            let texts = app.drawn_texts();
+            assert!(
+                !texts.iter().any(|t| t.trim_start().starts_with("::sketch")),
+                "{id}"
+            );
+            assert!(!texts.iter().any(|t| t.contains("→ Disabled")), "{id}");
+            if app.learn.scroll >= app.learn.max {
+                break;
+            }
+            app.learn.scroll = (app.learn.scroll + 200.0).min(app.learn.max);
+        }
+        app.press(Action::Cancel);
+    }
+    assert!(markers > 0);
+}

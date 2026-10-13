@@ -28,12 +28,16 @@ not read: UI text is short and the monospace face has none.
 ## What is written
 
 - Faces: `regular` (Noto Sans Regular), `semibold` (Noto Sans SemiBold),
-  `mono` (Iosevka Regular), `icon`, and `cjk`, the fallback face
+  `mono` (Iosevka Regular), `firmware` (Terminus TTF), `icon`, and `cjk`, the fallback face
   the three text faces read when their own file lacks a code point. One
   file each; no size list anywhere.
 - Text glyph set: ASCII printable U+0020–U+007E, Latin-1 Supplement
   U+00A0–U+00FF (minus the invisible soft hyphen U+00AD), and the UI
   symbols `• ▾ ▸ ← → ↑ ↓ ✓ ✗ × … ° ₿`.
+- Firmware glyph set: ASCII printable U+0020–U+007E and the arrows and
+  signs firmware screens print (`FIRMWARE_SYMBOLS`), for the firmware
+  sketches only; a sketch draws its frames as lines, not box-drawing
+  characters.
 - CJK glyph set: computed, never listed by hand, so it cannot drift from
   the lists. Every character of every word of the ten BIP-39 lists, in
   both the published form (`WORDS`) and the composed form a reader sees

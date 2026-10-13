@@ -40,7 +40,10 @@ pub fn check(ink: &[Ink], px_per_dp: f32) -> Vec<String> {
     let mut found = Vec::new();
     for (i, a) in ink.iter().enumerate() {
         if let InkKind::Text { text, family } = &a.kind
-            && !matches!(family, Family::Mono | Family::Cjk | Family::Icon)
+            && !matches!(
+                family,
+                Family::Mono | Family::Cjk | Family::Icon | Family::Firmware
+            )
             && let Some(what) = data_in(text)
         {
             found.push(format!("{what} not in mono: {text:?}"));

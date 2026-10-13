@@ -90,12 +90,15 @@ fi
 #     `ms1`, hex (`0x…`, a fingerprint), PDF operators, and a type as
 #     Debug prints it
 # The Learn pages (docs/learn, osk-learn) and the self-test's check names
-# are outside this lint, as CLAUDE.md says.
+# are outside this lint, as CLAUDE.md says, and so are the maker pages'
+# firmware sketches (faraday-learn's `sketch.rs`, docs/HUB.md §7.8, F18):
+# their words are a firmware's own, the screen a sketch depicts, not
+# Faraday's wording.
 FARADAY_SCREENS="$(ls faraday/faraday-core/src/*.rs | grep -v '/testkit\.rs$\|/names\.rs$')
 faraday/faraday-hub/src/*.rs
 faraday/faraday-companion/src/*.rs
 faraday/faraday-ui/src/*.rs
-faraday/faraday-learn/src/*.rs
+$(ls faraday/faraday-learn/src/*.rs | grep -v '/sketch\.rs$')
 faraday/faraday-intake/src/*.rs
 faraday/shells/desktop/src/main.rs
 faraday/shells/hub/src/main.rs"

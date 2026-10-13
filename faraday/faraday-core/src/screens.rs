@@ -15197,6 +15197,17 @@ fn learn_sheet(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
             ) + 8.0;
         }
         for para in section.paragraphs {
+            // A firmware sketch's marker (`docs/HUB.md` §7.8, F18): Faraday
+            // Starter, which holds this app, draws the sketch; the stick,
+            // the Pi and Faraday Desktop leave the paragraph out.
+            if faraday_learn::is_marker(para) {
+                if app.held
+                    && let Some(s) = faraday_learn::sketch_of(para)
+                {
+                    cy += faraday_ui::sketch(ui, s, bx, cy, bw) + 12.0;
+                }
+                continue;
+            }
             cy += ui.wrap(bx, cy, bw, 14.0, W::R, TEXT, para) + 12.0;
         }
         cy += 10.0;

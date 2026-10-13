@@ -16,13 +16,19 @@ Faraday Starter's Restart into firmware settings opens Surface UEFI without the 
 
 ## Turn Secure Boot off
 
-In Surface UEFI, choose Security. Under Secure Boot, choose Change configuration, and choose the setting that turns Secure Boot off. Microsoft's pages name the keyset choices, such as Microsoft only, but not the off setting's label. Then choose Exit → Restart now.
+In Surface UEFI, choose Security. Under Secure Boot, choose Change configuration, choose None, and choose OK. Then choose Exit → Restart now.
+
+::sketch surface-secure-boot
+
+::sketch surface-exit
 
 On Windows, choose the stick from the boot menu on the restart that follows the save, before Windows starts, and turn Secure Boot back on before Windows starts again. Windows started with Secure Boot off asks for the BitLocker recovery key, unless Faraday Starter suspended BitLocker.
 
 ## Turn Fast Boot off where it hides USB
 
-Microsoft's Surface UEFI pages list no Fast Boot setting. The Boot configuration page turns USB Storage on and off; it has to be on.
+Microsoft's Surface UEFI pages list no Fast Boot setting. The Boot configuration page has two USB settings, and both have to be on: USB Storage in the list of boot devices, and Enable Boot from USB devices under Advanced options.
+
+::sketch surface-boot
 
 ## Start from the stick
 
@@ -44,4 +50,6 @@ Surface Go uses a UEFI made by another company, and Surface Pro 3 and earlier ha
 
 ## Where this comes from
 
-Microsoft: "Boot Surface from a USB device", "How to use Surface UEFI" and "Surface turns on but shows a red bar and an unlocked lock icon" (support.microsoft.com); "Manage Surface UEFI settings" (learn.microsoft.com). All read 2026-10-12.
+Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
+
+Microsoft: "Boot Surface from a USB device", "How to use Surface UEFI" and "Surface turns on but shows a red bar and an unlocked lock icon" (support.microsoft.com); "Manage Surface UEFI settings" (learn.microsoft.com). All read 2026-10-12; "Manage Surface UEFI settings" read again, with its figures, 2026-10-13.

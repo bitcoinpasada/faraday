@@ -624,8 +624,12 @@ screens are theirs, and differ by model.
 
 - The maker pages carry sketches of the firmware's screens (where
   Secure Boot is, the save step, the boot menu), drawn by Faraday's
-  own code in its own style from the makers' simulators and manuals.
-  No maker's screenshot is published.
+  own code from the makers' simulators and manuals to look like a
+  firmware setup screen: square corners, firmware colours (the screen
+  colour nearest the family's own, black where unsure) and a text-mode
+  font. Never a maker's screenshot, logo or name. Each carries a line
+  under it, in Faraday's own text, saying it is a mock-up and the real
+  screen may look different.
 - One sketch serves a family of menus; none names a model (F14).
 - Only Faraday Starter and the Companion draw them. The stick, the Pi
   and Faraday Desktop show the pages without them.

@@ -1155,6 +1155,65 @@ BitLocker is suspended. The guard runs once before the enrolment, and
 Resume after it. What the guide removes is the second firmware visit
 every time, not the first.
 
+### 7.8 Firmware sketches
+
+The maker pages carry sketches of the firmware's screens, drawn by
+Faraday's own code to look like a firmware setup screen: square
+corners, firmware colours and a text-mode font (F18). Never a maker's
+screenshot. Each is labelled a mock-up.
+
+- **Data.** `faraday_learn::sketch` holds a `Sketch` per screen: its
+  id, its palette (black, blue, grey, white, red or gold: the screen
+  colour nearest the family's own as the makers' pictures show it,
+  black where they show black or nothing), a title line, the tabs or side list with the open
+  one, a heading or path, a message, the rows near the one to find
+  (label and value; a group heading; the row to find, as it is or
+  changed from its value to another), a dialog over the screen (title,
+  message, choices, buttons and the one to choose), and the key hints
+  along the bottom. The words are the firmware's own English, read
+  from the makers' simulators, manuals and support articles on
+  2026-10-13; they are data beside the pages, not Faraday's interface
+  text, so they are not in `faraday-strings`. One sketch stands for a
+  family of menus; none names a model or a maker inside the frame, a
+  stick is "USB Flash Drive" and a confirm code is an example.
+- **Marker.** A page asks for a sketch with a paragraph of its own,
+  `::sketch <id>`, after the step it shows. `faraday_learn::sketch_of`
+  finds it; a test fails on a marker that names no sketch.
+- **Drawing.** `faraday_ui::sketch(ui, &sketch, x, y, w)` draws it and
+  returns its height. It looks like a firmware screen, not like
+  Faraday, whatever the theme: square corners everywhere, no shadow;
+  every word in Terminus, a text-mode face (SIL OFL 1.1,
+  `tools/fonts/`), at a size that grows with the frame's width; the
+  colours of a PC's text mode (`faraday_ui::pal::vga`), set per
+  palette in one table in `faraday-ui/src/firmware.rs`. A title bar
+  with the title centred; the open tab or side item as a solid bar;
+  values in one column; the row to find on the highlight bar, a change
+  shown as `[Enabled] → [Disabled]` with the new value in the value
+  colour; a dialog as a box with a double line, its title set into the
+  top edge and its buttons as `[ Yes ]  [ No ]` with the one to choose
+  on the highlight bar; the key hints under a rule at the foot, the key
+  in the key colour. Under the frame, in Faraday's own secondary text,
+  one line from `faraday-strings` (`ui_sketch_mock_up`): "Mock-up: the
+  real screen may look different." Narrow, the tabs or side list fold
+  to the open one, the row to find puts its value under its label,
+  a long label or key hint wraps, and other words are cut rather than
+  run over.
+- **Where.** Faraday Starter draws them in its Learn sheet (the held
+  desktop app's, `Faraday::held`), and Faraday Companion in its Learn.
+  The stick, the Pi and Faraday Desktop leave the marker paragraph out
+  and never print it. The website, built from the same pages in its
+  own repository, has to leave it out as well.
+- **The set.** By the layouts the makers share: the tabbed setup
+  (Acer, HP consumer, HP business, ASUS, MSI), the side-list setup
+  (ThinkPad, IdeaPad, Dell, Surface), a list page (Framework), the
+  save dialog (ThinkPad, IdeaPad, HP consumer, ASUS notebooks and
+  desktops), the boot menu as a box (ASUS, MSI) or a full-screen list
+  (IdeaPad, HP consumer, Framework, Dell), and HP's confirm code
+  (consumer and business). Steps with no screen read are left without
+  one: the ThinkPad and HP business boot menus, the save step on Dell,
+  HP business, MSI and Framework (each has the screen the step starts
+  from), HP desktops, and Acer's boot menu.
+
 ## 8. Transfer
 
 Transfer is the desktop app's (`faraday-core/src/transfer.rs`): Send

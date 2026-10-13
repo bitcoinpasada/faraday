@@ -14,23 +14,41 @@ HP's business computers are EliteBook, ProBook and Z workstations. Its consumer 
 
 ## Turn Secure Boot off
 
-Consumer notebooks: in BIOS Setup, choose System Configuration → Boot Options, set Secure Boot to Disabled, then press F10 and choose Yes to save and exit. Leave Legacy Support as it is: the stick does not need it.
+Consumer notebooks: in BIOS Setup, open the Boot Options tab, set Secure Boot to Disabled, then press F10, or choose Save Changes and Exit on the Exit tab, and choose Yes to save and exit. On older models Boot Options is under System Configuration. Leave Legacy Support as it is: the stick does not need it.
 
-Business notebooks and workstations: in BIOS Setup, choose Security → Secure Boot Configuration and clear the Secure Boot box. On older models it is Advanced → Secure Boot Configuration → Configure Legacy Support and Secure Boot, set to Legacy Support Disable and Secure Boot Disable. Choose Save Changes and Exit, then Yes.
+::sketch hp-secure-boot
+
+::sketch hp-save
+
+Business notebooks and workstations: in BIOS Setup, choose Security → Secure Boot Configuration and clear the Secure Boot box. On older models it is Advanced → Secure Boot Configuration → Configure Legacy Support and Secure Boot, set to Legacy Support Disable and Secure Boot Disable. Then open the Main tab, choose Save Changes and Exit, then Yes.
+
+::sketch hp-business-secure-boot
+
+::sketch hp-business-save
 
 Desktops: Security → Secure Boot Configuration, press F10 at its message, set Secure Boot to Disable, and press F10 to save.
 
-Turning Secure Boot off asks for a code to confirm it: a PIN shown when saving, or an Operating System Boot Mode Change message with a four-digit code at the next start. Type the code and press Enter. On desktops the screen does not show what is typed.
+Turning Secure Boot off asks for a code to confirm it. Consumer notebooks and desktops show an Operating System Boot Mode Change message with a four-digit code at the next start: type the code and press Enter. The screen does not show what is typed.
+
+::sketch hp-code
+
+Business computers show a Secure boot page with a four-digit number: type it and press Enter.
+
+::sketch hp-business-code
 
 On Windows, choose the stick from the boot menu on the restart that follows the save, before Windows starts, and turn Secure Boot back on before Windows starts again. Windows started with Secure Boot off asks for the BitLocker recovery key, unless Faraday Starter suspended BitLocker.
 
 ## Turn Fast Boot off where it hides USB
 
-HP's documents do not describe a Fast Boot setting that hides USB disks. On consumer notebooks, System Configuration → Boot Options has USB Boot, which has to be Enabled.
+HP's documents do not describe a Fast Boot setting that hides USB disks. On consumer notebooks, the Boot Options tab has USB Boot, which has to be Enabled. On business computers, Advanced → Boot Options has a USB Storage Boot box, which has to be ticked; the Fast Boot box beside it can stay as it is.
+
+::sketch hp-business-usb-boot
 
 ## Start from the stick
 
-Plug the stick in, turn the computer on, press Esc repeatedly, then F9 for Boot Device Options. Choose the stick. Where it is listed twice, choose the entry that begins with UEFI. HP also documents pressing F9 repeatedly at power-on to open the boot menu directly.
+Plug the stick in, turn the computer on, press Esc repeatedly, then F9 for Boot Device Options. Choose the stick. Consumer notebooks list it as USB Hard Drive followed by the stick's name; where it is listed twice, choose the one among the UEFI entries. HP also documents pressing F9 repeatedly at power-on to open the boot menu directly.
+
+::sketch hp-boot-menu
 
 ## Turn Secure Boot back on
 
@@ -46,4 +64,6 @@ Newer HP computers have no Legacy Support setting. That is expected; the stick s
 
 ## Where this comes from
 
-HP: "HP PCs - Secure Boot (Windows 11)", "HP Consumer Notebook PCs - BIOS Setup Information and Menu Options", and "HP Commercial Products - Commercial Products (2017-2023) with Sure Start May Experience a Secure Boot Error Message at Boot After a Microsoft Cumulative Monthly OS Update", all on support.hp.com. All read 2026-10-12.
+Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
+
+HP: "HP PCs - Secure Boot (Windows 11)", "HP Consumer Notebook PCs - BIOS Setup Information and Menu Options", and "HP Commercial Products - Commercial Products (2017-2023) with Sure Start May Experience a Secure Boot Error Message at Boot After a Microsoft Cumulative Monthly OS Update", all on support.hp.com, read 2026-10-12. HP's interactive BIOS simulators for its consumer and business notebooks, on hp.com, read 2026-10-13.
