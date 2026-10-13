@@ -15,6 +15,7 @@
 # Android shell: built artefacts and the local SDK path
 **/jniLibs/
 .gradle/
+.kotlin/
 **/build/
 local.properties
 
