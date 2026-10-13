@@ -2679,6 +2679,8 @@ pub struct Strings {
     // ----- inputs (faraday-core/src/inputs.rs) -----
     /// Toast in `input_believe`. `{}`: `d.name`.
     pub inputs_is_in_use: &'static str,
+    /// Toast in `input_typed`. `{}`: `name`.
+    pub inputs_wrong_code: &'static str,
     // ----- keygen (faraday-core/src/keygen.rs) -----
     /// Text in `source_name`.
     pub keygen_seed_xor: &'static str,
@@ -9330,6 +9332,7 @@ pub static EN: Strings = Strings {
     inbox_this_backup_holds: "This backup holds a note: import it into a vault",
     inbox_not_this_backup: "Not this backup's passphrase",
     inputs_is_in_use: "{} is in use",
+    inputs_wrong_code: "{} typed the wrong code. Unplug it to try again.",
     keygen_seed_xor: "Seed XOR",
     keygen_words_chosen: "Words chosen by the dice",
     keygen_no_secret_yet: "No secret yet",

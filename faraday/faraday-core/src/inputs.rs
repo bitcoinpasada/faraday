@@ -4,11 +4,13 @@
 //! The shell trusts the machine's own keyboard, touchpad and touch panel.
 //! Any other device's input is held back by the shell and reported here
 //! instead: a new keyboard is believed once it types the code shown on
-//! screen, which a device that cannot see the screen cannot do; a new
-//! pointer is believed once a person says so with input already trusted,
-//! or with the code typed on a keyboard that comes with it. **Ignore this
-//! device** keeps it out until it is unplugged; ignored devices are listed
-//! in Settings.
+//! screen, which a device that cannot see the screen cannot do, and one
+//! that types [`CODE_TRIES`] codes' worth of letters without it is kept
+//! out until it is unplugged, so it cannot try codes one after another;
+//! a new pointer is believed once a person says so with input already
+//! trusted, or with the code typed on a keyboard that comes with it.
+//! **Ignore this device** keeps it out until it is unplugged; ignored
+//! devices are listed in Settings.
 
 use crate::strings::EN;
 use crate::{Faraday, Sheet};
@@ -16,6 +18,10 @@ use opensigner_core::strings::fill;
 
 /// How long the code is.
 pub const CODE_LEN: usize = 6;
+
+/// How many codes' worth of letters a keyboard may type before it is
+/// kept out: a person who mistypes has room to type it again.
+pub const CODE_TRIES: usize = 3;
 
 /// The code's letters: no two that look alike.
 const LETTERS: &[u8] = b"acdefhjkmnprtvwxy";
@@ -35,6 +41,8 @@ pub struct NewInput {
     pub code: String,
     /// What it has typed so far, the last few letters.
     pub typed: String,
+    /// How many letters it has typed in all.
+    pub letters: usize,
 }
 
 impl Faraday {
@@ -56,6 +64,7 @@ impl Faraday {
             pointer,
             code,
             typed: String::new(),
+            letters: 0,
         });
         // The boot import waits for it: which pointer and keyboard are
         // believed is the first thing settled (`PLAN.md` §4.6).
@@ -86,10 +95,15 @@ impl Faraday {
         };
         let d = &mut self.inputs[i];
         d.typed.push(ch.to_ascii_lowercase());
+        d.letters += 1;
         let keep = d.typed.chars().count().saturating_sub(CODE_LEN);
         d.typed = d.typed.chars().skip(keep).collect();
         if d.typed == d.code {
             self.input_believe(id);
+        } else if d.letters >= CODE_LEN * CODE_TRIES {
+            let name = d.name.clone();
+            self.input_ignore(id);
+            self.toast(&fill(EN.inputs_wrong_code, &[&name]));
         }
     }
 
