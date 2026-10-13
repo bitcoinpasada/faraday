@@ -2529,6 +2529,140 @@ as possible before the next build.
     For later: the emulator started by `companion-run` dies with the
     ssh session (upstream's `android-run` too); start it with `setsid`.
 
+    **Batch B, keeping** (owner, 2026-10-13: "Batch b"), COMPANION
+    §4.5 to §4.7, §6.3, §7 and §11, in two pieces: **B1** in Rust (the
+    core, the shared reader, the Learn page, renders) and **B2** on
+    Android (the kept store's encryption and the unlock, share in and
+    out, the emulator). Every rule of A applies: Faraday's look, drawn
+    after named desktop or Starter screens; upstream files unedited;
+    the desktop's and the Starter's renders byte for byte.
+
+    **B1, the core** (Opus).
+
+    1. **The description reader, shared.** `faraday-core`'s
+       `wallet::read_wallet` and what only it calls (`coldcard_export`,
+       `json_string`, `json_strings`, `multipath`, `Refusal`) move to
+       `faraday-intake`, which may now depend on `faraday-strings` for
+       the refusal lines; `faraday-core` calls them there. The first
+       receive address comes from `osk_bip`'s
+       `WalletPolicy::address_at`, as the device's does, on the network
+       the description's keys name.
+    2. **Faraday's on-screen keyboard, shared**: its drawing and key
+       handling move from `faraday-core` (`compact.rs`'s `keyboard`
+       and what it calls) to `faraday-ui`, as A2b moved the sheets. The
+       Companion types with it and never with the phone's keyboard,
+       which is another app and may be online.
+    3. **The kept store**: wallet descriptions (the text as it arrived,
+       a name, when kept) and BitLocker keys (computer, drive, the key,
+       when kept), a versioned format of the Companion's own like
+       `FCRS`, separate from Received. It is locked until the shell
+       says it is open: the core asks (`UnlockKept`, with what it is
+       for), the shell answers with the bytes (`Kept`), with an empty
+       store the first time, or with why not (`KeptClosed`: cancelled,
+       no screen lock, unreadable), and the core writes it back whole
+       after each change (`KeepKept`, with the two counts beside it).
+       The shell says `Locked` when the app goes to the background; the
+       core then wipes what it held of the store and returns any open
+       kept page to Home. The two counts are what Home shows while the
+       store is locked: the shell keeps them beside the store, outside
+       the encryption, and hands them in at start.
+    4. **Wallet descriptions** (§4.5): the list, opened only through
+       the unlock; a Record with kind, `k of n`, each key's
+       fingerprint, the first receive address, Show as QR, Share,
+       Rename (the keyboard of item 2), Delete; added from Received
+       (**Keep in Wallet descriptions**), from a scan or paste on its
+       own screen, or shared in. A description that arrives anywhere
+       else goes to Received as now.
+    5. **BitLocker keys** (§4.6): the hub app's key text
+       (`faraday_qr::bitlocker::KeyText`) recognised on every way in
+       and kept here, never in Received, asking for the unlock at that
+       moment. The Record as §4.6 says, with the key masked until held
+       (the Starter's numbered groups), **Back in Windows** opening the
+       sheet with §4.6's title, its two lines word for word, **Delete
+       the key** and **Keep it**, and Delete asking once without the
+       lines. No Show as QR, Share or Save for a key, anywhere. Home's
+       BitLocker row only while one is kept.
+    6. **Share** (§6.3): the core asks the shell to share one file
+       (`Share`, with its name, its type and its bytes) from a Received
+       file's Record and a description's Record; files and text shared
+       in (`SharedIn`) go through the same router as a scan, refused
+       whole when §5 refuses them.
+    7. **The guide addresses** (§4.7): a scanned or pasted
+       `https://faradayoffline.app/start/<id>` that `faraday-learn`
+       knows opens that Learn page; any other address is shown as text,
+       as now.
+    8. **`docs/learn/faraday/companion.md`**, in `faraday-learn`'s
+       pages and first in the Companion's Learn: what the Companion
+       keeps and what it refuses; that it has no network access, and
+       the `aapt2 dump permissions` command anyone can check that with;
+       what a wallet description reveals and that it cannot spend; that
+       the first address tells two copies of a wallet apart and is not
+       the Spend tab's check with a second program (`docs/FAMILY.md`
+       §5); the recovery key, why it can be deleted and when it comes
+       back (§4.6); that nothing goes to a backup and uninstalling
+       deletes everything (§7); installing on a phone that only takes
+       verified developers' apps (§8). Plain statements, as every Learn
+       page.
+    9. **Renders**: every new screen and state in `just
+       companion-snap 1080x2340`, among them the locked Home, a
+       description's Record, Rename with the keyboard, a BitLocker
+       key's Record masked and shown, the Back in Windows sheet, no
+       screen lock, a guide address opened.
+
+    Tests (`faraday-companion/tests/`, user-facing, §11): a kept
+    description's first address matches BIP-84's vector and the
+    `docs/INTEROP.md` files' first addresses; a description reaches
+    Wallet descriptions from Received, a scan and a share; the hub
+    app's key text is kept as the computer, drive and key it was
+    written with, and Delete the key, and Back in Windows then Delete
+    the key, leave no key in the store; nothing kept reaches
+    `KeepReceived`; a key is never offered for Share, Save or a code;
+    while locked no kept page opens and nothing is written; `Locked`
+    leaves nothing of the store in the core; a guide address opens its
+    page and another address shows as text; every §5 refusal by share
+    leaves both stores as they were; the kept store written and read
+    back is the same; Rename's name is the one kept.
+
+    Done when: `just` passes once; desktop and hub renders byte for
+    byte; the forbidden-crate lint passes; the renders are fetched.
+    Report: as COMPANION §0, plus the new events and commands for B2,
+    what moved and from where, and each new screen with the screen it
+    was drawn after.
+
+    **B2, Android** (Opus), after B1's audit.
+
+    1. **The kept store's encryption** (§7, D4): a data key, random,
+       wrapped by a Keystore key bound to the phone's unlock (Android
+       11 and later: `setUserAuthenticationParameters(0, strong
+       biometric or device credential)`, unlocked through
+       `BiometricPrompt` with a `CryptoObject`; Android 8 to 10: valid
+       30 seconds after `KeyguardManager`'s confirm-credential screen).
+       One prompt opens the store; while it is open, writes use the
+       data key in memory; on `onStop` the data key is wiped and the
+       core told `Locked`. The first keep makes and wraps the data key,
+       which asks once. A phone with no screen lock (`isDeviceSecure`
+       false) answers `KeptClosed` for that reason and keeps nothing.
+       The two counts in a small file beside the store.
+    2. **Share out**: a read-only `ContentProvider` of the app's own
+       (platform API, not exported, `grantUriPermissions`), handing one
+       file through `ACTION_SEND` and the system's chooser, with a read
+       grant for that file alone, removed when the share ends or the app
+       stops.
+    3. **Share in**: `ACTION_SEND` for one file or text, the activity's
+       intent filter; the bytes and the name go to the core as
+       `SharedIn`, and nothing else is read from the intent.
+    4. **The manifest** still asks for CAMERA and USE_BIOMETRIC only;
+       the lint learns the provider (not exported) and the SEND filter
+       and still fails on anything else.
+
+    Tried on the emulator, with screenshots: with a PIN set, Wallet
+    descriptions and BitLocker keys ask for it, open after it, and ask
+    again after the app has been in the background; a description
+    shared in from the Files app reaches the store after the unlock and
+    is still there after a restart; Share hands a Received file to the
+    Files app; with the screen lock removed, both say so and keep
+    nothing while Received still works; `aapt2` and `dumpsys` as A3.
+
 
 ## Next steps
 
