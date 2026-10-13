@@ -20,7 +20,9 @@ use osk_ui::widgets::keyboard::KeyboardKind;
 
 use crate::kept;
 use crate::store::{Kept, Kind};
-use crate::{Act, Closed, Companion, Confirm, Doc, NotSent, Page, ScanLine, Shown, UnlockFor};
+use crate::{
+    Act, Closed, Companion, Computer, Confirm, Doc, NotSent, Page, ScanLine, Shown, UnlockFor,
+};
 
 /// Faraday's drawing, a press being one of the Companion's [`Act`]s.
 type Ui<'a> = faraday_ui::Ui<'a, Act>;
@@ -303,7 +305,9 @@ pub(crate) fn frame(app: &Companion, ui: &mut Ui) -> f32 {
         Page::Received => received(app, ui, x, y0, cw),
         Page::Record(sha) => record(app, ui, x, y0, cw, sha),
         Page::Learn => learn(ui, x, y0, cw),
-        Page::Start => doc_rows(ui, x, y0, cw, &start_docs(), 0, Act::StartPage),
+        Page::Start => start(app, ui, x, y0, cw),
+        Page::StartComputer => start_computer(ui, x, y0, cw),
+        Page::StartMakers => start_makers(app, ui, x, y0, cw),
         Page::Doc(d) => document(ui, x, y0, cw, *d),
         Page::About => about(app, ui, x, y0, cw),
         _ => y0,
@@ -392,7 +396,8 @@ fn page_name(app: &Companion, page: &Page) -> String {
             kept(app, sha).map_or_else(|| S.companion_home_received.to_string(), |k| k.name.clone())
         }
         Page::Learn => S.companion_home_learn.to_string(),
-        Page::Start => S.companion_home_start.to_string(),
+        Page::Start | Page::StartComputer => S.companion_home_start.to_string(),
+        Page::StartMakers => S.companion_start_choose_maker.to_string(),
         Page::Doc(d) => doc_page(*d).title.to_string(),
         Page::About => S.companion_home_about.to_string(),
         _ => S.companion_home.to_string(),
@@ -1295,6 +1300,172 @@ fn confirm_sheet(app: &Companion, ui: &mut Ui, w: f32, h: f32, what: Confirm) {
 // §4.7 Start from the stick, and Learn
 // ---------------------------------------------------------------------
 
+/// A maker's name, by its page's id.
+fn maker_name(id: &str) -> &'static str {
+    match id {
+        "maker-dell" => S.companion_maker_dell,
+        "maker-hp" => S.companion_maker_hp,
+        "maker-lenovo-thinkpad" => S.companion_maker_lenovo_thinkpad,
+        "maker-lenovo-ideapad" => S.companion_maker_lenovo_ideapad,
+        "maker-asus" => S.companion_maker_asus,
+        "maker-acer" => S.companion_maker_acer,
+        "maker-msi" => S.companion_maker_msi,
+        "maker-framework" => S.companion_maker_framework,
+        "maker-surface" => S.companion_maker_surface,
+        _ => "",
+    }
+}
+
+/// A boot or maker page's row: opens it from Start from the stick.
+fn start_row(id: &'static str) -> (Doc, Act) {
+    let at = start_docs()
+        .iter()
+        .position(|d| *d == Doc::Own(id))
+        .unwrap_or(0);
+    (Doc::Own(id), Act::StartPage(at))
+}
+
+/// The question, answered once: which computer.
+fn start_computer(ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0;
+    y += ui.wrap(x, y, w, 18.0, W::S, TEXT, S.companion_start_question) + 16.0;
+    for (i, c) in Computer::ALL.into_iter().enumerate() {
+        let name = match c {
+            Computer::Windows => S.companion_start_windows,
+            Computer::Linux => S.companion_start_linux,
+        };
+        y += nav_row(ui, x, y, w, Icon::Power, name, "", "", Act::Computer(i));
+    }
+    y
+}
+
+/// The computer's page: the choice with Change, the general guide,
+/// BitLocker on Windows, the maker, and the pages for when it goes
+/// wrong.
+fn start(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let Some(c) = app.computer else {
+        return start_computer(ui, x, y0, w);
+    };
+    let name = match c {
+        Computer::Windows => S.companion_start_windows,
+        Computer::Linux => S.companion_start_linux,
+    };
+    let mut y = y0;
+    y += change_row(
+        ui,
+        x,
+        y,
+        w,
+        S.companion_start_computer,
+        name,
+        Act::ChangeComputer,
+    );
+    y += 8.0;
+    y += page_rows(ui, x, y, w, &[start_row(c.id())]) - y + 12.0;
+    if c == Computer::Windows {
+        y += label(ui, x, y, S.companion_start_bitlocker);
+        let rows = [start_row("bitlocker"), start_row("secure-boot-bitlocker")];
+        y += page_rows(ui, x, y, w, &rows) - y + 12.0;
+    }
+    match app.maker {
+        None => {
+            y += label(ui, x, y, S.companion_start_maker);
+            y += nav_row(
+                ui,
+                x,
+                y,
+                w,
+                Icon::Learn,
+                S.companion_start_choose_maker,
+                "",
+                "",
+                Act::ChooseMaker,
+            );
+            y += 4.0;
+        }
+        Some(id) => {
+            y += change_row(
+                ui,
+                x,
+                y,
+                w,
+                S.companion_start_maker,
+                maker_name(id),
+                Act::ChooseMaker,
+            );
+            y += 8.0;
+            y += page_rows(ui, x, y, w, &[start_row(id)]) - y + 12.0;
+        }
+    }
+    y += label(ui, x, y, S.companion_start_trouble);
+    let rows = [
+        start_row("not-starting"),
+        start_row("screens-that-record"),
+        start_row("replace-faraday"),
+    ];
+    page_rows(ui, x, y, w, &rows) + 12.0
+}
+
+/// A fact with Change beside it, on a card. Returns its height with the
+/// gap under it.
+fn change_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, act: Act) -> f32 {
+    let h = 64.0;
+    ui.fill(x, y, w, h, 10.0, SURFACE);
+    ui.stroke(x, y, w, h, 10.0, LINE);
+    ui.text(x + 14.0, y + 12.0, 12.0, W::R, MUTED, key);
+    ui.text(x + 14.0, y + 32.0, 15.0, W::S, TEXT, value);
+    let bw = ui.measure(14.0, W::S, S.companion_start_change) + 32.0;
+    ui.button(
+        x + w - bw - 10.0,
+        y + 10.0,
+        Some(bw),
+        h - 20.0,
+        S.companion_start_change,
+        Style::Secondary,
+        act,
+    );
+    h + 8.0
+}
+
+/// The makers, and Another maker for the system's general guide.
+fn start_makers(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0;
+    ui.rule(x, y, w, INNER);
+    for (i, m) in faraday_learn::MAKERS.iter().enumerate() {
+        let a = Act::Maker(i);
+        let rh = 48.0;
+        if ui.is_pressed(a) {
+            ui.fill(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0, INNER);
+        }
+        let t = ui.fit(14.0, W::S, maker_name(m.id), w - 36.0);
+        ui.text_mid(x, y, rh, 14.0, W::S, TEXT, &t);
+        ui.icon(
+            x + w - 24.0,
+            y + (rh - 20.0) / 2.0,
+            20.0,
+            Icon::ChevronRight,
+            9.0,
+            DIM,
+        );
+        ui.hit(x - 6.0, y, w + 12.0, rh, a);
+        y += rh;
+        ui.rule(x, y, w, INNER);
+    }
+    y += 12.0;
+    let general = app.computer.map_or("windows", Computer::id);
+    y + nav_row(
+        ui,
+        x,
+        y,
+        w,
+        Icon::Learn,
+        S.companion_start_another_maker,
+        "",
+        "",
+        start_row(general).1,
+    )
+}
+
 /// Learn: Faraday's own pages, then the ones about Bitcoin.
 fn learn(ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
@@ -1327,15 +1498,25 @@ fn doc_rows(
     first: usize,
     act: fn(usize) -> Act,
 ) -> f32 {
+    let rows: Vec<(Doc, Act)> = docs
+        .iter()
+        .enumerate()
+        .map(|(i, d)| (*d, act(first + i)))
+        .collect();
+    page_rows(ui, x, y0, w, &rows)
+}
+
+/// One row per page, each pressing as its own act. Returns where the
+/// rows end.
+fn page_rows(ui: &mut Ui, x: f32, y0: f32, w: f32, rows: &[(Doc, Act)]) -> f32 {
     let mut y = y0;
     ui.rule(x, y, w, INNER);
-    for (i, d) in docs.iter().enumerate() {
-        let a = act(first + i);
+    for &(d, a) in rows {
         let rh = 48.0;
         if ui.is_pressed(a) {
             ui.fill(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0, INNER);
         }
-        let t = ui.fit(14.0, W::S, doc_page(*d).title, w - 36.0);
+        let t = ui.fit(14.0, W::S, doc_page(d).title, w - 36.0);
         ui.text_mid(x, y, rh, 14.0, W::S, TEXT, &t);
         ui.icon(
             x + w - 24.0,

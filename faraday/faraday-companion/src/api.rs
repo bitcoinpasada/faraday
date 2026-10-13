@@ -53,6 +53,14 @@ pub enum CompanionEvent {
         /// [`faraday_ui::Theme::id`].
         id: String,
     },
+    /// The two answers a [`CompanionCommand::KeepStart`] kept, sent once
+    /// at start by a shell that has them.
+    Start {
+        /// [`crate::Computer::id`]; empty for none.
+        computer: String,
+        /// The maker page's id (`faraday_learn::MAKERS`); empty for none.
+        maker: String,
+    },
     /// What the shell's scanner worker saw of a code in the camera's
     /// frame (`faraday-scanner`'s `Seen`), so Receive can outline it.
     Seen {
@@ -150,6 +158,15 @@ pub enum CompanionCommand {
     KeepTheme {
         /// [`faraday_ui::Theme::id`].
         id: String,
+    },
+    /// Keep the computer and the maker chosen on Start from the stick,
+    /// and hand them back in [`CompanionEvent::Start`] next time. Both
+    /// are kept whole at each change; an empty one is none.
+    KeepStart {
+        /// [`crate::Computer::id`]; empty for none.
+        computer: String,
+        /// The maker page's id; empty for none.
+        maker: String,
     },
     /// Ask the phone's unlock and open the kept store: the shell answers
     /// with exactly one [`CompanionEvent::Kept`] or

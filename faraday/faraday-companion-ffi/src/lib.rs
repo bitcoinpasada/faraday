@@ -131,6 +131,11 @@ pub const CMD_KEEP_KEPT: i32 = 20;
 /// ([`CompanionCommand::Share`]); its name, media type and bytes are in
 /// [`command_name`], [`command_text`] and [`command_bytes`].
 pub const CMD_SHARE: i32 = 21;
+/// [`poll`]: keep the computer and the maker chosen on Start from the
+/// stick ([`CompanionCommand::KeepStart`]); both are in [`command_text`],
+/// the computer's id, a newline, the maker's page id (either may be
+/// empty). The shell hands the text back with [`start`] next time.
+pub const CMD_KEEP_START: i32 = 22;
 
 /// [`kept_closed`]: the person cancelled the unlock ([`Closed::Cancelled`]).
 pub const CLOSED_CANCELLED: i32 = 0;
@@ -339,6 +344,13 @@ fn encode_companion(command: CompanionCommand) -> Option<(i32, Payload)> {
             CMD_KEEP_THEME,
             Payload {
                 text: Some(id),
+                ..none()
+            },
+        ),
+        CompanionCommand::KeepStart { computer, maker } => (
+            CMD_KEEP_START,
+            Payload {
+                text: Some(format!("{computer}\n{maker}")),
                 ..none()
             },
         ),
@@ -713,6 +725,19 @@ pub fn received(handle: i64, bytes: Vec<u8>) {
 /// The theme the shell kept from [`CMD_KEEP_THEME`]. Sent once at start.
 pub fn theme(handle: i64, id: String) {
     send_companion(handle, CompanionEvent::Theme { id });
+}
+
+/// The answers the shell kept from [`CMD_KEEP_START`], as that command
+/// gave them. Sent once at start.
+pub fn start(handle: i64, text: String) {
+    let (computer, maker) = text.split_once('\n').unwrap_or((text.as_str(), ""));
+    send_companion(
+        handle,
+        CompanionEvent::Start {
+            computer: computer.to_string(),
+            maker: maker.to_string(),
+        },
+    );
 }
 
 /// What About states from the system, sent once at start: the version
@@ -1115,6 +1140,32 @@ mod tests {
         let again = phone();
         theme(again, String::from("dark"));
         assert_eq!(page_color(again), page_color_of(Theme::Dark));
+        destroy(again);
+    }
+
+    #[test]
+    fn the_start_answers_are_kept_and_come_back() {
+        let handle = phone();
+        press(handle, Act::Start);
+        press(handle, Act::Computer(0));
+        let mut kept = None;
+        loop {
+            match poll(handle) {
+                CMD_NONE => break,
+                CMD_KEEP_START => kept = command_text(handle),
+                _ => {}
+            }
+        }
+        let kept = kept.expect("the shell is asked to keep the answer");
+        assert_eq!(kept, "windows\n");
+        destroy(handle);
+
+        let again = phone();
+        start(again, kept);
+        assert_eq!(
+            with(again, |i| i.app.computer),
+            Some(Some(faraday_companion::Computer::Windows))
+        );
         destroy(again);
     }
 

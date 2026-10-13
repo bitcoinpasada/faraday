@@ -7849,6 +7849,44 @@ pub struct Strings {
     pub companion_newest: &'static str,
     /// Learn: Faraday's own pages after the boot and maker pages.
     pub companion_learn_faraday: &'static str,
+    /// Start from the stick: the one question, asked once.
+    pub companion_start_question: &'static str,
+    /// Start from the stick: the answer for a Windows computer.
+    pub companion_start_windows: &'static str,
+    /// Start from the stick: the answer for a Linux computer.
+    pub companion_start_linux: &'static str,
+    /// Start from the stick: the heading over the computer chosen.
+    pub companion_start_computer: &'static str,
+    /// Start from the stick: asks the question again.
+    pub companion_start_change: &'static str,
+    /// Start from the stick, Windows: the heading over the BitLocker pages.
+    pub companion_start_bitlocker: &'static str,
+    /// Start from the stick: the heading over the maker chosen.
+    pub companion_start_maker: &'static str,
+    /// Start from the stick: opens the list of makers.
+    pub companion_start_choose_maker: &'static str,
+    /// Start from the stick: a maker with no page, the general guide.
+    pub companion_start_another_maker: &'static str,
+    /// Start from the stick: the heading over the pages for when it does not work.
+    pub companion_start_trouble: &'static str,
+    /// Start from the stick: the maker's name on the list.
+    pub companion_maker_dell: &'static str,
+    /// Start from the stick: the maker's name on the list.
+    pub companion_maker_hp: &'static str,
+    /// Start from the stick: the maker's name on the list.
+    pub companion_maker_lenovo_thinkpad: &'static str,
+    /// Start from the stick: the maker's name on the list.
+    pub companion_maker_lenovo_ideapad: &'static str,
+    /// Start from the stick: the maker's name on the list.
+    pub companion_maker_asus: &'static str,
+    /// Start from the stick: the maker's name on the list.
+    pub companion_maker_acer: &'static str,
+    /// Start from the stick: the maker's name on the list.
+    pub companion_maker_msi: &'static str,
+    /// Start from the stick: the maker's name on the list.
+    pub companion_maker_framework: &'static str,
+    /// Start from the stick: the maker's name on the list.
+    pub companion_maker_surface: &'static str,
     /// Learn: the pages about Bitcoin that Faraday's apps show.
     pub companion_learn_bitcoin: &'static str,
     /// About: the palettes the screens can be drawn in.
@@ -11757,6 +11795,25 @@ pub static EN: Strings = Strings {
     companion_on_phone: "On this phone",
     companion_newest: "Newest",
     companion_learn_faraday: "Faraday",
+    companion_start_question: "Which computer are you starting?",
+    companion_start_windows: "Windows",
+    companion_start_linux: "Linux",
+    companion_start_computer: "Computer",
+    companion_start_change: "Change",
+    companion_start_bitlocker: "BitLocker first",
+    companion_start_maker: "Maker",
+    companion_start_choose_maker: "Choose the maker",
+    companion_start_another_maker: "Another maker",
+    companion_start_trouble: "If something goes wrong",
+    companion_maker_dell: "Dell",
+    companion_maker_hp: "HP",
+    companion_maker_lenovo_thinkpad: "Lenovo ThinkPad",
+    companion_maker_lenovo_ideapad: "Lenovo IdeaPad, Yoga or Legion",
+    companion_maker_asus: "ASUS",
+    companion_maker_acer: "Acer",
+    companion_maker_msi: "MSI",
+    companion_maker_framework: "Framework",
+    companion_maker_surface: "Microsoft Surface",
     companion_learn_bitcoin: "Bitcoin",
     companion_theme: "Theme",
     companion_check_title: "Checking a release",

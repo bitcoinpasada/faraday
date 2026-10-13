@@ -395,12 +395,25 @@ fn run(s: &Snap) -> Result<(), String> {
     s.shot(&mut c, "learn-page")?;
     let mut c = s.app();
     c.press(Act::Start);
-    s.shot(&mut c, "start")?;
-    c.press(Act::StartPage(0));
+    s.shot(&mut c, "start-question")?;
+    c.press(Act::Computer(0));
     s.shot(&mut c, "start-windows")?;
+    c.press(Act::ChooseMaker);
+    s.shot(&mut c, "start-makers")?;
+    let dell = faraday_learn::MAKERS
+        .iter()
+        .position(|m| m.id == "maker-dell")
+        .ok_or("a Dell page")?;
+    c.press(Act::Maker(dell));
+    s.shot(&mut c, "start-windows-dell")?;
+    c.press(Act::ChangeComputer);
+    s.shot(&mut c, "start-change")?;
+    c.press(Act::Computer(1));
+    s.shot(&mut c, "start-linux")?;
+    c.press(Act::ChooseMaker);
+    c.press(Act::Maker(dell));
+    s.shot(&mut c, "start-linux-dell")?;
     // A maker's page with its firmware sketches (DECISIONS F18).
-    let mut c = s.app();
-    c.press(Act::Start);
     c.press(Act::StartPage(faraday_guides::BOOT.len()));
     s.shot(&mut c, "start-maker-dell")?;
 

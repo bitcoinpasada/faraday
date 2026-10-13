@@ -51,6 +51,34 @@ pub enum Doc {
     Own(&'static str),
 }
 
+/// The computer Start from the stick is for (§4.7).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Computer {
+    /// A Windows computer.
+    Windows,
+    /// A Linux computer.
+    Linux,
+}
+
+impl Computer {
+    /// Every computer the question offers, in its order.
+    pub const ALL: [Computer; 2] = [Computer::Windows, Computer::Linux];
+
+    /// The id the shell keeps, and the id of the general guide for it.
+    pub fn id(self) -> &'static str {
+        match self {
+            Computer::Windows => "windows",
+            Computer::Linux => "linux",
+        }
+    }
+
+    /// The computer with this id, or `None` for one this build does not
+    /// know.
+    pub fn from_id(id: &str) -> Option<Computer> {
+        Computer::ALL.into_iter().find(|c| c.id() == id)
+    }
+}
+
 /// Text that arrived and is shown, not kept.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Shown {
@@ -132,6 +160,10 @@ pub enum Page {
     Learn,
     /// Start from the stick: the boot pages (§4.7).
     Start,
+    /// Start from the stick's question: which computer.
+    StartComputer,
+    /// Start from the stick's list of makers.
+    StartMakers,
     /// One page.
     Doc(Doc),
     /// About (§4.8).
@@ -246,6 +278,14 @@ pub enum Act {
     DeleteKeptStore,
     /// About's theme `n`, in [`Theme::ALL`]'s order.
     Theme(usize),
+    /// Start from the stick's answer `n`, in [`Computer::ALL`]'s order.
+    Computer(usize),
+    /// Start from the stick's Change beside the computer.
+    ChangeComputer,
+    /// Start from the stick's Choose the maker, and Change beside it.
+    ChooseMaker,
+    /// The maker list's maker `n`, in `faraday_learn::MAKERS`' order.
+    Maker(usize),
 }
 
 /// What the scanner says inside its square.
@@ -418,6 +458,10 @@ pub struct Companion {
     compact: bool,
     /// The palette.
     pub theme: Theme,
+    /// The computer chosen on Start from the stick; `None` until asked.
+    pub computer: Option<Computer>,
+    /// The maker page chosen there (an id in `faraday_learn::MAKERS`).
+    pub maker: Option<&'static str>,
     /// Where each act can be pressed, as last drawn, in pixels.
     hits: Vec<(Rect, Act)>,
     /// The act under a finger that is down.
@@ -536,6 +580,8 @@ impl Companion {
             inset_bottom: 0.0,
             compact: true,
             theme: Theme::default(),
+            computer: None,
+            maker: None,
             hits: Vec::new(),
             pressed: None,
             hovered: None,
@@ -657,6 +703,14 @@ impl Companion {
                 if let Some(t) = Theme::from_id(&id) {
                     self.theme = t;
                 }
+            }
+            CompanionEvent::Start { computer, maker } => {
+                self.computer = Computer::from_id(&computer);
+                self.maker = faraday_learn::MAKERS
+                    .iter()
+                    .map(|m| m.id)
+                    .find(|id| *id == maker)
+                    .filter(|_| self.computer.is_some());
             }
             CompanionEvent::Seen {
                 width,
@@ -997,6 +1051,23 @@ impl Companion {
         self.offset = 0.0;
     }
 
+    /// Asks the shell to keep the two Start from the stick answers.
+    fn keep_start(&mut self) {
+        self.out.push_back(CompanionCommand::KeepStart {
+            computer: self.computer.map_or("", Computer::id).to_string(),
+            maker: self.maker.unwrap_or("").to_string(),
+        });
+    }
+
+    /// After an answer: the computer's page, in place of the question or
+    /// the list, and not twice in the way back.
+    fn settle_start(&mut self) {
+        if self.stack.last() == Some(&Page::Start) {
+            self.stack.pop();
+        }
+        self.replace(Page::Start);
+    }
+
     /// Back one page.
     fn back(&mut self) {
         if matches!(self.page, Page::Unlocking(_)) {
@@ -1121,7 +1192,11 @@ impl Companion {
             }
             Act::Send => self.go(Page::SendList),
             Act::Received => self.go(Page::Received),
-            Act::Start => self.go(Page::Start),
+            Act::Start => self.go(if self.computer.is_some() {
+                Page::Start
+            } else {
+                Page::StartComputer
+            }),
             Act::Learn => self.go(Page::Learn),
             Act::About => self.go(Page::About),
             Act::Paste => {
@@ -1241,6 +1316,25 @@ impl Companion {
             Act::StartPage(n) => {
                 if let Some(d) = draw::start_docs().get(n) {
                     self.go(Page::Doc(*d));
+                }
+            }
+            Act::ChangeComputer => self.go(Page::StartComputer),
+            Act::ChooseMaker => self.go(Page::StartMakers),
+            Act::Computer(n) => {
+                if let Some(c) = Computer::ALL.get(n).copied() {
+                    if self.computer != Some(c) {
+                        self.maker = None;
+                    }
+                    self.computer = Some(c);
+                    self.keep_start();
+                    self.settle_start();
+                }
+            }
+            Act::Maker(n) => {
+                if let Some(m) = faraday_learn::MAKERS.get(n) {
+                    self.maker = Some(m.id);
+                    self.keep_start();
+                    self.settle_start();
                 }
             }
             // Shown while a finger is on it (`touch`), not at a press.

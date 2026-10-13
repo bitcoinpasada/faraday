@@ -408,6 +408,23 @@ pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_theme(
     });
 }
 
+/// `Core.start(handle, text)`: the answers the shell kept for Start from
+/// the stick.
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_start(
+    env: *mut JNIEnv,
+    _this: jobject,
+    handle: jlong,
+    text: jstring,
+) {
+    crate::guard((), || {
+        // SAFETY: `text` is the JVM's `String` argument to this method.
+        if let Some(text) = unsafe { read_string(env, text) } {
+            crate::start(handle, text);
+        }
+    });
+}
+
 /// `Core.system(handle, build, certificate, permissions)`: About's facts
 /// from the package manager.
 #[unsafe(no_mangle)]

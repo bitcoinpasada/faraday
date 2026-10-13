@@ -105,6 +105,10 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
     private val themeFile = File(context.filesDir, THEME_NAME)
     private val themeTemp = File(context.filesDir, "$THEME_NAME.tmp")
 
+    /** The computer and the maker chosen on Start from the stick, beside it. */
+    private val startFile = File(context.filesDir, START_NAME)
+    private val startTemp = File(context.filesDir, "$START_NAME.tmp")
+
     /**
      * Events waiting to go in, delivered in order rather than recursively:
      * an event's commands can produce further events.
@@ -149,6 +153,7 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
         val received = host.loadReceived()
         val (descriptions, keys) = host.keptCounts()
         val theme = readTheme()
+        val start = readStart()
         val system = host.system()
         send {
             received?.let {
@@ -159,6 +164,7 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
         }
         send { Core.keptCounts(handle, descriptions, keys) }
         send { theme?.let { Core.theme(handle, it) } }
+        send { start?.let { Core.start(handle, it) } }
         send { system?.let { (build, cert, permissions) -> Core.system(handle, build, cert, permissions) } }
         sendTime()
         // In the theme the core now has, the kept one or the default.
@@ -401,6 +407,7 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
                     writeTheme(Core.commandText(handle))
                     needsColor = true
                 }
+                Core.CMD_KEEP_START -> writeStart(Core.commandText(handle))
                 // CMD_NONE, and CMD_ERROR after the core has been freed.
                 else -> return
             }
@@ -429,9 +436,30 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
         }
     }
 
+    /** The start answers kept last time, or `null` for none. */
+    private fun readStart(): String? = try {
+        if (startFile.exists()) startFile.readText().takeIf { it.isNotBlank() } else null
+    } catch (_: Exception) {
+        null
+    }
+
+    /** Keeps the start answers as the theme is kept; a failure is silent. */
+    private fun writeStart(text: String?) {
+        if (text == null) return
+        try {
+            startTemp.writeText(text)
+            if (!startTemp.renameTo(startFile)) startTemp.delete()
+        } catch (_: Exception) {
+            startTemp.delete()
+        }
+    }
+
     private companion object {
         /** The theme's file, in `filesDir`. */
         const val THEME_NAME = "theme"
+
+        /** The start answers' file, in `filesDir`. */
+        const val START_NAME = "start"
 
         /** 20 Hz: enough for an animated code's fastest rate. */
         const val TICK_MS = 50L

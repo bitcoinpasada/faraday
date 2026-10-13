@@ -60,6 +60,12 @@ internal object Core {
     const val CMD_KEEP_THEME = 18
 
     /**
+     * Keep [commandText], the computer's id, a newline and the maker's
+     * page id (either may be empty); hand it back with [start] at start.
+     */
+    const val CMD_KEEP_START = 22
+
+    /**
      * Ask the phone's unlock and open the kept store; the prompt's title is
      * [commandText]. Answer with exactly one [kept] or [keptClosed].
      */
@@ -164,6 +170,9 @@ internal object Core {
 
     /** The theme kept from [CMD_KEEP_THEME], at start. */
     external fun theme(handle: Long, id: String)
+
+    /** The text kept from [CMD_KEEP_START], at start. */
+    external fun start(handle: Long, text: String)
 
     /**
      * About's facts from the package manager, at start: the version name
