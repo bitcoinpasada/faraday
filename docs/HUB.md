@@ -17,7 +17,9 @@ the person wants it in the Start menu or app menu.
 
 "Hub app" is this document's name for it. `docs/DESIGN.md` §5 already
 has a reusable screen called Hub (a Navigate screen); the two are
-unrelated. People see the app as **Faraday**.
+unrelated. People see the app as **Faraday Hub** (owner, 2026-10-12,
+DECISIONS F16): the hub between the stick, the desktop and the phone. The
+desktop app is **Faraday Desktop**; the stick is Faraday.
 
 ## 0. Rules for the implementing agent
 
@@ -56,8 +58,8 @@ downloads".
 
 | File | What it is |
 |---|---|
-| `Faraday-X.Y.Z-Windows.exe` | the hub app for Windows (x86_64) |
-| `Faraday-X.Y.Z-Linux.tar.gz` | the hub app for Linux (x86_64): one file inside, `Faraday-X.Y.Z-Linux`, with its executable bit (§1.2) |
+| `Faraday-Hub-X.Y.Z-Windows.exe` | the hub app for Windows (x86_64) |
+| `Faraday-Hub-X.Y.Z-Linux.tar.gz` | the hub app for Linux (x86_64): one file inside, `Faraday-Hub-X.Y.Z-Linux`, with its executable bit (§1.2) |
 | `faraday-desktop-X.Y.Z-linux-x86_64` | the desktop app alone (today's `faraday-X.Y.Z-linux-x86_64`, renamed) |
 | `faraday-desktop-X.Y.Z-windows-x86_64.exe` | the desktop app for Windows, from batch C on (§2) |
 | `faraday-stick-X.Y.Z-x86_64-uefi.img.xz` | the stick image |
@@ -266,7 +268,9 @@ what a screen does.
 
 ### 3.1 Home (Navigate): a checklist, then the rows
 
-Title: the wordmark. A card for this computer, then the checklist of
+Title: the wordmark with **Hub** beside it (F16), on every page that
+shows the wordmark, so a person can tell the hub app from the desktop
+app and the stick at a glance. A card for this computer, then the checklist of
 the path from download to a running stick, then the other rows (owner,
 D12: Home leads with the next step for this computer's state, not with
 a menu).
@@ -630,11 +634,11 @@ Per user, never needing administrator rights.
 
 | | Linux | Windows |
 |---|---|---|
-| The hub app | `~/.local/bin/faraday` (the XDG place for a user's executables, and on PATH on most desktops) | `%LOCALAPPDATA%\Programs\Faraday\Faraday.exe` |
-| The desktop app, if ticked | `~/.local/bin/faraday-desktop` | `%LOCALAPPDATA%\Programs\Faraday\faraday-desktop.exe` (from batch C) |
-| Menu | `~/.local/share/applications/app.faradayoffline.Faraday.desktop`, and `…FaradayDesktop.desktop` "Faraday desktop (testing)" | Start menu shortcuts `Faraday` and, with the desktop app, `Faraday desktop (testing)` |
-| Icon | `~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.Faraday.png` | in the `.exe` |
-| Uninstall entry | — | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday`: name, version, publisher "Faraday", icon, size, `UninstallString` = `"…\Faraday.exe" --uninstall` |
+| The hub app | `~/.local/bin/faraday-hub` (the XDG place for a user's executables, and on PATH on most desktops) | `%LOCALAPPDATA%\Programs\Faraday Hub\Faraday Hub.exe` |
+| The desktop app, if ticked | `~/.local/bin/faraday-desktop` | `%LOCALAPPDATA%\Programs\Faraday Hub\Faraday Desktop.exe` (from batch C) |
+| Menu | `~/.local/share/applications/app.faradayoffline.FaradayHub.desktop` "Faraday Hub", and `…FaradayDesktop.desktop` "Faraday Desktop" (its description: test seeds only) | Start menu shortcuts `Faraday Hub` and, with the desktop app, `Faraday Desktop` |
+| Icon | `~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.FaradayHub.png` | in the `.exe` |
+| Uninstall entry | — | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday Hub`: name "Faraday Hub", version, publisher "Faraday", icon, size, `UninstallString` = `"…\Faraday Hub.exe" --uninstall` |
 | Logon reminder | — | only while the hub app's BitLocker suspension stands (§6.3) |
 
 The menu file names are reverse-DNS, so they never collide with a
@@ -792,7 +796,7 @@ elevation prompt and keeps the hub app out of the boot path).
 - **The logon reminder.** An installed hub app (§5.2) adds, at the
   moment it suspends, one per-user Run entry
   (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Faraday` =
-  `"…\Faraday.exe" --remind`). At logon, `--remind` reads the marker
+  `"…\Faraday Hub.exe" --remind`). At logon, `--remind` reads the marker
   and the Secure Boot state and does one of three things: no marker,
   or protection already on, it removes the Run entry and exits with no
   window; marker and Secure Boot not as the marker recorded it, it
@@ -1211,7 +1215,9 @@ what moved.
   confirmed, then suspended until resumed.
 - **D8 The stick's power-off reminder:** yes, as §7.5.
 - **D9 Keeping Secure Boot on:** a later batch.
-- **D10 Names:** "Faraday" to people; `faraday-hub` in the code.
+- **D10 Names:** "Faraday Hub" to people (F16, which changed v0.2's
+  "Faraday"), "Faraday Desktop" for the desktop app; `faraday-hub` in the
+  code.
 - **D11 OSKDATA on Windows:** open. Decided after batch W reports what
   Windows writes to a stick.
 - **D12 Home:** a checklist that leads with this computer's next step,

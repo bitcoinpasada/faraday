@@ -556,3 +556,22 @@ online wallet.
   developer verification, for the pseudonym; the install route on a
   phone that asks is documented. No iPhone app in phase 1. Every point
   is `docs/COMPANION.md` §12, D1–D10.
+
+### F16 The hub app is Faraday Hub; the desktop app is Faraday Desktop (2026-10-12)
+
+**Why.** HUB D10 named the hub app plain "Faraday" to people. Installed
+beside the desktop app, two menu entries began "Faraday", and the
+desktop app's "Faraday desktop (testing)" was cut off in a launcher.
+The hub app is literally the hub between the stick, the desktop app
+and the phone, and a hub is a natural thing to download.
+
+**Decision** (owner, 2026-10-12).
+
+- The hub app is **Faraday Hub**: its window title, menu entry, Start
+  menu shortcut, installed name and uninstall entry, and the release
+  files `Faraday-Hub-X.Y.Z-Linux.tar.gz` and `Faraday-Hub-X.Y.Z-Windows.exe`.
+  Its header shows the wordmark with **Hub** beside it.
+- The desktop app is **Faraday Desktop**, with no "(testing)": it opens
+  on testnet, so its purpose shows; its menu description says test
+  seeds only.
+- The stick, the Pi card and the project remain **Faraday**.
