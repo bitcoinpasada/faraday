@@ -17,10 +17,16 @@ published later is the one that was sent.
 ## 2. The request
 
 The text below is published on the Audits page as written. People follow
-it for an expert audit, or paste it into the prompt for an AI audit.
+it for an expert audit. For an AI audit, it is not the prompt: people
+write their own prompt and add the list at its end, where the AI reads
+it last, closest to writing its output. The copied text starts with a
+line saying what it is.
 
-> **What an audit includes.** By an expert or an AI. To ask an AI,
-> paste this list into the prompt.
+> **What an audit includes.** By an expert or an AI. This list is not a
+> prompt by itself: write your own prompt for the audit, then add this
+> list at its end.
+>
+> Faraday's request for this audit. Follow it in the output:
 >
 > 1. Record what was audited: the repository
 >    (`https://github.com/bitcoinpasada/faraday`), the commit
@@ -68,7 +74,8 @@ name or pseudonym in the issue form.
 All submissions go through GitHub, none by email. A pseudonymous
 GitHub account is enough. The steps, as the page gives them:
 
-1. For an AI audit, save the exact prompt as `prompt.md`.
+1. For an AI audit, save the exact prompt, with the list at its end, as
+   `prompt.md`.
 2. Check every file for personal information. A hashed file cannot be
    corrected afterwards without a new hash.
 3. If there is a `private.md`, run `sha256sum -c private.md.sha256`. It
