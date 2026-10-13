@@ -2775,6 +2775,20 @@ as possible before the next build.
     shared with the Starter and the website, so the Starter session is
     told before it lands.
 
+    **Built, audited and on main (2026-10-13):** 0b94487 (Start from
+    the stick nested, computer then maker, remembered) and 190defe (the
+    guides as steps, the one-word maker list with Lenovo asking again
+    and maker-other, the step circles ticked and kept per page).
+    `just` passed (2519 tests); desktop renders unchanged, ten Starter
+    sketch renders changed by the page text only; the Starter session
+    reviews the pages and fits the circles on its side. Still long:
+    windows.md (810 words, from 898) and linux.md (437, from 453) keep
+    their BitLocker and TPM explanations in Before you start; a second
+    pass could move them to the BitLocker pages. The ASUS and Acer
+    pages each took a nearest reading (Esc held as the computer starts
+    again; F12 Boot Menu turned on in the same visit), for the Starter
+    session to check.
+
 73. [ ] 2026-10-13, owner: **Faraday Starter on macOS, the part that
     needs no Mac.** The owner picked up the Mac work with the Starter
     (MAC §6, item 71). There is still no Mac (M7), so MAC §8's batch A3
