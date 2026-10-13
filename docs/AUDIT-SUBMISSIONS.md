@@ -70,8 +70,8 @@ line saying what it is.
 >   gap fails; secrets outlive the session; a tampered image or upgrade
 >   is accepted; Faraday Starter writes to the wrong disk.
 > - **Medium:** a protection is weaker than intended but holds (a lower
->   key-stretching cost, no attempt limit); a crash from crafted input
->   with no code run; public wallet data leaked.
+>   key-stretching cost); a crash from crafted input with no code run;
+>   public wallet data leaked.
 > - **Low:** a defect with no direct security effect, including a wrong
 >   result that Faraday detects and refuses.
 > - **Note:** an observation, not a defect.
