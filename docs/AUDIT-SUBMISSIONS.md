@@ -1,9 +1,10 @@
 # Audits: the request, the submission and the record
 
-**Status:** planned with the owner on 2026-10-13 (DECISIONS F19); not
-built. The process lives here. `SECURITY.md` and the issue form follow
-it. The website's Audits page shows it, and the website repository's
-HANDOFF has that page.
+**Status:** planned with the owner on 2026-10-13 (DECISIONS F19).
+`SECURITY.md` and the issue form (`.github/ISSUE_TEMPLATE/audit.yml`)
+are built; §8 lists what is not. The process lives here. `SECURITY.md`
+and the issue form follow it. The website's Audits page shows it, and
+the website repository's HANDOFF has that page.
 
 ## 1. What it is for
 
@@ -227,10 +228,10 @@ several.
       take attachments. If they take pasted text only, the pasted copy
       may not match the hash byte for byte; then `private.md` goes in a
       code block and its hash is checked when it arrives.
-- [ ] `SECURITY.md` at the repository's root: the private route (§4),
+- [x] `SECURITY.md` at the repository's root: the private route (§4),
       what goes there (critical and high findings), the timeline (§5),
       and a link to this file and the Audits page.
-- [ ] `.github/ISSUE_TEMPLATE/audit.yml`, an issue form (a template, not
+- [x] `.github/ISSUE_TEMPLATE/audit.yml`, an issue form (a template, not
       a GitHub Action) with these fields: the model and its version, or
       "expert"; the commit audited; a name or pseudonym for credit
       (optional); whether a private report was sent, and the hash of

@@ -1,0 +1,57 @@
+name: Audit
+description: Submit an audit of Faraday, by an expert or an AI.
+title: "Audit: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The steps are in [docs/AUDIT-SUBMISSIONS.md §3](https://github.com/bitcoinpasada/faraday/blob/main/docs/AUDIT-SUBMISSIONS.md#3-submitting). Critical and high findings go in `private.md`, sent as a [private report](https://github.com/bitcoinpasada/faraday/security/advisories/new), never in this issue.
+  - type: input
+    id: model
+    attributes:
+      label: Model and its version, or "expert"
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit audited
+      description: The output of `git rev-parse HEAD`.
+    validations:
+      required: true
+  - type: input
+    id: credit
+    attributes:
+      label: Name or pseudonym for credit (optional)
+    validations:
+      required: false
+  - type: dropdown
+    id: private-report
+    attributes:
+      label: Private report
+      options:
+        - "No: there is no private.md"
+        - "Yes: private.md is sent as a private report with this issue's number"
+    validations:
+      required: true
+  - type: input
+    id: private-sha256
+    attributes:
+      label: SHA-256 of private.md
+      description: The hash from `private.md.sha256`. Empty if there is no `private.md`.
+    validations:
+      required: false
+  - type: textarea
+    id: files
+    attributes:
+      label: prompt.md and audit.md
+      description: Attach both as files, not pasted text. An expert audit has no `prompt.md`. If the prompt points at a vulnerability, send it in the private report and give its hash (`sha256sum prompt.md`) here instead.
+    validations:
+      required: true
+  - type: checkboxes
+    id: personal-information
+    attributes:
+      label: Personal information
+      options:
+        - label: These files were checked for personal information.
+          required: true
