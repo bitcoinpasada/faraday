@@ -31,7 +31,7 @@ use windows_sys::Win32::Security::{
 };
 use windows_sys::Win32::Storage::FileSystem::{
     FILE_FLAG_FIRST_PIPE_INSTANCE, FindFirstVolumeW, FindNextVolumeW, FindVolumeClose,
-    GetVolumeInformationW, GetVolumePathNamesForVolumeNameW, PIPE_ACCESS_INBOUND, QueryDosDeviceW,
+    GetVolumeInformationW, GetVolumePathNamesForVolumeNameW, PIPE_ACCESS_DUPLEX, QueryDosDeviceW,
 };
 use windows_sys::Win32::System::Com::CoTaskMemFree;
 use windows_sys::Win32::System::Diagnostics::Debug::{SEM_FAILCRITICALERRORS, SetThreadErrorMode};
@@ -361,9 +361,12 @@ pub fn user_sid() -> Option<String> {
 }
 
 /// Makes the named pipe `name` for the elevated writer to report on:
-/// inbound, one instance, local clients only, open to the person's own
-/// account and to an elevated administrator (who could write any disk
-/// anyway), and in no-wait mode until a client connects.
+/// one instance, local clients only, open to the person's own account
+/// and to an elevated administrator (who could write any disk anyway),
+/// and in no-wait mode until a client connects. Duplex, though only the
+/// client writes: switching to wait mode (`pipe_connected`) needs write
+/// access on this end, which an inbound pipe's handle lacks (Windows
+/// answers ERROR_ACCESS_DENIED).
 pub fn pipe(name: &str) -> io::Result<File> {
     let sid = user_sid().ok_or_else(|| io::Error::other("the account's SID"))?;
     let sddl = wide(&format!("D:P(A;;GA;;;{sid})(A;;GA;;;BA)"));
@@ -392,7 +395,7 @@ pub fn pipe(name: &str) -> io::Result<File> {
     let h = unsafe {
         CreateNamedPipeW(
             n.as_ptr(),
-            PIPE_ACCESS_INBOUND | FILE_FLAG_FIRST_PIPE_INSTANCE,
+            PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE,
             PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_NOWAIT | PIPE_REJECT_REMOTE_CLIENTS,
             1,
             0,

@@ -82,7 +82,7 @@ fn suspend_has_no_restart_count_and_touches_only_operating_system_volumes() {
         .collect();
     assert_eq!(
         disables,
-        [&format!("DisableKeyProtectors {C} RebootCount=u32:0")]
+        [&format!("DisableKeyProtectors {C} DisableCount=u32:0")]
     );
     // The key is not read to suspend.
     assert_eq!(wmi.made("GetKeyProtectorNumericalPassword"), 0);

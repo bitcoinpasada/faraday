@@ -2022,16 +2022,46 @@ as possible before the next build.
     snapshot `bitlocker-on` is taken; and **§6.6 run 5 passed**: with
     Secure Boot off Windows stopped at "BitLocker recovery … because
     Secure Boot has been disabled", and with it back on Windows started
-    with no prompt (e269275, `tools/winvm/`). Next: runs 1 to 4 and 6
-    with Faraday Starter's Windows build (`just faraday-windows-bin`),
-    from the snapshot each time. Nothing of batch W ships before those
-    pass. (c) Three places still decide by displayed
+    with no prompt (8b8feac, `tools/winvm/`). **Runs 1, 2, 3, 4a and 6
+    passed on 2026-10-13** with Faraday Starter's Windows build, each from
+    the snapshot, after two fixes the first run found: the window's
+    report pipe was inbound only, so switching it to wait mode once the
+    elevated copy connected failed with access denied (no BitLocker step
+    and no stick write could ever finish on Windows); and
+    `DisableKeyProtectors`' parameter is `DisableCount` (Windows' own
+    method listing, read in the machine), not PowerShell's
+    `RebootCount`, so Suspend failed with 0x80041002 and changed
+    nothing. With both fixed: Secure Boot off and Windows started with
+    no prompt (twice); the firmware variables reset to their factory
+    copy and Secure Boot on, no prompt; the logon reminder opened Resume
+    BitLocker only with Secure Boot as recorded; resume left Protection
+    On with the marker and the Run value gone, and one more restart had
+    no prompt; Uninstall while suspended offered Resume with Secure Boot
+    on and gave Control Panel's line with it off, removing the marker
+    and the Run value and leaving the suspension as said. The first
+    check of `docs/BITLOCKER-ACCEPTANCE.md` passed too: the shell reads
+    `Some(1)` protected and `Some(5)` suspended, and `GetSuspendCount`
+    answers 0 (until resumed); the two recordings are in
+    `local/winvm-records/`, not yet made fixtures. The key was found in
+    no file under AppData, Temp or Downloads. Still to do: run 1's Save
+    and its QR scan, Home's firmware-restart button (greyed in the
+    machine), run 4b (a standard user), run 6a through Settings'
+    Installed apps; then the Home runs on a computer of the owner's.
+    Smaller findings: Home kept showing "suspended by Faraday" after an
+    Uninstall had removed the marker; the install folder was left empty
+    once (the exe gone) when the window was closed by its button; the
+    uninstall sheet's title says "Uninstall Faraday?"; the Run value is
+    named `Faraday Starter`, where HUB.md §6.3 says `Faraday`; the
+    stick row read "0.1.0 or earlier" for a 0.1.1 stick; Ctrl+A, Home
+    and End do nothing in text fields; the stick took no input from
+    QEMU's USB keyboard or tablet and ignored the ACPI power button.
+    §6.6 run 4 asks that the firmware steps not be shown when elevation
+    is declined, while §3.4 shows them without their buttons, which is
+    what the build does: the spec needs one rule. (c) Three places still decide by displayed
     text and want an enum (`local/REMAINING.md`).
 
-    **In flight at the time of writing.** The rename to Faraday Starter
-    and Faraday Desktop with the header suffix (an agent; the names kept
-    in one place); the Windows VM (`tools/winvm/`, uncommitted, the
-    launcher and answer file). The owner's test install
+    **In flight at the time of writing.** Nothing of this item; the
+    rename and `tools/winvm/` are committed. The owner's test install
     of the earlier Linux hub was uninstalled; the next download is
     `Faraday-Starter-0.1.1-Linux.tar.gz` in their Downloads folder.
 

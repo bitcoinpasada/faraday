@@ -52,6 +52,8 @@ winvm.sh COMMAND [ARGS]
       --cdrom ISO            attach an installation ISO, and press a key at
                              "Press any key to boot from CD"
       --usb-stick IMG        attach a raw image as a removable USB stick
+      --boot-stick           start from that stick first, as choosing it in the
+                             firmware's boot menu would (Windows if it cannot)
       --usb-fat IMG          attach a second raw image as a USB drive
       --secure-boot on|off   first set the firmware's Secure Boot setting
                              ("Attempt Secure Boot") in its variable store
@@ -66,6 +68,7 @@ winvm.sh COMMAND [ARGS]
   keys KEY...                press keys; KEY is a QEMU qcode or a combination
                              such as ctrl-alt-delete; "sleep:N" waits N seconds
   click X Y                  click at a pixel of the screen (as in a screenshot)
+  scroll N                   turn the mouse wheel N notches down (negative: up)
   type TEXT                  type text (letters, digits, common punctuation)
   snapshot NAME              save the disk (qemu-img snapshot), the firmware
                              variables and the TPM's state, while off
@@ -174,6 +177,18 @@ click() {
 	echo '{"execute":"input-send-event","arguments":{"events":[{"type":"btn","data":{"down":true,"button":"left"}}]}}' | qmp >/dev/null
 	sleep 0.1
 	echo '{"execute":"input-send-event","arguments":{"events":[{"type":"btn","data":{"down":false,"button":"left"}}]}}' | qmp >/dev/null
+}
+
+# The mouse wheel, N notches down (or up, with a negative N), where the
+# pointer is.
+scroll() {
+	local n=$1 b=wheel-down i
+	((n < 0)) && b=wheel-up n=$((-n))
+	for ((i = 0; i < n; i++)); do
+		echo "{\"execute\":\"input-send-event\",\"arguments\":{\"events\":[{\"type\":\"btn\",\"data\":{\"down\":true,\"button\":\"$b\"}}]}}" | qmp >/dev/null
+		echo "{\"execute\":\"input-send-event\",\"arguments\":{\"events\":[{\"type\":\"btn\",\"data\":{\"down\":false,\"button\":\"$b\"}}]}}" | qmp >/dev/null
+		sleep 0.1
+	done
 }
 
 # The firmware's own setting, read from its variable store: the newest
@@ -318,11 +333,12 @@ open(path, "r+b").write(d)
 }
 
 start() {
-	local cdrom="" stick="" fat="" setup=0 sb="" extra=()
+	local cdrom="" stick="" fat="" setup=0 sb="" boot_first="" extra=()
 	while (($#)); do
 		case $1 in
 		--cdrom) cdrom=$2; shift 2 ;;
 		--usb-stick) stick=$2; shift 2 ;;
+		--boot-stick) boot_first=",bootindex=0"; shift ;;
 		--usb-fat) fat=$2; shift 2 ;;
 		--secure-boot) sb=$2; shift 2 ;;
 		--setup) setup=1; shift ;;
@@ -333,7 +349,7 @@ start() {
 	[[ -n $cdrom ]] && extra+=(-drive "file=$cdrom,if=none,id=cd,media=cdrom,readonly=on"
 		-device ide-cd,drive=cd,bus=ide.1,bootindex=2)
 	[[ -n $stick ]] && extra+=(-drive "file=$stick,if=none,id=stick,format=raw"
-		-device usb-storage,bus=xhci.0,drive=stick,removable=on)
+		-device "usb-storage,bus=xhci.0,drive=stick,removable=on$boot_first")
 	[[ -n $fat ]] && extra+=(-drive "file=$fat,if=none,id=fat,format=raw"
 		-device usb-storage,bus=xhci.0,drive=fat,removable=on)
 
@@ -404,6 +420,7 @@ wait-off) wait_off "${1:-600}" ;;
 screenshot) screenshot "${1:?screenshot OUT.png}" ;;
 keys) keys "$@" ;;
 click) click "${1:?click X Y}" "${2:?click X Y}" ;;
+scroll) scroll "${1:?scroll N}" ;;
 type) type_text "${1:?type TEXT}" ;;
 snapshot) snapshot "$@" ;;
 -h | --help) usage ;;

@@ -497,7 +497,7 @@ pub fn suspend(wmi: &mut dyn Wmi, drive: &str) -> Result<Vec<(String, String)>, 
         let o = wmi.call(
             &v.device,
             "DisableKeyProtectors",
-            &[("RebootCount", Value::U32(0))],
+            &[("DisableCount", Value::U32(0))],
             &[],
         );
         let refusal = match o {
@@ -625,7 +625,7 @@ struct Call {
 /// then
 /// volume \\?\Volume{…}\ C: type 0 protection 0
 /// call \\?\Volume{…}\ GetConversionStatus -> 0 ConversionStatus=u32:1
-/// call \\?\Volume{…}\ DisableKeyProtectors RebootCount=u32:0 -> 0
+/// call \\?\Volume{…}\ DisableKeyProtectors DisableCount=u32:0 -> 0
 /// fail \\?\Volume{…}\ GetKeyProtectors 80041003
 /// ```
 ///
