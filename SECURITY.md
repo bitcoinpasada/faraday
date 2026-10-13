@@ -42,6 +42,8 @@ issue. The steps are in
   hash, if there is one, and gives a verdict on each finding: confirmed
   and fixed (with the fixing commit), confirmed and open, could not
   reproduce, or not a bug.
+- **A private report with no issue:** a reply on it within 15 days of
+  its arrival.
 - **Then:** the audit's entry is published.
 - **Private findings:** fixed, then `private.md` is published and the
   entry updated. `private.md` is published no later than 90 days after
