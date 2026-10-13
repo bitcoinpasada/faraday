@@ -2069,8 +2069,9 @@ as possible before the next build.
     key), which opens the firmware steps with nothing changed on the
     computer; "Extra safe: suspend BitLocker" leads to the guard above,
     unchanged. The guides say to choose the stick from the boot menu
-    before Windows starts. §6.6 runs 7 and 8 (the default path) are new
-    and not yet run. **F18:** firmware sketches on the maker pages, in
+    before Windows starts. §6.6 runs 7 and 8 (the default path) are
+    optional (owner, 2026-10-13); instead the default page is checked
+    on Windows before the Windows release. **F18:** firmware sketches on the maker pages, in
     Starter and the Companion only, drawn to look like the firmware
     (each family's own colours, square corners, Terminus as the
     text-mode font, "Mock-up" under each); 32 sketches over the nine

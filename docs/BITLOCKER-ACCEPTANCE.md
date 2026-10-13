@@ -3,7 +3,9 @@
 The steps for `docs/HUB.md` §6.6's runs 1 to 8, in a Windows 11 Pro
 virtual machine, before batch W ships. Runs 1 to 6 test the extra-safe
 path (BitLocker suspended); runs 7 and 8 test the default path, the
-recovery key in hand and nothing suspended (F17). Each run starts from the same
+recovery key in hand and nothing suspended (F17); runs 7 and 8 are
+optional, replaced by a check of the default page on Windows before
+the Windows release (`docs/HUB.md` §6.6). Each run starts from the same
 saved state of the machine, follows the hub app on its screen, and is
 recorded as the end of this file says. A run passes only when every
 "Must see" line holds; one that does not stops the batch until the
@@ -221,7 +223,7 @@ Must see:
       Boot on, start Windows (no recovery prompt), and Control Panel's
       Resume protection resumes it.
 
-## Run 7: the default path, the key in hand
+## Run 7 (optional): the default path, the key in hand
 
 1. Start the machine (Secure Boot on). Sign in. Run `Faraday Starter.exe`
    (not installed). Attach the stick image.
@@ -256,7 +258,7 @@ Must see:
 - [ ] Faraday Starter opened again: BitLocker reads "Protected" (the
       confirmation was for that session only).
 
-## Run 8: the default path, Windows started with Secure Boot off
+## Run 8 (optional): the default path, Windows started with Secure Boot off
 
 Steps 1 to 5 of run 7. Secure Boot off in OVMF's setup, save, and let
 Windows start with the stick not chosen (or `winvm.sh start

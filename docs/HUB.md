@@ -36,7 +36,10 @@ Faraday.
   protected drive, the firmware steps open only after it (F17: by
   default the recovery key in hand; suspending is the extra-safe
   choice). The extra-safe path does not ship until §6.6's runs 1–6
-  pass in full, and the default path not until runs 7 and 8 do.
+  pass in full. The default path ships after a check of its page on
+  Windows before the Windows release (§6.6); runs 7 and 8 are optional
+  (owner, 2026-10-13: run 5 and run 1 already show the prompt and the
+  key shown).
 - The Windows builds are tried on a Windows computer the owner
   provides. §6.6 says which of its runs may happen on an owner's
   computer (the Home run, with the owner) and which never do (anything
@@ -951,7 +954,13 @@ starting from a stick".
 ### 6.6 Acceptance, before batch W ships
 
 Runs 1 to 6 test the extra-safe path (§6.2, suspending); runs 7 and 8
-test the default path, the recovery key in hand (F17).
+test the default path, the recovery key in hand (F17). Runs 7 and 8 are
+optional (owner, 2026-10-13): Windows checks Secure Boot only when it
+starts, which run 5 shows, and run 1 shows the key Starter shows is
+BitLocker's own; the default path changes nothing on the computer. In
+their place, before the Windows release, the default page is looked
+at on Windows: Show the recovery key without the type-back, and I have
+my recovery key opening the firmware steps.
 
 Two places, because Windows Home cannot be tested in a virtual machine
 (owner, D19): Home has no BitLocker switch, only Device encryption,
