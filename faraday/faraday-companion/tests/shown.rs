@@ -9,6 +9,7 @@ mod common;
 use common::*;
 use faraday_companion::store::Kind;
 use faraday_companion::{Act, Doc, Page, Shown};
+use faraday_strings::EN;
 use osk_shell_api::Command;
 
 #[test]
@@ -92,4 +93,23 @@ fn a_guide_address_opens_the_companions_own_page_and_asks_nothing_of_the_shell()
         paste(&mut c, &address);
         assert_eq!(c.page, Page::Doc(Doc::Own(id)));
     }
+}
+
+#[test]
+fn a_maker_page_shows_its_firmware_sketches_and_never_a_marker() {
+    for m in faraday_learn::MAKERS.iter() {
+        let mut c = receiving();
+        paste(&mut c, &faraday_learn::guide_address(m.id));
+        assert_eq!(c.page, Page::Doc(Doc::Own(m.id)));
+        let texts = c.texts();
+        assert!(
+            !texts.iter().any(|t| t.contains("::sketch")),
+            "{}: {texts:?}",
+            m.id
+        );
+    }
+    // Dell's first sketch is in the first screenful.
+    let mut c = receiving();
+    paste(&mut c, &faraday_learn::guide_address("maker-dell"));
+    assert!(shows(&mut c, EN.ui_sketch_mock_up), "{:?}", c.texts());
 }

@@ -398,6 +398,11 @@ fn run(s: &Snap) -> Result<(), String> {
     s.shot(&mut c, "start")?;
     c.press(Act::StartPage(0));
     s.shot(&mut c, "start-windows")?;
+    // A maker's page with its firmware sketches (DECISIONS F18).
+    let mut c = s.app();
+    c.press(Act::Start);
+    c.press(Act::StartPage(faraday_learn::BOOT.len()));
+    s.shot(&mut c, "start-maker-dell")?;
 
     // About (§4.8).
     let mut c = s.app();

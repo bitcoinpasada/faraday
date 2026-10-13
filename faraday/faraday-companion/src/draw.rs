@@ -1361,6 +1361,14 @@ fn document(ui: &mut Ui, x: f32, y0: f32, w: f32, d: Doc) -> f32 {
             y += ui.wrap(x, y, w, 15.0, W::S, ACCENT, section.heading) + 8.0;
         }
         for para in section.paragraphs {
+            // A firmware sketch's marker (DECISIONS F18): the sketch drawn
+            // in its place, and the marker never printed as text.
+            if faraday_learn::is_marker(para) {
+                if let Some(s) = faraday_learn::sketch_of(para) {
+                    y += faraday_ui::sketch(ui, s, x, y, w) + 12.0;
+                }
+                continue;
+            }
             y += ui.wrap(x, y, w, 14.0, W::R, TEXT, para) + 12.0;
         }
         y += 10.0;
