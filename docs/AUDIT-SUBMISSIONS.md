@@ -185,8 +185,8 @@ Code security → Private vulnerability reporting, or with
   reproduce, or not a bug.
 - **Then:** the audit's entry is published.
 - **Private findings:** fixed, then `private.md` is published and the
-  entry updated. `private.md` is published no later than N days after
-  the private report arrives, fixed or not (§9).
+  entry updated. `private.md` is published no later than 90 days after
+  the private report arrives, fixed or not (owner, 2026-10-13).
 
 ## 6. The record
 
@@ -222,7 +222,8 @@ several.
 
 - [x] The owner turns on private vulnerability reporting (§4); on
       2026-10-13.
-- [ ] A test report with a file attached, to see whether private reports
+- [ ] A test report with a file attached, sent from a second GitHub
+      account (a friend of the owner's), to see whether private reports
       take attachments. If they take pasted text only, the pasted copy
       may not match the hash byte for byte; then `private.md` goes in a
       code block and its hash is checked when it arrives.
@@ -241,7 +242,6 @@ several.
 
 ## 9. Open
 
-1. N, the latest day `private.md` is published (§5); 90 days proposed.
-2. Whether the page says that ordinary bug reports go to the
+1. Whether the page says that ordinary bug reports go to the
    repository's issues, so nobody takes "experts" to mean only experts
    may report.
