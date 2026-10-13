@@ -32,8 +32,9 @@ line saying what it is.
 >    (`https://github.com/bitcoinpasada/faraday`), the commit
 >    (`git rev-parse HEAD`), the date, any tools run, and for an AI, the
 >    model and its version.
-> 2. State the scope: the parts of the code read, and the parts not
->    read. `docs/AUDIT.md` lists where the cryptography is.
+> 2. State the scope: which of the areas below were covered, the parts
+>    of the code read, and the parts not read. `docs/AUDIT.md` lists
+>    where the cryptography is.
 > 3. For each finding, give: a severity, the file and line, what goes
 >    wrong, how to trigger it, and whether it was confirmed by running
 >    code or only found by reading.
@@ -56,14 +57,52 @@ line saying what it is.
 >    `sha256sum private.md > private.md.sha256`. If you cannot run
 >    commands, do not write a hash; say that it still needs to be made.
 >
+> Areas to cover:
+>
+> - **Key material:** whether a key, seed or passphrase can leave the
+>   device; the randomness and entropy behind key generation; nonces in
+>   ECDSA, Schnorr, MuSig2 and FROST signing.
+> - **Signing:** whether what the screen shows (amounts, fee,
+>   destinations, change) is what gets signed.
+> - **Correct results:** derivations, addresses, mnemonics, SLIP-39 and
+>   codex32 shares, backup files (`.oskb`, KDBX), MuSig2 and FROST,
+>   against published vectors and other implementations.
+> - **The vault:** each slot's passphrase opens only that slot, the
+>   key-stretching cost is the one stated, the file does not reveal how
+>   many slots are used, and a damaged file is detected.
+> - **The air gap and what remains:** no network interface comes up,
+>   secrets are written only where the user chooses, and none outlive
+>   the session.
+> - **Untrusted input:** PSBTs, QR codes, images and file systems from
+>   the online computer.
+> - **The image and its tools:** release verification, the Secure Boot
+>   keys, the upgrade, Faraday Starter's disk writing and checks, and
+>   what Faraday Companion stores.
+> - **Access:** the keyboard code and the passphrase prompts.
+>
 > Severities:
 >
-> - **Critical:** a key or seed can be extracted, or the device signs
->   something the user did not approve.
-> - **High:** the same, but only under specific conditions.
-> - **Medium:** a protection is weaker than intended.
-> - **Low:** a defect with no direct security effect.
+> - **Critical:** a key, seed or passphrase can be extracted; the device
+>   signs, or shows as approved, something the user did not approve;
+>   Faraday's output is wrong in a way that loses funds (an address it
+>   cannot spend from, a backup or shares that do not restore); or
+>   crafted input runs code on Faraday.
+> - **High:** the same, but only under specific conditions (physical
+>   access, a non-default setting, a rare input); a vault slot opens
+>   without its passphrase or reveals how many slots are used; the air
+>   gap fails; secrets outlive the session; a tampered image or upgrade
+>   is accepted; Faraday Starter writes to the wrong disk.
+> - **Medium:** a protection is weaker than intended but holds (a lower
+>   key-stretching cost, no attempt limit); a crash from crafted input
+>   with no code run; public wallet data leaked.
+> - **Low:** a defect with no direct security effect, including a wrong
+>   result that Faraday detects and refuses.
 > - **Note:** an observation, not a defect.
+
+The severities grade by what happens to the person using Faraday, not
+by how a defect works: a wrong result that loses funds is critical, as
+theft is. The areas are named generally, never after a known open
+finding.
 
 An expert audit has no `prompt.md`; `audit.md` describes its method.
 The files carry no names (step 6). A submitter who wants credit gives a
