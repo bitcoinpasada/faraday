@@ -1966,6 +1966,55 @@ as possible before the next build.
     Home computer with the owner, and nothing of W ships before it
     passes. (4) C, P (on the Pi), S.
 
+    **Evening, 2026-10-12 (Opus orchestrator).** Owner decisions, each in
+    the spec: **F16, names**: the hub app is **Faraday Starter** ("Faraday
+    Hub" withdrawn for its associations, "Faraday Setup" tried and
+    dropped), the desktop app **Faraday Desktop** (no "(testing)"); their
+    headers show the FARADAY wordmark with STARTER or DESKTOP beside it in
+    the same Archivo Expanded at weight 400, in the secondary-text grey;
+    the stick and the project stay Faraday. Downloads
+    `Faraday-Starter-X.Y.Z-Linux.tar.gz` / `-Windows.exe`. **Strings**:
+    Faraday's strings live in `faraday/faraday-core/src/strings/en.rs`,
+    never in OpenSigner's file, which is again identical to upstream's
+    (2a355c3, 810271d; CLAUDE.md's rule changed); the lint scans
+    Faraday's screens. **F14**: maker pages several families at once,
+    none naming a model. **Device checks** (HUB §3.1a, 766fc36): warn only
+    about what can capture the screen or keys without Faraday's help (a
+    recording TV, a KVM/IP-KVM, a wireless keyboard receiver, a virtual
+    machine; a remote or shared screen only around the recovery key); no
+    warning about Wi-Fi, Bluetooth, network adapters or capture cards.
+    **Home's button** follows the computer's state with a restart confirm;
+    on Linux, Restart from the stick sets BootNext through one pkexec of
+    efibootmgr. **One guide code per computer**, the whole page, on the
+    Starter and on the stick's power-off sheet (12e3db7). **BitLocker
+    guard** built (38fd281): only WMI's "fully decrypted, protection
+    off" means not encrypted; Resume only in a later boot with Secure
+    Boot as the marker recorded; not run on Windows yet.
+
+    **Open issues.** (a) The PC stick's kernel is pinned to 6.6.84 in
+    upstream's board file while 6.6 is at 6.6.158; the owner is asking
+    upstream to move to 6.18 longterm (a note for upstream was written);
+    nothing is added to Faraday's kernel meanwhile; with 6.19's EFI-stub
+    EDID commits the stick could name a TV itself (`local/REMAINING.md`).
+    (b) The Windows test VM: on the build machine, nested KVM cannot
+    enter SMM, the distribution's non-SMM firmware has no Secure Boot,
+    TCG crashed Windows setup (0x3B) after 3.5 h, and a KVM guest on a
+    self-built Secure Boot, non-SMM firmware (`tools/winvm/build-ovmf.sh`)
+    started but the build machine went down two minutes in; the owner
+    moved the VM to another computer of the owner's whose KVM can enter
+    SMM, where it is being installed now: then BitLocker on, a clean
+    snapshot, §6.6
+    run 5, then runs 1 to 4 and 6 with the Starter. Nothing of batch W
+    ships before those pass. (c) Three places still decide by displayed
+    text and want an enum (`local/REMAINING.md`).
+
+    **In flight at the time of writing.** The rename to Faraday Starter
+    and Faraday Desktop with the header suffix (an agent; the names kept
+    in one place); the Windows VM (`tools/winvm/`, uncommitted, the
+    launcher and answer file). The owner's test install
+    of the earlier Linux hub was uninstalled; the next download is
+    `Faraday-Starter-0.1.1-Linux.tar.gz` in their Downloads folder.
+
 71. [ ] 2026-10-12, owner: **Faraday on Macs**, specified in
     `docs/MAC.md` (DECISIONS F13, superseding F11's "no macOS app").
     Intel Macs start the PC stick (its kernel gains `applespi` and OHCI;
