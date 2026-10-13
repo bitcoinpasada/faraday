@@ -2843,6 +2843,34 @@ as possible before the next build.
     documentation rather than a recording, with its source; and what
     A3c must check first on a Mac.
 
+    **A3a built and audited (2026-10-13).** As specified: `macos/`
+    with `plist`, `diskutil`, `facts`, `install` (built everywhere,
+    12 tests in `tests/macos.rs` against two hand-written answer files)
+    and `mac` (macOS only: `Platform`, the two-second watch, the raw
+    `Device`, authopen `-stdoutpipe -o O_RDWR` and the one `unsafe`
+    `recvmsg`); `tools/check-macos.sh` in `just lint`, passing for both
+    Mac targets. Fail-closed additions: an APFS container is never
+    listed; a disk any of whose partitions has no `info` answer is not
+    listed; a cancelled prompt and any other authopen failure write
+    nothing. The writer now writes whole blocks on every system
+    (`Device::block`, default 512; an edge inside a block is read,
+    merged and written back); that change and `Os::MacOs` went into
+    commit 0e4b2e2 with the Companion's batch B1, swept up from the
+    shared tree. On a Faraday stick partitions sit on 1 MiB boundaries,
+    so keep data never merges a block of OSKDATA. Open for A3c, in
+    order: (1) record `diskutil` answers on a Mac, including whether a
+    Faraday stick's partitions read OSKBOOT and OSKDATA as
+    `IORegistryEntryName`, and replace `tests/macos/*.txt`; (2) **the
+    serial**: no documented `ioreg -a` sample was found, so on a Mac it
+    is empty and the writer re-checks only device, size and use, so a
+    stick of the same size swapped in at the same `/dev/diskN` between
+    Confirm and the write would be written. The Mac build does not ship
+    until the serial is read; (3) authopen's cancel status, and
+    whether to open with `O_EXLOCK` as Linux opens with `O_EXCL`;
+    (4) `F_FULLFSYNC` on `/dev/rdiskN`; (5) whether macOS mounts the
+    stick again after `rescan`'s `unmountDisk`; (6) a bundle whose
+    `Info.plist` is binary reads as in the way.
+
     **Batch A3b, Home on a Mac** (Opus), after A3a's audit. Files:
     `faraday-hub` (new `src/macs.rs`; `decide.rs`, `draw.rs`,
     `lib.rs`), `faraday-learn` (`BOOT`, `OWN`),

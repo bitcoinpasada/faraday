@@ -3,6 +3,8 @@
 //! The "running copy" and the desktop app are small shell scripts, so
 //! the tests start what they install.
 
+#![cfg(target_os = "linux")]
+
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};

@@ -41,6 +41,12 @@ zeroize = { workspace = true, features = ["alloc"] }
 [target.'cfg(target_os = "linux")'.dependencies]
 rustbus = "=0.19.3"
 
+# The one call std does not make on macOS: `recvmsg` with its control
+# message, taking the descriptor `/usr/libexec/authopen` sends back
+# (src/macos/mac.rs, docs/deps/libc.md). The lockfile's release.
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = { version = "=0.2.189", default-features = false }
+
 # The Win32 calls of the windows module (docs/HUB.md §2): the same
 # windows-sys release winit already brings on Windows, with the features
 # those calls need. No other Windows crate.
@@ -80,7 +86,8 @@ faraday-payload = { path = "../../faraday-payload" }
 # ownership of the file descriptor udisks2 passes back from
 # `Block.OpenDevice` (std has no safe way from a raw descriptor to a
 # `File`); on Windows the Win32 calls std does not make (src/windows/sys.rs
-# alone). `deny`, not `forbid`, so those alone can allow it, as
+# alone); on macOS receiving the descriptor authopen sends
+# (src/macos/mac.rs, `receive`). `deny`, not `forbid`, so those alone can allow it, as
 # osk-crypto's `pinned.rs` does; the other workspace lint is repeated by
 # hand.
 unsafe_code = "deny"

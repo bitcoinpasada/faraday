@@ -842,6 +842,7 @@ dependencies = [
  "faraday-qr",
  "faraday-storage",
  "faraday-window",
+ "libc",
  "opensigner-core",
  "osk-shell-api",
  "rustbus",

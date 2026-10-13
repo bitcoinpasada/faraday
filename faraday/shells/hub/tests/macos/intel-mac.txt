@@ -1,0 +1,926 @@
+# Written by hand, not recorded: layouts from Asahi Linux installer issue 141 and hst-imager's TestData/diskutil.
+# An Intel Mac started from its internal disk, with a USB stick, a Faraday
+# stick, a card in its SD reader, a disk image and a USB disk mounted
+# outside /Volumes/ attached.
+# Batch A3c replaces it with a recording made on a Mac. The layouts are
+# those of the `diskutil list -plist` and `diskutil info -plist` output
+# recorded in Asahi Linux's installer, issue 141, and in hst-imager's
+# tests (src/Hst.Imager.Core.Tests/TestData/diskutil/); `Secure Digital`
+# is IOKit's kIOPropertyPhysicalInterconnectTypeSecureDigital
+# (IOStorageProtocolCharacteristics.h). Makers, models and identifiers
+# are made up. Each answer follows the `===` line naming the command
+# that printed it.
+=== diskutil list -plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AllDisks</key>
+	<array>
+		<string>disk0</string>
+		<string>disk0s1</string>
+		<string>disk0s2</string>
+		<string>disk1</string>
+		<string>disk1s1</string>
+		<string>disk1s1s1</string>
+		<string>disk1s2</string>
+		<string>disk1s3</string>
+		<string>disk1s4</string>
+		<string>disk1s5</string>
+		<string>disk2</string>
+		<string>disk2s1</string>
+		<string>disk3</string>
+		<string>disk3s1</string>
+		<string>disk3s2</string>
+		<string>disk4</string>
+		<string>disk4s1</string>
+		<string>disk5</string>
+		<string>disk5s1</string>
+		<string>disk6</string>
+		<string>disk6s1</string>
+	</array>
+	<key>AllDisksAndPartitions</key>
+	<array>
+		<dict>
+			<key>Content</key>
+			<string>GUID_partition_scheme</string>
+			<key>DeviceIdentifier</key>
+			<string>disk0</string>
+			<key>OSInternal</key>
+			<false/>
+			<key>Partitions</key>
+			<array>
+				<dict>
+					<key>Content</key>
+					<string>EFI</string>
+					<key>DeviceIdentifier</key>
+					<string>disk0s1</string>
+					<key>Size</key>
+					<integer>209715200</integer>
+					<key>VolumeName</key>
+					<string>EFI</string>
+				</dict>
+				<dict>
+					<key>Content</key>
+					<string>Apple_APFS</string>
+					<key>DeviceIdentifier</key>
+					<string>disk0s2</string>
+					<key>Size</key>
+					<integer>500068055040</integer>
+				</dict>
+			</array>
+			<key>Size</key>
+			<integer>500277790720</integer>
+		</dict>
+		<dict>
+			<key>APFSPhysicalStores</key>
+			<array>
+				<dict>
+					<key>DeviceIdentifier</key>
+					<string>disk0s2</string>
+				</dict>
+			</array>
+			<key>APFSVolumes</key>
+			<array>
+				<dict>
+					<key>DeviceIdentifier</key>
+					<string>disk1s1</string>
+					<key>MountedSnapshots</key>
+					<array>
+						<dict>
+							<key>Sealed</key>
+							<string>Yes</string>
+							<key>SnapshotBSD</key>
+							<string>disk1s1s1</string>
+							<key>SnapshotMountPoint</key>
+							<string>/</string>
+							<key>SnapshotName</key>
+							<string>com.apple.os.update-0000</string>
+						</dict>
+					</array>
+					<key>OSInternal</key>
+					<false/>
+					<key>Size</key>
+					<integer>500068055040</integer>
+					<key>VolumeName</key>
+					<string>Macintosh HD</string>
+				</dict>
+				<dict>
+					<key>DeviceIdentifier</key>
+					<string>disk1s1s1</string>
+					<key>MountPoint</key>
+					<string>/</string>
+					<key>OSInternal</key>
+					<false/>
+					<key>Size</key>
+					<integer>500068055040</integer>
+					<key>VolumeName</key>
+					<string>Macintosh HD</string>
+				</dict>
+				<dict>
+					<key>DeviceIdentifier</key>
+					<string>disk1s2</string>
+					<key>MountPoint</key>
+					<string>/System/Volumes/Preboot</string>
+					<key>MountedSnapshots</key>
+					<array/>
+					<key>OSInternal</key>
+					<false/>
+					<key>Size</key>
+					<integer>500068055040</integer>
+					<key>VolumeName</key>
+					<string>Preboot</string>
+				</dict>
+				<dict>
+					<key>DeviceIdentifier</key>
+					<string>disk1s3</string>
+					<key>MountedSnapshots</key>
+					<array/>
+					<key>OSInternal</key>
+					<false/>
+					<key>Size</key>
+					<integer>500068055040</integer>
+					<key>VolumeName</key>
+					<string>Recovery</string>
+				</dict>
+				<dict>
+					<key>DeviceIdentifier</key>
+					<string>disk1s4</string>
+					<key>MountPoint</key>
+					<string>/System/Volumes/VM</string>
+					<key>MountedSnapshots</key>
+					<array/>
+					<key>OSInternal</key>
+					<false/>
+					<key>Size</key>
+					<integer>500068055040</integer>
+					<key>VolumeName</key>
+					<string>VM</string>
+				</dict>
+				<dict>
+					<key>DeviceIdentifier</key>
+					<string>disk1s5</string>
+					<key>MountPoint</key>
+					<string>/System/Volumes/Data</string>
+					<key>MountedSnapshots</key>
+					<array/>
+					<key>OSInternal</key>
+					<false/>
+					<key>Size</key>
+					<integer>500068055040</integer>
+					<key>VolumeName</key>
+					<string>Macintosh HD - Data</string>
+				</dict>
+			</array>
+			<key>Content</key>
+			<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>
+			<key>DeviceIdentifier</key>
+			<string>disk1</string>
+			<key>OSInternal</key>
+			<false/>
+			<key>Partitions</key>
+			<array/>
+			<key>Size</key>
+			<integer>500068055040</integer>
+		</dict>
+		<dict>
+			<key>Content</key>
+			<string>FDisk_partition_scheme</string>
+			<key>DeviceIdentifier</key>
+			<string>disk2</string>
+			<key>OSInternal</key>
+			<false/>
+			<key>Partitions</key>
+			<array>
+				<dict>
+					<key>Content</key>
+					<string>Windows_FAT_32</string>
+					<key>DeviceIdentifier</key>
+					<string>disk2s1</string>
+					<key>MountPoint</key>
+					<string>/Volumes/HOLIDAY</string>
+					<key>Size</key>
+					<integer>16007561216</integer>
+					<key>VolumeName</key>
+					<string>HOLIDAY</string>
+				</dict>
+			</array>
+			<key>Size</key>
+			<integer>16008609792</integer>
+		</dict>
+		<dict>
+			<key>Content</key>
+			<string>GUID_partition_scheme</string>
+			<key>DeviceIdentifier</key>
+			<string>disk3</string>
+			<key>OSInternal</key>
+			<false/>
+			<key>Partitions</key>
+			<array>
+				<dict>
+					<key>Content</key>
+					<string>EFI</string>
+					<key>DeviceIdentifier</key>
+					<string>disk3s1</string>
+					<key>Size</key>
+					<integer>1610612736</integer>
+					<key>VolumeName</key>
+					<string>OSKBOOT</string>
+				</dict>
+				<dict>
+					<key>Content</key>
+					<string>0FC63DAF-8483-4772-8E79-3D69D8477DE4</string>
+					<key>DeviceIdentifier</key>
+					<string>disk3s2</string>
+					<key>Size</key>
+					<integer>30399266816</integer>
+				</dict>
+			</array>
+			<key>Size</key>
+			<integer>32010928128</integer>
+		</dict>
+		<dict>
+			<key>Content</key>
+			<string>FDisk_partition_scheme</string>
+			<key>DeviceIdentifier</key>
+			<string>disk4</string>
+			<key>OSInternal</key>
+			<false/>
+			<key>Partitions</key>
+			<array>
+				<dict>
+					<key>Content</key>
+					<string>Windows_FAT_32</string>
+					<key>DeviceIdentifier</key>
+					<string>disk4s1</string>
+					<key>MountPoint</key>
+					<string>/Volumes/CARD</string>
+					<key>Size</key>
+					<integer>31913934848</integer>
+					<key>VolumeName</key>
+					<string>CARD</string>
+				</dict>
+			</array>
+			<key>Size</key>
+			<integer>31914983424</integer>
+		</dict>
+		<dict>
+			<key>Content</key>
+			<string>GUID_partition_scheme</string>
+			<key>DeviceIdentifier</key>
+			<string>disk5</string>
+			<key>OSInternal</key>
+			<false/>
+			<key>Partitions</key>
+			<array>
+				<dict>
+					<key>Content</key>
+					<string>Apple_HFS</string>
+					<key>DeviceIdentifier</key>
+					<string>disk5s1</string>
+					<key>MountPoint</key>
+					<string>/Volumes/Installer</string>
+					<key>Size</key>
+					<integer>104816640</integer>
+					<key>VolumeName</key>
+					<string>Installer</string>
+				</dict>
+			</array>
+			<key>Size</key>
+			<integer>104857600</integer>
+		</dict>
+		<dict>
+			<key>Content</key>
+			<string>GUID_partition_scheme</string>
+			<key>DeviceIdentifier</key>
+			<string>disk6</string>
+			<key>OSInternal</key>
+			<false/>
+			<key>Partitions</key>
+			<array>
+				<dict>
+					<key>Content</key>
+					<string>Microsoft Basic Data</string>
+					<key>DeviceIdentifier</key>
+					<string>disk6s1</string>
+					<key>MountPoint</key>
+					<string>/Library/Backup</string>
+					<key>Size</key>
+					<integer>1000203837440</integer>
+					<key>VolumeName</key>
+					<string>BACKUP</string>
+				</dict>
+			</array>
+			<key>Size</key>
+			<integer>1000204886016</integer>
+		</dict>
+	</array>
+	<key>VolumesFromDisks</key>
+	<array>
+		<string>EFI</string>
+		<string>Macintosh HD</string>
+		<string>HOLIDAY</string>
+		<string>CARD</string>
+		<string>Installer</string>
+		<string>BACKUP</string>
+	</array>
+	<key>WholeDisks</key>
+	<array>
+		<string>disk0</string>
+		<string>disk1</string>
+		<string>disk2</string>
+		<string>disk3</string>
+		<string>disk4</string>
+		<string>disk5</string>
+		<string>disk6</string>
+	</array>
+</dict>
+</plist>
+=== diskutil info -plist disk0
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BusProtocol</key>
+	<string>PCI-Express</string>
+	<key>Content</key>
+	<string>GUID_partition_scheme</string>
+	<key>DeviceBlockSize</key>
+	<integer>512</integer>
+	<key>DeviceIdentifier</key>
+	<string>disk0</string>
+	<key>DeviceNode</key>
+	<string>/dev/disk0</string>
+	<key>Ejectable</key>
+	<false/>
+	<key>IOKitSize</key>
+	<integer>500277790720</integer>
+	<key>IORegistryEntryName</key>
+	<string>ACME SSD 500 Media</string>
+	<key>Internal</key>
+	<true/>
+	<key>MediaName</key>
+	<string>ACME SSD 500</string>
+	<key>MountPoint</key>
+	<string></string>
+	<key>ParentWholeDisk</key>
+	<string>disk0</string>
+	<key>Removable</key>
+	<false/>
+	<key>RemovableMedia</key>
+	<false/>
+	<key>Size</key>
+	<integer>500277790720</integer>
+	<key>TotalSize</key>
+	<integer>500277790720</integer>
+	<key>VirtualOrPhysical</key>
+	<string>Physical</string>
+	<key>VolumeName</key>
+	<string></string>
+	<key>WholeDisk</key>
+	<true/>
+</dict>
+</plist>
+=== diskutil info -plist disk0s1
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BusProtocol</key>
+	<string>PCI-Express</string>
+	<key>Content</key>
+	<string>EFI</string>
+	<key>DeviceBlockSize</key>
+	<integer>512</integer>
+	<key>DeviceIdentifier</key>
+	<string>disk0s1</string>
+	<key>DeviceNode</key>
+	<string>/dev/disk0s1</string>
+	<key>FilesystemType</key>
+	<string>msdos</string>
+	<key>IORegistryEntryName</key>
+	<string>EFI System Partition</string>
+	<key>MediaName</key>
+	<string></string>
+	<key>MountPoint</key>
+	<string></string>
+	<key>ParentWholeDisk</key>
+	<string>disk0</string>
+	<key>Size</key>
+	<integer>209715200</integer>
+	<key>TotalSize</key>
+	<integer>209715200</integer>
+	<key>VolumeName</key>
+	<string>EFI</string>
+	<key>WholeDisk</key>
+	<false/>
+</dict>
+</plist>
+=== diskutil info -plist disk0s2
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BusProtocol</key>
+	<string>PCI-Express</string>
+	<key>Content</key>
+	<string>Apple_APFS</string>
+	<key>DeviceBlockSize</key>
+	<integer>512</integer>
+	<key>DeviceIdentifier</key>
+	<string>disk0s2</string>
+	<key>DeviceNode</key>
+	<string>/dev/disk0s2</string>
+	<key>IORegistryEntryName</key>
+	<string>Container</string>
+	<key>MediaName</key>
+	<string></string>
+	<key>MountPoint</key>
+	<string></string>
+	<key>ParentWholeDisk</key>
+	<string>disk0</string>
+	<key>Size</key>
+	<integer>500068055040</integer>
+	<key>TotalSize</key>
+	<integer>500068055040</integer>
+	<key>VolumeName</key>
+	<string></string>
+	<key>WholeDisk</key>
+	<false/>
+</dict>
+</plist>
+=== diskutil info -plist disk1
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>APFSContainerReference</key>
+	<string>disk1</string>
+	<key>APFSPhysicalStores</key>
+	<array>
+		<dict>
+			<key>APFSPhysicalStore</key>
+			<string>disk0s2</string>
+		</dict>
+	</array>
+	<key>BusProtocol</key>
+	<string>PCI-Express</string>
+	<key>Content</key>
+	<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>
+	<key>DeviceBlockSize</key>
+	<integer>4096</integer>
+	<key>DeviceIdentifier</key>
+	<string>disk1</string>
+	<key>DeviceNode</key>
+	<string>/dev/disk1</string>
+	<key>IORegistryEntryName</key>
+	<string>AppleAPFSMedia</string>
+	<key>MediaName</key>
+	<string></string>
+	<key>MountPoint</key>
+	<string></string>
+	<key>ParentWholeDisk</key>
+	<string>disk1</string>
+	<key>Size</key>
+	<integer>500068055040</integer>
+	<key>TotalSize</key>
+	<integer>500068055040</integer>
+	<key>VirtualOrPhysical</key>
+	<string>Virtual</string>
+	<key>WholeDisk</key>
+	<true/>
+</dict>
+</plist>
+=== diskutil info -plist disk2
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BusProtocol</key>
+	<string>USB</string>
+	<key>Content</key>
+	<string>GUID_partition_scheme</string>
+	<key>DeviceBlockSize</key>
+	<integer>512</integer>
+	<key>DeviceIdentifier</key>
+	<string>disk2</string>
+	<key>DeviceNode</key>
+	<string>/dev/disk2</string>
+	<key>Ejectable</key>
+	<true/>
+	<key>IOKitSize</key>
+	<integer>16008609792</integer>
+	<key>IORegistryEntryName</key>
+	<string>Acme Stick Media</string>
+	<key>Internal</key>
+	<false/>
+	<key>MediaName</key>
+	<string>Stick</string>
+	<key>MountPoint</key>
+	<string></string>
+	<key>ParentWholeDisk</key>
+	<string>disk2</string>
+	<key>Removable</key>
+	<true/>
+	<key>RemovableMedia</key>
+	<true/>
+	<key>Size</key>
+	<integer>16008609792</integer>
+	<key>TotalSize</key>
+	<integer>16008609792</integer>
+	<key>VirtualOrPhysical</key>
+	<string>Physical</string>
+	<key>VolumeName</key>
+	<string></string>
+	<key>WholeDisk</key>
+	<true/>
+</dict>
+</plist>
+=== diskutil info -plist disk2s1
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BusProtocol</key>
+	<string>USB</string>
+	<key>Content</key>
+	<string>Windows_FAT_32</string>
+	<key>DeviceBlockSize</key>
+	<integer>512</integer>
+	<key>DeviceIdentifier</key>
+	<string>disk2s1</string>
+	<key>DeviceNode</key>
+	<string>/dev/disk2s1</string>
+	<key>FilesystemType</key>
+	<string>msdos</string>
+	<key>IORegistryEntryName</key>
+	<string>Untitled 1</string>
+	<key>MediaName</key>
+	<string></string>
+	<key>MountPoint</key>
+	<string>/Volumes/HOLIDAY</string>
+	<key>ParentWholeDisk</key>
+	<string>disk2</string>
+	<key>Size</key>
+	<integer>16007561216</integer>
+	<key>TotalSize</key>
+	<integer>16007561216</integer>
+	<key>VolumeName</key>
+	<string>HOLIDAY</string>
+	<key>WholeDisk</key>
+	<false/>
+</dict>
+</plist>
+=== diskutil info -plist disk3
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BusProtocol</key>
+	<string>USB</string>
+	<key>Content</key>
+	<string>GUID_partition_scheme</string>
+	<key>DeviceBlockSize</key>
+	<integer>512</integer>
+	<key>DeviceIdentifier</key>
+	<string>disk3</string>
+	<key>DeviceNode</key>
+	<string>/dev/disk3</string>
+	<key>Ejectable</key>
+	<true/>
+	<key>IOKitSize</key>
+	<integer>32010928128</integer>
+	<key>IORegistryEntryName</key>
+	<string>Acme Flash Media</string>
+	<key>Internal</key>
+	<false/>
+	<key>MediaName</key>
+	<string>Flash</string>
+	<key>MountPoint</key>
+	<string></string>
+	<key>ParentWholeDisk</key>
+	<string>disk3</string>
+	<key>Removable</key>
+	<true/>
+	<key>RemovableMedia</key>
+	<true/>
+	<key>Size</key>
+	<integer>32010928128</integer>
+	<key>TotalSize</key>
+	<integer>32010928128</integer>
+	<key>VirtualOrPhysical</key>
+	<string>Physical</string>
+	<key>VolumeName</key>
+	<string></string>
+	<key>WholeDisk</key>
+	<true/>
+</dict>
+</plist>
+=== diskutil info -plist disk3s1
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BusProtocol</key>
+	<string>USB</string>
+	<key>Content</key>
+	<string>EFI</string>
+	<key>DeviceBlockSize</key>
+	<integer>512</integer>
+	<key>DeviceIdentifier</key>
+	<string>disk3s1</string>
+	<key>DeviceNode</key>
+	<string>/dev/disk3s1</string>
+	<key>FilesystemType</key>
+	<string>msdos</string>
+	<key>IORegistryEntryName</key>
+	<string>OSKBOOT</string>
+	<key>MediaName</key>
+	<string></string>
+	<key>MountPoint</key>
+	<string></string>
+	<key>ParentWholeDisk</key>
+	<string>disk3</string>
+	<key>Size</key>
+	<integer>1610612736</integer>
+	<key>TotalSize</key>
+	<integer>1610612736</integer>
+	<key>VolumeName</key>
+	<string>OSKBOOT</string>
+	<key>WholeDisk</key>
+	<false/>
+</dict>
+</plist>
+=== diskutil info -plist disk3s2
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BusProtocol</key>
+	<string>USB</string>
+	<key>Content</key>
+	<string>0FC63DAF-8483-4772-8E79-3D69D8477DE4</string>
+	<key>DeviceBlockSize</key>
+	<integer>512</integer>
+	<key>DeviceIdentifier</key>
+	<string>disk3s2</string>
+	<key>DeviceNode</key>
+	<string>/dev/disk3s2</string>
+	<key>IORegistryEntryName</key>
+	<string>OSKDATA</string>
+	<key>MediaName</key>
+	<string></string>
+	<key>MountPoint</key>
+	<string></string>
+	<key>ParentWholeDisk</key>
+	<string>disk3</string>
+	<key>Size</key>
+	<integer>30399266816</integer>
+	<key>TotalSize</key>
+	<integer>30399266816</integer>
+	<key>VolumeName</key>
+	<string></string>
+	<key>WholeDisk</key>
+	<false/>
+</dict>
+</plist>
+=== diskutil info -plist disk4
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BusProtocol</key>
+	<string>Secure Digital</string>
+	<key>Content</key>
+	<string>FDisk_partition_scheme</string>
+	<key>DeviceBlockSize</key>
+	<integer>512</integer>
+	<key>DeviceIdentifier</key>
+	<string>disk4</string>
+	<key>DeviceNode</key>
+	<string>/dev/disk4</string>
+	<key>Ejectable</key>
+	<true/>
+	<key>IOKitSize</key>
+	<integer>31914983424</integer>
+	<key>IORegistryEntryName</key>
+	<string>Built In SD Card Reader Media</string>
+	<key>Internal</key>
+	<true/>
+	<key>MediaName</key>
+	<string>SD Card Reader</string>
+	<key>MountPoint</key>
+	<string></string>
+	<key>ParentWholeDisk</key>
+	<string>disk4</string>
+	<key>Removable</key>
+	<true/>
+	<key>RemovableMedia</key>
+	<true/>
+	<key>Size</key>
+	<integer>31914983424</integer>
+	<key>TotalSize</key>
+	<integer>31914983424</integer>
+	<key>VirtualOrPhysical</key>
+	<string>Physical</string>
+	<key>VolumeName</key>
+	<string></string>
+	<key>WholeDisk</key>
+	<true/>
+</dict>
+</plist>
+=== diskutil info -plist disk4s1
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BusProtocol</key>
+	<string>Secure Digital</string>
+	<key>Content</key>
+	<string>Windows_FAT_32</string>
+	<key>DeviceBlockSize</key>
+	<integer>512</integer>
+	<key>DeviceIdentifier</key>
+	<string>disk4s1</string>
+	<key>DeviceNode</key>
+	<string>/dev/disk4s1</string>
+	<key>FilesystemType</key>
+	<string>msdos</string>
+	<key>IORegistryEntryName</key>
+	<string>Untitled 1</string>
+	<key>MediaName</key>
+	<string></string>
+	<key>MountPoint</key>
+	<string>/Volumes/CARD</string>
+	<key>ParentWholeDisk</key>
+	<string>disk4</string>
+	<key>Size</key>
+	<integer>31913934848</integer>
+	<key>TotalSize</key>
+	<integer>31913934848</integer>
+	<key>VolumeName</key>
+	<string>CARD</string>
+	<key>WholeDisk</key>
+	<false/>
+</dict>
+</plist>
+=== diskutil info -plist disk5
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BusProtocol</key>
+	<string>Disk Image</string>
+	<key>Content</key>
+	<string>GUID_partition_scheme</string>
+	<key>DeviceBlockSize</key>
+	<integer>512</integer>
+	<key>DeviceIdentifier</key>
+	<string>disk5</string>
+	<key>DeviceNode</key>
+	<string>/dev/disk5</string>
+	<key>Ejectable</key>
+	<true/>
+	<key>IOKitSize</key>
+	<integer>104857600</integer>
+	<key>IORegistryEntryName</key>
+	<string>Apple UDIF read-only Media</string>
+	<key>Internal</key>
+	<false/>
+	<key>MediaName</key>
+	<string>Disk Image</string>
+	<key>MountPoint</key>
+	<string></string>
+	<key>ParentWholeDisk</key>
+	<string>disk5</string>
+	<key>Removable</key>
+	<true/>
+	<key>RemovableMedia</key>
+	<true/>
+	<key>Size</key>
+	<integer>104857600</integer>
+	<key>TotalSize</key>
+	<integer>104857600</integer>
+	<key>VirtualOrPhysical</key>
+	<string>Virtual</string>
+	<key>VolumeName</key>
+	<string></string>
+	<key>WholeDisk</key>
+	<true/>
+</dict>
+</plist>
+=== diskutil info -plist disk5s1
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BusProtocol</key>
+	<string>Disk Image</string>
+	<key>Content</key>
+	<string>Apple_HFS</string>
+	<key>DeviceBlockSize</key>
+	<integer>512</integer>
+	<key>DeviceIdentifier</key>
+	<string>disk5s1</string>
+	<key>DeviceNode</key>
+	<string>/dev/disk5s1</string>
+	<key>FilesystemType</key>
+	<string>hfs</string>
+	<key>IORegistryEntryName</key>
+	<string>disk image</string>
+	<key>MediaName</key>
+	<string></string>
+	<key>MountPoint</key>
+	<string>/Volumes/Installer</string>
+	<key>ParentWholeDisk</key>
+	<string>disk5</string>
+	<key>Size</key>
+	<integer>104816640</integer>
+	<key>TotalSize</key>
+	<integer>104816640</integer>
+	<key>VolumeName</key>
+	<string>Installer</string>
+	<key>WholeDisk</key>
+	<false/>
+</dict>
+</plist>
+=== diskutil info -plist disk6
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BusProtocol</key>
+	<string>USB</string>
+	<key>Content</key>
+	<string>GUID_partition_scheme</string>
+	<key>DeviceBlockSize</key>
+	<integer>512</integer>
+	<key>DeviceIdentifier</key>
+	<string>disk6</string>
+	<key>DeviceNode</key>
+	<string>/dev/disk6</string>
+	<key>Ejectable</key>
+	<true/>
+	<key>IOKitSize</key>
+	<integer>1000204886016</integer>
+	<key>IORegistryEntryName</key>
+	<string>Acme Portable 1TB Media</string>
+	<key>Internal</key>
+	<false/>
+	<key>MediaName</key>
+	<string>Portable 1TB</string>
+	<key>MountPoint</key>
+	<string></string>
+	<key>ParentWholeDisk</key>
+	<string>disk6</string>
+	<key>Removable</key>
+	<true/>
+	<key>RemovableMedia</key>
+	<true/>
+	<key>Size</key>
+	<integer>1000204886016</integer>
+	<key>TotalSize</key>
+	<real>1000204886016.0</real>
+	<key>VirtualOrPhysical</key>
+	<string>Unknown</string>
+	<key>VolumeName</key>
+	<string></string>
+	<key>WholeDisk</key>
+	<true/>
+</dict>
+</plist>
+=== diskutil info -plist disk6s1
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BusProtocol</key>
+	<string>USB</string>
+	<key>Content</key>
+	<string>Microsoft Basic Data</string>
+	<key>DeviceBlockSize</key>
+	<integer>512</integer>
+	<key>DeviceIdentifier</key>
+	<string>disk6s1</string>
+	<key>DeviceNode</key>
+	<string>/dev/disk6s1</string>
+	<key>FilesystemType</key>
+	<string>exfat</string>
+	<key>IORegistryEntryName</key>
+	<string>Basic data partition</string>
+	<key>MediaName</key>
+	<string></string>
+	<key>MountPoint</key>
+	<string>/Library/Backup</string>
+	<key>ParentWholeDisk</key>
+	<string>disk6</string>
+	<key>Size</key>
+	<integer>1000203837440</integer>
+	<key>TotalSize</key>
+	<integer>1000203837440</integer>
+	<key>VolumeName</key>
+	<string>BACKUP</string>
+	<key>WholeDisk</key>
+	<false/>
+</dict>
+</plist>

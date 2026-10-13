@@ -45,3 +45,31 @@ safe — no raw pointer, file descriptor or mapped buffer crosses it.
 **Reopened by:** a Linux target with no V4L2 device (a Wayland-only
 desktop behind a portal-only camera stack), which would need a different
 interface and a fresh decision under §16.33.
+
+## The Starter on macOS: authopen's descriptor
+
+**Where it is used:** `faraday/shells/hub` (`faraday-hub-shell`), under
+`[target.'cfg(target_os = "macos")'.dependencies]`, at the lockfile's
+`=0.2.189` with `default-features = false`, in one function:
+`src/macos/mac.rs`'s `receive` (HANDOFF item 73, batch A3a;
+`docs/MAC.md` §6).
+
+**Why it is needed.** On a Mac the Starter writes a stick through the
+descriptor `/usr/libexec/authopen -stdoutpipe` opens after the system's
+own password prompt, so no part of the hub app runs as root. authopen
+sends that descriptor over a Unix socket as an `SCM_RIGHTS` control
+message. std makes the socket (`UnixStream::pair`) but receiving
+ancillary data is not stable in std, so `recvmsg`, the `msghdr`,
+`iovec` and `cmsghdr` structs, the `CMSG_*` macros and four constants
+(`SOL_SOCKET`, `SCM_RIGHTS`, `MSG_CTRUNC`, `O_RDWR`) come from `libc`.
+Nothing else in the hub app calls it; every other macOS step is a
+program run by its absolute path.
+
+**Cost.** None new: `libc` 0.2.189 is already in the lock file and in
+the macOS build graph through `winit` and `getrandom`.
+
+**Risk.** The one `unsafe` block, with its `// SAFETY:` comment; the
+crate keeps `unsafe_code = "deny"` and allows it on that function alone.
+It has been type-checked for `aarch64-apple-darwin` and
+`x86_64-apple-darwin` (`tools/check-macos.sh`), not yet run: batch A3c
+runs it on a Mac.
