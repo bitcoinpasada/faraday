@@ -131,8 +131,13 @@ fn files_restores_a_wallet_from_its_shares() {
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(app.session.address(&app.session.wallets[0], false, 0), {
         let mut s = faraday_core::wallet::Session::on(testkit::NET);
-        s.add_wallet("Savings", &testkit::savings(), "test")
-            .unwrap();
+        s.add_wallet(
+            "Savings",
+            &testkit::savings(),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
         s.address(&s.wallets[0], false, 0)
     });
 }

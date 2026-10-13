@@ -385,7 +385,12 @@ fn add_key(app: &mut Faraday, n: usize) -> usize {
 /// The test 2-of-3 over the test seeds, its backup open.
 fn savings_backup(app: &mut Faraday) {
     app.session
-        .add_wallet("Savings", &testkit::savings(), "test")
+        .add_wallet(
+            "Savings",
+            &testkit::savings(),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
         .unwrap();
     app.press(Action::Backup(app.session.wallets.len() - 1));
     let _ = app.frame();

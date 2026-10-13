@@ -766,6 +766,7 @@ impl Faraday {
                         .to_string(),
                     policy,
                     source: String::new(),
+                    origin: crate::wallet::Origin::Named,
                 };
                 let descriptor = crate::wallet::same_wallet(&wallet.policy);
                 let keys: Vec<String> = wallet

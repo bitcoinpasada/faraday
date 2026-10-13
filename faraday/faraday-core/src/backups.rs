@@ -466,6 +466,7 @@ impl Faraday {
                         .to_string(),
                     policy,
                     source: EN.backups_vault.to_string(),
+                    origin: crate::wallet::Origin::Vault,
                 };
                 out.push(Entry {
                     lines: self.backup_lines(&w, None, &sum),

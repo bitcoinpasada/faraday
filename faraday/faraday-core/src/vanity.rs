@@ -367,10 +367,12 @@ impl Faraday {
             "{label} · {}",
             find.address.as_str().get(..10).unwrap_or("")
         );
-        match self
-            .session
-            .add_wallet(&name, &kind.descriptor(1, &[text]), EN.vanity_vanity_search)
-        {
+        match self.session.add_wallet(
+            &name,
+            &kind.descriptor(1, &[text]),
+            EN.vanity_vanity_search,
+            crate::wallet::Origin::Named,
+        ) {
             Ok(i) => {
                 self.refresh_spend();
                 self.vanity = None;

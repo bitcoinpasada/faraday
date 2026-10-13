@@ -153,6 +153,10 @@ pub struct BackupNode {
     pub state: Option<(String, Tone)>,
     /// What it gives whoever finds it alone; a vault reads "Sealed".
     pub alone: Option<String>,
+    /// What [`BackupNode::alone`] reads as, for the chart's colour
+    /// ([`alone_color`]), set beside the text where it is produced so the
+    /// colour reads this, not the words. `Some` exactly when `alone` is.
+    pub alone_kind: Option<plan::AloneKind>,
     /// The keys whose seed it holds, by index into [`Glance::keys`]: a
     /// line is drawn to it from each of them held here.
     pub keys: Vec<usize>,
@@ -227,6 +231,7 @@ pub fn of_vault(app: &Faraday, v: usize, r: usize) -> Option<Glance> {
             .to_string(),
         policy: crate::wallet::read_wallet(rec.text(field::WALLET)?).ok()?,
         source: String::new(),
+        origin: crate::wallet::Origin::Named,
     };
     // The seeds this vault keeps: their fingerprints, and whether each
     // was kept with a passphrase.
@@ -605,10 +610,16 @@ fn backup_nodes(
                     .find(|l| l.at == Some(at))
                     .map(|l| (l.state.clone(), l.tone)),
             };
-            let alone = match spot.at {
-                At::Vault(_) => Some(EN.glance_sealed.to_string()),
-                At::Away => None,
-                at => Some(plan::alone(shape, a, at).text().to_string()),
+            let (alone, alone_kind) = match spot.at {
+                At::Vault(_) => (
+                    Some(EN.glance_sealed.to_string()),
+                    Some(plan::AloneKind::Sealed),
+                ),
+                At::Away => (None, None),
+                at => {
+                    let found = plan::alone(shape, a, at);
+                    (Some(found.text().to_string()), Some(found.kind()))
+                }
             };
             let (marks, checked): (Vec<_>, Vec<_>) =
                 spot.holds.iter().map(|(w, _)| note_of(spot.at, *w)).unzip();
@@ -643,6 +654,7 @@ fn backup_nodes(
                 stick,
                 state,
                 alone,
+                alone_kind,
                 keys: seeds,
             }
         })
@@ -838,15 +850,12 @@ fn tone_color(t: Tone) -> Color {
 
 /// How what a spot gives alone reads: spending in the clear is a warning,
 /// a vault's seal the accent, nothing at all is good.
-fn alone_color(s: &str) -> Color {
-    if s == EN.glance_can_spend {
-        WARN
-    } else if s == EN.glance_nothing {
-        OK
-    } else if s.contains("vault") || s == EN.glance_sealed {
-        ACCENT
-    } else {
-        MUTED
+fn alone_color(k: plan::AloneKind) -> Color {
+    match k {
+        plan::AloneKind::CanSpend => WARN,
+        plan::AloneKind::Nothing => OK,
+        plan::AloneKind::Sealed | plan::AloneKind::NeedsVault => ACCENT,
+        plan::AloneKind::SeesBalance => MUTED,
     }
 }
 
@@ -958,8 +967,8 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                 if let Some((s, t)) = &n.state {
                     lines.push(Text::new(s.clone(), tokens::CAPTION, W::R, tone_color(*t)));
                 }
-                if let Some(s) = &n.alone {
-                    lines.push(Text::new(s.clone(), tokens::CAPTION, W::S, alone_color(s)));
+                if let (Some(s), Some(k)) = (&n.alone, n.alone_kind) {
+                    lines.push(Text::new(s.clone(), tokens::CAPTION, W::S, alone_color(k)));
                 }
                 Node {
                     title: n.name.clone(),

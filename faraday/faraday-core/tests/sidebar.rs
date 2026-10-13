@@ -52,7 +52,12 @@ fn with_height(seeds: u8, wallets: usize, height: u16) -> Faraday {
         // The account number differs only in the origin: enough for a
         // wallet of its own in the list.
         app.session
-            .add_wallet(&format!("Wallet {a}"), &d, "test")
+            .add_wallet(
+                &format!("Wallet {a}"),
+                &d,
+                "test",
+                faraday_core::wallet::Origin::Named,
+            )
             .unwrap_or_else(|e| panic!("{d}: {}", e.text()));
     }
     app.press(Action::Nav(Screen::Files));
@@ -200,11 +205,18 @@ fn a_wallet_the_seeds_here_sign_for_stays_in_view_among_many() {
     for a in 0..12 {
         let d = format!("wpkh({}/<0;1>/*)", text_of(&app, 1, a));
         app.session
-            .add_wallet(&format!("Watched {a}"), &d, "test")
+            .add_wallet(
+                &format!("Watched {a}"),
+                &d,
+                "test",
+                faraday_core::wallet::Origin::Named,
+            )
             .unwrap();
     }
     let d = format!("wpkh({}/<0;1>/*)", text_of(&app, 0, 0));
-    app.session.add_wallet("Ready", &d, "test").unwrap();
+    app.session
+        .add_wallet("Ready", &d, "test", faraday_core::wallet::Origin::Named)
+        .unwrap();
     // The second seed leaves: its twelve wallets are watch-only now.
     app.session.keys.remove(1);
     app.press(Action::Nav(Screen::Files));

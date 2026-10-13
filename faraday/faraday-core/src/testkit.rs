@@ -351,7 +351,12 @@ pub fn spend_of(kit: &Kit) -> Result<(Psbt, Option<(String, Psbt)>), String> {
         .add_words(&test_words(word), label, None)
         .map_err(|e| e.text())?;
     session
-        .add_wallet(kit.name, &kit.descriptor, "Test wallet")
+        .add_wallet(
+            kit.name,
+            &kit.descriptor,
+            "Test wallet",
+            crate::wallet::Origin::Named,
+        )
         .map_err(|e| e.text())?;
     let mut signed = psbt.clone();
     let by = session.sign(&mut signed, [0; 32], &mut None)?;
@@ -388,8 +393,13 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
             crate::backup::wallet_json(kit.name, &policy).into_bytes(),
         ));
         let mut one = session();
-        one.add_wallet(kit.name, &kit.descriptor, "Test wallet")
-            .map_err(|e| e.text())?;
+        one.add_wallet(
+            kit.name,
+            &kit.descriptor,
+            "Test wallet",
+            crate::wallet::Origin::Named,
+        )
+        .map_err(|e| e.text())?;
         if let Some(text) = crate::backup::multisig_config(&one.wallets[0], None) {
             out.push((format!("{}-multisig-setup.txt", kit.id), text.into_bytes()));
         }
@@ -453,8 +463,13 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
     out.push(("BOOTX64.EFI".to_string(), test_efi()));
     // Savings split between its signers, one key left off each share.
     let mut one = session();
-    one.add_wallet("Savings", &savings(), "Test wallet")
-        .map_err(|e| e.text())?;
+    one.add_wallet(
+        "Savings",
+        &savings(),
+        "Test wallet",
+        crate::wallet::Origin::Named,
+    )
+    .map_err(|e| e.text())?;
     let w = &one.wallets[0];
     let plan = crate::backup::split_plan(3, 2, 1);
     for (i, row) in plan.iter().enumerate() {
@@ -525,7 +540,12 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
         .find(|k| k.id == "spending")
         .ok_or("no Spending kit")?;
     let i = one
-        .add_wallet(spending.name, &spending.descriptor, "Test wallet")
+        .add_wallet(
+            spending.name,
+            &spending.descriptor,
+            "Test wallet",
+            crate::wallet::Origin::Named,
+        )
         .map_err(|e| e.text())?;
     let text = "Faraday test message: this address belongs to test key 1.";
     let signed = one.sign_message(i, 0, text, osk_psbt::message::Format::Bip322)?;
@@ -719,7 +739,12 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
         .add_words(&test_words(TEST_SEEDS[0].0), TEST_SEEDS[0].1, None)
         .map_err(|e| e.text())?;
     session
-        .add_wallet("MuSig2", &policy.to_descriptor_checksummed(), "Test wallet")
+        .add_wallet(
+            "MuSig2",
+            &policy.to_descriptor_checksummed(),
+            "Test wallet",
+            crate::wallet::Origin::Named,
+        )
         .map_err(|e| e.text())?;
     let established = session.inspect(&unsigned).inputs[0]
         .musig
@@ -859,7 +884,12 @@ pub fn threshold_carry() -> Result<Vec<u8>, String> {
         .add_words(&test_words(TEST_SEEDS[0].0), TEST_SEEDS[0].1, None)
         .map_err(|e| e.text())?;
     session
-        .add_wallet("Threshold", &threshold_record()?.to_text(), "Test wallet")
+        .add_wallet(
+            "Threshold",
+            &threshold_record()?.to_text(),
+            "Test wallet",
+            crate::wallet::Origin::Named,
+        )
         .map_err(|e| e.text())?;
     let mut psbt = threshold_unsigned()?;
     let signed = session.sign_with(&mut psbt, [5; 32], &mut None, &[1], None)?;
@@ -880,7 +910,12 @@ pub fn public_files(name: &str, descriptor: &str) -> Result<Vec<(String, Vec<u8>
     app.session = session();
     let w = app
         .session
-        .add_wallet(name, descriptor, "Test wallet")
+        .add_wallet(
+            name,
+            descriptor,
+            "Test wallet",
+            crate::wallet::Origin::Named,
+        )
         .map_err(|e| e.text())?;
     for what in 0..=8 {
         app.public_out(w, what);

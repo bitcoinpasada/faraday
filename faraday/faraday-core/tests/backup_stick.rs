@@ -23,7 +23,9 @@ fn names() -> Vec<String> {
 
 fn first_address(text: &str) -> String {
     let mut s = testkit::session();
-    let i = s.add_wallet("w", text, "test").unwrap();
+    let i = s
+        .add_wallet("w", text, "test", faraday_core::wallet::Origin::Named)
+        .unwrap();
     s.address(&s.wallets[i], false, 0)
 }
 

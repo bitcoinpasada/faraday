@@ -91,6 +91,35 @@ pub struct Wallet {
     pub policy: WalletPolicy,
     /// Where it came from: "Test wallet" or the file's name.
     pub source: String,
+    /// What [`Wallet::source`] is: every caller that adds a wallet
+    /// ([`Session::add_wallet`]) already knows this, so it is given
+    /// explicitly there rather than read back out of the text, which a
+    /// second language would not carry. [`source_tag`] and Family's
+    /// routing (`family.rs`) read this, not the words.
+    pub origin: Origin,
+}
+
+/// What a wallet's [`Wallet::source`] is: Family's own "Typed words"
+/// step, Seeds' own "Typed seeds" step, a vault's own wallet, text that
+/// reads as a statement on its own ("Made here", "Dealt here"), or
+/// anything else (a file's name, a search, "Test wallet"). Given by the
+/// caller that adds the wallet, where it already knows which this is;
+/// every other reader (`source_tag`, Family's routing) reads this
+/// instead of the text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Origin {
+    /// Family's own "Typed words" step ([`crate::family::WORDS_SOURCE`]).
+    TypedWords,
+    /// Seeds' own "Typed seeds" step ([`crate::seeds::SOURCE`]).
+    TypedSeeds,
+    /// A vault's own wallet.
+    Vault,
+    /// Reads as a statement on its own ("Made here", "Dealt here"):
+    /// [`source_tag`] puts no "From"/"from" before it.
+    Statement,
+    /// Anything else: a file's name, a search, "Test wallet" —
+    /// [`source_tag`] puts "From"/"from" before it.
+    Named,
 }
 
 /// What the nonce check found ([`Session::nonce_check`]).
@@ -141,11 +170,12 @@ pub fn fp_text(fp: Fingerprint) -> String {
 }
 
 /// A wallet's source as a tag: "Vault" reads "From Vault" (`cap`) or
-/// "from Vault" (inline, after another phrase), but a source that
-/// already reads as a complete statement ("Made here", "Dealt here")
-/// reads on its own, with no "From"/"from" before it either way.
-pub fn source_tag(source: &str, cap: bool) -> String {
-    if source.ends_with(" here") {
+/// "from Vault" (inline, after another phrase), but a source whose
+/// [`Origin`] already reads as a complete statement ("Made here",
+/// "Dealt here") reads on its own, with no "From"/"from" before it
+/// either way.
+pub fn source_tag(source: &str, origin: Origin, cap: bool) -> String {
+    if origin == Origin::Statement {
         source.to_string()
     } else if cap {
         fill(EN.wallet_from, &[source])
@@ -430,8 +460,17 @@ impl Session {
     }
 
     /// Adds the wallet the text describes, under `name`, unless the same
-    /// descriptor is already loaded.
-    pub fn add_wallet(&mut self, name: &str, text: &str, source: &str) -> Result<usize, Refusal> {
+    /// descriptor is already loaded. `origin` is what [`Wallet::source`]
+    /// is: the caller already knows this (it is the one that chose
+    /// `source`'s words), so it says so here rather than this reading
+    /// the text back.
+    pub fn add_wallet(
+        &mut self,
+        name: &str,
+        text: &str,
+        source: &str,
+        origin: Origin,
+    ) -> Result<usize, Refusal> {
         let policy = read_wallet(text)?;
         let descriptor = same_wallet(&policy);
         if let Some(i) = self
@@ -446,6 +485,7 @@ impl Session {
             name: name.to_string(),
             policy,
             source: source.to_string(),
+            origin,
         });
         Ok(self.wallets.len() - 1)
     }

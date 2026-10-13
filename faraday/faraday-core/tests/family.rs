@@ -154,7 +154,12 @@ fn note(app: &Faraday) -> String {
 fn kit_address(id: &str) -> String {
     let mut s = testkit::session();
     let i = s
-        .add_wallet("kit", &kit(id).descriptor, "kit")
+        .add_wallet(
+            "kit",
+            &kit(id).descriptor,
+            "kit",
+            faraday_core::wallet::Origin::Named,
+        )
         .expect("the kit's wallet reads");
     s.address(&s.wallets[i], false, 0)
 }

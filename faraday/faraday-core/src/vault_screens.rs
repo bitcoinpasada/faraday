@@ -2119,6 +2119,7 @@ pub(crate) fn wallet_shape(r: &Record) -> Option<String> {
         name: String::new(),
         policy,
         source: String::new(),
+        origin: crate::wallet::Origin::Named,
     }))
 }
 

@@ -34,7 +34,9 @@ fn with_single_key_wallet() -> Faraday {
         .key_text(&app.session.keys[0].master)
         .unwrap();
     let d = format!("wpkh({text}/<0;1>/*)");
-    app.session.add_wallet("Wallet", &d, "test").unwrap();
+    app.session
+        .add_wallet("Wallet", &d, "test", faraday_core::wallet::Origin::Named)
+        .unwrap();
     app.press(Action::Nav(Screen::Start));
     let _ = app.frame();
     app
@@ -50,7 +52,14 @@ fn with_watch_only_wallet() -> Faraday {
         .key_text(&elsewhere.keys[0].master)
         .unwrap();
     let d = format!("wpkh({text}/<0;1>/*)");
-    app.session.add_wallet("Watch-only", &d, "test").unwrap();
+    app.session
+        .add_wallet(
+            "Watch-only",
+            &d,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
     app.press(Action::Nav(Screen::Start));
     let _ = app.frame();
     app

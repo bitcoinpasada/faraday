@@ -191,7 +191,7 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
     let line = format!(
         "{} · {}",
         Session::shape(wlt),
-        crate::wallet::source_tag(&wlt.source, false)
+        crate::wallet::source_tag(&wlt.source, wlt.origin, false)
     );
     cy += ui.wrap(x, cy, iw, 12.0, W::R, MUTED, &line) + 8.0;
     // Where its backup is (§5.2): a press opens Backups on it.

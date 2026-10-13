@@ -52,7 +52,9 @@ fn file(files: &[(String, Vec<u8>)], name: &str) -> Vec<u8> {
 
 fn first_address(text: &str) -> String {
     let mut s = testkit::session();
-    let i = s.add_wallet("w", text, "test").expect("a wallet");
+    let i = s
+        .add_wallet("w", text, "test", faraday_core::wallet::Origin::Named)
+        .expect("a wallet");
     s.address(&s.wallets[i], false, 0)
 }
 
@@ -70,7 +72,12 @@ fn holding(name: &str, descriptor: &str) -> (Faraday, usize) {
     app.session = testkit::session();
     let w = app
         .session
-        .add_wallet(name, descriptor, "test")
+        .add_wallet(
+            name,
+            descriptor,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
         .expect("a wallet");
     (app, w)
 }

@@ -369,10 +369,12 @@ impl Faraday {
             EN.silent_silent_payments_n,
             &[&fp_text(osk_bip::keys::Fingerprint(fp)).to_string()],
         );
-        match self
-            .session
-            .add_wallet(&name, &text, EN.silent_silent_payments)
-        {
+        match self.session.add_wallet(
+            &name,
+            &text,
+            EN.silent_silent_payments,
+            crate::wallet::Origin::Named,
+        ) {
             Ok(i) => {
                 if let Some(s) = self.silent.as_mut() {
                     s.wallet = Some(i);

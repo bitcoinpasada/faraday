@@ -2288,6 +2288,7 @@ impl Faraday {
                 name: name.clone(),
                 policy,
                 source: String::new(),
+                origin: crate::wallet::Origin::Named,
             };
             let fps: Vec<String> = wallet
                 .policy
@@ -2426,7 +2427,9 @@ impl Faraday {
         }
         let before = self.session.wallets.len();
         for (text, name) in &descs {
-            let _ = self.session.add_wallet(name, text, EN.vaults_vault);
+            let _ =
+                self.session
+                    .add_wallet(name, text, EN.vaults_vault, crate::wallet::Origin::Vault);
         }
         wallets += self.session.wallets.len() - before;
         self.refresh_spend();
@@ -2584,7 +2587,12 @@ impl Faraday {
                     .text(field::WALLET_NAME)
                     .unwrap_or(EN.vaults_wallet)
                     .to_string();
-                match self.session.add_wallet(&name, &text, EN.vaults_vault) {
+                match self.session.add_wallet(
+                    &name,
+                    &text,
+                    EN.vaults_vault,
+                    crate::wallet::Origin::Vault,
+                ) {
                     Ok(i) => {
                         self.wallet = i;
                         self.screen = Screen::Wallets;

@@ -34,7 +34,12 @@ fn run(out: &Path) -> Result<(), String> {
         .add_words(&testkit::test_words(word), label, None)
         .map_err(|e| e.text())?;
     session
-        .add_wallet("Savings", &testkit::savings(), "Test wallet")
+        .add_wallet(
+            "Savings",
+            &testkit::savings(),
+            "Test wallet",
+            faraday_core::wallet::Origin::Named,
+        )
         .map_err(|e| e.text())?;
     let inspection = session.inspect(&unsigned);
     println!(
@@ -83,8 +88,13 @@ fn run(out: &Path) -> Result<(), String> {
             all.add_words(&testkit::test_words(word), label, None)
                 .map_err(|e| e.text())?;
         }
-        all.add_wallet(kit.name, &kit.descriptor, "Test wallet")
-            .map_err(|e| e.text())?;
+        all.add_wallet(
+            kit.name,
+            &kit.descriptor,
+            "Test wallet",
+            faraday_core::wallet::Origin::Named,
+        )
+        .map_err(|e| e.text())?;
         let mut flow = Spend::new(u.clone(), "x");
         let inspection = all.inspect(&u);
         let by = all
@@ -126,7 +136,12 @@ fn run(out: &Path) -> Result<(), String> {
         .add_words(&testkit::test_words(word), label, None)
         .map_err(|e| e.text())?;
     second
-        .add_wallet(kit.name, &kit.descriptor, "Test wallet")
+        .add_wallet(
+            kit.name,
+            &kit.descriptor,
+            "Test wallet",
+            faraday_core::wallet::Origin::Named,
+        )
         .map_err(|e| e.text())?;
     let mut flow = Spend::new(testkit::recovery(&kit)?, "x");
     let by = second
@@ -150,6 +165,7 @@ fn run(out: &Path) -> Result<(), String> {
         "MuSig2",
         &testkit::musig_policy()?.to_descriptor_checksummed(),
         "Test wallet",
+        faraday_core::wallet::Origin::Named,
     )
     .map_err(|e| e.text())?;
     let mut flow = Spend::new(mu, "musig-unsigned.psbt");
@@ -183,6 +199,7 @@ fn run(out: &Path) -> Result<(), String> {
             "Threshold",
             &testkit::threshold_record()?.to_text(),
             "Test wallet",
+            faraday_core::wallet::Origin::Named,
         )
         .map_err(|e| e.text())?;
     let seen = second.inspect_with(&psbt, Some(&carry.section));

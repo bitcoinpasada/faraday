@@ -1298,18 +1298,53 @@ pub struct Alone {
     pub balance: Found,
 }
 
+/// How an [`Alone`] line reads for the chart's colour, kept beside the
+/// text itself ([`Alone::parts`]) so the two cannot drift apart: a case
+/// added to one must be added to the other.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AloneKind {
+    /// A vault's own seal ("Sealed"), not a spot's reach: the vault's
+    /// own accent. Not an [`Alone`] case; a vault's spot never computes
+    /// one (`glance::backup_nodes`).
+    Sealed,
+    /// Spends outright, in the clear: a warning.
+    CanSpend,
+    /// Nothing at all: good.
+    Nothing,
+    /// Sees the balance outright, without the vault: neutral.
+    SeesBalance,
+    /// Needs the vault's passphrase, to spend or to see the balance:
+    /// the vault's own accent.
+    NeedsVault,
+}
+
 impl Alone {
+    /// The text and its [`AloneKind`] together, so a new case cannot add
+    /// one without the other.
+    fn parts(self) -> (&'static str, AloneKind) {
+        match (self.spend, self.balance) {
+            (Found::Yes, _) => (EN.plan_can_spend, AloneKind::CanSpend),
+            (Found::OnlyWithVault, Found::Yes) => {
+                (EN.plan_sees_the_balance_can, AloneKind::NeedsVault)
+            }
+            (Found::OnlyWithVault, _) => (EN.plan_can_spend_with, AloneKind::NeedsVault),
+            (Found::No, Found::Yes) => (EN.plan_sees_the_balance_2, AloneKind::SeesBalance),
+            (Found::No, Found::OnlyWithVault) => (EN.plan_sees_the_balance, AloneKind::NeedsVault),
+            (Found::No, Found::No) => (EN.plan_nothing, AloneKind::Nothing),
+        }
+    }
+
     /// The line the wallet's chart writes under a spot: "Nothing", "Sees
     /// the balance", "Can spend", "Can spend with the vault's passphrase".
     pub fn text(self) -> &'static str {
-        match (self.spend, self.balance) {
-            (Found::Yes, _) => EN.plan_can_spend,
-            (Found::OnlyWithVault, Found::Yes) => EN.plan_sees_the_balance_can,
-            (Found::OnlyWithVault, _) => EN.plan_can_spend_with,
-            (Found::No, Found::Yes) => EN.plan_sees_the_balance_2,
-            (Found::No, Found::OnlyWithVault) => EN.plan_sees_the_balance,
-            (Found::No, Found::No) => EN.plan_nothing,
-        }
+        self.parts().0
+    }
+
+    /// What [`Alone::text`] reads as, for the chart's colour
+    /// ([`crate::glance::alone_color`]), without the colour reading the
+    /// words themselves.
+    pub fn kind(self) -> AloneKind {
+        self.parts().1
     }
 }
 

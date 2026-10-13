@@ -314,7 +314,12 @@ fn two_of_three_two_here(app: &mut Faraday) -> usize {
     }
     assert_eq!(app.session.keys.len(), 2);
     app.session
-        .add_wallet("Savings", &testkit::savings(), "test")
+        .add_wallet(
+            "Savings",
+            &testkit::savings(),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
         .unwrap()
 }
 

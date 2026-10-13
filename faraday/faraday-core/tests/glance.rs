@@ -77,7 +77,12 @@ fn one_key(app: &mut Faraday) -> usize {
         .key_text(&app.session.keys[0].master)
         .unwrap();
     app.session
-        .add_wallet("Spending", &format!("wpkh({text}/<0;1>/*)"), "test")
+        .add_wallet(
+            "Spending",
+            &format!("wpkh({text}/<0;1>/*)"),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
         .unwrap()
 }
 
@@ -87,7 +92,12 @@ fn two_of_three(app: &mut Faraday) -> usize {
     add_key(app, 0);
     add_key(app, 1);
     app.session
-        .add_wallet("Savings", &testkit::savings(), "test")
+        .add_wallet(
+            "Savings",
+            &testkit::savings(),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
         .unwrap()
 }
 

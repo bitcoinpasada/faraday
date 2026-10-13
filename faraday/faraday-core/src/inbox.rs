@@ -506,6 +506,7 @@ impl Faraday {
                 name: name.clone(),
                 policy,
                 source: String::new(),
+                origin: crate::wallet::Origin::Named,
             };
             let keys: Vec<Fingerprint> = self
                 .session
@@ -720,7 +721,11 @@ impl Faraday {
                 .files
                 .first()
                 .map_or(EN.inbox_its_shares.to_string(), |k| items[*k].name.clone());
-            if self.session.add_wallet(&name, &text, &source).is_ok() {
+            if self
+                .session
+                .add_wallet(&name, &text, &source, crate::wallet::Origin::Named)
+                .is_ok()
+            {
                 wallets += 1;
             }
         }
@@ -754,7 +759,11 @@ impl Faraday {
                     EN.inbox_its_shares.to_string(),
                 ),
             };
-            if self.session.add_wallet(&name, &text, &source).is_ok() {
+            if self
+                .session
+                .add_wallet(&name, &text, &source, crate::wallet::Origin::Named)
+                .is_ok()
+            {
                 n += 1;
             }
         }
@@ -844,10 +853,12 @@ impl Faraday {
                 crate::family::kind_name(kind),
             ],
         );
-        match self
-            .session
-            .add_wallet(&name, &descriptor, EN.inbox_an_xpub_in_files)
-        {
+        match self.session.add_wallet(
+            &name,
+            &descriptor,
+            EN.inbox_an_xpub_in_files,
+            crate::wallet::Origin::Named,
+        ) {
             Ok(i) => {
                 self.wallet = i;
                 self.potential = None;
@@ -1034,10 +1045,12 @@ impl Faraday {
         };
         let descriptor = kind.descriptor(1, &[text]);
         let name = format!("{} · {}", fp_text(fp), crate::family::kind_name(kind));
-        match self
-            .session
-            .add_wallet(&name, &descriptor, EN.inbox_a_seed_in_files)
-        {
+        match self.session.add_wallet(
+            &name,
+            &descriptor,
+            EN.inbox_a_seed_in_files,
+            crate::wallet::Origin::Named,
+        ) {
             Ok(i) => {
                 self.wallet = i;
                 self.potential = None;
@@ -1089,7 +1102,12 @@ impl Faraday {
                     name
                 };
                 self.session
-                    .add_wallet(&name, &text, &item_name(self, k))
+                    .add_wallet(
+                        &name,
+                        &text,
+                        &item_name(self, k),
+                        crate::wallet::Origin::Named,
+                    )
                     .map(|_| fill(EN.inbox_loaded_n, &[&name.to_string()]))
                     .map_err(|e| e.text())
             }

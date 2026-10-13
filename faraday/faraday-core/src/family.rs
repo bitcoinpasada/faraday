@@ -651,16 +651,13 @@ impl Faraday {
                 self.family.from_card = true;
                 self.family.help = false;
                 self.screen = Screen::Family;
-                let source = w.source.as_str();
-                self.family.route = Some(
-                    if source == WORDS_SOURCE || source == crate::seeds::SOURCE {
+                self.family.route = Some(match w.origin {
+                    crate::wallet::Origin::TypedWords | crate::wallet::Origin::TypedSeeds => {
                         Route::Words
-                    } else if source == EN.vaults_vault {
-                        Route::Vault
-                    } else {
-                        Route::Paper
-                    },
-                );
+                    }
+                    crate::wallet::Origin::Vault => Route::Vault,
+                    crate::wallet::Origin::Statement | crate::wallet::Origin::Named => Route::Paper,
+                });
                 // Someone who loaded a wallet already knows the map and
                 // the stick.
                 self.family.closed[page::MAP as usize] = true;
@@ -850,8 +847,12 @@ impl Faraday {
     /// split sheets, a vault) rather than from seeds alone.
     pub fn family_described(&self) -> Option<usize> {
         let w = self.family_wallet()?;
-        let source = self.session.wallets[w].source.as_str();
-        (source != WORDS_SOURCE && source != crate::seeds::SOURCE).then_some(w)
+        let origin = self.session.wallets[w].origin;
+        (!matches!(
+            origin,
+            crate::wallet::Origin::TypedWords | crate::wallet::Origin::TypedSeeds
+        ))
+        .then_some(w)
     }
 
     /// The seeds that came in that are none of the described wallet's
@@ -1053,7 +1054,13 @@ impl Faraday {
                 return;
             }
         }
-        self.session.wallets.retain(|w| w.source != WORDS_SOURCE);
+        // Only a wallet guessed from Family's own typed words is dropped
+        // here; one guessed from Seeds' typed seeds (`Origin::TypedSeeds`)
+        // is left alone. Deliberate, not an oversight: the two screens
+        // keep their own guesses on their own terms.
+        self.session
+            .wallets
+            .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
         self.family.wallet = None;
         self.wallet = self
             .wallet
@@ -1070,8 +1077,10 @@ impl Faraday {
     /// Whether the wallet chosen is the one guessed from seeds alone.
     fn family_guessed_wallet(&self) -> bool {
         self.family_wallet().is_some_and(|w| {
-            let s = self.session.wallets[w].source.as_str();
-            s == WORDS_SOURCE || s == crate::seeds::SOURCE
+            matches!(
+                self.session.wallets[w].origin,
+                crate::wallet::Origin::TypedWords | crate::wallet::Origin::TypedSeeds
+            )
         })
     }
 
@@ -1190,7 +1199,12 @@ impl Faraday {
         };
         let name = self.session.wallets[w].name.clone();
         self.session.wallets.remove(w);
-        match self.session.add_wallet(&name, &d, crate::seeds::SOURCE) {
+        match self.session.add_wallet(
+            &name,
+            &d,
+            crate::seeds::SOURCE,
+            crate::wallet::Origin::TypedSeeds,
+        ) {
             Ok(i) => {
                 self.family.wallet = Some(self.session.wallets[i].name.clone());
                 self.wallet = i;
@@ -1268,7 +1282,13 @@ impl Faraday {
         {
             self.session.wallets.remove(w);
         }
-        self.session.wallets.retain(|w| w.source != WORDS_SOURCE);
+        // Only a wallet guessed from Family's own typed words is dropped
+        // here; one guessed from Seeds' typed seeds (`Origin::TypedSeeds`)
+        // is left alone. Deliberate, not an oversight: the two screens
+        // keep their own guesses on their own terms.
+        self.session
+            .wallets
+            .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
         self.family.wallet = None;
         self.wallet = self
             .wallet
@@ -1314,9 +1334,20 @@ impl Faraday {
             }
         };
         let descriptor = kind.descriptor(1, &[text]);
-        self.session.wallets.retain(|w| w.source != WORDS_SOURCE);
+        // Only a wallet guessed from Family's own typed words is dropped
+        // here; one guessed from Seeds' typed seeds (`Origin::TypedSeeds`)
+        // is left alone. Deliberate, not an oversight: the two screens
+        // keep their own guesses on their own terms.
+        self.session
+            .wallets
+            .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
         let name = fill(EN.family_words, &[kind_name(kind)]);
-        match self.session.add_wallet(&name, &descriptor, WORDS_SOURCE) {
+        match self.session.add_wallet(
+            &name,
+            &descriptor,
+            WORDS_SOURCE,
+            crate::wallet::Origin::TypedWords,
+        ) {
             Ok(i) => {
                 self.family.wallet = Some(name);
                 self.wallet = i;
@@ -1327,11 +1358,13 @@ impl Faraday {
 
     /// The single-key kind the words route's wallet is, if it is one.
     pub fn family_words_kind_now(&self) -> Option<NewKind> {
+        // Family's own typed-words wallet only: Seeds' typed-seeds one
+        // (`Origin::TypedSeeds`) is a different guess, not this one.
         let w = self
             .session
             .wallets
             .iter()
-            .find(|w| w.source == WORDS_SOURCE)?;
+            .find(|w| w.origin == crate::wallet::Origin::TypedWords)?;
         SINGLE
             .into_iter()
             .find(|k| w.name == fill(EN.family_words, &[kind_name(*k)]))
@@ -1351,7 +1384,10 @@ impl Faraday {
             })
             .unwrap_or_else(|| crate::file_stem(&item.name));
         let source = item.name.clone();
-        match self.session.add_wallet(&name, &text, &source) {
+        match self
+            .session
+            .add_wallet(&name, &text, &source, crate::wallet::Origin::Named)
+        {
             Ok(i) => {
                 self.family.wallet = Some(self.session.wallets[i].name.clone());
                 self.wallet = i;
@@ -1371,7 +1407,13 @@ impl Faraday {
         }
         self.family.walkthrough = true;
         self.family.guess = None;
-        self.session.wallets.retain(|w| w.source != WORDS_SOURCE);
+        // Only a wallet guessed from Family's own typed words is dropped
+        // here; one guessed from Seeds' typed seeds (`Origin::TypedSeeds`)
+        // is left alone. Deliberate, not an oversight: the two screens
+        // keep their own guesses on their own terms.
+        self.session
+            .wallets
+            .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
         if let Some(i) = self.family_wallet() {
             self.wallet = i;
         }
@@ -1396,7 +1438,12 @@ impl Faraday {
                         .ok()
                         .and_then(|(_, n)| n)
                         .unwrap_or_else(|| EN.family_restored_wallet.to_string());
-                    match self.session.add_wallet(&name, &whole, EN.family_its_shares) {
+                    match self.session.add_wallet(
+                        &name,
+                        &whole,
+                        EN.family_its_shares,
+                        crate::wallet::Origin::Named,
+                    ) {
                         Ok(i) => {
                             self.family.wallet = Some(self.session.wallets[i].name.clone());
                             self.wallet = i;

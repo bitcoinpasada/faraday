@@ -696,7 +696,7 @@ impl Faraday {
         let name = name.as_str();
         match self.screen {
             Screen::Restore => {
-                self.restore_wallet(name, &d, SOURCE);
+                self.restore_wallet(name, &d, SOURCE, crate::wallet::Origin::TypedSeeds);
                 if let Some(r) = self.restore.as_mut()
                     && r.wallet.is_some()
                 {
@@ -706,19 +706,24 @@ impl Faraday {
                 }
                 self.refresh_spend();
             }
-            Screen::Family => match self.session.add_wallet(name, &d, SOURCE) {
-                Ok(i) => {
-                    self.family.wallet = Some(self.session.wallets[i].name.clone());
-                    self.wallet = i;
-                    // Made without its description: a guess, which Check
-                    // the money walks through (`docs/SCAN-TO-SIGN.md` §5).
-                    self.family_guess_start(n > 1);
-                    self.refresh_spend();
-                    self.family_opened();
-                    self.family_settle();
+            Screen::Family => {
+                match self
+                    .session
+                    .add_wallet(name, &d, SOURCE, crate::wallet::Origin::TypedSeeds)
+                {
+                    Ok(i) => {
+                        self.family.wallet = Some(self.session.wallets[i].name.clone());
+                        self.wallet = i;
+                        // Made without its description: a guess, which Check
+                        // the money walks through (`docs/SCAN-TO-SIGN.md` §5).
+                        self.family_guess_start(n > 1);
+                        self.refresh_spend();
+                        self.family_opened();
+                        self.family_settle();
+                    }
+                    Err(e) => self.family.seeds.error = Some(e.text()),
                 }
-                Err(e) => self.family.seeds.error = Some(e.text()),
-            },
+            }
             _ => {}
         }
     }

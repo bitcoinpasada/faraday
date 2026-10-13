@@ -81,7 +81,12 @@ fn holding(name: &str, descriptor: &str) -> (Faraday, usize) {
     app.session = testkit::session();
     let w = app
         .session
-        .add_wallet(name, descriptor, "test")
+        .add_wallet(
+            name,
+            descriptor,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
         .expect("a wallet");
     (app, w)
 }
@@ -248,7 +253,12 @@ fn a_signed_message_reads_back_from_its_code_and_its_picture() {
         .find(|k| k.id == "spending")
         .unwrap();
     app.session
-        .add_wallet(spending.name, &spending.descriptor, "test")
+        .add_wallet(
+            spending.name,
+            &spending.descriptor,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
         .expect("the wallet");
     app.press(Action::SignMessage);
     app.message.as_mut().unwrap().text = "Faraday signs this".to_string();

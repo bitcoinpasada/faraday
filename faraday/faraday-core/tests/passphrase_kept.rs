@@ -186,7 +186,12 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
         .unwrap();
     let w = app
         .session
-        .add_wallet("Spending", &format!("wpkh({text}/<0;1>/*)"), "test")
+        .add_wallet(
+            "Spending",
+            &format!("wpkh({text}/<0;1>/*)"),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
         .unwrap();
     app.press(Action::Backup(w));
     app.press(Action::BPreset(0));

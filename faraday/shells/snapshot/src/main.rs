@@ -3312,7 +3312,12 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     let five = t
         .app
         .session
-        .add_wallet("Five", &testkit::three_of_five(), "test")
+        .add_wallet(
+            "Five",
+            &testkit::three_of_five(),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
         .map_err(|e| e.text())?;
     t.press(Action::Backup(five));
     t.press(Action::BPreset(0));
@@ -3390,7 +3395,12 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
         t.app
             .session
-            .add_wallet("Spending", &format!("wpkh({text}/<0;1>/*)"), "test")
+            .add_wallet(
+                "Spending",
+                &format!("wpkh({text}/<0;1>/*)"),
+                "test",
+                faraday_core::wallet::Origin::Named,
+            )
             .map_err(|e| e.text())?
     };
     let shot_card = |t: &mut Tour, w: usize, name: &str| -> Result<(), String> {
@@ -3452,7 +3462,12 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     let two = t
         .app
         .session
-        .add_wallet("Savings", &NewKind::Multi.descriptor(2, &keys), "test")
+        .add_wallet(
+            "Savings",
+            &NewKind::Multi.descriptor(2, &keys),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
         .map_err(|e| e.text())?;
     shot_card(t, two, "glance-two-of-three-no-plan")?;
     t.press(Action::Backup(two));
@@ -3582,7 +3597,12 @@ fn chart_edit_tour(t: &mut Tour) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
         t.app
             .session
-            .add_wallet("Spending", &format!("wpkh({text}/<0;1>/*)"), "test")
+            .add_wallet(
+                "Spending",
+                &format!("wpkh({text}/<0;1>/*)"),
+                "test",
+                faraday_core::wallet::Origin::Named,
+            )
             .map_err(|e| e.text())?
     };
     t.press(Action::Nav(Screen::Vaults));
@@ -3709,7 +3729,12 @@ fn chart_edit_tour(t: &mut Tour) -> Result<(), String> {
     let two = t
         .app
         .session
-        .add_wallet("Savings", &NewKind::Multi.descriptor(2, &keys), "test")
+        .add_wallet(
+            "Savings",
+            &NewKind::Multi.descriptor(2, &keys),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
         .map_err(|e| e.text())?;
     t.press(Action::Backup(two));
     t.press(Action::BPreset(0));

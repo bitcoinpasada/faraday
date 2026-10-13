@@ -5870,7 +5870,7 @@ impl Faraday {
                         .and_then(|(_, n)| n)
                         .unwrap_or_else(|| stem(&item.name));
                     let source = item.name.clone();
-                    self.restore_wallet(&name, &text, &source);
+                    self.restore_wallet(&name, &text, &source, wallet::Origin::Named);
                 }
             }
             Action::RShare(i) => {
@@ -5894,7 +5894,12 @@ impl Faraday {
                                 .ok()
                                 .and_then(|(_, n)| n)
                                 .unwrap_or_else(|| EN.act_restored_wallet.to_string());
-                            self.restore_wallet(&name, &whole, EN.act_its_shares);
+                            self.restore_wallet(
+                                &name,
+                                &whole,
+                                EN.act_its_shares,
+                                wallet::Origin::Named,
+                            );
                         }
                         None => {
                             if let Some(r) = self.restore.as_mut() {
@@ -5963,7 +5968,12 @@ impl Faraday {
                             .ok()
                             .and_then(|(_, n)| n)
                             .unwrap_or_else(|| EN.act_restored_wallet.to_string());
-                        match self.session.add_wallet(&name, &whole, EN.act_its_shares) {
+                        match self.session.add_wallet(
+                            &name,
+                            &whole,
+                            EN.act_its_shares,
+                            wallet::Origin::Named,
+                        ) {
                             Ok(i) => {
                                 self.wallet = i;
                                 self.screen = Screen::Wallets;
@@ -7615,10 +7625,12 @@ impl Faraday {
             EN.create_deal_new_wallet,
             &[&(self.session.wallets.len() + 1).to_string()],
         );
-        let i = match self
-            .session
-            .add_wallet(&name, &record.to_text(), EN.create_deal_dealt_here)
-        {
+        let i = match self.session.add_wallet(
+            &name,
+            &record.to_text(),
+            EN.create_deal_dealt_here,
+            wallet::Origin::Statement,
+        ) {
             Ok(i) => i,
             Err(e) => {
                 if let Some(c) = self.create.as_mut() {
@@ -7825,7 +7837,7 @@ impl Faraday {
             return;
         };
         let source = open.name.clone();
-        self.restore_wallet(&name, &text, &source);
+        self.restore_wallet(&name, &text, &source, wallet::Origin::Named);
         let Some(w) = self
             .restore
             .as_ref()
@@ -8023,10 +8035,12 @@ impl Faraday {
             EN.create_make_new_wallet,
             &[&(self.session.wallets.len() + 1).to_string()],
         );
-        match self
-            .session
-            .add_wallet(&name, &descriptor, EN.create_make_made_here)
-        {
+        match self.session.add_wallet(
+            &name,
+            &descriptor,
+            EN.create_make_made_here,
+            wallet::Origin::Statement,
+        ) {
             Ok(i) => {
                 self.chart_work.moved_to(&self.session, i);
                 self.wallet = i;
@@ -8059,9 +8073,10 @@ impl Faraday {
     }
 
     /// Loads the wallet a description gives and fills Restore's Kind and
-    /// Quorum from it: the seeds are matched to its keys next.
-    fn restore_wallet(&mut self, name: &str, text: &str, source: &str) {
-        match self.session.add_wallet(name, text, source) {
+    /// Quorum from it: the seeds are matched to its keys next. `origin`
+    /// is what `source` is, given by the caller, which already knows.
+    fn restore_wallet(&mut self, name: &str, text: &str, source: &str, origin: wallet::Origin) {
+        match self.session.add_wallet(name, text, source, origin) {
             Ok(i) => {
                 self.wallet = i;
                 let w = &self.session.wallets[i];
@@ -9062,7 +9077,10 @@ impl Faraday {
         let name = wallet::json_string(&text, "label")
             .filter(|l| text.trim_start().starts_with('{') && !l.trim().is_empty())
             .unwrap_or(name);
-        match self.session.add_wallet(&name, &text, &source) {
+        match self
+            .session
+            .add_wallet(&name, &text, &source, wallet::Origin::Named)
+        {
             Ok(i) => {
                 self.wallet = i;
                 self.screen = Screen::Wallets;

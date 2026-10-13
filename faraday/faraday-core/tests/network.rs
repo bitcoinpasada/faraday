@@ -146,7 +146,8 @@ fn every_wallet_form_on_the_test_stick_loads_its_wallet() {
     let mut seen = 0;
     for (id, descriptor) in &wallets {
         let mut want = Session::default();
-        want.add_wallet(id, descriptor, "kit").unwrap();
+        want.add_wallet(id, descriptor, "kit", faraday_core::wallet::Origin::Named)
+            .unwrap();
         // The same wallet: the same first receive and change addresses.
         let addresses = |s: &Session| {
             (
@@ -162,8 +163,13 @@ fn every_wallet_form_on_the_test_stick_loads_its_wallet() {
             };
             assert_eq!(classify(&name, bytes), FileKind::Wallet, "{name}");
             let mut s = Session::default();
-            s.add_wallet(id, &String::from_utf8_lossy(bytes), &name)
-                .unwrap_or_else(|e| panic!("{name}: {}", e.text()));
+            s.add_wallet(
+                id,
+                &String::from_utf8_lossy(bytes),
+                &name,
+                faraday_core::wallet::Origin::Named,
+            )
+            .unwrap_or_else(|e| panic!("{name}: {}", e.text()));
             assert_eq!(addresses(&s), want, "{name}");
             assert_eq!(s.network(), Network::Testnet, "{name}");
             seen += 1;
