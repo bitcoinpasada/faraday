@@ -1161,6 +1161,10 @@ pub enum Action {
     Osk(compact::OskPress),
     /// Show the Learn sheet's page.
     LearnPage(u8),
+    /// Tick step `n` of the guide page on show in the Learn sheet, or
+    /// clear its tick if it is ticked already (`docs/COMPANION.md`
+    /// §4.7).
+    LearnStep(u32),
     /// The Learn sheet's first row, **Spending, step by step**: closes
     /// the sheet and opens the Spend tab (`docs/SIMPLIFY.md` §6.2).
     LearnSpend,
@@ -2948,6 +2952,11 @@ pub struct Faraday {
     pub keygen: Option<keygen::KeyGen>,
     /// The Learn sheet.
     pub learn: learn::LearnState,
+    /// The steps ticked on each guide page the Learn sheet has shown
+    /// this session, by page; a page with none ticked is not here.
+    /// Session state only, in memory, never written to a file
+    /// (`docs/COMPANION.md` §4.7).
+    learn_ticks: Vec<(&'static osk_learn::Page, Vec<u32>)>,
     /// The word-list sheet, while it is open.
     pub wordlist: Option<wordlist::WordListState>,
     /// BIP-85 being derived.
@@ -3228,6 +3237,7 @@ impl Faraday {
             restore: None,
             keygen: None,
             learn: learn::LearnState::default(),
+            learn_ticks: Vec::new(),
             wordlist: None,
             bip85: None,
             silent: None,
@@ -4494,6 +4504,7 @@ impl Faraday {
             Action::SecretUnprotected => self.secret_unprotected(),
             Action::SecretForm(i) => self.secret_form(usize::from(i)),
             Action::LearnPage(i) => self.learn_page(i),
+            Action::LearnStep(n) => self.learn_tick_step(n),
             Action::WordList(a) => self.wordlist_act(a),
             Action::KeyGen(_)
             | Action::KStep(_)

@@ -186,4 +186,38 @@ impl Faraday {
             self.learn.scroll = 0.0;
         }
     }
+
+    /// The steps ticked on `page` this session, in order
+    /// (`docs/COMPANION.md` §4.7). Kept in memory only: leaving and
+    /// reopening the page in the same session keeps them; a new session
+    /// starts unticked.
+    pub fn learn_ticked(&self, page: &'static LearnPage) -> &[u32] {
+        self.learn_ticks
+            .iter()
+            .find(|(p, _)| std::ptr::eq(*p, page))
+            .map_or(&[], |(_, d)| d.as_slice())
+    }
+
+    /// Ticks step `n` of the Learn sheet's page on show, or clears its
+    /// tick if it is ticked already.
+    pub(crate) fn learn_tick_step(&mut self, n: u32) {
+        let Some(page) = self.learn.pages.get(self.learn.page).copied() else {
+            return;
+        };
+        let all = faraday_learn::steps(page);
+        if !all.contains(&n) {
+            return;
+        }
+        let mut done = self.learn_ticked(page).to_vec();
+        if let Some(at) = done.iter().position(|d| *d == n) {
+            done.remove(at);
+        } else {
+            done.push(n);
+        }
+        let done: Vec<u32> = all.into_iter().filter(|s| done.contains(s)).collect();
+        self.learn_ticks.retain(|(p, _)| !std::ptr::eq(*p, page));
+        if !done.is_empty() {
+            self.learn_ticks.push((page, done));
+        }
+    }
 }

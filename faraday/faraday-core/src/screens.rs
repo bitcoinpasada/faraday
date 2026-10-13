@@ -13,7 +13,8 @@ use crate::wallet::{FileKind, Session, fp_text, key_line, network_name, step, tx
 use crate::{Action, Code, Faraday, Screen, Sheet, flow, guide};
 pub use faraday_ui::parts::qr_code;
 pub(crate) use faraday_ui::parts::{
-    button_rows, measure_wrap, section_label, sheet_box, title, wrap_buttons,
+    STEP_INDENT, STEP_SIDE, button_rows, measure_wrap, section_label, sheet_box, step_circle,
+    title, wrap_buttons,
 };
 
 const SIDEBAR_W: f32 = 240.0;
@@ -15133,6 +15134,7 @@ fn learn_sheet(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
     let Some(page) = app.learn.pages.get(app.learn.page).copied() else {
         return;
     };
+    let ticked = app.learn_ticked(page);
     // Tabs, one per page, and Done; on a small panel they wrap.
     let done_w = if compact { 72.0 } else { 96.0 };
     ui.button(
@@ -15196,7 +15198,34 @@ fn learn_sheet(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
                 section.heading,
             ) + 8.0;
         }
+        // Under a step: what follows it, up to the next step or section,
+        // is indented under it, as the Companion draws the same guides
+        // (`docs/COMPANION.md` §4.7).
+        let mut under = false;
         for para in section.paragraphs {
+            if let Some((n, text)) = faraday_learn::step(para) {
+                under = true;
+                let tx = bx + STEP_INDENT;
+                let line = ui.line(14.0, W::R);
+                // The circle level with the text's first line.
+                let circle_y = cy + (line - STEP_SIDE) / 2.0;
+                step_circle(
+                    ui,
+                    bx,
+                    circle_y,
+                    n,
+                    ticked.contains(&n),
+                    Some(Action::LearnStep(n)),
+                );
+                let h = ui.wrap(tx, cy, bw - STEP_INDENT, 14.0, W::R, TEXT, text);
+                cy += h.max(STEP_SIDE + circle_y - cy) + 12.0;
+                continue;
+            }
+            let (px, pw) = if under {
+                (bx + STEP_INDENT, bw - STEP_INDENT)
+            } else {
+                (bx, bw)
+            };
             // A firmware sketch's marker (`docs/HUB.md` §7.8, F18): none
             // of faraday-learn's own pages carries one (the guides that
             // do are faraday-guides', read only behind the `guides`
@@ -15205,11 +15234,11 @@ fn learn_sheet(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
             if faraday_learn::is_marker(para) {
                 #[cfg(feature = "guides")]
                 if let Some(s) = faraday_guides::sketch_of(para) {
-                    cy += faraday_ui::sketch(ui, s, bx, cy, bw) + 12.0;
+                    cy += faraday_ui::sketch(ui, s, px, cy, pw) + 12.0;
                 }
                 continue;
             }
-            cy += ui.wrap(bx, cy, bw, 14.0, W::R, TEXT, para) + 12.0;
+            cy += ui.wrap(px, cy, pw, 14.0, W::R, TEXT, para) + 12.0;
         }
         cy += 10.0;
     }

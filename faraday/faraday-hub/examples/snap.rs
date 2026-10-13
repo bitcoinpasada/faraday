@@ -694,7 +694,8 @@ fn run(s: &Snap) -> Result<(), String> {
     let mut h = s.hub();
     h.press(HubAction::Learn);
     s.shot(&mut h, "learn")?;
-    sketch_shots(s)
+    sketch_shots(s)?;
+    step_shots(s)
 }
 
 /// Maker pages scrolled to one of their firmware sketches (§7.8): the
@@ -767,6 +768,22 @@ fn sketch_shots(s: &Snap) -> Result<(), String> {
         s.shot(&mut h, name)?;
     }
     Ok(())
+}
+
+/// A guide page at its top, its first steps in circles
+/// (`docs/COMPANION.md` §4.7): HP untouched, Dell with its first three
+/// ticked.
+fn step_shots(s: &Snap) -> Result<(), String> {
+    let mut h = s.hub();
+    h.press(HubAction::LearnPage(LearnId::Maker("maker-hp")));
+    s.shot(&mut h, "steps-hp")?;
+
+    let mut h = s.hub();
+    h.press(HubAction::LearnPage(LearnId::Maker("maker-dell")));
+    for n in 1..=3 {
+        h.held().press(faraday_core::Action::LearnStep(n));
+    }
+    s.shot(&mut h, "steps-dell-ticked")
 }
 
 fn main() -> ExitCode {
