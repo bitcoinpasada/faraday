@@ -387,3 +387,21 @@ faraday-release-stage VERSION *args:
 #   just faraday-release-stage-hub 0.2.0 --out DIR
 faraday-release-stage-hub VERSION *args:
     faraday/tools/stage-release.sh {{VERSION}} --hub out/linux/faraday-hub {{args}}
+
+# The Companion's screens (docs/COMPANION.md §4), each in its states, into
+# out/snapshots/companion/WxH/, one named PNG each: `just companion-snap
+# 1080x2340`, the phone `just snapshots` renders, at 420 dpi with its
+# 63 px bottom inset. 480x640 and 240x320 carry their panels' dpi; any
+# other size renders at 160 unless spelled `WxH@DPI`.
+companion-snap size:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    arg="{{size}}"
+    inset=0
+    case "{{size}}" in
+        1080x2340) arg="1080x2340@420"; inset=63 ;;
+        480x640) arg="480x640@286" ;;
+        240x320) arg="240x320@143" ;;
+    esac
+    cargo run -q -p faraday-companion --example snap -- "$arg" "out/snapshots/companion/{{size}}" "$inset" > /dev/null
+    echo "out/snapshots/companion/{{size}}"

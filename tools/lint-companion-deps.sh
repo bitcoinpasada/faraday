@@ -13,6 +13,7 @@ set -u
 cd "$(dirname "$0")/.."
 
 CRATES="
+faraday-companion
 faraday-strings
 faraday-learn
 faraday-intake

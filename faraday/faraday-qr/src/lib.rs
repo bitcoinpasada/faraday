@@ -2,7 +2,8 @@
 //! OpenSigner's codec (`docs/QR.md`): BBQr, numbered text parts, the
 //! Faraday file envelope and the UR registry's key and wallet types. UR
 //! itself (single and fountain-coded, `crypto-psbt` and `bytes`) stays
-//! `osk-codec`'s.
+//! `osk-codec`'s; [`send`] makes the codes a thing is sent as, in every
+//! format a Faraday app offers.
 //!
 //! [`Assembler`] takes each scanned text in turn and says what it was: a
 //! part of a transfer still missing others (and which), a whole thing that
@@ -14,6 +15,7 @@ pub mod bitlocker;
 pub mod cbor;
 pub mod envelope;
 pub mod registry;
+pub mod send;
 pub mod specter;
 pub mod ur;
 

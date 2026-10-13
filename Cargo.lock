@@ -712,6 +712,25 @@ name = "faraday-boot"
 version = "0.1.1"
 
 [[package]]
+name = "faraday-companion"
+version = "0.1.1"
+dependencies = [
+ "faraday-core",
+ "faraday-intake",
+ "faraday-learn",
+ "faraday-qr",
+ "faraday-strings",
+ "osk-bip",
+ "osk-codec",
+ "osk-learn",
+ "osk-shell-api",
+ "osk-ui",
+ "png",
+ "serde_json",
+ "zeroize",
+]
+
+[[package]]
 name = "faraday-core"
 version = "0.1.1"
 dependencies = [

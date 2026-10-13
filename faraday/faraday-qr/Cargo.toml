@@ -15,6 +15,9 @@ osk-bip = { path = "../../core/osk-bip" }
 miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
 # A BitLocker recovery key's text is wiped when dropped (bitlocker.rs).
 zeroize = { workspace = true, features = ["alloc"] }
+# The QR sender (send.rs): QR and UR encoding. The decoder (`decode`) is
+# not needed to make codes.
+osk-codec = { path = "../../core/osk-codec", default-features = false }
 
 [dev-dependencies]
 faraday-files = { path = "../faraday-files" }

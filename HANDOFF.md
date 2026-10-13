@@ -2298,6 +2298,103 @@ as possible before the next build.
     Report: as COMPANION §0, plus the event and command types A3 must
     encode, and every screen rendered, by file name.
 
+    **A2 built and audited (2026-10-12).** `faraday/faraday-companion`
+    (state and screens; routing in `route.rs`, the received store
+    `FCRS` v1 in `store.rs`) and `faraday-qr`'s `send` (the sender,
+    moved from `faraday-core`, which re-exports the old names). The
+    desktop and hub renders are byte for byte those of A1 (1201
+    files); 46 Companion renders at 1080x2340 looked at. For A3 to
+    encode (`src/api.rs`): `CompanionEvent::Time { unix_s, offset_s }`,
+    `Received { bytes }`, `System { build, certificate_sha256,
+    permissions }`; `CompanionCommand::KeepReceived { bytes }`,
+    `KeepScreenOn { on }`; through `Companion::companion_event` and
+    `poll_companion`, beside the upstream events and commands it uses.
+    For later: a picked file arrives without its name (`Event::File`
+    has none), so it is sent as `picked.<ext>`, and A3 should pass the
+    name; camera frames are decoded on the core's thread at full size,
+    so A3 may want a worker or a reduced frame; the BitLocker key's
+    digits show in osk-ui's groups of four, not Windows's six (B);
+    the refusal lines are one short sentence per kind (osk-ui's result
+    headline holds two lines).
+
+    **Batch A3, the Android app** (Opus: the platform boundary, where a
+    mistake is a permission or a leak). The build machine has JDK 21,
+    the SDK (platform 36, build-tools 36.0.0, NDK 29.0.14206865), the
+    emulator and an AVD `headless`; `local/remote-run.sh` sets
+    `JAVA_HOME`, `ANDROID_HOME` and `ANDROID_NDK_HOME`. Upstream's
+    files are not edited; what is copied names `d26b84e`.
+
+    1. **`faraday/faraday-companion-ffi`**: a copy of
+       `opensigner/opensigner-ffi` (its README's rules on `unsafe`
+       kept: all of it in `src/jni.rs`, each block with a `SAFETY:`
+       line) for `Companion`: the handle table, the command and event
+       encoding with the Companion's own (A2's `src/api.rs`), JNI names
+       `Java_app_faradayoffline_companion_Core_*`, built as
+       `libfaraday_companion.so`. Camera frames go to a
+       `faraday-scanner` worker, as the desktop's do, and come back to
+       the core as `Event::Scanned`, so nothing decodes on the UI
+       thread. Host tests of the encoding in `src/lib.rs`. Added to
+       `tools/lint-companion-deps.sh`'s list.
+    2. **`faraday/shells/android`**: copied from
+       `opensigner/shells/android` (a README names the commit and
+       what was left out). Application ID and namespace
+       `app.faradayoffline.companion`, label "Faraday Companion" (the
+       one string in the shell), version name the workspace's, version
+       code 1. Kept from upstream: the one Activity, the view that
+       blits the frame and feeds touches and Back, `Camera.kt`, the
+       document picker and creator, `FLAG_SECURE`, `allowBackup`
+       false and data-extraction rules excluding every domain,
+       portrait, minSdk 26, targetSdk 36, `abiFilters`, `vcsInfo` and
+       the dependency blob off, `dependencies {}`. Not kept: anything
+       of `KeptSecret.kt` that keeps a signing key, the secure MAC,
+       entropy, settings, the clipboard write. The launcher icon is
+       drawn from Faraday's mark, as the hub app's is.
+       - The received store: AES-GCM under a Keystore key of its own
+         that needs no unlock (COMPANION §7, Received), in the app's
+         private files; handed to the core at start, written on
+         `KeepReceived`.
+       - `KeepScreenOn` sets and clears `FLAG_KEEP_SCREEN_ON`.
+       - `Time` at start and on resume; `System` from the package
+         manager: the signing certificate's SHA-256, the permissions
+         asked for and whether each is granted, the version and code.
+       - A picked file's display name reaches the core with its bytes
+         (a Companion event, and the core uses it instead of
+         `picked.<ext>`).
+    3. **The manifest** asks for `CAMERA` and `USE_BIOMETRIC` (§6.1;
+       the second is used from batch B) and nothing else.
+    4. **Lint** (`tools/lint-companion-android.sh`, in `just lint`,
+       COMPANION §6.2): the shell's manifest has no `<uses-permission>`
+       but those two and no `<uses-library>`; `build.gradle.kts`'s
+       `dependencies {}` is empty and its plugins are the two
+       upstream's are; the Kotlin has no `ACTION_VIEW`,
+       `Uri.parse("http`, `setPrimaryClip`, `java.net.` or
+       `HttpURLConnection`. Each failure names the file and line.
+    5. **Recipes** in `faraday/faraday.just`: `companion-lib` (both
+       ABIs, as `android-lib`), `companion-apk` (debug, a clean Gradle
+       build, copied to `out/android/faraday-companion-debug.apk`;
+       it then runs `aapt2 dump permissions` on the APK and fails
+       unless the list is exactly the two), `companion-run` (the
+       emulator as `android-run` starts it, install, launch, and a
+       screenshot through `tools/android-screenshot.py` into
+       `out/android/companion/`).
+
+    Tried on the emulator, by the agent, with screenshots fetched for
+    the orchestrator: the app opens on Home; Receive shows the
+    emulator's camera; About shows the debug certificate's SHA-256 and
+    CAMERA granted or not; a file pushed to the emulator's Downloads
+    and picked in Send shows as codes under its own name; a text set
+    on the emulator's clipboard and pasted in Receive is kept, and is
+    still in Received after the app is stopped and started again;
+    seed words pasted are refused; `adb shell dumpsys package` lists no
+    INTERNET. What adb cannot reach is said in the report, not worked
+    around.
+
+    Done when: `just` passes once at the end; `just companion-apk`
+    builds and its permission check passes; the screenshots above are
+    fetched (`local/remote-run.sh --fetch out/android/companion ...`).
+    Report: as COMPANION §0, plus what of upstream's shell was left out,
+    the APK's size, and the emulator steps with their screenshots.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:

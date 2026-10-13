@@ -10,8 +10,9 @@ changes and nothing else has to be kept in step.
 - Faraday's decisions are `docs/DECISIONS.md`, numbered F1 onward.
   `docs/PLANNING.md` is upstream's copy and is not edited here.
 - A screen is one of DESIGN §5's sixteen screens, built from the §4
-  components. The hub app's screens are `docs/HUB.md` §3, built from
-  the same components.
+  components. The hub app's screens are `docs/HUB.md` §3 and the
+  Companion's are `docs/COMPANION.md` §4, built from the same
+  components.
 - Every dimension is a name in `core/osk-ui/src/tokens.rs`;
   `tools/lint-tokens.sh` fails the build otherwise.
 - Every user-facing string is in OpenSigner's

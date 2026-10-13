@@ -7559,6 +7559,231 @@ pub struct Strings {
     pub vm_parallels: &'static str,
     /// A hypervisor's name.
     pub vm_bochs: &'static str,
+    // ----- The Companion (docs/COMPANION.md), faraday-companion -----
+    /// Home's title: the app's name.
+    pub companion_title: &'static str,
+    /// Home row, and the scanner's title (§4.2).
+    pub companion_home_receive: &'static str,
+    /// Home row, and the list a file is sent from (§4.3).
+    pub companion_home_send: &'static str,
+    /// Home row, and the list of kept files (§4.4).
+    pub companion_home_received: &'static str,
+    /// Home row: the boot pages (§4.7).
+    pub companion_home_start: &'static str,
+    /// Home row: every Learn page.
+    pub companion_home_learn: &'static str,
+    /// Home row: About (§4.8).
+    pub companion_home_about: &'static str,
+    /// Inside the viewfinder before the first camera frame.
+    pub companion_scan_waiting: &'static str,
+    /// Inside the viewfinder while frames come.
+    pub companion_scan_looking: &'static str,
+    /// Inside the viewfinder: the shell has no camera, or access was refused.
+    pub companion_scan_no_camera: &'static str,
+    /// A code in parts: `{}` parts read of `{}`.
+    pub companion_scan_part: &'static str,
+    /// A code in parts: read, of, and the parts still missing.
+    pub companion_scan_part_missing: &'static str,
+    /// A code that is a part of another transfer, or damaged.
+    pub companion_scan_not_read: &'static str,
+    /// Paste found no text on the clipboard.
+    pub companion_scan_nothing_to_paste: &'static str,
+    /// The scanner's one way in besides the camera.
+    pub companion_paste: &'static str,
+    /// A whole file arrived and is in Received.
+    pub companion_kept: &'static str,
+    /// The same file arrived again: it is in Received once.
+    pub companion_already_kept: &'static str,
+    /// Opens the file that arrived.
+    pub companion_open: &'static str,
+    /// Back to the camera.
+    pub companion_scan_again: &'static str,
+    /// A file's name, in a record.
+    pub companion_name: &'static str,
+    /// A file's kind, in a record.
+    pub companion_kind: &'static str,
+    /// A file's size, in a record.
+    pub companion_size: &'static str,
+    /// When a file was kept, in a record.
+    pub companion_when: &'static str,
+    /// A file's SHA-256, in a record.
+    pub companion_sha256: &'static str,
+    /// A kind of kept file.
+    pub companion_kind_psbt: &'static str,
+    /// A kind of kept file.
+    pub companion_kind_transaction: &'static str,
+    /// A kind of kept file.
+    pub companion_kind_description: &'static str,
+    /// A kind of kept file.
+    pub companion_kind_file: &'static str,
+    /// A kind of kept file.
+    pub companion_kind_text: &'static str,
+    /// A size under a kibibyte.
+    pub companion_bytes: &'static str,
+    /// A size in kibibytes.
+    pub companion_kib: &'static str,
+    /// A time the phone's clock did not give.
+    pub companion_time_unknown: &'static str,
+    /// Refused (§5): seed words.
+    pub companion_refuse_words: &'static str,
+    /// Refused (§5): a SeedQR.
+    pub companion_refuse_seedqr: &'static str,
+    /// Refused (§5): a CompactSeedQR.
+    pub companion_refuse_compact_seedqr: &'static str,
+    /// Refused (§5): codex32.
+    pub companion_refuse_codex32: &'static str,
+    /// Refused (§5): a SLIP-39 share.
+    pub companion_refuse_slip39: &'static str,
+    /// Refused (§5): an extended private key.
+    pub companion_refuse_xprv: &'static str,
+    /// Refused (§5): a WIF private key.
+    pub companion_refuse_wif: &'static str,
+    /// Refused (§5): `ur:crypto-seed`.
+    pub companion_refuse_ur_seed: &'static str,
+    /// Refused (§5): `ur:crypto-bip39`.
+    pub companion_refuse_ur_bip39: &'static str,
+    /// Refused (§5): a UR key that holds a private key.
+    pub companion_refuse_ur_private_key: &'static str,
+    /// Refused (§5): an encrypted backup.
+    pub companion_refuse_backup: &'static str,
+    /// Refused (§5): a KeePass database.
+    pub companion_refuse_keepass: &'static str,
+    /// Refused (§5): a sealed vault.
+    pub companion_refuse_vault: &'static str,
+    /// Refused (§5): a threshold carry.
+    pub companion_refuse_carry: &'static str,
+    /// Refused (§5): `otpauth://`.
+    pub companion_refuse_totp: &'static str,
+    /// Refused (§5): `otpauth-migration://`.
+    pub companion_refuse_totp_migration: &'static str,
+    /// Refused (§5): vault entries.
+    pub companion_refuse_entries: &'static str,
+    /// Text that arrived, shown.
+    pub companion_text_title: &'static str,
+    /// Keeps the text shown in Received.
+    pub companion_keep: &'static str,
+    /// An address that arrived, shown.
+    pub companion_address_title: &'static str,
+    /// The kind of address shown.
+    pub companion_address_bitcoin: &'static str,
+    /// The kind of address shown.
+    pub companion_address_silent: &'static str,
+    /// A web address that arrived, shown and never opened.
+    pub companion_web_title: &'static str,
+    /// Under a web address.
+    pub companion_web_not_opened: &'static str,
+    /// A BitLocker recovery key that arrived, shown masked.
+    pub companion_bitlocker_title: &'static str,
+    /// The computer a recovery key is for.
+    pub companion_bitlocker_computer: &'static str,
+    /// The drive a recovery key is for.
+    pub companion_bitlocker_drive: &'static str,
+    /// Closes what is shown.
+    pub companion_done: &'static str,
+    /// Opens the system's document picker.
+    pub companion_send_choose: &'static str,
+    /// Send's list with nothing in Received.
+    pub companion_send_nothing: &'static str,
+    /// A file that cannot go as codes: the result's title.
+    pub companion_send_not_sent: &'static str,
+    /// A file over the envelope's 256 KiB.
+    pub companion_send_too_large: &'static str,
+    /// A file with nothing in it.
+    pub companion_send_empty: &'static str,
+    /// The shell has no document picker.
+    pub companion_send_no_picker: &'static str,
+    /// No code holds the file in the format asked.
+    pub companion_send_no_code: &'static str,
+    /// The name a file from the picker is sent under: `{}` its extension.
+    pub companion_send_picked: &'static str,
+    /// Why a file was not sent, in a record.
+    pub companion_reason: &'static str,
+    /// The QR screen's switch.
+    pub companion_animated: &'static str,
+    /// Why the switch is on and dimmed.
+    pub companion_too_dense: &'static str,
+    /// The animated code's progress: frame `{}` of `{}`.
+    pub companion_frame_of: &'static str,
+    /// The frame rate, which a press steps through: `{}` a number.
+    pub companion_rate: &'static str,
+    /// Shows the code as UR.
+    pub companion_show_as_ur: &'static str,
+    /// Shows the code as BBQr.
+    pub companion_show_as_bbqr: &'static str,
+    /// Shows the code as numbered parts.
+    pub companion_show_as_parts: &'static str,
+    /// Under a code.
+    pub companion_made_psbt_one: &'static str,
+    /// Under a code.
+    pub companion_made_psbt_frames: &'static str,
+    /// Under a code.
+    pub companion_made_text_one: &'static str,
+    /// Under a code.
+    pub companion_made_key_one: &'static str,
+    /// Under a code.
+    pub companion_made_account: &'static str,
+    /// Under a code.
+    pub companion_made_bytes_one: &'static str,
+    /// Under a code.
+    pub companion_made_bytes_frames: &'static str,
+    /// Under a code.
+    pub companion_made_file_one: &'static str,
+    /// Under a code.
+    pub companion_made_file_frames: &'static str,
+    /// Under a code: `{}` the BBQr file type.
+    pub companion_made_bbqr_one: &'static str,
+    /// Under a code: the BBQr file type and the frames.
+    pub companion_made_bbqr_frames: &'static str,
+    /// Under a code.
+    pub companion_made_parts: &'static str,
+    /// Received with nothing kept.
+    pub companion_received_empty: &'static str,
+    /// Received's action.
+    pub companion_delete_all: &'static str,
+    /// Received, when the kept files could not be read.
+    pub companion_unreadable: &'static str,
+    /// Their state: left as they are until deleted.
+    pub companion_unreadable_value: &'static str,
+    /// Deletes the unreadable kept files.
+    pub companion_unreadable_delete: &'static str,
+    /// A record's action.
+    pub companion_show_as_qr: &'static str,
+    /// A record's action: the system's document creator.
+    pub companion_save: &'static str,
+    /// A record's action.
+    pub companion_delete: &'static str,
+    /// The save's answer, in the record.
+    pub companion_saved: &'static str,
+    /// The save's answer, in the record.
+    pub companion_not_saved: &'static str,
+    /// Asked once before a file is deleted.
+    pub companion_delete_one: &'static str,
+    /// Asked once before Delete all.
+    pub companion_delete_all_ask: &'static str,
+    /// Asked once before the unreadable kept files are deleted.
+    pub companion_delete_store_ask: &'static str,
+    /// Answers no.
+    pub companion_keep_it: &'static str,
+    /// How many files, in a record.
+    pub companion_files: &'static str,
+    /// About: the app's version.
+    pub companion_version: &'static str,
+    /// About: the build, as the phone reports it.
+    pub companion_build: &'static str,
+    /// About: the APK signing certificate's SHA-256.
+    pub companion_certificate: &'static str,
+    /// About: what the app reaches.
+    pub companion_network: &'static str,
+    /// About: no network access, no permissions.
+    pub companion_none: &'static str,
+    /// About: the permissions the system says the app holds.
+    pub companion_permissions: &'static str,
+    /// About: a fact the phone has not given.
+    pub companion_not_reported: &'static str,
+    /// About: how to check the APK.
+    pub companion_about_check: &'static str,
+    /// About: what the certificate's SHA-256 is compared with.
+    pub companion_about_certificate: &'static str,
 }
 
 /// The English wording.
@@ -11221,4 +11446,116 @@ pub static EN: Strings = Strings {
     vm_xen: "Xen",
     vm_parallels: "Parallels",
     vm_bochs: "Bochs",
+    companion_title: "Faraday Companion",
+    companion_home_receive: "Receive from Faraday",
+    companion_home_send: "Send to Faraday",
+    companion_home_received: "Received",
+    companion_home_start: "Start from the stick",
+    companion_home_learn: "Learn",
+    companion_home_about: "About",
+    companion_scan_waiting: "Waiting for camera",
+    companion_scan_looking: "Looking for a code",
+    companion_scan_no_camera: "No camera",
+    companion_scan_part: "{} of {}",
+    companion_scan_part_missing: "{} of {} · missing {}",
+    companion_scan_not_read: "Code not read",
+    companion_scan_nothing_to_paste: "Nothing to paste",
+    companion_paste: "Paste",
+    companion_kept: "Kept in Received",
+    companion_already_kept: "Already in Received",
+    companion_open: "Open",
+    companion_scan_again: "Scan again",
+    companion_name: "Name",
+    companion_kind: "Kind",
+    companion_size: "Size",
+    companion_when: "Kept",
+    companion_sha256: "SHA-256",
+    companion_kind_psbt: "PSBT",
+    companion_kind_transaction: "Transaction",
+    companion_kind_description: "Wallet description",
+    companion_kind_file: "File",
+    companion_kind_text: "Text",
+    companion_bytes: "{} B",
+    companion_kib: "{} KiB",
+    companion_time_unknown: "Not known",
+    companion_refuse_words: "Seed words stay on the Faraday device.",
+    companion_refuse_seedqr: "A SeedQR stays on the Faraday device.",
+    companion_refuse_compact_seedqr: "A CompactSeedQR stays on the Faraday device.",
+    companion_refuse_codex32: "A codex32 seed stays on the Faraday device.",
+    companion_refuse_slip39: "A SLIP-39 share stays on the Faraday device.",
+    companion_refuse_xprv: "An xprv stays on the Faraday device.",
+    companion_refuse_wif: "A private key stays on the Faraday device.",
+    companion_refuse_ur_seed: "A seed stays on the Faraday device.",
+    companion_refuse_ur_bip39: "Seed words stay on the Faraday device.",
+    companion_refuse_ur_private_key: "A private key stays on the Faraday device.",
+    companion_refuse_backup: "A backup stays on the Faraday device.",
+    companion_refuse_keepass: "A KeePass file stays on the Faraday device.",
+    companion_refuse_vault: "A vault stays on the Faraday device.",
+    companion_refuse_carry: "A threshold carry stays on the Faraday device.",
+    companion_refuse_totp: "A TOTP secret stays on the Faraday device.",
+    companion_refuse_totp_migration: "Authenticator codes stay on the Faraday device.",
+    companion_refuse_entries: "Vault entries stay on the Faraday device.",
+    companion_text_title: "Text",
+    companion_keep: "Keep",
+    companion_address_title: "Address",
+    companion_address_bitcoin: "Bitcoin address",
+    companion_address_silent: "Silent payment address",
+    companion_web_title: "Web address",
+    companion_web_not_opened: "Not opened",
+    companion_bitlocker_title: "BitLocker recovery key",
+    companion_bitlocker_computer: "Computer",
+    companion_bitlocker_drive: "Drive",
+    companion_done: "Done",
+    companion_send_choose: "Choose a file",
+    companion_send_nothing: "Nothing in Received",
+    companion_send_not_sent: "Not sent",
+    companion_send_too_large: "Over 256 KiB",
+    companion_send_empty: "Empty",
+    companion_send_no_picker: "No file picker",
+    companion_send_no_code: "No code holds it",
+    companion_send_picked: "picked.{}",
+    companion_reason: "Reason",
+    companion_animated: "Animated",
+    companion_too_dense: "too dense",
+    companion_frame_of: "{} of {}",
+    companion_rate: "{} frames a second",
+    companion_show_as_ur: "Show as UR",
+    companion_show_as_bbqr: "Show as BBQr",
+    companion_show_as_parts: "Show as numbered parts",
+    companion_made_psbt_one: "ur:crypto-psbt · one code",
+    companion_made_psbt_frames: "ur:crypto-psbt · {} frames",
+    companion_made_text_one: "Text · one code",
+    companion_made_key_one: "Key · one code",
+    companion_made_account: "ur:crypto-account · one code",
+    companion_made_bytes_one: "ur:bytes · one code",
+    companion_made_bytes_frames: "ur:bytes · {} frames",
+    companion_made_file_one: "File · ur:bytes · one code",
+    companion_made_file_frames: "File · ur:bytes · {} frames",
+    companion_made_bbqr_one: "BBQr {} · one code",
+    companion_made_bbqr_frames: "BBQr {} · {} frames",
+    companion_made_parts: "Numbered parts · {} frames",
+    companion_received_empty: "Nothing received",
+    companion_delete_all: "Delete all",
+    companion_unreadable: "Kept files",
+    companion_unreadable_value: "Not readable",
+    companion_unreadable_delete: "Delete the kept files",
+    companion_show_as_qr: "Show as QR",
+    companion_save: "Save",
+    companion_delete: "Delete",
+    companion_saved: "Saved",
+    companion_not_saved: "Not saved",
+    companion_delete_one: "Delete this file?",
+    companion_delete_all_ask: "Delete every received file?",
+    companion_delete_store_ask: "Delete the kept files?",
+    companion_keep_it: "Keep it",
+    companion_files: "Files",
+    companion_version: "Version",
+    companion_build: "Build",
+    companion_certificate: "Signing certificate SHA-256",
+    companion_network: "Network access",
+    companion_none: "None",
+    companion_permissions: "Permissions",
+    companion_not_reported: "Not reported",
+    companion_about_check: "Each release lists this app's file in SHA256SUMS, and the release's OpenPGP key signs that list. The file's SHA-256 is checked against the list, and the list's signature against the key, as the README's Verifying a release says.",
+    companion_about_certificate: "The signing certificate's SHA-256 above is the one apksigner verify --print-certs prints for the release's file. The release notes state it.",
 };

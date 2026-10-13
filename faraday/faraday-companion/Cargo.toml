@@ -1,0 +1,39 @@
+[package]
+name = "faraday-companion"
+version = "0.1.1"
+description = "Faraday Companion's state, screens and decisions (docs/COMPANION.md): events in, commands out, no I/O"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+# Nothing on docs/COMPANION.md §3's list: `tools/lint-companion-deps.sh`
+# checks this crate's tree.
+[dependencies]
+osk-ui = { path = "../../core/osk-ui" }
+osk-shell-api = { path = "../../core/osk-shell-api" }
+# What arrives, and the QR decoder the camera's frames are read with.
+osk-codec = { path = "../../core/osk-codec" }
+osk-learn = { path = "../../core/osk-learn" }
+# SHA-256 and base64, through the `bitcoin` library it carries.
+osk-bip = { path = "../../core/osk-bip" }
+# The transports, the file envelope and the QR sender.
+faraday-qr = { path = "../faraday-qr" }
+# What is refused (docs/COMPANION.md §5).
+faraday-intake = { path = "../faraday-intake" }
+faraday-learn = { path = "../faraday-learn" }
+faraday-strings = { path = "../faraday-strings" }
+zeroize = { workspace = true, features = ["alloc"] }
+
+[dev-dependencies]
+# The device's QR sheet and scanner, which the tests read and write
+# codes with (docs/COMPANION.md §11); never in the Companion itself.
+faraday-core = { path = "../faraday-core", features = ["testkit"] }
+# The screens written as PNG by `examples/snap.rs` (`just companion-snap`).
+png.workspace = true
+# The published vectors' JSON files, read by the tests.
+serde_json.workspace = true
+
+[lints]
+workspace = true

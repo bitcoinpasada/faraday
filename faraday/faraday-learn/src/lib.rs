@@ -231,6 +231,12 @@ fn own() -> &'static [LearnPage] {
     PAGES.get_or_init(|| OWN.iter().map(|(_, md)| page_of(md)).collect())
 }
 
+/// The id of every one of Faraday's own pages, in [`OWN`]'s order: for
+/// an app that lists them all (the Companion's Learn).
+pub fn ids() -> impl Iterator<Item = &'static str> {
+    OWN.iter().map(|(id, _)| *id)
+}
+
 /// Faraday's own page with this id, or `None` for an id it does not have.
 pub fn page(id: &str) -> Option<&'static LearnPage> {
     OWN.iter().position(|(i, _)| *i == id).map(|n| &own()[n])

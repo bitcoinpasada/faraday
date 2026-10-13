@@ -1721,22 +1721,9 @@ impl Drop for QrView {
     }
 }
 
-/// What a QR view shows.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum QrSource {
-    /// A PSBT: `ur:crypto-psbt`, or BBQr `P`.
-    Psbt(Vec<u8>),
-    /// Text a wallet reads (a descriptor, a key): one code while it fits,
-    /// else `ur:bytes`, or BBQr `U`.
-    Text(String),
-    /// A cosigner's account key: `ur:crypto-account` when it has one (a
-    /// `wsh` multisig key, as SeedSigner shows its own), else as
-    /// text; or BBQr `U` of the `[fingerprint/path]xpub` line.
-    Key(String, Option<String>),
-    /// Any other file, in the Faraday file envelope (`docs/QR.md`):
-    /// `ur:bytes`, or BBQr `J`, as Faraday OS reads them.
-    File(String, Vec<u8>),
-}
+/// What a QR view shows: `faraday-qr`'s sender, which the Companion
+/// shares.
+pub use faraday_qr::send::Source as QrSource;
 
 /// A public file a flow makes that is offered as a code and as a
 /// labelled picture of it, beside the file itself (`docs/QR.md`).
@@ -1776,31 +1763,57 @@ pub enum Code {
     GpgSignature(usize),
 }
 
-/// How a QR view is written.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum QrFormat {
-    /// Uniform Resources: what Sparrow and most wallets read.
-    Ur,
-    /// BBQr: what Coldcard writes and SeedSigner 0.8.7 and newer read.
-    Bbqr,
-    /// Specter's numbered text parts, `p1of3 …`: what SeedSigner reads a
-    /// descriptor or a key in when it does not read BBQr. Text only.
-    Parts,
-}
-
-impl QrFormat {
-    /// The formats in the order the sheet lists them.
-    pub const ALL: [QrFormat; 3] = [QrFormat::Ur, QrFormat::Bbqr, QrFormat::Parts];
-}
+/// How a QR view is written: UR, BBQr or numbered parts.
+pub use faraday_qr::send::Format as QrFormat;
 
 /// The part sizes offered, in bytes of data a frame.
-pub const QR_PARTS: [usize; 3] = [100, 160, 250];
+pub use faraday_qr::send::PARTS as QR_PARTS;
 
 /// The frame rates offered, as milliseconds a frame: 2, 3 and 5 a
 /// second (`docs/QR.md`: 2 by default).
-pub const QR_SPEEDS: [u64; 3] = [500, 333, 200];
+pub use faraday_qr::send::SPEEDS as QR_SPEEDS;
 
-type Frames = (String, Vec<osk_codec::qr::QrMatrix>);
+/// The line under the codes the sender made: their format, and how many
+/// frames.
+fn made_line(made: faraday_qr::send::Made) -> String {
+    use faraday_qr::send::Made;
+    let n = |k: usize| k.to_string();
+    match made {
+        Made::UrPsbtOne => EN.of_ur_crypto_psbt_one.to_string(),
+        Made::UrPsbtFrames(k) => fill(EN.of_ur_crypto_psbt_frames, &[&n(k)]),
+        Made::TextOne => EN.of_text_one_code.to_string(),
+        Made::KeyOne => EN.of_key_one_code.to_string(),
+        Made::UrAccount => EN.of_ur_crypto_account.to_string(),
+        Made::UrBytesOne { file } => fill(EN.ur_bytes_frames_one, &[ur_bytes_what(file)]),
+        Made::UrBytesFrames { file, frames } => fill(
+            EN.ur_bytes_frames_frames,
+            &[ur_bytes_what(file), &n(frames)],
+        ),
+        Made::BbqrOne(t) => fill(EN.bbqr_frames_bbqr_one, &[&t.to_string()]),
+        Made::BbqrFrames(t, k) => fill(EN.bbqr_frames_bbqr_frames, &[&t.to_string(), &n(k)]),
+        Made::PartsOne => EN.parts_frames_text_one.to_string(),
+        Made::PartsNumbered(k) => fill(EN.parts_frames_numbered, &[&n(k)]),
+    }
+}
+
+/// What `ur:bytes` carries, as the line names it.
+fn ur_bytes_what(file: bool) -> &'static str {
+    if file {
+        EN.of_file_ur_bytes
+    } else {
+        "ur:bytes"
+    }
+}
+
+/// Why the sender made no codes, as the sheet says it.
+fn send_error(e: faraday_qr::send::Error) -> String {
+    use faraday_qr::send::Error;
+    match e {
+        Error::TooLargeForBbqr => EN.bbqr_frames_too_large.to_string(),
+        Error::Envelope(why) => why.to_string(),
+        Error::Code(why) => why,
+    }
+}
 
 impl QrView {
     /// A PSBT as `ur:crypto-psbt`: one code when it fits, else animated.
@@ -1832,63 +1845,8 @@ impl QrView {
         format: QrFormat,
         part: usize,
     ) -> Result<QrView, String> {
-        use osk_codec::qr::{Ecc, Payload, encode_bounded};
-        let (sub, frames) = match (&source, format) {
-            (QrSource::Psbt(bytes), QrFormat::Ur) => {
-                let single = osk_codec::ur::encode_psbt(bytes).to_ascii_uppercase();
-                if let Ok(m) =
-                    encode_bounded(Payload::Alphanumeric(single.as_bytes()), Ecc::Low, 20)
-                {
-                    (EN.of_ur_crypto_psbt_one.to_string(), vec![m])
-                } else {
-                    let frames = animated(
-                        osk_codec::ur::Encoder::psbt(bytes, part).map_err(|e| format!("{e:?}"))?,
-                        bytes.len(),
-                        part,
-                    )?;
-                    let sub = fill(EN.of_ur_crypto_psbt_frames, &[&frames.len().to_string()]);
-                    (sub, frames)
-                }
-            }
-            (QrSource::Psbt(bytes), QrFormat::Bbqr | QrFormat::Parts) => {
-                bbqr_frames('P', bytes, part)?
-            }
-            (QrSource::Text(text), QrFormat::Parts) | (QrSource::Key(text, _), QrFormat::Parts) => {
-                parts_frames(text, part)?
-            }
-            (QrSource::Text(text), QrFormat::Ur) => {
-                if let Ok(m) = encode_bounded(Payload::Bytes(text.as_bytes()), Ecc::Medium, 25) {
-                    (EN.of_text_one_code.to_string(), vec![m])
-                } else {
-                    ur_bytes_frames(text.as_bytes(), "ur:bytes", part)?
-                }
-            }
-            (QrSource::Text(text), QrFormat::Bbqr) | (QrSource::Key(text, _), QrFormat::Bbqr) => {
-                bbqr_frames('U', text.as_bytes(), part)?
-            }
-            (QrSource::Key(_, Some(ur)), QrFormat::Ur) => {
-                let m = encode_bounded(
-                    Payload::Alphanumeric(ur.to_ascii_uppercase().as_bytes()),
-                    Ecc::Low,
-                    20,
-                )
-                .map_err(|e| format!("{e:?}"))?;
-                (EN.of_ur_crypto_account.to_string(), vec![m])
-            }
-            (QrSource::Key(text, None), QrFormat::Ur) => {
-                let m = encode_bounded(Payload::Bytes(text.as_bytes()), Ecc::Medium, 25)
-                    .map_err(|e| format!("{e:?}"))?;
-                (EN.of_key_one_code.to_string(), vec![m])
-            }
-            (QrSource::File(name, data), f) => {
-                let env = faraday_qr::envelope::pack(&envelope_name(name), data, "file")
-                    .map_err(str::to_string)?;
-                match f {
-                    QrFormat::Ur => ur_bytes_frames(&env, EN.of_file_ur_bytes, part)?,
-                    QrFormat::Bbqr | QrFormat::Parts => bbqr_frames('J', &env, part)?,
-                }
-            }
-        };
+        let (made, frames) = faraday_qr::send::frames(&source, format, part).map_err(send_error)?;
+        let sub = made_line(made);
         let secret = match &source {
             QrSource::File(name, data) => {
                 wallet::classify(name, data).exposure() == secrets::Exposure::Secret
@@ -1954,48 +1912,6 @@ impl QrView {
     }
 }
 
-/// Specter's numbered parts, `part` characters of text a frame, one code
-/// each; a text that fits one frame is one code with no number.
-fn parts_frames(text: &str, part: usize) -> Result<Frames, String> {
-    use osk_codec::qr::{Ecc, Payload, encode};
-    let parts = if text.chars().count() <= part {
-        vec![text.to_string()]
-    } else {
-        faraday_qr::specter::encode(text, part)
-    };
-    let frames = parts
-        .iter()
-        .map(|p| encode(Payload::Bytes(p.as_bytes()), Ecc::Low).map_err(|e| format!("{e:?}")))
-        .collect::<Result<Vec<_>, _>>()?;
-    let sub = if frames.len() == 1 {
-        EN.parts_frames_text_one.to_string()
-    } else {
-        fill(EN.parts_frames_numbered, &[&frames.len().to_string()])
-    };
-    Ok((sub, frames))
-}
-
-/// BBQr parts in encoding `2`, one code each.
-fn bbqr_frames(t: char, data: &[u8], part: usize) -> Result<Frames, String> {
-    use osk_codec::qr::{Ecc, Payload, encode};
-    let parts = faraday_qr::bbqr::encode(t, data, part).ok_or(EN.bbqr_frames_too_large)?;
-    let frames = parts
-        .iter()
-        .map(|p| {
-            encode(Payload::Alphanumeric(p.as_bytes()), Ecc::Low).map_err(|e| format!("{e:?}"))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    let sub = if frames.len() == 1 {
-        fill(EN.bbqr_frames_bbqr_one, &[&t.to_string()])
-    } else {
-        fill(
-            EN.bbqr_frames_bbqr_frames,
-            &[&t.to_string(), &frames.len().to_string()],
-        )
-    };
-    Ok((sub, frames))
-}
-
 /// Text as pictures keep it: one static code while it fits version 25
 /// at medium error correction (the bound `docs/WALLETS.md` §5 sets for
 /// a descriptor on screen), else the BBQr parts the QR view makes, one
@@ -2006,7 +1922,9 @@ pub(crate) fn picture_codes(text: &str) -> Result<Vec<osk_codec::qr::QrMatrix>, 
     if let Ok(m) = encode_bounded(Payload::Bytes(text.as_bytes()), Ecc::Medium, 25) {
         return Ok(vec![m]);
     }
-    bbqr_frames('U', text.as_bytes(), QR_PARTS[1]).map(|(_, frames)| frames)
+    faraday_qr::send::bbqr_frames('U', text.as_bytes(), QR_PARTS[1])
+        .map(|(_, frames)| frames)
+        .map_err(send_error)
 }
 
 /// The line that names a cosigner's key under its code: `Key {fp} ·
@@ -2023,27 +1941,6 @@ fn key_label(fp: &str, kind: &str, key: &str) -> String {
     }
 }
 
-/// Bytes as `ur:bytes`: one code when it fits, else animated.
-fn ur_bytes_frames(data: &[u8], what: &str, part: usize) -> Result<Frames, String> {
-    use osk_codec::qr::{Ecc, Payload, encode_bounded};
-    let single = osk_codec::ur::encode_bytes(data).to_ascii_uppercase();
-    if let Ok(m) = encode_bounded(Payload::Alphanumeric(single.as_bytes()), Ecc::Low, 20) {
-        return Ok((fill(EN.ur_bytes_frames_one, &[what]), vec![m]));
-    }
-    let frames = animated(
-        osk_codec::ur::Encoder::bytes(data, part).map_err(|e| format!("{e:?}"))?,
-        data.len(),
-        part,
-    )?;
-    Ok((
-        fill(
-            EN.ur_bytes_frames_frames,
-            &[what, &frames.len().to_string()],
-        ),
-        frames,
-    ))
-}
-
 /// Whether an Outbox file can go as a QR transfer: what a wallet reads
 /// goes as itself, anything else in the file envelope, which carries up
 /// to 256 KiB. No vault is that small.
@@ -2054,44 +1951,6 @@ pub(crate) fn qr_fits(item: &Item) -> bool {
         }
         _ => !item.bytes.is_empty() && item.bytes.len() <= faraday_qr::envelope::MAX_FILE,
     }
-}
-
-/// A file's name as the envelope takes one: letters, digits, dots,
-/// hyphens and underscores, starting with a letter or digit.
-fn envelope_name(name: &str) -> String {
-    let mut n: String = name
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || "._-".contains(c) {
-                c
-            } else {
-                '-'
-            }
-        })
-        .take(128)
-        .collect();
-    if !n.starts_with(|c: char| c.is_ascii_alphanumeric()) {
-        n.insert(0, 'f');
-        n.truncate(128);
-    }
-    n
-}
-
-/// The frames of a fountain-coded UR: twice the fragments it takes, so a
-/// scanner that misses a few still completes on the first pass.
-fn animated(
-    mut enc: osk_codec::ur::Encoder,
-    len: usize,
-    frag: usize,
-) -> Result<Vec<osk_codec::qr::QrMatrix>, String> {
-    use osk_codec::qr::{Ecc, Payload, encode};
-    let count = (len.div_ceil(frag) * 2).max(4);
-    (0..count)
-        .map(|_| {
-            let part = enc.next_part().to_ascii_uppercase();
-            encode(Payload::Alphanumeric(part.as_bytes()), Ecc::Low).map_err(|e| format!("{e:?}"))
-        })
-        .collect()
 }
 
 /// The progress of a multi-part code: parts read, and which are missing.
