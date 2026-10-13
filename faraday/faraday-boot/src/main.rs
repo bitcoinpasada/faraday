@@ -2,7 +2,7 @@
 //! with no privilege, over the two FIFOs `rcS` makes.
 //!
 //! ```text
-//! faraday-boot REQUESTS RESPONSES [SYS DEV VERSION]
+//! faraday-boot REQUESTS RESPONSES [SYS DEV VERSION [BOOT_BYTES]]
 //! faraday-boot --list [SYS DEV VERSION]
 //! faraday-boot --ask list|read|forget REQUESTS RESPONSES
 //! faraday-boot --ask write ID REQUESTS RESPONSES
@@ -13,6 +13,10 @@
 //! shell goes, the pipes are opened again and the next one is served. A
 //! frame that does not parse ends the conversation rather than being
 //! guessed at.
+//!
+//! SYS, DEV, VERSION and BOOT_BYTES stand in for `/sys`, `/dev`,
+//! `/proc/version` and the size of this image's boot partition
+//! (`faraday_boot::BOOT_BYTES`), for the tests' image files.
 //!
 //! `--list` prints the running release and every boot partition handed
 //! out with the release string found on it, and exits. `--ask` sends one
@@ -140,12 +144,19 @@ fn main() -> ExitCode {
         Some("--ask") => return ask(&args),
         _ => {}
     }
-    if args.len() != 3 && args.len() != 6 {
-        say!("usage: faraday-boot REQUESTS RESPONSES [SYS DEV VERSION]");
+    // The size a source must be: the image's own, or for a test's image
+    // files the one given.
+    let boot_bytes = match args.get(6) {
+        None => Ok(faraday_boot::BOOT_BYTES),
+        Some(n) => n.parse::<u64>().map(Some),
+    };
+    let (true, Ok(boot_bytes)) = ([3, 6, 7].contains(&args.len()), boot_bytes) else {
+        say!("usage: faraday-boot REQUESTS RESPONSES [SYS DEV VERSION [BOOT_BYTES]]");
         return ExitCode::from(2);
-    }
+    };
     let (sys, dev, version) = roots(&args, 3);
-    let mut boots = Boots::new(Path::new(&sys), Path::new(&dev), Path::new(&version));
+    let mut boots = Boots::new(Path::new(&sys), Path::new(&dev), Path::new(&version))
+        .with_boot_bytes(boot_bytes);
     loop {
         if let Err(e) = serve(&mut boots, Path::new(&args[1]), Path::new(&args[2])) {
             say!("faraday-boot: {e}");

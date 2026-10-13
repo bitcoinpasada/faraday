@@ -6,9 +6,12 @@
 //! the lock sheet comes first and the fresh process opens here. Then:
 //!
 //! 1. The stick Faraday started from is read. The boot copier
-//!    (`faraday-boot`) takes as the source whichever boot partition holds
+//!    (`faraday-boot`) takes as the source the boot partition that holds
 //!    the running kernel's release string, so it does not matter when the
-//!    stick went in, or whether it was pulled and put back.
+//!    stick went in, or whether it was pulled and put back. When more than
+//!    one in holds it, or the one that does is not this image's size, it
+//!    takes none and says why; once a stick is taken out, what is left is
+//!    read again.
 //! 2. The stick to upgrade: its version and the one to be written, a
 //!    newer one warned about, a boot partition too small refused.
 //!    **Upgrade** has the copier write, read back and compare.
@@ -306,7 +309,14 @@ impl Faraday {
                 }
                 u.parts = parts;
                 let ids: Vec<&String> = u.parts.iter().map(|p| &p.id).collect();
+                let before = u.tried.len();
                 u.tried.retain(|t| ids.contains(&t));
+                // One that was in when the source was refused has gone:
+                // what is left is read again, as the refusal may have
+                // been that more than one held this Faraday.
+                if u.tried.len() != before {
+                    u.tried.clear();
+                }
                 if u.tried.is_empty() {
                     u.refused = None;
                 }

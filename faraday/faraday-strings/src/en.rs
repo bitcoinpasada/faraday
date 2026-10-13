@@ -6582,6 +6582,11 @@ pub struct Strings {
     pub upgrade_upgrade_another: &'static str,
     /// Text in `done`.
     pub upgrade_done: &'static str,
+    // ----- upgrade (faraday-boot/src/lib.rs) -----
+    /// Text in `read_source`. `{}`: how many boot partitions hold it.
+    pub upgrade_several_hold: &'static str,
+    /// Text in `read_source`. `{}`: its MB, this Faraday's MB.
+    pub upgrade_source_size: &'static str,
     // ----- vanity (faraday-core/src/vanity.rs) -----
     /// Text in `script_name`.
     pub vanity_legacy: &'static str,
@@ -11189,6 +11194,8 @@ pub static EN: Strings = Strings {
     upgrade_remove_the: "Remove the {}",
     upgrade_upgrade_another: "Upgrade another {}",
     upgrade_done: "Done",
+    upgrade_several_hold: "{} sticks in carry this version · Remove all but the one Faraday started from",
+    upgrade_source_size: "The stick carrying this version has a {} MB boot partition; this Faraday's is {} MB",
     vanity_legacy: "Legacy",
     vanity_nested_segwit: "Nested SegWit",
     vanity_native_segwit: "Native SegWit",

@@ -529,11 +529,16 @@ Leaving the screen ends the flow: the copier forgets the
 source, the marker goes, and grant takes the boot partitions back. A
 stick that arrives during the flow is not visited.
 
-With both sticks in at once there is no swap: the one holding this
-Faraday is the source. Taking the boot stick out after boot and putting
-it back for step 1 changes nothing. Every stick has the same partition
-UUIDs (`genimage.cfg`), so the source is told by what it holds, never by
-when it was inserted.
+With both sticks in at once there is no swap when only one of them
+holds this Faraday: that one is the source. Taking the boot stick out
+after boot and putting it back for step 1 changes nothing. Every stick
+has the same partition UUIDs (`genimage.cfg`), so the source is told by
+what it holds, never by when it was inserted. When more than one stick
+in holds this Faraday, none is taken: step 1 says how many carry this
+version and to remove all but the one Faraday started from, and once one
+is taken out the rest are read again. Nor is a source taken whose boot
+partition is not the size this image's is (48 MB on the PC, 32 MB on
+the Pi, from `genimage.cfg`); step 1 says both sizes.
 
 **Which stick is the source.** The image build writes the Faraday
 version and commit into the kernel's release string
@@ -542,7 +547,8 @@ setup header. A boot partition is accepted as the source only if it
 contains the running kernel's release string, as `/proc/version` gives
 it. This identifies the version; it is not a signature, and a stick made
 to carry the same string would pass. Such a stick, present at the
-machine, could as well have been the stick it booted from. The target's
+machine, could as well have been the stick it booted from; with the
+real one in beside it, neither is taken (above). The target's
 version is read the same way and shown: a stick that carries no such
 string (0.1.0 and earlier) shows as an earlier version, and a target
 newer than the running Faraday is warned about.

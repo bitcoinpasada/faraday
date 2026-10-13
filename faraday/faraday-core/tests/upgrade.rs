@@ -310,6 +310,34 @@ fn a_refused_source_is_said_and_tried_again_only_with_another_stick() {
 }
 
 #[test]
+fn two_sticks_holding_this_faraday_are_refused_until_one_is_taken_out() {
+    let mut app = device();
+    open(&mut app);
+    app.storage(StorageEvent::Boots(vec![
+        part("sda1@sda#1", 48 * MB, Some(RUNNING), false),
+        part("sdb1@sdb#2", 48 * MB, Some(RUNNING), false),
+    ]));
+    assert_eq!(asked(&mut app), vec![StorageCommand::BootRead]);
+    let several = faraday_strings::fill(faraday_strings::EN.upgrade_several_hold, &["2"]);
+    app.storage(StorageEvent::BootSourceFailed {
+        reason: several.clone(),
+    });
+    assert_eq!(upgrade(&app).refused.as_deref(), Some(several.as_str()));
+    assert_eq!(upgrade(&app).step(), Step::Source);
+    let _ = app.frame();
+    assert!(!app.offers(Action::UpgradeWrite));
+    // One taken out: the one left is read.
+    app.storage(StorageEvent::Boots(vec![part(
+        "sdb1@sdb#2",
+        48 * MB,
+        Some(RUNNING),
+        false,
+    )]));
+    assert_eq!(asked(&mut app), vec![StorageCommand::BootRead]);
+    assert_eq!(upgrade(&app).refused, None);
+}
+
+#[test]
 fn with_a_key_loaded_it_locks_first_and_the_fresh_process_opens_on_the_upgrade() {
     let mut app = device();
     app.press(Action::Entry(None));

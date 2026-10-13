@@ -223,7 +223,11 @@ written. A stick that holds vaults then never needs another computer.
    the fresh session.
 2. Insert the stick Faraday started from (it may still be in). Faraday
    takes it by what it holds: its kernel carries this Faraday's version
-   and commit. This identifies a version and is not a signature.
+   and commit. This identifies a version and is not a signature, so if
+   more than one stick in carries this version, Faraday takes none and
+   asks you to remove all but the one it started from. A stick whose
+   boot partition is not the size Faraday's image makes is not taken
+   either.
 3. Remove it and insert the stick to upgrade, or have both in at once.
    The screen shows the version on that stick and the one to be written,
    marks a stick that carries a newer Faraday, and refuses one whose

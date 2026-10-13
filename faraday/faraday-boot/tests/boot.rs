@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use faraday_boot::Boots;
 use faraday_boot::client::Client;
 use faraday_boot::proto::{self, Part, Request, Response};
+use faraday_strings::{EN, fill};
 
 /// The running kernel's release: what the image build makes of the
 /// Faraday version and commit.
@@ -59,12 +60,15 @@ impl Machine {
         Machine { root }
     }
 
+    /// The copier, taking a source of any size: the images here are
+    /// smaller than a stick's.
     fn boots(&self) -> Boots {
         Boots::new(
             &self.root.join("sys"),
             &self.root.join("dev"),
             &self.root.join("version"),
         )
+        .with_boot_bytes(None)
     }
 
     /// A disk on `bus` with partitions of (GPT name, image, handed out to
@@ -220,6 +224,88 @@ fn a_stick_carrying_another_release_is_not_the_source() {
         Response::Failed("The stick Faraday started from has not been read".into())
     );
     assert_eq!(m.node("sdd1"), boot_image(MIB, "6.6.84", 5));
+}
+
+#[test]
+fn two_sticks_holding_the_running_faraday_are_refused_and_nothing_is_written() {
+    let m = Machine::new("two");
+    // A stick made to carry the running release string, numbered before
+    // the stick Faraday started from, and the stick to upgrade.
+    let planted = boot_image(3 * MIB, RUNNING, 21);
+    m.stick("sda", 1, planted.clone(), data_image(MIB));
+    let source = boot_image(3 * MIB, RUNNING, 22);
+    m.stick("sdb", 2, source.clone(), data_image(MIB));
+    let vault = boot_image(3 * MIB, "6.6.84-faraday-0.1.9+0123456789ab", 23);
+    let vaults = data_image(2 * MIB);
+    m.stick("sdc", 3, vault.clone(), vaults.clone());
+    let mut b = m.boots().with_boot_bytes(Some(3 * MIB as u64));
+    assert_eq!(
+        b.handle(Request::ReadSource),
+        Response::Failed(fill(EN.upgrade_several_hold, &["2"]))
+    );
+    assert!(parts(b.handle(Request::List)).iter().all(|p| !p.source));
+    for target in ["sda1@sda#1", "sdb1@sdb#2", "sdc1@sdc#3"] {
+        assert_eq!(
+            b.handle(Request::Write {
+                target: target.into()
+            }),
+            Response::Failed("The stick Faraday started from has not been read".into()),
+            "{target}"
+        );
+    }
+    assert_eq!(m.node("sda1"), planted);
+    assert_eq!(m.node("sdb1"), source);
+    assert_eq!(m.node("sdc1"), vault);
+    assert_eq!(m.node("sdc2"), vaults);
+    // The other one taken out: the one left is the source, and is
+    // written over the stick to upgrade.
+    m.pull("sda");
+    assert_eq!(
+        b.handle(Request::ReadSource),
+        Response::Source {
+            id: "sdb1@sdb#2".into(),
+            release: RUNNING.into(),
+            size: source.len() as u64,
+        }
+    );
+    assert_eq!(
+        b.handle(Request::Write {
+            target: "sdc1@sdc#3".into()
+        }),
+        Response::Written {
+            id: "sdc1@sdc#3".into(),
+            release: RUNNING.into(),
+        }
+    );
+    assert_eq!(m.node("sdc1"), source);
+    assert_eq!(m.node("sdc2"), vaults);
+}
+
+#[test]
+fn a_source_whose_size_is_not_this_images_boot_partitions_is_refused() {
+    let m = Machine::new("size");
+    let source = boot_image(4 * MIB, RUNNING, 24);
+    m.stick("sda", 1, source.clone(), data_image(MIB));
+    let old = boot_image(4 * MIB, "6.6.84", 25);
+    m.stick("sdb", 2, old.clone(), data_image(MIB));
+    let mut b = m.boots().with_boot_bytes(Some(3 * MIB as u64));
+    assert_eq!(
+        b.handle(Request::ReadSource),
+        Response::Failed(fill(EN.upgrade_source_size, &["4", "3"]))
+    );
+    assert_eq!(
+        b.handle(Request::Write {
+            target: "sdb1@sdb#2".into()
+        }),
+        Response::Failed("The stick Faraday started from has not been read".into())
+    );
+    assert_eq!(m.node("sdb1"), old);
+    // The size this image's boot partition is: taken.
+    let mut b = m.boots().with_boot_bytes(Some(4 * MIB as u64));
+    assert!(matches!(
+        b.handle(Request::ReadSource),
+        Response::Source { .. }
+    ));
 }
 
 #[test]
@@ -408,6 +494,7 @@ fn the_binary_upgrades_a_stick_over_its_pipes_for_one_shell_after_another() {
         .arg(m.root.join("sys"))
         .arg(m.root.join("dev"))
         .arg(m.root.join("version"))
+        .arg(source.len().to_string())
         .stderr(std::process::Stdio::null())
         .spawn()
         .unwrap();

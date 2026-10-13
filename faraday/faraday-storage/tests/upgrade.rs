@@ -55,6 +55,7 @@ impl Machine {
             &self.root.join("dev"),
             &self.root.join("version"),
         )
+        .with_boot_bytes(None)
     }
 
     /// A Faraday stick on USB, both partitions handed out.

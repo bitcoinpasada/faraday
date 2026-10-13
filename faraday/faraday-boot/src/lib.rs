@@ -20,7 +20,12 @@
 //!   contains the running kernel's release string, as `/proc/version`
 //!   gives it, which the image build makes the Faraday version and commit
 //!   (`CONFIG_LOCALVERSION`). The bzImage carries that string uncompressed
-//!   in its setup code. This identifies a version; it is not a signature.
+//!   in its setup code. This identifies a version; it is not a signature,
+//!   and any stick can be made to carry it. So no source is taken when
+//!   more than one boot partition in holds it, whichever went in first:
+//!   the person is asked to leave in only the stick Faraday started from.
+//!   Nor is one taken whose size is not this image's boot partition's
+//!   ([`BOOT_BYTES`]).
 //! - A **target's** version is the first release string with
 //!   [`MARK`] in it found on its boot partition, or none for a stick made
 //!   before Faraday put one there (0.1.0 and earlier).
@@ -46,6 +51,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+use faraday_strings::{EN, fill};
 use proto::{Part, Request, Response};
 
 /// The boot partition's GPT name.
@@ -63,6 +69,22 @@ pub const MAX_RELEASE: usize = 64;
 /// The largest boot partition read or searched: the PC's is 48 MB, the
 /// Pi's 32 MB.
 pub const MAX_PARTITION: u64 = 64 << 20;
+
+/// The size of the boot partition the running image was built with, as
+/// `genimage.cfg` lays it out for the board this binary is built for:
+/// the PC stick's FAT32 EFI system partition is 48 MiB
+/// (`boards/x86_64-uefi`), the Pi's FAT16 boot partition 32 MiB
+/// (`boards/pi3`, `boards/pi02w`). A source of any other size is not one
+/// this image made. `None` where no Faraday image is built (the hub app
+/// on Windows and macOS uses [`find_release`] alone); there the size is
+/// not checked.
+pub const BOOT_BYTES: Option<u64> = if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+    Some(48 << 20)
+} else if cfg!(all(target_os = "linux", target_arch = "arm")) {
+    Some(32 << 20)
+} else {
+    None
+};
 
 /// How much is read or written at a time.
 const CHUNK: usize = 1 << 20;
@@ -202,6 +224,8 @@ pub struct Boots {
     dev: PathBuf,
     version: PathBuf,
     source: Option<Source>,
+    /// The size a source must be: [`BOOT_BYTES`] unless set otherwise.
+    boot_bytes: Option<u64>,
     /// Each partition's release string, kept while it stays in: nothing
     /// else writes to a boot partition, and a stick searched once a
     /// second would show it with its light.
@@ -217,8 +241,16 @@ impl Boots {
             dev: dev.to_path_buf(),
             version: version.to_path_buf(),
             source: None,
+            boot_bytes: BOOT_BYTES,
             seen: BTreeMap::new(),
         }
+    }
+
+    /// The copier, taking only a source of `bytes` (`None`: of any size),
+    /// rather than [`BOOT_BYTES`]: for the tests' image files.
+    pub fn with_boot_bytes(mut self, bytes: Option<u64>) -> Boots {
+        self.boot_bytes = bytes;
+        self
     }
 
     /// Every boot partition of a Faraday stick on USB that this process
@@ -325,7 +357,10 @@ impl Boots {
         parts
     }
 
-    /// Reads the boot partition that holds the running Faraday.
+    /// Reads the boot partition that holds the running Faraday: the one
+    /// boot partition in that holds it, of this image's size. Every
+    /// partition in is read, so that a second one holding it is seen
+    /// whichever way they are numbered.
     pub fn read_source(&mut self) -> Response {
         self.source = None;
         let running = fs::read_to_string(&self.version)
@@ -339,6 +374,10 @@ impl Boots {
         if found.is_empty() {
             return Response::Failed("No Faraday stick is in".into());
         }
+        // The first that holds it, kept; the others, counted.
+        let mut first: Option<(Found, Vec<u8>)> = None;
+        let mut holding = 0usize;
+        let mut scratch = Vec::new();
         for f in found {
             let Ok(mut h) = File::open(&f.node) else {
                 continue;
@@ -347,26 +386,55 @@ impl Boots {
             if len > MAX_PARTITION {
                 continue;
             }
-            let mut bytes = vec![0u8; len as usize];
+            let mut bytes = if first.is_some() {
+                std::mem::take(&mut scratch)
+            } else {
+                Vec::new()
+            };
+            bytes.clear();
+            bytes.resize(len as usize, 0);
             if h.seek(SeekFrom::Start(0)).is_err() || h.read_exact(&mut bytes).is_err() {
+                scratch = bytes;
                 continue;
             }
-            if holds(&bytes, &release) {
-                self.seen.insert(f.id.clone(), Some(release.clone()));
-                let size = bytes.len() as u64;
-                self.source = Some(Source {
-                    id: f.id.clone(),
-                    release: release.clone(),
-                    bytes,
-                });
-                return Response::Source {
-                    id: f.id,
-                    release,
-                    size,
-                };
+            if !holds(&bytes, &release) {
+                scratch = bytes;
+                continue;
+            }
+            self.seen.insert(f.id.clone(), Some(release.clone()));
+            holding += 1;
+            if first.is_none() {
+                first = Some((f, bytes));
+            } else {
+                scratch = bytes;
             }
         }
-        Response::Failed("No stick in holds this Faraday".into())
+        drop(scratch);
+        let Some((f, bytes)) = first else {
+            return Response::Failed("No stick in holds this Faraday".into());
+        };
+        if holding > 1 {
+            return Response::Failed(fill(EN.upgrade_several_hold, &[&holding.to_string()]));
+        }
+        let size = bytes.len() as u64;
+        if let Some(want) = self.boot_bytes
+            && size != want
+        {
+            return Response::Failed(fill(
+                EN.upgrade_source_size,
+                &[&mb(size).to_string(), &mb(want).to_string()],
+            ));
+        }
+        self.source = Some(Source {
+            id: f.id.clone(),
+            release: release.clone(),
+            bytes,
+        });
+        Response::Source {
+            id: f.id,
+            release,
+            size,
+        }
     }
 
     /// Whether the partition is still in, watched for a moment.

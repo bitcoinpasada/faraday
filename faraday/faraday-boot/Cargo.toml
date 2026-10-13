@@ -8,9 +8,11 @@ rust-version.workspace = true
 repository.workspace = true
 publish = false
 
-# No dependencies: it opens device nodes, reads /sys and /proc/version,
-# and speaks its pipe protocol with std alone.
+# It opens device nodes, reads /sys and /proc/version, and speaks its
+# pipe protocol with std alone. Its one dependency is Faraday's wording,
+# for the reasons it gives that the upgrade screen shows.
 [dependencies]
+faraday-strings = { path = "../faraday-strings" }
 
 [lints]
 workspace = true
