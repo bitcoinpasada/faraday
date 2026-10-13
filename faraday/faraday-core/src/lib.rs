@@ -10082,9 +10082,11 @@ impl Faraday {
             | Screen::Backups
             | Screen::Settings
             | Screen::SetTime
-            | Screen::Codes => &mut self.list_offset,
+            | Screen::Codes
+            // Entry scrolls on the wide layout too, not only compact: the
+            // word grid can run to 24 cells, taller than the window.
+            | Screen::Entry => &mut self.list_offset,
             Screen::Home
-            | Screen::Entry
             | Screen::CheckMessage
             | Screen::Vaults
             | Screen::Unlock

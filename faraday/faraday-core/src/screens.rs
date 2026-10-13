@@ -12144,7 +12144,12 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let x = x0 + 56.0;
     let width = (cw - 112.0).min(900.0);
-    let mut y = 36.0;
+    // The word grid can run to 24 cells, taller than the window; the
+    // page scrolls, as Tools' and Files' do (`app.list_offset`).
+    let top = 36.0 - app.list_offset;
+    let mut y = top;
+    let clip = ui.rect(x0, 0.0, cw, h);
+    ui.c.push_clip(clip);
     let back = Action::Nav(app.entry_leave());
     ui.icon(x - 4.0, y, 16.0, Icon::ChevronLeft, 10.0, MUTED);
     ui.text(
@@ -12203,7 +12208,8 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += button_rows(ui, x, y, width, &forms) + 4.0;
     }
     if app.entry.form != crate::forms::Form::Words {
-        entry_form(app, ui, x, y, width, h);
+        let bottom = entry_form(app, ui, x, y, width, h);
+        entry_scrolled(app, ui, clip, h, bottom);
         return;
     }
     // Which list the words are from: English, the others one press away;
@@ -12263,7 +12269,8 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if let Some(w) = app.entry.keys.as_deref() {
         y += button_rows(ui, x, y, width, &langs);
         y = keyed_words(app, w, ui, x, y, width, h);
-        entry_finish(app, ui, x, y, width, h);
+        let bottom = entry_finish(app, ui, x, y, width, h);
+        entry_scrolled(app, ui, clip, h, bottom);
         return;
     }
     y += guide_text(app, ui, x, y, width, EN.entry_type_the_words);
@@ -12342,7 +12349,18 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .all(|wd| crate::forms::typed_index(lang, wd).is_some());
     let m = complete.then(|| crate::forms::typed_mnemonic(lang, &app.entry.typed));
     y = entry_status(app, ui, x, y, n, m);
-    entry_finish(app, ui, x, y, width, h);
+    let bottom = entry_finish(app, ui, x, y, width, h);
+    entry_scrolled(app, ui, clip, h, bottom);
+}
+
+/// Closes the clip `entry` opened around its content and reports how far
+/// it scrolls: `bottom`, where the content (including the footer) ends,
+/// measured from the top of the screen as if unscrolled, so the last
+/// scroll leaves the footer and its margin inside the window.
+fn entry_scrolled(app: &Faraday, ui: &mut Ui, clip: osk_ui::Rect, h: f32, bottom: f32) {
+    ui.c.pop_clip();
+    app.content_h.set(bottom + app.list_offset + 24.0);
+    ui.report_scroll(clip, app.content_h.get() - h);
 }
 
 /// Add a key's word count: 12 · 15 · 18 · 21 · 24 as a row of equal
@@ -12650,7 +12668,10 @@ fn entry_status(
 }
 
 /// The BIP-39 passphrase and the buttons under the words.
-fn entry_finish(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) {
+/// The passphrase field, the way in from a stick, and the Add key ·
+/// Clear · Make a new key row. Returns the bottom of the row, so the
+/// page that scrolls to fit it (`entry`) knows how tall its content is.
+fn entry_finish(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> f32 {
     // An optional BIP-39 passphrase: the same words with another
     // passphrase are another key.
     ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, EN.entry_finish_bip_39);
@@ -12669,7 +12690,10 @@ fn entry_finish(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) 
         Action::EntryPassphrase,
     );
     ui.hit(px, y, pw, 40.0, Action::EntryPassphrase);
-    let by = h - 36.0 - 46.0;
+    // The stick row and the buttons sit at the bottom of the screen, but
+    // move down below the passphrase field when the words above it (up
+    // to 24 of them) would otherwise run under it.
+    let by = (h - 36.0 - 46.0).max(y + 40.0 + 24.0 + 48.0);
     entry_stick(app, ui, x, by - 48.0);
     ui.button(
         x,
@@ -12712,6 +12736,7 @@ fn entry_finish(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) 
         DIM,
         EN.entry_finish_type_on,
     );
+    by + 46.0
 }
 
 /// Whether any of a key's words is typed on Add a key.
@@ -12759,8 +12784,10 @@ pub(crate) fn entry_stick(app: &Faraday, ui: &mut Ui, x: f32, y: f32) {
 }
 
 /// Add a key in another form than BIP-39 words: one share, string or part
-/// typed at a time, the ones collected listed, then put together.
-fn entry_form(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) {
+/// typed at a time, the ones collected listed, then put together. Returns
+/// the bottom of its footer row, so the page that scrolls to fit it
+/// (`entry`) knows how tall its content is.
+fn entry_form(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> f32 {
     use crate::forms::Form;
     let form = app.entry.form;
     let mut y = y;
@@ -12856,7 +12883,11 @@ fn entry_form(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) {
         );
         ui.hit(px, y, pw, 40.0, Action::EntryPassphrase);
     }
-    let by = h - 36.0 - 46.0;
+    // As `entry_finish`: the stick row and the buttons sit at the bottom
+    // of the screen, but move down below what is above them (the
+    // passphrase field, or the list of collected shares) when that would
+    // otherwise run under it.
+    let by = (h - 36.0 - 46.0).max(y + 40.0 + 24.0 + 48.0);
     entry_stick(app, ui, x, by - 48.0);
     let ready = app.entry.parts.ready(form);
     let aw = ui.button(
@@ -12904,6 +12935,7 @@ fn entry_form(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) {
         DIM,
         EN.entry_form_enter_adds,
     );
+    by + 46.0
 }
 
 // ---------------------------------------------------------------------
