@@ -238,12 +238,35 @@ person's eyes only.
 
 Every Learn page `osk-learn` carries, as the device and the desktop app
 show them, with **Start from the stick** opening the boot pages
-(`docs/learn/faraday/boot/`) directly. A scanned address of the
+(`docs/learn/faraday/boot/`) as below. A scanned address of the
 website's guides (`https://faradayoffline.app/start/<page>`, the code
 beside each guide in the hub app, `docs/HUB.md` §7.4) opens the
 Companion's own copy of that page, so following the hub's code with
 the Companion tells the website nothing. Any other web address that
 arrives is shown as text and is not opened (§0).
+
+**Start from the stick** (owner, 2026-10-13) asks two things, once
+each, and remembers the answers, so a person sees only the pages for
+their computer:
+
+- The first time: one question, **Which computer are you starting?**,
+  answered **Windows** or **Linux** (Mac once Faraday runs on Macs,
+  `docs/MAC.md`).
+- After that it opens on that computer's page, headed with the choice
+  and **Change**:
+  - the general guide for that system (`windows`, `linux`);
+  - on Windows, **BitLocker first**, opening the BitLocker pages
+    (`bitlocker`, `secure-boot-bitlocker`);
+  - **Choose the maker** the first time, which lists the maker pages
+    (`faraday-learn`'s `MAKERS`) and **Another maker** (the general
+    guide); after that the maker chosen, with **Change**;
+  - **If something goes wrong**: `not-starting`,
+    `screens-that-record`, `replace-faraday`.
+- The system and the maker are kept in the app's own storage, as the
+  theme is, outside the encrypted stores: they say which computer is
+  set up, and nothing else of the person's. **Change** asks again.
+- A guide address scanned from the Starter (below) opens its page
+  whatever is remembered, and changes nothing remembered.
 
 A new page, `docs/learn/faraday/companion.md`: what the Companion keeps
 and refuses; that it has no network access and how anyone can check it

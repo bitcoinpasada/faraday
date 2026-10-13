@@ -2727,6 +2727,22 @@ as possible before the next build.
     For later, in the core: a text file shared in loses its name and
     its final newline when kept in Received.
 
+    **Start from the stick, nested** (owner, 2026-10-13; COMPANION
+    §4.7). Sonnet: the design is decided. In `faraday-companion`: the
+    system question, the system's page, the maker list with Another
+    maker, Change on each, the If something goes wrong group, drawn
+    with `faraday-ui` after the Starter's Home cards and the desktop's
+    rows; the two answers kept as the theme is (a Companion command and
+    event like `KeepTheme`/`Theme`, encoded in the FFI, written by the
+    Kotlin shell beside the theme); a guide address still opens its page
+    and leaves the answers alone. Tests: the first visit asks the
+    system; a choice is remembered across a restart (the event handed
+    back); Change asks again; Windows shows the BitLocker pages and
+    Linux does not; Another maker opens the system's general guide; a
+    guide address changes nothing remembered. Renders: the question,
+    each system's page before and after a maker, the maker list.
+    Built in a worktree of HEAD while item 74 is in the shared tree.
+
 73. [ ] 2026-10-13, owner: **Faraday Starter on macOS, the part that
     needs no Mac.** The owner picked up the Mac work with the Starter
     (MAC §6, item 71). There is still no Mac (M7), so MAC §8's batch A3
