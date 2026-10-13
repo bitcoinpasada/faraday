@@ -96,7 +96,7 @@ pub fn paste(c: &mut Companion, text: &str) {
     });
 }
 
-/// The phone on Receive from Faraday.
+/// The phone on Scan a Faraday QR code.
 pub fn receiving() -> Companion {
     let mut c = phone();
     c.press(Act::Receive);

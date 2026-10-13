@@ -118,7 +118,7 @@ fn run(s: &Snap) -> Result<(), String> {
     let mut c = s.holding();
     s.shot(&mut c, "home")?;
 
-    // Receive from Faraday.
+    // Scan a Faraday QR code.
     let mut c = s.app();
     c.press(Act::Receive);
     s.shot(&mut c, "receive-waiting")?;

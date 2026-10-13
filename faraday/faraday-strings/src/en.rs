@@ -11640,7 +11640,7 @@ pub static EN: Strings = Strings {
     vm_parallels: "Parallels",
     vm_bochs: "Bochs",
     companion_title: "Faraday Companion",
-    companion_home_receive: "Receive from Faraday",
+    companion_home_receive: "Scan a Faraday QR code",
     companion_home_send: "Send to Faraday",
     companion_home_received: "Received",
     companion_home_start: "Start from the stick",

@@ -704,7 +704,7 @@ fn fact(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: Color
 }
 
 // ---------------------------------------------------------------------
-// §4.2 Receive from Faraday
+// §4.2 Scan a Faraday QR code
 // ---------------------------------------------------------------------
 
 /// The scanner, as the desktop's Scan sheet: the line, the camera's

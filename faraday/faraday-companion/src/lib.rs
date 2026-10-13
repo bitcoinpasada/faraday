@@ -102,7 +102,7 @@ pub enum Confirm {
 pub enum Page {
     /// Home (§4.1).
     Home,
-    /// Receive from Faraday: the scanner (§4.2).
+    /// Scan a Faraday QR code: the scanner (§4.2).
     Receive,
     /// A whole file arrived and is kept, by its SHA-256; `again` when it
     /// was kept already.

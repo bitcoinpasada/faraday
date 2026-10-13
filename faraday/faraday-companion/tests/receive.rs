@@ -1,4 +1,4 @@
-//! Receive from Faraday (`docs/COMPANION.md` §4.2, §11): the device's
+//! Scan a Faraday QR code (`docs/COMPANION.md` §4.2, §11): the device's
 //! own codes for a file, a PSBT and a description, as `faraday-core`'s QR
 //! sheet makes them, single and animated, read by the phone's camera
 //! with frames missed and the loop read again, arrive whole and are kept

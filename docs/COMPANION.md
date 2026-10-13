@@ -150,13 +150,17 @@ desktop app's Scan and QR sheets do. Where this section names a DESIGN
 
 ### 4.1 Home
 
-Rows, in this order: **Receive from Faraday**, **Send to Faraday**,
+Rows, in this order: **Scan a Faraday QR code**, **Send to Faraday**,
 **Received** (with the count kept), **Wallet descriptions** (the
 count), **BitLocker keys** (the count; the row is shown only when one
 is kept),
 **Start from the stick**, **Learn**, **About**.
 
-### 4.2 Receive from Faraday
+### 4.2 Scan a Faraday QR code
+
+One scanner for every code Faraday shows: the device's (the stick or the
+Pi), the Starter's guide addresses (§4.7) and its BitLocker key (§4.6).
+(Named "Receive from Faraday" until 2026-10-13, owner.)
 
 A scanner, as the desktop app's Scan sheet, with Paste and no Type. Whatever arrives is
 routed by §5. A file in the Faraday envelope, a PSBT, a finished

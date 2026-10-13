@@ -157,7 +157,7 @@ fn samples() -> Vec<(Secret, Vec<u8>)> {
     ]
 }
 
-/// A phone holding one file already, on Receive from Faraday.
+/// A phone holding one file already, on Scan a Faraday QR code.
 fn holding() -> Companion {
     let mut c = phone();
     let kept = vec![Kept::new("spend.psbt".into(), Kind::Psbt, 1, psbt())];
