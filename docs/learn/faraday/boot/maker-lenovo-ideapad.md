@@ -1,52 +1,56 @@
 # Starting a Lenovo IdeaPad, Yoga or Legion from the stick
 
-## BitLocker first
+## Before you start
 
-On Windows, have the drive's BitLocker recovery key in hand before changing any firmware setting: Faraday Starter's BitLocker step on this computer shows it. Its extra-safe choice also suspends BitLocker until it is resumed. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, have the BitLocker recovery key ready: Faraday Starter's BitLocker step shows it. On Linux, have the disk's passphrase or recovery key ready.
 
-## Keys
+## Steps
 
-Firmware settings (BIOS): F2, or Fn+F2, pressed repeatedly right after turning the computer on. Boot menu: F12, or Fn+F12. It can take several tries.
+1. Plug the stick in.
 
-The Novo button opens both from a computer that is off: a small button or pinhole marked with a curved arrow, on the side or near the power button, pressed with the tip of an unfolded paper clip. Its Novo Button Menu has BIOS Setup and Boot Menu.
+2. Restart the computer.
 
-Faraday Starter's Restart into firmware settings opens the BIOS without a key.
+3. Right after it turns on, press F2, or Fn+F2, repeatedly. It can take several tries.
 
-## Turn Secure Boot off
+If it doesn't open: with the computer off, press the Novo button and choose BIOS Setup, or use Faraday Starter's Restart into firmware settings. The Novo button is a small button or pinhole marked with a curved arrow, on the side or near the power button, pressed with the tip of an unfolded paper clip.
 
-In the BIOS, open the Security tab and set Secure Boot to Disabled. Secure Boot cannot be changed while Device Guard, on the same tab, is Enabled. Press F10, or Fn+F10, and choose Yes to save and exit.
+4. Open the Security tab and set Secure Boot to Disabled. Press F10, or Fn+F10, and choose Yes to save and exit.
 
 ::sketch ideapad-secure-boot
 
 ::sketch ideapad-save
 
-On Windows, choose the stick from the boot menu on the restart that follows the save, before Windows starts, and turn Secure Boot back on before Windows starts again. Windows started with Secure Boot off asks for the BitLocker recovery key, unless Faraday Starter suspended BitLocker.
+If Secure Boot cannot be changed: Device Guard, on the same tab, is Enabled, and Secure Boot cannot be changed until it is not.
 
-## Turn Fast Boot off where it hides USB
+5. The computer restarts. Press F12, or Fn+F12, during power-on. On Windows, do it on this restart, before Windows starts.
 
-Lenovo's IdeaPad articles do not describe a setting that hides USB disks. The Boot tab has USB Boot, which has to be Enabled.
+From a computer that is off: press the Novo button and choose Boot Menu.
 
-::sketch ideapad-usb-boot
-
-## Start from the stick
-
-Plug the stick in, restart, and press F12, or Fn+F12, during power-on. Or, with the computer off, press the Novo button and choose Boot Menu. Choose the stick with the arrow keys and press Enter. Where it is listed twice, choose the entry that begins with EFI USB Device; the other is for legacy BIOS mode.
+6. Choose the stick with the arrow keys and press Enter. If it is listed twice, choose the one that starts with EFI USB Device; the other is for legacy BIOS mode.
 
 ::sketch ideapad-boot-menu
 
-## Turn Secure Boot back on
+If the stick is not listed: see "If something is different" below.
 
-Turn the computer off from Faraday and pull the stick out. Open the BIOS with F2 or the Novo button, set Security → Secure Boot to Enabled, and save with F10.
+## Afterwards
 
-Lenovo's IdeaPad articles do not describe restoring the Secure Boot keys. If Secure Boot does not stay on, the step on the general Windows page applies.
+7. Turn the computer off from Faraday and pull the stick out.
 
-## Known quirks
+8. Open the BIOS with F2 or the Novo button, set Security → Secure Boot to Enabled, and save with F10. Do it before Windows starts: with Secure Boot off, Windows asks for the BitLocker recovery key unless Faraday Starter suspended BitLocker.
+
+If Secure Boot does not stay on: Lenovo's IdeaPad articles do not describe restoring the Secure Boot keys; the step on the general Windows page applies.
+
+## If something is different
+
+Stick not in the F12 list: on the Boot tab, set USB Boot to Enabled. Lenovo's IdeaPad articles do not describe a setting that hides USB disks.
+
+::sketch ideapad-usb-boot
 
 Lenovo's article for booting from USB loads the BIOS defaults with F9 before changing Secure Boot. That sets every other BIOS setting back to its default as well.
 
 The same article turns BitLocker off, which decrypts the drive. Faraday Starter's BitLocker step suspends it instead.
 
-## Where this comes from
+## Sources
 
 Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
 

@@ -12,7 +12,7 @@ use faraday_qr::bitlocker::KeyText;
 use faraday_qr::send::{Format, Made};
 use faraday_strings::{EN, Strings, fill};
 use faraday_ui::pal::*;
-use faraday_ui::parts::{measured, qr_code};
+use faraday_ui::parts::{STEP_INDENT, STEP_SIDE, measured, qr_code, step_circle};
 use faraday_ui::{NameSuffix, Slot, Style, Theme, W, grouped};
 use osk_ui::Color;
 use osk_ui::widgets::Icon;
@@ -21,7 +21,8 @@ use osk_ui::widgets::keyboard::KeyboardKind;
 use crate::kept;
 use crate::store::{Kept, Kind};
 use crate::{
-    Act, Closed, Companion, Computer, Confirm, Doc, NotSent, Page, ScanLine, Shown, UnlockFor,
+    Act, Closed, Companion, Computer, Confirm, Doc, MAKER_ROWS, MakerRow, NotSent, Page, ScanLine,
+    Shown, UnlockFor,
 };
 
 /// Faraday's drawing, a press being one of the Companion's [`Act`]s.
@@ -82,12 +83,13 @@ fn osk_pages() -> Vec<usize> {
 }
 
 /// The pages Start from the stick lists: the boot guides, then the
-/// makers' pages.
+/// makers' pages, then Other's.
 pub(crate) fn start_docs() -> Vec<Doc> {
     faraday_guides::BOOT
         .iter()
         .copied()
         .chain(faraday_learn::MAKERS.iter().map(|m| m.id))
+        .chain(["maker-other"])
         .map(Doc::Own)
         .collect()
 }
@@ -307,8 +309,9 @@ pub(crate) fn frame(app: &Companion, ui: &mut Ui) -> f32 {
         Page::Learn => learn(ui, x, y0, cw),
         Page::Start => start(app, ui, x, y0, cw),
         Page::StartComputer => start_computer(ui, x, y0, cw),
-        Page::StartMakers => start_makers(app, ui, x, y0, cw),
-        Page::Doc(d) => document(ui, x, y0, cw, *d),
+        Page::StartMakers => start_makers(ui, x, y0, cw),
+        Page::StartLenovo => start_lenovo(ui, x, y0, cw),
+        Page::Doc(d) => document(app, ui, x, y0, cw, *d),
         Page::About => about(app, ui, x, y0, cw),
         _ => y0,
     };
@@ -398,6 +401,7 @@ fn page_name(app: &Companion, page: &Page) -> String {
         Page::Learn => S.companion_home_learn.to_string(),
         Page::Start | Page::StartComputer => S.companion_home_start.to_string(),
         Page::StartMakers => S.companion_start_choose_maker.to_string(),
+        Page::StartLenovo => S.companion_maker_lenovo.to_string(),
         Page::Doc(d) => doc_page(*d).title.to_string(),
         Page::About => S.companion_home_about.to_string(),
         _ => S.companion_home.to_string(),
@@ -1300,19 +1304,28 @@ fn confirm_sheet(app: &Companion, ui: &mut Ui, w: f32, h: f32, what: Confirm) {
 // §4.7 Start from the stick, and Learn
 // ---------------------------------------------------------------------
 
-/// A maker's name, by its page's id.
+/// A maker's name, by its page's id: one word.
 fn maker_name(id: &str) -> &'static str {
     match id {
         "maker-dell" => S.companion_maker_dell,
         "maker-hp" => S.companion_maker_hp,
-        "maker-lenovo-thinkpad" => S.companion_maker_lenovo_thinkpad,
-        "maker-lenovo-ideapad" => S.companion_maker_lenovo_ideapad,
+        "maker-lenovo-thinkpad" => S.companion_maker_thinkpad,
+        "maker-lenovo-ideapad" => S.companion_maker_lenovo,
         "maker-asus" => S.companion_maker_asus,
         "maker-acer" => S.companion_maker_acer,
         "maker-msi" => S.companion_maker_msi,
         "maker-framework" => S.companion_maker_framework,
         "maker-surface" => S.companion_maker_surface,
+        "maker-other" => S.companion_maker_other,
         _ => "",
+    }
+}
+
+/// A row's name on the maker list.
+fn maker_row_name(row: MakerRow) -> &'static str {
+    match row {
+        MakerRow::Page(id) => maker_name(id),
+        MakerRow::Lenovo => S.companion_maker_lenovo,
     }
 }
 
@@ -1427,17 +1440,36 @@ fn change_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, act: 
     h + 8.0
 }
 
-/// The makers, and Another maker for the system's general guide.
-fn start_makers(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+/// The makers, one word a row, Other last.
+fn start_makers(ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let names: Vec<(&str, Act)> = MAKER_ROWS
+        .iter()
+        .enumerate()
+        .map(|(i, r)| (maker_row_name(*r), Act::Maker(i)))
+        .collect();
+    name_rows(ui, x, y0, w, &names)
+}
+
+/// Lenovo's question: ThinkPad or Other.
+fn start_lenovo(ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let names = [
+        (S.companion_maker_thinkpad, Act::Lenovo(0)),
+        (S.companion_maker_other, Act::Lenovo(1)),
+    ];
+    name_rows(ui, x, y0, w, &names)
+}
+
+/// One row per name, each pressing as its own act. Returns where the
+/// rows end.
+fn name_rows(ui: &mut Ui, x: f32, y0: f32, w: f32, names: &[(&str, Act)]) -> f32 {
     let mut y = y0;
     ui.rule(x, y, w, INNER);
-    for (i, m) in faraday_learn::MAKERS.iter().enumerate() {
-        let a = Act::Maker(i);
+    for &(name, a) in names {
         let rh = 48.0;
         if ui.is_pressed(a) {
             ui.fill(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0, INNER);
         }
-        let t = ui.fit(14.0, W::S, maker_name(m.id), w - 36.0);
+        let t = ui.fit(14.0, W::S, name, w - 36.0);
         ui.text_mid(x, y, rh, 14.0, W::S, TEXT, &t);
         ui.icon(
             x + w - 24.0,
@@ -1451,19 +1483,7 @@ fn start_makers(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         y += rh;
         ui.rule(x, y, w, INNER);
     }
-    y += 12.0;
-    let general = app.computer.map_or("windows", Computer::id);
-    y + nav_row(
-        ui,
-        x,
-        y,
-        w,
-        Icon::Learn,
-        S.companion_start_another_maker,
-        "",
-        "",
-        start_row(general).1,
-    )
+    y + 12.0
 }
 
 /// Learn: Faraday's own pages, then the ones about Bitcoin.
@@ -1533,27 +1553,75 @@ fn page_rows(ui: &mut Ui, x: f32, y0: f32, w: f32, rows: &[(Doc, Act)]) -> f32 {
     y
 }
 
-/// One page, as the desktop's Learn sheet shows it.
-fn document(ui: &mut Ui, x: f32, y0: f32, w: f32, d: Doc) -> f32 {
+/// One page, as the desktop's Learn sheet shows it. A guide's steps
+/// (§4.7) are drawn with their numbers in circles a tap ticks, what
+/// follows a step indented under it up to the next step or section, the
+/// count under the title and, once one is ticked, Start again at the end.
+fn document(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32, d: Doc) -> f32 {
     let page = doc_page(d);
+    let all = faraday_learn::steps(page);
+    let ticked = match d {
+        Doc::Own(id) => app.ticked(id),
+        Doc::Osk(_) => &[],
+    };
     let mut y = y0;
     y += ui.wrap(x, y, w, 18.0, W::S, TEXT, page.title) + 16.0;
+    if !all.is_empty() {
+        let done = all.iter().filter(|n| ticked.contains(n)).count();
+        let count = fill(
+            S.companion_steps_done,
+            &[&done.to_string(), &all.len().to_string()],
+        );
+        let tone = if done == all.len() { OK } else { MUTED };
+        y += ui.wrap(x, y - 8.0, w, 13.0, W::S, tone, &count) + 8.0;
+    }
     for section in page.sections {
         if !section.heading.is_empty() {
             y += ui.wrap(x, y, w, 15.0, W::S, ACCENT, section.heading) + 8.0;
         }
+        // Under a step: what follows it is indented.
+        let mut under = false;
         for para in section.paragraphs {
+            if let Some((n, text)) = faraday_learn::step(para) {
+                under = true;
+                let tx = x + STEP_INDENT;
+                let line = ui.line(14.0, W::R);
+                // The circle level with the text's first line.
+                let cy = y + (line - STEP_SIDE) / 2.0;
+                step_circle(ui, x, cy, n, ticked.contains(&n), Some(Act::Step(n)));
+                let h = ui.wrap(tx, y, w - STEP_INDENT, 14.0, W::R, TEXT, text);
+                y += h.max(STEP_SIDE + cy - y) + 12.0;
+                continue;
+            }
+            let (px, pw) = if under {
+                (x + STEP_INDENT, w - STEP_INDENT)
+            } else {
+                (x, w)
+            };
             // A firmware sketch's marker (DECISIONS F18): the sketch drawn
             // in its place, and the marker never printed as text.
             if faraday_learn::is_marker(para) {
                 if let Some(s) = faraday_guides::sketch_of(para) {
-                    y += faraday_ui::sketch(ui, s, x, y, w) + 12.0;
+                    y += faraday_ui::sketch(ui, s, px, y, pw) + 12.0;
                 }
                 continue;
             }
-            y += ui.wrap(x, y, w, 14.0, W::R, TEXT, para) + 12.0;
+            y += ui.wrap(px, y, pw, 14.0, W::R, TEXT, para) + 12.0;
         }
         y += 10.0;
+    }
+    if !ticked.is_empty() && !all.is_empty() {
+        let bw = ui.measure(14.0, W::S, S.companion_steps_again) + 40.0;
+        ui.button(
+            x,
+            y,
+            Some(bw),
+            44.0,
+            S.companion_steps_again,
+            Style::Secondary,
+            Act::StartAgain,
+        );
+        y += 44.0 + 12.0;
     }
     y
 }

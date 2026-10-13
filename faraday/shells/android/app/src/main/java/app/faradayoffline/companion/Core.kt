@@ -66,6 +66,13 @@ internal object Core {
     const val CMD_KEEP_START = 22
 
     /**
+     * Keep [commandText], a guide page's id, a newline and its ticked step
+     * numbers separated by commas (none: drop what is kept for the page);
+     * hand each page's text back with [steps] at start.
+     */
+    const val CMD_KEEP_STEPS = 23
+
+    /**
      * Ask the phone's unlock and open the kept store; the prompt's title is
      * [commandText]. Answer with exactly one [kept] or [keptClosed].
      */
@@ -173,6 +180,9 @@ internal object Core {
 
     /** The text kept from [CMD_KEEP_START], at start. */
     external fun start(handle: Long, text: String)
+
+    /** One page's text kept from [CMD_KEEP_STEPS], at start. */
+    external fun steps(handle: Long, text: String)
 
     /**
      * About's facts from the package manager, at start: the version name

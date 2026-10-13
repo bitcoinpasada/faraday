@@ -1,52 +1,56 @@
 # Starting an Acer computer from the stick
 
-## BitLocker first
+## Before you start
 
-On Windows, have the drive's BitLocker recovery key in hand before changing any firmware setting: Faraday Starter's BitLocker step on this computer shows it. Its extra-safe choice also suspends BitLocker until it is resumed. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, have the BitLocker recovery key ready: Faraday Starter's BitLocker step shows it. On Linux, have the disk's passphrase or recovery key ready.
 
-## Keys
+## Steps
 
-Firmware settings (BIOS Setup): F2, tapped as the Acer logo appears. Boot menu: F12, once it is turned on in BIOS Setup; on many Acer notebooks it is off until then, and some have none.
+1. Plug the stick in.
 
-Faraday Starter's Restart into firmware settings opens BIOS Setup without a key.
+2. Restart the computer.
 
-## Turn Secure Boot off
+3. When the Acer logo appears, tap F2.
 
-On many Acer computers Secure Boot is greyed out until a supervisor password is set. In BIOS Setup, open the Security tab, choose Set Supervisor Password, and enter a password twice. Keep it written down until it is removed again.
+If it doesn't open: use Faraday Starter's Restart into firmware settings.
+
+4. Open the Security tab, choose Set Supervisor Password, and enter a password twice. Write it down: step 10 removes it again.
 
 ::sketch acer-supervisor
 
-Then open the Boot tab, set Secure Boot to Disabled, and press F10 to save and exit.
+On many Acer computers Secure Boot is greyed out until a supervisor password is set; on some, the password is not needed.
 
-::sketch acer-secure-boot
-
-On Windows, choose the stick from the boot menu on the restart that follows the save, before Windows starts, and turn Secure Boot back on before Windows starts again. Windows started with Secure Boot off asks for the BitLocker recovery key, unless Faraday Starter suspended BitLocker.
-
-## Turn Fast Boot off where it hides USB
-
-Acer's articles do not describe a setting that hides USB disks from the boot menu.
-
-## Start from the stick
-
-Turn the F12 boot menu on first: in BIOS Setup, open the Main tab, set F12 Boot Menu to Enabled, and press F10 and Enter to save and restart.
+5. Open the Main tab and set F12 Boot Menu to Enabled.
 
 ::sketch acer-boot-menu-key
 
-Plug the stick in, restart, and press F12 as the Acer logo appears. Choose the stick. Where it is listed twice, choose the entry that begins with UEFI.
+On many Acer notebooks the F12 boot menu is off until it is turned on here, and some have none.
 
-## Turn Secure Boot back on
+6. Open the Boot tab, set Secure Boot to Disabled, and press F10 and Enter to save and exit.
 
-Turn the computer off from Faraday and pull the stick out. Tap F2 at power-on and enter the supervisor password. Set Boot → Secure Boot to Enabled.
+::sketch acer-secure-boot
 
-Then remove the supervisor password, as Acer recommends once Secure Boot is back on: Security → Set Supervisor Password, enter the current password, leave both new password fields empty, and confirm. Press F10 to save and exit.
+7. The computer restarts. Press F12 as the Acer logo appears. On Windows, do it on this restart, before Windows starts.
 
-Acer's articles do not describe restoring the Secure Boot keys. If Secure Boot does not stay on, the step on the general Windows page applies.
+8. Choose the stick. If it is listed twice, choose the one that starts with UEFI.
 
-## Known quirks
+If the stick is not listed: see "If something is different" below.
 
-Menu names and where they are differ between Acer models and BIOS versions; on some, the supervisor password is not needed.
+## Afterwards
 
-## Where this comes from
+9. Turn the computer off from Faraday and pull the stick out.
+
+10. Tap F2 at power-on and enter the supervisor password. Set Boot → Secure Boot to Enabled. Then remove the supervisor password, as Acer recommends once Secure Boot is back on: Security → Set Supervisor Password, enter the current password, leave both new password fields empty, and confirm. Press F10 to save and exit. Do it before Windows starts: with Secure Boot off, Windows asks for the BitLocker recovery key unless Faraday Starter suspended BitLocker.
+
+If Secure Boot does not stay on: Acer's articles do not describe restoring the Secure Boot keys; the step on the general Windows page applies.
+
+## If something is different
+
+Stick not in the F12 list: Acer's articles do not describe a setting that hides USB disks from the boot menu.
+
+Menu names and where they are differ between Acer models and BIOS versions.
+
+## Sources
 
 Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
 

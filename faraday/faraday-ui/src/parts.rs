@@ -149,3 +149,57 @@ pub fn qr_code<A: Copy + PartialEq>(
         }
     }
 }
+
+/// The side of a guide step's circle (`docs/COMPANION.md` §4.7, "Steps
+/// are ticked off").
+pub const STEP_SIDE: f32 = 30.0;
+
+/// How far a step's text, and what follows it up to the next step, sits
+/// in from the column's edge.
+pub const STEP_INDENT: f32 = 42.0;
+
+/// The side of the square a tap on a step's circle lands in: the touch
+/// size, larger than the circle.
+pub const STEP_TOUCH: f32 = 44.0;
+
+/// A ticked step's green: one colour in every theme, so the number in
+/// white reads on it.
+pub const STEP_DONE: osk_ui::Color = osk_ui::Color::rgb(0x1d, 0x85, 0x56);
+
+/// A guide step's number in a circle, its top-left at (x, y): outlined
+/// while it is to do, filled green with the number in white once
+/// `ticked`. With an `action`, a tap anywhere in the touch square around
+/// it takes the action. Returns [`STEP_SIDE`].
+pub fn step_circle<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    x: f32,
+    y: f32,
+    n: u32,
+    ticked: bool,
+    action: Option<A>,
+) -> f32 {
+    let d = STEP_SIDE;
+    let r = d / 2.0;
+    let label = n.to_string();
+    let size = if label.len() > 1 { 13.0 } else { 14.0 };
+    let pressed = action.is_some_and(|a| ui.is_pressed(a));
+    let fg = if ticked {
+        ui.dot(x + r, y + r, r, STEP_DONE);
+        osk_ui::Color::WHITE
+    } else {
+        if pressed {
+            ui.dot(x + r, y + r, r, INNER);
+        }
+        ui.stroke(x, y, d, d, r, MUTED);
+        ui.stroke(x + 1.0, y + 1.0, d - 2.0, d - 2.0, r - 1.0, MUTED);
+        TEXT
+    };
+    // White is no colour of the theme's: it is drawn as it is.
+    let tw = ui.measure(size, W::S, &label);
+    ui.text_mid(x + r - tw / 2.0, y, d, size, W::S, fg, &label);
+    if let Some(a) = action {
+        let pad = (STEP_TOUCH - d) / 2.0;
+        ui.hit_quiet(x - pad, y - pad, STEP_TOUCH, STEP_TOUCH, a);
+    }
+    d
+}

@@ -1,22 +1,26 @@
 # Starting an ASUS computer from the stick
 
-## BitLocker first
+## Before you start
 
-On Windows, have the drive's BitLocker recovery key in hand before changing any firmware setting: Faraday Starter's BitLocker step on this computer shows it. Its extra-safe choice also suspends BitLocker until it is resumed. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, have the BitLocker recovery key ready: Faraday Starter's BitLocker step shows it. On Linux, have the disk's passphrase or recovery key ready.
 
-## Keys
+## Steps
 
-Firmware settings (BIOS): with the computer fully shut down, hold F2 and press the power button; let go of F2 when the BIOS screen appears. Boot menu: the same with Esc. Inside the BIOS, F8 or Boot Menu opens the boot menu, and F7 switches to Advanced Mode.
+1. Plug the stick in.
 
-Faraday Starter's Restart into firmware settings opens the BIOS without a key.
+2. Shut the computer down fully.
 
-## Turn Secure Boot off
+3. Hold F2 and press the power button. Let go of F2 when the BIOS screen appears.
 
-Notebooks: in the BIOS, press F7 for Advanced Mode (Advanced Settings in MyASUS in UEFI). Open the Security screen, then Secure Boot, and set Secure Boot Control to Disabled. Press F10 and confirm: the box is Save & Reset on newer notebooks, Save & Exit Setup on older ones.
+If it doesn't open: use Faraday Starter's Restart into firmware settings.
+
+4. Notebooks: press F7 for Advanced Mode, open Security → Secure Boot, and set Secure Boot Control to Disabled. Press F10 and confirm: Save & Reset on newer notebooks, Save & Exit Setup on older ones.
 
 ::sketch asus-secure-boot
 
 ::sketch asus-save
+
+In MyASUS in UEFI, Advanced Mode is Advanced Settings.
 
 Desktops: Boot → Secure Boot, and set OS Type to Other OS. Press F10 and choose Ok in the Save Changes & Reset box; the last tab is Exit.
 
@@ -24,31 +28,33 @@ Desktops: Boot → Secure Boot, and set OS Type to Other OS. Press F10 and choos
 
 ::sketch asus-desktop-save
 
-On Windows, choose the stick from the boot menu on the restart that follows the save, before Windows starts, and turn Secure Boot back on before Windows starts again. Windows started with Secure Boot off asks for the BitLocker recovery key, unless Faraday Starter suspended BitLocker.
+Leave Launch CSM as it is: the stick starts in UEFI mode, and CSM is for legacy BIOS mode.
 
-## Turn Fast Boot off where it hides USB
+5. Hold Esc as the computer starts again, and let go when the boot menu appears. On Windows, do it on this restart, before Windows starts.
 
-If the stick is missing from the boot menu, open the Boot screen in Advanced Mode, set Fast Boot to Disabled, and save with F10. On desktops it is Boot → Boot Configuration → Fast Boot.
+From a computer that is shut down: hold Esc and press the power button. If the menu does not appear: open the BIOS and press F8, or choose Boot Menu.
 
-## Start from the stick
-
-Plug the stick in. With the computer shut down, hold Esc and press the power button, let go when the boot menu appears, choose the stick, and press Enter. If the menu does not appear, open the BIOS and press F8, or choose Boot Menu. Where the stick is listed twice, choose the entry that begins with UEFI.
+6. Choose the stick and press Enter. If it is listed twice, choose the one that starts with UEFI.
 
 ::sketch asus-boot-menu
 
-## Turn Secure Boot back on
+If the stick is not listed: see "If something is different" below.
 
-Turn the computer off from Faraday and pull the stick out. Open the BIOS with F2, set Security → Secure Boot → Secure Boot Control to Enabled (on desktops, OS Type to Windows UEFI mode), and save with F10.
+## Afterwards
+
+7. Turn the computer off from Faraday and pull the stick out.
+
+8. Open the BIOS with F2, set Security → Secure Boot → Secure Boot Control to Enabled (on desktops, OS Type to Windows UEFI mode), and save with F10. Do it before Windows starts: with Secure Boot off, Windows asks for the BitLocker recovery key unless Faraday Starter suspended BitLocker.
 
 If Secure Boot shows Not Active after that: with Secure Boot Control Enabled, open Key Management, choose Restore Factory Keys and confirm with Yes, then save with F10.
 
-## Known quirks
+ASUS's steps also list Reset To Setup Mode before Restore Factory Keys. Reset To Setup Mode removes the keys: use Restore Factory Keys alone first.
 
-ASUS's restore steps also list Reset To Setup Mode before Restore Factory Keys; Reset To Setup Mode removes the keys. Use Restore Factory Keys alone first.
+## If something is different
 
-Leave Launch CSM as it is: the stick starts in UEFI mode, and CSM is for legacy BIOS mode.
+Stick not in the boot menu: open the Boot screen in Advanced Mode, set Fast Boot to Disabled, and save with F10. On desktops it is Boot → Boot Configuration → Fast Boot.
 
-## Where this comes from
+## Sources
 
 Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
 

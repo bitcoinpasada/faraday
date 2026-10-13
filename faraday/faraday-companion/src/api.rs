@@ -61,6 +61,15 @@ pub enum CompanionEvent {
         /// The maker page's id (`faraday_learn::MAKERS`); empty for none.
         maker: String,
     },
+    /// The steps a [`CompanionCommand::KeepSteps`] kept ticked on one
+    /// guide page, sent once at start for each page that has any, by a
+    /// shell that has them.
+    Steps {
+        /// The guide page's id (`faraday_guides::page`).
+        page: String,
+        /// The numbers of its steps that are ticked.
+        done: Vec<u32>,
+    },
     /// What the shell's scanner worker saw of a code in the camera's
     /// frame (`faraday-scanner`'s `Seen`), so Receive can outline it.
     Seen {
@@ -167,6 +176,17 @@ pub enum CompanionCommand {
         computer: String,
         /// The maker page's id; empty for none.
         maker: String,
+    },
+    /// Keep the steps ticked on one guide page (`docs/COMPANION.md`
+    /// §4.7), as the computer and the maker are kept, and hand them back
+    /// in [`CompanionEvent::Steps`] next time. The page's whole set at
+    /// each change; an empty one is none, and the shell keeps nothing
+    /// for that page.
+    KeepSteps {
+        /// The guide page's id.
+        page: String,
+        /// The numbers of its steps that are ticked, in order.
+        done: Vec<u32>,
     },
     /// Ask the phone's unlock and open the kept store: the shell answers
     /// with exactly one [`CompanionEvent::Kept`] or

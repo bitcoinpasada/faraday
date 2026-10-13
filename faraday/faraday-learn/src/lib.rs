@@ -224,6 +224,30 @@ pub fn page_of(md: &'static str) -> LearnPage {
     }
 }
 
+/// A guide's step (`docs/COMPANION.md` §4.7, "The guides are numbered
+/// steps"): a paragraph that begins with its number, a full stop and a
+/// space, `3. Choose the stick.` Returns the number and the text after
+/// it, or `None` for any other paragraph. An app draws the number its
+/// own way and never prints the paragraph's raw `n. `.
+pub fn step(para: &str) -> Option<(u32, &str)> {
+    let digits = para.find(|c: char| !c.is_ascii_digit())?;
+    if digits == 0 || digits > 3 {
+        return None;
+    }
+    let text = para[digits..].strip_prefix(". ")?;
+    let n = para[..digits].parse().ok()?;
+    (n > 0 && !text.trim().is_empty()).then_some((n, text))
+}
+
+/// Every step number on `page`, in the order written.
+pub fn steps(page: &LearnPage) -> Vec<u32> {
+    page.sections
+        .iter()
+        .flat_map(|s| s.paragraphs.iter())
+        .filter_map(|p| step(p).map(|(n, _)| n))
+        .collect()
+}
+
 /// "Upgrading a Faraday stick".
 pub fn upgrade_page() -> &'static LearnPage {
     known("upgrade-a-stick")

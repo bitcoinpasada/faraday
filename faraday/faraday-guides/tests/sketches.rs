@@ -4,7 +4,7 @@
 
 use faraday_guides::{SKETCHES, ids, page, sketch_of};
 use faraday_learn::sketch::{Mark, Row, Sketch};
-use faraday_learn::{MAKERS, is_marker};
+use faraday_learn::{MAKERS, is_marker, step};
 
 /// Every marker paragraph, with the page it is on.
 fn markers() -> Vec<(&'static str, &'static str)> {
@@ -59,21 +59,50 @@ fn every_sketch_marks_the_row_to_look_for() {
 
 #[test]
 fn every_maker_page_shows_where_secure_boot_is_turned_off() {
+    // The step that turns Secure Boot off, the first that names it, has a
+    // sketch among what is under it, up to the next step.
     for m in MAKERS {
         let p = page(m.id).expect("a maker page");
-        let section = p
+        let paras: Vec<&str> = p
             .sections
             .iter()
-            .find(|s| s.heading == "Turn Secure Boot off")
-            .expect("the step");
+            .flat_map(|s| s.paragraphs.iter().copied())
+            .collect();
+        let at = paras
+            .iter()
+            .position(|para| step(para).is_some_and(|(_, t)| t.contains("Secure Boot")))
+            .unwrap_or_else(|| panic!("{}: no step turns Secure Boot off", m.id));
+        let under = paras[at + 1..]
+            .iter()
+            .take_while(|para| step(para).is_none());
         assert!(
-            section
-                .paragraphs
-                .iter()
-                .any(|para| sketch_of(para).is_some()),
+            under.clone().any(|para| sketch_of(para).is_some()),
             "{}",
             m.id
         );
+    }
+}
+
+#[test]
+fn every_sketch_is_under_a_step_or_what_is_different() {
+    // A marker follows a step, or a paragraph under one, never a page's
+    // opening or its sources.
+    for id in ids() {
+        let p = page(id).expect("a page for every id");
+        for s in p.sections {
+            let has = s.paragraphs.iter().any(|para| is_marker(para));
+            if has {
+                assert!(
+                    matches!(
+                        s.heading,
+                        "Steps" | "Afterwards" | "If something is different"
+                    ),
+                    "{id}: a sketch under {}",
+                    s.heading
+                );
+                assert!(!is_marker(s.paragraphs[0]), "{id}: {}", s.heading);
+            }
+        }
     }
 }
 

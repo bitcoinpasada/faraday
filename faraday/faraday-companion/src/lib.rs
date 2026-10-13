@@ -125,6 +125,53 @@ pub enum Confirm {
     KeptStore,
 }
 
+/// What a row of Start from the stick's maker list opens (§4.7, "The
+/// guides are numbered steps").
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MakerRow {
+    /// A maker's page, by its id.
+    Page(&'static str),
+    /// Lenovo, which asks ThinkPad or Other next ([`LENOVO_ROWS`]).
+    Lenovo,
+}
+
+/// The maker list, one word a row, in its order; the last, Other, is the
+/// page of the common keys.
+pub const MAKER_ROWS: [MakerRow; 9] = [
+    MakerRow::Page("maker-dell"),
+    MakerRow::Page("maker-hp"),
+    MakerRow::Lenovo,
+    MakerRow::Page("maker-asus"),
+    MakerRow::Page("maker-acer"),
+    MakerRow::Page("maker-msi"),
+    MakerRow::Page("maker-framework"),
+    MakerRow::Page("maker-surface"),
+    MakerRow::Page("maker-other"),
+];
+
+/// Lenovo's question: ThinkPad, then Other, by their pages' ids.
+pub const LENOVO_ROWS: [&str; 2] = ["maker-lenovo-thinkpad", "maker-lenovo-ideapad"];
+
+/// Where Start from the stick's pages put guide `id`: the `n` of its
+/// [`Act::StartPage`], or `None` for a page Start does not list.
+pub fn start_page(id: &str) -> Option<usize> {
+    draw::start_docs()
+        .iter()
+        .position(|d| matches!(d, Doc::Own(o) if *o == id))
+}
+
+/// Every maker page the list can choose, as it is kept.
+fn maker_page(id: &str) -> Option<&'static str> {
+    MAKER_ROWS
+        .iter()
+        .filter_map(|r| match r {
+            MakerRow::Page(p) => Some(*p),
+            MakerRow::Lenovo => None,
+        })
+        .chain(LENOVO_ROWS)
+        .find(|p| *p == id)
+}
+
 /// A page of the Companion (`docs/COMPANION.md` §4).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Page {
@@ -164,6 +211,8 @@ pub enum Page {
     StartComputer,
     /// Start from the stick's list of makers.
     StartMakers,
+    /// Lenovo's question on the list of makers: ThinkPad or Other.
+    StartLenovo,
     /// One page.
     Doc(Doc),
     /// About (§4.8).
@@ -284,8 +333,14 @@ pub enum Act {
     ChangeComputer,
     /// Start from the stick's Choose the maker, and Change beside it.
     ChooseMaker,
-    /// The maker list's maker `n`, in `faraday_learn::MAKERS`' order.
+    /// The maker list's row `n`, in [`MAKER_ROWS`]' order.
     Maker(usize),
+    /// Lenovo's answer `n`, in [`LENOVO_ROWS`]' order.
+    Lenovo(usize),
+    /// A guide page's step `n`: ticks it, or clears its tick.
+    Step(u32),
+    /// A guide page's Start again: clears its ticks.
+    StartAgain,
 }
 
 /// What the scanner says inside its square.
@@ -460,8 +515,12 @@ pub struct Companion {
     pub theme: Theme,
     /// The computer chosen on Start from the stick; `None` until asked.
     pub computer: Option<Computer>,
-    /// The maker page chosen there (an id in `faraday_learn::MAKERS`).
+    /// The maker page chosen there (an id in [`MAKER_ROWS`] or
+    /// [`LENOVO_ROWS`]).
     pub maker: Option<&'static str>,
+    /// The steps ticked on each guide page, by its id, each list in
+    /// order; a page with none is not here.
+    steps: Vec<(&'static str, Vec<u32>)>,
     /// Where each act can be pressed, as last drawn, in pixels.
     hits: Vec<(Rect, Act)>,
     /// The act under a finger that is down.
@@ -582,6 +641,7 @@ impl Companion {
             theme: Theme::default(),
             computer: None,
             maker: None,
+            steps: Vec::new(),
             hits: Vec::new(),
             pressed: None,
             hovered: None,
@@ -706,11 +766,17 @@ impl Companion {
             }
             CompanionEvent::Start { computer, maker } => {
                 self.computer = Computer::from_id(&computer);
-                self.maker = faraday_learn::MAKERS
-                    .iter()
-                    .map(|m| m.id)
-                    .find(|id| *id == maker)
-                    .filter(|_| self.computer.is_some());
+                self.maker = maker_page(&maker).filter(|_| self.computer.is_some());
+            }
+            CompanionEvent::Steps { page, done } => {
+                if let Some((id, all)) = guide_steps(&page) {
+                    let mut done: Vec<u32> = all.into_iter().filter(|n| done.contains(n)).collect();
+                    done.dedup();
+                    self.steps.retain(|(p, _)| *p != id);
+                    if !done.is_empty() {
+                        self.steps.push((id, done));
+                    }
+                }
             }
             CompanionEvent::Seen {
                 width,
@@ -1059,9 +1125,54 @@ impl Companion {
         });
     }
 
+    /// The steps ticked on guide page `id`, in order.
+    pub fn ticked(&self, id: &str) -> &[u32] {
+        self.steps
+            .iter()
+            .find(|(p, _)| *p == id)
+            .map_or(&[], |(_, d)| d.as_slice())
+    }
+
+    /// Ticks step `n` of the guide page on show, or clears its tick, and
+    /// asks the shell to keep the page's ticks.
+    fn tick_step(&mut self, n: u32) {
+        let Page::Doc(Doc::Own(id)) = self.page else {
+            return;
+        };
+        let Some((id, all)) = guide_steps(id) else {
+            return;
+        };
+        if !all.contains(&n) {
+            return;
+        }
+        let mut done = self.ticked(id).to_vec();
+        if let Some(at) = done.iter().position(|d| *d == n) {
+            done.remove(at);
+        } else {
+            done.push(n);
+        }
+        let done: Vec<u32> = all.into_iter().filter(|s| done.contains(s)).collect();
+        self.set_ticked(id, done);
+    }
+
+    /// Replaces guide page `id`'s ticks and asks the shell to keep them.
+    fn set_ticked(&mut self, id: &'static str, done: Vec<u32>) {
+        self.steps.retain(|(p, _)| *p != id);
+        if !done.is_empty() {
+            self.steps.push((id, done.clone()));
+        }
+        self.out.push_back(CompanionCommand::KeepSteps {
+            page: id.to_string(),
+            done,
+        });
+    }
+
     /// After an answer: the computer's page, in place of the question or
     /// the list, and not twice in the way back.
     fn settle_start(&mut self) {
+        while matches!(self.stack.last(), Some(Page::StartMakers)) {
+            self.stack.pop();
+        }
         if self.stack.last() == Some(&Page::Start) {
             self.stack.pop();
         }
@@ -1330,11 +1441,29 @@ impl Companion {
                     self.settle_start();
                 }
             }
-            Act::Maker(n) => {
-                if let Some(m) = faraday_learn::MAKERS.get(n) {
-                    self.maker = Some(m.id);
+            Act::Maker(n) => match MAKER_ROWS.get(n) {
+                Some(MakerRow::Page(id)) => {
+                    self.maker = Some(id);
                     self.keep_start();
                     self.settle_start();
+                }
+                Some(MakerRow::Lenovo) => self.go(Page::StartLenovo),
+                None => {}
+            },
+            Act::Lenovo(n) => {
+                if let Some(id) = LENOVO_ROWS.get(n) {
+                    self.maker = Some(id);
+                    self.keep_start();
+                    self.settle_start();
+                }
+            }
+            Act::Step(n) => self.tick_step(n),
+            Act::StartAgain => {
+                if let Page::Doc(Doc::Own(id)) = self.page
+                    && let Some((id, _)) = guide_steps(id)
+                    && !self.ticked(id).is_empty()
+                {
+                    self.set_ticked(id, Vec::new());
                 }
             }
             // Shown while a finger is on it (`touch`), not at a press.
@@ -1821,6 +1950,15 @@ impl Companion {
         }
         false
     }
+}
+
+/// A guide page with steps, by its id: the id as the guides have it,
+/// and its step numbers in order. `None` for a page with no steps or no
+/// page at all.
+fn guide_steps(id: &str) -> Option<(&'static str, Vec<u32>)> {
+    let id = faraday_guides::ids().find(|i| *i == id)?;
+    let all = faraday_learn::steps(faraday_guides::page(id)?);
+    (!all.is_empty()).then_some((id, all))
 }
 
 /// A picked file's name as the document provider gave it, made fit to

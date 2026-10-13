@@ -1,48 +1,50 @@
 # Starting a Framework computer from the stick
 
-## BitLocker first
+## Before you start
 
-On Windows, have the drive's BitLocker recovery key in hand before changing any firmware setting: Faraday Starter's BitLocker step on this computer shows it. Its extra-safe choice also suspends BitLocker until it is resumed. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, have the BitLocker recovery key ready: Faraday Starter's BitLocker step shows it. On Linux, have the disk's passphrase or recovery key ready.
 
-## Keys
+Framework's guides say to turn BitLocker off before turning Secure Boot off. Faraday Starter's BitLocker step suspends it instead.
 
-Firmware settings (BIOS): tap F2 repeatedly right after turning the computer on, at the Framework logo. Boot menu: tap F12 repeatedly as soon as the power light comes on.
+## Steps
 
-Faraday Starter's Restart into firmware settings opens the BIOS without a key.
+1. Plug the stick in.
 
-## Turn Secure Boot off
+2. Restart the computer.
 
-In the BIOS, choose Administer Secure Boot and set Enforce Secure Boot to Disabled with the arrow keys. Press F10 to save and restart.
+3. Tap F2 repeatedly from the moment the computer turns on, while the Framework logo is on screen. A press that comes too late misses the BIOS.
+
+If it doesn't open: use Faraday Starter's Restart into firmware settings.
+
+4. Choose Administer Secure Boot and set Enforce Secure Boot to Disabled with the arrow keys. Press F10 to save and restart.
 
 ::sketch framework-front-page
 
 ::sketch framework-secure-boot
 
-On Windows, choose the stick from the boot menu on the restart that follows the save, before Windows starts, and turn Secure Boot back on before Windows starts again. Windows started with Secure Boot off asks for the BitLocker recovery key, unless Faraday Starter suspended BitLocker.
+5. The computer restarts. Tap F12 repeatedly as soon as the power light comes on. On Windows, do it on this restart, before Windows starts.
 
-## Turn Fast Boot off where it hides USB
-
-Framework's guides do not describe a setting that hides USB disks from the boot menu.
-
-## Start from the stick
-
-Plug the stick in, turn the computer on, and tap F12 as soon as the power light comes on. Choose the stick: it is listed as EFI USB Device, under EFI Boot Devices. With no system on the internal drive, the computer starts from the stick without the menu.
+6. Choose the stick: it is listed as EFI USB Device, under EFI Boot Devices.
 
 ::sketch framework-boot-menu
 
-## Turn Secure Boot back on
+With no system on the internal drive, the computer starts from the stick without the menu.
 
-Turn the computer off from Faraday and pull the stick out. Tap F2 at power-on, choose Administer Secure Boot, set Enforce Secure Boot to Enabled, and press F10.
+If the stick is not listed: see "If something is different" below.
 
-Framework's guides do not describe restoring the Secure Boot keys. If Secure Boot does not stay on, the step on the general Windows page applies.
+## Afterwards
 
-## Known quirks
+7. Turn the computer off from Faraday and pull the stick out.
 
-F2 is tapped while the Framework logo is on screen, from the moment the computer is turned on; a press that comes too late misses the BIOS.
+8. Tap F2 at power-on, choose Administer Secure Boot, set Enforce Secure Boot to Enabled, and press F10. Do it before Windows starts: with Secure Boot off, Windows asks for the BitLocker recovery key unless Faraday Starter suspended BitLocker.
 
-Framework's guides say to turn BitLocker off before turning Secure Boot off. Faraday Starter's BitLocker step suspends it instead.
+If Secure Boot does not stay on: Framework's guides do not describe restoring the Secure Boot keys; the step on the general Windows page applies.
 
-## Where this comes from
+## If something is different
+
+Stick not in the F12 list: Framework's guides do not describe a setting that hides USB disks from the boot menu.
+
+## Sources
 
 Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
 

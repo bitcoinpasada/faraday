@@ -28,7 +28,7 @@ use osk_learn::Page as LearnPage;
 /// hub app's screens open a page by it, and the website publishes each
 /// guide at `https://faradayoffline.app/start/<id>` (`docs/HUB.md`
 /// §7.4).
-const OWN: [(&str, &str); 17] = [
+const OWN: [(&str, &str); 18] = [
     (
         "windows",
         include_str!("../../../docs/learn/faraday/boot/windows.md"),
@@ -97,6 +97,13 @@ const OWN: [(&str, &str); 17] = [
     (
         "maker-surface",
         include_str!("../../../docs/learn/faraday/boot/maker-surface.md"),
+    ),
+    // A maker with no page of its own (`docs/COMPANION.md` §4.7): the
+    // common keys, from the pages above, and the same steps. It matches
+    // no computer, so it is not in `faraday_learn::MAKERS`.
+    (
+        "maker-other",
+        include_str!("../../../docs/learn/faraday/boot/maker-other.md"),
     ),
 ];
 

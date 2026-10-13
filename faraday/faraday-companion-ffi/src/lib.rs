@@ -136,6 +136,12 @@ pub const CMD_SHARE: i32 = 21;
 /// the computer's id, a newline, the maker's page id (either may be
 /// empty). The shell hands the text back with [`start`] next time.
 pub const CMD_KEEP_START: i32 = 22;
+/// [`poll`]: keep the steps ticked on one guide page
+/// ([`CompanionCommand::KeepSteps`]); they are in [`command_text`], the
+/// page's id, a newline, and the step numbers separated by commas (none
+/// for a page with no ticks, whose kept text the shell drops). The shell
+/// hands each page's text back with [`steps`] next time.
+pub const CMD_KEEP_STEPS: i32 = 23;
 
 /// [`kept_closed`]: the person cancelled the unlock ([`Closed::Cancelled`]).
 pub const CLOSED_CANCELLED: i32 = 0;
@@ -351,6 +357,19 @@ fn encode_companion(command: CompanionCommand) -> Option<(i32, Payload)> {
             CMD_KEEP_START,
             Payload {
                 text: Some(format!("{computer}\n{maker}")),
+                ..none()
+            },
+        ),
+        CompanionCommand::KeepSteps { page, done } => (
+            CMD_KEEP_STEPS,
+            Payload {
+                text: Some(format!(
+                    "{page}\n{}",
+                    done.iter()
+                        .map(u32::to_string)
+                        .collect::<Vec<_>>()
+                        .join(",")
+                )),
                 ..none()
             },
         ),
@@ -736,6 +755,24 @@ pub fn start(handle: i64, text: String) {
         CompanionEvent::Start {
             computer: computer.to_string(),
             maker: maker.to_string(),
+        },
+    );
+}
+
+/// One guide page's ticked steps the shell kept from [`CMD_KEEP_STEPS`],
+/// as that command gave them. Sent once at start for each page kept.
+/// Anything that is not a step number is ignored.
+pub fn steps(handle: i64, text: String) {
+    let (page, done) = text.split_once('\n').unwrap_or((text.as_str(), ""));
+    let done = done
+        .split(',')
+        .filter_map(|n| n.trim().parse().ok())
+        .collect();
+    send_companion(
+        handle,
+        CompanionEvent::Steps {
+            page: page.trim().to_string(),
+            done,
         },
     );
 }
@@ -1166,6 +1203,46 @@ mod tests {
             with(again, |i| i.app.computer),
             Some(Some(faraday_companion::Computer::Windows))
         );
+        destroy(again);
+    }
+
+    #[test]
+    fn the_ticked_steps_are_kept_and_come_back() {
+        let handle = phone();
+        let at = |handle| {
+            with(handle, |i| {
+                let Page::Doc(faraday_companion::Doc::Own(id)) = i.app.page else {
+                    return Vec::new();
+                };
+                i.app.ticked(id).to_vec()
+            })
+            .unwrap_or_default()
+        };
+        press(handle, Act::Start);
+        press(handle, Act::Computer(0));
+        // The Windows guide is the first page Start from the stick lists.
+        press(handle, Act::StartPage(0));
+        press(handle, Act::Step(2));
+        press(handle, Act::Step(1));
+        assert_eq!(at(handle), vec![1, 2]);
+        let mut kept = None;
+        loop {
+            match poll(handle) {
+                CMD_NONE => break,
+                CMD_KEEP_STEPS => kept = command_text(handle),
+                _ => {}
+            }
+        }
+        let kept = kept.expect("the shell is asked to keep the ticks");
+        assert_eq!(kept, "windows\n1,2");
+        destroy(handle);
+
+        let again = phone();
+        steps(again, kept);
+        press(again, Act::Start);
+        press(again, Act::Computer(0));
+        press(again, Act::StartPage(0));
+        assert_eq!(at(again), vec![1, 2]);
         destroy(again);
     }
 

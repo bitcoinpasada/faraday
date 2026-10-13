@@ -5,7 +5,9 @@
 mod common;
 
 use common::*;
-use faraday_companion::{Act, Companion, CompanionCommand, CompanionEvent, Computer, Doc, Page};
+use faraday_companion::{
+    Act, Companion, CompanionCommand, CompanionEvent, Computer, Doc, MAKER_ROWS, MakerRow, Page,
+};
 use faraday_strings::EN;
 
 /// What the shell was last asked to keep for Start from the stick.
@@ -17,11 +19,11 @@ fn kept_start(c: &mut Companion) -> Option<(String, String)> {
     })
 }
 
-fn maker_at(id: &str) -> usize {
-    faraday_learn::MAKERS
+fn maker_at(id: &'static str) -> usize {
+    MAKER_ROWS
         .iter()
-        .position(|m| m.id == id)
-        .expect("a maker page")
+        .position(|m| *m == MakerRow::Page(id))
+        .expect("a maker on the list")
 }
 
 fn restarted(computer: &str, maker: &str) -> Companion {
@@ -76,22 +78,39 @@ fn the_maker_chosen_is_kept_and_shown_after_a_restart() {
     assert!(shows(&mut c, EN.companion_start_choose_maker));
     c.press(Act::ChooseMaker);
     assert_eq!(c.page, Page::StartMakers);
-    // The makers' names alone, not their pages' titles.
-    for name in [
+    // One word a maker, not their pages' titles, Other last.
+    let names = [
         EN.companion_maker_dell,
         EN.companion_maker_hp,
-        EN.companion_maker_lenovo_thinkpad,
-        EN.companion_maker_lenovo_ideapad,
+        EN.companion_maker_lenovo,
         EN.companion_maker_asus,
         EN.companion_maker_acer,
         EN.companion_maker_msi,
         EN.companion_maker_framework,
         EN.companion_maker_surface,
-    ] {
-        assert!(shows(&mut c, name), "{name}");
-    }
+        EN.companion_maker_other,
+    ];
+    assert_eq!(
+        names,
+        [
+            "Dell",
+            "HP",
+            "Lenovo",
+            "ASUS",
+            "Acer",
+            "MSI",
+            "Framework",
+            "Surface",
+            "Other"
+        ]
+    );
+    let texts = c.texts();
+    let at: Vec<usize> = names
+        .iter()
+        .map(|n| texts.iter().position(|t| t == n).expect(n))
+        .collect();
+    assert!(at.windows(2).all(|w| w[0] < w[1]), "{texts:?}");
     assert!(!shows(&mut c, title("maker-dell")));
-    assert!(shows(&mut c, EN.companion_start_another_maker));
     c.press(Act::Maker(maker_at("maker-dell")));
     assert_eq!(c.page, Page::Start);
     assert!(shows(&mut c, EN.companion_maker_dell));
@@ -171,20 +190,71 @@ fn windows_shows_the_bitlocker_pages_and_linux_does_not() {
 }
 
 #[test]
-fn another_maker_opens_the_systems_general_guide() {
-    for (computer, id) in [("windows", "windows"), ("linux", "linux")] {
-        let mut c = restarted(computer, "");
-        c.press(Act::Start);
-        c.press(Act::ChooseMaker);
-        let general = faraday_guides::BOOT
-            .iter()
-            .position(|b| *b == id)
-            .expect("a boot guide");
-        c.press(Act::StartPage(general));
-        assert_eq!(c.page, Page::Doc(Doc::Own(id)));
-        assert_eq!(kept_start(&mut c), None);
-        assert_eq!(c.maker, None);
-    }
+fn lenovo_asks_thinkpad_or_other() {
+    let mut c = restarted("windows", "");
+    c.press(Act::Start);
+    c.press(Act::ChooseMaker);
+    let lenovo = MAKER_ROWS
+        .iter()
+        .position(|m| *m == MakerRow::Lenovo)
+        .expect("Lenovo on the list");
+    c.press(Act::Maker(lenovo));
+    assert_eq!(c.page, Page::StartLenovo);
+    assert!(shows(&mut c, EN.companion_maker_thinkpad));
+    assert!(shows(&mut c, EN.companion_maker_other));
+    assert_eq!(kept_start(&mut c), None);
+    c.press(Act::Lenovo(0));
+    assert_eq!(c.page, Page::Start);
+    assert!(shows(&mut c, title("maker-lenovo-thinkpad")));
+    assert_eq!(
+        kept_start(&mut c),
+        Some((
+            String::from("windows"),
+            String::from("maker-lenovo-thinkpad")
+        ))
+    );
+    // Back from Start goes Home, past neither list.
+    c.press(Act::Back);
+    assert_eq!(c.page, Page::Home);
+
+    c.press(Act::Start);
+    c.press(Act::ChooseMaker);
+    c.press(Act::Maker(lenovo));
+    c.press(Act::Lenovo(1));
+    // Any other Lenovo: the IdeaPad, Yoga and Legion page.
+    assert_eq!(c.page, Page::Start);
+    assert_eq!(c.maker, Some("maker-lenovo-ideapad"));
+    assert!(shows(&mut c, EN.companion_maker_lenovo));
+    assert_eq!(
+        kept_start(&mut c),
+        Some((
+            String::from("windows"),
+            String::from("maker-lenovo-ideapad")
+        ))
+    );
+}
+
+#[test]
+fn other_opens_the_page_of_the_common_keys() {
+    let mut c = restarted("linux", "");
+    c.press(Act::Start);
+    c.press(Act::ChooseMaker);
+    c.press(Act::Maker(maker_at("maker-other")));
+    assert_eq!(c.page, Page::Start);
+    assert!(shows(&mut c, EN.companion_maker_other));
+    assert!(shows(&mut c, title("maker-other")));
+    assert_eq!(
+        kept_start(&mut c),
+        Some((String::from("linux"), String::from("maker-other")))
+    );
+    let at = faraday_companion::start_page("maker-other").expect("listed");
+    c.press(Act::StartPage(at));
+    assert_eq!(c.page, Page::Doc(Doc::Own("maker-other")));
+    assert!(shows(&mut c, "boot menu key"));
+
+    let mut again = restarted("linux", "maker-other");
+    again.press(Act::Start);
+    assert!(shows(&mut again, title("maker-other")));
 }
 
 #[test]

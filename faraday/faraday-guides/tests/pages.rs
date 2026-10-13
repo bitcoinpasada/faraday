@@ -53,7 +53,7 @@ fn the_boot_entry_page_is_there() {
 #[test]
 fn the_windows_guide_does_the_bitlocker_step_before_any_firmware_step() {
     let first = &guide("windows").sections[0];
-    assert_eq!(first.heading, "BitLocker first");
+    assert_eq!(first.heading, "Before you start");
     assert!(first.paragraphs[0].starts_with(
         "Do the BitLocker step in Faraday Starter on this computer before changing any firmware setting."
     ));
@@ -62,6 +62,62 @@ fn the_windows_guide_does_the_bitlocker_step_before_any_firmware_step() {
 #[test]
 fn the_linux_guide_asks_for_the_tpm_unlocked_disk_s_passphrase_first() {
     let first = &guide("linux").sections[0];
-    assert_eq!(first.heading, "A disk unlocked by the TPM");
+    assert_eq!(first.heading, "Before you start");
     assert!(first.paragraphs[0].contains("passphrase or recovery key"));
+}
+
+// The guides a person follows at the computer are numbered steps
+// (docs/COMPANION.md §4.7): every maker's page, Other's, and the Windows
+// and Linux guides.
+
+/// The pages written as steps.
+fn step_pages() -> impl Iterator<Item = &'static str> {
+    faraday_learn::MAKERS
+        .iter()
+        .map(|m| m.id)
+        .chain(["maker-other", "windows", "linux"])
+}
+
+#[test]
+fn every_guide_followed_at_the_computer_is_numbered_steps_from_one() {
+    for id in step_pages() {
+        let steps = faraday_learn::steps(guide(id));
+        assert!(steps.len() >= 4, "{id}: {steps:?}");
+        let expected: Vec<u32> = (1..=steps.len() as u32).collect();
+        assert_eq!(steps, expected, "{id}");
+    }
+}
+
+#[test]
+fn the_page_for_another_maker_gives_the_common_keys_and_says_to_search() {
+    let p = guide("maker-other");
+    let text: Vec<&str> = p
+        .sections
+        .iter()
+        .flat_map(|s| s.paragraphs.iter().copied())
+        .collect();
+    let all = text.join(" ");
+    for key in ["F2", "F12", "Delete", "Esc"] {
+        assert!(all.contains(key), "{key}");
+    }
+    assert!(all.contains("Search online for your computer's model and \"boot menu key\""));
+    // It names no maker's computer: it is for the ones without a page.
+    for name in [
+        "Dell",
+        "HP",
+        "Lenovo",
+        "ThinkPad",
+        "IdeaPad",
+        "ASUS",
+        "Acer",
+        "MSI",
+        "Framework",
+        "Surface",
+    ] {
+        assert!(
+            !all.split(|c: char| !c.is_ascii_alphanumeric())
+                .any(|w| w == name),
+            "{name}"
+        );
+    }
 }

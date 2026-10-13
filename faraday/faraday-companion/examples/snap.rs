@@ -14,7 +14,7 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use faraday_companion::{Act, Closed, Companion, CompanionEvent};
+use faraday_companion::{Act, Closed, Companion, CompanionEvent, MAKER_ROWS, MakerRow};
 use faraday_core::testkit;
 use faraday_ui::keyboard::OskPress;
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
@@ -400,10 +400,13 @@ fn run(s: &Snap) -> Result<(), String> {
     s.shot(&mut c, "start-windows")?;
     c.press(Act::ChooseMaker);
     s.shot(&mut c, "start-makers")?;
-    let dell = faraday_learn::MAKERS
-        .iter()
-        .position(|m| m.id == "maker-dell")
-        .ok_or("a Dell page")?;
+    let row = |r: MakerRow| MAKER_ROWS.iter().position(|m| *m == r);
+    let dell = row(MakerRow::Page("maker-dell")).ok_or("a Dell row")?;
+    let lenovo = row(MakerRow::Lenovo).ok_or("a Lenovo row")?;
+    let other = row(MakerRow::Page("maker-other")).ok_or("an Other row")?;
+    c.press(Act::Maker(lenovo));
+    s.shot(&mut c, "start-makers-lenovo")?;
+    c.press(Act::Back);
     c.press(Act::Maker(dell));
     s.shot(&mut c, "start-windows-dell")?;
     c.press(Act::ChangeComputer);
@@ -413,9 +416,34 @@ fn run(s: &Snap) -> Result<(), String> {
     c.press(Act::ChooseMaker);
     c.press(Act::Maker(dell));
     s.shot(&mut c, "start-linux-dell")?;
-    // A maker's page with its firmware sketches (DECISIONS F18).
-    c.press(Act::StartPage(faraday_guides::BOOT.len()));
+    // A maker's page with its firmware sketches (DECISIONS F18), as
+    // numbered steps, then two of them ticked, then its end with Start
+    // again.
+    let page = |id| faraday_companion::start_page(id).ok_or("a listed guide");
+    c.press(Act::StartPage(page("maker-dell")?));
     s.shot(&mut c, "start-maker-dell")?;
+    c.press(Act::Step(1));
+    c.press(Act::Step(2));
+    s.shot(&mut c, "start-maker-dell-ticked")?;
+    c.event(Event::Scroll {
+        x: 10,
+        y: 10,
+        dy: i16::MAX,
+    });
+    s.shot(&mut c, "start-maker-dell-end")?;
+    // Other: the common keys.
+    c.press(Act::Back);
+    c.press(Act::ChooseMaker);
+    c.press(Act::Maker(other));
+    s.shot(&mut c, "start-linux-other")?;
+    c.press(Act::StartPage(page("maker-other")?));
+    s.shot(&mut c, "start-maker-other")?;
+    // The Windows guide.
+    let mut c = s.app();
+    c.press(Act::Start);
+    c.press(Act::Computer(0));
+    c.press(Act::StartPage(page("windows")?));
+    s.shot(&mut c, "start-guide-windows")?;
 
     // About (§4.8).
     let mut c = s.app();

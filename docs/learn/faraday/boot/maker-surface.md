@@ -1,54 +1,56 @@
 # Starting a Microsoft Surface from the stick
 
-## BitLocker first
+## Before you start
 
-On Windows, have the drive's BitLocker recovery key in hand before changing any firmware setting: Faraday Starter's BitLocker step on this computer shows it. Its extra-safe choice also suspends BitLocker until it is resumed. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, have the BitLocker recovery key ready: Faraday Starter's BitLocker step shows it. On Linux, have the disk's passphrase or recovery key ready.
 
-## Keys
+A Surface has no keys for this; it uses its volume buttons.
 
-A Surface has no keys for this; it uses its volume buttons. Shut it down and wait about 10 seconds first.
+## Steps
 
-Firmware settings (Surface UEFI): hold Volume Up, press and release the power button, and keep holding Volume Up until the UEFI screen appears.
+1. Plug the stick in, and unplug any other USB disk: the Surface may start from that instead.
 
-Start from a USB disk: hold Volume Down, press and release the power button, and keep holding Volume Down until spinning dots appear under the logo.
+2. Shut the Surface down and wait about 10 seconds.
 
-Faraday Starter's Restart into firmware settings opens Surface UEFI without the buttons.
+3. Hold Volume Up, press and release the power button, and keep holding Volume Up until the Surface UEFI screen appears.
 
-## Turn Secure Boot off
+If it doesn't open: use Faraday Starter's Restart into firmware settings, which opens Surface UEFI without the buttons.
 
-In Surface UEFI, choose Security. Under Secure Boot, choose Change configuration, choose None, and choose OK. Then choose Exit → Restart now.
+4. Choose Security. Under Secure Boot, choose Change configuration, choose None, and choose OK.
 
 ::sketch surface-secure-boot
 
+5. Choose Exit → Restart now.
+
 ::sketch surface-exit
 
-On Windows, choose the stick from the boot menu on the restart that follows the save, before Windows starts, and turn Secure Boot back on before Windows starts again. Windows started with Secure Boot off asks for the BitLocker recovery key, unless Faraday Starter suspended BitLocker.
+6. Start the stick before Windows starts: hold Volume Down, press and release the power button, and keep holding Volume Down until spinning dots appear under the logo.
 
-## Turn Fast Boot off where it hides USB
+Or, in Surface UEFI, Boot configuration: swipe left on USB Storage to start from it once.
 
-Microsoft's Surface UEFI pages list no Fast Boot setting. The Boot configuration page has two USB settings, and both have to be on: USB Storage in the list of boot devices, and Enable Boot from USB devices under Advanced options.
+Or, in Windows, Settings → System → Recovery, Restart now beside Advanced startup, then Use a device → USB Storage. Windows asks for the BitLocker recovery key on that start unless Faraday Starter suspended BitLocker.
 
-::sketch surface-boot
+If the stick does not start: see "If something is different" below.
 
-## Start from the stick
+## Afterwards
 
-Plug the stick in, and unplug any other USB disk: the Surface may start from that instead. Shut down, then hold Volume Down and press and release the power button, as above.
+7. Turn the Surface off from Faraday and pull the stick out.
 
-Or, in Windows, Settings → System → Recovery, Restart now beside Advanced startup, then Use a device → USB Storage. Or, in Surface UEFI, Boot configuration: swipe left on USB Storage to start from it once.
-
-## Turn Secure Boot back on
-
-Turn the Surface off from Faraday and pull the stick out. Open Surface UEFI with Volume Up, choose Security, under Secure Boot choose Change configuration, and choose Microsoft only. Then Exit → Restart now.
+8. Open Surface UEFI with Volume Up, choose Security, under Secure Boot choose Change configuration, and choose Microsoft only. Then Exit → Restart now. Do it before Windows starts: with Secure Boot off, Windows asks for the BitLocker recovery key unless Faraday Starter suspended BitLocker.
 
 While Secure Boot is off, the Surface shows a red bar with an open padlock at power-on. Once Secure Boot is back on, it is gone.
 
-## Known quirks
+## If something is different
+
+Stick not started: Microsoft's Surface UEFI pages list no Fast Boot setting. The Boot configuration page has two USB settings, and both have to be on: USB Storage in the list of boot devices, and Enable Boot from USB devices under Advanced options.
+
+::sketch surface-boot
 
 A Surface with a Snapdragon processor is an ARM computer and cannot start the stick. Faraday Starter says so on such a computer.
 
 Surface Go uses a UEFI made by another company, and Surface Pro 3 and earlier have different menus; Microsoft's pages for those name their own settings.
 
-## Where this comes from
+## Sources
 
 Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
 

@@ -7865,18 +7865,19 @@ pub struct Strings {
     pub companion_start_maker: &'static str,
     /// Start from the stick: opens the list of makers.
     pub companion_start_choose_maker: &'static str,
-    /// Start from the stick: a maker with no page, the general guide.
-    pub companion_start_another_maker: &'static str,
     /// Start from the stick: the heading over the pages for when it does not work.
     pub companion_start_trouble: &'static str,
     /// Start from the stick: the maker's name on the list.
     pub companion_maker_dell: &'static str,
     /// Start from the stick: the maker's name on the list.
     pub companion_maker_hp: &'static str,
-    /// Start from the stick: the maker's name on the list.
-    pub companion_maker_lenovo_thinkpad: &'static str,
-    /// Start from the stick: the maker's name on the list.
-    pub companion_maker_lenovo_ideapad: &'static str,
+    /// Start from the stick: the maker's name on the list, which asks
+    /// ThinkPad or Other next.
+    pub companion_maker_lenovo: &'static str,
+    /// Start from the stick, Lenovo: a ThinkPad.
+    pub companion_maker_thinkpad: &'static str,
+    /// Start from the stick: any other maker, or any other Lenovo.
+    pub companion_maker_other: &'static str,
     /// Start from the stick: the maker's name on the list.
     pub companion_maker_asus: &'static str,
     /// Start from the stick: the maker's name on the list.
@@ -7887,6 +7888,10 @@ pub struct Strings {
     pub companion_maker_framework: &'static str,
     /// Start from the stick: the maker's name on the list.
     pub companion_maker_surface: &'static str,
+    /// A guide page: how many of its steps are ticked, of how many.
+    pub companion_steps_done: &'static str,
+    /// A guide page: clears its ticks.
+    pub companion_steps_again: &'static str,
     /// Learn: the pages about Bitcoin that Faraday's apps show.
     pub companion_learn_bitcoin: &'static str,
     /// About: the palettes the screens can be drawn in.
@@ -11803,17 +11808,19 @@ pub static EN: Strings = Strings {
     companion_start_bitlocker: "BitLocker first",
     companion_start_maker: "Maker",
     companion_start_choose_maker: "Choose the maker",
-    companion_start_another_maker: "Another maker",
     companion_start_trouble: "If something goes wrong",
     companion_maker_dell: "Dell",
     companion_maker_hp: "HP",
-    companion_maker_lenovo_thinkpad: "Lenovo ThinkPad",
-    companion_maker_lenovo_ideapad: "Lenovo IdeaPad, Yoga or Legion",
+    companion_maker_lenovo: "Lenovo",
+    companion_maker_thinkpad: "ThinkPad",
+    companion_maker_other: "Other",
     companion_maker_asus: "ASUS",
     companion_maker_acer: "Acer",
     companion_maker_msi: "MSI",
     companion_maker_framework: "Framework",
-    companion_maker_surface: "Microsoft Surface",
+    companion_maker_surface: "Surface",
+    companion_steps_done: "{} of {} done",
+    companion_steps_again: "Start again",
     companion_learn_bitcoin: "Bitcoin",
     companion_theme: "Theme",
     companion_check_title: "Checking a release",

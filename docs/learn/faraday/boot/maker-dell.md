@@ -1,54 +1,54 @@
 # Starting a Dell computer from the stick
 
-## BitLocker first
+## Before you start
 
-On Windows, have the drive's BitLocker recovery key in hand before changing any firmware setting: Faraday Starter's BitLocker step on this computer shows it. Its extra-safe choice also suspends BitLocker until it is resumed. On Linux, have the disk's passphrase or recovery key first if the TPM unlocks the disk. The page "BitLocker and starting from a stick" says why.
+On Windows, have the BitLocker recovery key ready: Faraday Starter's BitLocker step shows it. On Linux, have the disk's passphrase or recovery key ready.
 
-## Keys
+## Steps
 
-Firmware settings (System Setup): F2. Boot menu (One Time Boot): F12. Tap the key about once a second as soon as the Dell logo appears; holding it down can give a keyboard error instead. On a laptop whose top row changes brightness and volume, press Fn+F2 or Fn+F12.
+1. Plug the stick in.
 
-With Windows' Fast Startup on, Shut down does not close Windows and the keys can be missed. Restart instead, then tap the key. Faraday Starter's Restart into firmware settings opens System Setup without a key. The F12 menu also lists BIOS Setup.
+2. Restart the computer. Use Restart, not Shut down: with Windows' Fast Startup on, Shut down can skip the key.
 
-## Turn Secure Boot off
+3. When the Dell logo appears, tap F2 about once a second. Don't hold it down.
 
-Computers made in 2021 or later: in System Setup, choose Boot Configuration in the left menu, turn Secure Boot off, then Apply Changes and exit.
+If it doesn't open: tap Fn+F2, or tap F12 and choose BIOS Setup, or use Faraday Starter's Restart into firmware settings.
+
+4. Choose Boot Configuration, turn Secure Boot off, then Apply Changes and Exit.
 
 ::sketch dell-secure-boot
 
-Computers made before 2021: choose Secure Boot in the left menu, clear Secure Boot Enable, then Apply and exit.
+Made before 2021: choose Secure Boot, clear Secure Boot Enable, then Apply and Exit.
 
 ::sketch dell-secure-boot-before-2021
 
 Leave Secure Boot Mode and Expert Key Management as they are.
 
-On Windows, choose the stick from the boot menu on the restart that follows the save, before Windows starts, and turn Secure Boot back on before Windows starts again. Windows started with Secure Boot off asks for the BitLocker recovery key, unless Faraday Starter suspended BitLocker.
+5. The computer restarts. Tap F12 when the Dell logo appears (Fn+F12 on some laptops). On Windows, do it on this restart, before Windows starts.
 
-## Turn Fast Boot off where it hides USB
-
-Dell's setting is Fastboot, under Pre-boot Behavior, or POST Behavior on older computers, with the choices Minimal, Thorough and Auto. If the stick is missing from the F12 menu, set Fastboot to Thorough. Dell's manuals do not say which choice skips USB disks.
-
-Enable USB Boot Support has to be on: Integrated Devices → USB/Thunderbolt Configuration, or System Configuration → USB Configuration on older computers. For a stick in a Thunderbolt port, Enable Thunderbolt Boot Support has to be on as well.
-
-## Start from the stick
-
-Plug the stick in, restart, and tap F12. Choose the stick in the One Time Boot menu. Where it is listed twice, choose the entry that begins with UEFI. The F12 menu starts the stick once and leaves the boot order as it was.
+6. Choose the stick. If it is listed twice, choose the one that starts with UEFI. This starts the stick once; the boot order stays as it was.
 
 ::sketch dell-boot-menu
 
-## Turn Secure Boot back on
+If the stick is not listed: see "If something is different" below.
 
-Turn the computer off from Faraday and pull the stick out. Tap F2 at power-on, turn Secure Boot on where it was turned off, then Apply and exit.
+## Afterwards
 
-If Secure Boot does not stay on, open Expert Key Management: with Enable Custom Mode on, Reset All Keys loads the computer's default keys, and turning Enable Custom Mode off again also restores them.
+7. Turn the computer off from Faraday and pull the stick out.
 
-## Known quirks
+8. Turn it on, tap F2, turn Secure Boot back on, then Apply and Exit. Do it before Windows starts: with Secure Boot off, Windows asks for the BitLocker recovery key unless Faraday Starter suspended BitLocker.
 
-The stick starts only in UEFI mode. Boot List Option set to Legacy means this computer starts in legacy BIOS mode, and Dell says changing it to UEFI stops a Windows installed in legacy mode from starting.
+If Secure Boot does not stay on: Expert Key Management, Enable Custom Mode on, Reset All Keys, then Enable Custom Mode off.
 
-The menu names differ between Dell models and BIOS versions. Dell's System Manual for the model, under Support Resources, names each one.
+## If something is different
 
-## Where this comes from
+Stick not in the F12 list: in F2 setup, set Fastboot to Thorough (under Pre-boot Behavior, or POST Behavior on older models). Turn on Enable USB Boot Support (Integrated Devices → USB/Thunderbolt Configuration, or System Configuration → USB Configuration on older models). In a Thunderbolt port, also turn on Enable Thunderbolt Boot Support. Dell's manuals do not say which Fastboot choice skips USB disks.
+
+Boot List Option says Legacy: the stick starts only in UEFI mode, and Dell says changing this to UEFI stops a Windows installed in legacy mode from starting.
+
+Menu names differ between models and BIOS versions: Dell's System Manual for the model, under Support Resources, names each one.
+
+## Sources
 
 Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
 

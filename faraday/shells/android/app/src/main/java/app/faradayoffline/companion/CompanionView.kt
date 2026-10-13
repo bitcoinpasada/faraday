@@ -23,7 +23,8 @@ import java.util.TimeZone
  * no text field and no system keyboard here. What this class does:
  *
  *  - create the core once, at the first settled size, hand it what was
- *    kept (the received files, the kept store's counts, the theme), the
+ *    kept (the received files, the kept store's counts, the theme, the
+ *    Start from the stick answers and each guide page's ticked steps), the
  *    wall clock, About's facts and anything shared in at start, and free
  *    it on destroy;
  *  - turn touches into `Touch` events in frame pixels, and Back into Escape;
@@ -109,6 +110,9 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
     private val startFile = File(context.filesDir, START_NAME)
     private val startTemp = File(context.filesDir, "$START_NAME.tmp")
 
+    /** The steps ticked on each guide page: a file a page, named by its id. */
+    private val stepsDir = File(context.filesDir, STEPS_NAME)
+
     /**
      * Events waiting to go in, delivered in order rather than recursively:
      * an event's commands can produce further events.
@@ -154,6 +158,7 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
         val (descriptions, keys) = host.keptCounts()
         val theme = readTheme()
         val start = readStart()
+        val steps = readSteps()
         val system = host.system()
         send {
             received?.let {
@@ -165,6 +170,7 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
         send { Core.keptCounts(handle, descriptions, keys) }
         send { theme?.let { Core.theme(handle, it) } }
         send { start?.let { Core.start(handle, it) } }
+        for (text in steps) send { Core.steps(handle, text) }
         send { system?.let { (build, cert, permissions) -> Core.system(handle, build, cert, permissions) } }
         sendTime()
         // In the theme the core now has, the kept one or the default.
@@ -408,6 +414,7 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
                     needsColor = true
                 }
                 Core.CMD_KEEP_START -> writeStart(Core.commandText(handle))
+                Core.CMD_KEEP_STEPS -> writeSteps(Core.commandText(handle))
                 // CMD_NONE, and CMD_ERROR after the core has been freed.
                 else -> return
             }
@@ -454,12 +461,52 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
         }
     }
 
+    /** Each guide page's ticked steps kept last time, as [Core.steps] takes them. */
+    private fun readSteps(): List<String> = try {
+        stepsDir.listFiles()
+            ?.filter { PAGE_ID.matches(it.name) }
+            ?.mapNotNull { f -> f.readText().trim().takeIf { it.isNotEmpty() }?.let { "${f.name}\n$it" } }
+            ?: emptyList()
+    } catch (_: Exception) {
+        emptyList()
+    }
+
+    /**
+     * Keeps one page's ticked steps as the start answers are kept, or
+     * drops the page's file when none is ticked; a failure is silent.
+     */
+    private fun writeSteps(text: String?) {
+        if (text == null) return
+        val page = text.substringBefore('\n').trim()
+        val done = text.substringAfter('\n', "").trim()
+        if (!PAGE_ID.matches(page)) return
+        val file = File(stepsDir, page)
+        val temp = File(stepsDir, "$page.tmp")
+        try {
+            if (done.isEmpty()) {
+                file.delete()
+                return
+            }
+            stepsDir.mkdirs()
+            temp.writeText(done)
+            if (!temp.renameTo(file)) temp.delete()
+        } catch (_: Exception) {
+            temp.delete()
+        }
+    }
+
     private companion object {
         /** The theme's file, in `filesDir`. */
         const val THEME_NAME = "theme"
 
         /** The start answers' file, in `filesDir`. */
         const val START_NAME = "start"
+
+        /** The directory of ticked steps, in `filesDir`. */
+        const val STEPS_NAME = "steps"
+
+        /** A guide page's id, the only file name kept in [STEPS_NAME]. */
+        val PAGE_ID = Regex("[a-z0-9-]{1,64}")
 
         /** 20 Hz: enough for an animated code's fastest rate. */
         const val TICK_MS = 50L
