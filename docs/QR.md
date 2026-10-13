@@ -128,7 +128,10 @@ intact, not who sent it.
    once are read in turn, and reading stops when a multi-part transfer
    completes. Images are tried at about 1,200 pixels on the
    long side first and at full size second; one over
-   40 megapixels is refused rather than left to appear hung. The app gains
+   4096 × 4096 pixels (about 16.8 megapixels, `MAX_PIXELS`) is refused
+   from its header, before its pixels are decoded: it covers phone and
+   5K-screen screenshots and 12-megapixel photographs, and keeps one
+   picture to about 135 MB of the disk process on a 1 GB Pi. The app gains
    no image parser and no new kind of input.
 2. **BBQr `Z`: read, never written.** Reading needs a DEFLATE decoder in
    the app, where scanned text is decoded: `miniz_oxide` (pure Rust), with

@@ -27,8 +27,15 @@ use std::path::PathBuf;
 /// vault with four 4 MiB slots is the largest thing Faraday writes.
 pub const MAX_READ: u64 = 18 * 1024 * 1024;
 
-/// The largest picture read for QR codes, in pixels.
-pub const MAX_PIXELS: usize = 40_000_000;
+/// The largest picture read for QR codes, in pixels: 4096 × 4096, about
+/// 16.8 million. That takes in a phone's screenshot (1440 × 3200 is 4.6
+/// million), a 4K or 5K screen's (8.3 and 14.7 million) and a 12-megapixel
+/// photograph, with room. Decoding holds about 8 bytes a pixel at once
+/// (the pixels as RGBA, their grey copy, its inverse, and the QR reader's
+/// own copy at 2 bytes a pixel), so a picture at the limit takes about
+/// 135 MB of the disk process, which a 1 GB Pi has to spare. Its header is checked against
+/// this before any pixel is decoded.
+pub const MAX_PIXELS: usize = 4096 * 4096;
 
 /// A stick's top level.
 pub trait Place {
