@@ -63,6 +63,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
         if app.shell_keys.is_some() {
             ui.fill(x, 0.0, cw, 18.0, 0.0, BG);
         }
+        header_network_pill(app, ui, x + cw - 38.0);
         // The ? at the top right opens what explains this screen.
         if !app.learn_pages().is_empty() {
             // In the right margin, clear of every screen's own title row.
@@ -344,22 +345,6 @@ pub(crate) fn section_label(ui: &mut Ui, x: f32, y: f32, s: &str) {
     ui.text(x, y, 14.0, W::S, MUTED, s);
 }
 
-/// The network the session is on, at the right of a screen's title row.
-/// A badge, off mainnet only: it opens nothing. The chooser is in
-/// Settings.
-fn network_pill(app: &Faraday, ui: &mut Ui, right: f32, y: f32) {
-    let net = app.session.network();
-    if net.is_mainnet() {
-        return;
-    }
-    let label = network_name(net);
-    let pw = ui.measure(12.0, W::S, label) + 28.0;
-    let px = right - pw;
-    ui.fill(px, y, pw, 30.0, 15.0, WARN.with_alpha(30));
-    ui.stroke(px, y, pw, 30.0, 15.0, WARN.with_alpha(110));
-    ui.text_mid(px + 14.0, y, 30.0, 12.0, W::S, WARN, label);
-}
-
 // ---------------------------------------------------------------------
 // Sidebar
 // ---------------------------------------------------------------------
@@ -407,13 +392,30 @@ pub(crate) fn name_suffix(app: &Faraday) -> NameSuffix {
     }
 }
 
+/// The network the session is on, at the top right of every page beside
+/// the ? (at `qx`, where the ? is or would be), centred on it, a token
+/// gap to its left. A badge, off mainnet only: it opens nothing.
+fn header_network_pill(app: &Faraday, ui: &mut Ui, qx: f32) {
+    let net = app.session.network();
+    if net.is_mainnet() {
+        return;
+    }
+    let label = network_name(net);
+    let (h, qy, qh) = (28.0, 12.0, 28.0);
+    let pw = ui.measure(12.0, W::S, label) + 24.0;
+    let px = qx - osk_ui::tokens::GAP - pw;
+    let py = qy + (qh - h) / 2.0;
+    ui.fill(px, py, pw, h, h / 2.0, WARN.with_alpha(30));
+    ui.stroke(px, py, pw, h, h / 2.0, WARN.with_alpha(110));
+    ui.text_mid(px + 12.0, py, h, 12.0, W::S, WARN, label);
+}
+
 fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
     ui.fill(0.0, 0.0, SIDEBAR_W, h, 0.0, SIDEBAR);
     ui.fill(SIDEBAR_W - 1.0, 0.0, 1.0, h, 0.0, LINE);
     ui.mark(22.0, 20.0, 28.0, 32.0);
-    // The name centred on the mark, its capitals 10 tall: at 11, as on the
-    // Pi, it reaches the widest network pill (Regtest).
-    // With its word it is 9 tall, to stay inside the sidebar.
+    // The name centred on the mark, its capitals 10 tall; with its word
+    // 9 tall, which keeps it inside the sidebar (at 10 it reaches the edge).
     let suffix = name_suffix(app);
     let cap = if suffix == NameSuffix::None {
         10.0
@@ -421,21 +423,6 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
         9.0
     };
     ui.wordmark_named(58.0, 31.0 + (10.0 - cap) / 2.0, cap, TEXT, suffix);
-    let net = app.session.network();
-    if !net.is_mainnet() {
-        // A test network is marked on every screen, by the pill alone.
-        let label = network_name(net);
-        let tw = ui.measure(12.0, W::S, label) + 24.0;
-        // The name with its word fills the row: the pill goes under it.
-        let (tx, ty, th) = if name_suffix(app) == NameSuffix::None {
-            (SIDEBAR_W - 16.0 - tw, 23.0, 26.0)
-        } else {
-            (58.0, 54.0, 18.0)
-        };
-        ui.fill(tx, ty, tw, th, th / 2.0, WARN.with_alpha(30));
-        ui.stroke(tx, ty, tw, th, th / 2.0, WARN.with_alpha(110));
-        ui.text_mid(tx + 12.0, ty, th, 12.0, W::S, WARN, label);
-    }
 
     // The places that are always offered, in order; Learn (not a place,
     // a sheet) is drawn between Tools and whatever comes after it.
@@ -1058,7 +1045,6 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let width = cw - 112.0;
     let mut y = 44.0;
     title(ui, x, y, EN.home_home);
-    network_pill(app, ui, x + width, y + 2.0);
     y += 64.0;
     // The stick cannot read the screen: every start says it.
     if app.devices.read {
@@ -1170,7 +1156,6 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut y = if compact { 14.0 } else { 36.0 } - app.list_offset;
     if !compact {
         title(ui, x, y, EN.start_wallets);
-        network_pill(app, ui, x + width, y + 2.0);
         y += 60.0;
     }
     // No wallet and no vault yet: two ways in.
@@ -2912,7 +2897,6 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let width = cw - 80.0;
     let mut y = 28.0;
     title(ui, x, y, EN.wallets_wallets);
-    network_pill(app, ui, x + width, y + 2.0);
     y += 56.0;
 
     // An Inbox PSBT leads.

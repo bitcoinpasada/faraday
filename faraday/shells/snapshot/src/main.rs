@@ -2232,7 +2232,11 @@ fn transfer_tour(t: &mut Tour) -> Result<(), String> {
     t.pump();
     t.shot("transfer-received-secret")?;
     t.press(Action::Cancel);
-    t.shot("transfer-saved")
+    t.shot("transfer-saved")?;
+    t.press(Action::Nav(Screen::Home));
+    t.shot("transfer-home")?;
+    t.press(Action::Nav(Screen::Start));
+    t.shot("transfer-wallets")
 }
 
 /// Home's Scan with a stick in: the sheet asks for it to be pulled, and

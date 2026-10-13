@@ -39,7 +39,7 @@ fn now_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     56.0
 }
 
-/// A small text pill, right-anchored at `right`, as `network_pill` draws
+/// A small text pill, right-anchored at `right`, as the network's badge draws
 /// (`docs/DESIGN.md` §4.8): the HOTP and Unreadable badges.
 fn pill_right(ui: &mut Ui, right: f32, y: f32, label: &str) {
     let tw = ui.measure(12.0, W::S, label);

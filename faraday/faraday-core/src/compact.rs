@@ -8,7 +8,7 @@ use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
 
 use crate::ui::pal::*;
-use crate::ui::{NameSuffix, Style, Ui, W};
+use crate::ui::{Style, Ui, W};
 use crate::wallet::network_name;
 use crate::{Action, Faraday, Screen};
 
@@ -116,6 +116,20 @@ fn tools(app: &Faraday, ui: &mut Ui, w: f32) -> f32 {
         }
         w - M - 38.0
     };
+    // The network, off mainnet, beside the ?: centred on the bar, a gap
+    // to the ?'s left (the gap `right` already holds). A badge: it opens nothing.
+    let net = app.session.network();
+    if !net.is_mainnet() {
+        let label = network_name(net);
+        let (ph, pw) = (28.0, ui.measure(12.0, W::S, label) + 24.0);
+        let (px, py) = (right - pw, (BAR_H - ph) / 2.0);
+        if draw {
+            ui.fill(px, py, pw, ph, ph / 2.0, WARN.with_alpha(30));
+            ui.stroke(px, py, pw, ph, ph / 2.0, WARN.with_alpha(110));
+            ui.text_mid(px + 12.0, py, ph, 12.0, W::S, WARN, label);
+        }
+        right = px - osk_ui::tokens::GAP;
+    }
     // The keyboard, where the page types, and to bring it back once put
     // away from a field.
     if app.osk_offered() || app.osk_shown() || app.osk_auto() {
@@ -249,13 +263,7 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     if !net.is_mainnet() {
         let label = network_name(net);
         let pw = ui.measure(12.0, W::S, label) + 24.0;
-        // The name with its word fills the row: the pill goes under it.
-        let (px, py) = if crate::screens::name_suffix(app) == NameSuffix::None {
-            (w - M - pw, y - 2.0)
-        } else {
-            y += 30.0;
-            (M, y - 2.0)
-        };
+        let (px, py) = (w - M - pw, y - 2.0);
         ui.fill(px, py, pw, 28.0, 14.0, WARN.with_alpha(30));
         ui.stroke(px, py, pw, 28.0, 14.0, WARN.with_alpha(110));
         ui.text_mid(px + 12.0, py, 28.0, 12.0, W::S, WARN, label);
