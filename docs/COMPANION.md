@@ -83,8 +83,11 @@ is a second app with its own name, so that this one never gains the
 
 - `faraday/faraday-companion`: the Companion's state, screens and
   decisions, no I/O, tested as `faraday-core` is, through actions in and
-  commands out. It draws with `osk-ui` and obeys the same tokens; it
-  runs on DESIGN's `mobile` class, portrait only, as upstream's shell.
+  commands out. It is a Faraday app, not OpenSigner's: it draws with
+  Faraday's own drawing (`faraday-ui`, the look the desktop app and
+  Faraday Starter have: the wordmark with its name, Faraday's palettes,
+  cards, sheets), as the Starter does, on a phone's width, portrait
+  only. Upstream's `osk-ui` screens are not its look.
 - `faraday/faraday-companion-ffi`: the JNI entry points, a copy of
   `opensigner/opensigner-ffi`'s handle table and command encoding with
   the Companion's commands. `libfaraday_companion.so`.
@@ -123,8 +126,8 @@ is a second app with its own name, so that this one never gains the
   `faraday/faraday-strings/src/en.rs`, with a `companion_` prefix,
   as `CLAUDE.md` requires; the Kotlin shell holds
   only the launcher label. `CLAUDE.md`'s screen rule gains: the
-  Companion's screens are this document's §4, built from DESIGN §4's
-  components.
+  Companion's screens are this document's §4, drawn as Faraday's
+  apps are.
 - Builds: `just companion-apk` (debug, the build machine's own tools,
   as `just android-apk`) and `just companion-release-apk` (unsigned,
   in a pinned container on the build machine with the SDK, NDK, JDK and
@@ -139,8 +142,11 @@ is a second app with its own name, so that this one never gains the
 
 ## 4. Screens
 
-All from DESIGN §4's components. Home is a Navigate screen; the rest are
-the §5 screens named beside each.
+Drawn as Faraday Starter's screens are, with the header **FARADAY
+COMPANION** (Faraday's wordmark and the Companion's name), Faraday's
+palettes, cards, rows and sheets. The scanner and the codes look as the
+desktop app's Scan and QR sheets do. Where this section names a DESIGN
+§5 screen it names what the screen does, not how it looks.
 
 ### 4.1 Home
 
@@ -152,7 +158,7 @@ is kept),
 
 ### 4.2 Receive from Faraday
 
-The Scanner (DESIGN §4), with Paste and no Type. Whatever arrives is
+A scanner, as the desktop app's Scan sheet, with Paste and no Type. Whatever arrives is
 routed by §5. A file in the Faraday envelope, a PSBT, a finished
 transaction or a description arrives whole, is kept in Received, and the
 screen names it and offers **Open**. An animated code shows its parts

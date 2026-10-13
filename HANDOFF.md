@@ -2317,6 +2317,62 @@ as possible before the next build.
     the refusal lines are one short sentence per kind (osk-ui's result
     headline holds two lines).
 
+    **Batch A2b, Faraday's look** (owner, 2026-10-12: "The entire app
+    is like you cloned OpenSigner. This needs to be based on Faraday").
+    A2 drew the Companion with upstream's `osk-ui` screens, as the
+    brief and COMPANION §3 then said: OpenSigner's black and orange,
+    its Home, its records. The Companion is a Faraday app and looks like
+    Faraday Starter. COMPANION §3 and §4 and `CLAUDE.md` now say so.
+    Opus: a look to carry over, judged screen by screen. A2's routing,
+    store, `api.rs` and tests stay; what a test reads of a screen may
+    change with it.
+
+    1. **`faraday/faraday-ui`** (new): Faraday's drawing, out of
+       `faraday-core`: `ui.rs` whole (`Ui`, `Style`, `W`, `pal` and the
+       palettes, `NameSuffix`, `grouped`, the mark and the wordmark
+       with its assets), `qr_code`, and the drawing helpers the
+       Starter and the desktop's Scan and QR sheets share
+       (`sheet_box`, `section_label`, `title`, and what else they
+       call that names no `Faraday` state). `Ui` takes the caller's
+       action type (generic, or an id the caller maps): `faraday-core`
+       uses its `Action`, the Starter its own as now, the Companion
+       its own. `SecretText` goes with it or to `faraday-intake`.
+       Depends on `osk-ui` (canvas, fonts, icons, tokens),
+       `faraday-strings`, `zeroize`; added to
+       `tools/lint-companion-deps.sh`'s list. `faraday-core` and
+       `faraday-hub` use it; their renders stay byte for byte (the
+       orchestrator compares, as before).
+    2. **The Companion redrawn with it** (`view.rs` replaced by a
+       `draw.rs` as the Starter's): the header **FARADAY COMPANION**
+       (`NameSuffix::Companion`), Faraday's default palette and the
+       others as the desktop app offers them, its cards, rows, buttons
+       and sheets, on a phone's width with the touch sizes the stick's
+       touch panel uses. Home as the Starter's Home is built: what is
+       kept, then the actions. Receive as the desktop's Scan sheet
+       (the outline, the parts line, Paste); Send and Show as QR as the
+       desktop's QR sheet (format, Animated, rate); a refusal, an
+       arrival and shown text as the desktop shows a scan's result;
+       a BitLocker key as the Starter shows one (eight numbered groups
+       of six); Received and a file's record as the desktop's Inbox
+       and a file in it; Learn and About as the desktop's Learn sheet
+       and About. No `osk_ui::screens` call is left in the crate.
+    3. **Learn's pages**: Faraday's own pages first (Start from the
+       stick, the boot pages, the maker pages, then the rest of
+       `faraday-learn`), then the `osk-learn` pages Faraday's apps
+       show on their screens. No page that describes OpenSigner's own
+       device (such as "Start here", "What this device is").
+    4. **Renders**: `just companion-snap 1080x2340` as before, the
+       same states by the same file names, so the orchestrator can put
+       the A2 and A2b renders side by side.
+
+    Done when: `just` passes once at the end; the desktop and hub
+    renders are unchanged; `cargo tree -e normal -p faraday-companion`
+    shows none of the forbidden list; the Companion's renders are
+    fetched. Report: as COMPANION §0, plus what moved into
+    `faraday-ui` and from where, how `Ui`'s action type was made the
+    caller's, and each screen with the desktop or Starter screen it
+    was drawn after.
+
     **Batch A3, the Android app** (Opus: the platform boundary, where a
     mistake is a permission or a leak). The build machine has JDK 21,
     the SDK (platform 36, build-tools 36.0.0, NDK 29.0.14206865), the
@@ -2345,7 +2401,9 @@ as possible before the next build.
        document picker and creator, `FLAG_SECURE`, `allowBackup`
        false and data-extraction rules excluding every domain,
        portrait, minSdk 26, targetSdk 36, `abiFilters`, `vcsInfo` and
-       the dependency blob off, `dependencies {}`. Not kept: anything
+       the dependency blob off, `dependencies {}`. Nothing of
+       OpenSigner's shows: the window and status-bar colours, the
+       launch background and the icon are Faraday's (A2b's palette). Not kept: anything
        of `KeptSecret.kt` that keeps a signing key, the secure MAC,
        entropy, settings, the clipboard write. The launcher icon is
        drawn from Faraday's mark, as the hub app's is.
