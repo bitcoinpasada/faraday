@@ -2089,7 +2089,8 @@ as possible before the next build.
     models were tried (M6); no Mac yet, so I, A1, A2 and A4 can go
     ahead without one and D and A3 wait (M7). **Queued (owner,
     2026-10-12): no Mac batch starts until the owner says to pick up
-    the Mac work**; the hub work comes first.
+    the Mac work**; the hub work comes first. **Picked up 2026-10-13
+    (owner) with the hub app on macOS: item 73.**
 
 72. [ ] 2026-10-12, owner: **Faraday Companion**, specified in
     `docs/COMPANION.md` (DECISIONS F15). An Android app with no network
@@ -2662,6 +2663,248 @@ as possible before the next build.
     is still there after a restart; Share hands a Received file to the
     Files app; with the screen lock removed, both say so and keep
     nothing while Received still works; `aapt2` and `dumpsys` as A3.
+
+73. [ ] 2026-10-13, owner: **Faraday Starter on macOS, the part that
+    needs no Mac.** The owner picked up the Mac work with the Starter
+    (MAC §6, item 71). There is still no Mac (M7), so MAC §8's batch A3
+    is split: **A3a** the macOS module of `faraday/shells/hub`, type-checked
+    for both Mac targets on the build machine and tested on Linux
+    against hand-written answers; **A3b** Home, the Start page and Make
+    a stick on a Mac, the Mac table and the Intel Mac Learn page;
+    **A3c**, with a Mac, everything that needs one (below). Order: A3a,
+    then A3b. Intel Macs only: until A1 and A2 exist an Apple Silicon
+    Mac says "This Mac cannot start Faraday yet", as an M4 does.
+
+    Without a Mac nothing here is linked or run on macOS. What stands
+    in: `cargo check` and clippy for `aarch64-apple-darwin` and
+    `x86_64-apple-darwin` (the targets are installed on the build
+    machine; a C dependency such as `secp256k1-sys` is given a stand-in
+    compiler that writes empty objects, which a check never links), and
+    every answer macOS gives read by code with no macOS call in it, so
+    the tests run on Linux, as `src/windows/`'s are. Answers written by
+    hand from documentation are marked so in their file's first line
+    and name their source; A3c replaces each with one recorded on a
+    Mac.
+
+    **Batch A3a, the macOS module** (Opus: a system interface written
+    blind, where a wrong guess must fail closed).
+
+    Files: `faraday/shells/hub/src/macos/` (new), its `Cargo.toml`
+    (a `cfg(target_os = "macos")` dependency on `libc`, the lockfile's
+    `=0.2.189`, with a line in `docs/deps/libc.md`), `src/lib.rs`,
+    `src/platform.rs`, `tests/macos/` (new), `tools/check-macos.sh`
+    (new) and the `lint` recipe in `justfile`. In `faraday-hub`, only
+    `api.rs`: `Os::MacOs`, and the one match it breaks
+    (`LearnId::for_computer` in `lib.rs`) answering `StartLinux` for
+    now, with a `// A3b:` comment; A3b gives it its page. Nothing else
+    in `faraday-hub`, nothing in `src/linux/`, `src/windows/`,
+    `writer.rs` or `stick.rs` beyond what a Mac needs from a shared
+    function, each such change named in the report.
+
+    Layout as `src/windows/`: modules with no macOS call, built and
+    tested everywhere, and `#[cfg(target_os = "macos")]` modules that
+    make the calls and implement `Platform`. Everything is run as a
+    program with absolute paths (`/usr/sbin/diskutil`,
+    `/usr/sbin/sysctl`, `/usr/bin/uname`, `/usr/bin/ditto`,
+    `/usr/libexec/authopen`), never found on `PATH`; the only FFI is
+    the descriptor `authopen` hands back.
+
+    1. **`plist`**: a reader for the XML property lists `diskutil
+       -plist` prints (`dict`, `array`, `string`, `integer`, `real`,
+       `true`, `false`, `data`, `date`; entities). No new crate. Input
+       it does not understand is an error, never a partial answer.
+    2. **`diskutil`**: from `diskutil list -plist` and `diskutil info
+       -plist <disk>` for each whole disk and its partitions, the
+       `Disk`s HUB §4.2 offers, as `src/linux/udisks.rs` builds them:
+       - Listed: a whole, physical disk (`VirtualOrPhysical` not
+         `Virtual`; never a disk image) on `BusProtocol` `USB`
+         (`Bus::Usb`), or the built-in reader's `Secure Digital`
+         (`Bus::SdReader`). Every other disk, and any disk whose
+         answers lack a key the rule needs, is not listed.
+       - `InUse::System` when any volume on it, or in an APFS container
+         whose physical store is on it (`APFSPhysicalStores`), is
+         mounted at `/` or under `/System/Volumes/`; `InUse::Mounted`
+         with the mount point when one is mounted anywhere else than
+         under `/Volumes/`.
+       - `device` is `/dev/diskN`; vendor and model from `MediaName`
+         and what `diskutil info` gives; size `TotalSize` (or `Size`);
+         volumes with their names and whether they hold files.
+       - A Faraday stick as Linux finds one (the partition names,
+         types and count `udisks.rs` checks); its version read by
+         `stick::release_at` from where macOS mounted OSKBOOT, or after
+         `diskutil mount readOnly` of that partition and unmounted
+         again. OSKDATA is never mounted, opened or read.
+       - **The serial.** `diskutil info` has none. Read it from the
+         I/O Registry (`/usr/sbin/ioreg -a` with the class and depth
+         that reach the USB device above the disk's `IOMedia`) only if
+         a documented sample of that output is found (Apple's
+         `ioreg` manual, an open-source tool's tests); otherwise
+         `serial` is empty, the report says so, and A3c reads it on a
+         Mac. A written guess at ioreg's layout is not acceptable.
+    3. **`facts`**: `Computer` from `sysctl -n hw.model` (the model
+       identifier, `MacBookPro14,1`), `uname -m` and `sysctl -n
+       sysctl.proc_translated` (an x86_64 hub under Rosetta is on an
+       ARM Mac: `arm` true), with `os: Os::MacOs`, `maker` "Apple
+       Inc." (what DMI says on every Intel Mac), `family` empty, `uefi`
+       true unless ARM, `secure_boot` `None`, `tpm_unlock` false.
+       `concerns`: a virtual machine when `sysctl -n kern.hv_vmm_present`
+       is 1 (`Kind::VirtualMachine`, id `vm`); screens and USB devices
+       wait for A3c (the trait's comment says so).
+    4. **`install`**, as a plan of files like `src/windows/install.rs`:
+       Install copies the running bundle (the `.app` folder holding
+       `current_exe`) to `~/Applications/Faraday Starter.app` with
+       `ditto`, which keeps its signature; a hub app not running from
+       a bundle (a developer's `cargo run`) answers why it cannot
+       install. `installed` reads that bundle's `Info.plist`
+       (`CFBundleIdentifier` `app.faradayoffline.FaradayStarter`,
+       `CFBundleShortVersionString`); a bundle of the same name with
+       another identifier is `InTheWay`. Uninstall removes exactly the
+       bundle and `~/Library/Caches/faraday/X.Y.Z/`. The desktop app:
+       none on macOS until batch D, so `install(desktop: true)` and
+       `run_desktop` answer `NoDesktopApp`, as Windows did before C.
+       `downloads` is `~/Downloads`. Tests against a temporary home.
+    5. **Writing** (cfg macos): a `writer::Device` for `/dev/diskN`.
+       `unmount` runs `diskutil unmountDisk`; `open_write` runs
+       `authopen -stdoutpipe` with the open flags for read and write on
+       `/dev/rdiskN` (the raw device, past the buffer cache) over one
+       end of a `socketpair`, and takes the descriptor from the
+       `SCM_RIGHTS` message (`recvmsg`, the one `unsafe` block, with
+       its safety comment); the system's own password prompt is
+       authopen's, so no part of the hub app runs as root. Read the
+       authopen manual and Raspberry Pi Imager's macOS code for the
+       exact arguments and exit status, and cite both in a comment.
+       A cancelled prompt is `Reason::Declined`. `open_read` is the
+       same descriptor again (`try_clone`), so one prompt covers the
+       write and the read-back. Every read and write on the raw
+       device is a whole number of the disk's blocks
+       (`DeviceBlockSize`) at a block-aligned offset; if `writer.rs`
+       does not already guarantee that, say so in the report and add
+       it there for every system, with a test against a `Device`
+       whose file refuses unaligned I/O. `rescan` runs `diskutil
+       unmountDisk` again once the read-back is done, so the volumes
+       macOS mounts after a write are not left mounted; the disk stays
+       listed, so Home sees the stick it just made. (MAC §6 said
+       `diskutil eject`; that would remove the stick from the list
+       while it is still in the port, and Home would ask for a stick
+       again.)
+    6. **Following the disks**: `diskutil list -plist` every two
+       seconds on the watch thread, the info re-read only for disks
+       that are new or named on `forget`; a list that differs from the
+       last is sent. `diskutil` missing or failing at the first read
+       sends `NoWriter`.
+    7. **`Platform`**: `this_computer()` gives the macOS module on
+       macOS; `restart_into_firmware` answers `Reason::Unsupported`
+       (a Mac has no firmware settings to restart into) and A3b never
+       offers it on a Mac.
+    8. **`tools/check-macos.sh`**, run by `just lint`: for each of
+       the two Mac targets, `cargo clippy -p faraday-hub-shell
+       --all-targets --target <t> -- -D warnings`, in
+       `target/check-macos/`, with `CC_<target>` and `AR_<target>`
+       set to stand-ins it writes there (an empty object for `-o`, an
+       empty archive). It checks first that the two targets are
+       installed and, if not, prints the `rustup target add` line and
+       fails. Its comment says why a check needs no Mac and that it
+       links nothing.
+
+    Tests (`tests/macos/`, hand-written answers, each file's first
+    line naming its source): the disks offered and their order with a
+    USB stick, a USB stick holding a Faraday stick, the built-in SD
+    reader, an external disk macOS started from (refused, system), a
+    disk image (not listed), a USB disk with a volume mounted outside
+    `/Volumes/` (refused, mounted); a property list that is cut short
+    or carries an unknown element refused; the facts for an Intel Mac,
+    an Apple Silicon Mac, an x86_64 hub under Rosetta and a virtual
+    machine; install into a temporary home writing exactly the bundle,
+    `installed` reading it back, a foreign bundle in the way, uninstall
+    leaving everything else in that home.
+
+    Done when: the crate's tests pass on Linux, `tools/check-macos.sh`
+    passes for both targets, `just` passes once at the end. Report: as
+    MAC §0, plus every place an answer's layout was taken from
+    documentation rather than a recording, with its source; and what
+    A3c must check first on a Mac.
+
+    **Batch A3b, Home on a Mac** (Opus), after A3a's audit. Files:
+    `faraday-hub` (new `src/macs.rs`; `decide.rs`, `draw.rs`,
+    `lib.rs`), `faraday-learn` (`BOOT`, `OWN`),
+    `docs/learn/faraday/boot/mac-intel.md` (new),
+    `faraday-strings`' `en.rs` (`hub_` strings), the hub's tests.
+
+    1. **The Mac table**, `macs.rs`: one row per model identifier from
+       Apple's identification pages (marketing name, year, line, chip,
+       T2, 32-bit EFI, keyboard: USB, SPI, through the T2, or Apple
+       Silicon), with the pages and the date read in its doc comment.
+       The orchestrator hands over a researched list
+       (`local/mac-models.tsv`, not in git); check its rows against
+       the sources before copying them. `mac(model) -> Option<&Mac>`
+       and what Home needs from it. The README's "Which Macs" (MAC §7)
+       is batch I's, from this table, with the test that they agree.
+    2. **Which guide**: a computer whose maker begins "Apple", on any
+       system (macOS, Linux on a Mac, Windows through Boot Camp), gets
+       the Mac guide, `mac-intel`; no maker page or general page is
+       chosen for it.
+    3. **Home on a Mac** (any system whose maker begins "Apple"):
+       - *This computer*: the marketing name from the table and the
+         identifier; no Secure Boot line (an Intel Mac before the T2
+         has no such setting, and Startup Security is not read yet).
+       - An Intel Mac, with or without the T2: the checklist is *Make a
+         Faraday stick* and **Start this Mac from the stick**; no Turn
+         Secure Boot back on. The card's button: *Make a Faraday
+         stick* while no stick is attached, then **Start this Mac from
+         the stick**, which opens the Start page; no restart sheet, no
+         *Restart into firmware settings*, no *Restart from the stick*
+         (on Linux on a Mac too: Mac firmware has no settings to
+         restart into, and `BootNext` is not relied on there).
+       - The Start page on a Mac, steps in order: for a T2 Mac, Lower
+         Startup Security (macOS Recovery: Command-R at start;
+         Utilities → Startup Security Utility: No Security, and Allow
+         booting from external media); then Start from the stick (shut
+         down; hold Option at power-on; choose **EFI Boot**; a
+         firmware password is asked first if one is set); for a T2
+         Mac, Afterwards: Full Security and Disallow booting from
+         external media. A Mac not in the table and not ARM gets the
+         T2 steps headed "Only on a Mac with the T2 chip". The page's
+         QR code is `mac-intel`'s address.
+       - A Mac that cannot start the PC stick gets one line and keeps
+         *Make a Faraday stick*, for another computer: 32-bit EFI
+         ("This Mac's firmware cannot start Faraday"), and every Apple
+         Silicon Mac ("This Mac cannot start Faraday yet") until A3c.
+    4. **The Learn page** `mac-intel` (MAC §6, §3.1–§3.2), in `BOOT`:
+       the Option key and Startup Manager, the firmware password, the
+       T2 Macs (Apple's list) and Startup Security both ways, ISO
+       keyboards (MAC §3.3's line), and that a USB keyboard and mouse
+       go through the stick's approval code. Sections end with the
+       Apple pages they come from and the date read; no model it was
+       tried on (M6). The website publishes it at `/start/mac-intel`
+       (the website repository's work; the orchestrator tells that
+       session).
+    5. **Make a stick, *For which computer?*** (MAC §6, HUB §3.2):
+       shown only when the payload carries both stick images, which
+       none does until A1. `PayloadKind::AppleStick` for
+       `faraday-stick-…-arm64-apple.img.xz`; rows "A PC or an Intel
+       Mac" and "A Mac with M1 or M2", nothing chosen, this computer's
+       row tagged "This computer". Keep data refusing the other kind
+       waits for A1, which decides how a stick says its kind.
+
+    Tests, through the screens: Home's checklist and button for an
+    Intel Mac, a T2 Mac, an M1, an M2, an M4, a 32-bit EFI Mac and an
+    unknown Intel identifier, on macOS and on Linux on a Mac; the Mac
+    guide chosen for each; no firmware restart offered on any Mac; the
+    Start page's steps for a T2 and a non-T2 Mac; *For which
+    computer?* absent with one stick image, present with two (a stand-in
+    payload) with nothing chosen and the right row tagged. Renders of
+    Home and Start at 1280x800 for an Intel and a T2 Mac
+    (`just faraday-hub-snap`'s script gains a Mac computer).
+
+    **A3c, with a Mac** (M7): the bundle (`Info.plist` with
+    `NSCameraUsageDescription`, the icon), `just faraday-mac-starter`
+    (a universal binary, ad-hoc signed, `ditto`'s zip), and on the Mac:
+    every hand-written answer replaced by a recorded one, the serial,
+    the screens and USB devices of HUB §3.1a, Startup Security read
+    from NVRAM where it shows (`AppleSecureBootPolicy`), authopen's
+    prompt and a stick written and read back, install and uninstall,
+    Transfer's camera. Then, after A1 and A2, the Apple Silicon setup
+    and removal (MAC §4.5–§4.6) and keep data refusing the other kind.
 
 
 ## Next steps

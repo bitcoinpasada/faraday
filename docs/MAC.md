@@ -1,8 +1,10 @@
 # Faraday on Macs
 
 **Status:** spec v0.1 · 2026-10-12 · decided by the owner in discussion
-(`docs/DECISIONS.md` F13; every decision in §9 taken). Not built, and
-queued: no batch starts until the owner says to pick up the Mac work. F13 supersedes F11's "no macOS
+(`docs/DECISIONS.md` F13; every decision in §9 taken). Not built. The
+owner picked up the Mac work on 2026-10-13 with the hub app, Faraday
+Starter: batch A3 is split so its part that needs no Mac goes first
+(§8; HANDOFF item 73). F13 supersedes F11's "no macOS
 app": Faraday now targets Macs across the stick, the desktop app and the
 hub app.
 
@@ -456,8 +458,13 @@ A testing app with test seeds only, as on Linux and Windows.
 
 ## 6. The hub app on macOS, and what changes in HUB.md
 
-Not edited here: `docs/HUB.md` is in another batch's hands. Whoever owns
-it folds these in after batch R, with a §13 line each.
+Folded into `docs/HUB.md` on 2026-10-13 (its §13 lists each). The
+hub app is now Faraday Starter (F16), so its files below are
+`Faraday-Starter-X.Y.Z-macOS.zip` and `Faraday Starter.app`, installed
+at `~/Applications/Faraday Starter.app`. One change from this list:
+after a write the hub app unmounts the stick (`diskutil unmountDisk`)
+rather than ejecting it, so the stick it just made stays listed and
+Home goes on to the next step (HANDOFF item 73, A3a).
 
 - **§1.1 Release files:** `Faraday-X.Y.Z-macOS.zip` (the hub app,
   universal, `Faraday.app`, ad-hoc signed);
@@ -546,11 +553,13 @@ not a model tried on.
 
 | Batch | What | Needs | Order |
 |---|---|---|---|
-| I | Intel Macs: the PC kernel's changes (§3.3), SPI input trust (§3.4), the Mac power-off line (§3.2), the Intel Mac Learn page, the README's Intel rows (§7) | decided | first; independent of the hub batches |
+| I | Intel Macs: the PC kernel's changes (§3.3), SPI input trust (§3.4), the Mac power-off line (§3.2) with the Intel Mac guide's QR code, the README's Intel rows from A3b's table, with the test that they agree (§7) | decided | independent of the hub batches; the README rows after A3b |
 | D | The desktop app on macOS (§5), its recipe and release file | a Mac to build on (§9, M7) | waits for a Mac |
 | A1 | The `arm64-apple` stick image (§4.1), with the Asahi keyboard patches and their `docs/deps` review | decided | after I |
 | A2 | The start-up file (§4.2–§4.4): m1n1 and U-Boot pinned and built under §4.3, `faraday-macboot`, the QEMU check, the published no-check file | decided | after A1 |
-| A3 | The hub on macOS (§6) and the Apple Silicon setup and removal (§4.5–§4.6), tried on an M1 or M2 Mac with the owner; the Apple Silicon README rows | hub batch L; a Mac to build on and an M1 or M2 Mac to try (M7) | after A2 and HUB L; waits for a Mac |
+| A3a | The hub's macOS module (§6): disks, writing through `authopen`, facts, install; type-checked for both Mac targets and tested on Linux against hand-written answers (HANDOFF item 73) | decided | now (owner, 2026-10-13); needs no Mac |
+| A3b | Home, the Start page and Make a stick on a Mac (Intel Macs; Apple Silicon says it cannot start Faraday yet); the Mac table in `faraday-hub`; the Intel Mac Learn page (moved here from I) | decided | after A3a; needs no Mac |
+| A3c | The hub on a Mac: the bundle and its recipe, every answer recorded on a Mac, the device checks; then the Apple Silicon setup and removal (§4.5–§4.6), tried on an M1 or M2 Mac with the owner; the Apple Silicon README rows | a Mac to build on and an M1 or M2 Mac to try (M7) | after A3b, and A2 for Apple Silicon; waits for a Mac |
 | A4 | Faraday's Secure Boot screen showing the start-up file's hash for a key (§4.4); the arm64 build record | decided | after A2 |
 
 Tests state what a person sees or can do: the SPI keyboard trusted and

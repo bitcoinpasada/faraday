@@ -64,6 +64,14 @@ downloads".
 | `faraday-desktop-X.Y.Z-windows-x86_64.exe` | the desktop app for Windows, from batch C on (§2) |
 | `faraday-stick-X.Y.Z-x86_64-uefi.img.xz` | the stick image |
 | `faraday-pi-X.Y.Z-pi3-waveshare-28dpi.img.xz` | the Pi image: the board family, then the one panel it is built for (§9); the panel part goes when §9.3's profiles arrive |
+| `Faraday-Starter-X.Y.Z-macOS.zip` | the hub app for macOS, one universal file (x86_64 and arm64), `Faraday Starter.app`, ad-hoc signed (`docs/MAC.md` §6; built on a Mac, MAC batch A3c) |
+| `faraday-desktop-X.Y.Z-macos.zip` | the desktop app for macOS (MAC §5, batch D) |
+| `faraday-stick-X.Y.Z-arm64-apple.img.xz` | the stick image for Macs with M1 or M2 (MAC §4.1, batch A1) |
+| `faraday-mac-boot-X.Y.Z.bin` | the Apple Silicon start-up file that starts any Faraday stick (MAC §4.4, batch A2) |
+
+The macOS rows arrive with their batches. Every hub app carries the
+Apple Silicon image and the start-up file template in its payload once
+they exist; the macOS hub app carries the macOS desktop app.
 
 `SHA256SUMS` lists the `.tar.gz` and the file inside it, under the
 inner name, so a person can check either.
@@ -233,6 +241,21 @@ batch C adds the desktop app.
   `faraday-desktop-X.Y.Z-windows-x86_64.exe`. Its sticks folder is
   `%USERPROFILE%\faraday-sticks` and Downloads is the Windows Downloads
   folder.
+- **On macOS** (`docs/MAC.md` §6, F13): a `macos` module beside
+  `linux` and `windows`. Disks from `diskutil list -plist` and
+  `diskutil info -plist` (whole, physical, on USB or the built-in SD
+  reader); unmounted with `diskutil unmountDisk`; opened through
+  `/usr/libexec/authopen`, whose system password prompt hands back a
+  descriptor for `/dev/rdiskN`, so no part of the hub app runs as
+  root; one descriptor serves the write and the read-back; after it,
+  `diskutil unmountDisk` again, so the volumes macOS mounts after a
+  write are not left mounted and the stick stays listed. Facts from
+  `sysctl hw.model` (the model identifier), `uname -m` and
+  `sysctl.proc_translated`. Every program by its absolute path. Built
+  on a Mac (Apple's SDK licence), as a universal binary; until there is
+  one, `tools/check-macos.sh` type-checks the module for both Mac
+  targets on the build machine and its parsers are tested on Linux
+  against hand-written answers (HANDOFF item 73).
 - Builds: Linux in the §1.2 container; Windows cross-compiled for
   `x86_64-pc-windows-gnu` in a pinned container on the build machine.
   No hosted CI (`CLAUDE.md`). Batch W tries the Windows hub app on a
@@ -340,6 +363,20 @@ it when it already exists, sets `BootNext` to it, and then runs
 back to **Restart into firmware settings** with one line saying why.
 The stick cannot start with Secure Boot on, which is why that state
 offers the firmware restart instead.
+
+**On a Mac** (the maker begins "Apple", on macOS, Linux or Windows;
+`docs/MAC.md` §6): *This computer* shows the Mac's name and model
+identifier from the hub's Mac table and no Secure Boot line. An Intel
+Mac's checklist is *Make a Faraday stick*, then **Start this Mac from
+the stick**, whose button opens §3.4's Mac steps: there is no restart
+into firmware settings or from the stick on a Mac, and no Turn Secure
+Boot back on (the steps put a T2 Mac's Startup Security back). A Mac
+with 32-bit firmware, and for now every Apple Silicon Mac, gets one
+line, "This Mac cannot start Faraday" or "… yet", and keeps *Make a
+Faraday stick*, for another computer. Once the Apple Silicon image and
+start-up file exist (MAC A1, A2), an M1 or M2 Mac's checklist is *Set
+up this Mac to start Faraday*, then *Start Faraday*, with *Remove
+Faraday from this Mac* in the rows once set up (MAC §4.5, §4.6).
 
 A person who comes back with Secure Boot off and BitLocker suspended
 sees Turn Secure Boot back on as the next step, and after that Resume
@@ -456,6 +493,11 @@ in the firmware. Uninstall removes it too.
 
 ### 3.2 Make a Faraday stick
 
+0. **For which computer?** (Choose), only once the payload carries
+   both stick images (MAC A1): "A PC or an Intel Mac" or "A Mac with
+   M1 or M2". Nothing is chosen for the person, as with the disk; the
+   row that fits this computer says "This computer". Keep data refuses
+   a stick of the other kind (MAC §4.8).
 1. **Which stick?** (Navigate) The USB disks attached now, each as a
    row for a person, not for a developer: maker and model, size, and
    what is on it. A Faraday stick says "Faraday stick" and the Faraday
@@ -519,6 +561,14 @@ follow this computer's state:
    step says so and has nothing to do.
 4. **Start from the stick:** the maker's boot menu key, or Windows'
    *Use a device*.
+On an Intel Mac the steps are the Mac's, from the `mac-intel` guide
+(MAC §3.1, §3.2), and none of them is a button: on a T2 Mac, lower
+Startup Security in macOS Recovery; then shut down and hold Option at
+power-on, and choose **EFI Boot** (after the firmware password, if
+one is set); on a T2 Mac, afterwards, Startup Security back to Full.
+A Mac the table does not know, and not ARM, gets the T2 steps marked
+as for a Mac with the T2 chip only.
+
 5. **Afterwards:** turn Secure Boot back on before starting Windows.
    Not shown when §6.3's marker says Secure Boot was already off when
    the hub app suspended BitLocker: that computer's owner chose to
@@ -642,6 +692,15 @@ Per user, never needing administrator rights.
 | Icon | `~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.FaradayStarter.png` | in the `.exe` |
 | Uninstall entry | — | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday Starter`: name "Faraday Starter", version, publisher "Faraday", icon, size, `UninstallString` = `"…\Faraday Starter.exe" --uninstall` |
 | Logon reminder | — | only while the hub app's BitLocker suspension stands (§6.3) |
+
+On macOS: the hub app at `~/Applications/Faraday Starter.app`, a copy
+of the running bundle made with `ditto` (which keeps its signature),
+and with the desktop app (from MAC batch D)
+`~/Applications/Faraday Desktop.app`; per user, no administrator. The
+bundle is the menu entry and carries the icon. A bundle of that name
+whose identifier is not `app.faradayoffline.FaradayStarter` is in the
+way, as on Linux. The cache (§5.3) is `~/Library/Caches/faraday/X.Y.Z/`.
+Uninstall removes exactly those.
 
 The menu file names are reverse-DNS, so they never collide with a
 developer's own `faraday.desktop`. The two executables' names are plain, so
@@ -917,6 +976,14 @@ An ARM computer cannot start the x86_64 stick (Windows on Snapdragon
 laptops); one started in legacy BIOS mode needs UEFI turned on first,
 which its maker's page covers.
 
+On macOS: maker "Apple Inc.", the model identifier from `sysctl
+hw.model` (the same string DMI's `product_name` gives on an Intel Mac),
+ARM from `uname -m` or `sysctl.proc_translated` (an x86_64 hub app
+under Rosetta), a virtual machine from `kern.hv_vmm_present`. What
+kind of Mac it is (T2, 32-bit firmware, the Apple chip) comes from the
+hub's table of model identifiers (MAC §7), on any system running on a
+Mac.
+
 ### 7.2 The guides are Learn pages
 
 Each guide is a Learn page in `docs/learn/faraday/boot/`, round-tripped
@@ -1157,11 +1224,19 @@ submit the file to Microsoft's false-positive form is the owner's call
 at the time, since the form asks for an identity; this spec does not
 assume it.
 
+The macOS hub app is ad-hoc signed and not notarized, for the same
+reason (MAC M8): macOS refuses it on first open; System Settings →
+Privacy & Security → *Open Anyway* opens it. The README and About say
+so, and how to check the zip against `SHA256SUMS` and its signature.
+
 ### 10.3 What it does to the computer
 
 Only what the person asks for: a written stick or card, an install, a
 saved file, the BitLocker suspension with its marker and, when
 installed, its logon reminder (§6), a restart. Uninstall takes back what install did (§5.4).
+On an Apple Silicon Mac (MAC §4.5a), the Faraday start-up volume and
+the shrunk macOS container, which the hub app's *Remove Faraday from
+this Mac* takes back.
 
 ## 11. Batches
 
@@ -1174,6 +1249,8 @@ installed, its logon reminder (§6), a restart. Uninstall takes back what instal
 | C | Windows camera for Transfer Receive, shared with the desktop app; the desktop app on Windows (§2's three changes) and its install | decided | after W |
 | P | Pi: one image for the 2.8 inch panel, Make a Pi card tried on hardware; profiles, boards and other sizes when a second screen is tried | decided (D1, D2, D3, D5) | after L, independent of G, W and C |
 | S | Keeping Secure Boot on (§7.7) | D9 | last |
+| MAC A3a, A3b | The hub app's macOS module, and Home on a Mac, without a Mac (`docs/MAC.md` §8, HANDOFF item 73) | decided | after L (owner, 2026-10-13) |
+| MAC A3c, D | The hub app built and tried on a Mac; the desktop app on macOS | a Mac (MAC M7) | after A3b |
 
 Tests, by batch, state what a person sees or can do: the disks offered,
 refused and their order (recorded udisks2 answers on Linux, as a
@@ -1280,3 +1357,22 @@ what moved.
   removed in batch L (D21).
 - §10.2 writes down what the website and README say when an antivirus
   blocks the file.
+
+Folded in on 2026-10-13 from `docs/MAC.md` §6 (F13), when the owner
+picked up the Mac work with the hub app:
+
+- §1.1: the macOS hub app, the macOS desktop app, the Apple Silicon
+  stick image and the start-up file, each with its batch.
+- §2: the `macos` module (disks through `diskutil`, writing through
+  `authopen`, unmounted rather than ejected after a write so the stick
+  stays listed), type-checked and tested without a Mac until there is
+  one.
+- §3.1: Home on a Mac, on any system: no Secure Boot line or firmware
+  restart; the Intel Mac's checklist; one line for a Mac that cannot
+  start Faraday; the Apple Silicon checklist for later.
+- §3.2: *For which computer?*, once there are two stick images.
+- §3.4: the Intel Mac's steps, none of them a button.
+- §5.2: install on macOS. §7.1: the facts on macOS and the Mac table.
+- §10.2: ad-hoc signed, not notarized; *Open Anyway*. §10.3: the
+  Apple Silicon start-up volume.
+- §11: MAC batches A3a, A3b, A3c and D.
