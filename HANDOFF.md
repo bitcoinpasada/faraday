@@ -2743,6 +2743,38 @@ as possible before the next build.
     each system's page before and after a maker, the maker list.
     Built in a worktree of HEAD while item 74 is in the shared tree.
 
+    **Guides as steps, ticked off** (owner, 2026-10-13; COMPANION §4.7,
+    "The guides are numbered steps" and "Steps are ticked off"). Opus:
+    rewriting eleven pages without losing a fact is judgement.
+    1. Rewrite `docs/learn/faraday/boot/maker-*.md` (nine), `windows.md`
+       and `linux.md` in the owner-approved form of the Dell sample
+       (the orchestrator hands it over): titles and file names kept,
+       every `::sketch` marker kept under its step, every fact and
+       source kept. Add `maker-other.md` (the common keys from the
+       maker pages, the search-online line, the same steps), in
+       `faraday-guides` beside the others.
+    2. The Companion's maker list one word each, Lenovo asking
+       ThinkPad or Other, and Other opening `maker-other`; names in
+       `faraday-strings`.
+    3. Ticking: `faraday-learn` reads a step paragraph (`n. text`);
+       `faraday-ui` draws the circle (outlined, or green filled with
+       the number in white) for any app to use; the Companion draws
+       steps with it, indents what follows a step up to the next step
+       or section, taps a circle to tick and untick, shows `k of n
+       done` and Start again, and keeps the ticks per page as it keeps
+       the computer and maker (a Companion command and event, the FFI,
+       the Kotlin shell). The desktop app and the Starter render their
+       guides as before (renders byte for byte apart from the pages'
+       new text); whether they adopt the circles is the Starter
+       session's call.
+    Tests: a tap ticks and a second unticks; a scroll never ticks; the
+    count follows; ticks survive a restart; Start again clears; every
+    page keeps its markers and no step paragraph is shown with its raw
+    `n. `; the maker list is the nine words; Lenovo asks again; Other
+    opens its page. Built in a worktree of HEAD; the guide pages are
+    shared with the Starter and the website, so the Starter session is
+    told before it lands.
+
 73. [ ] 2026-10-13, owner: **Faraday Starter on macOS, the part that
     needs no Mac.** The owner picked up the Mac work with the Starter
     (MAC §6, item 71). There is still no Mac (M7), so MAC §8's batch A3

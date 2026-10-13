@@ -268,6 +268,27 @@ their computer:
 - A guide address scanned from the Starter (below) opens its page
   whatever is remembered, and changes nothing remembered.
 
+**The guides are numbered steps** (owner, 2026-10-13). The maker
+pages and the Windows and Linux guides are written as steps a person
+follows at the computer: `Before you start`, then `Steps` and
+`Afterwards`, each step one paragraph beginning `1. `, `2. `, …, a
+step's fallback a short paragraph under it ("If it doesn't open: …"),
+its sketch under it; then `If something is different` and `Sources`.
+Nothing the pages said before is dropped. The maker list is one word
+each: **Dell**, **HP**, **Lenovo** (then **ThinkPad** or **Other**),
+**ASUS**, **Acer**, **MSI**, **Framework**, **Surface**, **Other**;
+**Other** opens a page of the common firmware and boot-menu keys,
+taken from the maker pages, with "search online for your computer's
+model and *boot menu key*", and the same steps.
+
+**Steps are ticked off.** On a guide page the Companion draws each
+step's number in a circle, its fallbacks and sketches indented under
+it. Tapping the circle turns it green with the number in white, and
+tapping again clears it; a drag that scrolls never ticks. Under the
+title, `3 of 8 done`; at the end, once one is ticked, **Start again**.
+The ticks are kept per page, as the computer and maker are, so a phone
+that stops the app while its person is in the firmware keeps the place.
+
 A new page, `docs/learn/faraday/companion.md`: what the Companion keeps
 and refuses; that it has no network access and how anyone can check it
 (§6); what a description reveals; the recovery key and deleting it
