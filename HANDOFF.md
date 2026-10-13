@@ -2002,10 +2002,16 @@ as possible before the next build.
     self-built Secure Boot, non-SMM firmware (`tools/winvm/build-ovmf.sh`)
     started but the build machine went down two minutes in; the owner
     moved the VM to another computer of the owner's whose KVM can enter
-    SMM, where it is being installed now: then BitLocker on, a clean
-    snapshot, §6.6
-    run 5, then runs 1 to 4 and 6 with the Starter. Nothing of batch W
-    ships before those pass. (c) Three places still decide by displayed
+    SMM. There (2026-10-12, 22:10) Windows 11 Pro installed under KVM
+    with OVMF's Secure Boot build and Microsoft's keys; BitLocker is On
+    with a TPM (PCR 7, 11) and a numerical-password protector; the clean
+    snapshot `bitlocker-on` is taken; and **§6.6 run 5 passed**: with
+    Secure Boot off Windows stopped at "BitLocker recovery … because
+    Secure Boot has been disabled", and with it back on Windows started
+    with no prompt (e269275, `tools/winvm/`). Next: runs 1 to 4 and 6
+    with Faraday Starter's Windows build (`just faraday-windows-bin`),
+    from the snapshot each time. Nothing of batch W ships before those
+    pass. (c) Three places still decide by displayed
     text and want an enum (`local/REMAINING.md`).
 
     **In flight at the time of writing.** The rename to Faraday Starter
