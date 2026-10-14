@@ -158,3 +158,19 @@ fn the_device_goes_to_a_test_network_without_the_warning() {
     assert_eq!(app.sheet, None);
     assert!(app.session.add_words(OTHER, "", None).is_ok());
 }
+
+#[test]
+fn the_demo_names_its_learn_page_first_and_the_device_never() {
+    let title = |app: &Faraday| app.learn_pages().first().map(|p| p.title);
+    let mut app = desktop();
+    assert_eq!(title(&app), Some("The demo and its public seeds"));
+    to_testnet(&mut app);
+    assert_eq!(title(&app), Some("The demo and its public seeds"));
+    let device = testkit::started();
+    assert!(
+        device
+            .learn_pages()
+            .iter()
+            .all(|p| p.title != "The demo and its public seeds")
+    );
+}

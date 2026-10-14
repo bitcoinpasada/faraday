@@ -27,7 +27,7 @@ pub use sketch::{Sketch, is_marker};
 /// (`docs/learn/faraday/boot/*.md`) are `faraday-guides`' own table, not
 /// this one, except `replace-faraday`, which the stick's Upgrade screen
 /// shows directly ([`known`]).
-const OWN: [(&str, &str); 5] = [
+const OWN: [(&str, &str); 6] = [
     // Upgrading a stick from another stick (`PLAN.md` §5.5).
     (
         "upgrade-a-stick",
@@ -49,6 +49,8 @@ const OWN: [(&str, &str); 5] = [
         "replace-faraday",
         include_str!("../../../docs/learn/faraday/boot/replace-faraday.md"),
     ),
+    // The demo's public seeds and the test networks (F20).
+    ("demo", include_str!("../../../docs/learn/faraday/demo.md")),
 ];
 
 /// A maker family's guide (`docs/STARTER.md` §7.6): its page's id, and the
@@ -266,4 +268,9 @@ pub fn time_page() -> &'static LearnPage {
 /// "Faraday Companion".
 pub fn companion_page() -> &'static LearnPage {
     known("companion")
+}
+
+/// "The demo and its public seeds".
+pub fn demo_page() -> &'static LearnPage {
+    known("demo")
 }

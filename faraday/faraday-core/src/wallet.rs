@@ -461,6 +461,11 @@ impl Session {
             .collect();
     }
 
+    /// Whether the shell set the demo up, on any network.
+    pub fn has_demo(&self) -> bool {
+        !self.demo.is_empty()
+    }
+
     /// Whether the demo is on: set up, and the session on mainnet.
     pub fn demo(&self) -> bool {
         !self.demo.is_empty() && self.network.is_mainnet()

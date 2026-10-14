@@ -8,7 +8,7 @@ use osk_learn::{EN, Page as LearnPage};
 
 use faraday_learn::known;
 pub use faraday_learn::{
-    GUIDES, MAKERS, Maker, guide_address, guide_id, maker, page, shares_page, time_page,
+    GUIDES, MAKERS, Maker, demo_page, guide_address, guide_id, maker, page, shares_page, time_page,
     upgrade_page,
 };
 
@@ -60,8 +60,23 @@ fn for_new(kind: NewKind) -> Vec<&'static LearnPage> {
 }
 
 impl Faraday {
-    /// The Learn pages that explain what is on screen.
+    /// The Learn pages that explain what is on screen. Where the demo is
+    /// set up (F20), the screens where keys come in and the network is
+    /// chosen name its page first.
     pub fn learn_pages(&self) -> Vec<&'static LearnPage> {
+        let mut pages = self.screen_pages();
+        if self.session.has_demo()
+            && matches!(
+                self.screen,
+                Screen::Home | Screen::Entry | Screen::KeyGen | Screen::Settings
+            )
+        {
+            pages.insert(0, demo_page());
+        }
+        pages
+    }
+
+    fn screen_pages(&self) -> Vec<&'static LearnPage> {
         let wallet = || {
             self.session
                 .wallets
