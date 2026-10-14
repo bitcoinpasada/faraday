@@ -416,3 +416,10 @@ CONFIG_LEGACY_VSYSCALL_NONE=y
 # CONFIG_EFI_CUSTOM_SSDT_OVERLAYS is not set
 # The EFI runtime memory map in sysfs, which exists for kexec.
 # CONFIG_EFI_RUNTIME_MAP is not set
+
+# ---- Faraday: what 6.18 adds to the defconfig's serial drivers ----
+# (docs/DECISIONS.md F23.) The Exar PCI serial card driver comes with
+# SERIAL_8250 and on 6.18 selects EEPROM_93CX6, which
+# common/kernel.forbidden refuses. No laptop has an Exar card; the
+# console is the first 16550 port above.
+# CONFIG_SERIAL_8250_EXAR is not set
