@@ -484,6 +484,20 @@ one (§3, D1).
   before this batch, since it needs no release APK; the owner makes it
   on a stick and commits its certificate before the first release.
   Opening the F-Droid merge request is the owner's.
+  **Built (2026-10-14), but for what needs the certificate.**
+  `just companion-release-apk` builds in `faraday/build/android/`
+  (versions named in its Containerfile; Gradle's downloads pinned by
+  `faraday/shells/android/gradle/verification-metadata.xml`, written by
+  `just companion-gradle-verification`, and the wrapper's
+  `distributionSha256Sum`); three builds, two checkouts, fresh containers
+  and Gradle homes gave one SHA-256. `stage-release.sh VERSION --companion
+  FILE` is built and tried with a throwaway key; it refuses while
+  `faraday/companion-cert.pem` is missing. The fastlane metadata is in
+  `faraday/shells/android/fastlane/`. Left for the owner: the key and the
+  certificate, `AllowedAPKSigningKeys`, README's fingerprint paragraph
+  (TODOs in `fastlane/README.md` and README.md), the second build on
+  another computer, and §8's check of Google's developer verification
+  dates.
 - **Tried on a phone**, by the owner, with a stick and with the Pi:
   receive a file and a signed PSBT from each; send a PSBT shared from a
   phone wallet; the Starter's recovery key scanned and deleted.

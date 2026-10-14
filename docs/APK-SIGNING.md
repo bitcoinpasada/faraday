@@ -696,6 +696,12 @@ computer goes online again. Working screens carry none of this
   second build's step 2 written as a release step, the staging script's
   step 4, the README paragraph, the fastlane metadata and
   `AllowedAPKSigningKeys`.
+  **Built (2026-10-14) as far as the key allows:** the container's
+  step 1, the staging script's step 4 (`--companion`), the fastlane
+  metadata. Left until the certificate exists: the README paragraph and
+  `AllowedAPKSigningKeys`, both TODOs named in
+  `faraday/shells/android/fastlane/README.md`. Step 2, the second build,
+  is `just companion-release-apk` run from the tag on another computer.
 - **The owner**, between them: the key made on the stick of a published
   release that has batch 1, in the vault the owner chooses (§3, §12),
   that vault written to two sticks, and the certificate committed as

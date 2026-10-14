@@ -427,6 +427,8 @@ companion-snap size:
 #                         installed and launched, and its screen snapped
 #                         into out/android/companion/
 #   just companion-icon   the launcher icon drawn again from Faraday's mark
+#   just companion-release-apk   the unsigned release APK, in the pinned container
+#                         (faraday/build/android/), at out/android/release/
 #
 # The app sets FLAG_SECURE, so `adb exec-out screencap` returns black; the
 # screenshot goes through the emulator console (tools/android-screenshot.py).
@@ -504,3 +506,54 @@ companion-run: companion-apk
 # the PNG is committed.
 companion-icon:
     cargo run -q -p faraday-companion --example launcher_icon -- {{companion_dir}}/app/src/main/res/drawable-nodpi/ic_launcher_foreground.png
+
+# The release APK, unsigned, built in the pinned container
+# (faraday/build/android/): the SDK, NDK, JDK, build-tools and Gradle
+# versions are named in it. It writes OUT/faraday-companion-X.Y.Z-android-unsigned.apk,
+# X.Y.Z being the version the tree has (this recipe never changes it),
+# checks it with `zipalign -c -P 16 4`, and prints its size and SHA-256
+# (docs/COMPANION.md §3). Faraday signs it (docs/APK-SIGNING.md §9).
+#
+# The second build of a release (docs/APK-SIGNING.md §9 step 2) is this
+# recipe, run from the same tag on another computer that shares no account,
+# key or network share with the first; the two SHA-256 must be equal.
+# Each build uses its own OUT and CACHE, a fresh container and an empty
+# Gradle home, so two runs on one computer share only the crates' downloads:
+#
+#   just companion-release-apk out/android/release out/build/run
+companion-release-apk out="out/android/release" cache="out/build/run":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    root="$(pwd)"
+    mkdir -p "{{out}}" "{{cache}}/android" "{{cache}}/android-work" "{{cache}}/android-gradle" "{{build_cache}}/cargo"
+    {{docker}} build -t faraday-build-android -f faraday/build/android/Containerfile faraday/build/android
+    {{docker}} run --rm \
+        -e SOURCE_DATE_EPOCH="{{source_date_epoch}}" \
+        -v "$root":/src:ro \
+        -v "$root/{{out}}":/out \
+        -v "$root/{{cache}}/android":/build \
+        -v "$root/{{cache}}/android-work":/work \
+        -v "$root/{{build_cache}}/cargo":/cargo \
+        -v "$root/{{cache}}/android-gradle":/gradle \
+        faraday-build-android /src/faraday/build/android/build.sh apk
+
+# Gradle's checksums of everything the release build downloads, written
+# again into the shell's gradle/verification-metadata.xml. Run it when a
+# plugin or the Gradle version changes, and read the diff: every line is a
+# file the release build will trust.
+companion-gradle-verification out="out/android/verification" cache="out/build/run-verification":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    root="$(pwd)"
+    mkdir -p "{{out}}" "{{cache}}/android" "{{cache}}/android-work" "{{cache}}/android-gradle" "{{build_cache}}/cargo"
+    {{docker}} build -t faraday-build-android -f faraday/build/android/Containerfile faraday/build/android
+    {{docker}} run --rm \
+        -e SOURCE_DATE_EPOCH="{{source_date_epoch}}" \
+        -v "$root":/src:ro \
+        -v "$root/{{out}}":/out \
+        -v "$root/{{cache}}/android":/build \
+        -v "$root/{{cache}}/android-work":/work \
+        -v "$root/{{build_cache}}/cargo":/cargo \
+        -v "$root/{{cache}}/android-gradle":/gradle \
+        faraday-build-android /src/faraday/build/android/build.sh verification-metadata
+    cp "{{out}}/verification-metadata.xml" {{companion_dir}}/gradle/verification-metadata.xml
