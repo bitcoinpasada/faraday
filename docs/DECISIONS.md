@@ -845,12 +845,18 @@ answers).
 - The key is a third kind beside GPG and Secure Boot: made on a Faraday
   stick or Pi, kept in a vault as record type 12 (`docs/VAULT.md` §7),
   used there. Its private part never leaves the vault. The vault's
-  sealed copies on sticks are its backup; `tools/vault/open.py` reads it
-  out without Faraday, given the passphrase.
+  sealed copies on sticks are its backup. Without Faraday, given the
+  passphrase, `tools/vault/open.py --field 12.1 --out FILE` writes the
+  key alone to a mode-0600 file for `apksigner`, on an offline
+  computer, by the person's own hand.
 - RSA-3072 with PKCS#1 v1.5 and SHA-256: 128-bit strength for a key that
   cannot change, on `faraday-sb`'s existing RSA, with no new
   dependency, and deterministic, so its output can be compared byte for
   byte with `apksigner`'s.
+- One key per app: each key is bound to one package, typed at Make
+  (`app.faradayoffline.companion` filled in) and shown on its page;
+  Sign an APK refuses an APK of another package. Another app gets
+  another key, as Android advises.
 - A self-signed certificate naming the project only ("Faraday
   Companion"), with no expiry. Its SHA-256 is shown on the key's page,
   the Companion's About, README and F-Droid's `AllowedAPKSigningKeys`.
@@ -860,15 +866,28 @@ answers).
   (on the Pi, an SD card), shows its file name, size, SHA-256, package,
   version and minimum Android, and writes the signed APK For the stick
   as `faraday-companion-X.Y.Z-android.apk`. It refuses a file that is not
-  an APK, is already signed, is not aligned, or needs v1. The signed
+  an APK, is already signed, is not aligned, or needs v1, and any ZIP or
+  manifest that two readers could read two ways (manifest attributes
+  known by resource ID, as Android knows them). The signed
   file is the unsigned one with the APK Signing Block inserted and one
   offset changed, so F-Droid can copy its signature onto its own build.
+- The review signs only once the person has entered the SHA-256 of an
+  independent second build of the same source, made on another
+  computer, and it matches the file's (at least 32 hex digits): the
+  build machine is online, and a signature on a bad APK cannot be
+  withdrawn.
+- Each signature is blinded with fresh bytes of the system's, and
+  checked against the certificate before anything is written, so a
+  faulty signature never leaves the device.
 - A key made in a session signs nothing until the vault holding it has
-  been written to a stick, as a Bitcoin key made here spends nothing
-  until its backup is done.
+  been written to two sticks with different FAT serials, as a Bitcoin
+  key made here spends nothing until its backup is done.
 - Faraday Desktop offers it too, as it offers GPG and Secure Boot. The
   real key is made on the stick of a published release that has the
-  feature, and kept in the vault that holds the release's OpenPGP key.
+  feature. Which vault holds a key is the person's choice, with no
+  default steering it; the Learn page says that a slot holding one does
+  not open in builds up to 0.1.2, and that one passphrase then guards
+  everything in that slot.
 - The code is a new `no_std` crate, `faraday/faraday-apk`, judged by
   `apksigner`: its signed APK is byte for byte the one `apksigner sign`
   makes with the same key.
@@ -894,27 +913,52 @@ means large files in the memory a vault unlock also needs.
   is listed unticked with its size; ticking it offers **Import the whole
   file** or **Import only what signing needs**. The boot import reads
   none over 64 MiB and counts them.
-- A whole import counts at twice its size (the app's copy and the
-  Inbox's in `/run/faraday`). It is refused where the memory left would
-  be less than the largest need of the vaults this session knows (its
-  Argon2id memory, twice its file and 64 MiB), or, with none known, of
-  the largest preset that fitted when Faraday started; it is warned
-  within 128 MiB of that line. The visit's total of smaller files
-  follows the same rule.
+- A whole import is refused where the memory left would be less than
+  the largest need of the vaults this session knows, or, with none
+  known, of the largest memory that fits, Create's custom memories up to
+  4 GiB included; it is warned within 128 MiB of that line. A vault's
+  need is its Argon2id memory, twice its file and 100 MiB, from one
+  function Unlock's check also uses. The memory is `MemAvailable` read
+  once at power-on and kept across locks, less a ledger the app keeps of
+  everything it holds twice (its copy and `/run/faraday`'s) and every
+  read or product in progress; a reservation that succeeds is not taken
+  as proof. Every copy counts, the signed APK made from a whole file
+  included; GPG signs from a hash state and copies nothing. The visit's
+  total of smaller files follows the same rule. An unlock refused for
+  memory names the large files held and offers to delete them.
+- The Inbox and Outbox stop being cloned and rewritten whole at every
+  save: items are shared buffers, only what changed is written, each
+  box saves on its own.
 - A signing-only import streams the file once and keeps its name, size,
-  SHA-256, OpenPGP SHA-256 and SHA-512 states, and for an APK the chunk
-  digests, central directory, end record and manifest fields. In Files
-  it signs and does nothing else. A lock keeps it.
+  OpenPGP SHA-256 and SHA-512 states (the SHA-256 shown is the first of
+  them finished), and for an APK the chunk digests, central directory,
+  end record and manifest fields, all from that one pass: a central
+  directory that streams differently from the copy read first keeps
+  nothing. In Files it signs and does nothing else. A lock keeps it, in
+  a directory and format of its own that no file is read from.
 - A GPG signature over it is an ordinary `.asc`. A signed APK from it is
   written on a later visit by copying the unsigned file from that
   stick with the signing block inserted, each part checked against the
   first read before it is written, under a temporary name renamed when
-  read back whole. A source that changed writes nothing.
-- The disk process gains reads and writes in parts of up to 4 MiB; the
-  app hashes every part itself and drives the copy. `MAX_FRAME` becomes
-  5 MiB. The privilege split is unchanged.
+  read back whole. A source that changed writes nothing. A file under
+  the output name is always the whole output; a stick pulled in the
+  instant of FAT's rename can leave neither name, which FAT does not
+  allow Faraday to prevent.
+- The disk process gains reads and writes in parts of up to 4 MiB and
+  lists one stick's files per answer; the app hashes every part itself
+  and drives the copy. `MAX_FRAME` becomes 5 MiB. The disk process
+  names the one temporary file itself, and no request renames or
+  removes any other file. It keeps its place in a file's cluster chain
+  between parts, refuses a chain that loops, and abandons an open write
+  when the stick goes or a new app process connects. The privilege
+  split is unchanged.
+- File names with control or format characters, or over 230 bytes, are
+  listed and cannot be ticked, on every visit.
 - The Pi does the same by SD card visit; Faraday Desktop has the same
-  behaviour, with the computer's memory.
+  behaviour, with the computer's memory now, and no refusal where the
+  system gives no figure.
+- Specified, not built. Until batch L1, `README.md`, `PLAN.md` and
+  `docs/FLOWS.md` give today's 18 MiB.
 
 ### F27 Nostr keys from the seed, by BIP-85 application 128002' (2026-10-14)
 
@@ -925,7 +969,8 @@ derives Nostr keys from a Bitcoin seed at
 backs up can back up Nostr keys too. OpenSigner lists the application
 as open (`docs/PLANNING.md` §16.114).
 
-**Decision** (owner, 2026-10-14; the spec is `docs/NOSTR.md`).
+**Decision** (owner, 2026-10-14, revised the same day after a review;
+the spec is `docs/NOSTR.md`).
 
 - BIP-85 128002' only. No NIP-06 (`m/44'/1237'/…`): NIP-06 is applied
   by a Nostr app to the words it is given, and its safe use is with
@@ -937,33 +982,48 @@ as open (`docs/PLANNING.md` §16.114).
   x-only public key, Bech32 `npub`. Identity and account are each 1 or
   more, since the BIP reserves 0, and start at 1/1, filled in.
 - It is a seventh application on Faraday's BIP-85 screen, and a Tools
-  tile, **Nostr key**, opens that screen with Nostr chosen. The screen
+  tile, **Nostr key**, opens that screen with Nostr chosen, on the
+  device only: Faraday Desktop has neither, on any network, and nor
+  does the demo. Desktop runs online and the derivation ignores the
+  network, so a test network would show a real Nostr key there; the
+  demo's public seeds would give keys anyone can derive. The screen
   shows the path, the npub with Show as QR and PNG, and the nsec,
-  handled as BIP-85's WIF and extended private key are. The plain nsec
-  is never a QR or a picture, in the tool or in the vault. **Find a pair** lists the
-  npubs of identities 1 to 5 at account 1 and of accounts 1 to 5 at an
+  shown as BIP-85's WIF and extended private key are, with no **Out
+  unprotected**. The plain nsec is never a QR or a picture, in the
+  tool, the vault or Files. **Find a pair** lists the npubs of
+  identities 1 to 5 at account 1 and of accounts 1 to 5 at an
   identity, public values only, so a forgotten pair is found by its
   npub.
 - **Save into {vault}** writes an Entry: the npub as its username, the
   nsec as its password, the path and the key's fingerprint in its
   notes. No new record type. The seed's words and the two numbers make
   the nsec again without the vault; the numbers are written down with
-  the seed's backup.
+  the seed's backup. An Entry holding an nsec is not exported for
+  KeePass.
 - **Export encrypted** writes the nsec as NIP-49 `ncryptsec1…` under a
-  password of at least 12 characters (scrypt LOG_N 16,
-  XChaCha20-Poly1305, key-security byte `0x02`), as text, a QR, a PNG and a sealed file For the stick.
+  password typed twice, of at least 12 characters (scrypt LOG_N 16,
+  XChaCha20-Poly1305, key-security byte `0x02`), as text, a QR, a PNG
+  and a sealed file For the stick. It is the only way the nsec leaves
+  the device, apart from the sealed vault file.
+- Nothing that can leave the device carries the key's fingerprint or
+  an identity or account number: files and labels are named by the
+  npub's first 13 characters. The fingerprint stays inside the vault.
+  It is in every PSBT and descriptor a person shares, so on a file
+  name it would tie the Nostr identity to the wallet, and two
+  identities to each other.
 - A saved Nostr entry (an Entry whose password is an nsec and whose
   username is its npub) offers Show as QR and PNG for the npub and
   Export encrypted on its page, so a saved key goes to a phone without
   being derived again. No Entry gains a QR of any other field than
   its TOTP secret's (F28).
-- On Faraday Desktop's mainnet demo the npub and nsec have a broken
-  checksum, as F20's addresses do, and Export encrypted is refused.
-- Faraday Companion will refuse `nsec1` and `ncryptsec1`, as it refuses
-  other private keys and sealed files, in a later Companion batch.
-- The derivation is Faraday's (`faraday-core/src/nostr.rs`), over
-  `osk-bip`'s public key derivation; `core/` is not edited. No new crate
-  enters the graph.
+- A file holding an nsec is a secret kind with no code and no way to
+  the Outbox. Faraday reads no ncryptsec it did not make (recommended,
+  for the owner to confirm).
+- Faraday Companion refuses `nsec1` and `ncryptsec1`, as it refuses
+  other private keys and sealed files, in the same batch.
+- The derivation is Faraday's (`faraday-core/src/nostr.rs`, the reading
+  rules in `faraday-intake/src/nostr.rs`), over `osk-bip`'s public key
+  derivation; `core/` is not edited. No new crate enters the graph.
 - Signing Nostr events is a later item.
 - Specified, not scheduled: it is built when the owner says.
 
@@ -1008,3 +1068,36 @@ authenticator app, which takes it by scanning.
   strings are not edited.
 - Specified, not scheduled: it is built when the owner says, as one
   batch (`docs/QR.md` §7.4, Q1).
+
+### F29 A copy by hand is checked by its form: typed words, or a scan of a SeedQR (2026-10-14)
+
+**Why.** The backup's copy item drew the SeedQR grid for every seed and,
+whenever a camera was listed, could be checked only by scanning that
+grid, though the presets copy the words alone. With no camera the
+words' four-digit numbers were typed back, compared digit by digit as
+they were typed, with the seed allowed on screen above the field.
+
+**Decision** (owner, 2026-10-14; the spec is `docs/NEW-WALLET.md`
+§14.7).
+
+- A words copy is checked by typing the whole seed back as words, with
+  the seed not on screen. Each word may be typed whole, as a prefix
+  only one word starts with, or as its four-digit number.
+- A SeedQR copy is checked by scanning the drawn grid, as before; with
+  no camera, by typed words. A seed copied both ways needs both checks.
+- The grid is drawn on the copy item, and printed on the blank
+  template, only when the plan copies that seed as a SeedQR.
+- The typed check uses Add a key's word entry, takes the seed's own
+  list and word count, shows the word being typed and masks the words
+  taken, compares once the last word is in, and names the first word
+  that differs; the words before it stay and typing resumes there.
+- The BIP-39 passphrase is not asked: it has its own check on the
+  chart, by the fingerprint it makes.
+- A SeedQR copy can be dropped for the words: in the plan, by **Keep
+  the words only** on its item, and at the item's foot after three
+  scans without a match. The plan is edited directly; if the seed's
+  words were already checked the item is done. The grid drawn so far
+  stays on the map, marked drawn in part, until destroyed.
+- Each seed here keeps its own copy item. The typed words are wiped on
+  a match, on leaving the check, and on a lock.
+- Specified, not built.

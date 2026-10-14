@@ -407,16 +407,26 @@ replaced".
 1. **Print N blank templates** (one per paper copy of a seed): made For
    the stick with the checklist, again when the word count changes; done
    while it is For the stick or on the last visit's receipt. The template holds no secret
-   (numbered word lines, path, network, the SeedQR grid's fixed
-   squares) and a second page of empty lines, "Place ____ holds ____",
+   (numbered word lines where a seed is copied as words, path, network,
+   the SeedQR grid's fixed squares where one is copied as a SeedQR;
+   F29) and a second page of empty lines, "Place ____ holds ____",
    one per place, filled in by hand; nothing of the plan is printed.
-2. **Copy seed {fp} by hand**, one per seed here: words and the SeedQR
-   grid behind hold-to-reveal, never a printer, no line for a BIP-39
-   passphrase. Its button, **Check my copy**: with a camera **Scan my
-   copy** (the camera reads the drawn SeedQR, compares its words with
-   the seed in place, never loaded, names the first word that differs),
-   with none the copy's numbers typed back; done when they match that
-   seed. Seed XOR and codex32 are here too.
+2. **Copy seed {fp} by hand**, one per seed here: the words with their
+   numbers, and the SeedQR grid only when the plan copies the seed as a
+   SeedQR, behind hold-to-reveal, never a printer, no line for a BIP-39
+   passphrase. Its button, **Check my copy**, checks each form the
+   seed's copies have (F29, `docs/NEW-WALLET.md` §14.7; specified, not
+   built): a words copy by typing the whole seed back as words (or
+   their four-digit numbers, or four-letter prefixes) with the seed
+   not on screen, compared once the last word is in and the first word
+   that differs named; a SeedQR copy by **Scan my copy** (the camera
+   reads the drawn SeedQR, compares its words with the seed in place,
+   never loaded, names the first word that differs), by typed words
+   where there is no camera. Done when every form's check has matched.
+   **Keep the words only**, on a SeedQR copy's item and at its foot
+   after three scans without a match, turns that seed's SeedQR copy
+   into words by hand; the grid drawn so far stays on the map, marked
+   drawn in part, until destroyed. Seed XOR and codex32 are here too.
 3. **Vault 1: {fp}**, one item per vault made, its body the rows one
    press will save ("Seed {fp}", "Seed {fp} with its passphrase",
    "Wallet description"), each marked once the open vault holds it. Its

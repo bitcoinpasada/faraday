@@ -561,8 +561,9 @@ up's plan questions).
 this seed**: choose the form (words by hand, SeedQR by hand, into a
 vault, Seed XOR parts, codex32 shares, a file), then the place (one of
 the plan's, or a new one), then the form's own flow; the plan gains the
-copy · **Check a copy of this seed** (Scan my copy, or the words typed
-and compared; nothing kept but the result) · **Where it is** (its lines
+copy · **Check a copy of this seed** (by its form, §14.7: the words
+typed for a words copy, Scan my copy for a SeedQR; nothing kept but the
+result) · **Where it is** (its lines
 on the chart drawn bold, the rest dimmed).
 
 **A key not held here** (a cosigner's, or on its own device): Show its
@@ -876,7 +877,8 @@ the wallet description where the plan puts it there (owner,
 go); the body lists what that press will save, as plain rows; then,
 once the vault holds all of it, **Continue**. There is no Continue
 before that, and no way to pick only part of it: the plan chose. For
-a copy by hand: **Check my copy** until it is checked. For files:
+a copy by hand: **Check my copy** until it is checked, by its form
+(§14.7). For files:
 **Make it**. An item not done cannot be passed: the cards after it open
 only once it is done (as a flow's later cards do), and the card list
 says which item waits.
@@ -981,6 +983,225 @@ chart.
 
 **Docs.** `docs/WALLETS.md` §5, `docs/FLOWS.md`, `docs/DECISIONS.md`
 (F6: the backup before the spend), `docs/VAULT.md` (the flag).
+
+### 14.7 A copy by hand is checked by its form (F29)
+
+Specified, not built.
+
+**As built.** Show the seed on a copy item draws the words with their
+four-digit numbers and, for an English seed, the SeedQR grid with
+Standard and Compact chips, whatever the plan chose. The foot's
+**Check my copy** opens the camera whenever one is listed
+(`item_action`); the drawn grid is scanned and compared word by word
+(`backup::compare_words`), and the first word that differs is named.
+Only with no camera does it open a field for the words' four-digit
+numbers (`backup::check_copy`), compared digit by digit as they are
+typed, the differing word named at once; the seed may still be shown
+above the field. The blank template always carries word lines and the
+grid. The presets choose words by hand, so the default backup draws a
+grid nobody asked for and, with a camera, can only be checked by
+scanning it.
+
+**Decision (owner, 2026-10-14).** A hand copy of the words is checked
+by typing the whole seed in as words, with the seed not on screen. A
+scan is asked for only when the person chose a SeedQR copy, and that
+copy can be dropped for the words.
+
+**1. Which forms check how.** The forms of seed *i*'s copies are the
+map's: `What::Words(i)` and `What::SeedQr(i)` at the places (the seeds
+question's two paper rows, or the chart's edits). `plan::copy_forms`
+returns which of the two the seed has.
+
+| Copies of the seed | With a camera | With none |
+|---|---|---|
+| Words by hand | Typed words | Typed words |
+| SeedQR by hand | Scan | Typed words |
+| Both | Typed words, then scan | Typed words |
+
+- The item is done when every check its row asks for has matched in
+  this backup. Typed words and the scan are kept apart
+  (`BackupState::checked` holds the fingerprint per form).
+- With no camera a SeedQR copy is checked by its words, numbers
+  accepted (item 2): the numbers are a Standard SeedQR's own digits.
+  The drawn grid itself is not checked; the chart's **Check this copy**
+  scans it once a camera is there. The typed-numbers field goes.
+- A seed whose list is not English has no SeedQR (as built); a SeedQR
+  copy of it is checked by typed words.
+- **Show the seed** draws the words with their numbers in every case,
+  and the grid, with its Standard and Compact chips and pinned row,
+  only when the seed has a SeedQR copy.
+- **The blank template** carries the word lines when a seed is copied
+  as words and the grid when one is copied as a SeedQR. The sheet file
+  gains a line `copy: words`, `copy: seedqr` or `copy: words seedqr`
+  (`backup::sheet_blank`, `pdf::blank_sheet`); a file without it reads
+  as both.
+
+**2. The typed check.**
+
+- **Opening it.** The foot's **Check my copy** opens it while the
+  words are unchecked; for a SeedQR copy with a camera, once the words
+  are checked (or with no words copy), the foot is **Check my copy**
+  that opens the camera, as built. Opening the check hides the seed:
+  the words, their numbers and the grid are not drawn while it is open.
+  **Show the seed** stays; a press ends the check and wipes what was
+  typed, and the check starts again from word 1.
+- **The entry is Add a key's** (§12.1's **Type the words**): the same
+  typing rules (`forms::typed_index`, `forms::typed_candidates`,
+  `forms::completion`; Tab, Space, and a word taken by itself once its
+  letters are whole and only one word starts so), and for a list typed
+  on an on-screen keyboard and on the small panel, OpenSigner's word
+  entry (`forms::word_typer`, `word_keys`, the candidate pills). The
+  key handling of Add a key's words (`lib.rs`, the Latin branch and the
+  `LoadWizard` branch of the Entry keys) and the drawing of its word
+  cells and candidates (`screens::entry`, `compact_screens::entry`)
+  become one function each, used by both; the drawing takes `masked`.
+  No new component: DESIGN §4.3's text field, keyboard and candidates,
+  and §4.10's masked words panel.
+- **What it has.** The seed's own list (`key.language`) and its word
+  count, fixed: no count row, no language or form chips, no Scan a
+  SeedQR, no passphrase field, no Add key.
+- **What is shown.** The word being typed, in full, with "Word 7 of
+  24", and its candidates. A word once taken is masked: bullets in its
+  numbered cell, with no hold and no eye to show it during the check.
+  On the small panel, the word being typed and its number and nothing
+  else (DESIGN §4.3). A typed seed is the seed: masking the taken words
+  keeps a shoulder from reading more than one word at a time, and the
+  small panel has no room for the cells over its keyboard.
+- **Accepted input**, per word: the word; a prefix only one word of
+  the list starts with (in English at most four letters), taken as Tab
+  takes it; or, on a physical keyboard, its four-digit number as Show
+  the seed prints it (`0000` to `2047`). Words and numbers may be
+  mixed. The on-screen word keyboards have no digits, so on the Pi a
+  number needs a keyboard. A number past 2047 is a word not on the
+  list (`forms_word_is_not_on`).
+- **When it compares.** Once the last word is taken, not before:
+  nothing is said word by word, so the field cannot be used to find
+  the seed a word at a time.
+- **A match.** "Your copy matches the seed" (`OK`); the item's words
+  check is done (`copy_matched`), the typed words are wiped, and the
+  field closes.
+- **A mismatch** names the first word that differs: "Word 5 differs
+  from the seed" (`ERR`), from `backup::compare_words` over the typed
+  numbers. The position says nothing of the seed, and the person needs
+  it to find the line on paper. Words 1 to 4 stay, masked; word 5 on
+  are wiped and typing resumes at word 5. The person reads word 5 off
+  the paper again and types it; if the paper is wrong, **Show the
+  seed** ends the check, shows the seed to correct the paper, and the
+  check is started again from word 1. **Clear** starts it again too.
+- **The passphrase** is not asked. The copy item has no line for it;
+  the plan keeps it at a place that does not keep its words; and a
+  passphrase kept at a place has its own check on the chart (§9.4:
+  typed, compared by the fingerprint it makes, nothing kept).
+- **Wiping.** The typed words are a `SecretText`, and the word entry's
+  state is dropped and wiped as Add a key's is: on a match, on Clear,
+  on Show the seed, on leaving the item or changing the key
+  (`BKey`, `backup_item_open`), and on a lock, which drops the backup
+  under way (`lock_now`).
+
+**3. The scan, and dropping the SeedQR copy.** A SeedQR copy is
+scanned as built (`copy_scanned`). Someone who finds the grid too hard
+to draw, or to get read, keeps the words instead, three ways:
+
+- **The plan.** The seeds question's **on paper, SeedQR by hand**
+  unticks as any answer does, before the checklist is made, or through
+  **Change the plan** (§14.4) once it is. The new checklist's copy
+  items ask for typed words.
+- **On the item.** A SeedQR copy's item body has **Keep the words
+  only**, a secondary button (DESIGN §4.13), under the scan's line.
+- **After three scans without a match.** A scan without a match is one
+  opening of the camera from this item that closes without a match:
+  closed by the person, or after a code that is another seed, has a
+  word that differs, or is not a SeedQR. Each opening counts once,
+  however many frames it read. After the third, the item shows "3
+  scans without a match" and **Keep the words only** moves to the
+  foot, the secondary beside **Check my copy**. The count is per seed
+  in this backup and goes with a lock.
+
+**Keep the words only** edits the plan directly, without the
+questions: seed *i*'s `SeedQr(i)` at each place becomes `Words(i)`
+(not added where the place already keeps them), as the chart's edits
+do (`plan::Edit`), so the map is the plan from then on (§9.7). Where
+the plan has no edits and no other seed here keeps a SeedQR copy, the
+seeds question's SeedQR row is unticked and its words row ticked
+instead, so the plan stays its answers. §14.4's rules hold: items done
+stay done, and the plan is saved (`plan_save`). The item now asks for
+typed words alone; if this seed's words were already checked in this
+backup it is done at once and the checklist moves to the next item.
+
+**The grid drawn in part.** It may hold most of the seed, and the
+device cannot tell how much was drawn, so it counts as a copy: the
+`SeedQr(i)` line stays on the map at its place, marked **drawn in
+part** (a third `plan::Mark` beside lost and exposed). The plan's
+check counts it as a secret at that place for "One place found", and
+not as a copy that rebuilds for "Any one place lost". The item says
+once, in one line: "Seed 9a6a2580's SeedQR, drawn in part, stays on
+the map until destroyed". The chart's **I destroyed this copy**
+(§9.4) takes it off; with nothing drawn, that is one press.
+
+**4. Several keys.** Each seed here keeps its own copy item, with the
+forms its own copies have; a multisig with words for one seed and a
+SeedQR for another checks each by its own row.
+
+**The chart.** §9.3's **Check a copy of this seed** and §9.4's **Check
+this copy** follow the line's form: a words line opens the typed
+check, a SeedQR line the scan (no camera: typed words). A key node
+offers one row per form its copies have (`glance_sheet.rs`,
+`Step::Scan`).
+
+**Strings** (Faraday's `faraday-strings/src/en.rs`; added when built):
+"Word {} of {}", "Word {} differs from the seed", "Keep the words
+only", "{} scans without a match", "Seed {}'s SeedQR, drawn in part,
+stays on the map until destroyed", "drawn in part" (the mark), "Type
+my copy" (the chart's row for a words line), and a field label "Your
+copy's words" in place of `copy_check_type_the`. Kept:
+`copy_check_your_copy`, `copy_check_clear`, `item_action_check_my`,
+`backup_your_copy_scans`, `backup_your_copy_scans_but`,
+`forms_word_is_not_on`. Gone: `copy_check_of_digits`,
+`copy_check_word_differs`, `copy_check_type_here`,
+`item_action_stop_typing` (Show the seed and leaving the item end the
+check).
+
+**Where.** `backup.rs` (module doc; `check_copy` and `CopyCheck::SoFar`
+go, the typed words compared by `compare_words`; `sheet_blank`),
+`pdf.rs` (`blank_sheet`), `plan.rs` (`copy_forms`, `Mark`, the drop
+of a SeedQR copy, `templates`), `lib.rs` (`BackupState`: the typed
+words, the word entry, `checked` per form, the scan count;
+`backup_typed_check`, `copy_scanned`, `Action::BCheck`, a new
+`Action::BKeepWords`, the Backup keys, `backup_item_done`'s copy
+rule), `screens.rs` (the copy item in `backup_body`, `copy_check`,
+`item_action`, `entry`), `compact_screens.rs` (`entry`),
+`glance_sheet.rs`, `held.rs` and `backups.rs` (the record's checks).
+
+**Tests** (`tests/check_copy.rs`, rewritten; the helpers of
+`backup_first.rs`, `backup_checklist.rs`, `backups.rs`,
+`backup_stick.rs`, `backup_again.rs`, `names_kept.rs` and
+`seed_backup.rs` that type numbers type words instead):
+
+- a words-only plan with a camera: Check my copy opens the typed
+  check, not the camera; typing the seed's 24 words completes the
+  item;
+- one wrong word: "Word 5 differs from the seed", the item not done,
+  and typing the right fifth word and the rest completes it;
+- no word of the seed is drawn while the check is open
+  (`drawn_texts`), and no word typed is drawn once taken;
+- four-letter prefixes complete the item, and so do the words'
+  four-digit numbers, mixed with words;
+- a SeedQR plan with a camera: typed words alone do not complete the
+  item, the scan of the drawn grid does; with both forms, both are
+  needed;
+- a SeedQR plan with no camera: typed words complete it;
+- **Keep the words only** on a SeedQR item leaves a plan with no
+  SeedQR copy of that seed, and the item completes once the words
+  check passes; with the words already checked, at once;
+- after three scans without a match, Keep the words only is offered
+  at the foot, and not before;
+- unticking SeedQR in the plan, before the checklist reaches the copy,
+  gives a copy item checked by typed words with no grid shown;
+- the dropped grid stays on the map marked drawn in part until I
+  destroyed this copy;
+- a lock in the middle of the check: after the unlock the check is
+  empty;
+- a words-only plan's blank template carries no grid.
 
 ## 10. Order
 

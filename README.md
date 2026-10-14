@@ -98,10 +98,9 @@ not leave it attached while anything secret is open.
    vault file goes into Files, From the stick, still encrypted. Every
    other file is held apart until the import. A PNG is not kept as a
    picture: its QR codes are read, and what they hold is kept, a SeedQR
-   as its seed words. A file Faraday reads as nothing it knows is kept
-   as a File, which can go into Files to be signed with a GPG key or
-   sent as QR codes. A file over 64 MiB is not read here; a stick visit
-   offers it. A sheet reads "Read from
+   as its seed words. A file Faraday reads as nothing it knows, up to
+   18 MiB, is kept as a File, which can go into Files to be signed
+   with a GPG key or sent as QR codes. A sheet reads "Read from
    {label}", one line of what was read ("1 vault · 2 PSBTs · 4 other
    files"), and "Pull the stick to continue".
 2. **Pull the stick.** Keys never load and passphrases are never typed
@@ -150,10 +149,9 @@ Format it like this:
   and work as they are.
 - **Any label except `OSKBOOT`**, which marks a boot partition and is
   never opened.
-- **Files at the top level.** Files inside folders are not read. A file
-  over 64 MiB asks first: imported whole, where the memory left still
-  opens your vaults, or only for signing, at any size up to FAT32's
-  4 GiB.
+- **Files at the top level.** Files inside folders are not read. The
+  largest file read is 18 MiB. Files of any size are specified in
+  `docs/LARGE-FILES.md` and not built yet.
 
 Files are deleted from a stick on the stick visit, with no online
 computer: **Delete files** is the one way in. Its sheet, marked as a

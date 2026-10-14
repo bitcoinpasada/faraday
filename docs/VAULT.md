@@ -125,18 +125,22 @@ be opened, the unlock cost, and the space per passphrase.
 the largest preset that fits the weakest machine chosen as suggested.
 **This computer** is ticked by default and can be unticked (owner,
 2026-10-11); it gives a vault the largest custom memory that fits in
-what it has free beside about 100 MiB, at most 4 GiB, and its row reads
+what it has free beside twice the vault file and 100 MiB (below), at
+most 4 GiB, and its row reads
 that with its free memory in parentheses, "1 GiB (1.2 GiB free)".
 Another machine gives half its memory:
 
 | Preset | Memory | Passes | Memory free to open | Opens on |
 |---|---|---|---|---|
-| Light | 64 MiB | 3 | about 150 MiB | anything, including a 512 MB Pi Zero 2 W |
-| Standard | 256 MiB | 3 | about 350 MiB | a 1 GB Raspberry Pi 3 and anything larger |
-| Medium | 512 MiB | 3 | about 600 MiB | a 1 GB Pi 3 with little else running; any PC |
-| Strong | 1 GiB | 4 | about 1.1 GiB | a Pi 4 or 5 with 2 GB or more; a PC with 2 GB or more |
-| Maximum | 2 GiB | 2 | about 2.1 GiB | a Pi 4 or 5 with 4 GB or more; a PC with 4 GB or more |
-| Custom | 64 MiB to 4 GiB | 2 to 10 | memory + about 100 MiB | chosen by the person |
+| Light | 64 MiB | 3 | 166 MiB (196 MiB) | anything, including a 512 MB Pi Zero 2 W |
+| Standard | 256 MiB | 3 | 358 MiB (388 MiB) | a 1 GB Raspberry Pi 3 and anything larger |
+| Medium | 512 MiB | 3 | 614 MiB (644 MiB) | a 1 GB Pi 3 with little else running; any PC |
+| Strong | 1 GiB | 4 | 1,126 MiB (1,156 MiB), about 1.1 GiB | a Pi 4 or 5 with 2 GB or more; a PC with 2 GB or more |
+| Maximum | 2 GiB | 2 | 2,150 MiB (2,180 MiB), about 2.1 GiB | a Pi 4 or 5 with 4 GB or more; a PC with 4 GB or more |
+| Custom | 64 MiB to 4 GiB | 2 to 10 | memory + twice the file + 100 MiB | chosen by the person |
+
+The figures are for the default slot size's 1 MiB file, and in
+parentheses for the largest, 16 MiB (§2).
 
 **Where the numbers come from.** No published recommendation names a
 minimum of four passes; the four in RFC 9106 is lanes. RFC 9106 §4
@@ -154,11 +158,15 @@ ordered. Lanes are 1 here, not 4: a lane is parallelism for the defender,
 and without threads it would add time without adding work for an
 attacker, who runs guesses in parallel anyway.
 
-"Memory free to open" is the Argon2id memory plus the vault file, one
-slot's plaintext and the running system. On Faraday the whole system
-is a few tens of megabytes in RAM; on another operating system, or in the
-reference reader on a desktop, the margin is whatever that system leaves
-free.
+"Memory free to open" is the Argon2id memory, plus twice the vault
+file (the file and a sealed copy beside it while it is written), plus
+100 MiB (`APP_MIB`) for a slot's plaintext and the app. One function in
+`faraday-core`, `vault_need_mib(header, file_len)`, gives it; Unlock's
+check (`vault_unlock_check`), Create's choice for **This computer** and
+the import rule of `docs/LARGE-FILES.md` §4.1 all use it. On Faraday
+the whole system is a few tens of megabytes in RAM; on another
+operating system, or in the reference reader on a desktop, the margin
+is whatever that system leaves free.
 
 Two cautions are not settled by the table and are measured before
 release: OpenSigner's Pi 3 image is 32-bit, where one allocation of 1 GiB
@@ -199,7 +207,8 @@ times are expected to be several times the laptop's.
   here.
 
 **When a vault does not fit.** Opening a vault whose memory this machine
-cannot allocate says so before the passphrase is typed: "Needs 2 GiB.
+cannot allocate (its memory free to open, above) says so before the
+passphrase is typed: "Needs 2.1 GiB.
 This computer has 1.5 GiB free." It does not attempt the derivation.
 
 ## 4. Opening
@@ -275,7 +284,8 @@ stick visit:
 Once written and matched, the vault leaves For the stick and stays in
 Files as the stick now holds it, and the visit's receipt keeps the
 SHA-256 of the bytes written (owner, 2026-10-10; `docs/SIMPLIFY.md`
-§4.3). The receipt is kept across a lock under the key `receipt` and is
+§4.3) and the stick's label and FAT volume serial, by which an APK key
+made in the session tells two sticks apart (`docs/APK-SIGNING.md` §3). The receipt is kept across a lock under the key `receipt` and is
 gone at power-off. From it each vault file's currency is computed,
 never stored (§3.5): **Never written** (sealed For the stick, on no
 receipt), **On {label} · current** (the receipt wrote the bytes it has
@@ -318,7 +328,7 @@ exactly where its last field does, refuses the slot.
 | 9 | Pending signing round | 1 scheme (`u8`: 1 MuSig2, 2 FROST); 2 SHA-256 of the unsigned transaction it is bound to; 3 the key's fingerprint; 4 the round's secret state, as `osk-psbt` serialises it; 5 used (`u8`), set when round 2 signs. Written by the flow in `docs/WALLETS.md` §4.2 and, for FROST, by the carry's secret sheet (`docs/FLOWS.md` decision 6), with the carry file as field 4; Faraday removes the record once its round has signed, so it is gone at the next seal |
 | 10 | Signed amounts | 1 SHA-256 of an unsigned transaction; 2 the amount each input stated, `u64` per input in order (repeatable per record: one record per transaction). Written by `docs/WALLETS.md` §3.3 when that setting is on; the oldest records are dropped first when the slot is full |
 | 11 | Backup plan | 1 the wallet, as a type 3 record's field 1 holds it; 2 the plan's answers, a line each (`name value`: `seeds`, `places`, `split`, `wallet`, `software`, `form`, `omit`, `vault v` the seeds vault *v* holds, `sticks v` the places that keep its stick, `pass i`, and `held {fp}` for each key of the wallet made in Faraday whose backup is not done, a fingerprint and never a secret, `docs/NEW-WALLET.md` §14.3, and once the map is edited on the chart a `spot` line per spot, `spot place0 w0 sheet stick0` (where, then what it holds in codes: `w`/`q`/`p` a seed's words, SeedQR or passphrase, `sheet`, `share`, `stick` a vault's stick, `seed`/`seedp` a seed in a vault without or with its passphrase, `wallet`, `file`), read back as the plan in place of the answers' rule, `docs/NEW-WALLET.md` §9.7; a plan written before 2026-10-10 has one `sticks` line with no number and no `vault` line, and reads as one vault holding every seed here; one with no `spot` line is drawn from its answers); 3 a place's name (≤ 128 bytes, repeatable: one per place, in order, empty for "Place n"); 4 what one place, a vault, a stick of files, the software or the seeds on their own devices hold, a line (repeatable), a place named by number only ("Place n": the place's name is field 3's alone, and is never written here), and what a vault holds that a later plan dropped ("vault.ofv holds seed 9A6A2580"); a record written before 2026-10-10 may still name the place here instead of by number, and reading it into the kept summary (§11) replaces that name with its place number; 5 a note on a thing of the map, a line (repeatable, `docs/NEW-WALLET.md` §9.5): `checked place0 w0 2026-10-10`, `keychecked 9a6a2580 2026-10-10` (the date a key's holder confirmed its backup), `lost place0 w0`, `exposed place0 w0`, `holder 9a6a2580 Alice's Coldcard`, `vaultname 0 Cold storage`; never a secret, and never copied into the summary a lock keeps (§11). Written when the backup's checklist is made with a vault open (`docs/WALLETS.md` §5), and when the plan is changed or a note made on the wallet's chart, over the record this slot kept for the same wallet; the next backup of that wallet starts from it. The only place a place's name, a key's holder, a vault's name, a date checked and a mark are kept |
-| 12 | APK signing key | 1 the private key, RSA, PKCS#8 DER; 2 its self-signed certificate, DER, whose common name is the key's name and whose SHA-256 is its fingerprint. Written by Make an APK key (`docs/APK-SIGNING.md` §3); of field 1 only signatures leave the slot, inside signed APKs |
+| 12 | APK signing key | 1 the private key, RSA, PKCS#8 DER; 2 its self-signed certificate, DER, whose common name is the key's name and whose SHA-256 is its fingerprint; 3 the Android package it signs for, text (≤ 255 bytes). Written by Make an APK key (`docs/APK-SIGNING.md` §3); of field 1 only signatures leave the slot, inside signed APKs, unless the person writes it out with `open.py --field 12.1` (§10) |
 
 An open slot's view shows each type 3 wallet with the type 11 plan this
 slot keeps for it, as a chart read from the backup up: the places,
@@ -330,7 +340,7 @@ sheet (§9); its actions load the wallet, and its seeds this slot keeps,
 first. Opening one writes nothing into the slot.
 
 In each type the first field is required and every other field is
-optional; type 10's and type 12's field 2 are also required. Fields marked repeatable
+optional; type 10's field 2 and type 12's fields 2 and 3 are also required. Fields marked repeatable
 may appear more than once; no other field may. A key's field 1 must be a
 payload `osk-backup` reads as its kind, and a recovery sheet's field 1
 likewise.
@@ -388,7 +398,12 @@ cannot alter its contents.
 records of the slot it opens, over the standard library and either
 `argon2-cffi` with `pynacl` or `cryptography` 44 or newer, as OpenSigner's
 `tools/backup/decrypt.py` does. A vault therefore opens without
-Faraday. The vectors in `tools/vectors/vault/` are opened by both
+Faraday. It writes nothing, except with `--field TYPE.FIELD --out
+FILE` (`docs/APK-SIGNING.md` §3, §7): then it prints nothing of the
+slot and writes that one field's bytes, of the record of that type
+(`--index N` choosing among several), to a new file created with mode
+0600, refusing a file that exists. That is how an APK signing key
+(type 12, field 1, PKCS#8 DER) reaches `apksigner` without Faraday. The vectors in `tools/vectors/vault/` are opened by both
 implementations in the tests: a 64 KiB vault with one passphrase, and a
 64 KiB vault with three, each slot holding one record of every type.
 

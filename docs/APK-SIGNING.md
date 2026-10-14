@@ -1,8 +1,9 @@
 # The APK signing key
 
-**Status:** spec v0.2 · 2026-10-14 · decided by the owner
-(`docs/DECISIONS.md` F25; §12 records the answers). Not built. Files of
-any size are `docs/LARGE-FILES.md` (F26).
+**Status:** spec v0.3 · 2026-10-14 · decided by the owner
+(`docs/DECISIONS.md` F25; §12 records the answers), revised after an
+adversarial review the same day. Not built. Files of any size are
+`docs/LARGE-FILES.md` (F26).
 
 The problem it solves: Android installs an update only when it is
 signed by the key that signed the installed copy, so Faraday
@@ -18,7 +19,8 @@ the Pi, kept in a vault, used on the stick or the Pi. Nothing of it is
 in the Companion. This is a separate document from `docs/COMPANION.md`
 because everything in it is built into Faraday (`faraday-core`, a new
 crate, the vault format, the device's screens), none of it into the
-phone app, and the key can sign any APK, not only the Companion's.
+phone app, and the same feature makes and keeps a key for any app,
+each key bound to its own app's package.
 
 ## 0. Rules for the implementing agent
 
@@ -29,8 +31,9 @@ phone app, and the key can sign any APK, not only the Companion's.
   batch; no `rm`; no commits; no agents.
 - Batches in §11's order; one review and one completion report each.
 - The private key never leaves the vault: no file, code, paper form or
-  keystore carries it (§3). A change that would need one stops and asks
-  the owner.
+  keystore that Faraday makes carries it (§3); `open.py --field`, run by
+  the person without Faraday, is the one way out. A change that would
+  need another stops and asks the owner.
 - Completion report: items done, each with its tests and whether they
   pass; what was left out and why; docs changed; renders to look at. No
   restating the spec.
@@ -38,13 +41,20 @@ phone app, and the key can sign any APK, not only the Companion's.
 ## 1. What is decided
 
 - One RSA-3072 key per app, with a self-signed certificate naming the
-  project, made from the system's entropy (§2).
+  project, made from the system's entropy (§2). Each key is bound to
+  one package, typed when it is made, and signs only APKs of that
+  package; another app gets another key, as Android's own advice has
+  it (§3, §4.4).
 - APK Signature Scheme v2 and v3, as `apksigner` writes them for an APK
   whose `minSdkVersion` is 26; no v1, no v4, no rotation (§2.2).
 - Kept in a vault as record type 12; the vault's copies on sticks are
-  its backup (§3).
+  its backup, and a key made here signs nothing until two sticks hold
+  it (§3).
 - **Sign an APK** reads an unsigned, aligned APK copied in from a stick,
-  shows what it is, and writes the signed APK For the stick (§4). The
+  shows what it is, takes the SHA-256 of an independent second build of
+  the same source, signs only when the two match, checks each signature
+  against the certificate, and writes the signed APK For the stick
+  (§4, §6). The
   signed file is the unsigned file with the APK Signing Block inserted
   and one offset changed, so F-Droid can copy the signature onto its own
   build (§6).
@@ -102,7 +112,12 @@ writes v2 and v3, plus a v4 `.idsig` file beside the APK that only
   `0xbeeff00d` with value 3, which tells a v3-capable verifier that a
   v3 block was there, so stripping it is detected.
 - **v3** (block ID `0xf05368c0`): one signer, no lineage; the signer's
-  SDK range as `apksigner` writes it for this `minSdkVersion`.
+  SDK range (its minimum and maximum, inside the signed data and
+  beside it) as `apksigner` writes it. Whether the minimum depends on
+  the APK's `minSdkVersion` is not settled here: batch 1 reads both
+  values from `apksigner`'s output for the fixtures of two
+  `minSdkVersion`s (§8), writes the rule here, and the byte-identical
+  test holds it.
 - The padding pair (ID `0x42726577`) that makes the block a multiple of
   4096 bytes, as `apksigner` pads it.
 - Nothing else: no v1, no v4 file, no v3.1, no source stamp, no
@@ -121,7 +136,16 @@ need v1, which Faraday does not write.
 32 bytes from the system's entropy (`fresh`, as Secure Boot's keys
 take them) key a ChaCha20 stream (`faraday-sb`'s `rng::Stream`), from
 which the `rsa` crate draws the primes; a second stream from the same
-bytes draws the serial and blinds the signing.
+bytes draws the serial and blinds the certificate's self-signature.
+Those bytes are not kept.
+
+**Every later signing is blinded with bytes of its own**, as Secure
+Boot's signing is (`faraday-core/src/secureboot.rs`): each **Sign an
+APK** takes `fresh(b"apk signing")`, keys a new `rng::Stream` with it,
+and passes that to `faraday-apk`, which draws no randomness of its own
+(§7). With no answer from the system yet, signing is refused as
+Secure Boot's is. A fixed or reused stream is never passed: the signature
+would be the same, but the blinding would be known and so worthless.
 
 The key is not derived from a seed a person could write down. The prime
 search belongs to the `rsa` and `crypto-primes` crates and may change
@@ -136,12 +160,16 @@ Made once with the key, kept beside it, never made again.
 - Subject and issuer: one common name, typed when the key is made,
   **Faraday Companion** filled in. Nothing else: no organisation, no
   place, no email. `apksigner verify --print-certs` prints it to anyone
-  who has the APK.
+  who has the APK. The name is trimmed; empty is refused ("Name the
+  certificate"), and it is at most 64 characters (X.520's bound for a
+  common name), the field taking no more.
 - Serial: 16 bytes from the stream, top bit cleared, as Secure Boot's.
-- Valid from the time it was made (the clock must be known: GPG and
-  Secure Boot ask for the time first, `docs/FLOWS.md` decision 58), until
-  9999-12-31 23:59:59 UTC, RFC 5280 §4.1.2.5's value for a certificate
-  with no expiry. Android does not check an APK certificate's dates.
+- Valid from 00:00:00 UTC of the day it was made, not the second: the
+  certificate is published in every APK for good, and the date is all
+  it needs (the clock must be known: GPG and Secure Boot ask for the
+  time first, `docs/FLOWS.md` decision 58). Valid until 9999-12-31
+  23:59:59 UTC, RFC 5280 §4.1.2.5's value for a certificate with no
+  expiry. Android does not check an APK certificate's dates.
 - One extension, the subject key identifier. Not a CA: no basic
   constraints, no key usage, unlike Secure Boot's.
 
@@ -155,32 +183,61 @@ image's SHA-256.
 ## 3. Where it lives
 
 - **Record type 12, APK signing key** (`docs/VAULT.md` §7): field 1 the
-  private key, PKCS#8 DER; field 2 the certificate, DER. Both required.
-  The name is the certificate's common name, read from field 2, as
-  Secure Boot's are. A vault may hold several.
+  private key, PKCS#8 DER; field 2 the certificate, DER; field 3 the
+  package the key signs for, as text. All three required. The name is
+  the certificate's common name, read from field 2, as Secure Boot's
+  are. A vault may hold several, for different packages or the same.
+- **The package binds the key.** Sign an APK signs only an APK whose
+  manifest `package` (§5) is field 3, compared as bytes. A key that
+  signs one app's APKs and another's lets each app share the other's
+  signature-level permissions and stand in for it wherever a check
+  trusts the certificate; one key per app keeps them apart.
 - **The second copy is the vault's.** A sealed vault written to two
-  sticks kept apart holds the key twice. Nothing else copies it. Given
-  the passphrase, `tools/vault/open.py` reads it out of a vault without
-  Faraday (`docs/VAULT.md` §10), as PKCS#8 that `apksigner --key` takes:
-  that is the way out if Faraday itself cannot be used.
-- **The private key never leaves the vault.** No file, no code, no
-  paper form, no PKCS#12 or JKS keystore. What reaches For the stick is
-  the certificate (§4.3) and signed APKs (§4.4).
-- **Signing waits for a written copy.** A key made in this session
-  signs nothing until the vault holding it has been written to a stick
-  after the key was added (the stick visit's receipt, `docs/VAULT.md`
-  §6). Until then the key's **Sign an APK** reads **Write the vault to
-  a stick first** and opens the stick visit with the vault ticked; once
-  written, it returns to the key's page. A key in a vault unlocked from
-  a stick signs at once. This is the rule `docs/NEW-WALLET.md` §14.3
-  sets for a Bitcoin key made here, for the same reason: a key whose
-  only copy is in memory is gone at power-off.
+  sticks kept apart holds the key twice. Nothing else copies it.
+- **The way out without Faraday** is `tools/vault/open.py`
+  (`docs/VAULT.md` §10), for when Faraday itself cannot be used. By
+  default it prints every field of the slot, in hex, so it does not
+  give `apksigner` a key by itself. Batch 1 adds `--field 12.1 --out
+  FILE`: it writes that one field's bytes, the PKCS#8 DER that
+  `apksigner --key` takes, to a new file created with mode 0600, and
+  prints nothing of the slot; `--field 12.2` writes the certificate for
+  `--cert`. The steps, on the Learn page (§10): a computer that is
+  offline and stays offline until the file is gone; the passphrase
+  typed at the prompt, never as `--passphrase`; the file on that
+  computer only, signed with, then shredded. It is the one place the
+  private key becomes a file, and only by the person's own hand.
+- **The private key never leaves the vault.** Faraday makes no file,
+  no code, no paper form, no PKCS#12 or JKS keystore of it. What
+  reaches For the stick is the certificate (§4.3) and signed APKs
+  (§4.4). The one way out is `open.py`'s, above, without Faraday.
+- **Signing waits for two written copies.** A key made in this session
+  signs nothing until the vault holding it has been written, after the
+  key was added, to two sticks whose FAT volume serials differ: two
+  receipts (`docs/VAULT.md` §6), each written, read back and matched,
+  each of a sealing that holds the key (a later sealing of the same
+  vault counts). Two writes to the same stick, or to sticks with the
+  same serial, count once. Until then the key's **Sign an APK** reads
+  **Write the vault to two sticks first**, with "On 1 of 2 sticks" once
+  one is written, and opens the stick visit with the vault ticked; once
+  written, it returns to the key's page. On the Pi the two are SD cards.
+  A key in a vault unlocked from a stick signs at once. This follows the
+  rule `docs/NEW-WALLET.md` §14.3 sets for a Bitcoin key made here, for
+  the same reason, and asks for two copies because this key, once lost,
+  cannot be replaced: a key whose only copy is in memory is gone at
+  power-off, and one whose only copy is one stick is gone with it.
 - **Deleting** is Vault contents' hold, as for every item. The Learn
   page (§10) says what losing the key means; the hold carries no extra
   line.
 - **Older builds.** A slot holding a type 12 record does not open in a
   build that does not know the type (`docs/VAULT.md` §7: an unknown
-  type refuses the slot), which is every release up to 0.1.2.
+  type refuses the slot), which is every release up to 0.1.2, nor in a
+  copy of `open.py` from before batch 1.
+- **Which vault is the person's choice.** Make asks for the vault with
+  no default steering it (§4.2). Putting the key beside other keys has
+  two consequences, which the Learn page states and no working screen
+  does: everything else in that slot no longer opens in the builds and
+  the `open.py` above; and one passphrase then guards all of it, so a
+  release's OpenPGP key and its APK key in one slot fall together.
 
 ## 4. Screens and flow
 
@@ -200,22 +257,31 @@ prefix `apk_`, the Tools tile's with `catalog_`. `docs/FLOWS.md`'s
 - Vault contents: **Make an APK key** among the add actions (decision
   58).
 - Files: an APK copied in carries **Sign with APK key** on its row, as
-  `BOOTX64.EFI` carries **Sign in Secure Boot** (decision 1).
+  `BOOTX64.EFI` carries **Sign in Secure Boot** (decision 1). It picks
+  the open vault's key whose package is the APK's; with several such,
+  "Which key?"; with none, the row reads "Another app: {package}"
+  (`apk_other_package`) and is inert.
 
 ### 4.2 Make an APK key
 
 Step cards (wide) or pages (small): **Name on the certificate** (one
 field, **Faraday Companion** filled in, the hint "Public: printed by
-anyone who checks the APK"), then the vault. The time first where it is
-not known. **Make the key** → Result, "APK key made": Name, **Certificate
-SHA-256** (a reference row opening Compare), Key "RSA 3072", and the
+anyone who checks the APK"), then **Package** (one field,
+`app.faradayoffline.companion` filled in), then the vault: where
+several are open, each listed alike and none chosen in advance (§3).
+The time first where it is not known. The package is refused, "Not a
+package name" (`apk_package_invalid`), unless it is Android's form: at
+least two parts joined by dots, each a letter followed by letters,
+digits or underscores, ASCII only, at most 255 bytes. **Make the key**
+→ Result, "APK key made": Name, **Package**, **Certificate SHA-256** (a
+reference row opening Compare), Key "RSA 3072", and the
 certificate For the stick as it is made (as GPG's public key is), its
-row carrying **Show as QR** and **PNG**. Actions: **Write the vault to a
-stick** (primary, §3) and **Done** → the key's page.
+row carrying **Show as QR** and **PNG**. Actions: **Write the vault to
+two sticks** (primary, §3) and **Done** → the key's page.
 
 ### 4.3 The key's page
 
-A Menu in Vault contents: **Name**, **Certificate SHA-256** (reference
+A Menu in Vault contents: **Name**, **Package**, **Certificate SHA-256** (reference
 row → Compare), **Key** "RSA 3072", **Made** (the date), then
 **Certificate** (written For the stick again; **Show as QR**, **PNG**),
 **Sign an APK**, and the hold to delete.
@@ -246,11 +312,13 @@ cannot be signed, why, in `WARN`, the row inert:
 
 | Refused | When |
 |---|---|
-| Not an APK | not a ZIP Faraday reads (§5), or no `AndroidManifest.xml` |
+| Not an APK | not a ZIP or a manifest Faraday reads with one reading only (§5), or no `AndroidManifest.xml` |
 | Already signed | an APK Signing Block before the central directory, or a v1 signature (`META-INF/*.SF`, `.RSA`, `.EC`, `.DSA`) |
 | Not aligned | a stored entry's data not at a multiple of 4 bytes, or a stored `.so` not at a multiple of 16 KiB (`zipalign -c -P 16 4`) |
 | Supports Android before 7.0 | `minSdkVersion` below 24 (§2.2) |
+| Another app: {package} (`apk_other_package`) | the manifest's `package` is not the key's (§3) |
 | Over 4 GiB on FAT32 | the signed APK would pass FAT32's largest file |
+| Name too long (`apk_name_too_long`) | the output name (below) would pass 230 bytes of UTF-8 |
 
 None copied in: "Copy the APK in on a stick visit first." (the Pi: "on
 an SD card visit").
@@ -258,14 +326,33 @@ an SD card visit").
 **The review** is a Hold screen, "Sign this APK?":
 
 - **File**: the name as copied in; **Size**.
-- **SHA-256**: of the file as copied in, in groups of four, to compare
-  with what the release build printed.
+- **SHA-256**: of the file as copied in, in groups of four. For a
+  signing-only file it is `docs/LARGE-FILES.md` §5's streamed SHA-256,
+  finished when the pass ended; the file itself is not held.
+- **Second build**: a field where the person enters the SHA-256 that an
+  independent second build of the same source printed (§9): hex, case
+  and spaces ignored, at least its first 32 hex digits or all 64.
+  Faraday compares what was entered with the start of the file's
+  SHA-256. Empty, the row reads "Enter the second build's SHA-256";
+  shorter than 32 digits, "At least 32 hex digits"; different, "Does
+  not match this file" in `WARN`; equal, "Matches" with the digits
+  compared.
 - **Package**, **Version** ("0.1.3 (4)": `versionName` and
   `versionCode`), **Android** ("8.0 and later", from `minSdkVersion`).
 - **Key**: its name and the fingerprint's first 16 hex digits.
 - **Will write**: the output name.
 
-The hold signs. Reading the package and version from the binary
+The hold is inert until **Second build** reads "Matches"; then the
+hold signs. The file copied in came from one build machine, which is
+online: compromised, it builds a malicious APK and prints that APK's
+hash, so the hash it prints proves nothing. A second build on another
+computer, from the same tag, that gives the same SHA-256 does, and a
+signature on a malicious APK can never be withdrawn. Entering the hash
+is chosen over a box ticked "matches": a tick records only that it was
+pressed, while an entered hash is a comparison Faraday makes itself.
+32 hex digits are 128 bits, beyond any search for a second file whose
+hash starts the same; 16 would not be. The value entered is not kept
+after the hold. Reading the package and version from the binary
 manifest is worth its parser (§5): it is how a person sees which app and
 which version the key is about to vouch for, which the file name does
 not prove, and `minSdkVersion` is needed anyway for §2.2's refusal.
@@ -274,8 +361,23 @@ not prove, and `minSdkVersion` is needed anyway for §2.2's refusal.
 `-unsigned` removed before `.apk`, so the release build's
 `faraday-companion-X.Y.Z-android-unsigned.apk` comes out as
 `faraday-companion-X.Y.Z-android.apk` (`docs/COMPANION.md` §2); a name
-without `-unsigned` gains `-signed`. Then "Insert a stick to write it",
-as every result For the stick. The unsigned file stays in Files.
+without `-unsigned` gains `-signed` before a final `.apk`, or
+`-signed.apk` where it has no `.apk` (both matched ignoring ASCII case,
+the rest of the name kept as it is). The output name obeys
+`docs/LARGE-FILES.md` §9's limit of 230 bytes of UTF-8, as every name
+on a stick does: removing `-unsigned` only shortens a name, but adding
+`-signed` (7 bytes) or `-signed.apk` (11) can pass it, and then the APK
+is listed "Name too long" in `WARN`, inert, as in the table above, and
+is never shortened or renamed by Faraday; the person renames it on
+another computer. Then "Insert a stick to write it", as every result
+For the stick. The unsigned file stays in Files.
+
+**Memory.** On a whole import, **Sign with APK key** adds the signed
+APK beside the unsigned file, and `docs/LARGE-FILES.md` §4.1 counts it:
+where the signed output would leave too little to open the vault, the
+review reads "Not enough memory to open {vault}" and its hold is inert,
+as that rule says. A signing-only file keeps only the block and the
+tail, which the rule counts as it was read.
 
 ## 5. What Faraday reads of an APK
 
@@ -286,26 +388,84 @@ Untrusted input (`PLAN.md` §4.4), bounded and fuzzed
   backwards over at most its 22 bytes and a 65,535-byte comment; exactly
   one; no ZIP64, no multiple disks; the central directory directly
   before it and wholly inside the file.
-- **The central directory**: each entry's name, method, sizes and local
-  header offset; the local headers in the order of their offsets, each
-  inside the entries' section, none overlapping, each with the name its
-  central entry has; the 16 bytes before the central directory, for an
-  APK Signing Block's magic.
+- **The central directory**: each entry's name, flags, method, CRC-32,
+  sizes and local header offset, and each entry's local header; the 16
+  bytes before the central directory, for an APK Signing Block's magic.
 - **`AndroidManifest.xml`**, stored or deflated (`miniz_oxide`, already
   in the graph, `docs/deps/miniz_oxide.md`), inflated up to 1 MiB.
-- **The binary manifest**: its string pool, the `manifest` element's
-  `package`, `versionCode` and `versionName`, and `uses-sdk`'s
-  `minSdkVersion`. Nothing else: not resources, not other entries'
-  contents, not `classes.dex`, not the native libraries.
+- **The binary manifest**: its string pool, its resource map, the
+  `manifest` element's `package`, `versionCode`, `versionCodeMajor` and
+  `versionName`, and `uses-sdk`'s `minSdkVersion`. Nothing else: not
+  resources, not other entries' contents, not `classes.dex`, not the
+  native libraries.
 
-Anything that does not read is "Not an APK"; nothing panics or
-allocates past the file's size and the manifest's bound.
+**One reading only.** What Faraday shows must be what Android installs,
+so a ZIP or a manifest that two readers could take two ways is refused.
+These are Faraday's own rules, stricter than Android's; `aapt2` and
+`zipalign` output passes them, and §8's byte-identical test against
+`apksigner` is the judge of what is signed.
+
+- **The entries lie end to end**: the first local header at offset 0;
+  each next local header exactly where the previous entry's data ends
+  (its local header, name, extra field and compressed size); the last
+  ending exactly at the central directory, or at an APK Signing Block
+  before it ("Already signed"). Nothing before, between or after: no
+  prefix (a DEX, ZIP or other file in front), no gap, no bytes the
+  central directory does not account for.
+- **The central directory lists the entries in the order of their
+  offsets**, each local header once.
+- **Each local header agrees with its central entry**: name,
+  general-purpose flags, method, CRC-32, compressed and uncompressed
+  sizes, byte for byte.
+- **Plain entries only**: method 0 (stored, its two sizes equal) or 8
+  (deflated); no encryption (flag bit 0), no data descriptor (bit 3),
+  no ZIP64 extra field.
+- **Each name once**, compared as bytes; `AndroidManifest.xml` exactly
+  once, at the root.
+- **The manifest inflates to exactly its uncompressed size**, using
+  exactly its compressed bytes, with the CRC-32 its entries state (the
+  CRC-32 written in the crate, as `faraday-qr`'s `ur.rs` writes one).
+- **Manifest attributes are known by resource ID**, as Android knows
+  them: the ID the resource map gives an attribute's name, never the
+  name's text. `versionCode` is `0x0101021b`, `versionCodeMajor`
+  `0x01010576`, `versionName` `0x0101021c`, `minSdkVersion`
+  `0x0101020c`; an attribute named like one of them with another ID or
+  none is ignored, as Android ignores it. `package` has no ID: it is
+  the attribute named `package` with no namespace. The root element is
+  `manifest`; `uses-sdk` is its direct child, at most once. The same
+  attribute twice on an element is refused.
+- **Values Faraday reads itself.** `package`: a literal string, not
+  empty. `versionCode` and `versionCodeMajor`: integers,
+  absent read as 0, as Android reads them; `versionCodeMajor` other than
+  0 shows as "0.1.3 (1:4)". `versionName`: a literal string, or absent,
+  when **Version** reads "No name (4)".
+  `minSdkVersion`: an integer, or absent, which Android reads as 1 and
+  so is "Supports Android before 7.0". A reference to a resource, or a
+  `minSdkVersion` that is a codename (a preview platform's), is refused:
+  Faraday would have to guess what Android reads.
+
+Anything that does not read, or breaks a rule above, is "Not an APK";
+nothing panics or allocates past the file's size and the manifest's
+bound.
 
 The reader takes the file in parts, not as one buffer: the end, the
 central directory (over 16 MiB is "Not an APK"), the manifest entry,
 and each local header as the entries pass. So it reads a whole file in
 memory and a signing-only file streamed from a stick
 (`docs/LARGE-FILES.md` §5, §9) the same way.
+
+**A signing-only file is read in one streamed pass.** The tail is read
+first (the end record and the central directory, to know the file), and
+then the whole file once, front to back. Everything kept for it (the
+chunk digests, the SHA-256, the central directory and end record as
+bytes, the manifest's fields, the refusal if one applies) comes from
+that one pass, never from the first read of the tail. When the pass
+reaches the central directory and the end record, they must stream byte
+for byte as the first read found them; if any byte differs, nothing is
+kept and the file is refused as `docs/LARGE-FILES.md` §7 refuses a part
+that differs ("{source name} changed since it was read"). The fuzz
+target feeds, besides malformed files, a central directory and an end
+record that stream differently from their first read.
 
 ## 6. What Faraday writes
 
@@ -320,8 +480,18 @@ From the unsigned bytes `U`, whose central directory starts at offset
    `0x5a`, the chunk count as a `u32`, and every chunk digest in order.
    One digest serves v2 and v3.
 2. The v2 and v3 signer blocks (§2.2), each signed data signed with
-   the key, each carrying the certificate and the public key
-   (SubjectPublicKeyInfo DER).
+   the key (blinded with the signing's own bytes, §2.3), each carrying
+   the certificate and the public key (SubjectPublicKeyInfo DER).
+   **Each signature is checked before anything is written**, with
+   `faraday-sb`'s `x509::verify` against the public key read from the
+   certificate in the record, not from the private key. One that does
+   not check is refused, "The signature did not check. Nothing
+   written.", and nothing goes For the stick. A signature made with a
+   fault in the private-key operation (a flipped bit, an undervolted
+   Pi) gives the private key to anyone who has it and the certificate,
+   and signed APKs are published. The `rsa` crate checks its own result
+   today (`rsa_decrypt_and_check`); this check does not depend on that,
+   or on the pinned release candidate keeping it.
 3. The APK Signing Block: its size, the ID-value pairs, the padding
    pair, its size again, and `APK Sig Block 42`.
 4. The output: `U[0..C]`, the block, the central directory unchanged,
@@ -345,7 +515,8 @@ signature onto F-Droid's own build of the same tag
   parts and keeps the chunk digests, never needing the whole file.
   Depends on `faraday-sb` (`der`, `rng`, `x509`, already public),
   `sha2`, `zeroize` and `miniz_oxide`; no new crate in the graph. It writes nothing to a
-  vault and draws no randomness of its own.
+  vault and draws no randomness of its own: its signing takes the
+  caller's `rng::Stream` (§2.3).
 - **`faraday-sb`**: `x509::generate` takes the key's size and a profile
   (Secure Boot's CA certificate, or the APK's end certificate with no
   expiry). Secure Boot's output is unchanged, which its judged tests
@@ -355,9 +526,14 @@ signature onto F-Droid's own build of the same tag
   the record, the screens' state, Make, Sign, the wait for a written
   copy.
 - **`faraday-vault`**: `kind::APK_KEY = 12`. `tools/vault/open.py` reads
-  type 12, and the vectors in `tools/vectors/vault/` gain a type 12
-  record, so each slot still holds one record of every type
-  (`docs/VAULT.md` §10).
+  type 12 and gains `--field TYPE.FIELD --out FILE` (§3): the one field
+  of the record of that type in the slot (with several, `--index N`
+  picks the N-th in the order they are printed, and without it the
+  command refuses, naming how many), written to a new file created with mode 0600 (an existing
+  file is refused), nothing printed of the slot. The vectors in
+  `tools/vectors/vault/` gain a type 12 record, so each slot still holds
+  one record of every type (`docs/VAULT.md` §10), and the vault tests
+  check that `--field 12.1` writes field 1's bytes and nothing else.
 - **`docs/deps/rsa.md`** names 3072 beside 2048; **`miniz_oxide.md`**
   names the new edge.
 - The Companion's lint (`tools/lint-companion-deps.sh`) adds
@@ -376,9 +552,18 @@ tools at the build-tools version the release container pins (`aapt2`,
   package `app.faradayoffline.fixture`, version `1.0` (1),
   `minSdkVersion` 26), a stored `lib/arm64-v8a/libfixture.so` of a few
   KiB, aligned with `zipalign -P 16 4`.
-- `old-sdk-unsigned.apk` (`minSdkVersion` 21) and
-  `unaligned-unsigned.apk` (the small one with its `.so` moved off its
-  boundary).
+- `old-sdk-unsigned.apk` (`minSdkVersion` 21),
+  `sdk33-unsigned.apk` (the small one with `minSdkVersion` 33, for the
+  v3 signer's SDK range, §2.2) and `unaligned-unsigned.apk` (the small
+  one with its `.so` moved off its boundary).
+- One fixture per rule of §5's "One reading only", each the small one
+  with bytes changed by the script: a prefix before the first entry; a
+  gap between two entries; the central directory out of offset order;
+  a local header whose method, sizes or flags differ from its central
+  entry; a data descriptor; a second entry named `AndroidManifest.xml`;
+  a manifest whose `versionCode` name string carries another resource
+  ID beside the real attribute; a `versionName` that is a resource
+  reference; a codename `minSdkVersion`.
 - `large-unsigned.apk`, made by the script in the test's scratch
   directory and not committed: the small one with a stored 2.5 MiB
   asset of fixed bytes, so every section crosses a chunk boundary.
@@ -399,8 +584,8 @@ there:
 - `apksigner sign --v1-signing-enabled false --v2-signing-enabled true
   --v3-signing-enabled true --v4-signing-enabled false
   --alignment-preserved true` with the same key on the same unsigned
-  APK makes a file byte for byte equal to Faraday's, for the small and
-  the large fixture. Without `--alignment-preserved`, `apksigner` may
+  APK makes a file byte for byte equal to Faraday's, for the small,
+  the `sdk33` and the large fixture. Without `--alignment-preserved`, `apksigner` may
   rewrite the entries' alignment padding, which §6 never does.
 - Removing the block from Faraday's output and restoring the offset
   gives back the unsigned file.
@@ -410,15 +595,32 @@ there:
 - Make an APK key puts a type 12 record in the open vault, and the
   certificate For the stick; the vault sealed and opened again shows the
   same name and fingerprint.
-- A key made this session offers **Write the vault to a stick first**,
-  and signs once the vault has been written; a key unlocked from a
-  stick signs at once.
-- Each refusal of §4.4 on its fixture (and a PSBT, a PNG, random bytes,
-  `apksigner`'s own signed output for "Already signed"); the review's
-  package, version and Android line for the small fixture; the output's
-  name.
+- A key made this session offers **Write the vault to two sticks
+  first**; written to one stick, or twice to sticks with the same
+  serial, it still does ("On 1 of 2 sticks"); written to two sticks of
+  different serials, it signs; a key unlocked from a stick signs at
+  once.
+- Each refusal of §4.4 on its fixture, each of §5's fixtures "Not an
+  APK" (and a PSBT, a PNG, random bytes, `apksigner`'s own signed output
+  for "Already signed"); the review's package, version and Android line
+  for the small fixture; the output's name.
+- The review's hold is inert with **Second build** empty, with fewer
+  than 32 hex digits, and with digits of another file; it signs with the
+  file's first 32 digits and with all 64, spaced or in capitals.
+- A key made for `app.faradayoffline.fixture` signs the small
+  fixture; a key made for `app.faradayoffline.companion` lists the same
+  fixture as "Another app: app.faradayoffline.fixture", inert, from the
+  key's page and from Files; the key's page and the vault sealed and
+  opened again show the package. A package typed as `companion`,
+  `1app.x` or with a space is refused, "Not a package name".
+- An APK named with 224 bytes before `.apk` and no `-unsigned` is
+  listed "Name too long"; one of 230 bytes ending `-unsigned.apk` signs
+  as the shorter name.
+- A certificate name left empty is refused; the certificate's validity
+  starts at midnight UTC of the day it was made.
 - Nothing For the stick ever holds the private key: after every
-  action, no Outbox file contains the PKCS#8 bytes.
+  action, no Outbox file contains the PKCS#8 bytes, nor the big-endian
+  bytes of its private exponent or of either prime.
 
 A signing-only APK, and the 200 MiB fixture, are tested in
 `docs/LARGE-FILES.md` §11.
@@ -430,14 +632,21 @@ A signing-only APK, and the 200 MiB fixture, are tested in
 1. The pinned container builds
    `faraday-companion-X.Y.Z-android-unsigned.apk`, checks it with
    `zipalign -c -P 16 4`, and prints its size and SHA-256.
-2. On a Faraday stick (or Pi), in one session: a stick visit brings the
-   unsigned APK in; **Sign an APK** after comparing the SHA-256 with
-   step 1's; the signed APK goes out.
-3. `faraday/tools/stage-release.sh` gains `--companion FILE`: it runs
+2. **The second build**: the same container, from the same tag, on
+   another computer that shares no account, key or network share with
+   the build machine (COMPANION §10's "second build that matches"). It
+   prints its SHA-256, which the person reads there, never through the
+   build machine. The two must be equal; if they are not, nothing is
+   signed.
+3. On a Faraday stick (or Pi), in one session: a stick visit brings the
+   unsigned APK in, from the build machine's output; **Sign an APK**,
+   with the second build's SHA-256 entered in the review (§4.4); the
+   signed APK goes out.
+4. `faraday/tools/stage-release.sh` gains `--companion FILE`: it runs
    `apksigner verify --print-certs`, refuses an APK whose certificate is
    not `faraday/companion-cert.pem`'s, and adds the APK and its line to
    `SHA256SUMS`.
-4. A second visit in the same session signs `SHA256SUMS` with the
+5. A second visit in the same session signs `SHA256SUMS` with the
    release key, as before.
 
 `faraday/companion-cert.pem` is the certificate, committed once the key
@@ -459,24 +668,38 @@ one kept; that the key lives only in the vault, and the vault written
 to two sticks kept apart is its backup; that the certificate and its
 fingerprint are public, and how anyone checks an APK against it
 (`apksigner verify --print-certs`, F-Droid's page); why a key made here
-waits for the vault to be written before it signs. Working screens
-carry none of this (`CLAUDE.md`).
+waits for the vault to be written to two sticks before it signs; why
+signing asks for the SHA-256 of a second build made on another
+computer, and that a signature on a bad APK cannot be withdrawn. On the
+choice of vault, both consequences plainly: a slot holding an APK key
+does not open in Faraday up to 0.1.2, nor in an `open.py` from before
+the APK key, so nothing else in that slot opens there either; and one
+passphrase then guards everything in the slot, the APK key and, where
+it is there, a release's OpenPGP key. The way out without Faraday, step
+by step (§3): an offline computer, `open.py --field 12.1 --out` with
+the passphrase typed at its prompt, `apksigner sign --key` with that
+file and `--cert` with field 2's, then the file shredded before the
+computer goes online again. Working screens carry none of this
+(`CLAUDE.md`).
 
 ## 11. Batches
 
 - **1, the key and the signer.** `faraday-apk` (§5, §6, §2), the
-  `faraday-sb` change, record type 12 with `open.py` and the vectors,
+  `faraday-sb` change, record type 12 with `open.py` (reading type 12,
+  and `--field … --out`, §7) and the vectors, the stick's FAT volume
+  serial on a vault's receipt (`docs/VAULT.md` §6, for §3's two sticks),
   `faraday-core/src/apk.rs`, the screens of §4, the Learn page, §8's
   tests and the fuzz target, the docs of §7. Needs no release build:
   the fixtures stand in. Renders: the tile, Make, the key's page and the
   review at `1280x800` and `480x640`.
 - **2, with the Companion's batch C.** The container's step 1, the
-  staging script's step 3, the README paragraph, the fastlane metadata
-  and `AllowedAPKSigningKeys`.
+  second build's step 2 written as a release step, the staging script's
+  step 4, the README paragraph, the fastlane metadata and
+  `AllowedAPKSigningKeys`.
 - **The owner**, between them: the key made on the stick of a published
-  release that has batch 1, in the vault that holds the release's
-  OpenPGP key, that vault written to two sticks, and the certificate
-  committed as `faraday/companion-cert.pem` (§12).
+  release that has batch 1, in the vault the owner chooses (§3, §12),
+  that vault written to two sticks, and the certificate committed as
+  `faraday/companion-cert.pem` (§12).
 
 Batch 1 signs APKs up to today's 18 MiB read; any size comes with
 `docs/LARGE-FILES.md`'s batches L1 and L2, after batch 1. Batch 2 does
@@ -487,9 +710,20 @@ not wait for them while the release APK stays under 18 MiB.
 1. RSA-3072 (§2.1).
 2. Faraday Desktop offers the APK key, as it offers GPG and Secure
    Boot; the release's key is made on a stick regardless.
-3. Signing waits for a written vault (§3).
+3. Signing waits for a written vault (§3); after the review, for
+   receipts from two sticks with different FAT serials.
 4. The real key is made on the stick of a published release that has
    batch 1, so the build that made it is one anyone can reproduce.
-5. It is kept in the vault that holds the release's OpenPGP key, so the
-   same copies back up both.
+5. Which vault holds it is the person's choice, the owner's for the
+   real key. Make steers to none; the Learn page states what sharing a
+   slot means (§3, §10). The owner's words: the premise of a secret is
+   the ability to keep it, and the person keeps this flexibility.
 6. The certificate's name is "Faraday Companion".
+7. Signing needs the SHA-256 of an independent second build of the
+   same source entered in the review and matching (§4.4, §9). Entering
+   it, rather than ticking it as matched, is this spec's
+   recommendation.
+8. Each key is bound to one package (record field 3), typed at Make
+   with `app.faradayoffline.companion` filled in and shown on the key's
+   page; Sign an APK refuses another package's APK. Another app gets
+   another key.

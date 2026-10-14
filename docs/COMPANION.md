@@ -472,7 +472,9 @@ one (§3, D1).
   (§7), the share target and source (§6.3), the guide addresses
   (§4.7), the Learn page.
 - **C, release.** The pinned container, the reproducible unsigned
-  release APK and a second build that matches it, the staging script's
+  release APK and a second build that matches it, made from the tag on
+  another computer, whose SHA-256 Faraday's review requires before it
+  signs (`docs/APK-SIGNING.md` §4.4, §9), the staging script's
   `strings` check over the APK, `stage-release.sh --companion` (the
   signed APK checked by `apksigner` against
   `faraday/companion-cert.pem`, and its line in `SHA256SUMS`), README's
@@ -539,7 +541,9 @@ the rest as recommended in v0.1 of this document.
   F25): made, kept and used in Faraday, as the release's OpenPGP key is.
   An RSA key in a vault (record type 12), whose sealed copies on sticks
   are its second copy; the release APK is built unsigned on the build
-  machine and signed on a Faraday stick by **Sign an APK**. The spec is
+  machine and signed on a Faraday stick by **Sign an APK**, once an
+  independent second build's SHA-256, entered in the review, matches.
+  The spec is
   `docs/APK-SIGNING.md`. Until 2026-10-14 it read: generated and kept by
   the owner outside Faraday.
 - **D8 Google's verification:** not registering, for the pseudonym;

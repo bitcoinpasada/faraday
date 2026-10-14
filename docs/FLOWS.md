@@ -79,8 +79,11 @@ to get it.
    BSMS record, Bitcoin Core import, each key's account key and its BSMS
    record; each with **Show as QR** and **PNG** where a wallet reads it
    from a code, and **Remove** while it waits For the stick) and has the seeds copied by hand,
-   each copy checked by scanning its drawn SeedQR (by its words' typed
-   numbers where there is no camera).
+   each copy checked by its form (F29; specified, not built): a words
+   copy by typing the whole seed back as words with the seed not on
+   screen, a SeedQR copy by scanning the drawn grid (by typed words
+   where there is no camera), which **Keep the words only** turns into
+   words by hand.
 
 7. **Words for keys** (2026-10-06). A **key** or **seed** is what signs:
    words, a SeedQR, a share of one. An account's public key with its
@@ -266,9 +269,10 @@ to get it.
 29. **Everything comes in by default** (owner, 2026-10-10;
     `docs/SIMPLIFY.md` §4.6). A stick visit ticks every file it can read
     to come in, but a seed's by its name (words, SeedQR, BIP-85), one over
-    64 MiB (F26: it asks first, whole or only for signing), one past the
-    memory a whole import may take (`docs/LARGE-FILES.md` §4), and one
-    already From the stick by name and size. **Select
+    18 MiB, and one already From the stick by name and size (F26,
+    specified, not built: over 64 MiB it asks first, whole or only for
+    signing; past the memory a whole import may take, `docs/LARGE-FILES.md`
+    §4, it is unticked; one whose name §9 there refuses is inert). **Select
     all** on the visit's right column is gone; **Unselect all** takes its
     place while anything is ticked.
 30. **The visit says where it goes next** (owner, 2026-10-10;
@@ -751,8 +755,8 @@ from the seeds card returns to Wallets with the key still loaded.
 ## Session
 
 **Boot.** Firmware loads the system → the boot medium's data partition
-copied into memory, but a file over 64 MiB, counted and left for a stick
-visit (F26): vault files into From the stick, every other file held
+copied into memory, but a file over 18 MiB (F26, specified, not built:
+over 64 MiB, counted and left for a stick visit): vault files into From the stick, every other file held
 apart for the import, a PNG as what its QR codes hold → the import sheet
 over Home: "Read from {label}", what was read in one line ("1 vault ·
 2 PSBTs · 4 other files"), "Pull the stick to continue" (Pi: "Pull the SD
@@ -848,7 +852,7 @@ visit** directly.
   other files) **Tick it to write** ticks the row. Nothing goes For the
   stick. A picture is what its codes hold.
 - **On the stick** (right): every file it reads ticked but a seed's, one
-  over 64 MiB and one already From the stick (decision 29); **Unselect
+  over 18 MiB and one already From the stick (decision 29); **Unselect
   all** clears them. A file whose name and size match an Inbox file is
   tagged **In Faraday**. Chosen files, any of them; a file Faraday
   reads as nothing it knows comes in as a File, for **Sign a file** or
@@ -859,17 +863,18 @@ visit** directly.
   (`docs/QR.md` §2), with a multi-part transfer showing its progress
   across images; the picture itself comes in too, as it came, to be
   written to another stick. A JPEG's codes are not read; it comes in as
-  a File. A file over 64 MiB is listed unticked with its size; ticking
-  it opens the sheet of `docs/LARGE-FILES.md` §3: **Import the whole
-  file** (with Size, Free after importing and what the vault needs;
-  refused where it would leave too little to open one) or **Import only
-  what signing needs** (a signing-only entry in Files: Sign a file, Sign
-  with APK key, Delete, nothing else). A long read shows its progress
-  and **Stop**. A pending signed APK (`docs/LARGE-FILES.md` §7) is a
-  row For the stick, ticked when this stick holds its source, else
-  "Needs {source name} on this stick"; it is written with progress and
-  **Stop**, and "{source name} changed since it was read. Nothing
-  written." where a part differs.
+  a File. A file over 18 MiB is listed and cannot be ticked.
+  (F26, `docs/LARGE-FILES.md`; specified, not built.) A file over 64 MiB
+  is listed unticked with its size; ticking it opens the sheet of
+  §3 there: **Import the whole file** (with Size, Free after importing
+  and what the vault needs; refused where it would leave too little to
+  open one) or **Import only what signing needs** (a signing-only entry
+  in Files: Sign a file, Sign with APK key, Delete, nothing else). A
+  long read shows its progress and **Stop**. A pending signed APK (§7
+  there) is a row For the stick, ticked when this stick holds its
+  source, else "Needs {source name} on this stick"; it is written with
+  progress and **Stop**, and "{source name} changed since it was read.
+  Nothing written." where a part differs.
 - **Delete a vault file** (decision 4).
 - The title's chip says where pulling the stick goes (decision 30) →
   **Remove the stick** → once gone → **Unlock**, with the vault sealed for
@@ -1230,44 +1235,70 @@ none open, Tools' **APK signing key** tile leads into Create a vault or
 Unlock and back, as GPG's does (decision 10).
 
 **Make an APK key** (step cards: name on the certificate, **Faraday
-Companion** filled in; vault) → the time first where it is not known →
-made → result: certificate SHA-256, "RSA 3072", the certificate For the
-stick as the key is made, with **Show as QR** and **PNG** on its row →
-**Write the vault to a stick** (Stick visit, the vault ticked) or
-**Done** → the key's page in Vault contents.
+Companion** filled in, empty refused; package,
+`app.faradayoffline.companion` filled in, "Not a package name" unless
+Android's form; vault, none chosen in advance where several are open)
+→ the time first where it is not known → made → result: name, package,
+certificate SHA-256, "RSA 3072", the certificate For the stick as the
+key is made, with **Show as QR** and **PNG** on its row → **Write the
+vault to two sticks** (Stick visit, the vault ticked) or **Done** → the
+key's page in Vault contents (name, package, certificate SHA-256, key,
+made).
 
-**Sign an APK** → while the key was made this session and its vault not
-written since: **Write the vault to a stick first** → Stick visit → back
-to the key's page. Otherwise: choose an APK copied in (none: "Copy the
-APK in on a stick visit first"; on the Pi "on an SD card visit"), each
-row with its size, and on one that cannot be signed why: "Not an APK",
-"Already signed", "Not aligned", "Supports Android before 7.0" → "Sign
-this APK?" (Hold: file, size, SHA-256, package, version, Android, key,
-will write) → hold → the signed APK For the stick, named as the file
-copied in without `-unsigned` → "Insert a stick to write it". From
-Files, an APK's **Sign with APK key** opens the same review with the
-vault's key picked, or "Which key?" when it holds several.
+**Sign an APK** → while the key was made this session and its vault
+not yet written, since the key was added, to two sticks with different
+FAT serials: **Write the vault to two sticks first** ("On 1 of 2
+sticks" after one) → Stick visit → back to the key's page. Otherwise:
+choose an APK copied in (none: "Copy the APK in on a stick visit
+first"; on the Pi "on an SD card visit"), each row with its size, and
+on one that cannot be signed why, inert: "Not an APK", "Already
+signed", "Not aligned", "Supports Android before 7.0", "Over 4 GiB on
+FAT32", "Name too long", "Another app: {package}" (its package is not
+the key's) → "Sign this APK?" (Hold: file, size, SHA-256, **Second
+build**, package, version, Android, key, will write). **Second build**
+is typed: the SHA-256 an independent second build printed, at least
+its first 32 hex digits, case and spaces ignored; "Matches", or "Does
+not match this file" in `WARN`; the hold is inert until it matches,
+and also while there is not enough memory to open the vault ("Not
+enough memory to open {vault}") → hold → each signature checked
+against the certificate ("The signature did not check. Nothing
+written." otherwise) → the signed APK For the stick, named as the file
+copied in without `-unsigned`, or with `-signed` → "Insert a stick to
+write it". From Files, an APK's **Sign with APK key** picks the open
+vault's key whose package is the APK's: "Which key?" when several are,
+and "Another app: {package}", inert, when none is.
 
 ## Nostr key
 
 (`docs/NOSTR.md`, F27; specified, not built.) BIP-85 application
-128002'. Needs a loaded key: with none, Tools' **Nostr key** tile reads
-"Load a key", as Child seeds and passwords does.
+128002', on the stick and the Pi only: Faraday Desktop has no Nostr
+key on any network, and the demo has none. Needs a loaded key: with
+none, Tools' **Nostr key** tile reads "Load a key", as Child seeds and
+passwords does.
 
 The tile opens the BIP-85 screen with Nostr chosen → Key (skipped with
-one key loaded) → **Identity and account** (1 and 1, filled in; 0
-refused; **Find a pair**: the npubs of identities 1 to 5 at account 1
-and accounts 1 to 5 at the identity typed, a tap picks the pair) →
-**Value**: the path, the npub with **Show as QR** and **PNG**, the nsec
-masked until **Show** and never a code → **Save into {vault}** (an Entry; no vault open: decision
-10's way into making or unlocking one, and back), **Export
-encrypted…** (a password twice → `ncryptsec1…` as text, **Show as QR**,
-**PNG** and **For the stick**, sealed), **Out unprotected…** (the secret
-sheet). The BIP-85 tile's Application card lists Nostr seventh and
-leads to the same cards. A saved Nostr entry's page in Vault contents
-adds **Show as QR** and **PNG** for its npub and **Export encrypted…**.
-On Faraday Desktop's mainnet demo the npub and nsec carry a broken
-checksum (F20) and Export encrypted is refused.
+one key loaded) → **Identity and account** (1 and 1, filled in; 0 and
+anything above 2147483647 refused; **Find a pair**: the npubs of
+identities 1 to 5 at account 1 and accounts 1 to 5 at the identity
+typed, a tap picks the pair) → **Value**: the path, the npub with
+**Show as QR** and **PNG**, the nsec masked until **Show** and never a
+code or a file → **Save into {vault}** (an Entry; no vault open:
+decision 10's way into making or unlocking one, and back) or **Export
+encrypted…** (Password and Again, 12 printable characters or more →
+"Encrypting" → `ncryptsec1…` as text, **Show as QR**, **PNG** and **For
+the stick**, sealed). There is no **Out unprotected…**: the
+ncryptsec is the only way the nsec leaves. Files and labels are named
+by the npub's first 13 characters, never by the key's fingerprint or
+the two numbers. The BIP-85 tile's Application card lists Nostr
+seventh and leads to the same cards.
+
+A saved Nostr entry's page in Vault contents adds **Show as QR** and
+**PNG** for its npub, **Export encrypted…**, and, with its key loaded,
+a **Path** row saying whether the notes' path gives the entry's key. An
+Entry holding an nsec has no **Export for KeePass**. A file holding an
+nsec is a secret in Files with no code and no way to the Outbox; its
+**Save into {vault}** makes a Nostr entry. Faraday Companion refuses an
+nsec and an ncryptsec.
 
 ## Explore
 

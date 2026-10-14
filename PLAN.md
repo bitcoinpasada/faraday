@@ -212,8 +212,10 @@ files.
 
 `faraday-disk` reads and writes FAT16 and FAT32 in Rust, unprivileged, and
 speaks to the app over a pipe with a small request format: list a
-partition, read a file or a part of one, write a file or write one in
-parts (`docs/LARGE-FILES.md` §8). It writes by creating a new file,
+partition, read a file, write a file (reading and writing in parts is
+specified in `docs/LARGE-FILES.md` §8, not built; no request there names
+a temporary file or renames or removes any file but the one write
+open). It writes by creating a new file,
 reading it back, comparing, and renaming it into place; it never modifies
 a file in place. A compromised disk process can hand the app a doctored
 file (the app already treats file contents as hostile) and can read the
@@ -376,9 +378,10 @@ one vault alone.
   (`kernel.forbidden`), so no page reaches storage and nothing reads
   another process's memory. `faraday-disk` runs as uid 201 and can read
   neither the app's memory nor `/run/faraday`.
-- Kept, in `/run/faraday` for the next process: the Inbox (signing-only
-  entries included, which hold hashes and no bytes), the Outbox (pending
-  signed APKs included, `docs/LARGE-FILES.md` §7), and the `kept` set (settings, the signed-amount memory of
+- Kept, in `/run/faraday` for the next process: the Inbox, the Outbox
+  (once `docs/LARGE-FILES.md` is built, signing-only entries and pending
+  signed APKs too, each in a directory of its own and never read as a
+  file, §4.2, §5, §7), and the `kept` set (settings, the signed-amount memory of
   `docs/WALLETS.md` §3.3, the Spend tab's page, the idle time, which
   Outbox files are secrets let out after the warning, and
   `vault-summaries`, what each vault seen open held, `docs/VAULT.md`
@@ -421,9 +424,9 @@ one vault alone.
 ### 5.4 Flows
 
 **Boot.** The first time the app sees the boot medium in a power-on, it
-reads every file on its data partition into memory, but one over 64 MiB,
-which it counts and leaves for a stick visit (`docs/LARGE-FILES.md` §2):
-vault files into the
+reads every file on its data partition into memory, but one over 18 MiB
+(specified, not built: over 64 MiB, counted and left for a stick visit,
+`docs/LARGE-FILES.md` §2): vault files into the
 Inbox, encrypted; every other file into a holding area apart from the
 Inbox, a PNG as what its QR codes hold (a SeedQR as its words), a file
 Faraday reads as nothing it knows as a File, to sign or send as codes.
@@ -467,9 +470,9 @@ untouched and shows "Remove the stick to keep working".
 **A stick visit.** One screen does both directions: write the Outbox
 (each file read back and compared), save sealed vaults over the files they
 came from (`docs/VAULT.md` §6), and pick files into the Inbox: every file
-it reads comes in ticked but a seed's by its name, one over 64 MiB
-(which asks first, whole or only for signing: `docs/LARGE-FILES.md`) and
-one already in by name and size, and **Unselect all** clears them. On the
+it reads comes in ticked but a seed's by its name, one over 18 MiB
+(specified, not built: over 64 MiB, which asks first, whole or only for
+signing, `docs/LARGE-FILES.md`) and one already in by name and size, and **Unselect all** clears them. On the
 Pi the boot card or another SD card is the one visited, and the screen is
 **SD card visit**. Its title's chip says where it goes once the stick is
 pulled: "Then: Unlock" when a vault was sealed for it, else "Then: Home".
@@ -496,8 +499,9 @@ kept as it came, beside what its codes hold, and written out as the
 same file; it takes the exposure of what its codes hold (a SeedQR or
 words a secret, an encrypted backup sealed, text unknown, no code read
 like a file Faraday does not read). A lock drops from the Inbox every
-file, picture or not, that may hold a secret. A file over 64 MiB is
-listed unticked and asks first (`docs/LARGE-FILES.md`). The boot import keeps only what a picture's
+file, picture or not, that may hold a secret. A file over 18 MiB is
+listed and not read (specified, not built: over 64 MiB it is listed
+unticked and asks first, `docs/LARGE-FILES.md`). The boot import keeps only what a picture's
 codes hold, and its holding area is wiped unless imported, so copying
 from the boot stick takes Import or a later visit.
 
