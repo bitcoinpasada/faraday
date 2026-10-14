@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-"""Faraday: upstream's common/make-logo.py at c418768, drawing two marks
-side by side: Faraday's on the left (faraday-mark.txt, beside this
-script) and OpenSigner's on the right (--mark, upstream's mark.txt), each
-with its name under it.
+"""Faraday: upstream's common/make-logo.py at c418768, drawing Faraday's
+mark (faraday-mark.txt, beside this script) alone, over its name, in the
+middle of the logo. Upstream's build.sh still passes --mark (its own
+mark.txt); it is accepted and not drawn.
 
 The kernel draws its logo at the top left of the framebuffer and does
 not scale it, so the logo is made the size build.sh asks for: the whole
-panel on a Pi, a 320 x 320 square on a PC. Each mark is a pixel grid of
+panel on a Pi, a 320 x 320 square on a PC. The mark is a pixel grid of
 '#' (the stroke), 'o' (its lit edge) and '.' (black), scaled by a whole
-number to about a fifth of the logo's width, with the bottoms of the two
-marks on one line. The names are a 5x7 pixel font. Five colours, well
-inside the 224 a CLUT224 logo may use.
+number to about a quarter of the logo's width. The name is a 5x7 pixel
+font. Three colours, well inside the 224 a CLUT224 logo may use.
 
 The same faraday-mark.txt is Faraday's mark in the app's sidebar
 (faraday-core `Ui::mark`).
@@ -18,7 +17,7 @@ The same faraday-mark.txt is Faraday's mark in the app's sidebar
 The output is a plain (ASCII, P3) PPM: the kernel's pnmtologo refuses
 binary PNM ("Binary PNM is not supported").
 
-  make-logo.py --mark mark.txt --width 480 --height 640 --out logo.ppm
+  make-logo.py --width 480 --height 640 --out logo.ppm
 """
 
 import argparse
@@ -26,24 +25,15 @@ import os
 import sys
 
 BLACK = (0, 0, 0)
-# OpenSigner's orange and its lit edge, as upstream draws them.
-OPENSIGNER = {"#": (255, 140, 0), "o": (255, 200, 90)}
 # Faraday's: cyan, the app's accent, and its lit edge.
 FARADAY = {"#": (0, 170, 230), "o": (140, 225, 255)}
 
 FARADAY_MARK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "faraday-mark.txt")
 
 FONT = {
-    "O": [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
-    "P": ["####.", "#...#", "#...#", "####.", "#....", "#....", "#...."],
-    "E": ["#####", "#....", "#....", "####.", "#....", "#....", "#####"],
-    "N": ["#...#", "##..#", "#.#.#", "#.#.#", "#..##", "#...#", "#...#"],
-    "S": [".####", "#....", "#....", ".###.", "....#", "....#", "####."],
-    "I": ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "#####"],
-    "G": [".###.", "#...#", "#....", "#.###", "#...#", "#...#", ".###."],
-    "R": ["####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#"],
     "F": ["#####", "#....", "#....", "####.", "#....", "#....", "#...."],
     "A": [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+    "R": ["####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#"],
     "D": ["####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####."],
     "Y": ["#...#", "#...#", ".#.#.", "..#..", "..#..", "..#..", "..#.."],
 }
@@ -100,28 +90,23 @@ def draw_word(canvas, word, centre, top, scale, colour):
         blit(canvas, FONT[letter], {"#": colour}, left + i * (GLYPH_W + GLYPH_GAP) * scale, top, scale)
 
 
-def build(faraday, opensigner, width, height):
-    """Faraday's mark over FARADAY at a quarter of the width, OpenSigner's
-    over OPENSIGNER at three quarters, the pair centred in height."""
-    marks = [(faraday, FARADAY, "FARADAY"), (opensigner, OPENSIGNER, "OPENSIGNER")]
-    tallest = max(bounds(rows)[3] - bounds(rows)[2] for rows, _, _ in marks)
-    widest = max(bounds(rows)[1] - bounds(rows)[0] for rows, _, _ in marks)
-    scale = max(1, round(width / 5 / widest))
+def build(faraday, width, height):
+    """Faraday's mark over FARADAY, the pair centred on the logo."""
+    left, right, used_top, used_bottom = bounds(faraday)
+    scale = max(1, round(width / 4 / (right - left)))
     text_scale = max(1, scale // 3)
-    while word_width("OPENSIGNER", text_scale) > width // 2 - 4 and text_scale > 1:
+    while word_width("FARADAY", text_scale) > width - 8 and text_scale > 1:
         text_scale -= 1
     gap = 2 * scale
-    block = tallest * scale + gap + GLYPH_H * text_scale
+    block = (used_bottom - used_top) * scale + gap + GLYPH_H * text_scale
     top = max(0, (height - block) // 2)
-    baseline = top + tallest * scale
+    baseline = top + (used_bottom - used_top) * scale
+    centre = width // 2
     canvas = [[BLACK] * width for _ in range(height)]
-    for i, (rows, ink, word) in enumerate(marks):
-        centre = width * (1 + 2 * i) // 4
-        left, right, used_top, used_bottom = bounds(rows)
-        x = centre - (left + right) * scale // 2
-        y = baseline - used_bottom * scale
-        blit(canvas, rows, ink, x, y, scale)
-        draw_word(canvas, word, centre, baseline + gap, text_scale, ink["#"])
+    x = centre - (left + right) * scale // 2
+    y = baseline - used_bottom * scale
+    blit(canvas, faraday, FARADAY, x, y, scale)
+    draw_word(canvas, "FARADAY", centre, baseline + gap, text_scale, FARADAY["#"])
     return canvas
 
 
@@ -135,7 +120,7 @@ def write_ppm(canvas, path):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--mark", required=True, help="OpenSigner's pixel grid")
+    ap.add_argument("--mark", help="upstream's pixel grid; accepted, not drawn")
     ap.add_argument("--faraday-mark", default=FARADAY_MARK, help="Faraday's pixel grid")
     ap.add_argument("--width", type=int, required=True, help="logo width")
     ap.add_argument("--height", type=int, required=True, help="logo height")
@@ -143,7 +128,7 @@ def main():
     args = ap.parse_args()
     if args.width <= 0 or args.height <= 0:
         raise SystemExit("the panel has no pixels")
-    canvas = build(read_mark(args.faraday_mark), read_mark(args.mark), args.width, args.height)
+    canvas = build(read_mark(args.faraday_mark), args.width, args.height)
     write_ppm(canvas, args.out)
     colours = {c for row in canvas for c in row}
     if len(colours) > 224:
