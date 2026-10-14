@@ -691,6 +691,22 @@ pub struct Found {
     pub label: Option<u32>,
 }
 
+/// `secret · point`, the shared point both sides of a payment compute.
+///
+/// `ec_pubkey_tweak_mul` would give the same point in a time that
+/// depends on the scalar; `secp256k1_ecdh` takes the same time for every
+/// scalar, which a private key needs.
+fn ecdh(point: &PublicKey, secret: &SecretKey) -> Result<PublicKey, Error> {
+    let mut xy = bitcoin::secp256k1::ecdh::shared_secret_point(point, secret);
+    let mut uncompressed = [0u8; 65];
+    uncompressed[0] = 0x04;
+    uncompressed[1..].copy_from_slice(&xy);
+    let shared = PublicKey::from_slice(&uncompressed).map_err(|_| Error::Scalar);
+    xy.zeroize();
+    uncompressed.zeroize();
+    shared
+}
+
 /// The outputs of a transaction that pay `receiver`, in the order the
 /// protocol finds them.
 ///
@@ -708,9 +724,7 @@ pub fn scan(
     let (sum, input_hash) = input_sum_and_hash(inputs)?;
     let scalar = Scalar::from_be_bytes(input_hash).map_err(|_| Error::Scalar)?;
     let tweaked = sum.mul_tweak(secp, &scalar).map_err(|_| Error::Scalar)?;
-    let shared = tweaked
-        .mul_tweak(secp, &Scalar::from(receiver.scan))
-        .map_err(|_| Error::Scalar)?;
+    let shared = ecdh(&tweaked, &receiver.scan)?;
     // Every label the wallet knows, as the point a matched output is
     // compared against.
     let mut points: Vec<(u32, PublicKey)> = Vec::new();
@@ -911,10 +925,10 @@ pub fn sender_outputs(
         &[&smallest, &point.serialize()],
     ))?;
     let scalar = Scalar::from_be_bytes(input_hash).map_err(|_| Error::Scalar)?;
-    let shared = scan_key
+    let tweaked = scan_key
         .mul_tweak(secp, &scalar)
-        .and_then(|p| p.mul_tweak(secp, &Scalar::from(a)))
         .map_err(|_| Error::Scalar)?;
+    let shared = ecdh(&tweaked, &a)?;
     let mut out = Vec::new();
     for (k, spend) in spend_keys.iter().enumerate() {
         let mut t_k = checked(tagged_hash(

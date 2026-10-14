@@ -160,6 +160,19 @@ is dropped here when upstream has it):
   `text_that_begins_with_other_scripts_is_not_an_address`. Found by
   Companion batch A1; `faraday-intake`'s `kind_of` guards against the
   same panic and can go once upstream has the fix.
+- 2026-10-13, offered upstream by the owner: secret scalars are
+  multiplied in constant time. `core/osk-bip`'s `musig.rs` and
+  `frost.rs` made secret nonces' and FROST shares' points with
+  `mul_tweak`, which is libsecp256k1's variable-time `ecmult`; they now
+  go through `secret_base_mul` (`PublicKey::from_secret_key`, constant
+  time and blinded by the context), so the FROST functions that reach
+  it take a signing context. `silent.rs`'s two ECDH steps go through
+  `secp256k1::ecdh`. `osk-psbt`'s `sign_threshold` blinds its context
+  from the seed, and `inspect.rs` checks a carried nonce in a signing
+  context. Callers changed with it: `opensigner-core`'s `load.rs` and
+  `threshold.rs`, `core/osk-bip/tests/frost.rs` and `threshold.rs`.
+  No result changes: the BIP-327, FROST and BIP-352 vectors pass as
+  they were.
 
 ## Decisions so far (all in the docs)
 

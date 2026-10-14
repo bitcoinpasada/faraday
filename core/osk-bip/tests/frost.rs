@@ -17,8 +17,9 @@ use osk_bip::frost::{
 };
 use serde_json::Value;
 
-/// The verification-only context every test but the BIP-340 check uses.
-type Verify = osk_bip::bitcoin::secp256k1::VerifyOnly;
+/// The context the tests sign and verify in: nonces and shares are
+/// multiplied in a signing context.
+type Context = osk_bip::bitcoin::secp256k1::All;
 
 const NONCE_GEN: &str = include_str!("../../../tools/vectors/bip445/nonce_gen_vectors.json");
 const NONCE_AGG: &str = include_str!("../../../tools/vectors/bip445/nonce_agg_vectors.json");
@@ -245,7 +246,7 @@ fn tweaks_are_unexpressible(group: &Group, case: &Value) -> bool {
 #[test]
 fn frost_nonce_gen_vectors() {
     let json: Value = serde_json::from_str(NONCE_GEN).unwrap();
-    let secp = Secp256k1::verification_only();
+    let secp = Secp256k1::new();
     let mut checked = 0;
     for case in json["valid_tests"].as_array().unwrap() {
         let rand = bytes32(&case["rand"]);
@@ -318,7 +319,7 @@ fn frost_nonce_agg_vectors() {
 /// Runs one sign case the way a signer would: read the public shares,
 /// the share and the nonce, then sign.
 fn run_sign(
-    secp: &Secp256k1<Verify>,
+    secp: &Secp256k1<Context>,
     group: &Group,
     case: &Value,
     tweaks: Vec<Tweak>,
@@ -349,7 +350,7 @@ fn run_sign(
 /// every such signature verifies against its own nonce and public share.
 #[test]
 fn frost_sign_vectors() {
-    let secp = Secp256k1::verification_only();
+    let secp = Secp256k1::new();
     let mut checked = 0;
     for group in groups(SIGN_VERIFY) {
         for case in group.cases["valid_tests"].as_array().unwrap() {
@@ -393,7 +394,7 @@ fn frost_sign_vectors() {
 /// Every `Sign` error case is refused for the reason the file names.
 #[test]
 fn frost_sign_error_vectors() {
-    let secp = Secp256k1::verification_only();
+    let secp = Secp256k1::new();
     let mut checked = 0;
     for group in groups(SIGN_VERIFY) {
         for case in group.cases["sign_error_tests"].as_array().unwrap() {
@@ -409,7 +410,7 @@ fn frost_sign_error_vectors() {
 /// else, and every malformed contribution is named instead.
 #[test]
 fn frost_partial_sig_verify_vectors() {
-    let secp = Secp256k1::verification_only();
+    let secp = Secp256k1::new();
     let (mut failures, mut errors) = (0, 0);
     for group in groups(SIGN_VERIFY) {
         for case in group.cases["verify_fail_tests"].as_array().unwrap() {
@@ -473,7 +474,7 @@ fn frost_partial_sig_verify_vectors() {
 /// plain and x-only tweaks the file gives, and every refusal.
 #[test]
 fn frost_tweak_vectors() {
-    let secp = Secp256k1::verification_only();
+    let secp = Secp256k1::new();
     let (mut checked, mut errors, mut unexpressible) = (0, 0, 0);
     for group in groups(TWEAK) {
         for case in group.cases["valid_tests"].as_array().unwrap() {
@@ -540,7 +541,7 @@ fn inline_tweaks(case: &Value) -> Vec<Tweak> {
 }
 
 fn run_deterministic_sign(
-    secp: &Secp256k1<Verify>,
+    secp: &Secp256k1<Context>,
     group: &Group,
     case: &Value,
 ) -> Result<(PubNonce, PartialSig), Error> {
@@ -574,7 +575,7 @@ fn run_deterministic_sign(
 /// refuses every error case for the reason the file names.
 #[test]
 fn frost_det_sign_vectors() {
-    let secp = Secp256k1::verification_only();
+    let secp = Secp256k1::new();
     let (mut checked, mut errors) = (0, 0);
     for group in groups(DET_SIGN) {
         for case in group.cases["valid_tests"].as_array().unwrap() {
@@ -700,7 +701,7 @@ fn subsets(n: usize, t: usize) -> Vec<Vec<u32>> {
 /// public shares, and the same group key.
 #[test]
 fn the_dealer_recovers_a_group_from_any_threshold_subset() {
-    let secp = Secp256k1::verification_only();
+    let secp = Secp256k1::new();
     let mut checked = 0;
     for group in groups(SIGN_VERIFY) {
         let secshares = group.real_secshares();
@@ -739,7 +740,7 @@ fn the_dealer_recovers_a_group_from_any_threshold_subset() {
 /// not, and a share that is no point is refused as it is read.
 #[test]
 fn a_record_is_refused_when_its_shares_are_not_the_groups() {
-    let secp = Secp256k1::verification_only();
+    let secp = Secp256k1::new();
     let mut checked = 0;
     for group in groups(SIGN_VERIFY) {
         let pubshares: Vec<Option<PublicKey>> =
@@ -812,7 +813,7 @@ fn the_dealer_matches_the_rfc_9591_shares() {
         "00e95d59dd0d46b0e303e500b62b7ccb0e555d49f5b849f5e748c071da8c0dbc",
     ];
     const SECRET: &str = "0d004150d27c3bf2a42f312683d35fac7394b1e9e318249c1bfe7f0795a83114";
-    let secp = Secp256k1::verification_only();
+    let secp = Secp256k1::new();
     let share = |i: usize| SecShare::from_bytes(&unhex(SHARES[i]).try_into().unwrap()).unwrap();
     let group_key = SecShare::from_bytes(&unhex(SECRET).try_into().unwrap())
         .unwrap()
@@ -850,7 +851,7 @@ fn the_dealer_matches_the_rfc_9591_shares() {
 /// of them signs alone.
 #[test]
 fn a_threshold_of_one_gives_every_participant_the_same_share() {
-    let secp = Secp256k1::verification_only();
+    let secp = Secp256k1::new();
     let only = SecShare::from_bytes(&[7u8; 32]).unwrap();
     let dealt = frost::deal(&secp, 4, 1, &[(2, only)]).unwrap();
     for share in &dealt.shares {
@@ -864,7 +865,7 @@ fn a_threshold_of_one_gives_every_participant_the_same_share() {
 /// polynomial, and a group larger than BIP 445 allows.
 #[test]
 fn the_dealer_refuses_a_set_that_fixes_no_polynomial() {
-    let secp = Secp256k1::verification_only();
+    let secp = Secp256k1::new();
     let share = |b: u8| SecShare::from_bytes(&[b; 32]).unwrap();
     assert_eq!(
         frost::deal(&secp, 3, 2, &[(0, share(1))]).unwrap_err(),

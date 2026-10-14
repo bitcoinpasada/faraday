@@ -884,7 +884,7 @@ fn public_share(m: &Mnemonic) -> Option<PublicKey> {
     let mut bytes = entropy32(m)?;
     let share = SecShare::from_bytes(&bytes).ok();
     bytes.zeroize();
-    let secp = Secp256k1::verification_only();
+    let secp = Secp256k1::signing_only();
     Some(share?.public_share(&secp))
 }
 

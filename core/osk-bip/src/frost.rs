@@ -31,13 +31,13 @@
 use alloc::vec::Vec;
 use core::fmt;
 
-use bitcoin::secp256k1::{Parity, PublicKey, Secp256k1, Verification};
+use bitcoin::secp256k1::{Parity, PublicKey, Secp256k1, Signing, Verification};
 use osk_crypto::Zeroize;
 
 use crate::musig::{
     self, CURVE_ORDER, MaybePoint, add_mod_order, at_least_order, base_mul, cbytes_ext, cpoint_ext,
     generator, mul_mod_order, negate_mod_order, one, parity_factor, point_add, point_mul,
-    point_negate, reduce, tagged_hash,
+    point_negate, reduce, secret_base_mul, tagged_hash,
 };
 
 pub use crate::musig::{AggNonce, AggregateKey, PartialSig, PubNonce, Tweak};
@@ -503,11 +503,8 @@ impl SecShare {
     }
 
     /// The public share, `secshare · G`.
-    pub fn public_share<C: Verification>(&self, secp: &Secp256k1<C>) -> PublicKey {
-        base_mul(secp, &self.0)
-            .ok()
-            .flatten()
-            .expect("a scalar in 1..n has a point")
+    pub fn public_share<C: Signing>(&self, secp: &Secp256k1<C>) -> PublicKey {
+        secret_base_mul(secp, &self.0).expect("a scalar in 1..n has a point")
     }
 
     /// The 32 bytes, for the 24-word encoding that carries a share on
@@ -578,7 +575,7 @@ impl SecNonce {
     }
 
     /// The public nonce this secret nonce belongs to.
-    pub fn public_nonce<C: Verification>(&self, secp: &Secp256k1<C>) -> Result<PubNonce, Error> {
+    pub fn public_nonce<C: Signing>(&self, secp: &Secp256k1<C>) -> Result<PubNonce, Error> {
         pubnonce_of(secp, &self.k1, &self.k2)
     }
 }
@@ -604,16 +601,14 @@ impl Drop for SecNonce {
 
 impl osk_crypto::ZeroizeOnDrop for SecNonce {}
 
-fn pubnonce_of<C: Verification>(
+fn pubnonce_of<C: Signing>(
     secp: &Secp256k1<C>,
     k1: &[u8; 32],
     k2: &[u8; 32],
 ) -> Result<PubNonce, Error> {
     let mut out = [0u8; 66];
     for (half, k) in [k1, k2].iter().enumerate() {
-        let point = base_mul(secp, k)
-            .map_err(|_| Error::Infinity)?
-            .ok_or(Error::Infinity)?;
+        let point = secret_base_mul(secp, k).map_err(|_| Error::Infinity)?;
         out[half * 33..half * 33 + 33].copy_from_slice(&point.serialize());
     }
     PubNonce::from_bytes(&out).map_err(|_| Error::Infinity)
@@ -665,7 +660,7 @@ pub fn parse_aggnonce(bytes: &[u8], contrib: Contrib) -> Result<AggNonce, Error>
 /// Every other input is optional, and each one that is given binds the
 /// nonce to it. `extra_in` is the caller's: this pass fixes no use for
 /// it.
-pub fn nonce_gen<C: Verification>(
+pub fn nonce_gen<C: Verification + Signing>(
     secp: &Secp256k1<C>,
     rand: &[u8; 32],
     secshare: Option<&SecShare>,
@@ -899,7 +894,7 @@ pub fn session_values<C: Verification>(
 
 /// BIP 445's `Sign`. The nonce is consumed, so it cannot sign twice, and
 /// the partial signature is verified before it is returned.
-pub fn sign<C: Verification>(
+pub fn sign<C: Verification + Signing>(
     secp: &Secp256k1<C>,
     secnonce: SecNonce,
     secshare: &SecShare,
@@ -1050,7 +1045,7 @@ pub fn partial_sig_agg(psigs: &[PartialSig], session: &SessionValues) -> Result<
 /// between the rounds. A sole signer passes no other nonce, and its own
 /// public nonce is the session's aggregate.
 #[allow(clippy::too_many_arguments)]
-pub fn deterministic_sign<C: Verification>(
+pub fn deterministic_sign<C: Verification + Signing>(
     secp: &Secp256k1<C>,
     secshare: &SecShare,
     my_id: u32,
@@ -1175,7 +1170,7 @@ fn check_held(n: Option<usize>, t: usize, ids: &[u32]) -> Result<(), Error> {
 /// The polynomial of degree `t - 1` through the chosen shares fixes
 /// every other share and the group key. The group secret is never
 /// returned: the key comes from the public shares.
-pub fn deal<C: Verification>(
+pub fn deal<C: Verification + Signing>(
     secp: &Secp256k1<C>,
     n: usize,
     t: usize,
@@ -1235,7 +1230,7 @@ pub fn recover_share(t: usize, held: &[(u32, &SecShare)], target: u32) -> Result
 /// The public record, rebuilt from any `t` held shares: every public
 /// share and the group key, by public arithmetic from the held shares'
 /// own public shares.
-pub fn recover_info<C: Verification>(
+pub fn recover_info<C: Verification + Signing>(
     secp: &Secp256k1<C>,
     n: usize,
     t: usize,

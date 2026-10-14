@@ -2640,7 +2640,9 @@ fn threshold_input<C: Verification>(
             let Some(entry) = section.entry(index, &key) else {
                 return ThresholdRound::Refused(Refusal::AnotherShare);
             };
-            let public = entry.secnonce.public_nonce(secp).ok();
+            // The nonce is secret: its point is made in a signing
+            // context, which takes the same time for every nonce.
+            let public = entry.secnonce.public_nonce(&Secp256k1::signing_only()).ok();
             if public != nonce_of(*id) {
                 return ThresholdRound::Refused(Refusal::NonceMismatch);
             }

@@ -129,7 +129,7 @@ fn a_record_that_states_something_untrue_is_refused() {
     }
 
     // Sixteen participants: more than one QR and one slot carry.
-    let secp = Secp256k1::verification_only();
+    let secp = Secp256k1::new();
     let chosen: Vec<(u32, SecShare)> = (0..2u32)
         .map(|i| {
             let mut bytes = [1u8; 32];
@@ -241,7 +241,7 @@ fn the_wallet_pays_where_its_descriptor_says() {
     let chains = descriptor
         .into_single_descriptors()
         .expect("a receive chain and a change chain");
-    let secp = Secp256k1::verification_only();
+    let secp = Secp256k1::new();
     for (chain, descriptor) in chains.iter().enumerate() {
         for index in [0u32, 1, 7] {
             let theirs = descriptor

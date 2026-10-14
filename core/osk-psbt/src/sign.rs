@@ -1143,6 +1143,10 @@ fn hex33(key: &secp256k1::PublicKey) -> alloc::string::String {
 /// seed gives a different value for every input, signer and signer set.
 const THRESHOLD_RAND_TAG: &[u8] = b"OpenSigner/threshold-rand";
 
+/// The tag the seed is hashed under for the 32 bytes a threshold pass's
+/// curve context is randomized with.
+const THRESHOLD_BLIND_TAG: &[u8] = b"OpenSigner/threshold-blind";
+
 /// One loaded share as the signer sees it: its public share, and the one
 /// door its scalar comes through.
 ///
@@ -1225,7 +1229,12 @@ fn sign_threshold(
 ) -> Result<ThresholdPass, Error> {
     use osk_bip::frost;
 
-    let secp = secp256k1::Secp256k1::new();
+    // A share is not a `MasterKey`, which carries a blinded context of
+    // its own, so the pass blinds one from the seed (security review M1).
+    let mut secp = secp256k1::Secp256k1::new();
+    let mut blind = crate::musig::tagged(THRESHOLD_BLIND_TAG, &[seed]);
+    secp.seeded_randomize(&blind);
+    blind.zeroize();
     let (sighash_type, prevouts) = tap_sighash_inputs(psbt, c, index)?;
     if sighash_type != TapSighashType::Default {
         return Err(Error::Unsupported {

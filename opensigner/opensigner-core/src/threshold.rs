@@ -70,7 +70,7 @@ impl Dealer {
     /// in the choosing order, with the other `n - chosen.len()` members
     /// computed. `None` where the deal does not stand.
     pub fn deal(n: usize, t: usize, chosen: &[(u32, SecShare)], network: Network) -> Option<Self> {
-        let secp = Secp256k1::verification_only();
+        let secp = Secp256k1::new();
         let dealt = frost::deal(&secp, n, t, chosen).ok()?;
         let kind = match network {
             Network::Mainnet => NetworkKind::Main,

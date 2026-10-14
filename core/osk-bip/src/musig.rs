@@ -32,7 +32,9 @@ use core::fmt;
 use core::str::FromStr;
 
 use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
-use bitcoin::secp256k1::{Parity, PublicKey, Scalar, Secp256k1, Verification, XOnlyPublicKey};
+use bitcoin::secp256k1::{
+    Parity, PublicKey, Scalar, Secp256k1, SecretKey, Signing, Verification, XOnlyPublicKey,
+};
 use bitcoin::{NetworkKind, ScriptBuf};
 use osk_crypto::sha256;
 
@@ -879,6 +881,23 @@ pub(crate) fn base_mul<C: Verification>(
     point_mul(secp, Some(generator()), scalar)
 }
 
+/// `secret · G` for a secret scalar in 1..n, such as a nonce or a key.
+///
+/// [`base_mul`] goes through `ec_pubkey_tweak_mul`, whose
+/// multiplication takes a time that depends on the scalar, which is
+/// right for public values only. This goes through `ec_pubkey_create`,
+/// which takes the same time for every scalar and is blinded by the
+/// context it is given.
+pub(crate) fn secret_base_mul<C: Signing>(
+    secp: &Secp256k1<C>,
+    secret: &[u8; 32],
+) -> Result<PublicKey, Error> {
+    let mut key = SecretKey::from_slice(secret).map_err(|_| Error::Infinity)?;
+    let point = PublicKey::from_secret_key(secp, &key);
+    key.non_secure_erase();
+    Ok(point)
+}
+
 /// BIP-327's `cbytes_ext`: 33 zero bytes for the point at infinity.
 pub(crate) fn cbytes_ext(point: MaybePoint) -> [u8; 33] {
     match point {
@@ -1104,7 +1123,7 @@ pub fn nonce_gen<C: Verification + bitcoin::secp256k1::Signing>(
     }
     let mut pubnonce = [0u8; 66];
     for (i, k) in k.iter().enumerate() {
-        let point = base_mul(secp, k)?.ok_or(Error::Infinity)?;
+        let point = secret_base_mul(secp, k)?;
         pubnonce[i * 33..i * 33 + 33].copy_from_slice(&point.serialize());
     }
     Ok((
@@ -1337,7 +1356,7 @@ pub fn deterministic_sign<C: Verification + bitcoin::secp256k1::Signing>(
     let pk = sk.public_key(secp);
     let mut pubnonce = [0u8; 66];
     for (i, k) in k.iter().enumerate() {
-        let point = base_mul(secp, k)?.ok_or(Error::Infinity)?;
+        let point = secret_base_mul(secp, k)?;
         pubnonce[i * 33..i * 33 + 33].copy_from_slice(&point.serialize());
     }
     let pubnonce = PubNonce(pubnonce);
