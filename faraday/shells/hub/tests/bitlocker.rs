@@ -594,3 +594,53 @@ fn resume_waits_for_a_later_boot_than_the_one_that_suspended() {
     assert_eq!(MarkerFile::parse(&text), Some(m(Some(1_000_000))));
     assert_eq!(MarkerFile::parse(&m(None).text()), Some(m(None)));
 }
+
+// The following three tests are against `tests/windows/vm-on.wmi` and
+// `vm-suspended.wmi`: real `Win32_EncryptableVolume` answers from the
+// Windows 11 Pro test virtual machine (`docs/BITLOCKER-ACCEPTANCE.md`),
+// not hand-made ones. On a real machine, `GetSuspendCount` on a
+// protected (not suspended) volume answers with a failing `ReturnValue`
+// (2147942450, 0x80070032) rather than the hand-made files' 0, and the
+// removable FAT volume D: (not encrypted) answers it with another
+// failing `ReturnValue` (2150694952, 0x80310028) too.
+
+#[test]
+fn a_real_protected_drive_reads_as_protected() {
+    // `ProtectionStatus` 1 is read as protected without `GetSuspendCount`
+    // even being asked, so its failing `ReturnValue` on this real,
+    // protected drive changes nothing.
+    let mut wmi = recorded("vm-on.wmi");
+    assert_eq!(bitlocker::state(&mut wmi, "C:"), Protection::On);
+    assert_eq!(wmi.made("GetSuspendCount"), 0);
+}
+
+#[test]
+fn a_real_suspended_drive_reads_as_suspended_until_resumed() {
+    // `ProtectionStatus` 0 with `ConversionStatus` 1 is suspended.
+    let mut wmi = recorded("vm-suspended.wmi");
+    assert_eq!(bitlocker::state(&mut wmi, "C:"), Protection::Suspended);
+
+    // Suspending it again is a no-op: `GetSuspendCount` answers 0 with
+    // SuspendCount 0 (suspended until resumed, with no restart count
+    // left, as the Starter's own Suspend leaves it), so nothing is
+    // disabled again.
+    const VM_C: &str = r"\\?\Volume{5d9db820-57f3-431c-83e2-854229ff0c49}\";
+    let mut wmi = recorded("vm-suspended.wmi");
+    assert_eq!(
+        bitlocker::suspend(&mut wmi, "C:"),
+        Ok(vec![(VM_C.to_string(), "C:".to_string())])
+    );
+    assert_eq!(wmi.made("GetSuspendCount"), 1);
+    assert_eq!(wmi.made("DisableKeyProtectors"), 0);
+}
+
+#[test]
+fn a_real_unencrypted_removable_drive_reads_as_not_encrypted() {
+    // D: is a removable FAT volume, not the system drive: `ProtectionStatus`
+    // 0 with `ConversionStatus` 0 is not encrypted, on both recordings,
+    // regardless of what BitLocker is doing on C:.
+    let mut wmi = recorded("vm-on.wmi");
+    assert_eq!(bitlocker::state(&mut wmi, "D:"), Protection::None);
+    let mut wmi = recorded("vm-suspended.wmi");
+    assert_eq!(bitlocker::state(&mut wmi, "D:"), Protection::None);
+}

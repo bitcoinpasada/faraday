@@ -173,6 +173,13 @@ is dropped here when upstream has it):
   `threshold.rs`, `core/osk-bip/tests/frost.rs` and `threshold.rs`.
   No result changes: the BIP-327, FROST and BIP-352 vectors pass as
   they were.
+- `core/osk-shell-api`: Faraday's desktop shells send keys and events
+  upstream's enum does not have: `Key::Delete`, `Event::Wheel`,
+  `ScrollEnd`, `Shift`, `Back`, `Forward`, `Hover` and `HoverEnd` (since
+  0.1.1), and `Key::Home`, `End` and `SelectAll` (Ctrl+A) for the
+  Starter's fields (2026-10-13). Each is optional: a core that does not
+  know one ignores it, and a shell that has no such key never sends it.
+  Not yet offered upstream.
 
 ## Decisions so far (all in the docs)
 
@@ -2056,11 +2063,26 @@ as possible before the next build.
     check of `docs/BITLOCKER-ACCEPTANCE.md` passed too: the shell reads
     `Some(1)` protected and `Some(5)` suspended, and `GetSuspendCount`
     answers 0 (until resumed); the two recordings are in
-    `local/winvm-records/`, not yet made fixtures. The key was found in
-    no file under AppData, Temp or Downloads. Still to do: run 1's Save
-    and its QR scan, Home's firmware-restart button (greyed in the
-    machine), run 4b (a standard user), run 6a through Settings'
-    Installed apps; then the Home runs on a computer of the owner's.
+    `faraday/shells/hub/tests/windows/vm-on.wmi` and `vm-suspended.wmi`
+    (2026-10-13). The key was found in
+    no file under AppData, Temp or Downloads. Done 2026-10-13 with the
+    build from 5246286: run 1's Save wrote the key file to the USB drive
+    and not to the stick, and Save went with the drive; the QR code
+    (decoded from the screen) and the screen both match the install's
+    recovery password; F17's default page (run 7 steps 1 to 4) as the
+    file says, nothing changed on the computer, and "Recovery key kept"
+    lasts the session only; run 4b, as a standard user, says an
+    administrator has to do the step; run 6a through Settings'
+    Installed apps removes the app, its entry, its shortcut, the marker
+    and the Run value and leaves the suspension. Home's firmware restart
+    is greyed in the machine because a virtual machine holds the
+    restarts (HUB §3.1a), as intended. Found: in the session that
+    suspended, Uninstall gives Control Panel's line with Secure Boot on,
+    since Resume waits for a restart (§6.3), where §5 says it offers
+    Resume (owner to decide; Windows Home has no Control Panel route);
+    the default page's "Also kept in: Microsoft account" shows on a
+    local account too (§6 says "for Device encryption under one", §6.5
+    always). Left: the Home runs on a computer of the owner's.
     Smaller findings, fixed and checked in the machine: Home re-reads
     BitLocker after Uninstall, and a suspension that is not Faraday's
     reads "Suspended", not "Protected"; the after-exit command waits

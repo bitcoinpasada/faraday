@@ -115,7 +115,9 @@ virtual machine's own and name nothing else).
    `findstr /s /m /c:"<the key's first group>" %LOCALAPPDATA%\* %TEMP%\* %USERPROFILE%\Downloads\*`
    finds nothing.
 8. Home: the card offers the firmware restart. Choose it; the sheet;
-   **Restart**. The machine restarts into OVMF's setup.
+   **Restart**. The machine restarts into OVMF's setup. In a virtual
+   machine the button is greyed: the hub app holds the restarts there
+   (`docs/HUB.md` §3.1a, `restart_holds`), so step 9 uses `winvm.sh`.
 9. Secure Boot off there (Device Manager, Secure Boot Configuration,
    Attempt Secure Boot off, F10, reset), or `winvm.sh start
    --secure-boot off --usb-stick out/stick/faraday-x86_64-uefi.img`
@@ -237,10 +239,11 @@ Must see:
    `manage-bde -protectors -get C: -Type RecoveryPassword`.
 4. **I have my recovery key**: the key leaves the screen; the page reads
    "Recovery key kept". Outside the hub app: `manage-bde -status C:`
-   still "Protection On"; no `%LOCALAPPDATA%aradayitlocker-suspended`;
+   still "Protection On"; no `%LOCALAPPDATA%\faraday\bitlocker-suspended`;
    no Run value.
 5. Home: BitLocker reads "Recovery key kept"; the card offers the
-   firmware restart. Choose it; the sheet; **Restart**.
+   firmware restart (greyed in a virtual machine, as in run 1 step 8).
+   Choose it; the sheet; **Restart**.
 6. Secure Boot off in OVMF's setup, save, and on the restart that
    follows choose the stick from the boot menu before Windows starts
    (or `winvm.sh start --secure-boot off --usb-stick
