@@ -80,32 +80,24 @@ def blit(canvas, rows, ink, left, top, scale):
                             line[cx] = colour
 
 
-def word_width(word, scale, gap):
-    """gap is the space between letters in pixels, not font pixels."""
-    return len(word) * GLYPH_W * scale + (len(word) - 1) * gap
+def word_width(word, scale):
+    return (len(word) * (GLYPH_W + GLYPH_GAP) - GLYPH_GAP) * scale
 
 
-def draw_word(canvas, word, centre, top, scale, gap, colour):
-    left = centre - word_width(word, scale, gap) // 2
+def draw_word(canvas, word, centre, top, scale, colour):
+    left = centre - word_width(word, scale) // 2
     for i, letter in enumerate(word):
-        blit(canvas, FONT[letter], {"#": colour}, left + i * (GLYPH_W * scale + gap), top, scale)
-
-
-def fit_word(word, target):
-    """The largest whole scale, and the letter gap, that set word about
-    target pixels wide: the letters scaled by a whole number so their
-    strokes stay even, the gap taking up what is left."""
-    scale = max(1, target // (len(word) * (GLYPH_W + GLYPH_GAP)))
-    gap = max(scale, round((target - len(word) * GLYPH_W * scale) / (len(word) - 1)))
-    return scale, gap
+        blit(canvas, FONT[letter], {"#": colour}, left + i * (GLYPH_W + GLYPH_GAP) * scale, top, scale)
 
 
 def build(faraday, width, height):
     """Faraday's mark over FARADAY, the pair centred on the logo. The name
-    is a little wider than the mark."""
+    is set at the smallest whole scale that makes it wider than the mark."""
     left, right, used_top, used_bottom = bounds(faraday)
     scale = max(1, round(width / 4 / (right - left)))
-    text_scale, letter_gap = fit_word("FARADAY", min(width - 8, round((right - left) * scale * 1.1)))
+    text_scale = (right - left) * scale // word_width("FARADAY", 1) + 1
+    while word_width("FARADAY", text_scale) > width - 8 and text_scale > 1:
+        text_scale -= 1
     gap = 2 * scale
     block = (used_bottom - used_top) * scale + gap + GLYPH_H * text_scale
     top = max(0, (height - block) // 2)
@@ -115,7 +107,7 @@ def build(faraday, width, height):
     x = centre - (left + right) * scale // 2
     y = baseline - used_bottom * scale
     blit(canvas, faraday, FARADAY, x, y, scale)
-    draw_word(canvas, "FARADAY", centre, baseline + gap, text_scale, letter_gap, FARADAY["#"])
+    draw_word(canvas, "FARADAY", centre, baseline + gap, text_scale, FARADAY["#"])
     return canvas
 
 
