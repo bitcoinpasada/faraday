@@ -3,7 +3,7 @@
 # as docs/STARTER.md §1.1 names them, with SHA256SUMS for the owner to sign.
 #
 #   faraday/tools/stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR]
-#   faraday/tools/stage-release.sh VERSION --starter FILE [--out DIR] [--payload DIR]
+#   faraday/tools/stage-release.sh VERSION [--starter FILE] [--starter-windows FILE] [--out DIR] [--payload DIR]
 #
 # A release is staged in two passes (STARTER §1.3). The first, the form
 # above without --starter, stages the plain files and the Starter's payload.
@@ -19,7 +19,10 @@
 # and the file inside it under its inner name. The second pass refuses a
 # Starter that does not carry this payload's MANIFEST, runs the
 # published-file check below on the .tar.gz and the file inside it, and
-# never touches what the first pass staged.
+# never touches what the first pass staged. `--starter-windows
+# out/windows/faraday-starter.exe` adds the Windows Starter the same way,
+# in the same pass or another: Faraday-Starter-VERSION-Windows.exe, as it
+# is, and its line in SHA256SUMS, after the same two checks.
 #
 # Takes what the builds left:
 #   out/linux/faraday                       -> faraday-desktop-VERSION-linux-x86_64
@@ -59,7 +62,7 @@ set -euo pipefail
 
 die() { printf 'stage-release: %s\n' "$1" >&2; exit 1; }
 
-[ $# -ge 1 ] || die "usage: stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR] | VERSION --starter FILE [--out DIR] [--payload DIR]"
+[ $# -ge 1 ] || die "usage: stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR] | VERSION [--starter FILE] [--starter-windows FILE] [--out DIR] [--payload DIR]"
 version="$1"
 shift
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "VERSION must look like X.Y.Z, got '$version'"
@@ -67,16 +70,21 @@ any=0
 out=""
 payload=""
 starter=""
+starter_win=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --any-build) any=1; shift ;;
         --out) [ $# -ge 2 ] || die "--out needs a directory"; out="$2"; shift 2 ;;
         --payload) [ $# -ge 2 ] || die "--payload needs a directory"; payload="$2"; shift 2 ;;
         --starter) [ $# -ge 2 ] || die "--starter needs the Starter's file"; starter="$2"; shift 2 ;;
+        --starter-windows) [ $# -ge 2 ] || die "--starter-windows needs the Starter's file"; starter_win="$2"; shift 2 ;;
         *) die "unknown argument $1" ;;
     esac
 done
 [ -z "$starter" ] || starter="$(realpath "$starter")"
+[ -z "$starter_win" ] || starter_win="$(realpath "$starter_win")"
+second=""
+[ -z "$starter$starter_win" ] || second=1
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 if [ -z "$payload" ]; then
     if [ -n "$out" ]; then payload="$out.payload"; else payload="out/payload/$version"; fi
@@ -86,7 +94,7 @@ out="${out:-out/release/$version}"
 check="$(mktemp -d)"
 trap 'rm -rf "$check"' EXIT
 build=""
-if [ -z "$starter" ]; then
+if [ -z "$second" ]; then
     desktop=out/linux/faraday
     stick=out/stick/faraday-x86_64-uefi.img
     pi=out/pi/faraday-pi3-waveshare-28dpi.img
@@ -218,10 +226,10 @@ forbidden_in() {
     [ -z "$host_name" ] || grep -a -i -w -F "$host_name" "$strs" | head -3 || true
 }
 # What a refusal takes back: the first pass stages the folders, the
-# second only the .tar.gz it adds (the first pass's files stay).
+# second only the files it adds (the first pass's files stay).
 refuse() {
-    if [ -n "$starter" ]; then
-        rm -f "$out/$tar_name"
+    if [ -n "$second" ]; then
+        rm -f "$out/$tar_name" "$out/$exe_name"
         die "$1 (nothing added)"
     fi
     rm -rf "$out" "$payload"
@@ -230,6 +238,7 @@ refuse() {
 starter_release_name="Faraday-Starter" # the one place the release files are named (F16)
 tar_name="$starter_release_name-$version-Linux.tar.gz"
 inner_name="$starter_release_name-$version-Linux"
+exe_name="$starter_release_name-$version-Windows.exe"
 # FILE and, inside it, every gzip or xz stream found by its magic bytes
 # (a kernel image holds its kernel and the initramfs that way), to a depth
 # of three. LABEL names it in what is printed.
@@ -253,17 +262,23 @@ scan() {
         done
     done
 }
+# A Starter the second pass adds must sit on a first pass's output and
+# carry its payload: the MANIFEST's first line names the release and the
+# commit, and is in the binary as a string. Prints that line.
+starter_payload() { # the Starter's file, the name it is published as
+    [ -f "$out/SHA256SUMS" ] && [ -f "$payload/MANIFEST" ] \
+        || die "$out and $payload are not a first pass's output: stage the plain files first"
+    [ ! -e "$out/$2" ] || die "$out/$2 exists; move it aside first"
+    local first
+    first="$(head -1 "$payload/MANIFEST")"
+    grep -aqF -- "$first" "$1" || die "$1 does not carry the payload in $payload (its MANIFEST's first line is not in it); build it against that payload"
+    printf '%s' "$first"
+}
 # The second pass: the Linux Starter (STARTER §1.1, §1.2).
 add_starter() {
     local first
     [ -f "$starter" ] || die "$starter: not built (just faraday-linux-bin out/linux out/build/run faraday-starter-shell faraday-starter)"
-    [ -f "$out/SHA256SUMS" ] && [ -f "$payload/MANIFEST" ] \
-        || die "$out and $payload are not a first pass's output: stage the plain files first"
-    [ ! -e "$out/$tar_name" ] || die "$out/$tar_name exists; move it aside first"
-    # It carries this payload: the MANIFEST's first line names the
-    # release and the commit, and is in the binary as a string.
-    first="$(head -1 "$payload/MANIFEST")"
-    grep -aqF -- "$first" "$starter" || die "$starter does not carry the payload in $payload (its MANIFEST's first line is not in it); build it against that payload"
+    first="$(starter_payload "$starter" "$tar_name")"
     # The tar holds one file, with its executable bit and no owner,
     # time or name of the building computer; gzip -n leaves out the
     # name and time of its own.
@@ -293,6 +308,17 @@ add_starter() {
     (cd "$check/starter-out" && sha256sum -c --quiet --ignore-missing SHA256SUMS)
     echo "Added $tar_name ($(stat -c %s "$out/$tar_name") bytes) holding $inner_name ($(stat -c %s "$starter") bytes), carrying: $first"
 }
+# The Windows Starter (STARTER §1.1): published as it is.
+add_starter_windows() {
+    local first
+    [ -f "$starter_win" ] || die "$starter_win: not built (just faraday-windows-bin)"
+    first="$(starter_payload "$starter_win" "$exe_name")"
+    cp "$starter_win" "$out/$exe_name"
+    scan "$out/$exe_name" "$out/$exe_name" 0
+    (cd "$out" && sha256sum "$exe_name") >> "$out/SHA256SUMS"
+    (cd "$out" && sha256sum -c --quiet --ignore-missing SHA256SUMS)
+    echo "Added $exe_name ($(stat -c %s "$out/$exe_name") bytes), carrying: $first"
+}
 # A .tar.gz, its tar and each file extracted from it, scanned.
 scan_tar() {
     local f="$1" g
@@ -303,8 +329,9 @@ scan_tar() {
     for g in "$check"/untar/*; do scan "$g" "$f: ${g#"$check"/untar/}" 0; done
     rm -rf "$check/untar"
 }
-if [ -n "$starter" ]; then
-    add_starter
+if [ -n "$second" ]; then
+    [ -z "$starter" ] || add_starter
+    [ -z "$starter_win" ] || add_starter_windows
 else
 for f in "$out"/* "$payload"/*; do
     # The payload's image .xz are the release's own files.

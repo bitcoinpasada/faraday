@@ -377,16 +377,18 @@ faraday-release-stage VERSION *args:
     faraday/tools/stage-release.sh {{VERSION}} {{args}}
 
 # The second pass of staging (STARTER §1.3): adds the Linux Starter,
-# out/linux/faraday-starter, built against the payload the first pass wrote, to
-# the folder the first pass staged: Faraday-VERSION-Linux.tar.gz holding
-# Faraday-VERSION-Linux, and both in SHA256SUMS. Refuses a Starter that does
-# not carry that payload. With --out DIR it adds to DIR, as the first pass
-# was given.
+# out/linux/faraday-starter, and the Windows Starter,
+# out/windows/faraday-starter.exe, both built against the payload the first
+# pass wrote, to the folder the first pass staged:
+# Faraday-Starter-VERSION-Linux.tar.gz holding Faraday-Starter-VERSION-Linux,
+# and Faraday-Starter-VERSION-Windows.exe, all three in SHA256SUMS. Refuses a
+# Starter that does not carry that payload. With --out DIR it adds to DIR,
+# as the first pass was given.
 #
 #   just faraday-release-stage-starter 0.2.0
 #   just faraday-release-stage-starter 0.2.0 --out DIR
 faraday-release-stage-starter VERSION *args:
-    faraday/tools/stage-release.sh {{VERSION}} --starter out/linux/faraday-starter {{args}}
+    faraday/tools/stage-release.sh {{VERSION}} --starter out/linux/faraday-starter --starter-windows out/windows/faraday-starter.exe {{args}}
 
 # The Companion's screens (docs/COMPANION.md §4), each in its states, into
 # out/snapshots/companion/WxH/, one named PNG each: `just companion-snap
