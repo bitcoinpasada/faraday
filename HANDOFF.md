@@ -2078,8 +2078,9 @@ as possible before the next build.
     text-mode font, "Mock-up" under each); 32 sketches over the nine
     maker pages, HUB §7.8; the guides corrected against the makers'
     simulators and manuals (research in local/firmware-sketches/). The
-    Companion's hook is the Companion session's. (c) Three places still decide by displayed
-    text and want an enum (`local/REMAINING.md`).
+    Companion's hook is the Companion session's. (c) Fixed: the three
+    places that decided by displayed text now carry an enum instead
+    (18af179, `plan::AloneKind`, `wallet::Origin`).
 
     **In flight at the time of writing.** Nothing of this item; the
     rename and `tools/winvm/` are committed. The owner's test install
