@@ -3,13 +3,16 @@
 //! while it is attached and not let through, nothing that shows a secret
 //! is offered. Check again after it is pulled releases; Continue anyway
 //! asks once; a virtual machine has no Continue anyway; a desktop's
-//! screen is asked about once; Home always carries the TV line. A
-//! wireless receiver holds nothing: it is a line on Home, and a Bolt
-//! receiver's line says its typing is encrypted.
+//! screen is asked about once, unless the EDID the firmware passed
+//! settled it; a screen whose EDID names a TV or a KVM is held by its
+//! name; Home always carries the TV line. A wireless receiver holds
+//! nothing: it is a line on Home, and a Bolt receiver's line says its
+//! typing is encrypted.
 
 use faraday_core::devices::{
     DeviceCheck, Interface, Kind, UsbDevice, screen_external, usb_kind, usb_name, virtual_machine,
 };
+use faraday_core::edid::from_boot_params;
 use faraday_core::{Action, Faraday, Screen, Sheet};
 use osk_shell_api::{App, DisplayInfo, Event};
 
@@ -397,4 +400,115 @@ fn the_stick_home_always_carries_the_tv_line() {
     // Not the desktop app, which reads no machine.
     let mut desktop = shown(DeviceCheck::default());
     assert!(!says(&mut desktop, line));
+}
+
+// ----- The screen's EDID, from the boot parameters -----
+
+/// The kernel's boot parameters as `/sys/kernel/boot_params/data` holds
+/// them (4096 bytes), with a made-up EDID base block at 0x140: the
+/// header, the maker's PNP ID and a monitor name descriptor when `name`
+/// is given. `None` leaves the block zero, as when the firmware passed
+/// no EDID.
+fn boot_params(edid: Option<(&str, Option<&str>)>) -> Vec<u8> {
+    let mut data = vec![0u8; 4096];
+    if let Some((maker, name)) = edid {
+        let e = &mut data[0x140..0x1c0];
+        e[..8].copy_from_slice(&[0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0]);
+        let b = maker.as_bytes();
+        let v = (u16::from(b[0] - b'A' + 1) << 10)
+            | (u16::from(b[1] - b'A' + 1) << 5)
+            | u16::from(b[2] - b'A' + 1);
+        e[8..10].copy_from_slice(&v.to_be_bytes());
+        if let Some(name) = name {
+            e[54..59].copy_from_slice(&[0, 0, 0, 0xfc, 0]);
+            let mut text = [0x20u8; 13];
+            text[..name.len()].copy_from_slice(name.as_bytes());
+            if name.len() < 13 {
+                text[name.len()] = 0x0a;
+            }
+            e[59..72].copy_from_slice(&text);
+        }
+    }
+    data
+}
+
+fn desktop_with(data: &[u8]) -> DeviceCheck {
+    DeviceCheck::machine(CPU, "Dell Inc.", "OptiPlex 7090", "3").with_edid(from_boot_params(data))
+}
+
+/// A desktop whose firmware passed the EDID of `maker`'s screen named
+/// `name`.
+fn desktop_showing(maker: &str, name: Option<&str>) -> DeviceCheck {
+    desktop_with(&boot_params(Some((maker, name))))
+}
+
+#[test]
+fn the_edid_is_read_from_the_boot_parameters_when_the_firmware_passed_one() {
+    let data = boot_params(Some(("ABC", Some("EXAMPLE 24"))));
+    assert_eq!(from_boot_params(&data), Some(&data[0x140..0x1c0]));
+    assert_eq!(from_boot_params(&boot_params(None)), None);
+    assert_eq!(from_boot_params(&data[..0x150]), None);
+    assert_eq!(from_boot_params(&[]), None);
+}
+
+#[test]
+fn a_screen_whose_edid_names_a_tv_is_held_by_its_name_without_asking() {
+    let mut app = shown(desktop_showing("SAM", Some("EXAMPLE TV")));
+    app.usb_devices(&[]);
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    assert!(says(&mut app, "EXAMPLE TV: a TV can record what it shows"));
+    app.press(Action::Cancel);
+    app.press(Action::Entry(None));
+    assert_ne!(app.screen, Screen::Entry);
+    // Check again does not release it: the screen is still the one the
+    // firmware named. Continue anyway does.
+    app.press(Action::DevicesCheck);
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    app.press(Action::DevicesContinue);
+    app.press(Action::DevicesContinue);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Entry);
+
+    // On a laptop too: its lid may be shut with a TV on HDMI.
+    let lid_shut = DeviceCheck::machine(CPU, "LENOVO", "20XW", "10")
+        .with_edid(from_boot_params(&boot_params(Some(("GSM", Some("LG TV"))))));
+    let mut app = shown(lid_shut);
+    app.usb_devices(&[]);
+    assert!(says(&mut app, "LG TV: a TV can record what it shows"));
+}
+
+#[test]
+fn a_screen_whose_edid_names_a_kvm_is_held_as_one() {
+    let mut app = shown(desktop_showing("XYZ", Some("PiKVM")));
+    app.usb_devices(&[]);
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    assert!(says(&mut app, "PiKVM: a KVM can show this screen"));
+}
+
+#[test]
+fn a_monitor_whose_edid_settles_it_is_not_asked_about() {
+    let mut app = shown(desktop_showing("ABC", Some("EXAMPLE 24")));
+    app.usb_devices(&[]);
+    assert_eq!(app.sheet, None);
+    app.press(Action::Entry(None));
+    assert_eq!(app.screen, Screen::Entry);
+    // Home still carries the TV line.
+    let mut app = shown(desktop_showing("ABC", None));
+    app.usb_devices(&[]);
+    assert_eq!(app.screen, Screen::Home);
+    let line = "On a TV? Stop: a smart TV can record its screen.";
+    assert!(says(&mut app, line));
+}
+
+#[test]
+fn a_tv_makers_screen_or_no_edid_is_still_asked_about() {
+    // A TV maker's base block that names no TV: the extension that would
+    // tell is not in the boot parameters.
+    let mut app = shown(desktop_showing("SAM", Some("EXAMPLE 27")));
+    app.usb_devices(&[]);
+    assert_eq!(app.sheet, Some(Sheet::TvAsk));
+    // The firmware passed none.
+    let mut app = shown(desktop_with(&boot_params(None)));
+    app.usb_devices(&[]);
+    assert_eq!(app.sheet, Some(Sheet::TvAsk));
 }

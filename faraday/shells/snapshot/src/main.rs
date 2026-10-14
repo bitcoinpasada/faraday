@@ -407,7 +407,8 @@ fn receiver(bolt: bool) -> faraday_core::devices::UsbDevice {
 /// wireless receiver at start, a line on Home that holds nothing, and a
 /// Bolt receiver's; an IP-KVM named, and Continue anyway asking; a
 /// virtual machine with an IP-KVM, which has no way on; a desktop's
-/// question whether its screen is a TV. Home empty ends it.
+/// question whether its screen is a TV, and the same desktop whose
+/// firmware passed a TV's EDID. Home empty ends it.
 fn devices_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::devices::{DeviceCheck, Interface, UsbDevice};
     let hid = |protocol| Interface {
@@ -460,6 +461,18 @@ fn devices_tour(t: &mut Tour) -> Result<(), String> {
     t.pump();
     t.shot("devices-tv-ask")?;
     t.press(Action::DevicesTv(false));
+    // The same desktop whose firmware passed a TV's EDID: named, not asked.
+    let mut edid = [0u8; 128];
+    edid[..8].copy_from_slice(&[0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0]);
+    edid[8..10].copy_from_slice(&[0x4c, 0x2d]);
+    edid[54..59].copy_from_slice(&[0, 0, 0, 0xfc, 0]);
+    edid[59..72].copy_from_slice(b"EXAMPLE TV\n  ");
+    t.app.devices = DeviceCheck::machine("flags\t: fpu vme", "Dell Inc.", "OptiPlex 7090", "3")
+        .with_edid(Some(&edid));
+    t.app.usb_devices(&[]);
+    t.pump();
+    t.shot("devices-tv-edid")?;
+    t.press(Action::Cancel);
     t.app.devices = laptop();
     t.app.usb_devices(&[]);
     t.pump();

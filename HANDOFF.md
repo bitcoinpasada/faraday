@@ -180,6 +180,14 @@ is dropped here when upstream has it):
   Starter's fields (2026-10-13). Each is optional: a core that does not
   know one ignores it, and a shell that has no such key never sends it.
   Not yet offered upstream.
+- 2026-10-14, note for the owner to send in
+  `local/for-upstream/kernel-6.18-edid.md` (F23): the PC stick's
+  kernel. No upstream file changes; Faraday's image overlay replaces
+  the board's `buildroot.fragment` with a copy pinning 6.18.56 instead
+  of 6.6.84 and adding five mainline commits from 6.19
+  (`faraday/image/overlay/boards/x86_64-uefi/linux-patches/`), by
+  which the EFI stub puts the screen's EDID in `boot_params`. Dropped
+  when upstream's board is on 6.18 with them, or on 6.19.
 
 ## Decisions so far (all in the docs)
 

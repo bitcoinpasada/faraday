@@ -459,7 +459,7 @@ whether it can capture the screen or the keys without Faraday's help:
 
 | Threat | The Starter, ahead of time | The stick, at start |
 |---|---|---|
-| A TV or other screen that records, on HDMI | the screen's EDID, as above | no EDID (no graphics driver). On a desktop or mini PC (DMI chassis type), whose screen is external, it asks once whether the screen is a TV; every start carries the TV line |
+| A TV or other screen that records, on HDMI | the screen's EDID, as above | the base block of the EDID the firmware passed (below): a name naming a TV or a KVM is held by that name, nothing asked. On a desktop or mini PC (DMI chassis type), whose screen is external, it asks once whether the screen is a TV when the firmware passed no EDID or the maker's ID is a TV maker's and the name names no TV; every start carries the TV line |
 | A KVM switch or IP-KVM (captures the screen, types from afar) | its USB identity (the Linux USB-gadget vendor `1d6b` with a keyboard and a disk; strings naming KVM) and the EDID name its capture side reports | its USB identity, from what `faraday-grant` reads |
 | A wireless keyboard receiver (keys travel over the air; owner, 2026-10-12: a notice, not a hold, about keyboards only, since a mouse's movements reveal next to nothing and the Starter cannot tell what a receiver has paired) | its USB identity (strings naming a receiver, dongle or wireless; the common receivers' IDs), as one line that holds nothing: "Wireless receiver attached. A wireless keyboard's typing can be picked up nearby: use a wired keyboard or the on-screen keyboard." | the same line, and the on-screen keyboard is offered in every layout (the wide one included) |
 | Running inside a virtual machine (its host sees and can change everything) | says the stick must start on the real computer, and that the Starter cannot see the host's devices | refuses to go on: no Continue anyway |
@@ -485,18 +485,23 @@ is not one can be let through once per session with **This is not a
 TV**, which asks once. The Learn page "Screens that record" says why.
 
 On the stick, Faraday has no graphics driver (DRM is forbidden; the
-picture is the firmware's framebuffer), so it reads no EDID today. A
-way to read the screen's EDID without a graphics driver exists from
-Linux 6.19: the EFI stub reads GOP's EDID and puts its base block in
-`boot_params` at 0x140, in `/sys/kernel/boot_params/data`, which the
-stick already reads. The stick's kernel is 6.6, pinned in upstream's
-board file; moving it (6.18 longterm with those few commits) is an open
-issue with upstream (owner, 2026-10-12: nothing added to the kernel
-meanwhile). With the EDID read, the stick names a TV itself and asks
-only when the firmware passes none; until then the stick's first screen carries
-one line: "On a TV? Stop: a smart TV can record its screen." The
-stick's own device check (above) warns at start, before anything is
-unlocked, and the same hold applies to showing a secret.
+picture is the firmware's framebuffer). Its kernel is 6.18 longterm
+with five commits from 6.19 (owner, 2026-10-14; F23): the EFI stub
+reads the EDID of the screen the firmware draws on (GOP's EDID
+protocols) and puts its base block in `boot_params` at 0x140, in
+`/sys/kernel/boot_params/data`, which the stick also reads for Secure
+Boot. The base block carries the monitor name and the maker's PNP ID
+but none of the CEA-861 extension, so on the stick only a name names a
+TV (or a KVM): such a screen is held at start by its name, on a laptop
+too (its lid may be shut with a TV on HDMI), and Check again does not
+release it, since the screen is still the one the firmware named;
+Continue anyway does. A screen whose maker is not a TV maker is not
+asked about. A TV maker's screen whose name names no TV, or a firmware
+that passed no EDID, leaves the question as before on a desktop. The
+stick's first screen always carries one line: "On a TV? Stop: a smart
+TV can record its screen." The stick's own device check (above) warns
+at start, before anything is unlocked, and the same hold applies to
+showing a secret.
 
 ### 3.1b What Secure Boot and BitLocker are (owner, 2026-10-12)
 

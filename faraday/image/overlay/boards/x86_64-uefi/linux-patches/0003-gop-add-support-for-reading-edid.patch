@@ -1,0 +1,168 @@
+efi/libstub: gop: Add support for reading EDID
+
+Mainline commit 17029cdd8f9d, Linux 6.19:
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=17029cdd8f9d0182a6499e0b7bfc6391e8463091
+The diff unchanged; the message and its authorship are at that link.
+
+diff --git a/drivers/firmware/efi/libstub/efi-stub.c b/drivers/firmware/efi/libstub/efi-stub.c
+index 874f63b4a3830..9cb814c5ba1bd 100644
+--- a/drivers/firmware/efi/libstub/efi-stub.c
++++ b/drivers/firmware/efi/libstub/efi-stub.c
+@@ -56,7 +56,7 @@ static struct screen_info *setup_graphics(void)
+ {
+ 	struct screen_info *si, tmp = {};
+ 
+-	if (efi_setup_gop(&tmp) != EFI_SUCCESS)
++	if (efi_setup_graphics(&tmp, NULL) != EFI_SUCCESS)
+ 		return NULL;
+ 
+ 	si = alloc_screen_info();
+diff --git a/drivers/firmware/efi/libstub/efistub.h b/drivers/firmware/efi/libstub/efistub.h
+index f5ba032863a9c..b2fb0c3fa7217 100644
+--- a/drivers/firmware/efi/libstub/efistub.h
++++ b/drivers/firmware/efi/libstub/efistub.h
+@@ -34,6 +34,9 @@
+ #define EFI_ALLOC_LIMIT		ULONG_MAX
+ #endif
+ 
++struct edid_info;
++struct screen_info;
++
+ extern bool efi_no5lvl;
+ extern bool efi_nochunk;
+ extern bool efi_nokaslr;
+@@ -578,6 +581,32 @@ union efi_graphics_output_protocol {
+ 	} mixed_mode;
+ };
+ 
++typedef union efi_edid_discovered_protocol efi_edid_discovered_protocol_t;
++
++union efi_edid_discovered_protocol {
++	struct {
++		u32 size_of_edid;
++		u8 *edid;
++	};
++	struct {
++		u32 size_of_edid;
++		u32 edid;
++	} mixed_mode;
++};
++
++typedef union efi_edid_active_protocol efi_edid_active_protocol_t;
++
++union efi_edid_active_protocol {
++	struct {
++		u32 size_of_edid;
++		u8 *edid;
++	};
++	struct {
++		u32 size_of_edid;
++		u32 edid;
++	} mixed_mode;
++};
++
+ typedef union {
+ 	struct {
+ 		u32			revision;
+@@ -1085,7 +1114,7 @@ efi_status_t efi_parse_options(char const *cmdline);
+ 
+ void efi_parse_option_graphics(char *option);
+ 
+-efi_status_t efi_setup_gop(struct screen_info *si);
++efi_status_t efi_setup_graphics(struct screen_info *si, struct edid_info *edid);
+ 
+ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
+ 				  const efi_char16_t *optstr,
+diff --git a/drivers/firmware/efi/libstub/gop.c b/drivers/firmware/efi/libstub/gop.c
+index 02459ef0f18ca..72d74436a7a44 100644
+--- a/drivers/firmware/efi/libstub/gop.c
++++ b/drivers/firmware/efi/libstub/gop.c
+@@ -12,6 +12,7 @@
+ #include <linux/string.h>
+ #include <asm/efi.h>
+ #include <asm/setup.h>
++#include <video/edid.h>
+ 
+ #include "efistub.h"
+ 
+@@ -413,6 +414,14 @@ static void setup_screen_info(struct screen_info *si, const efi_graphics_output_
+ 	si->capabilities |= VIDEO_CAPABILITY_SKIP_QUIRKS;
+ }
+ 
++static void setup_edid_info(struct edid_info *edid, u32 gop_size_of_edid, u8 *gop_edid)
++{
++	if (!gop_edid || gop_size_of_edid < 128)
++		memset(edid->dummy, 0, sizeof(edid->dummy));
++	else
++		memcpy(edid->dummy, gop_edid, min(gop_size_of_edid, sizeof(edid->dummy)));
++}
++
+ static efi_handle_t find_handle_with_primary_gop(unsigned long num, const efi_handle_t handles[],
+ 						 efi_graphics_output_protocol_t **found_gop)
+ {
+@@ -469,7 +478,7 @@ static efi_handle_t find_handle_with_primary_gop(unsigned long num, const efi_ha
+ 	return first_gop_handle;
+ }
+ 
+-efi_status_t efi_setup_gop(struct screen_info *si)
++efi_status_t efi_setup_graphics(struct screen_info *si, struct edid_info *edid)
+ {
+ 	efi_handle_t *handles __free(efi_pool) = NULL;
+ 	efi_handle_t handle;
+@@ -494,5 +503,30 @@ efi_status_t efi_setup_gop(struct screen_info *si)
+ 	if (si)
+ 		setup_screen_info(si, gop);
+ 
++	/* Display EDID for primary GOP */
++	if (edid) {
++		efi_edid_discovered_protocol_t *discovered_edid;
++		efi_edid_active_protocol_t *active_edid;
++		u32 gop_size_of_edid = 0;
++		u8 *gop_edid = NULL;
++
++		status = efi_bs_call(handle_protocol, handle, &EFI_EDID_ACTIVE_PROTOCOL_GUID,
++				     (void **)&active_edid);
++		if (status == EFI_SUCCESS) {
++			gop_size_of_edid = active_edid->size_of_edid;
++			gop_edid = active_edid->edid;
++		} else {
++			status = efi_bs_call(handle_protocol, handle,
++					     &EFI_EDID_DISCOVERED_PROTOCOL_GUID,
++					     (void **)&discovered_edid);
++			if (status == EFI_SUCCESS) {
++				gop_size_of_edid = discovered_edid->size_of_edid;
++				gop_edid = discovered_edid->edid;
++			}
++		}
++
++		setup_edid_info(edid, gop_size_of_edid, gop_edid);
++	}
++
+ 	return EFI_SUCCESS;
+ }
+diff --git a/drivers/firmware/efi/libstub/x86-stub.c b/drivers/firmware/efi/libstub/x86-stub.c
+index dd9e19c31dd7c..6e51cca726841 100644
+--- a/drivers/firmware/efi/libstub/x86-stub.c
++++ b/drivers/firmware/efi/libstub/x86-stub.c
+@@ -488,7 +488,7 @@ static void setup_graphics(struct boot_params *boot_params)
+ {
+ 	struct screen_info *si = memset(&boot_params->screen_info, 0, sizeof(*si));
+ 
+-	efi_setup_gop(si);
++	efi_setup_graphics(si, NULL);
+ }
+ 
+ static void __noreturn efi_exit(efi_handle_t handle, efi_status_t status)
+diff --git a/include/linux/efi.h b/include/linux/efi.h
+index 60e994096e208..a01f3fe20dab5 100644
+--- a/include/linux/efi.h
++++ b/include/linux/efi.h
+@@ -373,6 +373,8 @@ void efi_native_runtime_setup(void);
+ #define EFI_DEVICE_PATH_TO_TEXT_PROTOCOL_GUID	EFI_GUID(0x8b843e20, 0x8132, 0x4852,  0x90, 0xcc, 0x55, 0x1a, 0x4e, 0x4a, 0x7f, 0x1c)
+ #define EFI_DEVICE_PATH_FROM_TEXT_PROTOCOL_GUID	EFI_GUID(0x05c99a21, 0xc70f, 0x4ad2,  0x8a, 0x5f, 0x35, 0xdf, 0x33, 0x43, 0xf5, 0x1e)
+ #define EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID	EFI_GUID(0x9042a9de, 0x23dc, 0x4a38,  0x96, 0xfb, 0x7a, 0xde, 0xd0, 0x80, 0x51, 0x6a)
++#define EFI_EDID_DISCOVERED_PROTOCOL_GUID	EFI_GUID(0x1c0c34f6, 0xd380, 0x41fa,  0xa0, 0x49, 0x8a, 0xd0, 0x6c, 0x1a, 0x66, 0xaa)
++#define EFI_EDID_ACTIVE_PROTOCOL_GUID		EFI_GUID(0xbd8c1056, 0x9f36, 0x44ec,  0x92, 0xa8, 0xa6, 0x33, 0x7f, 0x81, 0x79, 0x86)
+ #define EFI_PCI_IO_PROTOCOL_GUID		EFI_GUID(0x4cf5b200, 0x68b8, 0x4ca5,  0x9e, 0xec, 0xb2, 0x3e, 0x3f, 0x50, 0x02, 0x9a)
+ #define EFI_FILE_INFO_ID			EFI_GUID(0x09576e92, 0x6d3f, 0x11d2,  0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b)
+ #define EFI_SYSTEM_RESOURCE_TABLE_GUID		EFI_GUID(0xb122a263, 0x3661, 0x4f68,  0x99, 0x29, 0x78, 0xf8, 0xb0, 0xd6, 0x21, 0x80)

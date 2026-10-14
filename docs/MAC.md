@@ -117,10 +117,19 @@ firmware is pickier about sticks: a 2008–2012 Mac is tried before
 batch I is done, and what it finds goes into the code or the Learn
 page, not into a list of tried models (§7).
 
-The 6.6 kernel's EFI stub still reads the firmware's framebuffer on
-Macs whose firmware offers UGA instead of GOP (2006–2010). 6.14 removed
-that path; the kernel update that crosses 6.14 checks the Macs in
-`drivers/firmware/efi/sysfb_efi.c`'s table and says what it found.
+The stick's kernel is 6.18 (F23), whose EFI stub no longer reads the
+framebuffer of firmware that offers UGA instead of GOP (removed in
+6.14, mainline 144d52dd8fc8). Checked against 6.18.56 (2026-10-14).
+Apple lists no Mac's graphics protocols; the Macs known to need UGA
+are the early ones with 32-bit EFI, which cannot start the stick at
+all, since it carries only `BOOTX64.EFI`. For a Mac that starts it with
+UGA and no GOP,
+`drivers/firmware/efi/sysfb_efi.c` still fills in the framebuffer's
+address, stride and size from its table (iMac4,1 to iMac11,1,
+Macmini1,1, 3,1 and 4,1, MacBook1,1 to 7,1, MacBookAir1,1 and 3,1,
+MacBookPro1,1 to 8,2), and efifb takes 32 bits a pixel, x8r8g8b8, when
+nothing says otherwise. A Mac with UGA only and not in that table
+would start with no picture. Batch I's Mac says which it has.
 
 On the dual-GPU MacBook Pros, the stub's `apple_set_os` runs by itself
 (firmware vendor "Apple", models listed in `x86-stub.c`). Batch I
@@ -164,8 +173,8 @@ In `faraday/image/overlay/boards/x86_64-uefi/`:
   a root port (the built-in keyboard, a USB keyboard plugged straight
   in) is handed to EHCI's UHCI companion controller, so Faraday sees
   no keyboard there. From 2011 the chipset's own hub matches rates and
-  EHCI alone serves it. Bound by PCI class, as OHCI. Until batch I
-  (which waits for the kernel move), the Learn page says a keyboard on
+  EHCI alone serves it. Bound by PCI class, as OHCI. Until batch I,
+  the Learn page says a keyboard on
   a pre-2011 Mac may not be found and a USB 2.0 hub between works.
 - `kernel.forbidden`: `MOUSE_BCM5974`, with `HID_APPLE`'s reason: it
   binds by Apple's USB vendor and product IDs, which any device can

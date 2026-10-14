@@ -24,6 +24,7 @@ pub mod create;
 pub mod decode;
 pub mod demo;
 pub mod devices;
+pub mod edid;
 pub mod explore;
 pub mod family;
 pub mod flow;

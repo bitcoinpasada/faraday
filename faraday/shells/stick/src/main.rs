@@ -1422,9 +1422,8 @@ fn run(args: Args) -> Result<bool, String> {
             let mut app = Faraday::new();
             app.medium = medium();
             if app.medium == Medium::Stick {
-                app.secure_boot = std::fs::read(BOOT_PARAMS)
-                    .map(|d| SecureBootAtStart::from_boot_params(&d))
-                    .unwrap_or_default();
+                let boot_params = std::fs::read(BOOT_PARAMS).unwrap_or_default();
+                app.secure_boot = SecureBootAtStart::from_boot_params(&boot_params);
                 app.maker = std::fs::read_to_string(SYS_VENDOR)
                     .map(|m| m.trim().to_string())
                     .unwrap_or_default();
@@ -1436,14 +1435,16 @@ fn run(args: Args) -> Result<bool, String> {
                 app.maker_family = read(PRODUCT_FAMILY);
                 app.maker_model = read(PRODUCT_NAME);
                 // What the machine says of itself, once: a virtual
-                // machine, and whether its screen is a separate one.
+                // machine, whether its screen is a separate one, and
+                // the screen's EDID as the firmware passed it.
                 let text = |p: &str| std::fs::read_to_string(p).unwrap_or_default();
                 app.devices = faraday_core::devices::DeviceCheck::machine(
                     &text(CPUINFO),
                     &app.maker,
                     &text(PRODUCT_NAME),
                     &text(CHASSIS_TYPE),
-                );
+                )
+                .with_edid(faraday_core::edid::from_boot_params(&boot_params));
             }
             app
         }),

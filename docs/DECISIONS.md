@@ -758,3 +758,42 @@ them as plain text, and text may be a secret. They are public.
 - Anything else stays as it was: a private key block, text around the
   block, armor that does not read, or any secret-key packet inside is
   text or a file Faraday does not read, which may be a secret.
+
+### F23 The PC stick's kernel is 6.18 longterm, ahead of upstream's (2026-10-14)
+
+**Why.** Upstream's board file pins the PC stick's kernel to 6.6.84
+while the 6.6 longterm series is at 6.6.158, so the stick missed about
+seventy stable releases of fixes. And on the stick Faraday could not
+tell whether its screen is a TV (STARTER §3.1a): DRM is forbidden, so
+nothing reads the screen's EDID. From Linux 6.19 the EFI stub reads it
+from the firmware and puts its base block in `boot_params`, with no
+graphics driver. Faraday had decided to add nothing to the kernel
+until upstream moved it; waiting left both open.
+
+**Decision** (owner, 2026-10-14).
+
+- Faraday builds the PC stick (`x86_64-uefi`, release and dev) on
+  mainline 6.18 longterm, 6.18.56 to start, and follows its stable
+  releases. Its image overlay replaces the board's
+  `buildroot.fragment` with a copy that differs in the tarball, its
+  sha256 (from kernel.org's signed `sha256sums.asc`) and
+  `BR2_LINUX_KERNEL_PATCH`; the board's `linux.fragment` and its
+  `kernel.required` and `kernel.forbidden` lists are checked as
+  before.
+- Five mainline commits from 6.19 are carried as patches in
+  `faraday/image/overlay/boards/x86_64-uefi/linux-patches/`, each the
+  commit's diff unchanged: 9d805709d897, ae42b9c5ddda, 17029cdd8f9d,
+  e41ef37ddfe7 and 5688e977ed2b. Nothing else is patched, and DRM
+  stays forbidden.
+- The stick reads the EDID's base block from
+  `/sys/kernel/boot_params/data` and names a screen whose name names a
+  TV or a KVM (STARTER §3.1a). `faraday-core`'s `edid` module holds
+  the rules the Starter and the stick share.
+- The Pi's kernel is unchanged: upstream's Raspberry Pi tree.
+- Upstream is asked to move the board to 6.18 and carry the five
+  commits (`local/for-upstream/kernel-6.18-edid.md`). When its board
+  has both, Faraday's copy and its patches go.
+- `faraday/image/run-build.sh` cleans a variant's Buildroot tree when
+  its kernel source (tarball, hash, patches) changes: the toolchain's
+  headers are the kernel's, and Buildroot does not notice a new
+  tarball in a tree it has built.

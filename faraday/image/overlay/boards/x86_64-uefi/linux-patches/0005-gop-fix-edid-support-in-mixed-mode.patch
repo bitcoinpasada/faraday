@@ -1,0 +1,30 @@
+efi/libstub: gop: Fix EDID support in mixed-mode
+
+Mainline commit 5688e977ed2b, Linux 6.19:
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=5688e977ed2b98b2f881cdf2b1306a7bb2ba5018
+The diff unchanged; the message and its authorship are at that link.
+
+diff --git a/drivers/firmware/efi/libstub/gop.c b/drivers/firmware/efi/libstub/gop.c
+index 72d74436a7a44..80dc8cfeb33e9 100644
+--- a/drivers/firmware/efi/libstub/gop.c
++++ b/drivers/firmware/efi/libstub/gop.c
+@@ -513,15 +513,15 @@ efi_status_t efi_setup_graphics(struct screen_info *si, struct edid_info *edid)
+ 		status = efi_bs_call(handle_protocol, handle, &EFI_EDID_ACTIVE_PROTOCOL_GUID,
+ 				     (void **)&active_edid);
+ 		if (status == EFI_SUCCESS) {
+-			gop_size_of_edid = active_edid->size_of_edid;
+-			gop_edid = active_edid->edid;
++			gop_size_of_edid = efi_table_attr(active_edid, size_of_edid);
++			gop_edid = efi_table_attr(active_edid, edid);
+ 		} else {
+ 			status = efi_bs_call(handle_protocol, handle,
+ 					     &EFI_EDID_DISCOVERED_PROTOCOL_GUID,
+ 					     (void **)&discovered_edid);
+ 			if (status == EFI_SUCCESS) {
+-				gop_size_of_edid = discovered_edid->size_of_edid;
+-				gop_edid = discovered_edid->edid;
++				gop_size_of_edid = efi_table_attr(discovered_edid, size_of_edid);
++				gop_edid = efi_table_attr(discovered_edid, edid);
+ 			}
+ 		}
+ 

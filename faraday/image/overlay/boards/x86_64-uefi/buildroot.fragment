@@ -1,0 +1,51 @@
+# x86_64 with UEFI firmware: the architecture and the kernel. There is no
+# firmware package: the kernel is the EFI application the firmware runs.
+#
+# Faraday's copy of upstream's board file (docs/DECISIONS.md F23): the
+# kernel is 6.18 longterm where upstream pins 6.6.84, with five commits
+# from 6.19 that put the screen's EDID in boot_params. Everything else
+# is upstream's as it stands. When upstream's board has both, this file
+# and linux-patches/ go and the board's own file is built again.
+
+# Plain x86-64, the baseline every 64-bit PC implements. A later
+# microarchitecture level would be a faster binary on a machine that has
+# it and an unbootable stick on one that does not.
+BR2_x86_64=y
+BR2_x86_x86_64=y
+
+# The toolchain's headers are the kernel's. Buildroot 2024.02 knows no
+# series past 6.6, and its last choice is "6.6.x or later", checked
+# loosely, which 6.18 is.
+BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_6_6=y
+
+# ---- kernel ----
+# Mainline stable from kernel.org, 6.18 longterm, and its x86_64
+# defconfig with the `=m` lines dropped (external/external.mk) plus our
+# fragments.
+BR2_LINUX_KERNEL_CUSTOM_TARBALL=y
+BR2_LINUX_KERNEL_CUSTOM_TARBALL_LOCATION="https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.18.56.tar.xz"
+# The tarball's sha256, which build.sh checks after the download. This is
+# the value kernel.org's sha256sums.asc carries for it, whose signature
+# by the kernel.org checksum autosigner (B8868C80BA62A1FFFAF5FDA9632D3A06589DA6B1)
+# was checked, rather than one computed from a download of our own: a
+# hash from the same fetch it is meant to check checks nothing.
+# KERNEL_SHA256 4633bbda2ab95eaf2a7af4041236451d6759c72e6946265531af4b3aacefbf89
+BR2_LINUX_KERNEL_DEFCONFIG="x86_64"
+# The five mainline commits from 6.19 by which the EFI stub reads the
+# EDID of the screen the firmware draws on and puts its base block in
+# boot_params (0x140 of /sys/kernel/boot_params/data), with no graphics
+# driver: what lets the stick name a TV (docs/STARTER.md §3.1a). Each
+# file is the commit's diff unchanged, under its subject and a link to
+# it. /image is this tree as build.sh sees it.
+BR2_LINUX_KERNEL_PATCH="/image/boards/x86_64-uefi/linux-patches"
+BR2_LINUX_KERNEL_NEEDS_HOST_OPENSSL=y
+# objtool, which an x86_64 kernel builds and runs over every object file,
+# needs libelf. Buildroot builds its own rather than taking the
+# container's, so the Dockerfile stays the list of Buildroot's own
+# documented host dependencies and nothing more.
+BR2_LINUX_KERNEL_NEEDS_HOST_LIBELF=y
+
+# bzImage is what CONFIG_EFI_STUB makes an EFI application: the same file
+# is a PE/COFF binary the firmware can run and a kernel with the whole
+# root filesystem inside it. post-image.sh copies it to EFI/BOOT/BOOTX64.EFI.
+BR2_LINUX_KERNEL_BZIMAGE=y

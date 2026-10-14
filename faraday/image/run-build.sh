@@ -69,15 +69,53 @@ if [ "$head" != "$commit" ]; then
     exit 1
 fi
 "${DOCKER:-docker}" build -t opensigner-pi-image "$merged"
-"${DOCKER:-docker}" run --rm \
-    -e BOARD="$board" -e PANEL="$panel" -e DEV="$dev" \
-    -v "$root/out/pi/buildroot":/buildroot \
-    -v "$root/out/pi/$variant/output":/output \
-    -v "$root/out/pi/dl":/dl \
-    -v "$root/out/pi/ccache":/ccache \
-    -v "$root/out/faraday/$board/opensigner-pi":/binary/opensigner-pi:ro \
-    -v "$merged":/image:ro \
-    opensigner-pi-image /image/build.sh
+in_container() {
+    "${DOCKER:-docker}" run --rm \
+        -e BOARD="$board" -e PANEL="$panel" -e DEV="$dev" \
+        -v "$root/out/pi/buildroot":/buildroot \
+        -v "$root/out/pi/$variant/output":/output \
+        -v "$root/out/pi/dl":/dl \
+        -v "$root/out/pi/ccache":/ccache \
+        -v "$root/out/faraday/$board/opensigner-pi":/binary/opensigner-pi:ro \
+        -v "$merged":/image:ro \
+        opensigner-pi-image "$@"
+}
+
+# Buildroot unpacks the kernel once per build tree, and builds the
+# toolchain against that kernel's headers, and notices neither a new
+# tarball nor new patches afterwards. The board's kernel source is its
+# tarball, the tarball's hash and its patches (docs/DECISIONS.md F23);
+# when that changes, the build tree is cleaned first. The downloads and
+# the compiler cache stay. A tree built before this stamp existed is
+# judged by the tarball and patches its .config names.
+board_fragment="$merged/boards/$board/buildroot.fragment"
+kernel_lines() {
+    grep -E '^(BR2_LINUX_KERNEL_CUSTOM_TARBALL_LOCATION|BR2_LINUX_KERNEL_PATCH)=' "$1" | sort || true
+}
+kernel_source="$({
+    kernel_lines "$board_fragment"
+    grep -E '^# KERNEL_SHA256 ' "$board_fragment" || true
+    cat "$merged/boards/$board/linux-patches/"*.patch 2>/dev/null || true
+} | sha256sum | cut -d' ' -f1)"
+source_stamp="$root/out/pi/$variant/kernel-source"
+config="$root/out/pi/$variant/output/.config"
+changed=no
+if [ -f "$source_stamp" ]; then
+    [ "$(cat "$source_stamp")" = "$kernel_source" ] || changed=yes
+elif [ -f "$config" ]; then
+    # .config writes BR2_LINUX_KERNEL_PATCH="" where a fragment says
+    # nothing.
+    old="$(kernel_lines "$config" | grep -v '^BR2_LINUX_KERNEL_PATCH=""$' || true)"
+    new="$(kernel_lines "$board_fragment" | grep -v '^BR2_LINUX_KERNEL_PATCH=""$' || true)"
+    [ "$old" = "$new" ] || changed=yes
+fi
+if [ "$changed" = yes ] && [ -f "$root/out/pi/$variant/output/Makefile" ]; then
+    echo "==> $variant: the kernel source changed; cleaning its build tree"
+    in_container make -C /output clean
+fi
+
+in_container /image/build.sh
+printf '%s\n' "$kernel_source" > "$source_stamp"
 
 # The PC's kernel carries its release string uncompressed in the bzImage
 # setup code, which is what the upgrade reads (PLAN.md §5.5).

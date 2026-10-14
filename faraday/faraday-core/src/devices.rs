@@ -64,7 +64,7 @@ pub enum Kind {
     BoltReceiver,
     /// Faraday is running inside a virtual machine.
     VirtualMachine,
-    /// The person said the screen is a TV.
+    /// The screen is a TV: its EDID says so, or the person did.
     Tv,
 }
 
@@ -276,8 +276,12 @@ pub struct DeviceCheck {
     pub read: bool,
     /// The virtual machine Faraday runs in, if it does.
     pub virtual_machine: Option<String>,
-    /// The screen is a separate one: asked once whether it is a TV.
+    /// The screen is a separate one: asked once whether it is a TV,
+    /// unless its EDID settled it.
     pub external_screen: bool,
+    /// The screen as its EDID names it, when it is a TV or a KVM's
+    /// capture side.
+    screen: Option<Concern>,
     /// The person's answer: it is a TV (`true`) or not; `None` not yet.
     pub tv: Option<bool>,
     /// The USB devices of concern attached now.
@@ -308,8 +312,36 @@ impl DeviceCheck {
         }
     }
 
-    /// Everything of concern now: the machine, the screen as the person
-    /// answered, and the USB devices.
+    /// The screen's EDID base block as the firmware passed it at start
+    /// ([`crate::edid::from_boot_params`]), when it did. A TV or a KVM is
+    /// held by its name and nothing is asked. A screen whose maker makes
+    /// no TVs is not asked about either. A TV maker's screen whose base
+    /// block names no TV may still be one (the base block has none of
+    /// the CEA-861 extension the Starter reads), so a separate one is
+    /// still asked about.
+    pub fn with_edid(mut self, edid: Option<&[u8]>) -> Self {
+        let Some(e) = edid else {
+            return self;
+        };
+        let kind = crate::edid::display(e).map(|d| match d {
+            crate::edid::Display::Tv => Kind::Tv,
+            crate::edid::Display::Kvm => Kind::Kvm,
+        });
+        if let Some(kind) = kind {
+            self.screen = Some(Concern {
+                key: "screen".into(),
+                name: crate::edid::edid_name(e).unwrap_or_else(|| EN.devices_this_screen.into()),
+                kind,
+            });
+        }
+        if kind.is_some() || !crate::edid::tv_maker(e) {
+            self.external_screen = false;
+        }
+        self
+    }
+
+    /// Everything of concern now: the machine, the screen as its EDID
+    /// named it or the person answered, and the USB devices.
     fn now(&self) -> Vec<Concern> {
         let mut out = Vec::new();
         if let Some(name) = &self.virtual_machine {
@@ -319,6 +351,7 @@ impl DeviceCheck {
                 kind: Kind::VirtualMachine,
             });
         }
+        out.extend(self.screen.clone());
         if self.tv == Some(true) {
             out.push(Concern {
                 key: "screen".into(),
