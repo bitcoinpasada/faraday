@@ -11,6 +11,7 @@
 //! `TESTKIT_DIR` is what `faraday-testkit` wrote; its files stand in
 //! for a stick called TESTSTICK. Each step of the tour is one numbered
 //! PNG in `OUT_DIR`. With `spend`, only the Spend tab's tour runs; with
+//! `devices`, the stick's device check and its reminders; with
 //! `themes`, three screens in each theme; with `keys`, Wallets with keys
 //! in no wallet; with `visit`, Stick visit with a backup's 20 files in the
 //! Outbox, each list scrolled to its end; with `copy`, the backup's seeds
@@ -403,12 +404,12 @@ fn receiver(bolt: bool) -> faraday_core::devices::UsbDevice {
     }
 }
 
-/// The stick's device check (`docs/STARTER.md` §3.1a): Home's TV line; a
-/// wireless receiver at start, a line on Home that holds nothing, and a
-/// Bolt receiver's; an IP-KVM named, and Continue anyway asking; a
-/// virtual machine with an IP-KVM, which has no way on; a desktop's
-/// question whether its screen is a TV, and the same desktop whose
-/// firmware passed a TV's EDID. Home empty ends it.
+/// The stick's device check (`docs/STARTER.md` §3.1a, F24): before the
+/// first secret, the reminders with a wireless receiver attached, and
+/// with a Bolt receiver; an IP-KVM named at start, and Continue anyway
+/// asking; a virtual machine with an IP-KVM, which has no way on; a
+/// desktop's reminder alone, and the same desktop whose firmware passed
+/// a TV's EDID. Home empty ends it.
 fn devices_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::devices::{DeviceCheck, Interface, UsbDevice};
     let hid = |protocol| Interface {
@@ -434,11 +435,13 @@ fn devices_tour(t: &mut Tour) -> Result<(), String> {
     };
     t.app.devices = laptop();
     t.app.usb_devices(&[receiver(false)]);
-    t.pump();
+    t.press(Action::Entry(None));
     t.shot("devices-receiver")?;
+    t.press(Action::Cancel);
     t.app.usb_devices(&[receiver(true)]);
-    t.pump();
+    t.press(Action::Entry(None));
     t.shot("devices-receiver-bolt")?;
+    t.press(Action::Cancel);
     t.app.usb_devices(std::slice::from_ref(&kvm));
     t.pump();
     t.shot("devices-kvm")?;
@@ -458,9 +461,9 @@ fn devices_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Cancel);
     t.app.devices = DeviceCheck::machine("flags\t: fpu vme", "Dell Inc.", "OptiPlex 7090", "3");
     t.app.usb_devices(&[]);
-    t.pump();
-    t.shot("devices-tv-ask")?;
-    t.press(Action::DevicesTv(false));
+    t.press(Action::Entry(None));
+    t.shot("devices-before")?;
+    t.press(Action::Cancel);
     // The same desktop whose firmware passed a TV's EDID: named, not asked.
     let mut edid = [0u8; 128];
     edid[..8].copy_from_slice(&[0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0]);
@@ -542,6 +545,7 @@ fn run(
     };
     match only {
         Some("spend") => return spend_tour(&mut t),
+        Some("devices") => return devices_tour(&mut t),
         Some("themes") => return themes_tour(&mut t),
         Some("compact") => return compact_tour(&mut t),
         Some("seeds") => return seeds_tour(&mut t),
@@ -4496,6 +4500,7 @@ fn main() -> ExitCode {
     if only.is_some_and(|m| {
         ![
             "spend",
+            "devices",
             "themes",
             "compact",
             "seeds",
@@ -4522,7 +4527,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore or osk"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore or osk"
         );
         return ExitCode::from(2);
     }

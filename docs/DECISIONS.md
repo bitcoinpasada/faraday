@@ -797,3 +797,32 @@ until upstream moved it; waiting left both open.
   its kernel source (tarball, hash, patches) changes: the toolchain's
   headers are the kernel's, and Buildroot does not notice a new
   tarball in a tree it has built.
+
+### F24 The stick's reminders come before the first secret, not at start (2026-10-14)
+
+**Why.** Every start of the stick carried "On a TV? Stop: a smart TV
+can record its screen." on Home, a wireless receiver added a line
+there, and a desktop was asked at start whether its screen is a TV.
+A line that is always there stops being read, and none of it matters
+until a secret is about to be shown or typed.
+
+**Decision** (owner, 2026-10-14).
+
+- What the stick found (a KVM by its USB identity, a screen whose EDID
+  names a TV or a KVM, a virtual machine) is named at start as before
+  (STARTER §3.1a), with Check again and Continue anyway, and a virtual
+  machine is still refused.
+- What it did not find but may capture a secret is a reminder: the TV
+  line, unless the screen's EDID settled it (F23), and the wireless
+  receiver's line, or the Bolt's, while one is attached. Neither is on
+  Home, and the question whether the screen is a TV goes.
+- The first action that would put a secret on the screen or have one
+  typed opens one sheet, **Before a secret is shown**, with what was
+  found and the reminders due; with only reminders, **Cancel** and
+  **I understand**. Continue anyway goes on from the reminders too.
+- When the action also needs a stick pulled, the reminders are on the
+  sheet asking for it, and pulling the stick goes on from them: one
+  sheet, never two in a row.
+- A reminder seen does not come back this session; a new one comes at
+  the next secret.
+- The Starter is unchanged: it warns ahead of time, on its Home.

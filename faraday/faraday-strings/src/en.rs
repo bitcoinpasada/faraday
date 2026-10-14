@@ -14,7 +14,8 @@ pub struct Strings {
     /// What an IP-KVM or KVM can do, after its name and a colon.
     pub devices_kvm: &'static str,
     /// A wireless receiver attached (STARTER §3.1a): one line that holds
-    /// nothing, on the stick's Home and the Starter's.
+    /// nothing, on the Starter's Home and, on the stick, among the
+    /// reminders before a secret.
     pub devices_receiver_notice: &'static str,
     /// A Logitech Bolt receiver attached: its keyboards' typing is
     /// encrypted. In place of the receiver line.
@@ -25,7 +26,7 @@ pub struct Strings {
     pub devices_virtual_machine_unknown: &'static str,
     /// The line under a virtual machine: there is no way on.
     pub devices_real_computer: &'static str,
-    /// The name of the screen the person said is a TV.
+    /// The name of a screen whose EDID gives no name.
     pub devices_this_screen: &'static str,
     /// What a TV can do.
     pub devices_tv: &'static str,
@@ -43,17 +44,18 @@ pub struct Strings {
     pub devices_still: &'static str,
     /// The sheet's Power off, for a virtual machine.
     pub devices_power_off: &'static str,
-    /// The stick's first screen, always: it cannot read the screen.
+    /// The reminder before a secret, on the stick, when the screen's
+    /// EDID did not settle whether it may be a TV.
     pub devices_tv_line: &'static str,
+    /// Title of the sheet before a secret when it lists only reminders.
+    pub devices_before: &'static str,
+    /// The button that goes on from the reminders.
+    pub devices_understood: &'static str,
+    /// The button that goes back from them.
+    pub devices_cancel: &'static str,
     /// Home, while the system has given no randomness well after the
     /// start: nothing is sealed and no keyboard gets a code.
     pub seed_missing: &'static str,
-    /// Title of the question a desktop computer's screen gets once.
-    pub devices_tv_ask: &'static str,
-    /// The answer: it is a TV.
-    pub devices_tv_yes: &'static str,
-    /// The answer: it is not.
-    pub devices_tv_no: &'static str,
     // ----- The Starter (docs/STARTER.md), faraday-starter -----
     /// Title of the Starter's Home, where the way back goes.
     pub starter_home: &'static str,
@@ -8071,10 +8073,10 @@ pub static EN: Strings = Strings {
     devices_still: "Still attached",
     devices_power_off: "Power off",
     devices_tv_line: "On a TV? Stop: a smart TV can record its screen.",
+    devices_before: "Before a secret is shown",
+    devices_understood: "I understand",
+    devices_cancel: "Cancel",
     seed_missing: "No randomness from the system. Faraday has to restart",
-    devices_tv_ask: "Is this screen a TV?",
-    devices_tv_yes: "It is a TV",
-    devices_tv_no: "It is not a TV",
     // The Starter (docs/STARTER.md).
     starter_home: "Home",
     starter_computer: "This computer",

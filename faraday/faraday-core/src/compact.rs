@@ -306,23 +306,9 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     }
     y += 38.0;
 
-    // The stick cannot read the screen: every start says it.
-    if app.devices.read {
-        let line = crate::strings::EN.devices_tv_line;
-        y += ui.wrap(M, y, inner, 13.0, W::S, WARN, line) + 10.0;
-    }
     // The system gave no randomness: nothing seals until a restart.
     if app.seed_missing() {
         y += ui.wrap(M, y, inner, 13.0, W::S, ERR, EN.seed_missing) + 10.0;
-    }
-    // A wireless receiver: a line, which holds nothing.
-    if let Some(line) = app.devices.receiver_line() {
-        let tone = if line == EN.devices_bolt_notice {
-            MUTED
-        } else {
-            WARN
-        };
-        y += ui.wrap(M, y, inner, 13.0, W::S, tone, line) + 10.0;
     }
 
     // What this session holds.

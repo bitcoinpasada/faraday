@@ -457,11 +457,11 @@ app, and on the stick do the best with what it knows; never warn
 about what the stick makes harmless). The question for each device is
 whether it can capture the screen or the keys without Faraday's help:
 
-| Threat | The Starter, ahead of time | The stick, at start |
+| Threat | The Starter, ahead of time | The stick, at start or before the first secret |
 |---|---|---|
-| A TV or other screen that records, on HDMI | the screen's EDID, as above | the base block of the EDID the firmware passed (below): a name naming a TV or a KVM is held by that name, nothing asked. On a desktop or mini PC (DMI chassis type), whose screen is external, it asks once whether the screen is a TV when the firmware passed no EDID or the maker's ID is a TV maker's and the name names no TV; every start carries the TV line |
+| A TV or other screen that records, on HDMI | the screen's EDID, as above | the base block of the EDID the firmware passed (below): a name naming a TV or a KVM is held at start by that name. Otherwise, before the first secret, the reminder "On a TV? Stop: a smart TV can record its screen.", unless the EDID settled it: the maker is not a TV maker, or the computer has its own panel (DMI chassis type) |
 | A KVM switch or IP-KVM (captures the screen, types from afar) | its USB identity (the Linux USB-gadget vendor `1d6b` with a keyboard and a disk; strings naming KVM) and the EDID name its capture side reports | its USB identity, from what `faraday-grant` reads |
-| A wireless keyboard receiver (keys travel over the air; owner, 2026-10-12: a notice, not a hold, about keyboards only, since a mouse's movements reveal next to nothing and the Starter cannot tell what a receiver has paired) | its USB identity (strings naming a receiver, dongle or wireless; the common receivers' IDs), as one line that holds nothing: "Wireless receiver attached. A wireless keyboard's typing can be picked up nearby: use a wired keyboard or the on-screen keyboard." | the same line, and the on-screen keyboard is offered in every layout (the wide one included) |
+| A wireless keyboard receiver (keys travel over the air; owner, 2026-10-12: a notice, not a hold, about keyboards only, since a mouse's movements reveal next to nothing and the Starter cannot tell what a receiver has paired) | its USB identity (strings naming a receiver, dongle or wireless; the common receivers' IDs), as one line that holds nothing: "Wireless receiver attached. A wireless keyboard's typing can be picked up nearby: use a wired keyboard or the on-screen keyboard." | the same line as a reminder before the first secret (F24), and the on-screen keyboard is offered in every layout (the wide one included) |
 | Running inside a virtual machine (its host sees and can change everything) | says the stick must start on the real computer, and that the Starter cannot see the host's devices | refuses to go on: no Continue anyway |
 | Remote desktop, screen sharing, a wireless display | only around showing the BitLocker recovery key (§6.5) | none: the stick has no network |
 
@@ -495,13 +495,27 @@ but none of the CEA-861 extension, so on the stick only a name names a
 TV (or a KVM): such a screen is held at start by its name, on a laptop
 too (its lid may be shut with a TV on HDMI), and Check again does not
 release it, since the screen is still the one the firmware named;
-Continue anyway does. A screen whose maker is not a TV maker is not
-asked about. A TV maker's screen whose name names no TV, or a firmware
-that passed no EDID, leaves the question as before on a desktop. The
-stick's first screen always carries one line: "On a TV? Stop: a smart
-TV can record its screen." The stick's own device check (above) warns
-at start, before anything is unlocked, and the same hold applies to
-showing a secret.
+Continue anyway does. A screen whose maker is not a TV maker, or a
+computer's own panel, needs no reminder. A TV maker's separate screen
+whose name names no TV, or a firmware that passed no EDID, gets the
+reminder.
+
+**What the stick shows, and when** (owner, 2026-10-14; F24). What the
+stick found (a KVM, a screen named a TV or a KVM, a virtual machine)
+is named on a sheet at start, before anything is unlocked, as above.
+What it did not find but may capture a secret is a reminder: the TV
+line above, and the wireless receiver's line (or the Bolt's) while one
+is attached. Nothing shows a reminder at start or on Home. The first
+action that would put a secret on the screen or have one typed
+(loading or making a key, scanning, unlocking, showing a seed or a
+key) opens one sheet, **Before a secret is shown**, listing what was
+found and the reminders due. With only reminders it offers **Cancel**
+and **I understand**; with something found, Check again and Continue
+anyway as before, and Continue anyway goes on from the reminders too.
+When that action also needs a stick pulled, the reminders are on the
+sheet that asks for it, and pulling the stick goes on from them. A
+reminder seen once does not come back this session; a new one (a
+receiver plugged in later) comes at the next secret.
 
 ### 3.1b What Secure Boot and BitLocker are (owner, 2026-10-12)
 

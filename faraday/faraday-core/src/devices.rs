@@ -15,8 +15,13 @@
 //! instead ([`Faraday::device_holds`]). A virtual machine is never let
 //! through.
 //!
-//! A wireless receiver is not held: it is one line on Home
-//! ([`DeviceCheck::receiver_line`]), about keyboards only.
+//! What may capture a secret but was not found is a reminder
+//! ([`DeviceCheck::reminders`], `docs/DECISIONS.md` F24): the screen
+//! may be a TV, unless its EDID settled it, and a wireless receiver is
+//! attached. Nothing shows them at start or on Home. The first time a
+//! secret would go in, the same sheet lists them with I understand, or
+//! the sheet asking for a stick to be pulled lists them and pulling it
+//! is the answer. They come back only when one is new.
 
 use crate::strings::EN;
 
@@ -64,7 +69,7 @@ pub enum Kind {
     BoltReceiver,
     /// Faraday is running inside a virtual machine.
     VirtualMachine,
-    /// The screen is a TV: its EDID says so, or the person did.
+    /// The screen is a TV: its EDID says so.
     Tv,
 }
 
@@ -276,14 +281,15 @@ pub struct DeviceCheck {
     pub read: bool,
     /// The virtual machine Faraday runs in, if it does.
     pub virtual_machine: Option<String>,
-    /// The screen is a separate one: asked once whether it is a TV,
-    /// unless its EDID settled it.
+    /// The screen is a separate one, by the chassis type.
     pub external_screen: bool,
     /// The screen as its EDID names it, when it is a TV or a KVM's
     /// capture side.
     screen: Option<Concern>,
-    /// The person's answer: it is a TV (`true`) or not; `None` not yet.
-    pub tv: Option<bool>,
+    /// The screen's EDID settled whether it may be a TV: no reminder.
+    screen_settled: bool,
+    /// The reminders the person has seen and gone on from, this session.
+    understood: Vec<&'static str>,
     /// The USB devices of concern attached now.
     present: Vec<Concern>,
     /// What the sheet names: each item found and not yet checked again
@@ -314,11 +320,11 @@ impl DeviceCheck {
 
     /// The screen's EDID base block as the firmware passed it at start
     /// ([`crate::edid::from_boot_params`]), when it did. A TV or a KVM is
-    /// held by its name and nothing is asked. A screen whose maker makes
-    /// no TVs is not asked about either. A TV maker's screen whose base
-    /// block names no TV may still be one (the base block has none of
-    /// the CEA-861 extension the Starter reads), so a separate one is
-    /// still asked about.
+    /// held by its name. A screen whose maker makes no TVs, or a
+    /// computer's own panel, needs no reminder that it may be a TV. A TV
+    /// maker's separate screen whose base block names no TV may still be
+    /// one (the base block has none of the CEA-861 extension the Starter
+    /// reads), and so may any screen when the firmware passed no EDID.
     pub fn with_edid(mut self, edid: Option<&[u8]>) -> Self {
         let Some(e) = edid else {
             return self;
@@ -334,14 +340,12 @@ impl DeviceCheck {
                 kind,
             });
         }
-        if kind.is_some() || !crate::edid::tv_maker(e) {
-            self.external_screen = false;
-        }
+        self.screen_settled = kind.is_some() || !crate::edid::tv_maker(e) || !self.external_screen;
         self
     }
 
     /// Everything of concern now: the machine, the screen as its EDID
-    /// named it or the person answered, and the USB devices.
+    /// named it, and the USB devices.
     fn now(&self) -> Vec<Concern> {
         let mut out = Vec::new();
         if let Some(name) = &self.virtual_machine {
@@ -352,31 +356,44 @@ impl DeviceCheck {
             });
         }
         out.extend(self.screen.clone());
-        if self.tv == Some(true) {
-            out.push(Concern {
-                key: "screen".into(),
-                name: EN.devices_this_screen.into(),
-                kind: Kind::Tv,
-            });
-        }
-        // A receiver is a line on Home and holds nothing.
+        // A receiver is a reminder and holds nothing.
         out.extend(self.present.iter().filter(|c| !c.kind.receiver()).cloned());
         out.retain(|c| !self.let_through.contains(&c.key));
         out
     }
 
-    /// The screen still waits for its question.
-    fn tv_unasked(&self) -> bool {
-        self.read && self.external_screen && self.tv.is_none()
+    /// The reminders that apply now: the screen may be a TV, on the
+    /// stick, unless its EDID settled it; a wireless receiver is
+    /// attached.
+    pub fn reminders(&self) -> Vec<&'static str> {
+        let mut out = Vec::new();
+        if self.read && !self.screen_settled && self.screen.is_none() {
+            out.push(EN.devices_tv_line);
+        }
+        out.extend(self.receiver_line());
+        out
     }
 
-    /// Whatever shows or takes a secret waits: an item is held, or the
-    /// screen's question is not answered.
+    /// The reminders not yet gone on from this session.
+    pub fn reminders_due(&self) -> Vec<&'static str> {
+        let mut out = self.reminders();
+        out.retain(|r| !self.understood.contains(r));
+        out
+    }
+
+    /// The person went on from the reminders due.
+    pub(crate) fn understand(&mut self) {
+        let due = self.reminders_due();
+        self.understood.extend(due);
+    }
+
+    /// Whatever shows or takes a secret waits: an item is held, or a
+    /// reminder has not been seen.
     pub fn holding(&self) -> bool {
-        !self.held.is_empty() || self.tv_unasked()
+        !self.held.is_empty() || !self.reminders_due().is_empty()
     }
 
-    /// Home's line for a wireless receiver attached now: the warning for
+    /// The line for a wireless receiver attached now: the warning for
     /// any receiver but Logitech's Bolt, the Bolt's own line when it is
     /// the only kind attached; nothing without one.
     pub fn receiver_line(&self) -> Option<&'static str> {
@@ -424,7 +441,8 @@ impl Faraday {
         self.commands.push_back(osk_shell_api::Command::Draw);
     }
 
-    /// The sheet comes up when it is due and no other sheet is.
+    /// The sheet comes up when an item is held, it is due and no other
+    /// sheet is. Reminders alone wait for a secret.
     pub(crate) fn device_sheet(&mut self) {
         if !self.devices.read || self.sheet.is_some() {
             return;
@@ -433,9 +451,6 @@ impl Faraday {
         if !d.held.is_empty() && d.due {
             d.due = false;
             self.sheet = Some(Sheet::Devices);
-        } else if d.tv_unasked() && d.due {
-            d.due = false;
-            self.sheet = Some(Sheet::TvAsk);
         }
     }
 
@@ -469,34 +484,42 @@ impl Faraday {
     pub(crate) fn device_hold(&mut self, action: Action) {
         self.devices.after = Some(action);
         self.devices.asking = false;
-        self.sheet = Some(if self.devices.held.is_empty() {
-            Sheet::TvAsk
-        } else {
-            Sheet::Devices
-        });
+        self.sheet = Some(Sheet::Devices);
     }
 
-    /// The hold ended, or moved on to the screen's question: what was
-    /// pressed carries on once nothing holds it.
+    /// The hold ended: what was pressed carries on once nothing holds
+    /// it, or comes back to the sheet with the reminders due.
     fn device_released(&mut self) {
         self.sheet = None;
-        if self.devices.tv_unasked() {
-            self.sheet = Some(Sheet::TvAsk);
-            return;
-        }
         if let Some(a) = self.devices.after.take() {
             self.act(a);
         }
     }
 
+    /// The reminders the sheet shows: only while a secret waits, never
+    /// at start.
+    pub fn device_reminders(&self) -> Vec<&'static str> {
+        if self.devices.after.is_some() {
+            self.devices.reminders_due()
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// I understand: the reminders are seen, and what waited carries on.
+    pub(crate) fn device_understood(&mut self) {
+        if !self.devices.held.is_empty() {
+            return;
+        }
+        self.devices.understand();
+        self.device_released();
+    }
+
     /// Check again: what was pulled goes from the sheet, and the sheet
-    /// with it once nothing is left. A TV is asked about again.
+    /// with it once nothing is left.
     pub(crate) fn device_check(&mut self) {
         let d = &mut self.devices;
         d.asking = false;
-        if d.tv == Some(true) {
-            d.tv = None;
-        }
         d.held = d.now();
         if d.held.is_empty() {
             self.device_released();
@@ -519,19 +542,10 @@ impl Faraday {
         d.asking = false;
         let keys: Vec<String> = d.held.drain(..).map(|c| c.key).collect();
         d.let_through.extend(keys);
-        self.device_released();
-    }
-
-    /// The answer to Is this screen a TV?
-    pub(crate) fn device_tv(&mut self, tv: bool) {
-        let d = &mut self.devices;
-        d.tv = Some(tv);
-        if tv {
-            d.held = d.now();
-            d.asking = false;
-            self.sheet = Some(Sheet::Devices);
-        } else {
-            self.device_released();
+        // What the sheet listed with them is seen too.
+        if d.after.is_some() {
+            d.understand();
         }
+        self.device_released();
     }
 }

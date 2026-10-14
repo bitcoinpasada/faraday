@@ -2,18 +2,19 @@
 //! screen or the keys is named at start, before anything is unlocked;
 //! while it is attached and not let through, nothing that shows a secret
 //! is offered. Check again after it is pulled releases; Continue anyway
-//! asks once; a virtual machine has no Continue anyway; a desktop's
-//! screen is asked about once, unless the EDID the firmware passed
-//! settled it; a screen whose EDID names a TV or a KVM is held by its
-//! name; Home always carries the TV line. A wireless receiver holds
-//! nothing: it is a line on Home, and a Bolt receiver's line says its
-//! typing is encrypted.
+//! asks once; a virtual machine has no Continue anyway; a screen whose
+//! EDID names a TV or a KVM is held by its name. What was not found but
+//! may capture a secret is a reminder (F24): the screen may be a TV,
+//! unless its EDID settled it, and a wireless receiver is attached (a
+//! Bolt receiver's line says its typing is encrypted). Nothing shows
+//! them at start or on Home; the first secret brings them, once, with I
+//! understand, or on the sheet asking for a stick to be pulled.
 
 use faraday_core::devices::{
     DeviceCheck, Interface, Kind, UsbDevice, screen_external, usb_kind, usb_name, virtual_machine,
 };
 use faraday_core::edid::from_boot_params;
-use faraday_core::{Action, Faraday, Screen, Sheet};
+use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent};
 use osk_shell_api::{App, DisplayInfo, Event};
 
 const CPU: &str = "processor\t: 0\nflags\t\t: fpu vme de pse tsc msr\n";
@@ -207,9 +208,19 @@ fn shown(machine: DeviceCheck) -> Faraday {
     app
 }
 
+/// A laptop whose firmware passed its own panel's EDID: nothing to
+/// remind of.
 fn laptop() -> DeviceCheck {
     DeviceCheck::machine(CPU, "LENOVO", "20XW", "10")
+        .with_edid(from_boot_params(&boot_params(Some(("ABC", None)))))
 }
+
+/// A desktop whose firmware passed no EDID: the screen may be a TV.
+fn desktop() -> DeviceCheck {
+    DeviceCheck::machine(CPU, "Dell Inc.", "OptiPlex 7090", "3")
+}
+
+const TV_LINE: &str = "On a TV? Stop: a smart TV can record its screen.";
 
 fn says(app: &mut Faraday, text: &str) -> bool {
     app.drawn_texts().iter().any(|t| t.contains(text))
@@ -229,21 +240,29 @@ fn a_kvm_attached_at_start_is_named_on_a_sheet() {
 }
 
 #[test]
-fn a_receiver_is_a_line_on_home_and_holds_nothing() {
+fn a_receiver_is_a_reminder_before_the_first_secret_not_a_line_on_home() {
     let mut app = shown(laptop());
     app.usb_devices(&[receiver()]);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Home);
+    assert!(!says(&mut app, "Wireless receiver attached."));
+    // Typing a key: the reminder first.
+    app.press(Action::Entry(None));
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    assert!(says(&mut app, "Before a secret is shown"));
     assert!(says(&mut app, "Wireless receiver attached."));
     assert!(!says(&mut app, "Bolt"));
-    // Typing a key goes on.
+    assert!(app.where_offered(Action::DevicesContinue).is_none());
+    app.press(Action::DevicesUnderstood);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Entry);
+    // Seen once: pulled and plugged in again, it does not come back.
+    app.usb_devices(&[]);
+    app.usb_devices(&[receiver()]);
+    app.press(Action::Nav(Screen::Home));
     app.press(Action::Entry(None));
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Entry);
-    // Pulled, the line goes.
-    app.usb_devices(&[]);
-    app.press(Action::Nav(Screen::Home));
-    assert!(!says(&mut app, "Wireless receiver attached."));
 }
 
 #[test]
@@ -258,11 +277,18 @@ fn a_bolt_receiver_says_its_typing_is_encrypted() {
     );
     app.usb_devices(std::slice::from_ref(&bolt));
     assert_eq!(app.sheet, None);
+    app.press(Action::Entry(None));
     assert!(says(&mut app, "Logitech Bolt receiver attached."));
     assert!(!says(&mut app, "Wireless receiver attached."));
-    // An unknown receiver beside it: the warning.
+    app.press(Action::DevicesUnderstood);
+    // An unknown receiver beside it is new: the warning, at the next
+    // secret.
     let dongle = device(0x1234, 0x5678, "Acme", "2.4G Wireless Dongle", vec![hid(1)]);
     app.usb_devices(&[bolt, dongle]);
+    assert_eq!(app.sheet, None);
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Entry(None));
+    assert_eq!(app.sheet, Some(Sheet::Devices));
     assert!(says(&mut app, "Wireless receiver attached."));
 }
 
@@ -362,44 +388,101 @@ fn a_virtual_machine_has_no_continue_anyway() {
 }
 
 #[test]
-fn a_desktop_asks_once_whether_its_screen_is_a_tv() {
-    let desktop = || DeviceCheck::machine(CPU, "Dell Inc.", "OptiPlex 7090", "3");
+fn the_tv_reminder_comes_once_before_the_first_secret() {
     let mut app = shown(desktop());
     app.usb_devices(&[]);
-    assert_eq!(app.sheet, Some(Sheet::TvAsk));
-    assert!(says(&mut app, "Is this screen a TV?"));
-    // Unanswered, a key waits for the answer.
-    app.press(Action::Cancel);
+    // Nothing at start, and nothing on Home.
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Home);
+    assert!(!says(&mut app, TV_LINE));
+    // A key waits for it; Cancel goes back, and it asks again.
     app.press(Action::Entry(None));
-    assert_eq!(app.sheet, Some(Sheet::TvAsk));
-    app.press(Action::DevicesTv(false));
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    assert!(says(&mut app, TV_LINE));
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    assert_ne!(app.screen, Screen::Entry);
+    app.press(Action::Nav(Screen::Unlock));
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    // I understand: what was pressed carries on, and the next secret
+    // goes straight on.
+    app.press(Action::DevicesUnderstood);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Unlock);
+    app.press(Action::Entry(None));
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Entry);
-
-    // A TV is held like anything else.
-    let mut app = shown(desktop());
+    // On a laptop whose firmware passed no EDID too.
+    let mut app = shown(DeviceCheck::machine(CPU, "LENOVO", "20XW", "10"));
     app.usb_devices(&[]);
-    app.press(Action::DevicesTv(true));
-    assert_eq!(app.sheet, Some(Sheet::Devices));
-    assert!(says(&mut app, "This screen: a TV can record what it shows"));
-    app.press(Action::Cancel);
     app.press(Action::Entry(None));
-    assert_ne!(app.screen, Screen::Entry);
-    // Check again asks again: the screen may have been changed.
-    app.press(Action::DevicesCheck);
-    assert_eq!(app.sheet, Some(Sheet::TvAsk));
+    assert!(says(&mut app, TV_LINE));
+    // Not in the desktop app, which reads no machine.
+    let mut app = shown(DeviceCheck::default());
+    app.press(Action::Entry(None));
+    assert_eq!(app.screen, Screen::Entry);
 }
 
 #[test]
-fn the_stick_home_always_carries_the_tv_line() {
-    let line = "On a TV? Stop: a smart TV can record its screen.";
-    let mut app = shown(laptop());
+fn a_kvm_and_the_reminders_share_one_sheet() {
+    let mut app = shown(desktop());
+    app.usb_devices(&[kvm()]);
+    // At start, what was found, and no reminder.
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    assert!(!says(&mut app, TV_LINE));
+    app.press(Action::Cancel);
+    // Before a secret, both; Continue anyway goes on from both.
+    app.press(Action::Entry(None));
+    assert!(says(&mut app, "PiKVM Composite KVM Device"));
+    assert!(says(&mut app, TV_LINE));
+    app.press(Action::DevicesContinue);
+    app.press(Action::DevicesContinue);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Entry);
+    app.press(Action::Nav(Screen::Unlock));
+    assert_eq!(app.sheet, None);
+}
+
+#[test]
+fn the_reminders_ride_on_the_sheet_that_asks_for_a_stick_to_be_pulled() {
+    let sticks = |on: bool| {
+        StorageEvent::Sticks(if on {
+            vec![StickInfo {
+                id: "a".into(),
+                label: "STICK".into(),
+                boot: false,
+                files: Vec::new(),
+            }]
+        } else {
+            Vec::new()
+        })
+    };
+    let mut app = shown(desktop());
     app.usb_devices(&[]);
+    app.storage(sticks(true));
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::KeyGen(None));
+    // One sheet: pull the stick, and the reminder.
+    assert_eq!(app.sheet, Some(Sheet::Pull));
+    assert!(says(&mut app, TV_LINE));
+    // Pulling it goes on, and the reminder is seen.
+    app.storage(sticks(false));
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::KeyGen);
+    app.storage(sticks(true));
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::KeyGen(None));
+    assert_eq!(app.sheet, Some(Sheet::Pull));
+    assert!(!says(&mut app, TV_LINE));
+}
+
+#[test]
+fn home_carries_no_reminder() {
+    let mut app = shown(desktop());
+    app.usb_devices(&[receiver()]);
     assert_eq!(app.screen, Screen::Home);
-    assert!(says(&mut app, line));
-    // Not the desktop app, which reads no machine.
-    let mut desktop = shown(DeviceCheck::default());
-    assert!(!says(&mut desktop, line));
+    assert!(!says(&mut app, TV_LINE));
+    assert!(!says(&mut app, "Wireless receiver attached."));
 }
 
 // ----- The screen's EDID, from the boot parameters -----
@@ -433,7 +516,7 @@ fn boot_params(edid: Option<(&str, Option<&str>)>) -> Vec<u8> {
 }
 
 fn desktop_with(data: &[u8]) -> DeviceCheck {
-    DeviceCheck::machine(CPU, "Dell Inc.", "OptiPlex 7090", "3").with_edid(from_boot_params(data))
+    desktop().with_edid(from_boot_params(data))
 }
 
 /// A desktop whose firmware passed the EDID of `maker`'s screen named
@@ -486,29 +569,30 @@ fn a_screen_whose_edid_names_a_kvm_is_held_as_one() {
 }
 
 #[test]
-fn a_monitor_whose_edid_settles_it_is_not_asked_about() {
+fn a_monitor_whose_edid_settles_it_needs_no_reminder() {
     let mut app = shown(desktop_showing("ABC", Some("EXAMPLE 24")));
     app.usb_devices(&[]);
     assert_eq!(app.sheet, None);
     app.press(Action::Entry(None));
     assert_eq!(app.screen, Screen::Entry);
-    // Home still carries the TV line.
+    // A monitor that gives no name, the same.
     let mut app = shown(desktop_showing("ABC", None));
     app.usb_devices(&[]);
-    assert_eq!(app.screen, Screen::Home);
-    let line = "On a TV? Stop: a smart TV can record its screen.";
-    assert!(says(&mut app, line));
+    app.press(Action::Entry(None));
+    assert_eq!(app.screen, Screen::Entry);
 }
 
 #[test]
-fn a_tv_makers_screen_or_no_edid_is_still_asked_about() {
+fn a_tv_makers_screen_or_no_edid_still_gets_the_reminder() {
     // A TV maker's base block that names no TV: the extension that would
     // tell is not in the boot parameters.
     let mut app = shown(desktop_showing("SAM", Some("EXAMPLE 27")));
     app.usb_devices(&[]);
-    assert_eq!(app.sheet, Some(Sheet::TvAsk));
+    app.press(Action::Entry(None));
+    assert!(says(&mut app, TV_LINE));
     // The firmware passed none.
     let mut app = shown(desktop_with(&boot_params(None)));
     app.usb_devices(&[]);
-    assert_eq!(app.sheet, Some(Sheet::TvAsk));
+    app.press(Action::Entry(None));
+    assert!(says(&mut app, TV_LINE));
 }

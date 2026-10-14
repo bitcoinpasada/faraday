@@ -846,8 +846,8 @@ pub enum Action {
     DevicesCheck,
     /// The device check's Continue anyway: asks first.
     DevicesContinue,
-    /// The answer to Is this screen a TV?
-    DevicesTv(bool),
+    /// I understand, under the reminders before a secret.
+    DevicesUnderstood,
     /// Power off.
     PowerOff,
     /// Minutes without input before locking; 0 for never.
@@ -1580,11 +1580,9 @@ pub enum Sheet {
     /// Replace, Keep both or Cancel (`visit_taken`).
     Taken,
     /// What is attached that can capture the screen or the keys, each
-    /// named with what it can do (`devices`).
+    /// named with what it can do, and before a secret the reminders
+    /// (`devices`).
     Devices,
-    /// Is this screen a TV? Asked once, on a computer whose screen is a
-    /// separate one (`devices`).
-    TvAsk,
 }
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
@@ -3822,10 +3820,14 @@ impl Faraday {
                 self.toast(&said);
             }
             self.import_stick_gone();
-            // What was pressed with the stick in carries on.
+            // What was pressed with the stick in carries on, and the
+            // reminders the sheet listed are seen.
             if self.sheet == Some(Sheet::Pull) {
                 self.sheet = None;
                 if let Some(a) = self.pull.take() {
+                    if self.devices.held.is_empty() {
+                        self.devices.understand();
+                    }
                     self.act(a);
                 }
             }
@@ -4451,6 +4453,16 @@ impl Faraday {
         // attached and not let through, what shows a secret waits under
         // its sheet (`docs/STARTER.md` §3.1a).
         if self.device_holds(action) {
+            // Reminders alone ride on the sheet that asks for the stick
+            // to be pulled: one sheet, and pulling it is going on.
+            let pull = self.selftest_passed()
+                && !self.sticks.is_empty()
+                && self.pull_what(action).is_some();
+            if pull && self.devices.held.is_empty() {
+                self.pull = Some(action);
+                self.sheet = Some(Sheet::Pull);
+                return;
+            }
             self.device_hold(action);
             return;
         }
@@ -4966,7 +4978,7 @@ impl Faraday {
             },
             Action::DevicesCheck => self.device_check(),
             Action::DevicesContinue => self.device_continue(),
-            Action::DevicesTv(tv) => self.device_tv(tv),
+            Action::DevicesUnderstood => self.device_understood(),
             Action::Cancel => {
                 self.pull = None;
                 self.devices.after = None;

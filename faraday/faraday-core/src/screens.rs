@@ -153,7 +153,6 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::Zeroing => crate::stick_wipe::zeroing_sheet(app, ui, w, h),
             Sheet::Taken => crate::visit_taken::taken_sheet(app, ui, w, h),
             Sheet::Devices => devices_sheet(app, ui, w, h),
-            Sheet::TvAsk => tv_ask_sheet(ui, w, h),
         }
         ui.oy = 0.0;
     }
@@ -1116,14 +1115,6 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut y = 44.0;
     title(ui, x, y, EN.home_home);
     y += 64.0;
-    // The stick cannot read the screen: every start says it.
-    if app.devices.read {
-        let line = crate::strings::EN.devices_tv_line;
-        ui.icon(x - 4.0, y - 6.0, 28.0, Icon::Warning, 14.0, WARN);
-        let line = ui.fit(14.0, W::S, line, width - 28.0);
-        ui.text(x + 26.0, y, 14.0, W::S, WARN, &line);
-        y += 36.0;
-    }
     // The system gave no randomness: nothing seals until a restart.
     if app.seed_missing() {
         ui.icon(x - 4.0, y - 6.0, 28.0, Icon::Error, 14.0, ERR);
@@ -1131,17 +1122,6 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text(x + 26.0, y, 14.0, W::S, ERR, &line);
         y += 36.0;
     }
-    // A wireless receiver: a line, which holds nothing.
-    if let Some(line) = app.devices.receiver_line() {
-        let tone = if line == crate::strings::EN.devices_bolt_notice {
-            MUTED
-        } else {
-            WARN
-        };
-        ui.icon(x - 4.0, y - 6.0, 28.0, Icon::Keyboard, 14.0, tone);
-        y += ui.wrap(x + 26.0, y, width - 28.0, 14.0, W::S, tone, line) + 18.0;
-    }
-
     section_label(ui, x, y, EN.home_start);
     y += 30.0;
 
@@ -13956,6 +13936,17 @@ fn selftest_failed(ui: &mut Ui, w: f32, h: f32, check: &str) {
 fn devices_buttons(app: &Faraday) -> Vec<(&'static str, Style, Action)> {
     let s = &crate::strings::EN;
     let d = &app.devices;
+    // Reminders alone: go on from them, or not.
+    if d.held.is_empty() {
+        return vec![
+            (s.devices_cancel, Style::Secondary, Action::Cancel),
+            (
+                s.devices_understood,
+                Style::Primary,
+                Action::DevicesUnderstood,
+            ),
+        ];
+    }
     let mut b = vec![(
         s.devices_check_again,
         Style::Secondary,
@@ -13979,12 +13970,33 @@ fn devices_buttons(app: &Faraday) -> Vec<(&'static str, Style, Action)> {
     b
 }
 
+/// The tone a reminder is drawn in: the Bolt's line says its typing is
+/// encrypted, which is no warning.
+fn reminder_tone(line: &str) -> osk_ui::Color {
+    if line == crate::strings::EN.devices_bolt_notice {
+        MUTED
+    } else {
+        WARN
+    }
+}
+
 /// What is attached that can capture the screen or the keys
-/// (`docs/STARTER.md` §3.1a): a line for each, and what holds them.
+/// (`docs/STARTER.md` §3.1a): a line for each, and what holds them;
+/// before a secret, the reminders due under them (F24).
 fn devices_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let s = &crate::strings::EN;
     let d = &app.devices;
-    let lines: Vec<String> = d.held.iter().map(crate::devices::Concern::line).collect();
+    let mut lines: Vec<(String, osk_ui::Color)> = d.held.iter().map(|c| (c.line(), TEXT)).collect();
+    lines.extend(
+        app.device_reminders()
+            .into_iter()
+            .map(|r| (r.to_string(), reminder_tone(r))),
+    );
+    let title = if d.held.is_empty() {
+        s.devices_before
+    } else {
+        s.devices_title
+    };
     let foot = if d.refuses() {
         Some((s.devices_real_computer, ERR))
     } else if d.asking {
@@ -13996,9 +14008,9 @@ fn devices_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     if ui.compact {
         crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, WARN, s.devices_title);
-            for l in &lines {
-                cy += ui.wrap(x, cy, iw, 14.0, W::R, TEXT, l) + 8.0;
+            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, WARN, title);
+            for (l, tone) in &lines {
+                cy += ui.wrap(x, cy, iw, 14.0, W::R, *tone, l) + 8.0;
             }
             if let Some((f, tone)) = foot {
                 cy += 4.0;
@@ -14014,7 +14026,7 @@ fn devices_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let iw = sw - 64.0;
     let line_h = ui.line(14.0, W::R);
     let mut body = 0.0;
-    for l in &lines {
+    for (l, _) in &lines {
         body += ui.wrap_lines(14.0, W::R, l, iw) as f32 * line_h + 10.0;
     }
     if let Some((f, _)) = foot {
@@ -14024,10 +14036,10 @@ fn devices_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let (x, y) = sheet_box(ui, w, h, sw, sh);
     let ix = x + 32.0;
     ui.icon(ix, y + 28.0, 30.0, Icon::Warning, 17.0, WARN);
-    ui.text_mid(ix + 42.0, y + 28.0, 30.0, 20.0, W::S, TEXT, s.devices_title);
+    ui.text_mid(ix + 42.0, y + 28.0, 30.0, 20.0, W::S, TEXT, title);
     let mut cy = y + 28.0 + 30.0 + 26.0;
-    for l in &lines {
-        cy += ui.wrap(ix, cy, iw, 14.0, W::R, TEXT, l) + 10.0;
+    for (l, tone) in &lines {
+        cy += ui.wrap(ix, cy, iw, 14.0, W::R, *tone, l) + 10.0;
     }
     if let Some((f, tone)) = foot {
         cy += 4.0;
@@ -14040,55 +14052,6 @@ fn devices_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         ui.button(
             ix + i as f32 * (each + 12.0),
             by,
-            Some(each),
-            46.0,
-            label,
-            style,
-            action,
-        );
-    }
-}
-
-/// Is this screen a TV? Asked once on a computer whose screen is a
-/// separate one: the stick cannot read the screen's name.
-fn tv_ask_sheet(ui: &mut Ui, w: f32, h: f32) {
-    let s = &crate::strings::EN;
-    let buttons = [
-        (s.devices_tv_yes, Style::Secondary, Action::DevicesTv(true)),
-        (s.devices_tv_no, Style::Primary, Action::DevicesTv(false)),
-    ];
-    if ui.compact {
-        crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
-            let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, WARN, s.devices_tv_ask);
-            cy += ui.wrap(x, cy, iw, 14.0, W::R, MUTED, s.devices_tv_line) + 16.0;
-            cy += crate::compact::buttons(ui, x, cy, iw, &buttons);
-            cy - y
-        });
-        return;
-    }
-    let sw = 480.0f32.min(w - 48.0);
-    let iw = sw - 64.0;
-    let sh = 196.0;
-    let (x, y) = sheet_box(ui, w, h, sw, sh);
-    let ix = x + 32.0;
-    ui.icon(ix, y + 30.0, 30.0, Icon::Warning, 17.0, WARN);
-    ui.text_mid(
-        ix + 42.0,
-        y + 30.0,
-        30.0,
-        20.0,
-        W::S,
-        TEXT,
-        s.devices_tv_ask,
-    );
-    let line = ui.fit(13.0, W::R, s.devices_tv_line, iw);
-    ui.text(ix, y + 78.0, 13.0, W::R, MUTED, &line);
-    let each = (iw - 12.0) / 2.0;
-    for (i, (label, style, action)) in buttons.into_iter().enumerate() {
-        ui.button(
-            ix + i as f32 * (each + 12.0),
-            y + sh - 32.0 - 46.0,
             Some(each),
             46.0,
             label,
@@ -14114,11 +14077,19 @@ fn pull_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         ),
         k => fill(EN.pull_attached, &[&k.to_string(), app.medium.nouns()]),
     };
+    // A secret follows the pull: the reminders due go with it (F24).
+    let reminders = app.devices.reminders_due();
     if ui.compact {
         crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
             let mut cy = y;
             cy += crate::compact::sheet_head(ui, x, cy, iw, app.medium.icon(), WARN, &title);
             cy += ui.wrap(x, cy, iw, 13.0, W::R, MUTED, &line) + 16.0;
+            for r in &reminders {
+                cy += ui.wrap(x, cy, iw, 14.0, W::R, reminder_tone(r), r) + 8.0;
+            }
+            if !reminders.is_empty() {
+                cy += 8.0;
+            }
             cy += crate::compact::buttons(
                 ui,
                 x,
@@ -14130,15 +14101,29 @@ fn pull_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         });
         return;
     }
-    let sh = 196.0;
+    let iw = 480.0 - 64.0;
+    let line_h = ui.line(14.0, W::R);
+    let extra: f32 = reminders
+        .iter()
+        .map(|r| ui.wrap_lines(14.0, W::R, r, iw) as f32 * line_h + 10.0)
+        .sum();
+    let sh = 196.0
+        + if reminders.is_empty() {
+            0.0
+        } else {
+            extra + 8.0
+        };
     let (x, y) = sheet_box(ui, w, h, 480.0, sh);
     let ix = x + 32.0;
-    let iw = 480.0 - 64.0;
     ui.icon(ix, y + 30.0, 30.0, app.medium.icon(), 18.0, WARN);
     let title = ui.fit(20.0, W::S, &title, iw - 42.0);
     ui.text_mid(ix + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, &title);
     let line = ui.fit(13.0, W::R, &line, iw);
     ui.text(ix, y + 78.0, 13.0, W::R, MUTED, &line);
+    let mut cy = y + 78.0 + 34.0;
+    for r in &reminders {
+        cy += ui.wrap(ix, cy, iw, 14.0, W::R, reminder_tone(r), r) + 10.0;
+    }
     ui.button(
         ix,
         y + sh - 32.0 - 46.0,

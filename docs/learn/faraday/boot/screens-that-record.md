@@ -8,7 +8,7 @@ In 2017 the US Federal Trade Commission and the State of New Jersey brought a ca
 
 What such a TV keeps or sends is decided by its own software, which cannot be checked from the computer. A recovery phrase or a key shown on it may leave the room.
 
-Faraday Starter reads each screen's identity (its EDID) and names one that is a TV. On the stick, Faraday has no graphics driver, so it reads the part of the screen's identity the computer's firmware passes it at start: the screen's name and maker. A screen whose name says TV is named before anything is unlocked. When the firmware passes nothing, or the name does not settle it, Faraday asks once whether the screen is a TV on a computer whose screen is a separate one. Every start carries the line "On a TV? Stop: a smart TV can record its screen."
+Faraday Starter reads each screen's identity (its EDID) and names one that is a TV. On the stick, Faraday has no graphics driver, so it reads the part of the screen's identity the computer's firmware passes it at start: the screen's name and maker. A screen whose name says TV is named before anything is unlocked. When the firmware passes nothing, or the name does not settle it, the first time a secret would be shown Faraday says "On a TV? Stop: a smart TV can record its screen." and waits for I understand.
 
 ## A KVM switch or an IP-KVM
 
@@ -30,7 +30,7 @@ Logitech's Bolt receivers use Bluetooth Low Energy in Secure Connections Only mo
 
 A mouse reveals next to nothing: where it moved and what it clicked, not what was typed.
 
-Faraday Starter and the stick name a wireless receiver by its USB identity, in one line that holds nothing back. A Bolt receiver, known by its ID, gets a line that says its typing is encrypted.
+Faraday Starter and the stick name a wireless receiver by its USB identity. The Starter shows it as one line that holds nothing back; the stick shows the same line the first time a secret would be shown, and waits for I understand. A Bolt receiver, known by its ID, gets a line that says its typing is encrypted.
 
 What to do: type with a Bolt keyboard or another whose link is encrypted, a wired keyboard, or the laptop's own; or with no keyboard at all, on Faraday's on-screen keyboard, worked with a mouse: the keyboard button beside the ? brings it up wherever typing goes.
 
