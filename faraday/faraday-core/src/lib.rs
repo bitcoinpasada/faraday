@@ -11231,10 +11231,10 @@ impl Faraday {
         // A panel under 600 dp wide (the Pi's 2.8" is 268) gets the
         // one-column layout at its own density, not the desktop shrunk.
         // So does a window the wide layout would have to shrink below
-        // four fifths of its density, such as one sharing the screen
-        // with another: a 1366 × 768 screen at 160 dpi still takes the
+        // three quarters of its density, such as one sharing the screen
+        // with another: a 960 × 640 window at 160 dpi still takes the
         // wide layout.
-        self.compact = f32::from(d.width) / density < 600.0 || fit < density * 0.8;
+        self.compact = f32::from(d.width) / density < 600.0 || fit < density * 0.75;
         // Held inside the Starter, the screens draw at the desktop's own
         // density, and take the one-column layout in any window narrower
         // than the wide layout's 1280 dp, rather than shrinking it.
