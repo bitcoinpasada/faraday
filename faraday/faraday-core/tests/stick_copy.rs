@@ -472,3 +472,117 @@ fn a_file_just_copied_in_shows_on_both_sides_and_waits_for_the_next_stick() {
     assert_eq!(wrote.len(), 1);
     assert_eq!(wrote[0].2, share.1);
 }
+
+/// A GPG certificate and its revocation certificate, armored as the GPG
+/// flow writes them.
+fn gpg_files() -> [(String, Vec<u8>); 2] {
+    use faraday_pgp::{Armor, Key, Reason, armor};
+    let key = Key {
+        primary_seed: [0x11; 32],
+        created: 1_780_000_000,
+        subkey_seed: [0x22; 32],
+        subkey_created: 1_780_000_000,
+        user_ids: vec!["Test Person <test@example.com>".to_string()],
+        expiry: 0,
+    };
+    [
+        (
+            "test-public.asc".to_string(),
+            armor(Armor::PublicKey, &key.certificate(1_780_000_000)).into_bytes(),
+        ),
+        (
+            "test-revocation.asc".to_string(),
+            armor(
+                Armor::PublicKey,
+                &key.revocation(1_780_000_060, Reason::Retired, "Not used"),
+            )
+            .into_bytes(),
+        ),
+    ]
+}
+
+#[test]
+fn a_gpg_public_key_and_revocation_copied_between_sticks_are_public() {
+    let mut app = testkit::started();
+    let files = gpg_files();
+    let a = Stick::new("a", &files);
+    attach(&mut app, &[&a]);
+    copy_in(&mut app, &[&a], &[&files[0].0, &files[1].0]);
+    assert!(app.inbox.iter().all(|i| i.kind == FileKind::Gpg));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let b = Stick::new("b", &[]);
+    attach(&mut app, &[&b]);
+
+    app.press(Action::VisitOutAll);
+    for (name, _) in &files {
+        assert!(app.visit.from_inbox.contains(name), "{name} not ticked");
+    }
+    assert_eq!(app.sheet, None);
+    assert!(app.secret_out.is_none(), "a secret sheet opened");
+    let wrote = write(&mut app, &[&b]);
+    assert_eq!(wrote.len(), 2);
+    for (stick, name, bytes) in &wrote {
+        assert_eq!(stick, "b");
+        let want = &files.iter().find(|f| f.0 == *name).unwrap().1;
+        assert_eq!(bytes, want, "{name} changed on its way");
+    }
+}
+
+#[test]
+fn a_gpg_public_key_and_revocation_stay_in_the_inbox_across_a_lock() {
+    let mut app = testkit::started();
+    let files = gpg_files();
+    let a = Stick::new("a", &files);
+    attach(&mut app, &[&a]);
+    copy_in(&mut app, &[&a], &[&files[0].0, &files[1].0]);
+    app.press(Action::Lock);
+    let mut saved = None;
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes {
+            inbox,
+            outbox,
+            kept,
+        } = c
+        {
+            saved = Some((inbox, outbox, kept));
+        }
+    }
+    let (inbox, outbox, kept) = saved.expect("the boxes were not saved");
+    let mut next = testkit::started();
+    next.storage(StorageEvent::Restored {
+        inbox,
+        outbox,
+        kept,
+    });
+    for (name, bytes) in &files {
+        let item = next
+            .inbox
+            .iter()
+            .find(|i| i.name == *name)
+            .unwrap_or_else(|| panic!("{name} did not outlive the lock"));
+        assert_eq!(&item.bytes, bytes);
+        assert_eq!(item.kind, FileKind::Gpg);
+    }
+}
+
+#[test]
+fn a_gpg_private_key_block_is_still_offered_as_something_that_may_be_a_secret() {
+    let mut app = testkit::started();
+    let [(_, public), _] = gpg_files();
+    let private = String::from_utf8(public)
+        .unwrap()
+        .replace("PUBLIC KEY BLOCK", "PRIVATE KEY BLOCK");
+    let file = ("test-private.asc".to_string(), private.into_bytes());
+    let a = Stick::new("a", std::slice::from_ref(&file));
+    attach(&mut app, &[&a]);
+    copy_in(&mut app, &[&a], &[&file.0]);
+    assert_eq!(app.inbox[0].kind, FileKind::Text);
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let b = Stick::new("b", &[]);
+    attach(&mut app, &[&b]);
+    app.press(Action::VisitOutAll);
+    assert!(app.visit.from_inbox.is_empty(), "Select all ticked it");
+    app.press(row(&app, &file.0).unwrap());
+    let out = app.secret_out.as_ref().expect("no secret sheet");
+    assert_eq!(out.ack, Ack::Unknown);
+}

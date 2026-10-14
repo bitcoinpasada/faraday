@@ -4,10 +4,14 @@
 //! signatures, a revocation certificate, and the secret parts in
 //! `paperkey`'s text form.
 //!
-//! Nothing here reads OpenPGP from outside. The inputs are the key's own
-//! seeds, its creation times, its user IDs and its expiry, which a vault
-//! keeps (`docs/VAULT.md` §7, type 7). Every signature is Ed25519's and so
-//! deterministic: the same key and time give the same bytes.
+//! The only OpenPGP read from outside is [`read_public_armor`]: it says
+//! whether a file is one ASCII-armoured block of public packets, a public
+//! key or a signature, and reads nothing but the armour and the packet
+//! headers, never a packet's contents. The inputs to everything else are
+//! the key's own seeds, its creation times, its user IDs and its expiry,
+//! which a vault keeps (`docs/VAULT.md` §7, type 7). Every signature is
+//! Ed25519's and so deterministic: the same key and time give the same
+//! bytes.
 //!
 //! The formats are RFC 4880 as RFC 9580 keeps them for version 4: the
 //! EdDSALegacy public-key algorithm (22) over the Ed25519 curve, SHA-1
@@ -574,4 +578,186 @@ pub fn fingerprint_text(fp: &[u8; 20]) -> String {
         let _ = write!(out, "{b:02X}");
     }
     out
+}
+
+/// Whether `bytes` are nothing but one ASCII-armoured OpenPGP block of
+/// public packets, and which kind (RFC 4880 §6, RFC 9580 §6). Blank lines
+/// may come before and after the block, line ends may be LF or CRLF, and
+/// the armour headers and the checksum line, when there, must be well
+/// formed and the checksum right. The packets must be whole, with their
+/// lengths given; a public-key block holds only signature, public key,
+/// trust, user ID, public subkey and user attribute packets, a signature
+/// block only signature packets. Only the armour and the packet headers
+/// are read, never a packet's contents.
+pub fn read_public_armor(bytes: &[u8]) -> Option<Armor> {
+    if !bytes.is_ascii() {
+        return None;
+    }
+    let mut lines = bytes
+        .trim_ascii()
+        .split(|&b| b == b'\n')
+        .map(|l| l.strip_suffix(b"\r").unwrap_or(l));
+    let (kind, end): (Armor, &[u8]) = match lines.next()? {
+        b"-----BEGIN PGP PUBLIC KEY BLOCK-----" => {
+            (Armor::PublicKey, b"-----END PGP PUBLIC KEY BLOCK-----")
+        }
+        b"-----BEGIN PGP SIGNATURE-----" => (Armor::Signature, b"-----END PGP SIGNATURE-----"),
+        _ => return None,
+    };
+    // Headers, up to the empty line.
+    loop {
+        let line = lines.next()?;
+        if line.is_empty() {
+            break;
+        }
+        let colon = line.windows(2).position(|w| w == b": ")?;
+        let (name, value) = (&line[..colon], &line[colon + 2..]);
+        if name.is_empty() || !name.iter().chain(value).all(|&b| (0x20..0x7f).contains(&b)) {
+            return None;
+        }
+    }
+    // The body: base64 across lines, then an optional checksum line, then
+    // the end line, and nothing after it.
+    let mut b64 = Base64Reader::default();
+    let mut checksum: Option<u32> = None;
+    loop {
+        let line = lines.next()?;
+        if line == end {
+            break;
+        }
+        if line.len() == 5 && line[0] == b'=' {
+            let mut v = 0u32;
+            for &b in &line[1..] {
+                v = v << 6 | u32::from(base64_value(b)?);
+            }
+            checksum = Some(v);
+            if lines.next()? != end {
+                return None;
+            }
+            break;
+        }
+        if line.is_empty() {
+            return None;
+        }
+        for &b in line {
+            b64.push(b)?;
+        }
+    }
+    if lines.next().is_some() || !b64.complete() {
+        return None;
+    }
+    let data = b64.data;
+    if checksum.is_some_and(|c| c != crc24(&data)) {
+        return None;
+    }
+    if data.is_empty() {
+        return None;
+    }
+    // Whole packets, by their headers.
+    let mut at = 0usize;
+    while at < data.len() {
+        let first = data[at];
+        if first & 0x80 == 0 {
+            return None;
+        }
+        let byte = |n: usize| data.get(at + n).copied().map(usize::from);
+        let (packet_tag, head, len) = if first & 0x40 != 0 {
+            let len0 = byte(1)?;
+            let (head, len) = match len0 {
+                0..=191 => (2, len0),
+                192..=223 => (3, ((len0 - 192) << 8) + byte(2)? + 192),
+                255 => (
+                    6,
+                    byte(2)? << 24 | byte(3)? << 16 | byte(4)? << 8 | byte(5)?,
+                ),
+                _ => return None,
+            };
+            (first & 0x3f, head, len)
+        } else {
+            let (head, len) = match first & 3 {
+                0 => (2, byte(1)?),
+                1 => (3, byte(1)? << 8 | byte(2)?),
+                2 => (
+                    5,
+                    byte(1)? << 24 | byte(2)? << 16 | byte(3)? << 8 | byte(4)?,
+                ),
+                _ => return None,
+            };
+            ((first >> 2) & 0x0f, head, len)
+        };
+        let allowed = match kind {
+            // Signature, public key, trust, user ID, public subkey, user
+            // attribute.
+            Armor::PublicKey => matches!(packet_tag, 2 | 6 | 12 | 13 | 14 | 17),
+            Armor::Signature => packet_tag == tag::SIGNATURE,
+        };
+        if !allowed {
+            return None;
+        }
+        at = at.checked_add(head)?.checked_add(len)?;
+        if at > data.len() {
+            return None;
+        }
+    }
+    Some(kind)
+}
+
+/// The value of one base64 character.
+fn base64_value(b: u8) -> Option<u8> {
+    match b {
+        b'A'..=b'Z' => Some(b - b'A'),
+        b'a'..=b'z' => Some(b - b'a' + 26),
+        b'0'..=b'9' => Some(b - b'0' + 52),
+        b'+' => Some(62),
+        b'/' => Some(63),
+        _ => None,
+    }
+}
+
+/// A base64 decoder fed one character at a time, so that the lines of an
+/// armoured body need no joining.
+#[derive(Default)]
+struct Base64Reader {
+    data: Vec<u8>,
+    quantum: [u8; 4],
+    have: usize,
+    pads: usize,
+    closed: bool,
+}
+
+impl Base64Reader {
+    fn push(&mut self, b: u8) -> Option<()> {
+        if self.closed {
+            return None;
+        }
+        if b == b'=' {
+            if self.have < 2 {
+                return None;
+            }
+            self.pads += 1;
+        } else if self.pads > 0 {
+            return None;
+        } else {
+            self.quantum[self.have] = base64_value(b)?;
+            self.have += 1;
+        }
+        if self.have + self.pads == 4 {
+            let q = self.quantum;
+            let bytes = [
+                q[0] << 2 | q[1] >> 4,
+                q[1] << 4 | q[2] >> 2,
+                q[2] << 6 | q[3],
+            ];
+            self.data.extend_from_slice(&bytes[..self.have - 1]);
+            self.closed = self.pads > 0;
+            self.have = 0;
+            self.pads = 0;
+        }
+        Some(())
+    }
+
+    /// Every quantum was finished.
+    fn complete(&self) -> bool {
+        self.have == 0 && self.pads == 0
+    }
 }

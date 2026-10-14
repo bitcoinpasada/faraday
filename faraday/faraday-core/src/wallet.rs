@@ -1180,6 +1180,9 @@ pub enum FileKind {
     /// Plain text Faraday reads as nothing else, such as recovery codes:
     /// kept as a note in a vault.
     Text,
+    /// An ASCII-armored GPG public key, revocation certificate or
+    /// signature: public (F22).
+    Gpg,
     /// Nothing this build reads.
     Other,
 }
@@ -1254,6 +1257,9 @@ pub fn classify(name: &str, bytes: &[u8]) -> FileKind {
     if let Ok(text) = std::str::from_utf8(bytes) {
         if text.starts_with("faraday-sheet 1") {
             return FileKind::Sheet;
+        }
+        if faraday_pgp::read_public_armor(bytes).is_some() {
+            return FileKind::Gpg;
         }
         if let Some(m) = osk_psbt::message::parse_signed(text)
             && m.address.parse::<osk_bip::bitcoin::Address<_>>().is_ok()

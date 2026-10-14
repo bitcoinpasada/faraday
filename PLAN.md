@@ -232,7 +232,9 @@ partition.
 
 Camera frames (OpenSigner's vendored `rqrr`, fuzzed), file contents read
 from sticks (PSBTs and other OpenSigner inputs, entry import text, the
-boot stick's settings file, §5.2),
+boot stick's settings file, §5.2), the armor and packet headers of a
+stick file that looks like an armored OpenPGP block (`faraday-pgp`,
+fuzzed; no packet's contents are read),
 vault files (only the fixed header is read before an authentication tag
 is checked; Argon2id cost is capped before allocation), FAT metadata (in
 the unprivileged disk process), GPT and MBR partition tables (in the
@@ -473,8 +475,9 @@ greyed, tagged "On this stick", and cannot be ticked, and the right
 column, **On the stick**, tags the matching files "In Faraday". So
 stick A → visit, copy in → stick B → visit, write; with both sticks in
 at once the visit shows one and then the other. A
-public or sealed file (PSBTs, wallets, descriptors, certificates,
-vaults, `.oskb`, KeePass) is written as it is, and Select all ticks it.
+public or sealed file (PSBTs, wallets, descriptors, certificates, GPG
+public keys, revocation certificates and signatures as armored `.asc`
+(F22), vaults, `.oskb`, KeePass) is written as it is, and Select all ticks it.
 A secret kind (words, seed parts, entries, a FROST carry file) is
 ticked only through the secret sheet, never by Select all: it may go
 into the open vault, or, once its line is ticked, is ticked to write

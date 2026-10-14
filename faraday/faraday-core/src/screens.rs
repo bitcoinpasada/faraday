@@ -9568,6 +9568,7 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
         FileKind::EfiImage => EN.kind_name_efi_image,
         FileKind::SeedPart => EN.kind_name_part_of_a,
         FileKind::Text => EN.kind_name_text,
+        FileKind::Gpg => EN.kind_name_gpg,
         FileKind::Other => EN.kind_name_file,
     }
 }

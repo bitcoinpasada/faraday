@@ -11,7 +11,7 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use faraday_pgp::{Armor, Hash, Key, Reason, armor};
+use faraday_pgp::{Armor, Hash, Key, Reason, armor, read_public_armor};
 
 /// May 2026: before any clock this runs on.
 const MADE: u32 = 1_780_000_000;
@@ -180,4 +180,62 @@ fn paperkey_prints_the_same_lines() {
         .map(|l| format!("{}\n", l.trim_end()))
         .collect();
     assert_eq!(ours, theirs);
+}
+
+#[test]
+fn what_gnupg_writes_reads_as_public_and_its_secret_key_does_not() {
+    let home = scratch("gpg-armor");
+    let Some((ok, said)) = gpg(
+        &home,
+        &[
+            "--passphrase",
+            "",
+            "--pinentry-mode",
+            "loopback",
+            "--quick-gen-key",
+            "Other Person <other@example.com>",
+            "ed25519",
+            "sign",
+            "never",
+        ],
+    ) else {
+        eprintln!("gpg is not installed: the GnuPG check is skipped");
+        return;
+    };
+    assert!(ok, "gpg could not make a key:\n{said}");
+    let export = |args: &[&str]| -> Vec<u8> {
+        let out = Command::new("gpg")
+            .arg("--homedir")
+            .arg(&*home)
+            .args(["--batch", "--no-tty", "--pinentry-mode", "loopback"])
+            .args(["--passphrase", ""])
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        out.stdout
+    };
+    let public = export(&["--armor", "--export"]);
+    assert!(!public.is_empty());
+    assert_eq!(read_public_armor(&public), Some(Armor::PublicKey));
+
+    let data = home.join("data.txt");
+    std::fs::write(&data, b"Signed by GnuPG.\n").unwrap();
+    let sig = export(&[
+        "--armor",
+        "--detach-sign",
+        "--output",
+        "-",
+        data.to_str().unwrap(),
+    ]);
+    assert!(!sig.is_empty());
+    assert_eq!(read_public_armor(&sig), Some(Armor::Signature));
+
+    let secret = export(&["--armor", "--export-secret-keys"]);
+    assert!(!secret.is_empty());
+    assert_eq!(read_public_armor(&secret), None);
 }

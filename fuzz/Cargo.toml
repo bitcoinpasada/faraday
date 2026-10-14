@@ -22,6 +22,7 @@ osk-crypto = { path = "../core/osk-crypto" }
 osk-backup = { path = "../core/osk-backup" }
 osk-keep = { path = "../core/osk-keep" }
 opensigner-core = { path = "../opensigner/opensigner-core" }
+faraday-pgp = { path = "../faraday/faraday-pgp" }
 
 [profile.release]
 debug = true
@@ -92,6 +93,13 @@ bench = false
 [[bin]]
 name = "decode_luma"
 path = "fuzz_targets/decode_luma.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pgp_armor"
+path = "fuzz_targets/pgp_armor.rs"
 test = false
 doc = false
 bench = false

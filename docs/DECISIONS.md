@@ -736,3 +736,25 @@ not need reads as a warning that something could go wrong.
   and starting from a stick" are shortened, and say plainly that
   turning Secure Boot off for the time it takes to start Faraday is
   safe. The maker pages say the recovery key is optional.
+
+### F22 An armored GPG public key or signature is public (2026-10-14)
+
+**Why.** A person copying their GPG public key and revocation
+certificate (`.asc`, the files Faraday's own GPG flow writes) from one
+stick to another was told "This may be a secret": `wallet::classify` read
+them as plain text, and text may be a secret. They are public.
+
+**Decision** (owner, 2026-10-14).
+
+- A file that is nothing but one ASCII-armored OpenPGP block of type
+  `PGP PUBLIC KEY BLOCK` or `PGP SIGNATURE`, whose packets are all public
+  kinds, is a public file: written as it is, ticked by Select all, kept
+  across a lock. `faraday-pgp` reads the armor and the packet headers
+  only (`PLAN.md` §4.4).
+- A revocation certificate is one of them. `PLAN.md` §5.2 already lists
+  revocation certificates in the Outbox as public. GnuPG advises keeping
+  one private, because whoever holds it can revoke the key; the owner
+  judged it public.
+- Anything else stays as it was: a private key block, text around the
+  block, armor that does not read, or any secret-key packet inside is
+  text or a file Faraday does not read, which may be a secret.

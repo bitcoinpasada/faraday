@@ -5276,6 +5276,8 @@ pub struct Strings {
     /// Text in `kind_name`.
     pub kind_name_text: &'static str,
     /// Text in `kind_name`.
+    pub kind_name_gpg: &'static str,
+    /// Text in `kind_name`.
     pub kind_name_file: &'static str,
     // ----- add_to_vault (faraday-core/src/screens.rs) -----
     /// Text in `add_to_vault`.
@@ -10600,6 +10602,7 @@ pub static EN: Strings = Strings {
     kind_name_efi_image: "EFI image",
     kind_name_part_of_a: "Part of a seed: SLIP-39 or codex32",
     kind_name_text: "Text",
+    kind_name_gpg: "GPG",
     kind_name_file: "File",
     add_to_vault_add_to: "Add to vault",
     restore_shares_button_restore: "Restore the wallet · {} shares",

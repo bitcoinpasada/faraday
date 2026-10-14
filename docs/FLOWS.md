@@ -834,7 +834,8 @@ visit** directly.
   already (by name and size) is listed greyed, tagged **On this stick**
   (**On this SD card**), with a disabled checkbox that cannot be ticked:
   a file just copied in shows here at once, and no "Copied" line says
-  it. A public or sealed file is ticked like a file For the stick, and
+  it. A public or sealed file (a GPG public key, revocation certificate
+  or signature included, F22) is ticked like a file For the stick, and
   Select all ticks it. A secret kind (words, seed
   parts, entries, a carry file), text and a file Faraday does not read
   open the secret sheet instead, never ticked by Select all: text, words,

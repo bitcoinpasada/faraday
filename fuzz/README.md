@@ -1,6 +1,6 @@
 # Fuzzing
 
-Ten `cargo fuzz` targets, one per parser that reads something the device
+Eleven `cargo fuzz` targets, one per parser that reads something the device
 did not write: a camera frame, a scanned payload, a PSBT from a
 coordinator, a file on storage. `docs/PLANNING.md` §12 asks for them;
 the 2026-09-11 security review item M5 is why they exist now. The Pi
@@ -78,6 +78,7 @@ cd fuzz && cargo +nightly fuzz run decode_luma artifacts/decode_luma/rqrr-perspe
 | `settings_read` | `opensigner_core::settings::read` |
 | `keep_open` | `osk_keep::header`, `challenge`, `open`, `count_attempt` |
 | `xkey` | `osk_bip::xkey::decode_xpriv` / `decode_xpub`, `slip132::decode_xpub` |
+| `pgp_armor` | `faraday_pgp::read_public_armor` |
 | `decode_luma` | `osk_codec::decode_luma`, the frame's width and height taken from the first two bytes |
 
 Two of them shape the input before the call, because the code under test
