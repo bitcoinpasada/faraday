@@ -2,7 +2,9 @@
 
 **Status:** spec v0.1 · 2026-10-12 · drafted from the owner's decisions
 in discussion (`docs/DECISIONS.md` F15). Not built. §12 records each
-decision; none is open.
+decision; none is open. D7, the APK signing key, was replaced on
+2026-10-14 (F25): the key is made, kept and used in Faraday, and its
+spec is `docs/APK-SIGNING.md`.
 
 The problem it solves: Faraday's device and the Starter both hand things
 to a phone, and today the phone has nothing of Faraday's to take them.
@@ -74,8 +76,10 @@ is a second app with its own name, so that this one never gains the
   it (F-Droid's reproducible-build method; §8).
 - Arm64 phones and the x86_64 emulator, as upstream's shell builds
   (`abiFilters`); Android 8.0 (API 26) and later, as upstream.
-- Signed with an APK signing key of the Companion's own (§12, D7). It is
-  not the release's OpenPGP key: Android checks an APK's signature
+- Signed with an APK signing key of the Companion's own, made, kept and
+  used in Faraday as the release's OpenPGP key is (§12, D7;
+  `docs/APK-SIGNING.md`). It is not the release's OpenPGP key: Android
+  accepts no Ed25519 APK signature, it checks an APK's signature
   against the key that signed the installed copy, and every update must
   carry the same one, so losing it means a new app, not an update.
 
@@ -111,7 +115,8 @@ is a second app with its own name, so that this one never gains the
   the file envelope), `osk-learn` and `osk-bip` (a description's
   addresses from its public keys). It does not depend on
   `faraday-core`, `opensigner-core`, `faraday-vault`, `faraday-pgp`,
-  `faraday-sb`, `osk-keep`, `osk-backup`, `osk-psbt` or `osk-entropy`;
+  `faraday-sb`, `faraday-apk`, `osk-keep`, `osk-backup`, `osk-psbt` or
+  `osk-entropy`;
   the `lint` recipe fails if `cargo tree -p faraday-companion` lists
   any of them. The `bitcoin` library under `osk-bip` can derive a
   private key, as any wallet library can; what the crate graph shows is
@@ -130,8 +135,12 @@ is a second app with its own name, so that this one never gains the
   apps are.
 - Builds: `just companion-apk` (debug, the build machine's own tools,
   as `just android-apk`) and `just companion-release-apk` (unsigned,
-  in a pinned container on the build machine with the SDK, NDK, JDK and
-  Gradle versions named in it). Gradle's downloads are pinned by
+  in a pinned container on the build machine with the SDK, NDK, JDK,
+  build-tools and Gradle versions named in it). The release build
+  writes `faraday-companion-X.Y.Z-android-unsigned.apk`, checks it with
+  `zipalign -c -P 16 4`, and prints its size and SHA-256; Faraday signs
+  it at any size (`docs/APK-SIGNING.md` §4.4, §9;
+  `docs/LARGE-FILES.md`). Gradle's downloads are pinned by
   `gradle/verification-metadata.xml`; the wrapper's checksum is named in
   `gradle-wrapper.properties`.
 - **No path and nothing about the build computer in the APK**, as
@@ -298,8 +307,10 @@ apps (§8).
 ### 4.8 About
 
 Version and build ID; the APK signing key's SHA-256 certificate
-fingerprint (the one `apksigner verify --print-certs` prints), so a
-person can compare it with the release notes; "Network access: none";
+fingerprint (the one `apksigner verify --print-certs` prints), read
+from the system at run time (the package's signing certificates), so a
+debug build shows its debug key's and a person can compare a release's
+with README's; "Network access: none";
 the permissions the app holds, read from the system at run time, not
 written into the screen; how to check the APK against `SHA256SUMS` and
 its signature.
@@ -402,7 +413,12 @@ document picker, the camera, and Paste. Nothing else.
 ## 8. Distribution, and Google's developer verification
 
 - The release page and F-Droid (§2). Both under the project's public
-  name; F-Droid asks for no identity and builds from source. F-Droid's
+  name; F-Droid asks for no identity and builds from source. F-Droid
+  copies the signature from the release's APK onto its own build of
+  the tag (`apksigcopier`), which works because Faraday's signed APK is
+  the unsigned one with the APK Signing Block inserted and nothing else
+  changed (`docs/APK-SIGNING.md` §6); its metadata names the
+  certificate's SHA-256 in `AllowedAPKSigningKeys`. F-Droid's
   metadata (summary, description, screenshots) is kept in the repository
   in the fastlane layout (`faraday/shells/android/fastlane/`), and the
   merge request to F-Droid's data repository is the owner's to open
@@ -455,11 +471,17 @@ one (§3, D1).
   encrypted files and the unlock before Wallet descriptions and BitLocker keys
   (§7), the share target and source (§6.3), the guide addresses
   (§4.7), the Learn page.
-- **C, release.** The pinned container, the reproducible release APK
-  and a second build that matches it, the staging script's `strings`
-  check over the APK, `SHA256SUMS`, the fastlane metadata. The signing
-  key is the owner's (D7), and so is opening the F-Droid merge
-  request.
+- **C, release.** The pinned container, the reproducible unsigned
+  release APK and a second build that matches it, the staging script's
+  `strings` check over the APK, `stage-release.sh --companion` (the
+  signed APK checked by `apksigner` against
+  `faraday/companion-cert.pem`, and its line in `SHA256SUMS`), README's
+  "Verifying a release" paragraph on the APK certificate, the fastlane
+  metadata and `AllowedAPKSigningKeys` (`docs/APK-SIGNING.md` §9). The
+  key itself is `docs/APK-SIGNING.md`'s batch 1, built into Faraday
+  before this batch, since it needs no release APK; the owner makes it
+  on a stick and commits its certificate before the first release.
+  Opening the F-Droid merge request is the owner's.
 - **Tried on a phone**, by the owner, with a stick and with the Pi:
   receive a file and a signed PSBT from each; send a PSBT shared from a
   phone wallet; the Starter's recovery key scanned and deleted.
@@ -513,10 +535,13 @@ the rest as recommended in v0.1 of this document.
   Faraday is next set up on that computer (§4.6).
 - **D6 Application ID:** `app.faradayoffline.companion`, from the
   website's name; it cannot change after release.
-- **D7 The APK signing key:** generated and kept by the owner, offline,
-  with a second copy; the release APK is built unsigned on the build
-  machine and signed by the owner. Where the key lives is the owner's
-  and is not written here.
+- **D7 The APK signing key** (replaced 2026-10-14, `docs/DECISIONS.md`
+  F25): made, kept and used in Faraday, as the release's OpenPGP key is.
+  An RSA key in a vault (record type 12), whose sealed copies on sticks
+  are its second copy; the release APK is built unsigned on the build
+  machine and signed on a Faraday stick by **Sign an APK**. The spec is
+  `docs/APK-SIGNING.md`. Until 2026-10-14 it read: generated and kept by
+  the owner outside Faraday.
 - **D8 Google's verification:** not registering, for the pseudonym;
   the install route on a phone that asks is documented (§8). To be
   looked at again before 2027.

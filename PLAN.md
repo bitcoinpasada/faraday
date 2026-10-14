@@ -212,7 +212,8 @@ files.
 
 `faraday-disk` reads and writes FAT16 and FAT32 in Rust, unprivileged, and
 speaks to the app over a pipe with a small request format: list a
-partition, read a file, write a file. It writes by creating a new file,
+partition, read a file or a part of one, write a file or write one in
+parts (`docs/LARGE-FILES.md` §8). It writes by creating a new file,
 reading it back, comparing, and renaming it into place; it never modifies
 a file in place. A compromised disk process can hand the app a doctored
 file (the app already treats file contents as hostile) and can read the
@@ -235,6 +236,8 @@ from sticks (PSBTs and other OpenSigner inputs, entry import text, the
 boot stick's settings file, §5.2), the armor and packet headers of a
 stick file that looks like an armored OpenPGP block (`faraday-pgp`,
 fuzzed; no packet's contents are read),
+an APK's ZIP records and binary manifest (`faraday-apk`, fuzzed, bounded;
+`docs/APK-SIGNING.md` §5),
 vault files (only the fixed header is read before an authentication tag
 is checked; Argon2id cost is capped before allocation), FAT metadata (in
 the unprivileged disk process), GPT and MBR partition tables (in the
@@ -321,10 +324,11 @@ partitions and does not count.
 ### 5.2 Inbox and Outbox
 
 - **Inbox:** files read from a stick while clean — PSBTs, unsigned
-  `BOOTX64.EFI`, entry import text, vault files. Held in RAM.
+  `BOOTX64.EFI`, unsigned APKs, entry import text, vault files. Held in RAM.
 - **Outbox:** results that are public or encrypted — signed PSBTs, public
   keys and certificates, GPG signatures and revocation certificates,
-  Secure Boot enrolment files, the signed `BOOTX64.EFI`, sealed vaults.
+  Secure Boot enrolment files, the signed `BOOTX64.EFI`, APK
+  certificates and signed APKs (`docs/APK-SIGNING.md`), sealed vaults.
   Held in RAM and written on the next stick visit.
 - **Settings** are not an Outbox file. `faraday-settings.txt` on the
   boot stick, plain text so the theme, scale and keyboard layout apply
@@ -372,8 +376,9 @@ one vault alone.
   (`kernel.forbidden`), so no page reaches storage and nothing reads
   another process's memory. `faraday-disk` runs as uid 201 and can read
   neither the app's memory nor `/run/faraday`.
-- Kept, in `/run/faraday` for the next process: the Inbox, the Outbox,
-  and the `kept` set (settings, the signed-amount memory of
+- Kept, in `/run/faraday` for the next process: the Inbox (signing-only
+  entries included, which hold hashes and no bytes), the Outbox (pending
+  signed APKs included, `docs/LARGE-FILES.md` §7), and the `kept` set (settings, the signed-amount memory of
   `docs/WALLETS.md` §3.3, the Spend tab's page, the idle time, which
   Outbox files are secrets let out after the warning, and
   `vault-summaries`, what each vault seen open held, `docs/VAULT.md`
@@ -416,7 +421,9 @@ one vault alone.
 ### 5.4 Flows
 
 **Boot.** The first time the app sees the boot medium in a power-on, it
-reads every file on its data partition into memory: vault files into the
+reads every file on its data partition into memory, but one over 64 MiB,
+which it counts and leaves for a stick visit (`docs/LARGE-FILES.md` §2):
+vault files into the
 Inbox, encrypted; every other file into a holding area apart from the
 Inbox, a PNG as what its QR codes hold (a SeedQR as its words), a file
 Faraday reads as nothing it knows as a File, to sign or send as codes.
@@ -460,7 +467,8 @@ untouched and shows "Remove the stick to keep working".
 **A stick visit.** One screen does both directions: write the Outbox
 (each file read back and compared), save sealed vaults over the files they
 came from (`docs/VAULT.md` §6), and pick files into the Inbox: every file
-it reads comes in ticked but a seed's by its name, one over 18 MiB and
+it reads comes in ticked but a seed's by its name, one over 64 MiB
+(which asks first, whole or only for signing: `docs/LARGE-FILES.md`) and
 one already in by name and size, and **Unselect all** clears them. On the
 Pi the boot card or another SD card is the one visited, and the screen is
 **SD card visit**. Its title's chip says where it goes once the stick is
@@ -488,8 +496,8 @@ kept as it came, beside what its codes hold, and written out as the
 same file; it takes the exposure of what its codes hold (a SeedQR or
 words a secret, an encrypted backup sealed, text unknown, no code read
 like a file Faraday does not read). A lock drops from the Inbox every
-file, picture or not, that may hold a secret. A file over 18 MiB is
-listed and not read. The boot import keeps only what a picture's
+file, picture or not, that may hold a secret. A file over 64 MiB is
+listed unticked and asks first (`docs/LARGE-FILES.md`). The boot import keeps only what a picture's
 codes hold, and its holding area is wiped unless imported, so copying
 from the boot stick takes Import or a later visit.
 
@@ -872,6 +880,7 @@ other tab.
 | `faraday/faraday-vault` | The vault format (`docs/VAULT.md`). `no_std` + `alloc`. |
 | `faraday/faraday-pgp` | The write-only OpenPGP subset. `no_std` + `alloc`. |
 | `faraday/faraday-sb` | Secure Boot keys, signature lists, `.auth` files, Authenticode. |
+| `faraday/faraday-apk` | The APK signing key and APK Signature Scheme v2 and v3 (`docs/APK-SIGNING.md`). `no_std` + `alloc`, on `faraday-sb`'s RSA and X.509. |
 | `faraday/faraday-ui` | Fork of `osk-ui` (§9). |
 | `faraday/shells/stick` | The x86 stick shell, from `shells/pi`: framebuffer, evdev, V4L2, the pipe to the disk process. |
 | `faraday/faraday-disk` | FAT16 and FAT32 in Rust, unprivileged. |

@@ -19,6 +19,7 @@ to get it.
    asked for one. The sidebar's status row reads "Files · 2 in · 1 out"
    and opens it. Every file copied in carries the action that uses it: a
    PSBT **Sign in Wallets**, `BOOTX64.EFI` **Sign in Secure Boot**, an
+   unsigned APK **Sign with APK key** (`docs/APK-SIGNING.md`), an
    entries file **Import into a vault**, a vault file **Unlock**, a
    received file **Show as QR**. Both halves are emptied at power-off.
    The halves are named by direction (owner, 2026-10-10;
@@ -119,8 +120,8 @@ to get it.
     with one in, the Pull sheet asks first ("Pull the stick to unlock").
     Once unlocked, the flow is back on the step it was on, with the
     vault's button live. The places: Tools' **GPG key**, **Secure Boot
-    keys** and **KeePass export** ("Make a vault first" / "Unlock a vault
-    first" on the tile, pressable; back to that category of the vault
+    keys**, **APK signing key** and **KeePass export** ("Make a vault
+    first" / "Unlock a vault first" on the tile, pressable; back to that category of the vault
     unlocked, or to Tools when the way back is taken); BIP-85, the
     Lightning node key and the Silent payments scan key (**Save into
     {vault}**); the secret sheet (the FROST carry, a seed from the backup's
@@ -265,7 +266,9 @@ to get it.
 29. **Everything comes in by default** (owner, 2026-10-10;
     `docs/SIMPLIFY.md` §4.6). A stick visit ticks every file it can read
     to come in, but a seed's by its name (words, SeedQR, BIP-85), one over
-    18 MiB, and one already From the stick by name and size. **Select
+    64 MiB (F26: it asks first, whole or only for signing), one past the
+    memory a whole import may take (`docs/LARGE-FILES.md` §4), and one
+    already From the stick by name and size. **Select
     all** on the visit's right column is gone; **Unselect all** takes its
     place while anything is ticked.
 30. **The visit says where it goes next** (owner, 2026-10-10;
@@ -708,16 +711,16 @@ to get it.
 58. **Every way to add, the word count, the time, a taken name** (owner,
     2026-10-11; HANDOFF item 68). An open vault shows every add action
     (Save a key, Save a wallet, Add an entry, Add a note, Make a key,
-    Make keys) with no press first: an empty vault as buttons under
-    "Nothing in it yet", then **Write it to a stick**; one with contents
+    Make keys, Make an APK key) with no press first: an empty vault as
+    buttons under "Nothing in it yet", then **Write it to a stick**; one with contents
     as a row each under its kinds, the Add icon in the accent colour.
     **Put a wallet in it** and the **Add…** row go. Add a key's words
     take a count first, **12 · 15 · 18 · 21 · 24** above the boxes, 12
     chosen; typing past the boxes still grows them to 24; Clear starts
     the count over. A key's xpub is its own: **Its xpub**, "waiting for
-    its xpub file", **Scan its xpub**. GPG and Secure Boot ask for the
-    time first where TOTP codes does (`docs/TOTP.md` §1.3). A stick
-    visit's write asks before going over a file of the same name (the
+    its xpub file", **Scan its xpub**. GPG, Secure Boot and the APK key
+    ask for the time first where TOTP codes does (`docs/TOTP.md` §1.3).
+    A stick visit's write asks before going over a file of the same name (the
     stick visit, below).
 
 ## Home
@@ -748,7 +751,8 @@ from the seeds card returns to Wallets with the key still loaded.
 ## Session
 
 **Boot.** Firmware loads the system → the boot medium's data partition
-copied into memory: vault files into From the stick, every other file held
+copied into memory, but a file over 64 MiB, counted and left for a stick
+visit (F26): vault files into From the stick, every other file held
 apart for the import, a PNG as what its QR codes hold → the import sheet
 over Home: "Read from {label}", what was read in one line ("1 vault ·
 2 PSBTs · 4 other files"), "Pull the stick to continue" (Pi: "Pull the SD
@@ -844,7 +848,7 @@ visit** directly.
   other files) **Tick it to write** ticks the row. Nothing goes For the
   stick. A picture is what its codes hold.
 - **On the stick** (right): every file it reads ticked but a seed's, one
-  over 18 MiB and one already From the stick (decision 29); **Unselect
+  over 64 MiB and one already From the stick (decision 29); **Unselect
   all** clears them. A file whose name and size match an Inbox file is
   tagged **In Faraday**. Chosen files, any of them; a file Faraday
   reads as nothing it knows comes in as a File, for **Sign a file** or
@@ -855,7 +859,17 @@ visit** directly.
   (`docs/QR.md` §2), with a multi-part transfer showing its progress
   across images; the picture itself comes in too, as it came, to be
   written to another stick. A JPEG's codes are not read; it comes in as
-  a File. A file over 18 MiB is listed and cannot be ticked.
+  a File. A file over 64 MiB is listed unticked with its size; ticking
+  it opens the sheet of `docs/LARGE-FILES.md` §3: **Import the whole
+  file** (with Size, Free after importing and what the vault needs;
+  refused where it would leave too little to open one) or **Import only
+  what signing needs** (a signing-only entry in Files: Sign a file, Sign
+  with APK key, Delete, nothing else). A long read shows its progress
+  and **Stop**. A pending signed APK (`docs/LARGE-FILES.md` §7) is a
+  row For the stick, ticked when this stick holds its source, else
+  "Needs {source name} on this stick"; it is written with progress and
+  **Stop**, and "{source name} changed since it was read. Nothing
+  written." where a part differs.
 - **Delete a vault file** (decision 4).
 - The title's chip says where pulling the stick goes (decision 30) →
   **Remove the stick** → once gone → **Unlock**, with the vault sealed for
@@ -902,6 +916,8 @@ title, and the unlock goes back to the flow.
   **Show as QR** and **PNG** on its row; **Sign a file**, whose list has
   **Show as QR**, **PNG** and **Sign** on each file's row; **Renew**.
 - Secure Boot keys → **Open Secure Boot**.
+- An APK signing key → its page: name, certificate SHA-256, **Certificate**
+  with **Show as QR** and **PNG** on its row, **Sign an APK**.
 
 **Change passphrases, cost or space** → **Make a new vault from this one**
 → Create vault, filled in from this vault, with this slot's contents
@@ -1191,6 +1207,31 @@ db** → signed file For the stick → Learn page: copying it onto the boot
 partition on another computer.
 
 **Check a signature** → result against the vault's db certificate.
+
+## APK signing key
+
+(`docs/APK-SIGNING.md`, F25.) Needs an open vault for the key. With
+none open, Tools' **APK signing key** tile leads into Create a vault or
+Unlock and back, as GPG's does (decision 10).
+
+**Make an APK key** (step cards: name on the certificate, **Faraday
+Companion** filled in; vault) → the time first where it is not known →
+made → result: certificate SHA-256, "RSA 3072", the certificate For the
+stick as the key is made, with **Show as QR** and **PNG** on its row →
+**Write the vault to a stick** (Stick visit, the vault ticked) or
+**Done** → the key's page in Vault contents.
+
+**Sign an APK** → while the key was made this session and its vault not
+written since: **Write the vault to a stick first** → Stick visit → back
+to the key's page. Otherwise: choose an APK copied in (none: "Copy the
+APK in on a stick visit first"; on the Pi "on an SD card visit"), each
+row with its size, and on one that cannot be signed why: "Not an APK",
+"Already signed", "Not aligned", "Supports Android before 7.0" → "Sign
+this APK?" (Hold: file, size, SHA-256, package, version, Android, key,
+will write) → hold → the signed APK For the stick, named as the file
+copied in without `-unsigned` → "Insert a stick to write it". From
+Files, an APK's **Sign with APK key** opens the same review with the
+vault's key picked, or "Which key?" when it holds several.
 
 ## QR transfer tab
 

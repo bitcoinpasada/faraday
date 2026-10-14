@@ -826,3 +826,92 @@ until a secret is about to be shown or typed.
 - A reminder seen does not come back this session; a new one comes at
   the next secret.
 - The Starter is unchanged: it warns ahead of time, on its Home.
+
+### F25 The Companion's APK signing key is made, kept and used in Faraday (2026-10-14)
+
+**Why.** COMPANION D7 left the Companion's APK signing key to the
+owner, generated and kept outside Faraday. That is the one key whose
+loss cannot be repaired: Android installs an update only when it is
+signed by the key that signed the installed copy. A keystore kept
+elsewhere is a key none of Faraday's rules cover, while the release's
+OpenPGP key and the Secure Boot keys are already made, kept and used in
+a Faraday vault. Android accepts no Ed25519 APK signature, so the GPG
+key cannot sign the APK itself.
+
+**Decision** (owner, 2026-10-14, taking the recommendations of
+`docs/APK-SIGNING.md`, which is the spec; its §12 records the
+answers).
+
+- The key is a third kind beside GPG and Secure Boot: made on a Faraday
+  stick or Pi, kept in a vault as record type 12 (`docs/VAULT.md` §7),
+  used there. Its private part never leaves the vault. The vault's
+  sealed copies on sticks are its backup; `tools/vault/open.py` reads it
+  out without Faraday, given the passphrase.
+- RSA-3072 with PKCS#1 v1.5 and SHA-256: 128-bit strength for a key that
+  cannot change, on `faraday-sb`'s existing RSA, with no new
+  dependency, and deterministic, so its output can be compared byte for
+  byte with `apksigner`'s.
+- A self-signed certificate naming the project only ("Faraday
+  Companion"), with no expiry. Its SHA-256 is shown on the key's page,
+  the Companion's About, README and F-Droid's `AllowedAPKSigningKeys`.
+- APK Signature Scheme v2 and v3, as `apksigner` writes them for
+  `minSdkVersion` 26; no v1, no v4, no rotation.
+- **Sign an APK** reads an unsigned, aligned APK copied in on a stick
+  (on the Pi, an SD card), shows its file name, size, SHA-256, package,
+  version and minimum Android, and writes the signed APK For the stick
+  as `faraday-companion-X.Y.Z-android.apk`. It refuses a file that is not
+  an APK, is already signed, is not aligned, or needs v1. The signed
+  file is the unsigned one with the APK Signing Block inserted and one
+  offset changed, so F-Droid can copy its signature onto its own build.
+- A key made in a session signs nothing until the vault holding it has
+  been written to a stick, as a Bitcoin key made here spends nothing
+  until its backup is done.
+- Faraday Desktop offers it too, as it offers GPG and Secure Boot. The
+  real key is made on the stick of a published release that has the
+  feature, and kept in the vault that holds the release's OpenPGP key.
+- The code is a new `no_std` crate, `faraday/faraday-apk`, judged by
+  `apksigner`: its signed APK is byte for byte the one `apksigner sign`
+  makes with the same key.
+- A file that is exactly one PEM `CERTIFICATE` block is public, as F22
+  made an armored OpenPGP public key.
+- COMPANION D7 is replaced; COMPANION §2, §3, §4.8, §8 and §10 batch C
+  follow. The certificate is committed as `faraday/companion-cert.pem`
+  once the key is made, as `faraday/release-key.asc` is.
+
+### F26 Files of any size on a stick visit, imported whole or only for signing (2026-10-14)
+
+**Why.** A stick visit read at most 18 MiB of a file, a figure set
+because a vault with four 4 MiB slots is the largest thing Faraday
+writes. A file to sign can be larger: a release artifact, an APK, a
+disk image. It was listed and could not be ticked. Lifting the cap
+means large files in the memory a vault unlock also needs.
+
+**Decision** (owner, 2026-10-14; the spec is `docs/LARGE-FILES.md`).
+
+- No cap on reading: FAT32's largest file, 4 GiB less one byte, is the
+  only size limit. `MAX_READ` and `READ_MAX` go.
+- A file up to 64 MiB comes in as before, without asking. A larger one
+  is listed unticked with its size; ticking it offers **Import the whole
+  file** or **Import only what signing needs**. The boot import reads
+  none over 64 MiB and counts them.
+- A whole import counts at twice its size (the app's copy and the
+  Inbox's in `/run/faraday`). It is refused where the memory left would
+  be less than the largest need of the vaults this session knows (its
+  Argon2id memory, twice its file and 64 MiB), or, with none known, of
+  the largest preset that fitted when Faraday started; it is warned
+  within 128 MiB of that line. The visit's total of smaller files
+  follows the same rule.
+- A signing-only import streams the file once and keeps its name, size,
+  SHA-256, OpenPGP SHA-256 and SHA-512 states, and for an APK the chunk
+  digests, central directory, end record and manifest fields. In Files
+  it signs and does nothing else. A lock keeps it.
+- A GPG signature over it is an ordinary `.asc`. A signed APK from it is
+  written on a later visit by copying the unsigned file from that
+  stick with the signing block inserted, each part checked against the
+  first read before it is written, under a temporary name renamed when
+  read back whole. A source that changed writes nothing.
+- The disk process gains reads and writes in parts of up to 4 MiB; the
+  app hashes every part itself and drives the copy. `MAX_FRAME` becomes
+  5 MiB. The privilege split is unchanged.
+- The Pi does the same by SD card visit; Faraday Desktop has the same
+  behaviour, with the computer's memory.
