@@ -737,7 +737,7 @@ fn old_install(dirs: &Dirs, reg: &mut Map, which: usize, exe: &str) {
     reg.set(&old_key(l), "DisplayName", &Data::Sz(l.win_name.into()))
         .expect("key");
     let command = format!(
-        r#""C:\Users\a\AppData\Local\Programs\{}\{}" --remind"#,
+        r#""C:\ProgramData\Programs\{}\{}" --remind"#,
         l.win_name, l.win_exe
     );
     reg.set(RUN, l.win_name, &Data::Sz(command)).expect("run");
