@@ -280,9 +280,12 @@ The password row stays a held row, revealed by a hold, with no code.
 
 **Export encrypted…** on the Value card opens the password prompt the
 KeePass export uses (`vaults.prompt`): the password, then again. The
-password is printable ASCII (`0x20`–`0x7e`), at least one character; any
-other character is refused with "Use letters, digits and symbols on the
-keyboard". NIP-49 asks for NFKC normalisation; printable ASCII is
+password is printable ASCII (`0x20`–`0x7e`), at least 12 characters, as
+Amethyst requires when it makes one; a shorter one is refused with "At
+least 12 characters", and any other character with "Use letters, digits
+and symbols on the keyboard". NIP-49 sets no minimum, so the 12 is a rule
+for making an ncryptsec only: nothing Faraday reads is refused for its
+password's length. NIP-49 asks for NFKC normalisation; printable ASCII is
 unchanged by it, so Faraday needs no Unicode tables.
 
 The result replaces the nsec row's actions with:
@@ -401,6 +404,7 @@ this spec.
 | `bip85_npub_png` | npub · identity {} · account {} |
 | `bip85_ncryptsec_png` | ncryptsec · identity {} · account {} |
 | `bip85_printable_only` | Use letters, digits and symbols on the keyboard |
+| `bip85_password_too_short` | At least 12 characters |
 | `bip85_export_failed` | Export failed |
 | `catalog_nostr_key` | Nostr key |
 
@@ -472,7 +476,8 @@ In `faraday/faraday-core/tests/nostr.rs`:
 - NIP-49's vector decrypts to its published key; an export decrypts with
   its password to the same nsec and fails with another; its LOG_N is 16
   and its key-security byte 0x02; a password with a character outside
-  printable ASCII is refused;
+  printable ASCII is refused, and so is one of 11 characters, while an
+  ncryptsec made elsewhere under a shorter password is read;
 - Out unprotected goes through the secret sheet, nothing to the Outbox
   before it;
 - the npub's and the ncryptsec's Show as QR decode (with `zbarimg` or
@@ -516,3 +521,4 @@ before any other work.
 10. Faraday Companion refuses `nsec1` and `ncryptsec1`, as it refuses
     other private keys and sealed files, in a later Companion batch,
     not N1.
+11. A new ncryptsec's password is at least 12 characters.

@@ -950,8 +950,8 @@ as open (`docs/PLANNING.md` §16.114).
   the nsec again without the vault; the numbers are written down with
   the seed's backup.
 - **Export encrypted** writes the nsec as NIP-49 `ncryptsec1…` under a
-  password (scrypt LOG_N 16, XChaCha20-Poly1305, key-security byte
-  `0x02`), as text, a QR, a PNG and a sealed file For the stick.
+  password of at least 12 characters (scrypt LOG_N 16,
+  XChaCha20-Poly1305, key-security byte `0x02`), as text, a QR, a PNG and a sealed file For the stick.
 - A saved Nostr entry (an Entry whose password is an nsec and whose
   username is its npub) offers Show as QR and PNG for the npub and
   Export encrypted on its page, so a saved key goes to a phone without
