@@ -1233,6 +1233,27 @@ copied in without `-unsigned` → "Insert a stick to write it". From
 Files, an APK's **Sign with APK key** opens the same review with the
 vault's key picked, or "Which key?" when it holds several.
 
+## Nostr key
+
+(`docs/NOSTR.md`, F27; specified, not built.) BIP-85 application
+128002'. Needs a loaded key: with none, Tools' **Nostr key** tile reads
+"Load a key", as Child seeds and passwords does.
+
+The tile opens the BIP-85 screen with Nostr chosen → Key (skipped with
+one key loaded) → **Identity and account** (1 and 1, filled in; 0
+refused; **Find a pair**: the npubs of identities 1 to 5 at account 1
+and accounts 1 to 5 at the identity typed, a tap picks the pair) →
+**Value**: the path, the npub with **Show as QR** and **PNG**, the nsec
+masked until **Show** and never a code → **Save into {vault}** (an Entry; no vault open: decision
+10's way into making or unlocking one, and back), **Export
+encrypted…** (a password twice → `ncryptsec1…` as text, **Show as QR**,
+**PNG** and **For the stick**, sealed), **Out unprotected…** (the secret
+sheet). The BIP-85 tile's Application card lists Nostr seventh and
+leads to the same cards. A saved Nostr entry's page in Vault contents
+adds **Show as QR** and **PNG** for its npub and **Export encrypted…**.
+On Faraday Desktop's mainnet demo the npub and nsec carry a broken
+checksum (F20) and Export encrypted is refused.
+
 ## QR transfer tab
 
 On the device this is Files and Scan, already: Files' **Show as QR**

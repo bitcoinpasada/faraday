@@ -915,3 +915,53 @@ means large files in the memory a vault unlock also needs.
   5 MiB. The privilege split is unchanged.
 - The Pi does the same by SD card visit; Faraday Desktop has the same
   behaviour, with the computer's memory.
+
+### F27 Nostr keys from the seed, by BIP-85 application 128002' (2026-10-14)
+
+**Why.** A Nostr identity is one secp256k1 key, and losing it loses the
+identity. BIP-85 2.1.0 (2026-08-02) adds application 128002', which
+derives Nostr keys from a Bitcoin seed at
+`m/83696968'/128002'/{identity}'/{account}'`, so a seed Faraday already
+backs up can back up Nostr keys too. OpenSigner lists the application
+as open (`docs/PLANNING.md` §16.114).
+
+**Decision** (owner, 2026-10-14; the spec is `docs/NOSTR.md`).
+
+- BIP-85 128002' only. No NIP-06 (`m/44'/1237'/…`): NIP-06 is applied
+  by a Nostr app to the words it is given, and its safe use is with
+  words that hold only Nostr, which Faraday already makes as a BIP-85
+  child seed. Faraday applying NIP-06 to the main seed gives nothing
+  over 128002'.
+- The nsec is the first 32 bytes of the 64 bytes of BIP-85 entropy, as
+  a secp256k1 secret key, Bech32 `nsec` per NIP-19; the npub is its
+  x-only public key, Bech32 `npub`. Identity and account are each 1 or
+  more, since the BIP reserves 0, and start at 1/1, filled in.
+- It is a seventh application on Faraday's BIP-85 screen, and a Tools
+  tile, **Nostr key**, opens that screen with Nostr chosen. The screen
+  shows the path, the npub with Show as QR and PNG, and the nsec,
+  handled as BIP-85's WIF and extended private key are. The plain nsec
+  is never a QR or a picture, in the tool or in the vault. **Find a pair** lists the
+  npubs of identities 1 to 5 at account 1 and of accounts 1 to 5 at an
+  identity, public values only, so a forgotten pair is found by its
+  npub.
+- **Save into {vault}** writes an Entry: the npub as its username, the
+  nsec as its password, the path and the key's fingerprint in its
+  notes. No new record type. The seed's words and the two numbers make
+  the nsec again without the vault; the numbers are written down with
+  the seed's backup.
+- **Export encrypted** writes the nsec as NIP-49 `ncryptsec1…` under a
+  password (scrypt LOG_N 16, XChaCha20-Poly1305, key-security byte
+  `0x02`), as text, a QR, a PNG and a sealed file For the stick.
+- A saved Nostr entry (an Entry whose password is an nsec and whose
+  username is its npub) offers Show as QR and PNG for the npub and
+  Export encrypted on its page, so a saved key goes to a phone without
+  being derived again. No Entry gains a QR of any other field.
+- On Faraday Desktop's mainnet demo the npub and nsec have a broken
+  checksum, as F20's addresses do, and Export encrypted is refused.
+- Faraday Companion will refuse `nsec1` and `ncryptsec1`, as it refuses
+  other private keys and sealed files, in a later Companion batch.
+- The derivation is Faraday's (`faraday-core/src/nostr.rs`), over
+  `osk-bip`'s public key derivation; `core/` is not edited. No new crate
+  enters the graph.
+- Signing Nostr events is a later item.
+- Specified, not scheduled: it is built when the owner says.
