@@ -1,6 +1,6 @@
 [package]
 name = "faraday-strings"
-version = "0.1.1"
+version = "0.1.2"
 description = "Faraday's wording: every string Faraday's screens, the stick's device check and the Starter show that OpenSigner does not"
 edition.workspace = true
 license.workspace = true

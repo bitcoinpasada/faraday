@@ -1,6 +1,6 @@
 [package]
 name = "faraday-companion"
-version = "0.1.1"
+version = "0.1.2"
 description = "Faraday Companion's state, screens and decisions (docs/COMPANION.md): events in, commands out, no I/O"
 edition.workspace = true
 license.workspace = true

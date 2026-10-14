@@ -702,21 +702,21 @@ dependencies = [
 
 [[package]]
 name = "faraday-argon2-bench"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-vault",
 ]
 
 [[package]]
 name = "faraday-boot"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-strings",
 ]
 
 [[package]]
 name = "faraday-companion"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-core",
  "faraday-guides",
@@ -737,7 +737,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-companion-ffi"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-companion",
  "faraday-scanner",
@@ -749,7 +749,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-core",
  "faraday-files",
@@ -778,7 +778,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-desktop"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-core",
  "faraday-storage",
@@ -790,7 +790,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-disk"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-fat",
  "faraday-files",
@@ -799,11 +799,11 @@ dependencies = [
 
 [[package]]
 name = "faraday-fat"
-version = "0.1.1"
+version = "0.1.2"
 
 [[package]]
 name = "faraday-files"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-fat",
  "osk-codec",
@@ -813,14 +813,14 @@ dependencies = [
 
 [[package]]
 name = "faraday-grant"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "libc",
 ]
 
 [[package]]
 name = "faraday-guides"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-learn",
  "osk-learn",
@@ -828,7 +828,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-intake"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-qr",
  "faraday-strings",
@@ -840,14 +840,14 @@ dependencies = [
 
 [[package]]
 name = "faraday-learn"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "osk-learn",
 ]
 
 [[package]]
 name = "faraday-payload"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "lzma-rust2",
  "sha2",
@@ -855,7 +855,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-pgp"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "ed25519-dalek",
  "sha1",
@@ -865,7 +865,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-qr"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-files",
  "miniz_oxide 0.8.9",
@@ -876,7 +876,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-sb"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chacha20",
  "rand_core",
@@ -887,7 +887,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-scanner"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "osk-codec",
  "osk-ui",
@@ -897,7 +897,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-snapshot"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-core",
  "faraday-qr",
@@ -913,7 +913,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-starter"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-core",
  "faraday-guides",
@@ -931,7 +931,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-starter-shell"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-boot",
  "faraday-core",
@@ -952,7 +952,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-stick"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-core",
  "faraday-scanner",
@@ -966,7 +966,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-storage"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-boot",
  "faraday-core",
@@ -979,14 +979,14 @@ dependencies = [
 
 [[package]]
 name = "faraday-strings"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "zeroize",
 ]
 
 [[package]]
 name = "faraday-testkit"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-core",
  "osk-bip",
@@ -995,7 +995,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-ui"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-learn",
  "faraday-strings",
@@ -1005,7 +1005,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-vault"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "argon2",
  "chacha20",
@@ -1022,7 +1022,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-window"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "faraday-core",
  "faraday-scanner",

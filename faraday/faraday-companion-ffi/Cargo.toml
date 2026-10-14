@@ -1,6 +1,6 @@
 [package]
 name = "faraday-companion-ffi"
-version = "0.1.1"
+version = "0.1.2"
 description = "The JNI entry points that let Faraday Companion's Android shell drive its core (a copy of opensigner-ffi at d26b84e)"
 edition.workspace = true
 license.workspace = true

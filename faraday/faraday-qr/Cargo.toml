@@ -1,6 +1,6 @@
 [package]
 name = "faraday-qr"
-version = "0.1.1"
+version = "0.1.2"
 description = "What Faraday's scanner reads and its QR sender writes beyond OpenSigner's codec (docs/QR.md): BBQr, SeedSigner's numbered parts, the Faraday file envelope, and the UR registry's key and wallet types"
 edition.workspace = true
 license.workspace = true

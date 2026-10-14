@@ -9,7 +9,7 @@ signs with them on a machine that has no network.
 Faraday is a fork of OpenSignerKit / OpenSigner and uses its library
 crates for every piece of Bitcoin cryptography.
 
-> **Use at your own risk.** Faraday is not reviewed. 0.1.1 is a
+> **Use at your own risk.** Faraday is not reviewed. 0.1.2 is a
 > pre-release: no one outside the project has reviewed its code, its
 > cryptography or its builds, and no second builder has reproduced it.
 > It comes with no warranty of any kind (see `LICENSE`). Check a
@@ -608,7 +608,7 @@ privileges); each says why in its crate documentation.
 Faraday Starter makes a Faraday stick or a Raspberry Pi card, shows how to
 start a computer from the stick, moves files to and from the device by
 QR code, and opens Faraday Desktop for testing. It is one file for your
-operating system. Linux first, from 0.2.0:
+operating system, from 0.1.2. On Linux:
 
 1. Download `Faraday-Starter-X.Y.Z-Linux.tar.gz` from the release and extract it:
    double-click it in the file manager, or `tar xf Faraday-Starter-X.Y.Z-Linux.tar.gz`.
@@ -616,6 +616,10 @@ operating system. Linux first, from 0.2.0:
    `./Faraday-Starter-X.Y.Z-Linux`. Nothing needs `chmod`.
 
 On Windows, download `Faraday-Starter-X.Y.Z-Windows.exe` and open it.
+It is not code-signed, since a certificate names a person or company and
+Faraday is published under a pseudonym: Windows shows "Windows protected
+your PC" the first time, and *More info*, then *Run anyway*, opens it.
+Check it against the signed `SHA256SUMS` first.
 
 It runs on Ubuntu 20.04 and later, Debian 11 and later, Fedora 32 and
 later and Arch, on x86-64. Writing a stick needs udisks2, which desktop
@@ -804,7 +808,7 @@ gpg --verify SHA256SUMS.asc SHA256SUMS
 sha256sum -c --ignore-missing SHA256SUMS
 ```
 
-From 0.2.0 the images are published as `.xz` only. `SHA256SUMS` lists
+From 0.1.2 the images are published as `.xz` only. `SHA256SUMS` lists
 each `.xz` and, under the `.img` name, the image inside it, so the same
 command checks a download and, after `xz -d`, the image. It lists the
 Linux Starter's `.tar.gz` and, under its own name, the file inside it, so
@@ -815,10 +819,10 @@ PowerShell prints a file's sum to compare with its line in
 `SHA256SUMS`:
 
 ```
-Get-FileHash -Algorithm SHA256 .\faraday-stick-0.2.0-x86_64-uefi.img.xz
+Get-FileHash -Algorithm SHA256 .\faraday-stick-0.1.2-x86_64-uefi.img.xz
 ```
 
-The release tags are signed with the same key: `git tag -v v0.1.1`.
+The release tags are signed with the same key: `git tag -v v0.1.2`.
 
 ## Relationship to OpenSigner
 
