@@ -288,6 +288,14 @@ pub enum Key {
     /// Move focus to the previous item: Tab with Shift held, which a
     /// shell reports as this rather than as a modifier of its own.
     BackTab,
+    /// Move the cursor to the start of the field's text.
+    Home,
+    /// Move the cursor to the end of the field's text.
+    End,
+    /// Select the whole of the focused field's text: Ctrl+A, which a
+    /// shell reports as this rather than as a modifier of its own (as
+    /// [`Key::BackTab`] is Tab with Shift held).
+    SelectAll,
 }
 
 /// What kind of file the core wants, so that a shell with a picker can

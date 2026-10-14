@@ -28,6 +28,9 @@ pub struct Pointer {
     wheel: f32,
     /// Shift is held.
     shift: bool,
+    /// Ctrl is held: Ctrl+A is [`Key::SelectAll`], as Shift+Tab is
+    /// [`Key::BackTab`].
+    ctrl: bool,
 }
 
 impl Pointer {
@@ -147,6 +150,7 @@ impl Pointer {
                     self.shift = shift;
                     out.push(Input::Event(Event::Shift { held: shift }));
                 }
+                self.ctrl = m.state().control_key();
             }
             // The mouse's back and forward buttons.
             WindowEvent::MouseInput {
@@ -179,6 +183,8 @@ impl Pointer {
                 };
                 let key = if key == Key::Tab && self.shift {
                     Key::BackTab
+                } else if self.ctrl && matches!(key, Key::Char('a' | 'A')) {
+                    Key::SelectAll
                 } else {
                     key
                 };
@@ -201,6 +207,8 @@ pub fn map_key(key: &WinitKey) -> Option<Key> {
         WinitKey::Named(NamedKey::ArrowDown) => Some(Key::Down),
         WinitKey::Named(NamedKey::ArrowLeft) => Some(Key::Left),
         WinitKey::Named(NamedKey::ArrowRight) => Some(Key::Right),
+        WinitKey::Named(NamedKey::Home) => Some(Key::Home),
+        WinitKey::Named(NamedKey::End) => Some(Key::End),
         WinitKey::Named(NamedKey::Tab) => Some(Key::Tab),
         WinitKey::Named(NamedKey::Space) => Some(Key::Char(' ')),
         WinitKey::Character(s) => {

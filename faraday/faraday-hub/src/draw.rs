@@ -2162,9 +2162,21 @@ fn key_asked(hub: &Hub, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         ui.fill(fx, by, fw, 44.0, 8.0, BG);
         ui.stroke(fx, by, fw, 44.0, 8.0, if focused { ACCENT } else { BORDER });
         let typed = g.typed(i);
-        ui.text_mid(fx + 12.0, by, 44.0, 18.0, W::M, TEXT, typed);
-        if focused {
+        if focused && g.all_selected && !typed.is_empty() {
             let tw = ui.measure(18.0, W::M, typed);
+            ui.fill(
+                fx + 11.0,
+                by + 9.0,
+                tw + 4.0,
+                26.0,
+                3.0,
+                ACCENT.with_alpha(60),
+            );
+        }
+        ui.text_mid(fx + 12.0, by, 44.0, 18.0, W::M, TEXT, typed);
+        if focused && !g.all_selected {
+            let before = &typed[..g.caret.min(typed.len())];
+            let tw = ui.measure(18.0, W::M, before);
             ui.caret(fx + 13.0 + tw, by + 11.0, 22.0);
         }
         ui.hit(fx, by, fw, 44.0, HubAction::Group(i as u8).host());

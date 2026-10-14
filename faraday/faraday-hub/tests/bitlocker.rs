@@ -758,3 +758,78 @@ fn right_after_suspending_resume_is_offered_nowhere() {
     hub.press(HubAction::BitLocker);
     assert!(offered(&mut hub, HubAction::Resume));
 }
+
+/// A group's field with "2056" typed into it, the first of the two
+/// asked for (`show(&mut hub, [0, 0])` asks for groups 1 and 2).
+fn field_typed() -> Hub {
+    let mut hub = with(true, protected());
+    show(&mut hub, [0, 0]);
+    hub.press(HubAction::KeptIt);
+    type_digits(&mut hub, "2056");
+    hub
+}
+
+#[test]
+fn ctrl_a_then_typing_replaces_the_field() {
+    let mut hub = field_typed();
+    hub.event(Event::Key(Key::SelectAll));
+    type_digits(&mut hub, "9");
+    assert_eq!(hub.guard.typed(0), "9");
+}
+
+#[test]
+fn ctrl_a_then_backspace_clears_the_field() {
+    let mut hub = field_typed();
+    hub.event(Event::Key(Key::SelectAll));
+    hub.event(Event::Key(Key::Backspace));
+    assert_eq!(hub.guard.typed(0), "");
+}
+
+#[test]
+fn ctrl_a_selects_only_the_focused_field() {
+    let mut hub = field_typed();
+    // Filling the field moves on to the second one, asked for too.
+    type_digits(&mut hub, "68");
+    type_digits(&mut hub, "4920");
+    hub.event(Event::Key(Key::SelectAll));
+    type_digits(&mut hub, "9");
+    assert_eq!(hub.guard.typed(1), "9");
+    assert_eq!(
+        hub.guard.typed(0),
+        "205668",
+        "selecting the second field leaves the first as it was"
+    );
+}
+
+#[test]
+fn home_then_typing_puts_the_text_first() {
+    let mut hub = field_typed();
+    hub.event(Event::Key(Key::Home));
+    type_digits(&mut hub, "9");
+    assert_eq!(hub.guard.typed(0), "92056");
+}
+
+#[test]
+fn end_after_home_types_at_the_end() {
+    let mut hub = field_typed();
+    hub.event(Event::Key(Key::Home));
+    hub.event(Event::Key(Key::End));
+    type_digits(&mut hub, "9");
+    assert_eq!(hub.guard.typed(0), "20569");
+}
+
+#[test]
+fn home_and_end_stay_within_the_field() {
+    let mut hub = field_typed();
+    hub.event(Event::Key(Key::Home));
+    assert_eq!(hub.guard.focus, 0);
+    hub.event(Event::Key(Key::End));
+    assert_eq!(hub.guard.focus, 0);
+    // Backspace at the start of a field that still has text in it does
+    // nothing: it never jumps to the other field, only an empty field
+    // does that.
+    hub.event(Event::Key(Key::Home));
+    hub.event(Event::Key(Key::Backspace));
+    assert_eq!(hub.guard.focus, 0);
+    assert_eq!(hub.guard.typed(0), "2056");
+}

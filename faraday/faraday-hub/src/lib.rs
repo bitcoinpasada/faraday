@@ -497,6 +497,13 @@ pub struct Guard {
     typed: [Zeroizing<String>; 2],
     /// The field typing goes into.
     pub focus: usize,
+    /// Where the cursor is in the focused field's text (0 to its
+    /// length), moved by Home and End; typing and Backspace keep it
+    /// where it leaves the text.
+    pub caret: usize,
+    /// The focused field's whole text is selected (Ctrl+A): typing or
+    /// Backspace replaces it, as a fresh field would take it.
+    pub all_selected: bool,
     /// The group that did not match the key, after Suspend was pressed.
     pub wrong: Option<usize>,
     /// The step under way, sent and not yet answered.
@@ -528,6 +535,8 @@ impl Guard {
         }
         self.asked = None;
         self.focus = 0;
+        self.caret = 0;
+        self.all_selected = false;
         self.wrong = None;
     }
 
@@ -768,30 +777,75 @@ impl Hub {
             && self.guard.busy.is_none()
     }
 
-    /// A key typed into the groups' fields: digits, up to six each.
+    /// A key typed into the groups' fields: digits, up to six each, at
+    /// the cursor Home and End move within the field (never between the
+    /// two), and Ctrl+A selects the focused field's text so that typing
+    /// or Backspace replaces it.
     fn type_key(&mut self, key: Key) {
         let g = &mut self.guard;
         let i = g.focus.min(1);
+        // The field's whole text selected, to be replaced by a digit or
+        // cleared by Backspace/Delete; anything else drops the
+        // selection as a text field would.
+        let selected = g.all_selected;
+        if selected
+            && !matches!(key, Key::Char(c) if c.is_ascii_digit())
+            && !matches!(key, Key::Backspace | Key::Delete)
+        {
+            g.all_selected = false;
+        }
         match key {
             Key::Char(c) if c.is_ascii_digit() => {
+                if selected {
+                    g.typed[i].clear();
+                    g.caret = 0;
+                    g.all_selected = false;
+                }
                 if g.typed[i].len() < faraday_qr::bitlocker::DIGITS {
-                    g.typed[i].push(c);
+                    let at = g.caret.min(g.typed[i].len());
+                    g.typed[i].insert(at, c);
+                    g.caret = at + 1;
                     g.wrong = None;
                 }
                 if i == 0 && g.typed[0].len() == faraday_qr::bitlocker::DIGITS {
                     g.focus = 1;
+                    g.caret = g.typed[1].len();
                 }
             }
-            Key::Backspace | Key::Delete => {
-                if g.typed[i].is_empty() && i == 1 {
-                    g.focus = 0;
-                    g.typed[0].pop();
+            Key::Backspace | Key::Delete if selected => {
+                g.typed[i].clear();
+                g.caret = 0;
+                g.all_selected = false;
+                g.wrong = None;
+            }
+            Key::Backspace => {
+                if g.caret == 0 {
+                    if i == 1 && g.typed[1].is_empty() {
+                        g.focus = 0;
+                        g.typed[0].pop();
+                        g.caret = g.typed[0].len();
+                    }
                 } else {
-                    g.typed[i].pop();
+                    let at = g.caret - 1;
+                    g.typed[i].remove(at);
+                    g.caret = at;
                 }
                 g.wrong = None;
             }
-            Key::Tab | Key::BackTab | Key::Up | Key::Down => g.focus = 1 - i,
+            Key::Delete => {
+                if g.caret < g.typed[i].len() {
+                    g.typed[i].remove(g.caret);
+                }
+                g.wrong = None;
+            }
+            Key::Home => g.caret = 0,
+            Key::End => g.caret = g.typed[i].len(),
+            Key::SelectAll => g.all_selected = !g.typed[i].is_empty(),
+            Key::Tab | Key::BackTab | Key::Up | Key::Down => {
+                g.focus = 1 - i;
+                g.caret = g.typed[1 - i].len();
+                g.all_selected = false;
+            }
             Key::Enter => self.act(HubAction::Suspend),
             _ => {}
         }
@@ -1622,7 +1676,10 @@ impl Hub {
             }
             HubAction::Group(i) => {
                 if self.guard.hidden {
-                    self.guard.focus = usize::from(i.min(1));
+                    let i = usize::from(i.min(1));
+                    self.guard.focus = i;
+                    self.guard.caret = self.guard.typed(i).len();
+                    self.guard.all_selected = false;
                 }
             }
             HubAction::Rescue => {
