@@ -1,6 +1,7 @@
 # QR transfer and scanning
 
 **Status:** v0.2 · 2026-10-05 · partly built; §6 says what is and what is not.
+§7 (2026-10-14, F28) is specified, not scheduled; build only when the owner says.
 
 Faraday has one scanner and one QR sender, shared by the Wallets tab
 and the QR transfer tab. The sender's codes are made by `faraday-qr`'s
@@ -184,7 +185,7 @@ intact, not who sent it.
    nothing scans them; the PDFs are the printed sheets themselves;
    vaults, keys and signed images are sealed or binary, too large for
    one code. A secret never gets either: it leaves only through the
-   secret sheet. Files' own **Show as QR** shows any Outbox file that
+   secret sheet (since F28, an entry's TOTP secret also as a code, §7). Files' own **Show as QR** shows any Outbox file that
    fits, as before, and offers no picture. A public file past one code
    is shown animated and its **PNG** says it is more than one code;
    only the descriptor is written as one picture per part.
@@ -277,3 +278,239 @@ Tests: `faraday-storage/tests/transfer.rs`.
 Not built: camera choice on the desktop shell (it opens the first camera);
 a descriptor scanned while Create waits goes to the Inbox, not into the
 flow.
+
+## 7. QR codes for public values, and the TOTP secret (F28)
+
+**Status:** specified 2026-10-14, not scheduled; build only when the
+owner says. The decision is `docs/DECISIONS.md` F28; this section is
+its spec. Where the build and this section differ once built,
+`docs/FLOWS.md` and the code are the record.
+
+The owner's ask: "offer QR codes wherever it would be convenient for
+users inside Faraday". Every screen named here is Faraday's own, in
+`faraday-core`, drawn the same on the stick, the Pi and Faraday
+Desktop. None is OpenSigner's: the OpenSigner tab's screens (FLOWS,
+"OpenSigner tab (kept for now)") are upstream's and unchanged, and its
+own Address screen already shows an address as a QR. Nothing in
+`opensigner/` or `core/` changes, and no string goes into OpenSigner's
+`strings/en.rs`.
+
+### 7.1 What is decided
+
+**The rule for public values.** A public value gets **Show as QR**
+where another device or app reads it, and **PNG** as well where it is
+one static code given out or kept more than once (§4 item 4). A value
+read by eye (fingerprints, hashes, GUIDs) or taken from a stick
+(firmware enrolment) gets neither.
+
+**The rule for secrets.** A secret gets no QR. It reaches a code only by
+these doors: its encrypted form carries the code in its place (the
+ncryptsec, an `.oskb`); a file let out through the secret sheet is shown
+by Files, marked Secret (`docs/FLOWS.md` decision 6); a seed's SeedQR in
+the backup's checklist; and the three exceptions the owner has made,
+each because the secret's usual destination takes it by scanning and
+reads no encrypted form of it: SeedQR, the Starter's BitLocker recovery
+key (`docs/STARTER.md` D18) and the TOTP secret (below).
+
+**Added** (rows 1 to 6 are new codes; the rest is recorded so the
+rule's reach is written down):
+
+| # | Screen | Value | Public or secret | Today | Decided | Why |
+|---|---|---|---|---|---|---|
+| 1 | Wallets: the wallet card's first receive address (wide and small panel); the first addresses of Create's Check, Restore's Check and the chart sheet's wallet; the Spend tab's family pages (**Receive address 0** and **Check the money**); Vanity address's result | A receive address | Public | No | **Show as QR**, no PNG | A payer's phone or online wallet takes the address from the screen that derived it. No PNG: a picture kept invites reuse; the silent payments address is the one meant for giving out many times, and it has one |
+| 2 | Explore | The extended key at the path | Public | No | **Show as QR**, no PNG | Another wallet reads an xpub at a path to watch or compare |
+| 3 | Explore | The address and the public key at the path | Public | No | **Show as QR**, no PNG | Compared with another wallet's at the same path by scanning |
+| 4 | Lightning node key | Node id | Public | No | **Show as QR** and **PNG** | A peer or a Lightning wallet takes a node id by scanning, and it is given out more than once |
+| 5 | Vault contents, a recovery sheet (record type 5) | The sheet's descriptor | Public | No | **Show as QR** and **PNG** | The record has no action that loads it; a code is the only way to move its descriptor short of typing it |
+| 6 | Vault contents, an entry | TOTP secret, its `otpauth://` URI | Secret | No | **Hold to show as QR**: the QR sheet marked Secret; no PNG, no file | An authenticator app takes it by scanning; its only other way in is typing a 32-character key. Faraday already reads the same URI in (§2) |
+| 7 | The signing steps' **Addresses · Compare** | Receive 0/0, 0/1, change 1/0 | Public | No | No | Shown mid-transaction to compare with the online wallet, not to receive |
+| 8 | Any screen | A change address | Public | No | No | Nobody pays to a change address |
+| 9 | Make a new key | Its first address | Public | No | No | A key made here receives nothing until its backup is done (`docs/NEW-WALLET.md` §14.3); the card shows "Back up before you receive" instead |
+| 10 | Vault contents, a wallet (record type 3) | Descriptor | Public | No | No | **Open in Wallets** is one press, and has **Show as QR** and **PNG** |
+| 11 | Key rows, Compare, wallet cards, a key's vault page | Fingerprint | Public | No | No | Eight characters, read by eye |
+| 12 | A GPG key's vault page | Fingerprint, subkey, user IDs | Public | No | No | The certificate's code carries them |
+| 13 | Secure Boot keys' vault page | Owner GUID, certificate names, certificates | Public | Files, where they fit | No | Firmware enrols them from a stick |
+| 14 | APK signing key | Certificate; its SHA-256 | Public | Specified (`docs/APK-SIGNING.md` §4.2, §4.3) | As specified; the SHA-256 none | The SHA-256 is compared by eye on Compare |
+| 15 | Nostr key, a saved Nostr entry | npub; ncryptsec | Public; sealed | Specified (`docs/NOSTR.md`, F27) | As specified | — |
+| 16 | Spend, after signing | Transaction id | Public | No | No | The online wallet needs the signed transaction, which has its code |
+| 17 | Vault contents, an entry | Username, URL | Kept in the vault, shown in clear | No | No | Typed where they are used |
+| 18 | Vault contents, an entry; a note | Password; the note | Secret | No | No | Nothing scans a password; a note leaves through the secret sheet if at all |
+| 19 | Vault contents, a Bitcoin key | Seed words | Secret | No | No | The backup's checklist is the seed's door, SeedQR included |
+| 20 | BIP-85 | Child words, hex, WIF, xprv, Base64 and Base85 passwords | Secret | Not on the screen; **Out unprotected…** writes `bip85-{fp}-{app}-{index}.txt` past the secret sheet, and Files shows it as a secret text code (the path line, then the value) | No; no SeedQR of child words (owner, 2026-10-14) | A child seed is a seed and a child password is a password |
+| 21 | Nostr key | nsec | Secret | Specified: never (F27) | No | Its ncryptsec carries the code |
+| 22 | Lightning node key; Silent payments | Private key, aezeed; scan key | Secret | Files only, past the secret sheet | No | Imported from a file or typed by the software that uses them |
+| 23 | GPG, Secure Boot, APK signing key | Paperkey; private keys | Secret | No | No | Paper, or never leave the vault |
+
+**Placement**, in each screen's own idiom:
+
+- **Receive address rows** (row 1) open their code when pressed, with a
+  chevron at the row's end, as Create's descriptor row opens the
+  wallet's code (`screens::descriptor_row`). No separate button, so a
+  list of addresses and a 240 × 320 panel take no extra room. A change
+  address row is not pressable. While the wallet holds a key whose
+  backup is not done (`Faraday::wallet_held`), no receive row is
+  pressable: "Back up before you receive" is shown, as today. Vanity
+  address's found address is pressable the same way; its key's backup
+  is checked the same way.
+- **Explore's three rows** (rows 2 and 3) are pressable the same way.
+- **Lightning node key** (row 4): **Show as QR** and **PNG**, a row of
+  their own under **Node id**, before **Made**; on a small panel under
+  the id, as a GPG key's rows put them.
+- **A recovery sheet's page** (row 5): **Show as QR** and **PNG** on a
+  row under **Descriptor**.
+- **An entry's TOTP secret** (row 6): **Hold to show as QR**, a hold
+  button (`vault_screens::hold_button`, `HOLD_MS`) under the held
+  **TOTP secret** row, shown when the URI reads as TOTP; an HOTP or
+  unreadable one shows none.
+
+**What each code holds:**
+
+- A receive address and Explore's address: the address exactly as the
+  screen prints it, by `Session::address_shown` or `Session::shown`
+  (§1, Sending): not a `bitcoin:` URI, not upper-cased. On Faraday
+  Desktop's mainnet demo that is the address with its checksum broken
+  (F20), so the code pays nothing. The QR sheet shows the address whole
+  under the code (`QrView::whole`), to read against the code.
+- Explore's public key and extended key, and the node id: the text the
+  screen shows (hex for the keys, the xpub as printed).
+- A recovery sheet: its descriptor as the record keeps it, as
+  `Code::Descriptor` writes a wallet's, the whole text under the code.
+- The TOTP secret: the stored URI as it is (a bare key is stored as one,
+  `docs/TOTP.md` §4.3), so the authenticator gets the issuer and the
+  account. One plain-text code.
+
+**Pictures.** The node id's PNG is `lightning-{first 8 hex of the node
+id}.png`, labelled "Lightning node id", the node's kind as the screen
+names it (`ldk-node · {fp}` or `LND`) and "Public: names the node,
+spends nothing". A recovery sheet's PNG is `{name}-descriptor.png` from
+the sheet's name (`file_stem`), labelled with the wallet's shape, the
+descriptor's checksum and "Public: watch only, spends nothing", and
+past one code the BBQr parts, one picture each, as a wallet's
+descriptor (§4 item 3). Both go For the stick as public files, and the
+row's **PNG** says "{name} waits for the stick", as the others do.
+
+**The TOTP secret on screen.** The QR sheet says "Secret · whoever
+scans this can use it" under it, as for a secret file. It offers no
+**PNG** (`QrView::offers_png` refuses a secret) and writes nothing to
+the Outbox. Its text is wiped when the sheet closes (`QrView`'s
+`Drop`). A lock, by hand or idle, closes the sheet first
+(`lock_now` drops the view, which today it leaves to the process's
+end), then ends the process. It is the one code Faraday shows of a secret that has not passed the
+secret sheet: the hold is its acknowledgement.
+
+**Size.** A value is one code while it fits version 25 at error
+correction M (about 1,000 bytes; `faraday-qr`'s `send`). An address is
+26 to 62 characters, an xpub about 111, a public key or node id 66, an
+`otpauth://` URI 100 to 300, a single-key descriptor about 150 to 200:
+each one code. A multisig descriptor on a recovery sheet may pass
+version 25; the QR sheet then shows it animated, as any descriptor, and
+its PNG goes as parts.
+
+### 7.2 Code
+
+In `faraday/faraday-core/src/lib.rs`, `Code` gains, each with its arm in
+`Faraday::code_view`:
+
+| Variant | Value | View |
+|---|---|---|
+| `Receive(usize, u32)` | Wallet n's receive address at index i | `QrView::text`, not `public`: no picture; `whole` the address |
+| `VanityAddress` | Vanity address's found address | as `Receive` |
+| `ExploreAddress`, `ExplorePublicKey`, `ExploreXpub` | Explore's three values at its path | as `Receive` |
+| `NodeId` | The Lightning node id on show | `QrView::text(..).public(..)`, the label above |
+| `VaultSheet` | The selected recovery sheet's descriptor in the open vault, as `GpgKey` names the selected key | as `Code::Descriptor`'s view and picture |
+
+`Action::ShowCode` and `Action::CodePng` carry them as they carry the
+others; `CodePng` of a view with no picture does nothing, as today.
+
+The TOTP secret has no `Code` variant, so `CodePng` cannot reach it: a
+vault action, `VaultAction::TotpQr`, fired by the hold, builds the view
+with a new `QrView::secret(title, text)` (a `QrView::text` with
+`secret` set) and opens it with `open_qr`.
+
+**Strings**, in `faraday/faraday-strings/src/en.rs` (Faraday's; none in
+OpenSigner's file):
+
+| Key | Text |
+|---|---|
+| `code_view_receive` | `{} · receive {}` (the wallet's name, the index) |
+| `code_view_explore_address` | `Address · {}` (the path) |
+| `code_view_explore_public_key` | `Public key · {}` |
+| `code_view_explore_xpub` | `Extended key · {}` |
+| `code_view_node_id` | `Lightning node id` |
+| `code_view_public_node` | `Public: names the node, spends nothing` |
+| `code_view_sheet` | `{} · recovery sheet descriptor` |
+| `code_view_totp` | `{} · TOTP secret` (the entry's title) |
+| `code_view_no_address` | `No address to show` |
+| `code_view_no_node` | `No node key on show` |
+| `lightning_show_as_qr` | `Show as QR` |
+| `lightning_png` | `PNG` |
+| `vault_hold_to_show_qr` | `Hold to show as QR` |
+
+The vanity title reuses `vanity_vanity_address`; the recovery sheet's
+buttons reuse `vault_show_as_qr` and the literal `"PNG"` the GPG rows
+use; the pressable rows need no new label.
+
+### 7.3 Decided, with nothing open
+
+- The TOTP secret as an `otpauth://` QR: yes, opened by a hold, on the
+  QR sheet marked Secret, no PNG and no Outbox file (owner,
+  2026-10-14). F27's "No Entry gains a QR of any other field" now names
+  it as the exception.
+- BIP-85 child words as a SeedQR: no (owner, 2026-10-14). The BIP-85
+  screen shows no code of any output.
+- A receive address as a PNG: no. A node id as a PNG: yes.
+
+### 7.4 Batch Q1
+
+One batch, one review, one completion report.
+
+- **Rules for the implementing agent.** `CLAUDE.md` and
+  `CLAUDE.local.md` apply in full: builds and tests through
+  `local/remote-run.sh`; every dimension a token; labels, not prose;
+  tests for user-facing behaviour only; `just` once at the end; no
+  `rm`; no commits; no agents. Nothing in `opensigner/` or `core/`.
+- **Code.** `lib.rs` (the variants, their `code_view` arms,
+  `QrView::secret`, `lock_now` dropping the view); `screens.rs`
+  (`first_addresses`, the wallet card's first receive address); `compact_screens.rs` (the small panel's
+  card); `family_screen.rs` (**Receive address 0**, **Check the
+  money**'s receive rows); `glance_sheet.rs` (through
+  `first_addresses`); `vanity_screen.rs`; `explore_screen.rs`;
+  `lightning_screen.rs` and `lightning.rs` (the node's view);
+  `vault_screens.rs` and `vaults.rs` (the sheet's row, the TOTP hold,
+  `VaultAction::TotpQr`); `faraday-strings/src/en.rs`.
+- **Tests**, through `Action`s and `StorageEvent`s as their neighbours
+  do; the public codes in `faraday/faraday-core/tests/codes.rs`, which
+  already reads codes back through the camera's decoder (`shown`,
+  `read_png`), the TOTP code in `tests/totp.rs`:
+  - each new code reads back as exactly the value its screen shows: a
+    wallet's receive 0 and 1 from the card, Create's and Restore's
+    Check, the family pages; Vanity's found address; Explore's address,
+    public key and extended key at a chosen path; the node id; a
+    recovery sheet's descriptor; an entry's TOTP URI;
+  - on Faraday Desktop's mainnet demo, a receive code reads back as the
+    address with its broken checksum, as printed;
+  - a receive address's QR sheet offers no PNG, and **PNG** of it puts
+    nothing For the stick;
+  - a change address and a receive address of a wallet whose backup is
+    not done open no code;
+  - the node id's **PNG** puts `lightning-{8 hex}.png` For the stick as a
+    public file, and the picture scans back as the node id;
+  - a recovery sheet's **PNG** puts `{name}-descriptor.png` For the
+    stick and scans back as the descriptor; a 2-of-3 past one code goes
+    as parts that assemble to it;
+  - a press on **Hold to show as QR** shorter than the hold opens
+    nothing; a full hold opens the QR sheet marked Secret, with no PNG,
+    and For the stick is unchanged; after a lock no code is on screen;
+  - nothing secret gains a code: the BIP-85 value, the Lightning private
+    key, the scan key, an entry's password, a note and a vault key's
+    words have no **Show as QR** on their screens, and every view the
+    new `Code` variants open is public.
+- **Snapshots** (`faraday/shells/snapshot/src/main.rs`): the wallet
+  card with its pressable address and the receive code open; Explore's
+  extended key code; the Lightning node key with its buttons; a
+  recovery sheet's page; an entry with **Hold to show as QR**, and its
+  Secret sheet. At 1280x800, 480x640 and 240x320.
+- **Docs in the batch.** §6 gains "Built" for this section;
+  `docs/FLOWS.md` already names the actions (F28).
+- **Completion report:** each item with its tests and whether they
+  pass; what was left out and why; the docs changed; the render names.

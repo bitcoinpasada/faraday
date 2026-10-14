@@ -907,6 +907,9 @@ title, and the unlock goes back to the flow.
   dice**, URL, notes, TOTP secret typed or **Scan**) → saved → the entry
   selected in the list; vault marked unsaved.
 - Entries list → **TOTP codes** → the codes screen (below).
+- An entry with a TOTP secret → **Hold to show as QR** under **TOTP
+  secret** → the QR sheet with the stored `otpauth://` URI, marked
+  Secret, no PNG, nothing For the stick; **Done** closes it (F28).
 - **Import entries** (from a file in Files) → preview: entries found, lines
   skipped with the reason → choose the vault → import → Entries list.
 - **Edit** → the same form → back to the item.
@@ -916,6 +919,8 @@ title, and the unlock goes back to the flow.
   **Show as QR** and **PNG** on its row; **Sign a file**, whose list has
   **Show as QR**, **PNG** and **Sign** on each file's row; **Renew**.
 - Secure Boot keys → **Open Secure Boot**.
+- A recovery sheet → its descriptor, with **Show as QR** and **PNG** on
+  a row under it (F28).
 - An APK signing key → its page: name, certificate SHA-256, **Certificate**
   with **Show as QR** and **PNG** on its row, **Sign an APK**.
 
@@ -1080,6 +1085,15 @@ guarantees for this file's rule:
   wallet's shape and keys for its files. A file past one code says so
   instead of writing parts; a PSBT, a transaction, a file shown from
   Files and a secret offer no picture.
+- **Receive addresses as codes** (F28; `docs/QR.md` §7). A receive
+  address row opens its code when pressed, a chevron at its end, as
+  Create's descriptor row opens the wallet's: the wallet card's first
+  receive address (and the small panel's), the first addresses of
+  Create's Check, Restore's Check and the chart sheet's wallet, and
+  Vanity address's found address. The code is the address as printed,
+  shown whole under it; no PNG. A change address, the signing steps'
+  **Addresses · Compare** and a wallet whose backup is not done ("Back
+  up before you receive") open none.
 - **A key in no wallet has a way on**: the card's buttons above with no
   wallet loaded; with wallets loaded, the key's row in the left column
   carries **Make a wallet from this key**. The left column runs top
@@ -1144,7 +1158,8 @@ wallet**; a description opens the wallet) → check the money in Sparrow
 (**Yes, my money shows**; for a wallet worked out from seeds alone,
 **Check the money is there, on the online computer** with **No money
 shows**, which tries a passphrase, Taproot, nested SegWit and legacy in
-turn, §5) → write the payment in Sparrow → bring the PSBT (camera, or a
+turn, §5; **Receive address 0** and the receive rows open their code,
+F28) → write the payment in Sparrow → bring the PSBT (camera, or a
 stick: the lock cycle, after which the tab opens on the same page) → the
 spend's own steps → **Put everything away** (lock, what waits for the
 stick written to it, power off). Every page that cannot be reached yet sends the
@@ -1253,6 +1268,23 @@ leads to the same cards. A saved Nostr entry's page in Vault contents
 adds **Show as QR** and **PNG** for its npub and **Export encrypted…**.
 On Faraday Desktop's mainnet demo the npub and nsec carry a broken
 checksum (F20) and Export encrypted is refused.
+
+## Explore
+
+(F28, `docs/QR.md` §7; specified, not built.) From a key's **Explore
+this key** or the Tools tile → the path and the script type → the
+**Address**, **Public key** and **Extended key** at that path, each a
+row that opens its code when pressed (the value as printed, whole under
+the code, no PNG) → **Wallets**.
+
+## Lightning node key
+
+From the Tools tile → ldk-node from a loaded key, or LND with its
+aezeed typed → **Node id**, with **Show as QR** and **PNG** (F28;
+`lightning-{8 hex}.png` For the stick, "{name} waits for the stick"),
+**Made**, the private key masked until **Show** and never a code →
+**Save into {vault}** (decision 10's way when none is open), **Out
+unprotected…** (the secret sheet).
 
 ## QR transfer tab
 

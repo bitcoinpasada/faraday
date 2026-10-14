@@ -955,7 +955,8 @@ as open (`docs/PLANNING.md` §16.114).
 - A saved Nostr entry (an Entry whose password is an nsec and whose
   username is its npub) offers Show as QR and PNG for the npub and
   Export encrypted on its page, so a saved key goes to a phone without
-  being derived again. No Entry gains a QR of any other field.
+  being derived again. No Entry gains a QR of any other field than
+  its TOTP secret's (F28).
 - On Faraday Desktop's mainnet demo the npub and nsec have a broken
   checksum, as F20's addresses do, and Export encrypted is refused.
 - Faraday Companion will refuse `nsec1` and `ncryptsec1`, as it refuses
@@ -965,3 +966,45 @@ as open (`docs/PLANNING.md` §16.114).
   enters the graph.
 - Signing Nostr events is a later item.
 - Specified, not scheduled: it is built when the owner says.
+
+### F28 QR codes for public values wherever another device reads them, and for the TOTP secret (2026-10-14)
+
+**Why.** The owner's ask: "offer QR codes wherever it would be
+convenient for users inside Faraday". Faraday reaches the world by QR
+and by stick, and many public files already have **Show as QR** and
+**PNG** (`docs/QR.md` §4 item 4). An audit of the screens found public
+values a person moves to another device by retyping them: receive
+addresses, Explore's keys, the Lightning node id, a recovery sheet's
+descriptor. An entry's TOTP secret has one destination, an
+authenticator app, which takes it by scanning.
+
+**Decision** (owner, 2026-10-14; the spec is `docs/QR.md` §7).
+
+- A public value gets **Show as QR** where another device or app reads
+  it, and **PNG** as well where it is one static code given out or kept
+  more than once. A value read by eye (fingerprints, hashes, GUIDs) or
+  taken from a stick (firmware enrolment) gets neither.
+- Five places gain a code: a receive address, wherever a wallet's
+  receive addresses are shown (the wallet card, Create's and Restore's
+  Check, the chart sheet, the family pages, Vanity address's result);
+  Explore's extended key, and its address and public key; the Lightning
+  node id; a recovery sheet's descriptor in Vault contents.
+- A receive address has no PNG: a picture kept invites reuse. The node
+  id and a recovery sheet's descriptor have one, For the stick.
+- The code holds the value exactly as the screen prints it; on Faraday
+  Desktop's mainnet demo an address keeps its broken checksum (F20).
+- A secret gets no QR. It reaches a code only as its encrypted form,
+  through the secret sheet and Files, or as a seed's SeedQR in the
+  backup's checklist. The exceptions are those whose usual destination
+  takes the secret by scanning and reads no encrypted form of it:
+  SeedQR, the Starter's BitLocker recovery key (STARTER D18), and now
+  an entry's TOTP secret.
+- The TOTP secret's code is the stored `otpauth://` URI, opened by a
+  hold under the **TOTP secret** row, on the QR sheet marked Secret,
+  with no PNG and no Outbox file. F27's line on Entry QRs names it.
+- BIP-85 shows no code of any output; no SeedQR of child words.
+- Every screen touched is Faraday's own (`faraday-core`), the same on
+  the stick, the Pi and Faraday Desktop. OpenSigner's files and
+  strings are not edited.
+- Specified, not scheduled: it is built when the owner says, as one
+  batch (`docs/QR.md` §7.4, Q1).
