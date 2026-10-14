@@ -103,8 +103,6 @@ pub enum RestartTo {
 pub enum Card {
     /// Make a Faraday stick: opens §3.2.
     Make,
-    /// Do the BitLocker step: opens §6.5.
-    BitLocker,
     /// Resume BitLocker, while the Starter's suspension stands: opens
     /// §6.3's page when Secure Boot is as the marker recorded it.
     Resume {
@@ -118,6 +116,9 @@ pub enum Card {
     /// Start this Mac from the stick: opens §3.4's Mac steps. A Mac has
     /// no restart into firmware settings or from the stick.
     StartMac,
+    /// Another encryption product's rescue disk or password is not yet
+    /// confirmed (§6.4): the button confirms it, and the restart follows.
+    Rescue,
 }
 
 /// A guide, by its Learn page (§7.2, `docs/learn/faraday/boot/`). A page
@@ -266,9 +267,9 @@ pub enum StarterAction {
     BitLocker,
     /// Show the recovery key: the elevation prompt, then the key (§6.2).
     ShowKey,
-    /// I have my recovery key: the default BitLocker step is done for
-    /// the session, and the firmware steps open (F17).
-    KeyInHand,
+    /// Done, with the recovery key on screen: the key leaves it and Home
+    /// is shown (F21).
+    KeyDone,
     /// Extra safe: suspend BitLocker, the guard's suspension path (F17).
     ExtraSafe,
     /// I have kept it, on the extra-safe path: the key is hidden and two
@@ -365,7 +366,7 @@ impl StarterAction {
             StarterAction::ContinueAnyway(n) => (35, u32::from(n)),
             StarterAction::LetThrough => (36, 0),
             StarterAction::RemoveEntry => (37, 0),
-            StarterAction::KeyInHand => (38, 0),
+            StarterAction::KeyDone => (38, 0),
             StarterAction::ExtraSafe => (39, 0),
             StarterAction::StickFor(k) => (40, u32::from(k == StickFor::AppleSilicon)),
         };
@@ -421,7 +422,7 @@ impl StarterAction {
             35 => StarterAction::ContinueAnyway(arg as u16),
             36 => StarterAction::LetThrough,
             37 => StarterAction::RemoveEntry,
-            38 => StarterAction::KeyInHand,
+            38 => StarterAction::KeyDone,
             39 => StarterAction::ExtraSafe,
             40 => StarterAction::StickFor(if arg == 1 {
                 StickFor::AppleSilicon
@@ -613,9 +614,10 @@ pub struct Starter {
     pub resumed: bool,
     /// The Starter suspended BitLocker in this session.
     pub suspended_here: bool,
-    /// The person said they have the recovery key, this session (F17).
-    /// Kept in memory only: Home reads it live and nothing is written.
-    pub key_kept: bool,
+    /// The recovery key has been shown on the BitLocker page this
+    /// session (F21). Kept in memory only: Home reads it live and
+    /// nothing is written.
+    pub key_shown: bool,
     /// The guard's elevated step read the system drive as not encrypted:
     /// taken so for the rest of the session (§6.2).
     not_encrypted_here: bool,
@@ -702,7 +704,7 @@ impl Starter {
             entry_kept: None,
             resumed: false,
             suspended_here: false,
-            key_kept: false,
+            key_shown: false,
             not_encrypted_here: false,
             guard: Guard::default(),
             other: None,
@@ -731,7 +733,7 @@ impl Starter {
             disks: &self.disks,
             resumed: self.resumed,
             suspended_here: self.suspended_here,
-            key_kept: self.key_kept,
+            key_shown: self.key_shown,
             other_open: self.computer.os == Os::Windows
                 && self.other.is_some()
                 && !self.other_confirmed,
@@ -862,7 +864,7 @@ impl Starter {
     /// while the Starter's BitLocker suspension stands, its next step
     /// (Secure Boot back on through the firmware, then Resume); then
     /// Make a Faraday stick with no stick attached, or on a computer
-    /// that cannot start one; then the BitLocker step on Windows; then
+    /// that cannot start one; then (F21, no BitLocker step in between)
     /// Restart from the stick with Secure Boot off, and Restart into
     /// firmware settings with it on, unknown, or when the restart from
     /// the stick did not happen.
@@ -885,11 +887,11 @@ impl Starter {
         if f.stick().is_none() || !f.can_start() || (!self.computer.uefi && !mac) {
             return Card::Make;
         }
-        if f.protected_open() {
-            return Card::BitLocker;
-        }
         if mac {
             return Card::StartMac;
+        }
+        if f.protected_open() {
+            return Card::Rescue;
         }
         if self.computer.secure_boot == Some(false) && self.stick_restart_failed.is_none() {
             Card::Stick
@@ -1229,6 +1231,12 @@ impl Starter {
                         g.forget();
                         g.failed = None;
                         g.key = Some(key);
+                        // On the default path the key on screen is the
+                        // state Home reads (F21); extra safe changes
+                        // nothing until it suspends.
+                        if !g.extra {
+                            self.key_shown = true;
+                        }
                         self.want_entropy();
                     }
                     Err(Reason::NotEncrypted) => {
@@ -1418,8 +1426,9 @@ impl Starter {
             }
             StarterAction::Next => match self.card() {
                 Card::Make => self.act(StarterAction::Make(Target::Stick)),
-                Card::BitLocker | Card::Resume { offered: true } => self.go(Page::BitLocker),
+                Card::Resume { offered: true } => self.go(Page::BitLocker),
                 Card::Resume { offered: false } => {}
+                Card::Rescue => self.other_confirmed = true,
                 Card::Firmware | Card::Stick if !self.restart_holds().is_empty() => {}
                 Card::Firmware => {
                     self.restart_failed = None;
@@ -1588,20 +1597,14 @@ impl Starter {
                         .push_back(StarterCommand::BitLocker(BitLockerStep::ShowKey));
                 }
             }
-            StarterAction::KeyInHand => {
-                let (protected, other) = {
-                    let f = self.facts();
-                    (f.protected(), f.other_open)
-                };
+            StarterAction::KeyDone => {
                 if self.page == Page::BitLocker
                     && self.guard.busy.is_none()
                     && !self.guard.extra
-                    && protected
-                    && !other
+                    && self.guard.key.is_some()
                 {
-                    // The key leaves the screen once it is in hand.
-                    self.guard.forget();
-                    self.key_kept = true;
+                    // The key leaves the screen and Home is shown.
+                    self.go(Page::Home);
                 }
             }
             StarterAction::ExtraSafe => {
@@ -1917,15 +1920,13 @@ pub enum ModeRefusal {
 }
 
 impl Facts<'_> {
-    /// Windows with a drive whose BitLocker step is not done: the
-    /// firmware steps' buttons are not offered (§3.4 step 1, §6.4). The
-    /// step is done by the recovery key in hand (F17) or by the
-    /// extra-safe suspension. Protected means protected now: a drive
-    /// resumed through the Starter is protected again, and the firmware
-    /// steps need the step again. Another encryption product closes them
-    /// too, until the person says they have its rescue disk or password.
+    /// Windows with another encryption product not yet confirmed: the
+    /// firmware steps' buttons are not offered (§3.4, §6.4), until the
+    /// person says they have its rescue disk or password. A drive
+    /// BitLocker protects no longer closes them: its recovery key's
+    /// backup is optional (F21).
     pub fn protected_open(&self) -> bool {
-        self.computer.os == Os::Windows && ((self.protected() && !self.key_kept) || self.other_open)
+        self.computer.os == Os::Windows && self.other_open
     }
 }
 

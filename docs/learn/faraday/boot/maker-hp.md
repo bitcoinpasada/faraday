@@ -2,7 +2,7 @@
 
 ## Before you start
 
-On Windows, have the BitLocker recovery key ready: Faraday Starter's BitLocker step shows it. On Linux, have the disk's passphrase or recovery key ready.
+On Windows, a backup of the BitLocker recovery key is optional: Faraday Starter's BitLocker page shows it. On Linux, have the disk's passphrase or recovery key ready.
 
 HP's business computers are EliteBook, ProBook and Z workstations. Its consumer computers are OmniBook, OMEN, Victus, Spectre, Pavilion, ENVY and the numbered HP 14, 15 and 17 notebooks. Their menus differ.
 

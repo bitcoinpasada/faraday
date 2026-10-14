@@ -2,7 +2,7 @@
 
 ## Before you start
 
-On Windows, have the BitLocker recovery key ready: Faraday Starter's BitLocker step shows it. On Linux, have the disk's passphrase or recovery key ready.
+On Windows, a backup of the BitLocker recovery key is optional: Faraday Starter's BitLocker page shows it. On Linux, have the disk's passphrase or recovery key ready.
 
 ## Steps
 
@@ -48,7 +48,7 @@ Stick not in the F12 list: on the Boot tab, set USB Boot to Enabled. Lenovo's Id
 
 Lenovo's article for booting from USB loads the BIOS defaults with F9 before changing Secure Boot. That sets every other BIOS setting back to its default as well.
 
-The same article turns BitLocker off, which decrypts the drive. Faraday Starter's BitLocker step suspends it instead.
+The same article turns BitLocker off, which decrypts the drive. That is not needed: turn Secure Boot back on before Windows starts.
 
 ## Sources
 

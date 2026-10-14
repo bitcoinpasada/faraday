@@ -1,9 +1,9 @@
-//! The BitLocker step as a person meets it (`docs/STARTER.md` §6, §11, F17):
-//! by default the recovery key in hand, which opens the firmware steps
-//! and changes nothing on the computer; on the extra-safe path, the key
-//! shown, kept and confirmed with it hidden before anything is
-//! suspended, and the firmware steps closed until both parts are done;
-//! the cases the guard cannot pass; Resume, and Uninstall while
+//! The BitLocker step as a person meets it (`docs/STARTER.md` §6, §11, F21):
+//! optional, never closing the firmware steps; by default the recovery
+//! key shown, which changes nothing on the computer; on the extra-safe
+//! path, the key shown, kept and confirmed with it hidden before
+//! anything is suspended; another encryption product, which closes the
+//! firmware steps until its rescue is confirmed; Resume, and Uninstall while
 //! suspended. The shell's answers are made up here as the elevated copy
 //! gives them.
 
@@ -178,10 +178,19 @@ fn type_digits(starter: &mut Starter, s: &str) {
 }
 
 #[test]
-fn the_recovery_key_in_hand_opens_the_firmware_steps_and_changes_nothing() {
+fn the_firmware_steps_are_open_with_a_protected_drive_and_the_backup_is_optional() {
     let mut starter = with(true, protected());
-    assert!(!firmware_open(&mut starter));
+    // Nothing waits on the recovery key (F21).
+    assert!(firmware_open(&mut starter));
+    assert!(shows(&mut starter, "Back up the BitLocker recovery key"));
+    assert!(shows(&mut starter, "Optional"));
+    assert!(shows(
+        &mut starter,
+        "Windows then starts as usual and does not ask for the BitLocker recovery key."
+    ));
     starter.press(StarterAction::BitLocker);
+    assert!(shows(&mut starter, "BitLocker recovery key"));
+    assert!(shows(&mut starter, "A backup of the key is optional"));
     assert!(shows(&mut starter, "Drive C: is encrypted with BitLocker"));
     assert!(shows(&mut starter, "Also kept in"));
     assert!(shows(
@@ -191,16 +200,8 @@ fn the_recovery_key_in_hand_opens_the_firmware_steps_and_changes_nothing() {
     assert!(offered(&mut starter, StarterAction::ShowKey));
     assert!(offered(&mut starter, StarterAction::ExtraSafe));
     assert!(!offered(&mut starter, StarterAction::Suspend));
-    // Pressed without showing the key first: no elevation prompt, no
-    // suspension, nothing sent to the shell at all.
-    starter.press(StarterAction::KeyInHand);
+    // Nothing is sent to the shell by opening the page.
     assert!(commands(&mut starter).is_empty());
-    assert!(shows(&mut starter, "Recovery key kept"));
-    assert!(!offered(&mut starter, StarterAction::KeyInHand));
-    assert!(firmware_open(&mut starter));
-    // Home's checklist says so.
-    starter.press(StarterAction::Home);
-    assert!(shows(&mut starter, "Recovery key kept"));
 }
 
 #[test]
@@ -215,7 +216,7 @@ fn the_key_is_shown_on_the_default_path_without_typing_back() {
     starter.starter_event(StarterEvent::KeyShown(Ok(key())));
     assert!(key_on_screen(&mut starter));
     assert!(shows(&mut starter, "Or take a photo of this screen."));
-    assert!(offered(&mut starter, StarterAction::KeyInHand));
+    assert!(offered(&mut starter, StarterAction::KeyDone));
     // No groups asked for, nothing hidden, nothing to suspend.
     assert!(!offered(&mut starter, StarterAction::KeptIt));
     starter.press(StarterAction::KeptIt);
@@ -223,11 +224,19 @@ fn the_key_is_shown_on_the_default_path_without_typing_back() {
     assert!(!shows(&mut starter, "Type groups"));
     starter.press(StarterAction::Suspend);
     assert!(commands(&mut starter).is_empty());
-    // In hand: the key leaves the screen and the firmware steps open.
-    starter.press(StarterAction::KeyInHand);
+    // Done: the key leaves the screen, Home reads "Key shown", and
+    // nothing was sent to the computer.
+    starter.press(StarterAction::KeyDone);
+    assert_eq!(starter.page, Page::Home);
     assert!(!key_on_screen(&mut starter));
+    assert!(shows(&mut starter, "Key shown"));
+    assert!(!shows(&mut starter, "Optional"));
     assert!(commands(&mut starter).is_empty());
     assert!(firmware_open(&mut starter));
+    // A key shown writes nothing and the page is open again as before.
+    starter.press(StarterAction::BitLocker);
+    assert!(offered(&mut starter, StarterAction::ShowKey));
+    assert!(!key_on_screen(&mut starter));
 }
 
 #[test]
@@ -235,9 +244,8 @@ fn extra_safe_leads_to_the_suspension_path() {
     let mut starter = with(true, protected());
     starter.press(StarterAction::BitLocker);
     starter.press(StarterAction::ExtraSafe);
-    assert!(!offered(&mut starter, StarterAction::KeyInHand));
-    starter.press(StarterAction::KeyInHand);
-    assert!(!firmware_open(&mut starter));
+    assert!(!offered(&mut starter, StarterAction::KeyDone));
+    assert!(firmware_open(&mut starter));
     show(&mut starter, [3, 2]);
     assert!(offered(&mut starter, StarterAction::KeptIt));
     starter.press(StarterAction::KeptIt);
@@ -245,7 +253,8 @@ fn extra_safe_leads_to_the_suspension_path() {
     // Left, the page opens on the default step again.
     starter.press(StarterAction::Home);
     starter.press(StarterAction::BitLocker);
-    assert!(offered(&mut starter, StarterAction::KeyInHand));
+    assert!(offered(&mut starter, StarterAction::ShowKey));
+    assert!(offered(&mut starter, StarterAction::ExtraSafe));
 }
 
 #[test]
@@ -348,11 +357,11 @@ fn suspend_is_never_sent_before_the_key_is_confirmed() {
 }
 
 #[test]
-fn on_the_extra_safe_path_no_firmware_step_before_both_parts_are_done() {
+fn the_firmware_steps_stay_open_all_through_the_extra_safe_path() {
     let mut starter = with(true, protected());
-    assert!(!firmware_open(&mut starter));
+    assert!(firmware_open(&mut starter));
     show(&mut starter, [1, 1]);
-    assert!(!firmware_open(&mut starter));
+    assert!(firmware_open(&mut starter));
     starter.press(StarterAction::BitLocker);
     show(&mut starter, [1, 1]);
     starter.press(StarterAction::KeptIt);
@@ -365,7 +374,7 @@ fn on_the_extra_safe_path_no_firmware_step_before_both_parts_are_done() {
         vec![StarterCommand::BitLocker(BitLockerStep::Suspend)]
     );
     // Sent, not yet answered.
-    assert!(!firmware_open(&mut starter));
+    assert!(firmware_open(&mut starter));
     // Suspended, the marker written: the firmware steps open, and the
     // next step is still Start in this session.
     starter.press(StarterAction::BitLocker);
@@ -384,7 +393,7 @@ fn on_the_extra_safe_path_no_firmware_step_before_both_parts_are_done() {
 }
 
 #[test]
-fn a_refused_suspension_shows_the_managed_line_and_keeps_the_firmware_closed() {
+fn a_refused_suspension_shows_the_managed_line_and_leaves_the_firmware_open() {
     let mut starter = with(true, protected());
     show(&mut starter, [2, 0]);
     starter.press(StarterAction::KeptIt);
@@ -401,7 +410,7 @@ fn a_refused_suspension_shows_the_managed_line_and_keeps_the_firmware_closed() {
         &mut starter,
         "BitLocker was not suspended (0x80310050). This computer's BitLocker is managed: its administrator has to suspend it."
     ));
-    assert!(!firmware_open(&mut starter));
+    assert!(firmware_open(&mut starter));
 }
 
 #[test]
@@ -423,7 +432,7 @@ fn a_declined_prompt_says_why_and_offers_the_step_again() {
         starter.starter_event(StarterEvent::KeyShown(Err(why)));
         assert!(shows(&mut starter, says));
         assert!(offered(&mut starter, StarterAction::ShowKey));
-        assert!(!firmware_open(&mut starter));
+        assert!(firmware_open(&mut starter));
     }
 }
 
@@ -486,9 +495,9 @@ fn resume_is_offered_only_with_the_marker_and_secure_boot_as_it_recorded() {
         result: Ok(()),
     });
     assert!(shows(&mut starter, "BitLocker resumed"));
-    // Resumed, the drive is protected again: the firmware steps need the
-    // guard again.
-    assert!(!firmware_open(&mut starter));
+    // Resumed, the drive is protected again; the backup of its key is
+    // optional, so the firmware steps stay open (F21).
+    assert!(firmware_open(&mut starter));
 
     // Secure Boot off, recorded on: not offered, and the line says why.
     let mut starter = with(false, suspended(true));
@@ -510,7 +519,7 @@ fn a_suspension_undone_later_offers_the_step_again() {
     let mut b = suspended(true);
     b.protection = Protection::On;
     let mut starter = with(true, b);
-    assert!(shows(&mut starter, "Protected"));
+    assert!(shows(&mut starter, "Optional"));
     starter.press(StarterAction::BitLocker);
     assert!(shows(
         &mut starter,
@@ -518,18 +527,18 @@ fn a_suspension_undone_later_offers_the_step_again() {
     ));
     assert!(offered(&mut starter, StarterAction::ShowKey));
     assert!(!offered(&mut starter, StarterAction::Resume));
-    assert!(!firmware_open(&mut starter));
+    assert!(firmware_open(&mut starter));
 }
 
 #[test]
-fn a_drive_suspended_by_someone_else_still_needs_the_guard() {
+fn a_drive_suspended_by_someone_else_reads_suspended() {
     let mut b = protected();
     b.protection = Protection::Suspended;
     let mut starter = with(true, b);
-    assert!(!firmware_open(&mut starter));
-    // Home's checklist says what the drive is, not "Protected".
+    assert!(firmware_open(&mut starter));
+    // Home's checklist says what the drive is, not "Optional".
     assert!(shows(&mut starter, "Suspended"));
-    assert!(!shows(&mut starter, "Protected"));
+    assert!(!shows(&mut starter, "Optional"));
     starter.press(StarterAction::BitLocker);
     assert!(offered(&mut starter, StarterAction::ShowKey));
 }
@@ -554,6 +563,31 @@ fn another_encryption_product_closes_the_firmware_until_its_rescue_is_confirmed(
         "An encrypted drive Faraday does not manage: VeraCrypt"
     ));
     starter.press(StarterAction::Rescue);
+    assert!(firmware_open(&mut starter));
+}
+
+#[test]
+fn homes_card_asks_for_another_products_rescue_then_offers_the_restart() {
+    let mut starter = with(
+        true,
+        BitLocker {
+            drive: "C:".into(),
+            protection: Protection::None,
+            marker: None,
+        },
+    );
+    let mut stick = usb("1", true);
+    stick.faraday = Some(FaradayStick { release: None });
+    starter.starter_event(StarterEvent::Disks(vec![stick]));
+    starter.starter_event(StarterEvent::OtherEncryption(Some("VeraCrypt".into())));
+    assert!(shows(
+        &mut starter,
+        "An encrypted drive Faraday does not manage: VeraCrypt"
+    ));
+    assert!(shows(&mut starter, "I have its rescue disk or password"));
+    starter.press(StarterAction::Next);
+    assert!(commands(&mut starter).is_empty());
+    assert!(shows(&mut starter, "Restart into the BIOS"));
     assert!(firmware_open(&mut starter));
 }
 
@@ -662,9 +696,9 @@ fn unknown() -> BitLocker {
 }
 
 #[test]
-fn a_drive_the_shell_could_not_read_keeps_the_guard_required() {
+fn a_drive_the_shell_could_not_read_still_offers_the_backup() {
     let mut starter = with(true, unknown());
-    assert!(!firmware_open(&mut starter));
+    assert!(firmware_open(&mut starter));
     starter.press(StarterAction::BitLocker);
     assert!(offered(&mut starter, StarterAction::ShowKey));
 }
@@ -672,7 +706,7 @@ fn a_drive_the_shell_could_not_read_keeps_the_guard_required() {
 #[test]
 fn the_guard_reading_not_encrypted_opens_the_firmware_steps_for_the_session() {
     let mut starter = with(true, unknown());
-    assert!(!firmware_open(&mut starter));
+    assert!(firmware_open(&mut starter));
     key_step_answers(&mut starter, Reason::NotEncrypted);
     assert!(shows(&mut starter, "Drive C: not encrypted"));
     assert!(firmware_open(&mut starter));
@@ -688,20 +722,20 @@ fn the_guard_reading_not_encrypted_opens_them_when_no_reading_was_made() {
     starter.starter_event(StarterEvent::Computer(windows(true)));
     starter.starter_event(StarterEvent::BitLocker(None));
     starter.starter_event(StarterEvent::Disks(Vec::new()));
-    assert!(!firmware_open(&mut starter));
+    assert!(firmware_open(&mut starter));
     key_step_answers(&mut starter, Reason::NotEncrypted);
     assert!(firmware_open(&mut starter));
 }
 
 #[test]
-fn a_drive_windows_does_not_list_keeps_the_firmware_closed_and_says_so() {
+fn a_drive_windows_does_not_list_is_said_to_be_unreadable() {
     let mut starter = with(true, unknown());
     key_step_answers(&mut starter, Reason::NotRead);
     assert!(shows(
         &mut starter,
         "BitLocker on the system drive could not be read. The drive is treated as protected."
     ));
-    assert!(!firmware_open(&mut starter));
+    assert!(firmware_open(&mut starter));
     // Any other failure keeps it closed too.
     key_step_answers(
         &mut starter,
@@ -710,7 +744,7 @@ fn a_drive_windows_does_not_list_keeps_the_firmware_closed_and_says_so() {
             code: 0x8031_0008,
         },
     );
-    assert!(!firmware_open(&mut starter));
+    assert!(firmware_open(&mut starter));
 }
 
 fn suspended_now() -> BitLocker {

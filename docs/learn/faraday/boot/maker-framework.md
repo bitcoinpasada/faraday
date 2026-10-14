@@ -2,9 +2,9 @@
 
 ## Before you start
 
-On Windows, have the BitLocker recovery key ready: Faraday Starter's BitLocker step shows it. On Linux, have the disk's passphrase or recovery key ready.
+On Windows, a backup of the BitLocker recovery key is optional: Faraday Starter's BitLocker page shows it. On Linux, have the disk's passphrase or recovery key ready.
 
-Framework's guides say to turn BitLocker off before turning Secure Boot off. Faraday Starter's BitLocker step suspends it instead.
+Framework's guides say to turn BitLocker off before turning Secure Boot off. That is not needed: turn Secure Boot back on before Windows starts.
 
 ## Steps
 

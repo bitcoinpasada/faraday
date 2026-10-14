@@ -597,15 +597,16 @@ fn home_leads_with_the_next_step_for_each_state() {
     assert!(shows(&mut starter, "Faraday stick attached · 0.2.0"));
     assert_eq!(next_step(&mut starter), (true, Page::Home, FIRMWARE));
 
-    // Windows, protected: the BitLocker step.
+    // Windows, protected: the firmware, with the BitLocker item
+    // optional and never the next step (F21).
     starter.starter_event(StarterEvent::Computer(windows(true)));
     starter.starter_event(StarterEvent::BitLocker(Some(BitLocker {
         drive: "C:".into(),
         protection: Protection::On,
         marker: None,
     })));
-    assert!(shows(&mut starter, "Protected"));
-    assert_eq!(next_step(&mut starter), (true, Page::BitLocker, None));
+    assert!(shows(&mut starter, "Optional"));
+    assert_eq!(next_step(&mut starter), (true, Page::Home, FIRMWARE));
 
     // Suspended by Faraday, Secure Boot off: turn it back on, even with
     // no stick attached.
@@ -690,7 +691,7 @@ fn remind_shows_a_window_in_one_state_of_three() {
 }
 
 #[test]
-fn start_holds_the_firmware_buttons_until_the_bitlocker_step_is_done() {
+fn start_offers_the_firmware_buttons_with_a_protected_drive() {
     let mut starter = starter_with(Vec::new());
     starter.starter_event(StarterEvent::Computer(windows(true)));
     starter.starter_event(StarterEvent::BitLocker(Some(BitLocker {
@@ -700,11 +701,10 @@ fn start_holds_the_firmware_buttons_until_the_bitlocker_step_is_done() {
     })));
     starter.press(StarterAction::Start);
     assert!(shows(&mut starter, "Restart into the BIOS"));
-    assert!(!starter.offers_action(StarterAction::Restart));
-    starter.press(StarterAction::Restart);
-    assert!(starter.sheet.is_none());
-
-    starter.starter_event(StarterEvent::BitLocker(Some(suspended(true))));
+    assert!(shows(&mut starter, "Back up the recovery key"));
+    let _ = starter.drawn_texts();
+    assert!(starter.offers_action(StarterAction::Restart));
+    assert!(starter.offers_action(StarterAction::BitLocker));
     tap(&mut starter, StarterAction::Restart);
     assert!(shows(
         &mut starter,
@@ -905,7 +905,6 @@ fn stick_attached() -> Vec<Disk> {
     )]
 }
 
-/// Whether the frame reads `s`, across the lines it wraps into.
 fn reads(starter: &mut Starter, s: &str) -> bool {
     texts(starter).join(" ").contains(s)
 }
@@ -926,7 +925,7 @@ fn the_cards_button_follows_this_computers_state() {
     assert!(card_says(&mut starter, "Make a Faraday stick"));
     assert_eq!(next_step(&mut starter), (true, Page::Disks, None));
 
-    // Windows, protected, the BitLocker step not done.
+    // Windows, protected: no BitLocker step first (F21).
     let mut starter = starter_with(stick_attached());
     starter.starter_event(StarterEvent::Computer(windows(false)));
     starter.starter_event(StarterEvent::BitLocker(Some(BitLocker {
@@ -934,8 +933,9 @@ fn the_cards_button_follows_this_computers_state() {
         protection: Protection::On,
         marker: None,
     })));
-    assert!(card_says(&mut starter, "Do the BitLocker step"));
-    assert_eq!(next_step(&mut starter), (true, Page::BitLocker, None));
+    assert!(!card_says(&mut starter, "Do the BitLocker step"));
+    assert!(card_says(&mut starter, "Restart from the stick"));
+    assert_eq!(next_step(&mut starter), (true, Page::Home, STICK));
 
     // Secure Boot on: the firmware's settings, after the sheet.
     let mut starter = starter_with(stick_attached());
@@ -966,7 +966,7 @@ fn the_cards_button_follows_this_computers_state() {
 }
 
 #[test]
-fn homes_next_step_moves_on_once_the_recovery_key_is_in_hand() {
+fn homes_next_step_is_the_firmware_whatever_the_bitlockers_state() {
     let mut starter = starter_with(stick_attached());
     starter.starter_event(StarterEvent::Computer(windows(true)));
     starter.starter_event(StarterEvent::BitLocker(Some(BitLocker {
@@ -974,14 +974,8 @@ fn homes_next_step_moves_on_once_the_recovery_key_is_in_hand() {
         protection: Protection::On,
         marker: None,
     })));
-    assert!(shows(&mut starter, "Protected"));
-    assert!(card_says(&mut starter, "Do the BitLocker step"));
-    starter.press(StarterAction::Next);
-    assert_eq!(starter.page, Page::BitLocker);
-    starter.press(StarterAction::KeyInHand);
-    starter.press(StarterAction::Home);
-    // The item reads as done, and the card leads to the firmware.
-    assert!(shows(&mut starter, "Recovery key kept"));
+    assert!(shows(&mut starter, "Optional"));
+    assert!(!card_says(&mut starter, "Do the BitLocker step"));
     assert!(card_says(&mut starter, "Restart into the BIOS"));
     assert_eq!(next_step(&mut starter), (true, Page::Home, FIRMWARE));
     // The Start page offers its restart too.

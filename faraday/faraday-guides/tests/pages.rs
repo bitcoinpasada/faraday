@@ -51,10 +51,10 @@ fn the_boot_entry_page_is_there() {
 }
 
 #[test]
-fn the_windows_guide_does_the_bitlocker_step_before_any_bios_step() {
+fn the_windows_guide_says_the_recovery_key_backup_is_optional_before_any_bios_step() {
     let first = &guide("windows").sections[0];
     assert_eq!(first.heading, "Before you start");
-    assert!(first.paragraphs[0].starts_with("Do the BitLocker step in Faraday Starter first"));
+    assert!(first.paragraphs[0].starts_with("A backup of the BitLocker recovery key is optional"));
 }
 
 #[test]

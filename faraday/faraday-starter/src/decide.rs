@@ -153,7 +153,8 @@ pub fn keep_data(stick: &FaradayStick, build: Option<&str>) -> Fit {
 pub enum Item {
     /// Make a Faraday stick.
     MakeStick,
-    /// BitLocker (Windows, a protected drive).
+    /// BitLocker's optional backup (Windows, a protected drive): never
+    /// the next step (F21).
     BitLocker,
     /// Start this computer from the stick; on an Intel Mac, Start this
     /// Mac from the stick.
@@ -171,8 +172,9 @@ pub enum State {
     NoStick,
     /// A Faraday stick attached, with the Faraday version it holds.
     Stick(String),
-    /// The drive is protected.
-    Protected,
+    /// The drive is protected and the backup of its key is optional
+    /// (F21).
+    Optional,
     /// The Starter's suspension stands.
     Suspended,
     /// Suspended, not by the Starter: the guard is still needed, as for
@@ -180,8 +182,8 @@ pub enum State {
     SuspendedOther,
     /// Protection was resumed through the Starter this session.
     Resumed,
-    /// The person said they have the recovery key, this session (F17).
-    KeyKept,
+    /// The recovery key has been shown, this session (F21).
+    KeyShown,
     /// Another encryption product, not yet confirmed (§6.4).
     Other,
     /// Secure Boot on, off, or not read.
@@ -219,9 +221,9 @@ pub struct Facts<'a> {
     /// The Starter suspended BitLocker in this session: the person has
     /// not been to the firmware yet, so the next step is still Start.
     pub suspended_here: bool,
-    /// The person said they have the recovery key, this session: the
-    /// default BitLocker step (F17). Nothing on the computer changed.
-    pub key_kept: bool,
+    /// The recovery key has been shown on the BitLocker page this
+    /// session (F21). Nothing on the computer changed.
+    pub key_shown: bool,
     /// Another encryption product's driver is here and the person has
     /// not yet said they have its rescue disk or password (§6.4).
     pub other_open: bool,
@@ -253,11 +255,11 @@ impl Facts<'_> {
             })
     }
 
-    /// The BitLocker step is done: the recovery key is in hand (F17),
-    /// or the extra-safe suspension stands, or it was resumed here with
-    /// Secure Boot on.
+    /// The extra-safe suspension stands, or it was resumed here with
+    /// Secure Boot on. The recovery key's backup is optional and never
+    /// counts (F21).
     pub fn guard_done(&self) -> bool {
-        self.key_kept || self.suspension_stands() || self.resumed
+        self.suspension_stands() || self.resumed
     }
 
     /// What the BitLocker item shows, on Home and on the Start page.
@@ -268,21 +270,21 @@ impl Facts<'_> {
             State::Suspended
         } else if self.resumed {
             State::Resumed
-        } else if self.key_kept {
-            State::KeyKept
+        } else if self.key_shown {
+            State::KeyShown
         } else if self
             .bitlocker
             .is_some_and(|b| b.protection == Protection::Suspended)
         {
             State::SuspendedOther
         } else {
-            State::Protected
+            State::Optional
         }
     }
 
     /// The step back to Secure Boot on applies: Secure Boot is off now,
     /// and the marker does not say it was already off when the Starter
-    /// suspended BitLocker (§3.4 step 5). With no marker the Starter
+    /// suspended BitLocker (§3.4 step 4). With no marker the Starter
     /// keeps no record, so it applies whenever Secure Boot is off.
     pub fn secure_boot_back(&self) -> bool {
         let was_off = self
@@ -350,14 +352,6 @@ impl Facts<'_> {
             return rows;
         }
         let windows = self.computer.os == Os::Windows;
-        if windows && (self.protected() || self.guard_done() || self.other_open) {
-            rows.push(Row {
-                item: Item::BitLocker,
-                state: self.bitlocker_state(),
-                done: self.guard_done() && !self.other_open,
-                offered: true,
-            });
-        }
         let mac = self.mac();
         rows.push(Row {
             item: Item::Start,
@@ -386,6 +380,16 @@ impl Facts<'_> {
                 offered: self.resume_offered(),
             });
         }
+        // The BitLocker item is optional (F21): unnumbered, after the
+        // steps, and never the next step.
+        if windows && (self.protected() || self.guard_done() || self.other_open) {
+            rows.push(Row {
+                item: Item::BitLocker,
+                state: self.bitlocker_state(),
+                done: self.guard_done() && !self.other_open,
+                offered: true,
+            });
+        }
         rows
     }
 
@@ -395,10 +399,10 @@ impl Facts<'_> {
     /// stick and started from it already, so the next step is turning
     /// Secure Boot back on, and after that resuming BitLocker; but not
     /// in the session that suspended it, where the firmware is still
-    /// ahead. Otherwise it is the first of Make a Faraday stick,
-    /// BitLocker and Start this computer from the stick that is not
-    /// done; Start is never ticked, so it is the next step once the
-    /// others are done.
+    /// ahead. Otherwise it is the first of Make a Faraday stick and
+    /// Start this computer from the stick that is not
+    /// done; Start is never ticked, so it is the next step once a stick is
+    /// attached. The BitLocker item is never the next step (F21).
     pub fn next_step(&self) -> Option<Item> {
         let rows = self.checklist();
         let has = |i: Item| rows.iter().any(|r| r.item == i);
@@ -411,7 +415,7 @@ impl Facts<'_> {
             }
         }
         rows.iter()
-            .find(|r| !r.done && matches!(r.item, Item::MakeStick | Item::BitLocker | Item::Start))
+            .find(|r| !r.done && matches!(r.item, Item::MakeStick | Item::Start))
             .map(|r| r.item)
     }
 }

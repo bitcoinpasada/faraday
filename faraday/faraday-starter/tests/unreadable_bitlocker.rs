@@ -1,7 +1,7 @@
 //! On Windows, a drive whose BitLocker state the Starter has not read is
-//! treated as protected (`docs/STARTER.md` §6.2): the firmware steps stay
-//! closed until the BitLocker step is done, so nobody is led to turn
-//! Secure Boot off over a drive that may be sealed to it.
+//! treated as protected (`docs/STARTER.md` §6.2). The backup of its
+//! recovery key is optional (F21), so the firmware steps are offered all
+//! the same.
 
 use faraday_starter::api::{BitLocker, Computer, Os, Protection, StarterCommand, StarterEvent};
 use faraday_starter::{Starter, StarterAction};
@@ -63,7 +63,7 @@ fn restarts_asked(starter: &mut Starter) -> usize {
 }
 
 #[test]
-fn windows_with_no_bitlocker_state_read_offers_no_firmware_restart() {
+fn windows_with_no_bitlocker_state_read_still_offers_the_firmware_restart() {
     let mut starter = starter(None);
     let home = starter.drawn_texts();
     assert!(
@@ -72,12 +72,11 @@ fn windows_with_no_bitlocker_state_read_offers_no_firmware_restart() {
             .any(|t| t.starts_with("Restart into") || t.starts_with("Restart from")),
         "{home:?}"
     );
-    assert!(!restart_offered(&mut starter));
     starter.press(StarterAction::Start);
-    assert!(!restart_offered(&mut starter));
+    assert!(restart_offered(&mut starter));
     starter.press(StarterAction::Restart);
     starter.press(StarterAction::RestartNow);
-    assert_eq!(restarts_asked(&mut starter), 0);
+    assert_eq!(restarts_asked(&mut starter), 1);
 }
 
 #[test]

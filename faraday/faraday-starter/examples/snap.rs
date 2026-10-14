@@ -257,9 +257,13 @@ fn guard(s: &Snap, b: BitLocker) -> Starter {
 fn guard_shots(s: &Snap) -> Result<(), String> {
     let mut h = guard(s, protected());
     s.shot(&mut h, "bitlocker-1-protected")?;
-    let mut kept = guard(s, protected());
-    kept.press(StarterAction::KeyInHand);
-    s.shot(&mut kept, "bitlocker-1-key-kept")?;
+    // The key shown and Done: Home reads "Key shown" (F21).
+    let mut shown = guard(s, protected());
+    shown.press(StarterAction::ShowKey);
+    shown.starter_event(StarterEvent::KeyShown(Ok(recovery_key())));
+    while shown.poll_command().is_some() {}
+    shown.press(StarterAction::KeyDone);
+    s.shot(&mut shown, "bitlocker-1-key-shown")?;
     h.press(StarterAction::ShowKey);
     s.shot(&mut h, "bitlocker-1-waiting")?;
     h.starter_event(StarterEvent::KeyShown(Err(Reason::Declined)));

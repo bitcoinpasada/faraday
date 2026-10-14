@@ -2,7 +2,7 @@
 
 ## Before you start
 
-Do the BitLocker step in Faraday Starter first: it shows the drive's recovery key, which Windows asks for if it starts with Secure Boot off. A drive that is not encrypted has no BitLocker step. The page "BitLocker and starting from a stick" says why, and what the extra-safe choice does.
+A backup of the BitLocker recovery key is optional. Windows does not ask for it when Secure Boot is back on before Windows starts; it asks only if Windows starts with Secure Boot off. Faraday Starter's BitLocker page shows the key for anyone who wants a copy. The page "BitLocker and starting from a stick" says more.
 
 ## Steps
 
@@ -48,13 +48,13 @@ Why Secure Boot goes off: the Faraday on the stick is not signed with Microsoft'
 
 Why Restart and not Shut down: with Fast Startup, which is on by default, Shut down saves the running Windows kernel to the disk and resumes it at the next power-on, so the key at power-on can be missed. Restart always closes Windows fully and starts again.
 
-Other ways to choose the stick: Faraday Starter's Restart to choose a device, offered once Secure Boot is off, and Use a device on the Choose an option screen. Both are reached from Windows, so Windows has to start with Secure Boot off, and with BitLocker not suspended that start asks for the recovery key. Use a device is offered only on computers started in UEFI mode, and not on every one.
+Other ways to choose the stick: Faraday Starter's Restart to choose a device, offered once Secure Boot is off, and Use a device on the Choose an option screen. Both are reached from Windows, so Windows has to start with Secure Boot off, and with BitLocker not suspended that start asks for the recovery key: back it up first, on Faraday Starter's BitLocker page. Use a device is offered only on computers started in UEFI mode, and not on every one.
 
-Without the maker's key to turn Secure Boot back on: start Windows, use Restart into the BIOS again, and turn Secure Boot on there. Windows asks for the recovery key on that start unless BitLocker is suspended, and the key in hand opens it.
+Without the maker's key to turn Secure Boot back on: start Windows, use Restart into the BIOS again, and turn Secure Boot on there. Windows asks for the recovery key on that start unless BitLocker is suspended: back it up first, on Faraday Starter's BitLocker page, or find it at aka.ms/myrecoverykey.
 
-A computer whose Secure Boot was already off before the BitLocker step is not asked to turn it on.
+A computer whose Secure Boot was already off when Faraday Starter suspended BitLocker is not asked to turn it on.
 
-A computer whose drive is not encrypted has no BitLocker step, and Faraday Starter says so.
+A computer whose drive is not encrypted has no BitLocker item in Faraday Starter.
 
 Fast Startup: Microsoft recommends leaving it on. To turn it off anyway, on Windows 11 search for "Choose a power plan", then Choose what the power button does, Change settings that are currently unavailable, clear Turn on fast startup, and Save changes. On Windows 10: Power & sleep settings → Additional power settings, then the same steps.
 

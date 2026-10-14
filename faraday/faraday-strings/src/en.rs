@@ -123,8 +123,14 @@ pub struct Strings {
     pub starter_which_apple: &'static str,
     /// Checklist item and its page.
     pub starter_item_make: &'static str,
-    /// Checklist item and its page.
+    /// Checklist item (F21).
     pub starter_item_bitlocker: &'static str,
+    /// The BitLocker page's title (F21).
+    pub starter_bitlocker_title: &'static str,
+    /// The note under the BitLocker item on Home and at the top of its page (F21).
+    pub starter_bitlocker_note: &'static str,
+    /// The Start page's button to the BitLocker page (F21).
+    pub starter_bitlocker_backup: &'static str,
     /// Checklist item and its page.
     pub starter_item_start: &'static str,
     /// Checklist item.
@@ -135,8 +141,8 @@ pub struct Strings {
     pub starter_state_no_stick: &'static str,
     /// Make a Faraday stick's state: `{}` the version.
     pub starter_state_stick: &'static str,
-    /// BitLocker's state.
-    pub starter_state_protected: &'static str,
+    /// BitLocker's state: the backup is optional (F21).
+    pub starter_state_optional: &'static str,
     /// BitLocker's state.
     pub starter_state_suspended: &'static str,
     /// BitLocker's state: suspended, not by the Starter.
@@ -309,8 +315,6 @@ pub struct Strings {
     pub starter_learn_keep_data: &'static str,
     /// Linux with a TPM-unlocked disk (docs/STARTER.md §6.4).
     pub starter_tpm_line: &'static str,
-    /// Button.
-    pub starter_bitlocker_step: &'static str,
     /// Step and button.
     pub starter_restart: &'static str,
     /// Card button and the sheet's head (docs/STARTER.md §3.1).
@@ -605,12 +609,10 @@ pub struct Strings {
     pub starter_key_also_kept: &'static str,
     /// Where the recovery key is also kept: the value (F17).
     pub starter_key_also_kept_where: &'static str,
-    /// The default BitLocker step: the person has the key (F17).
-    pub starter_key_in_hand: &'static str,
     /// The extra-safe path: suspend BitLocker (F17).
     pub starter_extra_safe: &'static str,
-    /// The BitLocker state once the person has the key (F17).
-    pub starter_state_key_kept: &'static str,
+    /// The BitLocker state once the key has been shown (F21).
+    pub starter_state_key_shown: &'static str,
     /// While the elevation prompt is up.
     pub starter_waiting_permission: &'static str,
     /// The key's label.
@@ -8102,13 +8104,16 @@ pub static EN: Strings = Strings {
     starter_which_pc: "A PC or an Intel Mac",
     starter_which_apple: "A Mac with M1 or M2",
     starter_item_make: "Make a Faraday stick",
-    starter_item_bitlocker: "BitLocker",
+    starter_item_bitlocker: "Back up the BitLocker recovery key",
+    starter_bitlocker_title: "BitLocker recovery key",
+    starter_bitlocker_note: "To start Faraday, Secure Boot goes off, then back on before Windows starts. Windows then starts as usual and does not ask for the BitLocker recovery key. A backup of the key is optional: it gets you into Windows if it ever starts while Secure Boot is still off.",
+    starter_bitlocker_backup: "Back up the recovery key",
     starter_item_start: "Start this computer from the stick",
     starter_item_secure_boot: "Turn Secure Boot back on",
     starter_item_resume: "Resume BitLocker",
     starter_state_no_stick: "No Faraday stick attached",
     starter_state_stick: "Faraday stick attached · {}",
-    starter_state_protected: "Protected",
+    starter_state_optional: "Optional",
     starter_state_suspended: "Suspended by Faraday",
     starter_state_suspended_other: "Suspended",
     starter_state_resumed: "Resumed",
@@ -8195,7 +8200,6 @@ pub static EN: Strings = Strings {
     starter_learn_no_start: "When the stick does not start",
     starter_learn_keep_data: "Replacing Faraday on a stick",
     starter_tpm_line: "A disk here is unlocked by the TPM: have its passphrase ready",
-    starter_bitlocker_step: "Do the BitLocker step",
     starter_restart: "Restart into the BIOS",
     starter_restart_stick: "Restart from the stick",
     starter_restart_save: "This restarts the computer now. Save your work first.",
@@ -8340,9 +8344,8 @@ pub static EN: Strings = Strings {
     starter_show_key: "Show the recovery key",
     starter_key_also_kept: "Also kept in",
     starter_key_also_kept_where: "Microsoft account: aka.ms/myrecoverykey",
-    starter_key_in_hand: "I have my recovery key",
     starter_extra_safe: "Extra safe: suspend BitLocker",
-    starter_state_key_kept: "Recovery key kept",
+    starter_state_key_shown: "Key shown",
     starter_waiting_permission: "Waiting for administrator permission",
     starter_recovery_key: "Recovery key",
     starter_key_id: "Key ID",

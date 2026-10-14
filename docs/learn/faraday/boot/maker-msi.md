@@ -2,7 +2,7 @@
 
 ## Before you start
 
-On Windows, have the BitLocker recovery key ready: Faraday Starter's BitLocker step shows it. On Linux, have the disk's passphrase or recovery key ready.
+On Windows, a backup of the BitLocker recovery key is optional: Faraday Starter's BitLocker page shows it. On Linux, have the disk's passphrase or recovery key ready.
 
 These steps are from MSI's article for its notebooks, which does not cover desktops or motherboards.
 

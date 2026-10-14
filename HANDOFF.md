@@ -3177,6 +3177,249 @@ as possible before the next build.
     (`local/remote-build.sh`), once, carrying A3b and F18 too.
 
 
+75. [x] 2026-10-14, owner: **the BitLocker step is optional** (F21,
+    tracker issue 89). The Learn pages, the Windows guide and the
+    maker pages are the architect's, done separately; this item is the
+    Starter's code, its strings, its tests, its renders and STARTER.md.
+
+    1. **The gate goes.** `Facts::protected_open`
+       (`faraday-starter/src/lib.rs`) is true only for
+       `other_open` on Windows: an encrypted drive no longer closes the
+       firmware steps. The card's button table (STARTER §3.1) loses
+       the row **Do the BitLocker step**: after **Make a Faraday stick**
+       comes **Restart into the BIOS** (or **Restart from the stick**
+       with Secure Boot off). `Facts::checklist`
+       (`faraday-starter/src/decide.rs`) never makes the BitLocker item
+       the next step, and Start is the next step once a stick is
+       attached, whatever BitLocker's state. The suspension's own next
+       steps (Turn Secure Boot back on, Resume BitLocker) are
+       unchanged.
+    2. **Home's BitLocker item** (Windows, a drive protected, or the
+       Starter's suspension standing, or resumed): drawn without a
+       number or tick circle, after the numbered items it used to sit
+       between (it follows Start this computer from the stick), titled
+       `starter_item_bitlocker` = "Back up the BitLocker recovery key".
+       State, from `bitlocker_state`: "Optional" (new
+       `starter_state_optional`) where it read "Protected"; "Key shown"
+       (rename `starter_state_key_kept` to `starter_state_key_shown`,
+       "Key shown") once the key has been shown this session; the
+       suspension's states as today. Under it, in the muted body style,
+       the note `starter_bitlocker_note`:
+       "To start Faraday, Secure Boot goes off, then back on before
+       Windows starts. Windows then starts as usual and does not ask
+       for the BitLocker recovery key. A backup of the key is optional:
+       it gets you into Windows if it ever starts while Secure Boot is
+       still off."
+       Then the link **What Secure Boot and BitLocker are**
+       (`LearnId::SecureBootBitLocker`), which leaves Home's card on
+       Windows. On Linux and macOS Home's card keeps the link where it
+       is today. Tapping the item opens the BitLocker page, as now.
+    3. **The BitLocker page** (`draw.rs`, the default, not extra-safe,
+       state): title `starter_bitlocker_title` "BitLocker recovery key"
+       (find the string the page's title uses today and change it; if
+       the title string is shared with the checklist item, split it);
+       then the note; then the drive line and **Also kept in** as
+       today; **Show the recovery key** as `Style::Primary`; **Extra
+       safe: suspend BitLocker** as today (secondary). **I have my
+       recovery key** goes, with `StarterAction::KeyInHand` and
+       `starter_key_in_hand`. `key_kept` becomes `key_shown`: set when
+       the key arrives on screen in the default state (the
+       `StarterEvent` that delivers the key), not by a button; same
+       doc rule (memory only, never a file). When the key is on screen,
+       the page offers **Done** (`starter_done`), which hides the key and returns to Home.
+       Extra-safe's flow is unchanged.
+    4. **The Start page** (§3.4, both the Windows and the Mac-on-Windows
+       draw paths in `draw.rs` that draw step 1 today): the BitLocker
+       step is no longer step 1 and no longer numbered. It is the same
+       unnumbered optional row as Home's, with its state and a
+       secondary button **Back up the recovery key**
+       (`starter_bitlocker_backup`) opening the BitLocker page, and
+       without the note. Steps are numbered from Restart into the BIOS.
+       `starter_bitlocker_step` ("Do the BitLocker step") is removed
+       once nothing uses it.
+    5. **Strings** in `faraday/faraday-strings/src/en.rs` only. Remove
+       every string nothing uses any more.
+    6. **STARTER.md**: §3.1 (the checklist table's BitLocker row and
+       its "done when", the card's button table, the next-step
+       paragraph), §3.1b (where the link sits on Windows), §3.4 step 1,
+       §6.5's first paragraph, §11's test list, and §12's D-list
+       wherever it says the BitLocker step comes first, each to F21.
+       §13 gains a line: "Changed on 2026-10-14 by F21 (owner): the
+       BitLocker step is optional." Nothing else in STARTER.md changes.
+    7. **Tests** (`faraday-starter/tests/starter.rs`, `bitlocker.rs`):
+       change every test that encodes the gate to F21's behaviour, do
+       not delete one. They state, against the existing fixtures: on
+       Windows with a protected drive and a stick attached, the card's
+       button is Restart into the BIOS and the firmware buttons are
+       offered on the Start page; the BitLocker item is never the next
+       step; it reads "Optional", then "Key shown" after the key is
+       shown, with nothing written; another encryption product still
+       closes the firmware steps; the extra-safe suspension's tests
+       pass unchanged.
+    8. **Renders**: `examples/snap.rs` keeps its shot names; the
+       `bitlocker-1-key-kept` shot becomes `bitlocker-1-key-shown`.
+
+    Done when: `cargo nextest run -p faraday-starter` passes, clippy is
+    clean on `faraday-starter`, `faraday-strings` and
+    `faraday-starter-shell`, and the architect has looked at `home-windows-protected`,
+    `bitlocker-1-protected`, `bitlocker-1-key-shown` and the Start page
+    renders at 960x640.
+
+
+76. [ ] 2026-10-14, owner: **batch C, the desktop app and the camera on
+    Windows** (`docs/STARTER.md` §2, §8, §11; tracker issue 25). Two
+    parts that touch different files: C1 the desktop app on Windows,
+    C2 the camera. Survey facts below were read 2026-10-14.
+
+    **C1. Faraday Desktop on Windows.**
+
+    1. **Home folders** (`faraday/shells/desktop/src/main.rs`, the
+       three places that read `HOME`: sticks, Downloads, PDFs). One
+       function, `home()`, reads `HOME` and, on Windows, `USERPROFILE`
+       when `HOME` is unset; the three places use it. On Windows,
+       Downloads is `%USERPROFILE%\Downloads` and the sticks folder
+       `%USERPROFILE%\faraday-sticks` (§2); a moved Downloads folder
+       is not followed, which the item report says.
+    2. **Opening a folder** (`faraday-storage/src/lib.rs`
+       `open_folder` and `can_open_folders`): on Windows, `explorer.exe`
+       with the folder as its argument, from the system folder
+       (`%SystemRoot%`), and `can_open_folders` is true. Unix keeps
+       `xdg-open`. `memory_available_mib` stays `None` off Linux; the
+       report says what the vault does with `None`.
+    3. **Pinned pages** (`core/osk-crypto/src/pinned.rs`): a
+       `#[cfg(all(feature = "pin-pages", windows))] mod sys` beside the
+       unix one, calling `VirtualLock` and `VirtualUnlock`, declared by
+       hand in that module (`#[link(name = "kernel32")] extern
+       "system"`, two functions, no new crate), under the same rules as
+       the unix pair: `#[allow(unsafe_code)]` on the one function, a
+       `// SAFETY:` comment, a refused lock sets `PIN_FAILURE` as now.
+       The fallback's cfg becomes `not(all(feature = "pin-pages",
+       any(unix, windows)))`. A test (unix and windows alike) that a
+       pinned secret round-trips stays as it is; add none that states
+       the cfg.
+    4. **The window and the binary**: `faraday/shells/desktop` gets
+       `#![cfg_attr(windows, windows_subsystem = "windows")]` and a
+       `build.rs` that, only when `CARGO_CFG_TARGET_OS` is `windows`,
+       embeds the same kind of resource the Starter's `build.rs`
+       `windows_resources()` does (asInvoker manifest, the icon, the
+       version), with Faraday Desktop's name. Share the code by moving
+       `windows_resources` somewhere both build scripts can `#[path]`
+       in, as the Starter's build.rs already does for `names.rs`.
+    5. **The build** (`faraday/faraday.just` `faraday-windows-bin`,
+       `faraday/build/windows/build.sh`): the recipe takes `package`
+       and `bin` as `faraday-linux-bin` does, defaulting to the Starter.
+       `package=faraday-desktop bin=faraday` writes
+       `out/windows/faraday.exe`, through the same clippy, path-remap,
+       DLL-import, manifest and `strings` checks.
+    6. **The payload, one per system** (`faraday/tools/stage-release.sh`,
+       `faraday/faraday.just`'s release recipes): the payload folder
+       holds `linux/` and `windows/`, each with its own `MANIFEST` (same
+       first line) and hard links to the stick and Pi `.xz`; `linux/`
+       carries `faraday-desktop-VERSION-linux-x86_64.xz`, `windows/`
+       carries `faraday-desktop-VERSION-windows-x86_64.exe.xz`. The
+       script takes the Windows desktop app from `out/windows/faraday.exe`
+       beside `out/linux/faraday`, refuses it when it does not carry the
+       build ID as a string (`grep -a`), scans it as it scans every
+       published file, and publishes it as
+       `faraday-desktop-VERSION-windows-x86_64.exe` with its
+       `SHA256SUMS` line. The Linux Starter is built with
+       `FARADAY_STARTER_PAYLOAD=<payload>/linux`, the Windows Starter
+       with `<payload>/windows`; `starter_payload`'s check reads the
+       matching `MANIFEST`.
+    7. **The Starter only offers a desktop app for its own system**
+       (`faraday/shells/starter/src/payload.rs`): when the shell builds
+       the `Payload` it reports and in `desktop_line`, a
+       `faraday-desktop-` file counts only when its name ends
+       `-linux-x86_64.xz` on Linux and `-windows-x86_64.exe.xz` on
+       Windows (`std::env::consts::OS`); others are left out. This also
+       stops a Starter built from the old shared payload offering
+       another system's app. A test in the shell's tests: a payload
+       carrying both, read on this system, offers only this system's.
+    8. **Install and run on Windows** (`faraday/shells/starter/src/windows/`,
+       mirroring `linux/install.rs`): `install(desktop: true, …)` adds
+       to the plan, after CopySelf, the desktop app decompressed from
+       the payload and checked against its manifest line, written
+       beside its place and renamed in, to
+       `%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Desktop.exe`,
+       and a Start menu shortcut `Faraday Desktop.lnk` beside the
+       Starter's (shortcut.rs). `installed()` reports
+       `InstallItem::Desktop` when that exe is there; uninstall removes
+       it and its shortcut. `run_desktop` runs the installed exe if
+       there is one; otherwise decompresses into
+       `%LOCALAPPDATA%\faraday\cache\VERSION\Faraday Desktop.exe`
+       (§5.3), checks the cached copy's SHA-256 against the manifest at
+       every start, and starts it detached, reporting a failure when it
+       exits within the Linux side's `START_WAIT`. Names go in
+       `faraday-core/src/names.rs`. Tests in
+       `faraday/shells/starter/tests/windows.rs` against its existing
+       temporary-folder fixtures: the plan with and without the desktop
+       app writes exactly those files, uninstall removes exactly them,
+       a cached copy with a wrong sum is rewritten.
+    9. **STARTER.md**: §1.3's Windows row and size line, §2's batch C
+       bullet (now done: say what was built), §3.1's Try the desktop
+       app line, §3.5, §5.3, §11's C row, D20, all to what was built.
+
+    Done when: `cargo nextest run` for `osk-crypto`, `faraday-storage`,
+    `faraday-desktop`, `faraday-starter`, `faraday-starter-shell` pass;
+    `just faraday-windows-bin package=faraday-desktop bin=faraday`
+    builds `out/windows/faraday.exe` and the default still builds the
+    Starter; clippy for `x86_64-pc-windows-gnu` is clean on both (the
+    recipe's clippy switch). Then the architect runs `just` once and
+    `local/remote-build.sh starter` and the owner tries it on Windows.
+
+    **C2. The camera on Windows.**
+
+    1. **A crate, `faraday/shells/mediafoundation`
+       (`faraday-mediafoundation`)**, the Windows twin of
+       `opensigner/shells/avfoundation`: the same public API (`Camera`,
+       `Frame`, `Message`, the same calls and frame shape: 8-bit luma
+       plus NV12-order chroma, at most 800 px wide, `MAX_FPS` 10), one
+       small C file `src/camera.c` behind a C ABI of a few functions,
+       as `docs/PLANNING.md` §16.33 planned ("Media Foundation, the
+       same one-small-file pattern"). The C file: `MFStartup`;
+       `MFEnumDeviceSources` for video capture devices; the first, or
+       the one chosen by its symbolic link; an `IMFSourceReader` with
+       video processing on, asking for NV12 near 640x480; synchronous
+       `ReadSample` on the crate's own capture thread, the Y and UV
+       planes handed to a Rust callback; shut down and `MFShutdown` on
+       close; `CoInitializeEx` on the capture thread. A refused camera
+       (Windows' privacy setting gives `E_ACCESSDENIED`) and no camera
+       arrive as `Message`s, as on macOS.
+    2. **The build script** compiles `camera.c` with `cc` only when
+       `CARGO_CFG_TARGET_OS` is `windows`, read at run time, never
+       `#[cfg(windows)]` (the script runs on the Linux build host), and
+       links `mfplat`, `mf`, `mfreadwrite`, `mfuuid` and `ole32`
+       (mingw-w64 in `faraday/build/windows/Containerfile` has them;
+       if a header or library is missing there, add the Debian package
+       to the Containerfile, pinned as the others are). On every other
+       target the crate is its docs, `Frame`, `Message` and the
+       conversion, with no build step.
+    3. **Unsafe**: `unsafe_code = "allow"` in its `Cargo.toml`, with the
+       other workspace lints repeated, as avfoundation does; a module
+       doc "Why this crate may use `unsafe`"; a `// SAFETY:` comment on
+       every block; no raw pointer in the public API. `docs/deps/cc.md`
+       gains this crate under where `cc` is used. `CLAUDE.md` is not
+       changed.
+    4. **The window crate** (`faraday/shells/window`): a
+       `cfg(target_os = "windows")` dependency on the crate and a
+       `mod windows` in `src/camera.rs` beside `linux` and `macos`
+       presenting the same three calls; `list()` gives the devices'
+       friendly names and symbolic links, so the scan sheet's camera
+       choice works; the `other` stub then covers only what is neither.
+       The module doc's Windows sentence changes to say what it does.
+    5. **Tests** on Linux: the conversion from NV12 planes (with and
+       without row padding, odd widths refused, wider than 800
+       shrunk), as avfoundation's `convert.rs` tests do. Capture itself
+       is tried on Windows by the owner.
+    6. **STARTER.md** §8 and §3.6, and D4, to say Receive works on
+       Windows.
+
+    Done when: `cargo nextest run -p faraday-mediafoundation -p
+    faraday-window` passes; `just faraday-windows-bin` builds the
+    Starter with the camera, and clippy for the Windows target is clean;
+    `strings` on the exe finds no build path.
+
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:
