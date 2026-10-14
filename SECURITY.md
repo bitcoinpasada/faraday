@@ -30,9 +30,9 @@ report is seen only by the repository's owner and the reporter.
 Everything else (medium, low and notes) and every audit goes in a public
 issue with the audit form:
 <https://github.com/bitcoinpasada/faraday/issues/new?template=audit.yml>.
-An audit with critical or high findings puts them in `private.md`, sends
-it as a private report with the issue's number, and gives its hash in the
-issue. The steps are in
+An audit with critical or high findings puts them in `private.md`, pastes
+it into a private report with the issue's number (the report takes no
+files), and gives its hash in the issue. The steps are in
 [§3](docs/AUDIT-SUBMISSIONS.md#3-submitting), the severities in
 [§2](docs/AUDIT-SUBMISSIONS.md#2-the-request).
 

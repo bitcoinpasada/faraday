@@ -144,7 +144,9 @@ GitHub account is enough. The steps, as the page gives them:
    `prompt.md` and `audit.md` as files, not pasted text, and give the
    hash from `private.md.sha256` if there is one.
 5. If there is a `private.md`, send it as a private vulnerability report
-   on the same repository, attached, with the issue's number.
+   on the same repository, with the issue's number. The report's form
+   takes no files: paste the whole of `private.md` into its Details
+   field, between a line `~~~~~` above it and the same line below it.
 6. Optional: timestamp the hash with OpenTimestamps, which anchors it in
    a Bitcoin block, so its date does not depend on GitHub keeping the
    issue.
@@ -153,7 +155,7 @@ GitHub account is enough. The steps, as the page gives them:
 |---|---|---|---|
 | `prompt.md` | The person | The public issue, attached | Everyone |
 | `audit.md` | The AI or the expert | The public issue, attached | Everyone |
-| `private.md` | The AI or the expert | The private report, attached | Faraday and the submitter, until published |
+| `private.md` | The AI or the expert | The private report, pasted in a code block | Faraday and the submitter, until published |
 | Hash of `private.md` | The AI (step 7), checked by the person | The public issue, a form field | Everyone, from the day it is sent |
 
 The hash is in the issue only, never in `audit.md`. The issue is what
@@ -167,6 +169,14 @@ new hash on the issue; both hashes stay there.
 The person checks the hash because an AI that cannot run commands may
 still write one that looks right. A wrong hash posted publicly would
 make an honest `private.md` look altered later.
+
+GitHub stores pasted text with CRLF line ends and without its last
+newline. Faraday takes the text between the two `~~~~~` lines as stored
+(the report's edit view, or the API), makes every line end LF, ends it
+with one newline, and checks the hash on that. If it does not match,
+Faraday checks it again with CRLF line ends, as a file made on Windows
+has them, before saying the hash does not match. Five tildes, not
+backticks, so that code blocks inside `private.md` do not end the block.
 
 ## 4. The private route
 
@@ -225,11 +235,10 @@ several.
 
 - [x] The owner turns on private vulnerability reporting (§4); on
       2026-10-13.
-- [ ] A test report with a file attached, sent from a second GitHub
-      account (a friend of the owner's), to see whether private reports
-      take attachments. If they take pasted text only, the pasted copy
-      may not match the hash byte for byte; then `private.md` goes in a
-      code block and its hash is checked when it arrives.
+- [x] Whether private reports take a file. They do not: the form's
+      fields take no attachments (a draft advisory, 2026-10-14). A
+      pasted copy, made LF with one newline at the end (§3), came back
+      with the same hash as the file.
 - [x] `SECURITY.md` at the repository's root: the private route (§4),
       what goes there (critical and high findings), the timeline (§5),
       and a link to this file and the Audits page.
@@ -240,8 +249,8 @@ several.
       `private.md`; a text area for the attached `prompt.md` and
       `audit.md`; a box ticked for "these files were checked for
       personal information".
-- [ ] The Audits page and the bar's **Audits** link (the website
-      repository's HANDOFF).
+- [x] The Audits page and the bar's **Audits** link (the website
+      repository's HANDOFF); published 2026-10-13.
 
 ## 9. Open
 
