@@ -41,8 +41,6 @@ changes and nothing else has to be kept in step.
   comparison of a screen's geometry against the design document.
 - No hosted CI, no GitHub Actions, no metered external services.
 - `local/user-notes.txt` is the owner's own notes; agents ignore it.
-  `local/REMAINING.md` is the short list of remaining work, kept up to
-  date by whoever finishes, adds or changes an item.
 - The remote machine that builds the images is "the build machine" in
   everything written here: docs, comments, commit messages. Never its
   hostname, its owner's name or its address.
