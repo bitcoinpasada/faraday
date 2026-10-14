@@ -22,6 +22,7 @@ pub mod chart_edit;
 pub mod codes;
 pub mod create;
 pub mod decode;
+pub mod demo;
 pub mod devices;
 pub mod explore;
 pub mod family;
@@ -875,8 +876,8 @@ pub enum Action {
     RFromVault(usize, usize),
     /// Move the session to this network.
     Network(osk_bip::keys::Network),
-    /// The online app's not-air-gapped warning acknowledged: mainnet,
-    /// if it was asked for, follows.
+    /// The online app's not-air-gapped warning acknowledged: the test
+    /// network, if one was asked for, follows.
     AirgapUnderstood,
     /// Close a sheet.
     Cancel,
@@ -1534,7 +1535,8 @@ pub enum Sheet {
     Qr,
     /// The camera, reading QR codes.
     Scan,
-    /// The online app on mainnet: this computer is not air-gapped.
+    /// The online app on a test network: this computer is not
+    /// air-gapped, and a test network takes any seed (F20).
     NotAirgapped,
     /// Locked for idleness: what waits in the Outbox.
     Locked,
@@ -3126,10 +3128,11 @@ pub struct Faraday {
     /// stick shell read it (`devices`).
     pub devices: devices::DeviceCheck,
     /// The online app's warning that this computer is not air-gapped has
-    /// been acknowledged this session: it comes before mainnet does.
+    /// been acknowledged this session: it comes before a test network
+    /// does (F20).
     airgap_warned: bool,
-    /// The mainnet network asked for while that warning is on show.
-    mainnet_asked: Option<osk_bip::keys::Network>,
+    /// The test network asked for while that warning is on show.
+    test_asked: Option<osk_bip::keys::Network>,
 }
 
 impl Default for Faraday {
@@ -3306,7 +3309,7 @@ impl Faraday {
             maker_model: String::new(),
             devices: devices::DeviceCheck::default(),
             airgap_warned: false,
-            mainnet_asked: None,
+            test_asked: None,
         }
     }
 
@@ -4932,18 +4935,19 @@ impl Faraday {
             }
             Action::Network(n)
                 if self.online
-                    && n.is_mainnet()
+                    && !n.is_mainnet()
                     && !self.airgap_warned
-                    && !self.session.network().is_mainnet()
-                    && self.session.wallets.is_empty() =>
+                    && self.session.network().is_mainnet()
+                    && self.session.wallets.is_empty()
+                    && !self.session.network_fixed() =>
             {
-                self.mainnet_asked = Some(n);
+                self.test_asked = Some(n);
                 self.sheet = Some(Sheet::NotAirgapped);
             }
             Action::AirgapUnderstood => {
                 self.airgap_warned = true;
                 self.sheet = None;
-                if let Some(n) = self.mainnet_asked.take() {
+                if let Some(n) = self.test_asked.take() {
                     self.act(Action::Network(n));
                 }
             }
@@ -4964,7 +4968,7 @@ impl Faraday {
                 self.seed_read = None;
                 self.delete_ask = None;
                 self.visit.taken.clear();
-                self.mainnet_asked = None;
+                self.test_asked = None;
                 self.secret_cancel();
                 self.wordlist = None;
                 self.potential = None;
@@ -10446,11 +10450,11 @@ impl Faraday {
         let Some(mut canvas) = self.canvas.take() else {
             return;
         };
-        // The online app reached mainnet some other way (a mainnet wallet
-        // or transaction loaded): the warning comes up over it.
+        // The online app reached a test network some other way (a test
+        // wallet or transaction loaded): the warning comes up over it.
         if self.online
             && !self.held
-            && self.session.network().is_mainnet()
+            && !self.session.network().is_mainnet()
             && !self.airgap_warned
             && self.sheet.is_none()
         {

@@ -204,23 +204,13 @@ pub struct Session {
     pub wallets: Vec<Wallet>,
     /// The network every key derives for and every address is shown on.
     network: Network,
-    /// When the shell sets it, the only keys the session takes, by master
-    /// fingerprint, for a shell that must hold only keys it knows. `None`,
-    /// as on the stick and the desktop, takes any key.
-    pub only: Option<Vec<Fingerprint>>,
-    /// When the shell sets it, every address shown on the screen carries
-    /// a checksum broken in one character ([`broken_checksum`]), so that
-    /// no wallet sends to it, for a shell whose keys are public. Scripts, PSBTs, files, signatures and every
-    /// comparison keep the real address. `false`, as on the stick and the
-    /// desktop.
-    pub broken_checksums: bool,
-    /// When the shell sets it, the keys New key adds, as words, in place
-    /// of the key it made: the first one not loaded each time
-    /// ([`Session::next_handout`]). The key is made as ever, from what the
-    /// person entered, and only the one added differs, for a shell that
-    /// must hold only keys it knows. Empty, as on the stick and the desktop: New key
-    /// adds the key it made.
-    pub handout: Vec<String>,
+    /// The demo's public seeds and their fingerprints, when the shell
+    /// set it ([`Session::set_demo`], F20). Empty, as on the stick: the
+    /// session takes any key.
+    demo: Vec<(&'static str, Fingerprint)>,
+    /// Set by a shell that must stay on the network it started on
+    /// ([`Session::fix_network`]): every other one is refused.
+    network_fixed: bool,
 }
 
 impl Default for Session {
@@ -229,9 +219,8 @@ impl Default for Session {
             keys: Vec::new(),
             wallets: Vec::new(),
             network: START_NETWORK,
-            only: None,
-            broken_checksums: false,
-            handout: Vec::new(),
+            demo: Vec::new(),
+            network_fixed: false,
         }
     }
 }
@@ -296,10 +285,22 @@ impl Session {
     /// Moves the session to `network`. Keys are re-derived for it. While
     /// wallets are loaded it moves only between networks whose keys are
     /// written alike (the test networks), never between mainnet and a test
-    /// network.
+    /// network. A session whose network is fixed stays on it, and the
+    /// demo goes to mainnet only with nothing but public seeds loaded.
     pub fn set_network(&mut self, network: Network) -> Result<(), Refusal> {
         if network == self.network {
             return Ok(());
+        }
+        if self.network_fixed {
+            return Err(Refusal::NetworkFixed(self.network));
+        }
+        if network.is_mainnet()
+            && let Some(k) = self
+                .keys
+                .iter()
+                .find(|k| !self.is_public(k.master.fingerprint()))
+        {
+            return Err(Refusal::NotPublicLoaded(fp_text(k.master.fingerprint())));
         }
         if !self.wallets.is_empty() && network.kind() != self.network.kind() {
             return Err(Refusal::Network {
@@ -425,12 +426,60 @@ impl Session {
         Ok(fp)
     }
 
-    /// Refuses a key the shell's list ([`Session::only`]) leaves out.
+    /// Refuses a key that is not a public seed while the demo is on
+    /// ([`Session::demo`]).
     fn allowed(&self, fp: Fingerprint) -> Result<(), Refusal> {
-        match &self.only {
-            Some(list) if !list.contains(&fp) => Err(Refusal::NotAllowed(fp_text(fp))),
-            _ => Ok(()),
+        if self.demo() && !self.is_public(fp) {
+            return Err(Refusal::NotAllowed(fp_text(fp)));
         }
+        Ok(())
+    }
+
+    /// Whether the demo would take this key: always, when the shell set
+    /// no demo.
+    fn is_public(&self, fp: Fingerprint) -> bool {
+        self.demo.is_empty() || self.demo.iter().any(|(_, f)| *f == fp)
+    }
+
+    /// Sets the demo up (F20): while the session is on mainnet it takes
+    /// only the public seeds ([`crate::demo::SEEDS`]), every address it
+    /// shows carries a broken checksum ([`broken_checksum`]) so that no
+    /// wallet sends to it (scripts, PSBTs, files, signatures and every
+    /// comparison keep the real address), and New key adds the next
+    /// public seed in place of the key it made ([`Session::next_handout`]).
+    /// On a test network none of that applies.
+    pub fn set_demo(&mut self) {
+        self.demo = crate::demo::SEEDS
+            .iter()
+            .filter_map(|&w| {
+                let mut probe = Session::on(self.network);
+                probe
+                    .add_words(&crate::demo::words(w), "", None)
+                    .ok()
+                    .map(|fp| (w, fp))
+            })
+            .collect();
+    }
+
+    /// Whether the demo is on: set up, and the session on mainnet.
+    pub fn demo(&self) -> bool {
+        !self.demo.is_empty() && self.network.is_mainnet()
+    }
+
+    /// The public seed a key is, as its word, when the demo is set up.
+    pub fn public_seed(&self, fp: Fingerprint) -> Option<&'static str> {
+        self.demo.iter().find(|(_, f)| *f == fp).map(|(w, _)| *w)
+    }
+
+    /// Keeps the session on the network it is on: every move to another
+    /// is refused, a wallet's or a PSBT's included.
+    pub fn fix_network(&mut self) {
+        self.network_fixed = true;
+    }
+
+    /// Whether the session's network is fixed ([`Session::fix_network`]).
+    pub fn network_fixed(&self) -> bool {
+        self.network_fixed
     }
 
     /// Adds the key a master seed gives, as an `osk-backup` kind-2 backup
@@ -622,19 +671,17 @@ impl Session {
             .unwrap_or_else(|e| fill(EN.wallet_no_address, &[&e.to_string()]))
     }
 
-    /// The words New key hands out next ([`Session::handout`]): the first
-    /// of them whose key is not loaded. `None` when the shell set none.
-    pub fn next_handout(&self) -> Option<String> {
-        let loaded: Vec<Fingerprint> = self.keys.iter().map(|k| k.master.fingerprint()).collect();
-        self.handout
+    /// The public seed New key adds next while the demo is on, as its
+    /// word and fingerprint: the first one not loaded. `None` with the
+    /// demo off, as on the stick.
+    pub fn next_handout(&self) -> Option<(&'static str, Fingerprint)> {
+        if !self.demo() {
+            return None;
+        }
+        self.demo
             .iter()
-            .find(|words| {
-                let mut probe = Session::on(self.network);
-                probe
-                    .add_words(words, "", None)
-                    .is_ok_and(|fp| !loaded.contains(&fp))
-            })
-            .cloned()
+            .find(|(_, fp)| !self.keys.iter().any(|k| k.master.fingerprint() == *fp))
+            .copied()
     }
 
     /// An address of the wallet as the screen shows it ([`Session::shown`]).
@@ -643,10 +690,9 @@ impl Session {
     }
 
     /// `address` as the screen shows it: as it is, or with its checksum
-    /// broken when the shell asked for that
-    /// ([`Session::broken_checksums`]).
+    /// broken while the demo is on ([`Session::set_demo`]).
     pub fn shown(&self, address: &str) -> String {
-        if self.broken_checksums {
+        if self.demo() {
             broken_checksum(address)
         } else {
             address.to_string()

@@ -8,11 +8,11 @@ use osk_bip::keys::Network;
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// Settings on a screen tall enough for About, online or not; online,
-/// on testnet, where the online app has no warning over it.
+/// on mainnet, where the online app has no warning over it.
 fn settings(online: bool) -> Faraday {
     let mut app = testkit::started();
     app.online = online;
-    app.session = Session::on(Network::Testnet);
+    app.session = Session::on(Network::Mainnet);
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 2400,

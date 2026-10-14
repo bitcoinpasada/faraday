@@ -400,10 +400,11 @@ one vault alone.
 - The framebuffer holds the last frame until the next process draws, at
   once; only the kernel and the app read it.
 - The desktop app (online, for testing) restarts inside one process: there
-  only the app's own zeroizing applies. It starts on testnet; reaching
-  mainnet, chosen or by loading a mainnet wallet or transaction, first
-  shows **Not air-gapped**, which stays until **I understand** (once per
-  session).
+  only the app's own zeroizing applies. It starts on mainnet as the demo,
+  which takes only public seeds and shows broken addresses (F20);
+  reaching a test network, chosen or by loading a test wallet or
+  transaction, first shows **Test network**, which stays until **I
+  understand** (once per session).
 - **Panic key.** Super and S held together for two seconds, on any
   believed keyboard, end the stick shell at once: the panel is painted
   black, the app is dropped (its zeroizing runs), nothing is saved, and

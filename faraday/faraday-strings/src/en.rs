@@ -2812,6 +2812,10 @@ pub struct Strings {
     pub keygen_passphrase_again: &'static str,
     /// Text in `key_card`.
     pub keygen_lock_in: &'static str,
+    /// Line in `key_card`. `{}`: the public seed's word, its fingerprint.
+    pub keygen_lock_in_adds: &'static str,
+    /// Line in `handed_line`. `{}`: the public seed's word, its fingerprint.
+    pub keygen_added_public_seed: &'static str,
     /// Line in `key_card`.
     pub keygen_enter_locks: &'static str,
     /// Label in `key_card`.
@@ -4258,10 +4262,6 @@ pub struct Strings {
     pub app_super_s_held_2: &'static str,
     /// Text in `TIME_FOR`.
     pub app_for_totp_codes: &'static str,
-    /// Text in `NOT_AIRGAPPED`.
-    pub app_this_computer_is: &'static str,
-    /// Text in `NOT_AIRGAPPED`.
-    pub app_anything_running: &'static str,
     /// Text in `NOT_AIRGAPPED`.
     pub app_for_real_funds: &'static str,
     // ----- loose_card (faraday-core/src/screens.rs) -----
@@ -5964,11 +5964,15 @@ pub struct Strings {
     pub network_row_note_wallets: &'static str,
     // ----- not_airgapped (faraday-core/src/screens.rs) -----
     /// Text in `not_airgapped_sheet`.
-    pub not_airgapped_cancel: &'static str,
+    pub test_network_cancel: &'static str,
     /// Text in `not_airgapped_sheet`.
-    pub not_airgapped_i_understand: &'static str,
+    pub test_network_i_understand: &'static str,
     /// Line in `not_airgapped_sheet`.
-    pub not_airgapped_not_air: &'static str,
+    pub test_network_title: &'static str,
+    /// Text in `NOT_AIRGAPPED`.
+    pub test_network_testing_only: &'static str,
+    /// Text in `NOT_AIRGAPPED`.
+    pub test_network_online: &'static str,
     // ----- power (faraday-core/src/screens.rs) -----
     /// Text in `power_sheet`.
     pub power_the_computer: &'static str,
@@ -7491,6 +7495,10 @@ pub struct Strings {
     pub wallet_is_not_the_network: &'static str,
     /// Text in `text`. `{}`: `fp`.
     pub wallet_is_not_a_key: &'static str,
+    /// Text in `text`. `{}`: `network_name(*n)`.
+    pub wallet_runs_on_only: &'static str,
+    /// Text in `text`. `{}`: `fp`.
+    pub wallet_public_seeds_only: &'static str,
     /// Text in `source_tag`. `{}`: `source`.
     pub wallet_from: &'static str,
     /// Text in `source_tag`. `{}`: `source`.
@@ -9420,6 +9428,8 @@ pub static EN: Strings = Strings {
     keygen_fair_no_cautions: "Fair: no cautions",
     keygen_passphrase_again: "Passphrase again",
     keygen_lock_in: "Lock in",
+    keygen_lock_in_adds: "Lock in adds public seed {} ({}) in place of these words",
+    keygen_added_public_seed: "Added public seed {} ({}) in place of the key made",
     keygen_enter_locks: "Enter locks in",
     keygen_passphrase: "Passphrase",
     keygen_set: "Set",
@@ -10101,8 +10111,6 @@ pub static EN: Strings = Strings {
     app_done: "Done",
     app_super_s_held_2: "Super + S held 2 s: power off at once",
     app_for_totp_codes: "For TOTP codes, GPG and Secure Boot signatures, and backup check dates",
-    app_this_computer_is: "This computer is online",
-    app_anything_running: "Anything running on it can read a mainnet key typed, scanned or loaded here",
     app_for_real_funds: "For real funds, use Faraday booted from a stick on a computer with no network",
     loose_card_key_is_loaded: "Key {} is loaded. No wallet uses it.",
     loose_card_keys_are: "{} keys are loaded. No wallet uses them.",
@@ -10909,9 +10917,11 @@ pub static EN: Strings = Strings {
     locked_no_power_off: "{} {} · no power-off until written",
     locked_continue: "Continue",
     network_row_note_wallets: "Wallets loaded",
-    not_airgapped_cancel: "Cancel",
-    not_airgapped_i_understand: "I understand",
-    not_airgapped_not_air: "Not air-gapped",
+    test_network_cancel: "Cancel",
+    test_network_i_understand: "I understand",
+    test_network_title: "Test network",
+    test_network_testing_only: "For testing only: a test network takes any seed",
+    test_network_online: "This computer is online: never enter a seed that holds funds here",
     power_the_computer: "The computer powers off",
     power_cancel: "Cancel",
     power_power_off: "Power off",
@@ -11657,7 +11667,9 @@ pub static EN: Strings = Strings {
     wallet_these_words: "These words give {}, not a key of {}",
     wallet_not_a_wallet: "Not a wallet: {}",
     wallet_is_not_the_network: "{} is not {}, the network of the loaded wallets",
-    wallet_is_not_a_key: "{} is not a key this session takes",
+    wallet_is_not_a_key: "{} is not a public seed: on mainnet this app takes only those",
+    wallet_runs_on_only: "This app runs on {} only",
+    wallet_public_seeds_only: "{} is loaded, and on mainnet this app takes only public seeds",
     wallet_from: "From {}",
     wallet_from_inline: "from {}",
     wallet_a_master_seed: "a master seed is 16 to 64 bytes",

@@ -546,13 +546,15 @@ impl ApplicationHandler for Shell {
 }
 
 /// A fresh app as the desktop runs it: the online Faraday, which turns
-/// sheets into PDFs, and a test app, which starts every session on
-/// testnet as its test stick is. The stick's app starts on mainnet.
+/// sheets into PDFs, on mainnet as the demo (F20): there it takes only
+/// the public seeds and shows every address with a broken checksum. A
+/// test network takes any seed, after the not-air-gapped warning.
 fn desktop_app() -> Faraday {
     let mut app = Faraday::new();
     app.online = true;
     app.shell_keys = Some(KEYS_LINE.to_string());
-    app.session = faraday_core::wallet::Session::on(faraday_core::testkit::NET);
+    app.session = faraday_core::wallet::Session::default();
+    app.session.set_demo();
     app
 }
 
@@ -808,11 +810,20 @@ fn main() -> ExitCode {
 mod tests {
     use super::*;
 
-    /// The desktop app is the test app: its sessions start on the test
-    /// stick's network, and the stick's app on mainnet.
+    /// The desktop starts on mainnet as the demo (F20): a public seed
+    /// loads and the words of any other key are refused; on testnet the
+    /// same words load.
     #[test]
-    fn the_desktop_starts_on_testnet_and_the_device_on_mainnet() {
-        assert_eq!(desktop_app().session.network(), faraday_core::testkit::NET);
-        assert!(Faraday::new().session.network().is_mainnet());
+    fn the_desktop_starts_on_mainnet_taking_only_public_seeds() {
+        let mut app = desktop_app();
+        assert!(app.session.network().is_mainnet());
+        let public = faraday_core::demo::words("zebra");
+        assert!(app.session.add_words(&public, "", None).is_ok());
+        let other = "abandon abandon abandon abandon abandon abandon \
+                     abandon abandon abandon abandon abandon about";
+        assert!(app.session.add_words(other, "", None).is_err());
+        let mut app = desktop_app();
+        app.session.set_network(faraday_core::testkit::NET).unwrap();
+        assert!(app.session.add_words(other, "", None).is_ok());
     }
 }

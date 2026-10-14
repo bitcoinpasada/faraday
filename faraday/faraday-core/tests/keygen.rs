@@ -355,15 +355,16 @@ fn device_key(answer: [u8; 32]) -> Faraday {
     app
 }
 
-/// New key with handed-out keys: the key is made from the generator's
-/// answer as ever, and the session adds its next handed-out key in its
-/// place; without them, as on the device, the key made is the key added.
+/// New key in the demo on mainnet (F20): the key is made from the
+/// generator's answer as ever, and the session adds the next public seed
+/// not loaded in its place; without the demo, as on the device, the key
+/// made is the key added.
 #[test]
-fn a_session_that_hands_out_keys_makes_the_next_one_not_loaded() {
-    let words = |w: &str| vec![w; 24].join(" ");
+fn the_demo_adds_the_next_public_seed_not_loaded() {
+    let words = faraday_core::demo::words;
     let handing = |answer: [u8; 32], loaded: &[&str]| {
         let mut app = faraday_core::testkit::started();
-        app.session.handout = vec![words("bacon"), words("flag"), words("gas")];
+        app.session.set_demo();
         for w in loaded {
             app.session.add_words(&words(w), "", None).unwrap();
         }
@@ -741,6 +742,59 @@ fn unequal_passphrases_lock_nothing_in() {
     type_text(&mut app, "one");
     app.event(Event::Key(osk_shell_api::Key::Enter));
     assert_eq!(app.session.keys.len(), 1);
+}
+
+/// The demo on a Create slot (F20): the passphrase fields stay, what is
+/// typed in them is ignored, and Lock in adds the next public seed with
+/// no passphrase, saying so before and after.
+#[test]
+fn the_demo_locks_in_its_public_seed_whatever_passphrase_is_typed() {
+    use faraday_core::wallet::fp_text;
+    let mut app = slot_flow(true);
+    app.session.set_demo();
+    flip_all(&mut app);
+    app.press(Action::KNext);
+    let (word, fp) = app.session.next_handout().unwrap();
+    assert!(texts(&mut app).contains(&format!(
+        "Lock in adds public seed {word} ({}) in place of these words",
+        fp_text(fp)
+    )));
+    app.press(Action::KPassField(0));
+    type_text(&mut app, "one");
+    app.press(Action::KPassField(1));
+    type_text(&mut app, "two");
+    app.press(Action::KLock);
+    assert_eq!(added(&app), vec![fp.0]);
+    let c = app.create.as_ref().unwrap();
+    assert_eq!(c.slots[0], faraday_core::create::Source::Here(fp.0));
+    let shown = texts(&mut app);
+    assert!(shown.contains(&format!(
+        "Added public seed {word} ({}) in place of the key made",
+        fp_text(fp)
+    )));
+    assert!(shown.contains("Not set"), "no passphrase went with it");
+}
+
+/// On a test network the demo is off: New key adds the key it made.
+#[test]
+fn on_a_test_network_the_demo_adds_the_key_made() {
+    let mut app = faraday_core::testkit::started();
+    app.session.set_demo();
+    app.session
+        .set_network(osk_bip::keys::Network::Testnet)
+        .unwrap();
+    app.press(Action::Entry(None));
+    app.press(Action::KeyGen(None));
+    app.press(Action::KWords(24));
+    app.press(Action::KWay(Way::Device.index()));
+    app.press(Action::KNext);
+    app.press(Action::KNext);
+    app.event(Event::Entropy(EntropyBytes::new([0x5a; 32])));
+    app.press(Action::KNext);
+    let made = app.keygen.as_ref().and_then(|k| k.phrase()).unwrap();
+    finish(&mut app);
+    let made = Mnemonic::parse(Language::English, &made).unwrap();
+    assert_eq!(added(&app), vec![fingerprint(&made)]);
 }
 
 #[test]

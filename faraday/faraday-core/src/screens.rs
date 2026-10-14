@@ -124,8 +124,9 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::NewInput => app.inputs.first().map(|d| Action::InputIgnore(d.id)),
             // Zeroing stops by its own Stop, never by a press beside it.
             Sheet::WordList | Sheet::IdleWarn | Sheet::Zeroing => None,
-            // Reached mainnet without asking: only the acknowledgement.
-            Sheet::NotAirgapped if app.mainnet_asked.is_none() => None,
+            // Reached a test network without asking: only the
+            // acknowledgement.
+            Sheet::NotAirgapped if app.test_asked.is_none() => None,
             _ => Some(Action::Cancel),
         };
         match sheet {
@@ -15069,12 +15070,15 @@ fn locked_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 
 /// The Network row's buttons: every network, the one in use marked
 /// primary, and any not reachable from here (between mainnet and a test
-/// network, while wallets are loaded) disabled.
+/// network, while wallets are loaded) disabled. A session whose network is
+/// fixed offers only the one in use.
 pub(crate) fn network_row_items(app: &Faraday) -> Vec<(&'static str, Style, Action)> {
     use osk_bip::keys::Network;
     let now = app.session.network();
+    let fixed = app.session.network_fixed();
     Network::ALL
         .iter()
+        .filter(|&&n| !fixed || n == now)
         .map(|&n| {
             let here = n == now;
             let open = here || n.kind() == now.kind() || app.session.wallets.is_empty();
@@ -15100,23 +15104,24 @@ pub(crate) fn network_row_note(app: &Faraday) -> Option<&'static str> {
         .then_some(EN.network_row_note_wallets)
 }
 
-/// The lines of the online app's mainnet warning.
+/// The lines of the online app's test network warning (F20).
 const NOT_AIRGAPPED: [&str; 3] = [
-    EN.app_this_computer_is,
-    EN.app_anything_running,
+    EN.test_network_testing_only,
+    EN.test_network_online,
     EN.app_for_real_funds,
 ];
 
-/// The online app going to mainnet, or found on it: this computer is not
-/// air-gapped. Cancel only when mainnet was asked for from Network.
+/// The online app going to a test network, or found on one: it is for
+/// testing only, and this computer is not air-gapped (F20). Cancel only
+/// when the network was asked for from Network.
 fn not_airgapped_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
-    let asked = app.mainnet_asked.is_some();
+    let asked = app.test_asked.is_some();
     let mut buttons = Vec::new();
     if asked {
-        buttons.push((EN.not_airgapped_cancel, Style::Secondary, Action::Cancel));
+        buttons.push((EN.test_network_cancel, Style::Secondary, Action::Cancel));
     }
     buttons.push((
-        EN.not_airgapped_i_understand,
+        EN.test_network_i_understand,
         Style::Primary,
         Action::AirgapUnderstood,
     ));
@@ -15130,7 +15135,7 @@ fn not_airgapped_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                 iw,
                 Icon::Warning,
                 WARN,
-                EN.not_airgapped_not_air,
+                EN.test_network_title,
             );
             for (i, line) in NOT_AIRGAPPED.iter().enumerate() {
                 let fg = if i == 0 { WARN } else { TEXT };
@@ -15143,12 +15148,12 @@ fn not_airgapped_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         return;
     }
     let sw = 520.0f32.min(w - 48.0);
-    let sh = 290.0;
+    let sh = 280.0;
     let (x, y) = sheet_box(ui, w, h, sw, sh);
     let (bx, bw) = (x + 32.0, sw - 64.0);
     let mut cy = y + 26.0;
     ui.icon(bx - 4.0, cy - 2.0, 28.0, Icon::Warning, 14.0, WARN);
-    ui.text(bx + 28.0, cy, 18.0, W::S, TEXT, EN.not_airgapped_not_air);
+    ui.text(bx + 28.0, cy, 18.0, W::S, TEXT, EN.test_network_title);
     cy += 44.0;
     for (i, line) in NOT_AIRGAPPED.iter().enumerate() {
         let fg = if i == 0 { WARN } else { TEXT };

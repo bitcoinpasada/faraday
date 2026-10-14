@@ -339,6 +339,11 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
                 Action::KPassField(1),
             );
         }
+        // The demo adds a public seed in place of these words (F20).
+        if let Some((word, fp)) = app.session.next_handout() {
+            let line = fill(FEN.keygen_lock_in_adds, &[word, &fp_text(fp)]);
+            cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 6.0;
+        }
         if let Some(n) = &k.note {
             cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, n) + 6.0;
         }
@@ -380,6 +385,7 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
             TEXT,
         );
     }
+    cy += handed_line(k, ui, x, cy, w);
     cy += 6.0;
     let create = app.create.as_ref().filter(|_| k.slot.is_some());
     match create {
@@ -1679,6 +1685,19 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
 
 /// One SLIP-39 share at a time, its words numbered, with the way to the
 /// next.
+/// The public seed the demo added in place of the key made, when it did
+/// (F20): a line under the fingerprint, which is the public seed's.
+fn handed_line(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    match (k.handed, k.fingerprint) {
+        (Some(word), Some(fp)) => {
+            let fp = fp_text(osk_bip::keys::Fingerprint(fp));
+            let line = fill(FEN.keygen_added_public_seed, &[word, &fp]);
+            ui.wrap(x, y, w, 13.0, W::S, WARN, &line) + 6.0
+        }
+        _ => 0.0,
+    }
+}
+
 fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let Some(ind) = k.share_indices(k.share_at) else {
@@ -1695,6 +1714,7 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             TEXT,
         );
     }
+    cy += handed_line(k, ui, x, cy, w);
     cy = stat(
         ui,
         x,
@@ -1797,6 +1817,7 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             TEXT,
         );
     }
+    cy += handed_line(k, ui, x, cy, w);
     cy = stat(
         ui,
         x,
@@ -1851,6 +1872,7 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 TEXT,
             );
         }
+        cy += handed_line(k, ui, x, cy, w);
         let (said, tone) = if q.state() == QuizState::Passed && k.slip39 {
             (
                 fill(FEN.keygen_all_shares_right, &[&k.shares.len().to_string()]),

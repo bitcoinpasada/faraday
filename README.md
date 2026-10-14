@@ -657,9 +657,13 @@ cargo build -p faraday-desktop --release
 
 The desktop shell runs Faraday in a window on an ordinary computer, for
 trying the screens. It has none of the protections above. Use it with
-test seeds only. It starts on testnet; moving it to mainnet, or loading
-a mainnet wallet into it, first shows **Not air-gapped**, which stays
-until **I understand** is pressed.
+test seeds only. It starts on mainnet as the demo: there it takes only
+the public seeds (each of `bacon`, `flag`, `gas`, `great`, `slice`,
+`solution`, `summer`, `they`, `trade`, `trap` and `zebra`, twenty-four
+times) and shows every address with a broken checksum. Testnet, signet
+and regtest take any seed; moving to one, or loading a test wallet,
+first shows **Test network**, which stays until **I understand** is
+pressed.
 
 ```
 ./target/release/faraday [--sticks DIR] [--size WxH] [--full-kit] [--transfer] [--downloads DIR]

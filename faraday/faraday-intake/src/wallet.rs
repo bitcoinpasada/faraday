@@ -53,9 +53,13 @@ pub enum Refusal {
         /// The network of the loaded wallets.
         loaded: Network,
     },
-    /// The session takes only the keys its shell names, and this is
-    /// another ([`Session::only`]).
+    /// The demo is on, and this key is not one of its public seeds.
     NotAllowed(String),
+    /// The session's network is fixed, at this one.
+    NetworkFixed(Network),
+    /// The demo goes to mainnet only with public seeds alone loaded, and
+    /// this key is not one.
+    NotPublicLoaded(String),
 }
 
 impl Refusal {
@@ -78,6 +82,8 @@ impl Refusal {
                 &[network_name(*offered), network_name(*loaded)],
             ),
             Refusal::NotAllowed(fp) => fill(EN.wallet_is_not_a_key, &[&fp.to_string()]),
+            Refusal::NetworkFixed(n) => fill(EN.wallet_runs_on_only, &[network_name(*n)]),
+            Refusal::NotPublicLoaded(fp) => fill(EN.wallet_public_seeds_only, &[&fp.to_string()]),
         }
     }
 }
