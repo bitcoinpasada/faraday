@@ -60,3 +60,32 @@ fn restart_from_the_stick_is_windows_advanced_startup_where_there_is_no_one_time
     // And such a system has no firmware entry for uninstall to remove.
     assert_eq!(system.remove_stick_entry(), Ok(()));
 }
+
+#[test]
+fn a_payload_carrying_two_systems_desktop_apps_offers_only_this_systems() {
+    let line = |name: &str| {
+        format!(
+            "{name}\t{}\tinner\t{}\t1\t0.2.0\n",
+            "a".repeat(64),
+            "b".repeat(64)
+        )
+    };
+    let manifest = format!(
+        "# Faraday Starter payload 0.2.0, commit 0123456789abcdef0123456789abcdef01234567\n{}{}{}",
+        line("faraday-desktop-0.2.0-linux-x86_64.xz"),
+        line("faraday-desktop-0.2.0-windows-x86_64.exe.xz"),
+        line("faraday-pi-0.2.0-pi3-waveshare-28dpi.img.xz"),
+    );
+    let payload = Payload::from_parts(manifest.as_bytes(), Vec::new()).expect("a payload");
+    let ours = match std::env::consts::OS {
+        "linux" => "faraday-desktop-0.2.0-linux-x86_64.xz",
+        "windows" => "faraday-desktop-0.2.0-windows-x86_64.exe.xz",
+        _ => return,
+    };
+    let offered: Vec<String> = payload.event().files.into_iter().map(|f| f.name).collect();
+    assert_eq!(
+        offered,
+        [ours, "faraday-pi-0.2.0-pi3-waveshare-28dpi.img.xz"]
+    );
+    assert_eq!(payload.desktop_line().map(|l| l.name.as_str()), Some(ours));
+}

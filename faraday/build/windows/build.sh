@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# Builds the Windows Starter inside the container
-# (faraday/build/windows/Containerfile) for x86_64-pc-windows-gnu, and
-# checks it. `just faraday-windows-bin` starts it; there is nothing here
-# to run on the host.
+# Builds a Windows program (the Starter, or the desktop app) inside the
+# container (faraday/build/windows/Containerfile) for x86_64-pc-windows-gnu,
+# and checks it. `just faraday-windows-bin` starts it; there is nothing
+# here to run on the host.
 #
-#   build.sh            the release build, into /out/faraday-starter.exe
-#   build.sh clippy     clippy for the Windows target, warnings as errors
+#   build.sh [build [PACKAGE BIN]]  the release build, into /out/BIN.exe
+#   build.sh clippy [PACKAGE]       clippy for the Windows target, warnings
+#                                   as errors
+#
+# PACKAGE and BIN default to the Starter: faraday-starter-shell and
+# faraday-starter.
 #
 # Container paths: /src is the checkout (read-only), /out and /build are
 # bind mounts, /cargo the registry cache. FARADAY_BUILD comes from the
@@ -20,8 +24,13 @@ want="$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)"
 have="$(rustc --version | cut -d' ' -f2)"
 [ "$want" = "$have" ] || die "rust-toolchain.toml says $want, the container has $have"
 
-if [ "${1:-}" = clippy ]; then
-    exec cargo clippy --locked --target "$target" -p faraday-starter-shell -- -D warnings
+what="${1:-build}"
+package="${2:-faraday-starter-shell}"
+bin="${3:-faraday-starter}"
+case "$what" in build | clippy) ;; *) die "unknown action: $what" ;; esac
+
+if [ "$what" = clippy ]; then
+    exec cargo clippy --locked --target "$target" -p "$package" -- -D warnings
 fi
 
 : "${FARADAY_BUILD:?FARADAY_BUILD is not set}"
@@ -37,21 +46,21 @@ export RUSTFLAGS="$RUSTFLAGS --remap-path-prefix=$CARGO_TARGET_DIR=/target"
 # The symbols are not needed to run it, and are most of its size.
 export CARGO_PROFILE_RELEASE_STRIP=symbols
 
-cargo build --release --locked --target "$target" -p faraday-starter-shell --bin faraday-starter
-install -m 0644 "$CARGO_TARGET_DIR/$target/release/faraday-starter.exe" /out/faraday-starter.exe
-exe=/out/faraday-starter.exe
+cargo build --release --locked --target "$target" -p "$package" --bin "$bin"
+install -m 0644 "$CARGO_TARGET_DIR/$target/release/$bin.exe" "/out/$bin.exe"
+exe="/out/$bin.exe"
 
 # Only Windows' own libraries: nothing of mingw-w64's (libgcc_s,
 # libwinpthread, libstdc++) may be needed beside it.
 dlls="$(x86_64-w64-mingw32-objdump -p "$exe" | sed -n 's/^\s*DLL Name: //p' | sort -u)"
-echo "faraday-starter.exe imports: $(echo "$dlls" | tr '\n' ' ')"
+echo "$bin.exe imports: $(echo "$dlls" | tr '\n' ' ')"
 bad="$(echo "$dlls" | grep -iE '^(lib|mingw)' || true)"
-[ -z "$bad" ] || die "faraday-starter.exe needs a library Windows does not have: $bad"
+[ -z "$bad" ] || die "$bin.exe needs a library Windows does not have: $bad"
 
 # Its resources: the manifest asks for no elevation.
 # (Not grep -q: it would end the pipe early, and pipefail would take that
 # for a failure.)
-[ "$(strings -a "$exe" | grep -c 'level="asInvoker"' || true)" -gt 0 ] || die "faraday-starter.exe carries no asInvoker manifest"
+[ "$(strings -a "$exe" | grep -c 'level="asInvoker"' || true)" -gt 0 ] || die "$bin.exe carries no asInvoker manifest"
 
 # Nothing of the container's own paths, nor a home folder, may be left in
 # it. (grep -m1 would end the pipe early, and pipefail would take that for
@@ -59,5 +68,5 @@ bad="$(echo "$dlls" | grep -iE '^(lib|mingw)' || true)"
 hit="$( { strings -a "$exe"; strings -a -el "$exe"; } \
     | grep -E '(^|[^[:alnum:]_.-])/(src|root|payload)/|/build/target|/cargo/registry|/home/|/Users/|[A-Za-z]:\\Users\\' \
     | head -1 || true)"
-[ -z "$hit" ] || die "faraday-starter.exe carries a path: $hit"
-echo "faraday-starter.exe: $(stat -c %s "$exe") bytes, no path in its strings"
+[ -z "$hit" ] || die "$bin.exe carries a path: $hit"
+echo "$bin.exe: $(stat -c %s "$exe") bytes, no path in its strings"

@@ -44,6 +44,7 @@ members = [
     "faraday/faraday-guides",
     "faraday/faraday-intake",
     "faraday/shells/window",
+    "faraday/shells/mediafoundation",
     "faraday/shells/desktop",
     "faraday/shells/starter",
     "faraday/shells/stick",
@@ -149,9 +150,10 @@ getrandom = "0.4"
 # constant declarations the raw V4L2 ioctls need. Used by
 # `opensigner-v4l2` and by nothing else.
 libc = { version = "0.2", default-features = false }
-# Camera capture on macOS (§16.33; docs/deps/cc.md): compiles the one
-# Objective-C file of `opensigner-avfoundation` at build time. Already in
-# the graph, since `secp256k1-sys` builds libsecp256k1 with it.
+# Camera capture on macOS and Windows (§16.33; docs/deps/cc.md): compiles
+# the one Objective-C file of `opensigner-avfoundation` and the one C file
+# of `faraday-mediafoundation` at build time. Already in the graph, since
+# `secp256k1-sys` builds libsecp256k1 with it.
 cc = "1"
 
 # Dev-dependencies (test-only; never in a release binary).

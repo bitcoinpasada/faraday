@@ -22,6 +22,11 @@ pub const WIN_NAME: &str = "Faraday Starter";
 pub const WIN_EXE: &str = "Faraday Starter.exe";
 /// The Start menu shortcut.
 pub const WIN_SHORTCUT: &str = "Faraday Starter.lnk";
+/// The installed desktop app on Windows, beside the Starter's, and the
+/// name of its cached copy (`docs/STARTER.md` §5.3).
+pub const WIN_DESKTOP_EXE: &str = "Faraday Desktop.exe";
+/// The desktop app's Start menu shortcut.
+pub const WIN_DESKTOP_SHORTCUT: &str = "Faraday Desktop.lnk";
 
 /// One earlier install's names, found and removed by install and
 /// uninstall when it is Faraday's. These never change.

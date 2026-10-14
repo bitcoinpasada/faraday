@@ -14,12 +14,12 @@ version := ""
 # (docs/STARTER.md §1.2). The Wayland and X11 libraries are loaded from the
 # desktop it runs on. The Starter is built the same way with
 # the arguments `out/linux out/build/run faraday-starter-shell faraday-starter`, against the payload a first
-# `just faraday-release-stage` left: FARADAY_STARTER_PAYLOAD=out/payload/VERSION
+# `just faraday-release-stage` left: FARADAY_STARTER_PAYLOAD=out/payload/VERSION/linux
 # in the environment is mounted into the container and built in (STARTER
 # §1.3); without it the Starter carries no payload. Then
 # `just faraday-release-stage-starter VERSION` adds it to the release.
 #
-#   FARADAY_STARTER_PAYLOAD=out/payload/0.2.0 just faraday-linux-bin out/linux out/build/run faraday-starter-shell faraday-starter
+#   FARADAY_STARTER_PAYLOAD=out/payload/0.2.0/linux just faraday-linux-bin out/linux out/build/run faraday-starter-shell faraday-starter
 #
 # Sticks are folders in ~/faraday-sticks: BOOTSTICK, plugged in at start
 # as the stick the device booted from (renamed, the app starts with no
@@ -61,17 +61,20 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop
     file "{{out}}/{{bin}}"
     sha256sum "{{out}}/{{bin}}"
 
-# The Windows Starter (docs/STARTER.md §2), cross-compiled for
-# x86_64-pc-windows-gnu in the pinned container (faraday/build/windows/),
-# into OUT/faraday-starter.exe, with its icon, version and asInvoker manifest,
-# and checked: no library beside Windows' own, no local path in its
-# strings. FARADAY_STARTER_PAYLOAD=out/payload/VERSION builds that payload in
-# (the stick and Pi images; the desktop app from batch C); without it the
-# Starter offers only --image. `just faraday-windows-bin clippy` runs
-# clippy for the Windows target instead.
+# The Windows Starter and desktop app (docs/STARTER.md §2), cross-compiled
+# for x86_64-pc-windows-gnu in the pinned container (faraday/build/windows/),
+# into OUT/BIN.exe, with its icon, version and asInvoker manifest, and
+# checked: no library beside Windows' own, no local path in its strings.
+# Parameters are positional, in this order, as faraday-linux-bin's are;
+# the last two default to the Starter. FARADAY_STARTER_PAYLOAD=out/payload/VERSION/windows
+# builds that payload into the Starter (the stick and Pi images and the
+# Windows desktop app); without it the Starter offers only --image. what
+# `clippy` runs clippy for the Windows target on that package instead.
 #
-#   FARADAY_STARTER_PAYLOAD=out/payload/0.2.0 just faraday-windows-bin
-faraday-windows-bin what="build" out="out/windows" cache="out/build/run":
+#   FARADAY_STARTER_PAYLOAD=out/payload/0.2.0/windows just faraday-windows-bin
+#   just faraday-windows-bin build out/windows out/build/run faraday-desktop faraday
+#   just faraday-windows-bin clippy out/windows out/build/run faraday-desktop faraday
+faraday-windows-bin what="build" out="out/windows" cache="out/build/run" package="faraday-starter-shell" bin="faraday-starter":
     #!/usr/bin/env bash
     set -euo pipefail
     root="$(pwd)"
@@ -84,8 +87,6 @@ faraday-windows-bin what="build" out="out/windows" cache="out/build/run":
         [ -f "$FARADAY_STARTER_PAYLOAD/MANIFEST" ] || { echo "$FARADAY_STARTER_PAYLOAD/MANIFEST: not there" >&2; exit 1; }
         payload=(-v "$(realpath "$FARADAY_STARTER_PAYLOAD")":/payload:ro -e FARADAY_STARTER_PAYLOAD=/payload)
     fi
-    arg=()
-    [ "{{what}}" = clippy ] && arg=(clippy)
     {{docker}} run --rm \
         -e SOURCE_DATE_EPOCH="{{source_date_epoch}}" \
         -e FARADAY_BUILD="$FARADAY_BUILD" \
@@ -94,9 +95,9 @@ faraday-windows-bin what="build" out="out/windows" cache="out/build/run":
         -v "$root/{{out}}":/out \
         -v "$root/{{cache}}/windows":/build \
         -v "$root/{{build_cache}}/cargo":/cargo \
-        faraday-build-windows /src/faraday/build/windows/build.sh ${arg[@]+"${arg[@]}"}
+        faraday-build-windows /src/faraday/build/windows/build.sh "{{what}}" "{{package}}" "{{bin}}"
     if [ "{{what}}" != clippy ]; then
-        sha256sum "{{out}}/faraday-starter.exe"
+        sha256sum "{{out}}/{{bin}}.exe"
     fi
 
 # The desktop app standing for a device's screen at its true size on
@@ -368,8 +369,11 @@ faraday-pi-image: faraday-pi-bin
 # sign, and the Starter's payload and MANIFEST under out/payload/VERSION/
 # (STARTER §1.3); refuses files carrying a home folder, user name or host
 # name. The stick image must be the release build (release=1); the stick,
-# Pi and desktop builds (out/linux, from faraday-linux-bin) must carry
-# one build ID; --any-build tries it on a test build.
+# Pi and desktop builds (out/linux/faraday from faraday-linux-bin, and
+# out/windows/faraday.exe from `just faraday-windows-bin build out/windows
+# out/build/run faraday-desktop faraday`) must carry one build ID;
+# --any-build tries it on a test build. The payload has linux/ and
+# windows/, one for each Starter.
 #
 #   just faraday-release-stage 0.2.0
 #   just faraday-release-stage 0.2.0 --any-build --out DIR

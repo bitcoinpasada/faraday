@@ -33,7 +33,7 @@ only, never 3 or 5.
 - A second account, a standard user, for run 4b.
 - On the machine's answer disk or a second USB image: `Faraday Starter.exe`
   from `just faraday-windows-bin` with the release payload
-  (`FARADAY_STARTER_PAYLOAD=out/payload/X.Y.Z`), and nothing else of the
+  (`FARADAY_STARTER_PAYLOAD=out/payload/X.Y.Z/windows`), and nothing else of the
   Starter's.
 - The stick image to start: `out/stick/faraday-x86_64-uefi.img`, given
   to the machine as a removable USB stick (`winvm.sh start --usb-stick

@@ -256,7 +256,9 @@ impl Sticks for Dirs {
 }
 
 /// The memory this machine has free for a vault's Argon2id, in MiB, from
-/// the kernel's own estimate.
+/// the kernel's own estimate. `None` where there is none (anywhere but
+/// Linux): the vault then offers its largest unlock memory and checks
+/// none against this computer.
 pub fn memory_available_mib() -> Option<u32> {
     let info = fs::read_to_string("/proc/meminfo").ok()?;
     let line = info.lines().find(|l| l.starts_with("MemAvailable:"))?;
@@ -362,7 +364,8 @@ pub struct Host {
     pub print: PathBuf,
     /// The folder Transfer sends from and saves into.
     pub downloads: PathBuf,
-    /// This computer opens a folder in its file manager (`xdg-open`).
+    /// This computer opens a folder in its file manager (`xdg-open`, or
+    /// `explorer.exe` on Windows).
     pub opens: bool,
 }
 
@@ -377,7 +380,15 @@ impl Host {
     }
 }
 
+/// Whether this computer has a way to open a folder: `explorer.exe` on
+/// Windows, always; elsewhere `xdg-open` on the path.
+#[cfg(windows)]
+pub fn can_open_folders() -> bool {
+    true
+}
+
 /// Whether `xdg-open` is on the path, to open a folder with.
+#[cfg(not(windows))]
 pub fn can_open_folders() -> bool {
     std::env::var_os("PATH")
         .is_some_and(|paths| std::env::split_paths(&paths).any(|d| d.join("xdg-open").is_file()))
@@ -459,7 +470,16 @@ pub fn save_download(dir: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf, St
 /// Opens a folder in this computer's file manager, or a web address in
 /// its browser.
 fn open_folder(dir: &Path) -> Result<(), String> {
-    let mut child = std::process::Command::new("xdg-open")
+    #[cfg(windows)]
+    let program = {
+        // From the system folder, not from the search path, so that no
+        // other `explorer.exe` can answer.
+        let root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
+        PathBuf::from(root).join("explorer.exe")
+    };
+    #[cfg(not(windows))]
+    let program = PathBuf::from("xdg-open");
+    let mut child = std::process::Command::new(program)
         .arg(dir)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())

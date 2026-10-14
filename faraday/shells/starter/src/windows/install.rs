@@ -8,7 +8,8 @@
 //! | | |
 //! |---|---|
 //! | the Starter | `%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Starter.exe`, a copy of the running file |
-//! | the Start menu shortcut | `Faraday Starter.lnk` in the person's Start menu Programs folder |
+//! | the desktop app, if ticked | `%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Desktop.exe`, beside the Starter |
+//! | the Start menu shortcuts | `Faraday Starter.lnk` and, with the desktop app, `Faraday Desktop.lnk`, in the person's Start menu Programs folder |
 //! | the uninstall entry | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday Starter` |
 //! | the icon | in the `.exe` |
 //! | the logon reminder | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Faraday Starter`, only while the Starter's BitLocker suspension stands (§6.3) |
@@ -18,9 +19,12 @@
 //! uninstall, when their executable is not there or answers `--version`
 //! as Faraday's Starter; one that does not leaves all its old names alone.
 //!
-//! The desktop app is not installed on Windows until batch C (§2). A
-//! `Faraday Starter.exe` that does not answer `--version` as Faraday's Starter
-//! is another program's, and is neither replaced nor removed (§5.2).
+//! The desktop app is the payload's, decompressed and checked against its
+//! manifest line, written beside its place and renamed in. Without it
+//! installed, Try the desktop app runs it from the cache (§5.3,
+//! [`desktop_app`]). A `Faraday Starter.exe` or `Faraday Desktop.exe` that
+//! does not answer `--version` as Faraday's own program is another
+//! program's, and is neither replaced nor removed (§5.2).
 //! A running copy cannot be deleted on Windows: an install renames the
 //! old file aside first, and an uninstall run from the installed copy
 //! leaves a short command that removes it once the Starter has exited
@@ -31,9 +35,14 @@ use std::path::{Path, PathBuf};
 
 use faraday_core::strings::EN;
 use faraday_core::{Program, names};
+use faraday_payload::{ImageKind, Sha256Sum};
 use faraday_starter::api::{InstallItem, Installed, Reason};
 
 use super::shortcut;
+use crate::payload::Payload;
+
+/// The system the payload's desktop app is chosen for.
+const OS: &str = "windows";
 
 /// The uninstall entry, under `HKEY_CURRENT_USER`.
 pub fn uninstall_key() -> String {
@@ -57,12 +66,20 @@ pub const RUN_VALUE: &str = names::WIN_NAME;
 pub const APP: &str = names::WIN_EXE;
 /// The shortcut's file name.
 pub const SHORTCUT: &str = names::WIN_SHORTCUT;
-/// Beside the Starter while it is replaced.
+/// The desktop app's file name.
+pub const DESKTOP_APP: &str = names::WIN_DESKTOP_EXE;
+/// The desktop app's shortcut's file name.
+pub const DESKTOP_SHORTCUT: &str = names::WIN_DESKTOP_SHORTCUT;
+/// Beside a file while it is replaced.
 fn new_name() -> String {
     format!(".{}.new", names::WIN_EXE)
 }
 fn old_name() -> String {
     format!(".{}.old", names::WIN_EXE)
+}
+/// `name` beside it while it is written (`new`) or set aside (`old`).
+fn beside(name: &str, suffix: &str) -> String {
+    format!(".{name}.{suffix}")
 }
 
 /// The folders an install works in.
@@ -103,9 +120,24 @@ impl Dirs {
         self.programs.join(SHORTCUT)
     }
 
+    /// The installed desktop app, beside the Starter.
+    pub fn desktop_app(&self) -> PathBuf {
+        self.folder().join(DESKTOP_APP)
+    }
+
+    /// The desktop app's Start menu shortcut.
+    pub fn desktop_shortcut(&self) -> PathBuf {
+        self.programs.join(DESKTOP_SHORTCUT)
+    }
+
     /// The desktop app's cache (§5.3), `%LOCALAPPDATA%\faraday\cache`.
     pub fn cache(&self) -> PathBuf {
         self.local.join("faraday").join("cache")
+    }
+
+    /// The cache folder for one release (§5.3).
+    pub fn cache_for(&self, version: &str) -> PathBuf {
+        self.cache().join(version)
     }
 }
 
@@ -125,22 +157,39 @@ pub enum Step {
     CopySelf(PathBuf),
     /// A file written whole.
     Write(PathBuf, Vec<u8>),
+    /// A file written beside its place and renamed into it, so a copy
+    /// that is running is replaced whole.
+    Replace(PathBuf, Vec<u8>),
     /// A value under [`uninstall_key`].
     Value(&'static str, Data),
 }
 
-/// The install: the Starter, then the shortcut, then the uninstall
-/// entry, so neither points at a file that is not there. `version` is
-/// the running copy's, `size` its bytes.
-pub fn plan(dirs: &Dirs, version: &str, name: &str, size: u64) -> Vec<Step> {
+/// The install: the Starter, the desktop app when `desktop` is its
+/// decompressed bytes, then the shortcuts, then the uninstall entry, so
+/// none points at a file that is not there. `version` is the running
+/// copy's, `size` its bytes.
+pub fn plan(
+    dirs: &Dirs,
+    version: &str,
+    name: &str,
+    size: u64,
+    desktop: Option<&[u8]>,
+) -> Vec<Step> {
     let app = dirs.app();
     let shown = app.display().to_string();
-    vec![
-        Step::CopySelf(app.clone()),
-        Step::Write(
-            dirs.shortcut(),
-            shortcut::lnk(&shown, &dirs.folder().display().to_string()),
-        ),
+    let folder = dirs.folder().display().to_string();
+    let mut steps = vec![Step::CopySelf(app.clone())];
+    if let Some(bytes) = desktop {
+        steps.push(Step::Replace(dirs.desktop_app(), bytes.to_vec()));
+    }
+    steps.push(Step::Write(dirs.shortcut(), shortcut::lnk(&shown, &folder)));
+    if desktop.is_some() {
+        steps.push(Step::Write(
+            dirs.desktop_shortcut(),
+            shortcut::lnk(&dirs.desktop_app().display().to_string(), &folder),
+        ));
+    }
+    steps.extend([
         Step::Value("DisplayName", Data::Sz(name.to_string())),
         Step::Value("DisplayVersion", Data::Sz(version.to_string())),
         Step::Value("Publisher", Data::Sz(EN.starter_publisher.to_string())),
@@ -159,7 +208,8 @@ pub fn plan(dirs: &Dirs, version: &str, name: &str, size: u64) -> Vec<Step> {
         ),
         Step::Value("NoModify", Data::Dword(1)),
         Step::Value("NoRepair", Data::Dword(1)),
-    ]
+    ]);
+    steps
 }
 
 /// The person's registry, under `HKEY_CURRENT_USER`.
@@ -277,7 +327,11 @@ pub fn remove_reminder(dirs: &Dirs, reg: &mut dyn Registry) -> Result<(), Reason
 pub type Ask<'a> = &'a dyn Fn(&Path) -> Option<(Program, String)>;
 
 fn ours(ask: Ask<'_>, path: &Path) -> bool {
-    ask(path).is_some_and(|(p, _)| p == Program::StarterApp)
+    ours_as(ask, path, Program::StarterApp)
+}
+
+fn ours_as(ask: Ask<'_>, path: &Path, program: Program) -> bool {
+    ask(path).is_some_and(|(p, _)| p == program)
 }
 
 fn file_error(path: &Path, e: &std::io::Error) -> Reason {
@@ -318,9 +372,21 @@ pub fn install(
             path: app.display().to_string(),
         });
     }
+    let desktop = dirs.desktop_app();
+    if steps
+        .iter()
+        .any(|s| matches!(s, Step::Replace(to, _) if *to == desktop))
+        && desktop.exists()
+        && !ours_as(ask, &desktop, Program::DesktopApp)
+    {
+        return Err(Reason::InTheWay {
+            path: desktop.display().to_string(),
+        });
+    }
     for step in steps {
         match step {
             Step::CopySelf(to) => copy_self(running, to)?,
+            Step::Replace(to, bytes) => put(to, |at| fs::write(at, bytes))?,
             Step::Write(path, bytes) => {
                 let fail = |e: std::io::Error| file_error(path, &e);
                 if let Some(parent) = path.parent() {
@@ -335,18 +401,27 @@ pub fn install(
     Ok(app.display().to_string())
 }
 
-/// Copies `running` to `to` through a file beside it. A file already at
-/// `to` is renamed aside first, which Windows allows while it runs, and
-/// removed when it can be.
+/// Copies `running` to `to` through a file beside it.
 fn copy_self(running: &Path, to: &Path) -> Result<(), Reason> {
     if same(running, to) {
         return Ok(());
     }
+    put(to, |at| fs::copy(running, at).map(|_| ()))
+}
+
+/// Puts a file at `to`: `write` makes it beside `to`, and it is renamed
+/// into place. A file already at `to` is renamed aside first, which
+/// Windows allows while it runs, and removed when it can be.
+fn put(to: &Path, write: impl FnOnce(&Path) -> std::io::Result<()>) -> Result<(), Reason> {
     let fail = |e: std::io::Error| file_error(to, &e);
     let folder = to.parent().unwrap_or(Path::new("."));
     fs::create_dir_all(folder).map_err(fail)?;
-    let (new, old) = (folder.join(new_name()), folder.join(old_name()));
-    if let Err(e) = fs::copy(running, &new) {
+    let name = to.file_name().unwrap_or_default().to_string_lossy();
+    let (new, old) = (
+        folder.join(beside(&name, "new")),
+        folder.join(beside(&name, "old")),
+    );
+    if let Err(e) = write(&new) {
         let _ = fs::remove_file(&new);
         return Err(fail(e));
     }
@@ -376,8 +451,20 @@ pub fn installed(dirs: &Dirs, ask: Ask<'_>, reg: &mut dyn Registry) -> Option<In
         _ => return installed_legacy(dirs, ask, reg),
     };
     let mut items = vec![(InstallItem::App, app.display().to_string())];
+    if ours_as(ask, &dirs.desktop_app(), Program::DesktopApp) {
+        items.push((
+            InstallItem::Desktop,
+            dirs.desktop_app().display().to_string(),
+        ));
+    }
     if dirs.shortcut().is_file() {
         items.push((InstallItem::Menu, dirs.shortcut().display().to_string()));
+    }
+    if dirs.desktop_shortcut().is_file() {
+        items.push((
+            InstallItem::DesktopMenu,
+            dirs.desktop_shortcut().display().to_string(),
+        ));
     }
     if reg.exists(&uninstall_key()) {
         items.push((
@@ -433,8 +520,8 @@ pub enum Left {
     AfterExit(String),
 }
 
-/// Uninstalls: the Starter (only Faraday's), its file set aside by an
-/// install, the shortcut, the uninstall entry, the logon reminder and
+/// Uninstalls: the Starter and the desktop app (only Faraday's), their
+/// files set aside by an install, the shortcuts, the uninstall entry, the logon reminder and
 /// the BitLocker marker (§5.4: the window has shown the line about a
 /// standing suspension first), the desktop app's cache, and the folders
 /// they leave empty. Nothing else.
@@ -456,6 +543,7 @@ pub fn uninstall(
     }
     let _ = fs::remove_file(folder.join(old_name()));
     let _ = fs::remove_file(folder.join(new_name()));
+    remove_desktop(dirs, ask)?;
     match fs::remove_file(dirs.shortcut()) {
         Ok(()) => {}
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
@@ -469,6 +557,66 @@ pub fn uninstall(
     let _ = fs::remove_dir(&folder);
     let _ = fs::remove_dir(dirs.local.join("Programs"));
     Ok(left)
+}
+
+/// Removes the installed desktop app when it is Faraday's, the files an
+/// install set aside beside it, and its shortcut. A running desktop app
+/// is renamed aside, which Windows allows, so its name is free.
+fn remove_desktop(dirs: &Dirs, ask: Ask<'_>) -> Result<(), Reason> {
+    let app = dirs.desktop_app();
+    let folder = dirs.folder();
+    let _ = fs::remove_file(folder.join(beside(DESKTOP_APP, "old")));
+    let _ = fs::remove_file(folder.join(beside(DESKTOP_APP, "new")));
+    if app.exists() && ours_as(ask, &app, Program::DesktopApp) && fs::remove_file(&app).is_err() {
+        let old = folder.join(beside(DESKTOP_APP, "old"));
+        fs::rename(&app, &old).map_err(|e| file_error(&app, &e))?;
+        let _ = fs::remove_file(&old);
+    }
+    match fs::remove_file(dirs.desktop_shortcut()) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(file_error(&dirs.desktop_shortcut(), &e)),
+    }
+}
+
+/// The desktop app to run (§5.3): the installed one if there is one;
+/// otherwise the payload's, in the cache, `faraday\cache\VERSION\Faraday
+/// Desktop.exe`. A cached copy is hashed on every start and written
+/// again when its SHA-256 is not the manifest's.
+pub fn desktop_app(
+    dirs: &Dirs,
+    ask: Ask<'_>,
+    payload: Option<&Payload>,
+) -> Result<PathBuf, Reason> {
+    if ours_as(ask, &dirs.desktop_app(), Program::DesktopApp) {
+        return Ok(dirs.desktop_app());
+    }
+    let payload = payload.ok_or(Reason::NoDesktopApp)?;
+    let line = payload.desktop_line_for(OS).ok_or(Reason::NoDesktopApp)?;
+    let cached = dirs.cache_for(payload.manifest.version()).join(DESKTOP_APP);
+    if sum_of(&cached).as_ref() == Some(&line.inner_sha256) {
+        return Ok(cached);
+    }
+    let (_, bytes) = payload.desktop_app_for(OS)?;
+    put(&cached, |at| {
+        let mut f = fs::File::create(at)?;
+        std::io::Write::write_all(&mut f, &bytes)?;
+        f.sync_all()
+    })?;
+    // What is on disk now is what runs: hashed again.
+    match sum_of(&cached) {
+        Some(sum) if sum == line.inner_sha256 => Ok(cached),
+        other => Err(Reason::CacheSum(
+            other.map_or_else(|| String::from("unreadable"), |s| s.to_string()),
+        )),
+    }
+}
+
+fn sum_of(path: &Path) -> Option<Sha256Sum> {
+    let f = fs::File::open(path).ok()?;
+    faraday_payload::hash_image(std::io::BufReader::new(f), ImageKind::Plain)
+        .ok()
+        .map(|s| s.sha256)
 }
 
 /// Removes the release folders (`X.Y.Z`) in the cache, then the cache

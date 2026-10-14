@@ -8,8 +8,9 @@
 # A release is staged in two passes (STARTER §1.3). The first, the form
 # above without --starter, stages the plain files and the Starter's payload.
 # The Starter is built against that payload (`FARADAY_STARTER_PAYLOAD=
-# out/payload/VERSION just faraday-linux-bin out/linux out/build/run
-# faraday-starter-shell faraday-starter`, which leaves out/linux/faraday-starter), and the second
+# out/payload/VERSION/linux just faraday-linux-bin out/linux out/build/run
+# faraday-starter-shell faraday-starter`, which leaves out/linux/faraday-starter;
+# the Windows Starter against out/payload/VERSION/windows), and the second
 # pass, `--starter out/linux/faraday-starter` (`just faraday-release-stage-starter
 # VERSION`), adds it to the folder the first made: Faraday-Starter-VERSION-Linux.tar.gz
 # holding one file, Faraday-Starter-VERSION-Linux, with its executable bit, made
@@ -26,6 +27,9 @@
 #
 # Takes what the builds left:
 #   out/linux/faraday                       -> faraday-desktop-VERSION-linux-x86_64
+#   out/windows/faraday.exe                 -> faraday-desktop-VERSION-windows-x86_64.exe
+#       (`just faraday-windows-bin build out/windows out/build/run
+#       faraday-desktop faraday`; refused unless it carries the build ID)
 #       (`just faraday-linux-bin`: the glibc 2.31 container build, STARTER §1.2;
 #       target/release/faraday needs the build machine's newer glibc)
 #   out/stick/faraday-x86_64-uefi.img       -> faraday-stick-VERSION-x86_64-uefi.img.xz
@@ -40,7 +44,8 @@
 # The stick image must carry VERSION as its build ID (a release build,
 # DECISIONS F5); --any-build skips that, for trying the script on a test
 # build. The three builds (stick, Pi, desktop app) must carry the same
-# build ID, --any-build or not. Each is read from the file it describes:
+# build ID, --any-build or not (the Windows desktop app is checked for
+# that build ID as a string). Each is read from the file it describes:
 # the stick's and the Pi's from the kernel release string on their boot
 # partitions (the Pi's in faraday-build.txt, which its image build
 # writes: its kernel is compressed), the desktop app's from the build
@@ -48,8 +53,10 @@
 # image always gives the same .xz.
 #
 # Second, the payload the Starter embeds (STARTER §1.3), in out/payload/VERSION/
-# (with --out DIR, in DIR.payload; --payload DIR names it): hard links to
-# the two image .xz, the desktop app as .xz, and MANIFEST.
+# (with --out DIR, in DIR.payload; --payload DIR names it): one folder per
+# system, linux/ and windows/, each with hard links to the two image .xz,
+# that system's desktop app as .xz, and its own MANIFEST (the first line
+# is the same in both).
 #
 # Last, the published-file check (STARTER §2): every file published, and every
 # .img, binary and inner file inside one, goes through `strings`. The
@@ -96,9 +103,10 @@ trap 'rm -rf "$check"' EXIT
 build=""
 if [ -z "$second" ]; then
     desktop=out/linux/faraday
+    desktop_win=out/windows/faraday.exe
     stick=out/stick/faraday-x86_64-uefi.img
     pi=out/pi/faraday-pi3-waveshare-28dpi.img
-    for f in "$desktop" "$stick" "$pi"; do
+    for f in "$desktop" "$desktop_win" "$stick" "$pi"; do
         [ -f "$f" ] || die "$f: not built"
     done
     for tool in xz strings mtype; do
@@ -150,16 +158,22 @@ if [ -z "$second" ]; then
         die "the builds are $stick_id, not the release $version (build them with release=1, or pass --any-build)"
     fi
     build="$stick_id"
+    # The Windows desktop app cannot be run here; it must carry the build
+    # ID as a string (a plain `grep -a`: the id is in its read-only data).
+    grep -aqF -- "$build" "$desktop_win" || die "$desktop_win does not carry the build ID $build (just faraday-windows-bin build out/windows out/build/run faraday-desktop faraday, in the same build)"
+    echo "$desktop_win: carries $build"
 
     [ ! -e "$out" ] || die "$out exists; move it aside first"
     [ ! -e "$payload" ] || die "$payload exists; move it aside first"
-    mkdir -p "$out" "$payload"
+    mkdir -p "$out" "$payload/linux" "$payload/windows"
 
     stick_name="faraday-stick-$version-x86_64-uefi.img"
     pi_name="faraday-pi-$version-pi3-waveshare-28dpi.img"
     desktop_name="faraday-desktop-$version-linux-x86_64"
+    desktop_win_name="faraday-desktop-$version-windows-x86_64.exe"
 
     cp "$desktop" "$out/$desktop_name"
+    cp "$desktop_win" "$out/$desktop_win_name"
     for pair in "$stick:$stick_name" "$pi:$pi_name"; do
         src="${pair%%:*}"
         name="${pair#*:}"
@@ -171,7 +185,7 @@ if [ -z "$second" ]; then
     commit="$(git rev-parse HEAD)"
     {
         echo "# Faraday $version, commit $commit"
-        (cd "$out" && sha256sum "$desktop_name" "$stick_name.xz" "$pi_name.xz")
+        (cd "$out" && sha256sum "$desktop_name" "$desktop_win_name" "$stick_name.xz" "$pi_name.xz")
         printf '%s  %s\n' "$(sha256sum < "$stick" | cut -d' ' -f1)" "$stick_name"
         printf '%s  %s\n' "$(sha256sum < "$pi" | cut -d' ' -f1)" "$pi_name"
     } > "$out/SHA256SUMS"
@@ -185,28 +199,40 @@ if [ -z "$second" ]; then
     cp "$out/SHA256SUMS" "$check/"
     (cd "$check" && sha256sum -c --quiet --ignore-missing SHA256SUMS)
 
-    # The payload the Starter embeds (STARTER §1.3): the images' .xz as hard
-    # links to the staged ones, the desktop app as .xz, and MANIFEST. One
-    # line per file, tab-separated: the payload file, its SHA-256, what is
-    # inside it, that file's SHA-256 and size, the build ID it carries.
-    desktop_xz="$desktop_name.xz"
-    echo "Compressing $desktop_xz"
-    xz -9e -T1 -c "$desktop" > "$payload/$desktop_xz"
-    xz -t "$payload/$desktop_xz"
-    ln "$out/$stick_name.xz" "$payload/$stick_name.xz"
-    ln "$out/$pi_name.xz" "$payload/$pi_name.xz"
-    manifest_line() { # payload file, inner name, inner file
-        printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$(sha256sum < "$payload/$1" | cut -d' ' -f1)" \
-            "$2" "$(sha256sum < "$3" | cut -d' ' -f1)" "$(stat -c %s "$3")" "$build"
-    }
-    {
-        echo "# Faraday Starter payload $version, commit $commit"
-        manifest_line "$stick_name.xz" "$stick_name" "$stick"
-        manifest_line "$pi_name.xz" "$pi_name" "$pi"
-        manifest_line "$desktop_xz" "$desktop_name" "$desktop"
-    } > "$payload/MANIFEST"
-    # The payload files decompress to what the manifest says.
-    xz -d -c "$payload/$desktop_xz" | cmp - "$desktop"
+    # The payload the Starter embeds (STARTER §1.3), one folder per system:
+    # the images' .xz as hard links to the staged ones, that system's
+    # desktop app as .xz, and MANIFEST. One line per file, tab-separated:
+    # the payload file, its SHA-256, what is inside it, that file's
+    # SHA-256 and size, the build ID it carries. Both MANIFESTs start with
+    # the same line.
+    for system in linux windows; do
+        dir="$payload/$system"
+        if [ "$system" = linux ]; then
+            app="$desktop"
+            app_name="$desktop_name"
+        else
+            app="$desktop_win"
+            app_name="$desktop_win_name"
+        fi
+        app_xz="$app_name.xz"
+        echo "Compressing $app_xz"
+        xz -9e -T1 -c "$app" > "$dir/$app_xz"
+        xz -t "$dir/$app_xz"
+        ln "$out/$stick_name.xz" "$dir/$stick_name.xz"
+        ln "$out/$pi_name.xz" "$dir/$pi_name.xz"
+        manifest_line() { # payload file, inner name, inner file
+            printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$(sha256sum < "$dir/$1" | cut -d' ' -f1)" \
+                "$2" "$(sha256sum < "$3" | cut -d' ' -f1)" "$(stat -c %s "$3")" "$build"
+        }
+        {
+            echo "# Faraday Starter payload $version, commit $commit"
+            manifest_line "$stick_name.xz" "$stick_name" "$stick"
+            manifest_line "$pi_name.xz" "$pi_name" "$pi"
+            manifest_line "$app_xz" "$app_name" "$app"
+        } > "$dir/MANIFEST"
+        # The payload files decompress to what the manifest says.
+        xz -d -c "$dir/$app_xz" | cmp - "$app"
+    done
 fi
 
 # The published-file check (STARTER §2). The values come from the account and
@@ -266,20 +292,20 @@ scan() {
 # A Starter the second pass adds must sit on a first pass's output and
 # carry its payload: the MANIFEST's first line names the release and the
 # commit, and is in the binary as a string. Prints that line.
-starter_payload() { # the Starter's file, the name it is published as
-    [ -f "$out/SHA256SUMS" ] && [ -f "$payload/MANIFEST" ] \
-        || die "$out and $payload are not a first pass's output: stage the plain files first"
+starter_payload() { # the Starter's file, the name it is published as, its system's folder
+    [ -f "$out/SHA256SUMS" ] && [ -f "$payload/$3/MANIFEST" ] \
+        || die "$out and $payload/$3 are not a first pass's output: stage the plain files first"
     [ ! -e "$out/$2" ] || die "$out/$2 exists; move it aside first"
     local first
-    first="$(head -1 "$payload/MANIFEST")"
-    grep -aqF -- "$first" "$1" || die "$1 does not carry the payload in $payload (its MANIFEST's first line is not in it); build it against that payload"
+    first="$(head -1 "$payload/$3/MANIFEST")"
+    grep -aqF -- "$first" "$1" || die "$1 does not carry the payload in $payload/$3 (its MANIFEST's first line is not in it); build it against that payload"
     printf '%s' "$first"
 }
 # The second pass: the Linux Starter (STARTER §1.1, §1.2).
 add_starter() {
     local first
     [ -f "$starter" ] || die "$starter: not built (just faraday-linux-bin out/linux out/build/run faraday-starter-shell faraday-starter)"
-    first="$(starter_payload "$starter" "$tar_name")"
+    first="$(starter_payload "$starter" "$tar_name" linux)"
     # The tar holds one file, with its executable bit and no owner,
     # time or name of the building computer; gzip -n leaves out the
     # name and time of its own.
@@ -313,7 +339,7 @@ add_starter() {
 add_starter_windows() {
     local first
     [ -f "$starter_win" ] || die "$starter_win: not built (just faraday-windows-bin)"
-    first="$(starter_payload "$starter_win" "$exe_name")"
+    first="$(starter_payload "$starter_win" "$exe_name" windows)"
     cp "$starter_win" "$out/$exe_name"
     scan "$out/$exe_name" "$out/$exe_name" 0
     (cd "$out" && sha256sum "$exe_name") >> "$out/SHA256SUMS"
@@ -334,9 +360,9 @@ if [ -n "$second" ]; then
     [ -z "$starter" ] || add_starter
     [ -z "$starter_win" ] || add_starter_windows
 else
-for f in "$out"/* "$payload"/*; do
+for f in "$out"/* "$payload"/*/*; do
     # The payload's image .xz are the release's own files.
-    if [ "$(dirname "$f")" = "$payload" ] && [ -e "$out/$(basename "$f")" ]; then continue; fi
+    case "$f" in "$payload"/*/*) [ ! -e "$out/$(basename "$f")" ] || continue ;; esac
     case "$f" in
         *.xz)
             xz -d -c "$f" > "$check/inner"

@@ -60,6 +60,11 @@ const POLL: Duration = Duration::from_millis(1500);
 const VERSION_WAIT: Duration = Duration::from_secs(5);
 /// `CREATE_NO_WINDOW`: a console program started with no window.
 const NO_WINDOW: u32 = 0x0800_0000;
+/// How long a started desktop app gets to fail before it counts as started.
+const START_WAIT: Duration = Duration::from_millis(400);
+/// `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP`: a program started on its
+/// own, which closing the Starter does not end.
+const DETACHED: u32 = 0x0000_0008 | 0x0000_0200;
 /// How often progress goes over the pipe.
 const PROGRESS_EVERY: Duration = Duration::from_millis(100);
 
@@ -278,16 +283,19 @@ impl Platform for Windows {
         install::installed(&dirs().ok()?, &faraday_of, &mut sys::CurrentUser)
     }
 
-    fn install(&self, desktop: bool, _payload: Option<&Payload>) -> Result<String, Reason> {
-        // The desktop app comes to Windows in batch C (§2).
-        if desktop {
-            return Err(Reason::NoDesktopApp);
-        }
+    fn install(&self, desktop: bool, payload: Option<&Payload>) -> Result<String, Reason> {
+        // The desktop app, decompressed and checked against the
+        // manifest, before anything is written.
+        let app = if desktop {
+            Some(payload.ok_or(Reason::NoDesktopApp)?.desktop_app()?.1)
+        } else {
+            None
+        };
         let dirs = dirs()?;
         let running = running()?;
         let size = std::fs::metadata(&running).map(|m| m.len()).unwrap_or(0);
         let version = faraday_core::BUILD.unwrap_or(faraday_starter::VERSION);
-        let steps = install::plan(&dirs, version, EN.starter_menu_name, size);
+        let steps = install::plan(&dirs, version, EN.starter_menu_name, size, app.as_deref());
         install::install(&dirs, &steps, &running, &faraday_of, &mut sys::CurrentUser)
     }
 
@@ -302,8 +310,9 @@ impl Platform for Windows {
         Ok(())
     }
 
-    fn run_desktop(&self, _payload: Option<&Payload>) -> Result<(), Reason> {
-        Err(Reason::NoDesktopApp)
+    fn run_desktop(&self, payload: Option<&Payload>) -> Result<(), Reason> {
+        let path = install::desktop_app(&dirs()?, &faraday_of, payload)?;
+        start(&path)
     }
 
     fn downloads(&self) -> PathBuf {
@@ -416,6 +425,36 @@ fn running() -> Result<PathBuf, Reason> {
         path: String::from(install::APP),
         detail: e.to_string(),
     })
+}
+
+/// Starts `path` on its own and says why not when it ends at once with a
+/// failure.
+fn start(path: &Path) -> Result<(), Reason> {
+    let fail = |detail: String| Reason::Start {
+        path: path.display().to_string(),
+        detail,
+    };
+    let mut child = Command::new(path)
+        .creation_flags(DETACHED)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| fail(e.to_string()))?;
+    let started = Instant::now();
+    while started.elapsed() < START_WAIT {
+        match child.try_wait() {
+            Ok(Some(status)) if !status.success() => return Err(fail(status.to_string())),
+            Ok(Some(_)) => return Ok(()),
+            Ok(None) => std::thread::sleep(Duration::from_millis(20)),
+            Err(e) => return Err(fail(e.to_string())),
+        }
+    }
+    // Reaped when it ends.
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+    Ok(())
 }
 
 fn dirs() -> Result<Dirs, Reason> {

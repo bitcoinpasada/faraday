@@ -846,6 +846,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "faraday-mediafoundation"
+version = "0.1.2"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "faraday-payload"
 version = "0.1.2"
 dependencies = [
@@ -1025,6 +1032,7 @@ name = "faraday-window"
 version = "0.1.2"
 dependencies = [
  "faraday-core",
+ "faraday-mediafoundation",
  "faraday-scanner",
  "getrandom 0.4.3",
  "opensigner-avfoundation",

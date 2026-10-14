@@ -67,7 +67,7 @@ downloads".
 | `Faraday-Starter-X.Y.Z-Windows.exe` | the Starter for Windows (x86_64) |
 | `Faraday-Starter-X.Y.Z-Linux.tar.gz` | the Starter for Linux (x86_64): one file inside, `Faraday-Starter-X.Y.Z-Linux`, with its executable bit (§1.2) |
 | `faraday-desktop-X.Y.Z-linux-x86_64` | the desktop app alone (today's `faraday-X.Y.Z-linux-x86_64`, renamed) |
-| `faraday-desktop-X.Y.Z-windows-x86_64.exe` | the desktop app for Windows, from batch C on (§2) |
+| `faraday-desktop-X.Y.Z-windows-x86_64.exe` | the desktop app for Windows (§2) |
 | `faraday-stick-X.Y.Z-x86_64-uefi.img.xz` | the stick image |
 | `faraday-pi-X.Y.Z-pi3-waveshare-28dpi.img.xz` | the Pi image: the board family, then the one panel it is built for (§9); the panel part goes when §9.3's profiles arrive |
 | `Faraday-Starter-X.Y.Z-macOS.zip` | the Starter for macOS, one universal file (x86_64 and arm64), `Faraday Starter.app`, ad-hoc signed (`docs/MAC.md` §6; built on a Mac, MAC batch A3c) |
@@ -137,7 +137,7 @@ and is the same bytes the release publishes beside it.
 | Starter | Carries |
 |---|---|
 | Linux | stick image, Pi image, desktop app (as `.xz`) |
-| Windows | stick image, Pi image; the desktop app (as `.xz`) from batch C on |
+| Windows | stick image, Pi image, the Windows desktop app (as `.xz`) |
 
 Before a payload file is written to a disk or extracted to run, the Starter
 app checks it against its manifest and refuses one that does not match.
@@ -158,15 +158,30 @@ a temporary file.
 A release is staged in two passes. The first, `just
 faraday-release-stage`, stages the plain files and also writes the
 payload to `out/payload/VERSION/`, outside the folder that is
-uploaded: the two image `.xz` files (hard links to the staged ones),
-the desktop app compressed as `faraday-desktop-VERSION-linux-x86_64.xz`
-by the same `xz -9e -T1`, and `MANIFEST`. `MANIFEST` is plain text: a
+uploaded, one folder per system, `linux/` and `windows/`. Each holds
+the two image `.xz` files (hard links to the staged ones), that
+system's desktop app compressed by the same `xz -9e -T1`
+(`faraday-desktop-VERSION-linux-x86_64.xz` in `linux/`,
+`faraday-desktop-VERSION-windows-x86_64.exe.xz` in `windows/`), and its
+own `MANIFEST`; the two manifests have the same first line. The Windows
+desktop app is taken from `out/windows/faraday.exe` beside
+`out/linux/faraday`, and staging refuses it when it does not carry the
+build ID as a string. It is published as
+`faraday-desktop-VERSION-windows-x86_64.exe` with its line in
+`SHA256SUMS`, and scanned for the build computer's paths as every
+published file is. `MANIFEST` is plain text: a
 first line `# Faraday Starter payload VERSION, commit <full hash>`, then
 one line per file, its fields separated by one tab: the payload file's
 name, its SHA-256, the name of what is inside it, that file's SHA-256,
 that file's size in bytes, and the build ID it carries. The Starter's
-build embeds that folder, named by `FARADAY_STARTER_PAYLOAD`; a Starter
-built without it carries no payload and offers only `--image`. The second
+build embeds a system's folder, named by `FARADAY_STARTER_PAYLOAD`
+(`out/payload/VERSION/linux` for the Linux Starter,
+`out/payload/VERSION/windows` for the Windows one); a Starter built
+without it carries no payload and offers only `--image`. A Starter
+offers only the desktop app for its own system: a `faraday-desktop-`
+file counts only when its name ends `-linux-x86_64.xz` on Linux or
+`-windows-x86_64.exe.xz` on Windows, so a Starter built against another
+payload never offers another system's app. The second
 pass (batch L) builds the Starters against the payload and adds them,
 the `.tar.gz` and its inner file to the release folder and its
 `SHA256SUMS`. The manifest's parser and the verifying, streaming
@@ -182,8 +197,9 @@ reads a stick's, and the staging script and the Starter read the Pi's
 build ID the same way.
 
 Estimated size: about 40 MB on each system (11 + 12 MB images, 4 MB
-desktop app, the Starter itself about 13 MB); Windows about 36 MB until
-batch C adds the desktop app.
+desktop app, the Starter itself about 13 MB); the Windows desktop app is
+a 10 MB `.exe`, about 4 MB as `.xz`, so the Windows Starter is about 40
+MB too.
 
 ## 2. How it is built
 
@@ -235,18 +251,28 @@ batch C adds the desktop app.
   through it, and no other Windows crate is added.
 - **The desktop app runs on Windows too** (owner, 2026-10-12, D20;
   F11 said there was none). Nothing in it is Linux by design: it draws
-  through winit and softbuffer as the Starter does. Batch C makes the
-  three changes it needs: the camera module it shares with the Starter
-  (§8); the home folder read from `USERPROFILE` where `HOME` is read
-  today (`faraday/shells/desktop/src/main.rs`); and `osk-crypto`'s
-  `pin-pages` feature pinning through `VirtualLock` and `VirtualUnlock`
-  where it calls `mlock` and `munlock`, under the same audited-unsafe
-  rules as the Unix pair. From batch C the Windows Starter carries the
-  desktop app, Try the desktop app and the install check box appear on
-  Windows, and the release has
-  `faraday-desktop-X.Y.Z-windows-x86_64.exe`. Its sticks folder is
-  `%USERPROFILE%\faraday-sticks` and Downloads is the Windows Downloads
-  folder.
+  through winit and softbuffer as the Starter does. Batch C made the
+  changes it needs. Built: the home folder is read by one function,
+  `home()`, from `HOME` and, when that is unset, `USERPROFILE`, for the
+  sticks folder (`%USERPROFILE%\faraday-sticks`), Downloads
+  (`%USERPROFILE%\Downloads`; a Downloads folder Windows has moved
+  elsewhere is not followed) and the PDFs; Open Downloads and the
+  Nakamoto Institute link run `explorer.exe` from `%SystemRoot%`;
+  `osk-crypto`'s `pin-pages` pins through `VirtualLock` and
+  `VirtualUnlock`, two `kernel32` functions declared by hand, under the
+  same audited-unsafe rules as the Unix pair; the window is a GUI
+  program (no console) whose `.exe` carries the icon, the version and an
+  `asInvoker` manifest, from the same code as the Starter's
+  (`faraday/build/windows/resources.rs`); and `just faraday-windows-bin
+  build out/windows out/build/run faraday-desktop faraday` builds it
+  into `out/windows/faraday.exe` through the same checks as the Starter
+  (the default arguments build the Starter). The computer's free memory
+  is read only on Linux; elsewhere the vault offers its largest unlock
+  memory and checks none against this computer. The camera module the
+  desktop app shares with the Starter is §8's. The Windows Starter
+  carries the Windows desktop app, Try the desktop app and the install
+  check box appear on Windows, and the release has
+  `faraday-desktop-X.Y.Z-windows-x86_64.exe` (§1.1).
 - **On macOS** (`docs/MAC.md` §6, F13): a `macos` module beside
   `linux` and `windows`. Disks from `diskutil list -plist` and
   `diskutil info -plist` (whole, physical, on USB or the built-in SD
@@ -398,7 +424,8 @@ the checklist writes to the computer except what its items do.
 - **Make a Pi card** → §3.3
 - **Transfer** → the desktop app's Transfer (§2)
 - **Try the desktop app** → opens it (§5.3). Its row says "Test seeds
-  only". On Windows from batch C (§2).
+  only". On Windows too, when the Starter carries the Windows desktop
+  app (§2).
 - **Install** or **Installed** → §3.5
 - **About** → §3.7
 - **Learn** → the Starter's Learn pages (§7)
@@ -601,8 +628,8 @@ restart button.
 ### 3.5 Install and uninstall
 
 **Install** (Choose): one check box, *Also install the desktop app,
-for testing with test seeds only*, unchecked (on Windows from batch C,
-§2); then **Install**. Done shows where it went. When the running copy
+for testing with test seeds only*, unchecked (on Linux and on Windows,
+§2, §5.2); then **Install**. Done shows where it went. When the running copy
 is newer than the installed one, the row reads **Update the installed
 Faraday**.
 
@@ -611,8 +638,8 @@ Faraday**.
 
 ### 3.6 Transfer and Learn
 
-The desktop app's screens (§2). On Windows, Transfer offers Send until
-batch C adds the camera (§8).
+The desktop app's screens (§2). On Windows, Transfer offers Send and
+Receive; Receive reads the camera through Media Foundation (§8).
 
 ### 3.7 About
 
@@ -709,7 +736,7 @@ Per user, never needing administrator rights.
 | | Linux | Windows |
 |---|---|---|
 | The Starter | `~/.local/bin/faraday-starter` (the XDG place for a user's executables, and on PATH on most desktops) | `%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Starter.exe` |
-| The desktop app, if ticked | `~/.local/bin/faraday-desktop` | `%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Desktop.exe` (from batch C) |
+| The desktop app, if ticked | `~/.local/bin/faraday-desktop` | `%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Desktop.exe`, beside the Starter |
 | Menu | `~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop` "Faraday Starter", and `…FaradayDesktop.desktop` "Faraday Desktop" (its description: test seeds only) | Start menu shortcuts `Faraday Starter` and, with the desktop app, `Faraday Desktop` |
 | Icon | `~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.FaradayStarter.png` | in the `.exe` |
 | Uninstall entry | — | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday Starter`: name "Faraday Starter", version, publisher "Faraday", icon, size, `UninstallString` = `"…\Faraday Starter.exe" --uninstall` |
@@ -737,9 +764,16 @@ the way.
 Try the desktop app runs the installed desktop app if there is one;
 otherwise the Starter decompresses it from its payload into
 `$XDG_CACHE_HOME/faraday/X.Y.Z/` (default `~/.cache/faraday/X.Y.Z/`;
-on Windows `%LOCALAPPDATA%\faraday\cache\X.Y.Z\`), checks its SHA-256
-against the manifest, and runs it. Every start
-checks the cached copy again. The desktop app opens on its own; it is
+on Windows `%LOCALAPPDATA%\faraday\cache\X.Y.Z\Faraday Desktop.exe`),
+checks its SHA-256 against the manifest, and runs it. Every start
+checks the cached copy again and writes it again when the sum is not
+the manifest's. On Windows the installed copy is the decompressed
+payload file, checked against its manifest line, written beside its
+place and renamed in; the Start menu shortcut `Faraday Desktop` is
+beside the Starter's, and Installed lists the desktop app and its
+shortcut when they are there. The app is started on its own, so
+closing the Starter does not end it; a start that fails within 0.4
+seconds is reported. The desktop app opens on its own; it is
 the same program as the plain release file, and can also be opened
 without the Starter.
 
@@ -1250,11 +1284,18 @@ Transfer is the desktop app's (`faraday-core/src/transfer.rs`): Send
 shows a file as animated codes for the device's Scan; Receive reads the
 device's codes with the camera and saves each whole file into the
 Downloads folder. On Linux the camera is `opensigner-v4l2`, as the
-desktop app's. On Windows, batch C adds a camera module on Media
-Foundation, written as `opensigner-v4l2` is (the calls declared in the
-module, every `unsafe` block with its `SAFETY` comment, a `docs/deps`
-note for anything added), used by the Starter and by the Windows
-desktop app alike (§2); until then Windows Transfer offers Send only.
+desktop app's. On Windows it is `faraday-mediafoundation`
+(`faraday/shells/mediafoundation`), built as `opensigner-avfoundation`
+is: one small C file, `src/camera.c`, behind a two-function C ABI, that
+lists Media Foundation's video capture devices and reads the first, or
+the one chosen on the scan sheet, as NV12 near 640 x 480 on a thread of
+its own; the calls declared in the crate, every `unsafe` block with its
+`SAFETY` comment, `docs/deps/cc.md` for the build. Media Foundation's
+DLLs are loaded when the camera is used, not imported, so the Starter
+still starts on Windows' N editions, which lack them; there, and when
+Windows' camera privacy setting refuses the program, Receive says the
+camera is unavailable and offers the file instead. The Starter and the
+Windows desktop app use it alike (§2), through `faraday-window`.
 
 ## 9. Pi compatibility
 
@@ -1383,7 +1424,7 @@ this Mac* takes back.
 | L | The Starter on Linux: crates (§2), the D-Bus crate and its `docs/deps` note, Home as a checklist, Make a stick through udisks2 (with what each tried distribution asks for), the stick's version read from OSKBOOT and the keep-data rules, Make a Pi card for the one image, Install and uninstall, Try the desktop app, Transfer and Learn, About, `--image` for developers; then `tools/flash-stick` removed and the README's mention of it with it | decided | after R |
 | G | Guides: the general Windows and Linux pages and §7.2's other pages with their sources; detection on Linux; Restart into the BIOS on Linux; the stick's power-off reminder (§7.5); the first group of maker pages, several families at once (D6, F14); the website item in its own repository | decided | after R, independent of L and W |
 | W | The Starter on Windows: window, install and uninstall, disks and writing, detection, the BitLocker guard with the marker and the logon reminder and §6.6's acceptance, the firmware buttons, Transfer Send; Defender run; the report on what Windows does to a written stick (D11) | decided; D11 is answered by this batch's report | after L; needs G's general Windows page only |
-| C | Windows camera for Transfer Receive, shared with the desktop app; the desktop app on Windows (§2's three changes) and its install | decided | after W |
+| C | Windows camera for Transfer Receive, shared with the desktop app; the desktop app on Windows (§2's changes) and its install | built (HANDOFF item 76): C1, the desktop app on Windows with its install, its Try and a payload folder per system; C2, the camera on Media Foundation. To be tried on Windows | after W |
 | P | Pi: one image for the 2.8 inch panel, Make a Pi card tried on hardware; profiles, boards and other sizes when a second screen is tried | decided (D1, D2, D3, D5) | after L, independent of G, W and C |
 | S | Keeping Secure Boot on (§7.7) | D9 | last |
 | MAC A3a, A3b | The Starter's macOS module, and Home on a Mac, without a Mac (`docs/MAC.md` §8, HANDOFF item 73) | decided | after L (owner, 2026-10-13) |
@@ -1420,7 +1461,8 @@ what moved.
 - **D2 HDMI on the Pi:** not in the first round; it needs USB keyboard
   and mouse on the Pi, with the stick's new-keyboard approval code.
 - **D3 Boards:** Pi 3B, 3B+ and Zero 2 W first, Pi 4 next, Pi 5 later.
-- **D4 Windows Transfer:** ships with Send; Receive follows batch C.
+- **D4 Windows Transfer:** Send and Receive; Receive reads the camera
+  through Media Foundation (§8, batch C).
 - **D5 Panel profiles (§9.3) and layout checks at other sizes (§9.1):**
   deferred until a second screen is tried.
 - **D6 Makers:** the general Windows and Linux pages, and maker pages
@@ -1456,7 +1498,10 @@ what moved.
   owner's, with the owner, after Pro passes in a virtual machine
   (§6.6).
 - **D20 The desktop app on Windows:** yes, from batch C, carried by
-  the Windows Starter and offered by its Install (§2, §3.5).
+  the Windows Starter and offered by its Install (§2, §3.5). Built in
+  C1: the payload has a folder per system, each Starter offers only its
+  own system's desktop app, and Windows install, Try and uninstall
+  mirror Linux's (§5.2, §5.3).
 - **D21 `tools/flash-stick`:** removed once the Starter writes a
   developer's own image (`--image`, §1.1), in batch L.
 

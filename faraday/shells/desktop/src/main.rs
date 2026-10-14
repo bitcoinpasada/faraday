@@ -16,7 +16,8 @@
 //! pixels per inch come from its EDID; `--ppi` overrides them. A finger
 //! on a touchscreen presses as the device's panel does.
 //!
-//! Sticks are folders. `--sticks DIR` (default `$HOME/faraday-sticks`)
+//! Sticks are folders. `--sticks DIR` (default `faraday-sticks` in the home folder: `$HOME`, or
+//! `%USERPROFILE%` on Windows)
 //! holds `BOOTSTICK`, which gets every test kit file it lacks at each
 //! start and never has a file overwritten, and `STICK-2`, a second stick,
 //! which starts empty (until 2026-10-11 they were `TESTSTICK` and
@@ -63,6 +64,7 @@
 //! Locking ends the app's process on the device; here it replaces the app
 //! with a fresh one in the same window, with the Inbox and Outbox carried
 //! over, which is what the device's app loop does.
+#![cfg_attr(windows, windows_subsystem = "windows")]
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -624,6 +626,16 @@ fn prepare(dir: &Path, full: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// The person's home folder: `HOME`, and on Windows `USERPROFILE` when
+/// `HOME` is not set. Downloads is `Downloads` in it; a Downloads folder
+/// that Windows has moved elsewhere is not followed.
+fn home() -> Option<PathBuf> {
+    let home = std::env::var_os("HOME").filter(|h| !h.is_empty());
+    #[cfg(windows)]
+    let home = home.or_else(|| std::env::var_os("USERPROFILE").filter(|h| !h.is_empty()));
+    home.map(PathBuf::from)
+}
+
 fn main() -> ExitCode {
     // `--version` answers before anything else is initialised: the
     // Starter asks an installed copy this (docs/STARTER.md §5.2).
@@ -637,8 +649,8 @@ fn main() -> ExitCode {
         );
         return ExitCode::SUCCESS;
     }
-    let mut sticks_dir = std::env::var_os("HOME")
-        .map(|h| PathBuf::from(h).join("faraday-sticks"))
+    let mut sticks_dir = home()
+        .map(|h| h.join("faraday-sticks"))
         .unwrap_or_else(|| PathBuf::from("faraday-sticks"));
     let mut size = (1280, 800);
     let mut full_kit = false;
@@ -647,8 +659,8 @@ fn main() -> ExitCode {
     let mut ppi: Option<f64> = None;
     let mut open_transfer = false;
     let mut timings = false;
-    let mut downloads = std::env::var_os("HOME")
-        .map(|h| PathBuf::from(h).join("Downloads"))
+    let mut downloads = home()
+        .map(|h| h.join("Downloads"))
         .unwrap_or_else(|| PathBuf::from("Downloads"));
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
@@ -764,8 +776,8 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let print_dir = std::env::var_os("HOME")
-        .map(|h| PathBuf::from(h).join("faraday-print"))
+    let print_dir = home()
+        .map(|h| h.join("faraday-print"))
         .unwrap_or_else(|| PathBuf::from("faraday-print"));
     let app = desktop_app();
     let pace = Pacer::new(timings);

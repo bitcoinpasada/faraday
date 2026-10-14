@@ -3266,7 +3266,7 @@ as possible before the next build.
     renders at 960x640.
 
 
-76. [ ] 2026-10-14, owner: **batch C, the desktop app and the camera on
+76. [x] 2026-10-14, owner: **batch C, the desktop app and the camera on
     Windows** (`docs/STARTER.md` §2, §8, §11; tracker issue 25). Two
     parts that touch different files: C1 the desktop app on Windows,
     C2 the camera. Survey facts below were read 2026-10-14.

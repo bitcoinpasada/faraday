@@ -314,11 +314,60 @@ mod raw {
         }
     }
 
-    /// The same two functions where there is no `libc` to call: the
+    /// `VirtualLock` and `VirtualUnlock`, declared here by hand: two
+    /// functions of `kernel32`, which every Windows process links.
+    #[cfg(all(feature = "pin-pages", windows))]
+    mod sys {
+        use core::ffi::c_void;
+
+        // The declaration is the only other place the lint is lifted: an
+        // `extern` block is `unsafe` by itself. Both signatures are
+        // kernel32's own: an address and a size in, a `BOOL` out.
+        #[allow(unsafe_code)]
+        #[link(name = "kernel32")]
+        unsafe extern "system" {
+            fn VirtualLock(address: *const c_void, size: usize) -> i32;
+            fn VirtualUnlock(address: *const c_void, size: usize) -> i32;
+        }
+
+        /// Pins the `len` bytes at `ptr`; `false` if Windows refused.
+        pub fn lock(ptr: *const u8, len: usize) -> bool {
+            call(true, ptr, len)
+        }
+
+        /// Unpins the `len` bytes at `ptr`.
+        pub fn unlock(ptr: *const u8, len: usize) {
+            let _ = call(false, ptr, len);
+        }
+
+        /// One call over one pinned allocation.
+        #[allow(unsafe_code)]
+        fn call(lock: bool, ptr: *const u8, len: usize) -> bool {
+            let ptr = ptr.cast::<c_void>();
+            // SAFETY: `ptr` addresses `len` bytes of one live,
+            // page-aligned allocation owned by the `Pinned<T>` this was
+            // called for, `len` being that allocation's whole size. Both
+            // functions take the address and length as a range of pages
+            // and change only whether Windows may page it out; neither
+            // reads or writes the memory, so no initialisation or
+            // aliasing requirement applies to it. They return non-zero
+            // on success.
+            let rc = unsafe {
+                if lock {
+                    VirtualLock(ptr, len)
+                } else {
+                    VirtualUnlock(ptr, len)
+                }
+            };
+            rc != 0
+        }
+    }
+
+    /// The same two functions where there is no system call to make: the
     /// browser, Android, and any build with `pin-pages` off. The pages
     /// are allocated and freed as they are everywhere else; only the
     /// syscalls go.
-    #[cfg(not(all(feature = "pin-pages", unix)))]
+    #[cfg(not(all(feature = "pin-pages", any(unix, windows))))]
     mod sys {
         pub fn lock(_ptr: *const u8, _len: usize) -> bool {
             true

@@ -1,0 +1,30 @@
+[package]
+name = "faraday-mediafoundation"
+version = "0.1.2"
+description = "Media Foundation capture through one small C file: the Windows twin of opensigner-avfoundation"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+# No dependencies at all: the capture is `src/camera.c`, and the two
+# functions it exports are declared in src/lib.rs.
+[dependencies]
+
+# `cc` compiles src/camera.c, and only when the target is Windows. It is
+# a build dependency on every target because the build script runs on
+# the build host (Linux, for the Windows build too) and decides by
+# `CARGO_CFG_TARGET_OS` at run time; on every other target it compiles
+# nothing. It is in the graph already for `secp256k1-sys`
+# (docs/deps/cc.md).
+[build-dependencies]
+cc = { workspace = true }
+
+# The workspace lints are deliberately NOT inherited: like
+# `opensigner-avfoundation` and `opensigner-v4l2`, this crate is an
+# exception to `unsafe_code = "forbid"` (docs/PLANNING.md §16.33). Every
+# other workspace lint that matters here is repeated by hand.
+[lints.rust]
+unsafe_code = "allow"
+missing_docs = "warn"

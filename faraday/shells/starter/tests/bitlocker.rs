@@ -432,7 +432,7 @@ fn the_key_is_never_written_to_a_file_unless_the_person_saves_it() {
     let (root, dirs, running, stick) = computer("guard");
     let mut reg = Map::default();
     // Installed, so the reminder is added.
-    let steps = install::plan(&dirs, "0.2.0", "Faraday Starter", 1);
+    let steps = install::plan(&dirs, "0.2.0", "Faraday Starter", 1, None);
     install::install(&dirs, &steps, &running, &ask, &mut reg).expect("installed");
 
     // The whole guard: the key shown, then suspended, the marker and the
@@ -480,7 +480,7 @@ fn the_reminder_is_added_for_an_installed_copy_only_and_goes_with_the_marker() {
 
     // Installed: the reminder points at the installed copy, never at the
     // one in Downloads, and Installed lists it.
-    let steps = install::plan(&dirs, "0.2.0", "Faraday Starter", 1);
+    let steps = install::plan(&dirs, "0.2.0", "Faraday Starter", 1, None);
     install::install(&dirs, &steps, &running, &ask, &mut reg).expect("installed");
     bitlocker::after_suspend(&dirs, &volumes, Some(false), Some(1000), &ask, &mut reg)
         .expect("marker");
@@ -518,7 +518,7 @@ fn the_reminder_is_added_for_an_installed_copy_only_and_goes_with_the_marker() {
 fn uninstall_while_suspended_removes_the_marker_and_the_reminder() {
     let (_root, dirs, running, _) = computer("uninstall");
     let mut reg = Map::default();
-    let steps = install::plan(&dirs, "0.2.0", "Faraday Starter", 1);
+    let steps = install::plan(&dirs, "0.2.0", "Faraday Starter", 1, None);
     install::install(&dirs, &steps, &running, &ask, &mut reg).expect("installed");
     let volumes = vec![(C.to_string(), "C:".to_string())];
     bitlocker::after_suspend(&dirs, &volumes, Some(true), Some(1000), &ask, &mut reg)
