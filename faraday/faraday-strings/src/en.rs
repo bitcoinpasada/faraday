@@ -3131,8 +3131,6 @@ pub struct Strings {
     /// Text in `storage_event`. `{}`: `name`, `self.medium.noun()`.
     pub storage_event_copied_a: &'static str,
     /// Text in `storage_event`. `{}`: `name`.
-    pub storage_event_copied: &'static str,
-    /// Text in `storage_event`. `{}`: `name`.
     pub storage_event_wrote_read: &'static str,
     /// Text in `storage_event`. `{}`: `name`, `wrote_as`.
     pub storage_event_wrote: &'static str,
@@ -3638,6 +3636,14 @@ pub struct Strings {
     pub medium_for_the_stick: &'static str,
     /// Text in `for_box`.
     pub medium_for_the_sd_card: &'static str,
+    /// Text in `on_box`.
+    pub medium_on_box_stick: &'static str,
+    /// Text in `on_box`.
+    pub medium_on_box_sd_card: &'static str,
+    /// Text in `on_this_box`.
+    pub medium_on_this_stick: &'static str,
+    /// Text in `on_this_box`.
+    pub medium_on_this_sd_card: &'static str,
     /// Text in `from_the`.
     pub medium_from_the_stick_inline: &'static str,
     /// Text in `from_the`.
@@ -5522,8 +5528,8 @@ pub struct Strings {
     pub visit_write_what_waits: &'static str,
     /// Text in `visit`. `{}`: `app.medium.noun()`.
     pub visit_no_attached: &'static str,
-    /// Text in `visit`. `{}`: `app.medium.noun()`.
-    pub visit_write_to_the: &'static str,
+    /// Text in `visit`.
+    pub visit_in_faraday: &'static str,
     /// Text in `visit`.
     pub visit_public: &'static str,
     /// Text in `visit`.
@@ -5534,8 +5540,6 @@ pub struct Strings {
     pub visit_nothing_waits: &'static str,
     /// Text in `visit`. `{}`: `nout`, `if nout == 1 { EN.visit_file } else {…`.
     pub visit_write: &'static str,
-    /// Text in `visit`. `{}`: `app.medium.from_the()`.
-    pub visit_copy: &'static str,
     /// Text in `visit`.
     pub visit_larger_than_18: &'static str,
     /// Text in `visit`.
@@ -9581,7 +9585,6 @@ pub static EN: Strings = Strings {
     heading_written_to_at: "Written to {} at {}",
     heading_written_to: "Written to {}",
     storage_event_copied_a: "Copied {}: a key's words, loaded when the {} is removed",
-    storage_event_copied: "Copied {}",
     storage_event_wrote_read: "Wrote {}, read back and matched",
     storage_event_wrote: "Wrote {} as {}, read back and matched",
     storage_event_it_stays: "It stays in Files",
@@ -9812,6 +9815,10 @@ pub static EN: Strings = Strings {
     medium_from_the_sd_card: "From the SD card",
     medium_for_the_stick: "For the stick",
     medium_for_the_sd_card: "For the SD card",
+    medium_on_box_stick: "On the stick",
+    medium_on_box_sd_card: "On the SD card",
+    medium_on_this_stick: "On this stick",
+    medium_on_this_sd_card: "On this SD card",
     medium_from_the_stick_inline: "from the stick",
     medium_from_the_sd: "from the SD card",
     medium_on_the_stick: "on the stick",
@@ -10715,13 +10722,12 @@ pub static EN: Strings = Strings {
     visit_select_all: "Select all",
     visit_write_what_waits: "Write what waits for the {} and copy in what you need from it. Each file written is read back and compared before it counts. Remove the {} when you are done: keys load only with no {} attached.",
     visit_no_attached: "No {} attached",
-    visit_write_to_the: "Write to the {}",
+    visit_in_faraday: "In Faraday",
     visit_public: "Public",
     visit_sealed: "Sealed",
     visit_unprotected_secret: "Unprotected secret",
     visit_nothing_waits: "Nothing waits {}",
     visit_write: "Write {} {}",
-    visit_copy: "Copy {}",
     visit_larger_than_18: "Larger than 18 MB: not read",
     visit_settings: "Settings",
     visit_no_files_on_this: "No files on this {}",

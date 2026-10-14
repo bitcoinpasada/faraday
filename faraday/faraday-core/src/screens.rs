@@ -11359,7 +11359,7 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         15.0,
         W::S,
         TEXT,
-        &fill(EN.visit_copy, &[app.medium.from_the()]),
+        app.medium.on_box(),
     );
     y += 34.0;
     // Everything comes in by default: Unselect all, while any is ticked.
@@ -11377,8 +11377,18 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let on = app.visit.inn.contains(name);
         ui.checkbox(x + 2.0, y + 10.0, on, kind.is_some());
         let fg = if kind.is_some() { TEXT } else { DIM };
-        let n = ui.fit(14.0, W::M, name, w - 32.0);
+        let held = app.inbox_holds(name, *size);
+        let tag = EN.visit_in_faraday;
+        let tw = if held {
+            ui.measure(12.0, W::S, tag) + 8.0
+        } else {
+            0.0
+        };
+        let n = ui.fit(14.0, W::M, name, w - 32.0 - tw);
         ui.text(x + 32.0, y + 4.0, 14.0, W::M, fg, &n);
+        if held {
+            ui.text_right(x + w, y + 2.0, 20.0, 12.0, W::S, MUTED, tag);
+        }
         let sub = match kind {
             Some(k) => format!("{k} · {}", size_text(*size as usize)),
             None if big => EN.visit_larger_than_18.to_string(),
@@ -11466,7 +11476,7 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         15.0,
         W::S,
         TEXT,
-        &fill(EN.visit_write_to_the, &[app.medium.noun()]),
+        EN.visit_in_faraday,
     );
     y += 34.0;
     // The settings, which are not an Outbox file.
@@ -11482,15 +11492,33 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                name: &str,
                line: &str,
                tag: (&str, osk_ui::Color),
-               action: Action| {
-        ui.checkbox(x + 2.0, y + 10.0, on, true);
+               action: Option<Action>| {
+        // No action: the stick holds the file already, drawn greyed.
+        let held = action.is_none();
+        ui.checkbox(x + 2.0, y + 10.0, on && !held, !held);
         let tw = ui.measure(12.0, W::S, tag.0) + 8.0;
         let n = ui.fit(14.0, W::M, name, w - 32.0 - tw);
-        ui.text(x + 32.0, y + 4.0, 14.0, W::M, TEXT, &n);
+        ui.text(
+            x + 32.0,
+            y + 4.0,
+            14.0,
+            W::M,
+            if held { DIM } else { TEXT },
+            &n,
+        );
         ui.text_right(x + w, y + 2.0, 20.0, 12.0, W::S, tag.1, tag.0);
         let l = ui.fit(12.0, W::R, line, w - 32.0);
-        ui.text(x + 32.0, y + 26.0, 12.0, W::R, MUTED, &l);
-        ui.hit(x - 4.0, y, w + 8.0, 48.0, action);
+        ui.text(
+            x + 32.0,
+            y + 26.0,
+            12.0,
+            W::R,
+            if held { DIM } else { MUTED },
+            &l,
+        );
+        if let Some(action) = action {
+            ui.hit(x - 4.0, y, w + 8.0, 48.0, action);
+        }
         ui.rule(x, y + 50.0, w, INNER);
         56.0
     };
@@ -11501,7 +11529,7 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::stick_settings::FILE,
         EN.visit_settings,
         (EN.visit_public, MUTED),
-        Action::VisitSettings,
+        Some(Action::VisitSettings),
     );
     for (k, item) in app.outbox.iter().enumerate() {
         let on = app.visit.out.contains(&item.name);
@@ -11517,7 +11545,7 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &item.name,
             &kind_line(item.kind, item.bytes.len()),
             tag,
-            Action::VisitOut(k),
+            Some(Action::VisitOut(k)),
         );
     }
     if app.outbox.is_empty() {
@@ -11531,11 +11559,11 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         y += 28.0;
     }
-    let inbox_rows = app.visit_inbox_rows();
-    if !inbox_rows.is_empty() {
+    let shown = app.visit_inbox_shown();
+    if !shown.is_empty() {
         ui.text_mid(x, y, 30.0, 13.0, W::S, MUTED, app.medium.from_box());
         y += 32.0;
-        for &k in &inbox_rows {
+        for &(k, held) in &shown {
             let item = &app.inbox[k];
             y += row(
                 ui,
@@ -11543,8 +11571,12 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 app.visit.from_inbox.contains(&item.name),
                 &item.name,
                 &visit_inbox_line(item),
-                visit_inbox_tag(item),
-                Action::VisitInbox(k),
+                if held {
+                    (app.medium.on_this_box(), DIM)
+                } else {
+                    visit_inbox_tag(item)
+                },
+                (!held).then_some(Action::VisitInbox(k)),
             );
         }
     }
@@ -11681,20 +11713,20 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         16.0,
         W::S,
         TEXT,
-        &fill(EN.visit_write_to_the, &[app.medium.noun()]),
+        EN.visit_in_faraday,
     );
     let settings_on = app.visit_settings_on();
-    let inbox_rows = app.visit_inbox_rows();
+    let shown = app.visit_inbox_shown();
     visit_select_all(ui, x + colw, y, visit_all_out(app), Action::VisitOutAll);
     // The settings, which are not an Outbox file, then the Outbox, then
     // the Inbox under its heading.
     const HEAD: f32 = 36.0;
     let all_h = (1 + app.outbox.len()) as f32 * ROW
         + if app.outbox.is_empty() { HEAD } else { 0.0 }
-        + if inbox_rows.is_empty() {
+        + if shown.is_empty() {
             0.0
         } else {
-            HEAD + inbox_rows.len() as f32 * ROW
+            HEAD + shown.len() as f32 * ROW
         };
     let max_shift = (all_h - track_h).max(0.0);
     let shift = app.visit.out_offset.min(max_shift);
@@ -11729,15 +11761,33 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     name: &str,
                     line: &str,
                     tag: (&str, osk_ui::Color),
-                    action: Action| {
-        ui.checkbox(x + 22.0, ry + 15.0, on, true);
+                    action: Option<Action>| {
+        // No action: the stick holds the file already, drawn greyed.
+        let held = action.is_none();
+        ui.checkbox(x + 22.0, ry + 15.0, on && !held, !held);
         let tw = ui.measure(12.0, W::S, tag.0) + 12.0;
         let name = ui.fit(14.0, W::M, name, colw - 74.0 - tw);
-        ui.text(x + 54.0, ry + 6.0, 14.0, W::M, TEXT, &name);
+        ui.text(
+            x + 54.0,
+            ry + 6.0,
+            14.0,
+            W::M,
+            if held { DIM } else { TEXT },
+            &name,
+        );
         let line = ui.fit(12.0, W::R, line, colw - 90.0);
-        ui.text(x + 54.0, ry + 28.0, 12.0, W::R, MUTED, &line);
+        ui.text(
+            x + 54.0,
+            ry + 28.0,
+            12.0,
+            W::R,
+            if held { DIM } else { MUTED },
+            &line,
+        );
         ui.text_right(x + colw - 20.0, ry + 6.0, 20.0, 12.0, W::S, tag.1, tag.0);
-        ui.hit(x + 12.0, ry, colw - 24.0, 50.0, action);
+        if let Some(action) = action {
+            ui.hit(x + 12.0, ry, colw - 24.0, 50.0, action);
+        }
         ui.rule(x + 20.0, ry + 52.0, colw - 40.0, INNER);
     };
     for (k, item) in app.outbox.iter().enumerate() {
@@ -11754,7 +11804,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &item.name,
             &kind_line(item.kind, item.bytes.len()),
             tag,
-            Action::VisitOut(k),
+            Some(Action::VisitOut(k)),
         );
         ry += ROW;
     }
@@ -11770,7 +11820,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         ry += HEAD;
     }
-    if !inbox_rows.is_empty() {
+    if !shown.is_empty() {
         ui.text_mid(
             x + 22.0,
             ry + 4.0,
@@ -11781,7 +11831,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             app.medium.from_box(),
         );
         ry += HEAD;
-        for &k in &inbox_rows {
+        for &(k, held) in &shown {
             let item = &app.inbox[k];
             let on = app.visit.from_inbox.contains(&item.name);
             file_row(
@@ -11790,8 +11840,12 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 on,
                 &item.name,
                 &visit_inbox_line(item),
-                visit_inbox_tag(item),
-                Action::VisitInbox(k),
+                if held {
+                    (app.medium.on_this_box(), DIM)
+                } else {
+                    visit_inbox_tag(item)
+                },
+                (!held).then_some(Action::VisitInbox(k)),
             );
             ry += ROW;
         }
@@ -11851,7 +11905,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         16.0,
         W::S,
         TEXT,
-        &fill(EN.visit_copy, &[app.medium.from_the()]),
+        app.medium.on_box(),
     );
     let total = stick.files.len();
     let max_shift = (total as f32 * ROW - track_h).max(0.0);
@@ -11871,8 +11925,19 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.checkbox(ix + 22.0, ry + 15.0, on, kind.is_some());
         let fg = if kind.is_some() { TEXT } else { DIM };
         let room = 90.0;
-        let n = ui.fit(14.0, W::M, name, colw - room);
+        // A file Faraday holds already says so, as the left column's tags.
+        let held = app.inbox_holds(name, *size);
+        let tag = EN.visit_in_faraday;
+        let tw = if held {
+            ui.measure(12.0, W::S, tag) + 12.0
+        } else {
+            0.0
+        };
+        let n = ui.fit(14.0, W::M, name, colw - if held { 74.0 + tw } else { room });
         ui.text(ix + 54.0, ry + 6.0, 14.0, W::M, fg, &n);
+        if held {
+            ui.text_right(ix + colw - 20.0, ry + 6.0, 20.0, 12.0, W::S, MUTED, tag);
+        }
         let sub = match kind {
             Some(k) => format!("{k} · {}", size_text(*size as usize)),
             None if big => EN.visit_larger_than_18.to_string(),

@@ -325,8 +325,12 @@ fn text_is_offered_as_something_faraday_cannot_tell_about() {
         out.ack.text(app.medium),
         "Faraday cannot tell whether this is a secret: anyone who copies the stick can read it"
     );
+    // The sheet holds nothing the Inbox does not: the stick stays open
+    // to the write while it is up, as the shell asks each frame.
+    assert!(app.clean(), "the secret sheet closed the stick");
     app.press(Action::SecretAck);
     app.press(Action::SecretUnprotected);
+    assert!(app.clean(), "the secret sheet closed the stick");
     let wrote = write(&mut app, &[&b]);
     assert_eq!(wrote.len(), 1);
     assert_eq!(wrote[0].2, notes.1);
@@ -424,4 +428,47 @@ fn a_picture_keeps_what_its_codes_hold_across_a_lock_and_a_seedqr_does_not_outli
     let wrote = write(&mut next, &[&b]);
     assert_eq!(wrote.len(), 1);
     assert_eq!(wrote[0].2, wallet.1);
+}
+
+#[test]
+fn a_file_just_copied_in_shows_on_both_sides_and_waits_for_the_next_stick() {
+    let mut app = testkit::started();
+    let share = kit("savings-share-1-of-3.txt");
+    let a = Stick::new("a", std::slice::from_ref(&share));
+    attach(&mut app, &[&a]);
+    copy_in(&mut app, &[&a], &[&share.0]);
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    let count = |t: &str| texts.iter().filter(|x| x.as_str() == t).count();
+    assert_eq!(
+        count(&share.0),
+        2,
+        "its name is not in both columns: {texts:?}"
+    );
+    assert_eq!(count("On this stick"), 1, "{texts:?}");
+    // The left column's title and the right column's tag.
+    assert_eq!(count("In Faraday"), 2, "{texts:?}");
+    assert_eq!(count("On the stick"), 1, "{texts:?}");
+    assert!(
+        !texts.iter().any(|t| t.starts_with("Copied")),
+        "a Copied line is still drawn: {texts:?}"
+    );
+    // On the stick it holds, the row cannot be ticked.
+    assert_eq!(row(&app, &share.0), None);
+    app.press(Action::VisitInbox(0));
+    assert!(app.visit.from_inbox.is_empty(), "a held file was ticked");
+
+    // On another stick it is an ordinary row.
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let b = Stick::new("b", &[]);
+    attach(&mut app, &[&b]);
+    let texts = app.drawn_texts();
+    assert!(
+        !texts.iter().any(|t| t == "On this stick"),
+        "tagged as held on another stick: {texts:?}"
+    );
+    app.press(row(&app, &share.0).expect("not offered on the next stick"));
+    let wrote = write(&mut app, &[&b]);
+    assert_eq!(wrote.len(), 1);
+    assert_eq!(wrote[0].2, share.1);
 }

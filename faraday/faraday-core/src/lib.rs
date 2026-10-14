@@ -3366,18 +3366,20 @@ impl Faraday {
                     let label = s.label.clone();
                     self.vault_read_from(&name, &item.bytes, &label);
                 }
-                let line = if item.kind == FileKind::Words && self.visit.load_after.contains(&name)
-                {
-                    fill(
-                        EN.storage_event_copied_a,
-                        &[&name.to_string(), self.medium.noun()],
-                    )
-                } else {
-                    fill(EN.storage_event_copied, &[&name.to_string()])
-                };
+                // The visit's rows say what came in; only a seed waiting
+                // for the stick's removal is worth a line.
+                let line = (item.kind == FileKind::Words && self.visit.load_after.contains(&name))
+                    .then(|| {
+                        fill(
+                            EN.storage_event_copied_a,
+                            &[&name.to_string(), self.medium.noun()],
+                        )
+                    });
                 self.inbox.retain(|i| i.name != name);
                 self.inbox.push(item);
-                self.visit.log.push((line, true));
+                if let Some(line) = line {
+                    self.visit.log.push((line, true));
+                }
                 self.visit.inn.remove(&name);
                 self.save_boxes();
             }
@@ -3560,10 +3562,13 @@ impl Faraday {
     }
 
     /// Whether anything secret is being typed: seed words, a BIP-39 or
-    /// vault passphrase, a prompt's line.
+    /// vault passphrase, a prompt's line. A secret sheet for an Inbox file
+    /// on its way to another stick does not count: it holds a copy of
+    /// what the Inbox already holds, and the stick it goes to must stay
+    /// open (`PLAN.md` §5.4).
     fn secret_typed(&self) -> bool {
         self.keygen.is_some()
-            || self.secret_out.is_some()
+            || self.secret_out.as_ref().is_some_and(|o| !o.to_visit)
             || self.lightning.is_some()
             || !self.entry.typed.is_empty()
             || !self.entry.passphrase.is_empty()
@@ -9279,21 +9284,43 @@ impl Faraday {
             .unwrap_or(FileKind::Other)
     }
 
-    /// The Inbox files a stick visit offers to write, by index: every one
-    /// but those the stick shown holds already, by name and size.
-    pub fn visit_inbox_rows(&self) -> Vec<usize> {
-        let on_stick = self.sticks.get(self.visit.stick).map(|s| &s.files);
+    /// Whether the stick on show holds the Inbox file `item`, by name and
+    /// size.
+    fn visit_stick_holds(&self, item: &Item) -> bool {
+        self.sticks.get(self.visit.stick).is_some_and(|s| {
+            s.files
+                .iter()
+                .any(|(n, len)| *n == item.name && *len == item.bytes.len() as u64)
+        })
+    }
+
+    /// The Inbox files a stick visit's left column shows, by index, each
+    /// with whether the stick on show holds it already (by name and size):
+    /// those rows are drawn greyed and cannot be ticked.
+    pub fn visit_inbox_shown(&self) -> Vec<(usize, bool)> {
         self.inbox
             .iter()
             .enumerate()
-            .filter(|(_, i)| {
-                !on_stick.is_some_and(|f| {
-                    f.iter()
-                        .any(|(n, len)| *n == i.name && *len == i.bytes.len() as u64)
-                })
-            })
+            .map(|(k, i)| (k, self.visit_stick_holds(i)))
+            .collect()
+    }
+
+    /// The Inbox files a stick visit offers to write, by index: every one
+    /// but those the stick shown holds already, by name and size.
+    pub fn visit_inbox_rows(&self) -> Vec<usize> {
+        self.visit_inbox_shown()
+            .into_iter()
+            .filter(|&(_, held)| !held)
             .map(|(k, _)| k)
             .collect()
+    }
+
+    /// Whether the Inbox holds a file of this name and size: the stick
+    /// row says "In Faraday".
+    pub fn inbox_holds(&self, name: &str, size: u64) -> bool {
+        self.inbox
+            .iter()
+            .any(|i| i.name == name && i.bytes.len() as u64 == size)
     }
 
     /// The Inbox files Select all chooses on a visit: the public and

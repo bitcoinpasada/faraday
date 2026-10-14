@@ -466,11 +466,13 @@ pulled: "Then: Unlock" when a vault was sealed for it, else "Then: Home".
 It ends on **Remove the stick** ("Remove the SD card" on the Pi), then
 that.
 
-**Copying from one stick to another.** The visit's write list, **Write
-to the stick**, also lists the Inbox's files under **From the Inbox**,
-except those the stick shown already holds (same name and size), all
-unticked. So stick A → visit, copy in → stick B → visit, write; with
-both sticks in at once the visit shows one and then the other. A
+**Copying from one stick to another.** The visit's left column, **In
+Faraday**, also lists the Inbox's files under **From the Inbox**, all
+unticked; those the stick shown already holds (same name and size) are
+greyed, tagged "On this stick", and cannot be ticked, and the right
+column, **On the stick**, tags the matching files "In Faraday". So
+stick A → visit, copy in → stick B → visit, write; with both sticks in
+at once the visit shows one and then the other. A
 public or sealed file (PSBTs, wallets, descriptors, certificates,
 vaults, `.oskb`, KeePass) is written as it is, and Select all ticks it.
 A secret kind (words, seed parts, entries, a FROST carry file) is

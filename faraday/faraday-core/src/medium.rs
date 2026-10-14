@@ -94,6 +94,24 @@ impl Medium {
         }
     }
 
+    /// The visit's title for the files the stick holds: "On the stick",
+    /// "On the SD card".
+    pub const fn on_box(self) -> &'static str {
+        match self {
+            Medium::Stick => EN.medium_on_box_stick,
+            Medium::SdCard => EN.medium_on_box_sd_card,
+        }
+    }
+
+    /// An Inbox file's tag when the stick on show holds it: "On this
+    /// stick", "On this SD card".
+    pub const fn on_this_box(self) -> &'static str {
+        match self {
+            Medium::Stick => EN.medium_on_this_stick,
+            Medium::SdCard => EN.medium_on_this_sd_card,
+        }
+    }
+
     /// The half of Files that holds what waits to be written, as a
     /// label: "For the stick", "For the SD card".
     pub const fn for_box(self) -> &'static str {

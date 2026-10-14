@@ -266,7 +266,7 @@ to get it.
     `docs/SIMPLIFY.md` §4.6). A stick visit ticks every file it can read
     to come in, but a seed's by its name (words, SeedQR, BIP-85), one over
     18 MiB, and one already From the stick by name and size. **Select
-    all** on Copy from the stick is gone; **Unselect all** takes its
+    all** on the visit's right column is gone; **Unselect all** takes its
     place while anything is ticked.
 30. **The visit says where it goes next** (owner, 2026-10-10;
     `docs/SIMPLIFY.md` §4.7). The stick visit's title carries the chip
@@ -807,7 +807,7 @@ then what happens; decision 28) →
 visit** directly.
 
 **Stick visit** (one screen, both directions):
-- **Write to the stick**: chosen files written, read back, compared:
+- **In Faraday** (left): chosen files written, read back, compared:
   those For the stick, then those from it under **From the stick** (below).
   What is written and matched leaves For the stick for the receipt
   (decision 25). When a file to write has a name the stick already
@@ -828,20 +828,24 @@ visit** directly.
   on the boot stick when the settings differ from what the boot stick
   holds, unticked on any other stick, and written over the settings
   file already there.
-- **From the stick**: every file copied in that the stick shown does not
-  hold already (by name and size), unticked, written from Files, where it
-  stays for the next stick: a copy from one stick to another, one after
-  the other or both in at once. A public or sealed file is ticked like
-  a file For the stick, and Select all ticks it. A secret kind (words, seed
+- **From the stick**: every file copied in, unticked, written from Files,
+  where it stays for the next stick: a copy from one stick to another,
+  one after the other or both in at once. A file the stick shown holds
+  already (by name and size) is listed greyed, tagged **On this stick**
+  (**On this SD card**), with a disabled checkbox that cannot be ticked:
+  a file just copied in shows here at once, and no "Copied" line says
+  it. A public or sealed file is ticked like a file For the stick, and
+  Select all ticks it. A secret kind (words, seed
   parts, entries, a carry file), text and a file Faraday does not read
   open the secret sheet instead, never ticked by Select all: text, words,
   seed parts and entries may go into the open vault as a note; past the
   line ("Faraday cannot tell whether this is a secret" for text and
   other files) **Tick it to write** ticks the row. Nothing goes For the
   stick. A picture is what its codes hold.
-- **Copy from the stick**: every file it reads ticked but a seed's, one
+- **On the stick** (right): every file it reads ticked but a seed's, one
   over 18 MiB and one already From the stick (decision 29); **Unselect
-  all** clears them. Chosen files, any of them; a file Faraday
+  all** clears them. A file whose name and size match an Inbox file is
+  tagged **In Faraday**. Chosen files, any of them; a file Faraday
   reads as nothing it knows comes in as a File, for **Sign a file** or
   QR **Send**, and is dropped at a lock. A vault file copied in appears
   on Vaults, locked. A
