@@ -256,14 +256,76 @@ impl Sticks for Dirs {
 }
 
 /// The memory this machine has free for a vault's Argon2id, in MiB, from
-/// the kernel's own estimate. `None` where there is none (anywhere but
-/// Linux): the vault then offers its largest unlock memory and checks
-/// none against this computer.
+/// the system's own estimate: Linux's `MemAvailable`, Windows' available
+/// physical memory. `None` where there is none (macOS for now): the vault
+/// then offers its largest unlock memory and checks none against this
+/// computer.
 pub fn memory_available_mib() -> Option<u32> {
-    let info = fs::read_to_string("/proc/meminfo").ok()?;
-    let line = info.lines().find(|l| l.starts_with("MemAvailable:"))?;
-    let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
-    u32::try_from(kib / 1024).ok()
+    #[cfg(windows)]
+    {
+        windows_memory::available_mib()
+    }
+    #[cfg(not(windows))]
+    {
+        let info = fs::read_to_string("/proc/meminfo").ok()?;
+        let line = info.lines().find(|l| l.starts_with("MemAvailable:"))?;
+        let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
+        u32::try_from(kib / 1024).ok()
+    }
+}
+
+/// `GlobalMemoryStatusEx`, declared here by hand: one function of
+/// `kernel32`, which every Windows process links, and its structure.
+#[cfg(windows)]
+mod windows_memory {
+    /// `MEMORYSTATUSEX`, field for field.
+    #[repr(C)]
+    struct MemoryStatusEx {
+        length: u32,
+        memory_load: u32,
+        total_phys: u64,
+        avail_phys: u64,
+        total_page_file: u64,
+        avail_page_file: u64,
+        total_virtual: u64,
+        avail_virtual: u64,
+        avail_extended_virtual: u64,
+    }
+
+    // Windows' own size for the structure, which `length` must give.
+    const _: () = assert!(size_of::<MemoryStatusEx>() == 64);
+
+    // An `extern` block is `unsafe` by itself.
+    #[allow(unsafe_code)]
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn GlobalMemoryStatusEx(buffer: *mut MemoryStatusEx) -> i32;
+    }
+
+    /// The physical memory Windows can give a program now, in MiB.
+    #[allow(unsafe_code)]
+    pub fn available_mib() -> Option<u32> {
+        let mut status = MemoryStatusEx {
+            length: size_of::<MemoryStatusEx>() as u32,
+            memory_load: 0,
+            total_phys: 0,
+            avail_phys: 0,
+            total_page_file: 0,
+            avail_page_file: 0,
+            total_virtual: 0,
+            avail_virtual: 0,
+            avail_extended_virtual: 0,
+        };
+        // SAFETY: `status` is a live, writable `MEMORYSTATUSEX` (the
+        // layout above, checked at 64 bytes) whose `length` is set, as
+        // the function requires; it writes the structure and nothing
+        // else, and returns non-zero on success.
+        let ok = unsafe { GlobalMemoryStatusEx(&mut status) };
+        if ok == 0 {
+            return None;
+        }
+        u32::try_from(status.avail_phys / (1024 * 1024)).ok()
+    }
 }
 
 /// Where the Inbox and Outbox wait between processes: a RAM directory on
