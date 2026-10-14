@@ -5,9 +5,8 @@
          match the first frame the core draws. Once the core is running the
          shell paints them in the theme on show (`Core.pageColor`). -->
     <color name="window_background">#FFF1F4FB</color>
-    <!-- The tile behind the launcher mark: white, and Faraday's dark page
-         (faraday-ui's `pal::BG`) when the phone is in dark mode
-         (values-night/colors.xml). The keyhole is cut through the mark,
-         so it shows the tile. -->
-    <color name="launcher_background">#FFFFFFFF</color>
+    <!-- The tile behind the launcher mark: none, in light and dark mode, so
+         the launcher shows the shield alone and the keyhole, cut through
+         the mark, shows the wallpaper. -->
+    <color name="launcher_background">#00000000</color>
 </resources>

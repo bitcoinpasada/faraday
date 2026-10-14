@@ -2,35 +2,33 @@
 //! (`just faraday-starter-icon`).
 //!
 //! ```text
-//! cargo run -p faraday-starter --example icon -- OUT.png [--bare]
+//! cargo run -p faraday-starter --example icon -- OUT.png
 //! ```
 //!
 //! The mark is [`faraday_core::ui::Ui::mark`], the shield drawn beside the
-//! name on every page, so the icon follows it. It sits on a dark rounded
-//! square, or with `--bare` on nothing. The PNG is RGBA, 8 bits, with no
-//! chunks beyond what PNG needs.
+//! name on every page, so the icon follows it. It sits on nothing: what is
+//! around the shield, and the keyhole cut through it, is transparent, so
+//! the desktop shows. The PNG is RGBA, 8 bits, with no chunks beyond what
+//! PNG needs.
 
 use std::fs::File;
 use std::io::BufWriter;
 use std::process::ExitCode;
 
-use faraday_core::ui::{Ui, pal};
+use faraday_core::ui::Ui;
 use osk_shell_api::{BootState, DisplayInfo, SecureHardware};
-use osk_ui::{Canvas, Rect};
+use osk_ui::Canvas;
 
 const SIZE: u16 = 256;
-/// The square's corner radius, in pixels.
-const RADIUS: f32 = 48.0;
-/// The mark's box, in pixels, centred in the square.
-const MARK: f32 = 176.0;
+/// The mark's box, in pixels, centred: the shield is as tall as the box,
+/// with a margin a desktop's icon grid expects.
+const MARK: f32 = 240.0;
 
 fn main() -> ExitCode {
-    let mut args = std::env::args().skip(1);
-    let Some(out) = args.next() else {
-        eprintln!("usage: icon OUT.png [--bare]");
+    let Some(out) = std::env::args().nth(1) else {
+        eprintln!("usage: icon OUT.png");
         return ExitCode::from(2);
     };
-    let bare = args.next().as_deref() == Some("--bare");
     let mut canvas = Canvas::new(&DisplayInfo {
         width: SIZE,
         height: SIZE,
@@ -43,10 +41,6 @@ fn main() -> ExitCode {
         boot: BootState::Unknown,
         memory_mib: None,
     });
-    if !bare {
-        let all = Rect::new(0, 0, i32::from(SIZE), i32::from(SIZE));
-        canvas.fill_rounded_rect(all, RADIUS, pal::BG);
-    }
     let mut hits = Vec::new();
     let mut ui = Ui::new(&mut canvas, 1.0, &mut hits, None);
     let at = (f32::from(SIZE) - MARK) / 2.0;

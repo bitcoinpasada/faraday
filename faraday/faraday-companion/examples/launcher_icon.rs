@@ -9,9 +9,9 @@
 //! The PNG is the foreground layer of an Android adaptive icon: 432 x 432
 //! pixels for its 108 dp canvas at the densest screens, the mark centred
 //! inside the 66 dp circle no launcher's mask clips, on nothing. The tile
-//! behind it is the shell's `launcher_background` colour, white or dark
-//! with the phone's mode; the keyhole shows it. RGBA, 8 bits,
-//! with no chunks beyond what PNG needs.
+//! behind it, the shell's `launcher_background`, is transparent, so the
+//! launcher shows the shield alone and the keyhole shows the wallpaper.
+//! RGBA, 8 bits, with no chunks beyond what PNG needs.
 
 use std::fs::File;
 use std::io::BufWriter;
@@ -23,13 +23,14 @@ use osk_ui::Canvas;
 
 /// The canvas: 108 dp at 4 pixels a dp.
 const SIZE: u16 = 432;
-/// The mark's box, in pixels: 46 dp, well inside the 66 dp (264 px) safe
-/// circle, so that a launcher's round mask leaves room around the shield.
-const MARK: f32 = 184.0;
+/// The mark's box, in pixels: 52 dp, as tall as a shield can be with its
+/// top corners still inside the 66 dp (264 px) circle a launcher's round
+/// mask keeps.
+const MARK: f32 = 208.0;
 /// How far below the canvas's centre the mark's box sits, in pixels: a
 /// shield is wide at the top and a point at the bottom, so centred by its
 /// box it looks high.
-const DROP: f32 = 6.0;
+const DROP: f32 = 7.0;
 
 fn main() -> ExitCode {
     let Some(out) = std::env::args().nth(1) else {
