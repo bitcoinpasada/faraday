@@ -80,7 +80,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
         // The shell's keys' strip, over whatever scrolls under it; the
         // keys themselves are drawn last, over any sheet.
         if app.shell_keys.is_some() {
-            ui.fill(x, 0.0, cw, 18.0, 0.0, BG);
+            ui.fill(x - ui.ox, 0.0, room, 18.0, 0.0, BG);
         }
         let kx = header_network_pill(app, ui, x + cw - 38.0);
         // Under a sheet the keyboard button is drawn over it, below.
@@ -105,9 +105,10 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             ui.text_mid(qx + 14.0 - tw / 2.0, qy, 28.0, 14.0, W::S, MUTED, "?");
             ui.hit(qx - 6.0, qy - 6.0, 40.0, 40.0, Action::Learn);
         }
-        notices(app, ui, x, cw, h);
         ui.ox = 0.0;
         ui.oy = 0.0;
+        // Centred on the window, sidebar and all.
+        notices(app, ui, 0.0, full_w, h);
     }
     let (w, h) = (full_w, full_h);
     if let Some(sheet) = app.sheet {
@@ -182,15 +183,12 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
     }
     // The shell's keys, pinned at the top over the page and any sheet:
     // the boot stick's sheet is up when the desktop opens, and F2 is
-    // its way on.
+    // its way on. Centred on the window, sidebar and all.
     if !app.is_compact()
         && let Some(keys) = app.shell_keys.as_deref()
     {
-        let room = full_w - SIDEBAR_W;
-        let cw = room.min(MAX_W - SIDEBAR_W);
-        let x = SIDEBAR_W + (room - cw) / 2.0;
         let kw = ui.measure(11.0, W::R, keys);
-        ui.text_mid(x + (cw - kw) / 2.0, 0.0, 18.0, 11.0, W::R, DIM, keys);
+        ui.text_mid((full_w - kw) / 2.0, 0.0, 18.0, 11.0, W::R, DIM, keys);
     }
 }
 
@@ -349,7 +347,7 @@ fn draw_compact(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32, kb: bool) {
     ui.oy = 0.0;
 }
 
-/// "Remove the stick" and the toast, centred at the foot of the column.
+/// "Remove the stick" and the toast, centred in `cw` from `x`, at the foot.
 fn notices(app: &Faraday, ui: &mut Ui, x: f32, cw: f32, h: f32) {
     if app.not_now && !app.sticks.is_empty() && app.sheet.is_none() {
         let msg = &fill(EN.notices_remove_the, &[app.medium.noun()]);
