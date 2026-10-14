@@ -120,17 +120,18 @@ if [ -z "$second" ]; then
         [ -n "$lba" ] && [ "$lba" -gt 0 ] || die "$1: no boot partition"
         mtype -i "$1@@$((lba * 512))" ::faraday-build.txt 2>/dev/null | build_id /dev/stdin
     }
-    # The desktop app's: the build string compiled into it. A release's is
-    # the version alone, found by the version being there and no other
-    # form; a plain cargo build has none (it carries "(local build)").
+    # The desktop app's: the build string it answers `--version` with,
+    # "Faraday Desktop BUILD" (a release's is the version alone). Its
+    # strings cannot tell: every build carries the words "(local build)"
+    # in its strings table. A plain cargo build answers with the version
+    # too; faraday-linux-bin always sets a build ID, and the stick's and
+    # the Pi's, read from their kernels, must equal it.
     desktop_build_id() {
-        local id
-        id="$(grep -a -o -m1 -E '[0-9]+\.[0-9]+\.[0-9]+\+[0-9a-f]{12}(\.dirty-[0-9a-f]{8})?\.(test|dev)' "$1" || true)"
-        if [ -z "$id" ]; then
-            grep -aqF '(local build)' "$1" && return 0
-            grep -aqF "$version" "$1" && id="$version"
-        fi
-        printf '%s' "$id"
+        local line
+        line="$("$1" --version 2>/dev/null | head -1 || true)"
+        case "$line" in
+            "Faraday Desktop "?*) printf '%s' "${line#Faraday Desktop }" ;;
+        esac
     }
 
     stick_id="$(build_id "$stick")"
@@ -138,7 +139,7 @@ if [ -z "$second" ]; then
     desktop_id="$(desktop_build_id "$desktop")"
     [ -n "$stick_id" ] || die "$stick carries no Faraday build ID"
     [ -n "$pi_id" ] || die "$pi carries no Faraday build ID (faraday-build.txt on its boot partition)"
-    [ -n "$desktop_id" ] || die "$desktop carries no Faraday build ID (a plain cargo build, or not this version)"
+    [ -n "$desktop_id" ] || die "$desktop does not answer --version as Faraday Desktop with a build ID"
     echo "$stick: $stick_id"
     echo "$pi: $pi_id"
     echo "$desktop: $desktop_id"
