@@ -120,8 +120,8 @@ pub const BUILD: Option<&str> = option_env!("FARADAY_BUILD");
 /// Which Faraday program printed a `--version` line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Program {
-    /// The hub app.
-    HubApp,
+    /// The Starter.
+    StarterApp,
     /// The desktop app.
     DesktopApp,
 }
@@ -130,7 +130,7 @@ impl Program {
     /// The fixed words a program's `--version` line starts with.
     pub const fn name(self) -> &'static str {
         match self {
-            Program::HubApp => EN.name_faraday_hub_app,
+            Program::StarterApp => EN.name_faraday_starter_app,
             Program::DesktopApp => EN.name_faraday_desktop,
         }
     }
@@ -142,7 +142,10 @@ impl Program {
     /// so an install made with the old names is found and replaced.
     pub const fn old_names(self) -> [&'static str; 2] {
         match self {
-            Program::HubApp => [EN.name_faraday_hub_app_old, EN.name_faraday_hub_app_old2],
+            Program::StarterApp => [
+                EN.name_faraday_starter_app_old,
+                EN.name_faraday_starter_app_old2,
+            ],
             Program::DesktopApp => [EN.name_faraday_desktop_old, EN.name_faraday_desktop_old],
         }
     }
@@ -156,11 +159,11 @@ pub fn version_line(program: Program, build: &str) -> String {
 
 /// Which program, and which build string, a `--version` output is: its
 /// first line must be exactly [`version_line`] for one of them. Anything
-/// else is `None`; this is how the hub app tells its own and the
+/// else is `None`; this is how the Starter tells its own and the
 /// desktop app's files from another program's of the same name.
 pub fn parse_version_output(output: &str) -> Option<(Program, &str)> {
     let line = output.lines().next()?.trim();
-    [Program::HubApp, Program::DesktopApp]
+    [Program::StarterApp, Program::DesktopApp]
         .into_iter()
         .find_map(|p| {
             let rest = std::iter::once(p.name())
@@ -1366,7 +1369,7 @@ pub enum Action {
     /// The boot import's sheet.
     Import(boot_import::ImportAction),
     /// A press on a screen the app holding this one draws with
-    /// [`ui::Ui`] (the hub app, `docs/HUB.md` §2), in that app's own
+    /// [`ui::Ui`] (the Starter, `docs/STARTER.md` §2), in that app's own
     /// numbering. This app does nothing with it.
     Host(u32),
 }
@@ -3098,7 +3101,7 @@ pub struct Faraday {
     /// turned into PDFs. Never set on the device.
     pub online: bool,
     /// Held by another app that shows only Transfer and the Learn sheet
-    /// (the hub app, `docs/HUB.md` §2), set with [`Faraday::online`]:
+    /// (the Starter, `docs/STARTER.md` §2), set with [`Faraday::online`]:
     /// no sidebar and no Home of its own. Its way back goes to this
     /// app's Home, which draws nothing; the holder takes leaving
     /// Transfer and the sheets as going back to its own Home.
@@ -4437,7 +4440,7 @@ impl Faraday {
         }
         // While something that can capture the screen or the keys is
         // attached and not let through, what shows a secret waits under
-        // its sheet (`docs/HUB.md` §3.1a).
+        // its sheet (`docs/STARTER.md` §3.1a).
         if self.device_holds(action) {
             self.device_hold(action);
             return;
@@ -11224,7 +11227,7 @@ impl Faraday {
         // A panel under 600 dp wide (the Pi's 2.8" is 268) gets the
         // one-column layout at its own density, not the desktop shrunk.
         self.compact = f32::from(d.width) / density < 600.0;
-        // Held inside the hub, the screens draw at the desktop's own
+        // Held inside the Starter, the screens draw at the desktop's own
         // density, and take the one-column layout in any window narrower
         // than the wide layout's 1280 dp, rather than shrinking it.
         if self.held && f32::from(d.width) / density < 1280.0 {

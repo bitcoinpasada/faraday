@@ -1,0 +1,2327 @@
+//! The Starter's pages, drawn each frame from its state with `faraday-ui`'s
+//! `Ui`, in the desktop app's palette and sizes. On a wide display a page
+//! is a centred column under a strip with the way back; on a small panel
+//! (`compact`) a bar across the top carries the way back and the page's
+//! name, as the desktop app's small-panel pages do.
+
+use faraday_core::Action;
+use faraday_core::strings::{EN, Strings};
+use faraday_core::upgrade::{Fit, describe, version};
+use faraday_ui::pal::*;
+use faraday_ui::parts::qr_code;
+use faraday_ui::{NameSuffix, Style, W};
+use opensigner_core::strings::fill;
+use osk_ui::Color;
+use osk_ui::widgets::Icon;
+
+use faraday_qr::bitlocker::RecoveryKey;
+
+use crate::api::{
+    Concern, InUse, InstallItem, KeyShown, Kind, Mode, Os, PayloadKind, Protection, Reason,
+    StickFault, WriteStage,
+};
+use crate::decide::{Item, Refusal, State, Target};
+use crate::macs::{self, StickFor};
+use crate::{Card, LearnId, ModeRefusal, Page, RestartTo, Sheet, Starter, StarterAction};
+
+/// Faraday's drawing, a press being the desktop app's action that carries
+/// the Starter's own ([`StarterAction::host`]).
+type Ui<'a> = faraday_ui::Ui<'a, Action>;
+
+const S: &Strings = &EN;
+
+/// The small panel's side margin.
+const M: f32 = 12.0;
+/// The small panel's bar.
+const BAR_H: f32 = 44.0;
+/// The wide strip with the way back.
+const STRIP_H: f32 = 52.0;
+/// The widest the column grows.
+const COL_W: f32 = 720.0;
+
+/// Draws the frame. Returns how far the page can scroll, units.
+pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
+    let (w, h) = (starter.w, starter.h);
+    ui.clear(BG);
+    let compact = starter.compact;
+    let top = if starter.page == Page::Home {
+        0.0
+    } else if compact {
+        BAR_H
+    } else {
+        STRIP_H
+    };
+    let (x, cw) = if compact {
+        (M, w - 2.0 * M)
+    } else {
+        let cw = (w - 96.0).min(COL_W);
+        ((w - cw) / 2.0, cw)
+    };
+    let clip = ui.rect(0.0, top, w, h - top);
+    ui.c.push_clip(clip);
+    let pad = if compact { 12.0 } else { 28.0 };
+    let y0 = top + pad - starter.offset;
+    let end = match starter.page {
+        Page::Home => home(starter, ui, x, y0, cw),
+        Page::Which => which(starter, ui, x, y0, cw),
+        Page::Disks => disks(starter, ui, x, y0, cw),
+        Page::Mode => mode(starter, ui, x, y0, cw),
+        Page::Confirm => confirm(starter, ui, x, y0, cw),
+        Page::Writing => writing(starter, ui, x, y0, cw),
+        Page::Done => done(starter, ui, x, y0, cw),
+        Page::Start => start(starter, ui, x, y0, cw),
+        Page::Install => install(starter, ui, x, y0, cw),
+        Page::Installed => installed(starter, ui, x, y0, cw),
+        Page::About => about(starter, ui, x, y0, cw),
+        Page::BitLocker => bitlocker(starter, ui, x, y0, cw),
+    };
+    ui.c.pop_clip();
+    let content = end - y0 + pad + 16.0;
+    let max = (content - (h - top)).max(0.0);
+    ui.report_scroll(clip, max);
+    if starter.page != Page::Home {
+        head(starter, ui, w);
+    }
+    if let Some(sheet) = starter.sheet {
+        ui.hits.clear();
+        ui.in_sheet = true;
+        ui.backdrop();
+        match sheet {
+            Sheet::Restart(to) => restart_sheet(starter, ui, w, h, to),
+            Sheet::Uninstall => uninstall_sheet(starter, ui, w, h),
+            Sheet::LetThrough => let_through_sheet(starter, ui, w, h),
+        }
+        ui.in_sheet = false;
+    }
+    max
+}
+
+// ---------------------------------------------------------------------
+// The frame's pieces
+// ---------------------------------------------------------------------
+
+/// A page's name, as its title and its bar say it.
+fn page_name(starter: &Starter) -> String {
+    let target = starter.making.as_ref().map_or(Target::Stick, |m| m.target);
+    match starter.page {
+        Page::Home => String::new(),
+        Page::Which => S.starter_which_title.to_string(),
+        Page::Disks => match target {
+            Target::Stick => S.starter_disks_stick,
+            Target::Pi => S.starter_disks_card,
+        }
+        .to_string(),
+        Page::Mode => S.starter_mode_title.to_string(),
+        Page::Confirm => S.starter_confirm_title.to_string(),
+        Page::Writing => S.starter_writing_title.to_string(),
+        Page::Done => match starter.making.as_ref().and_then(|m| m.result.as_ref()) {
+            Some(Ok(())) => S.starter_done_title,
+            _ => S.starter_failed_title,
+        }
+        .to_string(),
+        Page::Start => start_label(starter).to_string(),
+        Page::Install if starter.update_offered() => S.starter_row_update.to_string(),
+        Page::Install => S.starter_row_install.to_string(),
+        Page::Installed => S.starter_row_installed.to_string(),
+        Page::About => S.starter_row_about.to_string(),
+        Page::BitLocker => S.starter_item_bitlocker.to_string(),
+    }
+}
+
+/// Where the way back goes, by name; none while a write runs.
+fn back_name(starter: &Starter) -> Option<String> {
+    match starter.page {
+        Page::Home | Page::Writing => None,
+        Page::Mode => {
+            let target = starter.making.as_ref().map_or(Target::Stick, |m| m.target);
+            Some(
+                match target {
+                    Target::Stick => S.starter_disks_stick,
+                    Target::Pi => S.starter_disks_card,
+                }
+                .to_string(),
+            )
+        }
+        Page::Confirm => Some(S.starter_mode_title.to_string()),
+        Page::Disks if starter.asks_which() && target_of(starter) == Target::Stick => {
+            Some(S.starter_which_title.to_string())
+        }
+        _ => Some(S.starter_home.to_string()),
+    }
+}
+
+/// The bar (small panel) or the strip (wide) across the top.
+fn head(starter: &Starter, ui: &mut Ui, w: f32) {
+    let back = StarterAction::Back.host();
+    let name = page_name(starter);
+    let back_to = back_name(starter);
+    if starter.compact {
+        ui.fill(0.0, 0.0, w, BAR_H, 0.0, SIDEBAR);
+        ui.fill(0.0, BAR_H - 1.0, w, 1.0, 0.0, LINE);
+        let x = if back_to.is_some() { BAR_H } else { M };
+        if let Some(label) = &back_to {
+            if ui.is_pressed(back) {
+                ui.fill(4.0, 4.0, BAR_H - 8.0, BAR_H - 8.0, 8.0, INNER);
+            }
+            ui.icon(4.0, 4.0, BAR_H - 8.0, Icon::ChevronLeft, 13.0, TEXT);
+            ui.hit(0.0, 0.0, BAR_H + 8.0, BAR_H, back);
+            ui.back(back);
+            let label = ui.fit(11.0, W::R, label, w - x - M);
+            ui.text(x, 5.0, 11.0, W::R, MUTED, &label);
+            let name = ui.fit(16.0, W::S, &name, w - x - M);
+            ui.text(x, 19.0, 16.0, W::S, TEXT, &name);
+        } else {
+            let name = ui.fit(16.0, W::S, &name, w - x - M);
+            ui.text_mid(x, 0.0, BAR_H, 16.0, W::S, TEXT, &name);
+        }
+        return;
+    }
+    ui.fill(0.0, 0.0, w, STRIP_H, 0.0, BG);
+    if let Some(label) = back_to {
+        let bw = ui.measure(14.0, W::S, &label) + 44.0;
+        let (bx, by) = (24.0, 10.0);
+        if ui.is_pressed(back) || ui.is_hovered(back) {
+            ui.fill(bx, by, bw, 34.0, 8.0, INNER);
+        }
+        ui.icon(bx + 4.0, by + 5.0, 24.0, Icon::ChevronLeft, 12.0, MUTED);
+        ui.text_mid(bx + 30.0, by, 34.0, 14.0, W::S, MUTED, &label);
+        ui.hit(bx, by, bw, 34.0, back);
+        ui.back(back);
+    }
+}
+
+/// A page's title on a wide display; the bar carries it on a small
+/// panel. Returns the height it took.
+fn title(starter: &Starter, ui: &mut Ui, x: f32, y: f32) -> f32 {
+    if starter.compact {
+        return 0.0;
+    }
+    let name = page_name(starter);
+    ui.text(x, y, 28.0, W::S, TEXT, &name);
+    ui.line(28.0, W::S) + 20.0
+}
+
+/// A section's label. Returns its height.
+fn label(ui: &mut Ui, x: f32, y: f32, s: &str) -> f32 {
+    ui.text(x, y, 13.0, W::S, MUTED, s);
+    24.0
+}
+
+/// A line of fact, wrapped. Returns its height with the gap under it.
+fn line(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str, tone: Color) -> f32 {
+    ui.wrap(x, y, w, 13.0, W::R, tone, s) + 10.0
+}
+
+/// A label and its value: on one row with the value at the right on a
+/// wide display, the value under the label on a small panel. Returns
+/// its height.
+fn value_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: Color) -> f32 {
+    if ui.compact {
+        ui.text(x, y, 12.0, W::R, MUTED, key);
+        let vh = ui.wrap(x, y + 18.0, w, 14.0, W::R, tone, value);
+        ui.rule(x, y + 24.0 + vh, w, INNER);
+        return vh + 32.0;
+    }
+    let kw = ui.measure(13.0, W::R, key) + 24.0;
+    ui.text_mid(x, y, 36.0, 13.0, W::R, MUTED, key);
+    let v = ui.fit(14.0, W::R, value, w - kw);
+    ui.text_right(x + w, y, 36.0, 14.0, W::R, tone, &v);
+    ui.rule(x, y + 36.0, w, INNER);
+    38.0
+}
+
+/// A label over a long value in the mono face, in groups of four,
+/// wrapped (a SHA-256, a fingerprint, a path). Returns its height.
+fn mono_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str) -> f32 {
+    ui.text(x, y + 8.0, 12.0, W::R, MUTED, key);
+    let vh = ui.wrap(x, y + 28.0, w, 13.0, W::M, TEXT, value);
+    ui.rule(x, y + 36.0 + vh, w, INNER);
+    vh + 40.0
+}
+
+/// A row that opens something: an icon, its label, a second line, and a
+/// value at the right. Dimmed, it takes no press and its second line is
+/// the reason. Returns its height with the gap under it.
+#[allow(clippy::too_many_arguments)]
+fn nav_row(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    icon: Icon,
+    head: &str,
+    sub: &str,
+    tail: &str,
+    action: Option<StarterAction>,
+) -> f32 {
+    let compact = ui.compact;
+    let h = if compact { 54.0 } else { 58.0 };
+    let enabled = action.is_some();
+    let pressed = action.is_some_and(|a| ui.is_pressed(a.host()));
+    ui.fill(x, y, w, h, 10.0, if pressed { INNER } else { SURFACE });
+    ui.stroke(x, y, w, h, 10.0, LINE);
+    let ib = if compact { 28.0 } else { 32.0 };
+    let (ibg, ifg) = if enabled {
+        (ACCENT.with_alpha(26), ACCENT)
+    } else {
+        (INNER, DIM)
+    };
+    ui.fill(x + 10.0, y + (h - ib) / 2.0, ib, ib, 8.0, ibg);
+    ui.icon(x + 10.0, y + (h - ib) / 2.0, ib, icon, 14.0, ifg);
+    let tx = x + 20.0 + ib;
+    let tail_w = if tail.is_empty() {
+        0.0
+    } else {
+        ui.measure(12.0, W::R, tail) + 12.0
+    };
+    let chevron = if enabled { 22.0 } else { 0.0 };
+    let room = w - (tx - x) - 12.0 - tail_w - chevron;
+    let head = ui.fit(14.0, W::S, head, room);
+    let fg = if enabled { TEXT } else { DIM };
+    if sub.is_empty() {
+        ui.text_mid(tx, y, h, 14.0, W::S, fg, &head);
+    } else {
+        ui.text(tx, y + 9.0, 14.0, W::S, fg, &head);
+        let sub = ui.fit(12.0, W::R, sub, w - (tx - x) - 12.0 - chevron);
+        let tone = if enabled { MUTED } else { WARN };
+        ui.text(tx, y + 30.0, 12.0, W::R, tone, &sub);
+    }
+    if !tail.is_empty() {
+        ui.text_right(
+            x + w - 12.0 - chevron,
+            y,
+            if sub.is_empty() { h } else { 30.0 },
+            12.0,
+            W::R,
+            if enabled { MUTED } else { DIM },
+            tail,
+        );
+    }
+    if let Some(a) = action {
+        ui.icon(
+            x + w - 28.0,
+            y + (h - 20.0) / 2.0,
+            20.0,
+            Icon::ChevronRight,
+            9.0,
+            DIM,
+        );
+        ui.hit(x, y, w, h, a.host());
+    }
+    h + 8.0
+}
+
+/// A warning: a tinted box with the line in it. Returns its height with
+/// the gap under it.
+fn warning(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str, tone: Color) -> f32 {
+    let th = ui.wrap(x + 14.0, y + 10.0, w - 28.0, 13.0, W::S, tone, s);
+    // Drawn again over its box, which needs the text's height first.
+    let bh = th + 20.0;
+    ui.fill(x, y, w, bh, 10.0, tone.with_alpha(26));
+    ui.stroke(x, y, w, bh, 10.0, tone.with_alpha(110));
+    ui.wrap(x + 14.0, y + 10.0, w - 28.0, 13.0, W::S, tone, s);
+    bh + 12.0
+}
+
+/// A link to a Learn page: a line in the accent colour that opens it,
+/// drawn only when the page exists (another batch writes some of them).
+/// Returns its height, nothing when the page does not exist.
+pub(crate) fn link(ui: &mut Ui, x: f32, y: f32, w: f32, id: LearnId) -> f32 {
+    if id.page().is_none() {
+        return 0.0;
+    }
+    let label = learn_title(id);
+    let action = StarterAction::LearnPage(id).host();
+    let label = ui.fit(13.0, W::S, label, w);
+    let tw = ui.measure(13.0, W::S, &label);
+    let tone = if ui.is_pressed(action) || ui.is_hovered(action) {
+        TEXT
+    } else {
+        ACCENT
+    };
+    ui.text_mid(x, y, 28.0, 13.0, W::S, tone, &label);
+    ui.hit(x - 4.0, y, tw + 8.0, 28.0, action);
+    32.0
+}
+
+/// An item of concern's line (§3.1a), naming it.
+pub(crate) fn concern_text(c: &Concern) -> String {
+    let fallback = match c.kind {
+        Kind::Tv | Kind::WirelessDisplay => S.starter_concern_screen,
+        Kind::Kvm | Kind::Receiver | Kind::BoltReceiver => S.starter_concern_device,
+        Kind::VirtualMachine => S.starter_concern_computer,
+        Kind::RemoteSession => S.starter_concern_session,
+    };
+    let name = if c.name.trim().is_empty() {
+        fallback
+    } else {
+        c.name.trim()
+    };
+    let line = match c.kind {
+        Kind::Tv => S.starter_concern_tv,
+        Kind::Kvm => S.starter_concern_kvm,
+        Kind::Receiver => S.devices_receiver_notice,
+        Kind::BoltReceiver => S.devices_bolt_notice,
+        Kind::VirtualMachine => S.starter_concern_vm,
+        Kind::RemoteSession => S.starter_concern_remote,
+        Kind::WirelessDisplay => S.starter_concern_wireless_display,
+    };
+    fill(line, &[name])
+}
+
+/// A wireless receiver's line (§3.1a), which holds nothing: the warning,
+/// or a Bolt receiver's plain line. Returns its height with the gap
+/// under it; nothing without a receiver.
+fn receiver_line(starter: &Starter, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    match starter.receiver_line() {
+        Some(l) if l == S.devices_bolt_notice => line(ui, x, y, w, l, MUTED),
+        Some(l) => warning(ui, x, y, w, l, WARN),
+        None => 0.0,
+    }
+}
+
+/// What is attached that holds a step (§3.1a): each item's line, its
+/// Continue anyway (never for a virtual machine), Check again, and the
+/// Learn page. Returns its height with the gap under it; nothing when
+/// nothing holds.
+fn concern_block(
+    starter: &Starter,
+    ui: &mut Ui,
+    x: f32,
+    y0: f32,
+    w: f32,
+    items: &[&Concern],
+) -> f32 {
+    if items.is_empty() {
+        return 0.0;
+    }
+    let mut y = y0;
+    for c in items {
+        y += warning(ui, x, y, w, &concern_text(c), WARN);
+        if c.kind != Kind::VirtualMachine {
+            let n = StarterAction::ContinueAnyway(starter.concern_number(&c.id));
+            y += buttons(
+                ui,
+                x,
+                y - 4.0,
+                w,
+                &[(S.starter_continue_anyway, Style::Ghost, n)],
+            ) + 8.0;
+        }
+    }
+    y += buttons(
+        ui,
+        x,
+        y,
+        w,
+        &[(
+            S.starter_check_again,
+            Style::Secondary,
+            StarterAction::CheckAgain,
+        )],
+    ) + 8.0;
+    y += link(ui, x, y, w, LearnId::ScreensThatRecord);
+    y + 12.0 - y0
+}
+
+/// One button, or a row of them (a column on a small panel when they do
+/// not fit). Returns their height.
+fn buttons(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, Style, StarterAction)]) -> f32 {
+    if items.is_empty() {
+        return 0.0;
+    }
+    if ui.compact {
+        let n = items.len() as f32;
+        let share = (w - (n - 1.0) * 8.0) / n;
+        let fits = items
+            .iter()
+            .all(|(l, ..)| ui.measure(15.0, W::S, l) + 24.0 <= share);
+        if fits {
+            for (i, &(l, s, a)) in items.iter().enumerate() {
+                ui.button(
+                    x + i as f32 * (share + 8.0),
+                    y,
+                    Some(share),
+                    46.0,
+                    l,
+                    s,
+                    a.host(),
+                );
+            }
+            return 46.0;
+        }
+        for (i, &(l, s, a)) in items.iter().enumerate() {
+            let l = ui.fit(15.0, W::S, l, w - 24.0);
+            ui.button(x, y + i as f32 * 54.0, Some(w), 46.0, &l, s, a.host());
+        }
+        return n * 54.0 - 8.0;
+    }
+    let mut bx = x;
+    for &(l, s, a) in items {
+        bx += ui.button(bx, y, None, 44.0, l, s, a.host()) + 10.0;
+    }
+    44.0
+}
+
+/// A numbered step's heading, or a tick once it is done. Returns its
+/// height.
+fn step_head(ui: &mut Ui, x: f32, y: f32, w: f32, n: usize, text: &str, done: bool) -> f32 {
+    ui.badge(x, y, &n.to_string(), done, !done);
+    let th = ui.wrap(x + 38.0, y + 3.0, w - 38.0, 15.0, W::S, TEXT, text);
+    th.max(26.0) + 10.0
+}
+
+/// What a reason reads as, from `faraday_core::strings`.
+pub(crate) fn reason_text(r: &Reason) -> String {
+    let n = |v: u64| v.to_string();
+    let bytes = |v: u64| fill(S.starter_why_bytes, &[&v.to_string()]);
+    match r {
+        Reason::NoWriter => S.starter_no_writer.to_string(),
+        Reason::NotCarried => S.starter_why_not_carried.to_string(),
+        Reason::Changed {
+            device,
+            serial,
+            size,
+        } => {
+            let serial = if serial.is_empty() {
+                S.starter_why_no_serial
+            } else {
+                serial
+            };
+            fill(S.starter_why_changed, &[device, serial, &bytes(*size)])
+        }
+        Reason::InUse(InUse::Mounted(at)) => fill(S.starter_why_mounted, &[at]),
+        Reason::InUse(InUse::Swap) => S.starter_why_swap.to_string(),
+        Reason::InUse(InUse::System) => S.starter_why_system.to_string(),
+        Reason::BootOnly => S.starter_why_boot_only.to_string(),
+        Reason::TooSmall { disk, image } => {
+            fill(S.starter_why_too_small, &[&bytes(*disk), &bytes(*image)])
+        }
+        Reason::PayloadSum => S.starter_why_payload_sum.to_string(),
+        Reason::ImageChanged { path, sha256 } => fill(S.starter_why_image_changed, &[path, sha256]),
+        Reason::Gone => S.starter_why_gone.to_string(),
+        Reason::Bus(d) => fill(S.starter_why_bus, &[d]),
+        Reason::Unmounting(d) => fill(S.starter_why_unmounting, &[d]),
+        Reason::OpenWrite(d) => fill(S.starter_why_open_write, &[d]),
+        Reason::OpenRead(d) => fill(S.starter_why_open_read, &[d]),
+        Reason::Device { device, detail } => fill(S.starter_why_device, &[device, detail]),
+        Reason::Flush { device, detail } => fill(S.starter_why_flush, &[device, detail]),
+        Reason::NotStick { device, fault } => {
+            fill(S.starter_why_not_stick, &[device, &fault_text(fault)])
+        }
+        Reason::NotStickImage(fault) => fill(S.starter_why_not_stick_image, &[&fault_text(fault)]),
+        Reason::BootLarger { image, stick } => {
+            fill(S.starter_why_boot_larger, &[&bytes(*image), &bytes(*stick)])
+        }
+        Reason::BootLabel => S.starter_why_boot_label.to_string(),
+        Reason::BootShort => S.starter_why_boot_short.to_string(),
+        Reason::TableChanged(device) => fill(S.starter_why_table_changed, &[device]),
+        Reason::ReadingTable(d) => fill(S.starter_why_reading_table, &[d]),
+        Reason::BackEnds { device, at } => fill(S.starter_why_back_ends, &[device, &n(*at)]),
+        Reason::BackDiffers { device, at } => fill(S.starter_why_back_differs, &[device, &n(*at)]),
+        Reason::BackFailed { device, detail } => fill(S.starter_why_back_failed, &[device, detail]),
+        Reason::SourceRead(d) => fill(S.starter_why_source_read, &[d]),
+        Reason::WriteFailed(d) => fill(S.starter_why_write_failed, &[d]),
+        Reason::PayloadChanged => S.starter_why_payload_changed.to_string(),
+        Reason::Damaged(d) => fill(S.starter_why_damaged, &[d]),
+        Reason::Longer(v) => fill(S.starter_why_longer, &[&n(*v)]),
+        Reason::Shorter { expected, actual } => {
+            fill(S.starter_why_shorter, &[&n(*actual), &n(*expected)])
+        }
+        Reason::WrongSum(sum) => fill(S.starter_why_wrong_sum, &[sum]),
+        Reason::NoHome => S.starter_why_no_home.to_string(),
+        Reason::NoDesktopApp => S.starter_why_no_desktop.to_string(),
+        Reason::CacheSum(sum) => fill(S.starter_why_cache_sum, &[sum]),
+        Reason::File { path, detail } => fill(S.starter_why_file, &[path, detail]),
+        Reason::InTheWay { path } => fill(S.starter_why_in_the_way, &[path]),
+        Reason::Start { path, detail } => fill(S.starter_why_start, &[path, detail]),
+        Reason::Restart(d) => fill(S.starter_why_restart, &[d]),
+        Reason::Missing(program) => fill(S.starter_why_missing, &[program]),
+        Reason::BootEntry(d) => fill(S.starter_why_boot_entry, &[d]),
+        Reason::NoStick => S.starter_why_no_stick.to_string(),
+        Reason::Declined => S.starter_why_declined.to_string(),
+        Reason::Unsupported => S.starter_why_unsupported.to_string(),
+        Reason::NoAdmin => S.starter_why_no_admin.to_string(),
+        Reason::Managed(code) => fill(S.starter_why_managed, &[&format!("0x{code:08X}")]),
+        Reason::BitLocker { call, code } => {
+            fill(S.starter_why_bitlocker, &[call, &format!("0x{code:08X}")])
+        }
+        Reason::NotEncrypted => S.starter_why_not_encrypted.to_string(),
+        Reason::NotRead => S.starter_why_not_read.to_string(),
+    }
+}
+
+fn fault_text(f: &StickFault) -> String {
+    let bytes = |v: u64| fill(S.starter_why_bytes, &[&v.to_string()]);
+    match f {
+        StickFault::Reading(d) => fill(S.starter_fault_reading, &[d]),
+        StickFault::NoHeader => S.starter_fault_no_header.to_string(),
+        StickFault::NotGpt => S.starter_fault_not_gpt.to_string(),
+        StickFault::HeaderDamaged => S.starter_fault_header_damaged.to_string(),
+        StickFault::HeaderChecksum => S.starter_fault_header_checksum.to_string(),
+        StickFault::EntriesDamaged => S.starter_fault_entries_damaged.to_string(),
+        StickFault::EntriesPastEnd => S.starter_fault_entries_past_end.to_string(),
+        StickFault::EntriesChecksum => S.starter_fault_entries_checksum.to_string(),
+        StickFault::DiskUuid => S.starter_fault_disk_uuid.to_string(),
+        StickFault::Partitions(n) => fill(S.starter_fault_partitions, &[&n.to_string()]),
+        StickFault::BootName => S.starter_fault_boot_name.to_string(),
+        StickFault::BootType => S.starter_fault_boot_type.to_string(),
+        StickFault::DataType => S.starter_fault_data_type.to_string(),
+        StickFault::BootDamaged => S.starter_fault_boot_damaged.to_string(),
+        StickFault::BootSmall { boot, image } => {
+            fill(S.starter_fault_boot_small, &[&bytes(*boot), &bytes(*image)])
+        }
+        StickFault::Overlap => S.starter_fault_overlap.to_string(),
+        StickFault::BootPastEnd => S.starter_fault_boot_past_end.to_string(),
+    }
+}
+
+/// A size as people read it: "16 GB", "7.8 GB", "512 MB".
+pub(crate) fn size_text(bytes: u64) -> String {
+    let gb = bytes as f64 / 1e9;
+    if gb >= 10.0 {
+        fill(S.starter_size_gb, &[&format!("{gb:.0}")])
+    } else if gb >= 1.0 {
+        fill(S.starter_size_gb, &[&format!("{gb:.1}")])
+    } else {
+        fill(S.starter_size_mb, &[&format!("{:.0}", bytes as f64 / 1e6)])
+    }
+}
+
+/// A SHA-256 in groups of four.
+fn grouped(hex: &str) -> String {
+    faraday_ui::grouped(hex)
+}
+
+/// A disk's name: maker and model.
+fn disk_name(d: &crate::api::Disk) -> String {
+    let name = format!("{} {}", d.vendor.trim(), d.model.trim());
+    let name = name.trim();
+    if name.is_empty() {
+        S.starter_disk_unnamed.to_string()
+    } else {
+        name.to_string()
+    }
+}
+
+/// What is on a disk, in a few words (§3.2 step 1).
+fn on_it(d: &crate::api::Disk) -> String {
+    if let Some(f) = &d.faraday {
+        return fill(S.starter_on_faraday, &[&version(f.release.as_deref())]);
+    }
+    if d.volumes.is_empty() {
+        return S.starter_on_empty.to_string();
+    }
+    let names: Vec<&str> = d
+        .volumes
+        .iter()
+        .filter_map(|v| v.label.as_deref())
+        .collect();
+    let n = d.volumes.len();
+    let what = if names.is_empty() {
+        if n == 1 {
+            S.starter_on_volume.to_string()
+        } else {
+            fill(S.starter_on_volumes, &[&n.to_string()])
+        }
+    } else {
+        names.join(", ")
+    };
+    let files = d.volumes.iter().any(|v| v.files);
+    let tail = match (files, n == 1) {
+        (true, true) => S.starter_on_files_it,
+        (true, false) => S.starter_on_files_them,
+        (false, _) => S.starter_on_no_files,
+    };
+    format!("{what}, {tail}")
+}
+
+/// Why a disk cannot be chosen, in one line.
+fn refusal_text(r: &Refusal) -> String {
+    match r {
+        Refusal::InUse(InUse::Mounted(at)) => fill(S.starter_refused_mounted, &[at]),
+        Refusal::InUse(InUse::Swap) => S.starter_refused_swap.to_string(),
+        Refusal::InUse(InUse::System) => S.starter_refused_system.to_string(),
+        Refusal::TooSmall(needs) => fill(S.starter_refused_small, &[&size_text(*needs)]),
+    }
+}
+
+/// The line Confirm shows when the disk is no longer the one confirmed.
+pub(crate) fn not_confirmed(target: Target) -> String {
+    match target {
+        Target::Stick => S.starter_not_confirmed_stick,
+        Target::Pi => S.starter_not_confirmed_card,
+    }
+    .to_string()
+}
+
+// ---------------------------------------------------------------------
+// Home
+// ---------------------------------------------------------------------
+
+/// Start this computer from the stick, or on a Mac, Start this Mac
+/// from the stick.
+fn start_label(starter: &Starter) -> &'static str {
+    if starter.facts().mac().is_some() {
+        S.starter_item_start_mac
+    } else {
+        S.starter_item_start
+    }
+}
+
+/// What an item is called.
+fn item_label(starter: &Starter, item: Item) -> &'static str {
+    match item {
+        Item::MakeStick => S.starter_item_make,
+        Item::BitLocker => S.starter_item_bitlocker,
+        Item::Start => start_label(starter),
+        Item::SecureBootOn => S.starter_item_secure_boot,
+        Item::Resume => S.starter_item_resume,
+    }
+}
+
+/// What a state reads as.
+fn state_text(state: &State) -> String {
+    match state {
+        State::NoStick => S.starter_state_no_stick.to_string(),
+        State::Stick(v) => fill(S.starter_state_stick, &[v]),
+        State::Protected => S.starter_state_protected.to_string(),
+        State::Suspended => S.starter_state_suspended.to_string(),
+        State::SuspendedOther => S.starter_state_suspended_other.to_string(),
+        State::Resumed => S.starter_state_resumed.to_string(),
+        State::KeyKept => S.starter_state_key_kept.to_string(),
+        State::Other => S.starter_state_other.to_string(),
+        State::SecureBoot(on) => secure_boot_text(*on),
+        State::MacStart(Some(false)) => S.starter_state_mac_option.to_string(),
+        State::MacStart(Some(true)) => S.starter_state_mac_t2.to_string(),
+        State::MacStart(None) => S.starter_state_mac_unknown.to_string(),
+    }
+}
+
+fn secure_boot_text(on: Option<bool>) -> String {
+    match on {
+        Some(true) => S.starter_secure_boot_on,
+        Some(false) => S.starter_secure_boot_off,
+        None => S.starter_secure_boot_unknown,
+    }
+    .to_string()
+}
+
+fn home(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0;
+    // The title is the wordmark.
+    if starter.compact {
+        ui.mark(x, y, 20.0, 23.0);
+        ui.wordmark_named(x + 28.0, y + 6.0, 11.0, TEXT, NameSuffix::Starter);
+        y += 38.0;
+    } else {
+        ui.mark(x, y, 28.0, 32.0);
+        ui.wordmark_named(x + 38.0, y + 11.0, 12.0, TEXT, NameSuffix::Starter);
+        y += 56.0;
+    }
+    let facts = starter.facts();
+    let next = facts.next_step();
+    let rows = facts.checklist();
+    y += computer_card(starter, ui, x, y, w) + 20.0;
+    y += concern_block(starter, ui, x, y, w, &starter.restart_holds());
+    y += receiver_line(starter, ui, x, y, w);
+
+    // The checklist.
+    y += label(ui, x, y, S.starter_checklist);
+    ui.rule(x, y, w, INNER);
+    for (i, row) in rows.iter().enumerate() {
+        let action = StarterAction::Item(row.item);
+        let is_next = next == Some(row.item);
+        let rh = 54.0;
+        let pressed = ui.is_pressed(action.host());
+        if is_next || pressed {
+            let tint = if pressed {
+                INNER
+            } else {
+                ACCENT.with_alpha(22)
+            };
+            ui.fill(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0, tint);
+        }
+        ui.badge(
+            x + 4.0,
+            y + (rh - 26.0) / 2.0,
+            &(i + 1).to_string(),
+            row.done,
+            is_next,
+        );
+        let tx = x + 44.0;
+        let fg = if row.done { MUTED } else { TEXT };
+        let head = ui.fit(14.0, W::S, item_label(starter, row.item), w - 80.0);
+        ui.text(tx, y + 8.0, 14.0, W::S, fg, &head);
+        let mut state = state_text(&row.state);
+        if row.item == Item::Resume && !row.offered {
+            state = format!("{state} · {}", resume_needs(starter));
+        }
+        let state = ui.fit(12.0, W::R, &state, w - 80.0);
+        ui.text(tx, y + 30.0, 12.0, W::R, MUTED, &state);
+        ui.icon(
+            x + w - 24.0,
+            y + (rh - 20.0) / 2.0,
+            20.0,
+            Icon::ChevronRight,
+            9.0,
+            DIM,
+        );
+        ui.hit(x - 6.0, y, w + 12.0, rh, action.host());
+        y += rh;
+        ui.rule(x, y, w, INNER);
+    }
+    y += 24.0;
+
+    // The firmware's Faraday stick entry, once back from a session.
+    if starter.entry_offered() {
+        let failed = starter.entry_remove_failed.as_ref().map(reason_text);
+        let (sub, action) = if starter.entry_removing {
+            (S.starter_removing_entry.to_string(), None)
+        } else {
+            (
+                failed.unwrap_or_else(|| S.starter_remove_entry_sub.to_string()),
+                Some(StarterAction::RemoveEntry),
+            )
+        };
+        y += nav_row(
+            ui,
+            x,
+            y,
+            w,
+            Icon::Drive,
+            S.starter_remove_entry,
+            &sub,
+            "",
+            action,
+        );
+        y += 8.0;
+    }
+
+    // The other rows.
+    let pi = starter.image(Target::Pi).is_some();
+    y += nav_row(
+        ui,
+        x,
+        y,
+        w,
+        Icon::SdCard,
+        S.starter_row_pi,
+        if pi { "" } else { S.starter_no_pi_image },
+        "",
+        pi.then_some(StarterAction::Make(Target::Pi)),
+    );
+    y += nav_row(
+        ui,
+        x,
+        y,
+        w,
+        Icon::Qr,
+        S.starter_row_transfer,
+        "",
+        "",
+        Some(StarterAction::Transfer),
+    );
+    if starter.offers_desktop() {
+        let failed = starter.desktop_failed.as_ref().map(reason_text);
+        let sub = failed.as_deref().unwrap_or(S.starter_row_desktop_sub);
+        y += nav_row(
+            ui,
+            x,
+            y,
+            w,
+            Icon::Tools,
+            S.starter_row_desktop,
+            sub,
+            "",
+            Some(StarterAction::TryDesktop),
+        );
+    }
+    let (install, action) = match &starter.installed {
+        Some(_) if starter.update_offered() => (S.starter_row_update, StarterAction::Install),
+        Some(_) => (S.starter_row_installed, StarterAction::Installed),
+        None => (S.starter_row_install, StarterAction::Install),
+    };
+    y += nav_row(ui, x, y, w, Icon::Download, install, "", "", Some(action));
+    y += nav_row(
+        ui,
+        x,
+        y,
+        w,
+        Icon::Info,
+        S.starter_row_about,
+        "",
+        "",
+        Some(StarterAction::About),
+    );
+    y += nav_row(
+        ui,
+        x,
+        y,
+        w,
+        Icon::Learn,
+        S.starter_row_learn,
+        "",
+        "",
+        Some(StarterAction::Learn),
+    );
+    y
+}
+
+/// The This computer card: what it is, its Secure Boot and encryption,
+/// and the next step as its action. Returns its height.
+fn computer_card(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let c = &starter.computer;
+    let pad = if starter.compact { 12.0 } else { 18.0 };
+    let iw = w - 2.0 * pad;
+    let mac = starter.facts().mac();
+    let row = mac.and(macs::mac(&c.model));
+    let name = match row {
+        // On a Mac, its name from the table; the identifier is a line.
+        Some(m) => m.name.to_string(),
+        None => format!("{} {}", c.maker.trim(), c.model.trim()),
+    };
+    let name = if name.trim().is_empty() {
+        S.starter_computer_unknown.to_string()
+    } else {
+        name.trim().to_string()
+    };
+    // A Mac shows no Secure Boot line: before the T2 chip its firmware
+    // has no such setting, and Startup Security is not read.
+    let mut lines: Vec<(String, Color)> = match mac {
+        Some(_) => {
+            let mut l = Vec::new();
+            if row.is_some() {
+                l.push((c.model.trim().to_string(), MUTED));
+            }
+            if row.is_some_and(|m| m.t2) {
+                l.push((S.starter_mac_t2.to_string(), TEXT));
+            }
+            l
+        }
+        None => vec![(secure_boot_text(c.secure_boot), TEXT)],
+    };
+    if c.os == Os::Windows
+        && let Some(b) = &starter.bitlocker
+    {
+        let suspended = starter.facts().suspension_stands();
+        let t = match b.protection {
+            _ if suspended => S.starter_drive_suspended,
+            Protection::None => S.starter_drive_plain,
+            Protection::On => S.starter_drive_encrypted,
+            Protection::Suspended => S.starter_drive_suspended_other,
+            Protection::Unknown => S.starter_drive_unknown,
+        };
+        lines.push((fill(t, &[&b.drive]), TEXT));
+    }
+    match mac {
+        Some(macs::Start::NotYet) => lines.push((S.starter_cannot_start_mac_yet.to_string(), WARN)),
+        Some(macs::Start::Firmware32) => {
+            lines.push((S.starter_cannot_start_mac_firmware.to_string(), WARN));
+        }
+        Some(macs::Start::Intel { .. }) => {}
+        None if c.arm => lines.push((S.starter_cannot_start_arm.to_string(), WARN)),
+        None if !c.uefi => lines.push((S.starter_cannot_start_bios.to_string(), WARN)),
+        None => {}
+    }
+    let card = starter.card();
+    if card == Card::Firmware {
+        // Why the card offers the firmware's settings, not the stick.
+        if c.secure_boot == Some(false)
+            && let Some(why) = &starter.stick_restart_failed
+        {
+            lines.push((
+                fill(S.starter_stick_restart_failed, &[&reason_text(why)]),
+                WARN,
+            ));
+        }
+        if let Some(why) = &starter.restart_failed {
+            lines.push((reason_text(why), ERR));
+        }
+    }
+    let free = starter.restart_holds().is_empty();
+    let button = Some(match card {
+        Card::Make => (S.starter_item_make, true),
+        Card::BitLocker => (S.starter_bitlocker_step, true),
+        Card::Resume { offered } => (
+            S.starter_item_resume,
+            offered && starter.guard.busy.is_none(),
+        ),
+        Card::Firmware => (S.starter_restart, free),
+        Card::Stick => (S.starter_restart_stick, free),
+        Card::StartMac => (S.starter_item_start_mac, true),
+    });
+    // Secure Boot's page, where Secure Boot or BitLocker is in play: not
+    // on a Mac, unless it runs Windows.
+    let linked =
+        LearnId::SecureBootBitLocker.page().is_some() && (mac.is_none() || c.os == Os::Windows);
+    // The lines wrap: measured first, drawing nothing.
+    let n = ui.hits.len();
+    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    let lines_h: f32 = lines
+        .iter()
+        .map(|(l, _)| ui.wrap(0.0, 0.0, iw, 13.0, W::R, TEXT, l) + 4.0)
+        .sum();
+    // A Mac's name can be long (one identifier, several years): it wraps.
+    let name_h = ui.wrap(0.0, 0.0, iw, 16.0, W::S, TEXT, &name).max(20.0) + 6.0;
+    ui.c.pop_clip();
+    ui.hits.truncate(n);
+    let mut h = pad + 20.0 + name_h + lines_h;
+    if linked {
+        h += 32.0;
+    }
+    if button.is_some() {
+        h += 14.0 + 44.0;
+    }
+    h += pad;
+    ui.card(x, y0, w, h, LINE);
+    let mut y = y0 + pad;
+    ui.text(x + pad, y, 12.0, W::S, MUTED, S.starter_computer);
+    y += 20.0;
+    ui.wrap(x + pad, y, iw, 16.0, W::S, TEXT, &name);
+    y += name_h;
+    for (l, tone) in &lines {
+        y += ui.wrap(x + pad, y, iw, 13.0, W::R, *tone, l) + 4.0;
+    }
+    if linked {
+        y += link(ui, x + pad, y, iw, LearnId::SecureBootBitLocker);
+    }
+    if let Some((label, offered)) = button {
+        y += 14.0;
+        let style = if offered {
+            Style::Primary
+        } else {
+            Style::Disabled
+        };
+        let bw = if starter.compact { Some(iw) } else { None };
+        let label = ui.fit(15.0, W::S, label, iw - 24.0);
+        ui.button(
+            x + pad,
+            y,
+            bw,
+            44.0,
+            &label,
+            style,
+            StarterAction::Next.host(),
+        );
+    }
+    h
+}
+
+// ---------------------------------------------------------------------
+// Make a Faraday stick, make a Pi card
+// ---------------------------------------------------------------------
+
+fn target_of(starter: &Starter) -> Target {
+    starter.making.as_ref().map_or(Target::Stick, |m| m.target)
+}
+
+/// For which computer? (§3.2 step 0): the two stick images, nothing
+/// chosen, the row that fits this computer tagged.
+fn which(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    let fits = macs::stick_for(&starter.computer);
+    for (k, head) in [
+        (StickFor::Pc, S.starter_which_pc),
+        (StickFor::AppleSilicon, S.starter_which_apple),
+    ] {
+        let tag = if fits == Some(k) {
+            S.starter_computer
+        } else {
+            ""
+        };
+        y += nav_row(
+            ui,
+            x,
+            y,
+            w,
+            Icon::Drive,
+            head,
+            tag,
+            "",
+            Some(StarterAction::StickFor(k)),
+        );
+    }
+    y
+}
+
+fn disks(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    let target = target_of(starter);
+    if target == Target::Pi {
+        y += line(ui, x, y, w, S.starter_pi_for, MUTED);
+        y += line(ui, x, y, w, S.starter_pi_cameras, MUTED);
+    }
+    if starter.image(target).is_none() {
+        let s = match target {
+            Target::Stick => S.starter_no_stick_image,
+            Target::Pi => S.starter_no_pi_image,
+        };
+        return y + line(ui, x, y, w, s, ERR);
+    }
+    if starter.no_writer {
+        y += line(ui, x, y, w, S.starter_no_writer, WARN);
+    }
+    let offers = starter.offers();
+    if offers.is_empty() {
+        let s = match target {
+            Target::Stick => S.starter_no_disks_stick,
+            Target::Pi => S.starter_no_disks_card,
+        };
+        return y + line(ui, x, y + 8.0, w, s, DIM);
+    }
+    y += 4.0;
+    for o in &offers {
+        let d = o.disk;
+        let icon = match d.bus {
+            crate::api::Bus::SdReader => Icon::SdCard,
+            _ => Icon::Drive,
+        };
+        let (sub, action) = match &o.refused {
+            Some(r) => (refusal_text(r), None),
+            None if starter.no_writer => (on_it(d), None),
+            None => (
+                on_it(d),
+                Some(StarterAction::Disk(starter.disk_number(&d.id))),
+            ),
+        };
+        y += nav_row(
+            ui,
+            x,
+            y,
+            w,
+            icon,
+            &disk_name(d),
+            &sub,
+            &size_text(d.size),
+            action,
+        );
+    }
+    y
+}
+
+fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    let target = target_of(starter);
+    if let Some(d) = starter.chosen_disk() {
+        let s = format!("{} · {}", disk_name(d), size_text(d.size));
+        y += line(ui, x, y, w, &s, MUTED);
+    }
+    y += 4.0;
+    let chosen = starter.making.as_ref().and_then(|m| m.mode);
+    let whole = match target {
+        Target::Stick => S.starter_mode_whole_stick,
+        Target::Pi => S.starter_mode_whole_card,
+    };
+    let options = [
+        (Mode::Whole, whole, S.starter_mode_whole_sub),
+        (Mode::KeepData, S.starter_mode_keep, S.starter_mode_keep_sub),
+    ];
+    ui.rule(x, y, w, INNER);
+    for (m, head, sub) in options {
+        let refused = starter.mode_refusal(m);
+        // Keep data is shown only on a Faraday stick (§3.2).
+        if m == Mode::KeepData
+            && matches!(refused, Some(ModeRefusal::NotFaraday | ModeRefusal::NotYet))
+        {
+            continue;
+        }
+        let action = StarterAction::Mode(m).host();
+        let on = chosen == Some(m);
+        let enabled = refused.is_none();
+        let rh = 60.0;
+        if enabled && (ui.is_pressed(action) || ui.is_hovered(action)) {
+            ui.fill(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0, INNER);
+        }
+        // The check: a ring, filled when chosen.
+        let cy = y + rh / 2.0;
+        if on {
+            ui.dot(x + 12.0, cy, 9.0, ACCENT);
+            ui.dot(x + 12.0, cy, 4.0, ON_ACCENT);
+        } else {
+            ui.stroke(
+                x + 3.0,
+                cy - 9.0,
+                18.0,
+                18.0,
+                9.0,
+                if enabled { MUTED } else { INNER },
+            );
+        }
+        let tx = x + 36.0;
+        ui.text(
+            tx,
+            y + 10.0,
+            15.0,
+            W::S,
+            if enabled { TEXT } else { DIM },
+            head,
+        );
+        let (sub, tone) = match refused {
+            Some(ModeRefusal::Same) => (S.starter_mode_same, WARN),
+            Some(ModeRefusal::BootOnly) => (S.starter_mode_boot_only, WARN),
+            _ => (sub, MUTED),
+        };
+        let sub = ui.fit(12.0, W::R, sub, w - 40.0);
+        ui.text(tx, y + 34.0, 12.0, W::R, tone, &sub);
+        if enabled {
+            ui.hit(x - 6.0, y, w + 12.0, rh, action);
+        }
+        y += rh;
+        // The one fact the Learn page explains (§4.4).
+        if m == Mode::KeepData {
+            y += ui.wrap(tx, y, w - 36.0, 12.0, W::R, MUTED, S.starter_mode_keep_fact) + 6.0;
+            y += guide_line(ui, tx, y, w - 36.0, LearnId::KeepData);
+        }
+        ui.rule(x, y, w, INNER);
+    }
+    y += 20.0;
+    let style = if chosen.is_some() {
+        Style::Primary
+    } else {
+        Style::Disabled
+    };
+    y + buttons(
+        ui,
+        x,
+        y,
+        w,
+        &[(S.starter_continue, style, StarterAction::Continue)],
+    )
+}
+
+fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    let Some(m) = starter.making.as_ref() else {
+        return y;
+    };
+    let target = m.target;
+    let Some(image) = starter.image(target) else {
+        return y;
+    };
+    let Some((id, device, serial, size)) = m.confirmed.as_ref() else {
+        return y;
+    };
+    let mode = m.mode.unwrap_or(Mode::Whole);
+    let disk = starter.disks.iter().find(|d| &d.id == id);
+    let noun = match target {
+        Target::Stick => S.starter_stick,
+        Target::Pi => S.starter_card,
+    };
+    if let Some(d) = disk {
+        y += value_row(ui, x, y, w, noun, &disk_name(d), TEXT);
+    }
+    y += value_row(ui, x, y, w, S.starter_size, &size_text(*size), TEXT);
+    y += value_row(ui, x, y, w, S.starter_device, device, TEXT);
+    let serial = if serial.is_empty() {
+        S.starter_serial_none
+    } else {
+        serial.as_str()
+    };
+    y += value_row(ui, x, y, w, S.starter_serial, serial, TEXT);
+    if let Some(d) = disk {
+        y += value_row(ui, x, y, w, S.starter_on_it, &on_it(d), TEXT);
+    }
+    let writes = match (mode, target) {
+        (Mode::KeepData, _) => S.starter_mode_keep,
+        (Mode::Whole, Target::Stick) => S.starter_mode_whole_stick,
+        (Mode::Whole, Target::Pi) => S.starter_mode_whole_card,
+    };
+    y += value_row(ui, x, y, w, S.starter_writes, writes, TEXT);
+    let build = image
+        .build
+        .as_deref()
+        .map_or_else(|| S.starter_build_unknown.to_string(), describe);
+    y += value_row(ui, x, y, w, S.starter_build, &build, TEXT);
+    let sha_key = if image.dev {
+        S.starter_image_sha
+    } else {
+        S.starter_img_sha
+    };
+    y += mono_row(ui, x, y, w, sha_key, &grouped(&image.sha256));
+    y += 12.0;
+    if image.dev {
+        y += warning(ui, x, y, w, S.starter_dev_image, WARN);
+    }
+    if mode == Mode::KeepData
+        && let Some(stick) = disk.and_then(|d| d.faraday.as_ref())
+    {
+        match crate::decide::keep_data(stick, image.build.as_deref()) {
+            Fit::Newer => {
+                let s = fill(S.starter_keep_newer, &[&version(stick.release.as_deref())]);
+                y += warning(ui, x, y, w, &s, WARN);
+            }
+            Fit::Dev => y += warning(ui, x, y, w, S.starter_keep_dev, WARN),
+            _ => {}
+        }
+    }
+    let matches = starter.confirmed_matches();
+    if !matches {
+        y += line(ui, x, y, w, &not_confirmed(target), ERR);
+    } else if let Some(why) = &m.refused {
+        y += line(ui, x, y, w, why, ERR);
+    }
+    if starter.no_writer {
+        y += line(ui, x, y, w, S.starter_no_writer, WARN);
+    }
+    let label = match mode {
+        Mode::Whole => S.starter_erase_and_write,
+        Mode::KeepData => S.starter_write,
+    };
+    let style = if matches && !starter.no_writer {
+        Style::Primary
+    } else {
+        Style::Disabled
+    };
+    y += 4.0;
+    y + buttons(ui, x, y, w, &[(label, style, StarterAction::Write)])
+}
+
+fn writing(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    let Some(m) = starter.making.as_ref() else {
+        return y;
+    };
+    if let Some(d) = m
+        .confirmed
+        .as_ref()
+        .and_then(|c| starter.disks.iter().find(|d| d.id == c.0))
+    {
+        let s = format!("{} · {}", disk_name(d), size_text(d.size));
+        y += line(ui, x, y, w, &s, MUTED);
+    }
+    let (stage, done, total) = m.progress.unwrap_or((WriteStage::Writing, 0, 0));
+    y += 8.0;
+    let t = if total == 0 {
+        0.0
+    } else {
+        (done as f32 / total as f32).clamp(0.0, 1.0)
+    };
+    ui.fill(x, y, w, 10.0, 5.0, INNER);
+    if t > 0.0 {
+        ui.fill(x, y, (w * t).max(10.0), 10.0, 5.0, ACCENT);
+    }
+    y += 24.0;
+    let of = fill(S.starter_of, &[&size_text(done), &size_text(total)]);
+    let s = match stage {
+        WriteStage::Writing => fill(S.starter_written_of, &[&of]),
+        WriteStage::ReadingBack => fill(S.starter_reading_back, &[&of]),
+    };
+    y + line(ui, x, y, w, &s, TEXT)
+}
+
+fn done(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0;
+    let Some(m) = starter.making.as_ref() else {
+        return y;
+    };
+    let ok = matches!(m.result, Some(Ok(())));
+    let (icon, tone) = if ok {
+        (Icon::Success, OK)
+    } else {
+        (Icon::Error, ERR)
+    };
+    ui.icon(x - 4.0, y, 40.0, icon, 26.0, tone);
+    let name = page_name(starter);
+    ui.text_mid(x + 44.0, y, 40.0, 22.0, W::S, tone, &name);
+    y += 56.0;
+    match &m.result {
+        Some(Ok(())) => {
+            let s = match m.target {
+                Target::Stick => S.starter_pull_stick,
+                Target::Pi => S.starter_pull_card,
+            };
+            y += line(ui, x, y, w, s, TEXT) + 8.0;
+            if m.target == Target::Stick
+                && let Some(disk) = starter.chosen_disk()
+                && let Some(entry) =
+                    crate::decide::boot_menu_entry(&disk.vendor, &disk.model, &starter.computer)
+            {
+                y += value_row(
+                    ui,
+                    x,
+                    y,
+                    w,
+                    S.starter_boot_menu_label,
+                    &fill(S.starter_boot_menu_value, &[&entry]),
+                    TEXT,
+                ) + 8.0;
+            }
+            let items: &[(&str, Style, StarterAction)] = match m.target {
+                Target::Stick => &[
+                    (start_label(starter), Style::Primary, StarterAction::Start),
+                    (S.starter_done, Style::Secondary, StarterAction::Home),
+                ],
+                Target::Pi => &[(S.starter_done, Style::Primary, StarterAction::Home)],
+            };
+            y += buttons(ui, x, y, w, items);
+        }
+        Some(Err(why)) => {
+            y += line(ui, x, y, w, &reason_text(why), ERR) + 8.0;
+            y += buttons(
+                ui,
+                x,
+                y,
+                w,
+                &[
+                    (S.starter_try_again, Style::Primary, StarterAction::Again),
+                    (S.starter_done, Style::Secondary, StarterAction::Home),
+                ],
+            );
+        }
+        None => {}
+    }
+    y
+}
+
+// ---------------------------------------------------------------------
+// Start this computer from the stick
+// ---------------------------------------------------------------------
+
+/// The guide's line: a row that opens its Learn page, or until batch G
+/// writes it, its title as a line.
+fn guide_line(ui: &mut Ui, x: f32, y: f32, w: f32, id: LearnId) -> f32 {
+    let title = learn_title(id);
+    match id.page() {
+        Some(_) => nav_row(
+            ui,
+            x,
+            y,
+            w,
+            Icon::Learn,
+            title,
+            "",
+            "",
+            Some(StarterAction::LearnPage(id)),
+        ),
+        None => line(
+            ui,
+            x,
+            y,
+            w,
+            &fill(S.starter_guide_placeholder, &[title]),
+            DIM,
+        ),
+    }
+}
+
+/// A guide's title, as its Learn page will carry it; a maker page's is
+/// its page's own.
+fn learn_title(id: LearnId) -> &'static str {
+    match id {
+        LearnId::StartWindows => S.starter_learn_start_windows,
+        LearnId::StartLinux => S.starter_learn_start_linux,
+        LearnId::BitLocker => S.starter_learn_bitlocker,
+        LearnId::NoStart => S.starter_learn_no_start,
+        LearnId::KeepData => S.starter_learn_keep_data,
+        LearnId::Maker(_) => id.page().map_or("", |p| p.title),
+        LearnId::SecureBootBitLocker => S.starter_learn_secure_boot_bitlocker,
+        LearnId::ScreensThatRecord => S.starter_learn_screens,
+        LearnId::BootEntry => S.starter_learn_boot_entry,
+        LearnId::MacIntel => S.starter_learn_mac_intel,
+    }
+}
+
+fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    let c = &starter.computer;
+    let facts = starter.facts();
+    let windows = c.os == Os::Windows;
+    if c.tpm_unlock {
+        y += warning(ui, x, y, w, S.starter_tpm_line, WARN);
+    }
+    if let Some(mac) = facts.mac() {
+        return mac_start(starter, ui, x, y, w, mac);
+    }
+    if c.arm {
+        return y + line(ui, x, y, w, S.starter_cannot_start_arm, WARN);
+    }
+    if !c.uefi {
+        y += warning(ui, x, y, w, S.starter_cannot_start_bios, WARN);
+    }
+    let held = starter.restart_holds();
+    y += concern_block(starter, ui, x, y, w, &held);
+    y += receiver_line(starter, ui, x, y, w);
+    let guide = LearnId::for_computer(c);
+    y += guide_line(ui, x, y, w, guide);
+    y += link(ui, x, y, w, LearnId::SecureBootBitLocker);
+    y += 8.0;
+    let ix = x + 38.0;
+    let iw = w - 38.0;
+    let mut n = 0;
+    // 1. BitLocker, before anything else.
+    let open = facts.protected_open();
+    if windows && (facts.protected() || facts.guard_done()) {
+        n += 1;
+        y += step_head(ui, x, y, w, n, S.starter_item_bitlocker, facts.guard_done());
+        y += line(ui, ix, y, iw, &state_text(&facts.bitlocker_state()), MUTED);
+        if open {
+            y += buttons(
+                ui,
+                ix,
+                y,
+                iw,
+                &[(
+                    S.starter_bitlocker_step,
+                    Style::Primary,
+                    StarterAction::BitLocker,
+                )],
+            ) + 16.0;
+        }
+        y += 8.0;
+    }
+    // 2. Restart into firmware settings.
+    n += 1;
+    y += step_head(ui, x, y, w, n, S.starter_restart, false);
+    if let Some(why) = &starter.restart_failed {
+        y += line(ui, ix, y, iw, &reason_text(why), ERR);
+    }
+    let style = if open || !held.is_empty() {
+        Style::Disabled
+    } else {
+        Style::Secondary
+    };
+    y += buttons(
+        ui,
+        ix,
+        y,
+        iw,
+        &[(S.starter_restart, style, StarterAction::Restart)],
+    ) + 16.0;
+    // 3. The firmware steps.
+    n += 1;
+    let sb_off = c.secure_boot == Some(false);
+    let head = if sb_off {
+        S.starter_secure_boot_already_off
+    } else {
+        S.starter_secure_boot_turn_off
+    };
+    y += step_head(ui, x, y, w, n, head, sb_off);
+    y += line(ui, ix, y, iw, S.starter_fast_boot, MUTED) + 6.0;
+    // 4. Start from the stick.
+    n += 1;
+    y += step_head(ui, x, y, w, n, S.starter_boot_from_stick, false);
+    // Use a device is reached from Windows, which with a protected drive
+    // and Secure Boot off asks for the recovery key: the boot menu key
+    // only, unless the drive is not protected or is suspended (F17).
+    let how = if windows && !facts.protected() {
+        S.starter_boot_how_windows
+    } else {
+        S.starter_boot_how
+    };
+    y += line(ui, ix, y, iw, how, MUTED) + 6.0;
+    if let Some(stick) = facts.stick()
+        && let Some(entry) = crate::decide::boot_menu_entry(&stick.vendor, &stick.model, c)
+    {
+        y += value_row(
+            ui,
+            ix,
+            y,
+            iw,
+            S.starter_boot_menu_label,
+            &fill(S.starter_boot_menu_value, &[&entry]),
+            TEXT,
+        ) + 8.0;
+    }
+    // 5. Afterwards, unless Secure Boot was off before the Starter came.
+    let was_off = starter
+        .bitlocker
+        .as_ref()
+        .and_then(|b| b.marker.as_ref())
+        .is_some_and(|m| !m.secure_boot_was_on);
+    if !was_off {
+        n += 1;
+        let s = if windows {
+            S.starter_afterwards_windows
+        } else {
+            S.starter_afterwards
+        };
+        y += step_head(
+            ui,
+            x,
+            y,
+            w,
+            n,
+            s,
+            c.secure_boot == Some(true) && facts.suspension_stands(),
+        );
+        y += line(ui, ix, y, iw, &secure_boot_text(c.secure_boot), MUTED) + 6.0;
+    }
+    if windows && facts.suspension_stands() {
+        n += 1;
+        y += step_head(ui, x, y, w, n, S.starter_item_resume, false);
+        if facts.resume_offered() {
+            y += buttons(
+                ui,
+                ix,
+                y,
+                iw,
+                &[(
+                    S.starter_item_resume,
+                    Style::Primary,
+                    StarterAction::BitLocker,
+                )],
+            ) + 16.0;
+        } else {
+            y += line(ui, ix, y, iw, resume_needs(starter), MUTED);
+        }
+    }
+    // The same page on a phone.
+    y += 16.0;
+    y += label(ui, x, y, S.starter_on_a_phone);
+    let side = if ui.compact { 150.0 } else { 180.0 };
+    y + phone_code(ui, x, y, w, side, &guide.address())
+}
+
+/// The Start page on a Mac (§3.4, `docs/MAC.md` §3.1–§3.2): the Mac's
+/// steps, none of them a button. On a T2 Mac, Startup Security lowered
+/// in macOS Recovery; then Option at power-on and EFI Boot; on a T2 Mac,
+/// Startup Security back afterwards. A Mac the table does not know gets
+/// the T2 steps marked as for a T2 Mac only. On Windows through Boot
+/// Camp, the BitLocker step comes first, as on any Windows computer.
+fn mac_start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, mac: macs::Start) -> f32 {
+    let mut y = y0;
+    let t2 = match mac {
+        macs::Start::Intel { t2 } => t2,
+        macs::Start::Firmware32 => {
+            return y + line(ui, x, y, w, S.starter_cannot_start_mac_firmware, WARN);
+        }
+        macs::Start::NotYet => return y + line(ui, x, y, w, S.starter_cannot_start_mac_yet, WARN),
+    };
+    let facts = starter.facts();
+    let held = starter.restart_holds();
+    y += concern_block(starter, ui, x, y, w, &held);
+    y += receiver_line(starter, ui, x, y, w);
+    let guide = LearnId::MacIntel;
+    y += guide_line(ui, x, y, w, guide);
+    y += 8.0;
+    let ix = x + 38.0;
+    let iw = w - 38.0;
+    let mut n = 0;
+    if starter.computer.os == Os::Windows && (facts.protected() || facts.guard_done()) {
+        n += 1;
+        y += step_head(ui, x, y, w, n, S.starter_item_bitlocker, facts.guard_done());
+        y += line(ui, ix, y, iw, &state_text(&facts.bitlocker_state()), MUTED);
+        if facts.protected_open() {
+            y += buttons(
+                ui,
+                ix,
+                y,
+                iw,
+                &[(
+                    S.starter_bitlocker_step,
+                    Style::Primary,
+                    StarterAction::BitLocker,
+                )],
+            ) + 16.0;
+        }
+        y += 8.0;
+    }
+    let t2_steps = t2 != Some(false);
+    if t2_steps {
+        n += 1;
+        y += step_head(ui, x, y, w, n, S.starter_mac_lower, false);
+        if t2.is_none() {
+            y += line(ui, ix, y, iw, S.starter_mac_t2_only, WARN);
+        }
+        y += line(ui, ix, y, iw, S.starter_mac_recovery, MUTED);
+        y += line(ui, ix, y, iw, S.starter_mac_utility_lower, MUTED) + 6.0;
+    }
+    n += 1;
+    y += step_head(ui, x, y, w, n, S.starter_boot_from_stick, false);
+    y += line(ui, ix, y, iw, S.starter_mac_option, MUTED);
+    y += line(ui, ix, y, iw, S.starter_mac_firmware_password, MUTED) + 6.0;
+    if t2_steps {
+        n += 1;
+        y += step_head(ui, x, y, w, n, S.starter_mac_afterwards, false);
+        if t2.is_none() {
+            y += line(ui, ix, y, iw, S.starter_mac_t2_only, WARN);
+        }
+        y += line(ui, ix, y, iw, S.starter_mac_utility_full, MUTED) + 6.0;
+    }
+    y += 16.0;
+    y += label(ui, x, y, S.starter_on_a_phone);
+    let side = if ui.compact { 150.0 } else { 180.0 };
+    y + phone_code(ui, x, y, w, side, &guide.address())
+}
+
+/// Why Resume BitLocker is not offered: Secure Boot is not as the
+/// marker recorded it.
+fn resume_needs(starter: &Starter) -> &'static str {
+    let marker = starter.bitlocker.as_ref().and_then(|b| b.marker.as_ref());
+    if marker.is_some_and(|m| m.this_boot) {
+        return S.starter_resume_needs_restart;
+    }
+    let was_on = marker.is_none_or(|m| m.secure_boot_was_on);
+    if was_on {
+        S.starter_resume_needs_secure_boot
+    } else {
+        S.starter_resume_needs_secure_boot_off
+    }
+}
+
+/// The guide's address as a QR code, with the address under it. Returns
+/// its height.
+fn phone_code(ui: &mut Ui, x: f32, y: f32, w: f32, side: f32, address: &str) -> f32 {
+    let side = side.min(w);
+    let Ok(m) = osk_codec::qr::encode(
+        osk_codec::qr::Payload::Bytes(address.as_bytes()),
+        osk_codec::qr::Ecc::Medium,
+    ) else {
+        return 0.0;
+    };
+    qr_code(ui, &m, x, y, side);
+    let th = ui.wrap(x, y + side + 10.0, w, 12.0, W::M, MUTED, address);
+    side + 10.0 + th + 8.0
+}
+
+/// A sheet: a card centred over the frosted page, as tall as what `body`
+/// draws (measured first, drawing nothing).
+fn sheet(ui: &mut Ui, w: f32, h: f32, body: &mut dyn FnMut(&mut Ui, f32, f32, f32) -> f32) {
+    let compact = ui.compact;
+    let sw = if compact {
+        w - 2.0 * M
+    } else {
+        460.0f32.min(w - 48.0)
+    };
+    let pad = if compact { 14.0 } else { 24.0 };
+    let n = ui.hits.len();
+    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    let bh = body(ui, 0.0, 0.0, sw - 2.0 * pad);
+    ui.c.pop_clip();
+    ui.hits.truncate(n);
+    let sh = bh + 2.0 * pad;
+    let sx = (w - sw) / 2.0;
+    let sy = ((h - sh) / 2.0).max(8.0);
+    ui.shadow(sx, sy, sw, sh, 14.0);
+    ui.fill(sx, sy, sw, sh, 14.0, SURFACE);
+    ui.stroke(sx, sy, sw, sh, 14.0, LINE);
+    body(ui, sx + pad, sy + pad, sw - 2.0 * pad);
+}
+
+fn restart_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32, to: RestartTo) {
+    let address = LearnId::for_computer(&starter.computer).address();
+    let os = starter.computer.os;
+    let head = match to {
+        RestartTo::Firmware => S.starter_restart,
+        RestartTo::Stick => S.starter_restart_stick,
+    };
+    sheet(ui, w, h, &mut |ui, x, y0, iw| {
+        let mut y = y0;
+        y += ui.wrap(x, y, iw, 17.0, W::S, TEXT, head) + 10.0;
+        y += line(ui, x, y, iw, S.starter_restart_save, WARN) + 4.0;
+        if to == RestartTo::Stick && os == Os::Linux {
+            y += link(ui, x, y, iw, LearnId::BootEntry);
+        }
+        // Small enough on a small panel that the sheet's buttons fit.
+        let side = if ui.compact { 104.0 } else { 160.0 };
+        y += phone_code(ui, x, y, iw, side, &address) + 8.0;
+        y + buttons(
+            ui,
+            x,
+            y,
+            iw,
+            &[
+                (S.starter_cancel, Style::Secondary, StarterAction::Cancel),
+                (
+                    S.starter_restart_now,
+                    Style::Primary,
+                    StarterAction::RestartNow,
+                ),
+            ],
+        ) - y0
+    });
+}
+
+/// Continue anyway, asked once, naming the item (§3.1a).
+fn let_through_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
+    let Some(c) = starter
+        .asking
+        .as_ref()
+        .and_then(|id| starter.concerns.iter().find(|c| &c.id == id))
+    else {
+        return;
+    };
+    let name = if c.name.trim().is_empty() {
+        concern_text(c)
+    } else {
+        c.name.trim().to_string()
+    };
+    let ask = fill(S.starter_let_through_ask, &[&name]);
+    let line_text = concern_text(c);
+    sheet(ui, w, h, &mut |ui, x, y0, iw| {
+        let mut y = y0;
+        y += ui.wrap(x, y, iw, 17.0, W::S, TEXT, &ask) + 10.0;
+        y += line(ui, x, y, iw, &line_text, WARN);
+        y += line(ui, x, y, iw, S.starter_let_through_until, MUTED) + 4.0;
+        y + buttons(
+            ui,
+            x,
+            y,
+            iw,
+            &[
+                (S.starter_cancel, Style::Secondary, StarterAction::Cancel),
+                (
+                    S.starter_continue_anyway,
+                    Style::Primary,
+                    StarterAction::LetThrough,
+                ),
+            ],
+        ) - y0
+    });
+}
+
+// ---------------------------------------------------------------------
+// Install, Installed, About, BitLocker
+// ---------------------------------------------------------------------
+
+fn install(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    if starter.update_offered()
+        && let Some(i) = &starter.installed
+    {
+        y += value_row(ui, x, y, w, S.starter_installed_version, &i.version, TEXT);
+        y += value_row(ui, x, y, w, S.starter_this_version, crate::VERSION, TEXT);
+        y += 12.0;
+    }
+    if let Some(Ok(place)) = &starter.install_result {
+        y += line(ui, x, y, w, &fill(S.starter_installed_in, &[place]), OK) + 8.0;
+        return y + buttons(
+            ui,
+            x,
+            y,
+            w,
+            &[(S.starter_done, Style::Primary, StarterAction::Home)],
+        );
+    }
+    if starter.payload_file(PayloadKind::Desktop).is_some() {
+        let rows = [(
+            S.starter_install_desktop.to_string(),
+            starter.install_desktop,
+            !starter.installing,
+            StarterAction::InstallDesktop.host(),
+        )];
+        // The label is long: on a small panel, wrapped beside the box.
+        if starter.compact {
+            let action = rows[0].3;
+            let th = ui.wrap(x + 32.0, y + 2.0, w - 32.0, 14.0, W::R, TEXT, &rows[0].0);
+            ui.checkbox(
+                x + 2.0,
+                y + 2.0,
+                starter.install_desktop,
+                !starter.installing,
+            );
+            ui.hit(x, y - 6.0, w, th + 12.0, action);
+            y += th + 18.0;
+        } else {
+            y += ui.multi_list(x, y, w, &rows) + 16.0;
+        }
+    }
+    if let Some(Err(why)) = &starter.install_result {
+        y += line(ui, x, y, w, &reason_text(why), ERR);
+    }
+    let (label, style) = if starter.installing {
+        (S.starter_installing, Style::Disabled)
+    } else {
+        (S.starter_install_now, Style::Primary)
+    };
+    y + buttons(ui, x, y, w, &[(label, style, StarterAction::InstallNow)])
+}
+
+fn item_name(item: InstallItem) -> &'static str {
+    match item {
+        InstallItem::App => S.starter_installed_app,
+        InstallItem::Desktop => S.starter_installed_desktop,
+        InstallItem::Menu => S.starter_installed_menu,
+        InstallItem::DesktopMenu => S.starter_installed_desktop_menu,
+        InstallItem::Icon => S.starter_installed_icon,
+        InstallItem::UninstallEntry => S.starter_installed_entry,
+        InstallItem::Reminder => S.starter_installed_reminder,
+    }
+}
+
+fn installed(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    if let Some(why) = &starter.entry_kept {
+        y += line(
+            ui,
+            x,
+            y,
+            w,
+            &fill(S.starter_entry_kept, &[&reason_text(why)]),
+            WARN,
+        );
+    }
+    let Some(i) = &starter.installed else {
+        return y + line(ui, x, y, w, S.starter_not_installed, DIM);
+    };
+    y += value_row(ui, x, y, w, S.starter_installed_version, &i.version, TEXT);
+    for (item, place) in &i.items {
+        y += mono_row(ui, x, y, w, item_name(*item), place);
+    }
+    y += 16.0;
+    if let Some(why) = &starter.uninstall_failed {
+        y += line(ui, x, y, w, &reason_text(why), ERR);
+    }
+    y + buttons(
+        ui,
+        x,
+        y,
+        w,
+        &[(
+            S.starter_uninstall,
+            Style::Secondary,
+            StarterAction::Uninstall,
+        )],
+    )
+}
+
+/// Uninstall, asked once. While the Starter's BitLocker suspension
+/// stands (§5.4) it first offers Resume BitLocker where Resume can be
+/// taken now, and otherwise says that protection stays suspended and
+/// where Windows resumes it; uninstalling removes the marker and the
+/// logon reminder either way.
+fn uninstall_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
+    let f = starter.facts();
+    let stands = f.suspension_stands();
+    let resume = stands && f.resume_offered();
+    sheet(ui, w, h, &mut |ui, x, y0, iw| {
+        let mut y = y0;
+        y += ui.wrap(x, y, iw, 17.0, W::S, TEXT, S.starter_uninstall_ask) + 10.0;
+        y += line(ui, x, y, iw, S.starter_uninstall_keeps, MUTED);
+        if resume {
+            y += line(ui, x, y, iw, S.starter_uninstall_suspended, WARN);
+        } else if stands {
+            y += line(ui, x, y, iw, S.starter_uninstall_suspended_where, WARN);
+        }
+        y += 6.0;
+        let items: &[(&str, Style, StarterAction)] = if resume {
+            &[
+                (S.starter_cancel, Style::Secondary, StarterAction::Cancel),
+                (S.starter_item_resume, Style::Primary, StarterAction::Resume),
+                (
+                    S.starter_uninstall,
+                    Style::Secondary,
+                    StarterAction::UninstallNow,
+                ),
+            ]
+        } else {
+            &[
+                (S.starter_cancel, Style::Secondary, StarterAction::Cancel),
+                (
+                    S.starter_uninstall,
+                    Style::Primary,
+                    StarterAction::UninstallNow,
+                ),
+            ]
+        };
+        y + buttons(ui, x, y, iw, items) - y0
+    });
+}
+
+/// The release key's fingerprint, as the README prints it.
+const FINGERPRINT: &str = "D1AF A712 ABEF 9010 9A1B  587F F153 6BE0 7E23 4CFD";
+
+fn about(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    y += value_row(ui, x, y, w, S.starter_version, crate::VERSION, TEXT);
+    match &starter.payload {
+        Some(p) => {
+            y += value_row(ui, x, y, w, S.starter_release, &p.version, TEXT);
+            y += mono_row(ui, x, y, w, S.starter_commit, &p.commit);
+            y += 16.0;
+            y += label(ui, x, y, S.starter_payload);
+            for f in &p.files {
+                y += 4.0;
+                y += ui.wrap(x, y, w, 14.0, W::S, TEXT, &f.name) + 4.0;
+                y += value_row(ui, x, y, w, S.starter_build, &describe(&f.build_id), TEXT);
+                y += mono_row(ui, x, y, w, S.starter_sha_xz, &grouped(&f.sha256));
+                let inner = fill(S.starter_sha_inner, &[&f.inner]);
+                y += mono_row(ui, x, y, w, &inner, &grouped(&f.inner_sha256));
+                y += 8.0;
+            }
+        }
+        None => y += line(ui, x, y + 8.0, w, S.starter_no_payload, DIM) + 8.0,
+    }
+    if let Some(d) = &starter.dev {
+        y += 8.0;
+        y += warning(ui, x, y, w, S.starter_dev_image, WARN);
+        y += mono_row(ui, x, y, w, S.starter_image_file, &d.path);
+        y += mono_row(ui, x, y, w, S.starter_image_sha, &grouped(&d.sha256));
+    }
+    y += 16.0;
+    y += label(ui, x, y, S.starter_release_key);
+    y += ui.wrap(x, y, w, 13.0, W::M, TEXT, FINGERPRINT) + 18.0;
+    y += label(ui, x, y, S.starter_check_title);
+    y += line(ui, x, y, w, S.starter_check_text, TEXT);
+    for cmd in [
+        S.starter_check_cmd_import,
+        S.starter_check_cmd_verify,
+        S.starter_check_cmd_sums,
+    ] {
+        y += ui.wrap(x, y, w, 12.0, W::M, MUTED, cmd) + 6.0;
+    }
+    if starter.computer.os == Os::Windows {
+        y += 12.0;
+        y += line(ui, x, y, w, S.starter_check_windows, TEXT);
+        y += label(ui, x, y + 8.0, S.starter_unsigned_title) + 8.0;
+        y += line(ui, x, y, w, S.starter_unsigned_text, TEXT);
+    }
+    y
+}
+
+/// The BitLocker step (§6.5, F17): the state; where the key is also
+/// kept; Show the recovery key; I have my recovery key; Extra safe:
+/// suspend BitLocker. The extra-safe path is the guard as §6 built it:
+/// the key, its QR code and Save; I have kept it; the key hidden and
+/// two groups typed back; Suspend BitLocker; Done. The same page
+/// resumes later (§6.3). Another encryption product's line comes first
+/// (§6.4).
+fn bitlocker(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    let f = starter.facts();
+    let g = &starter.guard;
+    if starter.computer.os == Os::Windows
+        && let Some(name) = &starter.other
+    {
+        let found = fill(S.starter_other_found, &[name]);
+        if f.other_open {
+            y += warning(ui, x, y, w, &found, WARN);
+            y += buttons(
+                ui,
+                x,
+                y,
+                w,
+                &[(
+                    S.starter_other_confirm,
+                    Style::Secondary,
+                    StarterAction::Rescue,
+                )],
+            ) + 20.0;
+        } else {
+            y += line(ui, x, y, w, &found, MUTED) + 6.0;
+        }
+    }
+    let stands = f.suspension_stands();
+    let state = match &starter.bitlocker {
+        None => S.starter_drive_unread.to_string(),
+        Some(b) => match b.protection {
+            _ if stands => fill(S.starter_drive_suspended, &[&b.drive]),
+            Protection::On => fill(S.starter_guard_encrypted, &[&b.drive]),
+            Protection::None => fill(S.starter_drive_plain, &[&b.drive]),
+            Protection::Suspended => fill(S.starter_drive_suspended_other, &[&b.drive]),
+            Protection::Unknown => fill(S.starter_drive_unknown, &[&b.drive]),
+        },
+    };
+    y += ui.wrap(x, y, w, 16.0, W::S, TEXT, &state) + 14.0;
+    let undone = starter
+        .bitlocker
+        .as_ref()
+        .is_some_and(|b| b.marker.is_some() && b.protection == Protection::On);
+    if undone {
+        y += warning(ui, x, y, w, S.starter_guard_undone, WARN);
+    } else if starter.resumed && !stands {
+        y += line(ui, x, y, w, S.starter_guard_resumed, OK);
+    }
+    if let Some(why) = &g.failed {
+        y += line(ui, x, y, w, &reason_text(why), ERR);
+    }
+    let holds = starter.key_holds();
+    if stands {
+        y += guard_done(starter, ui, x, y, w);
+    } else if f.protected() && !f.other_open && !g.extra {
+        y += key_step(starter, ui, x, y, w, &holds);
+    } else if f.protected() && !f.other_open && !holds.is_empty() && !g.hidden {
+        // Nothing secret on a screen that can keep it.
+        y += concern_block(starter, ui, x, y, w, &holds);
+    } else if f.protected() && !f.other_open {
+        y += match (&g.key, g.hidden) {
+            (None, _) => {
+                let (label, style) = if g.busy == Some(crate::api::BitLockerStep::ShowKey) {
+                    (S.starter_waiting_permission, Style::Disabled)
+                } else {
+                    (S.starter_show_key, Style::Primary)
+                };
+                buttons(ui, x, y, w, &[(label, style, StarterAction::ShowKey)]) + 16.0
+            }
+            (Some(k), false) => key_shown(starter, ui, x, y, w, k, true),
+            (Some(_), true) => key_asked(starter, ui, x, y, w),
+        };
+    }
+    y += 12.0;
+    y += link(ui, x, y, w, LearnId::SecureBootBitLocker);
+    y + guide_line(ui, x, y, w, LearnId::BitLocker)
+}
+
+/// The default BitLocker step (F17): where the key is also kept; Show
+/// the recovery key and the key, without I have kept it; I have my
+/// recovery key, or once pressed, the state and Start; then Extra safe:
+/// suspend BitLocker. Returns its height.
+fn key_step(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, holds: &[&Concern]) -> f32 {
+    let g = &starter.guard;
+    let mut y = y0;
+    y += value_row(
+        ui,
+        x,
+        y,
+        w,
+        S.starter_key_also_kept,
+        S.starter_key_also_kept_where,
+        TEXT,
+    ) + 16.0;
+    if starter.key_kept {
+        y += line(ui, x, y, w, S.starter_state_key_kept, OK);
+        y += buttons(
+            ui,
+            x,
+            y,
+            w,
+            &[(start_label(starter), Style::Primary, StarterAction::Start)],
+        ) + 16.0;
+    } else {
+        if !holds.is_empty() {
+            // Nothing secret on a screen that can keep it.
+            y += concern_block(starter, ui, x, y, w, holds);
+        } else if let Some(k) = &g.key {
+            y += key_shown(starter, ui, x, y, w, k, false);
+        } else {
+            let (label, style) = if g.busy == Some(crate::api::BitLockerStep::ShowKey) {
+                (S.starter_waiting_permission, Style::Disabled)
+            } else {
+                (S.starter_show_key, Style::Secondary)
+            };
+            y += buttons(ui, x, y, w, &[(label, style, StarterAction::ShowKey)]) + 16.0;
+        }
+        y += buttons(
+            ui,
+            x,
+            y,
+            w,
+            &[(
+                S.starter_key_in_hand,
+                Style::Primary,
+                StarterAction::KeyInHand,
+            )],
+        ) + 16.0;
+    }
+    y + buttons(
+        ui,
+        x,
+        y,
+        w,
+        &[(
+            S.starter_extra_safe,
+            Style::Secondary,
+            StarterAction::ExtraSafe,
+        )],
+    ) + 16.0
+        - y0
+}
+
+/// The suspension stands: Done's lines, then Start and Resume, whichever
+/// comes next first. Returns its height.
+fn guard_done(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let f = starter.facts();
+    let mut y = y0;
+    y += line(ui, x, y, w, S.starter_guard_done, TEXT);
+    if starter.installed.is_none() {
+        y += line(ui, x, y, w, S.starter_guard_open_again, TEXT);
+    }
+    y += 8.0;
+    let resuming = starter.guard.busy == Some(crate::api::BitLockerStep::Resume);
+    let resume = if resuming {
+        (S.starter_resuming, Style::Disabled, StarterAction::Resume)
+    } else {
+        (S.starter_item_resume, Style::Primary, StarterAction::Resume)
+    };
+    let start = (start_label(starter), Style::Primary, StarterAction::Start);
+    if !f.resume_offered() {
+        y += line(ui, x, y, w, resume_needs(starter), MUTED);
+        return y + buttons(ui, x, y, w, &[start]) + 16.0 - y0;
+    }
+    let items = if starter.suspended_here {
+        // Just suspended: the firmware is still ahead.
+        let quiet = if resuming {
+            Style::Disabled
+        } else {
+            Style::Secondary
+        };
+        [start, (resume.0, quiet, resume.2)]
+    } else {
+        [resume, (start.0, Style::Secondary, start.2)]
+    };
+    y + buttons(ui, x, y, w, &items) + 16.0 - y0
+}
+
+/// The key's eight groups in a secret panel, each under its number;
+/// masked, the same panel with dots. Returns its height.
+fn key_panel(ui: &mut Ui, x: f32, y: f32, w: f32, key: Option<&RecoveryKey>) -> f32 {
+    let cols = if w >= 380.0 { 4 } else { 2 };
+    let rows = 8 / cols;
+    let size = if ui.compact { 17.0 } else { 20.0 };
+    let pad = 14.0;
+    let cw = (w - 2.0 * pad) / cols as f32;
+    let rh = 18.0 + ui.line(size, W::M) + 8.0;
+    let h = 2.0 * pad + rows as f32 * rh - 8.0;
+    ui.fill(x, y, w, h, 10.0, BG);
+    let edge = if key.is_some() {
+        WARN
+    } else {
+        WARN.with_alpha(110)
+    };
+    ui.stroke(x, y, w, h, 10.0, edge);
+    for i in 0..8 {
+        let (c, r) = (i % cols, i / cols);
+        let cx = x + pad + c as f32 * cw;
+        let cy = y + pad + r as f32 * rh;
+        ui.text(cx, cy, 11.0, W::R, MUTED, &(i + 1).to_string());
+        match key {
+            Some(k) => ui.text(cx, cy + 16.0, size, W::M, TEXT, k.group(i)),
+            None => ui.text(cx, cy + 16.0, size, W::M, MUTED, "••••••"),
+        };
+    }
+    h + 12.0
+}
+
+/// The key shown: the panel, its ID, its QR code, Save where a disk for
+/// it is attached, and on the extra-safe path (`kept`) I have kept it.
+/// Returns its height.
+fn key_shown(
+    starter: &Starter,
+    ui: &mut Ui,
+    x: f32,
+    y0: f32,
+    w: f32,
+    k: &KeyShown,
+    kept: bool,
+) -> f32 {
+    let mut y = y0;
+    y += label(ui, x, y, S.starter_recovery_key);
+    y += key_panel(ui, x, y, w, Some(&k.text.key));
+    y += value_row(ui, x, y, w, S.starter_key_id, &k.key_id(), TEXT) + 16.0;
+    if let Some(text) = k.text.write()
+        && let Ok(m) = osk_codec::qr::encode(
+            osk_codec::qr::Payload::Bytes(text.as_bytes()),
+            osk_codec::qr::Ecc::Medium,
+        )
+    {
+        let side = if ui.compact { 180.0f32 } else { 220.0 }.min(w);
+        qr_code(ui, &m, x, y, side);
+        y += side + 10.0;
+    }
+    y += line(ui, x, y, w, S.starter_key_photo, MUTED) + 6.0;
+    for d in starter.save_targets() {
+        let name = fill(S.starter_key_save, &[&disk_name(d)]);
+        let (label, style) = if starter.guard.saving {
+            (S.starter_key_saving.to_string(), Style::Disabled)
+        } else {
+            (name, Style::Secondary)
+        };
+        let n = StarterAction::SaveKey(starter.disk_number(&d.id));
+        y += buttons(ui, x, y, w, &[(&label, style, n)]) + 10.0;
+    }
+    match &starter.guard.saved {
+        Some(Ok(at)) => y += line(ui, x, y, w, &fill(S.starter_key_saved, &[at]), OK),
+        Some(Err(why)) => y += line(ui, x, y, w, &reason_text(why), ERR),
+        None => {}
+    }
+    y += 6.0;
+    if !kept {
+        return y + 10.0 - y0;
+    }
+    y + buttons(
+        ui,
+        x,
+        y,
+        w,
+        &[(S.starter_key_kept, Style::Primary, StarterAction::KeptIt)],
+    ) + 16.0
+        - y0
+}
+
+/// The key hidden and two groups asked for, then Suspend BitLocker.
+/// Returns its height.
+fn key_asked(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let g = &starter.guard;
+    let mut y = y0;
+    y += label(ui, x, y, S.starter_recovery_key);
+    y += key_panel(ui, x, y, w, None);
+    let Some([a, b]) = g.asked else {
+        return y - y0;
+    };
+    let ask = fill(
+        S.starter_key_type,
+        &[&(a + 1).to_string(), &(b + 1).to_string()],
+    );
+    y += ui.wrap(x, y, w, 15.0, W::S, TEXT, &ask) + 12.0;
+    let fw = ((w - 12.0) / 2.0).min(180.0);
+    for (i, n) in [a, b].into_iter().enumerate() {
+        let fx = x + i as f32 * (fw + 12.0);
+        ui.text(
+            fx,
+            y,
+            12.0,
+            W::R,
+            MUTED,
+            &fill(S.starter_key_group, &[&(n + 1).to_string()]),
+        );
+        let by = y + 18.0;
+        let focused = g.focus == i && g.busy.is_none();
+        ui.fill(fx, by, fw, 44.0, 8.0, BG);
+        ui.stroke(fx, by, fw, 44.0, 8.0, if focused { ACCENT } else { BORDER });
+        let typed = g.typed(i);
+        if focused && g.all_selected && !typed.is_empty() {
+            let tw = ui.measure(18.0, W::M, typed);
+            ui.fill(
+                fx + 11.0,
+                by + 9.0,
+                tw + 4.0,
+                26.0,
+                3.0,
+                ACCENT.with_alpha(60),
+            );
+        }
+        ui.text_mid(fx + 12.0, by, 44.0, 18.0, W::M, TEXT, typed);
+        if focused && !g.all_selected {
+            let before = &typed[..g.caret.min(typed.len())];
+            let tw = ui.measure(18.0, W::M, before);
+            ui.caret(fx + 13.0 + tw, by + 11.0, 22.0);
+        }
+        ui.hit(fx, by, fw, 44.0, StarterAction::Group(i as u8).host());
+    }
+    y += 18.0 + 44.0 + 14.0;
+    if let Some(n) = g.wrong {
+        y += line(
+            ui,
+            x,
+            y,
+            w,
+            &fill(S.starter_key_wrong, &[&(n + 1).to_string()]),
+            ERR,
+        );
+    }
+    let suspend = if g.busy == Some(crate::api::BitLockerStep::Suspend) {
+        (
+            S.starter_suspending,
+            Style::Disabled,
+            StarterAction::Suspend,
+        )
+    } else {
+        (S.starter_suspend, Style::Primary, StarterAction::Suspend)
+    };
+    y + buttons(
+        ui,
+        x,
+        y,
+        w,
+        &[
+            (
+                S.starter_key_show_again,
+                Style::Secondary,
+                StarterAction::ShowAgain,
+            ),
+            suspend,
+        ],
+    ) + 16.0
+        - y0
+}

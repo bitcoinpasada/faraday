@@ -1,5 +1,5 @@
 # The build container for the Linux apps that are published (the desktop
-# app and the hub app, docs/HUB.md §1.2). Debian 11 (bullseye) has glibc
+# app and the Starter, docs/STARTER.md §1.2). Debian 11 (bullseye) has glibc
 # 2.31, so a binary linked here runs on Ubuntu 20.04 and later, Debian 11
 # and later, Fedora 32 and later, and Arch.
 #

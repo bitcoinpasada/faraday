@@ -1,5 +1,5 @@
-//! The hub app's payload (`docs/HUB.md` §1.3): the release's `.xz` files
-//! carried inside the hub app, the `MANIFEST` that names each with its
+//! The Starter's payload (`docs/STARTER.md` §1.3): the release's `.xz` files
+//! carried inside the Starter, the `MANIFEST` that names each with its
 //! two SHA-256 sums, and the decoder that turns a payload file back into
 //! the image or binary it holds while it is written.
 //!

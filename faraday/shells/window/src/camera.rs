@@ -16,7 +16,7 @@
 //! a promise of frames, on any platform.
 //!
 //! Every platform presents the same three calls, so the command match in
-//! the shells (the desktop app's and the hub app's) has no `#[cfg]` in it.
+//! the shells (the desktop app's and the Starter's) has no `#[cfg]` in it.
 
 use std::path::PathBuf;
 

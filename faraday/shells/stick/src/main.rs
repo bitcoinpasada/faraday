@@ -1285,7 +1285,7 @@ impl Shell {
             });
         }
         // The device check: on a computer, what is attached now, told
-        // to the app when it changes (`docs/HUB.md` §3.1a).
+        // to the app when it changes (`docs/STARTER.md` §3.1a).
         if let Some(app) = self.app.as_mut()
             && app.devices.read
         {

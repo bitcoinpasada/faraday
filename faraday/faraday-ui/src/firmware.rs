@@ -1,4 +1,4 @@
-//! A firmware screen's sketch (`docs/DECISIONS.md` F18, `docs/HUB.md`
+//! A firmware screen's sketch (`docs/DECISIONS.md` F18, `docs/STARTER.md`
 //! §7.8): a mock-up of a firmware setup screen drawn from a
 //! [`faraday_learn::Sketch`], so Faraday Starter and Faraday Companion
 //! draw the same one. It is drawn to look like a firmware screen, not

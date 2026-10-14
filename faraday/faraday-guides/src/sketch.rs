@@ -1,5 +1,5 @@
 //! The maker pages' firmware sketches (`docs/DECISIONS.md` F18,
-//! `docs/HUB.md` §7.8): the data a maker page's `::sketch <id>`
+//! `docs/STARTER.md` §7.8): the data a maker page's `::sketch <id>`
 //! paragraph names ([`faraday_learn::sketch::is_marker`]), which
 //! `faraday_ui::sketch` turns into a mock-up of the firmware screen it
 //! depicts. The shape it is built from, and the marker itself, are

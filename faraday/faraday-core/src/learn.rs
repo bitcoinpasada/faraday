@@ -119,7 +119,7 @@ impl Faraday {
             Screen::Settings => vec![&EN.secure_element, &EN.glossary, upgrade_page()],
             Screen::SetTime | Screen::Codes => vec![time_page()],
             // A stick can also be replaced from a computer, keeping its
-            // data (`docs/HUB.md` §4.4); a Pi card cannot yet (§3.3).
+            // data (`docs/STARTER.md` §4.4); a Pi card cannot yet (§3.3).
             Screen::Upgrade if self.medium == crate::medium::Medium::Stick => {
                 vec![upgrade_page(), known("replace-faraday")]
             }

@@ -189,8 +189,8 @@ pub fn interop(path: &str) -> String {
     .expect("text")
 }
 
-/// The hub app's text for a BitLocker recovery key.
-pub fn hub_key() -> faraday_qr::bitlocker::KeyText {
+/// The Starter's text for a BitLocker recovery key.
+pub fn starter_key() -> faraday_qr::bitlocker::KeyText {
     faraday_qr::bitlocker::KeyText {
         computer: "DESKTOP-4K2Q".into(),
         drive: "C:".into(),

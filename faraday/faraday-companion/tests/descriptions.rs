@@ -178,7 +178,7 @@ fn the_kept_store_written_and_read_back_is_the_same() {
     c.press(Act::Back);
     c.press(Act::Back);
     c.press(Act::Receive);
-    paste(&mut c, &hub_key().write().expect("the hub app's text"));
+    paste(&mut c, &starter_key().write().expect("the Starter's text"));
     assert_eq!(c.page, Page::Key(0));
     let held = c.kept().cloned().expect("open");
     let (_, ours) = drain(&mut c);

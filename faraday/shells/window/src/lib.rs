@@ -1,9 +1,9 @@
-//! What the desktop app (`faraday/shells/desktop`) and the hub app
-//! (`faraday/shells/hub`) share to run in a window, so the two behave
+//! What the desktop app (`faraday/shells/desktop`) and the Starter
+//! (`faraday/shells/starter`) share to run in a window, so the two behave
 //! alike: the frame pacing ([`pace`]), the input ([`input`]), the copy of
 //! a frame into the window ([`view`]), and the camera with the scanner
 //! that reads its frames ([`camera`], [`lens`]). Each shell keeps its own
-//! loop and what only it does (the desktop's stick folders, the hub's
+//! loop and what only it does (the desktop's stick folders, the Starter's
 //! disks).
 
 pub mod camera;

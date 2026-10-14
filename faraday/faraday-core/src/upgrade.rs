@@ -155,7 +155,7 @@ pub fn version_number(id: &str) -> Option<(u64, u64, u64)> {
 /// with a higher version number, are warned about; anything else is
 /// written. `target` is `None` for a stick made before Faraday put its
 /// version in the kernel, which is earlier than any. Settings → Upgrade
-/// and the hub app's keep data both decide by this.
+/// and the Starter's keep data both decide by this.
 pub fn compare(target: Option<&str>, source: &str) -> Fit {
     if target == Some(source) {
         return Fit::Same;

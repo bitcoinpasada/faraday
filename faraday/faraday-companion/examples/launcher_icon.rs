@@ -1,6 +1,6 @@
 //! Draws Faraday Companion's launcher icon foreground from Faraday's own
 //! mark (`just companion-icon`), as the Starter's menu icon is drawn
-//! (`faraday-hub`'s `examples/icon.rs`).
+//! (`faraday-starter`'s `examples/icon.rs`).
 //!
 //! ```text
 //! cargo run -p faraday-companion --example launcher_icon -- OUT.png

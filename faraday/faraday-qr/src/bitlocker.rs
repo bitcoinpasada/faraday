@@ -1,5 +1,5 @@
-//! A BitLocker recovery key as plain text (`docs/HUB.md` §6.2, D18;
-//! `docs/COMPANION.md` §4.6): the hub app shows it as a QR code a phone's
+//! A BitLocker recovery key as plain text (`docs/STARTER.md` §6.2, D18;
+//! `docs/COMPANION.md` §4.6): the Starter shows it as a QR code a phone's
 //! camera reads and offers to copy, and the Companion recognises it when
 //! it is scanned or pasted. One writer and one reader, here, for both.
 //!

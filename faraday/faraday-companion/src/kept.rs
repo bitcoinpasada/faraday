@@ -48,7 +48,7 @@ pub struct Description {
 /// A kept BitLocker recovery key.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Key {
-    /// The computer, the drive and the key, as the hub app wrote them.
+    /// The computer, the drive and the key, as the Starter wrote them.
     pub text: KeyText,
     /// When it was kept, seconds since the epoch; 0 when not known.
     pub time: u64,

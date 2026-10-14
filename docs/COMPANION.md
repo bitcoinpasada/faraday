@@ -4,10 +4,10 @@
 in discussion (`docs/DECISIONS.md` F15). Not built. §12 records each
 decision; none is open.
 
-The problem it solves: Faraday's device and the hub app both hand things
+The problem it solves: Faraday's device and the Starter both hand things
 to a phone, and today the phone has nothing of Faraday's to take them.
 The Pi has no USB and no HDMI, so QR codes are its only way out, and a
-laptop's webcam reads a 2.8 inch panel badly. The hub app's guides live
+laptop's webcam reads a 2.8 inch panel badly. The Starter's guides live
 on the website, so a phone opening them tells the website which maker's
 computer is being set up. The BitLocker recovery key goes to the phone
 as text pasted into a notes app that may sync it to a cloud. A wallet's
@@ -20,7 +20,7 @@ keys, and carries the Learn pages, the start-from-stick guides among
 them. It never takes a seed, a private key or a sealed vault, and it
 never signs.
 
-People see it as **Faraday Companion**. It is not the hub app and not a
+People see it as **Faraday Companion**. It is not the Starter and not a
 wallet; "online" is not in its name because it is not online.
 
 ## 0. Rules for the implementing agent
@@ -56,8 +56,8 @@ wallet; "online" is not in its name because it is not online.
 | Shows a file, a PSBT or a description as codes for the device (§4.3) | Signs, seals, or holds any key that can spend |
 | Takes a file shared from another app, and shares a kept file to one (§6.3) | Opens a network connection, a link, or the clipboard for writing |
 | Keeps wallet descriptions, with each one's first address (§4.5) | Takes a TOTP secret (`otpauth://`): a code generator belongs on the device |
-| Keeps BitLocker recovery keys from the hub app until the person deletes them (§4.6) | Backs anything up to a cloud or copies it to a new phone (§7) |
-| Carries every Learn page, and opens the hub app's guide addresses as its own pages (§4.7) | Checks a balance, writes a payment or broadcasts: those are a later, separate app, if ever (§12, D10) |
+| Keeps BitLocker recovery keys from the Starter until the person deletes them (§4.6) | Backs anything up to a cloud or copies it to a new phone (§7) |
+| Carries every Learn page, and opens the Starter's guide addresses as its own pages (§4.7) | Checks a balance, writes a payment or broadcasts: those are a later, separate app, if ever (§12, D10) |
 
 Online use (broadcasting a finished transaction, watching a wallet,
 writing a payment) is not part of the Companion. If it is ever built it
@@ -66,7 +66,7 @@ is a second app with its own name, so that this one never gains the
 
 ## 2. What ships
 
-- `faraday-companion-X.Y.Z-android.apk` in the same release as the hub
+- `faraday-companion-X.Y.Z-android.apk` in the same release as the Starter
   app and the images, listed in the same `SHA256SUMS` and covered by its
   signature (`README.md`, "Verifying a release").
 - The same APK on F-Droid, built by F-Droid from the release's tag and
@@ -102,8 +102,8 @@ is a second app with its own name, so that this one never gains the
   API only: the share target and the share source (§6.3).
 - Application ID `app.faradayoffline.companion` (§12, D6), version name
   the release's, version code rising with each release.
-- **What the core is made of** (§12, D1: a core of its own). The hub app holds a `Faraday` in online mode limited to
-  Transfer and Learn (`docs/HUB.md` §2). The Companion does not: that
+- **What the core is made of** (§12, D1: a core of its own). The Starter holds a `Faraday` in online mode limited to
+  Transfer and Learn (`docs/STARTER.md` §2). The Companion does not: that
   would put the vault, the signer and the key loaders into a phone
   app's library, unreachable from its screens but present. Its core
   depends on `osk-ui`, `osk-shell-api`, `osk-codec` (to recognise what
@@ -120,7 +120,7 @@ is a second app with its own name, so that this one never gains the
   `faraday-core` into crates both use, and does the same for the
   scanner (`faraday-scanner` depends on `opensigner-core` today; the
   decode is `osk-codec`'s `rqrr` feature), without changing what the
-  desktop app or the hub app does, and reports anything it could not
+  desktop app or the Starter does, and reports anything it could not
   leave behind.
 - Strings are in Faraday's strings file,
   `faraday/faraday-strings/src/en.rs`, with a `companion_` prefix,
@@ -135,7 +135,7 @@ is a second app with its own name, so that this one never gains the
   `gradle/verification-metadata.xml`; the wrapper's checksum is named in
   `gradle-wrapper.properties`.
 - **No path and nothing about the build computer in the APK**, as
-  `docs/HUB.md` §2: the Rust library built with the remap prefixes
+  `docs/STARTER.md` §2: the Rust library built with the remap prefixes
   (`faraday/image/path-remap.sh`), Gradle's `vcsInfo` and dependency
   blob off as upstream has them, and the staging script's `strings`
   check run over the `.so` and `classes.dex` inside the APK.
@@ -203,8 +203,8 @@ and history. It cannot spend.
 
 ### 4.6 BitLocker keys
 
-The hub app shows a BitLocker recovery key as a plain-text QR code
-(`docs/HUB.md` §6.2, D18): eight groups of six digits and a line naming
+The Starter shows a BitLocker recovery key as a plain-text QR code
+(`docs/STARTER.md` §6.2, D18): eight groups of six digits and a line naming
 the computer and the drive. The Companion recognises that text when it
 is scanned or pasted, on any screen, and keeps it under the computer
 and drive it names. The format is written and read by one function in a
@@ -225,13 +225,13 @@ sheet. **Delete** on the Record asks once, without the two lines. The
 Learn page (§4.7) says the rest: if Windows
 started without asking for the key, the guard worked as expected and
 the copy here is no longer needed; it can be deleted anyway, for
-privacy, at any time; and the hub app shows the key again before its
+privacy, at any time; and the Starter shows the key again before its
 firmware steps the next time Faraday is set up on that computer, so it
 can be scanned in again then. The key stays valid until it is changed
 in Windows, whether or not it is deleted here.
 
 The key is never shared, never saved to a file and never shown as a
-code by the Companion: it came from the hub app and goes back to the
+code by the Companion: it came from the Starter and goes back to the
 person's eyes only.
 
 ### 4.7 Start from the stick, and Learn
@@ -240,8 +240,8 @@ Every Learn page `osk-learn` carries, as the device and the desktop app
 show them, with **Start from the stick** opening the boot pages
 (`docs/learn/faraday/boot/`) as below. A scanned address of the
 website's guides (`https://faradayoffline.app/start/<page>`, the code
-beside each guide in the hub app, `docs/HUB.md` §7.4) opens the
-Companion's own copy of that page, so following the hub's code with
+beside each guide in the Starter, `docs/STARTER.md` §7.4) opens the
+Companion's own copy of that page, so following the Starter's code with
 the Companion tells the website nothing. Any other web address that
 arrives is shown as text and is not opened (§0).
 
@@ -450,7 +450,7 @@ one (§3, D1).
   lint. Renders: `just snap` gains the Companion's screens at one phone
   size.
 - **B, keeping.** Wallet descriptions, BitLocker keys (§4.6, with the format shared
-  with the hub app, which batch W of `docs/HUB.md` writes; until then
+  with the Starter, which batch W of `docs/STARTER.md` writes; until then
   against the format as §6.2 of that document gives it), the two
   encrypted files and the unlock before Wallet descriptions and BitLocker keys
   (§7), the share target and source (§6.3), the guide addresses
@@ -462,7 +462,7 @@ one (§3, D1).
   request.
 - **Tried on a phone**, by the owner, with a stick and with the Pi:
   receive a file and a signed PSBT from each; send a PSBT shared from a
-  phone wallet; the hub app's recovery key scanned and deleted.
+  phone wallet; the Starter's recovery key scanned and deleted.
 
 ## 11. Tests
 
@@ -475,7 +475,7 @@ User-facing behaviour only (`CLAUDE.md`):
 - Every refused kind in §5, by scan, paste and share, is refused with
   its line and nothing is kept: the store after the attempt is the store
   before it.
-- The hub app's recovery-key text is read back as the computer, the
+- The Starter's recovery-key text is read back as the computer, the
   drive and the key it was written with; **Delete the key** leaves no
   key in the store.
 - The website's guide address opens the page it names; another web
@@ -498,7 +498,7 @@ the rest as recommended in v0.1 of this document.
 - **D1 The core:** a core of its own without Faraday's vault, signer or
   key loaders, so that "holds no seed" is a property of the crate
   graph, checked by a lint, as "reaches no network" is a property of
-  the manifest (§3). The hub app's way, a `Faraday` limited to Transfer
+  the manifest (§3). The Starter's way, a `Faraday` limited to Transfer
   and Learn, was the less work and was not taken.
 - **D2 Phase 1 only:** the offline app; nothing online in it (§1).
 - **D3 Name:** "Faraday Companion" to people; `faraday-companion` in

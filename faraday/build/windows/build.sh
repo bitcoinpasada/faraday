@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the Windows hub app inside the container
+# Builds the Windows Starter inside the container
 # (faraday/build/windows/Containerfile) for x86_64-pc-windows-gnu, and
 # checks it. `just faraday-windows-bin` starts it; there is nothing here
 # to run on the host.
@@ -21,7 +21,7 @@ have="$(rustc --version | cut -d' ' -f2)"
 [ "$want" = "$have" ] || die "rust-toolchain.toml says $want, the container has $have"
 
 if [ "${1:-}" = clippy ]; then
-    exec cargo clippy --locked --target "$target" -p faraday-hub-shell -- -D warnings
+    exec cargo clippy --locked --target "$target" -p faraday-starter-shell -- -D warnings
 fi
 
 : "${FARADAY_BUILD:?FARADAY_BUILD is not set}"
@@ -37,7 +37,7 @@ export RUSTFLAGS="$RUSTFLAGS --remap-path-prefix=$CARGO_TARGET_DIR=/target"
 # The symbols are not needed to run it, and are most of its size.
 export CARGO_PROFILE_RELEASE_STRIP=symbols
 
-cargo build --release --locked --target "$target" -p faraday-hub-shell --bin faraday-starter
+cargo build --release --locked --target "$target" -p faraday-starter-shell --bin faraday-starter
 install -m 0644 "$CARGO_TARGET_DIR/$target/release/faraday-starter.exe" /out/faraday-starter.exe
 exe=/out/faraday-starter.exe
 

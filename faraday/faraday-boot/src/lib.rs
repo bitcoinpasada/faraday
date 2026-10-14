@@ -39,8 +39,8 @@
 //! tests can stand a directory tree and image files in for them.
 //!
 //! It uses std alone, with no Unix-only call, so the crate also builds
-//! for Windows: the hub app there reads a stick's version with
-//! [`find_release`] as the stick's own upgrade does (`docs/HUB.md` §4.1).
+//! for Windows: the Starter there reads a stick's version with
+//! [`find_release`] as the stick's own upgrade does (`docs/STARTER.md` §4.1).
 
 pub mod client;
 pub mod proto;
@@ -75,7 +75,7 @@ pub const MAX_PARTITION: u64 = 64 << 20;
 /// the PC stick's FAT32 EFI system partition is 48 MiB
 /// (`boards/x86_64-uefi`), the Pi's FAT16 boot partition 32 MiB
 /// (`boards/pi3`, `boards/pi02w`). A source of any other size is not one
-/// this image made. `None` where no Faraday image is built (the hub app
+/// this image made. `None` where no Faraday image is built (the Starter
 /// on Windows and macOS uses [`find_release`] alone); there the size is
 /// not checked.
 pub const BOOT_BYTES: Option<u64> = if cfg!(all(target_os = "linux", target_arch = "x86_64")) {

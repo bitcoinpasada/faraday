@@ -46,7 +46,7 @@ fn while_locked_no_kept_page_opens_and_nothing_is_written() {
     }
     // A key that arrives while the unlock is refused is kept nowhere.
     c.press(Act::Receive);
-    paste(&mut c, &hub_key().write().expect("text"));
+    paste(&mut c, &starter_key().write().expect("text"));
     assert!(matches!(c.page, Page::Unlocking(_)));
     c.companion_event(CompanionEvent::KeptClosed {
         why: Closed::Cancelled,
@@ -130,7 +130,7 @@ fn a_kept_store_it_cannot_read_is_not_written_until_deleted() {
     assert!(c.kept().is_none());
     c.press(Act::Done);
     c.press(Act::Receive);
-    paste(&mut c, &hub_key().write().expect("text"));
+    paste(&mut c, &starter_key().write().expect("text"));
     let _ = unlock(&mut c, b"FCKS\x09");
     let (_, ours) = drain(&mut c);
     assert_eq!(kept_kept(&ours), None);

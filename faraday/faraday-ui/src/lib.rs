@@ -92,7 +92,7 @@ pub mod pal {
     pub const ERR: Color = Color::rgb(0xef, 0x9b, 0x9b);
 
     /// The colours of a PC's text mode (the VGA palette), which a
-    /// firmware sketch is drawn in and nothing else is (`docs/HUB.md`
+    /// firmware sketch is drawn in and nothing else is (`docs/STARTER.md`
     /// §7.8, `docs/DECISIONS.md` F18). Every theme draws them as they
     /// are.
     pub mod vga {

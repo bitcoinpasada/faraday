@@ -623,8 +623,8 @@ fn prepare(dir: &Path, full: bool) -> Result<(), String> {
 }
 
 fn main() -> ExitCode {
-    // `--version` answers before anything else is initialised: the hub
-    // app asks an installed copy this (docs/HUB.md §5.2).
+    // `--version` answers before anything else is initialised: the
+    // Starter asks an installed copy this (docs/STARTER.md §5.2).
     if std::env::args().nth(1).as_deref() == Some("--version") {
         println!(
             "{}",

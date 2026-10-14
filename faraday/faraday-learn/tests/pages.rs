@@ -1,5 +1,5 @@
 //! None of faraday-learn's own pages carries a firmware sketch's marker
-//! (`docs/HUB.md` §7.8, F18): the pages that do are faraday-guides',
+//! (`docs/STARTER.md` §7.8, F18): the pages that do are faraday-guides',
 //! which is why the desktop app, the stick and the Pi, which read only
 //! this crate, never draw one.
 

@@ -1,4 +1,4 @@
-//! The maker pages' firmware sketches (`docs/HUB.md` §7.8, F18): every
+//! The maker pages' firmware sketches (`docs/STARTER.md` §7.8, F18): every
 //! marker on a page draws a sketch, each sketch shows the person which
 //! row to look for, and none names a maker or a model.
 

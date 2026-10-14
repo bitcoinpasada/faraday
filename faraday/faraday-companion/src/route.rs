@@ -318,7 +318,7 @@ pub fn kind_of_file(bytes: &[u8]) -> Kind {
 }
 
 /// The id of the page a website guide's address names
-/// (`https://faradayoffline.app/start/<id>`, `docs/HUB.md` §7.4), when
+/// (`https://faradayoffline.app/start/<id>`, `docs/STARTER.md` §7.4), when
 /// `faraday-learn` or `faraday-guides` has that page.
 pub fn guide(text: &str) -> Option<&'static str> {
     let rest = text.strip_prefix(faraday_learn::GUIDES)?;

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# A Windows 11 test virtual machine for the hub app's BitLocker guard
-# (docs/HUB.md §6.6): QEMU, OVMF's Microsoft-key Secure Boot firmware, a
+# A Windows 11 test virtual machine for the Starter's BitLocker guard
+# (docs/STARTER.md §6.6): QEMU, OVMF's Microsoft-key Secure Boot firmware, a
 # TPM 2.0 from swtpm, no network. See README.md here.
 set -euo pipefail
 

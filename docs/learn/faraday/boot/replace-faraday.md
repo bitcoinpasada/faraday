@@ -18,4 +18,4 @@ Write the new Faraday onto a spare stick here with New Faraday stick, start from
 
 ## Where this comes from
 
-Faraday's own design: the hub app's specification (sections 3.2 and 4.4) and decisions F2, F5 and F11, in Faraday's repository, as of 2026-10-12.
+Faraday's own design: the Starter's specification (sections 3.2 and 4.4) and decisions F2, F5 and F11, in Faraday's repository, as of 2026-10-12.

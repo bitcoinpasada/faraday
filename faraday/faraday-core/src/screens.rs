@@ -13915,7 +13915,7 @@ fn devices_buttons(app: &Faraday) -> Vec<(&'static str, Style, Action)> {
 }
 
 /// What is attached that can capture the screen or the keys
-/// (`docs/HUB.md` §3.1a): a line for each, and what holds them.
+/// (`docs/STARTER.md` §3.1a): a line for each, and what holds them.
 fn devices_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let s = &crate::strings::EN;
     let d = &app.devices;
@@ -14142,7 +14142,7 @@ fn kept_sheet(
             cy += ui.wrap(x, cy, iw, 13.0, W::R, MUTED, line) + 12.0;
         }
         if !code.is_empty() {
-            // The same size the hub app's restart sheet draws its code.
+            // The same size the Starter's restart sheet draws its code.
             let side = if ui.compact { 104.0f32 } else { 160.0 }.min(iw);
             if let Ok(m) = osk_codec::qr::encode(
                 osk_codec::qr::Payload::Bytes(code.as_bytes()),
@@ -15290,7 +15290,7 @@ fn learn_sheet(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
             } else {
                 (bx, bw)
             };
-            // A firmware sketch's marker (`docs/HUB.md` §7.8, F18): none
+            // A firmware sketch's marker (`docs/STARTER.md` §7.8, F18): none
             // of faraday-learn's own pages carries one (the guides that
             // do are faraday-guides', read only behind the `guides`
             // feature), so only Faraday Starter, which turns that

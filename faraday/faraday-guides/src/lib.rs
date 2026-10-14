@@ -1,14 +1,14 @@
 //! The website's guides to starting a computer from the stick
-//! (`docs/HUB.md` §7): every page under `docs/learn/faraday/boot/`
+//! (`docs/STARTER.md` §7): every page under `docs/learn/faraday/boot/`
 //! except `replace-faraday`, which stays `faraday-learn`'s (the stick's
 //! Upgrade screen shows it directly, without this crate). Read by the
-//! hub app and the Companion, and published by the website at
+//! Starter and the Companion, and published by the website at
 //! `https://faradayoffline.app/start/<id>` (§7.4); the desktop app and
 //! the stick carry only the address of the guide for this computer
 //! (`faraday_learn::guide_address`), not its text.
 //!
 //! Also the maker pages' firmware sketches (`docs/DECISIONS.md` F18,
-//! `docs/HUB.md` §7.8): data a page's `::sketch <id>` paragraph names
+//! `docs/STARTER.md` §7.8): data a page's `::sketch <id>` paragraph names
 //! ([`faraday_learn::is_marker`]), which only Faraday Starter (behind
 //! `faraday-core`'s `guides` feature) and Faraday Companion draw
 //! (`faraday_ui::sketch`). The desktop app, the stick and the Pi carry
@@ -25,8 +25,8 @@ use osk_learn::Page as LearnPage;
 /// Every guide here, each by its id. Edited as
 /// `docs/learn/faraday/boot/<id>.md`, beside `replace-faraday`, which is
 /// `faraday-learn`'s. The id is the file's name and stays as it is: the
-/// hub app's screens open a page by it, and the website publishes each
-/// guide at `https://faradayoffline.app/start/<id>` (`docs/HUB.md`
+/// Starter's screens open a page by it, and the website publishes each
+/// guide at `https://faradayoffline.app/start/<id>` (`docs/STARTER.md`
 /// §7.4).
 const OWN: [(&str, &str); 18] = [
     (
@@ -49,7 +49,7 @@ const OWN: [(&str, &str); 18] = [
         "screens-that-record",
         include_str!("../../../docs/learn/faraday/boot/screens-that-record.md"),
     ),
-    // The Faraday stick boot entry on Linux (`docs/HUB.md` §3.1c).
+    // The Faraday stick boot entry on Linux (`docs/STARTER.md` §3.1c).
     (
         "boot-entry",
         include_str!("../../../docs/learn/faraday/boot/boot-entry.md"),
@@ -107,7 +107,7 @@ const OWN: [(&str, &str); 18] = [
     ),
 ];
 
-/// The guides to starting a computer from the stick (`docs/HUB.md`
+/// The guides to starting a computer from the stick (`docs/STARTER.md`
 /// §7.2), by id, in the order they are read: Windows, Linux, BitLocker,
 /// what Secure Boot and BitLocker are (§3.1b), screens and devices that
 /// can record (§3.1a), when the stick does not start, replacing

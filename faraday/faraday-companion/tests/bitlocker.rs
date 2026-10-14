@@ -1,4 +1,4 @@
-//! BitLocker keys (`docs/COMPANION.md` §4.6, §7, §11): the hub app's key
+//! BitLocker keys (`docs/COMPANION.md` §4.6, §7, §11): the Starter's key
 //! text is kept, after the phone's unlock, as the computer, the drive and
 //! the key it was written with; its digits show only while held; Delete
 //! the key, from Back in Windows or from Delete, leaves no key in the
@@ -13,11 +13,11 @@ use faraday_companion::{Act, Companion, CompanionEvent, Page};
 use faraday_strings::EN;
 use osk_shell_api::{App, Event, TouchPhase};
 
-/// The phone with the hub app's key pasted on Receive and kept, on the
+/// The phone with the Starter's key pasted on Receive and kept, on the
 /// key's record.
 fn keeping() -> Companion {
     let mut c = receiving();
-    paste(&mut c, &hub_key().write().expect("the hub app's text"));
+    paste(&mut c, &starter_key().write().expect("the Starter's text"));
     let (_, ours) = drain(&mut c);
     assert!(asked_unlock(&ours), "no unlock asked: {ours:?}");
     c.companion_event(CompanionEvent::Kept { bytes: Vec::new() });
@@ -30,14 +30,14 @@ fn keys_in(bytes: &[u8]) -> usize {
 }
 
 #[test]
-fn the_hub_apps_key_text_is_kept_as_the_computer_drive_and_key_it_was_written_with() {
+fn the_starters_key_text_is_kept_as_the_computer_drive_and_key_it_was_written_with() {
     let mut c = keeping();
     let (_, ours) = drain(&mut c);
     assert_eq!(kept_store(&ours), None, "a key reached Received");
     let (bytes, n, k) = kept_kept(&ours).expect("the kept store written");
     assert_eq!((n, k), (0, 1));
     let store = kept::read(&bytes).expect("a store it reads");
-    assert_eq!(store.keys[0].text, hub_key());
+    assert_eq!(store.keys[0].text, starter_key());
     assert!(c.received().is_empty());
 
     // Scanned the same, it is the same key, kept once.
@@ -45,7 +45,7 @@ fn the_hub_apps_key_text_is_kept_as_the_computer_drive_and_key_it_was_written_wi
     c.press(Act::Receive);
     show(
         &mut c,
-        &code_of(hub_key().write().expect("text").as_bytes()),
+        &code_of(starter_key().write().expect("text").as_bytes()),
     );
     assert_eq!(c.page, Page::Key(0));
     assert_eq!(c.kept().map(|k| k.keys.len()), Some(1));

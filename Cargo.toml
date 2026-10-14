@@ -23,7 +23,7 @@ members = [
     "tools/fontbake",
     "tools/qrgen",
     "faraday/faraday-core",
-    "faraday/faraday-hub",
+    "faraday/faraday-starter",
     "faraday/faraday-companion",
     "faraday/faraday-companion-ffi",
     "faraday/faraday-ui",
@@ -45,7 +45,7 @@ members = [
     "faraday/faraday-intake",
     "faraday/shells/window",
     "faraday/shells/desktop",
-    "faraday/shells/hub",
+    "faraday/shells/starter",
     "faraday/shells/stick",
     "faraday/shells/snapshot",
     "faraday/tools/testkit",
@@ -124,7 +124,7 @@ miniscript = { version = "12.0", default-features = false, features = ["no-std",
 # the same way, through `osk-codec`.
 rqrr = { path = "third_party/rqrr", default-features = false }
 
-# The hub app's xz decoder (docs/HUB.md §1.3; docs/deps/lzma-rust2.md),
+# The Starter's xz decoder (docs/STARTER.md §1.3; docs/deps/lzma-rust2.md),
 # used by `faraday-payload` alone. Pure Rust: Faraday never links
 # liblzma. `default-features = false` drops the encoder, lzip and the
 # `optimization` feature, the crate's only `unsafe`, so it builds under

@@ -1,6 +1,6 @@
 //! Whether the stick started with Secure Boot on. The stick shell reads
 //! the kernel's boot parameters once at start and hands the app the
-//! answer; the power-off sheet reminds when it was off (`docs/HUB.md` §7.5).
+//! answer; the power-off sheet reminds when it was off (`docs/STARTER.md` §7.5).
 
 use crate::{Faraday, Medium};
 
@@ -34,7 +34,7 @@ impl SecureBootAtStart {
 }
 
 /// The maker's key for the firmware settings, from its `sys_vendor`
-/// string. No maker page exists yet (`docs/HUB.md` D6), so none has a key;
+/// string. No maker page exists yet (`docs/STARTER.md` D6), so none has a key;
 /// the sheet shows one beside the reminder once a page does.
 pub fn maker_key(_maker: &str) -> Option<&'static str> {
     None
@@ -48,8 +48,8 @@ impl Faraday {
     }
 
     /// The address of the guide for this computer, when the power-off
-    /// sheet shows its code: the same the hub app shows for the same
-    /// computer (`docs/HUB.md` §7.5).
+    /// sheet shows its code: the same the Starter shows for the same
+    /// computer (`docs/STARTER.md` §7.5).
     pub fn secure_boot_guide(&self) -> Option<String> {
         self.secure_boot_reminder().then(|| {
             let id = crate::learn::guide_id(

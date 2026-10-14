@@ -1,29 +1,29 @@
 #!/usr/bin/env bash
 # Stages a Faraday release's plain files under out/release/VERSION/, named
-# as docs/HUB.md §1.1 names them, with SHA256SUMS for the owner to sign.
+# as docs/STARTER.md §1.1 names them, with SHA256SUMS for the owner to sign.
 #
 #   faraday/tools/stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR]
-#   faraday/tools/stage-release.sh VERSION --hub FILE [--out DIR] [--payload DIR]
+#   faraday/tools/stage-release.sh VERSION --starter FILE [--out DIR] [--payload DIR]
 #
-# A release is staged in two passes (HUB §1.3). The first, the form
-# above without --hub, stages the plain files and the hub app's payload.
-# The hub app is built against that payload (`FARADAY_HUB_PAYLOAD=
+# A release is staged in two passes (STARTER §1.3). The first, the form
+# above without --starter, stages the plain files and the Starter's payload.
+# The Starter is built against that payload (`FARADAY_STARTER_PAYLOAD=
 # out/payload/VERSION just faraday-linux-bin out/linux out/build/run
-# faraday-hub-shell faraday-starter`, which leaves out/linux/faraday-starter), and the second
-# pass, `--hub out/linux/faraday-starter` (`just faraday-release-stage-hub
+# faraday-starter-shell faraday-starter`, which leaves out/linux/faraday-starter), and the second
+# pass, `--starter out/linux/faraday-starter` (`just faraday-release-stage-starter
 # VERSION`), adds it to the folder the first made: Faraday-Starter-VERSION-Linux.tar.gz
 # holding one file, Faraday-Starter-VERSION-Linux, with its executable bit, made
-# as HUB §2 says (--owner=0 --group=0 --numeric-owner --sort=name
+# as STARTER §2 says (--owner=0 --group=0 --numeric-owner --sort=name
 # --mtime=@$SOURCE_DATE_EPOCH, gzip -n; SOURCE_DATE_EPOCH is the last
 # commit's time unless set), and two more lines in SHA256SUMS: the .tar.gz,
 # and the file inside it under its inner name. The second pass refuses a
-# hub app that does not carry this payload's MANIFEST, runs the
+# Starter that does not carry this payload's MANIFEST, runs the
 # published-file check below on the .tar.gz and the file inside it, and
 # never touches what the first pass staged.
 #
 # Takes what the builds left:
 #   out/linux/faraday                       -> faraday-desktop-VERSION-linux-x86_64
-#       (`just faraday-linux-bin`: the glibc 2.31 container build, HUB §1.2;
+#       (`just faraday-linux-bin`: the glibc 2.31 container build, STARTER §1.2;
 #       target/release/faraday needs the build machine's newer glibc)
 #   out/stick/faraday-x86_64-uefi.img       -> faraday-stick-VERSION-x86_64-uefi.img.xz
 #   out/pi/faraday-pi3-waveshare-28dpi.img  -> faraday-pi-VERSION-pi3-waveshare-28dpi.img.xz
@@ -44,11 +44,11 @@
 # string compiled into it. xz runs single-threaded at -9e, so the same
 # image always gives the same .xz.
 #
-# Second, the payload the hub app embeds (HUB §1.3), in out/payload/VERSION/
+# Second, the payload the Starter embeds (STARTER §1.3), in out/payload/VERSION/
 # (with --out DIR, in DIR.payload; --payload DIR names it): hard links to
 # the two image .xz, the desktop app as .xz, and MANIFEST.
 #
-# Last, the published-file check (HUB §2): every file published, and every
+# Last, the published-file check (STARTER §2): every file published, and every
 # .img, binary and inner file inside one, goes through `strings`. The
 # script refuses one carrying this account's home folder, its user name
 # and an @, the computer's host name as a word, /home/<name>/,
@@ -59,24 +59,24 @@ set -euo pipefail
 
 die() { printf 'stage-release: %s\n' "$1" >&2; exit 1; }
 
-[ $# -ge 1 ] || die "usage: stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR] | VERSION --hub FILE [--out DIR] [--payload DIR]"
+[ $# -ge 1 ] || die "usage: stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR] | VERSION --starter FILE [--out DIR] [--payload DIR]"
 version="$1"
 shift
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "VERSION must look like X.Y.Z, got '$version'"
 any=0
 out=""
 payload=""
-hub=""
+starter=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --any-build) any=1; shift ;;
         --out) [ $# -ge 2 ] || die "--out needs a directory"; out="$2"; shift 2 ;;
         --payload) [ $# -ge 2 ] || die "--payload needs a directory"; payload="$2"; shift 2 ;;
-        --hub) [ $# -ge 2 ] || die "--hub needs the hub app's file"; hub="$2"; shift 2 ;;
+        --starter) [ $# -ge 2 ] || die "--starter needs the Starter's file"; starter="$2"; shift 2 ;;
         *) die "unknown argument $1" ;;
     esac
 done
-[ -z "$hub" ] || hub="$(realpath "$hub")"
+[ -z "$starter" ] || starter="$(realpath "$starter")"
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 if [ -z "$payload" ]; then
     if [ -n "$out" ]; then payload="$out.payload"; else payload="out/payload/$version"; fi
@@ -86,7 +86,7 @@ out="${out:-out/release/$version}"
 check="$(mktemp -d)"
 trap 'rm -rf "$check"' EXIT
 build=""
-if [ -z "$hub" ]; then
+if [ -z "$starter" ]; then
     desktop=out/linux/faraday
     stick=out/stick/faraday-x86_64-uefi.img
     pi=out/pi/faraday-pi3-waveshare-28dpi.img
@@ -176,7 +176,7 @@ if [ -z "$hub" ]; then
     cp "$out/SHA256SUMS" "$check/"
     (cd "$check" && sha256sum -c --quiet --ignore-missing SHA256SUMS)
 
-    # The payload the hub app embeds (HUB §1.3): the images' .xz as hard
+    # The payload the Starter embeds (STARTER §1.3): the images' .xz as hard
     # links to the staged ones, the desktop app as .xz, and MANIFEST. One
     # line per file, tab-separated: the payload file, its SHA-256, what is
     # inside it, that file's SHA-256 and size, the build ID it carries.
@@ -191,7 +191,7 @@ if [ -z "$hub" ]; then
             "$2" "$(sha256sum < "$3" | cut -d' ' -f1)" "$(stat -c %s "$3")" "$build"
     }
     {
-        echo "# Faraday hub payload $version, commit $commit"
+        echo "# Faraday Starter payload $version, commit $commit"
         manifest_line "$stick_name.xz" "$stick_name" "$stick"
         manifest_line "$pi_name.xz" "$pi_name" "$pi"
         manifest_line "$desktop_xz" "$desktop_name" "$desktop"
@@ -200,7 +200,7 @@ if [ -z "$hub" ]; then
     xz -d -c "$payload/$desktop_xz" | cmp - "$desktop"
 fi
 
-# The published-file check (HUB §2). The values come from the account and
+# The published-file check (STARTER §2). The values come from the account and
 # the computer this runs on.
 home_dir="${HOME:-}"
 user_name="$(id -un)"
@@ -220,16 +220,16 @@ forbidden_in() {
 # What a refusal takes back: the first pass stages the folders, the
 # second only the .tar.gz it adds (the first pass's files stay).
 refuse() {
-    if [ -n "$hub" ]; then
+    if [ -n "$starter" ]; then
         rm -f "$out/$tar_name"
         die "$1 (nothing added)"
     fi
     rm -rf "$out" "$payload"
     die "$1 (nothing staged)"
 }
-hub_release_name="Faraday-Starter" # the one place the release files are named (F16)
-tar_name="$hub_release_name-$version-Linux.tar.gz"
-inner_name="$hub_release_name-$version-Linux"
+starter_release_name="Faraday-Starter" # the one place the release files are named (F16)
+tar_name="$starter_release_name-$version-Linux.tar.gz"
+inner_name="$starter_release_name-$version-Linux"
 # FILE and, inside it, every gzip or xz stream found by its magic bytes
 # (a kernel image holds its kernel and the initramfs that way), to a depth
 # of three. LABEL names it in what is printed.
@@ -253,45 +253,45 @@ scan() {
         done
     done
 }
-# The second pass: the Linux hub app (HUB §1.1, §1.2).
-add_hub() {
+# The second pass: the Linux Starter (STARTER §1.1, §1.2).
+add_starter() {
     local first
-    [ -f "$hub" ] || die "$hub: not built (just faraday-linux-bin out/linux out/build/run faraday-hub-shell faraday-starter)"
+    [ -f "$starter" ] || die "$starter: not built (just faraday-linux-bin out/linux out/build/run faraday-starter-shell faraday-starter)"
     [ -f "$out/SHA256SUMS" ] && [ -f "$payload/MANIFEST" ] \
         || die "$out and $payload are not a first pass's output: stage the plain files first"
     [ ! -e "$out/$tar_name" ] || die "$out/$tar_name exists; move it aside first"
     # It carries this payload: the MANIFEST's first line names the
     # release and the commit, and is in the binary as a string.
     first="$(head -1 "$payload/MANIFEST")"
-    grep -aqF -- "$first" "$hub" || die "$hub does not carry the payload in $payload (its MANIFEST's first line is not in it); build it against that payload"
+    grep -aqF -- "$first" "$starter" || die "$starter does not carry the payload in $payload (its MANIFEST's first line is not in it); build it against that payload"
     # The tar holds one file, with its executable bit and no owner,
     # time or name of the building computer; gzip -n leaves out the
     # name and time of its own.
     local epoch="${SOURCE_DATE_EPOCH:-$(git log -1 --format=%ct 2>/dev/null || echo 0)}"
-    mkdir "$check/hub"
-    install -m 0755 "$hub" "$check/hub/$inner_name"
+    mkdir "$check/starter"
+    install -m 0755 "$starter" "$check/starter/$inner_name"
     tar --format=gnu --owner=0 --group=0 --numeric-owner --sort=name \
-        --mtime="@$epoch" -C "$check/hub" -cf - "$inner_name" \
+        --mtime="@$epoch" -C "$check/starter" -cf - "$inner_name" \
         | gzip -n -9 > "$out/$tar_name"
     # What a person gets by extracting it: one file, executable, equal
-    # to the hub app.
-    mkdir "$check/hub-out"
-    tar -C "$check/hub-out" -xzf "$out/$tar_name"
-    [ "$(ls -A "$check/hub-out")" = "$inner_name" ] || refuse "$tar_name does not hold exactly $inner_name"
-    [ -x "$check/hub-out/$inner_name" ] || refuse "$inner_name has no executable bit in $tar_name"
-    cmp -s "$hub" "$check/hub-out/$inner_name" || refuse "$inner_name in $tar_name differs from $hub"
+    # to the Starter.
+    mkdir "$check/starter-out"
+    tar -C "$check/starter-out" -xzf "$out/$tar_name"
+    [ "$(ls -A "$check/starter-out")" = "$inner_name" ] || refuse "$tar_name does not hold exactly $inner_name"
+    [ -x "$check/starter-out/$inner_name" ] || refuse "$inner_name has no executable bit in $tar_name"
+    cmp -s "$starter" "$check/starter-out/$inner_name" || refuse "$inner_name in $tar_name differs from $starter"
     # The published-file check covers the .tar.gz and the file inside it.
     scan_tar "$out/$tar_name"
     # SHA256SUMS lists the .tar.gz and the file inside it under its inner
     # name, so either can be checked.
     {
         (cd "$out" && sha256sum "$tar_name")
-        printf '%s  %s\n' "$(sha256sum < "$check/hub-out/$inner_name" | cut -d' ' -f1)" "$inner_name"
+        printf '%s  %s\n' "$(sha256sum < "$check/starter-out/$inner_name" | cut -d' ' -f1)" "$inner_name"
     } >> "$out/SHA256SUMS"
     (cd "$out" && sha256sum -c --quiet --ignore-missing SHA256SUMS)
-    cp "$out/SHA256SUMS" "$check/hub-out/"
-    (cd "$check/hub-out" && sha256sum -c --quiet --ignore-missing SHA256SUMS)
-    echo "Added $tar_name ($(stat -c %s "$out/$tar_name") bytes) holding $inner_name ($(stat -c %s "$hub") bytes), carrying: $first"
+    cp "$out/SHA256SUMS" "$check/starter-out/"
+    (cd "$check/starter-out" && sha256sum -c --quiet --ignore-missing SHA256SUMS)
+    echo "Added $tar_name ($(stat -c %s "$out/$tar_name") bytes) holding $inner_name ($(stat -c %s "$starter") bytes), carrying: $first"
 }
 # A .tar.gz, its tar and each file extracted from it, scanned.
 scan_tar() {
@@ -303,8 +303,8 @@ scan_tar() {
     for g in "$check"/untar/*; do scan "$g" "$f: ${g#"$check"/untar/}" 0; done
     rm -rf "$check/untar"
 }
-if [ -n "$hub" ]; then
-    add_hub
+if [ -n "$starter" ]; then
+    add_starter
 else
 for f in "$out"/* "$payload"/*; do
     # The payload's image .xz are the release's own files.

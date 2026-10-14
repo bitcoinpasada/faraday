@@ -1,12 +1,12 @@
 //! Faraday's own Learn pages, which OpenSigner does not have: read from
 //! `docs/learn/faraday/` when Faraday is built, so the desktop app, the
-//! stick, the hub app and the Companion carry the same text. Nothing
+//! stick, the Starter and the Companion carry the same text. Nothing
 //! here names a screen of any app: each app maps its own screens to
 //! pages.
 //!
 //! The website's guides to starting a computer from the stick
-//! (`docs/HUB.md` §7) are not here: they are `faraday-guides`' (read by
-//! the hub app and the Companion, and published by the website). The
+//! (`docs/STARTER.md` §7) are not here: they are `faraday-guides`' (read by
+//! the Starter and the Companion, and published by the website). The
 //! desktop app and the stick carry only the address of the guide for
 //! this computer ([`guide_address`]), not its text.
 
@@ -22,7 +22,7 @@ pub use sketch::{Sketch, is_marker};
 /// They are edited as `docs/learn/faraday/<id>.md`, beside OpenSigner's
 /// pages but outside the set `tools/learn/sync.py` keeps in step with
 /// `osk_learn::EN`, and read from those files when Faraday is built, so
-/// the desktop app, the stick and the hub app carry the same text. The
+/// the desktop app, the stick and the Starter carry the same text. The
 /// guides to starting a computer from the stick
 /// (`docs/learn/faraday/boot/*.md`) are `faraday-guides`' own table, not
 /// this one, except `replace-faraday`, which the stick's Upgrade screen
@@ -51,7 +51,7 @@ const OWN: [(&str, &str); 5] = [
     ),
 ];
 
-/// A maker family's guide (`docs/HUB.md` §7.6): its page's id, and the
+/// A maker family's guide (`docs/STARTER.md` §7.6): its page's id, and the
 /// computers it is for, by what the firmware reports (§7.1).
 #[derive(Debug)]
 pub struct Maker {
@@ -143,11 +143,11 @@ pub fn maker(vendor: &str, family: &str, model: &str) -> Option<&'static Maker> 
     })
 }
 
-/// The website's guides (`docs/HUB.md` §7.4): the only address the hub
+/// The website's guides (`docs/STARTER.md` §7.4): the only address the Starter
 /// app and the stick contain.
 pub const GUIDES: &str = "https://faradayoffline.app/start/";
 
-/// The guide's page for a computer (`docs/HUB.md` §3.4, §7.6): its
+/// The guide's page for a computer (`docs/STARTER.md` §3.4, §7.6): its
 /// maker's page where there is one, otherwise `general`.
 pub fn guide_id(vendor: &str, family: &str, model: &str, general: &'static str) -> &'static str {
     maker(vendor, family, model).map_or(general, |m| m.id)

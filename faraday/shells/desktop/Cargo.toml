@@ -19,8 +19,8 @@ osk-shell-api = { path = "../../../core/osk-shell-api" }
 # `pin-pages`: the `mlock` that keeps the loaded master keys out of swap.
 osk-crypto = { path = "../../../core/osk-crypto", features = ["pin-pages"] }
 winit.workspace = true
-# The window's pacing, input, drawing and camera, shared with the hub
-# app (faraday/shells/hub).
+# The window's pacing, input, drawing and camera, shared with the
+# Starter (faraday/shells/starter).
 faraday-window = { path = "../window" }
 
 [lints]

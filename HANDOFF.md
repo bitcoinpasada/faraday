@@ -1905,7 +1905,7 @@ as possible before the next build.
     a frame part of the way asks for the next. Built in the working
     tree; waits for the owner's check.
 
-70. [ ] 2026-10-12, owner: **the hub app**, specified in `docs/HUB.md`
+70. [ ] 2026-10-12, owner: **the hub app**, specified in `docs/STARTER.md`
     (DECISIONS F11): one download per operating system (Windows, Linux)
     that makes a Faraday stick or Pi card (whole, or keeping the data
     partition), guides starting a computer from the stick with a
@@ -1913,14 +1913,14 @@ as possible before the next build.
     transfers files by QR code, opens the desktop app for testing, and
     installs itself or runs without installing. Plain files stay in the
     release (`.xz` images, renamed), no dev images. Batches R, L, G, W,
-    C, P, S (HUB §11); §12's decisions D1–D11 carry defaults for the
+    C, P, S (STARTER §11); §12's decisions D1–D11 carry defaults for the
     owner to confirm before the batch that needs each.
 
     **Where it stopped (2026-10-12 12:40, session ended for the owner's
     usage reset).** Batch R, first piece done:
     `faraday/tools/stage-release.sh` and `just faraday-release-stage
     VERSION [--any-build] [--out DIR]` stage the plain files under
-    `out/release/VERSION/` with HUB §1.1's names, images as `xz -9e
+    `out/release/VERSION/` with STARTER §1.1's names, images as `xz -9e
     -T1` (checked: the same image gives the same `.xz`), and
     `SHA256SUMS` with a `# Faraday VERSION, commit …` line, each
     published file, and each image's `.img` line; it checks every sum,
@@ -1946,10 +1946,10 @@ as possible before the next build.
     hub's payload build from `out/release/VERSION/` (manifest: name,
     `.xz` sum, `.img` sum, build ID). Then batch L.
 
-    **HUB.md v0.2 (2026-10-12, 12:55; DECISIONS F12).** The owner
+    **STARTER.md v0.2 (2026-10-12, 12:55; DECISIONS F12).** The owner
     answered a review of v0.1 the same day; every decision is now
-    taken (HUB §12, D1–D21) except D11, which batch W's report answers;
-    HUB §13 lists what moved. In the tree, uncommitted, with F12 in
+    taken (STARTER §12, D1–D21) except D11, which batch W's report answers;
+    STARTER §13 lists what moved. In the tree, uncommitted, with F12 in
     `docs/DECISIONS.md` and the item in `local/REMAINING.md`: the
     orchestrator reviews and commits. What it changes for the work
     already started: (a) batch R's staging script, when it comes to
@@ -1970,7 +1970,7 @@ as possible before the next build.
     C; W no longer waits on D11.
 
     **Built (2026-10-12, afternoon; Opus orchestrator, agents per
-    model).** Committed: bd51291 (v0.2), 79ecced (`faraday-hub`, the
+    model).** Committed: bd51291 (v0.2), 79ecced (`faraday-starter`, the
     hub's state and screens, no I/O; `faraday-payload` with
     `lzma-rust2`; the five boot Learn pages, ids `windows`, `linux`,
     `bitlocker`, `not-starting`, `replace-faraday`), 98013bc (the Pi's
@@ -1978,12 +1978,12 @@ as possible before the next build.
     the payload pass; the published-file check), f851603 (the stick's
     power-off Secure Boot line; sheets open at their top), e372242 and
     508206d (F14: maker pages several families at once, none naming a
-    model), c3519bc (`faraday/shells/hub` on Linux through udisks2 and
+    model), c3519bc (`faraday/shells/starter` on Linux through udisks2 and
     `rustbus`; `faraday/shells/window` shared with the desktop shell),
     d7437f6 (install and uninstall, Try the desktop app, writer reasons
     in en.rs, staging pass 2 with the `.tar.gz`, the icon from the
     app's mark, `tools/flash-stick` removed). Spec changes made on the
-    way, each in HUB.md: Resume BitLocker when Secure Boot is as the
+    way, each in STARTER.md: Resume BitLocker when Secure Boot is as the
     marker recorded it; Home's next-step rule; a stick's version read
     from the desktop's mount of OSKBOOT or a read-only udisks2 mount;
     install touches `faraday` and `faraday-desktop` only when they
@@ -1993,7 +1993,7 @@ as possible before the next build.
     build machine.
 
     **Next.** (1) The owner tries the Linux hub app on the desktop
-    (`just faraday-hub`, run through `local/remote-run.sh --fetch`), and
+    (`just faraday-starter`, run through `local/remote-run.sh --fetch`), and
     one real write to a spare stick the owner names, recording what
     polkit asks. (2) G's first group of maker pages (F14). (3) W's code,
     cross-compiled and tested on recorded answers; W's acceptance
@@ -2013,7 +2013,7 @@ as possible before the next build.
     never in OpenSigner's file, which is again identical to upstream's
     (2a355c3, 810271d; CLAUDE.md's rule changed); the lint scans
     Faraday's screens. **F14**: maker pages several families at once,
-    none naming a model. **Device checks** (HUB §3.1a, 766fc36): warn only
+    none naming a model. **Device checks** (STARTER §3.1a, 766fc36): warn only
     about what can capture the screen or keys without Faraday's help (a
     recording TV, a KVM/IP-KVM, a wireless keyboard receiver, a virtual
     machine; a remote or shared screen only around the recovery key); no
@@ -2063,7 +2063,7 @@ as possible before the next build.
     check of `docs/BITLOCKER-ACCEPTANCE.md` passed too: the shell reads
     `Some(1)` protected and `Some(5)` suspended, and `GetSuspendCount`
     answers 0 (until resumed); the two recordings are in
-    `faraday/shells/hub/tests/windows/vm-on.wmi` and `vm-suspended.wmi`
+    `faraday/shells/starter/tests/windows/vm-on.wmi` and `vm-suspended.wmi`
     (2026-10-13). The key was found in
     no file under AppData, Temp or Downloads. Done 2026-10-13 with the
     build from 5246286: run 1's Save wrote the key file to the USB drive
@@ -2076,7 +2076,7 @@ as possible before the next build.
     Installed apps removes the app, its entry, its shortcut, the marker
     and the Run value and leaves the suspension. Home's firmware restart
     is greyed in the machine because a virtual machine holds the
-    restarts (HUB §3.1a), as intended. Found: in the session that
+    restarts (STARTER §3.1a), as intended. Found: in the session that
     suspended, Uninstall gives Control Panel's line with Secure Boot on,
     since Resume waits for a restart (§6.3), where §5 says it offers
     Resume (owner to decide; Windows Home has no Control Panel route);
@@ -2088,7 +2088,7 @@ as possible before the next build.
     reads "Suspended", not "Protected"; the after-exit command waits
     with `ping` (`timeout` ends at once with no console) from the
     system folder, so the install folder goes; the sheet says "Uninstall
-    Faraday Starter?"; HUB.md and the acceptance file name the Run value
+    Faraday Starter?"; STARTER.md and the acceptance file name the Run value
     `Faraday Starter`. Open: the stick row reads "0.1.0 or earlier" for
     a 0.1.1 stick because OSKBOOT is an EFI system partition, which
     Windows lets only an administrator read (checked in the machine:
@@ -2111,7 +2111,7 @@ as possible before the next build.
     Starter and the Companion only, drawn to look like the firmware
     (each family's own colours, square corners, Terminus as the
     text-mode font, "Mock-up" under each); 32 sketches over the nine
-    maker pages, HUB §7.8; the guides corrected against the makers'
+    maker pages, STARTER §7.8; the guides corrected against the makers'
     simulators and manuals (research in local/firmware-sketches/). The
     Companion's hook is the Companion session's. (c) Fixed: the three
     places that decided by displayed text now carry an enum instead
@@ -2134,7 +2134,7 @@ as possible before the next build.
     §4.3–§4.5 are requirements: a batch that cannot meet one stops and
     reports). The desktop and hub apps run on macOS. Batches I, D, A1,
     A2, A3, A4 (MAC §8); A3 waits for HUB batch L. MAC §6 lists what
-    HUB.md gains, for whoever owns HUB.md to fold in after batch R.
+    STARTER.md gains, for whoever owns STARTER.md to fold in after batch R.
     Every decision taken (MAC §9): the published Mac list says
     Expected or Not supported from cited documentation, never which
     models were tried (M6); no Mac yet, so I, A1, A2 and A4 can go
@@ -2201,8 +2201,8 @@ as possible before the next build.
        `zeroize`. `faraday-core` re-exports it as `strings`, so
        `crate::strings::EN` and `faraday_core::strings::*` still
        resolve. The path changes in `tools/lint-strings.sh`,
-       `faraday/shells/hub/build.rs`, `CLAUDE.md`'s strings rule,
-       `docs/HUB.md` and `docs/COMPANION.md` §3 (and anything else
+       `faraday/shells/starter/build.rs`, `CLAUDE.md`'s strings rule,
+       `docs/STARTER.md` and `docs/COMPANION.md` §3 (and anything else
        `grep -rn 'faraday-core/src/strings'` finds outside `target/`
        and `.claude/`). The generated `Text in …` doc comments in
        `en.rs` stay as they are.
@@ -2212,7 +2212,7 @@ as possible before the next build.
        page reader, `page`, `guide_address`, `guide_id`. Depends on
        `osk-learn` only. `faraday-core::learn` keeps the screen-to-page
        mapping and the sheet's state and uses the new crate;
-       `faraday-hub` imports from `faraday-learn` directly.
+       `faraday-starter` imports from `faraday-learn` directly.
     3. `faraday/faraday-intake` (new): what arrives, and whether it is
        a secret that stays on the device. No strings: it answers in
        enums, and the callers say them.
@@ -2278,7 +2278,7 @@ as possible before the next build.
     faraday-intake` (and the lint's other crates) shows none of the
     forbidden list; `opensigner-core` is gone from `faraday-scanner`'s
     tree. The orchestrator compares `just faraday-snap` and `just
-    faraday-hub-snap` renders at one size each from before and after,
+    faraday-starter-snap` renders at one size each from before and after,
     byte for byte. Report: as COMPANION §0, plus each recogniser moved
     or copied and from where, and anything that could not be left
     behind.
@@ -2357,7 +2357,7 @@ as possible before the next build.
        written whole after each change; a store the core cannot read
        is not overwritten until the person deletes it (say so on
        Received).
-    6. **Renders**: `just companion-snap SIZE` (as `faraday-hub-snap`,
+    6. **Renders**: `just companion-snap SIZE` (as `faraday-starter-snap`,
        an example in the crate) draws every screen and state above into
        `out/snapshots/companion/SIZE/`, one named PNG each, at
        1080x2340 with the 420 dpi and 63 px bottom inset `snapshots`
@@ -2428,7 +2428,7 @@ as possible before the next build.
        Depends on `osk-ui` (canvas, fonts, icons, tokens),
        `faraday-strings`, `zeroize`; added to
        `tools/lint-companion-deps.sh`'s list. `faraday-core` and
-       `faraday-hub` use it; their renders stay byte for byte (the
+       `faraday-starter` use it; their renders stay byte for byte (the
        orchestrator compares, as before).
     2. **The Companion redrawn with it** (`view.rs` replaced by a
        `draw.rs` as the Starter's): the header **FARADAY COMPANION**
@@ -2830,7 +2830,7 @@ as possible before the next build.
 73. [ ] 2026-10-13, owner: **Faraday Starter on macOS, the part that
     needs no Mac.** The owner picked up the Mac work with the Starter
     (MAC §6, item 71). There is still no Mac (M7), so MAC §8's batch A3
-    is split: **A3a** the macOS module of `faraday/shells/hub`, type-checked
+    is split: **A3a** the macOS module of `faraday/shells/starter`, type-checked
     for both Mac targets on the build machine and tested on Linux
     against hand-written answers; **A3b** Home, the Start page and Make
     a stick on a Mac, the Mac table and the Intel Mac Learn page;
@@ -2852,15 +2852,15 @@ as possible before the next build.
     **Batch A3a, the macOS module** (Opus: a system interface written
     blind, where a wrong guess must fail closed).
 
-    Files: `faraday/shells/hub/src/macos/` (new), its `Cargo.toml`
+    Files: `faraday/shells/starter/src/macos/` (new), its `Cargo.toml`
     (a `cfg(target_os = "macos")` dependency on `libc`, the lockfile's
     `=0.2.189`, with a line in `docs/deps/libc.md`), `src/lib.rs`,
     `src/platform.rs`, `tests/macos/` (new), `tools/check-macos.sh`
-    (new) and the `lint` recipe in `justfile`. In `faraday-hub`, only
+    (new) and the `lint` recipe in `justfile`. In `faraday-starter`, only
     `api.rs`: `Os::MacOs`, and the one match it breaks
     (`LearnId::for_computer` in `lib.rs`) answering `StartLinux` for
     now, with a `// A3b:` comment; A3b gives it its page. Nothing else
-    in `faraday-hub`, nothing in `src/linux/`, `src/windows/`,
+    in `faraday-starter`, nothing in `src/linux/`, `src/windows/`,
     `writer.rs` or `stick.rs` beyond what a Mac needs from a shared
     function, each such change named in the report.
 
@@ -2878,7 +2878,7 @@ as possible before the next build.
        it does not understand is an error, never a partial answer.
     2. **`diskutil`**: from `diskutil list -plist` and `diskutil info
        -plist <disk>` for each whole disk and its partitions, the
-       `Disk`s HUB §4.2 offers, as `src/linux/udisks.rs` builds them:
+       `Disk`s STARTER §4.2 offers, as `src/linux/udisks.rs` builds them:
        - Listed: a whole, physical disk (`VirtualOrPhysical` not
          `Virtual`; never a disk image) on `BusProtocol` `USB`
          (`Bus::Usb`), or the built-in reader's `Secure Digital`
@@ -2960,7 +2960,7 @@ as possible before the next build.
        (a Mac has no firmware settings to restart into) and A3b never
        offers it on a Mac.
     8. **`tools/check-macos.sh`**, run by `just lint`: for each of
-       the two Mac targets, `cargo clippy -p faraday-hub-shell
+       the two Mac targets, `cargo clippy -p faraday-starter-shell
        --all-targets --target <t> -- -D warnings`, in
        `target/check-macos/`, with `CC_<target>` and `AR_<target>`
        set to stand-ins it writes there (an empty object for `-o`, an
@@ -3016,7 +3016,7 @@ as possible before the next build.
     `Info.plist` is binary reads as in the way.
 
     **Batch A3b, Home on a Mac** (Opus), after A3a's audit. Files:
-    `faraday-hub` (new `src/macs.rs`; `decide.rs`, `draw.rs`,
+    `faraday-starter` (new `src/macs.rs`; `decide.rs`, `draw.rs`,
     `lib.rs`), `faraday-learn` (`BOOT`, `OWN`),
     `docs/learn/faraday/boot/mac-intel.md` (new),
     `faraday-strings`' `en.rs` (`hub_` strings), the hub's tests.
@@ -3069,7 +3069,7 @@ as possible before the next build.
        tried on (M6). The website publishes it at `/start/mac-intel`
        (the website repository's work; the orchestrator tells that
        session).
-    5. **Make a stick, *For which computer?*** (MAC §6, HUB §3.2):
+    5. **Make a stick, *For which computer?*** (MAC §6, STARTER §3.2):
        shown only when the payload carries both stick images, which
        none does until A1. `PayloadKind::AppleStick` for
        `faraday-stick-…-arm64-apple.img.xz`; rows "A PC or an Intel
@@ -3085,7 +3085,7 @@ as possible before the next build.
     computer?* absent with one stick image, present with two (a stand-in
     payload) with nothing chosen and the right row tagged. Renders of
     Home and Start at 1280x800 for an Intel and a T2 Mac
-    (`just faraday-hub-snap`'s script gains a Mac computer).
+    (`just faraday-starter-snap`'s script gains a Mac computer).
 
     **A3b built and audited (2026-10-13).** As specified: `macs.rs`
     with the 173-row table as data (`macs.tsv`, read with
@@ -3093,7 +3093,7 @@ as possible before the next build.
     screen code as literals); `mac-intel` in `BOOT` and `OWN`; Home,
     This computer and the Start page on a Mac; *For which computer?*
     with `PayloadKind::AppleStick`; 19 `hub_` strings; 11 tests in
-    `faraday-hub/tests/mac.rs`. Rows changed from the research:
+    `faraday-starter/tests/mac.rs`. Rows changed from the research:
     MacPro2,1 is 32-bit EFI (the same firmware as MacPro1,1);
     iMac5,2 and Mac17,5 named from EveryMac and Asahi's device list,
     which Apple's pages do not list. Windows through Boot Camp keeps
@@ -3108,7 +3108,7 @@ as possible before the next build.
     `NSCameraUsageDescription`, the icon), `just faraday-mac-starter`
     (a universal binary, ad-hoc signed, `ditto`'s zip), and on the Mac:
     every hand-written answer replaced by a recorded one, the serial,
-    the screens and USB devices of HUB §3.1a, Startup Security read
+    the screens and USB devices of STARTER §3.1a, Startup Security read
     from NVRAM where it shows (`AppleSecureBootPolicy`), authopen's
     prompt and a stick written and read back, install and uninstall,
     Transfer's camera. Then, after A1 and A2, the Apple Silicon setup
@@ -3144,7 +3144,7 @@ as possible before the next build.
        `guide_address`: the stick's QR code needs the address, not the
        page. Its doc comment says which crate holds the guides and why.
        `faraday-core`'s re-export loses `BOOT`.
-    3. **`faraday-hub` and `faraday-companion`** read guides from
+    3. **`faraday-starter` and `faraday-companion`** read guides from
        `faraday-guides`; the Companion's list of every page is
        `faraday_learn::ids()` then `faraday_guides::ids()`, in today's
        order.
@@ -3163,7 +3163,7 @@ as possible before the next build.
     go, replaced by a test in `faraday-learn` that none of its pages
     carries a `::sketch` line.
 
-    5. **`docs/HUB.md` §7.2**: the guides are carried by the hub app
+    5. **`docs/STARTER.md` §7.2**: the guides are carried by the hub app
        and the Companion, and published by the website; the desktop
        app and the stick carry only the address of the one for this
        computer.

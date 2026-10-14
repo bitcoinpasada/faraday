@@ -1,5 +1,5 @@
-//! Every id the hub app and the Companion open a guide by has a page
-//! here (`docs/HUB.md` §7.2, §7.6): every maker's, and the general
+//! Every id the Starter and the Companion open a guide by has a page
+//! here (`docs/STARTER.md` §7.2, §7.6): every maker's, and the general
 //! pages the stick's QR names an address for (`windows`, `linux`,
 //! `mac-intel`).
 
@@ -14,8 +14,8 @@ fn every_maker_and_general_guide_has_a_page() {
     }
 }
 
-// The guides to starting a computer from the stick (docs/HUB.md §7.2),
-// which the hub app's screens open by id: each id finds its page, and a
+// The guides to starting a computer from the stick (docs/STARTER.md §7.2),
+// which the Starter's screens open by id: each id finds its page, and a
 // guide puts what has to be in hand before any firmware step first.
 // `replace-faraday` is faraday-learn's, found through `page`'s fallback.
 
@@ -24,7 +24,7 @@ fn guide(id: &str) -> &'static osk_learn::Page {
 }
 
 #[test]
-fn every_guide_the_hub_links_to_is_there() {
+fn every_guide_the_starter_links_to_is_there() {
     let titles: Vec<&str> = faraday_guides::BOOT
         .iter()
         .map(|id| guide(id).title)

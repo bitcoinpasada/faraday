@@ -1,18 +1,18 @@
 # lzma-rust2
 
-**Purpose.** The hub app carries the release's images and the desktop
+**Purpose.** The Starter carries the release's images and the desktop
 app as the `.xz` files the release publishes, and decompresses one
 while it writes it to a stick or a card, or extracts it to run
-(`docs/HUB.md` §1.3, §4.1). `faraday/faraday-payload` is the only
+(`docs/STARTER.md` §1.3, §4.1). `faraday/faraday-payload` is the only
 crate that uses it, and only for decoding: the payload is compressed by
 the `xz` program in the staging script, so nothing here compresses.
 
 **Why this crate.** It is pure Rust, and with the default features off
 it is safe Rust too: its one source of `unsafe` is the `optimization`
 feature, and without it the crate builds under its own
-`#![forbid(unsafe_code)]`. HUB §1.3 rules out liblzma and any other C
+`#![forbid(unsafe_code)]`. STARTER §1.3 rules out liblzma and any other C
 decompressor (xz-utils 5.6.0 and 5.6.1 carried a backdoor in 2024), and
-this is the pure-Rust decoder that meets the rest of what the hub app
+this is the pure-Rust decoder that meets the rest of what the Starter
 needs, read in its source:
 
 - It decodes what `xz -9e -T1` writes: an LZMA2 block with a 64 MiB
@@ -68,7 +68,7 @@ crate was not.
   author, about 60,000 downloads, and its SHA-256 check pulls `sha2`
   0.10, which would bring a second copy of the RustCrypto hashing stack
   (`docs/deps/argon2.md` says which five crates).
-- `liblzma`, `xz2`, `lzma-sys`: bindings to the C library HUB §1.3 rules
+- `liblzma`, `xz2`, `lzma-sys`: bindings to the C library STARTER §1.3 rules
   out.
 - `lzma-rust`: the unmaintained original this crate forked.
 - `omnizip-lzma`, `oxiarc-lzma`: first published in 2026, each with

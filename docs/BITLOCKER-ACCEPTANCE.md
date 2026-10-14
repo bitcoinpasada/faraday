@@ -1,12 +1,12 @@
 # BitLocker guard: acceptance runs
 
-The steps for `docs/HUB.md` §6.6's runs 1 to 8, in a Windows 11 Pro
+The steps for `docs/STARTER.md` §6.6's runs 1 to 8, in a Windows 11 Pro
 virtual machine, before batch W ships. Runs 1 to 6 test the extra-safe
 path (BitLocker suspended); runs 7 and 8 test the default path, the
 recovery key in hand and nothing suspended (F17); runs 7 and 8 are
 optional, replaced by a check of the default page on Windows before
-the Windows release (`docs/HUB.md` §6.6). Each run starts from the same
-saved state of the machine, follows the hub app on its screen, and is
+the Windows release (`docs/STARTER.md` §6.6). Each run starts from the same
+saved state of the machine, follows the Starter on its screen, and is
 recorded as the end of this file says. A run passes only when every
 "Must see" line holds; one that does not stops the batch until the
 cause is found and fixed in the code, and the run is done again from
@@ -33,14 +33,14 @@ only, never 3 or 5.
 - A second account, a standard user, for run 4b.
 - On the machine's answer disk or a second USB image: `Faraday Starter.exe`
   from `just faraday-windows-bin` with the release payload
-  (`FARADAY_HUB_PAYLOAD=out/payload/X.Y.Z`), and nothing else of the
-  hub app's.
+  (`FARADAY_STARTER_PAYLOAD=out/payload/X.Y.Z`), and nothing else of the
+  Starter's.
 - The stick image to start: `out/stick/faraday-x86_64-uefi.img`, given
   to the machine as a removable USB stick (`winvm.sh start --usb-stick
   …`). A second raw FAT image (`--usb-fat`) stands for a USB drive Save
   may write to.
 
-Save the machine with BitLocker on and the hub app never run:
+Save the machine with BitLocker on and the Starter never run:
 
     winvm.sh powerdown; winvm.sh wait-off
     winvm.sh snapshot clean
@@ -49,7 +49,7 @@ Every run starts with `winvm.sh snapshot -a clean`.
 
 ## Before run 1: what the build is checked against first
 
-The hub app was built against Microsoft's documentation and recorded
+The Starter was built against Microsoft's documentation and recorded
 answers, with no Windows computer. Three of its readings are checked
 here before anything else, from an administrator's command prompt in
 the machine:
@@ -59,7 +59,7 @@ the machine:
       line is the shell's `System.Volume.BitLockerProtection` for C:,
       read without elevation; with BitLocker on it must be `Some(1)`.
       The rest is `Win32_EncryptableVolume` as
-      `faraday/shells/hub/tests/windows/*.wmi` records it: C: must be
+      `faraday/shells/starter/tests/windows/*.wmi` records it: C: must be
       listed with `type 0 protection 1`, `GetConversionStatus` must
       answer `0 ConversionStatus=u32:1`, `GetKeyProtectors` must answer
       `0` and one protector ID. No line may hold a recovery password.
@@ -69,7 +69,7 @@ the machine:
       until resumed, as `Suspend-BitLocker -RebootCount 0` leaves it).
       If the shell's value for a suspended drive is anything but 5,
       `bitlocker::shell_protection` reads it wrong: stop and fix it.
-- [ ] The key the hub app shows is the recovery password
+- [ ] The key the Starter shows is the recovery password
       `manage-bde -protectors -get C: -Type RecoveryPassword` prints,
       digit for digit, and its key ID is the first eight hex digits of
       that protector's ID.
@@ -87,7 +87,7 @@ Copy `record-on.txt` and `record-suspended.txt` off the machine; they
 replace the hand-made recordings once checked (the volume GUIDs are the
 virtual machine's own and name nothing else).
 
-## Run 1: through the hub app, Secure Boot back on
+## Run 1: through the Starter, Secure Boot back on
 
 1. Start the machine (Secure Boot on). Sign in. Run `Faraday Starter.exe`,
    choose Install, install. Attach the second USB image.
@@ -106,7 +106,7 @@ virtual machine's own and name nothing else).
    does not match, and `manage-bde -status C:` still says "Protection
    On". Type both right; **Suspend BitLocker**; the elevation prompt;
    Yes.
-7. Done's lines. Then, outside the hub app:
+7. Done's lines. Then, outside the Starter:
    `manage-bde -status C:` "Protection Off";
    `type %LOCALAPPDATA%\faraday\bitlocker-suspended` (the volume and
    `secure-boot on`, nothing else);
@@ -116,8 +116,8 @@ virtual machine's own and name nothing else).
    finds nothing.
 8. Home: the card offers the firmware restart. Choose it; the sheet;
    **Restart**. The machine restarts into OVMF's setup. In a virtual
-   machine the button is greyed: the hub app holds the restarts there
-   (`docs/HUB.md` §3.1a, `restart_holds`), so step 9 uses `winvm.sh`.
+   machine the button is greyed: the Starter holds the restarts there
+   (`docs/STARTER.md` §3.1a, `restart_holds`), so step 9 uses `winvm.sh`.
 9. Secure Boot off there (Device Manager, Secure Boot Configuration,
    Attempt Secure Boot off, F10, reset), or `winvm.sh start
    --secure-boot off --usb-stick out/stick/faraday-x86_64-uefi.img`
@@ -129,7 +129,7 @@ virtual machine's own and name nothing else).
 Must see:
 
 - [ ] **No recovery prompt** at step 10: Windows' sign-in screen.
-- [ ] At sign-in the hub app opens on its BitLocker page by itself, with
+- [ ] At sign-in the Starter opens on its BitLocker page by itself, with
       **Resume BitLocker** (the logon reminder).
 - [ ] Home, opened again by hand, shows Resume BitLocker as the next
       step.
@@ -138,7 +138,7 @@ Must see:
       Run value are gone.
 - [ ] One more restart, Secure Boot on: no recovery prompt.
 - [ ] The saved file on the USB image holds the key and nothing names a
-      file of the hub app's beside it.
+      file of the Starter's beside it.
 
 ## Run 2: Windows started with Secure Boot still off
 
@@ -154,7 +154,7 @@ Must see:
       back on**; Resume BitLocker reads "Needs Secure Boot on" and is
       not offered, on Home and on the BitLocker page.
 - [ ] Shut down, Secure Boot on, start: no recovery prompt; at sign-in
-      the hub app opens with **Resume BitLocker**; resuming works as in
+      the Starter opens with **Resume BitLocker**; resuming works as in
       run 1.
 
 ## Run 3: the firmware's keys reset before Secure Boot goes back on
@@ -190,9 +190,9 @@ Must see:
       card says **Do the BitLocker step**; `manage-bde -status C:`
       "Protection On"; no marker file, no Run value.
 
-## Run 5: without the hub app, the prompt appears
+## Run 5: without the Starter, the prompt appears
 
-From `clean`: shut down, Secure Boot off, start Windows. The hub app is
+From `clean`: shut down, Secure Boot off, start Windows. The Starter is
 never run.
 
 Must see:
@@ -215,7 +215,7 @@ Must see:
 
 - [ ] a: the sheet says "BitLocker stays suspended until it is resumed."
       and offers **Resume BitLocker**, which resumes (Protection On).
-      Uninstalling instead, without resuming: the hub app, its shortcut,
+      Uninstalling instead, without resuming: the Starter, its shortcut,
       its uninstall entry, the marker and the Run value are gone, and
       `manage-bde -status C:` still says "Protection Off".
 - [ ] b: the sheet says "BitLocker stays suspended until it is resumed:
@@ -238,7 +238,7 @@ Must see:
    have kept it**, no groups asked for. Compare the key with
    `manage-bde -protectors -get C: -Type RecoveryPassword`.
 4. **I have my recovery key**: the key leaves the screen; the page reads
-   "Recovery key kept". Outside the hub app: `manage-bde -status C:`
+   "Recovery key kept". Outside the Starter: `manage-bde -status C:`
    still "Protection On"; no `%LOCALAPPDATA%\faraday\bitlocker-suspended`;
    no Run value.
 5. Home: BitLocker reads "Recovery key kept"; the card offers the
@@ -284,7 +284,7 @@ For each run, in the completion report:
 - each step as done, with anything that differed from this file;
 - a screenshot of Windows' first screen after every start
   (`winvm.sh screenshot`), named by run and start;
-- screenshots of the hub app's BitLocker page at each step it changes;
+- screenshots of the Starter's BitLocker page at each step it changes;
 - `manage-bde -status C:` before the run, after Suspend and after
   Resume (runs 7 and 8: before the run and after I have my recovery
   key); the marker's text and the Run value where the run checks

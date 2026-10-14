@@ -1,4 +1,4 @@
-//! The verifying, streaming decoder (`docs/HUB.md` §1.3, §4.1).
+//! The verifying, streaming decoder (`docs/STARTER.md` §1.3, §4.1).
 
 use core::fmt;
 use std::io::{self, Read, Seek, SeekFrom, Write};
@@ -18,7 +18,7 @@ const IN_CHUNK: usize = 64 * 1024;
 /// What is handed to the writer at a time, at most.
 const OUT_CHUNK: usize = 1024 * 1024;
 
-/// What a developer's image file is (`--image`, `docs/HUB.md` §1.1).
+/// What a developer's image file is (`--image`, `docs/STARTER.md` §1.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ImageKind {
     /// The image's own bytes: an `.img`, or a `-boot.vfat`.

@@ -12,7 +12,7 @@ to `tools/fontbake` only; no font file and no TTF parser ships on a device
 | `NotoSans-SemiCondensedSemiBold.ttf` | Noto Sans SemiCondensed | titles, row labels, buttons on `small` |
 | `NotoSansMono-Regular.ttf` | Noto Sans Mono | the arrows and triangles the other faces lack |
 | `iosevka/Iosevka-Regular.ttf` | Iosevka | everything read character by character: keycaps, candidates, fingerprints, hex, paths, addresses, chunked strings |
-| `TerminusTTF-4.49.3.ttf` | Terminus (TTF) | the firmware sketches' text-mode face (`docs/HUB.md` §7.8): ASCII and a few arrows |
+| `TerminusTTF-4.49.3.ttf` | Terminus (TTF) | the firmware sketches' text-mode face (`docs/STARTER.md` §7.8): ASCII and a few arrows |
 | `seedsigner-icons.otf` | SeedSigner icons | the `U+E9xx` icons of the `Icon` set |
 | `Font_Awesome_6_Free-Solid-900.otf` | Font Awesome 6 Free Solid | the rest of the `Icon` set |
 | `cjk/NotoSans{JP,KR,TC,SC}-Regular.otf` | Noto Sans CJK | the wordlist and keyboard glyphs the faces above lack |

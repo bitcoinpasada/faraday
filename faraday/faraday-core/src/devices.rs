@@ -1,11 +1,11 @@
 //! What else can capture what Faraday shows or what is typed
-//! (`docs/HUB.md` §3.1a), and the stick's check at start.
+//! (`docs/STARTER.md` §3.1a), and the stick's check at start.
 //!
 //! The rules are pure functions over what the machine says of itself: a
 //! USB device's identity as `/sys/bus/usb/devices` holds it (the same
 //! attributes `faraday-grant` reads before authorising a device; nothing
 //! new is bound), the CPU's flags, and the firmware's DMI strings. The
-//! hub app can call the same functions on what its platform reads.
+//! Starter can call the same functions on what its platform reads.
 //!
 //! On the stick, the shell reads the machine once at start
 //! ([`DeviceCheck::machine`]) and the USB devices whenever they change

@@ -1,10 +1,10 @@
-//! The file and path names the Starter's install uses (`docs/HUB.md`
+//! The file and path names the Starter's install uses (`docs/STARTER.md`
 //! §5.2, `docs/DECISIONS.md` F16): the one place they are written, so a
 //! rename is a change here and in the docs. The words people read
 //! ("Faraday Starter", "Faraday Desktop") are `strings/en.rs`'s, never
 //! these (the strings lint leaves this file out for that reason). Plain
-//! constants only: `shells/hub/build.rs` includes this file. The release
-//! files' names are `faraday/tools/stage-release.sh`'s `hub_release_name`.
+//! constants only: `shells/starter/build.rs` includes this file. The release
+//! files' names are `faraday/tools/stage-release.sh`'s `starter_release_name`.
 
 /// The installed Starter on Linux, in `~/.local/bin`.
 pub const LINUX_BIN: &str = "faraday-starter";
@@ -26,7 +26,7 @@ pub const WIN_SHORTCUT: &str = "Faraday Starter.lnk";
 /// One earlier install's names, found and removed by install and
 /// uninstall when it is Faraday's. These never change.
 pub struct Legacy {
-    /// Linux: the hub app in `~/.local/bin`.
+    /// Linux: the app in `~/.local/bin`.
     pub linux_bin: &'static str,
     /// Linux: its menu entry and icon.
     pub menu_id: &'static str,
@@ -38,7 +38,10 @@ pub struct Legacy {
     pub win_shortcut: &'static str,
 }
 
-/// The test install of 2026-10-12 and the "Faraday Hub" build.
+/// Names earlier builds installed under: the test install of 2026-10-12,
+/// and the "Faraday Hub" build (the code's working name before it was
+/// renamed to Starter). These stay so the Starter still finds and
+/// removes them on an upgrade; they never change.
 pub const LEGACY: [Legacy; 2] = [
     Legacy {
         linux_bin: "faraday",

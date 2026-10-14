@@ -1,5 +1,5 @@
-//! The BitLocker recovery key's text (`docs/HUB.md` §6.2,
-//! `docs/COMPANION.md` §4.6): what the hub app's QR code carries is what
+//! The BitLocker recovery key's text (`docs/STARTER.md` §6.2,
+//! `docs/COMPANION.md` §4.6): what the Starter's QR code carries is what
 //! the Companion reads back, and nothing else reads as a key.
 
 use faraday_qr::bitlocker::{KeyText, RecoveryKey};

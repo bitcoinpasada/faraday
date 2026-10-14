@@ -34,7 +34,7 @@ enum Kind {
     /// Awesome glyphs the UI names.
     Icon,
     /// The firmware glyph set: what a firmware screen's sketch draws
-    /// (`docs/HUB.md` §7.8), ASCII and a few arrows.
+    /// (`docs/STARTER.md` §7.8), ASCII and a few arrows.
     Firmware,
 }
 

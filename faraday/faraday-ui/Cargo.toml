@@ -17,7 +17,7 @@ osk-ui = { path = "../../core/osk-ui" }
 osk-codec = { path = "../../core/osk-codec", default-features = false }
 # The themes' names.
 faraday-strings = { path = "../faraday-strings" }
-# The firmware sketches' types (`docs/HUB.md` §7.8); the data stays in
+# The firmware sketches' types (`docs/STARTER.md` §7.8); the data stays in
 # faraday-guides, read by whoever looks a sketch up.
 faraday-learn = { path = "../faraday-learn" }
 

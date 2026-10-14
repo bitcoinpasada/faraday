@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# The hub app's macOS code, checked without a Mac (HANDOFF item 73, A3a):
-# clippy with warnings as errors over faraday-hub-shell and its tests, for
+# The Starter's macOS code, checked without a Mac (HANDOFF item 73, A3a):
+# clippy with warnings as errors over faraday-starter-shell and its tests, for
 # both Mac targets, aarch64-apple-darwin and x86_64-apple-darwin.
 #
 # Why no Mac is needed: a check type-checks and lints Rust for the target
@@ -60,5 +60,5 @@ for t in "${targets[@]}"; do
     var=${t//-/_}
     echo "check-macos: $t"
     env "CC_$var=$cc" "AR_$var=$ar" CARGO_TARGET_DIR="$dir" \
-        cargo clippy -p faraday-hub-shell --all-targets --target "$t" -- -D warnings
+        cargo clippy -p faraday-starter-shell --all-targets --target "$t" -- -D warnings
 done

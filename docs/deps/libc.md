@@ -48,7 +48,7 @@ interface and a fresh decision under §16.33.
 
 ## The Starter on macOS: authopen's descriptor
 
-**Where it is used:** `faraday/shells/hub` (`faraday-hub-shell`), under
+**Where it is used:** `faraday/shells/starter` (`faraday-starter-shell`), under
 `[target.'cfg(target_os = "macos")'.dependencies]`, at the lockfile's
 `=0.2.189` with `default-features = false`, in one function:
 `src/macos/mac.rs`'s `receive` (HANDOFF item 73, batch A3a;
@@ -56,13 +56,13 @@ interface and a fresh decision under §16.33.
 
 **Why it is needed.** On a Mac the Starter writes a stick through the
 descriptor `/usr/libexec/authopen -stdoutpipe` opens after the system's
-own password prompt, so no part of the hub app runs as root. authopen
+own password prompt, so no part of the Starter runs as root. authopen
 sends that descriptor over a Unix socket as an `SCM_RIGHTS` control
 message. std makes the socket (`UnixStream::pair`) but receiving
 ancillary data is not stable in std, so `recvmsg`, the `msghdr`,
 `iovec` and `cmsghdr` structs, the `CMSG_*` macros and four constants
 (`SOL_SOCKET`, `SCM_RIGHTS`, `MSG_CTRUNC`, `O_RDWR`) come from `libc`.
-Nothing else in the hub app calls it; every other macOS step is a
+Nothing else in the Starter calls it; every other macOS step is a
 program run by its absolute path.
 
 **Cost.** None new: `libc` 0.2.189 is already in the lock file and in

@@ -2,20 +2,20 @@
 
 **Status:** spec v0.1 · 2026-10-12 · decided by the owner in discussion
 (`docs/DECISIONS.md` F13; every decision in §9 taken). Not built. The
-owner picked up the Mac work on 2026-10-13 with the hub app, Faraday
+owner picked up the Mac work on 2026-10-13 with the Starter, Faraday
 Starter: batch A3 is split so its part that needs no Mac goes first
 (§8; HANDOFF item 73). F13 supersedes F11's "no macOS
 app": Faraday now targets Macs across the stick, the desktop app and the
-hub app.
+Starter.
 
 What it adds:
 
 - **Intel Macs** start the PC stick (`x86_64-uefi`) as it is, with one
   added keyboard driver and the guides to reach it.
 - **Apple Silicon Macs** (M1 and M2 first) start a new stick image,
-  `arm64-apple`, through a start-up file the hub app installs once on
+  `arm64-apple`, through a start-up file the Starter installs once on
   the Mac and Apple's own recovery system seals.
-- **The desktop app** and **the hub app** run on macOS.
+- **The desktop app** and **the Starter** run on macOS.
 
 Asahi Linux's work (m1n1, its U-Boot and kernel trees) is what makes
 Apple Silicon possible, and this document uses its names. Faraday
@@ -41,7 +41,7 @@ kernel inside the sealed start-up file (§4.2).
   identification pages or Asahi's feature-support pages (§7). Tries on
   hardware find bugs; no published text says which models were tried
   (§9, M6).
-- Nothing in the hub app reaches a network itself. The one download
+- Nothing in the Starter reaches a network itself. The one download
   §4.5 needs goes through macOS's own `/usr/bin/curl` (F13).
 - Every pinned outside source (kernel, Asahi patches, m1n1, U-Boot,
   Apple's restore-file parts) has a `docs/deps/` entry: where from,
@@ -79,7 +79,7 @@ code, as on a PC (`PLAN.md` §4.6).
 | Device DMA confined | Intel/AMD IOMMU, strict | same image | Apple's DART IOMMUs, strict |
 | Storage rule, disk process, USB authorisation, input trust | `PLAN.md` §4–§5 | same code | same code; the built-in keyboard trusted by its bus (§4.1) |
 | What runs before Faraday's kernel | the firmware | the firmware | Apple's boot ROM and iBoot, then the sealed start-up file (§4.2) |
-| The stick's kernel checked before it runs | only with Secure Boot on and the owner's key enrolled (`PLAN.md` §8, HUB §7.7) | never: Mac firmware takes no custom keys, and a T2 Mac must be set to No Security | when the owner chose their own key at setup (§4.4) |
+| The stick's kernel checked before it runs | only with Secure Boot on and the owner's key enrolled (`PLAN.md` §8, STARTER §7.7) | never: Mac firmware takes no custom keys, and a T2 Mac must be set to No Security | when the owner chose their own key at setup (§4.4) |
 | Changed on the computer | Secure Boot off while used | T2: Startup Security lowered while used | a separate start-up volume, sealed per OS; macOS keeps Full Security |
 | Firmware and other processors | out of scope (`PLAN.md` §4.5) | same | same: Apple's processors run Apple-signed firmware loaded before Faraday |
 
@@ -97,7 +97,7 @@ code, as on a PC (`PLAN.md` §4.6).
 
 ### 2.3 Setup trusts nothing macOS wrote
 
-The start-up file is written by the hub app in macOS, and sealed in
+The start-up file is written by the Starter in macOS, and sealed in
 the Mac's recovery system, which Apple signs and which macOS cannot
 change. A compromised macOS could swap the file between the two. So
 the person types the sealing commands in Recovery's Terminal
@@ -138,7 +138,7 @@ records which GPU drives the panel on one if one is tried.
   is not enough: it accepts only Apple's and Microsoft's Windows
   signatures. Afterwards, the same utility: **Full Security** and
   **Disallow booting from external media**.
-- The stick's power-off reminder (HUB §7.5) on a Mac: `sys_vendor`
+- The stick's power-off reminder (STARTER §7.5) on a Mac: `sys_vendor`
   "Apple Inc." and a T2 model identifier (`product_name`) give "Startup
   Security is lowered. Set it back in macOS Recovery: Startup Security
   Utility." Any other Intel Mac gets no Secure Boot line: its firmware
@@ -201,7 +201,7 @@ A new board, `faraday/image/overlay/boards/arm64-apple/`, beside
 - **Layout:** as the PC stick: GPT, OSKBOOT (FAT32, ESP type) holding
   only `EFI/BOOT/BOOTAA64.EFI`, then OSKDATA. Same partition names and
   sizes, so `faraday-grant`, `faraday-disk`, `faraday-boot` and the
-  hub's keep data work unchanged. The image is
+  Starter's keep data work unchanged. The image is
   `faraday-stick-X.Y.Z-arm64-apple.img.xz`.
 - **Kernel:** mainline, pinned to one release that has what Apple
   Silicon needs (USB on the Type-C ports from 7.0, the SMC and its
@@ -228,7 +228,7 @@ A new board, `faraday/image/overlay/boards/arm64-apple/`, beside
   16K kernel pins whole pages. The stick shell's `cfg!(target_arch =
   "arm")` that means "the Pi" stays true only for 32-bit ARM; aarch64
   says "stick".
-- **No `boot_params`:** the power-off reminder (HUB §7.5) has nothing
+- **No `boot_params`:** the power-off reminder (STARTER §7.5) has nothing
   to say on Apple Silicon: macOS was never lowered.
 - **Input:** M1's keyboard as §3.4. M2's: its `bustype` and sysfs path
   are read on an M2 Mac; it is trusted only if, like SPI, nothing
@@ -259,17 +259,17 @@ button held.
 - `faraday/faraday-macboot`: a crate with no I/O that builds the file
   from the release's template and a key choice (§4.4), reads a file
   back (which key it trusts, which release), and gives its SHA-256. The
-  hub app and Faraday both use it, so the hash a Faraday shows for an
-  owner's key is the hash the hub writes.
+  Starter and Faraday both use it, so the hash a Faraday shows for an
+  owner's key is the hash the Starter writes.
 - The release publishes the no-check file,
   `faraday-mac-boot-X.Y.Z.bin`, and lists it in `SHA256SUMS`. Every
-  image and the hub carry the template.
+  image and the Starter carry the template.
 - **The device trees live in the start-up file**, not on the stick
   (§2.2). A kernel update that needs newer device trees needs a new
   start-up file: each release states the start-up file version it
   needs (`faraday-macboot`'s version number, in the file and in the
   image), the stick says on start when the Mac's file is older than it
-  needs, and the hub offers to redo the setup. A release that keeps the
+  needs, and the Starter offers to redo the setup. A release that keeps the
   version needs nothing on the Mac.
 
 ### 4.3 Requirements on the start-up file
@@ -334,7 +334,7 @@ the Mac, make the keys in a vault and sign the release, then redo the
 setup with the key. That second setup is checked against the value
 the first one's Faraday shows.
 
-### 4.5 Setup, from the hub app
+### 4.5 Setup, from the Starter
 
 "Set up this Mac to start Faraday" (§6) offers it on an M1 or M2 Mac
 (`sysctl hw.model`, and `sysctl.proc_translated` so a Rosetta copy is
@@ -354,7 +354,7 @@ person presses its button.
    certificate's fingerprint.
 3. **Download** (Progress): `/usr/bin/curl --proto =https --tlsv1.2`
    for each pinned URL, byte ranges as asahi-installer reads them;
-   every extracted file checked against the SHA-256 in the hub's
+   every extracted file checked against the SHA-256 in the Starter's
    manifest, and refused otherwise. The URLs, ranges and sums come from
    asahi-installer at its pinned commit, recorded in `docs/deps/`. The
    files are Apple's and Apple-signed; iBoot checks them again at every
@@ -363,7 +363,7 @@ person presses its button.
    `addContainer` / `addVolume` with Preboot, Recovery, Data and System
    roles as asahi-installer makes them, the downloaded parts copied in,
    and the start-up file written. Through the Authorization Services
-   prompt (administrator password); nothing of the hub's runs as root
+   prompt (administrator password); nothing of the Starter's runs as root
    beyond that one command each.
 5. **Recovery** (Record): the instructions, and a QR code of them for
    a phone: shut down; hold the power button until Options appears;
@@ -371,7 +371,7 @@ person presses its button.
 6. **In recovery, typed by the person** (owner, F13): `shasum -a 256`
    on the start-up file's path, compared with the value on the release
    page on their phone (no check) or with Faraday's Secure Boot screen
-   (my own key) — the hub shows the value too, but the guide says the
+   (my own key) — the Starter shows the value too, but the guide says the
    phone's or the Faraday's is the one to trust; then the security
    policy and `kmutil configure-boot` commands asahi-installer's
    `step2.sh` runs at the pinned commit, with the owner's credentials
@@ -382,7 +382,7 @@ person presses its button.
 7. **Done:** to start Faraday, plug in the stick, hold the power button,
    choose Faraday.
 
-The hub's Home (HUB §3.1) on an Apple Silicon Mac shows "Faraday
+The Starter's Home (STARTER §3.1) on an Apple Silicon Mac shows "Faraday
 start-up volume: none", or "installed: any Faraday stick" or "installed:
 your key, fingerprint …", read from the volume's file through
 `faraday-macboot`; the line says it is what the volume holds, which is
@@ -407,7 +407,7 @@ except what only recovery can see, for anyone who does not want the
 Mac to show that Faraday was used. Home offers **Remove Faraday from
 this Mac** whenever the volume is there. On an Intel Mac there is no
 volume or entry to explain: the stick starts from the Option-key menu,
-and the link says so. As in HUB §3.1c for Linux's boot entry.
+and the link says so. As in STARTER §3.1c for Linux's boot entry.
 
 ### 4.6 Removing it
 
@@ -432,7 +432,7 @@ exit through the SMC.
 
 The stick's own upgrade (`PLAN.md` §5.5) works unchanged: it copies the
 running Faraday's boot partition, and only to a stick of the same kind,
-since it requires the running kernel's release string. The hub's
+since it requires the running kernel's release string. The Starter's
 *Replace Faraday, keep data* refuses to write one kind's boot partition
 over the other's: it reads which EFI file the stick's OSKBOOT holds
 (`BOOTX64.EFI` or `BOOTAA64.EFI`) through `faraday-fat`.
@@ -462,35 +462,35 @@ A testing app with test seeds only, as on Linux and Windows.
 - `pin-pages` uses `mlock` as on Linux; the 16K page on Apple Silicon is
   handled already.
 - First open: macOS refuses an unnotarized app; System Settings →
-  Privacy & Security → Open Anyway. The README and the hub's About say
+  Privacy & Security → Open Anyway. The README and the Starter's About say
   so, and how to check the zip against `SHA256SUMS` and its signature.
 
-## 6. The hub app on macOS, and what changes in HUB.md
+## 6. The Starter on macOS, and what changes in STARTER.md
 
-Folded into `docs/HUB.md` on 2026-10-13 (its §13 lists each). The
-hub app is now Faraday Starter (F16), so its files below are
+Folded into `docs/STARTER.md` on 2026-10-13 (its §13 lists each). The
+app is now Faraday Starter (F16), so its files below are
 `Faraday-Starter-X.Y.Z-macOS.zip` and `Faraday Starter.app`, installed
 at `~/Applications/Faraday Starter.app`. One change from this list:
-after a write the hub app unmounts the stick (`diskutil unmountDisk`)
+after a write the Starter unmounts the stick (`diskutil unmountDisk`)
 rather than ejecting it, so the stick it just made stays listed and
 Home goes on to the next step (HANDOFF item 73, A3a).
 
-- **§1.1 Release files:** `Faraday-X.Y.Z-macOS.zip` (the hub app,
+- **§1.1 Release files:** `Faraday-X.Y.Z-macOS.zip` (the Starter,
   universal, `Faraday.app`, ad-hoc signed);
   `faraday-desktop-X.Y.Z-macos.zip`; `faraday-stick-X.Y.Z-arm64-apple.img.xz`;
-  `faraday-mac-boot-X.Y.Z.bin`. Every hub (Windows, Linux, macOS)
+  `faraday-mac-boot-X.Y.Z.bin`. Every Starter (Windows, Linux, macOS)
   carries the Apple Silicon image and the start-up file template in its
-  payload; the macOS hub carries the desktop app.
-- **§2:** a `macos` module in `faraday/shells/hub` beside `linux` and
+  payload; the macOS Starter carries the desktop app.
+- **§2:** a `macos` module in `faraday/shells/starter` beside `linux` and
   `windows`, implementing its `Platform` trait
-  (`faraday/shells/hub/src/platform.rs`, committed c3519bc);
+  (`faraday/shells/starter/src/platform.rs`, committed c3519bc);
   `restart_into_firmware` has no Mac form and returns its refusal, and
   the Apple Silicon setup and removal (§4.5–§4.6) are additions the
   trait gains for Macs only. Disks from `diskutil list -plist` and `diskutil info
   -plist` (external, physical, protocol USB or SD); unmounted with
   `diskutil unmountDisk`; opened through `/usr/libexec/authopen` (the
   system's own password prompt hands back a descriptor for
-  `/dev/rdiskN`, read and write), so no part of the hub runs as root;
+  `/dev/rdiskN`, read and write), so no part of the Starter runs as root;
   after writing and reading back, `diskutil eject`, because macOS
   mounts every FAT volume it sees and writes `.fseventsd` and other
   folders to it. Facts (§7.1): maker Apple, `sysctl hw.model`,
@@ -523,7 +523,7 @@ Home goes on to the next step (HANDOFF item 73, A3a).
   not notarized; Open Anyway). §10.3 adds: the Faraday start-up volume
   and the shrunk macOS container, and the remove action that takes both
   back.
-- **§11:** batches A3 and D below join HUB's list after L.
+- **§11:** batches A3 and D below join STARTER's list after L.
 
 ## 7. Supported hardware, published
 
@@ -542,8 +542,8 @@ buying or trying, and the website's download page links to it.
   Asahi's feature-support pages, cited under the table with the date
   read. 32-bit EFI models are listed as not supported with how to check
   (`ioreg -l -p IODeviceTree | grep firmware-abi`).
-- The same list is what the hub reads to say "This Mac cannot start
-  Faraday yet": one table in the code (`faraday-hub`), with a test that
+- The same list is what the Starter reads to say "This Mac cannot start
+  Faraday yet": one table in the code (`faraday-starter`), with a test that
   the README's rows and the table agree.
 
 ### 7.1 No "Tried" column
@@ -562,20 +562,20 @@ not a model tried on.
 
 | Batch | What | Needs | Order |
 |---|---|---|---|
-| I | Intel Macs: the PC kernel's changes (§3.3), SPI input trust (§3.4), the Mac power-off line (§3.2) with the Intel Mac guide's QR code, the README's Intel rows from A3b's table, with the test that they agree (§7) | decided | independent of the hub batches; the README rows after A3b |
+| I | Intel Macs: the PC kernel's changes (§3.3), SPI input trust (§3.4), the Mac power-off line (§3.2) with the Intel Mac guide's QR code, the README's Intel rows from A3b's table, with the test that they agree (§7) | decided | independent of the Starter batches; the README rows after A3b |
 | D | The desktop app on macOS (§5), its recipe and release file | a Mac to build on (§9, M7) | waits for a Mac |
 | A1 | The `arm64-apple` stick image (§4.1), with the Asahi keyboard patches and their `docs/deps` review | decided | after I |
 | A2 | The start-up file (§4.2–§4.4): m1n1 and U-Boot pinned and built under §4.3, `faraday-macboot`, the QEMU check, the published no-check file | decided | after A1 |
-| A3a | The hub's macOS module (§6): disks, writing through `authopen`, facts, install; type-checked for both Mac targets and tested on Linux against hand-written answers (HANDOFF item 73) | decided | now (owner, 2026-10-13); needs no Mac |
-| A3b | Home, the Start page and Make a stick on a Mac (Intel Macs; Apple Silicon says it cannot start Faraday yet); the Mac table in `faraday-hub`; the Intel Mac Learn page (moved here from I) | decided | after A3a; needs no Mac |
-| A3c | The hub on a Mac: the bundle and its recipe, every answer recorded on a Mac, the device checks; then the Apple Silicon setup and removal (§4.5–§4.6), tried on an M1 or M2 Mac with the owner; the Apple Silicon README rows | a Mac to build on and an M1 or M2 Mac to try (M7) | after A3b, and A2 for Apple Silicon; waits for a Mac |
+| A3a | The Starter's macOS module (§6): disks, writing through `authopen`, facts, install; type-checked for both Mac targets and tested on Linux against hand-written answers (HANDOFF item 73) | decided | now (owner, 2026-10-13); needs no Mac |
+| A3b | Home, the Start page and Make a stick on a Mac (Intel Macs; Apple Silicon says it cannot start Faraday yet); the Mac table in `faraday-starter`; the Intel Mac Learn page (moved here from I) | decided | after A3a; needs no Mac |
+| A3c | The Starter on a Mac: the bundle and its recipe, every answer recorded on a Mac, the device checks; then the Apple Silicon setup and removal (§4.5–§4.6), tried on an M1 or M2 Mac with the owner; the Apple Silicon README rows | a Mac to build on and an M1 or M2 Mac to try (M7) | after A3b, and A2 for Apple Silicon; waits for a Mac |
 | A4 | Faraday's Secure Boot screen showing the start-up file's hash for a key (§4.4); the arm64 build record | decided | after A2 |
 
 Tests state what a person sees or can do: the SPI keyboard trusted and
 a USB device faking the bus not (§3.4); the Mac power-off line for a T2
 and a non-T2 model string; `faraday-macboot` building the same file for
 the same key every time, refusing `.esl` files that do not parse, and
-reading back the key it was given; the QEMU check (§4.3); the hub's
+reading back the key it was given; the QEMU check (§4.3); the Starter's
 *For which computer?* and keep data refusing the other kind; the Mac's
 facts mapped to the right Home line for an Intel, T2, M1, M2 and M4
 model string; the README table and the code's table agreeing.
@@ -589,8 +589,8 @@ Taken by the owner on 2026-10-12 in discussion, except where marked.
   and M5 when m1n1 starts on them.
 - **M2 The key the start-up file trusts:** chosen at setup: none (any
   Faraday stick) or the owner's own. No project key.
-- **M3 Apple's files:** downloaded by the hub through macOS's own curl
-  from Apple, pinned by SHA-256; the hub carries no network code.
+- **M3 Apple's files:** downloaded by the Starter through macOS's own curl
+  from Apple, pinned by SHA-256; the Starter carries no network code.
 - **M4 Out-of-tree code:** Asahi's two keyboard drivers, in the Apple
   Silicon kernel only. No t2bce; no trackpad firmware. On the PC
   kernel, `applespi` and OHCI; `bcm5974` forbidden.
@@ -603,5 +603,5 @@ Taken by the owner on 2026-10-12 in discussion, except where marked.
   and A3 wait until a Mac is available to build on (Apple's SDK
   licence allows it only on a Mac) and an M1 or M2 Mac to try.
 - **M8 Signing on macOS:** ad-hoc, not notarized; Open Anyway.
-- **M9 Removing the start-up volume:** offered by the hub, for privacy
+- **M9 Removing the start-up volume:** offered by the Starter, for privacy
   (owner).

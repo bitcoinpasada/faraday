@@ -1,6 +1,6 @@
 //! The USB devices attached, as `/sys/bus/usb/devices` describes them:
 //! the same attributes `faraday-grant` reads before it authorises a
-//! device, read here for the app's device check (`docs/HUB.md` §3.1a).
+//! device, read here for the app's device check (`docs/STARTER.md` §3.1a).
 //! Every one of them is readable by any user; nothing is bound or opened.
 
 use std::fs;

@@ -11,15 +11,15 @@ version := ""
 # The desktop app at out/linux/faraday, built in a Debian 11 container
 # (faraday/build/linux) against glibc 2.31, so one file runs on Ubuntu
 # 20.04 and later, Debian 11 and later, Fedora 32 and later and Arch
-# (docs/HUB.md §1.2). The Wayland and X11 libraries are loaded from the
-# desktop it runs on. The hub app is built the same way with
-# the arguments `out/linux out/build/run faraday-hub-shell faraday-starter`, against the payload a first
-# `just faraday-release-stage` left: FARADAY_HUB_PAYLOAD=out/payload/VERSION
-# in the environment is mounted into the container and built in (HUB
-# §1.3); without it the hub app carries no payload. Then
-# `just faraday-release-stage-hub VERSION` adds it to the release.
+# (docs/STARTER.md §1.2). The Wayland and X11 libraries are loaded from the
+# desktop it runs on. The Starter is built the same way with
+# the arguments `out/linux out/build/run faraday-starter-shell faraday-starter`, against the payload a first
+# `just faraday-release-stage` left: FARADAY_STARTER_PAYLOAD=out/payload/VERSION
+# in the environment is mounted into the container and built in (STARTER
+# §1.3); without it the Starter carries no payload. Then
+# `just faraday-release-stage-starter VERSION` adds it to the release.
 #
-#   FARADAY_HUB_PAYLOAD=out/payload/0.2.0 just faraday-linux-bin out/linux out/build/run faraday-hub-shell faraday-starter
+#   FARADAY_STARTER_PAYLOAD=out/payload/0.2.0 just faraday-linux-bin out/linux out/build/run faraday-starter-shell faraday-starter
 #
 # Sticks are folders in ~/faraday-sticks: BOOTSTICK, plugged in at start
 # as the stick the device booted from (renamed, the app starts with no
@@ -43,11 +43,11 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop
     FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV=0 FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
     export FARADAY_BUILD
     {{docker}} build -t faraday-build-linux -f faraday/build/linux/Containerfile faraday/build/linux
-    # The hub app's payload, mounted where build.rs reads it.
+    # The Starter's payload, mounted where build.rs reads it.
     payload=()
-    if [ -n "${FARADAY_HUB_PAYLOAD:-}" ]; then
-        [ -f "$FARADAY_HUB_PAYLOAD/MANIFEST" ] || { echo "$FARADAY_HUB_PAYLOAD/MANIFEST: not there" >&2; exit 1; }
-        payload=(-v "$(realpath "$FARADAY_HUB_PAYLOAD")":/payload:ro -e FARADAY_HUB_PAYLOAD=/payload)
+    if [ -n "${FARADAY_STARTER_PAYLOAD:-}" ]; then
+        [ -f "$FARADAY_STARTER_PAYLOAD/MANIFEST" ] || { echo "$FARADAY_STARTER_PAYLOAD/MANIFEST: not there" >&2; exit 1; }
+        payload=(-v "$(realpath "$FARADAY_STARTER_PAYLOAD")":/payload:ro -e FARADAY_STARTER_PAYLOAD=/payload)
     fi
     {{docker}} run --rm \
         -e SOURCE_DATE_EPOCH="{{source_date_epoch}}" \
@@ -61,16 +61,16 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop
     file "{{out}}/{{bin}}"
     sha256sum "{{out}}/{{bin}}"
 
-# The Windows hub app (docs/HUB.md §2), cross-compiled for
+# The Windows Starter (docs/STARTER.md §2), cross-compiled for
 # x86_64-pc-windows-gnu in the pinned container (faraday/build/windows/),
 # into OUT/faraday-starter.exe, with its icon, version and asInvoker manifest,
 # and checked: no library beside Windows' own, no local path in its
-# strings. FARADAY_HUB_PAYLOAD=out/payload/VERSION builds that payload in
+# strings. FARADAY_STARTER_PAYLOAD=out/payload/VERSION builds that payload in
 # (the stick and Pi images; the desktop app from batch C); without it the
-# hub app offers only --image. `just faraday-windows-bin clippy` runs
+# Starter offers only --image. `just faraday-windows-bin clippy` runs
 # clippy for the Windows target instead.
 #
-#   FARADAY_HUB_PAYLOAD=out/payload/0.2.0 just faraday-windows-bin
+#   FARADAY_STARTER_PAYLOAD=out/payload/0.2.0 just faraday-windows-bin
 faraday-windows-bin what="build" out="out/windows" cache="out/build/run":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -80,9 +80,9 @@ faraday-windows-bin what="build" out="out/windows" cache="out/build/run":
     export FARADAY_BUILD
     {{docker}} build -t faraday-build-windows -f faraday/build/windows/Containerfile faraday/build/windows
     payload=()
-    if [ -n "${FARADAY_HUB_PAYLOAD:-}" ]; then
-        [ -f "$FARADAY_HUB_PAYLOAD/MANIFEST" ] || { echo "$FARADAY_HUB_PAYLOAD/MANIFEST: not there" >&2; exit 1; }
-        payload=(-v "$(realpath "$FARADAY_HUB_PAYLOAD")":/payload:ro -e FARADAY_HUB_PAYLOAD=/payload)
+    if [ -n "${FARADAY_STARTER_PAYLOAD:-}" ]; then
+        [ -f "$FARADAY_STARTER_PAYLOAD/MANIFEST" ] || { echo "$FARADAY_STARTER_PAYLOAD/MANIFEST: not there" >&2; exit 1; }
+        payload=(-v "$(realpath "$FARADAY_STARTER_PAYLOAD")":/payload:ro -e FARADAY_STARTER_PAYLOAD=/payload)
     fi
     arg=()
     [ "{{what}}" = clippy ] && arg=(clippy)
@@ -155,16 +155,16 @@ faraday-snap size: faraday-testkit
     cargo run -q -p faraday-snapshot -- "$arg" out/testkit "out/snapshots/faraday/{{size}}"
     echo "out/snapshots/faraday/{{size}}"
 
-# The hub app (docs/HUB.md), built and run here: `just faraday-hub`, or
-# `just faraday-hub --image out/stick/faraday-x86_64-uefi-dev.img` to write
+# The Starter (docs/STARTER.md), built and run here: `just faraday-starter`, or
+# `just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img` to write
 # a dev image, through the same screens and writer as a release's.
-# FARADAY_HUB_PAYLOAD=out/payload/VERSION builds that payload in; without
-# it the hub app offers only --image. release=1 makes a release
+# FARADAY_STARTER_PAYLOAD=out/payload/VERSION builds that payload in; without
+# it the Starter offers only --image. release=1 makes a release
 # build with no local paths in it (faraday/image/path-remap.sh); the build
 # for publishing is `just faraday-linux-bin` with the arguments
-# `out/linux out/build/run faraday-hub-shell faraday-starter`, in the glibc 2.31 container (`just faraday-linux-bin`'s
+# `out/linux out/build/run faraday-starter-shell faraday-starter`, in the glibc 2.31 container (`just faraday-linux-bin`'s
 # comment).
-faraday-hub *args="":
+faraday-starter *args="":
     #!/usr/bin/env bash
     set -euo pipefail
     profile=()
@@ -172,16 +172,16 @@ faraday-hub *args="":
         . faraday/image/path-remap.sh
         profile=(--release)
     fi
-    cargo build -q "${profile[@]}" -p faraday-hub-shell --bin faraday-starter
+    cargo build -q "${profile[@]}" -p faraday-starter-shell --bin faraday-starter
     dir=debug
     [ "{{release}}" = 1 ] && dir=release
     exec "target/$dir/faraday-starter" {{args}}
 
-# The hub app's pages in their states at one size, into
-# out/snapshots/hub/WxH/, one named PNG each: `just faraday-hub-snap
+# The Starter's pages in their states at one size, into
+# out/snapshots/starter/WxH/, one named PNG each: `just faraday-starter-snap
 # 1280x800`. 480x640 and 240x320 carry their panels' dpi; any other size
 # renders at 160 unless spelled `WxH@DPI`.
-faraday-hub-snap size:
+faraday-starter-snap size:
     #!/usr/bin/env bash
     set -euo pipefail
     arg="{{size}}"
@@ -189,14 +189,14 @@ faraday-hub-snap size:
         480x640) arg="480x640@286" ;;
         240x320) arg="240x320@143" ;;
     esac
-    cargo run -q -p faraday-hub --example snap -- "$arg" "out/snapshots/hub/{{size}}" > /dev/null
-    echo "out/snapshots/hub/{{size}}"
+    cargo run -q -p faraday-starter --example snap -- "$arg" "out/snapshots/starter/{{size}}" > /dev/null
+    echo "out/snapshots/starter/{{size}}"
 
-# Draws the hub app's menu icon again from the app's own mark
-# (faraday-hub's examples/icon.rs) into shells/hub/assets/. Run it when
-# the mark changes; the PNG is committed and the hub app embeds it.
-faraday-hub-icon:
-    cargo run -q -p faraday-hub --example icon -- faraday/shells/hub/assets/icon.png
+# Draws the Starter's menu icon again from the app's own mark
+# (faraday-starter's examples/icon.rs) into shells/starter/assets/. Run it when
+# the mark changes; the PNG is committed and the Starter embeds it.
+faraday-starter-icon:
+    cargo run -q -p faraday-starter --example icon -- faraday/shells/starter/assets/icon.png
 
 # Secure Boot in real UEFI firmware: OVMF in QEMU enrols the keys
 # faraday-sb makes from their .auth updates, then runs only the image
@@ -363,10 +363,10 @@ faraday-pi-image: faraday-pi-bin
 
 
 # Stages a release's plain files under out/release/VERSION/ with the
-# names docs/HUB.md §1.1 gives them, images as .xz, and SHA256SUMS
+# names docs/STARTER.md §1.1 gives them, images as .xz, and SHA256SUMS
 # listing each file and each image inside its .xz, for the owner to
-# sign, and the hub app's payload and MANIFEST under out/payload/VERSION/
-# (HUB §1.3); refuses files carrying a home folder, user name or host
+# sign, and the Starter's payload and MANIFEST under out/payload/VERSION/
+# (STARTER §1.3); refuses files carrying a home folder, user name or host
 # name. The stick image must be the release build (release=1); the stick,
 # Pi and desktop builds (out/linux, from faraday-linux-bin) must carry
 # one build ID; --any-build tries it on a test build.
@@ -376,17 +376,17 @@ faraday-pi-image: faraday-pi-bin
 faraday-release-stage VERSION *args:
     faraday/tools/stage-release.sh {{VERSION}} {{args}}
 
-# The second pass of staging (HUB §1.3): adds the Linux hub app,
+# The second pass of staging (STARTER §1.3): adds the Linux Starter,
 # out/linux/faraday-starter, built against the payload the first pass wrote, to
 # the folder the first pass staged: Faraday-VERSION-Linux.tar.gz holding
-# Faraday-VERSION-Linux, and both in SHA256SUMS. Refuses a hub app that does
+# Faraday-VERSION-Linux, and both in SHA256SUMS. Refuses a Starter that does
 # not carry that payload. With --out DIR it adds to DIR, as the first pass
 # was given.
 #
-#   just faraday-release-stage-hub 0.2.0
-#   just faraday-release-stage-hub 0.2.0 --out DIR
-faraday-release-stage-hub VERSION *args:
-    faraday/tools/stage-release.sh {{VERSION}} --hub out/linux/faraday-starter {{args}}
+#   just faraday-release-stage-starter 0.2.0
+#   just faraday-release-stage-starter 0.2.0 --out DIR
+faraday-release-stage-starter VERSION *args:
+    faraday/tools/stage-release.sh {{VERSION}} --starter out/linux/faraday-starter {{args}}
 
 # The Companion's screens (docs/COMPANION.md §4), each in its states, into
 # out/snapshots/companion/WxH/, one named PNG each: `just companion-snap

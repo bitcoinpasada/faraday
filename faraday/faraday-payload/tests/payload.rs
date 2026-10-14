@@ -1,6 +1,6 @@
-//! What the hub app's writer and Try the desktop app see from a payload
+//! What the Starter's writer and Try the desktop app see from a payload
 //! file, and what `--image` sees from a developer's own image
-//! (`docs/HUB.md` §1.1, §1.3, §4.1). The `.xz` files in `vectors/` were
+//! (`docs/STARTER.md` §1.1, §1.3, §4.1). The `.xz` files in `vectors/` were
 //! made by the xz program; `vectors/README.md` says how, and what
 //! `sha256sum` gives for each.
 
@@ -50,7 +50,7 @@ fn line(name: &str, xz_sum: &str, inner: &str, inner_sum: &str, size: u64) -> St
 }
 
 fn manifest(lines: &[String]) -> Vec<u8> {
-    let mut text = format!("# Faraday hub payload 0.2.0, commit {COMMIT}\n");
+    let mut text = format!("# Faraday Starter payload 0.2.0, commit {COMMIT}\n");
     for l in lines {
         text.push_str(l);
         text.push('\n');
@@ -297,7 +297,7 @@ fn a_malformed_manifest_is_refused_with_its_line_and_reason() {
         FIXTURE_SHA256,
         FIXTURE_SIZE,
     );
-    let header = format!("# Faraday hub payload 0.2.0, commit {COMMIT}");
+    let header = format!("# Faraday Starter payload 0.2.0, commit {COMMIT}");
     let refused = |text: String, line: usize, fault: ManifestFault| {
         let e = Manifest::parse(text.as_bytes()).unwrap_err();
         assert_eq!((e.line, e.fault), (line, fault), "{text:?}");
@@ -307,11 +307,11 @@ fn a_malformed_manifest_is_refused_with_its_line_and_reason() {
     for bad in [
         String::new(),
         "# Faraday payload 0.2.0, commit 0123".to_string(),
-        format!("# Faraday hub payload , commit {COMMIT}"),
-        format!("# Faraday hub payload 0.2.0 commit {COMMIT}"),
-        "# Faraday hub payload 0.2.0, commit 0123456".to_string(),
+        format!("# Faraday Starter payload , commit {COMMIT}"),
+        format!("# Faraday Starter payload 0.2.0 commit {COMMIT}"),
+        "# Faraday Starter payload 0.2.0, commit 0123456".to_string(),
         format!(
-            "# Faraday hub payload 0.2.0, commit {}",
+            "# Faraday Starter payload 0.2.0, commit {}",
             COMMIT.to_uppercase()
         ),
     ] {
@@ -413,6 +413,6 @@ fn a_malformed_manifest_is_refused_with_its_line_and_reason() {
     refused(format!("{header}\n{good}\r\n"), 2, ManifestFault::BuildId);
 
     // Not text.
-    let e = Manifest::parse(b"# Faraday hub payload \xff").unwrap_err();
+    let e = Manifest::parse(b"# Faraday Starter payload \xff").unwrap_err();
     assert_eq!(e.fault, ManifestFault::NotText);
 }

@@ -1,5 +1,5 @@
-//! `MANIFEST` (`docs/HUB.md` §1.3, "The manifest and where it is
-//! built"): a first line `# Faraday hub payload VERSION, commit <full
+//! `MANIFEST` (`docs/STARTER.md` §1.3, "The manifest and where it is
+//! built"): a first line `# Faraday Starter payload VERSION, commit <full
 //! hash>`, then one line per payload file, six fields separated by one
 //! tab each: the payload file's name, its SHA-256, the name of what is
 //! inside it, that file's SHA-256, that file's size in bytes, and the
@@ -9,7 +9,7 @@ use core::fmt;
 
 use crate::Sha256Sum;
 
-const HEADER_PREFIX: &str = "# Faraday hub payload ";
+const HEADER_PREFIX: &str = "# Faraday Starter payload ";
 const HEADER_COMMIT: &str = ", commit ";
 
 /// A parsed `MANIFEST`.
@@ -51,7 +51,7 @@ pub struct ManifestError {
 pub enum ManifestFault {
     /// The file is not UTF-8 text.
     NotText,
-    /// The first line is not `# Faraday hub payload VERSION, commit HASH`.
+    /// The first line is not `# Faraday Starter payload VERSION, commit HASH`.
     Header,
     /// An empty line where a file's line belongs.
     EmptyLine,
@@ -206,7 +206,7 @@ impl PayloadFile {
     }
 }
 
-/// A plain file name: something the hub app can name a file by without
+/// A plain file name: something the Starter can name a file by without
 /// it reaching another folder.
 fn name_ok(name: &str) -> bool {
     !name.is_empty()

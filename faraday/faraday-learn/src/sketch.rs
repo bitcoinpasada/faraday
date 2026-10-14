@@ -1,4 +1,4 @@
-//! A firmware screen's sketch (`docs/DECISIONS.md` F18, `docs/HUB.md`
+//! A firmware screen's sketch (`docs/DECISIONS.md` F18, `docs/STARTER.md`
 //! §7.8): the shape every sketch is built from, and the marker a page's
 //! paragraph names one by, so Faraday's own drawing
 //! (`faraday_ui::sketch`) turns it into a mock-up of the firmware
@@ -16,7 +16,7 @@
 
 /// The firmware colours a sketch is drawn in: the ones nearest the
 /// family's real screen, as the makers' own pictures show it
-/// (`docs/HUB.md` §7.8). Every one is a text-mode screen's palette;
+/// (`docs/STARTER.md` §7.8). Every one is a text-mode screen's palette;
 /// none is Faraday's.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Palette {

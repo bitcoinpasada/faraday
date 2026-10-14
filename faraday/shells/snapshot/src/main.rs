@@ -403,7 +403,7 @@ fn receiver(bolt: bool) -> faraday_core::devices::UsbDevice {
     }
 }
 
-/// The stick's device check (`docs/HUB.md` §3.1a): Home's TV line; a
+/// The stick's device check (`docs/STARTER.md` §3.1a): Home's TV line; a
 /// wireless receiver at start, a line on Home that holds nothing, and a
 /// Bolt receiver's; an IP-KVM named, and Continue anyway asking; a
 /// virtual machine with an IP-KVM, which has no way on; a desktop's

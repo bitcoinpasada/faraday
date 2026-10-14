@@ -1,7 +1,7 @@
 [package]
 name = "faraday-strings"
 version = "0.1.1"
-description = "Faraday's wording: every string Faraday's screens, the stick's device check and the hub app show that OpenSigner does not"
+description = "Faraday's wording: every string Faraday's screens, the stick's device check and the Starter show that OpenSigner does not"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true

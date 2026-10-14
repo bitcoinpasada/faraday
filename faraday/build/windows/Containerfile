@@ -1,4 +1,4 @@
-# The build container for the Windows hub app (docs/HUB.md §2): the
+# The build container for the Windows Starter (docs/STARTER.md §2): the
 # x86_64-pc-windows-gnu target, linked by mingw-w64, cross-compiled on
 # Linux. Nothing in it runs Windows code.
 #

@@ -1,7 +1,7 @@
 # Windows test virtual machine
 
-`winvm.sh` runs Windows 11 Pro in QEMU for the hub app's BitLocker guard
-acceptance runs (`docs/HUB.md` §6.6). The machine is q35 under KVM, with
+`winvm.sh` runs Windows 11 Pro in QEMU for the Starter's BitLocker guard
+acceptance runs (`docs/STARTER.md` §6.6). The machine is q35 under KVM, with
 OVMF's Secure Boot firmware (below), Microsoft's keys from Debian's
 `OVMF_VARS_4M.ms.fd` (the machine's own copy), a TPM 2.0 from `swtpm`
 (state kept across boots, a fresh `swtpm` per boot), 4 GB of memory, 2

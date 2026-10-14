@@ -717,7 +717,7 @@ just faraday-stick-bin                    # the stick binary, static musl
 just faraday-stick-image                  # out/stick/faraday-x86_64-uefi.img
 just dev=1 faraday-stick-image            # + a serial console and root login, for development
 just dev=1 faraday-stick-boot /dev/sdX    # development: rewrite a stick's boot partition alone
-just faraday-hub --image out/stick/faraday-x86_64-uefi-dev.img   # write a dev image (below)
+just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img   # write a dev image (below)
 just faraday-upgrade-check OLD.img        # QEMU: the dev image upgrades an older stick image
 ```
 
@@ -746,7 +746,7 @@ Faraday Starter writes an image built here in place of its own:
 
 ```
 just dev=1 faraday-stick-image
-just faraday-hub --image out/stick/faraday-x86_64-uefi-dev.img
+just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img
 ```
 
 `--image` takes an `.img`, an `.img.xz`, or a `-boot.vfat`, which only
@@ -755,7 +755,7 @@ on the data partition left alone). The screens and the writer are the
 release's: Confirm says the image is not Faraday Starter's own and shows its
 SHA-256. A Faraday Starter built without a payload offers only `--image`. On
 Linux the write goes through udisks2 and the desktop may ask for a
-password; the hub app never runs as root. `docs/HUB.md` §4.1 says what
+password; the Starter never runs as root. `docs/STARTER.md` §4.1 says what
 the writer checks and in what order.
 
 ## Reproducible builds
@@ -803,7 +803,7 @@ sha256sum -c --ignore-missing SHA256SUMS
 From 0.2.0 the images are published as `.xz` only. `SHA256SUMS` lists
 each `.xz` and, under the `.img` name, the image inside it, so the same
 command checks a download and, after `xz -d`, the image. It lists the
-Linux hub app's `.tar.gz` and, under its own name, the file inside it, so
+Linux Starter's `.tar.gz` and, under its own name, the file inside it, so
 either can be checked.
 
 On Windows, Gpg4win's `gpg` takes the same first three commands, and

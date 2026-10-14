@@ -827,45 +827,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faraday-hub"
-version = "0.1.1"
-dependencies = [
- "faraday-core",
- "faraday-guides",
- "faraday-learn",
- "faraday-qr",
- "faraday-ui",
- "opensigner-core",
- "osk-codec",
- "osk-learn",
- "osk-shell-api",
- "osk-ui",
- "png",
- "zeroize",
-]
-
-[[package]]
-name = "faraday-hub-shell"
-version = "0.1.1"
-dependencies = [
- "faraday-boot",
- "faraday-core",
- "faraday-fat",
- "faraday-hub",
- "faraday-payload",
- "faraday-qr",
- "faraday-storage",
- "faraday-window",
- "libc",
- "opensigner-core",
- "osk-shell-api",
- "rustbus",
- "windows-sys 0.52.0",
- "winit",
- "zeroize",
-]
-
-[[package]]
 name = "faraday-intake"
 version = "0.1.1"
 dependencies = [
@@ -948,6 +909,45 @@ dependencies = [
  "osk-selftest",
  "osk-shell-api",
  "png",
+]
+
+[[package]]
+name = "faraday-starter"
+version = "0.1.1"
+dependencies = [
+ "faraday-core",
+ "faraday-guides",
+ "faraday-learn",
+ "faraday-qr",
+ "faraday-ui",
+ "opensigner-core",
+ "osk-codec",
+ "osk-learn",
+ "osk-shell-api",
+ "osk-ui",
+ "png",
+ "zeroize",
+]
+
+[[package]]
+name = "faraday-starter-shell"
+version = "0.1.1"
+dependencies = [
+ "faraday-boot",
+ "faraday-core",
+ "faraday-fat",
+ "faraday-payload",
+ "faraday-qr",
+ "faraday-starter",
+ "faraday-storage",
+ "faraday-window",
+ "libc",
+ "opensigner-core",
+ "osk-shell-api",
+ "rustbus",
+ "windows-sys 0.52.0",
+ "winit",
+ "zeroize",
 ]
 
 [[package]]

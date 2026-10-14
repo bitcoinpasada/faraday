@@ -378,7 +378,7 @@ added to the bake. The sidebar sets its capitals 10 units tall, which
 leaves the widest network pill (Regtest) its gap; the Pi's header, with
 more room, 11. The boot logo's 5×7 pixel name is unchanged.
 
-### F11 The hub app: one download that makes sticks and cards (2026-10-12)
+### F11 The Starter: one download that makes sticks and cards (2026-10-12)
 
 **Why.** Getting Faraday onto a stick or a Pi card, and a laptop to
 start from it, took a terminal, `dd`, a firmware menu and a Secure Boot
@@ -386,35 +386,35 @@ setting; on Windows a wrong step can leave the computer asking for a
 BitLocker recovery key nobody has. The release offered only the plain
 files.
 
-**Decision** (owner, 2026-10-12; the spec is `docs/HUB.md`).
+**Decision** (owner, 2026-10-12; the spec is `docs/STARTER.md`).
 
-- A separate app, the hub app, shown to people as Faraday, is the main
+- A separate app, the Starter, shown to people as Faraday, is the main
   download: `Faraday-X.Y.Z-Windows.exe` and `Faraday-X.Y.Z-Linux`. It
   makes a Faraday stick or a Pi card, guides starting a computer from
   the stick and putting its Secure Boot back, transfers files by QR
   code, opens the desktop app, and installs itself to the Start menu or
   app menu, or runs without installing. It has no network code.
 - The desktop app stays a testing app, opened on its own or from the
-  hub app. Installing the hub app on Linux asks whether to install the
+  Starter. Installing the Starter on Linux asks whether to install the
   desktop app too, unticked. There is no Windows desktop app.
-- The plain files stay in every release, under the hub app, with new
+- The plain files stay in every release, under the Starter, with new
   names (`faraday-desktop-…`, `faraday-stick-….img.xz`,
   `faraday-pi-….img.xz`). Images are published as `.xz` only, with the
   `.img` inside listed in `SHA256SUMS` as well.
-- No dev images are published, plain or inside the hub app; developers
-  build them and write them with the hub app's `--image`.
+- No dev images are published, plain or inside the Starter; developers
+  build them and write them with the Starter's `--image`.
 - Replacing Faraday on a stick while keeping its data partition is
   offered to everyone, not only developers. This changes F2, which kept
   the boot-partition-only flash for development ("It is not offered to
-  users"). The hub app
+  users"). The Starter
   never reads or writes the data partition, and its Learn page says
   that plugging the stick into an online computer is what exposes it,
   and that Settings → Upgrade a Faraday stick avoids that.
-- Nobody who follows the hub app's steps is ever asked for a BitLocker
+- Nobody who follows the Starter's steps is ever asked for a BitLocker
   recovery key: before any firmware step it suspends BitLocker until
   Secure Boot is back on, and shows the recovery key, which the person
-  confirms by typing part of it back (`docs/HUB.md` §6).
-- The Windows hub app is not code-signed: a certificate names a
+  confirms by typing part of it back (`docs/STARTER.md` §6).
+- The Windows Starter is not code-signed: a certificate names a
   verified person or company, and Faraday is published under a
   pseudonym, for privacy. Windows' first-run warning is documented, with
   how to check the file against `SHA256SUMS` and its signature instead.
@@ -422,13 +422,13 @@ files.
   layout already follows the screen's size and density; the screen
   that cannot be detected is chosen when the card is made.
 
-### F12 The hub app, reviewed: what the owner changed in v0.2 (2026-10-12)
+### F12 The Starter, reviewed: what the owner changed in v0.2 (2026-10-12)
 
-**Why.** A review of `docs/HUB.md` v0.1 found places where the spec
+**Why.** A review of `docs/STARTER.md` v0.1 found places where the spec
 made the person do more than needed, two security holes in the
 BitLocker guard's resume path, a test the spec could not run, and a
 Windows exclusion with no technical ground. The owner answered each
-point the same day; `docs/HUB.md` v0.2 carries the answers (its §12,
+point the same day; `docs/STARTER.md` v0.2 carries the answers (its §12,
 D12 to D21) and §13 lists what moved.
 
 **Decisions** (owner, 2026-10-12).
@@ -436,7 +436,7 @@ D12 to D21) and §13 lists what moved.
 - Home leads with the next step for this computer's state (make a
   stick, the BitLocker step, restart into firmware, turn Secure Boot
   back on, resume BitLocker), read live, with the menu rows below.
-- The Linux hub app writes sticks through udisks2 and never runs as
+- The Linux Starter writes sticks through udisks2 and never runs as
   root; the Linux download is a `.tar.gz`, so the executable bit
   survives and nobody runs `chmod`.
 - No disk is ever chosen for the person. Keep data reads the stick's
@@ -445,7 +445,7 @@ D12 to D21) and §13 lists what moved.
 - The guard shows and confirms the recovery key before suspending, and
   hides it while the person types two groups back. The phone gets it as
   a plain-text QR code or a photo of the screen. No startup task
-  resumes BitLocker: the hub app offers Resume only with Secure Boot
+  resumes BitLocker: the Starter offers Resume only with Secure Boot
   on, with a per-user logon reminder for an installed copy. Windows
   Home is proved on a Home computer of the owner's, since a virtual
   machine cannot turn Device encryption on; Pro in a virtual machine.
@@ -453,14 +453,14 @@ D12 to D21) and §13 lists what moved.
   carry everyone else.
 - The desktop app comes to Windows (changing F11's "there is no
   Windows desktop app"): nothing in it is Linux by design, and the
-  camera module the Windows hub app needs serves both.
+  camera module the Windows Starter needs serves both.
 - One Pi screen for now, the 2.8 inch panel; panel profiles and other
   sizes wait for a second screen.
-- `tools/flash-stick` was removed, in batch L, when the hub app wrote a
+- `tools/flash-stick` was removed, in batch L, when the Starter wrote a
   developer's own image (`--image`); the window and its launcher were a
   stopgap.
 
-### F13 Faraday on Macs: the stick, the desktop app and the hub app (2026-10-12)
+### F13 Faraday on Macs: the stick, the desktop app and the Starter (2026-10-12)
 
 **Why.** F11 said there is no macOS app, and the stick started only on
 PCs. Intel Macs can start the PC stick with little change, and Apple
@@ -491,14 +491,14 @@ supersedes F11's "no macOS app".
   page on a phone, or Faraday's Secure Boot screen), because setup is
   done from a macOS that may be compromised.
 - Apple's restore-file parts the start-up volume needs are downloaded
-  by the hub app through macOS's own `curl`, pinned by SHA-256; the hub
+  by the Starter through macOS's own `curl`, pinned by SHA-256; the Starter
   carries no network code.
 - Asahi's two keyboard drivers are the only out-of-tree code, in the
   Apple Silicon kernel only. The M2 trackpad, which needs a firmware
   file copied from macOS, is not supported.
-- The desktop app and the hub app run on macOS, ad-hoc signed and not
+- The desktop app and the Starter run on macOS, ad-hoc signed and not
   notarized, for the reason F11 gives for Windows.
-- The hub app can remove the start-up volume again, for privacy.
+- The Starter can remove the start-up volume again, for privacy.
 - The README lists the supported Macs by model identifier, each claim
   cited, as Expected or Not supported. Nothing published says which
   models were tried: those are the owner's own Macs.
@@ -508,7 +508,7 @@ supersedes F11's "no macOS app".
 
 ### F14 Maker pages are published several families at once (2026-10-12)
 
-**Why.** HUB D6 published a maker page only for a family tried on a
+**Why.** STARTER D6 published a maker page only for a family tried on a
 computer. The computers tried are the owner's, and their make and model
 are personal information: a page for one family alone would tell which
 maker the owner has, and a page naming the model it was tried on would
@@ -517,13 +517,13 @@ tell more.
 **Decision** (owner, 2026-10-12). Maker pages are published several
 families at a time, never one alone, each checked against the maker's
 own documentation. No page names a model, and nothing published says
-which families were tried (`docs/HUB.md` §7.2, §7.6, D6).
+which families were tried (`docs/STARTER.md` §7.2, §7.6, D6).
 
 ### F15 Faraday Companion: an Android app with no network access (2026-10-12)
 
-**Why.** The device and the hub app both hand things to a phone, and
+**Why.** The device and the Starter both hand things to a phone, and
 the phone has nothing of Faraday's to take them: the Pi's codes are its
-only way out and a webcam reads its panel badly, the hub app's guides
+only way out and a webcam reads its panel badly, the Starter's guides
 are on the website, and the BitLocker recovery key goes into a notes app
 that may sync it. An app that also checked balances or broadcast would
 need the network, and the owner does not want Faraday to become an
@@ -536,13 +536,13 @@ online wallet.
   check on the APK; the release build is reproducible.
 - It reads the device's codes and shows codes for it, keeps what
   arrives, keeps wallet descriptions and BitLocker recovery keys, and
-  carries the Learn pages, opening the hub app's guide addresses as
+  carries the Learn pages, opening the Starter's guide addresses as
   its own pages.
 - It never takes a seed, a private key, an encrypted backup, a sealed
   vault or a TOTP secret, by any way in, and never signs.
 - A kept recovery key is offered for deletion once the person is back
   in Windows: a key Windows did not ask for is not needed there, and
-  the hub app shows it again the next time Faraday is set up on that
+  the Starter shows it again the next time Faraday is set up on that
   computer.
 - Online use, if ever, is a separate app, so this one never gains the
   network permission.
@@ -559,7 +559,7 @@ online wallet.
 
 ### F16 The hub app is Faraday Starter; the desktop app is Faraday Desktop (2026-10-12)
 
-**Why.** HUB D10 named the hub app plain "Faraday" to people. Installed
+**Why.** STARTER D10 named the hub app plain "Faraday" to people. Installed
 beside the desktop app, two menu entries began "Faraday", and the
 desktop app's "Faraday desktop (testing)" was cut off in a launcher.
 "Faraday Hub" was chosen first and withdrawn the same evening for its
@@ -573,7 +573,10 @@ the restart into the stick), not only the first time.
 - The hub app is **Faraday Starter**: its window title, menu entry, Start
   menu shortcut, installed name and uninstall entry, and the release
   files `Faraday-Starter-X.Y.Z-Linux.tar.gz` and
-  `Faraday-Starter-X.Y.Z-Windows.exe`. In the code it stays `faraday-hub`.
+  `Faraday-Starter-X.Y.Z-Windows.exe`. In the code it stayed `faraday-hub`
+  at first (owner, 2026-10-14: the code was renamed to `starter`
+  throughout, so the crates, modules and paths read `faraday-starter`,
+  `faraday-starter-shell` and the like, matching the public name).
 - The desktop app is **Faraday Desktop**, with no "(testing)": it opens
   on testnet, so its purpose shows; its menu description says test
   seeds only.
@@ -587,7 +590,7 @@ the restart into the stick), not only the first time.
 
 ### F17 The BitLocker step is the recovery key; suspending is the extra-safe choice (2026-10-13)
 
-**Why.** HUB §6 made suspending BitLocker the one way through to the
+**Why.** STARTER §6 made suspending BitLocker the one way through to the
 firmware steps on Windows. BitLocker checks Secure Boot only when
 Windows starts: a person who turns Secure Boot off, starts the stick,
 and turns Secure Boot back on before Windows starts again is never

@@ -1,4 +1,4 @@
-//! The stick's device check (`docs/HUB.md` §3.1a): what can capture the
+//! The stick's device check (`docs/STARTER.md` §3.1a): what can capture the
 //! screen or the keys is named at start, before anything is unlocked;
 //! while it is attached and not let through, nothing that shows a secret
 //! is offered. Check again after it is pulled releases; Continue anyway

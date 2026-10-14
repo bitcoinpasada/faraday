@@ -1,19 +1,19 @@
 # rustbus
 
-**Purpose.** The Linux hub app writes sticks and cards through udisks2
-and never runs as root (`docs/HUB.md` §2, D13). It talks to udisks2 on
+**Purpose.** The Linux Starter writes sticks and cards through udisks2
+and never runs as root (`docs/STARTER.md` §2, D13). It talks to udisks2 on
 the system bus: `GetManagedObjects` for the disks, its signals for a
 disk plugged in or pulled out, `Filesystem.Mount` (read-only) and
 `Filesystem.Unmount`, `Block.OpenDevice`, which passes back an open
 file descriptor for the disk, and `Block.Rescan`.
-`faraday/shells/hub/src/linux/bus.rs` is the only code that uses it, and
+`faraday/shells/starter/src/linux/bus.rs` is the only code that uses it, and
 only on Linux; what udisks2's answers mean is read in `udisks.rs` with
 no D-Bus in it, so the tests feed recorded answers.
 
 **Why this crate.** It is pure Rust, blocking, and small, and it passes
 file descriptors:
 
-- Blocking calls with a timeout (`RpcConn`), so the hub app runs it on
+- Blocking calls with a timeout (`RpcConn`), so the Starter runs it on
   plain threads (the disk watcher, the writer) with no async runtime.
 - `UnixFd` and the `SCM_RIGHTS` handling in its connection: a reply's
   descriptors are attached to the message, and `take_raw_fd` hands one
@@ -46,7 +46,7 @@ fast path for fixed-size slices when marshalling and the socket's
 **Cost.** Version 0.19.3, pinned exactly (`=0.19.3`), default features
 (it has none to turn off). About 11,500 lines with tests and benches.
 The last release is from August 2023; the D-Bus wire format and the
-udisks2 calls the hub app makes have not changed since.
+udisks2 calls the Starter makes have not changed since.
 `supply-chain/config.toml` carries the six crates as exemptions; the
 parts listed above were read, the rest was not.
 
@@ -57,7 +57,7 @@ parts listed above were read, the rest was not.
   an async executor underneath and needs `async-io` or `tokio`: 87
   crates in its graph against `rustbus`'s 18.
 - `dbus` (and `dbus-tokio`, `dbus-crossroads`): bindings to libdbus, a
-  C library; the hub app loads no C library it does not need, as with
+  C library; the Starter loads no C library it does not need, as with
   liblzma (§1.3).
 - `tokio-dbus`: pure Rust, on tokio.
 - `mini-sansio-dbus`: a sans-I/O protocol crate, first published in
@@ -68,4 +68,4 @@ parts listed above were read, the rest was not.
 
 **Reopen when** a `rustbus` release appears (read its changelog and
 the diff of the parts above), when `zbus` offers a blocking use with
-no executor, or if the hub app stops needing D-Bus on Linux.
+no executor, or if the Starter stops needing D-Bus on Linux.
