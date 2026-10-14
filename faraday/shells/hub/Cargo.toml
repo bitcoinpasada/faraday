@@ -14,7 +14,7 @@ name = "faraday_hub_shell"
 path = "src/lib.rs"
 
 [[bin]]
-name = "faraday-hub"
+name = "faraday-starter"
 path = "src/main.rs"
 
 [dependencies]

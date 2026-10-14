@@ -622,7 +622,7 @@ later and Arch, on x86-64. Writing a stick needs udisks2, which desktop
 distributions have; the system may ask for a password. Check the
 download first, as [Verifying a release](#verifying-a-release) says.
 **Install** in its window puts Faraday Starter in your app menu, in
-`~/.local/bin/faraday-hub` (on Windows, in
+`~/.local/bin/faraday-starter` (on Windows, in
 `%LOCALAPPDATA%\Programs\Faraday Starter`, with a Start menu entry);
 **Uninstall** removes exactly what that put there.
 

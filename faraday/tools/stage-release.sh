@@ -9,8 +9,8 @@
 # above without --hub, stages the plain files and the hub app's payload.
 # The hub app is built against that payload (`FARADAY_HUB_PAYLOAD=
 # out/payload/VERSION just faraday-linux-bin out/linux out/build/run
-# faraday-hub-shell faraday-hub`, which leaves out/linux/faraday-hub), and the second
-# pass, `--hub out/linux/faraday-hub` (`just faraday-release-stage-hub
+# faraday-hub-shell faraday-starter`, which leaves out/linux/faraday-starter), and the second
+# pass, `--hub out/linux/faraday-starter` (`just faraday-release-stage-hub
 # VERSION`), adds it to the folder the first made: Faraday-Starter-VERSION-Linux.tar.gz
 # holding one file, Faraday-Starter-VERSION-Linux, with its executable bit, made
 # as HUB §2 says (--owner=0 --group=0 --numeric-owner --sort=name
@@ -256,7 +256,7 @@ scan() {
 # The second pass: the Linux hub app (HUB §1.1, §1.2).
 add_hub() {
     local first
-    [ -f "$hub" ] || die "$hub: not built (just faraday-linux-bin out/linux out/build/run faraday-hub-shell faraday-hub)"
+    [ -f "$hub" ] || die "$hub: not built (just faraday-linux-bin out/linux out/build/run faraday-hub-shell faraday-starter)"
     [ -f "$out/SHA256SUMS" ] && [ -f "$payload/MANIFEST" ] \
         || die "$out and $payload are not a first pass's output: stage the plain files first"
     [ ! -e "$out/$tar_name" ] || die "$out/$tar_name exists; move it aside first"

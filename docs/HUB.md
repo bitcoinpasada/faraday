@@ -89,7 +89,7 @@ inner name, so a person can check either.
   it writes.
 - No dev image is published, as a file or inside the hub app.
   Developers build dev images (`just dev=1 faraday-stick-image`) and
-  write them with the hub app itself: `faraday-hub --image
+  write them with the hub app itself: `faraday-starter --image
   out/stick/faraday-x86_64-uefi-dev.img` (or a `.img.xz`, or a
   `-boot.vfat` for keep data) puts that file in place of the payload's
   stick image, through the same screens and the same writer, with the

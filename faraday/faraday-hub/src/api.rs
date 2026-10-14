@@ -228,7 +228,7 @@ pub struct Payload {
     pub files: Vec<PayloadFile>,
 }
 
-/// A developer's own image (`faraday-hub --image FILE`, §1.1), in place
+/// A developer's own image (`faraday-starter --image FILE`, §1.1), in place
 /// of the payload's stick image.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DevImage {

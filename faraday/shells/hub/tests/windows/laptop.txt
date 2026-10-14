@@ -2,7 +2,7 @@
 # faraday_hub_shell::windows::disks::Snapshot::parse reads, made by hand
 # to the documented layouts of STORAGE_DEVICE_DESCRIPTOR,
 # DISK_GEOMETRY_EX, DRIVE_LAYOUT_INFORMATION_EX and VOLUME_DISK_EXTENTS
-# (x86_64). `faraday-hub --record-disks` on a Windows computer prints the
+# (x86_64). `faraday-starter --record-disks` on a Windows computer prints the
 # same form. The makers, models, serials and volume names are made up.
 windows C:\Windows
 system-partition \Device\HarddiskVolume1

@@ -1,6 +1,6 @@
 # Win32_EncryptableVolume's answers, in the form
 # faraday_hub_shell::windows::bitlocker::Recorded reads, made by hand to
-# the class's documented methods and return values (`faraday-hub
+# the class's documented methods and return values (`faraday-starter
 # --record-bitlocker` on a Windows computer prints the same form, with no
 # recovery password in it). The volumes, IDs and keys are made up.
 #

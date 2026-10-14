@@ -3,14 +3,14 @@
 //! device by QR code.
 //!
 //! ```text
-//! faraday-hub [--image FILE] [--downloads DIR] [--size WxH] [--timings]
-//! faraday-hub --version
-//! faraday-hub --uninstall
-//! faraday-hub --remind                        (Windows, at logon)
-//! faraday-hub --record-disks                  (Windows)
-//! faraday-hub --record-bitlocker              (Windows, as administrator)
-//! faraday-hub --write …                       (Windows, elevated)
-//! faraday-hub --bitlocker <verb> …            (Windows, elevated)
+//! faraday-starter [--image FILE] [--downloads DIR] [--size WxH] [--timings]
+//! faraday-starter --version
+//! faraday-starter --uninstall
+//! faraday-starter --remind                        (Windows, at logon)
+//! faraday-starter --record-disks                  (Windows)
+//! faraday-starter --record-bitlocker              (Windows, as administrator)
+//! faraday-starter --write …                       (Windows, elevated)
+//! faraday-starter --bitlocker <verb> …            (Windows, elevated)
 //! ```
 //!
 //! `--remind` is the logon reminder's command while the hub app's
@@ -392,7 +392,7 @@ impl ApplicationHandler for Shell {
         let view = match View::open(event_loop, attributes) {
             Ok(v) => v,
             Err(e) => {
-                eprintln!("faraday-hub: {e}");
+                eprintln!("faraday-starter: {e}");
                 event_loop.exit();
                 return;
             }
@@ -501,7 +501,7 @@ fn watch_concerns(system: Arc<dyn Platform>, out: Sender<HubEvent>, checks: Rece
     });
 }
 
-const HELP: &str = "faraday-hub [--image FILE] [--downloads DIR] [--size WxH] [--timings] [--uninstall] | --version
+const HELP: &str = "faraday-starter [--image FILE] [--downloads DIR] [--size WxH] [--timings] [--uninstall] | --version
   --image: write FILE (.img, .img.xz, or -boot.vfat for keep data) in place of the payload's stick image
   --downloads: the folder Transfer sends from and saves into (default ~/Downloads)
   --timings: once a second, what the frames cost on stderr
@@ -541,14 +541,14 @@ fn main() -> ExitCode {
             "--image" => match args.next() {
                 Some(f) => image = Some(PathBuf::from(f)),
                 None => {
-                    eprintln!("faraday-hub: --image needs a file");
+                    eprintln!("faraday-starter: --image needs a file");
                     return ExitCode::from(2);
                 }
             },
             "--downloads" => match args.next() {
                 Some(d) => downloads = PathBuf::from(d),
                 None => {
-                    eprintln!("faraday-hub: --downloads needs a directory");
+                    eprintln!("faraday-starter: --downloads needs a directory");
                     return ExitCode::from(2);
                 }
             },
@@ -560,7 +560,7 @@ fn main() -> ExitCode {
                 match parsed {
                     Some(s) => size = s,
                     None => {
-                        eprintln!("faraday-hub: --size needs WxH");
+                        eprintln!("faraday-starter: --size needs WxH");
                         return ExitCode::from(2);
                     }
                 }
@@ -576,7 +576,7 @@ fn main() -> ExitCode {
                 return ExitCode::SUCCESS;
             }
             other => {
-                eprintln!("faraday-hub: unknown argument {other}");
+                eprintln!("faraday-starter: unknown argument {other}");
                 return ExitCode::from(2);
             }
         }
@@ -586,7 +586,7 @@ fn main() -> ExitCode {
         Some(path) => match Image::hash(&path) {
             Ok(i) => {
                 eprintln!(
-                    "faraday-hub: {} is {} bytes, SHA-256 {}",
+                    "faraday-starter: {} is {} bytes, SHA-256 {}",
                     path.display(),
                     i.sum.size,
                     i.sum.sha256
@@ -594,7 +594,7 @@ fn main() -> ExitCode {
                 Some(i)
             }
             Err(e) => {
-                eprintln!("faraday-hub: {e}");
+                eprintln!("faraday-starter: {e}");
                 return ExitCode::from(2);
             }
         },
@@ -648,7 +648,7 @@ fn main() -> ExitCode {
     let event_loop = match EventLoop::new() {
         Ok(l) => l,
         Err(e) => {
-            eprintln!("faraday-hub: no display to open a window on: {e}");
+            eprintln!("faraday-starter: no display to open a window on: {e}");
             return ExitCode::FAILURE;
         }
     };
@@ -692,7 +692,7 @@ fn main() -> ExitCode {
     match event_loop.run_app(&mut shell) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("faraday-hub: {e}");
+            eprintln!("faraday-starter: {e}");
             ExitCode::FAILURE
         }
     }

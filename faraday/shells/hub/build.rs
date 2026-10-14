@@ -189,7 +189,7 @@ BEGIN
       VALUE "CompanyName", "{publisher}"
       VALUE "FileDescription", "{name}"
       VALUE "FileVersion", "{build}"
-      VALUE "InternalName", "faraday-hub"
+      VALUE "InternalName", "faraday-starter"
       VALUE "OriginalFilename", "{exe}"
       VALUE "ProductName", "{name}"
       VALUE "ProductVersion", "{build}"
