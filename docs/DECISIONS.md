@@ -1403,13 +1403,16 @@ recovery key onto a phone is irresponsible.
 - *In their place:* every guide's last numbered step is **Turn Secure
   Boot back on**, in the BIOS, before Windows starts; the Companion
   ticks it off like the others (COMPANION §4.7). Faraday Starter's Home
-  marks **Turn Secure Boot back on** as the next step on Windows
-  whenever Secure Boot is off, and its button is **Restart into the
-  BIOS**.
-- *Windows' Use a device goes:* **Restart to choose a device** and, on
-  Windows, **Restart from the stick** need Windows started with Secure
-  Boot off, which is the start this decision rules out. Linux keeps
-  **Restart from the stick** (STARTER §3.1).
+  lists **Turn Secure Boot back on** whenever Secure Boot is off.
+- *Windows' Use a device only with Secure Boot reported off* (owner,
+  2026-10-14: decided). **Restart to choose a device** and, on Windows,
+  **Restart from the stick** are shown only when Windows reports Secure
+  Boot off at that moment (`UEFISecureBootEnabled`, read without
+  elevation, as the Starter's This computer reads it), and hidden when
+  it reads on or cannot be read. The stick then starts with Secure Boot
+  already off, and the power-off line still applies. The guides' lines
+  on it stay, conditioned the same way. Linux keeps **Restart from the
+  stick** (STARTER §3.1).
 - *At the stick's power-off* (STARTER §7.5): on a PC stick that started
   with Secure Boot off, or with its state not read, the power-off sheet
   leads with "Turn Secure Boot back on in the BIOS before starting
@@ -1443,7 +1446,16 @@ recovery key onto a phone is irresponsible.
   the TOTP secret); STARTER D7, D16, D17, D18 and D19; COMPANION D5,
   and D4 for BitLocker keys. `docs/BITLOCKER-ACCEPTANCE.md` is
   superseded (its header says what remains).
-- *Open:* a Windows computer whose BitLocker the 0.1.2 Starter
-  suspended (STARTER §6.3); the stick's idle power-off, which skips the
-  sheet (STARTER §7.5); batch S's key enrolment (STARTER §7.7).
+- *No Resume* (owner, 2026-10-14: decided). The suspension is removed
+  entirely; no release keeps Resume BitLocker or reads the 0.1.2
+  marker. There are no users yet (STARTER §6.3).
+- *The idle power-off is unchanged* (owner, 2026-10-14: decided). It is
+  not withheld when Secure Boot is off. It shows no sheet, so its
+  reminder is the guides' last step (STARTER §7.5).
+- *Batch S* (owner, 2026-10-14: decided). When S is scheduled is
+  decided then. When it enrols Faraday's key, its guide tells the
+  person to have the recovery key ready, with the same pointer; nothing
+  more (STARTER §7.7).
+- *The Companion refuses a recovery key* scanned, pasted or shared in,
+  as it refuses a seed (owner, 2026-10-14: decided; COMPANION §4.6).
 - Specified, not built: STARTER §6.5's batches F33a to F33d.

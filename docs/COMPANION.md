@@ -225,8 +225,8 @@ on before Windows starts, which the guides end with (§4.7).
   store keeps descriptions only (§7).
 - A recovery key that arrives (eight groups of six digits, alone or
   with the naming line the 0.1.2 Starter's code carries) is refused as
-  §5's secret kinds are: "This is a BitLocker recovery key. It is not
-  kept here." The check is the shape alone, a few lines in the
+  §5's secret kinds are (owner, 2026-10-14: decided): "This is a
+  BitLocker recovery key. It is not kept here." The check is the shape alone, a few lines in the
   Companion's router, with no shared format.
 - Keys already kept by a debug build: nothing migrates, since no
   Companion was released. The store's format is version 2, without

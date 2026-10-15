@@ -812,11 +812,10 @@ vaults sealed For the stick → the Wallets session wiped → app restarts → U
 After 10 more idle minutes with nothing For the stick, power off; with
 anything there, or a backup flow not finished (decision 59), stay on
 Unlock and list what is waiting. While the backup flow is on screen
-waiting for a stick, there is no idle power-off. On a PC stick whose
-power-off sheet would carry the Secure Boot line (below), whether the
-idle power-off stays is open (`docs/STARTER.md` §7.5, F33; recommended:
-no idle power-off there, the stick stays on Unlock until Power off is
-pressed).
+waiting for a stick, there is no idle power-off. The idle power-off is
+not withheld when Secure Boot is off; it shows no sheet, so its
+reminder to turn Secure Boot back on is the guides' last step
+(`docs/STARTER.md` §7.5, F33).
 
 **Power off** → decision 5, the sheet listing what is kept and what is
 wiped (decision 28) → off. On a PC stick that started with Secure Boot
