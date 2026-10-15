@@ -73,7 +73,7 @@ fn the_pi_never_shows_it() {
 #[test]
 fn the_desktop_app_never_shows_it() {
     let mut app = Faraday::new();
-    app.shell_keys = Some("F2".into());
+    app.shell_sticks = true;
     app.press(Action::PowerAsk);
     assert!(!shown(app).iter().any(|s| s == LINE));
 }
@@ -233,7 +233,7 @@ fn no_guide_code_when_secure_boot_was_on_or_off_the_stick() {
     }
     // The desktop app keeps the defaults.
     let mut app = Faraday::new();
-    app.shell_keys = Some("F2".into());
+    app.shell_sticks = true;
     app.maker = dell.0.into();
     app.press(Action::PowerAsk);
     assert!(address(&shown(app)).is_none());

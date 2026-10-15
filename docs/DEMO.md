@@ -273,7 +273,7 @@ and the Companion's APK. `SHA256SUMS` lists no `faraday-desktop-` file.
   build out/windows out/build/run faraday-desktop faraday`; it runs as
   the demo on mainnet and takes any seed on a test network; it has none
   of the stick's protections and is never for a seed that holds funds.
-  The sticks folders, F2 to F5 and the options line stay, shortened.
+  The sticks folders, the stick pills and the options line stay, shortened.
   "Every session starts on testnet", which contradicts F20, goes.
 - **Transfer** moves under Faraday Starter: the Starter's Transfer is
   how a computer becomes the device's QR link.

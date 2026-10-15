@@ -7703,13 +7703,19 @@ pub struct Strings {
     // ----- The shells: window titles and the labels they give (faraday/shells) -----
     /// The desktop app's window title.
     pub desktop_title: &'static str,
-    /// The desktop app's window title after the panel size: the keys.
-    pub desktop_title_keys: &'static str,
-    /// The desktop app's keys, pinned at the top of the window.
-    pub desktop_keys_line: &'static str,
     /// The desktop app's window title at a panel size: `{}` the diagonal in
-    /// inches, then the keys.
+    /// inches.
     pub desktop_title_panel: &'static str,
+    /// The pill of the boot stick across the top of the desktop app.
+    pub stick_pill_boot: &'static str,
+    /// The pill of a backup stick: `{}` its number.
+    pub stick_pill_n: &'static str,
+    /// A pill's state: the stick is in.
+    pub stick_pill_in: &'static str,
+    /// A pill's state: the stick is out.
+    pub stick_pill_out: &'static str,
+    /// A pill's label and its state: `{}` the label, then the state.
+    pub stick_pill_state: &'static str,
     /// The Starter's window title.
     pub starter_window_title: &'static str,
     /// A Windows disk as Disk Management names it: `{}` its number.
@@ -12087,10 +12093,13 @@ pub static EN: Strings = Strings {
     wordlist_find: "Find: {}",
     wordlist_no: "No.",
     wordlist_word: "Word",
-    desktop_title: "Faraday · F2 boot stick · F3 stick 2 · F4 pull all",
-    desktop_title_keys: "F2 boot stick · F3 stick 2 · F4 pull all",
-    desktop_keys_line: "F2 boot stick · F3 stick 2 · F4 pull all · F5 every folder",
-    desktop_title_panel: "Faraday · {} in panel · {}",
+    desktop_title: "Faraday",
+    desktop_title_panel: "Faraday · {} in panel",
+    stick_pill_boot: "Boot stick",
+    stick_pill_n: "Stick {}",
+    stick_pill_in: "in",
+    stick_pill_out: "out",
+    stick_pill_state: "{} · {}",
     starter_window_title: "Faraday Starter",
     starter_disk_number: "Disk {}",
     starter_boot_entry_label: "Faraday stick",

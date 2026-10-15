@@ -129,7 +129,7 @@ leaves the copied files waiting in memory and goes to Home, which leads
 with the vault's Unlock and opens the sheet again; the Sticks row in the
 sidebar does too. Locking wipes whatever was not imported. A later
 insertion of the boot stick in the same power-on is an ordinary stick
-visit; the desktop app's test stick (F2) stands for the boot stick, so
+visit; the desktop app's Boot stick pill stands for the boot stick, so
 its first plugging in a session runs the import.
 
 ## A second stick for storage
@@ -680,14 +680,17 @@ one a USB stick the app can see plugged in or pulled out:
 - `BOOTSTICK` is the stick Faraday booted from (a 2-of-3 Taproot
   multisig's public backup files, an unsigned spend, and `vault.ofv`,
   passphrase `a`, holding its three seeds, all testnet). It is plugged
-  in when the app opens and runs the boot import (above); **F2** pulls it
+  in when the app opens and runs the boot import (above); its pill pulls it
   out, which starts the import, or plugs it in again for a stick visit
-- `STICK-2` is a second stick, empty at first: **F3** plugs it in or
-  pulls it out
-- **F4** pulls every stick
-- **F5** plugs in every folder under `--sticks`
+- `STICK-1`, `STICK-2` and on are backup sticks, empty at first, each
+  its own folder: what a flow writes to one is still there once it is
+  pulled and put back. `STICK-1` is made at start, the others when their
+  pill is first clicked
 
-The keys are pinned in small text at the top of the window. The two
+The sticks are the pills pinned across the top of the window: Boot stick,
+Stick 1, and one for each stick a backup flow needs while it lasts. A
+click on a pill plugs its stick in or pulls it out; several may be in at
+once. Only the boot stick is in at start. The
 folders are made once, the first time the app starts; one renamed or
 removed later is not made again. With no `BOOTSTICK` folder the app
 starts with no stick in, as it did before 2026-10-11, so rename it (to

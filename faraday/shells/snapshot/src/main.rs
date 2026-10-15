@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|power]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|power|pills]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -548,6 +548,37 @@ fn power_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("power-sheet-secure-boot-off")
 }
 
+/// The desktop app's stick pills: the default two, then a wallet's backup
+/// with five vaults.
+fn pills_tour(t: &mut Tour) -> Result<(), String> {
+    t.app.shell_sticks = true;
+    t.app.online = true;
+    let stick = |name: &str| StickInfo {
+        id: name.into(),
+        label: name.into(),
+        boot: name == "BOOTSTICK",
+        serial: None,
+        files: Vec::new(),
+    };
+    t.app.storage(StorageEvent::Sticks(vec![
+        stick("BOOTSTICK"),
+        stick("STICK-1"),
+    ]));
+    t.press(Action::Nav(Screen::Home));
+    t.shot("pills-default")?;
+    let multi = faraday_core::create::NewKind::ALL
+        .iter()
+        .position(|k| *k == faraday_core::create::NewKind::Multi)
+        .unwrap_or(0) as u8;
+    t.press(Action::CreateWallet);
+    t.press(Action::CKind(multi));
+    t.press(Action::CVaults(true));
+    t.press(Action::CNext(faraday_core::cstep::WHERE));
+    t.press(Action::CVaultN(5));
+    t.press(Action::CNext(faraday_core::cstep::HOW_MANY));
+    t.shot("pills-five-vaults")
+}
+
 fn osk_tour(t: &mut Tour) -> Result<(), String> {
     t.app.devices = laptop();
     t.app.usb_devices(&[receiver(false)]);
@@ -621,6 +652,7 @@ fn run(
         Some("apk") => return apk_only_tour(&mut t),
         Some("flow") => return flow_tour(&mut t),
         Some("power") => return power_tour(&mut t),
+        Some("pills") => return pills_tour(&mut t),
         Some("walletflow") => return wallet_flow_tour(&mut t),
         _ => {}
     }
@@ -4992,12 +5024,13 @@ fn main() -> ExitCode {
             "apk",
             "flow",
             "power",
+            "pills",
             "walletflow",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, power or walletflow"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, power, pills or walletflow"
         );
         return ExitCode::from(2);
     }

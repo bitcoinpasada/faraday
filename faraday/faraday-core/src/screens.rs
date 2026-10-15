@@ -61,7 +61,11 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
     let frosted = app.sheet.is_some() && ui.frost.is_some();
     if !frosted && app.is_compact() {
         ui.clear(BG);
-        draw_compact(app, ui, full_w, full_h, kb > 0.0);
+        // The stick pills take a strip across the top; the page is
+        // drawn below it.
+        let strip = crate::stick_pills::strip_h(app, ui, full_w);
+        ui.oy = strip;
+        draw_compact(app, ui, full_w, full_h - strip, kb > 0.0, strip);
     } else if !frosted && app.held {
         ui.clear(BG);
         let page_h = if kb > 0.0 { win_h } else { full_h };
@@ -77,10 +81,11 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
         ui.oy = -lift;
         dispatch(app, ui, x, cw, if kb > 0.0 { win_h } else { h });
         ui.oy = 0.0;
-        // The shell's keys' strip, over whatever scrolls under it; the
-        // keys themselves are drawn last, over any sheet.
-        if app.shell_keys.is_some() {
-            ui.fill(x - ui.ox, 0.0, room, 18.0, 0.0, BG);
+        // The stick pills' strip, over whatever scrolls under it; the
+        // pills themselves are drawn last, over any sheet.
+        let strip = crate::stick_pills::strip_h(app, ui, full_w);
+        if strip > 0.0 {
+            ui.fill(x - ui.ox, 0.0, room, strip, 0.0, BG);
         }
         let kx = header_network_pill(app, ui, x + cw - 38.0);
         // Under a sheet the keyboard button is drawn over it, below.
@@ -180,15 +185,8 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             crate::compact::keyboard(app, ui, x, w, full_h);
         }
     }
-    // The shell's keys, pinned at the top over the page and any sheet:
-    // the boot stick's sheet is up when the desktop opens, and F2 is
-    // its way on. Centred on the window, sidebar and all.
-    if !app.is_compact()
-        && let Some(keys) = app.shell_keys.as_deref()
-    {
-        let kw = ui.measure(11.0, W::R, keys);
-        ui.text_mid((full_w - kw) / 2.0, 0.0, 18.0, 11.0, W::R, DIM, keys);
-    }
+    // The stick pills, pinned at the top over the page and any sheet.
+    crate::stick_pills::draw(app, ui, full_w);
 }
 
 /// The height of the strip across the top of a held app's frame
@@ -295,7 +293,7 @@ const PIN_H: f32 = 64.0;
 /// back, unless it is a step flow, which draws its own. A page's forward
 /// action is pinned in a bar at the foot, with the page scrolling above
 /// it, except while the keyboard is up, whose Done puts it away.
-fn draw_compact(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32, kb: bool) {
+fn draw_compact(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32, kb: bool, y0: f32) {
     let mut foot = h;
     if app.screen == Screen::Home && app.held {
         // The holder's Home is the one a person sees.
@@ -312,12 +310,12 @@ fn draw_compact(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32, kb: bool) {
         };
         let clip = ui.rect(0.0, top, w, page_h - top);
         ui.c.push_clip(clip);
-        ui.oy = top;
+        ui.oy = y0 + top;
         ui.pin = None;
         ui.pinning = !kb;
         dispatch(app, ui, 0.0, w, page_h - top);
         ui.pinning = false;
-        ui.oy = 0.0;
+        ui.oy = y0;
         ui.c.pop_clip();
         if top == 0.0 {
             crate::compact::flow_bar_tools(app, ui, w);
@@ -330,7 +328,7 @@ fn draw_compact(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32, kb: bool) {
             app.pin_h.set(want);
             ui.clear(BG);
             ui.hits.clear();
-            return draw_compact(app, ui, w, h, kb);
+            return draw_compact(app, ui, w, h, kb, y0);
         }
         if let Some((label, style, action)) = pin {
             let y = h - PIN_H;

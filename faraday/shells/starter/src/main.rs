@@ -46,7 +46,7 @@ use faraday_starter_shell::writer::Job;
 use faraday_storage::{Boxes, Host, serve};
 use faraday_window::camera::{self, Camera};
 use faraday_window::entropy;
-use faraday_window::input::{Input, Pointer};
+use faraday_window::input::Pointer;
 use faraday_window::lens::{Lens, LensHost};
 use faraday_window::pace::{Pacer, TICK};
 use faraday_window::view::{self, View};
@@ -401,12 +401,8 @@ impl ApplicationHandler for Shell {
                 self.redraw();
             }
             other => {
-                for input in self.pointer.translate(&other) {
-                    // The function keys are the desktop app's sticks;
-                    // the Starter has none.
-                    if let Input::Event(e) = input {
-                        self.send(event_loop, e);
-                    }
+                for e in self.pointer.translate(&other) {
+                    self.send(event_loop, e);
                 }
             }
         }

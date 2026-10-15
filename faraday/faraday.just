@@ -23,9 +23,9 @@ version := ""
 #
 # Sticks are folders in ~/faraday-sticks: BOOTSTICK, plugged in at start
 # as the stick the device booted from (renamed, the app starts with no
-# stick in), and STICK-2. F2 plugs the boot
-# stick in or pulls it out, F3 stick 2, F4 pulls every stick; the keys
-# are pinned at the top of the window. The boot stick holds the backup
+# stick in), and STICK-1 and on, one folder for each backup stick. The
+# pills across the top of the window plug each stick in or pull it out.
+# The boot stick holds the backup
 # test kit (a 2-of-3 Taproot multisig's public
 # backup files, an unsigned spend, and vault.ofv, passphrase a, holding
 # its three seeds), all testnet, and every session starts on testnet;

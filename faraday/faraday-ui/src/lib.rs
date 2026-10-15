@@ -91,6 +91,46 @@ pub mod pal {
     /// Refused.
     pub const ERR: Color = Color::rgb(0xef, 0x9b, 0x9b);
 
+    /// The boot stick's pill and render: Bitcoin's orange, as the Bitcoin
+    /// Orange theme's accent, on a dark page.
+    pub const STICK_BOOT: Color = Color::rgb(0xf7, 0x93, 0x1a);
+    /// The backup sticks' pills and renders on a dark page, Stick 1, 2,
+    /// 3 and on in turn, then again from the first: red, yellow, green,
+    /// cyan, blue, violet, magenta. Orange is the boot stick's alone.
+    pub const STICKS: [Color; 7] = [
+        Color::rgb(0xef, 0x7a, 0x7a),
+        Color::rgb(0xe9, 0xd8, 0x6b),
+        Color::rgb(0x8b, 0xd4, 0x7a),
+        Color::rgb(0x6f, 0xd6, 0xe0),
+        Color::rgb(0x7a, 0xa2, 0xf0),
+        Color::rgb(0xa9, 0x8b, 0xf0),
+        Color::rgb(0xe3, 0x7d, 0xd0),
+    ];
+    /// [`STICK_BOOT`] on a light page, darkened to read there as text.
+    pub const STICK_BOOT_LIGHT: Color = Color::rgb(0xc2, 0x5e, 0x00);
+    /// [`STICKS`] on a light page, darkened to read there as text.
+    pub const STICKS_LIGHT: [Color; 7] = [
+        Color::rgb(0xb8, 0x2f, 0x2f),
+        Color::rgb(0x8a, 0x6d, 0x00),
+        Color::rgb(0x2a, 0x7d, 0x2a),
+        Color::rgb(0x00, 0x7a, 0x8a),
+        Color::rgb(0x2c, 0x5f, 0xc9),
+        Color::rgb(0x6a, 0x45, 0xc8),
+        Color::rgb(0xb0, 0x2f, 0x98),
+    ];
+
+    /// The colour of a stick's pill: `n` 0 the boot stick, `n` the
+    /// backup Stick `n` otherwise, on a light page or a dark one. These
+    /// are not in the themes' tables: each theme draws them as they are.
+    pub fn stick_tone(n: usize, light: bool) -> Color {
+        match (n, light) {
+            (0, false) => STICK_BOOT,
+            (0, true) => STICK_BOOT_LIGHT,
+            (n, false) => STICKS[(n - 1) % STICKS.len()],
+            (n, true) => STICKS_LIGHT[(n - 1) % STICKS_LIGHT.len()],
+        }
+    }
+
     /// The colours of a PC's text mode (the VGA palette), which a
     /// firmware sketch is drawn in and nothing else is (`docs/STARTER.md`
     /// §7.8, `docs/DECISIONS.md` F18). Every theme draws them as they

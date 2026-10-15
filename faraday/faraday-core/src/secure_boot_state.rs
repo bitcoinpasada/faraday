@@ -43,11 +43,11 @@ pub fn maker_key(_maker: &str) -> Option<&'static str> {
 impl Faraday {
     /// Whether the power-off sheet carries the Secure Boot reminder: on the
     /// PC stick only (not the Pi, not Faraday Desktop, which never reads the
-    /// state and shows its shell keys, not a Mac, `docs/MAC.md` §3.2), and
+    /// state and shows its stick pills, not a Mac, `docs/MAC.md` §3.2), and
     /// unless Secure Boot was read as on.
     pub fn secure_boot_reminder(&self) -> bool {
         self.medium == Medium::Stick
-            && self.shell_keys.is_none()
+            && !self.shell_sticks
             && !self.maker.starts_with("Apple")
             && self.secure_boot != SecureBootAtStart::On
     }

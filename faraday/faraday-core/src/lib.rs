@@ -53,6 +53,8 @@ pub use faraday_intake::secret_buf as secret_text;
 pub mod apk;
 pub mod secrets;
 pub mod secure_boot_state;
+mod stick_pills;
+pub use stick_pills::{BOOT_FOLDER, Pill, SticksWanted, backup_folder};
 pub mod secureboot;
 pub mod seed_read;
 pub mod seeds;
@@ -735,6 +737,9 @@ pub enum Action {
     /// Open, or close, the wallet's chart as its own page on a small
     /// panel.
     Glance(bool),
+    /// A press on a stick's pill across the top of the window: 0 the boot
+    /// stick, `n` Stick `n`. The shell inserts the stick or pulls it.
+    StickPill(u8),
     /// A press on the wallet's chart or one of its sheets
     /// (`docs/NEW-WALLET.md` §9).
     Chart(glance_sheet::ChartAction),
@@ -3246,9 +3251,14 @@ pub struct Faraday {
     /// app's Home, which draws nothing; the holder takes leaving
     /// Transfer and the sheets as going back to its own Home.
     pub held: bool,
-    /// The shell's own keys, pinned in small text at the top of the
-    /// window (the desktop's F2 to F5); none on the device.
-    pub shell_keys: Option<String>,
+    /// The shell lets a person insert and pull sticks by hand, and the
+    /// app draws a pill for each across the top of the window
+    /// ([`Faraday::stick_pills`]): the desktop app and the website demo.
+    /// Never set on the device.
+    pub shell_sticks: bool,
+    /// Pills pressed since the shell last asked: the folder names to
+    /// insert or pull ([`Faraday::take_stick_toggles`]).
+    pub(crate) stick_toggles: Vec<String>,
     /// What the removable medium is called and drawn as: a stick, or an
     /// SD card on the Pi. The shell sets it at start.
     pub medium: Medium,
@@ -3451,7 +3461,8 @@ impl Faraday {
             hovered: None,
             online: false,
             held: false,
-            shell_keys: None,
+            shell_sticks: false,
+            stick_toggles: Vec::new(),
             medium: Medium::Stick,
             secure_boot: SecureBootAtStart::Unknown,
             maker: String::new(),
@@ -4685,6 +4696,12 @@ impl Faraday {
             if action == Action::PowerOff {
                 self.commands.push_back(Command::Exit);
             }
+            return;
+        }
+        // A stick's pill is the shell's, not the page's: it acts under
+        // any sheet and waits for nothing.
+        if let Action::StickPill(n) = action {
+            self.stick_pill_pressed(n);
             return;
         }
         // A chart's sheet leads into a flow: whatever its rows press, the
@@ -6566,6 +6583,8 @@ impl Faraday {
                 self.theme = theme;
                 self.save_boxes();
             }
+            // Acted on before any other press (`act_inner`).
+            Action::StickPill(_) => {}
         }
     }
 

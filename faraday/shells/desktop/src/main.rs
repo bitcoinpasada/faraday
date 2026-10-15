@@ -19,31 +19,31 @@
 //! Sticks are folders. `--sticks DIR` (default `faraday-sticks` in the home folder: `$HOME`, or
 //! `%USERPROFILE%` on Windows)
 //! holds `BOOTSTICK`, which gets every test kit file it lacks at each
-//! start and never has a file overwritten, and `STICK-2`, a second stick,
-//! which starts empty (until 2026-10-11 they were `TESTSTICK` and
-//! `BLANK`, renamed at the next start). The boot stick holds the backup
+//! start and never has a file overwritten, and one folder for each backup
+//! stick: `STICK-1`, `STICK-2` and on, made when a stick is first put in
+//! and empty (until 2026-10-11 the boot stick and the second were
+//! `TESTSTICK` and `BLANK`, renamed at the next start). The boot stick holds the backup
 //! test kit (`faraday_core::testkit::backup_files`: a 2-of-3 Taproot
 //! multisig's public backup files and a vault, passphrase `a`, holding
 //! its three seeds); `--full-kit` makes it the full test kit instead. A
 //! folder made for the other kit is moved aside, not mixed. In a
 //! release build the boot stick starts empty, as the stick image's does,
-//! and nothing in either folder is added to or moved. The two folders
+//! and nothing in the folders is added to or moved. The folders
 //! are made once, the first time; one renamed or removed later is not
 //! made again, and with no `BOOTSTICK` the app starts with no stick in,
 //! as it did before 2026-10-11. The boot
 //! stick is plugged in when Faraday opens, as the device starts with the
 //! stick it booted from: its `faraday-settings.txt` is read and every
 //! other file on it is copied into memory for the boot import, and
-//! pulling it (F2) starts the import. Plugged in again later, it is
+//! pulling it starts the import. Plugged in again later, it is
 //! visited like any stick.
 //!
-//! - F2 plugs the boot stick in, or pulls it out;
-//! - F3 does the same for stick 2;
-//! - F4 pulls every stick out.
-//!
-//! Any other folder in `DIR` can be added by hand and plugged with F5,
-//! which attaches every folder there. What the app writes to a stick is a
-//! file in that folder.
+//! The sticks are the pills across the top of the window
+//! (`faraday_core::stick_pills`): Boot stick, Stick 1, and one for each
+//! stick a backup flow needs. A click on a pill plugs its stick in, or
+//! pulls it out; several may be in at once. Only the boot stick is in
+//! at start. What the app writes to a stick is a file in its folder, so a
+//! stick pulled and put back holds it still.
 //!
 //! This is the online Faraday: a sheet file in the Inbox or the Outbox has
 //! Make PDF, which saves the PDF in `$HOME/faraday-print`.
@@ -72,11 +72,11 @@ use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
 use faraday_core::strings::{EN, fill};
-use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent};
+use faraday_core::{Action, BOOT_FOLDER, Faraday, Screen, StickInfo, StorageEvent};
 use faraday_storage::{Boxes, Host, serve, stick_info};
 use faraday_window::camera::{self, Camera};
 use faraday_window::entropy;
-use faraday_window::input::{Input, Pointer};
+use faraday_window::input::Pointer;
 use faraday_window::lens::{Lens, LensHost};
 use faraday_window::pace::{Pacer, TICK};
 use faraday_window::view::{self, View};
@@ -90,12 +90,9 @@ use winit::window::{Window, WindowId};
 /// How often the attached folders are looked at again.
 const RESCAN: Duration = Duration::from_millis(700);
 const TITLE: &str = EN.desktop_title;
-const TITLE_KEYS: &str = EN.desktop_title_keys;
-/// The keys, pinned at the top of the window in small text.
-const KEYS_LINE: &str = EN.desktop_keys_line;
-/// The two stick folders.
-const BOOT: &str = "BOOTSTICK";
-const SECOND: &str = "STICK-2";
+/// The boot stick's folder, and the first backup stick's.
+const BOOT: &str = BOOT_FOLDER;
+const FIRST: &str = "STICK-1";
 
 /// A device's screen, shown at its true size on this one.
 #[derive(Clone, Copy)]
@@ -202,6 +199,7 @@ impl Shell {
         let ticked = matches!(event, Event::Tick { .. });
         self.pace.before(&event);
         let mut draw = false;
+        let mut toggles = Vec::new();
         let mut events = vec![event];
         while let Some(e) = events.pop() {
             let Some(app) = self.app.as_mut() else { return };
@@ -226,6 +224,8 @@ impl Shell {
                     _ => {}
                 }
             }
+            // The sticks the person clicked on, plugged in or pulled.
+            toggles.extend(app.take_stick_toggles());
             // A camera the person chose on the scan sheet.
             self.lens.chosen(app);
             for line in serve(app, &mut self.boxes, Some(&self.host)) {
@@ -234,6 +234,9 @@ impl Shell {
         }
         if ticked {
             self.pace.animating = draw;
+        }
+        for name in toggles {
+            self.toggle(&name);
         }
         // A write changes a stick's files: look again now.
         self.rescan(event_loop, false);
@@ -327,11 +330,16 @@ impl Shell {
         }
     }
 
-    fn toggle(&mut self, event_loop: &ActiveEventLoop, name: &str) {
-        if !self.attached.remove(name) {
-            self.attached.insert(name.to_string());
+    /// Plugs the stick of folder `name` in, or pulls it out. A backup
+    /// stick's folder is made the first time it is plugged in.
+    fn toggle(&mut self, name: &str) {
+        if self.attached.remove(name) {
+            return;
         }
-        self.rescan(event_loop, false);
+        if name != BOOT {
+            let _ = std::fs::create_dir_all(self.sticks_dir.join(name));
+        }
+        self.attached.insert(name.to_string());
     }
 
     fn draw(&mut self) {
@@ -349,31 +357,6 @@ impl Shell {
         // Any event carries what the press asked for to the shell.
         let tick = self.pace.tick();
         self.send(event_loop, tick);
-    }
-
-    /// A function key: F2 plugs the boot stick in or pulls it out, F3
-    /// stick 2, F4 pulls every stick, F5 plugs every folder in.
-    fn function(&mut self, event_loop: &ActiveEventLoop, n: u8) {
-        match n {
-            2 => self.toggle(event_loop, BOOT),
-            3 => self.toggle(event_loop, SECOND),
-            4 => {
-                self.attached.clear();
-                self.rescan(event_loop, false);
-            }
-            5 => {
-                if let Ok(d) = std::fs::read_dir(&self.sticks_dir) {
-                    for e in d.flatten() {
-                        if e.path().is_dir() {
-                            self.attached
-                                .insert(e.file_name().to_string_lossy().into_owned());
-                        }
-                    }
-                }
-                self.rescan(event_loop, false);
-            }
-            _ => {}
-        }
     }
 }
 
@@ -417,10 +400,7 @@ impl ApplicationHandler for Shell {
                     .map_or(1.0, |m| m.scale_factor());
                 let size = LogicalSize::new(f64::from(w) / scale, f64::from(h) / scale);
                 Window::default_attributes()
-                    .with_title(fill(
-                        EN.desktop_title_panel,
-                        &[&p.inches.to_string(), TITLE_KEYS],
-                    ))
+                    .with_title(fill(EN.desktop_title_panel, &[&p.inches.to_string()]))
                     .with_inner_size(size)
                     .with_min_inner_size(size)
                     .with_max_inner_size(size)
@@ -505,11 +485,8 @@ impl ApplicationHandler for Shell {
             // The mouse, a finger, the wheel and the keyboard, as the
             // shell API's events (`faraday-window`).
             other => {
-                for input in self.pointer.translate(&other) {
-                    match input {
-                        Input::Event(e) => self.send(event_loop, e),
-                        Input::Function(n) => self.function(event_loop, n),
-                    }
+                for e in self.pointer.translate(&other) {
+                    self.send(event_loop, e);
                 }
             }
         }
@@ -554,7 +531,7 @@ impl ApplicationHandler for Shell {
 fn desktop_app() -> Faraday {
     let mut app = Faraday::new();
     app.online = true;
-    app.shell_keys = Some(KEYS_LINE.to_string());
+    app.shell_sticks = true;
     app.session = faraday_core::wallet::Session::default();
     app.session.set_demo();
     app
@@ -573,7 +550,8 @@ const BACKUP_MARK: &str = "faraday-testkit backup 1\n";
 /// gets the test kit only when `--full-kit` asks for it.
 fn prepare(dir: &Path, full: bool) -> Result<(), String> {
     let test = dir.join(BOOT);
-    let blank = dir.join(SECOND);
+    let blank = dir.join("STICK-2");
+    let first_stick = dir.join(FIRST);
     // Made once: the mark says the folders have been made here.
     let made = dir.join(".faraday-sticks");
     let first = !made.exists();
@@ -586,10 +564,12 @@ fn prepare(dir: &Path, full: bool) -> Result<(), String> {
                 std::fs::rename(&old, new).map_err(|e| format!("{}: {e}", old.display()))?;
             }
         }
-        std::fs::create_dir_all(&blank).map_err(|e| format!("{}: {e}", blank.display()))?;
-        std::fs::write(&made, "BOOTSTICK and STICK-2 made\n")
+        std::fs::write(&made, "BOOTSTICK and STICK-1 made\n")
             .map_err(|e| format!("{}: {e}", made.display()))?;
-    } else if !test.is_dir() {
+    }
+    // Stick 1 is a stick the app starts with: made if it is not there.
+    std::fs::create_dir_all(&first_stick).map_err(|e| format!("{}: {e}", first_stick.display()))?;
+    if !first && !test.is_dir() {
         return Ok(());
     }
     if faraday_core::is_release() && !full {
@@ -727,7 +707,7 @@ fn main() -> ExitCode {
             }
             "--help" | "-h" => {
                 println!(
-                    "faraday [--sticks DIR] [--size WxH] [--full-kit] [--transfer] [--downloads DIR] [--panel INCHES [--aspect W:H] [--ppi N]] [--timings]\n  F2 boot stick, F3 stick 2, F4 pull all, F5 plug every folder in DIR\n  --full-kit: the boot stick carries the full test kit, not the backup test kit\n  --transfer: open on Transfer · --downloads: the folder Transfer sends from and saves into (default ~/Downloads)\n  --panel: a device's screen at its true size: 2.8 is the Pi's panel (3:4), 5 a phone (9:16)\n  --aspect: the panel's width to height · --ppi: this screen's pixels per inch, if its EDID is wrong\n  --timings: once a second, what the frames cost (render, copy to the window, frame to frame) on stderr"
+                    "faraday [--sticks DIR] [--size WxH] [--full-kit] [--transfer] [--downloads DIR] [--panel INCHES [--aspect W:H] [--ppi N]] [--timings]\n  the sticks are the pills at the top of the window\n  --full-kit: the boot stick carries the full test kit, not the backup test kit\n  --transfer: open on Transfer · --downloads: the folder Transfer sends from and saves into (default ~/Downloads)\n  --panel: a device's screen at its true size: 2.8 is the Pi's panel (3:4), 5 a phone (9:16)\n  --aspect: the panel's width to height · --ppi: this screen's pixels per inch, if its EDID is wrong\n  --timings: once a second, what the frames cost (render, copy to the window, frame to frame) on stderr"
                 );
                 return ExitCode::SUCCESS;
             }
@@ -763,12 +743,12 @@ fn main() -> ExitCode {
     }
     eprintln!("faraday: sticks are folders in {}", sticks_dir.display());
     // The boot stick is in at start, as the stick the device booted from
-    // is; none when the folder has been renamed or removed.
-    let attached = if sticks_dir.join(BOOT).is_dir() {
-        BTreeSet::from([BOOT.to_string()])
-    } else {
-        BTreeSet::new()
-    };
+    // is; none when the folder has been renamed or removed. Every other
+    // stick is out until its pill is clicked.
+    let mut attached = BTreeSet::new();
+    if sticks_dir.join(BOOT).is_dir() {
+        attached.insert(BOOT.to_string());
+    }
     let event_loop = match EventLoop::new() {
         Ok(l) => l,
         Err(e) => {

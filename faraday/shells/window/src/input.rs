@@ -6,15 +6,6 @@ use osk_shell_api::{Event, Key, TouchPhase};
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::keyboard::{Key as WinitKey, NamedKey};
 
-/// What a window event comes to.
-#[derive(Debug, PartialEq)]
-pub enum Input {
-    /// An event for the app.
-    Event(Event),
-    /// A function key the shell itself may use: 2 for F2, up to 5.
-    Function(u8),
-}
-
 /// The pointer and keyboard state between window events.
 #[derive(Debug, Default)]
 pub struct Pointer {
@@ -42,11 +33,11 @@ impl Pointer {
     /// The events `event` makes, in the order they are sent. Events the
     /// window itself handles (closing, resizing, redrawing, a drop) make
     /// none.
-    pub fn translate(&mut self, event: &WindowEvent) -> Vec<Input> {
+    pub fn translate(&mut self, event: &WindowEvent) -> Vec<Event> {
         let mut out = Vec::new();
-        let touch = |out: &mut Vec<Input>, cursor: (u16, u16), phase| {
+        let touch = |out: &mut Vec<Event>, cursor: (u16, u16), phase| {
             let (x, y) = cursor;
-            out.push(Input::Event(Event::Touch { x, y, phase }));
+            out.push(Event::Touch { x, y, phase });
         };
         match event {
             WindowEvent::CursorMoved { position, .. } => {
@@ -59,12 +50,12 @@ impl Pointer {
                 if self.pressed && moved {
                     touch(&mut out, p, TouchPhase::Move);
                 } else if moved {
-                    out.push(Input::Event(Event::Hover { x: p.0, y: p.1 }));
+                    out.push(Event::Hover { x: p.0, y: p.1 });
                 }
             }
             WindowEvent::CursorLeft { .. } => {
                 if !self.pressed {
-                    out.push(Input::Event(Event::HoverEnd));
+                    out.push(Event::HoverEnd);
                 }
             }
             WindowEvent::MouseInput {
@@ -133,22 +124,22 @@ impl Pointer {
                 self.wheel -= whole;
                 if whole != 0.0 {
                     let dy = whole.clamp(-32768.0, 32767.0) as i16;
-                    out.push(Input::Event(if notched {
+                    out.push(if notched {
                         Event::Wheel { x, y, dy }
                     } else {
                         Event::Scroll { x, y, dy }
-                    }));
+                    });
                 }
                 if !notched && *phase == winit::event::TouchPhase::Ended {
                     self.wheel = 0.0;
-                    out.push(Input::Event(Event::ScrollEnd { x, y }));
+                    out.push(Event::ScrollEnd { x, y });
                 }
             }
             WindowEvent::ModifiersChanged(m) => {
                 let shift = m.state().shift_key();
                 if shift != self.shift {
                     self.shift = shift;
-                    out.push(Input::Event(Event::Shift { held: shift }));
+                    out.push(Event::Shift { held: shift });
                 }
                 self.ctrl = m.state().control_key();
             }
@@ -157,25 +148,14 @@ impl Pointer {
                 state: ElementState::Pressed,
                 button: MouseButton::Back,
                 ..
-            } => out.push(Input::Event(Event::Back)),
+            } => out.push(Event::Back),
             WindowEvent::MouseInput {
                 state: ElementState::Pressed,
                 button: MouseButton::Forward,
                 ..
-            } => out.push(Input::Event(Event::Forward)),
+            } => out.push(Event::Forward),
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.state != ElementState::Pressed {
-                    return out;
-                }
-                let function = match &event.logical_key {
-                    WinitKey::Named(NamedKey::F2) => Some(2),
-                    WinitKey::Named(NamedKey::F3) => Some(3),
-                    WinitKey::Named(NamedKey::F4) => Some(4),
-                    WinitKey::Named(NamedKey::F5) => Some(5),
-                    _ => None,
-                };
-                if let Some(n) = function {
-                    out.push(Input::Function(n));
                     return out;
                 }
                 let Some(key) = map_key(&event.logical_key) else {
@@ -188,7 +168,7 @@ impl Pointer {
                 } else {
                     key
                 };
-                out.push(Input::Event(Event::Key(key)));
+                out.push(Event::Key(key));
             }
             _ => {}
         }
