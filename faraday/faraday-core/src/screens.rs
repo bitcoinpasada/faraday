@@ -78,12 +78,15 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
         let h = full_h;
         ui.ox = (room - cw) / 2.0;
         let x = SIDEBAR_W;
-        ui.oy = -lift;
-        dispatch(app, ui, x, cw, if kb > 0.0 { win_h } else { h });
+        // The stick pills' strip lies over the room above the page's
+        // first line; a taller strip moves the page down by the rest.
+        let strip = crate::stick_pills::strip_h(app, ui, full_w);
+        let drop = crate::stick_pills::page_drop(strip);
+        ui.oy = drop - lift;
+        dispatch(app, ui, x, cw, if kb > 0.0 { win_h } else { h } - drop);
         ui.oy = 0.0;
         // The stick pills' strip, over whatever scrolls under it; the
         // pills themselves are drawn last, over any sheet.
-        let strip = crate::stick_pills::strip_h(app, ui, full_w);
         if strip > 0.0 {
             ui.fill(x - ui.ox, 0.0, room, strip, 0.0, BG);
         }

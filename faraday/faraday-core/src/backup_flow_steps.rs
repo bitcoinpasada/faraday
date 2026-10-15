@@ -425,6 +425,12 @@ impl Faraday {
             }
             F::Continue => self.flow_continue(i),
             F::LockBring => self.act(Action::LockAsk),
+            // One stick, one place: the boot stick that holds a place is
+            // not taken for another; at step 6 it is offered for its own.
+            F::UseBoot(_)
+                if (0..self.backup_flows[i].slots.len()).any(|j| {
+                    Some(j) != self.flow_slot_wanted(i) && self.backup_flows[i].boot_holds(j)
+                }) => {}
             F::UseBoot(k) => self.flow_use_present(i, k),
             F::PickFile(v, k) => self.flow_pick_file(i, v, k),
             F::PickBeside(v) => self.flow_pick_beside(i, v),
@@ -820,6 +826,13 @@ impl Faraday {
             .collect()
     }
 
+    /// The slot of the flow on screen whose stick is wanted now: the one
+    /// choice the edged pill, the card's Insert line and the reading all
+    /// follow (§18).
+    pub(crate) fn flow_wanted_slot(&self) -> Option<usize> {
+        self.flow_slot_wanted(self.fi()?)
+    }
+
     fn flow_slot_wanted(&self, i: usize) -> Option<usize> {
         let f = &self.backup_flows[i];
         match f.step {
@@ -911,6 +924,7 @@ impl Faraday {
             declined: Vec::new(),
             boot: st.boot,
             checked: false,
+            first: false,
         };
         let found = self
             .stick_problems
@@ -1448,6 +1462,7 @@ impl Faraday {
             confirm,
             picks: r.picks.clone(),
             declined: r.declined.clone(),
+            boot: r.boot,
         };
         let at_write = self.backup_flows[i].step == Step::Write;
         let f = &mut self.backup_flows[i];
@@ -1459,6 +1474,8 @@ impl Faraday {
         if r.boot && !at_write {
             f.live.reading = None;
         } else if let Some(r) = f.live.reading.as_mut() {
+            // The boot stick is Stick 1 already: nothing to mark (§18).
+            r.first = !r.boot;
             // At step 6 the stick goes on to be checked and written.
             if at_write {
                 r.purpose = Purpose::Check;
@@ -2779,10 +2796,19 @@ impl Faraday {
                 )
             }
             Problem::BoundTo(t) => fill(FEN.backup_flow_bound_to, &[&target(t)]),
-            Problem::NotRead(t) => fill(
-                FEN.backup_flow_not_read,
-                &[m, &f.map_or_else(String::new, |f| f.target_short(t, m))],
-            ),
+            Problem::NotRead(t) => {
+                // On a device, by the number of the stick it should be.
+                let n = f.and_then(|f| f.slots.iter().position(|s| s.target == *t));
+                match (n.and_then(|k| self.flow_slot_name(k)), f) {
+                    (Some(name), Some(f)) => {
+                        fill(FEN.backup_flow_not_read_n, &[&name, &f.target_what(t, m)])
+                    }
+                    _ => fill(
+                        FEN.backup_flow_not_read,
+                        &[m, &f.map_or_else(String::new, |f| f.target_short(t, m))],
+                    ),
+                }
+            }
             Problem::HasFirst => fill(FEN.backup_flow_has_first, &[m]),
             Problem::HasFilesOf(t) => {
                 let place = match t.place() {
@@ -2821,6 +2847,18 @@ impl BackupFlow {
                 BackupFlow::place_name(*p)
             ),
             t => self.target_name(t, medium),
+        }
+    }
+
+    /// What a stick is for, with no "the stick": "Vault 1 (Place 1)",
+    /// "Files", "Public files"; after its number on a device (§18).
+    pub fn target_what(&self, t: &Target, medium: &str) -> String {
+        match t {
+            Target::Place(_) | Target::PlaceVault(..) if self.is_setup() => self.target_vaults(t),
+            Target::Place(_) | Target::PlaceVault(..) => self.target_short(t, medium),
+            Target::Files => FEN.backup_flow_for_files.to_string(),
+            Target::Public => FEN.backup_flow_for_public.to_string(),
+            Target::PlaceFiles(_) => self.target_name(t, medium),
         }
     }
 

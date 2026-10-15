@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|power|pills]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|bootplace|power|pills]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -565,7 +565,7 @@ fn pills_tour(t: &mut Tour) -> Result<(), String> {
     };
     t.app.storage(StorageEvent::Sticks(vec![
         stick("BOOTSTICK"),
-        stick("STICK-1"),
+        stick("STICK-2"),
     ]));
     t.press(Action::Nav(Screen::Home));
     t.shot("pills-default")?;
@@ -654,6 +654,7 @@ fn run(
         Some("osk") => return osk_tour(&mut t),
         Some("apk") => return apk_only_tour(&mut t),
         Some("flow") => return flow_tour(&mut t),
+        Some("bootplace") => return boot_place_tour(&mut t),
         Some("power") => return power_tour(&mut t),
         Some("pills") => return pills_tour(&mut t),
         Some("walletflow") => return wallet_flow_tour(&mut t),
@@ -4763,6 +4764,51 @@ fn flow_made(t: &mut Tour, kind: faraday_core::backup_flow::Kind) -> Result<(), 
     Ok(())
 }
 
+/// The backup flow's Bring in the sticks with the boot stick taken for
+/// Place 1 (`docs/BACKUP-FLOW.md` §18): it is Stick 1, the Boot stick,
+/// and the next stick is Stick 2.
+fn boot_place_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::backup_flow::Kind;
+    use faraday_core::backup_flow_steps::FlowAction as F;
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.storage(StorageEvent::Clock {
+        unix_secs: 1_791_000_000,
+    });
+    t.press(Action::OpenSetTime);
+    t.press(Action::SetTimeKeep);
+    t.app.storage(StorageEvent::Sticks(vec![StickInfo {
+        id: "boot".into(),
+        label: "FARADAY".into(),
+        boot: true,
+        serial: Some(0x1234_5678),
+        files: Vec::new(),
+    }]));
+    t.pump();
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|x| x.go == faraday_core::catalog::Go::VaultCategory(Kind::Gpg.category()))
+        .ok_or("no GPG tile")? as u8;
+    t.press(Action::Nav(Screen::Catalog));
+    t.press(Action::Catalog(tile));
+    t.press(Action::Flow(F::Continue));
+    t.shot("bootplace-1-insert")?;
+    let k = t
+        .app
+        .sticks
+        .iter()
+        .position(|s| s.boot)
+        .ok_or("no boot stick")?;
+    t.press(Action::Flow(F::UseBoot(k)));
+    t.pump();
+    t.press(Action::Flow(F::Tap));
+    t.pump();
+    t.shot("bootplace-2-bound")?;
+    println!("the boot stick taken for Place 1: Stick 1, the next Stick 2");
+    Ok(())
+}
+
 /// The backup flow for a GPG key kept in two vaults at three places
 /// (`docs/BACKUP-FLOW.md`): the screens a person sees from Where to Done.
 fn flow_tour(t: &mut Tour) -> Result<(), String> {
@@ -4805,6 +4851,8 @@ fn flow_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Flow(F::PickFile(0, k)));
     t.shot("flow-4-confirm")?;
     t.press(Action::Flow(F::Tap));
+    // Bound: its pill is lit and the card says to mark it (§18).
+    t.shot("flow-4b-mark")?;
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
     // Two empty sticks that read exactly alike: only the person can tell
@@ -5129,6 +5177,7 @@ fn main() -> ExitCode {
             "osk",
             "apk",
             "flow",
+            "bootplace",
             "power",
             "pills",
             "walletflow",
@@ -5136,7 +5185,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, power, pills or walletflow"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills or walletflow"
         );
         return ExitCode::from(2);
     }

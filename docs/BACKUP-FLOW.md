@@ -1713,3 +1713,62 @@ it: a vault sealed with it, or a stick of files whose written files
 include its file. No wallet is loaded after the lock other than by
 unlocking a vault.
 
+
+## 18. Stick pills on every device
+
+(owner, 2026-10-15.) The numbered stick pills that Faraday Desktop and
+the website demo draw across the top (`stick_pills.rs`, commit bbcfd1e)
+are drawn on the PC stick and the Pi too, so a person who brings a stick
+back can see it is the one the flow wants.
+
+- **When.** On Faraday Desktop and the demo, always, as today. On a
+  device (`shell_sticks` false), only while a backup flow on screen uses
+  sticks (`sticks_wanted()` is some): the boot stick's pill, then a pill
+  per stick of the flow in the flow's slot order.
+- **Numbering** (owner, 2026-10-15): the boot stick is Stick 1 and is
+  still called **Boot stick**; the backup's sticks are numbered from 2,
+  "Stick 2", "Stick 3" … ("Card" on the Pi, by `app.medium`, the boot
+  card being Card 1). Everywhere: Faraday Desktop, the demo, the device,
+  the flow's lines and its "Mark it as" line. Where only numbers fit,
+  the boot stick's pill reads "1". Desktop's backup stick folders follow
+  the numbers (`STICK-2` for Stick 2); `BOOTSTICK` stays. A Desktop
+  install with a `STICK-1` folder from before renumbers its folders once
+  at start, each `STICK-n` to `STICK-(n+1)`, highest first.
+- **No press on a device.** A real stick is put in by hand: the pills
+  carry no action there. On Desktop and the demo a press still plugs or
+  pulls, as today.
+- **States.** Out: dim, as today. Wanted now: the flow's `now`, edged in
+  its colour, as today's `asked`. In: lit, and on a device only when the
+  stick in is recognised as that slot's: it reads as its `Bound` (label,
+  serial, listing, the vault files' SHA-256, §4.6's check). A stick in
+  that matches no slot lights no pill.
+- **The boot stick in a place.** A slot the boot stick holds is Stick 1
+  (Boot stick); the other slots are numbered from 2 in slot order,
+  skipping it. The boot stick gets no "Mark it as" line.
+- **One stick wanted.** Which stick is wanted now is decided once, and
+  the edged pill, the card's Insert line and the flow use that one.
+- **Mark it.** When a stick is first bound to its slot (§4.2, and a stick
+  first checked at step 6, §4.6), its card says "Mark it as Stick {n}"
+  ("Mark it as Card {n}" on the Pi), the number of its pill, under the
+  stick's row, until it is pulled.
+- **A stick from elsewhere.** A stick in that is not the one wanted and
+  matches another slot reads "This is Stick {m}", and one not yet settled
+that reads as another slot's stick (a blank stick read alike) reads
+"This reads as Stick {m}" above the hold; one that matches none,
+  "Not one of this backup's sticks". §4.6's own refusal stays as it is.
+- **Size.** The pills grow: height 28, text 13, the dot radius 4, and the
+  padding to match; on the Pi's small panel (`small`) height 24 and text
+  12. Where the row does not fit, the short form ("Stick 2"), then the
+  number alone ("1"), before wrapping to a second row.
+
+**Strings** (`faraday-strings`, `backup_flow_` prefix): "Mark it as {}
+{}", "This is {} {}", "Not one of this backup's sticks".
+
+**Tests** (`tests/stick_pills.rs`): on a device shell no pills without a
+flow, the boot pill and a pill per slot with one; no action on a device;
+a bound stick lights its own pill only; a stick matching no slot lights
+none and reads its line; the mark line shows after binding and goes on
+pull; at 480x640 a five-stick flow fits on one row in numbers alone;
+the first backup stick is Stick 2 on every shell.
+Render the flow's Bring in the sticks at 480x640 and 1280x800 with the
+pills.

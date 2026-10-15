@@ -221,6 +221,9 @@ pub struct Bound {
     /// of another copy of the same vault: the stick's copy is written over
     /// only after a hold (§4.2).
     pub declined: Vec<usize>,
+    /// The stick is the medium the machine started from: its slot is
+    /// Stick 1, the Boot stick (§18).
+    pub boot: bool,
 }
 
 /// What a written stick holds (§7 `written`).
@@ -648,6 +651,9 @@ pub struct Reading {
     pub boot: bool,
     /// The copy was refused until the hold is done.
     pub checked: bool,
+    /// This reading first bound the stick to its slot: its card says to
+    /// mark it with its pill's number until it is pulled (§18).
+    pub first: bool,
 }
 
 /// A write under way (step 6).
@@ -1141,6 +1147,32 @@ impl BackupFlow {
         )
     }
 
+    /// Slot `k` is held by the stick the machine started from.
+    pub fn boot_holds(&self, k: usize) -> bool {
+        self.slots
+            .get(k)
+            .and_then(|s| s.bound.as_ref())
+            .is_some_and(|b| b.boot)
+    }
+
+    /// The number of slot `k`'s stick, as its pill and every line naming
+    /// it read (§18): 1 where the boot stick holds it, else from 2 in slot
+    /// order, skipping the slots the boot stick holds.
+    pub fn stick_number(&self, k: usize) -> usize {
+        if self.boot_holds(k) {
+            return 1;
+        }
+        2 + (0..k).filter(|&j| !self.boot_holds(j)).count()
+    }
+
+    /// How many of the slots are sticks of their own: the boot stick's
+    /// not counted.
+    pub fn own_sticks(&self) -> usize {
+        (0..self.slots.len())
+            .filter(|&k| !self.boot_holds(k))
+            .count()
+    }
+
     /// Every stick the plan gives the key is written.
     pub fn all_written(&self) -> bool {
         self.made && !self.slots.is_empty() && self.slots.iter().all(|s| s.written.is_some())
@@ -1367,6 +1399,9 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                         Confirm::Hold => "h",
                     },
                 ));
+                if b.boot {
+                    out.push_str(&format!("bootstick\t{k}\n"));
+                }
                 for (n, size) in &b.listing {
                     out.push_str(&format!("list\t{k}\t{}\t{size}\n", clean(n)));
                 }
@@ -1700,12 +1735,23 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                         },
                         picks: Vec::new(),
                         declined: Vec::new(),
+                        boot: false,
                     });
                     true
                 }
                 None => false,
             }
         }
+        ["bootstick", k] => match slot(fl, k)
+            .and_then(|k| fl.slots.get_mut(k))
+            .and_then(|s| s.bound.as_mut())
+        {
+            Some(b) => {
+                b.boot = true;
+                true
+            }
+            None => false,
+        },
         ["list", k, name, size] => {
             match slot(fl, k)
                 .and_then(|k| fl.slots.get_mut(k))

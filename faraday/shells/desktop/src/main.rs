@@ -20,8 +20,8 @@
 //! `%USERPROFILE%` on Windows)
 //! holds `BOOTSTICK`, which gets every test kit file it lacks at each
 //! start and never has a file overwritten, and one folder for each backup
-//! stick: `STICK-1`, `STICK-2` and on, made when a stick is first put in
-//! and empty (until 2026-10-11 the boot stick and the second were
+//! stick: `STICK-2`, `STICK-3` and on (the boot stick is Stick 1), made
+//! when a stick is first put in and empty (until 2026-10-11 the boot stick and the second were
 //! `TESTSTICK` and `BLANK`, renamed at the next start). The boot stick holds the backup
 //! test kit (`faraday_core::testkit::backup_files`: a 2-of-3 Taproot
 //! multisig's public backup files and a vault, passphrase `a`, holding
@@ -39,7 +39,7 @@
 //! visited like any stick.
 //!
 //! The sticks are the pills across the top of the window
-//! (`faraday_core::stick_pills`): Boot stick, Stick 1, and one for each
+//! (`faraday_core::stick_pills`): Boot stick, Stick 2, and one for each
 //! stick a backup flow needs. A click on a pill plugs its stick in, or
 //! pulls it out; several may be in at once. Only the boot stick is in
 //! at start. What the app writes to a stick is a file in its folder, so a
@@ -90,9 +90,10 @@ use winit::window::{Window, WindowId};
 /// How often the attached folders are looked at again.
 const RESCAN: Duration = Duration::from_millis(700);
 const TITLE: &str = EN.desktop_title;
-/// The boot stick's folder, and the first backup stick's.
+/// The boot stick's folder (Stick 1), and the first backup stick's,
+/// Stick 2.
 const BOOT: &str = BOOT_FOLDER;
-const FIRST: &str = "STICK-1";
+const FIRST: &str = "STICK-2";
 
 /// A device's screen, shown at its true size on this one.
 #[derive(Clone, Copy)]
@@ -564,10 +565,10 @@ fn prepare(dir: &Path, full: bool) -> Result<(), String> {
                 std::fs::rename(&old, new).map_err(|e| format!("{}: {e}", old.display()))?;
             }
         }
-        std::fs::write(&made, "BOOTSTICK and STICK-1 made\n")
+        std::fs::write(&made, "BOOTSTICK and STICK-2 made\n")
             .map_err(|e| format!("{}: {e}", made.display()))?;
     }
-    // Stick 1 is a stick the app starts with: made if it is not there.
+    // Stick 2 is a stick the app starts with: made if it is not there.
     std::fs::create_dir_all(&first_stick).map_err(|e| format!("{}: {e}", first_stick.display()))?;
     if !first && !test.is_dir() {
         return Ok(());

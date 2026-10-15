@@ -460,7 +460,7 @@ fn a_stick_put_back_for_place_2_or_unlike_the_one_read_is_refused_and_nothing_is
     shell.pull(&mut app, "S1");
     // A stick unlike the one read for Place 2.
     shell.plug(&mut app, "S3");
-    expect(&mut app, "Not the stick read for Vault 1 (Place 2)");
+    expect(&mut app, "Not Stick 3, read for Vault 1 (Place 2)");
     assert_eq!(shell.vault_writes(), 1);
     shell.pull(&mut app, "S3");
     // The right stick: nothing is written before the hold.
@@ -560,7 +560,7 @@ fn the_kept_state_read_back_after_the_first_stick_asks_for_the_next() {
     assert_eq!(app2.screen, Screen::BackupFlow);
     assert_eq!(step(&app2), Step::Write);
     assert_eq!(app2.flow().unwrap().written_of(), (1, 2));
-    assert!(has(&mut app2, "Insert the stick for Vault 1 (Place 2)"));
+    assert!(has(&mut app2, "Insert Stick 3: Vault 1 (Place 2)"));
     write_all(&mut shell, &mut app2, &[("S2", true)]);
     assert_eq!(step(&app2), Step::Done);
 }
@@ -1149,7 +1149,7 @@ fn coming_back_to_the_writes_with_a_vault_open_again_is_on_lock_and_written_stic
     // Lock and write: the next stick is the second.
     let mut app = shell.lock(&mut app);
     assert_eq!(step(&app), Step::Write);
-    expect(&mut app, "Insert the stick for Vault 1 (Place 2)");
+    expect(&mut app, "Insert Stick 3: Vault 1 (Place 2)");
 }
 
 #[test]
@@ -1278,7 +1278,7 @@ fn use_another_stick_at_step_six_gives_the_slot_to_the_next_stick() {
     shell.add(Disk::empty("S4", "LATER"));
     shell.disk_mut("S4").serial = Some(78);
     shell.plug(&mut app, "S3");
-    expect(&mut app, "Not the stick read for Vault 1 (Place 1)");
+    expect(&mut app, "Not Stick 2, read for Vault 1 (Place 1)");
     assert!(offered(&mut app, Action::Flow(F::UseAnother)));
     shell.flow(&mut app, F::UseAnother);
     assert!(app.flow().unwrap().slots[0].bound.is_none(), "rebound");
@@ -1874,7 +1874,7 @@ fn a_stick_named_at_step_six_with_another_copy_of_the_vault_is_written_over_only
     u.files = vec![("main.ofv".into(), edited.clone())];
     shell.add(u);
     shell.plug(&mut app, "U");
-    expect(&mut app, "Not the stick read for Vault 1 (Place 1)");
+    expect(&mut app, "Not Stick 2, read for Vault 1 (Place 1)");
     shell.flow(&mut app, F::UseAnother);
     shell.pull(&mut app, "U");
     shell.plug(&mut app, "U");

@@ -437,7 +437,7 @@ fn slot_rows(
 ) -> f32 {
     let mut cy = y;
     let m = app.medium.noun();
-    for s in &f.slots {
+    for (k, s) in f.slots.iter().enumerate() {
         let done = if writing {
             s.written.is_some()
         } else {
@@ -452,13 +452,20 @@ fn slot_rows(
             Some(t) => w - ui.measure(13.0, W::M, t) - 12.0,
             None => w,
         };
-        let name = cap(&f.target_name(&s.target, m));
+        let name = app
+            .flow_slot_row(k)
+            .unwrap_or_else(|| cap(&f.target_name(&s.target, m)));
         let name = ui.fit(13.0, W::R, &name, room);
         ui.text(x, cy, 13.0, W::R, if done { TEXT } else { MUTED }, &name);
         if let Some(t) = tail {
             ui.text_right(x + w, cy - 4.0, 22.0, 13.0, W::M, OK, &t);
         }
         cy += 24.0;
+        // The stick just taken for this place, while it is in: the
+        // number of its pill, to mark on it (§18).
+        if let Some(mark) = app.flow_mark_line(k) {
+            cy += line(ui, x, cy - 4.0, w, &mark, ACCENT) - 4.0;
+        }
     }
     cy - y + 6.0
 }
@@ -490,11 +497,8 @@ fn sticks_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f3
 fn stick_card(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let m = app.medium.noun();
-    let wanted = match f.step {
-        Step::Sticks => (0..f.slots.len())
-            .find(|&k| f.slots[k].bound.is_none() && f.slots[k].target.place().is_some()),
-        _ => (0..f.slots.len()).find(|&k| f.slots[k].written.is_none()),
-    };
+    // The stick the flow wants now, as the pills edge it (§18).
+    let wanted = app.flow_wanted_slot();
     let Some(r) = f.live.reading.as_ref() else {
         if f.step == Step::Write
             && let Some(p) = &f.live.problem
@@ -515,10 +519,11 @@ fn stick_card(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32
             );
             return cy - y;
         }
-        let name = f.target_name(&f.slots[k].target, m);
-        cy += insert(app, ui, x, cy, w, &fill(FEN.backup_flow_insert, &[&name]));
-        // The stick the machine started from, read already.
-        if matches!(f.step, Step::Sticks | Step::Write) {
+        cy += insert(app, ui, x, cy, w, &app.flow_insert_line(k));
+        // The stick the machine started from, read already; not once it
+        // holds another place: one stick, one place.
+        let boot_placed = (0..f.slots.len()).any(|j| j != k && f.boot_holds(j));
+        if matches!(f.step, Step::Sticks | Step::Write) && !boot_placed {
             for (i, st) in app.sticks.iter().enumerate().filter(|(_, s)| s.boot) {
                 let at = read_time(app, app.clock_now());
                 cy += btn(
@@ -539,20 +544,15 @@ fn stick_card(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32
         }
         return cy - y;
     };
-    let name = f.target_name(&f.slots[r.slot].target, m);
     if !r.bound {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            14.0,
-            W::S,
-            TEXT,
-            &fill(FEN.backup_flow_insert, &[&name]),
-        ) + 8.0;
+        cy += ui.wrap(x, cy, w, 14.0, W::S, TEXT, &app.flow_insert_line(r.slot)) + 8.0;
     }
     if let Some(p) = &r.problem {
         cy += line(ui, x, cy, w, &app.flow_problem_text(p), ERR);
+        // Which of the backup's sticks it is, if any (§18).
+        if let Some(which) = app.flow_stick_from_elsewhere() {
+            cy += line(ui, x, cy, w, &which, TEXT);
+        }
         cy += btn(
             ui,
             x,
@@ -610,6 +610,11 @@ fn stick_card(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32
     }
     match r.purpose {
         crate::backup_flow::Purpose::Bind => {
+            // A blank stick read alike: which of the backup's sticks it
+            // reads as, above the hold (§18).
+            if let Some(like) = app.flow_stick_reads_as() {
+                cy += line(ui, x, cy, w, &like, TEXT);
+            }
             cy += bind_card(app, f, r, ui, x, cy, w);
         }
         crate::backup_flow::Purpose::Check => {
@@ -1278,11 +1283,13 @@ fn done_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32)
         return 0.0;
     }
     cy += ui.wrap(x, cy, w, 15.0, W::S, OK, FEN.backup_flow_done) + 12.0;
-    for s in &f.slots {
+    for (k, s) in f.slots.iter().enumerate() {
         let Some(wr) = &s.written else {
             continue;
         };
-        let name = f.target_short(&s.target, app.medium.noun());
+        let name = app
+            .flow_slot_row(k)
+            .unwrap_or_else(|| f.target_short(&s.target, app.medium.noun()));
         let at = read_time(app, wr.time);
         cy += ui.wrap(
             x,

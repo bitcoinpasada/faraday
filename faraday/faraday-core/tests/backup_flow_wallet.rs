@@ -495,7 +495,7 @@ fn the_hold_on_the_key_stays_until_the_last_stick_is_written_and_a_lock_resumes_
     assert_eq!(step(&app), Step::Write);
     assert!(app.flow().unwrap().slots[0].written.is_some());
     assert!(app.flow().unwrap().slots[1].written.is_none());
-    expect(&mut app, "Insert the stick for Vault 1 (Place 2)");
+    expect(&mut app, "Insert Stick 3: Vault 1 (Place 2)");
     shell.plug(&mut app, "S2");
     shell.flow(&mut app, F::Tap);
     shell.flow(&mut app, F::Hold);
@@ -2593,7 +2593,7 @@ fn two_vaults_ask_for_two_sticks_read_before_any_unlock_and_are_open_before_the_
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 2);
     assert_eq!(app.flow().unwrap().slots.len(), 2, "a stick for each vault");
-    expect(&mut app, "Insert the stick for Vault 1");
+    expect(&mut app, "Insert Stick 2: Vault 1");
     // Vault 1: a stick that holds a vault; the person picks which.
     shell.plug(&mut app, "S1");
     expect(&mut app, "Which vault is Vault 1?");
@@ -2613,7 +2613,7 @@ fn two_vaults_ask_for_two_sticks_read_before_any_unlock_and_are_open_before_the_
     shell.flow(&mut app, F::Tap);
     shell.pull(&mut app, "S1");
     assert!(app.vaults.open.is_empty(), "no vault is opened yet");
-    expect(&mut app, "Insert the stick for Vault 2");
+    expect(&mut app, "Insert Stick 3: Vault 2");
     // Vault 2: an empty stick, a new vault, no question.
     shell.plug(&mut app, "S2");
     shell.flow(&mut app, F::Tap);

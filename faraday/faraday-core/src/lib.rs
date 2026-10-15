@@ -54,7 +54,7 @@ pub mod apk;
 pub mod secrets;
 pub mod secure_boot_state;
 mod stick_pills;
-pub use stick_pills::{BOOT_FOLDER, Pill, SticksWanted, backup_folder};
+pub use stick_pills::{BOOT_FOLDER, FIRST_BACKUP, Pill, SticksWanted, backup_folder};
 pub mod secureboot;
 pub mod seed_read;
 pub mod seeds;
@@ -12225,6 +12225,16 @@ impl Faraday {
     /// The strings the current frame draws, for a test to check what a
     /// title or a label actually reads.
     pub fn drawn_texts(&mut self) -> Vec<String> {
+        self.drawn_text_boxes()
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect()
+    }
+
+    /// The strings the current frame draws, each with the box of its ink
+    /// in pixels (x, y, w, h): for a test of where a line is put, such as
+    /// whether a row of labels fits on one line.
+    pub fn drawn_text_boxes(&mut self) -> Vec<(String, (i32, i32, i32, i32))> {
         if let Some(c) = self.canvas.as_mut() {
             c.record_ink(true);
         }
@@ -12236,7 +12246,9 @@ impl Faraday {
                 c.ink()
                     .iter()
                     .filter_map(|i| match &i.kind {
-                        osk_ui::canvas::InkKind::Text { text, .. } => Some(text.clone()),
+                        osk_ui::canvas::InkKind::Text { text, .. } => {
+                            Some((text.clone(), (i.rect.x, i.rect.y, i.rect.w, i.rect.h)))
+                        }
                         osk_ui::canvas::InkKind::Icon(_) => None,
                     })
                     .collect()

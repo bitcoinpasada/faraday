@@ -7656,10 +7656,8 @@ pub struct Strings {
     /// The desktop app's window title at a panel size: `{}` the diagonal in
     /// inches.
     pub desktop_title_panel: &'static str,
-    /// The pill of the boot stick across the top of the desktop app.
+    /// The pill of the boot stick, Stick 1, across the top of the window.
     pub stick_pill_boot: &'static str,
-    /// The pill of a backup stick: `{}` its number.
-    pub stick_pill_n: &'static str,
     /// A pill's state: the stick is in.
     pub stick_pill_in: &'static str,
     /// A pill's state: the stick is out.
@@ -7837,6 +7835,40 @@ pub struct Strings {
     pub backup_flow_beside_it: &'static str,
     /// Leaves the stick for another.
     pub backup_flow_use_another: &'static str,
+    /// On a device, a row naming one of the flow's sticks: its pill's
+    /// name, then what it is for ("Stick 2 · Vault 1 (Place 1)").
+    pub backup_flow_slot_row: &'static str,
+    /// On a device, asks for a stick by its pill's name ("Insert Stick 3:
+    /// Vault 2 (Place 2)").
+    pub backup_flow_insert_n: &'static str,
+    /// On a device, a stick unlike the one read for this pill at step 2
+    /// ("Not Stick 3, read for Vault 2 (Place 2)").
+    pub backup_flow_not_read_n: &'static str,
+    /// On a device, above the hold: a stick not yet settled that reads as
+    /// another of the flow's sticks ("This reads as Stick 2").
+    pub backup_flow_reads_as: &'static str,
+    /// On a device, what the stick of files is for, after its number.
+    pub backup_flow_for_files: &'static str,
+    /// On a device, what the stick of public files is for, after its
+    /// number.
+    pub backup_flow_for_public: &'static str,
+    /// A backup stick's pill: the medium's word and its number, from 2
+    /// ("Stick 2", "Card 2"; `docs/BACKUP-FLOW.md` §18).
+    pub backup_flow_pill: &'static str,
+    /// The boot pill on the Pi, Card 1.
+    pub backup_flow_pill_boot_card: &'static str,
+    /// A device's pill word on a USB stick.
+    pub backup_flow_pill_stick: &'static str,
+    /// A device's pill word on an SD card.
+    pub backup_flow_pill_card: &'static str,
+    /// Under a stick's row once it is first taken for its place: the
+    /// pill's word and number.
+    pub backup_flow_mark_as: &'static str,
+    /// A stick refused that reads as another of the flow's sticks: the
+    /// pill's word and number.
+    pub backup_flow_this_is_n: &'static str,
+    /// A stick refused that reads as none of the flow's sticks.
+    pub backup_flow_not_ours: &'static str,
     /// A row of the result: the vault the key is in.
     pub backup_flow_in_vault: &'static str,
     /// Foot of step 5.
@@ -11726,7 +11758,6 @@ pub static EN: Strings = Strings {
     desktop_title: "Faraday",
     desktop_title_panel: "Faraday · {} in panel",
     stick_pill_boot: "Boot stick",
-    stick_pill_n: "Stick {}",
     stick_pill_in: "in",
     stick_pill_out: "out",
     stick_pill_state: "{} · {}",
@@ -11813,6 +11844,19 @@ pub static EN: Strings = Strings {
     backup_flow_no_passphrase: "I do not have its passphrase",
     backup_flow_beside_it: "A new vault beside it",
     backup_flow_use_another: "Use another {}",
+    backup_flow_slot_row: "{} · {}",
+    backup_flow_insert_n: "Insert {}: {}",
+    backup_flow_not_read_n: "Not {}, read for {}",
+    backup_flow_reads_as: "This reads as {} {}",
+    backup_flow_for_files: "Files",
+    backup_flow_for_public: "Public files",
+    backup_flow_pill: "{} {}",
+    backup_flow_pill_boot_card: "Boot card",
+    backup_flow_pill_stick: "Stick",
+    backup_flow_pill_card: "Card",
+    backup_flow_mark_as: "Mark it as {} {}",
+    backup_flow_this_is_n: "This is {} {}",
+    backup_flow_not_ours: "Not one of this backup's {}",
     backup_flow_in_vault: "In {}",
     backup_flow_lock_and_write: "Lock and write",
     backup_flow_not_read: "Not the {} read for {}",

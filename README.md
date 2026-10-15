@@ -682,13 +682,13 @@ one a USB stick the app can see plugged in or pulled out:
   passphrase `a`, holding its three seeds, all testnet). It is plugged
   in when the app opens and runs the boot import (above); its pill pulls it
   out, which starts the import, or plugs it in again for a stick visit
-- `STICK-1`, `STICK-2` and on are backup sticks, empty at first, each
-  its own folder: what a flow writes to one is still there once it is
-  pulled and put back. `STICK-1` is made at start, the others when their
-  pill is first clicked
+- `STICK-2`, `STICK-3` and on are backup sticks (the boot stick is
+  Stick 1), empty at first, each its own folder: what a flow writes to
+  one is still there once it is pulled and put back. `STICK-2` is made
+  at start, the others when their pill is first clicked
 
 The sticks are the pills pinned across the top of the window: Boot stick,
-Stick 1, and one for each stick a backup flow needs while it lasts. A
+Stick 2, and one for each stick a backup flow needs while it lasts. A
 click on a pill plugs its stick in or pulls it out; several may be in at
 once. Only the boot stick is in at start. The
 folders are made once, the first time the app starts; one renamed or
