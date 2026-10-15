@@ -1,6 +1,6 @@
 [package]
 name = "faraday-intake"
-version = "0.1.2"
+version = "0.1.3"
 description = "What arrives at a Faraday app, and whether it is a secret that stays on the device: answers in enums, no strings"
 edition.workspace = true
 license.workspace = true

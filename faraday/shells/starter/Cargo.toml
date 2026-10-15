@@ -1,6 +1,6 @@
 [package]
 name = "faraday-starter-shell"
-version = "0.1.2"
+version = "0.1.3"
 description = "The Starter (docs/STARTER.md §2): faraday-starter in a window, its payload, and per operating system the disks, the writer and this computer's facts"
 edition.workspace = true
 license.workspace = true
