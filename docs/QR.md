@@ -173,7 +173,8 @@ intact, not who sent it.
    | Cosigner's key, `xpub-{fp}.txt`, and its BSMS key record | yes | yes, labelled `Key {fp} · {kind} · {path}` |
    | Silent payments record `silent-{fp}.txt`, and the address on its sheet | yes | yes, labelled `Silent payment address · {fp}` |
    | Signed message | yes | yes |
-   | GPG public key, revocation, detached signature | yes | yes, as one code; the revocation's label says "Revokes {key}" |
+   | GPG public key, detached signature | yes | yes, as one code |
+   | GPG revocation certificate | no: the secret sheet only (F32) | no |
    | PSBT part, signed PSBT, transaction hex | yes | no |
    | Wallet .json, Bitcoin Core import | from Files | no |
    | Backup, share and blank PDFs | no | no |

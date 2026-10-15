@@ -80,7 +80,7 @@ RECORDS = {
     4: ("Note", {1: "text"}),
     5: ("Recovery sheet", {1: "sheet"}),
     6: ("Entry", {1: "title", 2: "username", 3: "password", 4: "URL", 5: "notes", 6: "TOTP"}),
-    7: ("GPG key", {1: "primary seed", 2: "created", 3: "subkey seed", 4: "subkey created", 5: "user ID", 6: "expiry", 7: "certificate"}),
+    7: ("GPG key", {1: "primary seed", 2: "created", 3: "subkey seed", 4: "subkey created", 5: "user ID", 6: "expiry", 7: "certificate", 8: "kept revocation", 9: "revoked at"}),
     8: ("Secure Boot keys", {1: "owner GUID", 2: "PK key", 3: "PK certificate", 4: "KEK key", 5: "KEK certificate", 6: "db key", 7: "db certificate"}),
     9: ("Pending signing round", {1: "scheme", 2: "transaction", 3: "fingerprint", 4: "state", 5: "used"}),
     10: ("Signed amounts", {1: "transaction", 2: "amount"}),

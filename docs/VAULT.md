@@ -326,7 +326,7 @@ exactly where its last field does, refuses the slot.
 | 4 | Note | 1 the note, as `osk-backup` kind 3 |
 | 5 | Recovery sheet | 1 the sheet, as `osk-backup` kind 4 |
 | 6 | Entry | 1 title (required); 2 username; 3 password; 4 URL; 5 notes; 6 TOTP secret, an `otpauth://` URI (a bare key is stored as one, `docs/TOTP.md` §4.3) |
-| 7 | GPG key | 1 primary Ed25519 seed (32 bytes); 2 primary creation time (`u32`); 3 signing subkey seed (32 bytes); 4 subkey creation time; 5 user ID (repeatable); 6 expiry (`u32` seconds after creation, 0 for none); 7 the public certificate as last exported |
+| 7 | GPG key | 1 primary Ed25519 seed (32 bytes); 2 primary creation time (`u32`); 3 signing subkey seed (32 bytes); 4 subkey creation time; 5 user ID (repeatable); 6 expiry (`u32` seconds after creation, 0 for none); 7 the public certificate as last exported; 8 the revocation certificate made with the key, as OpenPGP packets (F32); 9 when the key was marked revoked (`u32`) |
 | 8 | Secure Boot keys | 1 owner GUID (16 bytes); 2 PK private key, PKCS#8 DER; 3 PK certificate, DER; 4 KEK key; 5 KEK certificate; 6 db key; 7 db certificate |
 | 9 | Pending signing round | 1 scheme (`u8`: 1 MuSig2, 2 FROST); 2 SHA-256 of the unsigned transaction it is bound to; 3 the key's fingerprint; 4 the round's secret state, as `osk-psbt` serialises it; 5 used (`u8`), set when round 2 signs. Written by the flow in `docs/WALLETS.md` §4.2 and, for FROST, by the carry's secret sheet (`docs/FLOWS.md` decision 6), with the carry file as field 4; Faraday removes the record once its round has signed, so it is gone at the next seal |
 | 10 | Signed amounts | 1 SHA-256 of an unsigned transaction; 2 the amount each input stated, `u64` per input in order (repeatable per record: one record per transaction). Written by `docs/WALLETS.md` §3.3 when that setting is on; the oldest records are dropped first when the slot is full |
@@ -343,7 +343,7 @@ sheet (§9); its actions load the wallet, and its seeds this slot keeps,
 first. Opening one writes nothing into the slot.
 
 In each type the first field is required and every other field is
-optional; type 10's field 2 and type 12's fields 2 and 3 are also required. Fields marked repeatable
+optional; type 10's field 2 and type 12's fields 2 and 3 are also required. A type 7 record without field 3, the signing subkey's seed, is kept and shown by its user IDs and signs, exports and renews nothing: the format keeps the field optional so that no slot is refused over it, and Faraday's own keys always write it. A build before F32 refuses a slot holding a type 7 record with field 8 or 9. Fields marked repeatable
 may appear more than once; no other field may. A key's field 1 must be a
 payload `osk-backup` reads as its kind, and a recovery sheet's field 1
 likewise.

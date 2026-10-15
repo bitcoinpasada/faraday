@@ -318,9 +318,20 @@ pub enum VaultAction {
     GpgYears(u32),
     /// The selected GPG key's public certificate to the Outbox.
     GpgExport,
-    /// A revocation certificate for the selected GPG key to the Outbox.
-    GpgRevoke,
-    /// New self-signatures with the chosen expiry.
+    /// The revocation certificate kept with the selected GPG key, through
+    /// the secret sheet.
+    GpgExportRevocation,
+    /// The page that asks why the selected GPG key is revoked
+    /// (`gpg --generate-revocation`).
+    GpgRevocationPage,
+    /// The reason chosen on that page, by GnuPG's menu number 0 to 3.
+    GpgReason(u8),
+    /// The new term chosen for the selected GPG key's renewal, in years;
+    /// 0 for never.
+    GpgRenewTerm(u32),
+    /// Held to mark the selected GPG key revoked.
+    GpgHoldRevoke,
+    /// New self-signatures with the term chosen.
     GpgRenew,
     /// Choose Inbox files for the selected GPG key to sign.
     GpgSignPick,
@@ -329,9 +340,9 @@ pub enum VaultAction {
     /// Tick every signable file, or untick them all when every one is
     /// already ticked.
     GpgTickAll,
-    /// Sign every ticked file with the selected GPG key, one signature
-    /// each to the Outbox.
-    GpgSignTicked,
+    /// Held to sign every ticked file with the selected GPG key, one
+    /// signature each to the Outbox.
+    GpgHoldSign,
     /// Choose the Windows-compatible enrolment policy, or own keys only.
     SbOwnOnly(bool),
     /// The enrolment files to the Outbox.
@@ -353,7 +364,13 @@ pub enum VaultAction {
 pub fn is_hold(a: Action) -> bool {
     matches!(
         a,
-        Action::Vault(VaultAction::HoldDelete | VaultAction::SbHoldSign | VaultAction::ApkHoldSign)
+        Action::Vault(
+            VaultAction::HoldDelete
+                | VaultAction::SbHoldSign
+                | VaultAction::GpgHoldSign
+                | VaultAction::GpgHoldRevoke
+                | VaultAction::ApkHoldSign
+        )
     )
 }
 
@@ -681,10 +698,20 @@ pub struct Vaults {
     pub gpg_years: u32,
     /// Choosing Inbox files for the selected GPG key to sign.
     pub signing: bool,
-    /// The signable Inbox files ticked to sign, by name. Set to its
+    /// The signable Inbox files ticked to sign, by name and SHA-256: a
+    /// file replaced by a stick visit is no longer ticked. Set to its
     /// default (the only file ticked, several none) whenever the page
     /// opens.
-    pub sign_ticked: Vec<String>,
+    pub sign_ticked: Vec<(String, [u8; 32])>,
+    /// The fingerprint of the key the signing page was opened for.
+    pub sign_key: Option<[u8; 20]>,
+    /// The files the signing page hashed, so that it hashes each once.
+    pub sign_seen: std::cell::RefCell<Vec<crate::gpg::Seen>>,
+    /// The term chosen to renew the selected GPG key for, in years; none
+    /// until the person chooses.
+    pub renew_years: Option<u32>,
+    /// The reason chosen for a revocation, by GnuPG's menu number.
+    pub revoke_reason: u8,
     /// What is typed into passphrase fields is shown in the clear.
     pub typed_shown: bool,
     /// APK signing keys: the form, the result, Sign an APK, and the keys
@@ -1502,6 +1529,7 @@ impl Faraday {
             }
             V::Unlock => self.vault_unlock_check(),
             V::Show(i) => {
+                self.gpg_page_reset();
                 if i < self.vaults.open.len() {
                     self.vaults.current = i;
                     self.vaults.apk.leave();
@@ -1513,6 +1541,7 @@ impl Faraday {
             }
             V::Category(k) => {
                 self.vaults.apk.leave();
+                self.gpg_page_reset();
                 self.vaults.category = k.min(CATEGORIES.len() - 1);
                 self.vault_item_offset = 0.0;
                 self.vaults.category_chosen = true;
@@ -1522,18 +1551,22 @@ impl Faraday {
             }
             V::Item(k) => {
                 self.vaults.apk.leave();
+                self.gpg_page_reset();
                 self.vaults.item[self.vaults.category] = k;
                 self.vault_item_offset = 0.0;
                 self.vaults.form = None;
                 self.vaults.saving = false;
                 self.vaults.item_open = true;
+                // A key made before revocations were kept gets its one
+                // now, on first use of its page.
+                self.gpg_keep_revocation();
             }
             V::ItemBack => {
+                self.gpg_page_reset();
                 self.vaults.item_open = false;
                 self.vaults.form = None;
                 self.vaults.prompt = None;
                 self.vaults.saving = false;
-                self.vaults.signing = false;
                 self.vaults.sb_images = false;
                 self.vaults.sb_sign = None;
                 self.vaults.apk.leave();
@@ -1565,7 +1598,7 @@ impl Faraday {
             V::Add => {
                 let kinds = CATEGORIES[self.vaults.category].1;
                 if kinds.contains(&kind::GPG) {
-                    self.vaults.gpg_years = 2;
+                    self.vaults.gpg_years = crate::gpg::DEFAULT_YEARS;
                     self.vaults.signing = false;
                 }
                 self.vaults.sb_images = false;
@@ -1704,11 +1737,14 @@ impl Faraday {
             }
             V::GpgYears(y) => self.vaults.gpg_years = y,
             V::GpgExport => self.gpg_export(),
-            V::GpgRevoke => {
-                if !self.time_asked() {
-                    self.gpg_revoke();
-                }
+            V::GpgExportRevocation => self.gpg_export_revocation(),
+            V::GpgRevocationPage => {
+                self.gpg_keep_revocation();
+                self.vault_form_for_revocation();
             }
+            V::GpgReason(n) => self.vaults.revoke_reason = n.min(3),
+            V::GpgRenewTerm(y) => self.vaults.renew_years = Some(y),
+            V::GpgHoldRevoke => self.gpg_mark_revoked(),
             V::GpgRenew => {
                 if !self.time_asked() {
                     self.gpg_renew();
@@ -1717,31 +1753,16 @@ impl Faraday {
             V::GpgSignPick => {
                 self.vaults.signing = !self.vaults.signing;
                 self.vaults.form = None;
+                self.vaults.sign_key = self.gpg_fingerprint();
                 if self.vaults.signing {
                     self.gpg_default_ticks();
                 } else {
                     self.vaults.sign_ticked.clear();
                 }
             }
-            V::GpgTick(k) => {
-                if let Some(name) = self.gpg_signable().get(k).map(|i| i.name.clone()) {
-                    if let Some(at) = self.vaults.sign_ticked.iter().position(|n| *n == name) {
-                        self.vaults.sign_ticked.remove(at);
-                    } else {
-                        self.vaults.sign_ticked.push(name);
-                    }
-                }
-            }
-            V::GpgTickAll => {
-                let names: Vec<String> =
-                    self.gpg_signable().iter().map(|i| i.name.clone()).collect();
-                if names.iter().all(|n| self.vaults.sign_ticked.contains(n)) {
-                    self.vaults.sign_ticked.clear();
-                } else {
-                    self.vaults.sign_ticked = names;
-                }
-            }
-            V::GpgSignTicked => {
+            V::GpgTick(k) => self.gpg_tick(k),
+            V::GpgTickAll => self.gpg_tick_all(),
+            V::GpgHoldSign => {
                 if !self.time_asked() {
                     self.gpg_sign_ticked();
                 }
@@ -2721,6 +2742,21 @@ impl Faraday {
         self.refresh_spend();
     }
 
+    /// The form that asks why the selected GPG key is revoked: its
+    /// optional description, with the reason chosen by buttons. Its one
+    /// field is number 3, which the Make form does not have.
+    pub(crate) fn vault_form_for_revocation(&mut self) {
+        self.vaults.signing = false;
+        self.vaults.revoke_reason = 0;
+        self.vaults.form = Some(Form {
+            kind: kind::GPG,
+            record: self.vault_selected_index(),
+            fields: vec![(3, EN.vaults_description, TextBox::default(), false)],
+        });
+        self.vaults.saving = false;
+        self.vaults.focus = Some(Focus::Field(0));
+    }
+
     fn vault_form(&mut self, edit: bool) {
         let kinds = CATEGORIES[self.vaults.category].1;
         let at = if edit {
@@ -2800,6 +2836,13 @@ impl Faraday {
             self.vaults.sb_owner = form.fields[0].2.text.trim().to_string();
             self.vaults.working = Some(Work::SecureBoot);
             self.vaults.drawn = false;
+            return;
+        }
+        if form.kind == kind::GPG && form.fields.first().is_some_and(|f| f.0 == 3) {
+            let reason = faraday_pgp::Reason::from_menu(self.vaults.revoke_reason)
+                .unwrap_or(faraday_pgp::Reason::Unspecified);
+            let text = form.fields[0].2.text.to_string();
+            self.gpg_make_revocation(reason, &text);
             return;
         }
         if form.kind == kind::GPG {

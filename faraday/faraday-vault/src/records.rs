@@ -230,6 +230,8 @@ const GPG_RULES: &[Rule] = &[
     rule(5, false, true, TEXT),
     rule(6, false, false, Shape::Exact(4)),
     rule(7, false, false, Shape::Bytes),
+    rule(8, false, false, Shape::Bytes),
+    rule(9, false, false, Shape::Exact(4)),
 ];
 const SECURE_BOOT_RULES: &[Rule] = &[
     rule(1, true, false, Shape::Exact(16)),

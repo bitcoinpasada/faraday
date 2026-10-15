@@ -1504,7 +1504,7 @@ fn run(
         .filter(|i| i.name.ends_with(".asc"))
         .map(|i| i.name.clone())
         .collect();
-    if gpg_files.len() != 2 || !gpg_files.iter().any(|n| n.ends_with("-revocation.asc")) {
+    if gpg_files.len() != 1 {
         return Err(format!("making a GPG key left {gpg_files:?} in the Outbox"));
     }
     t.shot("vault-gpg-key")?;
@@ -1525,7 +1525,7 @@ fn run(
         t.press(Action::Vault(V::GpgTick(k)));
     }
     t.shot("vault-gpg-sign")?;
-    t.press(Action::Vault(V::GpgSignTicked));
+    t.press(Action::Vault(V::GpgHoldSign));
     for name in ["vault-entries.txt", "BOOTX64.EFI"] {
         if !t.app.outbox.iter().any(|i| i.name == format!("{name}.asc")) {
             return Err(format!(
@@ -2993,10 +2993,9 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
     }
     // On a small panel the key's page is opened from the list.
     t.press(Action::Vault(V::Item(0)));
-    scroll_to(t, Action::CodePng(Code::GpgRevocation));
+    scroll_to(t, Action::CodePng(Code::GpgKey));
     t.shot("public-gpg")?;
     t.press(Action::CodePng(Code::GpgKey));
-    t.press(Action::CodePng(Code::GpgRevocation));
     t.press(Action::Vault(V::GpgSignPick));
     // Back to the top of the list of files.
     for _ in 0..10 {

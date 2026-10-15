@@ -327,8 +327,8 @@ no PNG and no file. Its usual destination, an authenticator app, takes
 it only by scanning. That is the one secret field of an Entry with a
 code. The password field has none, and none is added: there is no
 generic per-field QR for the nsec to leak through. The other codes on a
-vault page are GPG's certificate, revocation and signatures
-(`Code::GpgKey`, `GpgRevocation`, `GpgSignature`) and, since F28, a
+vault page are GPG's certificate and signatures
+(`Code::GpgKey`, `GpgSignature`; the revocation has no code, F32) and, since F28, a
 recovery sheet's descriptor.
 
 A **Nostr entry** is an Entry whose password reads as an nsec (§2.4)

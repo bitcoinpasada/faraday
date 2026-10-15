@@ -475,10 +475,10 @@ fn a_file_just_copied_in_shows_on_both_sides_and_waits_for_the_next_stick() {
     assert_eq!(wrote[0].2, share.1);
 }
 
-/// A GPG certificate and its revocation certificate, armored as the GPG
-/// flow writes them.
+/// A GPG certificate and a detached signature, armored as the GPG flow
+/// writes them.
 fn gpg_files() -> [(String, Vec<u8>); 2] {
-    use faraday_pgp::{Armor, Key, Reason, armor};
+    use faraday_pgp::{Armor, Hash, Key, armor};
     let key = Key {
         primary_seed: [0x11; 32],
         created: 1_780_000_000,
@@ -493,10 +493,10 @@ fn gpg_files() -> [(String, Vec<u8>); 2] {
             armor(Armor::PublicKey, &key.certificate(1_780_000_000)).into_bytes(),
         ),
         (
-            "test-revocation.asc".to_string(),
+            "test-signature.asc".to_string(),
             armor(
-                Armor::PublicKey,
-                &key.revocation(1_780_000_060, Reason::Retired, "Not used"),
+                Armor::Signature,
+                &key.sign(b"A file.\n", 1_780_000_060, Hash::Sha512),
             )
             .into_bytes(),
         ),
@@ -504,7 +504,7 @@ fn gpg_files() -> [(String, Vec<u8>); 2] {
 }
 
 #[test]
-fn a_gpg_public_key_and_revocation_copied_between_sticks_are_public() {
+fn a_gpg_public_key_and_signature_copied_between_sticks_are_public() {
     let mut app = testkit::started();
     let files = gpg_files();
     let a = Stick::new("a", &files);
@@ -531,7 +531,7 @@ fn a_gpg_public_key_and_revocation_copied_between_sticks_are_public() {
 }
 
 #[test]
-fn a_gpg_public_key_and_revocation_stay_in_the_inbox_across_a_lock() {
+fn a_gpg_public_key_and_signature_stay_in_the_inbox_across_a_lock() {
     let mut app = testkit::started();
     let files = gpg_files();
     let a = Stick::new("a", &files);

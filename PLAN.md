@@ -752,7 +752,7 @@ from a vault.
 | Create | Ed25519 certification primary, Ed25519 signing subkey, one or more user IDs, expiry. Secret material goes to a vault slot. |
 | Export public certificate | ASCII-armoured, v4 packets. Outbox. |
 | Sign | Detached signatures over Inbox files, SHA-256 or SHA-512. Outbox. |
-| Revocation certificate | Made at creation; also on request. Outbox. |
+| Revocation certificate | Made at creation and kept in the key's vault record; also on request. Out only through the secret sheet, as a `.rev` file (F30). |
 | Renew | New self-signatures with a new expiry; export the updated certificate. |
 | Paperkey | The secret parts in `paperkey`'s text format, checked against `paperkey` output. Shown as text or QR, or written to the Outbox only as part of a sealed vault. |
 

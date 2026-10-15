@@ -170,11 +170,29 @@ fn text_area(
 
 /// A secret value shown only while held.
 fn secret(ui: &mut Ui, x: f32, y: f32, w: f32, value: &str, mono: bool, id: usize) -> f32 {
+    secret_with(ui, x, y, w, || value.to_string().into(), mono, id)
+}
+
+/// A secret value shown only while held, made only then.
+fn secret_with(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    value: impl FnOnce() -> zeroize::Zeroizing<String>,
+    mono: bool,
+    id: usize,
+) -> f32 {
     let action = va(V::Reveal(id));
     let held = ui.is_pressed(action);
     let face = if mono { W::M } else { W::R };
+    let value = if held {
+        value()
+    } else {
+        zeroize::Zeroizing::new("•".repeat(24))
+    };
     let shown = if held {
-        crate::secret_text::SecretText::of(value)
+        crate::secret_text::SecretText::of(&value)
     } else {
         crate::secret_text::SecretText::of(&"•".repeat(value.chars().count().clamp(8, 24)))
     };
@@ -2894,7 +2912,9 @@ fn detail(
     dw: f32,
 ) -> f32 {
     if let Some(form) = &app.vaults.form {
+        let revoking = form.kind == kind::GPG && form.fields.first().is_some_and(|f| f.0 == 3);
         let heading = match (form.kind, form.record) {
+            (kind::GPG, _) if revoking => FEN.vault_make_a_revocation,
             (kind::SLOT_LABEL, _) => FEN.vault_rename_the_vault,
             (kind::NOTE, None) => FEN.vault_add_a_note,
             (kind::NOTE, Some(_)) => FEN.vault_edit_the_note,
@@ -2932,10 +2952,14 @@ fn detail(
                 dy += 52.0;
             }
         }
-        if form.kind == kind::GPG {
+        if revoking {
+            ui.text(dx, dy, 12.0, W::R, MUTED, FEN.vault_reason);
+            dy += 22.0;
+            dy += reasons_row(app, ui, dx, dy, dw) + 16.0;
+        } else if form.kind == kind::GPG {
             ui.text(dx, dy, 12.0, W::R, MUTED, FEN.vault_expires);
             dy += 22.0;
-            dy += years_row(app, ui, dx, dy, dw) + 16.0;
+            dy += years_row(ui, dx, dy, dw, Some(app.vaults.gpg_years), V::GpgYears) + 16.0;
         }
         if form.kind == kind::APK_KEY {
             dy += apk_form_extras(app, ui, dx, dy, dw);
@@ -2949,6 +2973,7 @@ fn detail(
             return dy;
         }
         let save = match form.kind {
+            kind::GPG if revoking => FEN.vault_make_the_revocation,
             kind::GPG => FEN.vault_make_the_key,
             kind::APK_KEY => FEN.apk_make_the_key,
             kind::SECURE_BOOT => FEN.vault_make_the_keys,
@@ -3065,18 +3090,35 @@ fn detail(
     if app.vaults.signing {
         ui.text(dx, dy, 18.0, W::S, TEXT, FEN.vault_sign_a_file);
         dy += 40.0;
-        // (filtered position, raw Inbox index, the item): the filtered
-        // position is what `GpgTick` ticks by, the raw index is what
-        // `Code::GpgSignature` and the Outbox's `.asc` names use.
-        let signable: Vec<(usize, usize, &crate::Item)> = app
-            .inbox
-            .iter()
-            .enumerate()
-            .filter(|(_, i)| !i.name.ends_with(".asc"))
-            .enumerate()
-            .map(|(fi, (ri, it))| (fi, ri, it))
-            .collect();
-        if signable.is_empty() {
+        // The key that signs, named as GnuPG's pinentry names it: user
+        // ID, key IDs and creation date, and which subkey signs.
+        if let Some(g) = items
+            .get(sel)
+            .and_then(|r| crate::gpg::shown(r, app.tz_min))
+        {
+            if let Some(uid) = g.user_ids.first() {
+                dy += ui.wrap(dx, dy, dw, 14.0, W::S, TEXT, &format!("\"{uid}\"")) + 4.0;
+            }
+            dy += ui.wrap(dx, dy, dw, 12.0, W::M, MUTED, &g.subkey) + 4.0;
+            dy += ui.wrap(
+                dx,
+                dy,
+                dw,
+                12.0,
+                W::R,
+                MUTED,
+                &fill(
+                    FEN.vault_signing_key_ids,
+                    &[
+                        &g.subkey_id.to_string(),
+                        &g.key_id.to_string(),
+                        &g.created.to_string(),
+                    ],
+                ),
+            ) + 16.0;
+        }
+        let files = app.gpg_files();
+        if files.is_empty() {
             ui.text(
                 dx,
                 dy,
@@ -3087,29 +3129,29 @@ fn detail(
             );
             dy += 30.0;
         } else {
-            let all_ticked = signable
-                .iter()
-                .all(|(_, _, it)| app.vaults.sign_ticked.contains(&it.name));
+            let all_ticked = files.iter().all(|f| app.gpg_ticked(f));
             ui.checkbox(dx, dy + 11.0, all_ticked, true);
             ui.text_mid(dx + 30.0, dy, 40.0, 14.0, W::M, TEXT, FEN.vault_select_all);
             ui.hit(dx, dy, dw, 40.0, va(V::GpgTickAll));
             ui.rule(dx, dy + 40.0, dw, INNER);
             dy += 42.0;
         }
-        for (fi, ri, it) in &signable {
-            let ticked = app.vaults.sign_ticked.contains(&it.name);
+        for (fi, f) in files.iter().enumerate() {
+            let ticked = app.gpg_ticked(f);
             let signed = app
                 .outbox
                 .iter()
-                .any(|o| o.name == format!("{}.asc", it.name));
+                .any(|o| o.name == format!("{}.asc", f.name));
             // Show as QR and PNG hold one signature over this file each;
-            // ticking and Sign {n} files is the way to make it.
+            // ticking and holding Sign is the way to make it. They follow
+            // the file by its hash, not its place in the Inbox.
+            let prefix: [u8; 8] = f.hash[..8].try_into().unwrap_or([0; 8]);
             let buttons = [
                 (
                     FEN.vault_show_as_qr,
-                    Action::ShowCode(Code::GpgSignature(*ri)),
+                    Action::ShowCode(Code::GpgSignature(prefix)),
                 ),
-                ("PNG", Action::CodePng(Code::GpgSignature(*ri))),
+                ("PNG", Action::CodePng(Code::GpgSignature(prefix))),
             ];
             let signed_w = if signed {
                 ui.measure(12.0, W::S, FEN.vault_signed) + 18.0
@@ -3127,7 +3169,7 @@ fn detail(
                 (dw - 40.0 - all - signed_w - 24.0, dy + 2.0)
             };
             ui.checkbox(dx, dy + 11.0, ticked, true);
-            let line = format!("{} · {}", it.name, gpg_file_size(it.bytes.len() as u64));
+            let line = format!("{} · {}", f.name, gpg_file_size(f.size as u64));
             let name = ui.fit(14.0, W::M, &line, name_w);
             ui.text_mid(dx + 30.0, dy, 40.0, 14.0, W::M, TEXT, &name);
             if signed {
@@ -3142,42 +3184,53 @@ fn detail(
             // On a small panel the buttons are on the line below: the
             // whole first line ticks.
             let hit_w = if ui.compact { dw } else { dw - all - 16.0 };
-            ui.hit(dx, dy, hit_w, 40.0, va(V::GpgTick(*fi)));
+            ui.hit(dx, dy, hit_w, 40.0, va(V::GpgTick(fi)));
             let mut bx = if ui.compact { dx + 30.0 } else { dx + dw - all };
             for ((label, action), bw) in buttons.iter().zip(&widths) {
                 ui.button(bx, by, Some(*bw), 36.0, label, Style::Secondary, *action);
                 bx += bw + 6.0;
             }
-            let rh = if ui.compact { 84.0 } else { 44.0 };
-            ui.rule(dx, dy + rh, dw, INNER);
-            dy += rh + 4.0;
+            // What is signed: the file's SHA-256, and a small text file's
+            // text, so that the bytes can be checked before the hold.
+            let mut ey = dy + if ui.compact { 84.0 } else { 46.0 };
+            let hex: String = f.hash.iter().map(|b| format!("{b:02x}")).collect();
+            ey += ui.wrap(dx + 30.0, ey, dw - 30.0, 12.0, W::M, MUTED, &hex) + 6.0;
+            if let Some(t) = &f.text {
+                ey += ui.wrap(dx + 30.0, ey, dw - 30.0, 12.0, W::M, TEXT, t) + 6.0;
+            }
+            ui.rule(dx, ey, dw, INNER);
+            dy = ey + 8.0;
         }
         dy += 8.0;
-        let n = signable
-            .iter()
-            .filter(|(_, _, it)| app.vaults.sign_ticked.contains(&it.name))
-            .count();
+        let n = files.iter().filter(|f| app.gpg_ticked(f)).count();
         let label = match n {
-            0 => FEN.vault_sign.to_string(),
-            1 => FEN.vault_sign_1_file.to_string(),
-            n => fill(FEN.vault_sign_files, &[&n.to_string()]),
+            0 => FEN.vault_hold_to_sign.to_string(),
+            1 => FEN.vault_hold_to_sign_1_file.to_string(),
+            n => fill(FEN.vault_hold_to_sign_files, &[&n.to_string()]),
         };
-        let style = if n == 0 {
-            Style::Disabled
+        let w = if n == 0 {
+            ui.button(
+                dx,
+                dy,
+                None,
+                36.0,
+                &label,
+                Style::Disabled,
+                va(V::GpgHoldSign),
+            )
         } else {
-            Style::Primary
+            hold_button(app, ui, dx, dy, &label, va(V::GpgHoldSign), ACCENT)
         };
-        let w = ui.button(dx, dy, None, 40.0, &label, style, va(V::GpgSignTicked));
         ui.button(
-            dx + w + 8.0,
+            dx + w + 10.0,
             dy,
             None,
-            40.0,
+            36.0,
             FEN.vault_back_to_the_key,
             Style::Ghost,
             va(V::GpgSignPick),
         );
-        return dy + 40.0;
+        return dy + 48.0;
     }
     let Some(r) = items.get(sel) else {
         return dy;
@@ -3383,12 +3436,55 @@ fn detail(
                     )
                 };
                 field_row(ui, &mut dy, FEN.vault_valid, &valid, false);
-                hold_row(ui, &mut dy, FEN.vault_paperkey, &g.paperkey, true);
+                if let Some(t) = &g.revoked {
+                    field_row(
+                        ui,
+                        &mut dy,
+                        FEN.vault_status,
+                        &fill(FEN.vault_revoked_on, &[&t.to_string()]),
+                        false,
+                    );
+                }
+                // Where the revocation certificate is kept, as GnuPG says
+                // where it stored it.
+                let kept = match &g.revocation_kept {
+                    Some(d) => fill(FEN.vault_kept_with_the_key, &[&d.to_string()]),
+                    None => FEN.vault_none_kept.to_string(),
+                };
+                field_row(ui, &mut dy, FEN.vault_revocation_certificate, &kept, false);
+                // The paperkey is made only while it is held.
+                ui.text(dx, dy, 12.0, W::R, MUTED, FEN.vault_paperkey);
+                dy += 20.0;
+                dy += secret_with(
+                    ui,
+                    dx,
+                    dy,
+                    dw,
+                    || crate::gpg::paperkey(r).unwrap_or_default(),
+                    true,
+                    0,
+                ) + 14.0;
+                // The term now, then the new term to choose: nothing is
+                // renewed until one is chosen.
+                let now_line = if g.expires == FEN.vault_never {
+                    FEN.vault_term_never.to_string()
+                } else {
+                    fill(FEN.vault_term_until, &[&g.expires.to_string()])
+                };
+                ui.text(dx, dy, 12.0, W::R, MUTED, &now_line);
+                dy += 22.0;
                 ui.text(dx, dy, 12.0, W::R, MUTED, FEN.vault_renew_for);
                 dy += 22.0;
                 // Renew at the row's end; on a small panel under it.
                 let rw = ui.measure(13.0, W::S, FEN.vault_renew) + 30.0;
-                let yh = years_row(app, ui, dx, dy, if ui.compact { dw } else { dw - rw - 8.0 });
+                let yh = years_row(
+                    ui,
+                    dx,
+                    dy,
+                    if ui.compact { dw } else { dw - rw - 8.0 },
+                    app.vaults.renew_years,
+                    V::GpgRenewTerm,
+                );
                 let ry = if ui.compact { dy + yh + 8.0 } else { dy };
                 ui.button(
                     dx + dw - rw,
@@ -3396,13 +3492,18 @@ fn detail(
                     Some(rw),
                     32.0,
                     FEN.vault_renew,
-                    Style::Secondary,
+                    if app.vaults.renew_years.is_some() {
+                        Style::Secondary
+                    } else {
+                        Style::Disabled
+                    },
                     va(V::GpgRenew),
                 );
                 dy = ry + 46.0;
             }
             // Each file on a row of its own: to the Outbox, as a code,
-            // as a picture.
+            // as a picture. The revocation certificate is a secret: it
+            // goes through the secret sheet, and has no code or picture.
             // On a small panel the code and the picture go under the
             // file's own button.
             breaks.push(actions.len());
@@ -3413,12 +3514,8 @@ fn detail(
             actions.push((FEN.vault_show_as_qr, Action::ShowCode(Code::GpgKey)));
             actions.push(("PNG", Action::CodePng(Code::GpgKey)));
             breaks.push(actions.len());
-            actions.push((FEN.vault_revocation_certificate, va(V::GpgRevoke)));
-            if ui.compact {
-                breaks.push(actions.len());
-            }
-            actions.push((FEN.vault_show_as_qr, Action::ShowCode(Code::GpgRevocation)));
-            actions.push(("PNG", Action::CodePng(Code::GpgRevocation)));
+            actions.push((FEN.vault_export_revocation, va(V::GpgExportRevocation)));
+            actions.push((FEN.vault_make_a_revocation, va(V::GpgRevocationPage)));
             breaks.push(actions.len());
             actions.push((FEN.vault_sign_a_file, va(V::GpgSignPick)));
         }
@@ -3516,7 +3613,18 @@ fn detail(
         bx += bw + 8.0;
     }
     dy += 48.0;
-    hold_delete(app, ui, dx, dy);
+    let dw_hold = hold_delete(app, ui, dx, dy);
+    if r.kind == kind::GPG {
+        hold_button(
+            app,
+            ui,
+            dx + dw_hold + 10.0,
+            dy,
+            FEN.vault_hold_to_mark_revoked,
+            va(V::GpgHoldRevoke),
+            WARN,
+        );
+    }
     dy + 48.0
 }
 
@@ -3798,22 +3906,47 @@ pub(crate) fn lock_ask(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
-/// The expiry choices for a GPG key. Returns the row's height.
-fn years_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+/// The expiry choices for a GPG key, `chosen` highlighted. Returns the
+/// row's height.
+fn years_row(ui: &mut Ui, x: f32, y: f32, w: f32, chosen: Option<u32>, act: fn(u32) -> V) -> f32 {
     let items: Vec<(&str, Style, Action)> = [
         (FEN.vault_1_year, 1u32),
         (FEN.vault_2_years, 2),
+        (FEN.vault_3_years, 3),
         (FEN.vault_5_years, 5),
         (FEN.vault_never, 0),
     ]
     .into_iter()
     .map(|(label, years)| {
-        let style = if app.vaults.gpg_years == years {
+        let style = if chosen == Some(years) {
             Style::Primary
         } else {
             Style::Secondary
         };
-        (label, style, va(V::GpgYears(years)))
+        (label, style, va(act(years)))
+    })
+    .collect();
+    crate::screens::wrap_buttons(ui, x, y, w, 32.0, &items) - 8.0
+}
+
+/// GnuPG's reasons for a revocation, in its menu's order. Returns the
+/// row's height.
+fn reasons_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let items: Vec<(&str, Style, Action)> = [
+        FEN.vault_reason_0,
+        FEN.vault_reason_1,
+        FEN.vault_reason_2,
+        FEN.vault_reason_3,
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(n, label)| {
+        let style = if usize::from(app.vaults.revoke_reason) == n {
+            Style::Primary
+        } else {
+            Style::Secondary
+        };
+        (label, style, va(V::GpgReason(n as u8)))
     })
     .collect();
     crate::screens::wrap_buttons(ui, x, y, w, 32.0, &items) - 8.0

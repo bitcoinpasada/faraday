@@ -4,10 +4,11 @@
 //! signatures, a revocation certificate, and the secret parts in
 //! `paperkey`'s text form.
 //!
-//! The only OpenPGP read from outside is [`read_public_armor`]: it says
-//! whether a file is one ASCII-armoured block of public packets, a public
-//! key or a signature, and reads nothing but the armour and the packet
-//! headers, never a packet's contents. The inputs to everything else are
+//! The only OpenPGP read from outside is [`read_public`]: it says whether
+//! a file is one ASCII-armoured block of public packets, a public key or a
+//! signature, and reads every packet in full to its exact end, so that no
+//! byte of it is a secret in another packet's clothes. The inputs to
+//! everything else are
 //! the key's own seeds, its creation times, its user IDs and its expiry,
 //! which a vault keeps (`docs/VAULT.md` §7, type 7). Every signature is
 //! Ed25519's and so deterministic: the same key and time give the same
@@ -29,7 +30,7 @@ use alloc::vec::Vec;
 use ed25519_dalek::{Signer, SigningKey};
 use sha1::Sha1;
 use sha2::{Digest, Sha256, Sha512};
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 /// The EdDSALegacy public-key algorithm.
 const EDDSA: u8 = 22;
@@ -110,6 +111,19 @@ pub enum Reason {
 }
 
 impl Reason {
+    /// The reason GnuPG's `--generate-revocation` menu number names:
+    /// 0 none, 1 compromised, 2 superseded, 3 no longer used. The menu's
+    /// order is not the order of the codes in the packet.
+    pub fn from_menu(n: u8) -> Option<Reason> {
+        match n {
+            0 => Some(Reason::Unspecified),
+            1 => Some(Reason::Compromised),
+            2 => Some(Reason::Superseded),
+            3 => Some(Reason::Retired),
+            _ => None,
+        }
+    }
+
     fn code(self) -> u8 {
         match self {
             Reason::Unspecified => 0,
@@ -119,6 +133,24 @@ impl Reason {
         }
     }
 }
+
+/// What GnuPG 2.4 writes in a `.rev` file after the key's listing.
+const REVOCATION_TEXT: &str = "
+A revocation certificate is a kind of \"kill switch\" to publicly
+declare that a key shall not anymore be used.  It is not possible
+to retract such a revocation certificate once it has been published.
+
+Use it to revoke this key in case of a compromise or loss of
+the secret key.  However, if the secret key is still accessible,
+it is better to generate a new revocation certificate and give
+a reason for the revocation.  For details see the description of
+of the gpg command \"--generate-revocation\" in the GnuPG manual.
+
+To avoid an accidental use of this file, a colon has been inserted
+before the 5 dashes below.  Remove this colon with a text editor
+before importing and publishing this revocation certificate.
+
+";
 
 /// One key: the primary that certifies, the subkey that signs, and what
 /// the self-signatures state. The seeds are secret and wiped on drop.
@@ -154,6 +186,22 @@ fn mpi(bytes: &[u8]) -> Vec<u8> {
         (b.len() as u16 - 1) * 8 + (8 - b[0].leading_zeros() as u16)
     };
     let mut out = Vec::with_capacity(2 + b.len());
+    out.extend_from_slice(&bits.to_be_bytes());
+    out.extend_from_slice(b);
+    out
+}
+
+/// [`mpi`] of a secret, in memory that is wiped, sized once so that no
+/// copy is left behind by a reallocation.
+fn mpi_secret(bytes: &[u8]) -> Zeroizing<Vec<u8>> {
+    let start = bytes.iter().position(|&b| b != 0).unwrap_or(bytes.len());
+    let b = &bytes[start..];
+    let bits = if b.is_empty() {
+        0
+    } else {
+        (b.len() as u16 - 1) * 8 + (8 - b[0].leading_zeros() as u16)
+    };
+    let mut out = Zeroizing::new(Vec::with_capacity(2 + b.len()));
     out.extend_from_slice(&bits.to_be_bytes());
     out.extend_from_slice(b);
     out
@@ -332,10 +380,14 @@ impl Key {
         let mut hashed = subpacket(sub::CREATED, &at.to_be_bytes());
         hashed.extend(subpacket(sub::KEY_FLAGS, &[0x02]));
         if self.expiry > 0 {
+            // Counted from the subkey's creation. A subkey made after the
+            // key's expiry would count 0, which reads as "never": it
+            // expires one second after it was made instead.
             let expires = self
                 .expiry
                 .saturating_add(self.created)
-                .saturating_sub(self.subkey_created);
+                .saturating_sub(self.subkey_created)
+                .max(1);
             hashed.extend(subpacket(sub::KEY_EXPIRES, &expires.to_be_bytes()));
         }
         hashed.extend(issuer_fp);
@@ -378,6 +430,43 @@ impl Key {
         )
     }
 
+    /// A revocation certificate as a file, laid out as GnuPG 2.4 writes
+    /// `openpgp-revocs.d/<FPR>.rev`: its explanatory text with the key as
+    /// `gpg --list-keys` prints it, then the armoured certificate with a
+    /// colon before the first line's dashes, so that `gpg --import`
+    /// refuses the file until the colon is taken out by hand. The dates
+    /// are UTC, as GnuPG prints them.
+    pub fn revocation_file(&self, revocation: &[u8]) -> String {
+        let mut out = String::new();
+        out.push_str("This is a revocation certificate for the OpenPGP key:\n\npub   ed25519 ");
+        out.push_str(&utc_date(u64::from(self.created)));
+        out.push_str(" [C]");
+        if self.expiry > 0 {
+            out.push_str(" [expires: ");
+            out.push_str(&utc_date(u64::from(self.created) + u64::from(self.expiry)));
+            out.push(']');
+        }
+        out.push_str("\n      ");
+        for b in self.fingerprint() {
+            use core::fmt::Write;
+            let _ = write!(out, "{b:02X}");
+        }
+        out.push('\n');
+        for uid in &self.user_ids {
+            out.push_str("uid          ");
+            out.push_str(uid);
+            out.push('\n');
+        }
+        out.push_str(REVOCATION_TEXT);
+        out.push(':');
+        out.push_str(&armor_with(
+            Armor::PublicKey,
+            revocation,
+            Some("This is a revocation certificate"),
+        ));
+        out
+    }
+
     /// A detached signature over `data` by the signing subkey, made at
     /// `at`.
     pub fn sign(&self, data: &[u8], at: u32, hash: Hash) -> Vec<u8> {
@@ -401,11 +490,12 @@ impl Key {
     /// A secret key or subkey packet's body: the public body, then the
     /// secret part unencrypted (string-to-key usage 0), its MPI and its
     /// two-octet checksum.
-    fn secret_part(seed: &[u8; 32]) -> Vec<u8> {
-        let mut out = alloc::vec![0];
-        let m = mpi(seed);
+    fn secret_part(seed: &[u8; 32]) -> Zeroizing<Vec<u8>> {
+        let m = mpi_secret(seed);
         let sum = m.iter().fold(0u16, |s, b| s.wrapping_add(u16::from(*b)));
-        out.extend(m);
+        let mut out = Zeroizing::new(Vec::with_capacity(1 + m.len() + 2));
+        out.push(0);
+        out.extend_from_slice(&m);
         out.extend_from_slice(&sum.to_be_bytes());
         out
     }
@@ -413,37 +503,38 @@ impl Key {
     /// The transferable secret key, as `gpg --export-secret-keys` writes
     /// it with no passphrase: the secret primary key and subkey with the
     /// certificate's user IDs and signatures. For `paperkey` and the
-    /// tests; Faraday does not put it in the Outbox.
-    pub fn secret_key(&self, at: u32) -> Vec<u8> {
+    /// tests; Faraday does not put it in the Outbox. Wiped on drop.
+    pub fn secret_key(&self, at: u32) -> Zeroizing<Vec<u8>> {
         let public = self.certificate(at);
-        let mut primary = self.primary_body();
-        primary.extend(Self::secret_part(&self.primary_seed));
-        let mut subkey = self.subkey_body();
-        subkey.extend(Self::secret_part(&self.subkey_seed));
+        let mut primary = Zeroizing::new(Vec::with_capacity(128));
+        primary.extend_from_slice(&self.primary_body());
+        primary.extend_from_slice(&Self::secret_part(&self.primary_seed));
+        let mut subkey = Zeroizing::new(Vec::with_capacity(128));
+        subkey.extend_from_slice(&self.subkey_body());
+        subkey.extend_from_slice(&Self::secret_part(&self.subkey_seed));
         // The certificate's packets, with the two keys swapped for their
-        // secret forms.
-        let mut out = Vec::new();
+        // secret forms. Sized once, so that no copy is left by growing.
+        let mut out = Zeroizing::new(Vec::with_capacity(public.len() + 2 * 128));
         let mut at_byte = 0;
         while at_byte < public.len() {
-            let (t, start, end) = next_packet(&public, at_byte);
+            let (t, _, end) = next_packet(&public, at_byte);
             match t {
-                tag::PUBLIC_KEY => out.extend(packet(tag::SECRET_KEY, &primary)),
-                tag::PUBLIC_SUBKEY => out.extend(packet(tag::SECRET_SUBKEY, &subkey)),
+                tag::PUBLIC_KEY => push_packet(&mut out, tag::SECRET_KEY, &primary),
+                tag::PUBLIC_SUBKEY => push_packet(&mut out, tag::SECRET_SUBKEY, &subkey),
                 _ => out.extend_from_slice(&public[at_byte..end]),
             }
-            let _ = start;
             at_byte = end;
         }
-        primary.zeroize();
-        subkey.zeroize();
         out
     }
 
     /// The secret parts in `paperkey`'s text form, without its comment
     /// header: what a person copies onto paper to rebuild the key from the
-    /// public certificate (`PLAN.md` §7).
-    pub fn paperkey(&self) -> String {
-        let mut data = alloc::vec![0u8];
+    /// public certificate (`PLAN.md` §7). Compute it only to show it; it is
+    /// wiped on drop.
+    pub fn paperkey(&self) -> Zeroizing<String> {
+        let mut data = Zeroizing::new(Vec::with_capacity(1 + 2 * (1 + 20 + 2 + 40)));
+        data.push(0u8);
         for (seed, created) in [
             (&self.primary_seed, self.created),
             (&self.subkey_seed, self.subkey_created),
@@ -453,12 +544,18 @@ impl Key {
             data.extend_from_slice(&fingerprint_of(&body));
             let secret = Self::secret_part(seed);
             data.extend_from_slice(&(secret.len() as u16).to_be_bytes());
-            data.extend(secret);
+            data.extend_from_slice(&secret);
         }
-        let text = paperkey_lines(&data);
-        data.zeroize();
-        text
+        paperkey_lines(&data)
     }
+}
+
+/// A packet with a new-format header appended to `out`, with no copy of
+/// the body left outside it.
+fn push_packet(out: &mut Vec<u8>, tag: u8, body: &[u8]) {
+    out.push(0xC0 | tag);
+    out.extend(length(body.len()));
+    out.extend_from_slice(body);
 }
 
 /// The packet at `at`: its tag, where its body starts, and where it ends.
@@ -494,9 +591,10 @@ pub fn crc24(data: &[u8]) -> u32 {
 
 /// `paperkey`'s base-16 lines: 22 bytes a line, numbered, each ending in
 /// its own CRC-24, and a last line with the CRC-24 of the whole.
-fn paperkey_lines(data: &[u8]) -> String {
+fn paperkey_lines(data: &[u8]) -> Zeroizing<String> {
     use core::fmt::Write;
-    let mut out = String::new();
+    // 78 bytes a line at most, sized once.
+    let mut out = Zeroizing::new(String::with_capacity((data.len().div_ceil(22) + 1) * 80));
     let mut n = 0;
     for chunk in data.chunks(22) {
         n += 1;
@@ -545,6 +643,11 @@ fn base64(data: &[u8]) -> String {
 
 /// Packets in ASCII armour.
 pub fn armor(kind: Armor, data: &[u8]) -> String {
+    armor_with(kind, data, None)
+}
+
+/// Packets in ASCII armour, with a `Comment:` header when one is given.
+pub fn armor_with(kind: Armor, data: &[u8], comment: Option<&str>) -> String {
     let name = match kind {
         Armor::PublicKey => "PGP PUBLIC KEY BLOCK",
         Armor::Signature => "PGP SIGNATURE",
@@ -552,7 +655,13 @@ pub fn armor(kind: Armor, data: &[u8]) -> String {
     let mut out = String::new();
     out.push_str("-----BEGIN ");
     out.push_str(name);
-    out.push_str("-----\n\n");
+    out.push_str("-----\n");
+    if let Some(c) = comment {
+        out.push_str("Comment: ");
+        out.push_str(c);
+        out.push('\n');
+    }
+    out.push('\n');
     let body = base64(data);
     for line in body.as_bytes().chunks(64) {
         out.push_str(core::str::from_utf8(line).expect("base64 is ASCII"));
@@ -564,6 +673,24 @@ pub fn armor(kind: Armor, data: &[u8]) -> String {
     out.push_str("\n-----END ");
     out.push_str(name);
     out.push_str("-----\n");
+    out
+}
+
+/// A Unix time as a UTC date, `YYYY-MM-DD`, as GnuPG prints dates.
+pub fn utc_date(unix: u64) -> String {
+    use core::fmt::Write;
+    let days = (unix / 86_400) as i64;
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + i64::from(m <= 2);
+    let mut out = String::new();
+    let _ = write!(out, "{y:04}-{m:02}-{d:02}");
     out
 }
 
@@ -580,16 +707,53 @@ pub fn fingerprint_text(fp: &[u8; 20]) -> String {
     out
 }
 
+/// What one block of public armour holds, once it has read in full.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PublicArmor {
+    /// A public key or a signature.
+    pub kind: Armor,
+    /// The tag of every packet, in order. Never a secret key's.
+    pub tags: Vec<u8>,
+    /// Every piece of text in it: the armour headers' values, the user
+    /// IDs, and the text a signature's subpackets carry. A caller that can
+    /// tell a seed or a private key from text runs its detectors over
+    /// these; the packets can be nothing else that hides one.
+    pub texts: Vec<String>,
+}
+
 /// Whether `bytes` are nothing but one ASCII-armoured OpenPGP block of
-/// public packets, and which kind (RFC 4880 §6, RFC 9580 §6). Blank lines
-/// may come before and after the block, line ends may be LF or CRLF, and
-/// the armour headers and the checksum line, when there, must be well
-/// formed and the checksum right. The packets must be whole, with their
-/// lengths given; a public-key block holds only signature, public key,
-/// trust, user ID, public subkey and user attribute packets, a signature
-/// block only signature packets. Only the armour and the packet headers
-/// are read, never a packet's contents.
+/// public packets, and which kind; see [`read_public`].
 pub fn read_public_armor(bytes: &[u8]) -> Option<Armor> {
+    read_public(bytes).map(|p| p.kind)
+}
+
+/// The block [`read_block`] reads, only when its checksum is there and
+/// right. Without it a file is not taken for public: GnuPG 2.4 writes the
+/// checksum, and RFC 9580 makes it optional for a reader, which is a
+/// reason to read the block (see [`read_block`]) and not a reason to take
+/// it for public.
+pub fn read_public(bytes: &[u8]) -> Option<PublicArmor> {
+    let (block, crc_ok) = read_block(bytes)?;
+    crc_ok.then_some(block)
+}
+
+/// One ASCII-armoured OpenPGP block of public packets (RFC 4880 §6, RFC
+/// 9580 §6), and whether its checksum line is there and right. A missing
+/// or wrong checksum does not refuse the block, as RFC 9580 has it.
+///
+/// Blank lines may come before and after, line ends may be LF or CRLF, and
+/// the headers must be the five GnuPG knows (Version, Comment, Hash,
+/// Charset, MessageID), written `Name: value`. Every packet is read to its
+/// exact end: a public key or subkey is a version-4 public key with
+/// nothing after its last field, a user ID is UTF-8 text, a signature is a
+/// version-4 signature with well-formed subpackets and nothing after its
+/// last field. A key block starts with a public key packet and holds only
+/// those, user IDs and signatures; a signature block holds only
+/// signatures. A secret key packet, a user attribute, a trust packet or
+/// any other packet refuses the block, and so does a secret packet whose
+/// tag was changed to a public one: its body does not end where a public
+/// key's does.
+pub fn read_block(bytes: &[u8]) -> Option<(PublicArmor, bool)> {
     if !bytes.is_ascii() {
         return None;
     }
@@ -604,6 +768,7 @@ pub fn read_public_armor(bytes: &[u8]) -> Option<Armor> {
         b"-----BEGIN PGP SIGNATURE-----" => (Armor::Signature, b"-----END PGP SIGNATURE-----"),
         _ => return None,
     };
+    let mut texts: Vec<String> = Vec::new();
     // Headers, up to the empty line.
     loop {
         let line = lines.next()?;
@@ -612,9 +777,14 @@ pub fn read_public_armor(bytes: &[u8]) -> Option<Armor> {
         }
         let colon = line.windows(2).position(|w| w == b": ")?;
         let (name, value) = (&line[..colon], &line[colon + 2..]);
-        if name.is_empty() || !name.iter().chain(value).all(|&b| (0x20..0x7f).contains(&b)) {
+        if !matches!(
+            name,
+            b"Version" | b"Comment" | b"Hash" | b"Charset" | b"MessageID"
+        ) || !value.iter().all(|&b| (0x20..0x7f).contains(&b))
+        {
             return None;
         }
+        texts.push(String::from_utf8_lossy(value).into_owned());
     }
     // The body: base64 across lines, then an optional checksum line, then
     // the end line, and nothing after it.
@@ -647,13 +817,12 @@ pub fn read_public_armor(bytes: &[u8]) -> Option<Armor> {
         return None;
     }
     let data = b64.data;
-    if checksum.is_some_and(|c| c != crc24(&data)) {
-        return None;
-    }
     if data.is_empty() {
         return None;
     }
-    // Whole packets, by their headers.
+    let crc_ok = checksum == Some(crc24(&data));
+    // Whole packets, each read to its end.
+    let mut tags = Vec::new();
     let mut at = 0usize;
     while at < data.len() {
         let first = data[at];
@@ -670,6 +839,7 @@ pub fn read_public_armor(bytes: &[u8]) -> Option<Armor> {
                     6,
                     byte(2)? << 24 | byte(3)? << 16 | byte(4)? << 8 | byte(5)?,
                 ),
+                // A partial body length.
                 _ => return None,
             };
             (first & 0x3f, head, len)
@@ -681,25 +851,245 @@ pub fn read_public_armor(bytes: &[u8]) -> Option<Armor> {
                     5,
                     byte(1)? << 24 | byte(2)? << 16 | byte(3)? << 8 | byte(4)?,
                 ),
+                // An indeterminate length.
                 _ => return None,
             };
             ((first >> 2) & 0x0f, head, len)
         };
-        let allowed = match kind {
-            // Signature, public key, trust, user ID, public subkey, user
-            // attribute.
-            Armor::PublicKey => matches!(packet_tag, 2 | 6 | 12 | 13 | 14 | 17),
-            Armor::Signature => packet_tag == tag::SIGNATURE,
+        let from = at.checked_add(head)?;
+        let to = from.checked_add(len)?;
+        let body = data.get(from..to)?;
+        let ok = match (kind, packet_tag) {
+            (Armor::PublicKey, tag::PUBLIC_KEY) => public_key_body(body),
+            (Armor::PublicKey, tag::PUBLIC_SUBKEY) => !tags.is_empty() && public_key_body(body),
+            (Armor::PublicKey, tag::USER_ID) => {
+                !tags.is_empty() && push_text(&mut texts, body, true)
+            }
+            (_, tag::SIGNATURE) => {
+                (kind == Armor::Signature || !tags.is_empty())
+                    && signature_body(body, &mut texts, 0)
+            }
+            _ => false,
         };
-        if !allowed {
+        // A key block starts with a public key.
+        if !ok || (kind == Armor::PublicKey && tags.is_empty() && packet_tag != tag::PUBLIC_KEY) {
             return None;
         }
-        at = at.checked_add(head)?.checked_add(len)?;
-        if at > data.len() {
+        tags.push(packet_tag);
+        at = to;
+    }
+    Some((PublicArmor { kind, tags, texts }, crc_ok))
+}
+
+/// Text from a packet or subpacket into `texts`; `strict` refuses what is
+/// not UTF-8, otherwise it is kept as far as it reads.
+fn push_text(texts: &mut Vec<String>, bytes: &[u8], strict: bool) -> bool {
+    match core::str::from_utf8(bytes) {
+        Ok(t) => texts.push(String::from(t)),
+        Err(_) if !strict => texts.push(String::from_utf8_lossy(bytes).into_owned()),
+        Err(_) => return false,
+    }
+    true
+}
+
+/// A reader over a packet's bytes.
+struct Rd<'a> {
+    b: &'a [u8],
+    at: usize,
+}
+
+impl<'a> Rd<'a> {
+    fn new(b: &'a [u8]) -> Self {
+        Rd { b, at: 0 }
+    }
+
+    fn take(&mut self, n: usize) -> Option<&'a [u8]> {
+        let s = self.b.get(self.at..self.at.checked_add(n)?)?;
+        self.at += n;
+        Some(s)
+    }
+
+    fn u8(&mut self) -> Option<u8> {
+        Some(self.take(1)?[0])
+    }
+
+    fn u16(&mut self) -> Option<usize> {
+        let s = self.take(2)?;
+        Some(usize::from(u16::from_be_bytes([s[0], s[1]])))
+    }
+
+    fn done(&self) -> bool {
+        self.at == self.b.len()
+    }
+
+    /// An MPI: its bit count, then exactly that many bits' bytes, the
+    /// first with its top bit where the count puts it.
+    fn mpi(&mut self) -> Option<()> {
+        let bits = self.u16()?;
+        let bytes = self.take(bits.div_ceil(8))?;
+        if bits > 0
+            && (bytes[0] == 0 || bytes.len() * 8 - bytes[0].leading_zeros() as usize != bits)
+        {
+            return None;
+        }
+        Some(())
+    }
+
+    /// A curve's OID, as its length and bytes.
+    fn oid(&mut self) -> Option<()> {
+        let n = self.u8()?;
+        if n == 0 || n == 0xff {
+            return None;
+        }
+        self.take(usize::from(n)).map(|_| ())
+    }
+}
+
+/// Whether `body` is a version-4 public key, primary or subkey alike, to
+/// its last byte.
+fn public_key_body(body: &[u8]) -> bool {
+    let mut r = Rd::new(body);
+    let fields = (|| {
+        if r.u8()? != 4 {
+            return None;
+        }
+        r.take(4)?;
+        match r.u8()? {
+            1..=3 => {
+                r.mpi()?;
+                r.mpi()?;
+            }
+            16 | 20 => {
+                for _ in 0..3 {
+                    r.mpi()?;
+                }
+            }
+            17 => {
+                for _ in 0..4 {
+                    r.mpi()?;
+                }
+            }
+            // ECDH: the curve, the point, and the key derivation's
+            // parameters.
+            18 => {
+                r.oid()?;
+                r.mpi()?;
+                if r.u8()? != 3 || r.u8()? != 1 {
+                    return None;
+                }
+                r.take(2)?;
+            }
+            19 | 22 => {
+                r.oid()?;
+                r.mpi()?;
+            }
+            // X25519, Ed25519, X448, Ed448: raw keys.
+            25 | 27 => {
+                r.take(32)?;
+            }
+            26 => {
+                r.take(56)?;
+            }
+            28 => {
+                r.take(57)?;
+            }
+            _ => return None,
+        }
+        Some(())
+    })();
+    fields.is_some() && r.done()
+}
+
+/// Whether `body` is a version-4 signature to its last byte, its
+/// subpackets well formed; the text they carry goes into `texts`.
+fn signature_body(body: &[u8], texts: &mut Vec<String>, depth: u8) -> bool {
+    let mut r = Rd::new(body);
+    let fields = (|| {
+        if r.u8()? != 4 {
+            return None;
+        }
+        r.take(3)?;
+        for _ in 0..2 {
+            let n = r.u16()?;
+            let area = r.take(n)?;
+            subpackets(area, texts, depth)?;
+        }
+        r.take(2)?;
+        match body[2] {
+            1 | 3 => r.mpi()?,
+            17 | 19 | 22 => {
+                r.mpi()?;
+                r.mpi()?;
+            }
+            27 => {
+                r.take(64)?;
+            }
+            28 => {
+                r.take(114)?;
+            }
+            _ => return None,
+        }
+        Some(())
+    })();
+    fields.is_some() && r.done()
+}
+
+/// A signature's subpackets, each with the length its type needs.
+fn subpackets(area: &[u8], texts: &mut Vec<String>, depth: u8) -> Option<()> {
+    let mut r = Rd::new(area);
+    while !r.done() {
+        let n = match r.u8()? {
+            n @ 0..=191 => usize::from(n),
+            n @ 192..=254 => ((usize::from(n) - 192) << 8) + usize::from(r.u8()?) + 192,
+            _ => {
+                let s = r.take(4)?;
+                u32::from_be_bytes([s[0], s[1], s[2], s[3]]) as usize
+            }
+        };
+        let sub = r.take(n)?;
+        let (&kind, data) = sub.split_first()?;
+        let ok = match kind & 0x7f {
+            2 | 3 | 9 => data.len() == 4,
+            4 | 25 => data.len() == 1,
+            5 => data.len() == 2,
+            16 => data.len() == 8,
+            27 => !data.is_empty(),
+            // A version-4 key's fingerprint, or a version-6 key's.
+            33 => (data.len() == 21 && data[0] == 4) || (data.len() == 33 && data[0] == 6),
+            32 => depth == 0 && signature_body(data, texts, depth + 1),
+            // A notation: flags, two lengths, the name, the value.
+            20 => {
+                let mut nr = Rd::new(data);
+                (|| {
+                    let flags = nr.take(4)?[0];
+                    let (nl, vl) = (nr.u16()?, nr.u16()?);
+                    let name = nr.take(nl)?;
+                    let value = nr.take(vl)?;
+                    nr.done().then(|| {
+                        push_text(texts, name, true) && push_text(texts, value, flags & 0x80 != 0)
+                    })
+                })()
+                .unwrap_or(false)
+            }
+            // A regular expression, a keyserver, a policy URI, a signer's
+            // user ID.
+            6 | 24 | 26 | 28 => push_text(texts, data, true),
+            // A reason for revocation: a code, then text.
+            29 => !data.is_empty() && push_text(texts, &data[1..], true),
+            // Lists and flags, and whatever a later version adds: framed
+            // right, and its text, when it reads as some, kept.
+            _ => {
+                if data.len() >= 8 {
+                    push_text(texts, data, false);
+                }
+                true
+            }
+        };
+        if !ok {
             return None;
         }
     }
-    Some(kind)
+    Some(())
 }
 
 /// The value of one base64 character.

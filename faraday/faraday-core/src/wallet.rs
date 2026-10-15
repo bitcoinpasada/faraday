@@ -1180,8 +1180,8 @@ pub enum FileKind {
     /// Plain text Faraday reads as nothing else, such as recovery codes:
     /// kept as a note in a vault.
     Text,
-    /// An ASCII-armored GPG public key, revocation certificate or
-    /// signature: public (F22).
+    /// An ASCII-armored GPG public key or signature: public (F22). A
+    /// revocation certificate is not (F32).
     Gpg,
     /// An APK: a ZIP whose central directory names `AndroidManifest.xml`
     /// (`docs/APK-SIGNING.md` §4.4). Public.
@@ -1237,6 +1237,16 @@ fn is_text(text: &str) -> bool {
             .all(|c| !c.is_control() || matches!(c, '\n' | '\r' | '\t'))
 }
 
+/// Whether a piece of text, a user ID or an armour header, is a seed's
+/// words, an extended private key or a share: the detectors that read a
+/// plain text file.
+fn text_may_be_secret(text: &str) -> bool {
+    faraday_intake::secret_text(text).is_some()
+        || crate::forms::typed_mnemonic(Language::English, &crate::forms::file_words(text)).is_ok()
+        || crate::restore::is_share(text)
+        || crate::inbox::part_of(text).is_some()
+}
+
 /// Says what a file holds.
 pub fn classify(name: &str, bytes: &[u8]) -> FileKind {
     if faraday_vault::read_header(bytes).is_ok() {
@@ -1270,7 +1280,9 @@ pub fn classify(name: &str, bytes: &[u8]) -> FileKind {
         if text.starts_with("faraday-sheet 1") {
             return FileKind::Sheet;
         }
-        if faraday_pgp::read_public_armor(bytes).is_some() {
+        if let Some(block) = faraday_pgp::read_public(bytes)
+            && !block.texts.iter().any(|t| text_may_be_secret(t))
+        {
             return FileKind::Gpg;
         }
         if let Some(m) = osk_psbt::message::parse_signed(text)

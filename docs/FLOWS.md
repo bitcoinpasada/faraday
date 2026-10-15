@@ -216,8 +216,9 @@ to get it.
     transaction at Finish, the PSBT with this pass's signatures while
     more are needed, the backup checklist's template, sheet or shares
     and public files when the checklist is made (made again when the
-    word count or the shares change), a GPG public key, revocation or
-    signature, a signed message, a sealed vault at lock. No button puts a
+    word count or the shares change), a GPG public key or signature (a
+    revocation certificate is a secret and goes through the secret sheet,
+    F32), a signed message, a sealed vault at lock. No button puts a
     file out: where **To the Outbox** stood, the row reads "For the
     stick" with **Remove**, and after a Remove the button makes it again.
     The secret sheet stays the one way a secret goes For the stick.
@@ -860,8 +861,8 @@ visit** directly.
   already (by name and size) is listed greyed, tagged **On this stick**
   (**On this SD card**), with a disabled checkbox that cannot be ticked:
   a file just copied in shows here at once, and no "Copied" line says
-  it. A public or sealed file (a GPG public key, revocation certificate
-  or signature included, F22) is ticked like a file For the stick, and
+  it. A public or sealed file (a GPG public key or signature
+  included, F22; a revocation `.rev` file is not one, F32) is ticked like a file For the stick, and
   Select all ticks it. A secret kind (words, seed
   parts, entries, a carry file), text and a file Faraday does not read
   open the secret sheet instead, never ticked by Select all: text, words,
@@ -938,9 +939,12 @@ title, and the unlock goes back to the flow.
 - **Edit** → the same form → back to the item.
 - **Hold to delete from vault** → gone; the next item selected.
 - A Bitcoin key or wallet → **Open in Wallets**, **Open in OpenSigner** (a key), or **Don't load at unlock**.
-- A GPG key → **Export public key**, **Revocation certificate**, each with
-  **Show as QR** and **PNG** on its row; **Sign a file**, whose list has
-  **Show as QR**, **PNG** and **Sign** on each file's row; **Renew**.
+- A GPG key → **Export public key** with **Show as QR** and **PNG** on its
+  row; **Export the kept revocation** and **Make a revocation** (the
+  secret sheet, no code or picture); **Sign a file**, whose list shows
+  each file's SHA-256 and a small text file's text, with **Show as QR** and
+  **PNG** on each file's row and a hold to sign; **Renew** with a term
+  chosen; **Hold to mark the key revoked** (F32).
 - Secure Boot keys → **Open Secure Boot**.
 - A recovery sheet → its descriptor, with **Show as QR** and **PNG** on
   a row under it (F28).
@@ -1260,37 +1264,48 @@ which come back to the vault's GPG keys (decision 10). Making a key is
 the exception (F31): **Make a key** opens the backup flow (decision 59),
 whose steps decide and open the vaults first.
 
-**Make a key** (the backup flow's steps 1 to 3: two places or more,
-their sticks, their vaults; then step cards: name and email, expiry) →
-created in every vault the plan keeps it in →
-result: fingerprint, the public key and the revocation certificate
-For the stick as the key is made (decision 24), **Export public key**
-(code, or the file again), **Revocation certificate** (again, with the note that it should be kept
-apart from the key), **Paperkey backup** (shown; a hold to reveal) → the
-key's page in Vault contents, after the flow's lock and writes by
-place; the key's page has the **Backup** row until every place is
-written. The public key and the revocation each
-have **Show as QR** and **PNG** on their row: `{name}-{fp8}.png` with the
-user ID and fingerprint under the code, and
-`{name}-{fp8}-revocation.png` labelled "Revokes {user ID}" (an Ed25519
-certificate is one code, about 700 bytes armoured).
+**Make a key** (the backup flow's steps 1 to 3 (F31): two places or
+more, their sticks, their vaults; then name and email, expiry with 3 years chosen, as `gpg
+--quick-generate-key` makes a key with none given) → created in every vault the plan keeps it in → after the flow's lock
+and writes by place, the key's page: fingerprint, signing subkey, user IDs, validity, **Revocation
+certificate** ("Kept with the key · made {date}"), **Paperkey** (a hold to
+reveal; made only while held). The public key goes For the stick as the
+key is made (decision 24). The revocation certificate does not: it is kept
+in the key's record, as GnuPG keeps `openpgp-revocs.d/<FPR>.rev` beside the
+keyring (F32). A key made earlier, with none kept, makes one when its page
+is first opened with the clock known.
 
 **Signing waits for the backup** (F31). A GPG key made in this session
 cannot be made again from seed words, and its revocation is kept in the
 same vault, so until the backup flow has written every place its plan
-gives it (two or more), **Sign a file** and **Renew** read **Back up
-first** and open the flow. This departs from following GnuPG's behaviour, which the GPG
-fixes otherwise do. A key in a vault unlocked from a stick (the
-release's key among them) signs at once; the public key and the
-revocation certificate made with the key do not wait.
+gives it (two or more), **Export public key** (the file again, **Show as QR**, **PNG**:
+`{name}-{fp8}.png` with the user ID and fingerprint under the code).
 
-**Sign a file** → choose a file copied in → choose the key → detached
-signature For the stick → "Insert a stick to write it". Each file's row
-also shows the signature as a code (**Show as QR**) or writes it as
-`{file}-signature.png` (**PNG**). No file copied in: "Copy the file in on a
-stick visit first."
+**Export the kept revocation** and **Make a revocation** → the secret
+sheet, a file `{name}-{FPR}.rev` in GnuPG's layout (its explanation, the
+key, then the armour with a colon before its dashes, so that `gpg
+--import` refuses it until the colon is taken out). **Make a revocation**
+first asks the reason as `gpg --generate-revocation` does, 0 no reason, 1
+compromised, 2 superseded, 3 no longer used, and an optional description.
+**Hold to mark the key revoked** marks the key revoked here: it signs and
+renews nothing after.
 
-**Renew** → new expiry → updated public key For the stick.
+**Sign a file** → the page names the key as gpg-agent's pinentry does
+(user ID, signing subkey ID and main key ID, creation date) and lists the
+files copied in, each with its name, size, SHA-256 and, when small, its
+text → tick → **Hold to sign** → a detached signature `{file}.asc` For the
+stick. A file replaced by a stick visit after it was ticked is unticked.
+A signature is not written over a file of that name. An expired or
+revoked key, or a clock before the key was made, signs nothing and says
+why in GnuPG's words. Each file's row also shows the signature as a code
+(**Show as QR**) or writes it as `{file}.asc.png` (**PNG**). No file
+copied in: "Copy the file in on a stick visit first." Changing the key,
+the category or the vault closes the page and clears its ticks.
+
+**Renew** → the current term is shown, a new term is chosen (1, 2, 3, 5
+years or never) → the updated public key For the stick, and the key's
+record changes with it. Refused when the clock is more than 4 seconds
+before the key's last signature.
 
 ## Secure Boot
 

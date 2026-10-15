@@ -496,8 +496,9 @@ is made: a signed PSBT and a finished transaction at Finish, a
 descriptor, wallet file, multisig config, BSMS record or Core import
 when the backup checklist is made (its public-files item lists them
 with **Remove** per row and is done when they are there), a backup
-sheet or template when rendered, a GPG public key, revocation or
-signature when made, a signed message, a sealed vault at lock. The
+sheet or template when rendered, a GPG public key or
+signature when made (a revocation certificate only through the secret
+sheet, F32), a signed message, a sealed vault at lock. The
 **To the Outbox** and **Put in the Outbox** buttons go; where one stood,
 the row reads "For the stick" with **Remove**. Sign's Finish keeps
 **Show as QR** and its primary becomes **Insert a stick to write it**

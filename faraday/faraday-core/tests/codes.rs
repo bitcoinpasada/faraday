@@ -357,15 +357,6 @@ fn with_gpg_key() -> Faraday {
     app
 }
 
-/// The name of the Outbox file ending `end`.
-fn named(app: &Faraday, end: &str) -> String {
-    app.outbox
-        .iter()
-        .map(|i| i.name.clone())
-        .find(|n| n.ends_with(end))
-        .unwrap_or_else(|| panic!("no *{end}"))
-}
-
 #[test]
 fn a_gpg_public_key_reads_back_from_its_code_and_its_picture() {
     let mut app = with_gpg_key();
@@ -373,7 +364,7 @@ fn a_gpg_public_key_reads_back_from_its_code_and_its_picture() {
         .outbox
         .iter()
         .map(|i| i.name.clone())
-        .find(|n| n.ends_with(".asc") && !n.ends_with("-revocation.asc"))
+        .find(|n| n.ends_with(".asc"))
         .expect("the public key");
     let stem = asc.trim_end_matches(".asc").to_string();
     let want = text(&outbox(&app, &asc));
@@ -381,40 +372,20 @@ fn a_gpg_public_key_reads_back_from_its_code_and_its_picture() {
 }
 
 #[test]
-fn a_gpg_revocation_reads_back_and_says_what_it_revokes() {
-    let mut app = with_gpg_key();
-    let asc = named(&app, "-revocation.asc");
-    let stem = asc.trim_end_matches("-revocation.asc").to_string();
-    let want = text(&outbox(&app, &asc));
-    reads_back(
-        &mut app,
-        Code::GpgRevocation,
-        &format!("{stem}-revocation.png"),
-        &want,
-    );
-    app.press(Action::ShowCode(Code::GpgRevocation));
-    let l = label(&app);
-    assert!(l.contains("Revokes Release"), "{l}");
-}
-
-#[test]
 fn a_gpg_signature_reads_back_from_its_code_and_its_picture() {
     let mut app = with_gpg_key();
+    app.press(Action::Vault(V::GpgSignPick));
     let k = app
         .inbox
         .iter()
+        .filter(|i| !i.name.ends_with(".asc"))
         .position(|i| i.name == "SHA256SUMS")
         .unwrap();
-    app.press(Action::Vault(V::GpgSignPick));
     app.press(Action::Vault(V::GpgTick(k)));
-    app.press(Action::Vault(V::GpgSignTicked));
+    app.press(Action::Vault(V::GpgHoldSign));
     let want = text(&outbox(&app, "SHA256SUMS.asc"));
-    reads_back(
-        &mut app,
-        Code::GpgSignature(k),
-        "SHA256SUMS-signature.png",
-        &want,
-    );
+    let code = app.signature_code("SHA256SUMS").unwrap();
+    reads_back(&mut app, code, "SHA256SUMS.asc.png", &want);
 }
 
 #[test]

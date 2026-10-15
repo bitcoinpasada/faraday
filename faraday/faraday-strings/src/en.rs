@@ -2623,6 +2623,72 @@ pub struct Strings {
     pub gpg_signatures_wait: &'static str,
     /// Text in `shown`.
     pub gpg_never: &'static str,
+    /// A span of one second, as GnuPG says how far in the future a key was made.
+    pub gpg_second: &'static str,
+    /// A span of seconds, as GnuPG says it.
+    pub gpg_seconds: &'static str,
+    /// A span of one day.
+    pub gpg_day: &'static str,
+    /// A span of days.
+    pub gpg_days: &'static str,
+    /// Error in `usable`. `{}`: the date the key expired.
+    pub gpg_expired: &'static str,
+    /// Error in `usable`. `{}`: the date.
+    pub gpg_revoked: &'static str,
+    /// Error in `usable`, GnuPG's words. `{}`: the key's ID, the span.
+    pub gpg_future: &'static str,
+    /// Error in `gpg_sign_ticked`, `gpg_export`. `{}`: the file's name.
+    pub gpg_exists: &'static str,
+    /// Error in `gpg_sign_ticked`. `{}`: the file's name.
+    pub gpg_changed: &'static str,
+    /// Error in `gpg_renew`.
+    pub gpg_choose_the_term: &'static str,
+    /// Error in `gpg_renew`, after GnuPG's.
+    pub gpg_time_conflict: &'static str,
+    /// Error in `gpg_export_revocation`.
+    pub gpg_no_revocation_kept: &'static str,
+    /// Toast in `gpg_mark_revoked`.
+    pub gpg_marked_revoked: &'static str,
+    /// Button in `years_row`.
+    pub vault_3_years: &'static str,
+    /// Button and heading on a GPG key's page.
+    pub vault_make_a_revocation: &'static str,
+    /// Button on a GPG key's page.
+    pub vault_export_revocation: &'static str,
+    /// Label of the reason buttons.
+    pub vault_reason: &'static str,
+    /// GnuPG's menu entry 0.
+    pub vault_reason_0: &'static str,
+    /// GnuPG's menu entry 1.
+    pub vault_reason_1: &'static str,
+    /// GnuPG's menu entry 2.
+    pub vault_reason_2: &'static str,
+    /// GnuPG's menu entry 3.
+    pub vault_reason_3: &'static str,
+    /// Button of the revocation form.
+    pub vault_make_the_revocation: &'static str,
+    /// Label of the revocation form's field.
+    pub vaults_description: &'static str,
+    /// Label on a GPG key's page.
+    pub vault_status: &'static str,
+    /// Row on a GPG key's page. `{}`: the date.
+    pub vault_revoked_on: &'static str,
+    /// Row on a GPG key's page. `{}`: the date.
+    pub vault_kept_with_the_key: &'static str,
+    /// Row on a GPG key's page.
+    pub vault_none_kept: &'static str,
+    /// Line on a GPG key's page.
+    pub vault_term_never: &'static str,
+    /// Line on a GPG key's page. `{}`: the date.
+    pub vault_term_until: &'static str,
+    /// Hold button on a GPG key's page.
+    pub vault_hold_to_mark_revoked: &'static str,
+    /// Line on the signing page. `{}`: the IDs, the date.
+    pub vault_signing_key_ids: &'static str,
+    /// Hold button on the signing page.
+    pub vault_hold_to_sign_1_file: &'static str,
+    /// Hold button on the signing page. `{}`: the count.
+    pub vault_hold_to_sign_files: &'static str,
     // ----- guide (faraday-core/src/guide.rs) -----
     /// Text in `spend`.
     pub guide_this_is_the_wallet: &'static str,
@@ -9484,6 +9550,39 @@ pub static EN: Strings = Strings {
     gpg_1_signature_waits: "1 signature waits {}",
     gpg_signatures_wait: "{} signatures wait {}",
     gpg_never: "Never",
+    gpg_second: "{} second",
+    gpg_seconds: "{} seconds",
+    gpg_day: "{} day",
+    gpg_days: "{} days",
+    gpg_expired: "Unusable secret key: it expired on {}",
+    gpg_revoked: "Unusable secret key: it was revoked on {}",
+    gpg_future: "Key {} was created {} in the future (time warp or clock problem)",
+    gpg_exists: "File exists: {}",
+    gpg_changed: "{} changed since it was ticked. It was not signed",
+    gpg_choose_the_term: "Choose the new term first",
+    gpg_time_conflict: "Time conflict: the clock is before the key's last signature",
+    gpg_no_revocation_kept: "No revocation certificate is kept with this key yet. Set the time and open the key again",
+    gpg_marked_revoked: "The key is marked revoked",
+    vault_3_years: "3 years",
+    vault_make_a_revocation: "Make a revocation",
+    vault_export_revocation: "Export the kept revocation",
+    vault_reason: "Reason",
+    vault_reason_0: "No reason specified",
+    vault_reason_1: "Key has been compromised",
+    vault_reason_2: "Key is superseded",
+    vault_reason_3: "Key is no longer used",
+    vault_make_the_revocation: "Make the revocation",
+    vaults_description: "Description (optional)",
+    vault_status: "Status",
+    vault_revoked_on: "Revoked on {}",
+    vault_kept_with_the_key: "Kept with the key · made {}",
+    vault_none_kept: "None kept yet",
+    vault_term_never: "Term now: does not expire",
+    vault_term_until: "Term now: expires {}",
+    vault_hold_to_mark_revoked: "Hold to mark the key revoked",
+    vault_signing_key_ids: "Signing subkey ID {} · main key ID {} · created {}",
+    vault_hold_to_sign_1_file: "Hold to sign 1 file",
+    vault_hold_to_sign_files: "Hold to sign {} files",
     guide_this_is_the_wallet: "This is the wallet the transaction spends from. Faraday found it by rebuilding the wallet's address from the key paths the transaction carries, so the match is exact. If the name is not the wallet you meant to spend from, stop here.",
     guide_no_wallet_loaded: "No wallet loaded here matches this transaction. You can still sign it from the key paths it carries, but Faraday cannot tell change from a payment to someone else. Load the wallet first if you have its description.",
     guide_open_the_same: "Open the same wallet in the software that made this transaction and compare these addresses with the ones it shows. If they match, both programs are looking at the same wallet, and the change address is one you control.",
@@ -11838,7 +11937,7 @@ pub static EN: Strings = Strings {
     vaults_email: "Email",
     vaults_owner_name: "Owner name",
     vaults_this_computer: "This computer's clock is not known",
-    vaults_made_the_certificate: "Made · the certificate and a revocation certificate",
+    vaults_made_the_certificate: "Made · the certificate. The revocation certificate is kept with the key",
     vaults_the_note_is: "The note is empty",
     vaults_an_entry_needs: "An entry needs a title",
     vaults_not_a_totp_key: "Not a TOTP key",

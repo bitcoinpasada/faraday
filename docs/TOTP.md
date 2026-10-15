@@ -114,8 +114,7 @@ session's secrets.
 the offset. The desktop app (`app.online`) counts as checked whenever
 its clock is known. §5 uses this, and so does everything else that
 keeps the time it reads (HANDOFF item 68, 2026-10-11): GPG's Make a
-key, Renew, Revoke, Sign and the revocation's and a signature's QR and
-PNG, and Secure Boot's Make keys and enrolment files. With the clock
+key, Renew, Make a revocation, Sign and a signature's QR and PNG, and Secure Boot's Make keys and enrolment files. With the clock
 not checked (the stick and the Pi), pressing one opens Set the time
 (§3) over the same page, which it returns to, and does nothing else;
 the person then presses again. A GPG key's creation time is part of its

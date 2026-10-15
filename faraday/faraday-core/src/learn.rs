@@ -8,7 +8,7 @@ use osk_learn::{EN, Page as LearnPage};
 
 use faraday_learn::known;
 pub use faraday_learn::{
-    GUIDES, MAKERS, Maker, apk_key_page, demo_page, guide_address, guide_id, maker, page,
+    GUIDES, MAKERS, Maker, apk_key_page, demo_page, gpg_page, guide_address, guide_id, maker, page,
     shares_page, time_page, upgrade_page,
 };
 
@@ -131,6 +131,9 @@ impl Faraday {
             // the page about it (`docs/APK-SIGNING.md` §10).
             Screen::VaultContents if self.vaults.category == 6 => {
                 vec![apk_key_page(), &EN.encrypted_backups, &EN.passphrases]
+            }
+            Screen::VaultContents if self.vaults.category == 4 => {
+                vec![gpg_page(), &EN.encrypted_backups, &EN.passphrases]
             }
             Screen::Vaults | Screen::CreateVault | Screen::Unlock | Screen::VaultContents => {
                 vec![&EN.encrypted_backups, &EN.passphrases]

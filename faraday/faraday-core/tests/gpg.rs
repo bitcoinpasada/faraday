@@ -1,11 +1,27 @@
 //! A GPG key signs any file a stick visit copied in: a release's
 //! `SHA256SUMS` with no extension, a tag's text and a binary Faraday reads
 //! as nothing else, each signature to the Outbox beside the file's name.
+//! What it does follows GnuPG (F32): the revocation certificate is kept
+//! with the key, a key that expired, was revoked or is not yet made signs
+//! nothing, a renewal counts its term from the clock, and what is signed
+//! is what the page shows.
 
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+use faraday_core::gpg;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
-use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent};
+use faraday_core::wallet::{FileKind, classify};
+use faraday_core::{Action, Faraday, Item, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
+use faraday_pgp::{Armor, Hash, armor, armor_with};
+use faraday_vault::records::kind;
 use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
+
+/// The clock the tests start at: October 2026.
+const CLOCK: u64 = 1_791_482_652;
+/// GnuPG's year, 365 days.
+const YEAR: u32 = 31_536_000;
 
 fn type_text(app: &mut Faraday, text: &str) {
     for c in text.chars() {
@@ -38,10 +54,7 @@ fn release_files() -> Vec<(String, Vec<u8>)> {
     ]
 }
 
-/// The app with the test vault in the Inbox and the release files copied
-/// in on a stick visit, the stick then pulled.
-fn copied_in() -> Faraday {
-    let mut app = Faraday::new();
+fn display(app: &mut Faraday) {
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,
@@ -55,9 +68,40 @@ fn copied_in() -> Faraday {
         memory_mib: None,
     }));
     // The answers a shell gives to the requests for randomness.
-    for i in 0..6u8 {
+    for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
     }
+}
+
+/// A stick with `files`, pressed through Copy: every file read in.
+fn visit(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
+        id: "S".into(),
+        label: "FARADAY".into(),
+        boot: false,
+        files: files
+            .iter()
+            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .collect(),
+    }]));
+    // Every file comes in ticked.
+    app.press(Action::VisitCopy);
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Read { stick, name } = c {
+            let bytes = files.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+            app.storage(StorageEvent::Read { stick, name, bytes });
+        }
+    }
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let _ = app.frame();
+}
+
+/// The app with the test vault in the Inbox and the release files copied
+/// in on a stick visit, the stick then pulled.
+fn copied_in() -> Faraday {
+    let mut app = Faraday::new();
+    display(&mut app);
     let vault = testkit::files()
         .unwrap()
         .into_iter()
@@ -71,32 +115,9 @@ fn copied_in() -> Faraday {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.storage(StorageEvent::Clock {
-        unix_secs: 1_791_482_652,
-    });
+    app.storage(StorageEvent::Clock { unix_secs: CLOCK });
     app.vaults.ms_per_unit = Some(180);
-    let files = release_files();
-    app.storage(StorageEvent::Sticks(vec![StickInfo {
-        serial: None,
-        id: "S".into(),
-        label: "FARADAY".into(),
-        boot: false,
-        files: files
-            .iter()
-            .map(|(n, b)| (n.clone(), b.len() as u64))
-            .collect(),
-    }]));
-    assert_eq!(app.screen, Screen::Visit);
-    // Every file comes in ticked.
-    app.press(Action::VisitCopy);
-    while let Some(c) = app.poll_storage() {
-        if let StorageCommand::Read { stick, name } = c {
-            let bytes = files.iter().find(|(n, _)| *n == name).unwrap().1.clone();
-            app.storage(StorageEvent::Read { stick, name, bytes });
-        }
-    }
-    app.storage(StorageEvent::Sticks(Vec::new()));
-    let _ = app.frame();
+    visit(&mut app, &release_files());
     app
 }
 
@@ -147,8 +168,23 @@ fn make_key(app: &mut Faraday, name: &str) {
 fn gpg_keys(app: &Faraday) -> usize {
     app.vaults.open[app.vaults.current]
         .contents
-        .of(faraday_vault::records::kind::GPG)
+        .of(kind::GPG)
         .count()
+}
+
+/// The record of the GPG key last made.
+fn record(app: &Faraday) -> faraday_vault::Record {
+    app.vaults.open[app.vaults.current]
+        .contents
+        .of(kind::GPG)
+        .last()
+        .expect("a GPG key")
+        .1
+        .clone()
+}
+
+fn key_of(app: &Faraday) -> faraday_pgp::Key {
+    gpg::key_of(&record(app)).expect("a readable key")
 }
 
 /// The app with the test vault unlocked, a GPG key made, and the Sign a
@@ -159,6 +195,25 @@ fn signing() -> Faraday {
     make_key(&mut app, "Release");
     app.press(Action::Vault(V::GpgSignPick));
     app
+}
+
+/// The listed position of Inbox file `name` on the signing page.
+fn listed(app: &Faraday, name: &str) -> usize {
+    app.inbox
+        .iter()
+        .filter(|i| !i.name.ends_with(".asc"))
+        .position(|i| i.name == name)
+        .unwrap_or_else(|| panic!("no {name}"))
+}
+
+fn outbox_names(app: &Faraday) -> Vec<String> {
+    app.outbox.iter().map(|i| i.name.clone()).collect()
+}
+
+/// Everything drawn, as one string without spaces.
+fn drawn(app: &mut Faraday) -> String {
+    let _ = app.frame();
+    app.drawn_texts().join("").replace(' ', "")
 }
 
 /// On the stick, with the clock not checked, Make a key opens Set the
@@ -199,40 +254,255 @@ fn on_the_stick_signing_asks_for_the_time_first() {
     app.press(Action::Vault(V::GpgSignPick));
     app.press(Action::Vault(V::GpgTick(0)));
     let files = app.outbox.len();
-    app.press(Action::Vault(V::GpgSignTicked));
+    app.press(Action::Vault(V::GpgHoldSign));
     assert_eq!(app.screen, Screen::SetTime);
     assert_eq!(app.outbox.len(), files, "nothing signed");
     app.press(Action::SetTimeKeep);
-    app.press(Action::Vault(V::GpgSignTicked));
+    app.press(Action::Vault(V::GpgHoldSign));
     assert_eq!(app.screen, Screen::VaultContents);
     assert_eq!(app.toast_text(), Some("1 signature waits for the stick"));
 }
 
-/// Sign a file is a checkbox list: ticking two files and pressing Sign 2
-/// files puts two signatures in the Outbox in one go, each verifying
-/// against its own file with the key's certificate, and the page stays
-/// open with the signed rows marked.
+/// A new key's term is GnuPG's default for `--quick-generate-key`, three
+/// years of 365 days, and the revocation certificate is kept with the key:
+/// it is not in the Outbox, in a file or in any other form.
+#[test]
+fn making_a_key_keeps_its_revocation_with_it_and_not_in_the_outbox() {
+    let mut app = unlocked();
+    keep_the_time(&mut app);
+    make_key(&mut app, "Release");
+    assert_eq!(app.vaults.gpg_years, 3);
+    let key = key_of(&app);
+    assert_eq!(key.expiry, 3 * YEAR);
+    let r = record(&app);
+    let rev = r.field(8).expect("a kept revocation").to_vec();
+    assert_eq!(
+        rev,
+        key.revocation(key.created, faraday_pgp::Reason::Unspecified, "")
+    );
+    // The Outbox has the certificate and nothing else.
+    let names = outbox_names(&app);
+    assert_eq!(names.len(), 1, "{names:?}");
+    assert!(names[0].ends_with(".asc") && !names[0].contains("revocation"));
+    let rev_text = armor(Armor::PublicKey, &rev);
+    for item in &app.outbox {
+        assert_ne!(item.bytes, rev_text.as_bytes());
+        assert!(
+            !String::from_utf8_lossy(&item.bytes).contains("revocation certificate"),
+            "{}",
+            item.name
+        );
+    }
+    // The result says where it is kept.
+    assert!(
+        app.toast_text()
+            .is_some_and(|t| t.contains("kept with the key")),
+        "{:?}",
+        app.toast_text()
+    );
+}
+
+/// A key made before revocations were kept gets its one on first use of
+/// its page, with the clock as it is then.
+#[test]
+fn a_key_with_no_kept_revocation_makes_one_when_its_page_is_opened() {
+    let mut app = unlocked();
+    keep_the_time(&mut app);
+    make_key(&mut app, "Release");
+    let at = app.vaults.open[app.vaults.current]
+        .contents
+        .of(kind::GPG)
+        .last()
+        .unwrap()
+        .0;
+    app.vaults.open[app.vaults.current].contents.records[at].set(8, &[]);
+    assert!(record(&app).field(8).is_none());
+    app.press(Action::Vault(V::Item(0)));
+    assert!(record(&app).field(8).is_some());
+}
+
+/// A scratch GnuPG home; GnuPG 2.4 is on the build machine, and a machine
+/// without it fails the test unless `FARADAY_SKIP_GNUPG=1`.
+struct Home(PathBuf);
+
+impl Drop for Home {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn home(name: &str) -> Home {
+    let dir = std::env::temp_dir().join(format!("faraday-core-gpg-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    Home(dir)
+}
+
+fn gpg_at(home: &Path, now: u64, args: &[&str]) -> Option<(bool, String)> {
+    let out = Command::new("gpg")
+        .arg("--homedir")
+        .arg(home)
+        .args(["--batch", "--no-tty", "--status-fd", "1"])
+        .arg("--faked-system-time")
+        .arg(format!("{now}!"))
+        .args(args)
+        .output();
+    match out {
+        Ok(o) => Some((
+            o.status.success(),
+            String::from_utf8_lossy(&o.stdout).into_owned() + &String::from_utf8_lossy(&o.stderr),
+        )),
+        Err(_) if std::env::var("FARADAY_SKIP_GNUPG").is_ok_and(|v| v == "1") => None,
+        Err(e) => panic!("gpg is not installed ({e}); set FARADAY_SKIP_GNUPG=1 to skip"),
+    }
+}
+
+/// The revocation certificate leaves only through the secret sheet, as
+/// `{name}-{FPR}.rev` in GnuPG's file layout, with the colon that keeps
+/// `gpg --import` from taking it until it is removed by hand.
+#[test]
+fn the_revocation_is_exported_through_the_secret_sheet_as_a_rev_file() {
+    let mut app = unlocked();
+    keep_the_time(&mut app);
+    make_key(&mut app, "Release");
+    let key = key_of(&app);
+    let fpr: String = key
+        .fingerprint()
+        .iter()
+        .map(|b| format!("{b:02X}"))
+        .collect();
+    let cert = app.outbox[0].bytes.clone();
+    app.press(Action::Vault(V::GpgExportRevocation));
+    assert_eq!(app.sheet, Some(Sheet::SecretOut));
+    assert_eq!(
+        app.secret_out.as_ref().map(|o| o.name.clone()),
+        Some(format!("release-{fpr}.rev"))
+    );
+    // Nothing is in the Outbox until the person says they understand.
+    assert_eq!(app.outbox.len(), 1);
+    app.press(Action::SecretAck);
+    app.press(Action::SecretUnprotected);
+    let item = app
+        .outbox
+        .iter()
+        .find(|i| i.name == format!("release-{fpr}.rev"))
+        .expect("the .rev file");
+    assert!(item.secret, "listed with the unprotected secrets");
+    let text = String::from_utf8(item.bytes.clone()).unwrap();
+    assert!(text.starts_with("This is a revocation certificate for the OpenPGP key:"));
+    assert!(text.contains(
+        "\n:-----BEGIN PGP PUBLIC KEY BLOCK-----\nComment: This is a revocation certificate\n"
+    ));
+    // Never public: not a file Select all takes, and no code or picture.
+    assert_ne!(classify("x.rev", text.as_bytes()), FileKind::Gpg);
+    assert!(item.exposure() == faraday_core::secrets::Exposure::Secret);
+
+    // GnuPG: refuses until the colon is removed, accepts after.
+    let h = home("rev");
+    let created = u64::from(key.created);
+    let c = h.0.join("cert.asc");
+    std::fs::write(&c, &cert).unwrap();
+    let Some((ok, said)) = gpg_at(&h.0, created + 3600, &["--import", c.to_str().unwrap()]) else {
+        return;
+    };
+    assert!(ok, "{said}");
+    let rev = h.0.join("key.rev");
+    std::fs::write(&rev, &text).unwrap();
+    let (_, said) = gpg_at(&h.0, created + 3600, &["--import", rev.to_str().unwrap()]).unwrap();
+    assert!(!said.contains("revocation certificate imported"), "{said}");
+    std::fs::write(&rev, text.replacen("\n:-----BEGIN", "\n-----BEGIN", 1)).unwrap();
+    let (ok, said) = gpg_at(&h.0, created + 3600, &["--import", rev.to_str().unwrap()]).unwrap();
+    assert!(
+        ok && said.contains("revocation certificate imported"),
+        "{said}"
+    );
+}
+
+/// A new revocation asks the reason as GnuPG does, codes 0 to 3 and an
+/// optional text, and goes out the same way; the one kept stays as it was.
+#[test]
+fn a_new_revocation_asks_the_reason_as_gnupg_does() {
+    let mut app = unlocked();
+    keep_the_time(&mut app);
+    make_key(&mut app, "Release");
+    let kept = record(&app).field(8).unwrap().to_vec();
+    app.press(Action::Vault(V::GpgRevocationPage));
+    assert!(app.vaults.form.is_some());
+    // GnuPG's menu: 1 is "compromised", which the packet codes 2.
+    app.press(Action::Vault(V::GpgReason(1)));
+    app.press(Action::Vault(V::FocusField(0)));
+    type_text(&mut app, "My key was stolen");
+    app.press(Action::Vault(V::FormSave));
+    assert_eq!(app.sheet, Some(Sheet::SecretOut));
+    let out = app.secret_out.as_ref().unwrap();
+    let text = String::from_utf8(out.bytes.to_vec()).unwrap();
+    assert!(text.contains(":-----BEGIN PGP PUBLIC KEY BLOCK-----"));
+    assert_eq!(
+        record(&app).field(8).unwrap(),
+        &kept[..],
+        "the kept one stays"
+    );
+    let want = key_of(&app).revocation(
+        u32::try_from(app.clock_now().unwrap()).unwrap(),
+        faraday_pgp::Reason::Compromised,
+        "My key was stolen",
+    );
+    let want = armor_with(
+        Armor::PublicKey,
+        &want,
+        Some("This is a revocation certificate"),
+    );
+    let armoured = text.split_once("\n:").unwrap().1;
+    assert_eq!(armoured.trim(), want.trim());
+}
+
+/// Nothing secret reaches the Outbox through any of the key's actions.
+#[test]
+fn no_seed_and_no_paperkey_reaches_the_outbox() {
+    let mut app = signing();
+    app.press(Action::Vault(V::GpgTickAll));
+    app.press(Action::Vault(V::GpgHoldSign));
+    app.press(Action::Vault(V::GpgExport));
+    app.press(Action::Vault(V::GpgRenewTerm(2)));
+    app.storage(StorageEvent::Clock {
+        unix_secs: CLOCK + 86_400,
+    });
+    app.press(Action::Vault(V::GpgRenew));
+    let r = record(&app);
+    let key = key_of(&app);
+    let paper = gpg::paperkey(&r).unwrap();
+    let first = paper.lines().next().unwrap().trim().to_string();
+    assert!(app.outbox.len() >= 4, "{:?}", outbox_names(&app));
+    for item in &app.outbox {
+        let text = String::from_utf8_lossy(&item.bytes).to_string();
+        for seed in [key.primary_seed, key.subkey_seed] {
+            let hexed: String = seed.iter().map(|b| format!("{b:02x}")).collect();
+            assert!(!item.bytes.windows(32).any(|w| w == seed), "{}", item.name);
+            assert!(!text.to_lowercase().contains(&hexed), "{}", item.name);
+        }
+        assert!(!text.contains(&first), "{}", item.name);
+    }
+}
+
+/// Sign a file is a checkbox list: ticking two files and holding Sign 2
+/// files puts two signatures in the Outbox in one go, each named
+/// `{file}.asc` as `gpg --armor --detach-sign` names it, and the page
+/// stays open.
 #[test]
 fn ticking_two_files_and_signing_puts_two_signatures_in_the_outbox() {
     let mut app = signing();
     let names: Vec<String> = release_files().into_iter().map(|(n, _)| n).collect();
-    let signable = |app: &Faraday| -> Vec<String> {
-        app.inbox
-            .iter()
-            .filter(|i| !i.name.ends_with(".asc"))
-            .map(|i| i.name.clone())
-            .collect()
-    };
-    let ticks: Vec<usize> = names
-        .iter()
-        .take(2)
-        .map(|n| signable(&app).iter().position(|x| x == n).unwrap())
-        .collect();
-    for k in ticks {
+    for n in names.iter().take(2) {
+        let k = listed(&app, n);
         app.press(Action::Vault(V::GpgTick(k)));
     }
     assert!(app.screen != Screen::Home, "still on the vault");
-    app.press(Action::Vault(V::GpgSignTicked));
+    app.press(Action::Vault(V::GpgHoldSign));
     assert!(app.vaults.signing, "the page stays open");
     for name in names.iter().take(2) {
         let sig = app
@@ -252,67 +522,194 @@ fn ticking_two_files_and_signing_puts_two_signatures_in_the_outbox() {
         "the third file was never ticked"
     );
     assert!(app.vaults.sign_ticked.is_empty(), "the ticks clear");
+    assert_eq!(app.toast_text(), Some("2 signatures wait for the stick"));
 }
 
-/// A signature already made (`NAME.asc` in the Outbox) marks its file's
-/// row Signed, and an `.asc` file already in the Inbox (say, copied back
-/// in from another device) is not itself listed to sign again.
+/// The signature is GnuPG-checkable: it verifies against its file with
+/// the key's certificate.
+#[test]
+fn a_signature_verifies_in_gnupg() {
+    let mut app = signing();
+    let k = listed(&app, "SHA256SUMS");
+    app.press(Action::Vault(V::GpgTick(k)));
+    app.press(Action::Vault(V::GpgHoldSign));
+    let sig = app
+        .outbox
+        .iter()
+        .find(|i| i.name == "SHA256SUMS.asc")
+        .unwrap()
+        .bytes
+        .clone();
+    let cert = app
+        .outbox
+        .iter()
+        .find(|i| i.name != "SHA256SUMS.asc")
+        .unwrap();
+    let h = home("verify");
+    let now = u64::from(key_of(&app).created) + 600;
+    std::fs::write(h.0.join("cert.asc"), &cert.bytes).unwrap();
+    std::fs::write(h.0.join("SHA256SUMS"), &release_files()[0].1).unwrap();
+    std::fs::write(h.0.join("SHA256SUMS.asc"), &sig).unwrap();
+    let Some((ok, said)) = gpg_at(
+        &h.0,
+        now,
+        &["--import", h.0.join("cert.asc").to_str().unwrap()],
+    ) else {
+        return;
+    };
+    assert!(ok, "{said}");
+    let (ok, said) = gpg_at(
+        &h.0,
+        now,
+        &[
+            "--verify",
+            h.0.join("SHA256SUMS.asc").to_str().unwrap(),
+            h.0.join("SHA256SUMS").to_str().unwrap(),
+        ],
+    )
+    .unwrap();
+    assert!(
+        ok && said.contains("GOODSIG") && said.contains("VALIDSIG"),
+        "{said}"
+    );
+}
+
+/// What is signed is what the page shows: each file's name, size and
+/// SHA-256, and a small text file's text; the key named by user ID, key
+/// IDs and creation date, and its signing subkey.
+#[test]
+fn the_page_shows_the_bytes_and_the_key_it_signs_with() {
+    let mut app = signing();
+    let page = drawn(&mut app);
+    for (name, bytes) in release_files() {
+        let hash = gpg::sha256_hex(&bytes);
+        assert!(page.contains(&hash), "{name}'s SHA-256 on the page");
+        assert!(page.contains(&name.replace(' ', "")), "{name}");
+    }
+    // A small text file's text, and not a binary's.
+    assert!(page.contains("object7fcc43a"), "the tag's text");
+    assert!(
+        page.contains("faraday-0.1.0-linux-x86_64"),
+        "the sums' text"
+    );
+    let key = key_of(&app);
+    let sub = gpg::key_id(&key.subkey_fingerprint());
+    let main = gpg::key_id(&key.fingerprint());
+    assert!(page.contains("\"Release\""));
+    assert!(page.contains(&format!("subkeyID{sub}")), "{page}");
+    assert!(page.contains(&format!("mainkeyID{main}")));
+    assert!(page.contains("created"));
+}
+
+/// Signing takes a hold: a press on the button and a release before the
+/// hold is up signs nothing.
+#[test]
+fn signing_takes_a_hold() {
+    assert!(faraday_core::vaults::is_hold(Action::Vault(V::GpgHoldSign)));
+    assert!(faraday_core::vaults::is_hold(Action::Vault(
+        V::GpgHoldRevoke
+    )));
+}
+
+/// The ticks are keyed by name and hash: a stick visit that replaces a
+/// ticked file's bytes leaves it unticked, and the hold signs nothing.
+#[test]
+fn a_stick_visit_that_replaces_a_ticked_file_drops_its_tick() {
+    let mut app = signing();
+    let k = listed(&app, "SHA256SUMS");
+    app.press(Action::Vault(V::GpgTick(k)));
+    assert_eq!(app.vaults.sign_ticked.len(), 1);
+    let changed = (
+        "SHA256SUMS".to_string(),
+        b"# Faraday 0.1.0, commit 7fcc43a\n0000  faraday-0.1.0-linux-x86_64\n".to_vec(),
+    );
+    // What a stick visit's Copy answers with: the file read from a stick.
+    app.storage(StorageEvent::Read {
+        stick: "S".into(),
+        name: changed.0.clone(),
+        bytes: changed.1.clone(),
+    });
+    let item = app.inbox.iter().find(|i| i.name == "SHA256SUMS").unwrap();
+    assert_eq!(
+        item.bytes, changed.1,
+        "the stick's file is the one in the Inbox"
+    );
+    // The page shows it unticked, with the new hash.
+    let page = drawn(&mut app);
+    assert!(page.contains(&gpg::sha256_hex(&changed.1)));
+    assert!(!page.contains("Holdtosign1file"), "{page}");
+    let before = app.outbox.len();
+    app.press(Action::Vault(V::GpgHoldSign));
+    assert_eq!(app.outbox.len(), before, "nothing signed");
+    assert!(
+        app.toast_text().is_some_and(|t| t.contains("not signed")),
+        "{:?}",
+        app.toast_text()
+    );
+}
+
+/// Changing the key selected, the category or the vault clears the
+/// signing page and its ticks.
+#[test]
+fn changing_the_key_the_category_or_the_vault_clears_the_signing_page() {
+    let mut app = unlocked();
+    keep_the_time(&mut app);
+    make_key(&mut app, "Release");
+    make_key(&mut app, "Second");
+    for change in [
+        Action::Vault(V::Item(0)),
+        Action::Vault(V::Category(2)),
+        Action::Vault(V::Show(0)),
+    ] {
+        app.press(Action::Vault(V::Category(4)));
+        app.press(Action::Vault(V::Item(1)));
+        app.press(Action::Vault(V::GpgSignPick));
+        app.press(Action::Vault(V::GpgTick(0)));
+        assert!(app.vaults.signing && !app.vaults.sign_ticked.is_empty());
+        app.press(change);
+        assert!(!app.vaults.signing, "{change:?}");
+        assert!(app.vaults.sign_ticked.is_empty(), "{change:?}");
+    }
+}
+
+/// The signature already made is marked; an `.asc` copied back in is not
+/// listed to sign again.
 #[test]
 fn a_signed_file_is_marked_and_an_asc_in_the_inbox_is_not_listed() {
     let mut app = signing();
     let name = &release_files()[0].0;
-    let signable = |app: &Faraday| -> Vec<String> {
-        app.inbox
-            .iter()
-            .filter(|i| !i.name.ends_with(".asc"))
-            .map(|i| i.name.clone())
-            .collect()
-    };
-    let k = signable(&app).iter().position(|x| x == name).unwrap();
+    let k = listed(&app, name);
     app.press(Action::Vault(V::GpgTick(k)));
-    app.press(Action::Vault(V::GpgSignTicked));
+    app.press(Action::Vault(V::GpgHoldSign));
     let _ = app.frame();
     let texts = app.drawn_texts();
     assert!(
         texts.iter().any(|t| t == "Signed"),
         "the signed row is marked: {texts:?}"
     );
-    // An .asc file that lands in the Inbox is a signature, not something
-    // to sign.
-    app.inbox.push(faraday_core::Item {
+    app.inbox.push(Item {
         name: format!("{name}.asc"),
         bytes: b"-----BEGIN PGP SIGNATURE-----\n...".to_vec(),
-        kind: faraday_core::wallet::FileKind::Other,
+        kind: FileKind::Other,
         secret: false,
         picture: None,
         sha: None,
     });
     assert!(
-        signable(&app).iter().all(|x| x != &format!("{name}.asc")),
+        app.inbox
+            .iter()
+            .filter(|i| !i.name.ends_with(".asc"))
+            .all(|x| x.name != format!("{name}.asc")),
         "an .asc file is not itself signable"
     );
 }
 
-/// With one file only in the Inbox, it starts ticked and Sign 1 file
-/// signs it.
+/// With one file only in the Inbox, it starts ticked and the hold signs
+/// it.
 #[test]
 fn with_one_file_it_starts_ticked() {
     let mut app = Faraday::new();
-    app.event(Event::Display(DisplayInfo {
-        width: 1366,
-        height: 768,
-        dpi: 160,
-        inset_bottom: 0,
-        inset_top: 0,
-        buttons: 0,
-        camera_fixed: false,
-        secure: SecureHardware::None,
-        boot: BootState::Unknown,
-        memory_mib: None,
-    }));
-    for i in 0..6u8 {
-        app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
-    }
+    display(&mut app);
     let vault = testkit::files()
         .unwrap()
         .into_iter()
@@ -326,9 +723,7 @@ fn with_one_file_it_starts_ticked() {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.storage(StorageEvent::Clock {
-        unix_secs: 1_791_482_652,
-    });
+    app.storage(StorageEvent::Clock { unix_secs: CLOCK });
     app.vaults.ms_per_unit = Some(180);
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
@@ -340,15 +735,311 @@ fn with_one_file_it_starts_ticked() {
     keep_the_time(&mut app);
     make_key(&mut app, "Release");
     // The vault's own file stays in the Inbox once opened; drop it so
-    // SHA256SUMS is the one signable file, as a stick visit that only
-    // ever copied in the release would leave it.
-    app.inbox
-        .retain(|i| i.kind != faraday_core::wallet::FileKind::Vault);
+    // SHA256SUMS is the one signable file.
+    app.inbox.retain(|i| i.kind != FileKind::Vault);
     app.press(Action::Vault(V::GpgSignPick));
-    assert_eq!(app.vaults.sign_ticked, vec!["SHA256SUMS".to_string()]);
-    app.press(Action::Vault(V::GpgSignTicked));
+    assert_eq!(
+        app.vaults.sign_ticked,
+        vec![("SHA256SUMS".to_string(), gpg::sha256(b"hello"))]
+    );
+    app.press(Action::Vault(V::GpgHoldSign));
     assert!(
         app.outbox.iter().any(|i| i.name == "SHA256SUMS.asc"),
-        "Sign 1 file signed the one ticked file"
+        "the hold signed the one ticked file"
     );
+}
+
+/// A signature is not written over a file of its name: a file named like
+/// the certificate would have its signature replace the certificate, and
+/// GnuPG's batch mode does not overwrite either. Nothing signed is not
+/// reported as a signature waiting.
+#[test]
+fn a_signature_never_overwrites_the_certificate() {
+    let mut app = signing();
+    let cert = app.outbox[0].clone();
+    let stem = cert.name.trim_end_matches(".asc").to_string();
+    app.inbox.push(Item {
+        name: stem.clone(),
+        bytes: b"the file named like the certificate".to_vec(),
+        kind: FileKind::Text,
+        secret: false,
+        picture: None,
+        sha: None,
+    });
+    app.press(Action::Vault(V::GpgSignPick));
+    app.press(Action::Vault(V::GpgSignPick));
+    let k = listed(&app, &stem);
+    app.press(Action::Vault(V::GpgTick(k)));
+    app.press(Action::Vault(V::GpgHoldSign));
+    let now = app.outbox.iter().find(|i| i.name == cert.name).unwrap();
+    assert_eq!(now.bytes, cert.bytes, "the certificate is as it was");
+    let toast = app.toast_text().unwrap().to_string();
+    assert!(toast.starts_with("File exists"), "{toast}");
+    assert!(!toast.contains("signature"), "{toast}");
+}
+
+/// A key that expired, was revoked, or was made after the clock signs
+/// nothing; GnuPG's "Unusable secret key", and for a clock before the
+/// key's creation its own words.
+#[test]
+fn an_expired_a_revoked_and_a_future_key_sign_nothing() {
+    // Expired: the clock past the key's term.
+    let mut app = signing();
+    let key = key_of(&app);
+    app.press(Action::Vault(V::GpgTick(listed(&app, "SHA256SUMS"))));
+    app.storage(StorageEvent::Clock {
+        unix_secs: u64::from(key.created) + u64::from(key.expiry) + 1,
+    });
+    let before = app.outbox.len();
+    app.press(Action::Vault(V::GpgHoldSign));
+    assert_eq!(app.outbox.len(), before);
+    let t = app.toast_text().unwrap();
+    assert!(t.starts_with("Unusable secret key: it expired on "), "{t}");
+
+    // Revoked.
+    let mut app = signing();
+    app.press(Action::Vault(V::GpgHoldRevoke));
+    app.press(Action::Vault(V::GpgTick(listed(&app, "SHA256SUMS"))));
+    let before = app.outbox.len();
+    app.press(Action::Vault(V::GpgHoldSign));
+    assert_eq!(app.outbox.len(), before);
+    let t = app.toast_text().unwrap();
+    assert!(
+        t.starts_with("Unusable secret key: it was revoked on "),
+        "{t}"
+    );
+
+    // Made in the future: the clock a day and more before the key.
+    let mut app = signing();
+    app.press(Action::Vault(V::GpgTick(listed(&app, "SHA256SUMS"))));
+    app.storage(StorageEvent::Clock {
+        unix_secs: CLOCK - 3 * 86_400,
+    });
+    let before = app.outbox.len();
+    app.press(Action::Vault(V::GpgHoldSign));
+    assert_eq!(app.outbox.len(), before);
+    let t = app.toast_text().unwrap();
+    assert!(
+        t.contains("was created 3 days in the future (time warp or clock problem)"),
+        "{t}"
+    );
+}
+
+/// The signature's code and picture follow the file by its hash: a file
+/// that arrives in the Inbox ahead of it does not change which file the
+/// button signs.
+#[test]
+fn the_signature_code_follows_the_file_not_its_place() {
+    let mut app = signing();
+    let code = app.signature_code("SHA256SUMS").unwrap();
+    app.inbox.insert(
+        0,
+        Item {
+            name: "another".into(),
+            bytes: b"another file".to_vec(),
+            kind: FileKind::Text,
+            secret: false,
+            picture: None,
+            sha: None,
+        },
+    );
+    app.press(Action::ShowCode(code));
+    let q = app.qr.as_ref().expect("the QR sheet");
+    assert!(q.title.contains("SHA256SUMS"), "{}", q.title);
+    let key = key_of(&app);
+    let now = u32::try_from(app.clock_now().unwrap()).unwrap();
+    let want = armor(
+        Armor::Signature,
+        &key.sign(&release_files()[0].1, now, Hash::Sha512),
+    );
+    let png = osk_codec::png::qr_png(&q.frames[0], 4);
+    let payloads = faraday_files::qr_in_png(&png).unwrap();
+    assert_eq!(
+        String::from_utf8(payloads[0].clone()).unwrap().trim(),
+        want.trim()
+    );
+    // And once the file is gone, the code is not another file's.
+    app.press(Action::Cancel);
+    app.inbox.retain(|i| i.name != "SHA256SUMS");
+    app.qr = None;
+    app.press(Action::ShowCode(code));
+    assert!(
+        app.qr.is_none(),
+        "no signature over a file that is not there"
+    );
+}
+
+/// Renew asks for the term: nothing is renewed until one is chosen, and
+/// the term is counted from the clock, in GnuPG's years of 365 days. The
+/// record's certificate and the Export file change together.
+#[test]
+fn renewing_asks_the_term_and_updates_the_record_and_the_export_together() {
+    let mut app = unlocked();
+    keep_the_time(&mut app);
+    make_key(&mut app, "Release");
+    let before = record(&app);
+    app.press(Action::Vault(V::GpgRenew));
+    assert_eq!(app.toast_text(), Some("Choose the new term first"));
+    assert_eq!(record(&app).field(7), before.field(7), "nothing renewed");
+
+    // A year on, renewed for two years from then.
+    let later = CLOCK + u64::from(YEAR);
+    app.storage(StorageEvent::Clock { unix_secs: later });
+    app.press(Action::Vault(V::GpgRenewTerm(2)));
+    app.press(Action::Vault(V::GpgRenew));
+    let key = key_of(&app);
+    assert_eq!(
+        u64::from(key.expiry),
+        later - u64::from(key.created) + 2 * u64::from(YEAR)
+    );
+    let r = record(&app);
+    let cert = armor(Armor::PublicKey, r.field(7).unwrap());
+    assert_ne!(r.field(7), before.field(7));
+    assert_eq!(r.field(8), before.field(8), "the kept revocation stays");
+    app.outbox.clear();
+    app.press(Action::Vault(V::GpgExport));
+    assert_eq!(app.outbox.len(), 1);
+    assert_eq!(
+        app.outbox[0].bytes,
+        cert.as_bytes(),
+        "Export is the record's"
+    );
+    // The choice is spent.
+    assert_eq!(app.vaults.renew_years, None);
+
+    // Never is a choice too, and is only made by choosing it.
+    app.storage(StorageEvent::Clock {
+        unix_secs: later + 86_400,
+    });
+    app.press(Action::Vault(V::GpgRenewTerm(0)));
+    app.press(Action::Vault(V::GpgRenew));
+    assert_eq!(key_of(&app).expiry, 0);
+}
+
+/// A renewal at a clock before the key's last self-signature is
+/// refused ("Time conflict"), as GnuPG refuses it, and one within four
+/// seconds is signed one second after it.
+#[test]
+fn renewing_before_the_last_self_signature_is_refused() {
+    let mut app = unlocked();
+    keep_the_time(&mut app);
+    make_key(&mut app, "Release");
+    let signed_at = u64::from(key_of(&app).created);
+    // Ten seconds before the key's own signatures.
+    app.storage(StorageEvent::Clock {
+        unix_secs: signed_at - 10,
+    });
+    let before = record(&app);
+    app.press(Action::Vault(V::GpgRenewTerm(1)));
+    app.press(Action::Vault(V::GpgRenew));
+    assert!(
+        app.toast_text()
+            .is_some_and(|t| t.starts_with("Time conflict")),
+        "{:?}",
+        app.toast_text()
+    );
+    assert_eq!(record(&app).field(7), before.field(7));
+    // Two seconds before: signed one second after the last.
+    app.storage(StorageEvent::Clock {
+        unix_secs: signed_at - 2,
+    });
+    app.press(Action::Vault(V::GpgRenew));
+    let r = record(&app);
+    assert_ne!(r.field(7), before.field(7));
+    assert_eq!(
+        gpg::certified_at(&r),
+        Some(u32::try_from(signed_at).unwrap() + 1)
+    );
+}
+
+/// A renewed key is valid in GnuPG again.
+#[test]
+fn a_renewed_key_is_valid_in_gnupg_again() {
+    let mut app = unlocked();
+    keep_the_time(&mut app);
+    make_key(&mut app, "Release");
+    let key = key_of(&app);
+    let end = u64::from(key.created) + u64::from(key.expiry);
+    let h = home("renew");
+    let first = app.outbox[0].bytes.clone();
+    std::fs::write(h.0.join("a.asc"), &first).unwrap();
+    let Some((ok, said)) = gpg_at(
+        &h.0,
+        end - 100,
+        &["--import", h.0.join("a.asc").to_str().unwrap()],
+    ) else {
+        return;
+    };
+    assert!(ok, "{said}");
+    let state = |at: u64| -> String {
+        let (_, l) = gpg_at(&h.0, at, &["--with-colons", "--list-keys"]).unwrap();
+        l.lines()
+            .find(|l| l.starts_with("pub:"))
+            .unwrap()
+            .to_string()
+    };
+    assert!(
+        state(end + 100).starts_with("pub:e:"),
+        "{}",
+        state(end + 100)
+    );
+    app.storage(StorageEvent::Clock {
+        unix_secs: end + 100,
+    });
+    app.press(Action::Vault(V::GpgRenewTerm(1)));
+    app.press(Action::Vault(V::GpgRenew));
+    app.outbox.clear();
+    app.press(Action::Vault(V::GpgExport));
+    std::fs::write(h.0.join("b.asc"), &app.outbox[0].bytes).unwrap();
+    let (ok, said) = gpg_at(
+        &h.0,
+        end + 100,
+        &["--import", h.0.join("b.asc").to_str().unwrap()],
+    )
+    .unwrap();
+    assert!(ok, "{said}");
+    assert!(
+        state(end + 110).starts_with("pub:-:"),
+        "{}",
+        state(end + 110)
+    );
+}
+
+/// The classifier: a `.rev` file, a block with the colon guard and a
+/// block whose Comment holds a seed are not public (F22, F32).
+#[test]
+fn a_rev_file_a_guarded_block_and_a_comment_with_a_seed_are_not_public() {
+    let k = faraday_pgp::Key {
+        primary_seed: [0x11; 32],
+        created: 1_780_000_000,
+        subkey_seed: [0x22; 32],
+        subkey_created: 1_780_000_000,
+        user_ids: vec!["Test Person <test@example.com>".into()],
+        expiry: 0,
+    };
+    let cert = k.certificate(1_780_000_000);
+    let public = armor(Armor::PublicKey, &cert);
+    assert_eq!(classify("k.asc", public.as_bytes()), FileKind::Gpg);
+    let rev = k.revocation_file(&k.revocation(1_780_000_100, faraday_pgp::Reason::Unspecified, ""));
+    assert_ne!(classify("k.rev", rev.as_bytes()), FileKind::Gpg);
+    assert_ne!(
+        classify("k.asc", format!(":{public}").as_bytes()),
+        FileKind::Gpg
+    );
+    let words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let with_words = armor_with(Armor::PublicKey, &cert, Some(words));
+    assert_ne!(classify("k.asc", with_words.as_bytes()), FileKind::Gpg);
+    let with_xprv = armor_with(
+        Armor::PublicKey,
+        &cert,
+        Some(
+            "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi",
+        ),
+    );
+    assert_ne!(classify("k.asc", with_xprv.as_bytes()), FileKind::Gpg);
+    // A user ID with a seed.
+    let mut k2 = k;
+    k2.user_ids = vec![words.to_string()];
+    let seeded = armor(Armor::PublicKey, &k2.certificate(1_780_000_000));
+    assert_ne!(classify("k.asc", seeded.as_bytes()), FileKind::Gpg);
 }

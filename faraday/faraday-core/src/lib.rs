@@ -1779,10 +1779,10 @@ pub enum Code {
     Message,
     /// The selected GPG key's public certificate.
     GpgKey,
-    /// A revocation certificate for the selected GPG key.
-    GpgRevocation,
-    /// A detached signature by the selected GPG key over Inbox file n.
-    GpgSignature(usize),
+    /// A detached signature by the selected GPG key over the Inbox file
+    /// whose SHA-256 begins with these eight bytes: it follows the file,
+    /// not its place in the Inbox.
+    GpgSignature([u8; 8]),
     /// The selected APK signing key's certificate, as PEM.
     ApkCertificate,
 }
@@ -3202,7 +3202,12 @@ impl Faraday {
             input_decisions: VecDeque::new(),
             new_keys: 0,
             made_here: Vec::new(),
-            vaults: vaults::Vaults::default(),
+            // A new GPG key's term starts at GnuPG's default, never at "never".
+            vaults: {
+                let mut v = vaults::Vaults::default();
+                v.gpg_years = gpg::DEFAULT_YEARS;
+                v
+            },
             signed_amounts: Vec::new(),
             seal_amounts: true,
             checked_wallets: Vec::new(),
@@ -6129,8 +6134,7 @@ impl Faraday {
                 }
             }
             Action::ShowCode(c) | Action::CodePng(c)
-                if matches!(c, Code::GpgRevocation | Code::GpgSignature(_))
-                    && self.time_asked() => {}
+                if matches!(c, Code::GpgSignature(_)) && self.time_asked() => {}
             Action::ShowCode(c) => {
                 let view = self.code_view(c);
                 self.open_qr(view);
@@ -8924,7 +8928,7 @@ impl Faraday {
                 ];
                 Ok(QrView::text(EN.code_view_signed_message, &text)?.public(&name, lines))
             }
-            Code::GpgKey | Code::GpgRevocation | Code::GpgSignature(_) => self.gpg_code(code),
+            Code::GpgKey | Code::GpgSignature(_) => self.gpg_code(code),
             Code::ApkCertificate => self.apk_code(),
         }
     }

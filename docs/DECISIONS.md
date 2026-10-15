@@ -751,12 +751,24 @@ them as plain text, and text may be a secret. They are public.
 - A file that is nothing but one ASCII-armored OpenPGP block of type
   `PGP PUBLIC KEY BLOCK` or `PGP SIGNATURE`, whose packets are all public
   kinds, is a public file: written as it is, ticked by Select all, kept
-  across a lock. `faraday-pgp` reads the armor and the packet headers
-  only (`PLAN.md` §4.4).
-- A revocation certificate is one of them. `PLAN.md` §5.2 already lists
-  revocation certificates in the Outbox as public. GnuPG advises keeping
-  one private, because whoever holds it can revoke the key; the owner
-  judged it public.
+  across a lock (`PLAN.md` §4.4).
+- *Amended 2026-10-14 (F32).* `faraday-pgp` reads every packet to its
+  exact end, not only its tag: a public key or subkey is a version-4
+  public key with nothing after its last field, a user ID is UTF-8, a
+  signature is a version-4 signature with well-formed subpackets. A user
+  attribute, a trust packet or any other tag refuses the block. A secret
+  packet whose tag was changed to a public one fails to parse. A key
+  block starts with a public key packet. The armour headers are the five
+  GnuPG accepts (Version, Comment, Hash, Charset, MessageID); a header
+  value or a user ID that is a seed's words, an extended private key or a
+  share makes the file not public. A missing or wrong CRC does not refuse
+  the block (RFC 9580) and does not make it public.
+- *Amended 2026-10-14 (F32).* A revocation certificate is not public:
+  whoever holds it can revoke the key, and GnuPG advises keeping it
+  private. It is a signature in a key block with no key before it, so it
+  does not read as public; and its file, `{name}-{FPR}.rev`, has GnuPG's
+  text before it and a colon before its dashes. It goes out only through
+  the secret sheet.
 - Anything else stays as it was: a private key block, text around the
   block, armor that does not read, or any secret-key packet inside is
   text or a file Faraday does not read, which may be a secret.
@@ -1235,3 +1247,91 @@ FAT volume serial, which sticks written from one image can share.
 - F25's two sticks of different FAT serials are replaced by this flow.
 - Specified, not built: batch B1, after APK batch 1 and the GPG fix
   batch are committed.
+
+### F32 GPG follows GnuPG's behaviour (2026-10-14)
+
+**Why.** Two reviews of the GPG feature found places where Faraday did
+what GnuPG does not, or was silent where GnuPG speaks. The owner's rule
+(2026-10-14): for each issue, copy what GnuPG does as closely as
+possible, and where its behaviour is in doubt, check it with the real
+`gpg` rather than guess.
+
+**Decision** (owner, 2026-10-14). Each behaviour below was checked with
+GnuPG 2.4.8 in a throwaway `GNUPGHOME`, with `--faked-system-time` for
+every time; the tests in `faraday/faraday-pgp/tests/gnupg.rs` and
+`faraday/faraday-core/tests/gpg.rs` run `gpg` itself and fail where it is
+missing, unless `FARADAY_SKIP_GNUPG=1`.
+
+- *Revocation certificate kept with the key.* GnuPG 2.1 and later write
+  one at key generation to `openpgp-revocs.d/<FPR>.rev`, beside the
+  keyring, not to where files are published. Faraday keeps one in the
+  key's vault record (`docs/VAULT.md` §7, type 7, field 8) and writes
+  nothing to the Outbox. A key with none makes one when its page is
+  first opened with the clock known, or when **Export the kept
+  revocation** is pressed. After Make, the result says where it is kept.
+- *The `.rev` file.* `{name}-{FPR}.rev`, laid out as GnuPG's: the
+  sentence "This is a revocation certificate for the OpenPGP key:", the
+  key as `gpg --list-keys` prints it (`pub   ed25519 2026-05-28 [C]
+  [expires: …]`, the fingerprint on its own line, `uid` lines; dates UTC,
+  checked with `TZ` set to three zones), GnuPG's paragraphs, then the
+  armour with `Comment: This is a revocation certificate` and a colon
+  before the first dashes. `gpg --import` takes nothing from it until the
+  colon is removed (checked: "no valid OpenPGP data found"; after, "revocation
+  certificate imported"). It goes through the secret sheet and has no
+  code, picture or Select all.
+- ***Make a revocation*** (`--generate-revocation`). GnuPG's reasons by
+  its menu numbers: 0 no reason, 1 compromised, 2 superseded, 3 no longer
+  used (the packet codes are 0, 2, 1, 3; checked by reading the
+  subpacket of a certificate made with menu 2), and an optional
+  description. The new certificate goes out as a `.rev` file; the kept
+  one is not replaced, as GnuPG keeps no copy of one it generates.
+  **Hold to mark the key revoked** marks the record (field 9), as
+  importing its own revocation marks a key in GnuPG.
+- *Signing a file* (`--armor --detach-sign`). The output is
+  `{file}.asc`. GnuPG in batch mode refuses to overwrite ("signing
+  failed: File exists", checked), so Faraday does too, and so a
+  signature never replaces the certificate when a file is named like it.
+  The signature is made over exactly the bytes shown: the page lists each
+  file's name, size and SHA-256 and the text of a small text file, and
+  the ticks are keyed by name and hash, so a stick visit that replaces a
+  file leaves it unticked. The page names the signing key as
+  gpg-agent's pinentry does (checked by recording its prompt): user ID,
+  key ID, creation date and the main key's ID. Signing takes a hold, as
+  Secure Boot signing does. Changing the key, the category or the vault
+  clears the page. The signature's code and picture follow the file by
+  its hash.
+- *Keys it will not sign with.* An expired or revoked key: GnuPG says
+  "Unusable secret key" (checked with `-u`). A key made after the clock:
+  "key … was created N seconds in the future (time warp or clock
+  problem)", seconds below a day, then whole days (checked at 1, 59,
+  86399, 86400, 172800 seconds and more).
+- *Renewing* (`--quick-set-expire`). The term is asked, with the current
+  one shown, and is never silently "never". The default for a new key is
+  GnuPG's: `--quick-generate-key` with no expiry gives 3 years
+  (checked: 94,608,000 seconds). A year is 365 days (checked: `2y`
+  counted from the clock is 730 days). The new term is counted from the
+  clock, and stored from the key's creation. GnuPG signs one second after
+  the key's last self-signature when the clock is within 4 seconds of it
+  and refuses ("Time conflict") from 5 seconds before it (checked at 1
+  to 600 seconds); Faraday does the same. The record's certificate and
+  Export change together.
+- *The user ID* is whatever `gpg --quick-generate-key` takes: it trims
+  the string and refuses only an empty one ("Invalid user ID"). Checked
+  with no name, a name only, an address only, an address with no `@`
+  domain, `<>`, spaces, a comment, colons, a newline, a tab, a control
+  character, non-ASCII letters and strings of 255, 256 and 300
+  characters; all were accepted. Faraday trims and refuses empty.
+- *Backup.* GnuPG has no backup gate. Here the owner departs from
+  GnuPG (F31): a GPG key made in Faraday cannot be made again from seed
+  words, and its revocation is kept in the same vault, so signing waits
+  until the shared backup flow has written every place its plan gives
+  it (two or more). A key in a vault unlocked from a stick signs at once.
+- *Faraday Desktop* offers GPG as it does today; it is an ordinary
+  online computer, as GnuPG runs on.
+- *Paperkey.* Computed only while it is held to show, and wiped after;
+  the seeds, secret MPIs and the paperkey buffer are wiped. Checked
+  by a test that compares it with `paperkey`'s output, with seeds that begin
+  with zero bytes.
+- *Reading armour* is F22's amended list.
+- *Not changed.* Hash SHA-512 for signatures, as GnuPG 2.4 chooses for
+  Ed25519; primary key flags certify only, with the signing subkey.
