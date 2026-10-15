@@ -247,29 +247,53 @@ pub(crate) fn make_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f
     cy + 52.0 - y
 }
 
-/// Make a new wallet's Where card: not in a vault, or in vaults; and for
-/// a plan kept in vaults, what was decided, with **Change**.
-pub(crate) fn create_where(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
-    let c = app.create.as_ref()?;
-    let locked = c.built.is_some();
-    let into = app.create_in_vaults();
-    let flow = app.wallet_flow_of_owner(c.owner);
+/// The Where card's rows: the plan's seed forms, ticked as `forms`
+/// says; each press is `act(row)`.
+fn form_rows(
+    forms: &crate::KeptForms,
+    enabled: bool,
+    act: fn(u8) -> Action,
+) -> Vec<(String, bool, bool, Action)> {
+    FORM_LABELS
+        .iter()
+        .enumerate()
+        .map(|(i, l)| (l.to_string(), forms.0[i], enabled, act(i as u8)))
+        .collect()
+}
+
+/// The labels of the plan's seeds question, by row.
+pub(crate) const FORM_LABELS: [&str; 4] = [
+    FEN.app_on_paper_words,
+    FEN.app_on_paper_seedqr,
+    FEN.app_into_vaults,
+    FEN.app_as_a_file_unprotected,
+];
+
+/// Draws the Where card the same way for Create and Restore: the one
+/// line, the forms, what the flow decided for vaults, Continue.
+#[allow(clippy::too_many_arguments)]
+fn where_card(
+    app: &Faraday,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    forms: &crate::KeptForms,
+    locked: bool,
+    flow: Option<usize>,
+    act: fn(u8) -> Action,
+    next: Action,
+) -> f32 {
     let mut cy = y;
-    let rows = [
-        (
-            FEN.backup_flow_not_in_vault.to_string(),
-            !into,
-            !locked,
-            Action::CWhere(false),
-        ),
-        (
-            FEN.app_into_vaults.to_string(),
-            into,
-            !locked,
-            Action::CWhere(true),
-        ),
-    ];
-    cy += ui.multi_list(x, cy, w, &rows) + 12.0;
+    cy += ui.wrap(
+        x,
+        cy,
+        w,
+        13.0,
+        W::R,
+        MUTED,
+        FEN.backup_flow_select_every_form,
+    ) + 12.0;
+    cy += ui.multi_list(x, cy, w, &form_rows(forms, !locked, act)) + 12.0;
+    let into = forms.0[crate::plan::seeds::VAULT];
     if let Some(i) = flow.filter(|_| into) {
         cy += flow_lines(app, &app.backup_flows[i], ui, x, cy, w);
     }
@@ -280,63 +304,48 @@ pub(crate) fn create_where(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -
             FEN.create_continue
         };
         let bw = ui.measure(14.0, W::S, label) + 36.0;
-        ui.button(
-            x + w - bw,
-            cy,
-            Some(bw),
-            40.0,
-            label,
-            Style::Primary,
-            Action::CNext(crate::cstep::WHERE),
-        );
+        // With no form ticked there is nothing to continue with.
+        let style = if forms.any() {
+            Style::Primary
+        } else {
+            Style::Disabled
+        };
+        ui.button(x + w - bw, cy, Some(bw), 40.0, label, style, next);
         cy += 48.0;
     }
-    Some(cy - y)
+    cy - y
 }
 
-/// Restore's Where card: the seeds are not kept in a vault, or in vaults;
+/// Make a new wallet's Where card: every form the seeds will be kept in;
 /// for a plan kept in vaults, what was decided, with **Change**.
+pub(crate) fn create_where(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
+    let c = app.create.as_ref()?;
+    let flow = app.wallet_flow_of_owner(c.owner);
+    Some(where_card(
+        app,
+        ui,
+        (x, y, w),
+        &c.forms,
+        c.built.is_some(),
+        flow,
+        Action::CForm,
+        Action::CNext(crate::cstep::WHERE),
+    ))
+}
+
+/// Restore's Where card: the same, for the seeds being restored.
 pub(crate) fn restore_where(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
     let r = app.restore.as_ref()?;
-    let locked = r.wallet.is_some();
-    let mut cy = y;
-    let rows = [
-        (
-            FEN.backup_flow_not_in_vault.to_string(),
-            !r.into_vaults,
-            !locked,
-            Action::RWhere(false),
-        ),
-        (
-            FEN.app_into_vaults.to_string(),
-            r.into_vaults,
-            !locked,
-            Action::RWhere(true),
-        ),
-    ];
-    cy += ui.multi_list(x, cy, w, &rows) + 12.0;
-    if let Some(i) = app.wallet_flow_pre().filter(|_| r.into_vaults) {
-        cy += flow_lines(app, &app.backup_flows[i], ui, x, cy, w);
-    }
-    if !locked {
-        let label = if app.wallet_flow_pre().is_some() && r.into_vaults {
-            FEN.backup_flow_change
-        } else {
-            FEN.create_continue
-        };
-        let bw = ui.measure(14.0, W::S, label) + 36.0;
-        ui.button(
-            x + w - bw,
-            cy,
-            Some(bw),
-            40.0,
-            label,
-            Style::Primary,
-            Action::RNext(crate::rstep::WHERE),
-        );
-        cy += 48.0;
-    }
-    Some(cy - y)
+    Some(where_card(
+        app,
+        ui,
+        (x, y, w),
+        &r.forms,
+        r.wallet.is_some(),
+        app.wallet_flow_pre(),
+        Action::RForm,
+        Action::RNext(crate::rstep::WHERE),
+    ))
 }
 
 /// The lines under the Where card once the flow has decided: the places

@@ -61,8 +61,8 @@ impl Faraday {
         match (self.create.as_ref(), self.restore.as_ref()) {
             (_, Some(r)) if self.screen == Screen::Restore => Some(r.owner),
             (Some(c), _) if self.screen == Screen::Create => Some(c.owner),
-            (Some(c), _) if c.into_vaults => Some(c.owner),
-            (_, Some(r)) if r.into_vaults => Some(r.owner),
+            (Some(c), _) if c.into_vaults() => Some(c.owner),
+            (_, Some(r)) if r.into_vaults() => Some(r.owner),
             (Some(c), _) => Some(c.owner),
             _ => None,
         }
@@ -109,7 +109,7 @@ impl Faraday {
         {
             return b.answers.seeds[plan::seeds::VAULT];
         }
-        c.into_vaults
+        c.into_vaults()
     }
 
     /// The wallet flow of Make a new wallet or Restore number `owner`, while
@@ -148,7 +148,7 @@ impl Faraday {
         use crate::create::NewKind as K;
         // Make a new wallet, or Restore's seeds route.
         let restoring =
-            self.screen == Screen::Restore || self.create.as_ref().is_none_or(|c| !c.into_vaults);
+            self.screen == Screen::Restore || self.create.as_ref().is_none_or(|c| !c.into_vaults());
         let (kind, m, n_keys, marked) = match (self.create.as_ref(), self.restore.as_ref()) {
             (_, Some(r)) if restoring => {
                 let s = r.seeds.as_ref()?;
@@ -182,6 +182,57 @@ impl Faraday {
         })
     }
 
+    /// The forms ticked on the Where card of Make a new wallet or Restore
+    /// number `owner`.
+    pub(crate) fn wallet_forms_mut(&mut self, owner: u64) -> Option<&mut crate::KeptForms> {
+        if let Some(c) = self.create.as_mut().filter(|c| c.owner == owner) {
+            return Some(&mut c.forms);
+        }
+        self.restore
+            .as_mut()
+            .filter(|r| r.owner == owner)
+            .map(|r| &mut r.forms)
+    }
+
+    /// The Where card's ticks changed: a plan under way follows them, and
+    /// one for vaults no longer wanted goes.
+    pub(crate) fn wallet_forms_changed(&mut self, owner: u64, was: bool, now: bool) {
+        let _ = was;
+        let Some(i) = self.wallet_flow_pre_of(owner) else {
+            return;
+        };
+        if !now {
+            // Nothing planned for the vaults is kept.
+            self.backup_flows.remove(i);
+            self.flow_on = None;
+            return;
+        }
+        let Some(forms) = self.wallet_forms_mut(owner).map(|f| f.0) else {
+            return;
+        };
+        if let Some(wf) = self.backup_flows[i].wallet.as_mut() {
+            wf.answers.seeds = forms;
+        }
+        self.backup_flows[i].wallet_replan();
+    }
+
+    /// The flow of `i` changed its seeds answer (its Where step ticks
+    /// vaults): the card shows the same ticks.
+    pub(crate) fn wallet_forms_follow(&mut self, i: usize) {
+        let Some((owner, seeds)) = self.backup_flows[i]
+            .wallet
+            .as_ref()
+            .filter(|w| w.checksum.is_none())
+            .map(|w| (w.owner, w.answers.seeds))
+        else {
+            return;
+        };
+        if let Some(f) = self.wallet_forms_mut(owner) {
+            f.0 = seeds;
+            f.1 = true;
+        }
+    }
+
     /// Make a new wallet asks where its keys will be kept: the wallet's
     /// flow opens on its first card, or the one under way resumes.
     pub(crate) fn wallet_flow_begin(&mut self) {
@@ -212,7 +263,10 @@ impl Faraday {
         let Some(owner) = self.wallet_owner() else {
             return;
         };
-        let answers = plan::Answers::preset(&shape, plan::Preset::PaperVault);
+        let mut answers = plan::Answers::preset(&shape, plan::Preset::PaperVault);
+        if let Some(forms) = self.wallet_forms_mut(owner) {
+            answers.seeds = forms.0;
+        }
         let mut f = BackupFlow::new_wallet(shape, answers, "");
         if let Some(w) = f.wallet.as_mut() {
             w.owner = owner;
@@ -334,10 +388,10 @@ impl Faraday {
     /// open, and the vault does not hold it yet.
     pub(crate) fn wallet_flow_save_keys(&mut self) {
         let mut owners: Vec<u64> = Vec::new();
-        if let Some(c) = self.create.as_ref().filter(|c| c.into_vaults) {
+        if let Some(c) = self.create.as_ref().filter(|c| c.into_vaults()) {
             owners.push(c.owner);
         }
-        if let Some(r) = self.restore.as_ref().filter(|r| r.into_vaults) {
+        if let Some(r) = self.restore.as_ref().filter(|r| r.into_vaults()) {
             owners.push(r.owner);
         }
         for owner in owners {
@@ -493,8 +547,8 @@ impl Faraday {
         self.vaults.back_to = None;
         self.vaults.create = None;
         self.vaults.focus = None;
-        let restoring = self.restore.as_ref().is_some_and(|r| r.into_vaults)
-            && self.create.as_ref().is_none_or(|c| !c.into_vaults);
+        let restoring = self.restore.as_ref().is_some_and(|r| r.into_vaults())
+            && self.create.as_ref().is_none_or(|c| !c.into_vaults());
         if restoring {
             if let Some(r) = self.restore.as_mut() {
                 r.open = Some(crate::rstep::SEEDS);
@@ -612,6 +666,19 @@ impl Faraday {
         }
     }
 
+    /// The forms the Where card ticked for wallet `w`, if Make a new wallet
+    /// or Restore made it and the person ticked any.
+    pub(crate) fn wallet_card_forms(&self, w: usize) -> Option<[bool; 4]> {
+        let ticked = |f: &crate::KeptForms| f.1.then_some(f.0);
+        if let Some(c) = self.create.as_ref().filter(|c| c.built == Some(w)) {
+            return ticked(&c.forms);
+        }
+        self.restore
+            .as_ref()
+            .filter(|r| r.wallet == Some(w))
+            .and_then(|r| ticked(&r.forms))
+    }
+
     /// A preset fills the answers the vault part does not decide: where
     /// the flow decided the vaults and their sticks, those stay.
     pub(crate) fn wallet_flow_keep_vault_part(&self, w: usize, answers: &mut plan::Answers) {
@@ -630,7 +697,7 @@ impl Faraday {
         let from = &wf.answers;
         answers.places = from.places;
         answers.bare = from.bare.clone();
-        answers.seeds[plan::seeds::VAULT] = from.seeds[plan::seeds::VAULT];
+        answers.seeds = from.seeds;
         answers.wallet[plan::wallet::VAULT] = from.wallet[plan::wallet::VAULT];
         answers.vaults = from.vaults.clone();
         answers.sticks = from.sticks.clone();
@@ -1408,9 +1475,9 @@ impl Faraday {
             return true;
         }
         match k {
-            cstep::WHERE if c.into_vaults => at(Step::Where),
-            cstep::STICKS => !c.into_vaults || at(Step::Sticks),
-            cstep::VAULTS => !c.into_vaults || at(Step::Vaults),
+            cstep::WHERE if c.into_vaults() => at(Step::Where),
+            cstep::STICKS => !c.into_vaults() || at(Step::Sticks),
+            cstep::VAULTS => !c.into_vaults() || at(Step::Vaults),
             _ => c.done[k as usize],
         }
     }
@@ -1488,6 +1555,7 @@ impl Faraday {
             }
         }
         self.backup_flows[i] = trial;
+        self.wallet_forms_follow(i);
         // The checklist's own answers follow, where it is open.
         if let Some(wf) = self.backup_flows[i].wallet.clone()
             && let Some(w) = self.wallet_flow_wallet(i)

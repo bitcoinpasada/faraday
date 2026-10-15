@@ -66,7 +66,7 @@ fn create_in_vaults(app: &mut Faraday, multi: bool) {
     if multi {
         app.press(Action::CKind(multi_index()));
     }
-    app.press(Action::CWhere(true));
+    app.press(Action::CForm(seeds::VAULT as u8));
     app.press(Action::CNext(cstep::WHERE));
     assert_eq!(app.screen, Screen::BackupFlow);
     assert_eq!(step(app), Step::Where);
@@ -207,7 +207,6 @@ fn single_key_with(
         assert!(b.answers.seeds[seeds::VAULT]);
         assert!(b.answers.stick_at(0, 0) && b.answers.stick_at(0, 1));
     }
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
     answer_backup(&mut app, qrow::WALLET, wallet::PAPER);
     answer_backup(&mut app, qrow::WALLET, wallet::FILES);
     answer_backup(&mut app, qrow::FORM, form::QR);
@@ -881,7 +880,7 @@ fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::RestoreWallet);
-    app.press(Action::RWhere(true));
+    app.press(Action::RForm(seeds::VAULT as u8));
     app.press(Action::RNext(faraday_core::rstep::WHERE));
     assert_eq!(app.screen, Screen::BackupFlow);
     answer(&mut shell, &mut app, qrow::SEEDS, seeds::WORDS);
@@ -904,7 +903,6 @@ fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
     assert_eq!(app.vaults.open[0].contents.of(kind::WALLET).count(), 1);
     app.press(Action::Backup(w));
     app.press(Action::BPreset(1));
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
     app.press(Action::BChecklist);
     app.press(Action::BOut(3));
     app.press(Action::BNext(bstep::ENVELOPE));
@@ -1124,8 +1122,6 @@ fn a_seed_let_out_unprotected_is_written_to_the_stick_of_files_and_to_no_other()
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
-    answer_backup(&mut app, qrow::SEEDS, seeds::FILE);
     answer_backup(&mut app, qrow::WALLET, wallet::PAPER);
     app.press(Action::BChecklist);
     assert!(app.backup_items().contains(&bstep::FILES));
@@ -1925,8 +1921,6 @@ fn a_key_with_its_vault_written_but_not_its_seed_file_is_held() {
     let fp = new_key_here(&mut app);
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
-    answer_backup(&mut app, qrow::SEEDS, seeds::FILE);
     answer_backup(&mut app, qrow::WALLET, wallet::PAPER);
     app.press(Action::BChecklist);
     app.press(Action::BFile);
@@ -2007,8 +2001,6 @@ fn a_seed_file_let_out_and_then_dropped_from_the_plan_is_not_written_beside_the_
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
-    answer_backup(&mut app, qrow::SEEDS, seeds::FILE);
     answer_backup(&mut app, qrow::WALLET, wallet::PAPER);
     app.press(Action::BChecklist);
     // The seed's file is let out on the secret sheet.
@@ -2168,7 +2160,6 @@ fn the_lock_keeps_the_flows_own_vault_when_another_open_vault_holds_the_same_key
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
     answer_backup(&mut app, qrow::WALLET, wallet::PAPER);
     app.press(Action::BChecklist);
     app.press(Action::BNext(bstep::ENVELOPE));
@@ -2208,7 +2199,7 @@ fn two_wallets_in_vaults_keep_each_its_own_vaults_and_a_flow_with_no_owner_match
     app.press(Action::Nav(Screen::Home));
     // Wallet B in vaults: its flow, and a vault of its own.
     app.press(Action::CreateWallet);
-    app.press(Action::CWhere(true));
+    app.press(Action::CForm(seeds::VAULT as u8));
     app.press(Action::CNext(cstep::WHERE));
     assert_eq!(app.backup_flows.len(), 2);
     let owners: Vec<u64> = app
@@ -2328,4 +2319,156 @@ fn a_passphrase_put_into_a_vault_after_the_lock_starts_a_round_too() {
         app.toast_text()
     );
     assert!(app.flow().unwrap().adding, "its vault must hold it now");
+}
+
+fn forms(app: &Faraday) -> [bool; 4] {
+    app.create.as_ref().unwrap().forms.0
+}
+
+fn flow_names(app: &Faraday) -> Vec<String> {
+    (1..=app.flow().unwrap().slots.len())
+        .map(|k| format!("S{k}"))
+        .collect()
+}
+
+#[test]
+fn words_and_vaults_ticked_together_keep_both() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 3);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    app.press(Action::CreateWallet);
+    // Words on paper is ticked to begin with; vaults is ticked with it.
+    assert_eq!(forms(&app), [true, false, false, false]);
+    app.press(Action::CForm(seeds::VAULT as u8));
+    assert_eq!(forms(&app), [true, false, true, false]);
+    app.press(Action::CNext(cstep::WHERE));
+    assert_eq!(app.screen, Screen::BackupFlow);
+    assert_eq!(
+        app.flow().unwrap().wallet.as_ref().unwrap().answers.seeds,
+        [true, false, true, false]
+    );
+    // The sticks and the vaults come before the keys.
+    assert!(!app.create_card_done(cstep::STICKS) && !app.create_card_done(cstep::VAULTS));
+    let names = flow_names(&app);
+    let names: Vec<&str> = names.iter().map(String::as_str).collect();
+    bring_in_all(&mut shell, &mut app, &names);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    assert_eq!(app.screen, Screen::Create, "{:?}", app.vaults.unlock_error);
+    assert!(app.create_card_done(cstep::STICKS) && app.create_card_done(cstep::VAULTS));
+    assert_eq!(forms(&app), [true, false, true, false]);
+    app.press(Action::Nav(Screen::Create));
+    new_key(&mut app);
+    if app.create.as_ref().unwrap().built.is_none() {
+        app.press(Action::CNext(cstep::KEYS));
+    }
+    assert!(app.create.as_ref().unwrap().built.is_some());
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(0));
+    assert_eq!(app.screen, Screen::Backup);
+    // Back up shows the forms chosen on the card; it does not ask again.
+    let b = app.backup.as_ref().unwrap();
+    assert_eq!(b.answers.seeds, [true, false, true, false]);
+    assert!(b.answers.paper_seeds());
+}
+
+#[test]
+fn forms_other_than_vaults_need_no_flow() {
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    app.press(Action::CreateWallet);
+    app.press(Action::CForm(seeds::WORDS as u8));
+    app.press(Action::CForm(seeds::SEEDQR as u8));
+    app.press(Action::CForm(seeds::FILE as u8));
+    assert_eq!(forms(&app), [false, true, false, true]);
+    app.press(Action::CNext(cstep::WHERE));
+    assert!(app.backup_flows.is_empty());
+    assert_eq!(app.screen, Screen::Create);
+}
+
+#[test]
+fn unticking_every_form_stops_continue() {
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    app.press(Action::CreateWallet);
+    app.press(Action::CForm(seeds::VAULT as u8));
+    app.press(Action::CForm(seeds::WORDS as u8));
+    app.press(Action::CForm(seeds::VAULT as u8));
+    assert_eq!(forms(&app), [false; 4]);
+    let open = app.create.as_ref().unwrap().open;
+    app.press(Action::CNext(cstep::WHERE));
+    assert_eq!(app.create.as_ref().unwrap().open, open);
+    assert!(app.backup_flows.is_empty());
+    assert!(!app.create.as_ref().unwrap().done[cstep::WHERE as usize]);
+    // The same on Restore.
+    app.press(Action::RestoreWallet);
+    app.press(Action::RForm(seeds::WORDS as u8));
+    assert_eq!(app.restore.as_ref().unwrap().forms.0, [false; 4]);
+    let open = app.restore.as_ref().unwrap().open;
+    app.press(Action::RNext(faraday_core::rstep::WHERE));
+    assert_eq!(app.restore.as_ref().unwrap().open, open);
+    assert!(app.backup_flows.is_empty());
+}
+
+#[test]
+fn restore_takes_every_form_ticked_to_back_up() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 3);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    app.press(Action::RestoreWallet);
+    app.press(Action::RForm(seeds::VAULT as u8));
+    app.press(Action::RForm(seeds::FILE as u8));
+    assert_eq!(
+        app.restore.as_ref().unwrap().forms.0,
+        [true, false, true, true]
+    );
+    app.press(Action::RNext(faraday_core::rstep::WHERE));
+    assert_eq!(app.screen, Screen::BackupFlow);
+    assert_eq!(
+        app.flow().unwrap().wallet.as_ref().unwrap().answers.seeds,
+        [true, false, true, true]
+    );
+    let names = flow_names(&app);
+    let names: Vec<&str> = names.iter().map(String::as_str).collect();
+    bring_in_all(&mut shell, &mut app, &names);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    assert_eq!(app.screen, Screen::Restore, "{:?}", app.vaults.unlock_error);
+    app.press(Action::RSlotWords);
+    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    app.press(Action::EntryAdd);
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    let w = app.restore.as_ref().unwrap().wallet.expect("wallet made");
+    app.press(Action::Backup(w));
+    app.press(Action::BPreset(0));
+    assert_eq!(
+        app.backup.as_ref().unwrap().answers.seeds,
+        [true, false, true, true]
+    );
+}
+
+#[test]
+fn where_is_never_done_before_the_person_has_continued_on_it() {
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    app.press(Action::CreateWallet);
+    assert!(!app.create_card_done(cstep::WHERE));
+    // Kind's Continue opens Where, and it is not done.
+    app.press(Action::CNext(cstep::KIND));
+    assert_eq!(app.create.as_ref().unwrap().open, Some(cstep::WHERE));
+    assert!(!app.create_card_done(cstep::WHERE));
+    app.press(Action::CNext(cstep::WHERE));
+    assert!(app.create_card_done(cstep::WHERE));
+    assert_eq!(app.create.as_ref().unwrap().open, Some(cstep::KEYS));
+    // The same on Restore.
+    app.press(Action::RestoreWallet);
+    assert!(!app.restore.as_ref().unwrap().done[faraday_core::rstep::WHERE as usize]);
+    app.press(Action::RNext(faraday_core::rstep::KIND));
+    app.press(Action::RNext(faraday_core::rstep::DESCRIPTION));
+    assert_eq!(
+        app.restore.as_ref().unwrap().open,
+        Some(faraday_core::rstep::WHERE)
+    );
+    app.press(Action::RNext(faraday_core::rstep::WHERE));
+    assert!(app.restore.as_ref().unwrap().done[faraday_core::rstep::WHERE as usize]);
 }

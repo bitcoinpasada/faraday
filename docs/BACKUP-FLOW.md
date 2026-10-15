@@ -561,7 +561,9 @@ and matched. A write made on the stick visit page does not count
 
 - **Make a new wallet** gains, after its kind and shape and before
   Keys, the steps 1 to 3 for the plan's vault part: **Where the keys will
-  be kept** (Into vaults or not; the vaults, `vault v`; their stick
+  be kept** (the plan's seed forms, ticked in any mix: words on paper,
+  SeedQR on paper, into vaults, as a file; they are `Answers::seeds`, so
+  Back up shows them as set and never asks twice; the vaults, `vault v`; their stick
   places, `sticks v`; the places, `places`), **Bring in the sticks**,
   **Vaults**. A plan with no vault has none of them. Back up's plan then
   opens with that part closed on its value with **Change** (DESIGN
@@ -1198,15 +1200,20 @@ checks) and `lib.rs`/`screens.rs` for the checklist and the cards.
    too, so a flow that does not read still holds its keys.
 3. **Steps 1 to 3 run on the flow's own screen** for a wallet, and Make a
    new wallet hosts them: its card list gains **Where the keys will be
-   kept** after Kind and Quorum (answered **Not in a vault** until the
-   person says otherwise, so a wallet with no vault goes straight to
-   Keys as before), and, once the flow has a plan, **Bring in the
+   kept** after Kind and Quorum (one line, "Select every way the seeds will
+   be kept", over the four seed forms of the plan as boxes; words on
+   paper is ticked to begin with; the card is never done until the
+   person has pressed its own Continue, Kind's Continue opens it, and its
+   closed line is the forms ticked; with none ticked Continue is
+   disabled), and, once the flow has a plan, **Bring in the
    sticks** and **Vaults** as closed cards with **Change**. **Continue**
-   on Where with **In vaults** opens the flow's cards (a page each on a
+   on Where with **Into vaults** ticked opens the flow's cards (a page each on a
    small panel); when the vaults are open the flow returns to Keys. The
    same one card (**Where the seeds will be kept**) is in Restore before
    Seeds, and returns to Seeds. Back up's first plan question keeps what
-   the flow decided: a preset fills the rest.
+   the flow decided: a preset fills the rest. Once any box was ticked,
+   the ticks are Back up's seed answers as well; until then the preset
+   chosen after the keys decides.
 4. **Before the keys exist** the plan is drawn for a placeholder shape: a
    seed to be made here for each key ("Key 1"), none with a passphrase;
    **Add a passphrase** before the key exists marks the single key's slot

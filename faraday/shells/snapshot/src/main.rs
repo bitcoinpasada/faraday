@@ -4808,7 +4808,7 @@ fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
         files: Vec::new(),
     };
     t.press(Action::CreateWallet);
-    t.press(Action::CWhere(true));
+    t.press(Action::CForm(faraday_core::plan::seeds::VAULT as u8));
     t.press(Action::CStep(cstep::KIND));
     t.press(Action::CStep(cstep::WHERE));
     t.shot("wallet-flow-1-create-where")?;

@@ -7947,8 +7947,19 @@ fn create_flow_summary(app: &Faraday, k: u8) -> String {
                 &[&open.to_string(), &used.len().to_string()],
             )
         }
-        _ => EN.backup_flow_not_in_vault.to_string(),
+        _ => forms_line(&c.forms),
     }
+}
+
+/// The forms ticked on a Where card, in one line.
+fn forms_line(f: &crate::KeptForms) -> String {
+    crate::backup_flow_wallet_screen::FORM_LABELS
+        .iter()
+        .zip(f.0)
+        .filter(|(_, on)| *on)
+        .map(|(l, _)| *l)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// The closed line of Restore's Where card: what the flow decided.
@@ -7957,7 +7968,7 @@ fn create_flow_summary_restore(app: &Faraday) -> String {
         return String::new();
     };
     match app.wallet_flow_pre().map(|i| &app.backup_flows[i]) {
-        Some(f) if r.into_vaults => fill(
+        Some(f) if r.into_vaults() => fill(
             EN.backup_flow_places_vaults,
             &[
                 &f.wallet
@@ -7967,7 +7978,7 @@ fn create_flow_summary_restore(app: &Faraday) -> String {
                 &f.plan.used_vaults().len().to_string(),
             ],
         ),
-        _ => EN.backup_flow_not_in_vault.to_string(),
+        _ => forms_line(&r.forms),
     }
 }
 

@@ -4,7 +4,7 @@
 //! wallet, its first addresses, and the backup or a spend after.
 
 use faraday_core::family::FamilyAction as F;
-use faraday_core::rstep::{CHECK, DESCRIPTION, DONE, KIND, QUORUM, SEEDS};
+use faraday_core::rstep::{CHECK, DESCRIPTION, DONE, KIND, QUORUM, SEEDS, WHERE};
 use faraday_core::seed_read::Choice;
 use faraday_core::seeds::{Focus, SeedsAction as S};
 use faraday_core::{Action, Faraday, NOT_A_KEY, Screen, Sheet, testkit};
@@ -112,6 +112,7 @@ fn two_of_three_from_seeds() -> Faraday {
     app.press(Action::RNext(KIND));
     app.press(Action::RNext(QUORUM));
     app.press(Action::RSeeds);
+    app.press(Action::RNext(WHERE));
     assert_eq!(app.restore.as_ref().unwrap().open, Some(SEEDS));
     app
 }
@@ -186,6 +187,7 @@ fn a_single_key_goes_on_from_description_with_the_seed_alone() {
     assert!(!text.contains("I do not have it"), "{text}");
     assert!(app.offers(Action::RSeeds));
     app.press(Action::RSeeds);
+    app.press(Action::RNext(WHERE));
     assert_eq!(app.restore.as_ref().unwrap().open, Some(SEEDS));
 
     let mut app = shown();
@@ -249,6 +251,7 @@ fn a_loaded_key_taken_into_a_slot_asks_for_its_passphrase() {
     app.press(Action::RNext(KIND));
     app.press(Action::RNext(QUORUM));
     app.press(Action::RSeeds);
+    app.press(Action::RNext(WHERE));
     type_seed(&mut app, &testkit::test_words("bacon"));
     type_seed(&mut app, &testkit::test_words("zebra"));
     app.press(Action::Seeds(S::UseLoaded(summer.0)));

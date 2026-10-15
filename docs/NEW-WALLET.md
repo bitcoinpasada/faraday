@@ -1225,6 +1225,15 @@ After this change:
   then New key makes each seed straight into its vaults. Restore puts
   its seed there. Paper, SeedQR, the sheet and shares, the descriptor
   and the software stay where they are in the plan.
+- **The card is the seed forms.** The Where card (Make a new wallet and
+  Restore alike) says "Select every way the seeds will be kept" over
+  four boxes, the plan's seeds question: words on paper, SeedQR on paper,
+  into vaults, as a file. Any mix may be ticked; at least one must be,
+  or Continue is disabled. Words on paper is ticked to begin with, but
+  the card is never done until its own Continue is pressed; Kind's
+  Continue opens it. Into
+  vaults opens the sticks and vaults before the keys; the ticks are the
+  plan's `seeds` answers, which Back up shows already set.
 - **Every form, any mix.** Places with paper, a vault's stick, both, or
   neither; only places with a stick are asked for; a paper-only plan
   has no stick step and no lock. One place is allowed. Nothing narrows

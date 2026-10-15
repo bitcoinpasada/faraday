@@ -61,8 +61,8 @@ fn continue_closes_kind_and_change_reopens_it_keeping_the_choice() {
     assert_eq!(app.create.as_ref().map(|c| c.kind), Some(NewKind::Taproot));
     assert_eq!(
         app.create.as_ref().and_then(|c| c.open),
-        Some(cstep::KEYS),
-        "Continue closes Kind as done and opens Keys"
+        Some(cstep::WHERE),
+        "Continue closes Kind as done and opens Where"
     );
     app.press(Action::CStep(cstep::KIND));
     assert_eq!(
@@ -140,6 +140,7 @@ fn made() -> (Faraday, usize) {
     app.press(Action::EntryAdd);
     app.press(Action::CreateWallet);
     app.press(Action::CNext(cstep::KIND)); // single key, the default: opens Keys
+    app.press(Action::CNext(cstep::WHERE));
     let fp = app.session.keys[0].master.fingerprint().0;
     app.press(Action::CSlotHere(0, fp));
     app.press(Action::CNext(cstep::KEYS));
@@ -217,6 +218,7 @@ fn multisig_on_keys() -> Faraday {
     app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CNext(cstep::QUORUM)); // 2 of 3, the default
     app
 }
@@ -289,6 +291,7 @@ fn a_key_made_on_its_own_takes_a_passphrase_in_a_single_key_slot() {
     let words = app.session.keys[0].words.clone().expect("words");
     app.press(Action::CreateWallet);
     app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, first));
     let _ = app.frame();
     assert!(app.offers(Action::CPassOpen(0)));
@@ -341,6 +344,7 @@ fn a_slot_whose_key_has_a_passphrase_offers_no_add_a_passphrase() {
         .0;
     app.press(Action::CreateWallet);
     app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, with));
     let _ = app.frame();
     assert!(!app.offers(Action::CPassOpen(0)));
@@ -356,6 +360,7 @@ fn unequal_passphrases_in_a_slot_lock_nothing_in() {
     let plain = app.session.keys[0].master.fingerprint().0;
     app.press(Action::CreateWallet);
     app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, plain));
     app.press(Action::CPassOpen(0));
     type_text(&mut app, "one");

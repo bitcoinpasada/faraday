@@ -367,6 +367,7 @@ fn create_offers_a_coldcard_export_for_a_cosigners_slot_and_takes_its_multisig_k
     app.press(faraday_core::Action::CreateWallet);
     app.press(faraday_core::Action::CKind(multi));
     app.press(faraday_core::Action::CNext(faraday_core::cstep::KIND));
+    app.press(faraday_core::Action::CNext(faraday_core::cstep::WHERE));
     app.press(faraday_core::Action::CNext(faraday_core::cstep::QUORUM));
     let _ = app.frame();
     let at = app

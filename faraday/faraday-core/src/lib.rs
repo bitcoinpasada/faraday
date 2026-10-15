@@ -1086,10 +1086,11 @@ pub enum Action {
     CKind(u8),
     /// Expands the Kind card's other eight kinds.
     CMoreKinds,
-    /// Where the keys will be kept: in vaults (true), or not in a vault.
-    CWhere(bool),
-    /// Restore: where the seeds will be kept, in vaults (true) or not.
-    RWhere(bool),
+    /// Ticks or unticks one form of the seeds on Make a new wallet's Where
+    /// card, by row of [`plan::seeds`].
+    CForm(u8),
+    /// The same on Restore's Where card.
+    RForm(u8),
     /// **Add a passphrase** on the plan's check lines: before the key
     /// exists, the key's slot is marked to ask for one; once the wallet
     /// exists, Create opens on its Keys with the fields open
@@ -2298,6 +2299,33 @@ pub mod mstep {
     pub const SIGN: u8 = 3;
 }
 
+/// The forms the seeds are kept in, by row of the plan's seeds question
+/// ([`plan::seeds`]), and whether the person ticked any: until then the
+/// Back up preset chosen later decides. Words on paper to begin with.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct KeptForms(pub [bool; 4], pub bool);
+
+impl Default for KeptForms {
+    fn default() -> KeptForms {
+        KeptForms([true, false, false, false], false)
+    }
+}
+
+impl KeptForms {
+    /// Some form is ticked.
+    pub fn any(&self) -> bool {
+        self.0.iter().any(|&b| b)
+    }
+}
+
+/// Flips one row of the forms, a row past the list ignored.
+fn flip_form(f: &mut KeptForms, row: u8) {
+    if let Some(b) = f.0.get_mut(usize::from(row)) {
+        *b = !*b;
+        f.1 = true;
+    }
+}
+
 /// Creating a wallet: the cards' state.
 #[derive(Default)]
 pub struct CreateState {
@@ -2340,9 +2368,10 @@ pub struct CreateState {
     /// Keys locked in with a passphrase here, by fingerprint: their slot
     /// shows **Locked in**.
     pub pass_locked: Vec<[u8; 4]>,
-    /// The keys are to be kept in vaults: where, the sticks and the vaults
-    /// come before the keys (`docs/BACKUP-FLOW.md` §10.2).
-    pub into_vaults: bool,
+    /// The forms the seeds will be kept in, as the Where card ticks them:
+    /// the plan's own `seeds` answers (`docs/BACKUP-FLOW.md` §10.2). With
+    /// vaults ticked, the sticks and the vaults come before the keys.
+    pub forms: KeptForms,
     /// A single key's slot is marked to ask for a passphrase, before the
     /// key exists (`docs/BACKUP-FLOW.md` §10.3).
     pub pass_marked: bool,
@@ -2351,6 +2380,11 @@ pub struct CreateState {
 }
 
 impl CreateState {
+    /// The seeds go into vaults.
+    pub fn into_vaults(&self) -> bool {
+        self.forms.0[plan::seeds::VAULT]
+    }
+
     /// Closes a slot's passphrase fields, forgetting what was typed.
     pub fn close_pass(&mut self) {
         self.pass_slot = None;
@@ -2417,22 +2451,28 @@ pub struct RestoreState {
     pub from_key: bool,
     /// Opened from Home: Back goes to Home.
     pub from_home: bool,
-    /// The seeds are to be kept in vaults: where, the sticks and the vaults
-    /// come before the seeds are typed (`docs/BACKUP-FLOW.md` §11).
-    pub into_vaults: bool,
+    /// The forms the seeds will be kept in, as the Where card ticks them:
+    /// the plan's own `seeds` answers (`docs/BACKUP-FLOW.md` §11). With
+    /// vaults ticked, the sticks and the vaults come before the seeds are
+    /// typed.
+    pub forms: KeptForms,
     /// The number the wallet's backup flow is tied to (`Faraday::owner_seq`).
     pub owner: u64,
 }
 
 impl RestoreState {
+    /// The seeds go into vaults.
+    pub fn into_vaults(&self) -> bool {
+        self.forms.0[plan::seeds::VAULT]
+    }
+
     /// A fresh Restore, open on Kind with a single key ticked.
     pub fn new() -> RestoreState {
         let mut s = seeds::SeedsState::default();
         s.fix(create::NewKind::NativeSegwit);
-        let mut done = [false; rstep::COUNT as usize];
-        // Where the seeds will be kept is answered "not in a vault" until
-        // the person says otherwise.
-        done[rstep::WHERE as usize] = true;
+        // Where the seeds will be kept is done only once the person has
+        // pressed its own Continue, whatever is ticked to begin with.
+        let done = [false; rstep::COUNT as usize];
         RestoreState {
             open: Some(rstep::KIND),
             seeds: Some(s),
@@ -5353,6 +5393,11 @@ impl Faraday {
                     let mut answers = plan::Answers::preset(&shape, preset);
                     // The vault part was decided before the keys were made.
                     self.wallet_flow_keep_vault_part(w, &mut answers);
+                    // The forms were chosen on the Where card; Back up
+                    // shows them as they are.
+                    if let Some(forms) = self.wallet_card_forms(w) {
+                        answers.seeds = forms;
+                    }
                     if let Some(b) = self.backup.as_mut() {
                         b.answers = answers;
                     }
@@ -5802,10 +5847,10 @@ impl Faraday {
                 // Create opens with Kind open, whatever opened it
                 // (`docs/NEW-WALLET.md` §2.1); Back goes where it was
                 // opened from, Home or Wallets.
-                // Where the keys will be kept is answered "not in a vault"
-                // until the person says otherwise.
-                let mut done = [false; cstep::COUNT];
-                done[cstep::WHERE as usize] = true;
+                // Where the keys will be kept is done only once the person
+                // has pressed its own Continue, whatever is ticked to begin
+                // with.
+                let done = [false; cstep::COUNT];
                 let owner = self.fresh_owner();
                 self.create = Some(CreateState {
                     owner,
@@ -5838,8 +5883,11 @@ impl Faraday {
             // Where the keys will be kept: Continue opens the wallet's flow,
             // which brings in the sticks and opens the vaults; it comes
             // back to Keys.
+            // With no form ticked, Continue does nothing.
             Action::CNext(k)
-                if k == cstep::WHERE && self.create.as_ref().is_some_and(|c| c.into_vaults) =>
+                if k == cstep::WHERE && self.create.as_ref().is_some_and(|c| !c.forms.any()) => {}
+            Action::CNext(k)
+                if k == cstep::WHERE && self.create.as_ref().is_some_and(|c| c.into_vaults()) =>
             {
                 self.wallet_flow_begin();
             }
@@ -5895,19 +5943,16 @@ impl Faraday {
                     self.act(Action::BPreset(k));
                 }
             }
-            Action::CWhere(into_vaults) => {
+            Action::CForm(row) => {
                 if let Some(c) = self.create.as_mut()
                     && c.built.is_none()
                 {
-                    c.into_vaults = into_vaults;
-                    c.done[cstep::WHERE as usize] = !into_vaults;
-                    if !into_vaults {
-                        // Nothing planned for the vaults is kept.
-                        if let Some(i) = self.wallet_flow_pre() {
-                            self.backup_flows.remove(i);
-                            self.flow_on = None;
-                        }
-                    }
+                    let owner = c.owner;
+                    let vault_was = c.into_vaults();
+                    flip_form(&mut c.forms, row);
+                    let vault = c.into_vaults();
+                    c.done[cstep::WHERE as usize] = false;
+                    self.wallet_forms_changed(owner, vault_was, vault);
                 }
             }
             Action::PlanAddPass => self.plan_add_passphrase(),
@@ -6115,7 +6160,9 @@ impl Faraday {
             // which brings in the sticks and opens the vaults; it comes
             // back to Seeds.
             Action::RNext(k)
-                if k == rstep::WHERE && self.restore.as_ref().is_some_and(|r| r.into_vaults) =>
+                if k == rstep::WHERE && self.restore.as_ref().is_some_and(|r| !r.forms.any()) => {}
+            Action::RNext(k)
+                if k == rstep::WHERE && self.restore.as_ref().is_some_and(|r| r.into_vaults()) =>
             {
                 self.wallet_flow_begin();
             }
@@ -6124,16 +6171,16 @@ impl Faraday {
                     r.next(k);
                 }
             }
-            Action::RWhere(into_vaults) => {
+            Action::RForm(row) => {
                 if let Some(r) = self.restore.as_mut()
                     && r.wallet.is_none()
                 {
-                    r.into_vaults = into_vaults;
-                    r.done[rstep::WHERE as usize] = !into_vaults;
-                    if !into_vaults && let Some(i) = self.wallet_flow_pre() {
-                        self.backup_flows.remove(i);
-                        self.flow_on = None;
-                    }
+                    let owner = r.owner;
+                    let vault_was = r.into_vaults();
+                    flip_form(&mut r.forms, row);
+                    let vault = r.into_vaults();
+                    r.done[rstep::WHERE as usize] = false;
+                    self.wallet_forms_changed(owner, vault_was, vault);
                 }
             }
             Action::RKind(i) => self.restore_kind(i),
@@ -8492,7 +8539,7 @@ impl Faraday {
                 if let Some(owner) = self
                     .restore
                     .as_ref()
-                    .filter(|r| r.into_vaults)
+                    .filter(|r| r.into_vaults())
                     .map(|r| r.owner)
                 {
                     self.wallet_flow_attach(i, owner);

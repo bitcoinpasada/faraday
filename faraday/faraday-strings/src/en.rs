@@ -8328,8 +8328,8 @@ pub struct Strings {
     pub backup_flow_card_make_wallet: &'static str,
     /// Make a new wallet's card before Keys.
     pub backup_flow_card_where_keys: &'static str,
-    /// Make a new wallet's Where card: the keys are not kept in a vault.
-    pub backup_flow_not_in_vault: &'static str,
+    /// The Where card's one line above the forms of the seeds.
+    pub backup_flow_select_every_form: &'static str,
     /// Opens the flow on the card to change what it decided.
     pub backup_flow_change: &'static str,
     /// Button of a wallet's Make card.
@@ -12384,7 +12384,7 @@ pub static EN: Strings = Strings {
     backup_flow_written_to: "Written to {}",
     backup_flow_card_make_wallet: "Make the keys",
     backup_flow_card_where_keys: "Where the keys will be kept",
-    backup_flow_not_in_vault: "Not in a vault",
+    backup_flow_select_every_form: "Select every way the seeds will be kept",
     backup_flow_change: "Change",
     backup_flow_make_the_keys: "Make the keys",
     backup_flow_card_where_seeds: "Where the seeds will be kept",

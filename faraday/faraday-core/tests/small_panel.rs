@@ -124,6 +124,7 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     // Create opens on Kind (`docs/NEW-WALLET.md` §2.1); single key is
     // the default, so Continue reaches Keys straight away.
     tap(&mut app, Action::CNext(faraday_core::cstep::KIND));
+    tap(&mut app, Action::CNext(faraday_core::cstep::WHERE));
     tap(&mut app, Action::KeyGen(Some(0)));
     assert_eq!(app.screen, Screen::KeyGen);
     // New key opens on Length too; its Continue (12 words, the default)
@@ -294,8 +295,14 @@ fn kind_is_offered_on_the_keys_page_and_opens() {
     tap(&mut app, Action::CNext(faraday_core::cstep::KIND));
     assert_eq!(
         app.create.as_ref().and_then(|c| c.open),
+        Some(faraday_core::cstep::WHERE),
+        "Continue opens Where"
+    );
+    tap(&mut app, Action::CNext(faraday_core::cstep::WHERE));
+    assert_eq!(
+        app.create.as_ref().and_then(|c| c.open),
         Some(faraday_core::cstep::KEYS),
-        "Continue opens Keys"
+        "Where's Continue opens Keys"
     );
     let kind = Action::CStep(faraday_core::cstep::KIND);
     assert!(
