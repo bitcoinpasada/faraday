@@ -224,6 +224,12 @@ fn this_computers_facts_come_from_the_registry_and_the_firmware() {
         ..facts.clone()
     };
     assert_eq!(registry::computer(&unknown).secure_boot, None);
+    // Only 0 is off and 1 is on; any other value is not known.
+    let odd = Facts {
+        secure_boot: Some(2u32.to_le_bytes().to_vec()),
+        ..unknown.clone()
+    };
+    assert_eq!(registry::computer(&odd).secure_boot, None);
     // Started in legacy BIOS mode: no UEFI, no Secure Boot.
     let bios = Facts {
         firmware: Some(1),
@@ -524,17 +530,6 @@ impl Registry for Map {
     fn exists(&mut self, key: &str) -> bool {
         self.0.contains_key(key)
     }
-
-    fn get(&mut self, key: &str, name: &str) -> Option<Data> {
-        self.0.get(key)?.get(name).cloned()
-    }
-
-    fn delete_value(&mut self, key: &str, name: &str) -> Result<(), String> {
-        if let Some(k) = self.0.get_mut(key) {
-            k.remove(name);
-        }
-        Ok(())
-    }
 }
 
 /// A file that answers `--version` as the Starter or the desktop app
@@ -559,10 +554,6 @@ fn computer(name: &str) -> (PathBuf, Dirs, PathBuf) {
     };
     for (file, text) in [
         ("Downloads/received.txt", "a received file"),
-        (
-            "AppData/Local/faraday/bitlocker-suspended",
-            "faraday bitlocker-suspended 1\nvolume \\\\?\\Volume{1b2c3d4e-0000-4000-8000-00000000000c}\\ C:\nsecure-boot on\n",
-        ),
         ("AppData/Local/Programs/Other/other.exe", "another program"),
         (
             "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Other.lnk",
@@ -650,15 +641,12 @@ fn install_puts_the_app_the_shortcut_and_the_uninstall_entry_and_uninstall_takes
             InstallItem::UninstallEntry
         ]
     );
-    // Run from Downloads: everything goes at once, with the BitLocker
-    // marker (§5.4; the window has said first that the suspension stays).
+    // Run from Downloads: everything goes at once.
     assert_eq!(
         install::uninstall(&dirs, &running, &ask, &mut reg),
         Ok(Left::Nothing)
     );
-    let mut left = before.clone();
-    left.retain(|f| f != "AppData/Local/faraday/bitlocker-suspended");
-    assert_eq!(tree(&root), left);
+    assert_eq!(tree(&root), before);
     assert!(reg.0.is_empty());
     assert!(install::installed(&dirs, &ask, &mut reg).is_none());
 }
@@ -723,8 +711,6 @@ fn uninstall_from_the_installed_copy_leaves_its_last_step_for_after_it_exits() {
     assert!(reg.0.is_empty());
 }
 
-const RUN: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
-
 fn old_key(l: &names::Legacy) -> String {
     format!(
         r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{}",
@@ -741,11 +727,6 @@ fn old_install(dirs: &Dirs, reg: &mut Map, which: usize, exe: &str) {
     fs::write(dirs.programs.join(l.win_shortcut), "old shortcut").expect("lnk");
     reg.set(&old_key(l), "DisplayName", &Data::Sz(l.win_name.into()))
         .expect("key");
-    let command = format!(
-        r#""C:\ProgramData\Programs\{}\{}" --remind"#,
-        l.win_name, l.win_exe
-    );
-    reg.set(RUN, l.win_name, &Data::Sz(command)).expect("run");
 }
 
 #[test]
@@ -763,7 +744,6 @@ fn an_earlier_install_is_replaced_by_install_and_removed_by_uninstall() {
         assert!(!dirs.local.join("Programs").join(l.win_name).exists());
         assert!(!dirs.programs.join(l.win_shortcut).exists());
         assert!(!reg.0.contains_key(&old_key(l)));
-        assert!(reg.0.get(RUN).is_none_or(|k| !k.contains_key(l.win_name)));
         assert!(dirs.app().is_file());
 
         // Uninstall of an earlier install alone.
@@ -772,9 +752,7 @@ fn an_earlier_install_is_replaced_by_install_and_removed_by_uninstall() {
         let mut reg = Map::default();
         old_install(&dirs, &mut reg, which, "FARADAY STARTER 0.1.9");
         install::uninstall(&dirs, &running, &ask, &mut reg).expect("uninstalled");
-        let mut left = before;
-        left.retain(|f| f != "AppData/Local/faraday/bitlocker-suspended");
-        assert_eq!(tree(&root2), left);
+        assert_eq!(tree(&root2), before);
         assert!(!reg.0.contains_key(&old_key(l)));
         let _ = root;
     }
@@ -794,7 +772,6 @@ fn an_old_exe_that_is_not_ours_keeps_its_old_names() {
         assert_eq!(fs::read_to_string(old).expect("kept"), "another program");
         assert!(dirs.programs.join(l.win_shortcut).is_file());
         assert!(reg.0.contains_key(&old_key(l)));
-        assert!(reg.0[RUN].contains_key(l.win_name));
     }
 }
 
@@ -879,9 +856,7 @@ fn the_desktop_app_is_installed_beside_the_starter_and_uninstall_takes_exactly_i
         install::uninstall(&dirs, &running, &ask, &mut reg),
         Ok(Left::Nothing)
     );
-    let mut left = before;
-    left.retain(|f| f != "AppData/Local/faraday/bitlocker-suspended");
-    assert_eq!(tree(&root), left);
+    assert_eq!(tree(&root), before);
 }
 
 #[test]

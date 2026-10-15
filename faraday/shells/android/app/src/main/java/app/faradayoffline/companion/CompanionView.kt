@@ -23,7 +23,7 @@ import java.util.TimeZone
  * no text field and no system keyboard here. What this class does:
  *
  *  - create the core once, at the first settled size, hand it what was
- *    kept (the received files, the kept store's counts, the theme, the
+ *    kept (the received files, the kept store's count, the theme, the
  *    Start from the stick answers and each guide page's ticked steps), the
  *    wall clock, About's facts and anything shared in at start, and free
  *    it on destroy;
@@ -71,11 +71,11 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
          */
         fun unlockKept(title: String?)
 
-        /** Keep the kept store, encrypted, with its two counts; empty bytes delete it. */
-        fun keepKept(bytes: ByteArray?, descriptions: Int, keys: Int)
+        /** Keep the kept store, encrypted, with its count; empty bytes delete it. */
+        fun keepKept(bytes: ByteArray?, descriptions: Int)
 
-        /** The two counts kept beside the kept store, for the core at start. */
-        fun keptCounts(): Pair<Int, Int>
+        /** The version and the count kept beside the kept store, for the core at start. */
+        fun keptCounts(): Pair<Int, Int>?
 
         /** Hand one file to the system's share sheet. */
         fun share(name: String?, mime: String?, bytes: ByteArray?)
@@ -155,7 +155,7 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
         // The display is in. What was kept goes in behind it, before any
         // input can change it, with the clock and About's facts.
         val received = host.loadReceived()
-        val (descriptions, keys) = host.keptCounts()
+        val counts = host.keptCounts()
         val theme = readTheme()
         val start = readStart()
         val steps = readSteps()
@@ -167,7 +167,7 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
                 it.fill(0)
             }
         }
-        send { Core.keptCounts(handle, descriptions, keys) }
+        send { counts?.let { Core.keptCounts(handle, it.first, it.second) } }
         send { theme?.let { Core.theme(handle, it) } }
         send { start?.let { Core.start(handle, it) } }
         for (text in steps) send { Core.steps(handle, text) }
@@ -405,7 +405,6 @@ internal class CompanionView(context: Context, private val host: Host) : View(co
                 Core.CMD_KEEP_KEPT -> host.keepKept(
                     Core.commandBytes(handle),
                     Core.commandDescriptions(handle),
-                    Core.commandKeys(handle),
                 )
                 Core.CMD_SHARE ->
                     host.share(Core.commandName(handle), Core.commandText(handle), Core.commandBytes(handle))

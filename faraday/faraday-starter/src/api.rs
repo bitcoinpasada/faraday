@@ -46,45 +46,6 @@ pub struct Computer {
     pub tpm_unlock: bool,
 }
 
-/// The protection of the Windows system drive, as Home reads it without
-/// elevation (`System.Volume.BitLockerProtection`, §6.2).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Protection {
-    /// Not encrypted: the guard is not needed.
-    None,
-    /// Encrypted and protected.
-    On,
-    /// Encrypted, protection suspended.
-    Suspended,
-    /// Could not be read: treated as protected.
-    Unknown,
-}
-
-/// The Starter's marker (§6.3), when it exists: it suspended BitLocker.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Marker {
-    /// The volumes it suspended ("C:").
-    pub volumes: Vec<String>,
-    /// Whether Secure Boot was on when it suspended.
-    pub secure_boot_was_on: bool,
-    /// The marker was written in the Windows session now running: the
-    /// person who suspended is still in it, and Resume would undo the
-    /// step just done (§6.3). A marker with no boot recorded is from an
-    /// earlier boot.
-    pub this_boot: bool,
-}
-
-/// BitLocker on this computer (Windows only, §6).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BitLocker {
-    /// The system drive, as Windows names it ("C:").
-    pub drive: String,
-    /// Its protection now.
-    pub protection: Protection,
-    /// The Starter's marker, when it exists.
-    pub marker: Option<Marker>,
-}
-
 /// How a disk is attached.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Bus {
@@ -261,8 +222,6 @@ pub enum InstallItem {
     Icon,
     /// Windows: the entry in Installed apps.
     UninstallEntry,
-    /// Windows: the logon reminder (§6.3).
-    Reminder,
 }
 
 /// What is installed (§5.2), as the shell finds it on disk.
@@ -493,27 +452,6 @@ pub enum Reason {
     /// for (Windows' elevation prompt, polkit's password on Linux), so
     /// nothing was done.
     Declined,
-    /// The elevation prompt was declined on an account that is not an
-    /// administrator's (§6.4): an administrator has to do the step.
-    NoAdmin,
-    /// BitLocker refused to suspend (`DisableKeyProtectors`' return
-    /// value, or 0 when the volume was still protected after it): the
-    /// computer's BitLocker is managed (§6.4).
-    Managed(u32),
-    /// A BitLocker call failed: the method and its return value or
-    /// HRESULT.
-    BitLocker {
-        /// The method (`GetKeyProtectors`).
-        call: String,
-        /// What it returned.
-        code: u32,
-    },
-    /// The system drive is not encrypted: there is nothing to suspend.
-    NotEncrypted,
-    /// The system drive's protection could not be read: Windows did not
-    /// list it, or answered something else. It is not known, which the
-    /// guard treats as protected (§6.2).
-    NotRead,
     /// Not on this computer.
     Unsupported,
 }
@@ -536,11 +474,6 @@ pub enum Kind {
     /// This computer is a virtual machine: the stick must start on the
     /// real computer, and the Starter cannot see the host's devices.
     VirtualMachine,
-    /// A remote session (Windows `SM_REMOTESESSION`, X11 over the
-    /// network). Held only around the recovery key.
-    RemoteSession,
-    /// A wireless display (Miracast). Held only around the recovery key.
-    WirelessDisplay,
 }
 
 /// One thing attached that is of concern (§3.1a), as the shell reads it.
@@ -562,9 +495,6 @@ pub struct Concern {
 pub enum StarterEvent {
     /// This computer's facts (§7.1). Sent at start.
     Computer(Computer),
-    /// BitLocker on the system drive (Windows), sent at start and after
-    /// each BitLocker step; `None` on Linux.
-    BitLocker(Option<BitLocker>),
     /// Every disk attached now. Sent at start and whenever the set or a
     /// disk changes (plugged in, pulled out, mounted, written).
     Disks(Vec<Disk>),
@@ -608,19 +538,6 @@ pub enum StarterEvent {
     /// Another encryption product's driver is on this computer (§6.4):
     /// its name ("VeraCrypt"), or `None`. Sent at start.
     OtherEncryption(Option<String>),
-    /// [`BitLockerStep::ShowKey`] ended: the key, or why not. The shell
-    /// sends [`StarterEvent::BitLocker`] after it, as read then.
-    KeyShown(Result<KeyShown, Reason>),
-    /// [`BitLockerStep::Suspend`] or [`BitLockerStep::Resume`] ended. The
-    /// shell sends [`StarterEvent::BitLocker`] after it, as read then.
-    BitLockerDone {
-        /// Which step.
-        step: BitLockerStep,
-        /// Done, or why not.
-        result: Result<(), Reason>,
-    },
-    /// [`StarterCommand::SaveKey`] ended: where the file went, or why not.
-    KeySaved(Result<String, Reason>),
     /// What is attached that is of concern (§3.1a), all of it. Sent at
     /// start, whenever it changes, and after [`StarterCommand::CheckAgain`].
     Concerns(Vec<Concern>),
@@ -636,30 +553,6 @@ pub enum StarterEvent {
     /// [`StarterCommand::PrintTemplate`] or [`StarterCommand::OpenTemplate`]
     /// ended: opened in the viewer, or why not.
     TemplateOpened(Result<(), Reason>),
-}
-
-/// The recovery key the elevated copy read (§6.2), for the guard's page.
-/// The key is wiped when this is dropped, and `Debug` prints none of it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct KeyShown {
-    /// The drive, its computer and its key, as the QR code carries them.
-    pub text: faraday_qr::bitlocker::KeyText,
-    /// The key protector's ID (`{6A0E…}`), whose first eight digits
-    /// Windows' recovery screen shows as the key ID.
-    pub id: String,
-}
-
-impl KeyShown {
-    /// The key ID Windows' recovery screen shows: the protector ID's
-    /// first eight hex digits.
-    pub fn key_id(&self) -> String {
-        self.id
-            .trim_start_matches('{')
-            .chars()
-            .take(8)
-            .collect::<String>()
-            .to_uppercase()
-    }
 }
 
 /// How a stick or card is written (§3.2 step 2).
@@ -710,18 +603,6 @@ pub struct WriteOrder {
     pub mode: Mode,
 }
 
-/// A BitLocker step, done by the elevated copy (`--bitlocker <verb>`,
-/// §2, §6).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BitLockerStep {
-    /// Read the recovery key, adding one when the volume has none.
-    ShowKey,
-    /// Suspend protection until resumed, and write the marker.
-    Suspend,
-    /// Resume protection on the marker's volumes, and delete the marker.
-    Resume,
-}
-
 /// What the Starter asks the shell to do.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StarterCommand {
@@ -746,16 +627,6 @@ pub enum StarterCommand {
         /// The attached Faraday stick's device (`/dev/sdb`), from
         /// [`Disk::device`].
         device: String,
-    },
-    /// A BitLocker step through the elevated copy.
-    BitLocker(BitLockerStep),
-    /// Save the key shown to a file on `disk` (§6.2): only a removable
-    /// disk that is not a Faraday stick, which the shell checks again.
-    SaveKey {
-        /// The disk's handle, from [`Disk::id`].
-        disk: String,
-        /// The key.
-        key: KeyShown,
     },
     /// Read what is attached again now (§3.1a, Check again), and send
     /// [`StarterEvent::Concerns`].
@@ -786,38 +657,4 @@ pub enum StarterCommand {
         /// The file's path, as [`StarterEvent::TemplateSaved`] gave it.
         path: String,
     },
-}
-
-/// What `--remind` does at logon (§6.3), decided by [`remind`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Remind {
-    /// No marker, or protection already on: remove the Run entry and
-    /// exit with no window.
-    RemoveAndExit,
-    /// The marker, and Secure Boot not as it recorded: exit with no
-    /// window.
-    Exit,
-    /// The marker, and Secure Boot as it recorded: open the guard's page
-    /// with Resume BitLocker as the one thing to do.
-    Open,
-}
-
-/// `--remind`'s decision (§6.3), from the marker, the protection now and
-/// Secure Boot now. Resume is offered while Secure Boot is as the marker
-/// recorded it (on for a computer that had it on when the Starter
-/// suspended BitLocker, off for one that already had it off); a state
-/// that could not be read is not as recorded. A drive no longer
-/// encrypted has nothing to resume.
-pub fn remind(
-    marker: Option<&Marker>,
-    protection: Protection,
-    secure_boot: Option<bool>,
-) -> Remind {
-    match marker {
-        None => Remind::RemoveAndExit,
-        Some(_) if matches!(protection, Protection::On | Protection::None) => Remind::RemoveAndExit,
-        Some(m) if m.this_boot => Remind::Exit,
-        Some(m) if secure_boot == Some(m.secure_boot_was_on) => Remind::Open,
-        Some(_) => Remind::Exit,
-    }
 }

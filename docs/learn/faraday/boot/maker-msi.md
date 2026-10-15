@@ -2,7 +2,7 @@
 
 ## Before you start
 
-On Windows, a backup of the BitLocker recovery key is optional: Faraday Starter's BitLocker page shows it. On Linux, have the disk's passphrase or recovery key ready.
+On Linux, have the disk's passphrase or recovery key ready if it is unlocked by the TPM.
 
 These steps are from MSI's article for its notebooks, which does not cover desktops or motherboards.
 
@@ -34,11 +34,13 @@ If the stick is not listed: see "If something is different" below.
 
 7. Turn the computer off from Faraday and pull the stick out.
 
-8. Press Delete when the MSI logo appears, set Security → Secure Boot → Secure Boot Support to Enabled, and press F10. Do it before Windows starts: with Secure Boot off, Windows asks for the BitLocker recovery key unless Faraday Starter suspended BitLocker.
+8. Turn Secure Boot back on: press Delete when the MSI logo appears, set Security → Secure Boot → Secure Boot Support to Enabled, and press F10. Do it before Windows starts.
 
 If Secure Boot does not stay on: MSI's notebook article does not describe restoring the Secure Boot keys; the step on the general Windows page applies.
 
 ## If something is different
+
+If Windows asks for the BitLocker recovery key: for a computer set up with a Microsoft account, the key is on the account's recovery-key page, aka.ms/myrecoverykey; otherwise it is wherever it was saved when BitLocker was set up. Then turn Secure Boot back on before the next start.
 
 Stick not in the F11 list: MSI's notebook article does not describe a setting that hides USB disks from the boot menu.
 

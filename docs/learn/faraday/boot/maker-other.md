@@ -2,7 +2,7 @@
 
 ## Before you start
 
-On Windows, a backup of the BitLocker recovery key is optional: Faraday Starter's BitLocker page shows it. On Linux, have the disk's passphrase or recovery key ready.
+On Linux, have the disk's passphrase or recovery key ready if it is unlocked by the TPM.
 
 Find your computer's two keys: one opens the BIOS, one opens the boot menu. Search online for your computer's model and "boot menu key". The screen at power-on often names them.
 
@@ -38,11 +38,13 @@ If the stick is not listed: see "If something is different" below.
 
 7. Turn the computer off from Faraday and pull the stick out.
 
-8. Tap the BIOS key at power-on, turn Secure Boot back on, then save and exit. Do it before Windows starts: with Secure Boot off, Windows asks for the BitLocker recovery key unless Faraday Starter suspended BitLocker.
+8. Turn Secure Boot back on: tap the BIOS key at power-on, set Secure Boot to Enabled, then save and exit. Do it before Windows starts.
 
 If Secure Boot does not stay on: load the computer's own Secure Boot keys. On some computers this is Restore Factory Keys or a Custom setting that loads the keys built into the computer.
 
 ## If something is different
+
+If Windows asks for the BitLocker recovery key: for a computer set up with a Microsoft account, the key is on the account's recovery-key page, aka.ms/myrecoverykey; otherwise it is wherever it was saved when BitLocker was set up. Then turn Secure Boot back on before the next start.
 
 Stick not in the boot menu: set Fast Boot to Disabled, or to Thorough where that is the choice. Where there is a USB Boot setting, set it to Enabled.
 

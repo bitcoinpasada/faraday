@@ -6,13 +6,69 @@
 //! given.
 
 use faraday_intake::Secret;
-use faraday_qr::bitlocker::KeyText;
 use faraday_qr::{Arrived, Assembler, Step};
 use osk_codec::PayloadKind;
 use osk_codec::ur::{Decoder, Message};
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::store::Kind;
+
+/// What is refused and not kept (`docs/COMPANION.md` §5, §4.6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Refusal {
+    /// A secret that stays on the Faraday device.
+    Secret(Secret),
+    /// A BitLocker recovery key (F33): eight groups of six digits,
+    /// alone or under the line the 0.1.2 Starter's code carried.
+    RecoveryKey,
+}
+
+impl From<Secret> for Refusal {
+    fn from(s: Secret) -> Refusal {
+        Refusal::Secret(s)
+    }
+}
+
+/// Whether any line of `text` holds a BitLocker recovery key's shape:
+/// eight groups of six digits, `-` between. That covers the key alone,
+/// the 0.1.2 Starter's code and Windows' own key file. The shape alone;
+/// nothing of it is read or kept.
+pub fn is_recovery_key(text: &str) -> bool {
+    text.lines().map(str::trim).any(|l| {
+        let groups: Vec<&str> = l.split('-').collect();
+        groups.len() == 8
+            && groups
+                .iter()
+                .all(|g| g.len() == 6 && g.bytes().all(|b| b.is_ascii_digit()))
+    })
+}
+
+/// [`is_recovery_key`] over bytes: UTF-8, or UTF-16 with or without a
+/// byte order mark (as Windows writes its key file).
+pub fn holds_recovery_key(bytes: &[u8]) -> bool {
+    let utf16 = |be: bool, b: &[u8]| {
+        let units: Vec<u16> = b
+            .chunks_exact(2)
+            .map(|c| {
+                if be {
+                    u16::from_be_bytes([c[0], c[1]])
+                } else {
+                    u16::from_le_bytes([c[0], c[1]])
+                }
+            })
+            .collect();
+        is_recovery_key(&String::from_utf16_lossy(&units))
+    };
+    match bytes {
+        [0xFF, 0xFE, rest @ ..] => utf16(false, rest),
+        [0xFE, 0xFF, rest @ ..] => utf16(true, rest),
+        _ => match std::str::from_utf8(bytes) {
+            Ok(t) if !t.contains('\0') => is_recovery_key(t),
+            // No mark: UTF-16 of ASCII text has a NUL beside each letter.
+            _ => utf16(false, bytes) || utf16(true, bytes),
+        },
+    }
+}
 
 /// What one code or paste was.
 #[derive(Debug, PartialEq, Eq)]
@@ -28,8 +84,9 @@ pub enum Outcome {
         /// fountain parts have no fixed numbers.
         missing: Vec<usize>,
     },
-    /// A secret that stays on the Faraday device: nothing is kept.
-    Refused(Secret),
+    /// A secret that stays on the Faraday device, or a BitLocker
+    /// recovery key, which stays off the phone: nothing is kept.
+    Refused(Refusal),
     /// A whole thing to keep in Received: the name it brought, if any,
     /// what it is, and the bytes.
     Arrived {
@@ -42,8 +99,6 @@ pub enum Outcome {
         /// The extension a file without a name is kept under.
         ext: &'static str,
     },
-    /// A BitLocker recovery key's text (`docs/COMPANION.md` §4.6).
-    BitLocker(KeyText),
     /// An address, shown as text with its kind.
     Address {
         /// The address.
@@ -88,6 +143,9 @@ impl Reader {
         if let Some(s) = faraday_intake::secret(bytes) {
             return self.refuse(s);
         }
+        if holds_recovery_key(bytes) {
+            return self.refuse(Refusal::RecoveryKey);
+        }
         let Ok(raw) = std::str::from_utf8(bytes) else {
             return if osk_codec::classify(bytes) == PayloadKind::Psbt {
                 arrived(Kind::Psbt, bytes.to_vec(), "psbt")
@@ -95,9 +153,6 @@ impl Reader {
                 arrived(Kind::File, bytes.to_vec(), "bin")
             };
         };
-        if let Some(key) = KeyText::read(raw) {
-            return Outcome::BitLocker(key);
-        }
         let text = raw.trim();
         match self.assembler.feed(text) {
             Step::Part {
@@ -143,9 +198,9 @@ impl Reader {
     }
 
     /// Refuses `s`: what was part-way through goes too.
-    fn refuse(&mut self, s: Secret) -> Outcome {
+    fn refuse(&mut self, s: impl Into<Refusal>) -> Outcome {
         self.reset();
-        Outcome::Refused(s)
+        Outcome::Refused(s.into())
     }
 
     /// A transfer in parts that is whole.
@@ -160,6 +215,9 @@ impl Reader {
                 let data = Zeroizing::new(data);
                 if let Some(s) = faraday_intake::secret(&data) {
                     return self.refuse(s);
+                }
+                if holds_recovery_key(&data) {
+                    return self.refuse(Refusal::RecoveryKey);
                 }
                 Outcome::Arrived {
                     name: Some(name),
@@ -185,6 +243,10 @@ impl Reader {
             bytes.zeroize();
             return self.refuse(s);
         }
+        if holds_recovery_key(&bytes) {
+            bytes.zeroize();
+            return self.refuse(Refusal::RecoveryKey);
+        }
         arrived(kind, bytes, ext)
     }
 
@@ -196,6 +258,9 @@ impl Reader {
                 let b = Zeroizing::new(b);
                 if let Some(s) = faraday_intake::secret(&b) {
                     return self.refuse(s);
+                }
+                if holds_recovery_key(&b) {
+                    return self.refuse(Refusal::RecoveryKey);
                 }
                 match std::str::from_utf8(&b) {
                     Ok(t) => self.whole(faraday_qr::classify_text(t)),
@@ -228,14 +293,19 @@ impl Reader {
         if let Some(s) = faraday_intake::secret(text.as_bytes()) {
             return self.refuse(s);
         }
-        if let Some(key) = KeyText::read(text) {
-            return Outcome::BitLocker(key);
+        if holds_recovery_key(text.as_bytes()) {
+            return self.refuse(Refusal::RecoveryKey);
         }
         if let Some(id) = guide(text) {
             return Outcome::Guide(id);
         }
         match faraday_qr::classify_text(text) {
             Arrived::File(name, data, _) => {
+                let data = Zeroizing::new(data);
+                if holds_recovery_key(&data) {
+                    return self.refuse(Refusal::RecoveryKey);
+                }
+                let data = data.to_vec();
                 return Outcome::Arrived {
                     name: Some(name),
                     kind: kind_of_file(&data),

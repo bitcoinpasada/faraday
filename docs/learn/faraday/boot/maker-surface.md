@@ -2,7 +2,7 @@
 
 ## Before you start
 
-On Windows, a backup of the BitLocker recovery key is optional: Faraday Starter's BitLocker page shows it. On Linux, have the disk's passphrase or recovery key ready.
+On Linux, have the disk's passphrase or recovery key ready if it is unlocked by the TPM.
 
 A Surface has no keys for this; it uses its volume buttons.
 
@@ -28,7 +28,7 @@ If it doesn't open: use Faraday Starter's Restart into the BIOS, which opens Sur
 
 Or, in Surface UEFI, Boot configuration: swipe left on USB Storage to start from it once.
 
-Or, in Windows, Settings → System → Recovery, Restart now beside Advanced startup, then Use a device → USB Storage. Windows asks for the BitLocker recovery key on that start unless Faraday Starter suspended BitLocker.
+Or, when Windows is already running with Secure Boot off: Settings → System → Recovery, Restart now beside Advanced startup, then Use a device → USB Storage.
 
 If the stick does not start: see "If something is different" below.
 
@@ -36,11 +36,13 @@ If the stick does not start: see "If something is different" below.
 
 7. Turn the Surface off from Faraday and pull the stick out.
 
-8. Open Surface UEFI with Volume Up, choose Security, under Secure Boot choose Change configuration, and choose Microsoft only. Then Exit → Restart now. Do it before Windows starts: with Secure Boot off, Windows asks for the BitLocker recovery key unless Faraday Starter suspended BitLocker.
+8. Turn Secure Boot back on: open Surface UEFI with Volume Up, choose Security, under Secure Boot choose Change configuration, and choose Microsoft only. Then Exit → Restart now. Do it before Windows starts.
 
 While Secure Boot is off, the Surface shows a red bar with an open padlock at power-on. Once Secure Boot is back on, it is gone.
 
 ## If something is different
+
+If Windows asks for the BitLocker recovery key: for a computer set up with a Microsoft account, the key is on the account's recovery-key page, aka.ms/myrecoverykey; otherwise it is wherever it was saved when BitLocker was set up. Then turn Secure Boot back on before the next start.
 
 Stick not started: Microsoft's Surface UEFI pages list no Fast Boot setting. The Boot configuration page has two USB settings, and both have to be on: USB Storage in the list of boot devices, and Enable Boot from USB devices under Advanced options.
 

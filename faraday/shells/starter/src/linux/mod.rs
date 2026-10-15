@@ -116,7 +116,7 @@ impl Platform for Linux {
     }
 
     fn concerns(&self) -> Vec<Concern> {
-        devices::read(Path::new("/"), std::env::var("DISPLAY").ok().as_deref())
+        devices::read(Path::new("/"))
     }
 
     fn installed(&self) -> Option<Installed> {

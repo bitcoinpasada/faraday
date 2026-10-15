@@ -2,7 +2,7 @@
 
 ## Before you start
 
-A backup of the BitLocker recovery key is optional. Windows does not ask for it when Secure Boot is back on before Windows starts; it asks only if Windows starts with Secure Boot off. Faraday Starter's BitLocker page shows the key for anyone who wants a copy. The page "BitLocker and starting from a stick" says more.
+The last step turns Secure Boot back on, before Windows starts. With Secure Boot back on, Windows starts as usual and asks for nothing.
 
 ## Steps
 
@@ -32,13 +32,13 @@ If the stick is not listed: see "If something is different" below.
 
 5. Turn the computer off from Faraday and pull the stick out.
 
-6. Open the BIOS with the maker's key at power-on, set Secure Boot to Enabled, save and exit. Do it before Windows starts: with Secure Boot off, Windows asks for the recovery key unless Faraday Starter suspended BitLocker.
+6. Turn Secure Boot back on: open the BIOS with the maker's key at power-on, set Secure Boot to Enabled, save and exit. Do it before Windows starts.
 
 If Secure Boot cannot be enabled, or Windows does not start with it on: load the computer's own Secure Boot keys (Restore Factory Keys, or a Custom setting that loads the keys built into the computer).
 
-7. Only after the extra-safe choice: open Faraday Starter in Windows and choose Resume BitLocker. It is offered only while Secure Boot is on, at sign-in when Faraday Starter is installed, or when it is opened again.
-
 ## If something is different
+
+If Windows asks for the BitLocker recovery key: for a computer set up with a Microsoft account, the key is on the account's recovery-key page, aka.ms/myrecoverykey; otherwise it is wherever it was saved when BitLocker was set up. Then turn Secure Boot back on before the next start.
 
 Stick not in the list: the BIOS's own Fast Boot, which is not Windows' Fast Startup, makes some computers skip USB disks at power-on. Set Fast Boot to Disabled, or to Thorough where that is the choice, and save.
 
@@ -48,13 +48,9 @@ Why Secure Boot goes off: the Faraday on the stick is not signed with Microsoft'
 
 Why Restart and not Shut down: with Fast Startup, which is on by default, Shut down saves the running Windows kernel to the disk and resumes it at the next power-on, so the key at power-on can be missed. Restart always closes Windows fully and starts again.
 
-Other ways to choose the stick: Faraday Starter's Restart to choose a device, offered once Secure Boot is off, and Use a device on the Choose an option screen. Both are reached from Windows, so Windows has to start with Secure Boot off, and with BitLocker not suspended that start asks for the recovery key: back it up first, on Faraday Starter's BitLocker page. Use a device is offered only on computers started in UEFI mode, and not on every one.
+Other ways to choose the stick, only when Windows is already running with Secure Boot off: Faraday Starter's Restart to choose a device, offered only then, and Use a device on the Choose an option screen. The stick then starts with Secure Boot already off; turn it back on afterwards, as the last step says. Use a device is offered only on computers started in UEFI mode, and not on every one.
 
-Without the maker's key to turn Secure Boot back on: start Windows, use Restart into the BIOS again, and turn Secure Boot on there. Windows asks for the recovery key on that start unless BitLocker is suspended: back it up first, on Faraday Starter's BitLocker page, or find it at aka.ms/myrecoverykey.
-
-A computer whose Secure Boot was already off when Faraday Starter suspended BitLocker is not asked to turn it on.
-
-A computer whose drive is not encrypted has no BitLocker item in Faraday Starter.
+Without the maker's key: the screen at power-on often names it, and the page Another maker lists the common ones.
 
 Fast Startup: Microsoft recommends leaving it on. To turn it off anyway, on Windows 11 search for "Choose a power plan", then Choose what the power button does, Change settings that are currently unavailable, clear Turn on fast startup, and Save changes. On Windows 10: Power & sleep settings → Additional power settings, then the same steps.
 

@@ -7,7 +7,7 @@
 
   CAMERA is asked for at the first scan, not at install. USE_BIOMETRIC
   opens nothing on its own: it lets the app show the system's unlock
-  prompt in front of wallet descriptions and BitLocker keys (§7), granted
+  prompt in front of wallet descriptions (§7), granted
   at install, with no access to any biometric data.
 
   What the app keeps is in its private storage, encrypted under a Keystore

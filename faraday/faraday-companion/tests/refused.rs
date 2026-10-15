@@ -6,13 +6,22 @@
 mod common;
 
 use common::*;
+use faraday_companion::route::Refusal;
 use faraday_companion::store::{self, Kept, Kind};
 use faraday_companion::{Act, Companion, CompanionEvent, Page};
 use faraday_intake::Secret;
 use faraday_strings::EN;
 
+/// The line a refusal shows.
+fn line(r: Refusal) -> &'static str {
+    match r {
+        Refusal::Secret(s) => secret_line(s),
+        Refusal::RecoveryKey => EN.companion_refuse_recovery_key,
+    }
+}
+
 /// The line a refusal of `s` shows.
-fn line(s: Secret) -> &'static str {
+fn secret_line(s: Secret) -> &'static str {
     match s {
         Secret::Bip39Words => EN.companion_refuse_words,
         Secret::UrBip39 => EN.companion_refuse_ur_bip39,
@@ -170,7 +179,7 @@ fn holding() -> Companion {
 }
 
 /// `c` refused `kind` with its line and kept nothing.
-fn refused(c: &mut Companion, kind: Secret, before: &[u8], how: &str) {
+fn refused(c: &mut Companion, kind: Refusal, before: &[u8], how: &str) {
     assert_eq!(c.page, Page::Refused(kind), "{kind:?} by {how}");
     assert!(shows(c, line(kind)), "{kind:?} by {how}: {:?}", c.texts());
     let (_, ours) = drain(c);
@@ -198,7 +207,7 @@ fn every_secret_by_camera_is_refused_with_its_line_and_nothing_kept() {
         let mut c = holding();
         let before = c.store_bytes();
         show(&mut c, &code_of(&bytes));
-        refused(&mut c, kind, &before, "camera");
+        refused(&mut c, kind.into(), &before, "camera");
     }
 }
 
@@ -217,7 +226,7 @@ fn every_secret_by_paste_is_refused_with_its_line_and_nothing_kept() {
             .expect("text"),
         };
         paste(&mut c, &text);
-        refused(&mut c, kind, &before, "paste");
+        refused(&mut c, kind.into(), &before, "paste");
     }
 }
 
@@ -233,7 +242,7 @@ fn a_secret_sent_in_parts_is_refused_once_whole_and_the_parts_go_with_it() {
         }
         show(&mut c, &code_of(p.as_bytes()));
     }
-    refused(&mut c, Secret::Bip39Words, &before, "BBQr parts");
+    refused(&mut c, Secret::Bip39Words.into(), &before, "BBQr parts");
     // Scanning on starts afresh: the parts read before are gone.
     c.press(Act::ScanAgain);
     show(&mut c, &code_of(parts[0].as_bytes()));
@@ -257,14 +266,146 @@ fn every_secret_shared_in_is_refused_whole_and_both_stores_stay_as_they_were() {
             name: Some("shared.txt".into()),
             bytes: bytes.clone(),
         });
-        refused(&mut c, kind, &before, "share");
+        refused(&mut c, kind.into(), &before, "share");
         let mut c = holding();
         c.press(Act::Back);
         c.press(Act::Descriptions);
         unlock(&mut c, &[]);
         assert!(c.kept().is_some_and(|k| k.is_empty()));
         c.companion_event(CompanionEvent::SharedIn { name: None, bytes });
-        refused(&mut c, kind, &before, "share, Wallet descriptions open");
+        refused(
+            &mut c,
+            kind.into(),
+            &before,
+            "share, Wallet descriptions open",
+        );
         assert!(c.kept().is_some_and(|k| k.is_empty()));
     }
+}
+
+/// What a BitLocker recovery key looks like when it arrives: alone, and
+/// under the line the 0.1.2 Starter's code carried.
+fn recovery_keys() -> Vec<String> {
+    vec![RECOVERY_KEY.to_string(), starter_key_text()]
+}
+
+#[test]
+fn a_recovery_key_by_camera_paste_or_share_is_refused_and_nothing_is_kept() {
+    for text in recovery_keys() {
+        let mut c = holding();
+        let before = c.store_bytes();
+        show(&mut c, &code_of(text.as_bytes()));
+        refused(&mut c, Refusal::RecoveryKey, &before, "camera");
+
+        let mut c = holding();
+        paste(&mut c, &text);
+        refused(&mut c, Refusal::RecoveryKey, &before, "paste");
+
+        // Shared in from anywhere, Wallet descriptions open as well.
+        let mut c = holding();
+        c.companion_event(CompanionEvent::SharedIn {
+            name: Some("key.txt".into()),
+            bytes: text.clone().into_bytes(),
+        });
+        refused(&mut c, Refusal::RecoveryKey, &before, "share");
+        let mut c = holding();
+        c.press(Act::Back);
+        c.press(Act::Descriptions);
+        unlock(&mut c, &[]);
+        c.companion_event(CompanionEvent::SharedIn {
+            name: None,
+            bytes: text.into_bytes(),
+        });
+        refused(
+            &mut c,
+            Refusal::RecoveryKey,
+            &before,
+            "share, descriptions open",
+        );
+        assert!(c.kept().is_some_and(|k| k.is_empty()));
+    }
+}
+
+#[test]
+fn a_recovery_key_sent_in_parts_is_refused_once_whole() {
+    let mut c = holding();
+    let before = c.store_bytes();
+    let parts = faraday_qr::bbqr::encode('U', RECOVERY_KEY.as_bytes(), 30).expect("parts");
+    for p in &parts {
+        if c.page != Page::Receive {
+            break;
+        }
+        show(&mut c, &code_of(p.as_bytes()));
+    }
+    refused(&mut c, Refusal::RecoveryKey, &before, "BBQr parts");
+}
+
+#[test]
+fn six_digits_in_seven_groups_is_not_a_recovery_key() {
+    let mut c = holding();
+    paste(&mut c, "205568-492019-108251-336446-650375-210331-584155");
+    assert!(!matches!(c.page, Page::Refused(_)), "{:?}", c.page);
+}
+
+/// Windows' own "Save to a file" key file.
+fn windows_key_file() -> String {
+    format!(
+        "BitLocker Drive Encryption recovery key\r\n\r\nTo verify that this is the correct recovery key, \
+         compare the start of the following identifier with the identifier value displayed on your PC.\r\n\r\n\
+         Identifier:\r\n\r\n\t6A0E1F2C-3B4D-4E5F-8A9B-0C1D2E3F4A5B\r\n\r\n\
+         If the above identifier matches the one displayed by your PC, then use the following key to unlock your drive.\r\n\r\n\
+         Recovery Key:\r\n\r\n{RECOVERY_KEY}\r\n"
+    )
+}
+
+/// The same file as Windows writes it: UTF-16, little endian, with a mark.
+fn utf16_with_mark(text: &str) -> Vec<u8> {
+    let mut out = vec![0xFF, 0xFE];
+    out.extend(text.encode_utf16().flat_map(u16::to_le_bytes));
+    out
+}
+
+#[test]
+fn a_windows_key_file_shared_in_is_refused_whole_in_either_encoding() {
+    for bytes in [
+        utf16_with_mark(&windows_key_file()),
+        windows_key_file().into_bytes(),
+        // UTF-16 with no mark.
+        windows_key_file()
+            .encode_utf16()
+            .flat_map(u16::to_le_bytes)
+            .collect(),
+    ] {
+        let mut c = holding();
+        let before = c.store_bytes();
+        c.companion_event(CompanionEvent::SharedIn {
+            name: Some("BitLocker Recovery Key.txt".into()),
+            bytes,
+        });
+        refused(&mut c, Refusal::RecoveryKey, &before, "key file shared");
+    }
+}
+
+#[test]
+fn a_recovery_key_inside_an_envelope_or_a_key_file_in_parts_is_refused() {
+    let file = windows_key_file();
+    let env = faraday_qr::envelope::pack("key.txt", file.as_bytes(), "file").expect("env");
+    let mut c = holding();
+    let before = c.store_bytes();
+    show(&mut c, &code_of(&env));
+    refused(&mut c, Refusal::RecoveryKey, &before, "envelope");
+
+    let mut c = holding();
+    paste(&mut c, &String::from_utf8(env).expect("text"));
+    refused(&mut c, Refusal::RecoveryKey, &before, "envelope paste");
+
+    let mut c = holding();
+    let parts = faraday_qr::bbqr::encode('U', file.as_bytes(), 60).expect("parts");
+    for p in &parts {
+        if c.page != Page::Receive {
+            break;
+        }
+        show(&mut c, &code_of(p.as_bytes()));
+    }
+    refused(&mut c, Refusal::RecoveryKey, &before, "BBQr key file");
 }

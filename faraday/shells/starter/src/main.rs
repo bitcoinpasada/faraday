@@ -6,18 +6,9 @@
 //! faraday-starter [--image FILE] [--downloads DIR] [--size WxH] [--timings]
 //! faraday-starter --version
 //! faraday-starter --uninstall
-//! faraday-starter --remind                        (Windows, at logon)
 //! faraday-starter --record-disks                  (Windows)
-//! faraday-starter --record-bitlocker              (Windows, as administrator)
 //! faraday-starter --write …                       (Windows, elevated)
-//! faraday-starter --bitlocker <verb> …            (Windows, elevated)
 //! ```
-//!
-//! `--remind` is the logon reminder's command while the Starter's
-//! BitLocker suspension stands (`docs/STARTER.md` §6.3): it opens the window
-//! on the BitLocker page only when Resume BitLocker can be taken, and
-//! otherwise exits with no window, removing itself once there is nothing
-//! to resume.
 //!
 //! `--image FILE` writes a developer's own image in place of the
 //! payload's stick image (§1.1): an `.img`, an `.img.xz`, or a
@@ -47,9 +38,7 @@ use std::time::{Duration, Instant};
 
 use faraday_core::StorageEvent;
 use faraday_core::strings::EN;
-use faraday_starter::api::{
-    BitLockerStep, Reason, Remind, Source, StarterCommand, StarterEvent, WriteOrder, remind,
-};
+use faraday_starter::api::{Reason, Source, StarterCommand, StarterEvent, WriteOrder};
 use faraday_starter::{Starter, StarterAction};
 use faraday_starter_shell::payload::{Image, Payload};
 use faraday_starter_shell::platform::{self, Platform};
@@ -206,10 +195,6 @@ impl Shell {
                     {
                         let _ = tx.send(StarterEvent::BootEntryKept(why));
                     }
-                    // The uninstall took the BitLocker marker with it
-                    // (§5.4): the state is read again first, so Home
-                    // never shows the suspension as the Starter's.
-                    let _ = tx.send(StarterEvent::BitLocker(system.bitlocker()));
                     let _ = tx.send(StarterEvent::UninstallDone(done));
                     let _ = tx.send(StarterEvent::Installed(system.installed()));
                     let _ = tx.send(StarterEvent::BootEntry(system.boot_entry()));
@@ -221,38 +206,6 @@ impl Shell {
                     let _ = tx.send(StarterEvent::DesktopStarted(
                         system.run_desktop(payload.as_ref()),
                     ));
-                });
-            }
-            StarterCommand::BitLocker(step) => {
-                let (system, tx, _) = self.threaded();
-                std::thread::spawn(move || {
-                    let (event, read) = match step {
-                        BitLockerStep::ShowKey => {
-                            let (r, p) = system.show_key();
-                            (StarterEvent::KeyShown(r), p)
-                        }
-                        BitLockerStep::Suspend => {
-                            let (result, p) = system.suspend();
-                            (StarterEvent::BitLockerDone { step, result }, p)
-                        }
-                        BitLockerStep::Resume => {
-                            let (result, p) = system.resume();
-                            (StarterEvent::BitLockerDone { step, result }, p)
-                        }
-                    };
-                    // The state first, as the elevated copy read it, so
-                    // the page never shows the step done over the old one.
-                    let state = system.bitlocker().map(|mut b| {
-                        if let Some(p) = read {
-                            b.protection = p;
-                        }
-                        b
-                    });
-                    let _ = tx.send(StarterEvent::BitLocker(state));
-                    let _ = tx.send(event);
-                    if step != BitLockerStep::ShowKey {
-                        let _ = tx.send(StarterEvent::Installed(system.installed()));
-                    }
                 });
             }
             StarterCommand::CheckAgain => {
@@ -282,12 +235,6 @@ impl Shell {
             StarterCommand::OpenTemplate { path } => {
                 let opened = faraday_starter_shell::pdf::open(std::path::Path::new(&path));
                 let _ = self.tx.send(StarterEvent::TemplateOpened(opened));
-            }
-            StarterCommand::SaveKey { disk, key } => {
-                let (system, tx, _) = self.threaded();
-                std::thread::spawn(move || {
-                    let _ = tx.send(StarterEvent::KeySaved(system.save_key(&disk, &key)));
-                });
             }
         }
     }
@@ -524,8 +471,7 @@ const HELP: &str = "faraday-starter [--image FILE] [--downloads DIR] [--size WxH
   --downloads: the folder Transfer sends from and saves into (default ~/Downloads)
   --timings: once a second, what the frames cost on stderr
   --version: print this build's version and exit
-  --uninstall: open on Installed, with Uninstall asked once (Windows' uninstall entry runs this)
-  --remind: at logon, open on BitLocker when Resume BitLocker can be taken; otherwise exit (Windows' logon reminder runs this)";
+  --uninstall: open on Installed, with Uninstall asked once (Windows' uninstall entry runs this)";
 
 fn main() -> ExitCode {
     // The elevated writer on Windows, `--write`, runs before anything
@@ -552,7 +498,6 @@ fn main() -> ExitCode {
     let mut size = (1100, 760);
     let mut timings = false;
     let mut uninstall = false;
-    let mut reminded = false;
     let mut args = given.into_iter();
     while let Some(a) = args.next() {
         match a.as_str() {
@@ -587,8 +532,6 @@ fn main() -> ExitCode {
             // The Windows uninstall entry's command (§5.2): the window
             // opens on Installed with Uninstall asked once.
             "--uninstall" => uninstall = true,
-            // The logon reminder's command (§6.3).
-            "--remind" => reminded = true,
             "--help" | "-h" => {
                 println!("{HELP}");
                 return ExitCode::SUCCESS;
@@ -618,25 +561,9 @@ fn main() -> ExitCode {
         },
     };
     let computer = system.computer();
-    let bitlocker = system.bitlocker();
-    if reminded {
-        let (marker, protection) = match &bitlocker {
-            Some(b) => (b.marker.as_ref(), b.protection),
-            None => (None, faraday_starter::api::Protection::None),
-        };
-        match remind(marker, protection, computer.secure_boot) {
-            Remind::RemoveAndExit => {
-                system.remove_reminder();
-                return ExitCode::SUCCESS;
-            }
-            Remind::Exit => return ExitCode::SUCCESS,
-            Remind::Open => {}
-        }
-    }
     let payload = Payload::built_in();
     let mut starter = Starter::new();
     starter.starter_event(StarterEvent::Computer(computer));
-    starter.starter_event(StarterEvent::BitLocker(bitlocker));
     starter.starter_event(StarterEvent::OtherEncryption(system.other_encryption()));
     starter.starter_event(StarterEvent::Payload(payload.as_ref().map(Payload::event)));
     if let Some(i) = &image {
@@ -647,8 +574,6 @@ fn main() -> ExitCode {
         starter.starter_event(StarterEvent::Installed(system.installed()));
         starter.press(StarterAction::Installed);
         starter.press(StarterAction::Uninstall);
-    } else if reminded {
-        starter.press(StarterAction::BitLocker);
     }
     // The installed copy is asked its version, which takes a moment;
     // the firmware's entry is listed by a program too.

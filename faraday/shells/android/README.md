@@ -64,7 +64,7 @@ wrapper and the two plugins; the Keystore wrapping-key handling of
   it is granted.
 - `FLAG_KEEP_SCREEN_ON` while a code shows.
 
-- Wallet descriptions and BitLocker keys (`KeptStore.kt`, §7): the store
+- Wallet descriptions (`KeptStore.kt`, §7): the store
   in AES-256-GCM under a random data key, the data key wrapped by a
   Keystore key bound to the phone's unlock (Android 11 and later: every
   use, strong biometric or the device credential, through `BiometricPrompt`
@@ -72,7 +72,9 @@ wrapper and the two plugins; the Keystore wrapping-key handling of
   the system's confirm-credential screen). One prompt opens the store and
   the data key stays in memory until `onStop`, which wipes it and tells the
   core `Locked`, unless the system's prompt is what stopped the activity.
-  The two counts Home shows while locked sit beside it, unencrypted.
+  The store's version and the count Home shows while locked sit beside
+  it, unencrypted; a store of version 1 (which held BitLocker keys) is
+  deleted at the first start.
 - Share (§6.3): `ShareProvider.kt`, a platform `ContentProvider`, not
   exported, serving the one file from memory under a random address, with
   a read grant for that address alone; revoked when the person comes back

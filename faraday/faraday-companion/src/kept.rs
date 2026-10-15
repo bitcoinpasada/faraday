@@ -1,38 +1,36 @@
-//! The kept store: wallet descriptions and BitLocker recovery keys
-//! (`docs/COMPANION.md` §4.5, §4.6, §7), the Companion's own byte
-//! format, separate from Received. The shell holds it encrypted under a
+//! The kept store: wallet descriptions (`docs/COMPANION.md` §4.5, §7),
+//! the Companion's own byte format, separate from Received. The shell holds it encrypted under a
 //! key that needs the phone's unlock, hands it to the core when the
 //! person has unlocked ([`crate::CompanionEvent::Kept`]) and keeps what
 //! the core writes back whole after each change
 //! ([`crate::CompanionCommand::KeepKept`]).
 //!
 //! ```text
-//! "FCKS"  version (1 byte, 1)
+//! "FCKS"  version (1 byte, 2)
 //! descriptions: count (u32 LE), then for each, oldest first:
 //!   kept at (u64 LE, seconds since the epoch, 0 unknown)
 //!   name length (u16 LE)  name (UTF-8)
 //!   text length (u32 LE)  text (UTF-8, as it arrived)
-//! keys: count (u32 LE), then for each, oldest first:
-//!   kept at (u64 LE)
-//!   computer length (u16 LE)  computer (UTF-8)
-//!   drive length (u16 LE)  drive (UTF-8)
-//!   key (55 bytes: eight groups of six digits, `-` between)
 //! ```
+//!
+//! Version 1 also held BitLocker recovery keys (F33); this build reads
+//! no such store. The shell deletes one at the first start
+//! ([`crate::CompanionEvent::KeptCounts`]), and one that reaches
+//! [`read`] is a store it cannot read.
 //!
 //! An empty store is no bytes at all: what the shell hands over the
 //! first time. A store is read whole or not at all: a wrong magic, a
-//! version this build does not know, text that is not UTF-8, a key that
-//! is not one, or anything left over is a store it cannot read. Every
-//! copy of the bytes is wiped when dropped.
+//! version this build does not know, text that is not UTF-8, or anything
+//! left over is a store it cannot read. Every copy of the bytes is wiped
+//! when dropped.
 
-use faraday_qr::bitlocker::{KeyText, RecoveryKey};
 use zeroize::{Zeroize, Zeroizing};
 
 /// The first four bytes of a store.
 pub const MAGIC: &[u8; 4] = b"FCKS";
 
 /// The version this build writes and reads.
-pub const VERSION: u8 = 1;
+pub const VERSION: u8 = 2;
 
 /// A kept wallet description.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,37 +43,23 @@ pub struct Description {
     pub time: u64,
 }
 
-/// A kept BitLocker recovery key.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Key {
-    /// The computer, the drive and the key, as the Starter wrote them.
-    pub text: KeyText,
-    /// When it was kept, seconds since the epoch; 0 when not known.
-    pub time: u64,
-}
-
 /// What the kept store holds. Wiped when dropped.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Store {
     /// The wallet descriptions, oldest first.
     pub descriptions: Vec<Description>,
-    /// The BitLocker keys, oldest first.
-    pub keys: Vec<Key>,
 }
 
 impl Store {
-    /// How many descriptions and how many keys it holds: what Home shows
-    /// while the store is locked.
-    pub fn counts(&self) -> (u32, u32) {
-        (
-            u32::try_from(self.descriptions.len()).unwrap_or(u32::MAX),
-            u32::try_from(self.keys.len()).unwrap_or(u32::MAX),
-        )
+    /// How many descriptions it holds: what Home shows while the store
+    /// is locked.
+    pub fn count(&self) -> u32 {
+        u32::try_from(self.descriptions.len()).unwrap_or(u32::MAX)
     }
 
     /// Whether it holds nothing.
     pub fn is_empty(&self) -> bool {
-        self.descriptions.is_empty() && self.keys.is_empty()
+        self.descriptions.is_empty()
     }
 }
 
@@ -85,13 +69,7 @@ impl Zeroize for Store {
             d.name.zeroize();
             d.text.zeroize();
         }
-        for k in &mut self.keys {
-            k.text.zeroize();
-            k.text.computer.zeroize();
-            k.text.drive.zeroize();
-        }
         self.descriptions.clear();
-        self.keys.clear();
     }
 }
 
@@ -113,17 +91,11 @@ fn short(s: &str) -> &[u8] {
 
 /// The store's bytes, wiped when dropped.
 pub fn write(store: &Store) -> Zeroizing<Vec<u8>> {
-    let size = 13
-        + store
-            .descriptions
-            .iter()
-            .map(|d| 14 + d.name.len() + d.text.len())
-            .sum::<usize>()
-        + store
-            .keys
-            .iter()
-            .map(|k| 12 + k.text.computer.len() + k.text.drive.len() + 55)
-            .sum::<usize>();
+    let size = 9 + store
+        .descriptions
+        .iter()
+        .map(|d| 14 + d.name.len() + d.text.len())
+        .sum::<usize>();
     let mut out = Zeroizing::new(Vec::with_capacity(size));
     out.extend_from_slice(MAGIC);
     out.push(VERSION);
@@ -135,16 +107,6 @@ pub fn write(store: &Store) -> Zeroizing<Vec<u8>> {
         out.extend_from_slice(name);
         out.extend_from_slice(&(d.text.len() as u32).to_le_bytes());
         out.extend_from_slice(d.text.as_bytes());
-    }
-    out.extend_from_slice(&(store.keys.len() as u32).to_le_bytes());
-    for k in &store.keys {
-        out.extend_from_slice(&k.time.to_le_bytes());
-        for field in [&k.text.computer, &k.text.drive] {
-            let f = short(field);
-            out.extend_from_slice(&(f.len() as u16).to_le_bytes());
-            out.extend_from_slice(f);
-        }
-        out.extend_from_slice(k.text.key.as_str().as_bytes());
     }
     out
 }
@@ -203,22 +165,6 @@ pub fn read(bytes: &[u8]) -> Option<Store> {
         let len = usize::try_from(r.u32()?).ok()?;
         let text = r.text(len)?;
         store.descriptions.push(Description { name, text, time });
-    }
-    for _ in 0..r.u32()? {
-        let time = r.u64()?;
-        let len = usize::from(r.u16()?);
-        let computer = r.text(len)?;
-        let len = usize::from(r.u16()?);
-        let drive = r.text(len)?;
-        let key = RecoveryKey::parse(std::str::from_utf8(r.take(55)?).ok()?)?;
-        store.keys.push(Key {
-            text: KeyText {
-                computer,
-                drive,
-                key,
-            },
-            time,
-        });
     }
     r.0.is_empty().then_some(store)
 }

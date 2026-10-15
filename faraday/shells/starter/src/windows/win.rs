@@ -16,10 +16,9 @@ use std::time::{Duration, Instant};
 use faraday_core::strings::EN;
 use faraday_core::{Program, parse_version_output};
 use faraday_payload::{ImageKind, ImageSum, Sha256Sum};
-use faraday_qr::bitlocker::KeyText;
 use faraday_starter::api::{
-    BitLocker, Bus, Computer, Concern, Disk, FaradayStick, Installed, KeyShown, Protection, Reason,
-    Source, StarterEvent, WriteOrder, WriteStage,
+    Bus, Computer, Concern, Disk, FaradayStick, Installed, Reason, Source, StarterEvent,
+    WriteOrder, WriteStage,
 };
 use faraday_starter::concern;
 use windows_sys::Win32::Foundation::GENERIC_READ;
@@ -34,9 +33,7 @@ use windows_sys::Win32::System::Ioctl::{
 };
 use windows_sys::Win32::System::Registry::HKEY_LOCAL_MACHINE;
 use windows_sys::Win32::UI::Shell::{FOLDERID_Downloads, FOLDERID_LocalAppData, FOLDERID_Programs};
-use zeroize::Zeroizing;
 
-use super::bitlocker::{self, Answer, Order, Reply, Verb};
 use super::devices::{self, Output};
 use super::disks::{RawDisk, RawVolume, Snapshot, disk_id, disk_number};
 use super::elevated::{self, Elevated};
@@ -91,22 +88,6 @@ impl Platform for Windows {
         })
     }
 
-    fn bitlocker(&self) -> Option<BitLocker> {
-        let drive = system_drive();
-        let marker = dirs().ok().and_then(|d| bitlocker::read_marker(&d.local));
-        let mut protection = bitlocker::shell_protection(sys::bitlocker_protection(&drive));
-        // The shell may read a suspended drive as not encrypted; the
-        // marker says the Starter suspended it.
-        if marker.is_some() && protection == Protection::None {
-            protection = Protection::Suspended;
-        }
-        Some(BitLocker {
-            drive,
-            protection,
-            marker: marker.map(|m| m.marker(sys::boot_time())),
-        })
-    }
-
     fn concerns(&self) -> Vec<Concern> {
         let c = self.computer();
         let vm = concern::virtual_machine(&c.maker, &c.model, sys::hypervisor_guest());
@@ -118,122 +99,12 @@ impl Platform for Windows {
                 o
             })
             .collect();
-        devices::concerns(vm, sys::remote_session(), &outputs, &sys::usb_devices())
+        devices::concerns(vm, &outputs, &sys::usb_devices())
     }
 
     fn other_encryption(&self) -> Option<String> {
         sys::reg_get(HKEY_LOCAL_MACHINE, registry::VERACRYPT, "Start")
             .map(|_| String::from("VeraCrypt"))
-    }
-
-    fn show_key(&self) -> (Result<KeyShown, Reason>, Option<Protection>) {
-        let reply = match elevate_bitlocker(Verb::ShowKey) {
-            Ok(r) => r,
-            Err(why) => return (Err(why), None),
-        };
-        let result = match (reply.done, reply.key) {
-            (Some(Ok(())), Some(f)) => Ok(KeyShown {
-                text: KeyText {
-                    computer: computer_name(&self.computer()),
-                    drive: f.drive,
-                    key: f.key,
-                },
-                id: f.id,
-            }),
-            (Some(Err(why)), _) => Err(why),
-            _ => Err(Reason::BitLocker {
-                call: String::from("GetKeyProtectorNumericalPassword"),
-                code: 0,
-            }),
-        };
-        (result, reply.state)
-    }
-
-    fn suspend(&self) -> (Result<(), Reason>, Option<Protection>) {
-        let reply = match elevate_bitlocker(Verb::Suspend) {
-            Ok(r) => r,
-            Err(why) => return (Err(why), None),
-        };
-        let result = match reply.done {
-            Some(Ok(())) => {
-                // Secure Boot as it is at this moment (§6.3), read again.
-                let secure_boot = self.computer().secure_boot;
-                let boot = sys::boot_time();
-                dirs().and_then(|d| {
-                    bitlocker::after_suspend(
-                        &d,
-                        &reply.suspended,
-                        secure_boot,
-                        boot,
-                        &faraday_of,
-                        &mut sys::CurrentUser,
-                    )
-                })
-            }
-            Some(Err(why)) => Err(why),
-            None => Err(Reason::BitLocker {
-                call: String::from("DisableKeyProtectors"),
-                code: 0,
-            }),
-        };
-        (result, reply.state)
-    }
-
-    fn resume(&self) -> (Result<(), Reason>, Option<Protection>) {
-        let d = match dirs() {
-            Ok(d) => d,
-            Err(why) => return (Err(why), None),
-        };
-        let Some(marker) = bitlocker::read_marker(&d.local) else {
-            // Nothing the Starter suspended: nothing to resume here.
-            return (bitlocker::after_resume(&d, &mut sys::CurrentUser), None);
-        };
-        let reply = match elevate_bitlocker(Verb::Resume(marker.devices())) {
-            Ok(r) => r,
-            Err(why) => return (Err(why), None),
-        };
-        let result = match reply.done {
-            Some(Ok(())) => bitlocker::after_resume(&d, &mut sys::CurrentUser),
-            Some(Err(why)) => Err(why),
-            None => Err(Reason::BitLocker {
-                call: String::from("EnableKeyProtectors"),
-                code: 0,
-            }),
-        };
-        (result, reply.state)
-    }
-
-    fn save_key(&self, disk: &str, key: &KeyShown) -> Result<String, Reason> {
-        let n = disk_number(disk).ok_or(Reason::Gone)?;
-        let s = snapshot();
-        let found = s
-            .disks()
-            .into_iter()
-            .find(|f| f.disk.id == disk)
-            .ok_or(Reason::Gone)?;
-        let d = &found.disk;
-        // Only a removable disk that is not a Faraday stick (§6.2).
-        if !matches!(d.bus, Bus::Usb | Bus::SdReader) || d.faraday.is_some() || d.in_use.is_some() {
-            return Err(Reason::Changed {
-                device: d.device.clone(),
-                serial: d.serial.clone(),
-                size: d.size,
-            });
-        }
-        let v = s
-            .volumes_on(n)
-            .into_iter()
-            .find(|v| !v.filesystem.is_empty())
-            .ok_or(Reason::Gone)?;
-        let folder = v.paths.first().cloned().unwrap_or_else(|| v.name.clone());
-        bitlocker::save_key_to(Path::new(&folder), key, EN.starter_key_file)
-            .map(|p| p.display().to_string())
-    }
-
-    fn remove_reminder(&self) {
-        if let Ok(d) = dirs() {
-            let _ = install::remove_reminder(&d, &mut sys::CurrentUser);
-        }
     }
 
     fn watch(&self, out: Sender<StarterEvent>, forget: Receiver<String>) {
@@ -338,20 +209,6 @@ impl Platform for Windows {
     }
 }
 
-/// The system drive (`C:`), from the Windows folder.
-fn system_drive() -> String {
-    bitlocker::drive_of(&sys::windows_dir())
-}
-
-/// The computer's name, as the key's text names it: Windows' name for
-/// it, else its maker and model.
-fn computer_name(c: &Computer) -> String {
-    std::env::var("COMPUTERNAME")
-        .ok()
-        .filter(|n| !n.trim().is_empty())
-        .unwrap_or_else(|| format!("{} {}", c.maker, c.model).trim().to_string())
-}
-
 /// A new pipe's name, for the elevated copy to answer on.
 fn pipe_name() -> String {
     let stamp = std::time::SystemTime::now()
@@ -363,55 +220,6 @@ fn pipe_name() -> String {
         std::process::id(),
         stamp
     )
-}
-
-/// The window's side of a BitLocker step: a pipe, the elevated copy
-/// started on it with `--bitlocker`, and everything it answered. The
-/// key arrives over the pipe only this account can open, never through a
-/// file, read into a buffer wiped after each line. A declined prompt on
-/// an account that is not an administrator's says so (§6.4).
-fn elevate_bitlocker(verb: Verb) -> Result<Reply, Reason> {
-    let fail = |call: &str, e: std::io::Error| Reason::BitLocker {
-        call: call.to_string(),
-        code: e.raw_os_error().unwrap_or(0) as u32,
-    };
-    let name = pipe_name();
-    let pipe = sys::pipe(&name).map_err(|e| fail("CreateNamedPipe", e))?;
-    let args = Order { verb, pipe: name }.args();
-    let child = match sys::run_elevated(&running()?, &elevated::command_line(&args)) {
-        Ok(p) => p,
-        Err(Elevation::Declined) if sys::administrator() => return Err(Reason::Declined),
-        Err(Elevation::Declined) => return Err(Reason::NoAdmin),
-        Err(Elevation::Failed(e)) => return Err(fail("ShellExecuteEx", e)),
-    };
-    loop {
-        if sys::pipe_connected(&pipe).map_err(|e| fail("ConnectNamedPipe", e))? {
-            break;
-        }
-        if child.ended(Duration::from_millis(50)) {
-            return Err(ended_bitlocker(&child));
-        }
-    }
-    if sys::pipe_client(&pipe) != Some(child.id()) {
-        return Err(Reason::BitLocker {
-            call: String::from("GetNamedPipeClientProcessId"),
-            code: 0,
-        });
-    }
-    let mut pipe = pipe;
-    let reply = bitlocker::reply(&mut pipe).map_err(|e| Reason::BitLocker { call: e, code: 0 })?;
-    while !child.ended(Duration::from_millis(200)) {}
-    if reply.done.is_none() {
-        return Err(ended_bitlocker(&child));
-    }
-    Ok(reply)
-}
-
-fn ended_bitlocker(child: &sys::Process) -> Reason {
-    Reason::BitLocker {
-        call: String::from("--bitlocker"),
-        code: child.code().unwrap_or(u32::MAX),
-    }
 }
 
 fn shutdown_exe() -> Result<PathBuf, String> {
@@ -673,61 +481,11 @@ fn ended(child: &sys::Process) -> Reason {
 pub fn early(args: &[String]) -> Option<ExitCode> {
     match args.first().map(String::as_str) {
         Some(elevated::WRITE) => Some(elevated_write(args)),
-        Some(bitlocker::BITLOCKER) => Some(elevated_bitlocker(args)),
         Some("--record-disks") => {
             print!("{}", snapshot().record());
             Some(ExitCode::SUCCESS)
         }
-        Some("--record-bitlocker") => Some(record_bitlocker()),
         _ => None,
-    }
-}
-
-/// The elevated copy of a BitLocker step: reads its arguments, refusing
-/// a malformed list before anything is opened, connects to the window's
-/// pipe, then to WMI, and answers there. The key goes over the pipe from
-/// a buffer wiped once it is written.
-fn elevated_bitlocker(args: &[String]) -> ExitCode {
-    let Ok(order) = Order::parse(args) else {
-        return ExitCode::from(2);
-    };
-    let Ok(mut pipe) = OpenOptions::new().write(true).open(&order.pipe) else {
-        return ExitCode::from(3);
-    };
-    let drive = system_drive();
-    let mut wmi = match sys::WmiSession::connect() {
-        Ok(w) => w,
-        Err(f) => {
-            let mut scratch = Zeroizing::new(Vec::new());
-            let _ = bitlocker::send(&mut pipe, &Answer::Done(Err(f.into())), &mut scratch);
-            return ExitCode::FAILURE;
-        }
-    };
-    if bitlocker::run(&mut wmi, &order.verb, &drive, &mut pipe) {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::FAILURE
-    }
-}
-
-/// `--record-bitlocker`, run as an administrator: this computer's
-/// BitLocker as `tests/windows/*.wmi` records it, and the shell's
-/// unelevated reading, on standard output. No recovery password is read.
-fn record_bitlocker() -> ExitCode {
-    let drive = system_drive();
-    println!(
-        "# shell System.Volume.BitLockerProtection for {drive}: {:?}",
-        sys::bitlocker_protection(&drive)
-    );
-    match sys::WmiSession::connect() {
-        Ok(mut wmi) => {
-            print!("{}", bitlocker::record(&mut wmi));
-            ExitCode::SUCCESS
-        }
-        Err(f) => {
-            println!("# {}: {:08x}", f.call, f.code);
-            ExitCode::FAILURE
-        }
     }
 }
 

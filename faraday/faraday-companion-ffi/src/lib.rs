@@ -27,7 +27,7 @@
 //! [`poll`] returns one command code and parks that command's payload on
 //! the instance, which the shell reads with [`command_kind`],
 //! [`command_bytes`], [`command_name`], [`command_text`], [`command_on`],
-//! [`command_descriptions`] and [`command_keys`]. It answers upstream's commands first and then the
+//! [`command_descriptions`]. It answers upstream's commands first and then the
 //! Companion's own ([`CompanionCommand`]), under codes of their own.
 //!
 //! Only the commands a Companion gives reach the shell. Upstream's
@@ -123,9 +123,9 @@ pub const CMD_KEEP_THEME: i32 = 18;
 /// shell asks the same way for each.
 pub const CMD_UNLOCK_KEPT: i32 = 19;
 /// [`poll`]: keep the kept store ([`CompanionCommand::KeepKept`]); the
-/// bytes are in [`command_bytes`], the two counts in
-/// [`command_descriptions`] and [`command_keys`]. Empty bytes: delete the
-/// store, its wrapped key and the counts.
+/// bytes are in [`command_bytes`], the count of wallet descriptions in
+/// [`command_descriptions`]. Empty bytes: delete the store, its wrapped
+/// key and the count.
 pub const CMD_KEEP_KEPT: i32 = 20;
 /// [`poll`]: hand one file to the system's share sheet
 /// ([`CompanionCommand::Share`]); its name, media type and bytes are in
@@ -252,8 +252,8 @@ struct Payload {
     name: Option<String>,
     text: Option<String>,
     on: bool,
-    /// [`CMD_KEEP_KEPT`]'s two counts: descriptions, keys.
-    counts: (u32, u32),
+    /// [`CMD_KEEP_KEPT`]'s count of wallet descriptions.
+    count: u32,
 }
 
 impl Payload {
@@ -383,12 +383,11 @@ fn encode_companion(command: CompanionCommand) -> Option<(i32, Payload)> {
         CompanionCommand::KeepKept {
             bytes,
             descriptions,
-            keys,
         } => (
             CMD_KEEP_KEPT,
             Payload {
                 bytes: Some(bytes),
-                counts: (descriptions, keys),
+                count: descriptions,
                 ..none()
             },
         ),
@@ -826,11 +825,18 @@ pub fn locked(handle: i64) {
     send_companion(handle, CompanionEvent::Locked);
 }
 
-/// The two counts the shell keeps beside the kept store, sent once at
-/// start. A negative count is ignored.
-pub fn kept_counts(handle: i64, descriptions: i32, keys: i32) {
-    if let (Ok(descriptions), Ok(keys)) = (u32::try_from(descriptions), u32::try_from(keys)) {
-        send_companion(handle, CompanionEvent::KeptCounts { descriptions, keys });
+/// The version and the count the shell keeps beside the kept store, sent
+/// once at start. A negative number is ignored. A version other than the
+/// core's has the store deleted (a [`CMD_KEEP_KEPT`] with empty bytes).
+pub fn kept_counts(handle: i64, version: i32, descriptions: i32) {
+    if let (Ok(version), Ok(descriptions)) = (u32::try_from(version), u32::try_from(descriptions)) {
+        send_companion(
+            handle,
+            CompanionEvent::KeptCounts {
+                version,
+                descriptions,
+            },
+        );
     }
 }
 
@@ -905,14 +911,7 @@ pub fn command_on(handle: i64) -> bool {
 /// command.
 #[must_use]
 pub fn command_descriptions(handle: i64) -> i32 {
-    with(handle, |i| clamp(i.payload.counts.0)).unwrap_or(0)
-}
-
-/// [`CMD_KEEP_KEPT`]'s count of BitLocker keys; `0` after any other
-/// command.
-#[must_use]
-pub fn command_keys(handle: i64) -> i32 {
-    with(handle, |i| clamp(i.payload.counts.1)).unwrap_or(0)
+    with(handle, |i| clamp(i.payload.count)).unwrap_or(0)
 }
 
 /// A count as the shell's `Int`.
@@ -1316,7 +1315,7 @@ mod tests {
         bytes: Option<Vec<u8>>,
         name: Option<String>,
         text: Option<String>,
-        counts: (i32, i32),
+        count: i32,
     }
 
     /// Every command until the queues are empty, with what each carried
@@ -1331,7 +1330,7 @@ mod tests {
                     bytes: command_bytes(handle),
                     name: command_name(handle),
                     text: command_text(handle),
-                    counts: (command_descriptions(handle), command_keys(handle)),
+                    count: command_descriptions(handle),
                 }),
             }
         }
@@ -1370,18 +1369,18 @@ mod tests {
             .expect("the kept store handed over");
         let store = written.bytes.expect("its bytes");
         assert!(!store.is_empty());
-        assert_eq!(written.counts, (1, 0));
+        assert_eq!(written.count, 1);
         destroy(handle);
 
-        // The next start: the counts while locked, the store after the
+        // The next start: the count while locked, the store after the
         // unlock.
         let again = phone();
-        kept_counts(again, 1, 0);
+        kept_counts(again, 2, 1);
         assert_eq!(with(again, |i| i.app.kept().is_none()), Some(true));
         destroy(again);
         let again = on_descriptions(store);
-        let count = with(again, |i| i.app.kept().map(|k| k.counts()));
-        assert_eq!(count.flatten(), Some((1, 0)));
+        let count = with(again, |i| i.app.kept().map(|k| k.count()));
+        assert_eq!(count.flatten(), Some(1));
         destroy(again);
     }
 
@@ -1405,7 +1404,7 @@ mod tests {
             (CLOSED_UNREADABLE, Closed::Unreadable),
         ] {
             let handle = phone();
-            press(handle, Act::Keys);
+            press(handle, Act::Descriptions);
             drain(handle);
             // A code the core does not know leaves the question open.
             kept_closed(handle, 9);
@@ -1470,7 +1469,7 @@ mod tests {
             .rfind(|c| c.code == CMD_KEEP_KEPT)
             .expect("the store's deletion");
         assert_eq!(written.bytes.as_deref(), Some(&[][..]));
-        assert_eq!(written.counts, (0, 0));
+        assert_eq!(written.count, 0);
         destroy(handle);
     }
 

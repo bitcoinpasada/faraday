@@ -32,7 +32,7 @@ If the stick is not listed: see "If something is different" below.
 
 5. Turn the computer off from Faraday and pull the stick out.
 
-6. Open the BIOS, set Secure Boot back to Enabled, save and exit.
+6. Turn Secure Boot back on: open the BIOS, set Secure Boot back to Enabled, save and exit. Do it before the computer's own system starts.
 
 If Secure Boot cannot be enabled: load the computer's own Secure Boot keys (Restore Factory Keys, or a Custom setting that loads the keys built into the computer).
 

@@ -169,19 +169,16 @@ fn changing_the_maker_lists_the_makers_again() {
 }
 
 #[test]
-fn windows_shows_the_bitlocker_pages_and_linux_does_not() {
+fn windows_shows_what_secure_boot_and_bitlocker_are_and_linux_does_not() {
     let mut c = restarted("windows", "");
     c.press(Act::Start);
-    assert!(shows(&mut c, EN.companion_start_bitlocker));
-    assert!(shows(&mut c, title("bitlocker")));
     assert!(shows(&mut c, title("secure-boot-bitlocker")));
     assert!(shows(&mut c, EN.companion_start_trouble));
     assert!(shows(&mut c, title("not-starting")));
 
     let mut c = restarted("linux", "");
     c.press(Act::Start);
-    assert!(!shows(&mut c, EN.companion_start_bitlocker));
-    assert!(!shows(&mut c, title("bitlocker")));
+    assert!(!shows(&mut c, title("secure-boot-bitlocker")));
     assert!(shows(&mut c, title("linux")));
     assert!(!shows(&mut c, title("windows")));
     assert!(shows(&mut c, title("not-starting")));

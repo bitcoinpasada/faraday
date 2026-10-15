@@ -34,7 +34,6 @@ fn every_guide_the_starter_links_to_is_there() {
         [
             "Starting a Windows computer from the stick",
             "Starting a Linux computer from the stick",
-            "BitLocker and starting from a stick",
             "What Secure Boot and BitLocker are",
             "Screens and devices that can record",
             "When the stick does not start",
@@ -51,10 +50,14 @@ fn the_boot_entry_page_is_there() {
 }
 
 #[test]
-fn the_windows_guide_says_the_recovery_key_backup_is_optional_before_any_bios_step() {
+fn the_windows_guide_says_the_last_step_turns_secure_boot_back_on_before_any_bios_step() {
     let first = &guide("windows").sections[0];
     assert_eq!(first.heading, "Before you start");
-    assert!(first.paragraphs[0].starts_with("A backup of the BitLocker recovery key is optional"));
+    assert_eq!(
+        first.paragraphs[0],
+        "The last step turns Secure Boot back on, before Windows starts. With Secure Boot back on, \
+         Windows starts as usual and asks for nothing."
+    );
 }
 
 #[test]
@@ -116,6 +119,69 @@ fn the_page_for_another_maker_gives_the_common_keys_and_says_to_search() {
             !all.split(|c: char| !c.is_ascii_alphanumeric())
                 .any(|w| w == name),
             "{name}"
+        );
+    }
+}
+
+#[test]
+fn every_guide_ends_with_the_step_that_turns_secure_boot_back_on() {
+    for id in step_pages() {
+        let page = guide(id);
+        let last = faraday_learn::steps(page).len();
+        let text = page
+            .sections
+            .iter()
+            .flat_map(|s| s.paragraphs.iter().copied())
+            .find(|p| p.starts_with(&format!("{last}. ")))
+            .unwrap_or_else(|| panic!("{id}: no step {last}"));
+        let body = text.split_once(". ").expect("a step").1;
+        assert!(body.starts_with("Turn Secure Boot back on"), "{id}: {text}");
+        let ending = if id == "linux" {
+            "Do it before the computer's own system starts."
+        } else {
+            "Do it before Windows starts."
+        };
+        assert!(text.ends_with(ending), "{id}: {text}");
+    }
+}
+
+#[test]
+fn no_guide_offers_a_key_backup_a_suspension_or_a_resume() {
+    for id in faraday_guides::ids() {
+        let all = guide(id)
+            .sections
+            .iter()
+            .flat_map(|s| s.paragraphs.iter().copied())
+            .collect::<Vec<_>>()
+            .join(" ");
+        for word in [
+            "Resume BitLocker",
+            "suspended BitLocker",
+            "BitLocker page",
+            "back it up",
+        ] {
+            assert!(!all.contains(word), "{id}: {word}");
+        }
+    }
+    assert!(faraday_guides::page("bitlocker").is_none());
+}
+
+#[test]
+fn the_windows_guide_and_each_maker_page_say_where_windows_keeps_the_recovery_key() {
+    for id in faraday_learn::MAKERS
+        .iter()
+        .map(|m| m.id)
+        .chain(["maker-other", "windows"])
+    {
+        let different = guide(id)
+            .sections
+            .iter()
+            .find(|s| s.heading == "If something is different")
+            .unwrap_or_else(|| panic!("{id}: no such section"));
+        assert!(
+            different.paragraphs[0].starts_with("If Windows asks for the BitLocker recovery key:")
+                && different.paragraphs[0].contains("aka.ms/myrecoverykey"),
+            "{id}"
         );
     }
 }

@@ -2,10 +2,10 @@
 //! the shell's reports in, the frame's words and the Starter's commands out.
 
 use faraday_starter::api::{
-    BitLocker, Bus, Computer, DevImage, Disk, FaradayStick, InUse, Marker, Mode, Os, Payload,
-    PayloadFile, Protection, Reason, Remind, Source, StarterCommand, StarterEvent, Volume, remind,
+    Bus, Computer, DevImage, Disk, FaradayStick, InUse, Mode, Os, Payload, PayloadFile, Reason,
+    Source, StarterCommand, StarterEvent, Volume,
 };
-use faraday_starter::decide::{Item, Target};
+use faraday_starter::decide::Target;
 use faraday_starter::{LearnId, Page, RestartTo, Sheet, Starter, StarterAction};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
@@ -567,18 +567,6 @@ fn next_step(starter: &mut Starter) -> (bool, Page, Option<Sheet>) {
 const FIRMWARE: Option<Sheet> = Some(Sheet::Restart(RestartTo::Firmware));
 const STICK: Option<Sheet> = Some(Sheet::Restart(RestartTo::Stick));
 
-fn suspended(secure_boot_was_on: bool) -> BitLocker {
-    BitLocker {
-        drive: "C:".into(),
-        protection: Protection::Suspended,
-        marker: Some(Marker {
-            volumes: vec!["C:".into()],
-            secure_boot_was_on,
-            this_boot: false,
-        }),
-    }
-}
-
 #[test]
 fn home_leads_with_the_next_step_for_each_state() {
     // No stick.
@@ -597,114 +585,27 @@ fn home_leads_with_the_next_step_for_each_state() {
     assert!(shows(&mut starter, "Faraday stick attached · 0.2.0"));
     assert_eq!(next_step(&mut starter), (true, Page::Home, FIRMWARE));
 
-    // Windows, protected: the firmware, with the BitLocker item
-    // optional and never the next step (F21).
+    // Windows with Secure Boot on: the firmware.
     starter.starter_event(StarterEvent::Computer(windows(true)));
-    starter.starter_event(StarterEvent::BitLocker(Some(BitLocker {
-        drive: "C:".into(),
-        protection: Protection::On,
-        marker: None,
-    })));
-    assert!(shows(&mut starter, "Optional"));
+    assert!(!shows(&mut starter, "Turn Secure Boot back on"));
     assert_eq!(next_step(&mut starter), (true, Page::Home, FIRMWARE));
 
-    // Suspended by Faraday, Secure Boot off: turn it back on, even with
-    // no stick attached.
+    // Windows with Secure Boot off and no stick: Turn Secure Boot back on
+    // is listed, and never the next step.
     starter.starter_event(StarterEvent::Disks(Vec::new()));
     starter.starter_event(StarterEvent::Computer(windows(false)));
-    starter.starter_event(StarterEvent::BitLocker(Some(suspended(true))));
-    assert!(card_says(&mut starter, "Restart into the BIOS"));
     assert!(shows(&mut starter, "Turn Secure Boot back on"));
-    assert!(shows(&mut starter, "Needs Secure Boot on"));
-    assert_eq!(next_step(&mut starter), (true, Page::Home, FIRMWARE));
-
-    // Suspended, Secure Boot on again: resume.
-    starter.starter_event(StarterEvent::Computer(windows(true)));
-    assert!(position(&mut starter, "Resume BitLocker") < position(&mut starter, "Checklist"));
-    assert!(!shows(&mut starter, "Turn Secure Boot back on"));
-    assert_eq!(next_step(&mut starter), (true, Page::BitLocker, None));
+    assert_eq!(next_step(&mut starter), (true, Page::Disks, None));
 }
 
 #[test]
-fn resume_follows_secure_boot_as_the_marker_recorded_it() {
-    // The marker recorded Secure Boot off, and it is off now: Resume is
-    // offered, and nobody is told to turn Secure Boot on.
-    let mut starter = starter_with(Vec::new());
-    starter.starter_event(StarterEvent::Computer(windows(false)));
-    starter.starter_event(StarterEvent::BitLocker(Some(suspended(false))));
-    assert!(!shows(&mut starter, "Turn Secure Boot back on"));
-    assert!(!shows(&mut starter, "Needs Secure Boot"));
-    assert!(position(&mut starter, "Resume BitLocker") < position(&mut starter, "Checklist"));
-    assert_eq!(next_step(&mut starter), (true, Page::BitLocker, None));
-
-    // Recorded off, on now: not offered.
-    starter.starter_event(StarterEvent::Computer(windows(true)));
-    assert!(shows(&mut starter, "Needs Secure Boot off"));
-    assert!(!next_step(&mut starter).0);
-}
-
-#[test]
-fn remind_shows_a_window_in_one_state_of_three() {
-    let on = Marker {
-        volumes: vec!["C:".into()],
-        secure_boot_was_on: true,
-        this_boot: false,
-    };
-    let off = Marker {
-        secure_boot_was_on: false,
-        ..on.clone()
-    };
-    let now = Marker {
-        this_boot: true,
-        ..on.clone()
-    };
-    assert_eq!(
-        remind(None, Protection::Suspended, Some(true)),
-        Remind::RemoveAndExit
-    );
-    assert_eq!(
-        remind(Some(&on), Protection::On, Some(true)),
-        Remind::RemoveAndExit
-    );
-    assert_eq!(
-        remind(Some(&on), Protection::Suspended, Some(false)),
-        Remind::Exit
-    );
-    assert_eq!(remind(Some(&on), Protection::Suspended, None), Remind::Exit);
-    assert_eq!(
-        remind(Some(&on), Protection::Suspended, Some(true)),
-        Remind::Open
-    );
-    assert_eq!(
-        remind(Some(&off), Protection::Suspended, Some(false)),
-        Remind::Open
-    );
-    assert_eq!(
-        remind(Some(&off), Protection::Suspended, Some(true)),
-        Remind::Exit
-    );
-    // In the boot that suspended, no window.
-    assert_eq!(
-        remind(Some(&now), Protection::Suspended, Some(true)),
-        Remind::Exit
-    );
-}
-
-#[test]
-fn start_offers_the_firmware_buttons_with_a_protected_drive() {
+fn start_offers_the_firmware_buttons_on_windows() {
     let mut starter = starter_with(Vec::new());
     starter.starter_event(StarterEvent::Computer(windows(true)));
-    starter.starter_event(StarterEvent::BitLocker(Some(BitLocker {
-        drive: "C:".into(),
-        protection: Protection::On,
-        marker: None,
-    })));
     starter.press(StarterAction::Start);
     assert!(shows(&mut starter, "Restart into the BIOS"));
-    assert!(shows(&mut starter, "Back up the recovery key"));
     let _ = starter.drawn_texts();
     assert!(starter.offers_action(StarterAction::Restart));
-    assert!(starter.offers_action(StarterAction::BitLocker));
     tap(&mut starter, StarterAction::Restart);
     assert!(shows(
         &mut starter,
@@ -776,7 +677,6 @@ fn start_opens_the_makers_page_and_its_address_is_on_the_restart() {
     let mut c = windows(true);
     c.maker = "Dell Inc.".into();
     starter.starter_event(StarterEvent::Computer(c));
-    starter.starter_event(StarterEvent::BitLocker(Some(suspended(true))));
     starter.press(StarterAction::Start);
     assert!(shows(
         &mut starter,
@@ -878,13 +778,8 @@ fn transfer_is_the_desktop_apps_and_back_returns_to_home() {
 #[test]
 fn checklist_items_that_do_not_apply_are_not_shown() {
     let mut starter = starter_with(Vec::new());
-    // Linux: no BitLocker items (the Learn link's title names it).
-    let t = texts(&mut starter);
-    assert!(
-        !t.iter()
-            .any(|t| t == "BitLocker" || t.contains("Resume BitLocker"))
-    );
-    let _ = Item::Resume;
+    // Linux: no Turn Secure Boot back on with Secure Boot on.
+    assert!(!shows(&mut starter, "Turn Secure Boot back on"));
     // An ARM computer: only Make a stick, and the line that says why.
     let mut arm = windows(true);
     arm.arm = true;
@@ -925,15 +820,9 @@ fn the_cards_button_follows_this_computers_state() {
     assert!(card_says(&mut starter, "Make a Faraday stick"));
     assert_eq!(next_step(&mut starter), (true, Page::Disks, None));
 
-    // Windows, protected: no BitLocker step first (F21).
+    // Windows with Secure Boot off.
     let mut starter = starter_with(stick_attached());
     starter.starter_event(StarterEvent::Computer(windows(false)));
-    starter.starter_event(StarterEvent::BitLocker(Some(BitLocker {
-        drive: "C:".into(),
-        protection: Protection::On,
-        marker: None,
-    })));
-    assert!(!card_says(&mut starter, "Do the BitLocker step"));
     assert!(card_says(&mut starter, "Restart from the stick"));
     assert_eq!(next_step(&mut starter), (true, Page::Home, STICK));
 
@@ -954,28 +843,16 @@ fn the_cards_button_follows_this_computers_state() {
     assert!(card_says(&mut starter, "Restart from the stick"));
     assert_eq!(next_step(&mut starter), (true, Page::Home, STICK));
 
-    // And Windows with no encrypted drive.
+    // And Windows with Secure Boot off.
     starter.starter_event(StarterEvent::Computer(windows(false)));
-    starter.starter_event(StarterEvent::BitLocker(Some(BitLocker {
-        drive: "C:".into(),
-        protection: Protection::None,
-        marker: None,
-    })));
     assert!(card_says(&mut starter, "Restart from the stick"));
     assert_eq!(next_step(&mut starter), (true, Page::Home, STICK));
 }
 
 #[test]
-fn homes_next_step_is_the_firmware_whatever_the_bitlockers_state() {
+fn homes_next_step_on_windows_with_secure_boot_on_is_the_firmware() {
     let mut starter = starter_with(stick_attached());
     starter.starter_event(StarterEvent::Computer(windows(true)));
-    starter.starter_event(StarterEvent::BitLocker(Some(BitLocker {
-        drive: "C:".into(),
-        protection: Protection::On,
-        marker: None,
-    })));
-    assert!(shows(&mut starter, "Optional"));
-    assert!(!card_says(&mut starter, "Do the BitLocker step"));
     assert!(card_says(&mut starter, "Restart into the BIOS"));
     assert_eq!(next_step(&mut starter), (true, Page::Home, FIRMWARE));
     // The Start page offers its restart too.

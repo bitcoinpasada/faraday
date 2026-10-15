@@ -17,7 +17,7 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * Wallet descriptions and BitLocker keys (docs/COMPANION.md §7, D4): the
+ * Wallet descriptions (docs/COMPANION.md §7, D4): the
  * bytes the core hands over in `Core.CMD_KEEP_KEPT`, kept behind the
  * phone's own unlock.
  *
@@ -27,9 +27,11 @@ import javax.crypto.spec.SecretKeySpec
  *  - `kept.key`: the data key, a random 256-bit key, wrapped with
  *    AES-256-GCM by a Keystore key that works only after the phone's
  *    unlock (the IV, then the wrapped key);
- *  - `kept.counts`: how many descriptions and keys the store holds, as
- *    two numbers, outside the encryption, so Home can show them while the
- *    store is locked.
+ *  - `kept.counts`: the store's version and how many descriptions it holds
+ *    ("v2 3"), outside the encryption, so Home can show the count while the
+ *    store is locked. A store of version 1 held BitLocker keys too (F33): it
+ *    has two numbers there, and [counts] reports version 1,
+ *    which has the core delete it at the first start.
  *
  * The Keystore key is bound to the unlock. On Android 11 and later it
  * needs one for every use (`setUserAuthenticationParameters(0, strong
@@ -89,16 +91,27 @@ internal class KeptStore(private val context: Context) {
     fun deviceSecure(): Boolean =
         (context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager)?.isDeviceSecure == true
 
-    /** The two counts kept beside the store: descriptions, keys. */
-    fun counts(): Pair<Int, Int> = try {
-        if (!countsFile.exists()) {
-            Pair(0, 0)
+    /**
+     * The version and the count kept beside the store, or null when none
+     * are known (nothing kept, or the counts file is not there). "v2 3" is
+     * version 2 and 3 descriptions; the two numbers a version 1 store
+     * wrote ("3 1") are version 1. The version is the core's: it is the
+     * store's own header byte, copied by [keep].
+     */
+    fun counts(): Pair<Int, Int>? = try {
+        val text = if (countsFile.exists()) countsFile.readText().trim() else null
+        val parts = text?.split(' ')
+        if (text == null || parts == null || parts.size != 2) {
+            null
+        } else if (text.startsWith("v")) {
+            Pair(parts[0].substring(1).toInt(), parts[1].toInt().coerceAtLeast(0))
         } else {
-            val parts = countsFile.readText().trim().split(' ')
-            Pair(parts[0].toInt().coerceAtLeast(0), parts[1].toInt().coerceAtLeast(0))
+            parts[0].toInt()
+            parts[1].toInt()
+            Pair(1, 0)
         }
     } catch (_: Exception) {
-        Pair(0, 0)
+        null
     }
 
     /**
@@ -172,16 +185,17 @@ internal class KeptStore(private val context: Context) {
     }
 
     /**
-     * Keeps `bytes` as the store, with its counts, under the data key held
+     * Keeps `bytes` as the store, with its count, under the data key held
      * since the unlock. Empty bytes delete the store, its wrapped key, the
      * Keystore key and the counts. Nothing is written while the store is
      * locked.
      */
-    fun keep(bytes: ByteArray, descriptions: Int, keys: Int): Boolean {
+    fun keep(bytes: ByteArray, descriptions: Int): Boolean {
         if (bytes.isEmpty()) {
             delete()
             return true
         }
+        if (bytes.size <= VERSION_AT) return false
         val key = dataKey ?: return false
         return try {
             val iv = ByteArray(IV_LEN).also { SecureRandom().nextBytes(it) }
@@ -189,7 +203,7 @@ internal class KeptStore(private val context: Context) {
             cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(TAG_BITS, iv))
             val sealed = cipher.doFinal(bytes)
             replace(store, storeTemp, iv + sealed) &&
-                replace(countsFile, countsTemp, "$descriptions $keys".toByteArray())
+                replace(countsFile, countsTemp, "v${bytes[VERSION_AT]} $descriptions".toByteArray())
         } catch (_: Exception) {
             false
         }
@@ -270,6 +284,9 @@ internal class KeptStore(private val context: Context) {
         const val STORE_NAME = "kept"
         const val KEY_NAME = "kept.key"
         const val COUNTS_NAME = "kept.counts"
+
+        /** Where the core's store format keeps its version byte, after the 4-byte magic. */
+        const val VERSION_AT = 4
         const val PROVIDER = "AndroidKeyStore"
         const val ALIAS = "companion.kept"
         const val TRANSFORMATION = "AES/GCM/NoPadding"

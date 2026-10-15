@@ -30,12 +30,10 @@ use std::collections::VecDeque;
 use faraday_core::{Action, Faraday, Screen};
 use osk_shell_api::{App, Command, DisplayInfo, Event, Frame, Key, TouchPhase};
 use osk_ui::{Canvas, Rect};
-use zeroize::{Zeroize, Zeroizing};
 
 use api::{
-    BitLocker, BitLockerStep, Bus, Computer, Concern, DevImage, Disk, Installed, KeyShown, Kind,
-    Mode, Os, Payload, PayloadFile, PayloadKind, Protection, Reason, Source, StarterCommand,
-    StarterEvent, WriteOrder, WriteStage,
+    Computer, Concern, DevImage, Disk, Installed, Kind, Mode, Os, Payload, PayloadFile,
+    PayloadKind, Reason, Source, StarterCommand, StarterEvent, WriteOrder, WriteStage,
 };
 use decide::{Facts, Item, Target};
 use macs::StickFor;
@@ -72,9 +70,6 @@ pub enum Page {
     Installed,
     /// About (§3.7).
     About,
-    /// The BitLocker guard (§6.5): the state, the key, the groups typed
-    /// back, Suspend; and Resume later (§6.3).
-    BitLocker,
     /// Blank templates (§3.8): the choices as value rows, Print, Save the PDF.
     Templates,
     /// Blank templates' Words choice.
@@ -112,12 +107,6 @@ pub enum RestartTo {
 pub enum Card {
     /// Make a Faraday stick: opens §3.2.
     Make,
-    /// Resume BitLocker, while the Starter's suspension stands: opens
-    /// §6.3's page when Secure Boot is as the marker recorded it.
-    Resume {
-        /// It can be taken now.
-        offered: bool,
-    },
     /// Restart into firmware settings, after the sheet.
     Firmware,
     /// Restart from the stick, after the sheet.
@@ -138,8 +127,6 @@ pub enum LearnId {
     StartWindows,
     /// Starting a Linux computer from the stick.
     StartLinux,
-    /// BitLocker and starting from a stick.
-    BitLocker,
     /// When the stick does not start.
     NoStart,
     /// Replacing Faraday on a stick.
@@ -164,7 +151,6 @@ impl LearnId {
         match self {
             LearnId::StartWindows => "windows",
             LearnId::StartLinux => "linux",
-            LearnId::BitLocker => "bitlocker",
             LearnId::NoStart => "not-starting",
             LearnId::KeepData => "replace-faraday",
             LearnId::Maker(id) => id,
@@ -205,10 +191,9 @@ impl LearnId {
         }
     }
 
-    const ALL: [LearnId; 9] = [
+    const ALL: [LearnId; 8] = [
         LearnId::StartWindows,
         LearnId::StartLinux,
-        LearnId::BitLocker,
         LearnId::NoStart,
         LearnId::KeepData,
         LearnId::SecureBootBitLocker,
@@ -272,28 +257,6 @@ pub enum StarterAction {
     LearnPage(LearnId),
     /// About.
     About,
-    /// BitLocker's page.
-    BitLocker,
-    /// Show the recovery key: the elevation prompt, then the key (§6.2).
-    ShowKey,
-    /// Done, with the recovery key on screen: the key leaves it and Home
-    /// is shown (F21).
-    KeyDone,
-    /// Extra safe: suspend BitLocker, the guard's suspension path (F17).
-    ExtraSafe,
-    /// I have kept it, on the extra-safe path: the key is hidden and two
-    /// groups are asked for.
-    KeptIt,
-    /// Show the key again, with new groups to ask for after.
-    ShowAgain,
-    /// Suspend BitLocker, once the two groups typed match the key.
-    Suspend,
-    /// Resume BitLocker (§6.3).
-    Resume,
-    /// Save the key to a file on a disk, by its number.
-    SaveKey(u16),
-    /// A group's field, to type into (0 or 1).
-    Group(u8),
     /// I have its rescue disk or password: another encryption product
     /// (§6.4).
     Rescue,
@@ -343,13 +306,7 @@ pub enum TemplateChoice {
 /// `faraday_learn::MAKERS`.
 const MAKER_CODE: u32 = 0x100;
 
-const ITEMS: [Item; 5] = [
-    Item::MakeStick,
-    Item::BitLocker,
-    Item::Start,
-    Item::SecureBootOn,
-    Item::Resume,
-];
+const ITEMS: [Item; 3] = [Item::MakeStick, Item::Start, Item::SecureBootOn];
 
 impl StarterAction {
     /// The number `faraday_core`'s [`Action::Host`] carries for it.
@@ -391,21 +348,11 @@ impl StarterAction {
                 LearnId::ALL.iter().position(|x| *x == id).unwrap_or(0) as u32,
             ),
             StarterAction::About => (24, 0),
-            StarterAction::BitLocker => (25, 0),
-            StarterAction::ShowKey => (26, 0),
-            StarterAction::KeptIt => (27, 0),
-            StarterAction::ShowAgain => (28, 0),
-            StarterAction::Suspend => (29, 0),
-            StarterAction::Resume => (30, 0),
-            StarterAction::SaveKey(n) => (31, u32::from(n)),
-            StarterAction::Group(i) => (32, u32::from(i.min(1))),
             StarterAction::Rescue => (33, 0),
             StarterAction::CheckAgain => (34, 0),
             StarterAction::ContinueAnyway(n) => (35, u32::from(n)),
             StarterAction::LetThrough => (36, 0),
             StarterAction::RemoveEntry => (37, 0),
-            StarterAction::KeyDone => (38, 0),
-            StarterAction::ExtraSafe => (39, 0),
             StarterAction::StickFor(k) => (40, u32::from(k == StickFor::AppleSilicon)),
             StarterAction::Templates => (41, 0),
             StarterAction::TemplateChoice(c) => (42, c as u32),
@@ -456,21 +403,11 @@ impl StarterAction {
             )),
             23 => StarterAction::LearnPage(*LearnId::ALL.get(arg as usize)?),
             24 => StarterAction::About,
-            25 => StarterAction::BitLocker,
-            26 => StarterAction::ShowKey,
-            27 => StarterAction::KeptIt,
-            28 => StarterAction::ShowAgain,
-            29 => StarterAction::Suspend,
-            30 => StarterAction::Resume,
-            31 => StarterAction::SaveKey(arg as u16),
-            32 => StarterAction::Group(u8::from(arg == 1)),
             33 => StarterAction::Rescue,
             34 => StarterAction::CheckAgain,
             35 => StarterAction::ContinueAnyway(arg as u16),
             36 => StarterAction::LetThrough,
             37 => StarterAction::RemoveEntry,
-            38 => StarterAction::KeyDone,
-            39 => StarterAction::ExtraSafe,
             40 => StarterAction::StickFor(if arg == 1 {
                 StickFor::AppleSilicon
             } else {
@@ -539,84 +476,6 @@ pub struct Image {
     pub boot_only: bool,
 }
 
-/// The BitLocker guard's page (§6.2, §6.5): the key the elevated copy
-/// read, the two groups typed back with it hidden, and the step under
-/// way. The key and what is typed are wiped when dropped.
-#[derive(Default)]
-pub struct Guard {
-    /// The extra-safe path was chosen (F17): the key is typed back and
-    /// BitLocker suspended. Until the page is left.
-    pub extra: bool,
-    /// The key, from Show the recovery key until the suspension, or
-    /// until the page is left.
-    pub key: Option<KeyShown>,
-    /// The key is hidden and two of its groups are asked for.
-    pub hidden: bool,
-    /// The two groups asked for (0 to 7, in order), chosen by the Starter.
-    pub asked: Option<[usize; 2]>,
-    /// What was typed for each group asked for.
-    typed: [Zeroizing<String>; 2],
-    /// The field typing goes into.
-    pub focus: usize,
-    /// Where the cursor is in the focused field's text (0 to its
-    /// length), moved by Home and End; typing and Backspace keep it
-    /// where it leaves the text.
-    pub caret: usize,
-    /// The focused field's whole text is selected (Ctrl+A): typing or
-    /// Backspace replaces it, as a fresh field would take it.
-    pub all_selected: bool,
-    /// The group that did not match the key, after Suspend was pressed.
-    pub wrong: Option<usize>,
-    /// The step under way, sent and not yet answered.
-    pub busy: Option<BitLockerStep>,
-    /// Why the last step did not happen.
-    pub failed: Option<Reason>,
-    /// A save under way.
-    pub saving: bool,
-    /// Where Save put the key, or why not.
-    pub saved: Option<Result<String, Reason>>,
-    /// Random bytes for the next choice of groups.
-    pick: Option<[u8; 2]>,
-    /// Entropy was asked for and not yet answered.
-    wants_entropy: bool,
-}
-
-impl Guard {
-    /// What was typed for the `i`th group asked for.
-    pub fn typed(&self, i: usize) -> &str {
-        self.typed.get(i).map_or("", |t| t.as_str())
-    }
-
-    /// Clears what was typed, the groups asked for and the mismatch.
-    fn clear_typing(&mut self) {
-        for t in &mut self.typed {
-            t.zeroize();
-            // Room for six digits, so typing never moves the buffer.
-            *t = Zeroizing::new(String::with_capacity(8));
-        }
-        self.asked = None;
-        self.focus = 0;
-        self.caret = 0;
-        self.all_selected = false;
-        self.wrong = None;
-    }
-
-    /// Forgets the key and everything typed.
-    fn forget(&mut self) {
-        self.key = None;
-        self.hidden = false;
-        self.clear_typing();
-        self.saved = None;
-    }
-}
-
-/// The two groups to ask for, from two random bytes: distinct, in order.
-fn groups_from(p: [u8; 2]) -> [usize; 2] {
-    let a = usize::from(p[0]) % 8;
-    let b = (a + 1 + usize::from(p[1]) % 7) % 8;
-    [a.min(b), a.max(b)]
-}
-
 /// The Starter.
 pub struct Starter {
     canvas: Option<Canvas>,
@@ -634,8 +493,6 @@ pub struct Starter {
 
     /// This computer.
     pub computer: Computer,
-    /// BitLocker, on Windows.
-    pub bitlocker: Option<api::BitLocker>,
     /// The disks attached.
     pub disks: Vec<Disk>,
     /// The payload, when the Starter carries one.
@@ -670,28 +527,12 @@ pub struct Starter {
     pub stick_restart_failed: Option<Reason>,
     /// Why uninstall left the firmware's `Faraday stick` entry.
     pub entry_kept: Option<Reason>,
-    /// Protection was resumed through the Starter this session.
-    pub resumed: bool,
-    /// The Starter suspended BitLocker in this session.
-    pub suspended_here: bool,
-    /// The recovery key has been shown on the BitLocker page this
-    /// session (F21). Kept in memory only: Home reads it live and
-    /// nothing is written.
-    pub key_shown: bool,
-    /// The guard's elevated step read the system drive as not encrypted:
-    /// taken so for the rest of the session (§6.2).
-    not_encrypted_here: bool,
-    /// The BitLocker guard's page.
-    pub guard: Guard,
     /// The blank template's choices (§3.8).
     pub template: template::Template,
     /// Another encryption product found here (§6.4), by name.
     pub other: Option<String>,
     /// The person said they have its rescue disk or password.
     pub other_confirmed: bool,
-    /// The time the last tick carried, ms: a fallback for choosing the
-    /// groups when no entropy came.
-    clock: u64,
 
     /// What is attached that is of concern (§3.1a), as last read.
     pub concerns: Vec<Concern>,
@@ -747,7 +588,6 @@ impl Starter {
             out: VecDeque::new(),
             dirty: true,
             computer: Computer::default(),
-            bitlocker: None,
             disks: Vec::new(),
             payload: None,
             dev: None,
@@ -764,15 +604,9 @@ impl Starter {
             restart_failed: None,
             stick_restart_failed: None,
             entry_kept: None,
-            resumed: false,
-            suspended_here: false,
-            key_shown: false,
-            not_encrypted_here: false,
-            guard: Guard::default(),
             template: template::Template::default(),
             other: None,
             other_confirmed: false,
-            clock: 0,
             concerns: Vec::new(),
             concern_seen: Vec::new(),
             let_through: Vec::new(),
@@ -792,158 +626,20 @@ impl Starter {
     pub fn facts(&self) -> Facts<'_> {
         Facts {
             computer: &self.computer,
-            bitlocker: self.bitlocker.as_ref(),
             disks: &self.disks,
-            resumed: self.resumed,
-            suspended_here: self.suspended_here,
-            key_shown: self.key_shown,
             other_open: self.computer.os == Os::Windows
                 && self.other.is_some()
                 && !self.other_confirmed,
         }
     }
 
-    /// The disks Save may write the key to (§6.2): a USB disk or a card
-    /// in a reader, not a Faraday stick, not one the computer uses, with
-    /// a file system on it. A disk inside the computer is never offered:
-    /// a key on it cannot be read from the recovery screen.
-    pub fn save_targets(&self) -> Vec<&Disk> {
-        self.disks
-            .iter()
-            .filter(|d| {
-                matches!(d.bus, Bus::Usb | Bus::SdReader)
-                    && d.faraday.is_none()
-                    && d.in_use.is_none()
-                    && d.volumes.iter().any(|v| v.files)
-            })
-            .collect()
-    }
-
-    /// Whether the two groups typed are the key's groups asked for.
-    fn groups_match(&self) -> Result<(), usize> {
-        let g = &self.guard;
-        let (Some(key), Some(asked)) = (g.key.as_ref(), g.asked) else {
-            return Err(0);
-        };
-        for (i, &n) in asked.iter().enumerate() {
-            if g.typed(i) != key.text.key.group(n) {
-                return Err(n);
-            }
-        }
-        Ok(())
-    }
-
-    /// Typing goes into the groups' fields.
-    fn typing(&self) -> bool {
-        self.page == Page::BitLocker
-            && self.sheet.is_none()
-            && self.guard.hidden
-            && self.guard.asked.is_some()
-            && self.guard.busy.is_none()
-    }
-
-    /// A key typed into the groups' fields: digits, up to six each, at
-    /// the cursor Home and End move within the field (never between the
-    /// two), and Ctrl+A selects the focused field's text so that typing
-    /// or Backspace replaces it.
-    fn type_key(&mut self, key: Key) {
-        let g = &mut self.guard;
-        let i = g.focus.min(1);
-        // The field's whole text selected, to be replaced by a digit or
-        // cleared by Backspace/Delete; anything else drops the
-        // selection as a text field would.
-        let selected = g.all_selected;
-        if selected
-            && !matches!(key, Key::Char(c) if c.is_ascii_digit())
-            && !matches!(key, Key::Backspace | Key::Delete)
-        {
-            g.all_selected = false;
-        }
-        match key {
-            Key::Char(c) if c.is_ascii_digit() => {
-                if selected {
-                    g.typed[i].clear();
-                    g.caret = 0;
-                    g.all_selected = false;
-                }
-                if g.typed[i].len() < faraday_qr::bitlocker::DIGITS {
-                    let at = g.caret.min(g.typed[i].len());
-                    g.typed[i].insert(at, c);
-                    g.caret = at + 1;
-                    g.wrong = None;
-                }
-                if i == 0 && g.typed[0].len() == faraday_qr::bitlocker::DIGITS {
-                    g.focus = 1;
-                    g.caret = g.typed[1].len();
-                }
-            }
-            Key::Backspace | Key::Delete if selected => {
-                g.typed[i].clear();
-                g.caret = 0;
-                g.all_selected = false;
-                g.wrong = None;
-            }
-            Key::Backspace => {
-                if g.caret == 0 {
-                    if i == 1 && g.typed[1].is_empty() {
-                        g.focus = 0;
-                        g.typed[0].pop();
-                        g.caret = g.typed[0].len();
-                    }
-                } else {
-                    let at = g.caret - 1;
-                    g.typed[i].remove(at);
-                    g.caret = at;
-                }
-                g.wrong = None;
-            }
-            Key::Delete => {
-                if g.caret < g.typed[i].len() {
-                    g.typed[i].remove(g.caret);
-                }
-                g.wrong = None;
-            }
-            Key::Home => g.caret = 0,
-            Key::End => g.caret = g.typed[i].len(),
-            Key::SelectAll => g.all_selected = !g.typed[i].is_empty(),
-            Key::Tab | Key::BackTab | Key::Up | Key::Down => {
-                g.focus = 1 - i;
-                g.caret = g.typed[1 - i].len();
-                g.all_selected = false;
-            }
-            Key::Enter => self.act(StarterAction::Suspend),
-            _ => {}
-        }
-    }
-
-    /// Asks the shell for random bytes to choose the groups from.
-    fn want_entropy(&mut self) {
-        self.guard.pick = None;
-        self.guard.wants_entropy = true;
-        self.commands.push_back(Command::RequestEntropy);
-    }
-
     /// The This computer card's button (§3.1), the first that applies:
-    /// while the Starter's BitLocker suspension stands, its next step
-    /// (Secure Boot back on through the firmware, then Resume); then
     /// Make a Faraday stick with no stick attached, or on a computer
-    /// that cannot start one; then (F21, no BitLocker step in between)
-    /// Restart from the stick with Secure Boot off, and Restart into
-    /// firmware settings with it on, unknown, or when the restart from
-    /// the stick did not happen.
+    /// that cannot start one; then Restart from the stick with Secure
+    /// Boot off, and Restart into firmware settings with it on, unknown,
+    /// or when the restart from the stick did not happen.
     pub fn card(&self) -> Card {
         let f = self.facts();
-        if f.suspension_stands() && !self.suspended_here {
-            match f.next_step() {
-                Some(Item::SecureBootOn) => return Card::Firmware,
-                Some(Item::Resume) => {
-                    return Card::Resume {
-                        offered: f.resume_offered(),
-                    };
-                }
-                _ => {}
-            }
-        }
         // A Mac's firmware starts the stick whatever mode Windows was
         // started in through Boot Camp.
         let mac = f.mac().is_some();
@@ -973,27 +669,7 @@ impl Starter {
             .filter(|c| match c.kind {
                 Kind::VirtualMachine => true,
                 Kind::Tv | Kind::Kvm => !self.let_through.contains(&c.id),
-                Kind::Receiver
-                | Kind::BoltReceiver
-                | Kind::RemoteSession
-                | Kind::WirelessDisplay => false,
-            })
-            .collect()
-    }
-
-    /// The items that hold the BitLocker guard's Show the recovery key
-    /// (§3.1a, §6.5): a TV, a KVM, a remote session and a wireless
-    /// display, each not let through. A virtual machine's host holds its
-    /// disk already; it holds only the restarts. A wireless receiver
-    /// holds nothing.
-    pub fn key_holds(&self) -> Vec<&Concern> {
-        self.concerns
-            .iter()
-            .filter(|c| {
-                !matches!(
-                    c.kind,
-                    Kind::VirtualMachine | Kind::Receiver | Kind::BoltReceiver
-                ) && !self.let_through.contains(&c.id)
+                Kind::Receiver | Kind::BoltReceiver => false,
             })
             .collect()
     }
@@ -1220,12 +896,6 @@ impl Starter {
     pub fn starter_event(&mut self, event: StarterEvent) {
         match event {
             StarterEvent::Computer(c) => self.computer = c,
-            StarterEvent::BitLocker(b) => {
-                self.bitlocker = b;
-                if self.not_encrypted_here {
-                    self.take_as_not_encrypted();
-                }
-            }
             StarterEvent::Disks(d) => {
                 for disk in &d {
                     if !self.seen.contains(&disk.id) {
@@ -1286,56 +956,6 @@ impl Starter {
             StarterEvent::StickRestartFailed(why) => self.stick_restart_failed = Some(why),
             StarterEvent::BootEntryKept(why) => self.entry_kept = Some(why),
             StarterEvent::OtherEncryption(o) => self.other = o,
-            StarterEvent::KeyShown(r) => {
-                let g = &mut self.guard;
-                g.busy = None;
-                match r {
-                    Ok(key) => {
-                        g.forget();
-                        g.failed = None;
-                        g.key = Some(key);
-                        // On the default path the key on screen is the
-                        // state Home reads (F21); extra safe changes
-                        // nothing until it suspends.
-                        if !g.extra {
-                            self.key_shown = true;
-                        }
-                        self.want_entropy();
-                    }
-                    Err(Reason::NotEncrypted) => {
-                        g.failed = None;
-                        self.take_as_not_encrypted();
-                    }
-                    Err(why) => g.failed = Some(why),
-                }
-            }
-            StarterEvent::BitLockerDone { step, result } => {
-                let g = &mut self.guard;
-                g.busy = None;
-                match (step, result) {
-                    (BitLockerStep::Suspend, Ok(())) => {
-                        g.failed = None;
-                        g.forget();
-                        self.suspended_here = true;
-                        self.resumed = false;
-                    }
-                    (BitLockerStep::Resume, Ok(())) => {
-                        g.failed = None;
-                        self.resumed = true;
-                        self.suspended_here = false;
-                    }
-                    (_, Ok(())) => {}
-                    (BitLockerStep::Suspend, Err(Reason::NotEncrypted)) => {
-                        g.failed = None;
-                        self.take_as_not_encrypted();
-                    }
-                    (_, Err(why)) => g.failed = Some(why),
-                }
-            }
-            StarterEvent::KeySaved(r) => {
-                self.guard.saving = false;
-                self.guard.saved = Some(r);
-            }
             StarterEvent::Concerns(c) => {
                 for item in &c {
                     if !self.concern_seen.contains(&item.id) {
@@ -1382,34 +1002,7 @@ impl Starter {
         self.commands.push_back(Command::Draw);
     }
 
-    /// The guard's elevated step answered that the system drive is not
-    /// encrypted (`ProtectionStatus` 0 and `ConversionStatus` 0): it is
-    /// taken so for the rest of the session, and the firmware steps open.
-    /// A drive suspended through the Starter (its marker) stays so.
-    fn take_as_not_encrypted(&mut self) {
-        self.not_encrypted_here = true;
-        let drive = self
-            .bitlocker
-            .as_ref()
-            .map_or_else(|| String::from("C:"), |b| b.drive.clone());
-        match &mut self.bitlocker {
-            Some(b) if b.marker.is_some() => {}
-            _ => {
-                self.bitlocker = Some(BitLocker {
-                    drive,
-                    protection: Protection::None,
-                    marker: None,
-                });
-            }
-        }
-    }
-
     fn go(&mut self, page: Page) {
-        // The key stays only while its page is open.
-        if self.page == Page::BitLocker && page != Page::BitLocker {
-            self.guard.forget();
-            self.guard.extra = false;
-        }
         self.page = page;
         self.sheet = None;
         self.offset = 0.0;
@@ -1458,7 +1051,6 @@ impl Starter {
                     | StarterAction::UninstallNow
                     | StarterAction::LetThrough
             )
-            && !(action == StarterAction::Resume && self.sheet == Some(Sheet::Uninstall))
             && !(action == StarterAction::LearnPage(LearnId::BootEntry)
                 && self.sheet == Some(Sheet::Restart(RestartTo::Stick)))
         {
@@ -1496,8 +1088,6 @@ impl Starter {
             }
             StarterAction::Next => match self.card() {
                 Card::Make => self.act(StarterAction::Make(Target::Stick)),
-                Card::Resume { offered: true } => self.go(Page::BitLocker),
-                Card::Resume { offered: false } => {}
                 Card::Rescue => self.other_confirmed = true,
                 Card::Firmware | Card::Stick if !self.restart_holds().is_empty() => {}
                 Card::Firmware => {
@@ -1509,7 +1099,6 @@ impl Starter {
             },
             StarterAction::Item(item) => match item {
                 Item::MakeStick => self.act(StarterAction::Make(Target::Stick)),
-                Item::BitLocker | Item::Resume => self.go(Page::BitLocker),
                 Item::Start | Item::SecureBootOn => self.go(Page::Start),
             },
             StarterAction::Disk(n) => {
@@ -1705,117 +1294,8 @@ impl Starter {
                         .push_back(StarterCommand::OpenTemplate { path: path.clone() });
                 }
             }
-            StarterAction::BitLocker => self.go(Page::BitLocker),
-            StarterAction::ShowKey => {
-                let (protected, other) = {
-                    let f = self.facts();
-                    (f.protected(), f.other_open)
-                };
-                if self.page == Page::BitLocker
-                    && self.guard.busy.is_none()
-                    && protected
-                    && !other
-                    && self.key_holds().is_empty()
-                {
-                    self.guard.forget();
-                    self.guard.failed = None;
-                    self.guard.busy = Some(BitLockerStep::ShowKey);
-                    self.out
-                        .push_back(StarterCommand::BitLocker(BitLockerStep::ShowKey));
-                }
-            }
-            StarterAction::KeyDone => {
-                if self.page == Page::BitLocker
-                    && self.guard.busy.is_none()
-                    && !self.guard.extra
-                    && self.guard.key.is_some()
-                {
-                    // The key leaves the screen and Home is shown.
-                    self.go(Page::Home);
-                }
-            }
-            StarterAction::ExtraSafe => {
-                if self.page == Page::BitLocker && self.guard.busy.is_none() {
-                    self.guard.extra = true;
-                }
-            }
-            StarterAction::KeptIt => {
-                if self.page == Page::BitLocker
-                    && self.guard.extra
-                    && self.guard.key.is_some()
-                    && !self.guard.hidden
-                {
-                    self.guard.clear_typing();
-                    let pick = self.guard.pick.take().unwrap_or_else(|| {
-                        let c = self.clock / 16;
-                        [(c & 0xff) as u8, ((c >> 8) & 0xff) as u8]
-                    });
-                    self.guard.asked = Some(groups_from(pick));
-                    self.guard.hidden = true;
-                    self.guard.saved = None;
-                }
-            }
-            StarterAction::ShowAgain => {
-                if self.page == Page::BitLocker && self.guard.hidden && self.guard.busy.is_none() {
-                    self.guard.hidden = false;
-                    self.guard.clear_typing();
-                    self.want_entropy();
-                }
-            }
-            StarterAction::Suspend => {
-                // Only with the key hidden and its two groups typed back.
-                if self.page != Page::BitLocker
-                    || !self.guard.hidden
-                    || self.guard.busy.is_some()
-                    || !self.facts().protected()
-                {
-                    return;
-                }
-                match self.groups_match() {
-                    Ok(()) => {
-                        self.guard.failed = None;
-                        self.guard.busy = Some(BitLockerStep::Suspend);
-                        self.out
-                            .push_back(StarterCommand::BitLocker(BitLockerStep::Suspend));
-                    }
-                    Err(n) => self.guard.wrong = Some(n),
-                }
-            }
-            StarterAction::Resume => {
-                if self.facts().resume_offered() && self.guard.busy.is_none() {
-                    self.sheet = None;
-                    self.go(Page::BitLocker);
-                    self.guard.failed = None;
-                    self.guard.busy = Some(BitLockerStep::Resume);
-                    self.out
-                        .push_back(StarterCommand::BitLocker(BitLockerStep::Resume));
-                }
-            }
-            StarterAction::SaveKey(n) => {
-                let Some(id) = self.seen.get(usize::from(n)).cloned() else {
-                    return;
-                };
-                let open = self.save_targets().iter().any(|d| d.id == id);
-                if self.page != Page::BitLocker || !open || self.guard.hidden || self.guard.saving {
-                    return;
-                }
-                if let Some(key) = self.guard.key.clone() {
-                    self.guard.saving = true;
-                    self.guard.saved = None;
-                    self.out
-                        .push_back(StarterCommand::SaveKey { disk: id, key });
-                }
-            }
-            StarterAction::Group(i) => {
-                if self.guard.hidden {
-                    let i = usize::from(i.min(1));
-                    self.guard.focus = i;
-                    self.guard.caret = self.guard.typed(i).len();
-                    self.guard.all_selected = false;
-                }
-            }
             StarterAction::Rescue => {
-                if self.page == Page::BitLocker {
+                if self.page == Page::Start {
                     self.other_confirmed = true;
                 }
             }
@@ -2059,9 +1539,7 @@ pub enum ModeRefusal {
 impl Facts<'_> {
     /// Windows with another encryption product not yet confirmed: the
     /// firmware steps' buttons are not offered (§3.4, §6.4), until the
-    /// person says they have its rescue disk or password. A drive
-    /// BitLocker protects no longer closes them: its recovery key's
-    /// backup is optional (F21).
+    /// person says they have its rescue disk or password.
     pub fn protected_open(&self) -> bool {
         self.computer.os == Os::Windows && self.other_open
     }
@@ -2074,17 +1552,9 @@ impl App for Starter {
                 self.display(d);
                 self.held.event(Event::Display(d));
             }
-            Event::Tick { now_ms } => {
-                self.clock = now_ms;
+            Event::Tick { .. } => {
                 self.held.event(event);
                 self.held_after();
-                return;
-            }
-            Event::Entropy(bytes) if self.guard.wants_entropy => {
-                self.guard.wants_entropy = false;
-                let mut b = bytes.into_bytes();
-                self.guard.pick = Some([b[0], b[1]]);
-                b.zeroize();
                 return;
             }
             Event::Touch { x, y, phase } if !self.showing => {
@@ -2110,7 +1580,6 @@ impl App for Starter {
             }
             Event::Back if !self.showing => self.act(StarterAction::Back),
             Event::Key(Key::Escape) if !self.showing => self.act(StarterAction::Back),
-            Event::Key(k) if !self.showing && self.typing() => self.type_key(k),
             Event::Key(_) | Event::KeyUp(_) | Event::Shift { .. } | Event::Forward
                 if !self.showing =>
             {

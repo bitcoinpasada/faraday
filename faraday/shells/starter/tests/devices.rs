@@ -225,24 +225,23 @@ mod linux {
             "connected",
             &edid("XYZ", "PiKVM V4"),
         );
-        let found = read(&root, Some("localhost:10.0"));
+        let found = read(&root);
         assert_eq!(
             kinds(&found),
             vec![
                 (Kind::VirtualMachine, "VirtualBox"),
-                (Kind::RemoteSession, ""),
                 (Kind::Kvm, "PiKVM V4"),
             ]
         );
-        assert!(read(&tree("empty"), Some(":0")).is_empty());
+        assert!(read(&tree("empty")).is_empty());
     }
 }
 
 mod windows {
     use super::*;
     use faraday_starter_shell::windows::devices::{
-        HDMI, INTERNAL, MIRACAST, Output, RawUsb, concerns, edid_key, guest, output_kind,
-        usb_devices, usb_ids, usb_interface,
+        HDMI, INTERNAL, Output, RawUsb, concerns, edid_key, guest, output_kind, usb_devices,
+        usb_ids, usb_interface,
     };
     use faraday_starter_shell::windows::registry::multi_sz;
 
@@ -268,8 +267,9 @@ mod windows {
     }
 
     #[test]
-    fn output_technology_says_a_wireless_display_or_an_analogue_tv() {
-        assert_eq!(output_kind(MIRACAST), Some(Kind::WirelessDisplay));
+    fn output_technology_says_an_analogue_tv_and_nothing_for_a_wireless_display() {
+        // Miracast (15) is nothing the Starter holds or says anything about.
+        assert_eq!(output_kind(15), None);
         assert_eq!(output_kind(2), Some(Kind::Tv));
         assert_eq!(output_kind(HDMI), None);
         assert_eq!(output_kind(INTERNAL), None);
@@ -369,12 +369,6 @@ mod windows {
                 path: "p2".into(),
                 edid: Some(edid("XYZ", "EXAMPLE 27")),
             },
-            Output {
-                technology: MIRACAST,
-                name: "Example Cast".into(),
-                path: "p3".into(),
-                edid: None,
-            },
         ];
         let usb = [
             raw(
@@ -390,17 +384,15 @@ mod windows {
                 "Example",
             ),
         ];
-        let found = concerns(Some("Hyper-V".into()), true, &outputs, &usb);
+        let found = concerns(Some("Hyper-V".into()), &outputs, &usb);
         assert_eq!(
             kinds(&found),
             vec![
                 (Kind::VirtualMachine, "Hyper-V"),
-                (Kind::RemoteSession, ""),
                 (Kind::Tv, "EXAMPLE TV"),
-                (Kind::WirelessDisplay, "Example Cast"),
                 (Kind::BoltReceiver, "Logitech USB Receiver"),
             ]
         );
-        assert!(concerns(None, false, &[], &[]).is_empty());
+        assert!(concerns(None, &[], &[]).is_empty());
     }
 }

@@ -3,8 +3,7 @@
 //! links (§3.1b, §3.1c) and the boot entry's removal (§3.1c).
 
 use faraday_starter::api::{
-    BitLocker, Bus, Computer, Concern, Disk, FaradayStick, Kind, Os, Protection, Reason,
-    StarterCommand, StarterEvent,
+    Bus, Computer, Concern, Disk, FaradayStick, Kind, Os, Reason, StarterCommand, StarterEvent,
 };
 use faraday_starter::{LearnId, Page, RestartTo, Sheet, Starter, StarterAction, reason_text};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
@@ -61,20 +60,6 @@ fn linux() -> Starter {
     starter.event(display());
     starter.starter_event(StarterEvent::Computer(computer(Os::Linux, false)));
     starter.starter_event(StarterEvent::Disks(vec![stick()]));
-    starter
-}
-
-/// A Windows laptop with BitLocker on, on the guard's page.
-fn guard() -> Starter {
-    let mut starter = Starter::new();
-    starter.event(display());
-    starter.starter_event(StarterEvent::Computer(computer(Os::Windows, true)));
-    starter.starter_event(StarterEvent::BitLocker(Some(BitLocker {
-        drive: "C:".into(),
-        protection: Protection::On,
-        marker: None,
-    })));
-    starter.press(StarterAction::BitLocker);
     starter
 }
 
@@ -140,19 +125,6 @@ fn a_tv_or_a_kvm_holds_the_restarts_and_is_named() {
         // Named on the Start page too.
         starter.press(StarterAction::Start);
         assert!(shows(&mut starter, name));
-    }
-}
-
-#[test]
-fn a_tv_or_a_kvm_holds_show_the_recovery_key() {
-    for (kind, name, says) in CAPTURING {
-        let mut starter = guard();
-        assert!(offers(&mut starter, StarterAction::ShowKey));
-        starter.starter_event(StarterEvent::Concerns(vec![item(kind, name, "x")]));
-        assert!(!offers(&mut starter, StarterAction::ShowKey), "{name}");
-        assert!(shows(&mut starter, &format!("{name} {says}")));
-        starter.press(StarterAction::ShowKey);
-        assert!(commands(&mut starter).is_empty());
     }
 }
 
@@ -238,10 +210,6 @@ fn a_receiver_holds_nothing_and_is_one_line_about_keyboards() {
     let n = StarterAction::ContinueAnyway(starter.concern_number(&receiver.id));
     assert!(!offers(&mut starter, n));
     assert!(!offers(&mut starter, StarterAction::CheckAgain));
-    // Nor the recovery key.
-    let mut starter = guard();
-    starter.starter_event(StarterEvent::Concerns(vec![receiver]));
-    assert!(offers(&mut starter, StarterAction::ShowKey));
 }
 
 #[test]
@@ -276,45 +244,24 @@ fn a_virtual_machine_holds_the_restarts_with_no_continue_anyway() {
 }
 
 #[test]
-fn a_remote_session_holds_only_the_recovery_key() {
-    let session = item(Kind::RemoteSession, "", "session");
-    let mut starter = linux();
-    starter.starter_event(StarterEvent::Concerns(vec![session.clone()]));
-    assert!(can_restart(&mut starter));
-    assert!(!shows(&mut starter, "remote session"));
-    let mut starter = guard();
-    starter.starter_event(StarterEvent::Concerns(vec![
-        session,
-        item(Kind::WirelessDisplay, "Example Cast", "display:1"),
-    ]));
-    assert!(!offers(&mut starter, StarterAction::ShowKey));
-    assert!(shows(&mut starter, "This session is a remote session"));
-    assert!(shows(&mut starter, "Example Cast is a wireless display"));
-}
-
-#[test]
 fn nothing_attached_holds_nothing_and_says_nothing() {
     let mut starter = linux();
     starter.starter_event(StarterEvent::Concerns(Vec::new()));
     assert!(can_restart(&mut starter));
     assert!(!offers(&mut starter, StarterAction::CheckAgain));
-    let mut starter = guard();
-    starter.starter_event(StarterEvent::Concerns(Vec::new()));
-    assert!(offers(&mut starter, StarterAction::ShowKey));
 }
 
 #[test]
 fn the_learn_links_are_drawn_only_where_their_pages_exist() {
     let link = |id: LearnId| StarterAction::LearnPage(id);
     let exists = |id: LearnId| id.page().is_some();
-    // Secure Boot and BitLocker: Home's card, the Start page, the guard.
+    // Secure Boot and BitLocker: Home's Turn Secure Boot back on, and the
+    // Start page.
     let mut starter = linux();
     let sb = LearnId::SecureBootBitLocker;
     assert_eq!(offers(&mut starter, link(sb)), exists(sb));
     starter.press(StarterAction::Start);
     assert_eq!(offers(&mut starter, link(sb)), exists(sb));
-    let mut g = guard();
-    assert_eq!(offers(&mut g, link(sb)), exists(sb));
     // Screens that record: on the warning only.
     let mut starter = linux();
     let sr = LearnId::ScreensThatRecord;
@@ -337,11 +284,6 @@ fn the_learn_links_are_drawn_only_where_their_pages_exist() {
     }
     let mut starter = linux();
     starter.starter_event(StarterEvent::Computer(computer(Os::Windows, false)));
-    starter.starter_event(StarterEvent::BitLocker(Some(BitLocker {
-        drive: "C:".into(),
-        protection: Protection::None,
-        marker: None,
-    })));
     tap(&mut starter, StarterAction::Next);
     assert_eq!(starter.sheet, Some(Sheet::Restart(RestartTo::Stick)));
     assert!(!offers(&mut starter, link(be)));

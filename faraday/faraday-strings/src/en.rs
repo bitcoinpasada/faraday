@@ -71,16 +71,6 @@ pub struct Strings {
     pub starter_secure_boot_off: &'static str,
     /// Secure Boot state that could not be read.
     pub starter_secure_boot_unknown: &'static str,
-    /// The system drive: `{}` is its letter.
-    pub starter_drive_encrypted: &'static str,
-    /// The system drive, not encrypted.
-    pub starter_drive_plain: &'static str,
-    /// The system drive, suspended by the Starter.
-    pub starter_drive_suspended: &'static str,
-    /// The system drive, suspended by someone else.
-    pub starter_drive_suspended_other: &'static str,
-    /// The system drive whose protection could not be read.
-    pub starter_drive_unknown: &'static str,
     /// An ARM computer.
     pub starter_cannot_start_arm: &'static str,
     /// A computer started in legacy BIOS mode.
@@ -125,38 +115,14 @@ pub struct Strings {
     pub starter_which_apple: &'static str,
     /// Checklist item and its page.
     pub starter_item_make: &'static str,
-    /// Checklist item (F21).
-    pub starter_item_bitlocker: &'static str,
-    /// The BitLocker page's title (F21).
-    pub starter_bitlocker_title: &'static str,
-    /// The note under the BitLocker item on Home and at the top of its page (F21).
-    pub starter_bitlocker_note: &'static str,
-    /// The Start page's button to the BitLocker page (F21).
-    pub starter_bitlocker_backup: &'static str,
     /// Checklist item and its page.
     pub starter_item_start: &'static str,
     /// Checklist item.
     pub starter_item_secure_boot: &'static str,
-    /// Checklist item and its button.
-    pub starter_item_resume: &'static str,
     /// Make a Faraday stick's state.
     pub starter_state_no_stick: &'static str,
     /// Make a Faraday stick's state: `{}` the version.
     pub starter_state_stick: &'static str,
-    /// BitLocker's state: the backup is optional (F21).
-    pub starter_state_optional: &'static str,
-    /// BitLocker's state.
-    pub starter_state_suspended: &'static str,
-    /// BitLocker's state: suspended, not by the Starter.
-    pub starter_state_suspended_other: &'static str,
-    /// BitLocker's state.
-    pub starter_state_resumed: &'static str,
-    /// Why Resume is not offered.
-    pub starter_resume_needs_secure_boot: &'static str,
-    /// Why Resume is not offered, for a computer that had Secure Boot off.
-    pub starter_resume_needs_secure_boot_off: &'static str,
-    /// Why Resume is not offered in the Windows session that suspended.
-    pub starter_resume_needs_restart: &'static str,
     /// Home row.
     pub starter_row_pi: &'static str,
     /// Home row.
@@ -310,8 +276,6 @@ pub struct Strings {
     /// Guide title.
     pub starter_learn_start_linux: &'static str,
     /// Guide title.
-    pub starter_learn_bitlocker: &'static str,
-    /// Guide title.
     pub starter_learn_no_start: &'static str,
     /// Guide title.
     pub starter_learn_keep_data: &'static str,
@@ -389,8 +353,6 @@ pub struct Strings {
     pub starter_installed_icon: &'static str,
     /// Installed row.
     pub starter_installed_entry: &'static str,
-    /// Installed row.
-    pub starter_installed_reminder: &'static str,
     /// Installed with nothing installed.
     pub starter_not_installed: &'static str,
     /// Button.
@@ -399,8 +361,6 @@ pub struct Strings {
     pub starter_uninstall_ask: &'static str,
     /// Under it.
     pub starter_uninstall_keeps: &'static str,
-    /// Under it, while the suspension stands.
-    pub starter_uninstall_suspended: &'static str,
     /// Reason.
     pub starter_why_not_carried: &'static str,
     /// Reason. `{}` device, `{}` serial, `{}` size.
@@ -569,66 +529,6 @@ pub struct Strings {
     pub starter_unsigned_title: &'static str,
     /// About, on Windows.
     pub starter_unsigned_text: &'static str,
-    /// BitLocker row.
-    pub starter_drive: &'static str,
-    /// BitLocker, not read.
-    pub starter_drive_unread: &'static str,
-    /// BitLocker row.
-    pub starter_protection: &'static str,
-    /// Its value.
-    pub starter_protection_none: &'static str,
-    /// Its value.
-    pub starter_protection_suspended: &'static str,
-    /// Its value.
-    pub starter_protection_unknown: &'static str,
-    /// BitLocker row.
-    pub starter_suspended_by_faraday: &'static str,
-    /// BitLocker row.
-    pub starter_secure_boot_when_suspended: &'static str,
-    /// BitLocker row.
-    pub starter_secure_boot_now: &'static str,
-    /// Value.
-    pub starter_yes: &'static str,
-    /// Value.
-    pub starter_no: &'static str,
-    /// Why a BitLocker step did not happen: the account is not an administrator's (STARTER §6.4).
-    pub starter_why_no_admin: &'static str,
-    /// Why BitLocker was not suspended: refused, with its code (STARTER §6.4).
-    pub starter_why_managed: &'static str,
-    /// A BitLocker call that failed, and its code.
-    pub starter_why_bitlocker: &'static str,
-    /// Why there is nothing to suspend.
-    pub starter_why_not_encrypted: &'static str,
-    /// Why the drive's protection is not known.
-    pub starter_why_not_read: &'static str,
-    /// The guard's state line (STARTER §6.5).
-    pub starter_guard_encrypted: &'static str,
-    /// The guard: suspended by Faraday, then protected again by something else (STARTER §6.4).
-    pub starter_guard_undone: &'static str,
-    /// The guard's first action.
-    pub starter_show_key: &'static str,
-    /// Where the recovery key is also kept: the label (F17).
-    pub starter_key_also_kept: &'static str,
-    /// Where the recovery key is also kept: the value (F17).
-    pub starter_key_also_kept_where: &'static str,
-    /// The extra-safe path: suspend BitLocker (F17).
-    pub starter_extra_safe: &'static str,
-    /// The BitLocker state once the key has been shown (F21).
-    pub starter_state_key_shown: &'static str,
-    /// While the elevation prompt is up.
-    pub starter_waiting_permission: &'static str,
-    /// The key's label.
-    pub starter_recovery_key: &'static str,
-    /// The key protector's ID, as the recovery screen shows it.
-    pub starter_key_id: &'static str,
-    /// Under the key's QR code (STARTER §6.2, D18).
-    pub starter_key_photo: &'static str,
-    /// Save the key to a disk, by its name.
-    pub starter_key_save: &'static str,
-    /// While the key is saved.
-    pub starter_key_saving: &'static str,
-    /// Where the key was saved.
-    pub starter_key_saved: &'static str,
     /// Home row and page title.
     pub starter_row_templates: &'static str,
     /// Row and Choice title.
@@ -653,56 +553,22 @@ pub struct Strings {
     pub starter_tpl_fewer: &'static str,
     /// Places stepper.
     pub starter_tpl_more: &'static str,
-    /// After the key is kept.
-    pub starter_key_kept: &'static str,
-    /// The two groups asked for, by number.
-    pub starter_key_type: &'static str,
-    /// A group's field, by number.
-    pub starter_key_group: &'static str,
-    /// A group typed back that is not the key's.
-    pub starter_key_wrong: &'static str,
-    /// Back to the key.
-    pub starter_key_show_again: &'static str,
-    /// The guard's second action.
-    pub starter_suspend: &'static str,
-    /// While BitLocker is suspended.
-    pub starter_suspending: &'static str,
-    /// While BitLocker is resumed.
-    pub starter_resuming: &'static str,
-    /// The guard's Done (STARTER §6.5).
-    pub starter_guard_done: &'static str,
-    /// The guard's Done, for a Starter not installed (STARTER §6.5).
-    pub starter_guard_open_again: &'static str,
-    /// After Resume BitLocker.
-    pub starter_guard_resumed: &'static str,
     /// Another encryption product's driver found, by name (STARTER §6.4).
     pub starter_other_found: &'static str,
     /// The person has that product's rescue disk or password.
     pub starter_other_confirm: &'static str,
-    /// The checklist's BitLocker state with another encryption product.
-    pub starter_state_other: &'static str,
-    /// The file Save writes, by the key ID.
-    pub starter_key_file: &'static str,
-    /// Uninstall while suspended and Resume not offered (STARTER §5.4).
-    pub starter_uninstall_suspended_where: &'static str,
     /// A screen read as a TV (STARTER §3.1a), by name.
     pub starter_concern_tv: &'static str,
     /// A KVM switch or IP-KVM attached (STARTER §3.1a), by name.
     pub starter_concern_kvm: &'static str,
     /// The Starter runs in a virtual machine (STARTER §3.1a), by its name.
     pub starter_concern_vm: &'static str,
-    /// A remote session, around the recovery key (STARTER §3.1a).
-    pub starter_concern_remote: &'static str,
-    /// A wireless display, around the recovery key (STARTER §3.1a), by name.
-    pub starter_concern_wireless_display: &'static str,
     /// The name of a screen whose EDID has none.
     pub starter_concern_screen: &'static str,
     /// The name of a USB device with no strings.
     pub starter_concern_device: &'static str,
     /// The name of a virtual machine whose firmware names none.
     pub starter_concern_computer: &'static str,
-    /// The name of a remote session.
-    pub starter_concern_session: &'static str,
     /// Reads what is attached again (STARTER §3.1a).
     pub starter_check_again: &'static str,
     /// Lets one item of concern through for the session (STARTER §3.1a).
@@ -7981,6 +7847,8 @@ pub struct Strings {
     pub companion_refuse_totp_migration: &'static str,
     /// Refused (§5): vault entries.
     pub companion_refuse_entries: &'static str,
+    /// Refused (§4.6, §5): a BitLocker recovery key.
+    pub companion_refuse_recovery_key: &'static str,
     /// Text that arrived, shown.
     pub companion_text_title: &'static str,
     /// Keeps the text shown in Received.
@@ -7995,12 +7863,6 @@ pub struct Strings {
     pub companion_web_title: &'static str,
     /// Under a web address.
     pub companion_web_not_opened: &'static str,
-    /// A BitLocker recovery key that arrived, shown masked.
-    pub companion_bitlocker_title: &'static str,
-    /// The computer a recovery key is for.
-    pub companion_bitlocker_computer: &'static str,
-    /// The drive a recovery key is for.
-    pub companion_bitlocker_drive: &'static str,
     /// Closes what is shown.
     pub companion_done: &'static str,
     /// Opens the system's document picker.
@@ -8129,8 +7991,6 @@ pub struct Strings {
     pub companion_start_computer: &'static str,
     /// Start from the stick: asks the question again.
     pub companion_start_change: &'static str,
-    /// Start from the stick, Windows: the heading over the BitLocker pages.
-    pub companion_start_bitlocker: &'static str,
     /// Start from the stick: the heading over the maker chosen.
     pub companion_start_maker: &'static str,
     /// Start from the stick: opens the list of makers.
@@ -8170,16 +8030,10 @@ pub struct Strings {
     pub companion_check_title: &'static str,
     /// Home row, and the list of kept wallet descriptions (§4.5).
     pub companion_home_descriptions: &'static str,
-    /// Home row while a key is kept, and the list of kept BitLocker keys (§4.6).
-    pub companion_home_bitlocker: &'static str,
     /// The phone's unlock prompt's title, opening Wallet descriptions (§7).
     pub companion_unlock_descriptions: &'static str,
-    /// The unlock prompt's title, opening BitLocker keys.
-    pub companion_unlock_keys: &'static str,
     /// The unlock prompt's title, keeping a description that arrived.
     pub companion_unlock_keep_description: &'static str,
-    /// The unlock prompt's title, keeping a BitLocker key that arrived.
-    pub companion_unlock_keep_key: &'static str,
     /// The page behind the unlock prompt.
     pub companion_unlock_waiting: &'static str,
     /// A kept description's name before it is renamed: its number.
@@ -8198,12 +8052,8 @@ pub struct Strings {
     pub companion_rename: &'static str,
     /// Asked before a kept description is deleted.
     pub companion_delete_description_ask: &'static str,
-    /// Back in Windows' sheet title, and a key's Delete (§4.6).
-    pub companion_delete_key_ask: &'static str,
     /// Asked before a kept store that cannot be read is deleted.
     pub companion_delete_kept_store_ask: &'static str,
-    /// Back in Windows' primary button (§4.6).
-    pub companion_delete_the_key: &'static str,
     /// A wallet's script type.
     pub companion_script_legacy: &'static str,
     /// A wallet's script type.
@@ -8242,18 +8092,6 @@ pub struct Strings {
     pub companion_first_address: &'static str,
     /// A wallet with no address at an index (silent payments).
     pub companion_no_address: &'static str,
-    /// BitLocker keys with none kept.
-    pub companion_keys_empty: &'static str,
-    /// A kept key's card: its drive, and when it was kept.
-    pub companion_drive_line: &'static str,
-    /// A kept key's button: its digits show while it is held.
-    pub companion_hold_to_show: &'static str,
-    /// A kept key's one action (§4.6).
-    pub companion_back_in_windows: &'static str,
-    /// Back in Windows' first line (§4.6), word for word.
-    pub companion_key_not_needed: &'static str,
-    /// Back in Windows' second line (§4.6), word for word.
-    pub companion_key_shown_again: &'static str,
     /// The kept store was not opened.
     pub companion_closed_title: &'static str,
     /// Why: the unlock prompt was cancelled.
@@ -8504,11 +8342,6 @@ pub static EN: Strings = Strings {
     starter_secure_boot_on: "Secure Boot: on",
     starter_secure_boot_off: "Secure Boot: off",
     starter_secure_boot_unknown: "Secure Boot: not read",
-    starter_drive_encrypted: "Drive {} encrypted with BitLocker",
-    starter_drive_plain: "Drive {} not encrypted",
-    starter_drive_suspended: "Drive {} BitLocker suspended by Faraday",
-    starter_drive_suspended_other: "Drive {} BitLocker suspended",
-    starter_drive_unknown: "Drive {} encryption not read",
     starter_cannot_start_arm: "This computer cannot start a Faraday stick",
     starter_cannot_start_bios: "Started in legacy BIOS mode: UEFI has to be on",
     starter_cannot_start_mac_firmware: "This Mac's firmware cannot start Faraday",
@@ -8531,22 +8364,10 @@ pub static EN: Strings = Strings {
     starter_which_pc: "A PC or an Intel Mac",
     starter_which_apple: "A Mac with M1 or M2",
     starter_item_make: "Make a Faraday stick",
-    starter_item_bitlocker: "Back up the BitLocker recovery key",
-    starter_bitlocker_title: "BitLocker recovery key",
-    starter_bitlocker_note: "To start Faraday, Secure Boot goes off, then back on before Windows starts. Windows then starts as usual and does not ask for the BitLocker recovery key. A backup of the key is optional: it gets you into Windows if it ever starts while Secure Boot is still off.",
-    starter_bitlocker_backup: "Back up the recovery key",
     starter_item_start: "Start this computer from the stick",
     starter_item_secure_boot: "Turn Secure Boot back on",
-    starter_item_resume: "Resume BitLocker",
     starter_state_no_stick: "No Faraday stick attached",
     starter_state_stick: "Faraday stick attached · {}",
-    starter_state_optional: "Optional",
-    starter_state_suspended: "Suspended by Faraday",
-    starter_state_suspended_other: "Suspended",
-    starter_state_resumed: "Resumed",
-    starter_resume_needs_secure_boot: "Needs Secure Boot on",
-    starter_resume_needs_secure_boot_off: "Needs Secure Boot off, as it was",
-    starter_resume_needs_restart: "Needs Windows restarted first",
     starter_row_pi: "Make a Pi card",
     starter_row_transfer: "Transfer",
     starter_row_desktop: "Try the desktop app",
@@ -8623,7 +8444,6 @@ pub static EN: Strings = Strings {
     starter_guide_placeholder: "Learn: {}",
     starter_learn_start_windows: "Starting a Windows computer from the stick",
     starter_learn_start_linux: "Starting a Linux computer from the stick",
-    starter_learn_bitlocker: "BitLocker and starting from a stick",
     starter_learn_no_start: "When the stick does not start",
     starter_learn_keep_data: "Replacing Faraday on a stick",
     starter_tpm_line: "A disk here is unlocked by the TPM: have its passphrase ready",
@@ -8660,12 +8480,10 @@ pub static EN: Strings = Strings {
     starter_installed_desktop_menu: "Desktop app's menu entry",
     starter_installed_icon: "Icon",
     starter_installed_entry: "Installed apps entry",
-    starter_installed_reminder: "Logon reminder",
     starter_not_installed: "Not installed",
     starter_uninstall: "Uninstall",
     starter_uninstall_ask: "Uninstall Faraday Starter?",
     starter_uninstall_keeps: "Removes the files listed. Received files and settings stay.",
-    starter_uninstall_suspended: "BitLocker stays suspended until it is resumed.",
     starter_why_not_carried: "Faraday Starter does not carry what was confirmed. Nothing was written.",
     starter_why_changed: "{} is no longer the disk that was confirmed (serial {}, {}). Nothing was written.",
     starter_why_no_serial: "none",
@@ -8750,36 +8568,6 @@ pub static EN: Strings = Strings {
     starter_check_windows: "On Windows: Get-FileHash -Algorithm SHA256 for the sum, Gpg4win for the signature.",
     starter_unsigned_title: "Not code-signed",
     starter_unsigned_text: "A code-signing certificate names a verified person or company, and Faraday is published under a pseudonym. Windows warns on first run; More info, then Run anyway, opens it. The sums and the signature are the check.",
-    starter_drive: "Drive",
-    starter_drive_unread: "BitLocker not read",
-    starter_protection: "Protection",
-    starter_protection_none: "Not encrypted",
-    starter_protection_suspended: "Suspended",
-    starter_protection_unknown: "Not read",
-    starter_suspended_by_faraday: "Suspended by Faraday",
-    starter_secure_boot_when_suspended: "Secure Boot when suspended",
-    starter_secure_boot_now: "Secure Boot now",
-    starter_yes: "Yes",
-    starter_no: "No",
-    starter_why_no_admin: "An administrator of this computer has to do this step.",
-    starter_why_managed: "BitLocker was not suspended ({}). This computer's BitLocker is managed: its administrator has to suspend it.",
-    starter_why_bitlocker: "BitLocker refused {}: {}",
-    starter_why_not_encrypted: "The drive is not encrypted. There is nothing to suspend.",
-    starter_why_not_read: "BitLocker on the system drive could not be read. The drive is treated as protected.",
-    starter_guard_encrypted: "Drive {} is encrypted with BitLocker",
-    starter_guard_undone: "Protected again after Faraday suspended it",
-    starter_show_key: "Show the recovery key",
-    starter_key_also_kept: "Also kept in",
-    starter_key_also_kept_where: "Microsoft account: aka.ms/myrecoverykey",
-    starter_extra_safe: "Extra safe: suspend BitLocker",
-    starter_state_key_shown: "Key shown",
-    starter_waiting_permission: "Waiting for administrator permission",
-    starter_recovery_key: "Recovery key",
-    starter_key_id: "Key ID",
-    starter_key_photo: "Or take a photo of this screen.",
-    starter_key_save: "Save to {}",
-    starter_key_saving: "Saving",
-    starter_key_saved: "Saved to {}",
     starter_row_templates: "Blank templates",
     starter_tpl_words: "Words",
     starter_tpl_copy: "Copy",
@@ -8792,31 +8580,14 @@ pub static EN: Strings = Strings {
     starter_tpl_saved: "Saved {}",
     starter_tpl_fewer: "Fewer",
     starter_tpl_more: "More",
-    starter_key_kept: "I have kept it",
-    starter_key_type: "Type groups {} and {} of the key",
-    starter_key_group: "Group {}",
-    starter_key_wrong: "Group {} does not match the key.",
-    starter_key_show_again: "Show the key again",
-    starter_suspend: "Suspend BitLocker",
-    starter_suspending: "Suspending",
-    starter_resuming: "Resuming",
-    starter_guard_done: "Windows starts without the key until BitLocker is resumed. Resume it here once Secure Boot is back on.",
-    starter_guard_open_again: "Open Faraday again to do that.",
-    starter_guard_resumed: "BitLocker resumed",
     starter_other_found: "An encrypted drive Faraday does not manage: {}",
     starter_other_confirm: "I have its rescue disk or password",
-    starter_state_other: "Not managed by Faraday",
-    starter_key_file: "BitLocker recovery key {}.txt",
-    starter_uninstall_suspended_where: "BitLocker stays suspended until it is resumed: Control Panel, BitLocker Drive Encryption, Resume protection.",
     starter_concern_tv: "{} is a TV. A TV can record what it shows: use another screen or computer.",
     starter_concern_kvm: "{} is a KVM switch. It can capture the screen and type: connect the screen and keyboard directly.",
     starter_concern_vm: "{} is a virtual machine. Faraday must start on the real computer, and this app cannot see the host's screens and devices.",
-    starter_concern_remote: "{} is a remote session. What it shows is sent to another computer.",
-    starter_concern_wireless_display: "{} is a wireless display. What it shows goes over the air.",
     starter_concern_screen: "The screen",
     starter_concern_device: "A USB device",
     starter_concern_computer: "This computer",
-    starter_concern_session: "This session",
     starter_check_again: "Check again",
     starter_continue_anyway: "Continue anyway",
     starter_let_through_ask: "Continue with {} attached?",
@@ -12335,6 +12106,7 @@ pub static EN: Strings = Strings {
     companion_refuse_totp: "A TOTP secret stays on the Faraday device.",
     companion_refuse_totp_migration: "Authenticator codes stay on the Faraday device.",
     companion_refuse_entries: "Vault entries stay on the Faraday device.",
+    companion_refuse_recovery_key: "This is a BitLocker recovery key. It is not kept here.",
     companion_text_title: "Text",
     companion_keep: "Keep",
     companion_address_title: "Address",
@@ -12342,9 +12114,6 @@ pub static EN: Strings = Strings {
     companion_address_silent: "Silent payment address",
     companion_web_title: "Web address",
     companion_web_not_opened: "Not opened",
-    companion_bitlocker_title: "BitLocker recovery key",
-    companion_bitlocker_computer: "Computer",
-    companion_bitlocker_drive: "Drive",
     companion_done: "Done",
     companion_send_choose: "Choose a file",
     companion_send_nothing: "Nothing in Received",
@@ -12409,7 +12178,6 @@ pub static EN: Strings = Strings {
     companion_start_linux: "Linux",
     companion_start_computer: "Computer",
     companion_start_change: "Change",
-    companion_start_bitlocker: "BitLocker first",
     companion_start_maker: "Maker",
     companion_start_choose_maker: "Choose the maker",
     companion_start_trouble: "If something goes wrong",
@@ -12429,11 +12197,8 @@ pub static EN: Strings = Strings {
     companion_theme: "Theme",
     companion_check_title: "Checking a release",
     companion_home_descriptions: "Wallet descriptions",
-    companion_home_bitlocker: "BitLocker keys",
     companion_unlock_descriptions: "Open Wallet descriptions",
-    companion_unlock_keys: "Open BitLocker keys",
     companion_unlock_keep_description: "Keep a wallet description",
-    companion_unlock_keep_key: "Keep a BitLocker key",
     companion_unlock_waiting: "Waiting for the phone's unlock",
     companion_description_name: "Wallet {}",
     companion_shared_not_read: "Not read",
@@ -12443,9 +12208,7 @@ pub static EN: Strings = Strings {
     companion_share: "Share",
     companion_rename: "Rename",
     companion_delete_description_ask: "Delete this wallet description?",
-    companion_delete_key_ask: "Delete this key?",
     companion_delete_kept_store_ask: "Delete the kept descriptions and keys?",
-    companion_delete_the_key: "Delete the key",
     companion_script_legacy: "Legacy",
     companion_script_nested: "Nested SegWit",
     companion_script_native: "Native SegWit",
@@ -12465,15 +12228,9 @@ pub static EN: Strings = Strings {
     companion_wallet_network: "Network",
     companion_first_address: "First receive address",
     companion_no_address: "None at an index",
-    companion_keys_empty: "No BitLocker keys",
-    companion_drive_line: "Drive {} · {}",
-    companion_hold_to_show: "Hold to show",
-    companion_back_in_windows: "Back in Windows",
-    companion_key_not_needed: "Not needed if Windows started without asking for it.",
-    companion_key_shown_again: "Faraday Starter shows it again the next time Faraday is set up on this computer.",
     companion_closed_title: "Not opened",
     companion_closed_cancelled: "Unlock cancelled",
-    companion_closed_no_lock: "Set a screen lock on this phone to keep wallet descriptions and BitLocker keys.",
+    companion_closed_no_lock: "Set a screen lock on this phone to keep wallet descriptions.",
     companion_delete_kept_store: "Delete the kept descriptions and keys",
     companion_not_description: "Not a wallet description",
     backup_flow_heading: "Backup",

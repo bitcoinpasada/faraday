@@ -50,7 +50,7 @@ class MainActivity : Activity(), CompanionView.Host, Camera.Listener {
     /** The received files, encrypted under a Keystore key of their own. */
     private lateinit var store: ReceivedStore
 
-    /** Wallet descriptions and BitLocker keys, behind the phone's unlock. */
+    /** Wallet descriptions, behind the phone's unlock. */
     private lateinit var kept: KeptStore
 
     /**
@@ -297,11 +297,11 @@ class MainActivity : Activity(), CompanionView.Host, Camera.Listener {
 
     override fun loadReceived(): ByteArray? = store.load()
 
-    override fun keptCounts(): Pair<Int, Int> = kept.counts()
+    override fun keptCounts(): Pair<Int, Int>? = kept.counts()
 
-    override fun keepKept(bytes: ByteArray?, descriptions: Int, keys: Int) {
+    override fun keepKept(bytes: ByteArray?, descriptions: Int) {
         if (bytes == null) return
-        kept.keep(bytes, descriptions, keys)
+        kept.keep(bytes, descriptions)
         bytes.fill(0)
     }
 

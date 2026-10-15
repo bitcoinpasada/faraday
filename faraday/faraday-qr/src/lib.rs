@@ -11,7 +11,6 @@
 //! reads as before.
 
 pub mod bbqr;
-pub mod bitlocker;
 pub mod cbor;
 pub mod envelope;
 pub mod registry;

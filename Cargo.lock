@@ -889,7 +889,6 @@ dependencies = [
  "miniz_oxide 0.8.9",
  "osk-bip",
  "osk-codec",
- "zeroize",
 ]
 
 [[package]]
@@ -936,7 +935,6 @@ dependencies = [
  "faraday-core",
  "faraday-guides",
  "faraday-learn",
- "faraday-qr",
  "faraday-ui",
  "opensigner-core",
  "osk-bip",
@@ -945,7 +943,6 @@ dependencies = [
  "osk-shell-api",
  "osk-ui",
  "png",
- "zeroize",
 ]
 
 [[package]]
@@ -956,7 +953,6 @@ dependencies = [
  "faraday-core",
  "faraday-fat",
  "faraday-payload",
- "faraday-qr",
  "faraday-starter",
  "faraday-storage",
  "faraday-window",
@@ -966,7 +962,6 @@ dependencies = [
  "rustbus",
  "windows-sys 0.52.0",
  "winit",
- "zeroize",
 ]
 
 [[package]]

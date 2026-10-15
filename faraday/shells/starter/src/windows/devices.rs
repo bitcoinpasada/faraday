@@ -1,15 +1,12 @@
 //! What is attached that is of concern on Windows (`docs/STARTER.md`
 //! §3.1a), from Windows' answers, with no Win32 call in it: `sys` reads
 //! them (`QueryDisplayConfig` and `DisplayConfigGetDeviceInfo` for the
-//! screens, the monitor's EDID from the registry, `SM_REMOTESESSION`,
-//! SetupAPI for the USB devices, `CPUID` for a hypervisor) and these
+//! screens, the monitor's EDID from the registry, SetupAPI for the USB devices, `CPUID` for a hypervisor) and these
 //! read them, so the tests feed recorded answers.
 
 use faraday_starter::api::{Concern, Kind};
 use faraday_starter::concern::{self, Usb};
 
-/// `DISPLAYCONFIG_OUTPUT_TECHNOLOGY_MIRACAST`.
-pub const MIRACAST: u32 = 15;
 /// `DISPLAYCONFIG_OUTPUT_TECHNOLOGY_INTERNAL`.
 pub const INTERNAL: u32 = 0x8000_0000;
 /// `DISPLAYCONFIG_OUTPUT_TECHNOLOGY_HDMI`.
@@ -18,13 +15,10 @@ pub const HDMI: u32 = 5;
 /// component (3), D-Jpn (8) and an SDTV dongle (14).
 pub const TV_OUTPUTS: [u32; 5] = [1, 2, 3, 8, 14];
 
-/// What an output technology says by itself: a wireless display for
-/// Miracast, a TV for an analogue TV output; nothing for the rest,
-/// whose EDID says the rest.
+/// What an output technology says by itself: a TV for an analogue TV
+/// output; nothing for the rest, whose EDID says the rest.
 pub fn output_kind(technology: u32) -> Option<Kind> {
-    if technology == MIRACAST {
-        Some(Kind::WirelessDisplay)
-    } else if TV_OUTPUTS.contains(&technology) {
+    if TV_OUTPUTS.contains(&technology) {
         Some(Kind::Tv)
     } else {
         None
@@ -69,7 +63,7 @@ pub struct Output {
 }
 
 /// What an output is of concern as, and its name: the output technology
-/// first (Miracast, an analogue TV output), then its EDID's rule. An
+/// first (an analogue TV output), then its EDID's rule. An
 /// internal panel is never one.
 pub fn output(o: &Output) -> Option<Concern> {
     if o.technology == INTERNAL {
@@ -188,27 +182,15 @@ pub fn guest(leaf1_ecx: u32, vendor: &[u8; 12], features_ebx: u32) -> bool {
     present && !root
 }
 
-/// Everything of concern, in order: the virtual machine, the remote
-/// session, the screens, the USB devices.
-pub fn concerns(
-    vm: Option<String>,
-    remote: bool,
-    outputs: &[Output],
-    usb: &[RawUsb],
-) -> Vec<Concern> {
+/// Everything of concern, in order: the virtual machine, the screens,
+/// the USB devices.
+pub fn concerns(vm: Option<String>, outputs: &[Output], usb: &[RawUsb]) -> Vec<Concern> {
     let mut out = Vec::new();
     if let Some(name) = vm {
         out.push(Concern {
             kind: Kind::VirtualMachine,
             name,
             id: String::from("vm"),
-        });
-    }
-    if remote {
-        out.push(Concern {
-            kind: Kind::RemoteSession,
-            name: String::new(),
-            id: String::from("session"),
         });
     }
     out.extend(outputs.iter().filter_map(output));

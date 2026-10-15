@@ -8,7 +8,6 @@
 //! the desktop shows a scan's result. Nothing here changes the state.
 
 use faraday_intake::Secret;
-use faraday_qr::bitlocker::KeyText;
 use faraday_qr::send::{Format, Made};
 use faraday_strings::{EN, Strings, fill};
 use faraday_ui::pal::*;
@@ -19,10 +18,11 @@ use osk_ui::widgets::Icon;
 use osk_ui::widgets::keyboard::KeyboardKind;
 
 use crate::kept;
+use crate::route::Refusal;
 use crate::store::{Kept, Kind};
 use crate::{
     Act, Closed, Companion, Computer, Confirm, Doc, MAKER_ROWS, MakerRow, NotSent, Page, ScanLine,
-    Shown, UnlockFor,
+    Shown,
 };
 
 /// Faraday's drawing, a press being one of the Companion's [`Act`]s.
@@ -146,7 +146,11 @@ pub(crate) fn kind_name(k: Kind) -> &'static str {
 }
 
 /// The line a refusal shows (`docs/COMPANION.md` §5).
-pub(crate) fn refusal(s: Secret) -> &'static str {
+pub(crate) fn refusal(r: Refusal) -> &'static str {
+    let s = match r {
+        Refusal::Secret(s) => s,
+        Refusal::RecoveryKey => return S.companion_refuse_recovery_key,
+    };
     match s {
         Secret::Bip39Words => S.companion_refuse_words,
         Secret::SeedQr => S.companion_refuse_seedqr,
@@ -263,7 +267,7 @@ fn base(app: &Companion) -> (&Page, bool) {
             (&Page::Home, true)
         }
         Page::NotRead => (&Page::Home, true),
-        Page::NotDescription(_) | Page::BackInWindows(_) | Page::Closed(_) => (under(), true),
+        Page::NotDescription(_) | Page::Closed(_) => (under(), true),
         Page::Arrived { .. } | Page::Shown(_) => (&Page::Receive, true),
         Page::Refused(_) if under() == &Page::SendList => (&Page::SendList, true),
         Page::Refused(_) => (&Page::Receive, true),
@@ -299,8 +303,6 @@ pub(crate) fn frame(app: &Companion, ui: &mut Ui) -> f32 {
         Page::Descriptions => descriptions(app, ui, x, y0, cw),
         Page::Description(n) => description(app, ui, x, y0, cw, *n),
         Page::Rename(_) => rename(app, ui, x, y0, cw),
-        Page::Keys => keys(app, ui, x, y0, cw),
-        Page::Key(n) => key_record(app, ui, x, y0, cw, *n),
         Page::Unlocking(_) => unlocking(ui, x, y0, cw),
         Page::SendList => send_list(app, ui, x, y0, cw),
         Page::Send => send(app, ui, x, y0, cw),
@@ -329,12 +331,11 @@ pub(crate) fn frame(app: &Companion, ui: &mut Ui) -> f32 {
         ui.backdrop();
         match &app.page {
             Page::Arrived { sha256, again } => arrived_sheet(app, ui, w, h, sha256, *again),
-            Page::Refused(s) => refused_sheet(app, ui, w, h, *s),
+            Page::Refused(r) => refused_sheet(app, ui, w, h, *r),
             Page::Shown(s) => shown_sheet(ui, w, h, s, app.shared),
             Page::NotSent(why) => not_sent_sheet(ui, w, h, *why),
             Page::Confirm(what) => confirm_sheet(app, ui, w, h, *what),
             Page::NotDescription(why) => not_description_sheet(ui, w, h, why),
-            Page::BackInWindows(_) => back_in_windows_sheet(ui, w, h),
             Page::Closed(why) => closed_sheet(app, ui, w, h, *why),
             Page::NotRead => faraday_ui::sheet::kv_sheet(
                 ui,
@@ -383,11 +384,6 @@ fn page_name(app: &Companion, page: &Page) -> String {
                 |d| d.name.clone(),
             ),
         Page::Rename(_) => S.companion_rename.to_string(),
-        Page::Keys => S.companion_home_bitlocker.to_string(),
-        Page::Key(_) => S.companion_bitlocker_title.to_string(),
-        Page::Unlocking(UnlockFor::Keys | UnlockFor::KeepKey) => {
-            S.companion_home_bitlocker.to_string()
-        }
         Page::Unlocking(_) => S.companion_home_descriptions.to_string(),
         Page::SendList => S.companion_home_send.to_string(),
         Page::Send => app
@@ -634,10 +630,8 @@ fn home(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y += 38.0;
     y += kept_card(app, ui, x, y, w) + 20.0;
     let count = app.kept.len().to_string();
-    let (descriptions, keys) = app.kept_counts();
-    let descriptions = descriptions.to_string();
-    let key_count = keys.to_string();
-    let mut rows: Vec<(Icon, &str, &str, Act)> = vec![
+    let descriptions = app.kept_count().to_string();
+    let rows: Vec<(Icon, &str, &str, Act)> = vec![
         (Icon::Scan, S.companion_home_receive, "", Act::Receive),
         (Icon::Qr, S.companion_home_send, "", Act::Send),
         (Icon::File, S.companion_home_received, &count, Act::Received),
@@ -647,21 +641,10 @@ fn home(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             &descriptions,
             Act::Descriptions,
         ),
-    ];
-    // The BitLocker keys row only while one is kept (§4.1).
-    if keys > 0 {
-        rows.push((
-            Icon::Lock,
-            S.companion_home_bitlocker,
-            &key_count,
-            Act::Keys,
-        ));
-    }
-    rows.extend([
         (Icon::Power, S.companion_home_start, "", Act::Start),
         (Icon::Learn, S.companion_home_learn, "", Act::Learn),
         (Icon::Info, S.companion_home_about, "", Act::About),
-    ]);
+    ];
     for (icon, head, tail, act) in rows {
         y += nav_row(ui, x, y, w, icon, head, "", tail, act);
     }
@@ -869,7 +852,7 @@ fn arrived_sheet(app: &Companion, ui: &mut Ui, w: f32, h: f32, sha: &[u8; 32], a
 }
 
 /// A secret refused: its one line, and nothing kept.
-fn refused_sheet(app: &Companion, ui: &mut Ui, w: f32, h: f32, s: Secret) {
+fn refused_sheet(app: &Companion, ui: &mut Ui, w: f32, h: f32, s: Refusal) {
     let sending = app.stack.last() == Some(&Page::SendList) || app.shared;
     let items: Vec<(&str, Style, Act)> = if sending {
         vec![(S.companion_done, Style::Primary, Act::Done)]
@@ -958,37 +941,6 @@ fn shown_sheet(ui: &mut Ui, w: f32, h: f32, s: &Shown, shared: bool) {
         cy += faraday_ui::sheet::buttons(ui, x, cy, iw, &items);
         cy - y
     });
-}
-
-// ---------------------------------------------------------------------
-// A BitLocker recovery key
-// ---------------------------------------------------------------------
-
-/// The eight groups, two columns of four on a phone, each numbered, its
-/// digits shown only when `shown`. Returns its height with the gap under
-/// it.
-fn key_panel(ui: &mut Ui, x: f32, y: f32, w: f32, k: &KeyText, shown: bool) -> f32 {
-    let cols = if w >= 380.0 { 4 } else { 2 };
-    let rows = 8 / cols;
-    let size = 17.0;
-    let pad = 14.0;
-    let cw = (w - 2.0 * pad) / cols as f32;
-    let rh = 18.0 + ui.line(size, W::M) + 8.0;
-    let h = 2.0 * pad + rows as f32 * rh - 8.0;
-    ui.fill(x, y, w, h, 10.0, BG);
-    ui.stroke(x, y, w, h, 10.0, WARN);
-    for i in 0..8 {
-        let (c, r) = (i % cols, i / cols);
-        let cx = x + pad + c as f32 * cw;
-        let cy = y + pad + r as f32 * rh;
-        ui.text(cx, cy, 11.0, W::R, MUTED, &(i + 1).to_string());
-        if shown {
-            ui.text(cx, cy + 16.0, size, W::M, TEXT, k.key.group(i));
-        } else {
-            ui.text(cx, cy + 16.0, size, W::M, MUTED, "••••••");
-        }
-    }
-    h + 12.0
 }
 
 // ---------------------------------------------------------------------
@@ -1277,14 +1229,7 @@ fn confirm_sheet(app: &Companion, ui: &mut Ui, w: f32, h: f32, what: Confirm) {
                 .map(|d| vec![(S.companion_name, d.name.clone(), TEXT)])
                 .unwrap_or_default(),
         ),
-        Confirm::Key(_) => (S.companion_delete_key_ask, Vec::new()),
         Confirm::KeptStore => (S.companion_delete_kept_store_ask, Vec::new()),
-    };
-    // A key's Delete asks once, as Back in Windows does, without its
-    // two lines (§4.6).
-    let yes = match what {
-        Confirm::Key(_) => S.companion_delete_the_key,
-        _ => S.companion_delete,
     };
     faraday_ui::sheet::kv_sheet(
         ui,
@@ -1295,7 +1240,7 @@ fn confirm_sheet(app: &Companion, ui: &mut Ui, w: f32, h: f32, what: Confirm) {
         &rows,
         &[
             (S.companion_keep_it, Style::Secondary, Act::KeepIt),
-            (yes, Style::Primary, Act::ConfirmDelete),
+            (S.companion_delete, Style::Primary, Act::ConfirmDelete),
         ],
     );
 }
@@ -1352,9 +1297,9 @@ fn start_computer(ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y
 }
 
-/// The computer's page: the choice with Change, the general guide,
-/// BitLocker on Windows, the maker, and the pages for when it goes
-/// wrong.
+/// The computer's page: the choice with Change, the general guide (and,
+/// on Windows, what Secure Boot and BitLocker are), the maker, and the
+/// pages for when it goes wrong.
 fn start(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let Some(c) = app.computer else {
         return start_computer(ui, x, y0, w);
@@ -1374,12 +1319,11 @@ fn start(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         Act::ChangeComputer,
     );
     y += 8.0;
-    y += page_rows(ui, x, y, w, &[start_row(c.id())]) - y + 12.0;
+    let mut rows = vec![start_row(c.id())];
     if c == Computer::Windows {
-        y += label(ui, x, y, S.companion_start_bitlocker);
-        let rows = [start_row("bitlocker"), start_row("secure-boot-bitlocker")];
-        y += page_rows(ui, x, y, w, &rows) - y + 12.0;
+        rows.push(start_row("secure-boot-bitlocker"));
     }
+    y += page_rows(ui, x, y, w, &rows) - y + 12.0;
     match app.maker {
         None => {
             y += label(ui, x, y, S.companion_start_maker);
@@ -1713,7 +1657,7 @@ fn themes(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 }
 
 // ---------------------------------------------------------------------
-// §4.5 Wallet descriptions, §4.6 BitLocker keys, §7 the unlock
+// §4.5 Wallet descriptions, §7 the unlock
 // ---------------------------------------------------------------------
 
 /// The kept store, while it is open.
@@ -1973,137 +1917,6 @@ fn rename(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     };
     y += buttons(ui, x, y, w, &[(S.companion_save, style, Act::SaveName)]);
     y
-}
-
-/// BitLocker keys, as Received: each key's computer and drive on its
-/// card.
-fn keys(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let Some(store) = kept_store(app) else {
-        return y0;
-    };
-    let mut y = y0;
-    y += list_head(ui, x, y, S.companion_home_bitlocker, store.keys.len());
-    if store.keys.is_empty() {
-        y += line(ui, x, y, w, S.companion_keys_empty, DIM);
-    }
-    for (i, k) in store.keys.iter().enumerate() {
-        let sub = fill(
-            S.companion_drive_line,
-            &[&k.text.drive, &when(k.time, app.offset_s())],
-        );
-        y += item_card(
-            ui,
-            x,
-            y,
-            w,
-            Icon::Lock,
-            &k.text.computer,
-            &sub,
-            Act::KeyRecord(i),
-        ) + 10.0;
-    }
-    y
-}
-
-/// A kept key's record (§4.6): the computer, the drive, when it was
-/// kept, the key as the Starter shows one (eight numbered groups of six)
-/// masked until held, then Back in Windows and Delete. Nothing that
-/// shares, saves or shows it as a code.
-fn key_record(app: &Companion, ui: &mut Ui, x: f32, y0: f32, w: f32, n: usize) -> f32 {
-    let Some(k) = kept_store(app).and_then(|s| s.keys.get(n)) else {
-        return y0;
-    };
-    let mut y = y0;
-    y += value_row(
-        ui,
-        x,
-        y,
-        w,
-        S.companion_bitlocker_computer,
-        &k.text.computer,
-        TEXT,
-    );
-    y += value_row(
-        ui,
-        x,
-        y,
-        w,
-        S.companion_bitlocker_drive,
-        &k.text.drive,
-        TEXT,
-    );
-    y += value_row(
-        ui,
-        x,
-        y,
-        w,
-        S.companion_when,
-        &when(k.time, app.offset_s()),
-        TEXT,
-    ) + 8.0;
-    y += key_panel(ui, x, y, w, &k.text, app.held);
-    y += buttons(
-        ui,
-        x,
-        y,
-        w,
-        &[(S.companion_hold_to_show, Style::Secondary, Act::Hold)],
-    ) + 20.0;
-    y += buttons(
-        ui,
-        x,
-        y,
-        w,
-        &[(
-            S.companion_back_in_windows,
-            Style::Primary,
-            Act::BackInWindows,
-        )],
-    ) + 8.0;
-    y += buttons(
-        ui,
-        x,
-        y,
-        w,
-        &[(S.companion_delete, Style::Secondary, Act::Delete)],
-    );
-    y
-}
-
-/// Back in Windows (§4.6): the question, its two lines of fact, and
-/// Delete the key or Keep it.
-fn back_in_windows_sheet(ui: &mut Ui, w: f32, h: f32) {
-    faraday_ui::sheet::sheet(ui, w, h, &mut |ui, x, y, iw| {
-        let mut cy = y;
-        cy += faraday_ui::sheet::sheet_head(
-            ui,
-            x,
-            cy,
-            iw,
-            Icon::Trash,
-            WARN,
-            S.companion_delete_key_ask,
-        );
-        for l in [S.companion_key_not_needed, S.companion_key_shown_again] {
-            cy += ui.wrap(x, cy, iw, 14.0, W::R, TEXT, l) + 10.0;
-        }
-        cy += 8.0;
-        cy += faraday_ui::sheet::buttons(
-            ui,
-            x,
-            cy,
-            iw,
-            &[
-                (S.companion_keep_it, Style::Secondary, Act::KeepIt),
-                (
-                    S.companion_delete_the_key,
-                    Style::Primary,
-                    Act::ConfirmDelete,
-                ),
-            ],
-        );
-        cy - y
-    });
 }
 
 /// Waiting for the phone's unlock.

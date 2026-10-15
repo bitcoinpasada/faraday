@@ -24,8 +24,6 @@ use std::rc::Rc;
 
 pub use faraday_ui::Theme;
 
-use faraday_intake::Secret;
-use faraday_qr::bitlocker::KeyText;
 use faraday_qr::send::{Format, Made, PARTS, SPEEDS, Source};
 use faraday_strings::{EN as S, fill};
 use osk_codec::QrMatrix;
@@ -35,7 +33,7 @@ use zeroize::{Zeroize, Zeroizing};
 
 pub use api::{Closed, CompanionCommand, CompanionEvent, UnlockFor};
 use faraday_ui::keyboard::{Keys, OskPress, Typed};
-use route::{Outcome, Reader};
+use route::{Outcome, Reader, Refusal};
 use store::{Kept, Kind};
 
 /// The Companion's own version, which About shows.
@@ -119,8 +117,6 @@ pub enum Confirm {
     Store,
     /// One kept wallet description, by its place.
     Description(usize),
-    /// One kept BitLocker key, by its place.
-    Key(usize),
     /// The kept store that could not be read.
     KeptStore,
 }
@@ -188,7 +184,7 @@ pub enum Page {
         again: bool,
     },
     /// A secret that stays on the device was refused (§5).
-    Refused(Secret),
+    Refused(Refusal),
     /// Text, an address or a web address, shown.
     Shown(Shown),
     /// Send to Faraday: the file to send (§4.3).
@@ -225,12 +221,6 @@ pub enum Page {
     Rename(usize),
     /// A description that did not read: the reader's line.
     NotDescription(String),
-    /// BitLocker keys (§4.6): the list.
-    Keys,
-    /// A kept BitLocker key's record, by its place.
-    Key(usize),
-    /// Back in Windows: the sheet over a key's record.
-    BackInWindows(usize),
     /// Waiting for the phone's unlock, for this.
     Unlocking(UnlockFor),
     /// The kept store was not opened, and why.
@@ -297,18 +287,12 @@ pub enum Act {
     LearnPage(usize),
     /// Start from the stick's page `n`.
     StartPage(usize),
-    /// The recovery key's Hold to show: shown while a finger is on it.
-    Hold,
     /// Home's Wallet descriptions.
     Descriptions,
-    /// Home's BitLocker keys.
-    Keys,
     /// Wallet descriptions' Scan or paste.
     AddDescription,
     /// Opens kept description `n`, oldest first.
     DescriptionRecord(usize),
-    /// Opens kept key `n`, oldest first.
-    KeyRecord(usize),
     /// A record's Share.
     Share,
     /// A description's Rename.
@@ -321,8 +305,6 @@ pub enum Act {
     Osk(OskPress),
     /// A received description's Keep in Wallet descriptions.
     KeepInDescriptions,
-    /// A key's Back in Windows.
-    BackInWindows,
     /// The way to delete a kept store that could not be read.
     DeleteKeptStore,
     /// About's theme `n`, in [`Theme::ALL`]'s order.
@@ -563,9 +545,9 @@ pub struct Companion {
     /// The kept store, while it is open: wiped when the app goes to the
     /// background.
     kept_store: Option<kept::Store>,
-    /// How many descriptions and keys the kept store holds, as Home
-    /// shows them while it is locked.
-    counts: (u32, u32),
+    /// How many descriptions the kept store holds, as Home shows them
+    /// while it is locked.
+    count: u32,
     /// What waits for the phone's unlock.
     pending: Option<Pending>,
     /// The kept store the shell opened could not be read: it is not
@@ -576,8 +558,6 @@ pub struct Companion {
     scan_kept: bool,
     /// What is on show came from another app ([`CompanionEvent::SharedIn`]).
     shared: bool,
-    /// A finger is on a key's Hold to show.
-    held: bool,
     /// The name typed on Rename.
     name: String,
     /// The keyboard's Shift and symbols.
@@ -598,17 +578,13 @@ enum Pending {
     /// A wallet description to keep: its text, and the name it came
     /// with.
     Description(Zeroizing<String>, Option<String>),
-    /// A BitLocker key to keep.
-    Key(KeyText),
 }
 
 impl Pending {
     fn purpose(&self) -> UnlockFor {
         match self {
-            Pending::Open(Page::Keys) => UnlockFor::Keys,
             Pending::Open(_) => UnlockFor::Descriptions,
             Pending::Description(..) => UnlockFor::KeepDescription,
-            Pending::Key(_) => UnlockFor::KeepKey,
         }
     }
 }
@@ -666,12 +642,11 @@ impl Companion {
             pasting: false,
             picking: false,
             kept_store: None,
-            counts: (0, 0),
+            count: 0,
             pending: None,
             kept_unreadable: false,
             scan_kept: false,
             shared: false,
-            held: false,
             name: String::new(),
             keys: Keys::default(),
             sending: None,
@@ -696,17 +671,11 @@ impl Companion {
         self.kept_store.as_ref()
     }
 
-    /// How many wallet descriptions and BitLocker keys are kept, as Home
-    /// shows them.
-    pub fn kept_counts(&self) -> (u32, u32) {
+    /// How many wallet descriptions are kept, as Home shows them.
+    pub fn kept_count(&self) -> u32 {
         self.kept_store
             .as_ref()
-            .map_or(self.counts, kept::Store::counts)
-    }
-
-    /// Whether a key's digits are on show.
-    pub fn key_shown(&self) -> bool {
-        self.held
+            .map_or(self.count, kept::Store::count)
     }
 
     /// One report from the shell beyond upstream's events.
@@ -802,7 +771,7 @@ impl Companion {
                 };
                 match kept::read(&bytes) {
                     Some(store) => {
-                        self.counts = store.counts();
+                        self.count = store.count();
                         self.kept_store = Some(store);
                         self.kept_unreadable = false;
                         self.run(pending);
@@ -825,8 +794,22 @@ impl Companion {
                 self.sync();
             }
             CompanionEvent::Locked => self.lock(),
-            CompanionEvent::KeptCounts { descriptions, keys } => {
-                self.counts = (descriptions, keys);
+            CompanionEvent::KeptCounts {
+                version,
+                descriptions,
+            } => {
+                if version == u32::from(kept::VERSION) {
+                    self.count = descriptions;
+                } else {
+                    // A store of an earlier version held BitLocker keys
+                    // (F33): it is deleted, with its key and its count,
+                    // and the wallet descriptions are scanned in again.
+                    self.count = 0;
+                    self.out.push_back(CompanionCommand::KeepKept {
+                        bytes: Vec::new(),
+                        descriptions: 0,
+                    });
+                }
             }
             CompanionEvent::SharedIn { name, bytes } => {
                 self.shared_in(name, Zeroizing::new(bytes));
@@ -840,7 +823,6 @@ impl Companion {
     fn lock(&mut self) {
         self.kept_store = None;
         self.pending = None;
-        self.held = false;
         self.name.zeroize();
         let on_kept = std::iter::once(&self.page)
             .chain(self.stack.iter())
@@ -867,9 +849,7 @@ impl Companion {
         let purpose = then.purpose();
         let title = match purpose {
             UnlockFor::Descriptions => S.companion_unlock_descriptions,
-            UnlockFor::Keys => S.companion_unlock_keys,
             UnlockFor::KeepDescription => S.companion_unlock_keep_description,
-            UnlockFor::KeepKey => S.companion_unlock_keep_key,
         };
         self.out.push_back(CompanionCommand::UnlockKept {
             purpose,
@@ -924,10 +904,6 @@ impl Companion {
                 Ok(at) => self.show_kept(Page::Description(at)),
                 Err(why) => self.show_kept(Page::NotDescription(why)),
             },
-            Pending::Key(key) => {
-                let at = self.keep_key(key);
-                self.show_kept(Page::Key(at));
-            }
         }
     }
 
@@ -969,35 +945,19 @@ impl Companion {
         Ok(at)
     }
 
-    /// Keeps a BitLocker key in the open store, once. Returns its place.
-    fn keep_key(&mut self, key: KeyText) -> usize {
-        let time = self.wall_now();
-        let Some(store) = self.kept_store.as_mut() else {
-            return 0;
-        };
-        if let Some(at) = store.keys.iter().position(|k| k.text == key) {
-            return at;
-        }
-        store.keys.push(kept::Key { text: key, time });
-        let at = store.keys.len() - 1;
-        self.write_kept();
-        at
-    }
-
-    /// Hands the shell the whole kept store, with its counts, while it
+    /// Hands the shell the whole kept store, with its count, while it
     /// is open and readable.
     fn write_kept(&mut self) {
         if self.kept_unreadable {
             return;
         }
         if let Some(store) = self.kept_store.as_ref() {
-            let (descriptions, keys) = store.counts();
-            self.counts = (descriptions, keys);
+            let descriptions = store.count();
+            self.count = descriptions;
             let bytes = kept::write(store);
             self.out.push_back(CompanionCommand::KeepKept {
                 bytes: bytes.to_vec(),
                 descriptions,
-                keys,
             });
         }
     }
@@ -1192,7 +1152,6 @@ impl Companion {
 
     /// What a page left behind is wiped of.
     fn leaving(&mut self) {
-        self.held = false;
         if !matches!(self.page, Page::Rename(_)) {
             self.name.zeroize();
             self.keys.reset();
@@ -1228,7 +1187,6 @@ impl Companion {
                 }
             }
             Act::Descriptions => self.want_kept(Pending::Open(Page::Descriptions)),
-            Act::Keys => self.want_kept(Pending::Open(Page::Keys)),
             Act::DescriptionRecord(n) => {
                 if self
                     .kept_store
@@ -1236,11 +1194,6 @@ impl Companion {
                     .is_some_and(|k| n < k.descriptions.len())
                 {
                     self.go(Page::Description(n));
-                }
-            }
-            Act::KeyRecord(n) => {
-                if self.kept_store.as_ref().is_some_and(|k| n < k.keys.len()) {
-                    self.go(Page::Key(n));
                 }
             }
             Act::Share => self.share(),
@@ -1284,11 +1237,6 @@ impl Companion {
                 };
                 if let Some((text, name)) = file {
                     self.ask_keep_description(Zeroizing::new(text), Some(strip_ext(&name)));
-                }
-            }
-            Act::BackInWindows => {
-                if let Page::Key(n) = self.page {
-                    self.go(Page::BackInWindows(n));
                 }
             }
             Act::DeleteKeptStore => {
@@ -1401,7 +1349,6 @@ impl Companion {
             Act::Delete => match self.page {
                 Page::Record(sha) => self.go(Page::Confirm(Confirm::One(sha))),
                 Page::Description(n) => self.go(Page::Confirm(Confirm::Description(n))),
-                Page::Key(n) => self.go(Page::Confirm(Confirm::Key(n))),
                 _ => {}
             },
             Act::DeleteAll => {
@@ -1414,11 +1361,11 @@ impl Companion {
                     self.go(Page::Confirm(Confirm::Store));
                 }
             }
-            Act::ConfirmDelete => match self.page {
-                Page::Confirm(c) => self.delete(c),
-                Page::BackInWindows(n) => self.delete(Confirm::Key(n)),
-                _ => {}
-            },
+            Act::ConfirmDelete => {
+                if let Page::Confirm(c) = self.page {
+                    self.delete(c);
+                }
+            }
             Act::LearnPage(n) => {
                 if let Some(d) = draw::learn_docs().get(n) {
                     self.go(Page::Doc(*d));
@@ -1466,8 +1413,6 @@ impl Companion {
                     self.set_ticked(id, Vec::new());
                 }
             }
-            // Shown while a finger is on it (`touch`), not at a press.
-            Act::Hold => {}
             Act::Theme(n) => {
                 if let Some(t) = Theme::ALL.get(n)
                     && *t != self.theme
@@ -1532,18 +1477,13 @@ impl Companion {
                 self.unreadable = false;
                 self.page = self.stack.pop().unwrap_or(Page::Received);
             }
-            Confirm::Description(n) | Confirm::Key(n) => {
-                if let Some(store) = self.kept_store.as_mut() {
-                    if let Confirm::Description(_) = c {
-                        if n < store.descriptions.len() {
-                            let mut d = store.descriptions.remove(n);
-                            d.text.zeroize();
-                            d.name.zeroize();
-                        }
-                    } else if n < store.keys.len() {
-                        let mut k = store.keys.remove(n);
-                        k.text.zeroize();
-                    }
+            Confirm::Description(n) => {
+                if let Some(store) = self.kept_store.as_mut()
+                    && n < store.descriptions.len()
+                {
+                    let mut d = store.descriptions.remove(n);
+                    d.text.zeroize();
+                    d.name.zeroize();
                 }
                 // The question, then the record it was asked from.
                 self.stack.pop();
@@ -1556,11 +1496,10 @@ impl Companion {
                 // Deleted: the shell keeps no store, and the next keep
                 // starts a new one.
                 self.kept_unreadable = false;
-                self.counts = (0, 0);
+                self.count = 0;
                 self.out.push_back(CompanionCommand::KeepKept {
                     bytes: Vec::new(),
                     descriptions: 0,
-                    keys: 0,
                 });
                 self.stack.pop();
                 self.page = self.stack.pop().unwrap_or(Page::Home);
@@ -1599,7 +1538,7 @@ impl Companion {
     }
 
     /// The record's file handed to the system's share sheet (§6.3): a
-    /// received file, or a wallet description. Never a BitLocker key.
+    /// received file, or a wallet description.
     fn share(&mut self) {
         let file = match self.page {
             Page::Record(sha) => self.kept.iter().find(|k| k.sha256 == sha).map(|k| {
@@ -1674,7 +1613,12 @@ impl Companion {
         let mut bytes = bytes;
         if let Some(s) = faraday_intake::secret(&bytes) {
             bytes.zeroize();
-            self.go(Page::Refused(s));
+            self.go(Page::Refused(s.into()));
+            return;
+        }
+        if route::holds_recovery_key(&bytes) {
+            bytes.zeroize();
+            self.go(Page::Refused(Refusal::RecoveryKey));
             return;
         }
         let kind = route::kind_of_file(&bytes);
@@ -1793,7 +1737,6 @@ impl Companion {
                 let (sha256, again) = self.keep(name, kind, bytes, ext);
                 self.replace(Page::Arrived { sha256, again });
             }
-            Outcome::BitLocker(key) => self.want_kept(Pending::Key(key)),
             Outcome::Guide(id) => self.replace(Page::Doc(Doc::Own(id))),
             Outcome::Address { text, silent } => {
                 self.replace(Page::Shown(Shown::Address { text, silent }))
@@ -1882,7 +1825,6 @@ impl Companion {
         match phase {
             TouchPhase::Down => {
                 self.pressed = self.hit_at(x, y);
-                self.held = self.pressed == Some(Act::Hold);
                 self.drag = Some((y, self.offset, false));
                 true
             }
@@ -1896,12 +1838,10 @@ impl Companion {
                 }
                 self.drag = Some((y0, from, true));
                 self.pressed = None;
-                self.held = false;
                 self.offset = (from - moved).clamp(0.0, self.max.max(0.0));
                 true
             }
             TouchPhase::Up => {
-                self.held = false;
                 let pressed = self.pressed.take();
                 let moving = self.drag.take().is_some_and(|d| d.2);
                 if let Some(a) = pressed
@@ -2001,11 +1941,8 @@ fn is_kept_page(p: &Page) -> bool {
             | Page::Description(_)
             | Page::Rename(_)
             | Page::NotDescription(_)
-            | Page::Keys
-            | Page::Key(_)
-            | Page::BackInWindows(_)
             | Page::Unlocking(_)
-            | Page::Confirm(Confirm::Description(_) | Confirm::Key(_))
+            | Page::Confirm(Confirm::Description(_))
     )
 }
 

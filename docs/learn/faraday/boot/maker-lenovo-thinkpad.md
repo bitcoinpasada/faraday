@@ -2,7 +2,7 @@
 
 ## Before you start
 
-On Windows, a backup of the BitLocker recovery key is optional: Faraday Starter's BitLocker page shows it. On Linux, have the disk's passphrase or recovery key ready.
+On Linux, have the disk's passphrase or recovery key ready if it is unlocked by the TPM.
 
 ## Steps
 
@@ -36,11 +36,13 @@ If the stick is not listed: see "If something is different" below.
 
 7. Turn the computer off from Faraday and pull the stick out.
 
-8. Tap F1 at power-on, set Security → Secure Boot → Secure Boot to Enabled (On), and press F10. Do it before Windows starts: with Secure Boot off, Windows asks for the BitLocker recovery key unless Faraday Starter suspended BitLocker.
+8. Turn Secure Boot back on: tap F1 at power-on, set Security → Secure Boot → Secure Boot to Enabled (On), and press F10. Do it before Windows starts.
 
 If Secure Boot shows Disabled and cannot be changed: Secure Boot Mode is Setup Mode (Platform Mode on older models). Choose Restore Factory Keys on the same Secure Boot page, which returns it to User Mode, then set Secure Boot to Enabled and restart.
 
 ## If something is different
+
+If Windows asks for the BitLocker recovery key: for a computer set up with a Microsoft account, the key is on the account's recovery-key page, aka.ms/myrecoverykey; otherwise it is wherever it was saved when BitLocker was set up. Then turn Secure Boot back on before the next start.
 
 Stick not in the F12 list: Lenovo's ThinkPad articles do not describe a setting that hides USB disks from the boot menu.
 

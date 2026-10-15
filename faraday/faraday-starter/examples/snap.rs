@@ -12,15 +12,13 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use faraday_qr::bitlocker::{KeyText, RecoveryKey};
 use faraday_starter::api::{
-    BitLocker, BitLockerStep, Bus, Computer, Concern, DevImage, Disk, FaradayStick, InUse,
-    InstallItem, Installed, KeyShown, Kind, Marker, Mode, Os, Payload, PayloadFile, Protection,
-    Reason, StarterEvent, Volume, WriteStage,
+    Bus, Computer, Concern, DevImage, Disk, FaradayStick, InUse, InstallItem, Installed, Kind,
+    Mode, Os, Payload, PayloadFile, Reason, StarterEvent, Volume, WriteStage,
 };
 use faraday_starter::decide::Target;
 use faraday_starter::{LearnId, Starter, StarterAction};
-use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
+use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 const GB: u64 = 1_000_000_000;
 
@@ -211,172 +209,17 @@ fn to(starter: &mut Starter, id: &str, mode: Mode) {
     starter.press(StarterAction::Continue);
 }
 
-fn suspended(was_on: bool) -> BitLocker {
-    BitLocker {
-        drive: "C:".into(),
-        protection: Protection::Suspended,
-        marker: Some(Marker {
-            volumes: vec!["C:".into()],
-            secure_boot_was_on: was_on,
-            this_boot: false,
-        }),
-    }
-}
-
-fn protected() -> BitLocker {
-    BitLocker {
-        drive: "C:".into(),
-        protection: Protection::On,
-        marker: None,
-    }
-}
-
-/// A made-up recovery key.
-fn recovery_key() -> KeyShown {
-    KeyShown {
-        text: KeyText {
-            computer: "DESKTOP-4K2Q".into(),
-            drive: "C:".into(),
-            key: RecoveryKey::parse("205568-492019-108251-336446-650375-210331-584155-047520")
-                .expect("a key"),
-        },
-        id: "{6A0E1F2C-3B4D-4E5F-8A9B-0C1D2E3F4A5B}".into(),
-    }
-}
-
-/// A Windows laptop with BitLocker on, on the guard's page.
-fn guard(s: &Snap, b: BitLocker) -> Starter {
+/// Another encryption product found on Windows (§6.4): the card asks for
+/// its rescue disk or password before the firmware steps open.
+fn other_encryption_shots(s: &Snap) -> Result<(), String> {
     let mut h = s.starter();
     h.starter_event(StarterEvent::Computer(laptop(Os::Windows, true)));
-    h.starter_event(StarterEvent::BitLocker(Some(b)));
-    h.press(StarterAction::BitLocker);
-    h
-}
-
-/// The guard's page in each of its states (docs/STARTER.md §6.5).
-fn guard_shots(s: &Snap) -> Result<(), String> {
-    let mut h = guard(s, protected());
-    s.shot(&mut h, "bitlocker-1-protected")?;
-    // The key shown and Done: Home reads "Key shown" (F21).
-    let mut shown = guard(s, protected());
-    shown.press(StarterAction::ShowKey);
-    shown.starter_event(StarterEvent::KeyShown(Ok(recovery_key())));
-    while shown.poll_command().is_some() {}
-    shown.press(StarterAction::KeyDone);
-    s.shot(&mut shown, "bitlocker-1-key-shown")?;
-    h.press(StarterAction::ShowKey);
-    s.shot(&mut h, "bitlocker-1-waiting")?;
-    h.starter_event(StarterEvent::KeyShown(Err(Reason::Declined)));
-    s.shot(&mut h, "bitlocker-1-declined")?;
-    h.starter_event(StarterEvent::KeyShown(Err(Reason::NoAdmin)));
-    s.shot(&mut h, "bitlocker-1-no-admin")?;
-    h.starter_event(StarterEvent::Disks(vec![disk(
-        "sdb",
-        "Kingston",
-        "DataTraveler",
-        64 * GB,
-        &[("PHOTOS", true)],
+    h.starter_event(StarterEvent::Disks(vec![stick(
+        "sde",
+        "6.6.84-faraday-0.2.0",
     )]));
-    h.press(StarterAction::ShowKey);
-    h.starter_event(StarterEvent::KeyShown(Ok(recovery_key())));
-    while h.poll_command().is_some() {}
-    let mut bytes = [0u8; 32];
-    bytes[..2].copy_from_slice(&[3, 2]);
-    h.event(Event::Entropy(EntropyBytes::new(bytes)));
-    s.shot(&mut h, "bitlocker-2-key")?;
-    s.shot_end(&mut h, "bitlocker-2-key-end")?;
-    h.press(StarterAction::ExtraSafe);
-    s.shot_end(&mut h, "bitlocker-2-key-extra-safe")?;
-    h.press(StarterAction::KeptIt);
-    s.shot(&mut h, "bitlocker-3-groups")?;
-    for c in "336446".chars() {
-        h.event(Event::Key(Key::Char(c)));
-    }
-    for c in "58415".chars() {
-        h.event(Event::Key(Key::Char(c)));
-    }
-    s.shot_end(&mut h, "bitlocker-3-groups-typing")?;
-    h.event(Event::Key(Key::Char('6')));
-    h.press(StarterAction::Suspend);
-    s.shot_end(&mut h, "bitlocker-3-groups-wrong")?;
-    h.event(Event::Key(Key::Backspace));
-    h.event(Event::Key(Key::Char('5')));
-    h.press(StarterAction::Suspend);
-    s.shot_end(&mut h, "bitlocker-4-suspending")?;
-    h.starter_event(StarterEvent::BitLocker(Some(protected())));
-    h.starter_event(StarterEvent::BitLockerDone {
-        step: BitLockerStep::Suspend,
-        result: Err(Reason::Managed(0x8031_003A)),
-    });
-    s.shot_end(&mut h, "bitlocker-4-managed")?;
-    let mut now = suspended(true);
-    if let Some(m) = &mut now.marker {
-        m.this_boot = true;
-    }
-    h.starter_event(StarterEvent::BitLocker(Some(now)));
-    h.starter_event(StarterEvent::BitLockerDone {
-        step: BitLockerStep::Suspend,
-        result: Ok(()),
-    });
-    s.shot(&mut h, "bitlocker-5-done")?;
-    h.press(StarterAction::Home);
-    s.shot(&mut h, "bitlocker-5-done-home")?;
-
-    // Later: Resume, with Secure Boot as recorded and not.
-    let mut h = guard(s, suspended(true));
-    s.shot(&mut h, "bitlocker-6-resume")?;
-    h.starter_event(StarterEvent::Computer(laptop(Os::Windows, false)));
-    s.shot(&mut h, "bitlocker-6-resume-needs-secure-boot")?;
-    let mut h = guard(s, suspended(true));
-    h.press(StarterAction::Resume);
-    h.starter_event(StarterEvent::BitLocker(Some(protected())));
-    h.starter_event(StarterEvent::BitLockerDone {
-        step: BitLockerStep::Resume,
-        result: Ok(()),
-    });
-    s.shot(&mut h, "bitlocker-6-resumed")?;
-
-    // Undone by a policy, another product, nothing read.
-    let mut undone = suspended(true);
-    undone.protection = Protection::On;
-    let mut h = guard(s, undone);
-    s.shot(&mut h, "bitlocker-7-undone")?;
-    let mut h = guard(
-        s,
-        BitLocker {
-            drive: "C:".into(),
-            protection: Protection::None,
-            marker: None,
-        },
-    );
     h.starter_event(StarterEvent::OtherEncryption(Some("VeraCrypt".into())));
-    s.shot(&mut h, "bitlocker-7-veracrypt")?;
-    let mut h = s.starter();
-    h.starter_event(StarterEvent::Computer(laptop(Os::Windows, true)));
-    h.starter_event(StarterEvent::BitLocker(None));
-    h.press(StarterAction::BitLocker);
-    s.shot(&mut h, "bitlocker-7-not-read")?;
-
-    // Uninstall while suspended (§5.4).
-    for (on, name) in [
-        (true, "uninstall-suspended-resume"),
-        (false, "uninstall-suspended-stays"),
-    ] {
-        let mut h = s.starter();
-        h.starter_event(StarterEvent::Computer(laptop(Os::Windows, on)));
-        h.starter_event(StarterEvent::BitLocker(Some(suspended(true))));
-        h.starter_event(StarterEvent::Installed(Some(Installed {
-            version: "0.2.0".into(),
-            items: vec![(
-                InstallItem::App,
-                r"%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Starter.exe".into(),
-            )],
-        })));
-        h.press(StarterAction::Installed);
-        h.press(StarterAction::Uninstall);
-        s.shot(&mut h, name)?;
-    }
-    Ok(())
+    s.shot(&mut h, "home-windows-veracrypt")
 }
 
 fn concern(kind: Kind, name: &str, id: &str) -> Concern {
@@ -415,12 +258,14 @@ fn concern_shots(s: &Snap) -> Result<(), String> {
         "vm",
     )]));
     s.shot(&mut h, "concern-home-virtual-machine")?;
-    let mut h = guard(s, protected());
-    h.starter_event(StarterEvent::Concerns(vec![
-        concern(Kind::RemoteSession, "", "session"),
-        concern(Kind::Kvm, "PiKVM V4", "drm:card0-HDMI-A-1"),
-    ]));
-    s.shot(&mut h, "concern-bitlocker-held")?;
+    let mut h = s.starter();
+    h.starter_event(StarterEvent::Computer(laptop(Os::Windows, true)));
+    h.starter_event(StarterEvent::Concerns(vec![concern(
+        Kind::Kvm,
+        "PiKVM V4",
+        "drm:card0-HDMI-A-1",
+    )]));
+    s.shot(&mut h, "concern-windows-kvm-held")?;
     let mut h = s.starter();
     h.starter_event(StarterEvent::BootEntry(true));
     s.shot_end(&mut h, "home-remove-boot-entry")?;
@@ -463,30 +308,20 @@ fn run(s: &Snap) -> Result<(), String> {
         "sde",
         "6.6.84-faraday-0.2.0",
     )]));
-    h.starter_event(StarterEvent::BitLocker(Some(BitLocker {
-        drive: "C:".into(),
-        protection: Protection::None,
-        marker: None,
-    })));
     s.shot(&mut h, "home-windows-stick-secure-boot-off")?;
+    h.press(StarterAction::Next);
+    s.shot(&mut h, "home-windows-restart-stick-sheet")?;
     let mut h = s.starter();
     h.starter_event(StarterEvent::Computer(laptop(Os::Windows, true)));
     h.starter_event(StarterEvent::Disks(vec![stick(
         "sde",
         "6.6.84-faraday-0.2.0",
     )]));
-    h.starter_event(StarterEvent::BitLocker(Some(BitLocker {
-        drive: "C:".into(),
-        protection: Protection::On,
-        marker: None,
-    })));
-    s.shot(&mut h, "home-windows-protected")?;
-    h.starter_event(StarterEvent::Computer(laptop(Os::Windows, false)));
-    h.starter_event(StarterEvent::Disks(Vec::new()));
-    h.starter_event(StarterEvent::BitLocker(Some(suspended(true))));
-    s.shot(&mut h, "home-suspended-secure-boot-off")?;
-    h.starter_event(StarterEvent::Computer(laptop(Os::Windows, true)));
-    s.shot(&mut h, "home-suspended-secure-boot-on")?;
+    s.shot(&mut h, "home-windows-stick-secure-boot-on")?;
+    let mut c = laptop(Os::Windows, true);
+    c.secure_boot = None;
+    h.starter_event(StarterEvent::Computer(c));
+    s.shot(&mut h, "home-windows-stick-secure-boot-unread")?;
     let mut h = s.starter();
     let mut arm = laptop(Os::Windows, true);
     arm.arm = true;
@@ -645,16 +480,12 @@ fn run(s: &Snap) -> Result<(), String> {
     s.shot(&mut h, "start-linux-secure-boot-off-tpm")?;
     let mut h = s.starter();
     h.starter_event(StarterEvent::Computer(laptop(Os::Windows, true)));
-    h.starter_event(StarterEvent::BitLocker(Some(BitLocker {
-        drive: "C:".into(),
-        protection: Protection::On,
-        marker: None,
-    })));
     h.press(StarterAction::Start);
-    s.shot(&mut h, "start-windows-protected")?;
-    h.starter_event(StarterEvent::BitLocker(Some(suspended(true))));
-    s.shot(&mut h, "start-windows-suspended")?;
-    s.shot_end(&mut h, "start-windows-suspended-end")?;
+    s.shot(&mut h, "start-windows-secure-boot-on")?;
+    s.shot_end(&mut h, "start-windows-secure-boot-on-end")?;
+    h.starter_event(StarterEvent::Computer(laptop(Os::Windows, false)));
+    s.shot_end(&mut h, "start-windows-secure-boot-off-end")?;
+    h.starter_event(StarterEvent::Computer(laptop(Os::Windows, true)));
     h.press(StarterAction::Restart);
     s.shot(&mut h, "start-restart-sheet")?;
     // A maker with a page of its own (§7.6).
@@ -662,13 +493,12 @@ fn run(s: &Snap) -> Result<(), String> {
     let mut c = laptop(Os::Windows, true);
     c.maker = "Dell Inc.".into();
     h.starter_event(StarterEvent::Computer(c));
-    h.starter_event(StarterEvent::BitLocker(Some(suspended(true))));
     h.press(StarterAction::Start);
     s.shot(&mut h, "start-maker")?;
     h.press(StarterAction::Restart);
     s.shot(&mut h, "start-maker-restart-sheet")?;
 
-    // Install, Installed, About, BitLocker.
+    // Install, Installed, About.
     let mut h = s.starter();
     h.press(StarterAction::Install);
     s.shot(&mut h, "install")?;
@@ -709,7 +539,7 @@ fn run(s: &Snap) -> Result<(), String> {
     h.press(StarterAction::About);
     s.shot(&mut h, "about")?;
     s.shot_end(&mut h, "about-end")?;
-    guard_shots(s)?;
+    other_encryption_shots(s)?;
 
     // Blank templates (§3.8): the menu, a Choice, and after a save.
     let mut h = s.starter();

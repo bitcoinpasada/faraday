@@ -2,7 +2,7 @@
 
 ## Before you start
 
-On Windows, a backup of the BitLocker recovery key is optional: Faraday Starter's BitLocker page shows it. On Linux, have the disk's passphrase or recovery key ready.
+On Linux, have the disk's passphrase or recovery key ready if it is unlocked by the TPM.
 
 ## Steps
 
@@ -36,11 +36,13 @@ If the stick is not listed: see "If something is different" below.
 
 7. Turn the computer off from Faraday and pull the stick out.
 
-8. Open the BIOS with F2 or the Novo button, set Security → Secure Boot to Enabled, and save with F10. Do it before Windows starts: with Secure Boot off, Windows asks for the BitLocker recovery key unless Faraday Starter suspended BitLocker.
+8. Turn Secure Boot back on: open the BIOS with F2 or the Novo button, set Security → Secure Boot to Enabled, and save with F10. Do it before Windows starts.
 
 If Secure Boot does not stay on: Lenovo's IdeaPad articles do not describe restoring the Secure Boot keys; the step on the general Windows page applies.
 
 ## If something is different
+
+If Windows asks for the BitLocker recovery key: for a computer set up with a Microsoft account, the key is on the account's recovery-key page, aka.ms/myrecoverykey; otherwise it is wherever it was saved when BitLocker was set up. Then turn Secure Boot back on before the next start.
 
 Stick not in the F12 list: on the Boot tab, set USB Boot to Enabled. Lenovo's IdeaPad articles do not describe a setting that hides USB disks.
 

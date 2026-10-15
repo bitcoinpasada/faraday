@@ -140,14 +140,13 @@ pub fn asked_unlock(cmds: &[CompanionCommand]) -> bool {
         .any(|c| matches!(c, CompanionCommand::UnlockKept { .. }))
 }
 
-/// The last kept store the core handed the shell, with its two counts.
-pub fn kept_kept(cmds: &[CompanionCommand]) -> Option<(Vec<u8>, u32, u32)> {
+/// The last kept store the core handed the shell, with its count.
+pub fn kept_kept(cmds: &[CompanionCommand]) -> Option<(Vec<u8>, u32)> {
     cmds.iter().rev().find_map(|c| match c {
         CompanionCommand::KeepKept {
             bytes,
             descriptions,
-            keys,
-        } => Some((bytes.clone(), *descriptions, *keys)),
+        } => Some((bytes.clone(), *descriptions)),
         _ => None,
     })
 }
@@ -189,14 +188,12 @@ pub fn interop(path: &str) -> String {
     .expect("text")
 }
 
-/// The Starter's text for a BitLocker recovery key.
-pub fn starter_key() -> faraday_qr::bitlocker::KeyText {
-    faraday_qr::bitlocker::KeyText {
-        computer: "DESKTOP-4K2Q".into(),
-        drive: "C:".into(),
-        key: faraday_qr::bitlocker::RecoveryKey::parse(
-            "205568-492019-108251-336446-650375-210331-584155-047520",
-        )
-        .expect("a key"),
-    }
+/// A BitLocker recovery key as the 0.1.2 Starter's code carried it, and
+/// the key alone.
+pub const RECOVERY_KEY: &str = "205568-492019-108251-336446-650375-210331-584155-047520";
+
+/// The 0.1.2 Starter's text for a recovery key: a line naming the
+/// computer and the drive, then the key.
+pub fn starter_key_text() -> String {
+    format!("BitLocker recovery key for DESKTOP-4K2Q, drive C:\n{RECOVERY_KEY}")
 }

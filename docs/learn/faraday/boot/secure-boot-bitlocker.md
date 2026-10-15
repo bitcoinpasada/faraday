@@ -18,7 +18,7 @@ BitLocker encrypts the Windows drive. Device encryption is BitLocker turned on b
 
 The TPM is asked only when Windows starts. Secure Boot off, Faraday, Secure Boot back on, then Windows: Windows sees the start it knows and asks for nothing.
 
-If Windows starts while Secure Boot is still off, it asks for the drive's 48-digit recovery key. Type it, and Windows starts; then turn Secure Boot back on. That is what the optional backup in Faraday Starter is for. A computer set up with a Microsoft account also keeps the key at aka.ms/myrecoverykey.
+If Windows starts while Secure Boot is still off, it asks for the drive's 48-digit recovery key. The Windows guide says where Windows keeps it. Turn Secure Boot back on before the next start.
 
 ## Where this comes from
 

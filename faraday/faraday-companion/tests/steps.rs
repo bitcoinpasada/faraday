@@ -192,3 +192,44 @@ fn no_step_is_shown_with_its_raw_number() {
         assert!(seen.iter().any(|t| t == "1"), "{id}");
     }
 }
+
+#[test]
+fn every_guide_ends_with_turn_secure_boot_back_on_ticked_like_the_others() {
+    for id in ["windows", "linux", "maker-dell", "maker-hp", "maker-other"] {
+        let mut c = phone();
+        guide(&mut c, id);
+        let n = steps_of(id);
+        for step in 1..=n as u32 {
+            assert!(
+                !shows(&mut c, &count(n, n)),
+                "{id}: done before step {step}"
+            );
+            c.press(Act::Step(step));
+        }
+        // `n of n done` is reached only with the last step ticked.
+        assert!(shows(&mut c, &count(n, n)), "{id}: {:?}", c.texts());
+        // The last step, further down the page, is the one that turns
+        // Secure Boot back on.
+        let mut seen = String::new();
+        for _ in 0..200 {
+            seen.push_str(&screen_joined(&mut c));
+            let before = c.texts();
+            c.event(Event::Scroll {
+                x: 10,
+                y: 10,
+                dy: 300,
+            });
+            if c.texts() == before {
+                break;
+            }
+        }
+        assert!(seen.contains("TurnSecureBootbackon"), "{id}");
+        c.event(Event::Scroll {
+            x: 10,
+            y: 10,
+            dy: i16::MIN,
+        });
+        c.press(Act::Step(n as u32));
+        assert!(shows(&mut c, &count(n - 1, n)), "{id}");
+    }
+}

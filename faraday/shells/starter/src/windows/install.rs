@@ -12,10 +12,9 @@
 //! | the Start menu shortcuts | `Faraday Starter.lnk` and, with the desktop app, `Faraday Desktop.lnk`, in the person's Start menu Programs folder |
 //! | the uninstall entry | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday Starter` |
 //! | the icon | in the `.exe` |
-//! | the logon reminder | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Faraday Starter`, only while the Starter's BitLocker suspension stands (§6.3) |
 //!
 //! Earlier installs (`names::LEGACY`: folder, executable, shortcut,
-//! uninstall key and Run value) are found and removed by install and
+//! and uninstall key) are found and removed by install and
 //! uninstall, when their executable is not there or answers `--version`
 //! as Faraday's Starter; one that does not leaves all its old names alone.
 //!
@@ -58,10 +57,6 @@ fn legacy_uninstall_key(l: &names::Legacy) -> String {
         l.win_name
     )
 }
-/// The per-user Run key the logon reminder is a value of (§6.3).
-pub const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
-/// The logon reminder's value name.
-pub const RUN_VALUE: &str = names::WIN_NAME;
 /// The Starter's file name.
 pub const APP: &str = names::WIN_EXE;
 /// The shortcut's file name.
@@ -220,52 +215,11 @@ pub trait Registry {
     fn delete(&mut self, key: &str) -> Result<(), String>;
     /// Whether `key` is there.
     fn exists(&mut self, key: &str) -> bool;
-    /// The value `name` under `key`, when it is there.
-    fn get(&mut self, key: &str, name: &str) -> Option<Data>;
-    /// Deletes the value `name` under `key`, and nothing else; a value
-    /// not there is not an error.
-    fn delete_value(&mut self, key: &str, name: &str) -> Result<(), String>;
 }
 
-/// The logon reminder's command: the installed copy, `--remind`.
-pub fn reminder_command(dirs: &Dirs) -> String {
-    format!("\"{}\" --remind", dirs.app().display())
-}
-
-/// Whether the Run value there is the Starter's logon reminder: the
-/// installed copy's command, or a Starter's installed in the same place
-/// under another `%LOCALAPPDATA%`.
-fn our_reminder(dirs: &Dirs, data: &Data) -> bool {
-    match data {
-        Data::Sz(s) => {
-            *s == reminder_command(dirs)
-                || s.to_ascii_lowercase()
-                    .ends_with(&reminder_tail(names::WIN_NAME, names::WIN_EXE))
-        }
-        Data::Dword(_) => false,
-    }
-}
-
-/// How a reminder's command ends, in lower case: the same install under
-/// another `%LOCALAPPDATA%`.
-fn reminder_tail(folder: &str, exe: &str) -> String {
-    format!("\\programs\\{folder}\\{exe}\" --remind").to_ascii_lowercase()
-}
-
-/// Whether a Run value is an earlier install's reminder.
-fn legacy_reminder(l: &names::Legacy, data: &Data) -> bool {
-    match data {
-        Data::Sz(s) => s
-            .to_ascii_lowercase()
-            .ends_with(&reminder_tail(l.win_name, l.win_exe)),
-        Data::Dword(_) => false,
-    }
-}
-
-/// Removes the earlier installs: each one's file and folder, shortcut,
-/// uninstall key and Run value (the value only when it is that
-/// install's reminder), when its executable is not there or answers as
-/// the Starter.
+/// Removes the earlier installs: each one's file and folder, shortcut
+/// and uninstall key, when its executable is not there or answers as the
+/// Starter.
 fn remove_legacy(dirs: &Dirs, ask: Ask<'_>, reg: &mut dyn Registry) -> Result<(), Reason> {
     for l in &names::LEGACY {
         let app = dirs.legacy_app(l);
@@ -281,45 +235,8 @@ fn remove_legacy(dirs: &Dirs, ask: Ask<'_>, reg: &mut dyn Registry) -> Result<()
             Err(e) => return Err(file_error(&dirs.legacy_shortcut(l), &e)),
         }
         reg.delete(&legacy_uninstall_key(l)).map_err(key_error)?;
-        if reg
-            .get(RUN_KEY, l.win_name)
-            .is_some_and(|d| legacy_reminder(l, &d))
-        {
-            reg.delete_value(RUN_KEY, l.win_name).map_err(run_error)?;
-        }
     }
     Ok(())
-}
-
-fn run_error(e: String) -> Reason {
-    Reason::File {
-        path: format!(r"HKEY_CURRENT_USER\{RUN_KEY}\{RUN_VALUE}"),
-        detail: e,
-    }
-}
-
-/// Adds the logon reminder (§6.3), for an installed copy only and
-/// pointing at it, never at the copy running from Downloads. Whether it
-/// was added.
-pub fn add_reminder(dirs: &Dirs, ask: Ask<'_>, reg: &mut dyn Registry) -> Result<bool, Reason> {
-    let app = dirs.app();
-    if !app.exists() || !ours(ask, &app) {
-        return Ok(false);
-    }
-    reg.set(RUN_KEY, RUN_VALUE, &Data::Sz(reminder_command(dirs)))
-        .map_err(run_error)?;
-    Ok(true)
-}
-
-/// Removes the logon reminder, when the Run value of its name is the
-/// Starter's; another program's value of the same name stays.
-pub fn remove_reminder(dirs: &Dirs, reg: &mut dyn Registry) -> Result<(), Reason> {
-    match reg.get(RUN_KEY, RUN_VALUE) {
-        Some(d) if our_reminder(dirs, &d) => {
-            reg.delete_value(RUN_KEY, RUN_VALUE).map_err(run_error)
-        }
-        _ => Ok(()),
-    }
 }
 
 /// What a file answers to `--version`: which Faraday program and its
@@ -472,15 +389,6 @@ pub fn installed(dirs: &Dirs, ask: Ask<'_>, reg: &mut dyn Registry) -> Option<In
             format!(r"HKEY_CURRENT_USER\{}", uninstall_key()),
         ));
     }
-    if reg
-        .get(RUN_KEY, RUN_VALUE)
-        .is_some_and(|d| our_reminder(dirs, &d))
-    {
-        items.push((
-            InstallItem::Reminder,
-            format!(r"HKEY_CURRENT_USER\{RUN_KEY}\{RUN_VALUE}"),
-        ));
-    }
     Some(Installed { version, items })
 }
 
@@ -521,10 +429,8 @@ pub enum Left {
 }
 
 /// Uninstalls: the Starter and the desktop app (only Faraday's), their
-/// files set aside by an install, the shortcuts, the uninstall entry, the logon reminder and
-/// the BitLocker marker (§5.4: the window has shown the line about a
-/// standing suspension first), the desktop app's cache, and the folders
-/// they leave empty. Nothing else.
+/// files set aside by an install, the shortcuts, the uninstall entry, the
+/// desktop app's cache, and the folders they leave empty. Nothing else.
 pub fn uninstall(
     dirs: &Dirs,
     running: &Path,
@@ -550,8 +456,6 @@ pub fn uninstall(
         Err(e) => return Err(file_error(&dirs.shortcut(), &e)),
     }
     reg.delete(&uninstall_key()).map_err(key_error)?;
-    remove_reminder(dirs, reg)?;
-    super::bitlocker::remove_marker(&dirs.local)?;
     remove_legacy(dirs, ask, reg)?;
     clear_cache(dirs)?;
     let _ = fs::remove_dir(&folder);

@@ -14,11 +14,8 @@ use opensigner_core::strings::fill;
 use osk_ui::Color;
 use osk_ui::widgets::Icon;
 
-use faraday_qr::bitlocker::RecoveryKey;
-
 use crate::api::{
-    Concern, InUse, InstallItem, KeyShown, Kind, Mode, Os, PayloadKind, Protection, Reason,
-    StickFault, WriteStage,
+    Concern, InUse, InstallItem, Kind, Mode, Os, PayloadKind, Reason, StickFault, WriteStage,
 };
 use crate::decide::{Item, Refusal, State, Target};
 use crate::macs::{self, StickFor};
@@ -76,7 +73,6 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
         Page::Install => install(starter, ui, x, y0, cw),
         Page::Installed => installed(starter, ui, x, y0, cw),
         Page::About => about(starter, ui, x, y0, cw),
-        Page::BitLocker => bitlocker(starter, ui, x, y0, cw),
         Page::Templates => templates(starter, ui, x, y0, cw),
         Page::TemplateWords => template_words(starter, ui, x, y0, cw),
         Page::TemplateCopy => template_copy(starter, ui, x, y0, cw),
@@ -131,7 +127,6 @@ fn page_name(starter: &Starter) -> String {
         Page::Install => S.starter_row_install.to_string(),
         Page::Installed => S.starter_row_installed.to_string(),
         Page::About => S.starter_row_about.to_string(),
-        Page::BitLocker => S.starter_bitlocker_title.to_string(),
         Page::Templates => S.starter_row_templates.to_string(),
         Page::TemplateWords => S.starter_tpl_words.to_string(),
         Page::TemplateCopy => S.starter_tpl_copy.to_string(),
@@ -361,10 +356,9 @@ pub(crate) fn link(ui: &mut Ui, x: f32, y: f32, w: f32, id: LearnId) -> f32 {
 /// An item of concern's line (§3.1a), naming it.
 pub(crate) fn concern_text(c: &Concern) -> String {
     let fallback = match c.kind {
-        Kind::Tv | Kind::WirelessDisplay => S.starter_concern_screen,
+        Kind::Tv => S.starter_concern_screen,
         Kind::Kvm | Kind::Receiver | Kind::BoltReceiver => S.starter_concern_device,
         Kind::VirtualMachine => S.starter_concern_computer,
-        Kind::RemoteSession => S.starter_concern_session,
     };
     let name = if c.name.trim().is_empty() {
         fallback
@@ -377,8 +371,6 @@ pub(crate) fn concern_text(c: &Concern) -> String {
         Kind::Receiver => S.devices_receiver_notice,
         Kind::BoltReceiver => S.devices_bolt_notice,
         Kind::VirtualMachine => S.starter_concern_vm,
-        Kind::RemoteSession => S.starter_concern_remote,
-        Kind::WirelessDisplay => S.starter_concern_wireless_display,
     };
     fill(line, &[name])
 }
@@ -555,13 +547,6 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         Reason::NoStick => S.starter_why_no_stick.to_string(),
         Reason::Declined => S.starter_why_declined.to_string(),
         Reason::Unsupported => S.starter_why_unsupported.to_string(),
-        Reason::NoAdmin => S.starter_why_no_admin.to_string(),
-        Reason::Managed(code) => fill(S.starter_why_managed, &[&format!("0x{code:08X}")]),
-        Reason::BitLocker { call, code } => {
-            fill(S.starter_why_bitlocker, &[call, &format!("0x{code:08X}")])
-        }
-        Reason::NotEncrypted => S.starter_why_not_encrypted.to_string(),
-        Reason::NotRead => S.starter_why_not_read.to_string(),
     }
 }
 
@@ -687,10 +672,8 @@ fn start_label(starter: &Starter) -> &'static str {
 fn item_label(starter: &Starter, item: Item) -> &'static str {
     match item {
         Item::MakeStick => S.starter_item_make,
-        Item::BitLocker => S.starter_item_bitlocker,
         Item::Start => start_label(starter),
         Item::SecureBootOn => S.starter_item_secure_boot,
-        Item::Resume => S.starter_item_resume,
     }
 }
 
@@ -699,12 +682,6 @@ fn state_text(state: &State) -> String {
     match state {
         State::NoStick => S.starter_state_no_stick.to_string(),
         State::Stick(v) => fill(S.starter_state_stick, &[v]),
-        State::Optional => S.starter_state_optional.to_string(),
-        State::Suspended => S.starter_state_suspended.to_string(),
-        State::SuspendedOther => S.starter_state_suspended_other.to_string(),
-        State::Resumed => S.starter_state_resumed.to_string(),
-        State::KeyShown => S.starter_state_key_shown.to_string(),
-        State::Other => S.starter_state_other.to_string(),
         State::SecureBoot(on) => secure_boot_text(*on),
         State::MacStart(Some(false)) => S.starter_state_mac_option.to_string(),
         State::MacStart(Some(true)) => S.starter_state_mac_t2.to_string(),
@@ -744,7 +721,7 @@ fn home(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y += label(ui, x, y, S.starter_checklist);
     ui.rule(x, y, w, INNER);
     let mut number = 0;
-    for row in rows.iter().filter(|r| r.item != Item::BitLocker) {
+    for row in &rows {
         number += 1;
         let action = StarterAction::Item(row.item);
         let is_next = next == Some(row.item);
@@ -769,11 +746,7 @@ fn home(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         let fg = if row.done { MUTED } else { TEXT };
         let head = ui.fit(14.0, W::S, item_label(starter, row.item), w - 80.0);
         ui.text(tx, y + 8.0, 14.0, W::S, fg, &head);
-        let mut state = state_text(&row.state);
-        if row.item == Item::Resume && !row.offered {
-            state = format!("{state} · {}", resume_needs(starter));
-        }
-        let state = ui.fit(12.0, W::R, &state, w - 80.0);
+        let state = ui.fit(12.0, W::R, &state_text(&row.state), w - 80.0);
         ui.text(tx, y + 30.0, 12.0, W::R, MUTED, &state);
         ui.icon(
             x + w - 24.0,
@@ -785,10 +758,10 @@ fn home(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         );
         ui.hit(x - 6.0, y, w + 12.0, rh, action.host());
         y += rh;
+        if row.item == Item::SecureBootOn {
+            y += link(ui, tx, y, w - 44.0, LearnId::SecureBootBitLocker);
+        }
         ui.rule(x, y, w, INNER);
-    }
-    if let Some(row) = rows.iter().find(|r| r.item == Item::BitLocker) {
-        y += bitlocker_item(starter, ui, x, y, w, row);
     }
     y += 24.0;
 
@@ -898,50 +871,7 @@ fn home(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y
 }
 
-/// Home's BitLocker item (F21): no number or tick circle, its state, then
-/// the note, then the link to the Learn page. A tap on the item opens the
-/// BitLocker page. Returns its height.
-fn bitlocker_item(
-    starter: &Starter,
-    ui: &mut Ui,
-    x: f32,
-    y0: f32,
-    w: f32,
-    row: &crate::decide::Row,
-) -> f32 {
-    let action = StarterAction::Item(row.item);
-    let rh = 54.0;
-    let mut y = y0;
-    let pressed = ui.is_pressed(action.host());
-    if pressed {
-        ui.fill(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0, INNER);
-    }
-    let head = ui.fit(14.0, W::S, item_label(starter, row.item), w - 40.0);
-    ui.text(x + 4.0, y + 8.0, 14.0, W::S, TEXT, &head);
-    let state = ui.fit(12.0, W::R, &state_text(&row.state), w - 40.0);
-    ui.text(x + 4.0, y + 30.0, 12.0, W::R, MUTED, &state);
-    ui.icon(
-        x + w - 24.0,
-        y + (rh - 20.0) / 2.0,
-        20.0,
-        Icon::ChevronRight,
-        9.0,
-        DIM,
-    );
-    ui.hit(x - 6.0, y, w + 12.0, rh, action.host());
-    y += rh;
-    y += bitlocker_note(ui, x + 4.0, y, w - 4.0);
-    y += link(ui, x + 4.0, y, w - 4.0, LearnId::SecureBootBitLocker);
-    ui.rule(x, y + 8.0, w, INNER);
-    y - y0 + 9.0
-}
-
-/// The note under the BitLocker item and at the top of its page (F21).
-fn bitlocker_note(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    line(ui, x, y, w, S.starter_bitlocker_note, MUTED)
-}
-
-/// The This computer card: what it is, its Secure Boot and encryption,
+/// The This computer card: what it is, its Secure Boot,
 /// and the next step as its action. Returns its height.
 fn computer_card(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let c = &starter.computer;
@@ -974,19 +904,6 @@ fn computer_card(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
         }
         None => vec![(secure_boot_text(c.secure_boot), TEXT)],
     };
-    if c.os == Os::Windows
-        && let Some(b) = &starter.bitlocker
-    {
-        let suspended = starter.facts().suspension_stands();
-        let t = match b.protection {
-            _ if suspended => S.starter_drive_suspended,
-            Protection::None => S.starter_drive_plain,
-            Protection::On => S.starter_drive_encrypted,
-            Protection::Suspended => S.starter_drive_suspended_other,
-            Protection::Unknown => S.starter_drive_unknown,
-        };
-        lines.push((fill(t, &[&b.drive]), TEXT));
-    }
     match mac {
         Some(macs::Start::NotYet) => lines.push((S.starter_cannot_start_mac_yet.to_string(), WARN)),
         Some(macs::Start::Firmware32) => {
@@ -1020,20 +937,11 @@ fn computer_card(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
     let free = starter.restart_holds().is_empty();
     let button = Some(match card {
         Card::Make => (S.starter_item_make, true),
-        Card::Resume { offered } => (
-            S.starter_item_resume,
-            offered && starter.guard.busy.is_none(),
-        ),
         Card::Firmware => (S.starter_restart, free),
         Card::Stick => (S.starter_restart_stick, free),
         Card::StartMac => (S.starter_item_start_mac, true),
         Card::Rescue => (S.starter_other_confirm, true),
     });
-    // Secure Boot's page, where Secure Boot is in play: not on a Mac, and
-    // not on Windows, where the BitLocker item under the checklist
-    // carries it (F21).
-    let linked =
-        LearnId::SecureBootBitLocker.page().is_some() && mac.is_none() && c.os != Os::Windows;
     // The lines wrap: measured first, drawing nothing.
     let n = ui.hits.len();
     ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
@@ -1046,9 +954,6 @@ fn computer_card(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
     ui.c.pop_clip();
     ui.hits.truncate(n);
     let mut h = pad + 20.0 + name_h + lines_h;
-    if linked {
-        h += 32.0;
-    }
     if button.is_some() {
         h += 14.0 + 44.0;
     }
@@ -1061,9 +966,6 @@ fn computer_card(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
     y += name_h;
     for (l, tone) in &lines {
         y += ui.wrap(x + pad, y, iw, 13.0, W::R, *tone, l) + 4.0;
-    }
-    if linked {
-        y += link(ui, x + pad, y, iw, LearnId::SecureBootBitLocker);
     }
     if let Some((label, offered)) = button {
         y += 14.0;
@@ -1490,7 +1392,6 @@ fn learn_title(id: LearnId) -> &'static str {
     match id {
         LearnId::StartWindows => S.starter_learn_start_windows,
         LearnId::StartLinux => S.starter_learn_start_linux,
-        LearnId::BitLocker => S.starter_learn_bitlocker,
         LearnId::NoStart => S.starter_learn_no_start,
         LearnId::KeepData => S.starter_learn_keep_data,
         LearnId::Maker(_) => id.page().map_or("", |p| p.title),
@@ -1529,6 +1430,20 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let iw = w - 38.0;
     let mut n = 0;
     let open = facts.protected_open();
+    if open && let Some(name) = &starter.other {
+        y += warning(ui, x, y, w, &fill(S.starter_other_found, &[name]), WARN);
+        y += buttons(
+            ui,
+            x,
+            y,
+            w,
+            &[(
+                S.starter_other_confirm,
+                Style::Secondary,
+                StarterAction::Rescue,
+            )],
+        ) + 20.0;
+    }
     // 1. Restart into firmware settings.
     n += 1;
     y += step_head(ui, x, y, w, n, S.starter_restart, false);
@@ -1560,10 +1475,9 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     // 3. Start from the stick.
     n += 1;
     y += step_head(ui, x, y, w, n, S.starter_boot_from_stick, false);
-    // Use a device is reached from Windows, which with a protected drive
-    // and Secure Boot off asks for the recovery key: the boot menu key
-    // only, unless the drive is not protected or is suspended (F17).
-    let how = if windows && !facts.protected() {
+    // Use a device is reached from Windows, and is offered only while
+    // Windows reports Secure Boot off (F33): the boot menu key otherwise.
+    let how = if facts.use_a_device() {
         S.starter_boot_how_windows
     } else {
         S.starter_boot_how
@@ -1582,50 +1496,15 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             TEXT,
         ) + 8.0;
     }
-    // 4. Afterwards, unless Secure Boot was off before the Starter came.
-    let was_off = starter
-        .bitlocker
-        .as_ref()
-        .and_then(|b| b.marker.as_ref())
-        .is_some_and(|m| !m.secure_boot_was_on);
-    if !was_off {
-        n += 1;
-        let s = if windows {
-            S.starter_afterwards_windows
-        } else {
-            S.starter_afterwards
-        };
-        y += step_head(
-            ui,
-            x,
-            y,
-            w,
-            n,
-            s,
-            c.secure_boot == Some(true) && facts.suspension_stands(),
-        );
-        y += line(ui, ix, y, iw, &secure_boot_text(c.secure_boot), MUTED) + 6.0;
-    }
-    if windows && facts.suspension_stands() {
-        n += 1;
-        y += step_head(ui, x, y, w, n, S.starter_item_resume, false);
-        if facts.resume_offered() {
-            y += buttons(
-                ui,
-                ix,
-                y,
-                iw,
-                &[(
-                    S.starter_item_resume,
-                    Style::Primary,
-                    StarterAction::BitLocker,
-                )],
-            ) + 16.0;
-        } else {
-            y += line(ui, ix, y, iw, resume_needs(starter), MUTED);
-        }
-    }
-    y += bitlocker_optional(starter, ui, x, y, w);
+    // 4. Afterwards: the last step, shown always (F33).
+    n += 1;
+    let s = if windows {
+        S.starter_afterwards_windows
+    } else {
+        S.starter_afterwards
+    };
+    y += step_head(ui, x, y, w, n, s, false);
+    y += line(ui, ix, y, iw, &secure_boot_text(c.secure_boot), MUTED) + 6.0;
     // The same page on a phone.
     y += 16.0;
     y += label(ui, x, y, S.starter_on_a_phone);
@@ -1633,47 +1512,11 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y + phone_code(ui, x, y, w, side, &guide.address())
 }
 
-/// The Start page's BitLocker row (F21): unnumbered and optional, its
-/// state, and a button to the BitLocker page. Nothing where no drive is
-/// protected. Returns its height.
-fn bitlocker_optional(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let facts = starter.facts();
-    if starter.computer.os != Os::Windows
-        || !(facts.protected() || facts.guard_done() || facts.other_open)
-    {
-        return 0.0;
-    }
-    let mut y = y0 + 8.0;
-    ui.text(x + 4.0, y, 14.0, W::S, TEXT, S.starter_item_bitlocker);
-    y += 24.0;
-    y += line(
-        ui,
-        x + 4.0,
-        y,
-        w - 4.0,
-        &state_text(&facts.bitlocker_state()),
-        MUTED,
-    );
-    y += buttons(
-        ui,
-        x + 4.0,
-        y,
-        w - 4.0,
-        &[(
-            S.starter_bitlocker_backup,
-            Style::Secondary,
-            StarterAction::BitLocker,
-        )],
-    ) + 16.0;
-    y - y0
-}
-
 /// The Start page on a Mac (§3.4, `docs/MAC.md` §3.1–§3.2): the Mac's
 /// steps, none of them a button. On a T2 Mac, Startup Security lowered
 /// in macOS Recovery; then Option at power-on and EFI Boot; on a T2 Mac,
 /// Startup Security back afterwards. A Mac the table does not know gets
-/// the T2 steps marked as for a T2 Mac only. On Windows through Boot
-/// Camp, the optional BitLocker row follows the steps (F21).
+/// the T2 steps marked as for a T2 Mac only..
 fn mac_start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, mac: macs::Start) -> f32 {
     let mut y = y0;
     let t2 = match mac {
@@ -1714,26 +1557,10 @@ fn mac_start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, mac: macs:
         }
         y += line(ui, ix, y, iw, S.starter_mac_utility_full, MUTED) + 6.0;
     }
-    y += bitlocker_optional(starter, ui, x, y, w);
     y += 16.0;
     y += label(ui, x, y, S.starter_on_a_phone);
     let side = if ui.compact { 150.0 } else { 180.0 };
     y + phone_code(ui, x, y, w, side, &guide.address())
-}
-
-/// Why Resume BitLocker is not offered: Secure Boot is not as the
-/// marker recorded it.
-fn resume_needs(starter: &Starter) -> &'static str {
-    let marker = starter.bitlocker.as_ref().and_then(|b| b.marker.as_ref());
-    if marker.is_some_and(|m| m.this_boot) {
-        return S.starter_resume_needs_restart;
-    }
-    let was_on = marker.is_none_or(|m| m.secure_boot_was_on);
-    if was_on {
-        S.starter_resume_needs_secure_boot
-    } else {
-        S.starter_resume_needs_secure_boot_off
-    }
 }
 
 /// The guide's address as a QR code, with the address under it. Returns
@@ -1848,7 +1675,7 @@ fn let_through_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
 }
 
 // ---------------------------------------------------------------------
-// Install, Installed, About, BitLocker
+// Install, Installed, About
 // ---------------------------------------------------------------------
 
 fn install(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
@@ -1912,7 +1739,6 @@ fn item_name(item: InstallItem) -> &'static str {
         InstallItem::DesktopMenu => S.starter_installed_desktop_menu,
         InstallItem::Icon => S.starter_installed_icon,
         InstallItem::UninstallEntry => S.starter_installed_entry,
-        InstallItem::Reminder => S.starter_installed_reminder,
     }
 }
 
@@ -1952,36 +1778,18 @@ fn installed(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     )
 }
 
-/// Uninstall, asked once. While the Starter's BitLocker suspension
-/// stands (§5.4) it first offers Resume BitLocker where Resume can be
-/// taken now, and otherwise says that protection stays suspended and
-/// where Windows resumes it; uninstalling removes the marker and the
-/// logon reminder either way.
-fn uninstall_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
-    let f = starter.facts();
-    let stands = f.suspension_stands();
-    let resume = stands && f.resume_offered();
+/// Uninstall, asked once.
+fn uninstall_sheet(_starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
     sheet(ui, w, h, &mut |ui, x, y0, iw| {
         let mut y = y0;
         y += ui.wrap(x, y, iw, 17.0, W::S, TEXT, S.starter_uninstall_ask) + 10.0;
         y += line(ui, x, y, iw, S.starter_uninstall_keeps, MUTED);
-        if resume {
-            y += line(ui, x, y, iw, S.starter_uninstall_suspended, WARN);
-        } else if stands {
-            y += line(ui, x, y, iw, S.starter_uninstall_suspended_where, WARN);
-        }
         y += 6.0;
-        let items: &[(&str, Style, StarterAction)] = if resume {
-            &[
-                (S.starter_cancel, Style::Secondary, StarterAction::Cancel),
-                (S.starter_item_resume, Style::Primary, StarterAction::Resume),
-                (
-                    S.starter_uninstall,
-                    Style::Secondary,
-                    StarterAction::UninstallNow,
-                ),
-            ]
-        } else {
+        y + buttons(
+            ui,
+            x,
+            y,
+            iw,
             &[
                 (S.starter_cancel, Style::Secondary, StarterAction::Cancel),
                 (
@@ -1989,9 +1797,8 @@ fn uninstall_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
                     Style::Primary,
                     StarterAction::UninstallNow,
                 ),
-            ]
-        };
-        y + buttons(ui, x, y, iw, items) - y0
+            ],
+        ) - y0
     });
 }
 
@@ -2044,350 +1851,6 @@ fn about(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         y += line(ui, x, y, w, S.starter_unsigned_text, TEXT);
     }
     y
-}
-
-/// The BitLocker page (§6.5, F21): the note; the state; where the key is
-/// also kept; Show the recovery key; Extra safe: suspend BitLocker. The extra-safe path is the guard as §6 built it:
-/// the key, its QR code and Save; I have kept it; the key hidden and
-/// two groups typed back; Suspend BitLocker; Done. The same page
-/// resumes later (§6.3). Another encryption product's line comes first
-/// (§6.4).
-fn bitlocker(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
-    let f = starter.facts();
-    let g = &starter.guard;
-    // The default state: the optional backup of the key leads with the
-    // note (F21).
-    if f.protected() && !f.other_open && !g.extra && !f.suspension_stands() {
-        y += bitlocker_note(ui, x, y, w);
-    }
-    if starter.computer.os == Os::Windows
-        && let Some(name) = &starter.other
-    {
-        let found = fill(S.starter_other_found, &[name]);
-        if f.other_open {
-            y += warning(ui, x, y, w, &found, WARN);
-            y += buttons(
-                ui,
-                x,
-                y,
-                w,
-                &[(
-                    S.starter_other_confirm,
-                    Style::Secondary,
-                    StarterAction::Rescue,
-                )],
-            ) + 20.0;
-        } else {
-            y += line(ui, x, y, w, &found, MUTED) + 6.0;
-        }
-    }
-    let stands = f.suspension_stands();
-    let state = match &starter.bitlocker {
-        None => S.starter_drive_unread.to_string(),
-        Some(b) => match b.protection {
-            _ if stands => fill(S.starter_drive_suspended, &[&b.drive]),
-            Protection::On => fill(S.starter_guard_encrypted, &[&b.drive]),
-            Protection::None => fill(S.starter_drive_plain, &[&b.drive]),
-            Protection::Suspended => fill(S.starter_drive_suspended_other, &[&b.drive]),
-            Protection::Unknown => fill(S.starter_drive_unknown, &[&b.drive]),
-        },
-    };
-    y += ui.wrap(x, y, w, 16.0, W::S, TEXT, &state) + 14.0;
-    let undone = starter
-        .bitlocker
-        .as_ref()
-        .is_some_and(|b| b.marker.is_some() && b.protection == Protection::On);
-    if undone {
-        y += warning(ui, x, y, w, S.starter_guard_undone, WARN);
-    } else if starter.resumed && !stands {
-        y += line(ui, x, y, w, S.starter_guard_resumed, OK);
-    }
-    if let Some(why) = &g.failed {
-        y += line(ui, x, y, w, &reason_text(why), ERR);
-    }
-    let holds = starter.key_holds();
-    if stands {
-        y += guard_done(starter, ui, x, y, w);
-    } else if f.protected() && !f.other_open && !g.extra {
-        y += key_step(starter, ui, x, y, w, &holds);
-    } else if f.protected() && !f.other_open && !holds.is_empty() && !g.hidden {
-        // Nothing secret on a screen that can keep it.
-        y += concern_block(starter, ui, x, y, w, &holds);
-    } else if f.protected() && !f.other_open {
-        y += match (&g.key, g.hidden) {
-            (None, _) => {
-                let (label, style) = if g.busy == Some(crate::api::BitLockerStep::ShowKey) {
-                    (S.starter_waiting_permission, Style::Disabled)
-                } else {
-                    (S.starter_show_key, Style::Primary)
-                };
-                buttons(ui, x, y, w, &[(label, style, StarterAction::ShowKey)]) + 16.0
-            }
-            (Some(k), false) => key_shown(starter, ui, x, y, w, k, true),
-            (Some(_), true) => key_asked(starter, ui, x, y, w),
-        };
-    }
-    y += 12.0;
-    y += link(ui, x, y, w, LearnId::SecureBootBitLocker);
-    y + guide_line(ui, x, y, w, LearnId::BitLocker)
-}
-
-/// The default BitLocker page (F21): where the key is also kept; Show
-/// the recovery key as the primary button, or the key with Done; then
-/// Extra safe: suspend BitLocker. Returns its height.
-fn key_step(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, holds: &[&Concern]) -> f32 {
-    let g = &starter.guard;
-    let mut y = y0;
-    y += value_row(
-        ui,
-        x,
-        y,
-        w,
-        S.starter_key_also_kept,
-        S.starter_key_also_kept_where,
-        TEXT,
-    ) + 16.0;
-    if !holds.is_empty() {
-        // Nothing secret on a screen that can keep it.
-        y += concern_block(starter, ui, x, y, w, holds);
-    } else if let Some(k) = &g.key {
-        y += key_shown(starter, ui, x, y, w, k, false);
-        y += buttons(
-            ui,
-            x,
-            y,
-            w,
-            &[(S.starter_done, Style::Primary, StarterAction::KeyDone)],
-        ) + 16.0;
-    } else {
-        let (label, style) = if g.busy == Some(crate::api::BitLockerStep::ShowKey) {
-            (S.starter_waiting_permission, Style::Disabled)
-        } else {
-            (S.starter_show_key, Style::Primary)
-        };
-        y += buttons(ui, x, y, w, &[(label, style, StarterAction::ShowKey)]) + 16.0;
-    }
-    y + buttons(
-        ui,
-        x,
-        y,
-        w,
-        &[(
-            S.starter_extra_safe,
-            Style::Secondary,
-            StarterAction::ExtraSafe,
-        )],
-    ) + 16.0
-        - y0
-}
-
-/// The suspension stands: Done's lines, then Start and Resume, whichever
-/// comes next first. Returns its height.
-fn guard_done(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let f = starter.facts();
-    let mut y = y0;
-    y += line(ui, x, y, w, S.starter_guard_done, TEXT);
-    if starter.installed.is_none() {
-        y += line(ui, x, y, w, S.starter_guard_open_again, TEXT);
-    }
-    y += 8.0;
-    let resuming = starter.guard.busy == Some(crate::api::BitLockerStep::Resume);
-    let resume = if resuming {
-        (S.starter_resuming, Style::Disabled, StarterAction::Resume)
-    } else {
-        (S.starter_item_resume, Style::Primary, StarterAction::Resume)
-    };
-    let start = (start_label(starter), Style::Primary, StarterAction::Start);
-    if !f.resume_offered() {
-        y += line(ui, x, y, w, resume_needs(starter), MUTED);
-        return y + buttons(ui, x, y, w, &[start]) + 16.0 - y0;
-    }
-    let items = if starter.suspended_here {
-        // Just suspended: the firmware is still ahead.
-        let quiet = if resuming {
-            Style::Disabled
-        } else {
-            Style::Secondary
-        };
-        [start, (resume.0, quiet, resume.2)]
-    } else {
-        [resume, (start.0, Style::Secondary, start.2)]
-    };
-    y + buttons(ui, x, y, w, &items) + 16.0 - y0
-}
-
-/// The key's eight groups in a secret panel, each under its number;
-/// masked, the same panel with dots. Returns its height.
-fn key_panel(ui: &mut Ui, x: f32, y: f32, w: f32, key: Option<&RecoveryKey>) -> f32 {
-    let cols = if w >= 380.0 { 4 } else { 2 };
-    let rows = 8 / cols;
-    let size = if ui.compact { 17.0 } else { 20.0 };
-    let pad = 14.0;
-    let cw = (w - 2.0 * pad) / cols as f32;
-    let rh = 18.0 + ui.line(size, W::M) + 8.0;
-    let h = 2.0 * pad + rows as f32 * rh - 8.0;
-    ui.fill(x, y, w, h, 10.0, BG);
-    let edge = if key.is_some() {
-        WARN
-    } else {
-        WARN.with_alpha(110)
-    };
-    ui.stroke(x, y, w, h, 10.0, edge);
-    for i in 0..8 {
-        let (c, r) = (i % cols, i / cols);
-        let cx = x + pad + c as f32 * cw;
-        let cy = y + pad + r as f32 * rh;
-        ui.text(cx, cy, 11.0, W::R, MUTED, &(i + 1).to_string());
-        match key {
-            Some(k) => ui.text(cx, cy + 16.0, size, W::M, TEXT, k.group(i)),
-            None => ui.text(cx, cy + 16.0, size, W::M, MUTED, "••••••"),
-        };
-    }
-    h + 12.0
-}
-
-/// The key shown: the panel, its ID, its QR code, Save where a disk for
-/// it is attached, and on the extra-safe path (`kept`) I have kept it.
-/// Returns its height.
-fn key_shown(
-    starter: &Starter,
-    ui: &mut Ui,
-    x: f32,
-    y0: f32,
-    w: f32,
-    k: &KeyShown,
-    kept: bool,
-) -> f32 {
-    let mut y = y0;
-    y += label(ui, x, y, S.starter_recovery_key);
-    y += key_panel(ui, x, y, w, Some(&k.text.key));
-    y += value_row(ui, x, y, w, S.starter_key_id, &k.key_id(), TEXT) + 16.0;
-    if let Some(text) = k.text.write()
-        && let Ok(m) = osk_codec::qr::encode(
-            osk_codec::qr::Payload::Bytes(text.as_bytes()),
-            osk_codec::qr::Ecc::Medium,
-        )
-    {
-        let side = if ui.compact { 180.0f32 } else { 220.0 }.min(w);
-        qr_code(ui, &m, x, y, side);
-        y += side + 10.0;
-    }
-    y += line(ui, x, y, w, S.starter_key_photo, MUTED) + 6.0;
-    for d in starter.save_targets() {
-        let name = fill(S.starter_key_save, &[&disk_name(d)]);
-        let (label, style) = if starter.guard.saving {
-            (S.starter_key_saving.to_string(), Style::Disabled)
-        } else {
-            (name, Style::Secondary)
-        };
-        let n = StarterAction::SaveKey(starter.disk_number(&d.id));
-        y += buttons(ui, x, y, w, &[(&label, style, n)]) + 10.0;
-    }
-    match &starter.guard.saved {
-        Some(Ok(at)) => y += line(ui, x, y, w, &fill(S.starter_key_saved, &[at]), OK),
-        Some(Err(why)) => y += line(ui, x, y, w, &reason_text(why), ERR),
-        None => {}
-    }
-    y += 6.0;
-    if !kept {
-        return y + 10.0 - y0;
-    }
-    y + buttons(
-        ui,
-        x,
-        y,
-        w,
-        &[(S.starter_key_kept, Style::Primary, StarterAction::KeptIt)],
-    ) + 16.0
-        - y0
-}
-
-/// The key hidden and two groups asked for, then Suspend BitLocker.
-/// Returns its height.
-fn key_asked(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let g = &starter.guard;
-    let mut y = y0;
-    y += label(ui, x, y, S.starter_recovery_key);
-    y += key_panel(ui, x, y, w, None);
-    let Some([a, b]) = g.asked else {
-        return y - y0;
-    };
-    let ask = fill(
-        S.starter_key_type,
-        &[&(a + 1).to_string(), &(b + 1).to_string()],
-    );
-    y += ui.wrap(x, y, w, 15.0, W::S, TEXT, &ask) + 12.0;
-    let fw = ((w - 12.0) / 2.0).min(180.0);
-    for (i, n) in [a, b].into_iter().enumerate() {
-        let fx = x + i as f32 * (fw + 12.0);
-        ui.text(
-            fx,
-            y,
-            12.0,
-            W::R,
-            MUTED,
-            &fill(S.starter_key_group, &[&(n + 1).to_string()]),
-        );
-        let by = y + 18.0;
-        let focused = g.focus == i && g.busy.is_none();
-        ui.fill(fx, by, fw, 44.0, 8.0, BG);
-        ui.stroke(fx, by, fw, 44.0, 8.0, if focused { ACCENT } else { BORDER });
-        let typed = g.typed(i);
-        if focused && g.all_selected && !typed.is_empty() {
-            let tw = ui.measure(18.0, W::M, typed);
-            ui.fill(
-                fx + 11.0,
-                by + 9.0,
-                tw + 4.0,
-                26.0,
-                3.0,
-                ACCENT.with_alpha(60),
-            );
-        }
-        ui.text_mid(fx + 12.0, by, 44.0, 18.0, W::M, TEXT, typed);
-        if focused && !g.all_selected {
-            let before = &typed[..g.caret.min(typed.len())];
-            let tw = ui.measure(18.0, W::M, before);
-            ui.caret(fx + 13.0 + tw, by + 11.0, 22.0);
-        }
-        ui.hit(fx, by, fw, 44.0, StarterAction::Group(i as u8).host());
-    }
-    y += 18.0 + 44.0 + 14.0;
-    if let Some(n) = g.wrong {
-        y += line(
-            ui,
-            x,
-            y,
-            w,
-            &fill(S.starter_key_wrong, &[&(n + 1).to_string()]),
-            ERR,
-        );
-    }
-    let suspend = if g.busy == Some(crate::api::BitLockerStep::Suspend) {
-        (
-            S.starter_suspending,
-            Style::Disabled,
-            StarterAction::Suspend,
-        )
-    } else {
-        (S.starter_suspend, Style::Primary, StarterAction::Suspend)
-    };
-    y + buttons(
-        ui,
-        x,
-        y,
-        w,
-        &[
-            (
-                S.starter_key_show_again,
-                Style::Secondary,
-                StarterAction::ShowAgain,
-            ),
-            suspend,
-        ],
-    ) + 16.0
-        - y0
 }
 
 // ---------------------------------------------------------------------

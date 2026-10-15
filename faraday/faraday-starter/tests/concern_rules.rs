@@ -5,7 +5,7 @@
 
 use faraday_starter::api::Kind;
 use faraday_starter::concern::{
-    Usb, edid_maker, edid_name, remote_display, screen, usb, usb_name, virtual_machine,
+    Usb, edid_maker, edid_name, screen, usb, usb_name, virtual_machine,
 };
 
 /// A made-up EDID: the header, the maker's PNP ID, a monitor name
@@ -290,13 +290,4 @@ fn a_virtual_machine_is_known_by_its_firmware_strings_or_the_cpu() {
         virtual_machine("Example Computers", "Example 14", true).as_deref(),
         Some("Example Computers Example 14")
     );
-}
-
-#[test]
-fn an_x11_display_over_the_network_is_a_remote_session() {
-    assert!(remote_display(Some("localhost:10.0")));
-    assert!(remote_display(Some("192.0.2.1:0")));
-    assert!(!remote_display(Some(":0")));
-    assert!(!remote_display(Some("unix:0")));
-    assert!(!remote_display(None));
 }

@@ -101,15 +101,19 @@ pub enum CompanionEvent {
     /// the kept store and leaves any kept page for Home. The next kept
     /// page asks for the unlock again.
     Locked,
-    /// How many wallet descriptions and BitLocker keys the kept store
+    /// The kept store's version and how many wallet descriptions it
     /// holds, as the shell keeps them beside the store, outside its
     /// encryption, from the last [`CompanionCommand::KeepKept`]: sent
-    /// once at start, so Home shows them while the store is locked.
+    /// once at start, so Home shows the count while the store is locked.
+    /// A version other than [`crate::kept::VERSION`] is a store this
+    /// build does not read (version 1 held BitLocker keys, F33): the core
+    /// answers with a [`CompanionCommand::KeepKept`] that deletes it.
     KeptCounts {
+        /// The version the shell recorded with the store; the current
+        /// one when nothing is kept.
+        version: u32,
         /// Wallet descriptions.
         descriptions: u32,
-        /// BitLocker keys.
-        keys: u32,
     },
     /// One file or one text another app shared to the Companion
     /// (`ACTION_SEND`, `docs/COMPANION.md` §6.3), routed as a scan is.
@@ -138,12 +142,8 @@ pub enum Closed {
 pub enum UnlockFor {
     /// To show Wallet descriptions.
     Descriptions,
-    /// To show BitLocker keys.
-    Keys,
     /// To keep a wallet description that arrived.
     KeepDescription,
-    /// To keep a BitLocker key that arrived.
-    KeepKey,
 }
 
 /// Core → shell, beside [`osk_shell_api::Command`].
@@ -198,15 +198,14 @@ pub enum CompanionCommand {
         title: String,
     },
     /// Keep these bytes as the kept store, replacing what was kept, with
-    /// the two counts beside it, outside the encryption. The whole store,
-    /// after each change, only while it is open.
+    /// its version and its count beside it, outside the encryption. The
+    /// whole store, after each change, only while it is open. No bytes
+    /// delete the store, its wrapped key and its count.
     KeepKept {
         /// The store ([`crate::kept`]'s format).
         bytes: Vec<u8>,
         /// Wallet descriptions in it.
         descriptions: u32,
-        /// BitLocker keys in it.
-        keys: u32,
     },
     /// Hand one file to the system's share sheet
     /// (`docs/COMPANION.md` §6.3), at a press of Share.

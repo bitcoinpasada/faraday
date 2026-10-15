@@ -2,7 +2,7 @@
 
 ## Before you start
 
-On Windows, a backup of the BitLocker recovery key is optional: Faraday Starter's BitLocker page shows it. On Linux, have the disk's passphrase or recovery key ready.
+On Linux, have the disk's passphrase or recovery key ready if it is unlocked by the TPM.
 
 HP's business computers are EliteBook, ProBook and Z workstations. Its consumer computers are OmniBook, OMEN, Victus, Spectre, Pavilion, ENVY and the numbered HP 14, 15 and 17 notebooks. Their menus differ.
 
@@ -56,11 +56,13 @@ If the stick is not listed: see "If something is different" below.
 
 7. Turn the computer off from Faraday and pull the stick out.
 
-8. Open BIOS Setup as in step 2 and set Secure Boot back to Enabled, or tick the Secure Boot box, in the same menu. Save and exit. Do it before Windows starts: with Secure Boot off, Windows asks for the BitLocker recovery key unless Faraday Starter suspended BitLocker.
+8. Turn Secure Boot back on: open BIOS Setup as in step 2 and set Secure Boot back to Enabled, or tick the Secure Boot box, in the same menu. Save and exit. Do it before Windows starts.
 
 If Secure Boot does not stay on, on business computers: Security → Secure Boot Configuration, tick Reset Secure Boot keys to factory defaults, save, restart into BIOS Setup, and turn Secure Boot on. HP Sure Start can protect the keys from that reset: first clear Sure Start Secure Boot Keys Protection under Security → BIOS Sure Start, and type the code the next start asks for. HP's consumer documents do not describe restoring the keys.
 
 ## If something is different
+
+If Windows asks for the BitLocker recovery key: for a computer set up with a Microsoft account, the key is on the account's recovery-key page, aka.ms/myrecoverykey; otherwise it is wherever it was saved when BitLocker was set up. Then turn Secure Boot back on before the next start.
 
 Stick not in the F9 list: on consumer notebooks, set USB Boot on the Boot Options tab to Enabled. On business computers, tick USB Storage Boot under Advanced → Boot Options; the Fast Boot box beside it can stay as it is. HP's documents do not describe a Fast Boot setting that hides USB disks.
 

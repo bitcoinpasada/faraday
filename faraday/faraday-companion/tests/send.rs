@@ -154,7 +154,12 @@ fn a_file_too_large_for_the_envelope_is_not_sent() {
 fn a_file_that_holds_a_seed_is_refused_whole() {
     let words = b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about\n";
     let mut c = picked(words);
-    assert_eq!(c.page, Page::Refused(faraday_intake::Secret::Bip39Words));
+    assert_eq!(
+        c.page,
+        Page::Refused(faraday_companion::route::Refusal::Secret(
+            faraday_intake::Secret::Bip39Words,
+        ))
+    );
     assert!(c.sending.is_none());
     assert!(shows(&mut c, faraday_strings::EN.companion_refuse_words));
 }
@@ -224,4 +229,25 @@ fn a_psbt_and_a_description_shared_in_go_out_as_codes_the_device_reads_back() {
     let (kind, bytes) = device_reads(&frames(&c)).expect("read");
     assert_eq!(kind, DeviceKind::Wallet);
     assert_eq!(String::from_utf8(bytes).expect("text").trim(), text.trim());
+}
+
+#[test]
+fn a_key_file_picked_for_send_is_refused_and_nothing_is_sent() {
+    let file = "Recovery Key:\r\n\r\n205568-492019-108251-336446-650375-210331-584155-047520\r\n";
+    let utf16: Vec<u8> = std::iter::once(0xFEFFu16)
+        .chain(file.encode_utf16())
+        .flat_map(u16::to_le_bytes)
+        .collect();
+    for bytes in [file.as_bytes().to_vec(), utf16] {
+        let mut c = picked(&bytes);
+        assert_eq!(
+            c.page,
+            Page::Refused(faraday_companion::route::Refusal::RecoveryKey)
+        );
+        assert!(c.sending.is_none());
+        assert!(shows(
+            &mut c,
+            faraday_strings::EN.companion_refuse_recovery_key
+        ));
+    }
 }

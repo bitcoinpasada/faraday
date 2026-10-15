@@ -79,8 +79,8 @@ internal object Core {
     const val CMD_UNLOCK_KEPT = 19
 
     /**
-     * Keep [commandBytes] as the kept store, with [commandDescriptions] and
-     * [commandKeys] beside it; empty bytes delete the store and its key.
+     * Keep [commandBytes] as the kept store, with [commandDescriptions]
+     * beside it; empty bytes delete the store and its key.
      */
     const val CMD_KEEP_KEPT = 20
 
@@ -203,8 +203,8 @@ internal object Core {
      */
     external fun locked(handle: Long)
 
-    /** The two counts kept beside the kept store, at start. */
-    external fun keptCounts(handle: Long, descriptions: Int, keys: Int)
+    /** The store's version and the count kept beside it, at start. */
+    external fun keptCounts(handle: Long, version: Int, descriptions: Int)
 
     /** One file (with its name) or one text (null name, UTF-8) shared to the app. */
     external fun sharedIn(handle: Long, name: String?, bytes: ByteArray)
@@ -226,9 +226,6 @@ internal object Core {
 
     /** [CMD_KEEP_KEPT]'s count of wallet descriptions. */
     external fun commandDescriptions(handle: Long): Int
-
-    /** [CMD_KEEP_KEPT]'s count of BitLocker keys. */
-    external fun commandKeys(handle: Long): Int
 
     /** Whether the last polled command says on ([CMD_KEEP_SCREEN_ON]). */
     external fun commandOn(handle: Long): Boolean

@@ -82,7 +82,14 @@ pub fn computer(f: &Facts) -> Computer {
     };
     let uefi = f.firmware == Some(FIRMWARE_UEFI);
     let secure_boot = if uefi {
-        f.secure_boot.as_deref().and_then(dword).map(|v| v == 1)
+        f.secure_boot
+            .as_deref()
+            .and_then(dword)
+            .and_then(|v| match v {
+                0 => Some(false),
+                1 => Some(true),
+                _ => None,
+            })
     } else if f.firmware.is_some() {
         Some(false)
     } else {

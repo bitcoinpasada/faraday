@@ -8,7 +8,6 @@
 //!   wireless keyboard or mouse receiver.
 //! - [`virtual_machine`]: the firmware's maker strings and the CPU's
 //!   hypervisor flag, as a virtual machine.
-//! - [`remote_display`]: an X11 display reached over the network.
 //!
 //! Not warned about (§3.1a): Wi-Fi, Bluetooth and USB network adapters,
 //! and USB video capture cards. The stick has no driver for any of them.
@@ -136,15 +135,6 @@ pub fn virtual_machine(maker: &str, model: &str, guest: bool) -> Option<String> 
         return Some(EN.vm_hyper_v.to_string());
     }
     guest.then(|| both.trim().to_string())
-}
-
-/// Whether an X11 `DISPLAY` is reached over the network: a host before
-/// its last `:` (`localhost:10.0`, as SSH's forwarding sets it), other
-/// than `unix`.
-pub fn remote_display(display: Option<&str>) -> bool {
-    display
-        .and_then(|d| d.rsplit_once(':'))
-        .is_some_and(|(host, _)| !host.is_empty() && host != "unix")
 }
 
 /// A USB device's name for its line: the maker's and the product's

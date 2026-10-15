@@ -9,7 +9,6 @@
 //!   `bInterfaceProtocol`);
 //! - a virtual machine: `/sys/class/dmi/id/sys_vendor` and
 //!   `product_name`, and the `hypervisor` flag in `/proc/cpuinfo`;
-//! - a remote session: an X11 `DISPLAY` reached over the network.
 //!
 //! Everything is read under a root given to it, so the tests read a
 //! made-up tree in a temporary directory. The rules are
@@ -139,18 +138,10 @@ pub fn virtual_machine(root: &Path) -> Option<Concern> {
     })
 }
 
-/// Everything of concern, with `/` at `root` and `display` the X11
-/// `DISPLAY`: the virtual machine, the remote session, the screens, the
-/// USB devices.
-pub fn read(root: &Path, display: Option<&str>) -> Vec<Concern> {
+/// Everything of concern, with `/` at `root`: the virtual machine, the
+/// screens, the USB devices.
+pub fn read(root: &Path) -> Vec<Concern> {
     let mut out: Vec<Concern> = virtual_machine(root).into_iter().collect();
-    if concern::remote_display(display) {
-        out.push(Concern {
-            kind: Kind::RemoteSession,
-            name: String::new(),
-            id: String::from("session"),
-        });
-    }
     out.extend(screens(root));
     out.extend(usb(root));
     out

@@ -44,8 +44,6 @@ The stick refuses to go on inside a virtual machine. Faraday Starter on a virtua
 
 These send the picture to another device over a network. The stick has no network, so none of them can reach Faraday on the stick.
 
-Faraday Starter checks for them only when it is about to show the BitLocker recovery key, which is on the computer's own screen while Windows runs.
-
 ## Not a concern on the stick
 
 Wi-Fi, Bluetooth and USB network adapters. The stick's kernel has no network support at all and no radio support: no driver binds to them, so they do nothing while Faraday runs, and Faraday does not warn about them.

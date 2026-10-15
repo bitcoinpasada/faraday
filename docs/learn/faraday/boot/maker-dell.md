@@ -2,7 +2,7 @@
 
 ## Before you start
 
-On Windows, a backup of the BitLocker recovery key is optional: Faraday Starter's BitLocker page shows it. On Linux, have the disk's passphrase or recovery key ready.
+On Linux, have the disk's passphrase or recovery key ready if it is unlocked by the TPM.
 
 ## Steps
 
@@ -38,11 +38,13 @@ If the stick is not listed: see "If something is different" below.
 
 7. Turn the computer off from Faraday and pull the stick out.
 
-8. Turn it on, tap F2, turn Secure Boot back on, then Apply and Exit. Do it before Windows starts: with Secure Boot off, Windows asks for the BitLocker recovery key unless Faraday Starter suspended BitLocker.
+8. Turn Secure Boot back on: turn the computer on, tap F2, set Secure Boot to Enabled, then Apply and Exit. Do it before Windows starts.
 
 If Secure Boot does not stay on: Expert Key Management, Enable Custom Mode on, Reset All Keys, then Enable Custom Mode off.
 
 ## If something is different
+
+If Windows asks for the BitLocker recovery key: for a computer set up with a Microsoft account, the key is on the account's recovery-key page, aka.ms/myrecoverykey; otherwise it is wherever it was saved when BitLocker was set up. Then turn Secure Boot back on before the next start.
 
 Stick not in the F12 list: in F2 setup, set Fastboot to Thorough (under Pre-boot Behavior, or POST Behavior on older models). Turn on Enable USB Boot Support (Integrated Devices → USB/Thunderbolt Configuration, or System Configuration → USB Configuration on older models). In a Thunderbolt port, also turn on Enable Thunderbolt Boot Support. Dell's manuals do not say which Fastboot choice skips USB disks.
 

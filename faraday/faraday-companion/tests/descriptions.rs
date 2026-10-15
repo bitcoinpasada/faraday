@@ -89,8 +89,8 @@ fn a_description_reaches_wallet_descriptions_from_received_a_scan_and_a_share() 
     let asked = unlock(&mut c, &[]);
     assert_eq!(c.page, Page::Description(0));
     let (_, ours) = drain(&mut c);
-    let (bytes, n, k) = kept_kept(&ours).expect("the kept store written");
-    assert_eq!((n, k), (1, 0));
+    let (bytes, n) = kept_kept(&ours).expect("the kept store written");
+    assert_eq!(n, 1);
     let store = kept::read(&bytes).expect("a store it reads");
     assert_eq!(store.descriptions[0].text, text);
     assert!(kept_store(&asked).is_some(), "Received kept it on arrival");
@@ -175,23 +175,18 @@ fn the_kept_store_written_and_read_back_is_the_same() {
     c.press(Act::Back);
     c.press(Act::AddDescription);
     paste(&mut c, &interop("sparrow/jade-keystore.txt"));
-    c.press(Act::Back);
-    c.press(Act::Back);
-    c.press(Act::Receive);
-    paste(&mut c, &starter_key().write().expect("the Starter's text"));
-    assert_eq!(c.page, Page::Key(0));
     let held = c.kept().cloned().expect("open");
     let (_, ours) = drain(&mut c);
-    let (bytes, n, k) = kept_kept(&ours).expect("the kept store written");
-    assert_eq!((n, k), (2, 1));
+    let (bytes, n) = kept_kept(&ours).expect("the kept store written");
+    assert_eq!(n, 2);
 
-    // The next start: the counts at once, the store after the unlock.
+    // The next start: the count at once, the store after the unlock.
     let mut again = phone();
     again.companion_event(CompanionEvent::KeptCounts {
+        version: 2,
         descriptions: n,
-        keys: k,
     });
-    assert_eq!(again.kept_counts(), (2, 1));
+    assert_eq!(again.kept_count(), 2);
     assert!(again.kept().is_none());
     again.press(Act::Descriptions);
     unlock(&mut again, &bytes);

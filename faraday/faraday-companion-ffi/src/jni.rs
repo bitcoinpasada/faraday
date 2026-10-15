@@ -509,17 +509,17 @@ pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_locked(
     crate::guard((), || crate::locked(handle));
 }
 
-/// `Core.keptCounts(handle, descriptions, keys)`: the counts kept beside
-/// the store.
+/// `Core.keptCounts(handle, version, descriptions)`: the version and the
+/// count kept beside the store.
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_keptCounts(
     _env: *mut JNIEnv,
     _this: jobject,
     handle: jlong,
+    version: jint,
     descriptions: jint,
-    keys: jint,
 ) {
-    crate::guard((), || crate::kept_counts(handle, descriptions, keys));
+    crate::guard((), || crate::kept_counts(handle, version, descriptions));
 }
 
 /// `Core.sharedIn(handle, name, bytes)`: one file or text shared to the
@@ -629,17 +629,6 @@ pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_commandDesc
     handle: jlong,
 ) -> jint {
     crate::guard(0, || crate::command_descriptions(handle))
-}
-
-/// `Core.commandKeys(handle): Int`: the kept store's count of BitLocker
-/// keys.
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_app_faradayoffline_companion_Core_commandKeys(
-    _env: *mut JNIEnv,
-    _this: jobject,
-    handle: jlong,
-) -> jint {
-    crate::guard(0, || crate::command_keys(handle))
 }
 
 /// `Core.pageColor(handle): Int`: the page's colour, opaque ARGB.

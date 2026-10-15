@@ -17,7 +17,7 @@ use std::process::ExitCode;
 use faraday_companion::{Act, Closed, Companion, CompanionEvent, MAKER_ROWS, MakerRow};
 use faraday_core::testkit;
 use faraday_ui::keyboard::OskPress;
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
+use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 const WORDS: &str =
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -218,8 +218,8 @@ fn run(s: &Snap) -> Result<(), String> {
     // The unlock (§7).
     let mut c = s.app();
     c.companion_event(CompanionEvent::KeptCounts {
+        version: 2,
         descriptions: 2,
-        keys: 1,
     });
     s.shot(&mut c, "home-locked")?;
     c.press(Act::Descriptions);
@@ -229,7 +229,7 @@ fn run(s: &Snap) -> Result<(), String> {
     });
     s.shot(&mut c, "closed-no-screen-lock")?;
     c.press(Act::Done);
-    c.press(Act::Keys);
+    c.press(Act::Descriptions);
     c.companion_event(CompanionEvent::KeptClosed {
         why: Closed::Cancelled,
     });
@@ -279,35 +279,11 @@ fn run(s: &Snap) -> Result<(), String> {
     c.press(Act::Record(1));
     s.shot(&mut c, "record-description")?;
 
-    // BitLocker keys (§4.6).
+    // A BitLocker recovery key is refused (§4.6, §5).
     let mut c = s.app();
     c.press(Act::Receive);
     scanned(&mut c, BITLOCKER);
-    s.shot(&mut c, "key-unlocking")?;
-    c.companion_event(CompanionEvent::Kept { bytes: Vec::new() });
-    s.shot(&mut c, "key")?;
-    let (x, y) = c.where_offered(Act::Hold).ok_or("Hold to show")?;
-    c.event(Event::Touch {
-        x,
-        y,
-        phase: TouchPhase::Down,
-    });
-    s.shot(&mut c, "key-shown")?;
-    c.event(Event::Touch {
-        x,
-        y,
-        phase: TouchPhase::Up,
-    });
-    c.press(Act::BackInWindows);
-    s.shot(&mut c, "key-back-in-windows")?;
-    c.press(Act::KeepIt);
-    c.press(Act::Delete);
-    s.shot(&mut c, "key-delete")?;
-    c.press(Act::KeepIt);
-    c.press(Act::Back);
-    s.shot(&mut c, "home-with-key")?;
-    c.press(Act::Keys);
-    s.shot(&mut c, "keys")?;
+    s.shot(&mut c, "refused-recovery-key")?;
 
     // Send to Faraday (§4.3).
     let mut c = s.app();
@@ -444,6 +420,26 @@ fn run(s: &Snap) -> Result<(), String> {
     c.press(Act::Computer(0));
     c.press(Act::StartPage(page("windows")?));
     s.shot(&mut c, "start-guide-windows")?;
+    // Every step ticked, to the last, Turn Secure Boot back on (§4.7).
+    for n in 1..=12 {
+        c.press(Act::Step(n));
+    }
+    for _ in 0..40 {
+        if c.texts().iter().any(|t| t.starts_with("Turn Secure Boot")) {
+            break;
+        }
+        c.event(Event::Scroll {
+            x: 10,
+            y: 10,
+            dy: 200,
+        });
+    }
+    c.event(Event::Scroll {
+        x: 10,
+        y: 10,
+        dy: 260,
+    });
+    s.shot(&mut c, "start-guide-windows-end")?;
 
     // About (§4.8).
     let mut c = s.app();

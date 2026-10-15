@@ -28,7 +28,7 @@ use osk_learn::Page as LearnPage;
 /// Starter's screens open a page by it, and the website publishes each
 /// guide at `https://faradayoffline.app/start/<id>` (`docs/STARTER.md`
 /// §7.4).
-const OWN: [(&str, &str); 18] = [
+const OWN: [(&str, &str); 17] = [
     (
         "windows",
         include_str!("../../../docs/learn/faraday/boot/windows.md"),
@@ -36,10 +36,6 @@ const OWN: [(&str, &str); 18] = [
     (
         "linux",
         include_str!("../../../docs/learn/faraday/boot/linux.md"),
-    ),
-    (
-        "bitlocker",
-        include_str!("../../../docs/learn/faraday/boot/bitlocker.md"),
     ),
     (
         "secure-boot-bitlocker",
@@ -108,16 +104,14 @@ const OWN: [(&str, &str); 18] = [
 ];
 
 /// The guides to starting a computer from the stick (`docs/STARTER.md`
-/// §7.2), by id, in the order they are read: Windows, Linux, BitLocker,
-/// what Secure Boot and BitLocker are (§3.1b), screens and devices that
-/// can record (§3.1a), when the stick does not start, replacing
-/// Faraday on a stick (`faraday-learn`'s, found through
-/// [`faraday_learn::page`]), and starting an Intel Mac (`docs/MAC.md`
-/// §3.1–§3.2).
-pub const BOOT: [&str; 8] = [
+/// §7.2), by id, in the order they are read: Windows, Linux, what Secure
+/// Boot and BitLocker are (§3.1b), screens and devices that can record
+/// (§3.1a), when the stick does not start, replacing Faraday on a stick
+/// (`faraday-learn`'s, found through [`faraday_learn::page`]), and
+/// starting an Intel Mac (`docs/MAC.md` §3.1–§3.2).
+pub const BOOT: [&str; 7] = [
     "windows",
     "linux",
-    "bitlocker",
     "secure-boot-bitlocker",
     "screens-that-record",
     "not-starting",
