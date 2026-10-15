@@ -235,7 +235,7 @@ image's SHA-256.
   sticks written from one image can share it. Until then the key's
   **Sign an APK**, and an APK's **Sign with APK key** in Files, read
   **Back up first** and open the flow on its step; the key's page has
-  the row **Backup** ("Not written", "Written to 1 of 2 places",
+  the row **Backup** ("Not written", "Written to {n} of {m} places",
   "Written to every place") with **Continue the backup**. The flow never
   opens the stick visit. On the Pi the sticks are SD cards. A key in a
   vault unlocked from a stick signs at once. GPG and Secure Boot keys
@@ -706,10 +706,10 @@ and from the Tools tile's info: what an APK signing key is; that
 Android installs an update only when the key matches, so a lost key
 means a new app that every phone installs afresh, losing what the old
 one kept; that the key lives only in the vault, and the vault written
-to two sticks kept apart is its backup; that the certificate and its
+to the sticks of two or more places is its backup; that the certificate and its
 fingerprint are public, and how anyone checks an APK against it
 (`apksigner verify --print-certs`, F-Droid's page); why a key made here
-waits for the vault to be written to two sticks before it signs; why
+waits for every place of its plan to be written before it signs; why
 signing asks for the SHA-256 of a second build made on another
 computer, and that a signature on a bad APK cannot be withdrawn. On the
 choice of vault, both consequences plainly: a slot holding an APK key

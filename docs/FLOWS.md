@@ -740,7 +740,8 @@ to get it.
     stick are asked for. Two places or more for APK, GPG and Secure
     Boot keys, whose signing waits until every place is written; one or
     more for a wallet, with a warning when every secret sits at one
-    place; any for Nostr. **Change the plan** at every step. The stick
+    place; any for Nostr; no upper bound anywhere. The blank template
+    is printed from Faraday Starter. **Change the plan** at every step. The stick
     visit page is never shown, and after Back up's checklist nothing
     waits For the stick.
 
@@ -1040,8 +1041,10 @@ wallet and Restore → step cards (pages on a small panel, "Step 2 of
 6. **Write the sticks**: "Insert the stick for Vault 1 (Place 1)" with
    what it will hold → a stick unlike the one read: "Not the stick read
    for …"; a vault's second copy: the first stick refused, then **Hold:
-   this is a second stick**; a stick named after step 2 (files, the
-   software's, the one to print from) checked now → writing → "Written
+   this is a second stick** (**another stick** for a third or later
+   copy); a stick named after step 2 (the stick of files, the stick of
+   public files, which carries the public files, each key's account key
+   and BIP 129 record, and the sheets as PDFs) checked now → writing → "Written
    and checked on {label}", its files and items ticked → pull;
 7. **Done**: a row per stick → **Unlock {vault}** → the key's page, or
    the checklist's done card, with nothing For the stick.

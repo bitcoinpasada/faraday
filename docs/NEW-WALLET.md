@@ -1238,11 +1238,20 @@ After this change:
   inform; neither blocks.
 - **Write to sticks**, a new last item after Envelopes: one lock, then
   each stick by place, "Insert the stick for Vault 1 (Place 1)" with
-  what it will hold, the stick of files, the software's stick, the
-  stick to print from; a vault's second copy refused on the stick
-  holding the first, then the hold; each stick and each item's files
+  what it will hold, the stick of files (seed files), the stick of
+  public files (the public files with each key's account key and BIP
+  129 record, and the sheets as PDFs); a vault's later copy refused on a
+  stick holding an earlier one, then the hold; each stick and each item's files
   ticked as written. The stick visit is never shown; after the
   checklist nothing waits For the stick.
+- **No cap on places** (owner, 2026-10-14): `Shape::max_places` goes; a
+  vault, or one key of a multisig, may be kept at as many places as the
+  person adds. Public files may share a stick with a vault copy, with no
+  warning.
+- **Templates** prints from Faraday Starter (`docs/STARTER.md` §3.8):
+  the item reads "Print {n} from Faraday Starter: Blank templates,
+  {words} words, {copy}" and is done by **Done**; no template file is
+  made or written to a stick.
 - **§14.3's hold**: the lock of Write to sticks clears the held flag in
   the vaults it seals, and the hold stays, by fingerprint, in the flow's
   kept state until the last stick is written.

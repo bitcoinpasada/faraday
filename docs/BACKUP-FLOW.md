@@ -1,8 +1,8 @@
 # The backup flow
 
-**Status:** spec v0.2 · 2026-10-14 · decided by the owner
+**Status:** spec v0.3 · 2026-10-14 · decided by the owner
 (`docs/DECISIONS.md` F31), reworked the same day to the order "decide
-where the key will live, then make it". Specified, not built: batch B1
+where the key will live, then make it", and §15's questions answered. Specified, not built: batch B1
 (§14) comes after APK batch 1 and the GPG fix batch are committed.
 
 One guided flow makes and backs up every kind of secret Faraday keeps
@@ -67,8 +67,8 @@ checklist. The flow is written here once; `docs/NEW-WALLET.md` §14.8,
   step 4.
 - **The plan decides what each stick holds**, before any stick is
   inserted. An empty stick holds what the plan puts there and nothing
-  else; two copies of one vault exist only where the plan keeps that
-  vault at two places.
+  else; a vault has one copy per place the plan keeps it at, as many as
+  the person adds, and more than one only where the plan says so.
 - **Places, by kind.** A key that cannot be made again from seed words
   (APK, GPG, Secure Boot) is planned at **two places or more**: the
   count cannot go below two, and a plan with fewer is not offered. A
@@ -109,7 +109,7 @@ else:
 | Spot (map) | What the flow does with it |
 |---|---|
 | `At::Place(p)` holding `VaultStick(v)` | a stick, "the stick for Vault v (Place p)": brought in at step 2, written at step 6 |
-| `At::Place(p)` holding words, SeedQR, a passphrase, the sheet, shares | the checklist's paper items (Templates, Copy with F29's check, Sheets), as today |
+| `At::Place(p)` holding words, SeedQR, a passphrase, the sheet, shares | the checklist's paper items (Templates, printed from Faraday Starter; Copy with F29's check; Sheets), as today |
 | `At::Vault(v)` | a vault: existing or new (step 1), unlocked or made (step 3), its seeds made into it (step 4) |
 | `At::Files` | "the stick of files" (seed files, public files): written at step 6 |
 | `At::Software` | the descriptor shown, or its files on a stick: written at step 6 |
@@ -179,8 +179,8 @@ plan shows its check lines and, where they apply, §10.3's two lines.
 ### 4.2 Bring in the sticks
 
 Only the sticks the plan already names: each `VaultStick(v)` at a place.
-Sticks the plan names later (the stick of files, the software's, the
-stick to print from, a place added after the key is made) are checked at
+Sticks the plan names later (the stick of files, the stick of public
+files, a place added after the key is made) are checked at
 step 6 instead (§4.6), since they hold no vault the key goes into.
 
 - **A clean process first.** With anything secret open when step 2
@@ -215,15 +215,17 @@ step 6 instead (§4.6), since they hold no vault the key goes into.
   - an empty stick at a place the plan gives a new vault: bound to it
     with no question; an empty stick is never offered a copy the plan
     does not put there;
-  - a vault the plan keeps at two places: the second place's stick
-    takes a second copy, beside or over the copy it holds of that vault;
+  - a vault the plan keeps at several places: each further place's
+    stick takes another copy, beside or over the copy it holds of that
+    vault;
   - two files of one vault (one salt) on one stick: "{label} has two
     copies of {vault}: {name} and {name}", and that stick cannot serve
     that vault; another vault, a new one, or another stick;
   - a copy of the chosen vault that differs from one already read this
     session (the same salt, other bytes): "{label}'s copy of {vault}
     differs from {label}'s"; the person picks the copy to unlock, and
-    the other is written over at step 6 only after a hold (§15, item 3).
+    the other is written over at step 6 only after a hold (decided, §15
+    item 3).
 - **Which place.** Each stick is named by the plan. The person confirms
   it: a tap, **This is the stick for Vault 1 (Place 1)**, when the stick
   reads differently from every stick already bound; a hold, **Hold: this
@@ -246,7 +248,7 @@ With no stick in (a stick inserted opens decision 8's Pull sheet,
 "Pull the stick to unlock"):
 
 - each existing vault chosen: **Unlock {vault}**, its passphrase, with
-  Unlock's memory check; a vault kept at two places is unlocked once;
+  Unlock's memory check; a vault kept at several places is unlocked once;
 - each new vault: Create a vault (decision 21's Size, Name and
   passphrases), its own passphrase, once per vault of the plan;
 - **I do not have its passphrase**, under an existing vault: **A new
@@ -282,8 +284,8 @@ with no stick skips steps 5 and 6.
 
 ### 4.6 Write each stick by place
 
-One card per stick, in place order, then the stick of files, the
-software's stick, the stick to print from:
+One card per stick, in place order, then the stick of files, then the
+stick of public files:
 
 - **Insert** "Insert the stick for Vault 1 (Place 1)", with a row per
   file it will hold: "{vault file} · {size}", the public files.
@@ -292,13 +294,14 @@ software's stick, the stick to print from:
     listing, the vault files' SHA-256): else "Not the stick read for
     Vault 2 (Place 2)", and **Use another stick**, which checks a new
     stick as step 2 does and writes the vault beside what it holds;
-  - a vault's second copy: refused on a stick that holds the first copy
-    ("This stick has the first copy"), then **Hold: this is a second
-    stick** (the place named in the record);
+  - a vault's second or later copy: refused on a stick that holds an
+    earlier copy ("This stick has the first copy"), then **Hold: this is
+    a second stick**, or for a third and later copy **Hold: this is
+    another stick** (the place named in the record);
   - a stick that holds a file this flow wrote for another stick (by
     SHA-256): "This stick has Place 1's files";
   - a stick the plan named after step 2 (the stick of files, the
-    software's, the stick to print from, a place added later): step 2's
+    stick of public files, a place added later): step 2's
     usability checks and room now, then the tap **This is {stick}**;
   - two sticks in: "One stick at a time".
 - **Writing**: "Writing {file}", DESIGN §4.14's Progress where the write
@@ -442,10 +445,11 @@ at Place 2, Key 3 on paper at Place 3. Where names the two vaults and
 their places; Place 3 keeps no stick, so step 2 asks for two sticks
 only → Unlock or create Vault 1 and Vault 2 → New key: Key 1 into Vault
 1, Key 2 into Vault 2, Key 3 made and shown for copying → the plan's
-paper part (Place 3: Key 3's words) → checklist: Templates, Copy of Key
+paper part (Place 3: Key 3's words) → checklist: Templates (printed
+from Faraday Starter), Copy of Key
 3 (F29's typed check), Vault 1 and Vault 2 (done), Sheets, Envelopes →
-Write to sticks: Vault 1 (Place 1), Vault 2 (Place 2), the stick to
-print from (the blank template and the sheets) → Done. Key 3 is held
+Write to sticks: Vault 1 (Place 1), Vault 2 (Place 2), the stick of
+public files (the sheets as PDFs) → Done. Key 3 is held
 until its copy is checked; Keys 1 and 2 until their sticks are written.
 
 **E. Paper only.** No vault, no stick: steps 2, 3, 5 and 6 are not
@@ -461,7 +465,7 @@ drawn; the keys are made and copied, the checklist as today.
 | `kind`, `subjects` | the kind, and each subject by §3's public value once made |
 | `plan` | for a key, its places and vaults (§2); for a wallet, the wallet's checksum, the plan's answers being in Back up's state and, once written, the type 11 record |
 | `vaults` | each vault: existing (file name, salt, length) or new (its name), its places |
-| `sticks` | each stick: its name (vault and place, or the stick of files, the software's, the one to print from), what step 2 read (label, serial, listing, each vault file's salt and SHA-256, free space), its binding, the files it will hold, and how it is confirmed |
+| `sticks` | each stick: its name (vault and place, or the stick of files, the stick of public files), what step 2 read (label, serial, listing, each vault file's salt and SHA-256, free space), its binding, the files it will hold, and how it is confirmed |
 | `sealing` | per vault, the SHA-256 of the sealed bytes the flow writes |
 | `written` | per stick written: each file's name and SHA-256, the label, the time |
 | `step`, `left`, `back` | where the flow is, whether the person left it, and where the last unlock lands |
@@ -476,7 +480,8 @@ the summaries do (VAULT §11). Nothing of it is written to a stick or a
 file For the stick.
 
 **What counts as written**: only the flow's own step 6 write, read back
-and matched. A write by an ordinary visit does not count (§15, item 4).
+and matched. A write made on the stick visit page does not count
+(decided, §15 item 4).
 
 ## 8. What waits, and the key's page
 
@@ -488,8 +493,8 @@ and matched. A write by an ordinary visit does not count (§15, item 4).
 - **Once every place the plan gives the key is written**, they are
   themselves again, from the unlock **Done** leads to.
 - **Nostr** has the row and the flow, and nothing waits.
-- The gate reads the flow's state, and, if §15 item 2 is taken, the
-  vault record's mark.
+- The gate reads the flow's state only; the vault carries no mark of
+  the flow (§15 item 2).
 
 ## 9. What each event does at each step
 
@@ -506,7 +511,9 @@ and matched. A write by an ordinary visit does not count (§15, item 4).
 | 7 Done | — | the copies are on the sticks | — | — | — |
 
 - **After a power-off** nothing of the flow is left, and a key unlocked
-  later from a stick signs at once (§15, item 2, pending). The Power
+  later from a stick signs at once. A power-off between writes leaves
+  the copies written so far: the person chose the places, and can write
+  the rest or stop there (decided, §15 item 2). The Power
   sheet lists it first, in the danger tone: "Backup of {key}: written to
   {n} of {m} places".
 - **A vault changed after a stick was written** (left, unlocked,
@@ -563,15 +570,42 @@ and matched. A write by an ordinary visit does not count (§15, item 4).
   or needs **Save into {vault}** only for what it still lacks (the
   wallet description where the plan puts it, a plan changed part way);
   `BNewVault` stays for a plan changed part way.
-- **The sticks** of the plan, from its map: a stick per `VaultStick(v)`
-  spot at a place (brought in at step 2); the stick of files
-  (`At::Files`: seed files, public files); the watch-only software's
-  stick when its text files cannot ride on the stick of files, which is
-  never when that stick holds a seed's file; the stick to print from
-  (the blank template, the sheet or shares as PDFs). The last three are
-  named after step 2 and checked at step 6. The public files are
-  `backup_public_names_for`'s; the map puts them on the stick of files,
-  never on a place's vault stick.
+- **The sticks** of the plan, from its map, one per spot that is a
+  stick, holding what the map puts there:
+  - a stick per `VaultStick(v)` spot at a place (brought in at step 2),
+    with no upper bound: a vault, or any one key's vault, may be kept at
+    as many places as the person adds, one copy per place;
+  - **the stick of files**, the `At::Files` spot: each seed's file where
+    the plan keeps seeds as files;
+  - **the stick of public files**: the public files where the plan keeps
+    the wallet as files or gives the software its text form, and the
+    sheet or shares as PDFs, to print. It goes to an online computer.
+    Where the plan's `At::Files` spot holds public files, it is that
+    spot's stick; otherwise a stick of its own.
+  The last two are named after step 2 and checked at step 6.
+- **The public files** are those of `backup_public_names_for`, with the
+  account keys added (owner, 2026-10-14; FLOWS decision 6 lists them):
+  the descriptor, the multisig config, Sparrow's wallet file, the BSMS
+  record, Bitcoin Core's import, as the software and form chosen make
+  them, their pictures where the form is QR, and for each key loaded
+  here its account key, `xpub-{fp}.txt`, and on a `wsh` or `sh(wsh)`
+  multisig at Create's own account its BIP 129 key record,
+  `xpub-{fp}-bsms.txt` (as `wallet_key_out` and `wallet_key_bsms` make
+  them; the record is signed by the key, so it is made before the
+  lock). A cosigner's key not loaded here has neither; its account key
+  is in the descriptor.
+  A 2-of-3 `wsh` with its three keys made here, Sparrow chosen, the text
+  form and the whole sheet at each place writes to the stick of public
+  files: `savings-wallet.json`, `xpub-{fp}.txt` and `xpub-{fp}-bsms.txt`
+  for each of the three keys, and `savings-backup.pdf`.
+- **Which stick the public files share is the person's choice**
+  (owner, 2026-10-14). Where the plan's map puts them on a stick that
+  also keeps a vault copy (a chart edit, NEW-WALLET §9.7) or a seed's
+  file, the flow writes them there, with no warning and nothing
+  blocked. The backup's Learn page states, as a fact, that a stick of
+  public files is read on the online computer that runs the software or
+  prints the sheets, and that whatever else is on that stick goes there
+  with it (§15 item 6).
 - **A new last item, `Item::Sticks`, Write to sticks**, after Envelopes,
   in any plan with a stick to write: its body a row per stick, "Vault 1
   (Place 1)", "Stick of files · 1 file", each ticked as written, its
@@ -588,8 +622,13 @@ and matched. A write by an ordinary visit does not count (§15, item 4).
   Outbox never holds it twice; one taken by two sticks leaves once both
   are written. The chart's stick node keeps `WriteAsk`, outside the
   checklist.
-- **The blank template** goes on the stick to print from at step 6, after
-  the Copy items it is printed for (§15, item 6).
+- **The blank template** is printed from Faraday Starter (owner,
+  2026-10-14; `docs/STARTER.md` §3.8), on the online computer, before
+  the copies by hand. The checklist's **Templates** item no longer makes
+  a file: its body reads "Print {n} from Faraday Starter: Blank
+  templates, {words} words, {copy}" and its foot is **Done**, a press,
+  as Envelopes' is. No template is written to a stick, and
+  `blank-template-{words}-words.pdf` is no longer made here.
 
 ### 10.3 One place, and the passphrase
 
@@ -649,13 +688,20 @@ spend.
 **The default with a passphrase.** `Answers::defaults` and every preset
 put a seed's passphrase at the first place that keeps no copy of that
 seed in any form, its vault's stick included; with none, a place is
-added, within `Shape::max_places`. So Paper and vault on a single key
+added. So Paper and vault on a single key
 with a passphrase gives: words at Place 1, Vault 1's stick at Place 2,
 the passphrase at Place 3. The form at each place stays the person's:
 vault, paper, steel or other.
 
+**No cap on places** (owner, 2026-10-14). `Shape::max_places` (today
+the larger of the seed count and three) goes, and `set_places` keeps
+only its lower bound of one: a wallet, or any one key of it, may be
+kept at as many places as the person adds, a second place for one key
+of a 2-of-3 included. One copy per place, with no upper bound.
+
 **Nothing narrows the plan.** The person can still choose one place and
-no passphrase, or a passphrase beside its seed, and sees the lines.
+no passphrase, or a passphrase beside its seed, and sees the lines; and
+public files on any stick, with no line.
 
 ## 11. Restore
 
@@ -686,8 +732,7 @@ the medium (`app.medium`), as `write_out_*` take it; a stick's name is
 | `backup_flow_vault_new` | {} · new |
 | `backup_flow_stick_for` | the {m} for {} ({}) (vault, place) |
 | `backup_flow_files_stick` | the {m} of files |
-| `backup_flow_software_stick` | the {m} for the watch-only software |
-| `backup_flow_print_stick` | the {m} to print from |
+| `backup_flow_public_stick` | the {m} of public files |
 | `backup_flow_lock_bring` | Lock and bring in the {m}s |
 | `backup_flow_insert` | Insert {} |
 | `backup_flow_use_read` | Use {}, read at {} |
@@ -716,6 +761,7 @@ the medium (`app.medium`), as `write_out_*` take it; a stick's name is
 | `backup_flow_not_read` | Not the {m} read for {} |
 | `backup_flow_has_first` | This {m} has the first copy |
 | `backup_flow_hold_second` | Hold: this is a second {m} |
+| `backup_flow_hold_another` | Hold: this is another {m} |
 | `backup_flow_has_files_of` | This {m} has {}'s files |
 | `backup_flow_writing` | Writing {} |
 | `backup_flow_written` | Written and checked on {} |
@@ -740,7 +786,8 @@ The plan's lines of §10.3 are the plan's own strings: `plan_all_at_one_place`
 "Every secret of this wallet is at {}. Separate places are strongly
 recommended.", `plan_passphrase_apart` "A passphrase kept at another
 place than the seed is recommended.", `plan_add_passphrase` "Add a
-passphrase".
+passphrase", and `item_templates_starter` "Print {} from Faraday
+Starter: Blank templates, {} words, {}" for the Templates item.
 
 **Unlock {vault}** and Create a vault's strings are reused. APK batch
 1's `apk_back_up_first`, `apk_backup_line`, `apk_backup_line_once`,
@@ -785,8 +832,19 @@ a new `faraday-core/tests/backup_flow.rs`; the wallet's in
   in the flow exports at once.
 - **Every form.** Example C writes three sticks, `main-2.ofv` untouched;
   example D asks for two sticks only, checks Key 3's copy by typed
-  words, and writes Vault 1, Vault 2 and the stick to print from; example
-  E draws no stick step and no lock.
+  words, and writes Vault 1, Vault 2 and the stick of public files;
+  example E draws no stick step and no lock.
+- **Owner's answers.** A vault kept at four places asks for four sticks,
+  the third and fourth with **Hold: this is another stick**; a 2-of-3
+  with a second place for Key 1's vault writes that copy too; the plan
+  accepts a fifth place on a single key. The 2-of-3 `wsh` of §10.2
+  writes `savings-wallet.json`, three `xpub-{fp}.txt`, three
+  `xpub-{fp}-bsms.txt` and `savings-backup.pdf` to the stick of public
+  files, and no vault copy goes on it. A map with public files on a
+  vault's stick writes them there, with no warning line. The Templates item writes no file
+  and is done by its press. A power-off after Place 1's write, then an
+  unlock from Place 1's stick: the key signs at once and no flow is
+  offered.
 - **Places.** An APK, GPG or Secure Boot plan cannot go below two
   places; a Nostr plan of no place saves into the open vault and writes
   no stick; a wallet plan of one place is accepted, with the warning
@@ -864,45 +922,47 @@ whichever of N1 and B1 is second makes Save into a vault the flow.
 **Replaces, in the wallet:** the done card's **Write to {a stick}**;
 Back up's vault part, which moves before Keys; F6's hold moves at the
 lock; the passphrase's default place in `Answers::defaults` and
-`Answers::preset` (§10.3); `glance::check_lines` gains §10.3's lines.
+`Answers::preset` (§10.3); `glance::check_lines` gains §10.3's lines;
+`Shape::max_places` and `set_places`' upper clamp go; the account keys
+join `backup_public_names_for` and `backup_files_make`; the Templates
+item's **Make it** (`Action::BOut(0)`, `blank-template-{words}-words.pdf`)
+becomes the Starter line and **Done**.
 
-## 15. For the owner
+**Batch T, Faraday Starter's blank templates** (`docs/STARTER.md`
+§3.8, §11), its own small batch, built before B1 so the Templates line
+points at a screen that exists: it touches only the Starter
+(`faraday-starter`, `shells/starter`) and reuses `faraday-core`'s
+`backup::sheet_blank` and `pdf::sheet` as they are. Its build is the
+Starter's.
 
-Each is pending unless marked otherwise.
+## 15. Decided
 
-1. **Places by kind** (decided by the owner, 2026-10-14): two or more
-   for APK, GPG and Secure Boot keys, with no single-copy hold; one or
-   more for a wallet, with §10.3's warning; any number for Nostr.
-2. **A power-off between writes** (pending). Proposed by the
-   coordinator: a "backup not done" mark inside the key's vault record,
-   as type 2's flag bit 1, cleared when the writes finish, so unlocking
-   offers **Continue the backup** and signing waits. The catch: every
-   copy the flow writes is sealed before the writes finish, so every
-   copy carries the mark, and clearing it means sealing again and
-   writing every stick again. A version that works: at step 5 the vault
-   is sealed twice, first with the mark cleared, then with the mark set
-   and holding the first sealing's SHA-256; every stick but the last
-   gets the marked copy, the last gets the cleared one, and the earlier
-   sticks are then given the cleared copy, a plain copy in the clean
-   process. A key unlocked from a marked copy waits until a stick shows
-   the cleared copy's SHA-256. Recommended: this version, at the cost
-   of one more insertion of each earlier stick; otherwise keep the gap
-   and the Power sheet's line.
-3. **A copy of the same vault not seen this session, and different**
-   (pending): replaced only after a hold. Recommended: the hold.
-4. **Stick visit writes do not count toward the flow** (pending).
-   Recommended: keep; they have no second-copy check and no hold.
-5. **A wallet's vault gets one copy per place the plan keeps its stick
-   at** (pending). Recommended: per place.
-6. **The blank template is written at step 6**, after the Copy items it
-   is printed for, since writing it earlier would need a stick while the
-   key is in memory only. Recommended: keep; it is blank and the same
-   for every wallet of a word count, and F29 checks a copy on any paper.
-7. **Account-key files** are not among the public files (pending).
-   Recommended: left out for now.
+The owner's answers (2026-10-14).
+
+1. **Places by kind**: two or more for APK, GPG and Secure Boot keys,
+   with no single-copy hold; one or more for a wallet, with §10.3's
+   warning; any number, none included, for Nostr.
+2. **A power-off between writes**: no mark in the vault and no refresh.
+   The flow's state is in `/run/faraday` only and is gone at power-off;
+   a key in a vault unlocked from a stick signs at once. A power-off
+   between writes leaves the copies already written: the person chose
+   the places, and can write the rest or stop there.
+3. **A copy of the same vault not seen this session, and different**:
+   replaced only after a hold.
+4. **Writes made on the stick visit page** do not count toward the flow.
+5. **Places and copies have no cap**: any number of places, a vault or
+   any one key kept at as many as the person adds, one copy per place.
+   The only lower bound is two places for a key that cannot be made
+   again from seed words.
+6. **Account keys** are among the public files (§10.2). **The blank
+   template** is printed from Faraday Starter (`docs/STARTER.md` §3.8);
+   no template is written to a stick. Public files may share a stick
+   with a vault copy, as the person chooses, with no warning. The
+   backup's Learn page says, as a fact, that a stick of public files is
+   read on an online computer with whatever else it holds: recommended,
+   as the one place the person learns what that choice means, since no
+   working screen explains it.
+7. **A key kept only on paper before an extra round** (§4.8): both
+   offered, **Finish its paper copy first** chosen.
 8. **A stick holding vaults, at a place the plan gives a new vault**:
-   **A new vault beside them** first and chosen, an existing vault a
-   choice. Recommended as written.
-9. **A key kept only on paper before an extra round** (§4.8): both
-   offered, **Finish its paper copy first** chosen, since the plan keeps
-   it on paper and the checked copy is what the round then reads back.
+   **A new vault beside them** first and chosen.

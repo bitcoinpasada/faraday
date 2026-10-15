@@ -427,6 +427,7 @@ the checklist writes to the computer except what its items do.
   only". On Windows too, when the Starter carries the Windows desktop
   app (§2).
 - **Install** or **Installed** → §3.5
+- **Blank templates** → §3.8
 - **About** → §3.7
 - **Learn** → the Starter's Learn pages (§7)
 
@@ -666,6 +667,35 @@ Version; each payload file with its build ID and SHA-256; the release
 key's fingerprint as the README prints it; how to check the Starter
 file itself with `SHA256SUMS` and its signature; on Windows, why the
 file is unsigned (§10.2).
+
+### 3.8 Blank templates (F31)
+
+(owner, 2026-10-14; `docs/BACKUP-FLOW.md` §10.2. Specified, not built:
+batch T.) The printable sheets a seed is copied onto by hand, offered
+here because the Starter runs on the computer with the printer, and a
+blank template holds nothing of any wallet. Faraday's backup checklist
+says to print them from here (its **Templates** item) and writes none to
+a stick.
+
+A Menu of value rows (DESIGN §5), titled **Blank templates**, from the
+rows' **Blank templates**, each row opening its Choice:
+
+- **Words**: **12** · **24**, 24 chosen;
+- **Copy**: **Words** · **SeedQR** · **Both**, Words chosen: the word
+  lines, the SeedQR grid, or both on one sheet, as the backup's `copy:`
+  line has them (`docs/NEW-WALLET.md` §14.7);
+- **Places**: a count to fill in by hand, 2 filled in, one or more, no
+  upper bound;
+- **Save the PDF** (primary) → the sheet made by `faraday-core`'s
+  `backup::sheet_blank` with no wallet (no name, no shape), the network
+  "mainnet", and the choices above, then `pdf::sheet`; saved into the
+  Downloads folder as `faraday-blank-template-{12|24}-words-{words|seedqr|words-seedqr}.pdf`,
+  never over a file ("name (2).pdf", as Transfer's Receive names) →
+  "Saved {path}" with **Open it** (the system's PDF viewer, to print).
+
+Nothing else: no wallet, key or seed is asked for or shown. Tests (batch T): each of the six choices of Words and Copy
+saves a PDF whose sheet text has those `words:` and `copy:` lines and
+no `name:`; a second save beside a first is named "(2)".
 
 ## 4. Writing a stick or a card
 
@@ -1446,6 +1476,7 @@ this Mac* takes back.
 | C | Windows camera for Transfer Receive, shared with the desktop app; the desktop app on Windows (§2's changes) and its install | built (HANDOFF item 76): C1, the desktop app on Windows with its install, its Try and a payload folder per system; C2, the camera on Media Foundation. To be tried on Windows | after W |
 | P | Pi: one image for the 2.8 inch panel, Make a Pi card tried on hardware; profiles, boards and other sizes when a second screen is tried | decided (D1, D2, D3, D5) | after L, independent of G, W and C |
 | S | Keeping Secure Boot on (§7.7) | D9 | last |
+| T | Blank templates (§3.8): the row, the screen, the PDF saved into Downloads, from `faraday-core`'s existing sheet and PDF code | decided (F31) | after L; before the backup flow's batch B1 (`docs/BACKUP-FLOW.md` §14), whose Templates item points here |
 | MAC A3a, A3b | The Starter's macOS module, and Home on a Mac, without a Mac (`docs/MAC.md` §8, HANDOFF item 73) | decided | after L (owner, 2026-10-13) |
 | MAC A3c, D | The Starter built and tried on a Mac; the desktop app on macOS | a Mac (MAC M7) | after A3b |
 

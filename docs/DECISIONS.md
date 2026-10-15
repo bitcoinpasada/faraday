@@ -1200,10 +1200,10 @@ FAT volume serial, which sticks written from one image can share.
   does not read as it did; done, then unlock. Restore takes the same
   steps with its seed typed or scanned.
 - The plan decides what each stick holds before any stick is inserted.
-  An empty stick holds only what the plan puts there; two copies of a
-  vault exist only where the plan keeps it at two places. A vault's
-  second copy is refused on a stick holding the first and needs the hold
-  "This is a second stick". Faraday cannot prove two sticks are
+  An empty stick holds only what the plan puts there; a vault has one
+  copy per place the plan keeps it at, with no upper bound. A vault's
+  later copy is refused on a stick holding an earlier one and needs the
+  hold "This is a second stick" (or "another stick"). Faraday cannot prove two sticks are
   different; that is the extent of the check.
 - The flow is driven by the plan and narrows nothing it can say: every
   form (vaults on sticks, paper, steel, shares, sheets, a stick of
@@ -1235,8 +1235,18 @@ FAT volume serial, which sticks written from one image can share.
   after the checklist nothing waits For the stick.
 - The flow's state (the plan, what each stick read, the step, the
   written copies' SHA-256) is not secret and is kept across a lock under
-  `/run/faraday`; it is gone at power-off. What a power-off between
-  writes should leave is for the owner (`docs/BACKUP-FLOW.md` §15).
+  `/run/faraday`; it is gone at power-off. The vault carries no mark of
+  the flow. A power-off between writes leaves the copies already
+  written, and a key unlocked from one of them signs at once: the
+  person chose the places, and can write the rest or stop there.
+- No cap on places or copies: a vault, or any one key, is kept at as
+  many places as the person adds, one copy per place. A copy of the same
+  vault not seen this session is replaced only after a hold. Writes made
+  on the stick visit page do not count toward the flow.
+- Each key's account key file and BIP 129 key record are among the
+  public files. Public files may share a stick with a vault copy, as the
+  person chooses. The blank template is printed from Faraday Starter;
+  no template is written to a stick.
 - **Change the plan** is at every step. After the key is made, a place
   with a new vault on an empty stick, or another copy of a planned
   vault, needs no extra round; a stick holding an existing vault the key
