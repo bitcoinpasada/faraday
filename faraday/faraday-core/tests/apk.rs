@@ -5,12 +5,17 @@
 
 use faraday_apk::zip::{Apk, Refusal, Slice};
 use faraday_apk::{key, pem};
+use faraday_core::backup_flow::Kind;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
-use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent};
+use faraday_core::{Action, Faraday, Screen, StorageEvent};
 use faraday_vault::records::{field, kind};
 use osk_bip::bitcoin::hashes::{Hash, sha256};
 use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
+
+mod common;
+
+use common::{Disk, Shell};
 
 type Files = Vec<(String, Vec<u8>)>;
 
@@ -123,23 +128,23 @@ fn unlocked(apks: &[(&str, Vec<u8>)]) -> Faraday {
     unlock(process(inbox, Vec::new(), Vec::new()))
 }
 
-/// Replaces what is typed in the form's field `k`.
-fn retype(app: &mut Faraday, k: usize, text: &str) {
-    app.press(Action::Vault(V::FocusField(k)));
-    for _ in 0..80 {
-        app.event(Event::Key(Key::Backspace));
-    }
-    type_text(app, text);
-}
-
-/// Make an APK key as a person does: the form, a name and a package,
-/// Make the key.
+/// A key in the vault as one unlocked from a stick holds it: no backup
+/// flow made it, so it signs at once. Its page is selected.
 fn make(app: &mut Faraday, name: &str, package: &str) {
-    app.press(Action::Vault(V::Add));
-    retype(app, 0, name);
-    retype(app, 1, package);
-    app.press(Action::Vault(V::FormSave));
-    settle(app, 100);
+    use std::sync::atomic::{AtomicU8, Ordering};
+    static SEED: AtomicU8 = AtomicU8::new(0x61);
+    let seed = [SEED.fetch_add(1, Ordering::Relaxed); 32];
+    let name = name.trim();
+    let pair = key::make(&seed, name, 1_791_482_652).unwrap();
+    let cur = app.vaults.current;
+    app.vaults.open[cur]
+        .contents
+        .records
+        .push(faraday_core::apk::record_of(&pair, package));
+    app.vaults.open[cur].changes += 1;
+    let n = app.vaults.open[cur].contents.of(kind::APK_KEY).count();
+    app.press(Action::Vault(V::Category(6)));
+    app.press(Action::Vault(V::Item(n - 1)));
 }
 
 fn keys(app: &Faraday) -> Vec<faraday_vault::Record> {
@@ -195,7 +200,7 @@ fn out(app: &Faraday, name: &str) -> Option<Vec<u8>> {
 fn saved(app: &mut Faraday) -> (Files, Files, Files) {
     let mut last = (Vec::new(), Vec::new(), Vec::new());
     while let Some(c) = app.poll_storage() {
-        if let StorageCommand::SaveBoxes {
+        if let faraday_core::StorageCommand::SaveBoxes {
             inbox,
             outbox,
             kept,
@@ -207,88 +212,32 @@ fn saved(app: &mut Faraday) -> (Files, Files, Files) {
     last
 }
 
-/// Write the vault to a stick, as the key's page asks: the button locks
-/// it, a clean process visits a stick of this FAT serial and writes the
-/// sealed vault, the stick is pulled, and the vault is unlocked again on
-/// the key's page. `app` is the process after all that.
-fn write_vault(app: &mut Faraday, _serial: u32, _id: &str) {
-    write_vault_on(app, &[], false);
-}
-
-/// [`write_vault`] on a stick that holds `files`; with `fail`, the stick
-/// answers every write as failed. Returns the toast the visit ended on.
-fn write_vault_on(app: &mut Faraday, files: &[(String, Vec<u8>)], fail: bool) -> Option<String> {
-    entropy(app, 2);
-    app.press(Action::Vault(V::ApkWrite));
-    let before = saved(app);
-    let (inbox, outbox, kept) = before.clone();
-    let mut next = process(inbox, outbox, kept);
-    next.storage(StorageEvent::Sticks(vec![StickInfo {
-        serial: Some(0x1234_5678),
-        id: "S".into(),
-        label: "KEYSTICK".into(),
-        boot: false,
-        files: files
-            .iter()
-            .map(|(n, b)| (n.clone(), b.len() as u64))
-            .collect(),
-    }]));
-    assert_eq!(next.screen, Screen::Visit);
-    // What the visit reads back from the stick, as a shell answers it.
-    while let Some(c) = next.poll_storage() {
-        if let StorageCommand::Read { stick, name } = c {
-            let bytes = files.iter().find(|(n, _)| *n == name).unwrap().1.clone();
-            next.storage(StorageEvent::Read { stick, name, bytes });
-        }
+/// The flow of the APK key as far as Make: two empty sticks of one label
+/// and serial, one new vault.
+fn flow_to_make(shell: &mut Shell, keep_time: bool) -> Faraday {
+    use faraday_core::backup_flow_steps::FlowAction as F;
+    shell.add(Disk::empty("S1", "KEYSTICK"));
+    shell.add(Disk::empty("S2", "KEYSTICK"));
+    let mut app = common::process(Vec::new(), Vec::new(), Vec::new());
+    if keep_time {
+        common::keep_time(&mut app);
     }
-    next.press(Action::VisitWrite);
-    let toast = next.toast_text().map(str::to_string);
-    let mut kept_state = (Vec::new(), Vec::new(), Vec::new());
-    while let Some(c) = next.poll_storage() {
-        match c {
-            StorageCommand::Write { stick, name, .. } if fail => {
-                next.storage(StorageEvent::WriteFailed {
-                    stick,
-                    name,
-                    reason: "no space".into(),
-                });
-            }
-            StorageCommand::Write { stick, name, .. } => {
-                next.storage(StorageEvent::Written {
-                    stick,
-                    wrote_as: name.clone(),
-                    name,
-                });
-            }
-            StorageCommand::SaveBoxes {
-                inbox,
-                outbox,
-                kept,
-            } => kept_state = (inbox, outbox, kept),
-            _ => {}
-        }
+    common::start(&mut app, Kind::Apk);
+    shell.flow(&mut app, F::Continue);
+    for (disk, hold) in [("S1", false), ("S2", true)] {
+        shell.plug(&mut app, disk);
+        shell.flow(&mut app, if hold { F::Hold } else { F::Tap });
+        shell.pull(&mut app, disk);
     }
-    if kept_state.0.is_empty() && kept_state.1.is_empty() {
-        kept_state = before;
-    }
-    let (inbox, outbox, kept) = kept_state;
-    // The stick pulled and the process restarted by nothing: the same
-    // process unlocks the vault again.
-    next.storage(StorageEvent::Sticks(Vec::new()));
-    let mut again = process(inbox, outbox, kept);
-    again.press(Action::Nav(Screen::Vaults));
-    again.press(Action::Vault(V::Open(0)));
-    type_text(&mut again, PASSPHRASE);
-    again.press(Action::Vault(V::Unlock));
-    settle(&mut again, 1);
-    *app = again;
-    toast
+    common::create_vault(shell, &mut app, 0, PASSPHRASE);
+    app
 }
 
 #[test]
-fn make_an_apk_key_puts_a_record_in_the_vault_and_the_certificate_for_the_stick() {
-    let mut app = unlocked(&[]);
-    make(&mut app, "Faraday Test", FIXTURE);
+fn make_an_apk_key_in_the_flow_puts_a_record_in_every_vault_and_the_certificate_for_the_stick() {
+    let mut shell = Shell::new();
+    let mut app = flow_to_make(&mut shell, true);
+    common::make_key(&mut shell, &mut app, &["Faraday Test", FIXTURE]);
     let made = keys(&app);
     assert_eq!(made.len(), 1);
     let r = &made[0];
@@ -303,9 +252,17 @@ fn make_an_apk_key_puts_a_record_in_the_vault_and_the_certificate_for_the_stick(
     let stem = format!("faraday-test-{}", &faraday_apk::hex(&info.fingerprint)[..8]);
     let pem_file = out(&app, &format!("{stem}-certificate.pem")).expect("the certificate");
     assert_eq!(pem::read(&pem_file).as_deref(), Some(&cert[..]));
-    // The result names what was made.
+    // The result names what was made, a row per vault it is in.
     let t = texts(&mut app);
-    for want in ["APK key made", "Faraday Test", FIXTURE, "RSA 3072"] {
+    for want in [
+        "APK signing key made",
+        "Faraday Test",
+        FIXTURE,
+        "RSA 3072",
+        "In Vault 1",
+        "Show as QR",
+        "PNG",
+    ] {
         assert!(t.iter().any(|x| x == want), "{want}: {t:?}");
     }
     // The fingerprint, in groups of four, wraps over lines.
@@ -315,11 +272,25 @@ fn make_an_apk_key_puts_a_record_in_the_vault_and_the_certificate_for_the_stick(
 
 #[test]
 fn the_vault_sealed_and_opened_again_shows_the_same_name_fingerprint_and_package() {
-    let mut app = unlocked(&[]);
-    make(&mut app, "Faraday Test", FIXTURE);
+    use faraday_core::backup_flow_steps::FlowAction as F;
+    let mut shell = Shell::new();
+    let mut app = flow_to_make(&mut shell, true);
+    common::make_key(&mut shell, &mut app, &["Faraday Test", FIXTURE]);
     let cert = keys(&app)[0].field(field::APK_CERT).unwrap().to_vec();
-    entropy(&mut app, 2);
-    app.press(Action::Vault(V::ApkWrite));
+    let secrets = secrets_of(keys(&app)[0].field(field::APK_KEY).unwrap());
+    shell.flow(&mut app, F::MadeContinue);
+    let app = shell.lock(&mut app);
+    // What the lock kept for the flow holds none of the private key.
+    let (inbox, outbox, kept) = shell.boxes.clone();
+    assert!(kept.iter().any(|(n, _)| n == "backup-flow"));
+    for (name, bytes) in kept.iter().chain(&inbox).chain(&outbox) {
+        if name.ends_with(".ofv") {
+            continue;
+        }
+        for s in &secrets {
+            assert!(!contains(bytes, s), "{name} holds a secret part");
+        }
+    }
     let (name, bytes) = {
         let i = app
             .outbox
@@ -345,14 +316,13 @@ fn the_vault_sealed_and_opened_again_shows_the_same_name_fingerprint_and_package
 fn a_certificate_name_left_empty_and_a_bad_package_are_refused() {
     // Refused on the spot, with the form still open to be put right.
     let try_make = |name: &str, package: &str| {
-        let mut app = unlocked(&[]);
-        app.press(Action::Vault(V::Add));
-        retype(&mut app, 0, name);
-        retype(&mut app, 1, package);
-        app.press(Action::Vault(V::FormSave));
+        let mut shell = Shell::new();
+        let mut app = flow_to_make(&mut shell, true);
+        let toast = common::make_key(&mut shell, &mut app, &[name, package]);
         assert!(app.vaults.form.is_some(), "{name:?} {package:?}");
         assert!(keys(&app).is_empty(), "{name:?} {package:?}");
-        app.toast_text().map(str::to_string)
+        assert!(!app.flow().unwrap().made);
+        toast
     };
     assert_eq!(
         try_make("   ", FIXTURE).as_deref(),
@@ -366,127 +336,27 @@ fn a_certificate_name_left_empty_and_a_bad_package_are_refused() {
         );
     }
     // The name is trimmed, and a package of Android's form is taken.
-    let mut app = unlocked(&[]);
-    make(&mut app, "  Faraday Test ", "app.a_b.c9");
+    let mut shell = Shell::new();
+    let mut app = flow_to_make(&mut shell, true);
+    common::make_key(&mut shell, &mut app, &["  Faraday Test ", "app.a_b.c9"]);
     let cert = keys(&app)[0].field(field::APK_CERT).unwrap().to_vec();
     assert_eq!(key::describe(&cert).unwrap().name, "Faraday Test");
 }
 
 #[test]
 fn on_the_stick_make_a_key_asks_for_the_time_first() {
-    let mut app = process(vec![vault_file()], Vec::new(), Vec::new());
-    app.press(Action::Nav(Screen::Vaults));
-    app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, PASSPHRASE);
-    app.press(Action::Vault(V::Unlock));
-    settle(&mut app, 1);
-    app.press(Action::Nav(Screen::VaultContents));
-    app.press(Action::Vault(V::Category(6)));
-    make(&mut app, "Faraday Test", FIXTURE);
+    let mut shell = Shell::new();
+    let mut app = flow_to_make(&mut shell, false);
+    common::make_key(&mut shell, &mut app, &["Faraday Test", FIXTURE]);
     assert_eq!(app.screen, Screen::SetTime);
     assert!(keys(&app).is_empty(), "nothing made");
 }
 
-#[test]
-fn a_key_made_this_session_waits_for_two_writes_whatever_the_sticks_serials() {
-    let mut app = unlocked(&[("faraday-unsigned.apk", fixture("small-unsigned.apk"))]);
-    make(&mut app, "Faraday Test", FIXTURE);
-    app.press(Action::Vault(V::ApkDone));
-    assert!(has(&mut app, "Back up first"));
-    assert!(has(
-        &mut app,
-        "Signing waits until the vault is written to two sticks"
-    ));
-    assert!(!has(&mut app, "Sign an APK"));
-    // Pressing Sign an APK does not open it.
-    app.press(Action::Vault(V::ApkSignOpen));
-    assert!(!app.vaults.apk.signing);
-
-    // A write that fails is not a write.
-    write_vault_on(&mut app, &[], true);
-    assert!(has(
-        &mut app,
-        "Signing waits until the vault is written to two sticks"
-    ));
-    // The first write.
-    write_vault(&mut app, 0x1111_1111, "S1");
-    assert!(has(
-        &mut app,
-        "Written to one stick. Signing waits for a second stick"
-    ));
-    // The second stick holds this very vault already: refused, and the
-    // key still waits.
-    let held = app
-        .inbox
-        .iter()
-        .find(|i| i.name.ends_with(".ofv"))
-        .map(|i| (i.name.clone(), i.bytes.clone()))
-        .unwrap();
-    let said = write_vault_on(&mut app, std::slice::from_ref(&held), false);
-    assert_eq!(said.as_deref(), Some("This stick already has this vault"));
-    assert!(has(
-        &mut app,
-        "Written to one stick. Signing waits for a second stick"
-    ));
-    // An older copy of this vault under the same name, other bytes, is
-    // updated, and is the second write.
-    let mut older = held.clone();
-    older.1[100] ^= 1;
-    write_vault_on(&mut app, &[older], false);
-    assert!(has(&mut app, "Sign an APK"));
-    assert!(!has(&mut app, "Back up first"));
-    app.press(Action::Vault(V::ApkSignOpen));
-    assert!(app.vaults.apk.signing);
-}
-
-#[test]
-fn a_write_before_the_key_was_added_does_not_count() {
-    let mut app = unlocked(&[]);
-    // Sealed and written before the key exists: the vault is on a stick.
-    app.vaults.open[0].changes += 1;
-    write_vault(&mut app, 0x1111_1111, "S1");
-    app.press(Action::Vault(V::Category(6)));
-    make(&mut app, "Faraday Test", FIXTURE);
-    app.press(Action::Vault(V::ApkDone));
-    write_vault(&mut app, 0x2222_2222, "S2");
-    assert!(
-        has(
-            &mut app,
-            "Written to one stick. Signing waits for a second stick"
-        ),
-        "the first write held no key"
-    );
-}
-
-#[test]
-fn the_wait_is_kept_across_a_lock_and_a_key_unlocked_from_a_stick_signs_at_once() {
-    let mut app = unlocked(&[]);
-    make(&mut app, "Faraday Test", FIXTURE);
-    app.press(Action::Vault(V::ApkDone));
-    entropy(&mut app, 2);
-    app.press(Action::Lock);
-    let (inbox, outbox, kept) = saved(&mut app);
-    // The next process: the key was made in the last session and has not
-    // been written; its page still waits.
-    let mut next = unlock(process(inbox.clone(), outbox.clone(), kept));
-    assert!(has(&mut next, "Back up first"));
-    // After power-off the kept state is gone: the vault, as a stick
-    // holds it, signs at once.
-    let sealed = outbox.into_iter().find(|(n, _)| n == "apk.ofv").unwrap();
-    let power_off = process(vec![sealed], Vec::new(), Vec::new());
-    let _ = inbox;
-    let mut power_off = unlock(power_off);
-    assert!(has(&mut power_off, "Sign an APK"));
-    assert!(!has(&mut power_off, "Back up first"));
-}
-
-/// An app with a key for `package`, past the wait.
+/// An app with a key for `package`, as a vault unlocked from a stick
+/// holds one.
 fn ready(package: &str, apks: &[(&str, Vec<u8>)]) -> Faraday {
     let mut app = unlocked(apks);
     make(&mut app, "Faraday Test", package);
-    app.press(Action::Vault(V::ApkDone));
-    write_vault(&mut app, 0x1111_1111, "S1");
-    write_vault(&mut app, 0x2222_2222, "S2");
     app
 }
 
@@ -718,9 +588,6 @@ fn with_two_keys_for_the_package_files_asks_which_key() {
     let apk = fixture("small-unsigned.apk");
     let mut app = ready(FIXTURE, &[("x-unsigned.apk", apk)]);
     make(&mut app, "Second Test", FIXTURE);
-    app.press(Action::Vault(V::ApkDone));
-    write_vault(&mut app, 0x3333_3333, "S3");
-    write_vault(&mut app, 0x4444_4444, "S4");
     let k = app
         .inbox
         .iter()
@@ -844,16 +711,12 @@ fn nothing_for_the_stick_ever_holds_the_private_key() {
     };
     make(&mut app, "Faraday Test", FIXTURE);
     check(&app, "after Make");
-    app.press(Action::Vault(V::ApkDone));
     app.press(Action::Vault(V::ApkExport));
     check(&app, "after Certificate");
     app.press(Action::ShowCode(faraday_core::Code::ApkCertificate));
     check(&app, "after Show as QR");
     app.press(Action::CodePng(faraday_core::Code::ApkCertificate));
     check(&app, "after PNG");
-    write_vault(&mut app, 0x1111_1111, "S1");
-    write_vault(&mut app, 0x2222_2222, "S2");
-    check(&app, "after the vault was written");
     review(&mut app, "x-unsigned.apk");
     type_second(&mut app, &sha_hex(&apk));
     entropy(&mut app, 1);

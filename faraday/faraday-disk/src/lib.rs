@@ -19,7 +19,7 @@ use std::os::unix::fs::FileExt;
 use std::path::{Path, PathBuf};
 
 use faraday_fat::{Disk, Volume};
-use faraday_files::proto::{Request, Response, Stick};
+use faraday_files::proto::{Problem, Request, Response, Stick};
 use faraday_files::{Fat, Place};
 
 /// The label and partition name the boot partition carries.
@@ -69,6 +69,35 @@ impl Disk for Node {
     }
 }
 
+/// Why a partition's volume is not opened.
+enum Unreadable {
+    /// The boot partition, which is never touched.
+    Boot,
+    /// Not a FAT volume Faraday reads.
+    NotFat(String),
+    /// The node could not be read.
+    Other(String),
+}
+
+impl Unreadable {
+    fn text(&self) -> String {
+        match self {
+            Unreadable::Boot => "the boot partition is never opened".into(),
+            Unreadable::NotFat(e) | Unreadable::Other(e) => e.clone(),
+        }
+    }
+}
+
+/// Whether a sysfs flag file says 1.
+fn flag(path: &Path) -> bool {
+    fs::read_to_string(path).is_ok_and(|s| s.trim() == "1")
+}
+
+/// A flag of the disk a partition is on.
+fn disk_flag(disk: Option<&Path>, name: &str) -> bool {
+    disk.is_some_and(|d| flag(&d.join(name)))
+}
+
 /// A partition handed out, before its files are read.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Found {
@@ -78,6 +107,8 @@ struct Found {
     boot: bool,
     /// Handed out: this process can open its node.
     open: bool,
+    /// The kernel says the device is read-only (`ro` under `/sys`).
+    read_only: bool,
 }
 
 /// The `PARTNAME=` line of a block device's `uevent`.
@@ -139,6 +170,7 @@ impl Disks {
             let Some(disk) = dir.parent() else { continue };
             let node = self.dev.join(&name);
             let open = Node::open(&node).is_ok();
+            let read_only = flag(&dir.join("ro")) || disk_flag(dir.parent(), "ro");
             // A partition not handed out is listed only when it is on a
             // removable bus: a stick or a card someone just put in.
             let path = dir.to_string_lossy();
@@ -171,46 +203,118 @@ impl Disks {
                 partname,
                 boot,
                 open,
+                read_only,
             });
         }
+        // A disk with no partition at all is a stick or card too: a FAT
+        // volume made without a partition table, or one with nothing on
+        // it. Every USB and SD device is listed, so that one that cannot be
+        // used says so (an exFAT stick, an NTFS one, a card that is locked).
+        out.extend(self.bare_disks());
         out.sort_by(|a, b| a.id.cmp(&b.id));
+        out
+    }
+
+    /// The disks on a USB or SD bus that have no partition and some size:
+    /// each is a candidate stick, its node the whole disk.
+    fn bare_disks(&self) -> Vec<Found> {
+        let mut out = Vec::new();
+        let Ok(entries) = fs::read_dir(self.sys.join("class/block")) else {
+            return out;
+        };
+        for e in entries.flatten() {
+            let name = e.file_name().to_string_lossy().into_owned();
+            let Ok(dir) = fs::canonicalize(e.path()) else {
+                continue;
+            };
+            if dir.join("partition").exists() {
+                continue;
+            }
+            let path = dir.to_string_lossy();
+            if !path.contains("/usb") && !name.starts_with("mmcblk") {
+                continue;
+            }
+            // An empty card reader slot is a disk of no size.
+            let size: u64 = fs::read_to_string(dir.join("size"))
+                .ok()
+                .and_then(|s| s.trim().parse().ok())
+                .unwrap_or(0);
+            let has_parts = fs::read_dir(&dir)
+                .is_ok_and(|d| d.flatten().any(|c| c.path().join("partition").exists()));
+            if size == 0 || has_parts {
+                continue;
+            }
+            let node = self.dev.join(&name);
+            out.push(Found {
+                id: format!("{name}@{}", disk_id(&dir)),
+                open: Node::open(&node).is_ok(),
+                node,
+                partname: None,
+                boot: false,
+                read_only: flag(&dir.join("ro")),
+            });
+        }
         out
     }
 
     /// Opens a partition's volume, unless it is the boot partition or not
     /// FAT.
-    fn volume(f: &Found) -> Result<Volume<Node>, String> {
+    fn volume(f: &Found) -> Result<Volume<Node>, Unreadable> {
         if f.partname.as_deref() == Some(BOOT) {
-            return Err("the boot partition is never opened".into());
+            return Err(Unreadable::Boot);
         }
-        let mut node = Node::open(&f.node).map_err(|e| e.to_string())?;
+        let mut node = Node::open(&f.node).map_err(|e| Unreadable::Other(e.to_string()))?;
         let mut sector = [0u8; 512];
         node.read_at(0, &mut sector)
-            .map_err(|e| e.reason().to_string())?;
+            .map_err(|e| Unreadable::Other(e.reason().to_string()))?;
         if faraday_fat::boot_sector_label(&sector).is_some_and(|l| l.starts_with(BOOT.as_bytes())) {
-            return Err("the boot partition is never opened".into());
+            return Err(Unreadable::Boot);
         }
-        Volume::open(node).map_err(|e| e.reason().to_string())
+        Volume::open(node).map_err(|e| Unreadable::NotFat(e.reason().to_string()))
     }
 
     fn stick(&mut self, f: &Found) -> Option<Stick> {
+        let named = |f: &Found| {
+            f.partname
+                .clone()
+                .filter(|n| !n.is_empty())
+                .unwrap_or_else(|| f.id.split('@').next().unwrap_or("").to_string())
+        };
         if !f.open {
+            // Not handed out yet: nothing on it can be read or written. It
+            // waits, and is told from a stick that is not there.
             return Some(Stick {
                 id: f.id.clone(),
-                label: f
-                    .partname
-                    .clone()
-                    .filter(|n| !n.is_empty())
-                    .unwrap_or_else(|| f.id.split('@').next().unwrap_or("").to_string()),
+                label: named(f),
                 boot: f.boot,
                 serial: None,
                 files: Vec::new(),
+                problem: Some(Problem::NotYet),
             });
         }
         if let Some(s) = self.seen.get(&f.id) {
             return Some(s.clone());
         }
-        let v = Self::volume(f).ok()?;
+        let v = match Self::volume(f) {
+            Ok(v) => v,
+            // The boot partition of a stick is never listed.
+            Err(Unreadable::Boot) => return None,
+            // Handed out but not a FAT volume: listed with no files, and
+            // saying so, so that a stick that cannot be used is told from
+            // one that is not there.
+            Err(_) => {
+                let s = Stick {
+                    id: f.id.clone(),
+                    label: named(f),
+                    boot: f.boot,
+                    serial: None,
+                    files: Vec::new(),
+                    problem: Some(Problem::NotFat),
+                };
+                self.seen.insert(f.id.clone(), s.clone());
+                return Some(s);
+            }
+        };
         let label = v
             .label()
             .or_else(|| f.partname.clone())
@@ -223,6 +327,7 @@ impl Disks {
             boot: f.boot,
             serial,
             files,
+            problem: f.read_only.then_some(Problem::ReadOnly),
         };
         self.seen.insert(f.id.clone(), s.clone());
         Some(s)
@@ -239,7 +344,7 @@ impl Disks {
                 } else {
                     match Self::volume(f) {
                         Ok(v) => format!("FAT, label {:?}", v.label()),
-                        Err(e) => format!("not listed: {e}"),
+                        Err(e) => format!("not listed: {}", e.text()),
                     }
                 };
                 format!(
@@ -270,7 +375,7 @@ impl Disks {
         if !f.open {
             return Err("the stick is not open to Faraday until it locks".into());
         }
-        Ok(Fat(Self::volume(&f)?))
+        Ok(Fat(Self::volume(&f).map_err(|e| e.text())?))
     }
 
     /// Answers one request.

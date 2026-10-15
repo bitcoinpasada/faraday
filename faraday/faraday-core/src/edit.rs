@@ -48,6 +48,7 @@ impl Faraday {
             Screen::Unlock
             | Screen::CreateVault
             | Screen::VaultContents
+            | Screen::BackupFlow
             | Screen::Family
             | Screen::Codes => Some(Action::Vault(match self.vaults.focus? {
                 F::Passphrase => V::FocusPassphrase,
@@ -418,6 +419,7 @@ impl Faraday {
             Screen::Tools => self.tools.is_some(),
             Screen::Upgrade => self.upgrade.is_some(),
             Screen::CreateVault => self.vaults.create.is_some(),
+            Screen::BackupFlow => self.flow().is_some(),
             _ => true,
         }
     }

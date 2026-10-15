@@ -23,6 +23,12 @@ fn va(a: V) -> Action {
     Action::Vault(a)
 }
 
+/// A waiting action: **Back up first**, which opens the flow of the key
+/// shown on its step.
+fn back_up_first(kind_: crate::backup_flow::Kind) -> Action {
+    Action::Flow(crate::backup_flow_steps::FlowAction::BackUpFirst(kind_))
+}
+
 /// A file's size, for Sign a file's rows.
 fn gpg_file_size(bytes: u64) -> String {
     if bytes >= 1_000_000 {
@@ -246,7 +252,7 @@ fn hold_delete(app: &Faraday, ui: &mut Ui, x: f32, y: f32) -> f32 {
 }
 
 /// A button that acts when held, filling while it is held.
-fn hold_button(
+pub(crate) fn hold_button(
     app: &Faraday,
     ui: &mut Ui,
     x: f32,
@@ -255,7 +261,24 @@ fn hold_button(
     action: Action,
     color: osk_ui::Color,
 ) -> f32 {
-    let w = ui.measure(13.0, W::S, label) + 32.0;
+    hold_button_in(app, ui, x, y, f32::MAX, label, action, color)
+}
+
+/// [`hold_button`] no wider than `room`: a long label is cut to fit.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn hold_button_in(
+    app: &Faraday,
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    room: f32,
+    label: &str,
+    action: Action,
+    color: osk_ui::Color,
+) -> f32 {
+    let w = (ui.measure(13.0, W::S, label) + 32.0).min(room);
+    let label = ui.fit(13.0, W::S, label, w - 32.0);
+    let label = label.as_str();
     if ui.is_pressed(action) {
         let held = app
             .now_ms
@@ -2615,7 +2638,6 @@ pub(crate) fn contents_detail(app: &Faraday) -> bool {
         || v.saving
         || v.signing
         || v.sb_images
-        || v.apk.made.is_some()
         || v.apk.signing
 }
 
@@ -2961,17 +2983,6 @@ fn detail(
             dy += 22.0;
             dy += years_row(ui, dx, dy, dw, Some(app.vaults.gpg_years), V::GpgYears) + 16.0;
         }
-        if form.kind == kind::APK_KEY {
-            dy += apk_form_extras(app, ui, dx, dy, dw);
-            if app.vaults.working == Some(vaults::Work::ApkKey) {
-                ui.text_mid(dx, dy, 40.0, 15.0, W::S, ACCENT, FEN.apk_making_the_key);
-                return dy;
-            }
-        }
-        if app.vaults.working == Some(vaults::Work::SecureBoot) {
-            ui.text_mid(dx, dy, 40.0, 15.0, W::S, ACCENT, FEN.vault_making_pk_kek);
-            return dy;
-        }
         let save = match form.kind {
             kind::GPG if revoking => FEN.vault_make_the_revocation,
             kind::GPG => FEN.vault_make_the_key,
@@ -3080,9 +3091,6 @@ fn detail(
     }
     if app.vaults.sb_images {
         return images_panel(app, ui, dx, dy, dw);
-    }
-    if app.vaults.apk.made.is_some() {
-        return apk_result(app, ui, items, sel, dx, dy, dw);
     }
     if app.vaults.apk.signing {
         return apk_sign_panel(app, ui, items, sel, dx, dy, dw);
@@ -3486,21 +3494,35 @@ fn detail(
                     V::GpgRenewTerm,
                 );
                 let ry = if ui.compact { dy + yh + 8.0 } else { dy };
-                ui.button(
-                    dx + dw - rw,
-                    ry,
-                    Some(rw),
-                    32.0,
-                    FEN.vault_renew,
-                    if app.vaults.renew_years.is_some() {
-                        Style::Secondary
-                    } else {
-                        Style::Disabled
-                    },
-                    va(V::GpgRenew),
-                );
+                if app.selected_waits().is_some() {
+                    let bw = ui.measure(13.0, W::S, FEN.backup_flow_first) + 30.0;
+                    ui.button(
+                        dx + dw - bw,
+                        ry,
+                        Some(bw),
+                        32.0,
+                        FEN.backup_flow_first,
+                        Style::Secondary,
+                        back_up_first(crate::backup_flow::Kind::Gpg),
+                    );
+                } else {
+                    ui.button(
+                        dx + dw - rw,
+                        ry,
+                        Some(rw),
+                        32.0,
+                        FEN.vault_renew,
+                        if app.vaults.renew_years.is_some() {
+                            Style::Secondary
+                        } else {
+                            Style::Disabled
+                        },
+                        va(V::GpgRenew),
+                    );
+                }
                 dy = ry + 46.0;
             }
+            dy += backup_row(app, ui, crate::backup_flow::Kind::Gpg, r, dx, dy, dw);
             // Each file on a row of its own: to the Outbox, as a code,
             // as a picture. The revocation certificate is a secret: it
             // goes through the secret sheet, and has no code or picture.
@@ -3517,7 +3539,14 @@ fn detail(
             actions.push((FEN.vault_export_revocation, va(V::GpgExportRevocation)));
             actions.push((FEN.vault_make_a_revocation, va(V::GpgRevocationPage)));
             breaks.push(actions.len());
-            actions.push((FEN.vault_sign_a_file, va(V::GpgSignPick)));
+            if app.selected_waits().is_some() {
+                actions.push((
+                    FEN.backup_flow_first,
+                    back_up_first(crate::backup_flow::Kind::Gpg),
+                ));
+            } else {
+                actions.push((FEN.vault_sign_a_file, va(V::GpgSignPick)));
+            }
         }
         kind::SECURE_BOOT => {
             if let Some(sb) = crate::secureboot::shown(r) {
@@ -3549,31 +3578,22 @@ fn detail(
                 FEN.vault_yours_with_microsoft
             };
             dy += ui.wrap(dx, dy, dw, 12.0, W::R, MUTED, line) + 14.0;
-            actions.push((FEN.vault_enrolment_files, va(V::SbEnrol)));
+            dy += backup_row(app, ui, crate::backup_flow::Kind::SecureBoot, r, dx, dy, dw);
+            if app.selected_waits().is_some() {
+                actions.push((
+                    FEN.backup_flow_first,
+                    back_up_first(crate::backup_flow::Kind::SecureBoot),
+                ));
+            } else {
+                actions.push((FEN.vault_enrolment_files, va(V::SbEnrol)));
+            }
             actions.push((FEN.vault_sign_or_check, va(V::SbImages)));
         }
         kind::APK_KEY => {
             let fp = crate::apk::fingerprint_of(r);
-            let waiting = fp.and_then(|fp| app.apk_waiting(&fp));
+            let waiting = fp.and_then(|fp| app.backup_waits(crate::backup_flow::Kind::Apk, &fp));
             // The page leads with the backup while the key waits for it.
-            if let Some(n) = waiting {
-                let line = if n == 0 {
-                    FEN.apk_backup_line
-                } else {
-                    FEN.apk_backup_line_once
-                };
-                dy += ui.wrap(dx, dy, dw, 13.0, W::S, WARN, line) + 8.0;
-                ui.button(
-                    dx,
-                    dy,
-                    None,
-                    36.0,
-                    FEN.apk_back_up_first,
-                    Style::Primary,
-                    va(V::ApkWrite),
-                );
-                dy += 52.0;
-            }
+            dy += backup_row(app, ui, crate::backup_flow::Kind::Apk, r, dx, dy, dw);
             if let Some(s) = crate::apk::shown(r, app.tz_min) {
                 field_row(ui, &mut dy, FEN.apk_name, &s.name, false);
                 field_row(ui, &mut dy, FEN.apk_package, &s.package, false);
@@ -3597,6 +3617,11 @@ fn detail(
             breaks.push(actions.len());
             if waiting.is_none() {
                 actions.push((FEN.apk_sign_an_apk, va(V::ApkSignOpen)));
+            } else {
+                actions.push((
+                    FEN.backup_flow_first,
+                    back_up_first(crate::backup_flow::Kind::Apk),
+                ));
             }
         }
         _ => {}
@@ -3626,6 +3651,57 @@ fn detail(
         );
     }
     dy + 48.0
+}
+
+/// The Backup row of a key made in the backup flow (`docs/BACKUP-FLOW.md`
+/// §8): how many places are written, and **Continue the backup** until
+/// every one is. A key unlocked from a stick has no row. Returns the
+/// height.
+fn backup_row(
+    app: &Faraday,
+    ui: &mut Ui,
+    kind_: crate::backup_flow::Kind,
+    r: &Record,
+    dx: f32,
+    dy: f32,
+    dw: f32,
+) -> f32 {
+    let Some(subject) = crate::backup_flow::subject_of(kind_, r) else {
+        return 0.0;
+    };
+    let bytes: Vec<u8> = (0..subject.len() / 2)
+        .filter_map(|i| u8::from_str_radix(subject.get(i * 2..i * 2 + 2)?, 16).ok())
+        .collect();
+    let Some(row) = app.backup_row(kind_, &bytes) else {
+        return 0.0;
+    };
+    let mut h = 0.0;
+    ui.text(dx, dy, 12.0, W::R, MUTED, FEN.backup_flow_row);
+    h += 20.0;
+    h += ui.wrap(
+        dx,
+        dy + h,
+        dw,
+        14.0,
+        W::R,
+        if row.waiting { WARN } else { TEXT },
+        &row.line,
+    ) + 8.0;
+    if row.waiting {
+        ui.button(
+            dx,
+            dy + h,
+            None,
+            36.0,
+            FEN.backup_flow_continue,
+            Style::Secondary,
+            Action::Flow(crate::backup_flow_steps::FlowAction::Resume),
+        );
+        h += 48.0;
+    } else {
+        h += 6.0;
+    }
+    h
 }
 
 /// The session's keys or wallets that are not yet in this vault, each
@@ -3908,7 +3984,14 @@ pub(crate) fn lock_ask(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 
 /// The expiry choices for a GPG key, `chosen` highlighted. Returns the
 /// row's height.
-fn years_row(ui: &mut Ui, x: f32, y: f32, w: f32, chosen: Option<u32>, act: fn(u32) -> V) -> f32 {
+pub(crate) fn years_row(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    chosen: Option<u32>,
+    act: fn(u32) -> V,
+) -> f32 {
     let items: Vec<(&str, Style, Action)> = [
         (FEN.vault_1_year, 1u32),
         (FEN.vault_2_years, 2),
@@ -4020,15 +4103,28 @@ fn images_panel(app: &Faraday, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f3
         if ui.compact {
             dy += 36.0;
         }
-        ui.button(
-            dx + dw - 80.0,
-            dy + 2.0,
-            Some(80.0),
-            36.0,
-            FEN.vault_sign,
-            Style::Secondary,
-            va(V::SbPick(k)),
-        );
+        if app.selected_waits().is_some() {
+            let bw = ui.measure(13.0, W::S, FEN.backup_flow_first) + 30.0;
+            ui.button(
+                dx + dw - 168.0 - bw - 8.0,
+                dy + 2.0,
+                Some(bw),
+                36.0,
+                FEN.backup_flow_first,
+                Style::Secondary,
+                back_up_first(crate::backup_flow::Kind::SecureBoot),
+            );
+        } else {
+            ui.button(
+                dx + dw - 80.0,
+                dy + 2.0,
+                Some(80.0),
+                36.0,
+                FEN.vault_sign,
+                Style::Secondary,
+                va(V::SbPick(k)),
+            );
+        }
         ui.button(
             dx + dw - 168.0,
             dy + 2.0,
@@ -4092,31 +4188,6 @@ pub(crate) fn vault_key(app: &Faraday, v: usize, fp: osk_bip::keys::Fingerprint)
 /// Under the Make an APK key form's fields: what the name is, and, where
 /// several vaults are open, which one the key goes to, none chosen in
 /// advance. Returns its height.
-fn apk_form_extras(app: &Faraday, ui: &mut Ui, dx: f32, dy: f32, dw: f32) -> f32 {
-    let top = dy;
-    let mut dy = dy;
-    dy += ui.wrap(dx, dy, dw, 12.0, W::R, DIM, FEN.apk_public_hint) + 14.0;
-    if app.vaults.open.len() > 1 {
-        ui.text(dx, dy, 12.0, W::R, MUTED, FEN.apk_vault);
-        dy += 22.0;
-        let labels: Vec<String> = app.vaults.open.iter().map(|o| o.label()).collect();
-        let items: Vec<(&str, Style, Action)> = labels
-            .iter()
-            .enumerate()
-            .map(|(i, l)| {
-                let style = if app.vaults.apk.vault_pick == Some(i) {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                };
-                (l.as_str(), style, va(V::ApkVault(i)))
-            })
-            .collect();
-        dy += crate::screens::wrap_buttons(ui, dx, dy, dw, 32.0, &items) + 8.0;
-    }
-    dy - top
-}
-
 /// A label above a value, wrapped, at (dx, dy). Returns the height.
 fn apk_row(ui: &mut Ui, dx: f32, dy: f32, dw: f32, label: &str, value: &str, mono: bool) -> f32 {
     ui.text(dx, dy, 12.0, W::R, MUTED, label);
@@ -4130,71 +4201,6 @@ fn apk_row(ui: &mut Ui, dx: f32, dy: f32, dw: f32, label: &str, value: &str, mon
         value,
     );
     20.0 + h + 14.0
-}
-
-/// The result of making an APK key: what it is, its certificate For the
-/// stick, and the vault to write to two sticks.
-fn apk_result(
-    app: &Faraday,
-    ui: &mut Ui,
-    items: &[&Record],
-    sel: usize,
-    dx: f32,
-    mut dy: f32,
-    dw: f32,
-) -> f32 {
-    let Some(r) = items.get(sel) else {
-        return dy;
-    };
-    ui.text(dx, dy, 18.0, W::S, OK, FEN.apk_key_made);
-    dy += 40.0;
-    if let Some(s) = crate::apk::shown(r, app.tz_min) {
-        dy += apk_row(ui, dx, dy, dw, FEN.apk_name, &s.name, false);
-        dy += apk_row(ui, dx, dy, dw, FEN.apk_package, &s.package, false);
-        dy += apk_row(
-            ui,
-            dx,
-            dy,
-            dw,
-            FEN.apk_certificate_sha_256,
-            &s.fingerprint,
-            true,
-        );
-        dy += apk_row(ui, dx, dy, dw, FEN.apk_key, FEN.apk_rsa_3072, false);
-        let file = crate::apk::fingerprint_of(r)
-            .map(|fp| format!("{}-certificate.pem", crate::apk::file_stem(&s.name, &fp)))
-            .unwrap_or_default();
-        dy += apk_row(ui, dx, dy, dw, FEN.apk_certificate, &file, false);
-        let mut bx = dx;
-        for (label, action) in [
-            (FEN.vault_show_as_qr, Action::ShowCode(Code::ApkCertificate)),
-            ("PNG", Action::CodePng(Code::ApkCertificate)),
-        ] {
-            let bw = ui.measure(13.0, W::S, label) + 30.0;
-            ui.button(bx, dy, Some(bw), 36.0, label, Style::Secondary, action);
-            bx += bw + 8.0;
-        }
-        dy += 52.0;
-    }
-    let w = ui.button(
-        dx,
-        dy,
-        None,
-        40.0,
-        FEN.apk_back_up_first,
-        Style::Primary,
-        va(V::ApkWrite),
-    );
-    ui.button(
-        dx + w + 8.0,
-        dy,
-        None,
-        40.0,
-        FEN.apk_done,
-        Style::Ghost,
-        va(V::ApkDone),
-    );
-    dy + 56.0
 }
 
 /// Sign an APK: which APK, then the review; or which key, where Files

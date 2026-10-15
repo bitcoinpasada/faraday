@@ -9,6 +9,10 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+mod common;
+
+use faraday_core::backup_flow::Kind;
+use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::gpg;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
@@ -157,12 +161,11 @@ fn keep_the_time(app: &mut Faraday) {
     app.press(Action::SetTimeKeep);
 }
 
-/// Add, a name, Save: a GPG key made, as a person makes one.
+/// A GPG key made in the open vault by the flow's Make (the flow itself is
+/// tested in `backup_flow.rs`), and released as a key unlocked from a
+/// stick is: it signs at once.
 fn make_key(app: &mut Faraday, name: &str) {
-    app.press(Action::Vault(V::Add));
-    app.press(Action::Vault(V::FocusField(0)));
-    type_text(app, name);
-    app.press(Action::Vault(V::FormSave));
+    common::make_released(app, Kind::Gpg, &[name, ""]);
 }
 
 fn gpg_keys(app: &Faraday) -> usize {
@@ -228,8 +231,9 @@ fn on_the_stick_make_a_key_asks_for_the_time_first() {
     assert_eq!(app.screen, Screen::SetTime);
     assert_eq!(gpg_keys(&app), before, "nothing made");
     app.press(Action::SetTimeKeep);
-    assert_eq!(app.screen, Screen::VaultContents, "back on the same page");
-    app.press(Action::Vault(V::FormSave));
+    assert_eq!(app.screen, Screen::BackupFlow, "back on the same page");
+    app.press(Action::Flow(F::Make));
+    common::settle_n(&mut app, 300, 2);
     assert_eq!(gpg_keys(&app), before + 1);
 
     let mut app = unlocked();

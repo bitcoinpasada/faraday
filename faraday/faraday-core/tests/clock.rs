@@ -4,6 +4,8 @@
 //! time zone is a fixed offset kept in the settings file; and every time
 //! shown to a person is local.
 
+mod common;
+
 use faraday_core::gpg;
 use faraday_core::set_time::Focus;
 use faraday_core::stick_settings::FILE;
@@ -71,10 +73,7 @@ fn vault_app(clock: Option<u64>) -> Faraday {
 /// Adds a GPG key named "Test" to the open vault, through Add and Save,
 /// as a person typing a name and pressing Save would.
 fn make_gpg_key(app: &mut Faraday) {
-    app.press(Action::Vault(V::Add));
-    app.press(Action::Vault(V::FocusField(0)));
-    type_text(app, "Test");
-    app.press(Action::Vault(V::FormSave));
+    common::make_released(app, faraday_core::backup_flow::Kind::Gpg, &["Test", ""]);
 }
 
 /// The last GPG key made in the open vault's creation time, Unix

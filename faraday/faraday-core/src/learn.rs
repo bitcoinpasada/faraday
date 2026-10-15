@@ -135,7 +135,11 @@ impl Faraday {
             Screen::VaultContents if self.vaults.category == 4 => {
                 vec![gpg_page(), &EN.encrypted_backups, &EN.passphrases]
             }
-            Screen::Vaults | Screen::CreateVault | Screen::Unlock | Screen::VaultContents => {
+            Screen::Vaults
+            | Screen::CreateVault
+            | Screen::Unlock
+            | Screen::BackupFlow
+            | Screen::VaultContents => {
                 vec![&EN.encrypted_backups, &EN.passphrases]
             }
             Screen::Settings if self.online => vec![&EN.secure_element, &EN.glossary],

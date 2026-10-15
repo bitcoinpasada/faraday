@@ -1099,6 +1099,7 @@ impl Shell {
                 self.flush();
             }
             if let Some(app) = self.app.as_mut() {
+                let locking = app.restart_requested();
                 let boot = self.boot.as_mut().map(|b| b as &mut dyn Boot);
                 let said = match self.disk.as_mut() {
                     Some(disk) => serve_all(app, &mut self.boxes, None, disk, boot),
@@ -1111,6 +1112,9 @@ impl Shell {
                 }
                 if app.restart_requested() {
                     self.restart = true;
+                } else if locking {
+                    // The lock was refused: the state could not be kept.
+                    self.done = false;
                 }
             }
             self.publish_clean();
@@ -1307,8 +1311,18 @@ impl Shell {
             eprintln!("sticks: [{}]", said.join(", "));
         }
         self.sticks = now.clone();
+        // The sticks the disk process found unusable, told to the app with
+        // the listing: the backup flow says why at its second step.
+        let problems: Vec<(String, bool)> = self
+            .disk
+            .as_ref()
+            .map(|d| d.problems().to_vec())
+            .unwrap_or_default();
         if let Some(app) = self.app.as_mut() {
             app.storage(StorageEvent::Sticks(now));
+            for (stick, read_only) in problems {
+                app.storage(StorageEvent::StickProblem { stick, read_only });
+            }
             if let Ok(t) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
                 app.storage(StorageEvent::Clock {
                     unix_secs: t.as_secs(),

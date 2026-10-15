@@ -461,6 +461,17 @@ impl Faraday {
             Go::CheckMessage if !self.inbox.iter().any(|i| i.kind == FileKind::Message) => {
                 EN.catalog_copy_a_signed
             }
+            // The keys the backup flow makes: the tile starts it, or resumes
+            // it, and asks for no vault first (`docs/BACKUP-FLOW.md` §3).
+            Go::VaultCategory(c)
+                if crate::backup_flow::Kind::of_category(c)
+                    .is_some_and(|k| self.flow_resumable(k).is_some()) =>
+            {
+                EN.backup_flow_continue_make
+            }
+            Go::VaultCategory(c) if crate::backup_flow::Kind::of_category(c).is_some() => {
+                return None;
+            }
             // Pressable: these two lead into making or unlocking one.
             Go::VaultCategory(_) | Go::Codes if self.vaults.open.is_empty() => {
                 if self.vault_files().is_empty() {
@@ -548,6 +559,17 @@ impl Faraday {
             Go::CreateVault => self.act(Action::Vault(VaultAction::Create)),
             // No vault open: Create a vault or Unlock, which come back to
             // this category of the vault made or unlocked.
+            // The keys the backup flow makes: the flow, when none is open
+            // or one is waiting to be resumed.
+            Go::VaultCategory(c)
+                if crate::backup_flow::Kind::of_category(c).is_some_and(|k| {
+                    self.vaults.open.is_empty() || self.flow_resumable(k).is_some()
+                }) =>
+            {
+                if let Some(k) = crate::backup_flow::Kind::of_category(c) {
+                    self.flow_begin(k);
+                }
+            }
             Go::VaultCategory(c) if self.vaults.open.is_empty() => {
                 self.vaults.category = c;
                 if let Some((_, a)) = self.vault_way(Screen::VaultContents) {

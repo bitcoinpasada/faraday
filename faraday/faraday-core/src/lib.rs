@@ -14,6 +14,8 @@
 //! stick (`testkit`, built only with the `testkit` feature).
 
 pub mod backup;
+pub mod backup_flow;
+pub mod backup_flow_steps;
 pub mod backups;
 pub mod bip85;
 pub mod boot_import;
@@ -72,6 +74,7 @@ pub mod visit_taken;
 pub mod wallet;
 pub mod wordlist;
 
+mod backup_flow_screen;
 mod backups_screen;
 mod bip85_screen;
 mod boot_import_screen;
@@ -281,6 +284,9 @@ pub enum StorageEvent {
         /// Why.
         reason: String,
     },
+    /// What the app asked to be kept across a lock could not be kept. A
+    /// lock with a key that waits for its backup does not go ahead.
+    NotKept,
     /// A file deleted from a stick, zeros over it first.
     Wiped {
         /// The stick.
@@ -478,6 +484,15 @@ pub enum StorageEvent {
         /// written again.
         pulled: bool,
     },
+    /// A stick the shell cannot use as the backup flow needs: not a FAT32
+    /// stick as Faraday reads one, or one that cannot be written
+    /// (`docs/BACKUP-FLOW.md` §4.2).
+    StickProblem {
+        /// The stick.
+        stick: String,
+        /// It is read-only (else it is not FAT32).
+        read_only: bool,
+    },
     /// The Inbox and Outbox the previous process left, after a lock.
     Restored {
         /// Inbox files.
@@ -673,6 +688,9 @@ pub enum Screen {
     /// Upgrading another Faraday stick from the one Faraday started from
     /// ([`upgrade`]). Never in the online app.
     Upgrade,
+    /// The shared backup flow: where a key will be kept, its sticks, its
+    /// vaults, the key, the lock and the writes (`docs/BACKUP-FLOW.md`).
+    BackupFlow,
 }
 
 /// A screen and the sheet over it, if any.
@@ -718,6 +736,8 @@ pub enum Action {
     /// A press on the wallet's chart or one of its sheets
     /// (`docs/NEW-WALLET.md` §9).
     Chart(glance_sheet::ChartAction),
+    /// A press in the backup flow (`docs/BACKUP-FLOW.md`).
+    Flow(backup_flow_steps::FlowAction),
     /// Show the Backups screen's wallet `i`, a page each on a small panel.
     BackupsPage(usize),
     /// A vault screen's action.
@@ -2624,6 +2644,9 @@ pub struct Receipt {
     pub time: Option<u64>,
     /// One row per file sent.
     pub files: Vec<ReceiptFile>,
+    /// The backup flow wrote it. Its bytes are the flow's sealings, which
+    /// no ordinary visit writes over a copy of the same vault.
+    pub by_flow: bool,
 }
 
 /// One file on a [`Receipt`].
@@ -2678,10 +2701,11 @@ impl Receipt {
     pub(crate) fn encode(&self) -> Vec<u8> {
         let field = |s: &str| s.replace(['\t', '\n', '\r'], " ");
         let mut out = format!(
-            "receipt\t{}\t{}\t{}\n",
+            "receipt\t{}\t{}\t{}\t{}\n",
             field(&self.label),
             self.time.map(|t| t.to_string()).unwrap_or_default(),
-            field(&self.stick)
+            field(&self.stick),
+            u8::from(self.by_flow)
         );
         for f in &self.files {
             let hash: String = f.hash.iter().map(|b| format!("{b:02x}")).collect();
@@ -2702,12 +2726,15 @@ impl Receipt {
         for line in text.lines() {
             let f: Vec<&str> = line.split('\t').collect();
             match f[..] {
-                ["receipt", label, time] | ["receipt", label, time, _] => {
+                ["receipt", label, time]
+                | ["receipt", label, time, _]
+                | ["receipt", label, time, _, _] => {
                     out = Some(Receipt {
                         label: label.to_string(),
                         stick: f.get(3).map(|s| s.to_string()).unwrap_or_default(),
                         time: time.parse().ok(),
                         files: Vec::new(),
+                        by_flow: f.get(4) == Some(&"1"),
                     });
                 }
                 ["file", name, hash, verified, failure] => {
@@ -3155,6 +3182,12 @@ pub struct Faraday {
     airgap_warned: bool,
     /// The test network asked for while that warning is on show.
     test_asked: Option<osk_bip::keys::Network>,
+    /// The backup flows, at most one on screen (`docs/BACKUP-FLOW.md` §7).
+    pub backup_flows: Vec<backup_flow::BackupFlow>,
+    /// The flow on screen.
+    pub(crate) flow_on: Option<usize>,
+    /// The sticks the shell found unusable (not FAT32, read-only), by id.
+    pub(crate) stick_problems: Vec<(String, bool)>,
 }
 
 impl Default for Faraday {
@@ -3337,6 +3370,9 @@ impl Faraday {
             devices: devices::DeviceCheck::default(),
             airgap_warned: false,
             test_asked: None,
+            backup_flows: Vec::new(),
+            flow_on: None,
+            stick_problems: Vec::new(),
         }
     }
 
@@ -3383,11 +3419,31 @@ impl Faraday {
                 self.sticks_changed(sticks);
                 self.zero_sticks_changed();
             }
-            StorageEvent::Read { stick, name, bytes } if self.apk_probing(&stick, &name) => {
-                self.apk_probe_answer(Some(&bytes));
+            StorageEvent::Read { stick, name, bytes } if self.flow_wants_read(&stick, &name) => {
+                self.flow_read_answer(&name, Some(bytes));
             }
-            StorageEvent::ReadFailed { stick, name, .. } if self.apk_probing(&stick, &name) => {
-                self.apk_probe_answer(None);
+            StorageEvent::ReadFailed { stick, name, .. } if self.flow_wants_read(&stick, &name) => {
+                self.flow_read_answer(&name, None);
+            }
+            StorageEvent::StickSpace { stick, free, size } if self.flow_wants_space(&stick) => {
+                self.flow_space_answer(free, size);
+            }
+            StorageEvent::StickProblem { stick, read_only } => {
+                self.flow_stick_problem(&stick, read_only);
+            }
+            StorageEvent::Written {
+                stick,
+                name,
+                wrote_as,
+            } if self.flow_wants_written(&stick, &name) => {
+                self.flow_write_answer(&name, Ok(wrote_as));
+            }
+            StorageEvent::WriteFailed {
+                stick,
+                name,
+                reason,
+            } if self.flow_wants_written(&stick, &name) => {
+                self.flow_write_answer(&name, Err(reason));
             }
             StorageEvent::Read { stick, name, bytes } => {
                 // A file Faraday reads as nothing else still comes in, as
@@ -3470,13 +3526,23 @@ impl Faraday {
                     false,
                 ));
             }
-            StorageEvent::Wiped { name, .. } => self.wiped(&name, None),
+            StorageEvent::NotKept => self.not_kept(),
+            StorageEvent::Wiped { stick, name } => self.wiped(&stick, &name, None),
             StorageEvent::StickSpace { free, size, .. } => self.zero_space(free, size),
             StorageEvent::Zeroing {
                 next, total, done, ..
             } => self.zero_step(next, total, done),
-            StorageEvent::ZeroFailed { reason, .. } => self.zero_failed(&reason),
-            StorageEvent::WipeFailed { name, reason, .. } => self.wiped(&name, Some(&reason)),
+            StorageEvent::ZeroFailed { stick, reason } => {
+                // The room on a stick could not be asked for: the flow's
+                // reading of it ends, with the stick unusable.
+                self.flow_space_failed(&stick);
+                self.zero_failed(&reason)
+            }
+            StorageEvent::WipeFailed {
+                stick,
+                name,
+                reason,
+            } => self.wiped(&stick, &name, Some(&reason)),
             StorageEvent::Printed { path } => {
                 self.toast(&fill(EN.storage_event_saved, &[&path.to_string()]))
             }
@@ -3641,6 +3707,12 @@ impl Faraday {
         !self.tainted && !self.camera_on()
     }
 
+    /// [`Faraday::clean`] without noting anything: whether this process has
+    /// held or typed no secret, as the screen draws it.
+    pub(crate) fn clean_now(&self) -> bool {
+        !self.tainted && !self.camera_on() && !self.holds_secret() && !self.secret_typed()
+    }
+
     /// The camera is on, reading codes.
     ///
     /// Transfer's Receive, in the online app, does not count: that app is
@@ -3714,8 +3786,12 @@ impl Faraday {
     /// Ms without input at which the machine powers off, when it would:
     /// nothing held, nothing in the Outbox, not the online app.
     pub(crate) fn idle_off_at(&self) -> Option<u64> {
-        (self.idle_off_min > 0 && !self.online && !self.lockable() && self.outbox.is_empty())
-            .then(|| u64::from(self.idle_off_min) * 60_000)
+        (self.idle_off_min > 0
+            && !self.online
+            && !self.lockable()
+            && self.outbox.is_empty()
+            && !self.flow_screen())
+        .then(|| u64::from(self.idle_off_min) * 60_000)
     }
 
     /// The idle timers (`PLAN.md` §12.3). Returns whether the screen
@@ -3771,6 +3847,7 @@ impl Faraday {
             && idle >= u64::from(self.idle_off_min) * min
             && !self.online
             && !self.lockable()
+            && !self.flow_screen()
         {
             if self.outbox.is_empty() {
                 self.commands.push_back(Command::Exit);
@@ -3788,6 +3865,11 @@ impl Faraday {
         let had = !self.sticks.is_empty();
         let ids_before: Vec<String> = self.sticks.iter().map(|s| s.id.clone()).collect();
         self.sticks = sticks;
+        let present: Vec<String> = self.sticks.iter().map(|s| s.id.clone()).collect();
+        // What the shell found unusable comes with each listing: a stick
+        // that no longer reports a problem has none.
+        let _ = &present;
+        self.stick_problems.clear();
         // The medium the device started from goes by what it is, not by
         // its volume label.
         let boot = self.medium.boot();
@@ -3804,6 +3886,7 @@ impl Faraday {
             .map(|s| s.files.iter().map(|(n, _)| n.clone()).collect())
             .unwrap_or_default();
         self.visit.inn.retain(|n| names.contains(n));
+        self.flow_sticks_changed();
         if self.sticks.is_empty() {
             self.stick_held = false;
             self.not_now = false;
@@ -3834,10 +3917,6 @@ impl Faraday {
                 }
             }
             if had {
-                // A visit a key's backup button started ends with its stick.
-                self.vaults.apk.visit_for = None;
-                self.vaults.apk.probe = None;
-                self.vaults.apk.same_on = None;
                 let loaded = self.load_after_pull();
                 let said = if loaded == 0 {
                     fill(EN.sticks_changed_removed_2, &[self.medium.cap()])
@@ -3873,6 +3952,7 @@ impl Faraday {
         }
         self.import_stick_gone();
         if ids_now == ids_before {
+            self.flow_sticks_changed();
             self.release_held_stick();
             return;
         }
@@ -3898,6 +3978,11 @@ impl Faraday {
         ) {
             self.vaults.focus = None;
         }
+        // The backup flow on screen takes the stick: never the visit, at any
+        // step (`docs/BACKUP-FLOW.md` §5).
+        if self.flow_stick_arrived() {
+            return;
+        }
         self.visit.log.clear();
         self.visit.settings = None;
         // The first look at the boot stick this power-on: what it holds is
@@ -3914,9 +3999,6 @@ impl Faraday {
         } else {
             self.visit.out = self.visit_default_out();
             self.visit.inn = self.visit_default_in();
-            let ticks = self.apk_inbox_ticks();
-            self.visit.from_inbox.extend(ticks);
-            self.apk_probe_start();
             if self.sheet == Some(Sheet::Import) {
                 self.sheet = None;
             }
@@ -4038,9 +4120,20 @@ impl Faraday {
                 EN.pull_what_unlock
             }
             Action::Vault(vaults::VaultAction::ListFrom(_)) => EN.pull_what_unlock,
+            Action::Flow(
+                backup_flow_steps::FlowAction::UnlockVault(_)
+                | backup_flow_steps::FlowAction::UnlockDone(_),
+            ) => EN.pull_what_unlock,
+            Action::Flow(
+                backup_flow_steps::FlowAction::CreateVault(_)
+                | backup_flow_steps::FlowAction::Make
+                | backup_flow_steps::FlowAction::CopyKey,
+            ) => EN.pull_what_make_a_key,
             Action::Catalog(i) => match catalog::TILES.get(usize::from(i))?.go {
-                Go::VaultCategory(_)
-                    if self.vaults.open.is_empty() && !self.vault_files().is_empty() =>
+                Go::VaultCategory(c)
+                    if self.vaults.open.is_empty()
+                        && !self.vault_files().is_empty()
+                        && backup_flow::Kind::of_category(c).is_none() =>
                 {
                     EN.pull_what_unlock
                 }
@@ -4120,15 +4213,11 @@ impl Faraday {
                 stick: stick.clone(),
                 time: now,
                 files: Vec::new(),
+                by_flow: false,
             });
         }
         if sent.is_empty() {
             self.visit.writing = None;
-        }
-        // A sealing of a vault that holds a key waiting for its copies,
-        // written and read back, counts that stick.
-        if failure.is_none() {
-            self.apk_written(&name, &hash);
         }
         if let Some(r) = self.receipt.as_mut() {
             r.files.push(ReceiptFile {
@@ -4202,6 +4291,7 @@ impl Faraday {
         self.outbox
             .iter()
             .filter(|i| i.exposure() != secrets::Exposure::Secret)
+            .filter(|i| !self.in_the_backup(&i.name))
             .map(|i| i.name.clone())
             .collect()
     }
@@ -4255,8 +4345,18 @@ impl Faraday {
         self.lock_now();
     }
 
+    /// The state could not be kept. A lock that would lose the keys that
+    /// wait for their backup does not go ahead.
+    fn not_kept(&mut self) {
+        if self.restart && self.backup_flows.iter().any(|f| f.waiting()) {
+            self.restart = false;
+            self.toast(EN.toast_lock_not_kept);
+        }
+    }
+
     /// Lock: what can be sealed is, and the session goes.
     fn lock_now(&mut self) {
+        self.flow_before_lock();
         self.vault_seal_all();
         // What the boot stick brought and was not imported is not kept:
         // its bytes are wiped as it drops.
@@ -4528,6 +4628,7 @@ impl Faraday {
                     self.sheet = None;
                 }
             }
+            Action::Flow(a) => self.flow_act(a),
             Action::Vault(v) => {
                 self.vault_act(v);
                 // What changed in an open vault is what a lock remembers.
@@ -4694,8 +4795,6 @@ impl Faraday {
                     self.visit.out = self.visit_default_out();
                     self.visit.inn = self.visit_default_in();
                     self.visit.from_inbox.clear();
-                    let ticks = self.apk_inbox_ticks();
-                    self.visit.from_inbox.extend(ticks);
                     self.visit.out_offset = 0.0;
                 }
             }
@@ -4888,7 +4987,11 @@ impl Faraday {
                 self.visit.settings = Some(!self.visit_settings_on());
             }
             Action::VisitOut(i) => {
-                if let Some(item) = self.outbox.get(i) {
+                if let Some(item) = self
+                    .outbox
+                    .get(i)
+                    .filter(|it| !self.in_the_backup(&it.name))
+                {
                     let n = item.name.clone();
                     if !self.visit.out.remove(&n) {
                         self.visit.out.insert(n);
@@ -9351,16 +9454,6 @@ impl Faraday {
     /// Whether the stick on show holds the Inbox file `item`, by name and
     /// size.
     fn visit_stick_holds(&self, item: &Item) -> bool {
-        // On the visit for a key's second copy, a vault of the same name
-        // and size is held only if it is byte for byte the first write
-        // (read back and compared): an older copy is there to be updated.
-        if item.kind == FileKind::Vault
-            && self.vaults.apk.visit_for == Some(2)
-            && self.sticks.get(self.visit.stick).map(|s| s.id.as_str())
-                != self.vaults.apk.same_on.as_deref()
-        {
-            return false;
-        }
         self.sticks.get(self.visit.stick).is_some_and(|s| {
             s.files
                 .iter()
@@ -9790,9 +9883,11 @@ impl Faraday {
         match self.screen {
             Screen::Family => self.vaults.focus.is_some() || self.seeds_typing(),
             Screen::Restore => self.seeds_typing(),
-            Screen::Unlock | Screen::CreateVault | Screen::VaultContents | Screen::Codes => {
-                self.vaults.focus.is_some()
-            }
+            Screen::Unlock
+            | Screen::CreateVault
+            | Screen::VaultContents
+            | Screen::Codes
+            | Screen::BackupFlow => self.vaults.focus.is_some(),
             Screen::Entry => true,
             Screen::Wallets => self.renaming.is_some(),
             Screen::Message => self.message.as_ref().is_some_and(|m| m.typing),
@@ -10241,6 +10336,10 @@ impl Faraday {
             Screen::Bip85 => &mut self.bip85.as_mut()?.scroll.y,
             Screen::Silent => &mut self.silent.as_mut()?.scroll.y,
             Screen::CreateVault => &mut self.vaults.create.as_mut()?.scroll.y,
+            Screen::BackupFlow => match self.vaults.create.as_mut() {
+                Some(c) => &mut c.scroll.y,
+                None => &mut self.backup_flows.get_mut(self.flow_on?)?.live.scroll.y,
+            },
             Screen::Spend => &mut self.spend.as_mut()?.scroll,
             Screen::Backup => &mut self.backup.as_mut()?.scroll.y,
             Screen::Message => &mut self.message.as_mut()?.scroll.y,
@@ -10835,7 +10934,7 @@ impl Faraday {
         // it held.
         let detour = matches!(
             self.screen,
-            Screen::CreateVault | Screen::Vaults | Screen::Unlock
+            Screen::CreateVault | Screen::Vaults | Screen::Unlock | Screen::BackupFlow
         );
         if !detour {
             self.vaults.back_to = None;

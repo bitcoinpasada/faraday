@@ -4,11 +4,9 @@
 //! lives in an open vault as a type-12 record (`docs/VAULT.md` §7) and only
 //! the certificate and signed APKs reach the Outbox.
 //!
-//! A key made in a session signs nothing until the vault holding it has
-//! been written, after the key was added, to a stick and then to a second
-//! one (§3): [`Wait`] keeps where it is. The two writes are two visits,
-//! each started by its own button; nothing gates on a stick's FAT serial,
-//! since every Faraday stick of one release has the same.
+//! A key made in the backup flow signs nothing until every place of its
+//! plan is written (`docs/BACKUP-FLOW.md`, §3 here): the gate is
+//! [`Faraday::backup_waits`]. Nothing gates on a stick's FAT serial.
 
 use std::cell::RefCell;
 
@@ -20,6 +18,8 @@ use opensigner_core::strings::fill;
 use osk_bip::bitcoin::hashes::{Hash, sha256};
 
 use crate::Faraday;
+use crate::backup_flow::Kind;
+use crate::backup_flow_steps::Built;
 use crate::vaults::TextBox;
 
 /// The longest a name For the stick is, in bytes of UTF-8
@@ -29,51 +29,9 @@ pub const NAME_MAX: usize = 230;
 pub const FAT32_MAX: u64 = 4_294_967_295;
 /// The fewest hex digits of the second build's SHA-256 that are compared.
 pub const SECOND_MIN: usize = 32;
-/// Sealings kept for a key that waits for its copies.
-const SEALINGS_KEPT: usize = 16;
-
-/// A key made this session and not yet written to two sticks.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Wait {
-    /// The certificate's SHA-256.
-    pub fp: [u8; 32],
-    /// SHA-256 of each sealing of its vault that holds the key.
-    pub sealings: Vec<[u8; 32]>,
-    /// The first write, once it was read back and matched.
-    pub first: Option<First>,
-}
-
-/// The vault file as the first stick holds it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct First {
-    /// Its name on the stick.
-    pub name: String,
-    /// Its length.
-    pub len: usize,
-    /// SHA-256 of the bytes written.
-    pub hash: [u8; 32],
-}
-
 /// What the screens keep of APK signing.
 #[derive(Default)]
 pub struct ApkState {
-    /// The first write's file being read back from the stick that came
-    /// for the second copy: the stick's id and the file's name.
-    pub probe: Option<(String, String)>,
-    /// The stick (by id) whose file of the first write's name is byte for
-    /// byte the first write.
-    pub same_on: Option<String>,
-    /// The visit the next stick is for: 1 the first write, 2 the second.
-    /// Set by the key page's buttons, kept across the lock they make,
-    /// gone when the stick is pulled.
-    pub visit_for: Option<u8>,
-    /// The key whose page a lock for the stick's sake comes back to once
-    /// the vault is unlocked again; kept across the lock.
-    pub back: Option<[u8; 32]>,
-    /// The vault the key being made goes to, when several are open.
-    pub vault_pick: Option<usize>,
-    /// The key just made, while its result shows.
-    pub made: Option<[u8; 32]>,
     /// Sign an APK is open on the selected key.
     pub signing: bool,
     /// An APK copied in is being offered a key: "Which key?".
@@ -82,12 +40,6 @@ pub struct ApkState {
     pub review: Option<Review>,
     /// The second build's SHA-256, as typed.
     pub second: TextBox,
-    /// The key being made: name, package, vault, while its frame waits.
-    pub making: Option<(String, String, usize)>,
-    /// Keys made in this session, waiting for their copies.
-    pub waits: Vec<Wait>,
-    /// What each sealing of an open vault held, by its SHA-256.
-    pub sealed: Vec<([u8; 32], Vec<[u8; 32]>)>,
     /// What an APK read as, by name, size and a check of its ends.
     listed: RefCell<Vec<Read>>,
 }
@@ -102,7 +54,6 @@ impl ApkState {
     /// Leaves whatever APK signing had on the contents: the result, the
     /// list of APKs, the review.
     pub fn leave(&mut self) {
-        self.made = None;
         self.signing = false;
         self.which = None;
         self.review = None;
@@ -179,61 +130,12 @@ pub(crate) fn hex_array(s: &str) -> Option<[u8; 32]> {
     Some(out)
 }
 
-/// The waiting keys as the kept state holds them: a line each, the
-/// certificate's SHA-256, the sealings, and the first write (name, length
-/// and hash), split by tabs and commas.
-pub fn waits_encode(waits: &[Wait]) -> Vec<u8> {
-    waits
-        .iter()
-        .map(|w| {
-            let sealings: Vec<String> = w.sealings.iter().map(|h| faraday_apk::hex(h)).collect();
-            let first = w.first.as_ref().map_or(String::new(), |f| {
-                format!("{},{},{}", f.len, faraday_apk::hex(&f.hash), f.name)
-            });
-            format!(
-                "{}\t{}\t{}\n",
-                faraday_apk::hex(&w.fp),
-                sealings.join(","),
-                first
-            )
-        })
-        .collect::<String>()
-        .into_bytes()
-}
-
-/// Read back what [`waits_encode`] kept.
-pub fn waits_decode(bytes: &[u8]) -> Vec<Wait> {
-    String::from_utf8_lossy(bytes)
-        .lines()
-        .filter_map(|line| {
-            let mut f = line.split('\t');
-            let fp = hex_array(f.next()?)?;
-            let sealings = f.next()?;
-            let first = f.next().unwrap_or("");
-            let first = {
-                let mut p = first.splitn(3, ',');
-                match (p.next(), p.next(), p.next()) {
-                    (Some(len), Some(hash), Some(name)) => Some(First {
-                        len: len.parse().ok()?,
-                        hash: hex_array(hash)?,
-                        name: name.to_string(),
-                    }),
-                    _ => None,
-                }
-            };
-            Some(Wait {
-                fp,
-                sealings: sealings.split(',').filter_map(hex_array).collect(),
-                first,
-            })
-        })
-        .collect()
-}
-
 /// What an APK's row in Files offers.
 pub enum Row {
     /// **Sign with APK key**.
     Sign,
+    /// The key waits for its backup: **Back up first**.
+    Back,
     /// Why it cannot be signed.
     Note(String),
     /// Nothing.
@@ -493,116 +395,9 @@ impl Faraday {
         None
     }
 
-    /// How many writes a key made this session has had (0 or 1), when it
-    /// still waits for two; `None` when it signs.
-    pub fn apk_waiting(&self, fp: &[u8; 32]) -> Option<usize> {
-        self.vaults
-            .apk
-            .waits
-            .iter()
-            .find(|w| w.fp == *fp)
-            .map(|w| usize::from(w.first.is_some()))
-    }
-
-    /// Why a visit started for the second copy must not write now, if it
-    /// must not: the stick has this vault already.
-    pub(crate) fn apk_second_refusal(&self) -> Option<&'static str> {
-        if self.vaults.apk.visit_for != Some(2) {
-            return None;
-        }
-        self.vaults
-            .apk
-            .waits
-            .iter()
-            .find_map(|w| w.first.as_ref())?;
-        let stick = self.sticks.get(self.visit.stick)?;
-        if self
-            .vaults
-            .apk
-            .probe
-            .as_ref()
-            .is_some_and(|p| p.0 == stick.id)
-        {
-            return Some(EN.apk_reading_stick);
-        }
-        if self.vaults.apk.same_on.as_deref() == Some(stick.id.as_str()) {
-            return Some(EN.apk_same_stick);
-        }
-        None
-    }
-
-    /// A stick came for the second copy: its file of the first write's
-    /// name, if it has one, is read back to be compared byte for byte
-    /// (SHA-256) with what the first write wrote. An older copy of this
-    /// vault under the same name is no reason to refuse.
-    pub(crate) fn apk_probe_start(&mut self) {
-        self.vaults.apk.probe = None;
-        self.vaults.apk.same_on = None;
-        if self.vaults.apk.visit_for != Some(2) {
-            return;
-        }
-        let Some(first) = self.vaults.apk.waits.iter().find_map(|w| w.first.clone()) else {
-            return;
-        };
-        let Some(stick) = self.sticks.get(self.visit.stick) else {
-            return;
-        };
-        let Some((name, _)) = stick
-            .files
-            .iter()
-            .find(|(n, _)| n.eq_ignore_ascii_case(&first.name))
-        else {
-            return;
-        };
-        let (id, name) = (stick.id.clone(), name.clone());
-        self.vaults.apk.probe = Some((id.clone(), name.clone()));
-        self.storage_out
-            .push_back(crate::StorageCommand::Read { stick: id, name });
-    }
-
-    /// Whether a file read back is the probe's.
-    pub(crate) fn apk_probing(&self, stick: &str, name: &str) -> bool {
-        self.vaults
-            .apk
-            .probe
-            .as_ref()
-            .is_some_and(|p| p.0 == stick && p.1 == name)
-    }
-
-    /// The probe's file came back (`bytes`), or could not be read (`None`).
-    pub(crate) fn apk_probe_answer(&mut self, bytes: Option<&[u8]>) {
-        let Some((stick, _)) = self.vaults.apk.probe.take() else {
-            return;
-        };
-        let first = self.vaults.apk.waits.iter().find_map(|w| w.first.as_ref());
-        if let (Some(b), Some(f)) = (bytes, first)
-            && sha_of(b) == f.hash
-        {
-            self.vaults.apk.same_on = Some(stick);
-        }
-    }
-
-    /// A stick had the first copy deleted or was emptied: the key goes
-    /// back to its first step.
-    pub(crate) fn apk_first_gone(&mut self, name: Option<&str>) {
-        let mut reset = false;
-        for w in &mut self.vaults.apk.waits {
-            if w.first
-                .as_ref()
-                .is_some_and(|f| name.is_none_or(|n| n.eq_ignore_ascii_case(&f.name)))
-            {
-                w.first = None;
-                reset = true;
-            }
-        }
-        if reset {
-            self.toast(EN.apk_back_to_first);
-        }
-    }
-
     /// A vault in Files that this session unlocked or wrote: its salt is
-    /// an open vault's, or its bytes are what a write of this session or
-    /// of a waiting key's sealings put on a stick. A copy of any other
+    /// an open vault's, or its bytes are what the last write of this
+    /// session put on a stick. A copy of any other
     /// vault never goes over a vault of the same size on a stick.
     pub(crate) fn vault_is_this_sessions(&self, bytes: &[u8]) -> bool {
         let Ok(h) = faraday_vault::read_header(bytes) else {
@@ -611,215 +406,13 @@ impl Faraday {
         if self.vaults.open.iter().any(|v| v.header().salt == h.salt) {
             return true;
         }
+        // Only a write of this session's own visit counts: the flow's
+        // sealings do not, so that a later ordinary visit never writes the
+        // flow's bytes over a newer copy on another stick.
         let hash = sha_of(bytes);
-        self.receipt.as_ref().is_some_and(|r| r.holds_hash(&hash))
-            || self.vaults.apk.waits.iter().any(|w| {
-                w.sealings.contains(&hash) || w.first.as_ref().is_some_and(|f| f.hash == hash)
-            })
-    }
-
-    /// A sealing of a vault was made: the keys waiting that it holds.
-    pub(crate) fn apk_sealed(&mut self, v: usize, bytes: &[u8]) {
-        if self.vaults.apk.waits.is_empty() {
-            return;
-        }
-        let Some(open) = self.vaults.open.get(v) else {
-            return;
-        };
-        let held: Vec<[u8; 32]> = open
-            .contents
-            .of(kind::APK_KEY)
-            .filter_map(|(_, r)| fingerprint_of(r))
-            .filter(|fp| self.vaults.apk.waits.iter().any(|w| w.fp == *fp))
-            .collect();
-        if held.is_empty() {
-            return;
-        }
-        let hash = sha_of(bytes);
-        for w in self
-            .vaults
-            .apk
-            .waits
-            .iter_mut()
-            .filter(|w| held.contains(&w.fp))
-        {
-            if !w.sealings.contains(&hash) {
-                w.sealings.push(hash);
-                if w.sealings.len() > SEALINGS_KEPT {
-                    w.sealings.remove(0);
-                }
-            }
-        }
-    }
-
-    /// The vault file in Files that a visit started for the second copy
-    /// has ticked: the one the first write put on the first stick. On no
-    /// other visit is the vault ticked from Files.
-    pub(crate) fn apk_inbox_ticks(&self) -> std::collections::BTreeSet<String> {
-        if self.vaults.apk.visit_for != Some(2) {
-            return Default::default();
-        }
-        let Some(first) = self.vaults.apk.waits.iter().find_map(|w| w.first.as_ref()) else {
-            return Default::default();
-        };
-        self.inbox
-            .iter()
-            .filter(|i| i.kind == crate::FileKind::Vault)
-            .filter(|i| !self.outbox.iter().any(|o| o.name == i.name))
-            .filter(|i| sha_of(&i.bytes) == first.hash)
-            .map(|i| i.name.clone())
-            .collect()
-    }
-
-    /// A write was answered, read back and matched. On a visit started
-    /// for the first copy, a sealing that holds a waiting key makes the
-    /// first write; on one started for the second, the second, and the
-    /// key signs from now on.
-    pub(crate) fn apk_written(&mut self, name: &str, hash: &[u8; 32]) {
-        let len = self
-            .inbox
-            .iter()
-            .chain(&self.outbox)
-            .find(|i| i.name == name && sha_of(&i.bytes) == *hash)
-            .map(|i| i.bytes.len());
-        let visit = self.vaults.apk.visit_for;
-        let mut released = false;
-        for w in &mut self.vaults.apk.waits {
-            if !w.sealings.contains(hash) {
-                continue;
-            }
-            match (visit, &w.first) {
-                (Some(1), None) => {
-                    w.first = Some(First {
-                        name: name.to_string(),
-                        len: len.unwrap_or(0),
-                        hash: *hash,
-                    });
-                }
-                (Some(2), Some(_)) => released = true,
-                _ => {}
-            }
-        }
-        if released {
-            self.vaults
-                .apk
-                .waits
-                .retain(|w| !(w.first.is_some() && w.sealings.contains(hash)));
-            self.vaults.apk.visit_for = None;
-            self.toast(EN.apk_signs_from_now);
-        } else if visit == Some(1) && self.vaults.apk.waits.iter().any(|w| w.first.is_some()) {
-            self.vaults.apk.visit_for = None;
-        }
-    }
-
-    /// Makes the key the Make form asked for, into its vault. Runs a frame
-    /// after the form, so "Making the key" is on the screen.
-    pub(crate) fn apk_make_work(&mut self) {
-        let Some((name, package, v)) = self.vaults.apk.making.take() else {
-            return;
-        };
-        let (Some(now), Some(seed)) = (
-            self.clock_now(),
-            self.fresh(b"apk key").map(zeroize::Zeroizing::new),
-        ) else {
-            self.apk_make_failed(&name, &package, v, EN.apk_no_randomness);
-            return;
-        };
-        let pair = match key::make(&seed, &name, now) {
-            Ok(p) => p,
-            Err(e) => {
-                self.apk_make_failed(&name, &package, v, e.reason());
-                return;
-            }
-        };
-        let fp = key::fingerprint(&pair.cert);
-        if !self.vault_push_in(v, record_of(&pair, &package), EN.apk_the_key_is_in) {
-            self.apk_make_failed(&name, &package, v, EN.apk_that_does_not_fit);
-            return;
-        }
-        self.vaults.apk.waits.push(Wait {
-            fp,
-            sealings: Vec::new(),
-            first: None,
-        });
-        let stem = file_stem(&name, &fp);
-        self.put_outbox(
-            &format!("{stem}-certificate.pem"),
-            pem::encode(&pair.cert).into_bytes(),
-        );
-        self.vaults.form = None;
-        self.vaults.focus = None;
-        self.vaults.current = v;
-        self.vaults.category = 6;
-        self.vaults.category_chosen = true;
-        let n = self
-            .vaults
-            .open
-            .get(v)
-            .map_or(0, |o| o.contents.of(kind::APK_KEY).count());
-        self.vaults.item[6] = n.saturating_sub(1);
-        self.vaults.apk.leave();
-        self.vaults.apk.made = Some(fp);
-        self.vaults.item_open = true;
-    }
-
-    /// The form comes back with what was typed, and why nothing was made.
-    fn apk_make_failed(&mut self, name: &str, package: &str, v: usize, why: &str) {
-        self.vault_form_apk(name, package);
-        self.vaults.apk.vault_pick = Some(v);
-        self.toast(why);
-    }
-
-    /// The Make an APK key form, with these in its fields.
-    pub(crate) fn vault_form_apk(&mut self, name: &str, package: &str) {
-        let (mut n, mut p) = (TextBox::default(), TextBox::default());
-        n.set(name);
-        p.set(package);
-        self.vaults.apk.leave();
-        self.vaults.apk.vault_pick = None;
-        self.vaults.form = Some(crate::vaults::Form {
-            kind: kind::APK_KEY,
-            record: None,
-            fields: vec![
-                (1, EN.apk_name_on_certificate, n, false),
-                (2, EN.apk_package, p, false),
-            ],
-        });
-        self.vaults.saving = false;
-        self.vaults.focus = Some(crate::vaults::Focus::Field(0));
-    }
-
-    /// Make the key: the name and the package are checked, the vault is
-    /// the one open or the one chosen, and the work waits for a frame
-    /// that says it is under way.
-    pub(crate) fn vault_form_apk_save(&mut self, form: crate::vaults::Form) {
-        let name = form.fields[0].2.text.to_string();
-        let package = form.fields[1].2.text.to_string();
-        let checked = Self::apk_check_form(&name, &package);
-        let v = match (self.vaults.open.len(), self.vaults.apk.vault_pick) {
-            (0, _) => None,
-            (1, _) => Some(0),
-            (_, pick) => pick,
-        };
-        let (name, package) = match (checked, v) {
-            (Err(e), _) => {
-                self.vaults.form = Some(form);
-                return self.toast(e);
-            }
-            (Ok(_), None) => {
-                self.vaults.form = Some(form);
-                return self.toast(EN.apk_choose_the_vault);
-            }
-            (Ok(c), Some(_)) => c,
-        };
-        if self.clock_now().is_none() {
-            self.vaults.form = Some(form);
-            return self.toast(EN.apk_this_computer);
-        }
-        self.vaults.form = Some(form);
-        self.vaults.apk.making = Some((name, package, v.unwrap_or(0)));
-        self.vaults.working = Some(crate::vaults::Work::ApkKey);
-        self.vaults.drawn = false;
+        self.receipt
+            .as_ref()
+            .is_some_and(|r| !r.by_flow && r.holds_hash(&hash))
     }
 
     /// What an APK's row in Files offers (`docs/APK-SIGNING.md` §4.1): to
@@ -844,6 +437,13 @@ impl Faraday {
         }
         if output_name(&item.name).len() > NAME_MAX {
             return Row::Note(Why::NameTooLong.text());
+        }
+        let keys = self.apk_keys_for(&info.package);
+        if keys
+            .iter()
+            .all(|k| self.backup_waits(Kind::Apk, &k.3).is_some())
+        {
+            return Row::Back;
         }
         Row::Sign
     }
@@ -885,13 +485,15 @@ impl Faraday {
         let Some(&(v, at, _, fp)) = keys.first() else {
             return;
         };
+        if keys.len() == 1 && self.backup_waits(Kind::Apk, &fp).is_some() {
+            // The key waits for its backup: the flow opens on its step.
+            return self.backup_continue(Kind::Apk, &fp);
+        }
         self.apk_select(v, at);
         self.vaults.apk.leave();
         self.vaults.apk.signing = true;
         if keys.len() == 1 {
-            if self.apk_waiting(&fp).is_none() {
-                self.apk_open_review(&name, fp);
-            }
+            self.apk_open_review(&name, fp);
         } else {
             self.vaults.apk.which = Some(name);
         }
@@ -911,12 +513,38 @@ impl Faraday {
         else {
             return;
         };
+        if self.backup_waits(Kind::Apk, &fp).is_some() {
+            return self.backup_continue(Kind::Apk, &fp);
+        }
         self.apk_select(v, at);
         self.vaults.apk.leave();
         self.vaults.apk.signing = true;
-        if self.apk_waiting(&fp).is_none() {
-            self.apk_open_review(&name, fp);
-        }
+        self.apk_open_review(&name, fp);
+    }
+
+    /// Makes the key the flow's form described, once: the record every
+    /// vault of the plan takes, and the certificate For the stick.
+    pub(crate) fn apk_build(&mut self, name: &str, package: &str) -> Result<Built, String> {
+        let (name, package) = Self::apk_check_form(name, package).map_err(str::to_string)?;
+        let now = self
+            .clock_now()
+            .ok_or_else(|| EN.apk_this_computer.to_string())?;
+        let seed = self
+            .fresh(b"apk key")
+            .map(zeroize::Zeroizing::new)
+            .ok_or_else(|| EN.apk_no_randomness.to_string())?;
+        let pair = key::make(&seed, &name, now).map_err(|e| e.reason().to_string())?;
+        let fp = key::fingerprint(&pair.cert);
+        let stem = file_stem(&name, &fp);
+        Ok(Built {
+            record: record_of(&pair, &package),
+            subject: fp.to_vec(),
+            name,
+            outbox: vec![(
+                format!("{stem}-certificate.pem"),
+                pem::encode(&pair.cert).into_bytes(),
+            )],
+        })
     }
 
     /// The Make form's checks: the certificate's name and the package, in
@@ -1003,7 +631,7 @@ impl Faraday {
         if !matches!(self.apk_second(), Second::Matches(_)) {
             return;
         }
-        if self.apk_waiting(&review.key).is_some() {
+        if self.backup_waits(Kind::Apk, &review.key).is_some() {
             return;
         }
         let Some((v, at)) = self.apk_find(&review.key) else {
@@ -1051,17 +679,5 @@ impl Faraday {
         self.vaults.focus = None;
         self.vaults.apk.signing = true;
         self.toast_out(&out_name);
-    }
-
-    /// A vault was unlocked: the key page a lock for the stick came from,
-    /// if this vault holds it.
-    pub(crate) fn apk_return(&mut self) {
-        let Some(fp) = self.vaults.apk.back else {
-            return;
-        };
-        if let Some((v, at)) = self.apk_find(&fp) {
-            self.vaults.apk.back = None;
-            self.apk_select(v, at);
-        }
     }
 }

@@ -728,8 +728,9 @@ to get it.
     A stick visit's write asks before going over a file of the same name (the
     stick visit, below).
 59. **Decide where a key will be kept, then make it** (owner,
-    2026-10-14; `docs/BACKUP-FLOW.md`, `docs/DECISIONS.md` F31;
-    specified, not built). One flow makes and backs up an APK key, a
+    2026-10-14; `docs/BACKUP-FLOW.md`, `docs/DECISIONS.md` F31; built
+    for the APK key, GPG keys and Secure Boot keys, not yet the
+    wallet or Nostr). One flow makes and backs up an APK key, a
     GPG key, Secure Boot keys, a Nostr key and a Bitcoin wallet's keys:
     where it will be kept (the plan) → each stick the plan names brought
     in with nothing secret open, checked, its vaults read, its place
@@ -1024,7 +1025,8 @@ vault.ofv · for the stick" (paper "1 of 2 checked" while one is not), or
 
 ## Backup flow
 
-(Decision 59; `docs/BACKUP-FLOW.md`, F31; specified, not built.)
+(Decision 59; `docs/BACKUP-FLOW.md`, F31; built for the APK key, GPG keys
+and the Secure Boot keys; the wallet's and Nostr's parts are not.)
 Tools' **APK signing key**, **GPG key** and **Secure Boot keys**, Vault
 contents' Make actions, a Nostr key's **Save into a vault**, Make a new
 wallet and Restore → step cards (pages on a small panel, "Step 2 of
@@ -1374,11 +1376,6 @@ place is written).
 place of its plan is written (F31): **Back up first** →
 the flow on its step → Done → **Unlock {vault}** → the key's page.
 
-Until F31's batch is built, **Back up first** is a placeholder: lock →
-the stick visit with the vault ticked → unlock → the key's page, then
-again for the second stick, refused with "This stick already has this
-vault" when the stick holds the first write's bytes (an older copy of
-the vault is replaced and counts).
 Otherwise:
 choose an APK copied in (none: "Copy the APK in on a stick visit
 first"; on the Pi "on an SD card visit"), each row with its size, and

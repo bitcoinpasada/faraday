@@ -9,7 +9,7 @@ use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::{Path, PathBuf};
 
 use faraday_disk::Disks;
-use faraday_files::proto::{self, Request, Response};
+use faraday_files::proto::{self, Problem, Request, Response};
 
 /// A 4 MiB FAT16 volume with this label, as `mkfs.fat` would make one:
 /// 512-byte sectors and clusters, two FATs, a 512-entry root.
@@ -38,6 +38,16 @@ fn fat16(label: &str) -> Vec<u8> {
         let at = 512 + fat * usize::from(fat_sectors) * 512;
         b[at..at + 4].copy_from_slice(&[0xF8, 0xFF, 0xFF, 0xFF]);
     }
+    b
+}
+
+/// An exFAT volume's boot sector, which Faraday does not read.
+fn exfat() -> Vec<u8> {
+    let mut b = vec![0u8; 1 << 20];
+    b[0..3].copy_from_slice(&[0xEB, 0x76, 0x90]);
+    b[3..11].copy_from_slice(b"EXFAT   ");
+    b[510] = 0x55;
+    b[511] = 0xAA;
     b
 }
 
@@ -100,6 +110,32 @@ impl Machine {
     }
 }
 
+impl Machine {
+    /// Marks a partition or a disk read-only, as the kernel does for a
+    /// card with its lock switch set.
+    fn read_only(&self, disk: &str, part: Option<&str>) {
+        let d = self.root.join("sys/devices/usb").join(disk);
+        let at = match part {
+            Some(p) => d.join(p),
+            None => d,
+        };
+        fs::write(at.join("ro"), "1\n").unwrap();
+    }
+
+    /// A USB disk with no partition table: the whole disk is the volume.
+    fn bare(&self, disk: &str, seq: u32, image: Vec<u8>, sectors: u64) {
+        let d = self.root.join("sys/devices/usb").join(disk);
+        fs::create_dir_all(&d).unwrap();
+        fs::write(d.join("diskseq"), format!("{seq}\n")).unwrap();
+        fs::write(d.join("size"), format!("{sectors}\n")).unwrap();
+        let _ = fs::remove_file(self.root.join("sys/class/block").join(disk));
+        symlink(&d, self.root.join("sys/class/block").join(disk)).unwrap();
+        let dev = self.dev().join(disk);
+        fs::write(&dev, image).unwrap();
+        fs::set_permissions(&dev, fs::Permissions::from_mode(0o600)).unwrap();
+    }
+}
+
 impl Drop for Machine {
     /// The tree is a test's own; leaving it fills the temp directory.
     fn drop(&mut self) {
@@ -154,10 +190,15 @@ fn only_handed_out_fat_partitions_are_listed_and_never_the_boot_one() {
         vec![
             ("sda2@sda#3", "OSKDATA", true),
             ("sdb1@sdb#7", "TESTSTICK", false),
+            // Handed out, not FAT: listed, saying so, with nothing on it.
+            ("sdb2@sdb#7", "sdb2", false),
             ("sdc1@sdc#8", "sdc1", false)
         ]
     );
+    assert_eq!(list[0].problem, None);
+    assert_eq!(list[2].problem, Some(Problem::NotFat));
     assert!(list[2].files.is_empty());
+    assert!(list[3].files.is_empty());
     let closed = d.handle(Request::Read {
         stick: "sdc1@sdc#8".into(),
         name: "anything".into(),
@@ -327,4 +368,51 @@ fn the_pis_own_card_is_the_boot_medium_and_its_first_partition_is_never_listed()
     assert_eq!(list.len(), 1);
     assert_eq!(list[0].id, "mmcblk0p2@mmcblk0#1");
     assert!(list[0].boot);
+}
+
+#[test]
+fn an_exfat_stick_a_locked_card_and_a_bare_disk_are_listed_with_their_problem() {
+    let m = Machine::new("problems");
+    // The factory format of most large sticks: not FAT as Faraday reads it.
+    m.disk("sdb", 4, &[("", exfat(), true)]);
+    // A card with its lock switch set: FAT, listed, and read-only.
+    m.disk("sdc", 5, &[("", fat16("LOCKED"), true)]);
+    m.read_only("sdc", Some("sdc1"));
+    // The switch can be on the disk instead of the partition.
+    m.disk("sdd", 6, &[("", fat16("SWITCH"), true)]);
+    m.read_only("sdd", None);
+    // A FAT volume made with no partition table, and one that is not FAT.
+    m.bare("sde", 7, fat16("BARE"), 8192);
+    m.bare("sdf", 8, exfat(), 2048);
+    // A card reader with nothing in it has no size and is not a stick.
+    m.bare("sdg", 9, Vec::new(), 0);
+    let mut d = Disks::new(&m.sys(), &m.dev());
+    let list = sticks(d.handle(Request::List));
+    let shown: Vec<(&str, Option<Problem>)> =
+        list.iter().map(|s| (s.label.as_str(), s.problem)).collect();
+    assert_eq!(
+        shown,
+        vec![
+            ("sdb1", Some(Problem::NotFat)),
+            ("LOCKED", Some(Problem::ReadOnly)),
+            ("SWITCH", Some(Problem::ReadOnly)),
+            ("BARE", None),
+            ("sdf", Some(Problem::NotFat)),
+        ]
+    );
+    // A read-only stick still shows what is on it.
+    assert!(list[1].serial.is_some());
+}
+
+#[test]
+fn a_stick_not_handed_out_yet_is_listed_as_waiting_not_as_unusable() {
+    let m = Machine::new("closed");
+    m.disk("sdb", 4, &[("", exfat(), false)]);
+    let mut d = Disks::new(&m.sys(), &m.dev());
+    let list = sticks(d.handle(Request::List));
+    // Not handed out: nothing can be read or written, and it says so
+    // instead of waiting to be read.
+    assert_eq!(list.len(), 1);
+    assert_eq!(list[0].problem, Some(Problem::NotYet));
+    assert!(list[0].files.is_empty());
 }

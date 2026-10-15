@@ -12,6 +12,10 @@ use opensigner_core::strings::fill;
 use osk_bip::bitcoin::hashes::{Hash, sha256};
 
 use crate::Faraday;
+use crate::backup_flow_steps::Built;
+
+/// The owner GUID's field of a type-8 record.
+pub(crate) const OWNER_FIELD: u8 = 1;
 
 /// The fields of a type-8 record.
 mod f {
@@ -120,31 +124,47 @@ impl Faraday {
         (r.kind == kind::SECURE_BOOT).then(|| keys_of(r))?
     }
 
-    /// Makes an owner's three keys into the open vault.
-    pub(crate) fn sb_make(&mut self) {
+    /// Makes an owner's three keys for the backup flow: the record every
+    /// vault of the plan takes.
+    pub(crate) fn sb_build(&mut self, owner: &str) -> Result<Built, String> {
         let Some(now) = self.clock_now() else {
-            return self.toast(EN.secureboot_this_computer);
+            return Err(EN.secureboot_this_computer.to_string());
         };
         let Some(seed) = self.fresh(b"secure boot") else {
-            return self.toast(EN.secureboot_no_randomness);
+            return Err(EN.secureboot_no_randomness.to_string());
         };
-        let owner = self.vaults.sb_owner.clone();
-        match faraday_sb::make(&seed, &owner, now) {
-            Ok(keys) => {
-                self.vault_push(record_of(&keys), EN.secureboot_pk_kek_and);
-                let n = self
-                    .vaults
-                    .open
-                    .get(self.vaults.current)
-                    .map_or(0, |v| v.contents.of(kind::SECURE_BOOT).count());
-                self.vaults.item[self.vaults.category] = n.saturating_sub(1);
-            }
-            Err(e) => self.toast(e.reason()),
-        }
+        let owner = owner.trim();
+        let keys = faraday_sb::make(&seed, owner, now).map_err(|e| e.reason().to_string())?;
+        // The enrolment files are made with the keys, as the policy chosen
+        // says, and written in the flow with the other public files.
+        let policy = if self.vaults.sb_own_only {
+            Policy::OwnKeysOnly
+        } else {
+            Policy::Windows
+        };
+        let blind_seed = self
+            .fresh(b"secure boot enrolment")
+            .ok_or_else(|| EN.secureboot_no_randomness.to_string())?;
+        let mut blind = faraday_sb::rng::Stream::new(&blind_seed, 0);
+        let outbox = faraday_sb::enrolment(&mut blind, &keys, policy, now)
+            .map_err(|e| e.reason().to_string())?;
+        Ok(Built {
+            record: record_of(&keys),
+            subject: keys.owner.to_vec(),
+            name: if owner.is_empty() {
+                guid_text(&keys.owner)
+            } else {
+                owner.to_string()
+            },
+            outbox,
+        })
     }
 
     /// The enrolment files for the selected keys to the Outbox.
     pub(crate) fn sb_enrol(&mut self) {
+        if self.selected_waits().is_some() {
+            return;
+        }
         let Some(keys) = self.sb_selected() else {
             return;
         };
@@ -176,6 +196,9 @@ impl Faraday {
     /// Signs Inbox image `k` with the selected db key; the signed image
     /// goes to the Outbox under the same name.
     pub(crate) fn sb_sign(&mut self, k: usize) {
+        if self.selected_waits().is_some() {
+            return;
+        }
         let Some(keys) = self.sb_selected() else {
             return;
         };

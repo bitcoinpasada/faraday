@@ -283,6 +283,7 @@ fn dispatch(app: &mut Faraday, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Catalog => catalog_screen(app, ui, x, cw, h),
         Screen::Transfer => crate::transfer_screen::draw(app, ui, x, cw, h),
         Screen::Upgrade => crate::upgrade_screen::draw(app, ui, x, cw, h),
+        Screen::BackupFlow => crate::backup_flow_screen::draw(app, ui, x, cw, h),
     }
 }
 
@@ -911,6 +912,22 @@ fn home_job(app: &Faraday) -> Option<(Icon, String, String, Action, bool)> {
                 ],
             ),
             Action::Nav(Screen::Spend),
+            true,
+        ));
+    }
+    // A backup not finished: its key is made and some place is not written
+    // (`docs/BACKUP-FLOW.md` §5).
+    if let Some((i, f)) = app.backup_pending() {
+        return Some((
+            Icon::Lock,
+            fill(
+                crate::strings::EN.backup_flow_home_lead,
+                &[&f.subject
+                    .as_ref()
+                    .map_or_else(|| f.kind.name().to_string(), |s| s.name.clone())],
+            ),
+            String::new(),
+            Action::Flow(crate::backup_flow_steps::FlowAction::Show(i)),
             true,
         ));
     }
@@ -9857,6 +9874,17 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     bx +=
                         ui.button(bx, iy + 64.0, None, 36.0, &label, Style::Primary, action) + 8.0;
                 }
+                crate::apk::Row::Back => {
+                    bx += ui.button(
+                        bx,
+                        iy + 64.0,
+                        None,
+                        36.0,
+                        crate::strings::EN.backup_flow_first,
+                        Style::Primary,
+                        Action::Vault(crate::vaults::VaultAction::ApkFromFiles(k)),
+                    ) + 8.0;
+                }
                 crate::apk::Row::Note(text) => {
                     let text = ui.fit(13.0, W::R, &text, colw - 66.0 - 120.0);
                     bx += ui.text_mid(bx, iy + 64.0, 36.0, 13.0, W::R, WARN, &text) + 12.0;
@@ -10960,6 +10988,11 @@ fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note)
                 Style::Primary,
                 Action::Vault(crate::vaults::VaultAction::ApkFromFiles(k)),
             )),
+            crate::apk::Row::Back => out.push((
+                crate::strings::EN.backup_flow_first.into(),
+                Style::Primary,
+                Action::Vault(crate::vaults::VaultAction::ApkFromFiles(k)),
+            )),
             crate::apk::Row::Note(text) => note = Some((text, WARN)),
             crate::apk::Row::None => {}
         },
@@ -11540,7 +11573,9 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     for (k, item) in app.outbox.iter().enumerate() {
         let on = app.visit.out.contains(&item.name);
+        let held = app.in_the_backup(&item.name);
         let tag = match item.exposure() {
+            _ if held => (crate::strings::EN.backup_flow_in_the_backup, MUTED),
             crate::secrets::Exposure::Public => (EN.visit_public, MUTED),
             crate::secrets::Exposure::Sealed => (EN.visit_sealed, OK),
             crate::secrets::Exposure::Secret => (EN.visit_unprotected_secret, ERR),
@@ -11552,7 +11587,7 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &item.name,
             &kind_line(item.kind, item.bytes.len()),
             tag,
-            Some(Action::VisitOut(k)),
+            (!held).then_some(Action::VisitOut(k)),
         );
     }
     if app.outbox.is_empty() {
@@ -11799,7 +11834,9 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     for (k, item) in app.outbox.iter().enumerate() {
         let on = app.visit.out.contains(&item.name);
+        let held = app.in_the_backup(&item.name);
         let tag = match item.exposure() {
+            _ if held => (crate::strings::EN.backup_flow_in_the_backup, MUTED),
             crate::secrets::Exposure::Public => (EN.visit_public, MUTED),
             crate::secrets::Exposure::Sealed => (EN.visit_sealed, OK),
             crate::secrets::Exposure::Secret => (EN.visit_unprotected_secret, ERR),
@@ -11811,7 +11848,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &item.name,
             &kind_line(item.kind, item.bytes.len()),
             tag,
-            Some(Action::VisitOut(k)),
+            (!held).then_some(Action::VisitOut(k)),
         );
         ry += ROW;
     }
@@ -12074,6 +12111,7 @@ fn visit_all_out(app: &Faraday) -> bool {
             .outbox
             .iter()
             .filter(|i| i.exposure() != crate::secrets::Exposure::Secret)
+            .filter(|i| !app.in_the_backup(&i.name))
             .all(|i| app.visit.out.contains(&i.name))
         && app
             .visit_inbox_rows()

@@ -33,6 +33,7 @@ pub(crate) fn draws_own_bar(s: Screen) -> bool {
             | Screen::Silent
             | Screen::Vanity
             | Screen::CreateVault
+            | Screen::BackupFlow
             | Screen::Family
     )
 }
@@ -67,6 +68,7 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
         Screen::Decode => EN.compact_transaction,
         Screen::Transfer => EN.compact_transfer,
         Screen::Upgrade => medium.upgrade(),
+        Screen::BackupFlow => EN.backup_flow_heading,
     }
 }
 

@@ -2,8 +2,9 @@
 
 **Status:** spec v0.3 · 2026-10-14 · decided by the owner
 (`docs/DECISIONS.md` F31), reworked the same day to the order "decide
-where the key will live, then make it", and §15's questions answered. Specified, not built: batch B1
-(§14) comes after APK batch 1 and the GPG fix batch are committed.
+where the key will live, then make it", and §15's questions answered. Batch B1a (§14, without the Bitcoin
+wallet) is built for the APK key, GPG keys and the Secure Boot keys, with
+the choices §16 records; the wallet's part, batch B1b, is not.
 
 One guided flow makes and backs up every kind of secret Faraday keeps
 in a vault: an APK signing key (`docs/APK-SIGNING.md`), a GPG key, a set
@@ -966,3 +967,196 @@ The owner's answers (2026-10-14).
    offered, **Finish its paper copy first** chosen.
 8. **A stick holding vaults, at a place the plan gives a new vault**:
    **A new vault beside them** first and chosen.
+
+## 16. Built (batch B1a)
+
+What B1a built, and where the spec was silent or the build followed the
+closest existing pattern (`gpg.rs`, the stick visit, the lock, the kept
+state, NEW-WALLET's checklist). The wallet's part is batch B1b.
+
+**Where it is.** `faraday-core/src/backup_flow.rs` (the state of §7, the
+plan, the kept state, the gate of §8), `backup_flow_steps.rs` (the steps,
+`FlowAction`, the checks) and `backup_flow_screen.rs` (the cards).
+`Screen::BackupFlow` is the flow's one screen and `Action::Flow` its
+presses. Step 3's Create a vault is `vault_screens::create`, drawn in the
+flow's place with `Screen::BackupFlow` kept, so no other screen shows.
+
+1. **The plan source.** A flow is built from a `Plan`: places, each with
+   the vaults whose stick it keeps (none: no stick there), and the vaults
+   (`VaultPlan`: planned existing or new, then its file, salt and length
+   once known). `BackupFlow::new(kind)` fills it with the key's own plan,
+   one new vault at two places; `BackupFlow::with_plan(kind, plan)` takes
+   any other, which is how B1b gives a wallet's. Only places that keep a
+   stick take part in steps 2, 5 and 6. Sticks named after step 2 (the
+   stick of files, the stick of public files) are `Slot`s with
+   `Target::Files` or `Target::Public` and a list of Outbox names; step 6
+   checks them as step 2 does, takes the tap, and writes them by the same
+   routine. Nothing makes one yet.
+2. **One stick per vault, or one for both.** A place may keep several
+   vaults. By default each is a stick of its own (`Target::PlaceVault`),
+   asked for in turn; **One {stick} for both** on the place's card puts
+   them on one stick (`Plan.together`, `Target::Place`), and **Also {vault}**, which adds
+   {vault} here** adds a vault to a place. Nothing forces either. A key's
+   own plan gives each place one vault; a place with "nothing" is not
+   offered, since it would not count toward the two a key needs.
+3. **The Tools tile.** With no vault open, or a flow waiting before its
+   key is made, the tile opens the flow (**Continue** on the tile while
+   one waits). With a vault open it opens that vault's category, where
+   the keys and their actions are, and **Make a key** there starts the
+   flow; a person with a vault open reaches an existing key without
+   going through Where. Decision 10 no longer applies to these three
+   tiles.
+4. **Usable sticks (§4.2).** An `OSKBOOT` label is refused. The disk
+   process lists every USB and SD device it is handed (a partition with
+   no FAT volume, a disk with no partition, an empty reader slot not) and
+   marks each with a `Problem` on the wire (`faraday-files::proto::Stick`):
+   `NotFat`, or `ReadOnly` when the kernel's `ro` flag of the partition
+   or its disk is set. The stick shell sends `StorageEvent::StickProblem`
+   for each, and the flow shows it at step 2 with what to do. The privilege
+   split is as `PLAN.md` has it: only the disk process opens a node, and
+   the app only sees the answer. Room is asked with `StickSpace`; a new
+   vault's length is counted at the default slot's file (a larger slot
+   chosen at step 3 is checked by the write).
+5. **Already read (§4.2).** **Use {label}, read at {time}** is offered for
+   the stick the machine started from, at step 2 and at step 6; the reading
+   of it ends at the bind, so nothing waits for it to be pulled, and at
+   step 6 it is checked like any stick. Keys are still made with no stick
+   in, the boot stick too. Sticks read earlier in the flow are not offered
+   again.
+6. **Which vault.** A vault the plan already knows (its salt is known from
+   an earlier place) is never asked again: its copy on the next stick is
+   written over, or the vault goes beside. Choosing a file at a place
+   whose vault was planned new makes it that existing vault; the choice
+   takes effect when the place is confirmed. Two files of one vault, and
+   a copy that differs from the one first read (**Use {label}'s copy**,
+   either), are as §4.2 says. A different vault already under that name
+   in Files keeps its name; the copy comes in under a free one.
+7. **Refusals at step 6.** A stick that holds a file the flow wrote for
+   another stick is refused before it is compared with what step 2 read
+   ("This stick has the first copy" for a copy of the same vault,
+   "This stick has Place 1's files" otherwise); only vault files are read
+   for that, since a stick of files holds no vault in B1a. "Not the stick
+   read for Vault 1 (Place 2)" names the vault and place alone.
+8. **The hold at step 6** is asked for every later copy of a vault
+   (**a second stick**, **another stick** from the third), whether or not
+   the stick looks like the first; the first stick put back is refused
+   outright, since no hold would make that right.
+9. **Make (§4.4).** The key is made once and saved into every vault of the
+   plan in one action; if any vault cannot take it, none does. A GPG key
+   is made at once (its toast says where the revocation is kept); the
+   others on the tick after "Making the key" is drawn. The result shows
+   the kind's own rows, its public file with **Show as QR** and **PNG**,
+   and a row per vault. Make is refused until every vault of the plan is
+   open, the clock is asked for first, and Escape does not leave the
+   form.
+10. **Step 3** unlocks the existing vaults first (the first one still
+    locked takes the typing), then makes each new one. A vault made in
+    the flow is unlocked at once with the passphrase just typed twice,
+    where decision 10 types it once more.
+11. **The lock and where a lock resumes (§9).** A key that is made when
+    a lock comes resumes on step 6, since the lock was the step; before
+    it, on Vaults. The state is kept under `backup-flow` with the flows'
+    plans, sealings and written copies, and no secret. What was on screen
+    when it was kept opens on return.
+12. **The extra round (§4.8)** shares the steps: the flow is `adding`, step
+    2 reads only a stick that holds an existing vault, step 3 asks for
+    the added vault and one that holds the key, step 4 is **Copy the
+    key**, then the lock and step 6. A new vault on an empty stick needs
+    no stick read and no lock while the key's vault is open. The paper
+    case is the wallet's (B1b).
+13. **Removing a place** before its write drops a new vault that held only
+    this flow's key and takes the key out of an existing one; after its
+    write the control reads **I destroyed this copy** and the place stays
+    until it is pressed. The minimums hold.
+14. **The gate (§8).** A key made in a flow waits until every one of its
+    sticks is written; the key's page has the row **Backup**, its waiting
+    actions read **Back up first** and open the flow on its step, and
+    Files' row for an APK a waiting key fits does the same. Sign a file,
+    Renew, Enrolment files and Sign with db, and Sign an APK, wait; Check a
+    signature does not. A key no flow made here signs at once.
+15. **A written copy is deleted or the stick wiped** opens that stick's
+    card again. Each written stick keeps its label, volume serial and the
+    SHA-256 of its files in the state that survives a lock, and a wipe or
+    delete is matched on those, never on "all". Two sticks that read
+    exactly alike (one label, one serial, the same files) cannot be told
+    apart: both open again.
+16. **The stick visit** lists the sealed vaults a flow will write as
+    **In the backup**, not tickable, and Back is not offered while a write
+    is under way. An idle power-off waits while the flow is on screen.
+17. **The receipt** is the last stick's, as the visit's is.
+18. **The key's public files** (GPG `.asc`, APK certificate `.pem`, the
+    Secure Boot enrolment files) are made with the key and written in the
+    flow at step 6 to the stick of the place the plan names (**Public
+    files here**, Place 1 by default; any place may), listed on that
+    stick's card and in Done. They may share a stick with a vault. A
+    Secure Boot key's enrolment files wait for the backup like its signing
+    does (§3), so they are written in the last write of step 6, to
+    whichever stick completes the backup, never the first when there are
+    two places. After Done nothing the flow made waits For the stick: the
+    sealed copies and the public files move to Files, and a copy deleted
+    later is written again from there.
+19. **A stick that returns mid-write.** A stick pulled while it was being
+    written counts nothing. When it comes back, differences that are only
+    this flow's own sealed bytes or its part file are accepted, a write
+    that landed whose answer was lost is recognised and counted, and a
+    file the stick already holds is written beside under a free name.
+    A stick named at step 6 that holds another copy of a flow vault is
+    not asked which copy to unlock (the key is made); that copy is
+    declined, and it is written over only after the hold. The flow's writes
+    are not an ordinary visit's: its receipt is marked, so a later visit
+    never writes the flow's vault over another copy. A whole wipe counts
+    as soon as the partition is emptied, whether or not it is then
+    stopped; one that fails or is cut off before its first answer reopens
+    them too. A partition the grant has not handed out yet waits and shows
+    no problem; a stick whose room cannot be asked for says it cannot be
+    read, with Use another stick; each listing clears and re-tells what is
+    wrong with a stick. The visit lists a waiting Secure Boot key's
+    enrolment files as In the backup, not tickable.
+    Limit: a later copy's stick that reads exactly like the first stick
+    is refused as holding the first copy.
+20. **A copy that differs** from one already read, or from the one in
+    Files, is asked about at every bind, the first place included. The
+    copy not unlocked is marked declined on its slot, and writing that
+    stick needs the hold (a second stick's, whatever it looks like).
+21. **The kept state** has a version line (`version\t2`); it is validated
+    after it is read (indices in range, slots as the plan makes them, from
+    Lock on the key made, from Write on a sealed copy per vault). A flow
+    that does not read is dropped with the toast **A kept backup did not
+    read and was dropped**. A lock from the Set the time screen reached
+    from Make, or before **Copy the key** in the added-vault round,
+    resumes the flow (on Vaults when the key is not in every vault). A
+    flow whose key is made is never dropped: what is wrong with its steps
+    (a plan changed at step 6 and locked with no Continue) is repaired by
+    sending it back to Vaults as an extra round. The keys that wait are
+    also kept apart (`backup-gate`), so a kept state that cannot be read
+    at all leaves each of them waiting, with a flow at Where to finish it
+    (such a stub knows no vault, so it stays waiting until power-off; it
+    fails closed). The gate is the first thing a save writes, whole (a
+    temporary file, then a rename), the flows are restored before it, and
+    a lock that cannot keep a waiting key's state does not go ahead.
+22. **Who writes.** Write and Confirm act only on a clean process at step
+    6; a reading ends when the step changes. A stick is written only when
+    every vault of its slot has its sealing and its Outbox copy, and no
+    file of the slot is a secret. The plan cannot be changed while a write
+    is under way. A sealing is recorded only if the key's record is in the
+    vault. Removing a place takes a new vault out of the plan and the
+    session only if it holds nothing but this flow's key, and never the
+    last vault that holds the key. The signing functions (`gpg_code` for a
+    signature, `gpg_sign_ticked`, `gpg_renew`, `sb_enrol`, `sb_sign`) refuse
+    a waiting key themselves, not only the screens that offer them.
+23. **Not built in B1a:** the progress bar for a write (a vault is small),
+    "Changed since written" for a vault changed after a write (the flow's
+    writes stay counted), a Nostr key's part, and everything of §10 and
+    §11 (B1b).
+
+**B1b needs from this code.** `BackupFlow::with_plan(Kind::Wallet, plan)`
+with a `Plan` from `plan::map`: its stick places with `vault v`'s indices,
+`VaultPlan::existing` from the plan's choice; a `Kind::Wallet` with
+`category`, `record_kind` and `subject_of` for a wallet (the descriptor's
+checksum), and a result in `make_body` of its own; `Step::Make` replaced by
+New key and the checklist, entered through `flow_enter`/`flow_settle`
+(which advance Sticks, Vaults and Write); the Files and Public `Slot`s with
+their Outbox names for the stick of files and the stick of public files;
+and `Kind::min_places` returning one. The `Step`'s Done transition already
+moves the sealed vaults into Files. The gate for a wallet is
+`BackupFlow::waiting` read by `backup_waits`.

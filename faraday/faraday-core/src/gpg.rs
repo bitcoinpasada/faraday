@@ -13,6 +13,7 @@ use faraday_vault::records::kind;
 use opensigner_core::strings::fill;
 use zeroize::{Zeroize, Zeroizing};
 
+use crate::backup_flow_steps::Built;
 use crate::{Faraday, Item};
 
 /// The fields of a type-7 record.
@@ -320,11 +321,12 @@ impl Faraday {
         true
     }
 
-    /// Makes a GPG key in the open vault: an Ed25519 certification key and
-    /// signing subkey from fresh entropy, one user ID, the chosen expiry.
-    /// The public certificate goes to the Outbox; the revocation
-    /// certificate, as GnuPG 2.1 and later do, is kept with the key.
-    pub(crate) fn gpg_make(&mut self, name: &str, email: &str) -> Result<(), String> {
+    /// Makes a GPG key for the backup flow: an Ed25519 certification key
+    /// and signing subkey from fresh entropy, one user ID, the chosen
+    /// expiry. The record every vault of the plan takes and the public
+    /// certificate For the stick; the revocation certificate, as GnuPG 2.1
+    /// and later do, is kept with the key.
+    pub(crate) fn gpg_build(&mut self, name: &str, email: &str) -> Result<Built, String> {
         let now = self.clock()?;
         // `gpg --quick-generate-key` takes one string, trims it, and
         // refuses only an empty one ("Invalid user ID"); it checks no
@@ -346,22 +348,34 @@ impl Faraday {
             created: now,
             subkey_seed: *subkey,
             subkey_created: now,
-            user_ids: vec![uid],
+            user_ids: vec![uid.clone()],
             expiry: self.vaults.gpg_years * YEAR,
         };
         let cert = key.certificate(now);
         let stem = file_stem(&key);
         let revocation = key.revocation(now, Reason::Unspecified, "");
         let record = record_of(&key, &cert, &revocation);
-        if !self.vault_push_in(self.vaults.current, record, EN.gpg_the_key_is_in_the) {
-            return Err(EN.vaults_that_does_not.to_string());
-        }
-        self.put_unless_taken(
-            &format!("{stem}.asc"),
-            armor(Armor::PublicKey, &cert).into_bytes(),
-            |i| faraday_pgp::read_public_armor(&i.bytes) == Some(Armor::PublicKey),
-        );
-        Ok(())
+        Ok(Built {
+            record,
+            subject: key.fingerprint().to_vec(),
+            name: if name.trim().is_empty() {
+                uid
+            } else {
+                name.trim().to_string()
+            },
+            outbox: vec![(
+                format!("{stem}.asc"),
+                armor(Armor::PublicKey, &cert).into_bytes(),
+            )],
+        })
+    }
+
+    /// The public key to the Outbox, unless a file of that name is there
+    /// that is not a public key.
+    pub(crate) fn gpg_put_public(&mut self, name: &str, bytes: Vec<u8>) {
+        self.put_unless_taken(name, bytes, |i| {
+            faraday_pgp::read_public_armor(&i.bytes) == Some(Armor::PublicKey)
+        });
     }
 
     /// Makes the revocation certificate a record lacks, with the clock as
@@ -439,6 +453,11 @@ impl Faraday {
                 )
             }
             Code::GpgSignature(prefix) => {
+                // A key that waits for its backup signs nothing, a code of a
+                // signature included (`docs/BACKUP-FLOW.md` §8).
+                if self.selected_waits().is_some() {
+                    return Err(EN.backup_flow_first.to_string());
+                }
                 let now = self.clock()?;
                 usable(&key, self.gpg_record(at).and_then(revoked_at), now)?;
                 let item = self
@@ -535,6 +554,9 @@ impl Faraday {
     /// counted from now as `gpg --quick-set-expire` counts it; the
     /// record's certificate and the Outbox's change together.
     pub(crate) fn gpg_renew(&mut self) {
+        if self.selected_waits().is_some() {
+            return;
+        }
         let Some((at, mut key)) = self.gpg_selected() else {
             return;
         };
@@ -693,6 +715,9 @@ impl Faraday {
     /// those ticked is not signed. A signature is not written over a file
     /// of that name. One toast says how many were written.
     pub(crate) fn gpg_sign_ticked(&mut self) {
+        if self.selected_waits().is_some() {
+            return;
+        }
         let Some((at, key)) = self.gpg_selected() else {
             return;
         };

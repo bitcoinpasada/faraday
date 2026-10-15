@@ -329,6 +329,9 @@ mod windows_memory {
     }
 }
 
+/// The kept entry that says which keys wait for their backup.
+const GATE: &str = "backup-gate";
+
 /// Where the Inbox and Outbox wait between processes: a RAM directory on
 /// the device, memory alone on a desktop.
 pub enum Boxes {
@@ -346,7 +349,11 @@ pub enum Boxes {
 }
 
 impl Boxes {
-    fn save(
+    /// Keeps the Inbox, the Outbox and what the app keeps. The kept
+    /// `backup-gate` goes first and atomically (a temporary file, then a
+    /// rename), so that a save that fails part way still leaves the keys
+    /// that wait for their backup.
+    pub fn save(
         &mut self,
         inbox: Vec<(String, Vec<u8>)>,
         outbox: Vec<(String, Vec<u8>)>,
@@ -364,10 +371,26 @@ impl Boxes {
                 Ok(())
             }
             Boxes::Dir(dir) => {
-                for (sub, files) in [("inbox", inbox), ("outbox", outbox), ("kept", kept)] {
+                for (sub, mut files) in [("kept", kept), ("inbox", inbox), ("outbox", outbox)] {
                     let d = dir.join(sub);
                     fs::create_dir_all(&d).map_err(|e| e.to_string())?;
+                    let gate = files.iter().position(|(n, _)| n == GATE);
+                    if let Some(at) = gate {
+                        let (name, mut bytes) = files.remove(at);
+                        let tmp = d.join(format!(".{name}.tmp"));
+                        let wrote =
+                            fs::write(&tmp, &bytes).and_then(|()| fs::rename(&tmp, d.join(&name)));
+                        zeroize::Zeroize::zeroize(&mut bytes);
+                        if wrote.is_err() {
+                            let _ = fs::remove_file(&tmp);
+                        }
+                        wrote.map_err(|e| e.to_string())?;
+                    }
                     for e in fs::read_dir(&d).map_err(|e| e.to_string())?.flatten() {
+                        // The gate just written stays; one no longer needed goes.
+                        if gate.is_some() && e.file_name() == GATE {
+                            continue;
+                        }
                         let _ = fs::remove_file(e.path());
                     }
                     for (name, mut bytes) in files {
@@ -401,6 +424,12 @@ impl Boxes {
                             d.flatten()
                                 .filter_map(|e| {
                                     let name = e.file_name().to_string_lossy().into_owned();
+                                    // A temporary file of a save that was cut
+                                    // off is not kept.
+                                    if name == format!(".{GATE}.tmp") {
+                                        let _ = fs::remove_file(e.path());
+                                        return None;
+                                    }
                                     fs::read(e.path()).ok().map(|b| (name, b))
                                 })
                                 .collect()
@@ -809,6 +838,7 @@ pub fn serve_all(
             } => {
                 if let Err(e) = boxes.save(inbox, outbox, kept) {
                     said.push(format!("cannot keep the Inbox and Outbox: {e}"));
+                    app.storage(StorageEvent::NotKept);
                 }
             }
         }
@@ -825,6 +855,9 @@ pub struct DiskProcess {
     tx: fs::File,
     answers: std::sync::mpsc::Receiver<(u32, Vec<u8>)>,
     seq: u32,
+    /// The sticks the last listing found unusable: their ids, and whether
+    /// the reason is that they are read-only (else not FAT).
+    problems: Vec<(String, bool)>,
 }
 
 /// How long a list or a read may take.
@@ -853,7 +886,14 @@ impl DiskProcess {
             tx,
             answers,
             seq: 0,
+            problems: Vec::new(),
         })
+    }
+
+    /// The sticks the last listing found unusable, by id: true when the
+    /// reason is that the device is read-only, else it is not FAT.
+    pub fn problems(&self) -> &[(String, bool)] {
+        &self.problems
     }
 
     fn ask(
@@ -892,18 +932,27 @@ impl DiskProcess {
     /// The partitions handed out now, by their volume labels. The app
     /// names the boot medium itself (`Medium::boot`), whatever its label.
     pub fn list(&mut self) -> Result<Vec<StickInfo>, String> {
-        use faraday_files::proto::{Request, Response};
+        use faraday_files::proto::{Problem, Request, Response};
         match self.ask(&Request::List)? {
-            Response::Sticks(s) => Ok(s
-                .into_iter()
-                .map(|s| StickInfo {
-                    label: s.label,
-                    id: s.id,
-                    boot: s.boot,
-                    serial: s.serial,
-                    files: s.files,
-                })
-                .collect()),
+            Response::Sticks(s) => {
+                self.problems = s
+                    .iter()
+                    .filter_map(|s| match s.problem {
+                        // Not handed out yet: it waits, no problem is told.
+                        None | Some(Problem::NotYet) => None,
+                        Some(p) => Some((s.id.clone(), p == Problem::ReadOnly)),
+                    })
+                    .collect();
+                Ok(s.into_iter()
+                    .map(|s| StickInfo {
+                        label: s.label,
+                        id: s.id,
+                        boot: s.boot,
+                        serial: s.serial,
+                        files: s.files,
+                    })
+                    .collect())
+            }
             Response::Failed(why) => Err(why),
             _ => Err("an answer that is not a listing".to_string()),
         }

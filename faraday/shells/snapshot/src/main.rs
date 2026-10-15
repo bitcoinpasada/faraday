@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -62,7 +62,11 @@
 //! follows, a vault copied to another stick, and a cosigner's holder
 //! named; with `restore`, Restore a wallet's cards (§12): Kind with the description
 //! shortcut, Quorum, Seeds with a seed matched and one refused, Check and
-//! Done.
+//! Done; with `flow`, the backup flow (`docs/BACKUP-FLOW.md`) for a GPG key
+//! kept in the test vault and a new vault at three places: Where, the
+//! first stick with the vault choice, the place confirmed, two empty sticks
+//! read alike and the hold, Vaults, Make, the Lock card, each stick
+//! written and Done.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -92,7 +96,12 @@ struct Tour {
     dpi: u16,
     /// The online app's folders, for Transfer.
     host: Option<faraday_storage::Host>,
+    /// What the app last asked to keep across a lock: the Inbox, the
+    /// Outbox and the kept state.
+    boxes: Option<(Files, Files, Files)>,
 }
+
+type Files = Vec<(String, Vec<u8>)>;
 
 impl Tour {
     fn stick(&self) -> StickInfo {
@@ -217,13 +226,17 @@ impl Tour {
                         size: 7_950_000_000,
                     });
                 }
+                StorageCommand::SaveBoxes {
+                    inbox,
+                    outbox,
+                    kept,
+                } => self.boxes = Some((inbox, outbox, kept)),
                 // The tour gives the upgrade's answers itself.
                 StorageCommand::OpenDownloads
                 | StorageCommand::OpenInstitute
                 | StorageCommand::Wipe { .. }
                 | StorageCommand::ZeroFree { .. }
                 | StorageCommand::MakeEmpty { .. }
-                | StorageCommand::SaveBoxes { .. }
                 | StorageCommand::BootRead
                 | StorageCommand::BootWrite { .. }
                 | StorageCommand::BootForget => {}
@@ -233,6 +246,17 @@ impl Tour {
 
     /// A fresh process on the same display, as after a lock.
     fn restart(&mut self) {
+        // What the lock asked to keep, before this process is gone.
+        while let Some(c) = self.app.poll_storage() {
+            if let StorageCommand::SaveBoxes {
+                inbox,
+                outbox,
+                kept,
+            } = c
+            {
+                self.boxes = Some((inbox, outbox, kept));
+            }
+        }
         let size = self.size();
         let medium = self.app.medium;
         self.app = Faraday::new();
@@ -543,6 +567,7 @@ fn run(
         answers: 0,
         dpi,
         host: None,
+        boxes: None,
     };
     match only {
         Some("spend") => return spend_tour(&mut t),
@@ -570,6 +595,7 @@ fn run(
         Some("restore") => return restore_tour(&mut t),
         Some("osk") => return osk_tour(&mut t),
         Some("apk") => return apk_only_tour(&mut t),
+        Some("flow") => return flow_tour(&mut t),
         _ => {}
     }
     if medium == Medium::Stick {
@@ -1484,19 +1510,20 @@ fn run(
         unix_secs: 1_791_000_000,
     });
     t.press(Action::Vault(V::Category(4)));
-    t.press(Action::Vault(V::Add));
+    flow_at_make(&mut t, faraday_core::backup_flow::Kind::Gpg);
     type_text(&mut t, "Test Person");
     t.app.event(Event::Key(Key::Tab));
     type_text(&mut t, "test@example.com");
     t.shot("vault-gpg-make")?;
-    t.press(Action::Vault(V::FormSave));
-    // On the stick, with the clock not checked, Save asks for the time
-    // first (`docs/TOTP.md` §2.2); Keep this time, then Save again.
+    // On the stick, with the clock not checked, Make asks for the time
+    // first (`docs/TOTP.md` §2.2); Keep this time, then Make again.
+    t.press(Action::Flow(
+        faraday_core::backup_flow_steps::FlowAction::Make,
+    ));
     if t.app.screen != Screen::SetTime {
         return Err("making a GPG key did not ask for the time".into());
     }
-    t.press(Action::SetTimeKeep);
-    t.press(Action::Vault(V::FormSave));
+    flow_made(&mut t, faraday_core::backup_flow::Kind::Gpg)?;
     let gpg_files: Vec<String> = t
         .app
         .outbox
@@ -1557,10 +1584,9 @@ fn run(
     // Secure Boot keys made in the vault, the enrolment files, and the
     // test image signed after its hash is shown.
     t.press(Action::Vault(V::Category(5)));
-    t.press(Action::Vault(V::Add));
+    flow_at_make(&mut t, faraday_core::backup_flow::Kind::SecureBoot);
     type_text(&mut t, "Test");
-    t.press(Action::Vault(V::FormSave));
-    t.tick();
+    flow_made(&mut t, faraday_core::backup_flow::Kind::SecureBoot)?;
     if !t.app.vaults.open[0]
         .contents
         .records
@@ -2982,15 +3008,11 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.press(Action::Nav(Screen::VaultContents));
     t.press(Action::Vault(V::Category(4)));
-    t.press(Action::Vault(V::Add));
+    flow_at_make(t, faraday_core::backup_flow::Kind::Gpg);
     type_text(t, "Test Person");
     t.app.event(Event::Key(Key::Tab));
     type_text(t, "test@example.com");
-    t.press(Action::Vault(V::FormSave));
-    if t.app.screen == Screen::SetTime {
-        t.press(Action::SetTimeKeep);
-        t.press(Action::Vault(V::FormSave));
-    }
+    flow_made(t, faraday_core::backup_flow::Kind::Gpg)?;
     // On a small panel the key's page is opened from the list.
     t.press(Action::Vault(V::Item(0)));
     scroll_to(t, Action::CodePng(Code::GpgKey));
@@ -4469,7 +4491,7 @@ fn type_text(t: &mut Tour, text: &str) {
 /// (`docs/APK-SIGNING.md` §4).
 fn apk_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Vault(V::Category(6)));
-    t.press(Action::Vault(V::Add));
+    flow_at_make(t, faraday_core::backup_flow::Kind::Apk);
     t.shot("vault-apk-make")?;
     // The package is the fixture's, so its APK can be signed.
     t.press(Action::Vault(V::FocusField(1)));
@@ -4477,7 +4499,9 @@ fn apk_tour(t: &mut Tour) -> Result<(), String> {
         t.app.event(Event::Key(Key::Backspace));
     }
     type_text(t, "app.faradayoffline.fixture");
-    t.press(Action::Vault(V::FormSave));
+    t.press(Action::Flow(
+        faraday_core::backup_flow_steps::FlowAction::Make,
+    ));
     t.tick();
     t.tick();
     if !t.app.vaults.open[0]
@@ -4489,10 +4513,9 @@ fn apk_tour(t: &mut Tour) -> Result<(), String> {
         return Err("no APK signing key was made".into());
     }
     t.shot("vault-apk-made")?;
-    t.press(Action::Vault(V::ApkDone));
     t.shot("vault-apk-key-waiting")?;
-    // Written to two sticks, as the wait asks.
-    t.app.vaults.apk.waits.clear();
+    flow_made(t, faraday_core::backup_flow::Kind::Apk)?;
+    t.press(Action::Vault(V::Item(0)));
     t.shot("vault-apk-key")?;
     let apk = std::fs::read("tools/vectors/apk/small-unsigned.apk").map_err(|e| e.to_string())?;
     t.app.inbox.push(faraday_core::Item {
@@ -4552,6 +4575,191 @@ fn apk_only_tour(t: &mut Tour) -> Result<(), String> {
     apk_tour(t)
 }
 
+/// A flow standing on Make over the vault open now, as a person has it after
+/// the sticks and the vaults: the tours that are not about the flow start
+/// from here.
+fn flow_at_make(t: &mut Tour, kind: faraday_core::backup_flow::Kind) {
+    use faraday_core::backup_flow::{BackupFlow, Plan, Step};
+    use faraday_core::backup_flow_steps::FlowAction as F;
+    let (salt, name) = {
+        let o = &t.app.vaults.open[t.app.vaults.current];
+        (o.header().salt, o.name.clone())
+    };
+    let mut plan = Plan::key_default();
+    plan.vaults[0].salt = Some(salt);
+    plan.vaults[0].file = Some(name);
+    plan.vaults[0].existing = true;
+    let mut f = BackupFlow::with_plan(kind, plan);
+    f.step = Step::Make;
+    t.app.backup_flows.push(f);
+    let i = t.app.backup_flows.len() - 1;
+    t.press(Action::Flow(F::Show(i)));
+}
+
+/// The flow's Make pressed, and the key it made released as a key a
+/// vault unlocked from a stick holds is; the vault's contents shown on
+/// its kind.
+fn flow_made(t: &mut Tour, kind: faraday_core::backup_flow::Kind) -> Result<(), String> {
+    use faraday_core::backup_flow_steps::FlowAction as F;
+    t.press(Action::Flow(F::Make));
+    t.tick();
+    t.tick();
+    if t.app.screen == Screen::SetTime {
+        t.press(Action::SetTimeKeep);
+        t.press(Action::Flow(F::Make));
+        t.tick();
+        t.tick();
+    }
+    if !t.app.backup_flows.last().is_some_and(|f| f.made) {
+        return Err("the flow made no key".into());
+    }
+    for f in &mut t.app.backup_flows {
+        for s in &mut f.slots {
+            s.written = Some(faraday_core::backup_flow::Written {
+                stick: String::new(),
+                serial: None,
+                label: "STICK".into(),
+                time: None,
+                files: Vec::new(),
+            });
+        }
+    }
+    t.press(Action::Nav(Screen::VaultContents));
+    t.press(Action::Vault(V::Category(kind.category())));
+    Ok(())
+}
+
+/// The backup flow for a GPG key kept in two vaults at three places
+/// (`docs/BACKUP-FLOW.md`): the screens a person sees from Where to Done.
+fn flow_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::backup_flow::Kind;
+    use faraday_core::backup_flow_steps::FlowAction as F;
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.storage(StorageEvent::Clock {
+        unix_secs: 1_791_000_000,
+    });
+    t.app.vaults.ms_per_unit = Some(180);
+    t.press(Action::OpenSetTime);
+    t.press(Action::SetTimeKeep);
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|x| x.go == faraday_core::catalog::Go::VaultCategory(Kind::Gpg.category()))
+        .ok_or("no GPG tile")? as u8;
+    t.press(Action::Nav(Screen::Catalog));
+    t.press(Action::Catalog(tile));
+    // Vault 1 is the test vault, on the first stick; Vault 2 is a new one
+    // at the second and third places, on two empty sticks.
+    t.press(Action::Flow(F::AddPlace));
+    t.press(Action::Flow(F::PlaceVault(1, 1)));
+    t.press(Action::Flow(F::PlaceVault(2, 1)));
+    t.press(Action::Flow(F::VaultExisting(0)));
+    t.shot("flow-1-where")?;
+    t.press(Action::Flow(F::Continue));
+    t.shot("flow-2-insert")?;
+    let first = t.stick();
+    t.app.storage(StorageEvent::Sticks(vec![first.clone()]));
+    t.pump();
+    t.shot("flow-3-which-vault")?;
+    let k = t
+        .app
+        .flow()
+        .and_then(|f| f.live.reading.as_ref())
+        .and_then(|r| r.files.iter().position(|(f, _)| f.name == "vault.ofv"))
+        .ok_or("the stick shows no vault.ofv")?;
+    t.press(Action::Flow(F::PickFile(0, k)));
+    t.shot("flow-4-confirm")?;
+    t.press(Action::Flow(F::Tap));
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    // Two empty sticks that read exactly alike: only the person can tell
+    // them apart.
+    let empty = |id: &str| StickInfo {
+        serial: Some(0x1357_9bdf),
+        id: id.into(),
+        label: "SPARE".into(),
+        boot: false,
+        files: Vec::new(),
+    };
+    t.app.storage(StorageEvent::Sticks(vec![empty("empty-a")]));
+    t.pump();
+    t.press(Action::Flow(F::Tap));
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    t.app.storage(StorageEvent::Sticks(vec![empty("empty-b")]));
+    t.pump();
+    t.shot("flow-5-hold")?;
+    t.press(Action::Flow(F::Hold));
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    t.shot("flow-6-vaults")?;
+    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    t.press(Action::Vault(V::Unlock));
+    t.tick();
+    t.tick();
+    t.shot("flow-7-create-vault")?;
+    t.press(Action::Flow(F::CreateVault(1)));
+    t.shot("flow-8-create-vault-form")?;
+    type_text(t, "a second vault phrase");
+    t.press(Action::Vault(V::CFocus(0, true)));
+    type_text(t, "a second vault phrase");
+    t.press(Action::Vault(V::CGo));
+    t.tick();
+    t.tick();
+    t.tick();
+    t.shot("flow-9-make")?;
+    type_text(t, "Test Person");
+    t.app.event(Event::Key(Key::Tab));
+    type_text(t, "test@example.com");
+    t.press(Action::Flow(F::Make));
+    t.shot("flow-10-made")?;
+    t.press(Action::Flow(F::MadeContinue));
+    t.shot("flow-11-lock")?;
+    t.press(Action::Flow(F::LockWrite));
+    let (inbox, outbox, kept) = t.boxes.clone().ok_or("nothing was kept by the lock")?;
+    t.app.storage(StorageEvent::Restored {
+        inbox,
+        outbox,
+        kept,
+    });
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.storage(StorageEvent::Clock {
+        unix_secs: 1_791_000_000,
+    });
+    t.pump();
+    t.shot("flow-12-write")?;
+    t.app.storage(StorageEvent::Sticks(vec![first]));
+    t.pump();
+    t.shot("flow-13-written")?;
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    // A stick that is not the one read for the place: Use another stick.
+    let mut other = empty("other");
+    other.label = "ELSEWHERE".into();
+    other.serial = Some(0x2468_ace0);
+    t.app.storage(StorageEvent::Sticks(vec![other]));
+    t.pump();
+    t.shot("flow-14-use-another")?;
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    t.app.storage(StorageEvent::Sticks(vec![empty("empty-a")]));
+    t.pump();
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    t.app.storage(StorageEvent::Sticks(vec![empty("empty-b")]));
+    t.pump();
+    t.shot("flow-15-second-stick")?;
+    t.press(Action::Flow(F::Hold));
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    t.shot("flow-16-done")?;
+    println!("the backup flow of a GPG key in two vaults at three places, from Where to Done");
+    Ok(())
+}
+
 fn fp_hex(fp: [u8; 4]) -> String {
     fp.iter().map(|b| format!("{b:02x}")).collect()
 }
@@ -4567,7 +4775,7 @@ fn main() -> ExitCode {
     };
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk]"
+            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow]"
         );
         return ExitCode::from(2);
     }
@@ -4622,11 +4830,12 @@ fn main() -> ExitCode {
             "restore",
             "osk",
             "apk",
+            "flow",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk or apk"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk or flow"
         );
         return ExitCode::from(2);
     }

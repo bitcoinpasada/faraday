@@ -94,6 +94,10 @@ pub struct Zeroing {
     stop: bool,
     /// When this pass's first answer came, and where it stood then.
     since: Option<(u64, u32)>,
+    /// The partition was made empty: the first answer came.
+    emptied: bool,
+    /// The stick's volume serial, to know its copies by once it is gone.
+    serial: Option<u32>,
 }
 
 impl Zeroing {
@@ -216,7 +220,13 @@ impl Faraday {
                         from: 2,
                     }
                 });
+                let serial = self
+                    .sticks
+                    .iter()
+                    .find(|s| s.id == d.stick)
+                    .and_then(|s| s.serial);
                 self.zeroing = Some(Zeroing {
+                    serial,
                     stick: d.stick,
                     label: d.label,
                     whole,
@@ -227,6 +237,7 @@ impl Faraday {
                     due: false,
                     stop: false,
                     since: None,
+                    emptied: false,
                 });
                 self.sheet = Some(Sheet::Zeroing);
             }
@@ -234,10 +245,10 @@ impl Faraday {
     }
 
     /// A file's delete answered.
-    pub(crate) fn wiped(&mut self, name: &str, failed: Option<&str>) {
+    pub(crate) fn wiped(&mut self, stick: &str, name: &str, failed: Option<&str>) {
         match failed {
             None => {
-                self.apk_first_gone(Some(name));
+                self.flow_copy_gone(stick, Some(name));
                 self.visit.inn.retain(|n| n != name);
                 self.visit
                     .log
@@ -277,6 +288,13 @@ impl Faraday {
     /// end.
     pub(crate) fn zero_step(&mut self, next: u32, total: u32, done: bool) {
         let now = self.now_ms;
+        // The partition is empty from the first answer, whatever follows:
+        // the copies the backup flow wrote on it are gone.
+        if let Some(z) = self.zeroing.as_mut().filter(|z| z.whole && !z.emptied) {
+            z.emptied = true;
+            let (stick, label, serial) = (z.stick.clone(), z.label.clone(), z.serial);
+            self.flow_copy_gone_for(&stick, &label, serial, None);
+        }
         let Some(z) = self.zeroing.as_mut() else {
             return;
         };
@@ -326,6 +344,13 @@ impl Faraday {
 
     /// Zeroing failed, or the stick's space could not be read.
     pub(crate) fn zero_failed(&mut self, why: &str) {
+        // A whole wipe that fails before its first answer, or whose stick
+        // is pulled, may have emptied the FATs: its copies are not trusted
+        // (fail closed).
+        if let Some(z) = self.zeroing.as_ref().filter(|z| z.whole && !z.emptied) {
+            let (stick, label, serial) = (z.stick.clone(), z.label.clone(), z.serial);
+            self.flow_copy_gone_for(&stick, &label, serial, None);
+        }
         if let Some(z) = self.zeroing.as_ref() {
             let share = (z.done_share() * 100.0) as u32;
             self.zero_end(
@@ -351,9 +376,6 @@ impl Faraday {
     }
 
     fn zero_end(&mut self, line: String, ok: bool) {
-        if ok && self.zeroing.as_ref().is_some_and(|z| z.whole) {
-            self.apk_first_gone(None);
-        }
         self.zeroing = None;
         if self.sheet == Some(Sheet::Zeroing) {
             self.sheet = None;

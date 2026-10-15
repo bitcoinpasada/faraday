@@ -142,12 +142,6 @@ impl Faraday {
     /// The visit's Write: the sheet first when a file's name is taken and
     /// the choice decides what becomes of it; otherwise written at once.
     pub(crate) fn visit_write_ask(&mut self) {
-        // The second copy of a key's vault never goes to a stick that has
-        // this vault already.
-        if let Some(why) = self.apk_second_refusal() {
-            self.toast(why);
-            return;
-        }
         let taken = self.visit_taken();
         if taken.iter().any(|t| matches!(t.fate, Fate::File { .. })) {
             self.visit.taken = taken;

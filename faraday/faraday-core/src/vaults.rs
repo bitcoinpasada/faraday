@@ -221,9 +221,6 @@ pub enum VaultAction {
     Unlock,
     /// Show an open vault's contents.
     Show(usize),
-    /// The Make an APK key form: the vault the key goes to, by place
-    /// among the open ones.
-    ApkVault(usize),
     /// The selected APK signing key's certificate to the Outbox.
     ApkExport,
     /// Open Sign an APK on the selected key.
@@ -237,11 +234,6 @@ pub enum VaultAction {
     /// Back from the review to the list of APKs, or from the list to the
     /// key's page.
     ApkBack,
-    /// Seal the vault and go to the stick visit with it ticked: the
-    /// copies a new key waits for.
-    ApkWrite,
-    /// Done with the made key's result: its page.
-    ApkDone,
     /// Sign Inbox APK n with a key of an open vault, from Files.
     ApkFromFiles(usize),
     /// Choose the key, by vault and place, to sign the APK Files offered.
@@ -370,7 +362,7 @@ pub fn is_hold(a: Action) -> bool {
                 | VaultAction::GpgHoldSign
                 | VaultAction::GpgHoldRevoke
                 | VaultAction::ApkHoldSign
-        )
+        ) | Action::Flow(crate::backup_flow_steps::FlowAction::Hold)
     )
 }
 
@@ -616,10 +608,8 @@ pub enum Work {
     Measure,
     /// Open the backup the prompt names.
     Backup,
-    /// Make Secure Boot keys.
-    SecureBoot,
-    /// Make the APK signing key the form described.
-    ApkKey,
+    /// Make the key the backup flow's form described.
+    FlowMake,
     /// Write the KeePass export the prompt is for.
     Kdbx,
 }
@@ -950,6 +940,11 @@ impl Faraday {
     /// files For the stick are lost, not kept.
     pub fn kept_wiped(&self, power_off: bool) -> KeptWiped {
         let mut out = KeptWiped::default();
+        if power_off {
+            for line in self.backup_power_lines() {
+                out.wiped.push((line, true));
+            }
+        }
         for f in self.vault_files() {
             let open = f.open.and_then(|o| self.vaults.open.get(o));
             let title = open
@@ -1119,6 +1114,9 @@ impl Faraday {
             Screen::Restore => EN.vaults_restore_an_existing,
             Screen::Family => EN.vaults_spend,
             Screen::Backup => EN.vaults_back_up_a_wallet,
+            Screen::BackupFlow => self
+                .flow()
+                .map_or(crate::strings::EN.backup_flow_heading, |f| f.kind.name()),
             Screen::Bip85 => EN.vaults_child_seeds,
             Screen::Lightning => EN.vaults_lightning_node,
             Screen::Home if self.import.is_some() => EN.vaults_import,
@@ -1326,6 +1324,7 @@ impl Faraday {
             }
             V::Back => {
                 self.vaults.just_made = None;
+                self.flow_create_left();
                 if let Some(s) = self.vaults.back_to.take() {
                     self.vaults.passphrase.clear();
                     self.vaults.typed_shown = false;
@@ -1597,9 +1596,12 @@ impl Faraday {
             V::WriteOut => self.screen = Screen::Files,
             V::Add => {
                 let kinds = CATEGORIES[self.vaults.category].1;
-                if kinds.contains(&kind::GPG) {
-                    self.vaults.gpg_years = crate::gpg::DEFAULT_YEARS;
-                    self.vaults.signing = false;
+                // A key that cannot be made again from seed words is made
+                // by the backup flow, which decides where it will be kept
+                // first (`docs/BACKUP-FLOW.md`).
+                if let Some(k) = crate::backup_flow::Kind::of_category(self.vaults.category) {
+                    self.vaults.form = None;
+                    return self.flow_begin(k);
                 }
                 self.vaults.sb_images = false;
                 self.vaults.sb_sign = None;
@@ -1735,6 +1737,18 @@ impl Faraday {
                 self.vaults.prompt = None;
                 self.vaults.focus = None;
             }
+            // A key made in the backup flow signs nothing until every place
+            // of its plan is written: the action opens the flow.
+            V::GpgSignPick
+            | V::GpgHoldSign
+            | V::GpgRenew
+            | V::SbEnrol
+            | V::SbPick(_)
+            | V::SbHoldSign
+                if self.selected_waits().is_some() =>
+            {
+                self.flow_resume_selected();
+            }
             V::GpgYears(y) => self.vaults.gpg_years = y,
             V::GpgExport => self.gpg_export(),
             V::GpgExportRevocation => self.gpg_export_revocation(),
@@ -1785,16 +1799,13 @@ impl Faraday {
                 }
             }
             V::SbCheck(k) => self.sb_check(k),
-            V::ApkVault(i) => {
-                if i < self.vaults.open.len() {
-                    self.vaults.apk.vault_pick = Some(i);
-                }
-            }
             V::ApkExport => self.apk_export(),
             V::ApkSignOpen => {
                 if let Some((_, r)) = self.apk_selected()
                     && let Some(fp) = crate::apk::fingerprint_of(&r)
-                    && self.apk_waiting(&fp).is_none()
+                    && self
+                        .backup_waits(crate::backup_flow::Kind::Apk, &fp)
+                        .is_none()
                 {
                     self.vaults.apk.signing = true;
                     self.vaults.apk.review = None;
@@ -1804,7 +1815,9 @@ impl Faraday {
             V::ApkPick(k) => {
                 if let Some((_, r)) = self.apk_selected()
                     && let Some(fp) = crate::apk::fingerprint_of(&r)
-                    && self.apk_waiting(&fp).is_none()
+                    && self
+                        .backup_waits(crate::backup_flow::Kind::Apk, &fp)
+                        .is_none()
                     && let Some(name) = self.inbox.get(k).map(|i| i.name.clone())
                 {
                     self.apk_open_review(&name, fp);
@@ -1821,27 +1834,6 @@ impl Faraday {
                     self.vaults.apk.leave();
                 }
             }
-            V::ApkWrite => {
-                // A stick is handed out to a clean process only, so the
-                // vault is locked: sealed For the stick, with the key's
-                // page to come back to once it is unlocked again.
-                // For now this is the stick visit with the vault ticked;
-                // the shared backup flow replaces it.
-                let fp = self
-                    .apk_selected()
-                    .and_then(|(_, r)| crate::apk::fingerprint_of(&r));
-                self.vaults.apk.back = fp;
-                let first = fp.is_some_and(|fp| {
-                    self.vaults
-                        .apk
-                        .waits
-                        .iter()
-                        .any(|w| w.fp == fp && w.first.is_some())
-                });
-                self.vaults.apk.visit_for = Some(if first { 2 } else { 1 });
-                self.act(Action::Lock);
-            }
-            V::ApkDone => self.vaults.apk.made = None,
             V::ApkFromFiles(k) => self.apk_from_files(k),
             V::ApkKeyPick(v, at) => self.apk_key_picked(v, at),
         }
@@ -2107,8 +2099,7 @@ impl Faraday {
                 }
                 Work::Unlock => self.vault_unlock(),
                 Work::Backup => self.vault_open_backup(),
-                Work::SecureBoot => self.sb_make(),
-                Work::ApkKey => self.apk_make_work(),
+                Work::FlowMake => self.flow_make_work(),
                 Work::Kdbx => self.vault_kdbx(),
                 Work::Create => self.vault_create(),
             }
@@ -2120,6 +2111,15 @@ impl Faraday {
             if now_ms.saturating_sub(self.vaults.pressed_at) >= HOLD_MS {
                 self.pressed = None;
                 self.vault_act(held);
+            }
+            redraw = true;
+        }
+        if let Some((Action::Flow(held), _)) = self.pressed
+            && is_hold(Action::Flow(held))
+        {
+            if now_ms.saturating_sub(self.vaults.pressed_at) >= HOLD_MS {
+                self.pressed = None;
+                self.flow_act(held);
             }
             redraw = true;
         }
@@ -2157,9 +2157,9 @@ impl Faraday {
     fn vault_unlock(&mut self) {
         let before = self.vaults.open.len();
         self.vault_unlock_inner();
-        // Locked to write a key's vault to a stick: back on the key's page.
+        // Unlocked inside a backup flow: it goes on.
         if self.vaults.open.len() > before {
-            self.apk_return();
+            self.flow_vault_opened();
         }
     }
 
@@ -2783,14 +2783,6 @@ impl Faraday {
                 (field::TOTP, EN.vaults_totp_secret, true),
             ],
             kind::NOTE => &[(field::NOTE, EN.vaults_text, false)],
-            kind::GPG => &[(1, EN.vaults_name, false), (2, EN.vaults_email, false)],
-            kind::APK_KEY => {
-                return self.vault_form_apk(
-                    faraday_apk::key::DEFAULT_NAME,
-                    faraday_apk::key::DEFAULT_PACKAGE,
-                );
-            }
-            kind::SECURE_BOOT => &[(1, EN.vaults_owner_name, false)],
             _ => return,
         };
         let fields = shape
@@ -2813,29 +2805,16 @@ impl Faraday {
     }
 
     fn vault_form_save(&mut self) {
+        // The backup flow's Make form is saved by Make the key.
+        if self.screen == Screen::BackupFlow {
+            return self.flow_act(crate::backup_flow_steps::FlowAction::Make);
+        }
         let Some(form) = self.vaults.form.take() else {
             return;
         };
         self.vaults.focus = None;
-        if (form.kind == kind::SECURE_BOOT || form.kind == kind::GPG || form.kind == kind::APK_KEY)
-            && self.time_asked()
-        {
+        if form.kind == kind::GPG && self.time_asked() {
             self.vaults.form = Some(form);
-            return;
-        }
-        if form.kind == kind::APK_KEY {
-            self.vault_form_apk_save(form);
-            return;
-        }
-        if form.kind == kind::SECURE_BOOT {
-            if self.clock_now().is_none() {
-                self.vaults.form = Some(form);
-                self.toast(EN.vaults_this_computer);
-                return;
-            }
-            self.vaults.sb_owner = form.fields[0].2.text.trim().to_string();
-            self.vaults.working = Some(Work::SecureBoot);
-            self.vaults.drawn = false;
             return;
         }
         if form.kind == kind::GPG && form.fields.first().is_some_and(|f| f.0 == 3) {
@@ -2843,23 +2822,6 @@ impl Faraday {
                 .unwrap_or(faraday_pgp::Reason::Unspecified);
             let text = form.fields[0].2.text.to_string();
             self.gpg_make_revocation(reason, &text);
-            return;
-        }
-        if form.kind == kind::GPG {
-            let name = form.fields[0].2.text.to_string();
-            let email = form.fields[1].2.text.to_string();
-            if let Err(e) = self.gpg_make(&name, &email) {
-                self.vaults.form = Some(form);
-                self.toast(&e);
-            } else {
-                let n = self
-                    .vaults
-                    .open
-                    .get(self.vaults.current)
-                    .map_or(0, |v| v.contents.of(kind::GPG).count());
-                self.vaults.item[self.vaults.category] = n.saturating_sub(1);
-                self.toast_out(EN.vaults_made_the_certificate);
-            }
             return;
         }
         let Some(v) = self.vaults.open.get_mut(self.vaults.current) else {
@@ -3168,6 +3130,12 @@ impl Faraday {
             passes,
             lanes: 1,
         };
+        let first_phrase = Zeroizing::new(
+            c.phrases
+                .first()
+                .map(|(a, _)| a.text.to_string())
+                .unwrap_or_default(),
+        );
         let phrases: Vec<&[u8]> = c.phrases.iter().map(|(a, _)| a.text.as_bytes()).collect();
         let contents: Vec<Contents> = (0..phrases.len())
             .map(|i| Contents {
@@ -3181,6 +3149,12 @@ impl Faraday {
             Ok(file) => {
                 let name = self.free_vault_name(&vault_stem(&c.name.text));
                 self.put_outbox(&name, file);
+                // Made inside a backup flow: unlocked at once with the
+                // passphrase just typed twice, never leaving the flow.
+                if self.flow_vault_made(&name, &first_phrase) {
+                    self.toast(EN.vaults_vault_created);
+                    return;
+                }
                 self.vaults.just_made = Some(name.clone());
                 self.vaults.create = None;
                 self.vaults.focus = None;
@@ -3290,7 +3264,7 @@ impl Faraday {
         let bytes = v.opened.seal(&v.file, &v.contents, &nonce).ok()?;
         let name = v.name.clone();
         // The keys waiting for their copies that this sealing holds.
-        self.apk_sealed(i, &bytes);
+        self.flow_sealed(i, &name, &bytes);
         Some((name, bytes))
     }
 
@@ -3332,6 +3306,7 @@ impl Faraday {
                     | Screen::VaultContents
                     | Screen::Family
                     | Screen::Codes
+                    | Screen::BackupFlow
             )
         {
             return false;
@@ -3349,7 +3324,8 @@ impl Faraday {
         }
         if key == K::Escape {
             self.vaults.focus = None;
-            if self.vaults.form.is_some() {
+            // The backup flow's Make form is not left by Escape.
+            if self.vaults.form.is_some() && self.screen != Screen::BackupFlow {
                 self.vaults.form = None;
             }
             return true;

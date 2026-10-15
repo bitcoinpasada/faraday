@@ -742,8 +742,6 @@ pub struct Strings {
     pub apk_name_too_long: &'static str,
     /// Version in the review of an APK that states no `versionName`.
     pub apk_no_name: &'static str,
-    /// Toast in `apk_written`: the vault is on two sticks.
-    pub apk_signs_from_now: &'static str,
     /// Toast in `apk_make_work`, `apk_sign`: the system has not answered.
     pub apk_no_randomness: &'static str,
     /// Toast in `apk_make_work`.
@@ -754,8 +752,6 @@ pub struct Strings {
     pub apk_name_the_certificate: &'static str,
     /// Toast in `apk_check_form`: the package is not Android's form.
     pub apk_package_invalid: &'static str,
-    /// Toast in `vault_form_apk_save`: several vaults are open and none is chosen.
-    pub apk_choose_the_vault: &'static str,
     /// Toast in `vault_form_apk_save`.
     pub apk_this_computer: &'static str,
     /// Error in `apk_code`.
@@ -786,8 +782,6 @@ pub struct Strings {
     pub apk_making_the_key: &'static str,
     /// Make an APK key: under the name field.
     pub apk_public_hint: &'static str,
-    /// Make an APK key: above the vaults to choose from.
-    pub apk_vault: &'static str,
     /// Result of Make an APK key.
     pub apk_key_made: &'static str,
     /// Row: the certificate's name.
@@ -800,18 +794,6 @@ pub struct Strings {
     pub apk_rsa_3072: &'static str,
     /// Row: the day the key was made.
     pub apk_made: &'static str,
-    /// Button in place of Sign an APK: the backup comes first.
-    pub apk_back_up_first: &'static str,
-    /// Line on the key's page before any write.
-    pub apk_backup_line: &'static str,
-    /// Line on the key's page after the first write.
-    pub apk_backup_line_once: &'static str,
-    /// Toast: the stick for the second copy already holds this vault.
-    pub apk_same_stick: &'static str,
-    /// Toast: the first stick lost the vault, so the backup starts again.
-    pub apk_back_to_first: &'static str,
-    /// Toast: the second stick's file is still being read back.
-    pub apk_reading_stick: &'static str,
     /// Button: leave the result.
     pub apk_done: &'static str,
     /// Button on the key's page, and the page's heading.
@@ -8282,6 +8264,212 @@ pub struct Strings {
     pub companion_delete_kept_store: &'static str,
     /// A description that the reader does not read.
     pub companion_not_description: &'static str,
+    /// The backup flow's name when no key is named.
+    pub backup_flow_heading: &'static str,
+    /// The APK signing key, as the flow names what it makes.
+    pub backup_flow_kind_apk: &'static str,
+    /// A GPG key, as the flow names what it makes.
+    pub backup_flow_kind_gpg: &'static str,
+    /// Secure Boot keys, as the flow names what it makes.
+    pub backup_flow_kind_sb: &'static str,
+    /// The way out of the flow, which keeps its state.
+    pub backup_flow_leave: &'static str,
+    /// A vault of the plan, by number.
+    pub backup_flow_vault_n: &'static str,
+    /// A place of the plan, by number.
+    pub backup_flow_place_n: &'static str,
+    /// Step 1's card.
+    pub backup_flow_card_where: &'static str,
+    /// Step 2's card; the plural of the medium.
+    pub backup_flow_card_sticks: &'static str,
+    /// Step 3's card.
+    pub backup_flow_card_vaults: &'static str,
+    /// Step 4's card.
+    pub backup_flow_card_make: &'static str,
+    /// Step 5's card.
+    pub backup_flow_card_lock: &'static str,
+    /// Step 6's card; the plural of the medium.
+    pub backup_flow_card_write: &'static str,
+    /// Step 7's card.
+    pub backup_flow_card_done: &'static str,
+    /// Button on Where: another place.
+    pub backup_flow_add_place: &'static str,
+    /// A place's line: what it keeps, the medium first.
+    pub backup_flow_place_keeps: &'static str,
+    /// A new vault, as a place's choice and a vault's state.
+    pub backup_flow_new_vault: &'static str,
+    /// An existing vault, as a vault's state.
+    pub backup_flow_existing_vault: &'static str,
+    /// The stick for a vault at a place: the medium, vaults, place.
+    pub backup_flow_stick_for: &'static str,
+    /// The stick of files.
+    pub backup_flow_files_stick: &'static str,
+    /// The stick of public files.
+    pub backup_flow_public_stick: &'static str,
+    /// Foot of step 2 when a secret is open.
+    pub backup_flow_lock_bring: &'static str,
+    /// Asks for a stick.
+    pub backup_flow_insert: &'static str,
+    /// A stick in the machine already, with when it was read.
+    pub backup_flow_use_read: &'static str,
+    /// Two sticks are in.
+    pub backup_flow_one_at_a_time: &'static str,
+    /// A stick that is not FAT32.
+    pub backup_flow_not_fat: &'static str,
+    /// An OSKBOOT partition.
+    pub backup_flow_boot_part: &'static str,
+    /// A stick that is read-only.
+    pub backup_flow_read_only: &'static str,
+    /// A stick with too little room.
+    pub backup_flow_no_room: &'static str,
+    /// The plan gives an existing vault and the stick holds none.
+    pub backup_flow_no_vault: &'static str,
+    /// Choice of the vault on a stick.
+    pub backup_flow_which_vault: &'static str,
+    /// A new vault written beside the vaults a stick holds.
+    pub backup_flow_beside: &'static str,
+    /// Two files of one vault on one stick.
+    pub backup_flow_two_copies: &'static str,
+    /// The same vault, other bytes.
+    pub backup_flow_copies_differ: &'static str,
+    /// Which copy of a vault to unlock.
+    pub backup_flow_use_copy_of: &'static str,
+    /// Tap that confirms a stick's place.
+    pub backup_flow_this_is: &'static str,
+    /// Hold that confirms a stick's place.
+    pub backup_flow_hold_this_is: &'static str,
+    /// A stick that reads as one bound to another place.
+    pub backup_flow_bound_to: &'static str,
+    /// Tap for a stick that keeps two vaults.
+    pub backup_flow_both: &'static str,
+    /// Asks for the stick to be pulled.
+    pub backup_flow_pull: &'static str,
+    /// Under an existing vault's Unlock.
+    pub backup_flow_no_passphrase: &'static str,
+    /// After no passphrase: a new vault beside that file.
+    pub backup_flow_beside_it: &'static str,
+    /// Leaves the stick for another.
+    pub backup_flow_use_another: &'static str,
+    /// A row of the result: the vault the key is in.
+    pub backup_flow_in_vault: &'static str,
+    /// Foot of step 5.
+    pub backup_flow_lock_and_write: &'static str,
+    /// A stick unlike the one read at step 2.
+    pub backup_flow_not_read: &'static str,
+    /// A second copy refused on the stick holding the first.
+    pub backup_flow_has_first: &'static str,
+    /// Hold for a vault's second copy.
+    pub backup_flow_hold_second: &'static str,
+    /// Hold for a vault's third and later copy.
+    pub backup_flow_hold_another: &'static str,
+    /// A stick that holds files written for another.
+    pub backup_flow_has_files_of: &'static str,
+    /// A write under way.
+    pub backup_flow_writing: &'static str,
+    /// A stick written, read back and matched.
+    pub backup_flow_written: &'static str,
+    /// A stick pulled while writing.
+    pub backup_flow_pulled: &'static str,
+    /// A write that did not read back.
+    pub backup_flow_not_checked: &'static str,
+    /// A stick's written copy was deleted or the stick wiped.
+    pub backup_flow_first_gone_toast: &'static str,
+    /// Done's result.
+    pub backup_flow_done: &'static str,
+    /// The key page's row.
+    pub backup_flow_row: &'static str,
+    /// The Backup row before any write.
+    pub backup_flow_row_none: &'static str,
+    /// The Backup row part way.
+    pub backup_flow_row_some: &'static str,
+    /// The Backup row when done.
+    pub backup_flow_row_all: &'static str,
+    /// Opens the flow on its step.
+    pub backup_flow_continue: &'static str,
+    /// Goes on from a card.
+    pub backup_flow_continue_make: &'static str,
+    /// A waiting action, until every place is written.
+    pub backup_flow_first: &'static str,
+    /// Home's lead.
+    pub backup_flow_home_lead: &'static str,
+    /// The Power sheet's line.
+    pub backup_flow_power: &'static str,
+    /// Tag of a file the flow will write, on the stick visit.
+    pub backup_flow_in_the_backup: &'static str,
+    /// The fewest places a key is planned at.
+    pub backup_flow_at_least: &'static str,
+    /// Under every card.
+    pub backup_flow_change_plan: &'static str,
+    /// Step 4 of the round for a vault added after the key.
+    pub backup_flow_copy_across: &'static str,
+    /// Button of that round.
+    pub backup_flow_copy_key: &'static str,
+    /// Makes a vault of the plan.
+    pub backup_flow_create_vault: &'static str,
+    /// Takes a written place off the plan.
+    pub backup_flow_destroyed: &'static str,
+    /// Memory this computer has free.
+    pub backup_flow_free: &'static str,
+    /// Lock card: what is kept.
+    pub backup_flow_kept: &'static str,
+    /// Lock card: what is wiped.
+    pub backup_flow_wiped: &'static str,
+    /// Summary of a done Lock card.
+    pub backup_flow_locked: &'static str,
+    /// Summary of the Lock card before the lock.
+    pub backup_flow_not_locked: &'static str,
+    /// Result of making the key.
+    pub backup_flow_made: &'static str,
+    /// Button that makes the key.
+    pub backup_flow_make_the_key: &'static str,
+    /// While the key is made.
+    pub backup_flow_making: &'static str,
+    /// Result row.
+    pub backup_flow_name: &'static str,
+    /// Summary of Make before the key.
+    pub backup_flow_not_made: &'static str,
+    /// Summary of Where.
+    pub backup_flow_places_vaults: &'static str,
+    /// Banner while a stick is in at step 3 or 4.
+    pub backup_flow_pull_to_unlock: &'static str,
+    /// While a stick is read.
+    pub backup_flow_reading: &'static str,
+    /// Summary of step 2.
+    pub backup_flow_read_of: &'static str,
+    /// Takes a place off the plan.
+    pub backup_flow_remove: &'static str,
+    /// A vault on a stick, seen open this session.
+    pub backup_flow_seen: &'static str,
+    /// A vault of the plan, open.
+    pub backup_flow_unlocked: &'static str,
+    /// Summary of step 3.
+    pub backup_flow_unlocked_of: &'static str,
+    /// Toast: the key is made into open vaults.
+    pub backup_flow_unlock_first: &'static str,
+    /// While a vault unlocks.
+    pub backup_flow_unlocking: &'static str,
+    /// Unlocks a vault of the plan.
+    pub backup_flow_unlock_vault: &'static str,
+    /// Summary of step 6.
+    pub backup_flow_written_of: &'static str,
+    /// Summary of a done step 3: how many vaults.
+    pub backup_flow_vaults_n: &'static str,
+    /// A vault of the plan, new: its name first.
+    pub backup_flow_vault_new: &'static str,
+    /// A vault of the plan that exists already: its name first.
+    pub backup_flow_vault_existing: &'static str,
+    /// Toast: a flow in the kept state was corrupt or of another version.
+    pub backup_flow_dropped: &'static str,
+    /// A stick whose room cannot be asked for: it cannot be read.
+    pub backup_flow_unreadable: &'static str,
+    /// Toast: a lock was refused because a waiting backup could not be kept.
+    pub toast_lock_not_kept: &'static str,
+    /// Button on Where: the place also keeps this vault's stick.
+    pub backup_flow_also: &'static str,
+    /// Button on Where: this place's stick carries the key's public files.
+    pub backup_flow_public_here: &'static str,
+    /// Toast: a key is not made with a stick in.
+    pub backup_flow_pull_to_unlock_toast: &'static str,
 }
 
 /// The English wording.
@@ -8648,13 +8836,11 @@ pub static EN: Strings = Strings {
     apk_over_4_gib: "Over 4 GiB on FAT32",
     apk_name_too_long: "Name too long",
     apk_no_name: "No name",
-    apk_signs_from_now: "The vault is on two sticks. The key signs now",
     apk_no_randomness: "No randomness from the system yet. Try again",
     apk_the_key_is_in: "The APK key is in the vault",
     apk_that_does_not_fit: "That does not fit in the vault",
     apk_name_the_certificate: "Name the certificate",
     apk_package_invalid: "Not a package name",
-    apk_choose_the_vault: "Choose the vault",
     apk_this_computer: "This computer's clock is not known",
     apk_no_key_is_selected: "No APK key is selected",
     apk_sha_256_of: "SHA-256 {}",
@@ -8670,19 +8856,12 @@ pub static EN: Strings = Strings {
     apk_make_the_key: "Make the key",
     apk_making_the_key: "Making the key",
     apk_public_hint: "Public: printed by anyone who checks the APK",
-    apk_vault: "Vault",
     apk_key_made: "APK key made",
     apk_name: "Name",
     apk_certificate_sha_256: "Certificate SHA-256",
     apk_key: "Key",
     apk_rsa_3072: "RSA 3072",
     apk_made: "Made",
-    apk_back_up_first: "Back up first",
-    apk_backup_line: "Signing waits until the vault is written to two sticks",
-    apk_backup_line_once: "Written to one stick. Signing waits for a second stick",
-    apk_same_stick: "This stick already has this vault",
-    apk_back_to_first: "The first stick no longer has the vault. Back up again",
-    apk_reading_stick: "Reading the stick. Try again",
     apk_done: "Done",
     apk_sign_an_apk: "Sign an APK",
     apk_copy_in_first: "Copy the APK in on {} visit first.",
@@ -12297,4 +12476,107 @@ pub static EN: Strings = Strings {
     companion_closed_no_lock: "Set a screen lock on this phone to keep wallet descriptions and BitLocker keys.",
     companion_delete_kept_store: "Delete the kept descriptions and keys",
     companion_not_description: "Not a wallet description",
+    backup_flow_heading: "Backup",
+    backup_flow_kind_apk: "APK signing key",
+    backup_flow_kind_gpg: "GPG key",
+    backup_flow_kind_sb: "Secure Boot keys",
+    backup_flow_leave: "Home",
+    backup_flow_vault_n: "Vault {}",
+    backup_flow_place_n: "Place {}",
+    backup_flow_card_where: "Where it will be kept",
+    backup_flow_card_sticks: "Bring in the {}",
+    backup_flow_card_vaults: "Vaults",
+    backup_flow_card_make: "Make the key",
+    backup_flow_card_lock: "Lock",
+    backup_flow_card_write: "Write the {}",
+    backup_flow_card_done: "Done",
+    backup_flow_add_place: "Add a place",
+    backup_flow_place_keeps: "A {} with",
+    backup_flow_new_vault: "A new vault",
+    backup_flow_existing_vault: "An existing vault",
+    backup_flow_stick_for: "the {} for {} ({})",
+    backup_flow_files_stick: "the {} of files",
+    backup_flow_public_stick: "the {} of public files",
+    backup_flow_lock_bring: "Lock and bring in the {}",
+    backup_flow_insert: "Insert {}",
+    backup_flow_use_read: "Use {}, read at {}",
+    backup_flow_one_at_a_time: "One {} at a time",
+    backup_flow_not_fat: "Not a FAT32 {}. Format it as FAT32, or use another {}",
+    backup_flow_boot_part: "This is a boot partition. Use another {}",
+    backup_flow_read_only: "Cannot be written. Use another {}",
+    backup_flow_no_room: "Not enough room: {} needed, {} free",
+    backup_flow_no_vault: "No vault for {} on this stick",
+    backup_flow_which_vault: "Which vault is {}?",
+    backup_flow_beside: "A new vault beside them",
+    backup_flow_two_copies: "{} has two copies of {}: {} and {}",
+    backup_flow_copies_differ: "{}'s copy of {} differs from {}'s",
+    backup_flow_use_copy_of: "Use {}'s copy",
+    backup_flow_this_is: "This is {}",
+    backup_flow_hold_this_is: "Hold: this is {}",
+    backup_flow_bound_to: "This is {}",
+    backup_flow_both: "One {} for both",
+    backup_flow_pull: "Pull the {}",
+    backup_flow_no_passphrase: "I do not have its passphrase",
+    backup_flow_beside_it: "A new vault beside it",
+    backup_flow_use_another: "Use another {}",
+    backup_flow_in_vault: "In {}",
+    backup_flow_lock_and_write: "Lock and write",
+    backup_flow_not_read: "Not the {} read for {}",
+    backup_flow_has_first: "This {} has the first copy",
+    backup_flow_hold_second: "Hold: this is a second {}",
+    backup_flow_hold_another: "Hold: this is another {}",
+    backup_flow_has_files_of: "This {} has {}'s files",
+    backup_flow_writing: "Writing {}",
+    backup_flow_written: "Written and checked on {}",
+    backup_flow_pulled: "Pulled before the copy was checked. Nothing counted",
+    backup_flow_not_checked: "The copy did not check on {}. Nothing counted",
+    backup_flow_first_gone_toast: "A written copy was deleted",
+    backup_flow_done: "Written",
+    backup_flow_row: "Backup",
+    backup_flow_row_none: "Not written",
+    backup_flow_row_some: "Written to {} of {} places",
+    backup_flow_row_all: "Written to every place",
+    backup_flow_continue: "Continue the backup",
+    backup_flow_continue_make: "Continue",
+    backup_flow_first: "Back up first",
+    backup_flow_home_lead: "Continue the backup of {}",
+    backup_flow_power: "Backup of {}: written to {} of {} places",
+    backup_flow_in_the_backup: "In the backup",
+    backup_flow_at_least: "At least {} places",
+    backup_flow_change_plan: "Change the plan",
+    backup_flow_copy_across: "The new vault takes the key from one that holds it",
+    backup_flow_copy_key: "Copy the key",
+    backup_flow_create_vault: "Create {}",
+    backup_flow_destroyed: "I destroyed this copy",
+    backup_flow_free: "{} free",
+    backup_flow_kept: "Kept",
+    backup_flow_wiped: "Wiped from memory",
+    backup_flow_locked: "Locked",
+    backup_flow_not_locked: "Not locked",
+    backup_flow_made: "{} made",
+    backup_flow_make_the_key: "Make the key",
+    backup_flow_making: "Making the key",
+    backup_flow_name: "Name",
+    backup_flow_not_made: "Not made",
+    backup_flow_places_vaults: "{} places · {} vaults",
+    backup_flow_pull_to_unlock: "Pull the {} to unlock",
+    backup_flow_reading: "Reading {}",
+    backup_flow_read_of: "{} of {} read",
+    backup_flow_remove: "Remove",
+    backup_flow_seen: "{} · seen {}",
+    backup_flow_unlocked: "Unlocked",
+    backup_flow_unlocked_of: "{} of {} unlocked",
+    backup_flow_unlock_first: "Unlock every vault first",
+    backup_flow_unlocking: "Unlocking",
+    backup_flow_unlock_vault: "Unlock {}",
+    backup_flow_written_of: "{} of {} written",
+    backup_flow_vaults_n: "{} vaults",
+    backup_flow_vault_new: "{} · new",
+    backup_flow_vault_existing: "{} · an existing vault",
+    backup_flow_dropped: "A kept backup did not read and was dropped",
+    backup_flow_unreadable: "This {} cannot be read. Use another {}",
+    toast_lock_not_kept: "A backup waits and could not be kept. Sealed, not restarted",
+    backup_flow_also: "Also {}",
+    backup_flow_public_here: "Public files here",
+    backup_flow_pull_to_unlock_toast: "Pull the stick first",
 };

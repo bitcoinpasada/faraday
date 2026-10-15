@@ -1262,8 +1262,10 @@ FAT volume serial, which sticks written from one image can share.
   before its write drops its vault where the vault was new; one removed
   after its write stays on the map until destroyed. The minimums hold.
 - F25's two sticks of different FAT serials are replaced by this flow.
-- Specified, not built: batch B1, after APK batch 1 and the GPG fix
-  batch are committed.
+- Built: batch B1a (everything but the Bitcoin wallet) for the APK key,
+  GPG keys and the Secure Boot keys, with the choices
+  `docs/BACKUP-FLOW.md` §16 records; batch B1b, the wallet's part, is
+  not built.
 
 ### F32 GPG follows GnuPG's behaviour (2026-10-14)
 

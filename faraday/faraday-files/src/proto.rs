@@ -93,6 +93,42 @@ pub struct Stick {
     pub serial: Option<u32>,
     /// Its top-level files and their sizes.
     pub files: Vec<(String, u64)>,
+    /// Why it cannot be used for a backup, when it cannot: found by the disk
+    /// process, which alone opens the partition.
+    pub problem: Option<Problem>,
+}
+
+/// Why a stick or card cannot be used (`docs/BACKUP-FLOW.md` §4.2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Problem {
+    /// No FAT filesystem Faraday reads: exFAT, NTFS, ext4, or none.
+    NotFat,
+    /// The device is read-only: a card's lock switch, a stick's.
+    ReadOnly,
+    /// Not handed out yet: this process cannot open it. It waits; nothing
+    /// is wrong with it that is known.
+    NotYet,
+}
+
+impl Problem {
+    fn code(p: Option<Problem>) -> u8 {
+        match p {
+            None => 0,
+            Some(Problem::NotFat) => 1,
+            Some(Problem::ReadOnly) => 2,
+            Some(Problem::NotYet) => 3,
+        }
+    }
+
+    fn of(code: u8) -> Result<Option<Problem>, Malformed> {
+        match code {
+            0 => Ok(None),
+            1 => Ok(Some(Problem::NotFat)),
+            2 => Ok(Some(Problem::ReadOnly)),
+            3 => Ok(Some(Problem::NotYet)),
+            _ => Err(Malformed),
+        }
+    }
 }
 
 /// What the disk process answers.
@@ -352,6 +388,7 @@ impl Response {
                         o.str(n);
                         o.0.extend_from_slice(&len.to_le_bytes());
                     }
+                    o.0.push(Problem::code(s.problem));
                 }
                 o
             }
@@ -419,12 +456,14 @@ impl Response {
                     for _ in 0..k {
                         files.push((i.str()?, i.u64()?));
                     }
+                    let problem = Problem::of(i.u8()?)?;
                     sticks.push(Stick {
                         id,
                         label,
                         boot,
                         serial,
                         files,
+                        problem,
                     });
                 }
                 Response::Sticks(sticks)
@@ -546,7 +585,26 @@ mod tests {
                 boot: false,
                 serial: Some(0xcafe_f00d),
                 files: vec![("a.psbt".into(), 1234), ("café.txt".into(), 0)],
+                problem: None,
             }]),
+            Response::Sticks(vec![
+                Stick {
+                    id: "sdc1@8".into(),
+                    label: "BIG".into(),
+                    boot: false,
+                    serial: None,
+                    files: Vec::new(),
+                    problem: Some(Problem::NotFat),
+                },
+                Stick {
+                    id: "sdd1@9".into(),
+                    label: "LOCKED".into(),
+                    boot: false,
+                    serial: Some(1),
+                    files: vec![("a.txt".into(), 1)],
+                    problem: Some(Problem::ReadOnly),
+                },
+            ]),
             Response::Bytes(vec![9; 100]),
             Response::Written("signed-2.psbt".into()),
             Response::Qr {

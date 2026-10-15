@@ -15,12 +15,10 @@ use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, Secur
 
 const NEW_PHRASE: &str = "test phrase";
 
-/// The Tools tiles that open a vault category, with the category.
-const VAULT_TILES: [(&str, usize); 3] = [
-    ("GPG key", 4),
-    ("Secure Boot keys", 5),
-    ("KeePass export", 2),
-];
+/// The Tools tiles that open a vault category, with the category. The GPG,
+/// Secure Boot and APK tiles are not among them: they start the backup
+/// flow, which decides where the key will be kept (F31).
+const VAULT_TILES: [(&str, usize); 1] = [("KeePass export", 2)];
 
 fn kit_file(name: &str) -> (String, Vec<u8>) {
     testkit::files()
@@ -202,21 +200,21 @@ fn a_vault_tile_with_a_stick_in_asks_for_the_stick_before_unlock() {
         files: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Catalog));
-    app.press(Action::Catalog(tile("GPG key")));
+    app.press(Action::Catalog(tile("KeePass export")));
     assert_eq!(app.sheet, Some(Sheet::Pull), "the Pull sheet asks first");
     assert_ne!(app.screen, Screen::Unlock);
     app.storage(StorageEvent::Sticks(Vec::new()));
     assert_eq!(app.screen, Screen::Unlock, "Unlock opens once it is out");
     unlock_with(&mut app, testkit::VAULT_PASSPHRASES[0]);
     assert_eq!(app.screen, Screen::VaultContents);
-    assert_eq!(app.vaults.category, 4);
+    assert_eq!(app.vaults.category, 2);
 }
 
 #[test]
 fn going_back_from_create_returns_to_tools_and_a_later_unlock_is_an_ordinary_one() {
     let mut app = device(Vec::new());
     app.press(Action::Nav(Screen::Catalog));
-    app.press(Action::Catalog(tile("GPG key")));
+    app.press(Action::Catalog(tile("KeePass export")));
     assert_eq!(app.screen, Screen::CreateVault);
     app.press(Action::Vault(V::Back));
     assert_eq!(app.screen, Screen::Catalog, "back returns to Tools");
@@ -238,8 +236,8 @@ fn going_back_from_create_returns_to_tools_and_a_later_unlock_is_an_ordinary_one
     app.press(Action::Vault(V::Open(0)));
     unlock_with(&mut app, NEW_PHRASE);
     assert!(
-        !(app.screen == Screen::VaultContents && app.vaults.category == 4),
-        "an unlock from Vaults does not open GPG"
+        !(app.screen == Screen::VaultContents && app.vaults.category == 2),
+        "an unlock from Vaults does not open the KeePass export"
     );
 }
 

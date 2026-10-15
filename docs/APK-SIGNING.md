@@ -3,8 +3,8 @@
 **Status:** spec v0.4 · 2026-10-14 · decided by the owner
 (`docs/DECISIONS.md` F25; §12 records the answers), revised after an
 adversarial review the same day. Batch 1 (§11) is built, with the changes
-the build made (§13); its wait for two copies is a placeholder until the
-shared backup flow, `docs/BACKUP-FLOW.md` (F31), specified, not built.
+the build made (§13); its wait for two copies is now the shared backup
+flow's, `docs/BACKUP-FLOW.md` (F31), built in batch B1a.
 Batch 2 is built as far as the key allows (§11); `docs/LARGE-FILES.md`
 (F26) is not built.
 
@@ -240,15 +240,8 @@ image's SHA-256.
   opens the stick visit. On the Pi the sticks are SD cards. A key in a
   vault unlocked from a stick signs at once. GPG and Secure Boot keys
   wait by the same rule: none of the three can be made again from seed
-  words. Built today (batch 1), until F31's batch: a key made this session
-  keeps its state across a lock (not written, written once, written
-  twice) and signs once twice; **Back up first** locks the vault and the
-  next stick visit, started by it, writes the vault, ticked; the second
-  write is refused, "This stick already has this vault", only when the
-  stick holds the first write's bytes (by SHA-256), and an older copy of
-  the vault is replaced and counts. A copy of a vault from Files is never
-  written over the same vault (same salt) unless this session unlocked
-  or wrote it. This follows the
+  words. Built (batch B1a): the wait is the flow's, so nothing counts but its
+  own writes; a write made on the stick visit does not. This follows the
   rule `docs/NEW-WALLET.md` §14.3 sets for a Bitcoin key made here, for
   the same reason, and asks for two copies because this key, once lost,
   cannot be replaced: a key whose only copy is in memory is gone at
@@ -778,6 +771,10 @@ not wait for them while the release APK stays under 18 MiB.
    another key.
 
 ## 13. What batch 1's build changed or chose
+
+Items 4 to 6 below describe batch 1's placeholder for the backup; batch B1a
+replaced it with the shared flow (`docs/BACKUP-FLOW.md` §16), which keeps the
+certificate and the signing as items 1 to 3 and 7 to 9 say.
 
 Where this document was wrong or silent, the build followed the closest
 existing pattern (`gpg.rs`, `secureboot.rs`) or `apksigner`:

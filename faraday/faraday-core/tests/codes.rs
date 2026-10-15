@@ -7,6 +7,8 @@
 //! use, as the file's own text. A secret, and a file shown from Files,
 //! offer no picture.
 
+mod common;
+
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::wallet::FileKind;
@@ -350,10 +352,11 @@ fn with_gpg_key() -> Faraday {
     // The clock checked, as on the stick before making a key.
     app.press(Action::OpenSetTime);
     app.press(Action::SetTimeKeep);
-    app.press(Action::Vault(V::Add));
-    app.press(Action::Vault(V::FocusField(0)));
-    type_text(&mut app, "Release");
-    app.press(Action::Vault(V::FormSave));
+    common::make_released(
+        &mut app,
+        faraday_core::backup_flow::Kind::Gpg,
+        &["Release", ""],
+    );
     app
 }
 
