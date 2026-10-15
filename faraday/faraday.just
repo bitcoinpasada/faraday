@@ -11,7 +11,8 @@ version := ""
 # The desktop app at out/linux/faraday, built in a Debian 11 container
 # (faraday/build/linux) against glibc 2.31, so one file runs on Ubuntu
 # 20.04 and later, Debian 11 and later, Fedora 32 and later and Arch
-# (docs/STARTER.md §1.2). The Wayland and X11 libraries are loaded from the
+# (docs/STARTER.md §1.2): a developer's build, not released (F30). The
+# Wayland and X11 libraries are loaded from the
 # desktop it runs on. The Starter is built the same way with
 # the arguments `out/linux out/build/run faraday-starter-shell faraday-starter`, against the payload a first
 # `just faraday-release-stage` left: FARADAY_STARTER_PAYLOAD=out/payload/VERSION/linux
@@ -66,9 +67,10 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop
 # into OUT/BIN.exe, with its icon, version and asInvoker manifest, and
 # checked: no library beside Windows' own, no local path in its strings.
 # Parameters are positional, in this order, as faraday-linux-bin's are;
-# the last two default to the Starter. FARADAY_STARTER_PAYLOAD=out/payload/VERSION/windows
-# builds that payload into the Starter (the stick and Pi images and the
-# Windows desktop app); without it the Starter offers only --image. what
+# the last two default to the Starter; the desktop app is a developer's
+# build, not released (F30). FARADAY_STARTER_PAYLOAD=out/payload/VERSION/windows
+# builds that payload into the Starter (the stick and Pi images); without
+# it the Starter offers only --image. what
 # `clippy` runs clippy for the Windows target on that package instead.
 #
 #   FARADAY_STARTER_PAYLOAD=out/payload/0.2.0/windows just faraday-windows-bin
@@ -368,12 +370,10 @@ faraday-pi-image: faraday-pi-bin
 # listing each file and each image inside its .xz, for the owner to
 # sign, and the Starter's payload and MANIFEST under out/payload/VERSION/
 # (STARTER §1.3); refuses files carrying a home folder, user name or host
-# name. The stick image must be the release build (release=1); the stick,
-# Pi and desktop builds (out/linux/faraday from faraday-linux-bin, and
-# out/windows/faraday.exe from `just faraday-windows-bin build out/windows
-# out/build/run faraday-desktop faraday`) must carry one build ID;
-# --any-build tries it on a test build. The payload has linux/ and
-# windows/, one for each Starter.
+# name. The stick image must be the release build (release=1); the stick
+# and Pi builds must carry one build ID; --any-build tries it on a test
+# build. No desktop app is staged (F30). The payload has linux/ and
+# windows/, one for each Starter, each holding the two images and MANIFEST.
 #
 #   just faraday-release-stage 0.2.0
 #   just faraday-release-stage 0.2.0 --any-build --out DIR

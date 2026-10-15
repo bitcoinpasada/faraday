@@ -14,9 +14,7 @@ use opensigner_core::strings::fill;
 use osk_ui::Color;
 use osk_ui::widgets::Icon;
 
-use crate::api::{
-    Concern, InUse, InstallItem, Kind, Mode, Os, PayloadKind, Reason, StickFault, WriteStage,
-};
+use crate::api::{Concern, InUse, InstallItem, Kind, Mode, Os, Reason, StickFault, WriteStage};
 use crate::decide::{Item, Refusal, State, Target};
 use crate::macs::{self, StickFor};
 use crate::template::Copy;
@@ -536,8 +534,6 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         }
         Reason::WrongSum(sum) => fill(S.starter_why_wrong_sum, &[sum]),
         Reason::NoHome => S.starter_why_no_home.to_string(),
-        Reason::NoDesktopApp => S.starter_why_no_desktop.to_string(),
-        Reason::CacheSum(sum) => fill(S.starter_why_cache_sum, &[sum]),
         Reason::File { path, detail } => fill(S.starter_why_file, &[path, detail]),
         Reason::InTheWay { path } => fill(S.starter_why_in_the_way, &[path]),
         Reason::Start { path, detail } => fill(S.starter_why_start, &[path, detail]),
@@ -825,21 +821,6 @@ fn home(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         "",
         Some(StarterAction::Templates),
     );
-    if starter.offers_desktop() {
-        let failed = starter.desktop_failed.as_ref().map(reason_text);
-        let sub = failed.as_deref().unwrap_or(S.starter_row_desktop_sub);
-        y += nav_row(
-            ui,
-            x,
-            y,
-            w,
-            Icon::Tools,
-            S.starter_row_desktop,
-            sub,
-            "",
-            Some(StarterAction::TryDesktop),
-        );
-    }
     let (install, action) = match &starter.installed {
         Some(_) if starter.update_offered() => (S.starter_row_update, StarterAction::Install),
         Some(_) => (S.starter_row_installed, StarterAction::Installed),
@@ -1697,29 +1678,6 @@ fn install(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             &[(S.starter_done, Style::Primary, StarterAction::Home)],
         );
     }
-    if starter.payload_file(PayloadKind::Desktop).is_some() {
-        let rows = [(
-            S.starter_install_desktop.to_string(),
-            starter.install_desktop,
-            !starter.installing,
-            StarterAction::InstallDesktop.host(),
-        )];
-        // The label is long: on a small panel, wrapped beside the box.
-        if starter.compact {
-            let action = rows[0].3;
-            let th = ui.wrap(x + 32.0, y + 2.0, w - 32.0, 14.0, W::R, TEXT, &rows[0].0);
-            ui.checkbox(
-                x + 2.0,
-                y + 2.0,
-                starter.install_desktop,
-                !starter.installing,
-            );
-            ui.hit(x, y - 6.0, w, th + 12.0, action);
-            y += th + 18.0;
-        } else {
-            y += ui.multi_list(x, y, w, &rows) + 16.0;
-        }
-    }
     if let Some(Err(why)) = &starter.install_result {
         y += line(ui, x, y, w, &reason_text(why), ERR);
     }
@@ -1734,9 +1692,7 @@ fn install(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 fn item_name(item: InstallItem) -> &'static str {
     match item {
         InstallItem::App => S.starter_installed_app,
-        InstallItem::Desktop => S.starter_installed_desktop,
         InstallItem::Menu => S.starter_installed_menu,
-        InstallItem::DesktopMenu => S.starter_installed_desktop_menu,
         InstallItem::Icon => S.starter_installed_icon,
         InstallItem::UninstallEntry => S.starter_installed_entry,
     }

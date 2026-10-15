@@ -18,7 +18,7 @@ lint:
     cargo clippy --workspace --all-targets -- -D warnings
     # Advisories, licences, duplicates and sources, against deny.toml.
     # `cargo install --locked cargo-deny` puts it on a machine (README,
-    # Build).
+    # "Faraday Desktop, for developers").
     cargo deny check
     cargo fmt --all --check
     tools/lint-secrets.sh

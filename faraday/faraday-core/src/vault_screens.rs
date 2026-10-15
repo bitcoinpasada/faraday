@@ -1629,6 +1629,20 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 if let Some((line, tone)) = strength {
                     cy += ui.wrap(x, cy, w, 12.0, W::R, tone, &line);
                 }
+                // The demo's public passphrase stands in for the rolled
+                // words, as New key's public seed does (`docs/DEMO.md` §5.2).
+                if !app.makes_secrets()
+                    && c.from_dice
+                        .get(i)
+                        .and_then(|d| d.as_ref())
+                        .is_some_and(|(made, _)| {
+                            made.as_str() == crate::demo::PASSPHRASE
+                                && vaults::Vaults::phrase_bits(c, i).is_some()
+                        })
+                {
+                    cy += 4.0;
+                    cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, FEN.vault_demo_uses_public);
+                }
                 cy += 12.0;
                 if let Some((di, rolls, list)) = app.vaults.dice.as_ref()
                     && *di == i

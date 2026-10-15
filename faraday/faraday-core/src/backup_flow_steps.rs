@@ -1816,7 +1816,9 @@ impl Faraday {
             let f = &self.backup_flows[i];
             (f.kind, f.made)
         };
-        if made || kind_.is_wallet() {
+        // In the demo no GPG, Secure Boot or APK key is made, however
+        // Make is reached (`docs/DEMO.md` §4).
+        if made || kind_.is_wallet() || !self.makes_secrets() {
             return;
         }
         let ready = self

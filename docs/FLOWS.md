@@ -136,6 +136,15 @@ to get it.
     leaving for another page, ends it: a secret held for it is dropped,
     wiped, as Cancel on the sheet does.
 
+    The one exception (F30, `docs/DEMO.md` §7.1): while
+    `Session::demo()` is true, an action listed in DEMO §4 is drawn
+    dimmed, with no reason, and does nothing. It is the only action in
+    Faraday dimmed for a condition the person cannot change on the
+    device. A Tools tile that leads to one of these screens is not
+    dimmed: "Make a vault first" and "Unlock a vault first" still lead
+    into the vault and back, and the screen reached shows its Make
+    action dimmed.
+
 11. **Home is the Start section, one lead and at most two secondaries**
     (owner, 2026-10-10; `docs/SIMPLIFY.md` §1 and §1.2). The three status
     cards (Session, Files, Sticks) are gone from Home: the sidebar's

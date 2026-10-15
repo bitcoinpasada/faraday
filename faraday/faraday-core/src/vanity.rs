@@ -158,7 +158,8 @@ impl Faraday {
         }
         let net = self.session.network();
         let now = self.now_ms;
-        let words = self.vanity_has_words();
+        // The demo searches no passphrase: what it finds is a new key.
+        let words = self.vanity_has_words() && self.makes_secrets();
         let Some(v) = self.vanity.as_mut() else {
             return;
         };
@@ -213,6 +214,9 @@ impl Faraday {
                 }
             }
             V::Start => {
+                if v.grind.dial == Dial::Passphrase && !words {
+                    return;
+                }
                 if v.grind.prefix.has_free(v.grind.script, net) {
                     v.grind.start(now);
                     v.running = true;

@@ -4856,6 +4856,11 @@ impl Faraday {
             }
             return;
         }
+        // In the demo an action that would make a secret does nothing:
+        // no sheet, no lead, no toast (`docs/DEMO.md` §2, §7).
+        if self.demo_refuses(action) {
+            return;
+        }
         // A stick's pill is the shell's, not the page's: it acts under
         // any sheet and waits for nothing.
         if let Action::StickPill(n) = action {
@@ -8580,6 +8585,10 @@ impl Faraday {
     /// computed share is loaded as a key so its words can be written down
     /// in the backup. Locking forgets all of them.
     fn create_deal(&mut self) {
+        // The dealt shares are new seeds: none in the demo.
+        if !self.makes_secrets() {
+            return;
+        }
         let secp = osk_bip::bitcoin::secp256k1::Secp256k1::new();
         let (m, n) = match self.create.as_ref() {
             Some(c) => (c.m, c.n),
@@ -11570,6 +11579,7 @@ impl Faraday {
                 ui.edit = self.edit_now();
                 ui.theme = self.theme;
                 ui.hovered = self.hovered;
+                ui.dimmed = self.demo_dimmed();
                 ui.stretch = stretch;
                 ui.bar = (bar > 0).then_some((bar, offset));
                 ui.stretch_in_sheet = matches!(

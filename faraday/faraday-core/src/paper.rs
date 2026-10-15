@@ -63,6 +63,10 @@ impl Faraday {
 
     /// Splits the key's words into `parts` Seed XOR parts.
     pub(crate) fn paper_xor(&mut self, parts: u8) {
+        // Fresh parts are a new secret: none in the demo.
+        if !self.makes_secrets() {
+            return;
+        }
         let Some((m, _, _)) = self.paper_key() else {
             return self.toast(EN.paper_this_key_has_no);
         };
@@ -109,6 +113,9 @@ impl Faraday {
 
     /// codex32 shares of the key's BIP-32 seed, `k` of `n`.
     pub(crate) fn paper_codex32(&mut self, k: u8, n: u8) {
+        if k >= 2 && !self.makes_secrets() {
+            return;
+        }
         let Some((m, passphrase, fp)) = self.paper_key() else {
             return self.toast(EN.paper_this_key_has);
         };

@@ -107,8 +107,6 @@ pub(crate) fn reason_fields(r: &Reason) -> (&'static str, Vec<String>) {
         Reason::Shorter { expected, actual } => ("Shorter", vec![n(*expected), n(*actual)]),
         Reason::WrongSum(d) => ("WrongSum", vec![s(d)]),
         Reason::NoHome => ("NoHome", vec![]),
-        Reason::NoDesktopApp => ("NoDesktopApp", vec![]),
-        Reason::CacheSum(d) => ("CacheSum", vec![s(d)]),
         Reason::File { path, detail } => ("File", vec![s(path), s(detail)]),
         Reason::InTheWay { path } => ("InTheWay", vec![s(path)]),
         Reason::Start { path, detail } => ("Start", vec![s(path), s(detail)]),
@@ -266,8 +264,6 @@ pub(crate) fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
         },
         "WrongSum" => Reason::WrongSum(f.s()?),
         "NoHome" => Reason::NoHome,
-        "NoDesktopApp" => Reason::NoDesktopApp,
-        "CacheSum" => Reason::CacheSum(f.s()?),
         "File" => Reason::File {
             path: f.s()?,
             detail: f.s()?,

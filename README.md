@@ -607,9 +607,9 @@ privileges); each says why in its crate documentation.
 ## Faraday Starter
 
 Faraday Starter makes a Faraday stick or a Raspberry Pi card, shows how to
-start a computer from the stick, moves files to and from the device by
-QR code, and opens Faraday Desktop for testing. It is one file for your
-operating system, from 0.1.2. On Linux:
+start a computer from the stick, and moves files to and from the device
+by QR code. It is one file for your operating system, from 0.1.2. On
+Linux:
 
 1. Download `Faraday-Starter-X.Y.Z-Linux.tar.gz` from the release and extract it:
    double-click it in the file manager, or `tar xf Faraday-Starter-X.Y.Z-Linux.tar.gz`.
@@ -631,87 +631,56 @@ download first, as [Verifying a release](#verifying-a-release) says.
 `%LOCALAPPDATA%\Programs\Faraday Starter`, with a Start menu entry);
 **Uninstall** removes exactly what that put there.
 
+**Transfer**, a row on its Home, makes the computer the device's QR
+link. **Send** lists `~/Downloads`, newest first; a file pressed is
+shown as animated codes for the device's Scan, a PSBT as itself, a
+wallet, key, message or share as text, and any other file up to 256 KiB
+in the Faraday file envelope. **Receive** reads the codes the device's
+Files shows through the webcam and saves each whole file into the same
+folder, under its own name or `received-N`, never over a file already
+there (`name (2).ext`).
+
+Faraday Desktop is no longer published; try Faraday on the website's
+demo. A desktop app an earlier Faraday Starter installed stays until
+removed by hand: `~/.local/bin/faraday-desktop` and
+`~/.local/share/applications/app.faradayoffline.FaradayDesktop.desktop`
+on Linux, `Faraday Desktop.exe` in `%LOCALAPPDATA%\Programs\Faraday Starter`
+and its Start menu shortcut on Windows.
+
 Without Faraday Starter, Raspberry Pi Imager and balenaEtcher take the
 `.img.xz` as it is; other tools need it decompressed (`xz -d` on Linux,
 7-Zip on Windows).
 
-## Build
+## Faraday Desktop, for developers
+
+Faraday Desktop runs Faraday in a window on an ordinary computer, for
+developing it. It is not released. It has none of the stick's
+protections and is never for a seed that holds funds. It runs as the
+demo on mainnet, which takes only the public seeds (each of `bacon`,
+`flag`, `gas`, `great`, `slice`, `solution`, `summer`, `they`, `trade`,
+`trap` and `zebra`, twenty-four times), shows every address with a
+broken checksum and makes no secret a person could keep
+(`docs/DEMO.md`); on a test network, after **Test network** and
+**I understand**, it takes any seed.
 
 Prerequisites: stable Rust (see `rust-toolchain.toml`), a C compiler
 (`secp256k1-sys` builds libsecp256k1 from source), and on Linux the X11
 or Wayland client libraries at runtime, including `libxkbcommon-x11`.
-
-The check, `just`, runs the tests with cargo-nextest and checks the
-dependency graph against `deny.toml` with cargo-deny; install both once
-with `cargo install --locked cargo-nextest cargo-deny`. The FAT tests
-also use `mkfs.fat`, `fsck.fat` and mtools (Debian: `dosfstools`,
-`mtools`), and skip with a note when they are missing.
+The check, `just`, needs cargo-nextest and cargo-deny (`cargo install
+--locked cargo-nextest cargo-deny`); the FAT tests use `mkfs.fat`,
+`fsck.fat` and mtools, and skip with a note when they are missing.
 
 ```
-# Quick dev build, for iterating: target/debug/faraday
-cargo build -p faraday-desktop
-
-# Release build: target/release/faraday
-cargo build -p faraday-desktop --release
-
-# A published release, with no local path compiled into it
-. faraday/image/path-remap.sh && cargo build -p faraday-desktop --release
-```
-
-## Run the desktop shell
-
-The desktop shell runs Faraday in a window on an ordinary computer, for
-trying the screens. It has none of the protections above. Use it with
-test seeds only. It starts on mainnet as the demo: there it takes only
-the public seeds (each of `bacon`, `flag`, `gas`, `great`, `slice`,
-`solution`, `summer`, `they`, `trade`, `trap` and `zebra`, twenty-four
-times) and shows every address with a broken checksum. Testnet, signet
-and regtest take any seed; moving to one, or loading a test wallet,
-first shows **Test network**, which stays until **I understand** is
-pressed.
-
-```
+cargo build -p faraday-desktop --release          # target/release/faraday
+just faraday-linux-bin                            # one Linux file, out/linux/faraday
+just faraday-windows-bin build out/windows out/build/run faraday-desktop faraday
 ./target/release/faraday [--sticks DIR] [--size WxH] [--full-kit] [--transfer] [--downloads DIR]
 ```
 
-Sticks are folders under `--sticks` (default `~/faraday-sticks`), each
-one a USB stick the app can see plugged in or pulled out:
-
-- `BOOTSTICK` is the stick Faraday booted from (a 2-of-3 Taproot
-  multisig's public backup files, an unsigned spend, and `vault.ofv`,
-  passphrase `a`, holding its three seeds, all testnet). It is plugged
-  in when the app opens and runs the boot import (above); its pill pulls it
-  out, which starts the import, or plugs it in again for a stick visit
-- `STICK-2`, `STICK-3` and on are backup sticks (the boot stick is
-  Stick 1), empty at first, each its own folder: what a flow writes to
-  one is still there once it is pulled and put back. `STICK-2` is made
-  at start, the others when their pill is first clicked
-
-The sticks are the pills pinned across the top of the window: Boot stick,
-Stick 2, and one for each stick a backup flow needs while it lasts. A
-click on a pill plugs its stick in or pulls it out; several may be in at
-once. Only the boot stick is in at start. The
-folders are made once, the first time the app starts; one renamed or
-removed later is not made again. With no `BOOTSTICK` folder the app
-starts with no stick in, as it did before 2026-10-11, so rename it (to
-`BOOTSTICK-off`, say) to skip the boot import and the pull at every
-start, and back to bring it back. Folders from before 2026-10-11,
-`TESTSTICK` and `BLANK`, are renamed to these at the first start. `--full-kit` carries the full test kit on the boot
-stick instead of just the backup test kit. Every session starts on
-testnet. A release build's `BOOTSTICK` starts empty, as the stick
-image's does; test releases and dev builds fill it with the test kit.
-
-**Transfer**, in the desktop app's sidebar only, makes the computer the
-device's QR link. **Send** lists `~/Downloads` (`--downloads DIR` for
-another folder), newest first; a file pressed is shown as animated codes
-for the device's Scan, a PSBT as itself, a wallet, key, message or share
-as text, and any other file up to 256 KiB in the Faraday file envelope.
-On X11 a file dropped on the window is sent too; native Wayland does not
-report drops to the app, so there the list is the way. **Receive** reads
-the codes the device's Files shows through the webcam and saves each
-whole file into the same folder, under its own name or `received-N`,
-never over a file already there (`name (2).ext`). Nothing received goes
-into the desktop app's Files. `--transfer` opens the app on Transfer.
+Sticks are folders under `--sticks` (default `~/faraday-sticks`):
+`BOOTSTICK` is the stick Faraday booted from, holding a test kit
+(`--full-kit` for the full one), and `STICK-2` and on are backup sticks.
+The pills across the top of the window plug each one in or pull it out.
 
 Build the test kit on its own with:
 
@@ -784,7 +753,7 @@ the commit's first twelve hex digits and the kind of build, test or dev
 date (`docs/DECISIONS.md` F5). The Pi image carries the same string in
 `faraday-build.txt` on its boot partition, since its kernel is
 compressed. No second builder has checked a Faraday image yet. The
-desktop app for Linux is built by `just faraday-linux-bin` in a pinned
+Starter for Linux is built by `just faraday-linux-bin` in a pinned
 Debian 11 container (`faraday/build/linux`), against glibc 2.31, with
 the same path rewriting, so one file runs on Ubuntu 20.04 and later,
 Debian 11 and later, Fedora 32 and later and Arch.

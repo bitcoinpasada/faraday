@@ -1064,6 +1064,11 @@ impl crate::Faraday {
             self.keygen_open(slot);
             return;
         }
+        // In the demo SLIP-39's sources and its deal do nothing
+        // (`docs/DEMO.md` §4), however the press arrives.
+        if self.demo_refuses(action) {
+            return;
+        }
         if action == A::KeyGenSlip39 {
             self.keygen_open(None);
             if let Some(k) = self.keygen.as_mut() {
@@ -1441,7 +1446,7 @@ impl crate::Faraday {
     /// a slot it fills the slot, and on a single-key Create it makes the
     /// wallet too (`docs/NEW-WALLET.md` §3.3).
     fn keygen_lock(&mut self) {
-        if !self.selftest_passed() {
+        if !self.selftest_passed() || self.demo_refuses(crate::Action::KLock) {
             return;
         }
         let Some(k) = self.keygen.as_mut() else {

@@ -1181,9 +1181,9 @@ on an online computer before being dropped or kept.
   installed by an earlier Starter is left in place, and the README says
   how to remove it; the desktop app on macOS (MAC batch D) is dropped
   from the plan, and developers can still build it.
-- Specified, not built. Until its batches (`docs/DEMO.md` §12), the
-  README, `docs/STARTER.md` and the demo's Learn page give today's
-  state.
+- Built (2026-10-15, before 0.1.3): `docs/DEMO.md` §12's batches DM1,
+  DM2 and DM3, with the README, `docs/STARTER.md` and the demo's Learn
+  page. DM4, the website's, is in its own repository.
 
 Numbering: F30 was the next free number on `main` on 2026-10-14. Work in
 another worktree may add a decision; whichever is committed second takes

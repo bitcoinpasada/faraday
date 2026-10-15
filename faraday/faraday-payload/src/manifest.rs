@@ -71,6 +71,9 @@ pub enum ManifestFault {
     Duplicate,
     /// The manifest names no files.
     NoFiles,
+    /// A file is the desktop app (`faraday-desktop-…`): a payload carries
+    /// the images only (`docs/DEMO.md` §9.2, F30).
+    DesktopApp,
 }
 
 impl fmt::Display for ManifestError {
@@ -86,6 +89,7 @@ impl fmt::Display for ManifestError {
             ManifestFault::BuildId => "bad build ID",
             ManifestFault::Duplicate => "file named twice",
             ManifestFault::NoFiles => "no files",
+            ManifestFault::DesktopApp => "the desktop app, which a payload does not carry",
         };
         write!(f, "MANIFEST line {}: {what}", self.line)
     }
@@ -188,6 +192,9 @@ impl PayloadFile {
         }
         if !name_ok(inner_name) {
             return Err(ManifestFault::Name);
+        }
+        if name.starts_with("faraday-desktop-") || inner_name.starts_with("faraday-desktop-") {
+            return Err(ManifestFault::DesktopApp);
         }
         let sha256 = Sha256Sum::from_hex(sha256).ok_or(ManifestFault::Sum)?;
         let inner_sha256 = Sha256Sum::from_hex(inner_sha256).ok_or(ManifestFault::Sum)?;

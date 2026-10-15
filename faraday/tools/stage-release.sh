@@ -2,7 +2,7 @@
 # Stages a Faraday release's plain files under out/release/VERSION/, named
 # as docs/STARTER.md §1.1 names them, with SHA256SUMS for the owner to sign.
 #
-#   faraday/tools/stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR]
+#   faraday/tools/stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR] [--builds DIR]
 #   faraday/tools/stage-release.sh VERSION [--starter FILE] [--starter-windows FILE] [--out DIR] [--payload DIR]
 #
 # A release is staged in two passes (STARTER §1.3). The first, the form
@@ -25,15 +25,11 @@
 # in the same pass or another: Faraday-Starter-VERSION-Windows.exe, as it
 # is, and its line in SHA256SUMS, after the same two checks.
 #
-# Takes what the builds left:
-#   out/linux/faraday                       -> faraday-desktop-VERSION-linux-x86_64
-#   out/windows/faraday.exe                 -> faraday-desktop-VERSION-windows-x86_64.exe
-#       (`just faraday-windows-bin build out/windows out/build/run
-#       faraday-desktop faraday`; refused unless it carries the build ID)
-#       (`just faraday-linux-bin`: the glibc 2.31 container build, STARTER §1.2;
-#       target/release/faraday needs the build machine's newer glibc)
+# Takes what the builds left (under out/, or the folder --builds names):
 #   out/stick/faraday-x86_64-uefi.img       -> faraday-stick-VERSION-x86_64-uefi.img.xz
 #   out/pi/faraday-pi3-waveshare-28dpi.img  -> faraday-pi-VERSION-pi3-waveshare-28dpi.img.xz
+# Faraday Desktop is not released (F30, docs/DEMO.md §9): no desktop app
+# is staged, listed in SHA256SUMS or put in a payload.
 #
 # Images are published as .xz only (F11). SHA256SUMS lists each file
 # published and, under its .img name, the image inside each .xz, so
@@ -43,20 +39,20 @@
 #
 # The stick image must carry VERSION as its build ID (a release build,
 # DECISIONS F5); --any-build skips that, for trying the script on a test
-# build. The three builds (stick, Pi, desktop app) must carry the same
-# build ID, --any-build or not (the Windows desktop app is checked for
-# that build ID as a string). Each is read from the file it describes:
-# the stick's and the Pi's from the kernel release string on their boot
-# partitions (the Pi's in faraday-build.txt, which its image build
-# writes: its kernel is compressed), the desktop app's from the build
-# string compiled into it. xz runs single-threaded at -9e, so the same
-# image always gives the same .xz.
+# build. The two builds (stick, Pi) must carry the same build ID,
+# --any-build or not. Each is read from the kernel release string on its
+# boot partition (the Pi's in faraday-build.txt, which its image build
+# writes: its kernel is compressed). xz runs single-threaded at -9e, so
+# the same image always gives the same .xz.
 #
 # Second, the payload the Starter embeds (STARTER §1.3), in out/payload/VERSION/
 # (with --out DIR, in DIR.payload; --payload DIR names it): one folder per
-# system, linux/ and windows/, each with hard links to the two image .xz,
-# that system's desktop app as .xz, and its own MANIFEST (the first line
-# is the same in both).
+# system, linux/ and windows/, each with hard links to the two image .xz
+# and its own MANIFEST (the first line is the same in both), and nothing
+# else. The two folders stay apart: each Starter embeds its own.
+#
+# Before it finishes, either pass refuses a release folder that holds a
+# file whose name starts faraday-desktop-, and names it.
 #
 # Last, the published-file check (STARTER §2): every file published, and every
 # .img, binary and inner file inside one, goes through `strings`. The
@@ -69,13 +65,14 @@ set -euo pipefail
 
 die() { printf 'stage-release: %s\n' "$1" >&2; exit 1; }
 
-[ $# -ge 1 ] || die "usage: stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR] | VERSION [--starter FILE] [--starter-windows FILE] [--out DIR] [--payload DIR]"
+[ $# -ge 1 ] || die "usage: stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR] [--builds DIR] | VERSION [--starter FILE] [--starter-windows FILE] [--out DIR] [--payload DIR]"
 version="$1"
 shift
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "VERSION must look like X.Y.Z, got '$version'"
 any=0
 out=""
 payload=""
+builds=""
 starter=""
 starter_win=""
 while [ $# -gt 0 ]; do
@@ -83,6 +80,7 @@ while [ $# -gt 0 ]; do
         --any-build) any=1; shift ;;
         --out) [ $# -ge 2 ] || die "--out needs a directory"; out="$2"; shift 2 ;;
         --payload) [ $# -ge 2 ] || die "--payload needs a directory"; payload="$2"; shift 2 ;;
+        --builds) [ $# -ge 2 ] || die "--builds needs a directory"; builds="$(realpath "$2")"; shift 2 ;;
         --starter) [ $# -ge 2 ] || die "--starter needs the Starter's file"; starter="$2"; shift 2 ;;
         --starter-windows) [ $# -ge 2 ] || die "--starter-windows needs the Starter's file"; starter_win="$2"; shift 2 ;;
         *) die "unknown argument $1" ;;
@@ -102,11 +100,10 @@ check="$(mktemp -d)"
 trap 'rm -rf "$check"' EXIT
 build=""
 if [ -z "$second" ]; then
-    desktop=out/linux/faraday
-    desktop_win=out/windows/faraday.exe
-    stick=out/stick/faraday-x86_64-uefi.img
-    pi=out/pi/faraday-pi3-waveshare-28dpi.img
-    for f in "$desktop" "$desktop_win" "$stick" "$pi"; do
+    builds="${builds:-out}"
+    stick="$builds/stick/faraday-x86_64-uefi.img"
+    pi="$builds/pi/faraday-pi3-waveshare-28dpi.img"
+    for f in "$stick" "$pi"; do
         [ -f "$f" ] || die "$f: not built"
     done
     for tool in xz strings mtype; do
@@ -128,40 +125,20 @@ if [ -z "$second" ]; then
         [ -n "$lba" ] && [ "$lba" -gt 0 ] || die "$1: no boot partition"
         mtype -i "$1@@$((lba * 512))" ::faraday-build.txt 2>/dev/null | build_id /dev/stdin
     }
-    # The desktop app's: the build string it answers `--version` with,
-    # "Faraday Desktop BUILD" (a release's is the version alone). Its
-    # strings cannot tell: every build carries the words "(local build)"
-    # in its strings table. A plain cargo build answers with the version
-    # too; faraday-linux-bin always sets a build ID, and the stick's and
-    # the Pi's, read from their kernels, must equal it.
-    desktop_build_id() {
-        local line
-        line="$("$1" --version 2>/dev/null | head -1 || true)"
-        case "$line" in
-            "Faraday Desktop "?*) printf '%s' "${line#Faraday Desktop }" ;;
-        esac
-    }
 
     stick_id="$(build_id "$stick")"
     pi_id="$(pi_build_id "$pi")"
-    desktop_id="$(desktop_build_id "$desktop")"
     [ -n "$stick_id" ] || die "$stick carries no Faraday build ID"
     [ -n "$pi_id" ] || die "$pi carries no Faraday build ID (faraday-build.txt on its boot partition)"
-    [ -n "$desktop_id" ] || die "$desktop does not answer --version as Faraday Desktop with a build ID"
     echo "$stick: $stick_id"
     echo "$pi: $pi_id"
-    echo "$desktop: $desktop_id"
-    if [ "$stick_id" != "$pi_id" ] || [ "$stick_id" != "$desktop_id" ]; then
-        die "the builds are not one build: stick $stick_id, Pi $pi_id, desktop app $desktop_id"
+    if [ "$stick_id" != "$pi_id" ]; then
+        die "the builds are not one build: stick $stick_id, Pi $pi_id"
     fi
     if [ "$any" = 0 ] && [ "$stick_id" != "$version" ]; then
         die "the builds are $stick_id, not the release $version (build them with release=1, or pass --any-build)"
     fi
     build="$stick_id"
-    # The Windows desktop app cannot be run here; it must carry the build
-    # ID as a string (a plain `grep -a`: the id is in its read-only data).
-    grep -aqF -- "$build" "$desktop_win" || die "$desktop_win does not carry the build ID $build (just faraday-windows-bin build out/windows out/build/run faraday-desktop faraday, in the same build)"
-    echo "$desktop_win: carries $build"
 
     [ ! -e "$out" ] || die "$out exists; move it aside first"
     [ ! -e "$payload" ] || die "$payload exists; move it aside first"
@@ -169,11 +146,7 @@ if [ -z "$second" ]; then
 
     stick_name="faraday-stick-$version-x86_64-uefi.img"
     pi_name="faraday-pi-$version-pi3-waveshare-28dpi.img"
-    desktop_name="faraday-desktop-$version-linux-x86_64"
-    desktop_win_name="faraday-desktop-$version-windows-x86_64.exe"
 
-    cp "$desktop" "$out/$desktop_name"
-    cp "$desktop_win" "$out/$desktop_win_name"
     for pair in "$stick:$stick_name" "$pi:$pi_name"; do
         src="${pair%%:*}"
         name="${pair#*:}"
@@ -185,7 +158,7 @@ if [ -z "$second" ]; then
     commit="$(git rev-parse HEAD)"
     {
         echo "# Faraday $version, commit $commit"
-        (cd "$out" && sha256sum "$desktop_name" "$desktop_win_name" "$stick_name.xz" "$pi_name.xz")
+        (cd "$out" && sha256sum "$stick_name.xz" "$pi_name.xz")
         printf '%s  %s\n' "$(sha256sum < "$stick" | cut -d' ' -f1)" "$stick_name"
         printf '%s  %s\n' "$(sha256sum < "$pi" | cut -d' ' -f1)" "$pi_name"
     } > "$out/SHA256SUMS"
@@ -200,24 +173,12 @@ if [ -z "$second" ]; then
     (cd "$check" && sha256sum -c --quiet --ignore-missing SHA256SUMS)
 
     # The payload the Starter embeds (STARTER §1.3), one folder per system:
-    # the images' .xz as hard links to the staged ones, that system's
-    # desktop app as .xz, and MANIFEST. One line per file, tab-separated:
-    # the payload file, its SHA-256, what is inside it, that file's
-    # SHA-256 and size, the build ID it carries. Both MANIFESTs start with
-    # the same line.
+    # the images' .xz as hard links to the staged ones, and MANIFEST. One
+    # line per file, tab-separated: the payload file, its SHA-256, what is
+    # inside it, that file's SHA-256 and size, the build ID it carries.
+    # Both MANIFESTs start with the same line.
     for system in linux windows; do
         dir="$payload/$system"
-        if [ "$system" = linux ]; then
-            app="$desktop"
-            app_name="$desktop_name"
-        else
-            app="$desktop_win"
-            app_name="$desktop_win_name"
-        fi
-        app_xz="$app_name.xz"
-        echo "Compressing $app_xz"
-        xz -9e -T1 -c "$app" > "$dir/$app_xz"
-        xz -t "$dir/$app_xz"
         ln "$out/$stick_name.xz" "$dir/$stick_name.xz"
         ln "$out/$pi_name.xz" "$dir/$pi_name.xz"
         manifest_line() { # payload file, inner name, inner file
@@ -228,10 +189,7 @@ if [ -z "$second" ]; then
             echo "# Faraday Starter payload $version, commit $commit"
             manifest_line "$stick_name.xz" "$stick_name" "$stick"
             manifest_line "$pi_name.xz" "$pi_name" "$pi"
-            manifest_line "$app_xz" "$app_name" "$app"
         } > "$dir/MANIFEST"
-        # The payload files decompress to what the manifest says.
-        xz -d -c "$dir/$app_xz" | cmp - "$app"
     done
 fi
 
@@ -356,6 +314,13 @@ scan_tar() {
     for g in "$check"/untar/*; do scan "$g" "$f: ${g#"$check"/untar/}" 0; done
     rm -rf "$check/untar"
 }
+# Faraday Desktop is not released (F30): a release folder holding a
+# desktop app is refused, whichever pass put it there, before the second
+# pass adds anything.
+for f in "$out"/faraday-desktop-* "$payload"/*/faraday-desktop-*; do
+    [ -e "$f" ] || continue
+    refuse "$f is a desktop app, which a release does not publish (F30); move it out of the release"
+done
 if [ -n "$second" ]; then
     [ -z "$starter" ] || add_starter
     [ -z "$starter_win" ] || add_starter_windows

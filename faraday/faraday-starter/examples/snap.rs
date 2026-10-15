@@ -51,14 +51,6 @@ fn payload() -> Payload {
                 "11d0e2a9",
                 "c07b5e33",
             ),
-            file(
-                "faraday-desktop-0.2.0-linux-x86_64.xz",
-                "faraday-desktop-0.2.0-linux-x86_64",
-                11_000_000,
-                "0.2.0",
-                "5aa1f00e",
-                "e2c94b10",
-            ),
         ],
     }
 }
@@ -502,7 +494,6 @@ fn run(s: &Snap) -> Result<(), String> {
     let mut h = s.starter();
     h.press(StarterAction::Install);
     s.shot(&mut h, "install")?;
-    h.press(StarterAction::InstallDesktop);
     h.press(StarterAction::InstallNow);
     s.shot(&mut h, "install-installing")?;
     h.starter_event(StarterEvent::InstallDone(Ok(
@@ -514,7 +505,6 @@ fn run(s: &Snap) -> Result<(), String> {
         version: "0.2.0".into(),
         items: vec![
             (InstallItem::App, "~/.local/bin/faraday-starter".into()),
-            (InstallItem::Desktop, "~/.local/bin/faraday-desktop".into()),
             (
                 InstallItem::Menu,
                 "~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop".into(),

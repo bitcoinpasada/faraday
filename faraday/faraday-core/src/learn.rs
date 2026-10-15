@@ -62,15 +62,30 @@ fn for_new(kind: NewKind) -> Vec<&'static LearnPage> {
 impl Faraday {
     /// The Learn pages that explain what is on screen. Where the demo is
     /// set up (F20), the screens where keys come in and the network is
-    /// chosen name its page first.
+    /// chosen name its page first, and so, while the demo is on (on
+    /// mainnet, where its actions are dimmed), does every screen with an
+    /// action the demo dims (`docs/DEMO.md` §4, §7).
     pub fn learn_pages(&self) -> Vec<&'static LearnPage> {
         let mut pages = self.screen_pages();
-        if self.session.has_demo()
+        let keys_in = self.session.has_demo()
             && matches!(
                 self.screen,
                 Screen::Home | Screen::Entry | Screen::KeyGen | Screen::Settings
-            )
-        {
+            );
+        let dims = self.session.demo()
+            && (matches!(
+                self.screen,
+                Screen::BackupFlow
+                    | Screen::VaultContents
+                    | Screen::Backup
+                    | Screen::Bip85
+                    | Screen::Create
+                    | Screen::Vanity
+                    | Screen::Lightning
+                    | Screen::Silent
+                    | Screen::CreateVault
+            ) || self.sheet == Some(crate::Sheet::Chart));
+        if keys_in || dims {
             pages.insert(0, demo_page());
         }
         pages

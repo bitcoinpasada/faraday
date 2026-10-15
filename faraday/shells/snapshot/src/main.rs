@@ -582,6 +582,34 @@ fn pills_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("pills-five-vaults")
 }
 
+/// The demo's dimmed actions (`docs/DEMO.md` §7): BIP-85's Value card
+/// and the Lightning node key, on a public seed.
+fn demo_tour(t: &mut Tour) -> Result<(), String> {
+    t.app.online = true;
+    t.app.session = faraday_core::wallet::Session::default();
+    t.app.session.set_demo();
+    t.press(Action::Entry(None));
+    type_text(t, &faraday_core::demo::words("bacon"));
+    t.press(Action::EntryAdd);
+    let fp = t
+        .app
+        .session
+        .keys
+        .first()
+        .ok_or("bacon was not loaded")?
+        .master
+        .fingerprint()
+        .0;
+    t.press(Action::Bip85);
+    t.press(Action::PKey(fp));
+    t.press(Action::PNext);
+    t.press(Action::PNext);
+    t.shot("demo-bip85-value")?;
+    t.press(Action::Lightning);
+    t.press(Action::LKey(fp));
+    t.shot("demo-lightning")
+}
+
 fn osk_tour(t: &mut Tour) -> Result<(), String> {
     t.app.devices = laptop();
     t.app.usb_devices(&[receiver(false)]);
@@ -658,6 +686,7 @@ fn run(
         Some("power") => return power_tour(&mut t),
         Some("pills") => return pills_tour(&mut t),
         Some("walletflow") => return wallet_flow_tour(&mut t),
+        Some("demo") => return demo_tour(&mut t),
         _ => {}
     }
     if medium == Medium::Stick {
@@ -5121,7 +5150,7 @@ fn main() -> ExitCode {
     };
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|walletflow]"
+            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|walletflow|demo]"
         );
         return ExitCode::from(2);
     }
@@ -5181,11 +5210,12 @@ fn main() -> ExitCode {
             "power",
             "pills",
             "walletflow",
+            "demo",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills or walletflow"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow or demo"
         );
         return ExitCode::from(2);
     }

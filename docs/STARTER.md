@@ -13,14 +13,15 @@ asking for a BitLocker recovery key nobody wrote down. The Starter is
 one file a person downloads for their operating system and opens. It
 makes a Faraday stick or Pi card, shows how to start this computer from
 the stick and puts it back as it was, moves files to and from the device
-by QR code, opens the desktop app for testing, and installs itself if
-the person wants it in the Start menu or app menu.
+by QR code, and installs itself if the person wants it in the Start
+menu or app menu.
 
 People see the app as **Faraday Starter** (owner, 2026-10-12, DECISIONS
 F16), and the code's crates use `starter` as well (DECISIONS F16,
 2026-10-14). `docs/DESIGN.md` §5 has a reusable screen called Hub (a
 Navigate screen); the two are unrelated. The desktop app is **Faraday
-Desktop**; the stick is Faraday.
+Desktop**, a developer's build that is not released (F30,
+`docs/DEMO.md`); the stick is Faraday.
 
 ## 0. Rules for the implementing agent
 
@@ -63,18 +64,16 @@ downloads".
 |---|---|
 | `Faraday-Starter-X.Y.Z-Windows.exe` | the Starter for Windows (x86_64) |
 | `Faraday-Starter-X.Y.Z-Linux.tar.gz` | the Starter for Linux (x86_64): one file inside, `Faraday-Starter-X.Y.Z-Linux`, with its executable bit (§1.2) |
-| `faraday-desktop-X.Y.Z-linux-x86_64` | the desktop app alone (today's `faraday-X.Y.Z-linux-x86_64`, renamed) |
-| `faraday-desktop-X.Y.Z-windows-x86_64.exe` | the desktop app for Windows (§2) |
 | `faraday-stick-X.Y.Z-x86_64-uefi.img.xz` | the stick image |
 | `faraday-pi-X.Y.Z-pi3-waveshare-28dpi.img.xz` | the Pi image: the board family, then the one panel it is built for (§9); the panel part goes when §9.3's profiles arrive |
 | `Faraday-Starter-X.Y.Z-macOS.zip` | the Starter for macOS, one universal file (x86_64 and arm64), `Faraday Starter.app`, ad-hoc signed (`docs/MAC.md` §6; built on a Mac, MAC batch A3c) |
-| `faraday-desktop-X.Y.Z-macos.zip` | the desktop app for macOS (MAC §5, batch D) |
 | `faraday-stick-X.Y.Z-arm64-apple.img.xz` | the stick image for Macs with M1 or M2 (MAC §4.1, batch A1) |
 | `faraday-mac-boot-X.Y.Z.bin` | the Apple Silicon start-up file that starts any Faraday stick (MAC §4.4, batch A2) |
 
-The macOS rows arrive with their batches. Every Starter carries the
+No `faraday-desktop-` file is published (F30, `docs/DEMO.md` §9). The
+macOS rows arrive with their batches. Every Starter carries the
 Apple Silicon image and the start-up file template in its payload once
-they exist; the macOS Starter carries the macOS desktop app.
+they exist.
 
 `SHA256SUMS` lists the `.tar.gz` and the file inside it, under the
 inner name, so a person can check either.
@@ -105,15 +104,16 @@ inner name, so a person can check either.
 
 The 0.1.1 desktop app needs glibc 2.43 (checked 2026-10-12: `objdump
 -T` on the release binary shows `GLIBC_2.43`), which
-Ubuntu 24.04 (2.39) and Debian 12 (2.36) do not have. The Starter and
-the desktop app for release are built in a pinned container against
+Ubuntu 24.04 (2.39) and Debian 12 (2.36) do not have. The Starter is
+built in a pinned container against
 glibc 2.31 (Debian 11), so one x86_64 file runs on Ubuntu 20.04 and
 later, Debian 11 and later, Fedora 32 and later, and Arch. This is the
 `just faraday-linux-bin` the README said was not set up (built in batch R:
 `faraday/build/linux/`; Debian 11 has reached end of life, so the
 container takes its packages from `archive.debian.org`). Every other
 library the apps use at run time (X11 or Wayland, xkbcommon) is loaded
-from the desktop the app runs on, as today.
+from the desktop the app runs on, as today. The desktop app keeps the
+same recipe for a developer's build, unpublished (F30).
 
 No `.deb`, `.rpm`, Flatpak, Snap or AppImage. The Linux Starter is
 published inside a `.tar.gz` (owner, D14): a browser drops the
@@ -133,10 +133,10 @@ and is the same bytes the release publishes beside it.
 
 | Starter | Carries |
 |---|---|
-| Linux | stick image, Pi image, desktop app (as `.xz`) |
-| Windows | stick image, Pi image, the Windows desktop app (as `.xz`) |
+| Linux | stick image, Pi image |
+| Windows | stick image, Pi image |
 
-Before a payload file is written to a disk or extracted to run, the Starter
+Before a payload file is written to a disk, the Starter
 app checks it against its manifest and refuses one that does not match.
 It does not hash the whole payload at start: a start is instant, and
 the check matters at the moment the bytes are used. That catches
@@ -156,17 +156,10 @@ A release is staged in two passes. The first, `just
 faraday-release-stage`, stages the plain files and also writes the
 payload to `out/payload/VERSION/`, outside the folder that is
 uploaded, one folder per system, `linux/` and `windows/`. Each holds
-the two image `.xz` files (hard links to the staged ones), that
-system's desktop app compressed by the same `xz -9e -T1`
-(`faraday-desktop-VERSION-linux-x86_64.xz` in `linux/`,
-`faraday-desktop-VERSION-windows-x86_64.exe.xz` in `windows/`), and its
-own `MANIFEST`; the two manifests have the same first line. The Windows
-desktop app is taken from `out/windows/faraday.exe` beside
-`out/linux/faraday`, and staging refuses it when it does not carry the
-build ID as a string. It is published as
-`faraday-desktop-VERSION-windows-x86_64.exe` with its line in
-`SHA256SUMS`, and scanned for the build computer's paths as every
-published file is. `MANIFEST` is plain text: a
+the two image `.xz` files (hard links to the staged ones) and its own
+`MANIFEST`, nothing else; the two manifests have the same first line.
+The two folders stay apart, since each Starter embeds its own and they
+may differ later. `MANIFEST` is plain text: a
 first line `# Faraday Starter payload VERSION, commit <full hash>`, then
 one line per file, its fields separated by one tab: the payload file's
 name, its SHA-256, the name of what is inside it, that file's SHA-256,
@@ -174,11 +167,9 @@ that file's size in bytes, and the build ID it carries. The Starter's
 build embeds a system's folder, named by `FARADAY_STARTER_PAYLOAD`
 (`out/payload/VERSION/linux` for the Linux Starter,
 `out/payload/VERSION/windows` for the Windows one); a Starter built
-without it carries no payload and offers only `--image`. A Starter
-offers only the desktop app for its own system: a `faraday-desktop-`
-file counts only when its name ends `-linux-x86_64.xz` on Linux or
-`-windows-x86_64.exe.xz` on Windows, so a Starter built against another
-payload never offers another system's app. The second
+without it carries no payload and offers only `--image`. A manifest
+that names a `faraday-desktop-` file is refused, so no Starter is built
+with one (F30). The second
 pass (batch L) builds the Starters against the payload and adds them,
 the `.tar.gz` and its inner file to the release folder and its
 `SHA256SUMS`. The manifest's parser and the verifying, streaming
@@ -193,10 +184,8 @@ release string and a newline (`6.6.84-faraday-0.2.0`), so
 reads a stick's, and the staging script and the Starter read the Pi's
 build ID the same way.
 
-Estimated size: about 40 MB on each system (11 + 12 MB images, 4 MB
-desktop app, the Starter itself about 13 MB); the Windows desktop app is
-a 10 MB `.exe`, about 4 MB as `.xz`, so the Windows Starter is about 40
-MB too.
+Estimated size: about 36 MB on each system (11 + 12 MB images, the
+Starter itself about 13 MB).
 
 ## 2. How it is built
 
@@ -267,10 +256,8 @@ MB too.
   (the default arguments build the Starter). The computer's free memory
   is read only on Linux; elsewhere the vault offers its largest unlock
   memory and checks none against this computer. The camera module the
-  desktop app shares with the Starter is §8's. The Windows Starter
-  carries the Windows desktop app, Try the desktop app and the install
-  check box appear on Windows, and the release has
-  `faraday-desktop-X.Y.Z-windows-x86_64.exe` (§1.1).
+  desktop app shares with the Starter is §8's. This is a developer's
+  build: no release publishes it (F30).
 - **On macOS** (`docs/MAC.md` §6, F13): a `macos` module beside
   `linux` and `windows`. Disks from `diskutil list -plist` and
   `diskutil info -plist` (whole, physical, on USB or the built-in SD
@@ -412,9 +399,6 @@ the checklist writes to the computer except what its items do.
 
 - **Make a Pi card** → §3.3
 - **Transfer** → the desktop app's Transfer (§2)
-- **Try the desktop app** → opens it (§5.3). Its row says "Test seeds
-  only". On Windows too, when the Starter carries the Windows desktop
-  app (§2).
 - **Install** or **Installed** → §3.5
 - **Blank templates** → §3.8
 - **About** → §3.7
@@ -630,9 +614,8 @@ product not yet confirmed (§6.4) still closes the restart button.
 
 ### 3.5 Install and uninstall
 
-**Install** (Choose): one check box, *Also install the desktop app,
-for testing with test seeds only*, unchecked (on Linux and on Windows,
-§2, §5.2); then **Install**. Done shows where it went. When the running copy
+**Install** has no check box: **Install now** is one press, then Done,
+which shows where it went (F30). When the running copy
 is newer than the installed one, the row reads **Update the installed
 Faraday**.
 
@@ -768,7 +751,7 @@ stick from another stick without an online computer.
 
 Opening the downloaded file runs the Starter. It writes nothing to the
 computer except what the person asks for (a stick, a card, a received
-file, the desktop app's cache under §5.3). Home's checklist
+file). Home's checklist
 (§3.1) reads its state live; there is no settings or state file.
 
 ### 5.2 Installing
@@ -778,50 +761,41 @@ Per user, never needing administrator rights.
 | | Linux | Windows |
 |---|---|---|
 | The Starter | `~/.local/bin/faraday-starter` (the XDG place for a user's executables, and on PATH on most desktops) | `%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Starter.exe` |
-| The desktop app, if ticked | `~/.local/bin/faraday-desktop` | `%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Desktop.exe`, beside the Starter |
-| Menu | `~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop` "Faraday Starter", and `…FaradayDesktop.desktop` "Faraday Desktop" (its description: test seeds only) | Start menu shortcuts `Faraday Starter` and, with the desktop app, `Faraday Desktop` |
+| Menu | `~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop` "Faraday Starter" | Start menu shortcut `Faraday Starter` |
 | Icon | `~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.FaradayStarter.png` | in the `.exe` |
 | Uninstall entry | — | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday Starter`: name "Faraday Starter", version, publisher "Faraday", icon, size, `UninstallString` = `"…\Faraday Starter.exe" --uninstall` |
 
 On macOS: the Starter at `~/Applications/Faraday Starter.app`, a copy
-of the running bundle made with `ditto` (which keeps its signature),
-and with the desktop app (from MAC batch D)
-`~/Applications/Faraday Desktop.app`; per user, no administrator. The
+of the running bundle made with `ditto` (which keeps its signature);
+per user, no administrator. The
 bundle is the menu entry and carries the icon. A bundle of that name
 whose identifier is not `app.faradayoffline.FaradayStarter` is in the
-way, as on Linux. The cache (§5.3) is `~/Library/Caches/faraday/X.Y.Z/`.
-Uninstall removes exactly those.
+way, as on Linux. Uninstall removes exactly that.
 
 The menu file names are reverse-DNS, so they never collide with a
-developer's own `faraday.desktop`. The two executables' names are plain, so
-install replaces, and uninstall removes, `faraday` and
-`faraday-desktop` only when the file there answers `--version` as a
-Faraday Starter or desktop app (orchestrator, 2026-10-12); a file of
-the same name that does not is left alone, and Install says it is in
-the way.
+developer's own `faraday.desktop`. The executable's name is plain, so
+install replaces, and uninstall removes, `faraday-starter` (and the
+earlier names) only when the file there answers `--version` as a
+Faraday Starter (orchestrator, 2026-10-12); a file of the same name
+that does not is left alone, and Install says it is in the way.
+
+The Starter no longer installs, lists or removes the desktop app
+(F30). A desktop app an earlier Starter installed
+(`~/.local/bin/faraday-desktop` and its menu entry on Linux,
+`Faraday Desktop.exe` beside the Starter and its Start menu shortcut on
+Windows) is left in place by install, update and uninstall; the README
+says how to remove it by hand. A developer's own build there is not
+the Starter's.
 
 ### 5.3 The desktop app from the Starter
 
-Try the desktop app runs the installed desktop app if there is one;
-otherwise the Starter decompresses it from its payload into
-`$XDG_CACHE_HOME/faraday/X.Y.Z/` (default `~/.cache/faraday/X.Y.Z/`;
-on Windows `%LOCALAPPDATA%\faraday\cache\X.Y.Z\Faraday Desktop.exe`),
-checks its SHA-256 against the manifest, and runs it. Every start
-checks the cached copy again and writes it again when the sum is not
-the manifest's. On Windows the installed copy is the decompressed
-payload file, checked against its manifest line, written beside its
-place and renamed in; the Start menu shortcut `Faraday Desktop` is
-beside the Starter's, and Installed lists the desktop app and its
-shortcut when they are there. The app is started on its own, so
-closing the Starter does not end it; a start that fails within 0.4
-seconds is reported. The desktop app opens on its own; it is
-the same program as the plain release file, and can also be opened
-without the Starter.
+Gone with F30: the Starter no longer runs the desktop app or keeps a
+cache of it.
 
 ### 5.4 Uninstalling
 
-Removes exactly the files and entries §5.2 lists for this computer, and
-the §5.3 cache. It never touches anything the person made: received
+Removes exactly the files and entries §5.2 lists for this computer.
+It never touches anything the person made: received
 files, the desktop app's `~/faraday-sticks` and settings. On Windows
 the running copy cannot delete itself; the uninstaller finishes by
 starting a short command that removes the folder once the Starter has
@@ -1414,12 +1388,12 @@ this Mac* takes back.
 | G | Guides: the general Windows and Linux pages and §7.2's other pages with their sources; detection on Linux; Restart into the BIOS on Linux; the stick's power-off reminder (§7.5); the first group of maker pages, several families at once (D6, F14); the website item in its own repository | decided | after R, independent of L and W |
 | W | The Starter on Windows: window, install and uninstall, disks and writing, detection, the firmware buttons, Transfer Send; Defender run; the report on what Windows does to a written stick (D11). Its BitLocker guard, marker, logon reminder and acceptance were built and are removed by F33a | decided; D11 is answered by this batch's report | after L; needs G's general Windows page only |
 | F33a–F33d | No BitLocker step: removal in the Starter, the stick's power-off line, the guides' last step (§6.5) | decided | any time |
-| C | Windows camera for Transfer Receive, shared with the desktop app; the desktop app on Windows (§2's changes) and its install | built (HANDOFF item 76): C1, the desktop app on Windows with its install, its Try and a payload folder per system; C2, the camera on Media Foundation. To be tried on Windows | after W |
+| C | Windows camera for Transfer Receive, shared with the desktop app; the desktop app on Windows (§2's changes) and its install | built (HANDOFF item 76): C1, the desktop app on Windows with its install, its Try and a payload folder per system; C2, the camera on Media Foundation. To be tried on Windows. C1's install, Try and payload desktop app superseded by F30 (`docs/DEMO.md` DM2): the desktop app on Windows stays as a developer's build | after W |
 | P | Pi: one image for the 2.8 inch panel, Make a Pi card tried on hardware; profiles, boards and other sizes when a second screen is tried | decided (D1, D2, D3, D5) | after L, independent of G, W and C |
 | S | Keeping Secure Boot on (§7.7) | D9 | last |
 | T | Blank templates (§3.8): the row, the screen, the PDF saved into Downloads, from `faraday-core`'s existing sheet and PDF code | decided (F31) | after L; before the backup flow's batch B1 (`docs/BACKUP-FLOW.md` §14), whose Templates item points here |
 | MAC A3a, A3b | The Starter's macOS module, and Home on a Mac, without a Mac (`docs/MAC.md` §8, HANDOFF item 73) | decided | after L (owner, 2026-10-13) |
-| MAC A3c, D | The Starter built and tried on a Mac; the desktop app on macOS | a Mac (MAC M7) | after A3b |
+| MAC A3c, D | The Starter built and tried on a Mac; the desktop app on macOS (batch D superseded by F30: dropped from the plan) | a Mac (MAC M7) | after A3b |
 
 Tests, by batch, state what a person sees or can do: the disks offered,
 refused and their order (recorded udisks2 answers on Linux, as a
@@ -1492,7 +1466,9 @@ what moved.
   the Windows Starter and offered by its Install (§2, §3.5). Built in
   C1: the payload has a folder per system, each Starter offers only its
   own system's desktop app, and Windows install, Try and uninstall
-  mirror Linux's (§5.2, §5.3).
+  mirror Linux's (§5.2, §5.3). Its Starter parts are superseded by F30
+  (2026-10-14): the Starter carries, installs and runs no desktop app,
+  and the desktop app on Windows is a developer's build.
 - **D21 `tools/flash-stick`:** removed once the Starter writes a
   developer's own image (`--image`, §1.1), in batch L.
 
@@ -1576,3 +1552,10 @@ picked up the Mac work with the Starter:
 - §10.2: ad-hoc signed, not notarized; *Open Anyway*. §10.3: the
   Apple Silicon start-up volume.
 - §11: MAC batches A3a, A3b, A3c and D.
+
+Changed on 2026-10-15 by F30 (`docs/DEMO.md` §10, batch DM2): no
+`faraday-desktop-` file in §1.1; the payload is the two images on each
+system (§1.3), about 36 MB; Home has no Try the desktop app (§3.1);
+Install is one press (§3.5); the Starter installs, lists, runs and
+removes no desktop app and keeps no cache (§5.2 to §5.4); C1's Starter
+parts and MAC batch D are superseded (§11, §12).

@@ -173,10 +173,10 @@ impl Shell {
                     }
                 });
             }
-            StarterCommand::Install { desktop } => {
-                let (system, tx, payload) = self.threaded();
+            StarterCommand::Install => {
+                let (system, tx) = self.threaded();
                 std::thread::spawn(move || {
-                    let done = system.install(desktop, payload.as_ref());
+                    let done = system.install();
                     let ok = done.is_ok();
                     let _ = tx.send(StarterEvent::InstallDone(done));
                     if ok {
@@ -185,7 +185,7 @@ impl Shell {
                 });
             }
             StarterCommand::Uninstall => {
-                let (system, tx, _) = self.threaded();
+                let (system, tx) = self.threaded();
                 std::thread::spawn(move || {
                     let done = system.uninstall();
                     // The firmware's entry goes too; declined, the
@@ -200,19 +200,11 @@ impl Shell {
                     let _ = tx.send(StarterEvent::BootEntry(system.boot_entry()));
                 });
             }
-            StarterCommand::RunDesktop => {
-                let (system, tx, payload) = self.threaded();
-                std::thread::spawn(move || {
-                    let _ = tx.send(StarterEvent::DesktopStarted(
-                        system.run_desktop(payload.as_ref()),
-                    ));
-                });
-            }
             StarterCommand::CheckAgain => {
                 let _ = self.check.send(());
             }
             StarterCommand::RemoveBootEntry => {
-                let (system, tx, _) = self.threaded();
+                let (system, tx) = self.threaded();
                 std::thread::spawn(move || {
                     let _ = tx.send(StarterEvent::BootEntryRemoved(system.remove_stick_entry()));
                     let _ = tx.send(StarterEvent::BootEntry(system.boot_entry()));
@@ -241,12 +233,8 @@ impl Shell {
 
     /// What a thread of its own needs to answer the system's slow
     /// commands.
-    fn threaded(&self) -> (Arc<dyn Platform>, Sender<StarterEvent>, Option<Payload>) {
-        (
-            Arc::clone(&self.system),
-            self.tx.clone(),
-            self.payload.clone(),
-        )
+    fn threaded(&self) -> (Arc<dyn Platform>, Sender<StarterEvent>) {
+        (Arc::clone(&self.system), self.tx.clone())
     }
 
     /// Starts a confirmed write, from the payload or the developer's

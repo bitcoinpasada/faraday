@@ -138,6 +138,10 @@ impl Faraday {
     /// The value the flow derives, as text: the child words, the WIF, the
     /// xprv, the hex or the password.
     pub fn bip85_value(&self) -> Option<Zeroizing<String>> {
+        // The demo derives no BIP-85 output (`docs/DEMO.md` §4).
+        if !self.makes_secrets() {
+            return None;
+        }
         let b = self.bip85.as_ref()?;
         let master = &self
             .session

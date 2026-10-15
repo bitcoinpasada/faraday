@@ -429,10 +429,12 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                         open(Target::CopyTo(What::SeedQr(s))),
                     ));
                     if let Some(a) = item(Item::Copy(s)) {
+                        // Seed XOR's parts are fresh randomness: dimmed
+                        // in the demo (`docs/DEMO.md` §4).
                         make.push(row(
                             EN.glance_sheet_seed_xor,
                             EN.glance_sheet_by_hand,
-                            Some(a),
+                            app.makes_secrets().then_some(a),
                         ));
                     }
                     let sealed = if key.passphrase {

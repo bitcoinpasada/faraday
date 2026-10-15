@@ -127,10 +127,6 @@ pub struct Strings {
     pub starter_row_pi: &'static str,
     /// Home row.
     pub starter_row_transfer: &'static str,
-    /// Home row.
-    pub starter_row_desktop: &'static str,
-    /// Its second line.
-    pub starter_row_desktop_sub: &'static str,
     /// Home row and page.
     pub starter_row_install: &'static str,
     /// Home row and page.
@@ -329,8 +325,6 @@ pub struct Strings {
     pub starter_afterwards_windows: &'static str,
     /// Label above the guide's code.
     pub starter_on_a_phone: &'static str,
-    /// Install's check box.
-    pub starter_install_desktop: &'static str,
     /// Button.
     pub starter_install_now: &'static str,
     /// Button while installing.
@@ -344,11 +338,7 @@ pub struct Strings {
     /// Installed row.
     pub starter_installed_app: &'static str,
     /// Installed row.
-    pub starter_installed_desktop: &'static str,
-    /// Installed row.
     pub starter_installed_menu: &'static str,
-    /// Installed row.
-    pub starter_installed_desktop_menu: &'static str,
     /// Installed row.
     pub starter_installed_icon: &'static str,
     /// Installed row.
@@ -433,10 +423,6 @@ pub struct Strings {
     pub starter_why_wrong_sum: &'static str,
     /// Reason.
     pub starter_why_no_home: &'static str,
-    /// Reason.
-    pub starter_why_no_desktop: &'static str,
-    /// Reason. `{}` sum.
-    pub starter_why_cache_sum: &'static str,
     /// Reason. `{}` path, `{}` the system's words.
     pub starter_why_file: &'static str,
     /// Reason. `{}` path of a file that is another program's.
@@ -459,10 +445,6 @@ pub struct Strings {
     pub starter_menu_name: &'static str,
     /// The publisher in the Starter's installed-apps entry and the `.exe`'s properties.
     pub starter_publisher: &'static str,
-    /// The desktop app's app menu entry's name.
-    pub starter_menu_desktop_name: &'static str,
-    /// The desktop app's app menu entry's description.
-    pub starter_menu_desktop_comment: &'static str,
     /// Fault. `{}` the system's words.
     pub starter_fault_reading: &'static str,
     /// Fault.
@@ -6878,6 +6860,9 @@ pub struct Strings {
     pub vault_matches: &'static str,
     /// Text in `create_body`.
     pub vault_does_not_match: &'static str,
+    /// Line in `create_body`, in the demo, once the dice made a
+    /// passphrase (`docs/DEMO.md` §5.2).
+    pub vault_demo_uses_public: &'static str,
     /// Text in `create_body`.
     pub vault_type_it_then: &'static str,
     /// Text in `create_body`. `{}`: `own`, `cost`, `own + cost`.
@@ -8115,8 +8100,6 @@ pub static EN: Strings = Strings {
     starter_state_stick: "Faraday stick attached · {}",
     starter_row_pi: "Make a Pi card",
     starter_row_transfer: "Transfer",
-    starter_row_desktop: "Try the desktop app",
-    starter_row_desktop_sub: "Test seeds only",
     starter_row_install: "Install",
     starter_row_installed: "Installed",
     starter_row_update: "Update the installed Faraday",
@@ -8213,16 +8196,13 @@ pub static EN: Strings = Strings {
     starter_afterwards: "Turn Secure Boot back on",
     starter_afterwards_windows: "Turn Secure Boot back on before starting Windows",
     starter_on_a_phone: "On a phone",
-    starter_install_desktop: "Also install the desktop app, for testing with test seeds only",
     starter_install_now: "Install",
     starter_installing: "Installing",
     starter_installed_in: "Installed in {}",
     starter_installed_version: "Installed version",
     starter_this_version: "This version",
     starter_installed_app: "Faraday Starter",
-    starter_installed_desktop: "Desktop app",
     starter_installed_menu: "Menu entry",
-    starter_installed_desktop_menu: "Desktop app's menu entry",
     starter_installed_icon: "Icon",
     starter_installed_entry: "Installed apps entry",
     starter_not_installed: "Not installed",
@@ -8265,8 +8245,6 @@ pub static EN: Strings = Strings {
     starter_why_shorter: "The decompressed image is {} bytes, not {}",
     starter_why_wrong_sum: "The decompressed image's SHA-256 is {}, not the expected one",
     starter_why_no_home: "The home folder is not known",
-    starter_why_no_desktop: "Faraday Starter carries no desktop app",
-    starter_why_cache_sum: "The desktop app does not match the manifest: its SHA-256 is {}",
     starter_why_file: "{}: {}",
     starter_why_in_the_way: "{} is another program's, and is in the way",
     starter_why_start: "Starting {} failed: {}",
@@ -8278,8 +8256,6 @@ pub static EN: Strings = Strings {
     starter_why_no_stick: "No Faraday stick is attached",
     starter_menu_name: "Faraday Starter",
     starter_publisher: "Faraday",
-    starter_menu_desktop_name: "Faraday Desktop",
-    starter_menu_desktop_comment: "Test seeds only",
     starter_fault_reading: "reading the partition table failed: {}",
     starter_fault_no_header: "it has no GPT header",
     starter_fault_not_gpt: "its partition table is not GPT",
@@ -11373,6 +11349,7 @@ pub static EN: Strings = Strings {
     vault_or_type_your: "or type your own below",
     vault_matches: "Matches",
     vault_does_not_match: "Does not match yet",
+    vault_demo_uses_public: "The demo uses its public passphrase in place of these words",
     vault_type_it_then: "Type it, then type it again",
     vault_bits_from_dice: "{} bits from dice + ≈{} from the unlock cost ≈ {} bits",
     vault_typed_its_own: "Typed: its own bits are not measured · the unlock cost adds ≈{}",

@@ -117,7 +117,8 @@ fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
             }
         }
         vstep::DIAL => {
-            let words = app.vanity_has_words();
+            // The demo dims the passphrase dial (`docs/DEMO.md` §4).
+            let words = app.vanity_has_words() && app.makes_secrets();
             for (i, d) in Dial::ALL.iter().enumerate() {
                 let (name, line) = dial_name(*d);
                 let on = v.grind.dial == *d;

@@ -22,7 +22,7 @@ fn main() {
         resources::windows_resources(&resources::Program {
             icon_png: &manifest_dir.join("../starter/assets/icon.png"),
             strings: &manifest_dir.join("../../faraday-strings/src/en.rs"),
-            name_field: "starter_menu_desktop_name",
+            name_field: "name_faraday_desktop",
             internal_name: "faraday-desktop",
             exe: names::WIN_DESKTOP_EXE,
             manifest_id: names::MENU_DESKTOP_ID,

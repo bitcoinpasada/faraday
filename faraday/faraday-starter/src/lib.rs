@@ -237,8 +237,6 @@ pub enum StarterAction {
     Cancel,
     /// Install (or update the installed copy).
     Install,
-    /// The desktop app check box.
-    InstallDesktop,
     /// Install now.
     InstallNow,
     /// Installed: what and where.
@@ -247,8 +245,6 @@ pub enum StarterAction {
     Uninstall,
     /// Uninstall now.
     UninstallNow,
-    /// Try the desktop app.
-    TryDesktop,
     /// Transfer, the desktop app's own.
     Transfer,
     /// Learn, the desktop app's sheet with the Starter's pages.
@@ -327,12 +323,10 @@ impl StarterAction {
             StarterAction::RestartNow => (12, 0),
             StarterAction::Cancel => (13, 0),
             StarterAction::Install => (14, 0),
-            StarterAction::InstallDesktop => (15, 0),
             StarterAction::InstallNow => (16, 0),
             StarterAction::Installed => (17, 0),
             StarterAction::Uninstall => (18, 0),
             StarterAction::UninstallNow => (19, 0),
-            StarterAction::TryDesktop => (20, 0),
             StarterAction::Transfer => (21, 0),
             StarterAction::Learn => (22, 0),
             StarterAction::LearnPage(LearnId::Maker(id)) => (
@@ -390,12 +384,10 @@ impl StarterAction {
             12 => StarterAction::RestartNow,
             13 => StarterAction::Cancel,
             14 => StarterAction::Install,
-            15 => StarterAction::InstallDesktop,
             16 => StarterAction::InstallNow,
             17 => StarterAction::Installed,
             18 => StarterAction::Uninstall,
             19 => StarterAction::UninstallNow,
-            20 => StarterAction::TryDesktop,
             21 => StarterAction::Transfer,
             22 => StarterAction::Learn,
             23 if arg >= MAKER_CODE => StarterAction::LearnPage(LearnId::Maker(
@@ -510,16 +502,12 @@ pub struct Starter {
     pub sheet: Option<Sheet>,
     /// The stick or card being made.
     pub making: Option<Making>,
-    /// Install's check box.
-    pub install_desktop: bool,
     /// An install under way.
     pub installing: bool,
     /// How the last install ended.
     pub install_result: Option<Result<String, Reason>>,
     /// Why the last uninstall failed.
     pub uninstall_failed: Option<Reason>,
-    /// Why the desktop app did not start.
-    pub desktop_failed: Option<Reason>,
     /// Why the restart into firmware settings did not happen.
     pub restart_failed: Option<Reason>,
     /// Why the restart from the stick did not happen: the card offers
@@ -596,11 +584,9 @@ impl Starter {
             page: Page::Home,
             sheet: None,
             making: None,
-            install_desktop: false,
             installing: false,
             install_result: None,
             uninstall_failed: None,
-            desktop_failed: None,
             restart_failed: None,
             stick_restart_failed: None,
             entry_kept: None,
@@ -951,7 +937,6 @@ impl Starter {
                 }
                 Err(why) => self.uninstall_failed = Some(why),
             },
-            StarterEvent::DesktopStarted(r) => self.desktop_failed = r.err(),
             StarterEvent::RestartFailed(why) => self.restart_failed = Some(why),
             StarterEvent::StickRestartFailed(why) => self.stick_restart_failed = Some(why),
             StarterEvent::BootEntryKept(why) => self.entry_kept = Some(why),
@@ -1189,18 +1174,11 @@ impl Starter {
                 self.install_result = None;
                 self.go(Page::Install);
             }
-            StarterAction::InstallDesktop => {
-                if self.payload_file(PayloadKind::Desktop).is_some() {
-                    self.install_desktop = !self.install_desktop;
-                }
-            }
             StarterAction::InstallNow => {
                 if self.page == Page::Install && !self.installing {
                     self.installing = true;
                     self.install_result = None;
-                    let desktop =
-                        self.install_desktop && self.payload_file(PayloadKind::Desktop).is_some();
-                    self.out.push_back(StarterCommand::Install { desktop });
+                    self.out.push_back(StarterCommand::Install);
                 }
             }
             StarterAction::Installed => {
@@ -1218,12 +1196,6 @@ impl Starter {
                     self.sheet = None;
                     self.entry_kept = None;
                     self.out.push_back(StarterCommand::Uninstall);
-                }
-            }
-            StarterAction::TryDesktop => {
-                if self.offers_desktop() {
-                    self.desktop_failed = None;
-                    self.out.push_back(StarterCommand::RunDesktop);
                 }
             }
             StarterAction::Transfer => self.show_held(None),
@@ -1340,17 +1312,6 @@ impl Starter {
             | StarterAction::SaveTemplate
             | StarterAction::OpenTemplate => {}
         }
-    }
-
-    /// Whether Try the desktop app is offered: the payload carries it, or
-    /// it is installed.
-    pub fn offers_desktop(&self) -> bool {
-        self.payload_file(PayloadKind::Desktop).is_some()
-            || self.installed.as_ref().is_some_and(|i| {
-                i.items
-                    .iter()
-                    .any(|(item, _)| *item == api::InstallItem::Desktop)
-            })
     }
 
     /// Whether the running copy is newer than the installed one (or the

@@ -592,10 +592,27 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
     if !on {
         ui.dot(x + 22.0, y + 26.0, 5.0, BG);
     }
+    // A row the frame dims (the demo's SLIP-39 sources) reads dimmed and
+    // takes no press.
+    let dim = ui.dimmed.contains(&a);
     let name = ui.fit(14.0, W::S, name, w - 54.0);
-    ui.text(x + 42.0, y + 8.0, 14.0, W::S, TEXT, &name);
+    ui.text(
+        x + 42.0,
+        y + 8.0,
+        14.0,
+        W::S,
+        if dim { DIM } else { TEXT },
+        &name,
+    );
     let line = ui.fit(12.0, W::R, line, w - 54.0);
-    ui.text(x + 42.0, y + 29.0, 12.0, W::R, MUTED, &line);
+    ui.text(
+        x + 42.0,
+        y + 29.0,
+        12.0,
+        W::R,
+        if dim { DIM } else { MUTED },
+        &line,
+    );
     ui.hit(x, y, w, 52.0, a);
 }
 
@@ -767,8 +784,10 @@ fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             if chosen == Some(way) && way == Way::Mix {
                 for (j, &m) in MIX_SOURCES.iter().enumerate() {
                     let on = k.mix[j];
-                    ui.checkbox(x + 44.0, cy + 7.0, on, true);
-                    ui.text(x + 74.0, cy + 6.0, 14.0, W::R, TEXT, source_name(m));
+                    let live = !ui.dimmed.contains(&Action::KMix(j as u8));
+                    ui.checkbox(x + 44.0, cy + 7.0, on, live);
+                    let tone = if live { TEXT } else { DIM };
+                    ui.text(x + 74.0, cy + 6.0, 14.0, W::R, tone, source_name(m));
                     let nw = ui.measure(14.0, W::R, source_name(m));
                     ui.text(x + 86.0 + nw, cy + 7.0, 12.0, W::R, MUTED, &asks(k, m));
                     ui.hit(x + 40.0, cy, w - 40.0, 32.0, Action::KMix(j as u8));

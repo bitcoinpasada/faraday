@@ -1,4 +1,4 @@
-//! What the Starter's writer and Try the desktop app see from a payload
+//! What the Starter's writer and its About see from a payload
 //! file, and what `--image` sees from a developer's own image
 //! (`docs/STARTER.md` §1.1, §1.3, §4.1). The `.xz` files in `vectors/` were
 //! made by the xz program; `vectors/README.md` says how, and what
@@ -286,6 +286,56 @@ fn a_manifest_parses_into_its_files() {
     let mut bare = text.clone();
     bare.pop();
     assert_eq!(Manifest::parse(&bare).unwrap(), m);
+}
+
+/// A release's payload carries the stick image and the Pi image and
+/// nothing else (F30): a manifest naming the desktop app is refused with
+/// its line, so no Starter built from one lists or offers it.
+#[test]
+fn a_payload_lists_only_the_stick_and_pi_images() {
+    let stick = line(
+        "faraday-stick-0.2.0-x86_64-uefi.img.xz",
+        FIXTURE_XZ_SHA256,
+        "faraday-stick-0.2.0-x86_64-uefi.img",
+        FIXTURE_SHA256,
+        FIXTURE_SIZE,
+    );
+    let pi = line(
+        "faraday-pi-0.2.0-pi3-waveshare-28dpi.img.xz",
+        ZEROS_XZ_SHA256,
+        "faraday-pi-0.2.0-pi3-waveshare-28dpi.img",
+        ZEROS_SHA256,
+        ZEROS_SIZE,
+    );
+    let m = Manifest::parse(&manifest(&[stick.clone(), pi.clone()])).unwrap();
+    let names: Vec<&str> = m.files().iter().map(|f| f.name.as_str()).collect();
+    assert_eq!(
+        names,
+        [
+            "faraday-stick-0.2.0-x86_64-uefi.img.xz",
+            "faraday-pi-0.2.0-pi3-waveshare-28dpi.img.xz"
+        ]
+    );
+
+    for desktop in [
+        line(
+            "faraday-desktop-0.2.0-linux-x86_64.xz",
+            ZEROS_XZ_SHA256,
+            "faraday-desktop-0.2.0-linux-x86_64",
+            ZEROS_SHA256,
+            ZEROS_SIZE,
+        ),
+        line(
+            "faraday-desktop-0.2.0-windows-x86_64.exe.xz",
+            ZEROS_XZ_SHA256,
+            "faraday-desktop-0.2.0-windows-x86_64.exe",
+            ZEROS_SHA256,
+            ZEROS_SIZE,
+        ),
+    ] {
+        let e = Manifest::parse(&manifest(&[stick.clone(), pi.clone(), desktop])).unwrap_err();
+        assert_eq!((e.line, e.fault), (4, ManifestFault::DesktopApp));
+    }
 }
 
 #[test]

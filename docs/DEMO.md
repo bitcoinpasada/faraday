@@ -2,10 +2,8 @@
 
 **Status:** spec v0.1 · 2026-10-14 · the owner's decision of 2026-10-14
 (`docs/DECISIONS.md` F30), with every question answered (§13).
-Specified, not built. Until its batches
-(§12), `README.md`, `docs/STARTER.md`, `docs/learn/faraday/demo.md`
-and the release give today's state: a released Faraday Desktop and a
-demo that makes keys and drops them.
+Batches DM1, DM2 and DM3 built 2026-10-15 (owner: before 0.1.3); DM4,
+the website's, waits in its own repository.
 
 ## 1. The decision
 
@@ -99,6 +97,7 @@ person keeps.
 | **Open BIP-85 child** | Add a key, opened from a wallet's or a transaction's not-loaded row | a child seed loaded as a key |
 | The passphrase dial | Vanity address, the How? card | a new key under a found passphrase; the demo would refuse it anyway |
 | The FROST deal (the last step of Add a wallet → FROST) | Create, FROST | new share seeds, which are not public seeds |
+| **Show** for the node's private key | Lightning node key | a node's private key, on screen |
 | **Save into {vault}** and **Out unprotected…** for the node's private key | Lightning node key | a node's private key |
 | **Save into {vault}** and **Out unprotected…** for the scan key | Silent payments | a scan key |
 | The Nostr key | none | already absent under `Faraday::online` and in the demo (F27) |

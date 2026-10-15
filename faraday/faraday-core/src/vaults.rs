@@ -1689,14 +1689,27 @@ impl Faraday {
             V::DiceUse => {
                 if let Some((i, rolls, list)) = self.vaults.dice.take() {
                     let words = dice_words(&rolls.text, list);
+                    // The demo puts its public passphrase in place of the
+                    // rolled words, which are dropped (`docs/DEMO.md` §5.2).
+                    let public = !self.makes_secrets();
                     if let Some(c) = self.vaults.create.as_mut()
                         && let Some((a, b)) = c.phrases.get_mut(i)
                         && !words.is_empty()
                     {
-                        let phrase = Zeroizing::new(words.join(""));
+                        let (phrase, bits) = if public {
+                            (
+                                Zeroizing::new(crate::demo::PASSPHRASE.to_string()),
+                                crate::demo::PASSPHRASE_WORDS as f32
+                                    * osk_bip::diceware::List::Large.bits_per_word(),
+                            )
+                        } else {
+                            (
+                                Zeroizing::new(words.join("")),
+                                words.len() as f32 * list.bits_per_word(),
+                            )
+                        };
                         a.set(&phrase);
                         b.set(&phrase);
-                        let bits = words.len() as f32 * list.bits_per_word();
                         if let Some(d) = c.from_dice.get_mut(i) {
                             *d = Some((phrase, bits));
                         }

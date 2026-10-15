@@ -341,7 +341,7 @@ fn tree(root: &Path) -> Vec<String> {
 }
 
 #[test]
-fn install_copies_exactly_the_bundle_and_uninstall_takes_back_only_it_and_the_cache() {
+fn install_copies_exactly_the_bundle_and_uninstall_takes_back_only_it() {
     let (root, dirs, running) = home("install");
     let before = tree(&root);
     assert_eq!(install::installed(&dirs), None);
@@ -383,13 +383,10 @@ fn install_copies_exactly_the_bundle_and_uninstall_takes_back_only_it_and_the_ca
         "0.2.1"
     );
     assert!(!dirs.bundle().join("Contents/Resources/icon.icns").exists());
-    // Uninstall: the bundle and the cached releases go; everything else
-    // stays.
+    // Uninstall: the bundle goes; everything else stays, a cache an
+    // earlier Starter left included (F30).
     assert_eq!(install::uninstall(&dirs), Ok(()));
-    let mut after: Vec<String> = before
-        .into_iter()
-        .filter(|p| !p.starts_with("Library/Caches/faraday/0.1.1/"))
-        .collect();
+    let mut after = before;
     after.extend(
         [
             "Downloads/new/Faraday Starter.app/Contents/Info.plist",
@@ -416,11 +413,7 @@ fn another_programs_bundle_of_that_name_is_in_the_way_and_never_removed() {
     );
     assert_eq!(tree(&root), before);
     assert_eq!(install::uninstall(&dirs), Ok(()));
-    let after: Vec<String> = before
-        .into_iter()
-        .filter(|p| !p.starts_with("Library/Caches/faraday/0.1.1/"))
-        .collect();
-    assert_eq!(tree(&root), after);
+    assert_eq!(tree(&root), before);
 }
 
 #[test]

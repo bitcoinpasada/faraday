@@ -8,11 +8,11 @@
 
 use std::borrow::Cow;
 use std::fs::File;
-use std::io::{BufReader, Cursor};
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 use faraday_payload::{ImageKind, ImageSum, Manifest, PayloadFile};
-use faraday_starter::api::{self, DevImage, Reason};
+use faraday_starter::api::{self, DevImage};
 
 mod built {
     include!(concat!(env!("OUT_DIR"), "/payload.rs"));
@@ -70,49 +70,8 @@ impl Payload {
         })
     }
 
-    /// The desktop app's manifest line for this system, when the payload
-    /// carries it: another system's desktop app is not offered.
-    pub fn desktop_line(&self) -> Option<&PayloadFile> {
-        self.desktop_line_for(std::env::consts::OS)
-    }
-
-    /// [`desktop_line`](Self::desktop_line) for the system `os`
-    /// (`std::env::consts::OS`), as the per-system install code asks
-    /// for its own.
-    pub fn desktop_line_for(&self, os: &str) -> Option<&PayloadFile> {
-        self.manifest.files().iter().find(|f| {
-            matches!(
-                api::PayloadKind::of(&f.name),
-                Some(api::PayloadKind::Desktop)
-            ) && desktop_is_for(&f.name, os)
-        })
-    }
-
-    /// The desktop app, decompressed. [`faraday_payload::write_payload`]
-    /// checks the `.xz` against the manifest before it decodes and the
-    /// decoded bytes against its size and SHA-256 as it goes, so what
-    /// comes back is what the manifest names.
-    pub fn desktop_app(&self) -> Result<(PayloadFile, Vec<u8>), Reason> {
-        self.desktop_app_for(std::env::consts::OS)
-    }
-
-    /// [`desktop_app`](Self::desktop_app) for the system `os`.
-    pub fn desktop_app_for(&self, os: &str) -> Result<(PayloadFile, Vec<u8>), Reason> {
-        let line = self.desktop_line_for(os).ok_or(Reason::NoDesktopApp)?;
-        let bytes = self
-            .files
-            .iter()
-            .find(|(n, _)| *n == line.name)
-            .ok_or(Reason::NoDesktopApp)?
-            .1
-            .as_ref();
-        let mut out = Vec::with_capacity(line.inner_size as usize);
-        faraday_payload::write_payload(Cursor::new(bytes), line, &mut out, |_, _| {})
-            .map_err(crate::writer::payload_reason)?;
-        Ok((line.clone(), out))
-    }
-
-    /// The manifest as the Starter shows it (Confirm, About).
+    /// The manifest as the Starter shows it (Confirm, About): the images
+    /// it carries (F30).
     pub fn event(&self) -> api::Payload {
         api::Payload {
             version: self.manifest.version().to_string(),
@@ -121,10 +80,6 @@ impl Payload {
                 .manifest
                 .files()
                 .iter()
-                .filter(|f| {
-                    api::PayloadKind::of(&f.name) != Some(api::PayloadKind::Desktop)
-                        || desktop_is_for(&f.name, std::env::consts::OS)
-                })
                 .map(|f| api::PayloadFile {
                     name: f.name.clone(),
                     sha256: f.sha256.to_string(),
@@ -135,17 +90,6 @@ impl Payload {
                 })
                 .collect(),
         }
-    }
-}
-
-/// Whether the desktop app file `name` is the one for the system `os`
-/// (`std::env::consts::OS`): `-linux-x86_64.xz` on Linux and
-/// `-windows-x86_64.exe.xz` on Windows. On any other system, none is.
-pub fn desktop_is_for(name: &str, os: &str) -> bool {
-    match os {
-        "linux" => name.ends_with("-linux-x86_64.xz"),
-        "windows" => name.ends_with("-windows-x86_64.exe.xz"),
-        _ => false,
     }
 }
 

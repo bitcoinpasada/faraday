@@ -849,6 +849,10 @@ pub struct Ui<'a, A> {
     /// The foot of the caret drawn this frame, units down the window:
     /// what the wide layout's keyboard keeps in view above it.
     pub caret_foot: Option<f32>,
+    /// Actions every button draws dimmed this frame, whatever style the
+    /// screen asked for: what the app refuses while it is in this state
+    /// (the demo's actions that would make a secret, `docs/DEMO.md` §7).
+    pub dimmed: Vec<A>,
 }
 
 /// A step card opening and the one closing, part of the way.
@@ -943,6 +947,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             caret_on: true,
             caret_drawn: false,
             caret_foot: None,
+            dimmed: Vec::new(),
         }
     }
 
@@ -1641,6 +1646,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// there, unless it is pressed, draws its own hover look (a button),
     /// or covers so much of the screen that a wash would light the page.
     pub fn hit(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
+        // A dimmed action takes no press, wherever it is drawn.
+        if self.dimmed.contains(&action) {
+            return;
+        }
         let clip = self.hit_clip.unwrap_or_else(|| self.c.clip());
         let rect = self.rect(x, y, w, h).intersect(&clip);
         if rect.w > 0 && rect.h > 0 {
@@ -1720,6 +1729,11 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         };
         let weight = W::S;
         let width = w.unwrap_or_else(|| self.measure(size, weight, label) + 32.0);
+        let style = if self.dimmed.contains(&action) {
+            Style::Disabled
+        } else {
+            style
+        };
         let pressed = self.is_pressed(action) && style != Style::Disabled;
         let hovered = self.is_hovered(action) && style != Style::Disabled;
         match style {

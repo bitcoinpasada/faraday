@@ -8,13 +8,12 @@
 //! | | |
 //! |---|---|
 //! | the Starter | `~/Applications/Faraday Starter.app`, a copy of the running bundle |
-//! | the desktop app's cache | `~/Library/Caches/faraday/X.Y.Z/` |
 //!
 //! A bundle is the Starter's when its `Contents/Info.plist` names
 //! [`IDENTIFIER`]; a bundle of the same name that does not (or whose
 //! `Info.plist` cannot be read) is another program's, and is neither
-//! replaced nor removed. The desktop app has no Mac build until batch
-//! D, so it is neither installed nor run here.
+//! replaced nor removed. The desktop app is not released (F30): it is
+//! neither installed nor run here.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -59,11 +58,6 @@ impl Dirs {
     /// `~/Applications/Faraday Starter.app`.
     pub fn bundle(&self) -> PathBuf {
         self.applications().join(BUNDLE)
-    }
-
-    /// `~/Library/Caches/faraday`, the desktop app's cache (§5.3).
-    pub fn cache(&self) -> PathBuf {
-        self.home.join("Library").join("Caches").join("faraday")
     }
 
     /// `~/Downloads`.
@@ -221,32 +215,12 @@ pub fn install(
     Ok(shown)
 }
 
-/// Uninstalls: the Starter's bundle, when it is the Starter's, and the
-/// desktop app's cache, and nothing else. What is already gone is not
-/// an error.
+/// Uninstalls: the Starter's bundle, when it is the Starter's, and
+/// nothing else. What is already gone is not an error.
 pub fn uninstall(dirs: &Dirs) -> Result<(), Reason> {
     let apps = dirs.applications();
     for path in [dirs.bundle(), apps.join(NEW), apps.join(OLD)] {
         remove_ours(dirs, &path)?;
     }
-    clear_cache(dirs)
-}
-
-/// Removes the `X.Y.Z/` folders from the cache folder, then the cache
-/// folder if nothing else is in it.
-fn clear_cache(dirs: &Dirs) -> Result<(), Reason> {
-    let root = dirs.cache();
-    let Ok(entries) = fs::read_dir(&root) else {
-        return Ok(());
-    };
-    for entry in entries.flatten() {
-        let name = entry.file_name().to_string_lossy().into_owned();
-        let release = !name.is_empty() && name.split('.').all(|p| p.parse::<u32>().is_ok());
-        let is_dir = entry.file_type().is_ok_and(|t| t.is_dir());
-        if release && is_dir {
-            fs::remove_dir_all(entry.path()).map_err(|e| dirs.file_error(&entry.path(), &e))?;
-        }
-    }
-    let _ = fs::remove_dir(&root);
     Ok(())
 }
