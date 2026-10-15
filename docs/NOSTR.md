@@ -300,6 +300,21 @@ identity and account. The nsec is recoverable from the seed's words and
 the two numbers, so a lost vault does not lose it; the two numbers are
 written down with the seed's backup (§9).
 
+**The backup flow** (`docs/BACKUP-FLOW.md`, F31). **Save into a
+vault** is the shared backup flow: where the entry will be kept (any
+number of places, none included, with no warning), each place's stick
+brought in with nothing secret open, the vaults unlocked or made, then
+the entry saved into every vault the plan keeps it in, one lock, and
+each stick written by place. The key's seed must be loaded at the save:
+the unlock loads the keys its vaults hold, any other is loaded as a key
+is, and the npub is compared with the one chosen. With no place, the
+entry goes into the vaults already open and no stick is written, as
+Save into does today. The saved entry's page has the row **Backup**
+with **Continue the backup** until every place is written. Nothing waits
+for it: the key comes back from the seed's words and the two numbers,
+so **Export encrypted**, Show as QR and PNG work at once. Whichever of
+batch N1 and the flow's batch B1 is built second adds this.
+
 ### 5.1 The saved entry's page
 
 Today an Entry's page in Vault contents (`vault_screens.rs`, the

@@ -1203,6 +1203,54 @@ rule), `screens.rs` (the copy item in `backup_body`, `copy_check`,
   empty;
 - a words-only plan's blank template carries no grid.
 
+### 14.8 Where the keys will be kept, before they are made (F31)
+
+Specified, not built; the spec is `docs/BACKUP-FLOW.md` (§10 for the
+wallet), shared with the APK, GPG, Secure Boot and Nostr keys.
+
+Today the plan comes after the keys (decision 20), New key makes a seed
+in memory, a vault item saves it, and no item writes to a stick: the
+done card's **Write to {a stick}** sends the person to the stick visit.
+After this change:
+
+- **The plan's vault part comes first.** Make a new wallet asks, after
+  its kind and shape and before Keys, where the keys will be kept: the
+  places, the vaults (`vault v`), their stick places (`sticks v`). Each
+  stick it names is brought in with nothing secret open (checked, its
+  vaults read, "Which vault is Vault 1?", its place confirmed), existing
+  vaults are unlocked and new ones made, each with its own passphrase;
+  then New key makes each seed straight into its vaults. Restore puts
+  its seed there. Paper, SeedQR, the sheet and shares, the descriptor
+  and the software stay where they are in the plan.
+- **Every form, any mix.** Places with paper, a vault's stick, both, or
+  neither; only places with a stick are asked for; a paper-only plan
+  has no stick step and no lock. One place is allowed. Nothing narrows
+  what the plan can say.
+- **One place, and the passphrase** (BACKUP-FLOW §10.3). When every
+  secret of the wallet sits at one place, including a seed and its
+  passphrase at the same place, the check lines gain, in `WARN`, "Every
+  secret of this wallet is at {place}. Separate places are strongly
+  recommended." A single key with no passphrase also gets "A passphrase
+  kept at another place than the seed is recommended." with **Add a
+  passphrase** (§3.6). `Answers::defaults` and the presets put a
+  passphrase at a place keeping no copy of its seed in any form, a
+  vault's stick included, adding a place where none is free. Both lines
+  inform; neither blocks.
+- **Write to sticks**, a new last item after Envelopes: one lock, then
+  each stick by place, "Insert the stick for Vault 1 (Place 1)" with
+  what it will hold, the stick of files, the software's stick, the
+  stick to print from; a vault's second copy refused on the stick
+  holding the first, then the hold; each stick and each item's files
+  ticked as written. The stick visit is never shown; after the
+  checklist nothing waits For the stick.
+- **§14.3's hold**: the lock of Write to sticks clears the held flag in
+  the vaults it seals, and the hold stays, by fingerprint, in the flow's
+  kept state until the last stick is written.
+- **§14.4**: **Change the plan** stays at every step; a place added
+  after the keys exist takes a new vault or another copy with no extra
+  round, or, for a stick holding an existing vault, one guided round
+  inside the flow (BACKUP-FLOW §4.8).
+
 ## 10. Order
 
 1. §1 and §2 together (mechanical).

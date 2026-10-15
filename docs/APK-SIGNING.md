@@ -3,7 +3,9 @@
 **Status:** spec v0.3 · 2026-10-14 · decided by the owner
 (`docs/DECISIONS.md` F25; §12 records the answers), revised after an
 adversarial review the same day. Not built. Files of any size are
-`docs/LARGE-FILES.md` (F26).
+`docs/LARGE-FILES.md` (F26). Making the key and the wait for its
+copies are the shared backup flow's, `docs/BACKUP-FLOW.md` (F31),
+specified, not built.
 
 The problem it solves: Android installs an update only when it is
 signed by the key that signed the installed copy, so Faraday
@@ -48,8 +50,9 @@ each key bound to its own app's package.
 - APK Signature Scheme v2 and v3, as `apksigner` writes them for an APK
   whose `minSdkVersion` is 26; no v1, no v4, no rotation (§2.2).
 - Kept in a vault as record type 12; the vault's copies on sticks are
-  its backup, and a key made here signs nothing until two sticks hold
-  it (§3).
+  its backup: the key is made by the backup flow into the vaults its
+  plan names (two places or more), and signs nothing until every place
+  is written (§3, `docs/BACKUP-FLOW.md`).
 - **Sign an APK** reads an unsigned, aligned APK copied in from a stick,
   shows what it is, takes the SHA-256 of an independent second build of
   the same source, signs only when the two match, checks each signature
@@ -210,17 +213,25 @@ image's SHA-256.
   no code, no paper form, no PKCS#12 or JKS keystore of it. What
   reaches For the stick is the certificate (§4.3) and signed APKs
   (§4.4). The one way out is `open.py`'s, above, without Faraday.
-- **Signing waits for two written copies.** A key made in this session
-  signs nothing until the vault holding it has been written, after the
-  key was added, to two sticks whose FAT volume serials differ: two
-  receipts (`docs/VAULT.md` §6), each written, read back and matched,
-  each of a sealing that holds the key (a later sealing of the same
-  vault counts). Two writes to the same stick, or to sticks with the
-  same serial, count once. Until then the key's **Sign an APK** reads
-  **Write the vault to two sticks first**, with "On 1 of 2 sticks" once
-  one is written, and opens the stick visit with the vault ticked; once
-  written, it returns to the key's page. On the Pi the two are SD cards.
-  A key in a vault unlocked from a stick signs at once. This follows the
+- **Signing waits for two written copies** (F31,
+  `docs/BACKUP-FLOW.md`). The key is made by the shared backup flow,
+  after its plan is set and its sticks read: where it will be kept (two
+  places or more, the count never below two; by default one new vault
+  at Place 1 and Place 2), each place's stick brought in with nothing
+  secret open, the vaults unlocked or made, then the key made straight
+  into them, one lock, and each stick written by place. It signs nothing
+  until every place is written, each copy read back and matched; a
+  second copy is refused on a stick holding the first and needs the hold
+  "This is a second stick"; the FAT volume serial is not used, since
+  sticks written from one image can share it. Until then the key's
+  **Sign an APK**, and an APK's **Sign with APK key** in Files, read
+  **Back up first** and open the flow on its step; the key's page has
+  the row **Backup** ("Not written", "Written to 1 of 2 places",
+  "Written to every place") with **Continue the backup**. The flow never
+  opens the stick visit. On the Pi the sticks are SD cards. A key in a
+  vault unlocked from a stick signs at once. GPG and Secure Boot keys
+  wait by the same rule: none of the three can be made again from seed
+  words. This follows the
   rule `docs/NEW-WALLET.md` §14.3 sets for a Bitcoin key made here, for
   the same reason, and asks for two copies because this key, once lost,
   cannot be replaced: a key whose only copy is in memory is gone at
@@ -264,11 +275,12 @@ prefix `apk_`, the Tools tile's with `catalog_`. `docs/FLOWS.md`'s
 
 ### 4.2 Make an APK key
 
-Step cards (wide) or pages (small): **Name on the certificate** (one
-field, **Faraday Companion** filled in, the hint "Public: printed by
-anyone who checks the APK"), then **Package** (one field,
-`app.faradayoffline.companion` filled in), then the vault: where
-several are open, each listed alike and none chosen in advance (§3).
+Step 4 of the backup flow (`docs/BACKUP-FLOW.md` §4), after its
+places, sticks and vaults (§3): step cards (wide) or pages (small):
+**Name on the certificate** (one field, **Faraday Companion** filled
+in, the hint "Public: printed by anyone who checks the APK"), then
+**Package** (one field, `app.faradayoffline.companion` filled in). The
+vaults are the plan's, none chosen in advance (§3).
 The time first where it is not known. The package is refused, "Not a
 package name" (`apk_package_invalid`), unless it is Android's form: at
 least two parts joined by dots, each a letter followed by letters,
@@ -276,8 +288,8 @@ digits or underscores, ASCII only, at most 255 bytes. **Make the key**
 → Result, "APK key made": Name, **Package**, **Certificate SHA-256** (a
 reference row opening Compare), Key "RSA 3072", and the
 certificate For the stick as it is made (as GPG's public key is), its
-row carrying **Show as QR** and **PNG**. Actions: **Write the vault to
-two sticks** (primary, §3) and **Done** → the key's page.
+row carrying **Show as QR** and **PNG**, and a row per vault it was
+made into. The flow goes on to its lock and the writes by place.
 
 ### 4.3 The key's page
 
@@ -595,11 +607,11 @@ there:
 - Make an APK key puts a type 12 record in the open vault, and the
   certificate For the stick; the vault sealed and opened again shows the
   same name and fingerprint.
-- A key made this session offers **Write the vault to two sticks
-  first**; written to one stick, or twice to sticks with the same
-  serial, it still does ("On 1 of 2 sticks"); written to two sticks of
-  different serials, it signs; a key unlocked from a stick signs at
-  once.
+- A key made in the flow offers **Back up first** in place of Sign
+  an APK until every place of its plan is written, and signs after; its
+  plan cannot go below two places; a key unlocked
+  from a stick signs at once. The flow's own tests are
+  `docs/BACKUP-FLOW.md` §11.
 - Each refusal of §4.4 on its fixture, each of §5's fixtures "Not an
   APK" (and a PSBT, a PNG, random bytes, `apksigner`'s own signed output
   for "Already signed"); the review's package, version and Android line
@@ -717,7 +729,9 @@ not wait for them while the release APK stays under 18 MiB.
 2. Faraday Desktop offers the APK key, as it offers GPG and Secure
    Boot; the release's key is made on a stick regardless.
 3. Signing waits for a written vault (§3); after the review, for
-   receipts from two sticks with different FAT serials.
+   receipts from two sticks with different FAT serials. Replaced by F31
+   (2026-10-14): the shared backup flow's two writes, the second refused
+   on the stick holding the first copy and confirmed by a hold.
 4. The real key is made on the stick of a published release that has
    batch 1, so the build that made it is one anyone can reproduce.
 5. Which vault holds it is the person's choice, the owner's for the

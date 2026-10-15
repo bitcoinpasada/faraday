@@ -284,8 +284,10 @@ stick visit:
 Once written and matched, the vault leaves For the stick and stays in
 Files as the stick now holds it, and the visit's receipt keeps the
 SHA-256 of the bytes written (owner, 2026-10-10; `docs/SIMPLIFY.md`
-§4.3) and the stick's label and FAT volume serial, by which an APK key
-made in the session tells two sticks apart (`docs/APK-SIGNING.md` §3). The receipt is kept across a lock under the key `receipt` and is
+§4.3) and the stick's label and FAT volume serial. The backup flow
+(`docs/BACKUP-FLOW.md`, F31) does not tell sticks apart by the serial,
+which sticks written from one image can share; it refuses a second copy
+on the stick holding the first, by the file's SHA-256. The receipt is kept across a lock under the key `receipt` and is
 gone at power-off. From it each vault file's currency is computed,
 never stored (§3.5): **Never written** (sealed For the stick, on no
 receipt), **On {label} · current** (the receipt wrote the bytes it has

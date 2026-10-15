@@ -884,6 +884,11 @@ answers).
 - A key made in a session signs nothing until the vault holding it has
   been written to two sticks with different FAT serials, as a Bitcoin
   key made here spends nothing until its backup is done.
+  Replaced by F31: the key is made after its places' sticks are read
+  and its vaults opened, and signs once every place (two or more) is
+  written by the shared backup flow, a second copy refused on the stick
+  holding the first and confirmed by a hold, with no FAT serial; the
+  same wait covers GPG and Secure Boot keys.
 - Faraday Desktop offers it too, as it offers GPG and Secure Boot. The
   real key is made on the stick of a published release that has the
   feature. Which vault holds a key is the person's choice, with no
@@ -1157,3 +1162,76 @@ on an online computer before being dropped or kept.
 Numbering: F30 was the next free number on `main` on 2026-10-14. Work in
 another worktree may add a decision; whichever is committed second takes
 the next number, and `docs/DEMO.md` follows it.
+
+### F31 Decide where a key will be kept, then make it: one backup flow for every secret Faraday makes (2026-10-14)
+
+**Why.** A Bitcoin wallet has its backup checklist (F6); nothing else
+Faraday makes had one, and the checklist itself left every stick write
+to the stick visit. A stick is read only with nothing secret open. A key
+made first would have to be locked into some vault before the stick
+holding the vault it belongs in could be read, and a new seed held only
+in memory would be wiped by that lock. APK batch 1 counted two sticks by
+FAT volume serial, which sticks written from one image can share.
+
+**Decision** (owner, 2026-10-14; the spec is `docs/BACKUP-FLOW.md`).
+
+- One flow for the APK signing key, GPG keys, the Secure Boot keys,
+  Nostr keys and a Bitcoin wallet's keys, in this order: where it will
+  be kept (the plan: places, which keep a stick, which vault each stick
+  holds); bring in each stick the plan names, one at a time, with
+  nothing secret open, checked for use (FAT32, room, writable, not a
+  boot partition), its vaults read, its place confirmed by a tap or,
+  where two sticks read alike, a hold; unlock the existing vaults and
+  make the new ones, each with its own passphrase; make the key straight
+  into every vault the plan keeps it in; lock once; write each stick by
+  place, "Insert the stick for Vault 1 (Place 1)", refusing a stick that
+  does not read as it did; done, then unlock. Restore takes the same
+  steps with its seed typed or scanned.
+- The plan decides what each stick holds before any stick is inserted.
+  An empty stick holds only what the plan puts there; two copies of a
+  vault exist only where the plan keeps it at two places. A vault's
+  second copy is refused on a stick holding the first and needs the hold
+  "This is a second stick". Faraday cannot prove two sticks are
+  different; that is the extent of the check.
+- The flow is driven by the plan and narrows nothing it can say: every
+  form (vaults on sticks, paper, steel, shares, sheets, a stick of
+  files, watch-only software, any mix). Only places whose plan includes
+  a stick are asked for; a plan with no stick has no stick step and no
+  lock for writing. Paper keeps the checklist's items and F29's check.
+- Places: two or more for a key that cannot be made again from seed
+  words (APK, GPG, Secure Boot), the count never below two; one or more
+  for a wallet; any number, none included, for a Nostr key. Places are
+  added or removed at any time; the check lines inform and do not block.
+- A wallet whose secrets all sit at one place, including a seed and its
+  passphrase at the same place, shows under its check lines, in `WARN`,
+  "Every secret of this wallet is at {place}. Separate places are
+  strongly recommended." A single key with no passphrase also shows "A
+  passphrase kept at another place than the seed is recommended." with
+  **Add a passphrase**. A passphrase's default place keeps no copy of
+  its seed in any form. Nothing is forced.
+- Signing waits until every place the plan gives the key is written,
+  for the keys that cannot be made again (APK, GPG, Secure Boot). The
+  owner's reason, which departs from following GnuPG's behaviour for
+  GPG: a key that cannot be made again, whose revocation is kept in the
+  same vault, must exist in two places before its signatures are out. A
+  Nostr key waits for nothing. A Bitcoin key keeps F6's rule, the hold
+  moving to the flow's state at the lock. A key in a vault unlocked from
+  a stick signs at once, so existing keys are not held.
+- The person stays in the flow: the stick visit page is never shown, at
+  any step. The Bitcoin checklist's every stick write (vault copies,
+  public files, seed files, the PDFs to print) happens inside it, and
+  after the checklist nothing waits For the stick.
+- The flow's state (the plan, what each stick read, the step, the
+  written copies' SHA-256) is not secret and is kept across a lock under
+  `/run/faraday`; it is gone at power-off. What a power-off between
+  writes should leave is for the owner (`docs/BACKUP-FLOW.md` §15).
+- **Change the plan** is at every step. After the key is made, a place
+  with a new vault on an empty stick, or another copy of a planned
+  vault, needs no extra round; a stick holding an existing vault the key
+  should go into takes one guided round inside the flow (lock, read the
+  stick, unlock both vaults, copy the key across, lock). A place removed
+  before its write drops its vault where the vault was new; one removed
+  after its write stays on the map until destroyed. The minimums hold.
+- F25's two sticks of different FAT serials are replaced by this flow.
+- Specified, not built: batch B1, after APK batch 1 and the GPG fix
+  batch are committed.

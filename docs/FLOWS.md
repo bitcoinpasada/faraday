@@ -726,6 +726,22 @@ to get it.
     ask for the time first where TOTP codes does (`docs/TOTP.md` §1.3).
     A stick visit's write asks before going over a file of the same name (the
     stick visit, below).
+59. **Decide where a key will be kept, then make it** (owner,
+    2026-10-14; `docs/BACKUP-FLOW.md`, `docs/DECISIONS.md` F31;
+    specified, not built). One flow makes and backs up an APK key, a
+    GPG key, Secure Boot keys, a Nostr key and a Bitcoin wallet's keys:
+    where it will be kept (the plan) → each stick the plan names brought
+    in with nothing secret open, checked, its vaults read, its place
+    confirmed → existing vaults unlocked, new ones made → the key made
+    into every vault the plan keeps it in → one lock → each stick
+    written by place → done, unlock. The plan decides what each stick
+    holds, and the flow narrows nothing it can say; only places with a
+    stick are asked for. Two places or more for APK, GPG and Secure
+    Boot keys, whose signing waits until every place is written; one or
+    more for a wallet, with a warning when every secret sits at one
+    place; any for Nostr. **Change the plan** at every step. The stick
+    visit page is never shown, and after Back up's checklist nothing
+    waits For the stick.
 
 ## Home
 
@@ -792,7 +808,9 @@ card to continue") → the moment no removable partition remains (decision
 **Lock** (sidebar, Home's vault card, a vault's page, or 5 minutes idle) →
 vaults sealed For the stick → the Wallets session wiped → app restarts → Unlock.
 After 10 more idle minutes with nothing For the stick, power off; with
-anything there, stay on Unlock and list what is waiting.
+anything there, or a backup flow not finished (decision 59), stay on
+Unlock and list what is waiting. While the backup flow is on screen
+waiting for a stick, there is no idle power-off.
 
 **Power off** → decision 5, the sheet listing what is kept and what is
 wiped (decision 28) → off.
@@ -986,6 +1004,56 @@ small panel one wallet a page, with **Previous** and **Next**.
 The wallet card's line, under its shape: "Backup: paper ×2 checked ·
 vault.ofv · for the stick" (paper "1 of 2 checked" while one is not), or
 "Not backed up"; a press opens Backups on that wallet.
+
+## Backup flow
+
+(Decision 59; `docs/BACKUP-FLOW.md`, F31; specified, not built.)
+Tools' **APK signing key**, **GPG key** and **Secure Boot keys**, Vault
+contents' Make actions, a Nostr key's **Save into a vault**, Make a new
+wallet and Restore → step cards (pages on a small panel, "Step 2 of
+7"; the steps a plan does not need are not drawn):
+
+1. **Where it will be kept**: a row per place (**Add a place**), what
+   each keeps (a stick with Vault 1, Vault 2, a new vault; for a
+   wallet, the plan's vault part), a row per vault (new or existing),
+   the check lines; at least two places for APK, GPG and Secure Boot;
+   for a wallet the one-place warning and, on a single key with no
+   passphrase, the passphrase line with **Add a passphrase**;
+2. **Bring in the sticks** (with anything secret open: **Lock and bring
+   in the sticks** first) → "Insert the stick for Vault 1 (Place 1)", or
+   **Use {label}, read at {time}** → usable, else why and what to do →
+   its vaults: "Which vault is Vault 1?", or **A new vault beside them**
+   → **This is the stick for …** (a tap), or the hold where two sticks
+   read alike; a stick bound to another place refused → pull;
+3. **Vaults**: **Unlock {vault}** for each existing one, Create a vault
+   for each new one, **I do not have its passphrase** → a new vault
+   beside it or another stick;
+4. **Make the key**: the kind's own form → made into every vault the
+   plan keeps it in; a wallet's New key into its vaults, a key kept
+   only on paper shown for copying; then, for a wallet, the rest of the
+   plan and the checklist;
+5. **Lock**: Kept and Wiped from memory → **Lock and write**;
+6. **Write the sticks**: "Insert the stick for Vault 1 (Place 1)" with
+   what it will hold → a stick unlike the one read: "Not the stick read
+   for …"; a vault's second copy: the first stick refused, then **Hold:
+   this is a second stick**; a stick named after step 2 (files, the
+   software's, the one to print from) checked now → writing → "Written
+   and checked on {label}", its files and items ticked → pull;
+7. **Done**: a row per stick → **Unlock {vault}** → the key's page, or
+   the checklist's done card, with nothing For the stick.
+
+**Change the plan** under every card: a new vault on an empty stick, or
+another copy of a planned vault, adds a stick to step 6; a stick
+holding an existing vault takes **Add {vault}** (lock, the stick read,
+both vaults unlocked, the key copied across, lock), with a key kept only
+on paper offered **Finish its paper copy first**; a place removed before
+its write drops its new vault, after it stays on the map.
+
+Back leaves on any card but while writing; the key's page, Home's lead
+and a waiting action offer **Continue the backup**. A lock resumes on
+the step; a power-off ends the flow, the Power sheet listing "Backup of
+{key}: written to {n} of {m} places". A stick visit while a flow is left
+lists its files **In the backup**, not tickable.
 
 ## Wallets tab
 
@@ -1188,18 +1256,33 @@ stick ("Insert a stick to write it").
 Every GPG action needs an open vault (the secret key lives there). With
 none open, Tools' **GPG key** tile reads "Make a vault first" (no vault
 file) or "Unlock a vault first" and leads into Create a vault or Unlock,
-which come back to the vault's GPG keys (decision 10).
+which come back to the vault's GPG keys (decision 10). Making a key is
+the exception (F31): **Make a key** opens the backup flow (decision 59),
+whose steps decide and open the vaults first.
 
-**Make a key** (step cards: name and email, expiry, vault) → created →
+**Make a key** (the backup flow's steps 1 to 3: two places or more,
+their sticks, their vaults; then step cards: name and email, expiry) →
+created in every vault the plan keeps it in →
 result: fingerprint, the public key and the revocation certificate
 For the stick as the key is made (decision 24), **Export public key**
 (code, or the file again), **Revocation certificate** (again, with the note that it should be kept
 apart from the key), **Paperkey backup** (shown; a hold to reveal) → the
-key's page in Vault contents. The public key and the revocation each
+key's page in Vault contents, after the flow's lock and writes by
+place; the key's page has the **Backup** row until every place is
+written. The public key and the revocation each
 have **Show as QR** and **PNG** on their row: `{name}-{fp8}.png` with the
 user ID and fingerprint under the code, and
 `{name}-{fp8}-revocation.png` labelled "Revokes {user ID}" (an Ed25519
 certificate is one code, about 700 bytes armoured).
+
+**Signing waits for the backup** (F31). A GPG key made in this session
+cannot be made again from seed words, and its revocation is kept in the
+same vault, so until the backup flow has written every place its plan
+gives it (two or more), **Sign a file** and **Renew** read **Back up
+first** and open the flow. This departs from following GnuPG's behaviour, which the GPG
+fixes otherwise do. A key in a vault unlocked from a stick (the
+release's key among them) signs at once; the public key and the
+revocation certificate made with the key do not wait.
 
 **Sign a file** → choose a file copied in → choose the key → detached
 signature For the stick → "Insert a stick to write it". Each file's row
@@ -1215,7 +1298,16 @@ Needs an open vault for the keys. With none open, Tools' **Secure Boot
 keys** tile leads into Create a vault or Unlock and back, as GPG's does;
 **KeePass export** the same, to the vault's entries.
 
-**Make keys** → PK, KEK, db generated into the vault → Secure Boot screen.
+**Make keys** → the backup flow (decision 59): two places or more,
+their sticks, their vaults → PK, KEK, db generated into every vault the
+plan keeps them in → lock, the sticks written by place → Secure Boot
+screen, with the **Backup** row until every place is written. **Signing
+waits for the backup** (F31): keys made in the flow cannot be made again
+from seed words, so until every place is written, **Enrolment
+files** (its updates are signed by PK and KEK) and **Sign with db**,
+with Files' **Sign in Secure Boot**, read **Back up first** and open the
+flow. **Check a signature** does not wait. Keys in a vault unlocked from
+a stick sign at once.
 
 **Enrolment files** → policy (Windows-compatible or own keys only) → the
 files For the stick → Learn page: enrolling in the firmware's setup screen.
@@ -1234,21 +1326,24 @@ partition on another computer.
 none open, Tools' **APK signing key** tile leads into Create a vault or
 Unlock and back, as GPG's does (decision 10).
 
-**Make an APK key** (step cards: name on the certificate, **Faraday
-Companion** filled in, empty refused; package,
+**Make an APK key** (the backup flow, decision 59: two places or more,
+by default Vault 1 at Place 1 and Place 2, their sticks brought in,
+their vaults unlocked or made; then step cards: name on the
+certificate, **Faraday Companion** filled in, empty refused; package,
 `app.faradayoffline.companion` filled in, "Not a package name" unless
-Android's form; vault, none chosen in advance where several are open)
+Android's form)
 → the time first where it is not known → made → result: name, package,
 certificate SHA-256, "RSA 3072", the certificate For the stick as the
-key is made, with **Show as QR** and **PNG** on its row → **Write the
-vault to two sticks** (Stick visit, the vault ticked) or **Done** → the
-key's page in Vault contents (name, package, certificate SHA-256, key,
-made).
+key is made, with **Show as QR** and **PNG** on its row, and a row per
+vault it is in → lock → the sticks written by place → **Unlock
+{vault}** → the key's page in Vault contents (name, package,
+certificate SHA-256, key, made, and the **Backup** row until every
+place is written).
 
-**Sign an APK** → while the key was made this session and its vault
-not yet written, since the key was added, to two sticks with different
-FAT serials: **Write the vault to two sticks first** ("On 1 of 2
-sticks" after one) → Stick visit → back to the key's page. Otherwise:
+**Sign an APK** → while the key was made in the flow and not every
+place of its plan is written (F31): **Back up first** →
+the flow on its step → Done → **Unlock {vault}** → the key's page.
+Otherwise:
 choose an APK copied in (none: "Copy the APK in on a stick visit
 first"; on the Pi "on an SD card visit"), each row with its size, and
 on one that cannot be signed why, inert: "Not an APK", "Already
@@ -1283,7 +1378,9 @@ identities 1 to 5 at account 1 and accounts 1 to 5 at the identity
 typed, a tap picks the pair) → **Value**: the path, the npub with
 **Show as QR** and **PNG**, the nsec masked until **Show** and never a
 code or a file → **Save into {vault}** (an Entry; no vault open:
-decision 10's way into making or unlocking one, and back) or **Export
+decision 10's way into making or unlocking one, and back; or the
+backup flow of decision 59, any number of places, none included, with
+nothing waiting for it) or **Export
 encrypted…** (Password and Again, 12 printable characters or more →
 "Encrypting" → `ncryptsec1…` as text, **Show as QR**, **PNG** and **For
 the stick**, sealed). There is no **Out unprotected…**: the
