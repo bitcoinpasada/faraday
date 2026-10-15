@@ -86,11 +86,12 @@ RECORDS = {
     10: ("Signed amounts", {1: "transaction", 2: "amount"}),
     11: ("Backup plan", {1: "wallet", 2: "answers", 3: "place", 4: "holds", 5: "note"}),
     12: ("APK signing key", {1: "private key", 2: "certificate", 3: "package"}),
+    13: ("Wallet share", {1: "share", 2: "wallet name", 3: "share number", 4: "of", 5: "wallet"}),
 }
 
 
 # The fields that are UTF-8 text; every other field is printed in hex.
-TEXT_FIELDS = {(1, 1), (2, 2), (2, 4), (3, 1), (3, 2), (4, 1)} | {(6, n) for n in range(1, 7)} | {(7, 5)} | {(11, n) for n in range(1, 6)} | {(12, 3)}
+TEXT_FIELDS = {(1, 1), (2, 2), (2, 4), (3, 1), (3, 2), (4, 1)} | {(6, n) for n in range(1, 7)} | {(7, 5)} | {(11, n) for n in range(1, 6)} | {(12, 3)} | {(13, 1), (13, 2), (13, 5)}
 
 
 def hkdf_sha256(ikm: bytes, info: bytes) -> bytes:

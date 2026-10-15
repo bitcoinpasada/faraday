@@ -65,8 +65,6 @@ pub enum Target {
     PassShow(u8, u8, u8),
     /// The wallet's first addresses, as Create's Check shows them.
     Addresses,
-    /// Change the plan, which replaces the changes made on the chart.
-    Replan,
 }
 
 /// [`Target::PassCheck`] opened from the key, on no line.
@@ -133,8 +131,6 @@ pub enum ChartAction {
     PassTry(Press),
     /// Show the passphrase to copy.
     Reveal,
-    /// Change the plan, the changes on the chart replaced.
-    Replan(Press),
     /// Move the money to a new wallet.
     MoveMoney(Press),
 }
@@ -249,14 +245,9 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
     let doing = |s: Step| chart_do(ChartAction::Do(press, s));
     let open = |t: Target| chart_do(ChartAction::Open(press, t));
     let edit = |e: Edit| chart_do(ChartAction::Edit(press, e));
-    let (nodes, items, edited): (&[BackupNode], &[Item], bool) = match &g.backup {
-        Backup::Plan {
-            nodes,
-            items,
-            edited,
-            ..
-        } => (nodes, items, *edited),
-        _ => (&[], &[], false),
+    let (nodes, items): (&[BackupNode], &[Item]) = match &g.backup {
+        Backup::Plan { nodes, items, .. } => (nodes, items),
+        _ => (&[], &[]),
     };
     // The checklist item that makes `it`, where the plan has one.
     let item = |it: Item| {
@@ -306,15 +297,10 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
         .collect();
     let new_place = places.len();
     let key_of_seed = |s: usize| g.keys.iter().position(|k| k.seed == Some(s));
-    // Change the plan: with the map edited on the chart, it says first
-    // that those changes are replaced.
-    let change_plan = || {
-        if edited {
-            open(Target::Replan)
-        } else {
-            doing(Step::Plan)
-        }
-    };
+    // Change the plan: the plan's cards show the map as it is, the
+    // chart's edits included, so nothing is replaced and nothing is asked
+    // (`docs/BACKUP-FLOW.md` §17.2).
+    let change_plan = || doing(Step::Plan);
     let marks: Vec<(At, What, Mark)> = nodes
         .iter()
         .flat_map(|n| {
@@ -777,6 +763,20 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                     ));
                 }),
                 What::Seed(s) | What::SeedPassphrase(s) => secret(s, &mut rows, &|_, _| {}),
+                What::WalletFile | What::ShareFile(_) => {
+                    let it = if what == What::WalletFile {
+                        Item::PublicFiles
+                    } else {
+                        Item::Sheets
+                    };
+                    if let Some(a) = item(it) {
+                        rows.push(row(
+                            EN.glance_sheet_write_it,
+                            EN.glance_sheet_for_the,
+                            Some(a),
+                        ));
+                    }
+                }
                 What::SeedFile(_) => {
                     if let Some(a) = item(Item::SeedFiles) {
                         rows.push(row(
@@ -1243,16 +1243,6 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             v.addresses = Some(w);
             Some(v)
         }
-        Target::Replan => {
-            let mut v = View::new(Icon::Wallet, EN.glance_sheet_change);
-            v.lines
-                .push((EN.glance_sheet_your_changes.to_string(), WARN));
-            v.go = Some((
-                EN.glance_sheet_change.to_string(),
-                chart_do(ChartAction::Replan(press)),
-            ));
-            Some(v)
-        }
     }
 }
 
@@ -1498,28 +1488,6 @@ impl Faraday {
             ChartAction::Save(press) => self.chart_save_name(press),
             ChartAction::PassTry(press) => self.chart_pass_try(press),
             ChartAction::Reveal => self.chart_work.reveal = true,
-            ChartAction::Replan(press) => {
-                self.close_chart();
-                let Some(w) = self.press_wallet(press) else {
-                    return;
-                };
-                let from_vault = matches!(press, Press::Vault(..));
-                let screen = self.screen;
-                if self.chart_backup(w, from_vault) {
-                    self.screen = screen;
-                    // What the checklist has put in vaults so far, should
-                    // the new plan drop it.
-                    self.backup_prior();
-                }
-                self.chart_plan(w, from_vault, None);
-                let shape = self.plan_shape(w);
-                if let Some(b) = self.backup.as_mut() {
-                    let places = b.answers.places;
-                    b.answers.map = None;
-                    b.answers.set_places(&shape, places);
-                    b.names.truncate(b.answers.places);
-                }
-            }
             ChartAction::MoveMoney(press) => self.chart_move_money(press),
             ChartAction::Do(press, step) => {
                 self.close_chart();

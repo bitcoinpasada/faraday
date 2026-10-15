@@ -490,6 +490,11 @@ fn backup_nodes(
         What::SeedPassphrase(i) => fill(EN.glance_key_seed_passphrase, &[&number(i).to_string()]),
         What::Wallet => EN.glance_description.to_string(),
         What::SeedFile(i) => fill(EN.glance_key_file, &[&number(i).to_string()]),
+        What::WalletFile => EN.backup_flow_wallet_files.to_string(),
+        What::ShareFile(j) => fill(
+            EN.backup_flow_share_files,
+            &[&(j + 1).to_string(), &shape.keys.to_string()],
+        ),
     };
     // The small panel names the keys a vault's stick opens.
     let keys_label = |what: What| match what {
@@ -850,7 +855,7 @@ fn tone_color(t: Tone) -> Color {
 
 /// How what a spot gives alone reads: spending in the clear is a warning,
 /// a vault's seal the accent, nothing at all is good.
-fn alone_color(k: plan::AloneKind) -> Color {
+pub(crate) fn alone_color(k: plan::AloneKind) -> Color {
     match k {
         plan::AloneKind::CanSpend => WARN,
         plan::AloneKind::Nothing => OK,
@@ -1647,5 +1652,7 @@ pub(crate) fn thing_label(g: Option<&Glance>, what: What) -> String {
         What::SeedPassphrase(i) => fill(EN.glance_key_seed_passphrase, &[&number(i).to_string()]),
         What::Wallet => EN.glance_the_description.to_string(),
         What::SeedFile(i) => fill(EN.glance_key, &[&number(i).to_string()]),
+        What::WalletFile => EN.backup_flow_wallet_files.to_string(),
+        What::ShareFile(j) => fill(EN.glance_share, &[&(j + 1).to_string()]),
     }
 }

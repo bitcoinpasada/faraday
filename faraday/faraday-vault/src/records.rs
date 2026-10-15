@@ -50,6 +50,9 @@ pub mod kind {
     /// An APK signing key: the private key, its certificate and the
     /// package it signs for (`docs/APK-SIGNING.md` §3).
     pub const APK_KEY: u8 = 12;
+    /// A share of a multisig wallet's description, some keys left off
+    /// (`docs/BACKUP-FLOW.md` §17.6).
+    pub const WALLET_SHARE: u8 = 13;
 }
 
 /// The fields of each record type, by number.
@@ -121,6 +124,18 @@ pub mod field {
     pub const APK_CERT: u8 = 2;
     /// APK signing key: the Android package it signs for.
     pub const APK_PACKAGE: u8 = 3;
+
+    /// Wallet share: the share, as its `.txt` file holds it.
+    pub const SHARE: u8 = 1;
+    /// Wallet share: the wallet's name.
+    pub const SHARE_WALLET_NAME: u8 = 2;
+    /// Wallet share: which share, from 1.
+    pub const SHARE_NUMBER: u8 = 3;
+    /// Wallet share: how many shares.
+    pub const SHARE_OF: u8 = 4;
+    /// Wallet share: the wallet, as a plan's field 1 holds it, by which a
+    /// share is told from another wallet's of the same name.
+    pub const SHARE_WALLET: u8 = 5;
 }
 
 /// Bit 0 of a key's flags: load it into the session at unlock.
@@ -267,6 +282,14 @@ const APK_KEY_RULES: &[Rule] = &[
     rule(3, true, false, Shape::Text(255)),
 ];
 
+const WALLET_SHARE_RULES: &[Rule] = &[
+    rule(1, true, false, TEXT),
+    rule(2, false, false, TEXT),
+    rule(3, false, false, Shape::Exact(1)),
+    rule(4, false, false, Shape::Exact(1)),
+    rule(5, false, false, TEXT),
+];
+
 /// The fields of each record type (§7).
 fn rules(kind: u8) -> Option<&'static [Rule]> {
     Some(match kind {
@@ -282,6 +305,7 @@ fn rules(kind: u8) -> Option<&'static [Rule]> {
         kind::AMOUNTS => AMOUNTS_RULES,
         kind::PLAN => PLAN_RULES,
         kind::APK_KEY => APK_KEY_RULES,
+        kind::WALLET_SHARE => WALLET_SHARE_RULES,
         _ => return None,
     })
 }

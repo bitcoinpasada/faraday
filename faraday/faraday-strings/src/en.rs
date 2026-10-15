@@ -2447,8 +2447,6 @@ pub struct Strings {
     /// Text in `view`.
     pub glance_sheet_check: &'static str,
     /// Text in `view`.
-    pub glance_sheet_your_changes: &'static str,
-    /// Text in `view`.
     pub glance_sheet_change: &'static str,
     /// Text in `draw`.
     pub glance_sheet_back: &'static str,
@@ -4297,14 +4295,6 @@ pub struct Strings {
     pub app_path: &'static str,
     /// Text in `STEPS`.
     pub app_nonces: &'static str,
-    /// Text in `SEED_ROWS`.
-    pub app_on_paper_words: &'static str,
-    /// Text in `SEED_ROWS`.
-    pub app_on_paper_seedqr: &'static str,
-    /// Text in `SEED_ROWS`.
-    pub app_into_vaults: &'static str,
-    /// Text in `SEED_ROWS`.
-    pub app_as_a_file_unprotected: &'static str,
     /// Text in `SOFTWARE_ROWS`.
     pub app_sparrow: &'static str,
     /// Text in `SOFTWARE_ROWS`.
@@ -4315,16 +4305,6 @@ pub struct Strings {
     pub app_bitcoin_core: &'static str,
     /// Text in `SOFTWARE_ROWS`.
     pub app_not_sure: &'static str,
-    /// Text in `description_rows`.
-    pub app_a_share_in_each: &'static str,
-    /// Text in `description_rows`.
-    pub app_a_sheet_in_each: &'static str,
-    /// Text in `description_rows`.
-    pub app_in_the_vault: &'static str,
-    /// Text in `description_rows`.
-    pub app_into_watch_only: &'static str,
-    /// Text. `{}`: `medium.a()`.
-    pub app_as_files_on: &'static str,
     /// Text in `MSTEPS`.
     pub app_address: &'static str,
     /// Text in `MSTEPS`.
@@ -4712,17 +4692,9 @@ pub struct Strings {
     /// Text in `question_title`.
     pub question_title_start: &'static str,
     /// Text in `question_title`.
-    pub question_title_the_seeds: &'static str,
-    /// Text in `question_title`.
     pub question_title_places: &'static str,
     /// Text in `question_title`.
-    pub question_title_the: &'static str,
-    /// Text in `question_title`.
     pub question_title_software: &'static str,
-    /// Text in `question_title`.
-    pub question_title_passphrases: &'static str,
-    /// Text in `question_title`.
-    pub question_title_map: &'static str,
     // ----- ticked (faraday-core/src/screens.rs) -----
     /// Text in `ticked`.
     pub ticked_none: &'static str,
@@ -4782,14 +4754,6 @@ pub struct Strings {
     pub question_summary_place: &'static str,
     /// Text in `question_summary`.
     pub question_summary_places: &'static str,
-    /// Text in `question_summary`, after a space.
-    pub question_summary_a_share_each: &'static str,
-    /// Text in `question_summary`, after a space.
-    pub question_summary_the_whole_sheet: &'static str,
-    /// Text in `question_summary`.
-    pub question_summary_passphrase: &'static str,
-    /// Text in `question_summary`.
-    pub question_summary_passphrases: &'static str,
     /// Text in `question_summary`. `{}`: `c.lost.text()`.
     pub question_summary_any: &'static str,
     // ----- backup (faraday-core/src/screens.rs) -----
@@ -4853,27 +4817,13 @@ pub struct Strings {
     /// Line in `plan_body`.
     pub plan_a_key_made_here: &'static str,
     /// Text in `plan_body`.
-    pub plan_places_with_paper: &'static str,
-    /// Section label in `plan_body`.
-    pub plan_each_place_keeps: &'static str,
-    /// Text in `plan_body`.
-    pub plan_the_whole_wallet: &'static str,
-    /// Text in `plan_body`.
-    pub plan_its_own_share: &'static str,
-    /// Text in `plan_body`.
     pub plan_what_is_a_share: &'static str,
-    /// Text in `plan_body`. `{}`: `v + 1`, `app.medium.noun()`.
-    pub plan_vault_s: &'static str,
     /// Section label in `plan_body`.
     pub plan_form: &'static str,
     /// Text in `plan_body`.
     pub plan_qr_picture: &'static str,
     /// Text in `plan_body`.
     pub plan_text: &'static str,
-    /// Text in `plan_body`. `{}`: `app.place_name(p)`.
-    pub plan_its_words: &'static str,
-    /// Text in `plan_body`.
-    pub plan_in_the_vault_with: &'static str,
     /// Text in `plan_body`. `{}`: `v + 1`, `app.medium.noun()`.
     pub plan_vault_s_needs: &'static str,
     /// Button in `plan_body`.
@@ -8138,6 +8088,65 @@ pub struct Strings {
     pub backup_flow_files_stick: &'static str,
     /// The stick of public files.
     pub backup_flow_public_stick: &'static str,
+    /// A place's stick of files (§17.2): the place.
+    pub backup_flow_files_at: &'static str,
+    /// On the map: the wallet description's public files at a place.
+    pub backup_flow_wallet_files: &'static str,
+    /// On the map: a share's files at a place: share, of.
+    pub backup_flow_share_files: &'static str,
+    /// The plan's Places card: the stepper's label.
+    pub backup_flow_number_of_places: &'static str,
+    /// A place's card: a row.
+    pub backup_flow_seed_words_by_hand: &'static str,
+    /// A place's card: a row.
+    pub backup_flow_seedqr_by_hand: &'static str,
+    /// A place's card: a row.
+    pub backup_flow_seed_as_a_file: &'static str,
+    /// A place's card: a row.
+    pub backup_flow_passphrase_row: &'static str,
+    /// A place's card's sheet: the row, the place.
+    pub backup_flow_pick_title: &'static str,
+    /// A vault's sheet: a seed's fingerprint.
+    pub backup_flow_with_its_passphrase: &'static str,
+    /// A vault's sheet: the other places that keep its stick.
+    pub backup_flow_also_at: &'static str,
+    /// A place's card's sheet: its way out.
+    pub backup_flow_pick_done: &'static str,
+    /// The plan's card: the description whole or in shares.
+    pub backup_flow_the_wallet_description: &'static str,
+    /// The description card: a row.
+    pub backup_flow_whole: &'static str,
+    /// The description card: a row.
+    pub backup_flow_in_shares: &'static str,
+    /// The plan's card: where the description goes.
+    pub backup_flow_where_the_description: &'static str,
+    /// Where the description goes: a form.
+    pub backup_flow_on_paper: &'static str,
+    /// Where the description goes: a form.
+    pub backup_flow_as_a_file: &'static str,
+    /// Where the description goes: the shares a place keeps.
+    pub backup_flow_shares_here: &'static str,
+    /// Where the description goes: the last section.
+    pub backup_flow_not_a_place: &'static str,
+    /// Where the description goes: a row.
+    pub backup_flow_into_watch_only: &'static str,
+    /// The plan's last card, the map approved.
+    pub backup_flow_the_plan: &'static str,
+    /// The plan held by a vault that holds nothing: the vault.
+    pub backup_flow_vault_holds_nothing: &'static str,
+    /// A wallet share kept in a vault: the wallet, the share, of.
+    pub backup_flow_vault_share: &'static str,
+    /// An edit after the lock refused: the vault held this before the
+    /// flow. The vault.
+    pub backup_flow_held_before: &'static str,
+    /// An edit after the lock refused: another wallet in the vault uses
+    /// this key. The vault.
+    pub backup_flow_other_wallet_key: &'static str,
+    /// An edit after the lock refused: it changes files or paper.
+    pub backup_flow_files_after_lock: &'static str,
+    /// The checklist or Lock and write of a backup past its lock and not
+    /// done: refused.
+    pub backup_flow_past_lock: &'static str,
     /// Foot of step 2 when a secret is open.
     pub backup_flow_lock_bring: &'static str,
     /// Asks for a stick.
@@ -9572,7 +9581,6 @@ pub static EN: Strings = Strings {
     glance_sheet_to_copy: "To copy by hand",
     glance_sheet_load_this: "Load this key with its passphrase",
     glance_sheet_check: "Check my copy",
-    glance_sheet_your_changes: "Your changes on the chart are replaced",
     glance_sheet_change: "Change the plan",
     glance_sheet_back: "Back",
     glance_sheet_close: "Close",
@@ -10452,20 +10460,11 @@ pub static EN: Strings = Strings {
     app_finish: "Finish",
     app_path: "Path",
     app_nonces: "Nonces",
-    app_on_paper_words: "On paper, words by hand",
-    app_on_paper_seedqr: "On paper, SeedQR by hand",
-    app_into_vaults: "Into vaults",
-    app_as_a_file_unprotected: "As a file, unprotected",
     app_sparrow: "Sparrow",
     app_coldcard_keystone: "Coldcard, Keystone, Passport",
     app_nunchuk: "Nunchuk",
     app_bitcoin_core: "Bitcoin Core",
     app_not_sure: "Not sure",
-    app_a_share_in_each: "A share in each place",
-    app_a_sheet_in_each: "A sheet in each place",
-    app_in_the_vault: "In the vault",
-    app_into_watch_only: "Into watch-only software",
-    app_as_files_on: "As files on {}",
     app_address: "Address",
     app_message: "Message",
     app_format: "Format",
@@ -10654,12 +10653,8 @@ pub static EN: Strings = Strings {
     spend_panel_signatures: "Signatures",
     spend_panel_of: "{} of {}",
     question_title_start: "Start from",
-    question_title_the_seeds: "The seeds go",
     question_title_places: "Places",
-    question_title_the: "The wallet description goes",
     question_title_software: "Software",
-    question_title_passphrases: "Passphrases",
-    question_title_map: "Map",
     ticked_none: "None",
     item_title_print_blank: "Print {} blank {}",
     item_title_template_inline: "template",
@@ -10688,10 +10683,6 @@ pub static EN: Strings = Strings {
     question_summary_3: "3 presets",
     question_summary_place: "place",
     question_summary_places: "places",
-    question_summary_a_share_each: "· a share each",
-    question_summary_the_whole_sheet: "· the whole sheet",
-    question_summary_passphrase: "passphrase",
-    question_summary_passphrases: "passphrases",
     question_summary_any: "Any one place lost: {}",
     backup_after: "After: {}",
     backup_back_up_a_wallet: "Back up a wallet",
@@ -10722,17 +10713,10 @@ pub static EN: Strings = Strings {
     backup_back_to_the: "Back to the wallet",
     backup_done: "Done",
     plan_a_key_made_here: "A key made here signs only once this backup is done.",
-    plan_places_with_paper: "Places with paper",
-    plan_each_place_keeps: "Each place keeps",
-    plan_the_whole_wallet: "The whole wallet sheet",
-    plan_its_own_share: "Its own share",
     plan_what_is_a_share: "What is a share?",
-    plan_vault_s: "Vault {}'s {}",
     plan_form: "Form",
     plan_qr_picture: "QR picture",
     plan_text: "Text",
-    plan_its_words: "{} · its words",
-    plan_in_the_vault_with: "In the vault, with its seed",
     plan_vault_s_needs: "Vault {}'s {} needs a place",
     plan_make_the_checklist: "Make the checklist",
     plan_continue: "Continue",
@@ -12309,6 +12293,34 @@ pub static EN: Strings = Strings {
     backup_flow_stick_for: "the {} for {} ({})",
     backup_flow_files_stick: "the {} of files",
     backup_flow_public_stick: "the {} of public files",
+    backup_flow_files_at: "Files ({})",
+    backup_flow_wallet_files: "Wallet description: files",
+    backup_flow_share_files: "Share {} of {}: files",
+    backup_flow_number_of_places: "Number of places",
+    backup_flow_seed_words_by_hand: "Seed words by hand",
+    backup_flow_seedqr_by_hand: "SeedQR by hand",
+    backup_flow_seed_as_a_file: "Seed as a file, unprotected",
+    backup_flow_passphrase_row: "Passphrase",
+    backup_flow_pick_title: "{} · {}",
+    backup_flow_with_its_passphrase: "{} with its passphrase",
+    backup_flow_also_at: "Also at {}",
+    backup_flow_pick_done: "Done",
+    backup_flow_the_wallet_description: "The wallet description",
+    backup_flow_whole: "Whole",
+    backup_flow_in_shares: "In shares",
+    backup_flow_where_the_description: "Where the description goes",
+    backup_flow_on_paper: "On paper",
+    backup_flow_as_a_file: "As a file",
+    backup_flow_shares_here: "Shares here",
+    backup_flow_not_a_place: "Not a place",
+    backup_flow_into_watch_only: "Into watch-only software",
+    backup_flow_the_plan: "The plan",
+    backup_flow_vault_holds_nothing: "Vault {} holds nothing",
+    backup_flow_vault_share: "{} · Share {} of {}",
+    backup_flow_held_before: "Vault {} held this before; take it out from the vault's contents",
+    backup_flow_other_wallet_key: "Another wallet in Vault {} uses this key; take it out from the vault's contents",
+    backup_flow_files_after_lock: "Files and paper stay as made after the lock; finish the writes, then Back up again to change them",
+    backup_flow_past_lock: "This backup is past its lock; finish the writes, then Back up again",
     backup_flow_lock_bring: "Lock and bring in the {}",
     backup_flow_insert: "Insert {}",
     backup_flow_use_read: "Use {}, read at {}",

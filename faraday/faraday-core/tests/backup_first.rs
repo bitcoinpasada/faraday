@@ -14,7 +14,7 @@ use faraday_core::testkit::{self, Kit};
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::wallet::fp_text;
 use faraday_core::{
-    Action, BStage, Faraday, Screen, StorageCommand, StorageEvent, bstep, cstep, plan, qrow,
+    Action, BStage, Faraday, Screen, StorageCommand, StorageEvent, bstep, cstep, plan, qstep,
 };
 use osk_bip::bip39::Mnemonic;
 use osk_bip::keys::Fingerprint;
@@ -380,10 +380,9 @@ fn with_every_item_done_the_done_card_shows_the_three_checks_above_the_chart() {
     // Paper alone, with no sheet: nothing is written to a stick, so the
     // card is the end.
     app.press(Action::CBackup(preset(Preset::Paper)));
-    app.press(Action::BAnswer(
-        faraday_core::qrow::WALLET,
-        faraday_core::plan::wallet::PAPER as u8,
-    ));
+    for p in 0..app.backup.as_ref().unwrap().answers.places {
+        app.press(Action::BForm(p as u8, plan::Form::Paper.code()));
+    }
     app.press(Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
@@ -418,7 +417,7 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
     let (_, fp) = made_here(&mut app);
     app.press(Action::CBackup(preset(Preset::PaperVault)));
     // No paper: the vault's item comes first.
-    app.press(Action::BAnswer(qrow::SEEDS, plan::seeds::WORDS as u8));
+    untick_everywhere(&mut app, plan::Row::Words);
     app.press(Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
@@ -509,7 +508,8 @@ fn a_plan_with_the_seed_unticked_everywhere_offers_no_make_the_checklist() {
             .any(|t| t.contains("A key made here signs only once this backup is done."))
     );
     app.press(Action::BPreset(preset(Preset::Paper)));
-    app.press(Action::BAnswer(qrow::SEEDS, plan::seeds::WORDS as u8));
+    untick_everywhere(&mut app, plan::Row::Words);
+    app.press(Action::BQ(qstep::PLAN));
     let _ = app.frame();
     assert!(!app.offers(Action::BChecklist));
     let nowhere = format!("Seed {} is kept nowhere", fp_text(fp));
@@ -519,4 +519,11 @@ fn a_plan_with_the_seed_unticked_everywhere_offers_no_make_the_checklist() {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Plan);
+}
+
+/// Row `row` unticked on every place's card.
+fn untick_everywhere(app: &mut Faraday, row: plan::Row) {
+    for p in 0..app.backup.as_ref().unwrap().answers.places {
+        app.press(Action::BRowOff(p as u8, row.code()));
+    }
 }

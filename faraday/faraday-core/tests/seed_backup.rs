@@ -14,7 +14,7 @@ use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::wallet::FileKind;
-use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, bstep, plan, qrow};
+use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, bstep, plan};
 use faraday_vault::records::kind;
 use osk_bip::keys::Fingerprint;
 use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
@@ -102,13 +102,22 @@ fn backing_up(app: &mut Faraday, with: bool) -> Fingerprint {
     let w = app.session.wallets.len() - 1;
     app.press(Action::Backup(w));
     app.press(Action::BPreset(1));
+    let shape = app.plan_shape(w);
     if with {
-        // The passphrase into the vault with its seed: the row after the
-        // three places (its own place is the third, which keeps no copy
-        // of the seed).
-        app.press(Action::BAnswer(qrow::PASS, 3));
+        // The passphrase into the vault with its seed, on the vault's
+        // sheet at the place that keeps its stick.
+        let a = &app.backup.as_ref().unwrap().answers;
+        let p = (0..a.places)
+            .find(|&p| a.row_seeds(&shape, p, plan::Row::Vault(0)).is_some())
+            .expect("Vault 1's stick has a place");
+        app.press(Action::BRow(p as u8, plan::Row::Vault(0).code()));
+        app.press(Action::BPickPass(0));
+        app.press(Action::BPickDone);
     }
-    app.press(Action::BAnswer(qrow::SEEDS, plan::seeds::FILE as u8));
+    // The seed as a file, at Place 1.
+    app.press(Action::BRow(0, plan::Row::File.code()));
+    app.press(Action::BPick(0));
+    app.press(Action::BPickDone);
     app.press(Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));

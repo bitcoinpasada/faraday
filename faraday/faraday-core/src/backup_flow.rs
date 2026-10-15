@@ -251,6 +251,10 @@ pub enum Target {
     PlaceVault(usize, usize),
     /// The stick of files (a wallet's seed files).
     Files,
+    /// The stick of files a place keeps: a wallet's seed files and public
+    /// files kept there (`docs/BACKUP-FLOW.md` §17.2). Named after step 2
+    /// and written at step 6 in its place's turn, as the stick of files is.
+    PlaceFiles(usize),
     /// The stick of public files.
     Public,
 }
@@ -262,6 +266,7 @@ impl Target {
             Target::PlaceVault(p, v) => format!("q{p}.{v}"),
             Target::Files => "f".into(),
             Target::Public => "u".into(),
+            Target::PlaceFiles(p) => format!("r{p}"),
         }
     }
 
@@ -270,6 +275,9 @@ impl Target {
             "f" => Some(Target::Files),
             "u" => Some(Target::Public),
             _ => {
+                if let Some(rest) = s.strip_prefix('r') {
+                    return rest.parse().ok().map(Target::PlaceFiles);
+                }
                 if let Some(rest) = s.strip_prefix('q') {
                     let (p, v) = rest.split_once('.')?;
                     return Some(Target::PlaceVault(p.parse().ok()?, v.parse().ok()?));
@@ -279,7 +287,16 @@ impl Target {
         }
     }
 
-    /// The place whose stick it is.
+    /// The place whose stick of files it is.
+    pub fn files_place(self) -> Option<usize> {
+        match self {
+            Target::PlaceFiles(p) => Some(p),
+            _ => None,
+        }
+    }
+
+    /// The place whose stick it is: a vault's stick there. A place's stick
+    /// of files is [`Target::files_place`].
     pub fn place(self) -> Option<usize> {
         match self {
             Target::Place(p) | Target::PlaceVault(p, _) => Some(p),
@@ -292,6 +309,7 @@ impl Target {
         match self {
             Target::Place(p) => (0, p, 0),
             Target::PlaceVault(p, v) => (0, p, v + 1),
+            Target::PlaceFiles(p) => (0, p, usize::MAX),
             Target::Files => (1, 0, 0),
             Target::Public => (2, 0, 0),
         }
@@ -344,6 +362,9 @@ pub struct Plan {
     pub files: bool,
     /// The plan names a stick of public files of its own.
     pub public: bool,
+    /// The places that keep a stick of files of their own
+    /// (`docs/BACKUP-FLOW.md` §17.2).
+    pub place_files: Vec<usize>,
     /// Which stick carries the public files.
     pub public_on: PublicOn,
 }
@@ -371,13 +392,19 @@ impl Plan {
             public_at: 0,
             files: false,
             public: false,
+            place_files: Vec::new(),
             public_on: PublicOn::Place,
         }
     }
 
     /// The sticks the plan names besides its places', in order.
     pub fn extra_targets(&self) -> Vec<Target> {
-        let mut out = Vec::new();
+        let mut out: Vec<Target> = self
+            .place_files
+            .iter()
+            .filter(|&&p| p < self.places.len())
+            .map(|&p| Target::PlaceFiles(p))
+            .collect();
         if self.files {
             out.push(Target::Files);
         }
@@ -456,7 +483,7 @@ impl Plan {
 /// seeds or the wallet as files; and the stick that carries the public
 /// files and sheets.
 pub fn plan_of(shape: &crate::plan::Shape, a: &crate::plan::Answers) -> Plan {
-    use crate::plan::{At, Item, What};
+    use crate::plan::{At, What};
     let boxes = crate::plan::map(shape, a);
     let mut places: Vec<(usize, Vec<usize>)> = Vec::new();
     let mut nv = 0usize;
@@ -491,9 +518,8 @@ pub fn plan_of(shape: &crate::plan::Shape, a: &crate::plan::Answers) -> Plan {
     let seed_files =
         files_spot.is_some_and(|s| s.holds.iter().any(|(w, _)| matches!(w, What::SeedFile(_))));
     let wallet_files = files_spot.is_some_and(|s| s.holds.iter().any(|(w, _)| *w == What::Wallet));
-    let public_any = crate::plan::checklist(shape, a)
-        .iter()
-        .any(|i| matches!(i, Item::Sheets | Item::PublicFiles));
+    let place_files = a.file_places(shape);
+    let public_any = crate::plan::public_stick(shape, a);
     // The stick of public files is read on an online computer: a plain
     // seed file never shares it by default, however the plan keeps the
     // description (`docs/BACKUP-FLOW.md` §16, a default the owner may
@@ -510,6 +536,7 @@ pub fn plan_of(shape: &crate::plan::Shape, a: &crate::plan::Answers) -> Plan {
         public_at,
         files: seed_files || (public_on == PublicOn::Files && public_any),
         public: public_on == PublicOn::Own && public_any,
+        place_files,
         public_on,
     }
 }
@@ -630,6 +657,9 @@ pub struct Writing {
     pub id: String,
     /// The slot.
     pub slot: usize,
+    /// The stick it is for: its result is counted for this target,
+    /// wherever its slot is by then.
+    pub target: Target,
     /// Files sent and not yet answered: the name sent and its SHA-256.
     pub pending: Vec<(String, [u8; 32])>,
     /// Files answered, read back and matched: the name written as.
@@ -665,6 +695,9 @@ pub struct Live {
     pub making: bool,
     /// Two sticks are in.
     pub crowd: bool,
+    /// A wallet's plan card open, by [`crate::qstep`]
+    /// (`docs/BACKUP-FLOW.md` §17).
+    pub plan_q: Option<u8>,
 }
 
 /// One flow (§7).
@@ -722,6 +755,19 @@ pub struct WalletFlow {
     /// The seeds each vault of the plan was sealed with, by vault: what a
     /// plan changed after the lock is compared with (§4.8).
     pub sealed: Vec<(usize, Vec<usize>)>,
+    /// What each vault held before this flow first put anything in it, by
+    /// the vault's salt: `k{fp}` a key's record of its words alone,
+    /// `p{fp}` one with its passphrase, `w{sum}` a
+    /// wallet's description, `s{sum}:{n}` a wallet's share. The round
+    /// takes none of it out (`docs/BACKUP-FLOW.md` §17). Never a secret.
+    pub before: Vec<([u8; 32], Vec<String>)>,
+    /// The keys, by fingerprint, another wallet's record in each vault
+    /// names, by the vault's salt: the round takes none of them out.
+    pub others: Vec<([u8; 32], Vec<String>)>,
+    /// At the lock the plan kept the description, a sheet or a share, on
+    /// paper or as files: whole or in shares, and the keys left off each
+    /// share, are fixed from then on (`docs/BACKUP-FLOW.md` §17).
+    pub pieces: bool,
     /// Each seed's fingerprint without its passphrase, as text, for the
     /// round to find a record of the same words; empty where unknown.
     pub base: Vec<String>,
@@ -824,6 +870,9 @@ impl BackupFlow {
             name: name.to_string(),
             held: Vec::new(),
             sealed: Vec::new(),
+            before: Vec::new(),
+            others: Vec::new(),
+            pieces: false,
             base: Vec::new(),
             owner: 0,
             setup: false,
@@ -921,6 +970,7 @@ impl BackupFlow {
             public_at: 0,
             files: false,
             public: false,
+            place_files: Vec::new(),
             public_on: PublicOn::Place,
         }
     }
@@ -1019,7 +1069,9 @@ impl BackupFlow {
         self.slots.retain(|s| {
             let keep = match s.target {
                 Target::Place(_) | Target::PlaceVault(..) => want.contains(&s.target),
-                Target::Files | Target::Public => extras.contains(&s.target),
+                Target::Files | Target::Public | Target::PlaceFiles(_) => {
+                    extras.contains(&s.target)
+                }
             };
             if !keep {
                 orphaned.extend(s.files.iter().cloned());
@@ -1044,6 +1096,9 @@ impl BackupFlow {
                 );
             }
         }
+        // A seed's file goes nowhere but its own stick of files: a stick
+        // that leaves the plan takes it off the plan with it.
+        orphaned.retain(|n| !self.seed_file_ok(n));
         if !orphaned.is_empty()
             && let Some(first) = self.slots.first_mut()
         {
@@ -1209,6 +1264,10 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                 PublicOn::Own => "o",
             },
         ));
+        if !f.plan.place_files.is_empty() {
+            let list: Vec<String> = f.plan.place_files.iter().map(|p| p.to_string()).collect();
+            out.push_str(&format!("pfiles\t{}\n", list.join(",")));
+        }
         if let Some(w) = &f.wallet {
             out.push_str(&format!(
                 "wallet\t{}\t{}\t{}\n",
@@ -1222,6 +1281,19 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
             for (v, seeds) in &w.sealed {
                 let list: Vec<String> = seeds.iter().map(|s| s.to_string()).collect();
                 out.push_str(&format!("wsealed\t{v}\t{}\n", list.join(",")));
+            }
+            if w.pieces {
+                out.push_str("wpieces\t1\n");
+            }
+            for (salt, held) in &w.before {
+                out.push_str(&format!(
+                    "wbefore\t{}\t{}\n",
+                    hex_text(salt),
+                    held.join(",")
+                ));
+            }
+            for (salt, fps) in &w.others {
+                out.push_str(&format!("wothers\t{}\t{}\n", hex_text(salt), fps.join(",")));
             }
             out.push_str(&format!(
                 "wshape\t{}\t{}\t{}\t{}\n",
@@ -1439,6 +1511,17 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             };
             true
         }
+        ["pfiles", list] => {
+            let Some(places) = list
+                .split(',')
+                .map(|x| x.parse().ok())
+                .collect::<Option<Vec<usize>>>()
+            else {
+                return false;
+            };
+            fl.plan.place_files = places;
+            true
+        }
         ["wallet", checksum, name, held] => {
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
             w.checksum = (!checksum.is_empty()).then(|| checksum.to_string());
@@ -1453,6 +1536,27 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
         ["wbase", list] => {
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
             w.base = list.split(',').map(str::to_string).collect();
+            true
+        }
+        ["wpieces", on] => {
+            fl.wallet.get_or_insert_with(WalletFlow::blank).pieces = on == "1";
+            true
+        }
+        ["wbefore" | "wothers", salt, list] => {
+            let Some(salt) = hex_array(salt) else {
+                return false;
+            };
+            let items: Vec<String> = list
+                .split(',')
+                .filter(|x| !x.is_empty())
+                .map(str::to_string)
+                .collect();
+            let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
+            if f[0] == "wbefore" {
+                w.before.push((salt, items));
+            } else {
+                w.others.push((salt, items));
+            }
             true
         }
         ["wsealed", v, seeds] => {
@@ -1716,6 +1820,9 @@ impl WalletFlow {
             name: String::new(),
             held: Vec::new(),
             sealed: Vec::new(),
+            before: Vec::new(),
+            others: Vec::new(),
+            pieces: false,
             base: Vec::new(),
             owner: 0,
             setup: false,

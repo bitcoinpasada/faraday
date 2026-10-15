@@ -12,10 +12,10 @@ use faraday_core::backup_flow::{BackupFlow, Step, Target};
 use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::create::NewKind;
 use faraday_core::plan::{
-    self, Answers, At, Item, Preset, Shape, Spot, Tag, What, form, seeds, wallet,
+    self, Answers, At, Form, Item, Preset, Row, Shape, Spot, Tag, What, form, seeds, wallet,
 };
 use faraday_core::testkit;
-use faraday_core::{Action, BStage, Faraday, Screen, Sheet, bstep, cstep, qrow};
+use faraday_core::{Action, BStage, Faraday, PlanPress, Screen, Sheet, bstep, cstep, qrow};
 use faraday_vault::records::kind;
 use osk_shell_api::{App, Event, Key};
 
@@ -23,12 +23,158 @@ const PHRASE: &str = "first vault phrase";
 const PHRASE_2: &str = "second vault phrase";
 const PHRASE_3: &str = "third vault phrase";
 
+/// A row of the flow's Software card.
+#[allow(dead_code)]
 fn answer(shell: &mut Shell, app: &mut Faraday, list: u8, row: usize) {
     shell.flow(app, F::Answer(list, row as u8));
 }
 
+/// A press on the flow's own plan cards, Back up's cards in the flow.
+fn flow_plan(shell: &mut Shell, app: &mut Faraday, press: PlanPress) {
+    shell.flow(app, F::Plan(press));
+}
+
+/// The first place the flow's plan keeps vault `v`'s stick at.
+fn flow_place_of(app: &Faraday, v: usize) -> usize {
+    let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+    (0..wf.answers.places)
+        .find(|&p| wf.answers.row_seeds(&wf.shape, p, Row::Vault(v)).is_some())
+        .expect("the vault's stick has a place")
+}
+
+/// At place `p` of the flow's plan, row `row`'s sheet given exactly
+/// `seeds`, and Done.
+fn flow_keep(shell: &mut Shell, app: &mut Faraday, p: usize, row: Row, seeds: &[usize]) {
+    flow_plan(shell, app, PlanPress::Row(p as u8, row.code()));
+    let ticked = app
+        .choosing
+        .as_ref()
+        .expect("the row's sheet")
+        .seeds
+        .clone();
+    let n = app
+        .flow()
+        .unwrap()
+        .wallet
+        .as_ref()
+        .unwrap()
+        .shape
+        .seeds
+        .len();
+    for i in 0..n {
+        if ticked.contains(&i) != seeds.contains(&i) {
+            shell.press(app, Action::BPick(i as u8));
+        }
+    }
+    shell.press(app, Action::BPickDone);
+}
+
+/// Seed `i` put into vault `v` too, on the vault's sheet in the flow.
+fn flow_vault_add(shell: &mut Shell, app: &mut Faraday, v: usize, i: usize) {
+    let p = flow_place_of(app, v);
+    let mut seeds = {
+        let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+        wf.answers.vault_seeds(&wf.shape, v)
+    };
+    seeds.push(i);
+    flow_keep(shell, app, p, Row::Vault(v), &seeds);
+}
+
+/// A row of Back up's Software card (the software, the form).
 fn answer_backup(app: &mut Faraday, list: u8, row: usize) {
     app.press(Action::BAnswer(list, row as u8));
+}
+
+fn backup_places(app: &Faraday) -> usize {
+    app.backup.as_ref().unwrap().answers.places
+}
+
+fn backup_shape(app: &Faraday) -> Shape {
+    app.plan_shape(app.backup.as_ref().unwrap().wallet)
+}
+
+/// Row `row` unticked on every place's card of Back up's plan.
+fn untick_everywhere(app: &mut Faraday, row: Row) {
+    for p in 0..backup_places(app) {
+        app.press(Action::BRowOff(p as u8, row.code()));
+    }
+}
+
+/// The description's form `form` unticked at every place that keeps it.
+fn form_off_everywhere(app: &mut Faraday, form: Form) {
+    for p in 0..backup_places(app) {
+        let shape = backup_shape(app);
+        if app
+            .backup
+            .as_ref()
+            .unwrap()
+            .answers
+            .form_at(&shape, p, form)
+        {
+            app.press(Action::BForm(p as u8, form.code()));
+        }
+    }
+}
+
+/// The description's form `form` ticked at place `p`.
+fn form_on(app: &mut Faraday, p: usize, form: Form) {
+    let shape = backup_shape(app);
+    if !app
+        .backup
+        .as_ref()
+        .unwrap()
+        .answers
+        .form_at(&shape, p, form)
+    {
+        app.press(Action::BForm(p as u8, form.code()));
+    }
+}
+
+/// At place `p`, row `row` given exactly `seeds` on its sheet, and Done.
+fn keep_at(app: &mut Faraday, p: usize, row: Row, seeds: &[usize]) {
+    app.press(Action::BRow(p as u8, row.code()));
+    let ticked = app
+        .choosing
+        .as_ref()
+        .expect("the row's sheet")
+        .seeds
+        .clone();
+    for i in 0..backup_shape(app).seeds.len() {
+        if ticked.contains(&i) != seeds.contains(&i) {
+            app.press(Action::BPick(i as u8));
+        }
+    }
+    app.press(Action::BPickDone);
+}
+
+/// Whether Back up's plan offers `action` anywhere down its column.
+fn offered_down(app: &mut Faraday, action: Action) -> bool {
+    for _ in 0..20 {
+        if offered(app, action) {
+            return true;
+        }
+        app.event(Event::Scroll {
+            x: 400,
+            y: 384,
+            dy: 300,
+        });
+    }
+    false
+}
+
+/// The first place that keeps vault `v`'s stick.
+fn vault_place(app: &Faraday, v: usize) -> usize {
+    let shape = backup_shape(app);
+    let a = &app.backup.as_ref().unwrap().answers;
+    (0..a.places)
+        .find(|&p| a.row_seeds(&shape, p, Row::Vault(v)).is_some())
+        .expect("the vault's stick has a place")
+}
+
+/// Vault `v`'s stick kept at place `p` too, the vault as it is.
+fn stick_also_at(app: &mut Faraday, p: usize, v: usize) {
+    app.press(Action::BRow(p as u8, Row::Vault(v).code()));
+    app.press(Action::BPickDone);
 }
 
 fn step(app: &Faraday) -> Step {
@@ -199,13 +345,13 @@ fn single_key_with(
     app.press(Action::CBackup(1));
     assert_eq!(app.screen, Screen::Backup);
     // The seed in Vault 1 only, its stick at both places, the wallet
-    // description as files.
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
-    answer_backup(&mut app, qrow::STICKS, 0);
-    answer_backup(&mut app, qrow::WALLET, wallet::PAPER);
-    answer_backup(&mut app, qrow::WALLET, wallet::FILES);
+    // description as files at Place 2.
+    untick_everywhere(&mut app, Row::Words);
+    stick_also_at(&mut app, 0, 0);
+    form_off_everywhere(&mut app, Form::Paper);
+    form_on(&mut app, 1, Form::File);
     if !description_in_vault {
-        answer_backup(&mut app, qrow::WALLET, wallet::VAULT);
+        form_off_everywhere(&mut app, Form::Vault(0));
     }
     answer_backup(&mut app, qrow::FORM, form::QR);
     answer_backup(&mut app, qrow::FORM, form::TEXT);
@@ -220,11 +366,11 @@ fn single_key_with(
         // first place, the second place waits for a stick.
         let f = app.backup_flows.last().unwrap();
         assert_eq!(f.plan.places, vec![vec![0], vec![0]]);
-        assert!(f.plan.files);
+        assert_eq!(f.plan.place_files, vec![1], "Place 2's stick of files");
         let targets: Vec<Target> = f.slots.iter().map(|s| s.target).collect();
         assert_eq!(
             targets,
-            vec![Target::Place(0), Target::Place(1), Target::Files]
+            vec![Target::Place(0), Target::Place(1), Target::PlaceFiles(1)]
         );
         assert!(f.slots[0].bound.is_some(), "the stick read in the setup");
         assert!(
@@ -461,9 +607,11 @@ fn a_plan_may_have_any_number_of_places_and_one_place_says_so() {
 fn the_flow_follows_any_number_of_places() {
     let mut shell = Shell::new();
     let (mut app, _, _) = single_key_ready(&mut shell);
-    // Back up's places question: any number, and the flow follows it.
+    // Back up's places card: any number, and the flow follows it.
     app.press(Action::BPlan);
-    app.press(Action::BAnswer(qrow::PLACES, 8));
+    while backup_places(&app) < 8 {
+        app.press(Action::BPlaces(true));
+    }
     let f = app.backup_flows.last().unwrap();
     assert_eq!(f.wallet.as_ref().unwrap().answers.places, 8);
     assert_eq!(f.plan.places.len(), 8);
@@ -530,7 +678,7 @@ fn two_of_three_ready(shell: &mut Shell, software: bool) -> Faraday {
     }
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(if software { 2 } else { 1 }));
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
+    untick_everywhere(&mut app, Row::Words);
     if software {
         answer_backup(&mut app, qrow::SOFTWARE, plan::software::SPARROW);
         answer_backup(&mut app, qrow::SOFTWARE, plan::software::NOT_SURE);
@@ -872,12 +1020,15 @@ fn a_one_place_plan_shows_the_warning_and_blocks_nothing() {
     let mut shell = Shell::new();
     let (mut app, _, _) = single_key_ready(&mut shell);
     app.press(Action::BPlan);
-    app.press(Action::BAnswer(qrow::PLACES, 1));
+    while backup_places(&app) > 1 {
+        app.press(Action::BPlaces(false));
+    }
     assert_eq!(app.backup_flows.last().unwrap().plan.places.len(), 1);
     expect_part(&mut app, "Every secret of this wallet is at Place 1");
     expect_part(&mut app, "Separate places are strongly");
+    app.press(Action::BQ(faraday_core::qstep::PLAN));
     assert!(
-        offered(&mut app, Action::BChecklist) || offered(&mut app, Action::BQNext(0)),
+        offered_down(&mut app, Action::BChecklist),
         "nothing is blocked"
     );
     app.press(Action::BChecklist);
@@ -915,7 +1066,7 @@ fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
     assert_eq!(app.vaults.open[0].contents.of(kind::KEY).count(), 0);
     app.press(Action::Backup(w));
     app.press(Action::BPreset(1));
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
+    untick_everywhere(&mut app, Row::Words);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     assert_eq!(app.vaults.open[0].contents.of(kind::KEY).count(), 1);
@@ -941,7 +1092,7 @@ fn changing_the_plan_after_the_lock_runs_the_round_and_writes_the_vault_again() 
     assert_eq!(step(&app), Step::Write);
     // Seed 1 is to be in Vault 2 as well. Nothing is written yet.
     shell.flow(&mut app, F::ChangePlan);
-    answer(&mut shell, &mut app, qrow::VAULTS + 1, 0);
+    flow_vault_add(&mut shell, &mut app, 1, 0);
     shell.flow(&mut app, F::Continue);
     {
         let f = app.flow().unwrap();
@@ -981,7 +1132,18 @@ fn changing_the_plan_after_the_lock_runs_the_round_and_writes_the_vault_again() 
     shell.plug(&mut app, "S4");
     shell.flow(&mut app, F::Tap);
     shell.pull(&mut app, "S4");
-    assert_eq!(step(&app), Step::Done);
+    assert_eq!(
+        step(&app),
+        Step::Done,
+        "{:?} {:?}",
+        app.flow().unwrap().live.problem,
+        app.flow()
+            .unwrap()
+            .slots
+            .iter()
+            .map(|s| (s.target, s.files.clone(), s.written.is_some()))
+            .collect::<Vec<_>>()
+    );
     no_visit(&shell);
     // The copy of Vault 2 that went to its stick holds both seeds.
     let bytes = ofv(&shell, "S2").expect("Vault 2 on S2");
@@ -1116,15 +1278,19 @@ fn a_seed_let_out_unprotected_is_written_to_the_stick_of_files_and_to_no_other()
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    // The seed in Vault 1 and as a file; nothing else.
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
-    answer_backup(&mut app, qrow::SEEDS, seeds::FILE);
-    answer_backup(&mut app, qrow::WALLET, wallet::PAPER);
+    // The seed in Vault 1 and as a file at Place 2; nothing else.
+    untick_everywhere(&mut app, Row::Words);
+    keep_at(&mut app, 1, Row::File, &[0]);
+    form_off_everywhere(&mut app, Form::Paper);
     {
         let f = app.backup_flows.last().unwrap();
-        assert!(f.plan.files, "the seed's file is on a stick of files");
+        assert_eq!(
+            f.plan.place_files,
+            vec![1],
+            "the seed's file is on Place 2's stick of files"
+        );
         let t: Vec<Target> = f.slots.iter().map(|s| s.target).collect();
-        assert_eq!(t, vec![Target::Place(1), Target::Files]);
+        assert_eq!(t, vec![Target::Place(1), Target::PlaceFiles(1)]);
         assert!(f.slots[0].bound.is_some(), "the stick read for Vault 1");
     }
     app.press(Action::BChecklist);
@@ -1209,8 +1375,8 @@ fn a_second_backup_of_the_same_wallet_in_the_same_power_on_writes_again() {
     assert_eq!(app.screen, Screen::Backup);
     assert!(app.backup_item_done(Item::Sticks));
     app.press(Action::BPlan);
-    app.press(Action::BAnswer(qrow::PLACES, 3));
-    app.press(Action::BAnswer(qrow::STICKS, 2));
+    app.press(Action::BPlaces(true));
+    stick_also_at(&mut app, 2, 0);
     app.press(Action::BChecklist);
     app.press(Action::BNext(bstep::ENVELOPE));
     assert!(
@@ -1228,7 +1394,9 @@ fn a_second_backup_of_the_same_wallet_in_the_same_power_on_writes_again() {
         "{:?}",
         app.flow().unwrap().live.problem
     );
-    assert!(ofv(&shell, "S3").is_some(), "the new place was written");
+    // S3 is Place 2's stick of files, written in its place's turn; S4
+    // the new place's.
+    assert!(ofv(&shell, "S4").is_some(), "the new place was written");
     no_visit(&shell);
 }
 
@@ -1265,15 +1433,11 @@ fn a_seed_kept_only_as_a_file_is_held_until_its_stick_is_written() {
     app.press(Action::CreateWallet);
     let fp = new_key_here(&mut app);
     app.press(Action::CBackup(1));
-    for (list, row) in [
-        (qrow::SEEDS, seeds::VAULT),
-        (qrow::SEEDS, seeds::WORDS),
-        (qrow::SEEDS, seeds::FILE),
-        (qrow::WALLET, wallet::PAPER),
-        (qrow::WALLET, wallet::VAULT),
-    ] {
-        answer_backup(&mut app, list, row);
-    }
+    // No vault, no words, no sheet: the seed as a file at Place 1 alone.
+    untick_everywhere(&mut app, Row::Vault(0));
+    untick_everywhere(&mut app, Row::Words);
+    keep_at(&mut app, 0, Row::File, &[0]);
+    form_off_everywhere(&mut app, Form::Paper);
     app.press(Action::BChecklist);
     assert_eq!(
         app.backup_items(),
@@ -1462,7 +1626,7 @@ fn the_round_keeps_a_passphrase_apart_and_copies_only_this_wallets_records() {
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
     shell.flow(&mut app, F::ChangePlan);
-    answer(&mut shell, &mut app, qrow::VAULTS + 1, 0);
+    flow_vault_add(&mut shell, &mut app, 1, 0);
     shell.flow(&mut app, F::Continue);
     unlock(&mut app, PHRASE);
     unlock(&mut app, PHRASE_2);
@@ -1559,7 +1723,7 @@ fn two_of_three_ready_with(shell: &mut Shell, passphrase: bool) -> Faraday {
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
+    untick_everywhere(&mut app, Row::Words);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     app.press(Action::BOut(3));
@@ -1590,7 +1754,7 @@ fn a_vault_preset_chosen_after_the_keys_goes_through_to_the_writes() {
     // Paper and vault, chosen after the keys: the vault is the open one,
     // the key goes into it, its stick is checked at its write.
     app.press(Action::CBackup(1));
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
+    untick_everywhere(&mut app, Row::Words);
     app.press(Action::BChecklist);
     app.press(Action::BVaultSave(0));
     assert!(app.backup_item_done(Item::Vault(0)));
@@ -1659,7 +1823,7 @@ fn a_key_in_a_slot_goes_into_no_vault_by_itself_and_a_passphrase_added_later_lea
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
+    untick_everywhere(&mut app, Row::Words);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     assert_eq!(
@@ -1688,15 +1852,29 @@ fn a_description_added_to_an_existing_vault_after_the_lock_starts_a_round() {
     let mut app = restart(&mut shell, &mut app);
     assert_eq!(step(&app), Step::Write);
     shell.flow(&mut app, F::ChangePlan);
-    let w = app.flow().unwrap().wallet.as_ref().unwrap().answers.wallet;
-    answer(&mut shell, &mut app, qrow::WALLET, wallet::VAULT);
-    let w2 = app.flow().unwrap().wallet.as_ref().unwrap().answers.wallet;
-    assert_ne!(
-        w[wallet::VAULT],
-        w2[wallet::VAULT],
-        "{w:?} {w2:?} {:?}",
-        app.toast_text()
+    let w = app
+        .flow()
+        .unwrap()
+        .wallet
+        .as_ref()
+        .unwrap()
+        .answers
+        .wallet_in_vault(0);
+    let p = flow_place_of(&app, 0);
+    flow_plan(
+        &mut shell,
+        &mut app,
+        PlanPress::Form(p as u8, Form::Vault(0).code()),
     );
+    let w2 = app
+        .flow()
+        .unwrap()
+        .wallet
+        .as_ref()
+        .unwrap()
+        .answers
+        .wallet_in_vault(0);
+    assert_ne!(w, w2, "{w:?} {w2:?} {:?}", app.toast_text());
     shell.flow(&mut app, F::Continue);
     assert!(app.flow().unwrap().adding, "the description is a round");
     unlock(&mut app, PHRASE);
@@ -1783,7 +1961,11 @@ fn back_on_a_card_before_the_keys_returns_to_make_a_new_wallet_and_a_refusal_say
     let mut app = restart(&mut shell, &mut app);
     write_sticks(&mut shell, &mut app, &["S1"]);
     shell.flow(&mut app, F::ChangePlan);
-    answer(&mut shell, &mut app, qrow::STICKS, 0);
+    flow_plan(
+        &mut shell,
+        &mut app,
+        PlanPress::RowOff(0, Row::Vault(0).code()),
+    );
     assert_eq!(
         app.toast_text(),
         Some("A stick already written stays on the plan")
@@ -1840,19 +2022,32 @@ fn a_key_held_for_its_sticks_stays_kept_on_one_and_is_held_until_every_stick_is_
     assert_eq!(step(&app), Step::Write);
     let slots = app.flow().unwrap().slots.len();
     shell.flow(&mut app, F::ChangePlan);
-    // Into vaults ticked off: the key would be kept on no stick.
-    answer(&mut shell, &mut app, qrow::SEEDS, seeds::VAULT);
+    // The key taken out of Vault 1 on its sheet: it would be kept on no
+    // stick.
+    let p = flow_place_of(&app, 0);
+    flow_keep(&mut shell, &mut app, p, Row::Vault(0), &[]);
     assert_eq!(
         app.toast_text(),
         Some("A key not yet written stays kept on a stick")
     );
-    assert!(app.flow().unwrap().wallet.as_ref().unwrap().answers.seeds[seeds::VAULT]);
+    {
+        let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+        assert!(wf.answers.vault_seeds(&wf.shape, 0).contains(&0));
+    }
     assert_eq!(app.flow().unwrap().slots.len(), slots);
     // Vault 1's stick at the first place goes; the one at the second stays.
-    answer(&mut shell, &mut app, qrow::STICKS, 0);
+    flow_plan(
+        &mut shell,
+        &mut app,
+        PlanPress::RowOff(0, Row::Vault(0).code()),
+    );
     assert_eq!(app.flow().unwrap().slots.len(), slots - 1);
     // The last stick of the vault is refused, with its toast.
-    answer(&mut shell, &mut app, qrow::STICKS, 1);
+    flow_plan(
+        &mut shell,
+        &mut app,
+        PlanPress::RowOff(1, Row::Vault(0).code()),
+    );
     assert_eq!(
         app.toast_text(),
         Some("A key not yet written stays kept on a stick")
@@ -1925,9 +2120,11 @@ fn a_key_with_its_vault_written_but_not_its_seed_file_is_held() {
     let fp = new_key_here(&mut app);
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
-    answer_backup(&mut app, qrow::SEEDS, seeds::FILE);
-    answer_backup(&mut app, qrow::WALLET, wallet::PAPER);
+    untick_everywhere(&mut app, Row::Words);
+    // The seed's file at the place that keeps Vault 1's stick.
+    let p = vault_place(&app, 0);
+    keep_at(&mut app, p, Row::File, &[0]);
+    form_off_everywhere(&mut app, Form::Paper);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     app.press(Action::BFile);
@@ -1952,18 +2149,24 @@ fn a_passphrase_kept_only_in_the_vault_is_not_taken_out_while_its_key_is_held() 
     {
         let wf = app.backup_flows[0].wallet.as_mut().unwrap();
         wf.shape.seeds[0].passphrase = true;
-        let places = wf.answers.places;
-        wf.answers.pass[0] = (0..=places).map(|p| p == places).collect();
-        wf.answers.seeds[seeds::FILE] = true;
+        let m = wf.answers.map.clone().expect("the map is the plan");
+        let m = plan::without(&m, At::Vault(0), What::Seed(0));
+        let m = plan::with_added(&m, At::Vault(0), What::SeedPassphrase(0));
+        let m = plan::with_added(&m, At::Place(0), What::SeedFile(0));
+        wf.answers.set_map(m);
         assert!(!wf.held.is_empty());
     }
     shell.flow(&mut app, F::ChangePlan);
-    answer(&mut shell, &mut app, qrow::SEEDS, seeds::VAULT);
+    // The seed out of Vault 1: its file keeps it on a stick, but its
+    // passphrase would be kept nowhere.
+    let p = flow_place_of(&app, 0);
+    flow_keep(&mut shell, &mut app, p, Row::Vault(0), &[]);
     assert_eq!(
         app.toast_text(),
         Some("A key not yet written stays kept on a stick")
     );
-    assert!(app.flow().unwrap().wallet.as_ref().unwrap().answers.seeds[seeds::VAULT]);
+    let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+    assert!(wf.answers.vault_seeds(&wf.shape, 0).contains(&0));
 }
 
 #[test]
@@ -1972,8 +2175,8 @@ fn two_planned_vaults_holding_the_same_seed_are_never_one_open_vault() {
     let mut app = two_of_three_ready_with(&mut shell, false);
     // Vault 2 holds Key 1 too, in place of Key 2.
     app.press(Action::BPlan);
-    answer_backup(&mut app, qrow::VAULTS + 1, 0);
-    answer_backup(&mut app, qrow::VAULTS + 1, 1);
+    let p = vault_place(&app, 1);
+    keep_at(&mut app, p, Row::Vault(1), &[0]);
     app.press(Action::BChecklist);
     app.press(Action::BVaultSave(1));
     app.press(Action::BOut(3));
@@ -2005,9 +2208,10 @@ fn a_seed_file_let_out_and_then_dropped_from_the_plan_is_not_written_beside_the_
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
-    answer_backup(&mut app, qrow::SEEDS, seeds::FILE);
-    answer_backup(&mut app, qrow::WALLET, wallet::PAPER);
+    untick_everywhere(&mut app, Row::Words);
+    let p = vault_place(&app, 0);
+    keep_at(&mut app, p, Row::File, &[0]);
+    form_off_everywhere(&mut app, Form::Paper);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     // The seed's file is let out on the secret sheet.
@@ -2016,8 +2220,8 @@ fn a_seed_file_let_out_and_then_dropped_from_the_plan_is_not_written_beside_the_
     app.press(Action::SecretUnprotected);
     assert!(app.outbox.iter().any(|i| i.secret));
     // Then the plan drops seed files and keeps the wallet as files.
-    answer_backup(&mut app, qrow::SEEDS, seeds::FILE);
-    answer_backup(&mut app, qrow::WALLET, wallet::FILES);
+    app.press(Action::BRowOff(p as u8, Row::File.code()));
+    form_on(&mut app, p, Form::File);
     answer_backup(&mut app, qrow::FORM, form::QR);
     answer_backup(&mut app, qrow::FORM, form::TEXT);
     save_vaults(&mut app);
@@ -2089,7 +2293,7 @@ fn a_record_the_vault_held_before_the_flow_is_neither_doubled_nor_taken_out() {
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
+    untick_everywhere(&mut app, Row::Words);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     assert_eq!(keys(&app), 1, "saved into the vault, not doubled");
@@ -2154,8 +2358,8 @@ fn the_lock_keeps_the_flows_own_vault_when_another_open_vault_holds_the_same_key
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
-    answer_backup(&mut app, qrow::WALLET, wallet::PAPER);
+    untick_everywhere(&mut app, Row::Words);
+    form_off_everywhere(&mut app, Form::Paper);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     app.press(Action::BNext(bstep::ENVELOPE));
@@ -2221,7 +2425,7 @@ fn two_wallets_in_vaults_keep_each_its_own_vaults_and_a_flow_with_no_owner_match
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
+    untick_everywhere(&mut app, Row::Words);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     let n: Vec<usize> = app
@@ -2295,7 +2499,7 @@ fn a_plan_change_after_the_lock_starts_its_round_without_continue() {
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
     shell.flow(&mut app, F::ChangePlan);
-    answer(&mut shell, &mut app, qrow::VAULTS + 1, 0);
+    flow_vault_add(&mut shell, &mut app, 1, 0);
     let f = app.flow().unwrap();
     assert!(f.adding, "no Continue was pressed");
     assert_eq!(f.step, Step::Vaults);
@@ -2310,14 +2514,33 @@ fn a_passphrase_put_into_a_vault_after_the_lock_starts_a_round_too() {
     assert_eq!(step(&app), Step::Write);
     shell.flow(&mut app, F::ChangePlan);
     let places = app.flow().unwrap().wallet.as_ref().unwrap().answers.places;
-    let before = app.flow().unwrap().wallet.as_ref().unwrap().answers.pass[0].clone();
-    assert!(!before[places], "kept apart at the lock");
-    answer(&mut shell, &mut app, qrow::PASS, places);
-    assert!(
-        app.flow().unwrap().wallet.as_ref().unwrap().answers.pass[0][places],
-        "{:?}",
-        app.toast_text()
+    let in_vault = |app: &Faraday| {
+        app.flow()
+            .unwrap()
+            .wallet
+            .as_ref()
+            .unwrap()
+            .answers
+            .pass_in_vault(0)
+    };
+    assert!(!in_vault(&app), "kept apart at the lock");
+    let _ = places;
+    // Into the vault that holds it, on that vault's sheet.
+    let v = {
+        let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+        (0..wf.answers.vault_count(&wf.shape))
+            .find(|&v| wf.answers.vault_seeds(&wf.shape, v).contains(&0))
+            .unwrap()
+    };
+    let p = flow_place_of(&app, v);
+    flow_plan(
+        &mut shell,
+        &mut app,
+        PlanPress::Row(p as u8, Row::Vault(v).code()),
     );
+    shell.press(&mut app, Action::BPickPass(0));
+    shell.press(&mut app, Action::BPickDone);
+    assert!(in_vault(&app), "{:?}", app.toast_text());
     assert!(app.flow().unwrap().adding, "its vault must hold it now");
 }
 
@@ -2425,12 +2648,14 @@ fn back_ups_plan_offers_the_open_vaults_and_a_vault_at_two_places_writes_both_co
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    // The plan offers both open vaults, though there is one key.
+    // The plan offers both open vaults, though there is one key: a row
+    // each on a place's card.
     assert_eq!(app.backup.as_ref().unwrap().answers.vaults.len(), 2);
+    app.press(Action::BQ(faraday_core::qstep::place(0)));
     expect_part(&mut app, "Vault 2");
     // Key 1 in Vault 1, at two places; no paper words, no sheet.
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
-    answer_backup(&mut app, qrow::WALLET, wallet::PAPER);
+    untick_everywhere(&mut app, Row::Words);
+    form_off_everywhere(&mut app, Form::Paper);
     {
         let a = &app.backup.as_ref().unwrap().answers;
         assert!(a.vault_seeds(&app.plan_shape(0), 0).contains(&0));
@@ -2438,7 +2663,7 @@ fn back_ups_plan_offers_the_open_vaults_and_a_vault_at_two_places_writes_both_co
     let places = app.backup.as_ref().unwrap().answers.places;
     for p in 0..places {
         if !app.backup.as_ref().unwrap().answers.stick_at(0, p) {
-            answer_backup(&mut app, qrow::STICKS, p);
+            stick_also_at(&mut app, p, 0);
         }
     }
     assert!(places >= 2);
@@ -2605,7 +2830,7 @@ fn a_plan_vault_with_none_set_up_offers_to_make_one_while_another_is_open() {
     use faraday_core::vaults::VaultAction as V;
     let mut shell = Shell::new();
     let mut app = two_of_three_with_setup(&mut shell, 1);
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
+    untick_everywhere(&mut app, Row::Words);
     app.press(Action::BChecklist);
     let items = app.backup_items();
     assert!(items.contains(&(bstep::VAULT + 1)), "{items:?}");
@@ -2660,10 +2885,14 @@ fn the_vault_set_up_for_a_plan_vault_is_not_locked_away_for_another_one_that_hol
     use faraday_core::vaults::VaultAction as V;
     let mut shell = Shell::new();
     let mut app = two_of_three_with_setup(&mut shell, 2);
-    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
-    // Key 2 goes only to Vault 2; the vault set up for Vault 1 holds it.
-    answer_backup(&mut app, qrow::VAULTS, 1);
-    answer_backup(&mut app, qrow::VAULTS + 1, 1);
+    untick_everywhere(&mut app, Row::Words);
+    // Vault 1 holds Key 1, Vault 2 Keys 2 and 3; the vault set up for
+    // Vault 1 is given Key 2 too.
+    let p = vault_place(&app, 0);
+    keep_at(&mut app, p, Row::Vault(0), &[0]);
+    let p = vault_place(&app, 1);
+    keep_at(&mut app, p, Row::Vault(1), &[1, 2]);
+    untick_everywhere(&mut app, Row::Vault(2));
     app.press(Action::BChecklist);
     app.vaults.current = 0;
     app.press(Action::Vault(V::SaveKey(1)));
@@ -2769,4 +2998,2113 @@ fn a_wallet_made_without_the_question_continued_does_not_read_it_as_done() {
     assert!(app.create.as_ref().unwrap().built.is_some());
     assert!(!app.create_card_done(cstep::WHERE));
     assert!(!app.create_card_done(cstep::HOW_MANY));
+}
+
+// ---- the review of the plan by place (`docs/BACKUP-FLOW.md` §17) ----
+
+/// The guided flow's own plan card, Back up's cards, edits the map the
+/// cards made: what they put elsewhere stays.
+#[test]
+fn the_flows_plan_card_edits_the_map_the_cards_made() {
+    let mut shell = Shell::new();
+    let (mut app, _, _) = single_key_ready(&mut shell);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    assert_eq!(step(&app), Step::Write);
+    shell.flow(&mut app, F::ChangePlan);
+    // The seed out of Vault 1, on its sheet.
+    let p = flow_place_of(&app, 0);
+    flow_keep(&mut shell, &mut app, p, Row::Vault(0), &[]);
+    let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+    let a = &wf.answers;
+    assert!(a.map.is_some(), "the map stays the plan");
+    let m = plan::map(&wf.shape, a);
+    let at = |at: At| -> Vec<What> {
+        m.iter()
+            .filter(|s| s.at == at)
+            .flat_map(|s| s.holds.iter().map(|(w, _)| *w))
+            .collect()
+    };
+    assert!(a.vault_seeds(&wf.shape, 0).is_empty(), "no seed in a vault");
+    assert!(
+        at(At::Place(1)).contains(&What::WalletFile),
+        "the description's files stay at Place 2"
+    );
+    assert!(
+        !m.iter()
+            .any(|s| s.holds.iter().any(|(w, _)| matches!(w, What::Words(_)))),
+        "no words came back"
+    );
+}
+
+/// A key kept only as a file at a place is held until that place's stick
+/// of files is written, and released once it is.
+#[test]
+fn a_seed_kept_as_a_file_at_a_place_is_released_once_that_stick_is_written() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 1);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    app.press(Action::CreateWallet);
+    let fp = new_key_here(&mut app);
+    app.press(Action::CBackup(1));
+    untick_everywhere(&mut app, Row::Vault(0));
+    untick_everywhere(&mut app, Row::Words);
+    keep_at(&mut app, 1, Row::File, &[0]);
+    form_off_everywhere(&mut app, Form::Paper);
+    app.press(Action::BChecklist);
+    app.press(Action::BFile);
+    app.press(Action::SecretAck);
+    app.press(Action::SecretUnprotected);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    let fp = osk_bip::keys::Fingerprint(fp);
+    assert!(app.key_held(fp), "held for Place 2's stick of files");
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    assert_eq!(app.flow().unwrap().slots[0].target, Target::PlaceFiles(1));
+    write_sticks(&mut shell, &mut app, &["S1"]);
+    assert_eq!(step(&app), Step::Done);
+    assert!(!app.key_held(fp), "released once its stick is written");
+}
+
+/// Each seed's file at a place of its own, all three let out: each
+/// place's stick of files is written with that place's seed file alone.
+#[test]
+fn each_places_stick_of_files_takes_only_that_places_seed_file() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 3);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(multi_index()));
+    let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
+    app.press(Action::Nav(Screen::Create));
+    for (i, fp) in fps.iter().enumerate() {
+        app.press(Action::CSlotHere(i as u8, *fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(0));
+    untick_everywhere(&mut app, Row::Words);
+    form_off_everywhere(&mut app, Form::Paper);
+    for p in 0..3 {
+        keep_at(&mut app, p, Row::File, &[p]);
+    }
+    let seed_names: Vec<String> = backup_shape(&app)
+        .seeds
+        .iter()
+        .map(|s| s.name.to_lowercase())
+        .collect();
+    app.press(Action::BChecklist);
+    assert_eq!(
+        app.backup_items(),
+        vec![bstep::FILES, bstep::ENVELOPE, bstep::STICKS]
+    );
+    for _ in 0..3 {
+        app.press(Action::BFile);
+        app.press(Action::SecretAck);
+        app.press(Action::SecretUnprotected);
+    }
+    assert_eq!(app.outbox.iter().filter(|i| i.secret).count(), 3);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    let targets: Vec<Target> = app.flow().unwrap().slots.iter().map(|s| s.target).collect();
+    assert_eq!(
+        targets,
+        vec![
+            Target::PlaceFiles(0),
+            Target::PlaceFiles(1),
+            Target::PlaceFiles(2)
+        ]
+    );
+    write_sticks(&mut shell, &mut app, &["S1", "S2", "S3"]);
+    assert_eq!(
+        step(&app),
+        Step::Done,
+        "{:?}",
+        app.flow().unwrap().live.problem
+    );
+    for (p, d) in ["S1", "S2", "S3"].iter().enumerate() {
+        let words: Vec<String> = names(&shell, d)
+            .into_iter()
+            .filter(|n| n.ends_with("-words.txt"))
+            .collect();
+        assert_eq!(words.len(), 1, "{d}: {words:?}");
+        assert!(words[0].contains(&seed_names[p]), "{d}: {words:?}");
+    }
+    no_visit(&shell);
+}
+
+/// A share kept in a vault (`docs/BACKUP-FLOW.md` §17.6): Save into the
+/// vault puts it there as a type 13 record, the item is done only then,
+/// the sealed vault holds it after the lock, and Restore with that vault
+/// open and another share in the Inbox rebuilds the wallet.
+#[test]
+fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
+    use faraday_vault::records::field;
+    let mut shell = Shell::new();
+    sticks(&mut shell, 1);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, true, 1);
+    bring_in_all(&mut shell, &mut app, &["S1"]);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
+    app.press(Action::Nav(Screen::Create));
+    for (i, fp) in fps.iter().enumerate() {
+        app.press(Action::CSlotHere(i as u8, *fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    let w = app.create.as_ref().unwrap().built.expect("wallet made");
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(1));
+    // In shares; nothing on paper; Vault 1 alone, holding Share 2.
+    app.press(Action::BSplit(true));
+    untick_everywhere(&mut app, Row::Words);
+    let vaults = {
+        let shape = backup_shape(&app);
+        app.backup.as_ref().unwrap().answers.vault_count(&shape)
+    };
+    for v in 1..vaults {
+        untick_everywhere(&mut app, Row::Vault(v));
+    }
+    form_off_everywhere(&mut app, Form::Vault(0));
+    form_off_everywhere(&mut app, Form::Paper);
+    form_off_everywhere(&mut app, Form::File);
+    let p = vault_place(&app, 0);
+    app.press(Action::BShare(p as u8, 1));
+    app.press(Action::BForm(p as u8, Form::Vault(0).code()));
+    form_off_everywhere(&mut app, Form::Paper);
+    {
+        let shape = backup_shape(&app);
+        let a = &app.backup.as_ref().unwrap().answers;
+        assert_eq!(a.vault_shares(&shape, 0), vec![1], "Share 2 in Vault 1");
+    }
+    let omit = app.backup.as_ref().unwrap().answers.omit;
+    let (m, n) = faraday_core::wallet::Session::quorum(&app.session.wallets[w]);
+    let split = faraday_core::backup::split_plan(n, m, omit);
+    let texts: Vec<String> = split
+        .iter()
+        .map(|row| faraday_core::backup::split_share(&app.session.wallets[w], row).unwrap())
+        .collect();
+    let share = |j: usize| texts[j].clone();
+    let made = app.session.wallets[w].policy.to_descriptor_checksummed();
+    let stem = faraday_core::file_stem(&app.session.wallets[w].name);
+    app.press(Action::BChecklist);
+    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    assert!(!app.backup_item_done(Item::Vault(0)));
+    app.press(Action::BVaultSave(0));
+    let shares = |app: &Faraday| -> Vec<(String, Vec<u8>)> {
+        app.vaults.open[0]
+            .contents
+            .of(kind::WALLET_SHARE)
+            .map(|(_, r)| {
+                (
+                    r.text(field::SHARE).unwrap_or("").to_string(),
+                    r.field(field::SHARE_NUMBER).unwrap_or(&[]).to_vec(),
+                )
+            })
+            .collect()
+    };
+    assert_eq!(shares(&app), vec![(share(1), vec![2])]);
+    assert!(app.backup_item_done(Item::Vault(0)));
+    // Done only while the vault holds it; saved again, kept once.
+    app.vaults.open[0]
+        .contents
+        .records
+        .retain(|r| r.kind != kind::WALLET_SHARE);
+    assert!(
+        !app.backup_item_done(Item::Vault(0)),
+        "the share is part of the item"
+    );
+    app.press(Action::BVaultSave(0));
+    app.press(Action::BVaultSave(0));
+    assert_eq!(shares(&app).len(), 1);
+    assert!(app.backup_item_done(Item::Vault(0)));
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    write_sticks(&mut shell, &mut app, &["S1"]);
+    assert_eq!(
+        step(&app),
+        Step::Done,
+        "{:?}",
+        app.flow().unwrap().live.problem
+    );
+    let sealed = ofv(&shell, "S1").expect("the vault's copy");
+    let (_, c) = faraday_vault::open(&sealed, PHRASE.as_bytes()).unwrap();
+    assert_eq!(c.of(kind::WALLET_SHARE).count(), 1, "sealed with the share");
+    // Restore: that vault open, Share 1 in the Inbox.
+    let name = format!("{stem}-share-1-of-{n}.txt");
+    let mut r = process(
+        vec![
+            ("vault-1.ofv".into(), sealed),
+            (name.clone(), share(0).into_bytes()),
+        ],
+        Vec::new(),
+        Vec::new(),
+    );
+    keep_time(&mut r);
+    r.press(Action::Nav(Screen::Vaults));
+    r.press(Action::Vault(faraday_core::vaults::VaultAction::Open(0)));
+    unlock(&mut r, PHRASE);
+    assert_eq!(r.vaults.open.len(), 1);
+    r.press(Action::RestoreWallet);
+    let i = r.inbox.iter().position(|f| f.name == name).unwrap();
+    r.press(Action::RShare(i));
+    r.press(Action::RRebuild);
+    let rw = r
+        .restore
+        .as_ref()
+        .and_then(|x| x.wallet)
+        .unwrap_or_else(|| panic!("{:?}", r.restore.as_ref().and_then(|x| x.error.clone())));
+    assert_eq!(
+        r.session.wallets[rw].policy.to_descriptor_checksummed(),
+        made,
+        "the same wallet, the same checksum"
+    );
+}
+
+/// A share put into a vault after the lock, from Change the plan, changes
+/// what the vault holds (`docs/BACKUP-FLOW.md` §10.2, §17.6): the vault
+/// goes back to be filled and written, and the flow does not finish with
+/// the share missing from its sealed copy.
+#[test]
+fn a_share_put_into_a_vault_after_the_lock_starts_the_round_and_is_sealed() {
+    use faraday_vault::records::field;
+    let mut shell = Shell::new();
+    sticks(&mut shell, 1);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, true, 1);
+    bring_in_all(&mut shell, &mut app, &["S1"]);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
+    app.press(Action::Nav(Screen::Create));
+    for (i, fp) in fps.iter().enumerate() {
+        app.press(Action::CSlotHere(i as u8, *fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(1));
+    // Vault 1 alone, with its seed and the whole description; nothing on
+    // paper.
+    untick_everywhere(&mut app, Row::Words);
+    let vaults = {
+        let shape = backup_shape(&app);
+        app.backup.as_ref().unwrap().answers.vault_count(&shape)
+    };
+    for v in 1..vaults {
+        untick_everywhere(&mut app, Row::Vault(v));
+    }
+    form_off_everywhere(&mut app, Form::Paper);
+    app.press(Action::BChecklist);
+    save_vaults(&mut app);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    assert_eq!(step(&app), Step::Write);
+    // Change the plan: in shares, Share 2 in Vault 1.
+    shell.flow(&mut app, F::ChangePlan);
+    flow_plan(&mut shell, &mut app, PlanPress::Split(true));
+    let p = flow_place_of(&app, 0);
+    let pc = p as u8;
+    let vault = Form::Vault(0).code();
+    let in_vault = |app: &Faraday| {
+        let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+        wf.answers.vault_shares(&wf.shape, 0)
+    };
+    let _ = vault;
+    // The vault's shares only (§17.8): its form is the vault, so each
+    // share ticked or unticked here goes into or out of it alone.
+    for j in [1u8, 0, 2] {
+        let here = {
+            let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+            wf.answers
+                .shares_here(&wf.shape, p)
+                .contains(&usize::from(j))
+        };
+        if here != (j == 1) {
+            flow_plan(&mut shell, &mut app, PlanPress::Share(pc, j));
+        }
+    }
+    assert_eq!(in_vault(&app), vec![1], "Share 2 in Vault 1");
+    assert_eq!(app.flow().unwrap().slots.len(), 1, "Vault 1's stick alone");
+    assert!(app.flow().unwrap().adding, "a share added is a round");
+    assert_eq!(step(&app), Step::Vaults);
+    unlock(&mut app, PHRASE);
+    assert_eq!(step(&app), Step::Make, "{:?}", app.vaults.unlock_error);
+    shell.flow(&mut app, F::CopyKey);
+    let numbers: Vec<Vec<u8>> = app.vaults.open[0]
+        .contents
+        .of(kind::WALLET_SHARE)
+        .map(|(_, r)| r.field(field::SHARE_NUMBER).unwrap_or(&[]).to_vec())
+        .collect();
+    assert_eq!(numbers, vec![vec![2]], "{:?}", app.toast_text());
+    shell.flow(&mut app, F::MadeContinue);
+    assert_eq!(step(&app), Step::Lock);
+    shell.flow(&mut app, F::LockWrite);
+    let mut app = restart(&mut shell, &mut app);
+    write_sticks(&mut shell, &mut app, &["S1"]);
+    assert_eq!(
+        step(&app),
+        Step::Done,
+        "{:?}",
+        app.flow().unwrap().live.problem
+    );
+    let sealed = ofv(&shell, "S1").expect("Vault 1 on S1");
+    let (_, c) = faraday_vault::open(&sealed, PHRASE.as_bytes()).unwrap();
+    assert_eq!(
+        c.of(kind::WALLET_SHARE).count(),
+        1,
+        "the sealed copy holds Share 2"
+    );
+    no_visit(&shell);
+}
+
+// ---- the second review (`docs/BACKUP-FLOW.md` §17.6, §17.7) ----
+
+/// A single key whose Vault 1 is on one stick, at Place 2, with the
+/// description's files at Place 2 too: made, saved, stopped on the
+/// checklist's Write to sticks.
+fn single_key_one_stick(shell: &mut Shell) -> Faraday {
+    sticks(shell, 3);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, false, 1);
+    bring_in_all(shell, &mut app, &["S1"]);
+    create_vault(shell, &mut app, 0, PHRASE);
+    let fp = key_in(&mut app, 1);
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CSlotHere(0, fp));
+    if app.create.as_ref().unwrap().built.is_none() {
+        app.press(Action::CNext(cstep::KEYS));
+    }
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(1));
+    untick_everywhere(&mut app, Row::Words);
+    form_off_everywhere(&mut app, Form::Paper);
+    form_on(&mut app, 1, Form::File);
+    assert_eq!(vault_place(&app, 0), 1, "Vault 1's stick at Place 2 alone");
+    app.press(Action::BChecklist);
+    save_vaults(&mut app);
+    app.press(Action::BFilesMake);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    app
+}
+
+/// The row sheet's Done while a stick is written changes nothing of the
+/// plan, and the write counts for the stick it was for.
+#[test]
+fn done_on_a_row_sheet_during_a_write_changes_nothing_and_the_write_counts_for_its_stick() {
+    let mut shell = Shell::new();
+    let mut app = single_key_one_stick(&mut shell);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    let targets = |app: &Faraday| -> Vec<Target> {
+        app.flow().unwrap().slots.iter().map(|s| s.target).collect()
+    };
+    assert_eq!(targets(&app), vec![Target::Place(1), Target::PlaceFiles(1)]);
+    shell.flow(&mut app, F::ChangePlan);
+    // "Vault 1 · Place 1" open, then S1 in: its write starts.
+    flow_plan(
+        &mut shell,
+        &mut app,
+        PlanPress::Row(0, Row::Vault(0).code()),
+    );
+    assert!(app.choosing.is_some());
+    shell.hold_writes = true;
+    shell.plug(&mut app, "S1");
+    assert!(
+        app.flow().unwrap().live.writing.is_some(),
+        "the write is under way"
+    );
+    let before = app.flow().unwrap().wallet.as_ref().unwrap().answers.clone();
+    shell.press(&mut app, Action::BPickDone);
+    assert_eq!(
+        app.flow().unwrap().wallet.as_ref().unwrap().answers,
+        before,
+        "the plan does not change under a write"
+    );
+    assert_eq!(targets(&app), vec![Target::Place(1), Target::PlaceFiles(1)]);
+    shell.release_writes(&mut app);
+    let f = app.flow().unwrap();
+    assert!(
+        f.slots[0].written.is_some(),
+        "S1 counts for Vault 1 at Place 2"
+    );
+    assert!(f.slots[1].written.is_none());
+}
+
+/// Two wallets of one name, each with its Share 2 in one vault: both
+/// shares stay, and each wallet's vault item sees only its own.
+#[test]
+fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
+    use faraday_vault::records::field;
+    let mut shell = Shell::new();
+    sticks(&mut shell, 1);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, true, 1);
+    bring_in_all(&mut shell, &mut app, &["S1"]);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
+    app.press(Action::Nav(Screen::Create));
+    for (i, fp) in fps.iter().enumerate() {
+        app.press(Action::CSlotHere(i as u8, *fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    let a = app.create.as_ref().unwrap().built.expect("wallet made");
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(1));
+    // Share 2 in Vault 1, as each of the two wallets plans it.
+    let share_two_in_vault = |app: &mut Faraday| {
+        app.press(Action::BSplit(true));
+        untick_everywhere(app, Row::Words);
+        let vaults = {
+            let shape = backup_shape(app);
+            app.backup.as_ref().unwrap().answers.vault_count(&shape)
+        };
+        for v in 1..vaults {
+            untick_everywhere(app, Row::Vault(v));
+        }
+        let p = vault_place(app, 0);
+        form_off_everywhere(app, Form::Vault(0));
+        form_off_everywhere(app, Form::Paper);
+        form_off_everywhere(app, Form::File);
+        app.press(Action::BShare(p as u8, 1));
+        app.press(Action::BForm(p as u8, Form::Vault(0).code()));
+        form_off_everywhere(app, Form::Paper);
+        app.press(Action::BChecklist);
+        app.press(Action::BVaultSave(0));
+    };
+    share_two_in_vault(&mut app);
+    assert!(app.backup_item_done(Item::Vault(0)));
+    // Another wallet, of the same name.
+    let name = app.session.wallets[a].name.clone();
+    let keys: Vec<String> = (0..3)
+        .map(|k| {
+            NewKind::TapMulti
+                .key_text(&app.session.keys[k].master)
+                .unwrap()
+        })
+        .collect();
+    let b = app
+        .session
+        .add_wallet(
+            &name,
+            &NewKind::TapMulti.descriptor(2, &keys),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    assert_ne!(b, a);
+    app.press(Action::Backup(b));
+    app.press(Action::BPreset(1));
+    share_two_in_vault(&mut app);
+    assert!(app.backup_item_done(Item::Vault(0)), "B's share saved");
+    let shares = |app: &Faraday| -> Vec<(String, Vec<u8>)> {
+        app.vaults.open[0]
+            .contents
+            .of(kind::WALLET_SHARE)
+            .map(|(_, r)| {
+                (
+                    r.text(field::SHARE_WALLET).unwrap_or("").to_string(),
+                    r.field(field::SHARE_NUMBER).unwrap_or(&[]).to_vec(),
+                )
+            })
+            .collect()
+    };
+    let both = shares(&app);
+    assert_eq!(both.len(), 2, "both Share 2s stay");
+    assert!(both.iter().all(|(_, n)| n == &vec![2]));
+    assert_ne!(both[0].0, both[1].0, "each told by its wallet");
+    // A's share taken out: B's item is still done, A's is not.
+    let a_sum = app.session.wallets[a].policy.checksum();
+    app.vaults.open[0].contents.records.retain(|r| {
+        !(r.kind == kind::WALLET_SHARE
+            && r.text(field::SHARE_WALLET)
+                .and_then(|t| faraday_core::wallet::read_wallet(t).ok())
+                .is_some_and(|p| p.checksum() == a_sum))
+    });
+    assert!(app.backup_item_done(Item::Vault(0)), "B sees its own share");
+    app.press(Action::Backup(a));
+    assert!(!app.backup_item_done(Item::Vault(0)), "A does not take B's");
+    app.press(Action::BVaultSave(0));
+    assert!(app.backup_item_done(Item::Vault(0)));
+    assert_eq!(shares(&app).len(), 2);
+}
+
+/// "With its passphrase" unticked after the lock: a round starts, and
+/// the sealed copy on S1 keeps the key without its passphrase.
+#[test]
+fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 1);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, false, 1);
+    bring_in_all(&mut shell, &mut app, &["S1"]);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    app.press(Action::Entry(None));
+    for c in testkit::test_words(testkit::TEST_SEEDS[1].0).chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryPassphrase);
+    type_text(&mut app, "kept apart");
+    app.press(Action::EntryAdd);
+    let fp = app.session.keys.last().unwrap().master.fingerprint().0;
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CSlotHere(0, fp));
+    if app.create.as_ref().unwrap().built.is_none() {
+        app.press(Action::CNext(cstep::KEYS));
+    }
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(1));
+    // The key in Vault 1 with its passphrase; nothing else.
+    untick_everywhere(&mut app, Row::Words);
+    untick_everywhere(&mut app, Row::Passphrase);
+    form_off_everywhere(&mut app, Form::Paper);
+    let p = vault_place(&app, 0);
+    app.press(Action::BRow(p as u8, Row::Vault(0).code()));
+    app.press(Action::BPickPass(0));
+    app.press(Action::BPickDone);
+    assert!(app.backup.as_ref().unwrap().answers.pass_in_vault(0));
+    app.press(Action::BChecklist);
+    save_vaults(&mut app);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    assert_eq!(step(&app), Step::Write);
+    shell.flow(&mut app, F::ChangePlan);
+    let p = flow_place_of(&app, 0);
+    flow_plan(
+        &mut shell,
+        &mut app,
+        PlanPress::Row(p as u8, Row::Vault(0).code()),
+    );
+    shell.press(&mut app, Action::BPickPass(0));
+    shell.press(&mut app, Action::BPickDone);
+    assert!(app.flow().unwrap().adding, "{:?}", app.toast_text());
+    unlock(&mut app, PHRASE);
+    assert_eq!(step(&app), Step::Make, "{:?}", app.vaults.unlock_error);
+    shell.flow(&mut app, F::CopyKey);
+    shell.flow(&mut app, F::MadeContinue);
+    shell.flow(&mut app, F::LockWrite);
+    let mut app = restart(&mut shell, &mut app);
+    write_sticks(&mut shell, &mut app, &["S1"]);
+    assert_eq!(
+        step(&app),
+        Step::Done,
+        "{:?}",
+        app.flow().unwrap().live.problem
+    );
+    let sealed = ofv(&shell, "S1").expect("Vault 1 on S1");
+    let (_, c) = faraday_vault::open(&sealed, PHRASE.as_bytes()).unwrap();
+    let keys: Vec<bool> = c
+        .of(kind::KEY)
+        .map(|(_, r)| {
+            r.field(faraday_vault::records::field::KEY_PASSPHRASE)
+                .is_some()
+        })
+        .collect();
+    assert_eq!(keys, vec![false], "the key, without its passphrase");
+}
+
+/// After the lock, Back up's own cards edit the flow's plan, with its
+/// refusals: an allowed edit is the flow's, a refused one changes
+/// neither.
+#[test]
+fn back_ups_cards_after_the_lock_edit_the_flows_plan_with_its_refusals() {
+    let mut shell = Shell::new();
+    let (mut app, w, fp) = single_key(&mut shell, true);
+    let name = app.session.wallets[w].name.clone();
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    assert!(app.flow().unwrap().made);
+    // A vault unlocked after the lock: the wallet and its key load from
+    // it, the key still held and no receive address shown for it; the
+    // plan stays the flow's (§17.8).
+    load_first_vault(&mut app, PHRASE);
+    let w = app
+        .session
+        .wallets
+        .iter()
+        .position(|x| x.name == name)
+        .expect("the wallet loaded from its vault");
+    assert!(
+        app.key_held(osk_bip::keys::Fingerprint(fp)),
+        "held, from the vault"
+    );
+    assert!(
+        app.receive_held(&app.session.wallets[w]),
+        "no receive address"
+    );
+    app.press(Action::Backup(w));
+    assert!(app.backup.is_some());
+    let slots = app.flow().unwrap().slots.len();
+    // Vault 1's stick at Place 1 off: a vault's stick, allowed, the flow's.
+    app.press(Action::BRowOff(0, Row::Vault(0).code()));
+    assert_eq!(
+        app.flow().unwrap().slots.len(),
+        slots - 1,
+        "{:?}",
+        app.toast_text()
+    );
+    let flow_answers = app.flow().unwrap().wallet.as_ref().unwrap().answers.clone();
+    assert_eq!(app.backup.as_ref().unwrap().answers, flow_answers);
+    // Its last stick off: the key made here would be kept on no stick.
+    app.press(Action::BRowOff(1, Row::Vault(0).code()));
+    assert_eq!(
+        app.toast_text(),
+        Some("A key not yet written stays kept on a stick")
+    );
+    assert_eq!(app.backup.as_ref().unwrap().answers, flow_answers);
+    // Files stay as made, a vault open or not.
+    app.press(Action::BForm(0, Form::File.code()));
+    assert_eq!(
+        app.toast_text(),
+        Some(
+            "Files and paper stay as made after the lock; finish the writes, then Back up again to change them"
+        )
+    );
+    assert_eq!(
+        app.flow().unwrap().wallet.as_ref().unwrap().answers,
+        flow_answers
+    );
+}
+
+/// The flow's own slider of keys left off each share sets the flow's
+/// plan, and the vault that keeps a share goes back to take the share it
+/// implies (§17.7).
+#[test]
+fn the_flows_slider_sets_its_keys_left_off_and_the_vault_takes_the_share_it_implies() {
+    use faraday_vault::records::field;
+    let mut shell = Shell::new();
+    sticks(&mut shell, 1);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, true, 1);
+    bring_in_all(&mut shell, &mut app, &["S1"]);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
+    app.press(Action::Nav(Screen::Create));
+    for (i, fp) in fps.iter().enumerate() {
+        app.press(Action::CSlotHere(i as u8, *fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    let w = app.create.as_ref().unwrap().built.expect("wallet made");
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(1));
+    app.press(Action::BSplit(true));
+    untick_everywhere(&mut app, Row::Words);
+    let vaults = {
+        let shape = backup_shape(&app);
+        app.backup.as_ref().unwrap().answers.vault_count(&shape)
+    };
+    for v in 1..vaults {
+        untick_everywhere(&mut app, Row::Vault(v));
+    }
+    let p = vault_place(&app, 0);
+    form_off_everywhere(&mut app, Form::Vault(0));
+    form_off_everywhere(&mut app, Form::Paper);
+    app.press(Action::BShare(p as u8, 1));
+    app.press(Action::BForm(p as u8, Form::Vault(0).code()));
+    form_off_everywhere(&mut app, Form::Paper);
+    assert_eq!(app.backup.as_ref().unwrap().answers.omit, 1);
+    let (m, n) = faraday_core::wallet::Session::quorum(&app.session.wallets[w]);
+    let none_off = faraday_core::backup::split_share(
+        &app.session.wallets[w],
+        &faraday_core::backup::split_plan(n, m, 0)[1],
+    )
+    .unwrap();
+    app.press(Action::BChecklist);
+    save_vaults(&mut app);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    shell.flow(&mut app, F::ChangePlan);
+    flow_plan(
+        &mut shell,
+        &mut app,
+        PlanPress::Q(faraday_core::qstep::DESCRIPTION),
+    );
+    let slide = Action::Slide(faraday_core::seeds::SLIDE_FLOW_OMIT, 0);
+    assert!(offered_down(&mut app, slide), "the flow draws the slider");
+    shell.press(&mut app, slide);
+    assert_eq!(app.flow().unwrap().wallet.as_ref().unwrap().answers.omit, 0);
+    assert!(app.flow().unwrap().adding, "Vault 1's share is another now");
+    unlock(&mut app, PHRASE);
+    shell.flow(&mut app, F::CopyKey);
+    let texts: Vec<String> = app.vaults.open[0]
+        .contents
+        .of(kind::WALLET_SHARE)
+        .map(|(_, r)| r.text(field::SHARE).unwrap_or("").to_string())
+        .collect();
+    assert_eq!(texts, vec![none_off], "Share 2 with no key left off");
+}
+
+/// Place names typed on the flow's Places card before the lock are in
+/// each vault's plan record; after the lock no name field is drawn, and
+/// the flow's kept state holds no name (§17.7).
+#[test]
+fn names_typed_before_the_lock_are_in_each_vaults_plan_and_never_in_the_flow() {
+    use faraday_vault::records::field;
+    const NAME: &str = "Harbour cellar";
+    let mut shell = Shell::new();
+    let mut app = two_of_three_with_setup(&mut shell, 2);
+    untick_everywhere(&mut app, Row::Words);
+    // Two vaults, as set up.
+    untick_everywhere(&mut app, Row::Vault(2));
+    let i = app.backup_flows.len() - 1;
+    shell.flow(&mut app, F::Show(i));
+    shell.flow(&mut app, F::ChangePlan);
+    flow_plan(
+        &mut shell,
+        &mut app,
+        PlanPress::Q(faraday_core::qstep::PLACES),
+    );
+    assert!(offered_down(&mut app, Action::BName(0)), "a name field");
+    app.press(Action::BName(0));
+    type_text(&mut app, NAME);
+    app.event(Event::Key(Key::Enter));
+    app.press(Action::BChecklist);
+    save_vaults(&mut app);
+    for o in 0..2 {
+        let names: Vec<String> = app.vaults.open[o]
+            .contents
+            .of(kind::PLAN)
+            .flat_map(|(_, r)| {
+                r.fields
+                    .iter()
+                    .filter(|f| f.number == field::PLAN_PLACE)
+                    .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        assert!(names.iter().any(|n| n == NAME), "vault {o}: {names:?}");
+    }
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    let kept = faraday_core::backup_flow::encode(&app.backup_flows);
+    assert!(
+        !kept.windows(NAME.len()).any(|w| w == NAME.as_bytes()),
+        "the flow keeps no name"
+    );
+    shell.flow(&mut app, F::ChangePlan);
+    flow_plan(
+        &mut shell,
+        &mut app,
+        PlanPress::Q(faraday_core::qstep::PLACES),
+    );
+    assert!(
+        !offered_down(&mut app, Action::BName(0)),
+        "no name field after the lock"
+    );
+}
+
+/// The flow's plan card has one way on: whatever card is open, one
+/// Continue on the screen, at the small panel's size and the desktop's.
+#[test]
+fn the_flows_plan_card_has_one_continue_at_both_sizes() {
+    for (w, h, dpi) in [(480u16, 640u16, 286u16), (1280, 800, 160)] {
+        let mut shell = Shell::new();
+        let (mut app, _, _) = single_key_ready(&mut shell);
+        shell.flow(&mut app, F::WalletLock);
+        let mut app = restart(&mut shell, &mut app);
+        app.event(Event::Display(osk_shell_api::DisplayInfo {
+            width: w,
+            height: h,
+            dpi,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: osk_shell_api::SecureHardware::None,
+            boot: osk_shell_api::BootState::Unknown,
+            memory_mib: None,
+        }));
+        shell.flow(&mut app, F::ChangePlan);
+        let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+        let cards = faraday_core::plan_cards(&wf.shape, &wf.answers);
+        for q in cards {
+            if app.flow().unwrap().live.plan_q != Some(q) {
+                flow_plan(&mut shell, &mut app, PlanPress::Q(q));
+            }
+            let _ = app.frame();
+            let n = app
+                .drawn_texts()
+                .iter()
+                .filter(|t| t.as_str() == "Continue")
+                .count();
+            assert!(n <= 1, "{w}x{h}, card {q}: {n} Continue");
+        }
+    }
+}
+
+/// One wallet, one checksum (F35): a 2-of-3 made here, split into shares
+/// and rebuilt from a quorum of share files, has the descriptor and the
+/// checksum it was made with.
+#[test]
+fn a_wallet_rebuilt_from_its_share_files_has_the_checksum_it_was_made_with() {
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(multi_index()));
+    let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
+    app.press(Action::Nav(Screen::Create));
+    for (i, fp) in fps.iter().enumerate() {
+        app.press(Action::CSlotHere(i as u8, *fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    let w = app.create.as_ref().unwrap().built.expect("wallet made");
+    let wallet = &app.session.wallets[w];
+    let made = wallet.policy.to_descriptor_checksummed();
+    let (m, n) = faraday_core::wallet::Session::quorum(wallet);
+    let split = faraday_core::backup::split_plan(n, m, 1);
+    let files: Vec<(String, Vec<u8>)> = (0..2)
+        .map(|j| {
+            (
+                format!("w-share-{}-of-{n}.txt", j + 1),
+                faraday_core::backup::split_share(wallet, &split[j])
+                    .unwrap()
+                    .into_bytes(),
+            )
+        })
+        .collect();
+    let mut r = process(files.clone(), Vec::new(), Vec::new());
+    keep_time(&mut r);
+    r.press(Action::RestoreWallet);
+    for (name, _) in &files {
+        let i = r.inbox.iter().position(|f| &f.name == name).unwrap();
+        r.press(Action::RShare(i));
+    }
+    r.press(Action::RRebuild);
+    let rw = r.restore.as_ref().and_then(|x| x.wallet).expect("rebuilt");
+    assert_eq!(
+        r.session.wallets[rw].policy.to_descriptor_checksummed(),
+        made
+    );
+}
+
+/// A wallet written with `'` reads with the checksum of its `h` form.
+#[test]
+fn a_wallet_written_with_apostrophes_has_the_checksum_of_its_h_form() {
+    let h = testkit::savings().split('#').next().unwrap().to_string();
+    let apostrophe = apostrophes(&h);
+    assert_ne!(h, apostrophe);
+    let a = faraday_core::wallet::read_wallet(&apostrophe).unwrap();
+    let b = faraday_core::wallet::read_wallet(&h).unwrap();
+    assert_eq!(a.checksum(), b.checksum());
+    assert_eq!(a.to_descriptor_checksummed(), b.to_descriptor_checksummed());
+}
+
+/// `text` with each hardened step of its keys' origins written `'`.
+fn apostrophes(text: &str) -> String {
+    let text = text.split('#').next().unwrap_or(text);
+    let mut out = String::new();
+    let mut origin = false;
+    for c in text.chars() {
+        match c {
+            '[' => origin = true,
+            ']' => origin = false,
+            'h' if origin => {
+                out.push('\'');
+                continue;
+            }
+            _ => {}
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// A vault whose wallet (type 3) and plan (type 11) were kept with `'`
+/// opens with the wallet loaded and its plan attached.
+#[test]
+fn a_vault_kept_with_apostrophes_opens_with_its_plan_attached() {
+    use faraday_vault::Record;
+    use faraday_vault::records::field;
+    let desc = apostrophes(&testkit::savings());
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    let w = app
+        .session
+        .add_wallet(
+            "Savings",
+            &desc,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    let shape = app.plan_shape(w);
+    let mut answers = Answers::preset(&shape, Preset::Paper);
+    answers.set_places(&shape, 4);
+    let text = answers.to_text();
+    let contents = faraday_vault::Contents {
+        records: vec![
+            Record::new(kind::WALLET)
+                .with(field::WALLET, desc.as_bytes())
+                .with(field::WALLET_NAME, b"Savings"),
+            Record::new(kind::PLAN)
+                .with(field::PLAN_WALLET, desc.as_bytes())
+                .with(field::PLAN_ANSWERS, text.as_bytes()),
+        ],
+    };
+    let cost = faraday_vault::Cost {
+        memory_kib: faraday_vault::MIN_MEMORY_KIB,
+        passes: 1,
+        lanes: 1,
+    };
+    let file = faraday_vault::create(
+        faraday_vault::SLOT_SIZES[0],
+        cost,
+        &[PHRASE.as_bytes()],
+        &[contents],
+        &[9; 32],
+    )
+    .unwrap();
+    let mut next = process(vec![("old.ofv".into(), file)], Vec::new(), Vec::new());
+    keep_time(&mut next);
+    next.press(Action::Nav(Screen::Vaults));
+    next.press(Action::Vault(faraday_core::vaults::VaultAction::Open(0)));
+    unlock(&mut next, PHRASE);
+    let loaded = next
+        .session
+        .wallets
+        .iter()
+        .position(|x| x.policy.checksum() == app.session.wallets[w].policy.checksum());
+    let loaded = loaded.unwrap_or_else(|| {
+        next.press(Action::Vault(
+            faraday_core::vaults::VaultAction::LoadChosen(0),
+        ));
+        next.session.wallets.len().saturating_sub(1)
+    });
+    assert_eq!(
+        next.session.wallets[loaded]
+            .policy
+            .to_descriptor_checksummed(),
+        app.session.wallets[w].policy.to_descriptor_checksummed()
+    );
+    next.press(Action::Backup(loaded));
+    let b = next.backup.as_ref().unwrap();
+    assert_eq!(b.q, None, "the plan is attached");
+    assert_eq!(b.answers.places, 4);
+}
+
+// ---- the round takes out only what the flow put in (§17) ----
+
+/// After the lock, taking Key 1 out of the existing vault that held it
+/// before the flow is refused, and the sealed copy still holds it.
+#[test]
+fn a_key_an_existing_vault_held_before_the_flow_is_never_taken_out() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 1);
+    let main = vault_with_key("Main", PHRASE, 0x41, 1);
+    shell.disk_mut("S1").files = vec![("main.ofv".into(), main)];
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, false, 1);
+    shell.plug(&mut app, "S1");
+    let k = app
+        .flow()
+        .unwrap()
+        .live
+        .reading
+        .as_ref()
+        .and_then(|r| r.files.iter().position(|(f, _)| f.name == "main.ofv"));
+    if let Some(k) = k {
+        shell.flow(&mut app, F::PickFile(0, k));
+    }
+    shell.flow(&mut app, F::Tap);
+    shell.pull(&mut app, "S1");
+    assert_eq!(step(&app), Step::Vaults);
+    unlock(&mut app, PHRASE);
+    assert_eq!(app.screen, Screen::Create, "{:?}", app.vaults.unlock_error);
+    let fp = key_in(&mut app, 1);
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CSlotHere(0, fp));
+    if app.create.as_ref().unwrap().built.is_none() {
+        app.press(Action::CNext(cstep::KEYS));
+    }
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(1));
+    untick_everywhere(&mut app, Row::Words);
+    form_off_everywhere(&mut app, Form::Paper);
+    app.press(Action::BChecklist);
+    save_vaults(&mut app);
+    assert_eq!(app.vaults.open[0].contents.of(kind::KEY).count(), 1);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    shell.flow(&mut app, F::ChangePlan);
+    let p = flow_place_of(&app, 0);
+    flow_keep(&mut shell, &mut app, p, Row::Vault(0), &[]);
+    assert_eq!(
+        app.toast_text(),
+        Some("Vault 1 held this before; take it out from the vault's contents")
+    );
+    {
+        let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+        assert!(
+            wf.answers.vault_seeds(&wf.shape, 0).contains(&0),
+            "the plan stays"
+        );
+    }
+    write_sticks(&mut shell, &mut app, &["S1"]);
+    assert_eq!(
+        step(&app),
+        Step::Done,
+        "{:?}",
+        app.flow().unwrap().live.problem
+    );
+    let sealed = ofv(&shell, "S1").expect("Vault 1 on S1");
+    let (_, c) = faraday_vault::open(&sealed, PHRASE.as_bytes()).unwrap();
+    assert_eq!(c.of(kind::KEY).count(), 1, "Key 1 stays");
+}
+
+/// Two wallets that share a key in one vault: taking the key out for one
+/// of them after the lock is refused, and the key stays.
+#[test]
+fn a_key_another_wallet_in_the_vault_uses_is_never_taken_out() {
+    let mut shell = Shell::new();
+    let (mut app, a, _) = single_key(&mut shell, false);
+    // Another wallet of the same key, saved into the same vault.
+    let k = app.session.keys.len() - 1;
+    let text = NewKind::Taproot
+        .key_text(&app.session.keys[k].master)
+        .unwrap();
+    let b = app
+        .session
+        .add_wallet(
+            "Other",
+            &format!("tr({text}/<0;1>/*)"),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    assert_ne!(a, b);
+    app.press(Action::Backup(b));
+    app.press(Action::BPreset(1));
+    untick_everywhere(&mut app, Row::Words);
+    form_off_everywhere(&mut app, Form::Paper);
+    app.press(Action::BChecklist);
+    app.press(Action::BVaultSave(0));
+    assert_eq!(app.vaults.open[0].contents.of(kind::WALLET).count(), 2);
+    // Back to the first wallet's checklist, and its lock.
+    app.press(Action::Backup(a));
+    app.press(Action::BChecklist);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    shell.flow(&mut app, F::ChangePlan);
+    let p = flow_place_of(&app, 0);
+    flow_keep(&mut shell, &mut app, p, Row::Vault(0), &[]);
+    assert_eq!(
+        app.toast_text(),
+        Some("Another wallet in Vault 1 uses this key; take it out from the vault's contents")
+    );
+    let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+    assert!(
+        wf.answers.vault_seeds(&wf.shape, 0).contains(&0),
+        "the key stays"
+    );
+}
+
+// ---- the final review (§17) ----
+
+/// A key held for its sticks never ends on none: after the lock, a seed's
+/// file is not added (it is made before the lock), the seed stays in its
+/// vault, and the key is released only once the sealed copies hold it.
+#[test]
+fn a_held_seed_is_never_left_on_no_stick_after_the_lock() {
+    let mut shell = Shell::new();
+    let (mut app, _, fp) = single_key(&mut shell, true);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    assert_eq!(step(&app), Step::Write);
+    shell.flow(&mut app, F::ChangePlan);
+    flow_keep(&mut shell, &mut app, 1, Row::File, &[0]);
+    assert_eq!(
+        app.toast_text(),
+        Some(
+            "Files and paper stay as made after the lock; finish the writes, then Back up again to change them"
+        )
+    );
+    let p = flow_place_of(&app, 0);
+    flow_keep(&mut shell, &mut app, p, Row::Vault(0), &[]);
+    assert_eq!(
+        app.toast_text(),
+        Some("A key not yet written stays kept on a stick")
+    );
+    {
+        let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+        assert!(wf.answers.vault_seeds(&wf.shape, 0).contains(&0));
+        assert!(
+            wf.answers.seeds_as_files(&wf.shape).is_empty(),
+            "no seed file on the plan"
+        );
+    }
+    let fp = osk_bip::keys::Fingerprint(fp);
+    write_sticks(&mut shell, &mut app, &["S1", "S2", "S3"]);
+    assert_eq!(
+        step(&app),
+        Step::Done,
+        "{:?}",
+        app.flow().unwrap().live.problem
+    );
+    for d in ["S1", "S2"] {
+        let sealed = ofv(&shell, d).expect("Vault 1's copy");
+        let (_, c) = faraday_vault::open(&sealed, PHRASE.as_bytes()).unwrap();
+        assert_eq!(c.of(kind::KEY).count(), 1, "{d} holds the key");
+    }
+    assert!(!app.key_held(fp), "released once its copies are written");
+}
+
+/// A vault that holds any record of another wallet keeps its key records:
+/// a hidden wallet on the same words with a passphrase kept apart is one
+/// the flow cannot tell from the words alone.
+#[test]
+fn a_key_is_never_taken_out_of_a_vault_another_wallets_record_is_in() {
+    use faraday_vault::Record;
+    use faraday_vault::records::field;
+    let mut shell = Shell::new();
+    let (mut app, _, _) = single_key_with(&mut shell, false, true);
+    // The hidden wallet: the same words with a passphrase; its
+    // description in Vault 1.
+    app.press(Action::Entry(None));
+    for c in testkit::test_words(testkit::TEST_SEEDS[1].0).chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryPassphrase);
+    type_text(&mut app, "hidden");
+    app.press(Action::EntryAdd);
+    let k = app.session.keys.len() - 1;
+    let text = NewKind::NativeSegwit
+        .key_text(&app.session.keys[k].master)
+        .unwrap();
+    let hidden = format!("wpkh({text}/<0;1>/*)");
+    app.vaults.open[0].contents.records.push(
+        Record::new(kind::WALLET)
+            .with(field::WALLET, hidden.as_bytes())
+            .with(field::WALLET_NAME, b"Hidden"),
+    );
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    shell.flow(&mut app, F::ChangePlan);
+    // Words at Place 1, then the seed out of Vault 1.
+    flow_keep(&mut shell, &mut app, 0, Row::Words, &[0]);
+    let p = flow_place_of(&app, 0);
+    flow_keep(&mut shell, &mut app, p, Row::Vault(0), &[]);
+    assert_eq!(
+        app.toast_text(),
+        Some("Another wallet in Vault 1 uses this key; take it out from the vault's contents")
+    );
+    let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+    assert!(
+        wf.answers.vault_seeds(&wf.shape, 0).contains(&0),
+        "the key stays"
+    );
+}
+
+/// After the lock, Keys left off each share does not change while a share
+/// is on paper or in a file: those were made with it as it is.
+#[test]
+fn keys_left_off_each_share_stay_after_the_lock_while_a_share_is_in_a_file() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 3);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, true, 1);
+    bring_in_all(&mut shell, &mut app, &["S1"]);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
+    app.press(Action::Nav(Screen::Create));
+    for (i, fp) in fps.iter().enumerate() {
+        app.press(Action::CSlotHere(i as u8, *fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(1));
+    app.press(Action::BSplit(true));
+    untick_everywhere(&mut app, Row::Words);
+    let vaults = {
+        let shape = backup_shape(&app);
+        app.backup.as_ref().unwrap().answers.vault_count(&shape)
+    };
+    for v in 1..vaults {
+        untick_everywhere(&mut app, Row::Vault(v));
+    }
+    // Share 2 in Vault 1 and as a file, at the place of Vault 1's stick.
+    let p = vault_place(&app, 0);
+    form_off_everywhere(&mut app, Form::Vault(0));
+    form_off_everywhere(&mut app, Form::Paper);
+    app.press(Action::BShare(p as u8, 1));
+    app.press(Action::BForm(p as u8, Form::Vault(0).code()));
+    app.press(Action::BForm(p as u8, Form::File.code()));
+    form_off_everywhere(&mut app, Form::Paper);
+    assert_eq!(app.backup.as_ref().unwrap().answers.omit, 1);
+    app.press(Action::BChecklist);
+    save_vaults(&mut app);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    shell.flow(&mut app, F::ChangePlan);
+    shell.press(
+        &mut app,
+        Action::Slide(faraday_core::seeds::SLIDE_FLOW_OMIT, 0),
+    );
+    assert_eq!(
+        app.toast_text(),
+        Some(
+            "Files and paper stay as made after the lock; finish the writes, then Back up again to change them"
+        )
+    );
+    assert_eq!(app.flow().unwrap().wallet.as_ref().unwrap().answers.omit, 1);
+}
+
+// ---- the re-check: after the lock, each stick's files from the plan ----
+
+/// A 2-of-3 with no vault: the three keys loaded, Paper only, nothing on
+/// paper, at the checklist.
+fn two_of_three_paper(shell: &mut Shell, n: usize) -> Faraday {
+    sticks(shell, n);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(multi_index()));
+    let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
+    app.press(Action::Nav(Screen::Create));
+    for (i, fp) in fps.iter().enumerate() {
+        app.press(Action::CSlotHere(i as u8, *fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(0));
+    untick_everywhere(&mut app, Row::Words);
+    form_off_everywhere(&mut app, Form::Paper);
+    app
+}
+
+/// A seed file taken off a place's stick of files after the lock leaves
+/// that stick's list: the stick is written with what the plan keeps
+/// there, and nothing stale holds the flow.
+#[test]
+fn a_seed_file_taken_off_after_the_lock_is_refused_and_its_stick_keeps_its_files() {
+    let mut shell = Shell::new();
+    let mut app = two_of_three_paper(&mut shell, 2);
+    keep_at(&mut app, 0, Row::File, &[0, 1]);
+    keep_at(&mut app, 1, Row::File, &[2]);
+    let names: Vec<String> = backup_shape(&app)
+        .seeds
+        .iter()
+        .map(|s| s.name.to_lowercase())
+        .collect();
+    app.press(Action::BChecklist);
+    for _ in 0..3 {
+        app.press(Action::BFile);
+        app.press(Action::SecretAck);
+        app.press(Action::SecretUnprotected);
+    }
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    shell.flow(&mut app, F::ChangePlan);
+    // Files stay as made after the lock (§17.8): refused, and Place 1's
+    // stick keeps both files.
+    flow_keep(&mut shell, &mut app, 0, Row::File, &[1]);
+    assert_eq!(
+        app.toast_text(),
+        Some(
+            "Files and paper stay as made after the lock; finish the writes, then Back up again to change them"
+        )
+    );
+    let f = app.flow().unwrap();
+    assert_eq!(f.slots[0].target, Target::PlaceFiles(0));
+    assert_eq!(f.slots[0].files.len(), 2, "{:?}", f.slots[0].files);
+    write_sticks(&mut shell, &mut app, &["S1", "S2"]);
+    assert_eq!(
+        step(&app),
+        Step::Done,
+        "{:?}",
+        app.flow().unwrap().live.problem
+    );
+    let words = |d: &str| -> Vec<String> {
+        names_on(&shell, d)
+            .into_iter()
+            .filter(|n| n.ends_with("-words.txt"))
+            .collect()
+    };
+    assert_eq!(words("S1").len(), 2);
+    assert!(words("S1").iter().any(|n| n.contains(&names[0])));
+    assert!(words("S1").iter().any(|n| n.contains(&names[1])));
+    assert!(words("S2")[0].contains(&names[2]));
+}
+
+fn names_on(shell: &Shell, d: &str) -> Vec<String> {
+    shell.disk(d).files.iter().map(|f| f.0.clone()).collect()
+}
+
+/// Types back the copy of the key in Create's slot 0 on the checklist's
+/// copy item.
+fn type_back_the_copy(app: &mut Faraday) {
+    use osk_bip::bip39::Mnemonic;
+    let k = app.session.keys.len() - 1;
+    let key = &app.session.keys[k];
+    let words = key.words.as_ref().unwrap().to_string();
+    let m = Mnemonic::parse(key.language, &words).unwrap();
+    let digits = osk_codec::seedqr::to_digits(&m);
+    if app.backup.as_ref().unwrap().open != Some(bstep::COPY) {
+        app.press(Action::BStep(bstep::COPY));
+    }
+    app.press(Action::BCheck);
+    type_text(
+        app,
+        std::str::from_utf8(digits.expose().as_bytes()).unwrap(),
+    );
+    assert!(app.backup_item_done(Item::Copy(0)), "the copy is checked");
+}
+
+/// A key made here, in Vault 1, as a file at Place 2 and in words at
+/// Place 1: after the lock, with the file off the plan, emptying Vault 1
+/// leaves it on no stick and is refused.
+#[test]
+fn a_held_key_is_not_left_on_a_stale_file_after_the_lock() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 2);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, false, 1);
+    bring_in_all(&mut shell, &mut app, &["S1"]);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    app.press(Action::Nav(Screen::Create));
+    let fp = new_key(&mut app);
+    if app.create.as_ref().unwrap().built.is_none() {
+        app.press(Action::CNext(cstep::KEYS));
+    }
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(1));
+    form_off_everywhere(&mut app, Form::Paper);
+    for p in 1..backup_places(&app) {
+        app.press(Action::BRowOff(p as u8, Row::Words.code()));
+    }
+    keep_at(&mut app, 1, Row::File, &[0]);
+    app.press(Action::BChecklist);
+    app.press(Action::BNext(bstep::BLANK));
+    type_back_the_copy(&mut app);
+    save_vaults(&mut app);
+    app.press(Action::BFile);
+    app.press(Action::SecretAck);
+    app.press(Action::SecretUnprotected);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    shell.flow(&mut app, F::ChangePlan);
+    flow_plan(&mut shell, &mut app, PlanPress::RowOff(1, Row::File.code()));
+    assert_eq!(
+        app.toast_text(),
+        Some(
+            "Files and paper stay as made after the lock; finish the writes, then Back up again to change them"
+        )
+    );
+    let p = flow_place_of(&app, 0);
+    // The file stays as made, so Vault 1 may be emptied: the key stays
+    // held until the stick of files that holds it is written.
+    flow_keep(&mut shell, &mut app, p, Row::Vault(0), &[]);
+    let f = app.flow().unwrap();
+    let wf = f.wallet.as_ref().unwrap();
+    assert!(!wf.answers.vault_seeds(&wf.shape, 0).contains(&0));
+    assert!(
+        f.slots.iter().any(|s| s.target == Target::PlaceFiles(1)
+            && s.files.iter().any(|n| n.ends_with("-words.txt"))),
+        "kept on the stick of files"
+    );
+    let held = &app.flow().unwrap().wallet.as_ref().unwrap().held;
+    let fp = faraday_core::wallet::fp_text(osk_bip::keys::Fingerprint(fp));
+    assert!(
+        held.iter().any(|h| h.eq_ignore_ascii_case(&fp)),
+        "held until that stick is written"
+    );
+}
+
+/// A 2-of-3 in shares, Share 2 in Vault 1 and as a file at the place of
+/// Vault 1's stick, saved, locked and restarted: (app, that place).
+fn shares_locked(shell: &mut Shell) -> (Faraday, usize) {
+    sticks(shell, 3);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, true, 1);
+    bring_in_all(shell, &mut app, &["S1"]);
+    create_vault(shell, &mut app, 0, PHRASE);
+    let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
+    app.press(Action::Nav(Screen::Create));
+    for (i, fp) in fps.iter().enumerate() {
+        app.press(Action::CSlotHere(i as u8, *fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(1));
+    app.press(Action::BSplit(true));
+    untick_everywhere(&mut app, Row::Words);
+    let vaults = {
+        let shape = backup_shape(&app);
+        app.backup.as_ref().unwrap().answers.vault_count(&shape)
+    };
+    for v in 1..vaults {
+        untick_everywhere(&mut app, Row::Vault(v));
+    }
+    let p = vault_place(&app, 0);
+    form_off_everywhere(&mut app, Form::Vault(0));
+    form_off_everywhere(&mut app, Form::Paper);
+    app.press(Action::BShare(p as u8, 1));
+    app.press(Action::BForm(p as u8, Form::Vault(0).code()));
+    app.press(Action::BForm(p as u8, Form::File.code()));
+    form_off_everywhere(&mut app, Form::Paper);
+    app.press(Action::BChecklist);
+    save_vaults(&mut app);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    (restart(shell, &mut app), p)
+}
+
+/// The sticks of the flow on screen in its order, as disks: the stick
+/// read for Vault 1 is S1, the others new sticks after it.
+fn disks_in_order(app: &Faraday) -> Vec<&'static str> {
+    let mut fresh = ["S2", "S3"].into_iter();
+    app.flow()
+        .unwrap()
+        .slots
+        .iter()
+        .map(|s| {
+            if matches!(s.target, Target::Place(_) | Target::PlaceVault(..)) {
+                "S1"
+            } else {
+                fresh.next().unwrap_or("S3")
+            }
+        })
+        .collect()
+}
+
+/// After the lock, a share moved and "As a file" ticked at another place:
+/// each stick of files is written with the shares' files the plan puts
+/// there, and the vault takes the share now planned.
+#[test]
+fn shares_files_follow_the_plan_after_the_lock() {
+    let mut shell = Shell::new();
+    let (mut app, p) = shares_locked(&mut shell);
+    let q = (0..3).find(|&q| q != p).unwrap();
+    let files_at = |app: &Faraday, at: usize| -> Vec<String> {
+        app.flow()
+            .unwrap()
+            .slots
+            .iter()
+            .find(|s| s.target == Target::PlaceFiles(at))
+            .map(|s| s.files.clone())
+            .unwrap_or_default()
+    };
+    let before = files_at(&app, p);
+    assert!(
+        before.iter().any(|n| n.contains("-share-2-of-3")),
+        "{before:?}"
+    );
+    // After the lock the shares' files stay as made (§17.8): moving a
+    // share, or a file at another place, is refused.
+    shell.flow(&mut app, F::ChangePlan);
+    for press in [
+        PlanPress::Share(p as u8, 2),
+        PlanPress::Form(q as u8, Form::File.code()),
+    ] {
+        flow_plan(&mut shell, &mut app, press);
+        assert_eq!(
+            app.toast_text(),
+            Some(
+                "Files and paper stay as made after the lock; finish the writes, then Back up again to change them"
+            ),
+            "{press:?}"
+        );
+    }
+    assert_eq!(files_at(&app, p), before);
+    assert!(
+        app.flow()
+            .unwrap()
+            .slots
+            .iter()
+            .all(|s| s.target != Target::PlaceFiles(q))
+    );
+    // The sticks are written with the files made.
+    let order = disks_in_order(&app);
+    write_sticks(&mut shell, &mut app, &order);
+    assert_eq!(
+        step(&app),
+        Step::Done,
+        "{:?}",
+        app.flow().unwrap().live.problem
+    );
+    let k = app
+        .flow()
+        .unwrap()
+        .slots
+        .iter()
+        .position(|s| s.target == Target::PlaceFiles(p))
+        .unwrap();
+    let on = names_on(&shell, order[k]);
+    assert!(on.iter().any(|n| n.contains("-share-2-of-3")), "{on:?}");
+}
+
+/// After the lock, with a share in a file, Whole and back cannot change
+/// the split: whole or in shares is fixed, as the keys left off are.
+#[test]
+fn whole_or_in_shares_is_fixed_after_the_lock_while_a_share_is_in_a_file() {
+    let mut shell = Shell::new();
+    let (mut app, _) = shares_locked(&mut shell);
+    shell.flow(&mut app, F::ChangePlan);
+    flow_plan(&mut shell, &mut app, PlanPress::Split(false));
+    assert_eq!(
+        app.toast_text(),
+        Some(
+            "Files and paper stay as made after the lock; finish the writes, then Back up again to change them"
+        )
+    );
+    let a = &app.flow().unwrap().wallet.as_ref().unwrap().answers;
+    assert!(a.split);
+    assert_eq!(a.omit, 1);
+}
+
+/// A vault that keeps another wallet's bare record of the words: each
+/// round adds this wallet's record with its passphrase once, not again.
+#[test]
+fn the_round_adds_a_planned_key_record_once_beside_another_of_its_words() {
+    use faraday_vault::records::field;
+    let mut shell = Shell::new();
+    sticks(&mut shell, 1);
+    let main = vault_with_key("Main", PHRASE, 0x41, 1);
+    shell.disk_mut("S1").files = vec![("main.ofv".into(), main)];
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, false, 1);
+    shell.plug(&mut app, "S1");
+    let k = app
+        .flow()
+        .unwrap()
+        .live
+        .reading
+        .as_ref()
+        .and_then(|r| r.files.iter().position(|(f, _)| f.name == "main.ofv"));
+    if let Some(k) = k {
+        shell.flow(&mut app, F::PickFile(0, k));
+    }
+    shell.flow(&mut app, F::Tap);
+    shell.pull(&mut app, "S1");
+    unlock(&mut app, PHRASE);
+    // The same words with a passphrase: this wallet's key.
+    app.press(Action::Entry(None));
+    for c in testkit::test_words(testkit::TEST_SEEDS[1].0).chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryPassphrase);
+    type_text(&mut app, "kept here");
+    app.press(Action::EntryAdd);
+    let fp = app.session.keys.last().unwrap().master.fingerprint().0;
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CSlotHere(0, fp));
+    if app.create.as_ref().unwrap().built.is_none() {
+        app.press(Action::CNext(cstep::KEYS));
+    }
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(1));
+    untick_everywhere(&mut app, Row::Words);
+    untick_everywhere(&mut app, Row::Passphrase);
+    form_off_everywhere(&mut app, Form::Paper);
+    form_off_everywhere(&mut app, Form::Vault(0));
+    let p = vault_place(&app, 0);
+    app.press(Action::BRow(p as u8, Row::Vault(0).code()));
+    app.press(Action::BPickPass(0));
+    app.press(Action::BPickDone);
+    app.press(Action::BChecklist);
+    save_vaults(&mut app);
+    let keys = |app: &Faraday| -> (usize, usize) {
+        let all: Vec<bool> = app.vaults.open[0]
+            .contents
+            .of(kind::KEY)
+            .map(|(_, r)| r.field(field::KEY_PASSPHRASE).is_some())
+            .collect();
+        (all.len(), all.iter().filter(|&&p| p).count())
+    };
+    assert_eq!(keys(&app), (2, 1), "the bare record and this wallet's");
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    // Two rounds: the description into Vault 1, then out of it.
+    for _ in 0..2 {
+        shell.flow(&mut app, F::ChangePlan);
+        let p = flow_place_of(&app, 0);
+        flow_plan(
+            &mut shell,
+            &mut app,
+            PlanPress::Form(p as u8, Form::Vault(0).code()),
+        );
+        assert!(app.flow().unwrap().adding, "{:?}", app.toast_text());
+        if app.vaults.open.is_empty() {
+            unlock(&mut app, PHRASE);
+        }
+        shell.flow(&mut app, F::CopyKey);
+        assert_eq!(keys(&app), (2, 1), "{:?}", app.toast_text());
+        shell.flow(&mut app, F::MadeContinue);
+    }
+}
+
+// ---- after the lock only vaults change (§17.8) ----
+
+/// A refused edit after the lock loads nothing: no wallet, no receive
+/// address; "As a file" at a place with no vault open is one.
+#[test]
+fn a_file_added_after_the_lock_is_refused_and_loads_no_wallet() {
+    let mut shell = Shell::new();
+    let (mut app, _, _) = single_key_ready(&mut shell);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    assert!(app.session.wallets.is_empty());
+    shell.flow(&mut app, F::ChangePlan);
+    flow_plan(&mut shell, &mut app, PlanPress::Form(0, Form::File.code()));
+    assert_eq!(
+        app.toast_text(),
+        Some(
+            "Files and paper stay as made after the lock; finish the writes, then Back up again to change them"
+        )
+    );
+    assert!(app.session.wallets.is_empty(), "no wallet is loaded");
+    assert!(
+        app.flow()
+            .unwrap()
+            .slots
+            .iter()
+            .all(|s| s.target != Target::PlaceFiles(0))
+    );
+}
+
+/// The Done card's unlock loads the vault's wallet and key, the key no
+/// longer held once every stick holding it is written.
+#[test]
+fn the_done_landing_loads_the_vaults_keys_released() {
+    let mut shell = Shell::new();
+    let (mut app, _, fp) = single_key(&mut shell, true);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    write_sticks(&mut shell, &mut app, &["S1", "S2", "S3"]);
+    assert_eq!(step(&app), Step::Done);
+    shell.flow(&mut app, F::UnlockDone(0));
+    app.vaults.ms_per_unit = Some(180);
+    unlock(&mut app, PHRASE);
+    let fp = osk_bip::keys::Fingerprint(fp);
+    assert!(
+        app.session
+            .keys
+            .iter()
+            .any(|k| k.master.fingerprint() == fp),
+        "the key loaded from the vault"
+    );
+    assert!(!app.session.wallets.is_empty(), "its wallet too");
+    assert!(!app.key_held(fp), "released");
+}
+
+/// An edit after the lock that only moves a vault's sticks leaves every
+/// stick of files' list as it was made, the account key files with it.
+#[test]
+fn a_stick_of_files_keeps_its_list_after_a_vault_edit() {
+    let mut shell = Shell::new();
+    let (mut app, _, _) = single_key_ready(&mut shell);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    let files = |app: &Faraday| -> Vec<String> {
+        app.flow()
+            .unwrap()
+            .slots
+            .iter()
+            .find(|s| s.target == Target::PlaceFiles(1))
+            .map(|s| s.files.clone())
+            .unwrap()
+    };
+    let before = files(&app);
+    assert!(!before.is_empty());
+    shell.flow(&mut app, F::ChangePlan);
+    flow_plan(&mut shell, &mut app, PlanPress::Places(true));
+    flow_plan(
+        &mut shell,
+        &mut app,
+        PlanPress::Row(2, Row::Vault(0).code()),
+    );
+    shell.press(&mut app, Action::BPickDone);
+    assert!(
+        app.flow()
+            .unwrap()
+            .slots
+            .iter()
+            .any(|s| s.target == Target::Place(2)),
+        "Vault 1's stick at Place 3"
+    );
+    assert_eq!(files(&app), before, "the list stays as made");
+}
+
+/// A written stick of files is not sent back after the lock; with the
+/// vault unlocked again, Back up's change of its files makes it unwritten,
+/// to be written again, while a vault's stick that did not change stays
+/// written.
+#[test]
+fn a_written_stick_of_files_is_never_sent_back_after_the_lock() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 3);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, false, 1);
+    bring_in_all(&mut shell, &mut app, &["S1"]);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    let fp = key_in(&mut app, 1);
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CSlotHere(0, fp));
+    if app.create.as_ref().unwrap().built.is_none() {
+        app.press(Action::CNext(cstep::KEYS));
+    }
+    let w = app.create.as_ref().unwrap().built.unwrap();
+    let name = app.session.wallets[w].name.clone();
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(1));
+    // Vault 1 at both places, the description in it and as files at
+    // Place 1, nothing else.
+    untick_everywhere(&mut app, Row::Words);
+    stick_also_at(&mut app, 0, 0);
+    form_off_everywhere(&mut app, Form::Paper);
+    form_on(&mut app, 0, Form::File);
+    app.press(Action::BChecklist);
+    save_vaults(&mut app);
+    app.press(Action::BFilesMake);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    let targets: Vec<Target> = app.flow().unwrap().slots.iter().map(|s| s.target).collect();
+    assert_eq!(
+        targets,
+        vec![Target::Place(0), Target::PlaceFiles(0), Target::Place(1)]
+    );
+    write_sticks(&mut shell, &mut app, &["S1", "S2"]);
+    assert!(
+        app.flow().unwrap().slots[1].written.is_some(),
+        "the files written"
+    );
+    // Locked: its files stay.
+    shell.flow(&mut app, F::ChangePlan);
+    flow_plan(&mut shell, &mut app, PlanPress::Form(0, Form::File.code()));
+    assert_eq!(
+        app.toast_text(),
+        Some(
+            "Files and paper stay as made after the lock; finish the writes, then Back up again to change them"
+        )
+    );
+    assert!(app.flow().unwrap().slots[1].written.is_some());
+    // A vault unlocked again changes nothing of it: the text form on
+    // Back up, the checklist and Lock and write are refused, and every
+    // stick keeps its written mark.
+    load_first_vault(&mut app, PHRASE);
+    let w = app
+        .session
+        .wallets
+        .iter()
+        .position(|x| x.name == name)
+        .expect("the wallet, from the vault");
+    app.press(Action::Backup(w));
+    let before: Vec<bool> = app
+        .flow()
+        .unwrap()
+        .slots
+        .iter()
+        .map(|s| s.written.is_some())
+        .collect();
+    app.press(Action::BAnswer(qrow::FORM, form::TEXT as u8));
+    assert_eq!(
+        app.toast_text(),
+        Some(
+            "Files and paper stay as made after the lock; finish the writes, then Back up again to change them"
+        )
+    );
+    app.press(Action::BChecklist);
+    assert_eq!(
+        app.toast_text(),
+        Some("This backup is past its lock; finish the writes, then Back up again")
+    );
+    shell.flow(&mut app, F::WalletLock);
+    let after: Vec<bool> = app
+        .flow()
+        .unwrap()
+        .slots
+        .iter()
+        .map(|s| s.written.is_some())
+        .collect();
+    assert_eq!(after, before, "written marks unchanged");
+    assert!(app.flow().unwrap().slots[1].written.is_some());
+}
+
+/// A vault that held the bare words before the backup: this wallet's key
+/// with its passphrase, taken out of its passphrase after the lock, leaves
+/// the sealed copy with the earlier bare record and no record with the
+/// passphrase.
+#[test]
+fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
+    use faraday_vault::records::field;
+    let mut shell = Shell::new();
+    sticks(&mut shell, 1);
+    let main = vault_with_key("Main", PHRASE, 0x41, 1);
+    shell.disk_mut("S1").files = vec![("main.ofv".into(), main)];
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, false, 1);
+    shell.plug(&mut app, "S1");
+    let k = app
+        .flow()
+        .unwrap()
+        .live
+        .reading
+        .as_ref()
+        .and_then(|r| r.files.iter().position(|(f, _)| f.name == "main.ofv"));
+    if let Some(k) = k {
+        shell.flow(&mut app, F::PickFile(0, k));
+    }
+    shell.flow(&mut app, F::Tap);
+    shell.pull(&mut app, "S1");
+    unlock(&mut app, PHRASE);
+    app.press(Action::Entry(None));
+    for c in testkit::test_words(testkit::TEST_SEEDS[1].0).chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryPassphrase);
+    type_text(&mut app, "kept here");
+    app.press(Action::EntryAdd);
+    let fp = app.session.keys.last().unwrap().master.fingerprint().0;
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CSlotHere(0, fp));
+    if app.create.as_ref().unwrap().built.is_none() {
+        app.press(Action::CNext(cstep::KEYS));
+    }
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(1));
+    untick_everywhere(&mut app, Row::Words);
+    untick_everywhere(&mut app, Row::Passphrase);
+    form_off_everywhere(&mut app, Form::Paper);
+    let p = vault_place(&app, 0);
+    app.press(Action::BRow(p as u8, Row::Vault(0).code()));
+    app.press(Action::BPickPass(0));
+    app.press(Action::BPickDone);
+    app.press(Action::BChecklist);
+    save_vaults(&mut app);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    shell.flow(&mut app, F::ChangePlan);
+    let p = flow_place_of(&app, 0);
+    flow_plan(
+        &mut shell,
+        &mut app,
+        PlanPress::Row(p as u8, Row::Vault(0).code()),
+    );
+    shell.press(&mut app, Action::BPickPass(0));
+    shell.press(&mut app, Action::BPickDone);
+    assert!(app.flow().unwrap().adding, "{:?}", app.toast_text());
+    unlock(&mut app, PHRASE);
+    shell.flow(&mut app, F::CopyKey);
+    shell.flow(&mut app, F::MadeContinue);
+    shell.flow(&mut app, F::LockWrite);
+    let mut app = restart(&mut shell, &mut app);
+    write_sticks(&mut shell, &mut app, &["S1"]);
+    assert_eq!(
+        step(&app),
+        Step::Done,
+        "{:?}",
+        app.flow().unwrap().live.problem
+    );
+    let sealed = ofv(&shell, "S1").expect("Vault 1 on S1");
+    let (_, c) = faraday_vault::open(&sealed, PHRASE.as_bytes()).unwrap();
+    let keys: Vec<bool> = c
+        .of(kind::KEY)
+        .map(|(_, r)| r.field(field::KEY_PASSPHRASE).is_some())
+        .collect();
+    assert_eq!(keys, vec![false], "the earlier bare record alone");
+}
+
+// ---- after the lock, files and paper never change in that backup ----
+
+/// F1: with Vault 1 unlocked after the lock, "As a file" and words by hand
+/// on the flow's plan card are refused, and no stick is added.
+#[test]
+fn files_and_words_stay_as_made_after_the_lock_with_a_vault_unlocked() {
+    let mut shell = Shell::new();
+    let (mut app, _, _) = single_key_ready(&mut shell);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    load_first_vault(&mut app, PHRASE);
+    assert!(!app.vaults.open.is_empty(), "Vault 1 is unlocked");
+    let slots = app.flow().unwrap().slots.len();
+    shell.flow(&mut app, F::ChangePlan);
+    flow_plan(&mut shell, &mut app, PlanPress::Form(0, Form::File.code()));
+    assert_eq!(
+        app.toast_text(),
+        Some(
+            "Files and paper stay as made after the lock; finish the writes, then Back up again to change them"
+        )
+    );
+    assert_eq!(app.flow().unwrap().slots.len(), slots, "no new stick");
+    // Words by hand at Place 1: refused too.
+    flow_keep(&mut shell, &mut app, 0, Row::Words, &[0]);
+    assert_eq!(
+        app.toast_text(),
+        Some(
+            "Files and paper stay as made after the lock; finish the writes, then Back up again to change them"
+        )
+    );
+    let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+    assert_eq!(wf.answers.row_seeds(&wf.shape, 0, Row::Words), None);
+}
+
+/// After the lock, another vault holding the same key and wallet,
+/// unlocked, with a chart edit, the checklist and Lock and write: the
+/// flow's plan, its vaults and its written marks stay as they were.
+#[test]
+fn another_open_vault_never_replaces_a_backup_past_its_lock() {
+    use faraday_core::glance::Press;
+    use faraday_core::glance_sheet::ChartAction as C;
+    use faraday_vault::Record;
+    use faraday_vault::records::{self, field};
+    let mut shell = Shell::new();
+    let (mut app, w, _) = single_key_ready(&mut shell);
+    let desc = app.session.wallets[w].policy.to_descriptor_checksummed();
+    let name = app.session.wallets[w].name.clone();
+    shell.flow(&mut app, F::WalletLock);
+    // A second vault, of another passphrase, with the same key and wallet.
+    let words = testkit::test_words(testkit::TEST_SEEDS[1].0);
+    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &words).unwrap();
+    let contents = faraday_vault::Contents {
+        records: vec![
+            Record::new(records::kind::SLOT_LABEL).with(field::LABEL, b"Second"),
+            Record::new(kind::KEY)
+                .with(field::KEY, &records::words_payload(&m))
+                .with(field::KEY_FLAGS, &[records::LOAD_AT_UNLOCK]),
+            Record::new(kind::WALLET)
+                .with(field::WALLET, desc.as_bytes())
+                .with(field::WALLET_NAME, name.as_bytes()),
+        ],
+    };
+    let cost = faraday_vault::Cost {
+        memory_kib: faraday_vault::MIN_MEMORY_KIB,
+        passes: 1,
+        lanes: 1,
+    };
+    let second = faraday_vault::create(
+        faraday_vault::SLOT_SIZES[0],
+        cost,
+        &[PHRASE_2.as_bytes()],
+        &[contents],
+        &[0x77; 32],
+    )
+    .unwrap();
+    shell.boxes.0.push(("second.ofv".into(), second));
+    let mut app = restart(&mut shell, &mut app);
+    let flow_before = app.flow().unwrap().clone();
+    // The second vault unlocked.
+    app.press(Action::Nav(Screen::Vaults));
+    for n in 0..4 {
+        if !app.vaults.open.is_empty() {
+            break;
+        }
+        app.press(Action::Vault(faraday_core::vaults::VaultAction::Open(n)));
+        app.vaults.ms_per_unit = Some(180);
+        unlock(&mut app, PHRASE_2);
+    }
+    assert_eq!(app.vaults.open.len(), 1);
+    app.press(Action::Vault(
+        faraday_core::vaults::VaultAction::LoadChosen(0),
+    ));
+    let w = app
+        .session
+        .wallets
+        .iter()
+        .position(|x| x.name == name)
+        .expect("the wallet, from the second vault");
+    app.press(Action::Backup(w));
+    // A chart edit: the description's files at Place 1.
+    let press = Press::Loaded(w);
+    app.press(Action::Chart(C::Edit(
+        press,
+        plan::Edit::Add(At::Place(0), What::WalletFile),
+    )));
+    app.press(Action::Chart(C::Confirm(press)));
+    app.press(Action::BChecklist);
+    shell.flow(&mut app, F::WalletLock);
+    let f = app.flow().unwrap();
+    let wf = f.wallet.as_ref().unwrap();
+    assert_eq!(
+        wf.answers,
+        flow_before.wallet.as_ref().unwrap().answers,
+        "the plan stays"
+    );
+    let salts = |f: &BackupFlow| f.plan.vaults.iter().map(|v| v.salt).collect::<Vec<_>>();
+    assert_eq!(salts(f), salts(&flow_before), "its vaults stay");
+    let marks = |f: &BackupFlow| {
+        f.slots
+            .iter()
+            .map(|s| (s.target, s.written.is_some()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(marks(f), marks(&flow_before), "its written marks stay");
+}
+
+/// Once a backup is done, Back up again on the wallet is a new backup: a
+/// file added at a place is made by its checklist and written by its Lock
+/// and write.
+#[test]
+fn back_up_again_after_done_adds_a_file_and_writes_it() {
+    let mut shell = Shell::new();
+    let (mut app, _, _) = single_key_ready(&mut shell);
+    let mut d = Disk::empty("S4", "KEYSTICK");
+    d.serial = Some(4);
+    shell.add(d);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    write_sticks(&mut shell, &mut app, &["S1", "S2", "S3"]);
+    assert_eq!(step(&app), Step::Done);
+    shell.flow(&mut app, F::UnlockDone(0));
+    app.vaults.ms_per_unit = Some(180);
+    unlock(&mut app, PHRASE);
+    assert_eq!(app.screen, Screen::Backup);
+    app.press(Action::BPlan);
+    form_on(&mut app, 0, Form::File);
+    app.press(Action::BChecklist);
+    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    app.press(Action::BFilesMake);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let targets: Vec<Target> = app.flow().unwrap().slots.iter().map(|s| s.target).collect();
+    assert!(targets.contains(&Target::PlaceFiles(0)), "{targets:?}");
+    let mut app = restart(&mut shell, &mut app);
+    let k = app
+        .flow()
+        .unwrap()
+        .slots
+        .iter()
+        .position(|s| s.target == Target::PlaceFiles(0))
+        .unwrap();
+    let mut order = vec!["S1", "S2", "S3"];
+    order.insert(k, "S4");
+    write_sticks(&mut shell, &mut app, &order);
+    assert_eq!(
+        step(&app),
+        Step::Done,
+        "{:?}",
+        app.flow().unwrap().live.problem
+    );
+    assert!(
+        names(&shell, "S4")
+            .iter()
+            .any(|n| n.ends_with("-descriptor.txt")),
+        "{:?}",
+        names(&shell, "S4")
+    );
 }

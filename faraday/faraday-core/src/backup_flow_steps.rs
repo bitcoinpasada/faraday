@@ -21,6 +21,9 @@ use crate::{Action, Faraday, FileKind, Item, Screen, Sheet, StickInfo, StorageCo
 pub enum FlowAction {
     /// Open a card, or close it.
     Open(u8),
+    /// A press on a wallet's plan cards, as Back up's
+    /// (`docs/BACKUP-FLOW.md` §17).
+    Plan(crate::PlanPress),
     /// Leave the flow, keeping its state.
     Back,
     /// Open the first card to change the plan.
@@ -364,6 +367,7 @@ impl Faraday {
                     | F::AlsoVault(..)
                     | F::PublicAt(_)
                     | F::Answer(..)
+                    | F::Plan(_)
             )
         {
             return;
@@ -396,6 +400,10 @@ impl Faraday {
                 let f = &mut self.backup_flows[i];
                 f.live.open = Some(Step::Where.n());
                 f.live.scroll.follow = true;
+                // A wallet's plan opens on The plan, its map.
+                if f.kind.is_wallet() {
+                    f.live.plan_q = Some(crate::qstep::PLAN);
+                }
             }
             F::AddPlace => self.flow_add_place(i),
             F::RemovePlace(p) => self.flow_remove_place(i, p, false),
@@ -405,6 +413,7 @@ impl Faraday {
             F::Together(p) => self.flow_together(i, p),
             F::PublicAt(p) => self.flow_public_at(i, p),
             F::Answer(list, row) => self.flow_wallet_answer(i, list, row),
+            F::Plan(press) => self.flow_plan_press(i, press),
             F::WalletMake => self.wallet_flow_leave(i),
             F::VaultExisting(v) => {
                 let f = &mut self.backup_flows[i];
@@ -496,6 +505,12 @@ impl Faraday {
         let f = &mut self.backup_flows[i];
         f.plan.places.remove(p);
         f.plan.together.retain(|&q| q != p);
+        f.plan.place_files.retain(|&q| q != p);
+        for q in f.plan.place_files.iter_mut() {
+            if *q > p {
+                *q -= 1;
+            }
+        }
         for q in f.plan.together.iter_mut() {
             if *q > p {
                 *q -= 1;
@@ -508,7 +523,7 @@ impl Faraday {
         }
         let mut orphaned: Vec<String> = Vec::new();
         f.slots.retain(|s| {
-            let gone = s.target.place() == Some(p);
+            let gone = s.target.place() == Some(p) || s.target.files_place() == Some(p);
             if gone {
                 orphaned.extend(s.files.iter().cloned());
             }
@@ -518,6 +533,7 @@ impl Faraday {
             s.target = match s.target {
                 Target::Place(q) if q > p => Target::Place(q - 1),
                 Target::PlaceVault(q, v) if q > p => Target::PlaceVault(q - 1, v),
+                Target::PlaceFiles(q) if q > p => Target::PlaceFiles(q - 1),
                 t => t,
             };
         }
@@ -760,7 +776,13 @@ impl Faraday {
 
     /// Continue on the first card, or after a change of plan.
     fn flow_continue(&mut self, i: usize) {
-        if self.backup_flows[i].kind.is_wallet() && self.flow_wallet_stickless(i) {
+        if self.backup_flows[i].kind.is_wallet()
+            && (self.flow_wallet_stickless(i)
+                || self.backup_flows[i]
+                    .wallet
+                    .as_ref()
+                    .is_some_and(|w| w.answers.empty_vault().is_some()))
+        {
             return;
         }
         let f = &mut self.backup_flows[i];
@@ -2322,7 +2344,10 @@ impl Faraday {
         // The seeds a wallet's plan keeps as files, which the person let
         // out unprotected on the secret sheet, go to the stick of files and
         // to no other.
-        let files_stick = f.slots.get(slot).is_some_and(|s| s.target == Target::Files);
+        let files_stick = f
+            .slots
+            .get(slot)
+            .is_some_and(|s| matches!(s.target, Target::Files | Target::PlaceFiles(_)));
         for name in names {
             match self
                 .outbox
@@ -2338,7 +2363,7 @@ impl Faraday {
                         && f.public_slot() != Some(slot)
                         && it.secret
                         && f.kind.is_wallet()
-                        && f.seed_file_ok(&it.name) =>
+                        && f.seed_file_ok_for(slot, &it.name) =>
                 {
                     sends.push((it.name.clone(), it.bytes.clone(), false));
                 }
@@ -2367,9 +2392,11 @@ impl Faraday {
         if let Some(r) = f.live.reading.as_mut() {
             r.hold = false;
         }
+        let target = f.slots[slot].target;
         f.live.writing = Some(Writing {
             id: r.id,
             slot,
+            target,
             pending,
             done: Vec::new(),
             label: r.label,
@@ -2407,7 +2434,16 @@ impl Faraday {
         if w.pending.is_empty()
             && let Some(w) = self.backup_flows[i].live.writing.take()
         {
-            self.flow_written_done(i, w.slot, w.id, w.label, w.serial, w.done);
+            // The write counts for the stick it was for, by target: the
+            // slots may have moved since it started.
+            let Some(slot) = self.backup_flows[i]
+                .slots
+                .iter()
+                .position(|s| s.target == w.target)
+            else {
+                return;
+            };
+            self.flow_written_done(i, slot, w.id, w.label, w.serial, w.done);
         }
     }
 
@@ -2810,6 +2846,7 @@ impl BackupFlow {
             ),
             Target::Files => fill(FEN.backup_flow_files_stick, &[medium]),
             Target::Public => fill(FEN.backup_flow_public_stick, &[medium]),
+            Target::PlaceFiles(p) => fill(FEN.backup_flow_files_at, &[&BackupFlow::place_name(*p)]),
         }
     }
 

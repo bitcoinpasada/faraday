@@ -7,9 +7,7 @@
 
 use crate::backup_flow::{BackupFlow, Step};
 use crate::backup_flow_steps::FlowAction as F;
-use crate::plan;
-use crate::qrow;
-use crate::screens::{section_label, stepper};
+use crate::screens::stepper;
 use crate::strings::{EN as FEN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
@@ -19,19 +17,14 @@ fn fa(a: F) -> Action {
     Action::Flow(a)
 }
 
-fn ans(list: u8, row: usize) -> Action {
-    fa(F::Answer(list, row.min(255) as u8))
-}
-
-/// What a place is called before any vault has named it.
-fn place(p: usize) -> String {
-    BackupFlow::place_name(p)
-}
-
 /// The plan (the card is "The plan"): where the wallet's keys will be
-/// kept, from the plan's answers. Into vaults or not, the places, and for each vault the seeds it
-/// holds and the places that keep its stick; then the check lines, and the
-/// way on.
+/// kept, asked place by place with Back up's own cards
+/// (`docs/BACKUP-FLOW.md` §17), drawn by the same code: Places, a card
+/// per place with its rows' sheets, the wallet description, where it
+/// goes, the software, and The plan, the map with its checks. While a
+/// stick is written nothing takes a press. Under The plan, each vault
+/// whose stick is not read yet is New or Existing, then what holds the
+/// way on, or Continue.
 pub(crate) fn where_body(
     app: &Faraday,
     f: &BackupFlow,
@@ -40,133 +33,126 @@ pub(crate) fn where_body(
     y: f32,
     w: f32,
 ) -> f32 {
-    let Some(wf) = f.wallet.as_ref() else {
+    use crate::plan_cards::{self as cards, PlanCtx};
+    let Some(ctx) = PlanCtx::flow(app, app.flow_index_of(f)) else {
         return 0.0;
     };
-    let (a, shape) = (&wf.answers, &wf.shape);
-    let writing = f.live.writing.is_some();
     let mut cy = y;
-    cy += ui.multi_list(
-        x,
-        cy,
-        w,
-        &[(
-            FEN.app_into_vaults.to_string(),
-            a.seeds[plan::seeds::VAULT],
-            !writing,
-            ans(qrow::SEEDS, plan::seeds::VAULT),
-        )],
-    );
-    cy += 14.0;
-    let p = a.places;
-    stepper(
-        ui,
-        x,
-        cy,
-        w,
-        FEN.plan_places_with_paper,
-        p,
-        ans(qrow::PLACES, p.saturating_sub(1)),
-        ans(qrow::PLACES, p + 1),
-        !writing,
-    );
-    cy += 52.0;
-    let names: Vec<String> = (0..p).map(place).collect();
-    for v in a.vaults_made(shape) {
-        section_label(ui, x, cy, &fill(FEN.plan_vault, &[&(v + 1).to_string()]));
+    let open = f.live.plan_q;
+    for q in crate::plan_cards_of(&ctx) {
+        cy += card_head(
+            ui,
+            x,
+            cy,
+            w,
+            &cards::title(&ctx, q),
+            &cards::summary(&ctx, q),
+            open == Some(q),
+            ctx.act(crate::PlanPress::Q(q)),
+        );
+        if open != Some(q) {
+            continue;
+        }
+        cy += cards::body(app, ui, &ctx, q, x + 12.0, cy, w - 12.0) + 8.0;
+        if q != crate::qstep::PLAN {
+            continue;
+        }
         // New, or one that exists already: the latter is read from its
         // stick at step 2.
-        if let Some(vp) = f.plan.vaults.get(v)
-            && vp.salt.is_none()
-        {
+        for v in ctx.answers.vaults_made(&ctx.shape) {
+            let Some(vp) = f.plan.vaults.get(v).filter(|vp| vp.salt.is_none()) else {
+                continue;
+            };
+            let label = fill(FEN.plan_vault, &[&(v + 1).to_string()]);
+            let state = if vp.existing {
+                FEN.backup_flow_existing_vault
+            } else {
+                FEN.backup_flow_new_vault
+            };
             let other = if vp.existing {
                 FEN.backup_flow_new_vault
             } else {
                 FEN.backup_flow_existing_vault
             };
+            ui.text_mid(
+                x + 12.0,
+                cy,
+                32.0,
+                13.0,
+                W::S,
+                TEXT,
+                &fill(FEN.backup_flow_pick_title, &[&label, state]),
+            );
             let bw = ui.measure(13.0, W::S, other) + 32.0;
             ui.button(
                 x + w - bw,
-                cy - 6.0,
+                cy,
                 Some(bw),
                 32.0,
                 other,
-                Style::Secondary,
+                if ctx.enabled {
+                    Style::Secondary
+                } else {
+                    Style::Disabled
+                },
                 fa(F::VaultExisting(v)),
             );
+            cy += 40.0;
         }
-        cy += 34.0;
-        let seeds: Vec<(String, bool, bool, Action)> = shape
-            .here()
-            .into_iter()
-            .map(|i| {
-                (
-                    shape.seeds[i].name.clone(),
-                    a.vault_seeds(shape, v).contains(&i),
-                    !writing,
-                    ans(qrow::VAULTS.saturating_add(v.min(63) as u8), i),
-                )
-            })
-            .collect();
-        if shape.here().len() > 1 {
-            cy += ui.multi_list(x, cy, w, &seeds) + 8.0;
+        // The plan card's way on is the flow's Continue, the one way on
+        // (§17.7); what holds it takes its place.
+        if !ctx.enabled {
+            continue;
         }
-        section_label(
+        if let Some(line) = cards::held_line(app, &ctx, None) {
+            if ui.pinning {
+                ui.pin = Some((line, Style::Disabled, fa(F::Continue)));
+            } else {
+                cy += ui.wrap(x + 12.0, cy, w - 12.0, 13.0, W::S, WARN, &line) + 12.0;
+            }
+            continue;
+        }
+        if crate::screens::next_button(
             ui,
-            x,
+            x + 12.0,
             cy,
-            &fill(FEN.plan_vault_s, &[&(v + 1).to_string(), app.medium.noun()]),
-        );
-        cy += 28.0;
-        let sticks: Vec<(String, bool, bool, Action)> = (0..p)
-            .map(|q| {
-                (
-                    names[q].clone(),
-                    a.stick_at(v, q),
-                    !writing,
-                    ans(qrow::STICKS.saturating_add(v.min(63) as u8), q),
-                )
-            })
-            .collect();
-        cy += ui.multi_list(x, cy, w, &sticks) + 14.0;
+            w - 12.0,
+            FEN.backup_flow_continue_make,
+            fa(F::Continue),
+        ) {
+            cy += 48.0;
+        }
     }
-    cy += checks(app, f, ui, x, cy, w);
-    if let Some(v) = a.stickless(shape) {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            13.0,
-            W::S,
-            WARN,
-            &fill(
-                FEN.plan_vault_s_needs,
-                &[&(v + 1).to_string(), app.medium.noun()],
-            ),
-        ) + 12.0;
-        return cy - y;
-    }
-    ui.button(
-        x,
-        cy,
-        None,
-        40.0,
-        FEN.backup_flow_continue_make,
-        Style::Primary,
-        fa(F::Continue),
-    );
-    cy + 52.0 - y
+    cy + 8.0 - y
 }
 
-/// The plan's check lines, with the two lines of fact under them, as the
-/// map panel draws them.
-fn checks(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let Some(wf) = f.wallet.as_ref() else {
-        return 0.0;
-    };
-    let c = plan::check(&wf.shape, &wf.answers);
-    let _ = app;
-    crate::glance::check_lines(ui, x, y, w, c, false, &place) + 16.0
+/// A plan card's head in the flow: its title, and its answers while it is
+/// closed; a press opens or closes it. Returns its height.
+#[allow(clippy::too_many_arguments)]
+fn card_head(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    title: &str,
+    summary: &str,
+    open: bool,
+    toggle: Action,
+) -> f32 {
+    let h = 44.0;
+    if ui.is_pressed(toggle) || ui.is_hovered(toggle) {
+        ui.fill(x, y, w, h, 8.0, INNER);
+    }
+    ui.stroke(x, y, w, h, 8.0, LINE);
+    let tw = ui.measure(14.0, W::S, title).min(w * 0.5);
+    let t = ui.fit(14.0, W::S, title, w * 0.5);
+    ui.text_mid(x + 12.0, y, h, 14.0, W::S, TEXT, &t);
+    if !open {
+        let s = ui.fit(12.0, W::R, summary, w - tw - 36.0);
+        ui.text_right(x + w - 12.0, y, h, 12.0, W::R, MUTED, &s);
+    }
+    ui.hit(x, y, w, h, toggle);
+    h + 8.0
 }
 
 /// The Make card of a wallet's flow: the keys are made in Make a new

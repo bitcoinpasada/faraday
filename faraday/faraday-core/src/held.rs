@@ -404,6 +404,18 @@ impl Faraday {
             return;
         }
         self.vaults.current = cur;
+        // What the vault held before this backup first saved into it.
+        let salt = self.vaults.open[cur].header().salt;
+        if self
+            .backup
+            .as_ref()
+            .is_some_and(|b| !b.before.iter().any(|(s, _)| *s == salt))
+        {
+            let held = self.vault_tokens(cur);
+            if let Some(b) = self.backup.as_mut() {
+                b.before.push((salt, held));
+            }
+        }
         let Some(b) = self.backup.as_ref() else {
             return;
         };
@@ -426,6 +438,42 @@ impl Faraday {
             .is_some_and(|wl| vault_has_wallet(self, cur, wl));
         if wallet_too && !has {
             self.vault_act(V::SaveWallet(w));
+        }
+        // Each share the plan keeps in the vault, as a type 13 record
+        // (`docs/BACKUP-FLOW.md` §17.6): once per wallet and share number,
+        // an older text of that share replaced.
+        let Some((name, cs, desc)) = self.session.wallets.get(w).map(|wl| {
+            (
+                wl.name.clone(),
+                wl.policy.checksum(),
+                Faraday::wallet_text(wl),
+            )
+        }) else {
+            return;
+        };
+        for (j, text, of) in self.backup_vault_shares(v) {
+            if self.vault_holds_share(cur, &cs, j, &text) {
+                continue;
+            }
+            let number = u8::try_from(j + 1).unwrap_or(u8::MAX);
+            // This wallet's share of that number, told by the wallet and
+            // never by its name, is replaced.
+            if let Some(open) = self.vaults.open.get_mut(cur) {
+                open.contents
+                    .records
+                    .retain(|r| !crate::share_record_is(r, &cs, Some(j)));
+            }
+            let record = Record::new(kind::WALLET_SHARE)
+                .with(field::SHARE, text.as_bytes())
+                .with(field::SHARE_WALLET_NAME, name.as_bytes())
+                .with(field::SHARE_NUMBER, &[number])
+                .with(field::SHARE_OF, &[u8::try_from(of).unwrap_or(u8::MAX)])
+                .with(field::SHARE_WALLET, desc.as_bytes());
+            let said = fill(
+                EN.backup_flow_vault_share,
+                &[&name, &(j + 1).to_string(), &of.to_string()],
+            );
+            self.vault_push_in(cur, record, &said);
         }
         self.plan_save();
     }

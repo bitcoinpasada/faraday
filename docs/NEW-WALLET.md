@@ -361,6 +361,14 @@ stick at the places ticked, so plans saved before this pass still load.
 
 ### 5.2 The questions
 
+**Changed by BACKUP-FLOW §17** (2026-10-15, F35): the plan is asked
+place by place. "The seeds go" and "The wallet description goes" are
+gone; a card per place lists what it keeps (words, SeedQR, each vault,
+a seed file, a passphrase), a vault's seeds are ticked on its sheet
+from any place that keeps its stick, and the description's forms are
+chosen place by place. `docs/BACKUP-FLOW.md` §17.1 has the cards; what
+follows is the questions as they were.
+
 - **The seeds go**, with **Into vaults** ticked: under the list, a
   section per vault, **Vault 1**, **Vault 2** …, each a multi-choice
   list of the seeds loaded here; a seed may be ticked in more than one.

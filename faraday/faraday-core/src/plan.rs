@@ -411,11 +411,12 @@ impl Answers {
         }
     }
 
-    /// The seeds the plan keeps as a file on the stick of files.
+    /// The seeds the plan keeps as a file: on the stick of files, or on a
+    /// place's stick of files.
     pub fn seeds_as_files(&self, shape: &Shape) -> Vec<usize> {
         let mut out: Vec<usize> = map(shape, self)
             .iter()
-            .filter(|s| s.at == At::Files)
+            .filter(|s| matches!(s.at, At::Files | At::Place(_)))
             .flat_map(|s| s.holds.iter())
             .filter_map(|(w, _)| match w {
                 What::SeedFile(i) => Some(*i),
@@ -428,17 +429,29 @@ impl Answers {
     }
 
     /// Whether the plan keeps seed `i` on a stick: in a vault, or as a
-    /// file on the stick of files. Such a seed is held until that stick is
-    /// written (F6).
+    /// file on the stick of files or a place's. Such a seed is held until
+    /// that stick is written (F6).
     pub fn seed_on_stick(&self, shape: &Shape, i: usize) -> bool {
         map(shape, self).iter().any(|s| match s.at {
             At::Vault(_) => s
                 .holds
                 .iter()
                 .any(|(w, _)| *w == What::Seed(i) || *w == What::SeedPassphrase(i)),
-            At::Files => s.holds.iter().any(|(w, _)| *w == What::SeedFile(i)),
+            At::Files | At::Place(_) => s.holds.iter().any(|(w, _)| *w == What::SeedFile(i)),
             _ => false,
         })
+    }
+
+    /// The places that keep a stick of files: a seed's file, the
+    /// description's files or a share's (`docs/BACKUP-FLOW.md` §17.2).
+    pub fn file_places(&self, shape: &Shape) -> Vec<usize> {
+        map(shape, self)
+            .iter()
+            .filter_map(|s| match s.at {
+                At::Place(p) if s.holds.iter().any(|(w, _)| is_file(*w)) => Some(p),
+                _ => None,
+            })
+            .collect()
     }
 
     /// Sets how many places keep paper, at least one and as many as the
@@ -746,9 +759,18 @@ impl Answers {
     /// Ticks or unticks a row of a question; a passphrase row that would
     /// share a place with its words stays unticked.
     pub fn toggle(&mut self, shape: &Shape, q: Question, row: usize) {
+        // With the map the plan (`docs/BACKUP-FLOW.md` §17.2), it is edited
+        // on the plan's cards alone: of the questions, only the software
+        // and its form, which are no part of the map, are answered here.
+        if self.map.is_some() && !matches!(q, Question::Software | Question::Form) {
+            return;
+        }
         // An answer changed replaces the map edited on the chart: asked
-        // before the questions open (`docs/NEW-WALLET.md` §9.7).
-        self.map = None;
+        // before the questions open (`docs/NEW-WALLET.md` §9.7). The
+        // software and the form are no part of the map.
+        if !matches!(q, Question::Software | Question::Form) {
+            self.map = None;
+        }
         let before = self.vaults_made(shape);
         match q {
             Question::Seeds => flip(&mut self.seeds, row),
@@ -884,7 +906,8 @@ pub fn at_read(s: &str) -> Option<At> {
 
 /// A thing as a plan's `spot` line writes it: `w0` seed 0's words, `q0`
 /// its SeedQR, `p0` its passphrase, `sheet`, `share1`, `stick0` vault 0's
-/// stick, `seed0`, `seedp0` with its passphrase, `wallet`, `file0`.
+/// stick, `seed0`, `seedp0` with its passphrase, `wallet`, `file0`,
+/// `walletfile` the description's files, `sharefile1` share 1's files.
 pub fn what_code(w: What) -> String {
     match w {
         What::Words(i) => format!("w{i}"),
@@ -897,6 +920,8 @@ pub fn what_code(w: What) -> String {
         What::SeedPassphrase(i) => format!("seedp{i}"),
         What::Wallet => "wallet".to_string(),
         What::SeedFile(i) => format!("file{i}"),
+        What::WalletFile => "walletfile".to_string(),
+        What::ShareFile(j) => format!("sharefile{j}"),
     }
 }
 
@@ -906,6 +931,8 @@ pub fn what_read(s: &str) -> Option<What> {
     Some(match s {
         "sheet" => What::Sheet,
         "wallet" => What::Wallet,
+        "walletfile" => What::WalletFile,
+        _ if s.starts_with("sharefile") => What::ShareFile(n("sharefile")?),
         _ if s.starts_with("seedp") => What::SeedPassphrase(n("seedp")?),
         _ if s.starts_with("seed") => What::Seed(n("seed")?),
         _ if s.starts_with("share") => What::Share(n("share")?),
@@ -924,7 +951,10 @@ pub fn what_read(s: &str) -> Option<What> {
 pub fn tag_of(at: At, what: What) -> Tag {
     match (at, what) {
         (At::Vault(_), _) | (_, What::VaultStick(_)) => Tag::Sealed,
-        (_, What::Sheet | What::Share(_) | What::Wallet) => Tag::Public,
+        (
+            _,
+            What::Sheet | What::Share(_) | What::Wallet | What::WalletFile | What::ShareFile(_),
+        ) => Tag::Public,
         _ => Tag::Secret,
     }
 }
@@ -1059,10 +1089,14 @@ impl Answers {
                 | What::Seed(i)
                 | What::SeedPassphrase(i)
                 | What::SeedFile(i) => i < shape.seeds.len(),
-                What::Share(j) => j < shape.keys.max(1),
+                What::Share(j) | What::ShareFile(j) => j < shape.keys.max(1),
+                What::VaultStick(v) => v < 1024,
                 _ => true,
             };
             let ok = places.iter().enumerate().all(|(n, &p)| n == p)
+                && edited
+                    .iter()
+                    .all(|s| !matches!(s.at, At::Vault(v) if v >= 1024))
                 && edited
                     .iter()
                     .all(|s| s.holds.iter().all(|(w, _)| fits_shape(*w)));
@@ -1167,8 +1201,14 @@ pub enum What {
     SeedPassphrase(usize),
     /// The wallet description.
     Wallet,
-    /// Seed `i` as a file.
+    /// Seed `i` as a file: on the stick of files, or on a place's stick
+    /// of files (`docs/BACKUP-FLOW.md` §17.2).
     SeedFile(usize),
+    /// The wallet description's public files, on a place's stick of
+    /// files.
+    WalletFile,
+    /// Share `j` as files, on a place's stick of files.
+    ShareFile(usize),
 }
 
 /// How what is kept may be read.
@@ -1235,6 +1275,11 @@ impl What {
             What::SeedPassphrase(i) => fill(EN.plan_seed_with_its, &[&seed(i).to_string()]),
             What::Wallet => EN.plan_wallet_description.to_string(),
             What::SeedFile(i) => fill(EN.plan_seed_file, &[&seed(i).to_string()]),
+            What::WalletFile => EN.backup_flow_wallet_files.to_string(),
+            What::ShareFile(j) => fill(
+                EN.backup_flow_share_files,
+                &[&(j + 1).to_string(), &shape.keys.to_string()],
+            ),
         }
     }
 }
@@ -1429,8 +1474,12 @@ impl Have {
                 self.pass[i] = true;
             }
             What::Passphrase(i) => self.pass[i] = true,
-            What::Sheet | What::Wallet => self.wallet = true,
-            What::Share(j) => self.shares[j] = true,
+            What::Sheet | What::Wallet | What::WalletFile => self.wallet = true,
+            What::Share(j) | What::ShareFile(j) => {
+                if let Some(s) = self.shares.get_mut(j) {
+                    *s = true;
+                }
+            }
             What::VaultStick(_) => {}
         }
     }
@@ -1664,8 +1713,9 @@ fn check_of(shape: &Shape, a: &Answers, boxes: &[Spot]) -> Check {
 }
 
 /// The place that holds every secret of the wallet: every seed loaded
-/// here, in any form (words, SeedQR, a vault whose stick is there; a seed
-/// file is at no place), and every passphrase of those seeds (on paper
+/// here, in any form (words, SeedQR, a seed file on the place's stick of
+/// files, a vault whose stick is there; a seed file on the stick of files
+/// is at no place), and every passphrase of those seeds (on paper
 /// there, or in a vault whose stick is there). It is also the place that
 /// holds a seed with its own passphrase, whatever else is elsewhere
 /// (`docs/BACKUP-FLOW.md` §10.3).
@@ -1696,7 +1746,10 @@ fn one_place_in(shape: &Shape, boxes: &[Spot]) -> Option<usize> {
     };
     let seed_at = |i: usize, p: usize| {
         boxes.iter().any(|s| {
-            s.at == At::Place(p) && holds(s, &|w| w == What::Words(i) || w == What::SeedQr(i))
+            s.at == At::Place(p)
+                && holds(s, &|w| {
+                    w == What::Words(i) || w == What::SeedQr(i) || w == What::SeedFile(i)
+                })
         }) || in_vault_at(p, &|w| w == What::Seed(i) || w == What::SeedPassphrase(i))
     };
     let pass_at = |i: usize, p: usize| {
@@ -1745,14 +1798,17 @@ fn lost_one(shape: &Shape, a: &Answers, boxes: &[Spot], places: &[At], gone: Opt
     }
 }
 
-/// Where seed `i` is kept on the map `boxes`: each place with its words
-/// or SeedQR, the stick of files, each vault that holds it.
+/// Where seed `i` is kept on the map `boxes`: each place with its words,
+/// SeedQR or file, the stick of files, each vault that holds it.
 fn seed_spots(boxes: &[Spot], i: usize) -> Vec<At> {
     let has = |s: &Spot, f: &dyn Fn(What) -> bool| s.holds.iter().any(|(w, _)| f(*w));
     let mut out: Vec<At> = boxes
         .iter()
         .filter(|s| {
-            matches!(s.at, At::Place(_)) && has(s, &|w| w == What::Words(i) || w == What::SeedQr(i))
+            matches!(s.at, At::Place(_))
+                && has(s, &|w| {
+                    w == What::Words(i) || w == What::SeedQr(i) || w == What::SeedFile(i)
+                })
         })
         .map(|s| s.at)
         .collect();
@@ -1903,6 +1959,28 @@ pub fn kept_nowhere(shape: &Shape, a: &Answers, seeds: &[usize]) -> Option<Strin
     None
 }
 
+/// Whether the plan needs the stick of public files that goes to an
+/// online computer (`docs/BACKUP-FLOW.md` §10.2): sheets or shares on
+/// paper to print, the description as files on the stick of files, or the
+/// software given its text form. Files kept at a place go on that place's
+/// stick of files instead (§17.2).
+pub fn public_stick(shape: &Shape, a: &Answers) -> bool {
+    let boxes = map(shape, a);
+    let software = boxes.iter().any(|s| s.at == At::Software);
+    boxes.iter().any(|s| {
+        (matches!(s.at, At::Place(_))
+            && s.holds
+                .iter()
+                .any(|(w, _)| matches!(w, What::Sheet | What::Share(_))))
+            || (s.at == At::Files && s.holds.iter().any(|(w, _)| *w == What::Wallet))
+    }) || (software && a.form[form::TEXT])
+}
+
+/// Whether `w` is kept as files on a place's stick of files.
+pub fn is_file(w: What) -> bool {
+    matches!(w, What::SeedFile(_) | What::WalletFile | What::ShareFile(_))
+}
+
 /// One thing the checklist asks for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Item {
@@ -1952,14 +2030,19 @@ pub fn checklist(shape: &Shape, a: &Answers) -> Vec<Item> {
         _ => None,
     }));
     let files = holds_in(&boxes, At::Files);
-    if files.iter().any(|w| matches!(w, What::SeedFile(_))) {
+    if files.iter().any(|w| matches!(w, What::SeedFile(_)))
+        || at_places(&|w| matches!(w, What::SeedFile(_)))
+    {
         out.push(Item::SeedFiles);
     }
-    if at_places(&|w| matches!(w, What::Sheet | What::Share(_))) {
+    if at_places(&|w| matches!(w, What::Sheet | What::Share(_) | What::ShareFile(_))) {
         out.push(Item::Sheets);
     }
     let software = boxes.iter().any(|s| s.at == At::Software);
-    if files.contains(&What::Wallet) || (software && a.form[form::TEXT]) {
+    if files.contains(&What::Wallet)
+        || at_places(&|w| w == What::WalletFile)
+        || (software && a.form[form::TEXT])
+    {
         out.push(Item::PublicFiles);
     }
     if software && a.form[form::QR] {
@@ -1972,7 +2055,7 @@ pub fn checklist(shape: &Shape, a: &Answers) -> Vec<Item> {
         s.at == At::Files
             || s.holds
                 .iter()
-                .any(|(w, _)| matches!(w, What::VaultStick(_)))
+                .any(|(w, _)| matches!(w, What::VaultStick(_)) || is_file(*w))
     }) || out
         .iter()
         .any(|i| matches!(i, Item::Sheets | Item::PublicFiles));
@@ -2112,6 +2195,589 @@ pub fn edited(boxes: &[Spot], edit: Edit, dest: &[(What, Option<usize>)]) -> Vec
         Edit::RemovePlace(p) => without_place(boxes, p, dest),
         Edit::Clear(at) => boxes.iter().filter(|s| s.at != at).cloned().collect(),
     }
+}
+
+// ---------------------------------------------------------------------
+// The plan by place (`docs/BACKUP-FLOW.md` §17)
+// ---------------------------------------------------------------------
+
+/// A row of a place's card: what the place keeps.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Row {
+    /// Seed words by hand.
+    Words,
+    /// SeedQR by hand.
+    SeedQr,
+    /// Seed as a file, unprotected, on the place's stick of files.
+    File,
+    /// A seed's passphrase.
+    Passphrase,
+    /// The stick of vault `v`.
+    Vault(usize),
+}
+
+impl Row {
+    /// The row as an action carries it: 0 to 3, then 16 and up for the
+    /// vaults.
+    pub fn code(self) -> u8 {
+        match self {
+            Row::Words => 0,
+            Row::SeedQr => 1,
+            Row::File => 2,
+            Row::Passphrase => 3,
+            Row::Vault(v) => 16u8.saturating_add(v.min(239) as u8),
+        }
+    }
+
+    /// [`Row::code`] read back.
+    pub fn from_code(c: u8) -> Option<Row> {
+        Some(match c {
+            0 => Row::Words,
+            1 => Row::SeedQr,
+            2 => Row::File,
+            3 => Row::Passphrase,
+            c if c >= 16 => Row::Vault(usize::from(c - 16)),
+            _ => return None,
+        })
+    }
+
+    /// What the row holds of seed `i` at a place.
+    fn what(self, i: usize) -> Option<What> {
+        match self {
+            Row::Words => Some(What::Words(i)),
+            Row::SeedQr => Some(What::SeedQr(i)),
+            Row::File => Some(What::SeedFile(i)),
+            Row::Passphrase => Some(What::Passphrase(i)),
+            Row::Vault(_) => None,
+        }
+    }
+}
+
+/// A form the wallet description takes at a place
+/// (`docs/BACKUP-FLOW.md` §17.1, Where the description goes).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Form {
+    /// The sheet, or the shares, on paper.
+    Paper,
+    /// The public files, or the shares' files, on the place's stick of
+    /// files.
+    File,
+    /// In vault `v`, whose stick the place keeps.
+    Vault(usize),
+}
+
+impl Form {
+    /// The form as an action carries it: 0, 1, then 16 and up.
+    pub fn code(self) -> u8 {
+        match self {
+            Form::Paper => 0,
+            Form::File => 1,
+            Form::Vault(v) => 16u8.saturating_add(v.min(239) as u8),
+        }
+    }
+
+    /// [`Form::code`] read back.
+    pub fn from_code(c: u8) -> Option<Form> {
+        Some(match c {
+            0 => Form::Paper,
+            1 => Form::File,
+            c if c >= 16 => Form::Vault(usize::from(c - 16)),
+            _ => return None,
+        })
+    }
+}
+
+impl Answers {
+    /// The map the cards edit: from the first answer on a card after the
+    /// presets, the plan itself (`docs/BACKUP-FLOW.md` §17.2).
+    pub fn ensure_map(&mut self, shape: &Shape) {
+        if self.map.is_none() {
+            let m = map(shape, self);
+            self.set_map(m);
+        }
+    }
+
+    /// The map with `f` made to it, as the plan.
+    fn edit_map(&mut self, shape: &Shape, f: impl FnOnce(Vec<Spot>) -> Vec<Spot>) {
+        self.ensure_map(shape);
+        let m = f(self.map.take().unwrap_or_default());
+        self.set_map(m);
+    }
+
+    /// The vaults a place's card offers: one per vault of the plan
+    /// (`Shape::vault_rows`), and any further one the map names.
+    pub fn vault_count(&self, shape: &Shape) -> usize {
+        let named = map(shape, self)
+            .iter()
+            .filter_map(|s| match s.at {
+                At::Vault(v) => Some(v + 1),
+                _ => None,
+            })
+            .max()
+            .unwrap_or(0);
+        shape.vault_rows().max(named)
+    }
+
+    /// What row `row` of place `p`'s card holds: the seeds, by place among
+    /// the wallet's; `None` while it is not ticked. A vault's row is
+    /// ticked while the place keeps its stick, and holds the vault's
+    /// seeds.
+    pub fn row_seeds(&self, shape: &Shape, p: usize, row: Row) -> Option<Vec<usize>> {
+        let boxes = map(shape, self);
+        if let Row::Vault(v) = row {
+            if !holds_in(&boxes, At::Place(p)).contains(&What::VaultStick(v)) {
+                return None;
+            }
+            return Some(vault_seeds_in(&boxes, v));
+        }
+        let held = holds_in(&boxes, At::Place(p));
+        let out: Vec<usize> = (0..shape.seeds.len())
+            .filter(|&i| row.what(i).is_some_and(|w| held.contains(&w)))
+            .collect();
+        (!out.is_empty()).then_some(out)
+    }
+
+    /// The shares vault `v` keeps (`docs/BACKUP-FLOW.md` §17.6).
+    pub fn vault_shares(&self, shape: &Shape, v: usize) -> Vec<usize> {
+        holds_in(&map(shape, self), At::Vault(v))
+            .into_iter()
+            .filter_map(|w| match w {
+                What::Share(j) => Some(j),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The seeds vault `v` keeps with their passphrase.
+    pub fn vault_pass(&self, shape: &Shape, v: usize) -> Vec<usize> {
+        holds_in(&map(shape, self), At::Vault(v))
+            .into_iter()
+            .filter_map(|w| match w {
+                What::SeedPassphrase(i) => Some(i),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The places other than `p` that keep vault `v`'s stick.
+    pub fn stick_elsewhere(&self, shape: &Shape, v: usize, p: usize) -> Vec<usize> {
+        sticks_of(&map(shape, self), v)
+            .into_iter()
+            .filter(|&q| q != p)
+            .collect()
+    }
+
+    /// Row `row` of place `p`'s card as its sheet's **Done** leaves it:
+    /// `seeds` kept there in that form, and for a vault `pass`, the seeds
+    /// it keeps with their passphrase. A vault is one vault wherever its
+    /// stick is kept: what it holds is set for every place. No seed: the
+    /// row unticked ([`Answers::clear_row`]); a vault's row stays ticked,
+    /// its stick at the place, the vault holding no seed (what goes into
+    /// a vault is the person's choice: the description, shares, or
+    /// nothing yet).
+    pub fn set_row(&mut self, shape: &Shape, p: usize, row: Row, seeds: &[usize], pass: &[usize]) {
+        let here = |i: &usize| shape.seeds.get(*i).is_some_and(|s| s.here);
+        let seeds: Vec<usize> = seeds.iter().copied().filter(here).collect();
+        if seeds.is_empty() && !matches!(row, Row::Vault(_)) {
+            return self.clear_row(shape, p, row);
+        }
+        if let Row::Vault(v) = row {
+            self.keep_vault_at(shape, p, v);
+        }
+        let at = At::Place(p);
+        self.edit_map(shape, |mut m| {
+            match row {
+                Row::Vault(v) => {
+                    let old: Vec<What> = holds_in(&m, At::Vault(v))
+                        .into_iter()
+                        .filter(|w| matches!(w, What::Seed(_) | What::SeedPassphrase(_)))
+                        .collect();
+                    for w in old {
+                        m = without(&m, At::Vault(v), w);
+                    }
+                    for &i in &seeds {
+                        let with = pass.contains(&i) && shape.seeds[i].passphrase;
+                        let w = if with {
+                            What::SeedPassphrase(i)
+                        } else {
+                            What::Seed(i)
+                        };
+                        m = with_added(&m, At::Vault(v), w);
+                    }
+                    m = with_added(&m, at, What::VaultStick(v));
+                }
+                row => {
+                    for i in 0..shape.seeds.len() {
+                        if let Some(w) = row.what(i) {
+                            m = without(&m, at, w);
+                        }
+                    }
+                    let held = holds_in(&m, at);
+                    for &i in &seeds {
+                        // A passphrase never shares a place with its
+                        // words, nor its words with it: the one kept
+                        // there first stays, and the other is not added.
+                        let words =
+                            held.contains(&What::Words(i)) || held.contains(&What::SeedQr(i));
+                        let pass = held.contains(&What::Passphrase(i));
+                        match row {
+                            Row::Passphrase if words => continue,
+                            Row::Words | Row::SeedQr if pass => continue,
+                            _ => {}
+                        }
+                        if let Some(w) = row.what(i) {
+                            m = with_added(&m, at, w);
+                        }
+                    }
+                }
+            }
+            m
+        });
+    }
+
+    /// Row `row` of place `p`'s card unticked: what it held at the place
+    /// goes. For a vault, its stick at this place; the vault keeps its
+    /// seeds while another place keeps its stick, and goes with its last.
+    pub fn clear_row(&mut self, shape: &Shape, p: usize, row: Row) {
+        let at = At::Place(p);
+        self.edit_map(shape, |mut m| {
+            match row {
+                Row::Vault(v) => {
+                    m = without(&m, at, What::VaultStick(v));
+                    if sticks_of(&m, v).is_empty() {
+                        m.retain(|s| s.at != At::Vault(v));
+                    }
+                }
+                row => {
+                    for i in 0..shape.seeds.len() {
+                        if let Some(w) = row.what(i) {
+                            m = without(&m, at, w);
+                        }
+                    }
+                }
+            }
+            m
+        });
+    }
+
+    /// Vault `v`'s stick kept at place `p`, the vault made where the plan
+    /// has none yet.
+    pub fn keep_vault_at(&mut self, shape: &Shape, p: usize, v: usize) {
+        self.edit_map(shape, |mut m| {
+            if !m.iter().any(|s| s.at == At::Vault(v)) {
+                let after = m
+                    .iter()
+                    .rposition(|s| matches!(s.at, At::Place(_) | At::Vault(_)))
+                    .map_or(0, |i| i + 1);
+                m.insert(
+                    after,
+                    Spot {
+                        at: At::Vault(v),
+                        holds: Vec::new(),
+                    },
+                );
+            }
+            with_added(&m, At::Place(p), What::VaultStick(v))
+        });
+    }
+
+    /// The first vault of the map that holds nothing: no seed, no
+    /// description, no share. It holds The plan until it holds something
+    /// or goes.
+    pub fn empty_vault(&self) -> Option<usize> {
+        let m = self.map.as_ref()?;
+        m.iter().find_map(|s| match s.at {
+            At::Vault(v) if s.holds.is_empty() => Some(v),
+            _ => None,
+        })
+    }
+
+    /// Another place, empty, after the last.
+    pub fn add_place(&mut self, shape: &Shape) {
+        self.edit_map(shape, |mut m| {
+            let n = places_of(&m);
+            let after = m
+                .iter()
+                .rposition(|s| matches!(s.at, At::Place(_)))
+                .map_or(0, |i| i + 1);
+            m.insert(
+                after,
+                Spot {
+                    at: At::Place(n),
+                    holds: Vec::new(),
+                },
+            );
+            m
+        });
+    }
+
+    /// The last place removed, with what it held; one place stays.
+    pub fn remove_last_place(&mut self, shape: &Shape) {
+        self.ensure_map(shape);
+        let n = self.map.as_deref().map_or(0, places_of);
+        if n > 1 {
+            self.edit_map(shape, |m| without_place(&m, n - 1, &[]));
+        }
+    }
+
+    /// The description whole (`false`) or in shares: what each place and
+    /// vault keeps of it follows, the sheet becoming the shares the place
+    /// would keep, and back.
+    pub fn set_split(&mut self, shape: &Shape, split: bool) {
+        if split && !shape.splits {
+            return;
+        }
+        self.ensure_map(shape);
+        if self.split != split {
+            let keys = shape.keys.max(1);
+            self.edit_map(shape, |m| {
+                let places = places_of(&m);
+                let mut out = m.clone();
+                for s in &m {
+                    // The place a vault's shares are spread as: its first
+                    // stick's.
+                    let p = match s.at {
+                        At::Place(p) => p,
+                        At::Vault(v) => sticks_of(&m, v).first().copied().unwrap_or(0),
+                        _ => continue,
+                    };
+                    for (w, _) in &s.holds {
+                        let to: Vec<What> = match (split, *w) {
+                            (true, What::Sheet | What::Wallet) => spread(keys, places, p)
+                                .into_iter()
+                                .map(What::Share)
+                                .collect(),
+                            (true, What::WalletFile) => spread(keys, places, p)
+                                .into_iter()
+                                .map(What::ShareFile)
+                                .collect(),
+                            (false, What::Share(_)) if matches!(s.at, At::Vault(_)) => {
+                                vec![What::Wallet]
+                            }
+                            (false, What::Share(_)) => vec![What::Sheet],
+                            (false, What::ShareFile(_)) => vec![What::WalletFile],
+                            _ => continue,
+                        };
+                        out = without(&out, s.at, *w);
+                        for t in to {
+                            out = with_added(&out, s.at, t);
+                        }
+                    }
+                }
+                out
+            });
+        }
+        self.split = split;
+    }
+
+    /// The shares place `p` keeps, in any form: on paper, as files, or in
+    /// a vault whose stick it keeps.
+    pub fn shares_here(&self, shape: &Shape, p: usize) -> Vec<usize> {
+        let boxes = map(shape, self);
+        let mut out: Vec<usize> = holds_in(&boxes, At::Place(p))
+            .into_iter()
+            .filter_map(|w| match w {
+                What::Share(j) | What::ShareFile(j) => Some(j),
+                _ => None,
+            })
+            .collect();
+        for v in self.forms_vaults(&boxes, p) {
+            out.extend(
+                holds_in(&boxes, At::Vault(v))
+                    .into_iter()
+                    .filter_map(|w| match w {
+                        What::Share(j) => Some(j),
+                        _ => None,
+                    }),
+            );
+        }
+        out.sort_unstable();
+        out.dedup();
+        out
+    }
+
+    /// The vaults whose stick place `p` keeps and that hold the
+    /// description, whole or a share of it.
+    fn forms_vaults(&self, boxes: &[Spot], p: usize) -> Vec<usize> {
+        holds_in(boxes, At::Place(p))
+            .into_iter()
+            .filter_map(|w| match w {
+                What::VaultStick(v)
+                    if holds_in(boxes, At::Vault(v))
+                        .iter()
+                        .any(|w| matches!(w, What::Wallet | What::Share(_))) =>
+                {
+                    Some(v)
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Whether place `p` keeps the description in form `form`.
+    pub fn form_at(&self, shape: &Shape, p: usize, form: Form) -> bool {
+        let boxes = map(shape, self);
+        let held = holds_in(&boxes, At::Place(p));
+        match form {
+            Form::Paper => held
+                .iter()
+                .any(|w| matches!(w, What::Sheet | What::Share(_))),
+            Form::File => held
+                .iter()
+                .any(|w| matches!(w, What::WalletFile | What::ShareFile(_))),
+            Form::Vault(v) => {
+                held.contains(&What::VaultStick(v)) && self.forms_vaults(&boxes, p).contains(&v)
+            }
+        }
+    }
+
+    /// What form `form` holds at place `p`, in shares: share `j` there.
+    fn form_share(at: At, form: Form, j: usize) -> (At, What) {
+        match form {
+            Form::Paper => (at, What::Share(j)),
+            Form::File => (at, What::ShareFile(j)),
+            Form::Vault(v) => (At::Vault(v), What::Share(j)),
+        }
+    }
+
+    /// Ticks or unticks form `form` at place `p`. Whole, the form holds
+    /// the description; in shares, every share ticked there, or with none
+    /// ticked the share the place would keep.
+    pub fn toggle_form(&mut self, shape: &Shape, p: usize, form: Form) {
+        let on = !self.form_at(shape, p, form);
+        let shares = self.split && shape.splits;
+        let mut here = self.shares_here(shape, p);
+        if here.is_empty() {
+            let places = self.places.max(1);
+            here = spread(shape.keys.max(1), places, p);
+        }
+        let at = At::Place(p);
+        self.edit_map(shape, |mut m| {
+            if !shares {
+                let (spot, w) = match form {
+                    Form::Paper => (at, What::Sheet),
+                    Form::File => (at, What::WalletFile),
+                    Form::Vault(v) => (At::Vault(v), What::Wallet),
+                };
+                return if on {
+                    with_added(&m, spot, w)
+                } else {
+                    without(&m, spot, w)
+                };
+            }
+            if on {
+                for &j in &here {
+                    let (spot, w) = Answers::form_share(at, form, j);
+                    m = with_added(&m, spot, w);
+                }
+            } else {
+                let spot = match form {
+                    Form::Vault(v) => At::Vault(v),
+                    _ => at,
+                };
+                let gone: Vec<What> = holds_in(&m, spot)
+                    .into_iter()
+                    .filter(|w| match form {
+                        Form::File => matches!(w, What::ShareFile(_)),
+                        _ => matches!(w, What::Share(_)),
+                    })
+                    .collect();
+                for w in gone {
+                    m = without(&m, spot, w);
+                }
+            }
+            m
+        });
+    }
+
+    /// Ticks or unticks share `j` at place `p`: in every form ticked
+    /// there, or on paper while none is.
+    pub fn toggle_share(&mut self, shape: &Shape, p: usize, j: usize) {
+        if j >= shape.keys {
+            return;
+        }
+        let on = !self.shares_here(shape, p).contains(&j);
+        let mut forms: Vec<Form> = [Form::Paper, Form::File]
+            .into_iter()
+            .chain((0..self.vault_count(shape)).map(Form::Vault))
+            .filter(|&f| self.form_at(shape, p, f))
+            .collect();
+        if forms.is_empty() {
+            forms.push(Form::Paper);
+        }
+        let at = At::Place(p);
+        self.edit_map(shape, |mut m| {
+            if on {
+                for &f in &forms {
+                    let (spot, w) = Answers::form_share(at, f, j);
+                    m = with_added(&m, spot, w);
+                }
+            } else {
+                m = without(&m, at, What::Share(j));
+                m = without(&m, at, What::ShareFile(j));
+                for f in forms {
+                    if let Form::Vault(v) = f {
+                        m = without(&m, At::Vault(v), What::Share(j));
+                    }
+                }
+            }
+            m
+        });
+    }
+
+    /// What a plan saved before the cards keeps on the stick of files
+    /// (`At::Files`), in its order.
+    pub fn old_files(&self, shape: &Shape) -> Vec<What> {
+        holds_in(&map(shape, self), At::Files)
+    }
+
+    /// The `k`th thing of [`Answers::old_files`] off the map; the stick
+    /// of files goes with the last.
+    pub fn drop_old_file(&mut self, shape: &Shape, k: usize) {
+        if let Some(&w) = self.old_files(shape).get(k) {
+            self.edit_map(shape, |m| without(&m, At::Files, w));
+        }
+    }
+
+    /// Whether the description goes into watch-only software.
+    pub fn software_on(&self, shape: &Shape) -> bool {
+        map(shape, self).iter().any(|s| s.at == At::Software)
+    }
+
+    /// Into watch-only software, ticked or unticked.
+    pub fn toggle_software(&mut self, shape: &Shape) {
+        let on = !self.software_on(shape);
+        self.edit_map(shape, |m| {
+            if on {
+                with_added(&m, At::Software, What::Wallet)
+            } else {
+                edited(&m, Edit::Clear(At::Software), &[])
+            }
+        });
+    }
+
+    /// The software and the files' form are asked: the description goes
+    /// into watch-only software, or as files somewhere.
+    pub fn asks_software(&self, shape: &Shape) -> bool {
+        map(shape, self).iter().any(|s| {
+            s.at == At::Software
+                || s.holds.iter().any(|(w, _)| {
+                    matches!(w, What::WalletFile | What::ShareFile(_))
+                        || (s.at == At::Files && *w == What::Wallet)
+                })
+        })
+    }
+}
+
+/// The seeds vault `v` holds on the map `boxes`.
+fn vault_seeds_in(boxes: &[Spot], v: usize) -> Vec<usize> {
+    holds_in(boxes, At::Vault(v))
+        .into_iter()
+        .filter_map(|w| match w {
+            What::Seed(i) | What::SeedPassphrase(i) => Some(i),
+            _ => None,
+        })
+        .collect()
 }
 
 // ---------------------------------------------------------------------
@@ -2360,7 +3026,11 @@ pub fn follows(shape: &Shape, a: &Answers, marks: &[(At, What, Mark)]) -> Follow
             | What::SeedPassphrase(j)
             | What::SeedFile(j),
         ) => i == j,
-        (What::Sheet | What::Wallet, What::Sheet | What::Wallet) => true,
+        (
+            What::Sheet | What::Wallet | What::WalletFile,
+            What::Sheet | What::Wallet | What::WalletFile,
+        ) => true,
+        (What::Share(i) | What::ShareFile(i), What::Share(j) | What::ShareFile(j)) => i == j,
         (x, y) => x == y,
     };
     let elsewhere = lost.iter().all(|&(_, w)| {

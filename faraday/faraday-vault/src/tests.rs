@@ -247,3 +247,51 @@ fn records_of_every_type_read_back() {
         Some(Error::Contents(Fault::Missing(kind::ENTRY, 1)))
     );
 }
+
+/// Two wallet shares (type 13) in one slot seal and open with every
+/// field; a share without its text refuses the slot
+/// (`docs/BACKUP-FLOW.md` §17.6).
+#[test]
+fn wallet_shares_seal_and_open_and_one_without_its_text_is_refused() {
+    let share = |n: u8, text: &str| {
+        Record::new(kind::WALLET_SHARE)
+            .with(field::SHARE, text.as_bytes())
+            .with(field::SHARE_WALLET_NAME, b"Savings")
+            .with(field::SHARE_NUMBER, &[n])
+            .with(field::SHARE_OF, &[3])
+            .with(field::SHARE_WALLET, b"wsh(sortedmulti(2,A,B,C))")
+    };
+    let c = Contents {
+        records: vec![
+            share(1, "wsh(sortedmulti(2,A,B))"),
+            share(2, "wsh(sortedmulti(2,B,C))"),
+        ],
+    };
+    let file = create(SMALL, CHEAP, &[b"shares"], &[c], &[5; 32]).unwrap();
+    let (_, back) = open(&file, b"shares").unwrap();
+    assert_eq!(back.of(kind::WALLET_SHARE).count(), 2);
+    for (k, (_, r)) in back.of(kind::WALLET_SHARE).enumerate() {
+        assert_eq!(r.text(field::SHARE_WALLET_NAME), Some("Savings"));
+        assert_eq!(r.field(field::SHARE_NUMBER), Some(&[k as u8 + 1][..]));
+        assert_eq!(r.field(field::SHARE_OF), Some(&[3u8][..]));
+        assert_eq!(
+            r.text(field::SHARE_WALLET),
+            Some("wsh(sortedmulti(2,A,B,C))")
+        );
+    }
+    assert_eq!(
+        back.records[1].text(field::SHARE),
+        Some("wsh(sortedmulti(2,B,C))")
+    );
+    let no_text = Contents {
+        records: vec![
+            Record::new(kind::WALLET_SHARE)
+                .with(field::SHARE_NUMBER, &[1])
+                .with(field::SHARE_OF, &[3]),
+        ],
+    };
+    assert_eq!(
+        no_text.encode(SMALL).err(),
+        Some(Error::Contents(Fault::Missing(kind::WALLET_SHARE, 1)))
+    );
+}

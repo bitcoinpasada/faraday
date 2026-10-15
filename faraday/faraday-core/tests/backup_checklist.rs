@@ -87,6 +87,16 @@ fn one_key(app: &mut Faraday) -> usize {
 /// Presses `action`, which the screen on show must offer somewhere down
 /// its column.
 fn press_offered(app: &mut Faraday, action: Action) {
+    // Make the checklist is on The plan card (`docs/BACKUP-FLOW.md`
+    // §17.1): a person opens it first.
+    if action == Action::BChecklist
+        && app
+            .backup
+            .as_ref()
+            .is_some_and(|b| b.q != Some(qstep::PLAN))
+    {
+        app.press(Action::BQ(qstep::PLAN));
+    }
     for _ in 0..20 {
         app.settle();
         let _ = app.frame();
@@ -223,25 +233,26 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
     unlock(&mut app);
     app.press(Action::Backup(w));
     press_offered(&mut app, Action::BPreset(2));
-    press_offered(&mut app, Action::BQ(qstep::PLACES));
+    // Start from goes on to Places itself.
+    if app.backup.as_ref().unwrap().q != Some(qstep::PLACES) {
+        press_offered(&mut app, Action::BQ(qstep::PLACES));
+    }
     press_offered(&mut app, Action::BName(0));
     type_text(&mut app, NAME);
     app.event(Event::Key(Key::Enter));
     assert_eq!(app.place_name(0), NAME);
     assert_eq!(app.place_name(1), "Place 2");
     // Every file the plan can make: text and pictures, the seed as a file.
-    app.press(Action::BAnswer(
-        qrow::WALLET,
-        faraday_core::plan::wallet::FILES as u8,
-    ));
+    app.press(Action::BQ(qstep::WHERE));
+    app.press(Action::BForm(0, plan::Form::File.code()));
     app.press(Action::BAnswer(
         qrow::FORM,
         faraday_core::plan::form::TEXT as u8,
     ));
-    app.press(Action::BAnswer(
-        qrow::SEEDS,
-        faraday_core::plan::seeds::FILE as u8,
-    ));
+    app.press(Action::BQ(qstep::place(0)));
+    app.press(Action::BRow(0, plan::Row::File.code()));
+    app.press(Action::BPick(0));
+    app.press(Action::BPickDone);
     press_offered(&mut app, Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
@@ -269,9 +280,11 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
             item.name
         );
     }
-    // Made again, the plan is replaced, not added to.
+    // Made again, the plan is replaced, not added to: Vault 1's stick at
+    // Place 1 too.
     app.press(Action::BPlan);
-    app.press(Action::BAnswer(qrow::STICKS, 0));
+    app.press(Action::BRow(0, plan::Row::Vault(0).code()));
+    app.press(Action::BPickDone);
     app.press(Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
@@ -307,7 +320,12 @@ fn the_blank_template_has_a_line_per_place_and_no_name() {
     unlock(&mut app);
     app.press(Action::Backup(w));
     app.press(Action::BPreset(0));
-    app.press(Action::BAnswer(qrow::PLACES, 3));
+    app.press(Action::BPlaces(true));
+    assert_eq!(app.backup.as_ref().unwrap().answers.places, 3);
+    // The new place keeps the seed's words too.
+    app.press(Action::BRow(2, plan::Row::Words.code()));
+    app.press(Action::BPick(0));
+    app.press(Action::BPickDone);
     app.press(Action::BName(1));
     type_text(&mut app, NAME);
     app.press(Action::BChecklist);
@@ -401,7 +419,9 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
     app.press(Action::Backup(w));
     press_offered(&mut app, Action::BPreset(1));
     // No paper words, so the vaults come first.
-    app.press(Action::BAnswer(qrow::SEEDS, plan::seeds::WORDS as u8));
+    for p in 0..app.backup.as_ref().unwrap().answers.places {
+        app.press(Action::BRowOff(p as u8, plan::Row::Words.code()));
+    }
     press_offered(&mut app, Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));

@@ -326,6 +326,33 @@ impl Shell {
         self.shown(app);
     }
 
+    /// The writes that were held land on their sticks and are answered,
+    /// as they would have been without the hold.
+    pub fn release_writes(&mut self, app: &mut Faraday) {
+        self.hold_writes = false;
+        for c in std::mem::take(&mut self.stashed) {
+            if let StorageCommand::Write {
+                stick,
+                name,
+                bytes,
+                replace,
+            } = c
+            {
+                let d = self.disk_mut(&stick);
+                let wrote_as = write_any(&mut d.files, &name, &bytes, replace);
+                d.free -= bytes.len() as u64;
+                self.writes.push((stick.clone(), wrote_as.clone()));
+                app.storage(StorageEvent::Written {
+                    stick,
+                    name,
+                    wrote_as,
+                });
+            }
+        }
+        app.storage(StorageEvent::Sticks(self.infos()));
+        self.pump(app);
+    }
+
     /// The writes that were held land on their sticks, with no answer: a
     /// write that landed whose answer was lost.
     pub fn land_stashed(&mut self, which: impl Fn(&str) -> bool) {

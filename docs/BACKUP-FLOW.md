@@ -1445,3 +1445,271 @@ order set up the vaults first and decide the rest in Back up.
   checked. This needs the owner.
 - **The Nostr key's part** (N1), as before.
 - **A progress bar for a write** and **"Changed since written"**, as in B1a.
+
+## 17. The plan by place (F35)
+
+(owner, 2026-10-15.) Back up's plan for a Bitcoin wallet is asked place
+by place. The questions "The seeds go" and "The wallet description goes",
+which asked where each kind of thing goes, are gone. The person says how
+many places there are, then fills one card per place with what that
+place keeps, then decides the wallet description and where it goes,
+then sees the whole map and approves it. The other kinds' plan (§2) is
+already by place and does not change. Make a new wallet's vault question
+and count, and the vaults set up before the keys (§10.2), do not change:
+they are the vaults the place cards offer.
+
+### 17.1 The cards
+
+In this order, as step cards on `wide` and a page each on `small`
+(NEW-WALLET §14):
+
+1. **Start from**: the three presets, unchanged. Each fills every card
+   below; every answer stays changeable.
+2. **Places**: "Number of places", the stepper (one or more, no upper
+   bound, §10.3), and with a vault open each place's name, as today. The
+   share question and the vault-stick sections leave this card.
+3. **Place 1**, **Place 2** … one card per place, titled with the
+   place's name where it has one. A multi-choice list (DESIGN §4.2) of
+   what the place keeps, a row each:
+   - **Seed words by hand**
+   - **SeedQR by hand**
+   - **Vault 1**, **Vault 2** …, a row per vault of the plan
+     (`Shape::vault_rows`), named as `backup_vault_title` names it today
+   - **Seed as a file, unprotected**
+   - **Passphrase**, drawn only when a seed here has one.
+   Ticking a row opens a sheet (a popup; full screen on `small`) titled
+   "{row} · {place}", whose body is a multi-choice of the seeds loaded
+   here, by fingerprint, and **Done**:
+   - for words, SeedQR and file: which seeds this place keeps in that
+     form; for words and SeedQR, a seed whose passphrase this place keeps
+     is dimmed and cannot be ticked, so nothing already planned is moved;
+   - for a vault: which seeds the vault holds, and under them, for each
+     ticked seed that has a passphrase, "{fingerprint} with its
+     passphrase". A vault is one vault wherever its stick is kept: the
+     sheet edits the vault itself, and where another place also keeps
+     its stick it reads "Also at {place}" above Done;
+   - for the passphrase: which seeds' passphrases this place keeps; a
+     seed whose words or SeedQR this place keeps is dimmed and cannot be
+     ticked (the rule `set_places` keeps today).
+   **Done** with no seed ticked leaves the row unticked, except a vault's
+   row: a vault may hold only the description or shares (the person's
+   choice, §17.6), so its stick stays at the place and the row reads that
+   it holds nothing yet; a vault still holding nothing holds The plan
+   card, with a line naming it, in place of Make the checklist. A ticked row
+   shows what it holds under its label ("9a6a2580, 8c7e2500"); a press on
+   the label opens its sheet again; a press on its box unticks it and
+   clears what it held at this place (for a vault, its stick at this
+   place; the vault keeps its seeds while another place keeps its stick).
+   Under the list, the place's own line of fact: what someone who finds
+   this place alone gets (`plan::alone` for `At::Place(p)`), as the map
+   panel words it. Then **Continue**.
+4. **The wallet description**, for a wallet whose description splits
+   (`Shape::splits`); not drawn otherwise. Two rows, one ticked:
+   **Whole** and **In shares**, with **What is a share?** beside In
+   shares (as today beside Its own share). With In shares, the slider
+   **Keys left off each share** (0 to `min(m−1, n−1)`) and the shares
+   table with the split's audit lines (`shares_card`, unchanged).
+5. **Where the description goes**: a section per place, its name as the
+   label, each a multi-choice of forms: **On paper**, **As a file**, and
+   **In {vault}** for each vault whose stick that place keeps. With
+   shares, a second list under each place's forms, **Shares here**: Share
+   1 … Share n; the forms ticked hold every share ticked there. Then a
+   last section, **Not a place**: **Into watch-only software**, and for
+   a plan saved before this change, what its stick of files
+   (`At::Files`) holds, a row each, which can be unticked.
+6. **Software**: as today (the software and the form), asked when the
+   description goes into watch-only software or as a file at any place.
+7. **The plan**: the map, every spot, with the check lines and §10.3's
+   lines under it (`map_rows` and `glance::check_lines`, as the map panel
+   draws them), then **Make the checklist**. This card is the approval:
+   the checklist is made only from here. On `wide` the map panel beside
+   the cards stays.
+
+The holds that stand in place of the way on (a vault's stick at no
+place, a key made here kept nowhere, NEW-WALLET §14.2 and §14.4) are
+drawn on The plan card, where Make the checklist would be.
+
+### 17.2 The model
+
+- **The map is the plan from the first answer.** The presets and
+  `Answers::defaults` still give their answers; the first answer on any
+  card from Places on makes `plan::map(shape, answers)` the plan
+  (`Answers::set_map`), and every answer after it is a map edit
+  (`plan::edited`, `with_added`, `without`). The rule fields (`seeds`,
+  `wallet`, `vaults`, `sticks`, `pass`) are read only for a preset and
+  for a plan saved before this change. `split` and `omit` stay: they
+  decide the shares.
+- **Places count.** Raising the count adds an empty place; lowering it
+  removes the last place and what it held (`Edit::RemovePlace` with no
+  destination). A seed left kept nowhere holds The plan card, as today.
+- **Files at a place.** A file is kept at a place, on a stick there:
+  `What::SeedFile(i)` may be held by `At::Place(p)` (tag Secret), and two
+  new things, `What::WalletFile` (the description's public files) and
+  `What::ShareFile(j)` (share *j* as files), are held by a place (tag
+  Public). `At::Files` stays for a plan saved before this change and for
+  the stick of public files that goes to the online computer
+  (§10.2), which the software's files use.
+- **Shares in a vault.** `At::Vault(v)` may hold `What::Share(j)` (tag
+  Sealed) as it holds `What::Wallet`.
+- **The check** (`check`, `alone`, `all_at_one_place`, `lost_why`,
+  `kept_nowhere`) counts a seed file at a place as that seed at that
+  place, and a file or a share in a vault as that part of the
+  description, read as the vault is. `seed_on_stick` counts a seed file
+  at a place, so F6's hold lasts until that place's stick is written.
+- **The plan's text.** `spot` lines write the new things (`what_code`,
+  `what_read`); a plan saved before this change, with no `spot` lines,
+  reads as it did and is shown on the cards as its map.
+- **The checklist** comes from the map as today. A place that keeps any
+  file has **the stick of files for {place}**, written at step 6 in its
+  place's turn (§4.6), named "Files ({place})"; its files are the seed
+  files and the public files that place keeps. A stick of files at a
+  place may hold both; nothing warns (§10.2's rule for public files).
+
+### 17.3 Strings
+
+New, in `faraday/faraday-strings/src/en.rs`: the place card's rows
+("Seed words by hand", "SeedQR by hand", "Seed as a file, unprotected",
+"Passphrase"), the sheet's title "{} · {}", "{} with its passphrase",
+"Also at {}", the description card's title "The wallet description" and
+rows "Whole", "In shares"; "Where the description goes", "On paper", "As
+a file", "In {}", "Shares here", "Not a place", "Into watch-only
+software"; "The plan"; "Files ({})". Strings left unused ("The seeds go",
+the old seed and description rows, "Each place keeps") are removed.
+
+### 17.4 Tests
+
+`faraday-core/tests/backup_plan.rs` (the wallet's plan, through the
+app's actions as a person presses them):
+
+- A 2-of-3 with its three keys made here, three places: three place
+  cards. At Place 1, ticking Vault 1 opens its sheet; ticking the first
+  and second seeds and Done puts both in Vault 1, its stick at Place 1.
+  At Place 2, Vault 2 with the third seed. The map holds exactly that.
+- At Place 3, Seed words by hand with the first seed: the map's Place 3
+  holds its words; the line under the card says what finding Place 3
+  alone gives.
+- Done with no seed ticked leaves the row unticked and the map
+  unchanged.
+- Vault 1 ticked at Place 1 and Place 3: one vault, two sticks; its
+  sheet at Place 3 reads "Also at Place 1", and a seed ticked there is
+  in the vault at both.
+- A seed with a passphrase: its row is dimmed in Place 1's Passphrase
+  sheet while Place 1 keeps its words.
+- In shares with one key left off: Where the description goes offers
+  Shares here; Share 1 on paper at Place 1 is on the map there.
+- Seed as a file at Place 2: the write step has the stick of files for
+  Place 2, and the seed is held (F6) until it is written.
+- Lowering the places from three to two removes Place 3 and what it
+  held; a seed kept only there holds The plan card.
+- Make the checklist is only on The plan card; the checklist matches
+  the map.
+- Each preset still fills the place cards (Paper and vault on a single
+  key: words at Place 1, Vault 1's stick at Place 2).
+- A plan text saved before this change (no `spot` lines) loads and shows
+  on the place cards as its map.
+
+The tests that pressed the old questions are changed to press the place
+cards, keeping what each checked; none is deleted.
+
+### 17.5 Docs
+
+`docs/WALLETS.md` §5 (the questions), `docs/NEW-WALLET.md` §5.2 (marked
+"Changed by BACKUP-FLOW §17"), `docs/DESIGN.md` §4.2's "Used for".
+`docs/learn/07-backups.md` is upstream's: leave it, and say in the
+report what in it no longer matches.
+
+### 17.6 A share in a vault
+
+(owner, 2026-10-15: "people should be able to store things in vaults or
+not in vaults; up to them".) **In {vault}** with shares keeps the shares
+ticked at that place in that vault, as §17.1 item 5 says; nothing turns
+it into the whole description.
+
+- **The record.** A new vault record, type 13, **Wallet share**
+  (`docs/VAULT.md` §7): 1 the share, as the share's `.txt` file holds it
+  (`backup::split_share`), required; 2 the wallet's name, as type 3's
+  field 2; 3 which share, `u8`, from 1; 4 how many shares, `u8`; 5 the
+  wallet, as type 11's field 1 holds it. Several per slot, one per share
+  and wallet; a share is matched by field 5 and field 3, never by name. `faraday-vault` reads and writes it;
+  `tools/vault/open.py` names it and its fields. A build before this one
+  refuses a slot holding it (§7: an unknown type refuses the slot);
+  VAULT.md says so, as F32 did for type 7's new fields.
+- **Saving.** The checklist's vault item (**Save into {vault}**) saves
+  each share the map puts in that vault as a type 13 record, beside the
+  seeds and the whole description it saves today, and is done only when
+  the open vault holds every one. Saved twice, a share is kept once (same
+  wallet, same share number).
+- **Reading.** The open vault's contents list a share as "{wallet} ·
+  Share 2 of 3". Restore's shares (`restore_share_texts`) take the
+  shares in every open vault beside the ones in the Inbox, so shares
+  from vaults and from sticks or paper merge as today
+  (`restore::merge`).
+- **The checks** already count a share in a vault (§17.2).
+
+**Tests.** `faraday-vault`: a slot with two type 13 records seals and
+opens with every field; a type 13 record without field 1 refuses the
+slot. `faraday-core/tests/backup_flow_wallet.rs` (or the vault item's
+own test file): a 2-of-3 with In shares and Share 2 in Vault 1 at Place
+1: Save into Vault 1 puts that share there, the item is done only then,
+and the sealed vault holds it after the lock. Restore with that vault
+open and Share 1 in the Inbox rebuilds the wallet.
+
+### 17.7 The cards in the guided flow
+
+(owner, 2026-10-15.) The flow's plan card is the same place cards, drawn
+by the same code (`plan_cards.rs`), on the flow's own copy of the plan.
+
+- **Keys left off each share** is drawn in the flow too, with its table
+  and audit lines, from the flow's shape: `split_plan(n, m, omit)` and
+  the keys named by fingerprint. It sets the flow's own `omit`. The
+  shares' files are made at the write step, as today.
+- **Place names** are typed on the Places card while a vault of the flow
+  is open (before the lock), and kept in the plan record each vault
+  holds (VAULT §7 type 11 field 3). After the lock no vault is open:
+  the name fields are not drawn and places read "Place n". A name is
+  never kept in the flow's state.
+- **One way on.** In the flow, a card's Continue opens the next card,
+  and The plan card's is the flow's Continue; nothing else draws one.
+
+### 17.8 Changes after the lock
+
+(owner, 2026-10-15.) After **Lock and write** no wallet and no key is
+loaded, so the plan changes there only in what the vault round (§4.8)
+handles: **what goes into a vault and where a vault's sticks are kept.**
+That is a seed, its passphrase, the description or a share in a vault;
+a vault's stick added to or taken from a place; a place added, or the
+last place taken away while it keeps only vaults' sticks (a place before
+another is not taken away: the later places would be renumbered, sticks
+already named by place among them). Each such change sends the
+vaults it touches back to be filled, sealed and written (§10.2).
+
+**Files and paper stay as they were made.** After the lock, a change to
+words or a SeedQR by hand, a passphrase on paper, a seed's file, the
+sheet or a share on paper, the description's or a share's files, the
+software or the form, or Whole / In shares and the keys left off each
+share while any of the description is on paper or in a file, is refused
+with "Files and paper stay as made after the lock; finish the writes,
+then Back up again to change them", by every route: the flow's cards,
+Back up's cards, presets and the wallet's chart, with a vault open or
+not. To change them the person finishes this backup's writes and runs
+**Back up** again on the wallet, a backup of its own (owner,
+2026-10-15). While a backup of the wallet is past its lock and not done,
+Back up's checklist and its Lock and write never replace that backup's
+plan.
+
+**Taking something out of a vault** is allowed only for what this backup
+itself put into that vault. Refused, with the plan left as it was:
+
+- taking out what the vault held before this backup opened it ("Vault
+  {n} held this before; take it out from the vault's contents");
+- taking a key, or its passphrase, out of a vault that holds any record
+  of another wallet ("Another wallet in Vault {n} uses this key; take it
+  out from the vault's contents"): a hidden wallet on the same words with
+  a passphrase kept apart cannot be told from the records;
+- any change while a stick is being written.
+
+A key made here is released only when the sticks actually written hold
+it: a vault sealed with it, or a stick of files whose written files
+include its file. No wallet is loaded after the lock other than by
+unlocking a vault.
+

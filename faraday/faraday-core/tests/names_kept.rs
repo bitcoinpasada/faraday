@@ -200,11 +200,15 @@ fn a_place_names_name_never_leaves_the_vault() {
     let w = one_key(&mut app);
     app.press(Action::Backup(w));
     press_offered(&mut app, Action::BPreset(1));
-    press_offered(&mut app, Action::BQ(qstep::PLACES));
+    // Start from goes on to Places itself.
+    if app.backup.as_ref().unwrap().q != Some(qstep::PLACES) {
+        press_offered(&mut app, Action::BQ(qstep::PLACES));
+    }
     press_offered(&mut app, Action::BName(0));
     type_text(&mut app, NAME);
     app.event(Event::Key(Key::Enter));
     assert_eq!(app.place_name(0), NAME);
+    app.press(Action::BQ(qstep::PLAN));
     press_offered(&mut app, Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));

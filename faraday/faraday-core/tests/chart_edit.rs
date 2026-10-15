@@ -404,7 +404,7 @@ fn removing_a_place_asks_where_each_thing_in_it_goes_first() {
 }
 
 #[test]
-fn changing_the_plan_after_an_edit_says_the_changes_are_replaced() {
+fn changing_the_plan_after_an_edit_opens_the_cards_with_the_edit_kept() {
     let (mut app, w) = single_key_with_vault();
     let press = Press::Loaded(w);
     edit_and_confirm(
@@ -412,20 +412,25 @@ fn changing_the_plan_after_an_edit_says_the_changes_are_replaced() {
         press,
         Edit::Move(At::Place(0), What::Words(0), At::Place(2)),
     );
+    let edited = app.backup.as_ref().unwrap().answers.map.clone();
+    assert!(edited.is_some());
+    // The plan's cards show the map as it is: nothing is replaced, so
+    // nothing is asked (`docs/BACKUP-FLOW.md` §17.2).
+    // The chart's Change the plan goes straight to the plan.
     open(&mut app, press, Target::Wallet);
-    let replan = Action::Chart(C::Open(press, Target::Replan));
-    assert!(app.offers(replan), "Change the plan does not ask first");
+    let go = Action::Chart(C::Do(press, Step::Plan));
+    assert!(app.offers(go), "Change the plan asks nothing first");
+    app.press(Action::Cancel);
     // From the checklist too.
     app.press(Action::Backup(w));
     app.press(Action::BPlan);
     let _ = app.frame();
-    assert_eq!(app.chart, Some((press, Target::Replan)));
-    assert!(shown(&mut app, "Your changes on the chart are replaced"));
-    app.press(Action::Chart(C::Replan(press)));
+    assert_eq!(app.chart, None);
+    assert!(!shown(&mut app, "Your changes on the chart are replaced"));
     assert_eq!(app.screen, Screen::Backup);
     let b = app.backup.as_ref().unwrap();
     assert_eq!(b.stage, BStage::Plan);
-    assert!(b.answers.map.is_none());
+    assert_eq!(b.answers.map, edited, "the chart's edit is the plan");
 }
 
 #[test]

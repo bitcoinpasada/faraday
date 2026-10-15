@@ -10,6 +10,7 @@
 
 use faraday_core::backup::Tone;
 use faraday_core::catalog::{Go, TILES};
+use faraday_core::plan::Row;
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
@@ -89,6 +90,16 @@ fn in_outbox(app: &Faraday, name: &str) -> bool {
 /// Presses `action`, which the screen on show must offer somewhere down
 /// its column.
 fn press_offered(app: &mut Faraday, action: Action) {
+    // Make the checklist is on The plan card (`docs/BACKUP-FLOW.md`
+    // §17.1): a person opens it first.
+    if action == Action::BChecklist
+        && app
+            .backup
+            .as_ref()
+            .is_some_and(|b| b.q != Some(qstep::PLAN))
+    {
+        app.press(Action::BQ(qstep::PLAN));
+    }
     for _ in 0..20 {
         app.settle();
         let _ = app.frame();
@@ -110,13 +121,15 @@ fn press_offered(app: &mut Faraday, action: Action) {
 /// public files item is open to reach; then the checklist made from it.
 fn every_software(app: &mut Faraday) {
     press_offered(app, Action::BPreset(2));
+    // Each place's card: no words, no vault (its description goes with
+    // it).
+    let w = app.backup.as_ref().unwrap().wallet;
+    let shape = app.plan_shape(w);
     let a = app.backup.as_ref().unwrap().answers.clone();
-    if a.wallet[plan::wallet::VAULT] {
-        app.press(Action::BAnswer(qrow::WALLET, plan::wallet::VAULT as u8));
-    }
-    for row in [plan::seeds::WORDS, plan::seeds::VAULT] {
-        if a.seeds[row] {
-            app.press(Action::BAnswer(qrow::SEEDS, row as u8));
+    for p in 0..a.places {
+        app.press(Action::BRowOff(p as u8, Row::Words.code()));
+        for v in 0..a.vault_count(&shape) {
+            app.press(Action::BRowOff(p as u8, Row::Vault(v).code()));
         }
     }
     for row in 0..5u8 {
@@ -139,7 +152,14 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
     app.press(Action::Backup(w));
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::PRESET));
-    assert!(!app.backup_questions().contains(&qstep::SEEDS));
+    // A place's card asks nothing of seeds.
+    app.press(Action::BQ(qstep::place(0)));
+    let _ = app.frame();
+    assert!(app.offers(Action::BRow(0, Row::Vault(0).code())));
+    for row in [Row::Words, Row::SeedQr, Row::File] {
+        assert!(!app.offers(Action::BRow(0, row.code())), "{row:?}");
+    }
+    app.press(Action::BQ(qstep::PRESET));
     every_software(&mut app);
     let items = app.backup_items();
     assert!(!items.contains(&bstep::BLANK) && !items.contains(&bstep::COPY));

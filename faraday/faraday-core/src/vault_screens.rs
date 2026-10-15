@@ -2135,6 +2135,25 @@ fn item_heading(app: &Faraday, r: &Record) -> (String, String, bool) {
             FEN.vault_pk_kek_db.to_string(),
             false,
         ),
+        kind::WALLET_SHARE => {
+            let n = |f: u8| {
+                r.field(f)
+                    .and_then(|b| b.first())
+                    .map_or(String::new(), |b| b.to_string())
+            };
+            (
+                fill(
+                    FEN.backup_flow_vault_share,
+                    &[
+                        r.text(field::SHARE_WALLET_NAME).unwrap_or(FEN.vault_wallet),
+                        &n(field::SHARE_NUMBER),
+                        &n(field::SHARE_OF),
+                    ],
+                ),
+                String::new(),
+                false,
+            )
+        }
         kind::APK_KEY => match crate::apk::shown(r, app.tz_min) {
             Some(s) => (s.name, s.package, false),
             None => (FEN.vault_record.to_string(), String::new(), false),

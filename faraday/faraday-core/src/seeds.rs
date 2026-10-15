@@ -35,6 +35,9 @@ pub const SLIDE_M: u8 = 0;
 pub const SLIDE_N: u8 = 1;
 /// The backup's slider of keys left off each share.
 pub const SLIDE_OMIT: u8 = 2;
+/// A wallet flow's own slider of keys left off each share
+/// (`docs/BACKUP-FLOW.md` §17.7).
+pub const SLIDE_FLOW_OMIT: u8 = 3;
 
 /// The source a wallet made from seeds is loaded under.
 pub const SOURCE: &str = EN.seeds_typed_seeds;
@@ -539,6 +542,12 @@ impl Faraday {
     pub(crate) fn slide(&mut self, id: u8, value: u8) {
         if id == SLIDE_OMIT {
             self.act(crate::Action::BOmit(usize::from(value)));
+            return;
+        }
+        if id == SLIDE_FLOW_OMIT {
+            self.act(crate::Action::Flow(
+                crate::backup_flow_steps::FlowAction::Plan(crate::PlanPress::Omit(value)),
+            ));
             return;
         }
         let Some(s) = self.seeds_mut() else {

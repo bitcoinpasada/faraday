@@ -86,6 +86,7 @@ mod codes_screen;
 mod compact;
 mod edit;
 mod held;
+mod plan_cards;
 pub use compact::OskPress;
 pub use medium::Medium;
 pub use screens::qr_code;
@@ -1019,9 +1020,39 @@ pub enum Action {
     /// Fill the plan's answers from a preset, by its place in
     /// [`plan::Preset::ALL`].
     BPreset(u8),
-    /// Tick or untick a row of one of the plan's questions: the question
-    /// by [`qrow`], then the row.
+    /// Tick or untick a row of the plan's Software card (the software, the
+    /// form; the wallet's flow's own plan asks the rest): the list by
+    /// [`qrow`], then the row.
     BAnswer(u8, u8),
+    /// A row of a place's card pressed on its label: its sheet, the seeds
+    /// it keeps there (`docs/BACKUP-FLOW.md` §17.1). The place, then the
+    /// row by [`plan::Row::code`].
+    BRow(u8, u8),
+    /// A ticked row of a place's card pressed on its box: unticked, what
+    /// it held at the place gone.
+    BRowOff(u8, u8),
+    /// A seed ticked or unticked on a place's row's sheet, by place among
+    /// the wallet's seeds.
+    BPick(u8),
+    /// "{seed} with its passphrase" ticked or unticked on a vault's sheet.
+    BPickPass(u8),
+    /// The sheet's **Done**: what is ticked kept at the place.
+    BPickDone,
+    /// One place more (`true`) or the last place removed.
+    BPlaces(bool),
+    /// The wallet description in shares (`true`) or whole.
+    BSplit(bool),
+    /// A form of the description at a place, ticked or unticked: the
+    /// place, then the form by [`plan::Form::code`].
+    BForm(u8, u8),
+    /// A share kept at a place, ticked or unticked: the place, the share.
+    BShare(u8, u8),
+    /// Into watch-only software, ticked or unticked.
+    BSoftwareOn,
+    /// A thing a plan saved before the cards keeps on the stick of files
+    /// unticked, by its place in that stick's list
+    /// (`docs/BACKUP-FLOW.md` §17.2).
+    BOldFile(u8),
     /// Start or stop typing place n's name (only with a vault open).
     BName(u8),
     /// The plan made: on to the checklist, the plan saved into the open
@@ -1220,7 +1251,7 @@ pub enum Action {
     /// The Learn sheet's first row, **Spending, step by step**: closes
     /// the sheet and opens the Spend tab (`docs/SIMPLIFY.md` §6.2).
     LearnSpend,
-    /// **What is a share?** beside the backup plan's Its own share: the
+    /// **What is a share?** beside the backup plan's In shares: the
     /// Learn sheet on the page about shares (`docs/NEW-WALLET.md` §4.2).
     LearnShares,
     /// The word-list sheet, or a link to it.
@@ -1617,6 +1648,9 @@ pub enum Sheet {
     /// A node or a line of the wallet's chart: what it is, where, and its
     /// actions (`docs/NEW-WALLET.md` §9).
     Chart,
+    /// A row of a place's card in Back up's plan: which seeds the place
+    /// keeps that way (`docs/BACKUP-FLOW.md` §17.1).
+    PlanPick,
     /// A seed the camera read, asking how it loads: with no passphrase
     /// or with one (`seed_read`).
     SeedRead,
@@ -2267,6 +2301,10 @@ pub struct BackupState {
     /// The vaults the checklist had filled when Change the plan was
     /// pressed, by name, with the seeds each holds.
     pub prior: Vec<(String, Vec<String>)>,
+    /// What each vault held, by its salt, before this backup first saved
+    /// into it ([`Faraday::vault_tokens`]): the flow's round never takes
+    /// it out (`docs/BACKUP-FLOW.md` §17). Never a secret.
+    pub before: Vec<([u8; 32], Vec<String>)>,
 }
 
 /// Signing a message: the cards' state.
@@ -2612,22 +2650,142 @@ pub enum BStage {
     Checklist,
 }
 
-/// The questions of the backup's plan, in order.
+/// The cards of the backup's plan, in order (`docs/BACKUP-FLOW.md`
+/// §17.1).
 pub mod qstep {
-    /// The three presets.
+    /// Start from: the three presets.
     pub const PRESET: u8 = 0;
-    /// Where the seeds go.
-    pub const SEEDS: u8 = 1;
-    /// The places.
+    /// The number of places, and their names.
     pub const PLACES: u8 = 2;
-    /// Where the wallet description goes.
-    pub const WALLET: u8 = 3;
+    /// The wallet description, whole or in shares.
+    pub const DESCRIPTION: u8 = 3;
     /// The watch-only software and the files' form.
     pub const SOFTWARE: u8 = 4;
-    /// Where each passphrase is kept.
-    pub const PASSPHRASE: u8 = 5;
-    /// The map, as its own page on a small panel.
-    pub const MAP: u8 = 6;
+    /// The plan: the map, approved with Make the checklist.
+    pub const PLAN: u8 = 6;
+    /// Where the description goes, place by place.
+    pub const WHERE: u8 = 7;
+    /// Place 1's card; place `p`'s is `PLACE + p`.
+    pub const PLACE: u8 = 16;
+    /// The most places the cards number.
+    pub const MAX_PLACES: usize = (u8::MAX - PLACE) as usize + 1;
+
+    /// Place `p`'s card.
+    pub fn place(p: usize) -> u8 {
+        PLACE.saturating_add(p.min(MAX_PLACES - 1) as u8)
+    }
+
+    /// The place whose card `q` is.
+    pub fn place_of(q: u8) -> Option<usize> {
+        q.checked_sub(PLACE).map(usize::from)
+    }
+}
+
+/// A press on a plan's cards (`docs/BACKUP-FLOW.md` §17.1), the same on
+/// Back up and in a wallet flow's own plan card: Back up gives each its
+/// own [`Action`], the flow its [`backup_flow_steps::FlowAction::Plan`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanPress {
+    /// Open or close a card, by [`qstep`].
+    Q(u8),
+    /// The card's Continue: the card after it.
+    Next(u8),
+    /// A place's row pressed on its label: its sheet.
+    Row(u8, u8),
+    /// A ticked place's row pressed on its box.
+    RowOff(u8, u8),
+    /// One place more, or the last one removed.
+    Places(bool),
+    /// The description in shares, or whole.
+    Split(bool),
+    /// A form of the description at a place.
+    Form(u8, u8),
+    /// A share kept at a place.
+    Share(u8, u8),
+    /// Into watch-only software.
+    Software,
+    /// A thing of an old plan's stick of files unticked.
+    OldFile(u8),
+    /// A row of the Software card, by [`qrow`].
+    Answer(u8, u8),
+    /// The keys left off each share.
+    Omit(u8),
+}
+
+impl PlanPress {
+    /// The press as Back up's own action.
+    pub fn backup(self) -> Action {
+        match self {
+            PlanPress::Q(q) => Action::BQ(q),
+            PlanPress::Next(q) => Action::BQNext(q),
+            PlanPress::Row(p, r) => Action::BRow(p, r),
+            PlanPress::RowOff(p, r) => Action::BRowOff(p, r),
+            PlanPress::Places(b) => Action::BPlaces(b),
+            PlanPress::Split(b) => Action::BSplit(b),
+            PlanPress::Form(p, f) => Action::BForm(p, f),
+            PlanPress::Share(p, j) => Action::BShare(p, j),
+            PlanPress::Software => Action::BSoftwareOn,
+            PlanPress::OldFile(k) => Action::BOldFile(k),
+            PlanPress::Answer(l, r) => Action::BAnswer(l, r),
+            PlanPress::Omit(n) => Action::BOmit(usize::from(n)),
+        }
+    }
+}
+
+/// A place's row's sheet, open: the place, the row, and what is ticked
+/// on it until **Done** (`docs/BACKUP-FLOW.md` §17.1).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Choosing {
+    /// Whose plan: a wallet flow's, by index; `None` for Back up's.
+    pub flow: Option<usize>,
+    /// The place.
+    pub place: usize,
+    /// The row of its card.
+    pub row: plan::Row,
+    /// The seeds ticked, by place among the wallet's.
+    pub seeds: Vec<usize>,
+    /// For a vault, the seeds ticked with their passphrase.
+    pub pass: Vec<usize>,
+}
+
+/// The cards of a plan after Start from, in order (`docs/BACKUP-FLOW.md`
+/// §17.1): Places, a card per place, the wallet description where it
+/// splits, where it goes, the software where the description goes into
+/// software or as files, and The plan. Back up's and a wallet flow's
+/// alike.
+pub fn plan_cards(shape: &plan::Shape, a: &plan::Answers) -> Vec<u8> {
+    let mut v = vec![qstep::PLACES];
+    v.extend((0..a.places.min(qstep::MAX_PLACES)).map(qstep::place));
+    if shape.splits {
+        v.push(qstep::DESCRIPTION);
+    }
+    v.push(qstep::WHERE);
+    if a.asks_software(shape) {
+        v.push(qstep::SOFTWARE);
+    }
+    v.push(qstep::PLAN);
+    v
+}
+
+/// Whether record `r` is a wallet share (type 13) of the wallet with
+/// checksum `cs`, told by its field 5, never by its name; with `j`, share
+/// `j` (field 3, from 1) of it (`docs/BACKUP-FLOW.md` §17.6).
+pub(crate) fn share_record_is(r: &faraday_vault::Record, cs: &str, j: Option<usize>) -> bool {
+    use faraday_vault::records::{field, kind};
+    r.kind == kind::WALLET_SHARE
+        && r.text(field::SHARE_WALLET)
+            .and_then(|t| wallet::read_wallet(t).ok())
+            .is_some_and(|p| p.checksum() == cs)
+        && j.is_none_or(|j| {
+            r.field(field::SHARE_NUMBER)
+                .and_then(|b| b.first())
+                .is_some_and(|&n| usize::from(n) == j + 1)
+        })
+}
+
+/// [`plan_cards`] for a plan drawn by `plan_cards`.
+pub(crate) fn plan_cards_of(ctx: &plan_cards::PlanCtx) -> Vec<u8> {
+    plan_cards(&ctx.shape, &ctx.answers)
 }
 
 /// The lists a [`Action::BAnswer`] ticks, as [`plan::Question`] names
@@ -3098,6 +3256,8 @@ pub struct Faraday {
     pub vanity: Option<vanity::VanityState>,
     /// The backup flow.
     pub backup: Option<BackupState>,
+    /// A place's row's sheet, open, on Back up's plan or a wallet flow's.
+    pub choosing: Option<Choosing>,
     /// Signing a message.
     pub message: Option<MessageState>,
     /// The Inbox file of the signed message being checked.
@@ -3401,6 +3561,7 @@ impl Faraday {
             family: family::FamilyState::default(),
             vanity: None,
             backup: None,
+            choosing: None,
             message: None,
             checking: None,
             create: None,
@@ -5279,6 +5440,7 @@ impl Faraday {
                 if let Some(b) = self.backup.as_mut() {
                     b.pick = false;
                 }
+                self.choosing = None;
                 // A device still waiting comes back up.
                 self.input_sheet();
             }
@@ -5377,11 +5539,6 @@ impl Faraday {
                 }
             }
             Action::BQNext(n) => {
-                // Every vault's stick has a place before the plan goes on
-                // (`docs/NEW-WALLET.md` §14.2).
-                if n == qstep::PLACES && self.backup_stickless().is_some() {
-                    return;
-                }
                 let qs = self.backup_questions();
                 if let Some(b) = self.backup.as_mut() {
                     b.q = qs.iter().skip_while(|&&q| q != n).nth(1).copied();
@@ -5394,6 +5551,15 @@ impl Faraday {
                     return;
                 };
                 let shape = self.plan_shape(w);
+                // After the lock, through the flow, with its refusals.
+                if let Some(i) = self.backup_locked_flow() {
+                    if let Some(&preset) = plan::Preset::ALL.get(usize::from(k)) {
+                        self.flow_wallet_edit(i, &|a, shape| {
+                            *a = plan::Answers::preset(shape, preset)
+                        });
+                    }
+                    return;
+                }
                 if let Some(&preset) = plan::Preset::ALL.get(usize::from(k)) {
                     let answers = plan::Answers::preset(&shape, preset);
                     if let Some(b) = self.backup.as_mut() {
@@ -5403,6 +5569,13 @@ impl Faraday {
                 }
             }
             Action::BAnswer(list, row) => {
+                // Back up's plan asks the rest place by place.
+                if !matches!(list, qrow::SOFTWARE | qrow::FORM) {
+                    return;
+                }
+                if let Some(i) = self.backup_locked_flow() {
+                    return self.flow_wallet_answer(i, list, row);
+                }
                 let Some(w) = self.backup.as_ref().map(|b| b.wallet) else {
                     return;
                 };
@@ -5413,6 +5586,17 @@ impl Faraday {
                     b.naming = b.naming.filter(|&p| p < b.answers.places);
                 }
             }
+            Action::BRow(..)
+            | Action::BRowOff(..)
+            | Action::BPick(_)
+            | Action::BPickPass(_)
+            | Action::BPickDone
+            | Action::BPlaces(_)
+            | Action::BSplit(_)
+            | Action::BForm(..)
+            | Action::BShare(..)
+            | Action::BSoftwareOn
+            | Action::BOldFile(_) => self.plan_card_act(action),
             Action::BName(p) => {
                 let open = self.vaults.open.get(self.vaults.current).is_some();
                 if let Some(b) = self.backup.as_mut()
@@ -5429,7 +5613,19 @@ impl Faraday {
                 // A plan that keeps no copy of a key made here, or leaves
                 // a vault's stick at no place, is not made into a
                 // checklist (`docs/NEW-WALLET.md` §14.2, §14.4).
-                if self.backup_kept_nowhere().is_some() || self.backup_stickless().is_some() {
+                // A backup past its lock keeps its plan until its writes
+                // are done (`docs/BACKUP-FLOW.md` §17.8).
+                if self.backup_locked_flow().is_some() {
+                    return self.toast(EN.backup_flow_past_lock);
+                }
+                if self.backup_kept_nowhere().is_some()
+                    || self.backup_stickless().is_some()
+                    || self
+                        .backup
+                        .as_ref()
+                        .and_then(|b| b.answers.empty_vault())
+                        .is_some()
+                {
                     return;
                 }
                 self.backup_extras();
@@ -5449,20 +5645,9 @@ impl Faraday {
                 self.backups_sync();
             }
             Action::BPlan => {
-                // A map edited on the chart is the plan: changing it from
-                // the questions asks first (`docs/NEW-WALLET.md` §9.7).
-                if let Some(w) = self
-                    .backup
-                    .as_ref()
-                    .filter(|b| b.answers.map.is_some())
-                    .map(|b| b.wallet)
-                {
-                    self.chart_act(glance_sheet::ChartAction::Open(
-                        glance::Press::Loaded(w),
-                        glance_sheet::Target::Replan,
-                    ));
-                    return;
-                }
+                // The cards show the map as it is, a chart's edits
+                // included (`docs/BACKUP-FLOW.md` §17.2): nothing is
+                // replaced, so nothing is asked.
                 // What the checklist has put in vaults so far, should the
                 // new plan drop it.
                 self.backup_prior();
@@ -5615,6 +5800,10 @@ impl Faraday {
                 }
             }
             Action::BOmit(n) => {
+                if let Some(i) = self.backup_locked_flow() {
+                    return self
+                        .flow_plan_press(i, PlanPress::Omit(u8::try_from(n).unwrap_or(u8::MAX)));
+                }
                 let remake = self.backup_remake(4);
                 if let Some(b) = self.backup.as_mut() {
                     b.answers.omit = n;
@@ -6842,33 +7031,202 @@ impl Faraday {
         }
     }
 
-    /// The questions of the backup's plan this wallet asks, in order: no
-    /// seed question for a wallet with no seed here, the software only
-    /// where the description goes to software or files, a passphrase's
-    /// places only where a seed has one, and on a small panel the map as
-    /// the last page.
+    /// The cards of the backup's plan, in order (`docs/BACKUP-FLOW.md`
+    /// §17.1): Start from, Places, a card per place, the wallet
+    /// description where it splits, where it goes, the software where the
+    /// description goes into software or as files, and The plan.
     pub fn backup_questions(&self) -> Vec<u8> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
         let shape = self.plan_shape(b.wallet);
-        let a = &b.answers;
         let mut v = vec![qstep::PRESET];
-        if !shape.watch_only() {
-            v.push(qstep::SEEDS);
-        }
-        v.push(qstep::PLACES);
-        v.push(qstep::WALLET);
-        if a.wallet[plan::wallet::SOFTWARE] || a.wallet[plan::wallet::FILES] {
-            v.push(qstep::SOFTWARE);
-        }
-        if shape.seeds.iter().any(|s| s.here && s.passphrase) {
-            v.push(qstep::PASSPHRASE);
-        }
-        if self.is_compact() {
-            v.push(qstep::MAP);
-        }
+        v.extend(plan_cards(&shape, &b.answers));
         v
+    }
+
+    /// A press on the sheet of a place's row, on Back up's plan or a
+    /// wallet flow's (`docs/BACKUP-FLOW.md` §17.1).
+    fn plan_pick_act(&mut self, action: Action) {
+        let Some(c) = self.choosing.clone() else {
+            return;
+        };
+        let (shape, a) = match c.flow {
+            Some(i) => match self.backup_flows.get(i).and_then(|f| f.wallet.as_ref()) {
+                Some(w) => (w.shape.clone(), w.answers.clone()),
+                None => return,
+            },
+            None => match self.backup.as_ref() {
+                Some(b) => (self.plan_shape(b.wallet), b.answers.clone()),
+                None => return,
+            },
+        };
+        match action {
+            Action::BPick(i) => {
+                let i = usize::from(i);
+                // A passphrase is not kept beside its seed's words, nor
+                // its words beside it.
+                if c.row == plan::Row::Passphrase && a.words_at(&shape, c.place).contains(&i) {
+                    return;
+                }
+                if matches!(c.row, plan::Row::Words | plan::Row::SeedQr) && a.pass_at(i, c.place) {
+                    return;
+                }
+                if !shape.seeds.get(i).is_some_and(|s| s.here) {
+                    return;
+                }
+                if let Some(c) = self.choosing.as_mut() {
+                    if let Some(k) = c.seeds.iter().position(|&s| s == i) {
+                        c.seeds.remove(k);
+                        c.pass.retain(|&s| s != i);
+                    } else {
+                        c.seeds.push(i);
+                        c.seeds.sort_unstable();
+                    }
+                }
+            }
+            Action::BPickPass(i) => {
+                let i = usize::from(i);
+                if let Some(c) = self.choosing.as_mut()
+                    && c.seeds.contains(&i)
+                    && shape.seeds.get(i).is_some_and(|s| s.passphrase)
+                {
+                    if let Some(k) = c.pass.iter().position(|&s| s == i) {
+                        c.pass.remove(k);
+                    } else {
+                        c.pass.push(i);
+                    }
+                }
+            }
+            Action::BPickDone => {
+                self.choosing = None;
+                if self.sheet == Some(Sheet::PlanPick) {
+                    self.sheet = None;
+                }
+                match c.flow {
+                    Some(i) => self.flow_wallet_edit(i, &|a, shape| {
+                        a.set_row(shape, c.place, c.row, &c.seeds, &c.pass)
+                    }),
+                    None => {
+                        if let Some(b) = self.backup.as_mut() {
+                            b.answers.set_row(&shape, c.place, c.row, &c.seeds, &c.pass);
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Opens the sheet of row `row` at place `p` of the plan `a`, for
+    /// Back up's plan or flow `flow`'s.
+    pub(crate) fn plan_pick_open(
+        &mut self,
+        flow: Option<usize>,
+        shape: &plan::Shape,
+        a: &plan::Answers,
+        p: usize,
+        row: plan::Row,
+    ) {
+        let seeds = a.row_seeds(shape, p, row).unwrap_or_default();
+        let pass = match row {
+            plan::Row::Vault(v) => a.vault_pass(shape, v),
+            _ => Vec::new(),
+        };
+        // A vault kept elsewhere already: its own seeds, ticked.
+        let seeds = match row {
+            plan::Row::Vault(v) if seeds.is_empty() => a.vault_seeds(shape, v),
+            _ => seeds,
+        };
+        self.choosing = Some(Choosing {
+            flow,
+            place: p,
+            row,
+            seeds,
+            pass,
+        });
+        self.sheet = Some(Sheet::PlanPick);
+        self.sheet_scroll = (0.0, None);
+    }
+
+    /// A press on a card of the plan by place (`docs/BACKUP-FLOW.md`
+    /// §17.1): each is an edit of the map, which from the first is the
+    /// plan (§17.2).
+    fn plan_card_act(&mut self, action: Action) {
+        if matches!(
+            action,
+            Action::BPick(_) | Action::BPickPass(_) | Action::BPickDone
+        ) {
+            return self.plan_pick_act(action);
+        }
+        // After the lock, while the wallet's flow is under way, Back up's
+        // cards edit the flow's plan, with its refusals; Back up's answers
+        // follow it (`docs/BACKUP-FLOW.md` §17).
+        if let Some(i) = self.backup_locked_flow() {
+            let press = match action {
+                Action::BRow(p, r) => PlanPress::Row(p, r),
+                Action::BRowOff(p, r) => PlanPress::RowOff(p, r),
+                Action::BPlaces(b) => PlanPress::Places(b),
+                Action::BSplit(b) => PlanPress::Split(b),
+                Action::BForm(p, f) => PlanPress::Form(p, f),
+                Action::BShare(p, j) => PlanPress::Share(p, j),
+                Action::BSoftwareOn => PlanPress::Software,
+                Action::BOldFile(k) => PlanPress::OldFile(k),
+                _ => return,
+            };
+            return self.flow_plan_press(i, press);
+        }
+        let Some(w) = self.backup.as_ref().map(|b| b.wallet) else {
+            return;
+        };
+        let shape = self.plan_shape(w);
+        let Some(b) = self.backup.as_mut() else {
+            return;
+        };
+        let a = &mut b.answers;
+        match action {
+            Action::BRow(p, r) => {
+                let Some(row) = plan::Row::from_code(r) else {
+                    return;
+                };
+                let p = usize::from(p);
+                // A watch-only wallet's vault holds no seed: its row
+                // ticks at once, nothing to ask.
+                if let plan::Row::Vault(v) = row
+                    && shape.watch_only()
+                {
+                    a.keep_vault_at(&shape, p, v);
+                    return;
+                }
+                let a = a.clone();
+                self.plan_pick_open(None, &shape, &a, p, row);
+            }
+            Action::BRowOff(p, r) => {
+                if let Some(row) = plan::Row::from_code(r) {
+                    a.clear_row(&shape, usize::from(p), row);
+                }
+            }
+            Action::BPlaces(more) => {
+                if more {
+                    if a.places < qstep::MAX_PLACES {
+                        a.add_place(&shape);
+                    }
+                } else {
+                    a.remove_last_place(&shape);
+                }
+                b.naming = b.naming.filter(|&p| p < a.places);
+            }
+            Action::BSplit(split) => a.set_split(&shape, split),
+            Action::BForm(p, f) => {
+                if let Some(form) = plan::Form::from_code(f) {
+                    a.toggle_form(&shape, usize::from(p), form);
+                }
+            }
+            Action::BShare(p, j) => a.toggle_share(&shape, usize::from(p), usize::from(j)),
+            Action::BSoftwareOn => a.toggle_software(&shape),
+            Action::BOldFile(k) => a.drop_old_file(&shape, usize::from(k)),
+            _ => {}
+        }
     }
 
     /// The backup's checklist, by [`bstep`]: only what the plan needs.
@@ -7259,7 +7617,39 @@ impl Faraday {
         let b = self.backup.as_ref()?;
         self.session.wallets.get(b.wallet)?;
         let (own_seeds, _) = self.backup_vault_seeds(v);
-        (!own_seeds.is_empty() || b.answers.wallet_in_vault(v)).then_some(())
+        let shares = !self.backup_vault_shares(v).is_empty();
+        (!own_seeds.is_empty() || b.answers.wallet_in_vault(v) || shares).then_some(())
+    }
+
+    /// The shares the plan keeps in vault `v`, each with its text and how
+    /// many shares there are (`docs/BACKUP-FLOW.md` §17.6).
+    pub(crate) fn backup_vault_shares(&self, v: usize) -> Vec<(usize, String, usize)> {
+        let Some(b) = self.backup.as_ref() else {
+            return Vec::new();
+        };
+        let Some(w) = self.session.wallets.get(b.wallet) else {
+            return Vec::new();
+        };
+        let shape = self.plan_shape(b.wallet);
+        let (m, n) = Session::quorum(w);
+        let plan = backup::split_plan(n, m, b.answers.omit);
+        b.answers
+            .vault_shares(&shape, v)
+            .into_iter()
+            .filter_map(|j| Some((j, backup::split_share(w, plan.get(j)?)?, plan.len())))
+            .collect()
+    }
+
+    /// Whether open vault `o` holds share `j` of the wallet with checksum
+    /// `cs` (type 13, told by its field 5 and field 3), with this text.
+    pub(crate) fn vault_holds_share(&self, o: usize, cs: &str, j: usize, text: &str) -> bool {
+        use faraday_vault::records::field;
+        self.vaults.open.get(o).is_some_and(|x| {
+            x.contents
+                .records
+                .iter()
+                .any(|r| share_record_is(r, cs, Some(j)) && r.text(field::SHARE) == Some(text))
+        })
     }
 
     /// Whether open vault `o` holds what the plan puts in vault `v` and no
@@ -7284,6 +7674,10 @@ impl Faraday {
                 .iter()
                 .any(|&k| self.vault_holds_seed(o, k, false))
             && (!wallet_too || vault_has_wallet(self, o, w))
+            && self
+                .backup_vault_shares(v)
+                .iter()
+                .all(|(j, text, _)| self.vault_holds_share(o, &w.policy.checksum(), *j, text))
     }
 
     /// The vault that does the plan's vault `v`: an open vault, or one
@@ -7296,11 +7690,17 @@ impl Faraday {
         let w = self.session.wallets.get(b.wallet)?;
         let wallet_too = b.answers.wallet_in_vault(v);
         let (own_seeds, _) = self.backup_vault_seeds(v);
-        if own_seeds.is_empty() && !wallet_too {
+        let shares = !self.backup_vault_shares(v).is_empty();
+        if own_seeds.is_empty() && !wallet_too && !shares {
             return None;
         }
         if let Some(o) = self.backup_vault_open(v) {
             return Some(self.vaults.open[o].name.clone());
+        }
+        // A locked vault's summary lists no shares: a vault that is to
+        // hold one is done only while it is open.
+        if shares {
+            return None;
         }
         let (own, others) = self.backup_vault_keys(v);
         let sum = w.policy.checksum();
@@ -7333,7 +7733,7 @@ impl Faraday {
     }
 
     /// The text a vault keeps a wallet under, as Vaults saves it.
-    fn wallet_text(w: &wallet::Wallet) -> String {
+    pub(crate) fn wallet_text(w: &wallet::Wallet) -> String {
         match (w.policy.record(), w.policy.silent()) {
             (Some(r), _) => r.to_text(),
             (None, Some(s)) => s.to_text(),
@@ -7410,6 +7810,18 @@ impl Faraday {
             b.extras.clone(),
         );
         self.plan_store(v, wi, &answers, &names, &extras, None);
+        // And in each other open vault the wallet's flow keeps, so that
+        // every vault holds the plan with its places' names
+        // (`docs/BACKUP-FLOW.md` §17.7).
+        if let Some(i) = self.wallet_flow_of_backup() {
+            let others: Vec<usize> = (0..self.backup_flows[i].plan.vaults.len())
+                .filter_map(|pv| self.flow_open_index(i, pv))
+                .filter(|&o| o != v)
+                .collect();
+            for o in others {
+                self.plan_store(o, wi, &answers, &names, &extras, None);
+            }
+        }
     }
 
     /// The open vault that keeps a plan (record type 11) for `wallet`.
@@ -7817,6 +8229,7 @@ impl Faraday {
             .backup
             .as_ref()
             .map_or(Session::quorum(w).0.saturating_sub(1), |b| b.answers.omit);
+
         let stem = file_stem(&w.name);
         let mut files: Vec<(String, Vec<u8>)> = Vec::new();
         match what {
@@ -8650,11 +9063,42 @@ impl Faraday {
         let Some(r) = self.restore.as_ref() else {
             return Vec::new();
         };
-        self.inbox
+        let mut texts: Vec<String> = self
+            .inbox
             .iter()
             .filter(|i| r.shares.contains(&i.name))
             .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
-            .collect()
+            .collect();
+        // The shares kept in every open vault (`docs/BACKUP-FLOW.md`
+        // §17.6), each where it agrees with the shares in hand.
+        use faraday_vault::records::{field, kind};
+        // One wallet's shares, told by field 5, never by name: the first
+        // that merges with what is in hand.
+        let mut wallet: Option<String> = None;
+        for o in &self.vaults.open {
+            for (_, rec) in o.contents.of(kind::WALLET_SHARE) {
+                let Some(t) = rec.text(field::SHARE) else {
+                    continue;
+                };
+                let of = rec
+                    .text(field::SHARE_WALLET)
+                    .and_then(|d| wallet::read_wallet(d).ok())
+                    .map(|p| p.checksum());
+                if wallet.is_some() && of != wallet {
+                    continue;
+                }
+                if texts.iter().any(|x| x.trim() == t.trim()) {
+                    continue;
+                }
+                let mut trial = texts.clone();
+                trial.push(t.to_string());
+                if restore::merge(&trial).is_ok() {
+                    texts = trial;
+                    wallet = of;
+                }
+            }
+        }
+        texts
     }
 
     /// Loads the wallet a description gives and fills Restore's Kind and
@@ -10275,7 +10719,11 @@ impl Faraday {
             | Screen::CreateVault
             | Screen::VaultContents
             | Screen::Codes
-            | Screen::BackupFlow => self.vaults.focus.is_some(),
+            | Screen::BackupFlow => {
+                self.vaults.focus.is_some()
+                    || (self.screen == Screen::BackupFlow
+                        && self.backup.as_ref().is_some_and(|b| b.naming.is_some()))
+            }
             Screen::Entry => true,
             Screen::Wallets => self.renaming.is_some(),
             Screen::Message => self.message.as_ref().is_some_and(|m| m.typing),
@@ -10526,7 +10974,11 @@ impl Faraday {
             }
             return;
         }
-        if self.screen == Screen::Backup
+        // A place's name is typed on Back up's plan, and on a wallet
+        // flow's plan card before its lock (`docs/BACKUP-FLOW.md` §17.7).
+        let naming_in_flow = self.screen == Screen::BackupFlow
+            && self.backup.as_ref().is_some_and(|b| b.naming.is_some());
+        if (self.screen == Screen::Backup || naming_in_flow)
             && let Some(b) = self.backup.as_mut()
         {
             match key {

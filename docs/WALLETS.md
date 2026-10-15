@@ -309,44 +309,61 @@ the loaded wallets, one row each with its shape, and a press on one
 starts the backup again on that wallet. The plan's logic is `plan.rs`,
 tested on its own; nothing is marked done that was not.
 
-**1. Presets, then the plan.** The flow opens on three presets, one tap
+**1. Presets, then the plan by place** (2026-10-15, F35,
+`docs/BACKUP-FLOW.md` §17). The flow opens on three presets, one tap
 each: **Paper only**, **Paper and vault**, **Paper, vault and watch-only
-software**. Each fills the plan's questions; every answer stays
-changeable. The questions are cards, each a multi-choice list (DESIGN
-§4.2), Continue under it; on the small panel one question per page:
+software**. Each fills every card below; every answer stays changeable.
+The cards are step cards on the wide layout and a page each on the
+small panel:
 
-- **The seeds go**: on paper, words by hand · on paper, SeedQR by hand ·
-  into vaults · as a file, unprotected (the secret sheet's warning and
-  "I understand", below). Not asked for a wallet with no seed here. With
-  Into vaults ticked, a section per vault under the list, **Vault 1**,
-  **Vault 2** …, one per seed here, each a multi-choice of the seeds
-  here; a seed may be ticked into more than one vault, and a vault with
-  none ticked is not made (2026-10-10, `docs/NEW-WALLET.md` §5).
-- **Places**: how many places keep paper (1 to the wallet's seeds, at
-  least 3); for a multisig, **Each place keeps** the whole wallet sheet
-  (the default) or its own share, with **What is a share?** beside Its
-  own share opening the Learn page *Shares of a wallet description*
-  (`docs/learn/faraday/shares.md`); with Its own share ticked, **Keys
-  left off each share** on a slider from 0 to m − 1, the shares with
-  their keys' fingerprints and the split audit's lines, drawn as the
-  checklist's Shares card draws them (2026-10-10, `docs/NEW-WALLET.md`
-  §4); for each vault made, **Vault 1's stick**, the places that keep a
-  stick with it; and, with a vault open, each place's name (below). Seed *i* goes to place *i* mod the
-  places, and a place past the last seed keeps another copy; shares are
-  spread the same way.
-- **The wallet description goes**: a sheet (or share) in each place ·
-  in the vault (every vault made; with no seed in a vault, one vault
-  holds it alone) · into watch-only software · as files on a stick.
-- **Software** (asked when the description goes to software or files):
-  Sparrow (the wallet file) · Coldcard, Keystone, Passport (the
-  multisig config) · Nunchuk (the BSMS record) · Bitcoin Core (its
+- **Places**: **Number of places**, a stepper, one or more with no upper
+  bound; and, with a vault open, each place's name (below). One more
+  adds an empty place; one fewer removes the last place and what it
+  held.
+- **Place 1**, **Place 2** …, one card per place, titled with its name
+  where it has one: a multi-choice list (DESIGN §4.2) of what the place
+  keeps, **Seed words by hand** · **SeedQR by hand** · **Vault 1**,
+  **Vault 2** … (a row per vault of the plan, named as the vault set up
+  for it is) · **Seed as a file, unprotected** (on the place's stick of
+  files; the secret sheet's warning and "I understand", below) ·
+  **Passphrase** (where a seed here has one). A wallet with no seed here
+  has the vaults' rows alone. A press on a row opens its sheet, "{row} ·
+  {place}": the seeds loaded here, by fingerprint, any number ticked,
+  and **Done**; for a vault, the seeds the vault holds and, under each
+  ticked seed with a passphrase, "{fingerprint} with its passphrase",
+  and "Also at {place}" where another place keeps its stick (a vault is
+  one vault wherever its stick is kept); for the passphrase, a seed
+  whose words or SeedQR the place keeps is dimmed. Done with no seed
+  ticked leaves the row unticked. A ticked row shows what it holds under
+  its label; a press on its box unticks it (a vault's stick at this
+  place; the vault goes with its last stick). Under the list, what
+  finding the place alone gives, as the map words it.
+- **The wallet description** (a multisig): **Whole** or **In shares**,
+  with **What is a share?** beside In shares opening the Learn page
+  *Shares of a wallet description* (`docs/learn/faraday/shares.md`); in
+  shares, **Keys left off each share** on a slider from 0 to m − 1, the
+  shares with their keys' fingerprints and the split audit's lines,
+  drawn as the checklist's Shares card draws them.
+- **Where the description goes**: a section per place, its forms **On
+  paper** · **As a file** (on the place's stick of files) · **In
+  {vault}** for each vault whose stick the place keeps; in shares,
+  **Shares here**, Share 1 … Share n, which the forms ticked there hold.
+  Then **Not a place**: **Into watch-only software**.
+- **Software** (asked when the description goes to software or as files
+  at a place): Sparrow (the wallet file) · Coldcard, Keystone, Passport
+  (the multisig config) · Nunchuk (the BSMS record) · Bitcoin Core (its
   import) · Not sure (the descriptor), each the descriptor where the
   wallet has no such file; form: QR picture · text · both. This decides
   which public files are offered at all.
-- **Passphrases** (asked when a seed was loaded with a BIP-39
-  passphrase): where each passphrase is kept, a row per place and "In
-  the vault, with its seed", which is whichever vault holds the seed; a
-  place that keeps its words is dimmed and cannot be ticked.
+- **The plan**: the map, every spot, with the check lines under it,
+  then **Make the checklist**, the plan's one way on. A vault's stick at
+  no place, or a key made here kept nowhere, holds it there, in its
+  place.
+
+From the first answer on a card after the presets, the map is the plan
+and every answer is an edit of it (`plan::edited`). A plan saved before
+the cards (no `spot` lines) is read as it was and shown on the cards as
+its map.
 
 Defaults from the wallet: one key, paper words, two places, the sheet
 in each, the descriptor as a QR picture; a multisig, a place per seed,
@@ -365,10 +382,12 @@ two seeds here, Vault 1's stick at Place 3 and Vault 2's at Place 2. A
 vault made later by a tick gets its stick the same way; one whose only
 stick was at a place removed is given another.
 
-**2. The map**, the side panel (on the small panel the plan's last page
-and the envelopes' item), redrawn as answers change: one box per place,
+**2. The map**, the side panel and The plan card (on the small panel
+The plan card and the envelopes' item), redrawn as answers change: one box per place,
 each vault made ("Vault 1 · 9a6a2580", by number and the seeds it
-holds), a stick of unprotected files, watch-only software and the seeds
+holds), a stick of unprotected files (from a plan saved before the
+cards; files kept at a place are on that place's stick of files),
+watch-only software and the seeds
 on their own devices, each listing what it holds tagged secret,
 sealed or public. Under it the check, found as `backup::audit` finds a
 split's, by trying each place lost and each place found:
@@ -385,8 +404,9 @@ split's, by trying each place lost and each place found:
 - **One place found: sees the balance**: the same three values; the
   whole description, or a one-key wallet's seed, shows it.
 
-A place here is a paper place, a stick of files, or a vault's own stick
-when no place keeps one; each vault is read, with its passphrase, from a
+A place here is a paper place (its stick of files included: a seed's
+file there counts as that seed there), a stick of files, or a vault's
+own stick when no place keeps one; each vault is read, with its passphrase, from a
 place that keeps its stick. Labels and values only; what each line
 means is in Learn's Backups page.
 
@@ -400,9 +420,9 @@ from an action on the wallet's chart (2026-10-10, `docs/NEW-WALLET.md`
 §9) it opens at that item with the plan the chart shows, and makes
 nothing For the stick: each item's own **Make it** does. A change made on the chart (a
 move, another copy, a thing destroyed, a place removed; `docs/NEW-WALLET.md`
-§9.7) makes the map itself the plan: the checklist is the map's, and
-**Change the plan** first says "Your changes on the chart are
-replaced".
+§9.7) is an edit of the map, as the plan's cards make: the checklist is
+the map's, and **Change the plan** opens the cards on it, nothing
+replaced (2026-10-15, F35).
 
 1. **Print N blank templates** (one per paper copy of a seed): printed
    from Faraday Starter (`docs/STARTER.md` §3.8), on the online computer,

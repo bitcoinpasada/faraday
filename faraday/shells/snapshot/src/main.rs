@@ -33,12 +33,14 @@
 //! `again`, a wallet loaded again: Savings with no seed here, opening its
 //! backup on the presets and its public files, then a one-key wallet
 //! restored from test key 2, its checklist saving it into the test vault,
-//! and the wallet chip's list of the two; with `plan`, the backup's plan:
-//! the presets and the questions with the map for a one-key wallet and
-//! for Savings (2-of-3) with the whole sheet and with shares, the page
-//! What is a share? opens, the map's own page on a small panel, the
-//! checklist part done, the blank template written beside the screens
-//! as `outbox-*`, and a 3-of-5's shares on Places and the checklist; with `inbox`, Stick visit offering the Inbox's
+//! and the wallet chip's list of the two; with `plan`, the backup's plan
+//! by place (`docs/BACKUP-FLOW.md` §17): the presets, the places, each
+//! place's card, a vault's sheet, where the description goes and The
+//! plan for a one-key wallet; for Savings (2-of-3) the description whole
+//! and in shares, the page What is a share? opens, the checklist part
+//! done, the blank template written beside the screens as `outbox-*`; a
+//! 3-of-5's shares on the description card and the checklist; and a
+//! vault's sheet with two seeds; with `inbox`, Stick visit offering the Inbox's
 //! files under "From the Inbox" (a wallet, a vault, a wallet's QR
 //! picture, seed words and text), Select all, and the secret sheet for
 //! the text and for the words; with `transfer`, the desktop app's
@@ -76,6 +78,7 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use faraday_core::plan::{Form, Row};
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{
@@ -1173,7 +1176,7 @@ fn run(
     t.press(Action::Backup(0));
     t.shot("backup-plan")?;
     t.press(Action::BPreset(0));
-    t.press(Action::BAnswer(qrow::SPLIT, 1));
+    t.press(Action::BSplit(true));
     t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::BLANK));
     t.shot("backup-blank")?;
@@ -2051,39 +2054,21 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     // vault from the checklist.
     let built = t.app.create.as_ref().and_then(|c| c.built).unwrap_or(0);
     t.press(Action::CBackup(1));
-    for i in t.app.plan_shape(built).here().into_iter().skip(1) {
-        t.press(Action::BAnswer(faraday_core::qrow::VAULTS, i as u8));
-    }
-    for (v, i) in t
-        .app
-        .plan_shape(built)
-        .here()
-        .into_iter()
-        .enumerate()
-        .skip(1)
-    {
-        t.press(Action::BAnswer(
-            faraday_core::qrow::VAULTS + v as u8,
-            i as u8,
-        ));
-    }
-    // The description into the vault, and as files too, for the public
-    // files item below.
-    let into_vault = t
+    let here = t.app.plan_shape(built).here();
+    let vaults = t
         .app
         .backup
         .as_ref()
-        .is_some_and(|b| b.answers.wallet[faraday_core::plan::wallet::VAULT]);
-    if !into_vault {
-        t.press(Action::BAnswer(
-            faraday_core::qrow::WALLET,
-            faraday_core::plan::wallet::VAULT as u8,
-        ));
+        .map_or(0, |b| b.answers.vault_count(&t.app.plan_shape(built)));
+    let p = vault_place(t, 0).unwrap_or(0);
+    keep_at(t, p, Row::Vault(0), &here);
+    for v in 1..vaults {
+        untick_all(t, Row::Vault(v));
     }
-    t.press(Action::BAnswer(
-        faraday_core::qrow::WALLET,
-        faraday_core::plan::wallet::FILES as u8,
-    ));
+    // The description into the vault, and as files too, for the public
+    // files item below.
+    form_on(t, p, Form::Vault(0));
+    form_on(t, 0, Form::File);
     t.press(Action::BChecklist);
     // The items before the vault's wait for it (`docs/NEW-WALLET.md`
     // §14.1): each copy by hand checked in turn, then the vault.
@@ -2903,8 +2888,88 @@ fn items_before(t: &mut Tour, target: u8) -> Result<(), String> {
     Ok(())
 }
 
-/// The backup's plan from preset `preset`, with `ticks` ticked
-/// (`BAnswer`'s list and row), then its checklist.
+/// At place `p`, row `row` of its card given exactly `seeds` on its
+/// sheet, and Done (`docs/BACKUP-FLOW.md` §17.1).
+fn keep_at(t: &mut Tour, p: usize, row: Row, seeds: &[usize]) {
+    t.press(Action::BRow(p.min(255) as u8, row.code()));
+    let ticked = t
+        .app
+        .choosing
+        .as_ref()
+        .map(|c| c.seeds.clone())
+        .unwrap_or_default();
+    let n = t
+        .app
+        .backup
+        .as_ref()
+        .map_or(0, |b| t.app.plan_shape(b.wallet).seeds.len());
+    for i in 0..n {
+        if ticked.contains(&i) != seeds.contains(&i) {
+            t.press(Action::BPick(i.min(255) as u8));
+        }
+    }
+    t.press(Action::BPickDone);
+}
+
+/// Row `row` unticked on every place's card.
+fn untick_all(t: &mut Tour, row: Row) {
+    let places = t.app.backup.as_ref().map_or(0, |b| b.answers.places);
+    for p in 0..places {
+        t.press(Action::BRowOff(p.min(255) as u8, row.code()));
+    }
+}
+
+/// The first place that keeps vault `v`'s stick.
+fn vault_place(t: &Tour, v: usize) -> Option<usize> {
+    let b = t.app.backup.as_ref()?;
+    let shape = t.app.plan_shape(b.wallet);
+    (0..b.answers.places).find(|&p| b.answers.row_seeds(&shape, p, Row::Vault(v)).is_some())
+}
+
+/// The description in form `form` at place `p`, where it is not.
+fn form_on(t: &mut Tour, p: usize, form: Form) {
+    let on = t
+        .app
+        .backup
+        .as_ref()
+        .is_some_and(|b| b.answers.form_at(&t.app.plan_shape(b.wallet), p, form));
+    if !on {
+        t.press(Action::BForm(p.min(255) as u8, form.code()));
+    }
+}
+
+/// Every seed here as a file at place `p`.
+fn seed_files_at(t: &mut Tour, p: usize) {
+    let here = t
+        .app
+        .backup
+        .as_ref()
+        .map(|b| t.app.plan_shape(b.wallet).here())
+        .unwrap_or_default();
+    keep_at(t, p, Row::File, &here);
+}
+
+/// Seed `i`'s passphrase into each vault that holds it, on the vault's
+/// sheet.
+fn pass_into_vault(t: &mut Tour, i: usize) {
+    let Some(b) = t.app.backup.as_ref() else {
+        return;
+    };
+    let shape = t.app.plan_shape(b.wallet);
+    let vaults: Vec<usize> = (0..b.answers.vault_count(&shape))
+        .filter(|&v| b.answers.vault_seeds(&shape, v).contains(&i))
+        .collect();
+    for v in vaults {
+        if let Some(p) = vault_place(t, v) {
+            t.press(Action::BRow(p.min(255) as u8, Row::Vault(v).code()));
+            t.press(Action::BPickPass(i.min(255) as u8));
+            t.press(Action::BPickDone);
+        }
+    }
+}
+
+/// The backup's plan from preset `preset`, with `ticks` ticked on its
+/// Software card (`BAnswer`'s list and row), then its checklist.
 fn to_checklist(t: &mut Tour, preset: u8, ticks: &[(u8, u8)]) {
     t.press(Action::BPreset(preset));
     for &(list, row) in ticks {
@@ -2992,16 +3057,9 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
             t.press(Action::BAnswer(faraday_core::qrow::SOFTWARE, row));
         }
     }
-    // The description goes as files too: the public files item.
-    let files = faraday_core::plan::wallet::FILES;
-    if !t
-        .app
-        .backup
-        .as_ref()
-        .is_some_and(|b| b.answers.wallet[files])
-    {
-        t.press(Action::BAnswer(faraday_core::qrow::WALLET, files as u8));
-    }
+    // The description goes as files too, at Place 1: the public files
+    // item.
+    form_on(t, 0, Form::File);
     t.press(Action::BChecklist);
     t.press(Action::BStep(faraday_core::bstep::PUBLIC));
     // Found while it is offered: once done, the row says so instead.
@@ -3146,7 +3204,9 @@ fn seedfile_tour(t: &mut Tour) -> Result<(), String> {
         })
         .ok_or("test key 2 was not added")?;
     t.press(Action::Backup(0));
-    to_checklist(t, 1, &[(qrow::SEEDS, 3)]);
+    t.press(Action::BPreset(1));
+    seed_files_at(t, 0);
+    t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::FILES));
     scroll_to(t, Action::BFile);
     t.shot("seedfile-no-vault")?;
@@ -3230,7 +3290,9 @@ fn seedfile_tour(t: &mut Tour) -> Result<(), String> {
 fn kept_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     t.press(Action::Backup(0));
-    to_checklist(t, 0, &[(qrow::SEEDS, 3)]);
+    t.press(Action::BPreset(0));
+    seed_files_at(t, 0);
+    t.press(Action::BChecklist);
     t.press(Action::BNext(bstep::BLANK));
     t.press(Action::BFile);
     t.press(Action::SecretAck);
@@ -3390,36 +3452,52 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     };
     let spending = find(t, "Spending")?;
     let savings = find(t, "Savings")?;
+    // The cards by place (`docs/BACKUP-FLOW.md` §17.1): a one-key wallet
+    // on Paper and vault, its places, each place's card, Vault 1's sheet,
+    // where the description goes and The plan.
     t.press(Action::Backup(spending));
     t.shot("plan-presets-one-key")?;
     t.press(Action::BPreset(1));
-    t.shot("plan-seeds-one-key")?;
-    t.press(Action::BQ(qstep::PLACES));
     t.shot("plan-places-one-key")?;
+    t.press(Action::BQ(qstep::place(0)));
+    t.shot("plan-place-1-one-key")?;
+    t.press(Action::BQ(qstep::place(1)));
+    t.shot("plan-place-2-one-key")?;
+    t.press(Action::BRow(1, Row::Vault(0).code()));
+    t.shot("plan-vault-sheet-one-key")?;
+    t.press(Action::BPickDone);
+    t.press(Action::BQ(qstep::WHERE));
+    t.shot("plan-where-one-key")?;
+    t.press(Action::BQ(qstep::PLAN));
+    t.shot("plan-plan-one-key")?;
+    scroll_to(t, Action::BChecklist);
+    t.shot("plan-plan-one-key-foot")?;
+    // Savings (2-of-3), no seed here: its place cards hold the vaults
+    // alone; the description whole, then in shares with the slider, the
+    // shares and the audit; What is a share? opens; where the shares go.
     t.press(Action::Backup(savings));
     t.press(Action::BPreset(0));
-    t.shot("plan-seeds-two-of-three")?;
-    t.press(Action::BQ(qstep::PLACES));
-    t.shot("plan-places-two-of-three")?;
-    // Its own share: the slider, the shares and the audit; then the page
-    // What is a share? opens.
-    t.press(Action::BAnswer(qrow::SPLIT, 1));
+    t.press(Action::BQ(qstep::place(0)));
+    t.shot("plan-place-1-two-of-three")?;
+    t.press(Action::BQ(qstep::DESCRIPTION));
+    t.shot("plan-description-two-of-three")?;
+    t.press(Action::BSplit(true));
     scroll_to(t, Action::Slide(faraday_core::seeds::SLIDE_OMIT, 0));
-    t.shot("plan-places-shares-two-of-three")?;
+    t.shot("plan-description-shares-two-of-three")?;
     t.press(Action::LearnShares);
     t.shot("plan-learn-shares")?;
     t.press(Action::Cancel);
-    if t.app.backup_questions().contains(&qstep::MAP) {
-        t.press(Action::BQ(qstep::MAP));
-        t.shot("plan-map-two-of-three")?;
-    }
+    t.press(Action::BQ(qstep::WHERE));
+    t.shot("plan-where-shares-two-of-three")?;
+    t.press(Action::BQ(qstep::PLAN));
+    t.shot("plan-map-two-of-three")?;
     t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::SHEETS));
     t.shot("plan-checklist-part-done")?;
     t.press(Action::BStep(bstep::ENVELOPE));
     t.shot("plan-envelopes")?;
-    // A 3-of-5's shares: up to two keys left off each, on Places and on
-    // the checklist's Shares card.
+    // A 3-of-5's shares: up to two keys left off each, on the description
+    // card and on the checklist's Shares card.
     let five = t
         .app
         .session
@@ -3432,19 +3510,18 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
         .map_err(|e| e.text())?;
     t.press(Action::Backup(five));
     t.press(Action::BPreset(0));
-    // With no seed here the preset opens Places itself.
-    if t.app.backup.as_ref().and_then(|b| b.q) != Some(qstep::PLACES) {
-        t.press(Action::BQ(qstep::PLACES));
-    }
-    t.press(Action::BAnswer(qrow::SPLIT, 1));
+    t.press(Action::BQ(qstep::DESCRIPTION));
+    t.press(Action::BSplit(true));
     scroll_to(t, Action::Slide(faraday_core::seeds::SLIDE_OMIT, 0));
-    t.shot("plan-places-shares-three-of-five")?;
+    t.shot("plan-description-shares-three-of-five")?;
     t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::SHEETS));
     t.shot("plan-shares-three-of-five")?;
     // A vault per seed: Spending's one vault and its checklist item; then
     // Savings with test key 2 typed in too, two seeds here and a vault
-    // each, on Seeds, Places, the map and the second vault's item.
+    // each: a place's card, Vault 1's sheet with both seeds and the
+    // other place that keeps its stick, The plan and the second vault's
+    // item.
     t.press(Action::Backup(spending));
     t.press(Action::BPreset(1));
     t.press(Action::BChecklist);
@@ -3454,16 +3531,20 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     t.type_key(1);
     t.press(Action::Backup(savings));
     t.press(Action::BPreset(1));
-    if t.app.backup.as_ref().and_then(|b| b.q) != Some(qstep::SEEDS) {
-        t.press(Action::BQ(qstep::SEEDS));
+    let p = vault_place(t, 0).unwrap_or(0);
+    t.press(Action::BQ(qstep::place(p)));
+    t.shot("plan-place-vaults-two-of-three")?;
+    // Vault 1's stick at Place 1 too.
+    if p != 0 {
+        t.press(Action::BQ(qstep::place(0)));
+        t.press(Action::BRow(0, Row::Vault(0).code()));
+        t.press(Action::BPickDone);
     }
-    t.shot("plan-seeds-vaults-two-of-three")?;
-    t.press(Action::BQ(qstep::PLACES));
-    t.shot("plan-places-vaults-two-of-three")?;
-    if t.app.backup_questions().contains(&qstep::MAP) {
-        t.press(Action::BQ(qstep::MAP));
-        t.shot("plan-map-vaults-two-of-three")?;
-    }
+    t.press(Action::BRow(p.min(255) as u8, Row::Vault(0).code()));
+    t.shot("plan-vault-sheet-two-of-three")?;
+    t.press(Action::BPickDone);
+    t.press(Action::BQ(qstep::PLAN));
+    t.shot("plan-map-vaults-two-of-three")?;
     t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::VAULT + 1));
     t.shot("plan-checklist-vaults-two-of-three")?;
@@ -3584,7 +3665,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Backup(two));
     t.press(Action::BPreset(1));
     // Key 2's passphrase into its vault too.
-    t.press(Action::BAnswer(qrow::PASS + 1, 3));
+    pass_into_vault(t, 1);
     t.press(Action::BChecklist);
     shot_card(t, two, "glance-two-of-three")?;
     let press = Press::Loaded(two);
@@ -3659,7 +3740,8 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     // The 2-of-3's plan made with the vault open, and the wallet saved.
     t.press(Action::Backup(two));
     t.press(Action::BPreset(1));
-    t.press(Action::BAnswer(qrow::PASS + 1, 3));
+    // Key 2's passphrase into its vault too.
+    pass_into_vault(t, 1);
     t.press(Action::BChecklist);
     t.press(Action::Nav(Screen::VaultContents));
     t.press(Action::Vault(V::AddKind(1)));
@@ -3952,16 +4034,12 @@ fn first_tour(t: &mut Tour) -> Result<(), String> {
         .position(|p| *p == Preset::PaperVault)
         .ok_or("no Paper and vault")? as u8;
     t.press(Action::BPreset(paper_vault));
-    t.press(Action::BQ(qstep::PLACES));
-    let at = {
-        let a = &t.app.backup.as_ref().ok_or("no backup")?.answers;
-        (0..a.places)
-            .find(|&p| a.stick_at(0, p))
-            .ok_or("Vault 1's stick has no place")?
-    };
-    t.press(Action::BAnswer(qrow::STICKS, at as u8));
-    t.shot("first-places-stickless")?;
-    t.press(Action::BAnswer(qrow::STICKS, at as u8));
+    // The place that keeps Vault 1's stick, and the vault's sheet there.
+    let at = vault_place(t, 0).ok_or("Vault 1's stick has no place")?;
+    t.press(Action::BQ(qstep::place(at)));
+    t.press(Action::BRow(at as u8, Row::Vault(0).code()));
+    t.shot("first-place-vault-sheet")?;
+    t.press(Action::BPickDone);
     t.press(Action::BChecklist);
     // The copy checked, typed back.
     let digits = {
@@ -4822,7 +4900,7 @@ fn flow_tour(t: &mut Tour) -> Result<(), String> {
 /// checklist ends in Write to sticks; one lock, each stick by place, done.
 fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::backup_flow_steps::FlowAction as F;
-    use faraday_core::{cstep, qrow};
+    use faraday_core::cstep;
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
@@ -4895,8 +4973,9 @@ fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
     // Back up's plan offers the two open vaults.
     t.shot("wallet-flow-7-back-up-vaults")?;
     // The key in both vaults, none on paper.
-    t.press(Action::BAnswer(qrow::SEEDS, 0));
-    t.press(Action::BAnswer(qrow::VAULTS + 1, 0));
+    untick_all(t, Row::Words);
+    let p = vault_place(t, 1).unwrap_or(0);
+    keep_at(t, p, Row::Vault(1), &[0]);
     t.press(Action::BChecklist);
     t.press(Action::BVaultSave(0));
     t.press(Action::BVaultSave(1));
@@ -4918,6 +4997,33 @@ fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
     });
     t.pump();
     t.shot("wallet-flow-9-write")?;
+    // Change the plan in the flow: Back up's cards, drawn in the flow
+    // (`docs/BACKUP-FLOW.md` §17): The plan, a place's card and a vault's
+    // sheet.
+    t.press(Action::Flow(F::ChangePlan));
+    t.shot("wallet-flow-9a-plan-card")?;
+    let p = t
+        .app
+        .flow()
+        .and_then(|f| f.wallet.as_ref())
+        .and_then(|w| {
+            (0..w.answers.places)
+                .find(|&p| w.answers.row_seeds(&w.shape, p, Row::Vault(0)).is_some())
+        })
+        .unwrap_or(0);
+    t.press(Action::Flow(F::Plan(faraday_core::PlanPress::Q(
+        qstep::place(p),
+    ))));
+    t.shot("wallet-flow-9b-plan-place")?;
+    t.press(Action::Flow(F::Plan(faraday_core::PlanPress::Row(
+        p as u8,
+        Row::Vault(0).code(),
+    ))));
+    t.shot("wallet-flow-9c-plan-vault-sheet")?;
+    t.press(Action::Cancel);
+    if let Some(n) = t.app.flow().map(|f| f.step.n()) {
+        t.press(Action::Flow(F::Open(n)));
+    }
     // Each stick by place: the sticks read for the vaults, then the stick
     // of public files.
     for n in 0..3 {

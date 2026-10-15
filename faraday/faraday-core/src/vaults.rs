@@ -79,7 +79,7 @@ pub const CUSTOM_PASSES: [u32; 7] = [2, 3, 4, 5, 6, 8, 10];
 /// shows.
 pub const CATEGORIES: [(&str, &[u8]); 7] = [
     (EN.vaults_bitcoin_keys, &[kind::KEY]),
-    (EN.vaults_wallets, &[kind::WALLET]),
+    (EN.vaults_wallets, &[kind::WALLET, kind::WALLET_SHARE]),
     (EN.vaults_entries, &[kind::ENTRY]),
     (EN.vaults_notes, &[kind::NOTE, kind::SHEET]),
     (EN.vaults_gpg_keys, &[kind::GPG]),

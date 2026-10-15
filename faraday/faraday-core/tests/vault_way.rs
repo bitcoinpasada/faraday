@@ -9,7 +9,7 @@ use faraday_core::catalog::TILES;
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
-use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, bstep, plan, qrow};
+use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, bstep, plan};
 use faraday_vault::records::kind;
 use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
@@ -325,7 +325,9 @@ fn the_seeds_vault_item_makes_a_vault_and_comes_back_with_save_live() {
     on_the_seeds_step(&mut app);
     // No paper words: the vault's item comes first.
     app.press(Action::BPlan);
-    app.press(Action::BAnswer(qrow::SEEDS, plan::seeds::WORDS as u8));
+    for p in 0..app.backup.as_ref().unwrap().answers.places {
+        app.press(Action::BRowOff(p as u8, plan::Row::Words.code()));
+    }
     app.press(Action::BChecklist);
     let step = app.backup.as_ref().unwrap().open;
     assert_eq!(step, Some(bstep::VAULT));
