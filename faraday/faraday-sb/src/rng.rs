@@ -20,6 +20,14 @@ impl Stream {
     }
 }
 
+impl Stream {
+    /// Fills `dst` from the keystream.
+    pub fn fill(&mut self, dst: &mut [u8]) {
+        dst.fill(0);
+        self.0.apply_keystream(dst);
+    }
+}
+
 impl TryRng for Stream {
     type Error = Infallible;
 

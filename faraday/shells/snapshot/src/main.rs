@@ -110,6 +110,7 @@ impl Tour {
         files.push(("IMG_0412.jpg".into(), 2_300_000));
         files.sort();
         StickInfo {
+            serial: None,
             id: self.kit.display().to_string(),
             label: "TESTSTICK".into(),
             boot: false,
@@ -568,6 +569,7 @@ fn run(
         Some("first") => return first_tour(&mut t),
         Some("restore") => return restore_tour(&mut t),
         Some("osk") => return osk_tour(&mut t),
+        Some("apk") => return apk_only_tour(&mut t),
         _ => {}
     }
     if medium == Medium::Stick {
@@ -1602,6 +1604,7 @@ fn run(
         return Err("the signed image does not check against the db key".into());
     }
     println!("Secure Boot keys made, enrolment files written, an image signed");
+    apk_tour(&mut t)?;
     t.press(Action::LockAsk);
     t.shot("vault-lock-ask")?;
     // Lock seals the changed slot; the decoy slot is copied byte for byte.
@@ -1780,6 +1783,10 @@ fn run(
     t.shot("tools")?;
     type_text(&mut t, "bip-8");
     t.shot("tools-find")?;
+    t.app.event(Event::Key(Key::Escape));
+    // The APK signing key's tile, found by typing.
+    type_text(&mut t, "apk");
+    t.shot("tools-apk")?;
     t.app.event(Event::Key(Key::Escape));
     // New key as SLIP-39 shares: the plan and what shares reveal.
     t.press(Action::KeyGenSlip39);
@@ -2150,6 +2157,7 @@ fn upgrade_tour(t: &mut Tour) -> Result<(), String> {
     // The vault stick goes in: an older Faraday, its data partition with
     // a vault and the settings file.
     t.app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: "sdb2@sdb#2".into(),
         label: "OSKDATA".into(),
         boot: false,
@@ -2653,6 +2661,7 @@ fn visit_tour(t: &mut Tour) -> Result<(), String> {
             bytes,
             secret: false,
             picture: None,
+            sha: None,
         });
     }
     t.app.outbox.push(faraday_core::Item {
@@ -2661,6 +2670,7 @@ fn visit_tour(t: &mut Tour) -> Result<(), String> {
         bytes: b"words".to_vec(),
         secret: true,
         picture: None,
+        sha: None,
     });
     t.sticks(true);
     t.press(Action::Nav(Screen::Visit));
@@ -2719,6 +2729,7 @@ fn inbox_tour(t: &mut Tour) -> Result<(), String> {
         kind,
         secret: false,
         picture,
+        sha: None,
     };
     t.app
         .outbox
@@ -4454,6 +4465,94 @@ fn type_text(t: &mut Tour, text: &str) {
     t.pump();
 }
 
+/// An APK signing key made in the vault for the fixture's package, the
+/// key's page, and the review of the fixture APK copied in
+/// (`docs/APK-SIGNING.md` §4).
+fn apk_tour(t: &mut Tour) -> Result<(), String> {
+    t.press(Action::Vault(V::Category(6)));
+    t.press(Action::Vault(V::Add));
+    t.shot("vault-apk-make")?;
+    // The package is the fixture's, so its APK can be signed.
+    t.press(Action::Vault(V::FocusField(1)));
+    for _ in 0..40 {
+        t.app.event(Event::Key(Key::Backspace));
+    }
+    type_text(t, "app.faradayoffline.fixture");
+    t.press(Action::Vault(V::FormSave));
+    t.tick();
+    t.tick();
+    if !t.app.vaults.open[0]
+        .contents
+        .records
+        .iter()
+        .any(|r| r.kind == 12)
+    {
+        return Err("no APK signing key was made".into());
+    }
+    t.shot("vault-apk-made")?;
+    t.press(Action::Vault(V::ApkDone));
+    t.shot("vault-apk-key-waiting")?;
+    // Written to two sticks, as the wait asks.
+    t.app.vaults.apk.waits.clear();
+    t.shot("vault-apk-key")?;
+    let apk = std::fs::read("tools/vectors/apk/small-unsigned.apk").map_err(|e| e.to_string())?;
+    t.app.inbox.push(faraday_core::Item {
+        name: "faraday-companion-0.1.3-android-unsigned.apk".into(),
+        bytes: apk,
+        kind: faraday_core::wallet::FileKind::Apk,
+        secret: false,
+        picture: None,
+        sha: None,
+    });
+    t.press(Action::Vault(V::ApkSignOpen));
+    t.shot("vault-apk-sign")?;
+    let k = t.app.inbox.len() - 1;
+    t.press(Action::Vault(V::ApkPick(k)));
+    type_text(t, "1dfe b6f8 a687 82f9");
+    t.shot("vault-apk-review")?;
+    t.press(Action::Vault(V::ApkBack));
+    t.press(Action::Vault(V::ApkBack));
+    println!("an APK signing key made, its page and the review of an APK");
+    Ok(())
+}
+
+/// The APK signing key alone: the test vault unlocked, the Tools tile
+/// found, then [`apk_tour`].
+fn apk_only_tour(t: &mut Tour) -> Result<(), String> {
+    let vault = testkit::files()?
+        .into_iter()
+        .find(|(n, _)| n == "vault.ofv")
+        .ok_or("no test vault")?;
+    t.app.storage(StorageEvent::Restored {
+        inbox: vec![vault],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.storage(StorageEvent::Clock {
+        unix_secs: 1_791_000_000,
+    });
+    t.app.vaults.ms_per_unit = Some(180);
+    t.press(Action::Nav(Screen::Vaults));
+    t.press(Action::Vault(V::Open(0)));
+    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    t.press(Action::Vault(V::Unlock));
+    t.tick();
+    t.press(Action::OpenSetTime);
+    t.press(Action::SetTimeKeep);
+    t.press(Action::Nav(Screen::Catalog));
+    if t.app.is_compact() {
+        t.app.event(Event::Key(Key::Escape));
+    }
+    type_text(t, "apk");
+    t.shot("tools-apk")?;
+    t.app.event(Event::Key(Key::Escape));
+    t.press(Action::Nav(Screen::VaultContents));
+    apk_tour(t)
+}
+
 fn fp_hex(fp: [u8; 4]) -> String {
     fp.iter().map(|b| format!("{b:02x}")).collect()
 }
@@ -4469,7 +4568,7 @@ fn main() -> ExitCode {
     };
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk]"
+            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk]"
         );
         return ExitCode::from(2);
     }
@@ -4523,11 +4622,12 @@ fn main() -> ExitCode {
             "first",
             "restore",
             "osk",
+            "apk",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore or osk"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk or apk"
         );
         return ExitCode::from(2);
     }

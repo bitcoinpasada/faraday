@@ -1,6 +1,6 @@
 # The Faraday vault
 
-**Status:** v0.1 · 2026-10-04 · built 2026-10-05 in `faraday/faraday-vault` (format, create, open, seal, records), with the vectors in `tools/vectors/vault/` and the reference reader `tools/vault/open.py`, which opens both vectors. Not built yet: §3.1's Raspberry Pi timings, and the writer of record type 9 (`HANDOFF.md` item 12 says why). Types 7 and 8 are written by `faraday-pgp` and `faraday-sb` through the app. Type 12 is specified (`docs/APK-SIGNING.md`, F25) and not built.
+**Status:** v0.1 · 2026-10-04 · built 2026-10-05 in `faraday/faraday-vault` (format, create, open, seal, records), with the vectors in `tools/vectors/vault/` and the reference reader `tools/vault/open.py`, which opens both vectors. Not built yet: §3.1's Raspberry Pi timings, and the writer of record type 9 (`HANDOFF.md` item 12 says why). Types 7 and 8 are written by `faraday-pgp` and `faraday-sb` through the app. Type 12 (`docs/APK-SIGNING.md`, F25) is written by `faraday-core/src/apk.rs` and read by `open.py`, with `--field TYPE.FIELD --out FILE`; the receipt of a write keeps the stick's FAT volume serial (§6).
 
 A vault is one file holding four equal slots. Each passphrase opens one
 slot. A slot no passphrase opens is indistinguishable from one that holds
@@ -287,7 +287,8 @@ SHA-256 of the bytes written (owner, 2026-10-10; `docs/SIMPLIFY.md`
 §4.3) and the stick's label and FAT volume serial. The backup flow
 (`docs/BACKUP-FLOW.md`, F31) does not tell sticks apart by the serial,
 which sticks written from one image can share; it refuses a second copy
-on the stick holding the first, by the file's SHA-256. The receipt is kept across a lock under the key `receipt` and is
+on the stick holding the first, by the file's SHA-256. A copy of a vault from Files is never written over the same vault (same
+salt) on a stick unless this session unlocked or wrote that vault. The receipt is kept across a lock under the key `receipt` and is
 gone at power-off. From it each vault file's currency is computed,
 never stored (§3.5): **Never written** (sealed For the stick, on no
 receipt), **On {label} · current** (the receipt wrote the bytes it has

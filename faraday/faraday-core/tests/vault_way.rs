@@ -195,6 +195,7 @@ fn a_vault_tile_with_a_locked_vault_unlocks_it_then_opens_its_category() {
 fn a_vault_tile_with_a_stick_in_asks_for_the_stick_before_unlock() {
     let mut app = device(vec![kit_file("vault.ofv")]);
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: "a".into(),
         label: "STICK".into(),
         boot: false,

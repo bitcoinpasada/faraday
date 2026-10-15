@@ -35,6 +35,7 @@ impl Stick {
     /// The stick as the shell lists it.
     fn info(&self) -> StickInfo {
         StickInfo {
+            serial: None,
             id: self.id.to_string(),
             label: self.id.to_uppercase(),
             boot: false,
@@ -340,6 +341,7 @@ fn text_is_offered_as_something_faraday_cannot_tell_about() {
 fn a_file_larger_than_18_mib_is_not_read() {
     let mut app = testkit::started();
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: "a".into(),
         label: "A".into(),
         boot: false,

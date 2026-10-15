@@ -150,6 +150,7 @@ fn a_new_vaults_passphrases_wait_until_the_stick_is_pulled() {
     app.press(Action::Vault(V::CreateFrom(Screen::Backup)));
     app.storage(faraday_core::StorageEvent::Sticks(vec![
         faraday_core::StickInfo {
+            serial: None,
             id: "a".into(),
             label: "STICK".into(),
             boot: false,

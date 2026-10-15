@@ -236,6 +236,7 @@ fn after_the_vault_is_written_the_vault_line_names_the_stick() {
     let (inbox, outbox, kept) = saved(&mut app);
     let mut app = shown(inbox, outbox, kept);
     app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
+        serial: None,
         id: "S".into(),
         label: "VAULTSTICK".into(),
         boot: false,

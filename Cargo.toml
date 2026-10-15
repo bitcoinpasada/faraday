@@ -38,6 +38,7 @@ members = [
     "faraday/faraday-boot",
     "faraday/faraday-pgp",
     "faraday/faraday-sb",
+    "faraday/faraday-apk",
     "faraday/faraday-payload",
     "faraday/faraday-strings",
     "faraday/faraday-learn",
@@ -199,6 +200,20 @@ opt-level = 2
 opt-level = 2
 [profile.dev.package.opensigner-core]
 opt-level = 2
+
+# RSA-3072 key generation (`faraday-apk`, `docs/APK-SIGNING.md` §2.1) runs
+# in some tests: about 0.4 s in a release build, and with the big-integer
+# crates' debug assertions and overflow checks on it took 35 s. Off for
+# these three crates, in dev builds only.
+[profile.dev.package.crypto-bigint]
+debug-assertions = false
+overflow-checks = false
+[profile.dev.package.crypto-primes]
+debug-assertions = false
+overflow-checks = false
+[profile.dev.package.rsa]
+debug-assertions = false
+overflow-checks = false
 
 [profile.release]
 panic = "abort"

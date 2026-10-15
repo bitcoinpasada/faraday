@@ -14,6 +14,7 @@ const STICK: &str = "S1";
 fn visiting() -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: STICK.to_string(),
         label: "TESTSTICK".to_string(),
         boot: false,

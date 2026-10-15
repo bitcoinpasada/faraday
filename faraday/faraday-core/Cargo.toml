@@ -35,6 +35,7 @@ faraday-guides = { path = "../faraday-guides", optional = true }
 faraday-intake = { path = "../faraday-intake" }
 faraday-pgp = { path = "../faraday-pgp" }
 faraday-sb = { path = "../faraday-sb" }
+faraday-apk = { path = "../faraday-apk" }
 osk-backup = { path = "../../core/osk-backup" }
 zeroize = { workspace = true, features = ["alloc"] }
 

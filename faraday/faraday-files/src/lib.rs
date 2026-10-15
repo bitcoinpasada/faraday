@@ -371,6 +371,17 @@ fn vault_identity(bytes: &[u8], len: u64) -> Option<([u8; 32], u64)> {
 /// compared before the original is replaced. Two vaults with the same
 /// identity on one stick are refused, naming both.
 pub fn write_vault(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<String, String> {
+    write_vault_over(place, name, bytes, true)
+}
+
+/// [`write_vault`], refusing to go over the same vault when `over` is
+/// false.
+pub fn write_vault_over(
+    place: &mut dyn Place,
+    name: &str,
+    bytes: &[u8],
+    over: bool,
+) -> Result<String, String> {
     finish_vault_writes(place);
     let want = vault_identity(bytes, bytes.len() as u64).ok_or("not a vault")?;
     let mut same: Vec<String> = Vec::new();
@@ -386,6 +397,12 @@ pub fn write_vault(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<St
     }
     let original = match same.len() {
         0 => return write(place, name, bytes),
+        1 if !over => {
+            return Err(format!(
+                "{} is this vault, and this session did not unlock or write it: not replaced",
+                same[0]
+            ));
+        }
         1 => same.remove(0),
         _ => {
             return Err(format!(
@@ -469,7 +486,9 @@ pub fn write_settings(place: &mut dyn Place, bytes: &[u8]) -> Result<String, Str
 /// Writes what the app put in the Outbox: a sealed vault back over its
 /// own file, the settings over the settings, anything else over a file of
 /// its name when `replace` ([`write_replacing`]) or else as a new file.
-/// A vault is never written over another vault, whatever `replace` says.
+/// A vault is never written over another vault of another identity; over
+/// the same one (salt and length) only when `replace`, which the app says
+/// of a vault its session unlocked or wrote.
 pub fn write_any(
     place: &mut dyn Place,
     name: &str,
@@ -477,7 +496,7 @@ pub fn write_any(
     replace: bool,
 ) -> Result<String, String> {
     if name.ends_with(".ofv") && bytes.starts_with(b"OFVT") {
-        write_vault(place, name, bytes)
+        write_vault_over(place, name, bytes, replace)
     } else if name.eq_ignore_ascii_case(SETTINGS_FILE) && bytes.starts_with(b"faraday-settings ") {
         write_settings(place, bytes)
     } else if replace {

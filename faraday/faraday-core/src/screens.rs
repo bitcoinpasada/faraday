@@ -9549,6 +9549,8 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
         FileKind::SeedPart => EN.kind_name_part_of_a,
         FileKind::Text => EN.kind_name_text,
         FileKind::Gpg => EN.kind_name_gpg,
+        FileKind::Apk => EN.apk_kind_apk,
+        FileKind::Certificate => EN.apk_kind_certificate,
         FileKind::Other => EN.kind_name_file,
     }
 }
@@ -9846,6 +9848,21 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     Action::PdfInbox(k),
                 ) + 8.0;
             }
+            FileKind::Apk => match app.apk_files_row(k) {
+                crate::apk::Row::Sign => {
+                    let (label, action) = app.vault_way(Screen::Files).unwrap_or((
+                        EN.apk_sign_with_key.to_string(),
+                        Action::Vault(crate::vaults::VaultAction::ApkFromFiles(k)),
+                    ));
+                    bx +=
+                        ui.button(bx, iy + 64.0, None, 36.0, &label, Style::Primary, action) + 8.0;
+                }
+                crate::apk::Row::Note(text) => {
+                    let text = ui.fit(13.0, W::R, &text, colw - 66.0 - 120.0);
+                    bx += ui.text_mid(bx, iy + 64.0, 36.0, 13.0, W::R, WARN, &text) + 12.0;
+                }
+                crate::apk::Row::None => {}
+            },
             _ => {}
         }
         ui.button(
@@ -10937,6 +10954,15 @@ fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note)
             ));
             out.push(add_to_vault(Style::Secondary));
         }
+        FileKind::Apk => match app.apk_files_row(k) {
+            crate::apk::Row::Sign => out.push(into_vault(
+                EN.apk_sign_with_key,
+                Style::Primary,
+                Action::Vault(crate::vaults::VaultAction::ApkFromFiles(k)),
+            )),
+            crate::apk::Row::Note(text) => note = Some((text, WARN)),
+            crate::apk::Row::None => {}
+        },
         FileKind::Message => {
             out.push((
                 EN.inbox_actions_check.into(),

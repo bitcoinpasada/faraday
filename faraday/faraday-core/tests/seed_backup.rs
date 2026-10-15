@@ -268,6 +268,7 @@ fn the_words_file_read_from_a_stick_loads_the_same_key() {
 
     let mut next = testkit::started();
     next.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: STICK.to_string(),
         label: "TESTSTICK".to_string(),
         boot: false,
@@ -351,8 +352,10 @@ fn a_stick_visit_leaves_the_seed_file_unticked() {
             kind: FileKind::Text,
             secret: false,
             picture: None,
+            sha: None,
         });
         app.storage(StorageEvent::Sticks(vec![StickInfo {
+            serial: None,
             id: STICK.to_string(),
             label: "TESTSTICK".to_string(),
             boot: false,

@@ -89,6 +89,8 @@ pub struct Stick {
     pub label: String,
     /// On the disk the machine booted from.
     pub boot: bool,
+    /// Its FAT volume serial number, when its boot sector states one.
+    pub serial: Option<u32>,
     /// Its top-level files and their sizes.
     pub files: Vec<(String, u64)>,
 }
@@ -338,6 +340,13 @@ impl Response {
                     o.str(&s.id);
                     o.str(&s.label);
                     o.0.push(u8::from(s.boot));
+                    match s.serial {
+                        Some(n) => {
+                            o.0.push(1);
+                            o.0.extend_from_slice(&n.to_le_bytes());
+                        }
+                        None => o.0.push(0),
+                    }
                     o.count(s.files.len());
                     for (n, len) in s.files.iter().take(u16::MAX as usize) {
                         o.str(n);
@@ -400,6 +409,11 @@ impl Response {
                     let id = i.str()?;
                     let label = i.str()?;
                     let boot = i.u8()? != 0;
+                    let serial = if i.u8()? != 0 {
+                        Some(i.u32()? as u32)
+                    } else {
+                        None
+                    };
                     let k = i.u16()?;
                     let mut files = Vec::new();
                     for _ in 0..k {
@@ -409,6 +423,7 @@ impl Response {
                         id,
                         label,
                         boot,
+                        serial,
                         files,
                     });
                 }
@@ -529,6 +544,7 @@ mod tests {
                 id: "sdb1@7".into(),
                 label: "TESTSTICK".into(),
                 boot: false,
+                serial: Some(0xcafe_f00d),
                 files: vec![("a.psbt".into(), 1234), ("café.txt".into(), 0)],
             }]),
             Response::Bytes(vec![9; 100]),

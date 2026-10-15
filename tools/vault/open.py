@@ -10,10 +10,21 @@ Usage:
 
     python3 tools/vault/open.py vault.ofv
     python3 tools/vault/open.py vault.ofv --passphrase PASSPHRASE
+    python3 tools/vault/open.py vault.ofv --field 12.1 --out signing-key.pk8
 
-With no `--passphrase` it is read from the terminal without echo. The
-records of the slot it opens are printed on standard output; nothing is
-written.
+With no `--passphrase` it is read from the terminal without echo, or from
+one line of standard input where that is not a terminal. Type it at the
+prompt: an argument stays in the shell's history, so `--field` refuses
+`--passphrase`. The records
+of the slot it opens are printed on standard output; nothing is written.
+
+`--field TYPE.FIELD --out FILE` prints nothing of the slot and writes one
+field's bytes, as they are, to a new file created with mode 0600 (an
+existing file is refused). It is how an APK signing key (type 12, field 1,
+PKCS #8 DER; field 2 is its certificate) reaches `apksigner` without
+Faraday (`docs/APK-SIGNING.md` §3). Where the slot holds several records of
+that type, `--index N` takes the N-th in the order they are printed,
+counting from 1; without it the command refuses and says how many there are.
 
 Dependencies: the standard library plus either `argon2-cffi` and
 `pynacl`, or `cryptography` 44 or newer on OpenSSL 3.2 or newer. The two
@@ -44,6 +55,7 @@ import getpass
 import hashlib
 import hmac
 import importlib.util
+import os
 import struct
 import sys
 from pathlib import Path
@@ -72,11 +84,13 @@ RECORDS = {
     8: ("Secure Boot keys", {1: "owner GUID", 2: "PK key", 3: "PK certificate", 4: "KEK key", 5: "KEK certificate", 6: "db key", 7: "db certificate"}),
     9: ("Pending signing round", {1: "scheme", 2: "transaction", 3: "fingerprint", 4: "state", 5: "used"}),
     10: ("Signed amounts", {1: "transaction", 2: "amount"}),
+    11: ("Backup plan", {1: "wallet", 2: "answers", 3: "place", 4: "holds", 5: "note"}),
+    12: ("APK signing key", {1: "private key", 2: "certificate", 3: "package"}),
 }
 
 
 # The fields that are UTF-8 text; every other field is printed in hex.
-TEXT_FIELDS = {(1, 1), (2, 2), (2, 4), (3, 1), (3, 2), (4, 1)} | {(6, n) for n in range(1, 7)} | {(7, 5)}
+TEXT_FIELDS = {(1, 1), (2, 2), (2, 4), (3, 1), (3, 2), (4, 1)} | {(6, n) for n in range(1, 7)} | {(7, 5)} | {(11, n) for n in range(1, 6)} | {(12, 3)}
 
 
 def hkdf_sha256(ikm: bytes, info: bytes) -> bytes:
@@ -158,14 +172,59 @@ def show(kind: int, number: int, value: bytes) -> str:
     return value.hex()
 
 
+def write_field(recs: list, spec: str, index: int | None, out: str) -> None:
+    """One field of one record, as bytes, to a new file only its owner reads."""
+    try:
+        kind_s, number_s = spec.split(".")
+        kind, number = int(kind_s), int(number_s)
+    except ValueError:
+        raise SystemExit("--field wants TYPE.FIELD, as 12.1")
+    same = [fields for k, fields in recs if k == kind]
+    if not same:
+        raise SystemExit(f"the slot holds no record of type {kind}")
+    if index is None:
+        if len(same) > 1:
+            raise SystemExit(f"the slot holds {len(same)} records of type {kind}; --index N (from 1) takes one")
+        index = 1
+    if not 1 <= index <= len(same):
+        raise SystemExit(f"the slot holds {len(same)} records of type {kind}, not {index}")
+    values = [v for n, v in same[index - 1] if n == number]
+    if len(values) != 1:
+        raise SystemExit(f"that record has no field {number}" if not values else f"that record repeats field {number}")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
+    try:
+        fd = os.open(out, flags, 0o600)
+    except FileExistsError:
+        raise SystemExit(f"{out} exists; nothing was written")
+    with os.fdopen(fd, "wb") as f:
+        f.write(values[0])
+    print(f"wrote {len(values[0])} bytes to {out}", file=sys.stderr)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("vault")
     parser.add_argument("--passphrase")
+    parser.add_argument("--field", help="TYPE.FIELD to write, as 12.1")
+    parser.add_argument("--index", type=int, help="which record of that type, from 1")
+    parser.add_argument("--out", help="the new file --field writes")
     args = parser.parse_args()
+    if (args.field is None) != (args.out is None) or (args.index is not None and args.field is None):
+        raise SystemExit("--field and --out go together, and --index goes with them")
+    if args.field is not None and args.passphrase is not None:
+        raise SystemExit("--passphrase is refused with --field: an argument stays in the shell's history; type it at the prompt")
     blob = Path(args.vault).read_bytes()
-    passphrase = args.passphrase if args.passphrase is not None else getpass.getpass("Passphrase: ")
-    for kind, fields in records(open_vault(blob, passphrase.encode())):
+    if args.passphrase is not None:
+        passphrase = args.passphrase
+    elif sys.stdin.isatty():
+        passphrase = getpass.getpass("Passphrase: ")
+    else:
+        # A passphrase piped in (a test's): one line, without its newline.
+        passphrase = sys.stdin.readline().rstrip("\r\n")
+    recs = records(open_vault(blob, passphrase.encode()))
+    if args.field is not None:
+        return write_field(recs, args.field, args.index, args.out)
+    for kind, fields in recs:
         name, names = RECORDS[kind]
         print(name)
         for number, value in fields:

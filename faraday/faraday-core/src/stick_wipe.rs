@@ -237,6 +237,7 @@ impl Faraday {
     pub(crate) fn wiped(&mut self, name: &str, failed: Option<&str>) {
         match failed {
             None => {
+                self.apk_first_gone(Some(name));
                 self.visit.inn.retain(|n| n != name);
                 self.visit
                     .log
@@ -350,6 +351,9 @@ impl Faraday {
     }
 
     fn zero_end(&mut self, line: String, ok: bool) {
+        if ok && self.zeroing.as_ref().is_some_and(|z| z.whole) {
+            self.apk_first_gone(None);
+        }
         self.zeroing = None;
         if self.sheet == Some(Sheet::Zeroing) {
             self.sheet = None;

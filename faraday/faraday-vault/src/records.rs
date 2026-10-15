@@ -47,6 +47,9 @@ pub mod kind {
     pub const AMOUNTS: u8 = 10;
     /// A wallet's backup plan.
     pub const PLAN: u8 = 11;
+    /// An APK signing key: the private key, its certificate and the
+    /// package it signs for (`docs/APK-SIGNING.md` §3).
+    pub const APK_KEY: u8 = 12;
 }
 
 /// The fields of each record type, by number.
@@ -111,6 +114,13 @@ pub mod field {
     /// date it was last checked here, a mark (lost, exposed), a key's
     /// holder, a vault's name. Never a secret.
     pub const PLAN_NOTE: u8 = 5;
+
+    /// APK signing key: the private key, PKCS #8 DER.
+    pub const APK_KEY: u8 = 1;
+    /// APK signing key: its self-signed certificate, DER.
+    pub const APK_CERT: u8 = 2;
+    /// APK signing key: the Android package it signs for.
+    pub const APK_PACKAGE: u8 = 3;
 }
 
 /// Bit 0 of a key's flags: load it into the session at unlock.
@@ -249,6 +259,12 @@ const PLAN_RULES: &[Rule] = &[
     rule(5, false, true, TEXT),
 ];
 
+const APK_KEY_RULES: &[Rule] = &[
+    rule(1, true, false, Shape::Bytes),
+    rule(2, true, false, Shape::Bytes),
+    rule(3, true, false, Shape::Text(255)),
+];
+
 /// The fields of each record type (§7).
 fn rules(kind: u8) -> Option<&'static [Rule]> {
     Some(match kind {
@@ -263,6 +279,7 @@ fn rules(kind: u8) -> Option<&'static [Rule]> {
         kind::ROUND => ROUND_RULES,
         kind::AMOUNTS => AMOUNTS_RULES,
         kind::PLAN => PLAN_RULES,
+        kind::APK_KEY => APK_KEY_RULES,
         _ => return None,
     })
 }

@@ -182,6 +182,26 @@ pub fn boot_sector_label(sector: &[u8]) -> Option<[u8; 11]> {
     Some(label)
 }
 
+/// The volume serial number a boot sector states (BS_VolID), by the same
+/// signature byte as [`boot_sector_label`]. Two sticks formatted apart
+/// have different ones; a stick copied sector for sector has the same.
+pub fn boot_sector_serial(sector: &[u8]) -> Option<u32> {
+    if sector.len() < 512 {
+        return None;
+    }
+    let fat16_size = u16::from_le_bytes([sector[22], sector[23]]);
+    let (sig, at) = if fat16_size == 0 { (66, 67) } else { (38, 39) };
+    if sector[sig] != 0x29 {
+        return None;
+    }
+    Some(u32::from_le_bytes([
+        sector[at],
+        sector[at + 1],
+        sector[at + 2],
+        sector[at + 3],
+    ]))
+}
+
 /// An open FAT16 or FAT32 volume.
 pub struct Volume<D: Disk> {
     disk: D,
@@ -197,6 +217,7 @@ pub struct Volume<D: Disk> {
     root_cluster: u32,
     fsinfo: Option<u64>,
     label: Option<[u8; 11]>,
+    serial: Option<u32>,
     /// The volume's length as its boot sector says, in bytes.
     volume_bytes: u64,
     /// The media byte, which the first FAT entry repeats.
@@ -321,6 +342,7 @@ impl<D: Disk> Volume<D> {
             root_cluster,
             fsinfo,
             label: boot_sector_label(&bs),
+            serial: boot_sector_serial(&bs),
             volume_bytes: u64::from(total) * bps,
             media: bs[21],
         };
@@ -349,6 +371,11 @@ impl<D: Disk> Volume<D> {
         let s: String = l.iter().map(|&b| char::from(b)).collect();
         let s = s.trim_end();
         (!s.is_empty() && s != "NO NAME").then(|| String::from(s))
+    }
+
+    /// The volume serial number in the boot sector, when there is one.
+    pub fn serial(&self) -> Option<u32> {
+        self.serial
     }
 
     /// Gives the disk back.

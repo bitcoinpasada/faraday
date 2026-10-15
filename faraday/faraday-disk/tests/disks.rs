@@ -217,8 +217,18 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
         Response::Written("vault.ofv".into())
     );
     vault[100] = 9;
-    assert_eq!(
+    // Over the same vault only where the app says its session wrote it.
+    assert!(matches!(
         d.handle(w("vault.ofv", &vault)),
+        Response::Failed(_)
+    ));
+    assert_eq!(
+        d.handle(Request::Write {
+            stick: id.clone(),
+            name: "vault.ofv".into(),
+            replace: true,
+            bytes: vault.clone(),
+        }),
         Response::Written("vault.ofv".into())
     );
     assert_eq!(

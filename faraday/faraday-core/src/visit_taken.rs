@@ -142,6 +142,12 @@ impl Faraday {
     /// The visit's Write: the sheet first when a file's name is taken and
     /// the choice decides what becomes of it; otherwise written at once.
     pub(crate) fn visit_write_ask(&mut self) {
+        // The second copy of a key's vault never goes to a stick that has
+        // this vault already.
+        if let Some(why) = self.apk_second_refusal() {
+            self.toast(why);
+            return;
+        }
         let taken = self.visit_taken();
         if taken.iter().any(|t| matches!(t.fate, Fate::File { .. })) {
             self.visit.taken = taken;
@@ -167,8 +173,15 @@ impl Faraday {
         };
         let id = stick.id.clone();
         let label = stick.label.clone();
+        // A stick is told from another by its FAT volume serial; a folder
+        // the shell lists has none, and is told by where it is.
+        let identity = match stick.serial {
+            Some(s) => format!("{s:08x}"),
+            None => format!("id:{}", stick.id),
+        };
         self.visit.log.clear();
         let mut sends: Vec<(String, Vec<u8>, bool)> = Vec::new();
+
         if self.visit_settings_on() {
             sends.push((
                 stick_settings::FILE.to_string(),
@@ -180,7 +193,15 @@ impl Faraday {
             if from_inbox {
                 self.visit.writing_inbox.insert(name.clone());
             }
-            let over = replace && taken.contains(&name);
+            // A vault goes over the same vault on the stick (same salt and
+            // length, decided where the stick is read) only when this
+            // session unlocked or wrote it: a copy from Files that it did
+            // not could be older than what the stick holds.
+            let over = if is_vault(&name, &bytes) {
+                !from_inbox || self.vault_is_this_sessions(&bytes)
+            } else {
+                replace && taken.contains(&name)
+            };
             sends.push((name, bytes, over));
         }
         // What this write sends, for its receipt.
@@ -197,7 +218,7 @@ impl Faraday {
             });
         }
         if !sent.is_empty() {
-            self.visit.writing = Some((label, sent, false));
+            self.visit.writing = Some((label, identity, sent, false));
         }
     }
 }

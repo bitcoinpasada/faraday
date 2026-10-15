@@ -84,7 +84,15 @@ pub fn make(seed: &[u8; 32], owner: &str, now: u64) -> Result<Keys, Error> {
     let mut keys_rng = rng::Stream::new(seed, 1);
     let mut blind = rng::Stream::new(seed, 2);
     let mut generate = |what: &str, serial: &[u8; 16]| {
-        x509::generate(&mut keys_rng, &mut blind, &name(what), serial, now, YEARS)
+        x509::generate(
+            &mut keys_rng,
+            &mut blind,
+            2048,
+            &name(what),
+            serial,
+            now,
+            x509::Profile::Ca { years: YEARS },
+        )
     };
     Ok(Keys {
         owner: guid,

@@ -30,6 +30,7 @@ fn shown() -> Faraday {
 fn stick(app: &mut Faraday, on: bool) {
     let sticks = if on {
         vec![StickInfo {
+            serial: None,
             id: "a".into(),
             label: "STICK".into(),
             boot: false,
@@ -354,6 +355,7 @@ fn home_lead_rule_5_with_a_stick_in_asks_to_pull_it_first() {
 /// up `app.import` without a PSBT in it, so rule 3 alone leads.
 fn boot_stick(files: &[(String, Vec<u8>)]) -> StickInfo {
     StickInfo {
+        serial: None,
         id: "boot".into(),
         label: "FARADAY".into(),
         boot: true,

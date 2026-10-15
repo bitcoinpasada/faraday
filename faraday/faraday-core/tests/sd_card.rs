@@ -27,6 +27,7 @@ fn panel(medium: Medium) -> Faraday {
 fn attach(app: &mut Faraday, on: bool) {
     let sticks = if on {
         vec![StickInfo {
+            serial: None,
             id: "a".into(),
             label: "PHOTOS".into(),
             boot: false,
@@ -75,6 +76,7 @@ fn the_pi_names_an_sd_card_with_its_article_and_at_the_start_of_a_line() {
 fn the_pi_calls_the_card_it_started_from_the_boot_sd_card() {
     let mut app = panel(Medium::SdCard);
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: "boot".into(),
         label: "OSKDATA".into(),
         boot: true,

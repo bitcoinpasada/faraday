@@ -1343,6 +1343,12 @@ place is written).
 **Sign an APK** → while the key was made in the flow and not every
 place of its plan is written (F31): **Back up first** →
 the flow on its step → Done → **Unlock {vault}** → the key's page.
+
+Until F31's batch is built, **Back up first** is a placeholder: lock →
+the stick visit with the vault ticked → unlock → the key's page, then
+again for the second stick, refused with "This stick already has this
+vault" when the stick holds the first write's bytes (an older copy of
+the vault is replaced and counts).
 Otherwise:
 choose an APK copied in (none: "Copy the APK in on a stick visit
 first"; on the Pi "on an SD card visit"), each row with its size, and
@@ -1353,9 +1359,9 @@ the key's) → "Sign this APK?" (Hold: file, size, SHA-256, **Second
 build**, package, version, Android, key, will write). **Second build**
 is typed: the SHA-256 an independent second build printed, at least
 its first 32 hex digits, case and spaces ignored; "Matches", or "Does
-not match this file" in `WARN`; the hold is inert until it matches,
-and also while there is not enough memory to open the vault ("Not
-enough memory to open {vault}") → hold → each signature checked
+not match this file" in `WARN`; the hold is inert until it matches
+(and, with `docs/LARGE-FILES.md`, while there is not enough memory to
+open the vault, "Not enough memory to open {vault}") → hold → each signature checked
 against the certificate ("The signature did not check. Nothing
 written." otherwise) → the signed APK For the stick, named as the file
 copied in without `-unsigned`, or with `-signed` → "Insert a stick to

@@ -190,6 +190,7 @@ fn texts_at(app: &mut Faraday, at: &str, all: &mut Vec<(String, String)>) {
 /// A boot stick holding `files`, every read it asks for answered.
 fn boot_stick(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: "boot".into(),
         label: "FARADAY".into(),
         boot: true,
@@ -256,6 +257,7 @@ fn every_text(width: u16, height: u16, dpi: u16) -> Vec<(String, String)> {
         texts_at(&mut app, "boot import sheet", &mut all);
     }
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: "S".into(),
         label: "STICK".into(),
         boot: false,

@@ -102,10 +102,12 @@ fn the_session_strip_names_the_current_stage() {
         kind: faraday_core::wallet::FileKind::Psbt,
         secret: false,
         picture: None,
+        sha: None,
     });
     assert_eq!(app.session_stage(), "Write out");
     app.storage(faraday_core::StorageEvent::Sticks(vec![
         faraday_core::StickInfo {
+            serial: None,
             id: "a".into(),
             label: "STICK".into(),
             boot: false,

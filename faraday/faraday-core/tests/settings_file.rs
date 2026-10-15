@@ -26,6 +26,7 @@ fn display() -> Event {
 
 fn stick(id: &str, boot: bool, file: Option<&[u8]>) -> StickInfo {
     StickInfo {
+        serial: None,
         id: id.into(),
         label: id.to_uppercase(),
         boot,

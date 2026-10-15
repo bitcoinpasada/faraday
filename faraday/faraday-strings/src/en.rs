@@ -699,6 +699,141 @@ pub struct Strings {
     pub starter_remove_entry_sub: &'static str,
     /// That row while the removal runs.
     pub starter_removing_entry: &'static str,
+    // ----- apk (faraday-core/src/apk.rs) -----
+    /// Category in `CATEGORIES`: the APK signing keys a vault holds.
+    pub apk_signing_keys: &'static str,
+    /// Row in Sign an APK: a file that is not an APK, or one read two ways.
+    pub apk_not_an_apk: &'static str,
+    /// Row in Sign an APK: an APK that carries a signature already.
+    pub apk_already_signed: &'static str,
+    /// Row in Sign an APK: stored data off the boundary `zipalign` puts it on.
+    pub apk_not_aligned: &'static str,
+    /// Row in Sign an APK: a minimum Android below 7.0.
+    pub apk_before_7: &'static str,
+    /// Row in Files and Sign an APK: the APK is another app's. `{}`: its package.
+    pub apk_other_package: &'static str,
+    /// Row in Sign an APK: the signed file would pass FAT32's largest.
+    pub apk_over_4_gib: &'static str,
+    /// Row in Sign an APK: the name it would be written under is too long.
+    pub apk_name_too_long: &'static str,
+    /// Version in the review of an APK that states no `versionName`.
+    pub apk_no_name: &'static str,
+    /// Toast in `apk_written`: the vault is on two sticks.
+    pub apk_signs_from_now: &'static str,
+    /// Toast in `apk_make_work`, `apk_sign`: the system has not answered.
+    pub apk_no_randomness: &'static str,
+    /// Toast in `apk_make_work`.
+    pub apk_the_key_is_in: &'static str,
+    /// Toast in `apk_make_work`: the vault's slot is full.
+    pub apk_that_does_not_fit: &'static str,
+    /// Toast in `apk_check_form`: the certificate's name is empty.
+    pub apk_name_the_certificate: &'static str,
+    /// Toast in `apk_check_form`: the package is not Android's form.
+    pub apk_package_invalid: &'static str,
+    /// Toast in `vault_form_apk_save`: several vaults are open and none is chosen.
+    pub apk_choose_the_vault: &'static str,
+    /// Toast in `vault_form_apk_save`.
+    pub apk_this_computer: &'static str,
+    /// Error in `apk_code`.
+    pub apk_no_key_is_selected: &'static str,
+    /// Line under the certificate's code. `{}`: the fingerprint.
+    pub apk_sha_256_of: &'static str,
+    /// Line under the certificate's code.
+    pub apk_public_checks: &'static str,
+    /// Row and title of the certificate.
+    pub apk_certificate: &'static str,
+    /// Toast in `apk_sign`: the file is not the one reviewed.
+    pub apk_changed_since_review: &'static str,
+    /// Files: what an APK is called.
+    pub apk_kind_apk: &'static str,
+    /// Files: what a PEM certificate is called.
+    pub apk_kind_certificate: &'static str,
+    /// Make an APK key: the first field.
+    pub apk_name_on_certificate: &'static str,
+    /// Make an APK key: the second field; the key page's row.
+    pub apk_package: &'static str,
+    /// Make an APK key: the form's heading and the add action.
+    pub apk_make_a_key: &'static str,
+    /// Make an APK key: the add row under the kinds.
+    pub apk_key_short: &'static str,
+    /// Make an APK key: the button.
+    pub apk_make_the_key: &'static str,
+    /// Make an APK key: while the key is made.
+    pub apk_making_the_key: &'static str,
+    /// Make an APK key: under the name field.
+    pub apk_public_hint: &'static str,
+    /// Make an APK key: above the vaults to choose from.
+    pub apk_vault: &'static str,
+    /// Result of Make an APK key.
+    pub apk_key_made: &'static str,
+    /// Row: the certificate's name.
+    pub apk_name: &'static str,
+    /// Row: the certificate's SHA-256, the key's fingerprint.
+    pub apk_certificate_sha_256: &'static str,
+    /// Row: the key's kind.
+    pub apk_key: &'static str,
+    /// Row: the key's kind, as a value.
+    pub apk_rsa_3072: &'static str,
+    /// Row: the day the key was made.
+    pub apk_made: &'static str,
+    /// Button in place of Sign an APK: the backup comes first.
+    pub apk_back_up_first: &'static str,
+    /// Line on the key's page before any write.
+    pub apk_backup_line: &'static str,
+    /// Line on the key's page after the first write.
+    pub apk_backup_line_once: &'static str,
+    /// Toast: the stick for the second copy already holds this vault.
+    pub apk_same_stick: &'static str,
+    /// Toast: the first stick lost the vault, so the backup starts again.
+    pub apk_back_to_first: &'static str,
+    /// Toast: the second stick's file is still being read back.
+    pub apk_reading_stick: &'static str,
+    /// Button: leave the result.
+    pub apk_done: &'static str,
+    /// Button on the key's page, and the page's heading.
+    pub apk_sign_an_apk: &'static str,
+    /// Sign an APK with none copied in. `{}`: the medium with its article.
+    pub apk_copy_in_first: &'static str,
+    /// Sign an APK from Files with several keys for the package.
+    pub apk_which_key: &'static str,
+    /// Button on an APK's row.
+    pub apk_sign: &'static str,
+    /// The review's heading.
+    pub apk_sign_this: &'static str,
+    /// Review row: the name as copied in.
+    pub apk_file: &'static str,
+    /// Review row.
+    pub apk_size: &'static str,
+    /// Review row: the file's SHA-256.
+    pub apk_sha_256: &'static str,
+    /// Review row: the typed SHA-256 of an independent second build.
+    pub apk_second_build: &'static str,
+    /// Review: nothing typed yet.
+    pub apk_enter_second: &'static str,
+    /// Review: fewer than 32 digits typed.
+    pub apk_at_least_32: &'static str,
+    /// Review: what was typed is not the start of the file's SHA-256.
+    pub apk_does_not_match: &'static str,
+    /// Review: what was typed is the start of it.
+    pub apk_matches: &'static str,
+    /// Review row.
+    pub apk_version: &'static str,
+    /// Review row.
+    pub apk_android: &'static str,
+    /// Review: the minimum Android. `{}`: its release.
+    pub apk_and_later: &'static str,
+    /// Review: a release this build has no name for. `{}`: the API level.
+    pub apk_api_level: &'static str,
+    /// Review row: the key that signs.
+    pub apk_key_row: &'static str,
+    /// Review row: the signed file's name.
+    pub apk_will_write: &'static str,
+    /// The review's hold.
+    pub apk_hold_to_sign: &'static str,
+    /// Button: back.
+    pub apk_back: &'static str,
+    /// Files: the button on an APK's row.
+    pub apk_sign_with_key: &'static str,
     // ----- backup (faraday-core/src/backup.rs) -----
     /// Text in `copy_scan_line`. `{}`: `k`.
     pub backup_your_copy_scans_but: &'static str,
@@ -1153,6 +1288,10 @@ pub struct Strings {
     pub catalog_unlock_a_vault: &'static str,
     /// Text in `tile_need`.
     pub catalog_copy_an_oskb: &'static str,
+    /// Tools tile: APK signing key.
+    pub catalog_apk_signing_key: &'static str,
+    /// Tools tile line: APK signing key.
+    pub catalog_make_a_key: &'static str,
     // ----- chart_edit (faraday-core/src/chart_edit.rs) -----
     /// Toast in `chart_notes_change`.
     pub chart_edit_that_does: &'static str,
@@ -8396,6 +8535,73 @@ pub static EN: Strings = Strings {
     starter_remove_entry: "Remove the Faraday boot entry",
     starter_remove_entry_sub: "In this computer's boot list",
     starter_removing_entry: "Removing",
+    apk_signing_keys: "APK signing keys",
+    apk_not_an_apk: "Not an APK",
+    apk_already_signed: "Already signed",
+    apk_not_aligned: "Not aligned",
+    apk_before_7: "Supports Android before 7.0",
+    apk_other_package: "Another app: {}",
+    apk_over_4_gib: "Over 4 GiB on FAT32",
+    apk_name_too_long: "Name too long",
+    apk_no_name: "No name",
+    apk_signs_from_now: "The vault is on two sticks. The key signs now",
+    apk_no_randomness: "No randomness from the system yet. Try again",
+    apk_the_key_is_in: "The APK key is in the vault",
+    apk_that_does_not_fit: "That does not fit in the vault",
+    apk_name_the_certificate: "Name the certificate",
+    apk_package_invalid: "Not a package name",
+    apk_choose_the_vault: "Choose the vault",
+    apk_this_computer: "This computer's clock is not known",
+    apk_no_key_is_selected: "No APK key is selected",
+    apk_sha_256_of: "SHA-256 {}",
+    apk_public_checks: "Public: checks the APKs it signed",
+    apk_certificate: "Certificate",
+    apk_changed_since_review: "The file changed since it was reviewed",
+    apk_kind_apk: "APK",
+    apk_kind_certificate: "APK signing certificate",
+    apk_name_on_certificate: "Name on the certificate",
+    apk_package: "Package",
+    apk_make_a_key: "Make an APK key",
+    apk_key_short: "APK key",
+    apk_make_the_key: "Make the key",
+    apk_making_the_key: "Making the key",
+    apk_public_hint: "Public: printed by anyone who checks the APK",
+    apk_vault: "Vault",
+    apk_key_made: "APK key made",
+    apk_name: "Name",
+    apk_certificate_sha_256: "Certificate SHA-256",
+    apk_key: "Key",
+    apk_rsa_3072: "RSA 3072",
+    apk_made: "Made",
+    apk_back_up_first: "Back up first",
+    apk_backup_line: "Signing waits until the vault is written to two sticks",
+    apk_backup_line_once: "Written to one stick. Signing waits for a second stick",
+    apk_same_stick: "This stick already has this vault",
+    apk_back_to_first: "The first stick no longer has the vault. Back up again",
+    apk_reading_stick: "Reading the stick. Try again",
+    apk_done: "Done",
+    apk_sign_an_apk: "Sign an APK",
+    apk_copy_in_first: "Copy the APK in on {} visit first.",
+    apk_which_key: "Which key?",
+    apk_sign: "Sign",
+    apk_sign_this: "Sign this APK?",
+    apk_file: "File",
+    apk_size: "Size",
+    apk_sha_256: "SHA-256",
+    apk_second_build: "Second build",
+    apk_enter_second: "Enter the second build's SHA-256",
+    apk_at_least_32: "At least 32 hex digits",
+    apk_does_not_match: "Does not match this file",
+    apk_matches: "Matches",
+    apk_version: "Version",
+    apk_android: "Android",
+    apk_and_later: "{} and later",
+    apk_api_level: "API {}",
+    apk_key_row: "Key",
+    apk_will_write: "Will write",
+    apk_hold_to_sign: "Hold to sign",
+    apk_back: "Back",
+    apk_sign_with_key: "Sign with APK key",
     backup_your_copy_scans_but: "Your copy scans but word {} differs",
     backup_your_copy_scans: "Your copy scans and matches the seed",
     backup_share_of: "share {} of {}",
@@ -8619,6 +8825,8 @@ pub static EN: Strings = Strings {
     catalog_make_a_vault: "Make a vault first",
     catalog_unlock_a_vault: "Unlock a vault first",
     catalog_copy_an_oskb: "Copy an .oskb in first",
+    catalog_apk_signing_key: "APK signing key",
+    catalog_make_a_key: "Make a key, sign Android apps",
     chart_edit_that_does: "That does not fit in this vault's slot size",
     chart_edit_a_new_place: "a new place",
     chart_edit_place: "Place {}",

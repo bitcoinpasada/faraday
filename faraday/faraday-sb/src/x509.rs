@@ -105,18 +105,39 @@ pub fn verify(cert: &[u8], data: &[u8], sig: &[u8]) -> bool {
         .is_ok()
 }
 
-/// A new key, drawn from `rng`, with a self-signed certificate: common
-/// name `cn`, serial `serial`, valid from `now` for `years`; `blind`
-/// blinds the signing.
+/// What kind of certificate [`generate`] makes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Profile {
+    /// Secure Boot's: a CA certificate (basic constraints, key usage,
+    /// subject key identifier), valid for this many years.
+    Ca {
+        /// Years from `now`.
+        years: u32,
+    },
+    /// An APK signing key's: an end certificate with the subject key
+    /// identifier alone, valid until 9999-12-31 23:59:59 UTC, RFC 5280
+    /// §4.1.2.5's value for a certificate with no expiry.
+    NoExpiry,
+}
+
+/// The "no expiry" time of RFC 5280 §4.1.2.5, as a GeneralizedTime.
+fn no_expiry() -> Vec<u8> {
+    tlv(tag::GENERALIZED_TIME, b"99991231235959Z")
+}
+
+/// A new key of `key_bits` bits, drawn from `rng`, with a self-signed
+/// certificate: common name `cn`, serial `serial`, valid from `now` as the
+/// `profile` says; `blind` blinds the signing.
 pub fn generate(
     rng: &mut crate::rng::Stream,
     blind: &mut crate::rng::Stream,
+    key_bits: usize,
     cn: &str,
     serial: &[u8; 16],
     now: u64,
-    years: u32,
+    profile: Profile,
 ) -> Result<Pair, Error> {
-    let key = RsaPrivateKey::new(rng, 2048).map_err(|_| Error::Key)?;
+    let key = RsaPrivateKey::new(rng, key_bits).map_err(|_| Error::Key)?;
     let spki = key
         .to_public_key()
         .to_public_key_der()
@@ -133,35 +154,45 @@ pub fn generate(
     serial[0] &= 0x7f;
     let n = name(cn);
     let ski: Vec<u8> = Sha256::digest(&spki)[..20].to_vec();
-    let extensions = seq(&[
-        &seq(&[
-            &oid(&[2, 5, 29, 19]),
-            &tlv(tag::BOOLEAN, &[0xff]),
-            &octets(&seq(&[&tlv(tag::BOOLEAN, &[0xff])])),
+    let ski_ext = seq(&[&oid(&[2, 5, 29, 14]), &octets(&octets(&ski))]);
+    let extensions = match profile {
+        Profile::Ca { .. } => seq(&[
+            &seq(&[
+                &oid(&[2, 5, 29, 19]),
+                &tlv(tag::BOOLEAN, &[0xff]),
+                &octets(&seq(&[&tlv(tag::BOOLEAN, &[0xff])])),
+            ]),
+            &seq(&[
+                &oid(&[2, 5, 29, 15]),
+                &tlv(tag::BOOLEAN, &[0xff]),
+                &octets(&tlv(tag::BIT_STRING, &[0x01, 0x86])),
+            ]),
+            &ski_ext,
         ]),
-        &seq(&[
-            &oid(&[2, 5, 29, 15]),
-            &tlv(tag::BOOLEAN, &[0xff]),
-            &octets(&tlv(tag::BIT_STRING, &[0x01, 0x86])),
-        ]),
-        &seq(&[&oid(&[2, 5, 29, 14]), &octets(&octets(&ski))]),
-    ]);
-    let until = now + u64::from(years) * 31_557_600;
+        Profile::NoExpiry => seq(&[&ski_ext]),
+    };
+    let until = match profile {
+        Profile::Ca { years } => time(now + u64::from(years) * 31_557_600),
+        Profile::NoExpiry => no_expiry(),
+    };
     let tbs = seq(&[
         &explicit(0, &der::int(2)),
         &uint(&serial),
         &alg(SHA256_RSA),
         &n,
-        &seq(&[&time(now), &time(until)]),
+        &seq(&[&time(now), &until]),
         &n,
         &spki,
         &explicit(3, &extensions),
     ]);
     let sig = sign(blind, &der, &tbs)?;
-    Ok(Pair {
-        key: der,
-        cert: seq(&[&tbs, &alg(SHA256_RSA), &bits(&sig)]),
-    })
+    let cert = seq(&[&tbs, &alg(SHA256_RSA), &bits(&sig)]);
+    // The self-signature is checked against the certificate's own key: a
+    // fault in the private-key operation never leaves in a certificate.
+    if !verify(&cert, &tbs, &sig) {
+        return Err(Error::Key);
+    }
+    Ok(Pair { key: der, cert })
 }
 
 /// Where the parts of a certificate are.
@@ -174,6 +205,8 @@ pub struct Cert {
     pub spki: core::ops::Range<usize>,
     /// The subject's common name, when it has one.
     pub cn: Option<String>,
+    /// The start of its validity, as a Unix time.
+    pub not_before: Option<u64>,
 }
 
 impl Cert {
@@ -194,13 +227,55 @@ impl Cert {
         let issuer = whole.get(base + 2)?.1.clone();
         let subject = whole.get(base + 4)?.2.clone();
         let spki = whole.get(base + 5)?.1.clone();
+        let not_before = whole.get(base + 3).and_then(|(_, _, v)| {
+            let (t, value, _) = der::read(cert, v.start)?;
+            unix_of(t, &cert[value])
+        });
         Some(Cert {
             serial,
             issuer,
             spki,
             cn: common_name(&cert[subject]),
+            not_before,
         })
     }
+}
+
+/// A UTCTime or GeneralizedTime as a Unix time.
+fn unix_of(t: u8, v: &[u8]) -> Option<u64> {
+    let (year, rest) = match t {
+        tag::UTC_TIME => {
+            let yy = digits(v.get(0..2)?)?;
+            (if yy < 50 { 2000 + yy } else { 1900 + yy }, v.get(2..)?)
+        }
+        tag::GENERALIZED_TIME => (digits(v.get(0..4)?)?, v.get(4..)?),
+        _ => return None,
+    };
+    let m = digits(rest.get(0..2)?)?;
+    let d = digits(rest.get(2..4)?)?;
+    let (h, mi, s) = (
+        digits(rest.get(4..6)?)?,
+        digits(rest.get(6..8)?)?,
+        digits(rest.get(8..10)?)?,
+    );
+    if !(1..=12).contains(&m) || !(1..=31).contains(&d) || rest.get(10) != Some(&b'Z') {
+        return None;
+    }
+    // Howard Hinnant's days-from-civil.
+    let y = i64::from(year) - i64::from(m <= 2);
+    let era = y.div_euclid(400);
+    let yoe = y.rem_euclid(400);
+    let mp = i64::from(if m > 2 { m - 3 } else { m + 9 });
+    let doy = (153 * mp + 2) / 5 + i64::from(d) - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    u64::try_from(days * 86_400 + i64::from(h * 3600 + mi * 60 + s)).ok()
+}
+
+fn digits(b: &[u8]) -> Option<u32> {
+    b.iter().try_fold(0u32, |n, &c| {
+        c.is_ascii_digit().then(|| n * 10 + u32::from(c - b'0'))
+    })
 }
 
 /// The first common name in a name's value.

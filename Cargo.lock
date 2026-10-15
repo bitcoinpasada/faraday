@@ -701,6 +701,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "faraday-apk"
+version = "0.1.2"
+dependencies = [
+ "faraday-sb",
+ "miniz_oxide 0.8.9",
+ "sha2",
+ "zeroize",
+]
+
+[[package]]
 name = "faraday-argon2-bench"
 version = "0.1.2"
 dependencies = [
@@ -751,6 +761,7 @@ dependencies = [
 name = "faraday-core"
 version = "0.1.2"
 dependencies = [
+ "faraday-apk",
  "faraday-core",
  "faraday-files",
  "faraday-guides",

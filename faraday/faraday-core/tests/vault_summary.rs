@@ -197,6 +197,7 @@ fn a_vaults_currency_reads_never_written_then_current_then_changed() {
     let (inbox, outbox, kept) = saved(&mut app);
     let mut app = shown(inbox, outbox, kept);
     app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
+        serial: None,
         id: "S".into(),
         label: "VAULTSTICK".into(),
         boot: false,
@@ -251,6 +252,7 @@ fn a_vault_copied_in_reads_current_on_its_stick_or_unchanged() {
     let vault = testkit::test_vault().unwrap();
     let mut app = shown(Vec::new(), Vec::new(), Vec::new());
     app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
+        serial: None,
         id: "S".into(),
         label: "VAULTSTICK".into(),
         boot: false,

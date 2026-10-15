@@ -37,6 +37,7 @@ fn with_stick_at(n: usize, (width, height, dpi): (u16, u16, u16)) -> Faraday {
     files.push(("photo.png".into(), 9000));
     files.push(("notes.docx".into(), 9000));
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: "S".into(),
         label: "TESTSTICK".into(),
         boot: false,
@@ -86,6 +87,7 @@ fn a_fresh_visit_has_the_psbts_and_descriptors_ticked_and_the_words_file_not() {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: "S".into(),
         label: "TESTSTICK".into(),
         boot: false,
@@ -154,6 +156,7 @@ fn with_outbox(mut app: Faraday, n: usize, secret: bool) -> Faraday {
             kind: FileKind::Pdf,
             secret: false,
             picture: None,
+            sha: None,
         });
     }
     if secret {
@@ -163,6 +166,7 @@ fn with_outbox(mut app: Faraday, n: usize, secret: bool) -> Faraday {
             kind: FileKind::Text,
             secret: true,
             picture: None,
+            sha: None,
         });
     }
     app.press(Action::Nav(Screen::Visit));
@@ -352,6 +356,7 @@ fn process(boxes: (Files, Files, Files), stick: Option<&str>) -> Faraday {
     });
     if let Some(label) = stick {
         app.storage(StorageEvent::Sticks(vec![StickInfo {
+            serial: None,
             id: "S".into(),
             label: label.into(),
             boot: false,
@@ -702,9 +707,11 @@ fn writing_over(on_stick: &[(&str, u64)], outbox: Vec<(&str, Vec<u8>)>) -> Farad
             kind: FileKind::Pdf,
             secret: false,
             picture: None,
+            sha: None,
         });
     }
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: "S".into(),
         label: "TESTSTICK".into(),
         boot: false,
@@ -824,14 +831,14 @@ fn the_same_vault_is_replaced_and_another_vault_never_is() {
     ] {
         assert!(texts.iter().any(|t| t == row), "{row}: {texts:?}");
     }
-    // Replace goes over the file only; the vaults are left to the
-    // vault write-back, which goes over the same vault and never another.
+    // A vault sealed here is allowed over the same vault; the vault
+    // write-back goes over that one and never another.
     app.press(Action::VisitReplace);
     assert_eq!(
         writes(&mut app),
         [
-            ("vault.ofv".to_string(), false),
-            ("old.ofv".to_string(), false),
+            ("vault.ofv".to_string(), true),
+            ("old.ofv".to_string(), true),
             ("backup-00.pdf".to_string(), true)
         ]
     );
@@ -840,5 +847,5 @@ fn the_same_vault_is_replaced_and_another_vault_never_is() {
     let mut app = writing_over(&[("vault.ofv", len)], vec![("vault.ofv", vault)]);
     asked(&mut app);
     app.press(Action::VisitWrite);
-    assert_eq!(writes(&mut app), [("vault.ofv".to_string(), false)]);
+    assert_eq!(writes(&mut app), [("vault.ofv".to_string(), true)]);
 }

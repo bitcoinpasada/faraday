@@ -77,6 +77,7 @@ fn copied_in() -> Faraday {
     app.vaults.ms_per_unit = Some(180);
     let files = release_files();
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: "S".into(),
         label: "FARADAY".into(),
         boot: false,
@@ -284,6 +285,7 @@ fn a_signed_file_is_marked_and_an_asc_in_the_inbox_is_not_listed() {
         kind: faraday_core::wallet::FileKind::Other,
         secret: false,
         picture: None,
+        sha: None,
     });
     assert!(
         signable(&app).iter().all(|x| x != &format!("{name}.asc")),

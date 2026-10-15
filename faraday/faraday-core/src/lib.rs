@@ -48,6 +48,7 @@ pub mod plan;
 pub mod restore;
 /// Text a person types that may be a secret (`faraday_intake`'s).
 pub use faraday_intake::secret_buf as secret_text;
+pub mod apk;
 pub mod secrets;
 pub mod secure_boot_state;
 pub mod secureboot;
@@ -215,6 +216,10 @@ pub struct StickInfo {
     pub label: String,
     /// Whether it is the medium the machine booted from.
     pub boot: bool,
+    /// Its FAT volume serial number, when the shell can read one: what
+    /// tells two sticks of the same label apart (`docs/APK-SIGNING.md`
+    /// §3).
+    pub serial: Option<u32>,
     /// The files at its top level, with their sizes.
     pub files: Vec<(String, u64)>,
 }
@@ -1469,6 +1474,9 @@ pub struct Item {
     /// the disk process decoded ([`FileKind::Other`] when none read). Its
     /// bytes are the picture's, kept to be written out as they came.
     pub picture: Option<FileKind>,
+    /// SHA-256 of an APK's bytes, taken once when the file came in; `None`
+    /// for any other file.
+    pub sha: Option<[u8; 32]>,
 }
 
 /// An Inbox or Outbox file may be a seed or a share written in the clear:
@@ -1482,12 +1490,14 @@ impl Drop for Item {
 impl Item {
     fn new(name: &str, bytes: Vec<u8>) -> Item {
         let kind = wallet::classify(name, &bytes);
+        let sha = (kind == FileKind::Apk).then(|| sha256_of(&bytes));
         Item {
             name: name.to_string(),
             bytes,
             kind,
             secret: false,
             picture: None,
+            sha,
         }
     }
 
@@ -1773,6 +1783,8 @@ pub enum Code {
     GpgRevocation,
     /// A detached signature by the selected GPG key over Inbox file n.
     GpgSignature(usize),
+    /// The selected APK signing key's certificate, as PEM.
+    ApkCertificate,
 }
 
 /// How a QR view is written: UR, BBQr or numbered parts.
@@ -2593,9 +2605,10 @@ pub struct VisitState {
     pub taken: Vec<visit_taken::Taken>,
 }
 
-/// A write under way: the stick's label, each file sent with its
+/// A write under way: the stick's label, the stick's identity (its FAT
+/// volume serial, else where the shell found it), each file sent with its
 /// SHA-256, and whether an answer has started its receipt.
-pub type Writing = (String, Vec<(String, [u8; 32])>, bool);
+pub type Writing = (String, String, Vec<(String, [u8; 32])>, bool);
 
 /// What the last stick visit wrote (`docs/SIMPLIFY.md` §4.3): kept on
 /// [`Faraday`], across a lock in the kept state, gone at power-off, and
@@ -2604,6 +2617,9 @@ pub type Writing = (String, Vec<(String, [u8; 32])>, bool);
 pub struct Receipt {
     /// The stick's label.
     pub label: String,
+    /// The stick's identity: its FAT volume serial in hex, else the place
+    /// the shell found it (`docs/VAULT.md` §6, `docs/APK-SIGNING.md` §3).
+    pub stick: String,
     /// When the write was answered, Unix seconds, when the clock is known.
     pub time: Option<u64>,
     /// One row per file sent.
@@ -2647,6 +2663,11 @@ impl Receipt {
             .any(|f| f.verified && f.name == name && f.hash == hash)
     }
 
+    /// Whether a file with these bytes was written and matched.
+    pub fn holds_hash(&self, hash: &[u8; 32]) -> bool {
+        self.files.iter().any(|f| f.verified && f.hash == *hash)
+    }
+
     /// Whether `name` was written and matched.
     pub fn wrote(&self, name: &str) -> bool {
         self.files.iter().any(|f| f.verified && f.name == name)
@@ -2657,9 +2678,10 @@ impl Receipt {
     pub(crate) fn encode(&self) -> Vec<u8> {
         let field = |s: &str| s.replace(['\t', '\n', '\r'], " ");
         let mut out = format!(
-            "receipt\t{}\t{}\n",
+            "receipt\t{}\t{}\t{}\n",
             field(&self.label),
-            self.time.map(|t| t.to_string()).unwrap_or_default()
+            self.time.map(|t| t.to_string()).unwrap_or_default(),
+            field(&self.stick)
         );
         for f in &self.files {
             let hash: String = f.hash.iter().map(|b| format!("{b:02x}")).collect();
@@ -2680,9 +2702,10 @@ impl Receipt {
         for line in text.lines() {
             let f: Vec<&str> = line.split('\t').collect();
             match f[..] {
-                ["receipt", label, time] => {
+                ["receipt", label, time] | ["receipt", label, time, _] => {
                     out = Some(Receipt {
                         label: label.to_string(),
+                        stick: f.get(3).map(|s| s.to_string()).unwrap_or_default(),
                         time: time.parse().ok(),
                         files: Vec::new(),
                     });
@@ -3355,6 +3378,12 @@ impl Faraday {
                 self.sticks_changed(sticks);
                 self.zero_sticks_changed();
             }
+            StorageEvent::Read { stick, name, bytes } if self.apk_probing(&stick, &name) => {
+                self.apk_probe_answer(Some(&bytes));
+            }
+            StorageEvent::ReadFailed { stick, name, .. } if self.apk_probing(&stick, &name) => {
+                self.apk_probe_answer(None);
+            }
             StorageEvent::Read { stick, name, bytes } => {
                 // A file Faraday reads as nothing else still comes in, as
                 // a File: to sign, or to send as codes.
@@ -3800,6 +3829,10 @@ impl Faraday {
                 }
             }
             if had {
+                // A visit a key's backup button started ends with its stick.
+                self.vaults.apk.visit_for = None;
+                self.vaults.apk.probe = None;
+                self.vaults.apk.same_on = None;
                 let loaded = self.load_after_pull();
                 let said = if loaded == 0 {
                     fill(EN.sticks_changed_removed_2, &[self.medium.cap()])
@@ -3876,6 +3909,9 @@ impl Faraday {
         } else {
             self.visit.out = self.visit_default_out();
             self.visit.inn = self.visit_default_in();
+            let ticks = self.apk_inbox_ticks();
+            self.visit.from_inbox.extend(ticks);
+            self.apk_probe_start();
             if self.sheet == Some(Sheet::Import) {
                 self.sheet = None;
             }
@@ -4064,23 +4100,30 @@ impl Faraday {
     /// replaces the last receipt with a new one (`docs/SIMPLIFY.md` §4.3).
     fn receipt_add(&mut self, name: &str, failure: Option<String>) {
         let now = self.clock_now();
-        let Some((label, sent, started)) = self.visit.writing.as_mut() else {
+        let Some((label, stick, sent, started)) = self.visit.writing.as_mut() else {
             return;
         };
         let Some(k) = sent.iter().position(|(n, _)| n == name) else {
             return;
         };
         let (name, hash) = sent.remove(k);
+        let stick = stick.clone();
         if !*started {
             *started = true;
             self.receipt = Some(Receipt {
                 label: label.clone(),
+                stick: stick.clone(),
                 time: now,
                 files: Vec::new(),
             });
         }
         if sent.is_empty() {
             self.visit.writing = None;
+        }
+        // A sealing of a vault that holds a key waiting for its copies,
+        // written and read back, counts that stick.
+        if failure.is_none() {
+            self.apk_written(&name, &hash);
         }
         if let Some(r) = self.receipt.as_mut() {
             r.files.push(ReceiptFile {
@@ -4646,6 +4689,8 @@ impl Faraday {
                     self.visit.out = self.visit_default_out();
                     self.visit.inn = self.visit_default_in();
                     self.visit.from_inbox.clear();
+                    let ticks = self.apk_inbox_ticks();
+                    self.visit.from_inbox.extend(ticks);
                     self.visit.out_offset = 0.0;
                 }
             }
@@ -8880,6 +8925,7 @@ impl Faraday {
                 Ok(QrView::text(EN.code_view_signed_message, &text)?.public(&name, lines))
             }
             Code::GpgKey | Code::GpgRevocation | Code::GpgSignature(_) => self.gpg_code(code),
+            Code::ApkCertificate => self.apk_code(),
         }
     }
 
@@ -9300,6 +9346,16 @@ impl Faraday {
     /// Whether the stick on show holds the Inbox file `item`, by name and
     /// size.
     fn visit_stick_holds(&self, item: &Item) -> bool {
+        // On the visit for a key's second copy, a vault of the same name
+        // and size is held only if it is byte for byte the first write
+        // (read back and compared): an older copy is there to be updated.
+        if item.kind == FileKind::Vault
+            && self.vaults.apk.visit_for == Some(2)
+            && self.sticks.get(self.visit.stick).map(|s| s.id.as_str())
+                != self.vaults.apk.same_on.as_deref()
+        {
+            return false;
+        }
         self.sticks.get(self.visit.stick).is_some_and(|s| {
             s.files
                 .iter()

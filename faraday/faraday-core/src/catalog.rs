@@ -314,6 +314,13 @@ pub const TILES: &[Tile] = &[
     },
     Tile {
         group: EN.catalog_vaults_and,
+        name: EN.catalog_apk_signing_key,
+        line: EN.catalog_make_a_key,
+        tags: &["Android", "APK v2 · v3"],
+        go: Go::VaultCategory(6),
+    },
+    Tile {
+        group: EN.catalog_vaults_and,
         name: EN.catalog_keepass_export,
         line: EN.catalog_a_vault_entry,
         tags: &["KDBX 4"],

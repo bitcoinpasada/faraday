@@ -14,6 +14,7 @@ fn words() -> String {
 
 fn attach(app: &mut Faraday) {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: STICK.to_string(),
         label: "TESTSTICK".to_string(),
         boot: false,
@@ -92,6 +93,7 @@ fn a_words_file_with_a_note_line_is_copied_and_loads_on_pulling_the_stick() {
     assert!(String::from_utf8_lossy(&bytes).starts_with('#'));
     let mut app = faraday_core::testkit::started();
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: STICK.to_string(),
         label: "TESTSTICK".to_string(),
         boot: false,

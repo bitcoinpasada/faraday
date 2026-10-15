@@ -77,13 +77,14 @@ pub const CUSTOM_PASSES: [u32; 7] = [2, 3, 4, 5, 6, 8, 10];
 
 /// The kinds a vault's contents are listed by, with the record types each
 /// shows.
-pub const CATEGORIES: [(&str, &[u8]); 6] = [
+pub const CATEGORIES: [(&str, &[u8]); 7] = [
     (EN.vaults_bitcoin_keys, &[kind::KEY]),
     (EN.vaults_wallets, &[kind::WALLET]),
     (EN.vaults_entries, &[kind::ENTRY]),
     (EN.vaults_notes, &[kind::NOTE, kind::SHEET]),
     (EN.vaults_gpg_keys, &[kind::GPG]),
     (EN.vaults_secure_boot, &[kind::SECURE_BOOT]),
+    (EN.apk_signing_keys, &[kind::APK_KEY]),
 ];
 
 /// The labels a new vault's slots start with, in passphrase order.
@@ -220,6 +221,31 @@ pub enum VaultAction {
     Unlock,
     /// Show an open vault's contents.
     Show(usize),
+    /// The Make an APK key form: the vault the key goes to, by place
+    /// among the open ones.
+    ApkVault(usize),
+    /// The selected APK signing key's certificate to the Outbox.
+    ApkExport,
+    /// Open Sign an APK on the selected key.
+    ApkSignOpen,
+    /// Look at Inbox APK n before signing it with the selected key.
+    ApkPick(usize),
+    /// Held to sign the APK looked at.
+    ApkHoldSign,
+    /// Type the second build's SHA-256.
+    ApkSecond,
+    /// Back from the review to the list of APKs, or from the list to the
+    /// key's page.
+    ApkBack,
+    /// Seal the vault and go to the stick visit with it ticked: the
+    /// copies a new key waits for.
+    ApkWrite,
+    /// Done with the made key's result: its page.
+    ApkDone,
+    /// Sign Inbox APK n with a key of an open vault, from Files.
+    ApkFromFiles(usize),
+    /// Choose the key, by vault and place, to sign the APK Files offered.
+    ApkKeyPick(usize, usize),
     /// A kind in the contents.
     Category(usize),
     /// An item of the kind.
@@ -327,7 +353,7 @@ pub enum VaultAction {
 pub fn is_hold(a: Action) -> bool {
     matches!(
         a,
-        Action::Vault(VaultAction::HoldDelete | VaultAction::SbHoldSign)
+        Action::Vault(VaultAction::HoldDelete | VaultAction::SbHoldSign | VaultAction::ApkHoldSign)
     )
 }
 
@@ -364,7 +390,7 @@ impl TextBox {
     pub(crate) fn clear(&mut self) {
         self.text.clear();
     }
-    fn set(&mut self, s: &str) {
+    pub(crate) fn set(&mut self, s: &str) {
         self.text.set(s);
     }
 }
@@ -384,6 +410,8 @@ pub enum Focus {
     Prompt,
     /// Create's name for the vault.
     Name,
+    /// Sign an APK's field for the second build's SHA-256.
+    Second,
 }
 
 /// One vault file the Inbox or Outbox holds.
@@ -573,6 +601,8 @@ pub enum Work {
     Backup,
     /// Make Secure Boot keys.
     SecureBoot,
+    /// Make the APK signing key the form described.
+    ApkKey,
     /// Write the KeePass export the prompt is for.
     Kdbx,
 }
@@ -599,7 +629,7 @@ pub struct Vaults {
     /// holds nothing.
     pub category_chosen: bool,
     /// The item shown in each kind.
-    pub item: [usize; 6],
+    pub item: [usize; 7],
     /// On a small panel, the chosen item is the page, not the list.
     pub item_open: bool,
     /// Adding or editing an item.
@@ -657,6 +687,9 @@ pub struct Vaults {
     pub sign_ticked: Vec<String>,
     /// What is typed into passphrase fields is shown in the clear.
     pub typed_shown: bool,
+    /// APK signing keys: the form, the result, Sign an APK, and the keys
+    /// that wait for their copies.
+    pub apk: crate::apk::ApkState,
     /// The owner name Secure Boot keys are being made under.
     pub sb_owner: String,
     /// Enrolment adds the owner's keys alone, not Microsoft's.
@@ -1471,6 +1504,7 @@ impl Faraday {
             V::Show(i) => {
                 if i < self.vaults.open.len() {
                     self.vaults.current = i;
+                    self.vaults.apk.leave();
                     self.vaults.form = None;
                     self.vaults.saving = false;
                     self.vaults.item_open = false;
@@ -1478,6 +1512,7 @@ impl Faraday {
                 }
             }
             V::Category(k) => {
+                self.vaults.apk.leave();
                 self.vaults.category = k.min(CATEGORIES.len() - 1);
                 self.vault_item_offset = 0.0;
                 self.vaults.category_chosen = true;
@@ -1486,6 +1521,7 @@ impl Faraday {
                 self.vaults.item_open = false;
             }
             V::Item(k) => {
+                self.vaults.apk.leave();
                 self.vaults.item[self.vaults.category] = k;
                 self.vault_item_offset = 0.0;
                 self.vaults.form = None;
@@ -1500,6 +1536,7 @@ impl Faraday {
                 self.vaults.signing = false;
                 self.vaults.sb_images = false;
                 self.vaults.sb_sign = None;
+                self.vaults.apk.leave();
                 self.vaults.focus = None;
             }
             V::Reveal(_) => {}
@@ -1533,6 +1570,7 @@ impl Faraday {
                 }
                 self.vaults.sb_images = false;
                 self.vaults.sb_sign = None;
+                self.vaults.apk.leave();
                 if kinds.contains(&kind::KEY) || kinds.contains(&kind::WALLET) {
                     self.vaults.saving = !self.vaults.saving;
                     self.vaults.form = None;
@@ -1726,6 +1764,65 @@ impl Faraday {
                 }
             }
             V::SbCheck(k) => self.sb_check(k),
+            V::ApkVault(i) => {
+                if i < self.vaults.open.len() {
+                    self.vaults.apk.vault_pick = Some(i);
+                }
+            }
+            V::ApkExport => self.apk_export(),
+            V::ApkSignOpen => {
+                if let Some((_, r)) = self.apk_selected()
+                    && let Some(fp) = crate::apk::fingerprint_of(&r)
+                    && self.apk_waiting(&fp).is_none()
+                {
+                    self.vaults.apk.signing = true;
+                    self.vaults.apk.review = None;
+                    self.vaults.apk.which = None;
+                }
+            }
+            V::ApkPick(k) => {
+                if let Some((_, r)) = self.apk_selected()
+                    && let Some(fp) = crate::apk::fingerprint_of(&r)
+                    && self.apk_waiting(&fp).is_none()
+                    && let Some(name) = self.inbox.get(k).map(|i| i.name.clone())
+                {
+                    self.apk_open_review(&name, fp);
+                }
+            }
+            V::ApkHoldSign => self.apk_sign(),
+            V::ApkSecond => self.vaults.focus = Some(Focus::Second),
+            V::ApkBack => {
+                if self.vaults.apk.review.is_some() {
+                    self.vaults.apk.review = None;
+                    self.vaults.apk.second.clear();
+                    self.vaults.focus = None;
+                } else {
+                    self.vaults.apk.leave();
+                }
+            }
+            V::ApkWrite => {
+                // A stick is handed out to a clean process only, so the
+                // vault is locked: sealed For the stick, with the key's
+                // page to come back to once it is unlocked again.
+                // For now this is the stick visit with the vault ticked;
+                // the shared backup flow replaces it.
+                let fp = self
+                    .apk_selected()
+                    .and_then(|(_, r)| crate::apk::fingerprint_of(&r));
+                self.vaults.apk.back = fp;
+                let first = fp.is_some_and(|fp| {
+                    self.vaults
+                        .apk
+                        .waits
+                        .iter()
+                        .any(|w| w.fp == fp && w.first.is_some())
+                });
+                self.vaults.apk.visit_for = Some(if first { 2 } else { 1 });
+                self.act(Action::Lock);
+            }
+            V::ApkDone => self.vaults.apk.made = None,
+            V::ApkFromFiles(k) => self.apk_from_files(k),
+            V::ApkKeyPick(v, at) => self.apk_key_picked(v, at),
         }
     }
 
@@ -1990,6 +2087,7 @@ impl Faraday {
                 Work::Unlock => self.vault_unlock(),
                 Work::Backup => self.vault_open_backup(),
                 Work::SecureBoot => self.sb_make(),
+                Work::ApkKey => self.apk_make_work(),
                 Work::Kdbx => self.vault_kdbx(),
                 Work::Create => self.vault_create(),
             }
@@ -2036,6 +2134,15 @@ impl Faraday {
     }
 
     fn vault_unlock(&mut self) {
+        let before = self.vaults.open.len();
+        self.vault_unlock_inner();
+        // Locked to write a key's vault to a stick: back on the key's page.
+        if self.vaults.open.len() > before {
+            self.apk_return();
+        }
+    }
+
+    fn vault_unlock_inner(&mut self) {
         let files = self.vault_files();
         let Some(f) = files.get(self.vaults.pick) else {
             return;
@@ -2085,7 +2192,7 @@ impl Faraday {
                 } else {
                     self.vaults.category_chosen = true;
                 }
-                self.vaults.item = [0; 6];
+                self.vaults.item = [0; 7];
                 // Keys not marked to load start unchosen; every wallet
                 // starts chosen. Nothing loads until the person says.
                 let v = self.vaults.current;
@@ -2641,6 +2748,12 @@ impl Faraday {
             ],
             kind::NOTE => &[(field::NOTE, EN.vaults_text, false)],
             kind::GPG => &[(1, EN.vaults_name, false), (2, EN.vaults_email, false)],
+            kind::APK_KEY => {
+                return self.vault_form_apk(
+                    faraday_apk::key::DEFAULT_NAME,
+                    faraday_apk::key::DEFAULT_PACKAGE,
+                );
+            }
             kind::SECURE_BOOT => &[(1, EN.vaults_owner_name, false)],
             _ => return,
         };
@@ -2668,8 +2781,14 @@ impl Faraday {
             return;
         };
         self.vaults.focus = None;
-        if (form.kind == kind::SECURE_BOOT || form.kind == kind::GPG) && self.time_asked() {
+        if (form.kind == kind::SECURE_BOOT || form.kind == kind::GPG || form.kind == kind::APK_KEY)
+            && self.time_asked()
+        {
             self.vaults.form = Some(form);
+            return;
+        }
+        if form.kind == kind::APK_KEY {
+            self.vault_form_apk_save(form);
             return;
         }
         if form.kind == kind::SECURE_BOOT {
@@ -3126,7 +3245,10 @@ impl Faraday {
         nonce.copy_from_slice(&draw[..fv::NONCE_LEN]);
         let v = &self.vaults.open[i];
         let bytes = v.opened.seal(&v.file, &v.contents, &nonce).ok()?;
-        Some((v.name.clone(), bytes))
+        let name = v.name.clone();
+        // The keys waiting for their copies that this sealing holds.
+        self.apk_sealed(i, &bytes);
+        Some((name, bytes))
     }
 
     /// Locks open vault `i` alone: sealed into the Outbox when changed,
@@ -3220,7 +3342,7 @@ impl Faraday {
         }
         if key == K::Enter || key == K::Tab {
             match focus {
-                Focus::Dice | Focus::Prompt => {}
+                Focus::Dice | Focus::Prompt | Focus::Second => {}
                 Focus::Passphrase => {
                     if key == K::Enter && import {
                         self.import_act(crate::boot_import::ImportAction::Submit);
@@ -3303,6 +3425,7 @@ impl Faraday {
             Focus::Dice => self.vaults.dice.as_mut().map(|d| &mut d.1),
             Focus::Prompt => self.vaults.prompt.as_mut().map(|p| &mut p.text),
             Focus::Name => self.vaults.create.as_mut().map(|c| &mut c.name),
+            Focus::Second => Some(&mut self.vaults.apk.second),
         }
     }
 }

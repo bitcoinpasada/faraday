@@ -11,7 +11,9 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use faraday_fat::{Disk, Error, FAT_PIECE, Kind, MAX_ROOT_BYTES, Volume, boot_sector_label};
+use faraday_fat::{
+    Disk, Error, FAT_PIECE, Kind, MAX_ROOT_BYTES, Volume, boot_sector_label, boot_sector_serial,
+};
 
 fn tool(name: &str) -> PathBuf {
     if let Some(dir) = std::env::var_os("FARADAY_FATTOOLS") {
@@ -350,6 +352,34 @@ fn the_boot_partitions_label_is_read_from_its_first_sector() {
         let img = mkfs(&dir, &args, kib);
         let bytes = std::fs::read(&img).unwrap();
         assert_eq!(boot_sector_label(&bytes[..512]), Some(*b"OSKBOOT    "));
+    }
+}
+
+/// The volume serial number that tells two sticks apart
+/// (`docs/APK-SIGNING.md` §3) is the one `mkfs.fat -i` wrote, on FAT16
+/// and FAT32, and a volume copied sector for sector has the same.
+#[test]
+fn the_volume_serial_is_read_from_the_boot_sector() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("serial");
+    for (fat, kib) in [("32", 48 * 1024), ("16", 32 * 1024)] {
+        let img = mkfs(&dir, &["-F", fat, "-i", "1a2b3c4d", "-n", "STICK"], kib);
+        let bytes = std::fs::read(&img).unwrap();
+        assert_eq!(
+            boot_sector_serial(&bytes[..512]),
+            Some(0x1a2b_3c4d),
+            "FAT{fat}"
+        );
+        assert_eq!(Volume::open(bytes).unwrap().serial(), Some(0x1a2b_3c4d));
+        let other = mkfs(&dir, &["-F", fat, "-i", "5e6f7a8b", "-n", "STICK"], kib);
+        let bytes = std::fs::read(&other).unwrap();
+        assert_eq!(
+            boot_sector_serial(&bytes[..512]),
+            Some(0x5e6f_7a8b),
+            "FAT{fat}"
+        );
     }
 }
 

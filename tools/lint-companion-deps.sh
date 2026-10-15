@@ -34,6 +34,7 @@ opensigner-core
 faraday-vault
 faraday-pgp
 faraday-sb
+faraday-apk
 osk-keep
 osk-backup
 osk-psbt

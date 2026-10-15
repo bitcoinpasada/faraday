@@ -45,6 +45,7 @@ fn booted() -> (Faraday, Vec<u8>) {
     });
     app.vaults.ms_per_unit = Some(100);
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: "boot".into(),
         label: "FARADAY".into(),
         boot: true,

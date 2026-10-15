@@ -75,6 +75,7 @@ fn stick_files() -> Vec<(String, Vec<u8>)> {
 
 fn boot_stick(files: &[(String, Vec<u8>)]) -> StickInfo {
     StickInfo {
+        serial: None,
         id: BOOT.into(),
         label: "FARADAY".into(),
         boot: true,
@@ -635,6 +636,7 @@ fn a_lock_drops_the_import_and_the_next_process_visits_the_stick() {
 fn a_picture_on_a_visit_comes_in_ticked_and_has_its_codes_read_into_the_inbox() {
     let mut app = testkit::started();
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
         id: "S".into(),
         label: "TESTSTICK".into(),
         boot: false,

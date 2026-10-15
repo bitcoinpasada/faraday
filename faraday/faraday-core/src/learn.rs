@@ -8,8 +8,8 @@ use osk_learn::{EN, Page as LearnPage};
 
 use faraday_learn::known;
 pub use faraday_learn::{
-    GUIDES, MAKERS, Maker, demo_page, guide_address, guide_id, maker, page, shares_page, time_page,
-    upgrade_page,
+    GUIDES, MAKERS, Maker, apk_key_page, demo_page, guide_address, guide_id, maker, page,
+    shares_page, time_page, upgrade_page,
 };
 
 use crate::create::NewKind;
@@ -127,6 +127,11 @@ impl Faraday {
             Screen::Restore => vec![&EN.backups, &EN.inheritance],
             Screen::Message | Screen::CheckMessage => vec![&EN.message],
             Screen::Files | Screen::Visit => vec![&EN.air_gap, &EN.coordinators],
+            // An APK signing key's page, and the form that makes one, name
+            // the page about it (`docs/APK-SIGNING.md` §10).
+            Screen::VaultContents if self.vaults.category == 6 => {
+                vec![apk_key_page(), &EN.encrypted_backups, &EN.passphrases]
+            }
             Screen::Vaults | Screen::CreateVault | Screen::Unlock | Screen::VaultContents => {
                 vec![&EN.encrypted_backups, &EN.passphrases]
             }

@@ -21,6 +21,7 @@ pub fn stick_info(dir: &Path, label: &str, boot: bool) -> StickInfo {
         id: dir.display().to_string(),
         label: label.to_string(),
         boot,
+        serial: None,
         files: faraday_files::listing(&mut Dir(dir.to_path_buf())),
     }
 }
@@ -899,6 +900,7 @@ impl DiskProcess {
                     label: s.label,
                     id: s.id,
                     boot: s.boot,
+                    serial: s.serial,
                     files: s.files,
                 })
                 .collect()),

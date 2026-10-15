@@ -203,6 +203,7 @@ impl Disks {
                     .filter(|n| !n.is_empty())
                     .unwrap_or_else(|| f.id.split('@').next().unwrap_or("").to_string()),
                 boot: f.boot,
+                serial: None,
                 files: Vec::new(),
             });
         }
@@ -214,11 +215,13 @@ impl Disks {
             .label()
             .or_else(|| f.partname.clone())
             .unwrap_or_else(|| f.id.split('@').next().unwrap_or("").to_string());
+        let serial = v.serial();
         let files = faraday_files::listing(&mut Fat(v));
         let s = Stick {
             id: f.id.clone(),
             label,
             boot: f.boot,
+            serial,
             files,
         };
         self.seen.insert(f.id.clone(), s.clone());

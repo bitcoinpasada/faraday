@@ -28,7 +28,7 @@ fn each_passphrase_opens_its_slot_of_the_vectors() {
     let three = committed(vectors::THREE.0);
     for (p, label) in vectors::THREE.1.iter().zip(vectors::LABELS) {
         let (_, c) = faraday_vault::open(&three, p.as_bytes()).expect("opens");
-        assert_eq!(c.records.len(), 10);
+        assert_eq!(c.records.len(), 11);
         assert_eq!(c.records[0].text(field::LABEL), Some(label));
     }
     let one = committed(vectors::ONE.0);

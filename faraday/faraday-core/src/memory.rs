@@ -242,6 +242,21 @@ impl Faraday {
         if let Some(r) = &self.receipt {
             out.push(("receipt".to_string(), r.encode()));
         }
+        // The keys made this session that wait for two copies, and the
+        // copies so far (`docs/APK-SIGNING.md` §3): kept across a lock,
+        // gone at power-off.
+        if !self.vaults.apk.waits.is_empty() {
+            out.push((
+                "apk-waits".to_string(),
+                crate::apk::waits_encode(&self.vaults.apk.waits),
+            ));
+        }
+        if let Some(n) = self.vaults.apk.visit_for {
+            out.push(("apk-visit".to_string(), vec![n]));
+        }
+        if let Some(fp) = &self.vaults.apk.back {
+            out.push(("apk-back".to_string(), faraday_apk::hex(fp).into_bytes()));
+        }
         // Which stick each vault file came from, for its currency (§3.5).
         if !self.vault_from.is_empty() {
             let lines: Vec<String> = self
@@ -315,6 +330,11 @@ impl Faraday {
                     }
                 }
                 "receipt" => self.receipt = crate::Receipt::decode(bytes),
+                "apk-waits" => self.vaults.apk.waits = crate::apk::waits_decode(bytes),
+                "apk-visit" => self.vaults.apk.visit_for = bytes.first().copied(),
+                "apk-back" => {
+                    self.vaults.apk.back = crate::apk::hex_array(&String::from_utf8_lossy(bytes));
+                }
                 "backups" => self.backup_records = crate::backups::decode(bytes),
                 "vault-from" => {
                     for line in String::from_utf8_lossy(bytes).lines() {

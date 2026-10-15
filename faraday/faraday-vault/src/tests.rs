@@ -192,6 +192,10 @@ fn records_of_every_type_read_back() {
                 .with(1, &[6; 32])
                 .with(2, &[0; 8])
                 .with(2, &[1; 8]),
+            Record::new(kind::APK_KEY)
+                .with(field::APK_KEY, &[7; 20])
+                .with(field::APK_CERT, &[8; 10])
+                .with(field::APK_PACKAGE, b"app.example.signer"),
         ],
     };
     let plain = c.encode(SMALL).unwrap();
@@ -219,6 +223,21 @@ fn records_of_every_type_read_back() {
     assert_eq!(
         Contents::decode(&unknown).err(),
         Some(Fault::UnknownType(42))
+    );
+    assert_eq!(
+        back.records[10].text(field::APK_PACKAGE),
+        Some("app.example.signer")
+    );
+    let no_package = Contents {
+        records: vec![
+            Record::new(kind::APK_KEY)
+                .with(field::APK_KEY, &[1])
+                .with(field::APK_CERT, &[2]),
+        ],
+    };
+    assert_eq!(
+        no_package.encode(SMALL).err(),
+        Some(Error::Contents(Fault::Missing(kind::APK_KEY, 3)))
     );
     let no_title = Contents {
         records: vec![Record::new(kind::ENTRY).with(field::USERNAME, b"me")],
