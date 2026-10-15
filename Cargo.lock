@@ -939,6 +939,7 @@ dependencies = [
  "faraday-qr",
  "faraday-ui",
  "opensigner-core",
+ "osk-bip",
  "osk-codec",
  "osk-learn",
  "osk-shell-api",

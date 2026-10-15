@@ -265,6 +265,24 @@ impl Shell {
                     let _ = tx.send(StarterEvent::BootEntry(system.boot_entry()));
                 });
             }
+            StarterCommand::SaveTemplate { name, pdf } => {
+                let saved = faraday_storage::save_download(&self.host.downloads, &name, &pdf)
+                    .map(|p| p.display().to_string())
+                    .map_err(|detail| Reason::File {
+                        path: self.host.downloads.display().to_string(),
+                        detail,
+                    });
+                let _ = self.tx.send(StarterEvent::TemplateSaved(saved));
+            }
+            StarterCommand::PrintTemplate { name, pdf } => {
+                let opened = faraday_starter_shell::pdf::write_temp(&name, &pdf)
+                    .and_then(|path| faraday_starter_shell::pdf::open(&path));
+                let _ = self.tx.send(StarterEvent::TemplateOpened(opened));
+            }
+            StarterCommand::OpenTemplate { path } => {
+                let opened = faraday_starter_shell::pdf::open(std::path::Path::new(&path));
+                let _ = self.tx.send(StarterEvent::TemplateOpened(opened));
+            }
             StarterCommand::SaveKey { disk, key } => {
                 let (system, tx, _) = self.threaded();
                 std::thread::spawn(move || {

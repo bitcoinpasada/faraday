@@ -409,6 +409,16 @@ fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
     if words != 12 && words != 24 {
         return Err(EN.pdf_the_template_is.into());
     }
+    // What is copied onto the sheet: a file without a `copy:` line, or
+    // with none of its words, reads as both.
+    let copy = get(f, "copy").unwrap_or("");
+    let (mut show_words, mut show_grid) = (
+        copy.split_whitespace().any(|c| c == "words"),
+        copy.split_whitespace().any(|c| c == "seedqr"),
+    );
+    if !show_words && !show_grid {
+        (show_words, show_grid) = (true, true);
+    }
     let mut p = Page::default();
     let mut y = MARGIN;
     p.text(
@@ -447,13 +457,15 @@ fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
     // Word lines, in two columns.
     let rows = words / 2;
     let colw = (PAGE_W - 2.0 * MARGIN) / 2.0;
-    for i in 0..words {
+    for i in (0..words).filter(|_| show_words) {
         let x = MARGIN + (i / rows) as f32 * colw;
         let ly = y + (i % rows) as f32 * 22.0;
         p.text(x, ly, 9.0, Font::Sans, &format!("{:>2}", i + 1));
         p.line(x + 20.0, ly + 11.0, x + colw - 30.0, ly + 11.0, 0.5, 0.55);
     }
-    y += rows as f32 * 22.0 + 18.0;
+    if show_words {
+        y += rows as f32 * 22.0 + 18.0;
+    }
     // The SeedQR grid: its fixed squares printed black, the rest ruled
     // for filling in by hand.
     let n = if words == 24 { 29 } else { 25 };
@@ -464,8 +476,9 @@ fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
     let cell = side / n as f32;
     let gx = MARGIN + 20.0;
     let gy = y + 14.0;
-    for row in 0..n {
-        for col in 0..n {
+    let drawn = if show_grid { n } else { 0 };
+    for row in 0..drawn {
+        for col in 0..drawn {
             if structural_fixed(col, row, n) && probe.module(col, row) {
                 p.rect(
                     gx + col as f32 * cell,
@@ -477,7 +490,7 @@ fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
             }
         }
     }
-    for i in 0..=n {
+    for i in (0..=n).filter(|_| show_grid) {
         let (width, grey) = if i % 5 == 0 { (0.6, 0.45) } else { (0.3, 0.75) };
         let o = i as f32 * cell;
         p.line(gx + o, gy, gx + o, gy + side, width, grey);
@@ -494,6 +507,13 @@ fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
         Font::Sans,
         EN.pdf_there_is_no_line,
     );
+    p.text(
+        MARGIN,
+        PAGE_H - MARGIN + 14.0,
+        8.0,
+        Font::Sans,
+        EN.pdf_print_actual_size,
+    );
     // The places, to fill in by hand: a line each, nothing printed on it.
     let places: usize = get(f, "places")
         .and_then(|v| v.parse().ok())
@@ -502,6 +522,13 @@ fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
     let mut q = Page::default();
     let mut y = MARGIN;
     q.text(MARGIN, y, 18.0, Font::Bold, EN.pdf_places);
+    q.text(
+        MARGIN,
+        PAGE_H - MARGIN + 14.0,
+        8.0,
+        Font::Sans,
+        EN.pdf_print_actual_size,
+    );
     y += 40.0;
     let right = PAGE_W - MARGIN;
     for _ in 0..places {

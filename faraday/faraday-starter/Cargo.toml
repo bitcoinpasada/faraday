@@ -14,6 +14,8 @@ osk-ui = { path = "../../core/osk-ui" }
 osk-codec = { path = "../../core/osk-codec" }
 osk-learn = { path = "../../core/osk-learn" }
 opensigner-core = { path = "../../opensigner/opensigner-core" }
+# The network the blank sheet names (`faraday-core` brings it already).
+osk-bip = { path = "../../core/osk-bip" }
 # The desktop app's own Transfer and Learn, held in online mode
 # (docs/STARTER.md §2), and the drawing every Faraday screen uses. `guides`
 # turns on the held app's guide pages and firmware sketches, which the

@@ -670,8 +670,7 @@ file is unsigned (§10.2).
 
 ### 3.8 Blank templates (F31)
 
-(owner, 2026-10-14; `docs/BACKUP-FLOW.md` §10.2. Specified, not built:
-batch T.) The printable sheets a seed is copied onto by hand, offered
+(owner, 2026-10-14; `docs/BACKUP-FLOW.md` §10.2. Built: batch T.) The printable sheets a seed is copied onto by hand, offered
 here because the Starter runs on the computer with the printer, and a
 blank template holds nothing of any wallet. Faraday's backup checklist
 says to print them from here (its **Templates** item) and writes none to
@@ -686,16 +685,28 @@ rows' **Blank templates**, each row opening its Choice:
   line has them (`docs/NEW-WALLET.md` §14.7);
 - **Places**: a count to fill in by hand, 2 filled in, one or more, no
   upper bound;
-- **Save the PDF** (primary) → the sheet made by `faraday-core`'s
+- **Print** (primary) → the sheet made by `faraday-core`'s
   `backup::sheet_blank` with no wallet (no name, no shape), the network
-  "mainnet", and the choices above, then `pdf::sheet`; saved into the
-  Downloads folder as `faraday-blank-template-{12|24}-words-{words|seedqr|words-seedqr}.pdf`,
+  "mainnet", and the choices above (a `copy:` line added to the sheet
+  file), then `pdf::sheet`; the PDF is written into the system's
+  temporary folder and opened at once in the system's PDF viewer
+  (`xdg-open`, `open`, `explorer.exe`: the system's own "open with the
+  default program", never a print verb that sends the file to the
+  default printer unasked). The person prints from the viewer, to any
+  printer or to a PDF. The sheet prints at its true size, so that the
+  SeedQR grid's cells stay square and their size;
+- **Save the PDF** (secondary) → the same PDF, saved into the Downloads
+  folder as `faraday-blank-template-{12|24}-words-{words|seedqr|words-seedqr}.pdf`,
   never over a file ("name (2).pdf", as Transfer's Receive names) →
-  "Saved {path}" with **Open it** (the system's PDF viewer, to print).
+  "Saved {path}" with **Open it** (the viewer).
 
-Nothing else: no wallet, key or seed is asked for or shown. Tests (batch T): each of the six choices of Words and Copy
-saves a PDF whose sheet text has those `words:` and `copy:` lines and
-no `name:`; a second save beside a first is named "(2)".
+Nothing else: no wallet, key or seed is asked for or shown. Tests (batch
+T): each of the six choices of Words and Copy makes a PDF whose sheet
+text has those `words:` and `copy:` lines and no `name:`, saved under
+its name; a second save beside a first is named "(2)"; Print makes the
+same PDF bytes as Save and asks the shell to open it. Built:
+`faraday-starter`'s `template.rs`, `tests/template.rs` and the shell's
+`pdf.rs`.
 
 ## 4. Writing a stick or a card
 

@@ -629,6 +629,30 @@ pub struct Strings {
     pub starter_key_saving: &'static str,
     /// Where the key was saved.
     pub starter_key_saved: &'static str,
+    /// Home row and page title.
+    pub starter_row_templates: &'static str,
+    /// Row and Choice title.
+    pub starter_tpl_words: &'static str,
+    /// Row and Choice title.
+    pub starter_tpl_copy: &'static str,
+    /// Row and Choice title.
+    pub starter_tpl_places: &'static str,
+    /// Copy choice.
+    pub starter_tpl_seedqr: &'static str,
+    /// Copy choice.
+    pub starter_tpl_both: &'static str,
+    /// Primary button.
+    pub starter_tpl_print: &'static str,
+    /// Secondary button.
+    pub starter_tpl_save: &'static str,
+    /// After a save.
+    pub starter_tpl_open: &'static str,
+    /// Where the PDF was saved.
+    pub starter_tpl_saved: &'static str,
+    /// Places stepper.
+    pub starter_tpl_fewer: &'static str,
+    /// Places stepper.
+    pub starter_tpl_more: &'static str,
     /// After the key is kept.
     pub starter_key_kept: &'static str,
     /// The two groups asked for, by number.
@@ -3931,6 +3955,8 @@ pub struct Strings {
     pub pdf_first_address: &'static str,
     /// Line in `blank_sheet`.
     pub pdf_there_is_no_line: &'static str,
+    /// The blank template's footer, on every page.
+    pub pdf_print_actual_size: &'static str,
     /// Line in `blank_sheet`.
     pub pdf_places: &'static str,
     /// Line in `blank_sheet`.
@@ -8566,6 +8592,18 @@ pub static EN: Strings = Strings {
     starter_key_save: "Save to {}",
     starter_key_saving: "Saving",
     starter_key_saved: "Saved to {}",
+    starter_row_templates: "Blank templates",
+    starter_tpl_words: "Words",
+    starter_tpl_copy: "Copy",
+    starter_tpl_places: "Places",
+    starter_tpl_seedqr: "SeedQR",
+    starter_tpl_both: "Both",
+    starter_tpl_print: "Print",
+    starter_tpl_save: "Save the PDF",
+    starter_tpl_open: "Open it",
+    starter_tpl_saved: "Saved {}",
+    starter_tpl_fewer: "Fewer",
+    starter_tpl_more: "More",
     starter_key_kept: "I have kept it",
     starter_key_type: "Type groups {} and {} of the key",
     starter_key_group: "Group {}",
@@ -10169,6 +10207,7 @@ pub static EN: Strings = Strings {
     pdf_fingerprint: "Fingerprint",
     pdf_first_address: "First address",
     pdf_there_is_no_line: "There is no line for a passphrase. Written beside the words, it would stop being a second factor.",
+    pdf_print_actual_size: "Print at 100% (actual size).",
     pdf_places: "Places",
     pdf_place: "Place",
     pdf_holds: "holds",

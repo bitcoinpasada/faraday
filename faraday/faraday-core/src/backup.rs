@@ -244,19 +244,47 @@ pub fn sheet_wallet(session: &Session, wallet: &Wallet) -> String {
     out
 }
 
-/// The blank template: numbered word lines and the SeedQR grid's fixed
-/// squares, for a seed of `words` words, and a page of `places` empty
-/// lines, "Place ____ holds ____", to fill in by hand. It holds no secret
-/// and nothing of the plan, and may go to any printer. `wallet` adds the
-/// path, script and network to fill in.
+/// What the blank template has to copy a seed onto: the word lines, the
+/// SeedQR grid, or both (`docs/NEW-WALLET.md` §14.7).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlankCopy {
+    /// The word lines.
+    Words,
+    /// The SeedQR grid.
+    SeedQr,
+    /// Both on one sheet.
+    Both,
+}
+
+impl BlankCopy {
+    /// Every choice, in the order a Choice lists them.
+    pub const ALL: [BlankCopy; 3] = [BlankCopy::Words, BlankCopy::SeedQr, BlankCopy::Both];
+
+    /// The sheet file's `copy:` value.
+    pub fn line(self) -> String {
+        match self {
+            BlankCopy::Words => "words".into(),
+            BlankCopy::SeedQr => "seedqr".into(),
+            BlankCopy::Both => [BlankCopy::Words.line(), BlankCopy::SeedQr.line()].join(" "),
+        }
+    }
+}
+
+/// The blank template: numbered word lines, the SeedQR grid's fixed
+/// squares, or both as `copy` says, for a seed of `words` words, and a
+/// page of `places` empty lines, "Place ____ holds ____", to fill in by
+/// hand. It holds no secret and nothing of the plan, and may go to any
+/// printer. `wallet` adds the path, script and network to fill in.
 pub fn sheet_blank(
     words: usize,
+    copy: BlankCopy,
     wallet: Option<&Wallet>,
     network: Network,
     places: usize,
 ) -> String {
     let mut out = format!(
-        "faraday-sheet 1\nkind: blank\nwords: {words}\nnetwork: {}\nplaces: {places}\n",
+        "faraday-sheet 1\nkind: blank\nwords: {words}\ncopy: {}\nnetwork: {}\nplaces: {places}\n",
+        copy.line(),
         network.name()
     );
     if let Some(w) = wallet {

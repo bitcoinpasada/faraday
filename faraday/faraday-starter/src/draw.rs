@@ -22,7 +22,10 @@ use crate::api::{
 };
 use crate::decide::{Item, Refusal, State, Target};
 use crate::macs::{self, StickFor};
-use crate::{Card, LearnId, ModeRefusal, Page, RestartTo, Sheet, Starter, StarterAction};
+use crate::template::Copy;
+use crate::{
+    Card, LearnId, ModeRefusal, Page, RestartTo, Sheet, Starter, StarterAction, TemplateChoice,
+};
 
 /// Faraday's drawing, a press being the desktop app's action that carries
 /// the Starter's own ([`StarterAction::host`]).
@@ -74,6 +77,10 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
         Page::Installed => installed(starter, ui, x, y0, cw),
         Page::About => about(starter, ui, x, y0, cw),
         Page::BitLocker => bitlocker(starter, ui, x, y0, cw),
+        Page::Templates => templates(starter, ui, x, y0, cw),
+        Page::TemplateWords => template_words(starter, ui, x, y0, cw),
+        Page::TemplateCopy => template_copy(starter, ui, x, y0, cw),
+        Page::TemplatePlaces => template_places(starter, ui, x, y0, cw),
     };
     ui.c.pop_clip();
     let content = end - y0 + pad + 16.0;
@@ -125,6 +132,10 @@ fn page_name(starter: &Starter) -> String {
         Page::Installed => S.starter_row_installed.to_string(),
         Page::About => S.starter_row_about.to_string(),
         Page::BitLocker => S.starter_bitlocker_title.to_string(),
+        Page::Templates => S.starter_row_templates.to_string(),
+        Page::TemplateWords => S.starter_tpl_words.to_string(),
+        Page::TemplateCopy => S.starter_tpl_copy.to_string(),
+        Page::TemplatePlaces => S.starter_tpl_places.to_string(),
     }
 }
 
@@ -143,6 +154,9 @@ fn back_name(starter: &Starter) -> Option<String> {
             )
         }
         Page::Confirm => Some(S.starter_mode_title.to_string()),
+        Page::TemplateWords | Page::TemplateCopy | Page::TemplatePlaces => {
+            Some(S.starter_row_templates.to_string())
+        }
         Page::Disks if starter.asks_which() && target_of(starter) == Target::Stick => {
             Some(S.starter_which_title.to_string())
         }
@@ -826,6 +840,17 @@ fn home(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         "",
         "",
         Some(StarterAction::Transfer),
+    );
+    y += nav_row(
+        ui,
+        x,
+        y,
+        w,
+        Icon::Learn,
+        S.starter_row_templates,
+        "",
+        "",
+        Some(StarterAction::Templates),
     );
     if starter.offers_desktop() {
         let failed = starter.desktop_failed.as_ref().map(reason_text);
@@ -2363,4 +2388,202 @@ fn key_asked(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         ],
     ) + 16.0
         - y0
+}
+
+// ---------------------------------------------------------------------
+// Blank templates (§3.8)
+// ---------------------------------------------------------------------
+
+/// What Copy reads as.
+fn copy_text(c: Copy) -> &'static str {
+    match c {
+        Copy::Words => S.starter_tpl_words,
+        Copy::SeedQr => S.starter_tpl_seedqr,
+        Copy::Both => S.starter_tpl_both,
+    }
+}
+
+/// The blank templates menu: Words, Copy and Places as value rows, Print,
+/// Save the PDF, and what became of the last save.
+fn templates(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    let t = &starter.template;
+    for (head, tail, choice) in [
+        (
+            S.starter_tpl_words,
+            t.words.to_string(),
+            TemplateChoice::Words,
+        ),
+        (
+            S.starter_tpl_copy,
+            copy_text(t.copy).to_string(),
+            TemplateChoice::Copy,
+        ),
+        (
+            S.starter_tpl_places,
+            t.places.to_string(),
+            TemplateChoice::Places,
+        ),
+    ] {
+        y += nav_row(
+            ui,
+            x,
+            y,
+            w,
+            Icon::Learn,
+            head,
+            "",
+            &tail,
+            Some(StarterAction::TemplateChoice(choice)),
+        );
+    }
+    y += 12.0;
+    y += buttons(
+        ui,
+        x,
+        y,
+        w,
+        &[
+            (
+                S.starter_tpl_print,
+                Style::Primary,
+                StarterAction::PrintTemplate,
+            ),
+            (
+                S.starter_tpl_save,
+                Style::Secondary,
+                StarterAction::SaveTemplate,
+            ),
+        ],
+    );
+    y += 14.0;
+    match &t.saved {
+        Some(Ok(path)) => {
+            y += line(ui, x, y, w, &fill(S.starter_tpl_saved, &[path]), OK);
+            y += buttons(
+                ui,
+                x,
+                y,
+                w,
+                &[(
+                    S.starter_tpl_open,
+                    Style::Secondary,
+                    StarterAction::OpenTemplate,
+                )],
+            );
+        }
+        Some(Err(why)) => y += line(ui, x, y, w, &reason_text(why), ERR),
+        None => {}
+    }
+    if let Some(why) = &t.open_failed {
+        y += line(ui, x, y, w, &reason_text(why), ERR);
+    }
+    y
+}
+
+/// A Choice row: a ring, filled when chosen, and the option.
+fn tick_row(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    head: &str,
+    on: bool,
+    action: StarterAction,
+) -> f32 {
+    let a = action.host();
+    let rh = 52.0;
+    if ui.is_pressed(a) || ui.is_hovered(a) {
+        ui.fill(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0, INNER);
+    }
+    let cy = y + rh / 2.0;
+    if on {
+        ui.dot(x + 12.0, cy, 9.0, ACCENT);
+        ui.dot(x + 12.0, cy, 4.0, ON_ACCENT);
+    } else {
+        ui.stroke(x + 3.0, cy - 9.0, 18.0, 18.0, 9.0, MUTED);
+    }
+    ui.text_mid(x + 36.0, y, rh, 15.0, W::S, TEXT, head);
+    ui.hit(x - 6.0, y, w + 12.0, rh, a);
+    ui.rule(x, y + rh, w, INNER);
+    rh
+}
+
+/// Back to the menu, the Choice's Continue.
+fn choice_done(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    y + 20.0
+        + buttons(
+            ui,
+            x,
+            y + 20.0,
+            w,
+            &[(S.starter_continue, Style::Primary, StarterAction::Back)],
+        )
+}
+
+fn template_words(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    ui.rule(x, y, w, INNER);
+    for n in [12usize, 24] {
+        y += tick_row(
+            ui,
+            x,
+            y,
+            w,
+            &n.to_string(),
+            starter.template.words == n,
+            StarterAction::TemplateWords(n),
+        );
+    }
+    choice_done(ui, x, y, w)
+}
+
+fn template_copy(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    ui.rule(x, y, w, INNER);
+    for c in Copy::ALL {
+        y += tick_row(
+            ui,
+            x,
+            y,
+            w,
+            copy_text(c),
+            starter.template.copy == c,
+            StarterAction::TemplateCopy(c),
+        );
+    }
+    choice_done(ui, x, y, w)
+}
+
+fn template_places(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    y += value_row(
+        ui,
+        x,
+        y,
+        w,
+        S.starter_tpl_places,
+        &starter.template.places.to_string(),
+        TEXT,
+    );
+    y += 12.0;
+    y += buttons(
+        ui,
+        x,
+        y,
+        w,
+        &[
+            (
+                S.starter_tpl_fewer,
+                Style::Secondary,
+                StarterAction::PlacesFewer,
+            ),
+            (
+                S.starter_tpl_more,
+                Style::Secondary,
+                StarterAction::PlacesMore,
+            ),
+        ],
+    );
+    choice_done(ui, x, y + 14.0, w)
 }

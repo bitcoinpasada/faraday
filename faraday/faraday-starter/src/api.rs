@@ -630,6 +630,12 @@ pub enum StarterEvent {
     BootEntry(bool),
     /// [`StarterCommand::RemoveBootEntry`] ended: removed, or why not.
     BootEntryRemoved(Result<(), Reason>),
+    /// [`StarterCommand::SaveTemplate`] ended: the path it was saved at,
+    /// or why not.
+    TemplateSaved(Result<String, Reason>),
+    /// [`StarterCommand::PrintTemplate`] or [`StarterCommand::OpenTemplate`]
+    /// ended: opened in the viewer, or why not.
+    TemplateOpened(Result<(), Reason>),
 }
 
 /// The recovery key the elevated copy read (§6.2), for the guard's page.
@@ -757,6 +763,29 @@ pub enum StarterCommand {
     /// Remove the firmware's `Faraday stick` boot entry (Linux, §3.1c),
     /// through one polkit prompt.
     RemoveBootEntry,
+    /// Save a blank template's PDF into the Downloads folder (§3.8),
+    /// never over a file; answered by [`StarterEvent::TemplateSaved`].
+    SaveTemplate {
+        /// The file's name.
+        name: String,
+        /// The PDF.
+        pdf: Vec<u8>,
+    },
+    /// Print a blank template (§3.8): write the PDF into the system's
+    /// temporary folder and open it in the system's PDF viewer, which
+    /// prints to any printer; answered by [`StarterEvent::TemplateOpened`].
+    PrintTemplate {
+        /// The file's name.
+        name: String,
+        /// The PDF.
+        pdf: Vec<u8>,
+    },
+    /// Open a file in the system's PDF viewer (§3.8, Open it); answered
+    /// by [`StarterEvent::TemplateOpened`].
+    OpenTemplate {
+        /// The file's path, as [`StarterEvent::TemplateSaved`] gave it.
+        path: String,
+    },
 }
 
 /// What `--remind` does at logon (§6.3), decided by [`remind`].

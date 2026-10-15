@@ -20,6 +20,7 @@ pub mod gpt;
 pub mod linux;
 pub mod macos;
 pub mod payload;
+pub mod pdf;
 pub mod platform;
 pub mod stick;
 pub mod windows;

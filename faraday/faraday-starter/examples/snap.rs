@@ -711,6 +711,21 @@ fn run(s: &Snap) -> Result<(), String> {
     s.shot_end(&mut h, "about-end")?;
     guard_shots(s)?;
 
+    // Blank templates (§3.8): the menu, a Choice, and after a save.
+    let mut h = s.starter();
+    h.press(StarterAction::Templates);
+    s.shot(&mut h, "templates")?;
+    h.press(StarterAction::TemplateChoice(
+        faraday_starter::TemplateChoice::Copy,
+    ));
+    s.shot(&mut h, "templates-copy")?;
+    h.press(StarterAction::Back);
+    h.press(StarterAction::SaveTemplate);
+    h.starter_event(StarterEvent::TemplateSaved(Ok(
+        "Downloads/faraday-blank-template-24-words-words.pdf".into(),
+    )));
+    s.shot(&mut h, "templates-saved")?;
+
     // The desktop app's own Transfer and Learn.
     let mut h = s.starter();
     h.press(StarterAction::Transfer);

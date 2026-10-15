@@ -7339,6 +7339,7 @@ impl Faraday {
             // hold nothing secret.
             0 => match pdf::sheet(&backup::sheet_blank(
                 words,
+                backup::BlankCopy::Both,
                 Some(w),
                 self.session.network(),
                 self.backup.as_ref().map_or(1, |b| b.answers.places),

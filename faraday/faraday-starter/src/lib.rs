@@ -18,6 +18,7 @@ pub mod concern;
 pub mod decide;
 mod draw;
 pub mod macs;
+pub mod template;
 
 /// What a [`api::Reason`] reads as on screen, from `faraday_core::strings`.
 pub fn reason_text(reason: &api::Reason) -> String {
@@ -74,6 +75,14 @@ pub enum Page {
     /// The BitLocker guard (§6.5): the state, the key, the groups typed
     /// back, Suspend; and Resume later (§6.3).
     BitLocker,
+    /// Blank templates (§3.8): the choices as value rows, Print, Save the PDF.
+    Templates,
+    /// Blank templates' Words choice.
+    TemplateWords,
+    /// Blank templates' Copy choice.
+    TemplateCopy,
+    /// Blank templates' Places count.
+    TemplatePlaces,
 }
 
 /// A sheet over a page.
@@ -299,6 +308,35 @@ pub enum StarterAction {
     RemoveEntry,
     /// For which computer? answered (§3.2 step 0).
     StickFor(StickFor),
+    /// Blank templates (§3.8).
+    Templates,
+    /// A blank template's choice, opened from its row.
+    TemplateChoice(TemplateChoice),
+    /// Words, ticked: 12 or 24.
+    TemplateWords(usize),
+    /// Copy, ticked.
+    TemplateCopy(template::Copy),
+    /// Places: one fewer.
+    PlacesFewer,
+    /// Places: one more.
+    PlacesMore,
+    /// Print the blank template: its PDF opened in the PDF viewer.
+    PrintTemplate,
+    /// Save the blank template's PDF into Downloads.
+    SaveTemplate,
+    /// Open the saved PDF.
+    OpenTemplate,
+}
+
+/// Which blank-template choice a row opens.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TemplateChoice {
+    /// Words: 12 or 24.
+    Words,
+    /// Copy: Words, SeedQR or Both.
+    Copy,
+    /// Places: a count.
+    Places,
 }
 
 /// A maker page's number in an action's code: this plus its place in
@@ -369,6 +407,15 @@ impl StarterAction {
             StarterAction::KeyDone => (38, 0),
             StarterAction::ExtraSafe => (39, 0),
             StarterAction::StickFor(k) => (40, u32::from(k == StickFor::AppleSilicon)),
+            StarterAction::Templates => (41, 0),
+            StarterAction::TemplateChoice(c) => (42, c as u32),
+            StarterAction::TemplateWords(n) => (43, n as u32),
+            StarterAction::TemplateCopy(c) => (44, c as u32),
+            StarterAction::PlacesFewer => (45, 0),
+            StarterAction::PlacesMore => (46, 0),
+            StarterAction::PrintTemplate => (47, 0),
+            StarterAction::SaveTemplate => (48, 0),
+            StarterAction::OpenTemplate => (49, 0),
         };
         (kind << 16) | arg
     }
@@ -429,6 +476,19 @@ impl StarterAction {
             } else {
                 StickFor::Pc
             }),
+            41 => StarterAction::Templates,
+            42 => StarterAction::TemplateChoice(match arg {
+                0 => TemplateChoice::Words,
+                1 => TemplateChoice::Copy,
+                _ => TemplateChoice::Places,
+            }),
+            43 => StarterAction::TemplateWords(arg as usize),
+            44 => StarterAction::TemplateCopy(*template::Copy::ALL.get(arg as usize)?),
+            45 => StarterAction::PlacesFewer,
+            46 => StarterAction::PlacesMore,
+            47 => StarterAction::PrintTemplate,
+            48 => StarterAction::SaveTemplate,
+            49 => StarterAction::OpenTemplate,
             _ => return None,
         })
     }
@@ -623,6 +683,8 @@ pub struct Starter {
     not_encrypted_here: bool,
     /// The BitLocker guard's page.
     pub guard: Guard,
+    /// The blank template's choices (§3.8).
+    pub template: template::Template,
     /// Another encryption product found here (§6.4), by name.
     pub other: Option<String>,
     /// The person said they have its rescue disk or password.
@@ -707,6 +769,7 @@ impl Starter {
             key_shown: false,
             not_encrypted_here: false,
             guard: Guard::default(),
+            template: template::Template::default(),
             other: None,
             other_confirmed: false,
             clock: 0,
@@ -1296,6 +1359,13 @@ impl Starter {
                     self.sheet = None;
                 }
             }
+            StarterEvent::TemplateSaved(r) => {
+                self.template.saving = false;
+                self.template.saved = Some(r);
+            }
+            StarterEvent::TemplateOpened(r) => {
+                self.template.open_failed = r.err();
+            }
             StarterEvent::BootEntry(e) => self.boot_entry = e,
             StarterEvent::BootEntryRemoved(r) => {
                 self.entry_removing = false;
@@ -1578,6 +1648,63 @@ impl Starter {
                 }
             }
             StarterAction::About => self.go(Page::About),
+            StarterAction::Templates => {
+                self.template.saved = None;
+                self.template.open_failed = None;
+                self.go(Page::Templates);
+            }
+            StarterAction::TemplateChoice(c) if self.page == Page::Templates => self.go(match c {
+                TemplateChoice::Words => Page::TemplateWords,
+                TemplateChoice::Copy => Page::TemplateCopy,
+                TemplateChoice::Places => Page::TemplatePlaces,
+            }),
+            StarterAction::TemplateWords(n) if self.page == Page::TemplateWords => {
+                if n == 12 || n == 24 {
+                    self.template.words = n;
+                    self.template.saved = None;
+                }
+            }
+            StarterAction::TemplateCopy(c) if self.page == Page::TemplateCopy => {
+                self.template.copy = c;
+                self.template.saved = None;
+            }
+            StarterAction::PlacesFewer if self.page == Page::TemplatePlaces => {
+                self.template.places = self.template.places.saturating_sub(1).max(1);
+                self.template.saved = None;
+            }
+            StarterAction::PlacesMore if self.page == Page::TemplatePlaces => {
+                self.template.places = self.template.places.saturating_add(1);
+                self.template.saved = None;
+            }
+            StarterAction::PrintTemplate if self.page == Page::Templates => {
+                if let Ok(pdf) = self.template.pdf() {
+                    self.template.open_failed = None;
+                    self.out.push_back(StarterCommand::PrintTemplate {
+                        name: self.template.file_name(),
+                        pdf,
+                    });
+                }
+            }
+            StarterAction::SaveTemplate if self.page == Page::Templates => {
+                if !self.template.saving
+                    && let Ok(pdf) = self.template.pdf()
+                {
+                    self.template.saving = true;
+                    self.template.saved = None;
+                    self.template.open_failed = None;
+                    self.out.push_back(StarterCommand::SaveTemplate {
+                        name: self.template.file_name(),
+                        pdf,
+                    });
+                }
+            }
+            StarterAction::OpenTemplate if self.page == Page::Templates => {
+                if let Some(Ok(path)) = &self.template.saved {
+                    self.template.open_failed = None;
+                    self.out
+                        .push_back(StarterCommand::OpenTemplate { path: path.clone() });
+                }
+            }
             StarterAction::BitLocker => self.go(Page::BitLocker),
             StarterAction::ShowKey => {
                 let (protected, other) = {
@@ -1723,6 +1850,15 @@ impl Starter {
                     self.out.push_back(StarterCommand::RemoveBootEntry);
                 }
             }
+            // A template action pressed on another page does nothing.
+            StarterAction::TemplateChoice(_)
+            | StarterAction::TemplateWords(_)
+            | StarterAction::TemplateCopy(_)
+            | StarterAction::PlacesFewer
+            | StarterAction::PlacesMore
+            | StarterAction::PrintTemplate
+            | StarterAction::SaveTemplate
+            | StarterAction::OpenTemplate => {}
         }
     }
 
@@ -1811,6 +1947,7 @@ impl Starter {
             }
             // A write under way goes on: its page stays.
             Page::Writing => return,
+            Page::TemplateWords | Page::TemplateCopy | Page::TemplatePlaces => Page::Templates,
             _ => Page::Home,
         };
         if to == Page::Disks
