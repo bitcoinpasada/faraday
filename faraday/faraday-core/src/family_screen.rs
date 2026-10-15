@@ -10,7 +10,7 @@ use crate::family::{Came, CardId, FamilyAction as F, Question, more_bit, page};
 use crate::family_text as text;
 use crate::screens::{next_button, step_body, step_summary};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W, grouped};
+use crate::ui::{Style, Ui, W};
 use crate::vaults::{VaultAction, cost_text, file_text, mib_text};
 use crate::wallet::{FileKind, Kind, Session, fp_text, step};
 use crate::{Action, Faraday, flow};
@@ -1363,15 +1363,8 @@ fn opened(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += 26.0;
     ui.text(x, cy, 12.0, W::R, MUTED, EN.family_receive_address);
     cy += 20.0;
-    cy += ui.wrap(
-        x,
-        cy,
-        w,
-        14.0,
-        W::M,
-        TEXT,
-        &grouped(&app.session.address_shown(wl, false, 0)),
-    ) + 16.0;
+    let (addr, held) = app.receive_line(wl, false, 0);
+    cy += ui.wrap(x, cy, w, 14.0, W::M, if held { WARN } else { TEXT }, &addr) + 16.0;
     let drawn = next_button(ui, x, cy, w, EN.family_continue, fa(F::Next(page::HOLDING)));
     cy + (if drawn { 52.0 } else { 8.0 }) - y
 }
@@ -1432,15 +1425,8 @@ fn loaded_in_sparrow(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
     ) + 6.0;
     ui.text(x, cy, 13.0, W::S, MUTED, EN.family_receive_address);
     cy += 22.0;
-    cy += ui.wrap(
-        x,
-        cy,
-        w,
-        13.0,
-        W::M,
-        TEXT,
-        &grouped(&app.session.address_shown(wl, false, 0)),
-    ) + 14.0;
+    let (addr, held) = app.receive_line(wl, false, 0);
+    cy += ui.wrap(x, cy, w, 13.0, W::M, if held { WARN } else { TEXT }, &addr) + 14.0;
     let drawn = next_button(
         ui,
         x,
@@ -1554,14 +1540,15 @@ fn check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += 24.0;
         for k in 0..n {
             ui.text_mid(x, cy, 28.0, 12.0, W::R, DIM, &k.to_string());
-            let a = grouped(&app.session.address_shown(wl, change, k));
+            let (a, held) = app.receive_line(wl, change, k);
+            let col = if held { WARN } else { TEXT };
             if ui.compact {
                 // Whole, to compare character for character.
-                cy += ui.wrap(x + 24.0, cy + 6.0, w - 24.0, 12.0, W::M, TEXT, &a) + 14.0;
+                cy += ui.wrap(x + 24.0, cy + 6.0, w - 24.0, 12.0, W::M, col, &a) + 14.0;
                 continue;
             }
             let a = ui.fit(13.0, W::M, &a, w - 40.0);
-            ui.text_mid(x + 40.0, cy, 28.0, 13.0, W::M, TEXT, &a);
+            ui.text_mid(x + 40.0, cy, 28.0, 13.0, W::M, col, &a);
             cy += 30.0;
         }
         cy += 8.0;
@@ -1599,7 +1586,7 @@ fn bring(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if card && let Some((name, address)) = app.family_wallet().and_then(|i| app.moving_to(i)) {
         let head = fill(EN.family_every_coin_to, &[&name.to_string()]);
         cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &head) + 4.0;
-        cy += ui.wrap(x, cy, w, 13.0, W::M, TEXT, &grouped(&address)) + 4.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::M, TEXT, &address) + 4.0;
         cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, EN.family_amount_max_in) + 12.0;
     }
     ui.button(

@@ -910,10 +910,13 @@ at Place 1", or whatever the check found.
   in the vault beside the seed and in the backup record, never the
   seed or passphrase; a key loaded from a vault with its backup pending
   is still held.
-- **Receiving.** Every address shown for a wallet with a key made here
-  and pending (the card's first receive address, Create's Check, the
-  Key card's first address, the at-a-glance chart's wallet) carries
-  "Back up before you receive" in `WARN`. Nothing is hidden.
+- **Receiving.** No receive address of a wallet with a key made here
+  and pending is shown, and no code of one: not the card's first receive
+  address, Create's and Restore's address check, the Key card's first
+  address, the chart sheet's wallet, the Spend tab's family pages, the
+  message address, nor F28's receive code. "Back up before you receive"
+  in `WARN` stands in its place. The addresses appear once the hold is
+  released (F6, F31). A restored key is not held, and shows them at once.
 
 ### 14.4 Changing the plan part way
 

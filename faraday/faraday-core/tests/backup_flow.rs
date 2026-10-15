@@ -926,6 +926,9 @@ fn adding_a_stick_with_an_existing_vault_runs_the_extra_round_inside_the_flow() 
     // Secrets are open: lock first, the key's vault sealed for the stick.
     assert!(offered(&mut app, Action::Flow(F::LockBring)));
     shell.flow(&mut app, F::LockBring);
+    // The lock asks first, as every lock with a vault open does.
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::LockAsk));
+    shell.press(&mut app, Action::Lock);
     let mut app = shell.restart();
     assert_eq!(app.screen, Screen::BackupFlow);
     assert_eq!(step(&app), Step::Sticks);

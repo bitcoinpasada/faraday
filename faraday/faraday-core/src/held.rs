@@ -147,6 +147,35 @@ impl Faraday {
         self.wallet_held_in(w, self.held_keys())
     }
 
+    /// Whether a key of `wl` made here still waits for its backup: none of
+    /// the wallet's receive addresses is shown, nor any code of one
+    /// (`docs/DECISIONS.md` F31).
+    pub fn receive_held(&self, wl: &wallet::Wallet) -> bool {
+        if self.held_keys().is_empty() {
+            return false;
+        }
+        let cs = wl.policy.checksum();
+        self.session
+            .wallets
+            .iter()
+            .position(|w| w.policy.checksum() == cs)
+            .is_some_and(|i| !self.wallet_held(i).is_empty())
+    }
+
+    /// An address of `wl` as every screen shows it, in groups, and whether
+    /// it is held back: then the text is "Back up before you receive"
+    /// and is drawn in `WARN`. This is the one way a receive address
+    /// reaches the screen or a code.
+    pub fn receive_line(&self, wl: &wallet::Wallet, change: bool, index: u32) -> (String, bool) {
+        if self.receive_held(wl) {
+            return (crate::glance::RECEIVE_WARNING.to_string(), true);
+        }
+        (
+            crate::ui::grouped(&self.session.address_shown(wl, change, index)),
+            false,
+        )
+    }
+
     /// [`Faraday::wallet_held`] as a copy of the plan says it: without the
     /// keys a flow holds back.
     pub(crate) fn wallet_held_stored(&self, w: usize) -> Vec<Fingerprint> {

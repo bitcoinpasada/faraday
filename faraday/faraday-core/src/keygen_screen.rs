@@ -14,7 +14,7 @@ use crate::screens::{
     buttons_and_next, descriptor_row, locked_tag, next_button, pass_field, section_label, stepper,
 };
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W, grouped};
+use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Faraday, flow, guide};
 use osk_ui::Color;
@@ -396,10 +396,11 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
                 && let Some(wl) = app.session.wallets.get(i)
             {
                 cy += descriptor_row(ui, x, cy, w, wl, Action::QrWallet(i));
-                let a = grouped(&app.session.address_shown(wl, false, 0));
-                cy += long_row(ui, x, cy, w, FEN.keygen_first_address, &a);
-                if !app.wallet_held(i).is_empty() {
-                    cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, crate::glance::RECEIVE_WARNING) + 8.0;
+                let (a, held) = app.receive_line(wl, false, 0);
+                if held {
+                    cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &a) + 8.0;
+                } else {
+                    cy += long_row(ui, x, cy, w, FEN.keygen_first_address, &a);
                 }
             }
         }

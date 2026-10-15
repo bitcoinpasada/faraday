@@ -434,7 +434,7 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
             !app.offers(Action::BVaultSave(1)),
             "Vault 2 offered into Vault 1's vault"
         );
-        if app.offers(Action::BNewVault) {
+        if app.offers(Action::BNewVault(1)) {
             found = true;
             break;
         }
@@ -445,7 +445,7 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
         });
     }
     assert!(found, "Lock it and make a new vault is not offered");
-    app.press(Action::BNewVault);
+    app.press(Action::BNewVault(1));
     assert_eq!(app.vaults.open.len(), 0, "the first vault is locked");
     make_the_vault(&mut app);
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT + 1));

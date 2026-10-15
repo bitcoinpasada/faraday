@@ -3347,11 +3347,16 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     cy += 16.0;
     ui.text(ix, cy, 13.0, W::S, MUTED, EN.wallets_first_receive);
     cy += 24.0;
-    let addr = grouped(&app.session.address_shown(wlt, false, 0));
-    cy += ui.wrap(ix, cy, iw, 15.0, W::M, TEXT, &addr) + 8.0;
-    if !app.wallet_held(app.wallet).is_empty() {
-        cy += ui.wrap(ix, cy, iw, 13.0, W::S, WARN, crate::glance::RECEIVE_WARNING) + 8.0;
-    }
+    let (addr, held) = app.receive_line(wlt, false, 0);
+    cy += ui.wrap(
+        ix,
+        cy,
+        iw,
+        15.0,
+        W::M,
+        if held { WARN } else { TEXT },
+        &addr,
+    ) + 8.0;
     ui.c.pop_clip();
     let content = cy + app.card_offset - top;
     let max = (content - (view_h - (top - view_top))).max(0.0);
@@ -3908,7 +3913,7 @@ pub(crate) fn step_body(
                         (EN.step_change_1_0, true, 0),
                     ] {
                         ui.text(x, cy + 2.0, 12.0, W::R, MUTED, label);
-                        let a = grouped(&app.session.address_shown(wl, change, idx));
+                        let (a, held) = app.receive_line(wl, change, idx);
                         // On a small panel the address goes under its label.
                         let ax = if ui.compact {
                             cy += 20.0;
@@ -3916,7 +3921,8 @@ pub(crate) fn step_body(
                         } else {
                             x + 96.0
                         };
-                        let used = ui.wrap(ax, cy, x + w - ax, 13.0, W::M, TEXT, &a);
+                        let col = if held { WARN } else { TEXT };
+                        let used = ui.wrap(ax, cy, x + w - ax, 13.0, W::M, col, &a);
                         cy += used.max(20.0) + 8.0;
                         ui.rule(x, cy - 4.0, w, INNER);
                     }
@@ -6904,9 +6910,10 @@ fn item_action(app: &Faraday, n: u8) -> (String, Action) {
         Item::Copy(_) if b.checking => (EN.item_action_stop_typing.to_string(), Action::BCheck),
         Item::Copy(_) => (EN.item_action_check_my.to_string(), Action::BCheck),
         Item::Vault(v) => match app.backup_vault_target(v) {
-            Some(cur) if app.backup_vault_taken(v, cur) => {
-                (EN.item_action_lock_it.to_string(), Action::BNewVault)
-            }
+            Some(cur) if app.backup_vault_taken(v, cur) => (
+                EN.item_action_lock_it.to_string(),
+                Action::BNewVault(v.min(255) as u8),
+            ),
             Some(cur) => (
                 fill(
                     EN.item_action_save_into,
@@ -6914,7 +6921,13 @@ fn item_action(app: &Faraday, n: u8) -> (String, Action) {
                 ),
                 Action::BVaultSave(v.min(255) as u8),
             ),
-            None => app.vault_way(Screen::Backup).unwrap_or(next),
+            // A vault of the plan with none set up for it, whether or not
+            // another is open: a new one on an empty stick (written at the
+            // write step as an added copy is).
+            None => app.vault_way(Screen::Backup).unwrap_or((
+                EN.vaults_make_a_vault.to_string(),
+                Action::Vault(crate::vaults::VaultAction::CreateFrom(Screen::Backup)),
+            )),
         },
         Item::SeedFiles => (EN.item_action_make_it.to_string(), Action::BFile),
         Item::Sheets if split => (EN.item_action_make_them.to_string(), Action::BOut(4)),
@@ -7010,8 +7023,11 @@ fn vault_item(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f
         return 0.0;
     };
     let mut cy = y;
-    let cur = app.vaults.current;
-    let open = app.vaults.open.get(cur);
+    // The vault this plan vault is saved into: the one set up for it, else
+    // the current one if no other plan vault is its.
+    let target = app.backup_vault_target(v);
+    let cur = target.unwrap_or(usize::MAX);
+    let open = target.and_then(|t| app.vaults.open.get(t));
     if let Some(o) = open
         && app.backup_vault_taken(v, cur)
     {
@@ -7056,6 +7072,16 @@ fn vault_item(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f
         let label = ui.fit(13.0, W::R, &label, w - 18.0);
         ui.text_mid(x + 18.0, cy, 18.0, 13.0, W::R, TEXT, &label);
         cy += 24.0;
+    }
+    // No vault yet for this one while another is open: a vault already on
+    // a stick read this power-on is the other way to it.
+    if target.is_none()
+        && let Some((label, action)) = app.vault_unlock_way(Screen::Backup)
+    {
+        cy += 4.0;
+        let label = ui.fit(14.0, W::S, &label, w - 36.0);
+        ui.button(x, cy, None, 40.0, &label, Style::Secondary, action);
+        cy += 48.0;
     }
     cy + 4.0 - y
 }
@@ -7340,10 +7366,13 @@ fn message_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(m) = app.message.as_ref() else {
         return;
     };
-    let address = m
-        .wallet
-        .and_then(|w| app.session.wallets.get(w))
-        .map(|w| app.session.address_shown(w, false, m.index));
+    let address = m.wallet.and_then(|w| app.session.wallets.get(w)).map(|w| {
+        if app.receive_held(w) {
+            crate::glance::RECEIVE_WARNING.to_string()
+        } else {
+            app.session.address_shown(w, false, m.index)
+        }
+    });
     let cards: Vec<flow::Card> = (0..4u8)
         .map(|k| flow::Card {
             title: MSTEPS[k as usize].to_string(),
@@ -7454,8 +7483,8 @@ fn message_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f3
                     Action::MIndex(1),
                 );
                 cy += 46.0;
-                let a = grouped(&app.session.address_shown(wl, false, m.index));
-                cy += ui.wrap(x, cy, w, 14.0, W::M, TEXT, &a) + 12.0;
+                let (a, held) = app.receive_line(wl, false, m.index);
+                cy += ui.wrap(x, cy, w, 14.0, W::M, if held { WARN } else { TEXT }, &a) + 12.0;
             }
             if next_button(ui, x, cy, w, EN.message_continue, Action::MNext(n)) {
                 cy += 48.0;
@@ -8051,8 +8080,9 @@ pub(crate) fn first_addresses(app: &Faraday, ui: &mut Ui, i: usize, x: f32, y: f
     // key (`docs/NEW-WALLET.md` §2.4).
     section_label(ui, x, cy, EN.first_addresses_the);
     cy += 24.0;
-    if !app.wallet_held(i).is_empty() {
+    if app.receive_held(wl) {
         cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, crate::glance::RECEIVE_WARNING) + 8.0;
+        return cy - y;
     }
     for (label, change, idx) in [
         (EN.first_addresses_receive_0, false, 0),
@@ -8060,7 +8090,7 @@ pub(crate) fn first_addresses(app: &Faraday, ui: &mut Ui, i: usize, x: f32, y: f
         (EN.first_addresses_change, true, 0),
     ] {
         ui.text(x, cy + 2.0, 12.0, W::R, MUTED, label);
-        let a = grouped(&app.session.address_shown(wl, change, idx));
+        let a = app.receive_line(wl, change, idx).0;
         let ax = if ui.compact {
             cy += 20.0;
             0.0
@@ -9032,6 +9062,7 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     fill(EN.restore_of_filled, &[&here.to_string(), &all.to_string()])
                 }
                 rstep::CHECK => match wl.filter(|_| r.done[rstep::SEEDS as usize]) {
+                    Some(w) if app.receive_held(w) => crate::glance::RECEIVE_WARNING.to_string(),
                     Some(w) => short(&app.session.address_shown(w, false, 0)),
                     None => String::new(),
                 },

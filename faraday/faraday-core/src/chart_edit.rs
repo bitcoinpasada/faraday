@@ -639,7 +639,7 @@ impl Faraday {
             .wallets
             .iter()
             .find(|x| x.policy.checksum() == *to)?;
-        Some((nw.name.clone(), self.session.address_shown(nw, false, 0)))
+        Some((nw.name.clone(), self.receive_line(nw, false, 0).0))
     }
 
     /// Typing into the open sheet's field: a name, or a passphrase to be

@@ -575,8 +575,9 @@ and matched. A write made on the stick visit page does not count
      No: "Will you use vaults as part of this backup?". It is not done,
      and shows no check, until the person has answered it and pressed
      Continue. No goes on to Keys.
-  2. **How many vaults.** A count of one or more, with no upper bound;
-     not done until its own Continue.
+  2. **How many vaults.** A count of one to 1024 (the most a saved plan
+     reads back); the count refuses more. Not done until its own
+     Continue, also after the wallet is made.
   3. **Each vault set up**, one at a time, in this flow and never on the
      stick visit page: **Bring in the sticks** and **Vaults**, as §4.2
      and §4.3 describe them. A stick for each vault is inserted with
@@ -1341,7 +1342,8 @@ checks) and `lib.rs`/`screens.rs` for the checklist and the cards.
     backup: a new lock starts a fresh flow for the wallet, so a second
     backup in the same power-on writes again. (b) Each wallet's flow is tied
     to its Make a new wallet or Restore by an id (`owner`, not kept across a
-    lock), and the press hook saves only into that flow's vaults. (c) F6
+    lock). (The press hook that saved keys into the flow's vaults is gone;
+    see the reworked note below.) (c) F6
     holds every seed the plan keeps on any stick, in a vault or as a seed
     file, and moves it to the flow at the lock. (d) `backup-flow` is written
     like `backup-gate`, by a temporary file and a rename; a flow with no
@@ -1354,11 +1356,12 @@ checks) and `lib.rs`/`screens.rs` for the checklist and the cards.
     `WALLET` and `PLAN` records. (g) A vault preset chosen after the keys
     exist is the adding-after-the-keys case of §4.8: a new vault is made at
     once with the key in it and its stick is checked at step 6; a vault that
-    exists takes the extra round. (h) Make a new wallet's Where, Bring in
-    and Vaults cards read their answer and done once the wallet is made, and
-    Check's Continue opens Back up. (i) Before the lock a record the flow
-    saved for a seed no longer in a slot is removed, and a seed has one
-    record when a passphrase is added later. (j) A plan changed after the
+    exists takes the extra round. (h) Make a new wallet's Bring in
+    and Vaults cards are done once the wallet is made (the question and the
+    count are done only by their own Continue), and
+    Check's Continue opens Back up. (i) A seed has one record when a passphrase is
+    added later. (No record is saved before the lock now, so none is
+    removed.) (j) A plan changed after the
     lock to add the wallet description or a passphrase to a vault that
     exists is a round. (k) `refit` recommends and never forces: a passphrase
     is placed apart only when a preset is chosen or a passphrase is added;
@@ -1382,7 +1385,7 @@ checks) and `lib.rs`/`screens.rs` for the checklist and the cards.
     an answer that leaves a held seed or its passphrase on no stick, or a
     vault with no stick, is refused with a toast. A plan change after the
     lock marks the vaults that must hold more as stale at once, without
-    Continue. A record the hook did not put in is never taken out again. A
+    Continue. A
     seed file goes only to a stick of files that does not carry the public
     files, and only for a seed the plan keeps as a file now. Every `refit`
     remaps the flow's vaults, the lock keeps the flow's own vault while it
@@ -1390,6 +1393,24 @@ checks) and `lib.rs`/`screens.rs` for the checklist and the cards.
     flow read back after a lock gets one nothing matches), a Done flow that
     waits hands its hold to the flow that replaces it, and Add a passphrase
     acts on the wallet shown.
+
+20. **Review of the reworked order (2026-10-15).** (a) A plan vault with no
+    vault set up for it, while another is open, offers **Make a vault**
+    (a new vault on an empty stick, written at the write step as an added
+    copy is) and, when a vault on a stick read this power-on is locked,
+    the way to unlock it. A vault on a stick not read yet is the extra
+    round of §4.8, which is not built before the keys (see Open).
+    (b) **Lock it and make a new vault** locks the vault the plan vault
+    would be saved into, never the selected one; the vault set up for a
+    plan vault is not locked from there, and the press says so.
+    (c) **Lock and bring the sticks** asks as any lock does, and the Make a
+    new wallet or Restore that asked for the setup is kept across it
+    (kind, quorum, answer and count, nothing secret) and returns past
+    its questions. The question and the count are fixed once a vault of
+    the setup is open, and Keys (Seeds on Restore) stay closed until the
+    setup is done. (d) The question and the count are done only by their
+    own Continue, also once the wallet is made. (e) The count is one to
+    1024, what a saved plan reads back.
 
 **Reworked (owner, 2026-10-15).** Items 3 to 5 and 13 describe the order
 as reworked. The first build asked where the keys would be kept (places,

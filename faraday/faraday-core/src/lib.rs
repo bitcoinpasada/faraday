@@ -1047,7 +1047,7 @@ pub enum Action {
     BFilesMake,
     /// A vault's item, the open vault holding another vault's seed: lock
     /// that vault and make a new one, back to the item.
-    BNewVault,
+    BNewVault(u8),
     /// The seed shown as a file: the secret sheet for it.
     BFile,
     /// The template's word count.
@@ -2323,7 +2323,7 @@ impl Default for VaultAsk {
 
 /// The most vaults a backup is set up with at once; a count past it is
 /// not a count a person means.
-const MAX_VAULTS: usize = 9999;
+const MAX_VAULTS: usize = 1024;
 
 /// Creating a wallet: the cards' state.
 #[derive(Default)]
@@ -5563,9 +5563,18 @@ impl Faraday {
                 self.backups_sync();
             }
             Action::BackupFirst(w) => self.backup_first(w),
-            Action::BNewVault => {
-                if self.vault_lock_one(self.vaults.current) {
-                    self.vault_act(vaults::VaultAction::CreateFrom(Screen::Backup));
+            Action::BNewVault(v) => {
+                let v = usize::from(v);
+                if let Some(t) = self.backup_vault_target(v) {
+                    if self.backup_vault_set_up(v) == Some(t) {
+                        // The vault set up for this plan vault keeps its
+                        // stick and its place in the setup: it is not
+                        // locked away from here.
+                        let name = self.vaults.open[t].name.to_string();
+                        self.toast(&fill(EN.backup_flow_set_up_holds_other, &[&name]));
+                    } else if self.vault_lock_one(t) {
+                        self.vault_act(vaults::VaultAction::CreateFrom(Screen::Backup));
+                    }
                 }
             }
             Action::BFile => {
@@ -5817,7 +5826,12 @@ impl Faraday {
                     }
                 }
             }
-            Action::CreateWallet if self.create_unfinished() => {
+            Action::CreateWallet
+                if self.create_unfinished()
+                    || self.create.as_ref().is_some_and(|c| {
+                        self.setup_pending(c.owner, c.into_vaults(), c.built.is_some())
+                    }) =>
+            {
                 let from_home = self.screen == Screen::Home;
                 if let Some(c) = self.create.as_mut() {
                     c.from_home = from_home;
@@ -5848,6 +5862,12 @@ impl Faraday {
                 });
                 self.screen = Screen::Create;
             }
+            // Keys stay closed while the vaults' setup is to do.
+            Action::CStep(k)
+                if k == cstep::KEYS
+                    && self.create.as_ref().is_some_and(|c| {
+                        self.setup_pending(c.owner, c.into_vaults(), c.built.is_some())
+                    }) => {}
             Action::CStep(k) => {
                 if let Some(c) = self.create.as_mut() {
                     c.open = if c.open == Some(k) { None } else { Some(k) };
@@ -5929,6 +5949,14 @@ impl Faraday {
                     }
                     self.act(Action::BPreset(k));
                 }
+            }
+            Action::CVaults(_) | Action::CVaultN(_)
+                if self
+                    .create
+                    .as_ref()
+                    .is_some_and(|c| c.built.is_none() && self.setup_vault_open(c.owner)) =>
+            {
+                self.toast(EN.create_vaults_locked);
             }
             Action::CVaults(yes) => {
                 if let Some(c) = self.create.as_mut()
@@ -6138,6 +6166,13 @@ impl Faraday {
                 self.sheet = Some(Sheet::Scan);
                 self.commands.push_back(Command::CameraOn);
             }
+            Action::RestoreWallet
+                if self.restore.as_ref().is_some_and(|r| {
+                    self.setup_pending(r.owner, r.into_vaults(), r.done[rstep::SEEDS as usize])
+                }) =>
+            {
+                self.screen = Screen::Restore;
+            }
             Action::RestoreWallet => {
                 let owner = self.fresh_owner();
                 self.restore = Some(RestoreState {
@@ -6146,6 +6181,18 @@ impl Faraday {
                     ..RestoreState::new()
                 });
                 self.screen = Screen::Restore;
+            }
+            Action::RStep(k)
+                if k == rstep::SEEDS
+                    && self.restore.as_ref().is_some_and(|r| {
+                        self.setup_pending(r.owner, r.into_vaults(), r.done[rstep::SEEDS as usize])
+                    }) => {}
+            Action::RVaults(_) | Action::RVaultN(_)
+                if self.restore.as_ref().is_some_and(|r| {
+                    !r.done[rstep::SEEDS as usize] && self.setup_vault_open(r.owner)
+                }) =>
+            {
+                self.toast(EN.create_vaults_locked);
             }
             Action::RStep(k) => {
                 if let Some(r) = self.restore.as_mut() {

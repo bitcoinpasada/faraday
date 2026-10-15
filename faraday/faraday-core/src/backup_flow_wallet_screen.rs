@@ -28,8 +28,8 @@ fn place(p: usize) -> String {
     BackupFlow::place_name(p)
 }
 
-/// Where the wallet's keys will be kept: the plan's vault part, from its
-/// answers. Into vaults or not, the places, and for each vault the seeds it
+/// The plan (the card is "The plan"): where the wallet's keys will be
+/// kept, from the plan's answers. Into vaults or not, the places, and for each vault the seeds it
 /// holds and the places that keep its stick; then the check lines, and the
 /// way on.
 pub(crate) fn where_body(

@@ -1667,6 +1667,17 @@ fn a_key_in_a_slot_goes_into_no_vault_by_itself_and_a_passphrase_added_later_lea
         1,
         "one record of the seed"
     );
+    // The record that remains is key b's, not key a's.
+    let lang = app.session.keys.last().unwrap().language;
+    let b_words =
+        osk_bip::bip39::Mnemonic::parse(lang, &testkit::test_words(testkit::TEST_SEEDS[1].0))
+            .unwrap();
+    let (_, rec) = app.vaults.open[0].contents.of(kind::KEY).next().unwrap();
+    assert_eq!(
+        faraday_vault::records::words_of(rec).unwrap().indices(),
+        b_words.indices(),
+        "the record is key b's"
+    );
 }
 
 #[test]
@@ -2497,7 +2508,7 @@ fn the_question_of_vaults_is_not_done_before_it_is_answered_and_continued() {
 }
 
 #[test]
-fn the_count_of_vaults_is_one_or_more_with_no_top_and_nothing_starts_before_its_continue() {
+fn the_count_of_vaults_is_one_to_1024_and_nothing_starts_before_its_continue() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::CreateWallet);
@@ -2514,6 +2525,10 @@ fn the_count_of_vaults_is_one_or_more_with_no_top_and_nothing_starts_before_its_
     assert_eq!(app.create.as_ref().unwrap().vaults.count, 1, "one at least");
     app.press(Action::CVaultN(25));
     assert_eq!(app.create.as_ref().unwrap().vaults.count, 25);
+    // A count a saved plan could not read back is refused.
+    app.press(Action::CVaultN(5000));
+    assert_eq!(app.create.as_ref().unwrap().vaults.count, 1024);
+    app.press(Action::CVaultN(25));
     assert!(!app.create_card_done(cstep::HOW_MANY));
     app.press(Action::CNext(cstep::HOW_MANY));
     assert!(app.create_card_done(cstep::HOW_MANY));
@@ -2556,4 +2571,202 @@ fn restore_asks_the_same_question_and_opens_its_vaults_before_the_seeds() {
     app.press(Action::Backup(w));
     app.press(Action::BPreset(0));
     assert_eq!(app.backup.as_ref().unwrap().answers.vaults.len(), 2);
+}
+
+/// A 2-of-3 with `count` vaults set up and its three keys made, on Back
+/// up's card with the preset "Paper and vault" chosen.
+fn two_of_three_with_setup(shell: &mut Shell, count: usize) -> Faraday {
+    sticks(shell, count);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, true, count);
+    let disks = ["S1", "S2", "S3"];
+    bring_in_all(shell, &mut app, &disks[..count]);
+    let phrases = [PHRASE, PHRASE_2, PHRASE_3];
+    for (v, phrase) in phrases.iter().enumerate().take(count) {
+        create_vault(shell, &mut app, v, phrase);
+    }
+    let mut fps = Vec::new();
+    for i in 0..3 {
+        fps.push(key_in(&mut app, i));
+    }
+    app.press(Action::Nav(Screen::Create));
+    for (i, fp) in fps.iter().enumerate() {
+        app.press(Action::CSlotHere(i as u8, *fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(1));
+    app
+}
+
+#[test]
+fn a_plan_vault_with_none_set_up_offers_to_make_one_while_another_is_open() {
+    use faraday_core::vaults::VaultAction as V;
+    let mut shell = Shell::new();
+    let mut app = two_of_three_with_setup(&mut shell, 1);
+    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
+    app.press(Action::BChecklist);
+    let items = app.backup_items();
+    assert!(items.contains(&(bstep::VAULT + 1)), "{items:?}");
+    assert!(!app.backup_item_done(Item::Vault(1)));
+    app.press(Action::BVaultSave(0));
+    assert!(app.backup_item_done(Item::Vault(0)));
+    app.press(Action::BStep(bstep::VAULT + 1));
+    let make = Action::Vault(V::CreateFrom(Screen::Backup));
+    let mut found = false;
+    for _ in 0..20 {
+        app.settle();
+        let _ = app.frame();
+        if app.offers(make) {
+            found = true;
+            break;
+        }
+        app.event(Event::Scroll {
+            x: 400,
+            y: 384,
+            dy: 300,
+        });
+    }
+    let shown = texts(&mut app);
+    assert!(
+        found,
+        "Make a vault is not offered for Vault 2: open {:?} cur {} items {:?} {:?}",
+        app.backup.as_ref().unwrap().open,
+        app.vaults.current,
+        app.backup_items(),
+        shown
+    );
+    app.press(make);
+    for second in [false, true] {
+        app.press(Action::Vault(V::CFocus(0, second)));
+        type_text(&mut app, PHRASE_2);
+    }
+    app.press(Action::Vault(V::CGo));
+    settle(&mut app, 10);
+    settle(&mut app, 40);
+    if app.screen == Screen::Unlock {
+        type_text(&mut app, PHRASE_2);
+        app.press(Action::Vault(V::Unlock));
+        settle(&mut app, 100);
+    }
+    assert_eq!(app.vaults.open.len(), 2, "the new vault is open");
+    app.press(Action::BVaultSave(1));
+    assert!(app.backup_item_done(Item::Vault(1)));
+}
+
+#[test]
+fn the_vault_set_up_for_a_plan_vault_is_not_locked_away_for_another_one_that_holds_a_key() {
+    use faraday_core::vaults::VaultAction as V;
+    let mut shell = Shell::new();
+    let mut app = two_of_three_with_setup(&mut shell, 2);
+    answer_backup(&mut app, qrow::SEEDS, seeds::WORDS);
+    // Key 2 goes only to Vault 2; the vault set up for Vault 1 holds it.
+    answer_backup(&mut app, qrow::VAULTS, 1);
+    answer_backup(&mut app, qrow::VAULTS + 1, 1);
+    app.press(Action::BChecklist);
+    app.vaults.current = 0;
+    app.press(Action::Vault(V::SaveKey(1)));
+    // Vault 2's vault is the one selected when the button is pressed.
+    app.vaults.current = 1;
+    let both = app.vaults.open.len();
+    app.press(Action::BNewVault(0));
+    assert_eq!(app.vaults.open.len(), both, "no vault was locked away");
+    assert!(app.toast_text().is_some());
+}
+
+#[test]
+fn a_setup_survives_the_lock_that_makes_the_process_clean() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 2);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    app.press(Action::CreateWallet);
+    // A key put in a slot before the question was answered.
+    key_in(&mut app, 0);
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CKind(multi_index()));
+    app.press(Action::CVaults(true));
+    app.press(Action::CNext(cstep::WHERE));
+    app.press(Action::CVaultN(2));
+    app.press(Action::CNext(cstep::HOW_MANY));
+    assert_eq!(app.screen, Screen::BackupFlow);
+    shell.flow(&mut app, F::LockBring);
+    let mut app = restart(&mut shell, &mut app);
+    // The wallet being made is there again, past its questions.
+    let c = app.create.as_ref().expect("Make a new wallet is kept");
+    assert_eq!(c.kind, NewKind::Multi);
+    assert_eq!((c.vaults.answer, c.vaults.count), (Some(true), 2));
+    assert!(app.create_card_done(cstep::WHERE) && app.create_card_done(cstep::HOW_MANY));
+    assert_eq!(app.screen, Screen::BackupFlow);
+    // Keys stay closed until the setup is done.
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CStep(cstep::KEYS));
+    assert_ne!(app.create.as_ref().unwrap().open, Some(cstep::KEYS));
+    let flow = flow_names(&app);
+    let names: Vec<&str> = flow.iter().map(String::as_str).collect();
+    app.press(Action::Nav(Screen::BackupFlow));
+    bring_in_all(&mut shell, &mut app, &names);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    create_vault(&mut shell, &mut app, 1, PHRASE_2);
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.create.as_ref().unwrap().open, Some(cstep::KEYS));
+}
+
+#[test]
+fn a_restore_setup_survives_the_lock_too() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 1);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    app.press(Action::RestoreWallet);
+    key_in(&mut app, 0);
+    app.press(Action::Nav(Screen::Restore));
+    app.press(Action::RVaults(true));
+    app.press(Action::RNext(faraday_core::rstep::WHERE));
+    app.press(Action::RVaultN(1));
+    app.press(Action::RNext(faraday_core::rstep::HOW_MANY));
+    shell.flow(&mut app, F::LockBring);
+    let mut app = restart(&mut shell, &mut app);
+    let r = app.restore.as_ref().expect("Restore is kept");
+    assert_eq!((r.vaults.answer, r.vaults.count), (Some(true), 1));
+    app.press(Action::Nav(Screen::Restore));
+    app.press(Action::RStep(faraday_core::rstep::SEEDS));
+    assert_ne!(
+        app.restore.as_ref().unwrap().open,
+        Some(faraday_core::rstep::SEEDS),
+        "the seeds stay closed until the setup is done"
+    );
+}
+
+#[test]
+fn the_question_and_the_count_are_fixed_once_a_vault_of_the_setup_is_open() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 1);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, false, 1);
+    bring_in_all(&mut shell, &mut app, &["S1"]);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    assert_eq!(app.vaults.open.len(), 1);
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CVaults(false));
+    app.press(Action::CVaultN(3));
+    let c = app.create.as_ref().unwrap();
+    assert_eq!((c.vaults.answer, c.vaults.count), (Some(true), 1));
+    assert!(!app.backup_flows.is_empty(), "the setup stays");
+}
+
+#[test]
+fn a_wallet_made_without_the_question_continued_does_not_read_it_as_done() {
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    app.press(Action::CreateWallet);
+    let fp = key_in(&mut app, 0);
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CSlotHere(0, fp));
+    app.press(Action::CNext(cstep::KEYS));
+    assert!(app.create.as_ref().unwrap().built.is_some());
+    assert!(!app.create_card_done(cstep::WHERE));
+    assert!(!app.create_card_done(cstep::HOW_MANY));
 }

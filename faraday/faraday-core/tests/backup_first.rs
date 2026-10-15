@@ -311,6 +311,68 @@ fn the_cards_address_carries_the_warning_until_the_backup_is_done() {
     assert!(!app.drawn_texts().iter().any(|t| t == WARNING));
 }
 
+/// Whether the frame draws any of the wallet's first receive or change
+/// addresses, grouped or not.
+fn draws_an_address(app: &mut Faraday, w: usize) -> bool {
+    let wl = &app.session.wallets[w];
+    let addrs: Vec<String> = [(false, 0), (false, 1), (true, 0)]
+        .iter()
+        .map(|&(c, i)| app.session.address_shown(wl, c, i))
+        .collect();
+    app.drawn_texts().iter().any(|t| {
+        let t = t.replace(' ', "");
+        addrs.iter().any(|a| t.contains(&a[..a.len().min(20)]))
+    })
+}
+
+#[test]
+fn a_key_made_here_shows_no_receive_address_until_its_backup_is_done() {
+    let mut app = device(Vec::new(), 2400);
+    let (w, fp) = made_here(&mut app);
+    // Create's address check.
+    app.press(Action::CStep(cstep::CHECK));
+    assert!(!draws_an_address(&mut app, w), "Create's check");
+    assert!(app.drawn_texts().iter().any(|t| t == WARNING));
+    // The wallet's card.
+    app.press(Action::OpenWallet(w));
+    assert!(!draws_an_address(&mut app, w), "the card");
+    // Every address line and the chart's move target.
+    let wl = &app.session.wallets[w];
+    for (c, i) in [(false, 0), (false, 7), (true, 3)] {
+        assert_eq!(app.receive_line(wl, c, i), (WARNING.to_string(), true));
+    }
+    app.press(Action::Backup(w));
+    app.press(Action::BPreset(preset(Preset::Paper)));
+    app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
+    check_the_copy(&mut app, fp);
+    the_envelopes(&mut app);
+    app.press(Action::OpenWallet(w));
+    assert!(draws_an_address(&mut app, w), "after the backup");
+    let wl = &app.session.wallets[w];
+    assert!(!app.receive_line(wl, false, 0).1);
+}
+
+#[test]
+fn a_restored_key_shows_its_addresses_at_once() {
+    let k = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let mut app = device(
+        vec![("spending-wallet.txt".to_string(), k.descriptor.into_bytes())],
+        2400,
+    );
+    app.press(Action::LoadWallet(0));
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
+    app.press(Action::EntryAdd);
+    app.press(Action::OpenWallet(0));
+    assert!(draws_an_address(&mut app, 0));
+}
+
 #[test]
 fn with_every_item_done_the_done_card_shows_the_three_checks_above_the_chart() {
     let mut app = device(Vec::new(), 2400);

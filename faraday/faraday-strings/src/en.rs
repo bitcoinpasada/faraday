@@ -8272,6 +8272,10 @@ pub struct Strings {
     pub backup_flow_unlocked_of: &'static str,
     /// Toast: the key is made into open vaults.
     pub backup_flow_unlock_first: &'static str,
+    /// Toast: the vault set up for a plan vault holds a key only another is to hold.
+    pub backup_flow_set_up_holds_other: &'static str,
+    /// Toast: the setup's question or count while one of its vaults is open.
+    pub create_vaults_locked: &'static str,
     /// While a vault unlocks.
     pub backup_flow_unlocking: &'static str,
     /// Unlocks a vault of the plan.
@@ -12366,6 +12370,8 @@ pub static EN: Strings = Strings {
     backup_flow_unlocked: "Unlocked",
     backup_flow_unlocked_of: "{} of {} unlocked",
     backup_flow_unlock_first: "Unlock every vault first",
+    backup_flow_set_up_holds_other: "{} was set up for this vault and holds a key the plan puts in another. Change the plan",
+    create_vaults_locked: "A vault of the setup is open. Lock to change this answer",
     backup_flow_unlocking: "Unlocking",
     backup_flow_unlock_vault: "Unlock {}",
     backup_flow_written_of: "{} of {} written",

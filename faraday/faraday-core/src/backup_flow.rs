@@ -732,6 +732,24 @@ pub struct WalletFlow {
     /// yet: its plan is a vault at a place each, which the answers do not
     /// draw.
     pub setup: bool,
+    /// What the Make a new wallet or Restore that asked for the setup was
+    /// about, kept across the lock that makes the process clean: nothing
+    /// secret, so the setup is picked up where it was.
+    pub again: Option<Again>,
+}
+
+/// The non-secret state of Make a new wallet or Restore, kept while its
+/// vaults are set up across a lock.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Again {
+    /// Restore, not Make a new wallet.
+    pub restore: bool,
+    /// The kind, as its place in `NewKind::ALL`.
+    pub kind: u8,
+    /// Signatures needed.
+    pub m: usize,
+    /// Keys.
+    pub n: usize,
 }
 
 impl BackupFlow {
@@ -809,6 +827,7 @@ impl BackupFlow {
             base: Vec::new(),
             owner: 0,
             setup: false,
+            again: None,
         });
         f
     }
@@ -1222,6 +1241,15 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
             if w.setup {
                 out.push_str("wsetup\t1\n");
             }
+            if let Some(a) = &w.again {
+                out.push_str(&format!(
+                    "wagain\t{}\t{}\t{}\t{}\n",
+                    u8::from(a.restore),
+                    a.kind,
+                    a.m,
+                    a.n
+                ));
+            }
             out.push_str(&format!(
                 "wans\t{}\n",
                 clean(&w.answers.to_text().replace('\n', "|"))
@@ -1462,6 +1490,22 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             });
             true
         }
+        ["wagain", restore, kind, m, n] => {
+            let (Ok(kind), Ok(m), Ok(n)) = (kind.parse::<u8>(), m.parse(), n.parse()) else {
+                return false;
+            };
+            if usize::from(kind) >= crate::create::NewKind::ALL.len() {
+                return false;
+            }
+            let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
+            w.again = Some(Again {
+                restore: restore == "1",
+                kind,
+                m,
+                n,
+            });
+            true
+        }
         ["wsetup", on] => {
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
             w.setup = on == "1";
@@ -1675,6 +1719,7 @@ impl WalletFlow {
             base: Vec::new(),
             owner: 0,
             setup: false,
+            again: None,
         }
     }
 }
@@ -1850,6 +1895,7 @@ impl Faraday {
         if dropped > 0 {
             self.toast(crate::strings::EN.backup_flow_dropped);
         }
+        self.flow_makers_return();
         let on = self.backup_flows.iter().position(|f| f.on_screen);
         self.flow_on = None;
         if let Some(i) = on {

@@ -1085,15 +1085,24 @@ impl Faraday {
         if self.vaults.open.get(self.vaults.current).is_some() {
             return None;
         }
+        Some(self.vault_unlock_way(back).unwrap_or_else(|| {
+            (
+                EN.vaults_make_a_vault.to_string(),
+                crate::Action::Vault(VaultAction::CreateFrom(back)),
+            )
+        }))
+    }
+
+    /// The way to a vault already on a stick read this power-on, whether
+    /// or not another is open: Unlock {name} for the one locked, Unlock a
+    /// vault, through the list, for several. `None` with none locked.
+    pub fn vault_unlock_way(&self, back: Screen) -> Option<(String, crate::Action)> {
         let files = self.vault_files();
         let locked: Vec<usize> = (0..files.len())
             .filter(|&i| files[i].open.is_none())
             .collect();
         let (label, a) = match locked[..] {
-            [] => (
-                EN.vaults_make_a_vault.to_string(),
-                VaultAction::CreateFrom(back),
-            ),
+            [] => return None,
             [k] => (
                 fill(EN.vaults_unlock, &[&files[k].name.to_string()]),
                 VaultAction::OpenFrom(k, back),

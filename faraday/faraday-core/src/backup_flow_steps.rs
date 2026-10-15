@@ -415,7 +415,7 @@ impl Faraday {
                 }
             }
             F::Continue => self.flow_continue(i),
-            F::LockBring => self.act(Action::Lock),
+            F::LockBring => self.act(Action::LockAsk),
             F::UseBoot(k) => self.flow_use_present(i, k),
             F::PickFile(v, k) => self.flow_pick_file(i, v, k),
             F::PickBeside(v) => self.flow_pick_beside(i, v),
@@ -1991,6 +1991,7 @@ impl Faraday {
     /// resumes on its vaults; Set the time over the flow's Make counts as
     /// the flow.
     pub(crate) fn flow_before_lock(&mut self) {
+        self.flow_keep_makers();
         let on = self.screen == Screen::BackupFlow
             || (self.screen == Screen::SetTime && self.set_time.back_to == Screen::BackupFlow);
         let cur = self.fi();

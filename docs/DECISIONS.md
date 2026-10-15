@@ -1074,6 +1074,9 @@ authenticator app, which takes it by scanning.
   Check, the chart sheet, the family pages, Vanity address's result);
   Explore's extended key, and its address and public key; the Lightning
   node id; a recovery sheet's descriptor in Vault contents.
+- A receive address of a wallet with a key made here and not yet backed
+  up is neither shown nor encoded; "Back up before you receive" stands
+  in its place until the hold is released (F31).
 - A receive address has no PNG: a picture kept invites reuse. The node
   id and a recovery sheet's descriptor have one, For the stick.
 - The code holds the value exactly as the screen prints it; on Faraday
@@ -1288,6 +1291,12 @@ FAT volume serial, which sticks written from one image can share.
   records; B1b leaves out the two choices for a key kept only on paper
   before an extra round (the owner's decision is asked for there) and
   the Nostr key's part.
+- No coins arrive at a key before its backup (owner, 2026-10-15). A new
+  key lives only in memory from Keys until Back up saves it, and the
+  idle lock wipes it after its warning. So the idle lock is unchanged,
+  and every receive address of a wallet holding such a key, and any code
+  of one, is not shown until the backup is done (`docs/NEW-WALLET.md`
+  §14.3, F28).
 
 ### F32 GPG follows GnuPG's behaviour (2026-10-14)
 

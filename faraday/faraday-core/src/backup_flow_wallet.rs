@@ -1154,14 +1154,9 @@ impl Faraday {
             self.wallet_flow_of_owner(c.owner)
                 .is_some_and(|i| self.backup_flows[i].step > step)
         };
-        // Once the wallet is made, the cards before Keys are what they
-        // were decided to be.
-        if c.built.is_some()
-            && matches!(
-                k,
-                cstep::WHERE | cstep::HOW_MANY | cstep::STICKS | cstep::VAULTS
-            )
-        {
+        // Once the wallet is made, the two cards of the setup are over;
+        // the question and the count are done only by their own Continue.
+        if c.built.is_some() && matches!(k, cstep::STICKS | cstep::VAULTS) {
             return true;
         }
         match k {
@@ -1174,7 +1169,14 @@ impl Faraday {
     /// Opens the first card of Make a new wallet that is not done.
     pub(crate) fn create_open_next(&mut self) {
         let cards = self.create_cards();
-        let next = cards.iter().copied().find(|&k| !self.create_card_done(k));
+        let pending = self
+            .create
+            .as_ref()
+            .is_some_and(|c| self.setup_pending(c.owner, c.into_vaults(), c.built.is_some()));
+        let next = cards
+            .iter()
+            .copied()
+            .find(|&k| !self.create_card_done(k) && !(pending && k == cstep::KEYS));
         if let Some(c) = self.create.as_mut() {
             c.open = next;
             c.scroll.follow = true;
@@ -1520,5 +1522,141 @@ impl Faraday {
             .filter_map(|s| s.written.as_ref())
             .find(|w| w.files.iter().any(|(n, _)| is(n)))
             .map(|w| w.label.clone())
+    }
+}
+
+// ---- Make a new wallet and Restore across the lock that makes the process clean ----
+
+impl Faraday {
+    /// Before a lock: the non-secret state of the Make a new wallet or
+    /// Restore that asked for a setup still under way goes into its flow,
+    /// so the lock does not orphan the flow. Nothing secret is kept: the
+    /// keys typed or made so far go with the lock.
+    pub(crate) fn flow_keep_makers(&mut self) {
+        for i in 0..self.backup_flows.len() {
+            let Some(w) = self.backup_flows[i].wallet.as_ref() else {
+                continue;
+            };
+            if !w.setup || w.checksum.is_some() || w.owner == 0 {
+                continue;
+            }
+            let owner = w.owner;
+            let kind_at = |k: crate::create::NewKind| {
+                crate::create::NewKind::ALL
+                    .iter()
+                    .position(|x| *x == k)
+                    .unwrap_or(0) as u8
+            };
+            let again = if let Some(c) = self
+                .create
+                .as_ref()
+                .filter(|c| c.owner == owner && c.built.is_none())
+            {
+                Some(crate::backup_flow::Again {
+                    restore: false,
+                    kind: kind_at(c.kind),
+                    m: c.m,
+                    n: c.n,
+                })
+            } else {
+                self.restore.as_ref().filter(|r| r.owner == owner).map(|r| {
+                    crate::backup_flow::Again {
+                        restore: true,
+                        kind: kind_at(r.kind()),
+                        m: r.seeds.as_ref().map_or(1, |s| s.m),
+                        n: r.seeds.as_ref().map_or(1, |s| s.n),
+                    }
+                })
+            };
+            if let Some(wf) = self.backup_flows[i].wallet.as_mut() {
+                wf.again = again.or(wf.again.take());
+            }
+        }
+    }
+
+    /// After a lock: the Make a new wallet or Restore a setup came from is
+    /// there again, past the questions it was past, to take the keys when
+    /// the setup is done.
+    pub(crate) fn flow_makers_return(&mut self) {
+        for i in 0..self.backup_flows.len() {
+            let Some(w) = self.backup_flows[i].wallet.as_ref() else {
+                continue;
+            };
+            let (Some(a), true, true) = (w.again.clone(), w.setup, w.checksum.is_none()) else {
+                continue;
+            };
+            let (owner, count) = (w.owner, w.shape.vaults.max(1));
+            let kind = crate::create::NewKind::ALL
+                .get(usize::from(a.kind))
+                .copied()
+                .unwrap_or_default();
+            let ask = crate::VaultAsk {
+                answer: Some(true),
+                count,
+            };
+            if a.restore {
+                let mut r = crate::RestoreState::new();
+                r.owner = owner;
+                r.vaults = ask;
+                if let Some(s) = r.seeds.as_mut() {
+                    s.fix(kind);
+                    s.set_n(a.n);
+                    s.set_m(a.m);
+                }
+                for k in [
+                    crate::rstep::KIND,
+                    crate::rstep::QUORUM,
+                    crate::rstep::DESCRIPTION,
+                    crate::rstep::WHERE,
+                    crate::rstep::HOW_MANY,
+                ] {
+                    r.done[k as usize] = true;
+                }
+                r.open = None;
+                self.restore = Some(r);
+            } else {
+                let mut c = crate::CreateState {
+                    owner,
+                    kind,
+                    m: a.m,
+                    n: a.n,
+                    vaults: ask,
+                    ..crate::CreateState::default()
+                };
+                let slots = match kind {
+                    k if k.threshold() => a.m,
+                    k if k.multi() => a.n,
+                    _ => 1,
+                };
+                c.slots = vec![crate::create::Source::Empty; slots];
+                for k in [cstep::KIND, cstep::QUORUM, cstep::WHERE, cstep::HOW_MANY] {
+                    c.done[k as usize] = true;
+                }
+                self.create = Some(c);
+                self.create_open_next();
+            }
+            // The flow's own setup is what the person continues with.
+            return;
+        }
+    }
+
+    /// Whether the setup of Make a new wallet or Restore number `owner`
+    /// has a vault open: its question and its count are then fixed until
+    /// a lock (`docs/BACKUP-FLOW.md` §10).
+    pub(crate) fn setup_vault_open(&self, owner: u64) -> bool {
+        let Some(i) = self.wallet_flow_pre_of(owner) else {
+            return false;
+        };
+        (0..self.backup_flows[i].plan.vaults.len()).any(|v| self.flow_open_index(i, v).is_some())
+    }
+
+    /// Whether Make a new wallet or Restore number `owner`, with vaults
+    /// answered yes, has its setup still to do: its keys stay closed.
+    pub(crate) fn setup_pending(&self, owner: u64, into_vaults: bool, made: bool) -> bool {
+        into_vaults
+            && !made
+            && !self
+                .wallet_flow_of_owner(owner)
+                .is_some_and(|i| self.backup_flows[i].step > Step::Vaults)
     }
 }

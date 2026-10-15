@@ -827,13 +827,15 @@ fn after_lock_in_pressing_a_count_on_length_changes_nothing() {
 }
 
 #[test]
-fn a_single_key_create_opens_on_back_up_with_the_address_key_showed() {
+fn a_single_key_create_opens_on_back_up_and_the_key_card_holds_the_address_back() {
     let mut app = slot_flow(false);
     flip_all(&mut app);
     app.press(Action::KNext);
     app.press(Action::KLock);
     let on_key = texts(&mut app);
-    assert!(on_key.contains("First address"));
+    // The key is new, so no address is shown until it is backed up.
+    assert!(!on_key.contains("First address"));
+    assert!(on_key.contains("Back up before you receive"));
     app.press(Action::KNext);
     assert_eq!(app.screen, Screen::Create);
     let c = app.create.as_ref().unwrap();
@@ -843,7 +845,7 @@ fn a_single_key_create_opens_on_back_up_with_the_address_key_showed() {
     let w = c.built.expect("the wallet is made");
     let wallet = &app.session.wallets[w];
     let first = faraday_core::ui::grouped(&app.session.address_shown(wallet, false, 0));
-    assert!(on_key.contains(&first), "{first} not in {on_key}");
+    assert!(!on_key.contains(&first), "{first} shown while held");
 }
 
 #[test]
