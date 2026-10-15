@@ -6,7 +6,8 @@ owner picked up the Mac work on 2026-10-13 with the Starter, Faraday
 Starter: batch A3 is split so its part that needs no Mac goes first
 (§8; HANDOFF item 73). F13 supersedes F11's "no macOS
 app": Faraday now targets Macs across the stick, the desktop app and the
-Starter.
+Starter. F30 (2026-10-14) stops publishing the desktop app, so batch D,
+the desktop app on macOS, is dropped from the plan (§5).
 
 What it adds:
 
@@ -15,7 +16,8 @@ What it adds:
 - **Apple Silicon Macs** (M1 and M2 first) start a new stick image,
   `arm64-apple`, through a start-up file the Starter installs once on
   the Mac and Apple's own recovery system seals.
-- **The desktop app** and **the Starter** run on macOS.
+- **The Starter** runs on macOS. The desktop app is not published on
+  any system since F30, and its macOS build is a developer's (§5).
 
 Asahi Linux's work (m1n1, its U-Boot and kernel trees) is what makes
 Apple Silicon possible, and this document uses its names. Faraday
@@ -453,14 +455,17 @@ whatever its machine type; the first-signing build record (`PLAN.md`
 
 ## 5. The desktop app on macOS
 
-A testing app with test seeds only, as on Linux and Windows.
+Not published, and dropped from the plan (owner, 2026-10-14, F30): no
+release carries a macOS desktop app, and batch D is not built. A
+developer with a Mac can still build the desktop shell there; this
+section lists what that build needs, for whoever does it. Nothing here
+is built or tested in this repository.
 
 - Built on a Mac (Apple's SDK licence allows its use only there) by
   `just faraday-mac-desktop`, as a universal binary (x86_64 and
   arm64), macOS 11 or later, in `Faraday Desktop.app` with
   `NSCameraUsageDescription`. Ad-hoc signed, not notarized (owner, F13,
-  for the reason F11 gives for Windows). Released as
-  `faraday-desktop-X.Y.Z-macos.zip`.
+  for the reason F11 gives for Windows). Not released (F30).
 - Changes: the camera through `opensigner-avfoundation`, which the tree
   carries; `memory_available_mib` from `sysctl hw.memsize` where it
   reads `/proc/meminfo`; folders opened with `open` where `xdg-open` is
@@ -486,10 +491,10 @@ Home goes on to the next step (HANDOFF item 73, A3a).
 
 - **§1.1 Release files:** `Faraday-X.Y.Z-macOS.zip` (the Starter,
   universal, `Faraday.app`, ad-hoc signed);
-  `faraday-desktop-X.Y.Z-macos.zip`; `faraday-stick-X.Y.Z-arm64-apple.img.xz`;
+  `faraday-stick-X.Y.Z-arm64-apple.img.xz`;
   `faraday-mac-boot-X.Y.Z.bin`. Every Starter (Windows, Linux, macOS)
   carries the Apple Silicon image and the start-up file template in its
-  payload; the macOS Starter carries the desktop app.
+  payload. No Starter carries a desktop app (F30).
 - **§2:** a `macos` module in `faraday/shells/starter` beside `linux` and
   `windows`, implementing its `Platform` trait
   (`faraday/shells/starter/src/platform.rs`, committed c3519bc);
@@ -524,10 +529,9 @@ Home goes on to the next step (HANDOFF item 73, A3a).
   at `faradayoffline.app/start/<id>`. *Restart into the BIOS*
   has no Mac form; the Intel page's step is "Shut down, then hold
   Option".
-- **§5.2 Install on macOS:** `~/Applications/Faraday.app` and, if
-  ticked, `~/Applications/Faraday Desktop.app`; per user, no
-  administrator. Uninstall removes exactly those and the cache
-  (`~/Library/Caches/faraday/X.Y.Z/`).
+- **§5.2 Install on macOS:** `~/Applications/Faraday.app`; per user,
+  no administrator. Uninstall removes exactly that. No desktop app is
+  installed (F30).
 - **§10:** §10.2's unsigned rule extends to macOS (ad-hoc signature,
   not notarized; Open Anyway). §10.3 adds: the Faraday start-up volume
   and the shrunk macOS container, and the remove action that takes both
@@ -572,7 +576,7 @@ not a model tried on.
 | Batch | What | Needs | Order |
 |---|---|---|---|
 | I | Intel Macs: the PC kernel's changes (§3.3), SPI input trust (§3.4), the Mac power-off line (§3.2) with the Intel Mac guide's QR code, the README's Intel rows from A3b's table, with the test that they agree (§7) | decided | independent of the Starter batches; the README rows after A3b |
-| D | The desktop app on macOS (§5), its recipe and release file | a Mac to build on (§9, M7) | waits for a Mac |
+| D | The desktop app on macOS (§5) | dropped (owner, 2026-10-14, F30): not published; a developer with a Mac may build it | not built |
 | A1 | The `arm64-apple` stick image (§4.1), with the Asahi keyboard patches and their `docs/deps` review | decided | after I |
 | A2 | The start-up file (§4.2–§4.4): m1n1 and U-Boot pinned and built under §4.3, `faraday-macboot`, the QEMU check, the published no-check file | decided | after A1 |
 | A3a | The Starter's macOS module (§6): disks, writing through `authopen`, facts, install; type-checked for both Mac targets and tested on Linux against hand-written answers (HANDOFF item 73) | decided | now (owner, 2026-10-13); needs no Mac |

@@ -497,7 +497,9 @@ supersedes F11's "no macOS app".
   Apple Silicon kernel only. The M2 trackpad, which needs a firmware
   file copied from macOS, is not supported.
 - The desktop app and the Starter run on macOS, ad-hoc signed and not
-  notarized, for the reason F11 gives for Windows.
+  notarized, for the reason F11 gives for Windows. (Owner, 2026-10-14,
+  F30: the desktop app is not published on macOS either, and MAC batch
+  D is dropped; developers can still build it.)
 - The Starter can remove the start-up volume again, for privacy.
 - The README lists the supported Macs by model identifier, each claim
   cited, as Expected or Not supported. Nothing published says which
@@ -1101,3 +1103,57 @@ they were typed, with the seed allowed on screen above the field.
 - Each seed here keeps its own copy item. The typed words are wiped on
   a match, on leaving the check, and on a lock.
 - Specified, not built.
+
+### F30 No released Faraday Desktop; the demo makes no secrets (2026-10-14)
+
+**Why.** Faraday Desktop runs on an online computer, and released, it
+offered every flow there: GPG and Secure Boot keys, BIP-85 passwords,
+shares of a seed. The website runs the same app in a browser and is a
+better way to try Faraday than a download. F20 kept funded seeds off
+the demo's mainnet, but the demo still made keys and passwords, shown
+on an online computer before being dropped or kept.
+
+**Decision** (owner, 2026-10-14; the spec is `docs/DEMO.md`).
+
+- Releases stop publishing Faraday Desktop:
+  `faraday-desktop-X.Y.Z-linux-x86_64`,
+  `faraday-desktop-X.Y.Z-windows-x86_64.exe`, and the planned macOS
+  file. Faraday Starter drops Try the desktop app and the desktop app in
+  Install, and its payload carries the images only.
+- The desktop app's code and builds stay, supported for developers and
+  unpublished; the README says how to build it, in one short section.
+  A developer build starts on mainnet as the demo and keeps F20's test
+  networks with any seed. It is never released.
+- The website demo, the desktop shell compiled to WebAssembly in its
+  own repository, is the way to try Faraday.
+- The demo (a session set up by `Session::set_demo` and on mainnet)
+  opens every tab and screen, and every action that would make a secret
+  is disabled: SLIP-39, Seed XOR and codex32 shares, GPG, Secure Boot
+  and APK keys, every BIP-85 output, a FROST deal, a vanity passphrase,
+  a Lightning node's private key and a scan key leaving Faraday. Bitcoin use with the
+  eleven public seeds stays fully open, as F20 has it.
+- New key keeps every source, dice, coins, cards, hex, camera, the
+  generator and a mix, and its result is replaced by the next public
+  seed, as F20 has it. Generate with dice for a vault passphrase keeps
+  its rolls, and its words are replaced by the demo's public passphrase,
+  a constant beside the public seeds. Neither result is kept.
+- A disabled action is DESIGN §4.11's dimmed control with no reason
+  line, and does nothing when pressed; the demo's Learn page, first in
+  the info button's list on those screens, says what the demo does not
+  make. This is an exception to `docs/FLOWS.md` decisions 8 and 10, for
+  these actions in the demo only.
+- The decisions that offer a flow "in Faraday Desktop" (F11, F12,
+  F13, F25, F26) now apply to developer builds and the demo; `docs/DEMO.md` §8 and §11 list each change. F27 stands.
+- Decided with it (owner, 2026-10-14, `docs/DEMO.md` §13): typing a
+  password or TOTP secret into a vault Entry stays open; the LND cipher
+  seed row of Lightning node key is dimmed in the demo; a desktop app
+  installed by an earlier Starter is left in place, and the README says
+  how to remove it; the desktop app on macOS (MAC batch D) is dropped
+  from the plan, and developers can still build it.
+- Specified, not built. Until its batches (`docs/DEMO.md` §12), the
+  README, `docs/STARTER.md` and the demo's Learn page give today's
+  state.
+
+Numbering: F30 was the next free number on `main` on 2026-10-14. Work in
+another worktree may add a decision; whichever is committed second takes
+the next number, and `docs/DEMO.md` follows it.
