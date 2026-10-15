@@ -3521,8 +3521,15 @@ const STEPS: [&str; 10] = [
     EN.app_nonces,
 ];
 
+/// The side panel beside a step-by-step column (Spend, Back up, Create a
+/// vault): 320 wide in a full-size window, down to 240 as the window
+/// narrows, so that the column keeps its room.
+pub(crate) fn side_panel_w(cw: f32) -> f32 {
+    (cw * 0.31).clamp(240.0, 320.0)
+}
+
 fn spend(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let panel_w = 320.0;
+    let panel_w = side_panel_w(cw);
     let col_x = x0 + 40.0;
     let col_w = cw - panel_w - 72.0;
     let needed = app.spend_needed();
@@ -5300,7 +5307,7 @@ fn item_title(app: &Faraday, n: u8) -> (String, String) {
 
 fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::BStage;
-    let panel_w = 320.0;
+    let panel_w = side_panel_w(cw);
     let col_x = x0 + 40.0;
     let col_w = cw - panel_w - 72.0;
     let Some(b) = app.backup.as_ref() else {

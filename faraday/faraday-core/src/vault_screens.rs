@@ -981,7 +981,7 @@ const VSTEPS: [&str; vstep::COUNT] = [
 ];
 
 pub(crate) fn create(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let panel_w = 320.0;
+    let panel_w = crate::screens::side_panel_w(cw);
     let Some(c) = app.vaults.create.as_ref() else {
         return;
     };
