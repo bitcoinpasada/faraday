@@ -3,8 +3,9 @@
 **Status:** spec v0.3 · 2026-10-14 · decided by the owner
 (`docs/DECISIONS.md` F31), reworked the same day to the order "decide
 where the key will live, then make it", and §15's questions answered. Batch B1a (§14, without the Bitcoin
-wallet) is built for the APK key, GPG keys and the Secure Boot keys, with
-the choices §16 records; the wallet's part, batch B1b, is not.
+wallet) is built for the APK key, GPG keys and the Secure Boot keys, and
+batch B1b for the Bitcoin wallet (§10, §11), each with the choices §16
+records; the Nostr key's part is not.
 
 One guided flow makes and backs up every kind of secret Faraday keeps
 in a vault: an APK signing key (`docs/APK-SIGNING.md`), a GPG key, a set
@@ -616,8 +617,7 @@ and matched. A write made on the stick visit page does not count
 - **F6's hold at the lock**: every other item is done when **Lock and
   write** is offered; the lock clears the held flag (VAULT §7, type 2
   bit 1) in the vaults it seals, so the copies on the sticks say the
-  backup is done, and the hold moves to the flow's state until the last
-  stick is written.
+  backup is done, and the hold moves to the flow's state. A held key is released when every stick of the plan is written and each of the seed's own planned sticks is among them, non-empty; a key the plan keeps only on paper is released when the other items are done.
 - **The done card** loses **Write to {a stick}**: nothing the plan made
   is left For the stick. A written file has left For the stick, so the
   Outbox never holds it twice; one taken by two sticks leaves once both
@@ -1160,3 +1160,213 @@ their Outbox names for the stick of files and the stick of public files;
 and `Kind::min_places` returning one. The `Step`'s Done transition already
 moves the sealed vaults into Files. The gate for a wallet is
 `BackupFlow::waiting` read by `backup_waits`.
+
+## 16. Built (batch B1b)
+
+The wallet's part: §10 and §11, on the code B1a built. Where the spec was
+silent, or two readings were open, the build followed the closest B1a
+pattern; each choice is here.
+
+**Where it is.** `faraday-core/src/backup_flow_wallet.rs` (what only a
+wallet needs: its flow, the hold, the files, the round),
+`backup_flow_wallet_screen.rs` (its Where and Make cards and Make a new
+wallet's three), the shared `backup_flow.rs`, `backup_flow_steps.rs` and
+`backup_flow_screen.rs` with a `Kind::Wallet` arm where a wallet differs,
+`plan.rs` (the checklist's `Item::Sticks`, `all_at_one_place`, the
+passphrase's default place, no cap), `glance.rs` (the two lines under the
+checks) and `lib.rs`/`screens.rs` for the checklist and the cards.
+
+1. **The plan is `plan_of(shape, answers)`**, the map's: a place for each
+   place of the map keeping the vaults whose stick it holds; vaults
+   numbered as the answers number them (a number no map uses is an empty
+   `VaultPlan` that no place names, so `used_vaults()` never reaches it);
+   the stick of files where the map has an `At::Files` spot with seed
+   files, or holding the wallet; the stick of public files where nothing
+   else carries them. The public files and sheets go (`PublicOn`): to the
+   stick of a place that keeps a vault copy and also holds the wallet (a
+   chart edit), else to the stick of files when it holds the wallet,
+   else to a stick of their own. A plan whose checklist has no
+   Sheets, public files, seed files or vault stick has no slot, so no
+   stick step and no lock. The default Paper preset has a sheet, so it
+   has the stick of public files and the lock; a plan with no sheet
+   (the sheet row unticked), no vault and no files has none.
+2. **The wallet's state in the flow** is `WalletFlow`: its shape (the
+   quorum and the seeds by name), its answers (`Answers::to_text`, no
+   secret), its descriptor checksum and name, the fingerprints it holds
+   back, and the seeds each vault was sealed with. All of it is in the
+   kept state (`version 3`) and the held fingerprints in `backup-gate`
+   too, so a flow that does not read still holds its keys.
+3. **Steps 1 to 3 run on the flow's own screen** for a wallet, and Make a
+   new wallet hosts them: its card list gains **Where the keys will be
+   kept** after Kind and Quorum (answered **Not in a vault** until the
+   person says otherwise, so a wallet with no vault goes straight to
+   Keys as before), and, once the flow has a plan, **Bring in the
+   sticks** and **Vaults** as closed cards with **Change**. **Continue**
+   on Where with **In vaults** opens the flow's cards (a page each on a
+   small panel); when the vaults are open the flow returns to Keys. The
+   same one card (**Where the seeds will be kept**) is in Restore before
+   Seeds, and returns to Seeds. Back up's first plan question keeps what
+   the flow decided: a preset fills the rest.
+4. **Before the keys exist** the plan is drawn for a placeholder shape: a
+   seed to be made here for each key ("Key 1"), none with a passphrase;
+   **Add a passphrase** before the key exists marks the single key's slot
+   (`CreateState::pass_marked`), which gives the plan a row for the
+   passphrase. When the wallet is made the shape is the real one and the
+   answers are fitted to it (`Answers::refit`: a seed not here is in no
+   vault; a vault left with no seed here goes).
+5. **The keys go straight into their vaults** by a hook that runs after
+   every press (`wallet_flow_save_keys`): a Create slot filled with a key
+   from words (New key, a loaded key, a passphrase locked in), or a seed
+   typed in Restore, is saved into each open vault of the plan that holds
+   its seed (with its passphrase where the plan puts it there), once. The
+   wallet description is saved into the vaults that hold it when Create
+   makes the wallet.
+6. **The checklist's last item**, `Item::Sticks`, shows the lock's Kept and
+   Wiped from memory and a row for each stick by place (the stick of files
+   and of public files by name), each with its files, ticked as written.
+   Its foot **Lock and write** is the lock: one press (the Lock card's
+   sections are in the item, so the flow's Lock card is passed). It acts
+   only with every other item done and every vault of the plan open and
+   holding what the plan puts in it. The vault part of the plan is saved
+   (`plan_save`) first, each vault is resealed (`changes` raised, so a
+   copy for every stick is sealed), the vault's open index is the plan
+   vault the flow knows, else the one that fits; the flow takes the
+   files the checklist made. An item that ends For the stick is done when
+   its file is made, as before, or written by the flow; its closed line
+   says **Written to {label}** once it was. The item is done when every
+   stick is written: the Back up screen, opened again from the vault after
+   Done, shows it.
+7. **F6's hold.** The held keys the plan keeps in a vault move to the
+   flow's state at the press (`WalletFlow::held`), and the marks come off
+   the vault records and the plan's `held` lines before the seal, so the
+   sealed copies say the backup is done; a key the plan keeps only on
+   paper is released when the other items are done, as its copy was
+   checked; every other held key is released by the one rule: every stick
+   of the plan is written, and the seed's own planned sticks are among them,
+   non-empty. `held_keys` is the stored hold plus the flow's; a record
+   saved while a flow holds a key says nothing of it.
+8. **Seed files.** A seed's file let out unprotected on the secret sheet
+   is written to the stick of files and to no other, as the one secret the
+   flow writes; every other file of a stick still must not be one.
+9. **The account keys** (`xpub-{fp}.txt`, and `xpub-{fp}-bsms.txt` on a
+   `wsh` or `sh(wsh)` multisig at Create's own account) are among the
+   public files: named by `backup_public_names_for` (without signing),
+   made by `backup_files_make` with the other public files when the
+   checklist is made, written to the stick that carries them. A key not
+   held here has none; a single key has none.
+10. **Templates.** The item's body says "Print {n} from Faraday Starter:
+    Blank templates, {words} words, {Words|SeedQR|Both}" with the 24 or
+    12 chosen, its foot is **Done** (`BackupState::printed`), and no
+    template is made: `blank-template-{words}-words.pdf` and
+    `public_made`'s arm for it are gone.
+11. **§10.3.** `plan::all_at_one_place` (the three cases of §10.3) and
+    `Check::{one_place, passphrase_apart}`; `glance::check_lines` draws the
+    two lines under the three boxes wherever they are drawn, with the
+    place's name from the chart's nodes or the vault. **Add a passphrase**
+    after the wallet exists opens Create anew on Keys with the single
+    key in its slot and the fields open: a new key and wallet. The
+    passphrase's place is the first that keeps no copy of its seed in
+    any form; where none, a place is added that keeps no paper
+    (`Answers::bare`, a new `bare` line in the plan's text), since the
+    spread would otherwise give every new place another copy of the
+    words. `Answers::preset` places the passphrase after the vault's stick.
+    A single key with Paper and vault and a passphrase: words at Places 1
+    and 2, the vault's stick at Place 2, the passphrase at Place 3.
+12. **No cap.** `Shape::max_places` is gone and `set_places` keeps its
+    lower bound of one; so does `Answers::from_text`.
+13. **Restore** takes the same steps (above), its seeds into their vaults,
+    then the checklist. A restored key is no key made here, so nothing is
+    held back and it signs at once; the flow is offered by the plan and
+    the key's page shows the written count as any flow does.
+14. **Change the plan** for a wallet edits the answers (`FlowAction::Answer`
+    takes Back up's question and row), at every step; a stick already
+    written is not taken off the plan from here. After the lock a vault
+    that now holds a seed it was not sealed with is as one added: its
+    written sticks are cleared, the round unlocks it and the vaults that
+    hold the seed, copies the records across, locks and writes again. The
+    round reads the key records of the open vaults; a seed kept only on
+    paper is typed back (**Add the key from its copy**) and then saved.
+15. **The done card** loses **Write to {a stick}** and the line of files
+    waiting; **Open the wallet** is its first button. Done's **Unlock
+    {vault}** opens the wallet's checklist, done. A plan with no vault has
+    **Home** in its place.
+
+16. **Review fixes.** (a) A flow that is Done is never looked up for a new
+    backup: a new lock starts a fresh flow for the wallet, so a second
+    backup in the same power-on writes again. (b) Each wallet's flow is tied
+    to its Make a new wallet or Restore by an id (`owner`, not kept across a
+    lock), and the press hook saves only into that flow's vaults. (c) F6
+    holds every seed the plan keeps on any stick, in a vault or as a seed
+    file, and moves it to the flow at the lock. (d) `backup-flow` is written
+    like `backup-gate`, by a temporary file and a rename; a flow with no
+    wallet part is not read, and the gate's held fingerprints are merged
+    into a flow that is. (e) `refit` returns which rows it kept and the
+    plan's vaults follow their rows, so a vault keeps its salt when a slot
+    turns out to be a cosigner's key. (f) After the lock a seed is matched by
+    its words (its base fingerprint), the passphrase is put in the vault only
+    where the plan puts it there, and the round copies only this wallet's
+    `WALLET` and `PLAN` records. (g) A vault preset chosen after the keys
+    exist is the adding-after-the-keys case of §4.8: a new vault is made at
+    once with the key in it and its stick is checked at step 6; a vault that
+    exists takes the extra round. (h) Make a new wallet's Where, Bring in
+    and Vaults cards read their answer and done once the wallet is made, and
+    Check's Continue opens Back up. (i) Before the lock a record the flow
+    saved for a seed no longer in a slot is removed, and a seed has one
+    record when a passphrase is added later. (j) A plan changed after the
+    lock to add the wallet description or a passphrase to a vault that
+    exists is a round. (k) `refit` recommends and never forces: a passphrase
+    is placed apart only when a preset is chosen or a passphrase is added;
+    attaching, adopting and resuming move no placed passphrase and add no
+    place. (l) A seed file is matched as `{stem}-{fp}-...` for this wallet's
+    seeds exactly, in the slot's files and again at write time.
+17. **Public files beside a plain seed file.** When any seed file is
+    planned, the public files get their own stick by default (`PublicOn::Own`)
+    so a seed file never shares a stick with the files that are handed
+    around. Merging them stays a deliberate choice. This is a default the
+    owner may change.
+18. **Back** on a card of a wallet's flow before its keys exist returns to
+    Make a new wallet or Restore. Taking a written stick off the plan says
+    so in a toast (**A stick already written stays on the plan**). The seed
+    files and shares items of the checklist read **Written to {stick}** once
+    written.
+
+19. **Second review.** A key held back is released by one rule: every
+    stick of the plan is written, and the seed's own planned sticks are among
+    them; the second is a check against a plan that shrank. After the lock
+    an answer that leaves a held seed or its passphrase on no stick, or a
+    vault with no stick, is refused with a toast. A plan change after the
+    lock marks the vaults that must hold more as stale at once, without
+    Continue. A record the hook did not put in is never taken out again. A
+    seed file goes only to a stick of files that does not carry the public
+    files, and only for a seed the plan keeps as a file now. Every `refit`
+    remaps the flow's vaults, the lock keeps the flow's own vault while it
+    fits, every Make a new wallet and Restore has its own id (never 0, and a
+    flow read back after a lock gets one nothing matches), a Done flow that
+    waits hands its hold to the flow that replaces it, and Add a passphrase
+    acts on the wallet shown.
+
+**Open (for the owner).**
+
+- **Keep it in a vault for the round** is not built, because a lock wipes
+  Create and the checklist. What is built is the round after the lock, with
+  the key typed back from its checked copy, which is the default choice.
+- **A key kept only on paper in a multisig whose description reaches only a
+  stick** is released before the writes (§16 item 7 of B1a). Is that the
+  wanted order, or does it wait until the stick that holds the description is
+  written?
+- **L4 and L5 of the security review** fail closed: nothing secret is lost
+  or sent. They are left as they are.
+
+**Not built in B1b, and why.**
+
+- **The two choices for a key kept only on paper before an extra round**
+  (§4.8, §15 item 7): **Finish its paper copy first** and **Keep it in a
+  vault for the round**. A wallet's keys live in Create and the checklist,
+  whose state a lock wipes, and the flow's round that starts before the
+  final lock has nowhere to return to once the lock has wiped them: the
+  decision needed is whether such a round returns to the checklist (and
+  which of its items it keeps) or to the writes. What is built is the round
+  after the lock, where the key is typed back from the copy the checklist
+  checked. This needs the owner.
+- **The Nostr key's part** (N1), as before.
+- **A progress bar for a write** and **"Changed since written"**, as in B1a.

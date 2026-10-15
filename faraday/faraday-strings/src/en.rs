@@ -4813,10 +4813,6 @@ pub struct Strings {
     pub backup_change_the_plan: &'static str,
     /// Line in `backup_body`.
     pub backup_words_on_the: &'static str,
-    /// Row in `backup_body`.
-    pub backup_blank_template: &'static str,
-    /// Text in `backup_body`. `{}`: `b.words`.
-    pub backup_words_a_pdf: &'static str,
     /// Line in `backup_body`.
     pub backup_no_key_of_this: &'static str,
     /// Text in `backup_body`.
@@ -4909,14 +4905,6 @@ pub struct Strings {
     // ----- backup_done (faraday-core/src/screens.rs) -----
     /// Line in `backup_done`.
     pub backup_done_backup: &'static str,
-    /// Text in `backup_done`. `{}`: `n`, `if n == 1 { EN.backup_done_file } els…`, `app.medium.for_the()`, `b.sent.len()`.
-    pub backup_done_from_this: &'static str,
-    /// Text in `backup_done`.
-    pub backup_done_file: &'static str,
-    /// Text in `backup_done`.
-    pub backup_done_files: &'static str,
-    /// Text in `backup_done`. `{}`: `app.medium.a()`.
-    pub backup_done_write_to: &'static str,
     /// Text in `backup_done`.
     pub backup_done_open_the: &'static str,
     /// Text in `backup_done`.
@@ -8308,6 +8296,56 @@ pub struct Strings {
     pub backup_flow_public_here: &'static str,
     /// Toast: a key is not made with a stick in.
     pub backup_flow_pull_to_unlock_toast: &'static str,
+    /// Fact line under the plan's checks: every secret of the wallet is at one place. The place's name.
+    pub plan_all_at_one_place: &'static str,
+    /// Fact line under the plan's checks, for a single key with no passphrase.
+    pub plan_passphrase_apart: &'static str,
+    /// Button beside that line.
+    pub plan_add_passphrase: &'static str,
+    /// Templates item of the checklist: print them from Faraday Starter. The count, the words, the copy form.
+    pub item_templates_starter: &'static str,
+    /// Templates item: the copy is the words alone.
+    pub item_templates_words: &'static str,
+    /// Templates item: the copy is the SeedQR alone.
+    pub item_templates_seedqr: &'static str,
+    /// Templates item: the copy is the words and the SeedQR.
+    pub item_templates_both: &'static str,
+    /// Foot of the Templates item, a press.
+    pub item_action_done: &'static str,
+    /// Checklist item: write to the sticks, by place. The medium, plural.
+    pub backup_flow_item_sticks: &'static str,
+    /// Heading of a Bitcoin wallet's flow.
+    pub backup_flow_kind_wallet: &'static str,
+    /// What a wallet is known by.
+    pub backup_flow_subject_wallet: &'static str,
+    /// A key of a wallet to be made, before it has a fingerprint.
+    pub backup_flow_key_n: &'static str,
+    /// Toast: a key kept only on paper is not here to be copied into a vault.
+    pub backup_flow_key_on_paper: &'static str,
+    /// Checklist item whose files were written: where.
+    pub backup_flow_written_to: &'static str,
+    /// Make card of a wallet's flow.
+    pub backup_flow_card_make_wallet: &'static str,
+    /// Make a new wallet's card before Keys.
+    pub backup_flow_card_where_keys: &'static str,
+    /// Make a new wallet's Where card: the keys are not kept in a vault.
+    pub backup_flow_not_in_vault: &'static str,
+    /// Opens the flow on the card to change what it decided.
+    pub backup_flow_change: &'static str,
+    /// Button of a wallet's Make card.
+    pub backup_flow_make_the_keys: &'static str,
+    /// Restore's card before Seeds.
+    pub backup_flow_card_where_seeds: &'static str,
+    /// Make card of a round for an added vault: the seeds kept only on paper.
+    pub backup_flow_on_paper_only: &'static str,
+    /// Button: type the seed back from its copy.
+    pub backup_flow_add_from_copy: &'static str,
+    /// Toast: a change would take a written stick off the plan.
+    pub backup_flow_written_stays: &'static str,
+    /// Toast: the round has no copy of the wallet description to put in.
+    pub backup_flow_no_description: &'static str,
+    /// Toast: a change would leave a key held back kept on no stick.
+    pub backup_flow_held_stays: &'static str,
 }
 
 /// The English wording.
@@ -10645,8 +10683,6 @@ pub static EN: Strings = Strings {
     backup_make_the_checklist: "Make the checklist",
     backup_change_the_plan: "Change the plan",
     backup_words_on_the: "Words on the seed",
-    backup_blank_template: "Blank template",
-    backup_words_a_pdf: "{} words · a PDF to print",
     backup_no_key_of_this: "No key of this wallet was loaded from words in this session",
     backup_hide_the_seed: "Hide the seed",
     backup_show_the_seed: "Show the seed",
@@ -10691,10 +10727,6 @@ pub static EN: Strings = Strings {
     map_rows_on_its_own: "On its own device",
     map_rows_nothing: "Nothing",
     backup_done_backup: "Backup done",
-    backup_done_from_this: "{} {} {} · {} from this backup",
-    backup_done_file: "file",
-    backup_done_files: "files",
-    backup_done_write_to: "Write to {}",
     backup_done_open_the: "Open the wallet",
     backup_done_change: "Change the plan",
     signers_count_of_signatures_here: "{} of {} signatures here",
@@ -12315,7 +12347,7 @@ pub static EN: Strings = Strings {
     backup_flow_making: "Making the key",
     backup_flow_name: "Name",
     backup_flow_not_made: "Not made",
-    backup_flow_places_vaults: "{} places · {} vaults",
+    backup_flow_places_vaults: "Places {} · Vaults {}",
     backup_flow_pull_to_unlock: "Pull the {} to unlock",
     backup_flow_reading: "Reading {}",
     backup_flow_read_of: "{} of {} read",
@@ -12336,4 +12368,29 @@ pub static EN: Strings = Strings {
     backup_flow_also: "Also {}",
     backup_flow_public_here: "Public files here",
     backup_flow_pull_to_unlock_toast: "Pull the stick first",
+    plan_all_at_one_place: "Every secret of this wallet is at {}. Separate places are strongly recommended.",
+    plan_passphrase_apart: "A passphrase kept at another place than the seed is recommended.",
+    plan_add_passphrase: "Add a passphrase",
+    item_templates_starter: "Print {} from Faraday Starter: Blank templates, {} words, {}",
+    item_templates_words: "Words",
+    item_templates_seedqr: "SeedQR",
+    item_templates_both: "Both",
+    item_action_done: "Done",
+    backup_flow_item_sticks: "Write to {}",
+    backup_flow_kind_wallet: "Bitcoin wallet",
+    backup_flow_subject_wallet: "Descriptor checksum",
+    backup_flow_key_n: "Key {}",
+    backup_flow_key_on_paper: "Its key is kept only on paper. Type its words in first",
+    backup_flow_written_to: "Written to {}",
+    backup_flow_card_make_wallet: "Make the keys",
+    backup_flow_card_where_keys: "Where the keys will be kept",
+    backup_flow_not_in_vault: "Not in a vault",
+    backup_flow_change: "Change",
+    backup_flow_make_the_keys: "Make the keys",
+    backup_flow_card_where_seeds: "Where the seeds will be kept",
+    backup_flow_on_paper_only: "{} is kept only on paper",
+    backup_flow_add_from_copy: "Add the key from its copy",
+    backup_flow_written_stays: "A stick already written stays on the plan",
+    backup_flow_no_description: "No copy of the wallet description is here to put in",
+    backup_flow_held_stays: "A key not yet written stays kept on a stick",
 };

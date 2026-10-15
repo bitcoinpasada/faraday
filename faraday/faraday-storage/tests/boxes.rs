@@ -61,5 +61,22 @@ fn a_save_that_fails_part_way_leaves_the_gate_first_and_whole() {
     // A save with no gate takes the old one away.
     let _ = boxes.save(Vec::new(), Vec::new(), Vec::new());
     assert!(!dir.join("kept/backup-gate").exists());
+    // The flow is written the same way: a cut-off save leaves the old one
+    // whole or the new one whole, and its temporary file goes.
+    let _ = boxes.save(
+        Vec::new(),
+        Vec::new(),
+        vec![("backup-flow".into(), b"old flow".to_vec())],
+    );
+    fs::write(dir.join("kept/.backup-flow.tmp"), b"half").unwrap();
+    assert_eq!(fs::read(dir.join("kept/backup-flow")).unwrap(), b"old flow");
+    let _ = boxes.restore();
+    assert!(!dir.join("kept/.backup-flow.tmp").exists());
+    let _ = boxes.save(
+        Vec::new(),
+        Vec::new(),
+        vec![("backup-flow".into(), b"new flow".to_vec())],
+    );
+    assert_eq!(fs::read(dir.join("kept/backup-flow")).unwrap(), b"new flow");
     let _ = fs::remove_dir_all(&dir);
 }

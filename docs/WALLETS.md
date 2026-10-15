@@ -404,9 +404,12 @@ move, another copy, a thing destroyed, a place removed; `docs/NEW-WALLET.md`
 **Change the plan** first says "Your changes on the chart are
 replaced".
 
-1. **Print N blank templates** (one per paper copy of a seed): made For
-   the stick with the checklist, again when the word count changes; done
-   while it is For the stick or on the last visit's receipt. The template holds no secret
+1. **Print N blank templates** (one per paper copy of a seed): printed
+   from Faraday Starter (`docs/STARTER.md` §3.8), on the online computer,
+   before the copies by hand (2026-10-14, F31): the body reads "Print {n}
+   from Faraday Starter: Blank templates, {words} words, {copy}" and the
+   foot is **Done**, a press, as the envelopes' is. No template is made or
+   written to a stick here. The template holds no secret
    (numbered word lines where a seed is copied as words, path, network,
    the SeedQR grid's fixed squares where one is copied as a SeedQR;
    F29) and a second page of empty lines, "Place ____ holds ____",
@@ -471,6 +474,15 @@ replaced".
 8. **One envelope per place**, listing what goes in it ("Stick with
    Vault 2" names which vault's stick): done by **Done**, the one thing
    the device cannot see.
+9. **Write to sticks**, last, where the plan has a stick to write (a
+   vault's stick, the stick of files, or the public files and sheets to
+   take to an online computer): the lock's Kept and Wiped from memory, a
+   row for each stick by place with its files, ticked as written. Its
+   foot **Lock and write** locks once; each stick is then written by
+   place inside the backup flow (`docs/BACKUP-FLOW.md` §10), the stick
+   visit page never shown. Done when every stick is written. The items
+   that end For the stick read "Written to {stick}" once the flow wrote
+   them.
 
 A stick visit with more than one vault file For the stick ticks one by
 default, the first the last write did not write; the rest wait for the
@@ -481,9 +493,10 @@ the one way out of an item not done. Items the new plan still has stay
 done; what a vault holds that the new plan drops stays on the map as
 what it is ("vault.ofv holds seed 9A6A2580"). With every item done,
 "Backup done", then the plan's three checks as a strip, each value
-large in its colour, the wallet's chart of the plan (wallet first), the
-count of files for the stick, **Write to a stick**, **Open the
-wallet**, **Change the plan** (2026-10-10, `docs/NEW-WALLET.md` §14.6). On the side panel each line of the map carries its
+large in its colour, the wallet's chart of the plan (wallet first),
+**Open the wallet**, **Change the plan** (2026-10-10,
+`docs/NEW-WALLET.md` §14.6; the done card offers no **Write to a stick**
+and nothing waits For the stick after it, F31). On the side panel each line of the map carries its
 item's state, a dot in OK once done. The small panel's copy page keeps
 the per-seed lines of `Faraday::backup_kept` (in which vault, copy
 checked, a file for the stick unprotected, not here).

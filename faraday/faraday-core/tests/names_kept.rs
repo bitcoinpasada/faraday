@@ -206,6 +206,9 @@ fn a_place_names_name_never_leaves_the_vault() {
     app.event(Event::Key(Key::Enter));
     assert_eq!(app.place_name(0), NAME);
     press_offered(&mut app, Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     app.press(Action::BReveal);
     app.storage(StorageEvent::Cameras(Vec::new()));
     press_offered(&mut app, Action::BCheck);

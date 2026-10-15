@@ -3003,7 +3003,7 @@ impl Faraday {
         let m = osk_bip::bip39::Mnemonic::parse(key.language, words).ok()?;
         // Made here and its backup not done: the vault says so, beside
         // the seed.
-        let flags = if self.key_held(key.master.fingerprint()) {
+        let flags = if self.key_held_stored(key.master.fingerprint()) {
             records::LOAD_AT_UNLOCK | records::BACKUP_PENDING
         } else {
             records::LOAD_AT_UNLOCK

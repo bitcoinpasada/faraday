@@ -93,12 +93,14 @@ fn steps_of(f: &BackupFlow) -> Vec<Step> {
         .collect()
 }
 
-fn card_title(app: &Faraday, s: Step) -> String {
+fn card_title(app: &Faraday, f: &BackupFlow, s: Step) -> String {
     let m = app.medium.nouns();
     match s {
+        Step::Where if f.kind.is_wallet() => FEN.backup_flow_card_where_keys.to_string(),
         Step::Where => FEN.backup_flow_card_where.to_string(),
         Step::Sticks => fill(FEN.backup_flow_card_sticks, &[m]),
         Step::Vaults => FEN.backup_flow_card_vaults.to_string(),
+        Step::Make if f.kind.is_wallet() => FEN.backup_flow_card_make_wallet.to_string(),
         Step::Make => FEN.backup_flow_card_make.to_string(),
         Step::Lock => FEN.backup_flow_card_lock.to_string(),
         Step::Write => fill(FEN.backup_flow_card_write, &[m]),
@@ -168,7 +170,7 @@ fn card(app: &Faraday, f: &BackupFlow, s: Step) -> flow::Card {
         }
     };
     flow::Card {
-        title: card_title(app, s),
+        title: card_title(app, f, s),
         summary,
         mono: false,
         done: s < f.step || (s == Step::Done && f.step == Step::Done),
@@ -211,6 +213,9 @@ fn body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, s: Step, x: f32, y: f32, w: 
 // ---- 1: where it will be kept ----
 
 fn where_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    if f.kind.is_wallet() {
+        return crate::backup_flow_wallet_screen::where_body(app, f, ui, x, y, w);
+    }
     let mut cy = y;
     let min = f.kind.min_places();
     let sticks = f.plan.stick_places().len();
@@ -986,6 +991,9 @@ fn vaults_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f3
 // ---- 4: make the key ----
 
 fn make_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    if f.kind.is_wallet() {
+        return crate::backup_flow_wallet_screen::make_body(app, f, ui, x, y, w);
+    }
     let mut cy = y;
     if f.made && !f.adding {
         cy += ui.wrap(
@@ -1178,6 +1186,8 @@ fn result_rows(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f3
                 }
             }
         }
+        // A wallet's keys are shown by its own card.
+        Kind::Wallet => {}
     }
     cy - y
 }
@@ -1279,12 +1289,20 @@ fn done_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32)
     }
     cy += 8.0;
     let mut items: Vec<(String, Style, Action)> = Vec::new();
-    // Unlock the first of the plan's vaults; its key's page follows.
+    // Unlock the first of the plan's vaults; its key's page follows, or a
+    // wallet's checklist.
     if let Some(v) = f.plan.used_vaults().first().copied() {
         items.push((
             fill(FEN.backup_flow_unlock_vault, &[&BackupFlow::vault_name(v)]),
             Style::Primary,
             fa(F::UnlockDone(v)),
+        ));
+    } else if f.kind.is_wallet() {
+        // A plan with no vault leaves nothing to unlock.
+        items.push((
+            FEN.backup_flow_leave.to_string(),
+            Style::Primary,
+            fa(F::Back),
         ));
     }
     let refs: Vec<(&str, Style, Action)> =

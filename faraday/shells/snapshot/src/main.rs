@@ -621,6 +621,7 @@ fn run(
         Some("apk") => return apk_only_tour(&mut t),
         Some("flow") => return flow_tour(&mut t),
         Some("power") => return power_tour(&mut t),
+        Some("walletflow") => return wallet_flow_tour(&mut t),
         _ => {}
     }
     if medium == Medium::Stick {
@@ -1169,26 +1170,24 @@ fn run(
     t.shot("backup-envelope")?;
     // Every item done: what waits for the stick, and the way to one.
     t.press(Action::BNext(bstep::ENVELOPE));
-    t.shot("backup-done")?;
-    t.press(Action::WriteAsk);
-    t.shot("backup-write-out")?;
-    t.press(Action::Cancel);
+    // The last item: one lock, then each stick by place.
+    t.shot("backup-write-to-sticks")?;
     // The sheets went For the stick as PDFs with the checklist; written
-    // beside the shots for a look.
+    // beside the shots for a look. The blank template is printed from
+    // Faraday Starter.
     t.press(Action::Backup(0));
     t.press(Action::BOut(3));
-    for name in ["blank-template-24-words.pdf", "savings-backup.pdf"] {
-        let item = t
-            .app
-            .outbox
-            .iter()
-            .find(|it| it.name == name)
-            .ok_or(format!("no {name}"))?;
-        if !item.bytes.starts_with(b"%PDF-") {
-            return Err(format!("{name} is not a PDF"));
-        }
-        std::fs::write(t.out.join(name), &item.bytes).map_err(|e| e.to_string())?;
+    let name = "savings-backup.pdf";
+    let item = t
+        .app
+        .outbox
+        .iter()
+        .find(|it| it.name == name)
+        .ok_or(format!("no {name}"))?;
+    if !item.bytes.starts_with(b"%PDF-") {
+        return Err(format!("{name} is not a PDF"));
     }
+    std::fs::write(t.out.join(name), &item.bytes).map_err(|e| e.to_string())?;
     // A message, signed with the Spending wallet and checked.
     t.press(Action::SignMessage);
     let spending = t
@@ -4785,6 +4784,126 @@ fn flow_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// A wallet's backup flow: Make a new wallet asks where its keys will be
+/// kept, brings in the sticks, opens the vaults, makes the key into them;
+/// the checklist ends in Write to sticks; one lock, each stick by place,
+/// done. Also the plan's one-place line.
+fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::backup_flow_steps::FlowAction as F;
+    use faraday_core::{cstep, qrow};
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.storage(StorageEvent::Clock {
+        unix_secs: 1_791_000_000,
+    });
+    t.app.vaults.ms_per_unit = Some(180);
+    t.press(Action::OpenSetTime);
+    t.press(Action::SetTimeKeep);
+    let empty = |id: &str, serial: u32| StickInfo {
+        serial: Some(serial),
+        id: id.into(),
+        label: "KEYSTICK".into(),
+        boot: false,
+        files: Vec::new(),
+    };
+    t.press(Action::CreateWallet);
+    t.press(Action::CWhere(true));
+    t.press(Action::CStep(cstep::KIND));
+    t.press(Action::CStep(cstep::WHERE));
+    t.shot("wallet-flow-1-create-where")?;
+    t.press(Action::CNext(cstep::WHERE));
+    t.shot("wallet-flow-2-where")?;
+    // One place keeps every secret: said, in WARN, and nothing blocked.
+    t.press(Action::Flow(F::Answer(qrow::PLACES, 1)));
+    t.shot("wallet-flow-3-one-place")?;
+    // The seed in Vault 1 only, its stick at both places.
+    t.press(Action::Flow(F::Answer(qrow::PLACES, 2)));
+    t.press(Action::Flow(F::Answer(qrow::SEEDS, 0)));
+    t.press(Action::Flow(F::Answer(qrow::STICKS, 1)));
+    t.shot("wallet-flow-4-two-places")?;
+    t.press(Action::Flow(F::Continue));
+    t.shot("wallet-flow-5-insert")?;
+    t.app.storage(StorageEvent::Sticks(vec![empty("a", 1)]));
+    t.pump();
+    t.shot("wallet-flow-6-this-is")?;
+    t.press(Action::Flow(F::Tap));
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    t.app.storage(StorageEvent::Sticks(vec![empty("b", 2)]));
+    t.pump();
+    t.press(Action::Flow(F::Tap));
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    t.shot("wallet-flow-7-vaults")?;
+    t.press(Action::Flow(F::CreateVault(0)));
+    type_text(t, "a vault phrase for the tour");
+    t.press(Action::Vault(V::CFocus(0, true)));
+    type_text(t, "a vault phrase for the tour");
+    t.press(Action::Vault(V::CGo));
+    for _ in 0..3 {
+        t.tick();
+    }
+    // Back in Make a new wallet, on Keys, with the three cards done.
+    t.shot("wallet-flow-8-create-keys")?;
+    t.press(Action::Entry(None));
+    t.type_key(1);
+    let fp = t
+        .app
+        .session
+        .keys
+        .last()
+        .ok_or("no key")?
+        .master
+        .fingerprint()
+        .0;
+    t.press(Action::Nav(Screen::Create));
+    t.press(Action::CSlotHere(0, fp));
+    t.press(Action::CNext(cstep::KEYS));
+    t.press(Action::CNext(cstep::CHECK));
+    t.press(Action::CBackup(1));
+    t.press(Action::BAnswer(qrow::SEEDS, 0));
+    t.press(Action::BChecklist);
+    t.press(Action::BNext(bstep::BLANK));
+    t.press(Action::BOut(3));
+    t.press(Action::BNext(bstep::ENVELOPE));
+    t.shot("wallet-flow-9-write-to-sticks")?;
+    t.press(Action::Flow(F::WalletLock));
+    let (inbox, outbox, kept) = t.boxes.clone().ok_or("nothing was kept by the lock")?;
+    t.app.storage(StorageEvent::Restored {
+        inbox,
+        outbox,
+        kept,
+    });
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.storage(StorageEvent::Clock {
+        unix_secs: 1_791_000_000,
+    });
+    t.pump();
+    t.shot("wallet-flow-10-write")?;
+    t.app.storage(StorageEvent::Sticks(vec![empty("a", 1)]));
+    t.pump();
+    t.shot("wallet-flow-11-written")?;
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    t.app.storage(StorageEvent::Sticks(vec![empty("b", 2)]));
+    t.pump();
+    t.press(Action::Flow(F::Hold));
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    t.app.storage(StorageEvent::Sticks(vec![empty("c", 3)]));
+    t.pump();
+    t.shot("wallet-flow-12-public")?;
+    t.press(Action::Flow(F::Tap));
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    t.shot("wallet-flow-13-done")?;
+    println!("the backup flow of a single key in a vault at two places, from Where to Done");
+    Ok(())
+}
+
 fn fp_hex(fp: [u8; 4]) -> String {
     fp.iter().map(|b| format!("{b:02x}")).collect()
 }
@@ -4800,7 +4919,7 @@ fn main() -> ExitCode {
     };
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow]"
+            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|walletflow]"
         );
         return ExitCode::from(2);
     }
@@ -4857,11 +4976,12 @@ fn main() -> ExitCode {
             "apk",
             "flow",
             "power",
+            "walletflow",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow or power"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, power or walletflow"
         );
         return ExitCode::from(2);
     }

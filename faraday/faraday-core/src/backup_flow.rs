@@ -33,6 +33,9 @@ pub enum Kind {
     Gpg,
     /// A set of Secure Boot keys.
     SecureBoot,
+    /// A Bitcoin wallet's keys, with the backup plan of its checklist
+    /// (`docs/BACKUP-FLOW.md` §10).
+    Wallet,
 }
 
 impl Kind {
@@ -42,6 +45,7 @@ impl Kind {
             Kind::Apk => "apk",
             Kind::Gpg => "gpg",
             Kind::SecureBoot => "sb",
+            Kind::Wallet => "w",
         }
     }
 
@@ -50,6 +54,7 @@ impl Kind {
             "apk" => Kind::Apk,
             "gpg" => Kind::Gpg,
             "sb" => Kind::SecureBoot,
+            "w" => Kind::Wallet,
             _ => return None,
         })
     }
@@ -60,6 +65,8 @@ impl Kind {
             Kind::Apk => 6,
             Kind::Gpg => 4,
             Kind::SecureBoot => 5,
+            // A wallet's keys are listed under Keys.
+            Kind::Wallet => 0,
         }
     }
 
@@ -80,6 +87,7 @@ impl Kind {
             Kind::Apk => rkind::APK_KEY,
             Kind::Gpg => rkind::GPG,
             Kind::SecureBoot => rkind::SECURE_BOOT,
+            Kind::Wallet => rkind::KEY,
         }
     }
 
@@ -89,12 +97,22 @@ impl Kind {
             Kind::Apk => crate::strings::EN.apk_certificate_sha_256,
             Kind::Gpg => crate::strings::EN.vault_fingerprint,
             Kind::SecureBoot => crate::strings::EN.vault_owner_guid,
+            Kind::Wallet => crate::strings::EN.backup_flow_subject_wallet,
         }
     }
 
-    /// The fewest places with a stick.
+    /// The fewest places with a stick: two for a key that cannot be made
+    /// again from seed words, one for a wallet (§1).
     pub fn min_places(self) -> usize {
-        MIN_PLACES
+        match self {
+            Kind::Wallet => 1,
+            _ => MIN_PLACES,
+        }
+    }
+
+    /// A wallet's keys.
+    pub fn is_wallet(self) -> bool {
+        self == Kind::Wallet
     }
 
     /// Its name, for the flow's heading and Home's lead.
@@ -103,6 +121,7 @@ impl Kind {
             Kind::Apk => crate::strings::EN.backup_flow_kind_apk,
             Kind::Gpg => crate::strings::EN.backup_flow_kind_gpg,
             Kind::SecureBoot => crate::strings::EN.backup_flow_kind_sb,
+            Kind::Wallet => crate::strings::EN.backup_flow_kind_wallet,
         }
     }
 }
@@ -320,6 +339,25 @@ pub struct Plan {
     pub together: Vec<usize>,
     /// The place whose stick carries the key's public files.
     pub public_at: usize,
+    /// The plan names a stick of files: a wallet's seed files, or the
+    /// wallet kept as files (§10.2).
+    pub files: bool,
+    /// The plan names a stick of public files of its own.
+    pub public: bool,
+    /// Which stick carries the public files.
+    pub public_on: PublicOn,
+}
+
+/// Which stick carries a plan's public files.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum PublicOn {
+    /// The stick of the place `public_at` names.
+    #[default]
+    Place,
+    /// The stick of files.
+    Files,
+    /// A stick of public files of its own.
+    Own,
 }
 
 impl Plan {
@@ -331,7 +369,22 @@ impl Plan {
             vaults: vec![VaultPlan::default()],
             together: Vec::new(),
             public_at: 0,
+            files: false,
+            public: false,
+            public_on: PublicOn::Place,
         }
+    }
+
+    /// The sticks the plan names besides its places', in order.
+    pub fn extra_targets(&self) -> Vec<Target> {
+        let mut out = Vec::new();
+        if self.files {
+            out.push(Target::Files);
+        }
+        if self.public {
+            out.push(Target::Public);
+        }
+        out
     }
 
     /// Whether the place keeps everything on one stick: it keeps one
@@ -392,6 +445,72 @@ impl Plan {
         }
         self.vaults = used.iter().map(|&u| self.vaults[u].clone()).collect();
         dropped
+    }
+}
+
+/// The flow's plan for a wallet, from the map its answers draw
+/// (`docs/BACKUP-FLOW.md` §2, §10.2): a place for each place of the map,
+/// keeping the sticks of the vaults the map puts there; a vault for each
+/// vault number the map names (numbered as the answers number them, a
+/// number no map uses left empty); the stick of files where the map keeps
+/// seeds or the wallet as files; and the stick that carries the public
+/// files and sheets.
+pub fn plan_of(shape: &crate::plan::Shape, a: &crate::plan::Answers) -> Plan {
+    use crate::plan::{At, Item, What};
+    let boxes = crate::plan::map(shape, a);
+    let mut places: Vec<(usize, Vec<usize>)> = Vec::new();
+    let mut nv = 0usize;
+    let mut with_wallet: Option<usize> = None;
+    for s in &boxes {
+        match s.at {
+            At::Place(p) => {
+                let vs: Vec<usize> = s
+                    .holds
+                    .iter()
+                    .filter_map(|(w, _)| match w {
+                        What::VaultStick(v) => Some(*v),
+                        _ => None,
+                    })
+                    .collect();
+                nv = nv.max(vs.iter().map(|v| v + 1).max().unwrap_or(0));
+                if !vs.is_empty()
+                    && with_wallet.is_none()
+                    && s.holds.iter().any(|(w, _)| *w == What::Wallet)
+                {
+                    with_wallet = Some(p);
+                }
+                places.push((p, vs));
+            }
+            At::Vault(v) => nv = nv.max(v + 1),
+            _ => {}
+        }
+    }
+    places.sort_by_key(|(p, _)| *p);
+    let places: Vec<Vec<usize>> = places.into_iter().map(|(_, v)| v).collect();
+    let files_spot = boxes.iter().find(|s| s.at == At::Files);
+    let seed_files =
+        files_spot.is_some_and(|s| s.holds.iter().any(|(w, _)| matches!(w, What::SeedFile(_))));
+    let wallet_files = files_spot.is_some_and(|s| s.holds.iter().any(|(w, _)| *w == What::Wallet));
+    let public_any = crate::plan::checklist(shape, a)
+        .iter()
+        .any(|i| matches!(i, Item::Sheets | Item::PublicFiles));
+    // The stick of public files is read on an online computer: a plain
+    // seed file never shares it by default, however the plan keeps the
+    // description (`docs/BACKUP-FLOW.md` §16, a default the owner may
+    // change). Public files beside an encrypted vault copy are allowed.
+    let (public_on, public_at) = match with_wallet {
+        Some(p) if public_any => (PublicOn::Place, p),
+        _ if wallet_files && !seed_files => (PublicOn::Files, 0),
+        _ => (PublicOn::Own, 0),
+    };
+    Plan {
+        places,
+        vaults: vec![VaultPlan::default(); nv],
+        together: Vec::new(),
+        public_at,
+        files: seed_files || (public_on == PublicOn::Files && public_any),
+        public: public_on == PublicOn::Own && public_any,
+        public_on,
     }
 }
 
@@ -574,8 +693,40 @@ pub struct BackupFlow {
     pub adding: bool,
     /// The flow was on screen when it was last kept.
     pub on_screen: bool,
+    /// A wallet's part: its shape, its answers and what it holds back.
+    pub wallet: Option<WalletFlow>,
     /// The screen's state.
     pub live: Live,
+}
+
+/// What a wallet's flow knows of the wallet (`docs/BACKUP-FLOW.md` §10).
+/// The plan's answers are not secret, and are kept across a lock so that
+/// **Change the plan** works at every step.
+#[derive(Debug, Clone)]
+pub struct WalletFlow {
+    /// The wallet's shape: its quorum, its seeds by name.
+    pub shape: crate::plan::Shape,
+    /// The answers the plan is drawn from.
+    pub answers: crate::plan::Answers,
+    /// The wallet's descriptor checksum once the wallet exists.
+    pub checksum: Option<String>,
+    /// The wallet's name.
+    pub name: String,
+    /// The fingerprints, as text, of the keys that spend nothing until
+    /// the last stick is written (F6's hold, moved here at the lock).
+    pub held: Vec<String>,
+    /// The seeds each vault of the plan was sealed with, by vault: what a
+    /// plan changed after the lock is compared with (§4.8).
+    pub sealed: Vec<(usize, Vec<usize>)>,
+    /// Each seed's fingerprint without its passphrase, as text, for the
+    /// round to find a record of the same words; empty where unknown.
+    pub base: Vec<String>,
+    /// Which Make a new wallet or Restore the flow belongs to while the
+    /// wallet is being made; not kept across a lock.
+    pub owner: u64,
+    /// The records the flow put into vaults for the keys in the slots, by
+    /// vault and fingerprint: taken out again if the slot's key goes.
+    pub saved: Vec<(usize, String)>,
 }
 
 impl BackupFlow {
@@ -599,11 +750,95 @@ impl BackupFlow {
             public: Vec::new(),
             adding: false,
             on_screen: true,
+            wallet: None,
             live: Live::default(),
         };
         f.live.open = Some(Step::Where.n());
         f.sync_slots();
         f
+    }
+
+    /// A new flow for a wallet, at step 1, with the plan its answers draw.
+    pub fn new_wallet(
+        shape: crate::plan::Shape,
+        answers: crate::plan::Answers,
+        name: &str,
+    ) -> BackupFlow {
+        let plan = plan_of(&shape, &answers);
+        let mut f = BackupFlow::with_plan(Kind::Wallet, plan);
+        f.wallet = Some(WalletFlow {
+            shape,
+            answers,
+            checksum: None,
+            name: name.to_string(),
+            held: Vec::new(),
+            sealed: Vec::new(),
+            base: Vec::new(),
+            owner: 0,
+            saved: Vec::new(),
+        });
+        f
+    }
+
+    /// What is kept by vault number follows the answers' rows: after
+    /// [`crate::plan::Answers::refit`] renumbered them, vault `v` is what
+    /// `keep[v]` was (`usize::MAX`: a new one). Called before the plan is
+    /// drawn again.
+    pub(crate) fn remap_vaults(&mut self, keep: &[usize]) {
+        let old = std::mem::take(&mut self.plan.vaults);
+        let new_len = keep.len().max(
+            self.plan
+                .places
+                .iter()
+                .flatten()
+                .map(|v| v + 1)
+                .max()
+                .unwrap_or(0),
+        );
+        self.plan.vaults = (0..new_len)
+            .map(|v| {
+                keep.get(v)
+                    .copied()
+                    .and_then(|o| old.get(o).cloned())
+                    .unwrap_or_default()
+            })
+            .collect();
+        let to = |o: usize| keep.iter().position(|&k| k == o);
+        for s in &mut self.slots {
+            if let Some(b) = s.bound.as_mut() {
+                b.picks = b
+                    .picks
+                    .iter()
+                    .filter_map(|(v, p)| to(*v).map(|n| (n, p.clone())))
+                    .collect();
+                b.declined = b.declined.iter().filter_map(|&v| to(v)).collect();
+            }
+        }
+        self.made_in = self.made_in.iter().filter_map(|&v| to(v)).collect();
+    }
+
+    /// The plan follows the wallet's answers again, keeping what the flow
+    /// knows of each vault (which file it is, its salt) and which places
+    /// keep their vaults on one stick.
+    pub(crate) fn wallet_replan(&mut self) {
+        let Some(w) = self.wallet.as_ref() else {
+            return;
+        };
+        let mut plan = plan_of(&w.shape, &w.answers);
+        for (v, vp) in plan.vaults.iter_mut().enumerate() {
+            if let Some(old) = self.plan.vaults.get(v) {
+                *vp = old.clone();
+            }
+        }
+        plan.together = self
+            .plan
+            .together
+            .iter()
+            .copied()
+            .filter(|&p| plan.places.get(p).is_some_and(|vs| vs.len() > 1))
+            .collect();
+        self.plan = plan;
+        self.sync_slots();
     }
 
     /// The slots follow the plan: a stick per place that keeps one (or per
@@ -615,18 +850,19 @@ impl BackupFlow {
             self.plan.public_at = 0;
         }
         let want = self.plan.place_targets();
+        let extras = self.plan.extra_targets();
         let mut orphaned: Vec<String> = Vec::new();
         self.slots.retain(|s| {
             let keep = match s.target {
                 Target::Place(_) | Target::PlaceVault(..) => want.contains(&s.target),
-                _ => true,
+                Target::Files | Target::Public => extras.contains(&s.target),
             };
             if !keep {
                 orphaned.extend(s.files.iter().cloned());
             }
             keep
         });
-        for t in want {
+        for t in want.into_iter().chain(extras) {
             if !self.slots.iter().any(|s| s.target == t) {
                 let at = self
                     .slots
@@ -662,9 +898,16 @@ impl BackupFlow {
             .collect()
     }
 
-    /// The slot that carries the key's public files: the first stick of the
-    /// place the plan names, else the first.
+    /// The slot that carries the key's public files: the stick of files or
+    /// the stick of public files where the plan says so, else the first
+    /// stick of the place the plan names, else the first.
     pub(crate) fn public_slot(&self) -> Option<usize> {
+        let by = |t: Target| self.slots.iter().position(|s| s.target == t);
+        match self.plan.public_on {
+            PublicOn::Files => return by(Target::Files),
+            PublicOn::Own => return by(Target::Public),
+            PublicOn::Place => {}
+        }
         self.slots_at(self.plan.public_at)
             .first()
             .copied()
@@ -761,7 +1004,7 @@ fn hex(h: &[u8; 32]) -> String {
 
 /// The kept state's version: a flow written by another version is not
 /// read.
-const VERSION: &str = "2";
+const VERSION: &str = "3";
 /// The most places, vaults and sticks a kept flow may name; more is a
 /// corrupt state.
 const MAX_PLACES: usize = 64;
@@ -791,10 +1034,50 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
         ));
         let together: Vec<String> = f.plan.together.iter().map(|p| p.to_string()).collect();
         out.push_str(&format!(
-            "plan\t{}\t{}\n",
+            "plan\t{}\t{}\t{}\t{}\t{}\n",
             f.plan.public_at,
-            together.join(",")
+            together.join(","),
+            u8::from(f.plan.files),
+            u8::from(f.plan.public),
+            match f.plan.public_on {
+                PublicOn::Place => "p",
+                PublicOn::Files => "f",
+                PublicOn::Own => "o",
+            },
         ));
+        if let Some(w) = &f.wallet {
+            out.push_str(&format!(
+                "wallet\t{}\t{}\t{}\n",
+                clean(w.checksum.as_deref().unwrap_or("")),
+                clean(&w.name),
+                w.held.join(",")
+            ));
+            if !w.base.is_empty() {
+                out.push_str(&format!("wbase\t{}\n", w.base.join(",")));
+            }
+            for (v, seeds) in &w.sealed {
+                let list: Vec<String> = seeds.iter().map(|s| s.to_string()).collect();
+                out.push_str(&format!("wsealed\t{v}\t{}\n", list.join(",")));
+            }
+            out.push_str(&format!(
+                "wshape\t{}\t{}\t{}\n",
+                w.shape.m,
+                w.shape.keys,
+                u8::from(w.shape.splits)
+            ));
+            for sd in &w.shape.seeds {
+                out.push_str(&format!(
+                    "wseed\t{}\t{}\t{}\n",
+                    clean(&sd.name),
+                    u8::from(sd.here),
+                    u8::from(sd.passphrase)
+                ));
+            }
+            out.push_str(&format!(
+                "wans\t{}\n",
+                clean(&w.answers.to_text().replace('\n', "|"))
+            ));
+        }
         for name in &f.public {
             out.push_str(&format!("pub\t{}\n", clean(name)));
         }
@@ -917,6 +1200,7 @@ pub fn decode(bytes: &[u8]) -> (Vec<BackupFlow>, usize) {
                         public: Vec::new(),
                         adding: adding == "1",
                         on_screen: on == "1",
+                        wallet: None,
                         live: Live::default(),
                     }),
             );
@@ -958,7 +1242,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
         (k < fl.slots.len()).then_some(k)
     };
     match *f {
-        ["plan", public_at, together] => {
+        ["plan", public_at, together, files, public, on] => {
             let Ok(p) = public_at.parse() else {
                 return false;
             };
@@ -968,7 +1252,75 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 .filter(|x| !x.is_empty())
                 .filter_map(|x| x.parse().ok())
                 .collect();
+            fl.plan.files = files == "1";
+            fl.plan.public = public == "1";
+            fl.plan.public_on = match on {
+                "f" => PublicOn::Files,
+                "o" => PublicOn::Own,
+                _ => PublicOn::Place,
+            };
             true
+        }
+        ["wallet", checksum, name, held] => {
+            let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
+            w.checksum = (!checksum.is_empty()).then(|| checksum.to_string());
+            w.name = name.to_string();
+            w.held = held
+                .split(',')
+                .filter(|x| !x.is_empty())
+                .map(str::to_string)
+                .collect();
+            true
+        }
+        ["wbase", list] => {
+            let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
+            w.base = list.split(',').map(str::to_string).collect();
+            true
+        }
+        ["wsealed", v, seeds] => {
+            let Ok(v) = v.parse::<usize>() else {
+                return false;
+            };
+            let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
+            w.sealed.push((
+                v,
+                seeds
+                    .split(',')
+                    .filter(|x| !x.is_empty())
+                    .filter_map(|x| x.parse().ok())
+                    .collect(),
+            ));
+            true
+        }
+        ["wshape", m, keys, splits] => {
+            let (Ok(m), Ok(keys)) = (m.parse(), keys.parse()) else {
+                return false;
+            };
+            let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
+            w.shape.m = m;
+            w.shape.keys = keys;
+            w.shape.splits = splits == "1";
+            true
+        }
+        ["wseed", name, here, pass] => {
+            let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
+            w.shape.seeds.push(crate::plan::Seed {
+                name: name.to_string(),
+                here: here == "1",
+                passphrase: pass == "1",
+            });
+            true
+        }
+        ["wans", text] => {
+            let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
+            let text = text.replace('|', "\n");
+            match crate::plan::Answers::from_text(&w.shape, &text) {
+                Some(a) => {
+                    w.answers = a;
+                    true
+                }
+                None => false,
+            }
         }
         ["pub", name] => {
             fl.public.push(name.to_string());
@@ -1148,11 +1500,41 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
     }
 }
 
+impl WalletFlow {
+    /// An empty wallet part, filled by the lines that follow.
+    fn blank() -> WalletFlow {
+        WalletFlow {
+            shape: crate::plan::Shape {
+                m: 1,
+                keys: 1,
+                seeds: Vec::new(),
+                splits: false,
+            },
+            answers: crate::plan::Answers::default(),
+            checksum: None,
+            name: String::new(),
+            held: Vec::new(),
+            sealed: Vec::new(),
+            base: Vec::new(),
+            owner: 0,
+            saved: Vec::new(),
+        }
+    }
+}
+
 impl BackupFlow {
     /// Whether what was read back agrees with itself, and brings the slots
     /// to the plan. A flow past the key must have made it and sealed a copy
     /// of each vault.
     fn valid(&mut self) -> bool {
+        // A made wallet flow with no wallet part, or none that names the
+        // wallet, is not one: its gate entry holds its keys instead.
+        if self.kind.is_wallet()
+            && (self.wallet.is_none()
+                || (self.made && self.wallet.as_ref().is_some_and(|w| w.checksum.is_none())))
+        {
+            return false;
+        }
         let nv = self.plan.vaults.len();
         let np = self.plan.places.len();
         if self.plan.places.iter().flatten().any(|&v| v >= nv)
@@ -1233,11 +1615,16 @@ pub(crate) fn gate_encode(flows: &[BackupFlow]) -> Vec<u8> {
     let mut out = String::new();
     for f in flows.iter().filter(|f| f.waiting()) {
         if let Some(s) = &f.subject {
+            let held = f
+                .wallet
+                .as_ref()
+                .map_or(String::new(), |w| w.held.join(","));
             out.push_str(&format!(
-                "{}\t{}\t{}\n",
+                "{}\t{}\t{}\t{}\n",
                 f.kind.code(),
                 s.id,
-                clean(&s.name)
+                clean(&s.name),
+                held
             ));
         }
     }
@@ -1295,6 +1682,14 @@ impl Faraday {
     pub(crate) fn flow_restore(&mut self, bytes: &[u8]) {
         let (flows, dropped) = decode(bytes);
         self.backup_flows = flows;
+        // The Make a new wallet or Restore a flow came from is gone with
+        // the lock: it keeps an id no screen has.
+        for k in 0..self.backup_flows.len() {
+            let id = self.fresh_owner();
+            if let Some(w) = self.backup_flows[k].wallet.as_mut() {
+                w.owner = id;
+            }
+        }
         if dropped > 0 {
             self.toast(crate::strings::EN.backup_flow_dropped);
         }
@@ -1309,10 +1704,11 @@ impl Faraday {
     /// a flow of its own at Where, made and unwritten, so it still waits.
     pub(crate) fn flow_gate_restore(&mut self, bytes: &[u8]) {
         for line in String::from_utf8_lossy(bytes).lines() {
-            let mut p = line.splitn(3, '\t');
+            let mut p = line.splitn(4, '\t');
             let (Some(k), Some(id), Some(name)) = (p.next(), p.next(), p.next()) else {
                 continue;
             };
+            let held = p.next().unwrap_or("");
             let Some(kind) = Kind::from_code(k) else {
                 continue;
             };
@@ -1320,6 +1716,25 @@ impl Faraday {
                 f.kind == kind && f.made && f.subject.as_ref().is_some_and(|s| s.id == id)
             });
             if known {
+                // What the gate holds back is held, whatever the flow's
+                // own state says.
+                if kind.is_wallet()
+                    && let Some(w) = self
+                        .backup_flows
+                        .iter_mut()
+                        .find(|f| {
+                            f.kind == kind
+                                && f.made
+                                && f.subject.as_ref().is_some_and(|s| s.id == id)
+                        })
+                        .and_then(|f| f.wallet.as_mut())
+                {
+                    for h in held.split(',').filter(|x| !x.is_empty()) {
+                        if !w.held.iter().any(|x| x.eq_ignore_ascii_case(h)) {
+                            w.held.push(h.to_string());
+                        }
+                    }
+                }
                 continue;
             }
             let mut f = BackupFlow::new(kind);
@@ -1329,6 +1744,17 @@ impl Faraday {
                 id: id.to_string(),
                 name: name.to_string(),
             });
+            if kind.is_wallet() {
+                let mut w = WalletFlow::blank();
+                w.checksum = Some(id.to_string());
+                w.name = name.to_string();
+                w.held = held
+                    .split(',')
+                    .filter(|x| !x.is_empty())
+                    .map(str::to_string)
+                    .collect();
+                f.wallet = Some(w);
+            }
             self.backup_flows.push(f);
         }
     }
@@ -1408,5 +1834,7 @@ pub(crate) fn subject_of(kind: Kind, r: &Record) -> Option<String> {
         Kind::Apk => hex_text(&crate::apk::fingerprint_of(r)?),
         Kind::Gpg => hex_text(&crate::gpg::key_of(r)?.fingerprint()),
         Kind::SecureBoot => hex_text(r.field(crate::secureboot::OWNER_FIELD)?),
+        // A wallet is known by its descriptor's checksum, not by a record.
+        Kind::Wallet => return None,
     })
 }

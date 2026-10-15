@@ -107,6 +107,9 @@ fn planned(app: &mut Faraday, w: usize, preset: u8) {
     app.press(Action::Backup(w));
     app.press(Action::BPreset(preset));
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     app.press(Action::OpenWallet(w));
     let _ = app.frame();
 }
@@ -151,14 +154,10 @@ fn a_single_key_with_paper_and_vault_shows_two_places_and_the_vault() {
     assert_eq!(vault.alone.as_deref(), Some("Sealed"));
     // The key's lines go to the places with its words and to its vault.
     assert!(one.keys == [0] && vault.keys == [0], "{nodes:?}");
+    // The two lines of fact under the checks push the chart's lower nodes
+    // below the first screen: the keys' words are read on the nodes.
     let texts = app.drawn_texts();
-    for want in [
-        "At a glance",
-        "Place 1",
-        "Place 2",
-        "Vault 1",
-        "Key 1 words",
-    ] {
+    for want in ["At a glance", "Place 1", "Place 2", "Vault 1"] {
         assert!(texts.iter().any(|t| t == want), "{want} is not on the card");
     }
 }
@@ -485,6 +484,9 @@ fn a_wallet_loaded_from_its_vault_on_another_power_on_charts_the_vaults_plan() {
     planned(&mut app, w, 1);
     app.press(Action::Backup(w));
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     app.press(Action::BVaultSave(0));
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::AddKind(1)));
@@ -597,6 +599,9 @@ fn vault_holding(app: &mut Faraday, w: usize, plan: bool) {
         planned(app, w, 1);
         app.press(Action::Backup(w));
         app.press(Action::BChecklist);
+        if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+            app.press(Action::BNext(faraday_core::bstep::BLANK));
+        }
         app.press(Action::BVaultSave(0));
     }
     app.press(Action::Nav(Screen::VaultContents));

@@ -5251,36 +5251,59 @@ fn item_title(app: &Faraday, n: u8) -> (String, String) {
         }
         Item::SeedFiles => (
             EN.item_title_the_seeds.to_string(),
-            if done {
-                app.medium.for_box()
-            } else {
-                EN.item_title_not_made
-            }
-            .to_string(),
+            app.wallet_seeds_written().unwrap_or_else(|| {
+                if done {
+                    app.medium.for_box()
+                } else {
+                    EN.item_title_not_made
+                }
+                .to_string()
+            }),
         ),
         Item::Sheets if a.split && shape.splits => (
             EN.item_title_the_shares.to_string(),
-            fill(
-                EN.item_title_shares_keys,
-                &[
-                    &keys_n.to_string(),
-                    &(keys_n - a.omit.min(shape.m.saturating_sub(1))).to_string(),
-                ],
-            ),
+            app.wallet_shares_written().unwrap_or_else(|| {
+                fill(
+                    EN.item_title_shares_keys,
+                    &[
+                        &keys_n.to_string(),
+                        &(keys_n - a.omit.min(shape.m.saturating_sub(1))).to_string(),
+                    ],
+                )
+            }),
         ),
         Item::Sheets => (
             EN.item_title_the_wallet.to_string(),
-            if done {
-                app.medium.for_box()
-            } else {
-                EN.item_title_a_pdf_to
-            }
-            .to_string(),
+            app.wallet_item_written(&[format!("{}-backup.pdf", crate::file_stem(&wallet.name))])
+                .unwrap_or_else(|| {
+                    if done {
+                        app.medium.for_box()
+                    } else {
+                        EN.item_title_a_pdf_to
+                    }
+                    .to_string()
+                }),
         ),
         Item::PublicFiles => (
             EN.item_title_the_public.to_string(),
-            ticked(&SOFTWARE_ROWS, &a.software),
+            app.wallet_item_written(&app.backup_public_names_for(b.wallet, a))
+                .unwrap_or_else(|| ticked(&SOFTWARE_ROWS, &a.software)),
         ),
+        Item::Sticks => {
+            let (n, m) = app
+                .wallet_flow_of_backup()
+                .map_or((0, app.wallet_stick_rows().len()), |i| {
+                    app.backup_flows[i].written_of()
+                });
+            (
+                fill(EN.backup_flow_item_sticks, &[app.medium.nouns()]),
+                if n == 0 {
+                    EN.backup_flow_row_none.to_string()
+                } else {
+                    fill(EN.backup_flow_written_of, &[&n.to_string(), &m.to_string()])
+                },
+            )
+        }
         Item::ShowDescriptor => (
             EN.item_title_show_the.to_string(),
             if done {
@@ -5992,7 +6015,7 @@ fn check_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let shape = app.plan_shape(b.wallet);
     let c = crate::plan::check(&shape, &b.answers);
-    let mut h = crate::glance::check_lines(ui, x, y, w, c, false);
+    let mut h = crate::glance::check_lines(ui, x, y, w, c, false, &|p| app.place_name(p));
     // Why "Any one place lost" reads No (`docs/NEW-WALLET.md` §14.2).
     let name = |p: usize| app.place_name(p);
     if let Some(why) = crate::plan::lost_why(&shape, &b.answers, &name, app.medium.noun()) {
@@ -6047,7 +6070,7 @@ fn backup_done(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += 40.0;
     if let Some(g) = glance::of(app, b.wallet) {
         if let Backup::Plan { check, .. } = &g.backup {
-            cy += glance::check_lines(ui, x, cy, w, *check, true) + 16.0;
+            cy += glance::check_lines(ui, x, cy, w, *check, true, &glance::names_of(&g)) + 16.0;
         }
         cy += if ui.compact {
             glance::draw_column_with(ui, &g, Direction::WalletFirst, x, cy, w, false)
@@ -6056,40 +6079,16 @@ fn backup_done(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         };
         cy += 16.0;
     }
-    let n = app.outbox.len();
-    let line = fill(
-        EN.backup_done_from_this,
-        &[
-            &n.to_string(),
-            (if n == 1 {
-                EN.backup_done_file
-            } else {
-                EN.backup_done_files
-            }),
-            app.medium.for_the(),
-            &b.sent.len().to_string(),
-        ],
-    );
-    cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, &line) + 12.0;
-    let write_style = if n == 0 {
-        Style::Disabled
-    } else {
-        Style::Primary
-    };
-    let write = fill(EN.backup_done_write_to, &[app.medium.a()]);
-    let mut items: Vec<(&str, Style, Action)> = Vec::new();
-    // Pinned at the foot on a small panel.
-    if ui.pinning {
-        ui.pin = Some((write.clone(), write_style, Action::WriteAsk));
-    } else {
-        items.push((write.as_str(), write_style, Action::WriteAsk));
-    }
-    items.push((
-        EN.backup_done_open_the,
-        Style::Secondary,
-        Action::OpenWallet(b.wallet),
-    ));
-    items.push((EN.backup_done_change, Style::Secondary, Action::BPlan));
+    // What the checklist made was written inside it: nothing waits For the
+    // stick (`docs/BACKUP-FLOW.md` §10.2).
+    let items: Vec<(&str, Style, Action)> = vec![
+        (
+            EN.backup_done_open_the,
+            Style::Primary,
+            Action::OpenWallet(b.wallet),
+        ),
+        (EN.backup_done_change, Style::Secondary, Action::BPlan),
+    ];
     cy += wrap_buttons(ui, x, cy, w, 40.0, &items);
     cy - y
 }
@@ -6462,27 +6461,35 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 ) + 8.0;
             }
             cy += 52.0;
-            // Made For the stick with the checklist, and again for
-            // another length.
-            let file = format!("blank-template-{}-words.pdf", b.words);
-            let (state, button) = made_state(
-                app,
-                &file,
-                Some(Action::PublicRemove(b.wallet, 0)),
-                (EN.backup_make_it, Action::BOut(0)),
+            // Printed from Faraday Starter, on the online computer, before
+            // the copies by hand: nothing is made here.
+            let shape = app.plan_shape(b.wallet);
+            let copy = match (
+                b.answers.seeds[crate::plan::seeds::WORDS],
+                b.answers.seeds[crate::plan::seeds::SEEDQR],
+            ) {
+                (true, true) => EN.item_templates_both,
+                (false, true) => EN.item_templates_seedqr,
+                _ => EN.item_templates_words,
+            };
+            let line = fill(
+                EN.item_templates_starter,
+                &[
+                    &crate::plan::templates(&shape, &b.answers)
+                        .max(1)
+                        .to_string(),
+                    &b.words.to_string(),
+                    copy,
+                ],
             );
-            cy += file_row(
-                ui,
-                x,
-                cy,
-                w,
-                EN.backup_blank_template,
-                &fill(EN.backup_words_a_pdf, &[&b.words.to_string()]),
-                state.as_deref(),
-                button,
-                &[],
-            );
-            cy += 12.0;
+            cy += ui.wrap(x, cy, w, 14.0, W::R, TEXT, &line) + 16.0;
+            if item_next(app, ui, x, cy, w, n) {
+                cy += 48.0;
+            }
+        }
+        bstep::STICKS => {
+            cy += sticks_item(app, ui, x, cy, w);
+            cy += 8.0;
             if item_next(app, ui, x, cy, w, n) {
                 cy += 48.0;
             }
@@ -6886,7 +6893,11 @@ fn item_action(app: &Faraday, n: u8) -> (String, Action) {
             .get(b.wallet)
             .is_some_and(crate::backup::splits);
     match item {
-        Item::Templates => (EN.item_action_make_it.to_string(), Action::BOut(0)),
+        Item::Templates => (EN.item_action_done.to_string(), Action::BNext(n)),
+        Item::Sticks => (
+            EN.backup_flow_lock_and_write.to_string(),
+            Action::Flow(crate::backup_flow_steps::FlowAction::WalletLock),
+        ),
         Item::Copy(_) if !app.cameras.is_empty() => {
             (EN.item_action_check_my.to_string(), Action::BScan)
         }
@@ -6923,6 +6934,70 @@ fn item_next(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> bool 
     let (label, action) = item_action(app, n);
     let label = ui.fit(14.0, W::S, &label, w - 36.0);
     next_button(ui, x, y, w, &label, action)
+}
+
+/// The checklist's Write to sticks: what the lock keeps and wipes, then a
+/// row for each stick by place, ticked once written, its files under it.
+/// Its one button is the foot's. Returns the height used.
+fn sticks_item(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let mut cy = y;
+    let written = app.wallet_sticks_done();
+    if !written {
+        let kw = app.kept_wiped(false);
+        for (title, lines) in [
+            (
+                EN.backup_flow_kept,
+                kw.kept
+                    .iter()
+                    .map(|l| (l.clone(), TEXT))
+                    .collect::<Vec<_>>(),
+            ),
+            (
+                EN.backup_flow_wiped,
+                kw.wiped
+                    .iter()
+                    .map(|(l, nowhere)| (l.clone(), if *nowhere { ERR } else { TEXT }))
+                    .collect(),
+            ),
+        ] {
+            if lines.is_empty() {
+                continue;
+            }
+            ui.text(x, cy, 12.0, W::R, MUTED, title);
+            cy += 22.0;
+            for (l, tone) in lines {
+                cy += ui.wrap(x, cy, w, 13.0, W::R, tone, &l) + 6.0;
+            }
+            cy += 6.0;
+        }
+    }
+    for (name, files, done) in app.wallet_stick_rows() {
+        let name = {
+            let mut c = name.chars();
+            c.next()
+                .map(|f| f.to_uppercase().collect::<String>() + c.as_str())
+                .unwrap_or_default()
+        };
+        ui.dot(
+            x + 4.0,
+            cy + 9.0,
+            3.5,
+            if done.is_some() { OK } else { DIM },
+        );
+        let tail = done.clone().unwrap_or_default();
+        let room = w - ui.measure(12.0, W::M, &tail) - 30.0;
+        let head = ui.fit(13.0, W::S, &name, room);
+        ui.text_mid(x + 18.0, cy, 18.0, 13.0, W::S, TEXT, &head);
+        if done.is_some() {
+            ui.text_right(x + w, cy, 18.0, 12.0, W::M, OK, &tail);
+        }
+        cy += 24.0;
+        if !files.is_empty() {
+            cy += ui.wrap(x + 18.0, cy, w - 18.0, 12.0, W::M, MUTED, &files.join(", ")) + 8.0;
+        }
+        cy += 4.0;
+    }
+    cy - y
 }
 
 /// A vault's checklist item: what Save into the open vault saves, a row
@@ -7731,6 +7806,10 @@ const CSTEPS: [&str; crate::cstep::COUNT] = [
     EN.app_keys,
     EN.app_check,
     EN.app_back_up,
+    EN.backup_flow_card_where_keys,
+    // Bring in the sticks: named by the medium where it is drawn.
+    "",
+    EN.backup_flow_card_vaults,
 ];
 
 fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -7738,7 +7817,7 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let col_x = x0 + 40.0;
     let col_w = (cw - 80.0).min(900.0);
     let Some(c) = app.create.as_ref() else { return };
-    let steps = crate::create_steps(c.kind);
+    let steps = app.create_cards();
     let filled = c
         .slots
         .iter()
@@ -7747,8 +7826,13 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let cards: Vec<flow::Card> = steps
         .iter()
         .map(|&k| flow::Card {
-            title: CSTEPS[k as usize].to_string(),
+            title: if k == cstep::STICKS {
+                fill(EN.backup_flow_card_sticks, &[app.medium.nouns()])
+            } else {
+                CSTEPS[k as usize].to_string()
+            },
             summary: match k {
+                cstep::WHERE | cstep::STICKS | cstep::VAULTS => create_flow_summary(app, k),
                 cstep::KIND => c.kind.name().to_string(),
                 cstep::QUORUM => fill(EN.create_of, &[&c.m.to_string(), &c.n.to_string()]),
                 cstep::KEYS if c.kind.threshold() => fill(
@@ -7780,11 +7864,11 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 _ => EN.create_paper_vault.to_string(),
             },
             mono: false,
-            done: c.done[k as usize],
+            done: app.create_card_done(k),
             open: c.open == Some(k),
-            default: k == cstep::KIND || k == cstep::QUORUM,
+            default: k == cstep::KIND || k == cstep::QUORUM || k == cstep::WHERE,
             toggle: Action::CStep(k),
-            guide: Some(guide::create(k, c.kind, c.m, c.n, app.medium)),
+            guide: Some(guide::create(k, c.kind, c.m, c.n, app.medium)).filter(|g| !g.is_empty()),
         })
         .collect();
     let col = flow::Column {
@@ -7820,6 +7904,70 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if again {
         app.dirty = true;
         app.commands.push_back(osk_shell_api::Command::Draw);
+    }
+}
+
+/// The closed line of Make a new wallet's cards before Keys: what the flow
+/// decided.
+fn create_flow_summary(app: &Faraday, k: u8) -> String {
+    use crate::cstep;
+    let Some(c) = app.create.as_ref() else {
+        return String::new();
+    };
+    let flow = app
+        .wallet_flow_of_owner(c.owner)
+        .map(|i| &app.backup_flows[i]);
+    match (k, flow) {
+        (cstep::WHERE, Some(f)) if app.create_in_vaults() => fill(
+            EN.backup_flow_places_vaults,
+            &[
+                &f.wallet
+                    .as_ref()
+                    .map_or(f.plan.places.len(), |w| w.answers.places)
+                    .to_string(),
+                &f.plan.used_vaults().len().to_string(),
+            ],
+        ),
+        (cstep::STICKS, Some(f)) => {
+            let bound = f.slots.iter().filter(|s| s.bound.is_some()).count();
+            fill(
+                EN.backup_flow_read_of,
+                &[&bound.to_string(), &f.slots.len().to_string()],
+            )
+        }
+        (cstep::VAULTS, Some(f)) => {
+            let used = f.plan.used_vaults();
+            let open = app.wallet_flow_of_owner(c.owner).map_or(0, |i| {
+                used.iter()
+                    .filter(|&&v| app.flow_open_index(i, v).is_some())
+                    .count()
+            });
+            fill(
+                EN.backup_flow_unlocked_of,
+                &[&open.to_string(), &used.len().to_string()],
+            )
+        }
+        _ => EN.backup_flow_not_in_vault.to_string(),
+    }
+}
+
+/// The closed line of Restore's Where card: what the flow decided.
+fn create_flow_summary_restore(app: &Faraday) -> String {
+    let Some(r) = app.restore.as_ref() else {
+        return String::new();
+    };
+    match app.wallet_flow_pre().map(|i| &app.backup_flows[i]) {
+        Some(f) if r.into_vaults => fill(
+            EN.backup_flow_places_vaults,
+            &[
+                &f.wallet
+                    .as_ref()
+                    .map_or(f.plan.places.len(), |w| w.answers.places)
+                    .to_string(),
+                &f.plan.used_vaults().len().to_string(),
+            ],
+        ),
+        _ => EN.backup_flow_not_in_vault.to_string(),
     }
 }
 
@@ -8288,6 +8436,23 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 action,
             );
             cy += 48.0;
+        }
+        cstep::WHERE => {
+            if let Some(h) = crate::backup_flow_wallet_screen::create_where(app, ui, x, cy, w) {
+                cy += h;
+            }
+        }
+        cstep::STICKS | cstep::VAULTS => {
+            let step = if n == cstep::STICKS {
+                crate::backup_flow::Step::Sticks
+            } else {
+                crate::backup_flow::Step::Vaults
+            };
+            if let Some(h) =
+                crate::backup_flow_wallet_screen::create_flow_card(app, ui, step, x, cy, w)
+            {
+                cy += h;
+            }
         }
         cstep::CHECK => {
             if let Some(wl) = c.built.and_then(|i| app.session.wallets.get(i)) {
@@ -8829,6 +8994,7 @@ const RSTEPS: [&str; crate::rstep::COUNT as usize] = [
     EN.app_keys,
     EN.app_check,
     EN.app_done,
+    EN.backup_flow_card_where_seeds,
 ];
 
 fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -8858,6 +9024,7 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     _ if r.done[k as usize] => EN.restore_none.to_string(),
                     _ => String::new(),
                 },
+                rstep::WHERE => create_flow_summary_restore(app),
                 rstep::SEEDS => {
                     let (here, all) = restore_filled(app);
                     fill(EN.restore_of_filled, &[&here.to_string(), &all.to_string()])
@@ -8872,7 +9039,8 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             done: r.done[k as usize],
             open: r.open == Some(k),
             // Read from a description, they are not to be changed.
-            default: !r.described && (k == rstep::KIND || k == rstep::QUORUM),
+            default: (!r.described && (k == rstep::KIND || k == rstep::QUORUM))
+                || k == rstep::WHERE,
             toggle: Action::RStep(k),
             guide: Some(guide::restore(k)),
         })
@@ -9019,6 +9187,11 @@ fn restore_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f3
             );
         }
         rstep::DESCRIPTION => cy += restore_description(app, ui, x, cy, w),
+        rstep::WHERE => {
+            if let Some(h) = crate::backup_flow_wallet_screen::restore_where(app, ui, x, cy, w) {
+                cy += h;
+            }
+        }
         rstep::SEEDS => cy += restore_seeds(app, ui, x, cy, w),
         rstep::CHECK => {
             if let Some(i) = r.wallet.filter(|_| r.done[rstep::SEEDS as usize])

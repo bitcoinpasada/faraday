@@ -110,6 +110,9 @@ fn checklist(app: &mut Faraday, p: Preset) {
     app.press(Action::CBackup(preset(p)));
     assert_eq!(app.screen, Screen::Backup);
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
 }
 
@@ -187,6 +190,9 @@ fn a_key_from_new_key_cannot_sign_until_its_wallets_checklist_is_complete_and_ca
     assert_eq!(app.screen, Screen::Backup);
     app.press(Action::BPreset(preset(Preset::Paper)));
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     check_the_copy(&mut app, fp);
     assert!(app.key_held(fp), "held before the envelopes");
     the_envelopes(&mut app);
@@ -296,6 +302,9 @@ fn the_cards_address_carries_the_warning_until_the_backup_is_done() {
     app.press(Action::Backup(w));
     app.press(Action::BPreset(preset(Preset::Paper)));
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     check_the_copy(&mut app, fp);
     the_envelopes(&mut app);
     app.press(Action::OpenWallet(w));
@@ -306,7 +315,17 @@ fn the_cards_address_carries_the_warning_until_the_backup_is_done() {
 fn with_every_item_done_the_done_card_shows_the_three_checks_above_the_chart() {
     let mut app = device(Vec::new(), 2400);
     let (_, fp) = made_here(&mut app);
-    checklist(&mut app, Preset::Paper);
+    // Paper alone, with no sheet: nothing is written to a stick, so the
+    // card is the end.
+    app.press(Action::CBackup(preset(Preset::Paper)));
+    app.press(Action::BAnswer(
+        faraday_core::qrow::WALLET,
+        faraday_core::plan::wallet::PAPER as u8,
+    ));
+    app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     check_the_copy(&mut app, fp);
     the_envelopes(&mut app);
     let texts = app.drawn_texts();
@@ -324,7 +343,10 @@ fn with_every_item_done_the_done_card_shows_the_three_checks_above_the_chart() {
             .unwrap_or_else(|| panic!("{line} is not shown: {texts:?}"));
         assert!(at < chart, "{line} is under the chart");
     }
-    assert!(app.offers(Action::WriteAsk));
+    assert!(
+        !app.offers(Action::WriteAsk),
+        "nothing waits For the stick after the checklist"
+    );
     assert!(app.offers(Action::BPlan));
 }
 
@@ -336,6 +358,9 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
     // No paper: the vault's item comes first.
     app.press(Action::BAnswer(qrow::SEEDS, plan::seeds::WORDS as u8));
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
     let _ = app.frame();
     let make = Action::Vault(V::CreateFrom(Screen::Backup));
@@ -398,6 +423,9 @@ fn changing_to_paper_only_after_the_vault_keeps_its_copy_on_the_map_and_the_hold
     app.press(Action::BPlan);
     app.press(Action::BPreset(preset(Preset::Paper)));
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     assert!(!app.backup_items().contains(&bstep::VAULT));
     let line = format!("vault.ofv holds seed {}", fp_text(fp));
     let shown = app.drawn_texts().join(" ");
@@ -425,5 +453,8 @@ fn a_plan_with_the_seed_unticked_everywhere_offers_no_make_the_checklist() {
     let nowhere = format!("Seed {} is kept nowhere", fp_text(fp));
     assert!(app.drawn_texts().contains(&nowhere));
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Plan);
 }

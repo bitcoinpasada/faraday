@@ -116,6 +116,9 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
     assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::PRESET));
     press_offered(&mut app, Action::BPreset(1));
     press_offered(&mut app, Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
     assert_eq!(
         app.backup_items(),
@@ -124,16 +127,24 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
             bstep::COPY,
             bstep::VAULT,
             bstep::SHEETS,
-            bstep::ENVELOPE
+            bstep::ENVELOPE,
+            bstep::STICKS
         ],
-        "only what paper and a vault need"
+        "only what paper and a vault need, and the writes"
     );
-    // The template and the sheet are made For the stick with the
-    // checklist: done with no press. The rest wait for what they do.
+    // The sheet is made For the stick with the checklist: done with no
+    // press. The template is printed from Faraday Starter, and done by its
+    // press. The rest wait for what they do.
     for item in [Item::Templates, Item::Sheets] {
-        assert!(done(&app, item), "{item:?} not made with the checklist");
+        assert!(done(&app, item), "{item:?} not done with the checklist");
     }
-    for item in [Item::Copy(0), Item::Vault(0), Item::Envelopes] {
+    assert!(
+        !app.outbox
+            .iter()
+            .any(|i| i.name.starts_with("blank-template")),
+        "no template is made here"
+    );
+    for item in [Item::Copy(0), Item::Vault(0), Item::Envelopes, Item::Sticks] {
         assert!(!done(&app, item), "{item:?} done before anything");
     }
     // So the checklist opens on the copy, which is typed back.
@@ -161,11 +172,17 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
     assert!(!done(&app, Item::Sheets));
     press_offered(&mut app, Action::BOut(3));
     assert!(done(&app, Item::Sheets));
-    // The envelopes, by a press; then the way to a stick.
+    // The envelopes, by a press; then the writes, which are the
+    // checklist's last item: one lock, then each stick.
     press_offered(&mut app, Action::BStep(bstep::ENVELOPE));
     press_offered(&mut app, Action::BNext(bstep::ENVELOPE));
     assert!(done(&app, Item::Envelopes));
-    press_offered(&mut app, Action::WriteAsk);
+    // The envelopes' press opened the writes, the last item.
+    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::STICKS));
+    press_offered(
+        &mut app,
+        Action::Flow(faraday_core::backup_flow_steps::FlowAction::WalletLock),
+    );
 }
 
 #[test]
@@ -185,6 +202,9 @@ fn making_the_checklist_with_sparrow_chosen_puts_the_wallet_file_for_the_stick()
         "nothing is made before the checklist"
     );
     press_offered(&mut app, Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     let name = format!(
         "{}-wallet.json",
         faraday_core::file_stem(&app.session.wallets[w].name)
@@ -223,6 +243,9 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
         faraday_core::plan::seeds::FILE as u8,
     ));
     press_offered(&mut app, Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     let plans: Vec<_> = app.vaults.open[0]
         .contents
         .of(kind::PLAN)
@@ -238,7 +261,7 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
     app.press(Action::BFile);
     app.press(Action::SecretAck);
     app.press(Action::SecretUnprotected);
-    assert!(app.outbox.len() >= 7, "{:?}", app.outbox.len());
+    assert!(app.outbox.len() >= 6, "{:?}", app.outbox.len());
     for item in &app.outbox {
         assert!(
             !item.bytes.windows(NAME.len()).any(|b| b == NAME.as_bytes()),
@@ -250,6 +273,9 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
     app.press(Action::BPlan);
     app.press(Action::BAnswer(qrow::STICKS, 0));
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     assert_eq!(app.vaults.open[0].contents.of(kind::PLAN).count(), 1);
     // The next backup of the wallet starts from it.
     let answers = app.backup.as_ref().unwrap().answers.clone();
@@ -285,17 +311,33 @@ fn the_blank_template_has_a_line_per_place_and_no_name() {
     app.press(Action::BName(1));
     type_text(&mut app, NAME);
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
+    // The blank template is printed from Faraday Starter: nothing is made
+    // here, and no place's name is on any file.
     app.press(Action::BOut(0));
-    let pdf = &app
-        .outbox
-        .iter()
-        .find(|i| i.name == "blank-template-24-words.pdf")
-        .expect("the template")
-        .bytes;
-    let count = |s: &[u8]| pdf.windows(s.len()).filter(|w| *w == s).count();
-    assert_eq!(count(b"(Place) Tj"), 3, "a line per place");
-    assert_eq!(count(b"(holds) Tj"), 3);
-    assert_eq!(count(NAME.as_bytes()), 0, "a place's name on the template");
+    assert!(
+        !app.outbox
+            .iter()
+            .any(|i| i.name.starts_with("blank-template")),
+        "the checklist makes no template"
+    );
+    app.press(Action::BStep(bstep::BLANK));
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t.starts_with("Print 3 from Faraday Starter: Blank templates, 24 words")),
+        "the Templates item says to print them from Faraday Starter: {:?}",
+        app.drawn_texts()
+    );
+    for item in &app.outbox {
+        assert!(
+            !item.bytes.windows(NAME.len()).any(|b| b == NAME.as_bytes()),
+            "{} holds the place's name",
+            item.name
+        );
+    }
 }
 
 /// Test keys 1 and 2 typed in and the 2-of-3 over the three test keys
@@ -361,6 +403,9 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
     // No paper words, so the vaults come first.
     app.press(Action::BAnswer(qrow::SEEDS, plan::seeds::WORDS as u8));
     press_offered(&mut app, Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     let items = app.backup_items();
     assert!(
         items.contains(&bstep::VAULT) && items.contains(&(bstep::VAULT + 1)),

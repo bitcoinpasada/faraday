@@ -71,6 +71,9 @@ fn create_to_vault_step() -> Faraday {
         faraday_core::plan::seeds::WORDS as u8,
     ));
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     assert_eq!(
         app.backup.as_ref().unwrap().open,
         Some(faraday_core::bstep::VAULT)
@@ -189,6 +192,9 @@ fn a_finished_backup_offers_a_stick_and_asks_to_lock_first() {
     app.press(Action::Backup(wallet));
     app.press(Action::BPreset(0));
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     app.press(Action::BOut(0));
     app.press(Action::BOut(3));
     let pdfs = app
@@ -196,7 +202,10 @@ fn a_finished_backup_offers_a_stick_and_asks_to_lock_first() {
         .iter()
         .filter(|i| i.name.ends_with(".pdf"))
         .count();
-    assert_eq!(pdfs, 2, "the template and the backup sheet go out");
+    assert_eq!(
+        pdfs, 1,
+        "the backup sheet goes out; no template is made here"
+    );
 
     // A seed is held, so the stick comes after a lock.
     app.press(Action::WriteAsk);

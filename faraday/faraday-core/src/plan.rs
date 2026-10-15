@@ -125,12 +125,6 @@ impl Shape {
         self.seeds.len() > 1
     }
 
-    /// The most places paper may be kept in: one per seed, and at least
-    /// three.
-    pub fn max_places(&self) -> usize {
-        self.seeds.len().max(3)
-    }
-
     /// The seeds loaded here, by place among the wallet's.
     pub fn here(&self) -> Vec<usize> {
         (0..self.seeds.len())
@@ -178,6 +172,10 @@ pub struct Answers {
     /// of the answers no longer spread by rule. `None` while the answers
     /// draw it.
     pub map: Option<Vec<Spot>>,
+    /// Places that keep no paper copy of a seed: the place a default
+    /// gives a passphrase when every other place keeps a copy of its seed
+    /// (`docs/BACKUP-FLOW.md` §10.3).
+    pub bare: Vec<usize>,
 }
 
 impl Default for Answers {
@@ -195,6 +193,7 @@ impl Default for Answers {
             pass: Vec::new(),
             omit: 0,
             map: None,
+            bare: Vec::new(),
         }
     }
 }
@@ -223,28 +222,80 @@ impl Answers {
             pass: Vec::new(),
             omit: shape.m.saturating_sub(1),
             map: None,
+            bare: Vec::new(),
         };
         a.pass = shape
             .seeds
             .iter()
-            .enumerate()
-            .map(|(i, s)| {
-                if !(s.here && s.passphrase) {
-                    return Vec::new();
+            .map(|s| {
+                if s.here && s.passphrase {
+                    vec![false; places + 1]
+                } else {
+                    Vec::new()
                 }
-                let mut row = vec![false; places + 1];
-                if let Some(p) = (0..places).find(|&p| !a.words_at(shape, p).contains(&i)) {
-                    row[p] = true;
-                }
-                row
             })
             .collect();
+        a.place_passphrases(shape);
         a
+    }
+
+    /// Whether place `p` keeps a copy of seed `i` in any form: its words
+    /// or SeedQR on paper, or the stick of a vault that holds it.
+    pub fn seed_at(&self, shape: &Shape, i: usize, p: usize) -> bool {
+        self.words_at(shape, p).contains(&i)
+            || self
+                .vaults_made(shape)
+                .into_iter()
+                .any(|v| self.stick_at(v, p) && self.vault_seeds(shape, v).contains(&i))
+    }
+
+    /// Puts each seed's passphrase at the first place that keeps no copy
+    /// of that seed in any form, its vault's stick included; where there
+    /// is none, a place is added for it (`docs/BACKUP-FLOW.md` §10.3). A
+    /// passphrase the plan already puts somewhere stays.
+    pub fn place_passphrases(&mut self, shape: &Shape) {
+        for i in 0..shape.seeds.len() {
+            if !(shape.seeds[i].here && shape.seeds[i].passphrase) {
+                continue;
+            }
+            if self.pass.len() <= i {
+                self.pass.resize(i + 1, Vec::new());
+            }
+            if self.pass[i].is_empty() {
+                self.pass[i] = vec![false; self.places + 1];
+            }
+            if self.pass[i].iter().take(self.places).any(|&b| b) {
+                continue;
+            }
+            let free = (0..self.places).find(|&p| !self.seed_at(shape, i, p));
+            let p = match free {
+                Some(p) => p,
+                None => {
+                    let p = self.places;
+                    self.set_places(shape, p + 1);
+                    // The new place keeps no paper copy.
+                    if !self.bare.contains(&p) {
+                        self.bare.push(p);
+                    }
+                    p
+                }
+            };
+            if let Some(slot) = self.pass[i].get_mut(p) {
+                *slot = true;
+            }
+        }
     }
 
     /// The answers a preset fills in, from the wallet's defaults.
     pub fn preset(shape: &Shape, preset: Preset) -> Answers {
         let mut a = Answers::defaults(shape);
+        // The passphrase's own place is found again below, once the
+        // vault's stick has its place.
+        let base = if shape.multi() { shape.seeds.len() } else { 2 };
+        if a.places != base {
+            a.set_places(shape, base);
+        }
+        a.bare.clear();
         if preset != Preset::Paper {
             a.seeds[seeds::VAULT] = !shape.watch_only();
             a.wallet[wallet::VAULT] = true;
@@ -253,14 +304,141 @@ impl Answers {
         if preset == Preset::PaperVaultSoftware {
             a.wallet[wallet::SOFTWARE] = true;
         }
+        // The passphrase's place keeps no copy of its seed, the vault's
+        // stick included.
+        for row in a.pass.iter_mut().filter(|r| !r.is_empty()) {
+            row.iter_mut().for_each(|b| *b = false);
+        }
+        a.place_passphrases(shape);
         a
     }
 
-    /// Sets how many places keep paper, within what the shape allows; the
-    /// lists by place grow or shrink with it.
+    /// Brings answers made for a wallet's keys-to-be to the shape it turned
+    /// out to have: a seed not loaded here is in no vault and keeps no
+    /// passphrase, a vault left holding no seed here goes, and a key that
+    /// has a row for it (`docs/BACKUP-FLOW.md` §10.2). Nothing is placed:
+    /// a default puts a passphrase apart at preset time only, and a plan
+    /// the person made keeps its places. Returns, for each vault of the
+    /// refitted answers, the vault it was (`usize::MAX` for one added), so
+    /// that what is kept by vault number follows.
+    pub fn refit(&mut self, shape: &Shape) -> Vec<usize> {
+        let n = shape.seeds.len();
+        let here = |i: usize| shape.seeds.get(i).is_some_and(|s| s.here);
+        let mut kept_rows: Vec<usize> = (0..self.vaults.len()).collect();
+        if self.map.is_none() {
+            let keep: Vec<usize> = (0..self.vaults.len())
+                .filter(|&v| {
+                    self.vaults[v]
+                        .iter()
+                        .enumerate()
+                        .any(|(i, &t)| t && here(i))
+                })
+                .collect();
+            let mut vaults: Vec<Vec<bool>> = keep
+                .iter()
+                .map(|&v| {
+                    (0..n)
+                        .map(|i| self.vaults[v].get(i) == Some(&true) && here(i))
+                        .collect()
+                })
+                .collect();
+            let mut sticks: Vec<Vec<bool>> = keep
+                .iter()
+                .map(|&v| {
+                    let mut row = self.sticks.get(v).cloned().unwrap_or_default();
+                    row.resize(self.places, false);
+                    row
+                })
+                .collect();
+            let rows = shape.vault_rows();
+            vaults.resize_with(rows, || vec![false; n]);
+            sticks.resize_with(rows, || vec![false; self.places]);
+            self.vaults = vaults;
+            self.sticks = sticks;
+            kept_rows = keep;
+            kept_rows.resize(rows, usize::MAX);
+        }
+        if shape.watch_only() {
+            self.seeds[seeds::VAULT] = false;
+        }
+        let old = std::mem::take(&mut self.pass);
+        self.pass = (0..n)
+            .map(|i| {
+                if shape.seeds[i].here && shape.seeds[i].passphrase {
+                    let mut row = old.get(i).cloned().unwrap_or_default();
+                    if row.len() != self.places + 1 {
+                        row = vec![false; self.places + 1];
+                    }
+                    row
+                } else {
+                    Vec::new()
+                }
+            })
+            .collect();
+        self.place_new_sticks(shape, &[]);
+        kept_rows
+    }
+
+    /// Moves the seeds of the answers to where they turned out to be:
+    /// `map[old]` is the new place of old seed `old` among `new_n` seeds.
+    /// A wallet's keys-to-be are numbered by slot; its seeds are numbered
+    /// as its description lists them (FROST's by share).
+    pub fn remap_seeds(&mut self, map: &[usize], new_n: usize) {
+        let to = |old: usize| map.get(old).copied().filter(|&n| n < new_n);
+        for row in &mut self.vaults {
+            let mut moved = vec![false; new_n];
+            for (old, &t) in row.iter().enumerate() {
+                if t && let Some(n) = to(old) {
+                    moved[n] = true;
+                }
+            }
+            *row = moved;
+        }
+        let old = std::mem::take(&mut self.pass);
+        self.pass = vec![Vec::new(); new_n];
+        for (o, row) in old.into_iter().enumerate() {
+            if let Some(n) = to(o) {
+                self.pass[n] = row;
+            }
+        }
+    }
+
+    /// The seeds the plan keeps as a file on the stick of files.
+    pub fn seeds_as_files(&self, shape: &Shape) -> Vec<usize> {
+        let mut out: Vec<usize> = map(shape, self)
+            .iter()
+            .filter(|s| s.at == At::Files)
+            .flat_map(|s| s.holds.iter())
+            .filter_map(|(w, _)| match w {
+                What::SeedFile(i) => Some(*i),
+                _ => None,
+            })
+            .collect();
+        out.sort_unstable();
+        out.dedup();
+        out
+    }
+
+    /// Whether the plan keeps seed `i` on a stick: in a vault, or as a
+    /// file on the stick of files. Such a seed is held until that stick is
+    /// written (F6).
+    pub fn seed_on_stick(&self, shape: &Shape, i: usize) -> bool {
+        map(shape, self).iter().any(|s| match s.at {
+            At::Vault(_) => s
+                .holds
+                .iter()
+                .any(|(w, _)| *w == What::Seed(i) || *w == What::SeedPassphrase(i)),
+            At::Files => s.holds.iter().any(|(w, _)| *w == What::SeedFile(i)),
+            _ => false,
+        })
+    }
+
+    /// Sets how many places keep paper, at least one and as many as the
+    /// person adds; the lists by place grow or shrink with it.
     pub fn set_places(&mut self, shape: &Shape, places: usize) {
-        let places = places.clamp(1, shape.max_places());
+        let places = places.max(1);
         self.places = places;
+        self.bare.retain(|&p| p < places);
         // A vault whose only stick was at a place that goes is given
         // another.
         let lost: Vec<usize> = self
@@ -492,7 +670,7 @@ impl Answers {
             out.dedup();
             return out;
         }
-        if !self.paper_seeds() {
+        if !self.paper_seeds() || self.bare.contains(&p) {
             return Vec::new();
         }
         spread(shape.seeds.len(), self.places, p)
@@ -631,6 +809,10 @@ impl Answers {
                 out.push_str(&format!("pass {i} {}\n", bits(row)));
             }
         }
+        if !self.bare.is_empty() {
+            let list: Vec<String> = self.bare.iter().map(|p| p.to_string()).collect();
+            out.push_str(&format!("bare {}\n", list.join(",")));
+        }
         // The map edited on the chart, a `spot` line per spot: where, and
         // what it holds. Never a name, a date or a mark.
         for spot in self.map.iter().flatten() {
@@ -768,6 +950,7 @@ impl Answers {
                 .collect()
         }
         let mut a = Answers::defaults(shape);
+        a.bare = Vec::new();
         let mut seen = 0;
         let mut one_stick: Option<Vec<bool>> = None;
         let mut sticks: Vec<(usize, Vec<bool>)> = Vec::new();
@@ -790,6 +973,12 @@ impl Answers {
                 "software" => a.software = bits(value)?,
                 "form" => a.form = bits(value)?,
                 "omit" => a.omit = value.parse().ok()?,
+                "bare" => {
+                    a.bare = value
+                        .split(',')
+                        .map(|p| p.parse().ok())
+                        .collect::<Option<Vec<usize>>>()?;
+                }
                 "pass" => {
                     let (i, row) = value.split_once(' ')?;
                     let i: usize = i.parse().ok()?;
@@ -864,7 +1053,7 @@ impl Answers {
             a.set_map(edited);
         }
         let fits = seen >= 8
-            && (a.places >= 1 && (a.map.is_some() || a.places <= shape.max_places()))
+            && a.places >= 1
             && a.sticks.iter().all(|r| r.len() == a.places)
             && a.vaults.iter().all(|r| {
                 r.len() == shape.seeds.len()
@@ -1175,6 +1364,13 @@ pub struct Check {
     pub spend: Found,
     /// One place found: sees the balance.
     pub balance: Found,
+    /// The place that keeps every secret of the wallet, or a seed with its
+    /// passphrase (`docs/BACKUP-FLOW.md` §10.3): a line of fact, never a
+    /// block.
+    pub one_place: Option<usize>,
+    /// A single key with no passphrase: a passphrase kept at another
+    /// place than the seed is recommended.
+    pub passphrase_apart: bool,
 }
 
 /// The check's three lines, labelled.
@@ -1441,7 +1637,67 @@ fn check_of(shape: &Shape, a: &Answers, boxes: &[Spot]) -> Check {
         lost,
         spend,
         balance,
+        one_place: one_place_in(shape, boxes),
+        passphrase_apart: shape.seeds.len() == 1
+            && shape.seeds[0].here
+            && !shape.seeds[0].passphrase,
     }
+}
+
+/// The place that holds every secret of the wallet: every seed loaded
+/// here, in any form (words, SeedQR, a vault whose stick is there; a seed
+/// file is at no place), and every passphrase of those seeds (on paper
+/// there, or in a vault whose stick is there). It is also the place that
+/// holds a seed with its own passphrase, whatever else is elsewhere
+/// (`docs/BACKUP-FLOW.md` §10.3).
+pub fn all_at_one_place(shape: &Shape, a: &Answers) -> Option<usize> {
+    one_place_in(shape, &map(shape, a))
+}
+
+/// [`all_at_one_place`] on the map `boxes`.
+fn one_place_in(shape: &Shape, boxes: &[Spot]) -> Option<usize> {
+    let here = shape.here();
+    if here.is_empty() {
+        return None;
+    }
+    let places: Vec<usize> = boxes
+        .iter()
+        .filter_map(|s| match s.at {
+            At::Place(p) => Some(p),
+            _ => None,
+        })
+        .collect();
+    let holds = |s: &Spot, f: &dyn Fn(What) -> bool| s.holds.iter().any(|(w, _)| f(*w));
+    // A vault holding `f`, whose stick is at place `p`.
+    let in_vault_at = |p: usize, f: &dyn Fn(What) -> bool| {
+        boxes.iter().any(|s| match s.at {
+            At::Vault(v) => holds(s, f) && sticks_of(boxes, v).contains(&p),
+            _ => false,
+        })
+    };
+    let seed_at = |i: usize, p: usize| {
+        boxes.iter().any(|s| {
+            s.at == At::Place(p) && holds(s, &|w| w == What::Words(i) || w == What::SeedQr(i))
+        }) || in_vault_at(p, &|w| w == What::Seed(i) || w == What::SeedPassphrase(i))
+    };
+    let pass_at = |i: usize, p: usize| {
+        boxes
+            .iter()
+            .any(|s| s.at == At::Place(p) && holds(s, &|w| w == What::Passphrase(i)))
+            || in_vault_at(p, &|w| w == What::SeedPassphrase(i))
+    };
+    for &p in &places {
+        if here
+            .iter()
+            .all(|&i| seed_at(i, p) && (!shape.seeds[i].passphrase || pass_at(i, p)))
+        {
+            return Some(p);
+        }
+    }
+    places.iter().copied().find(|&p| {
+        here.iter()
+            .any(|&i| shape.seeds[i].passphrase && seed_at(i, p) && pass_at(i, p))
+    })
 }
 
 /// What is left with spot `gone` lost (none: with nothing lost), of
@@ -1648,6 +1904,9 @@ pub enum Item {
     ShowDescriptor,
     /// One envelope per place.
     Envelopes,
+    /// Write to sticks: one lock, then each stick by place
+    /// (`docs/BACKUP-FLOW.md` §10.2).
+    Sticks,
 }
 
 /// The checklist: only what the plan needs, in the order to do it.
@@ -1688,6 +1947,19 @@ pub fn checklist(shape: &Shape, a: &Answers) -> Vec<Item> {
         out.push(Item::ShowDescriptor);
     }
     out.push(Item::Envelopes);
+    // A stick to write: a vault's stick at a place, the stick of files,
+    // or the public files and sheets to take to an online computer.
+    let stick = boxes.iter().any(|s| {
+        s.at == At::Files
+            || s.holds
+                .iter()
+                .any(|(w, _)| matches!(w, What::VaultStick(_)))
+    }) || out
+        .iter()
+        .any(|i| matches!(i, Item::Sheets | Item::PublicFiles));
+    if stick {
+        out.push(Item::Sticks);
+    }
     out
 }
 

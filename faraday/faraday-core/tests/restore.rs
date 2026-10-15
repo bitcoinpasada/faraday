@@ -147,7 +147,13 @@ fn restore_opens_on_kind_with_no_transaction_card() {
     assert_eq!(app.screen, Screen::Restore);
     assert_eq!(app.restore.as_ref().unwrap().open, Some(KIND));
     let text = drawn(&mut app);
-    for card in ["Kind", "Description", "Keys", "Check", "Done"] {
+    for card in [
+        "Kind",
+        "Description",
+        "Where the seeds will be kept",
+        "Keys",
+        "Check",
+    ] {
         assert!(text.lines().any(|l| l == card), "no {card} card: {text}");
     }
     assert!(!text.contains("transaction"), "{text}");

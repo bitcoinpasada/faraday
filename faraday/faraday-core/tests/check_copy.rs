@@ -66,6 +66,9 @@ fn backing_up(words: &str, camera: bool) -> Faraday {
     app.press(Action::Backup(0));
     app.press(Action::BPreset(0));
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     // The template is made with the checklist, so the copy is the first
     // item left and opens by itself.
     if app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {

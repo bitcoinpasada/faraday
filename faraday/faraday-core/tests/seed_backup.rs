@@ -104,11 +104,15 @@ fn backing_up(app: &mut Faraday, with: bool) -> Fingerprint {
     app.press(Action::BPreset(1));
     if with {
         // The passphrase into the vault with its seed: the row after the
-        // two places.
-        app.press(Action::BAnswer(qrow::PASS, 2));
+        // three places (its own place is the third, which keeps no copy
+        // of the seed).
+        app.press(Action::BAnswer(qrow::PASS, 3));
     }
     app.press(Action::BAnswer(qrow::SEEDS, plan::seeds::FILE as u8));
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     app.press(Action::BStep(bstep::COPY));
     app.press(Action::BReveal);
     let _ = app.frame();
@@ -475,6 +479,9 @@ fn a_matched_copy_check_marks_that_seed_only() {
         .expect("test key 1 is a seed of Savings") as u8;
     app.press(Action::BPreset(0));
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY + i));
     assert_eq!(app.backup.as_ref().unwrap().key, k1);
     app.press(Action::BReveal);

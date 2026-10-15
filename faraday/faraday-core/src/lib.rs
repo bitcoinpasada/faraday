@@ -75,6 +75,8 @@ pub mod wallet;
 pub mod wordlist;
 
 mod backup_flow_screen;
+mod backup_flow_wallet;
+mod backup_flow_wallet_screen;
 mod backups_screen;
 mod bip85_screen;
 mod boot_import_screen;
@@ -1084,6 +1086,15 @@ pub enum Action {
     CKind(u8),
     /// Expands the Kind card's other eight kinds.
     CMoreKinds,
+    /// Where the keys will be kept: in vaults (true), or not in a vault.
+    CWhere(bool),
+    /// Restore: where the seeds will be kept, in vaults (true) or not.
+    RWhere(bool),
+    /// **Add a passphrase** on the plan's check lines: before the key
+    /// exists, the key's slot is marked to ask for one; once the wallet
+    /// exists, Create opens on its Keys with the fields open
+    /// (`docs/BACKUP-FLOW.md` §10.3).
+    PlanAddPass,
     /// Change the signatures needed.
     CM(i8),
     /// Change the number of keys.
@@ -2201,6 +2212,9 @@ pub struct BackupState {
     pub open: Option<u8>,
     /// The envelopes closed as done: the one item nothing else marks.
     pub envelopes: bool,
+    /// The blank templates were printed from Faraday Starter: the item is
+    /// done by its press.
+    pub printed: bool,
     /// The descriptor was shown as a code in this backup.
     pub shown: bool,
     /// The column's scroll.
@@ -2326,6 +2340,14 @@ pub struct CreateState {
     /// Keys locked in with a passphrase here, by fingerprint: their slot
     /// shows **Locked in**.
     pub pass_locked: Vec<[u8; 4]>,
+    /// The keys are to be kept in vaults: where, the sticks and the vaults
+    /// come before the keys (`docs/BACKUP-FLOW.md` §10.2).
+    pub into_vaults: bool,
+    /// A single key's slot is marked to ask for a passphrase, before the
+    /// key exists (`docs/BACKUP-FLOW.md` §10.3).
+    pub pass_marked: bool,
+    /// The number the wallet's backup flow is tied to (`Faraday::owner_seq`).
+    pub owner: u64,
 }
 
 impl CreateState {
@@ -2355,8 +2377,14 @@ pub mod cstep {
     pub const CHECK: u8 = 3;
     /// The backup plan's presets, each opening Back up a wallet.
     pub const BACKUP: u8 = 4;
+    /// Where the keys will be kept (the plan's vault part), before Keys.
+    pub const WHERE: u8 = 5;
+    /// Bring in the sticks the plan names, before Keys.
+    pub const STICKS: u8 = 6;
+    /// Unlock and make the vaults, before Keys.
+    pub const VAULTS: u8 = 7;
     /// How many cards there are.
-    pub const COUNT: usize = 5;
+    pub const COUNT: usize = 8;
 }
 
 /// Restoring a wallet: the cards' state (`docs/NEW-WALLET.md` §12).
@@ -2389,6 +2417,11 @@ pub struct RestoreState {
     pub from_key: bool,
     /// Opened from Home: Back goes to Home.
     pub from_home: bool,
+    /// The seeds are to be kept in vaults: where, the sticks and the vaults
+    /// come before the seeds are typed (`docs/BACKUP-FLOW.md` §11).
+    pub into_vaults: bool,
+    /// The number the wallet's backup flow is tied to (`Faraday::owner_seq`).
+    pub owner: u64,
 }
 
 impl RestoreState {
@@ -2396,9 +2429,14 @@ impl RestoreState {
     pub fn new() -> RestoreState {
         let mut s = seeds::SeedsState::default();
         s.fix(create::NewKind::NativeSegwit);
+        let mut done = [false; rstep::COUNT as usize];
+        // Where the seeds will be kept is answered "not in a vault" until
+        // the person says otherwise.
+        done[rstep::WHERE as usize] = true;
         RestoreState {
             open: Some(rstep::KIND),
             seeds: Some(s),
+            done,
             ..RestoreState::default()
         }
     }
@@ -2415,7 +2453,13 @@ impl RestoreState {
         if kind.multi() && !kind.threshold() {
             v.push(rstep::QUORUM);
         }
-        v.extend([rstep::DESCRIPTION, rstep::SEEDS, rstep::CHECK, rstep::DONE]);
+        v.extend([
+            rstep::DESCRIPTION,
+            rstep::WHERE,
+            rstep::SEEDS,
+            rstep::CHECK,
+            rstep::DONE,
+        ]);
         v
     }
 
@@ -2450,8 +2494,10 @@ pub mod rstep {
     pub const CHECK: u8 = 4;
     /// What next.
     pub const DONE: u8 = 5;
+    /// Where the seeds will be kept (the plan's vault part), before Seeds.
+    pub const WHERE: u8 = 6;
     /// How many cards.
-    pub const COUNT: u8 = 6;
+    pub const COUNT: u8 = 7;
 }
 
 /// The backup cards, in order.
@@ -2470,6 +2516,8 @@ pub mod bstep {
     pub const FILES: u8 = 6;
     /// The descriptor shown to the watch-only software.
     pub const SHOW: u8 = 8;
+    /// Write to sticks: one lock, then each stick by place.
+    pub const STICKS: u8 = 10;
     /// Copy seed i by hand and check it: `COPY + i`, the seed by its
     /// place among the wallet's, below [`VAULT`].
     pub const COPY: u8 = 16;
@@ -2492,6 +2540,7 @@ pub mod bstep {
             Item::PublicFiles => PUBLIC,
             Item::ShowDescriptor => SHOW,
             Item::Envelopes => ENVELOPE,
+            Item::Sticks => STICKS,
         }
     }
 
@@ -2504,6 +2553,7 @@ pub mod bstep {
             PUBLIC => Item::PublicFiles,
             SHOW => Item::ShowDescriptor,
             ENVELOPE => Item::Envelopes,
+            STICKS => Item::Sticks,
             n if n >= VAULT => Item::Vault(usize::from(n - VAULT)),
             n if n >= COPY => Item::Copy(usize::from(n - COPY)),
             _ => return None,
@@ -2860,6 +2910,9 @@ pub struct Faraday {
     /// (`docs/NEW-WALLET.md` §14.3): they sign nothing until it is. Never
     /// a secret; kept in a vault beside the seed and in the plan record.
     made_here: Vec<osk_bip::keys::Fingerprint>,
+    /// The last number given to a Make a new wallet or a Restore, which a
+    /// wallet's backup flow is tied to while the wallet is being made.
+    owner_seq: u64,
     /// The vaults: the open slots and the vault screens' state.
     pub vaults: vaults::Vaults,
     /// The amounts each signed transaction's inputs stated
@@ -3235,6 +3288,7 @@ impl Faraday {
             input_decisions: VecDeque::new(),
             new_keys: 0,
             made_here: Vec::new(),
+            owner_seq: 0,
             // A new GPG key's term starts at GnuPG's default, never at "never".
             vaults: {
                 let mut v = vaults::Vaults::default();
@@ -4584,6 +4638,13 @@ impl Faraday {
     }
 
     fn act(&mut self, action: Action) {
+        self.act_inner(action);
+        // A wallet's flow follows the plan and the keys the press left.
+        self.wallet_flow_sync();
+        self.wallet_flow_save_keys();
+    }
+
+    fn act_inner(&mut self, action: Action) {
         // A build whose vectors do not reproduce does nothing but exit.
         if self.selftest_failed() {
             if action == Action::PowerOff {
@@ -5243,6 +5304,7 @@ impl Faraday {
                     };
                     // A copy checked this power-on stays checked.
                     let checked = self.backups_checked(i);
+                    let loaded = q.is_none();
                     self.backup = Some(BackupState {
                         wallet: i,
                         q,
@@ -5253,6 +5315,12 @@ impl Faraday {
                         words: 24,
                         ..BackupState::default()
                     });
+                    // Where the keys go was decided before they were made:
+                    // the plan starts from there, and a plan the vault
+                    // kept stays.
+                    if !loaded {
+                        self.wallet_flow_adopt(i);
+                    }
                     self.screen = Screen::Backup;
                 }
             }
@@ -5282,7 +5350,9 @@ impl Faraday {
                 };
                 let shape = self.plan_shape(w);
                 if let Some(&preset) = plan::Preset::ALL.get(usize::from(k)) {
-                    let answers = plan::Answers::preset(&shape, preset);
+                    let mut answers = plan::Answers::preset(&shape, preset);
+                    // The vault part was decided before the keys were made.
+                    self.wallet_flow_keep_vault_part(w, &mut answers);
                     if let Some(b) = self.backup.as_mut() {
                         b.answers = answers;
                     }
@@ -5376,17 +5446,23 @@ impl Faraday {
                 }
             }
             Action::BNext(n) => {
-                // No way past an item but doing it; the envelopes are done
+                // No way past an item but doing it; the envelopes and the
+                // blank templates, printed from Faraday Starter, are done
                 // by this press.
                 if n != bstep::ENVELOPE
+                    && n != bstep::BLANK
                     && !bstep::item(n).is_some_and(|it| self.backup_item_done(it))
                 {
                     return;
                 }
                 let items = self.backup_items();
-                let next = if n == bstep::ENVELOPE {
+                let next = if n == bstep::ENVELOPE || n == bstep::BLANK {
                     if let Some(b) = self.backup.as_mut() {
-                        b.envelopes = true;
+                        if n == bstep::ENVELOPE {
+                            b.envelopes = true;
+                        } else {
+                            b.printed = true;
+                        }
                     }
                     items
                         .iter()
@@ -5482,14 +5558,8 @@ impl Faraday {
                 self.offer_seed();
             }
             Action::BWords(n) => {
-                // On the checklist the template For the stick is made
-                // again for the new length.
-                let remake = self.backup_remake(0);
                 if let Some(b) = self.backup.as_mut() {
                     b.words = n;
-                }
-                if let Some(w) = remake {
-                    self.public_out(w, 0);
                 }
             }
             Action::BOmit(n) => {
@@ -5732,7 +5802,14 @@ impl Faraday {
                 // Create opens with Kind open, whatever opened it
                 // (`docs/NEW-WALLET.md` §2.1); Back goes where it was
                 // opened from, Home or Wallets.
+                // Where the keys will be kept is answered "not in a vault"
+                // until the person says otherwise.
+                let mut done = [false; cstep::COUNT];
+                done[cstep::WHERE as usize] = true;
+                let owner = self.fresh_owner();
                 self.create = Some(CreateState {
+                    owner,
+                    done,
                     open: Some(cstep::KIND),
                     // Start over keeps it.
                     from_home: self.screen == Screen::Home
@@ -5758,13 +5835,19 @@ impl Faraday {
             {
                 self.create_make();
             }
+            // Where the keys will be kept: Continue opens the wallet's flow,
+            // which brings in the sticks and opens the vaults; it comes
+            // back to Keys.
+            Action::CNext(k)
+                if k == cstep::WHERE && self.create.as_ref().is_some_and(|c| c.into_vaults) =>
+            {
+                self.wallet_flow_begin();
+            }
             Action::CNext(k) => {
                 if let Some(c) = self.create.as_mut() {
                     c.done[k as usize] = true;
-                    let steps = create_steps(c.kind);
-                    c.open = steps.iter().copied().find(|&i| !c.done[i as usize]);
-                    c.scroll.follow = true;
                 }
+                self.create_open_next();
                 // Check's own Continue: this wallet is checked this
                 // power-on (`docs/WALLETS.md` §4).
                 if k == cstep::CHECK
@@ -5812,6 +5895,22 @@ impl Faraday {
                     self.act(Action::BPreset(k));
                 }
             }
+            Action::CWhere(into_vaults) => {
+                if let Some(c) = self.create.as_mut()
+                    && c.built.is_none()
+                {
+                    c.into_vaults = into_vaults;
+                    c.done[cstep::WHERE as usize] = !into_vaults;
+                    if !into_vaults {
+                        // Nothing planned for the vaults is kept.
+                        if let Some(i) = self.wallet_flow_pre() {
+                            self.backup_flows.remove(i);
+                            self.flow_on = None;
+                        }
+                    }
+                }
+            }
+            Action::PlanAddPass => self.plan_add_passphrase(),
             Action::CMoreKinds => {
                 if let Some(c) = self.create.as_mut() {
                     c.more_kinds = true;
@@ -5998,7 +6097,9 @@ impl Faraday {
                 self.commands.push_back(Command::CameraOn);
             }
             Action::RestoreWallet => {
+                let owner = self.fresh_owner();
                 self.restore = Some(RestoreState {
+                    owner,
                     from_home: self.screen == Screen::Home,
                     ..RestoreState::new()
                 });
@@ -6010,9 +6111,29 @@ impl Faraday {
                     r.scroll.follow = true;
                 }
             }
+            // Where the seeds will be kept: Continue opens the wallet's flow,
+            // which brings in the sticks and opens the vaults; it comes
+            // back to Seeds.
+            Action::RNext(k)
+                if k == rstep::WHERE && self.restore.as_ref().is_some_and(|r| r.into_vaults) =>
+            {
+                self.wallet_flow_begin();
+            }
             Action::RNext(k) => {
                 if let Some(r) = self.restore.as_mut() {
                     r.next(k);
+                }
+            }
+            Action::RWhere(into_vaults) => {
+                if let Some(r) = self.restore.as_mut()
+                    && r.wallet.is_none()
+                {
+                    r.into_vaults = into_vaults;
+                    r.done[rstep::WHERE as usize] = !into_vaults;
+                    if !into_vaults && let Some(i) = self.wallet_flow_pre() {
+                        self.backup_flows.remove(i);
+                        self.flow_on = None;
+                    }
                 }
             }
             Action::RKind(i) => self.restore_kind(i),
@@ -6150,6 +6271,7 @@ impl Faraday {
                 s.set_n(usize::from(n));
                 s.take(fp);
                 let mut r = RestoreState {
+                    owner: self.fresh_owner(),
                     seeds: Some(s),
                     from_key: true,
                     ..RestoreState::default()
@@ -6759,6 +6881,49 @@ impl Faraday {
                 _ => out.push(file),
             }
         }
+        // Each key loaded here, its account key and, on a `wsh` or
+        // `sh(wsh)` multisig at Create's own account, its BIP 129 record.
+        out.extend(self.account_key_names(wi));
+        out
+    }
+
+    /// The names of the account key files of wallet `wi`, without making
+    /// them: the checklist asks for them on every frame.
+    pub(crate) fn account_key_names(&self, wi: usize) -> Vec<String> {
+        let mut out = Vec::new();
+        for slot in self.wallet_keys_here(wi) {
+            if let Ok(k) = self.wallet_key(wi, slot) {
+                out.push(format!("xpub-{}.txt", k.fp));
+                // The BIP 129 record is signed by the key, for a `wsh` or
+                // `sh(wsh)` multisig at Create's own account.
+                if matches!(
+                    k.standard,
+                    Some(create::NewKind::Multi | create::NewKind::MultiNested)
+                ) {
+                    out.push(format!("xpub-{}-bsms.txt", k.fp));
+                }
+            }
+        }
+        out
+    }
+
+    /// The account key files of the keys of wallet `wi` held here: the key
+    /// as `[fingerprint/path]xpub`, and its signed BIP 129 record where the
+    /// kind has one. A cosigner's key not loaded here has neither; its
+    /// account key is in the descriptor.
+    pub(crate) fn account_key_files(&self, wi: usize) -> Vec<(String, Vec<u8>)> {
+        let mut out = Vec::new();
+        for slot in self.wallet_keys_here(wi) {
+            if let Ok(k) = self.wallet_key(wi, slot) {
+                out.push((
+                    format!("xpub-{}.txt", k.fp),
+                    format!("# Account xpub {}, {}\n{}\n", k.fp, k.kind, k.text).into_bytes(),
+                ));
+            }
+            if let Ok((fp, text)) = self.wallet_key_record(wi, slot) {
+                out.push((format!("xpub-{fp}-bsms.txt"), text.into_bytes()));
+            }
+        }
         out
     }
 
@@ -6773,10 +6938,11 @@ impl Faraday {
             return false;
         };
         let stem = file_stem(&w.name);
-        // For the stick, or written by the last visit.
+        // For the stick, or written by the last visit, or by the flow.
         let out = |name: &str| {
             self.outbox.iter().any(|i| i.name == name)
                 || self.receipt.as_ref().is_some_and(|r| r.wrote(name))
+                || self.wallet_wrote(name)
         };
         let seeds = self.backup_seed_list(b.wallet);
         let here: Vec<(usize, &wallet::Key)> = seeds
@@ -6785,7 +6951,8 @@ impl Faraday {
             .filter_map(|(i, (_, k))| Some((i, self.session.keys.get((*k)?)?)))
             .collect();
         match item {
-            plan::Item::Templates => out(&format!("blank-template-{}-words.pdf", b.words)),
+            // Printed from Faraday Starter: no file is made here.
+            plan::Item::Templates => b.printed,
             plan::Item::Copy(i) => here
                 .iter()
                 .find(|(j, _)| *j == i)
@@ -6805,6 +6972,8 @@ impl Faraday {
             plan::Item::PublicFiles => self.backup_public_names().iter().all(|n| out(n)),
             plan::Item::ShowDescriptor => b.shown,
             plan::Item::Envelopes => b.envelopes,
+            // Every stick of the plan written, inside the flow.
+            plan::Item::Sticks => self.wallet_sticks_done(),
         }
     }
 
@@ -6818,6 +6987,7 @@ impl Faraday {
                 let name = format!("{stem}-{fps}-{end}");
                 self.outbox.iter().any(|i| i.secret && i.name == name)
                     || self.receipt.as_ref().is_some_and(|r| r.wrote(&name))
+                    || self.wallet_wrote(&name)
             })
     }
 
@@ -6895,30 +7065,61 @@ impl Faraday {
         others.iter().any(|&k| self.vault_holds_seed(o, k, false))
     }
 
+    /// The open vault that does the plan's vault `v`: it holds every seed
+    /// the plan puts into `v`, the wallet where the plan puts it there, and
+    /// no seed only another vault is to hold. Its place among the open
+    /// vaults.
+    pub(crate) fn backup_vault_open(&self, v: usize) -> Option<usize> {
+        self.backup_vault_wanted(v)?;
+        (0..self.vaults.open.len()).find(|&o| self.backup_open_fits(v, o))
+    }
+
+    /// Whether the plan puts anything in vault `v`.
+    fn backup_vault_wanted(&self, v: usize) -> Option<()> {
+        let b = self.backup.as_ref()?;
+        self.session.wallets.get(b.wallet)?;
+        let (own_seeds, _) = self.backup_vault_seeds(v);
+        (!own_seeds.is_empty() || b.answers.wallet_in_vault(v)).then_some(())
+    }
+
+    /// Whether open vault `o` holds what the plan puts in vault `v` and no
+    /// seed only another vault is to hold.
+    pub(crate) fn backup_open_fits(&self, v: usize, o: usize) -> bool {
+        use crate::vault_screens::vault_has_wallet;
+        let Some(b) = self.backup.as_ref() else {
+            return false;
+        };
+        let Some(w) = self.session.wallets.get(b.wallet) else {
+            return false;
+        };
+        if self.backup_vault_wanted(v).is_none() {
+            return false;
+        }
+        let (own_seeds, other_seeds) = self.backup_vault_seeds(v);
+        let wallet_too = b.answers.wallet_in_vault(v);
+        own_seeds
+            .iter()
+            .all(|&(k, with)| self.vault_holds_seed(o, k, with))
+            && !other_seeds
+                .iter()
+                .any(|&k| self.vault_holds_seed(o, k, false))
+            && (!wallet_too || vault_has_wallet(self, o, w))
+    }
+
     /// The vault that does the plan's vault `v`: an open vault, or one
     /// locked since this power-on by what it was seen to hold, that holds
     /// every seed the plan puts into `v` (with its passphrase where the
     /// plan puts it there), the wallet where the plan puts it there, and
     /// no seed only another vault is to hold. Its name.
     pub(crate) fn backup_vault_fits(&self, v: usize) -> Option<String> {
-        use crate::vault_screens::vault_has_wallet;
         let b = self.backup.as_ref()?;
         let w = self.session.wallets.get(b.wallet)?;
-        let (own_seeds, other_seeds) = self.backup_vault_seeds(v);
         let wallet_too = b.answers.wallet_in_vault(v);
+        let (own_seeds, _) = self.backup_vault_seeds(v);
         if own_seeds.is_empty() && !wallet_too {
             return None;
         }
-        let open = (0..self.vaults.open.len()).find(|&o| {
-            own_seeds
-                .iter()
-                .all(|&(k, with)| self.vault_holds_seed(o, k, with))
-                && !other_seeds
-                    .iter()
-                    .any(|&k| self.vault_holds_seed(o, k, false))
-                && (!wallet_too || vault_has_wallet(self, o, w))
-        });
-        if let Some(o) = open {
+        if let Some(o) = self.backup_vault_open(v) {
             return Some(self.vaults.open[o].name.clone());
         }
         let (own, others) = self.backup_vault_keys(v);
@@ -7069,7 +7270,7 @@ impl Faraday {
         // The keys made here with their backup pending, by fingerprint
         // (`docs/NEW-WALLET.md` §14.3).
         let mut text = answers.to_text();
-        for fp in self.wallet_held(wi) {
+        for fp in self.wallet_held_stored(wi) {
             text.push_str(&format!("held {}\n", fp_text(fp)));
         }
         let mut record = Record::new(kind::PLAN)
@@ -7382,7 +7583,6 @@ impl Faraday {
         let mut files: Vec<(String, Vec<u8>)> = Vec::new();
         for item in items {
             match item {
-                plan::Item::Templates => files.extend(self.public_made(w, 0)),
                 plan::Item::Sheets => files.extend(self.public_made(w, if split { 4 } else { 3 })),
                 plan::Item::PublicFiles => {
                     // In the form chosen, as `backup_public_names` lists
@@ -7410,6 +7610,8 @@ impl Faraday {
                         }
                         files.extend(picture);
                     }
+                    // Each key's account key files go with them.
+                    files.extend(self.account_key_files(w));
                 }
                 _ => {}
             }
@@ -7431,7 +7633,6 @@ impl Faraday {
         let Some(w) = self.session.wallets.get(wallet) else {
             return Vec::new();
         };
-        let words = self.backup.as_ref().map_or(24, |b| b.words);
         let omit = self
             .backup
             .as_ref()
@@ -7439,18 +7640,9 @@ impl Faraday {
         let stem = file_stem(&w.name);
         let mut files: Vec<(String, Vec<u8>)> = Vec::new();
         match what {
-            // The sheets go out as PDFs, ready to print anywhere: they
-            // hold nothing secret.
-            0 => match pdf::sheet(&backup::sheet_blank(
-                words,
-                backup::BlankCopy::Both,
-                Some(w),
-                self.session.network(),
-                self.backup.as_ref().map_or(1, |b| b.answers.places),
-            )) {
-                Ok(p) => files.push((format!("blank-template-{words}-words.pdf"), p)),
-                Err(e) => self.toast(&fill(EN.public_made_no_pdf, &[&e.to_string()])),
-            },
+            // The blank templates are printed from Faraday Starter: none is
+            // made here. The sheets go out as PDFs, ready to print anywhere:
+            // they hold nothing secret.
             1 => {
                 files.push((
                     format!("{stem}-descriptor.txt"),
@@ -8259,6 +8451,11 @@ impl Faraday {
                     c.open = Some(cstep::CHECK);
                     c.scroll.follow = true;
                 }
+                // The flow that decided where its keys go knows the wallet
+                // now.
+                if let Some(owner) = self.create.as_ref().map(|c| c.owner) {
+                    self.wallet_flow_attach(i, owner);
+                }
             }
             Err(e) => {
                 if let Some(c) = self.create.as_mut() {
@@ -8290,6 +8487,16 @@ impl Faraday {
                 let w = &self.session.wallets[i];
                 let kind = create::NewKind::of(&w.policy);
                 let (m, n) = Session::quorum(w);
+                // The flow that decided where the seeds go knows the wallet
+                // once it is made from them.
+                if let Some(owner) = self
+                    .restore
+                    .as_ref()
+                    .filter(|r| r.into_vaults)
+                    .map(|r| r.owner)
+                {
+                    self.wallet_flow_attach(i, owner);
+                }
                 if let Some(r) = self.restore.as_mut() {
                     r.wallet = Some(i);
                     r.described = true;
@@ -11046,7 +11253,7 @@ pub fn create_steps(kind: create::NewKind) -> Vec<u8> {
     if kind.multi() {
         v.push(cstep::QUORUM);
     }
-    v.extend([cstep::KEYS, cstep::CHECK, cstep::BACKUP]);
+    v.extend([cstep::WHERE, cstep::KEYS, cstep::CHECK, cstep::BACKUP]);
     v
 }
 

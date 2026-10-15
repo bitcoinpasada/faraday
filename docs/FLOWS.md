@@ -1025,8 +1025,9 @@ vault.ofv · for the stick" (paper "1 of 2 checked" while one is not), or
 
 ## Backup flow
 
-(Decision 59; `docs/BACKUP-FLOW.md`, F31; built for the APK key, GPG keys
-and the Secure Boot keys; the wallet's and Nostr's parts are not.)
+(Decision 59; `docs/BACKUP-FLOW.md`, F31; built for the APK key, GPG keys,
+the Secure Boot keys and, in batch B1b, a Bitcoin wallet's; Nostr's part
+is not.)
 Tools' **APK signing key**, **GPG key** and **Secure Boot keys**, Vault
 contents' Make actions, a Nostr key's **Save into a vault**, Make a new
 wallet and Restore → step cards (pages on a small panel, "Step 2 of

@@ -953,8 +953,10 @@ first (2026-10-10):
   done card leads with them: a strip of three, each its line and its
   value large in its colour (`OK`, the vault's accent, `WARN`, `ERR`
   as now), then the wallet's at-a-glance chart of the plan just
-  completed (§6, wallet first), then what waits for the stick and
-  **Write to a stick**, **Open the wallet**, **Change the plan**.
+  completed (§6, wallet first), then **Open the wallet** and **Change
+  the plan** (F31: the checklist's last item, **Write to sticks**, writes
+  inside the backup flow, so nothing waits For the stick and the card
+  has no **Write to a stick**).
 - **The wallet card and the open vault.** The same strip goes above
   the chart (§6 put it under the chart, below the fold on a desktop;
   §7.2 already puts it above), so it is on the first screen.
@@ -1205,8 +1207,9 @@ rule), `screens.rs` (the copy item in `backup_body`, `copy_check`,
 
 ### 14.8 Where the keys will be kept, before they are made (F31)
 
-Specified, not built; the spec is `docs/BACKUP-FLOW.md` (§10 for the
-wallet), shared with the APK, GPG, Secure Boot and Nostr keys.
+Built (batch B1b, `docs/BACKUP-FLOW.md` §16 "Built (batch B1b)"); the
+spec is `docs/BACKUP-FLOW.md` (§10 for the wallet), shared with the APK,
+GPG, Secure Boot and Nostr keys.
 
 Today the plan comes after the keys (decision 20), New key makes a seed
 in memory, a vault item saves it, and no item writes to a stick: the
@@ -1254,7 +1257,9 @@ After this change:
   made or written to a stick.
 - **§14.3's hold**: the lock of Write to sticks clears the held flag in
   the vaults it seals, and the hold stays, by fingerprint, in the flow's
-  kept state until the last stick is written.
+  kept state until every stick of the plan is written and the seed's own
+  planned sticks are among them, non-empty (a key kept only on paper is
+  released when the other items are done).
 - **§14.4**: **Change the plan** stays at every step; a place added
   after the keys exist takes a new vault or another copy with no extra
   round, or, for a stick holding an existing vault, one guided round

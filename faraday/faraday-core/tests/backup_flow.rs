@@ -1422,12 +1422,12 @@ fn a_kept_state_that_does_not_read_is_dropped_with_a_toast() {
     let app = gpg_locked(&mut shell);
     let good = faraday_core::backup_flow::encode(&app.backup_flows);
     let text = String::from_utf8(good.clone()).unwrap();
-    assert!(text.starts_with("version\t2\n"));
+    assert!(text.starts_with("version\t3\n"));
     let cases: Vec<(&str, Vec<u8>)> = vec![
         ("noise", vec![0xff, 0x00, 0x13, 0x37, 0xfe]),
         (
             "another version",
-            text.replacen("version\t2", "version\t9", 1).into_bytes(),
+            text.replacen("version\t3", "version\t9", 1).into_bytes(),
         ),
         (
             "a vault out of range",

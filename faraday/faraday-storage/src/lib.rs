@@ -329,8 +329,10 @@ mod windows_memory {
     }
 }
 
-/// The kept entry that says which keys wait for their backup.
-const GATE: &str = "backup-gate";
+/// The kept entries that say which keys wait for their backup, and the
+/// flows that finish it: each is written whole (a temporary file, then a
+/// rename), so that a save cut part way never leaves one half written.
+const ATOMIC: [&str; 2] = ["backup-gate", "backup-flow"];
 
 /// Where the Inbox and Outbox wait between processes: a RAM directory on
 /// the device, memory alone on a desktop.
@@ -350,9 +352,10 @@ pub enum Boxes {
 
 impl Boxes {
     /// Keeps the Inbox, the Outbox and what the app keeps. The kept
-    /// `backup-gate` goes first and atomically (a temporary file, then a
-    /// rename), so that a save that fails part way still leaves the keys
-    /// that wait for their backup.
+    /// `backup-gate` and `backup-flow` go first and atomically (a
+    /// temporary file, then a rename), so that a save that fails part way
+    /// still leaves the keys that wait for their backup and a flow that
+    /// reads.
     pub fn save(
         &mut self,
         inbox: Vec<(String, Vec<u8>)>,
@@ -374,8 +377,11 @@ impl Boxes {
                 for (sub, mut files) in [("kept", kept), ("inbox", inbox), ("outbox", outbox)] {
                     let d = dir.join(sub);
                     fs::create_dir_all(&d).map_err(|e| e.to_string())?;
-                    let gate = files.iter().position(|(n, _)| n == GATE);
-                    if let Some(at) = gate {
+                    let mut kept_names: Vec<&str> = Vec::new();
+                    for atomic in ATOMIC {
+                        let Some(at) = files.iter().position(|(n, _)| n == atomic) else {
+                            continue;
+                        };
                         let (name, mut bytes) = files.remove(at);
                         let tmp = d.join(format!(".{name}.tmp"));
                         let wrote =
@@ -385,10 +391,12 @@ impl Boxes {
                             let _ = fs::remove_file(&tmp);
                         }
                         wrote.map_err(|e| e.to_string())?;
+                        kept_names.push(atomic);
                     }
                     for e in fs::read_dir(&d).map_err(|e| e.to_string())?.flatten() {
-                        // The gate just written stays; one no longer needed goes.
-                        if gate.is_some() && e.file_name() == GATE {
+                        // What was just written stays; one no longer needed
+                        // goes.
+                        if kept_names.iter().any(|n| e.file_name() == *n) {
                             continue;
                         }
                         let _ = fs::remove_file(e.path());
@@ -426,7 +434,7 @@ impl Boxes {
                                     let name = e.file_name().to_string_lossy().into_owned();
                                     // A temporary file of a save that was cut
                                     // off is not kept.
-                                    if name == format!(".{GATE}.tmp") {
+                                    if ATOMIC.iter().any(|a| name == format!(".{a}.tmp")) {
                                         let _ = fs::remove_file(e.path());
                                         return None;
                                     }

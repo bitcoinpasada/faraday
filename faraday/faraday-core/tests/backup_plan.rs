@@ -208,7 +208,8 @@ fn the_checklist_lists_only_what_the_plan_needs() {
             Item::Copy(1),
             Item::Copy(2),
             Item::Sheets,
-            Item::Envelopes
+            Item::Envelopes,
+            Item::Sticks
         ]
     );
     let mut a = Answers::preset(&shape, Preset::PaperVaultSoftware);

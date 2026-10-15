@@ -56,11 +56,53 @@ impl Faraday {
     }
 
     /// The keys here that are held: made here, or loaded from a vault that
-    /// says so, with their backup not done.
+    /// says so, or kept back by a wallet's backup flow until its last
+    /// stick is written (`docs/BACKUP-FLOW.md` §10.2), with their backup
+    /// not done.
     pub fn held_keys(&self) -> Vec<Fingerprint> {
-        let mut out = self.made_here.clone();
-        let mut add = |fp: Fingerprint| {
+        let mut out = self.held_keys_stored();
+        for fp in self.flow_held() {
             if !out.contains(&fp) {
+                out.push(fp);
+            }
+        }
+        out
+    }
+
+    /// The keys here that a wallet's flow holds back until its writes are
+    /// done.
+    pub(crate) fn flow_held(&self) -> Vec<Fingerprint> {
+        let mut out: Vec<Fingerprint> = Vec::new();
+        for (i, f) in self.backup_flows.iter().enumerate() {
+            let Some(w) = f.wallet.as_ref().filter(|_| f.made) else {
+                continue;
+            };
+            for k in &self.session.keys {
+                let fp = k.master.fingerprint();
+                if w.held.iter().any(|h| h.eq_ignore_ascii_case(&fp_text(fp)))
+                    && !out.contains(&fp)
+                    && !self.wallet_seed_released(i, fp)
+                {
+                    out.push(fp);
+                }
+            }
+        }
+        out
+    }
+
+    /// [`Faraday::held_keys`] without the keys a flow holds back: what a
+    /// vault's key record and a plan's `held` lines say. The flow's own
+    /// hold is in its state, not in the copies on the sticks.
+    pub(crate) fn held_keys_stored(&self) -> Vec<Fingerprint> {
+        let flow = self.flow_held();
+        let mut out: Vec<Fingerprint> = self
+            .made_here
+            .iter()
+            .copied()
+            .filter(|f| !flow.contains(f))
+            .collect();
+        let mut add = |fp: Fingerprint| {
+            if !out.contains(&fp) && !flow.contains(&fp) {
                 out.push(fp);
             }
         };
@@ -94,9 +136,24 @@ impl Faraday {
         self.held_keys().contains(&fp)
     }
 
+    /// Whether key `fp` is held and a copy of it should say so: the
+    /// hold a flow keeps is not written to a stick.
+    pub(crate) fn key_held_stored(&self, fp: Fingerprint) -> bool {
+        self.held_keys_stored().contains(&fp)
+    }
+
     /// The keys of loaded wallet `w` here that are held.
     pub fn wallet_held(&self, w: usize) -> Vec<Fingerprint> {
-        let held = self.held_keys();
+        self.wallet_held_in(w, self.held_keys())
+    }
+
+    /// [`Faraday::wallet_held`] as a copy of the plan says it: without the
+    /// keys a flow holds back.
+    pub(crate) fn wallet_held_stored(&self, w: usize) -> Vec<Fingerprint> {
+        self.wallet_held_in(w, self.held_keys_stored())
+    }
+
+    fn wallet_held_in(&self, w: usize, held: Vec<Fingerprint>) -> Vec<Fingerprint> {
         if held.is_empty() {
             return Vec::new();
         }
@@ -136,7 +193,7 @@ impl Faraday {
     /// Before an open vault is sealed: every held key's record in it says
     /// so, and the held keys are remembered here once the vault is gone.
     pub(crate) fn held_sweep(&mut self) {
-        let held = self.held_keys();
+        let held = self.held_keys_stored();
         self.made_here = held.clone();
         let keys: Vec<usize> = (0..self.session.keys.len())
             .filter(|&k| held.contains(&self.session.keys[k].master.fingerprint()))
@@ -174,17 +231,24 @@ impl Faraday {
         }
         let w = b.wallet;
         let items = self.backup_items();
+        // Every item but the writes: those wait for the lock, and the
+        // hold on a key kept in a vault moves to the flow there.
         let all = items
             .iter()
+            .filter(|&&n| n != bstep::STICKS)
             .all(|&n| bstep::item(n).is_some_and(|it| self.backup_item_done(it)));
         if !all {
             return;
         }
+        let writes = items.contains(&bstep::STICKS);
         let shape = self.plan_shape(w);
         let list = self.backup_seed_list(w);
+        // A seed kept on any stick, a vault's or a file's, waits for it.
+        let in_vault = |i: usize| b.answers.seed_on_stick(&shape, i);
         let released: Vec<(Fingerprint, usize)> = self
             .backup_held_seeds()
             .into_iter()
+            .filter(|&i| !(writes && in_vault(i)))
             .filter(|&i| plan::kept_nowhere(&shape, &b.answers, &[i]).is_none())
             .filter_map(|i| {
                 let k = list.get(i)?.1?;
@@ -205,47 +269,55 @@ impl Faraday {
                 .map(|o| o.master.fingerprint())
                 .collect();
             self.made_here.retain(|f| *f != fp && !same.contains(f));
-            let text = fp_text(fp);
-            for v in 0..self.vaults.open.len() {
-                let mut changed = false;
-                let key = &self.session.keys[k];
-                for r in self.vaults.open[v].contents.records.iter_mut() {
-                    if r.kind == kind::KEY && same_words(r, key) && pending(r) {
-                        let flags = r
-                            .field(field::KEY_FLAGS)
-                            .and_then(|f| f.first().copied())
-                            .unwrap_or(0);
-                        r.set(field::KEY_FLAGS, &[flags & !records::BACKUP_PENDING]);
-                        changed = true;
-                    }
-                    if r.kind == kind::PLAN
-                        && let Some(answers) = r.text(field::PLAN_ANSWERS)
-                        && plan::held_in(answers)
-                            .iter()
-                            .any(|h| h.eq_ignore_ascii_case(&text))
-                    {
-                        let kept: String = answers
-                            .lines()
-                            .filter(|l| {
-                                !l.strip_prefix("held ")
-                                    .is_some_and(|h| h.trim().eq_ignore_ascii_case(&text))
-                            })
-                            .map(|l| format!("{l}\n"))
-                            .collect();
-                        r.set(field::PLAN_ANSWERS, kept.as_bytes());
-                        changed = true;
-                    }
-                }
-                if changed {
-                    self.vaults.open[v].changes += 1;
-                }
-            }
+            self.held_clear_marks(fp, k);
         }
         let names: Vec<String> = released.iter().map(|(fp, _)| fp_text(*fp)).collect();
         self.toast(&fill(
             EN.held_signs_from_now,
             &[&names.join(", ").to_string()],
         ));
+    }
+
+    /// Takes the mark "backup pending" off session key `k`'s record in every
+    /// open vault, and key `fp`'s `held` line off every plan they keep.
+    pub(crate) fn held_clear_marks(&mut self, fp: Fingerprint, k: usize) {
+        let text = fp_text(fp);
+        for v in 0..self.vaults.open.len() {
+            let mut changed = false;
+            let Some(key) = self.session.keys.get(k) else {
+                return;
+            };
+            for r in self.vaults.open[v].contents.records.iter_mut() {
+                if r.kind == kind::KEY && same_words(r, key) && pending(r) {
+                    let flags = r
+                        .field(field::KEY_FLAGS)
+                        .and_then(|f| f.first().copied())
+                        .unwrap_or(0);
+                    r.set(field::KEY_FLAGS, &[flags & !records::BACKUP_PENDING]);
+                    changed = true;
+                }
+                if r.kind == kind::PLAN
+                    && let Some(answers) = r.text(field::PLAN_ANSWERS)
+                    && plan::held_in(answers)
+                        .iter()
+                        .any(|h| h.eq_ignore_ascii_case(&text))
+                {
+                    let kept: String = answers
+                        .lines()
+                        .filter(|l| {
+                            !l.strip_prefix("held ")
+                                .is_some_and(|h| h.trim().eq_ignore_ascii_case(&text))
+                        })
+                        .map(|l| format!("{l}\n"))
+                        .collect();
+                    r.set(field::PLAN_ANSWERS, kept.as_bytes());
+                    changed = true;
+                }
+            }
+            if changed {
+                self.vaults.open[v].changes += 1;
+            }
+        }
     }
 
     /// Finish the backup first: the wallet's checklist, or its plan when

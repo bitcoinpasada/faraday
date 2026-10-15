@@ -1299,7 +1299,7 @@ pub(crate) fn draw_with(
     let mut top = y;
     // The check leads, read either way (`docs/NEW-WALLET.md` §14.6).
     if check && let Backup::Plan { check, .. } = &g.backup {
-        top += check_lines(ui, x, top, width, *check, true);
+        top += check_lines(ui, x, top, width, *check, true, &names_of(g));
         top += tokens::PAD;
     }
     // The lines' sources: the wallet to each key, each key held here to
@@ -1399,6 +1399,18 @@ fn segment(ui: &mut Ui, a: (f32, f32), b: (f32, f32), color: Color, dash: [f32; 
     }
 }
 
+/// What the plan's places are called, as the chart's nodes name them.
+pub(crate) fn names_of(g: &Glance) -> impl Fn(usize) -> String + '_ {
+    move |p| match &g.backup {
+        Backup::Plan { nodes, .. } => nodes
+            .iter()
+            .find(|n| n.at == At::Place(p))
+            .map(|n| n.name.clone())
+            .unwrap_or_else(|| crate::backup_flow::BackupFlow::place_name(p)),
+        _ => crate::backup_flow::BackupFlow::place_name(p),
+    }
+}
+
 /// The plan's three check lines as a strip (`docs/NEW-WALLET.md` §14.6):
 /// each line in a box with its value large in its colour, side by side
 /// with `beside` where the width allows, else one box under another. The
@@ -1411,7 +1423,61 @@ pub(crate) fn check_lines(
     w: f32,
     c: plan::Check,
     beside: bool,
+    place: &dyn Fn(usize) -> String,
 ) -> f32 {
+    let h = check_boxes(ui, x, y, w, c, beside);
+    h + check_facts(ui, x, y + h, w, c, place)
+}
+
+/// The two lines of fact under the three (`docs/BACKUP-FLOW.md` §10.3): a
+/// wallet whose secrets are all at one place says so, in `WARN`; a single
+/// key with no passphrase says one kept at another place than the seed is
+/// recommended, with **Add a passphrase**. Neither blocks anything.
+/// Returns their height, with the gap above them.
+fn check_facts(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    c: plan::Check,
+    place: &dyn Fn(usize) -> String,
+) -> f32 {
+    let mut cy = y;
+    if let Some(p) = c.one_place {
+        cy += tokens::GAP;
+        let line = fill(EN.plan_all_at_one_place, &[&place(p)]);
+        cy += ui.wrap(x, cy, w, tokens::LABEL, W::R, WARN, &line);
+    }
+    if c.passphrase_apart {
+        cy += tokens::GAP;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            tokens::LABEL,
+            W::R,
+            MUTED,
+            EN.plan_passphrase_apart,
+        );
+        cy += tokens::GAP;
+        let label = EN.plan_add_passphrase;
+        let bw = ui.measure(tokens::LABEL, W::S, label) + 32.0;
+        ui.button(
+            x,
+            cy,
+            Some(bw),
+            34.0,
+            label,
+            Style::Secondary,
+            Action::PlanAddPass,
+        );
+        cy += 34.0;
+    }
+    cy - y
+}
+
+/// The three check lines as boxes.
+fn check_boxes(ui: &mut Ui, x: f32, y: f32, w: f32, c: plan::Check, beside: bool) -> f32 {
     use crate::plan::{CHECK_LINES, Found, Lost};
     let lost = match c.lost {
         Lost::Yes => OK,
@@ -1524,7 +1590,7 @@ pub(crate) fn draw_column_with(
     };
     // The check leads, as three rows (`docs/NEW-WALLET.md` §14.6).
     if let Some(c) = check {
-        cy += check_lines(ui, x, cy, width, c, false) + tokens::PAD;
+        cy += check_lines(ui, x, cy, width, c, false, &names_of(g)) + tokens::PAD;
     }
     let order = match direction {
         Direction::WalletFirst => [

@@ -126,6 +126,9 @@ fn every_software(app: &mut Faraday) {
     }
     app.press(Action::BAnswer(qrow::FORM, plan::form::TEXT as u8));
     app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
 }
 
 #[test]
@@ -203,8 +206,11 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     app.press(Action::Backup(w));
     press_offered(&mut app, Action::BPreset(1));
     press_offered(&mut app, Action::BChecklist);
-    // Seeds here: the blank template is made with the checklist, so it
-    // opens on the copy.
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
+    // Seeds here: the blank template is printed from Faraday Starter and
+    // done by its press, so the checklist opens on the copy.
     assert!(app.backup_item_done(plan::Item::Templates));
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY));
     // The vault's item opens once the copy is checked.
@@ -316,10 +322,17 @@ fn the_key_rows_list_the_keys_whose_seeds_are_here() {
         })
         .expect("a slot not held here");
     assert!(!app.offers(Action::WalletKeyOut(w, away)));
+    // The checklist makes each key's account key files with the public
+    // files (`docs/BACKUP-FLOW.md` §10.2); a key not held here has none.
+    let away_fp = faraday_core::wallet::fp_text(
+        app.session.wallets[w].policy.keys()[usize::from(away)]
+            .fingerprint()
+            .unwrap(),
+    );
+    assert!(!in_outbox(&app, &format!("xpub-{away_fp}.txt")));
     for fp in here {
         let slot = slot_of(&app, fp);
         let name = faraday_core::wallet::fp_text(fp);
-        press_offered(&mut app, Action::WalletKeyOut(w, slot));
         let file = app
             .outbox
             .iter()
@@ -328,7 +341,6 @@ fn the_key_rows_list_the_keys_whose_seeds_are_here() {
         let text = String::from_utf8(file.bytes.clone()).unwrap();
         let key = app.session.wallets[w].policy.keys()[usize::from(slot)].key_text();
         assert!(text.contains(&key), "{text}");
-        press_offered(&mut app, Action::WalletKeyBsms(w, slot));
         let record = app
             .outbox
             .iter()
