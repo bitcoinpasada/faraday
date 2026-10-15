@@ -62,7 +62,7 @@ pub mod set_time;
 pub mod silent;
 pub mod stick_settings;
 pub mod stick_wipe;
-/// Faraday's wording, in its own crate so that the Companion can use it.
+/// Faraday's wording, in its own crate.
 pub use faraday_strings as strings;
 #[cfg(feature = "testkit")]
 pub mod testkit;
@@ -1245,8 +1245,7 @@ pub enum Action {
     /// Show the Learn sheet's page.
     LearnPage(u8),
     /// Tick step `n` of the guide page on show in the Learn sheet, or
-    /// clear its tick if it is ticked already (`docs/COMPANION.md`
-    /// §4.7).
+    /// clear its tick if it is ticked already.
     LearnStep(u32),
     /// The Learn sheet's first row, **Spending, step by step**: closes
     /// the sheet and opens the Spend tab (`docs/SIMPLIFY.md` §6.2).
@@ -1816,8 +1815,7 @@ impl Drop for QrView {
     }
 }
 
-/// What a QR view shows: `faraday-qr`'s sender, which the Companion
-/// shares.
+/// What a QR view shows: `faraday-qr`'s sender.
 pub use faraday_qr::send::Source as QrSource;
 
 /// A public file a flow makes that is offered as a code and as a
@@ -3272,8 +3270,7 @@ pub struct Faraday {
     pub learn: learn::LearnState,
     /// The steps ticked on each guide page the Learn sheet has shown
     /// this session, by page; a page with none ticked is not here.
-    /// Session state only, in memory, never written to a file
-    /// (`docs/COMPANION.md` §4.7).
+    /// Session state only, in memory, never written to a file.
     learn_ticks: Vec<(&'static osk_learn::Page, Vec<u32>)>,
     /// The word-list sheet, while it is open.
     pub wordlist: Option<wordlist::WordListState>,

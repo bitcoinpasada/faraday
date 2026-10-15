@@ -24,8 +24,6 @@ members = [
     "tools/qrgen",
     "faraday/faraday-core",
     "faraday/faraday-starter",
-    "faraday/faraday-companion",
-    "faraday/faraday-companion-ffi",
     "faraday/faraday-ui",
     "faraday/faraday-storage",
     "faraday/faraday-vault",

@@ -150,8 +150,7 @@ pub fn qr_code<A: Copy + PartialEq>(
     }
 }
 
-/// The side of a guide step's circle (`docs/COMPANION.md` §4.7, "Steps
-/// are ticked off").
+/// The side of a guide step's circle.
 pub const STEP_SIDE: f32 = 30.0;
 
 /// How far a step's text, and what follows it up to the next step, sits

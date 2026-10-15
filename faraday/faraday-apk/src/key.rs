@@ -18,10 +18,6 @@ pub const BITS: usize = 3072;
 pub const NAME_MAX: usize = 64;
 /// The longest an Android package name is.
 pub const PACKAGE_MAX: usize = 255;
-/// What the certificate's name is filled in as.
-pub const DEFAULT_NAME: &str = "Faraday Companion";
-/// What the package is filled in as.
-pub const DEFAULT_PACKAGE: &str = "app.faradayoffline.companion";
 
 /// Why a name or a package was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

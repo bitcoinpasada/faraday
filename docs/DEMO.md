@@ -42,7 +42,7 @@ is on mainnet: `Session::demo()` is true. Two builds have one:
   the demo (F20) and may move to a test network, where it is not the
   demo.
 
-The stick, the Pi, the Companion and the `Faraday` the Starter holds for
+The stick, the Pi and the `Faraday` the Starter holds for
 Transfer and Learn never call `set_demo`; nothing in this spec changes
 them.
 
@@ -246,8 +246,7 @@ these words.
 
 `docs/STARTER.md` §1.1 without the three `faraday-desktop-` rows: the
 two Starters (and the macOS one when it exists), the stick image, the
-Pi image, the Apple Silicon image and start-up file when they exist,
-and the Companion's APK. `SHA256SUMS` lists no `faraday-desktop-` file.
+Pi image, the Apple Silicon image and start-up file when they exist. `SHA256SUMS` lists no `faraday-desktop-` file.
 
 ### 9.2 `faraday/tools/stage-release.sh`
 
@@ -332,7 +331,7 @@ checked 2026-10-14). The Starter's About lists only the images.
 | F11, F12 | the desktop app opened from the Starter, installed with it, on Windows too | not released; developer builds only (§9, §10) |
 | F13, MAC §5 | the desktop app on macOS, `faraday-desktop-X.Y.Z-macos.zip` | not published; MAC batch D is dropped from the plan (decided, §13); a developer with a Mac can still build it |
 | F16 | "Faraday Desktop" with DESKTOP beside the wordmark | the name and wordmark stay on developer builds |
-| F18 | sketches only in the Starter and the Companion | unchanged |
+| F18 | sketches only in the Starter | unchanged |
 | F25, APK-SIGNING §4 | "Faraday Desktop offers it too, as it offers GPG and Secure Boot" | developer builds and the demo only; in the demo **Make an APK key** is disabled and, with no key, Sign an APK has nothing to sign with |
 | GPG, Secure Boot | offered on the desktop app as on the stick | the same: developer builds and the demo; Make disabled in the demo |
 | F26 | Faraday Desktop's memory rules | developer builds only |
@@ -436,7 +435,7 @@ Not edited from here. What it needs, once the pin moves past DM1:
 - A line beside the app: the demo opens every screen, makes no keys it
   keeps, and uses only the public seeds; a Faraday stick makes keys.
 - **Download page**: no Faraday Desktop and no `faraday-desktop-` links;
-  the Starter, the images and the Companion.
+  the Starter and the images.
 - The site's About cards and "What you did" lines that name Faraday
   Desktop are reworded.
 - The site's HANDOFF "What Faraday provides" section follows §8.

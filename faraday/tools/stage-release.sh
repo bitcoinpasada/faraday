@@ -3,7 +3,7 @@
 # as docs/STARTER.md §1.1 names them, with SHA256SUMS for the owner to sign.
 #
 #   faraday/tools/stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR]
-#   faraday/tools/stage-release.sh VERSION [--starter FILE] [--starter-windows FILE] [--companion FILE] [--out DIR] [--payload DIR]
+#   faraday/tools/stage-release.sh VERSION [--starter FILE] [--starter-windows FILE] [--out DIR] [--payload DIR]
 #
 # A release is staged in two passes (STARTER §1.3). The first, the form
 # above without --starter, stages the plain files and the Starter's payload.
@@ -24,19 +24,6 @@
 # out/windows/faraday-starter.exe` adds the Windows Starter the same way,
 # in the same pass or another: Faraday-Starter-VERSION-Windows.exe, as it
 # is, and its line in SHA256SUMS, after the same two checks.
-#
-# `--companion FILE` adds Faraday Companion's APK, signed in Faraday
-# (docs/APK-SIGNING.md §9 step 4), to the folder the first pass made, in the
-# same pass as the Starter or another: faraday-companion-VERSION-android.apk,
-# as it is, and its line in SHA256SUMS. The APK must pass `apksigner verify
-# --print-certs` with exactly one signer whose certificate's SHA-256 is that
-# of faraday/companion-cert.pem (the owner makes the key in Faraday and
-# commits its certificate; without that file nothing is added), must be
-# package app.faradayoffline.companion at version VERSION (`aapt2 dump
-# badging`), and its libraries and code (lib/*/*.so, classes*.dex) go
-# through the published-file check below along with the APK itself.
-# apksigner and aapt2 are found on PATH, or in the newest build-tools under
-# ANDROID_HOME; openssl and python3 are needed too.
 #
 # Takes what the builds left:
 #   out/linux/faraday                       -> faraday-desktop-VERSION-linux-x86_64
@@ -82,7 +69,7 @@ set -euo pipefail
 
 die() { printf 'stage-release: %s\n' "$1" >&2; exit 1; }
 
-[ $# -ge 1 ] || die "usage: stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR] | VERSION [--starter FILE] [--starter-windows FILE] [--companion FILE] [--out DIR] [--payload DIR]"
+[ $# -ge 1 ] || die "usage: stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR] | VERSION [--starter FILE] [--starter-windows FILE] [--out DIR] [--payload DIR]"
 version="$1"
 shift
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "VERSION must look like X.Y.Z, got '$version'"
@@ -91,7 +78,6 @@ out=""
 payload=""
 starter=""
 starter_win=""
-companion=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --any-build) any=1; shift ;;
@@ -99,15 +85,13 @@ while [ $# -gt 0 ]; do
         --payload) [ $# -ge 2 ] || die "--payload needs a directory"; payload="$2"; shift 2 ;;
         --starter) [ $# -ge 2 ] || die "--starter needs the Starter's file"; starter="$2"; shift 2 ;;
         --starter-windows) [ $# -ge 2 ] || die "--starter-windows needs the Starter's file"; starter_win="$2"; shift 2 ;;
-        --companion) [ $# -ge 2 ] || die "--companion needs the signed APK"; companion="$2"; shift 2 ;;
         *) die "unknown argument $1" ;;
     esac
 done
 [ -z "$starter" ] || starter="$(realpath "$starter")"
 [ -z "$starter_win" ] || starter_win="$(realpath "$starter_win")"
-[ -z "$companion" ] || companion="$(realpath "$companion")"
 second=""
-[ -z "$starter$starter_win$companion" ] || second=1
+[ -z "$starter$starter_win" ] || second=1
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 if [ -z "$payload" ]; then
     if [ -n "$out" ]; then payload="$out.payload"; else payload="out/payload/$version"; fi
@@ -272,7 +256,7 @@ forbidden_in() {
 # second only the files it adds (the first pass's files stay).
 refuse() {
     if [ -n "$second" ]; then
-        rm -f "$out/$tar_name" "$out/$exe_name" "$out/$apk_name"
+        rm -f "$out/$tar_name" "$out/$exe_name"
         die "$1 (nothing added)"
     fi
     rm -rf "$out" "$payload"
@@ -282,7 +266,6 @@ starter_release_name="Faraday-Starter" # the one place the release files are nam
 tar_name="$starter_release_name-$version-Linux.tar.gz"
 inner_name="$starter_release_name-$version-Linux"
 exe_name="$starter_release_name-$version-Windows.exe"
-apk_name="faraday-companion-$version-android.apk"
 # FILE and, inside it, every gzip or xz stream found by its magic bytes
 # (a kernel image holds its kernel and the initramfs that way), to a depth
 # of three. LABEL names it in what is printed.
@@ -363,58 +346,6 @@ add_starter_windows() {
     (cd "$out" && sha256sum -c --quiet --ignore-missing SHA256SUMS)
     echo "Added $exe_name ($(stat -c %s "$out/$exe_name") bytes), carrying: $first"
 }
-# Faraday Companion's APK (docs/APK-SIGNING.md §9 step 4, docs/COMPANION.md
-# §3): signed by the key whose certificate is faraday/companion-cert.pem and
-# by no other, the right app at the right version, and free of local paths.
-# A build-tools program, from PATH or the newest build-tools in ANDROID_HOME.
-sdk_tool() {
-    local found
-    found="$(command -v "$1" || true)"
-    if [ -z "$found" ] && [ -n "${ANDROID_HOME:-}" ]; then
-        found="$(ls -d "$ANDROID_HOME"/build-tools/*/"$1" 2>/dev/null | sort -V | tail -1 || true)"
-    fi
-    [ -n "$found" ] || die "$1 is not installed (Android build-tools; set ANDROID_HOME)"
-    printf '%s' "$found"
-}
-add_companion() {
-    local cert=faraday/companion-cert.pem apksigner aapt2 certs digests want got badging
-    [ -f "$companion" ] || die "$companion: not there (the APK signed in Faraday, docs/APK-SIGNING.md §9)"
-    [ -f "$cert" ] || die "$cert is not there: the owner makes the APK signing key in Faraday and commits its certificate (docs/APK-SIGNING.md §12); no APK is added without it"
-    [ -f "$out/SHA256SUMS" ] || die "$out is not a first pass's output: stage the plain files first"
-    [ ! -e "$out/$apk_name" ] || die "$out/$apk_name exists; move it aside first"
-    for tool in openssl python3; do
-        command -v "$tool" >/dev/null || die "$tool is not installed"
-    done
-    apksigner="$(sdk_tool apksigner)"
-    aapt2="$(sdk_tool aapt2)"
-    certs="$("$apksigner" verify --print-certs "$companion")" || die "apksigner verify fails for $companion"
-    printf '%s\n' "$certs"
-    digests="$(printf '%s\n' "$certs" | sed -n 's/^Signer #[0-9]* certificate SHA-256 digest: *//p')"
-    [ "$(printf '%s\n' "$digests" | grep -c .)" = 1 ] || die "$companion has not exactly one signer"
-    want="$(openssl x509 -in "$cert" -outform der | sha256sum | cut -d' ' -f1)" \
-        || die "$cert is not a certificate"
-    got="$(printf '%s' "$digests" | tr 'A-F' 'a-f')"
-    [ "$got" = "$want" ] || die "$companion is signed by certificate $got, not by $cert ($want)"
-    badging="$("$aapt2" dump badging "$companion" | head -1)"
-    case "$badging" in
-        "package: name='app.faradayoffline.companion' "*"versionName='$version'"*) ;;
-        *) die "$companion is not app.faradayoffline.companion at version $version: $badging" ;;
-    esac
-    cp "$companion" "$out/$apk_name"
-    # The APK, and the libraries and code inside it, go through the
-    # published-file check (COMPANION §3).
-    scan "$out/$apk_name" "$out/$apk_name" 0
-    mkdir "$check/apk"
-    python3 -I -m zipfile -e "$out/$apk_name" "$check/apk"
-    local f
-    for f in "$check"/apk/lib/*/*.so "$check"/apk/classes*.dex; do
-        [ -f "$f" ] || refuse "$apk_name has no ${f#"$check"/apk/}"
-        scan "$f" "$apk_name: ${f#"$check"/apk/}" 0
-    done
-    (cd "$out" && sha256sum "$apk_name") >> "$out/SHA256SUMS"
-    (cd "$out" && sha256sum -c --quiet --ignore-missing SHA256SUMS)
-    echo "Added $apk_name ($(stat -c %s "$out/$apk_name") bytes), signed by $cert"
-}
 # A .tar.gz, its tar and each file extracted from it, scanned.
 scan_tar() {
     local f="$1" g
@@ -428,7 +359,6 @@ scan_tar() {
 if [ -n "$second" ]; then
     [ -z "$starter" ] || add_starter
     [ -z "$starter_win" ] || add_starter_windows
-    [ -z "$companion" ] || add_companion
 else
 for f in "$out"/* "$payload"/*/*; do
     # The payload's image .xz are the release's own files.

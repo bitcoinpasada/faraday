@@ -65,11 +65,7 @@ fn drawn(suffix: NameSuffix) -> (f32, usize) {
 fn every_suffix_adds_its_word_after_the_name_and_none_adds_nothing() {
     let (none_w, none_ink) = drawn(NameSuffix::None);
     assert_eq!(none_ink, 0);
-    for suffix in [
-        NameSuffix::Starter,
-        NameSuffix::Desktop,
-        NameSuffix::Companion,
-    ] {
+    for suffix in [NameSuffix::Starter, NameSuffix::Desktop] {
         let (w, ink) = drawn(suffix);
         assert!(w > none_w * 1.5, "{suffix:?}: {w} against {none_w}");
         assert!(ink > 500, "{suffix:?} drew {ink} pixels");

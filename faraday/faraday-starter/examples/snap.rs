@@ -640,7 +640,7 @@ fn sketch_shots(s: &Snap) -> Result<(), String> {
 }
 
 /// A guide page at its top, its first steps in circles
-/// (`docs/COMPANION.md` §4.7): HP untouched, Dell with its first three
+/// (`docs/STARTER.md` §7): HP untouched, Dell with its first three
 /// ticked.
 fn step_shots(s: &Snap) -> Result<(), String> {
     let mut h = s.starter();

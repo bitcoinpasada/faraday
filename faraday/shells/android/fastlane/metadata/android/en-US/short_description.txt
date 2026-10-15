@@ -1,1 +1,0 @@
-Carries QR codes and files between a Faraday device and this phone, offline.

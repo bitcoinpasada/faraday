@@ -8,8 +8,6 @@ rust-version.workspace = true
 repository.workspace = true
 publish = false
 
-# Nothing on docs/COMPANION.md §3's list: the Companion's core uses this
-# crate, and `tools/lint-companion-deps.sh` checks its tree.
 [dependencies]
 # The payload classifier, SeedQR and UR. The QR decoder (`decode`) is not
 # needed to recognise bytes already read.
@@ -20,10 +18,6 @@ faraday-qr = { path = "../faraday-qr" }
 zeroize = { workspace = true, features = ["alloc"] }
 # The description reader's refusal lines (`wallet`).
 faraday-strings = { path = "../faraday-strings" }
-
-[dev-dependencies]
-# The published vectors' JSON files.
-serde_json.workspace = true
 
 [lints]
 workspace = true

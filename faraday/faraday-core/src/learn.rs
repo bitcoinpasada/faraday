@@ -214,8 +214,8 @@ impl Faraday {
         }
     }
 
-    /// The steps ticked on `page` this session, in order
-    /// (`docs/COMPANION.md` §4.7). Kept in memory only: leaving and
+    /// The steps ticked on `page` this session, in order.
+    /// Kept in memory only: leaving and
     /// reopening the page in the same session keeps them; a new session
     /// starts unticked.
     pub fn learn_ticked(&self, page: &'static LearnPage) -> &[u32] {

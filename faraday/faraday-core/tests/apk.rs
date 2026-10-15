@@ -20,7 +20,7 @@ use common::{Disk, Shell};
 type Files = Vec<(String, Vec<u8>)>;
 
 const FIXTURE: &str = "app.faradayoffline.fixture";
-const COMPANION: &str = "app.faradayoffline.companion";
+const OTHER: &str = "app.faradayoffline.other";
 
 fn fixture(name: &str) -> Vec<u8> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -328,7 +328,7 @@ fn a_certificate_name_left_empty_and_a_bad_package_are_refused() {
         try_make("   ", FIXTURE).as_deref(),
         Some("Name the certificate")
     );
-    for bad in ["companion", "1app.x", "app. x", "app..x", "app.x-y", ""] {
+    for bad in ["other", "1app.x", "app. x", "app..x", "app.x-y", ""] {
         assert_eq!(
             try_make("Faraday Test", bad).as_deref(),
             Some("Not a package name"),
@@ -465,17 +465,17 @@ fn the_review_states_the_package_version_android_and_the_name_it_will_write() {
     let apk = fixture("small-unsigned.apk");
     let mut app = ready(
         FIXTURE,
-        &[("faraday-companion-0.1.3-android-unsigned.apk", apk.clone())],
+        &[("example-0.1.3-android-unsigned.apk", apk.clone())],
     );
-    review(&mut app, "faraday-companion-0.1.3-android-unsigned.apk");
+    review(&mut app, "example-0.1.3-android-unsigned.apk");
     let t = texts(&mut app);
     for want in [
         "Sign this APK?",
-        "faraday-companion-0.1.3-android-unsigned.apk",
+        "example-0.1.3-android-unsigned.apk",
         FIXTURE,
         "1.0 (1)",
         "8.0 and later",
-        "faraday-companion-0.1.3-android.apk",
+        "example-0.1.3-android.apk",
         "Enter the second build's SHA-256",
     ] {
         assert!(t.iter().any(|x| x == want), "{want}: {t:?}");
@@ -548,10 +548,10 @@ fn all_64_digits_sign_too() {
 #[test]
 fn a_key_for_another_package_lists_the_apk_as_another_app_from_the_page_and_from_files() {
     let apk = fixture("small-unsigned.apk");
-    let mut app = ready(COMPANION, &[("x-unsigned.apk", apk)]);
+    let mut app = ready(OTHER, &[("x-unsigned.apk", apk)]);
     let want = format!("Another app: {FIXTURE}");
     assert_eq!(
-        listed(&app, COMPANION),
+        listed(&app, OTHER),
         vec![("x-unsigned.apk".to_string(), Some(want.clone()))]
     );
     app.press(Action::Vault(V::ApkSignOpen));
@@ -564,7 +564,7 @@ fn a_key_for_another_package_lists_the_apk_as_another_app_from_the_page_and_from
     // The package is shown on the key's page.
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::ApkBack));
-    assert!(has(&mut app, COMPANION));
+    assert!(has(&mut app, OTHER));
 }
 
 #[test]
@@ -776,7 +776,7 @@ fn the_file_changing_between_the_review_and_the_hold_signs_nothing() {
 #[test]
 fn another_apps_apk_reached_through_the_list_is_never_signed() {
     let apk = fixture("small-unsigned.apk");
-    let mut app = ready(COMPANION, &[("x-unsigned.apk", apk.clone())]);
+    let mut app = ready(OTHER, &[("x-unsigned.apk", apk.clone())]);
     // The review opens by Inbox place, whatever the list says.
     review(&mut app, "x-unsigned.apk");
     type_second(&mut app, &sha_hex(&apk));

@@ -7,7 +7,7 @@
 //!
 //! No wording: what was made is answered as a [`Made`], and each app
 //! says it in its own words. Moved here from `faraday-core` so that the
-//! desktop app, the stick and the Companion make the same codes.
+//! desktop app and the stick make the same codes.
 
 use osk_codec::qr::{Ecc, Payload, QrMatrix, encode, encode_bounded};
 

@@ -1,12 +1,12 @@
 //! Faraday's own Learn pages, which OpenSigner does not have: read from
 //! `docs/learn/faraday/` when Faraday is built, so the desktop app, the
-//! stick, the Starter and the Companion carry the same text. Nothing
+//! stick and the Starter carry the same text. Nothing
 //! here names a screen of any app: each app maps its own screens to
 //! pages.
 //!
 //! The website's guides to starting a computer from the stick
 //! (`docs/STARTER.md` §7) are not here: they are `faraday-guides`' (read by
-//! the Starter and the Companion, and published by the website). The
+//! the Starter, and published by the website). The
 //! desktop app and the stick carry only the address of the guide for
 //! this computer ([`guide_address`]), not its text.
 
@@ -27,7 +27,7 @@ pub use sketch::{Sketch, is_marker};
 /// (`docs/learn/faraday/boot/*.md`) are `faraday-guides`' own table, not
 /// this one, except `replace-faraday`, which the stick's Upgrade screen
 /// shows directly ([`known`]).
-const OWN: [(&str, &str); 8] = [
+const OWN: [(&str, &str); 7] = [
     // Upgrading a stick from another stick (`PLAN.md` §5.5).
     (
         "upgrade-a-stick",
@@ -40,18 +40,13 @@ const OWN: [(&str, &str); 8] = [
     ),
     // The clock and TOTP codes (`docs/TOTP.md`).
     ("time", include_str!("../../../docs/learn/faraday/time.md")),
-    // Faraday Companion, the phone app (`docs/COMPANION.md` §4.7).
-    (
-        "companion",
-        include_str!("../../../docs/learn/faraday/companion.md"),
-    ),
     (
         "replace-faraday",
         include_str!("../../../docs/learn/faraday/boot/replace-faraday.md"),
     ),
     // The demo's public seeds and the test networks (F20).
     ("demo", include_str!("../../../docs/learn/faraday/demo.md")),
-    // The Companion's APK signing key (`docs/APK-SIGNING.md` §10).
+    // The APK signing key (`docs/APK-SIGNING.md` §10).
     (
         "apk-key",
         include_str!("../../../docs/learn/faraday/apk-key.md"),
@@ -174,7 +169,7 @@ fn own() -> &'static [LearnPage] {
 }
 
 /// The id of every one of Faraday's own pages, in [`OWN`]'s order: for
-/// an app that lists them all (the Companion's Learn).
+/// an app that lists them all.
 pub fn ids() -> impl Iterator<Item = &'static str> {
     OWN.iter().map(|(id, _)| *id)
 }
@@ -233,8 +228,7 @@ pub fn page_of(md: &'static str) -> LearnPage {
     }
 }
 
-/// A guide's step (`docs/COMPANION.md` §4.7, "The guides are numbered
-/// steps"): a paragraph that begins with its number, a full stop and a
+/// A guide's step: a paragraph that begins with its number, a full stop and a
 /// space, `3. Choose the stick.` Returns the number and the text after
 /// it, or `None` for any other paragraph. An app draws the number its
 /// own way and never prints the paragraph's raw `n. `.
@@ -270,11 +264,6 @@ pub fn shares_page() -> &'static LearnPage {
 /// "Time and TOTP codes".
 pub fn time_page() -> &'static LearnPage {
     known("time")
-}
-
-/// "Faraday Companion".
-pub fn companion_page() -> &'static LearnPage {
-    known("companion")
 }
 
 /// "GPG keys".

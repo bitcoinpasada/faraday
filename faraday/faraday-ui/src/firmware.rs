@@ -1,7 +1,7 @@
 //! A firmware screen's sketch (`docs/DECISIONS.md` F18, `docs/STARTER.md`
 //! §7.8): a mock-up of a firmware setup screen drawn from a
-//! [`faraday_learn::Sketch`], so Faraday Starter and Faraday Companion
-//! draw the same one. It is drawn to look like a firmware screen, not
+//! [`faraday_learn::Sketch`], so Faraday Starter
+//! draws it. It is drawn to look like a firmware screen, not
 //! like Faraday: square corners, a text-mode face (Terminus), and the
 //! text-mode colours ([`crate::pal::vga`]) of the palette the sketch
 //! names, the nearest to the family's own screen. The row to find is on

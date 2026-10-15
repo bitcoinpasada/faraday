@@ -2,8 +2,7 @@
 //! (`osk_ui::widgets::keyboard`) drawn as Faraday's buttons, across the
 //! foot of a small panel or a strip of the wide layout. A press is the
 //! key a physical keyboard would send. The desktop app types with it on
-//! the stick's touch panel, and the Companion types with it everywhere,
-//! never with the phone's own keyboard, which is another app.
+//! the stick's touch panel.
 //!
 //! Moved here from `faraday-core`'s `compact.rs`.
 

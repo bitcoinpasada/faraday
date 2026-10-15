@@ -11,10 +11,9 @@ test:
     cargo test --workspace --doc
 
 # Clippy with warnings as errors, formatting check, the secret-hygiene
-# lint, the user-facing-strings lint, the design-token lint, the
-# Companion's crate graph (docs/COMPANION.md §3) and its Android shell's
-# permissions, dependencies and ways out (§6.2), and the Starter's macOS
-# code checked for both Mac targets without a Mac (tools/check-macos.sh).
+# lint, the user-facing-strings lint, the design-token lint, and the
+# Starter's macOS code checked for both Mac targets without a Mac
+# (tools/check-macos.sh).
 lint:
     cargo clippy --workspace --all-targets -- -D warnings
     # Advisories, licences, duplicates and sources, against deny.toml.
@@ -25,8 +24,6 @@ lint:
     tools/lint-secrets.sh
     tools/lint-strings.sh
     tools/lint-tokens.sh
-    tools/lint-companion-deps.sh
-    tools/lint-companion-android.sh
     tools/check-macos.sh
     python3 tools/learn/sync.py check
 

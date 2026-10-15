@@ -1,5 +1,4 @@
-//! A guide's steps, drawn as the Companion draws them
-//! (`docs/COMPANION.md` §4.7), in Faraday Starter's own Learn sheet: a
+//! A guide's steps, in Faraday Starter's own Learn sheet: a
 //! tap on a step's circle ticks it and a second clears it, and the ticks
 //! survive leaving and reopening the page in the same session.
 

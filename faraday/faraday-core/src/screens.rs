@@ -15200,8 +15200,7 @@ fn learn_sheet(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
             ) + 8.0;
         }
         // Under a step: what follows it, up to the next step or section,
-        // is indented under it, as the Companion draws the same guides
-        // (`docs/COMPANION.md` §4.7).
+        // is indented under it.
         let mut under = false;
         for para in section.paragraphs {
             if let Some((n, text)) = faraday_learn::step(para) {

@@ -17,7 +17,7 @@ use osk_psbt::{Aux, Context, Inspection, KeyRef, Nonce, Psbt};
 /// otherwise.
 pub const START_NETWORK: Network = Network::Mainnet;
 
-// The description reader, shared with the Companion (`faraday-intake`),
+// The description reader (`faraday-intake`),
 // at the paths this crate has always had them.
 pub use faraday_intake::wallet::{
     Refusal, network_name, network_of_key, policy_network, read_wallet,

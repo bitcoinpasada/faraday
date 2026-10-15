@@ -54,8 +54,8 @@ to APKs. `docs/APK-SIGNING.md` is the first user.
 
 - **No cap.** `MAX_READ` and `READ_MAX` go. A file is read up to FAT32's
   4 GiB less one byte; FAT16 files are smaller still.
-- **The threshold is 64 MiB.** It is 3.5 times the old cap, holds the
-  Companion's APK (14 MiB as a debug build) with room to grow, and is
+- **The threshold is 64 MiB.** It is 3.5 times the old cap, holds an
+  APK (14 MiB as a debug build) with room to grow, and is
   about 6% of a Pi 3's 1 GB. Up to it, a file comes in ticked as
   `docs/FLOWS.md` decision 29 says, inside §4's rule for the visit's
   total.
@@ -542,7 +542,7 @@ app's are.
 ## 12. Batches
 
 `docs/APK-SIGNING.md` batch 1 comes first, on today's reading: it signs
-an APK up to the current 18 MiB, which holds the Companion's.
+an APK up to the current 18 MiB.
 
 - **L1, any size.** The protocol of §8 (List and ListFiles, ReadPart
   with its chain position, the write requests, ReadQr's bound, the

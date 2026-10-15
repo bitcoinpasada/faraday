@@ -1362,8 +1362,8 @@ Unlock and back, as GPG's does (decision 10).
 **Make an APK key** (the backup flow, decision 59: two places or more,
 by default Vault 1 at Place 1 and Place 2, their sticks brought in,
 their vaults unlocked or made; then step cards: name on the
-certificate, **Faraday Companion** filled in, empty refused; package,
-`app.faradayoffline.companion` filled in, "Not a package name" unless
+certificate, empty at first, empty refused; package, empty at first,
+"Not a package name" unless
 Android's form)
 → the time first where it is not known → made → result: name, package,
 certificate SHA-256, "RSA 3072", the certificate For the stick as the
@@ -1428,8 +1428,7 @@ A saved Nostr entry's page in Vault contents adds **Show as QR** and
 a **Path** row saying whether the notes' path gives the entry's key. An
 Entry holding an nsec has no **Export for KeePass**. A file holding an
 nsec is a secret in Files with no code and no way to the Outbox; its
-**Save into {vault}** makes a Nostr entry. Faraday Companion refuses an
-nsec and an ncryptsec.
+**Save into {vault}** makes a Nostr entry.
 
 ## Explore
 

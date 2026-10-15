@@ -835,7 +835,7 @@ marker) is removed by F33, with no Resume kept (§6.3).
 **The requirement (owner, 2026-10-14, DECISIONS F33):** the step that
 keeps Windows from asking for the BitLocker recovery key is turning
 Secure Boot back on in the BIOS before Windows starts again. The Starter
-and the Companion show, keep and ask for no recovery key, and suspend
+shows, keeps and asks for no recovery key, and suspend
 nothing. Specified, not built: §6.5's batches F33a to F33d.
 
 Until 2026-10-14 this section was the BitLocker guard (F11, F12, F17,
@@ -905,14 +905,14 @@ Specified, not built. Each is one review and one completion report;
 F33a, F33b and F33d may land together and be built once. Every batch
 changes `faraday-strings` or the Learn pages, which `faraday-core`
 carries, so each counts for every app: Faraday (the desktop app, the
-stick and the Pi), Faraday Starter and Faraday Companion.
+stick and the Pi) and Faraday Starter.
 
 | Batch | What | Needs |
 |---|---|---|
 | F33a | Removal in the Starter (§6.6's Starter list), with no Resume kept (§6.3); Home and the Start page as §3.1 and §3.4 now say; *Use a device* only with Secure Boot reported off | none |
-| F33b | Removal in the Companion (`docs/COMPANION.md` §4.6, §7): the store at version 2, a version 1 store deleted; recovery-key text refused (§5 there); `faraday_qr::bitlocker` removed, as its last user goes | none |
+| F33b | Dropped with the Companion (F34); `faraday_qr::bitlocker` is removed with the Starter's use of it | none |
 | F33c | The stick's power-off reminder (§7.5): the line, its tone and place, the unread state; the idle power-off unchanged | none |
-| F33d | The guides' new text (§6.7), `bitlocker.md` removed from `faraday-guides`, the Companion's **BitLocker first** removed; the website's `start/bitlocker` page goes at its next build, in its own repository | none |
+| F33d | The guides' new text (§6.7), `bitlocker.md` removed from `faraday-guides`; the website's `start/bitlocker` page goes at its next build, in its own repository | none |
 
 **Tests**, user-facing:
 
@@ -923,16 +923,11 @@ stick and the Pi), Faraday Starter and Faraday Companion.
   show it (`faraday-core/tests/secure_boot_reminder.rs`, whose
   "unknown says nothing" test changes to the rule it now encodes).
 - Every guide's last numbered step begins "Turn Secure Boot back on"
-  (the Windows, Linux and maker pages), and the Companion's guide page
-  ends with that step, ticked like the others (`faraday-guides`,
-  `faraday-companion/tests/start.rs`).
-- Nothing in the Starter or the Companion asks for or holds a recovery
+  (the Windows, Linux and maker pages) (`faraday-guides`).
+- Nothing in the Starter asks for or holds a recovery
   key: on Windows with a protected drive the Starter's Home and Start
   page show no BitLocker item, row or key, and no Resume BitLocker,
-  marker or logon entry; the Companion's Home has no BitLocker row, a scanned or
-  pasted recovery-key text is refused with its line and the store after
-  is the store before, and a version 1 store is gone after the first
-  start.
+  marker or logon entry.
 - On Windows, **Restart to choose a device** and the card's **Restart
   from the stick** are shown with Secure Boot reported off, and hidden
   with it reported on or unread (`UEFISecureBootEnabled` 1, or no
@@ -958,21 +953,12 @@ stick and the Pi), Faraday Starter and Faraday Companion.
   the BitLocker cases of `tests/windows.rs`, and the recorded WMI
   answers in `tests/windows/` that serve only them. The VeraCrypt
   driver check stays.
-- **Faraday Companion**: COMPANION §4.6 whole (`faraday-companion`'s
-  `kept.rs` keys, `route.rs`'s recovery-key route, `draw.rs`, `api.rs`,
-  `lib.rs`; the FFI's commands for keys in `faraday-companion-ffi`; the
-  shell's key counts in `KeptStore.kt`, `Core.kt` and
-  `MainActivity.kt`, and the manifest's comment);
-  `tests/bitlocker.rs`, and the BitLocker cases of `tests/lock.rs`,
-  `tests/start.rs` and `tests/common`.
 - **Shared:** `faraday/faraday-qr/src/bitlocker.rs`, its `pub mod`, its
   `zeroize` use where only it needs it, and `tests/bitlocker.rs`; the
   BitLocker cases of `faraday-core/src/testkit.rs`.
-- **Strings:** every `starter_` and `companion_` string in
+- **Strings:** every `starter_` string in
   `faraday/faraday-strings/src/en.rs` used only by the above (about 70:
-  the guard, the page, the states, the key, the Companion's BitLocker
-  keys, **BitLocker first**). `companion_closed_no_lock` becomes "Set a
-  screen lock on this phone to keep wallet descriptions."
+  the guard, the page, the states, the key, **BitLocker first**).
 - **Learn:** `docs/learn/faraday/boot/bitlocker.md` and its entry in
   `faraday-guides`; the lines §6.7 lists.
 - **Docs:** `docs/BITLOCKER-ACCEPTANCE.md` is superseded (its header
@@ -1030,10 +1016,6 @@ every app, so the pages change with the code that reads them).
 - **"Screens that record"**: under Remote desktop, screen sharing, a
   wireless display, the sentence on the Starter checking for them
   before it shows the recovery key goes; the Starter shows no secret.
-- **The Companion's page** (`docs/learn/faraday/companion.md`): two
-  things kept, Received and Wallet descriptions; the unlock opens
-  Wallet descriptions; the sentence on BitLocker keys in the ways out,
-  and the section "The BitLocker recovery key", go.
 
 ## 7. Starting a computer from the stick
 
@@ -1064,8 +1046,8 @@ Mac.
 ### 7.2 The guides are Learn pages
 
 Each guide is a Learn page in `docs/learn/faraday/boot/`, round-tripped
-into `osk-learn` as every Learn page is. The Starter and the Companion
-carry them (`faraday-guides`), and the website publishes the same text
+into `osk-learn` as every Learn page is. The Starter
+carries them (`faraday-guides`), and the website publishes the same text
 (§7.4); the desktop app and the stick carry only the address of the
 guide for this computer, not its text. Pages:
 
@@ -1271,7 +1253,7 @@ screenshot. Each is labelled a mock-up.
   a long label or key hint wraps, and other words are cut rather than
   run over.
 - **Where.** Faraday Starter draws them in its Learn sheet (the held
-  desktop app's, `Faraday::held`), and Faraday Companion in its Learn.
+  desktop app's, `Faraday::held`).
   The stick, the Pi and Faraday Desktop leave the marker paragraph out
   and never print it. The website, built from the same pages in its
   own repository, has to leave it out as well.
@@ -1431,7 +1413,7 @@ this Mac* takes back.
 | L | The Starter on Linux: crates (§2), the D-Bus crate and its `docs/deps` note, Home as a checklist, Make a stick through udisks2 (with what each tried distribution asks for), the stick's version read from OSKBOOT and the keep-data rules, Make a Pi card for the one image, Install and uninstall, Try the desktop app, Transfer and Learn, About, `--image` for developers; then `tools/flash-stick` removed and the README's mention of it with it | decided | after R |
 | G | Guides: the general Windows and Linux pages and §7.2's other pages with their sources; detection on Linux; Restart into the BIOS on Linux; the stick's power-off reminder (§7.5); the first group of maker pages, several families at once (D6, F14); the website item in its own repository | decided | after R, independent of L and W |
 | W | The Starter on Windows: window, install and uninstall, disks and writing, detection, the firmware buttons, Transfer Send; Defender run; the report on what Windows does to a written stick (D11). Its BitLocker guard, marker, logon reminder and acceptance were built and are removed by F33a | decided; D11 is answered by this batch's report | after L; needs G's general Windows page only |
-| F33a–F33d | No BitLocker step: removal in the Starter and the Companion, the stick's power-off line, the guides' last step (§6.5) | decided | any time |
+| F33a–F33d | No BitLocker step: removal in the Starter, the stick's power-off line, the guides' last step (§6.5) | decided | any time |
 | C | Windows camera for Transfer Receive, shared with the desktop app; the desktop app on Windows (§2's changes) and its install | built (HANDOFF item 76): C1, the desktop app on Windows with its install, its Try and a payload folder per system; C2, the camera on Media Foundation. To be tried on Windows | after W |
 | P | Pi: one image for the 2.8 inch panel, Make a Pi card tried on hardware; profiles, boards and other sizes when a second screen is tried | decided (D1, D2, D3, D5) | after L, independent of G, W and C |
 | S | Keeping Secure Boot on (§7.7) | D9 | last |

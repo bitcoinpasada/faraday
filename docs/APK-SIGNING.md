@@ -8,22 +8,27 @@ flow's, `docs/BACKUP-FLOW.md` (F31), built in batch B1a.
 Batch 2 is built as far as the key allows (§11); `docs/LARGE-FILES.md`
 (F26) is not built.
 
+**Faraday Companion was dropped (F34, 2026-10-15).** This spec was
+written for the Companion's APK key. **Sign an APK** stays, for the APK
+of any app: the name and the package start empty, and the release
+carries no APK. Where this text names the Companion, its APK, its
+container, `docs/COMPANION.md` or `faraday/companion-cert.pem`, that is
+history: §9 and batch 2 of §11 are not built and have no tool left to
+build them with, and F34 says how the Companion comes back.
+
 The problem it solves: Android installs an update only when it is
-signed by the key that signed the installed copy, so Faraday
-Companion's APK key is the one key whose loss cannot be repaired by
-making another (`docs/COMPANION.md` §2). COMPANION D7 left it to the
-owner, outside Faraday. Faraday already makes, keeps and uses the
+signed by the key that signed the installed copy, so an app's APK key
+is the one key whose loss cannot be repaired by making another. Faraday
+already makes, keeps and uses the
 release's OpenPGP key in a vault, and its Secure Boot keys the same way;
 the APK key is a third kind beside them. Android accepts RSA, ECDSA and
 DSA for APK signatures, not Ed25519, so the GPG key cannot sign an APK.
 
 The key is the device's, like GPG and Secure Boot: made on the stick or
-the Pi, kept in a vault, used on the stick or the Pi. Nothing of it is
-in the Companion. This is a separate document from `docs/COMPANION.md`
-because everything in it is built into Faraday (`faraday-core`, a new
-crate, the vault format, the device's screens), none of it into the
-phone app, and the same feature makes and keeps a key for any app,
-each key bound to its own app's package.
+the Pi, kept in a vault, used on the stick or the Pi. Everything in it is built into Faraday (`faraday-core`, a new
+crate, the vault format, the device's screens), and the same feature
+makes and keeps a key for any app, each key bound to its own app's
+package.
 
 ## 0. Rules for the implementing agent
 
@@ -110,7 +115,8 @@ screen draws "Making the key" before the work starts, whatever the time.
 
 ### 2.2 Signature schemes
 
-The Companion's `minSdkVersion` is 26 (Android 8.0). Android verifies
+The `minSdkVersion` Faraday signs for is 26 (Android 8.0), the
+Companion's while it existed. Android verifies
 v2 from API 24 and v3 from API 28, and v1 (JAR signing) is needed only
 below 24. For `minSdkVersion` 26, `apksigner sign` with its defaults
 writes v2 and v3, plus a v4 `.idsig` file beside the APK that only
@@ -136,8 +142,8 @@ writes v2 and v3, plus a v4 `.idsig` file beside the APK that only
   verity digests.
 
 Where this list and `apksigner` differ in a byte, `apksigner` is right:
-the reference is the `apksigner` of the build-tools version the release
-container pins (`docs/COMPANION.md` §3), and §8's test compares whole
+the reference is the `apksigner` of the build-tools version the pinned
+build-tools of `tools/vectors/apk/make.sh`, and §8's test compares whole
 files.
 
 An APK whose `minSdkVersion` is below 24 is refused (§4.4): it would
@@ -170,7 +176,7 @@ Made once with the key, kept beside it, never made again.
 
 - X.509 v3, self-signed, `sha256WithRSAEncryption`.
 - Subject and issuer: one common name, typed when the key is made,
-  **Faraday Companion** filled in. Nothing else: no organisation, no
+  empty at first. Nothing else: no organisation, no
   place, no email. `apksigner verify --print-certs` prints it to anyone
   who has the APK. The name is trimmed; empty is refused ("Name the
   certificate"), and it is at most 64 characters (X.520's bound for a
@@ -188,8 +194,7 @@ Made once with the key, kept beside it, never made again.
 **The fingerprint** is the SHA-256 of the certificate's DER: what
 `apksigner verify --print-certs` prints as "certificate SHA-256 digest",
 what F-Droid's `AllowedAPKSigningKeys` takes (lower-case hex, no
-separators), and what the Companion's About shows (`docs/COMPANION.md`
-§4.8). Faraday shows it in groups of four, lower case, as it shows an
+separators). Faraday shows it in groups of four, lower case, as it shows an
 image's SHA-256.
 
 ## 3. Where it lives
@@ -287,9 +292,9 @@ prefix `apk_`, the Tools tile's with `catalog_`. `docs/FLOWS.md`'s
 
 Step 4 of the backup flow (`docs/BACKUP-FLOW.md` §4), after its
 places, sticks and vaults (§3): step cards (wide) or pages (small):
-**Name on the certificate** (one field, **Faraday Companion** filled
-in, the hint "Public: printed by anyone who checks the APK"), then
-**Package** (one field, `app.faradayoffline.companion` filled in). The
+**Name on the certificate** (one field, empty at first, the hint
+"Public: printed by anyone who checks the APK"), then
+**Package** (one field, empty at first). The
 vaults are the plan's, none chosen in advance (§3).
 The time first where it is not known. The package is refused, "Not a
 package name" (`apk_package_invalid`), unless it is Android's form: at
@@ -382,9 +387,9 @@ which version the key is about to vouch for, which the file name does
 not prove, and `minSdkVersion` is needed anyway for §2.2's refusal.
 
 **The output** goes For the stick: the name copied in with
-`-unsigned` removed before `.apk`, so the release build's
-`faraday-companion-X.Y.Z-android-unsigned.apk` comes out as
-`faraday-companion-X.Y.Z-android.apk` (`docs/COMPANION.md` §2); a name
+`-unsigned` removed before `.apk`, so
+`example-X.Y.Z-android-unsigned.apk` comes out as
+`example-X.Y.Z-android.apk`; a name
 without `-unsigned` gains `-signed` before a final `.apk`, or
 `-signed.apk` where it has no `.apk` (both matched ignoring ASCII case,
 the rest of the name kept as it is). The output name obeys
@@ -534,7 +539,7 @@ So removing the zero bytes and the block and restoring the offset gives
 back `U` byte for byte, given `C` (the zeros cannot be told from the
 last entry's own zeros without it, and the person holding `U` has `C`):
 what F-Droid's `apksigcopier` relies on to copy the signature onto
-F-Droid's own build of the same tag (`docs/COMPANION.md` §8). The
+F-Droid's own build of the same tag. The
 `apksigner` of the build-tools pinned in `tools/vectors/apk/make.sh`
 (36.0.0) writes the same `P` and the same block; the spec of v0.3 left
 `P` out, and the byte-identical test of §8 found it.
@@ -567,8 +572,6 @@ F-Droid's own build of the same tag (`docs/COMPANION.md` §8). The
   check that `--field 12.1` writes field 1's bytes and nothing else.
 - **`docs/deps/rsa.md`** names 3072 beside 2048; **`miniz_oxide.md`**
   names the new edge.
-- The Companion's lint (`tools/lint-companion-deps.sh`) adds
-  `faraday-apk` to what `faraday-companion` must not depend on.
 
 ## 8. Tests
 
@@ -642,10 +645,10 @@ there:
   than 32 hex digits, and with digits of another file; it signs with the
   file's first 32 digits and with all 64, spaced or in capitals.
 - A key made for `app.faradayoffline.fixture` signs the small
-  fixture; a key made for `app.faradayoffline.companion` lists the same
+  fixture; a key made for `app.faradayoffline.other` lists the same
   fixture as "Another app: app.faradayoffline.fixture", inert, from the
   key's page and from Files; the key's page and the vault sealed and
-  opened again show the package. A package typed as `companion`,
+  opened again show the package. A package typed as `other`,
   `1app.x` or with a space is refused, "Not a package name".
 - An APK named with 224 bytes before `.apk` and no `-unsigned` is
   listed "Name too long"; one of 230 bytes ending `-unsigned.apk` signs
@@ -661,7 +664,9 @@ A signing-only APK, and the 200 MiB fixture, are tested in
 
 ## 9. The release
 
-`docs/COMPANION.md` §10 batch C, with the key in it:
+**Historical (F34): the release no longer carries an APK, and
+`stage-release.sh` has no `--companion`.** This is what the Companion's
+release was, with the key in it:
 
 1. The pinned container builds
    `faraday-companion-X.Y.Z-android-unsigned.apk`, checks it with
@@ -726,7 +731,8 @@ computer goes online again. Working screens carry none of this
   tests and the fuzz target, the docs of §7. Needs no release build:
   the fixtures stand in. Renders: the tile, Make, the key's page and the
   review at `1280x800` and `480x640`.
-- **2, with the Companion's batch C.** The container's step 1, the
+- **2, with the Companion's batch C (dropped, F34: removed from the
+  tree, the staging script and the README).** The container's step 1, the
   second build's step 2 written as a release step, the staging script's
   step 4, the README paragraph, the fastlane metadata and
   `AllowedAPKSigningKeys`.
@@ -739,7 +745,7 @@ computer goes online again. Working screens carry none of this
 - **The owner**, between them: the key made on the stick of a published
   release that has batch 1, in the vault the owner chooses (§3, §12),
   that vault written to two sticks, and the certificate committed as
-  `faraday/companion-cert.pem` (§12).
+  `faraday/companion-cert.pem` (§12; dropped with batch 2).
 
 Batch 1 signs APKs up to today's 18 MiB read; any size comes with
 `docs/LARGE-FILES.md`'s batches L1 and L2, after batch 1. Batch 2 does
@@ -760,14 +766,15 @@ not wait for them while the release APK stays under 18 MiB.
    real key. Make steers to none; the Learn page states what sharing a
    slot means (§3, §10). The owner's words: the premise of a secret is
    the ability to keep it, and the person keeps this flexibility.
-6. The certificate's name is "Faraday Companion".
+6. The certificate's name was "Faraday Companion" (superseded, F34:
+   the field starts empty).
 7. Signing needs the SHA-256 of an independent second build of the
    same source entered in the review and matching (§4.4, §9). Entering
    it, rather than ticking it as matched, is this spec's
    recommendation.
 8. Each key is bound to one package (record field 3), typed at Make
-   with `app.faradayoffline.companion` filled in and shown on the key's
-   page; Sign an APK refuses another package's APK. Another app gets
+   (empty at first; it was `app.faradayoffline.companion` before F34)
+   and shown on the key's page; Sign an APK refuses another package's APK. Another app gets
    another key.
 
 ## 13. What batch 1's build changed or chose

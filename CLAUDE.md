@@ -11,8 +11,7 @@ changes and nothing else has to be kept in step.
   `docs/PLANNING.md` is upstream's copy and is not edited here.
 - A screen is one of DESIGN §5's sixteen screens, built from the §4
   components. The Starter's screens are `docs/STARTER.md` §3, built from
-  the same components. The Companion's are `docs/COMPANION.md` §4,
-  drawn with Faraday's own look (`faraday-ui`), as the Starter is.
+  the same components, drawn with Faraday's own look (`faraday-ui`).
 - Every dimension is a name in `core/osk-ui/src/tokens.rs`;
   `tools/lint-tokens.sh` fails the build otherwise.
 - Every user-facing string is in OpenSigner's

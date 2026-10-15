@@ -13,8 +13,7 @@ osk-backup = { path = "../../core/osk-backup" }
 osk-bip = { path = "../../core/osk-bip" }
 osk-crypto = { path = "../../core/osk-crypto" }
 zeroize = { workspace = true, features = ["alloc"] }
-# What a vault and its entries look like, which the Companion refuses
-# without holding this crate.
+# What a vault and its entries look like.
 faraday-intake = { path = "../faraday-intake" }
 # Argon2id over the passphrase, as osk-backup stretches it.
 argon2 = { workspace = true }

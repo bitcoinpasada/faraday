@@ -1,5 +1,5 @@
-//! Faraday's drawing: what the desktop app, Faraday Starter and Faraday
-//! Companion draw their screens with.
+//! Faraday's drawing: what the desktop app and Faraday Starter draw
+//! their screens with.
 //!
 //! Drawing in design units. Every screen is laid out on a canvas scaled
 //! to fill the display, with the prototype's palette
@@ -387,8 +387,6 @@ pub enum NameSuffix {
     Starter,
     /// Faraday Desktop.
     Desktop,
-    /// The Android app, Faraday Companion.
-    Companion,
 }
 
 /// The wordmark's cap height in its font units.
@@ -429,12 +427,11 @@ struct SuffixWord {
 
 /// The suffix `which` spelled in the letters of `assets/wordmark-suffix.txt`.
 fn suffix_word(which: NameSuffix) -> Option<&'static SuffixWord> {
-    static WORDS: OnceLock<[SuffixWord; 3]> = OnceLock::new();
+    static WORDS: OnceLock<[SuffixWord; 2]> = OnceLock::new();
     let key = match which {
         NameSuffix::None => return None,
         NameSuffix::Starter => 0,
         NameSuffix::Desktop => 1,
-        NameSuffix::Companion => 2,
     };
     let words = WORDS.get_or_init(|| {
         let mut letters: Vec<(char, f32, Outlines)> = Vec::new();
@@ -469,7 +466,6 @@ fn suffix_word(which: NameSuffix) -> Option<&'static SuffixWord> {
         [
             build(spelled.first().copied().unwrap_or("")),
             build(spelled.get(1).copied().unwrap_or("")),
-            build(spelled.get(2).copied().unwrap_or("")),
         ]
     });
     words.get(key)

@@ -53,8 +53,8 @@ fi
 # Faraday's screen code: faraday-core (every module but the test kit:
 # the screens, and the modules whose toasts, errors and labels they
 # show), the two crates split from it that hold no wording
-# (faraday-learn, faraday-intake), the Starter's faraday-starter, the
-# Companion's faraday-companion, Faraday's drawing in faraday-ui, and the two
+# (faraday-learn, faraday-intake), the Starter's faraday-starter,
+# Faraday's drawing in faraday-ui, and the two
 # shells' main files, which title their windows. The shells' other files
 # and the stick's shell are platform code: system calls, the writer's
 # pipe, command lines and stderr; the one label each puts on screen is in
@@ -96,7 +96,6 @@ fi
 # firmware's own, the screen a sketch depicts, not Faraday's wording.
 FARADAY_SCREENS="$(ls faraday/faraday-core/src/*.rs | grep -v '/testkit\.rs$\|/names\.rs$')
 faraday/faraday-starter/src/*.rs
-faraday/faraday-companion/src/*.rs
 faraday/faraday-ui/src/*.rs
 $(ls faraday/faraday-learn/src/*.rs | grep -v '/sketch\.rs$')
 $(ls faraday/faraday-guides/src/*.rs | grep -v '/sketch\.rs$')

@@ -725,39 +725,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faraday-companion"
-version = "0.1.2"
-dependencies = [
- "faraday-core",
- "faraday-guides",
- "faraday-intake",
- "faraday-learn",
- "faraday-qr",
- "faraday-strings",
- "faraday-ui",
- "osk-bip",
- "osk-codec",
- "osk-learn",
- "osk-shell-api",
- "osk-ui",
- "png",
- "serde_json",
- "zeroize",
-]
-
-[[package]]
-name = "faraday-companion-ffi"
-version = "0.1.2"
-dependencies = [
- "faraday-companion",
- "faraday-scanner",
- "faraday-ui",
- "jni-sys 0.3.0",
- "osk-shell-api",
- "zeroize",
-]
-
-[[package]]
 name = "faraday-core"
 version = "0.1.2"
 dependencies = [
@@ -845,7 +812,6 @@ dependencies = [
  "faraday-strings",
  "osk-bip",
  "osk-codec",
- "serde_json",
  "zeroize",
 ]
 

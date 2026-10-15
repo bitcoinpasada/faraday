@@ -7,7 +7,7 @@
 //!
 //! A maker page asks for one with a paragraph of its own, `::sketch
 //! <id>`, right after the step it shows ([`is_marker`]). Faraday
-//! Starter and Faraday Companion draw it there; the stick, the Pi and
+//! Starter draws it there; the stick, the Pi and
 //! Faraday Desktop never reach a page that has one. The sketches
 //! themselves, and the lookup from an id or a marker to one
 //! ([`crate`]'s sibling, `faraday-guides`), are not here: the words in

@@ -1,5 +1,4 @@
-//! The wallet description reader the device uses, shared with the
-//! Companion (`docs/COMPANION.md` §4.5): a descriptor, a BIP-388 policy,
+//! The wallet description reader the device uses: a descriptor, a BIP-388 policy,
 //! a threshold or silent payments record, a BIP 129 record, a multisig
 //! config, a Coldcard export, a wallet `.json` or Bitcoin Core's
 //! `listdescriptors`, each read as the one wallet it describes. A text it

@@ -1771,16 +1771,8 @@ impl Faraday {
         };
         let fields = match kind_ {
             Kind::Apk => vec![
-                mk(
-                    1,
-                    crate::strings::EN.apk_name_on_certificate,
-                    faraday_apk::key::DEFAULT_NAME,
-                ),
-                mk(
-                    2,
-                    crate::strings::EN.apk_package,
-                    faraday_apk::key::DEFAULT_PACKAGE,
-                ),
+                mk(1, crate::strings::EN.apk_name_on_certificate, ""),
+                mk(2, crate::strings::EN.apk_package, ""),
             ],
             Kind::Gpg => {
                 self.vaults.gpg_years = crate::gpg::DEFAULT_YEARS;

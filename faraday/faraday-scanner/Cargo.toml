@@ -9,7 +9,7 @@ repository.workspace = true
 publish = false
 
 # The decode policy is `opensigner_core::scan`'s reduction, copied into
-# `src/scan.rs` so that the Companion's scanner holds no part of
+# `src/scan.rs` so that the scanner holds no part of
 # OpenSigner's core; the preview's size is `osk-ui`'s token. The detector
 # is the workspace's vendored `rqrr`, read directly so that a pass can say
 # where a code was and how fine it is.

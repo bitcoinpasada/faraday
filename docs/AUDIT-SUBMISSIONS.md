@@ -109,11 +109,10 @@ The page offers them as a starting point for the audit's scope:
 > - **Untrusted input:** PSBTs, QR codes, images and file systems from
 >   the online computer.
 > - **The image and its tools:** release verification, the Secure Boot
->   keys, the upgrade, Faraday Starter's disk writing and checks, and
->   what Faraday Companion stores.
+>   keys, the upgrade, and Faraday Starter's disk writing and checks.
 > - **Access:** the keyboard code and the passphrase prompts.
-> - **Mistakes a person can make:** where Faraday, Faraday Starter or
->   Faraday Companion make an easy mistake possible that loses funds,
+> - **Mistakes a person can make:** where Faraday or
+>   Faraday Starter make an easy mistake possible that loses funds,
 >   exposes a key or locks a person out of their computer: a misleading
 >   label, steps in a confusing order, a risky action with no
 >   confirmation, a risky setup with no warning (a TV, a capture card or

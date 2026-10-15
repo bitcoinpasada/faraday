@@ -828,15 +828,6 @@ Get-FileHash -Algorithm SHA256 .\faraday-stick-0.1.2-x86_64-uefi.img.xz
 
 The release tags are signed with the same key: `git tag -v v0.1.2`.
 
-<!-- TODO (docs/APK-SIGNING.md §9, once faraday/companion-cert.pem is
-committed): a paragraph on Faraday Companion's APK: signed with an APK key
-made in Faraday whose private part has never left a Faraday vault; its
-certificate is faraday/companion-cert.pem; its SHA-256 fingerprint in full;
-and `apksigner verify --print-certs faraday-companion-X.Y.Z-android.apk`
-prints the same as "Signer #1 certificate SHA-256 digest". The fingerprint
-comes from `openssl x509 -in faraday/companion-cert.pem -outform der |
-sha256sum`. -->
-
 ## Relationship to OpenSigner
 
 `core/` and `opensigner/` are OpenSignerKit/OpenSigner's tree, kept in

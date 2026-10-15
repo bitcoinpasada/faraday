@@ -2,7 +2,7 @@
 //! (`docs/STARTER.md` §7): every page under `docs/learn/faraday/boot/`
 //! except `replace-faraday`, which stays `faraday-learn`'s (the stick's
 //! Upgrade screen shows it directly, without this crate). Read by the
-//! Starter and the Companion, and published by the website at
+//! Starter, and published by the website at
 //! `https://faradayoffline.app/start/<id>` (§7.4); the desktop app and
 //! the stick carry only the address of the guide for this computer
 //! (`faraday_learn::guide_address`), not its text.
@@ -10,7 +10,7 @@
 //! Also the maker pages' firmware sketches (`docs/DECISIONS.md` F18,
 //! `docs/STARTER.md` §7.8): data a page's `::sketch <id>` paragraph names
 //! ([`faraday_learn::is_marker`]), which only Faraday Starter (behind
-//! `faraday-core`'s `guides` feature) and Faraday Companion draw
+//! `faraday-core`'s `guides` feature) draws
 //! (`faraday_ui::sketch`). The desktop app, the stick and the Pi carry
 //! none of this.
 
@@ -94,7 +94,7 @@ const OWN: [(&str, &str); 17] = [
         "maker-surface",
         include_str!("../../../docs/learn/faraday/boot/maker-surface.md"),
     ),
-    // A maker with no page of its own (`docs/COMPANION.md` §4.7): the
+    // A maker with no page of its own (`docs/STARTER.md` §7): the
     // common keys, from the pages above, and the same steps. It matches
     // no computer, so it is not in `faraday_learn::MAKERS`.
     (
@@ -130,7 +130,7 @@ fn own() -> &'static [LearnPage] {
 }
 
 /// The id of every guide here, in [`OWN`]'s order: for an app that
-/// lists them all (the Companion's Learn), chained after
+/// lists them all, chained after
 /// `faraday_learn::ids()`.
 pub fn ids() -> impl Iterator<Item = &'static str> {
     OWN.iter().map(|(id, _)| *id)

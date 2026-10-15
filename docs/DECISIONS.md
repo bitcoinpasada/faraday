@@ -525,6 +525,8 @@ which families were tried (`docs/STARTER.md` §7.2, §7.6, D6).
 
 ### F15 Faraday Companion: an Android app with no network access (2026-10-12)
 
+*Superseded by F34 (2026-10-15): the Companion is dropped.*
+
 **Why.** The device and the Starter both hand things to a phone, and
 the phone has nothing of Faraday's to take them: the Pi's codes are its
 only way out and a webcam reads its panel badly, the Starter's guides
@@ -624,6 +626,8 @@ machine (2026-10-13) showed the suspension and the resume work.
   Secure Boot back on before starting Windows.
 
 ### F18 Firmware sketches in Faraday Starter and the Companion (2026-10-13)
+
+*The Companion's half is superseded by F34 (2026-10-15): the sketches are in the Starter only.*
 
 **Why.** The maker pages describe the firmware's menus in words. A
 picture of the screen to look for helps more, but the makers' own
@@ -1492,6 +1496,37 @@ recovery key onto a phone is irresponsible.
 - *The Companion refuses a recovery key* scanned, pasted or shared in,
   as it refuses a seed (owner, 2026-10-14: decided; COMPANION §4.6).
 - Specified, not built: STARTER §6.5's batches F33a to F33d.
+
+### F34 Faraday Companion is dropped (2026-10-15)
+
+**Why.** The Companion (F15) was to take the device's codes to a phone
+and keep what a phone should keep. The owner dropped it, at least for
+the time being: the Starter's guides carry the start-from-stick steps,
+with a sheet to write them down; the website's guide pages open on any
+phone from the Starter's QR code (STARTER §7.4); and QR transfer happens
+between the device and the wallet program directly. Nothing was
+released in it.
+
+**Decision** (owner, 2026-10-15).
+
+- *Dropped:* the app, `faraday-companion`, `faraday-companion-ffi`, the
+  Android shell with its fastlane metadata, the container that built
+  its APK, its two lints, `docs/COMPANION.md`, its strings, its Learn
+  page, the APK build in `faraday.just` and `stage-release.sh
+  --companion`, and what in `faraday-intake` only it used (the secret
+  classifier). The wordmark's COMPANION suffix goes with them.
+- *Supersedes:* F15 whole; F18's Companion half (the sketches stay in
+  the Starter); the Companion's parts of F25 (its name and package filled
+  in), F27's refusals (NOSTR §6.7) and F33 (its BitLocker store).
+- *Stays:* **Sign an APK** (F25, `docs/APK-SIGNING.md`): Faraday still
+  makes, keeps and uses an APK signing key for any app. Its name and
+  package fields start empty, where the Companion's name and package
+  were filled in. The release carries no APK.
+- *Bringing it back* is a revert. The last commit that has the
+  Companion is `d870d52`.
+- Tracker: #113 does the removal; it closes #16, #18, #76 and #111
+  (#111, reserved for this number before the decision, closed as not
+  planned).
 
 ### F35 A wallet's backup plan is asked place by place (2026-10-15)
 

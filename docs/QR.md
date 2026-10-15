@@ -5,7 +5,7 @@
 
 Faraday has one scanner and one QR sender, shared by the Wallets tab
 and the QR transfer tab. The sender's codes are made by `faraday-qr`'s
-`send` module, which Faraday Companion uses too (`docs/COMPANION.md`);
+`send` module;
 each app writes the line under them in its own words. The target is the union of what Faraday OS's QR
 transfer does and what the Wallets tab needs, built on what OpenSigner
 already has. This file lists every feature, where it comes from, and its

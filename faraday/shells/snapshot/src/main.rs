@@ -4653,7 +4653,7 @@ fn apk_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("vault-apk-key")?;
     let apk = std::fs::read("tools/vectors/apk/small-unsigned.apk").map_err(|e| e.to_string())?;
     t.app.inbox.push(faraday_core::Item {
-        name: "faraday-companion-0.1.3-android-unsigned.apk".into(),
+        name: "example-0.1.3-android-unsigned.apk".into(),
         bytes: apk,
         kind: faraday_core::wallet::FileKind::Apk,
         secret: false,

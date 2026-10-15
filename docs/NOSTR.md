@@ -64,11 +64,11 @@ Signing Nostr events is not part of this spec; it is a later item.
 - The vault's saved Nostr entry offers Show as QR and PNG for the npub,
   and Export encrypted, so a saved key goes to a phone without being
   derived again (§5.1).
-- A file holding an nsec is a secret kind with no code (§6.6); Faraday
-  Companion refuses `nsec1` and `ncryptsec1` (§6.7). Both are in N1.
+- A file holding an nsec is a secret kind with no code (§6.6). It is in
+  N1.
 - The reading rules for `nsec`, `npub` and `ncryptsec` text are
-  `faraday/faraday-intake/src/nostr.rs`, which the device and the
-  Companion share (§2.4). The derivation and NIP-49 are
+  `faraday/faraday-intake/src/nostr.rs`, which the device reads
+  (§2.4). The derivation and NIP-49 are
   `faraday/faraday-core/src/nostr.rs`, over `osk-bip`'s public key
   derivation and `osk-crypto`'s HMAC and scrypt; Bech32 is `bitcoin`'s.
   No new crate enters the graph (§2.3, §6.4).
@@ -136,8 +136,7 @@ OpenSigner adds the application, Faraday moves to its function and
 ### 2.4 Reading the encodings
 
 `faraday/faraday-intake/src/nostr.rs` decides what reads as each kind,
-for the vault page (§5.1), Files (§6.5, §6.6), KeePass export (§5.3)
-and the Companion (§6.7). Faraday never takes a looser reading.
+for the vault page (§5.1), Files (§6.5, §6.6) and KeePass export (§5.3). Faraday never takes a looser reading.
 
 A string reads as an **nsec** when, with surrounding white space
 trimmed:
@@ -505,19 +504,8 @@ no **Show as QR** and no **PNG** of it, and does not offer it to the
 secret sheet, so it never goes to the Outbox; it goes into the vault
 as §5.2 says. Faraday itself never writes such a file.
 
-### 6.7 Faraday Companion
-
-The Companion refuses an nsec and an ncryptsec, as it refuses other
-private keys and sealed files (`docs/COMPANION.md` §5):
-`faraday_intake::Secret` gains `NostrSecret` and `NostrEncrypted`,
-found by §2.4's rules in any text that arrives by camera, paste or
-share, and in a Faraday file envelope's file. A file holding either is
-refused whole. The refusal lines are "A Nostr secret key stays on the
-Faraday device." and "An encrypted Nostr key stays on the Faraday
-device." N1 adds both kinds to `docs/COMPANION.md` §5's refused row.
-
 An ncryptsec's QR is for the person's Nostr app, which scans it
-itself; the Companion is not the way it reaches a phone.
+itself.
 
 ## 7. Faraday Desktop and the demo
 
@@ -585,8 +573,6 @@ this spec.
 | `bip85_path_checked` | Path checked |
 | `bip85_path_differs` | Path does not give this key |
 | `catalog_nostr_key` | Nostr key |
-| `companion_refuse_nsec` | A Nostr secret key stays on the Faraday device. |
-| `companion_refuse_ncryptsec` | An encrypted Nostr key stays on the Faraday device. |
 
 ## 9. Learn page
 
@@ -692,9 +678,6 @@ In `faraday/faraday-core/tests/nostr.rs`, unless named otherwise:
 - with `online` set, on mainnet and on testnet, and in the demo: no
   Nostr key tile, six applications, and a Nostr entry's page with no
   Nostr actions;
-- in `faraday/faraday-companion/tests/refused.rs`'s samples: an nsec
-  and an ncryptsec, by camera, paste and share, refused with their
-  lines and nothing kept.
 
 ## 11. Batch
 
@@ -705,14 +688,12 @@ before any other work.
   `faraday-intake`; §3's application and tile; §4's cards, Find a pair
   and the Value card; §5's vault entry, §5.1's page actions and Path
   row, §5.2 and §5.3; §6's encrypted export, its prompt and the file's
-  exposure; §6.6's file kind; §6.7's Companion refusals, with
-  `docs/COMPANION.md` §5's row; §7's rules for Faraday Desktop and the
+  exposure; §6.6's file kind; §7's rules for Faraday Desktop and the
   demo; §8's strings; §9's Learn page; §10's vectors and tests; the
   Nostr rows of `docs/QR.md` (§7's table) brought to these file names.
   Renders: the tile, the Identity and account card, Find a pair, the
   Value card, the export prompt and a saved entry's page at `1280x800`
-  and `480x640`. It touches the device app and the Companion, so both
-  are built after it is committed.
+  and `480x640`. It touches the device app.
 
 ## 12. Decided by the owner (2026-10-14)
 
@@ -727,8 +708,7 @@ before any other work.
    ncryptsec's QR moves the key to a phone under a password.
 9. QR codes wherever they help: Show as QR and PNG for the npub and the
    ncryptsec, in the tool and on a saved entry's page (§4.4, §5.1, §6.1).
-10. Faraday Companion refuses `nsec1` and `ncryptsec1`, as it refuses
-    other private keys and sealed files, in N1 (§6.7).
+10. Superseded: the Companion is gone (F34).
 11. A new ncryptsec's password is at least 12 characters.
 
 After the review of v0.1, the same day:

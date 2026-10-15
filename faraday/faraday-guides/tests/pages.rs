@@ -1,4 +1,4 @@
-//! Every id the Starter and the Companion open a guide by has a page
+//! Every id the Starter opens a guide by has a page
 //! here (`docs/STARTER.md` §7.2, §7.6): every maker's, and the general
 //! pages the stick's QR names an address for (`windows`, `linux`,
 //! `mac-intel`).
@@ -68,7 +68,7 @@ fn the_linux_guide_asks_for_the_tpm_unlocked_disk_s_passphrase_first() {
 }
 
 // The guides a person follows at the computer are numbered steps
-// (docs/COMPANION.md §4.7): every maker's page, Other's, and the Windows
+// (docs/STARTER.md §7): every maker's page, Other's, and the Windows
 // and Linux guides.
 
 /// The pages written as steps.
