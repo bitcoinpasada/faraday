@@ -322,6 +322,32 @@ fn a_wrong_passphrase_stays_on_the_sheet_and_says_so() {
 }
 
 #[test]
+fn the_reminders_before_the_passphrase_leave_the_sheet_where_it_was() {
+    let files = stick_files();
+    let mut app = testkit::started();
+    app.devices =
+        faraday_core::devices::DeviceCheck::machine("flags\t: fpu vme", "LENOVO", "20XW", "10");
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.vaults.ms_per_unit = Some(100);
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
+    pump(&mut app, &files);
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let _ = app.frame();
+    // The first secret: the passphrase field. The reminders come first.
+    app.press(Action::Vault(V::FocusPassphrase));
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    app.press(Action::DevicesUnderstood);
+    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.import_field().is_some());
+    type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    app.press(Action::Import(I::Submit));
+    run_unlock(&mut app);
+    assert!(app.import.is_none() && !app.session.keys.is_empty());
+}
+
+#[test]
 fn not_now_leaves_home_leading_with_the_vaults_unlock() {
     let mut app = pulled();
     type_in(&mut app, "half typ");

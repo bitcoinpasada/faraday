@@ -5135,6 +5135,7 @@ impl Faraday {
             Action::Cancel => {
                 self.pull = None;
                 self.devices.after = None;
+                self.devices.over_import = false;
                 // A seed read and not loaded is wiped.
                 self.seed_read = None;
                 self.delete_ask = None;

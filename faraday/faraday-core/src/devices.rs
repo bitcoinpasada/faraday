@@ -290,6 +290,9 @@ pub struct DeviceCheck {
     screen_settled: bool,
     /// The reminders the person has seen and gone on from, this session.
     understood: Vec<&'static str>,
+    /// The boot import's sheet was open when the hold came up over it:
+    /// it comes back when the hold ends.
+    pub(crate) over_import: bool,
     /// The USB devices of concern attached now.
     present: Vec<Concern>,
     /// What the sheet names: each item found and not yet checked again
@@ -484,13 +487,14 @@ impl Faraday {
     pub(crate) fn device_hold(&mut self, action: Action) {
         self.devices.after = Some(action);
         self.devices.asking = false;
+        self.devices.over_import = self.sheet == Some(Sheet::Import);
         self.sheet = Some(Sheet::Devices);
     }
 
     /// The hold ended: what was pressed carries on once nothing holds
     /// it, or comes back to the sheet with the reminders due.
     fn device_released(&mut self) {
-        self.sheet = None;
+        self.sheet = std::mem::take(&mut self.devices.over_import).then_some(Sheet::Import);
         if let Some(a) = self.devices.after.take() {
             self.act(a);
         }

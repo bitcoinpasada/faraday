@@ -99,6 +99,10 @@ struct Tour {
     /// What the app last asked to keep across a lock: the Inbox, the
     /// Outbox and the kept state.
     boxes: Option<(Files, Files, Files)>,
+    /// The person goes on from the reminders sheet (F24) the first time a
+    /// secret opens it, as every new process owes them again. Off while
+    /// the tour shows that sheet itself.
+    go_on: bool,
 }
 
 type Files = Vec<(String, Vec<u8>)>;
@@ -284,6 +288,13 @@ impl Tour {
     fn press(&mut self, a: Action) {
         self.app.press(a);
         self.pump();
+        if self.go_on
+            && self.app.sheet == Some(faraday_core::Sheet::Devices)
+            && !self.app.device_reminders().is_empty()
+        {
+            self.app.press(Action::DevicesUnderstood);
+            self.pump();
+        }
     }
 
     /// Copies every test wallet's descriptor file in from the stick, as a
@@ -458,6 +469,7 @@ fn devices_tour(t: &mut Tour) -> Result<(), String> {
             },
         ],
     };
+    t.go_on = false;
     t.app.devices = laptop();
     t.app.usb_devices(&[receiver(false)]);
     t.press(Action::Entry(None));
@@ -504,6 +516,7 @@ fn devices_tour(t: &mut Tour) -> Result<(), String> {
     t.app.devices = laptop();
     t.app.usb_devices(&[]);
     t.pump();
+    t.go_on = true;
     t.shot("home-empty")
 }
 
@@ -578,6 +591,7 @@ fn run(
         dpi,
         host: None,
         boxes: None,
+        go_on: true,
     };
     match only {
         Some("spend") => return spend_tour(&mut t),
