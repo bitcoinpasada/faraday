@@ -308,10 +308,12 @@ read by eye (fingerprints, hashes, GUIDs) or taken from a stick
 these doors: its encrypted form carries the code in its place (the
 ncryptsec, an `.oskb`); a file let out through the secret sheet is shown
 by Files, marked Secret (`docs/FLOWS.md` decision 6); a seed's SeedQR in
-the backup's checklist; and the three exceptions the owner has made,
+the backup's checklist; and the two exceptions the owner has made,
 each because the secret's usual destination takes it by scanning and
-reads no encrypted form of it: SeedQR, the Starter's BitLocker recovery
-key (`docs/STARTER.md` D18) and the TOTP secret (below).
+reads no encrypted form of it: SeedQR and the TOTP secret (below). The
+Starter's BitLocker recovery key (`docs/STARTER.md` D18) was a third
+until `docs/DECISIONS.md` F33 (2026-10-14) removed it: no app of
+Faraday's shows that key, as a code or otherwise.
 
 **Added** (rows 1 to 6 are new codes; the rest is recorded so the
 rule's reach is written down):

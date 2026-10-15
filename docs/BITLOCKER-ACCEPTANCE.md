@@ -1,5 +1,18 @@
 # BitLocker guard: acceptance runs
 
+**Superseded** by `docs/DECISIONS.md` F33 (owner, 2026-10-14): the
+Starter has no BitLocker step, so there is no guard to accept, and runs
+1 to 4, 6 and 8 test code that batch F33a removes (`docs/STARTER.md`
+§6.6). What remains is a check of the Windows guide, not of the
+Starter, optional, as F17's observation already showed it: run 5 (the
+machine reproduces the prompt) and run 7's sequence without the
+Starter's BitLocker page (Secure Boot off in the firmware, the Faraday
+stick chosen from the boot menu on that same restart, power off,
+Secure Boot on, Windows started: no recovery prompt). The machine
+below, and `tools/winvm/`, stay for that and for trying the Windows
+Starter. The rest of this file is kept as the record of the runs done
+before F33.
+
 The steps for `docs/STARTER.md` §6.6's runs 1 to 8, in a Windows 11 Pro
 virtual machine, before batch W ships. Runs 1 to 6 test the extra-safe
 path (BitLocker suspended); runs 7 and 8 test the default path, the

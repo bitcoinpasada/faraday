@@ -1,7 +1,8 @@
 # The Starter
 
 **Status:** spec v0.2 · 2026-10-12 · decided by the owner in discussion
-(`docs/DECISIONS.md` F11 and F12). Not built. v0.2 is v0.1 with the
+(`docs/DECISIONS.md` F11 and F12); since F33 (2026-10-14) no BitLocker
+step, §6, specified, not built. v0.2 is v0.1 with the
 owner's answers to a review of it: §12 records each decision, §13 lists
 what changed. One decision stays open (D11).
 
@@ -32,14 +33,10 @@ Desktop**; the stick is Faraday.
   one review and one completion report each. A batch that needs an
   owner decision from §12 does not start until the owner has confirmed
   it.
-- §6's BitLocker step is optional (F21): an encrypted drive never
-  closes the firmware steps; by default it shows the recovery key, and
-  suspending is the extra-safe choice. Another encryption product
-  closes them until its rescue is confirmed (§6.4). The extra-safe path does not ship until §6.6's runs 1–6
-  pass in full. The default path ships after a check of its page on
-  Windows before the Windows release (§6.6); runs 7 and 8 are optional
-  (owner, 2026-10-13: run 5 and run 1 already show the prompt and the
-  key shown).
+- There is no BitLocker step (F33, §6): the Starter shows, keeps and
+  asks for no recovery key and suspends nothing; the step is turning
+  Secure Boot back on before Windows starts. Another encryption product
+  closes the firmware steps until its rescue is confirmed (§6.4).
 - The Windows builds are tried on a Windows computer the owner
   provides. §6.6 says which of its runs may happen on an owner's
   computer (the Home run, with the owner) and which never do (anything
@@ -244,8 +241,9 @@ MB too.
   before anything else in the binary is initialised: no window, no
   payload beyond the one file named, nothing read from the environment.
   The writer checks the device again before it writes (§4.3) and never
-  takes a path from anything but its arguments. The BitLocker calls
-  (§6) go through the same elevated copy, as `--bitlocker <verb>`.
+  takes a path from anything but its arguments. (The BitLocker calls
+  that went through it as `--bitlocker <verb>` are removed by F33,
+  §6.6.)
 - On Windows, winit already brings in `windows-sys`; the Win32 calls
   the shell needs (disks, volumes, registry, shortcuts, elevation) go
   through it, and no other Windows crate is added.
@@ -333,33 +331,26 @@ D12: Home leads with the next step for this computer's state, not with
 a menu).
 
 **This computer** (a card): maker and model (§7.1); whether Secure
-Boot is on; on Windows, whether the system drive is encrypted and, if
-the Starter suspended BitLocker, that it is suspended (§6.3). On a
+Boot is on (F33: no line on BitLocker, §6.2). On a
 computer that cannot start a Faraday stick (§7.1: an ARM computer, or
 one that started in legacy BIOS mode), one line says so; Make a stick
 stays, for another computer.
 
 **The checklist.** Each item carries its state, read live each time
 Home is drawn, never from a file the Starter keeps (§5.1). One item is
-marked as the next step, and a tap on the card's action opens it:
-while the Starter's BitLocker suspension stands, Turn Secure Boot back
-on and then Resume BitLocker, whichever applies first; otherwise the
-first of Make a Faraday stick and Start this computer from the stick
-that is not done (Start is never ticked, so it is the next step once a
-stick is attached, whatever BitLocker's state; F21). The BitLocker item
-is never the next step. Without a marker (Linux, or a Windows
-computer the Starter never suspended) Turn Secure Boot back on is
-listed and never marked. "Resumed" is known only in the session that
-resumed, since the marker goes with the suspension. Items that do not
+marked as the next step, and a tap on the card's action opens it: on
+Windows with Secure Boot off, Turn Secure Boot back on (F33, §6.2);
+otherwise the first of Make a Faraday stick and Start this computer
+from the stick that is not done (Start is never ticked, so it is the
+next step once a stick is attached). On Linux Turn Secure Boot back on
+is listed while Secure Boot is off and never marked. Items that do not
 apply to this computer are not shown.
 
 | Item | State shown | Done when |
 |---|---|---|
 | **Make a Faraday stick** → §3.2 | "No Faraday stick attached" or the attached stick's Faraday version (read as §4.1 reads it) | a Faraday stick is attached |
-| **Back up the BitLocker recovery key** → §6.5 (Windows, only when a drive is protected, or the Starter's suspension stands, or it was resumed). Optional (F21): drawn without a number or tick circle, after the numbered items, never the next step; under it the note of §6.5 and the link **What Secure Boot and BitLocker are** (§3.1b) | "Optional", "Key shown" (the key has been shown in this session; held in memory, never in a file), "Suspended by Faraday" or "Resumed" | not ticked: nothing waits on it |
 | **Start this computer from the stick** → §3.4 | "Secure Boot: on" or "off" | never ticked; it is where the firmware steps live |
-| **Turn Secure Boot back on** → §3.4 at step 4 (shown while Secure Boot is off, unless §6.3's marker says it was already off when the Starter suspended BitLocker; a computer with no marker is shown it whenever Secure Boot is off, since the Starter keeps no other record) | "Secure Boot: off" | Secure Boot is on |
-| **Resume BitLocker** → §6.3 (Windows, only while the Starter's suspension stands) | "Suspended by Faraday"; offered only with Secure Boot as the marker recorded it (§6.3) | protection is on |
+| **Turn Secure Boot back on** → §3.4 at step 4 (shown while Secure Boot is off; on Windows the next step, F33), with the link **What Secure Boot and BitLocker are** (§3.1b) | "Secure Boot: off" | Secure Boot is on |
 
 **The card's button** (owner, 2026-10-12) names the next action for
 this computer's state, and a button that restarts asks once first: a
@@ -372,15 +363,14 @@ sheet, "This restarts the computer now. Save your work first.", with
 | no Faraday stick attached | **Make a Faraday stick** | opens §3.2; no sheet |
 | Windows, another encryption product found and its rescue not confirmed (§6.4) | **I have its rescue disk or password**, under the line naming it | confirms it; no sheet |
 | Secure Boot on, or not known | **Restart into the BIOS** | §7.3's firmware restart |
-| Secure Boot off | **Restart from the stick** | Windows: `shutdown /r /o /t 0`, Windows' *Use a device*; Linux: the stick, once (below) |
+| Windows, Secure Boot off | **Restart into the BIOS**, for Turn Secure Boot back on (F33) | §7.3's firmware restart |
+| Linux, Secure Boot off | **Restart from the stick** | the stick, once (below) |
 
-While the Starter's BitLocker suspension stands, the checklist's own
-next step leads instead: Turn Secure Boot back on gives **Restart into
-firmware settings**, and Resume BitLocker gives **Resume BitLocker**,
-offered once Secure Boot is as the marker recorded it. Another encryption
-product not yet confirmed (§6.4) closes the restart buttons: the card shows
-**Restart into the BIOS** disabled, and the person confirms its rescue disk
-or password on §6.5's page, from Home's BitLocker item (F21). On a computer
+Another encryption product not yet confirmed (§6.4) closes the restart
+buttons: the card shows **I have its rescue disk or password** under the
+line naming it, and **Restart into the BIOS** disabled until it is
+pressed. (Windows' *Use a device* restart, `shutdown /r /o /t 0`, is
+removed by F33: it needs Windows started with Secure Boot off.) On a computer
 that cannot start a Faraday stick (§7.1) the button stays **Make a
 Faraday stick**, for another computer.
 
@@ -414,9 +404,9 @@ start-up file exist (MAC A1, A2), an M1 or M2 Mac's checklist is *Set
 up this Mac to start Faraday*, then *Start Faraday*, with *Remove
 Faraday from this Mac* in the rows once set up (MAC §4.5, §4.6).
 
-A person who comes back with Secure Boot off and BitLocker suspended
-sees Turn Secure Boot back on as the next step, and after that Resume
-BitLocker; a first-time visitor sees Make a Faraday stick. Nothing in
+A person who comes back to Windows with Secure Boot off sees Turn
+Secure Boot back on as the next step; a first-time visitor sees Make a
+Faraday stick. Nothing in
 the checklist writes to the computer except what its items do.
 
 **The rows**, under the checklist:
@@ -464,7 +454,7 @@ whether it can capture the screen or the keys without Faraday's help:
 | A KVM switch or IP-KVM (captures the screen, types from afar) | its USB identity (the Linux USB-gadget vendor `1d6b` with a keyboard and a disk; strings naming KVM) and the EDID name its capture side reports | its USB identity, from what `faraday-grant` reads |
 | A wireless keyboard receiver (keys travel over the air; owner, 2026-10-12: a notice, not a hold, about keyboards only, since a mouse's movements reveal next to nothing and the Starter cannot tell what a receiver has paired) | its USB identity (strings naming a receiver, dongle or wireless; the common receivers' IDs), as one line that holds nothing: "Wireless receiver attached. A wireless keyboard's typing can be picked up nearby: use a wired keyboard or the on-screen keyboard." | the same line as a reminder before the first secret (F24), and the on-screen keyboard is offered in every layout (the wide one included) |
 | Running inside a virtual machine (its host sees and can change everything) | says the stick must start on the real computer, and that the Starter cannot see the host's devices | refuses to go on: no Continue anyway |
-| Remote desktop, screen sharing, a wireless display | only around showing the BitLocker recovery key (§6.5) | none: the stick has no network |
+| Remote desktop, screen sharing, a wireless display | none: the Starter shows no secret (F33; it was checked only around the BitLocker recovery key) | none: the stick has no network |
 
 Not warned about: Wi-Fi, Bluetooth and USB network adapters, for which
 the stick has no driver (NET, WLAN and BT are forbidden), so they are
@@ -478,8 +468,8 @@ screen.
 
 The warning is on Home's This computer card and on the Start page,
 and it holds the steps that would put a secret on that screen: the
-restart buttons and the BitLocker guard's Show the recovery key stay
-closed while such a screen is attached, with **Check again**. Its
+restart buttons stay closed while such a screen is attached, with
+**Check again**. Its
 line names the screen ("Samsung QN65 is a TV. A TV can record what it
 shows: use another screen or computer."). A screen read as a TV that
 is not one can be let through once per session with **This is not a
@@ -520,20 +510,19 @@ receiver plugged in later) comes at the next secret.
 
 ### 3.1b What Secure Boot and BitLocker are (owner, 2026-10-12)
 
-Wherever the Starter shows Secure Boot or BitLocker (Home's card on
-Linux, Home's BitLocker item on Windows, the Start page, the guard's
-page) a small link, **What Secure Boot and BitLocker are**, opens the Learn page of that name
-(id `secure-boot-bitlocker`): what each is and what it guards against;
-why starting Faraday from a stick puts neither the computer nor its
-data at risk (the stick's kernel has no driver for the computer's own
-drives, SATA, NVMe or eMMC, so it cannot read or write them, and no
-network); what suspending BitLocker does, in plain terms (the drive
-stays encrypted; its key is left readable on the drive until resumed);
-the risk that remains, and that it is short (while suspended, someone
-holding the computer could read its drive; while Secure Boot is off,
-the computer would start software not signed by a key its firmware
-trusts, Microsoft's on most computers sold with Windows); and that
-the Starter offers turning both back on after every Faraday session.
+Wherever the Starter shows Secure Boot (Home's Turn Secure Boot back
+on, the Start page) a small link, **What Secure Boot and BitLocker
+are**, opens the Learn page of that name (id `secure-boot-bitlocker`):
+what each is and what it guards against; why starting Faraday from a
+stick puts neither the computer nor its data at risk (the stick's
+kernel has no driver for the computer's own drives, SATA, NVMe or
+eMMC, so it cannot read or write them, and no network); that Windows
+started with Secure Boot back on asks for nothing; the risk while
+Secure Boot is off (the computer would start software not signed by a
+key its firmware trusts, Microsoft's on most computers sold with
+Windows); and that the Windows guide says where Windows keeps the
+recovery key (§6.7). Since F33 it says nothing of suspending or of a
+backup.
 
 ### 3.1c The boot entry on Linux
 
@@ -621,8 +610,9 @@ follow this computer's state:
 2. The firmware steps for this maker: turn Secure Boot off; turn Fast
    Boot off where it hides USB. When Secure Boot is already off, this
    step says so and has nothing to do.
-3. **Start from the stick:** the maker's boot menu key, or Windows'
-   *Use a device*.
+3. **Start from the stick:** the maker's boot menu key, on the restart
+   that saves Secure Boot off, before Windows starts (F33: no Windows
+   *Use a device*).
 On an Intel Mac the steps are the Mac's, from the `mac-intel` guide
 (MAC §3.1, §3.2), and none of them is a button: on a T2 Mac, lower
 Startup Security in macOS Recovery; then shut down and hold Option at
@@ -631,19 +621,12 @@ one is set); on a T2 Mac, afterwards, Startup Security back to Full.
 A Mac the table does not know, and not ARM, gets the T2 steps marked
 as for a Mac with the T2 chip only.
 
-4. **Afterwards:** turn Secure Boot back on before starting Windows.
-   Not shown when §6.3's marker says Secure Boot was already off when
-   the Starter suspended BitLocker: that computer's owner chose to
-   have it off and is not told to turn it on. With no marker the Starter
-   app keeps no record and shows the step whenever Secure Boot is off.
-   On Windows, Resume BitLocker follows (§6.3).
+4. **Turn Secure Boot back on**, in the BIOS, before Windows starts
+   (F33). The last step, shown always, as the guides' last step is
+   (§6.7).
 
-On Windows, after the steps, the same optional BitLocker row as Home's
-(§3.1; F21), unnumbered, with its state and a secondary button **Back
-up the recovery key** that opens §6.5's page, and without the note. The
-steps are never held by BitLocker: they are offered whatever its state.
-Another encryption product not yet confirmed (§6.4) still closes the
-restart button.
+Nothing follows the steps: no BitLocker row (F33). Another encryption
+product not yet confirmed (§6.4) still closes the restart button.
 
 ### 3.5 Install and uninstall
 
@@ -785,8 +768,7 @@ stick from another stick without an online computer.
 
 Opening the downloaded file runs the Starter. It writes nothing to the
 computer except what the person asks for (a stick, a card, a received
-file, the desktop app's cache under §5.3) and, on Windows, the one
-marker §6.3 describes when it suspends BitLocker. Home's checklist
+file, the desktop app's cache under §5.3). Home's checklist
 (§3.1) reads its state live; there is no settings or state file.
 
 ### 5.2 Installing
@@ -800,7 +782,6 @@ Per user, never needing administrator rights.
 | Menu | `~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop` "Faraday Starter", and `…FaradayDesktop.desktop` "Faraday Desktop" (its description: test seeds only) | Start menu shortcuts `Faraday Starter` and, with the desktop app, `Faraday Desktop` |
 | Icon | `~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.FaradayStarter.png` | in the `.exe` |
 | Uninstall entry | — | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday Starter`: name "Faraday Starter", version, publisher "Faraday", icon, size, `UninstallString` = `"…\Faraday Starter.exe" --uninstall` |
-| Logon reminder | — | only while the Starter's BitLocker suspension stands (§6.3) |
 
 On macOS: the Starter at `~/Applications/Faraday Starter.app`, a copy
 of the running bundle made with `ditto` (which keeps its signature),
@@ -846,288 +827,217 @@ the running copy cannot delete itself; the uninstaller finishes by
 starting a short command that removes the folder once the Starter has
 exited.
 
-On Windows, while the Starter's BitLocker suspension stands (§6.3),
-Uninstall first offers **Resume BitLocker** when Secure Boot is on,
-and when it is off says in one line that protection stays suspended
-until it is resumed, and where Windows itself resumes it (Control
-Panel → BitLocker Drive Encryption → Resume protection). Either way
-the logon reminder and the marker are removed with the rest; the
-suspension itself is never undone silently and never left without the
-person having read that line.
+Uninstall's BitLocker paragraph (Resume, the logon reminder and the
+marker) is removed by F33; what it does for a computer the 0.1.2
+Starter suspended is §6.3's open question.
 
-## 6. The BitLocker guard (Windows)
+## 6. Secure Boot back on (Windows)
 
-**The requirement (owner, 2026-10-14, F21, after F17 of 2026-10-13):**
-nobody who follows the Starter's steps in order is asked for the
-BitLocker recovery key, and anybody who wants a backup of it can have
-one. BitLocker checks Secure Boot only when Windows starts, so a person
-who turns Secure Boot off, starts the stick and turns Secure Boot back
-on before Windows starts again is never asked. The BitLocker step is
-therefore optional and never closes the firmware steps: by default it
-shows the key, for a slip (Windows started while Secure Boot is off);
-suspending BitLocker, which also covers the slips and the firmware's
-keys changing, is the extra-safe choice. This section is how, and §6.6
-is how it is proved. (2026-10-12's requirement made suspending the only
-way to the firmware steps; F17 made the key in hand the default, still
-before them.)
+**The requirement (owner, 2026-10-14, DECISIONS F33):** the step that
+keeps Windows from asking for the BitLocker recovery key is turning
+Secure Boot back on in the BIOS before Windows starts again. The Starter
+and the Companion show, keep and ask for no recovery key, and suspend
+nothing. Specified, not built: §6.5's batches F33a to F33d.
 
-### 6.1 Why it happens
+Until 2026-10-14 this section was the BitLocker guard (F11, F12, F17,
+F21): Show the recovery key with its QR code and Save, an extra-safe
+suspension with a marker, a logon reminder and Resume, and §6.6's
+acceptance runs. That text is in the repository's history before F33;
+§6.6 below lists what of it is removed.
+
+### 6.1 Why turning Secure Boot back on is enough
 
 BitLocker, and Windows 11's Device encryption, which turns it on
 without asking on many laptops, seals the drive's key to the TPM's
 measurement of how the computer started, which on most laptops
-includes the Secure Boot state (PCR 7). Turning Secure Boot off and
-starting Windows, or turning it back on with different keys than before
-(a firmware's "restore factory keys"), and Windows asks for the 48-digit
-recovery key. Clearing the TPM does the same. Starting Faraday from a
-stick does not, on its own: Windows is not running then.
+includes the Secure Boot state (PCR 7). The TPM is asked only when
+Windows starts. Secure Boot off, Faraday from the stick, Secure Boot
+back on, then Windows: Windows sees the start it knows and asks for
+nothing (F17's observation on a computer of the owner's, and run 5 of
+the old acceptance list in a virtual machine).
 
-### 6.2 The guard
+**The risk, said plainly.** A person who forgets, and starts Windows
+with Secure Boot still off, is asked for the 48-digit recovery key.
+Faraday offers nothing for it. The guides say, in one line of fact,
+where Windows keeps the key (§6.7); that line is a pointer, not a flow
+(owner, 2026-10-14: offering to copy a recovery key onto a phone is
+irresponsible).
 
-The Starter finds out whether any Windows volume on this computer is
-protected, and if one is, offers the BitLocker step, optional (F21),
-at one of two levels:
+### 6.2 What the Starter does on Windows
 
-- **The default: a backup of the recovery key.** The page says where
-  the key is also kept (a Microsoft account, for Device encryption
-  under one) and offers **Show the recovery key** as in part 1 below,
-  with its QR code, its photo line and Save, but with no groups typed
-  back; **Done** hides it and returns to Home, which reads "Key shown"
-  for the rest of the session (memory only). Nothing on the computer
-  changes, and nothing waits on it.
-- **Extra safe: suspend BitLocker.** Both parts below, in this order
-  (owner, D16: the key first, so that a person who stops midway has
-  changed nothing on the computer). Unchanged from 2026-10-12.
+- Nothing about BitLocker. It does not read the drive's BitLocker
+  state, asks for no elevation for it, shows no key and changes no
+  protector. This computer (§3.1) has no encryption line.
+- **Turn Secure Boot back on** is Home's next step whenever Secure Boot
+  is off on Windows: Windows is running with it off, which is the start
+  the guides rule out, so turning it on comes before anything else. The
+  card's button is **Restart into the BIOS** (§7.3).
+- The Start page's step 4 (§3.4) is **Turn Secure Boot back on**,
+  before Windows starts, and is the last step.
+- **Restart to choose a device** and Windows' **Restart from the
+  stick** go: both need Windows started with Secure Boot off. The
+  guides choose the stick from the boot menu on the restart that saves
+  Secure Boot off (§3.4 step 3).
+- The stick reminds at power-off (§7.5).
 
-1. **The recovery key is in hand.** The Starter reads the volume's
-   recovery password (`GetKeyProtectorNumericalPassword`) and shows it,
-   the way Windows' own "Back up your recovery key" does. A volume with
-   no recovery password gets one added first
-   (`ProtectKeyWithNumericalPassword`), and that is the one shown. The
-   person keeps it one of these ways (owner, D18):
-   - writes it down or prints it;
-   - scans the QR code beside it with a phone: the code holds the key
-     as plain text (eight groups of six digits, with a line naming the
-     computer and the drive), which the phone's camera shows and offers
-     to copy, so it can be pasted into the phone's notes. Under the
-     code one line: "Or take a photo of this screen.";
-   - **Save**, to a file, offered only when a drive other than the
-     protected ones is attached and it is not a Faraday stick;
-     otherwise the button is not shown.
-   Then the person types two of its eight groups back, chosen by the
-   Starter, **with the key hidden** (DESIGN §4.10's secret, concealed)
-   from the moment the groups are asked for; a copy still on screen
-   would prove nothing about the written one. The key is never written
-   anywhere by the Starter unless the person chooses Save, and never
-   to the Faraday stick.
-2. **Protection is suspended.** The Starter suspends BitLocker on every
-   protected operating-system volume, with no restart count, so it
-   stays suspended until resumed (`Win32_EncryptableVolume.
-   DisableKeyProtectors` with a count of 0; batch W confirms against
-   Microsoft's documentation and §6.6 that 0 means until resumed, as
-   `Suspend-BitLocker -RebootCount 0` does). While suspended, Windows
-   starts without the key whatever the firmware and the TPM report:
-   Secure Boot off, Secure Boot on with other keys, a cleared TPM. At
-   this moment the Starter writes its marker (§6.3).
+### 6.3 A computer the 0.1.2 Starter suspended (open, for the owner)
 
-On the extra-safe path, suspending alone already prevents the prompt;
-the key in hand covers what the guard cannot see (a firmware update, a repair shop, a
-protector resumed by someone else).
+The Windows Starter published in 0.1.2 carries the guard, its
+extra-safe suspension among it. A computer suspended by it holds the
+marker `%LOCALAPPDATA%\faraday\bitlocker-suspended` and, when that copy
+was installed, the Run entry `Faraday Starter` pointing at
+`--remind`; its protection stays suspended until resumed. A Starter
+without §6's old code cannot resume it, and Windows Home has no
+Control Panel route to do so.
 
-All of this is done by the elevated writer (§2) through WMI's
-`root\CIMV2\Security\MicrosoftVolumeEncryption`, which answers in
-numbers in every Windows language and exists on Home editions with
-Device encryption. Nothing parses `manage-bde`'s localised text.
+Recommended: for one release, a Starter that finds that marker keeps
+only **Resume BitLocker** (the old code's resume, unchanged: offered
+once Secure Boot is as the marker recorded, elevated, then the marker
+and the Run entry deleted), as Home's next step; Install and Uninstall
+remove a leftover Run entry and marker; nothing else of the guard
+stays. It goes in the release after, when the owner says. The
+alternative is no code at all, and one line in the Windows guide on
+resuming by hand. The owner decides before batch F33a.
 
-Knowing whether the guard is needed does not need elevation: Home
-reads the volume's BitLocker protection state through the shell
-property `System.Volume.BitLockerProtection`. If that cannot be read,
-the Starter treats the drive as protected. Only the elevated WMI
-reading concludes that the drive is not encrypted, and only from
-`ProtectionStatus` 0 with `ConversionStatus` 0 (fully decrypted); a
-drive WMI does not list, and every shell value whose meaning Microsoft
-does not document (2 among them, until batch W's first run on a
-Windows computer records what each state reads), counts as not known
-(orchestrator, 2026-10-12).
+### 6.4 What stays: another encryption product, and Linux
 
-If the person declines the elevation prompt, the page says why in one
-line and offers the step again. The firmware steps stay offered on
-either path (F21).
-
-### 6.3 Resuming, only when it is safe
-
-Resuming is the person's act, through the Starter, never a task that
-runs at boot (owner, D17: v0.1's SYSTEM startup task was boot-time
-persistence by an unsigned program, and its action would have had to
-live somewhere no user can write; a reminder costs one click and one
-elevation prompt and keeps the Starter out of the boot path).
-
-- **The marker.** When it suspends, the Starter writes one small file,
-  `%LOCALAPPDATA%\faraday\bitlocker-suspended`, holding the volumes it
-  suspended and whether Secure Boot was on at that moment (§7.1's
-  registry value). The marker is how the Starter knows the suspension
-  is its own and not an administrator's, and how §3.4 step 4 and
-  Home's Turn Secure Boot back on know Secure Boot was on before. It
-  is deleted when protection is resumed through the Starter, and by
-  Uninstall.
-- **Resume BitLocker** is never offered in the Windows session that
-  suspended (the marker records that boot; a marker without it counts
-  as from an earlier boot), so nobody undoes the step they have just
-  taken; it shows "Needs Windows restarted first" instead.
-  After that it is offered, on Home's checklist and on the
-  guard's page, only while the marker exists and Secure Boot is now as
-  the marker recorded it: on, for a computer that had it on when the
-  Starter suspended, which is nearly every one; off, for one that
-  already had it off (orchestrator, 2026-10-12, after batch G: with
-  "on" alone such a computer would stay suspended for good, and
-  Windows Home has no Control Panel route to resume it). It resumes protection on the marker's volumes
-  (`EnableKeyProtectors`, through the elevated copy, §2) and deletes
-  the marker. Resuming seals the key to how this start was measured,
-  so a start with Secure Boot on as before, or on with different keys
-  (a firmware that cleared its keys and needed "restore factory
-  keys"), resumes cleanly. While Secure Boot is off on a computer
-  whose marker recorded it on, the button is not offered and the row
-  says why; protection stays suspended, which
-  costs protection, never access.
-- **The logon reminder.** An installed Starter (§5.2) adds, at the
-  moment it suspends, one per-user Run entry
-  (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Faraday Starter` =
-  `"…\Faraday Starter.exe" --remind`). At logon, `--remind` reads the marker
-  and the Secure Boot state and does one of three things: no marker,
-  or protection already on, it removes the Run entry and exits with no
-  window; marker and Secure Boot not as the marker recorded it, it
-  exits with no window; marker and Secure Boot as recorded, it opens
-  the Starter on the guard's page with Resume BitLocker as the one
-  thing to do. A Starter run without
-  installing has no logon entry: the guard's Done page says "Open
-  Faraday again after Secure Boot is back on, to resume BitLocker",
-  and Home shows it as the next step whenever the Starter is opened.
-  The Run entry points at the installed copy only, never at a file in
-  Downloads.
-
-### 6.4 Where the guard cannot reach
-
-- A person who changes firmware settings without the Starter. Every
-  other place the steps appear (the website's guides, §7.4–§7.5) says,
-  before any firmware step, that a backup of the recovery key is
-  optional, and to turn Secure Boot back on before Windows starts.
 - Another encryption product (VeraCrypt system encryption, a vendor's
   own). The Starter says it found an encrypted drive it does not
   manage, and does not offer the firmware steps until the person
-  confirms they have that product's rescue disk or password. VeraCrypt
-  is detected by its driver; anything else falls under "drive not
-  readable as BitLocker".
+  confirms they have that product's rescue disk or password (**I have
+  its rescue disk or password**, on Home's card, §3.1). VeraCrypt is
+  detected by its driver, as before. Nothing is shown or kept.
 - Linux with a disk unlocked by the TPM (`systemd-cryptenroll
   --tpm2-pcrs=7`): the Linux guide says the passphrase will be asked
   for, and to have it. The Starter detects a `tpm2-device` in
   `/etc/crypttab` and shows that line first.
-- A person without an administrator account. The elevation prompt
-  asks for an administrator's password they do not have. The guard's
-  page says so in one line ("An administrator of this computer has to
-  do this step") and offers it again; the firmware steps stay hidden.
-- A computer whose BitLocker an employer manages. The suspension may
-  be refused (`DisableKeyProtectors` fails) or undone by policy at the
-  next start. On a refusal the page says the computer's BitLocker is
-  managed and that its administrator has to suspend it; the firmware
-  steps stay hidden. A suspension undone later is caught by the
-  checklist's live state ("Protected" again, with the marker still
-  present): the page says so and offers the step again.
 
-### 6.5 What the person sees
+### 6.5 Batches (F33)
 
-One page, optional (F21), opened from Home's BitLocker item or the Start
-page's **Back up the recovery key**, when a drive is protected, titled
-**BitLocker recovery key**, in this order: the note ("To start
-Faraday, Secure Boot goes off, then back on before Windows starts.
-Windows then starts as usual and does not ask for the BitLocker
-recovery key. A backup of the key is optional: it gets you into
-Windows if it ever starts while Secure Boot is still off."), the one
-explanation on a working screen, an exception the owner made so the step
-reads as optional, on Home and on this page and nowhere else; the state
-("Drive C: is encrypted with BitLocker"); a value row, **Also kept in**:
-"Microsoft account: aka.ms/myrecoverykey" (where an employer's computer
-keeps it instead is said in the Learn page, not here); **Show the
-recovery key** as the primary button (the elevation prompt), then the
-key, its QR code, "Or take a photo of this screen." and Save where
-§6.2 allows it, with no groups typed back, and **Done**, which hides the
-key and returns to Home, where the item reads "Key shown" (held in
-memory, never in a file; set when the key arrives on screen); and
-**Extra safe: suspend BitLocker**, a secondary button. Nothing waits on
-any of it: **I have my recovery key** is gone.
+Specified, not built. Each is one review and one completion report;
+F33a, F33b and F33d may land together and be built once. Every batch
+changes `faraday-strings` or the Learn pages, which `faraday-core`
+carries, so each counts for every app: Faraday (the desktop app, the
+stick and the Pi), Faraday Starter and Faraday Companion.
 
-Extra safe turns the same page into the guard as 2026-10-12 built it,
-until the page is left: **Show the recovery key**; the key, its QR
-code, the photo line and Save; **I have kept it**, after which the key
-is hidden and the two groups are asked for; **Suspend BitLocker**;
-then Done: "Windows starts without the key until BitLocker is
-resumed. Resume it here once Secure Boot is back on." and, for a
-Starter not installed, "Open Faraday again to do that." The page is the
-same one Resume BitLocker opens later (§6.3). Learn: "BitLocker and
-starting from a stick".
+| Batch | What | Needs |
+|---|---|---|
+| F33a | Removal in the Starter (§6.6's Starter list); Home and the Start page as §3.1 and §3.4 now say; §6.3's answer | §6.3 decided |
+| F33b | Removal in the Companion (`docs/COMPANION.md` §4.6, §7): the store at version 2, a version 1 store deleted; recovery-key text refused (§5 there); `faraday_qr::bitlocker` removed, as its last user goes | none |
+| F33c | The stick's power-off reminder (§7.5): the line, its tone and place, the unread state; the idle power-off as decided | §7.5's question decided |
+| F33d | The guides' new text (§6.7), `bitlocker.md` removed from `faraday-guides`, the Companion's **BitLocker first** removed; the website's `start/bitlocker` page goes at its next build, in its own repository | none |
 
-### 6.6 Acceptance, before batch W ships
+**Tests**, user-facing:
 
-Runs 1 to 6 test the extra-safe path (§6.2, suspending); runs 7 and 8
-test the default path, the key shown and nothing suspended (F17, F21). Runs 7 and 8 are
-optional (owner, 2026-10-13): Windows checks Secure Boot only when it
-starts, which run 5 shows, and run 1 shows the key Starter shows is
-BitLocker's own; the default path changes nothing on the computer. In
-their place, before the Windows release, the default page is looked
-at on Windows: Show the recovery key without the type-back, and Done
-returning to Home.
+- The stick's power-off sheet shows "Turn Secure Boot back on in the
+  BIOS before starting Windows." when the stick started with Secure
+  Boot off, and when the state was not read; not when it started with
+  Secure Boot on. The Pi's power-off sheet and Faraday Desktop's never
+  show it (`faraday-core/tests/secure_boot_reminder.rs`, whose
+  "unknown says nothing" test changes to the rule it now encodes).
+- Every guide's last numbered step begins "Turn Secure Boot back on"
+  (the Windows, Linux and maker pages), and the Companion's guide page
+  ends with that step, ticked like the others (`faraday-guides`,
+  `faraday-companion/tests/start.rs`).
+- Nothing in the Starter or the Companion asks for or holds a recovery
+  key: on Windows with a protected drive the Starter's Home and Start
+  page show no BitLocker item, row or key, and Home's next step with
+  Secure Boot off is Turn Secure Boot back on with **Restart into the
+  BIOS**; the Companion's Home has no BitLocker row, a scanned or
+  pasted recovery-key text is refused with its line and the store after
+  is the store before, and a version 1 store is gone after the first
+  start.
+- Another encryption product still closes the firmware steps until its
+  rescue is confirmed.
 
-Two places, because Windows Home cannot be tested in a virtual machine
-(owner, D19): Home has no BitLocker switch, only Device encryption,
-which Windows turns on by itself and only on hardware that passes its
-checks, which a virtual machine fails.
+### 6.6 What is removed
 
-**Pro, in a virtual machine first:** Windows 11 Pro with a virtual TPM
-and Secure Boot on (QEMU with OVMF's Microsoft-key variables and
-`swtpm`, or Hyper-V where there is one), with BitLocker turned on on
-the system drive:
+- **Faraday Starter** (`faraday/faraday-starter`): the BitLocker page,
+  Home's BitLocker item, its note, states and "Key shown", the Start
+  page's BitLocker row, the guard's steps (show, type back, suspend,
+  done, resume) and the TV hold on Show the recovery key, in `lib.rs`,
+  `decide.rs`, `api.rs`, `draw.rs` and `examples/snap.rs`; the
+  dependency on `faraday-qr` for the key; `tests/bitlocker.rs`,
+  `tests/unreadable_bitlocker.rs`, and the BitLocker cases of
+  `tests/starter.rs` and `tests/concern_holds.rs`.
+- **The Starter's shell** (`faraday/shells/starter`):
+  `src/windows/bitlocker.rs`; the BitLocker reading and WMI calls in
+  `win.rs`, `sys.rs` and `mod.rs`; `--bitlocker` and `--remind` in
+  `main.rs` and `pipe.rs`; the logon Run entry in `install.rs`; the
+  key file Save; `platform.rs`'s BitLocker facts; `tests/bitlocker.rs`,
+  the BitLocker cases of `tests/windows.rs`, and the recorded WMI
+  answers in `tests/windows/` that serve only them. The VeraCrypt
+  driver check stays.
+- **Faraday Companion**: COMPANION §4.6 whole (`faraday-companion`'s
+  `kept.rs` keys, `route.rs`'s recovery-key route, `draw.rs`, `api.rs`,
+  `lib.rs`; the FFI's commands for keys in `faraday-companion-ffi`; the
+  shell's key counts in `KeptStore.kt`, `Core.kt` and
+  `MainActivity.kt`, and the manifest's comment);
+  `tests/bitlocker.rs`, and the BitLocker cases of `tests/lock.rs`,
+  `tests/start.rs` and `tests/common`.
+- **Shared:** `faraday/faraday-qr/src/bitlocker.rs`, its `pub mod`, its
+  `zeroize` use where only it needs it, and `tests/bitlocker.rs`; the
+  BitLocker cases of `faraday-core/src/testkit.rs`.
+- **Strings:** every `starter_` and `companion_` string in
+  `faraday/faraday-strings/src/en.rs` used only by the above (about 70:
+  the guard, the page, the states, the key, the Companion's BitLocker
+  keys, **BitLocker first**). `companion_closed_no_lock` becomes "Set a
+  screen lock on this phone to keep wallet descriptions."
+- **Learn:** `docs/learn/faraday/boot/bitlocker.md` and its entry in
+  `faraday-guides`; the lines §6.7 lists.
+- **Docs:** `docs/BITLOCKER-ACCEPTANCE.md` is superseded (its header
+  says what remains). `tools/winvm/` stays: it is how the Windows
+  Starter is tried, and a Windows with BitLocker on is the computer the
+  guide is checked on.
 
-1. Through the Starter: guard, then Secure Boot off in the firmware,
-   start the Faraday stick image, power off, Secure Boot on, start
-   Windows. **No recovery prompt**; Resume BitLocker offered at logon
-   (the reminder, with the Starter installed) and on Home; resuming
-   works; the marker and the Run entry are gone.
-2. As 1, but start Windows with Secure Boot still off. **No recovery
-   prompt**; protection still suspended; the reminder shows nothing;
-   Home says so and does not offer Resume; turning Secure Boot on and
-   starting again offers it.
-3. As 1, with the firmware's keys reset to default before turning
-   Secure Boot on. **No recovery prompt.**
-4. The elevation declined: the page says why and offers the step
-   again; the firmware steps stay offered (F21).
-5. Without the Starter, Secure Boot off and Windows started: the
-   recovery prompt appears. This shows the virtual machine reproduces
-   the problem, so 1–3 prove something.
-6. Uninstall while suspended, with Secure Boot on and with it off
-   (§5.4).
-7. The default path: the key shown only, nothing suspended; Secure Boot off in the firmware, the Faraday stick chosen
-   from the boot menu on that same restart, power off, Secure Boot on,
-   start Windows. **No recovery prompt**; protection was on throughout.
-8. As 7, but Windows started while Secure Boot is off. **The recovery
-   prompt appears**, and the key Faraday Starter showed unlocks it.
-   This shows the default path's slip is the one the guides warn of,
-   and that the backed-up key is enough to recover from it.
+### 6.7 The guides' new text
 
-**Home, on a computer of the owner's, with the owner, after the Pro
-runs pass:** a Windows 11 Home computer with Device encryption on,
-provided by the owner. The owner runs it, following the Starter on the
-screen, with the agent's steps written beforehand. Before the run the
-owner checks that the drive's recovery key is in their Microsoft
-account, where Home puts it, so the worst case is typing it once. Runs
-1 and 2 only. Never 3 (the firmware's keys reset) and never 5 (the
-deliberate recovery prompt) there: those stay in the virtual machine.
-A Home virtual machine on 24H2 or later, signed in with a Microsoft
-account, may turn Device encryption on by itself; if batch W gets one,
-Home's runs 1 to 5 may happen there instead, and the owner's run
-becomes a check of run 1 alone.
+Applied in batch F33d, in `docs/learn/` (the guides are compiled into
+every app, so the pages change with the code that reads them).
 
-Each run is recorded in the completion report: the steps, and a
-screenshot of Windows' first screen after each start (a photo of the
-screen for the owner's runs).
+- **The last step, everywhere.** In the Windows, Linux and maker pages
+  the last numbered step, under Afterwards, begins **Turn Secure Boot
+  back on** and ends "Do it before Windows starts." (Linux: before the
+  computer's own system starts). The maker's way stays between: for
+  Dell, "8. Turn Secure Boot back on: turn the computer on, tap F2, set
+  Secure Boot to Enabled, then Apply and Exit. Do it before Windows
+  starts." "unless Faraday Starter suspended BitLocker" goes from every
+  page. The Windows guide's step 7 (Resume BitLocker) goes, so step 6
+  is its last.
+- **Before you start** (maker pages): "On Linux, have the disk's
+  passphrase or recovery key ready if it is unlocked by the TPM." The
+  BitLocker sentence goes. The Windows guide's opens: "The last step
+  turns Secure Boot back on, before Windows starts. With Secure Boot
+  back on, Windows starts as usual and asks for nothing."
+- **The pointer**, one line under If something is different, in the
+  Windows guide and each maker page: "If Windows asks for the BitLocker
+  recovery key: for a computer set up with a Microsoft account, the key
+  is on the account's recovery-key page, aka.ms/myrecoverykey;
+  otherwise it is wherever it was saved when BitLocker was set up. Then
+  turn Secure Boot back on before the next start."
+- **The Windows guide**, If something is different: "Other ways to
+  choose the stick" goes (Use a device needs Windows started with
+  Secure Boot off); "Without the maker's key to turn Secure Boot back
+  on" reads "Without the maker's key: the screen at power-on often
+  names it, and the page Another maker lists the common ones."; the
+  lines on a computer whose Secure Boot was already off when the
+  Starter suspended BitLocker, and on a drive with no BitLocker item,
+  go.
+- **Surface:** step 6's "Or, in Windows, … Use a device" paragraph
+  goes.
+- **"What Secure Boot and BitLocker are"** (`secure-boot-bitlocker`)
+  stays, with its first two sections unchanged; its BitLocker section's
+  last paragraph reads: "If Windows starts while Secure Boot is still
+  off, it asks for the drive's 48-digit recovery key. The Windows guide
+  says where Windows keeps it. Turn Secure Boot back on before the next
+  start." Its title stays.
+- **"Screens that record"**: under Remote desktop, screen sharing, a
+  wireless display, the sentence on the Starter checking for them
+  before it shows the recovery key goes; the Starter shows no secret.
+- **The Companion's page** (`docs/learn/faraday/companion.md`): two
+  things kept, Received and Wallet descriptions; the unlock opens
+  Wallet descriptions; the sentence on BitLocker keys in the ways out,
+  and the section "The BitLocker recovery key", go.
 
 ## 7. Starting a computer from the stick
 
@@ -1141,7 +1051,7 @@ Read locally, shown only on this computer, sent nowhere.
 | Started in UEFI mode | `GetFirmwareType` | `/sys/firmware/efi` exists |
 | Secure Boot | `HKLM\SYSTEM\CurrentControlSet\Control\SecureBoot\State\UEFISecureBootEnabled` | the `SecureBoot-8be4df61-…` variable under `/sys/firmware/efi/efivars`, readable by every user |
 | ARM | `IsWow64Process2`'s native machine | `uname -m` |
-| Encryption | §6.2 | §6.4 |
+| Encryption | another product only (§6.4); BitLocker is not read (F33) | §6.4 |
 
 An ARM computer cannot start the x86_64 stick (Windows on Snapdragon
 laptops); one started in legacy BIOS mode needs UEFI turned on first,
@@ -1163,18 +1073,19 @@ carry them (`faraday-guides`), and the website publishes the same text
 (§7.4); the desktop app and the stick carry only the address of the
 guide for this computer, not its text. Pages:
 
-- *Starting a Windows computer from the stick*: BitLocker first (§6),
-  Fast Startup (Windows' Shut down is not a full shut down; restart, or
+- *Starting a Windows computer from the stick*: Fast Startup (Windows' Shut down is not a full shut down; restart, or
   turn Fast Startup off), the firmware settings through Settings →
-  System → Recovery → Advanced startup, *Use a device*, then Secure
-  Boot back on.
+  System → Recovery → Advanced startup, the boot menu, then **Turn
+  Secure Boot back on** as the last step, and where Windows keeps the
+  recovery key (§6.7).
 - *Starting a Linux computer from the stick*, with §6.4's TPM line.
-- *BitLocker and starting from a stick* (§6).
+- *What Secure Boot and BitLocker are* (§3.1b). *BitLocker and
+  starting from a stick* is removed (F33).
 - One page per maker family, published several at a time (§7.6,
   D6). Each has the same sections: Keys; Turn Secure Boot off; Turn Fast Boot off
   (where it hides USB); Start from the stick; Turn Secure Boot back on
   (including restoring factory keys where turning it off cleared
-  them); Known quirks. Each ends with a line of where it comes from:
+  them), the last numbered step (§6.7); Known quirks. Each ends with a line of where it comes from:
   the maker's support page and the date it was read. No page names
   the model it was tried on: the computers tried are the owner's, and
   their make and model are personal information (the owner's rule;
@@ -1189,10 +1100,9 @@ guide for this computer, not its text. Pages:
   (elevated); Linux `systemctl reboot --firmware-setup`. Both work on
   any maker in UEFI mode, so nobody has to catch a key at power-on to
   reach Secure Boot.
-- **Restart to choose a device** (Windows): `shutdown /r /o /t 0`,
-  Windows' advanced startup, whose *Use a device* starts the stick on
-  many computers without the boot menu key. Offered once Secure Boot is
-  off.
+- **Restart to choose a device** (Windows) is removed (F33): it was
+  offered once Secure Boot was off, so it needed Windows started with
+  Secure Boot off.
 
 Each button asks once ("This restarts the computer now. Save your work first.").
 
@@ -1206,26 +1116,66 @@ The address is the only one the Starter contains.
 
 ### 7.5 The stick reminds
 
-At power-off, a stick that started with Secure Boot off says so, with
-the maker's key for the firmware settings when the maker has a page:
-"Secure Boot is off. Turn it back on before starting Windows." The
-stick reads the Secure Boot state from `/sys/kernel/boot_params/data`
-(byte `0x1ec`: 2 off, 3 on; readable by every user on x86 and needing
-no efivarfs, which the stick's kernel does not build) and the maker
-from `/sys/class/dmi/id/sys_vendor`. Checked on a laptop 2026-10-12:
-byte `0x1ec` = 2 with the SecureBoot variable 0.
+(owner, 2026-10-12, D8; made the step's backstop by F33, 2026-10-14.
+Built as a muted line in batch G; F33's changes are batch F33c,
+specified, not built.)
 
-Beside that line the power-off sheet shows the QR code of the guide
-for this computer (owner, 2026-10-12): one code per computer, the same
-the Starter shows on its Start page and its restart confirmation
-(§3.4, §7.4), so a person scans one code for the whole procedure. The
-guide holds both halves: turning Secure Boot off and turning it back
-on. It is the maker's page when one matches the firmware's maker,
-family and model (`learn::maker`, as the Starter chooses it, read on
-the stick from `/sys/class/dmi/id/`), the general Windows page
-otherwise: `https://faradayoffline.app/start/<page>`, with no section
-anchor. Only on the stick, only when it started with Secure Boot off;
-the code is an address, so the stick reaches nothing.
+**The line.** At power-off, a PC stick that started with Secure Boot
+off, or whose Secure Boot state was not read, leads its power-off sheet
+with: "Turn Secure Boot back on in the BIOS before starting Windows."
+(`power_secure_boot_off`, which read "Secure Boot is off. Turn it back
+on before starting Windows." until F33).
+
+- **Where.** The power-off sheet (`docs/FLOWS.md`, Power off), the
+  first line under its title, above the guide's code and above Kept,
+  Wiped from memory and Then (FLOWS decision 28); in the warning tone,
+  at the size of the sheet's body text, not the muted note it was.
+- **No press of its own.** The sheet's **Power off** (or its hold, FLOWS
+  decision 5) is the press; the line adds none. A last screen after
+  Power off, held until a press, was weighed and not taken: one more
+  press at every power-off is dismissed by habit, and the sheet is
+  already read at the moment the person decides to stop.
+- **When.** Secure Boot off: shown. Not read: shown, since a PC stick
+  starts with Secure Boot on only once a key of the person's own is
+  enrolled (§7.7, later), which reads on. On: not shown.
+- **Only the PC stick.** The Pi has no BIOS; Faraday Desktop never
+  reads the state; a Mac (maker "Apple Inc.") follows `docs/MAC.md`
+  §3.2: a T2 Mac's Startup Security line, and none on another Intel
+  Mac, whose firmware has no Secure Boot.
+- **The rule on working screens.** A working screen carries labels,
+  values and actions. This line is the action the person takes next,
+  said at the moment of the press, in one sentence with no reason, as
+  F1's line of fact on the boot import sheet is. The reason is in Learn
+  (§3.1b) and in the guide behind the code.
+
+**How it is read.** The stick reads the Secure Boot state from
+`/sys/kernel/boot_params/data` (byte `0x1ec`: 2 off, 3 on; readable by
+every user on x86 and needing no efivarfs, which the stick's kernel
+does not build) and the maker from `/sys/class/dmi/id/sys_vendor`.
+Checked on a laptop 2026-10-12: byte `0x1ec` = 2 with the SecureBoot
+variable 0. The maker's key for the firmware settings is shown beside
+the line once the maker has a page.
+
+**The guide's code.** Under the line the power-off sheet shows the QR
+code of the guide for this computer (owner, 2026-10-12): one code per
+computer, the same the Starter shows on its Start page and its restart
+confirmation (§3.4, §7.4), so a person scans one code for the whole
+procedure; its last step is Turn Secure Boot back on (§6.7). It is the
+maker's page when one matches the firmware's maker, family and model
+(`learn::maker`, as the Starter chooses it, read on the stick from
+`/sys/class/dmi/id/`), the general Windows page otherwise:
+`https://faradayoffline.app/start/<page>`, with no section anchor. Only
+on the stick, only when the line is shown; the code is an address, so
+the stick reaches nothing.
+
+**The idle power-off (open, for the owner).** After a lock and 10 more
+idle minutes the stick powers itself off (`docs/FLOWS.md`, Lock), with
+nobody at it, so the sheet and its line are not seen. Recommended: on a
+PC stick that would show the line, no idle power-off: the stick stays
+locked on Unlock (the lock has already wiped the session) until Power
+off is pressed, and Settings' **Power off after** row reads "Not while
+Secure Boot is off" there. A long press of the computer's own power
+button cuts the power with no sheet; nothing can be shown then.
 
 ### 7.6 Maker families and where to start
 
@@ -1272,12 +1222,15 @@ Microsoft keys be removed (on some laptops that stops the graphics
 firmware loading). Surface has no custom keys. Not in the first
 release (§12, D9).
 
-Enrolling a key does not escape §6: the db's contents are part of the
-TPM's PCR 7 measurement, so adding a key changes it exactly as turning
-Secure Boot off does, and Windows asks for the recovery key unless
-BitLocker is suspended. The guard runs once before the enrolment, and
-Resume after it. What the guide removes is the second firmware visit
-every time, not the first.
+Enrolling a key does not escape BitLocker: the db's contents are part
+of the TPM's PCR 7 measurement, so adding a key changes it exactly as
+turning Secure Boot off does, and Windows asks for the recovery key at
+its next start unless BitLocker is suspended. Until F33 the guard ran
+once before the enrolment and Resume after it; F33 removed the guard,
+so batch S decides, when it is taken up, how its guide meets this
+(for example Windows' own Suspend-BitLocker, or the guide not offered
+on a drive BitLocker protects), and asks the owner. What the guide
+removes is the second firmware visit every time, not the first.
 
 ### 7.8 Firmware sketches
 
@@ -1450,9 +1403,9 @@ under Microsoft Defender on a Windows computer and reports any
 detection.
 
 A detection is likely at some point, not only at that run: an unsigned
-download that asks for elevation and suspends BitLocker matches
+download that asks for elevation and writes raw disks matches
 heuristics that change monthly, and §6.3's design (no boot-time task)
-exists partly to give them less to match. So the plan for the day it
+existed partly to give them less to match; F33 removed the suspension. So the plan for the day it
 happens is written now, not then: the website's download page and the
 README carry a short section, "If Windows or an antivirus blocks the
 file", that says what the Starter does to a computer (§10.3) and how
@@ -1470,8 +1423,7 @@ so, and how to check the zip against `SHA256SUMS` and its signature.
 ### 10.3 What it does to the computer
 
 Only what the person asks for: a written stick or card, an install, a
-saved file, the BitLocker suspension with its marker and, when
-installed, its logon reminder (§6), a restart. Uninstall takes back what install did (§5.4).
+saved file, a restart. Since F33 nothing touches BitLocker (§6). Uninstall takes back what install did (§5.4).
 On an Apple Silicon Mac (MAC §4.5a), the Faraday start-up volume and
 the shrunk macOS container, which the Starter's *Remove Faraday from
 this Mac* takes back.
@@ -1483,7 +1435,8 @@ this Mac* takes back.
 | R | Release groundwork: the glibc 2.31 container for the desktop app; `.xz` images; the new names; the Linux `.tar.gz`; `SHA256SUMS` with the `.img` and inner-file lines; the Starter's payload build; the xz decoder and its `docs/deps` note; README "Verifying a release" for Windows and the two Linux steps | decided | first |
 | L | The Starter on Linux: crates (§2), the D-Bus crate and its `docs/deps` note, Home as a checklist, Make a stick through udisks2 (with what each tried distribution asks for), the stick's version read from OSKBOOT and the keep-data rules, Make a Pi card for the one image, Install and uninstall, Try the desktop app, Transfer and Learn, About, `--image` for developers; then `tools/flash-stick` removed and the README's mention of it with it | decided | after R |
 | G | Guides: the general Windows and Linux pages and §7.2's other pages with their sources; detection on Linux; Restart into the BIOS on Linux; the stick's power-off reminder (§7.5); the first group of maker pages, several families at once (D6, F14); the website item in its own repository | decided | after R, independent of L and W |
-| W | The Starter on Windows: window, install and uninstall, disks and writing, detection, the BitLocker guard with the marker and the logon reminder and §6.6's acceptance, the firmware buttons, Transfer Send; Defender run; the report on what Windows does to a written stick (D11) | decided; D11 is answered by this batch's report | after L; needs G's general Windows page only |
+| W | The Starter on Windows: window, install and uninstall, disks and writing, detection, the firmware buttons, Transfer Send; Defender run; the report on what Windows does to a written stick (D11). Its BitLocker guard, marker, logon reminder and acceptance were built and are removed by F33a | decided; D11 is answered by this batch's report | after L; needs G's general Windows page only |
+| F33a–F33d | No BitLocker step: removal in the Starter and the Companion, the stick's power-off line, the guides' last step (§6.5) | §6.3 and §7.5's questions | any time; F33a after §6.3 is decided |
 | C | Windows camera for Transfer Receive, shared with the desktop app; the desktop app on Windows (§2's changes) and its install | built (HANDOFF item 76): C1, the desktop app on Windows with its install, its Try and a payload folder per system; C2, the camera on Media Foundation. To be tried on Windows | after W |
 | P | Pi: one image for the 2.8 inch panel, Make a Pi card tried on hardware; profiles, boards and other sizes when a second screen is tried | decided (D1, D2, D3, D5) | after L, independent of G, W and C |
 | S | Keeping Secure Boot on (§7.7) | D9 | last |
@@ -1499,14 +1452,11 @@ confirmed one refused; keep data offered only for a Faraday stick,
 refusing the same build string and warning on an older one, and never
 writing past the boot partition (against a regular file holding a
 stick image, as `stick-boot.sh` allows); Home's checklist showing the
-next step for each state (no stick, stick attached, protected,
-suspended with Secure Boot off, suspended with it on); install writing
+next step for each state (no stick, stick attached, Windows with
+Secure Boot off; F33); install writing
 exactly §5.2's files into a temporary home, and uninstall removing
-exactly them; the BitLocker guard's order (the key confirmed with it
-hidden before suspension; the firmware steps offered whatever
-BitLocker's state, and closed by another encryption product until its
-rescue is confirmed (F21); Resume offered only with the marker and Secure Boot as it recorded; `--remind`
-showing a window in one state of three) against a recorded WMI; the
+exactly them; the firmware steps closed by another encryption product
+until its rescue is confirmed; §6.5's F33 tests; the
 guide chosen for a maker string; a payload file that does not match
 its manifest refused; the stick's power-off line for each Secure Boot
 byte.
@@ -1531,10 +1481,11 @@ what moved.
   maker's own documentation (owner, 2026-10-12, DECISIONS F14,
   changing "only for a family tried on a computer": a page for one
   tried family alone would tell which maker the owner has).
-- **D7 BitLocker:** the guard as §6 describes: the key shown and
-  confirmed, then suspended until resumed; since F21 an optional
-  backup that never comes before the firmware steps.
-- **D8 The stick's power-off reminder:** yes, as §7.5.
+- **D7 BitLocker:** the guard: the key shown and confirmed, then
+  suspended until resumed; since F21 an optional backup. Superseded by
+  F33: no BitLocker step (§6).
+- **D8 The stick's power-off reminder:** yes, as §7.5; since F33 the
+  backstop for turning Secure Boot back on.
 - **D9 Keeping Secure Boot on:** a later batch.
 - **D10 Names:** "Faraday Starter" to people (F16, which changed v0.2's
   "Faraday"), "Faraday Desktop" for the desktop app; `faraday-starter` in the
@@ -1549,15 +1500,17 @@ what moved.
   and nobody runs `chmod` (§1.2).
 - **D15 Keep data reads the stick's version** from the boot partition
   and applies the stick's own upgrade rules (§3.2, §4.1).
-- **D16 Guard order:** the key in hand first, then suspend (§6.2).
+- **D16 Guard order:** the key in hand first, then suspend.
+  Superseded by F33.
 - **D17 Resuming:** the person's act through the Starter, with a logon
-  reminder for an installed copy; no boot-time task (§6.3).
+  reminder for an installed copy; no boot-time task. Superseded by
+  F33 (§6.3 asks what is kept for a computer 0.1.2 suspended).
 - **D18 The key on a phone:** a plain-text QR code and "Or take a
   photo of this screen"; Save to a file only when a drive for it is
-  attached (§6.2).
+  attached. Superseded by F33.
 - **D19 Acceptance for Windows Home:** on a Home computer of the
-  owner's, with the owner, after Pro passes in a virtual machine
-  (§6.6).
+  owner's, with the owner, after Pro passes in a virtual machine.
+  Superseded by F33 (`docs/BITLOCKER-ACCEPTANCE.md`'s header).
 - **D20 The desktop app on Windows:** yes, from batch C, carried by
   the Windows Starter and offered by its Install (§2, §3.5). Built in
   C1: the payload has a folder per system, each Starter offers only its
@@ -1580,6 +1533,17 @@ saves Secure Boot off, and to turn Secure Boot back on before Windows
 starts again.
 
 Changed on 2026-10-14 by F21 (owner): the BitLocker step is optional.
+
+Changed on 2026-10-14 by F33 (owner): there is no BitLocker step. §6 is
+now Secure Boot back on: what the Starter does on Windows, the open
+question for a computer the 0.1.2 Starter suspended, what stays
+(another encryption product, Linux's TPM line), batches F33a to F33d,
+what is removed, and the guides' new text. §0, §2, §3.1 (no BitLocker
+item; Turn Secure Boot back on is Windows' next step with Secure Boot
+off; no *Use a device* restart), §3.1a, §3.1b, §3.4 step 4, §5.1,
+§5.2, §5.4, §7.1, §7.2, §7.3, §7.5 (the power-off line, its place,
+tone and states, and the idle power-off question), §7.7, §10.2, §10.3,
+§11 and §12 follow it. Specified, not built.
 
 From v0.1:
 

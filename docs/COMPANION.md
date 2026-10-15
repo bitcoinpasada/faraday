@@ -4,22 +4,22 @@
 in discussion (`docs/DECISIONS.md` F15). Not built. §12 records each
 decision; none is open. D7, the APK signing key, was replaced on
 2026-10-14 (F25): the key is made, kept and used in Faraday, and its
-spec is `docs/APK-SIGNING.md`.
+spec is `docs/APK-SIGNING.md`. D5, the BitLocker recovery key, was
+withdrawn on 2026-10-14 (F33): the Companion keeps no BitLocker key
+(§4.6), specified, not built.
 
 The problem it solves: Faraday's device and the Starter both hand things
 to a phone, and today the phone has nothing of Faraday's to take them.
 The Pi has no USB and no HDMI, so QR codes are its only way out, and a
 laptop's webcam reads a 2.8 inch panel badly. The Starter's guides live
 on the website, so a phone opening them tells the website which maker's
-computer is being set up. The BitLocker recovery key goes to the phone
-as text pasted into a notes app that may sync it to a cloud. A wallet's
+computer is being set up. A wallet's
 description, whose loss can lose a multisig's money, has no second home.
 
 Faraday Companion is an Android app with no network access. It reads
 the device's codes and shows codes for the device to read, keeps the
-files that arrive, keeps wallet descriptions and BitLocker recovery
-keys, and carries the Learn pages, the start-from-stick guides among
-them. It never takes a seed, a private key or a sealed vault, and it
+files that arrive, keeps wallet descriptions, and carries the Learn
+pages, the start-from-stick guides among them. It never takes a seed, a private key or a sealed vault, and it
 never signs.
 
 People see it as **Faraday Companion**. It is not the Starter and not a
@@ -58,7 +58,8 @@ wallet; "online" is not in its name because it is not online.
 | Shows a file, a PSBT or a description as codes for the device (§4.3) | Signs, seals, or holds any key that can spend |
 | Takes a file shared from another app, and shares a kept file to one (§6.3) | Opens a network connection, a link, or the clipboard for writing |
 | Keeps wallet descriptions, with each one's first address (§4.5) | Takes a TOTP secret (`otpauth://`): a code generator belongs on the device |
-| Keeps BitLocker recovery keys from the Starter until the person deletes them (§4.6) | Backs anything up to a cloud or copies it to a new phone (§7) |
+| Carries the start-from-stick guides, whose last step is Turn Secure Boot back on (§4.7) | Keeps, shows or asks for a BitLocker recovery key (§4.6, F33) |
+| | Backs anything up to a cloud or copies it to a new phone (§7) |
 | Carries every Learn page, and opens the Starter's guide addresses as its own pages (§4.7) | Checks a balance, writes a payment or broadcasts: those are a later, separate app, if ever (§12, D10) |
 
 Online use (broadcasting a finished transaction, watching a wallet,
@@ -161,14 +162,12 @@ desktop app's Scan and QR sheets do. Where this section names a DESIGN
 
 Rows, in this order: **Scan a Faraday QR code**, **Send to Faraday**,
 **Received** (with the count kept), **Wallet descriptions** (the
-count), **BitLocker keys** (the count; the row is shown only when one
-is kept),
-**Start from the stick**, **Learn**, **About**.
+count), **Start from the stick**, **Learn**, **About**.
 
 ### 4.2 Scan a Faraday QR code
 
 One scanner for every code Faraday shows: the device's (the stick or the
-Pi), the Starter's guide addresses (§4.7) and its BitLocker key (§4.6).
+Pi) and the Starter's guide addresses (§4.7).
 (Named "Receive from Faraday" until 2026-10-13, owner.)
 
 A scanner, as the desktop app's Scan sheet, with Paste and no Type. Whatever arrives is
@@ -210,38 +209,30 @@ program (`docs/FAMILY.md` §5). The Learn page says so.
 A description reveals every address of the wallet and so its balance
 and history. It cannot spend.
 
-### 4.6 BitLocker keys
+### 4.6 No BitLocker keys (F33)
 
-The Starter shows a BitLocker recovery key as a plain-text QR code
-(`docs/STARTER.md` §6.2, D18): eight groups of six digits and a line naming
-the computer and the drive. The Companion recognises that text when it
-is scanned or pasted, on any screen, and keeps it under the computer
-and drive it names. The format is written and read by one function in a
-crate both apps use, tested in both directions.
+Removed by `docs/DECISIONS.md` F33 (owner, 2026-10-14; specified, not
+built: `docs/STARTER.md` §6.5, batch F33b). Until then this section was
+**BitLocker keys**: the Starter's recovery key scanned as plain text,
+kept under the computer and drive it named, a Record with **Back in
+Windows** and its sheet **Delete this key?**, and a text format shared
+with the Starter (`faraday_qr::bitlocker`). The owner's reason:
+offering to copy a recovery key onto a phone is irresponsible, and the
+step that keeps Windows from asking for it is turning Secure Boot back
+on before Windows starts, which the guides end with (§4.7).
 
-A kept key's Record: the computer, the drive, the key (DESIGN's long
-secret: masked, shown on hold), when it was kept, and **Delete**. Under
-them, one action: **Back in Windows** (owner, 2026-10-12, D5). It
-opens a sheet titled **Delete this key?** with two lines of fact, as
-F1's sheet carries one:
-
-- "Not needed if Windows started without asking for it."
-- "Faraday Starter shows it again the next time Faraday is set up on
-  this computer."
-
-and **Delete the key** (primary) and **Keep it**. Both close the
-sheet. **Delete** on the Record asks once, without the two lines. The
-Learn page (§4.7) says the rest: if Windows
-started without asking for the key, the guard worked as expected and
-the copy here is no longer needed; it can be deleted anyway, for
-privacy, at any time; and the Starter shows the key again before its
-firmware steps the next time Faraday is set up on that computer, so it
-can be scanned in again then. The key stays valid until it is changed
-in Windows, whether or not it is deleted here.
-
-The key is never shared, never saved to a file and never shown as a
-code by the Companion: it came from the Starter and goes back to the
-person's eyes only.
+- Home has no BitLocker row; the scanner has no route for a key; the
+  store keeps descriptions only (§7).
+- A recovery key that arrives (eight groups of six digits, alone or
+  with the naming line the 0.1.2 Starter's code carries) is refused as
+  §5's secret kinds are: "This is a BitLocker recovery key. It is not
+  kept here." The check is the shape alone, a few lines in the
+  Companion's router, with no shared format.
+- Keys already kept by a debug build: nothing migrates, since no
+  Companion was released. The store's format is version 2, without
+  keys; a version 1 store is deleted, with its wrapped key and its
+  counts, at the first start of the new build, and the person scans
+  their wallet descriptions in again.
 
 ### 4.7 Start from the stick, and Learn
 
@@ -264,8 +255,9 @@ their computer:
 - After that it opens on that computer's page, headed with the choice
   and **Change**:
   - the general guide for that system (`windows`, `linux`);
-  - on Windows, **BitLocker first**, opening the BitLocker pages
-    (`bitlocker`, `secure-boot-bitlocker`);
+  - on Windows, **What Secure Boot and BitLocker are**
+    (`secure-boot-bitlocker`); **BitLocker first** and the `bitlocker`
+    page are removed (F33);
   - **Choose the maker** the first time, which lists the maker pages
     (`faraday-learn`'s `MAKERS`) and **Another maker** (the general
     guide); after that the maker chosen, with **Change**;
@@ -295,14 +287,21 @@ step's number in a circle, its fallbacks and sketches indented under
 it. Tapping the circle turns it green with the number in white, and
 tapping again clears it; a drag that scrolls never ticks. Under the
 title, `3 of 8 done`; at the end, once one is ticked, **Start again**.
+
+**The last step is Turn Secure Boot back on** (owner, 2026-10-14, F33).
+On the Windows, Linux and maker pages the last numbered step, under
+Afterwards, begins **Turn Secure Boot back on**, in the BIOS, before
+Windows starts (`docs/STARTER.md` §6.7). It is ticked off like the
+others, and the page's count includes it, so `8 of 8 done` is reached
+only with Secure Boot back on.
 The ticks are kept per page, as the computer and maker are, so a phone
 that stops the app while its person is in the firmware keeps the place.
 
 A new page, `docs/learn/faraday/companion.md`: what the Companion keeps
-and refuses; that it has no network access and how anyone can check it
-(§6); what a description reveals; the recovery key and deleting it
-(§4.6); installing it on a phone that only takes verified developers'
-apps (§8).
+and refuses, a BitLocker recovery key among what it refuses (§4.6);
+that it has no network access and how anyone can check it (§6); what a
+description reveals; installing it on a phone that only takes verified
+developers' apps (§8). Its section on the recovery key goes (F33).
 
 ### 4.8 About
 
@@ -325,11 +324,10 @@ the device uses (`osk-codec`, `faraday-qr`), then:
 | Faraday file envelope | Received, after its SHA-256 is checked |
 | PSBT (any form `docs/QR.md` §1 reads), finished transaction | Received, as `.psbt` or the transaction as hex text |
 | Wallet description (any form the device reads), account key (`crypto-account`, `crypto-hdkey`, xpub) | Received; on the Wallet descriptions screen, straight into Wallet descriptions |
-| BitLocker recovery key text (§4.6) | BitLocker keys |
 | The website's guide address (§4.7) | That Learn page |
 | Address | Shown as text with its kind |
 | Any other text | Shown as text; not kept unless the person presses **Keep** |
-| Seed words, SeedQR, CompactSeedQR, codex32, xprv, private key, `ur:crypto-seed`, encrypted backup, sealed vault, `otpauth://` | **Refused, and not kept anywhere.** One line names what it is and says it stays on the Faraday device: "This is a seed. Seeds stay on the Faraday device." The bytes are dropped from memory when the line is shown. |
+| Seed words, SeedQR, CompactSeedQR, codex32, xprv, private key, `ur:crypto-seed`, encrypted backup, sealed vault, `otpauth://`, a BitLocker recovery key (§4.6, F33) | **Refused, and not kept anywhere.** One line names what it is and says it stays on the Faraday device: "This is a seed. Seeds stay on the Faraday device." The bytes are dropped from memory when the line is shown. |
 
 A refusal is the same whether the item came by camera, paste or share.
 A file shared in that holds a refused kind is refused whole.
@@ -373,7 +371,7 @@ person presses one of these:
 - **Share**: the system share sheet with the one file chosen, through a
   read-only content provider of the Companion's own (platform
   `ContentProvider`, no AndroidX `FileProvider`) granting a read
-  permission for that file alone. BitLocker keys are never shared (§4.6).
+  permission for that file alone.
 - **Save**: the system document creator, which writes where the person
   picks.
 
@@ -388,19 +386,19 @@ document picker, the camera, and Paste. Nothing else.
   shell the bytes to keep; the shell encrypts and writes them, as
   upstream's shell keeps its blob.
   - **Received**: its key needs nothing from the person.
-  - **Wallet descriptions and BitLocker keys** (owner, D4): its key works only after
+  - **Wallet descriptions** (owner, D4): its key works only after
     the person unlocks with the phone's own lock, asked by the system's
-    prompt each time either screen is opened. On Android 11 and later
+    prompt each time the screen is opened. (It held BitLocker keys too
+    until F33; §4.6 says what happens to a version 1 store.) On Android 11 and later
     the key is bound to each unlock (`setUserAuthenticationParameters`
     with a timeout of 0, strong biometric or the device credential); on
     Android 8 to 10 it is valid for 30 seconds after the system's
     confirm-credential screen. The Companion asks again after it has
     been in the background. A scan or share that brings a description
-    or a recovery key asks at the moment it is kept.
+    asks at the moment it is kept.
   - A phone with no screen lock cannot hold such a key. Wallet
-    descriptions and BitLocker keys then say "Set a screen lock on
-    this phone to keep wallet descriptions and BitLocker keys." and
-    keep nothing; Received works as before.
+    descriptions then says "Set a screen lock on this phone to keep
+    wallet descriptions." and keeps nothing; Received works as before.
 - `allowBackup` is false and the data-extraction rules exclude every
   domain, as upstream's: nothing goes to a cloud backup or to a new
   phone. Moving to a new phone means scanning or sharing each thing
@@ -439,12 +437,11 @@ document picker, the camera, and Paste. Nothing else.
 ## 9. Security
 
 What the Companion holds: received files (PSBTs, which show amounts and
-the wallet's keys; descriptions), wallet descriptions, and BitLocker
-recovery keys. None of them spends bitcoin. A phone that is compromised
-can read all of them: the wallets' balances and history, and the key to
-the named computer's Windows drive. That is why the recovery key is
-offered for deletion (§4.6) and never leaves the app, and why the store
-is encrypted and kept out of backups.
+the wallet's keys; descriptions) and wallet descriptions. None of them
+spends bitcoin, and none opens anything else of the person's: since
+F33 it holds no BitLocker recovery key, and refuses one (§4.6). A phone
+that is compromised can read all of them: the wallets' balances and
+history. That is why the store is encrypted and kept out of backups.
 
 What a compromised Companion cannot do is move money. It relays PSBTs
 and transactions; it can alter one, and the device then shows what the
@@ -470,7 +467,13 @@ one (§3, D1).
   against the format as §6.2 of that document gives it), the two
   encrypted files and the unlock before Wallet descriptions and BitLocker keys
   (§7), the share target and source (§6.3), the guide addresses
-  (§4.7), the Learn page.
+  (§4.7), the Learn page. Built; its BitLocker keys are removed by
+  F33b.
+- **F33b, no BitLocker keys** (`docs/STARTER.md` §6.5, §6.6;
+  specified, not built). §4.6's removal, the store at version 2, the
+  refusal of a recovery key, `faraday_qr::bitlocker` removed; with
+  F33d, the guides' last step (§4.7). Builds every app, through
+  `faraday-strings` and the guides.
 - **C, release.** The pinned container, the reproducible unsigned
   release APK and a second build that matches it, made from the tag on
   another computer, whose SHA-256 Faraday's review requires before it
@@ -500,7 +503,8 @@ one (§3, D1).
   dates.
 - **Tried on a phone**, by the owner, with a stick and with the Pi:
   receive a file and a signed PSBT from each; send a PSBT shared from a
-  phone wallet; the Starter's recovery key scanned and deleted.
+  phone wallet; a Windows guide followed to its last step, Turn Secure
+  Boot back on.
 
 ## 11. Tests
 
@@ -513,17 +517,20 @@ User-facing behaviour only (`CLAUDE.md`):
 - Every refused kind in §5, by scan, paste and share, is refused with
   its line and nothing is kept: the store after the attempt is the store
   before it.
-- The Starter's recovery-key text is read back as the computer, the
-  drive and the key it was written with; **Delete the key** leaves no
-  key in the store.
+- A BitLocker recovery key, scanned or pasted, alone or with the 0.1.2
+  Starter's naming line, is refused with its line and nothing is kept;
+  Home has no BitLocker row; a version 1 store is gone after the first
+  start (F33).
+- The Windows guide, and each maker page, ends with the step that
+  begins Turn Secure Boot back on, ticked like the others (F33).
 - The website's guide address opens the page it names; another web
   address is shown as text.
 - A kept description's first address matches the published vector for
   that description (BIP-84's, and the interop files of
   `docs/INTEROP.md`).
 - The store written and read back through the shell's encryption gives
-  the same received files, wallet descriptions and BitLocker keys.
-- On the emulator: Wallet descriptions and BitLocker keys do not open
+  the same received files and wallet descriptions.
+- On the emulator: Wallet descriptions does not open
   until the phone's unlock is given, and ask again after the app has
   been in the background; with no screen lock set they keep nothing and
   say so, and Received still works.
@@ -543,8 +550,10 @@ the rest as recommended in v0.1 of this document.
   the code.
 - **D4 Opening the kept things:** the phone's own unlock, asked by the
   system's prompt, before Wallet descriptions and BitLocker keys open,
-  with their file's key bound to it (§7).
-- **D5 The recovery key:** kept until the person deletes it, with
+  with their file's key bound to it (§7). Since F33, Wallet
+  descriptions only.
+- **D5 The recovery key** (superseded by F33, 2026-10-14: no BitLocker
+  key is kept, §4.6): kept until the person deletes it, with
   **Back in Windows** offering the deletion; the sheet and the Learn
   page say that a key Windows did not ask for is not needed here, that
   it can be deleted anyway, and that it can be scanned in again when

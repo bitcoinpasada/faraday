@@ -413,7 +413,9 @@ files.
 - Nobody who follows the Starter's steps is ever asked for a BitLocker
   recovery key: before any firmware step it suspends BitLocker until
   Secure Boot is back on, and shows the recovery key, which the person
-  confirms by typing part of it back (`docs/STARTER.md` §6).
+  confirms by typing part of it back (`docs/STARTER.md` §6). (Changed
+  by F17 and F21; superseded by F33: the step is turning Secure Boot
+  back on.)
 - The Windows Starter is not code-signed: a certificate names a
   verified person or company, and Faraday is published under a
   pseudonym, for privacy. Windows' first-run warning is documented, with
@@ -545,7 +547,7 @@ online wallet.
 - A kept recovery key is offered for deletion once the person is back
   in Windows: a key Windows did not ask for is not needed there, and
   the Starter shows it again the next time Faraday is set up on that
-  computer.
+  computer. (Superseded by F33: the Companion keeps no BitLocker key.)
 - Online use, if ever, is a separate app, so this one never gains the
   network permission.
 - Wallet descriptions and BitLocker recovery keys open only after the phone's
@@ -591,6 +593,8 @@ the restart into the stick), not only the first time.
   wordmark alone.
 
 ### F17 The BitLocker step is the recovery key; suspending is the extra-safe choice (2026-10-13)
+
+*Superseded by F33 (2026-10-14): there is no BitLocker step.*
 
 **Why.** STARTER §6 made suspending BitLocker the one way through to the
 firmware steps on Windows. BitLocker checks Secure Boot only when
@@ -700,6 +704,8 @@ already took only public seeds on mainnet; the two differed.
   from a test one.
 
 ### F21 The BitLocker step is optional (2026-10-14)
+
+*Superseded by F33 (2026-10-14): there is no BitLocker step.*
 
 **Why.** F17 made the recovery key in hand the default BitLocker step,
 and still put it before every firmware step: on Windows with an
@@ -1077,7 +1083,8 @@ authenticator app, which takes it by scanning.
   backup's checklist. The exceptions are those whose usual destination
   takes the secret by scanning and reads no encrypted form of it:
   SeedQR, the Starter's BitLocker recovery key (STARTER D18), and now
-  an entry's TOTP secret.
+  an entry's TOTP secret. (F33 removed the BitLocker key: the
+  exceptions are SeedQR and the TOTP secret.)
 - The TOTP secret's code is the stored `otpauth://` URI, opened by a
   hold under the **TOTP secret** row, on the QR sheet marked Secret,
   with no PNG and no Outbox file. F27's line on Entry QRs names it.
@@ -1345,3 +1352,98 @@ missing, unless `FARADAY_SKIP_GNUPG=1`.
 - *Reading armour* is F22's amended list.
 - *Not changed.* Hash SHA-512 for signatures, as GnuPG 2.4 chooses for
   Ed25519; primary key flags certify only, with the signing subkey.
+
+### F33 Secure Boot back on is the step; no BitLocker recovery key in the Starter or the Companion (2026-10-14)
+
+**Why.** F17 and F21 kept a BitLocker step in Faraday Starter (Show the
+recovery key, its QR code and Save, an extra-safe suspension with a
+marker, a logon reminder and Resume) and a store for the key in Faraday
+Companion, with a text format shared between them (STARTER batch W).
+BitLocker checks Secure Boot only when Windows starts (F17): Windows
+started with Secure Boot back on asks for nothing. The owner's reasons:
+turning Secure Boot back on is simple and it is necessary. People must
+not leave Secure Boot off, and must not turn BitLocker off to avoid the
+prompt; making "Turn Secure Boot back on" the step, with no
+recovery-key machinery beside it, ensures that. Offering to copy a
+recovery key onto a phone is irresponsible.
+
+**Decision** (owner, 2026-10-14; the spec is `docs/STARTER.md` §6,
+`docs/COMPANION.md` §4.6 and §4.7, `docs/STARTER.md` §7.5).
+
+- *Removed from Faraday Starter:* the BitLocker page and Home's
+  BitLocker item (**Back up the BitLocker recovery key**, its note and
+  states); **Show the recovery key**, its QR code, "Or take a photo of
+  this screen.", Save and the key file; **Extra safe: suspend
+  BitLocker**, the two groups typed back, the suspension, the marker,
+  the logon reminder (`--remind` and its Run entry) and **Resume
+  BitLocker**; Uninstall's BitLocker paragraph; the elevated
+  `--bitlocker` verbs and the WMI reading of BitLocker; the drive's
+  BitLocker line on This computer; the Start page's **Back up the
+  recovery key** row; the TV and remote-session hold on showing the key.
+  The one explanation F21 allowed on a working screen goes with the
+  note, so `CLAUDE.md`'s rule holds without exception.
+- *Removed from Faraday Companion:* **BitLocker keys** (COMPANION
+  §4.6): the Home row, the store's keys, the Record, **Back in
+  Windows** and its sheet, **Delete the key**, the scanner's route for
+  recovery-key text, and the Learn page's section on the key.
+- *Removed between them:* the recovery-key text format
+  (`faraday_qr::bitlocker`), written by the Starter and read by the
+  Companion (STARTER batch W, COMPANION batch B).
+- *Removed from the guides:* the Learn page "BitLocker and starting
+  from a stick" (`bitlocker`), the Companion's **BitLocker first**, and
+  every line that offers a backup of the key or a suspension.
+- *Every string, Learn page and test that exists only for these.*
+  `starter_` and `companion_` strings used by nothing else go from
+  `faraday/faraday-strings/src/en.rs`; tests that state the removed
+  behaviour go (`faraday-starter/tests/bitlocker.rs`,
+  `unreadable_bitlocker.rs`, the shell's `tests/bitlocker.rs` and its
+  recorded WMI answers, `faraday-companion/tests/bitlocker.rs`,
+  `faraday-qr/tests/bitlocker.rs`), and tests that touch them in
+  passing are changed to the rule they now encode.
+- *In their place:* every guide's last numbered step is **Turn Secure
+  Boot back on**, in the BIOS, before Windows starts; the Companion
+  ticks it off like the others (COMPANION §4.7). Faraday Starter's Home
+  marks **Turn Secure Boot back on** as the next step on Windows
+  whenever Secure Boot is off, and its button is **Restart into the
+  BIOS**.
+- *Windows' Use a device goes:* **Restart to choose a device** and, on
+  Windows, **Restart from the stick** need Windows started with Secure
+  Boot off, which is the start this decision rules out. Linux keeps
+  **Restart from the stick** (STARTER §3.1).
+- *At the stick's power-off* (STARTER §7.5): on a PC stick that started
+  with Secure Boot off, or with its state not read, the power-off sheet
+  leads with "Turn Secure Boot back on in the BIOS before starting
+  Windows." in the warning tone, above the guide's code. It needs no
+  press of its own: **Power off** is the press. The Pi and Faraday
+  Desktop never show it; a Mac follows `docs/MAC.md` §3.2. It is one
+  line of instruction for the action the person takes next, at the
+  moment of the press, as F1's line of fact is; the reason stays in
+  Learn.
+- *The risk, said plainly.* A person who forgets and starts Windows
+  with Secure Boot still off is asked for the BitLocker recovery key,
+  and Faraday offers nothing for it.
+- *Where Windows keeps the key* (owner, 2026-10-14: decided). The
+  Windows guide and each maker page carry one line of fact: for a
+  computer set up with a Microsoft account, the key is on the
+  account's recovery-key page, aka.ms/myrecoverykey; otherwise it is
+  wherever it was saved when BitLocker was set up. It is a pointer, not
+  a flow: nothing is scanned, saved or copied.
+- *Kept:* another encryption product (VeraCrypt or a vendor's) still
+  closes the firmware steps until its rescue disk or password is
+  confirmed, and the Linux guide's line for a disk unlocked by the TPM
+  stays (STARTER §6). Neither shows or keeps a key.
+- *Keys already kept in a Companion debug build.* Nothing migrates: no
+  Companion was released. The store's format moves to version 2,
+  without keys; a version 1 store is deleted, with its wrapped key and
+  its counts, at the first start of the new build.
+- *Supersedes:* F11's bullet on the guard; F12's bullets on the
+  guard's order, the key on a phone and Resume; F15's BitLocker parts
+  (keeping keys, their deletion, their unlock); F17 whole; F21 whole;
+  F28's exception for the BitLocker key (the exceptions are SeedQR and
+  the TOTP secret); STARTER D7, D16, D17, D18 and D19; COMPANION D5,
+  and D4 for BitLocker keys. `docs/BITLOCKER-ACCEPTANCE.md` is
+  superseded (its header says what remains).
+- *Open:* a Windows computer whose BitLocker the 0.1.2 Starter
+  suspended (STARTER §6.3); the stick's idle power-off, which skips the
+  sheet (STARTER §7.5); batch S's key enrolment (STARTER §7.7).
+- Specified, not built: STARTER §6.5's batches F33a to F33d.

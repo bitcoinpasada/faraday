@@ -6,7 +6,6 @@ Faraday Companion is an Android app with no network access. It reads the codes a
 <li>Shows a file, a PSBT or a wallet description as QR codes for the device to read.</li>
 <li>Takes a file shared from another app, and shares a kept file to one.</li>
 <li>Keeps wallet descriptions with each one's first address.</li>
-<li>Keeps BitLocker recovery keys from Faraday Starter until you delete them.</li>
 <li>Carries Faraday's Learn pages, and opens the Starter's guide addresses as its own pages.</li>
 </ul>
 
@@ -19,7 +18,7 @@ Faraday Companion is an Android app with no network access. It reads the codes a
 </ul>
 
 <b>Permissions</b>
-It asks for the camera and for the phone's unlock prompt, and for nothing else. Wallet descriptions and BitLocker recovery keys are kept encrypted and open only after you unlock the phone. Uninstalling the app deletes everything it kept.
+It asks for the camera and for the phone's unlock prompt, and for nothing else. Wallet descriptions are kept encrypted and open only after you unlock the phone. Uninstalling the app deletes everything it kept.
 
 <b>Requirements</b>
 Android 8.0 or later, on an arm64 phone.
