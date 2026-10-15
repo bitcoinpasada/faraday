@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|power]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -525,6 +525,16 @@ fn display((width, height): (u16, u16), dpi: u16) -> Event {
 /// The wide layout's on-screen keyboard: a receiver's line on Home, the
 /// keyboard brought up from its button on a passphrase entry, and on
 /// Tools.
+/// The power-off sheet on a PC stick that started with Secure Boot off.
+fn power_tour(t: &mut Tour) -> Result<(), String> {
+    t.app.secure_boot = faraday_core::SecureBootAtStart::Off;
+    t.app.maker = "LENOVO".into();
+    t.app.maker_family = "ThinkPad X1 Carbon".into();
+    t.app.maker_model = "Example 14".into();
+    t.press(Action::PowerAsk);
+    t.shot("power-sheet-secure-boot-off")
+}
+
 fn osk_tour(t: &mut Tour) -> Result<(), String> {
     t.app.devices = laptop();
     t.app.usb_devices(&[receiver(false)]);
@@ -596,6 +606,7 @@ fn run(
         Some("osk") => return osk_tour(&mut t),
         Some("apk") => return apk_only_tour(&mut t),
         Some("flow") => return flow_tour(&mut t),
+        Some("power") => return power_tour(&mut t),
         _ => {}
     }
     if medium == Medium::Stick {
@@ -4831,11 +4842,12 @@ fn main() -> ExitCode {
             "osk",
             "apk",
             "flow",
+            "power",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk or flow"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow or power"
         );
         return ExitCode::from(2);
     }

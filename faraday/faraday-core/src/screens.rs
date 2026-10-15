@@ -14232,7 +14232,7 @@ fn kept_sheet(
     w: f32,
     h: f32,
     head: (Icon, osk_ui::Color, &str),
-    (line, code): (&str, &str),
+    (line, line_tone, code): (&str, osk_ui::Color, &str),
     sections: &[(&str, Vec<(String, osk_ui::Color)>)],
     actions: &[(&str, Style, Action)],
 ) {
@@ -14253,7 +14253,8 @@ fn kept_sheet(
             cy += 46.0;
         }
         if !line.is_empty() {
-            cy += ui.wrap(x, cy, iw, 13.0, W::R, MUTED, line) + 12.0;
+            let size = if line_tone == WARN { 14.0 } else { 13.0 };
+            cy += ui.wrap(x, cy, iw, size, W::R, line_tone, line) + 12.0;
         }
         if !code.is_empty() {
             // The same size the Starter's restart sheet draws its code.
@@ -14317,7 +14318,7 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         w,
         h,
         (app.medium.icon(), WARN, &attached),
-        (&line, ""),
+        (&line, MUTED, ""),
         &kept_sections(app, false, then),
         &[
             (EN.lock_not_now, Style::Secondary, Action::NotNow),
@@ -14336,7 +14337,7 @@ fn write_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         w,
         h,
         (app.medium.icon(), ACCENT, &title),
-        ("", ""),
+        ("", MUTED, ""),
         &kept_sections(app, false, then),
         &[
             (EN.write_out_not_now, Style::Secondary, Action::Cancel),
@@ -15293,6 +15294,7 @@ fn power_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
             } else {
                 ""
             },
+            WARN,
             &app.secure_boot_guide().unwrap_or_default(),
         ),
         &kept_sections(app, true, EN.power_the_computer.to_string()),

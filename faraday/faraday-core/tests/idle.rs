@@ -188,3 +188,12 @@ fn the_desktop_app_never_powers_itself_off() {
     tick(&mut app, 0);
     assert!(!tick(&mut app, 60 * MIN).contains(&Command::Exit));
 }
+
+#[test]
+fn the_idle_power_off_shows_no_power_sheet_even_with_secure_boot_off() {
+    let mut app = after_idle_lock(Vec::new());
+    app.secure_boot = faraday_core::SecureBootAtStart::Off;
+    tick(&mut app, 0);
+    assert!(tick(&mut app, 10 * MIN).contains(&Command::Exit));
+    assert_ne!(app.sheet, Some(Sheet::Power));
+}

@@ -21,7 +21,7 @@ fn shown(mut app: Faraday) -> Vec<String> {
     app.drawn_texts()
 }
 
-const LINE: &str = "Secure Boot is off. Turn it back on before starting Windows.";
+const LINE: &str = "Turn Secure Boot back on in the BIOS before starting Windows.";
 
 fn power_sheet_texts(medium: Medium, secure_boot: SecureBootAtStart) -> Vec<String> {
     let mut app = Faraday::new();
@@ -38,11 +38,30 @@ fn the_power_off_sheet_reminds_when_secure_boot_was_off() {
 }
 
 #[test]
-fn it_says_nothing_when_secure_boot_was_on_or_unknown() {
-    for state in [SecureBootAtStart::On, SecureBootAtStart::Unknown] {
-        let t = power_sheet_texts(Medium::Stick, state);
-        assert!(!t.iter().any(|s| s == LINE), "{state:?}");
-    }
+fn it_reminds_when_secure_boot_was_not_read() {
+    let t = power_sheet_texts(Medium::Stick, SecureBootAtStart::Unknown);
+    assert!(t.iter().any(|s| s == LINE), "{t:?}");
+}
+
+#[test]
+fn it_says_nothing_when_secure_boot_was_on() {
+    let t = power_sheet_texts(Medium::Stick, SecureBootAtStart::On);
+    assert!(!t.iter().any(|s| s == LINE));
+}
+
+#[test]
+fn a_mac_stick_never_shows_it() {
+    let mut app = Faraday::new();
+    app.medium = Medium::Stick;
+    app.maker = "Apple Inc.".into();
+    app.press(Action::PowerAsk);
+    assert!(!shown(app).iter().any(|s| s == LINE));
+}
+
+#[test]
+fn the_pi_never_shows_it_unread_either() {
+    let t = power_sheet_texts(Medium::SdCard, SecureBootAtStart::Unknown);
+    assert!(!t.iter().any(|s| s == LINE));
 }
 
 #[test]
@@ -53,8 +72,8 @@ fn the_pi_never_shows_it() {
 
 #[test]
 fn the_desktop_app_never_shows_it() {
-    // The desktop shell never reads the state: the app keeps its default.
     let mut app = Faraday::new();
+    app.shell_keys = Some("F2".into());
     app.press(Action::PowerAsk);
     assert!(!shown(app).iter().any(|s| s == LINE));
 }
@@ -204,17 +223,17 @@ fn an_unknown_maker_gets_the_general_windows_guide() {
 }
 
 #[test]
-fn no_guide_code_unless_a_stick_started_with_secure_boot_off() {
+fn no_guide_code_when_secure_boot_was_on_or_off_the_stick() {
     let dell = ("Dell Inc.", "Example", "Example 14");
     for (medium, state) in [
         (Medium::Stick, SecureBootAtStart::On),
-        (Medium::Stick, SecureBootAtStart::Unknown),
         (Medium::SdCard, SecureBootAtStart::Off),
     ] {
         assert!(address(&guide_texts(medium, state, dell)).is_none());
     }
     // The desktop app keeps the defaults.
     let mut app = Faraday::new();
+    app.shell_keys = Some("F2".into());
     app.maker = dell.0.into();
     app.press(Action::PowerAsk);
     assert!(address(&shown(app)).is_none());
