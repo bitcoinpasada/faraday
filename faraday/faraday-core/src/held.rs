@@ -368,10 +368,13 @@ impl Faraday {
     pub(crate) fn backup_vault_save(&mut self, v: usize) {
         use crate::vault_screens::vault_has_wallet;
         use crate::vaults::VaultAction as V;
-        let cur = self.vaults.current;
-        if self.vaults.open.get(cur).is_none() || self.backup_vault_taken(v, cur) {
+        let Some(cur) = self.backup_vault_target(v) else {
+            return;
+        };
+        if self.backup_vault_taken(v, cur) {
             return;
         }
+        self.vaults.current = cur;
         let Some(b) = self.backup.as_ref() else {
             return;
         };

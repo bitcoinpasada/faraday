@@ -4784,10 +4784,10 @@ fn flow_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// A wallet's backup flow: Make a new wallet asks where its keys will be
-/// kept, brings in the sticks, opens the vaults, makes the key into them;
-/// the checklist ends in Write to sticks; one lock, each stick by place,
-/// done. Also the plan's one-place line.
+/// A wallet's backup flow: Make a new wallet asks whether vaults are part
+/// of the backup and how many, brings in each vault's stick, opens or makes
+/// the vaults, makes the key; Back up's plan offers the vaults; the
+/// checklist ends in Write to sticks; one lock, each stick by place, done.
 fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::backup_flow_steps::FlowAction as F;
     use faraday_core::{cstep, qrow};
@@ -4808,44 +4808,42 @@ fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
         files: Vec::new(),
     };
     t.press(Action::CreateWallet);
-    t.press(Action::CForm(faraday_core::plan::seeds::VAULT as u8));
-    t.press(Action::CStep(cstep::KIND));
-    t.press(Action::CStep(cstep::WHERE));
-    t.shot("wallet-flow-1-create-where")?;
+    t.press(Action::CNext(cstep::KIND));
+    t.shot("wallet-flow-1-create-yes-no")?;
+    t.press(Action::CVaults(true));
     t.press(Action::CNext(cstep::WHERE));
-    t.shot("wallet-flow-2-where")?;
-    // One place keeps every secret: said, in WARN, and nothing blocked.
-    t.press(Action::Flow(F::Answer(qrow::PLACES, 1)));
-    t.shot("wallet-flow-3-one-place")?;
-    // The seed in Vault 1 only, its stick at both places.
-    t.press(Action::Flow(F::Answer(qrow::PLACES, 2)));
-    t.press(Action::Flow(F::Answer(qrow::SEEDS, 0)));
-    t.press(Action::Flow(F::Answer(qrow::STICKS, 1)));
-    t.shot("wallet-flow-4-two-places")?;
-    t.press(Action::Flow(F::Continue));
-    t.shot("wallet-flow-5-insert")?;
-    t.app.storage(StorageEvent::Sticks(vec![empty("a", 1)]));
+    t.press(Action::CVaultN(2));
+    t.shot("wallet-flow-2-create-count")?;
+    t.press(Action::CNext(cstep::HOW_MANY));
+    t.shot("wallet-flow-3-insert")?;
+    // Vault 1: a stick that holds a vault, and the person picks.
+    let first = t.stick();
+    t.app.storage(StorageEvent::Sticks(vec![first.clone()]));
     t.pump();
-    t.shot("wallet-flow-6-this-is")?;
+    t.shot("wallet-flow-4-which-vault")?;
+    t.press(Action::Flow(F::PickBeside(0)));
     t.press(Action::Flow(F::Tap));
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
+    // Vault 2: an empty stick, a new vault.
     t.app.storage(StorageEvent::Sticks(vec![empty("b", 2)]));
     t.pump();
     t.press(Action::Flow(F::Tap));
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
-    t.shot("wallet-flow-7-vaults")?;
-    t.press(Action::Flow(F::CreateVault(0)));
-    type_text(t, "a vault phrase for the tour");
-    t.press(Action::Vault(V::CFocus(0, true)));
-    type_text(t, "a vault phrase for the tour");
-    t.press(Action::Vault(V::CGo));
-    for _ in 0..3 {
-        t.tick();
+    t.shot("wallet-flow-5-vaults")?;
+    for v in 0..2 {
+        t.press(Action::Flow(F::CreateVault(v)));
+        type_text(t, "a vault phrase for the tour");
+        t.press(Action::Vault(V::CFocus(0, true)));
+        type_text(t, "a vault phrase for the tour");
+        t.press(Action::Vault(V::CGo));
+        for _ in 0..3 {
+            t.tick();
+        }
     }
-    // Back in Make a new wallet, on Keys, with the three cards done.
-    t.shot("wallet-flow-8-create-keys")?;
+    // Back in Make a new wallet, on Keys, with the cards done.
+    t.shot("wallet-flow-6-create-keys")?;
     t.press(Action::Entry(None));
     t.type_key(1);
     let fp = t
@@ -4862,12 +4860,17 @@ fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CNext(cstep::KEYS));
     t.press(Action::CNext(cstep::CHECK));
     t.press(Action::CBackup(1));
+    // Back up's plan offers the two open vaults.
+    t.shot("wallet-flow-7-back-up-vaults")?;
+    // The key in both vaults, none on paper.
     t.press(Action::BAnswer(qrow::SEEDS, 0));
+    t.press(Action::BAnswer(qrow::VAULTS + 1, 0));
     t.press(Action::BChecklist);
-    t.press(Action::BNext(bstep::BLANK));
+    t.press(Action::BVaultSave(0));
+    t.press(Action::BVaultSave(1));
     t.press(Action::BOut(3));
     t.press(Action::BNext(bstep::ENVELOPE));
-    t.shot("wallet-flow-9-write-to-sticks")?;
+    t.shot("wallet-flow-8-write-to-sticks")?;
     t.press(Action::Flow(F::WalletLock));
     let (inbox, outbox, kept) = t.boxes.clone().ok_or("nothing was kept by the lock")?;
     t.app.storage(StorageEvent::Restored {
@@ -4882,25 +4885,38 @@ fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
         unix_secs: 1_791_000_000,
     });
     t.pump();
-    t.shot("wallet-flow-10-write")?;
-    t.app.storage(StorageEvent::Sticks(vec![empty("a", 1)]));
-    t.pump();
-    t.shot("wallet-flow-11-written")?;
-    t.app.storage(StorageEvent::Sticks(Vec::new()));
-    t.pump();
-    t.app.storage(StorageEvent::Sticks(vec![empty("b", 2)]));
-    t.pump();
-    t.press(Action::Flow(F::Hold));
-    t.app.storage(StorageEvent::Sticks(Vec::new()));
-    t.pump();
-    t.app.storage(StorageEvent::Sticks(vec![empty("c", 3)]));
-    t.pump();
-    t.shot("wallet-flow-12-public")?;
-    t.press(Action::Flow(F::Tap));
-    t.app.storage(StorageEvent::Sticks(Vec::new()));
-    t.pump();
-    t.shot("wallet-flow-13-done")?;
-    println!("the backup flow of a single key in a vault at two places, from Where to Done");
+    t.shot("wallet-flow-9-write")?;
+    // Each stick by place: the sticks read for the vaults, then the stick
+    // of public files.
+    for n in 0..3 {
+        let slot = t
+            .app
+            .flow()
+            .and_then(|f| f.slots.iter().position(|s| s.written.is_none()));
+        let Some(slot) = slot else { break };
+        let stick = match t.app.flow().and_then(|f| f.slots[slot].bound.clone()) {
+            Some(b) if b.label == "TESTSTICK" => t.stick(),
+            Some(b) => empty("b", b.serial.unwrap_or(2)),
+            None => empty("c", 3),
+        };
+        t.app.storage(StorageEvent::Sticks(vec![stick]));
+        t.pump();
+        if n == 0 {
+            t.shot("wallet-flow-10-written")?;
+        }
+        for _ in 0..2 {
+            let hold = t
+                .app
+                .flow()
+                .and_then(|f| f.live.reading.as_ref())
+                .is_some_and(|r| r.hold);
+            t.press(Action::Flow(if hold { F::Hold } else { F::Tap }));
+        }
+        t.app.storage(StorageEvent::Sticks(Vec::new()));
+        t.pump();
+    }
+    t.shot("wallet-flow-11-done")?;
+    println!("the backup flow of a single key in two vaults, from the question of vaults to Done");
     Ok(())
 }
 

@@ -22,6 +22,7 @@ fn one_key() -> Shape {
         keys: 1,
         seeds: vec![seed("aaaa0001", true)],
         splits: false,
+        vaults: 0,
     }
 }
 
@@ -35,6 +36,7 @@ fn two_of_three() -> Shape {
             seed("aaaa0003", true),
         ],
         splits: true,
+        vaults: 0,
     }
 }
 
@@ -600,6 +602,7 @@ fn no_place_holds_two_different_keys_where_the_places_allow_it() {
             .map(|k| seed(&format!("aaaa000{k}"), k <= 3))
             .collect(),
         splits: true,
+        vaults: 0,
     };
     for (shape, name) in [
         (one_key(), "one key"),

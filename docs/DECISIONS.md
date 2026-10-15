@@ -1205,7 +1205,27 @@ FAT volume serial, which sticks written from one image can share.
   into every vault the plan keeps it in; lock once; write each stick by
   place, "Insert the stick for Vault 1 (Place 1)", refusing a stick that
   does not read as it did; done, then unlock. Restore takes the same
-  steps with its seed typed or scanned.
+  steps with its seed typed or scanned. A Bitcoin wallet's order is the
+  next bullet.
+- **A Bitcoin wallet asks about vaults first and plans after its keys**
+  (owner, 2026-10-15; it replaces the card that asked where the keys
+  would be kept before any key existed). Make a new wallet and Restore
+  ask, after the kind, "Will you use vaults as part of this backup?". No
+  goes straight to the keys. Yes asks how many vaults (one or more, no
+  upper bound) and sets each up, one at a time, inside the flow: its
+  stick is inserted with nothing secret open and checked; a stick that
+  holds vaults offers which existing vault this is or a new vault beside
+  them, an empty one a new vault; every stick is read before any vault
+  is unlocked; then the existing vaults are unlocked and the new ones
+  made. The keys are made into memory. The plan (which keys go into
+  which vault, the places, the paper forms, SeedQR, files, the
+  passphrase, the wallet description) is Back up's, after the keys, with
+  the vaults set up as its vaults; a vault the plan keeps at more places
+  than the stick it was set up on is written to new sticks at the write
+  step, and a vault the plan wants that was not set up takes the extra
+  round. Nothing about places, key-to-vault ticks or paper is asked
+  before the keys. The checklist and Write to sticks are as built in
+  B1b.
 - The plan decides what each stick holds before any stick is inserted.
   An empty stick holds only what the plan puts there; a vault has one
   copy per place the plan keeps it at, with no upper bound. A vault's

@@ -8326,16 +8326,26 @@ pub struct Strings {
     pub backup_flow_written_to: &'static str,
     /// Make card of a wallet's flow.
     pub backup_flow_card_make_wallet: &'static str,
-    /// Make a new wallet's card before Keys.
-    pub backup_flow_card_where_keys: &'static str,
-    /// The Where card's one line above the forms of the seeds.
-    pub backup_flow_select_every_form: &'static str,
+    /// Make a new wallet's and Restore's card before the keys: whether
+    /// vaults are part of the backup.
+    pub backup_flow_card_use_vaults: &'static str,
+    /// The question on that card.
+    pub backup_flow_use_vaults_question: &'static str,
+    /// The card that asks how many vaults.
+    pub backup_flow_card_vault_count: &'static str,
+    /// The line over the count of vaults.
+    pub backup_flow_how_many_question: &'static str,
+    /// The count's label.
+    pub backup_flow_vault_count_label: &'static str,
+    /// A stick named by its vault before the keys exist: "the stick for
+    /// Vault 1".
+    pub backup_flow_stick_for_vault: &'static str,
+    /// The flow's first card for a wallet whose keys exist: the plan.
+    pub backup_flow_card_plan: &'static str,
     /// Opens the flow on the card to change what it decided.
     pub backup_flow_change: &'static str,
     /// Button of a wallet's Make card.
     pub backup_flow_make_the_keys: &'static str,
-    /// Restore's card before Seeds.
-    pub backup_flow_card_where_seeds: &'static str,
     /// Make card of a round for an added vault: the seeds kept only on paper.
     pub backup_flow_on_paper_only: &'static str,
     /// Button: type the seed back from its copy.
@@ -12383,11 +12393,15 @@ pub static EN: Strings = Strings {
     backup_flow_key_on_paper: "Its key is kept only on paper. Type its words in first",
     backup_flow_written_to: "Written to {}",
     backup_flow_card_make_wallet: "Make the keys",
-    backup_flow_card_where_keys: "Where the keys will be kept",
-    backup_flow_select_every_form: "Select every way the seeds will be kept",
+    backup_flow_card_use_vaults: "Use vaults",
+    backup_flow_use_vaults_question: "Will you use vaults as part of this backup?",
+    backup_flow_card_vault_count: "Number of vaults",
+    backup_flow_how_many_question: "How many vaults will be part of this backup?",
+    backup_flow_vault_count_label: "Vaults",
+    backup_flow_stick_for_vault: "the {} for {}",
+    backup_flow_card_plan: "The plan",
     backup_flow_change: "Change",
     backup_flow_make_the_keys: "Make the keys",
-    backup_flow_card_where_seeds: "Where the seeds will be kept",
     backup_flow_on_paper_only: "{} is kept only on paper",
     backup_flow_add_from_copy: "Add the key from its copy",
     backup_flow_written_stays: "A stick already written stays on the plan",

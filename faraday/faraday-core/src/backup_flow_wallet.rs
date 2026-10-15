@@ -1,8 +1,9 @@
 //! A Bitcoin wallet's part of the backup flow (`docs/BACKUP-FLOW.md`
-//! §10, §11): the flow driven by the wallet's plan, its vault part decided
-//! before the keys exist, the keys made straight into their vaults, the
-//! checklist's **Write to sticks**, the hold F6 puts on a key moved to the
-//! flow at the lock, and the lines §10.3 adds.
+//! §10, §11): the flow driven by the wallet's plan, the vaults set up
+//! before the keys exist (whether there are any, how many, their sticks and
+//! their passphrases, and nothing about places or which key goes where),
+//! the checklist's **Write to sticks**, the hold F6 puts on a key moved to
+//! the flow at the lock, and the lines §10.3 adds.
 //!
 //! The steps, the cards and the checks are `backup_flow_steps.rs` and
 //! `backup_flow_screen.rs`, shared with the other kinds. This file is what
@@ -50,24 +51,6 @@ impl Faraday {
         })
     }
 
-    /// The Make a new wallet or Restore the flow on screen, or the screen,
-    /// belongs to.
-    pub(crate) fn wallet_owner(&self) -> Option<u64> {
-        if self.screen == Screen::BackupFlow
-            && let Some(w) = self.flow().and_then(|f| f.wallet.as_ref())
-        {
-            return Some(w.owner);
-        }
-        match (self.create.as_ref(), self.restore.as_ref()) {
-            (_, Some(r)) if self.screen == Screen::Restore => Some(r.owner),
-            (Some(c), _) if self.screen == Screen::Create => Some(c.owner),
-            (Some(c), _) if c.into_vaults() => Some(c.owner),
-            (_, Some(r)) if r.into_vaults() => Some(r.owner),
-            (Some(c), _) => Some(c.owner),
-            _ => None,
-        }
-    }
-
     /// The place of this flow among the flows (a flow drawn is a reference
     /// into the list).
     pub(crate) fn flow_index_of(&self, f: &BackupFlow) -> usize {
@@ -75,12 +58,6 @@ impl Faraday {
             .iter()
             .position(|x| std::ptr::eq(x, f))
             .unwrap_or(0)
-    }
-
-    /// The wallet flow of the wallet being made, which has no checksum yet.
-    pub(crate) fn wallet_flow_pre(&self) -> Option<usize> {
-        let owner = self.wallet_owner()?;
-        self.wallet_flow_pre_of(owner)
     }
 
     /// The flow of Make a new wallet or Restore number `owner`, before and
@@ -93,23 +70,6 @@ impl Faraday {
                     .as_ref()
                     .is_some_and(|w| w.owner != 0 && w.owner == owner)
         })
-    }
-
-    /// Whether Make a new wallet keeps its keys in vaults, as it is: its
-    /// flow decided it, or, once the wallet is made, the backup's plan did.
-    pub fn create_in_vaults(&self) -> bool {
-        let Some(c) = self.create.as_ref() else {
-            return false;
-        };
-        if self.wallet_flow_of_owner(c.owner).is_some() {
-            return true;
-        }
-        if let (Some(w), Some(b)) = (c.built, self.backup.as_ref())
-            && b.wallet == w
-        {
-            return b.answers.seeds[plan::seeds::VAULT];
-        }
-        c.into_vaults()
     }
 
     /// The wallet flow of Make a new wallet or Restore number `owner`, while
@@ -140,21 +100,22 @@ impl Faraday {
         f.waiting().then(|| f.written_of())
     }
 
-    // ---- Make a new wallet: the vault part before the keys ----
+    // ---- Make a new wallet and Restore: the vaults, before the keys ----
 
     /// The shape a wallet to be made has before its keys exist: a seed
-    /// for each key, all to be made here.
-    pub(crate) fn wallet_placeholder(&self) -> Option<plan::Shape> {
+    /// for each key, all to be made here. `owner` is the Make a new wallet
+    /// or Restore it is for.
+    pub(crate) fn wallet_placeholder(&self, owner: u64) -> Option<plan::Shape> {
         use crate::create::NewKind as K;
-        // Make a new wallet, or Restore's seeds route.
-        let restoring =
-            self.screen == Screen::Restore || self.create.as_ref().is_none_or(|c| !c.into_vaults());
-        let (kind, m, n_keys, marked) = match (self.create.as_ref(), self.restore.as_ref()) {
-            (_, Some(r)) if restoring => {
+        let (kind, m, n_keys) = match (
+            self.create.as_ref().filter(|c| c.owner == owner),
+            self.restore.as_ref().filter(|r| r.owner == owner),
+        ) {
+            (Some(c), _) => (c.kind, c.m, c.n),
+            (_, Some(r)) => {
                 let s = r.seeds.as_ref()?;
-                (s.kind, s.m, s.n, false)
+                (s.kind, s.m, s.n)
             }
-            (Some(c), _) => (c.kind, c.m, c.n, c.pass_marked),
             _ => return None,
         };
         let n = if kind.threshold() {
@@ -168,7 +129,7 @@ impl Faraday {
             .map(|i| plan::Seed {
                 name: fill(EN.backup_flow_key_n, &[&(i + 1).to_string()]),
                 here: true,
-                passphrase: marked && n == 1,
+                passphrase: false,
             })
             .collect();
         Some(plan::Shape {
@@ -179,95 +140,68 @@ impl Faraday {
                 kind,
                 K::Multi | K::MultiNested | K::MultiLegacy | K::TapMulti
             ),
+            vaults: 0,
         })
     }
 
-    /// The forms ticked on the Where card of Make a new wallet or Restore
-    /// number `owner`.
-    pub(crate) fn wallet_forms_mut(&mut self, owner: u64) -> Option<&mut crate::KeptForms> {
-        if let Some(c) = self.create.as_mut().filter(|c| c.owner == owner) {
-            return Some(&mut c.forms);
-        }
-        self.restore
-            .as_mut()
-            .filter(|r| r.owner == owner)
-            .map(|r| &mut r.forms)
+    /// How many vaults Make a new wallet or Restore number `owner` set
+    /// out to use, when the person answered yes.
+    fn wallet_vault_count(&self, owner: u64) -> Option<usize> {
+        let ask = match (
+            self.create.as_ref().filter(|c| c.owner == owner),
+            self.restore.as_ref().filter(|r| r.owner == owner),
+        ) {
+            (Some(c), _) => c.vaults,
+            (_, Some(r)) => r.vaults,
+            _ => return None,
+        };
+        (ask.answer == Some(true)).then_some(ask.count.max(1))
     }
 
-    /// The Where card's ticks changed: a plan under way follows them, and
-    /// one for vaults no longer wanted goes.
-    pub(crate) fn wallet_forms_changed(&mut self, owner: u64, was: bool, now: bool) {
-        let _ = was;
+    /// The answer to the vault question of Make a new wallet or Restore
+    /// number `owner` changed to no, or the count changed: the setup under
+    /// way follows. No vaults leaves nothing to set up; another count
+    /// adds or drops the last vaults and keeps the rest as they are.
+    pub(crate) fn wallet_vaults_changed(&mut self, owner: u64) {
         let Some(i) = self.wallet_flow_pre_of(owner) else {
             return;
         };
-        if !now {
-            // Nothing planned for the vaults is kept.
-            self.backup_flows.remove(i);
-            self.flow_on = None;
-            return;
-        }
-        let Some(forms) = self.wallet_forms_mut(owner).map(|f| f.0) else {
-            return;
-        };
-        if let Some(wf) = self.backup_flows[i].wallet.as_mut() {
-            wf.answers.seeds = forms;
-        }
-        self.backup_flows[i].wallet_replan();
-    }
-
-    /// The flow of `i` changed its seeds answer (its Where step ticks
-    /// vaults): the card shows the same ticks.
-    pub(crate) fn wallet_forms_follow(&mut self, i: usize) {
-        let Some((owner, seeds)) = self.backup_flows[i]
-            .wallet
-            .as_ref()
-            .filter(|w| w.checksum.is_none())
-            .map(|w| (w.owner, w.answers.seeds))
-        else {
-            return;
-        };
-        if let Some(f) = self.wallet_forms_mut(owner) {
-            f.0 = seeds;
-            f.1 = true;
-        }
-    }
-
-    /// Make a new wallet asks where its keys will be kept: the wallet's
-    /// flow opens on its first card, or the one under way resumes.
-    pub(crate) fn wallet_flow_begin(&mut self) {
-        let Some(shape) = self.wallet_placeholder() else {
-            return;
-        };
-        if let Some(i) = self.wallet_flow_pre() {
-            // The keys changed in number: the plan starts again.
-            if self.backup_flows[i]
-                .wallet
-                .as_ref()
-                .is_some_and(|w| w.shape.seeds.len() != shape.seeds.len())
-            {
+        match self.wallet_vault_count(owner) {
+            None => {
                 self.backup_flows.remove(i);
-            } else {
-                let keep = match self.backup_flows[i].wallet.as_mut() {
-                    Some(w) => {
-                        w.shape = shape.clone();
-                        w.answers.refit(&shape)
-                    }
-                    None => Vec::new(),
-                };
-                self.backup_flows[i].remap_vaults(&keep);
-                self.backup_flows[i].wallet_replan();
-                return self.flow_show(i);
+                self.flow_on = None;
+            }
+            Some(count) => {
+                if self.backup_flows[i]
+                    .wallet
+                    .as_ref()
+                    .is_some_and(|w| w.shape.vaults != count)
+                {
+                    self.backup_flows[i].resize_setup(count);
+                }
             }
         }
-        let Some(owner) = self.wallet_owner() else {
+    }
+
+    /// Make a new wallet or Restore number `owner` has its count of
+    /// vaults: the setup opens on its first card, or the one under way
+    /// resumes. Nothing about places, paper or which key goes where is
+    /// asked: that is Back up's plan, after the keys.
+    pub(crate) fn wallet_flow_begin(&mut self, owner: u64) {
+        let Some(count) = self.wallet_vault_count(owner) else {
             return;
         };
-        let mut answers = plan::Answers::preset(&shape, plan::Preset::PaperVault);
-        if let Some(forms) = self.wallet_forms_mut(owner) {
-            answers.seeds = forms.0;
+        if let Some(i) = self.wallet_flow_pre_of(owner) {
+            self.wallet_vaults_changed(owner);
+            return self.flow_show(i);
         }
-        let mut f = BackupFlow::new_wallet(shape, answers, "");
+        let Some(shape) = self.wallet_placeholder(owner) else {
+            return;
+        };
+        let mut with_vaults = shape.clone();
+        with_vaults.vaults = count;
+        let answers = plan::Answers::defaults(&with_vaults);
+        let mut f = BackupFlow::new_setup(shape, answers, count);
         if let Some(w) = f.wallet.as_mut() {
             w.owner = owner;
         }
@@ -276,8 +210,9 @@ impl Faraday {
         self.flow_show(i);
     }
 
-    /// The wallet just made in Create belongs to the flow that decided
-    /// where its keys go: the checksum and the real shape are known now.
+    /// The wallet just made in Create (or read in Restore) belongs to the
+    /// flow that set up its vaults: the checksum and the real shape are
+    /// known now, and the plan is Back up's to make.
     pub(crate) fn wallet_flow_attach(&mut self, w: usize, owner: u64) {
         let Some(i) = self.wallet_flow_pre_of(owner) else {
             return;
@@ -286,7 +221,12 @@ impl Faraday {
             return;
         };
         let (cs, name) = (wl.policy.checksum(), wl.name.clone());
-        let shape = self.plan_shape(w);
+        let setup = self.backup_flows[i]
+            .wallet
+            .as_ref()
+            .map_or(0, |wf| wf.shape.vaults);
+        let mut shape = self.plan_shape(w);
+        shape.vaults = setup;
         // The keys-to-be were numbered by slot, the seeds are numbered as
         // the description lists them (FROST's by share): where a slot's key
         // turned out to be.
@@ -295,10 +235,14 @@ impl Faraday {
         let map = seed_map(&slots, &list, &self.session, shape.seeds.len());
         let base = self.wallet_seed_bases(w);
         let f = &mut self.backup_flows[i];
+        // The sticks read for the vaults wait for the plan to say where
+        // each vault's stick goes.
+        f.park_setup();
         let keep = match f.wallet.as_mut() {
             Some(wf) => {
                 wf.checksum = Some(cs.clone());
                 wf.name = name.clone();
+                wf.setup = false;
                 wf.answers.remap_seeds(&map, shape.seeds.len());
                 let keep = wf.answers.refit(&shape);
                 wf.shape = shape;
@@ -312,7 +256,6 @@ impl Faraday {
         // them: they follow the rows that were kept.
         f.remap_vaults(&keep);
         f.wallet_replan();
-        self.wallet_flow_save_wallet(i, w);
     }
 
     /// The keys chosen for the wallet being made by Make a new wallet or
@@ -357,187 +300,14 @@ impl Faraday {
             .collect()
     }
 
-    /// The wallet description goes into each open vault of the plan that
-    /// the plan puts it in.
-    fn wallet_flow_save_wallet(&mut self, i: usize, w: usize) {
-        let Some(wf) = self.backup_flows[i].wallet.clone() else {
-            return;
-        };
-        for v in wf.answers.vaults_made(&wf.shape) {
-            if !wf.answers.wallet_in_vault(v) {
-                continue;
-            }
-            let Some(o) = self.flow_open_index(i, v) else {
-                continue;
-            };
-            let has = self
-                .session
-                .wallets
-                .get(w)
-                .is_some_and(|wl| crate::vault_screens::vault_has_wallet(self, o, wl));
-            if has {
-                continue;
-            }
-            self.vaults.current = o;
-            self.vault_act(V::SaveWallet(w));
-        }
-    }
-
-    /// New key and the keys loaded in Create go straight into the vaults the
-    /// plan names for their seeds: a seed in a slot, a vault of the plan
-    /// open, and the vault does not hold it yet.
-    pub(crate) fn wallet_flow_save_keys(&mut self) {
-        let mut owners: Vec<u64> = Vec::new();
-        if let Some(c) = self.create.as_ref().filter(|c| c.into_vaults()) {
-            owners.push(c.owner);
-        }
-        if let Some(r) = self.restore.as_ref().filter(|r| r.into_vaults()) {
-            owners.push(r.owner);
-        }
-        for owner in owners {
-            self.wallet_flow_save_keys_of(owner);
-        }
-    }
-
-    /// [`Faraday::wallet_flow_save_keys`] for the flow of number `owner`: no
-    /// other wallet's flow is ever taken.
-    fn wallet_flow_save_keys_of(&mut self, owner: u64) {
-        use crate::vault_screens::key_fingerprint;
-        use faraday_vault::records::kind as rkind;
-        // The flow of the wallet being made, open on its vaults.
-        let Some(i) = self.backup_flows.iter().position(|f| {
-            f.kind == Kind::Wallet
-                && !f.made
-                && f.step >= Step::Make
-                && f.wallet
-                    .as_ref()
-                    .is_some_and(|w| w.owner != 0 && w.owner == owner)
-        }) else {
-            return;
-        };
-        let slots = self.wallet_owner_slots(owner);
-        let Some(wf) = self.backup_flows[i].wallet.clone() else {
-            return;
-        };
-        // Once the wallet exists the seeds are numbered by its description.
-        let list = self
-            .wallet_flow_wallet(i)
-            .map(|w| self.backup_seed_list(w))
-            .unwrap_or_default();
-        let mut wanted: Vec<(usize, String)> = Vec::new();
-        let mut cands: Vec<(usize, usize, usize, bool)> = Vec::new();
-        for (slot, src) in slots.iter().enumerate() {
-            let crate::create::Source::Here(fp) = src else {
-                continue;
-            };
-            let Some(k) = self
-                .session
-                .keys
-                .iter()
-                .position(|k| k.master.fingerprint().0 == *fp && k.words.is_some())
-            else {
-                continue;
-            };
-            let s = if list.is_empty() {
-                slot
-            } else {
-                match list.iter().position(|(_, kk)| *kk == Some(k)) {
-                    Some(s) => s,
-                    None => continue,
-                }
-            };
-            let with_pass = self.session.keys[k]
-                .passphrase
-                .as_ref()
-                .is_some_and(|p| !p.is_empty());
-            for v in wf.answers.vaults_made(&wf.shape) {
-                if !wf.answers.vault_seeds(&wf.shape, v).contains(&s) {
-                    continue;
-                }
-                let with = with_pass && wf.answers.pass_in_vault(s);
-                // The record is known by the fingerprint it makes: with the
-                // passphrase only where the plan puts it in the vault.
-                wanted.push((v, self.key_record_fp(k, with)));
-                cands.push((v, k, s, with));
-            }
-        }
-        // What the flow saved for a key that has left its slot, or been
-        // replaced by the same words with a passphrase, comes out again:
-        // only what the flow put in, never a record that was there. Only
-        // until the wallet is made: Restore clears its slots then.
-        let stale: Vec<(usize, String)> = if wf.checksum.is_some() {
-            Vec::new()
-        } else {
-            wf.saved
-                .iter()
-                .filter(|e| !wanted.contains(e))
-                .cloned()
-                .collect()
-        };
-        for (v, fpt) in &stale {
-            let Some(o) = self.flow_open_index(i, *v) else {
-                continue;
-            };
-            let at = self.vaults.open[o].contents.records.iter().position(|r| {
-                r.kind == rkind::KEY && key_fingerprint(self, r).as_deref() == Some(fpt.as_str())
-            });
-            if let Some(at) = at {
-                let open = &mut self.vaults.open[o];
-                open.contents.records.remove(at);
-                open.changes += 1;
-            }
-        }
-        for (v, k, _, with) in cands {
-            let Some(o) = self.flow_open_index(i, v) else {
-                continue;
-            };
-            // Only a record this hook put in is the flow's to take out
-            // again: one the vault held before is never recorded.
-            let mut put = false;
-            if !self.vault_holds_seed(o, k, with) {
-                self.vaults.current = o;
-                self.vault_act(if with {
-                    V::SaveKeyWithPassphrase(k)
-                } else {
-                    V::SaveKey(k)
-                });
-                put = true;
-            }
-            let fpt = self.key_record_fp(k, with);
-            if put
-                && let Some(wf) = self.backup_flows[i].wallet.as_mut()
-                && !wf.saved.contains(&(v, fpt.clone()))
-            {
-                wf.saved.push((v, fpt));
-            }
-        }
-        if let Some(wf) = self.backup_flows[i].wallet.as_mut() {
-            wf.saved.retain(|e| !stale.contains(e));
-        }
-    }
-
-    /// The fingerprint a record of session key `k` makes in a vault: with
-    /// its passphrase only when `with`.
-    fn key_record_fp(&self, k: usize, with: bool) -> String {
-        use faraday_vault::Record;
-        use faraday_vault::records::{self, field, kind as rkind};
-        let key = &self.session.keys[k];
-        let own = fp_text(key.master.fingerprint());
-        let Some(words) = key.words.as_ref() else {
-            return own;
-        };
-        let Ok(m) = osk_bip::bip39::Mnemonic::parse(key.language, words) else {
-            return own;
-        };
-        let mut rec = Record::new(rkind::KEY).with(field::KEY, &records::words_payload(&m));
-        if with && let Some(p) = key.passphrase.as_ref() {
-            rec.push(field::KEY_PASSPHRASE, p.as_bytes());
-        }
-        crate::vault_screens::key_fingerprint(self, &rec).unwrap_or(own)
-    }
-
-    /// Steps 1 to 3 are done: Make a new wallet goes on to its keys.
+    /// The vaults are set up: Make a new wallet or Restore goes on to its
+    /// keys.
     pub(crate) fn wallet_flow_leave(&mut self, i: usize) {
+        let owner = self
+            .backup_flows
+            .get(i)
+            .and_then(|f| f.wallet.as_ref())
+            .map_or(0, |w| w.owner);
         if let Some(f) = self.backup_flows.get_mut(i) {
             f.on_screen = false;
         }
@@ -547,29 +317,29 @@ impl Faraday {
         self.vaults.back_to = None;
         self.vaults.create = None;
         self.vaults.focus = None;
-        let restoring = self.restore.as_ref().is_some_and(|r| r.into_vaults())
-            && self.create.as_ref().is_none_or(|c| !c.into_vaults());
-        if restoring {
+        if self.restore.as_ref().is_some_and(|r| r.owner == owner) {
+            // A wallet read from its description exists already: it
+            // belongs to the setup now.
+            if let Some(w) = self.restore.as_ref().and_then(|r| r.wallet) {
+                self.wallet_flow_attach(w, owner);
+            }
             if let Some(r) = self.restore.as_mut() {
                 r.open = Some(crate::rstep::SEEDS);
                 r.done[crate::rstep::WHERE as usize] = true;
+                r.done[crate::rstep::HOW_MANY as usize] = true;
                 r.scroll.follow = true;
             }
             self.screen = Screen::Restore;
             self.dirty = true;
             return;
         }
-        let pre = self
+        let creating = self
             .create
             .as_ref()
-            .is_some_and(|c| c.built.is_none() || self.wallet_flow_pre() == Some(i));
-        if pre {
+            .is_some_and(|c| c.owner == owner && c.built.is_none());
+        if creating {
             if let Some(c) = self.create.as_mut() {
-                c.open = Some(if c.built.is_some() {
-                    cstep::CHECK
-                } else {
-                    cstep::KEYS
-                });
+                c.open = Some(cstep::KEYS);
                 c.scroll.follow = true;
             }
             self.screen = Screen::Create;
@@ -637,86 +407,6 @@ impl Faraday {
         wf.answers = answers;
         wf.shape = shape;
         f.wallet_replan();
-    }
-
-    /// Back up opens on a wallet whose flow decided where its keys go: the
-    /// plan starts from those answers.
-    pub(crate) fn wallet_flow_adopt(&mut self, w: usize) {
-        let Some(cs) = self.session.wallets.get(w).map(|wl| wl.policy.checksum()) else {
-            return;
-        };
-        let Some(i) = self.wallet_flow_at(&cs) else {
-            return;
-        };
-        if self.backup_flows[i].made {
-            return;
-        }
-        let shape = self.plan_shape(w);
-        let Some(mut answers) = self.backup_flows[i]
-            .wallet
-            .as_ref()
-            .map(|wf| wf.answers.clone())
-        else {
-            return;
-        };
-        let keep = answers.refit(&shape);
-        self.backup_flows[i].remap_vaults(&keep);
-        if let Some(b) = self.backup.as_mut() {
-            b.answers = answers;
-        }
-    }
-
-    /// The forms the Where card ticked for wallet `w`, if Make a new wallet
-    /// or Restore made it and the person ticked any.
-    pub(crate) fn wallet_card_forms(&self, w: usize) -> Option<[bool; 4]> {
-        let ticked = |f: &crate::KeptForms| f.1.then_some(f.0);
-        if let Some(c) = self.create.as_ref().filter(|c| c.built == Some(w)) {
-            return ticked(&c.forms);
-        }
-        self.restore
-            .as_ref()
-            .filter(|r| r.wallet == Some(w))
-            .and_then(|r| ticked(&r.forms))
-    }
-
-    /// A preset fills the answers the vault part does not decide: where
-    /// the flow decided the vaults and their sticks, those stay.
-    pub(crate) fn wallet_flow_keep_vault_part(&self, w: usize, answers: &mut plan::Answers) {
-        let Some(cs) = self.session.wallets.get(w).map(|wl| wl.policy.checksum()) else {
-            return;
-        };
-        let Some(i) = self.wallet_flow_at(&cs) else {
-            return;
-        };
-        let Some(wf) = self.backup_flows[i].wallet.as_ref() else {
-            return;
-        };
-        if self.backup_flows[i].made {
-            return;
-        }
-        let from = &wf.answers;
-        answers.places = from.places;
-        answers.bare = from.bare.clone();
-        answers.seeds = from.seeds;
-        answers.wallet[plan::wallet::VAULT] = from.wallet[plan::wallet::VAULT];
-        answers.vaults = from.vaults.clone();
-        answers.sticks = from.sticks.clone();
-        answers.map = None;
-        // A passphrase the person placed stays where it is; one with no
-        // place is given a default, as a preset does.
-        let n = answers.pass.len();
-        for i in 0..n {
-            let kept = from.pass.get(i).filter(|r| !r.is_empty());
-            let set = kept.is_some_and(|r| r.iter().any(|&b| b));
-            if set {
-                answers.pass[i] = kept.cloned().unwrap_or_default();
-            } else if !answers.pass[i].is_empty() {
-                answers.pass[i] = vec![false; answers.places + 1];
-            }
-        }
-        if let Some(wf) = self.backup_flows[i].wallet.as_ref() {
-            answers.place_passphrases(&wf.shape);
-        }
     }
 
     // ---- the checklist's Write to sticks ----
@@ -1431,36 +1121,31 @@ fn same_file(written: &str, want: &str) -> bool {
 // ---- Make a new wallet's cards before the keys, and the plan's answers ----
 
 impl Faraday {
-    /// The cards Make a new wallet shows: Kind, Quorum, Where the keys will
-    /// be kept, and, for a plan kept in vaults, Bring in the sticks and
-    /// Vaults (a plan with no stick has no stick card), then Keys.
-    pub(crate) fn create_cards(&self) -> Vec<u8> {
+    /// The cards Make a new wallet shows: Kind, Quorum, the question of
+    /// vaults, and, when the answer is yes, how many and the two cards of
+    /// their setup (Bring in the sticks, Vaults), then Keys.
+    pub fn create_cards(&self) -> Vec<u8> {
         let Some(c) = self.create.as_ref() else {
             return Vec::new();
         };
         let mut v = crate::create_steps(c.kind);
-        if self.create_in_vaults()
-            && let Some(i) = self.wallet_flow_of_owner(c.owner)
-        {
-            let f = &self.backup_flows[i];
+        if c.into_vaults() {
             let at = v
                 .iter()
                 .position(|&k| k == cstep::WHERE)
                 .map_or(v.len(), |p| p + 1);
-            let mut extra = Vec::new();
-            if !f.slots.is_empty() {
-                extra.push(cstep::STICKS);
-            }
-            if !f.plan.used_vaults().is_empty() {
-                extra.push(cstep::VAULTS);
+            let mut extra = vec![cstep::HOW_MANY];
+            if self.wallet_flow_of_owner(c.owner).is_some() {
+                extra.extend([cstep::STICKS, cstep::VAULTS]);
             }
             v.splice(at..at, extra);
         }
         v
     }
 
-    /// Whether Make a new wallet's card `k` is done: the three cards before
-    /// Keys are, once the flow is past them.
+    /// Whether Make a new wallet's card `k` is done. The question and the
+    /// count are done only when the person has pressed their own Continue;
+    /// the two cards of the setup are, once the flow is past them.
     pub fn create_card_done(&self, k: u8) -> bool {
         let Some(c) = self.create.as_ref() else {
             return false;
@@ -1469,15 +1154,19 @@ impl Faraday {
             self.wallet_flow_of_owner(c.owner)
                 .is_some_and(|i| self.backup_flows[i].step > step)
         };
-        // Once the wallet is made, the three cards are what they were
-        // decided to be.
-        if c.built.is_some() && matches!(k, cstep::WHERE | cstep::STICKS | cstep::VAULTS) {
+        // Once the wallet is made, the cards before Keys are what they
+        // were decided to be.
+        if c.built.is_some()
+            && matches!(
+                k,
+                cstep::WHERE | cstep::HOW_MANY | cstep::STICKS | cstep::VAULTS
+            )
+        {
             return true;
         }
         match k {
-            cstep::WHERE if c.into_vaults() => at(Step::Where),
-            cstep::STICKS => !c.into_vaults() || at(Step::Sticks),
-            cstep::VAULTS => !c.into_vaults() || at(Step::Vaults),
+            cstep::STICKS => at(Step::Sticks),
+            cstep::VAULTS => at(Step::Vaults),
             _ => c.done[k as usize],
         }
     }
@@ -1555,7 +1244,6 @@ impl Faraday {
             }
         }
         self.backup_flows[i] = trial;
-        self.wallet_forms_follow(i);
         // The checklist's own answers follow, where it is open.
         if let Some(wf) = self.backup_flows[i].wallet.clone()
             && let Some(w) = self.wallet_flow_wallet(i)
@@ -1574,37 +1262,11 @@ impl Faraday {
         self.flow_wallet_answer(i, crate::qrow::PLACES, (places + 1).min(255) as u8);
     }
 
-    /// **Add a passphrase** on the plan's check lines. Before the key exists
-    /// the slot is marked, so that its plan has a row for the passphrase
-    /// and the Key card asks for one. Once the wallet exists, Create opens
-    /// on Keys with the key in its slot and the passphrase fields open: the
-    /// key with a passphrase is another key, and its wallet another wallet.
+    /// **Add a passphrase** on the plan's check lines. Create opens on
+    /// Keys with the key in its slot and the passphrase fields open: the
+    /// key with a passphrase is another key, and its wallet another
+    /// wallet.
     pub(crate) fn plan_add_passphrase(&mut self) {
-        if let Some(c) = self.create.as_mut()
-            && c.built.is_none()
-            && !c.kind.multi()
-        {
-            c.pass_marked = true;
-            if let Some(shape) = self.wallet_placeholder()
-                && let Some(i) = self.wallet_flow_pre()
-            {
-                let keep = match self.backup_flows[i].wallet.as_mut() {
-                    Some(w) => {
-                        let keep = w.answers.refit(&shape);
-                        w.shape = shape;
-                        // Asked for, so the passphrase has its own place
-                        // apart from its seed (§10.3).
-                        let sh = w.shape.clone();
-                        w.answers.place_passphrases(&sh);
-                        keep
-                    }
-                    None => Vec::new(),
-                };
-                self.backup_flows[i].remap_vaults(&keep);
-                self.backup_flows[i].wallet_replan();
-            }
-            return;
-        }
         // The wallet shown: the checklist's on Back up, else the one
         // chosen.
         let w = match self.backup.as_ref() {
@@ -1635,6 +1297,7 @@ impl Faraday {
         });
         if let Some(c) = self.create.as_mut() {
             c.done[cstep::WHERE as usize] = true;
+            c.vaults.answer = Some(false);
         }
         self.screen = Screen::Create;
     }

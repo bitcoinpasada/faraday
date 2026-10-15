@@ -695,6 +695,10 @@ pub struct BackupFlow {
     pub on_screen: bool,
     /// A wallet's part: its shape, its answers and what it holds back.
     pub wallet: Option<WalletFlow>,
+    /// The sticks read for the vaults set up before the keys were made, by
+    /// vault: each goes to the place the wallet's plan gives that vault's
+    /// stick. Not kept across a lock, which wipes the open vaults too.
+    pub parked: Vec<(usize, Bound)>,
     /// The screen's state.
     pub live: Live,
 }
@@ -724,9 +728,10 @@ pub struct WalletFlow {
     /// Which Make a new wallet or Restore the flow belongs to while the
     /// wallet is being made; not kept across a lock.
     pub owner: u64,
-    /// The records the flow put into vaults for the keys in the slots, by
-    /// vault and fingerprint: taken out again if the slot's key goes.
-    pub saved: Vec<(usize, String)>,
+    /// The flow sets up the vaults of a wallet whose keys are not made
+    /// yet: its plan is a vault at a place each, which the answers do not
+    /// draw.
+    pub setup: bool,
 }
 
 impl BackupFlow {
@@ -751,6 +756,7 @@ impl BackupFlow {
             adding: false,
             on_screen: true,
             wallet: None,
+            parked: Vec::new(),
             live: Live::default(),
         };
         f.live.open = Some(Step::Where.n());
@@ -765,6 +771,33 @@ impl BackupFlow {
         name: &str,
     ) -> BackupFlow {
         let plan = plan_of(&shape, &answers);
+        BackupFlow::with_wallet(plan, shape, answers, name)
+    }
+
+    /// A new flow that sets up `count` vaults for a wallet whose keys are
+    /// not made yet: it starts at step 2, with a stick for each vault, and
+    /// asks nothing about places, paper or which key goes where.
+    pub fn new_setup(
+        mut shape: crate::plan::Shape,
+        answers: crate::plan::Answers,
+        count: usize,
+    ) -> BackupFlow {
+        shape.vaults = count;
+        let mut f = BackupFlow::with_wallet(BackupFlow::setup_plan(count), shape, answers, "");
+        if let Some(w) = f.wallet.as_mut() {
+            w.setup = true;
+        }
+        f.step = Step::Sticks;
+        f.live.open = Some(Step::Sticks.n());
+        f
+    }
+
+    fn with_wallet(
+        plan: Plan,
+        shape: crate::plan::Shape,
+        answers: crate::plan::Answers,
+        name: &str,
+    ) -> BackupFlow {
         let mut f = BackupFlow::with_plan(Kind::Wallet, plan);
         f.wallet = Some(WalletFlow {
             shape,
@@ -775,7 +808,7 @@ impl BackupFlow {
             sealed: Vec::new(),
             base: Vec::new(),
             owner: 0,
-            saved: Vec::new(),
+            setup: false,
         });
         f
     }
@@ -819,12 +852,24 @@ impl BackupFlow {
 
     /// The plan follows the wallet's answers again, keeping what the flow
     /// knows of each vault (which file it is, its salt) and which places
-    /// keep their vaults on one stick.
+    /// keep their vaults on one stick. A wallet not made yet has the plan
+    /// of its setup (a vault at a place each), which its answers do not
+    /// draw.
     pub(crate) fn wallet_replan(&mut self) {
         let Some(w) = self.wallet.as_ref() else {
             return;
         };
+        if self.is_setup() {
+            return;
+        }
         let mut plan = plan_of(&w.shape, &w.answers);
+        // The vaults the flow knows stay, whether or not the plan names
+        // them yet: the vaults set up before the keys are the plan's to
+        // put seeds in.
+        if plan.vaults.len() < self.plan.vaults.len() {
+            plan.vaults
+                .resize(self.plan.vaults.len(), VaultPlan::default());
+        }
         for (v, vp) in plan.vaults.iter_mut().enumerate() {
             if let Some(old) = self.plan.vaults.get(v) {
                 *vp = old.clone();
@@ -839,6 +884,106 @@ impl BackupFlow {
             .collect();
         self.plan = plan;
         self.sync_slots();
+        self.place_parked();
+    }
+
+    /// The wallet's keys are not made yet: the flow is the setup of its
+    /// vaults, one stick and one vault each, before any key exists.
+    pub fn is_setup(&self) -> bool {
+        self.wallet.as_ref().is_some_and(|w| w.setup)
+    }
+
+    /// The setup: `count` new vaults, each kept on a stick of its own.
+    pub(crate) fn setup_plan(count: usize) -> Plan {
+        Plan {
+            places: (0..count).map(|v| vec![v]).collect(),
+            vaults: vec![VaultPlan::default(); count],
+            together: Vec::new(),
+            public_at: 0,
+            files: false,
+            public: false,
+            public_on: PublicOn::Place,
+        }
+    }
+
+    /// The setup has another number of vaults: the last ones go, or new
+    /// ones are added after the others, and every stick and vault already
+    /// read or opened stays as it is.
+    pub(crate) fn resize_setup(&mut self, count: usize) {
+        self.plan.places.truncate(count);
+        self.plan.vaults.truncate(count);
+        while self.plan.places.len() < count {
+            let v = self.plan.places.len();
+            self.plan.places.push(vec![v]);
+            self.plan.vaults.push(VaultPlan::default());
+        }
+        if let Some(w) = self.wallet.as_mut() {
+            w.shape.vaults = count;
+            w.answers = crate::plan::Answers::defaults(&w.shape);
+        }
+        self.made_in.retain(|&v| v < count);
+        self.sync_slots();
+        for s in &mut self.slots {
+            if let Some(b) = s.bound.as_mut() {
+                b.picks.retain(|(v, _)| *v < count);
+            }
+        }
+        self.step = Step::Sticks;
+        self.live.open = Some(Step::Sticks.n());
+    }
+
+    /// The sticks read in the setup are kept by vault, so that the plan
+    /// the wallet's backup draws puts each where its vault's stick goes.
+    pub(crate) fn park_setup(&mut self) {
+        self.parked = self
+            .slots
+            .iter()
+            .filter_map(|s| match (s.target, s.bound.as_ref()) {
+                (Target::Place(p), Some(b)) => self
+                    .plan
+                    .places
+                    .get(p)
+                    .and_then(|vs| vs.first())
+                    .map(|&v| (v, b.clone())),
+                _ => None,
+            })
+            .collect();
+    }
+
+    /// Each stick read in the setup is bound to the first stick the plan
+    /// gives its vault, unless that stick is read already or written. A
+    /// stick the plan no longer gives its vault there is let go.
+    fn place_parked(&mut self) {
+        if self.parked.is_empty() {
+            return;
+        }
+        let parked = self.parked.clone();
+        for s in &mut self.slots {
+            if s.written.is_none() && parked.iter().any(|(_, b)| s.bound.as_ref() == Some(b)) {
+                s.bound = None;
+            }
+        }
+        for (v, b) in parked {
+            let Some(&p) = self.plan.places_of(v).first() else {
+                continue;
+            };
+            let target = if self.plan.one_stick(p) {
+                Target::Place(p)
+            } else {
+                Target::PlaceVault(p, v)
+            };
+            let taken = self.slots.iter().any(|s| s.bound.as_ref() == Some(&b));
+            if taken {
+                continue;
+            }
+            if let Some(s) = self
+                .slots
+                .iter_mut()
+                .find(|s| s.target == target && s.bound.is_none() && s.written.is_none())
+            {
+                s.bound = Some(b);
+            }
+        }
     }
 
     /// The slots follow the plan: a stick per place that keeps one (or per
@@ -1007,8 +1152,8 @@ fn hex(h: &[u8; 32]) -> String {
 const VERSION: &str = "3";
 /// The most places, vaults and sticks a kept flow may name; more is a
 /// corrupt state.
-const MAX_PLACES: usize = 64;
-const MAX_SLOTS: usize = 256;
+const MAX_PLACES: usize = 10_000;
+const MAX_SLOTS: usize = 20_000;
 
 /// The flows as the kept state holds them: a version line, then a line
 /// each, split by tabs. Nothing in it is secret: names, sizes, salts,
@@ -1060,10 +1205,11 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                 out.push_str(&format!("wsealed\t{v}\t{}\n", list.join(",")));
             }
             out.push_str(&format!(
-                "wshape\t{}\t{}\t{}\n",
+                "wshape\t{}\t{}\t{}\t{}\n",
                 w.shape.m,
                 w.shape.keys,
-                u8::from(w.shape.splits)
+                u8::from(w.shape.splits),
+                w.shape.vaults
             ));
             for sd in &w.shape.seeds {
                 out.push_str(&format!(
@@ -1072,6 +1218,9 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                     u8::from(sd.here),
                     u8::from(sd.passphrase)
                 ));
+            }
+            if w.setup {
+                out.push_str("wsetup\t1\n");
             }
             out.push_str(&format!(
                 "wans\t{}\n",
@@ -1201,6 +1350,7 @@ pub fn decode(bytes: &[u8]) -> (Vec<BackupFlow>, usize) {
                         adding: adding == "1",
                         on_screen: on == "1",
                         wallet: None,
+                        parked: Vec::new(),
                         live: Live::default(),
                     }),
             );
@@ -1292,14 +1442,15 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             ));
             true
         }
-        ["wshape", m, keys, splits] => {
-            let (Ok(m), Ok(keys)) = (m.parse(), keys.parse()) else {
+        ["wshape", m, keys, splits, vaults] => {
+            let (Ok(m), Ok(keys), Ok(vaults)) = (m.parse(), keys.parse(), vaults.parse()) else {
                 return false;
             };
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
             w.shape.m = m;
             w.shape.keys = keys;
             w.shape.splits = splits == "1";
+            w.shape.vaults = vaults;
             true
         }
         ["wseed", name, here, pass] => {
@@ -1309,6 +1460,11 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 here: here == "1",
                 passphrase: pass == "1",
             });
+            true
+        }
+        ["wsetup", on] => {
+            let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
+            w.setup = on == "1";
             true
         }
         ["wans", text] => {
@@ -1509,6 +1665,7 @@ impl WalletFlow {
                 keys: 1,
                 seeds: Vec::new(),
                 splits: false,
+                vaults: 0,
             },
             answers: crate::plan::Answers::default(),
             checksum: None,
@@ -1517,7 +1674,7 @@ impl WalletFlow {
             sealed: Vec::new(),
             base: Vec::new(),
             owner: 0,
-            saved: Vec::new(),
+            setup: false,
         }
     }
 }

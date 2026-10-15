@@ -1048,6 +1048,14 @@ impl Faraday {
                 return;
             }
         }
+        // A stick put in at step 6 that is one this flow wrote is refused
+        // as it arrives.
+        if self.backup_flows[i].step == Step::Write
+            && let Some(r) = self.backup_flows[i].live.reading.clone()
+            && let Some(p) = self.flow_holds_written(i, &r)
+        {
+            return self.flow_refuse(i, p);
+        }
         self.flow_decide(i);
     }
 
@@ -2769,6 +2777,9 @@ impl Faraday {
 impl BackupFlow {
     /// "Vault 1 (Place 1)", "the stick of files".
     pub fn target_short(&self, t: &Target, medium: &str) -> String {
+        if self.is_setup() {
+            return self.target_name(t, medium);
+        }
         match t {
             Target::Place(p) => {
                 let vs = self.plan.places.get(*p).cloned().unwrap_or_default();
@@ -2787,6 +2798,11 @@ impl BackupFlow {
     /// "the stick for Vault 1 (Place 1)", "the stick of files".
     pub fn target_name(&self, t: &Target, medium: &str) -> String {
         match t {
+            // Before the keys, a stick is a vault's: no place is asked.
+            Target::Place(_) | Target::PlaceVault(..) if self.is_setup() => fill(
+                FEN.backup_flow_stick_for_vault,
+                &[medium, &self.target_vaults(t)],
+            ),
             Target::Place(_) | Target::PlaceVault(..) => fill(
                 FEN.backup_flow_stick_for,
                 &[medium, &self.target_vaults(t), &self.target_place(t)],

@@ -1,8 +1,9 @@
-//! A wallet's cards of the backup flow (`docs/BACKUP-FLOW.md` §10): where
-//! its keys will be kept, drawn from the plan's answers; the card that
-//! sends the person on to make the keys; and the three cards Make a new
-//! wallet gains before Keys. Drawing only; what a press does is
-//! `backup_flow_steps.rs` and `backup_flow_wallet.rs`.
+//! A wallet's cards of the backup flow (`docs/BACKUP-FLOW.md` §10): the
+//! plan drawn from its answers once the keys exist; the card that sends
+//! the person on to make the keys; and the cards Make a new wallet and
+//! Restore gain before the keys: whether vaults are part of the backup,
+//! how many, and the two of their setup. Drawing only; what a press does
+//! is `backup_flow_steps.rs` and `backup_flow_wallet.rs`.
 
 use crate::backup_flow::{BackupFlow, Step};
 use crate::backup_flow_steps::FlowAction as F;
@@ -247,39 +248,14 @@ pub(crate) fn make_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f
     cy + 52.0 - y
 }
 
-/// The Where card's rows: the plan's seed forms, ticked as `forms`
-/// says; each press is `act(row)`.
-fn form_rows(
-    forms: &crate::KeptForms,
-    enabled: bool,
-    act: fn(u8) -> Action,
-) -> Vec<(String, bool, bool, Action)> {
-    FORM_LABELS
-        .iter()
-        .enumerate()
-        .map(|(i, l)| (l.to_string(), forms.0[i], enabled, act(i as u8)))
-        .collect()
-}
-
-/// The labels of the plan's seeds question, by row.
-pub(crate) const FORM_LABELS: [&str; 4] = [
-    FEN.app_on_paper_words,
-    FEN.app_on_paper_seedqr,
-    FEN.app_into_vaults,
-    FEN.app_as_a_file_unprotected,
-];
-
-/// Draws the Where card the same way for Create and Restore: the one
-/// line, the forms, what the flow decided for vaults, Continue.
-#[allow(clippy::too_many_arguments)]
-fn where_card(
-    app: &Faraday,
+/// The question of vaults, the same in Make a new wallet and Restore: the
+/// question, Yes and No, and Continue once it is answered.
+fn ask_card(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
-    forms: &crate::KeptForms,
+    ask: crate::VaultAsk,
     locked: bool,
-    flow: Option<usize>,
-    act: fn(u8) -> Action,
+    (yes, no): (Action, Action),
     next: Action,
 ) -> f32 {
     let mut cy = y;
@@ -287,85 +263,147 @@ fn where_card(
         x,
         cy,
         w,
-        13.0,
+        14.0,
         W::R,
-        MUTED,
-        FEN.backup_flow_select_every_form,
-    ) + 12.0;
-    cy += ui.multi_list(x, cy, w, &form_rows(forms, !locked, act)) + 12.0;
-    let into = forms.0[crate::plan::seeds::VAULT];
-    if let Some(i) = flow.filter(|_| into) {
-        cy += flow_lines(app, &app.backup_flows[i], ui, x, cy, w);
-    }
-    if !locked {
-        let label = if flow.is_some() && into {
-            FEN.backup_flow_change
+        TEXT,
+        FEN.backup_flow_use_vaults_question,
+    ) + 14.0;
+    let style = |on: bool| {
+        if locked {
+            Style::Disabled
+        } else if on {
+            Style::Primary
         } else {
-            FEN.create_continue
-        };
-        let bw = ui.measure(14.0, W::S, label) + 36.0;
-        // With no form ticked there is nothing to continue with.
-        let style = if forms.any() {
+            Style::Secondary
+        }
+    };
+    let bw = 96.0;
+    ui.button(
+        x,
+        cy,
+        Some(bw),
+        40.0,
+        FEN.plan_yes,
+        style(ask.answer == Some(true)),
+        yes,
+    );
+    ui.button(
+        x + bw + 10.0,
+        cy,
+        Some(bw),
+        40.0,
+        FEN.plan_no,
+        style(ask.answer == Some(false)),
+        no,
+    );
+    cy += 52.0;
+    if !locked {
+        let label = FEN.create_continue;
+        let lw = ui.measure(14.0, W::S, label) + 36.0;
+        // Nothing is asked of the person until they have answered.
+        let style = if ask.answer.is_some() {
             Style::Primary
         } else {
             Style::Disabled
         };
-        ui.button(x + w - bw, cy, Some(bw), 40.0, label, style, next);
+        ui.button(x + w - lw, cy, Some(lw), 40.0, label, style, next);
         cy += 48.0;
     }
     cy - y
 }
 
-/// Make a new wallet's Where card: every form the seeds will be kept in;
-/// for a plan kept in vaults, what was decided, with **Change**.
+/// The count of vaults, the same in Make a new wallet and Restore: the
+/// question over a stepper from one up, and Continue.
+fn count_card(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    count: usize,
+    locked: bool,
+    set: fn(u16) -> Action,
+    next: Action,
+) -> f32 {
+    let mut cy = y;
+    cy += ui.wrap(
+        x,
+        cy,
+        w,
+        14.0,
+        W::R,
+        TEXT,
+        FEN.backup_flow_how_many_question,
+    ) + 14.0;
+    let n = count.min(usize::from(u16::MAX)) as u16;
+    stepper(
+        ui,
+        x,
+        cy,
+        w,
+        FEN.backup_flow_vault_count_label,
+        count,
+        set(n.saturating_sub(1).max(1)),
+        set(n.saturating_add(1)),
+        !locked,
+    );
+    cy += 52.0;
+    if !locked {
+        let label = FEN.create_continue;
+        let lw = ui.measure(14.0, W::S, label) + 36.0;
+        ui.button(x + w - lw, cy, Some(lw), 40.0, label, Style::Primary, next);
+        cy += 48.0;
+    }
+    cy - y
+}
+
+/// Make a new wallet's question of vaults.
 pub(crate) fn create_where(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
     let c = app.create.as_ref()?;
-    let flow = app.wallet_flow_of_owner(c.owner);
-    Some(where_card(
-        app,
+    Some(ask_card(
         ui,
         (x, y, w),
-        &c.forms,
+        c.vaults,
         c.built.is_some(),
-        flow,
-        Action::CForm,
+        (Action::CVaults(true), Action::CVaults(false)),
         Action::CNext(crate::cstep::WHERE),
     ))
 }
 
-/// Restore's Where card: the same, for the seeds being restored.
-pub(crate) fn restore_where(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
-    let r = app.restore.as_ref()?;
-    Some(where_card(
-        app,
+/// Make a new wallet's count of vaults.
+pub(crate) fn create_count(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
+    let c = app.create.as_ref()?;
+    Some(count_card(
         ui,
         (x, y, w),
-        &r.forms,
-        r.wallet.is_some(),
-        app.wallet_flow_pre(),
-        Action::RForm,
+        c.vaults.count,
+        c.built.is_some(),
+        Action::CVaultN,
+        Action::CNext(crate::cstep::HOW_MANY),
+    ))
+}
+
+/// Restore's question of vaults.
+pub(crate) fn restore_where(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
+    let r = app.restore.as_ref()?;
+    Some(ask_card(
+        ui,
+        (x, y, w),
+        r.vaults,
+        r.done[crate::rstep::SEEDS as usize],
+        (Action::RVaults(true), Action::RVaults(false)),
         Action::RNext(crate::rstep::WHERE),
     ))
 }
 
-/// The lines under the Where card once the flow has decided: the places
-/// and what each keeps, the vaults and where their sticks are.
-fn flow_lines(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let mut cy = y;
-    for (p, vs) in f.plan.places.iter().enumerate() {
-        if vs.is_empty() {
-            continue;
-        }
-        let names: Vec<String> = vs.iter().map(|&v| BackupFlow::vault_name(v)).collect();
-        let line = format!(
-            "{} · {} {}",
-            place(p),
-            fill(FEN.backup_flow_place_keeps, &[app.medium.noun()]),
-            names.join(", ")
-        );
-        cy += ui.wrap(x, cy, w, 13.0, W::R, TEXT, &line) + 6.0;
-    }
-    cy + 8.0 - y
+/// Restore's count of vaults.
+pub(crate) fn restore_count(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
+    let r = app.restore.as_ref()?;
+    Some(count_card(
+        ui,
+        (x, y, w),
+        r.vaults.count,
+        r.done[crate::rstep::SEEDS as usize],
+        Action::RVaultN,
+        Action::RNext(crate::rstep::HOW_MANY),
+    ))
 }
 
 /// Make a new wallet's Bring in the sticks and Vaults cards: where the

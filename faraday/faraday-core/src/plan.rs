@@ -112,6 +112,10 @@ pub struct Shape {
     pub seeds: Vec<Seed>,
     /// The description splits into shares (a multisig).
     pub splits: bool,
+    /// How many vaults were set up before the keys were made
+    /// (`docs/BACKUP-FLOW.md` §10.2): the plan has at least this many
+    /// vaults to put seeds in, however many seeds there are.
+    pub vaults: usize,
 }
 
 impl Shape {
@@ -133,9 +137,10 @@ impl Shape {
     }
 
     /// How many vaults the plan has a section for: one per seed loaded
-    /// here, and one for the description alone when none is.
+    /// here, and one for the description alone when none is; never fewer
+    /// than the vaults set up before the keys.
     pub fn vault_rows(&self) -> usize {
-        self.here().len().max(1)
+        self.here().len().max(1).max(self.vaults)
     }
 }
 
@@ -214,6 +219,7 @@ impl Answers {
                 .here()
                 .into_iter()
                 .map(|i| (0..shape.seeds.len()).map(|j| j == i).collect())
+                .chain((shape.here().len()..shape.vaults).map(|_| vec![false; shape.seeds.len()]))
                 .collect(),
             sticks: vec![vec![false; places]; shape.vault_rows()],
             wallet: [true, false, false, false],
@@ -326,12 +332,14 @@ impl Answers {
         let here = |i: usize| shape.seeds.get(i).is_some_and(|s| s.here);
         let mut kept_rows: Vec<usize> = (0..self.vaults.len()).collect();
         if self.map.is_none() {
+            // A vault set up before the keys stays, whatever it holds.
             let keep: Vec<usize> = (0..self.vaults.len())
                 .filter(|&v| {
-                    self.vaults[v]
-                        .iter()
-                        .enumerate()
-                        .any(|(i, &t)| t && here(i))
+                    v < shape.vaults
+                        || self.vaults[v]
+                            .iter()
+                            .enumerate()
+                            .any(|(i, &t)| t && here(i))
                 })
                 .collect();
             let mut vaults: Vec<Vec<bool>> = keep
@@ -1002,7 +1010,18 @@ impl Answers {
             }
             seen += 1;
         }
-        a.sticks = vec![vec![false; a.places]; shape.vault_rows()];
+        // A plan kept for more vaults than this shape has rows for (the
+        // vaults set up before the keys) reads with all of them.
+        let seen_rows = |l: &[(usize, Vec<bool>)]| l.iter().map(|(v, _)| v + 1).max().unwrap_or(0);
+        if seen_rows(&vaults).max(seen_rows(&sticks)) > 1024 {
+            return None;
+        }
+        if seen_rows(&vaults) > a.vaults.len() {
+            a.vaults
+                .resize_with(seen_rows(&vaults), || vec![false; shape.seeds.len()]);
+        }
+        let rows = shape.vault_rows().max(seen_rows(&sticks));
+        a.sticks = vec![vec![false; a.places]; rows];
         match one_stick {
             // Saved with one vault: it holds every seed here.
             Some(row) if vaults.is_empty() && sticks.is_empty() => {

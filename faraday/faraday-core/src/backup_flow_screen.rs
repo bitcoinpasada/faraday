@@ -85,6 +85,11 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// counted (§5). A plan with no stick has no stick card, no lock and no
 /// write.
 fn steps_of(f: &BackupFlow) -> Vec<Step> {
+    // The setup of a wallet's vaults, before its keys, is two cards: the
+    // sticks and the vaults.
+    if f.is_setup() {
+        return vec![Step::Sticks, Step::Vaults];
+    }
     Step::ALL
         .iter()
         .copied()
@@ -96,7 +101,7 @@ fn steps_of(f: &BackupFlow) -> Vec<Step> {
 fn card_title(app: &Faraday, f: &BackupFlow, s: Step) -> String {
     let m = app.medium.nouns();
     match s {
-        Step::Where if f.kind.is_wallet() => FEN.backup_flow_card_where_keys.to_string(),
+        Step::Where if f.kind.is_wallet() => FEN.backup_flow_card_plan.to_string(),
         Step::Where => FEN.backup_flow_card_where.to_string(),
         Step::Sticks => fill(FEN.backup_flow_card_sticks, &[m]),
         Step::Vaults => FEN.backup_flow_card_vaults.to_string(),
@@ -193,7 +198,12 @@ fn body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, s: Step, x: f32, y: f32, w: 
         Step::Done => done_body(app, f, ui, x, cy, w),
     };
     // Change the plan is under every card but the first (§4.8).
-    if s != Step::Where && s != Step::Done && f.step == s && f.live.writing.is_none() {
+    if s != Step::Where
+        && s != Step::Done
+        && f.step == s
+        && f.live.writing.is_none()
+        && !f.is_setup()
+    {
         cy += 8.0;
         cy += btn(
             ui,

@@ -1205,35 +1205,41 @@ rule), `screens.rs` (the copy item in `backup_body`, `copy_check`,
   empty;
 - a words-only plan's blank template carries no grid.
 
-### 14.8 Where the keys will be kept, before they are made (F31)
+### 14.8 Vaults before the keys, the plan after them (F31)
 
-Built (batch B1b, `docs/BACKUP-FLOW.md` §16 "Built (batch B1b)"); the
-spec is `docs/BACKUP-FLOW.md` (§10 for the wallet), shared with the APK,
-GPG, Secure Boot and Nostr keys.
+Built (batch B1b, `docs/BACKUP-FLOW.md` §16 "Built (batch B1b)"), and
+reworked on 2026-10-15; the spec is `docs/BACKUP-FLOW.md` (§10 for the
+wallet), shared with the APK, GPG, Secure Boot and Nostr keys.
 
-Today the plan comes after the keys (decision 20), New key makes a seed
-in memory, a vault item saves it, and no item writes to a stick: the
-done card's **Write to {a stick}** sends the person to the stick visit.
-After this change:
+Before the flow the plan came after the keys (decision 20), New key made a
+seed in memory, a vault item saved it, and no item wrote to a stick: the
+done card's **Write to {a stick}** sent the person to the stick visit.
+Now:
 
-- **The plan's vault part comes first.** Make a new wallet asks, after
-  its kind and shape and before Keys, where the keys will be kept: the
-  places, the vaults (`vault v`), their stick places (`sticks v`). Each
-  stick it names is brought in with nothing secret open (checked, its
-  vaults read, "Which vault is Vault 1?", its place confirmed), existing
-  vaults are unlocked and new ones made, each with its own passphrase;
-  then New key makes each seed straight into its vaults. Restore puts
-  its seed there. Paper, SeedQR, the sheet and shares, the descriptor
-  and the software stay where they are in the plan.
-- **The card is the seed forms.** The Where card (Make a new wallet and
-  Restore alike) says "Select every way the seeds will be kept" over
-  four boxes, the plan's seeds question: words on paper, SeedQR on paper,
-  into vaults, as a file. Any mix may be ticked; at least one must be,
-  or Continue is disabled. Words on paper is ticked to begin with, but
-  the card is never done until its own Continue is pressed; Kind's
-  Continue opens it. Into
-  vaults opens the sticks and vaults before the keys; the ticks are the
-  plan's `seeds` answers, which Back up shows already set.
+- **Vaults first, and nothing else.** Make a new wallet asks, after its
+  kind and shape and before Keys, "Will you use vaults as part of this
+  backup?". No goes straight to Keys. Yes asks how many vaults will be
+  part of the backup (one or more, no upper bound) and sets each up, one
+  at a time: its stick is inserted with nothing secret open and checked
+  (FAT32, room, writable); a stick that holds vaults offers which
+  existing vault this is or a new vault beside them, an empty one a new
+  vault; every stick is read before any vault is unlocked; then the
+  existing vaults are unlocked and the new ones made with Create a
+  vault's own form. Nothing about places, which key goes into which vault
+  or paper is asked before the keys. The question, the count and each
+  vault's setup are not done, and show no check, until the person has
+  answered and pressed Continue. Restore asks the same question and count
+  before its seeds are entered.
+- **The keys** are made into memory, as before.
+- **The plan is Back up's, after the keys**, with the vaults set up as
+  the plan's vaults: which seeds go into which vault, how many places,
+  the paper forms, SeedQR, files, the passphrase and the wallet
+  description. The plan offers at least as many vaults as were set up,
+  each shown by its name, and the checklist's vault item saves into the
+  vault set up for it. A plan that keeps a vault at more places than the
+  one stick it was set up on writes the extra copies at the write step,
+  to new sticks checked when they are inserted; a plan that wants a vault
+  that was not set up takes the extra round of `docs/BACKUP-FLOW.md` §4.8.
 - **Every form, any mix.** Places with paper, a vault's stick, both, or
   neither; only places with a stick are asked for; a paper-only plan
   has no stick step and no lock. One place is allowed. Nothing narrows

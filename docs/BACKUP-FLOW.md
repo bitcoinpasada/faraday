@@ -60,13 +60,20 @@ checklist. The flow is written here once; `docs/NEW-WALLET.md` §14.8,
   6. **Write each stick by place**: "Insert the stick for Vault 1 (Place
      1)", what will be written, writing, pull it.
   7. **Done**: unlock to use the key.
+
+  A Bitcoin wallet runs the same steps in another order (owner,
+  2026-10-15; §10.2): the vaults first, steps 2 and 3 for the vaults the
+  person says there will be; then step 4, the keys made into memory; then
+  the plan of step 1, in Back up, with those vaults as its vaults; then
+  steps 5 to 7.
 - **Why this order.** A stick is read only with nothing secret open. A
   key made first would have to be locked into some vault before a stick
   holding the vault it belongs in could be read; a new Bitcoin seed held
   only in memory would be wiped by that lock. So every stick the key
-  will be kept on is read before the key exists. Restore, which makes
-  nothing new, takes the same steps with its seed typed or scanned at
-  step 4.
+  will be kept on is read before the key exists. For a wallet the sticks
+  read before the keys are those of the vaults the person says it will
+  use. Restore, which makes nothing new, takes the same steps with its
+  seed typed or scanned at step 4.
 - **The plan decides what each stick holds**, before any stick is
   inserted. An empty stick holds what the plan puts there and nothing
   else; a vault has one copy per place the plan keeps it at, as many as
@@ -263,10 +270,10 @@ With no stick in (a stick inserted opens decision 8's Pull sheet,
 The kind's own form (§3), then **Make the key**: made once, and saved
 into every vault the plan keeps it in, in one action; the Result shows
 what was made and, a row per vault, "In Vault 1", "In Vault 2". For a
-wallet, New key makes each seed straight into the vaults its `vault v`
-lines name, with its passphrase where `pass i` puts it in the vault; a
-key kept only on paper is made and shown for copying, as today. Restore
-takes the seed typed or scanned, into the same vaults. A Nostr key needs
+wallet, New key makes each seed into memory and no vault is written to
+until Back up's plan says which seeds go into which vault (§10.2); a key
+kept only on paper is made and shown for copying, as today. Restore
+takes the seed typed or scanned, into memory the same way. A Nostr key needs
 its seed loaded: the unlock of step 3 loads the keys its vaults hold;
 any other is loaded as a key is (Add a key), and the npub is compared
 with the one chosen before the lock.
@@ -421,38 +428,40 @@ stick", writing, pull → Done → Unlock Vault 1 → the key's page; it
 signs.
 
 **B. A single key**: the seed in Vault 1 with its stick at Place 1 and
-Place 2, the descriptor on the stick of files. Create: kind → Where
-(Vault 1 new, holding seed 1, at Places 1 and 2) → bring in the two
-sticks as in A → Create Vault 1 → New key, made into Vault 1 → Check →
-Back up's plan (the rest) → checklist: Vault 1 (done), Public files
-(**Make them**), Envelopes → **Write to sticks**: Lock and write → Vault
-1 (Place 1) → Vault 1 (Place 2), the second-copy rules → the stick of
-files: checked, tap, `savings-descriptor.txt` written → Done → Unlock →
-the done card.
+Place 2, the descriptor on the stick of files. Create: kind → Use
+vaults: Yes → Number of vaults: 1 → insert the stick for Vault 1 (empty,
+bound, tap) → Create Vault 1 → New key, made into memory → Check →
+Back up's plan: the seed in Vault 1, its stick at Place 1 and Place 2,
+the description as files → checklist: Vault 1 (**Save into** Vault 1),
+Public files (**Make them**), Envelopes → **Write to sticks**: Lock and
+write → Vault 1 (Place 1), the stick read for Vault 1 → Vault 1 (Place
+2), a new stick checked when it is inserted, with the second-copy rules
+→ the stick of files: checked, tap, `savings-descriptor.txt` written →
+Done → Unlock → the done card.
 
 **C. A 2-of-3, each key in its own vault.** Vault 1 an existing vault
-on a stick at Place 1; Vault 2 and Vault 3 new, on empty sticks at Place
-2 and Place 3. Insert the stick for Vault 1 (Place 1): it holds
-`main.ofv` and `main-2.ofv`; "Which vault is Vault 1?" → `main.ofv`,
-copied in; tap → Vault 2 (Place 2): empty, checked, bound to Vault 2;
-tap → Vault 3 (Place 3): empty, reads as Place 2's, so the hold → Unlock
-Vault 1; Create Vault 2 and Vault 3, each its own passphrase → New key
-three times: Key 1 into Vault 1, Key 2 into Vault 2, Key 3 into Vault 3
-→ the rest of the plan and the checklist → Lock and write → the stick
-for Vault 1 (Place 1): `main.ofv` replaced, `main-2.ofv` untouched →
-Vault 2 (Place 2) → Vault 3 (Place 3) → Done.
+on one stick; Vault 2 and Vault 3 new, on empty sticks. Use vaults: Yes
+→ Number of vaults: 3 → insert the stick for Vault 1: it holds `main.ofv`
+and `main-2.ofv`; "Which vault is Vault 1?" → `main.ofv`, copied in;
+tap → the stick for Vault 2: empty, checked, bound; tap → the stick for
+Vault 3: empty, reads as the second did, so the hold → every stick is
+read → Unlock Vault 1; Create Vault 2 and Vault 3, each its own
+passphrase → New key three times, into memory → Back up's plan: Key 1
+into Vault 1, Key 2 into Vault 2, Key 3 into Vault 3, a place each → the
+rest of the plan and the checklist, each vault's **Save into** → Lock
+and write → the stick for Vault 1 (Place 1): `main.ofv` replaced,
+`main-2.ofv` untouched → Vault 2 (Place 2) → Vault 3 (Place 3) → Done.
 
-**D. A 2-of-3 mix.** Vault 1 on a stick at Place 1, Vault 2 on a stick
-at Place 2, Key 3 on paper at Place 3. Where names the two vaults and
-their places; Place 3 keeps no stick, so step 2 asks for two sticks
-only → Unlock or create Vault 1 and Vault 2 → New key: Key 1 into Vault
-1, Key 2 into Vault 2, Key 3 made and shown for copying → the plan's
-paper part (Place 3: Key 3's words) → checklist: Templates (printed
-from Faraday Starter), Copy of Key
-3 (F29's typed check), Vault 1 and Vault 2 (done), Sheets, Envelopes →
-Write to sticks: Vault 1 (Place 1), Vault 2 (Place 2), the stick of
-public files (the sheets as PDFs) → Done. Key 3 is held
-until its copy is checked; Keys 1 and 2 until their sticks are written.
+**D. A 2-of-3 mix.** Two vaults set up, Vault 1 and Vault 2, on a stick
+each; Key 3 on paper. The setup asks for two sticks only → Unlock or
+create Vault 1 and Vault 2 → New key three times, into memory → Back
+up's plan: Key 1 into Vault 1 and Key 2 into Vault 2, their sticks at
+Place 1 and Place 2, Key 3's words at Place 3 → checklist: Templates
+(printed from Faraday Starter), Copy of Key 3 (F29's typed check), Vault 1
+and Vault 2 (**Save into**), Sheets, Envelopes → Write to sticks: Vault 1
+(Place 1), Vault 2 (Place 2), the stick of public files (the sheets as
+PDFs) → Done. Key 3 is held until its copy is checked; Keys 1 and 2
+until their sticks are written.
 
 **E. Paper only.** No vault, no stick: steps 2, 3, 5 and 6 are not
 drawn; the keys are made and copied, the checklist as today.
@@ -559,21 +568,52 @@ and matched. A write made on the stick visit page does not count
 
 (Every bullet below keeps what the plan can say: §2.)
 
-- **Make a new wallet** gains, after its kind and shape and before
-  Keys, the steps 1 to 3 for the plan's vault part: **Where the keys will
-  be kept** (the plan's seed forms, ticked in any mix: words on paper,
-  SeedQR on paper, into vaults, as a file; they are `Answers::seeds`, so
-  Back up shows them as set and never asks twice; the vaults, `vault v`; their stick
-  places, `sticks v`; the places, `places`), **Bring in the sticks**,
-  **Vaults**. A plan with no vault has none of them. Back up's plan then
-  opens with that part closed on its value with **Change** (DESIGN
-  §4.14), the paper, SeedQR, sheet, share, descriptor and software
-  questions where they are.
-- **New key** makes each seed into its vaults (step 4), with F6's flag
-  set; **Restore** puts its seed there. `Item::Vault(v)` is then done,
-  or needs **Save into {vault}** only for what it still lacks (the
-  wallet description where the plan puts it, a plan changed part way);
-  `BNewVault` stays for a plan changed part way.
+- **Make a new wallet** asks about vaults after its kind and shape and
+  before Keys, and its plan is made in Back up after the keys (owner,
+  2026-10-15). In order:
+  1. **Whether vaults are part of the backup.** A question with Yes and
+     No: "Will you use vaults as part of this backup?". It is not done,
+     and shows no check, until the person has answered it and pressed
+     Continue. No goes on to Keys.
+  2. **How many vaults.** A count of one or more, with no upper bound;
+     not done until its own Continue.
+  3. **Each vault set up**, one at a time, in this flow and never on the
+     stick visit page: **Bring in the sticks** and **Vaults**, as §4.2
+     and §4.3 describe them. A stick for each vault is inserted with
+     nothing secret open and checked (FAT32, room, writable); a stick
+     that holds vaults offers which existing vault this is or **A new
+     vault beside them**, an empty one a new vault. Every stick is read
+     before any vault is unlocked. Then the existing vaults are unlocked
+     with their passphrases and the new ones made with Create a vault's
+     own form (name, passphrase twice, cost and memory check). The setup
+     asks nothing about places, which key goes into which vault, or paper,
+     and its sticks are named "the stick for Vault 1".
+  4. **Keys**, made into memory, as before. No key or wallet description
+     is written to any vault by the setup.
+  5. **Back up's plan**, after the keys, as it was before F31: which
+     seeds go into which vault, how many places, the paper forms, SeedQR,
+     files, the passphrase, the wallet description, the software. The
+     vaults set up in step 3 are the plan's vaults, numbered in the order
+     they were set up; the plan offers at least that many vaults, however
+     many seeds there are, and shows each by its name. The checklist's
+     vault item saves into the vault set up for it.
+  6. **The checklist and Write to sticks**, as §16 B1b built them: one
+     lock, each stick by place. A plan that keeps a vault at more places
+     than the one stick it was set up on writes the extra copies at the
+     write step, to new sticks checked when they are inserted, as an
+     added copy is (§4.8). A plan that wants a vault that was not set up
+     takes the extra round of §4.8.
+  The stick read for a vault goes to the first place the plan gives that
+  vault's stick; a stick the plan then gives no vault is not written.
+  Restore asks the same question and count, sets the vaults up before
+  the seeds are entered, and has its plan in Back up after (§11).
+- **New key** makes each seed into memory, with F6's flag set;
+  **Restore** takes its seed into memory. Neither writes to a vault.
+  `Item::Vault(v)` is done when the open vault set up for plan vault `v`
+  holds what the plan puts in it, and its **Save into {vault}** puts
+  there each seed, its passphrase where the plan puts it, and the wallet
+  description where the plan puts it; `BNewVault` stays for a plan
+  changed part way.
 - **The sticks** of the plan, from its map, one per spot that is a
   stick, holding what the map puts there:
   - a stick per `VaultStick(v)` spot at a place (brought in at step 2),
@@ -667,8 +707,7 @@ lines:
   Separate places are strongly recommended."
 
 It is drawn by `glance::check_lines`, so it shows wherever the three
-lines do: the plan's map panel, Create's **Where** card for a wallet,
-the done card's strip, the wallet card's and the open vault's strips
+lines do: the plan's map panel, the done card's strip, the wallet card's and the open vault's strips
 (NEW-WALLET §14.6), stacked as a fourth row on `small`.
 
 **The passphrase line.** For a single-key wallet whose key has no
@@ -679,14 +718,10 @@ action:
   seed is recommended."
 - `plan_add_passphrase`: **Add a passphrase**.
 
-In Create's **Where** card, before the key is made, **Add a passphrase**
-marks the slot so that the Key card asks for one (NEW-WALLET §3.3), and
-gives the passphrase its own row in the plan, at a place other than the
-seed's. Once the wallet exists, it opens Create on the Keys card with
-the key in its slot and §3.6's fields open; the key with a passphrase is
-another key and the wallet another wallet, which the Keys card shows by
-its fingerprint. The line never blocks Continue, the checklist or a
-spend.
+**Add a passphrase** opens Create on the Keys card with the key in its
+slot and §3.6's fields open; the key with a passphrase is another key
+and the wallet another wallet, which the Keys card shows by its
+fingerprint. The line never blocks Continue, the checklist or a spend.
 
 **The default with a passphrase.** `Answers::defaults` and every preset
 put a seed's passphrase at the first place that keeps no copy of that
@@ -708,9 +743,11 @@ public files on any stick, with no line.
 
 ## 11. Restore
 
-Restore's seeds route, and Add a key when the plan keeps the seed in
-vaults, take steps 1 to 3, then the seed typed or scanned into its
-vaults at step 4, then 5 to 7: no extra round. A restored key signs at
+Restore asks the same question as Make a new wallet (§10.2): will vaults
+be part of this backup, and how many. With vaults, the vaults are set up
+(steps 2 and 3) before the seeds are typed or scanned, which then go
+into memory. Back up's plan, which says which seed goes into which vault,
+comes after, as it does for Make a new wallet. A restored key signs at
 once (F6); the flow is offered and nothing waits for it.
 
 ## 12. Strings
@@ -855,7 +892,7 @@ a new `faraday-core/tests/backup_flow.rs`; the wallet's in
   the map panel and on the done card; a two-place single key with seed
   and passphrase at Place 1 shows it, and with them apart does not; a
   single key with no passphrase shows the passphrase line, whose **Add a
-  passphrase** in Create's Where card makes the Key card ask for one;
+  passphrase** opens Create on Keys with the passphrase fields open;
   Paper and vault with a passphrase puts the passphrase at a third
   place by default; none of the lines blocks Continue or the checklist.
 - **The checklist writes inside the flow.** In example B the plan's
@@ -1198,36 +1235,38 @@ checks) and `lib.rs`/`screens.rs` for the checklist and the cards.
    back, and the seeds each vault was sealed with. All of it is in the
    kept state (`version 3`) and the held fingerprints in `backup-gate`
    too, so a flow that does not read still holds its keys.
-3. **Steps 1 to 3 run on the flow's own screen** for a wallet, and Make a
-   new wallet hosts them: its card list gains **Where the keys will be
-   kept** after Kind and Quorum (one line, "Select every way the seeds will
-   be kept", over the four seed forms of the plan as boxes; words on
-   paper is ticked to begin with; the card is never done until the
-   person has pressed its own Continue, Kind's Continue opens it, and its
-   closed line is the forms ticked; with none ticked Continue is
-   disabled), and, once the flow has a plan, **Bring in the
-   sticks** and **Vaults** as closed cards with **Change**. **Continue**
-   on Where with **Into vaults** ticked opens the flow's cards (a page each on a
-   small panel); when the vaults are open the flow returns to Keys. The
-   same one card (**Where the seeds will be kept**) is in Restore before
-   Seeds, and returns to Seeds. Back up's first plan question keeps what
-   the flow decided: a preset fills the rest. Once any box was ticked,
-   the ticks are Back up's seed answers as well; until then the preset
-   chosen after the keys decides.
-4. **Before the keys exist** the plan is drawn for a placeholder shape: a
-   seed to be made here for each key ("Key 1"), none with a passphrase;
-   **Add a passphrase** before the key exists marks the single key's slot
-   (`CreateState::pass_marked`), which gives the plan a row for the
-   passphrase. When the wallet is made the shape is the real one and the
-   answers are fitted to it (`Answers::refit`: a seed not here is in no
-   vault; a vault left with no seed here goes).
-5. **The keys go straight into their vaults** by a hook that runs after
-   every press (`wallet_flow_save_keys`): a Create slot filled with a key
-   from words (New key, a loaded key, a passphrase locked in), or a seed
-   typed in Restore, is saved into each open vault of the plan that holds
-   its seed (with its passphrase where the plan puts it there), once. The
-   wallet description is saved into the vaults that hold it when Create
-   makes the wallet.
+3. **The vaults are set up on the flow's own screen** for a wallet, and
+   Make a new wallet hosts the setup (reworked 2026-10-15, §10.2): its
+   card list gains **Use vaults** (the question, Yes and No, after Kind
+   and Quorum), **Number of vaults** (a count of one or more) and, once the
+   setup has begun, **Bring in the sticks** and **Vaults** as closed
+   cards with **Change**. The question and the count are never done
+   until the person has answered and pressed their own Continue; with No,
+   Continue goes to Keys and no flow exists. The setup opens on **Bring
+   in the sticks**, a stick for each vault named "the stick for Vault 1"
+   (a page each on a small panel); when the vaults are open it returns to
+   Keys. Restore has the same two cards before Seeds and returns to
+   Seeds; for a wallet read from its description, the wallet is tied to
+   the setup when the setup ends.
+4. **Before the keys exist** the flow's plan is the setup's: Vault *v* at
+   Place *v*, each new, whatever Back up's plan will be; its shape is a
+   placeholder, a seed to be made here for each key ("Key 1"). When the
+   wallet is made the shape is the real one, with the count of vaults set
+   up (`Shape::vaults`, kept in the flow's state), and the answers are the
+   wallet's defaults fitted to it (`Answers::refit`; a vault set up stays
+   whether or not a seed is ticked into it, and the plan offers at least
+   that many vaults, however many seeds there are). The sticks read in
+   the setup are kept by vault (`BackupFlow::parked`, not kept across a
+   lock) and go to the first place Back up's plan gives each vault's
+   stick.
+5. **No key goes into a vault until the checklist's vault item saves it.**
+   The hook that saved each key into its vaults
+   (`wallet_flow_save_keys`), the mark that asked for a passphrase before
+   the key existed (`CreateState::pass_marked`), Back up's adoption of the
+   flow's answers and the preset's keeping of the vault part are gone.
+   Back up opens at its presets; the vault item's **Save into** puts in
+   the vault set up for its number each seed, its passphrase where the
+   plan puts it, and the wallet description where it goes there.
 6. **The checklist's last item**, `Item::Sticks`, shows the lock's Kept and
    Wiped from memory and a row for each stick by place (the stick of files
    and of public files by name), each with its files, ticked as written.
@@ -1281,8 +1320,8 @@ checks) and `lib.rs`/`screens.rs` for the checklist and the cards.
     and 2, the vault's stick at Place 2, the passphrase at Place 3.
 12. **No cap.** `Shape::max_places` is gone and `set_places` keeps its
     lower bound of one; so does `Answers::from_text`.
-13. **Restore** takes the same steps (above), its seeds into their vaults,
-    then the checklist. A restored key is no key made here, so nothing is
+13. **Restore** takes the same question, count and setup before its
+    seeds, its seeds into memory, then Back up's plan and the checklist. A restored key is no key made here, so nothing is
     held back and it signs at once; the flow is offered by the plan and
     the key's page shows the written count as any flow does.
 14. **Change the plan** for a wallet edits the answers (`FlowAction::Answer`
@@ -1351,6 +1390,14 @@ checks) and `lib.rs`/`screens.rs` for the checklist and the cards.
     flow read back after a lock gets one nothing matches), a Done flow that
     waits hands its hold to the flow that replaces it, and Add a passphrase
     acts on the wallet shown.
+
+**Reworked (owner, 2026-10-15).** Items 3 to 5 and 13 describe the order
+as reworked. The first build asked where the keys would be kept (places,
+vaults, which seed goes into which vault, the stick places) before any
+key existed, in a card of seed forms and then four checkboxes; that
+card, its actions, the plan editing before the keys and the hook that
+saved each key into its vaults are gone. The tests that carried that
+order set up the vaults first and decide the rest in Back up.
 
 **Open (for the owner).**
 

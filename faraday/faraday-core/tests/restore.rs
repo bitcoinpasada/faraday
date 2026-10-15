@@ -112,6 +112,7 @@ fn two_of_three_from_seeds() -> Faraday {
     app.press(Action::RNext(KIND));
     app.press(Action::RNext(QUORUM));
     app.press(Action::RSeeds);
+    app.press(Action::RVaults(false));
     app.press(Action::RNext(WHERE));
     assert_eq!(app.restore.as_ref().unwrap().open, Some(SEEDS));
     app
@@ -148,13 +149,7 @@ fn restore_opens_on_kind_with_no_transaction_card() {
     assert_eq!(app.screen, Screen::Restore);
     assert_eq!(app.restore.as_ref().unwrap().open, Some(KIND));
     let text = drawn(&mut app);
-    for card in [
-        "Kind",
-        "Description",
-        "Where the seeds will be kept",
-        "Keys",
-        "Check",
-    ] {
+    for card in ["Kind", "Description", "Use vaults", "Keys", "Check"] {
         assert!(text.lines().any(|l| l == card), "no {card} card: {text}");
     }
     assert!(!text.contains("transaction"), "{text}");
@@ -187,6 +182,7 @@ fn a_single_key_goes_on_from_description_with_the_seed_alone() {
     assert!(!text.contains("I do not have it"), "{text}");
     assert!(app.offers(Action::RSeeds));
     app.press(Action::RSeeds);
+    app.press(Action::RVaults(false));
     app.press(Action::RNext(WHERE));
     assert_eq!(app.restore.as_ref().unwrap().open, Some(SEEDS));
 
@@ -251,6 +247,7 @@ fn a_loaded_key_taken_into_a_slot_asks_for_its_passphrase() {
     app.press(Action::RNext(KIND));
     app.press(Action::RNext(QUORUM));
     app.press(Action::RSeeds);
+    app.press(Action::RVaults(false));
     app.press(Action::RNext(WHERE));
     type_seed(&mut app, &testkit::test_words("bacon"));
     type_seed(&mut app, &testkit::test_words("zebra"));

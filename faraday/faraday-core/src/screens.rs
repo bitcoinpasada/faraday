@@ -5613,7 +5613,7 @@ fn plan_body(app: &Faraday, ui: &mut Ui, qs: &[u8], i: usize, x: f32, y: f32, w:
             if a.seeds[crate::plan::seeds::VAULT] && !shape.watch_only() {
                 for (v, row) in a.vaults.iter().enumerate() {
                     cy += 12.0;
-                    section_label(ui, x, cy, &fill(EN.plan_vault, &[&(v + 1).to_string()]));
+                    section_label(ui, x, cy, &app.backup_vault_title(v));
                     cy += 28.0;
                     let list = qrow::VAULTS.saturating_add(v.min(63) as u8);
                     let items: Vec<(String, bool, bool, Action)> = shape
@@ -6903,19 +6903,19 @@ fn item_action(app: &Faraday, n: u8) -> (String, Action) {
         }
         Item::Copy(_) if b.checking => (EN.item_action_stop_typing.to_string(), Action::BCheck),
         Item::Copy(_) => (EN.item_action_check_my.to_string(), Action::BCheck),
-        Item::Vault(v) => {
-            let cur = app.vaults.current;
-            match app.vaults.open.get(cur) {
-                Some(_) if app.backup_vault_taken(v, cur) => {
-                    (EN.item_action_lock_it.to_string(), Action::BNewVault)
-                }
-                Some(open) => (
-                    fill(EN.item_action_save_into, &[&open.name.to_string()]),
-                    Action::BVaultSave(v.min(255) as u8),
-                ),
-                None => app.vault_way(Screen::Backup).unwrap_or(next),
+        Item::Vault(v) => match app.backup_vault_target(v) {
+            Some(cur) if app.backup_vault_taken(v, cur) => {
+                (EN.item_action_lock_it.to_string(), Action::BNewVault)
             }
-        }
+            Some(cur) => (
+                fill(
+                    EN.item_action_save_into,
+                    &[&app.vaults.open[cur].name.to_string()],
+                ),
+                Action::BVaultSave(v.min(255) as u8),
+            ),
+            None => app.vault_way(Screen::Backup).unwrap_or(next),
+        },
         Item::SeedFiles => (EN.item_action_make_it.to_string(), Action::BFile),
         Item::Sheets if split => (EN.item_action_make_them.to_string(), Action::BOut(4)),
         Item::Sheets => (EN.item_action_make_it.to_string(), Action::BOut(3)),
@@ -7806,10 +7806,11 @@ const CSTEPS: [&str; crate::cstep::COUNT] = [
     EN.app_keys,
     EN.app_check,
     EN.app_back_up,
-    EN.backup_flow_card_where_keys,
+    EN.backup_flow_card_use_vaults,
     // Bring in the sticks: named by the medium where it is drawn.
     "",
     EN.backup_flow_card_vaults,
+    EN.backup_flow_card_vault_count,
 ];
 
 fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -7832,7 +7833,9 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 CSTEPS[k as usize].to_string()
             },
             summary: match k {
-                cstep::WHERE | cstep::STICKS | cstep::VAULTS => create_flow_summary(app, k),
+                cstep::WHERE | cstep::HOW_MANY | cstep::STICKS | cstep::VAULTS => {
+                    create_flow_summary(app, k)
+                }
                 cstep::KIND => c.kind.name().to_string(),
                 cstep::QUORUM => fill(EN.create_of, &[&c.m.to_string(), &c.n.to_string()]),
                 cstep::KEYS if c.kind.threshold() => fill(
@@ -7907,8 +7910,18 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
 }
 
-/// The closed line of Make a new wallet's cards before Keys: what the flow
-/// decided.
+/// The closed line of a card that asks about vaults: the answer, as the
+/// person gave it.
+fn vaults_answer_line(ask: crate::VaultAsk) -> String {
+    match ask.answer {
+        Some(true) => EN.plan_yes.to_string(),
+        Some(false) => EN.plan_no.to_string(),
+        None => String::new(),
+    }
+}
+
+/// The closed line of Make a new wallet's cards before Keys: what the
+/// person answered and what the setup has done.
 fn create_flow_summary(app: &Faraday, k: u8) -> String {
     use crate::cstep;
     let Some(c) = app.create.as_ref() else {
@@ -7916,69 +7929,41 @@ fn create_flow_summary(app: &Faraday, k: u8) -> String {
     };
     let flow = app
         .wallet_flow_of_owner(c.owner)
-        .map(|i| &app.backup_flows[i]);
+        .map(|i| (i, &app.backup_flows[i]));
     match (k, flow) {
-        (cstep::WHERE, Some(f)) if app.create_in_vaults() => fill(
-            EN.backup_flow_places_vaults,
-            &[
-                &f.wallet
-                    .as_ref()
-                    .map_or(f.plan.places.len(), |w| w.answers.places)
-                    .to_string(),
-                &f.plan.used_vaults().len().to_string(),
-            ],
-        ),
-        (cstep::STICKS, Some(f)) => {
+        (cstep::HOW_MANY, _) => c.vaults.count.to_string(),
+        (cstep::STICKS, Some((_, f))) => {
             let bound = f.slots.iter().filter(|s| s.bound.is_some()).count();
             fill(
                 EN.backup_flow_read_of,
                 &[&bound.to_string(), &f.slots.len().to_string()],
             )
         }
-        (cstep::VAULTS, Some(f)) => {
+        (cstep::VAULTS, Some((i, f))) => {
             let used = f.plan.used_vaults();
-            let open = app.wallet_flow_of_owner(c.owner).map_or(0, |i| {
-                used.iter()
-                    .filter(|&&v| app.flow_open_index(i, v).is_some())
-                    .count()
-            });
+            let open = used
+                .iter()
+                .filter(|&&v| app.flow_open_index(i, v).is_some())
+                .count();
             fill(
                 EN.backup_flow_unlocked_of,
                 &[&open.to_string(), &used.len().to_string()],
             )
         }
-        _ => forms_line(&c.forms),
+        (cstep::WHERE, _) => vaults_answer_line(c.vaults),
+        _ => String::new(),
     }
 }
 
-/// The forms ticked on a Where card, in one line.
-fn forms_line(f: &crate::KeptForms) -> String {
-    crate::backup_flow_wallet_screen::FORM_LABELS
-        .iter()
-        .zip(f.0)
-        .filter(|(_, on)| *on)
-        .map(|(l, _)| *l)
-        .collect::<Vec<_>>()
-        .join(", ")
-}
-
-/// The closed line of Restore's Where card: what the flow decided.
-fn create_flow_summary_restore(app: &Faraday) -> String {
+/// The closed line of Restore's card of vaults: the answer.
+fn create_flow_summary_restore(app: &Faraday, k: u8) -> String {
     let Some(r) = app.restore.as_ref() else {
         return String::new();
     };
-    match app.wallet_flow_pre().map(|i| &app.backup_flows[i]) {
-        Some(f) if r.into_vaults() => fill(
-            EN.backup_flow_places_vaults,
-            &[
-                &f.wallet
-                    .as_ref()
-                    .map_or(f.plan.places.len(), |w| w.answers.places)
-                    .to_string(),
-                &f.plan.used_vaults().len().to_string(),
-            ],
-        ),
-        _ => forms_line(&r.forms),
+    if k == crate::rstep::HOW_MANY {
+        r.vaults.count.to_string()
+    } else {
+        vaults_answer_line(r.vaults)
     }
 }
 
@@ -8450,6 +8435,11 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
         }
         cstep::WHERE => {
             if let Some(h) = crate::backup_flow_wallet_screen::create_where(app, ui, x, cy, w) {
+                cy += h;
+            }
+        }
+        cstep::HOW_MANY => {
+            if let Some(h) = crate::backup_flow_wallet_screen::create_count(app, ui, x, cy, w) {
                 cy += h;
             }
         }
@@ -9005,7 +8995,8 @@ const RSTEPS: [&str; crate::rstep::COUNT as usize] = [
     EN.app_keys,
     EN.app_check,
     EN.app_done,
-    EN.backup_flow_card_where_seeds,
+    EN.backup_flow_card_use_vaults,
+    EN.backup_flow_card_vault_count,
 ];
 
 fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -9035,7 +9026,7 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     _ if r.done[k as usize] => EN.restore_none.to_string(),
                     _ => String::new(),
                 },
-                rstep::WHERE => create_flow_summary_restore(app),
+                rstep::WHERE | rstep::HOW_MANY => create_flow_summary_restore(app, k),
                 rstep::SEEDS => {
                     let (here, all) = restore_filled(app);
                     fill(EN.restore_of_filled, &[&here.to_string(), &all.to_string()])
@@ -9200,6 +9191,11 @@ fn restore_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f3
         rstep::DESCRIPTION => cy += restore_description(app, ui, x, cy, w),
         rstep::WHERE => {
             if let Some(h) = crate::backup_flow_wallet_screen::restore_where(app, ui, x, cy, w) {
+                cy += h;
+            }
+        }
+        rstep::HOW_MANY => {
+            if let Some(h) = crate::backup_flow_wallet_screen::restore_count(app, ui, x, cy, w) {
                 cy += h;
             }
         }

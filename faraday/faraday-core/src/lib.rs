@@ -1086,14 +1086,16 @@ pub enum Action {
     CKind(u8),
     /// Expands the Kind card's other eight kinds.
     CMoreKinds,
-    /// Ticks or unticks one form of the seeds on Make a new wallet's Where
-    /// card, by row of [`plan::seeds`].
-    CForm(u8),
-    /// The same on Restore's Where card.
-    RForm(u8),
-    /// **Add a passphrase** on the plan's check lines: before the key
-    /// exists, the key's slot is marked to ask for one; once the wallet
-    /// exists, Create opens on its Keys with the fields open
+    /// Answers the question of vaults on Make a new wallet: yes or no.
+    CVaults(bool),
+    /// The same on Restore.
+    RVaults(bool),
+    /// Sets how many vaults Make a new wallet sets up.
+    CVaultN(u16),
+    /// The same on Restore.
+    RVaultN(u16),
+    /// **Add a passphrase** on the plan's check lines: Create opens on
+    /// its Keys with the key in its slot and the fields open
     /// (`docs/BACKUP-FLOW.md` §10.3).
     PlanAddPass,
     /// Change the signatures needed.
@@ -2299,32 +2301,29 @@ pub mod mstep {
     pub const SIGN: u8 = 3;
 }
 
-/// The forms the seeds are kept in, by row of the plan's seeds question
-/// ([`plan::seeds`]), and whether the person ticked any: until then the
-/// Back up preset chosen later decides. Words on paper to begin with.
+/// The vault part of a new wallet's backup, asked before the keys exist
+/// (`docs/BACKUP-FLOW.md` §10.2): whether vaults are part of it, which is
+/// answered by the person and not before, and how many.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct KeptForms(pub [bool; 4], pub bool);
+pub struct VaultAsk {
+    /// Yes or no, once answered.
+    pub answer: Option<bool>,
+    /// How many vaults will be part of the backup: one or more.
+    pub count: usize,
+}
 
-impl Default for KeptForms {
-    fn default() -> KeptForms {
-        KeptForms([true, false, false, false], false)
+impl Default for VaultAsk {
+    fn default() -> VaultAsk {
+        VaultAsk {
+            answer: None,
+            count: 1,
+        }
     }
 }
 
-impl KeptForms {
-    /// Some form is ticked.
-    pub fn any(&self) -> bool {
-        self.0.iter().any(|&b| b)
-    }
-}
-
-/// Flips one row of the forms, a row past the list ignored.
-fn flip_form(f: &mut KeptForms, row: u8) {
-    if let Some(b) = f.0.get_mut(usize::from(row)) {
-        *b = !*b;
-        f.1 = true;
-    }
-}
+/// The most vaults a backup is set up with at once; a count past it is
+/// not a count a person means.
+const MAX_VAULTS: usize = 9999;
 
 /// Creating a wallet: the cards' state.
 #[derive(Default)]
@@ -2368,21 +2367,17 @@ pub struct CreateState {
     /// Keys locked in with a passphrase here, by fingerprint: their slot
     /// shows **Locked in**.
     pub pass_locked: Vec<[u8; 4]>,
-    /// The forms the seeds will be kept in, as the Where card ticks them:
-    /// the plan's own `seeds` answers (`docs/BACKUP-FLOW.md` §10.2). With
-    /// vaults ticked, the sticks and the vaults come before the keys.
-    pub forms: KeptForms,
-    /// A single key's slot is marked to ask for a passphrase, before the
-    /// key exists (`docs/BACKUP-FLOW.md` §10.3).
-    pub pass_marked: bool,
+    /// Whether vaults are part of the backup and how many; with yes, the
+    /// sticks and the vaults come before the keys.
+    pub vaults: VaultAsk,
     /// The number the wallet's backup flow is tied to (`Faraday::owner_seq`).
     pub owner: u64,
 }
 
 impl CreateState {
-    /// The seeds go into vaults.
+    /// The person answered yes to using vaults.
     pub fn into_vaults(&self) -> bool {
-        self.forms.0[plan::seeds::VAULT]
+        self.vaults.answer == Some(true)
     }
 
     /// Closes a slot's passphrase fields, forgetting what was typed.
@@ -2411,14 +2406,16 @@ pub mod cstep {
     pub const CHECK: u8 = 3;
     /// The backup plan's presets, each opening Back up a wallet.
     pub const BACKUP: u8 = 4;
-    /// Where the keys will be kept (the plan's vault part), before Keys.
+    /// Whether vaults are part of the backup, before Keys.
     pub const WHERE: u8 = 5;
-    /// Bring in the sticks the plan names, before Keys.
+    /// Bring in the sticks of the vaults, before Keys.
     pub const STICKS: u8 = 6;
     /// Unlock and make the vaults, before Keys.
     pub const VAULTS: u8 = 7;
+    /// How many vaults, before the sticks.
+    pub const HOW_MANY: u8 = 8;
     /// How many cards there are.
-    pub const COUNT: usize = 8;
+    pub const COUNT: usize = 9;
 }
 
 /// Restoring a wallet: the cards' state (`docs/NEW-WALLET.md` §12).
@@ -2451,27 +2448,26 @@ pub struct RestoreState {
     pub from_key: bool,
     /// Opened from Home: Back goes to Home.
     pub from_home: bool,
-    /// The forms the seeds will be kept in, as the Where card ticks them:
-    /// the plan's own `seeds` answers (`docs/BACKUP-FLOW.md` §11). With
-    /// vaults ticked, the sticks and the vaults come before the seeds are
-    /// typed.
-    pub forms: KeptForms,
+    /// Whether vaults are part of the backup and how many; with yes, the
+    /// sticks and the vaults come before the seeds are typed
+    /// (`docs/BACKUP-FLOW.md` §11).
+    pub vaults: VaultAsk,
     /// The number the wallet's backup flow is tied to (`Faraday::owner_seq`).
     pub owner: u64,
 }
 
 impl RestoreState {
-    /// The seeds go into vaults.
+    /// The person answered yes to using vaults.
     pub fn into_vaults(&self) -> bool {
-        self.forms.0[plan::seeds::VAULT]
+        self.vaults.answer == Some(true)
     }
 
     /// A fresh Restore, open on Kind with a single key ticked.
     pub fn new() -> RestoreState {
         let mut s = seeds::SeedsState::default();
         s.fix(create::NewKind::NativeSegwit);
-        // Where the seeds will be kept is done only once the person has
-        // pressed its own Continue, whatever is ticked to begin with.
+        // The question of vaults is done only once the person has
+        // answered it and pressed its own Continue.
         let done = [false; rstep::COUNT as usize];
         RestoreState {
             open: Some(rstep::KIND),
@@ -2493,13 +2489,11 @@ impl RestoreState {
         if kind.multi() && !kind.threshold() {
             v.push(rstep::QUORUM);
         }
-        v.extend([
-            rstep::DESCRIPTION,
-            rstep::WHERE,
-            rstep::SEEDS,
-            rstep::CHECK,
-            rstep::DONE,
-        ]);
+        v.extend([rstep::DESCRIPTION, rstep::WHERE]);
+        if self.into_vaults() {
+            v.push(rstep::HOW_MANY);
+        }
+        v.extend([rstep::SEEDS, rstep::CHECK, rstep::DONE]);
         v
     }
 
@@ -2534,10 +2528,12 @@ pub mod rstep {
     pub const CHECK: u8 = 4;
     /// What next.
     pub const DONE: u8 = 5;
-    /// Where the seeds will be kept (the plan's vault part), before Seeds.
+    /// Whether vaults are part of the backup, before Seeds.
     pub const WHERE: u8 = 6;
+    /// How many vaults, before Seeds.
+    pub const HOW_MANY: u8 = 7;
     /// How many cards.
-    pub const COUNT: u8 = 7;
+    pub const COUNT: u8 = 8;
 }
 
 /// The backup cards, in order.
@@ -4681,7 +4677,6 @@ impl Faraday {
         self.act_inner(action);
         // A wallet's flow follows the plan and the keys the press left.
         self.wallet_flow_sync();
-        self.wallet_flow_save_keys();
     }
 
     fn act_inner(&mut self, action: Action) {
@@ -5344,7 +5339,6 @@ impl Faraday {
                     };
                     // A copy checked this power-on stays checked.
                     let checked = self.backups_checked(i);
-                    let loaded = q.is_none();
                     self.backup = Some(BackupState {
                         wallet: i,
                         q,
@@ -5355,12 +5349,6 @@ impl Faraday {
                         words: 24,
                         ..BackupState::default()
                     });
-                    // Where the keys go was decided before they were made:
-                    // the plan starts from there, and a plan the vault
-                    // kept stays.
-                    if !loaded {
-                        self.wallet_flow_adopt(i);
-                    }
                     self.screen = Screen::Backup;
                 }
             }
@@ -5390,14 +5378,7 @@ impl Faraday {
                 };
                 let shape = self.plan_shape(w);
                 if let Some(&preset) = plan::Preset::ALL.get(usize::from(k)) {
-                    let mut answers = plan::Answers::preset(&shape, preset);
-                    // The vault part was decided before the keys were made.
-                    self.wallet_flow_keep_vault_part(w, &mut answers);
-                    // The forms were chosen on the Where card; Back up
-                    // shows them as they are.
-                    if let Some(forms) = self.wallet_card_forms(w) {
-                        answers.seeds = forms;
-                    }
+                    let answers = plan::Answers::preset(&shape, preset);
                     if let Some(b) = self.backup.as_mut() {
                         b.answers = answers;
                     }
@@ -5880,16 +5861,22 @@ impl Faraday {
             {
                 self.create_make();
             }
-            // Where the keys will be kept: Continue opens the wallet's flow,
-            // which brings in the sticks and opens the vaults; it comes
+            // The question of vaults waits for its answer.
+            Action::CNext(k)
+                if k == cstep::WHERE
+                    && self
+                        .create
+                        .as_ref()
+                        .is_some_and(|c| c.vaults.answer.is_none()) => {}
+            // How many vaults: Continue opens the setup, which brings in
+            // each vault's stick and opens or makes the vault; it comes
             // back to Keys.
-            // With no form ticked, Continue does nothing.
-            Action::CNext(k)
-                if k == cstep::WHERE && self.create.as_ref().is_some_and(|c| !c.forms.any()) => {}
-            Action::CNext(k)
-                if k == cstep::WHERE && self.create.as_ref().is_some_and(|c| c.into_vaults()) =>
-            {
-                self.wallet_flow_begin();
+            Action::CNext(k) if k == cstep::HOW_MANY => {
+                if let Some(c) = self.create.as_mut() {
+                    c.done[k as usize] = true;
+                    let owner = c.owner;
+                    self.wallet_flow_begin(owner);
+                }
             }
             Action::CNext(k) => {
                 if let Some(c) = self.create.as_mut() {
@@ -5943,16 +5930,26 @@ impl Faraday {
                     self.act(Action::BPreset(k));
                 }
             }
-            Action::CForm(row) => {
+            Action::CVaults(yes) => {
+                if let Some(c) = self.create.as_mut()
+                    && c.built.is_none()
+                    && c.vaults.answer != Some(yes)
+                {
+                    let owner = c.owner;
+                    c.vaults.answer = Some(yes);
+                    c.done[cstep::WHERE as usize] = false;
+                    c.done[cstep::HOW_MANY as usize] = false;
+                    self.wallet_vaults_changed(owner);
+                }
+            }
+            Action::CVaultN(n) => {
                 if let Some(c) = self.create.as_mut()
                     && c.built.is_none()
                 {
                     let owner = c.owner;
-                    let vault_was = c.into_vaults();
-                    flip_form(&mut c.forms, row);
-                    let vault = c.into_vaults();
-                    c.done[cstep::WHERE as usize] = false;
-                    self.wallet_forms_changed(owner, vault_was, vault);
+                    c.vaults.count = usize::from(n).clamp(1, MAX_VAULTS);
+                    c.done[cstep::HOW_MANY as usize] = false;
+                    self.wallet_vaults_changed(owner);
                 }
             }
             Action::PlanAddPass => self.plan_add_passphrase(),
@@ -6156,31 +6153,47 @@ impl Faraday {
                     r.scroll.follow = true;
                 }
             }
-            // Where the seeds will be kept: Continue opens the wallet's flow,
-            // which brings in the sticks and opens the vaults; it comes
-            // back to Seeds.
+            // The question of vaults waits for its answer.
             Action::RNext(k)
-                if k == rstep::WHERE && self.restore.as_ref().is_some_and(|r| !r.forms.any()) => {}
-            Action::RNext(k)
-                if k == rstep::WHERE && self.restore.as_ref().is_some_and(|r| r.into_vaults()) =>
-            {
-                self.wallet_flow_begin();
+                if k == rstep::WHERE
+                    && self
+                        .restore
+                        .as_ref()
+                        .is_some_and(|r| r.vaults.answer.is_none()) => {}
+            // How many vaults: Continue opens the setup, which comes back
+            // to Seeds.
+            Action::RNext(k) if k == rstep::HOW_MANY => {
+                if let Some(r) = self.restore.as_mut() {
+                    r.done[k as usize] = true;
+                    let owner = r.owner;
+                    self.wallet_flow_begin(owner);
+                }
             }
             Action::RNext(k) => {
                 if let Some(r) = self.restore.as_mut() {
                     r.next(k);
                 }
             }
-            Action::RForm(row) => {
+            Action::RVaults(yes) => {
                 if let Some(r) = self.restore.as_mut()
-                    && r.wallet.is_none()
+                    && !r.done[rstep::SEEDS as usize]
+                    && r.vaults.answer != Some(yes)
                 {
                     let owner = r.owner;
-                    let vault_was = r.into_vaults();
-                    flip_form(&mut r.forms, row);
-                    let vault = r.into_vaults();
+                    r.vaults.answer = Some(yes);
                     r.done[rstep::WHERE as usize] = false;
-                    self.wallet_forms_changed(owner, vault_was, vault);
+                    r.done[rstep::HOW_MANY as usize] = false;
+                    self.wallet_vaults_changed(owner);
+                }
+            }
+            Action::RVaultN(n) => {
+                if let Some(r) = self.restore.as_mut()
+                    && !r.done[rstep::SEEDS as usize]
+                {
+                    let owner = r.owner;
+                    r.vaults.count = usize::from(n).clamp(1, MAX_VAULTS);
+                    r.done[rstep::HOW_MANY as usize] = false;
+                    self.wallet_vaults_changed(owner);
                 }
             }
             Action::RKind(i) => self.restore_kind(i),
@@ -6729,6 +6742,7 @@ impl Faraday {
                 keys: 1,
                 seeds: Vec::new(),
                 splits: false,
+                vaults: 0,
             };
         };
         self.plan_shape_of(wallet)
@@ -6748,11 +6762,17 @@ impl Faraday {
                     .is_some_and(|p| !p.is_empty()),
             })
             .collect();
+        // The vaults set up before the keys are the plan's first vaults.
+        let vaults = self
+            .wallet_flow_active(&wallet.policy.checksum())
+            .and_then(|i| self.backup_flows[i].wallet.as_ref())
+            .map_or(0, |w| w.shape.vaults);
         plan::Shape {
             m: m.clamp(1, seeds.len().max(1)),
             keys: n.max(1),
             seeds,
             splits: backup::splits(wallet),
+            vaults,
         }
     }
 
@@ -7114,11 +7134,58 @@ impl Faraday {
 
     /// The open vault that does the plan's vault `v`: it holds every seed
     /// the plan puts into `v`, the wallet where the plan puts it there, and
-    /// no seed only another vault is to hold. Its place among the open
-    /// vaults.
+    /// no seed only another vault is to hold. A vault set up before the
+    /// keys is the plan's vault of its number; no other plan vault takes
+    /// it. Its place among the open vaults.
     pub(crate) fn backup_vault_open(&self, v: usize) -> Option<usize> {
         self.backup_vault_wanted(v)?;
-        (0..self.vaults.open.len()).find(|&o| self.backup_open_fits(v, o))
+        if let Some(o) = self.backup_vault_set_up(v) {
+            return self.backup_open_fits(v, o).then_some(o);
+        }
+        let theirs = self.backup_vaults_set_up_but(v);
+        (0..self.vaults.open.len()).find(|&o| !theirs.contains(&o) && self.backup_open_fits(v, o))
+    }
+
+    /// What the plan's vault `v` is called where its seeds are chosen:
+    /// "Vault 1", and the name of the vault set up for it before the keys.
+    pub(crate) fn backup_vault_title(&self, v: usize) -> String {
+        let n = (v + 1).to_string();
+        match self
+            .backup_vault_set_up(v)
+            .map(|o| &self.vaults.open[o].name)
+        {
+            Some(name) if !name.is_empty() => fill(EN.plan_vault_2, &[&n, name]),
+            _ => fill(EN.plan_vault, &[&n]),
+        }
+    }
+
+    /// The open vault that was set up before the keys for the plan's vault
+    /// `v`, when the wallet's flow has one.
+    pub(crate) fn backup_vault_set_up(&self, v: usize) -> Option<usize> {
+        let i = self.wallet_flow_of_backup()?;
+        self.flow_open_index(i, v)
+    }
+
+    /// The open vaults set up for plan vaults other than `v`.
+    fn backup_vaults_set_up_but(&self, v: usize) -> Vec<usize> {
+        let Some(i) = self.wallet_flow_of_backup() else {
+            return Vec::new();
+        };
+        (0..self.backup_flows[i].plan.vaults.len())
+            .filter(|&w| w != v)
+            .filter_map(|w| self.flow_open_index(i, w))
+            .collect()
+    }
+
+    /// The open vault the checklist puts plan vault `v` in: the vault set
+    /// up for it, else the current one if no other plan vault is its.
+    pub(crate) fn backup_vault_target(&self, v: usize) -> Option<usize> {
+        if let Some(o) = self.backup_vault_set_up(v) {
+            return Some(o);
+        }
+        let cur = self.vaults.current;
+        self.vaults.open.get(cur)?;
+        (!self.backup_vaults_set_up_but(v).contains(&cur)).then_some(cur)
     }
 
     /// Whether the plan puts anything in vault `v`.

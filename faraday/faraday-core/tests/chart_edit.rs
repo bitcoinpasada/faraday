@@ -621,6 +621,7 @@ fn a_plan_saved_before_the_chart_could_edit_it_still_loads() {
             passphrase: false,
         }],
         splits: false,
+        vaults: 0,
     };
     let text = "seeds 1010\nplaces 2\nsplit 0\nwallet 1100\nsoftware 00001\nform 10\nomit 0\nvault 0 1\nsticks 0 01\n";
     let a = Answers::from_text(&shape, text).expect("the plan loads");
