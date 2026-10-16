@@ -2785,8 +2785,10 @@ as possible before the next build.
     2026-10-16 (§19.11's note); F2b, the board in the guided flow and
     a narrow window, §19.14's boxes and layout, §17's cards removed,
     built 2026-10-16; F2c, the board in rows and its colours, with one
-    page colour across the app (F39), built 2026-10-16. Waiting for the
-    owner's test on the stick; then F3.
+    page colour across the app (F39), built 2026-10-16. From the
+    owner's test of F2c, F2d (§19.16, F40): a press on + stick adds an
+    empty stick, and a vault kept at no place is not in the plan.
+    Specified, not built; then F3.
 
 79. [ ] 2026-10-16, owner: **access layers** (`docs/BACKUP-FLOW.md` §20,
     F38). Access layers 1, 2, 3 …, each a list of what it is able to

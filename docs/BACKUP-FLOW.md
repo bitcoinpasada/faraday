@@ -1817,7 +1817,8 @@ its zones, top to bottom:
   the vault holds, §19.3), and its files. A stick with no vault is a
   stick of files. A place starts with no sticks; dropping a file or a
   vault on the card's **+ stick** row, or on the stick part of an
-  empty card, makes one.
+  empty card, makes one, and a press on **+ stick** adds an empty one
+  (§19.16).
 - **Paper**: what the place keeps on paper.
 - Under the zones, the place's line of fact: what someone who finds this
   place alone gets (`plan::alone` for that place, as §17.1 words it).
@@ -2107,6 +2108,8 @@ plans on the board, keeping what each checked; none is deleted.
   popup, warnings, both plan cards, place names, the narrow column, the
   lock (§19.1, §19.2, §19.5, §19.6, §19.12 items 1–3, 8), DESIGN §4.17.
 - **F3, the vault's show and save** (§19.7). Independent of F1 and F2.
+- **F2d, + stick and a vault at no place** (§19.16), from the owner's
+  test of F2c. Before F3.
 
 F1 built 2026-10-16.
 
@@ -2611,3 +2614,71 @@ and §19.14 item 2's colours. Built in F2c.
    #0B7A9E, band #0B7A9E with white; paper #FBF5E6 / #977A36 / #6A501A);
    each other theme has its own, by the same rules, named colours in
    the palette and DESIGN §4.17.
+
+### 19.16 + stick, and a vault kept at no place (owner, 2026-10-16)
+
+Decided from the owner's test of F2c: **+ stick** did nothing when
+pressed, which read as broken until a drop on it was tried; and a vault
+whose sticks had all been taken off (its places removed) still stood in
+The plan with what it held, until its chip was taken off the list.
+F40. Built in F2d.
+
+1. **A press on + stick adds a stick.** With nothing held, a press on a
+   place's **+ stick** adds an empty stick box there, after its sticks:
+   "Stick n" with its ×, and **+ stick** after it again, so a place can
+   be given several empty sticks in a row. A drop on **+ stick** is as
+   before (a new stick for what is dropped).
+   - An empty stick is the board's, not the plan's: it is kept in the
+     board's state (`BoardState`), never on the map, so The plan, the
+     checklist, the checks and the plan's text never see it (the map's
+     rule that a stick holding nothing goes, §19.4, stands).
+   - A drop on an empty stick (a file, or a vault's chip on its stick
+     part) makes it the place's next stick of the plan, the same edit as
+     a drop on **+ stick**; the empty sticks after it keep their order.
+     Empty sticks are drawn after the place's sticks of the plan, so
+     their numbers follow on.
+   - Its × removes it. Removing its place removes it; the places after
+     move down with theirs.
+   - The board's empty sticks go when the board is left (its card closed
+     or another screen opened): nothing is lost, since they hold nothing.
+   - After the lock (§17.8) a press adds one as before; it takes what a
+     stick takes after the lock, a vault's stick.
+   - In the narrow column the same: a press on **+ stick** adds one.
+2. **+ stick shows it takes what is held.** While a chip that **+ stick**
+   takes is held, by a tap or a drag, its dashed edge is drawn solid in
+   the stick's edge colour, at every place, so the person sees where a
+   new stick can be made before the pointer reaches one. The accent edge
+   round the zone that a drop or tap would place on is as before. No
+   line of explanation is added (a working screen carries none).
+3. **A vault kept at no place is not in the plan.** A vault no place
+   keeps a stick of stays on the board's list, with what it holds, and a
+   drag of its chip onto a place puts it back with all of it. Everything
+   but the board reads the plan without it:
+   - The plan step (`map_rows`) does not list it; the checklist makes
+     no item for it; the flows do not set it up or write it.
+   - The checks do not count what it holds: a seed kept only there is
+     "Seed X is kept nowhere", and holds Make the checklist as §19.5
+     says.
+   - "Vault n's stick needs a place" and its hold on Make the checklist
+     go; "Vault n holds nothing" counts only a vault kept at a place, so
+     a vault just added by **+ vault** holds nothing back.
+   - The map as saved (`Answers::map`, the plan's text) keeps it, so the
+     board reads back as it was left.
+   - Model: `plan::map` is the plan, the stored map without a vault no
+     place keeps a stick of; the board reads and edits the stored map in
+     full (a function of its own), and a new vault's number and the
+     list's vaults count every vault in it.
+   - **Open (owner):** a vault set up before the keys (an open vault,
+     §17.7) or one past the lock (§17.8) exists already. Proposed: such
+     a vault stays in the plan at no place, with today's "needs a place"
+     warning and hold; only a vault the board made (+ vault, a preset)
+     drops out.
+4. **Tests** (user-facing behaviour, `tests/backup_board.rs`): a press
+   on **+ stick** with nothing held shows a new empty stick and a
+   further **+ stick**, and The plan and the checklist are unchanged;
+   a file dropped on the empty stick is kept on a stick of the plan at
+   that place; the empty stick's × removes it; a place removed takes
+   its empty sticks; with places 2 and 3 removed, their vaults are not
+   in The plan or the checklist, are still on the list with what they
+   hold, and a seed kept only in one of them is kept nowhere; a vault
+   dragged back onto a place returns with what it held.

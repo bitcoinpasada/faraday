@@ -1683,3 +1683,20 @@ page looked busy.
   column, divided from the page by the same rule.
 - Built with BACKUP-FLOW §19.15 (F2c, 2026-10-16).
 
+
+### F40 The plan is what the places keep (2026-10-16)
+
+**Why.** In the owner's test of the board (F37), a vault whose places
+had been removed still stood in The plan with what it held, and
+held Make the checklist, until its chip was taken off the list; and
+**+ stick** did nothing when pressed.
+
+**Decision** (owner, 2026-10-16; `docs/BACKUP-FLOW.md` §19.16).
+
+- The plan is what the places keep. A vault no place keeps a stick of
+  stays on the board's list, with what it holds, and is left out of The
+  plan, the checklist and the checks until it is put on a place again.
+- A press on **+ stick** adds an empty stick at the place, the board's
+  until something is dropped on it; while a chip it takes is held,
+  **+ stick** is drawn with a solid edge.
+- No line of explanation on the board: the box does what its label says.
