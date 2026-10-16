@@ -2523,3 +2523,38 @@ seed's copy is checked as F29 checks a copy (the words, or their
 numbers, typed back), as every checklist releases it; the standard way
 asks nothing more than that.
 
+
+### 19.15 The board in rows, and its colours (owner, 2026-10-16)
+
+Decided from mockups after F2, replacing §19.1's rows of place cards
+and §19.14 item 2's colours. Built in F2c.
+
+1. **One place per row.** The places stand one under another, each the
+   whole width of the main column, `BOARD_PLACE_GAP` (20 dp at scale 1)
+   apart. A place's row: its header band (the place glyph, its name,
+   its line of fact as an outlined tag, its ×), then left to right its
+   stick boxes, a **+ stick** box, and Paper (or Scanned in at the
+   software place). The stick boxes share the width; when they do not
+   fit at a chip's width each, they wrap onto a second line inside the
+   place. A row is as tall as its tallest box. **+ place** is a row of
+   its own after the last place; the software place is last. In the
+   narrow column the parts of a place stack instead.
+2. **One hue per kind of box**, pale fills and strong edges, colour
+   carried by edges and header bands, never by colour alone:
+
+   | Box | Fill | Edge | Header | Glyph |
+   |---|---|---|---|---|
+   | Place | a pale green | green, with a thick left stripe | a green band, the name in dark green | ⌂ |
+   | Stick | a cool slate grey | slate | "Stick n" in slate | ▭ |
+   | **+ stick** | the stick's fill | the stick's edge, dashed | "+ stick" | |
+   | Vault | a pale accent tint | the accent, 2 dp | a solid accent band, "Vault n · sealed" on it | ▣ |
+   | Paper | a warm cream | brown | "Paper" in brown | ✎ |
+   | Chip | the surface, a faint shadow | a stronger neutral | | |
+
+   Every box's edge is at least 3:1 against the fill around it and all
+   text at least 4.5:1 on its fill, in every theme. The light theme's
+   values are the mockup's (place #EDF6EF / band #DCEEE1 / edge #5E9A73
+   / text #1E5B35; stick #E3E8ED / #7D8B98 / #36424D; vault #D3EAF3 /
+   #0B7A9E, band #0B7A9E with white; paper #FBF5E6 / #977A36 / #6A501A);
+   each other theme has its own, by the same rules, named colours in
+   the palette and DESIGN §4.17.
