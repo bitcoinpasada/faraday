@@ -2781,7 +2781,10 @@ as possible before the next build.
     and a vault's key and wallet shown as QR and saved to a stick from
     its contents screen. `wide` only. Batches F1 (model), F2 (board),
     F3 (vault show and save). F1 built 2026-10-16 (BACKUP-FLOW §19.13
-    for what building it decided); F2 next.
+    for what building it decided); F2a, the board in Back up, built
+    2026-10-16 (§19.11's note). Next F2b: the board in the guided flow,
+    the narrow column, §17's strings; then the owner tests on the
+    stick before F3.
 
 80. [ ] 2026-10-16, owner: **Restore ends on a choice**
     (`docs/NEW-WALLET.md` §12.3; tracker issue 134). A restored wallet

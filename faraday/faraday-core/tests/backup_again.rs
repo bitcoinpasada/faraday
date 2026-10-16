@@ -8,9 +8,12 @@
 //! backs up the one picked on Wallets, and its chip switches to the
 //! other. The key rows list the wallet's keys whose seeds are here.
 
+mod common;
+
+use common::{no_vaults, no_words};
 use faraday_core::backup::Tone;
+use faraday_core::board::{BoardPress, Chip, Thing};
 use faraday_core::catalog::{Go, TILES};
-use faraday_core::plan::Row;
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
@@ -121,17 +124,9 @@ fn press_offered(app: &mut Faraday, action: Action) {
 /// public files item is open to reach; then the checklist made from it.
 fn every_software(app: &mut Faraday) {
     press_offered(app, Action::BPreset(2));
-    // Each place's card: no words, no vault (its description goes with
-    // it).
-    let w = app.backup.as_ref().unwrap().wallet;
-    let shape = app.plan_shape(w);
-    let a = app.backup.as_ref().unwrap().answers.clone();
-    for p in 0..a.places {
-        app.press(Action::BRowOff(p as u8, Row::Words.code()));
-        for v in 0..a.vault_count(&shape) {
-            app.press(Action::BRowOff(p as u8, Row::Vault(v).code()));
-        }
-    }
+    // On the board: no words, no vault (its description goes with it).
+    no_words(app);
+    no_vaults(app);
     for row in 0..5u8 {
         if row != plan::software::NOT_SURE as u8 {
             app.press(Action::BAnswer(qrow::SOFTWARE, row));
@@ -152,13 +147,19 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
     app.press(Action::Backup(w));
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::PRESET));
-    // A place's card asks nothing of seeds.
-    app.press(Action::BQ(qstep::place(0)));
+    // The board offers no seed: each is a cosigner's, not here; a vault
+    // may still be added.
+    app.press(Action::BQ(qstep::BOARD));
     let _ = app.frame();
-    assert!(app.offers(Action::BRow(0, Row::Vault(0).code())));
-    for row in [Row::Words, Row::SeedQr, Row::File] {
-        assert!(!app.offers(Action::BRow(0, row.code())), "{row:?}");
+    assert!(app.offers(Action::Board(BoardPress::AddVault)));
+    let seeds = app.plan_shape(w).seeds.len();
+    for i in 0..seeds {
+        assert!(
+            !app.offers(Action::Board(BoardPress::Chip(Chip::List(Thing::Seed(i))))),
+            "seed {i}"
+        );
     }
+    assert!(app.drawn_texts().iter().any(|t| t == "Not here"));
     app.press(Action::BQ(qstep::PRESET));
     every_software(&mut app);
     let items = app.backup_items();

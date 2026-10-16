@@ -1622,4 +1622,8 @@ places, and wants to see it that way.
   record), and every form the board keeps is read back by Restore;
   each file is read back from its stick right after it is written.
 - After the lock, paper and files stay as made (§17.8); vaults change.
-- Specified, not built.
+- A vault the plan makes with no stick, or holding nothing, still holds
+  Make the checklist beside a seed kept nowhere (owner, 2026-10-16).
+- Built: F1, the model (2026-10-16); F2a, the board in Back up
+  (2026-10-16). F2b (the guided flow and a narrow window) and F3 not
+  built.

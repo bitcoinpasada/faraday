@@ -3,7 +3,8 @@
 //! and for a wallet flow's own plan card, so that there is one way to
 //! edit a plan. What a press does is `lib.rs` (Back up) and
 //! `backup_flow_wallet.rs` (the flow); both edit the map as `plan.rs`
-//! says.
+//! says. In Back up the place cards and Where the description goes are
+//! one card, the board (§19, `board_screen.rs`).
 
 use crate::plan::{self, At, Form, Preset, Row};
 use crate::screens::{
@@ -147,6 +148,7 @@ pub(crate) fn title(ctx: &PlanCtx, q: u8) -> String {
     }
     match q {
         qstep::PRESET => EN.question_title_start,
+        qstep::BOARD => EN.board_title,
         qstep::PLACES => EN.question_title_places,
         qstep::DESCRIPTION => EN.backup_flow_the_wallet_description,
         qstep::WHERE => EN.backup_flow_where_the_description,
@@ -220,6 +222,13 @@ pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> String {
     }
     match q {
         qstep::PRESET => EN.question_summary_3.to_string(),
+        qstep::BOARD => {
+            if a.places == 1 {
+                EN.board_one_place.to_string()
+            } else {
+                fill(EN.board_places, &[&a.places.to_string()])
+            }
+        }
         qstep::PLACES => format!(
             "{} {}",
             a.places,
@@ -296,7 +305,10 @@ pub(crate) fn body(
     let on = ctx.enabled;
     let act = |p: PlanPress| ctx.act(p);
     let mut cy = y;
-    if let Some(p) = qstep::place_of(q) {
+    if q == qstep::BOARD {
+        // Back up's board (`docs/BACKUP-FLOW.md` §19), then Continue.
+        cy += crate::board_screen::board(app, ui, x, cy, w);
+    } else if let Some(p) = qstep::place_of(q) {
         // What the place keeps, a row each; a ticked row says what under
         // its label.
         let pc = p.min(255) as u8;

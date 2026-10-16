@@ -200,9 +200,10 @@ fn a_place_names_name_never_leaves_the_vault() {
     let w = one_key(&mut app);
     app.press(Action::Backup(w));
     press_offered(&mut app, Action::BPreset(1));
-    // Start from goes on to Places itself.
-    if app.backup.as_ref().unwrap().q != Some(qstep::PLACES) {
-        press_offered(&mut app, Action::BQ(qstep::PLACES));
+    // Start from goes on to the board itself; a place's name is typed
+    // on its card there (`docs/BACKUP-FLOW.md` §19.12 item 2).
+    if app.backup.as_ref().unwrap().q != Some(qstep::BOARD) {
+        press_offered(&mut app, Action::BQ(qstep::BOARD));
     }
     press_offered(&mut app, Action::BName(0));
     type_text(&mut app, NAME);

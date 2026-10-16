@@ -996,6 +996,47 @@ pub const CHART_DASHES: [[f32; 4]; 5] = [
 ];
 
 // ---------------------------------------------------------------------
+// Backup board
+// ---------------------------------------------------------------------
+
+/// The narrowest a place card is drawn on the backup board
+/// (`docs/DESIGN.md` §4.17) before its row wraps onto another line: a
+/// chip with a fingerprint, a form and its marks fits on one line inside
+/// it.
+pub const BOARD_CARD_MIN: f32 = 184.0;
+/// The widest a place card is drawn: a row of few cards is not
+/// stretched across the board.
+pub const BOARD_CARD_MAX: f32 = 280.0;
+/// The gap in dp between two place cards, and between the cards and the
+/// list beside them.
+pub const BOARD_GAP: f32 = GRID + GAP_SMALL;
+/// Width in dp of the list beside the cards: the longest chip it holds,
+/// a fingerprint with its count, on one line.
+pub const BOARD_LIST_WIDTH: f32 = 168.0;
+/// Height in dp of a place card's head: its name and its ×.
+pub const BOARD_HEAD: f32 = 36.0;
+/// Padding in dp inside a place card and inside each of its zones.
+pub const BOARD_PAD: f32 = GAP;
+/// Height in dp of a zone's label row ("Stick 1", "Paper").
+pub const BOARD_ZONE_LABEL: f32 = 20.0;
+/// Height in dp of a chip, on the cards and in the list.
+pub const BOARD_CHIP: f32 = 28.0;
+/// The gap in dp between two chips, beside or under each other.
+pub const BOARD_CHIP_GAP: f32 = GAP_SMALL;
+/// The side of a chip's marks in dp: its glyph, its × target's cross,
+/// its link mark and its warning mark.
+pub const BOARD_MARK: f32 = 12.0;
+/// Stroke in dp of a drawn mark: the × and the link.
+pub const BOARD_MARK_STROKE: f32 = 1.5;
+/// Stroke in dp of the edge round a zone that takes the chip held, and
+/// round the chip held.
+pub const BOARD_EDGE: f32 = 2.0;
+/// Width in dp of a placed chip's forms popup.
+pub const BOARD_POPUP_WIDTH: f32 = 220.0;
+/// How far in dp a dragged chip's shadow falls below it.
+pub const BOARD_LIFT: f32 = GAP_SMALL;
+
+// ---------------------------------------------------------------------
 // Timings
 // ---------------------------------------------------------------------
 

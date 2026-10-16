@@ -10,6 +10,7 @@ mod common;
 use common::*;
 use faraday_core::backup_flow::{BackupFlow, Step, Target};
 use faraday_core::backup_flow_steps::FlowAction as F;
+use faraday_core::board::{BoardPress, Thing, Zone};
 use faraday_core::create::NewKind;
 use faraday_core::plan::{
     self, Answers, At, Form, Item, Preset, Row, Shape, Spot, Tag, What, form, seeds, wallet,
@@ -93,60 +94,6 @@ fn backup_shape(app: &Faraday) -> Shape {
     app.plan_shape(app.backup.as_ref().unwrap().wallet)
 }
 
-/// Row `row` unticked on every place's card of Back up's plan.
-fn untick_everywhere(app: &mut Faraday, row: Row) {
-    for p in 0..backup_places(app) {
-        app.press(Action::BRowOff(p as u8, row.code()));
-    }
-}
-
-/// The description's form `form` unticked at every place that keeps it.
-fn form_off_everywhere(app: &mut Faraday, form: Form) {
-    for p in 0..backup_places(app) {
-        let shape = backup_shape(app);
-        if app
-            .backup
-            .as_ref()
-            .unwrap()
-            .answers
-            .form_at(&shape, p, form)
-        {
-            app.press(Action::BForm(p as u8, form.code()));
-        }
-    }
-}
-
-/// The description's form `form` ticked at place `p`.
-fn form_on(app: &mut Faraday, p: usize, form: Form) {
-    let shape = backup_shape(app);
-    if !app
-        .backup
-        .as_ref()
-        .unwrap()
-        .answers
-        .form_at(&shape, p, form)
-    {
-        app.press(Action::BForm(p as u8, form.code()));
-    }
-}
-
-/// At place `p`, row `row` given exactly `seeds` on its sheet, and Done.
-fn keep_at(app: &mut Faraday, p: usize, row: Row, seeds: &[usize]) {
-    app.press(Action::BRow(p as u8, row.code()));
-    let ticked = app
-        .choosing
-        .as_ref()
-        .expect("the row's sheet")
-        .seeds
-        .clone();
-    for i in 0..backup_shape(app).seeds.len() {
-        if ticked.contains(&i) != seeds.contains(&i) {
-            app.press(Action::BPick(i as u8));
-        }
-    }
-    app.press(Action::BPickDone);
-}
-
 /// Whether Back up's plan offers `action` anywhere down its column.
 fn offered_down(app: &mut Faraday, action: Action) -> bool {
     for _ in 0..20 {
@@ -169,12 +116,6 @@ fn vault_place(app: &Faraday, v: usize) -> usize {
     (0..a.places)
         .find(|&p| a.row_seeds(&shape, p, Row::Vault(v)).is_some())
         .expect("the vault's stick has a place")
-}
-
-/// Vault `v`'s stick kept at place `p` too, the vault as it is.
-fn stick_also_at(app: &mut Faraday, p: usize, v: usize) {
-    app.press(Action::BRow(p as u8, Row::Vault(v).code()));
-    app.press(Action::BPickDone);
 }
 
 fn step(app: &Faraday) -> Step {
@@ -346,12 +287,12 @@ fn single_key_with(
     assert_eq!(app.screen, Screen::Backup);
     // The seed in Vault 1 only, its stick at both places, the wallet
     // description as files at Place 2.
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     stick_also_at(&mut app, 0, 0);
-    form_off_everywhere(&mut app, Form::Paper);
-    form_on(&mut app, 1, Form::File);
+    no_paper_description(&mut app);
+    description_file_at(&mut app, 1);
     if !description_in_vault {
-        form_off_everywhere(&mut app, Form::Vault(0));
+        description_out_of(&mut app, 0);
     }
     answer_backup(&mut app, qrow::FORM, form::QR);
     answer_backup(&mut app, qrow::FORM, form::TEXT);
@@ -610,7 +551,7 @@ fn the_flow_follows_any_number_of_places() {
     // Back up's places card: any number, and the flow follows it.
     app.press(Action::BPlan);
     while backup_places(&app) < 8 {
-        app.press(Action::BPlaces(true));
+        board(&mut app, BoardPress::AddPlace);
     }
     let f = app.backup_flows.last().unwrap();
     assert_eq!(f.wallet.as_ref().unwrap().answers.places, 8);
@@ -678,7 +619,7 @@ fn two_of_three_ready(shell: &mut Shell, software: bool) -> Faraday {
     }
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(if software { 2 } else { 1 }));
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     if software {
         answer_backup(&mut app, qrow::SOFTWARE, plan::software::SPARROW);
         answer_backup(&mut app, qrow::SOFTWARE, plan::software::NOT_SURE);
@@ -1021,7 +962,8 @@ fn a_one_place_plan_shows_the_warning_and_blocks_nothing() {
     let (mut app, _, _) = single_key_ready(&mut shell);
     app.press(Action::BPlan);
     while backup_places(&app) > 1 {
-        app.press(Action::BPlaces(false));
+        let last = backup_places(&app) - 1;
+        board(&mut app, BoardPress::RemovePlace(last));
     }
     assert_eq!(app.backup_flows.last().unwrap().plan.places.len(), 1);
     expect_part(&mut app, "Every secret of this wallet is at Place 1");
@@ -1066,7 +1008,7 @@ fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
     assert_eq!(app.vaults.open[0].contents.of(kind::KEY).count(), 0);
     app.press(Action::Backup(w));
     app.press(Action::BPreset(1));
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     assert_eq!(app.vaults.open[0].contents.of(kind::KEY).count(), 1);
@@ -1281,9 +1223,9 @@ fn a_seed_let_out_unprotected_is_written_to_the_stick_of_files_and_to_no_other()
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
     // The seed in Vault 1 and as a file at Place 2; nothing else.
-    untick_everywhere(&mut app, Row::Words);
-    keep_at(&mut app, 1, Row::File, &[0]);
-    form_off_everywhere(&mut app, Form::Paper);
+    no_words(&mut app);
+    files_at(&mut app, 1, &[0]);
+    no_paper_description(&mut app);
     {
         let f = app.backup_flows.last().unwrap();
         assert_eq!(
@@ -1393,7 +1335,7 @@ fn a_second_backup_of_the_same_wallet_in_the_same_power_on_writes_again() {
     assert_eq!(app.screen, Screen::Backup);
     assert!(app.backup_item_done(Item::Sticks));
     app.press(Action::BPlan);
-    app.press(Action::BPlaces(true));
+    board(&mut app, BoardPress::AddPlace);
     stick_also_at(&mut app, 2, 0);
     app.press(Action::BChecklist);
     app.press(Action::BNext(bstep::ENVELOPE));
@@ -1452,10 +1394,10 @@ fn a_seed_kept_only_as_a_file_is_held_until_its_stick_is_written() {
     let fp = new_key_here(&mut app);
     app.press(Action::CBackup(1));
     // No vault, no words, no sheet: the seed as a file at Place 1 alone.
-    untick_everywhere(&mut app, Row::Vault(0));
-    untick_everywhere(&mut app, Row::Words);
-    keep_at(&mut app, 0, Row::File, &[0]);
-    form_off_everywhere(&mut app, Form::Paper);
+    vault_off(&mut app, 0);
+    no_words(&mut app);
+    files_at(&mut app, 0, &[0]);
+    no_paper_description(&mut app);
     app.press(Action::BChecklist);
     // Its file is made and written with its stick (`docs/BACKUP-FLOW.md`
     // §19.12 item 6).
@@ -1919,7 +1861,7 @@ fn two_of_three_ready_with(shell: &mut Shell, passphrase: bool) -> Faraday {
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     app.press(Action::BOut(3));
@@ -1950,7 +1892,7 @@ fn a_vault_preset_chosen_after_the_keys_goes_through_to_the_writes() {
     // Paper and vault, chosen after the keys: the vault is the open one,
     // the key goes into it, its stick is checked at its write.
     app.press(Action::CBackup(1));
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     app.press(Action::BChecklist);
     app.press(Action::BVaultSave(0));
     assert!(app.backup_item_done(Item::Vault(0)));
@@ -2019,7 +1961,7 @@ fn a_key_in_a_slot_goes_into_no_vault_by_itself_and_a_passphrase_added_later_lea
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     assert_eq!(
@@ -2313,11 +2255,11 @@ fn a_key_with_its_vault_written_but_not_its_seed_file_is_held() {
     let fp = new_key_here(&mut app);
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     // The seed's file at the place that keeps Vault 1's stick.
     let p = vault_place(&app, 0);
-    keep_at(&mut app, p, Row::File, &[0]);
-    form_off_everywhere(&mut app, Form::Paper);
+    files_at(&mut app, p, &[0]);
+    no_paper_description(&mut app);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     app.press(Action::BNext(bstep::ENVELOPE));
@@ -2371,7 +2313,7 @@ fn two_planned_vaults_holding_the_same_seed_are_never_one_open_vault() {
     // Vault 2 holds Key 1 too, in place of Key 2.
     app.press(Action::BPlan);
     let p = vault_place(&app, 1);
-    keep_at(&mut app, p, Row::Vault(1), &[0]);
+    vault_at(&mut app, p, 1, &[0]);
     app.press(Action::BChecklist);
     app.press(Action::BVaultSave(1));
     app.press(Action::BOut(3));
@@ -2403,10 +2345,10 @@ fn a_seed_file_let_out_and_then_dropped_from_the_plan_is_not_written_beside_the_
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     let p = vault_place(&app, 0);
-    keep_at(&mut app, p, Row::File, &[0]);
-    form_off_everywhere(&mut app, Form::Paper);
+    files_at(&mut app, p, &[0]);
+    no_paper_description(&mut app);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     // The seed's file is let out on the secret sheet.
@@ -2415,8 +2357,8 @@ fn a_seed_file_let_out_and_then_dropped_from_the_plan_is_not_written_beside_the_
     app.press(Action::SecretUnprotected);
     assert!(app.outbox.iter().any(|i| i.secret));
     // Then the plan drops seed files and keeps the wallet as files.
-    app.press(Action::BRowOff(p as u8, Row::File.code()));
-    form_on(&mut app, p, Form::File);
+    no_seed_files_at(&mut app, p);
+    description_file_at(&mut app, p);
     answer_backup(&mut app, qrow::FORM, form::QR);
     answer_backup(&mut app, qrow::FORM, form::TEXT);
     save_vaults(&mut app);
@@ -2488,7 +2430,7 @@ fn a_record_the_vault_held_before_the_flow_is_neither_doubled_nor_taken_out() {
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     assert_eq!(keys(&app), 1, "saved into the vault, not doubled");
@@ -2553,8 +2495,8 @@ fn the_lock_keeps_the_flows_own_vault_when_another_open_vault_holds_the_same_key
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    untick_everywhere(&mut app, Row::Words);
-    form_off_everywhere(&mut app, Form::Paper);
+    no_words(&mut app);
+    no_paper_description(&mut app);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     app.press(Action::BNext(bstep::ENVELOPE));
@@ -2620,7 +2562,7 @@ fn two_wallets_in_vaults_keep_each_its_own_vaults_and_a_flow_with_no_owner_match
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     let n: Vec<usize> = app
@@ -2843,14 +2785,16 @@ fn back_ups_plan_offers_the_open_vaults_and_a_vault_at_two_places_writes_both_co
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    // The plan offers both open vaults, though there is one key: a row
-    // each on a place's card.
+    // The plan offers both open vaults, though there is one key: a chip
+    // each in the board's list.
     assert_eq!(app.backup.as_ref().unwrap().answers.vaults.len(), 2);
-    app.press(Action::BQ(faraday_core::qstep::place(0)));
+    if app.backup.as_ref().unwrap().q != Some(faraday_core::qstep::BOARD) {
+        app.press(Action::BQ(faraday_core::qstep::BOARD));
+    }
     expect_part(&mut app, "Vault 2");
     // Key 1 in Vault 1, at two places; no paper words, no sheet.
-    untick_everywhere(&mut app, Row::Words);
-    form_off_everywhere(&mut app, Form::Paper);
+    no_words(&mut app);
+    no_paper_description(&mut app);
     {
         let a = &app.backup.as_ref().unwrap().answers;
         assert!(a.vault_seeds(&app.plan_shape(0), 0).contains(&0));
@@ -3025,7 +2969,7 @@ fn a_plan_vault_with_none_set_up_offers_to_make_one_while_another_is_open() {
     use faraday_core::vaults::VaultAction as V;
     let mut shell = Shell::new();
     let mut app = two_of_three_with_setup(&mut shell, 1);
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     app.press(Action::BChecklist);
     let items = app.backup_items();
     assert!(items.contains(&(bstep::VAULT + 1)), "{items:?}");
@@ -3080,14 +3024,14 @@ fn the_vault_set_up_for_a_plan_vault_is_not_locked_away_for_another_one_that_hol
     use faraday_core::vaults::VaultAction as V;
     let mut shell = Shell::new();
     let mut app = two_of_three_with_setup(&mut shell, 2);
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     // Vault 1 holds Key 1, Vault 2 Keys 2 and 3; the vault set up for
     // Vault 1 is given Key 2 too.
     let p = vault_place(&app, 0);
-    keep_at(&mut app, p, Row::Vault(0), &[0]);
+    vault_at(&mut app, p, 0, &[0]);
     let p = vault_place(&app, 1);
-    keep_at(&mut app, p, Row::Vault(1), &[1, 2]);
-    untick_everywhere(&mut app, Row::Vault(2));
+    vault_at(&mut app, p, 1, &[1, 2]);
+    vault_off(&mut app, 2);
     app.press(Action::BChecklist);
     app.vaults.current = 0;
     app.press(Action::Vault(V::SaveKey(1)));
@@ -3245,10 +3189,10 @@ fn a_seed_kept_as_a_file_at_a_place_is_released_once_that_stick_is_written() {
     app.press(Action::CreateWallet);
     let fp = new_key_here(&mut app);
     app.press(Action::CBackup(1));
-    untick_everywhere(&mut app, Row::Vault(0));
-    untick_everywhere(&mut app, Row::Words);
-    keep_at(&mut app, 1, Row::File, &[0]);
-    form_off_everywhere(&mut app, Form::Paper);
+    vault_off(&mut app, 0);
+    no_words(&mut app);
+    files_at(&mut app, 1, &[0]);
+    no_paper_description(&mut app);
     app.press(Action::BChecklist);
     app.press(Action::BNext(bstep::ENVELOPE));
     let fp = osk_bip::keys::Fingerprint(fp);
@@ -3284,10 +3228,10 @@ fn each_places_stick_of_files_takes_only_that_places_seed_file() {
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(0));
-    untick_everywhere(&mut app, Row::Words);
-    form_off_everywhere(&mut app, Form::Paper);
+    no_words(&mut app);
+    no_paper_description(&mut app);
     for p in 0..3 {
-        keep_at(&mut app, p, Row::File, &[p]);
+        files_at(&mut app, p, &[p]);
     }
     let seed_names: Vec<String> = backup_shape(&app)
         .seeds
@@ -3357,23 +3301,22 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
     let w = app.create.as_ref().unwrap().built.expect("wallet made");
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    // In shares; nothing on paper; Vault 1 alone, holding Share 2.
-    app.press(Action::BSplit(true));
-    untick_everywhere(&mut app, Row::Words);
+    // Nothing on paper; Vault 1 alone, holding Share 2.
+    no_words(&mut app);
     let vaults = {
         let shape = backup_shape(&app);
         app.backup.as_ref().unwrap().answers.vault_count(&shape)
     };
     for v in 1..vaults {
-        untick_everywhere(&mut app, Row::Vault(v));
+        vault_off(&mut app, v);
     }
-    form_off_everywhere(&mut app, Form::Vault(0));
-    form_off_everywhere(&mut app, Form::Paper);
-    form_off_everywhere(&mut app, Form::File);
+    description_out_of(&mut app, 0);
+    no_paper_description(&mut app);
+    no_description_files(&mut app);
     let p = vault_place(&app, 0);
-    app.press(Action::BShare(p as u8, 1));
-    app.press(Action::BForm(p as u8, Form::Vault(0).code()));
-    form_off_everywhere(&mut app, Form::Paper);
+    let s = vault_stick(&app, p, 0).expect("Vault 1's stick");
+    put(&mut app, Thing::Share(1), Zone::Vault(p, s, 0));
+    no_paper_description(&mut app);
     {
         let shape = backup_shape(&app);
         let a = &app.backup.as_ref().unwrap().answers;
@@ -3488,15 +3431,15 @@ fn a_share_put_into_a_vault_after_the_lock_starts_the_round_and_is_sealed() {
     app.press(Action::CBackup(1));
     // Vault 1 alone, with its seed and the whole description; nothing on
     // paper.
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     let vaults = {
         let shape = backup_shape(&app);
         app.backup.as_ref().unwrap().answers.vault_count(&shape)
     };
     for v in 1..vaults {
-        untick_everywhere(&mut app, Row::Vault(v));
+        vault_off(&mut app, v);
     }
-    form_off_everywhere(&mut app, Form::Paper);
+    no_paper_description(&mut app);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     app.press(Action::BNext(bstep::ENVELOPE));
@@ -3581,9 +3524,9 @@ fn single_key_one_stick(shell: &mut Shell) -> Faraday {
     }
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    untick_everywhere(&mut app, Row::Words);
-    form_off_everywhere(&mut app, Form::Paper);
-    form_on(&mut app, 1, Form::File);
+    no_words(&mut app);
+    no_paper_description(&mut app);
+    description_file_at(&mut app, 1);
     assert_eq!(vault_place(&app, 0), 1, "Vault 1's stick at Place 2 alone");
     app.press(Action::BChecklist);
     save_vaults(&mut app);
@@ -3658,22 +3601,18 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
     app.press(Action::CBackup(1));
     // Share 2 in Vault 1, as each of the two wallets plans it.
     let share_two_in_vault = |app: &mut Faraday| {
-        app.press(Action::BSplit(true));
-        untick_everywhere(app, Row::Words);
+        no_words(app);
         let vaults = {
             let shape = backup_shape(app);
             app.backup.as_ref().unwrap().answers.vault_count(&shape)
         };
         for v in 1..vaults {
-            untick_everywhere(app, Row::Vault(v));
+            vault_off(app, v);
         }
-        let p = vault_place(app, 0);
-        form_off_everywhere(app, Form::Vault(0));
-        form_off_everywhere(app, Form::Paper);
-        form_off_everywhere(app, Form::File);
-        app.press(Action::BShare(p as u8, 1));
-        app.press(Action::BForm(p as u8, Form::Vault(0).code()));
-        form_off_everywhere(app, Form::Paper);
+        description_out_of(app, 0);
+        no_paper_description(app);
+        no_description_files(app);
+        into_vault(app, 0, Thing::Share(1));
         app.press(Action::BChecklist);
         app.press(Action::BVaultSave(0));
     };
@@ -3761,13 +3700,10 @@ fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
     // The key in Vault 1 with its passphrase; nothing else.
-    untick_everywhere(&mut app, Row::Words);
-    untick_everywhere(&mut app, Row::Passphrase);
-    form_off_everywhere(&mut app, Form::Paper);
-    let p = vault_place(&app, 0);
-    app.press(Action::BRow(p as u8, Row::Vault(0).code()));
-    app.press(Action::BPickPass(0));
-    app.press(Action::BPickDone);
+    no_words(&mut app);
+    no_paper_passphrases(&mut app);
+    no_paper_description(&mut app);
+    into_vault(&mut app, 0, Thing::Pass(0));
     assert!(app.backup.as_ref().unwrap().answers.pass_in_vault(0));
     app.press(Action::BChecklist);
     save_vaults(&mut app);
@@ -3843,7 +3779,8 @@ fn back_ups_cards_after_the_lock_edit_the_flows_plan_with_its_refusals() {
     assert!(app.backup.is_some());
     let slots = app.flow().unwrap().slots.len();
     // Vault 1's stick at Place 1 off: a vault's stick, allowed, the flow's.
-    app.press(Action::BRowOff(0, Row::Vault(0).code()));
+    let s = vault_stick(&app, 0, 0).expect("Vault 1's stick at Place 1");
+    take_off(&mut app, Zone::Files(0, s), Thing::Vault(0));
     assert_eq!(
         app.flow().unwrap().slots.len(),
         slots - 1,
@@ -3853,14 +3790,15 @@ fn back_ups_cards_after_the_lock_edit_the_flows_plan_with_its_refusals() {
     let flow_answers = app.flow().unwrap().wallet.as_ref().unwrap().answers.clone();
     assert_eq!(app.backup.as_ref().unwrap().answers, flow_answers);
     // Its last stick off: the key made here would be kept on no stick.
-    app.press(Action::BRowOff(1, Row::Vault(0).code()));
+    let s = vault_stick(&app, 1, 0).expect("Vault 1's stick at Place 2");
+    take_off(&mut app, Zone::Files(1, s), Thing::Vault(0));
     assert_eq!(
         app.toast_text(),
         Some("A key not yet written stays kept on a stick")
     );
     assert_eq!(app.backup.as_ref().unwrap().answers, flow_answers);
     // Files stay as made, a vault open or not.
-    app.press(Action::BForm(0, Form::File.code()));
+    put(&mut app, Thing::Whole, Zone::NewStick(0));
     assert_eq!(
         app.toast_text(),
         Some(
@@ -3895,21 +3833,18 @@ fn the_flows_slider_sets_its_keys_left_off_and_the_vault_takes_the_share_it_impl
     let w = app.create.as_ref().unwrap().built.expect("wallet made");
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    app.press(Action::BSplit(true));
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     let vaults = {
         let shape = backup_shape(&app);
         app.backup.as_ref().unwrap().answers.vault_count(&shape)
     };
     for v in 1..vaults {
-        untick_everywhere(&mut app, Row::Vault(v));
+        vault_off(&mut app, v);
     }
-    let p = vault_place(&app, 0);
-    form_off_everywhere(&mut app, Form::Vault(0));
-    form_off_everywhere(&mut app, Form::Paper);
-    app.press(Action::BShare(p as u8, 1));
-    app.press(Action::BForm(p as u8, Form::Vault(0).code()));
-    form_off_everywhere(&mut app, Form::Paper);
+    description_out_of(&mut app, 0);
+    no_paper_description(&mut app);
+    into_vault(&mut app, 0, Thing::Share(1));
+    no_paper_description(&mut app);
     assert_eq!(app.backup.as_ref().unwrap().answers.omit, 1);
     let (m, n) = faraday_core::wallet::Session::quorum(&app.session.wallets[w]);
     let none_off = faraday_core::backup::split_share(
@@ -3952,9 +3887,9 @@ fn names_typed_before_the_lock_are_in_each_vaults_plan_and_never_in_the_flow() {
     const NAME: &str = "Harbour cellar";
     let mut shell = Shell::new();
     let mut app = two_of_three_with_setup(&mut shell, 2);
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     // Two vaults, as set up.
-    untick_everywhere(&mut app, Row::Vault(2));
+    vault_off(&mut app, 2);
     let i = app.backup_flows.len() - 1;
     shell.flow(&mut app, F::Show(i));
     shell.flow(&mut app, F::ChangePlan);
@@ -4229,8 +4164,8 @@ fn a_key_an_existing_vault_held_before_the_flow_is_never_taken_out() {
     }
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    untick_everywhere(&mut app, Row::Words);
-    form_off_everywhere(&mut app, Form::Paper);
+    no_words(&mut app);
+    no_paper_description(&mut app);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     assert_eq!(app.vaults.open[0].contents.of(kind::KEY).count(), 1);
@@ -4286,8 +4221,8 @@ fn a_key_another_wallet_in_the_vault_uses_is_never_taken_out() {
     assert_ne!(a, b);
     app.press(Action::Backup(b));
     app.press(Action::BPreset(1));
-    untick_everywhere(&mut app, Row::Words);
-    form_off_everywhere(&mut app, Form::Paper);
+    no_words(&mut app);
+    no_paper_description(&mut app);
     app.press(Action::BChecklist);
     app.press(Action::BVaultSave(0));
     assert_eq!(app.vaults.open[0].contents.of(kind::WALLET).count(), 2);
@@ -4426,23 +4361,24 @@ fn keys_left_off_each_share_stay_after_the_lock_while_a_share_is_in_a_file() {
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    app.press(Action::BSplit(true));
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     let vaults = {
         let shape = backup_shape(&app);
         app.backup.as_ref().unwrap().answers.vault_count(&shape)
     };
     for v in 1..vaults {
-        untick_everywhere(&mut app, Row::Vault(v));
+        vault_off(&mut app, v);
     }
     // Share 2 in Vault 1 and as a file, at the place of Vault 1's stick.
     let p = vault_place(&app, 0);
-    form_off_everywhere(&mut app, Form::Vault(0));
-    form_off_everywhere(&mut app, Form::Paper);
-    app.press(Action::BShare(p as u8, 1));
-    app.press(Action::BForm(p as u8, Form::Vault(0).code()));
-    app.press(Action::BForm(p as u8, Form::File.code()));
-    form_off_everywhere(&mut app, Form::Paper);
+    description_out_of(&mut app, 0);
+    no_paper_description(&mut app);
+    into_vault(&mut app, 0, Thing::Share(1));
+    match files_stick(&app, p) {
+        Some(s) => put(&mut app, Thing::Share(1), Zone::Files(p, s)),
+        None => put(&mut app, Thing::Share(1), Zone::NewStick(p)),
+    }
+    no_paper_description(&mut app);
     assert_eq!(app.backup.as_ref().unwrap().answers.omit, 1);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
@@ -4481,8 +4417,8 @@ fn two_of_three_paper(shell: &mut Shell, n: usize) -> Faraday {
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(0));
-    untick_everywhere(&mut app, Row::Words);
-    form_off_everywhere(&mut app, Form::Paper);
+    no_words(&mut app);
+    no_paper_description(&mut app);
     app
 }
 
@@ -4493,8 +4429,8 @@ fn two_of_three_paper(shell: &mut Shell, n: usize) -> Faraday {
 fn a_seed_file_taken_off_after_the_lock_is_refused_and_its_stick_keeps_its_files() {
     let mut shell = Shell::new();
     let mut app = two_of_three_paper(&mut shell, 2);
-    keep_at(&mut app, 0, Row::File, &[0, 1]);
-    keep_at(&mut app, 1, Row::File, &[2]);
+    files_at(&mut app, 0, &[0, 1]);
+    files_at(&mut app, 1, &[2]);
     let names: Vec<String> = backup_shape(&app)
         .seeds
         .iter()
@@ -4584,11 +4520,11 @@ fn a_held_key_is_not_left_on_a_stale_file_after_the_lock() {
     }
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    form_off_everywhere(&mut app, Form::Paper);
+    no_paper_description(&mut app);
     for p in 1..backup_places(&app) {
-        app.press(Action::BRowOff(p as u8, Row::Words.code()));
+        words_off_at(&mut app, p);
     }
-    keep_at(&mut app, 1, Row::File, &[0]);
+    files_at(&mut app, 1, &[0]);
     app.press(Action::BChecklist);
     app.press(Action::BNext(bstep::BLANK));
     type_back_the_copy(&mut app);
@@ -4647,22 +4583,23 @@ fn shares_locked(shell: &mut Shell) -> (Faraday, usize) {
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    app.press(Action::BSplit(true));
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     let vaults = {
         let shape = backup_shape(&app);
         app.backup.as_ref().unwrap().answers.vault_count(&shape)
     };
     for v in 1..vaults {
-        untick_everywhere(&mut app, Row::Vault(v));
+        vault_off(&mut app, v);
     }
     let p = vault_place(&app, 0);
-    form_off_everywhere(&mut app, Form::Vault(0));
-    form_off_everywhere(&mut app, Form::Paper);
-    app.press(Action::BShare(p as u8, 1));
-    app.press(Action::BForm(p as u8, Form::Vault(0).code()));
-    app.press(Action::BForm(p as u8, Form::File.code()));
-    form_off_everywhere(&mut app, Form::Paper);
+    description_out_of(&mut app, 0);
+    no_paper_description(&mut app);
+    into_vault(&mut app, 0, Thing::Share(1));
+    match files_stick(&app, p) {
+        Some(s) => put(&mut app, Thing::Share(1), Zone::Files(p, s)),
+        None => put(&mut app, Thing::Share(1), Zone::NewStick(p)),
+    }
+    no_paper_description(&mut app);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     app.press(Action::BNext(bstep::ENVELOPE));
@@ -4815,14 +4752,11 @@ fn the_round_adds_a_planned_key_record_once_beside_another_of_its_words() {
     }
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    untick_everywhere(&mut app, Row::Words);
-    untick_everywhere(&mut app, Row::Passphrase);
-    form_off_everywhere(&mut app, Form::Paper);
-    form_off_everywhere(&mut app, Form::Vault(0));
-    let p = vault_place(&app, 0);
-    app.press(Action::BRow(p as u8, Row::Vault(0).code()));
-    app.press(Action::BPickPass(0));
-    app.press(Action::BPickDone);
+    no_words(&mut app);
+    no_paper_passphrases(&mut app);
+    no_paper_description(&mut app);
+    description_out_of(&mut app, 0);
+    into_vault(&mut app, 0, Thing::Pass(0));
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     let keys = |app: &Faraday| -> (usize, usize) {
@@ -4970,10 +4904,10 @@ fn a_written_stick_of_files_is_never_sent_back_after_the_lock() {
     app.press(Action::CBackup(1));
     // Vault 1 at both places, the description in it and as files at
     // Place 1, nothing else.
-    untick_everywhere(&mut app, Row::Words);
+    no_words(&mut app);
     stick_also_at(&mut app, 0, 0);
-    form_off_everywhere(&mut app, Form::Paper);
-    form_on(&mut app, 0, Form::File);
+    no_paper_description(&mut app);
+    description_file_at(&mut app, 0);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     app.press(Action::BFilesMake);
@@ -5085,13 +5019,10 @@ fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
     }
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    untick_everywhere(&mut app, Row::Words);
-    untick_everywhere(&mut app, Row::Passphrase);
-    form_off_everywhere(&mut app, Form::Paper);
-    let p = vault_place(&app, 0);
-    app.press(Action::BRow(p as u8, Row::Vault(0).code()));
-    app.press(Action::BPickPass(0));
-    app.press(Action::BPickDone);
+    no_words(&mut app);
+    no_paper_passphrases(&mut app);
+    no_paper_description(&mut app);
+    into_vault(&mut app, 0, Thing::Pass(0));
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     app.press(Action::BNext(bstep::ENVELOPE));
@@ -5273,7 +5204,7 @@ fn back_up_again_after_done_adds_a_file_and_writes_it() {
     unlock(&mut app, PHRASE);
     assert_eq!(app.screen, Screen::Backup);
     app.press(Action::BPlan);
-    form_on(&mut app, 0, Form::File);
+    description_file_at(&mut app, 0);
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
     app.press(Action::BFilesMake);
@@ -5334,9 +5265,9 @@ fn a_passphrase_alone_in_a_vault_is_saved_as_a_passphrase_record() {
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
-    untick_everywhere(&mut app, Row::Words);
-    untick_everywhere(&mut app, Row::Passphrase);
-    form_off_everywhere(&mut app, Form::Paper);
+    no_words(&mut app);
+    no_paper_passphrases(&mut app);
+    no_paper_description(&mut app);
     // Vault 1 at Place 1 with the words; Vault 2 at Place 2 with the
     // passphrase, dropped there as the board drops it.
     let shape = app.plan_shape(app.backup.as_ref().unwrap().wallet);

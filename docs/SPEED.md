@@ -408,6 +408,12 @@ glyphs would pass the budget (estimated from the area, not measured).
 Batch D waits for that measurement at the stick's full-screen sizes on
 high-density panels.
 
+Timed per §7 after BACKUP-FLOW §19's F2a (the board in Back up), same
+session and conditions, medians in ms: the board open 5.1 (1366×768) and
+14.1 (2560×1600 scale 2); a chip selected 5.3 and 14.3; a chip dragged,
+each touch move and its frame, 6.7 and 15.2; a chip's forms open 5.6 and
+14.7. The checklist's rows as after B.
+
 The owner's check (2026-10-16): the stick built from batch B, on the
 slow laptop, through the same flow: quick throughout.
 

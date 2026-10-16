@@ -246,6 +246,25 @@ impl Answers {
         a
     }
 
+    /// The board's start (`docs/BACKUP-FLOW.md` §19.6): one empty place,
+    /// nothing kept; the seeds not here on their own devices, as every
+    /// plan has them. The rest of the answers are the wallet's defaults,
+    /// which a preset reads.
+    pub fn empty(shape: &Shape) -> Answers {
+        let mut a = Answers::defaults(shape);
+        let away: Vec<Spot> = map(shape, &a)
+            .into_iter()
+            .filter(|s| s.at == At::Away)
+            .collect();
+        let mut m = vec![Spot {
+            at: At::Place(0),
+            holds: Vec::new(),
+        }];
+        m.extend(away);
+        a.set_map(m);
+        a
+    }
+
     /// Whether place `p` keeps a copy of seed `i` in any form: its words
     /// or SeedQR on paper, or the stick of a vault that holds it.
     pub fn seed_at(&self, shape: &Shape, i: usize, p: usize) -> bool {
@@ -2988,6 +3007,34 @@ impl Answers {
         });
     }
 
+    /// Place `p` removed with what it held, its sticks with it
+    /// (`Edit::RemovePlace` with no destination); the places after it
+    /// move down one. One place stays (`docs/BACKUP-FLOW.md` §19.1).
+    pub fn remove_place(&mut self, shape: &Shape, p: usize) {
+        self.ensure_map(shape);
+        let n = self.map.as_deref().map_or(0, places_of);
+        if n > 1 && p < n {
+            self.edit_map(shape, |m| edited(&m, Edit::RemovePlace(p), &[]));
+        }
+    }
+
+    /// A vault more, holding nothing and kept at no place yet: the board's
+    /// **+ vault** (`docs/BACKUP-FLOW.md` §19.1). Its number is the one
+    /// after the plan's last vault and the vaults set up before the keys.
+    pub fn add_vault(&mut self, shape: &Shape) -> usize {
+        let named = map(shape, self)
+            .iter()
+            .filter_map(|s| match s.at {
+                At::Vault(v) => Some(v + 1),
+                _ => None,
+            })
+            .max()
+            .unwrap_or(0);
+        let v = named.max(shape.vaults);
+        self.edit_map(shape, |m| with_vault(m, v));
+        v
+    }
+
     /// The last place removed, with what it held; one place stays.
     pub fn remove_last_place(&mut self, shape: &Shape) {
         self.ensure_map(shape);
@@ -3280,7 +3327,7 @@ impl Answers {
 }
 
 /// The map `m` with vault `v` in it, empty where it had none.
-fn with_vault(mut m: Vec<Spot>, v: usize) -> Vec<Spot> {
+pub fn with_vault(mut m: Vec<Spot>, v: usize) -> Vec<Spot> {
     if !m.iter().any(|s| s.at == At::Vault(v)) {
         let after = m
             .iter()

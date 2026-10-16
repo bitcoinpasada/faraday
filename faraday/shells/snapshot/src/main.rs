@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|bootplace|power|pills]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|bootplace|power|pills]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -40,7 +40,11 @@
 //! and in shares, the page What is a share? opens, the checklist part
 //! done, the blank template written beside the screens as `outbox-*`; a
 //! 3-of-5's shares on the description card and the checklist; and a
-//! vault's sheet with two seeds; with `inbox`, Stick visit offering the Inbox's
+//! vault's sheet with two seeds; with `board`, the backup board
+//! (`docs/BACKUP-FLOW.md` §19) for Savings with its three keys here: on
+//! Paper and vault, a seed selected with the zones that take it edged,
+//! a placed seed's forms open, a share placed with the keys left off,
+//! and the software place; with `inbox`, Stick visit offering the Inbox's
 //! files under "From the Inbox" (a wallet, a vault, a wallet's QR
 //! picture, seed words and text), Select all, and the secret sheet for
 //! the text and for the words; with `transfer`, the desktop app's
@@ -671,6 +675,7 @@ fn run(
         Some("kept") => return kept_tour(&mut t),
         Some("again") => return again_tour(&mut t),
         Some("plan") => return plan_tour(&mut t),
+        Some("board") => return board_tour(&mut t),
         Some("inbox") => return inbox_tour(&mut t),
         Some("transfer") => return transfer_tour(&mut t),
         Some("upgrade") => return upgrade_tour(&mut t),
@@ -3593,6 +3598,49 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// The backup board (`docs/BACKUP-FLOW.md` §19) for Savings, its three
+/// keys typed in: the board on Paper and vault, Seed 1 selected with the
+/// zones that take it edged, its words on Place 1's paper with their
+/// forms open, a share on paper and in Vault 1, and the software place.
+fn board_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::board::{BoardPress as B, Chip, Thing, Zone};
+    t.load_kit()?;
+    for n in 1..3 {
+        t.press(Action::Entry(None));
+        t.type_key(n);
+    }
+    let savings = t
+        .app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.name == "Savings")
+        .ok_or("no Savings")?;
+    t.press(Action::Backup(savings));
+    // The preset opens the board.
+    t.press(Action::BPreset(1));
+    t.shot("board-paper-and-vault")?;
+    t.press(Action::Board(B::Chip(Chip::List(Thing::Seed(0)))));
+    t.shot("board-seed-selected")?;
+    t.press(Action::Board(B::Zone(Zone::Paper(1))));
+    t.press(Action::Board(B::Chip(Chip::Placed(
+        Zone::Paper(1),
+        Thing::Seed(0),
+    ))));
+    t.shot("board-seed-forms")?;
+    t.press(Action::Board(B::Form(Zone::Paper(1), Thing::Seed(0), 1)));
+    t.press(Action::Board(B::LetGo));
+    t.press(Action::Board(B::Chip(Chip::List(Thing::Share(0)))));
+    t.press(Action::Board(B::Zone(Zone::Paper(2))));
+    t.press(Action::Board(B::Chip(Chip::List(Thing::Share(1)))));
+    t.press(Action::Board(B::Zone(Zone::Vault(0, 0, 0))));
+    t.press(Action::Board(B::Chip(Chip::List(Thing::Software))));
+    t.shot("board-shares-and-software")?;
+    t.press(Action::BQ(qstep::PLAN));
+    t.shot("board-the-plan")?;
+    Ok(())
+}
+
 /// The Wallets card at a glance: a one-key wallet with no plan, then with
 /// Paper and vault; a 2-of-3 with test keys 1 and 2 here, key 2 with a
 /// passphrase, and test key 3 a cosigner, with Paper and vault and key
@@ -5203,6 +5251,7 @@ fn main() -> ExitCode {
             "kept",
             "again",
             "plan",
+            "board",
             "inbox",
             "transfer",
             "upgrade",
@@ -5223,7 +5272,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow or demo"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow or demo"
         );
         return ExitCode::from(2);
     }

@@ -1532,7 +1532,7 @@ impl Faraday {
                     }
                     Step::Plan => self.chart_plan(w, from_vault, None),
                     Step::RenamePlace(p) => {
-                        self.chart_plan(w, from_vault, Some(crate::qstep::PLACES));
+                        self.chart_plan(w, from_vault, Some(crate::qstep::BOARD));
                         self.act(Action::BName(p));
                     }
                     Step::Rename => {

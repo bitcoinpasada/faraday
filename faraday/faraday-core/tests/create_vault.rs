@@ -4,6 +4,8 @@
 //! on Unlock with the new vault picked and a way back; unlocking it, or
 //! going back, returns to the backup still under way.
 
+mod common;
+
 use faraday_core::keygen::Way;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen};
@@ -66,12 +68,7 @@ fn create_to_vault_step() -> Faraday {
     app.press(Action::CBackup(paper_and_vault));
     assert_eq!(app.screen, Screen::Backup);
     // No paper words: the vault's item comes first and opens.
-    for p in 0..app.backup.as_ref().unwrap().answers.places {
-        app.press(Action::BRowOff(
-            p as u8,
-            faraday_core::plan::Row::Words.code(),
-        ));
-    }
+    common::no_words(&mut app);
     app.press(Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));

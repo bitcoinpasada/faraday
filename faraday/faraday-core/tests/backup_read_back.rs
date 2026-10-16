@@ -12,7 +12,7 @@ use common::*;
 use faraday_core::backup_flow::{Problem, Step};
 use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::create::NewKind;
-use faraday_core::plan::{self, At, Form, Row, Shape, Spot, What, form};
+use faraday_core::plan::{self, At, Shape, Spot, What, form};
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, BStage, Faraday, Screen, StorageEvent, bstep, cstep, testkit};
 use faraday_vault::records::{field, kind};
@@ -54,8 +54,8 @@ fn backup_shape(app: &Faraday) -> Shape {
     app.plan_shape(app.backup.as_ref().unwrap().wallet)
 }
 
-/// A change the board will make, made to Back up's plan through the
-/// plan's own edits.
+/// A change to Back up's plan made straight to its map, as a drop on the
+/// board makes it (the board itself is `backup_board.rs`'s).
 fn board_edit(app: &mut Faraday, f: impl FnOnce(Vec<Spot>) -> Vec<Spot>) {
     let shape = backup_shape(app);
     let a = &mut app.backup.as_mut().unwrap().answers;
@@ -63,25 +63,12 @@ fn board_edit(app: &mut Faraday, f: impl FnOnce(Vec<Spot>) -> Vec<Spot>) {
     a.set_map(f(m));
 }
 
-/// The words and the paper forms of the description unticked at every
-/// place: nothing kept but what the test puts on the map.
+/// The words and the paper forms of the description taken off every
+/// place's paper on the board: nothing kept but what the test puts on
+/// the map.
 fn nothing_on_paper(app: &mut Faraday) {
-    let places = app.backup.as_ref().unwrap().answers.places;
-    for p in 0..places {
-        app.press(Action::BRowOff(p as u8, Row::Words.code()));
-    }
-    for p in 0..places {
-        let shape = backup_shape(app);
-        if app
-            .backup
-            .as_ref()
-            .unwrap()
-            .answers
-            .form_at(&shape, p, Form::Paper)
-        {
-            app.press(Action::BForm(p as u8, Form::Paper.code()));
-        }
-    }
+    no_words(app);
+    no_paper_description(app);
 }
 
 /// A wallet made in Create over test seeds `seeds` typed in here, the

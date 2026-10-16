@@ -1465,10 +1465,12 @@ In this order, as step cards on `wide` and a page each on `small`
 
 1. **Start from**: the three presets, unchanged. Each fills every card
    below; every answer stays changeable.
-2. **Places**: "Number of places", the stepper (one or more, no upper
+2. *(Replaced by §19 on `wide` in Back up, batch F2a; the wallet flow's
+   cards follow in F2b.)* **Places**: "Number of places", the stepper (one or more, no upper
    bound, §10.3), and with a vault open each place's name, as today. The
    share question and the vault-stick sections leave this card.
-3. **Place 1**, **Place 2** … one card per place, titled with the
+3. *(Replaced by §19 on `wide` in Back up, batch F2a.)* **Place 1**,
+   **Place 2** … one card per place, titled with the
    place's name where it has one. A multi-choice list (DESIGN §4.2) of
    what the place keeps, a row each:
    - **Seed words by hand**
@@ -1509,7 +1511,8 @@ In this order, as step cards on `wide` and a page each on `small`
    shares (as today beside Its own share). With In shares, the slider
    **Keys left off each share** (0 to `min(m−1, n−1)`) and the shares
    table with the split's audit lines (`shares_card`, unchanged).
-5. **Where the description goes**: a section per place, its name as the
+5. *(Replaced by §19 on `wide` in Back up, batch F2a.)* **Where the
+   description goes**: a section per place, its name as the
    label, each a multi-choice of forms: **On paper**, **As a file**, and
    **In {vault}** for each vault whose stick that place keeps. With
    shares, a second list under each place's forms, **Shares here**: Share
@@ -2098,6 +2101,50 @@ plans on the board, keeping what each checked; none is deleted.
 - **F3, the vault's show and save** (§19.7). Independent of F1 and F2.
 
 F1 built 2026-10-16.
+
+**F2a built** (2026-10-16): the board in Back up on `wide` (§19.1–§19.3,
+§19.5, §19.6, §19.12 items 2, 7, 8), DESIGN §4.17. Left for F2b: the
+board in the wallet's guided flow (§19.12 item 1), the narrow column with
+**Add** (item 3), and §17's strings no longer drawn. Choices made where
+the spec says nothing:
+
+- Back up opened on a wallet with no plan starts on Start from over an
+  empty board (one place, nothing kept, `Answers::empty`); a preset fills
+  it as before.
+- The board is one card, **Places**, between Start from and the
+  software; its Continue opens the next card.
+- A press on a placed chip both selects it (a press on another zone moves
+  it) and, where its zone has more than one form for it, opens its forms.
+  A chip with one form there has no popup. A press on any other control
+  lets the chip go.
+- The software place's stick is the stick of public files (`At::Files`):
+  it takes the whole description only, in the forms the Software card
+  answers. Its × takes the software and that stick off together.
+- A vault's last stick taken off a place leaves the vault on the plan,
+  holding what it holds, and the plan held on "Vault n's stick needs a
+  place"; a vault leaves the plan only by the × on its list chip.
+- **+ vault** adds a vault holding nothing and kept at no place; the list
+  shows the plan's vaults and the vaults set up before the keys, not one
+  per seed.
+- The description counts as in shares (`split`) while any share is kept
+  anywhere; with Whole and shares both on paper, the checklist's Sheets
+  item prints the shares (it makes one or the other).
+- After the lock only the last place has a ×; the **+** card stays (a
+  place may be added, §17.8).
+- The warning mark goes on a passphrase and its seed's words kept at one
+  place, and on a seed whose every copy is at one place when losing that
+  place loses the wallet. The checks that stand are lines under the
+  board: a seed or passphrase kept nowhere, `lost_why`, every secret at
+  one place, a place that alone can spend (with two places or more), a
+  vault with no stick, a vault holding nothing.
+- The holds of NEW-WALLET §14.2 and §14.4 (a vault with no stick, a vault
+  holding nothing) still hold The plan beside a seed kept nowhere; the
+  owner kept them (2026-10-16), so §19.5's "only a seed kept nowhere"
+  reads "a seed kept nowhere, or a vault with no stick or holding
+  nothing".
+- Timed per SPEED §7 (SPEED §6): the board's frames, a drag's move and
+  the forms popup 5–7 ms at 1366×768 and 14–15 ms at 2560×1600 scale
+  2; Back up's checklist as before.
 
 ### 19.13 Decided while building F1 (2026-10-16)
 

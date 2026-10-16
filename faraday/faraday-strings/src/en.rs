@@ -8055,6 +8055,67 @@ pub struct Strings {
     pub backup_flow_no_description: &'static str,
     /// Toast: a change would leave a key held back kept on no stick.
     pub backup_flow_held_stays: &'static str,
+    /// The backup board's card (`docs/BACKUP-FLOW.md` §19): its title.
+    pub board_title: &'static str,
+    /// The board's card closed: how many places. `{}`: the count.
+    pub board_places: &'static str,
+    /// A list chip's count, or the card closed with one place.
+    pub board_one_place: &'static str,
+    /// A place card's row that makes a stick of what is dropped on it.
+    pub board_add_stick: &'static str,
+    /// A stick zone's label. `{}`: its number at the place, from 1.
+    pub board_stick: &'static str,
+    /// A place card's paper zone.
+    pub board_paper: &'static str,
+    /// The software place's zone: the description shown for it to scan.
+    pub board_scanned_in: &'static str,
+    /// The list's entry and the software place's title when no software
+    /// is chosen.
+    pub board_watch_only: &'static str,
+    /// The list's group of seeds.
+    pub board_seeds: &'static str,
+    /// The list's group of passphrases.
+    pub board_passphrases: &'static str,
+    /// The list's group of the description and its shares.
+    pub board_wallet_description: &'static str,
+    /// The whole description's chip.
+    pub board_whole: &'static str,
+    /// A share's chip. `{}`: its number.
+    pub board_share: &'static str,
+    /// The list's group of vaults.
+    pub board_vaults: &'static str,
+    /// The list's chip that adds a vault.
+    pub board_add_vault: &'static str,
+    /// A cosigner's seed in the list: its key is not here.
+    pub board_not_here: &'static str,
+    /// The stepper over the shares.
+    pub board_keys_left_off: &'static str,
+    /// A form: a seed's words on paper.
+    pub board_words: &'static str,
+    /// A form: a seed's SeedQR on paper.
+    pub board_seedqr: &'static str,
+    /// A form: a seed's words as a text file.
+    pub board_words_file: &'static str,
+    /// A form: a seed's SeedQR as a picture.
+    pub board_seedqr_file: &'static str,
+    /// A form: a passphrase as a text file.
+    pub board_passphrase_file: &'static str,
+    /// A form: the description or a share as text.
+    pub board_text_file: &'static str,
+    /// A form: the description or a share as a QR picture.
+    pub board_qr_picture: &'static str,
+    /// A form: the software's own file. `{}`: the software.
+    pub board_software_file: &'static str,
+    /// A check: a place keeps a passphrase beside its seed's words. The
+    /// place, the seed.
+    pub board_pass_with_words: &'static str,
+    /// A check: one place alone spends the wallet. The place.
+    pub board_alone_spends: &'static str,
+    /// Under a vault's chip, before it is taken off: what it holds. The
+    /// vault, what it holds.
+    pub board_vault_holds: &'static str,
+    /// Takes a vault that holds something off the plan.
+    pub board_take_off: &'static str,
 }
 
 /// The English wording.
@@ -11950,4 +12011,33 @@ pub static EN: Strings = Strings {
     backup_flow_written_stays: "A stick already written stays on the plan",
     backup_flow_no_description: "No copy of the wallet description is here to put in",
     backup_flow_held_stays: "A key not yet written stays kept on a stick",
+    board_title: "Places",
+    board_places: "{} places",
+    board_one_place: "1 place",
+    board_add_stick: "+ stick",
+    board_stick: "Stick {}",
+    board_paper: "Paper",
+    board_scanned_in: "Scanned in",
+    board_watch_only: "Watch-only software",
+    board_seeds: "Seeds",
+    board_passphrases: "Passphrases",
+    board_wallet_description: "Wallet description",
+    board_whole: "Whole",
+    board_share: "Share {}",
+    board_vaults: "Vaults",
+    board_add_vault: "+ vault",
+    board_not_here: "Not here",
+    board_keys_left_off: "Keys left off each share",
+    board_words: "Words",
+    board_seedqr: "SeedQR",
+    board_words_file: "Words file",
+    board_seedqr_file: "SeedQR file",
+    board_passphrase_file: "Passphrase file",
+    board_text_file: "Text file",
+    board_qr_picture: "QR picture",
+    board_software_file: "{} file",
+    board_pass_with_words: "{} keeps {}'s words with its passphrase",
+    board_alone_spends: "{} alone can spend the wallet",
+    board_vault_holds: "{} holds {}",
+    board_take_off: "Take off",
 };

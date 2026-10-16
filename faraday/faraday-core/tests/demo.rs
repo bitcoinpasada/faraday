@@ -309,18 +309,16 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
         .position(|p| *p == Preset::Paper)
         .unwrap() as u8;
     app.press(Action::BPreset(paper));
-    // Every place card's rows: none is a split of the seed.
-    let places = app.backup.as_ref().unwrap().answers.places;
-    for p in 0..places {
-        app.press(Action::BQ(qstep::place(p)));
-        let texts = common::texts(&mut app);
-        for split in ["Seed XOR", "codex32", "SLIP-39"] {
-            assert!(
-                texts.iter().all(|t| !t.contains(split)),
-                "Place {} offers {split}: {texts:?}",
-                p + 1
-            );
-        }
+    // The board: none of what it offers or keeps is a split of the seed.
+    if app.backup.as_ref().unwrap().q != Some(qstep::BOARD) {
+        app.press(Action::BQ(qstep::BOARD));
+    }
+    let texts = common::texts(&mut app);
+    for split in ["Seed XOR", "codex32", "SLIP-39"] {
+        assert!(
+            texts.iter().all(|t| !t.contains(split)),
+            "the board offers {split}: {texts:?}"
+        );
     }
     app.press(Action::BQ(qstep::PLAN));
     app.press(Action::BChecklist);

@@ -1,11 +1,14 @@
-//! The backup board's model (`docs/BACKUP-FLOW.md` §19, F37), before the
-//! board is drawn: sticks at a place (`At::Stick`), each with at most one
-//! vault and files beside it; a vault one vault wherever its sticks are;
-//! the files made and written with their stick, under their own names; a
-//! seed kept nowhere holding the plan, and a seed kept only on a stick
-//! held until that stick is written (F31); a plan saved before the sticks
-//! read as it was. Driven through Back up's cards and the flow where they
-//! exist, through the plan's own edits where the board will be.
+//! The backup board (`docs/BACKUP-FLOW.md` §19, F37) and its model:
+//! sticks at a place (`At::Stick`), each with at most one vault and files
+//! beside it; a vault one vault wherever its sticks are; the files made
+//! and written with their stick, under their own names; a seed kept
+//! nowhere holding the plan, and a seed kept only on a stick held until
+//! that stick is written (F31); a plan saved before the sticks read as it
+//! was. The board itself as a person uses it, by a press, a move past the
+//! slop and a lift, or a tap and a tap: places added and removed, a chip
+//! dragged or placed, its forms, vaults at several places, warnings,
+//! cosigners, shares and the software place. Driven through Back up's
+//! board and the flow.
 
 mod common;
 
@@ -14,8 +17,7 @@ use faraday_core::backup_flow::{BackupFlow, Step, Target};
 use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::create::NewKind;
 use faraday_core::plan::{
-    self, Answers, At, Form, Item, Preset, Row, Seed, Shape, Spot, What, checklist, form,
-    kept_nowhere,
+    self, Answers, At, Item, Preset, Seed, Shape, Spot, What, checklist, form, kept_nowhere,
 };
 use faraday_core::testkit;
 use faraday_core::{Action, BStage, Faraday, Screen, Sheet, bstep, cstep, qstep};
@@ -71,58 +73,6 @@ fn held(m: &[Spot], at: At) -> Vec<What> {
         .filter(|s| s.at == at)
         .flat_map(|s| s.holds.iter().map(|(w, _)| *w))
         .collect()
-}
-
-/// A change the board will make, made to Back up's plan through the
-/// plan's own edits (the board is not drawn yet).
-fn board_edit(app: &mut Faraday, f: impl FnOnce(Vec<Spot>) -> Vec<Spot>) {
-    let shape = backup_shape(app);
-    let a = &mut app.backup.as_mut().unwrap().answers;
-    let m = plan::map(&shape, a);
-    a.set_map(f(m));
-}
-
-/// Row `row` unticked on every place's card of Back up's plan.
-fn untick_everywhere(app: &mut Faraday, row: Row) {
-    for p in 0..backup_places(app) {
-        app.press(Action::BRowOff(p as u8, row.code()));
-    }
-}
-
-/// The description's form `form` unticked at every place that keeps it.
-fn form_off_everywhere(app: &mut Faraday, form: Form) {
-    for p in 0..backup_places(app) {
-        let shape = backup_shape(app);
-        if app
-            .backup
-            .as_ref()
-            .unwrap()
-            .answers
-            .form_at(&shape, p, form)
-        {
-            app.press(Action::BForm(p as u8, form.code()));
-        }
-    }
-}
-
-/// At place `p`, row `row` given exactly `seeds` on its sheet, and Done.
-fn keep_at(app: &mut Faraday, p: usize, row: Row, seeds: &[usize]) {
-    if app.backup.as_ref().unwrap().q != Some(qstep::place(p)) {
-        app.press(Action::BQ(qstep::place(p)));
-    }
-    app.press(Action::BRow(p as u8, row.code()));
-    let ticked = app
-        .choosing
-        .as_ref()
-        .expect("the row's sheet")
-        .seeds
-        .clone();
-    for i in 0..backup_shape(app).seeds.len() {
-        if ticked.contains(&i) != seeds.contains(&i) {
-            app.press(Action::BPick(i as u8));
-        }
-    }
-    app.press(Action::BPickDone);
 }
 
 /// A 2-of-3 made in Create over three keys typed in here, its backup
@@ -232,8 +182,8 @@ fn write_stick(shell: &mut Shell, app: &mut Faraday, d: &str) {
 #[test]
 fn a_vault_at_two_places_is_held_once() {
     let mut app = three_here();
-    keep_at(&mut app, 0, Row::Vault(0), &[0]);
-    keep_at(&mut app, 2, Row::Vault(0), &[0, 1]);
+    vault_at(&mut app, 0, 0, &[0]);
+    vault_at(&mut app, 2, 0, &[0, 1]);
     let m = the_map(&app);
     let vaults: Vec<&Spot> = m.iter().filter(|s| s.at == At::Vault(0)).collect();
     assert_eq!(vaults.len(), 1, "one vault: {m:?}");
@@ -270,8 +220,8 @@ fn a_vault_at_two_places_is_held_once() {
 #[test]
 fn a_second_vault_at_a_place_goes_on_a_second_stick() {
     let mut app = three_here();
-    keep_at(&mut app, 0, Row::Vault(0), &[0]);
-    keep_at(&mut app, 0, Row::Vault(1), &[1]);
+    vault_at(&mut app, 0, 0, &[0]);
+    vault_at(&mut app, 0, 1, &[1]);
     let m = the_map(&app);
     assert_eq!(held(&m, At::Stick(0, 0)), vec![What::VaultStick(0)]);
     assert_eq!(held(&m, At::Stick(0, 1)), vec![What::VaultStick(1)]);
@@ -352,14 +302,12 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
     app.press(Action::CBackup(0));
     // Seed A in Vault 1 at Place 1; Seed C as a file at Place 2; nothing
     // on paper.
-    untick_everywhere(&mut app, Row::Words);
-    form_off_everywhere(&mut app, Form::Paper);
-    keep_at(&mut app, 0, Row::Vault(0), &[0]);
-    keep_at(&mut app, 1, Row::File, &[2]);
+    no_words(&mut app);
+    no_paper_description(&mut app);
+    vault_at(&mut app, 0, 0, &[0]);
+    files_at(&mut app, 1, &[2]);
     // Seed B's words file dropped on Vault 1's stick at Place 1.
-    board_edit(&mut app, |m| {
-        plan::with_added(&m, At::Stick(0, 0), What::SeedFile(1))
-    });
+    put(&mut app, Thing::Seed(1), Zone::Files(0, 0));
     let m = the_map(&app);
     assert_eq!(
         held(&m, At::Stick(0, 0)),
@@ -442,8 +390,8 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     let fp = app.session.keys.last().unwrap().fingerprint().0;
     app.press(Action::KNext);
     app.press(Action::CBackup(0));
-    untick_everywhere(&mut app, Row::Words);
-    form_off_everywhere(&mut app, Form::Paper);
+    no_words(&mut app);
+    no_paper_description(&mut app);
     assert!(app.backup_kept_nowhere().is_some(), "kept nowhere");
     app.press(Action::BChecklist);
     assert_eq!(
@@ -451,10 +399,15 @@ fn a_seed_kept_nowhere_holds_the_plan() {
         BStage::Plan,
         "a seed kept nowhere holds The plan"
     );
-    // Its SeedQR as a picture on a stick at Place 1: kept.
-    board_edit(&mut app, |m| {
-        plan::with_added(&m, At::Stick(0, 0), What::SeedQrFile(0))
-    });
+    // Its SeedQR as a picture on a stick at Place 1: kept. Dropped on
+    // + stick it is its words file; its forms make it the picture alone.
+    put(&mut app, Thing::Seed(0), Zone::NewStick(0));
+    form(&mut app, Zone::Files(0, 0), Thing::Seed(0), 1);
+    form(&mut app, Zone::Files(0, 0), Thing::Seed(0), 0);
+    assert_eq!(
+        held(&the_map(&app), At::Stick(0, 0)),
+        vec![What::SeedQrFile(0)]
+    );
     assert_eq!(app.backup_kept_nowhere(), None);
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
@@ -641,8 +594,8 @@ fn three_with_a_vault(shell: &mut Shell) -> (Faraday, Vec<[u8; 4]>) {
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(0));
-    untick_everywhere(&mut app, Row::Words);
-    form_off_everywhere(&mut app, Form::Paper);
+    no_words(&mut app);
+    no_paper_description(&mut app);
     (app, fps)
 }
 
@@ -654,8 +607,9 @@ fn two_sticks_of_vault_1_at_one_place_are_written_as_two_sticks_each_recognised(
     let mut shell = Shell::new();
     sticks(&mut shell, 3);
     let (mut app, _) = three_with_a_vault(&mut shell);
-    keep_at(&mut app, 0, Row::Vault(0), &[0, 1, 2]);
-    board_edit(&mut app, |m| plan::with_vault_stick(&m, 0, 0));
+    vault_at(&mut app, 0, 0, &[0, 1, 2]);
+    // Vault 1 dropped again on Place 1: a second stick of it.
+    put(&mut app, Thing::Vault(0), Zone::Card(0));
     let m = the_map(&app);
     assert_eq!(held(&m, At::Stick(0, 0)), vec![What::VaultStick(0)]);
     assert_eq!(held(&m, At::Stick(0, 1)), vec![What::VaultStick(0)]);
@@ -722,13 +676,11 @@ fn two_sticks_of_files_at_one_place_are_written_as_two_sticks_each_recognised() 
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(0));
-    untick_everywhere(&mut app, Row::Words);
-    form_off_everywhere(&mut app, Form::Paper);
-    board_edit(&mut app, |m| {
-        let m = plan::with_added(&m, At::Stick(0, 0), What::SeedFile(0));
-        let m = plan::with_added(&m, At::Stick(0, 1), What::SeedFile(1));
-        plan::with_added(&m, At::Stick(0, 1), What::SeedFile(2))
-    });
+    no_words(&mut app);
+    no_paper_description(&mut app);
+    put(&mut app, Thing::Seed(0), Zone::NewStick(0));
+    put(&mut app, Thing::Seed(1), Zone::NewStick(0));
+    put(&mut app, Thing::Seed(2), Zone::Files(0, 1));
     let m = the_map(&app);
     assert_eq!(held(&m, At::Stick(0, 0)), vec![What::SeedFile(0)]);
     assert_eq!(
@@ -778,9 +730,9 @@ fn a_seeds_words_file_on_a_stick_is_made_only_past_the_warning() {
     sticks(&mut shell, 1);
     let mut app = three_here();
     keep_time(&mut app);
-    untick_everywhere(&mut app, Row::Words);
-    form_off_everywhere(&mut app, Form::Paper);
-    keep_at(&mut app, 0, Row::File, &[0, 1, 2]);
+    no_words(&mut app);
+    no_paper_description(&mut app);
+    files_at(&mut app, 0, &[0, 1, 2]);
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
     app.press(Action::BNext(bstep::ENVELOPE));
@@ -810,4 +762,661 @@ fn a_seeds_words_file_on_a_stick_is_made_only_past_the_warning() {
     assert_eq!(app.outbox.iter().filter(|i| i.secret).count(), 3);
     shell.pump(&mut app);
     assert!(app.restart_requested(), "locked");
+}
+
+// ---- the board, as a person uses it (§19.1, §19.2, §19.3, §19.5) ----
+
+use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
+use osk_shell_api::TouchPhase;
+
+/// A 2-of-3 made in Create over three keys typed in here, its backup
+/// opened from the wallet with no plan yet: the board as it starts, open.
+fn three_on_an_empty_board() -> Faraday {
+    let mut app = testkit::started();
+    for n in 0..3 {
+        key_in(&mut app, n);
+    }
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(multi_index()));
+    for slot in 0..3u8 {
+        let fp = app.session.keys[usize::from(slot)].fingerprint().0;
+        app.press(Action::CSlotHere(slot, fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    app.press(Action::CNext(cstep::CHECK));
+    let w = app.session.wallets.len() - 1;
+    app.press(Action::Backup(w));
+    open_board(&mut app);
+    app
+}
+
+/// The board's card opened, as a person opens it.
+fn open_board(app: &mut Faraday) {
+    if app.backup.as_ref().unwrap().q != Some(qstep::BOARD) {
+        app.press(Action::BQ(qstep::BOARD));
+    }
+    app.settle();
+}
+
+fn touch(app: &mut Faraday, (x, y): (u16, u16), phase: TouchPhase) {
+    app.event(Event::Touch { x, y, phase });
+}
+
+/// Where the frame on screen offers board press `p`, the page scrolled
+/// from its top a step at a time until it does.
+fn on_board(app: &mut Faraday, p: BP) -> (u16, u16) {
+    on_screen(app, Action::Board(p))
+}
+
+/// Where the frame on screen offers `a`, the page scrolled from its top a
+/// step at a time until it does.
+fn on_screen(app: &mut Faraday, a: Action) -> (u16, u16) {
+    find(app, a).unwrap_or_else(|| panic!("{a:?} is not on screen"))
+}
+
+/// Whether the page offers `a` anywhere down it.
+fn offered_on_page(app: &mut Faraday, a: Action) -> bool {
+    find(app, a).is_some()
+}
+
+/// [`on_screen`], or `None` where the page offers `a` nowhere.
+fn find(app: &mut Faraday, a: Action) -> Option<(u16, u16)> {
+    app.event(Event::Scroll {
+        x: 600,
+        y: 400,
+        dy: -20_000,
+    });
+    for _ in 0..30 {
+        // A card that has just opened glides into view: what is pressed
+        // is where it comes to rest.
+        app.settle();
+        let _ = app.frame();
+        app.settle();
+        let _ = app.frame();
+        if let Some(at) = app.where_offered(a) {
+            return Some(at);
+        }
+        app.event(Event::Scroll {
+            x: 600,
+            y: 400,
+            dy: 150,
+        });
+    }
+    None
+}
+
+/// A tap on board press `p`: down and up where it is.
+fn tap(app: &mut Faraday, p: BP) {
+    let at = on_board(app, p);
+    touch(app, at, TouchPhase::Down);
+    touch(app, at, TouchPhase::Up);
+    app.settle();
+}
+
+/// `from` dragged onto `to` as a finger drags it: down on it, moved past
+/// the slop, moved over `to`, lifted there. Both are on screen at once.
+fn drag(app: &mut Faraday, from: BP, to: BP) {
+    let start = on_board(app, from);
+    let end = app
+        .where_offered(Action::Board(to))
+        .unwrap_or_else(|| panic!("{to:?} is not on screen with {from:?}"));
+    touch(app, start, TouchPhase::Down);
+    touch(app, (start.0 + 12, start.1 + 4), TouchPhase::Move);
+    let _ = app.frame();
+    touch(app, end, TouchPhase::Move);
+    let _ = app.frame();
+    touch(app, end, TouchPhase::Up);
+    app.settle();
+}
+
+fn list(t: Thing) -> BP {
+    BP::Chip(Chip::List(t))
+}
+
+fn placed(z: Zone, t: Thing) -> BP {
+    BP::Chip(Chip::Placed(z, t))
+}
+
+/// The board starts with one empty place and nothing kept; **+** adds a
+/// place, and × removes it with what it kept.
+#[test]
+fn the_board_starts_with_one_empty_place_and_plus_and_x_add_and_remove_places() {
+    let mut app = three_on_an_empty_board();
+    assert_eq!(backup_places(&app), 1);
+    let m = the_map(&app);
+    assert!(
+        m.iter()
+            .filter(|s| !matches!(s.at, At::Away))
+            .all(|s| s.holds.is_empty()),
+        "nothing kept: {m:?}"
+    );
+    assert_eq!(plan::sticks_at(&m, 0), 0, "no stick yet");
+    expect(&mut app, "Place 1");
+    assert!(!has(&mut app, "Place 2"));
+    // No × with one place.
+    assert!(!offered(&mut app, Action::Board(BP::RemovePlace(0))));
+    tap(&mut app, BP::AddPlace);
+    assert_eq!(backup_places(&app), 2);
+    expect(&mut app, "Place 2");
+    // Place 2 keeps Seed A's words; its × takes them with it.
+    tap(&mut app, list(Thing::Seed(0)));
+    tap(&mut app, BP::Zone(Zone::Paper(1)));
+    assert_eq!(held(&the_map(&app), At::Place(1)), vec![What::Words(0)]);
+    tap(&mut app, BP::RemovePlace(1));
+    assert_eq!(backup_places(&app), 1);
+    assert!(
+        the_map(&app)
+            .iter()
+            .all(|s| s.holds.iter().all(|(w, _)| *w != What::Words(0))),
+        "what it kept went with it"
+    );
+    assert!(!has(&mut app, "Place 2"));
+}
+
+/// Seed A dragged onto Place 1's paper keeps its words there; its forms
+/// add the SeedQR; the chip reads both forms, and the map holds both.
+#[test]
+fn seed_a_dragged_onto_paper_keeps_its_words_and_its_forms_add_the_seedqr() {
+    let mut app = three_on_an_empty_board();
+    drag(&mut app, list(Thing::Seed(0)), BP::Zone(Zone::Paper(0)));
+    assert_eq!(held(&the_map(&app), At::Place(0)), vec![What::Words(0)]);
+    // A press on the placed chip opens its forms; SeedQR ticked.
+    let chip = placed(Zone::Paper(0), Thing::Seed(0));
+    tap(&mut app, chip);
+    let seedqr = BP::Form(Zone::Paper(0), Thing::Seed(0), 1);
+    assert!(
+        offered(&mut app, Action::Board(seedqr)),
+        "its forms are open"
+    );
+    tap(&mut app, seedqr);
+    assert_eq!(
+        held(&the_map(&app), At::Place(0)),
+        vec![What::Words(0), What::SeedQr(0)]
+    );
+    // The last form on stays on.
+    tap(&mut app, BP::Form(Zone::Paper(0), Thing::Seed(0), 0));
+    tap(&mut app, BP::Form(Zone::Paper(0), Thing::Seed(0), 1));
+    assert_eq!(held(&the_map(&app), At::Place(0)), vec![What::SeedQr(0)]);
+    tap(&mut app, BP::Form(Zone::Paper(0), Thing::Seed(0), 0));
+    tap(&mut app, chip);
+    expect_part(&mut app, "Words · SeedQR");
+    assert_eq!(
+        held(&the_map(&app), At::Place(0)),
+        vec![What::SeedQr(0), What::Words(0)]
+    );
+}
+
+/// Tap to place makes the same map as a drag.
+#[test]
+fn tap_to_place_gives_the_same_map_as_a_drag() {
+    let mut dragged = three_on_an_empty_board();
+    drag(&mut dragged, list(Thing::Seed(0)), BP::Zone(Zone::Paper(0)));
+    let mut tapped = three_on_an_empty_board();
+    tap(&mut tapped, list(Thing::Seed(0)));
+    // The zones that take it are edged; nothing is placed yet.
+    assert_eq!(
+        tapped.backup.as_ref().unwrap().board.held,
+        Some(Chip::List(Thing::Seed(0)))
+    );
+    assert!(held(&the_map(&tapped), At::Place(0)).is_empty());
+    tap(&mut tapped, BP::Zone(Zone::Paper(0)));
+    assert_eq!(the_map(&tapped), the_map(&dragged));
+    // A tap on a chip and then on it again lets it go.
+    tap(&mut tapped, list(Thing::Seed(1)));
+    tap(&mut tapped, list(Thing::Seed(1)));
+    assert_eq!(tapped.backup.as_ref().unwrap().board.held, None);
+}
+
+/// Vault 1 dragged onto Place 1 and onto Place 3 makes a stick at each;
+/// Seed A dropped into it at Place 1 is drawn in it at Place 3 too, and
+/// the map holds it once, in the vault. A second vault dropped on Place 1
+/// goes on a second stick there.
+#[test]
+fn a_vault_on_two_places_holds_seed_a_once_and_a_second_vault_takes_a_second_stick() {
+    let mut app = three_on_an_empty_board();
+    tap(&mut app, BP::AddPlace);
+    tap(&mut app, BP::AddPlace);
+    tap(&mut app, BP::AddVault);
+    drag(&mut app, list(Thing::Vault(0)), BP::Zone(Zone::Card(0)));
+    drag(&mut app, list(Thing::Vault(0)), BP::Zone(Zone::Card(2)));
+    let m = the_map(&app);
+    assert_eq!(held(&m, At::Stick(0, 0)), vec![What::VaultStick(0)]);
+    assert_eq!(held(&m, At::Stick(2, 0)), vec![What::VaultStick(0)]);
+    drag(
+        &mut app,
+        list(Thing::Seed(0)),
+        BP::Zone(Zone::Vault(0, 0, 0)),
+    );
+    let m = the_map(&app);
+    assert_eq!(held(&m, At::Vault(0)), vec![What::Seed(0)]);
+    let at: Vec<At> = m
+        .iter()
+        .filter(|s| s.holds.iter().any(|(w, _)| *w == What::Seed(0)))
+        .map(|s| s.at)
+        .collect();
+    assert_eq!(at, vec![At::Vault(0)], "held once");
+    on_board(&mut app, placed(Zone::Vault(2, 0, 0), Thing::Seed(0)));
+    // The second vault: a stick of its own at Place 1.
+    tap(&mut app, BP::AddVault);
+    drag(&mut app, list(Thing::Vault(1)), BP::Zone(Zone::Card(0)));
+    let m = the_map(&app);
+    assert_eq!(held(&m, At::Stick(0, 0)), vec![What::VaultStick(0)]);
+    assert_eq!(held(&m, At::Stick(0, 1)), vec![What::VaultStick(1)]);
+}
+
+/// A key with a passphrase, made in Create on its own, its backup open on
+/// the board with its words at both places.
+fn passphrase_key_on_the_board() -> Faraday {
+    use faraday_core::keygen::Way;
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::KeyGen(Some(0)));
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Coins.index()));
+    app.press(Action::KNext);
+    for i in 0..128 {
+        app.press(Action::KFlip((i * 5 + i / 3) % 2 == 0));
+    }
+    app.press(Action::KNext);
+    for field in [0, 1] {
+        app.press(Action::KPassField(field));
+        type_text(&mut app, "Ride the 7 bus");
+    }
+    app.press(Action::KLock);
+    app.press(Action::KNext);
+    app.press(Action::CBackup(0));
+    open_board(&mut app);
+    app
+}
+
+/// A passphrase dropped on paper that keeps its seed's words is kept
+/// there, with the warning line and the warning mark; Make the checklist
+/// is still offered. Dropped into a vault that does not hold its seed, it
+/// is kept there alone (§19.12 item 4).
+#[test]
+fn a_passphrase_beside_its_words_is_kept_with_a_warning_and_the_checklist_offered() {
+    let mut app = passphrase_key_on_the_board();
+    let words = held(&the_map(&app), At::Place(0));
+    assert!(words.contains(&What::Words(0)), "{words:?}");
+    // Its passphrase kept nowhere yet holds nothing back but a warning:
+    // put it somewhere first, then beside the words.
+    for p in 0..backup_places(&app) {
+        for w in held(&the_map(&app), At::Place(p)) {
+            if w == What::Passphrase(0) {
+                tap(&mut app, BP::Off(Zone::Paper(p), Thing::Pass(0)));
+            }
+        }
+    }
+    drag(&mut app, list(Thing::Pass(0)), BP::Zone(Zone::Paper(0)));
+    let m = the_map(&app);
+    assert!(held(&m, At::Place(0)).contains(&What::Passphrase(0)));
+    assert!(held(&m, At::Place(0)).contains(&What::Words(0)));
+    let seed = backup_shape(&app).seeds[0].name.clone();
+    expect(
+        &mut app,
+        &format!("Place 1 keeps {seed}'s words with its passphrase"),
+    );
+    let view = app
+        .board_marks()
+        .into_iter()
+        .filter(|(z, _)| *z == Zone::Paper(0))
+        .map(|(_, t)| t)
+        .collect::<Vec<Thing>>();
+    assert!(view.contains(&Thing::Pass(0)) && view.contains(&Thing::Seed(0)));
+    app.press(Action::BQ(qstep::PLAN));
+    assert!(
+        offered_on_page(&mut app, Action::BChecklist),
+        "still offered"
+    );
+    // Into a vault without its seed: the passphrase alone.
+    open_board(&mut app);
+    tap(&mut app, BP::AddVault);
+    drag(&mut app, list(Thing::Vault(0)), BP::Zone(Zone::Card(1)));
+    drag(
+        &mut app,
+        list(Thing::Pass(0)),
+        BP::Zone(Zone::Vault(1, 0, 0)),
+    );
+    assert_eq!(
+        held(&the_map(&app), At::Vault(0)),
+        vec![What::PassphraseSealed(0)]
+    );
+}
+
+/// A key made here and kept nowhere holds The plan, on the board as on
+/// the cards; its words put back on paper let it go.
+#[test]
+fn a_seed_kept_nowhere_on_the_board_holds_the_plan() {
+    let mut app = passphrase_key_on_the_board();
+    for p in 0..backup_places(&app) {
+        for w in held(&the_map(&app), At::Place(p)) {
+            if let What::Words(_) = w {
+                tap(&mut app, BP::Off(Zone::Paper(p), Thing::Seed(0)));
+            }
+        }
+    }
+    assert!(app.backup_kept_nowhere().is_some());
+    let seed = backup_shape(&app).seeds[0].name.clone();
+    expect(&mut app, &format!("Seed {seed} is kept nowhere"));
+    app.press(Action::BQ(qstep::PLAN));
+    assert!(
+        !offered_on_page(&mut app, Action::BChecklist),
+        "The plan is held"
+    );
+    app.press(Action::BChecklist);
+    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Plan);
+    open_board(&mut app);
+    drag(&mut app, list(Thing::Seed(0)), BP::Zone(Zone::Paper(1)));
+    app.press(Action::BQ(qstep::PLAN));
+    assert!(offered_on_page(&mut app, Action::BChecklist));
+}
+
+/// A cosigner's seed is in the list, dim, "Not here", and does not move.
+#[test]
+fn a_cosigners_seed_is_dim_and_does_not_move() {
+    let mut app = testkit::started();
+    app.session = testkit::session();
+    key_in(&mut app, 0);
+    app.session
+        .add_wallet(
+            "Savings",
+            &testkit::savings(),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    let w = app.session.wallets.len() - 1;
+    app.press(Action::Backup(w));
+    open_board(&mut app);
+    let shape = backup_shape(&app);
+    let away = (0..shape.seeds.len())
+        .find(|&i| !shape.seeds[i].here)
+        .expect("a cosigner");
+    expect(&mut app, "Not here");
+    assert!(
+        !offered(&mut app, Action::Board(list(Thing::Seed(away)))),
+        "it takes no press"
+    );
+    // A finger on its name, dragged to Place 1's paper: nothing moves.
+    let _ = app.frame();
+    let name = shape.seeds[away].name.clone();
+    let (_, (x, y, bw, bh)) = app
+        .drawn_text_boxes()
+        .into_iter()
+        .find(|(t, _)| *t == name)
+        .expect("its chip is drawn");
+    let start = ((x + bw / 2) as u16, (y + bh / 2) as u16);
+    let end = on_board(&mut app, BP::Zone(Zone::Paper(0)));
+    let before = the_map(&app);
+    touch(&mut app, start, TouchPhase::Down);
+    touch(&mut app, (start.0 + 20, start.1), TouchPhase::Move);
+    touch(&mut app, end, TouchPhase::Move);
+    touch(&mut app, end, TouchPhase::Up);
+    assert_eq!(the_map(&app), before);
+    assert_eq!(app.backup.as_ref().unwrap().board.held, None);
+    // Tapping it and then a zone places nothing either.
+    app.press(Action::Board(list(Thing::Seed(away))));
+    app.press(Action::Board(BP::Zone(Zone::Paper(0))));
+    assert_eq!(the_map(&app), before);
+}
+
+/// Shares: with nothing chosen first, the list offers Share 1 to Share 3
+/// of the 2-of-3; Share 1 on Place 1's paper and Share 2 in Vault 1 are on
+/// the map there; the keys left off from 1 to 0 changes the keys each
+/// share lists and leaves both where they are; the checks count the
+/// description kept where two shares together rebuild it.
+#[test]
+fn shares_are_offered_placed_and_follow_the_keys_left_off() {
+    let mut app = three_on_an_empty_board();
+    for j in 0..3 {
+        expect(&mut app, &format!("Share {}", j + 1));
+        on_board(&mut app, list(Thing::Share(j)));
+    }
+    tap(&mut app, BP::AddPlace);
+    tap(&mut app, BP::AddPlace);
+    tap(&mut app, BP::AddVault);
+    drag(&mut app, list(Thing::Vault(0)), BP::Zone(Zone::Card(1)));
+    drag(&mut app, list(Thing::Share(0)), BP::Zone(Zone::Paper(0)));
+    drag(
+        &mut app,
+        list(Thing::Share(1)),
+        BP::Zone(Zone::Vault(1, 0, 0)),
+    );
+    let m = the_map(&app);
+    assert_eq!(held(&m, At::Place(0)), vec![What::Share(0)]);
+    assert_eq!(held(&m, At::Vault(0)), vec![What::Share(1)]);
+    assert_eq!(app.backup.as_ref().unwrap().answers.omit, 1);
+    let shape = backup_shape(&app);
+    let keys = |ks: &[usize]| {
+        ks.iter()
+            .map(|&k| shape.seeds[k].name.to_lowercase())
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    // How many times each key's fingerprint is drawn: in the list of
+    // seeds, and under each share that carries it.
+    let drawn = |app: &mut Faraday| -> Vec<usize> {
+        let t = texts(app);
+        (0..3)
+            .map(|k| t.iter().filter(|x| **x == keys(&[k])).count())
+            .collect()
+    };
+    let one_off = drawn(&mut app);
+    let at = on_screen(&mut app, Action::BOmit(0));
+    touch(&mut app, at, TouchPhase::Down);
+    touch(&mut app, at, TouchPhase::Up);
+    assert_eq!(app.backup.as_ref().unwrap().answers.omit, 0);
+    // Each key is under one share more: every share carries every key.
+    let none_off = drawn(&mut app);
+    for k in 0..3 {
+        assert_eq!(
+            none_off[k],
+            one_off[k] + 1,
+            "key {k}: {one_off:?} {none_off:?}"
+        );
+    }
+    let m = the_map(&app);
+    assert_eq!(held(&m, At::Place(0)), vec![What::Share(0)], "still there");
+    assert_eq!(held(&m, At::Vault(0)), vec![What::Share(1)], "still there");
+    // Each place's seed on its paper; with one key left off, two shares
+    // together rebuild the description: Share 1 and 2 alone do not
+    // survive losing Place 1, Share 3 at Place 3 makes every loss
+    // survivable.
+    app.press(Action::BOmit(1));
+    for p in 0..3 {
+        drag(&mut app, list(Thing::Seed(p)), BP::Zone(Zone::Paper(p)));
+    }
+    let a = &app.backup.as_ref().unwrap().answers;
+    assert_eq!(plan::check(&shape, a).lost, plan::Lost::No);
+    drag(&mut app, list(Thing::Share(2)), BP::Zone(Zone::Paper(2)));
+    let a = &app.backup.as_ref().unwrap().answers;
+    assert_eq!(plan::check(&shape, a).lost, plan::Lost::WithVault);
+}
+
+/// The software place: its card, the description scanned in, and its
+/// stick with the description's files; losing every numbered place, the
+/// checks count the description as kept.
+#[test]
+fn the_software_place_scans_the_description_in_and_keeps_it_through_any_loss() {
+    let mut app = three_on_an_empty_board();
+    tap(&mut app, BP::AddPlace);
+    tap(&mut app, BP::AddPlace);
+    for p in 0..3 {
+        drag(&mut app, list(Thing::Seed(p)), BP::Zone(Zone::Paper(p)));
+    }
+    let shape = backup_shape(&app);
+    let lost = |app: &Faraday| plan::check(&shape, &app.backup.as_ref().unwrap().answers).lost;
+    assert_eq!(lost(&app), plan::Lost::No, "no description kept");
+    tap(&mut app, list(Thing::Software));
+    expect(&mut app, "Scanned in");
+    assert_eq!(held(&the_map(&app), At::Software), vec![What::Wallet]);
+    assert!(!offered(&mut app, Action::Board(list(Thing::Software))));
+    drag(&mut app, list(Thing::Whole), BP::Zone(Zone::SoftStick));
+    assert_eq!(held(&the_map(&app), At::Files), vec![What::Wallet]);
+    assert_eq!(lost(&app), plan::Lost::Yes);
+    // The software is a card of the plan too: its × takes it off.
+    tap(&mut app, BP::RemoveSoftware);
+    assert!(held(&the_map(&app), At::Software).is_empty());
+    assert!(offered(&mut app, Action::Board(list(Thing::Software))));
+}
+
+/// A placed chip moved to another zone takes its forms with it, a words
+/// file for words and a SeedQR picture for a SeedQR; dragged back onto
+/// the list, or by its ×, it is taken off.
+#[test]
+fn a_placed_chip_moves_with_its_forms_and_back_to_the_list_is_taken_off() {
+    let mut app = three_on_an_empty_board();
+    drag(&mut app, list(Thing::Seed(0)), BP::Zone(Zone::Paper(0)));
+    app.press(Action::Board(BP::Chip(Chip::Placed(
+        Zone::Paper(0),
+        Thing::Seed(0),
+    ))));
+    app.press(Action::Board(BP::Form(Zone::Paper(0), Thing::Seed(0), 1)));
+    app.press(Action::Board(BP::LetGo));
+    drag(
+        &mut app,
+        placed(Zone::Paper(0), Thing::Seed(0)),
+        BP::Zone(Zone::NewStick(0)),
+    );
+    let m = the_map(&app);
+    assert!(held(&m, At::Place(0)).is_empty());
+    assert_eq!(
+        held(&m, At::Stick(0, 0)),
+        vec![What::SeedFile(0), What::SeedQrFile(0)]
+    );
+    drag(
+        &mut app,
+        placed(Zone::Files(0, 0), Thing::Seed(0)),
+        BP::Zone(Zone::List),
+    );
+    assert!(
+        the_map(&app).iter().all(|s| s
+            .holds
+            .iter()
+            .all(|(w, _)| !matches!(w, What::SeedFile(0) | What::SeedQrFile(0)))),
+        "taken off"
+    );
+    assert_eq!(
+        plan::sticks_at(&the_map(&app), 0),
+        0,
+        "the stick went with it"
+    );
+}
+
+/// A vault's × on the list takes it off with its sticks; one that holds
+/// something says what first, and goes on **Take off**.
+#[test]
+fn a_vault_that_holds_something_says_what_before_it_is_taken_off() {
+    let mut app = three_on_an_empty_board();
+    tap(&mut app, BP::AddVault);
+    drag(&mut app, list(Thing::Vault(0)), BP::Zone(Zone::Card(0)));
+    drag(
+        &mut app,
+        list(Thing::Seed(0)),
+        BP::Zone(Zone::Vault(0, 0, 0)),
+    );
+    tap(&mut app, BP::RemoveVault(0));
+    assert!(
+        the_map(&app).iter().any(|s| s.at == At::Vault(0)),
+        "asked first"
+    );
+    let seed = backup_shape(&app).seeds[0].name.clone();
+    expect(&mut app, &format!("Vault 1 holds {seed}"));
+    tap(&mut app, BP::RemoveVaultSure(0));
+    let m = the_map(&app);
+    assert!(m.iter().all(|s| s.at != At::Vault(0)));
+    assert_eq!(plan::sticks_at(&m, 0), 0);
+}
+
+/// A vault that already holds something (made before this backup) shows
+/// what it held in its zone, dimmed, taking no press (§19.12 item 7).
+#[test]
+fn an_existing_vaults_contents_are_drawn_dimmed_and_take_no_press() {
+    use faraday_vault::records::{field, kind};
+    let mut shell = Shell::new();
+    sticks(&mut shell, 1);
+    // Vault "Main" on S1, holding another wallet's description.
+    let other = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .expect("the spending kit");
+    let main = {
+        let cost = faraday_vault::Cost {
+            memory_kib: faraday_vault::MIN_MEMORY_KIB,
+            passes: 1,
+            lanes: 1,
+        };
+        let contents = vec![faraday_vault::Contents {
+            records: vec![
+                faraday_vault::Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Main"),
+                faraday_vault::Record::new(kind::WALLET)
+                    .with(field::WALLET, other.descriptor.as_bytes()),
+            ],
+        }];
+        faraday_vault::create(
+            faraday_vault::SLOT_SIZES[0],
+            cost,
+            &[PHRASE.as_bytes()],
+            &contents,
+            &[0x41; 32],
+        )
+        .unwrap()
+    };
+    shell.disk_mut("S1").files = vec![("main.ofv".into(), main)];
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(multi_index()));
+    app.press(Action::CVaults(true));
+    app.press(Action::CNext(cstep::WHERE));
+    app.press(Action::CVaultN(1));
+    app.press(Action::CNext(cstep::HOW_MANY));
+    // S1's vault is Vault 1: picked, the place confirmed.
+    shell.plug(&mut app, "S1");
+    let k = app
+        .flow()
+        .unwrap()
+        .live
+        .reading
+        .as_ref()
+        .unwrap()
+        .files
+        .iter()
+        .position(|(f, _)| f.name == "main.ofv")
+        .expect("the vault is read");
+    shell.flow(&mut app, F::PickFile(0, k));
+    shell.flow(&mut app, F::Tap);
+    shell.pull(&mut app, "S1");
+    assert_eq!(step(&app), Step::Vaults);
+    unlock(&mut app, PHRASE);
+    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
+    app.press(Action::Nav(Screen::Create));
+    for (i, fp) in fps.iter().enumerate() {
+        app.press(Action::CSlotHere(i as u8, *fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(0));
+    open_board(&mut app);
+    if vault_stick(&app, 0, 0).is_none() {
+        tap(&mut app, list(Thing::Vault(0)));
+        tap(&mut app, BP::Zone(Zone::Card(0)));
+    }
+    let sum = faraday_core::wallet::read_wallet(&other.descriptor)
+        .unwrap()
+        .checksum()
+        .to_string();
+    expect(&mut app, &format!("#{sum}"));
+    // It is no chip of the plan's: nothing to press, nothing to drag.
+    assert!(!offered(
+        &mut app,
+        Action::Board(placed(Zone::List, Thing::Whole))
+    ));
+    assert!(
+        the_map(&app)
+            .iter()
+            .all(|s| s.at != At::Vault(0) || s.holds.iter().all(|(w, _)| *w != What::Wallet))
+    );
 }

@@ -18,6 +18,7 @@ pub mod backup_flow;
 pub mod backup_flow_steps;
 pub mod backups;
 pub mod bip85;
+pub mod board;
 pub mod boot_import;
 pub mod catalog;
 pub mod chart_edit;
@@ -82,6 +83,7 @@ mod backup_flow_wallet;
 mod backup_flow_wallet_screen;
 mod backups_screen;
 mod bip85_screen;
+mod board_screen;
 mod boot_import_screen;
 mod codes_screen;
 mod compact;
@@ -1056,6 +1058,8 @@ pub enum Action {
     BOldFile(u8),
     /// Start or stop typing place n's name (only with a vault open).
     BName(u8),
+    /// A press on the backup board (`docs/BACKUP-FLOW.md` §19).
+    Board(board::BoardPress),
     /// The plan made: on to the checklist, the plan saved into the open
     /// vault.
     BChecklist,
@@ -2330,6 +2334,9 @@ pub struct BackupState {
     /// Opened from a chart in an open vault's view: the way back is the
     /// vault.
     pub from_vault: bool,
+    /// The board's chip held, by a tap or a drag
+    /// (`docs/BACKUP-FLOW.md` §19.2).
+    pub board: board::BoardState,
     /// Work done that a later plan dropped, as what it is ("vault.ofv
     /// holds seed 9A6A2580"): the copy exists until it is destroyed.
     pub extras: Vec<String>,
@@ -2705,6 +2712,9 @@ pub mod qstep {
     pub const PLAN: u8 = 6;
     /// Where the description goes, place by place.
     pub const WHERE: u8 = 7;
+    /// Back up's board: the places, what each keeps, and the list of
+    /// what the backup can keep (`docs/BACKUP-FLOW.md` §19).
+    pub const BOARD: u8 = 8;
     /// Place 1's card; place `p`'s is `PLACE + p`.
     pub const PLACE: u8 = 16;
     /// The most places the cards number.
@@ -4939,6 +4949,15 @@ impl Faraday {
             self.stick_pill_pressed(n);
             return;
         }
+        // A chip held on the backup board is let go by a press anywhere
+        // else (`docs/BACKUP-FLOW.md` §19.2).
+        if !matches!(action, Action::Board(_))
+            && let Some(b) = self.backup.as_mut()
+        {
+            b.board.held = None;
+            b.board.forms = false;
+            b.board.removing = None;
+        }
         // A chart's sheet leads into a flow: whatever its rows press, the
         // sheet goes first.
         if self.sheet == Some(Sheet::Chart) && !matches!(action, Action::Chart(_)) {
@@ -5584,12 +5603,12 @@ impl Faraday {
                     let first_key = keys.first().copied().unwrap_or(0);
                     let shape = self.plan_shape(i);
                     // The plan this wallet's last backup saved into an
-                    // open vault, else the presets and the wallet's
-                    // defaults.
+                    // open vault, else the presets over an empty board
+                    // (`docs/BACKUP-FLOW.md` §19.6).
                     let (answers, names, q) = match self.plan_load(i, &shape) {
                         Some((a, names)) => (a, names, None),
                         None => (
-                            plan::Answers::defaults(&shape),
+                            plan::Answers::empty(&shape),
                             Vec::new(),
                             Some(qstep::PRESET),
                         ),
@@ -5675,6 +5694,7 @@ impl Faraday {
             | Action::BShare(..)
             | Action::BSoftwareOn
             | Action::BOldFile(_) => self.plan_card_act(action),
+            Action::Board(p) => self.board_act(p),
             Action::BName(p) => {
                 let open = self.vaults.open.get(self.vaults.current).is_some();
                 if let Some(b) = self.backup.as_mut()
@@ -7154,9 +7174,15 @@ impl Faraday {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
+        // The board replaces the cards from Places to Where the
+        // description goes (`docs/BACKUP-FLOW.md` §19.1); Start from, the
+        // software and The plan stay.
         let shape = self.plan_shape(b.wallet);
-        let mut v = vec![qstep::PRESET];
-        v.extend(plan_cards(&shape, &b.answers));
+        let mut v = vec![qstep::PRESET, qstep::BOARD];
+        if b.answers.asks_software(&shape) {
+            v.push(qstep::SOFTWARE);
+        }
+        v.push(qstep::PLAN);
         v
     }
 
@@ -11547,6 +11573,11 @@ impl Faraday {
                 }
                 self.pressed = found;
                 self.vaults.pressed_at = self.now_ms;
+                // A press on a chip of the backup board may be its drag:
+                // the page does not scroll under it (§19.2).
+                if self.board_down(found.map(|f| f.0), x, y) {
+                    self.drag = None;
+                }
                 if let Some((Action::VisitBar(c), _)) = found {
                     self.visit_drag(c, y);
                 }
@@ -11554,6 +11585,12 @@ impl Faraday {
             TouchPhase::Move => {
                 if self.bar_held.is_some() {
                     self.bar_drag(y);
+                    self.dirty = true;
+                    self.commands.push_back(Command::Draw);
+                    return;
+                }
+                // A board chip past the slop follows the finger.
+                if self.board_move(x, y) {
                     self.dirty = true;
                     self.commands.push_back(Command::Draw);
                     return;
@@ -11614,6 +11651,13 @@ impl Faraday {
             }
             TouchPhase::Up => {
                 if self.bar_held.take().is_some() {
+                    return;
+                }
+                // A board chip dragged is dropped where it is lifted.
+                if self.board_up(x, y) {
+                    self.drag = None;
+                    self.dirty = true;
+                    self.commands.push_back(Command::Draw);
                     return;
                 }
                 let dragged = self.drag.take().is_some_and(|(_, d)| d);

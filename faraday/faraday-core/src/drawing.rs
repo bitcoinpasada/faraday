@@ -36,6 +36,9 @@ pub(crate) struct Drawing {
     /// `stick_file_names` per wallet and thing, for the backup's own
     /// answers.
     pub stick_names: RefCell<Vec<(usize, plan::What, Vec<String>)>>,
+    /// The backup board as the frame draws it
+    /// ([`crate::Faraday::board_view`], `docs/BACKUP-FLOW.md` §19).
+    pub board: OnceCell<Option<std::rc::Rc<crate::board::BoardView>>>,
 }
 
 impl Drawing {

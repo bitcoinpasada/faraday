@@ -695,3 +695,279 @@ pub fn let_seed_files_out(app: &mut Faraday) -> usize {
     }
     n
 }
+
+// ---- the backup board (`docs/BACKUP-FLOW.md` §19) ----
+
+use faraday_core::board::{BoardPress, Chip, Thing, Zone};
+use faraday_core::plan::{self, At, Spot, What};
+
+/// A press on Back up's board.
+pub fn board(app: &mut Faraday, p: BoardPress) {
+    app.press(Action::Board(p));
+}
+
+/// Tap to place: `t` pressed in the list, then zone `z`.
+pub fn put(app: &mut Faraday, t: Thing, z: Zone) {
+    board(app, BoardPress::Chip(Chip::List(t)));
+    board(app, BoardPress::Zone(z));
+}
+
+/// The placed chip of `t` at `z` pressed, then zone `to`: moved there.
+pub fn move_to(app: &mut Faraday, z: Zone, t: Thing, to: Zone) {
+    board(app, BoardPress::Chip(Chip::Placed(z, t)));
+    board(app, BoardPress::Zone(to));
+}
+
+/// The × on the placed chip of `t` at `z`.
+pub fn take_off(app: &mut Faraday, z: Zone, t: Thing) {
+    board(app, BoardPress::Off(z, t));
+}
+
+/// Form `k` of the placed chip of `t` at `z` ticked or unticked in its
+/// popup, then the chip let go.
+pub fn form(app: &mut Faraday, z: Zone, t: Thing, k: u8) {
+    board(app, BoardPress::Chip(Chip::Placed(z, t)));
+    board(app, BoardPress::Form(z, t, k));
+    board(app, BoardPress::LetGo);
+}
+
+/// Back up's map, sticks and all.
+pub fn backup_map(app: &Faraday) -> Vec<Spot> {
+    let b = app.backup.as_ref().expect("Back up open");
+    plan::map(&app.plan_shape(b.wallet), &b.answers)
+}
+
+/// What spot `at` holds on Back up's map.
+pub fn backup_held(app: &Faraday, at: At) -> Vec<What> {
+    plan::holds_at(&backup_map(app), at)
+}
+
+/// The stick at place `p` that carries vault `v`.
+pub fn vault_stick(app: &Faraday, p: usize, v: usize) -> Option<usize> {
+    let m = backup_map(app);
+    (0..plan::sticks_at(&m, p)).find(|&s| plan::stick_vault(&m, p, s) == Some(v))
+}
+
+/// Place `p`'s first stick with no vault: its stick of files.
+pub fn files_stick(app: &Faraday, p: usize) -> Option<usize> {
+    let m = backup_map(app);
+    (0..plan::sticks_at(&m, p)).find(|&s| plan::stick_vault(&m, p, s).is_none())
+}
+
+/// Vault `v` is on the plan: **+ vault** pressed until it is, where it is
+/// not a vault set up before the keys.
+pub fn vault_made(app: &mut Faraday, v: usize) {
+    for _ in 0..=v {
+        let m = backup_map(app);
+        let b = app.backup.as_ref().unwrap();
+        let set_up = app.plan_shape(b.wallet).vaults;
+        if v < set_up || m.iter().any(|s| s.at == At::Vault(v)) {
+            return;
+        }
+        board(app, BoardPress::AddVault);
+    }
+}
+
+/// Vault `v` kept at place `p` (its chip dropped on the card, where the
+/// place keeps no stick of it), holding exactly `seeds`.
+pub fn vault_at(app: &mut Faraday, p: usize, v: usize, seeds: &[usize]) {
+    vault_made(app, v);
+    if vault_stick(app, p, v).is_none() {
+        put(app, Thing::Vault(v), Zone::Card(p));
+    }
+    let s = vault_stick(app, p, v).expect("the vault's stick at the place");
+    let z = Zone::Vault(p, s, v);
+    let n = app
+        .plan_shape(app.backup.as_ref().unwrap().wallet)
+        .seeds
+        .len();
+    for i in 0..n {
+        let held = backup_held(app, At::Vault(v));
+        let has = held.contains(&What::Seed(i)) || held.contains(&What::SeedPassphrase(i));
+        if has && !seeds.contains(&i) {
+            take_off(app, z, Thing::Seed(i));
+        } else if !has && seeds.contains(&i) {
+            put(app, Thing::Seed(i), z);
+        }
+    }
+}
+
+/// Seeds `seeds` as words files on place `p`'s stick of files, one made
+/// on **+ stick** where the place has none.
+pub fn files_at(app: &mut Faraday, p: usize, seeds: &[usize]) {
+    for &i in seeds {
+        match files_stick(app, p) {
+            Some(s) => put(app, Thing::Seed(i), Zone::Files(p, s)),
+            None => put(app, Thing::Seed(i), Zone::NewStick(p)),
+        }
+    }
+}
+
+/// Every seed's words and SeedQR taken off every place's paper.
+pub fn no_words(app: &mut Faraday) {
+    let places = app.backup.as_ref().unwrap().answers.places;
+    for p in 0..places {
+        for w in backup_held(app, At::Place(p)) {
+            if let What::Words(i) | What::SeedQr(i) = w {
+                take_off(app, Zone::Paper(p), Thing::Seed(i));
+            }
+        }
+    }
+}
+
+/// The description, whole and in shares, taken off every place's paper.
+pub fn no_paper_description(app: &mut Faraday) {
+    let places = app.backup.as_ref().unwrap().answers.places;
+    for p in 0..places {
+        for w in backup_held(app, At::Place(p)) {
+            match w {
+                What::Sheet => take_off(app, Zone::Paper(p), Thing::Whole),
+                What::Share(j) => take_off(app, Zone::Paper(p), Thing::Share(j)),
+                _ => {}
+            }
+        }
+    }
+}
+
+/// Every vault taken off the plan by the × on its chip in the list, and
+/// **Take off** where it holds something.
+pub fn no_vaults(app: &mut Faraday) {
+    let vaults: Vec<usize> = backup_map(app)
+        .iter()
+        .filter_map(|s| match s.at {
+            At::Vault(v) => Some(v),
+            _ => None,
+        })
+        .collect();
+    for v in vaults {
+        board(app, BoardPress::RemoveVault(v));
+        if backup_map(app).iter().any(|s| s.at == At::Vault(v)) {
+            board(app, BoardPress::RemoveVaultSure(v));
+        }
+    }
+}
+
+/// Vault `v` taken off the plan: its × in the list, and **Take off**
+/// where it holds something.
+pub fn vault_off(app: &mut Faraday, v: usize) {
+    if !backup_map(app).iter().any(|s| s.at == At::Vault(v)) {
+        return;
+    }
+    board(app, BoardPress::RemoveVault(v));
+    if backup_map(app).iter().any(|s| s.at == At::Vault(v)) {
+        board(app, BoardPress::RemoveVaultSure(v));
+    }
+}
+
+/// Every stick's chip of `t` at every place taken off by its ×.
+fn off_sticks(app: &mut Faraday, f: &dyn Fn(What) -> Option<Thing>) {
+    let places = app.backup.as_ref().unwrap().answers.places;
+    for p in 0..places {
+        let n = plan::sticks_at(&backup_map(app), p);
+        // From the last stick back: a stick left empty goes.
+        for s in (0..n).rev() {
+            for w in backup_held(app, At::Stick(p, s)) {
+                if let Some(t) = f(w)
+                    && backup_held(app, At::Stick(p, s)).contains(&w)
+                {
+                    take_off(app, Zone::Files(p, s), t);
+                }
+            }
+        }
+    }
+}
+
+/// The description's files, whole and shares, taken off every stick.
+pub fn no_description_files(app: &mut Faraday) {
+    off_sticks(app, &|w| match w {
+        What::WalletFile(_) | What::SoftwareFile => Some(Thing::Whole),
+        What::ShareFile(j, _) => Some(Thing::Share(j)),
+        _ => None,
+    });
+}
+
+/// Every seed's files taken off the sticks at place `p`.
+pub fn no_seed_files_at(app: &mut Faraday, p: usize) {
+    let n = plan::sticks_at(&backup_map(app), p);
+    for s in (0..n).rev() {
+        for w in backup_held(app, At::Stick(p, s)) {
+            if let What::SeedFile(i) | What::SeedQrFile(i) = w
+                && backup_held(app, At::Stick(p, s)).contains(&w)
+            {
+                take_off(app, Zone::Files(p, s), Thing::Seed(i));
+            }
+        }
+    }
+}
+
+/// The description, whole and its shares, taken out of vault `v` on the
+/// board, at a place that keeps its stick.
+pub fn description_out_of(app: &mut Faraday, v: usize) {
+    let places = app.backup.as_ref().unwrap().answers.places;
+    let Some((p, s)) = (0..places).find_map(|p| vault_stick(app, p, v).map(|s| (p, s))) else {
+        return;
+    };
+    for w in backup_held(app, At::Vault(v)) {
+        match w {
+            What::Wallet => take_off(app, Zone::Vault(p, s, v), Thing::Whole),
+            What::Share(j) => take_off(app, Zone::Vault(p, s, v), Thing::Share(j)),
+            _ => {}
+        }
+    }
+}
+
+/// The whole description dropped on place `p`'s stick of files, as its
+/// text file (one made on **+ stick** where the place has none).
+pub fn description_file_at(app: &mut Faraday, p: usize) {
+    match files_stick(app, p) {
+        Some(s) => put(app, Thing::Whole, Zone::Files(p, s)),
+        None => put(app, Thing::Whole, Zone::NewStick(p)),
+    }
+}
+
+/// Vault `v`'s stick kept at place `p` too, dropped on its card where
+/// the place keeps none.
+pub fn stick_also_at(app: &mut Faraday, p: usize, v: usize) {
+    if vault_stick(app, p, v).is_none() {
+        put(app, Thing::Vault(v), Zone::Card(p));
+    }
+}
+
+/// Seed `i`'s words and SeedQR taken off place `p`'s paper.
+pub fn words_off_at(app: &mut Faraday, p: usize) {
+    for w in backup_held(app, At::Place(p)) {
+        if let What::Words(i) | What::SeedQr(i) = w
+            && backup_held(app, At::Place(p)).contains(&w)
+        {
+            take_off(app, Zone::Paper(p), Thing::Seed(i));
+        }
+    }
+}
+
+/// Every passphrase taken off every place's paper.
+pub fn no_paper_passphrases(app: &mut Faraday) {
+    let places = app.backup.as_ref().unwrap().answers.places;
+    for p in 0..places {
+        for w in backup_held(app, At::Place(p)) {
+            if let What::Passphrase(i) = w {
+                take_off(app, Zone::Paper(p), Thing::Pass(i));
+            }
+        }
+    }
+}
+
+/// `t` dropped into vault `v` at the first place that keeps its stick.
+pub fn into_vault(app: &mut Faraday, v: usize, t: Thing) {
+    let places = app.backup.as_ref().unwrap().answers.places;
+    let (p, s) = (0..places)
+        .find_map(|p| vault_stick(app, p, v).map(|s| (p, s)))
+        .expect("the vault's stick has a place");
+    put(app, t, Zone::Vault(p, s, v));
+}
+
+/// Seed `i`'s passphrase taken off place `p`'s paper.
+pub fn pass_off_at(app: &mut Faraday, p: usize, i: usize) {
+    if backup_held(app, At::Place(p)).contains(&What::Passphrase(i)) {
+        take_off(app, Zone::Paper(p), Thing::Pass(i));
+    }
+}
