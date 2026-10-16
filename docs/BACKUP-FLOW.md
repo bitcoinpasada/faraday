@@ -2265,6 +2265,14 @@ layer removes it. Presets give one, two or three layers. There are no
 layers that must not spend; the stranger of §20.2 is the one rule
 against.
 
+**Renaming.** A layer is renamed as a place is (§17.7, §19.12 item 2):
+by a press on its name, while a vault of the flow is open, and the name
+is kept only in the plan record each vault holds, beside the places'
+names. A name says who and where, so it is never kept outside a vault:
+not in the plan text on a stick, the flow's kept state or a file. With
+no vault open, layers read "Access layer n" and places "Place n"; the
+instructions of §20.5 use the names when they are known.
+
 A layer is "met" when, with only its list, the wallet can be rebuilt and
 spent: at least `m` of its seeds (each with its passphrase where it has
 one) and the description, whole or from enough shares (`check`, as the

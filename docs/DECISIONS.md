@@ -1645,6 +1645,7 @@ hand so that each layer can spend and no stranger can is hard.
 - Conflicts are explained, each with what would resolve it.
 - Each layer's instructions are shown on screen to be copied by hand,
   never printed or written to a file.
-- Layers and places are named by number only ("Access layer 1",
-  "Place 1"), in the spec and on screen.
+- Layers and places are named by number ("Access layer 1", "Place 1");
+  the person may rename both in the app, while a vault is open, and the
+  names are kept only inside the vaults (as place names are, F35).
 - Specified, not built; after F37's F3.
