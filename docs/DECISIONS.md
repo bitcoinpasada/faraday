@@ -1657,4 +1657,10 @@ hand so that each layer can spend and no stranger can is hard.
   one); no balance-only layers; no passphrase is insisted on.
 - Back up opens on a short set of questions, one card each; Faraday
   works the board out from the answers and shows the result in words.
+- Create a wallet starts with the questions and suggests the wallet
+  from the answers (single-key and standard multisig quorums only, for
+  now); **I know what I want** chooses the kind directly.
+- **The standard way** skips the questions and the board everywhere: the
+  seeds to write down and the description to show, save or print, as
+  a plain checklist; F31's hold lifts when each seed's copy is checked.
 - Specified, not built; after F37's F3.

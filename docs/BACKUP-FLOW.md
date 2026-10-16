@@ -2377,8 +2377,6 @@ place. The view is worked out once per frame through the drawing memo
 ### 20.8 Open
 
 - The bound on the search's time, measured before it is built.
-- Whether the questions come before the wallet is made, and choose its
-  kind and quorum (under discussion with the owner).
 - Batches, tests and DESIGN rows, when it is scheduled.
 
 ### 20.9 Routes, thresholds and the paper route (owner, 2026-10-16)
@@ -2435,3 +2433,35 @@ margin, and what it takes ("3 places, 2 sticks, 1 vault, 4 paper
 copies"). **Looks right** goes on to the places' names and The plan;
 **Change it on the board** opens the board. Conflicts are §20.4's lines,
 each with what would resolve it.
+
+### 20.11 The questions choose the wallet; the standard way (owner, 2026-10-16)
+
+**Create a wallet starts with the questions.** Its first card offers:
+
+- **Plan the backup first** (the default): the questions of §20.10.
+  From the answers Faraday suggests the wallet, in words with the
+  reason ("3 of 5: Access layer 1 can lose any 2 of its 5 places"),
+  and one or two others with what they trade ("2 of 3: fewer seeds,
+  can lose 1 place"). The person chooses; the keys are made; the board
+  opens filled from the answers, nothing asked twice.
+- **I know what I want**: the kinds and quorums as Create offers them
+  today (NEW-WALLET §2), no questions.
+
+For now Faraday suggests only single-key wallets and standard multisig
+quorums (2 of 3, 3 of 5, and so on); the other kinds Create makes
+(MuSig2, Taproot trees …) are chosen by **I know what I want** only.
+
+In **Back up**, for a wallet already made, the questions work within its
+shape; answers that need another quorum say so ("These routes need a 3
+of 5; this wallet is a 2 of 3").
+
+**The standard way.** Wherever the questions or the board are offered
+(Create's backup, Back up), **The standard way** skips them: the
+person sees each seed's words and its SeedQR to write down, and the
+description to show, save to a stick or print, in whatever forms they
+pick, with no places, layers or board. It is a plain checklist of what
+they chose. F31 still holds: a key made here is released when its
+seed's copy is checked as F29 checks a copy (the words, or their
+numbers, typed back), as every checklist releases it; the standard way
+asks nothing more than that.
+
