@@ -2193,3 +2193,44 @@ the spec says nothing:
    file is not a secret; a secret's is all zeros.
 9. **Restore** pairs a words file with `passphrase-{fp}.txt` when the
    two give `fp`, and lists them as one seed.
+
+### 19.14 The board's layout and boxes (owner, 2026-10-16)
+
+Decided after seeing F2a's board; built in F2b. Where this differs from
+§19.1, this holds.
+
+1. **Box in a box.** Three nested boxes, so what is on paper, what is on
+   a stick and what is sealed in a vault are told apart at a glance:
+   - the **place box**, the place card: its name, its stick boxes,
+     **Paper** under them (outside every stick box), the line of fact;
+   - a **stick box** per stick, inside the place box, headed "Stick 1",
+     "Stick 2" … with its ×; everything on that stick is inside it. A
+     file kept on the stick (a seed's words file or SeedQR picture, the
+     description's files, a passphrase file) sits directly in the stick
+     box, outside any vault box;
+   - a **vault box**, inside the stick box when the stick carries a
+     vault, headed "Vault n" with its ×; only what is sealed in the vault
+     is inside it, and each chip there carries a lock mark.
+   A drop on the stick box outside the vault box keeps the thing on the
+   stick as a file; a drop on the vault box seals it in the vault.
+2. **Contrast and colour.** Each level has its own fill and edge, a
+   clear step from the box around it: the place box on the card
+   surface; the stick box a soft neutral or cool tint one step off it,
+   with a stronger edge than the card's; the vault box a gentle tint of
+   the accent, edged in the accent. The colours are Faraday's own
+   palette (named colours, light and dark), each step visible in both
+   appearances, text contrast as DESIGN asks. DESIGN §4.17 names them.
+3. **The list where the Map was.** While the board is shown (Back up's
+   plan, and the guided flow's plan card, on `wide`), the side panel's
+   Map is not drawn: the list of things to place fills that right-hand
+   column, full height, scrolling on its own, and the place cards take
+   the whole main column. The Map's per-place lists go, since the cards
+   show the same.
+4. **The summary checks on top.** The Map's three checks ("Any one place
+   lost: the rest rebuild the wallet", "One place found: can spend",
+   "One place found: sees the balance", each with its yes or no) are at
+   the top of the list column, above the list's groups. The warning
+   lines (§19.5) stay under the board.
+5. Not changed: the checklist stage, after **Make the checklist**, keeps
+   its side panel and Map (a choice: the owner has not ruled on it);
+   a narrow window keeps the list as a sheet opened by **Add**.
