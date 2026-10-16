@@ -2248,17 +2248,19 @@ cannot.
 
 ### 20.1 Access layers
 
-An **access layer** ("Access layer 1", "Access layer 2" …) is a list of
-what it is **able to spend with**. An entry in the list is one of:
+An **access layer** ("Access layer 1", "Access layer 2" …) has one or
+more **routes** (§20.9), each a list of what it is **able to spend
+with**, and a threshold: "any k of" the places in it. An entry in the
+list is one of:
 
 - a **place** of the plan ("Place 1", "Place 2" …): everything kept
   there;
 - a **vault's password** known to the layer;
 - a **passphrase** known to the layer.
 
-Examples: "Access layer 1: Place 1, Vault 1's password"; "Access layer
-2: Place 1, Place 2, Vault 2's password"; "Access layer 3: Place 1,
-Place 3, Place 4".
+Examples: "Access layer 1, route 1: Place 1, Vault 1's password";
+"Access layer 1, route 2: any 2 of Places 1, 2 and 3, on paper";
+"Access layer 2: any 3 of Places 1 to 5, on paper".
 
 The board starts with one access layer; **+ layer** adds one and × on a
 layer removes it. Presets give one, two or three layers. There are no
@@ -2273,12 +2275,13 @@ not in the plan text on a stick, the flow's kept state or a file. With
 no vault open, layers read "Access layer n" and places "Place n"; the
 instructions of §20.5 use the names when they are known.
 
-A layer is "met" when, with only its list, the wallet can be rebuilt and
-spent: at least `m` of its seeds (each with its passphrase where it has
+A route is "met" when, with only its list (any k of its places, and
+what the layer knows), the wallet can be rebuilt and spent: at least `m` of its seeds (each with its passphrase where it has
 one) and the description, whole or from enough shares (`check`, as the
 board counts today). A vault counts only for a layer that knows its
 password; a written vault password (§20.4) counts for any layer that
-has the place it is kept at.
+has the place it is kept at. A layer is met when every one of its
+routes is.
 
 ### 20.2 The stranger
 
@@ -2374,5 +2377,61 @@ place. The view is worked out once per frame through the drawing memo
 ### 20.8 Open
 
 - The bound on the search's time, measured before it is built.
-- Whether a layer's list may name "any two of" a set of places.
+- Whether the questions come before the wallet is made, and choose its
+  kind and quorum (under discussion with the owner).
 - Batches, tests and DESIGN rows, when it is scheduled.
+
+### 20.9 Routes, thresholds and the paper route (owner, 2026-10-16)
+
+- **Routes.** A layer may reach the wallet more than one way: an
+  everyday route (a vault opened with its password, say) and a paper
+  route for when a stick goes bad. Each route is checked on its own;
+  the layer's checks (§20.7) are per route ("Access layer 1, route 2,
+  paper: can spend").
+- **Thresholds.** A route is "any k of" its places: a 3-of-5 wallet's
+  layer may have all five places and spend from any three, as multisig
+  allows. A route that needs every place is k equal to its count. The
+  default comes from the wallet: an m-of-n wallet suggests "any m of n
+  places", a seed at each. **Places it can lose** (§20.7) is the most
+  places the layer can lose and still spend by some route.
+- **The paper route.** Sticks go bad, so Faraday offers every layer a
+  route made of paper alone (a remembered passphrase may be part of
+  it; no stick and no vault). It is optional: a layer without one is a
+  warning line, "Access layer n has no paper route", never a refusal.
+- **A written vault password.** A route through a vault asks whether
+  its password is remembered or written down; written down, "Vault n's
+  password" is kept on paper at one of the route's places (§20.4).
+- **No balance-only layers.** A layer is for spending; there is no layer
+  that only sees the balance.
+- **No passphrase is required.** A route of paper alone with nothing
+  remembered is open to anyone who finds k of its places; that is what
+  keeping places safe means, and the stranger margin (§20.2) shows it.
+  Faraday does not insist on a passphrase.
+
+### 20.10 The questions (owner, 2026-10-16)
+
+Back up opens on the questions, one card each, a likely answer already
+chosen; **Start from**'s presets and the board stay for those who know
+what they want. Explanations are in each card's guided walk-through,
+not on the card (CLAUDE.md).
+
+1. **How many access layers?** One, two or three.
+2. For each layer:
+   1. **How do they usually get in?** On paper only, or with a vault.
+   2. With a vault: **Will they remember its password, or should it be
+      written down?**
+   3. **How many places will they have, and how many must they
+      reach?** "Any k of n", from the wallet's quorum by default.
+   4. With a vault: **A paper route too?** Yes by default; its "any k
+      of n" suggested by Faraday.
+   5. **Will they remember a passphrase?** Yes or no.
+3. Once: **Paper, sticks, or both?** A preference Faraday follows where
+   it can.
+
+Faraday then works the board out (§20.3) and shows the result in words
+first: a line per layer and route ("Access layer 1: usually Place 1
+with the password; on paper, any 2 of Places 1, 2 and 3"), the stranger
+margin, and what it takes ("3 places, 2 sticks, 1 vault, 4 paper
+copies"). **Looks right** goes on to the places' names and The plan;
+**Change it on the board** opens the board. Conflicts are §20.4's lines,
+each with what would resolve it.

@@ -1652,4 +1652,9 @@ hand so that each layer can spend and no stranger can is hard.
 - Layers and places are named by number ("Access layer 1", "Place 1");
   the person may rename both in the app, while a vault is open, and the
   names are kept only inside the vaults (as place names are, F35).
+- A layer has one or more routes, each "any k of" its places; Faraday
+  offers each layer a paper route (optional, with a warning without
+  one); no balance-only layers; no passphrase is insisted on.
+- Back up opens on a short set of questions, one card each; Faraday
+  works the board out from the answers and shows the result in words.
 - Specified, not built; after F37's F3.
