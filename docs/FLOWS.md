@@ -1602,6 +1602,11 @@ down (Dell's: "Shut down can skip the key"). Not built.
    variant's) keeps the status it ends on and runs `reboot -f` for
    Restart's, `poweroff -f` for any other. The app, not root, still
    does neither itself. The last screen stays up as long as Power off's.
+   A restart keeps the memory powered where a power-off lets it fade,
+   so Restart never does less wiping than Power off: the app's secrets
+   are wiped as it ends (its zeroizing types run as it drops) and the
+   kernel zeroes every page freed (`init_on_free=1`), the same path as
+   Power off's. Nothing is written to the computer.
 6. **Strings** (`faraday/faraday-strings/src/en.rs`): "Restart",
    "Power", "The computer powers off, or restarts", "BIOS key", and one
    per key in item 4.
@@ -1615,9 +1620,13 @@ down (Dell's: "Shut down can skip the key"). Not built.
    and powers off otherwise (a test of the line with a stub `reboot`
    and `poweroff`); item 4's table agrees with the maker pages.
 
-Considered and not chosen: **Restart into the BIOS**, the computer
-restarting straight into its firmware screen (the UEFI variable
-`OsIndications`, as Faraday Starter does on Windows), which needs no
-key. On the stick it needs the EFI variables writable from the running
-system, a door into the firmware that the image keeps shut. Kept as a
-question for the owner.
+Ruled out (owner, 2026-10-16): **Restart into the BIOS**, the computer
+restarting straight into its firmware screen by the UEFI variable
+`OsIndications`, as Faraday Starter does on Windows from the person's
+own system. The stick writes no firmware variable: README (Stateless,
+"no access to its firmware variables"), PLAN.md ("Faraday never writes
+EFI variables"), upstream's PLANNING ("The stick changes nothing about
+the machine it is plugged into"), `EFIVAR_FS` in the x86_64-uefi
+board's `kernel.forbidden`, and the Learn pages that cite it. It would
+also need a privileged helper for the write. The BIOS key row does the
+same job and writes nothing.
