@@ -1,0 +1,374 @@
+# Speed in long flows
+
+**Status: draft, 2026-10-15; §7 is a standing rule (owner). Tracker
+issue 119 and its sub-issues 120–130. Nothing built.**
+
+The owner's report: on a slow laptop Faraday became very slow in the
+later stages of setting up a multisig wallet, the backups especially,
+and the desktop app and the web demo slow down in the same flows. The
+ask: Faraday always runs quick and smooth.
+
+## 1. What is wrong (read from the code at 2e807ae; not yet measured)
+
+Faraday draws in immediate mode: `Faraday::render` rebuilds the whole
+screen from the app's state on every frame, and a frame is drawn on
+every step of a scroll or glide, every change of what is under the
+pointer, every caret blink, every step of a fade or a toast, and twice
+on the frame a step card opens. Whatever a screen works out while it
+draws is worked out that often. The backup screens work out a great deal:
+
+1. **A key's fingerprint is computed on every call.**
+   `MasterKey::fingerprint` (`core/osk-bip/src/keys.rs`) derives the
+   public key from the private key (an elliptic-curve multiplication)
+   and hashes it, each time. About 100 call sites in faraday-core ask
+   for it, many inside a search over every session key for each slot of
+   each wallet (`backup_keys_of`, `backup_seed_list_of`, `wallet_key`,
+   `Session::key_label`, `flow_held`, the sidebar's key rows).
+2. **A wallet's descriptor checksum is computed on every call.**
+   `WalletPolicy::checksum` writes out the whole descriptor and checksums
+   it. `plan_shape`, `receive_held`, `wallet_flow_of_backup` and the
+   sidebar call it, several of them once per loaded wallet.
+3. **The checklist asks the same questions many times per frame.**
+   `backup_screen` (`screens.rs`) calls `item_title`, `backup_reachable`
+   and `backup_item_done` for each card, then `backup_waiting` and the
+   all-done check; `backup_reachable(k)` re-asks `backup_item_done` for
+   every item before `k`; `backup_panel` and `plan_cards` ask again for
+   the map's lines. Each `backup_item_done` rebuilds the seed list and
+   the plan's shape. The work grows with the number of items done, which
+   is why the later stages are the slowest.
+4. **The public files item's check makes a QR code.**
+   `backup_public_names_for` calls `public_pictures(wi, 8)`, which
+   encodes the whole descriptor as one or more QR codes, only to read
+   back the first file's name; `account_key_names` calls `wallet_key`
+   per slot, which derives each account key from the master.
+5. **The hold on keys made here is re-checked after nearly every
+   event.** `backup_settle` runs at the end of `App::event` for touch
+   moves, scrolls, wheel notches, hovers and camera frames as well as
+   presses; at the checklist stage it asks `backup_item_done` for every
+   item. `held_keys` computes `flow_held` twice (once itself, once in
+   `held_keys_stored`), and `receive_held` computes `held_keys` twice.
+6. **The desktop app re-reads the stick folders after every event.**
+   `Shell::send` (`faraday/shells/desktop/src/main.rs`) ends with
+   `rescan`, which lists and reads every attached stick folder, on every
+   pointer move, idle tick and animation tick, beside the 700 ms
+   `RESCAN` timer. The backup writes more files there as it goes.
+7. **Seed words are parsed again to compare them.** `same_words`
+   (`held.rs`) parses a session key's words into a `Mnemonic` for every
+   vault key record it compares with; `Language::index_of` searches the
+   2048-word list in order for each word.
+8. **Possibly: the glyph cache is cleared every frame at scale 2.**
+   `core/osk-ui/src/fonts/mod.rs` drops every rasterised glyph when the
+   cache passes `CACHE_BUDGET` (256 KB). One dense screen's glyphs at
+   twice the size may not fit, and then every glyph is rasterised again
+   on every frame. Not confirmed.
+9. **The web demo reads its whole state on every pointer move.**
+   faraday-website's `web/index.html` sends each `pointermove` through
+   `call`, which forces `watch`, which calls `faraday_state`; `Web::state`
+   (`web/src/lib.rs`) runs the checklist (`story.rs` `checklist_next`)
+   and serialises it to JSON, whether or not anything changed.
+10. **`--timings` on the desktop times drawing only**
+    (`faraday/shells/window/src/pace.rs` `FrameTimings`), not the events
+    or the serving of storage, so items 5 and 6 do not show in it.
+
+Estimate for one frame late in the checklist of a 2-of-3 wallet whose
+three keys were made here, with a vault open: some thousands of
+elliptic-curve multiplications, about ten QR encodes and about a hundred
+descriptor checksums. Nothing grows without bound; the same work is
+repeated, and there is more of it as the session holds more keys,
+wallets, flows and open vault records.
+
+## 2. Rules for every part
+
+1. **What is kept is public.** A value kept to save work is a
+   fingerprint, a checksum, an account key, a file name, a count or a
+   yes/no about public data. Nothing secret is kept, and no new copy of
+   a secret is made, wiped or not.
+2. **What is kept goes with what it describes.** A value lives in the
+   struct it belongs to (a `Key`, a `Wallet`) or in the drawing memo
+   (rule 3), so a lock, which drops the session, drops it. No static, no
+   global, nothing that outlives the session.
+3. **Decisions are never read from the drawing memo.** The memo of
+   §3.3 exists only while `render` runs. Releasing a hold
+   (`backup_settle`), marking an item done, gating a press
+   (`backup_reachable` in `act`), and anything else outside `render`
+   computes from the state as it is.
+4. **A kept value cannot go stale.** It is computed where the thing it
+   describes is made, and every way of changing that thing computes it
+   again, through a setter; the field is private so nothing else can
+   change it.
+5. **The same answer as before.** Every part changes how often work is
+   done, never what a person sees or what is written. F31 (no receive
+   address before the backup is done) holds at every step; its tests in
+   `tests/backup_first.rs` pass unchanged.
+
+## 3. Design
+
+### 3.1 The fingerprint is kept on the key (issue 120)
+
+`wallet::Key` (`faraday/faraday-core/src/wallet.rs`) gains a private
+field `fp: Fingerprint`, set where the key is made: `Session::add_mnemonic`
+(which `add_words` calls) and `Session::add_seed` already compute it before pushing the key, and
+pass it in. `Key::fingerprint(&self) -> Fingerprint` returns it. Every
+`k.master.fingerprint()` on a session key in faraday-core becomes
+`k.fingerprint()`.
+
+The fingerprint does not depend on the network, so `Session::set_network`,
+which replaces each key's `master` with `master.for_network(network)`,
+leaves `fp` as it is. That line is the only assignment to `master`; it
+moves into a method `Key::set_network(&mut self, network)`, and `master`
+loses its `pub` for writing: it becomes a private field with an accessor
+`Key::master(&self) -> &MasterKey`. Construction of a `Key` happens only
+in `wallet.rs`; if a test or another module builds one, it goes through
+a constructor `Key::new(master, label, words, language, share,
+passphrase)` that computes `fp`.
+
+`core/osk-bip` is not changed: the cache is Faraday's, so there is no
+new difference from upstream. The snapshot tool
+(`faraday/shells/snapshot`) may keep calling `master().fingerprint()`; it
+draws each screen once.
+
+This also means fewer uses of the private key: each fingerprint call
+today is a multiplication with the master private key (constant time
+and blinded), thousands of times a second on the checklist.
+
+### 3.2 The descriptor checksum is kept on the wallet (issue 121)
+
+`wallet::Wallet` gains a private `checksum: String`, and `policy`
+becomes private with `Wallet::policy(&self) -> &WalletPolicy`. A wallet
+is made through `Wallet::new(name, policy, source, origin)`, which
+computes the checksum; the seven struct literals in faraday-core
+(`wallet.rs` `add_wallet`, `backups.rs`, `boot_import.rs`, `inbox.rs`,
+`glance.rs`, `vaults.rs`, `vault_screens.rs`) use it. `Wallet::checksum(&self)
+-> &str` returns it. The one place that changes a loaded wallet's policy,
+`silent.rs` (a silent payment wallet's labels handed out), calls
+`Wallet::set_policy(policy)`, which computes the checksum again.
+`name`, `source` and `origin` stay public.
+
+Every `w.policy.checksum()` on a `Wallet` in faraday-core becomes
+`w.checksum()`. Calls on a bare `WalletPolicy` (one read from a file or
+a record, not a loaded wallet) are left as they are.
+
+### 3.3 The drawing memo (issue 122)
+
+`Faraday` gains a field `drawing: Drawing`, a struct in a new module
+`faraday-core/src/drawing.rs`:
+
+- `on: Cell<bool>`, true only while `render` runs;
+- `items: OnceCell<Vec<u8>>`, what `backup_items` returns;
+- `done: RefCell<Vec<(plan::Item, bool)>>`, what `backup_item_done`
+  returned for each item asked;
+- `shapes: RefCell<Vec<(usize, plan::Shape)>>`, `plan_shape` per wallet;
+- `seed_lists: RefCell<Vec<(usize, Vec<(String, Option<usize>)>)>>`,
+  `backup_seed_list` per wallet;
+- `held: OnceCell<Vec<Fingerprint>>`, `held_keys`;
+- `public_names: RefCell<Vec<(usize, Vec<String>)>>`,
+  `backup_public_names_for` per wallet, for the backup's own answers.
+
+`render` sets `on`, draws, then clears every cell and sets `on` back to
+false, also when a draw pass returns early. Each of the six functions
+above, while `on` is true, returns the memo's value when it has one and
+otherwise computes, stores and returns it; while `on` is false it
+computes as today and stores nothing. `Drawing::clear` empties every
+cell; it is also called at the top of `render`, so a memo left by a
+panic in a test cannot carry over.
+
+Drawing changes no state these values depend on: the draw path writes
+only scroll offsets (`backup_screen`'s `b.scroll`, the vault create
+column's `c.scroll`), `dirty` and the command queue. Both draw passes of
+a frame that opens a card share the memo.
+
+On top of the memo, `backup_screen` asks for the waiting item once and
+finds, for each card, whether it is reachable from the done marks of the
+items before it in one pass over `items`, instead of calling
+`backup_reachable` per card. `backup_reachable` stays for `act`.
+
+### 3.4 Public file names without making the files (issue 123)
+
+A new function `picture_names(name: &str, part: &str, text: &str) ->
+Vec<String>` in `lib.rs`, beside `picture_codes`, gives the names of the
+pictures `picture_codes(text)` would make, without making them: one name
+when `text.len() <= osk_codec::qr::byte_capacity(25, Ecc::Medium)` (the
+bound `encode_bounded` uses for a byte payload), else one per part of
+`faraday_qr::bbqr::encode('U', text.as_bytes(), QR_PARTS[1])`, numbered
+as today (`{name}{part}{j}-of-{k}.png`), and none when that encoder
+refuses the text, as `picture_codes` then gives no codes. `public_pictures` names its pictures
+through `picture_names`, so the names written and the names checked come
+from one function. `backup_public_names_for` calls `picture_names` with
+the descriptor text in place of `public_pictures(wi, 8)`.
+
+`account_key_names` needs only each key's fingerprint and whether the
+wallet's key in that slot is the one Create makes for its kind
+(`standard`). It keeps calling `wallet_key`; with §3.1 the search is
+cheap, and the derivation behind `standard` runs once per frame through
+the memo of §3.3.
+
+### 3.5 The hold is checked when something changed (issue 124)
+
+- `App::event` calls `backup_settle` after `Touch` with phase `Down` or
+  `Up`, `Key`, `Back`, `Forward`, `Scanned`, `CameraUnavailable` and
+  `Display`, and not after `Touch` moves, `Scroll`, `Wheel`,
+  `ScrollEnd`, `Hover`, `HoverEnd`, `CameraFrame` or `Tick`. `press`
+  and `storage` keep their calls. Calling it less often can only keep a
+  hold longer, never end one early; no event that can complete an item
+  is left out.
+- `held_keys` computes `flow_held` once and passes it to a private
+  `held_keys_stored_with(flow: &[Fingerprint])`; `held_keys_stored`
+  calls that with its own `flow_held`. The sets returned are the same as
+  today.
+- `receive_held` computes `held_keys` once, finds the wallet by
+  `Wallet::checksum`, and calls `wallet_held_in` with what it computed.
+
+### 3.6 The desktop app re-reads sticks on its timer and after writes (issue 125)
+
+`Shell::send` calls `rescan` only when this pass toggled a stick or
+served a storage command. `serve_all` (`faraday-storage/src/lib.rs`)
+already loops over `app.poll_storage()`; `Faraday` gains
+`pub fn storage_pending(&self) -> bool` (`!storage_out.is_empty()`),
+which `send` reads before calling `serve`. The 700 ms `RESCAN` timer
+and the forced rescans at start and after a restart stay. A stick
+plugged in or pulled outside the app (its folder made or removed by
+hand) is seen within 700 ms, as today when nothing else happens.
+
+### 3.7 Words compared without parsing (issue 126)
+
+`wallet::Key` gains `fn words_are(&self, indices: &[u16]) -> bool`: it
+walks the key's words (stored as `lang.word(i)` joined by single spaces,
+as `add_words` writes them) beside `indices`, comparing each word with
+`self.language.word(index)`, and returns false at the first difference or
+a different count. No `Mnemonic`, no new string, no copy of the words.
+`same_words` in `held.rs` becomes
+`records::words_of(r).is_some_and(|m| key.words_are(m.indices()))`.
+
+The comparison stops at the first different word, as `==` on the
+indices does today; it runs inside the process on secrets the process
+already holds, so its timing tells nothing new.
+
+`Language::index_of` is not changed (it is upstream's, and with this
+change nothing hot calls it).
+
+### 3.8 The glyph cache: measure first (issue 127)
+
+Measured with a harness outside the repository (§4): at scale 2 on the
+desktop window's default size, the number of times `GlyphCache::clear`
+runs per frame on the checklist, the Wallets page and the create flow.
+The harness counts with a temporary patch; nothing is committed for the
+measurement.
+
+If a screen clears the cache on every frame: the cache evicts the least
+recently used glyphs until the new one fits, in place of clearing
+everything, and `CACHE_BUDGET` becomes 1 MB. That is a change to
+`core/osk-ui`, upstream's, and is listed in HANDOFF's "Where Faraday's
+upstream files differ from upstream". If no screen clears it every frame,
+nothing changes and the issue is closed with the numbers.
+
+### 3.9 The web demo (issue 128, built in faraday-website)
+
+In faraday-website's `web/index.html`, `pointermove` (both
+`faraday_move` and `faraday_hover`) and `pointerleave` go through a
+`call` that does not force `watch`: the state is read at most every
+150 ms, as `watch` already does when not forced, and at once after any
+other call. `draw` still runs whenever `faraday_dirty` says. The
+website's `HANDOFF.md` takes the item; the website is rebuilt and
+published by its own flow.
+
+### 3.10 `--timings` shows events and storage (issue 129)
+
+The desktop's `FrameTimings` line gains `events {mean} ms (worst
+{worst})` and `storage {mean} ms (worst {worst})`: the time in
+`app.event` plus its commands, and the time in `serve` and `rescan`,
+summed per second as render and blit are. It prints durations only:
+never which event, which key or which file.
+
+### 3.11 Test builds say when a frame is slow (issue 130)
+
+In a build that is not a release (`faraday_core::is_release()` false:
+test releases, dev builds and a plain `cargo build`), the desktop shell
+prints one line on stderr when drawing a frame, or handling one event
+with its commands and storage, takes more than 50 ms:
+`faraday: slow frame 182 ms · Backup` or `faraday: slow event 64 ms ·
+Backup / Qr`, with the screen and the sheet as `Screen` and `Sheet` name
+themselves (`Faraday::screen_name`, a new `pub fn` returning
+`format!("{:?}", screen)` and the sheet's when one is up). At most one
+line a second; nothing else, never what the screen shows, what was
+pressed or a file's name. A release prints nothing.
+
+It is seen when the app is started from a terminal. The stick is left
+out: its timings go to an exchange partition Faraday does not mount, so
+a line there would reach no one.
+
+## 4. Measuring
+
+The numbers come from a harness outside the repository, as MOTION.md
+§2 did: it drives `Faraday` through `App::event` and `App::frame` on the
+build machine, release profile, at 1366×768 scale 1 and 2560×1600 scale
+2, and times:
+
+- one frame of each checklist stage of a 2-of-3 wallet made here with
+  three new keys and a vault open, from the first item to the last;
+- one scroll frame on the same checklist;
+- the event handling of a pointer move over it.
+
+Measured before batch A and after each batch; the results go in §6 of
+this file. The owner's check on the slow laptop is the desktop app with
+`--timings` (after batch C) through the same flow, and the stick.
+
+## 5. Batches
+
+Each batch is one commit, built by Sonnet from this file, audited from
+the tree, `just` green.
+
+- **A, the kept values** (§3.1, §3.2, §3.7; issues 120, 121, 126).
+  Mechanical: new fields, constructors, accessors, call sites. Tests:
+  - `tests/network.rs`: the "abandon … about" key reads `73c5da0a` on
+    the Wallets page before and after the session moves to testnet and
+    back.
+  - `tests/silent.rs`: after a label is handed out, the wallet's card
+    shows the checksum of the new policy (the one a descriptor read from
+    its exported file gives).
+  - `tests/vault_keys.rs`: a key whose words are in a vault reads as
+    kept there, and a key of different words does not; if the app takes
+    a seed's words in a second language, the same seed typed in that
+    language reads as kept too.
+- **B, the checklist and the hold** (§3.3, §3.4, §3.5; issues 122,
+  123, 124). Tests:
+  - `tests/backup_first.rs` passes unchanged.
+  - `tests/backup_checklist.rs`: through a 2-of-3 checklist, after each
+    item is done, the cards drawn tick exactly the items done and every
+    card after the waiting one reads "After …" with its title.
+  - `tests/backup_first.rs`: the press that completes the last item
+    shows the wallet's receive address on the next frame, with no frame
+    drawn between the press and the check (the decision does not wait
+    for a memo).
+  - `tests/pictures.rs`: for a descriptor that fits one code and one
+    that needs parts, the public files item lists exactly the picture
+    names of the files written.
+- **C, the desktop shell** (§3.6, §3.10, §3.11; issues 125, 129, 130).
+  Tests: a stick toggled in the app shows on the next frame, and a
+  file the app writes is listed on the stick's page after the write
+  (the desktop shell's tests, if it has a harness for them; otherwise
+  the owner's check, and the report says so).
+- **D, the glyph cache** (§3.8; issue 127): measured by the architect;
+  built only if it clears every frame.
+- **E, the web demo** (§3.9; issue 128): in faraday-website.
+
+Order: measure, A, measure, B, measure, C; D and E after.
+
+## 6. Results
+
+Not yet measured.
+
+## 7. Standing rule: a late-flow frame is timed (owner, 2026-10-15)
+
+After any batch that adds or changes what a screen works out while it
+draws, or what runs after every event, the architect times it with the
+harness of §4, before the batch is committed:
+
+- one frame, and one scroll frame, of each screen the batch touched,
+  in the heaviest session the flow reaches: a 2-of-3 wallet whose three
+  keys were made here, its backup flow under way, a vault open;
+- the event handling of a pointer move over the same screen.
+
+The numbers go in the batch's report beside the ones from before it. A
+frame that costs more than before, by more than the run-to-run spread,
+is explained in the report or fixed in the batch. The harness stays
+outside the repository; this rule is how it is used.

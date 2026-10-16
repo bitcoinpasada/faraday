@@ -38,6 +38,18 @@ changes and nothing else has to be kept in step.
   vectors and other implementations. A test never states a design rule, a
   token's value, a library's or the language's own behaviour, or a
   comparison of a screen's geometry against the design document.
+- Faraday's own version of an upstream type keeps what upstream's works
+  out once and keeps (a key's fingerprint, its share); a spec that
+  re-implements an upstream type lists those values.
+- A function that costs more than a lookup (an elliptic-curve
+  multiplication, a descriptor written out, a QR code made, a file read)
+  says so in the first line of its doc comment.
+- Drawing reads; it does not work things out. What a screen needs from a
+  flow's state is computed once per frame through the drawing memo
+  (`docs/SPEED.md` §3.3), and a decision (a press gated, a hold
+  released) computes from the state as it is, never from the memo. A
+  batch that adds work done while drawing or after every event is timed
+  in a late-flow session before it is committed (`docs/SPEED.md` §7).
 - No hosted CI, no GitHub Actions, no metered external services.
 - `local/user-notes.txt` is the owner's own notes; agents ignore it.
 - The remote machine that builds the images is "the build machine" in

@@ -2754,6 +2754,20 @@ as possible before the next build.
     `strings` on the exe finds no build path.
 
 
+77. [ ] 2026-10-15, owner: **speed in long flows** (`docs/SPEED.md`;
+    tracker issue 119, sub-issues 120–130). On a slow laptop the later
+    stages of a multisig wallet's setup, the backups especially, became
+    very slow, on the desktop and the web demo too. Read from the code:
+    the screens recompute key fingerprints (an elliptic-curve
+    multiplication each), descriptor checksums and the checklist's done
+    marks many times per frame, the public files check makes a QR code,
+    the hold is re-checked after every pointer move, and the desktop app
+    re-reads the stick folders after every event. SPEED §3 keeps the
+    public values on their key and wallet, memoises the checklist while
+    drawing only, and checks the hold when something changed; §2's rules
+    keep secrets out of every kept value and decisions off the memo.
+    Draft spec, waiting for the owner's read; then measure, batch A.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:
