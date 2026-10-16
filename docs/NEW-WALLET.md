@@ -797,6 +797,56 @@ cosigner's xpub is made; Done offers Back up and Spend from this wallet.
 **Docs.** `docs/FLOWS.md`, `docs/WALLETS.md`, `docs/FAMILY.md` (if a
 route went through the transaction card).
 
+### 12.3 After the wallet is restored (owner, 2026-10-16)
+
+The owner found that a wallet restored through Restore lands in the
+backup flow. A person who restores a wallet may want only to sign a
+transaction, or to back it up, or to make another wallet from the same
+seeds. Restore ends on a choice, every time.
+
+1. **Done is where Restore ends.** After **It matches** on Check, the
+   screen is Restore with its Done card open, whichever answer the
+   vault question (BACKUP-FLOW §11, F31) had. Nothing moves the person
+   into Back up or the backup flow but a press on **Back up this
+   wallet**.
+2. **The choices** on Done, in this order, each a secondary button
+   (none is the one to take):
+   - **Spend from this wallet** (`spend_button`, §11.2): sign a PSBT.
+   - **Back up this wallet**.
+   - **Another wallet from these seeds**, when tracker issue 131 (a new
+     wallet at another account index) is built; that issue adds it. Not
+     drawn before.
+   - **Wallets**: the wallet on the Wallets page.
+3. **Vaults already set up wait.** With vaults (the question answered
+   yes), the vaults and sticks set up before the seeds belong to the
+   wallet's backup flow, which waits: **Back up this wallet** resumes
+   it at the plan, its vaults as they were set up; the wallet's card
+   and Backups offer it as an unfinished backup until it is done or
+   dropped, as a flow left part way is today (`flow_resumable`).
+4. **The vault question stays where it is**, before the seeds: a stick
+   is handed to the disk process only while the process has held no
+   secret (`Faraday::clean`, PLAN §5.1), so a vault's stick is read
+   before any seed is typed. It asks about the backup, which the person
+   may then do or not.
+5. **First, reproduce it.** Before any change, a test walks Restore to
+   Check and presses It matches, once with the vault question answered
+   no and once yes (two vaults), and asserts the screen is Restore with
+   Done open. The fix goes where that test shows the jump. The cause is
+   not yet traced in the code; the owner saw it with vaults as part of
+   the backup (2026-10-16), and the likely place is the backup flow
+   taking the screen once `restore_wallet` attaches the wallet to it
+   (`wallet_flow_attach`, `backup_flow_wallet.rs`).
+6. **Tests** (`faraday-core/tests/restore.rs`): the two of item 5; on
+   Done, each choice does what it says (Spend opens the spend for this
+   wallet, Back up opens Back up on it or, with vaults, resumes its flow
+   at the plan with the vaults set up, Wallets opens it); after Spend,
+   the restored key signs at once (F6, `backup_first.rs`
+   `a_restored_key_signs_at_once` passes unchanged); leaving Done for
+   Wallets and coming back to the wallet, its card offers the unfinished
+   backup.
+7. **Strings**: Done's buttons as today; "Another wallet from these
+   seeds" comes with issue 131.
+
 ## 13. Input: mouse back and forward, selecting text, the default count
 
 ### 13.1 Back and forward buttons

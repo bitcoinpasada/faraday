@@ -2777,6 +2777,14 @@ as possible before the next build.
     its contents screen. `wide` only. Batches F1 (model), F2 (board),
     F3 (vault show and save). After SPEED batch B.
 
+80. [ ] 2026-10-16, owner: **Restore ends on a choice**
+    (`docs/NEW-WALLET.md` §12.3; tracker issue 134). A restored wallet
+    landed in the backup flow; Restore now ends on Done every time, with
+    Spend from this wallet, Back up this wallet, Wallets, and later
+    another wallet from the same seeds (issue 131). Vaults set up before
+    the seeds wait in the wallet's flow. First a test reproduces the jump
+    with the vault question answered no and yes.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:
