@@ -866,6 +866,8 @@ pub struct DiskProcess {
     /// The sticks the last listing found unusable: their ids, and whether
     /// the reason is that they are read-only (else not FAT).
     problems: Vec<(String, bool)>,
+    /// The sticks the last listing found not handed out yet, by id.
+    waiting: Vec<String>,
 }
 
 /// How long a list or a read may take.
@@ -895,6 +897,7 @@ impl DiskProcess {
             answers,
             seq: 0,
             problems: Vec::new(),
+            waiting: Vec::new(),
         })
     }
 
@@ -902,6 +905,13 @@ impl DiskProcess {
     /// reason is that the device is read-only, else it is not FAT.
     pub fn problems(&self) -> &[(String, bool)] {
         &self.problems
+    }
+
+    /// The sticks the last listing found not handed out yet, by id: in,
+    /// but nothing on them can be read until `faraday-grant` hands them
+    /// over, which it does only while the app is clean.
+    pub fn waiting(&self) -> &[String] {
+        &self.waiting
     }
 
     fn ask(
@@ -950,6 +960,11 @@ impl DiskProcess {
                         None | Some(Problem::NotYet) => None,
                         Some(p) => Some((s.id.clone(), p == Problem::ReadOnly)),
                     })
+                    .collect();
+                self.waiting = s
+                    .iter()
+                    .filter(|s| s.problem == Some(Problem::NotYet))
+                    .map(|s| s.id.clone())
                     .collect();
                 Ok(s.into_iter()
                     .map(|s| StickInfo {

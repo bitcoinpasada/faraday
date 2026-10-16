@@ -1232,7 +1232,17 @@ impl Shell {
     fn mounted_sticks(&mut self) -> Vec<StickInfo> {
         if let Some(disk) = self.disk.as_mut() {
             return match disk.list() {
-                Ok(s) => s,
+                // A stick not handed out yet is kept from a clean app: the
+                // grant hands it over within half a second, and the app's
+                // first look at the boot stick (its settings, the boot
+                // import) then sees its files rather than an empty stick.
+                // A process that is not clean is told at once, to lock.
+                Ok(mut s) => {
+                    if self.clean != Some(false) {
+                        s.retain(|s| !disk.waiting().contains(&s.id));
+                    }
+                    s
+                }
                 Err(e) => {
                     if self.verbose {
                         eprintln!("disk process: {e}");
