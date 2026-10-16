@@ -883,6 +883,9 @@ pub enum Slot {
     /// Files' For the stick list on a desktop, beside From the stick
     /// (`Faraday::files_out_offset`).
     FilesOut,
+    /// The backup board's list in the right-hand column on a desktop
+    /// (`Faraday::board_list_offset`).
+    BoardList,
 }
 
 /// A scrolled region as drawn: where it is and how far it goes.

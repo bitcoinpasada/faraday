@@ -818,6 +818,9 @@ pub struct Live {
     /// A wallet's plan card open, by [`crate::qstep`]
     /// (`docs/BACKUP-FLOW.md` §17).
     pub plan_q: Option<u8>,
+    /// The board of the plan card: the chip held and how
+    /// (`docs/BACKUP-FLOW.md` §19.12 item 1).
+    pub board: crate::board::BoardState,
 }
 
 /// One flow (§7).

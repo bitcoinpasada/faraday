@@ -821,11 +821,14 @@ fn offered_on_page(app: &mut Faraday, a: Action) -> bool {
 
 /// [`on_screen`], or `None` where the page offers `a` nowhere.
 fn find(app: &mut Faraday, a: Action) -> Option<(u16, u16)> {
-    app.event(Event::Scroll {
-        x: 600,
-        y: 400,
-        dy: -20_000,
-    });
+    let right = 1326;
+    for x in [600, right] {
+        app.event(Event::Scroll {
+            x,
+            y: 400,
+            dy: -20_000,
+        });
+    }
     for _ in 0..30 {
         // A card that has just opened glides into view: what is pressed
         // is where it comes to rest.
@@ -841,8 +844,37 @@ fn find(app: &mut Faraday, a: Action) -> Option<(u16, u16)> {
             y: 400,
             dy: 150,
         });
+        // The list column beside the cards scrolls on its own.
+        let right = 1326;
+        app.event(Event::Scroll {
+            x: right,
+            y: 400,
+            dy: 150,
+        });
     }
     None
+}
+
+/// [`expect`] for a line under the board: the page scrolled from its top
+/// a step at a time until it is drawn (the checks stand above it).
+fn expect_down(app: &mut Faraday, want: &str) {
+    app.event(Event::Scroll {
+        x: 600,
+        y: 400,
+        dy: -20_000,
+    });
+    for _ in 0..30 {
+        app.settle();
+        if app.drawn_texts().iter().any(|t| t == want) {
+            return;
+        }
+        app.event(Event::Scroll {
+            x: 600,
+            y: 400,
+            dy: 150,
+        });
+    }
+    expect(app, want);
 }
 
 /// A tap on board press `p`: down and up where it is.
@@ -1053,7 +1085,7 @@ fn a_passphrase_beside_its_words_is_kept_with_a_warning_and_the_checklist_offere
     assert!(held(&m, At::Place(0)).contains(&What::Passphrase(0)));
     assert!(held(&m, At::Place(0)).contains(&What::Words(0)));
     let seed = backup_shape(&app).seeds[0].name.clone();
-    expect(
+    expect_down(
         &mut app,
         &format!("Place 1 keeps {seed}'s words with its passphrase"),
     );
@@ -1098,7 +1130,7 @@ fn a_seed_kept_nowhere_on_the_board_holds_the_plan() {
     }
     assert!(app.backup_kept_nowhere().is_some());
     let seed = backup_shape(&app).seeds[0].name.clone();
-    expect(&mut app, &format!("Seed {seed} is kept nowhere"));
+    expect_down(&mut app, &format!("Seed {seed} is kept nowhere"));
     app.press(Action::BQ(qstep::PLAN));
     assert!(
         !offered_on_page(&mut app, Action::BChecklist),
@@ -1402,7 +1434,8 @@ fn an_existing_vaults_contents_are_drawn_dimmed_and_take_no_press() {
     open_board(&mut app);
     if vault_stick(&app, 0, 0).is_none() {
         tap(&mut app, list(Thing::Vault(0)));
-        tap(&mut app, BP::Zone(Zone::Card(0)));
+        // On **+ stick**: the card's middle is a chip of its paper.
+        tap(&mut app, BP::Zone(Zone::NewStick(0)));
     }
     let sum = faraday_core::wallet::read_wallet(&other.descriptor)
         .unwrap()
@@ -1418,5 +1451,225 @@ fn an_existing_vaults_contents_are_drawn_dimmed_and_take_no_press() {
         the_map(&app)
             .iter()
             .all(|s| s.at != At::Vault(0) || s.holds.iter().all(|(w, _)| *w != What::Wallet))
+    );
+}
+
+// ---- F2b: the guided flow's board, the narrow column, the boxes ----
+
+/// The plan the guided flow's plan card edits: its board opened there,
+/// before the lock, as a person opens it (`docs/BACKUP-FLOW.md` §19.12
+/// item 1).
+fn open_flow_board(shell: &mut Shell, app: &mut Faraday) {
+    let i = app.backup_flows.len() - 1;
+    shell.flow(app, F::Show(i));
+    shell.flow(app, F::ChangePlan);
+    if app.flow().unwrap().live.plan_q != Some(qstep::BOARD) {
+        shell.flow(app, F::Plan(faraday_core::PlanPress::Q(qstep::BOARD)));
+    }
+    assert!(matches!(
+        app.board_of(),
+        Some(faraday_core::board::BoardOf::Flow(_))
+    ));
+}
+
+/// The flow's own plan's map.
+fn flow_map(app: &Faraday) -> Vec<Spot> {
+    let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+    plan::map(&wf.shape, &wf.answers)
+}
+
+/// The same presses on a board: Vault 1 holding Seeds A and B at Place
+/// 1, Seed C's words and SeedQR on its paper, the description sealed in
+/// Vault 1, a place more with Share 1 on its paper and Seed C's words
+/// file on a stick there.
+fn the_same_plan(app: &mut Faraday) {
+    vault_at(app, 0, 0, &[0, 1]);
+    put(app, Thing::Seed(2), Zone::Paper(0));
+    form(app, Zone::Paper(0), Thing::Seed(2), 1);
+    let s = vault_stick(app, 0, 0).unwrap();
+    put(app, Thing::Whole, Zone::Vault(0, s, 0));
+    board(app, BP::AddPlace);
+    put(app, Thing::Share(0), Zone::Paper(1));
+    put(app, Thing::Seed(2), Zone::NewStick(1));
+}
+
+/// The board in the guided flow's plan card is Back up's board on the
+/// flow's own plan: the same presses make the same map.
+#[test]
+fn a_plan_made_on_the_flows_board_is_the_map_back_up_makes() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 3);
+    let (mut backup, _) = three_with_a_vault(&mut shell);
+    open_board(&mut backup);
+    the_same_plan(&mut backup);
+    let mut shell2 = Shell::new();
+    sticks(&mut shell2, 3);
+    let (mut flow, _) = three_with_a_vault(&mut shell2);
+    open_flow_board(&mut shell2, &mut flow);
+    the_same_plan(&mut flow);
+    assert_eq!(flow_map(&flow), the_map(&backup));
+    // The flow draws its board: its places and its list.
+    expect(&mut flow, "Place 2");
+    expect(&mut flow, "Seeds");
+}
+
+/// After the lock, on the guided flow's board, paper and a stick's files
+/// take nothing and say §17.8's line; a vault still changes, and the
+/// change is a round of the vault (`docs/BACKUP-FLOW.md` §19.12 item 8).
+#[test]
+fn after_the_lock_the_flows_board_keeps_paper_and_files_and_changes_vaults() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 3);
+    let (mut app, _) = three_with_a_vault(&mut shell);
+    vault_at(&mut app, 0, 0, &[0, 1, 2]);
+    app.press(Action::BChecklist);
+    save_vaults(&mut app);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    assert_eq!(step(&app), Step::Write);
+    shell.flow(&mut app, F::ChangePlan);
+    shell.flow(&mut app, F::Plan(faraday_core::PlanPress::Q(qstep::BOARD)));
+    assert!(matches!(
+        app.board_of(),
+        Some(faraday_core::board::BoardOf::Flow(_))
+    ));
+    let line = "Files and paper stay as made after the lock; finish the writes, then Back up again to change them";
+    let before = flow_map(&app);
+    // A press on paper says why nothing there changes.
+    assert_ne!(app.toast_text(), Some(line));
+    board(&mut app, BP::Zone(Zone::Paper(0)));
+    assert_eq!(app.toast_text(), Some(line));
+    // Seed A's words on paper, the description as a file: refused.
+    put(&mut app, Thing::Seed(0), Zone::Paper(0));
+    put(&mut app, Thing::Whole, Zone::NewStick(0));
+    assert_eq!(app.toast_text(), Some(line));
+    assert_eq!(flow_map(&app), before, "paper and files as made");
+    // The description sealed in Vault 1: taken, a round of the vault.
+    let s = vault_stick(&app, 0, 0).unwrap();
+    put(&mut app, Thing::Whole, Zone::Vault(0, s, 0));
+    shell.pump(&mut app);
+    assert!(held(&flow_map(&app), At::Vault(0)).contains(&What::Wallet));
+    assert!(app.flow().unwrap().adding, "{:?}", app.toast_text());
+}
+
+/// The display of a small panel: the `compact` layout, the narrow column.
+fn narrow(app: &mut Faraday) {
+    app.event(Event::Display(osk_shell_api::DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 286,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: osk_shell_api::SecureHardware::None,
+        boot: osk_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.settle();
+}
+
+/// A narrow window (`docs/BACKUP-FLOW.md` §19.12 item 3): the place cards
+/// stand in one column; **Add** opens the list as a sheet; a tap on a
+/// chip there closes it with the chip selected, and a tap on a zone
+/// places it: the map a drag makes on `wide`.
+#[test]
+fn a_narrow_window_places_by_tap_from_the_add_sheet_as_a_drag_does_on_wide() {
+    let mut wide = three_on_an_empty_board();
+    drag(&mut wide, list(Thing::Seed(0)), BP::Zone(Zone::Paper(0)));
+    let mut app = three_on_an_empty_board();
+    narrow(&mut app);
+    assert!(app.is_compact());
+    // Two places, one under the other.
+    tap(&mut app, BP::AddPlace);
+    let a = on_board(&mut app, BP::RemovePlace(0));
+    let b = on_board(&mut app, BP::RemovePlace(1));
+    assert_eq!(a.0, b.0, "one column");
+    tap(&mut app, BP::RemovePlace(1));
+    // The list is not on the page: Add opens it.
+    assert!(!offered(&mut app, Action::Board(list(Thing::Seed(0)))));
+    tap(&mut app, BP::OpenList);
+    assert_eq!(app.sheet, Some(Sheet::BoardList));
+    tap(&mut app, list(Thing::Seed(0)));
+    assert_eq!(app.sheet, None, "the sheet closes");
+    assert_eq!(
+        app.backup.as_ref().unwrap().board.held,
+        Some(Chip::List(Thing::Seed(0))),
+        "the chip selected"
+    );
+    tap(&mut app, BP::Zone(Zone::Paper(0)));
+    assert_eq!(the_map(&app), the_map(&wide));
+    // A placed chip's forms open as on `wide`.
+    tap(&mut app, placed(Zone::Paper(0), Thing::Seed(0)));
+    assert!(offered_on_page(
+        &mut app,
+        Action::Board(BP::Form(Zone::Paper(0), Thing::Seed(0), 1))
+    ));
+}
+
+/// What is sealed in a vault and what is only a file on its stick are
+/// told apart as a person reads them (`docs/BACKUP-FLOW.md` §19.14): the
+/// stick box headed "Stick 1" holds the vault box headed "Vault 1", with
+/// Seed A inside it, and beside the vault box, outside it, Seed B's
+/// words file and SeedQR picture; Paper is outside the stick box.
+#[test]
+fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes() {
+    let mut app = three_on_an_empty_board();
+    put(&mut app, Thing::Vault(0), Zone::Card(0));
+    let s = vault_stick(&app, 0, 0).unwrap();
+    put(&mut app, Thing::Seed(0), Zone::Vault(0, s, 0));
+    put(&mut app, Thing::Seed(1), Zone::Files(0, s));
+    form(&mut app, Zone::Files(0, s), Thing::Seed(1), 1);
+    let m = the_map(&app);
+    assert_eq!(held(&m, At::Vault(0)), vec![What::Seed(0)]);
+    assert_eq!(
+        held(&m, At::Stick(0, s)),
+        vec![What::VaultStick(0), What::SeedFile(1), What::SeedQrFile(1)]
+    );
+    let inside = |inner: (u16, u16, u16, u16), outer: (u16, u16, u16, u16)| {
+        inner.0 >= outer.0
+            && inner.1 >= outer.1
+            && inner.0 + inner.2 <= outer.0 + outer.2
+            && inner.1 + inner.3 <= outer.1 + outer.3
+    };
+    let _ = on_board(&mut app, BP::Zone(Zone::Vault(0, s, 0)));
+    let boxed = |app: &Faraday, p: BP| app.hit_box(Action::Board(p)).unwrap();
+    let stick = boxed(&app, BP::Zone(Zone::Files(0, s)));
+    let vault = boxed(&app, BP::Zone(Zone::Vault(0, s, 0)));
+    let paper = boxed(&app, BP::Zone(Zone::Paper(0)));
+    let sealed = boxed(&app, placed(Zone::Vault(0, s, 0), Thing::Seed(0)));
+    let file = boxed(&app, placed(Zone::Files(0, s), Thing::Seed(1)));
+    assert!(inside(vault, stick), "the vault box is in the stick box");
+    assert!(inside(sealed, vault), "Seed A is inside the vault box");
+    assert!(
+        inside(file, stick) && !inside(file, vault),
+        "Seed B's file is on the stick, outside the vault"
+    );
+    assert!(paper.1 >= stick.1 + stick.3, "Paper is under the stick box");
+    // Each box has its head row: "Stick 1" above the vault box, "Vault 1"
+    // at the top of it; Seed B's chip reads its two file forms.
+    let texts = app.drawn_text_boxes();
+    let at = |t: &str| {
+        texts
+            .iter()
+            .find(|(s, _)| s == t)
+            .map(|(_, b)| *b)
+            .unwrap_or_else(|| panic!("{t:?} not drawn"))
+    };
+    let stick_head = at("Stick 1");
+    let vault_head = at("Vault 1");
+    assert!(
+        stick_head.1 < i32::from(vault.1),
+        "Stick 1 heads the stick box"
+    );
+    assert!(
+        vault_head.1 >= i32::from(vault.1) && vault_head.1 < i32::from(sealed.1),
+        "Vault 1 heads the vault box"
+    );
+    assert!(
+        texts
+            .iter()
+            .any(|(s, _)| s.contains("Words file · SeedQR file"))
     );
 }

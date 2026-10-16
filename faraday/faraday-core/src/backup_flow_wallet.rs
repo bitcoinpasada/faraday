@@ -1866,8 +1866,9 @@ impl Faraday {
     }
 
     /// A press on the flow's plan cards, Back up's cards drawn in the flow
-    /// (`docs/BACKUP-FLOW.md` §17): the card open, the next card, or an
-    /// edit of the plan, as Back up makes it.
+    /// (`docs/BACKUP-FLOW.md` §17.7): the card open, the next card, the
+    /// software, or the keys left off each share. The board's own presses
+    /// are `board.rs`'s (§19.12 item 1).
     pub(crate) fn flow_plan_press(&mut self, i: usize, press: crate::PlanPress) {
         use crate::PlanPress as P;
         let Some(wf) = self.backup_flows[i].wallet.as_ref() else {
@@ -1887,47 +1888,6 @@ impl Faraday {
                 let cards = crate::plan_cards(&shape, &answers);
                 self.backup_flows[i].live.plan_q =
                     cards.iter().skip_while(|&&c| c != q).nth(1).copied();
-            }
-            P::Row(p, r) => {
-                let Some(row) = plan::Row::from_code(r) else {
-                    return;
-                };
-                let p = usize::from(p);
-                if let plan::Row::Vault(v) = row
-                    && shape.watch_only()
-                {
-                    return self.flow_wallet_edit(i, &|a, shape| a.keep_vault_at(shape, p, v));
-                }
-                self.plan_pick_open(Some(i), &shape, &answers, p, row);
-            }
-            P::RowOff(p, r) => {
-                if let Some(row) = plan::Row::from_code(r) {
-                    self.flow_wallet_edit(i, &|a, shape| a.clear_row(shape, usize::from(p), row));
-                }
-            }
-            P::Places(more) => self.flow_wallet_edit(i, &|a, shape| {
-                if more {
-                    if a.places < crate::qstep::MAX_PLACES {
-                        a.add_place(shape);
-                    }
-                } else {
-                    a.remove_last_place(shape);
-                }
-            }),
-            P::Split(b) => self.flow_wallet_edit(i, &|a, shape| a.set_split(shape, b)),
-            P::Form(p, f) => {
-                if let Some(form) = plan::Form::from_code(f) {
-                    self.flow_wallet_edit(i, &|a, shape| {
-                        a.toggle_form(shape, usize::from(p), form)
-                    });
-                }
-            }
-            P::Share(p, j) => self.flow_wallet_edit(i, &|a, shape| {
-                a.toggle_share(shape, usize::from(p), usize::from(j))
-            }),
-            P::Software => self.flow_wallet_edit(i, &|a, shape| a.toggle_software(shape)),
-            P::OldFile(k) => {
-                self.flow_wallet_edit(i, &|a, shape| a.drop_old_file(shape, usize::from(k)))
             }
             P::Answer(list, row) => self.flow_wallet_answer(i, list, row),
             // The shares on paper and in files were made with the keys
@@ -2262,7 +2222,11 @@ impl Faraday {
 
     /// Another place, for a wallet.
     pub(crate) fn flow_wallet_add_place(&mut self, i: usize) {
-        self.flow_plan_press(i, crate::PlanPress::Places(true));
+        self.flow_wallet_edit(i, &|a, shape| {
+            if a.places < crate::qstep::MAX_PLACES {
+                a.add_place(shape);
+            }
+        });
     }
 
     /// **Add a passphrase** on the plan's check lines. Create opens on

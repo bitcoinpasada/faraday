@@ -1465,11 +1465,12 @@ In this order, as step cards on `wide` and a page each on `small`
 
 1. **Start from**: the three presets, unchanged. Each fills every card
    below; every answer stays changeable.
-2. *(Replaced by §19 on `wide` in Back up, batch F2a; the wallet flow's
-   cards follow in F2b.)* **Places**: "Number of places", the stepper (one or more, no upper
+2. *(Replaced by §19 in Back up, batch F2a, and in the wallet's guided
+   flow at any width, batch F2b.)* **Places**: "Number of places", the stepper (one or more, no upper
    bound, §10.3), and with a vault open each place's name, as today. The
    share question and the vault-stick sections leave this card.
-3. *(Replaced by §19 on `wide` in Back up, batch F2a.)* **Place 1**,
+3. *(Replaced by §19 in Back up, batch F2a, and in the wallet's guided
+   flow at any width, batch F2b.)* **Place 1**,
    **Place 2** … one card per place, titled with the
    place's name where it has one. A multi-choice list (DESIGN §4.2) of
    what the place keeps, a row each:
@@ -1511,7 +1512,8 @@ In this order, as step cards on `wide` and a page each on `small`
    shares (as today beside Its own share). With In shares, the slider
    **Keys left off each share** (0 to `min(m−1, n−1)`) and the shares
    table with the split's audit lines (`shares_card`, unchanged).
-5. *(Replaced by §19 on `wide` in Back up, batch F2a.)* **Where the
+5. *(Replaced by §19 in Back up, batch F2a, and in the wallet's guided
+   flow at any width, batch F2b.)* **Where the
    description goes**: a section per place, its name as the
    label, each a multi-choice of forms: **On paper**, **As a file**, and
    **In {vault}** for each vault whose stick that place keeps. With
@@ -1661,6 +1663,9 @@ open and Share 1 in the Inbox rebuilds the wallet.
 
 (owner, 2026-10-15.) The flow's plan card is the same place cards, drawn
 by the same code (`plan_cards.rs`), on the flow's own copy of the plan.
+Since F2b the place cards are the board (§19, §19.12 item 1), drawn by
+`board_screen.rs` on the flow's plan; the keys left off each share are
+the board list's stepper.
 
 - **Keys left off each share** is drawn in the flow too, with its table
   and audit lines, from the flow's shape: `split_plan(n, m, omit)` and
@@ -1806,7 +1811,8 @@ place's name at the top (typed while a vault is open, as §17.7 says;
 it holds, `Edit::RemovePlace` with no destination), and under the name
 its zones, top to bottom:
 
-- **Stick 1, Stick 2 …**: one zone per stick the place keeps. A stick
+- **Stick 1, Stick 2 …**: one zone per stick the place keeps (drawn as a
+  box in the place box, with the vault box inside it: see §19.14). A stick
   zone has two parts: the vault on it, when one is ("Vault 1", and what
   the vault holds, §19.3), and its files. A stick with no vault is a
   stick of files. A place starts with no sticks; dropping a file or a
@@ -1827,7 +1833,9 @@ shown as a QR code for the software to scan, nothing kept. It counts in
 the checks as a place that keeps what it holds (the description, never
 a seed).
 
-**The list.** On the right of the board, the things the backup can keep,
+**The list.** On the right of the board (in the right-hand column where
+Back up's Map was: see §19.14),
+the things the backup can keep,
 grouped, each a chip (DESIGN §4.17):
 
 - **Seeds**: one chip per seed of the wallet, named as today (its label
@@ -2145,6 +2153,56 @@ the spec says nothing:
 - Timed per SPEED §7 (SPEED §6): the board's frames, a drag's move and
   the forms popup 5–7 ms at 1366×768 and 14–15 ms at 2560×1600 scale
   2; Back up's checklist as before.
+
+**F2b built** (2026-10-16): the board in the wallet's guided flow's plan
+card, on the flow's own plan, before and after the lock (§19.12 items 1
+and 8); the narrow column with **Add** (item 3); §17's cards, their
+`Action`s and handlers and their strings gone; §19.14's boxes, colours,
+list column and checks. Choices made where the spec says nothing:
+
+- Whose plan a board press edits follows the screen: the flow's on the
+  flow's screen, Back up's (or, past the lock, its flow's) on Back up.
+  The flow keeps its own board state (the chip held) with its screen
+  state; nothing of it is kept across a lock.
+- In the guided flow the board is the plan card's first card, then the
+  software where it is asked, then The plan; the flow has no Start from,
+  as before. After the lock, the board's paper and files act as in Back
+  up after the lock (§19.12 item 8); every change still goes through the
+  flow's own refusals (§17.8).
+- Place names on the flow's board are typed only where §17.7 typed them
+  (before the lock, a vault open, Back up open on the wallet); they are
+  Back up's names, and a place removed there takes its name with it.
+- **Add** is a button at the top of the board card's body in the narrow
+  column; the sheet is the list as on `wide` (with the keys left off and
+  **+ vault**), a head reading Add and a way out. A press on the
+  software's chip there places the software place at once, as on
+  `wide`. A placed chip's × and its forms work as on `wide`.
+- The narrow column takes no drag at all: a press on a chip is a tap,
+  and the page scrolls under the finger.
+- A stick box's × takes the stick off with all it carries (its vault's
+  stick and its files); after the lock only a stick that carries a vault
+  and no file shows it.
+- A chip is the card's surface edged in the border on every level, so it
+  stands on paper, a stick box, a vault box and the list alike; Paper and
+  the software's zones are the place box's surface edged in the border;
+  a stick box is the inner fill with a heavier border edge; a vault box
+  is the accent at low opacity with the accent's edge (DESIGN §4.17).
+  These are the palette's own colours, so every theme draws them.
+- The list column on the guided flow's screen is the side panel's width
+  (`side_panel_w`), as on Back up; the flow's column narrows by it while
+  the board is shown on `wide`.
+- The Pi draws what the PC stick draws at its size: the narrow column.
+  Nothing of §17's cards is kept for it (§19 left the Pi out; the Pi's
+  screens are a later question for the owner).
+- §17's model functions in `plan.rs` (`set_row`, `row_seeds`, the forms
+  of Where the description goes) stay: the presets, old plans and the
+  tests read plans through them.
+- Timed per SPEED §7: at 1366×768 the board's frames with the list
+  column, a drag's move and the forms popup 5–6.5 ms, at 2560×1600
+  scale 2 14–16 ms; the narrow column at 800×600 (`compact`) 2 ms a
+  frame, a scroll step and its frame 2 ms, the Add sheet 1.7 ms. The
+  guided flow's board is not reached by the harness (it needs sticks
+  served and a restart past the lock); it is the same view and drawing.
 
 ### 19.13 Decided while building F1 (2026-10-16)
 

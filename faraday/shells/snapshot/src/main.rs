@@ -82,7 +82,8 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use faraday_core::plan::{Form, Row};
+use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
+use faraday_core::plan::{self as fplan, At, Spot, What};
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{
@@ -1211,7 +1212,7 @@ fn run(
     t.press(Action::Backup(0));
     t.shot("backup-plan")?;
     t.press(Action::BPreset(0));
-    t.press(Action::BSplit(true));
+    shares_on_paper(&mut t);
     t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::BLANK));
     t.shot("backup-blank")?;
@@ -2098,14 +2099,14 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
         .as_ref()
         .map_or(0, |b| b.answers.vault_count(&t.app.plan_shape(built)));
     let p = vault_place(t, 0).unwrap_or(0);
-    keep_at(t, p, Row::Vault(0), &here);
+    keep_vault(t, p, 0, &here);
     for v in 1..vaults {
-        untick_all(t, Row::Vault(v));
+        vault_off(t, v);
     }
     // The description into the vault, and as files too, for the public
     // files item below.
-    form_on(t, p, Form::Vault(0));
-    form_on(t, 0, Form::File);
+    description_into_vault(t, 0);
+    description_file_at(t, 0);
     t.press(Action::BChecklist);
     // The items before the vault's wait for it (`docs/NEW-WALLET.md`
     // §14.1): each copy by hand checked in turn, then the vault.
@@ -2925,83 +2926,150 @@ fn items_before(t: &mut Tour, target: u8) -> Result<(), String> {
     Ok(())
 }
 
-/// At place `p`, row `row` of its card given exactly `seeds` on its
-/// sheet, and Done (`docs/BACKUP-FLOW.md` §17.1).
-fn keep_at(t: &mut Tour, p: usize, row: Row, seeds: &[usize]) {
-    t.press(Action::BRow(p.min(255) as u8, row.code()));
-    let ticked = t
-        .app
-        .choosing
-        .as_ref()
-        .map(|c| c.seeds.clone())
-        .unwrap_or_default();
-    let n = t
-        .app
-        .backup
-        .as_ref()
-        .map_or(0, |b| t.app.plan_shape(b.wallet).seeds.len());
-    for i in 0..n {
-        if ticked.contains(&i) != seeds.contains(&i) {
-            t.press(Action::BPick(i.min(255) as u8));
-        }
-    }
-    t.press(Action::BPickDone);
+/// The plan the board on screen edits, its map.
+fn bmap(t: &Tour) -> Vec<Spot> {
+    t.app
+        .board_plan()
+        .map(|(shape, a)| fplan::map(&shape, &a))
+        .unwrap_or_default()
 }
 
-/// Row `row` unticked on every place's card.
-fn untick_all(t: &mut Tour, row: Row) {
-    let places = t.app.backup.as_ref().map_or(0, |b| b.answers.places);
-    for p in 0..places {
-        t.press(Action::BRowOff(p.min(255) as u8, row.code()));
-    }
+/// The wallet's shape, as the board on screen has it.
+fn bshape(t: &Tour) -> Option<fplan::Shape> {
+    t.app.board_plan().map(|(shape, _)| shape)
+}
+
+/// Tap to place on the board: `th` pressed in the list, then zone `z`.
+fn bput(t: &mut Tour, th: Thing, z: Zone) {
+    t.press(Action::Board(BP::Chip(Chip::List(th))));
+    t.press(Action::Board(BP::Zone(z)));
+}
+
+/// The × on the placed chip of `th` at `z`.
+fn boff(t: &mut Tour, z: Zone, th: Thing) {
+    t.press(Action::Board(BP::Off(z, th)));
+}
+
+/// The stick at place `p` that carries vault `v`.
+fn vault_stick(t: &Tour, p: usize, v: usize) -> Option<usize> {
+    let m = bmap(t);
+    (0..fplan::sticks_at(&m, p)).find(|&s| fplan::stick_vault(&m, p, s) == Some(v))
 }
 
 /// The first place that keeps vault `v`'s stick.
 fn vault_place(t: &Tour, v: usize) -> Option<usize> {
-    let b = t.app.backup.as_ref()?;
-    let shape = t.app.plan_shape(b.wallet);
-    (0..b.answers.places).find(|&p| b.answers.row_seeds(&shape, p, Row::Vault(v)).is_some())
+    let places = t.app.board_plan().map_or(0, |(_, a)| a.places);
+    (0..places).find(|&p| vault_stick(t, p, v).is_some())
 }
 
-/// The description in form `form` at place `p`, where it is not.
-fn form_on(t: &mut Tour, p: usize, form: Form) {
-    let on = t
-        .app
-        .backup
-        .as_ref()
-        .is_some_and(|b| b.answers.form_at(&t.app.plan_shape(b.wallet), p, form));
-    if !on {
-        t.press(Action::BForm(p.min(255) as u8, form.code()));
+/// Vault `v` kept at place `p`, holding exactly `seeds`, on the board.
+fn keep_vault(t: &mut Tour, p: usize, v: usize, seeds: &[usize]) {
+    if vault_stick(t, p, v).is_none() {
+        bput(t, Thing::Vault(v), Zone::Card(p));
+    }
+    let Some(s) = vault_stick(t, p, v) else {
+        return;
+    };
+    let n = bshape(t).map_or(0, |sh| sh.seeds.len());
+    for i in 0..n {
+        let held = fplan::holds_at(&bmap(t), At::Vault(v));
+        let has = held.contains(&What::Seed(i)) || held.contains(&What::SeedPassphrase(i));
+        if has != seeds.contains(&i) {
+            if has {
+                boff(t, Zone::Vault(p, s, v), Thing::Seed(i));
+            } else {
+                bput(t, Thing::Seed(i), Zone::Vault(p, s, v));
+            }
+        }
     }
 }
 
-/// Every seed here as a file at place `p`.
-fn seed_files_at(t: &mut Tour, p: usize) {
-    let here = t
-        .app
-        .backup
-        .as_ref()
-        .map(|b| t.app.plan_shape(b.wallet).here())
-        .unwrap_or_default();
-    keep_at(t, p, Row::File, &here);
+/// Vault `v`'s stick taken off every place.
+fn vault_off(t: &mut Tour, v: usize) {
+    let places = t.app.board_plan().map_or(0, |(_, a)| a.places);
+    for p in 0..places {
+        while let Some(s) = vault_stick(t, p, v) {
+            boff(t, Zone::Files(p, s), Thing::Vault(v));
+        }
+    }
 }
 
-/// Seed `i`'s passphrase into each vault that holds it, on the vault's
-/// sheet.
+/// Every seed's words and SeedQR taken off every place's paper.
+fn words_off(t: &mut Tour) {
+    let places = t.app.board_plan().map_or(0, |(_, a)| a.places);
+    for p in 0..places {
+        for w in fplan::holds_at(&bmap(t), At::Place(p)) {
+            if let What::Words(i) | What::SeedQr(i) = w
+                && fplan::holds_at(&bmap(t), At::Place(p)).contains(&w)
+            {
+                boff(t, Zone::Paper(p), Thing::Seed(i));
+            }
+        }
+    }
+}
+
+/// Where `th` dropped on place `p`'s stick of files goes: its first stick
+/// with no vault, or **+ stick**.
+fn files_zone(t: &Tour, p: usize) -> Zone {
+    let m = bmap(t);
+    (0..fplan::sticks_at(&m, p))
+        .find(|&s| fplan::stick_vault(&m, p, s).is_none())
+        .map_or(Zone::NewStick(p), |s| Zone::Files(p, s))
+}
+
+/// The whole description sealed in vault `v`, at the first place that
+/// keeps its stick.
+fn description_into_vault(t: &mut Tour, v: usize) {
+    if let Some(p) = vault_place(t, v)
+        && let Some(s) = vault_stick(t, p, v)
+    {
+        bput(t, Thing::Whole, Zone::Vault(p, s, v));
+    }
+}
+
+/// The whole description as a file on place `p`'s stick of files.
+fn description_file_at(t: &mut Tour, p: usize) {
+    let z = files_zone(t, p);
+    bput(t, Thing::Whole, z);
+}
+
+/// Every seed here as a words file at place `p`.
+fn seed_files_at(t: &mut Tour, p: usize) {
+    for i in bshape(t).map(|s| s.here()).unwrap_or_default() {
+        let z = files_zone(t, p);
+        bput(t, Thing::Seed(i), z);
+    }
+}
+
+/// Seed `i`'s passphrase sealed with it in each vault that holds it.
 fn pass_into_vault(t: &mut Tour, i: usize) {
-    let Some(b) = t.app.backup.as_ref() else {
-        return;
-    };
-    let shape = t.app.plan_shape(b.wallet);
-    let vaults: Vec<usize> = (0..b.answers.vault_count(&shape))
-        .filter(|&v| b.answers.vault_seeds(&shape, v).contains(&i))
+    let vaults: Vec<usize> = bmap(t)
+        .iter()
+        .filter_map(|s| match s.at {
+            At::Vault(v) if s.holds.iter().any(|(w, _)| *w == What::Seed(i)) => Some(v),
+            _ => None,
+        })
         .collect();
     for v in vaults {
-        if let Some(p) = vault_place(t, v) {
-            t.press(Action::BRow(p.min(255) as u8, Row::Vault(v).code()));
-            t.press(Action::BPickPass(i.min(255) as u8));
-            t.press(Action::BPickDone);
+        if let Some(p) = vault_place(t, v)
+            && let Some(s) = vault_stick(t, p, v)
+        {
+            bput(t, Thing::Pass(i), Zone::Vault(p, s, v));
         }
+    }
+}
+
+/// The description in shares on paper, each place with its own share in
+/// place of the whole sheet.
+fn shares_on_paper(t: &mut Tour) {
+    let Some((shape, a)) = t.app.board_plan() else {
+        return;
+    };
+    for p in 0..a.places {
+        if fplan::holds_at(&bmap(t), At::Place(p)).contains(&What::Sheet) {
+            boff(t, Zone::Paper(p), Thing::Whole);
+        }
+        bput(t, Thing::Share(p % shape.keys.max(1)), Zone::Paper(p));
     }
 }
 
@@ -3096,7 +3164,7 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
     }
     // The description goes as files too, at Place 1: the public files
     // item.
-    form_on(t, 0, Form::File);
+    description_file_at(t, 0);
     t.press(Action::BChecklist);
     t.press(Action::BStep(faraday_core::bstep::PUBLIC));
     // Found while it is offered: once done, the row says so instead.
@@ -3489,43 +3557,30 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     };
     let spending = find(t, "Spending")?;
     let savings = find(t, "Savings")?;
-    // The cards by place (`docs/BACKUP-FLOW.md` §17.1): a one-key wallet
-    // on Paper and vault, its places, each place's card, Vault 1's sheet,
-    // where the description goes and The plan.
+    // The board (`docs/BACKUP-FLOW.md` §19): a one-key wallet on Paper
+    // and vault, its board, Vault 1 held with the places that take it
+    // edged, and The plan.
     t.press(Action::Backup(spending));
     t.shot("plan-presets-one-key")?;
     t.press(Action::BPreset(1));
-    t.shot("plan-places-one-key")?;
-    t.press(Action::BQ(qstep::place(0)));
-    t.shot("plan-place-1-one-key")?;
-    t.press(Action::BQ(qstep::place(1)));
-    t.shot("plan-place-2-one-key")?;
-    t.press(Action::BRow(1, Row::Vault(0).code()));
-    t.shot("plan-vault-sheet-one-key")?;
-    t.press(Action::BPickDone);
-    t.press(Action::BQ(qstep::WHERE));
-    t.shot("plan-where-one-key")?;
+    t.shot("plan-board-one-key")?;
+    t.press(Action::Board(BP::Chip(Chip::List(Thing::Vault(0)))));
+    t.shot("plan-board-vault-held-one-key")?;
+    t.press(Action::Board(BP::LetGo));
     t.press(Action::BQ(qstep::PLAN));
     t.shot("plan-plan-one-key")?;
     scroll_to(t, Action::BChecklist);
     t.shot("plan-plan-one-key-foot")?;
-    // Savings (2-of-3), no seed here: its place cards hold the vaults
-    // alone; the description whole, then in shares with the slider, the
-    // shares and the audit; What is a share? opens; where the shares go.
+    // Savings (2-of-3), no seed here: its board holds the vaults alone;
+    // each place with a share on paper; What is a share? opens.
     t.press(Action::Backup(savings));
     t.press(Action::BPreset(0));
-    t.press(Action::BQ(qstep::place(0)));
-    t.shot("plan-place-1-two-of-three")?;
-    t.press(Action::BQ(qstep::DESCRIPTION));
-    t.shot("plan-description-two-of-three")?;
-    t.press(Action::BSplit(true));
-    scroll_to(t, Action::Slide(faraday_core::seeds::SLIDE_OMIT, 0));
-    t.shot("plan-description-shares-two-of-three")?;
+    t.shot("plan-board-two-of-three")?;
+    shares_on_paper(t);
+    t.shot("plan-board-shares-two-of-three")?;
     t.press(Action::LearnShares);
     t.shot("plan-learn-shares")?;
     t.press(Action::Cancel);
-    t.press(Action::BQ(qstep::WHERE));
-    t.shot("plan-where-shares-two-of-three")?;
     t.press(Action::BQ(qstep::PLAN));
     t.shot("plan-map-two-of-three")?;
     t.press(Action::BChecklist);
@@ -3533,8 +3588,8 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("plan-checklist-part-done")?;
     t.press(Action::BStep(bstep::ENVELOPE));
     t.shot("plan-envelopes")?;
-    // A 3-of-5's shares: up to two keys left off each, on the description
-    // card and on the checklist's Shares card.
+    // A 3-of-5's shares: up to two keys left off each, on the board and
+    // on the checklist's Shares card.
     let five = t
         .app
         .session
@@ -3547,18 +3602,16 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
         .map_err(|e| e.text())?;
     t.press(Action::Backup(five));
     t.press(Action::BPreset(0));
-    t.press(Action::BQ(qstep::DESCRIPTION));
-    t.press(Action::BSplit(true));
-    scroll_to(t, Action::Slide(faraday_core::seeds::SLIDE_OMIT, 0));
-    t.shot("plan-description-shares-three-of-five")?;
+    shares_on_paper(t);
+    t.press(Action::BOmit(2));
+    t.shot("plan-board-shares-three-of-five")?;
     t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::SHEETS));
     t.shot("plan-shares-three-of-five")?;
     // A vault per seed: Spending's one vault and its checklist item; then
     // Savings with test key 2 typed in too, two seeds here and a vault
-    // each: a place's card, Vault 1's sheet with both seeds and the
-    // other place that keeps its stick, The plan and the second vault's
-    // item.
+    // each: the board, Vault 1's stick at Place 1 too, The plan and the
+    // second vault's item.
     t.press(Action::Backup(spending));
     t.press(Action::BPreset(1));
     t.press(Action::BChecklist);
@@ -3568,18 +3621,11 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     t.type_key(1);
     t.press(Action::Backup(savings));
     t.press(Action::BPreset(1));
-    let p = vault_place(t, 0).unwrap_or(0);
-    t.press(Action::BQ(qstep::place(p)));
-    t.shot("plan-place-vaults-two-of-three")?;
-    // Vault 1's stick at Place 1 too.
-    if p != 0 {
-        t.press(Action::BQ(qstep::place(0)));
-        t.press(Action::BRow(0, Row::Vault(0).code()));
-        t.press(Action::BPickDone);
+    t.shot("plan-board-vaults-two-of-three")?;
+    if vault_stick(t, 0, 0).is_none() {
+        bput(t, Thing::Vault(0), Zone::Card(0));
     }
-    t.press(Action::BRow(p.min(255) as u8, Row::Vault(0).code()));
-    t.shot("plan-vault-sheet-two-of-three")?;
-    t.press(Action::BPickDone);
+    t.shot("plan-board-vault-linked-two-of-three")?;
     t.press(Action::BQ(qstep::PLAN));
     t.shot("plan-map-vaults-two-of-three")?;
     t.press(Action::BChecklist);
@@ -3636,6 +3682,38 @@ fn board_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Board(B::Zone(Zone::Vault(0, 0, 0))));
     t.press(Action::Board(B::Chip(Chip::List(Thing::Software))));
     t.shot("board-shares-and-software")?;
+    // One stick with Vault 1 on it, a seed sealed inside, and beside the
+    // vault on the same stick another seed's words file and SeedQR
+    // picture; Paper under the stick box (§19.14): in the dark theme and
+    // the light.
+    let p = vault_place(t, 0).ok_or("Vault 1's stick has no place")?;
+    let s = vault_stick(t, p, 0).ok_or("no stick for Vault 1")?;
+    bput(t, Thing::Seed(1), Zone::Files(p, s));
+    t.press(Action::Board(B::Chip(Chip::Placed(
+        Zone::Files(p, s),
+        Thing::Seed(1),
+    ))));
+    t.press(Action::Board(B::Form(Zone::Files(p, s), Thing::Seed(1), 1)));
+    t.press(Action::Board(B::LetGo));
+    t.press(Action::Theme(faraday_core::ui::Theme::Dark));
+    // In the narrow column the stick box is under Add and Place 1's head.
+    if t.app.is_compact() {
+        scroll(t, 260);
+    }
+    t.shot("board-vault-and-files-dark")?;
+    t.press(Action::Theme(faraday_core::ui::Theme::Light));
+    t.shot("board-vault-and-files-light")?;
+    t.press(Action::Theme(faraday_core::ui::Theme::Cobalt));
+    // The narrow column: Add opens the list as a sheet; a chip pressed
+    // there closes it, the chip selected and the zones that take it
+    // edged (§19.12 item 3).
+    if t.app.is_compact() {
+        t.press(Action::Board(B::OpenList));
+        t.shot("board-narrow-add-sheet")?;
+        t.press(Action::Board(B::Chip(Chip::List(Thing::Seed(2)))));
+        t.shot("board-narrow-seed-selected")?;
+        t.press(Action::Board(B::LetGo));
+    }
     t.press(Action::BQ(qstep::PLAN));
     t.shot("board-the-plan")?;
     Ok(())
@@ -4114,12 +4192,9 @@ fn first_tour(t: &mut Tour) -> Result<(), String> {
         .position(|p| *p == Preset::PaperVault)
         .ok_or("no Paper and vault")? as u8;
     t.press(Action::BPreset(paper_vault));
-    // The place that keeps Vault 1's stick, and the vault's sheet there.
-    let at = vault_place(t, 0).ok_or("Vault 1's stick has no place")?;
-    t.press(Action::BQ(qstep::place(at)));
-    t.press(Action::BRow(at as u8, Row::Vault(0).code()));
-    t.shot("first-place-vault-sheet")?;
-    t.press(Action::BPickDone);
+    // The board, Vault 1 on the place that keeps its stick.
+    vault_place(t, 0).ok_or("Vault 1's stick has no place")?;
+    t.shot("first-place-vault-board")?;
     t.press(Action::BChecklist);
     // The copy checked, typed back.
     let digits = {
@@ -5106,9 +5181,9 @@ fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
     // Back up's plan offers the two open vaults.
     t.shot("wallet-flow-7-back-up-vaults")?;
     // The key in both vaults, none on paper.
-    untick_all(t, Row::Words);
+    words_off(t);
     let p = vault_place(t, 1).unwrap_or(0);
-    keep_at(t, p, Row::Vault(1), &[0]);
+    keep_vault(t, p, 1, &[0]);
     t.press(Action::BChecklist);
     t.press(Action::BVaultSave(0));
     t.press(Action::BVaultSave(1));
@@ -5130,29 +5205,18 @@ fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
     });
     t.pump();
     t.shot("wallet-flow-9-write")?;
-    // Change the plan in the flow: Back up's cards, drawn in the flow
-    // (`docs/BACKUP-FLOW.md` §17): The plan, a place's card and a vault's
-    // sheet.
+    // Change the plan in the flow: the board, drawn in the flow on the
+    // flow's own plan (`docs/BACKUP-FLOW.md` §19.12 item 1): The plan,
+    // then the board after the lock, Seed 1 selected, a vault's stick
+    // also at another place.
     t.press(Action::Flow(F::ChangePlan));
     t.shot("wallet-flow-9a-plan-card")?;
-    let p = t
-        .app
-        .flow()
-        .and_then(|f| f.wallet.as_ref())
-        .and_then(|w| {
-            (0..w.answers.places)
-                .find(|&p| w.answers.row_seeds(&w.shape, p, Row::Vault(0)).is_some())
-        })
-        .unwrap_or(0);
     t.press(Action::Flow(F::Plan(faraday_core::PlanPress::Q(
-        qstep::place(p),
+        qstep::BOARD,
     ))));
-    t.shot("wallet-flow-9b-plan-place")?;
-    t.press(Action::Flow(F::Plan(faraday_core::PlanPress::Row(
-        p as u8,
-        Row::Vault(0).code(),
-    ))));
-    t.shot("wallet-flow-9c-plan-vault-sheet")?;
+    t.shot("wallet-flow-9b-plan-board")?;
+    t.press(Action::Board(BP::Chip(Chip::List(Thing::Vault(0)))));
+    t.shot("wallet-flow-9c-plan-board-vault-held")?;
     t.press(Action::Cancel);
     if let Some(n) = t.app.flow().map(|f| f.step.n()) {
         t.press(Action::Flow(F::Open(n)));

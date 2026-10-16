@@ -47,11 +47,22 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let steps = steps_of(f);
     let cards: Vec<flow::Card> = steps.iter().map(|&s| card(app, f, s)).collect();
+    // While the plan card's board is shown on `wide`, its list is a
+    // right-hand column, as on Back up (`docs/BACKUP-FLOW.md` §19.14).
+    let panel_w = if !ui.compact && app.board_shown() {
+        crate::screens::side_panel_w(cw)
+    } else {
+        0.0
+    };
     let col = flow::Column {
         area_x: x0,
-        area_w: cw,
+        area_w: cw - panel_w,
         x: x0 + 40.0,
-        w: (cw - 72.0).min(820.0),
+        w: if panel_w > 0.0 {
+            cw - panel_w - 72.0
+        } else {
+            (cw - 72.0).min(820.0)
+        },
         h,
         back: Some((FEN.backup_flow_leave, fa(F::Back))),
         heading: f.kind.name(),
@@ -78,6 +89,9 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if again {
         app.dirty = true;
         app.commands.push_back(osk_shell_api::Command::Draw);
+    }
+    if panel_w > 0.0 {
+        crate::board_screen::list_panel(app, ui, x0 + cw - panel_w, panel_w, h);
     }
 }
 

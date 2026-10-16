@@ -1035,6 +1035,28 @@ pub const BOARD_EDGE: f32 = 2.0;
 pub const BOARD_POPUP_WIDTH: f32 = 220.0;
 /// How far in dp a dragged chip's shadow falls below it.
 pub const BOARD_LIFT: f32 = GAP_SMALL;
+/// Height in dp of a stick box's head on a place card ("Stick 1" and the
+/// × that takes the stick off): the second of the board's three nested
+/// boxes, place, stick, vault.
+pub const BOARD_STICK_HEAD: f32 = 24.0;
+/// Padding in dp inside a stick box, round its vault box and its files.
+pub const BOARD_STICK_PAD: f32 = GAP_SMALL;
+/// Stroke in dp of a stick box's edge: heavier than a zone's, so the
+/// stick reads as a box of its own inside the place card.
+pub const BOARD_STICK_EDGE: f32 = 1.5;
+/// Height in dp of a vault box's head ("Vault 1", its marks and ×): a
+/// chip's height, the head being the vault's chip.
+pub const BOARD_VAULT_HEAD: f32 = BOARD_CHIP;
+/// Padding in dp inside a vault box, round the records it holds.
+pub const BOARD_VAULT_PAD: f32 = GAP_SMALL;
+/// Stroke in dp of a vault box's edge.
+pub const BOARD_VAULT_STROKE: f32 = 1.5;
+/// Opacity (of 255) of the accent filling a vault box: what is sealed is
+/// inside the one tinted box, apart from the files on the stick beside
+/// it, which are not tinted.
+pub const BOARD_VAULT_FILL: u8 = 34;
+/// Opacity (of 255) of the accent edge round a vault box.
+pub const BOARD_VAULT_EDGE: u8 = 170;
 
 // ---------------------------------------------------------------------
 // Timings

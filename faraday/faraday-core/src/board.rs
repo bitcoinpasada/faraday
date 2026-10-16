@@ -11,7 +11,9 @@
 //! board as one frame draws it ([`BoardView`], worked out once per frame
 //! through the drawing memo, `docs/SPEED.md` §3.3). A decision (whether a
 //! drop is taken) computes from the state as it is, never from the memo.
-//! The drawing is `board_screen.rs`.
+//! The drawing is `board_screen.rs`. The same board is Back up's plan and
+//! a wallet flow's own plan card (§19.12 item 1): whose it is follows the
+//! screen ([`BoardOf`]).
 
 use std::rc::Rc;
 
@@ -111,6 +113,23 @@ pub enum BoardPress {
     RemoveVaultSure(usize),
     /// The × on the software place's card.
     RemoveSoftware,
+    /// The × on a stick box's head: stick `s` at place `p` taken off with
+    /// all it carries, its vault's stick and its files.
+    RemoveStick(usize, usize),
+    /// **Add**, at the top of the narrow column: the list as a sheet
+    /// (`docs/BACKUP-FLOW.md` §19.12 item 3).
+    OpenList,
+}
+
+/// Whose plan the board edits: Back up's (after the lock, its wallet's
+/// flow's, §17.8), or a wallet flow's own plan card (§17.7, §19.12
+/// item 1), by index.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BoardOf {
+    /// Back up's plan.
+    Backup,
+    /// Wallet flow `i`'s plan.
+    Flow(usize),
 }
 
 /// What the board holds between presses: the chip held and how.
@@ -525,6 +544,12 @@ pub(crate) struct Entry {
 /// ([`Faraday::board_view`]).
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct BoardView {
+    /// The wallet's shape: which zones take the chip held.
+    pub shape: Shape,
+    /// The plan's three checks, under the board (§19.14).
+    pub check: plan::Check,
+    /// A wallet flow's own plan, by index; `None` for Back up's.
+    pub flow: Option<usize>,
     /// The places, in order.
     pub places: Vec<CardView>,
     /// The software place, when the board has one.
@@ -609,6 +634,136 @@ fn form_label(w: What, software: &str) -> Option<String> {
 }
 
 impl Faraday {
+    /// Whose plan the board on screen edits: a wallet flow's on the flow's
+    /// screen, Back up's otherwise, while Back up is open.
+    pub fn board_of(&self) -> Option<BoardOf> {
+        if self.screen == crate::Screen::BackupFlow {
+            let i = self.flow_on.filter(|&i| i < self.backup_flows.len())?;
+            self.backup_flows[i].wallet.as_ref()?;
+            return Some(BoardOf::Flow(i));
+        }
+        self.backup.as_ref().map(|_| BoardOf::Backup)
+    }
+
+    /// Whether the board is on screen: Back up's plan with its board card
+    /// open, or a wallet flow's plan card with its board open. Costs a
+    /// lookup.
+    pub fn board_shown(&self) -> bool {
+        match self.board_of() {
+            Some(BoardOf::Backup) => self.backup.as_ref().is_some_and(|b| {
+                self.screen == crate::Screen::Backup
+                    && b.stage == crate::BStage::Plan
+                    && b.q == Some(crate::qstep::BOARD)
+            }),
+            Some(BoardOf::Flow(i)) => self.backup_flows.get(i).is_some_and(|f| {
+                f.live.open == Some(crate::backup_flow::Step::Where.n())
+                    && f.live.plan_q == Some(crate::qstep::BOARD)
+            }),
+            None => false,
+        }
+    }
+
+    /// What the board on screen holds between presses.
+    pub(crate) fn board_state(&self) -> Option<&BoardState> {
+        match self.board_of()? {
+            BoardOf::Backup => self.backup.as_ref().map(|b| &b.board),
+            BoardOf::Flow(i) => self.backup_flows.get(i).map(|f| &f.live.board),
+        }
+    }
+
+    /// What the board on screen holds between presses, to change.
+    fn board_state_mut(&mut self) -> Option<&mut BoardState> {
+        match self.board_of()? {
+            BoardOf::Backup => self.backup.as_mut().map(|b| &mut b.board),
+            BoardOf::Flow(i) => self.backup_flows.get_mut(i).map(|f| &mut f.live.board),
+        }
+    }
+
+    /// The chip held on the board on screen let go, its forms and a
+    /// vault's question closed: a press anywhere else (§19.2).
+    pub(crate) fn board_let_go(&mut self) {
+        if let Some(st) = self.board_state_mut() {
+            st.held = None;
+            st.forms = false;
+            st.removing = None;
+        }
+    }
+
+    /// Works out the wallet's shape (`plan_shape`, its fingerprints kept):
+    /// the plan the board on screen edits, as it is now. Back up's after
+    /// its wallet's flow is past the lock is that flow's (§17.8).
+    pub fn board_plan(&self) -> Option<(Shape, Answers)> {
+        let flow = match self.board_of()? {
+            BoardOf::Flow(i) => Some(i),
+            BoardOf::Backup => self.backup_locked_flow(),
+        };
+        if let Some(i) = flow {
+            let wf = self.backup_flows.get(i)?.wallet.as_ref()?;
+            return Some((wf.shape.clone(), wf.answers.clone()));
+        }
+        let b = self.backup.as_ref()?;
+        Some((self.plan_shape(b.wallet), b.answers.clone()))
+    }
+
+    /// The flow whose plan the board on screen edits past its lock, where
+    /// it is: paper and files stay as made (§17.8, §19.12 item 8).
+    fn board_locked(&self) -> Option<usize> {
+        match self.board_of()? {
+            BoardOf::Backup => self.backup_locked_flow(),
+            BoardOf::Flow(i) => {
+                let f = self.backup_flows.get(i)?;
+                (f.made && f.step != crate::backup_flow::Step::Done).then_some(i)
+            }
+        }
+    }
+
+    /// The place names are Back up's, typed with a vault open: on Back
+    /// up's plan, and on a flow's before its lock while Back up is open on
+    /// its wallet (§17.7). A flow keeps no name.
+    fn board_backup_names(&self) -> bool {
+        match self.board_of() {
+            Some(BoardOf::Backup) => true,
+            Some(BoardOf::Flow(i)) => {
+                let Some(f) = self.backup_flows.get(i) else {
+                    return false;
+                };
+                let cs = f.wallet.as_ref().and_then(|w| w.checksum.as_deref());
+                !f.made
+                    && self.backup.as_ref().is_some_and(|b| {
+                        self.session.wallets.get(b.wallet).map(|w| w.checksum()) == cs
+                    })
+            }
+            None => false,
+        }
+    }
+
+    /// Place `p`'s name on the board on screen.
+    fn board_place_name(&self, p: usize) -> String {
+        if self.board_backup_names() {
+            self.place_name(p)
+        } else {
+            crate::backup_flow::BackupFlow::place_name(p)
+        }
+    }
+
+    /// Vault `v`'s title on the board on screen, with the name of the
+    /// open vault set up for it.
+    fn board_vault_title(&self, v: usize) -> String {
+        match self.board_of() {
+            Some(BoardOf::Flow(i)) => {
+                let n = (v + 1).to_string();
+                match self
+                    .flow_open_index(i, v)
+                    .map(|o| &self.vaults.open[o].name)
+                {
+                    Some(name) if !name.is_empty() => fill(EN.plan_vault_2, &[&n, name]),
+                    _ => fill(EN.plan_vault, &[&n]),
+                }
+            }
+            _ => self.backup_vault_title(v),
+        }
+    }
+
     /// Works out the plan's map and its checks, once a frame: the board as
     /// this frame draws it, kept in the drawing memo while a frame is
     /// drawn (`docs/SPEED.md` §3.3). Drawing reads it; nothing decides
@@ -627,15 +782,10 @@ impl Faraday {
     /// Works out the plan's map, its checks and each place's line of
     /// fact: the board, for [`Faraday::board_view`].
     fn board_view_uncached(&self) -> Option<BoardView> {
-        let b = self.backup.as_ref()?;
-        let locked = self.backup_locked_flow().is_some();
-        let (shape, a) = match self.backup_locked_flow() {
-            Some(i) => {
-                let wf = self.backup_flows.get(i)?.wallet.as_ref()?;
-                (wf.shape.clone(), wf.answers.clone())
-            }
-            None => (self.plan_shape(b.wallet), b.answers.clone()),
-        };
+        let of = self.board_of()?;
+        let state = self.board_state()?;
+        let locked = self.board_locked().is_some();
+        let (shape, a) = self.board_plan()?;
         let m = plan::map(&shape, &a);
         let places = plan::places_of(&m).max(1);
         let software_name = software_name(&a);
@@ -650,13 +800,13 @@ impl Faraday {
                 Thing::Seed(i) | Thing::Pass(i) => seed_name(i),
                 Thing::Whole => EN.board_whole.to_string(),
                 Thing::Share(j) => fill(EN.board_share, &[&(j + 1).to_string()]),
-                Thing::Vault(v) => self.backup_vault_title(v),
+                Thing::Vault(v) => self.board_vault_title(v),
                 Thing::Software => EN.board_watch_only.to_string(),
             }
         };
         // The checks (`docs/BACKUP-FLOW.md` §19.5): each a line, and the
         // chips each names marked.
-        let place_name = |p: usize| self.place_name(p);
+        let place_name = |p: usize| self.board_place_name(p);
         let mut warnings: Vec<String> = Vec::new();
         let mut marked: Vec<(usize, Thing)> = Vec::new();
         let warn = |line: String, w: &mut Vec<String>| {
@@ -712,8 +862,7 @@ impl Faraday {
                 }
             }
         }
-        if let Some(line) = plan::lost_why(&shape, &a, &|p| self.place_name(p), self.medium.noun())
-        {
+        if let Some(line) = plan::lost_why(&shape, &a, &place_name, self.medium.noun()) {
             warn(line, &mut warnings);
         }
         if let Some(p) = plan::all_at_one_place(&shape, &a) {
@@ -828,7 +977,7 @@ impl Faraday {
                 let alone = plan::alone(&shape, &a, At::Place(p));
                 CardView {
                     p,
-                    name: self.place_name(p),
+                    name: place_name(p),
                     sticks,
                     paper: zone(Zone::Paper(p), At::Place(p), Some(p), true),
                     alone: (alone.text().to_string(), alone.kind()),
@@ -931,7 +1080,7 @@ impl Faraday {
                     });
                 Entry {
                     count: count_text(vault_places(v)),
-                    holds: (b.board.removing == Some(v) && !held.is_empty()).then(|| {
+                    holds: (state.removing == Some(v) && !held.is_empty()).then(|| {
                         fill(
                             EN.board_vault_holds,
                             &[&name_of(Thing::Vault(v)), &held.join(", ")],
@@ -941,8 +1090,19 @@ impl Faraday {
                 }
             })
             .collect();
-        let names_typed = !locked && !self.vaults.open.is_empty();
+        // Place names are typed while a vault is open, before the lock,
+        // where they are Back up's (§17.7).
+        let names_typed = !locked && !self.vaults.open.is_empty() && self.board_backup_names();
+        let naming = self
+            .backup
+            .as_ref()
+            .and_then(|b| b.naming)
+            .filter(|_| names_typed);
         Some(BoardView {
+            flow: match of {
+                BoardOf::Flow(i) => Some(i),
+                BoardOf::Backup => None,
+            },
             places: cards,
             software,
             seeds,
@@ -954,7 +1114,9 @@ impl Faraday {
             warnings,
             locked,
             names_typed,
-            naming: b.naming.filter(|_| names_typed),
+            naming,
+            check: plan::check(&shape, &a),
+            shape,
         })
     }
 
@@ -991,27 +1153,43 @@ impl Faraday {
     /// dimmed chips that take no press (`docs/BACKUP-FLOW.md` §19.12
     /// item 7), less what the plan keeps there now.
     fn board_before(&self, shape: &Shape, a: &Answers, v: usize) -> Vec<ChipView> {
-        let Some(b) = self.backup.as_ref() else {
-            return Vec::new();
+        // The open vault set up for `v`, what it held before as this
+        // backup or flow saw it first, and the wallet's checksum.
+        let (o, before, sum) = match self.board_of() {
+            Some(BoardOf::Flow(i)) => {
+                let Some(wf) = self.backup_flows.get(i).and_then(|f| f.wallet.as_ref()) else {
+                    return Vec::new();
+                };
+                (
+                    self.flow_open_index(i, v),
+                    &wf.before,
+                    wf.checksum.clone().unwrap_or_default(),
+                )
+            }
+            _ => {
+                let Some(b) = self.backup.as_ref() else {
+                    return Vec::new();
+                };
+                let sum = self
+                    .session
+                    .wallets
+                    .get(b.wallet)
+                    .map(|w| w.checksum().to_string())
+                    .unwrap_or_default();
+                (self.backup_vault_set_up(v), &b.before, sum)
+            }
         };
-        let Some(o) = self.backup_vault_set_up(v) else {
+        let Some(o) = o else {
             return Vec::new();
         };
         let Some(open) = self.vaults.open.get(o) else {
             return Vec::new();
         };
         let salt = open.header().salt;
-        let tokens = b
-            .before
+        let tokens = before
             .iter()
             .find(|(s, _)| *s == salt)
             .map_or_else(|| self.vault_tokens(o), |(_, t)| t.clone());
-        let sum = self
-            .session
-            .wallets
-            .get(b.wallet)
-            .map(|w| w.checksum().to_string())
-            .unwrap_or_default();
         let held = plan::holds_at(&plan::map(shape, a), At::Vault(v));
         let seed_of = |fp: &str| {
             shape
@@ -1087,6 +1265,9 @@ impl Faraday {
     /// the wallet's flow, with its refusals (§17.8). Computes from the
     /// state as it is.
     fn board_change(&mut self, f: &dyn Fn(&mut Answers, &Shape)) {
+        if let Some(BoardOf::Flow(i)) = self.board_of() {
+            return self.flow_wallet_edit(i, f);
+        }
         if let Some(i) = self.backup_locked_flow() {
             return self.flow_wallet_edit(i, f);
         }
@@ -1104,21 +1285,20 @@ impl Faraday {
     /// Whether `c` can be picked up: not a cosigner's seed, not what an
     /// existing vault held before.
     pub(crate) fn board_movable(&self, c: Chip) -> bool {
-        let Some(b) = self.backup.as_ref() else {
+        let Some((shape, _)) = self.board_plan() else {
             return false;
         };
         if matches!(c, Chip::Placed(Zone::List, _)) {
             return false;
         }
         // After the lock paper and files stay as made (§19.12 item 8).
-        if self.backup_locked_flow().is_some()
+        if self.board_locked().is_some()
             && let Chip::Placed(z, t) = c
             && matches!(kind(z), Some(Kind::Paper | Kind::Files | Kind::Public))
             && !matches!(t, Thing::Vault(_))
         {
             return false;
         }
-        let shape = self.plan_shape(b.wallet);
         match c.thing() {
             Thing::Seed(i) => shape.seeds.get(i).is_some_and(|s| s.here),
             _ => true,
@@ -1128,27 +1308,38 @@ impl Faraday {
     /// Whether zone `z` takes the thing `t` now: as [`takes`], before or
     /// after the lock. Computes from the state as it is.
     fn board_takes(&self, z: Zone, t: Thing) -> bool {
-        let Some(b) = self.backup.as_ref() else {
+        let Some((shape, _)) = self.board_plan() else {
             return false;
         };
-        let shape = self.plan_shape(b.wallet);
-        takes(&shape, target(z, t), t, self.backup_locked_flow().is_some())
+        takes(&shape, target(z, t), t, self.board_locked().is_some())
     }
 
     /// A press on the board (`docs/BACKUP-FLOW.md` §19.2, §19.3).
     pub(crate) fn board_act(&mut self, press: BoardPress) {
-        let Some(state) = self.backup.as_ref().map(|b| b.board.clone()) else {
+        let Some(state) = self.board_state().cloned() else {
             return;
         };
-        let locked = self.backup_locked_flow().is_some();
+        let locked = self.board_locked().is_some();
         let set = |app: &mut Faraday, held: Option<Chip>, forms: bool| {
-            if let Some(b) = app.backup.as_mut() {
-                b.board.held = held;
-                b.board.forms = forms;
-                b.board.removing = None;
+            if let Some(st) = app.board_state_mut() {
+                st.held = held;
+                st.forms = forms;
+                st.removing = None;
             }
         };
+        // A chip pressed in the list's sheet closes it, the chip selected
+        // (§19.12 item 3).
+        if matches!(press, BoardPress::Chip(Chip::List(_)))
+            && self.sheet == Some(crate::Sheet::BoardList)
+        {
+            self.sheet = None;
+        }
         match press {
+            BoardPress::OpenList => {
+                set(self, None, false);
+                self.sheet = Some(crate::Sheet::BoardList);
+                self.sheet_scroll = (0.0, None);
+            }
             BoardPress::Chip(c) => {
                 if c == Chip::List(Thing::Software) {
                     set(self, None, false);
@@ -1220,12 +1411,14 @@ impl Faraday {
                 set(self, None, false);
                 // After the lock only the last place goes (§17.8): a place
                 // before another would renumber sticks already named.
-                let places = self.backup.as_ref().map_or(0, |b| b.answers.places);
+                let places = self.board_plan().map_or(0, |(_, a)| a.places);
                 if locked && p + 1 != places {
                     return;
                 }
+                let names = !locked && self.board_backup_names();
                 self.board_change(&|a, shape| a.remove_place(shape, p));
-                if self.backup_locked_flow().is_none()
+                if names
+                    && self.board_plan().is_some_and(|(_, a)| a.places < places)
                     && let Some(b) = self.backup.as_mut()
                     && p < b.names.len()
                 {
@@ -1242,14 +1435,13 @@ impl Faraday {
             BoardPress::RemoveVault(v) => {
                 // A vault that holds something asks first, with what it
                 // holds (§19.12 item 7).
-                let holds = self.backup.as_ref().is_some_and(|b| {
-                    let shape = self.plan_shape(b.wallet);
-                    !plan::holds_at(&plan::map(&shape, &b.answers), At::Vault(v)).is_empty()
+                let holds = self.board_plan().is_some_and(|(shape, a)| {
+                    !plan::holds_at(&plan::map(&shape, &a), At::Vault(v)).is_empty()
                 });
                 if holds && state.removing != Some(v) {
                     set(self, None, false);
-                    if let Some(b) = self.backup.as_mut() {
-                        b.board.removing = Some(v);
+                    if let Some(st) = self.board_state_mut() {
+                        st.removing = Some(v);
                     }
                     return;
                 }
@@ -1259,6 +1451,24 @@ impl Faraday {
             BoardPress::RemoveVaultSure(v) => {
                 set(self, None, false);
                 self.board_change(&|a, shape| a.remove_vault(shape, v));
+            }
+            BoardPress::RemoveStick(p, s) => {
+                set(self, None, false);
+                // After the lock files stay as made: a stick that carries
+                // any goes only once it carries a vault alone (§17.8).
+                let files = self.board_plan().is_some_and(|(shape, a)| {
+                    plan::holds_at(&plan::map(&shape, &a), At::Stick(p, s))
+                        .iter()
+                        .any(|w| !matches!(w, What::VaultStick(_)))
+                });
+                if locked && files {
+                    return self.toast(EN.backup_flow_files_after_lock);
+                }
+                self.board_change(&|a, shape| {
+                    map_edit(a, shape, |m| {
+                        plan::edited(&m, plan::Edit::Clear(At::Stick(p, s)), &[])
+                    })
+                });
             }
             BoardPress::RemoveSoftware => {
                 set(self, None, false);
@@ -1281,7 +1491,7 @@ impl Faraday {
     fn board_put(&mut self, c: Chip, z: Zone) {
         let t = c.thing();
         if t == Thing::Software {
-            if self.backup_locked_flow().is_some() {
+            if self.board_locked().is_some() {
                 return self.toast(EN.backup_flow_files_after_lock);
             }
             return self.board_change(&|a, shape| {
@@ -1298,7 +1508,7 @@ impl Faraday {
         }
         let to = target(z, t);
         if !self.board_takes(z, t) {
-            if self.backup_locked_flow().is_some() && kind(to).is_some() {
+            if self.board_locked().is_some() && kind(to).is_some() {
                 self.toast(EN.backup_flow_files_after_lock);
             }
             return;
@@ -1318,21 +1528,29 @@ impl Faraday {
     /// under it.
     pub(crate) fn board_down(&mut self, found: Option<crate::Action>, x: i32, y: i32) -> bool {
         let Some(crate::Action::Board(BoardPress::Chip(c))) = found else {
-            if let Some(b) = self.backup.as_mut() {
-                b.board.down = None;
-                b.board.drag = None;
+            if let Some(st) = self.board_state_mut() {
+                st.down = None;
+                st.drag = None;
             }
             return false;
         };
-        if self.screen != crate::Screen::Backup || !self.board_movable(c) {
+        // The narrow column places by tap only (§19.12 item 3); a sheet
+        // over the board takes no drag.
+        if self.compact || self.sheet.is_some() || !self.board_movable(c) {
             return false;
         }
-        if c == Chip::List(Thing::Software) && self.backup_locked_flow().is_some() {
+        if !matches!(
+            self.screen,
+            crate::Screen::Backup | crate::Screen::BackupFlow
+        ) {
             return false;
         }
-        if let Some(b) = self.backup.as_mut() {
-            b.board.down = Some((c, x, y));
-            b.board.drag = None;
+        if c == Chip::List(Thing::Software) && self.board_locked().is_some() {
+            return false;
+        }
+        if let Some(st) = self.board_state_mut() {
+            st.down = Some((c, x, y));
+            st.drag = None;
             return true;
         }
         false
@@ -1342,22 +1560,22 @@ impl Faraday {
     /// follows it. Returns whether the board took the move.
     pub(crate) fn board_move(&mut self, x: i32, y: i32) -> bool {
         let slop = crate::motion::SLOP * self.f;
-        let Some(b) = self.backup.as_mut() else {
+        let Some(b) = self.board_state_mut() else {
             return false;
         };
-        let Some((c, x0, y0)) = b.board.down else {
+        let Some((c, x0, y0)) = b.down else {
             return false;
         };
-        if b.board.drag.is_none() {
+        if b.drag.is_none() {
             let far = ((x - x0) as f32).abs() > slop || ((y - y0) as f32).abs() > slop;
             if !far {
                 return false;
             }
-            b.board.held = Some(c);
-            b.board.forms = false;
-            b.board.removing = None;
+            b.held = Some(c);
+            b.forms = false;
+            b.removing = None;
         }
-        b.board.drag = Some((x, y));
+        b.drag = Some((x, y));
         self.pressed = None;
         true
     }
@@ -1365,11 +1583,11 @@ impl Faraday {
     /// The finger lifted: a dragged chip is dropped on the zone under it
     /// that takes it, or goes back. Returns whether it was a drag.
     pub(crate) fn board_up(&mut self, x: i32, y: i32) -> bool {
-        let Some(b) = self.backup.as_mut() else {
+        let Some(b) = self.board_state_mut() else {
             return false;
         };
-        let down = b.board.down.take();
-        let Some(_) = b.board.drag.take() else {
+        let down = b.down.take();
+        let Some(_) = b.drag.take() else {
             return false;
         };
         let Some((c, ..)) = down else {
@@ -1397,8 +1615,8 @@ impl Faraday {
         });
         match under {
             Some(z) => {
-                if let Some(b) = self.backup.as_mut() {
-                    b.board.held = Some(c);
+                if let Some(st) = self.board_state_mut() {
+                    st.held = Some(c);
                 }
                 self.board_act(BoardPress::Zone(z));
             }

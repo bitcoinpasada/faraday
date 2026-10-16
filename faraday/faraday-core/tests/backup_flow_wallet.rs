@@ -13,7 +13,7 @@ use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::board::{BoardPress, Thing, Zone};
 use faraday_core::create::NewKind;
 use faraday_core::plan::{
-    self, Answers, At, Form, Item, Preset, Row, Shape, Spot, Tag, What, form, seeds, wallet,
+    self, Answers, At, Item, Preset, Row, Shape, Spot, Tag, What, form, seeds, wallet,
 };
 use faraday_core::testkit;
 use faraday_core::{Action, BStage, Faraday, PlanPress, Screen, Sheet, bstep, cstep, qrow};
@@ -38,36 +38,93 @@ fn flow_plan(shell: &mut Shell, app: &mut Faraday, press: PlanPress) {
 /// The first place the flow's plan keeps vault `v`'s stick at.
 fn flow_place_of(app: &Faraday, v: usize) -> usize {
     let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+    let m = plan::map(&wf.shape, &wf.answers);
     (0..wf.answers.places)
-        .find(|&p| wf.answers.row_seeds(&wf.shape, p, Row::Vault(v)).is_some())
+        .find(|&p| (0..plan::sticks_at(&m, p)).any(|s| plan::stick_vault(&m, p, s) == Some(v)))
         .expect("the vault's stick has a place")
 }
 
-/// At place `p` of the flow's plan, row `row`'s sheet given exactly
-/// `seeds`, and Done.
+/// At place `p` of the flow's plan, row `row` kept for exactly `seeds`,
+/// made on the flow's own board (`docs/BACKUP-FLOW.md` §19.12 item 1).
 fn flow_keep(shell: &mut Shell, app: &mut Faraday, p: usize, row: Row, seeds: &[usize]) {
-    flow_plan(shell, app, PlanPress::Row(p as u8, row.code()));
-    let ticked = app
-        .choosing
-        .as_ref()
-        .expect("the row's sheet")
-        .seeds
-        .clone();
-    let n = app
-        .flow()
-        .unwrap()
-        .wallet
-        .as_ref()
-        .unwrap()
-        .shape
-        .seeds
-        .len();
-    for i in 0..n {
-        if ticked.contains(&i) != seeds.contains(&i) {
-            shell.press(app, Action::BPick(i as u8));
-        }
+    assert!(
+        matches!(app.board_of(), Some(faraday_core::board::BoardOf::Flow(_))),
+        "the flow's board is on screen"
+    );
+    keep_row(app, p, row, seeds);
+    shell.pump(app);
+}
+
+/// A press on the flow's own board (`docs/BACKUP-FLOW.md` §19.12 item 1).
+fn flow_board(shell: &mut Shell, app: &mut Faraday, press: BoardPress) {
+    assert!(
+        matches!(app.board_of(), Some(faraday_core::board::BoardOf::Flow(_))),
+        "the flow's board is on screen"
+    );
+    shell.press(app, Action::Board(press));
+}
+
+/// Tap to place on the flow's board: `t` from the list onto zone `z`.
+fn flow_put(shell: &mut Shell, app: &mut Faraday, t: Thing, z: Zone) {
+    flow_board(
+        shell,
+        app,
+        BoardPress::Chip(faraday_core::board::Chip::List(t)),
+    );
+    flow_board(shell, app, BoardPress::Zone(z));
+}
+
+/// Vault `v`'s zone at the first place of the flow's plan that keeps its
+/// stick.
+fn flow_vault_zone(app: &Faraday, v: usize) -> Zone {
+    let p = flow_place_of(app, v);
+    Zone::Vault(p, vault_stick(app, p, v).expect("its stick"), v)
+}
+
+/// `t` sealed in vault `v` on the flow's board.
+fn flow_into_vault(shell: &mut Shell, app: &mut Faraday, v: usize, t: Thing) {
+    let z = flow_vault_zone(app, v);
+    flow_put(shell, app, t, z);
+}
+
+/// The whole description in vault `v`, or out of it where it is, on the
+/// flow's board.
+fn flow_whole_in_vault(shell: &mut Shell, app: &mut Faraday, v: usize) {
+    let z = flow_vault_zone(app, v);
+    if plan::holds_at(&backup_map(app), At::Vault(v)).contains(&What::Wallet) {
+        flow_board(shell, app, BoardPress::Off(z, Thing::Whole));
+    } else {
+        flow_put(shell, app, Thing::Whole, z);
     }
-    shell.press(app, Action::BPickDone);
+}
+
+/// Seed `i`'s passphrase sealed in vault `v`, or taken out where it is,
+/// on the flow's board.
+fn flow_pass_in_vault(shell: &mut Shell, app: &mut Faraday, v: usize, i: usize) {
+    let z = flow_vault_zone(app, v);
+    let held = plan::holds_at(&backup_map(app), At::Vault(v));
+    if held.contains(&What::SeedPassphrase(i)) || held.contains(&What::PassphraseSealed(i)) {
+        flow_board(shell, app, BoardPress::Off(z, Thing::Pass(i)));
+    } else {
+        flow_put(shell, app, Thing::Pass(i), z);
+    }
+}
+
+/// The whole description dropped on place `p`'s stick of files on the
+/// flow's board.
+fn flow_whole_file_at(shell: &mut Shell, app: &mut Faraday, p: usize) {
+    let z = files_stick(app, p).map_or(Zone::NewStick(p), |s| Zone::Files(p, s));
+    flow_put(shell, app, Thing::Whole, z);
+}
+
+/// Vault `v`'s stick taken off place `p` on the flow's board.
+fn flow_vault_off_at(shell: &mut Shell, app: &mut Faraday, p: usize, v: usize) {
+    let s = vault_stick(app, p, v).expect("the vault's stick there");
+    flow_board(
+        shell,
+        app,
+        BoardPress::Off(Zone::Files(p, s), Thing::Vault(v)),
+    );
 }
 
 /// Seed `i` put into vault `v` too, on the vault's sheet in the flow.
@@ -109,12 +166,10 @@ fn offered_down(app: &mut Faraday, action: Action) -> bool {
     false
 }
 
-/// The first place that keeps vault `v`'s stick.
+/// The first place that keeps vault `v`'s stick, on the board on screen.
 fn vault_place(app: &Faraday, v: usize) -> usize {
-    let shape = backup_shape(app);
-    let a = &app.backup.as_ref().unwrap().answers;
-    (0..a.places)
-        .find(|&p| a.row_seeds(&shape, p, Row::Vault(v)).is_some())
+    (0..board_places(app))
+        .find(|&p| vault_stick(app, p, v).is_some())
         .expect("the vault's stick has a place")
 }
 
@@ -1999,11 +2054,8 @@ fn a_description_added_to_an_existing_vault_after_the_lock_starts_a_round() {
         .answers
         .wallet_in_vault(0);
     let p = flow_place_of(&app, 0);
-    flow_plan(
-        &mut shell,
-        &mut app,
-        PlanPress::Form(p as u8, Form::Vault(0).code()),
-    );
+    let _ = p;
+    flow_whole_in_vault(&mut shell, &mut app, 0);
     let w2 = app
         .flow()
         .unwrap()
@@ -2099,11 +2151,7 @@ fn back_on_a_card_before_the_keys_returns_to_make_a_new_wallet_and_a_refusal_say
     let mut app = restart(&mut shell, &mut app);
     write_sticks(&mut shell, &mut app, &["S1"]);
     shell.flow(&mut app, F::ChangePlan);
-    flow_plan(
-        &mut shell,
-        &mut app,
-        PlanPress::RowOff(0, Row::Vault(0).code()),
-    );
+    flow_vault_off_at(&mut shell, &mut app, 0, 0);
     assert_eq!(
         app.toast_text(),
         Some("A stick already written stays on the plan")
@@ -2174,18 +2222,10 @@ fn a_key_held_for_its_sticks_stays_kept_on_one_and_is_held_until_every_stick_is_
     }
     assert_eq!(app.flow().unwrap().slots.len(), slots);
     // Vault 1's stick at the first place goes; the one at the second stays.
-    flow_plan(
-        &mut shell,
-        &mut app,
-        PlanPress::RowOff(0, Row::Vault(0).code()),
-    );
+    flow_vault_off_at(&mut shell, &mut app, 0, 0);
     assert_eq!(app.flow().unwrap().slots.len(), slots - 1);
     // The last stick of the vault is refused, with its toast.
-    flow_plan(
-        &mut shell,
-        &mut app,
-        PlanPress::RowOff(1, Row::Vault(0).code()),
-    );
+    flow_vault_off_at(&mut shell, &mut app, 1, 0);
     assert_eq!(
         app.toast_text(),
         Some("A key not yet written stays kept on a stick")
@@ -2670,13 +2710,8 @@ fn a_passphrase_put_into_a_vault_after_the_lock_starts_a_round_too() {
             .unwrap()
     };
     let p = flow_place_of(&app, v);
-    flow_plan(
-        &mut shell,
-        &mut app,
-        PlanPress::Row(p as u8, Row::Vault(v).code()),
-    );
-    shell.press(&mut app, Action::BPickPass(0));
-    shell.press(&mut app, Action::BPickDone);
+    let _ = p;
+    flow_pass_in_vault(&mut shell, &mut app, v, 0);
     assert!(in_vault(&app), "{:?}", app.toast_text());
     assert!(app.flow().unwrap().adding, "its vault must hold it now");
 }
@@ -3448,28 +3483,13 @@ fn a_share_put_into_a_vault_after_the_lock_starts_the_round_and_is_sealed() {
     assert_eq!(step(&app), Step::Write);
     // Change the plan: in shares, Share 2 in Vault 1.
     shell.flow(&mut app, F::ChangePlan);
-    flow_plan(&mut shell, &mut app, PlanPress::Split(true));
-    let p = flow_place_of(&app, 0);
-    let pc = p as u8;
-    let vault = Form::Vault(0).code();
     let in_vault = |app: &Faraday| {
         let wf = app.flow().unwrap().wallet.as_ref().unwrap();
         wf.answers.vault_shares(&wf.shape, 0)
     };
-    let _ = vault;
-    // The vault's shares only (§17.8): its form is the vault, so each
-    // share ticked or unticked here goes into or out of it alone.
-    for j in [1u8, 0, 2] {
-        let here = {
-            let wf = app.flow().unwrap().wallet.as_ref().unwrap();
-            wf.answers
-                .shares_here(&wf.shape, p)
-                .contains(&usize::from(j))
-        };
-        if here != (j == 1) {
-            flow_plan(&mut shell, &mut app, PlanPress::Share(pc, j));
-        }
-    }
+    // The vault's shares only (§17.8): Share 2 sealed in Vault 1, the
+    // description in shares from then on.
+    flow_into_vault(&mut shell, &mut app, 0, Thing::Share(1));
     assert_eq!(in_vault(&app), vec![1], "Share 2 in Vault 1");
     assert_eq!(app.flow().unwrap().slots.len(), 1, "Vault 1's stick alone");
     assert!(app.flow().unwrap().adding, "a share added is a round");
@@ -3548,13 +3568,12 @@ fn done_on_a_row_sheet_during_a_write_changes_nothing_and_the_write_counts_for_i
     };
     assert_eq!(targets(&app), vec![Target::Place(1), Target::PlaceFiles(1)]);
     shell.flow(&mut app, F::ChangePlan);
-    // "Vault 1 · Place 1" open, then S1 in: its write starts.
-    flow_plan(
+    // Vault 1's chip held to go to Place 1, then S1 in: its write starts.
+    flow_board(
         &mut shell,
         &mut app,
-        PlanPress::Row(0, Row::Vault(0).code()),
+        BoardPress::Chip(faraday_core::board::Chip::List(Thing::Vault(0))),
     );
-    assert!(app.choosing.is_some());
     shell.hold_writes = true;
     shell.plug(&mut app, "S1");
     assert!(
@@ -3562,7 +3581,7 @@ fn done_on_a_row_sheet_during_a_write_changes_nothing_and_the_write_counts_for_i
         "the write is under way"
     );
     let before = app.flow().unwrap().wallet.as_ref().unwrap().answers.clone();
-    shell.press(&mut app, Action::BPickDone);
+    shell.press(&mut app, Action::Board(BoardPress::Zone(Zone::Card(0))));
     assert_eq!(
         app.flow().unwrap().wallet.as_ref().unwrap().answers,
         before,
@@ -3713,13 +3732,8 @@ fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it
     assert_eq!(step(&app), Step::Write);
     shell.flow(&mut app, F::ChangePlan);
     let p = flow_place_of(&app, 0);
-    flow_plan(
-        &mut shell,
-        &mut app,
-        PlanPress::Row(p as u8, Row::Vault(0).code()),
-    );
-    shell.press(&mut app, Action::BPickPass(0));
-    shell.press(&mut app, Action::BPickDone);
+    let _ = p;
+    flow_pass_in_vault(&mut shell, &mut app, 0, 0);
     assert!(app.flow().unwrap().adding, "{:?}", app.toast_text());
     unlock(&mut app, PHRASE);
     assert_eq!(step(&app), Step::Make, "{:?}", app.vaults.unlock_error);
@@ -3861,11 +3875,14 @@ fn the_flows_slider_sets_its_keys_left_off_and_the_vault_takes_the_share_it_impl
     flow_plan(
         &mut shell,
         &mut app,
-        PlanPress::Q(faraday_core::qstep::DESCRIPTION),
+        PlanPress::Q(faraday_core::qstep::BOARD),
     );
-    let slide = Action::Slide(faraday_core::seeds::SLIDE_FLOW_OMIT, 0);
-    assert!(offered_down(&mut app, slide), "the flow draws the slider");
-    shell.press(&mut app, slide);
+    let omit = Action::Flow(F::Plan(PlanPress::Omit(0)));
+    assert!(
+        offered_down(&mut app, omit),
+        "the flow's board draws the keys left off"
+    );
+    shell.press(&mut app, omit);
     assert_eq!(app.flow().unwrap().wallet.as_ref().unwrap().answers.omit, 0);
     assert!(app.flow().unwrap().adding, "Vault 1's share is another now");
     unlock(&mut app, PHRASE);
@@ -3896,7 +3913,7 @@ fn names_typed_before_the_lock_are_in_each_vaults_plan_and_never_in_the_flow() {
     flow_plan(
         &mut shell,
         &mut app,
-        PlanPress::Q(faraday_core::qstep::PLACES),
+        PlanPress::Q(faraday_core::qstep::BOARD),
     );
     assert!(offered_down(&mut app, Action::BName(0)), "a name field");
     app.press(Action::BName(0));
@@ -3930,7 +3947,7 @@ fn names_typed_before_the_lock_are_in_each_vaults_plan_and_never_in_the_flow() {
     flow_plan(
         &mut shell,
         &mut app,
-        PlanPress::Q(faraday_core::qstep::PLACES),
+        PlanPress::Q(faraday_core::qstep::BOARD),
     );
     assert!(
         !offered_down(&mut app, Action::BName(0)),
@@ -4386,10 +4403,10 @@ fn keys_left_off_each_share_stay_after_the_lock_while_a_share_is_in_a_file() {
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
     shell.flow(&mut app, F::ChangePlan);
-    shell.press(
-        &mut app,
-        Action::Slide(faraday_core::seeds::SLIDE_FLOW_OMIT, 0),
-    );
+    // The keys left off, on the flow's board's stepper.
+    shell.flow(&mut app, F::ChangePlan);
+    shell.flow(&mut app, F::Plan(PlanPress::Q(faraday_core::qstep::BOARD)));
+    shell.flow(&mut app, F::Plan(PlanPress::Omit(0)));
     assert_eq!(
         app.toast_text(),
         Some(
@@ -4538,7 +4555,14 @@ fn a_held_key_is_not_left_on_a_stale_file_after_the_lock() {
     );
     let mut app = restart(&mut shell, &mut app);
     shell.flow(&mut app, F::ChangePlan);
-    flow_plan(&mut shell, &mut app, PlanPress::RowOff(1, Row::File.code()));
+    let s = (0..plan::sticks_at(&backup_map(&app), 1))
+        .find(|&s| plan::holds_at(&backup_map(&app), At::Stick(1, s)).contains(&What::SeedFile(0)))
+        .expect("the seed's file at Place 2");
+    flow_board(
+        &mut shell,
+        &mut app,
+        BoardPress::Off(Zone::Files(1, s), Thing::Seed(0)),
+    );
     assert_eq!(
         app.toast_text(),
         Some(
@@ -4650,11 +4674,10 @@ fn shares_files_follow_the_plan_after_the_lock() {
     // After the lock the shares' files stay as made (§17.8): moving a
     // share, or a file at another place, is refused.
     shell.flow(&mut app, F::ChangePlan);
-    for press in [
-        PlanPress::Share(p as u8, 2),
-        PlanPress::Form(q as u8, Form::File.code()),
-    ] {
-        flow_plan(&mut shell, &mut app, press);
+    let q_files = files_stick(&app, q).map_or(Zone::NewStick(q), |s| Zone::Files(q, s));
+    for (t, z) in [(Thing::Share(2), Zone::Paper(p)), (Thing::Whole, q_files)] {
+        flow_put(&mut shell, &mut app, t, z);
+        let press = (t, z);
         assert_eq!(
             app.toast_text(),
             Some(
@@ -4698,7 +4721,22 @@ fn whole_or_in_shares_is_fixed_after_the_lock_while_a_share_is_in_a_file() {
     let mut shell = Shell::new();
     let (mut app, _) = shares_locked(&mut shell);
     shell.flow(&mut app, F::ChangePlan);
-    flow_plan(&mut shell, &mut app, PlanPress::Split(false));
+    // The share's file taken off: refused, so the split stays.
+    let (p, s) = (0..board_places(&app))
+        .find_map(|p| {
+            (0..plan::sticks_at(&backup_map(&app), p)).find_map(|s| {
+                plan::holds_at(&backup_map(&app), At::Stick(p, s))
+                    .iter()
+                    .any(|w| matches!(w, What::ShareFile(..)))
+                    .then_some((p, s))
+            })
+        })
+        .expect("a share's file");
+    flow_board(
+        &mut shell,
+        &mut app,
+        BoardPress::Off(Zone::Files(p, s), Thing::Share(1)),
+    );
     assert_eq!(
         app.toast_text(),
         Some(
@@ -4775,11 +4813,8 @@ fn the_round_adds_a_planned_key_record_once_beside_another_of_its_words() {
     for _ in 0..2 {
         shell.flow(&mut app, F::ChangePlan);
         let p = flow_place_of(&app, 0);
-        flow_plan(
-            &mut shell,
-            &mut app,
-            PlanPress::Form(p as u8, Form::Vault(0).code()),
-        );
+        let _ = p;
+        flow_whole_in_vault(&mut shell, &mut app, 0);
         assert!(app.flow().unwrap().adding, "{:?}", app.toast_text());
         if app.vaults.open.is_empty() {
             unlock(&mut app, PHRASE);
@@ -4802,7 +4837,7 @@ fn a_file_added_after_the_lock_is_refused_and_loads_no_wallet() {
     let mut app = restart(&mut shell, &mut app);
     assert!(app.session.wallets.is_empty());
     shell.flow(&mut app, F::ChangePlan);
-    flow_plan(&mut shell, &mut app, PlanPress::Form(0, Form::File.code()));
+    flow_whole_file_at(&mut shell, &mut app, 0);
     assert_eq!(
         app.toast_text(),
         Some(
@@ -4861,13 +4896,8 @@ fn a_stick_of_files_keeps_its_list_after_a_vault_edit() {
     let before = files(&app);
     assert!(!before.is_empty());
     shell.flow(&mut app, F::ChangePlan);
-    flow_plan(&mut shell, &mut app, PlanPress::Places(true));
-    flow_plan(
-        &mut shell,
-        &mut app,
-        PlanPress::Row(2, Row::Vault(0).code()),
-    );
-    shell.press(&mut app, Action::BPickDone);
+    flow_board(&mut shell, &mut app, BoardPress::AddPlace);
+    flow_put(&mut shell, &mut app, Thing::Vault(0), Zone::Card(2));
     assert!(
         app.flow()
             .unwrap()
@@ -4926,7 +4956,7 @@ fn a_written_stick_of_files_is_never_sent_back_after_the_lock() {
     );
     // Locked: its files stay.
     shell.flow(&mut app, F::ChangePlan);
-    flow_plan(&mut shell, &mut app, PlanPress::Form(0, Form::File.code()));
+    flow_whole_file_at(&mut shell, &mut app, 0);
     assert_eq!(
         app.toast_text(),
         Some(
@@ -5030,13 +5060,8 @@ fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
     let mut app = restart(&mut shell, &mut app);
     shell.flow(&mut app, F::ChangePlan);
     let p = flow_place_of(&app, 0);
-    flow_plan(
-        &mut shell,
-        &mut app,
-        PlanPress::Row(p as u8, Row::Vault(0).code()),
-    );
-    shell.press(&mut app, Action::BPickPass(0));
-    shell.press(&mut app, Action::BPickDone);
+    let _ = p;
+    flow_pass_in_vault(&mut shell, &mut app, 0, 0);
     assert!(app.flow().unwrap().adding, "{:?}", app.toast_text());
     unlock(&mut app, PHRASE);
     shell.flow(&mut app, F::CopyKey);
@@ -5073,7 +5098,7 @@ fn files_and_words_stay_as_made_after_the_lock_with_a_vault_unlocked() {
     assert!(!app.vaults.open.is_empty(), "Vault 1 is unlocked");
     let slots = app.flow().unwrap().slots.len();
     shell.flow(&mut app, F::ChangePlan);
-    flow_plan(&mut shell, &mut app, PlanPress::Form(0, Form::File.code()));
+    flow_whole_file_at(&mut shell, &mut app, 0);
     assert_eq!(
         app.toast_text(),
         Some(

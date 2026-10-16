@@ -1027,35 +1027,6 @@ pub enum Action {
     /// form; the wallet's flow's own plan asks the rest): the list by
     /// [`qrow`], then the row.
     BAnswer(u8, u8),
-    /// A row of a place's card pressed on its label: its sheet, the seeds
-    /// it keeps there (`docs/BACKUP-FLOW.md` §17.1). The place, then the
-    /// row by [`plan::Row::code`].
-    BRow(u8, u8),
-    /// A ticked row of a place's card pressed on its box: unticked, what
-    /// it held at the place gone.
-    BRowOff(u8, u8),
-    /// A seed ticked or unticked on a place's row's sheet, by place among
-    /// the wallet's seeds.
-    BPick(u8),
-    /// "{seed} with its passphrase" ticked or unticked on a vault's sheet.
-    BPickPass(u8),
-    /// The sheet's **Done**: what is ticked kept at the place.
-    BPickDone,
-    /// One place more (`true`) or the last place removed.
-    BPlaces(bool),
-    /// The wallet description in shares (`true`) or whole.
-    BSplit(bool),
-    /// A form of the description at a place, ticked or unticked: the
-    /// place, then the form by [`plan::Form::code`].
-    BForm(u8, u8),
-    /// A share kept at a place, ticked or unticked: the place, the share.
-    BShare(u8, u8),
-    /// Into watch-only software, ticked or unticked.
-    BSoftwareOn,
-    /// A thing a plan saved before the cards keeps on the stick of files
-    /// unticked, by its place in that stick's list
-    /// (`docs/BACKUP-FLOW.md` §17.2).
-    BOldFile(u8),
     /// Start or stop typing place n's name (only with a vault open).
     BName(u8),
     /// A press on the backup board (`docs/BACKUP-FLOW.md` §19).
@@ -1652,9 +1623,9 @@ pub enum Sheet {
     /// A node or a line of the wallet's chart: what it is, where, and its
     /// actions (`docs/NEW-WALLET.md` §9).
     Chart,
-    /// A row of a place's card in Back up's plan: which seeds the place
-    /// keeps that way (`docs/BACKUP-FLOW.md` §17.1).
-    PlanPick,
+    /// The backup board's list, opened by **Add** in the narrow column
+    /// (`docs/BACKUP-FLOW.md` §19.12 item 3).
+    BoardList,
     /// A seed the camera read, asking how it loads: with no passphrase
     /// or with one (`seed_read`).
     SeedRead,
@@ -2702,33 +2673,15 @@ pub enum BStage {
 pub mod qstep {
     /// Start from: the three presets.
     pub const PRESET: u8 = 0;
-    /// The number of places, and their names.
-    pub const PLACES: u8 = 2;
-    /// The wallet description, whole or in shares.
-    pub const DESCRIPTION: u8 = 3;
     /// The watch-only software and the files' form.
     pub const SOFTWARE: u8 = 4;
     /// The plan: the map, approved with Make the checklist.
     pub const PLAN: u8 = 6;
-    /// Where the description goes, place by place.
-    pub const WHERE: u8 = 7;
-    /// Back up's board: the places, what each keeps, and the list of
-    /// what the backup can keep (`docs/BACKUP-FLOW.md` §19).
+    /// The board: the places, what each keeps, and the list of what the
+    /// backup can keep (`docs/BACKUP-FLOW.md` §19).
     pub const BOARD: u8 = 8;
-    /// Place 1's card; place `p`'s is `PLACE + p`.
-    pub const PLACE: u8 = 16;
-    /// The most places the cards number.
-    pub const MAX_PLACES: usize = (u8::MAX - PLACE) as usize + 1;
-
-    /// Place `p`'s card.
-    pub fn place(p: usize) -> u8 {
-        PLACE.saturating_add(p.min(MAX_PLACES - 1) as u8)
-    }
-
-    /// The place whose card `q` is.
-    pub fn place_of(q: u8) -> Option<usize> {
-        q.checked_sub(PLACE).map(usize::from)
-    }
+    /// The most places a plan has.
+    pub const MAX_PLACES: usize = 240;
 }
 
 /// A press on a plan's cards (`docs/BACKUP-FLOW.md` §17.1), the same on
@@ -2740,22 +2693,6 @@ pub enum PlanPress {
     Q(u8),
     /// The card's Continue: the card after it.
     Next(u8),
-    /// A place's row pressed on its label: its sheet.
-    Row(u8, u8),
-    /// A ticked place's row pressed on its box.
-    RowOff(u8, u8),
-    /// One place more, or the last one removed.
-    Places(bool),
-    /// The description in shares, or whole.
-    Split(bool),
-    /// A form of the description at a place.
-    Form(u8, u8),
-    /// A share kept at a place.
-    Share(u8, u8),
-    /// Into watch-only software.
-    Software,
-    /// A thing of an old plan's stick of files unticked.
-    OldFile(u8),
     /// A row of the Software card, by [`qrow`].
     Answer(u8, u8),
     /// The keys left off each share.
@@ -2768,48 +2705,18 @@ impl PlanPress {
         match self {
             PlanPress::Q(q) => Action::BQ(q),
             PlanPress::Next(q) => Action::BQNext(q),
-            PlanPress::Row(p, r) => Action::BRow(p, r),
-            PlanPress::RowOff(p, r) => Action::BRowOff(p, r),
-            PlanPress::Places(b) => Action::BPlaces(b),
-            PlanPress::Split(b) => Action::BSplit(b),
-            PlanPress::Form(p, f) => Action::BForm(p, f),
-            PlanPress::Share(p, j) => Action::BShare(p, j),
-            PlanPress::Software => Action::BSoftwareOn,
-            PlanPress::OldFile(k) => Action::BOldFile(k),
             PlanPress::Answer(l, r) => Action::BAnswer(l, r),
             PlanPress::Omit(n) => Action::BOmit(usize::from(n)),
         }
     }
 }
 
-/// A place's row's sheet, open: the place, the row, and what is ticked
-/// on it until **Done** (`docs/BACKUP-FLOW.md` §17.1).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Choosing {
-    /// Whose plan: a wallet flow's, by index; `None` for Back up's.
-    pub flow: Option<usize>,
-    /// The place.
-    pub place: usize,
-    /// The row of its card.
-    pub row: plan::Row,
-    /// The seeds ticked, by place among the wallet's.
-    pub seeds: Vec<usize>,
-    /// For a vault, the seeds ticked with their passphrase.
-    pub pass: Vec<usize>,
-}
-
 /// The cards of a plan after Start from, in order (`docs/BACKUP-FLOW.md`
-/// §17.1): Places, a card per place, the wallet description where it
-/// splits, where it goes, the software where the description goes into
-/// software or as files, and The plan. Back up's and a wallet flow's
-/// alike.
+/// §17.1, §19.1): the board, the software where the description goes
+/// into software or as files, and The plan. Back up's and a wallet flow's
+/// alike (§19.12 item 1).
 pub fn plan_cards(shape: &plan::Shape, a: &plan::Answers) -> Vec<u8> {
-    let mut v = vec![qstep::PLACES];
-    v.extend((0..a.places.min(qstep::MAX_PLACES)).map(qstep::place));
-    if shape.splits {
-        v.push(qstep::DESCRIPTION);
-    }
-    v.push(qstep::WHERE);
+    let mut v = vec![qstep::BOARD];
     if a.asks_software(shape) {
         v.push(qstep::SOFTWARE);
     }
@@ -3271,6 +3178,9 @@ pub struct Faraday {
     /// How far Files' For the stick list is scrolled on a desktop, apart
     /// from From the stick's (`list_offset`).
     pub files_out_offset: f32,
+    /// How far the backup board's list column is scrolled, in design
+    /// units (`docs/BACKUP-FLOW.md` §19.14).
+    pub board_list_offset: f32,
     /// Design units scrolled past in Vault contents' item, on a desktop.
     pub vault_item_offset: f32,
     /// The wallet's chart is open as its own page, on a small panel.
@@ -3309,8 +3219,6 @@ pub struct Faraday {
     pub vanity: Option<vanity::VanityState>,
     /// The backup flow.
     pub backup: Option<BackupState>,
-    /// A place's row's sheet, open, on Back up's plan or a wallet flow's.
-    pub choosing: Option<Choosing>,
     /// Signing a message.
     pub message: Option<MessageState>,
     /// The Inbox file of the signed message being checked.
@@ -3599,6 +3507,7 @@ impl Faraday {
             list_offset: 0.0,
             card_offset: 0.0,
             files_out_offset: 0.0,
+            board_list_offset: 0.0,
             vault_item_offset: 0.0,
             glance: false,
             chart: None,
@@ -3614,7 +3523,6 @@ impl Faraday {
             family: family::FamilyState::default(),
             vanity: None,
             backup: None,
-            choosing: None,
             message: None,
             checking: None,
             create: None,
@@ -4951,12 +4859,8 @@ impl Faraday {
         }
         // A chip held on the backup board is let go by a press anywhere
         // else (`docs/BACKUP-FLOW.md` §19.2).
-        if !matches!(action, Action::Board(_))
-            && let Some(b) = self.backup.as_mut()
-        {
-            b.board.held = None;
-            b.board.forms = false;
-            b.board.removing = None;
+        if !matches!(action, Action::Board(_)) {
+            self.board_let_go();
         }
         // A chart's sheet leads into a flow: whatever its rows press, the
         // sheet goes first.
@@ -5537,7 +5441,6 @@ impl Faraday {
                 if let Some(b) = self.backup.as_mut() {
                     b.pick = false;
                 }
-                self.choosing = None;
                 // A device still waiting comes back up.
                 self.input_sheet();
             }
@@ -5683,17 +5586,6 @@ impl Faraday {
                     b.naming = b.naming.filter(|&p| p < b.answers.places);
                 }
             }
-            Action::BRow(..)
-            | Action::BRowOff(..)
-            | Action::BPick(_)
-            | Action::BPickPass(_)
-            | Action::BPickDone
-            | Action::BPlaces(_)
-            | Action::BSplit(_)
-            | Action::BForm(..)
-            | Action::BShare(..)
-            | Action::BSoftwareOn
-            | Action::BOldFile(_) => self.plan_card_act(action),
             Action::Board(p) => self.board_act(p),
             Action::BName(p) => {
                 let open = self.vaults.open.get(self.vaults.current).is_some();
@@ -7178,196 +7070,9 @@ impl Faraday {
         // description goes (`docs/BACKUP-FLOW.md` §19.1); Start from, the
         // software and The plan stay.
         let shape = self.plan_shape(b.wallet);
-        let mut v = vec![qstep::PRESET, qstep::BOARD];
-        if b.answers.asks_software(&shape) {
-            v.push(qstep::SOFTWARE);
-        }
-        v.push(qstep::PLAN);
+        let mut v = vec![qstep::PRESET];
+        v.extend(plan_cards(&shape, &b.answers));
         v
-    }
-
-    /// A press on the sheet of a place's row, on Back up's plan or a
-    /// wallet flow's (`docs/BACKUP-FLOW.md` §17.1).
-    fn plan_pick_act(&mut self, action: Action) {
-        let Some(c) = self.choosing.clone() else {
-            return;
-        };
-        let (shape, a) = match c.flow {
-            Some(i) => match self.backup_flows.get(i).and_then(|f| f.wallet.as_ref()) {
-                Some(w) => (w.shape.clone(), w.answers.clone()),
-                None => return,
-            },
-            None => match self.backup.as_ref() {
-                Some(b) => (self.plan_shape(b.wallet), b.answers.clone()),
-                None => return,
-            },
-        };
-        match action {
-            Action::BPick(i) => {
-                let i = usize::from(i);
-                // A passphrase is not kept beside its seed's words, nor
-                // its words beside it.
-                if c.row == plan::Row::Passphrase && a.words_at(&shape, c.place).contains(&i) {
-                    return;
-                }
-                if matches!(c.row, plan::Row::Words | plan::Row::SeedQr) && a.pass_at(i, c.place) {
-                    return;
-                }
-                if !shape.seeds.get(i).is_some_and(|s| s.here) {
-                    return;
-                }
-                if let Some(c) = self.choosing.as_mut() {
-                    if let Some(k) = c.seeds.iter().position(|&s| s == i) {
-                        c.seeds.remove(k);
-                        c.pass.retain(|&s| s != i);
-                    } else {
-                        c.seeds.push(i);
-                        c.seeds.sort_unstable();
-                    }
-                }
-            }
-            Action::BPickPass(i) => {
-                let i = usize::from(i);
-                if let Some(c) = self.choosing.as_mut()
-                    && c.seeds.contains(&i)
-                    && shape.seeds.get(i).is_some_and(|s| s.passphrase)
-                {
-                    if let Some(k) = c.pass.iter().position(|&s| s == i) {
-                        c.pass.remove(k);
-                    } else {
-                        c.pass.push(i);
-                    }
-                }
-            }
-            Action::BPickDone => {
-                self.choosing = None;
-                if self.sheet == Some(Sheet::PlanPick) {
-                    self.sheet = None;
-                }
-                match c.flow {
-                    Some(i) => self.flow_wallet_edit(i, &|a, shape| {
-                        a.set_row(shape, c.place, c.row, &c.seeds, &c.pass)
-                    }),
-                    None => {
-                        if let Some(b) = self.backup.as_mut() {
-                            b.answers.set_row(&shape, c.place, c.row, &c.seeds, &c.pass);
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    /// Opens the sheet of row `row` at place `p` of the plan `a`, for
-    /// Back up's plan or flow `flow`'s.
-    pub(crate) fn plan_pick_open(
-        &mut self,
-        flow: Option<usize>,
-        shape: &plan::Shape,
-        a: &plan::Answers,
-        p: usize,
-        row: plan::Row,
-    ) {
-        let seeds = a.row_seeds(shape, p, row).unwrap_or_default();
-        let pass = match row {
-            plan::Row::Vault(v) => a.vault_pass(shape, v),
-            _ => Vec::new(),
-        };
-        // A vault kept elsewhere already: its own seeds, ticked.
-        let seeds = match row {
-            plan::Row::Vault(v) if seeds.is_empty() => a.vault_seeds(shape, v),
-            _ => seeds,
-        };
-        self.choosing = Some(Choosing {
-            flow,
-            place: p,
-            row,
-            seeds,
-            pass,
-        });
-        self.sheet = Some(Sheet::PlanPick);
-        self.sheet_scroll = (0.0, None);
-    }
-
-    /// A press on a card of the plan by place (`docs/BACKUP-FLOW.md`
-    /// §17.1): each is an edit of the map, which from the first is the
-    /// plan (§17.2).
-    fn plan_card_act(&mut self, action: Action) {
-        if matches!(
-            action,
-            Action::BPick(_) | Action::BPickPass(_) | Action::BPickDone
-        ) {
-            return self.plan_pick_act(action);
-        }
-        // After the lock, while the wallet's flow is under way, Back up's
-        // cards edit the flow's plan, with its refusals; Back up's answers
-        // follow it (`docs/BACKUP-FLOW.md` §17).
-        if let Some(i) = self.backup_locked_flow() {
-            let press = match action {
-                Action::BRow(p, r) => PlanPress::Row(p, r),
-                Action::BRowOff(p, r) => PlanPress::RowOff(p, r),
-                Action::BPlaces(b) => PlanPress::Places(b),
-                Action::BSplit(b) => PlanPress::Split(b),
-                Action::BForm(p, f) => PlanPress::Form(p, f),
-                Action::BShare(p, j) => PlanPress::Share(p, j),
-                Action::BSoftwareOn => PlanPress::Software,
-                Action::BOldFile(k) => PlanPress::OldFile(k),
-                _ => return,
-            };
-            return self.flow_plan_press(i, press);
-        }
-        let Some(w) = self.backup.as_ref().map(|b| b.wallet) else {
-            return;
-        };
-        let shape = self.plan_shape(w);
-        let Some(b) = self.backup.as_mut() else {
-            return;
-        };
-        let a = &mut b.answers;
-        match action {
-            Action::BRow(p, r) => {
-                let Some(row) = plan::Row::from_code(r) else {
-                    return;
-                };
-                let p = usize::from(p);
-                // A watch-only wallet's vault holds no seed: its row
-                // ticks at once, nothing to ask.
-                if let plan::Row::Vault(v) = row
-                    && shape.watch_only()
-                {
-                    a.keep_vault_at(&shape, p, v);
-                    return;
-                }
-                let a = a.clone();
-                self.plan_pick_open(None, &shape, &a, p, row);
-            }
-            Action::BRowOff(p, r) => {
-                if let Some(row) = plan::Row::from_code(r) {
-                    a.clear_row(&shape, usize::from(p), row);
-                }
-            }
-            Action::BPlaces(more) => {
-                if more {
-                    if a.places < qstep::MAX_PLACES {
-                        a.add_place(&shape);
-                    }
-                } else {
-                    a.remove_last_place(&shape);
-                }
-                b.naming = b.naming.filter(|&p| p < a.places);
-            }
-            Action::BSplit(split) => a.set_split(&shape, split),
-            Action::BForm(p, f) => {
-                if let Some(form) = plan::Form::from_code(f) {
-                    a.toggle_form(&shape, usize::from(p), form);
-                }
-            }
-            Action::BShare(p, j) => a.toggle_share(&shape, usize::from(p), usize::from(j)),
-            Action::BSoftwareOn => a.toggle_software(&shape),
-            Action::BOldFile(k) => a.drop_old_file(&shape, usize::from(k)),
-            _ => {}
-        }
     }
 
     /// The backup's checklist, by [`bstep`]: only what the plan needs. Works out the plan's shape
@@ -11292,6 +10997,7 @@ impl Faraday {
             ui::Slot::Card => Some(&mut self.card_offset),
             ui::Slot::VaultItem => Some(&mut self.vault_item_offset),
             ui::Slot::FilesOut => Some(&mut self.files_out_offset),
+            ui::Slot::BoardList => Some(&mut self.board_list_offset),
             ui::Slot::Page => self.page_slot(),
         }
     }
@@ -11327,6 +11033,11 @@ impl Faraday {
                     && self.region_key().1.is_none() =>
             {
                 ui::Slot::FilesOut
+            }
+            ui::Slot::BoardList
+                if self.board_shown() && !self.compact && self.region_key().1.is_none() =>
+            {
+                ui::Slot::BoardList
             }
             _ => ui::Slot::Page,
         }

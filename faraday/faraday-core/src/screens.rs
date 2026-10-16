@@ -156,7 +156,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::Import => crate::boot_import_screen::draw(app, ui, w, h),
             Sheet::Pull => pull_sheet(app, ui, w, h),
             Sheet::Chart => crate::glance_sheet::draw(app, ui, w, h),
-            Sheet::PlanPick => crate::plan_cards::pick_sheet(app, ui, w, h),
+            Sheet::BoardList => crate::board_screen::list_sheet(app, ui, w, h),
             Sheet::SeedRead => crate::seed_read::sheet(app, ui, w, h),
             Sheet::Delete => crate::stick_wipe::delete_sheet(app, ui, w, h),
             Sheet::Zeroing => crate::stick_wipe::zeroing_sheet(app, ui, w, h),
@@ -5471,7 +5471,11 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         app.dirty = true;
         app.commands.push_back(osk_shell_api::Command::Draw);
     }
-    if !compact {
+    // While the board is shown its list is the right-hand column, the
+    // map's place (`docs/BACKUP-FLOW.md` §19.14).
+    if !compact && app.board_shown() {
+        crate::board_screen::list_panel(app, ui, x0 + cw - panel_w, panel_w, h);
+    } else if !compact {
         backup_panel(app, ui, x0 + cw - panel_w, panel_w, h);
     }
     if pick && let Some((cx, cy, chip_w)) = ui.chip_at {
@@ -5511,88 +5515,6 @@ fn plan_body(
         return cy - y;
     }
     if next_button(ui, x, cy, w, EN.plan_make_the_checklist, Action::BChecklist) {
-        cy += 48.0;
-    }
-    cy - y
-}
-
-/// The places' names, on the places question: typed and kept in the open
-/// vault, or with none open, the way to one. Returns its height.
-pub(crate) fn place_names(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let Some(b) = app.backup.as_ref() else {
-        return 0.0;
-    };
-    let mut cy = y;
-    let v = app.vaults.current;
-    let Some(open) = app.vaults.open.get(v) else {
-        section_label(ui, x, cy, EN.place_names_names);
-        cy += 28.0;
-        ui.text(x, cy, 13.0, W::R, MUTED, EN.place_names_only_in);
-        cy += 26.0;
-        if let Some((label, a)) = app.vault_way(Screen::Backup) {
-            cy += wrap_buttons(ui, x, cy, w, 36.0, &[(label.as_str(), Style::Secondary, a)]);
-        }
-        return cy - y;
-    };
-    let head = fill(EN.place_names_names_kept, &[&open.name.to_string()]);
-    let head = ui.fit(13.0, W::S, &head, w);
-    section_label(ui, x, cy, &head);
-    cy += 28.0;
-    for p in 0..b.answers.places {
-        let typing = b.naming == Some(p);
-        let name = b.names.get(p).map_or("", String::as_str);
-        let bw = 80.0;
-        let fw = w - bw - 8.0;
-        ui.fill(x, cy, fw, 40.0, 8.0, BG);
-        ui.stroke(
-            x,
-            cy,
-            fw,
-            40.0,
-            8.0,
-            if typing {
-                ACCENT.with_alpha(110)
-            } else {
-                INNER
-            },
-        );
-        let hint = name.is_empty();
-        let shown = if hint {
-            fill(EN.place_names_place, &[&(p + 1).to_string()])
-        } else {
-            name.to_string()
-        };
-        let shown = ui.fit(14.0, W::R, &shown, fw - 28.0);
-        let tw = ui.text_mid(
-            x + 12.0,
-            cy,
-            40.0,
-            14.0,
-            W::R,
-            if hint { DIM } else { TEXT },
-            &shown,
-        );
-        if typing {
-            ui.caret(
-                x + 12.0 + if hint { 0.0 } else { tw + 1.0 },
-                cy + 11.0,
-                18.0,
-            );
-        }
-        ui.hit(x, cy, fw, 40.0, Action::BName(p as u8));
-        ui.button(
-            x + fw + 8.0,
-            cy,
-            Some(bw),
-            40.0,
-            if typing {
-                EN.place_names_done
-            } else {
-                EN.place_names_name
-            },
-            Style::Secondary,
-            Action::BName(p as u8),
-        );
         cy += 48.0;
     }
     cy - y

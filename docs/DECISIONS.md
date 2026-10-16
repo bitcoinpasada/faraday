@@ -1624,9 +1624,9 @@ places, and wants to see it that way.
 - After the lock, paper and files stay as made (§17.8); vaults change.
 - A vault the plan makes with no stick, or holding nothing, still holds
   Make the checklist beside a seed kept nowhere (owner, 2026-10-16).
-- Built: F1, the model (2026-10-16); F2a, the board in Back up
-  (2026-10-16). F2b (the guided flow and a narrow window) and F3 not
-  built.
+- Built: F1, the model (2026-10-16); F2, the board (F2a in Back up,
+  F2b in the guided flow and a narrow window, with BACKUP-FLOW §19.14's
+  boxes and layout; 2026-10-16). F3 not built.
 
 ### F38 Access layers (2026-10-16)
 
