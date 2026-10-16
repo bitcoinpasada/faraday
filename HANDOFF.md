@@ -2766,7 +2766,10 @@ as possible before the next build.
     public values on their key and wallet, memoises the checklist while
     drawing only, and checks the hold when something changed; §2's rules
     keep secrets out of every kept value and decisions off the memo.
-    Draft spec, waiting for the owner's read; then measure, batch A.
+    Measured (SPEED §6): a late checklist frame went from about 180 ms
+    to about 10 ms after batches A and B, a pointer move from 13 ms to
+    nothing. Batches A and B built, waiting for the owner's check on
+    the stick; then C. D not needed; E in faraday-website.
 
 78. [ ] 2026-10-15, owner: **the backup board** (`docs/BACKUP-FLOW.md`
     §19, F37). The plan's place cards become a board: a card per place

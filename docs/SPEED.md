@@ -1,7 +1,9 @@
 # Speed in long flows
 
-**Status: draft, 2026-10-15; §7 is a standing rule (owner). Tracker
-issue 119 and its sub-issues 120–130. Nothing built.**
+**Status: 2026-10-16, batches A and B built, waiting for the owner's
+check on the stick; C next; D not needed (§6); E in faraday-website.
+§7 is a standing rule (owner). Tracker issue 119 and its sub-issues
+120–130.**
 
 The owner's report: on a slow laptop Faraday became very slow in the
 later stages of setting up a multisig wallet, the backups especially,
@@ -355,7 +357,52 @@ Order: measure, A, measure, B, measure, C; D and E after.
 
 ## 6. Results
 
-Not yet measured.
+Measured 2026-10-16 with the harness of §4, release profile, in a
+four-core cloud container shared with other builds, not the build
+machine: the numbers compare with each other, not with MOTION.md's. The
+session: a 2-of-3 wallet whose three keys were made here with coin flips,
+the kit vault open, the backup preset paper, vault and software. Each
+row is the median of 30 frames, in ms; the stage is the number of items
+done.
+
+| What | Before | After A | After B |
+|---|---|---|---|
+| 1366×768, checklist, 0 done: frame | 91 | 6 | 4.5 |
+| 1366×768, checklist, 4 done (vault 1 open): frame | 155 | 11 | 8.6 |
+| 1366×768, checklist, 5 done (vault 2 open): frame | 184 | 41 | 16 |
+| 1366×768, checklist, 6 done (vault 3 open): frame | 195 | 10 | 5.1 |
+| 1366×768, checklist, 10 done (sticks open): frame | 174 | 21 | 10 |
+| 1366×768, checklist, 10 done: scroll step and frame | 202 | 21 | 8.9 |
+| 1366×768, checklist, 10 done: a finger move, event only | 12.7 | 0.21 | <0.01 |
+| 1366×768, Wallets page: frame | 27 | 8.7 | 9.3 |
+| 2560×1600 scale 2, checklist, 0 done: frame | 96 | 12 | 11 |
+| 2560×1600 scale 2, checklist, 5 done (vault 2 open): frame | 192 | 42 | 18 |
+| 2560×1600 scale 2, checklist, 10 done (sticks open): frame | 176 | 28 | 15 |
+| 2560×1600 scale 2, checklist, 10 done: scroll step and frame | 170 | 29 | 15 |
+
+Before A, about 83% of a late checklist frame was `MasterKey::fingerprint`
+(§1.1), most of it through `backup_seed_list_of` under
+`backup_item_done`; descriptor checksums were about 10% and QR encodes
+about 3%. The cost stepped up at the vault items, whose done marks
+(`backup_vault_fits`, `backup_open_fits`, `backup_vault_open`) search
+the session's keys for each seed.
+
+What is left after B, from stacks sampled at 1366×768:
+
+- The vault 2 card: `vault_has_wallet` reads every wallet record in the
+  open vault (`read_wallet`, a descriptor parsed each) on every frame,
+  through `backup_vault_fits` and `backup_open_fits` outside the memo.
+  Not in §3.
+- The sticks card: `sticks_item` (`kept_wiped`, `key_text`) and
+  `wallet_stick_rows` work out each stick's files on every frame. Not in
+  §3.
+
+The glyph cache (§3.8): at 2560×1600 scale 2 no screen measured (the
+checklist at every stage, the Wallets page, Create's Keys card) cleared
+it, in a frame, a scroll or the whole session; the most it held was
+171,800 of its 262,144 bytes. Batch D is not built. At a layout scale
+of about 2.5 a dense screen's glyphs would pass the budget (estimated
+from the area, not measured).
 
 ## 7. Standing rule: a late-flow frame is timed (owner, 2026-10-15)
 

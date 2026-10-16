@@ -3,9 +3,11 @@
 //! the disk process's picture reader, as the same descriptor or share,
 //! and the label under the code names the wallet and the checksum.
 
+use faraday_core::plan::{self, Item};
 use faraday_core::testkit;
 use faraday_core::wallet::FileKind;
-use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent};
+use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent, bstep, qrow};
+use osk_shell_api::{App, Event, Key};
 use osk_ui::canvas::InkKind;
 
 const STICK: &str = "S1";
@@ -234,4 +236,92 @@ fn a_share_picture_names_what_it_holds_and_leaves_off() {
         assert!(fps.iter().any(|f| f == off), "{off} is not a key");
         assert!(text.iter().any(|t| t == "Not a wallet on its own"));
     }
+}
+
+/// The backup of the wallet `descriptor`, with test key 1 typed in and
+/// the checklist made for the descriptor as a public file.
+fn checklist_for(name: &str, descriptor: &str) -> (Faraday, usize) {
+    let mut app = testkit::started();
+    app.press(Action::Entry(None));
+    for c in testkit::test_words(testkit::TEST_SEEDS[0].0).chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    let w = app
+        .session
+        .add_wallet(
+            name,
+            descriptor,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("a wallet");
+    app.press(Action::Backup(w));
+    app.press(Action::BPreset(2));
+    let answers = &app.backup.as_ref().unwrap().answers;
+    // The descriptor as a picture and as text.
+    if !answers.software[plan::software::NOT_SURE] {
+        app.press(Action::BAnswer(
+            qrow::SOFTWARE,
+            plan::software::NOT_SURE as u8,
+        ));
+    }
+    for (row, on) in [(plan::form::QR, true), (plan::form::TEXT, true)] {
+        if app.backup.as_ref().unwrap().answers.form[row] != on {
+            app.press(Action::BAnswer(qrow::FORM, row as u8));
+        }
+    }
+    app.press(Action::BChecklist);
+    if app.backup_items().contains(&bstep::BLANK) {
+        app.press(Action::BNext(bstep::BLANK));
+    }
+    (app, w)
+}
+
+/// The pictures written for the stick are the ones the descriptor's
+/// public file is named by: the item is done once they are there, and
+/// not once the picture it names is gone.
+fn public_item_lists_the_pictures_written(name: &str, descriptor: &str, parts: bool) {
+    let (mut app, w) = checklist_for(name, descriptor);
+    let pictures: Vec<String> = app
+        .public_pictures(w, 8)
+        .into_iter()
+        .map(|p| p.name)
+        .collect();
+    assert_eq!(pictures.len() > 1, parts, "{pictures:?}");
+    let written = |app: &Faraday| -> Vec<String> {
+        app.outbox
+            .iter()
+            .filter(|i| i.name.contains("-descriptor") && i.name.ends_with(".png"))
+            .map(|i| i.name.clone())
+            .collect()
+    };
+    let mut have = written(&app);
+    have.sort();
+    let mut want = pictures.clone();
+    want.sort();
+    assert_eq!(have, want);
+    assert!(app.backup_items().contains(&bstep::PUBLIC));
+    assert!(app.backup_item_done(Item::PublicFiles));
+    // Taking the descriptor's picture (its first part, past one code) off
+    // the stick makes the item not done again.
+    let one = pictures.first().unwrap().clone();
+    app.outbox.retain(|i| i.name != one);
+    assert!(!app.backup_item_done(Item::PublicFiles));
+}
+
+#[test]
+fn the_public_files_item_follows_the_picture_written_for_a_descriptor_that_fits_one_code() {
+    public_item_lists_the_pictures_written("Spending", &testkit::savings(), false);
+}
+
+#[test]
+fn the_public_files_item_follows_the_pictures_written_for_a_descriptor_that_needs_parts() {
+    // A 2-of-15: three seeds at five accounts each.
+    let keys: Vec<String> = (0..5)
+        .flat_map(|a| (0..3).map(move |n| testkit::key(n, &format!("m/48'/1'/{a}'/2'"))))
+        .map(|k| format!("{k}/<0;1>/*"))
+        .collect();
+    let descriptor = format!("wsh(sortedmulti(2,{}))", keys.join(","));
+    public_item_lists_the_pictures_written("Big", &descriptor, true);
 }

@@ -353,6 +353,31 @@ fn a_key_made_here_shows_no_receive_address_until_its_backup_is_done() {
 }
 
 #[test]
+fn the_press_that_completes_the_last_item_shows_the_receive_address_on_the_next_frame() {
+    let mut app = device(Vec::new(), 2400);
+    let (w, fp) = made_here(&mut app);
+    app.press(Action::Backup(w));
+    app.press(Action::BPreset(preset(Preset::Paper)));
+    app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
+    check_the_copy(&mut app, fp);
+    // The checklist is on show with its last item waiting, drawn.
+    let _ = app.drawn_texts();
+    assert!(app.receive_held(&app.session.wallets[w]));
+    app.press(Action::BStep(bstep::ENVELOPE));
+    app.press(Action::BNext(bstep::ENVELOPE));
+    // No frame has been drawn since the press: the key is already
+    // released, and the address is not held back.
+    assert!(!app.key_held(fp));
+    assert!(!app.receive_held(&app.session.wallets[w]));
+    app.press(Action::OpenWallet(w));
+    assert!(!app.drawn_texts().iter().any(|t| t == WARNING));
+    assert!(draws_an_address(&mut app, w));
+}
+
+#[test]
 fn a_restored_key_shows_its_addresses_at_once() {
     let k = testkit::kits()
         .into_iter()

@@ -54,8 +54,20 @@ impl Faraday {
     /// stick is written (`docs/BACKUP-FLOW.md` §10.2), with their backup
     /// not done.
     pub fn held_keys(&self) -> Vec<Fingerprint> {
-        let mut out = self.held_keys_stored();
-        for fp in self.flow_held() {
+        if self.drawing.is_on() {
+            return self
+                .drawing
+                .held
+                .get_or_init(|| self.held_keys_uncached())
+                .clone();
+        }
+        self.held_keys_uncached()
+    }
+
+    fn held_keys_uncached(&self) -> Vec<Fingerprint> {
+        let flow = self.flow_held();
+        let mut out = self.held_keys_stored_with(&flow);
+        for fp in flow {
             if !out.contains(&fp) {
                 out.push(fp);
             }
@@ -88,7 +100,12 @@ impl Faraday {
     /// vault's key record and a plan's `held` lines say. The flow's own
     /// hold is in its state, not in the copies on the sticks.
     pub(crate) fn held_keys_stored(&self) -> Vec<Fingerprint> {
-        let flow = self.flow_held();
+        self.held_keys_stored_with(&self.flow_held())
+    }
+
+    /// [`Faraday::held_keys_stored`] given what [`Faraday::flow_held`]
+    /// returns, so a caller that has it does not work it out again.
+    fn held_keys_stored_with(&self, flow: &[Fingerprint]) -> Vec<Fingerprint> {
         let mut out: Vec<Fingerprint> = self
             .made_here
             .iter()
@@ -145,7 +162,8 @@ impl Faraday {
     /// the wallet's receive addresses is shown, nor any code of one
     /// (`docs/DECISIONS.md` F31).
     pub fn receive_held(&self, wl: &wallet::Wallet) -> bool {
-        if self.held_keys().is_empty() {
+        let held = self.held_keys();
+        if held.is_empty() {
             return false;
         }
         let cs = wl.checksum();
@@ -153,7 +171,7 @@ impl Faraday {
             .wallets
             .iter()
             .position(|w| w.checksum() == cs)
-            .is_some_and(|i| !self.wallet_held(i).is_empty())
+            .is_some_and(|i| !self.wallet_held_in(i, held).is_empty())
     }
 
     /// An address of `wl` as every screen shows it, in groups, and whether

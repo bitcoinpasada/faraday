@@ -5334,18 +5334,34 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let waiting_title = waiting.map(|n| item_title(app, n).0);
     let ctx = crate::plan_cards::PlanCtx::backup(app);
+    // Each item's done mark, and whether it is reachable (every item
+    // before it done), in one pass (`Faraday::backup_reachable`, for a
+    // press, asks the same of one item).
+    let marks: Vec<bool> = if checklist {
+        steps
+            .iter()
+            .map(|&k| crate::bstep::item(k).is_some_and(|it| app.backup_item_done(it)))
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let mut before_done = true;
+    let reachable: Vec<bool> = marks
+        .iter()
+        .map(|&d| {
+            let r = before_done;
+            before_done &= d;
+            r
+        })
+        .collect();
     let cards: Vec<flow::Card> = steps
         .iter()
-        .map(|&k| {
+        .enumerate()
+        .map(|(i, &k)| {
             if checklist {
                 let (title, summary) = item_title(app, k);
                 let summary = match (&waiting_title, waiting) {
-                    (Some(t), Some(n))
-                        if n != k
-                            && !app.backup_reachable(k)
-                            && !crate::bstep::item(k)
-                                .is_some_and(|it| app.backup_item_done(it)) =>
-                    {
+                    (Some(t), Some(n)) if n != k && !reachable[i] && !marks[i] => {
                         fill(EN.backup_after, &[&t.to_string()])
                     }
                     _ => summary,
@@ -5354,7 +5370,7 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     title,
                     summary,
                     mono: false,
-                    done: crate::bstep::item(k).is_some_and(|it| app.backup_item_done(it)),
+                    done: marks[i],
                     open: b.open == Some(k),
                     default: false,
                     toggle: Action::BStep(k),
@@ -5417,10 +5433,7 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let scroll = b.scroll;
     ui.chip_at = None;
-    let all_done = checklist
-        && steps
-            .iter()
-            .all(|&k| crate::bstep::item(k).is_some_and(|it| app.backup_item_done(it)));
+    let all_done = checklist && marks.iter().all(|&d| d);
     let (next, again) = {
         let app_ref: &Faraday = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {

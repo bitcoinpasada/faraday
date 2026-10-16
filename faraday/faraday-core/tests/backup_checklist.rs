@@ -484,3 +484,141 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
         "two vault files for the sticks"
     );
 }
+
+/// A drawn string and its box in pixels.
+type TextBox = (String, (i32, i32, i32, i32));
+
+/// Whether the card titled `title` shows a tick: its number, drawn left
+/// of its title, is gone.
+fn ticked(boxes: &[TextBox], title: &str, number: usize) -> bool {
+    let (_, (x, y, _, _)) = boxes
+        .iter()
+        .find(|(t, _)| t == title)
+        .unwrap_or_else(|| panic!("no card titled {title:?} in {boxes:?}"));
+    !boxes
+        .iter()
+        .any(|(t, (bx, by, _, _))| *t == number.to_string() && bx < x && (by - y).abs() < 24)
+}
+
+/// The copy by hand of the wallet's seed `i`, checked by its numbers
+/// typed back.
+fn check_copy(app: &mut Faraday, w: usize, i: usize) {
+    let k = app.backup_seed_list(w)[i].1.expect("the seed is here");
+    let words = app.session.keys[k].words.as_ref().unwrap().to_string();
+    let digits = osk_codec::seedqr::to_digits(&Mnemonic::parse(Language::English, &words).unwrap());
+    let item = bstep::COPY + i as u8;
+    if app.backup.as_ref().unwrap().open != Some(item) {
+        press_offered(app, Action::BStep(item));
+    }
+    app.press(Action::BReveal);
+    app.storage(StorageEvent::Cameras(Vec::new()));
+    press_offered(app, Action::BCheck);
+    type_text(
+        app,
+        std::str::from_utf8(digits.expose().as_bytes()).unwrap(),
+    );
+    assert!(done(app, Item::Copy(i)), "copy {i} did not check");
+}
+
+#[test]
+fn through_a_2_of_3_checklist_the_cards_tick_what_is_done_and_the_rest_wait_for_the_first_not_done()
+{
+    let mut app = device(Vec::new());
+    // Tall enough that every card is drawn.
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 2400,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    let w = two_of_three_two_here(&mut app);
+    app.press(Action::Backup(w));
+    press_offered(&mut app, Action::BPreset(0));
+    press_offered(&mut app, Action::BChecklist);
+    assert_eq!(
+        app.backup_items(),
+        vec![
+            bstep::BLANK,
+            bstep::COPY,
+            bstep::COPY + 1,
+            bstep::SHEETS,
+            bstep::ENVELOPE,
+            bstep::STICKS
+        ]
+    );
+    let seed = |i: usize| app.backup_seed_list(w)[i].0.clone();
+    let titles = [
+        "Print 2 blank templates".to_string(),
+        format!("Copy seed {} by hand", seed(0)),
+        format!("Copy seed {} by hand", seed(1)),
+        "The wallet sheet".to_string(),
+        "One envelope per place".to_string(),
+        "Write to sticks".to_string(),
+    ];
+    // After each press: the cards ticked, and the first one not done,
+    // which every card after it not done names.
+    let check = |app: &mut Faraday, ticks: [bool; 6], waiting: Option<&str>| {
+        app.settle();
+        let boxes = app.drawn_text_boxes();
+        for (i, title) in titles.iter().enumerate() {
+            assert_eq!(ticked(&boxes, title, i + 1), ticks[i], "{title}: {boxes:?}");
+        }
+        let after: Vec<&str> = boxes
+            .iter()
+            .filter(|(t, _)| t.starts_with("After: "))
+            .map(|(t, _)| t.as_str())
+            .collect();
+        match waiting {
+            Some(first) => {
+                let behind = ticks
+                    .iter()
+                    .enumerate()
+                    .filter(|&(i, done)| !done && titles[i] != first)
+                    .count();
+                assert_eq!(after.len(), behind, "{after:?}");
+                assert!(
+                    after.iter().all(|t| *t == format!("After: {first}")),
+                    "{after:?}"
+                );
+            }
+            None => assert!(after.is_empty(), "{after:?}"),
+        }
+    };
+    // The sheet is made with the checklist; nothing else is.
+    check(
+        &mut app,
+        [false, false, false, true, false, false],
+        Some(&titles[0]),
+    );
+    app.press(Action::BNext(bstep::BLANK));
+    check(
+        &mut app,
+        [true, false, false, true, false, false],
+        Some(&titles[1]),
+    );
+    check_copy(&mut app, w, 0);
+    check(
+        &mut app,
+        [true, true, false, true, false, false],
+        Some(&titles[2]),
+    );
+    check_copy(&mut app, w, 1);
+    check(
+        &mut app,
+        [true, true, true, true, false, false],
+        Some(&titles[4]),
+    );
+    press_offered(&mut app, Action::BStep(bstep::ENVELOPE));
+    press_offered(&mut app, Action::BNext(bstep::ENVELOPE));
+    check(
+        &mut app,
+        [true, true, true, true, true, false],
+        Some(&titles[5]),
+    );
+}

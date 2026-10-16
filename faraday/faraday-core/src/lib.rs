@@ -26,6 +26,7 @@ pub mod create;
 pub mod decode;
 pub mod demo;
 pub mod devices;
+mod drawing;
 pub mod edid;
 pub mod explore;
 pub mod family;
@@ -2022,6 +2023,28 @@ pub(crate) fn picture_codes(text: &str) -> Result<Vec<osk_codec::qr::QrMatrix>, 
         .map_err(send_error)
 }
 
+/// The file names of the pictures [`picture_codes`] makes of `text`,
+/// without making them: `{name}.png` for one code, else
+/// `{name}{part}{j}-of-{k}.png` for each of the `k` parts, and none when
+/// the text cannot be sent as parts. Costs the splitting of `text` into
+/// BBQr parts when it needs more than one code, and no code is drawn.
+pub(crate) fn picture_names(name: &str, part: &str, text: &str) -> Vec<String> {
+    use osk_codec::qr::{Ecc, byte_capacity};
+    if text.len() <= byte_capacity(25, Ecc::Medium) {
+        return vec![format!("{name}.png")];
+    }
+    let Some(parts) = faraday_qr::bbqr::encode('U', text.as_bytes(), QR_PARTS[1]) else {
+        return Vec::new();
+    };
+    let k = parts.len();
+    if k == 1 {
+        return vec![format!("{name}.png")];
+    }
+    (1..=k)
+        .map(|j| format!("{name}{part}{j}-of-{k}.png"))
+        .collect()
+}
+
 /// The line that names a cosigner's key under its code: `Key {fp} ·
 /// {kind} · {path}`, the path read from the key's `[fp/path]` origin.
 fn key_label(fp: &str, kind: &str, key: &str) -> String {
@@ -3107,6 +3130,9 @@ pub struct Faraday {
     /// (`docs/NEW-WALLET.md` §14.3): they sign nothing until it is. Never
     /// a secret; kept in a vault beside the seed and in the plan record.
     made_here: Vec<osk_bip::keys::Fingerprint>,
+    /// What a frame works out once (`docs/SPEED.md` §3.3): on only while
+    /// `render` runs.
+    drawing: drawing::Drawing,
     /// The last number given to a Make a new wallet or a Restore, which a
     /// wallet's backup flow is tied to while the wallet is being made.
     owner_seq: u64,
@@ -3491,6 +3517,7 @@ impl Faraday {
             input_decisions: VecDeque::new(),
             new_keys: 0,
             made_here: Vec::new(),
+            drawing: drawing::Drawing::default(),
             owner_seq: 0,
             // A new GPG key's term starts at GnuPG's default, never at "never".
             vaults: {
@@ -6949,10 +6976,24 @@ impl Faraday {
     /// them: a name each (its fingerprint, or a share not here by number)
     /// and the session key that holds it, when its words are here.
     pub fn backup_seed_list(&self, w: usize) -> Vec<(String, Option<usize>)> {
+        if self.drawing.is_on()
+            && let Some((_, list)) = self
+                .drawing
+                .seed_lists
+                .borrow()
+                .iter()
+                .find(|(k, _)| *k == w)
+        {
+            return list.clone();
+        }
         let Some(wallet) = self.session.wallets.get(w) else {
             return Vec::new();
         };
-        self.backup_seed_list_of(wallet)
+        let list = self.backup_seed_list_of(wallet);
+        if self.drawing.is_on() {
+            self.drawing.seed_lists.borrow_mut().push((w, list.clone()));
+        }
+        list
     }
 
     /// [`Faraday::backup_seed_list`] for a wallet that need not be loaded.
@@ -7005,8 +7046,21 @@ impl Faraday {
     }
 
     /// What wallet `w`'s plan is for: its quorum, its seeds and whether
-    /// its description splits.
+    /// its description splits. Searches the session's keys; kept for the frame while one is drawn.
     pub fn plan_shape(&self, w: usize) -> plan::Shape {
+        if self.drawing.is_on()
+            && let Some((_, shape)) = self.drawing.shapes.borrow().iter().find(|(k, _)| *k == w)
+        {
+            return shape.clone();
+        }
+        let shape = self.plan_shape_uncached(w);
+        if self.drawing.is_on() {
+            self.drawing.shapes.borrow_mut().push((w, shape.clone()));
+        }
+        shape
+    }
+
+    fn plan_shape_uncached(&self, w: usize) -> plan::Shape {
         let Some(wallet) = self.session.wallets.get(w) else {
             return plan::Shape {
                 m: 1,
@@ -7245,8 +7299,20 @@ impl Faraday {
         }
     }
 
-    /// The backup's checklist, by [`bstep`]: only what the plan needs.
+    /// The backup's checklist, by [`bstep`]: only what the plan needs. Works out the plan's shape
+    /// (kept for the frame while one is drawn).
     pub fn backup_items(&self) -> Vec<u8> {
+        if self.drawing.is_on() {
+            return self
+                .drawing
+                .items
+                .get_or_init(|| self.backup_items_uncached())
+                .clone();
+        }
+        self.backup_items_uncached()
+    }
+
+    fn backup_items_uncached(&self) -> Vec<u8> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
@@ -7358,6 +7424,34 @@ impl Faraday {
     /// [`Faraday::backup_public_names`] for loaded wallet `wi` under
     /// answers `a`.
     pub(crate) fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<String> {
+        // Kept only for the backup's own answers: another caller's
+        // answers are another question.
+        let own = self.drawing.is_on()
+            && self
+                .backup
+                .as_ref()
+                .is_some_and(|b| b.wallet == wi && b.answers == *a);
+        if own
+            && let Some((_, names)) = self
+                .drawing
+                .public_names
+                .borrow()
+                .iter()
+                .find(|(k, _)| *k == wi)
+        {
+            return names.clone();
+        }
+        let names = self.backup_public_names_uncached(wi, a);
+        if own {
+            self.drawing
+                .public_names
+                .borrow_mut()
+                .push((wi, names.clone()));
+        }
+        names
+    }
+
+    fn backup_public_names_uncached(&self, wi: usize, a: &plan::Answers) -> Vec<String> {
         let Some(w) = self.session.wallets.get(wi) else {
             return Vec::new();
         };
@@ -7373,7 +7467,13 @@ impl Faraday {
                 _ => format!("{stem}-bitcoin-core.json"),
             };
             let picture = match what {
-                1 => self.public_pictures(wi, 8).first().map(|p| p.name.clone()),
+                1 => picture_names(
+                    &format!("{stem}-descriptor"),
+                    "-",
+                    &w.policy().to_descriptor_checksummed(),
+                )
+                .into_iter()
+                .next(),
                 2 => Some(format!("{stem}-multisig-config.png")),
                 6 => Some(format!("{stem}-bsms.png")),
                 _ => None,
@@ -7434,10 +7534,23 @@ impl Faraday {
         out
     }
 
-    /// Whether a checklist item is done, by what it does: its file For
+    /// Whether a checklist item is done, by what it does (it names files and may read the
+    /// outbox, so kept for the frame while one is drawn): its file For
     /// the stick or written, its seeds or the wallet in the open vault, the copy
     /// matched, the descriptor shown; the envelopes alone by a press.
     pub fn backup_item_done(&self, item: plan::Item) -> bool {
+        if self.drawing.is_on() {
+            if let Some((_, done)) = self.drawing.done.borrow().iter().find(|(i, _)| *i == item) {
+                return *done;
+            }
+            let done = self.backup_item_done_uncached(item);
+            self.drawing.done.borrow_mut().push((item, done));
+            return done;
+        }
+        self.backup_item_done_uncached(item)
+    }
+
+    fn backup_item_done_uncached(&self, item: plan::Item) -> bool {
         let Some(b) = self.backup.as_ref() else {
             return false;
         };
@@ -8013,20 +8126,19 @@ impl Faraday {
         let pictures = |name: &str, part: &str, text: &str, lines: Vec<String>| {
             let codes = picture_codes(text).unwrap_or_default();
             let k = codes.len();
+            let names = picture_names(name, part, text);
             codes
                 .into_iter()
+                .zip(names)
                 .enumerate()
-                .map(|(j, code)| {
-                    let (name, mut label) = if k == 1 {
-                        (format!("{name}.png"), Vec::new())
+                .map(|(j, (code, name))| {
+                    let mut label = if k == 1 {
+                        Vec::new()
                     } else {
-                        (
-                            format!("{name}{part}{}-of-{k}.png", j + 1),
-                            vec![fill(
-                                EN.public_pictures_part,
-                                &[&(j + 1).to_string(), &k.to_string()],
-                            )],
-                        )
+                        vec![fill(
+                            EN.public_pictures_part,
+                            &[&(j + 1).to_string(), &k.to_string()],
+                        )]
                     };
                     label.extend(lines.iter().cloned());
                     picture::Labelled {
@@ -11504,7 +11616,16 @@ impl Faraday {
         }
     }
 
+    /// Draws the frame. Costs a full draw of the screen; the answers the
+    /// backup's cards share are worked out once and kept only until it
+    /// returns, by whatever way it returns.
     fn render(&mut self) {
+        self.drawing.start();
+        self.render_frame();
+        self.drawing.clear();
+    }
+
+    fn render_frame(&mut self) {
         let Some(mut canvas) = self.canvas.take() else {
             return;
         };
@@ -11962,6 +12083,21 @@ pub(crate) fn stem(name: &str) -> String {
 
 impl App for Faraday {
     fn event(&mut self, event: Event) {
+        // Whether the event can complete a checklist item: pointer
+        // moves, scrolls, hovers, camera frames and ticks cannot
+        // (`docs/SPEED.md` §3.5).
+        let settle = matches!(
+            event,
+            Event::Touch {
+                phase: TouchPhase::Down | TouchPhase::Up,
+                ..
+            } | Event::Key(_)
+                | Event::Back
+                | Event::Forward
+                | Event::Scanned { .. }
+                | Event::CameraUnavailable
+                | Event::Display(_)
+        );
         match event {
             Event::Display(d) => self.display(d),
             Event::Touch { x, y, phase } => {
@@ -12217,7 +12353,9 @@ impl App for Faraday {
             }
             _ => return,
         }
-        self.backup_settle();
+        if settle {
+            self.backup_settle();
+        }
         self.dirty = true;
         self.commands.push_back(Command::Draw);
     }
