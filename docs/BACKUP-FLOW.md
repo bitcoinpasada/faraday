@@ -1772,3 +1772,327 @@ pull; at 480x640 a five-stick flow fits on one row in numbers alone;
 the first backup stick is Stick 2 on every shell.
 Render the flow's Bring in the sticks at 480x640 and 1280x800 with the
 pills.
+
+
+## 19. The backup board (F37)
+
+(owner, 2026-10-15.) The plan's place cards and Where the description
+goes (§17.1 items 2, 3 and 5) were a set of tick lists the owner found
+confusing. They become one board: a card for each place, each card
+divided into where a thing can be at that place (on a stick, inside a
+vault on a stick, on paper), and beside the cards a list of everything
+the backup can keep. The person drags a thing from the list into a
+place, or from one place to another. The plan underneath is the map of
+§17.2, unchanged in kind: each drop is a map edit (`plan::Edit`).
+
+Scope: Faraday Desktop and the PC stick, at any window width (§19.12
+item 3 for a narrow window). The Pi is not considered here.
+
+### 19.1 The board
+
+The plan card's body, from Places to Where the description goes, is
+replaced by the board, and so is The wallet description's Whole or In
+shares (item 4): the shares are in the board's list. Start from (§17.1
+item 1), Software's choice of software (item 6) and The plan with Make
+the checklist (item 7) stay as cards.
+
+**The places.** A row of place cards, wrapping to more rows when they
+do not fit. Each card is a rounded rectangle (DESIGN §4.17) with the
+place's name at the top (typed while a vault is open, as §17.7 says;
+"Place n" otherwise), an × at its top right that removes it (with what
+it holds, `Edit::RemovePlace` with no destination), and under the name
+its zones, top to bottom:
+
+- **Stick 1, Stick 2 …**: one zone per stick the place keeps. A stick
+  zone has two parts: the vault on it, when one is ("Vault 1", and what
+  the vault holds, §19.3), and its files. A stick with no vault is a
+  stick of files. A place starts with no sticks; dropping a file or a
+  vault on the card's **+ stick** row, or on the stick part of an
+  empty card, makes one.
+- **Paper**: what the place keeps on paper.
+- Under the zones, the place's line of fact: what someone who finds this
+  place alone gets (`plan::alone` for that place, as §17.1 words it).
+
+After the last card, a **+** card adds an empty place. There is no
+count to set first: the board starts with one empty place.
+
+**The software place.** The list's **Watch-only software** entry is a
+place too, kind software, at most one: its card is titled with the
+software chosen (or "Watch-only software"), has stick zones like any
+place, and in place of Paper a zone **Scanned in**: the description
+shown as a QR code for the software to scan, nothing kept. It counts in
+the checks as a place that keeps what it holds (the description, never
+a seed).
+
+**The list.** On the right of the board, the things the backup can keep,
+grouped, each a chip (DESIGN §4.17):
+
+- **Seeds**: one chip per seed of the wallet, named as today (its label
+  or fingerprint). A seed whose key is not here (a cosigner's) is drawn
+  dim, reads "Not here" and cannot be dragged.
+- **Passphrases**: one chip per seed with a passphrase.
+- **Wallet description**: **Whole**, and for a wallet whose
+  description splits (`Shape::splits`, a multisig) the partial
+  descriptions, **Share 1 … Share n**, always, with no Whole or In
+  shares to choose first. Above the shares, **Keys left off each share**
+  as a stepper (0 to `min(m−1, n−1)`, the slider of §17.1 item 4), and
+  under each share chip the keys it carries, by fingerprint. A share is
+  made from the wallet when it is shown or written (`backup::split_plan`,
+  `split_share`); nothing is made before. Changing the keys left off
+  changes what each share carries and leaves every placed share where it
+  is; the checks follow at once. Whole and shares may both be placed;
+  the checks count the description kept where the whole is, or where
+  enough shares are to rebuild it, as `check` does today.
+- **Vaults**: one chip per vault of the plan, and **+ vault**, which
+  adds one (the vault rows of §10.2: a vault the plan makes).
+- **Watch-only software**, while the board has no software place.
+
+A chip in the list never runs out: dragging it places a copy. Each list
+chip shows how many places keep it ("2 places"), and nothing when none
+does.
+
+### 19.2 Moving things
+
+- **Drag** a chip from the list onto a zone: the thing is kept there
+  (`Edit::Add`). From one zone to another: moved (`Edit::Move`). From a
+  zone back onto the list, or by the × on a placed chip: taken off
+  (`Edit::Drop`). A vault chip dragged onto a place card puts the
+  vault's stick there: on the card's first stick with no vault, or on a
+  new stick when every stick there carries one.
+- **Tap to place**, for a trackpad, a touchscreen or anyone who does not
+  drag: a press on a list chip selects it (edged); the zones that take
+  it are edged too; a press on one places it; a press anywhere else, or
+  on the chip again, lets it go. The same for a placed chip: selected,
+  then a press on another zone moves it.
+- While a chip is dragged it follows the pointer, and the zone under it
+  that takes it is edged; a zone that does not take it (§19.3) is not.
+  A press that moves past the slop (as scrolling's) is a drag; a press
+  that does not is a tap.
+- Each drop is one map edit, so the checks (§19.5) and every card's line
+  of fact are current on the next frame.
+
+### 19.3 What each zone keeps, and in what form
+
+A thing placed in a zone is one chip there; its forms are the marks on
+it ("Seed A · Words · SeedQR"). A drop places the first form of the
+zone's row below; a press on the placed chip opens a small popup of its
+forms as checkboxes (DESIGN §4.2), at least one ticked. Each form is its
+own `What` on the map, so turning a form on or off is `Edit::Add` or
+`Edit::Drop` of that `What`, and the plan's text, the checks and the
+checklist read forms as they read everything else.
+
+| Zone | A seed *i* | Its passphrase | The description, or share *j* |
+|---|---|---|---|
+| Paper | `Words(i)`, `SeedQr(i)` | `Passphrase(i)` | `Sheet`, or `Share(j)`, as today |
+| Stick (files) | `SeedFile(i)` (words, `.txt`), `SeedQrFile(i)` (`.png`) | `PassphraseFile(i)` (`.txt`) | `WalletFile(form)`, `ShareFile(j, form)`: `form::TEXT` (`.txt`), `form::QR` (`.png`); and `SoftwareFile`, the chosen software's own file |
+| Vault | `Seed(i)` | `SeedPassphrase(i)`, with its seed | `Wallet`, or `Share(j)` |
+| Scanned in (software) | | | `Wallet` at `At::Software`, as today |
+
+- New `What`s: `SeedQrFile(i)` and `PassphraseFile(i)` (tag Secret),
+  `SoftwareFile` (Public). `WalletFile` and `ShareFile(j)` gain the form
+  they are (today the plan's global `form` answers decide it); a plan
+  saved before this change reads its `WalletFile` as every form its
+  `form` answers had on.
+- **A vault keeps records only**: the seed as its key record, its
+  passphrase stored with it, the description as its wallet record, a
+  share as its share record (§17.6). No file goes into a vault. A
+  passphrase dropped into a vault becomes `SeedPassphrase(i)` there when
+  the vault holds its seed; a vault that does not hold the seed does not
+  take the passphrase (there is no record for a passphrase alone), and
+  its zone is not edged for it.
+- **A vault at several places** is one vault: what it holds is drawn in
+  its zone at every place that keeps its stick, with a link mark (DESIGN
+  §4.17), and a drop into it at one place is in it at all of them.
+
+### 19.4 Sticks in the model
+
+- New `At::Stick(p, s)`: stick *s* (from 0) at place *p*. It holds at
+  most one `VaultStick(v)` and any of the stick forms of §19.3. Paper
+  forms stay at `At::Place(p)`.
+- A plan saved before this change reads as it did: at each place, each
+  `VaultStick(v)` becomes a stick of its own, in vault order, and the
+  place's files, when it has any, a stick of files after them (the "stick
+  of files for {place}" of §17.2). The old `At::Files` stick stays
+  read-only as §17.1 item 5 left it.
+- **The checklist's write step** (§4.6) writes each stick in its place's
+  turn: the vault on it, when one is, and its files, in one visit. The
+  stick's binding (§4.6's label, serial, listing and the vault files'
+  SHA-256) is taken after both are written, so the listing includes the
+  files. Survey §4.6's binding before building: it must accept files
+  beside a vault on one stick.
+- The stick pills (§18) number every stick of every place.
+
+### 19.5 Checks are warnings
+
+Nothing is refused for being unwise. Every check of the plan (`check`,
+`alone`, `all_at_one_place`, `lost_why`, `kept_nowhere`, and the rule
+that a passphrase is not kept where its words are) is a line under the
+board, current on every drop, and a placed chip that a check names
+carries a warning mark (in `WARN`, as a held address is drawn). Examples:
+"Seed B is kept nowhere", "Losing Home loses the wallet", "Home keeps
+Seed A's words with its passphrase".
+
+**Make the checklist** is offered with any warning standing, except
+a seed kept nowhere, which holds The plan card as today (§17.1): with
+it the checklist would release the hold on a key that has no backup
+(F31).
+
+### 19.6 Presets
+
+The board starts empty: one empty place, nothing kept. **Start from**
+stays above the board, and a preset fills the board as it fills the
+map today; the person changes it by dragging. Presets that make sense
+of the board (sticks, forms) are a later question for the owner.
+
+### 19.7 A vault's key and wallet, shown and saved
+
+The vault's contents screen (`vault_screens.rs` `detail`) gains, so the
+PNG and text forms need not be kept in a vault:
+
+- On a key record: **Show SeedQR**, behind the same hold-to-reveal as
+  its words, the code made from the record at that moment; and **Save to
+  a stick**, a popup with Words (`.txt`) and SeedQR (`.png`), one or
+  both, then the stick, as Files' save does. The popup says "Anyone who
+  finds this stick has this seed", as a seed file on the board does.
+- On a wallet record: **Show as QR**, the QR view the Wallets page uses
+  (several codes for a long descriptor); and **Save to a stick**:
+  Descriptor (`.txt`), QR (`.png`), and the software files Back up
+  makes.
+
+Nothing new is stored in the vault.
+
+### 19.8 Strings
+
+New, in `faraday/faraday-strings/src/en.rs`: "+ stick", "Stick {}",
+"Paper", "Scanned in", "Watch-only software", "Seeds", "Passphrases",
+"Wallet description", "Whole", "Share {}", "Vaults", "+ vault", "Not
+here", "{} places" and "1 place", the form names ("Words", "SeedQR",
+"Words file", "SeedQR file", "Passphrase file", "Text file", "QR
+picture", "{} file" for the software's), the check lines of §19.5,
+"Show SeedQR", "Save to a stick", "Anyone who finds this stick has this
+seed". §17's strings the board no longer draws are removed.
+
+### 19.9 Tests
+
+`faraday-core/tests/backup_board.rs`, through the app's events as a
+person makes them (a press, moves past the slop, a lift), on a 2-of-3
+with three keys made here unless said:
+
+- The board starts with one empty place and nothing kept; **+** adds a
+  place; × removes it and what it kept.
+- Dragging Seed A onto Place 1's Paper keeps its words there; its
+  popup's SeedQR adds the SeedQR; the chip reads both forms; the map
+  holds `Words(0)` and `SeedQr(0)` at Place 1.
+- Tap to place gives the same map as the drag.
+- Dragging Vault 1 onto Place 1 and onto Place 3 makes a stick at each;
+  Seed A dropped into Vault 1 at Place 1 is drawn in Vault 1 at Place 3
+  too, and the map holds it once, in the vault.
+- A second vault dropped on Place 1 goes on a second stick there.
+- Seed B's words `.txt` dropped on Place 1's Stick 1 beside Vault 1:
+  the write step writes the vault and the file on that one stick, and
+  the stick is recognised afterwards.
+- A passphrase dropped on paper that keeps its words is kept, with the
+  warning line and mark; Make the checklist is still offered.
+- A seed kept nowhere holds The plan card.
+- A cosigner's seed is dim and does not move.
+- Shares: with no choice made, the list offers Share 1 to Share 3 of
+  the 2-of-3; Share 1 on Home's Paper and Share 2 in Vault 1 are on the
+  map there; changing the keys left off from 1 to 0 changes the keys
+  each share chip lists and leaves both where they are; the checks say
+  the description is kept when two shares together rebuild it.
+- The software place: its card, the description Scanned in, and a
+  stick there with the software's file; losing every other place, the
+  checks count the description as kept.
+- A plan text saved before this change loads, its vault sticks and its
+  stick of files on sticks of their own, and the checklist it makes is
+  the one it made before.
+- Vault contents: Show SeedQR reveals only while held; Save to a stick
+  writes the chosen files and says the seed line first; a wallet's Save
+  writes its descriptor files.
+
+The tests that pressed §17's place cards are changed to make the same
+plans on the board, keeping what each checked; none is deleted.
+
+### 19.10 Docs and design
+
+- `docs/DESIGN.md` gains §4.17 **Board**: the place card, its zones,
+  the chip (in the list, placed, selected, dragged, with a link mark,
+  with a warning mark), the edged drop target. Sizes are tokens in
+  `core/osk-ui/src/tokens.rs` (CLAUDE.md).
+- `docs/DECISIONS.md` F37. §17.1 items 2, 3 and 5 are marked "Replaced
+  by §19 on `wide`".
+- The board redraws on every pointer move while a chip is dragged: it
+  draws through the drawing memo of `docs/SPEED.md` §3.3, and its batch
+  is timed by SPEED §7. SPEED batch B goes first.
+
+### 19.12 Further rules (owner, 2026-10-15)
+
+1. **Both plan cards.** The board replaces the place cards in Back up
+   and in the wallet's guided backup flow (§17.7), drawn by the same
+   code (`plan_cards.rs`) on each one's own plan.
+2. **Place names** are typed by a press on the card's name, while a
+   vault is open, as §17.7 says; otherwise the name is not a field.
+3. **A narrow window.** Where the cards and the list do not fit side by
+   side (the `compact` layout of a narrow Desktop window or a small
+   screen), the place cards stack in one column that scrolls (the
+   column's scroll and overlay scrollbar, as every page has), and the
+   list is a sheet opened by **Add**, at the column's top. Placing is
+   by tap only there: a press on a list chip in the sheet closes the
+   sheet with the chip selected, and a press on a zone places it. A
+   placed chip's forms open as on `wide`. §17's cards are not drawn on
+   Desktop or the PC stick any more.
+4. **A passphrase in a vault on its own.** A new vault record, type 14
+   **Passphrase** (`docs/VAULT.md` §7): the passphrase of the key whose
+   fingerprint it names, without the key's words. A passphrase dropped
+   into a vault that does not hold its seed is kept there as this
+   record (new `What::PassphraseSealed(i)`, tag Sealed); a vault that
+   holds its seed keeps it in the key record as today. Loading a key
+   whose passphrase is in another open vault offers it, as a stored
+   passphrase is offered today.
+5. **Read back.** Every form the board can keep is read back by Restore
+   (the Inbox and Restore by kind): a words file, a SeedQR picture, a
+   passphrase file, the description's text and QR picture, a share's
+   text and QR picture, the software's file. Tests: for each form, a
+   wallet backed up with that form at one place is restored from that
+   place's contents alone (with the passphrase and the other shares from
+   where the plan put them).
+6. **File names**, as Back up names files today: `{wallet}-descriptor.txt`
+   and `.png`, `{wallet}-share-{j}.txt` and `.png`, the software's own
+   name for its file; for a seed, `seed-{fingerprint}.txt`,
+   `seedqr-{fingerprint}.png` and `passphrase-{fingerprint}.txt`. Each
+   stick's files are one checklist item with the stick's write (§19.4);
+   paper forms are the copy items they are today.
+7. **Vaults.** The same vault may have two sticks at one place: dropping
+   it on a place that has it adds a stick. A vault leaves the plan by the
+   × on its list chip, its sticks with it, with a warning line when it
+   holds anything. A vault that already exists (made before this backup,
+   with contents) shows what it held before in its zones, read-only and
+   dimmed; §17.8 says what may be taken out of it.
+8. **After the lock** (§17.8): Paper and every stick's file part take no
+   drops and no form changes, and a press on them says §17.8's line;
+   vault zones and vault sticks change as §17.8 allows. This is not one
+   of §19.5's warnings: after the lock no key is loaded, so nothing can
+   be written to paper or a file.
+9. **Keyboard.** Placing by keyboard alone is not specified here; a
+   later batch.
+10. **Read back after the write** (owner, 2026-10-15). At the write step,
+   each file written to a stick is read back from the stick at once and
+   checked against what was meant: a text file's bytes; a SeedQR or QR
+   picture decoded (`faraday-scanner`) to the seed's words or the
+   description's text. A file that does not read back is written again
+   once; if it still does not, the stick's item is not done and the card
+   says "{file} did not read back from {stick}; try another stick". This
+   is beside §4.6's binding, which checks the vault files and the
+   listing.
+
+### 19.11 Batches
+
+- **F1, the model**: `At::Stick`, the new `What`s and forms, reading old
+  plans, the write step's sticks and file names, the passphrase record
+  Restore reading every form, and the read back after the write (§19.3,
+  §19.4, §19.12 items 4–7, 10).
+  Tests on the map, the checklist and the round trips.
+- **F2, the board**: the cards, the list, drag and tap to place, forms
+  popup, warnings, both plan cards, place names, the narrow column, the
+  lock (§19.1, §19.2, §19.5, §19.6, §19.12 items 1–3, 8), DESIGN §4.17.
+- **F3, the vault's show and save** (§19.7). Independent of F1 and F2.

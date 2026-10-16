@@ -2768,6 +2768,15 @@ as possible before the next build.
     keep secrets out of every kept value and decisions off the memo.
     Draft spec, waiting for the owner's read; then measure, batch A.
 
+78. [ ] 2026-10-15, owner: **the backup board** (`docs/BACKUP-FLOW.md`
+    §19, F37). The plan's place cards become a board: a card per place
+    with its sticks (a vault on each or not, and files) and its paper,
+    a list of what can be kept beside it, drag or tap to place, forms
+    per thing, warnings never refusals, watch-only software as a place,
+    and a vault's key and wallet shown as QR and saved to a stick from
+    its contents screen. `wide` only. Batches F1 (model), F2 (board),
+    F3 (vault show and save). After SPEED batch B.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:

@@ -1586,3 +1586,40 @@ it is, and Faraday Desktop's pills existed only on the desktop.
   Pi's small panel.
 - Specified, not built.
 
+
+### F37 The backup plan is a board of places (2026-10-15)
+
+**Why.** F35's place cards asked through tick lists and popups, which
+the owner found confusing; a person thinks of a backup as things put in
+places, and wants to see it that way.
+
+**Decision** (owner, 2026-10-15; the spec is `docs/BACKUP-FLOW.md` §19).
+
+- A card for each place, its name at the top; in each, its sticks (each
+  with a vault on it or not, and files), its paper; beside the cards a
+  list of the seeds, passphrases, the description, its shares (the
+  partial descriptions, always offered for a multisig, with the keys
+  left off each share beside them), the vaults and watch-only software. The person drags things into places,
+  or taps to place them.
+- A place may keep more than one stick; a stick carries at most one
+  vault, and may carry files beside it.
+- Each thing at a place has its forms: on paper words and SeedQR; on a
+  stick a words text file and a SeedQR picture, the description as text,
+  QR picture and the software's file.
+- A vault keeps records only (a key, its passphrase, the wallet, a
+  share); its contents screen shows a key's SeedQR and a wallet's QR
+  and saves them to a stick as files when asked.
+- Watch-only software is a place: sticks, and the description scanned
+  in.
+- The board starts empty, with one place; + and × add and remove places.
+  Presets stay as a way to fill it.
+- Unwise plans are warned about, never refused; only a seed kept
+  nowhere holds the checklist.
+- Desktop and the PC stick at any width: a narrow window stacks the
+  places in one scrolling column, the list in a sheet, tap to place.
+  Not the Pi for now.
+- A passphrase may be kept in a vault without its seed (a new vault
+  record), and every form the board keeps is read back by Restore;
+  each file is read back from its stick right after it is written.
+- After the lock, paper and files stay as made (§17.8); vaults change.
+- Specified, not built.
