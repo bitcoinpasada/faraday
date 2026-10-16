@@ -2226,11 +2226,11 @@ Decided after seeing F2a's board; built in F2b. Where this differs from
    column, full height, scrolling on its own, and the place cards take
    the whole main column. The Map's per-place lists go, since the cards
    show the same.
-4. **The summary checks on top.** The Map's three checks ("Any one place
-   lost: the rest rebuild the wallet", "One place found: can spend",
-   "One place found: sees the balance", each with its yes or no) are at
-   the top of the list column, above the list's groups. The warning
-   lines (§19.5) stay under the board.
+4. **The summary checks at the bottom.** The Map's three checks ("Any
+   one place lost: the rest rebuild the wallet", "One place found: can
+   spend", "One place found: sees the balance", each with its yes or no)
+   are under the board, with the warning lines (§19.5). The top of the
+   board is kept for the access layers' row (§20.7).
 5. Not changed: the checklist stage, after **Make the checklist**, keeps
    its side panel and Map (a choice: the owner has not ruled on it);
    a narrow window keeps the list as a sheet opened by **Add**.
@@ -2309,8 +2309,8 @@ large as it can be.
    then the fewest things kept (copies, sticks, vaults, written
    passwords), then the fewest secrets kept unsealed.
 3. The board shows the result. The person may change anything on it;
-   every change checks every layer again and the margin, as lines at
-   the top of the list column: one per layer ("Access layer 3: Place 1,
+   every change checks every layer again and the margin, as lines
+   under the board (in the All view, §20.7): one per layer ("Access layer 3: Place 1,
    Place 3, Place 4 · can spend") and "A stranger who finds any 2 places
    cannot spend". A layer no longer met, or a margin lowered, is a
    warning line, never a refusal (§19.5).
@@ -2352,7 +2352,26 @@ plan record) and read back with it. A plan saved before this has no
 layers and reads as one layer, Access layer 1, able to spend with
 everything.
 
-### 20.7 Open
+### 20.7 The layer view
+
+At the top of the board a row of pills chooses whose view the board
+shows, one at a time: **All**, **Access layer 1**, **Access layer 2** …,
+**Stranger**. All is the default. The view changes only what is drawn,
+never the plan. The checks under the board (§19.14 item 4) are the
+chosen view's.
+
+| Chosen | The board | The checks under it |
+|---|---|---|
+| **All** | As it is, and on each place card small numbered marks for the layers whose list holds it ("1 2") | The plan's checks and warning lines, as §19.5 and §20.3 |
+| **Access layer n** | Its places drawn as they are, the other places dimmed; a vault whose password it knows drawn open, its contents readable; a vault it cannot open drawn shut, its contents hidden; the passphrases it knows marked | **Can spend**: yes or no. **Places it needs**: the fewest of its places that spend ("2 of its 3"). **Places it can lose**: how many of its places may be lost and it still spends. **Sees the balance**: yes or no |
+| **Stranger** | A stepper, how many places the stranger found (from 1); every set of that many places is tried, and the board shows the set that gives the most | **Cannot spend with any k places**: the stranger margin (§20.2). **Cannot see the balance with any k places**: its margin. Each a yes or no for the stepper's count |
+
+Several layers are not shown at once: each layer's checks answer for
+that layer alone, and All's numbered marks show which layers reach each
+place. The view is worked out once per frame through the drawing memo
+(SPEED §3.3); a change of view is a press.
+
+### 20.8 Open
 
 - The bound on the search's time, measured before it is built.
 - Whether a layer's list may name "any two of" a set of places.

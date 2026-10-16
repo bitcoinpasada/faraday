@@ -1645,6 +1645,10 @@ hand so that each layer can spend and no stranger can is hard.
 - Conflicts are explained, each with what would resolve it.
 - Each layer's instructions are shown on screen to be copied by hand,
   never printed or written to a file.
+- A row at the top of the board shows one view at a time (All, each
+  layer, the stranger), with that view's checks under the board: for a
+  layer, whether it can spend, the places it needs and the places it
+  can lose.
 - Layers and places are named by number ("Access layer 1", "Place 1");
   the person may rename both in the app, while a vault is open, and the
   names are kept only inside the vaults (as place names are, F35).
