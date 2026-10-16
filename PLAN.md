@@ -201,6 +201,13 @@ privileged action happens per partition:
 4. Any other partition is handed to `ofdisk`, mode `0600`, but only while
    the app has published that it is in the clean state (§5.1). On removal
    the node goes away with the device.
+5. Until it is handed out, the disk process lists the partition as not
+   handed out yet, with no files. The stick shell keeps such a partition
+   from the app while the app is clean, since the helper hands it over
+   within half a second; the app first sees it with its files, so the
+   first look at the boot medium (§5.4) and a visit's ticks (§5.4) are
+   made from what it holds, not from an empty stick. While the app is
+   not clean it is told at once, to ask for the lock.
 
 `faraday-grant` starts as root, keeps `CAP_CHOWN`, drops to its own
 user, empties its bounding set and sets no-new-privileges. `CAP_CHOWN`
