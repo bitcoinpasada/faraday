@@ -35,7 +35,7 @@ fn fingerprint_of(xprv: &str) -> [u8; 4] {
 
 fn only_key(app: &Faraday) -> [u8; 4] {
     assert_eq!(app.session.keys.len(), 1, "{:?}", app.entry.error);
-    app.session.keys[0].master.fingerprint().0
+    app.session.keys[0].fingerprint().0
 }
 
 #[test]

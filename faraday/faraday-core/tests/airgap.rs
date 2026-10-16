@@ -20,7 +20,7 @@ const OTHER: &str = "abandon abandon abandon abandon abandon abandon \
 fn wallet_on(network: Network) -> String {
     let mut s = Session::on(network);
     s.add_words(OTHER, "", None).unwrap();
-    let key = NewKind::NativeSegwit.key_text(&s.keys[0].master).unwrap();
+    let key = NewKind::NativeSegwit.key_text(s.keys[0].master()).unwrap();
     format!("wpkh({key}/<0;1>/*)")
 }
 

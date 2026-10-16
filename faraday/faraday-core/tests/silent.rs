@@ -35,7 +35,7 @@ fn the_address_is_bip352s_for_the_key_and_a_label_makes_another() {
     app.press(Action::Silent);
     assert_eq!(app.screen, Screen::Silent);
     let secp = osk_bip::bitcoin::secp256k1::Secp256k1::new();
-    let r = Receiver::derive(&app.session.keys[0].master, 0);
+    let r = Receiver::derive(app.session.keys[0].master(), 0);
     let plain = r.address(&secp).unwrap().as_str().to_string();
     assert!(plain.starts_with("sp1"), "{plain}");
     assert_eq!(app.silent_address().as_deref(), Some(plain.as_str()));
@@ -174,11 +174,11 @@ fn the_key_s_silent_payments_wallet_is_among_the_wallets_and_keeps_its_labels() 
     app.press(Action::SAddWallet);
     assert_eq!(app.session.wallets.len(), 1);
     let w = &app.session.wallets[0];
-    assert_eq!(Kind::of(&w.policy), Kind::Silent);
+    assert_eq!(Kind::of(w.policy()), Kind::Silent);
     let secp = Secp256k1::new();
-    let r = Receiver::derive(&app.session.keys[0].master, 0);
+    let r = Receiver::derive(app.session.keys[0].master(), 0);
     let plain = r.address(&secp).unwrap().as_str().to_string();
-    assert_eq!(w.policy.silent().unwrap().address(), plain);
+    assert_eq!(w.policy().silent().unwrap().address(), plain);
     // Its one key is here.
     let slots = app.session.slots(w);
     assert_eq!(slots.len(), 1);
@@ -186,7 +186,7 @@ fn the_key_s_silent_payments_wallet_is_among_the_wallets_and_keeps_its_labels() 
     // A label shown is a label handed out, on the wallet's record.
     app.press(Action::SLabel(1));
     app.press(Action::SLabel(1));
-    assert_eq!(app.session.wallets[0].policy.silent().unwrap().labels, 2);
+    assert_eq!(app.session.wallets[0].policy().silent().unwrap().labels, 2);
     // The wallet card opens its page.
     app.press(Action::Nav(Screen::Wallets));
     let _ = app.frame();
@@ -206,7 +206,7 @@ fn a_record_read_from_files_is_a_wallet_whose_address_needs_no_key() {
     files(&mut app, &[("silent-1.txt", record.into_bytes())]);
     app.press(Action::LoadWallet(0));
     assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
-    assert_eq!(Kind::of(&app.session.wallets[0].policy), Kind::Silent);
+    assert_eq!(Kind::of(app.session.wallets[0].policy()), Kind::Silent);
     app.press(Action::SWallet(0));
     assert_eq!(app.silent_address().as_deref(), Some(address.as_str()));
     assert!(!app.silent_key_here());
@@ -219,7 +219,7 @@ fn a_record_read_from_files_is_a_wallet_whose_address_needs_no_key() {
 fn a_payment_to_this_wallet_is_found_and_one_to_another_is_not() {
     let mut app = with_key();
     let secp = Secp256k1::new();
-    let r = Receiver::derive(&app.session.keys[0].master, 0);
+    let r = Receiver::derive(app.session.keys[0].master(), 0);
     let scan = r.scan_public_key(&secp);
     let (paid, funding_tx) = payment(&scan, &r.spend_public_key());
     // Someone else's address: the same scan key, another spend key.
@@ -255,7 +255,7 @@ fn a_payment_to_this_wallet_is_found_and_one_to_another_is_not() {
 fn a_payment_to_a_label_names_the_label_and_one_missing_its_funding_waits() {
     let mut app = with_key();
     let secp = Secp256k1::new();
-    let r = Receiver::derive(&app.session.keys[0].master, 0);
+    let r = Receiver::derive(app.session.keys[0].master(), 0);
     let scan = r.scan_public_key(&secp);
     let (paid, funding_tx) = payment(&scan, &r.labelled_spend_key(&secp, 2).unwrap());
     files(&mut app, &[("payment.txn", consensus::serialize(&paid))]);
@@ -319,12 +319,31 @@ fn a_silent_payments_wallet_saved_into_a_vault_reads_back_as_itself() {
         .unwrap();
     app.press(Action::LoadWallet(file));
     let w = app.wallet;
-    assert_eq!(Kind::of(&app.session.wallets[w].policy), Kind::Silent);
+    assert_eq!(Kind::of(app.session.wallets[w].policy()), Kind::Silent);
     app.press(Action::Vault(V::SaveWallet(w)));
     let open = &app.vaults.open[0];
     let (_, saved) = open.contents.of(kind::WALLET).last().unwrap();
     let text = saved.text(field::WALLET).unwrap();
     let back = faraday_core::wallet::read_wallet(text).expect("the saved wallet reads back");
-    assert_eq!(back.silent(), app.session.wallets[w].policy.silent());
+    assert_eq!(back.silent(), app.session.wallets[w].policy().silent());
     assert_eq!(back.silent().unwrap().labels, 1);
+}
+
+#[test]
+fn after_a_label_is_handed_out_the_wallets_checksum_is_its_exported_files() {
+    let mut app = with_key();
+    app.press(Action::Silent);
+    app.press(Action::SAddWallet);
+    let before = app.session.wallets[0].checksum().to_string();
+    app.press(Action::SLabel(1));
+    app.press(Action::SLabel(1));
+    let after = app.session.wallets[0].checksum().to_string();
+    // A silent payments wallet is known by its address, which a label
+    // leaves as it is.
+    assert_eq!(before, after);
+    app.press(Action::SRecord);
+    let text = String::from_utf8(app.outbox[0].bytes.clone()).unwrap();
+    let exported = faraday_core::wallet::read_wallet(&text).expect("the file reads as a wallet");
+    assert_eq!(exported.silent().unwrap().labels, 2);
+    assert_eq!(exported.checksum(), after);
 }

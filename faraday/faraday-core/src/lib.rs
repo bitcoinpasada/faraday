@@ -4722,7 +4722,7 @@ impl Faraday {
             s.signers = s.spend.signers(&self.session).iter().map(|f| f.0).collect();
             s.wallet = self.session.wallet_for(&s.spend.psbt);
             let wallet = s.wallet.and_then(|w| self.session.wallets.get(w));
-            let kind = wallet.map(|w| wallet::Kind::of(&w.policy));
+            let kind = wallet.map(|w| wallet::Kind::of(w.policy()));
             s.needed = wallet.map(wallet::needed).unwrap_or(1);
             // With no wallet loaded the signers come from the PSBT alone,
             // and a second device may still be needed.
@@ -4737,7 +4737,7 @@ impl Faraday {
             // checked before (`docs/WALLETS.md` §4): the flow opens on
             // the next card without a default instead.
             if let Some(wallet) = wallet {
-                let checksum = wallet.policy.checksum();
+                let checksum = wallet.checksum().to_string();
                 if self.checked_wallets.contains(&checksum) {
                     s.done[wallet::step::CHECK as usize] = true;
                 }
@@ -5034,7 +5034,11 @@ impl Faraday {
             Action::UpgradeWrite => self.upgrade_write(),
             Action::UpgradeAgain => self.upgrade_again(),
             Action::BackupsOf(i) => {
-                let sum = self.session.wallets.get(i).map(|w| w.policy.checksum());
+                let sum = self
+                    .session
+                    .wallets
+                    .get(i)
+                    .map(|w| w.checksum().to_string());
                 let at = self
                     .backups()
                     .iter()
@@ -5209,7 +5213,7 @@ impl Faraday {
                     && let Some(w) = self.spend.as_ref().and_then(|s| s.wallet)
                     && let Some(wallet) = self.session.wallets.get(w)
                 {
-                    let checksum = wallet.policy.checksum();
+                    let checksum = wallet.checksum().to_string();
                     self.mark_checked(&checksum);
                 }
                 if self.screen == Screen::Family {
@@ -5746,7 +5750,7 @@ impl Faraday {
                     .backup
                     .as_ref()
                     .and_then(|b| self.session.keys.get(b.key))
-                    .map(|k| k.master.fingerprint());
+                    .map(|k| k.fingerprint());
                 if let Some(fp) = fp {
                     let mut scan = ScanState::default();
                     scan.purpose = ScanPurpose::CheckCopy(fp);
@@ -6117,7 +6121,7 @@ impl Faraday {
                     && let Some(w) = self.create.as_ref().and_then(|c| c.built)
                     && let Some(wallet) = self.session.wallets.get(w)
                 {
-                    let checksum = wallet.policy.checksum();
+                    let checksum = wallet.checksum().to_string();
                     self.mark_checked(&checksum);
                 }
             }
@@ -6791,7 +6795,7 @@ impl Faraday {
     /// [`Faraday::backup_keys`] for a wallet that need not be loaded.
     pub(crate) fn backup_keys_of(&self, w: &wallet::Wallet) -> Vec<usize> {
         // A threshold wallet's keys here are the shares it lists.
-        if let Some(record) = w.policy.record() {
+        if let Some(record) = w.policy().record() {
             return self
                 .session
                 .keys
@@ -6806,7 +6810,7 @@ impl Faraday {
                 .collect();
         }
         let fps: Vec<_> = w
-            .policy
+            .policy()
             .keys()
             .iter()
             .filter_map(|k| k.fingerprint())
@@ -6815,7 +6819,7 @@ impl Faraday {
             .keys
             .iter()
             .enumerate()
-            .filter(|(_, k)| k.words.is_some() && fps.contains(&k.master.fingerprint()))
+            .filter(|(_, k)| k.words.is_some() && fps.contains(&k.fingerprint()))
             .map(|(i, _)| i)
             .collect()
     }
@@ -6847,7 +6851,7 @@ impl Faraday {
         let stem = file_stem(&wallet.name);
         let here = self.backup_keys(b.wallet);
         let seed_lines = |key: &wallet::Key| -> Vec<(String, Tone)> {
-            let fp = key.master.fingerprint();
+            let fp = key.fingerprint();
             let mut lines = Vec::new();
             lines.push(
                 match open
@@ -6894,7 +6898,7 @@ impl Faraday {
         };
         let away = || vec![(EN.backup_kept_not_here.to_string(), Tone::Dim)];
         let mut seeds = Vec::new();
-        if let Some(record) = wallet.policy.record() {
+        if let Some(record) = wallet.policy().record() {
             // A threshold wallet's keys are its shares, by number.
             for (id, pubshare) in record.info.pubshares.iter().enumerate() {
                 let key = here
@@ -6903,7 +6907,7 @@ impl Faraday {
                     .find(|k| pubshare.is_some() && k.share.as_ref() == pubshare.as_ref());
                 seeds.push(match key {
                     Some(key) => KeptSeed {
-                        name: fp_text(key.master.fingerprint()),
+                        name: fp_text(key.fingerprint()),
                         lines: seed_lines(key),
                     },
                     None => KeptSeed {
@@ -6914,7 +6918,12 @@ impl Faraday {
             }
         } else {
             let mut fps: Vec<osk_bip::keys::Fingerprint> = Vec::new();
-            for f in wallet.policy.keys().iter().filter_map(|k| k.fingerprint()) {
+            for f in wallet
+                .policy()
+                .keys()
+                .iter()
+                .filter_map(|k| k.fingerprint())
+            {
                 if !fps.contains(&f) {
                     fps.push(f);
                 }
@@ -6923,7 +6932,7 @@ impl Faraday {
                 let key = here
                     .iter()
                     .map(|&k| &self.session.keys[k])
-                    .find(|k| k.master.fingerprint() == fp);
+                    .find(|k| k.fingerprint() == fp);
                 seeds.push(KeptSeed {
                     name: fp_text(fp),
                     lines: key.map_or_else(away, seed_lines),
@@ -6952,7 +6961,7 @@ impl Faraday {
         wallet: &wallet::Wallet,
     ) -> Vec<(String, Option<usize>)> {
         let here = self.backup_keys_of(wallet);
-        if let Some(record) = wallet.policy.record() {
+        if let Some(record) = wallet.policy().record() {
             return record
                 .info
                 .pubshares
@@ -6964,7 +6973,7 @@ impl Faraday {
                             && self.session.keys[k].share.as_ref() == pubshare.as_ref()
                     });
                     match key {
-                        Some(k) => (fp_text(self.session.keys[k].master.fingerprint()), Some(k)),
+                        Some(k) => (fp_text(self.session.keys[k].fingerprint()), Some(k)),
                         None => (
                             fill(EN.backup_seed_list_of_share, &[&(id + 1).to_string()]),
                             None,
@@ -6974,7 +6983,12 @@ impl Faraday {
                 .collect();
         }
         let mut fps: Vec<osk_bip::keys::Fingerprint> = Vec::new();
-        for f in wallet.policy.keys().iter().filter_map(|k| k.fingerprint()) {
+        for f in wallet
+            .policy()
+            .keys()
+            .iter()
+            .filter_map(|k| k.fingerprint())
+        {
             if !fps.contains(&f) {
                 fps.push(f);
             }
@@ -6984,7 +6998,7 @@ impl Faraday {
                 let key = here
                     .iter()
                     .copied()
-                    .find(|&k| self.session.keys[k].master.fingerprint() == fp);
+                    .find(|&k| self.session.keys[k].fingerprint() == fp);
                 (fp_text(fp), key)
             })
             .collect()
@@ -7021,7 +7035,7 @@ impl Faraday {
             .collect();
         // The vaults set up before the keys are the plan's first vaults.
         let vaults = self
-            .wallet_flow_active(&wallet.policy.checksum())
+            .wallet_flow_active(wallet.checksum())
             .and_then(|i| self.backup_flows[i].wallet.as_ref())
             .map_or(0, |w| w.shape.vaults);
         plan::Shape {
@@ -7300,13 +7314,13 @@ impl Faraday {
         use plan::software as sw;
         let config = backup::multisig_config(w, None).is_some();
         let bsms = matches!(
-            w.policy.template(),
+            w.policy().template(),
             Template::Multi {
                 wrapper: Wrapper::Wsh | Wrapper::ShWsh,
                 ..
             }
         );
-        let core = w.policy.silent().is_none();
+        let core = w.policy().silent().is_none();
         let mut v: Vec<u8> = Vec::new();
         let add = |v: &mut Vec<u8>, x: u8| {
             if !v.contains(&x) {
@@ -7449,7 +7463,7 @@ impl Faraday {
             plan::Item::Copy(i) => here
                 .iter()
                 .find(|(j, _)| *j == i)
-                .is_some_and(|(_, k)| b.checked.contains(&k.master.fingerprint().0)),
+                .is_some_and(|(_, k)| b.checked.contains(&k.fingerprint().0)),
             plan::Item::Vault(v) => self.backup_vault_fits(v).is_some(),
             plan::Item::SeedFiles => {
                 !here.is_empty() && here.iter().all(|(_, k)| self.seed_file_made(&stem, k))
@@ -7473,7 +7487,7 @@ impl Faraday {
     /// Whether a file of key `k`'s seed, for the wallet whose files are
     /// named `stem`, is For the stick or was written by the last visit.
     pub(crate) fn seed_file_made(&self, stem: &str, k: &wallet::Key) -> bool {
-        let fps = fp_text(k.master.fingerprint()).to_lowercase();
+        let fps = fp_text(k.fingerprint()).to_lowercase();
         ["words.txt", "seedqr.png", "compactseedqr.png"]
             .iter()
             .any(|end| {
@@ -7500,7 +7514,7 @@ impl Faraday {
         let list = self.backup_seed_list(b.wallet);
         let fp = |i: usize| {
             let k = list.get(i)?.1?;
-            Some(self.session.keys.get(k)?.master.fingerprint())
+            Some(self.session.keys.get(k)?.fingerprint())
         };
         let own = b.answers.vault_seeds(&shape, v);
         let mut others: Vec<usize> = b
@@ -7679,7 +7693,7 @@ impl Faraday {
             && self
                 .backup_vault_shares(v)
                 .iter()
-                .all(|(j, text, _)| self.vault_holds_share(o, &w.policy.checksum(), *j, text))
+                .all(|(j, text, _)| self.vault_holds_share(o, w.checksum(), *j, text))
     }
 
     /// The vault that does the plan's vault `v`: an open vault, or one
@@ -7705,7 +7719,7 @@ impl Faraday {
             return None;
         }
         let (own, others) = self.backup_vault_keys(v);
-        let sum = w.policy.checksum();
+        let sum = w.checksum().to_string();
         let text = |f: &osk_bip::keys::Fingerprint| fp_text(*f);
         let salts: Vec<[u8; 32]> = self.vaults.open.iter().map(|o| o.header().salt).collect();
         self.vaults
@@ -7736,10 +7750,10 @@ impl Faraday {
 
     /// The text a vault keeps a wallet under, as Vaults saves it.
     pub(crate) fn wallet_text(w: &wallet::Wallet) -> String {
-        match (w.policy.record(), w.policy.silent()) {
+        match (w.policy().record(), w.policy().silent()) {
             (Some(r), _) => r.to_text(),
             (None, Some(s)) => s.to_text(),
-            (None, None) => w.policy.to_descriptor_checksummed(),
+            (None, None) => w.policy().to_descriptor_checksummed(),
         }
     }
 
@@ -7768,7 +7782,7 @@ impl Faraday {
         shape: &plan::Shape,
     ) -> Option<(plan::Answers, Vec<String>)> {
         use faraday_vault::records::{field, kind};
-        let want = wallet::same_wallet(&wallet.policy);
+        let want = wallet::same_wallet(wallet.policy());
         let o = self.vaults.open.get(v)?;
         o.contents.of(kind::PLAN).find_map(|(_, r)| {
             let same = r
@@ -7829,7 +7843,7 @@ impl Faraday {
     /// The open vault that keeps a plan (record type 11) for `wallet`.
     pub(crate) fn plan_vault_of(&self, wallet: &wallet::Wallet) -> Option<usize> {
         use faraday_vault::records::{field, kind};
-        let want = wallet::same_wallet(&wallet.policy);
+        let want = wallet::same_wallet(wallet.policy());
         (0..self.vaults.open.len()).find(|&v| {
             self.vaults.open[v].contents.of(kind::PLAN).any(|(_, r)| {
                 r.text(field::PLAN_WALLET)
@@ -7898,7 +7912,7 @@ impl Faraday {
         for line in extras {
             record.push(field::PLAN_HOLDS, line.as_bytes());
         }
-        let want = wallet::same_wallet(&w.policy);
+        let want = wallet::same_wallet(w.policy());
         let same = |r: &faraday_vault::records::Record| {
             r.kind == kind::PLAN
                 && r.text(field::PLAN_WALLET)
@@ -7986,7 +8000,7 @@ impl Faraday {
         } else {
             format!("{} · {}", Session::shape(w), net.name())
         };
-        let keys = w.policy.keys();
+        let keys = w.policy().keys();
         let fps = |pick: &dyn Fn(usize) -> bool| -> Vec<String> {
             keys.iter()
                 .enumerate()
@@ -8026,7 +8040,7 @@ impl Faraday {
         };
         match what {
             8 => {
-                let text = w.policy.to_descriptor_checksummed();
+                let text = w.policy().to_descriptor_checksummed();
                 let all = fps(&|_| true);
                 let mut lines = vec![shape];
                 if !all.is_empty() {
@@ -8241,11 +8255,11 @@ impl Faraday {
             1 => {
                 files.push((
                     format!("{stem}-descriptor.txt"),
-                    format!("{}\n", w.policy.to_descriptor_checksummed()).into_bytes(),
+                    format!("{}\n", w.policy().to_descriptor_checksummed()).into_bytes(),
                 ));
                 // A threshold wallet signs only with its record, which
                 // lists every public share.
-                if let Some(r) = w.policy.record() {
+                if let Some(r) = w.policy().record() {
                     files.push((
                         format!("{stem}-record.txt"),
                         format!("{}\n", r.to_text()).into_bytes(),
@@ -8254,7 +8268,7 @@ impl Faraday {
             }
             5 => files.push((
                 format!("{stem}-wallet.json"),
-                backup::wallet_json(&w.name, &w.policy).into_bytes(),
+                backup::wallet_json(&w.name, w.policy()).into_bytes(),
             )),
             6 => {
                 if let Some(record) = self.wallet_file_text(wallet, 6) {
@@ -8264,7 +8278,7 @@ impl Faraday {
             7 => files.push((
                 format!("{stem}-bitcoin-core.json"),
                 osk_bip::core_import::import_descriptors(
-                    &w.policy.to_descriptor_checksummed(),
+                    &w.policy().to_descriptor_checksummed(),
                     osk_bip::core_import::Rescan::Start,
                 )
                 .into_bytes(),
@@ -8336,11 +8350,11 @@ impl Faraday {
             .wallets
             .get(i)
             .ok_or(EN.wallet_key_that_wallet)?;
-        if w.policy.record().is_some() || w.policy.silent().is_some() {
+        if w.policy().record().is_some() || w.policy().silent().is_some() {
             return Err(EN.wallet_key_this_wallet_s.into());
         }
         let pk = w
-            .policy
+            .policy()
             .keys()
             .get(usize::from(slot))
             .ok_or(EN.wallet_key_this_wallet)?;
@@ -8349,13 +8363,13 @@ impl Faraday {
             .session
             .keys
             .iter()
-            .find(|k| k.master.fingerprint() == fp)
+            .find(|k| k.fingerprint() == fp)
             .ok_or(EN.wallet_key_that_key)?;
-        let kind = create::NewKind::of(&w.policy);
+        let kind = create::NewKind::of(w.policy());
         // Create's own account for its kind: what its BIP 129 record and
         // its account code are made at. A key elsewhere has neither.
         let standard = kind.filter(|k| {
-            k.key_text(&key.master)
+            k.key_text(key.master())
                 .ok()
                 .and_then(|t| osk_bip::policy::PolicyKey::parse(&t).ok())
                 .is_some_and(|t| t.xpub() == pk.xpub() && t.path() == pk.path())
@@ -8365,7 +8379,7 @@ impl Faraday {
             text: pk.key_text(),
             kind: kind.map_or_else(|| Session::shape(w), |k| k.name().to_string()),
             standard,
-            master: &key.master,
+            master: key.master(),
         })
     }
 
@@ -8380,7 +8394,7 @@ impl Faraday {
         if self.session.slots(w).len() < 2 {
             return out;
         }
-        for slot in 0..w.policy.keys().len().min(usize::from(u8::MAX)) {
+        for slot in 0..w.policy().keys().len().min(usize::from(u8::MAX)) {
             let slot = slot as u8;
             if let Ok(k) = self.wallet_key(i, slot)
                 && !seen.contains(&k.fp)
@@ -8456,11 +8470,11 @@ impl Faraday {
             .session
             .keys
             .iter()
-            .find(|k| k.master.fingerprint().0 == *fp)
+            .find(|k| k.fingerprint().0 == *fp)
             .ok_or(EN.create_key_text_a_chosen)?;
         Ok((
             fp_text(osk_bip::keys::Fingerprint(*fp)),
-            c.kind.key_text(&key.master)?,
+            c.kind.key_text(key.master())?,
         ))
     }
 
@@ -8475,8 +8489,8 @@ impl Faraday {
             .session
             .keys
             .iter()
-            .find(|k| k.master.fingerprint().0 == *fp)?;
-        c.kind.account_ur(&key.master)
+            .find(|k| k.fingerprint().0 == *fp)?;
+        c.kind.account_ur(key.master())
     }
 
     /// A slot's key as a signed BIP 129 key record, with its
@@ -8490,10 +8504,10 @@ impl Faraday {
             .session
             .keys
             .iter()
-            .find(|x| x.master.fingerprint().0 == *fp)?;
+            .find(|x| x.fingerprint().0 == *fp)?;
         let fpt = fp_text(osk_bip::keys::Fingerprint(*fp));
         c.kind
-            .bsms_record(&key.master, &format!("Faraday key {fpt}"))
+            .bsms_record(key.master(), &format!("Faraday key {fpt}"))
             .map(|r| (fpt, r))
     }
 
@@ -8501,11 +8515,9 @@ impl Faraday {
     pub fn create_keys(&self) -> Result<Vec<String>, String> {
         let c = self.create.as_ref().ok_or(EN.create_keys_nothing)?;
         if c.kind.threshold() {
-            return self.create_shares().map(|keys| {
-                keys.iter()
-                    .map(|k| fp_text(k.master.fingerprint()))
-                    .collect()
-            });
+            return self
+                .create_shares()
+                .map(|keys| keys.iter().map(|k| fp_text(k.fingerprint())).collect());
         }
         let mut out = Vec::new();
         for (i, s) in c.slots.iter().enumerate() {
@@ -8524,9 +8536,9 @@ impl Faraday {
                         .session
                         .keys
                         .iter()
-                        .find(|k| k.master.fingerprint().0 == *fp)
+                        .find(|k| k.fingerprint().0 == *fp)
                         .ok_or(EN.create_keys_a_chosen)?;
-                    out.push(c.kind.key_text(&key.master)?);
+                    out.push(c.kind.key_text(key.master())?);
                 }
                 create::Source::Cosigner(text) => out.push(text.clone()),
             }
@@ -8567,12 +8579,12 @@ impl Faraday {
                 .session
                 .keys
                 .iter()
-                .find(|k| k.master.fingerprint().0 == *fp)
+                .find(|k| k.fingerprint().0 == *fp)
                 .ok_or(EN.create_shares_a_chosen)?;
             if key.share.is_none() {
                 return Err(fill(EN.create_shares_share, &[&(i + 1).to_string()]));
             }
-            if out.iter().any(|k| k.master.fingerprint().0 == *fp) {
+            if out.iter().any(|k| k.fingerprint().0 == *fp) {
                 return Err(EN.create_shares_the_same.into());
             }
             out.push(key);
@@ -8700,7 +8712,7 @@ impl Faraday {
         if r.described {
             let w = self.session.wallets.get(r.wallet?)?;
             // A threshold wallet's slots are shares, matched as they load.
-            if w.policy.record().is_some() {
+            if w.policy().record().is_some() {
                 return None;
             }
             let ours = self
@@ -8902,7 +8914,7 @@ impl Faraday {
                 .session
                 .keys
                 .iter()
-                .find(|k| k.master.fingerprint().0 == *fp)
+                .find(|k| k.fingerprint().0 == *fp)
                 .is_some_and(|k| k.words.is_some() && k.passphrase.is_none())
     }
 
@@ -8940,7 +8952,7 @@ impl Faraday {
             .session
             .keys
             .iter()
-            .find(|k| k.master.fingerprint().0 == first)
+            .find(|k| k.fingerprint().0 == first)
         else {
             return;
         };
@@ -9115,7 +9127,7 @@ impl Faraday {
             Ok(i) => {
                 self.wallet = i;
                 let w = &self.session.wallets[i];
-                let kind = create::NewKind::of(&w.policy);
+                let kind = create::NewKind::of(w.policy());
                 let (m, n) = Session::quorum(w);
                 // The flow that decided where the seeds go knows the wallet
                 // once it is made from them.
@@ -9437,7 +9449,7 @@ impl Faraday {
                 == backup::CopyCheck::Matches
         {
             b.counted = true;
-            let fp = key.master.fingerprint().0;
+            let fp = key.fingerprint().0;
             self.copy_matched(fp);
         }
     }
@@ -9460,7 +9472,7 @@ impl Faraday {
             .session
             .keys
             .iter()
-            .find(|k| k.master.fingerprint() == fp)
+            .find(|k| k.fingerprint() == fp)
             .and_then(|k| {
                 let words = k.words.as_ref()?;
                 Mnemonic::parse(k.language, words.as_str()).ok()
@@ -9633,7 +9645,7 @@ impl Faraday {
             ));
         };
         for w in &self.session.wallets {
-            if let Some((change, index)) = w.policy.find_address(net, &addr, 100) {
+            if let Some((change, index)) = w.policy().find_address(net, &addr, 100) {
                 let chain = if change {
                     EN.address_note_change
                 } else {
@@ -9711,14 +9723,14 @@ impl Faraday {
                 let w = wallet(i)?;
                 let stem = file_stem(&w.name);
                 let mut lines = self.wallet_label(w);
-                let (title, text, name) = match w.policy.record() {
+                let (title, text, name) = match w.policy().record() {
                     Some(r) => (
                         fill(EN.code_view_threshold, &[&w.name.to_string()]),
                         r.to_text(),
                         format!("{stem}-record.png"),
                     ),
                     None => {
-                        let text = w.policy.to_descriptor_checksummed();
+                        let text = w.policy().to_descriptor_checksummed();
                         if let Some((_, sum)) = text.rsplit_once('#') {
                             lines.push(fill(EN.code_view_descriptor, &[sum]));
                         }
@@ -9814,11 +9826,11 @@ impl Faraday {
                     .wallets
                     .get(i)
                     .ok_or(EN.code_view_that_wallet)?;
-                if w.policy.record().is_some() || w.policy.silent().is_some() {
+                if w.policy().record().is_some() || w.policy().silent().is_some() {
                     return Err(EN.code_view_this_wallet_s.into());
                 }
                 let pk = w
-                    .policy
+                    .policy()
                     .keys()
                     .get(usize::from(slot))
                     .ok_or(EN.code_view_this_wallet)?
@@ -9886,7 +9898,7 @@ impl Faraday {
         };
         let mut lines = vec![shape];
         let all: Vec<String> = w
-            .policy
+            .policy()
             .keys()
             .iter()
             .filter_map(|k| k.fingerprint().map(fp_text))
@@ -9910,10 +9922,10 @@ impl Faraday {
             2 => backup::multisig_config(w, None),
             6 => {
                 let net = self.session.network();
-                let first = w.policy.address_at(net, false, 0).ok()?;
+                let first = w.policy().address_at(net, false, 0).ok()?;
                 Some(
                     osk_bip::bsms::DescriptorRecord {
-                        policy: w.policy.clone(),
+                        policy: w.policy().clone(),
                         paths: vec!["/0/*".to_string(), "/1/*".to_string()],
                         first_address: first.to_string(),
                         network: net,
@@ -10513,7 +10525,7 @@ impl Faraday {
             .first()
             .and_then(|i| i.threshold.as_ref())
             .and_then(|t| {
-                let record = self.session.wallets.get(s.wallet?)?.policy.record()?;
+                let record = self.session.wallets.get(s.wallet?)?.policy().record()?;
                 Some(
                     t.ours
                         .iter()
@@ -10621,7 +10633,7 @@ impl Faraday {
             .session
             .wallet_for(&s.spend.psbt)
             .and_then(|i| self.session.wallets.get(i))
-            .is_some_and(|w| wallet::Kind::of(&w.policy) == wallet::Kind::MuSig);
+            .is_some_and(|w| wallet::Kind::of(w.policy()) == wallet::Kind::MuSig);
         if musig && !s.spend.signed_here.is_empty() && s.spend.finish().is_err() {
             let mut psbt = s.spend.psbt.clone();
             match seed {

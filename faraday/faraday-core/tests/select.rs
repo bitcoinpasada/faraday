@@ -260,12 +260,7 @@ fn an_edit_inside_the_passphrase_makes_the_key_of_the_words_with_the_edited_pass
         .add_words_with(&phrase, "Ride the 8 bus", "", None)
         .unwrap()
         .0;
-    let added: Vec<[u8; 4]> = app
-        .session
-        .keys
-        .iter()
-        .map(|k| k.master.fingerprint().0)
-        .collect();
+    let added: Vec<[u8; 4]> = app.session.keys.iter().map(|k| k.fingerprint().0).collect();
     assert_eq!(added, vec![want]);
 }
 

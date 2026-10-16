@@ -90,7 +90,7 @@ fn the_key_loads_once_every_share_is_quizzed() {
     );
     app.press(Action::KAdd);
     assert_eq!(app.session.keys.len(), 1);
-    assert_eq!(app.session.keys[0].master.fingerprint().0, fp);
+    assert_eq!(app.session.keys[0].fingerprint().0, fp);
     assert!(
         app.session.keys[0].words.is_none(),
         "a SLIP-39 key has no BIP-39 words"

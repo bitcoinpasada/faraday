@@ -133,7 +133,7 @@ fn making() -> (Faraday, String) {
     app.press(Action::CKind(4));
     app.press(Action::CNext(0));
     app.press(Action::CNext(1));
-    let fp = app.session.keys[0].master.fingerprint();
+    let fp = app.session.keys[0].fingerprint();
     app.press(Action::CSlotHere(0, fp.0));
     (app, faraday_core::wallet::fp_text(fp))
 }
@@ -217,7 +217,7 @@ fn with_key() -> Faraday {
 #[test]
 fn the_silent_payments_record_and_address_read_back_from_code_and_picture() {
     let mut app = with_key();
-    let fp = faraday_core::wallet::fp_text(app.session.keys[0].master.fingerprint());
+    let fp = faraday_core::wallet::fp_text(app.session.keys[0].fingerprint());
     app.press(Action::Silent);
     app.press(Action::SRecord);
     let record = text(&outbox(&app, &format!("silent-{fp}.txt")));

@@ -279,7 +279,7 @@ impl Faraday {
         let seeds = self.backup_seed_list_of(wallet);
         let fp_of = |i: usize| -> Option<[u8; 4]> {
             let k = seeds.get(i)?.1?;
-            Some(self.session.keys.get(k)?.master.fingerprint().0)
+            Some(self.session.keys.get(k)?.fingerprint().0)
         };
         let stem = file_stem(&wallet.name);
         let public = wi.map_or_else(Vec::new, |wi| self.backup_public_names_for(wi, a));
@@ -346,7 +346,7 @@ impl Faraday {
             return;
         };
         let spots = self.backup_spots(wallet, Some(b.wallet), &b.answers);
-        let sum = wallet.policy.checksum();
+        let sum = wallet.checksum().to_string();
         let name = wallet.name.clone();
         let shown = b.shown;
         let answers = b.answers.to_text();
@@ -380,7 +380,7 @@ impl Faraday {
             .backup
             .as_ref()
             .and_then(|b| self.session.wallets.get(b.wallet))
-            .map(|w| w.policy.checksum())
+            .map(|w| w.checksum().to_string())
         else {
             return;
         };
@@ -401,7 +401,7 @@ impl Faraday {
             .backup
             .as_ref()
             .and_then(|b| self.session.wallets.get(b.wallet))
-            .map(|w| w.policy.checksum())
+            .map(|w| w.checksum())
         else {
             return;
         };
@@ -413,7 +413,7 @@ impl Faraday {
     /// The seeds of loaded wallet `i` whose copy was checked this
     /// power-on, for a backup of it opened again.
     pub(crate) fn backups_checked(&self, i: usize) -> Vec<[u8; 4]> {
-        let Some(sum) = self.session.wallets.get(i).map(|w| w.policy.checksum()) else {
+        let Some(sum) = self.session.wallets.get(i).map(|w| w.checksum()) else {
             return Vec::new();
         };
         self.backup_records
@@ -435,7 +435,7 @@ impl Faraday {
         let mut out: Vec<Entry> = Vec::new();
         let seen = |out: &[Entry], sum: &str| out.iter().any(|e| e.sum == sum);
         for (i, w) in self.session.wallets.iter().enumerate() {
-            let sum = w.policy.checksum();
+            let sum = w.checksum().to_string();
             if seen(&out, &sum) {
                 continue;
             }
@@ -459,15 +459,14 @@ impl Faraday {
                 if seen(&out, &sum) {
                     continue;
                 }
-                let w = Wallet {
-                    name: r
-                        .text(field::WALLET_NAME)
+                let w = Wallet::new(
+                    r.text(field::WALLET_NAME)
                         .unwrap_or(EN.backups_wallet)
                         .to_string(),
                     policy,
-                    source: EN.backups_vault.to_string(),
-                    origin: crate::wallet::Origin::Vault,
-                };
+                    EN.backups_vault.to_string(),
+                    crate::wallet::Origin::Vault,
+                );
                 out.push(Entry {
                     lines: self.backup_lines(&w, None, &sum),
                     sum,
@@ -697,7 +696,7 @@ impl Faraday {
     /// The wallet card's backup line (`docs/SIMPLIFY.md` §5.2): "Backup:
     /// paper ×2 checked · vault.ofv · for the stick", or "Not backed up".
     pub fn backup_line(&self, i: usize) -> String {
-        let Some(sum) = self.session.wallets.get(i).map(|w| w.policy.checksum()) else {
+        let Some(sum) = self.session.wallets.get(i).map(|w| w.checksum()) else {
             return String::new();
         };
         let entry = self.backups().into_iter().find(|e| e.sum == sum);

@@ -89,7 +89,7 @@ fn a_missing_key_in_an_open_vault_loads_from_the_wallet_card() {
     assert!(app.offers(Action::Vault(V::LoadKeyOf(fp.0))));
     app.press(Action::Vault(V::LoadKeyOf(fp.0)));
     assert_eq!(app.session.keys.len(), 1);
-    assert_eq!(app.session.keys[0].master.fingerprint(), fp);
+    assert_eq!(app.session.keys[0].fingerprint(), fp);
 }
 
 #[test]
@@ -258,4 +258,104 @@ fn a_vault_with_one_key_lists_keys_every_add_and_no_other_kind() {
             "kind {k} holds nothing and is not listed"
         );
     }
+}
+
+/// A key made here from coin flips and saved into the test vault, which
+/// is locked: the vault as it is written to the stick, and the key's
+/// words.
+fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, osk_bip::bip39::Mnemonic) {
+    use faraday_core::create::NewKind;
+    use faraday_core::keygen::Way;
+    use faraday_core::{StorageCommand, cstep};
+
+    let mut app = device(vec![kit_file("vault.ofv")]);
+    app.press(Action::CreateWallet);
+    let at = NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::NativeSegwit)
+        .unwrap() as u8;
+    app.press(Action::CKind(at));
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::KeyGen(Some(0)));
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Coins.index()));
+    app.press(Action::KNext);
+    for i in 0..128 {
+        app.press(Action::KFlip((i * 7 + i / 5) % 2 == 0));
+    }
+    app.press(Action::KNext);
+    app.press(Action::KLock);
+    app.press(Action::KNext);
+    let words = app.session.keys[0].words.as_ref().unwrap().to_string();
+    let made = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &words).unwrap();
+    app.vaults.ms_per_unit = Some(180);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    type_and_unlock(&mut app);
+    app.press(Action::Vault(V::AddKind(0)));
+    app.press(Action::Vault(V::SaveKey(0)));
+    // The system's randomness, which sealing the vault draws on.
+    for i in 0..8u8 {
+        app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+            [0x40 + i; 32],
+        )));
+    }
+    app.press(Action::Lock);
+    let mut out = None;
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes { outbox, .. } = c {
+            out = Some(outbox);
+        }
+    }
+    let vault = out
+        .expect("nothing queued on locking")
+        .into_iter()
+        .filter(|(n, _)| n == "vault.ofv")
+        .collect();
+    (vault, made)
+}
+
+fn type_words(app: &mut Faraday, language: osk_bip::bip39::Language, m: &osk_bip::bip39::Mnemonic) {
+    app.press(Action::Entry(None));
+    let at = faraday_core::forms::LANGUAGES
+        .iter()
+        .position(|l| *l == language)
+        .unwrap();
+    app.press(Action::EntryLanguage(at as u8));
+    for (n, &i) in m.indices().iter().enumerate() {
+        if n > 0 {
+            app.event(Event::Key(Key::Char(' ')));
+        }
+        for c in language.typed(i).unwrap().as_chars() {
+            app.event(Event::Key(Key::Char(*c)));
+        }
+    }
+    app.press(Action::EntryAdd);
+}
+
+#[test]
+fn a_key_whose_words_are_in_the_vault_reads_as_kept_there_and_another_does_not() {
+    use osk_bip::bip39::{Language, Mnemonic};
+    let (vault, made) = vault_holding_a_made_key();
+    let mut app = device(vault);
+    app.vaults.ms_per_unit = Some(180);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    type_and_unlock(&mut app);
+    // The vault's copy of the key says its backup is pending; a key of
+    // other words is not the one it means.
+    add_key(&mut app, 0);
+    let other = app.session.keys[0].fingerprint();
+    assert!(!app.key_held(other), "a key of other words is held");
+    // The same words typed are the key kept there.
+    type_words(&mut app, Language::English, &made);
+    assert_eq!(app.session.keys.len(), 2);
+    let same = app.session.keys[1].fingerprint();
+    assert!(app.key_held(same), "the words in the vault read as kept");
+    assert!(!app.key_held(other));
+    // The same seed typed from another language's list reads as kept too.
+    let es = Mnemonic::from_indices(Language::Spanish, made.indices()).unwrap();
+    type_words(&mut app, Language::Spanish, &es);
+    assert_eq!(app.session.keys.len(), 3, "{:?}", app.entry.error);
+    assert!(app.key_held(app.session.keys[2].fingerprint()));
 }

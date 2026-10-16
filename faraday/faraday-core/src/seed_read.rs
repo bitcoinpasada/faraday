@@ -157,12 +157,7 @@ impl Faraday {
     /// Spend tab: with words and no passphrase it asks first whether it
     /// has one. Returns whether it asked; else the slot takes it as is.
     pub(crate) fn seed_read_loaded(&mut self, fp: Fingerprint) -> bool {
-        let Some(key) = self
-            .session
-            .keys
-            .iter()
-            .find(|k| k.master.fingerprint() == fp)
-        else {
+        let Some(key) = self.session.keys.iter().find(|k| k.fingerprint() == fp) else {
             return false;
         };
         let (Some(words), None) = (key.words.as_ref(), key.passphrase.as_ref()) else {
@@ -185,7 +180,7 @@ impl Faraday {
             .session
             .keys
             .iter()
-            .find(|k| k.master.fingerprint() == fp)
+            .find(|k| k.fingerprint() == fp)
             .and_then(|k| k.words.as_ref())
         else {
             return;
@@ -350,7 +345,7 @@ impl Faraday {
                 .session
                 .keys
                 .iter()
-                .find(|k| k.master.fingerprint() == plain)
+                .find(|k| k.fingerprint() == plain)
                 .map(|k| fill(EN.seed_read_passphrase_3, &[&k.label.to_string()]))
                 .unwrap_or_default();
             match self.session.add_words_with(words, pass, &label, None) {

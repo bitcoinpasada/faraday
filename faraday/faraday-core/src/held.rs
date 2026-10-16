@@ -17,13 +17,7 @@ use crate::{Action, BStage, Faraday, Screen, bstep, plan};
 
 /// Whether vault key record `r` holds the words of session key `key`.
 fn same_words(r: &Record, key: &wallet::Key) -> bool {
-    let Some(words) = key.words.as_ref() else {
-        return false;
-    };
-    let Ok(m) = osk_bip::bip39::Mnemonic::parse(key.language, words.as_str()) else {
-        return false;
-    };
-    records::words_of(r).is_some_and(|stored| stored.indices() == m.indices())
+    records::words_of(r).is_some_and(|m| key.words_are(m.indices()))
 }
 
 /// Whether vault key record `r` says its key's backup is pending.
@@ -78,7 +72,7 @@ impl Faraday {
                 continue;
             };
             for k in &self.session.keys {
-                let fp = k.master.fingerprint();
+                let fp = k.fingerprint();
                 if w.held.iter().any(|h| h.eq_ignore_ascii_case(&fp_text(fp)))
                     && !out.contains(&fp)
                     && !self.wallet_seed_released(i, fp)
@@ -116,15 +110,15 @@ impl Faraday {
                         .session
                         .keys
                         .iter()
-                        .find(|k| fp_text(k.master.fingerprint()).eq_ignore_ascii_case(&held))
+                        .find(|k| fp_text(k.fingerprint()).eq_ignore_ascii_case(&held))
                     {
-                        add(k.master.fingerprint());
+                        add(k.fingerprint());
                     }
                 }
             }
             for (_, r) in open.contents.of(kind::KEY).filter(|(_, r)| pending(r)) {
                 for k in self.session.keys.iter().filter(|k| same_words(r, k)) {
-                    add(k.master.fingerprint());
+                    add(k.fingerprint());
                 }
             }
         }
@@ -154,11 +148,11 @@ impl Faraday {
         if self.held_keys().is_empty() {
             return false;
         }
-        let cs = wl.policy.checksum();
+        let cs = wl.checksum();
         self.session
             .wallets
             .iter()
-            .position(|w| w.policy.checksum() == cs)
+            .position(|w| w.checksum() == cs)
             .is_some_and(|i| !self.wallet_held(i).is_empty())
     }
 
@@ -189,7 +183,7 @@ impl Faraday {
         self.backup_keys(w)
             .into_iter()
             .filter_map(|k| self.session.keys.get(k))
-            .map(|k| k.master.fingerprint())
+            .map(|k| k.fingerprint())
             .filter(|fp| held.contains(fp))
             .collect()
     }
@@ -206,7 +200,7 @@ impl Faraday {
             .enumerate()
             .filter_map(|(i, (_, k))| {
                 let key = self.session.keys.get((*k)?)?;
-                held.contains(&key.master.fingerprint()).then_some(i)
+                held.contains(&key.fingerprint()).then_some(i)
             })
             .collect()
     }
@@ -225,7 +219,7 @@ impl Faraday {
         let held = self.held_keys_stored();
         self.made_here = held.clone();
         let keys: Vec<usize> = (0..self.session.keys.len())
-            .filter(|&k| held.contains(&self.session.keys[k].master.fingerprint()))
+            .filter(|&k| held.contains(&self.session.keys[k].fingerprint()))
             .collect();
         for v in 0..self.vaults.open.len() {
             let mut changed = false;
@@ -281,7 +275,7 @@ impl Faraday {
             .filter(|&i| plan::kept_nowhere(&shape, &b.answers, &[i]).is_none())
             .filter_map(|i| {
                 let k = list.get(i)?.1?;
-                Some((self.session.keys.get(k)?.master.fingerprint(), k))
+                Some((self.session.keys.get(k)?.fingerprint(), k))
             })
             .collect();
         if released.is_empty() {
@@ -295,7 +289,7 @@ impl Faraday {
                 .keys
                 .iter()
                 .filter(|o| o.words.is_some() && o.words == words)
-                .map(|o| o.master.fingerprint())
+                .map(|o| o.fingerprint())
                 .collect();
             self.made_here.retain(|f| *f != fp && !same.contains(f));
             self.held_clear_marks(fp, k);
@@ -445,7 +439,7 @@ impl Faraday {
         let Some((name, cs, desc)) = self.session.wallets.get(w).map(|wl| {
             (
                 wl.name.clone(),
-                wl.policy.checksum(),
+                wl.checksum().to_string(),
                 Faraday::wallet_text(wl),
             )
         }) else {

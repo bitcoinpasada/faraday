@@ -44,8 +44,8 @@ fn spanish_words_typed_without_accents_make_the_spanish_key() {
     app.press(Action::EntryAdd);
     assert_eq!(app.session.keys.len(), 1, "{:?}", app.entry.error);
     let key = &app.session.keys[0];
-    assert_eq!(key.master.fingerprint().0, fingerprint(&es));
-    assert_ne!(key.master.fingerprint().0, fingerprint(&en));
+    assert_eq!(key.fingerprint().0, fingerprint(&es));
+    assert_ne!(key.fingerprint().0, fingerprint(&en));
     assert_eq!(key.language, Language::Spanish);
 }
 
@@ -172,7 +172,7 @@ fn words_typed_on_the_kana_jamo_pinyin_and_zhuyin_keyboards_make_that_list_s_key
         app.press(Action::EntryAdd);
         assert_eq!(app.session.keys.len(), 1, "{lang:?}: {:?}", app.entry.error);
         let key = &app.session.keys[0];
-        assert_eq!(key.master.fingerprint().0, fingerprint(&m), "{lang:?}");
+        assert_eq!(key.fingerprint().0, fingerprint(&m), "{lang:?}");
         assert_eq!(key.language, lang);
     }
 }

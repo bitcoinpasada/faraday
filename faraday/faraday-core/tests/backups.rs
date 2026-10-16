@@ -85,7 +85,7 @@ fn with_a_wallet() -> Faraday {
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);
-    let fp = app.session.keys[0].master.fingerprint().0;
+    let fp = app.session.keys[0].fingerprint().0;
     app.press(Action::KeyWallet(fp, 1));
     app.press(Action::Seeds(S::Make));
     assert_eq!(app.session.wallets.len(), 1, "no wallet was made");

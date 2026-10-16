@@ -69,7 +69,7 @@ fn faradays_own_records_read_back() {
     app.press(Action::CKind(4));
     app.press(Action::CNext(0));
     app.press(Action::CNext(1));
-    let fp = app.session.keys[0].master.fingerprint().0;
+    let fp = app.session.keys[0].fingerprint().0;
     app.press(Action::CSlotHere(0, fp));
     app.press(Action::CKeyBsms(0));
     let record = app
@@ -80,7 +80,7 @@ fn faradays_own_records_read_back() {
     assert_eq!(record.kind, FileKind::Key);
     let key = faraday_core::create::read_key(std::str::from_utf8(&record.bytes).unwrap()).unwrap();
     let plain = faraday_core::create::NewKind::Multi
-        .key_text(&app.session.keys[0].master)
+        .key_text(app.session.keys[0].master())
         .unwrap();
     assert_eq!(key.replace('\'', "h"), plain.replace('\'', "h"));
 }

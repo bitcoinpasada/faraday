@@ -81,7 +81,7 @@ fn body(
         .keys
         .iter()
         .map(|k| {
-            let fp = k.master.fingerprint();
+            let fp = k.fingerprint();
             (
                 fill(
                     EN.lightning_ldk_node,

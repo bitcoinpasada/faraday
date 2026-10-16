@@ -597,7 +597,7 @@ fn demo_tour(t: &mut Tour) -> Result<(), String> {
         .keys
         .first()
         .ok_or("bacon was not loaded")?
-        .master
+        .master()
         .fingerprint()
         .0;
     t.press(Action::Bip85);
@@ -1086,7 +1086,7 @@ fn run(
         .session
         .wallets
         .first()
-        .and_then(|w| w.policy.keys()[0].fingerprint())
+        .and_then(|w| w.policy().keys()[0].fingerprint())
         .ok_or("no wallet")?;
     t.press(Action::Entry(Some(fp.0)));
     t.type_key(0);
@@ -1134,7 +1134,7 @@ fn run(
             .session
             .keys
             .iter()
-            .any(|k| k.master.fingerprint().0 == zebra_fp)
+            .any(|k| k.master().fingerprint().0 == zebra_fp)
     {
         return Err("the scanned SeedQR did not add Test key 2".into());
     }
@@ -1321,7 +1321,7 @@ fn run(
     t.shot("create-kind")?;
     t.press(Action::CNext(0));
     t.press(Action::CNext(1));
-    let bacon = t.app.session.keys[0].master.fingerprint().0;
+    let bacon = t.app.session.keys[0].master().fingerprint().0;
     t.press(Action::CSlotHere(0, bacon));
     dice_key(&mut t, 1)?;
     // The third cosigner's key is not here yet: the slot waits for it.
@@ -1365,7 +1365,9 @@ fn run(
     t.shot("qr-wallet")?;
     // The code on screen is the descriptor, as a camera reads it.
     let read = t.decode();
-    let want = t.app.session.wallets[0].policy.to_descriptor_checksummed();
+    let want = t.app.session.wallets[0]
+        .policy()
+        .to_descriptor_checksummed();
     if read.first() != Some(&want) {
         return Err(format!("the wallet QR reads {read:?}, not the descriptor"));
     }
@@ -1391,7 +1393,7 @@ fn run(
         )
     })?;
     let w = &t.app.session.wallets[made];
-    if w.policy.record().is_none_or(|r| r.n() != 3 || r.t() != 2)
+    if w.policy().record().is_none_or(|r| r.n() != 3 || r.t() != 2)
         || t.app.session.keys.len() != keys_before + 1
         || t.app.session.shares_here(w).len() != 3
     {
@@ -1970,7 +1972,7 @@ fn test_key_1(t: &Tour) -> Result<[u8; 4], String> {
         .keys
         .iter()
         .find(|k| k.words.as_deref().is_some_and(|w| w.as_str() == words))
-        .map(|k| k.master.fingerprint().0)
+        .map(|k| k.master().fingerprint().0)
         .ok_or_else(|| "test key 1 is not loaded".to_string())
 }
 
@@ -2696,7 +2698,7 @@ fn keys_tour(t: &mut Tour) -> Result<(), String> {
         .session
         .keys
         .first()
-        .map(|k| k.master.fingerprint().0)
+        .map(|k| k.master().fingerprint().0)
         .ok_or("no key added")?;
     t.press(Action::KeyWallet(fp, 1));
     t.shot("from-key-shape")?;
@@ -3429,7 +3431,7 @@ fn again_tour(t: &mut Tour) -> Result<(), String> {
         .keys
         .last()
         .ok_or("test key 2 did not load")?
-        .master
+        .master()
         .fingerprint();
     t.press(Action::KeyWallet(fp.0, 1));
     t.press(Action::Seeds(S::Make));
@@ -3613,7 +3615,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     t.type_key(0);
     let one = {
         let text = NewKind::NativeSegwit
-            .key_text(&t.app.session.keys[0].master)
+            .key_text(t.app.session.keys[0].master())
             .map_err(|e| e.to_string())?;
         t.app
             .session
@@ -3673,9 +3675,9 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
         )
         .map_err(|e| e.text())?;
     let masters = [
-        &t.app.session.keys[0].master,
-        &t.app.session.keys[1].master,
-        &elsewhere.keys[0].master,
+        &t.app.session.keys[0].master(),
+        &t.app.session.keys[1].master(),
+        &elsewhere.keys[0].master(),
     ];
     let keys: Vec<String> = masters
         .iter()
@@ -3816,7 +3818,7 @@ fn chart_edit_tour(t: &mut Tour) -> Result<(), String> {
     t.type_key(0);
     let one = {
         let text = NewKind::NativeSegwit
-            .key_text(&t.app.session.keys[0].master)
+            .key_text(t.app.session.keys[0].master())
             .map_err(|e| e.to_string())?;
         t.app
             .session
@@ -3941,9 +3943,9 @@ fn chart_edit_tour(t: &mut Tour) -> Result<(), String> {
         )
         .map_err(|e| e.text())?;
     let masters = [
-        &t.app.session.keys[0].master,
-        &t.app.session.keys[1].master,
-        &elsewhere.keys[0].master,
+        &t.app.session.keys[0].master(),
+        &t.app.session.keys[1].master(),
+        &elsewhere.keys[0].master(),
     ];
     let keys: Vec<String> = masters
         .iter()
@@ -4358,7 +4360,7 @@ fn spend_tour(t: &mut Tour) -> Result<(), String> {
     // A vanity address for test key 1, on its account number.
     use faraday_core::vanity::{VanityAction as Va, vstep};
     t.press(Action::Vanity(Va::Open));
-    let first = t.app.session.keys[0].master.fingerprint().0;
+    let first = t.app.session.keys[0].master().fingerprint().0;
     t.press(Action::Vanity(Va::Key(first)));
     t.shot("vanity-dial")?;
     t.press(Action::Vanity(Va::Next(vstep::DIAL)));
@@ -4617,7 +4619,13 @@ fn keyed_entry(t: &mut Tour) -> Result<(), String> {
 fn silent_wallet(t: &mut Tour) -> Result<(), String> {
     use faraday_core::silent::sstep;
     t.press(Action::Silent);
-    if let Some(fp) = t.app.session.keys.first().map(|k| k.master.fingerprint().0) {
+    if let Some(fp) = t
+        .app
+        .session
+        .keys
+        .first()
+        .map(|k| k.master().fingerprint().0)
+    {
         t.press(Action::SKey(fp));
     }
     t.press(Action::SAddWallet);
@@ -5039,7 +5047,7 @@ fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
         .keys
         .last()
         .ok_or("no key")?
-        .master
+        .master()
         .fingerprint()
         .0;
     t.press(Action::Nav(Screen::Create));

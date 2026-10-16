@@ -42,7 +42,7 @@ impl Work {
     /// to, while a move is under way.
     pub(crate) fn moved_to(&mut self, session: &crate::wallet::Session, i: usize) {
         if self.moving.is_some() {
-            self.moving_to = session.wallets.get(i).map(|w| w.policy.checksum());
+            self.moving_to = session.wallets.get(i).map(|w| w.checksum().to_string());
         }
     }
 }
@@ -82,7 +82,7 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(v) else {
             return Vec::new();
         };
-        let want = crate::wallet::same_wallet(&wallet.policy);
+        let want = crate::wallet::same_wallet(wallet.policy());
         open.contents
             .of(kind::PLAN)
             .filter(|(_, r)| {
@@ -153,7 +153,7 @@ impl Faraday {
         };
         let mut notes = self.plan_notes(wallet, Some(v));
         change(&mut notes);
-        let want = crate::wallet::same_wallet(&wallet.policy);
+        let want = crate::wallet::same_wallet(wallet.policy());
         let same = |r: &faraday_vault::records::Record| {
             r.kind == kind::PLAN
                 && r.text(field::PLAN_WALLET)
@@ -389,7 +389,7 @@ impl Faraday {
     /// keeps for `wallet` ("vault.ofv holds seed 9A6A2580").
     fn plan_extras(&self, wallet: &crate::wallet::Wallet, v: usize) -> Vec<String> {
         use faraday_vault::records::{field, kind};
-        let want = crate::wallet::same_wallet(&wallet.policy);
+        let want = crate::wallet::same_wallet(wallet.policy());
         // What stands between the vault and the seed in such a line.
         let holds_seed = EN
             .held_holds_seed
@@ -571,7 +571,7 @@ impl Faraday {
                 .session
                 .keys
                 .iter()
-                .find(|key| key.master.fingerprint().0 == fp)?;
+                .find(|key| key.fingerprint().0 == fp)?;
             let words = key.words.as_ref()?;
             let m = osk_bip::bip39::Mnemonic::parse(key.language, words).ok()?;
             let seed = m.to_seed(self.chart_work.secret.as_bytes()).ok()?;
@@ -625,7 +625,12 @@ impl Faraday {
         let Some(w) = self.press_wallet(press) else {
             return;
         };
-        let Some(sum) = self.session.wallets.get(w).map(|x| x.policy.checksum()) else {
+        let Some(sum) = self
+            .session
+            .wallets
+            .get(w)
+            .map(|x| x.checksum().to_string())
+        else {
             return;
         };
         self.chart_work.moving = Some(sum);
@@ -642,7 +647,7 @@ impl Faraday {
         self.session
             .wallets
             .iter()
-            .position(|w| w.policy.checksum() == *from)
+            .position(|w| w.checksum() == *from)
     }
 
     /// Where the money moving from loaded wallet `w` goes: the new
@@ -652,11 +657,7 @@ impl Faraday {
             return None;
         }
         let to = self.chart_work.moving_to.as_ref()?;
-        let nw = self
-            .session
-            .wallets
-            .iter()
-            .find(|x| x.policy.checksum() == *to)?;
+        let nw = self.session.wallets.iter().find(|x| x.checksum() == *to)?;
         Some((nw.name.clone(), self.receive_line(nw, false, 0).0))
     }
 

@@ -126,7 +126,7 @@ fn made(app: &Faraday) -> usize {
 
 fn desc(app: &Faraday, w: usize) -> String {
     app.session.wallets[w]
-        .policy
+        .policy()
         .to_descriptor_checksummed()
         .replace('\'', "h")
 }
@@ -241,7 +241,7 @@ fn a_loaded_key_taken_into_a_slot_asks_for_its_passphrase() {
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words("summer"));
     app.press(Action::EntryAdd);
-    let summer = app.session.keys[0].master.fingerprint();
+    let summer = app.session.keys[0].fingerprint();
     app.press(Action::RestoreWallet);
     app.press(Action::RKind(MULTI));
     app.press(Action::RNext(KIND));

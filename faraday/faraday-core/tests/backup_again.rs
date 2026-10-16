@@ -79,7 +79,7 @@ fn add_key(app: &mut Faraday, n: usize) -> osk_bip::keys::Fingerprint {
         .keys
         .last()
         .expect("the key was not added")
-        .master
+        .master()
         .fingerprint()
 }
 
@@ -324,7 +324,7 @@ fn the_key_rows_list_the_keys_whose_seeds_are_here() {
     let here = [add_key(&mut app, 0), add_key(&mut app, 2)];
     let slot_of = |app: &Faraday, fp| {
         app.session.wallets[w]
-            .policy
+            .policy()
             .keys()
             .iter()
             .position(|k| k.fingerprint() == Some(fp))
@@ -337,7 +337,7 @@ fn the_key_rows_list_the_keys_whose_seeds_are_here() {
     // Test key 2's seed is not here: its slot has no row.
     let away = (0..3u8)
         .find(|&k| {
-            let fp = app.session.wallets[w].policy.keys()[usize::from(k)].fingerprint();
+            let fp = app.session.wallets[w].policy().keys()[usize::from(k)].fingerprint();
             !here.iter().any(|h| Some(*h) == fp)
         })
         .expect("a slot not held here");
@@ -345,7 +345,7 @@ fn the_key_rows_list_the_keys_whose_seeds_are_here() {
     // The checklist makes each key's account key files with the public
     // files (`docs/BACKUP-FLOW.md` §10.2); a key not held here has none.
     let away_fp = faraday_core::wallet::fp_text(
-        app.session.wallets[w].policy.keys()[usize::from(away)]
+        app.session.wallets[w].policy().keys()[usize::from(away)]
             .fingerprint()
             .unwrap(),
     );
@@ -359,7 +359,7 @@ fn the_key_rows_list_the_keys_whose_seeds_are_here() {
             .find(|i| i.name == format!("xpub-{name}.txt"))
             .expect("the key's file");
         let text = String::from_utf8(file.bytes.clone()).unwrap();
-        let key = app.session.wallets[w].policy.keys()[usize::from(slot)].key_text();
+        let key = app.session.wallets[w].policy().keys()[usize::from(slot)].key_text();
         assert!(text.contains(&key), "{text}");
         let record = app
             .outbox

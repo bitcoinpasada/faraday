@@ -78,11 +78,7 @@ impl PlanCtx {
         // (§17.7). The flow keeps no name.
         let backup_names = !f.made
             && app.backup.as_ref().is_some_and(|b| {
-                app.session
-                    .wallets
-                    .get(b.wallet)
-                    .map(|w| w.policy.checksum())
-                    == wf.checksum
+                app.session.wallets.get(b.wallet).map(|w| w.checksum()) == wf.checksum.as_deref()
             });
         let names = (0..a.places.max(1) + 1)
             .map(|p| {

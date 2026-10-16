@@ -85,7 +85,7 @@ fn restored(app: &Faraday) -> String {
     let r = app.restore.as_ref().unwrap();
     let w = r.wallet.expect("no wallet made");
     assert_eq!(r.open, Some(CHECK), "the Check card is not next");
-    desc(&app.session.wallets[w].policy.to_descriptor())
+    desc(&app.session.wallets[w].policy().to_descriptor())
 }
 
 #[test]
@@ -163,7 +163,7 @@ fn the_spend_tab_takes_two_seeds_and_an_xpub_to_check() {
     app.press(Action::Seeds(S::Make));
     let w = app.family_wallet().expect("no wallet made");
     assert_eq!(
-        desc(&app.session.wallets[w].policy.to_descriptor()),
+        desc(&app.session.wallets[w].policy().to_descriptor()),
         desc(&testkit::savings())
     );
     assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));

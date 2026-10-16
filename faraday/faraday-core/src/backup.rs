@@ -91,7 +91,7 @@ pub fn audit(plan: &[Vec<usize>], m: usize) -> Audit {
 /// Multisig"; SeedSigner recognises it by "multisig setup file" in its
 /// first line. `only` keeps those key lines alone, for a split sheet.
 pub fn multisig_config(wallet: &Wallet, only: Option<&[usize]>) -> Option<String> {
-    let format = match Kind::of(&wallet.policy) {
+    let format = match Kind::of(wallet.policy()) {
         Kind::Multi(osk_bip::policy::Wrapper::Sh) => "P2SH",
         Kind::Multi(osk_bip::policy::Wrapper::ShWsh) => "P2SH-P2WSH",
         Kind::Multi(_) => "P2WSH",
@@ -108,7 +108,7 @@ pub fn multisig_config(wallet: &Wallet, only: Option<&[usize]>) -> Option<String
 /// Whether a wallet's backup can be split between its signers: a
 /// multisig, `wsh`, `sh` or Taproot's `sortedmulti_a`.
 pub fn splits(wallet: &Wallet) -> bool {
-    matches!(Kind::of(&wallet.policy), Kind::Multi(_) | Kind::TapMulti)
+    matches!(Kind::of(wallet.policy()), Kind::Multi(_) | Kind::TapMulti)
 }
 
 /// One sheet of a split backup, holding the keys `keep` names: the
@@ -117,7 +117,7 @@ pub fn splits(wallet: &Wallet) -> bool {
 /// as `tr(NUMS, sortedmulti_a(…))` (`restore::merge`). Coldcard's own
 /// config has no Taproot format, so a Taproot wallet has no whole config.
 pub fn split_share(wallet: &Wallet, keep: &[usize]) -> Option<String> {
-    match Kind::of(&wallet.policy) {
+    match Kind::of(wallet.policy()) {
         Kind::Multi(_) => multisig_config(wallet, Some(keep)),
         Kind::TapMulti => Some(config(
             wallet,
@@ -142,7 +142,7 @@ fn config(wallet: &Wallet, only: Option<&[usize]>, format: &str, head: &str) -> 
         "#\nName: {}\nPolicy: {m} of {n}\nFormat: {format}\n",
         sanitize(&wallet.name)
     ));
-    for (i, key) in wallet.policy.keys().iter().enumerate() {
+    for (i, key) in wallet.policy().keys().iter().enumerate() {
         if only.is_some_and(|keep| !keep.contains(&i)) {
             continue;
         }
@@ -217,10 +217,10 @@ pub fn sheet_wallet(session: &Session, wallet: &Wallet) -> String {
     out.push_str(&format!("shape: {}\n", Session::shape(wallet)));
     out.push_str(&format!(
         "descriptor: {}\n",
-        wallet.policy.to_descriptor_checksummed()
+        wallet.policy().to_descriptor_checksummed()
     ));
     for (i, slot) in session.slots(wallet).iter().enumerate() {
-        let key = &wallet.policy.keys()[i];
+        let key = &wallet.policy().keys()[i];
         out.push_str(&format!(
             "key: {} {} {}\n",
             i + 1,

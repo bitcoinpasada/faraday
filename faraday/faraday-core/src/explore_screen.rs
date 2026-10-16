@@ -32,7 +32,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .keys
         .iter()
         .map(|k| {
-            let fp = k.master.fingerprint();
+            let fp = k.fingerprint();
             (
                 crate::wallet::key_line(fp, &k.label),
                 if e.key == Some(fp.0) {

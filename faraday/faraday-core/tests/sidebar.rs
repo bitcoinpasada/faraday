@@ -42,7 +42,7 @@ fn with_height(seeds: u8, wallets: usize, height: u16) -> Faraday {
     }
     let text = (wallets > 0).then(|| {
         faraday_core::create::NewKind::NativeSegwit
-            .key_text(&app.session.keys[0].master)
+            .key_text(app.session.keys[0].master())
             .unwrap()
     });
     for a in 0..wallets {
@@ -66,7 +66,7 @@ fn with_height(seeds: u8, wallets: usize, height: u16) -> Faraday {
 }
 
 fn fp(app: &Faraday, k: usize) -> [u8; 4] {
-    app.session.keys[k].master.fingerprint().0
+    app.session.keys[k].fingerprint().0
 }
 
 #[test]
@@ -199,7 +199,7 @@ fn a_wallet_the_seeds_here_sign_for_stays_in_view_among_many() {
     let mut app = with(2, 0);
     let text_of = |app: &Faraday, k: usize, a: usize| {
         faraday_core::create::NewKind::NativeSegwit
-            .key_text(&app.session.keys[k].master)
+            .key_text(app.session.keys[k].master())
             .unwrap()
             .replace("/0h]", &format!("/{a}h]"))
     };

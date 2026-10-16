@@ -371,7 +371,7 @@ impl Faraday {
                     return self.family_ready()
                         && (self.family.closed[p as usize]
                             || self.family_wallet().is_some_and(|i| {
-                                self.is_checked(&self.session.wallets[i].policy.checksum())
+                                self.is_checked(self.session.wallets[i].checksum())
                             }));
                 }
                 // Write the payment ends with the PSBT here.
@@ -524,7 +524,7 @@ impl Faraday {
                     && let Some(w) = self.family_wallet()
                     && let Some(wallet) = self.session.wallets.get(w)
                 {
-                    let checksum = wallet.policy.checksum();
+                    let checksum = wallet.checksum().to_string();
                     self.mark_checked(&checksum);
                 }
                 self.family_advance(p);
@@ -554,7 +554,7 @@ impl Faraday {
             F::NoMoney => self.family_no_money(),
             F::Passphrase(yes) => {
                 if yes {
-                    if let Some(fp) = self.family_words_key().map(|k| k.master.fingerprint()) {
+                    if let Some(fp) = self.family_words_key().map(|k| k.fingerprint()) {
                         self.seed_read_family(fp, crate::seed_read::ForFamily::Guess);
                     }
                 } else {
@@ -813,7 +813,7 @@ impl Faraday {
             .session
             .keys
             .iter()
-            .map(|k| k.master.fingerprint().0)
+            .map(|k| k.fingerprint().0)
             .collect();
         for fp in fps {
             self.family.seeds.take(fp);
@@ -868,12 +868,7 @@ impl Faraday {
                 Came::Seed(fp) => Some(Fingerprint(*fp)),
                 Came::File(_) => None,
             })
-            .filter(|fp| {
-                self.session
-                    .keys
-                    .iter()
-                    .any(|k| k.master.fingerprint() == *fp)
-            })
+            .filter(|fp| self.session.keys.iter().any(|k| k.fingerprint() == *fp))
             .filter(|fp| matches!(self.wallet_key_found(w, *fp), Found::None))
             .collect()
     }
@@ -1311,12 +1306,7 @@ impl Faraday {
             .seeds
             .keys
             .first()
-            .and_then(|fp| {
-                self.session
-                    .keys
-                    .iter()
-                    .find(|k| k.master.fingerprint().0 == *fp)
-            })
+            .and_then(|fp| self.session.keys.iter().find(|k| k.fingerprint().0 == *fp))
             .or(self.session.keys.last())
     }
 
@@ -1326,7 +1316,7 @@ impl Faraday {
         let Some(key) = self.family_words_key() else {
             return;
         };
-        let text = match kind.key_text(&key.master) {
+        let text = match kind.key_text(key.master()) {
             Ok(t) => t,
             Err(e) => {
                 self.family.error = Some(e);

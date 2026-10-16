@@ -111,8 +111,7 @@ impl Faraday {
             self.toast(EN.vanity_load_a_key_first);
             return;
         }
-        let key =
-            (self.session.keys.len() == 1).then(|| self.session.keys[0].master.fingerprint().0);
+        let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint().0);
         let net = self.session.network();
         self.vanity = Some(VanityState {
             open: Some(if key.is_some() {
@@ -135,10 +134,7 @@ impl Faraday {
     /// The key chosen, from the session.
     fn vanity_key(&self) -> Option<&crate::wallet::Key> {
         let fp = self.vanity.as_ref()?.key?;
-        self.session
-            .keys
-            .iter()
-            .find(|k| k.master.fingerprint().0 == fp)
+        self.session.keys.iter().find(|k| k.fingerprint().0 == fp)
     }
 
     /// Whether the chosen key can turn the passphrase dial: only a key
@@ -250,7 +246,7 @@ impl Faraday {
         let g = &v.grind;
         let outcome = match g.dial {
             Dial::Account => engine::grind(
-                &Key::Master(&key.master),
+                &Key::Master(key.master()),
                 &Method::Account,
                 g.script,
                 g.prefix.as_str(),
@@ -312,7 +308,7 @@ impl Faraday {
         let script = v.grind.script;
         let label = key.label.clone();
         let (master_fp, account) = match v.grind.dial {
-            Dial::Account => (key.master.fingerprint(), find.account),
+            Dial::Account => (key.fingerprint(), find.account),
             Dial::Passphrase => {
                 let Some(words) = key.words.clone() else {
                     return;
@@ -344,8 +340,8 @@ impl Faraday {
             .session
             .keys
             .iter()
-            .find(|k| k.master.fingerprint() == master_fp)
-            .map(|k| &k.master)
+            .find(|k| k.fingerprint() == master_fp)
+            .map(|k| k.master())
         else {
             return;
         };

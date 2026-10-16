@@ -58,7 +58,7 @@ impl Faraday {
                 .map_or("", |p| p.as_str())
                 .to_string(),
         );
-        Some((m, p, k.master.fingerprint().0))
+        Some((m, p, k.fingerprint().0))
     }
 
     /// Splits the key's words into `parts` Seed XOR parts.

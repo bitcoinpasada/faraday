@@ -149,7 +149,7 @@ fn a_descriptor_past_one_code_goes_as_parts_that_assemble_to_it() {
         .collect();
     let descriptor = format!("wsh(sortedmulti(2,{}))", keys.join(","));
     let (app, w) = holding("Big", &descriptor);
-    let want = app.session.wallets[w].policy.to_descriptor_checksummed();
+    let want = app.session.wallets[w].policy().to_descriptor_checksummed();
     let pictures = app.public_pictures(w, 8);
     let k = pictures.len();
     assert!(k > 1, "one code");
@@ -220,7 +220,7 @@ fn a_share_picture_names_what_it_holds_and_leaves_off() {
     let pictures = app.public_pictures(w, 4);
     assert_eq!(pictures.len(), 3);
     let fps: Vec<String> = app.session.wallets[w]
-        .policy
+        .policy()
         .keys()
         .iter()
         .map(|k| faraday_core::wallet::fp_text(k.fingerprint().unwrap()))

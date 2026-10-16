@@ -129,7 +129,7 @@ fn a_seed_no_wallet_names_waits_as_a_potential_wallet() {
     app.press(Action::PotentialMake);
     assert_eq!(app.sheet, None);
     assert_eq!(app.session.keys.len(), 1);
-    assert_eq!(app.session.keys[0].master.fingerprint(), fp);
+    assert_eq!(app.session.keys[0].fingerprint(), fp);
     assert_eq!(app.session.wallets.len(), 1);
 }
 
@@ -145,11 +145,11 @@ fn a_passphrase_makes_the_potential_wallet_another_key() {
     app.press(Action::PotentialKind(1));
     app.press(Action::PotentialMake);
     assert_eq!(app.session.keys.len(), 1);
-    assert_eq!(app.session.keys[0].master.fingerprint(), with);
+    assert_eq!(app.session.keys[0].fingerprint(), with);
     assert_eq!(app.session.wallets.len(), 1);
     assert!(
         app.session.wallets[0]
-            .policy
+            .policy()
             .to_descriptor()
             .starts_with("tr(")
     );
@@ -245,7 +245,7 @@ fn an_account_xpub_alone_becomes_a_watch_only_wallet_of_its_paths_kind() {
     assert!(app.session.keys.is_empty(), "watch-only: no key");
     assert!(
         app.session.wallets[0]
-            .policy
+            .policy()
             .to_descriptor()
             .starts_with("wpkh(")
     );

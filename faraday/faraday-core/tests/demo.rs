@@ -94,12 +94,7 @@ fn public_fp(word: &str) -> [u8; 4] {
 /// A key loaded: bacon, typed in unless it is loaded already.
 fn a_key(app: &mut Faraday) -> [u8; 4] {
     let fp = public_fp("bacon");
-    if !app
-        .session
-        .keys
-        .iter()
-        .any(|k| k.master.fingerprint().0 == fp)
-    {
+    if !app.session.keys.iter().any(|k| k.fingerprint().0 == fp) {
         add_public(app, "bacon");
     }
     fp
@@ -695,11 +690,7 @@ fn fingerprint(words: &str) -> [u8; 4] {
 }
 
 fn loaded(app: &Faraday) -> Vec<[u8; 4]> {
-    app.session
-        .keys
-        .iter()
-        .map(|k| k.master.fingerprint().0)
-        .collect()
+    app.session.keys.iter().map(|k| k.fingerprint().0).collect()
 }
 
 /// Lock in, the words' quiz passed, Done.
@@ -854,7 +845,7 @@ fn in_the_demo_public_seeds_sign_keep_entries_and_go_into_a_vault() {
     let kit = Kit {
         id: "demo",
         name: "Demo",
-        descriptor: app.session.wallets[w].policy.to_descriptor_checksummed(),
+        descriptor: app.session.wallets[w].policy().to_descriptor_checksummed(),
         cosigner: None,
         fee: 1_000,
     };

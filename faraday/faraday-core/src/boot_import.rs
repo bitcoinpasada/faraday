@@ -695,7 +695,7 @@ impl Faraday {
                         .session
                         .keys
                         .iter()
-                        .any(|k| fp_text(k.master.fingerprint()) == fp);
+                        .any(|k| fp_text(k.fingerprint()) == fp);
                     key_from(&mut keys_here, fp, vec![open.name.clone()], loaded);
                 }
             }
@@ -707,7 +707,7 @@ impl Faraday {
             .session
             .wallets
             .iter()
-            .map(|w| crate::wallet::same_wallet(&w.policy))
+            .map(|w| crate::wallet::same_wallet(w.policy()))
             .collect();
         let add_wallet = |view: &mut ImportView, w: ImportWallet| {
             if loaded_desc.contains(&w.descriptor) {
@@ -759,18 +759,17 @@ impl Faraday {
                 else {
                     continue;
                 };
-                let wallet = Wallet {
-                    name: r
-                        .text(field::WALLET_NAME)
+                let wallet = Wallet::new(
+                    r.text(field::WALLET_NAME)
                         .unwrap_or(EN.boot_import_wallet)
                         .to_string(),
                     policy,
-                    source: String::new(),
-                    origin: crate::wallet::Origin::Named,
-                };
-                let descriptor = crate::wallet::same_wallet(&wallet.policy);
+                    String::new(),
+                    crate::wallet::Origin::Named,
+                );
+                let descriptor = crate::wallet::same_wallet(wallet.policy());
                 let keys: Vec<String> = wallet
-                    .policy
+                    .policy()
                     .keys()
                     .iter()
                     .filter_map(|k| k.fingerprint())

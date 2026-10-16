@@ -1216,7 +1216,7 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                 app.session
                     .keys
                     .iter()
-                    .find(|x| x.master.fingerprint().0 == fp)
+                    .find(|x| x.fingerprint().0 == fp)
                     .and_then(|x| x.passphrase.as_ref())
             });
             match (shown, app.chart_work.reveal) {
@@ -1518,7 +1518,7 @@ impl Faraday {
                             .session
                             .keys
                             .iter()
-                            .position(|k| k.master.fingerprint().0 == fp);
+                            .position(|k| k.fingerprint().0 == fp);
                         if let Some(k) = k
                             && self.chart_checklist(w, from_vault)
                         {

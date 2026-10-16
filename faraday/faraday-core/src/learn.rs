@@ -96,7 +96,7 @@ impl Faraday {
             self.session
                 .wallets
                 .get(self.wallet)
-                .map(|w| Kind::of(&w.policy))
+                .map(|w| Kind::of(w.policy()))
         };
         match self.screen {
             Screen::Home => vec![&EN.start_here, &EN.air_gap],

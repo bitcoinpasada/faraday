@@ -44,7 +44,7 @@ fn device(seeded: bool) -> Faraday {
 fn our_nonce(app: &Faraday) -> Option<Vec<u8>> {
     let s = app.spend.as_ref()?;
     let ours = app.session.keys[0]
-        .master
+        .master()
         .derive(&"m/86'/1'/0'".parse().unwrap())
         .to_xpub()
         .public_key;

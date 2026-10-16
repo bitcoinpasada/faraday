@@ -1501,8 +1501,8 @@ impl crate::Faraday {
             .session
             .keys
             .iter()
-            .find(|key| key.master.fingerprint() == fp)
-            .and_then(|key| kind.key_text(&key.master).ok());
+            .find(|key| key.fingerprint() == fp)
+            .and_then(|key| kind.key_text(key.master()).ok());
         if let Some(k) = self.keygen.as_mut() {
             k.locked = true;
             k.with_passphrase = !pass.is_empty();
@@ -1537,7 +1537,7 @@ impl crate::Faraday {
                 if let Some(w) = self.create.as_ref().and_then(|c| c.built)
                     && let Some(wallet) = self.session.wallets.get(w)
                 {
-                    let checksum = wallet.policy.checksum();
+                    let checksum = wallet.checksum().to_string();
                     self.mark_checked(&checksum);
                 }
             }

@@ -3,6 +3,8 @@
 //! loaded wallets is refused. Every key and wallet form on the test stick
 //! loads as the wallet or key it stands for.
 
+mod common;
+
 use faraday_core::testkit;
 use faraday_core::wallet::{FileKind, Session, classify};
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
@@ -216,4 +218,25 @@ fn every_seed_form_and_xpub_on_the_test_stick_is_its_key() {
             assert!(text.contains("]tpub"), "{name}");
         }
     }
+}
+
+const ABANDON: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon \
+                       abandon abandon about";
+
+#[test]
+fn a_key_reads_the_same_fingerprint_on_the_wallets_page_on_either_network() {
+    let mut app = testkit::started();
+    app.session.add_words(ABANDON, "Seed", None).unwrap();
+    app.press(Action::Nav(Screen::Wallets));
+    assert!(common::has(&mut app, "73c5da0a · Seed"));
+
+    app.press(Action::Nav(Screen::Settings));
+    app.press(Action::Network(Network::Testnet));
+    assert_eq!(app.session.network(), Network::Testnet);
+    app.press(Action::Nav(Screen::Wallets));
+    assert!(common::has(&mut app, "73c5da0a · Seed"));
+
+    app.session.set_network(Network::Mainnet).unwrap();
+    app.press(Action::Nav(Screen::Wallets));
+    assert!(common::has(&mut app, "73c5da0a · Seed"));
 }

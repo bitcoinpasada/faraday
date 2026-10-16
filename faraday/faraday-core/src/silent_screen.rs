@@ -104,7 +104,7 @@ fn card(app: &Faraday, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f
                 .keys
                 .iter()
                 .map(|key| {
-                    let fp = key.master.fingerprint();
+                    let fp = key.fingerprint();
                     (
                         crate::wallet::key_line(fp, &key.label),
                         if s.key == Some(fp.0) {

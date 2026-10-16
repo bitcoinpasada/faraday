@@ -142,7 +142,7 @@ fn made() -> (Faraday, usize) {
     app.press(Action::CNext(cstep::KIND)); // single key, the default: opens Keys
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
-    let fp = app.session.keys[0].master.fingerprint().0;
+    let fp = app.session.keys[0].fingerprint().0;
     app.press(Action::CSlotHere(0, fp));
     app.press(Action::CNext(cstep::KEYS));
     let c = app.create.as_ref().expect("create");
@@ -228,7 +228,7 @@ fn multisig_on_keys() -> Faraday {
 #[test]
 fn a_key_in_one_slot_is_offered_in_no_other_and_clearing_offers_it_again() {
     let mut app = multisig_on_keys();
-    let fp = app.session.keys[0].master.fingerprint().0;
+    let fp = app.session.keys[0].fingerprint().0;
     app.press(Action::CSlotHere(0, fp));
     let _ = app.frame();
     assert!(
@@ -251,7 +251,7 @@ fn the_keys_foot_button_opens_new_key_for_the_first_empty_slot() {
         texts.iter().any(|t| t == "New key for Key 1"),
         "the foot button names the first empty slot: {texts:?}"
     );
-    let fp = app.session.keys[0].master.fingerprint().0;
+    let fp = app.session.keys[0].fingerprint().0;
     app.press(Action::CSlotHere(0, fp));
     let texts = app.drawn_texts();
     assert!(
@@ -277,7 +277,7 @@ fn key_made_on_its_own(app: &mut Faraday) -> [u8; 4] {
     app.press(Action::KSkip);
     app.press(Action::KAdd);
     assert!(app.keygen.is_none(), "New key is done");
-    app.session.keys[0].master.fingerprint().0
+    app.session.keys[0].fingerprint().0
 }
 
 fn type_text(app: &mut Faraday, text: &str) {
@@ -311,10 +311,7 @@ fn a_key_made_on_its_own_takes_a_passphrase_in_a_single_key_slot() {
     let c = app.create.as_ref().unwrap();
     assert_eq!(c.slots[0], faraday_core::create::Source::Here(with));
     assert!(
-        app.session
-            .keys
-            .iter()
-            .any(|k| k.master.fingerprint().0 == first),
+        app.session.keys.iter().any(|k| k.fingerprint().0 == first),
         "the key without the passphrase stays loaded"
     );
     assert!(app.drawn_texts().iter().any(|t| t == "Locked in"));
@@ -338,7 +335,7 @@ fn a_key_made_on_its_own_takes_a_passphrase_in_a_single_key_slot() {
 fn a_slot_whose_key_has_a_passphrase_offers_no_add_a_passphrase() {
     let mut app = testkit::started();
     add_key(&mut app, "bacon");
-    let plain = app.session.keys[0].master.fingerprint().0;
+    let plain = app.session.keys[0].fingerprint().0;
     let words = testkit::test_words("bacon");
     let with = app
         .session
@@ -361,7 +358,7 @@ fn a_slot_whose_key_has_a_passphrase_offers_no_add_a_passphrase() {
 fn unequal_passphrases_in_a_slot_lock_nothing_in() {
     let mut app = testkit::started();
     add_key(&mut app, "bacon");
-    let plain = app.session.keys[0].master.fingerprint().0;
+    let plain = app.session.keys[0].fingerprint().0;
     app.press(Action::CreateWallet);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(false));

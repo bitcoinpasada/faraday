@@ -74,7 +74,7 @@ fn add_key(app: &mut Faraday, n: usize) {
 fn one_key(app: &mut Faraday) -> usize {
     add_key(app, 0);
     let text = faraday_core::create::NewKind::NativeSegwit
-        .key_text(&app.session.keys[0].master)
+        .key_text(app.session.keys[0].master())
         .unwrap();
     app.session
         .add_wallet(
@@ -323,7 +323,7 @@ fn a_key_held_here_shows_its_xpub_and_where_its_seed_is() {
     let w = one_key(&mut app);
     planned(&mut app, w, 1);
     let press = Press::Loaded(w);
-    let fp = app.session.keys[0].master.fingerprint().0;
+    let fp = app.session.keys[0].fingerprint().0;
     open(&mut app, press, Target::Key(0));
     assert!(shown(&mut app, "Make another backup of this seed"));
     assert!(app.offers(Action::Chart(C::Do(press, Step::Scan(fp)))));

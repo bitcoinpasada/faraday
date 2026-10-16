@@ -61,7 +61,7 @@ impl Faraday {
             "1"
         };
         self.explore = Some(ExploreState {
-            key: Some(self.session.keys[0].master.fingerprint().0),
+            key: Some(self.session.keys[0].fingerprint().0),
             path: PRESETS[0].1.replace("{c}", coin),
             script: ScriptType::NativeSegwit,
             back: self.screen,
@@ -84,8 +84,8 @@ impl Faraday {
             .session
             .keys
             .iter()
-            .find(|k| Some(k.master.fingerprint().0) == e.key)?
-            .master;
+            .find(|k| Some(k.fingerprint().0) == e.key)?
+            .master();
         let xpub = master.derive(&path).to_xpub();
         let pk = CompressedPublicKey(xpub.public_key);
         let net: osk_bip::bitcoin::Network = self.session.network().into();

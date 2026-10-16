@@ -27,7 +27,10 @@ pub(crate) use faraday_intake::wallet::{json_string, network_of_kind};
 /// A key that can sign, held for this session only.
 pub struct Key {
     /// The master key.
-    pub master: MasterKey,
+    master: MasterKey,
+    /// The master key's fingerprint, worked out once when the key is made.
+    /// Public, and the same on every network.
+    fp: Fingerprint,
     /// What the person called it.
     pub label: String,
     /// The words it was loaded from, for the backup's copy-by-hand step.
@@ -46,6 +49,59 @@ pub struct Key {
 }
 
 impl Key {
+    /// Makes a key; costs an elliptic-curve multiplication with the master
+    /// private key, for its fingerprint.
+    pub fn new(
+        master: MasterKey,
+        label: String,
+        words: Option<zeroize::Zeroizing<String>>,
+        language: Language,
+        share: Option<osk_bip::bitcoin::secp256k1::PublicKey>,
+        passphrase: Option<zeroize::Zeroizing<String>>,
+    ) -> Key {
+        let fp = master.fingerprint();
+        Key {
+            master,
+            fp,
+            label,
+            words,
+            language,
+            share,
+            passphrase,
+        }
+    }
+
+    /// The master key.
+    pub fn master(&self) -> &MasterKey {
+        &self.master
+    }
+
+    /// The master key's fingerprint; a lookup, kept when the key was made.
+    pub fn fingerprint(&self) -> Fingerprint {
+        self.fp
+    }
+
+    /// Moves the master key to `network`; the fingerprint is the same on
+    /// every network.
+    pub fn set_network(&mut self, network: Network) {
+        self.master = self.master.for_network(network);
+    }
+
+    /// Whether the key's words are the ones with these BIP-39 `indices`;
+    /// a lookup per word, with no parsing and no copy of the words.
+    pub fn words_are(&self, indices: &[u16]) -> bool {
+        let Some(words) = self.words.as_ref() else {
+            return false;
+        };
+        let mut have = words.as_str().split(' ');
+        for &i in indices {
+            if have.next() != Some(self.language.word(i)) {
+                return false;
+            }
+        }
+        have.next().is_none()
+    }
+
     /// Runs `take` on the secret share these words are, rebuilt for the
     /// call and wiped after it.
     pub fn with_secret_share(&self, take: &mut dyn FnMut(&osk_bip::frost::SecShare)) {
@@ -88,7 +144,10 @@ pub struct Wallet {
     /// What the person called it.
     pub name: String,
     /// The policy, as it was read.
-    pub policy: WalletPolicy,
+    policy: WalletPolicy,
+    /// The policy's descriptor checksum, written out once when the policy
+    /// is set.
+    checksum: String,
     /// Where it came from: "Test wallet" or the file's name.
     pub source: String,
     /// What [`Wallet::source`] is: every caller that adds a wallet
@@ -97,6 +156,38 @@ pub struct Wallet {
     /// second language would not carry. [`source_tag`] and Family's
     /// routing (`family.rs`) read this, not the words.
     pub origin: Origin,
+}
+
+impl Wallet {
+    /// Makes a wallet; writes the policy's descriptor out, for its checksum.
+    pub fn new(name: String, policy: WalletPolicy, source: String, origin: Origin) -> Wallet {
+        let checksum = policy.checksum();
+        Wallet {
+            name,
+            policy,
+            checksum,
+            source,
+            origin,
+        }
+    }
+
+    /// The policy, as it was read.
+    pub fn policy(&self) -> &WalletPolicy {
+        &self.policy
+    }
+
+    /// The policy's descriptor checksum; a lookup, kept when the policy
+    /// was set.
+    pub fn checksum(&self) -> &str {
+        &self.checksum
+    }
+
+    /// Replaces the policy; writes the descriptor out again, for its
+    /// checksum.
+    pub fn set_policy(&mut self, policy: WalletPolicy) {
+        self.checksum = policy.checksum();
+        self.policy = policy;
+    }
 }
 
 /// What a wallet's [`Wallet::source`] is: Family's own "Typed words"
@@ -295,12 +386,9 @@ impl Session {
             return Err(Refusal::NetworkFixed(self.network));
         }
         if network.is_mainnet()
-            && let Some(k) = self
-                .keys
-                .iter()
-                .find(|k| !self.is_public(k.master.fingerprint()))
+            && let Some(k) = self.keys.iter().find(|k| !self.is_public(k.fingerprint()))
         {
-            return Err(Refusal::NotPublicLoaded(fp_text(k.master.fingerprint())));
+            return Err(Refusal::NotPublicLoaded(fp_text(k.fingerprint())));
         }
         if !self.wallets.is_empty() && network.kind() != self.network.kind() {
             return Err(Refusal::Network {
@@ -309,7 +397,7 @@ impl Session {
             });
         }
         for k in &mut self.keys {
-            k.master = k.master.for_network(network);
+            k.set_network(network);
         }
         self.network = network;
         Ok(())
@@ -397,7 +485,7 @@ impl Session {
             });
         }
         self.allowed(fp)?;
-        if self.keys.iter().any(|k| k.master.fingerprint() == fp) {
+        if self.keys.iter().any(|k| k.fingerprint() == fp) {
             return Err(Refusal::Duplicate(fp_text(fp)));
         }
         let label = if label.trim().is_empty() {
@@ -414,15 +502,14 @@ impl Session {
         }
         let secp = osk_bip::bitcoin::secp256k1::Secp256k1::new();
         let share = secret_share(mnemonic).map(|s| s.public_share(&secp));
-        self.keys.push(Key {
+        self.keys.push(Key::new(
             master,
             label,
-            words: Some(words),
-            language: lang,
+            Some(words),
+            lang,
             share,
-            passphrase: (!passphrase.is_empty())
-                .then(|| zeroize::Zeroizing::new(passphrase.to_string())),
-        });
+            (!passphrase.is_empty()).then(|| zeroize::Zeroizing::new(passphrase.to_string())),
+        ));
         Ok(fp)
     }
 
@@ -495,21 +582,21 @@ impl Session {
         let master = MasterKey::from_seed_bytes(&osk_crypto::Secret::new(bytes), self.network);
         let fp = master.fingerprint();
         self.allowed(fp)?;
-        if self.keys.iter().any(|k| k.master.fingerprint() == fp) {
+        if self.keys.iter().any(|k| k.fingerprint() == fp) {
             return Err(Refusal::Duplicate(fp_text(fp)));
         }
-        self.keys.push(Key {
+        self.keys.push(Key::new(
             master,
-            label: if label.trim().is_empty() {
+            if label.trim().is_empty() {
                 fp_text(fp)
             } else {
                 label.trim().to_string()
             },
-            words: None,
-            language: Language::English,
-            share: None,
-            passphrase: None,
-        });
+            None,
+            Language::English,
+            None,
+            None,
+        ));
         Ok(fp)
     }
 
@@ -535,12 +622,12 @@ impl Session {
             return Ok(i);
         }
         self.follow(policy_network(&policy, self.network))?;
-        self.wallets.push(Wallet {
-            name: name.to_string(),
+        self.wallets.push(Wallet::new(
+            name.to_string(),
             policy,
-            source: source.to_string(),
+            source.to_string(),
             origin,
-        });
+        ));
         Ok(self.wallets.len() - 1)
     }
 
@@ -554,7 +641,7 @@ impl Session {
     pub fn key_label(&self, fp: Fingerprint) -> Option<&str> {
         self.keys
             .iter()
-            .find(|k| k.master.fingerprint() == fp)
+            .find(|k| k.fingerprint() == fp)
             .map(|k| k.label.as_str())
     }
 
@@ -563,7 +650,7 @@ impl Session {
     pub fn loose_keys(&self) -> Vec<Fingerprint> {
         self.keys
             .iter()
-            .map(|k| k.master.fingerprint())
+            .map(|k| k.fingerprint())
             .filter(|&fp| {
                 !self
                     .wallets
@@ -685,7 +772,7 @@ impl Session {
         }
         self.demo
             .iter()
-            .find(|(_, fp)| !self.keys.iter().any(|k| k.master.fingerprint() == *fp))
+            .find(|(_, fp)| !self.keys.iter().any(|k| k.fingerprint() == *fp))
             .copied()
     }
 
@@ -829,7 +916,7 @@ impl Session {
             .participating_keys
             .iter()
             .copied()
-            .filter(|fp| self.keys.iter().any(|k| k.master.fingerprint() == *fp))
+            .filter(|fp| self.keys.iter().any(|k| k.fingerprint() == *fp))
             .collect();
         let shares_sign = inspection
             .inputs
@@ -1513,7 +1600,7 @@ impl Session {
         let master = &self
             .keys
             .iter()
-            .find(|k| k.master.fingerprint() == fp)
+            .find(|k| k.fingerprint() == fp)
             .ok_or(EN.wallet_the_wallet_s_key)?
             .master;
         let origin = key.path().ok_or(EN.wallet_the_wallet_s)?;

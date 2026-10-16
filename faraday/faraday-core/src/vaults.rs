@@ -927,7 +927,7 @@ impl Faraday {
             .session
             .wallets
             .iter()
-            .filter(|w| !held_wallets.contains(&w.policy.to_descriptor()))
+            .filter(|w| !held_wallets.contains(&w.policy().to_descriptor()))
             .map(|w| w.name.clone())
             .collect();
         (keys, wallets)
@@ -1012,7 +1012,7 @@ impl Faraday {
                 .as_ref()
                 .and_then(|w| osk_bip::bip39::Mnemonic::parse(k.language, w).ok())
                 .and_then(|m| in_vault_key(&records::words_payload(&m)));
-            let copy = checked.contains(&k.master.fingerprint().0);
+            let copy = checked.contains(&k.fingerprint().0);
             let (state, nowhere) = match (vault, copy) {
                 (Some(v), true) => (fill(EN.vaults_in_copy_checked, &[&v.to_string()]), false),
                 (Some(v), false) => (fill(EN.vaults_in, &[&v.to_string()]), false),
@@ -1021,7 +1021,7 @@ impl Faraday {
             };
             // A key with no name of its own goes by "Seed {fingerprint}",
             // as the backup map writes it.
-            let fp = crate::wallet::fp_text(k.master.fingerprint());
+            let fp = crate::wallet::fp_text(k.fingerprint());
             let name = if k.label.is_empty() || k.label.eq_ignore_ascii_case(&fp) {
                 fill(EN.vaults_seed_n, &[&fp.to_string()])
             } else {
@@ -1035,7 +1035,7 @@ impl Faraday {
                 .iter()
                 .chain(self.outbox.iter())
                 .any(|i| i.name == w.source);
-            let (state, nowhere) = match in_vault_wallet(&w.policy.to_descriptor()) {
+            let (state, nowhere) = match in_vault_wallet(&w.policy().to_descriptor()) {
                 Some(v) => (fill(EN.vaults_in, &[&v.to_string()]), false),
                 None if in_files => (EN.vaults_in_files.to_string(), false),
                 None => (EN.vaults_nowhere_else.to_string(), true),
@@ -2370,7 +2370,7 @@ impl Faraday {
             let text = r.text(field::WALLET).unwrap_or("");
             let loaded = crate::wallet::read_wallet(text).is_ok_and(|p| {
                 self.session.wallets.iter().any(|w| {
-                    crate::wallet::same_wallet(&w.policy) == crate::wallet::same_wallet(&p)
+                    crate::wallet::same_wallet(w.policy()) == crate::wallet::same_wallet(&p)
                 })
             });
             rows.push(VaultRow {
@@ -2391,7 +2391,7 @@ impl Faraday {
                 .session
                 .keys
                 .iter()
-                .any(|k| crate::wallet::fp_text(k.master.fingerprint()) == fp);
+                .any(|k| crate::wallet::fp_text(k.fingerprint()) == fp);
             rows.push(VaultRow {
                 record: i,
                 name: r
@@ -2443,14 +2443,14 @@ impl Faraday {
                 .text(field::WALLET_NAME)
                 .unwrap_or(EN.vaults_wallet)
                 .to_string();
-            let wallet = crate::wallet::Wallet {
-                name: name.clone(),
+            let wallet = crate::wallet::Wallet::new(
+                name.clone(),
                 policy,
-                source: String::new(),
-                origin: crate::wallet::Origin::Named,
-            };
+                String::new(),
+                crate::wallet::Origin::Named,
+            );
             let fps: Vec<String> = wallet
-                .policy
+                .policy()
                 .keys()
                 .iter()
                 .filter_map(|k| k.fingerprint())
@@ -2532,7 +2532,7 @@ impl Faraday {
         self.session
             .wallets
             .iter()
-            .position(|w| crate::wallet::same_wallet(&w.policy) == want)
+            .position(|w| crate::wallet::same_wallet(w.policy()) == want)
     }
 
     /// Loads the records `set` names of open vault `v`: its keys and
@@ -3025,7 +3025,7 @@ impl Faraday {
         let m = osk_bip::bip39::Mnemonic::parse(key.language, words).ok()?;
         // Made here and its backup not done: the vault says so, beside
         // the seed.
-        let flags = if self.key_held_stored(key.master.fingerprint()) {
+        let flags = if self.key_held_stored(key.fingerprint()) {
             records::LOAD_AT_UNLOCK | records::BACKUP_PENDING
         } else {
             records::LOAD_AT_UNLOCK
@@ -3048,10 +3048,10 @@ impl Faraday {
         };
         // A threshold wallet and a silent payments wallet are their
         // records: neither has a descriptor that reads back as it.
-        let text = match (w.policy.record(), w.policy.silent()) {
+        let text = match (w.policy().record(), w.policy().silent()) {
             (Some(r), _) => r.to_text(),
             (None, Some(s)) => s.to_text(),
-            (None, None) => w.policy.to_descriptor_checksummed(),
+            (None, None) => w.policy().to_descriptor_checksummed(),
         };
         let record = Record::new(kind::WALLET)
             .with(field::WALLET, text.as_bytes())

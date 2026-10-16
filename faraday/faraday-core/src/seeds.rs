@@ -357,10 +357,7 @@ impl Faraday {
     }
 
     fn session_key(&self, fp: [u8; 4]) -> Option<&crate::wallet::Key> {
-        self.session
-            .keys
-            .iter()
-            .find(|k| k.master.fingerprint().0 == fp)
+        self.session.keys.iter().find(|k| k.fingerprint().0 == fp)
     }
 
     /// Typing goes to one of the piece's boxes.
@@ -482,7 +479,7 @@ impl Faraday {
         let mut keys = Vec::new();
         for fp in self.seeds_here(s) {
             let key = self.session_key(fp).ok_or(EN.seeds_a_seed_is_no)?;
-            keys.push(create::key_text_at(&key.master, &path)?);
+            keys.push(create::key_text_at(key.master(), &path)?);
         }
         if keys.is_empty() {
             return Err(EN.seeds_no_seed_yet.to_string());
@@ -650,7 +647,7 @@ impl Faraday {
             .session
             .keys
             .iter()
-            .map(|k| k.master.fingerprint())
+            .map(|k| k.fingerprint())
             .find(|f| crate::wallet::fp_text(*f) == want)
         else {
             return;
@@ -799,7 +796,7 @@ pub(crate) fn vault_seeds(app: &Faraday) -> Vec<(usize, usize, String)> {
                     .session
                     .keys
                     .iter()
-                    .any(|k| crate::wallet::fp_text(k.master.fingerprint()) == fp)
+                    .any(|k| crate::wallet::fp_text(k.fingerprint()) == fp)
             {
                 out.push((v, i, fp));
             }

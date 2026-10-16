@@ -89,11 +89,7 @@ fn fingerprint(words: &Mnemonic) -> [u8; 4] {
 }
 
 fn added(app: &Faraday) -> Vec<[u8; 4]> {
-    app.session
-        .keys
-        .iter()
-        .map(|k| k.master.fingerprint().0)
-        .collect()
+    app.session.keys.iter().map(|k| k.fingerprint().0).collect()
 }
 
 #[test]
@@ -460,7 +456,7 @@ fn a_key_made_for_a_create_slot_fills_it() {
     app.press(Action::KLock);
     app.press(Action::KNext);
     assert_eq!(app.screen, Screen::Create);
-    let fp = app.session.keys[0].master.fingerprint().0;
+    let fp = app.session.keys[0].fingerprint().0;
     let c = app.create.as_ref().unwrap();
     assert_eq!(c.slots[1], faraday_core::create::Source::Here(fp));
 }

@@ -110,7 +110,7 @@ fn one_key(app: &mut Faraday) -> usize {
     app.press(Action::Entry(None));
     type_text(app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
-    let fp = app.session.keys.last().unwrap().master.fingerprint();
+    let fp = app.session.keys.last().unwrap().fingerprint();
     app.press(Action::KeyWallet(fp.0, 1));
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
     app.session.wallets.len() - 1

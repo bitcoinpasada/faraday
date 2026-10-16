@@ -710,7 +710,7 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
         }
     };
     let mut seed_rows = app.session.keys.iter().map(|k| {
-        let fp = fp_text(k.master.fingerprint());
+        let fp = fp_text(k.fingerprint());
         // A seed named by its fingerprint is not named twice.
         let label = if k.label.eq_ignore_ascii_case(&fp) {
             String::new()
@@ -721,7 +721,7 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
             fp,
             label,
             true,
-            Action::ExploreKey(k.master.fingerprint().0),
+            Action::ExploreKey(k.fingerprint().0),
             None,
             k.passphrase.is_some(),
         )
@@ -3149,7 +3149,7 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .session
         .wallets
         .get(app.wallet)
-        .filter(|wl| wl.policy.silent().is_none() && !app.can_spend(app.wallet));
+        .filter(|wl| wl.policy().silent().is_none() && !app.can_spend(app.wallet));
     let (add_label, add_action) = match short {
         Some(wl) => (
             fill(EN.wallets_scan_a_key_for, &[&wl.name.to_string()]),
@@ -3236,7 +3236,7 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     cy += 34.0;
     ui.text(ix, cy, 14.0, W::R, MUTED, &Session::shape(wlt));
     cy += 26.0;
-    if let Some(r) = wlt.policy.silent() {
+    if let Some(r) = wlt.policy().silent() {
         // Where its backup is (§5.2): a press opens Backups on it.
         cy += backup_line(app, ui, ix, cy, iw, app.wallet);
         silent_wallet_card(app, ui, r, ix, iw, cy, y + ch);
@@ -3556,7 +3556,7 @@ fn spend(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let s = app.spend.as_ref().expect("spend");
         let kind = wallet_idx
             .and_then(|w| app.session.wallets.get(w))
-            .map(|w| crate::wallet::Kind::of(&w.policy));
+            .map(|w| crate::wallet::Kind::of(w.policy()));
         let cards: Vec<flow::Card> = steps
             .iter()
             .map(|&n| flow::Card {
@@ -3834,7 +3834,7 @@ pub(crate) fn step_summary(app: &Faraday, n: u8, wallet: Option<usize>, needed: 
         8 => {
             let n = wallet
                 .and_then(|w| app.session.wallets.get(w))
-                .map(|w| w.policy.spend_paths().len())
+                .map(|w| w.policy().spend_paths().len())
                 .unwrap_or(0);
             format!(
                 "{n} {}",
@@ -4362,7 +4362,7 @@ pub(crate) fn step_body(
             // until the spend is signed (`docs/SCAN-TO-SIGN.md` §3.2).
             let paths = wl.is_some_and(|(_, wl)| {
                 matches!(
-                    crate::wallet::Kind::of(&wl.policy),
+                    crate::wallet::Kind::of(wl.policy()),
                     crate::wallet::Kind::Miniscript | crate::wallet::Kind::Tree
                 )
             });
@@ -6158,7 +6158,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             let info = fill(
                 EN.backup_words,
                 &[
-                    &key_line(key.master.fingerprint(), &key.label).to_string(),
+                    &key_line(key.fingerprint(), &key.label).to_string(),
                     &list.len().to_string(),
                 ],
             );
@@ -6664,7 +6664,7 @@ fn vault_item(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f
         .iter()
         .filter_map(|&(k, with)| {
             let key = app.session.keys.get(k)?;
-            let name = fp_text(key.master.fingerprint());
+            let name = fp_text(key.fingerprint());
             let label = if with {
                 fill(EN.vault_item_seed_with, &[&name.to_string()])
             } else {
@@ -6718,7 +6718,7 @@ fn seed_files(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let key = &app.session.keys[k];
         let made = app.seed_file_made(&stem, key);
         ui.dot(x + 4.0, cy + 9.0, 3.5, if made { OK } else { DIM });
-        let name = key_line(key.master.fingerprint(), &key.label);
+        let name = key_line(key.fingerprint(), &key.label);
         let state = if made {
             app.medium.for_box()
         } else {
@@ -7187,7 +7187,7 @@ fn message_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f3
             let script = m
                 .wallet
                 .and_then(|wi| app.session.wallets.get(wi))
-                .and_then(|wl| match crate::wallet::Kind::of(&wl.policy) {
+                .and_then(|wl| match crate::wallet::Kind::of(wl.policy()) {
                     crate::wallet::Kind::Single(t) => Some(t),
                     _ => None,
                 });
@@ -7878,7 +7878,7 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                         if c.kind.threshold() && k.share.is_none() {
                             continue;
                         }
-                        let fp = k.master.fingerprint();
+                        let fp = k.fingerprint();
                         if used_elsewhere_here(fp.0) {
                             continue;
                         }
@@ -8453,14 +8453,14 @@ pub(crate) fn descriptor_row(
     action: Action,
 ) -> f32 {
     let fps: Vec<String> = wl
-        .policy
+        .policy()
         .keys()
         .iter()
         .map(|k| crate::backup::fp_of(k.fingerprint()))
         .collect();
     let mut value = format!("{} · {}", Session::shape(wl), fps.join(", "));
-    if wl.policy.record().is_none() {
-        value.push_str(&format!(" · #{}", wl.policy.checksum()));
+    if wl.policy().record().is_none() {
+        value.push_str(&format!(" · #{}", wl.checksum()));
     }
     ui.text(x, y, 12.0, W::R, MUTED, EN.descriptor_row_descriptor);
     let vh = ui
@@ -8529,7 +8529,7 @@ fn public_files(app: &Faraday, i: usize) -> Vec<FileRow<'static, String>> {
     ));
     // BIP 129 covers wsh and sh(wsh) multisig.
     if matches!(
-        wl.policy.template(),
+        wl.policy().template(),
         Template::Multi {
             wrapper: Wrapper::Wsh | Wrapper::ShWsh,
             ..
@@ -8547,7 +8547,7 @@ fn public_files(app: &Faraday, i: usize) -> Vec<FileRow<'static, String>> {
         ));
     }
     // A silent payments wallet has no descriptor Bitcoin Core imports.
-    if wl.policy.silent().is_none() {
+    if wl.policy().silent().is_none() {
         rows.push((
             EN.public_files_bitcoin.to_string(),
             EN.public_files_importdescriptors,
@@ -9002,12 +9002,7 @@ fn restore_seeds(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if r.described
         && let Some(wl) = r.wallet.and_then(|i| app.session.wallets.get(i))
     {
-        let here: Vec<[u8; 4]> = app
-            .session
-            .keys
-            .iter()
-            .map(|k| k.master.fingerprint().0)
-            .collect();
+        let here: Vec<[u8; 4]> = app.session.keys.iter().map(|k| k.fingerprint().0).collect();
         for (k, slot) in app.session.slots(wl).iter().enumerate() {
             let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
             let absent = r.absent.contains(&(k as u8));

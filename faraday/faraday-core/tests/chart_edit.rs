@@ -68,7 +68,7 @@ fn add_key(app: &mut Faraday, n: usize) {
 fn one_key(app: &mut Faraday) -> usize {
     add_key(app, 0);
     let text = faraday_core::create::NewKind::NativeSegwit
-        .key_text(&app.session.keys[0].master)
+        .key_text(app.session.keys[0].master())
         .unwrap();
     app.session
         .add_wallet(

@@ -31,7 +31,7 @@ fn with_single_key_wallet() -> Faraday {
     let mut app = shown();
     app.session.add_words(WORDS, "Seed", None).unwrap();
     let text = faraday_core::create::NewKind::NativeSegwit
-        .key_text(&app.session.keys[0].master)
+        .key_text(app.session.keys[0].master())
         .unwrap();
     let d = format!("wpkh({text}/<0;1>/*)");
     app.session
@@ -49,7 +49,7 @@ fn with_watch_only_wallet() -> Faraday {
     let mut elsewhere = faraday_core::wallet::Session::default();
     elsewhere.add_words(WORDS, "Seed", None).unwrap();
     let text = faraday_core::create::NewKind::NativeSegwit
-        .key_text(&elsewhere.keys[0].master)
+        .key_text(elsewhere.keys[0].master())
         .unwrap();
     let d = format!("wpkh({text}/<0;1>/*)");
     app.session

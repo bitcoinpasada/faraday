@@ -163,7 +163,7 @@ pub fn lead(app: &Faraday, id: CardId) -> String {
             let kind = s
                 .and_then(|s| s.wallet)
                 .and_then(|w| app.session.wallets.get(w))
-                .map(|w| Kind::of(&w.policy));
+                .map(|w| Kind::of(w.policy()));
             return match s {
                 Some(s) => guide::spend(n, kind, app.spend_needed(), s, app.medium),
                 None => String::new(),

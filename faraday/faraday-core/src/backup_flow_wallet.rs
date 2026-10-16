@@ -88,8 +88,8 @@ impl Faraday {
     /// done and the keys are not locked away: the checklist's.
     pub(crate) fn wallet_flow_of_backup(&self) -> Option<usize> {
         let b = self.backup.as_ref()?;
-        let cs = self.session.wallets.get(b.wallet)?.policy.checksum();
-        self.wallet_flow_at(&cs)
+        let cs = self.session.wallets.get(b.wallet)?.checksum();
+        self.wallet_flow_at(cs)
     }
 
     /// The writes wallet `checksum` waits for: how many sticks are written
@@ -220,7 +220,7 @@ impl Faraday {
         let Some(wl) = self.session.wallets.get(w) else {
             return;
         };
-        let (cs, name) = (wl.policy.checksum(), wl.name.clone());
+        let (cs, name) = (wl.checksum().to_string(), wl.name.clone());
         let setup = self.backup_flows[i]
             .wallet
             .as_ref()
@@ -596,7 +596,7 @@ impl Faraday {
         let Some(wl) = self.session.wallets.get(w) else {
             return;
         };
-        let (checksum, name) = (wl.policy.checksum(), wl.name.clone());
+        let (checksum, name) = (wl.checksum().to_string(), wl.name.clone());
         // A backup past its lock and not done keeps its plan: its writes
         // are finished first, then Back up runs again (§17.8).
         if self.backup_locked_flow().is_some() {
@@ -781,7 +781,7 @@ impl Faraday {
             if let Some(k) = list.get(s).and_then(|(_, k)| *k)
                 && let Some(key) = self.session.keys.get(k)
             {
-                moved.push((key.master.fingerprint(), k));
+                moved.push((key.fingerprint(), k));
             }
         }
         for (fp, k) in moved {
@@ -793,7 +793,7 @@ impl Faraday {
                 .keys
                 .iter()
                 .filter(|o| o.words.is_some() && o.words == words)
-                .map(|o| o.master.fingerprint())
+                .map(|o| o.fingerprint())
                 .collect();
             self.made_here.retain(|f| *f != fp && !same.contains(f));
             for f in same.iter().chain(std::iter::once(&fp)) {
@@ -876,10 +876,7 @@ impl Faraday {
             .as_ref()?
             .checksum
             .clone()?;
-        self.session
-            .wallets
-            .iter()
-            .position(|w| w.policy.checksum() == cs)
+        self.session.wallets.iter().position(|w| w.checksum() == cs)
     }
 
     /// The sticks are written: the vault unlocked from Done shows the
@@ -948,12 +945,7 @@ impl Faraday {
                 Faraday::wallet_text(wl),
             ))
         };
-        let made = match self
-            .session
-            .wallets
-            .iter()
-            .find(|wl| wl.policy.checksum() == cs)
-        {
+        let made = match self.session.wallets.iter().find(|wl| wl.checksum() == cs) {
             Some(wl) => text(wl),
             None => {
                 // A wallet record, or a plan record's wallet (its field
@@ -1140,8 +1132,7 @@ impl Faraday {
                     None => {
                         let want = if want_pass { &name } else { &base };
                         let k = self.session.keys.iter().position(|k| {
-                            k.words.is_some()
-                                && fp_text(k.master.fingerprint()).eq_ignore_ascii_case(want)
+                            k.words.is_some() && fp_text(k.fingerprint()).eq_ignore_ascii_case(want)
                         });
                         match k {
                             Some(k) => w.typed.push((k, want_pass)),
@@ -1956,10 +1947,10 @@ impl Faraday {
         let Some(wl) = self.session.wallets.get(w) else {
             return;
         };
-        let Some(kind) = crate::create::NewKind::of(&wl.policy) else {
+        let Some(kind) = crate::create::NewKind::of(wl.policy()) else {
             return;
         };
-        let Some(fp) = wl.policy.keys().first().and_then(|k| k.fingerprint()) else {
+        let Some(fp) = wl.policy().keys().first().and_then(|k| k.fingerprint()) else {
             return;
         };
         let (m, n) = crate::wallet::Session::quorum(wl);
@@ -1998,7 +1989,7 @@ fn seed_map(
         if let crate::create::Source::Here(fp) = src
             && let Some(s) = list.iter().position(|(_, k)| {
                 k.and_then(|k| session.keys.get(k))
-                    .is_some_and(|key| key.master.fingerprint().0 == *fp)
+                    .is_some_and(|key| key.fingerprint().0 == *fp)
             })
         {
             map[slot] = s;

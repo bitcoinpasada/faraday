@@ -207,7 +207,7 @@ impl Faraday {
         let Ok(m) = Mnemonic::parse(key.language, words) else {
             return;
         };
-        let fp = key.master.fingerprint();
+        let fp = key.fingerprint();
         let fps = crate::wallet::fp_text(fp);
         let stem = format!("{}-{}", crate::file_stem(&wallet.name), fps.to_lowercase());
         // The words, one line, as Add a key and other signers read them.
@@ -314,7 +314,7 @@ impl Faraday {
                     .session
                     .keys
                     .get(*key)
-                    .is_some_and(|k| k.master.fingerprint() == *fp);
+                    .is_some_and(|k| k.fingerprint() == *fp);
                 match same.then(|| self.key_record(*key, false)).flatten() {
                     Some((r, _)) => r,
                     None => {

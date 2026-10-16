@@ -279,7 +279,7 @@ fn a_right_passphrase_on_the_sheet_imports_everything_and_closes_it() {
         .session
         .keys
         .iter()
-        .map(|k| faraday_core::wallet::fp_text(k.master.fingerprint()))
+        .map(|k| faraday_core::wallet::fp_text(k.fingerprint()))
         .collect();
     keys.sort();
     let mut want = vec![fp(0), fp(1), fp(2)];
@@ -558,7 +558,7 @@ fn import_loads_what_is_ticked_and_wipes_the_rest() {
         .session
         .keys
         .iter()
-        .map(|k| faraday_core::wallet::fp_text(k.master.fingerprint()))
+        .map(|k| faraday_core::wallet::fp_text(k.fingerprint()))
         .collect();
     assert_eq!(keys, [fp(1)]);
     // The ticked files are From the stick; the rest are gone.
@@ -734,7 +734,7 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
         .session
         .keys
         .iter()
-        .find(|k| faraday_core::wallet::fp_text(k.master.fingerprint()) == fp(0))
+        .find(|k| faraday_core::wallet::fp_text(k.fingerprint()) == fp(0))
         .expect("the seed did not load");
     assert_eq!(
         key.label,

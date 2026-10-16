@@ -42,7 +42,7 @@ pub(crate) fn more_ways(
         labels.push((label, Style::Secondary, a));
     }
     for k in &app.session.keys {
-        let f = k.master.fingerprint();
+        let f = k.fingerprint();
         if !here.contains(&f.0) {
             labels.push((
                 fill(

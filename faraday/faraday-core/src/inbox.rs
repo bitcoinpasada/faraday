@@ -370,12 +370,7 @@ impl Faraday {
                     }),
                 }
             };
-        let loaded_fp = |fp: Fingerprint| {
-            self.session
-                .keys
-                .iter()
-                .any(|k| k.master.fingerprint() == fp)
-        };
+        let loaded_fp = |fp: Fingerprint| self.session.keys.iter().any(|k| k.fingerprint() == fp);
         for (k, item) in items.iter().enumerate() {
             if item.kind != FileKind::Words {
                 continue;
@@ -463,7 +458,7 @@ impl Faraday {
         for key in &self.session.keys {
             add_seed(
                 &mut found,
-                key.master.fingerprint(),
+                key.fingerprint(),
                 key.label.clone(),
                 SeedSource::Loaded,
                 true,
@@ -502,12 +497,12 @@ impl Faraday {
                 w.loaded |= loaded;
                 return;
             }
-            let wallet = Wallet {
-                name: name.clone(),
+            let wallet = Wallet::new(
+                name.clone(),
                 policy,
-                source: String::new(),
-                origin: crate::wallet::Origin::Named,
-            };
+                String::new(),
+                crate::wallet::Origin::Named,
+            );
             let keys: Vec<Fingerprint> = self
                 .session
                 .slots(&wallet)
@@ -530,7 +525,7 @@ impl Faraday {
             .session
             .wallets
             .iter()
-            .map(|w| crate::wallet::same_wallet(&w.policy))
+            .map(|w| crate::wallet::same_wallet(w.policy()))
             .collect();
         for (k, item) in items.iter().enumerate() {
             if item.kind != FileKind::Wallet {
@@ -583,7 +578,7 @@ impl Faraday {
             push_wallet(
                 &mut found,
                 w.name.clone(),
-                &w.policy.to_descriptor(),
+                &w.policy().to_descriptor(),
                 None,
                 false,
                 true,
@@ -736,12 +731,7 @@ impl Faraday {
     /// wallets in the Inbox that name them load too.
     pub(crate) fn inbox_load_named(&mut self) -> usize {
         let found = self.inbox_found();
-        let loaded: Vec<Fingerprint> = self
-            .session
-            .keys
-            .iter()
-            .map(|k| k.master.fingerprint())
-            .collect();
+        let loaded: Vec<Fingerprint> = self.session.keys.iter().map(|k| k.fingerprint()).collect();
         let mut n = 0;
         for w in found.to_load() {
             if !w.keys.iter().any(|k| loaded.contains(k)) {
@@ -920,7 +910,7 @@ impl Faraday {
                     .session
                     .keys
                     .iter()
-                    .find(|k| k.master.fingerprint() == seed.fingerprint)
+                    .find(|k| k.fingerprint() == seed.fingerprint)
                     .and_then(|k| k.words.as_ref().map(|w| (w.clone(), k.language)))
                     .and_then(|(w, lang)| Mnemonic::parse(lang, &w).ok())
                     .and_then(|m| Secret::Words(m).master(&pass, &self.session))
@@ -986,7 +976,7 @@ impl Faraday {
                     .session
                     .keys
                     .iter()
-                    .find(|k| k.master.fingerprint() == seed.fingerprint)
+                    .find(|k| k.fingerprint() == seed.fingerprint)
                     .and_then(|k| k.words.clone());
                 match words {
                     Some(w) => self.session.add_words_with(&w, &pass, &label, None),
@@ -1026,15 +1016,10 @@ impl Faraday {
             return;
         }
         // Else a single-key wallet of the kind chosen.
-        let Some(key) = self
-            .session
-            .keys
-            .iter()
-            .find(|k| k.master.fingerprint() == fp)
-        else {
+        let Some(key) = self.session.keys.iter().find(|k| k.fingerprint() == fp) else {
             return;
         };
-        let text = match kind.key_text(&key.master) {
+        let text = match kind.key_text(key.master()) {
             Ok(t) => t,
             Err(e) => {
                 if let Some(p) = self.potential.as_mut() {

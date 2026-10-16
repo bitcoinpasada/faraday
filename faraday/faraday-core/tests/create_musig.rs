@@ -40,7 +40,7 @@ fn a_musig2_wallet_made_here_is_bip390s_over_the_taproot_accounts() {
     assert_eq!(c.m, c.n, "every key signs");
     app.press(Action::CNext(cstep::QUORUM));
     for (slot, k) in [(0u8, 0usize), (1, 1)] {
-        let fp = app.session.keys[k].master.fingerprint().0;
+        let fp = app.session.keys[k].fingerprint().0;
         app.press(Action::CSlotHere(slot, fp));
     }
     app.press(Action::CNext(cstep::KEYS));
@@ -50,13 +50,13 @@ fn a_musig2_wallet_made_here_is_bip390s_over_the_taproot_accounts() {
         .unwrap()
         .built
         .expect("the wallet did not build");
-    let made = &app.session.wallets[built].policy;
+    let made = app.session.wallets[built].policy();
     assert_eq!(Kind::of(made), Kind::MuSig);
 
     // Each key's Taproot account on the session's network.
     let account = |k: usize| {
         NewKind::Taproot
-            .key_text(&app.session.keys[k].master)
+            .key_text(app.session.keys[k].master())
             .unwrap()
     };
     let (a, b) = (account(0), account(1));

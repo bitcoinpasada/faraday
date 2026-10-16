@@ -379,13 +379,13 @@ fn typed_words_open_the_kind_of_wallet_the_transaction_spends_from() {
     app.press(Action::Family(F::Everything));
     let w = app.family_wallet().expect("no wallet opened");
     let spending = faraday_core::wallet::read_wallet(&kit("spending").descriptor).unwrap();
-    assert_eq!(desc(&app.session.wallets[w].policy), desc(&spending));
+    assert_eq!(desc(app.session.wallets[w].policy()), desc(&spending));
     // A Taproot spend opens the Taproot kind of the same words.
     app.press(Action::Family(F::UsePsbt(0)));
     let s = app.spend.as_ref().unwrap();
     let w = s.wallet.expect("no wallet matched the Taproot spend");
     let tr = faraday_core::wallet::read_wallet(&taproot.descriptor).unwrap();
-    assert_eq!(desc(&app.session.wallets[w].policy), desc(&tr));
+    assert_eq!(desc(app.session.wallets[w].policy()), desc(&tr));
     app.press(Action::SignHere);
     assert!(app.spend.as_ref().unwrap().complete);
 }

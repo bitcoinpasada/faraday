@@ -59,7 +59,7 @@ fn backing_up(words: &str, camera: bool) -> Faraday {
     }
     app.press(Action::EntryAdd);
     assert_eq!(app.session.keys.len(), 1, "{:?}", app.entry.error);
-    let fp = app.session.keys[0].master.fingerprint().0;
+    let fp = app.session.keys[0].fingerprint().0;
     app.press(Action::KeyWallet(fp, 1));
     app.press(Action::Seeds(S::Make));
     assert_eq!(app.session.wallets.len(), 1);
@@ -147,7 +147,7 @@ fn a_drawn_standard_seedqr_of_the_seed_matches_and_adds_nothing() {
     app.press(Action::BScan);
     assert_eq!(app.sheet, Some(Sheet::Scan));
     assert!(commands(&mut app).contains(&Command::CameraOn));
-    let fp = app.session.keys[0].master.fingerprint();
+    let fp = app.session.keys[0].fingerprint();
     assert_eq!(
         app.scan.as_ref().map(|s| s.purpose),
         Some(ScanPurpose::CheckCopy(fp))

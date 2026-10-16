@@ -196,7 +196,7 @@ fn key_in(app: &mut Faraday, n: usize) -> [u8; 4] {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
-    app.session.keys.last().unwrap().master.fingerprint().0
+    app.session.keys.last().unwrap().fingerprint().0
 }
 
 fn multi_index() -> u8 {
@@ -298,7 +298,7 @@ fn new_key(app: &mut Faraday) -> [u8; 4] {
     }
     app.press(Action::KNext);
     app.press(Action::KLock);
-    let fp = app.session.keys.last().unwrap().master.fingerprint().0;
+    let fp = app.session.keys.last().unwrap().fingerprint().0;
     app.press(Action::KNext);
     fp
 }
@@ -473,10 +473,7 @@ fn the_hold_on_the_key_stays_until_the_last_stick_is_written_and_a_lock_resumes_
         faraday_core::vaults::VaultAction::LoadChosen(0),
     ));
     assert!(
-        app.session
-            .keys
-            .iter()
-            .any(|k| k.master.fingerprint() == fp),
+        app.session.keys.iter().any(|k| k.fingerprint() == fp),
         "the vault loaded the key"
     );
     assert!(app.key_held(fp), "held while the sticks are not written");
@@ -811,7 +808,7 @@ fn new_key_at(app: &mut Faraday, slot: u8) -> [u8; 4] {
     }
     app.press(Action::KNext);
     app.press(Action::KLock);
-    let fp = app.session.keys.last().unwrap().master.fingerprint().0;
+    let fp = app.session.keys.last().unwrap().fingerprint().0;
     app.press(Action::KNext);
     fp
 }
@@ -891,7 +888,7 @@ fn a_two_of_three_with_key_3_on_paper_asks_for_two_sticks_and_holds_key_3_until_
         .session
         .keys
         .iter()
-        .find(|k| k.master.fingerprint().0 == fps[2])
+        .find(|k| k.fingerprint().0 == fps[2])
         .unwrap();
     let words = key3.words.as_ref().unwrap().to_string();
     let lang = key3.language;
@@ -1186,7 +1183,7 @@ fn the_kept_state_of_a_wallet_flow_holds_nothing_secret_and_a_state_that_does_no
         .session
         .keys
         .iter()
-        .find(|k| k.master.fingerprint().0 == fp)
+        .find(|k| k.fingerprint().0 == fp)
         .and_then(|k| k.words.as_ref().map(|w| w.to_string()))
         .unwrap();
     shell.flow(&mut app, F::WalletLock);
@@ -1473,7 +1470,7 @@ fn new_key_here(app: &mut Faraday) -> [u8; 4] {
     }
     app.press(Action::KNext);
     app.press(Action::KLock);
-    let fp = app.session.keys.last().unwrap().master.fingerprint().0;
+    let fp = app.session.keys.last().unwrap().fingerprint().0;
     app.press(Action::KNext);
     fp
 }
@@ -1587,11 +1584,11 @@ fn a_vault_stays_with_its_own_salt_when_a_slot_turns_out_to_be_a_cosigners() {
             .session
             .keys
             .iter()
-            .find(|k| k.master.fingerprint().0 == b)
+            .find(|k| k.fingerprint().0 == b)
             .unwrap();
-        kind.key_text(&k.master).unwrap()
+        kind.key_text(k.master()).unwrap()
     };
-    app.session.keys.retain(|k| k.master.fingerprint().0 != b);
+    app.session.keys.retain(|k| k.fingerprint().0 != b);
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, a));
     app.create.as_mut().unwrap().slots[1] = faraday_core::create::Source::Cosigner(cosigner);
@@ -1714,7 +1711,7 @@ fn two_of_three_ready_with(shell: &mut Shell, passphrase: bool) -> Faraday {
             type_text(&mut app, "kept apart");
         }
         app.press(Action::EntryAdd);
-        fps.push(app.session.keys.last().unwrap().master.fingerprint().0);
+        fps.push(app.session.keys.last().unwrap().fingerprint().0);
     }
     app.press(Action::Nav(Screen::Create));
     for (i, fp) in fps.iter().enumerate() {
@@ -2075,10 +2072,7 @@ fn held_after_lock(shell: &mut Shell, app: &mut Faraday, fp: [u8; 4]) -> bool {
     assert!(next.backup_flows[0].waiting());
     load_first_vault(&mut next, PHRASE);
     assert!(
-        next.session
-            .keys
-            .iter()
-            .any(|k| k.master.fingerprint().0 == fp),
+        next.session.keys.iter().any(|k| k.fingerprint().0 == fp),
         "the key is loaded"
     );
     next.key_held(osk_bip::keys::Fingerprint(fp))
@@ -2328,7 +2322,7 @@ fn the_vaults_set_up_stay_the_plans_when_a_key_turns_out_not_to_be_here() {
     app.press(Action::CNext(cstep::KEYS));
     let w = app.create.as_ref().unwrap().built.expect("made");
     // Key 2's words go: no vault is dropped for it.
-    app.session.keys.retain(|k| k.master.fingerprint().0 != b);
+    app.session.keys.retain(|k| k.fingerprint().0 != b);
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::Backup(w));
     let f = app
@@ -3189,7 +3183,7 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
         .map(|row| faraday_core::backup::split_share(&app.session.wallets[w], row).unwrap())
         .collect();
     let share = |j: usize| texts[j].clone();
-    let made = app.session.wallets[w].policy.to_descriptor_checksummed();
+    let made = app.session.wallets[w].policy().to_descriptor_checksummed();
     let stem = faraday_core::file_stem(&app.session.wallets[w].name);
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
@@ -3260,7 +3254,7 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
         .and_then(|x| x.wallet)
         .unwrap_or_else(|| panic!("{:?}", r.restore.as_ref().and_then(|x| x.error.clone())));
     assert_eq!(
-        r.session.wallets[rw].policy.to_descriptor_checksummed(),
+        r.session.wallets[rw].policy().to_descriptor_checksummed(),
         made,
         "the same wallet, the same checksum"
     );
@@ -3486,7 +3480,7 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
     let keys: Vec<String> = (0..3)
         .map(|k| {
             NewKind::TapMulti
-                .key_text(&app.session.keys[k].master)
+                .key_text(app.session.keys[k].master())
                 .unwrap()
         })
         .collect();
@@ -3521,7 +3515,7 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
     assert!(both.iter().all(|(_, n)| n == &vec![2]));
     assert_ne!(both[0].0, both[1].0, "each told by its wallet");
     // A's share taken out: B's item is still done, A's is not.
-    let a_sum = app.session.wallets[a].policy.checksum();
+    let a_sum = app.session.wallets[a].checksum();
     app.vaults.open[0].contents.records.retain(|r| {
         !(r.kind == kind::WALLET_SHARE
             && r.text(field::SHARE_WALLET)
@@ -3554,7 +3548,7 @@ fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it
     app.press(Action::EntryPassphrase);
     type_text(&mut app, "kept apart");
     app.press(Action::EntryAdd);
-    let fp = app.session.keys.last().unwrap().master.fingerprint().0;
+    let fp = app.session.keys.last().unwrap().fingerprint().0;
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
     if app.create.as_ref().unwrap().built.is_none() {
@@ -3861,7 +3855,7 @@ fn a_wallet_rebuilt_from_its_share_files_has_the_checksum_it_was_made_with() {
     app.press(Action::CNext(cstep::KEYS));
     let w = app.create.as_ref().unwrap().built.expect("wallet made");
     let wallet = &app.session.wallets[w];
-    let made = wallet.policy.to_descriptor_checksummed();
+    let made = wallet.policy().to_descriptor_checksummed();
     let (m, n) = faraday_core::wallet::Session::quorum(wallet);
     let split = faraday_core::backup::split_plan(n, m, 1);
     let files: Vec<(String, Vec<u8>)> = (0..2)
@@ -3884,7 +3878,7 @@ fn a_wallet_rebuilt_from_its_share_files_has_the_checksum_it_was_made_with() {
     r.press(Action::RRebuild);
     let rw = r.restore.as_ref().and_then(|x| x.wallet).expect("rebuilt");
     assert_eq!(
-        r.session.wallets[rw].policy.to_descriptor_checksummed(),
+        r.session.wallets[rw].policy().to_descriptor_checksummed(),
         made
     );
 }
@@ -3975,7 +3969,7 @@ fn a_vault_kept_with_apostrophes_opens_with_its_plan_attached() {
         .session
         .wallets
         .iter()
-        .position(|x| x.policy.checksum() == app.session.wallets[w].policy.checksum());
+        .position(|x| x.checksum() == app.session.wallets[w].checksum());
     let loaded = loaded.unwrap_or_else(|| {
         next.press(Action::Vault(
             faraday_core::vaults::VaultAction::LoadChosen(0),
@@ -3984,9 +3978,9 @@ fn a_vault_kept_with_apostrophes_opens_with_its_plan_attached() {
     });
     assert_eq!(
         next.session.wallets[loaded]
-            .policy
+            .policy()
             .to_descriptor_checksummed(),
-        app.session.wallets[w].policy.to_descriptor_checksummed()
+        app.session.wallets[w].policy().to_descriptor_checksummed()
     );
     next.press(Action::Backup(loaded));
     let b = next.backup.as_ref().unwrap();
@@ -4074,7 +4068,7 @@ fn a_key_another_wallet_in_the_vault_uses_is_never_taken_out() {
     // Another wallet of the same key, saved into the same vault.
     let k = app.session.keys.len() - 1;
     let text = NewKind::Taproot
-        .key_text(&app.session.keys[k].master)
+        .key_text(app.session.keys[k].master())
         .unwrap();
     let b = app
         .session
@@ -4183,7 +4177,7 @@ fn a_key_is_never_taken_out_of_a_vault_another_wallets_record_is_in() {
     app.press(Action::EntryAdd);
     let k = app.session.keys.len() - 1;
     let text = NewKind::NativeSegwit
-        .key_text(&app.session.keys[k].master)
+        .key_text(app.session.keys[k].master())
         .unwrap();
     let hidden = format!("wpkh({text}/<0;1>/*)");
     app.vaults.open[0].contents.records.push(
@@ -4606,7 +4600,7 @@ fn the_round_adds_a_planned_key_record_once_beside_another_of_its_words() {
     app.press(Action::EntryPassphrase);
     type_text(&mut app, "kept here");
     app.press(Action::EntryAdd);
-    let fp = app.session.keys.last().unwrap().master.fingerprint().0;
+    let fp = app.session.keys.last().unwrap().fingerprint().0;
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
     if app.create.as_ref().unwrap().built.is_none() {
@@ -4699,10 +4693,7 @@ fn the_done_landing_loads_the_vaults_keys_released() {
     unlock(&mut app, PHRASE);
     let fp = osk_bip::keys::Fingerprint(fp);
     assert!(
-        app.session
-            .keys
-            .iter()
-            .any(|k| k.master.fingerprint() == fp),
+        app.session.keys.iter().any(|k| k.fingerprint() == fp),
         "the key loaded from the vault"
     );
     assert!(!app.session.wallets.is_empty(), "its wallet too");
@@ -4879,7 +4870,7 @@ fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
     app.press(Action::EntryPassphrase);
     type_text(&mut app, "kept here");
     app.press(Action::EntryAdd);
-    let fp = app.session.keys.last().unwrap().master.fingerprint().0;
+    let fp = app.session.keys.last().unwrap().fingerprint().0;
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
     if app.create.as_ref().unwrap().built.is_none() {
@@ -4975,7 +4966,7 @@ fn another_open_vault_never_replaces_a_backup_past_its_lock() {
     use faraday_vault::records::{self, field};
     let mut shell = Shell::new();
     let (mut app, w, _) = single_key_ready(&mut shell);
-    let desc = app.session.wallets[w].policy.to_descriptor_checksummed();
+    let desc = app.session.wallets[w].policy().to_descriptor_checksummed();
     let name = app.session.wallets[w].name.clone();
     shell.flow(&mut app, F::WalletLock);
     // A second vault, of another passphrase, with the same key and wallet.

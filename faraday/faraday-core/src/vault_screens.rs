@@ -2193,12 +2193,12 @@ fn sheet_parts(r: &Record) -> (String, String, String) {
 pub(crate) fn wallet_shape(r: &Record) -> Option<String> {
     let text = r.text(field::WALLET)?;
     let policy = crate::wallet::read_wallet(text).ok()?;
-    Some(Session::shape(&Wallet {
-        name: String::new(),
+    Some(Session::shape(&Wallet::new(
+        String::new(),
         policy,
-        source: String::new(),
-        origin: crate::wallet::Origin::Named,
-    }))
+        String::new(),
+        crate::wallet::Origin::Named,
+    )))
 }
 
 /// A key record's fingerprint, worked out once per key and kept.
@@ -3336,7 +3336,7 @@ fn detail(
                 .session
                 .keys
                 .iter()
-                .any(|k| fp_text(k.master.fingerprint()) == fp);
+                .any(|k| fp_text(k.fingerprint()) == fp);
             field_row(
                 ui,
                 &mut dy,
@@ -3769,7 +3769,7 @@ fn save_panel(
             .filter_map(|(_, r)| key_fingerprint(app, r))
             .collect();
         for (k, key) in app.session.keys.iter().enumerate() {
-            let fp = fp_text(key.master.fingerprint());
+            let fp = fp_text(key.fingerprint());
             if held.contains(&fp) || key.words.is_none() {
                 continue;
             }
@@ -3844,7 +3844,7 @@ fn save_panel(
             .map(|p| p.to_descriptor())
             .collect();
         for (k, wl) in app.session.wallets.iter().enumerate() {
-            if held.contains(&wl.policy.to_descriptor()) {
+            if held.contains(&wl.policy().to_descriptor()) {
                 continue;
             }
             any = true;
@@ -4188,7 +4188,7 @@ fn images_panel(app: &Faraday, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f3
 
 /// Whether open vault `v` holds a wallet with the same descriptor.
 pub(crate) fn vault_has_wallet(app: &Faraday, v: usize, w: &Wallet) -> bool {
-    let want = crate::wallet::same_wallet(&w.policy);
+    let want = crate::wallet::same_wallet(w.policy());
     app.vaults.open.get(v).is_some_and(|o| {
         o.contents.of(kind::WALLET).any(|(_, r)| {
             r.text(field::WALLET)

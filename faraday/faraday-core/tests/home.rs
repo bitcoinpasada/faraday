@@ -224,8 +224,8 @@ fn a_seedqr_scanned_from_home_lands_where_add_a_key_scan_lands() {
     assert!(app.inbox.is_empty());
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(
-        app.session.keys[0].master.fingerprint(),
-        from_entry.session.keys[0].master.fingerprint()
+        app.session.keys[0].fingerprint(),
+        from_entry.session.keys[0].fingerprint()
     );
     assert_eq!(app.screen, from_entry.screen);
 }

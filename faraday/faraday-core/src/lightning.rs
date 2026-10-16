@@ -90,11 +90,7 @@ impl Faraday {
         };
         let found: Result<Node, String> = match l.source {
             Some(NodeSource::Key(fp)) => {
-                let key = self
-                    .session
-                    .keys
-                    .iter()
-                    .find(|k| k.master.fingerprint().0 == fp);
+                let key = self.session.keys.iter().find(|k| k.fingerprint().0 == fp);
                 match key.and_then(|k| Some((k, k.words.as_ref()?))) {
                     None => Err(EN.lightning_this_key.to_string()),
                     Some((k, words)) => Mnemonic::parse(k.language, words)

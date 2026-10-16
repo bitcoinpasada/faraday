@@ -58,13 +58,13 @@ fn added_from(form: u8, parts: &[&str]) -> [u8; 4] {
     }
     app.event(Event::Key(Key::Enter));
     assert_eq!(app.session.keys.len(), 1, "{:?}", app.entry.error);
-    app.session.keys[0].master.fingerprint().0
+    app.session.keys[0].fingerprint().0
 }
 
 #[test]
 fn a_seed_xor_split_typed_back_is_the_same_key() {
     let mut app = backing_up();
-    let want = app.session.keys[0].master.fingerprint().0;
+    let want = app.session.keys[0].fingerprint().0;
     app.press(Action::BXor(3));
     let Some(PaperForm::Xor(parts)) = &app.backup.as_ref().unwrap().paper else {
         panic!("no split");
@@ -77,7 +77,7 @@ fn a_seed_xor_split_typed_back_is_the_same_key() {
 #[test]
 fn two_of_three_codex32_shares_typed_back_are_the_same_key() {
     let mut app = backing_up();
-    let want = app.session.keys[0].master.fingerprint().0;
+    let want = app.session.keys[0].fingerprint().0;
     app.press(Action::BCodex32(2, 3));
     let Some(PaperForm::Codex32 { k, strings }) = &app.backup.as_ref().unwrap().paper else {
         panic!("no shares");

@@ -114,8 +114,7 @@ impl Faraday {
             self.toast(FEN.bip85_load_a_key_first);
             return;
         }
-        let key =
-            (self.session.keys.len() == 1).then(|| self.session.keys[0].master.fingerprint().0);
+        let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint().0);
         let (_, _, length) = lengths(Bip85App::Words);
         self.bip85 = Some(Bip85State {
             open: Some(if key.is_some() {
@@ -147,8 +146,8 @@ impl Faraday {
             .session
             .keys
             .iter()
-            .find(|k| Some(k.master.fingerprint().0) == b.key)?
-            .master;
+            .find(|k| Some(k.fingerprint().0) == b.key)?
+            .master();
         let i = b.index()?;
         let text: Zeroizing<String> = match b.app {
             Bip85App::Words => {

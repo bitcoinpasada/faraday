@@ -63,8 +63,7 @@ impl Faraday {
             self.toast(EN.silent_load_a_key_first);
             return;
         }
-        let key =
-            (self.session.keys.len() == 1).then(|| self.session.keys[0].master.fingerprint().0);
+        let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint().0);
         self.silent = Some(SilentState {
             open: Some(if key.is_some() {
                 sstep::ADDRESS
@@ -81,7 +80,7 @@ impl Faraday {
             back: self.screen,
         });
         if let Some(i) = self.silent.as_ref().and_then(|s| s.wallet)
-            && let Some(r) = self.session.wallets[i].policy.silent()
+            && let Some(r) = self.session.wallets[i].policy().silent()
             && let Some(s) = self.silent.as_mut()
         {
             s.labels = r.labels;
@@ -93,7 +92,12 @@ impl Faraday {
     /// payments wallet: its address shows whether or not its key is
     /// loaded; its labels, its scan key and a check need the key.
     pub(crate) fn silent_open_wallet(&mut self, i: usize) {
-        let Some(r) = self.session.wallets.get(i).and_then(|w| w.policy.silent()) else {
+        let Some(r) = self
+            .session
+            .wallets
+            .get(i)
+            .and_then(|w| w.policy().silent())
+        else {
             return;
         };
         self.silent = Some(SilentState {
@@ -116,13 +120,13 @@ impl Faraday {
         self.session
             .wallets
             .iter()
-            .position(|w| w.policy.silent().is_some_and(|r| r.fingerprint.0 == fp))
+            .position(|w| w.policy().silent().is_some_and(|r| r.fingerprint.0 == fp))
     }
 
     /// The record of the wallet the flow is the page of.
     pub fn silent_wallet(&self) -> Option<&SilentWallet> {
         let i = self.silent.as_ref()?.wallet?;
-        self.session.wallets.get(i)?.policy.silent()
+        self.session.wallets.get(i)?.policy().silent()
     }
 
     /// The scan and spend keys, derived from the loaded key: `None`
@@ -135,14 +139,14 @@ impl Faraday {
             .session
             .keys
             .iter()
-            .find(|k| Some(k.master.fingerprint().0) == s.key)?;
-        let r = Receiver::derive(&key.master, 0);
+            .find(|k| Some(k.fingerprint().0) == s.key)?;
+        let r = Receiver::derive(key.master(), 0);
         if let Some(w) = self.silent_wallet()
             && w.spend != r.spend_public_key()
         {
             return None;
         }
-        Some((r, key.master.fingerprint().0))
+        Some((r, key.fingerprint().0))
     }
 
     /// Whether the wallet's key is loaded, which labels, the scan key and
@@ -340,7 +344,7 @@ impl Faraday {
                     && s.labels > r.labels
                 {
                     r.labels = s.labels;
-                    self.session.wallets[i].policy = osk_bip::policy::WalletPolicy::of_silent(r);
+                    self.session.wallets[i].set_policy(osk_bip::policy::WalletPolicy::of_silent(r));
                 }
             }
             A::SNext => {

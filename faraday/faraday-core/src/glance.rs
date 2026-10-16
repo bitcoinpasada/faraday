@@ -181,7 +181,7 @@ pub fn plan_of(app: &Faraday, w: usize) -> Option<(plan::Answers, Vec<String>)> 
         return Some((b.answers.clone(), b.names.clone()));
     }
     let kept = app.plan_load_of(wallet, &shape);
-    let sum = wallet.policy.checksum();
+    let sum = wallet.checksum();
     let recorded = app
         .backup_records
         .iter()
@@ -198,7 +198,7 @@ pub fn plan_of(app: &Faraday, w: usize) -> Option<(plan::Answers, Vec<String>)> 
 pub fn of(app: &Faraday, w: usize) -> Option<Glance> {
     let wallet = app.session.wallets.get(w)?;
     let plan = plan_of(app, w);
-    let none = locked(app, &wallet.policy.checksum());
+    let none = locked(app, wallet.checksum());
     let notes = app.plan_notes(wallet, None);
     build(
         app,
@@ -224,15 +224,14 @@ pub fn of_vault(app: &Faraday, v: usize, r: usize) -> Option<Glance> {
         .records
         .get(r)
         .filter(|x| x.kind == kind::WALLET)?;
-    let wallet = crate::wallet::Wallet {
-        name: rec
-            .text(field::WALLET_NAME)
+    let wallet = crate::wallet::Wallet::new(
+        rec.text(field::WALLET_NAME)
             .unwrap_or(EN.glance_wallet)
             .to_string(),
-        policy: crate::wallet::read_wallet(rec.text(field::WALLET)?).ok()?,
-        source: String::new(),
-        origin: crate::wallet::Origin::Named,
-    };
+        crate::wallet::read_wallet(rec.text(field::WALLET)?).ok()?,
+        String::new(),
+        crate::wallet::Origin::Named,
+    );
     // The seeds this vault keeps: their fingerprints, and whether each
     // was kept with a passphrase.
     let kept: Vec<(String, bool)> = open
@@ -246,7 +245,7 @@ pub fn of_vault(app: &Faraday, v: usize, r: usize) -> Option<Glance> {
     let in_vault: Vec<String> = kept.iter().map(|(f, _)| f.clone()).collect();
     let mut shape = app.plan_shape_of(&wallet);
     let slots = app.session.slots(&wallet);
-    let threshold = wallet.policy.record().is_some();
+    let threshold = wallet.policy().record().is_some();
     for (n, slot) in slots.iter().enumerate() {
         let Some(fp) = slot.fingerprint.map(fp_text) else {
             continue;
@@ -293,7 +292,7 @@ fn build(
     none: Backup,
     press: Press,
 ) -> Option<Glance> {
-    if wallet.policy.silent().is_some() {
+    if wallet.policy().silent().is_some() {
         return None;
     }
     let slots = app.session.slots(wallet);
@@ -305,7 +304,7 @@ fn build(
     let quorum_here =
         slots.iter().filter(|s| s.held_by.is_some()).count() >= crate::wallet::needed(wallet);
     let may = app.may_load_keys();
-    let threshold = wallet.policy.record().is_some();
+    let threshold = wallet.policy().record().is_some();
     // Each slot's seed in the plan: a share by its number, else by
     // fingerprint.
     let seed_of = |n: usize, slot: &crate::wallet::Slot| -> Option<usize> {
@@ -387,7 +386,7 @@ fn build(
             }
         })
         .collect();
-    let sum = wallet.policy.checksum();
+    let sum = wallet.checksum().to_string();
     let charted = plan.as_ref().map(|(a, _)| (shape.clone(), a.clone()));
     let backup = match plan {
         Some((a, names)) => backup_nodes(

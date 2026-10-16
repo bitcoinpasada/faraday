@@ -184,7 +184,7 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
         .add_mnemonic(&m, PASSPHRASE, "Key", None)
         .unwrap();
     let text = NewKind::NativeSegwit
-        .key_text(&app.session.keys[0].master)
+        .key_text(app.session.keys[0].master())
         .unwrap();
     let w = app
         .session

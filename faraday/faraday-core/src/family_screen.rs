@@ -255,7 +255,7 @@ fn loaded(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         .keys
         .iter()
         .filter(|k| {
-            let fp = k.master.fingerprint();
+            let fp = k.fingerprint();
             !app.session.wallets.iter().any(|w| {
                 app.session
                     .slots(w)
@@ -269,15 +269,7 @@ fn loaded(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         crate::screens::section_label(ui, x, y, EN.family_keys_with_no);
         y += 30.0;
         for k in &lonely {
-            ui.text_mid(
-                x,
-                y,
-                30.0,
-                14.0,
-                W::M,
-                TEXT,
-                &fp_text(k.master.fingerprint()),
-            );
+            ui.text_mid(x, y, 30.0, 14.0, W::M, TEXT, &fp_text(k.fingerprint()));
             ui.text_mid(x + 100.0, y, 30.0, 13.0, W::R, MUTED, &k.label);
             y += 32.0;
         }
@@ -476,7 +468,7 @@ fn loaded_compact(app: &mut Faraday, ui: &mut Ui, cw: f32, h: f32) {
         .keys
         .iter()
         .filter(|k| {
-            let fp = k.master.fingerprint();
+            let fp = k.fingerprint();
             !app.session.wallets.iter().any(|w| {
                 app.session
                     .slots(w)
@@ -490,15 +482,7 @@ fn loaded_compact(app: &mut Faraday, ui: &mut Ui, cw: f32, h: f32) {
         section_label(ui, x, y, EN.family_keys_with_no);
         y += 30.0;
         for k in &lonely {
-            ui.text_mid(
-                x,
-                y,
-                30.0,
-                14.0,
-                W::M,
-                TEXT,
-                &fp_text(k.master.fingerprint()),
-            );
+            ui.text_mid(x, y, 30.0, 14.0, W::M, TEXT, &fp_text(k.fingerprint()));
             let label = ui.fit(13.0, W::R, &k.label, w - 100.0);
             ui.text_mid(x + 100.0, y, 30.0, 13.0, W::R, MUTED, &label);
             y += 32.0;
@@ -694,7 +678,7 @@ fn threshold(app: &Faraday) -> bool {
         .as_ref()
         .and_then(|s| s.wallet)
         .and_then(|w| app.session.wallets.get(w))
-        .is_some_and(|w| Kind::of(&w.policy) == Kind::Threshold)
+        .is_some_and(|w| Kind::of(w.policy()) == Kind::Threshold)
 }
 
 /// More about this: a quiet button, and the paragraphs while it is open.
@@ -1815,8 +1799,8 @@ fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // from whoever holds one (`docs/NEW-WALLET.md` §11.2). A wallet whose
     // paths differ keeps them until the spend is signed, since a count
     // of keys does not settle which path signs.
-    let paths =
-        wallet.is_some_and(|(_, wl)| matches!(Kind::of(&wl.policy), Kind::Miniscript | Kind::Tree));
+    let paths = wallet
+        .is_some_and(|(_, wl)| matches!(Kind::of(wl.policy()), Kind::Miniscript | Kind::Tree));
     let short = here < needed;
     if short || (paths && !s.complete) {
         let style = if may {

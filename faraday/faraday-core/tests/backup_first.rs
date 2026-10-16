@@ -100,7 +100,7 @@ fn made_here(app: &mut Faraday) -> (usize, Fingerprint) {
     app.press(Action::KNext);
     assert_eq!(app.screen, Screen::Create);
     let w = app.create.as_ref().and_then(|c| c.built).expect("built");
-    let fp = app.session.keys.last().unwrap().master.fingerprint();
+    let fp = app.session.keys.last().unwrap().fingerprint();
     (w, fp)
 }
 
@@ -122,7 +122,7 @@ fn check_the_copy(app: &mut Faraday, fp: Fingerprint) {
         .session
         .keys
         .iter()
-        .find(|k| k.master.fingerprint() == fp)
+        .find(|k| k.fingerprint() == fp)
         .unwrap();
     let words = key.words.as_ref().unwrap().to_string();
     let lang = key.language;
@@ -151,7 +151,7 @@ fn kit_of(app: &Faraday, w: usize) -> Kit {
     Kit {
         id: "made",
         name: "Made here",
-        descriptor: app.session.wallets[w].policy.to_descriptor_checksummed(),
+        descriptor: app.session.wallets[w].policy().to_descriptor_checksummed(),
         cosigner: None,
         fee: 1_000,
     }
@@ -226,7 +226,7 @@ fn a_restored_key_signs_at_once() {
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);
-    let fp = app.session.keys[0].master.fingerprint();
+    let fp = app.session.keys[0].fingerprint();
     assert!(!app.key_held(fp));
     assert_ne!(app.spend_button(0).0, "Finish the backup first");
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
@@ -284,10 +284,7 @@ fn after_a_lock_and_an_unlock_from_the_vault_the_held_key_is_still_held() {
     unlock(&mut next);
     next.press(Action::Vault(V::LoadChosen(0)));
     assert!(
-        next.session
-            .keys
-            .iter()
-            .any(|k| k.master.fingerprint() == fp),
+        next.session.keys.iter().any(|k| k.fingerprint() == fp),
         "the key did not load"
     );
     assert!(next.key_held(fp), "the key signs after a lock");

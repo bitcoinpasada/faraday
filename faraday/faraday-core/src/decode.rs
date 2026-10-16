@@ -148,7 +148,7 @@ pub fn decode(
                 Address::from_script(&o.script_pubkey, osk_bip::bitcoin::Network::from(network));
             let ours = address.as_ref().ok().and_then(|a| {
                 session.wallets.iter().find_map(|w| {
-                    w.policy
+                    w.policy()
                         .find_address(network, a, 100)
                         .map(|(change, index)| (w.name.clone(), change, index))
                 })
