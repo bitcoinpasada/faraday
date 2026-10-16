@@ -2651,28 +2651,35 @@ F40. Built in F2d.
    round the zone that a drop or tap would place on is as before. No
    line of explanation is added (a working screen carries none).
 3. **A vault kept at no place is not in the plan.** A vault no place
-   keeps a stick of stays on the board's list, with what it holds, and a
-   drag of its chip onto a place puts it back with all of it. Everything
-   but the board reads the plan without it:
+   keeps a stick of stays on the board's list, its chip drawn dim (and
+   still picked up, unlike a seed that is not here), with what it holds,
+   and a drag of its chip onto a place puts it back with all of it.
+   Everything but the board reads the plan without it:
    - The plan step (`map_rows`) does not list it; the checklist makes
      no item for it; the flows do not set it up or write it.
    - The checks do not count what it holds: a seed kept only there is
      "Seed X is kept nowhere", and holds Make the checklist as §19.5
      says.
-   - "Vault n's stick needs a place" and its hold on Make the checklist
-     go; "Vault n holds nothing" counts only a vault kept at a place, so
-     a vault just added by **+ vault** holds nothing back.
+   - "Vault n holds nothing" counts only a vault kept at a place, so a
+     vault just added by **+ vault** holds nothing back.
    - The map as saved (`Answers::map`, the plan's text) keeps it, so the
      board reads back as it was left.
    - Model: `plan::map` is the plan, the stored map without a vault no
      place keeps a stick of; the board reads and edits the stored map in
      full (a function of its own), and a new vault's number and the
      list's vaults count every vault in it.
-   - **Open (owner):** a vault set up before the keys (an open vault,
-     §17.7) or one past the lock (§17.8) exists already. Proposed: such
-     a vault stays in the plan at no place, with today's "needs a place"
-     warning and hold; only a vault the board made (+ vault, a preset)
-     drops out.
+   - **A vault that exists already** (set up before the keys, §17.7)
+     at no place is dim and out of the plan as any other, and "Vault n's
+     stick needs a place" stands under the board, a warning only: it no
+     longer holds Make the checklist (§19.5, warnings never refusals).
+     Its × takes it out of this plan (asked first when something is
+     planned into it, as today): the warning goes, the chip stays on the
+     list dim, since the vault exists, and the vault's file is not
+     touched; dragged onto a place it is back in the plan, holding
+     nothing planned. A vault the board made (**+ vault**, a preset) has
+     no warning at no place, and its × removes it from the list as today.
+   - After the lock, a vault's stick and the vault change as §17.8
+     already allows; nothing here widens it.
 4. **Tests** (user-facing behaviour, `tests/backup_board.rs`): a press
    on **+ stick** with nothing held shows a new empty stick and a
    further **+ stick**, and The plan and the checklist are unchanged;
@@ -2680,5 +2687,9 @@ F40. Built in F2d.
    that place; the empty stick's × removes it; a place removed takes
    its empty sticks; with places 2 and 3 removed, their vaults are not
    in The plan or the checklist, are still on the list with what they
-   hold, and a seed kept only in one of them is kept nowhere; a vault
-   dragged back onto a place returns with what it held.
+   hold, drawn dim, and a seed kept only in one of them is kept
+   nowhere; a vault dragged back onto a place returns with what it held;
+   a vault set up before the keys, at no place, reads "needs a place"
+   and Make the checklist is still offered; its × takes the warning
+   away and leaves its chip dim on the list, and dragged onto a place
+   it is in The plan again.

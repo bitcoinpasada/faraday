@@ -1504,3 +1504,51 @@ not read from the file.
 known**; **Time zone**, stepped by 15 minutes; **Set the time**, which
 opens **Set the time** (a Date and a Time field, **Set**, and **Keep
 this time** once the clock is already known) and returns to Settings.
+
+## Flows in progress (owner, 2026-10-16; F41)
+
+**Why.** The owner was on Places in Create a wallet, opened Settings to
+change the theme, and found no way back. The flow was kept (pressing
+**Create a wallet** again resumes it), but nothing on screen said so.
+Not built.
+
+1. **A flow in progress has a row in the sidebar, under its tab.** A
+   flow is in progress from its first step done until it is finished,
+   started over or let go, or its state is wiped (a lock wipes what it
+   wipes today). Each has one row, indented under the sidebar entry it
+   is opened from: Create a wallet, Restore, Back up, Spend, New key and
+   a wallet's guided backup under **Wallets**; Make a vault under
+   **Vaults**; the GPG, APK and Secure Boot flows under **Tools**. The
+   row reads the flow's name and, at its right end in the muted tone,
+   its open step ("Create a wallet · Places"); a press opens the flow
+   on that step, as it was left. Create a wallet and the backup it ends
+   in are one row, named Create a wallet.
+2. **The row is lit while its flow is on screen**, and its tab is not;
+   on any other screen the tab is lit as today.
+3. **What a row never shows**: a key's words, a passphrase, or any value
+   the flow holds. A wallet's or key's name, already in the sidebar's
+   lists, may be its name.
+4. **Room.** Rows are added after their tab, in the order the flows
+   were started; the seeds and wallets groups at the foot give up rows
+   as they do today (`sidebar_caps`). A flow that keeps nothing when
+   left (a calculator, Explore) has no row.
+5. **The narrow window and the small panel** (the compact layout): the
+   small Home leads with one tile per flow in progress, its name and
+   step, opening it, before its other tiles.
+6. **Survey first**, before building: every screen whose state is kept
+   when it is left, what counts as its first step done, and how each is
+   finished or let go; the list in item 1 is corrected from it.
+7. **Speed.** Which flows are in progress is worked out once a frame
+   through the drawing memo (`docs/SPEED.md` §3.3) when it costs more
+   than lookups; a press decides from the state as it is.
+8. **Tests** (`tests/sidebar.rs`, `tests/small_panel.rs`): Create a
+   wallet taken to Places, Settings opened, then the sidebar's Create a
+   wallet row returns to Places with the board as it was left; no row
+   before a step is done; the row goes when the flow is finished or
+   started over; a GPG key's guided flow has its row under Tools; the
+   row is lit on the flow's screen and its tab is not; the small Home's
+   first tile opens the flow in progress.
+
+Considered and not chosen: a "back to the flow" line at the top of
+every page (it remembers one flow only, and is a line on every working
+screen); Settings as a sheet over the screen (mends this case only).
