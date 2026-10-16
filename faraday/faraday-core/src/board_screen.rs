@@ -196,13 +196,22 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
     let lifted = held && fr.drag.is_some() && hits;
     let action = Action::Board(BoardPress::Chip(cv.chip));
     let hot = hits && !cv.fixed && (ui.is_pressed(action) || ui.is_hovered(action));
-    // A chip is the card's surface edged in the border, so it stands on
-    // every level's fill: paper, a stick box, a vault box, the list.
+    // A chip is the surface with a stronger neutral edge and a faint
+    // shadow, so it stands on every box's fill: paper, a stick box, a
+    // vault box, the list (§19.15).
     if cv.fixed {
-        ui.stroke(x, y, w, h, r, BORDER);
+        ui.stroke(x, y, w, h, r, CHIP_EDGE);
     } else {
+        ui.fill(
+            x,
+            y + tokens::BOARD_CHIP_DROP,
+            w,
+            h,
+            r,
+            SHADOW.with_alpha(tokens::BOARD_CHIP_SHADOW),
+        );
         ui.fill(x, y, w, h, r, if hot { INNER } else { SURFACE });
-        ui.stroke(x, y, w, h, r, BORDER);
+        ui.stroke(x, y, w, h, r, CHIP_EDGE);
     }
     let fg = if cv.fixed || lifted { DIM } else { TEXT };
     let mut cx = x + tokens::BOARD_PAD;
@@ -262,7 +271,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
             tokens::BOARD_MARK,
             Icon::Lock,
             tokens::BOARD_MARK,
-            ACCENT,
+            VAULT_EDGE,
         );
         right -= tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
     }
@@ -344,179 +353,415 @@ fn flow(ui: &Ui, chips: &[ChipView], x: f32, y: f32, w: f32) -> (Vec<(f32, f32, 
     (out, h)
 }
 
-/// A zone: its label, then its chips, in a box that takes presses (and
-/// drops) as zone `z`. An empty zone is a chip's height. Returns its
-/// height.
+/// A box (x, y, w, h).
+type Box4 = (f32, f32, f32, f32);
+
+/// A box's edge drawn in dashes along its sides, `color`, at
+/// `BOARD_BOX_EDGE`: **+ stick** and **+ place**. The corners, `radius`
+/// round, are left open.
+fn dashed(ui: &mut Ui, r: Box4, radius: f32, color: osk_ui::Color) {
+    let (f, ox, oy) = (ui.f, ui.ox, ui.oy);
+    let c = ui.col(color);
+    let s = tokens::BOARD_BOX_EDGE * f;
+    let d = tokens::BOARD_DASH;
+    let half = tokens::BOARD_BOX_EDGE / 2.0;
+    let (x0, y0) = (r.0 + half, r.1 + half);
+    let (x1, y1) = (r.0 + r.2 - half, r.1 + r.3 - half);
+    // Each side from one corner's end to the next's start, a dash and a
+    // gap at a time.
+    let sides = [
+        (x0 + radius, y0, x1 - radius, y0),
+        (x0 + radius, y1, x1 - radius, y1),
+        (x0, y0 + radius, x0, y1 - radius),
+        (x1, y0 + radius, x1, y1 - radius),
+    ];
+    for (ax, ay, bx, by) in sides {
+        let len = (bx - ax).abs().max((by - ay).abs());
+        if len <= 0.0 {
+            continue;
+        }
+        let (ux, uy) = ((bx - ax) / len, (by - ay) / len);
+        let mut t = 0.0;
+        while t < len {
+            let e = (t + d).min(len);
+            ui.c.line(
+                (ax + ux * t + ox) * f,
+                (ay + uy * t + oy) * f,
+                (ax + ux * e + ox) * f,
+                (ay + uy * e + oy) * f,
+                s,
+                c,
+            );
+            t += 2.0 * d;
+        }
+    }
+}
+
+/// A box with its top corners rounded and its bottom square: a header
+/// band.
+fn band(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, color: osk_ui::Color) {
+    let r = tokens::GAP;
+    ui.fill(x, y, w, h, r, color);
+    ui.fill(x, y + h - r, w, r, 0.0, color);
+}
+
+/// What a zone's chips take `w` wide, under its label row: Paper's and
+/// Scanned in's height, a chip's at least.
+fn paper_h(ui: &Ui, chips: &[ChipView], w: f32) -> f32 {
+    let pad = tokens::BOARD_PAD;
+    let (_, ch) = flow(ui, chips, 0.0, 0.0, w - 2.0 * pad);
+    tokens::BOARD_ZONE_LABEL + ch.max(tokens::BOARD_CHIP) + pad
+}
+
+/// Paper, or Scanned in at the software place (`docs/DESIGN.md` §4.17):
+/// a cream box `r`, its glyph and label in its header row, then its
+/// chips; it takes presses (and drops) as zone `z`.
+fn paper(ui: &mut Ui, fr: &mut Frame, z: Zone, label: &str, chips: &[ChipView], r: Box4) {
+    let (x, y, w, h) = r;
+    let pad = tokens::BOARD_PAD;
+    let lh = tokens::BOARD_ZONE_LABEL;
+    let (places, _) = flow(ui, chips, x + pad, y + lh, w - 2.0 * pad);
+    ui.fill(x, y, w, h, tokens::GAP, PAPER_FILL);
+    outline(ui, r, tokens::GAP, tokens::BOARD_BOX_EDGE, PAPER_EDGE);
+    ui.hit_quiet(x, y, w, h, Action::Board(BoardPress::Zone(z)));
+    let mark = tokens::BOARD_MARK;
+    ui.icon(
+        x + pad,
+        y + (lh - mark) / 2.0,
+        mark,
+        Icon::File,
+        mark,
+        PAPER_TEXT,
+    );
+    ui.text_mid(
+        x + pad + mark + tokens::BOARD_CHIP_GAP,
+        y,
+        lh,
+        tokens::CAPTION,
+        W::S,
+        PAPER_TEXT,
+        label,
+    );
+    for (cv, at) in chips.iter().zip(places) {
+        chip(ui, fr, cv, at.0, at.1, at.2, true);
+    }
+    if fr.edged(z, r) {
+        edge(ui, r, tokens::GAP, ACCENT);
+    }
+}
+
+/// A stick box `r` with its head: the stick glyph and "Stick n" in slate.
+/// Returns the head's height.
+fn stick_box(ui: &mut Ui, label: &str, r: Box4) -> f32 {
+    let (x, y, w, h) = r;
+    let sp = tokens::BOARD_STICK_PAD;
+    let hh = tokens::BOARD_STICK_HEAD;
+    let mark = tokens::BOARD_MARK;
+    ui.fill(x, y, w, h, tokens::GAP, STICK_FILL);
+    outline(ui, r, tokens::GAP, tokens::BOARD_STICK_EDGE, STICK_EDGE);
+    let gx = x + sp + tokens::GAP_SMALL;
+    ui.icon(
+        gx,
+        y + (hh - mark) / 2.0,
+        mark,
+        Icon::Drive,
+        mark,
+        STICK_TEXT,
+    );
+    ui.text_mid(
+        gx + mark + tokens::BOARD_CHIP_GAP,
+        y,
+        hh,
+        tokens::CAPTION,
+        W::S,
+        STICK_TEXT,
+        label,
+    );
+    hh
+}
+
+/// The **+ stick** box `r`: a new stick for what is dropped on it, in the
+/// stick's fill with its edge dashed.
+fn add_stick(ui: &mut Ui, fr: &Frame, p: usize, r: Box4) {
+    let (x, y, w, h) = r;
+    let z = Zone::NewStick(p);
+    let a = Action::Board(BoardPress::Zone(z));
+    ui.fill(x, y, w, h, tokens::GAP, STICK_FILL);
+    dashed(ui, r, tokens::GAP, STICK_EDGE);
+    let lw = ui.measure(tokens::CAPTION, W::S, EN.board_add_stick);
+    ui.text_mid(
+        x + ((w - lw) / 2.0).max(tokens::GAP_SMALL),
+        y,
+        h,
+        tokens::CAPTION,
+        W::S,
+        STICK_TEXT,
+        EN.board_add_stick,
+    );
+    ui.hit_quiet(x, y, w, h, a);
+    let on = fr.held.is_some_and(|c| {
+        takes(&fr.shape, z, c.thing(), fr.locked) && !matches!(c, Chip::List(Thing::Software))
+    }) && fr.drag.is_none_or(|d| inside(d, r));
+    if on {
+        edge(ui, r, tokens::GAP, ACCENT);
+    }
+}
+
+/// Where a place's parts go (`docs/BACKUP-FLOW.md` §19.15 item 1): each
+/// stick box, **+ stick** where the place has it, and Paper (or Scanned
+/// in), and the height they take.
+struct Row {
+    /// Each stick box.
+    sticks: Vec<Box4>,
+    /// **+ stick**.
+    add: Option<Box4>,
+    /// Paper, or Scanned in.
+    paper: Box4,
+    /// The height of it all.
+    h: f32,
+}
+
+/// A place's parts laid out from (x, y) in `w`: on `wide` left to right,
+/// the sticks sharing the width with Paper and wrapping onto further
+/// lines inside the place when they do not fit at `BOARD_BOX_MIN` each,
+/// every box as tall as the row (a line of sticks as tall as its
+/// tallest); in the narrow column one under another. `stick_h` and
+/// `paper_h` give a box's own height at a width.
 #[allow(clippy::too_many_arguments)]
-fn zone(
-    ui: &mut Ui,
-    fr: &mut Frame,
-    z: Zone,
-    label: Option<&str>,
-    chips: &[ChipView],
+fn row(
+    stick_h: &dyn Fn(usize, f32) -> f32,
+    paper_h: &dyn Fn(f32) -> f32,
+    n: usize,
+    add: bool,
+    narrow: bool,
     x: f32,
     y: f32,
     w: f32,
-) -> f32 {
-    let pad = tokens::BOARD_PAD;
-    let top = if label.is_some() {
-        tokens::BOARD_ZONE_LABEL
+) -> Row {
+    let g = tokens::BOARD_PAD;
+    let mut sticks = Vec::with_capacity(n);
+    if narrow {
+        let mut cy = y;
+        for i in 0..n {
+            let h = stick_h(i, w);
+            sticks.push((x, cy, w, h));
+            cy += h + g;
+        }
+        let add = add.then(|| {
+            let r = (x, cy, w, tokens::BOARD_CHIP);
+            cy += tokens::BOARD_CHIP + g;
+            r
+        });
+        let ph = paper_h(w);
+        return Row {
+            sticks,
+            add,
+            paper: (x, cy, w, ph),
+            h: cy + ph - y,
+        };
+    }
+    let a = if add {
+        tokens::BOARD_ADD_STICK + g
     } else {
-        pad
+        0.0
     };
-    let (places, ch) = flow(ui, chips, x + pad, y + top, w - 2.0 * pad);
-    let h = top + ch.max(tokens::BOARD_CHIP) + pad;
-    // Paper and the software's zones stand on the place box's own
-    // surface, edged: a stick box is the filled one (§19.14).
-    ui.fill(x, y, w, h, tokens::GAP, SURFACE);
-    ui.stroke(x, y, w, h, tokens::GAP, BORDER);
-    ui.hit_quiet(x, y, w, h, Action::Board(BoardPress::Zone(z)));
-    if let Some(l) = label {
-        ui.text_mid(
-            x + pad,
-            y,
-            tokens::BOARD_ZONE_LABEL,
-            tokens::CAPTION,
-            W::S,
-            MUTED,
-            l,
-        );
+    let parts = (n + 1) as f32;
+    let per = (w - a - g * (parts - 1.0)) / parts;
+    let (area, pw, k) = if n == 0 {
+        (0.0, w - a, 0)
+    } else if per >= tokens::BOARD_BOX_MIN {
+        (w - a - per - g, per, n)
+    } else {
+        let pw = tokens::BOARD_BOX_MIN.min(w / 2.0);
+        let area = w - a - pw - g;
+        let k = (((area + g) / (tokens::BOARD_BOX_MIN + g)).floor() as usize).clamp(1, n);
+        (area, pw, k)
+    };
+    let sw = if k > 0 {
+        (area - g * (k - 1) as f32) / k as f32
+    } else {
+        0.0
+    };
+    let mut ly = y;
+    let mut lines: Vec<(usize, usize, f32)> = Vec::new();
+    for start in (0..n).step_by(k.max(1)) {
+        let end = (start + k).min(n);
+        let lh = (start..end).map(|i| stick_h(i, sw)).fold(0.0f32, f32::max);
+        lines.push((start, end, lh));
+        ly += lh + g;
     }
-    for (cv, r) in chips.iter().zip(places) {
-        chip(ui, fr, cv, r.0, r.1, r.2, true);
+    let sticks_h = if n == 0 { 0.0 } else { ly - g - y };
+    let ph = paper_h(pw);
+    let h = sticks_h.max(ph).max(tokens::BOARD_CHIP);
+    let mut ly = y;
+    let last = lines.len();
+    for (j, (start, end, lh)) in lines.into_iter().enumerate() {
+        // The last line takes what the row has over the sticks' height.
+        let lh = if j + 1 == last { lh + h - sticks_h } else { lh };
+        for i in start..end {
+            sticks.push((x + (i - start) as f32 * (sw + g), ly, sw, lh));
+        }
+        ly += lh + g;
     }
-    if fr.edged(z, (x, y, w, h)) {
-        edge(ui, (x, y, w, h), tokens::GAP, ACCENT);
+    let ax = x + if n == 0 { 0.0 } else { area + g };
+    Row {
+        sticks,
+        add: add.then_some((ax, y, tokens::BOARD_ADD_STICK, h)),
+        paper: (ax + a, y, pw, h),
+        h,
     }
-    h
 }
 
-/// The head of a card: its name (a field while names are typed), and its
-/// × when it can go. Returns its height.
-fn head(
+/// A place's header band at (x, y), `w` wide (`docs/DESIGN.md` §4.17):
+/// the place glyph, its name (a field while names are typed), its line of
+/// fact as an outlined tag in its tone, and its × when it can go.
+#[allow(clippy::too_many_arguments)]
+fn place_head(
     ui: &mut Ui,
     name: &str,
+    fact: Option<(&str, osk_ui::Color)>,
     x: f32,
     y: f32,
     w: f32,
     name_press: Option<(Action, bool)>,
     off: Option<Action>,
-) -> f32 {
+) {
     let pad = tokens::BOARD_PAD;
     let hh = tokens::BOARD_HEAD;
-    let room = w - 2.0 * pad - tokens::BOARD_MARK - pad;
+    let mark = tokens::BOARD_MARK;
+    band(ui, x, y, w, hh, PLACE_BAND);
+    ui.icon(
+        x + pad,
+        y + (hh - mark) / 2.0,
+        mark,
+        Icon::House,
+        mark,
+        PLACE_TEXT,
+    );
+    let nx = x + pad + mark + tokens::BOARD_CHIP_GAP;
+    let right = x + w - pad - mark - pad;
+    let tag_w = fact.map_or(0.0, |(t, _)| {
+        ui.measure(tokens::CAPTION, W::R, t) + 2.0 * pad + tokens::GAP
+    });
+    let room = (right - nx - tag_w).max((right - nx) / 2.0).max(0.0);
     let shown = ui.fit(tokens::LABEL, W::S, name, room);
-    let nw = ui.text_mid(x + pad, y, hh, tokens::LABEL, W::S, TEXT, &shown);
+    let nw = ui.text_mid(nx, y, hh, tokens::LABEL, W::S, PLACE_TEXT, &shown);
     if let Some((a, typing)) = name_press {
         if typing {
-            ui.caret(x + pad + nw + 1.0, y + tokens::GAP, hh - 2.0 * tokens::GAP);
-            ui.rule(x + pad, y + hh - tokens::GAP_SMALL, room, ACCENT);
+            ui.caret(nx + nw + 1.0, y + tokens::GAP, hh - 2.0 * tokens::GAP);
+            ui.rule(nx, y + hh - tokens::GAP_SMALL, room, ACCENT);
         }
-        ui.hit(x + pad, y, room, hh, a);
+        ui.hit(nx, y, room, hh, a);
+    }
+    if let Some((text, tone)) = fact {
+        let tx = nx + nw + tokens::GAP;
+        let tw = (tag_w - tokens::GAP).min(right - tx);
+        if tw > 2.0 * pad {
+            let th = tokens::BOARD_TAG;
+            let ty = y + (hh - th) / 2.0;
+            ui.fill(tx, ty, tw, th, th / 2.0, SURFACE);
+            ui.stroke(tx, ty, tw, th, th / 2.0, tone);
+            // Laid out to fit (`tag_w`): the half unit is the rounding of
+            // a box placed at a fraction of a pixel.
+            let t = ui.fit(tokens::CAPTION, W::R, text, tw - 2.0 * pad + 0.5);
+            ui.text_mid(tx + pad, ty, th, tokens::CAPTION, W::R, tone, &t);
+        }
     }
     if let Some(a) = off {
-        let cx = x + w - pad - tokens::BOARD_MARK / 2.0;
-        cross(ui, cx, y + hh / 2.0, MUTED);
-        let side = tokens::BOARD_MARK + 2.0 * pad;
+        cross(ui, x + w - pad - mark / 2.0, y + hh / 2.0, PLACE_TEXT);
+        let side = mark + 2.0 * pad;
         ui.hit(x + w - side, y, side, hh, a);
     }
-    hh
 }
 
-/// A place's card at (x, y), `w` wide; with `h` its surface is drawn that
-/// tall, without it nothing but its height is wanted. Returns its height.
-#[allow(clippy::too_many_arguments)]
-fn card(
-    ui: &mut Ui,
-    fr: &mut Frame,
-    v: &BoardView,
-    cv: &CardView,
-    x: f32,
-    y: f32,
-    w: f32,
-    h: Option<f32>,
-) -> f32 {
+/// A place's box `h` tall at (x, y), `w` wide: a pale green fill, a green
+/// edge with a thick left stripe. Returns the inside's left edge and
+/// width, under the header band.
+fn place_box(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) -> (f32, f32) {
+    let e = tokens::BOARD_BOX_EDGE;
+    let stripe = tokens::BOARD_PLACE_STRIPE;
+    ui.fill(x, y, w, h, tokens::RADIUS, PLACE_EDGE);
+    ui.fill(
+        x + stripe,
+        y + e,
+        w - stripe - e,
+        h - 2.0 * e,
+        tokens::GAP,
+        PLACE_FILL,
+    );
+    (x + stripe, w - stripe - e)
+}
+
+/// Place `cv` at (x, y), `w` wide (`docs/BACKUP-FLOW.md` §19.15): its
+/// header band, then its sticks, **+ stick** and Paper. Returns its
+/// height.
+fn place(ui: &mut Ui, fr: &mut Frame, v: &BoardView, cv: &CardView, x: f32, y: f32, w: f32) -> f32 {
     let pad = tokens::BOARD_PAD;
-    if let Some(h) = h {
-        ui.fill(x, y, w, h, tokens::RADIUS, SURFACE);
-        ui.stroke(x, y, w, h, tokens::RADIUS, BORDER);
-        ui.hit_quiet(
-            x,
-            y,
-            w,
-            h,
-            Action::Board(BoardPress::Zone(Zone::Card(cv.p))),
-        );
-        // A vault's chip held goes to the card as a whole.
-        if let Some(c) = fr.held
-            && let Thing::Vault(_) = c.thing()
-            && takes(&fr.shape, Zone::Card(cv.p), c.thing(), fr.locked)
-            && !matches!(c, Chip::Placed(Zone::Files(p, _), _) if p == cv.p)
-            && fr.drag.is_none_or(|d| inside(d, (x, y, w, h)))
-        {
-            edge(ui, (x, y, w, h), tokens::RADIUS, ACCENT);
-        }
+    let e = tokens::BOARD_BOX_EDGE;
+    let stripe = tokens::BOARD_PLACE_STRIPE;
+    let (ix, iw) = (x + stripe + pad, w - stripe - e - 2.0 * pad);
+    let top = y + e + tokens::BOARD_HEAD + pad;
+    let lay = {
+        let ui_ref: &Ui = ui;
+        row(
+            &|i, sw| stick_h(ui_ref, &cv.sticks[i], sw),
+            &|pw| paper_h(ui_ref, &cv.paper.chips, pw),
+            cv.sticks.len(),
+            true,
+            ui_ref.compact,
+            ix,
+            top,
+            iw,
+        )
+    };
+    let h = top + lay.h + pad + e - y;
+    let (bx, bw) = place_box(ui, x, y, w, h);
+    ui.hit_quiet(
+        x,
+        y,
+        w,
+        h,
+        Action::Board(BoardPress::Zone(Zone::Card(cv.p))),
+    );
+    // A vault's chip held goes to the place as a whole.
+    if let Some(c) = fr.held
+        && let Thing::Vault(_) = c.thing()
+        && takes(&fr.shape, Zone::Card(cv.p), c.thing(), fr.locked)
+        && !matches!(c, Chip::Placed(Zone::Files(p, _), _) if p == cv.p)
+        && fr.drag.is_none_or(|d| inside(d, (x, y, w, h)))
+    {
+        edge(ui, (x, y, w, h), tokens::RADIUS, ACCENT);
     }
     let p8 = u8::try_from(cv.p).unwrap_or(u8::MAX);
     let removable = v.places.len() > 1 && (!v.locked || cv.p + 1 == v.places.len());
     let name_press = v
         .names_typed
         .then_some((Action::BName(p8), v.naming == Some(cv.p)));
-    let mut cy = y + head(
+    place_head(
         ui,
         &cv.name,
-        x,
-        y,
-        w,
+        Some((&cv.alone.0, crate::glance::alone_color(cv.alone.1))),
+        bx,
+        y + e,
+        bw,
         name_press,
         removable.then_some(Action::Board(BoardPress::RemovePlace(cv.p))),
     );
-    let (ix, iw) = (x + pad, w - 2.0 * pad);
-    for (s, st) in cv.sticks.iter().enumerate() {
-        cy += stick(ui, fr, cv.p, s, st, ix, cy, iw) + pad;
+    for (s, (st, r)) in cv.sticks.iter().zip(&lay.sticks).enumerate() {
+        stick(ui, fr, cv.p, s, st, *r);
     }
-    // + stick: a new stick for what is dropped on it.
-    let nh = tokens::BOARD_CHIP;
-    let z = Zone::NewStick(cv.p);
-    ui.stroke(ix, cy, iw, nh, tokens::GAP, INNER);
-    ui.text_mid(
-        ix + pad,
-        cy,
-        nh,
-        tokens::CAPTION,
-        W::S,
-        MUTED,
-        EN.board_add_stick,
-    );
-    ui.hit_quiet(ix, cy, iw, nh, Action::Board(BoardPress::Zone(z)));
-    let new_stick = fr.held.is_some_and(|c| {
-        takes(&fr.shape, z, c.thing(), fr.locked) && !matches!(c, Chip::List(Thing::Software))
-    }) && fr.drag.is_none_or(|d| inside(d, (ix, cy, iw, nh)));
-    if new_stick {
-        edge(ui, (ix, cy, iw, nh), tokens::GAP, ACCENT);
+    if let Some(r) = lay.add {
+        add_stick(ui, fr, cv.p, r);
     }
-    cy += nh + pad;
-    cy += zone(
+    paper(
         ui,
         fr,
         cv.paper.zone,
-        Some(EN.board_paper),
+        EN.board_paper,
         &cv.paper.chips,
-        ix,
-        cy,
-        iw,
-    ) + pad;
-    // The place's line of fact: what finding it alone gives.
-    cy += ui.wrap(
-        ix,
-        cy,
-        iw,
-        tokens::CAPTION,
-        W::R,
-        crate::glance::alone_color(cv.alone.1),
-        &cv.alone.0,
-    ) + pad;
-    cy - y
+        lay.paper,
+    );
+    h
 }
 
 /// A box's edge at its own stroke: a stick box's and a vault box's are
@@ -527,25 +772,25 @@ fn outline(ui: &mut Ui, r: (f32, f32, f32, f32), radius: f32, width: f32, color:
     ui.c.stroke_rounded_rect(rect, radius * ui.f, width * ui.f, c);
 }
 
-/// A vault box's head at (x, y), `w` wide: the vault's glyph and name,
-/// its link and warning marks, and the × that takes its stick off this
-/// place. The head is the vault's chip: a press selects it, a drag moves
-/// its stick.
-fn vault_head(ui: &mut Ui, fr: &mut Frame, vc: &ChipView, x: f32, y: f32, w: f32) {
+/// A vault box's header band at (x, y), `w` wide: the vault's glyph and
+/// "Vault n · sealed" (`label`) on the solid band, its link and warning
+/// marks, and the × that takes its stick off this place. The band is the
+/// vault's chip: a press selects it, a drag moves its stick.
+fn vault_head(ui: &mut Ui, fr: &mut Frame, vc: &ChipView, label: &str, x: f32, y: f32, w: f32) {
     let hh = tokens::BOARD_VAULT_HEAD;
-    let pad = tokens::BOARD_VAULT_PAD;
+    let pad = tokens::BOARD_VAULT_PAD + tokens::GAP_SMALL;
     let mark = tokens::BOARD_MARK;
     let action = Action::Board(BoardPress::Chip(vc.chip));
     let held = fr.held == Some(vc.chip);
-    let lifted = held && fr.drag.is_some();
+    band(ui, x, y, w, hh, VAULT_EDGE);
     if ui.is_pressed(action) || ui.is_hovered(action) {
-        ui.fill(
+        band(
+            ui,
             x,
             y,
             w,
             hh,
-            tokens::GAP,
-            ACCENT.with_alpha(tokens::BOARD_VAULT_FILL),
+            VAULT_ON.with_alpha(tokens::BOARD_VAULT_HOT),
         );
     }
     ui.icon(
@@ -554,14 +799,14 @@ fn vault_head(ui: &mut Ui, fr: &mut Frame, vc: &ChipView, x: f32, y: f32, w: f32
         mark,
         Icon::Vault,
         mark,
-        ACCENT,
+        VAULT_ON,
     );
     let mut right = x + w - pad;
     let mut off_w = 0.0;
     if vc.off
         && let Chip::Placed(z, t) = vc.chip
     {
-        cross(ui, right - mark / 2.0, y + hh / 2.0, MUTED);
+        cross(ui, right - mark / 2.0, y + hh / 2.0, VAULT_ON);
         off_w = mark + 2.0 * pad;
         ui.hit(
             x + w - off_w,
@@ -579,27 +824,25 @@ fn vault_head(ui: &mut Ui, fr: &mut Frame, vc: &ChipView, x: f32, y: f32, w: f32
             mark,
             Icon::Warning,
             mark,
-            WARN,
+            VAULT_ON,
         );
         right -= mark + tokens::BOARD_CHIP_GAP;
     }
     if vc.link {
-        link(ui, right - mark, y + hh / 2.0, ACCENT);
+        link(ui, right - mark, y + hh / 2.0, VAULT_ON);
         right -= mark + tokens::BOARD_CHIP_GAP;
     }
     let nx = x + pad + mark + tokens::BOARD_CHIP_GAP;
-    let name = ui.fit(tokens::LABEL, W::S, &vc.name, (right - nx).max(0.0));
-    ui.text_mid(
-        nx,
-        y,
-        hh,
-        tokens::LABEL,
-        W::S,
-        if lifted { DIM } else { TEXT },
-        &name,
-    );
-    if held && !lifted {
-        edge(ui, (x, y, w, hh), tokens::GAP, ACCENT);
+    let name = ui.fit(tokens::LABEL, W::S, label, (right - nx).max(0.0));
+    ui.text_mid(nx, y, hh, tokens::LABEL, W::S, VAULT_ON, &name);
+    if held && fr.drag.is_none() {
+        let i = tokens::BOARD_EDGE;
+        edge(
+            ui,
+            (x + i, y + i, w - 2.0 * i, hh - 2.0 * i),
+            tokens::GAP_SMALL,
+            VAULT_ON,
+        );
     }
     ui.hit_quiet(x, y, w - off_w, hh, action);
     if held {
@@ -607,31 +850,23 @@ fn vault_head(ui: &mut Ui, fr: &mut Frame, vc: &ChipView, x: f32, y: f32, w: f32
     }
 }
 
-/// Stick `s` of place `p` (`docs/DESIGN.md` §4.17): a box of its own in
-/// the place card, headed "Stick n" with the × that takes it off; inside
-/// it the vault box when the stick carries a vault (tinted, headed by the
-/// vault, what it holds inside), and beside it, outside the vault box,
-/// the files kept on the stick. Returns its height.
-#[allow(clippy::too_many_arguments)]
-fn stick(
-    ui: &mut Ui,
-    fr: &mut Frame,
-    p: usize,
-    s: usize,
-    st: &crate::board::StickView,
-    x: f32,
-    y: f32,
-    w: f32,
-) -> f32 {
+/// A stick box's own height `w` wide: its head, its vault box, its files.
+fn stick_h(ui: &Ui, st: &crate::board::StickView, w: f32) -> f32 {
+    let (vault_h, between, files_h) = stick_parts(ui, st, w);
+    tokens::BOARD_STICK_HEAD + vault_h + between + files_h + tokens::BOARD_STICK_PAD
+}
+
+/// A stick box's parts `w` wide: its vault box's height, the gap after
+/// it, and its files' height.
+fn stick_parts(ui: &Ui, st: &crate::board::StickView, w: f32) -> (f32, f32, f32) {
     let sp = tokens::BOARD_STICK_PAD;
     let vp = tokens::BOARD_VAULT_PAD;
-    let files: &[ChipView] = &st.files.chips;
     let iw = w - 2.0 * sp;
-    // Laid out first, so each box is drawn under what is in it.
     let vault_h = st.vault.as_ref().map_or(0.0, |(_, vz)| {
         let (_, inner_h) = flow(ui, &vz.chips, 0.0, 0.0, iw - 2.0 * vp);
-        tokens::BOARD_VAULT_HEAD + inner_h.max(tokens::BOARD_CHIP) + vp
+        tokens::BOARD_VAULT_HEAD + vp + inner_h.max(tokens::BOARD_CHIP) + vp
     });
+    let files = &st.files.chips;
     let (_, files_h) = flow(ui, files, 0.0, 0.0, iw);
     let files_h = if files.is_empty() && st.vault.is_some() {
         0.0
@@ -643,36 +878,32 @@ fn stick(
     } else {
         0.0
     };
-    let h = tokens::BOARD_STICK_HEAD + vault_h + between + files_h + sp;
+    (vault_h, between, files_h)
+}
+
+/// Stick `s` of place `p` in box `r` (`docs/DESIGN.md` §4.17): headed
+/// "Stick n" with the × that takes it off; inside it the vault box when
+/// the stick carries a vault (its band, what it holds inside), and under
+/// it, outside the vault box, the files kept on the stick.
+fn stick(ui: &mut Ui, fr: &mut Frame, p: usize, s: usize, st: &crate::board::StickView, r: Box4) {
+    let (x, y, w, h) = r;
+    let sp = tokens::BOARD_STICK_PAD;
+    let vp = tokens::BOARD_VAULT_PAD;
+    let files: &[ChipView] = &st.files.chips;
+    let iw = w - 2.0 * sp;
+    let (vault_h, between, _) = stick_parts(ui, st, w);
     let fz = Zone::Files(p, s);
-    ui.fill(x, y, w, h, tokens::GAP, INNER);
-    outline(
-        ui,
-        (x, y, w, h),
-        tokens::GAP,
-        tokens::BOARD_STICK_EDGE,
-        BORDER,
-    );
+    let hh = stick_box(ui, &st.label, r);
     ui.hit_quiet(x, y, w, h, Action::Board(BoardPress::Zone(fz)));
-    // The head: "Stick n", and its × (after the lock, only for a stick
-    // that carries a vault alone: its files stay as made, §17.8).
-    let hh = tokens::BOARD_STICK_HEAD;
-    ui.text_mid(
-        x + sp + tokens::GAP_SMALL,
-        y,
-        hh,
-        tokens::CAPTION,
-        W::S,
-        TEXT,
-        &st.label,
-    );
+    // Its × (after the lock, only for a stick that carries a vault alone:
+    // its files stay as made, §17.8).
     if !(fr.locked && !files.is_empty()) {
         let mark = tokens::BOARD_MARK;
         cross(
             ui,
             x + w - sp - mark / 2.0 - tokens::GAP_SMALL,
             y + hh / 2.0,
-            MUTED,
+            STICK_TEXT,
         );
         let side = mark + 2.0 * tokens::BOARD_PAD;
         ui.hit(
@@ -686,16 +917,9 @@ fn stick(
     let mut cy = y + hh;
     let mut vault_box = None;
     if let Some((vc, vz)) = &st.vault {
-        let (vx, vw) = (x + sp, iw);
-        let tint = ACCENT.with_alpha(tokens::BOARD_VAULT_FILL);
-        ui.fill(vx, cy, vw, vault_h, tokens::GAP, tint);
-        outline(
-            ui,
-            (vx, cy, vw, vault_h),
-            tokens::GAP,
-            tokens::BOARD_VAULT_STROKE,
-            ACCENT,
-        );
+        let vr = (x + sp, cy, iw, vault_h);
+        let (vx, vw) = (vr.0, vr.2);
+        ui.fill(vx, cy, vw, vault_h, tokens::GAP, VAULT_FILL);
         ui.hit_quiet(
             vx,
             cy,
@@ -703,92 +927,110 @@ fn stick(
             vault_h,
             Action::Board(BoardPress::Zone(vz.zone)),
         );
-        vault_head(ui, fr, vc, vx, cy, vw);
-        let iy = cy + tokens::BOARD_VAULT_HEAD;
+        vault_head(ui, fr, vc, &st.sealed, vx, cy, vw);
+        let iy = cy + tokens::BOARD_VAULT_HEAD + vp;
         let (places, _) = flow(ui, &vz.chips, vx + vp, iy, vw - 2.0 * vp);
-        for (c, r) in vz.chips.iter().zip(places) {
-            chip(ui, fr, c, r.0, r.1, r.2, true);
+        for (c, at) in vz.chips.iter().zip(places) {
+            chip(ui, fr, c, at.0, at.1, at.2, true);
         }
-        let r = (vx, cy, vw, vault_h);
-        if fr.edged(vz.zone, r) {
-            edge(ui, r, tokens::GAP, ACCENT);
+        outline(ui, vr, tokens::GAP, tokens::BOARD_VAULT_STROKE, VAULT_EDGE);
+        if fr.edged(vz.zone, vr) {
+            edge(ui, vr, tokens::GAP, ACCENT);
         }
-        vault_box = Some(r);
+        vault_box = Some(vr);
         cy += vault_h + between;
     }
     let (places, _) = flow(ui, files, x + sp, cy, iw);
-    for (c, r) in files.iter().zip(places) {
-        chip(ui, fr, c, r.0, r.1, r.2, true);
+    for (c, at) in files.iter().zip(places) {
+        chip(ui, fr, c, at.0, at.1, at.2, true);
     }
     // The stick takes a file where the pointer is on it outside its vault.
-    let in_vault = matches!((fr.drag, vault_box), (Some(d), Some(r)) if inside(d, r));
-    if !in_vault && fr.edged(fz, (x, y, w, h)) {
-        edge(ui, (x, y, w, h), tokens::GAP, ACCENT);
+    let in_vault = matches!((fr.drag, vault_box), (Some(d), Some(vr)) if inside(d, vr));
+    if !in_vault && fr.edged(fz, r) {
+        edge(ui, r, tokens::GAP, ACCENT);
     }
-    h
 }
 
-/// The software place's card: its title and ×, **Scanned in**, and its
-/// stick of public files. Returns its height.
-fn software_card(
-    ui: &mut Ui,
-    fr: &mut Frame,
-    v: &BoardView,
-    x: f32,
-    y: f32,
-    w: f32,
-    h: Option<f32>,
-) -> f32 {
+/// The software place at (x, y), `w` wide: its header band with its title
+/// and ×, its stick of public files and **Scanned in**, laid as a place's
+/// row is. Returns its height.
+fn software(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f32 {
     let Some(sv) = &v.software else {
         return 0.0;
     };
     let pad = tokens::BOARD_PAD;
-    if let Some(h) = h {
-        ui.fill(x, y, w, h, tokens::RADIUS, SURFACE);
-        ui.stroke(x, y, w, h, tokens::RADIUS, BORDER);
-    }
+    let e = tokens::BOARD_BOX_EDGE;
+    let stripe = tokens::BOARD_PLACE_STRIPE;
+    let (ix, iw) = (x + stripe + pad, w - stripe - e - 2.0 * pad);
+    let top = y + e + tokens::BOARD_HEAD + pad;
+    let chips = sv.stick.as_ref().map_or(&[][..], |z| &z.chips[..]);
+    let stick_files_h = |ui: &Ui, sw: f32| -> f32 {
+        let sp = tokens::BOARD_STICK_PAD;
+        let (_, fh) = flow(ui, chips, 0.0, 0.0, sw - 2.0 * sp);
+        tokens::BOARD_STICK_HEAD + fh.max(tokens::BOARD_CHIP) + sp
+    };
+    let lay = {
+        let ui_ref: &Ui = ui;
+        row(
+            &|_, sw| stick_files_h(ui_ref, sw),
+            &|pw| paper_h(ui_ref, &sv.scanned.chips, pw),
+            1,
+            false,
+            ui_ref.compact,
+            ix,
+            top,
+            iw,
+        )
+    };
+    let h = top + lay.h + pad + e - y;
+    let (bx, bw) = place_box(ui, x, y, w, h);
     let off = (!v.locked).then_some(Action::Board(BoardPress::RemoveSoftware));
-    let mut cy = y + head(ui, &sv.title, x, y, w, None, off);
-    let (ix, iw) = (x + pad, w - 2.0 * pad);
-    cy += zone(
+    place_head(ui, &sv.title, None, bx, y + e, bw, None, off);
+    if let Some(&r) = lay.sticks.first() {
+        let label = opensigner_core::strings::fill(EN.board_stick, &["1"]);
+        let hh = stick_box(ui, &label, r);
+        let z = Zone::SoftStick;
+        ui.hit_quiet(r.0, r.1, r.2, r.3, Action::Board(BoardPress::Zone(z)));
+        let sp = tokens::BOARD_STICK_PAD;
+        let (places, _) = flow(ui, chips, r.0 + sp, r.1 + hh, r.2 - 2.0 * sp);
+        for (cv, at) in chips.iter().zip(places) {
+            chip(ui, fr, cv, at.0, at.1, at.2, true);
+        }
+        if fr.edged(z, r) {
+            edge(ui, r, tokens::GAP, ACCENT);
+        }
+    }
+    paper(
         ui,
         fr,
         sv.scanned.zone,
-        Some(EN.board_scanned_in),
+        EN.board_scanned_in,
         &sv.scanned.chips,
-        ix,
-        cy,
-        iw,
-    ) + pad;
-    let label = opensigner_core::strings::fill(EN.board_stick, &["1"]);
-    let chips = sv.stick.as_ref().map_or(&[][..], |z| &z.chips[..]);
-    cy += zone(ui, fr, Zone::SoftStick, Some(&label), chips, ix, cy, iw) + pad;
-    cy - y
+        lay.paper,
+    );
+    h
 }
 
-/// The **+** card: a place more.
-fn plus_card(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) {
+/// The **+ place** row at (x, y), `w` wide: a place more.
+fn add_place(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let a = Action::Board(BoardPress::AddPlace);
-    let hot = ui.is_pressed(a) || ui.is_hovered(a);
-    ui.fill(
-        x,
+    let h = tokens::BOARD_HEAD;
+    if ui.is_pressed(a) || ui.is_hovered(a) {
+        ui.fill(x, y, w, h, tokens::GAP, INNER);
+    }
+    dashed(ui, (x, y, w, h), tokens::GAP, MUTED);
+    let lw = ui.measure(tokens::CAPTION, W::S, EN.board_add_place);
+    ui.text_mid(
+        x + (w - lw) / 2.0,
         y,
-        w,
         h,
-        tokens::RADIUS,
-        if hot { INNER } else { SURFACE },
-    );
-    ui.stroke(x, y, w, h, tokens::RADIUS, BORDER);
-    let side = tokens::BOARD_HEAD;
-    ui.icon(
-        x + (w - side) / 2.0,
-        y + (h - side) / 2.0,
-        side,
-        Icon::Add,
-        tokens::LABEL,
+        tokens::CAPTION,
+        W::S,
         MUTED,
+        EN.board_add_place,
     );
     ui.hit_quiet(x, y, w, h, a);
+    h
 }
 
 /// One entry of the list at (x, y), `w` wide: its chip, its count at the
@@ -1084,13 +1326,13 @@ pub(crate) fn list_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     });
 }
 
-/// The board on a plan card (`docs/BACKUP-FLOW.md` §19.1): the place
-/// cards in rows across the column with the **+** card after them, the
-/// software place, the plan's three checks and the check lines under
-/// them; over them a placed chip's
-/// forms. On `wide` the list is the right-hand column ([`list_panel`]);
-/// in the narrow column the cards stand one under another under **Add**,
-/// which opens the list as a sheet (§19.12 item 3). Returns its height.
+/// The board on a plan card (`docs/BACKUP-FLOW.md` §19.15): the places
+/// one under another, each a row the column's width, **+ place** after
+/// them, the software place last, the plan's three checks and the check
+/// lines under them; over them a placed chip's forms. On `wide` the list
+/// is the right-hand column ([`list_panel`]); in the narrow column a
+/// place's parts stand one under another, under **Add**, which opens the
+/// list as a sheet (§19.12 item 3). Returns its height.
 pub(crate) fn board(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(v) = app.board_view() else {
         return 0.0;
@@ -1098,10 +1340,9 @@ pub(crate) fn board(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(mut fr) = frame(app, ui, &v) else {
         return 0.0;
     };
-    let gap = tokens::BOARD_GAP;
-    let narrow = ui.compact;
+    let gap = tokens::BOARD_PLACE_GAP;
     let mut cy = y;
-    if narrow {
+    if ui.compact {
         cy += faraday_ui::parts::wrap_buttons(
             ui,
             x,
@@ -1113,55 +1354,15 @@ pub(crate) fn board(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 Style::Secondary,
                 Action::Board(BoardPress::OpenList),
             )],
-        ) + gap;
+        ) + tokens::BOARD_PAD;
     }
-    let n = if narrow {
-        1
-    } else {
-        (((w + gap) / (tokens::BOARD_CARD_MIN + gap)).floor() as usize).max(1)
-    };
-    let card_w = if narrow {
-        w
-    } else {
-        ((w - gap * (n - 1) as f32) / n as f32).min(tokens::BOARD_CARD_MAX)
-    };
-    // Each card in turn: a place, the software place, then +.
-    #[derive(Clone, Copy)]
-    enum Item {
-        Place(usize),
-        Software,
-        Plus,
-    }
-    let mut items: Vec<Item> = (0..v.places.len()).map(Item::Place).collect();
-    if v.software.is_some() {
-        items.push(Item::Software);
+    for cv in &v.places {
+        cy += place(ui, &mut fr, &v, cv, x, cy, w) + gap;
     }
     // A place may be added after the lock too (§17.8).
-    items.push(Item::Plus);
-    let draw_item =
-        |ui: &mut Ui, fr: &mut Frame, it: Item, cx: f32, cy: f32, h: Option<f32>| -> f32 {
-            match it {
-                Item::Place(p) => card(ui, fr, &v, &v.places[p], cx, cy, card_w, h),
-                Item::Software => software_card(ui, fr, &v, cx, cy, card_w, h),
-                Item::Plus => {
-                    let ph = h.unwrap_or(tokens::BOARD_HEAD + 2.0 * tokens::BOARD_CHIP);
-                    if h.is_some() {
-                        plus_card(ui, cx, cy, card_w, ph);
-                    }
-                    ph
-                }
-            }
-        };
-    for row in items.chunks(n) {
-        let row_h = row
-            .iter()
-            .map(|&it| measure(ui, &mut |ui| draw_item(ui, &mut fr, it, x, cy, None)))
-            .fold(0.0f32, f32::max);
-        for (k, &it) in row.iter().enumerate() {
-            let cx = x + k as f32 * (card_w + gap);
-            draw_item(ui, &mut fr, it, cx, cy, Some(row_h));
-        }
-        cy += row_h + gap;
+    cy += add_place(ui, x, cy, w) + gap;
+    if v.software.is_some() {
+        cy += software(ui, &mut fr, &v, x, cy, w) + gap;
     }
     let mut bottom = cy - gap;
     // The plan's three checks, as the Map drew them, under the board

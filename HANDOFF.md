@@ -2784,8 +2784,9 @@ as possible before the next build.
     for what building it decided); F2a, the board in Back up, built
     2026-10-16 (§19.11's note); F2b, the board in the guided flow and
     a narrow window, §19.14's boxes and layout, §17's cards removed,
-    built 2026-10-16. Waiting for the owner's test on the stick; then
-    F3.
+    built 2026-10-16; F2c, the board in rows and its colours, with one
+    page colour across the app (F39), built 2026-10-16. Waiting for the
+    owner's test on the stick; then F3.
 
 79. [ ] 2026-10-16, owner: **access layers** (`docs/BACKUP-FLOW.md` §20,
     F38). Access layers 1, 2, 3 …, each a list of what it is able to

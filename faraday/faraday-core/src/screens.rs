@@ -60,18 +60,18 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
     // is not drawn again: the copy stands for it.
     let frosted = app.sheet.is_some() && ui.frost.is_some();
     if !frosted && app.is_compact() {
-        ui.clear(BG);
+        ui.clear(SURFACE);
         // The stick pills take a strip across the top; the page is
         // drawn below it.
         let strip = crate::stick_pills::strip_h(app, ui, full_w);
         ui.oy = strip;
         draw_compact(app, ui, full_w, full_h - strip, kb > 0.0, strip);
     } else if !frosted && app.held {
-        ui.clear(BG);
+        ui.clear(SURFACE);
         let page_h = if kb > 0.0 { win_h } else { full_h };
         held_frame(app, ui, full_w, full_h, (page_h, lift));
     } else if !frosted {
-        ui.clear(BG);
+        ui.clear(SURFACE);
         sidebar(app, ui, win_h);
         let room = full_w - SIDEBAR_W;
         let cw = room.min(MAX_W - SIDEBAR_W);
@@ -88,7 +88,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
         // The stick pills' strip, over whatever scrolls under it; the
         // pills themselves are drawn last, over any sheet.
         if strip > 0.0 {
-            ui.fill(x - ui.ox, 0.0, room, strip, 0.0, BG);
+            ui.fill(x - ui.ox, 0.0, room, strip, 0.0, SURFACE);
         }
         let kx = header_network_pill(app, ui, x + cw - 38.0);
         // Under a sheet the keyboard button is drawn over it, below.
@@ -213,7 +213,7 @@ fn held_frame(app: &mut Faraday, ui: &mut Ui, full_w: f32, full_h: f32, page: (f
         ui.oy = top - lift;
         dispatch(app, ui, 0.0, cw, page_h - top);
         ui.oy = 0.0;
-        ui.fill(-ui.ox, 0.0, full_w, HELD_TOP, 0.0, BG);
+        ui.fill(-ui.ox, 0.0, full_w, HELD_TOP, 0.0, SURFACE);
     }
     let back = Action::Nav(Screen::Home);
     let label = EN.held_frame_home;
@@ -330,7 +330,7 @@ fn draw_compact(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32, kb: bool, y0: f3
             // The bar came or went: the page again, laid out for it, in
             // this same frame.
             app.pin_h.set(want);
-            ui.clear(BG);
+            ui.clear(SURFACE);
             ui.hits.clear();
             return draw_compact(app, ui, w, h, kb, y0);
         }
@@ -1164,7 +1164,11 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             width,
             lead_h,
             14.0,
-            if enabled { LINE } else { WARN.with_alpha(110) },
+            if enabled {
+                BORDER
+            } else {
+                WARN.with_alpha(110)
+            },
         );
         let (ibg, ifg) = if enabled {
             (ACCENT.with_alpha(26), ACCENT)
@@ -1207,7 +1211,7 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             12.0,
             if pressed { INNER } else { SURFACE },
         );
-        ui.stroke(tx, ty, tilew, tile_h, 12.0, LINE);
+        ui.stroke(tx, ty, tilew, tile_h, 12.0, BORDER);
         ui.fill(
             tx + 18.0,
             ty + 22.0,
@@ -1468,7 +1472,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 12.0,
                 if pressed { INNER } else { SURFACE },
             );
-            ui.stroke(tx, y, tw, card_h, 12.0, LINE);
+            ui.stroke(tx, y, tw, card_h, 12.0, BORDER);
             ui.fill(tx + 20.0, y + 24.0, 44.0, 44.0, 10.0, ACCENT.with_alpha(26));
             ui.icon(tx + 20.0, y + 24.0, 44.0, *icon, 18.0, ACCENT);
             if ui.wrap_lines(16.0, W::S, label, label_room) > 1 {
@@ -2380,7 +2384,7 @@ fn catalog_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             let action = Action::Catalog(*i as u8);
             let pressed = ui.is_pressed(action);
             ui.fill(tx, ty, tw3, th, 10.0, if pressed { INNER } else { SURFACE });
-            ui.stroke(tx, ty, tw3, th, 10.0, LINE);
+            ui.stroke(tx, ty, tw3, th, 10.0, BORDER);
             let name = ui.fit(14.0, W::S, tile.name, tw3 - 32.0);
             ui.text(
                 tx + 16.0,
@@ -2858,7 +2862,11 @@ pub(crate) fn wallet_rows(
             rw,
             44.0,
             10.0,
-            if ready == 2 { OK.with_alpha(90) } else { LINE },
+            if ready == 2 {
+                OK.with_alpha(90)
+            } else {
+                BORDER
+            },
         );
         let (m, _) = Session::quorum(w);
         let here = app
@@ -5499,7 +5507,17 @@ fn plan_body(
     let Some(ctx) = ctx else {
         return 0.0;
     };
-    let mut cy = y + crate::plan_cards::body(app, ui, ctx, q, x, y, w);
+    // On `wide` the board takes the section's whole width, under its
+    // number as well as its title (`docs/BACKUP-FLOW.md` §19.15).
+    let (bx, bw) = if q == crate::qstep::BOARD && !ui.compact {
+        (
+            x - crate::flow::BODY_INDENT,
+            w + crate::flow::BODY_INDENT + crate::flow::BODY_RIGHT,
+        )
+    } else {
+        (x, w)
+    };
+    let mut cy = y + crate::plan_cards::body(app, ui, ctx, q, bx, y, bw);
     if q != crate::qstep::PLAN {
         return cy - y;
     }
@@ -13730,7 +13748,7 @@ fn settings(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// published vectors do not reproduce has nowhere to go but out.
 fn selftest_failed(ui: &mut Ui, w: f32, h: f32, check: &str) {
     let s = &opensigner_core::strings::EN;
-    ui.clear(BG);
+    ui.clear(SURFACE);
     let cw = (w - 64.0).min(560.0);
     let x = (w - cw) / 2.0;
     let mut y = (h / 2.0 - 120.0).max(24.0);

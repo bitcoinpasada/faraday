@@ -999,21 +999,41 @@ pub const CHART_DASHES: [[f32; 4]; 5] = [
 // Backup board
 // ---------------------------------------------------------------------
 
-/// The narrowest a place card is drawn on the backup board
-/// (`docs/DESIGN.md` §4.17) before its row wraps onto another line: a
-/// chip with a fingerprint, a form and its marks fits on one line inside
-/// it.
-pub const BOARD_CARD_MIN: f32 = 184.0;
-/// The widest a place card is drawn: a row of few cards is not
-/// stretched across the board.
+/// The narrowest a stick box or Paper is drawn on a place's row of the
+/// backup board (`docs/DESIGN.md` §4.17) before the sticks wrap onto
+/// another line inside the place: a chip with a fingerprint and its
+/// marks fits on one line inside it.
+pub const BOARD_BOX_MIN: f32 = 160.0;
+/// The widest a chip is laid out when it is drawn alone: the chip being
+/// dragged.
 pub const BOARD_CARD_MAX: f32 = 280.0;
-/// The gap in dp between two place cards, and between the cards and the
-/// list beside them.
+/// The gap in dp between two places on the board, one under another
+/// (`docs/BACKUP-FLOW.md` §19.15).
+pub const BOARD_PLACE_GAP: f32 = 2.0 * GRID + GAP_SMALL;
+/// Width in dp of a place's left stripe, in its edge's colour.
+pub const BOARD_PLACE_STRIPE: f32 = 5.0;
+/// Stroke in dp of a place's edge, Paper's, and **+ stick**'s and **+
+/// place**'s dashed edges.
+pub const BOARD_BOX_EDGE: f32 = 1.5;
+/// Width in dp of the **+ stick** box on a place's row.
+pub const BOARD_ADD_STICK: f32 = 72.0;
+/// Height in dp of a place's line of fact, an outlined tag in its header
+/// band.
+pub const BOARD_TAG: f32 = 20.0;
+/// A dash of a dashed edge in dp, and the gap after it.
+pub const BOARD_DASH: f32 = GAP_SMALL;
+/// How far in dp a chip's faint shadow falls below it.
+pub const BOARD_CHIP_DROP: f32 = 1.0;
+/// Opacity (of 255) of a chip's faint shadow.
+pub const BOARD_CHIP_SHADOW: u8 = 30;
+/// The gap in dp round the list sheet, and between the board and what is
+/// over it.
 pub const BOARD_GAP: f32 = GRID + GAP_SMALL;
 /// Width in dp of the list beside the cards: the longest chip it holds,
 /// a fingerprint with its count, on one line.
 pub const BOARD_LIST_WIDTH: f32 = 168.0;
-/// Height in dp of a place card's head: its name and its ×.
+/// Height in dp of a place's header band: its glyph, name, line of fact
+/// and ×; and of the **+ place** row.
 pub const BOARD_HEAD: f32 = 36.0;
 /// Padding in dp inside a place card and inside each of its zones.
 pub const BOARD_PAD: f32 = GAP;
@@ -1050,13 +1070,10 @@ pub const BOARD_VAULT_HEAD: f32 = BOARD_CHIP;
 /// Padding in dp inside a vault box, round the records it holds.
 pub const BOARD_VAULT_PAD: f32 = GAP_SMALL;
 /// Stroke in dp of a vault box's edge.
-pub const BOARD_VAULT_STROKE: f32 = 1.5;
-/// Opacity (of 255) of the accent filling a vault box: what is sealed is
-/// inside the one tinted box, apart from the files on the stick beside
-/// it, which are not tinted.
-pub const BOARD_VAULT_FILL: u8 = 34;
-/// Opacity (of 255) of the accent edge round a vault box.
-pub const BOARD_VAULT_EDGE: u8 = 170;
+pub const BOARD_VAULT_STROKE: f32 = 2.0;
+/// Opacity (of 255) of the band's text colour laid over a vault's band
+/// while it is pressed or hovered.
+pub const BOARD_VAULT_HOT: u8 = 40;
 
 // ---------------------------------------------------------------------
 // Timings

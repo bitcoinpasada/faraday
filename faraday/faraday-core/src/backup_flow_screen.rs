@@ -811,7 +811,7 @@ fn bind_card(
                 }
             );
             ui.fill(x, cy, w, 44.0, 10.0, SURFACE);
-            ui.stroke(x, cy, w, 44.0, 10.0, LINE);
+            ui.stroke(x, cy, w, 44.0, 10.0, BORDER);
             let t = ui.fit(13.0, W::M, &line, w - 24.0);
             ui.text_mid(x + 12.0, cy, 44.0, 13.0, W::M, TEXT, &t);
             ui.hit(x, cy, w, 44.0, fa(F::PickFile(v, k)));

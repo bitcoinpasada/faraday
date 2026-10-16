@@ -43,7 +43,7 @@ pub(crate) fn row(
     let line_h = ui.line(14.0, W::S);
     let h = 56.0 + (lines - 1) as f32 * line_h;
     ui.fill(x, y, w, h, 10.0, if pressed { INNER } else { SURFACE });
-    ui.stroke(x, y, w, h, 10.0, LINE);
+    ui.stroke(x, y, w, h, 10.0, BORDER);
     if let Some(i) = icon {
         let (bg, fg) = if enabled {
             (ACCENT.with_alpha(26), ACCENT)

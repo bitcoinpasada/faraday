@@ -360,7 +360,7 @@ secret panel captions.
 |---|---|
 | Progress | A bar with a count "2 of 5" above it. Entropy entry, scanning parts, animated codes. |
 | Countdown | Only the eye's ring (§4.10). The status line has none. |
-| Default | A step card whose value has a default is closed at entry, showing its value and a **Change** text button at the card's right in place of the chevron that opens it. The flow opens on the first card with no default; opening a closed card does not reset the cards after it. On a small panel the same: the paged flow starts on the first open card, and that page carries at its head one row per earlier card closed on its default, "{title} · {value}" with **Change**, which opens it. Tapping the page's title (the card's name alone, "Kind", with "Step 1 of 8" beside it in the muted caption type) closes the card and shows the list of steps, from which any card opens; no step indicator is drawn (2026-10-10; the step count moved off the title and beside it as its own muted text, 2026-10-10). Create a wallet and New key are the exception: each opens on its first card — Kind, Length — whatever opened it, even with a default already ticked; a card still closed on its default shows its value and **Change** the same way once Continue has passed it (`docs/NEW-WALLET.md` §2.1, 2026-10-10). |
+| Default | A step card (in Faraday a flat section of its flow: no fill and no box, divided from the next by a rule in `LINE`, its number, title and value on its row, `docs/DECISIONS.md` F39) whose value has a default is closed at entry, showing its value and a **Change** text button at the card's right in place of the chevron that opens it. The flow opens on the first card with no default; opening a closed card does not reset the cards after it. On a small panel the same: the paged flow starts on the first open card, and that page carries at its head one row per earlier card closed on its default, "{title} · {value}" with **Change**, which opens it. Tapping the page's title (the card's name alone, "Kind", with "Step 1 of 8" beside it in the muted caption type) closes the card and shows the list of steps, from which any card opens; no step indicator is drawn (2026-10-10; the step count moved off the title and beside it as its own muted text, 2026-10-10). Create a wallet and New key are the exception: each opens on its first card — Kind, Length — whatever opened it, even with a default already ticked; a card still closed on its default shows its value and **Change** the same way once Continue has passed it (`docs/NEW-WALLET.md` §2.1, 2026-10-10). |
 | Empty state | A row that starts the flow: Keys with nothing loaded is "Load a key" and "Create a key"; Wallets with nothing registered is "Add a wallet" and "Scan a wallet"; the builder's Keys list with no key gathered is "Add a key". Never a sentence about emptiness. The bottom action — "Add a key", "Add a wallet" — is on the screen in every state. |
 | Terminal state | Result layout with no action and no back chevron: "Session ended", "Self-test failed · vector 3". |
 | Leaving | Back where nothing is behind — Home, the lock screen, the stored key's pad — shows "Back again to exit and clear memory" on that screen's caption line for two seconds; a second Back inside the window clears memory, keeps a key kept on the device, and asks the shell to exit, ending on the terminal "Session ended" titled "Exit" with "Keys · cleared from memory". "Wipe and exit" is the only exit that forgets the device's copy. On desktop, Escape is Back. |
@@ -407,44 +407,65 @@ backup over the keys over the wallet.
 ### 4.17 Board
 
 Where things are put, by the person: Faraday's backup board
-(`docs/BACKUP-FLOW.md` §19), a card for each place and beside the cards
-a list of what can be kept. A thing is a chip; a place is divided into
-zones, and a chip is dropped on a zone. The board is the body of a step
-card, on Back up's plan and on the wallet flow's plan card alike; the
-narrow column is §19.12 item 3's.
+(`docs/BACKUP-FLOW.md` §19), a row for each place and beside them a list
+of what can be kept. A thing is a chip; a place is divided into boxes,
+and a chip is dropped on a box. The board is the body of a step, on Back
+up's plan and on the wallet flow's plan card alike; on Back up it takes
+the step's whole width. The narrow column is §19.12 item 3's.
 
 Three boxes nest, so paper, a stick and a vault are told apart at a
-glance (`docs/BACKUP-FLOW.md` §19.14): the **place box** (the place
-card), the **stick box** inside it, the **vault box** inside the stick
-box. Each steps from the one round it in fill and edge, in the palette's
-own colours, so every theme draws the same steps:
+glance (`docs/BACKUP-FLOW.md` §19.14, §19.15): the **place**, the **stick
+box** inside it, the **vault box** inside the stick box; Paper stands in
+the place beside the sticks. One hue per kind of box, pale fills and
+strong edges, the colour carried by edges and header bands and never by
+colour alone: each box has its glyph and its label.
 
-| Level | Fill | Edge | Dark (prototype) | Light |
+| Box | Fill | Edge | Header | Glyph |
 |---|---|---|---|---|
-| Place box | `SURFACE` | `BORDER`, 1 dp | #19212A, edge #303D49 | #FFFFFF, edge #C6D0D8 |
-| Paper, Scanned in | `SURFACE` (the place box's own) | `BORDER`, 1 dp | as the place box | as the place box |
-| Stick box | `INNER` | `BORDER`, `BOARD_STICK_EDGE` | #222C37, edge #303D49 | #E8EDF1, edge #C6D0D8 |
-| Vault box | `ACCENT` at `BOARD_VAULT_FILL` over the stick box | `ACCENT`, `BOARD_VAULT_STROKE` | #83D8EF at 34/255 over #222C37 | #0B7A9E at 34/255 over #E8EDF1 |
-| Chip, on any level | `SURFACE` (`INNER` while pressed) | `BORDER`, 1 dp | #19212A | #FFFFFF |
+| Place | `PLACE_FILL`, a pale green | `PLACE_EDGE`, `BOARD_BOX_EDGE`, and a left stripe `BOARD_PLACE_STRIPE` wide | a `PLACE_BAND` band `BOARD_HEAD` high: the glyph, the name and the × in `PLACE_TEXT`, the line of fact an outlined tag | house |
+| Stick | `STICK_FILL`, a cool slate grey | `STICK_EDGE`, `BOARD_STICK_EDGE` | "Stick n" and its × in `STICK_TEXT` | drive |
+| **+ stick** | `STICK_FILL` | `STICK_EDGE`, dashed (`BOARD_DASH`) | "+ stick" in `STICK_TEXT` | |
+| Vault | `VAULT_FILL`, a pale accent tint | `VAULT_EDGE`, `BOARD_VAULT_STROKE` | a solid `VAULT_EDGE` band, "Vault n · sealed", its marks and × in `VAULT_ON` | vault |
+| Paper, Scanned in | `PAPER_FILL`, a warm cream | `PAPER_EDGE`, a brown, `BOARD_BOX_EDGE` | "Paper" in `PAPER_TEXT` | file |
+| Chip | `SURFACE` (`INNER` while pressed), a faint shadow (`SHADOW` at `BOARD_CHIP_SHADOW`, `BOARD_CHIP_DROP` below) | `CHIP_EDGE`, a neutral a step stronger than `BORDER`, 1 dp | | |
+| **+ place** | none | `MUTED`, dashed | "+ place" in `MUTED` | |
 
-Text on every fill is `TEXT` or `MUTED`, which keep their contrast on
-all of them: the fills are the page's own neutrals and a low tint of the
-accent.
+Each theme has its own values (`faraday-ui` `pal`, the themes' tables),
+by the same rules: a pale, low-chroma fill; an edge at least 3:1 against
+the fill round it (a place against the page, a stick and Paper against
+the place, a vault against the stick); all text at least 4.5:1 on its
+fill, the vault band's on the band. The light theme's are the approved
+mockup's. A chip's edge is not held to 3:1: it stands on its own surface
+fill, edge and shadow, and its text is `TEXT` on `SURFACE`.
+
+| Theme | `PLACE_FILL` | `PLACE_BAND` | `PLACE_EDGE` | `PLACE_TEXT` | `STICK_FILL` | `STICK_EDGE` | `STICK_TEXT` | `VAULT_FILL` | `VAULT_EDGE` | `VAULT_ON` | `PAPER_FILL` | `PAPER_EDGE` | `PAPER_TEXT` | `CHIP_EDGE` |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Dark | #1E2E30 | #243F38 | #5E9A73 | #86B396 | #2B343E | #7D8B98 | #96A1AC | #2A3E4A | #83D8EE | #0D121A | #343735 | #B89850 | #C8A860 | #697179 |
+| Light | #EDF6EF | #DCEEE1 | #5E9A73 | #1E5B35 | #E3E8ED | #7D8B98 | #36424D | #D3EAF3 | #0B7A9E | #FFFFFF | #FBF5E6 | #977A36 | #6A501A | #AEB9C3 |
+| Cobalt | #EDF6F0 | #DBEEE1 | #5A946E | #436D52 | #E5E8EA | #74818D | #5B656F | #D1E3EE | #0062A3 | #FFFFFF | #FAF4E6 | #977A36 | #80682E | #AFB2B4 |
+| Nord | #3D4C54 | #3F5857 | #73A785 | #BAD4C3 | #485060 | #9AA5AF | #C2C8CF | #475666 | #88C0D0 | #2E3440 | #515358 | #C1A465 | #DECBA0 | #828793 |
+| Catppuccin | #343E48 | #374C4C | #5E9A73 | #A2C4AE | #404354 | #8995A1 | #AEB7BF | #4A4561 | #CBA6F7 | #1E1E2E | #49464C | #B89850 | #D2B87D | #6F748A |
+| Tokyo Night | #283540 | #2D4445 | #5E9A73 | #92BAA0 | #353A4C | #7D8B98 | #A1ABB5 | #323C59 | #7AA2F7 | #1A1B26 | #3D3D44 | #B89850 | #C9AA63 | #626985 |
+| Gruvbox | #353C35 | #384A3C | #5E9A73 | #9DC1AA | #414142 | #85929E | #AAB4BC | #52472F | #FABD2F | #282828 | #4A443A | #B89850 | #D0B476 | #7C7463 |
+| Rosé Pine | #EDF2E5 | #DBEAD8 | #59926D | #426C50 | #E5E4E1 | #727E8A | #59636C | #D8E0DF | #286983 | #FFFAF3 | #FAF0DC | #977A36 | #7F662D | #B2AEB3 |
+| Bitcoin Orange | #2B2B1F | #2F3C29 | #5E9A73 | #83B193 | #37302D | #7D8B98 | #94A0AB | #483017 | #F7931A | #1C1410 | #403325 | #B89850 | #C8A860 | #786F67 |
+| Bitcoin Orange Light | #EDF4EA | #DBEBDC | #59926D | #426C50 | #E5E5E5 | #73808C | #59636C | #FEE9D0 | #B46B13 | #000000 | #FAF2E0 | #977A36 | #7F662D | #BBB5AE |
+| Lamplight | #EDF2E4 | #DBEAD7 | #58916C | #416A4F | #E5E4E0 | #727E8A | #59636C | #EEDBCD | #A34E26 | #FFFAF2 | #FAF0DB | #977A36 | #7F662D | #B6AFA6 |
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| Place card | The place box: a box at `RADIUS`, `SURFACE` with the border edge, `BOARD_PAD` inside. Its head, `BOARD_HEAD` high: the place's name in the label type, semibold, and a drawn × (`BOARD_MARK`, `BOARD_MARK_STROKE`) at its right. Under the head, top to bottom: each stick box, the **+ stick** row, Paper (outside every stick box); then the place's line of fact in caption, in the tone the chart gives it (`glance::alone_color`). Cards stand in rows across the whole main column at equal widths between `BOARD_CARD_MIN` and `BOARD_CARD_MAX`, `BOARD_GAP` apart, a row as tall as its tallest card, wrapping onto further rows; after the last, the **+** card, the same size, the add glyph in its middle. In the narrow column (`compact`) the cards stand one under another at the column's width, under **Add**. | The name is a field only while a vault is open (a press types it, the caret and an accent rule under it); otherwise it is text. The × removes the place with what it keeps; with one place left it is not drawn. The **+** card adds an empty place. A place card is itself a drop target for a vault's chip. |
-| Zone | Paper and the software place's zones: a box at `GAP` radius on the place box's `SURFACE` with the border edge, `BOARD_PAD` inside: its label in caption, semibold, muted, on a `BOARD_ZONE_LABEL` row, then its chips laid left to right and wrapping, `BOARD_CHIP_GAP` apart; an empty zone keeps a chip's height. **+ stick** is an outlined row a chip high with its label alone. | A press on a zone places the chip held. A zone is a drop target only for what it can keep in some form (`docs/BACKUP-FLOW.md` §19.3). |
-| Stick box | A box at `GAP` radius, `INNER` with the border edge at `BOARD_STICK_EDGE`, `BOARD_STICK_PAD` inside. Its head, `BOARD_STICK_HEAD` high: "Stick n" in caption, semibold, and its × at the right. Under the head the vault box, when the stick carries a vault, then the files kept on the stick, chips laid as a zone's, directly in the stick box and outside the vault box. A stick with no vault keeps a chip's height for its files. | The stick box is the files' zone: a press or a drop on it outside the vault box keeps the thing on the stick as a file. Its × takes the stick off with all it carries; after the lock it is drawn only on a stick that carries a vault and no file. |
-| Vault box | A box at `GAP` radius inside the stick box, `ACCENT` at `BOARD_VAULT_FILL` with the accent's edge at `BOARD_VAULT_STROKE`, `BOARD_VAULT_PAD` inside. Its head, `BOARD_VAULT_HEAD` high, is the vault's chip drawn as a row: the vault glyph in the accent, the vault's name in the label type, semibold, its link and warning marks, its × at the right. Under the head the records it holds, chips laid as a zone's, each with the lock mark. | A press or a drop on the vault box seals the thing in the vault. The head selects the vault (a press on another place moves its stick); its × takes the vault's stick off this place. |
-| Chip | A pill `BOARD_CHIP` high, `SURFACE` with the border edge, `BOARD_PAD` at each end: its glyph where it has one (the fingerprint before a seed, the passphrase glyph before a passphrase, the vault glyph before a vault; the description and a share have none), its name (a fingerprint in mono at the label size, anything else in the text face), then its forms after a middle dot in caption, muted ("9a6a2580 · Words · SeedQR"). Marks at its right, from the edge in: the × of a placed chip, the warning mark, the link mark, the lock mark (a placed chip in a vault: the lock glyph in the accent), each `BOARD_MARK` with `BOARD_CHIP_GAP` before it. A chip whose forms do not fit beside its name drops them to a second caption line under it. | One chip per thing per zone; its forms are what it carries there. |
+| Place | One row the main column's width, the places one under another `BOARD_PLACE_GAP` apart (`docs/BACKUP-FLOW.md` §19.15): the place box at `RADIUS`, its header band `BOARD_HEAD` high (the house glyph, the place's name in the label type, semibold, its line of fact as a tag `BOARD_TAG` high, outlined and written in the tone the chart gives it, `glance::alone_color`, on `SURFACE`, and a drawn × at its right, `BOARD_MARK`, `BOARD_MARK_STROKE`); under it, `BOARD_PAD` inside, left to right: each stick box, **+ stick** (`BOARD_ADD_STICK` wide) and Paper. The sticks and Paper share the width equally; when they would be narrower than `BOARD_BOX_MIN` each, Paper keeps `BOARD_BOX_MIN` and the sticks wrap onto further lines inside the place, as many to a line as fit. A row is as tall as its tallest box, every box drawn that tall (a wrapped line of sticks as tall as its tallest). After the last place, **+ place**, a row `BOARD_HEAD` high; the software place last. In the narrow column (`compact`) a place's parts stand one under another at the column's width, **+ stick** a row a chip high, under **Add**. | The name is a field only while a vault is open (a press types it, the caret and an accent rule under it); otherwise it is text. The × removes the place with what it keeps; with one place left it is not drawn. **+ place** adds an empty place. A place is itself a drop target for a vault's chip. |
+| Zone | Paper and Scanned in: a box at `GAP` radius in the paper colours, `BOARD_PAD` inside: its glyph and label in caption, semibold, on a `BOARD_ZONE_LABEL` row, then its chips laid left to right and wrapping, `BOARD_CHIP_GAP` apart; an empty zone keeps a chip's height. **+ stick** is the dashed box with its label alone. The software place's stick of public files is a stick box headed "Stick 1", with no × of its own and no **+ stick** beside it. | A press on a zone places the chip held. A zone is a drop target only for what it can keep in some form (`docs/BACKUP-FLOW.md` §19.3). |
+| Stick box | A box at `GAP` radius in the stick colours, `BOARD_STICK_PAD` inside. Its head, `BOARD_STICK_HEAD` high: the drive glyph and "Stick n" in caption, semibold, and its × at the right. Under the head the vault box, when the stick carries a vault, then the files kept on the stick, chips laid as a zone's, directly in the stick box and outside the vault box. A stick with no vault keeps a chip's height for its files. | The stick box is the files' zone: a press or a drop on it outside the vault box keeps the thing on the stick as a file. Its × takes the stick off with all it carries; after the lock it is drawn only on a stick that carries a vault and no file. |
+| Vault box | A box at `GAP` radius inside the stick box in the vault colours, `BOARD_VAULT_PAD` inside. Its head, `BOARD_VAULT_HEAD` high, is the solid band, and the vault's chip: the vault glyph, "Vault n · sealed" in the label type, semibold, its link and warning marks, its × at the right, all in `VAULT_ON`; pressed or hovered, `VAULT_ON` at `BOARD_VAULT_HOT` over it. Under the head the records it holds, chips laid as a zone's, each with the lock mark. | A press or a drop on the vault box seals the thing in the vault. The head selects the vault (a press on another place moves its stick); its × takes the vault's stick off this place. |
+| Chip | A pill `BOARD_CHIP` high, as the table above draws it, `BOARD_PAD` at each end: its glyph where it has one (the fingerprint before a seed, the passphrase glyph before a passphrase, the vault glyph before a vault; the description and a share have none), its name (a fingerprint in mono at the label size, anything else in the text face), then its forms after a middle dot in caption, muted ("9a6a2580 · Words · SeedQR"). Marks at its right, from the edge in: the × of a placed chip, the warning mark, the link mark, the lock mark (a placed chip in a vault: the lock glyph in `VAULT_EDGE`), each `BOARD_MARK` with `BOARD_CHIP_GAP` before it. A chip whose forms do not fit beside its name drops them to a second caption line under it. | One chip per thing per zone; its forms are what it carries there. |
 | Chip in the list | The same pill, one per row, its count of places at the row's right in caption, muted ("2 places", "1 place", nothing at none); a share's keys by fingerprint under it in caption mono. A vault's chip carries its × at the row's right. A cosigner's seed is outlined, not filled, its name dim, "Not here" for its count. On `wide` the list is the right-hand column where Back up's Map is when the board is not shown (`side_panel_w`, full height, `SURFACE` with a rule at its left), scrolling on its own with its overlay scrollbar, the list from its top, grouped under caption labels: Seeds, Passphrases, Wallet description (Whole, then **Keys left off each share** as a − n + stepper of buttons a chip high, then each share), Vaults with **+ vault**, Watch-only software. | Never runs out: placing it places a copy. A cosigner's seed takes no press. A vault's × takes it off the plan; one that holds anything first shows what it holds in `WARN` under it, with **Take off**. |
 | Add sheet | In the narrow column only: **Add**, a secondary button a chip high at the top of the board, opens the list as a sheet (the small panel's full-width sheet, its head the add glyph and "Add", the list's groups, a way out at its foot). | A press on a chip in the sheet closes it with the chip selected; the zones that take it are edged and a press on one places it. Placing is by tap only there: nothing is dragged. |
 | Placed chip | The chip in its zone, with its ×. A chip of what an existing vault held before is outlined and dim and has no ×. | A press selects it and, where its zone has more than one form for it, opens its forms. The × takes it off. |
 | Selected chip | Edged in the accent, `BOARD_EDGE` round its pill. | A press on a zone that takes it places it there (a placed chip moves); a press on it again, or on anything that is not the board, lets it go. |
 | Dragged chip | A copy of the chip follows the pointer, centred under it, with the shadow of a sheet `BOARD_LIFT` below and the accent's edge; the chip it came from is dimmed where it stands. | A press is a drag once it moves past the scroll slop, and a tap otherwise. The lift drops it on the zone under it that takes it; anywhere else it goes back. |
-| Checks under the board | Under the cards and the **+** card, on `wide` and in the narrow column: the plan's three checks as the Map panel drew them (Any one place lost, One place found: can spend, One place found: sees the balance, each with its value, `glance::check_lines`), then the warning lines, each the warning glyph and its line in `WARN`. The top of the board is kept free (the owner's choice, 2026-10-16). | The checks follow every drop on the next frame. |
-| Edged drop target | The zone, the stick box, the vault box, the place card or the list column edged in the accent, `BOARD_EDGE`, at its own radius. | While a chip is selected, every zone that takes it is edged; while one is dragged, only the one under the pointer that takes it. A zone that does not take it is never edged. |
+| Checks under the board | Under the places, **+ place** and the software place, on `wide` and in the narrow column: the plan's three checks as the Map panel drew them (Any one place lost, One place found: can spend, One place found: sees the balance, each with its value, `glance::check_lines`), then the warning lines, each the warning glyph and its line in `WARN`. The top of the board is kept free (the owner's choice, 2026-10-16). | The checks follow every drop on the next frame. |
+| Edged drop target | The zone, the stick box, the vault box, the place or the list column edged in the accent, `BOARD_EDGE`, at its own radius. | While a chip is selected, every zone that takes it is edged; while one is dragged, only the one under the pointer that takes it. A zone that does not take it is never edged. |
 | Forms popup | A box `BOARD_POPUP_WIDTH` wide at `GAP` radius on the surface with the border edge and a sheet's shadow, under the chip it belongs to: the chip's forms as a multi choice (§4.2), the ones it carries ticked. | Ticking a form keeps the thing in that form too; unticking takes the form off. The last form ticked stays ticked. |
 | Link mark | Two links of a chain drawn as stroked boxes, in the accent. | On a vault's chip whose sticks are at more than one place: what it holds is drawn at each, and a drop into it at one is in it at all. |
 | Warning mark | The warning glyph in `WARN`, and the chip's pill edged in `WARN`. | On a placed chip that one of the plan's checks names. The checks themselves are lines under the board, the warning glyph before each, in `WARN`. |
@@ -513,7 +534,16 @@ Sixteen screens, placed by the law in §2.6:
 
 On `wide` every screen except Hub is drawn in the sidebar frame inside
 the width caps, centred in the pane, with the same placement and the
-primary action at the pane's bottom-right. The Pad group is
+primary action at the pane's bottom-right. In Faraday (`faraday-ui`)
+every page's working area is one colour, the theme's surface (`SURFACE`,
+white in the light theme), and so is a sheet; the sidebar keeps its own
+shade (`SIDEBAR`). A step flow's steps (Create, New key, Restore, Back
+up, the checklist and every flow drawn with step cards) are flat
+sections divided by a thin rule in `LINE`, with no fill and no box. The
+right-hand column (Back up's list or Map, the side panel) is the same
+colour, divided from the page by the same rule. A card or tile on the
+page is set apart by its edge alone, `BORDER` (`docs/DECISIONS.md`
+F39). The Pad group is
 bottom-anchored on every class; the PIN pad is one rectangle on the lock
 screen and both set-PIN steps, and a dice or coin pad is its own, with
 its entries and progress above it. A centred block taller than its

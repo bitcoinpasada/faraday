@@ -2204,6 +2204,59 @@ list column and checks. Choices made where the spec says nothing:
   guided flow's board is not reached by the harness (it needs sticks
   served and a restart past the lock); it is the same view and drawing.
 
+**F2c built** (2026-10-16): the board in rows and its colours (§19.15),
+and one page colour across the app (`docs/DECISIONS.md` F39); DESIGN
+§4.17 and §5. Choices made where the spec says nothing:
+
+- A place's sticks and Paper share the row's width equally, **+ stick**
+  `BOARD_ADD_STICK` (72 dp) between them. "A chip's width" is
+  `BOARD_BOX_MIN`, 160 dp: a fingerprint's chip with its marks. Below it
+  Paper keeps that width and the sticks wrap, as many to a line as fit;
+  the last line of sticks takes what the row has over them.
+- The software place is drawn as a place: its band (no line of fact),
+  its one stick of public files as a stick box "Stick 1" with no × of
+  its own and no **+ stick** (it keeps one stick), and Scanned in in
+  Paper's colours.
+- The glyphs are the closed icon set's: house (place), drive (stick, as
+  a stick is drawn elsewhere), vault, and file for Paper (the set has no
+  pencil).
+- The line of fact is a tag on `SURFACE`, outlined and written in the
+  chart's tone for it. In Bitcoin Orange Light that tone for a sealed
+  place is the theme's own accent, 2.3:1 on its surface, as the chart
+  already draws it; the board's own colours all pass.
+- **+ place** is a dashed row in `MUTED`, label and edge, `BOARD_HEAD`
+  high, as the mockup's grey.
+- On a vault's band everything is in `VAULT_ON`: glyph, name, link and
+  warning marks, ×, and the ring of the vault held. The lock mark on a
+  sealed chip is `VAULT_EDGE`.
+- A chip's edge is the mockup's (#AEB9C3 in the light theme, 1.6:1
+  against the stick): a chip is not one of the table's boxes, and its
+  surface, edge and shadow set it apart. Its faint shadow is a fill
+  `BOARD_CHIP_DROP` below it, not a blur, which would cost a frame a
+  blur per chip.
+- On Back up the board takes its step's whole width, under the step's
+  number as well as its title; in the guided flow it stays inside the
+  plan card's own card, as F2b drew it.
+- The theme tables key a colour by its dark value, so `VAULT_EDGE` and
+  `VAULT_ON` are one step from `ACCENT` and `ON_ACCENT` in the dark
+  theme (#83D8EE, #0D121A).
+- F39 across the app: the page (wide, narrow and the held frame), a
+  sheet and the gap a stretched scroll shows are `SURFACE`; a step is a
+  section with a `LINE` rule above it and one under the last, on `wide`
+  and in a small panel's list of steps; a card or tile on the page
+  (`Ui::card`, Home's and Tools' tiles, the narrow menu, menu rows, the
+  codes' rows, the vault pickers, the pill, the guided flow's plan card
+  heads) keeps its fill and is edged in `BORDER` instead of `LINE`,
+  since the fill no longer sets it apart. Wells drawn in `BG` (fields,
+  the chart's nodes) are unchanged. The Starter, a program of its own
+  with its own drawing, is not changed.
+- Timed per SPEED §7: at 1366×768 the board's frames, a chip selected,
+  a drag's move and the forms popup 5.3–6.6 ms (median), at 2560×1600
+  scale 2 12.7–14 ms; the narrow column at 800×600 2.3 ms a frame and
+  a scroll step, the Add sheet 1.9 ms. The checklist's frames 3.5–8.6 ms
+  at 1366×768 (Vault 2's card 13 ms) and 8–14 ms at 2560×1600 (Vault
+  2's 21 ms), Create's Keys 3–4.6 ms and 11 ms.
+
 ### 19.13 Decided while building F1 (2026-10-16)
 
 1. **Old plans** (owner): an old plan whose places kept files gets the

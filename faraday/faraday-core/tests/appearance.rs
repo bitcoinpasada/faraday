@@ -102,13 +102,17 @@ fn reduce_motion_is_kept_across_a_lock() {
     assert!(next.reduce_motion);
 }
 
-/// The page's colour in the middle of the screen's empty right margin,
-/// once the change has faded in.
-fn page(app: &mut Faraday, clock: &mut u64) -> [u8; 3] {
+/// The page's colour in the screen's empty right margin, and the
+/// sidebar's at its left edge, once the change has faded in: two themes
+/// may share a white page (`docs/DECISIONS.md` F39), not the pair.
+fn page(app: &mut Faraday, clock: &mut u64) -> [[u8; 3]; 2] {
     let _ = page_light(app, clock);
     let frame = app.frame();
-    let i = (790 * usize::from(frame.width) + 1270) * 4;
-    [frame.rgba[i], frame.rgba[i + 1], frame.rgba[i + 2]]
+    let at = |x: usize| {
+        let i = (790 * usize::from(frame.width) + x) * 4;
+        [frame.rgba[i], frame.rgba[i + 1], frame.rgba[i + 2]]
+    };
+    [at(1270), at(2)]
 }
 
 #[test]

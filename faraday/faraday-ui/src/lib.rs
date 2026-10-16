@@ -91,6 +91,41 @@ pub mod pal {
     /// Refused.
     pub const ERR: Color = Color::rgb(0xef, 0x9b, 0x9b);
 
+    /// A chip's faint shadow on the board, at a low opacity. Not in the
+    /// themes' tables: every theme draws it as it is.
+    pub const SHADOW: Color = Color::rgb(0x0a, 0x10, 0x16);
+
+    // The backup board's boxes (`docs/BACKUP-FLOW.md` §19.15): one hue
+    // per kind of box, pale fills and strong edges, each theme its own.
+    /// A place on the backup board: its fill, a pale green (`docs/DESIGN.md` §4.17).
+    pub const PLACE_FILL: Color = Color::rgb(0x1e, 0x2e, 0x30);
+    /// A place's header band.
+    pub const PLACE_BAND: Color = Color::rgb(0x24, 0x3f, 0x38);
+    /// A place's edge and its thick left stripe: 3:1 or more against the page.
+    pub const PLACE_EDGE: Color = Color::rgb(0x5e, 0x9a, 0x73);
+    /// A place's name, glyph and ×: 4.5:1 or more on its band and its fill.
+    pub const PLACE_TEXT: Color = Color::rgb(0x86, 0xb3, 0x96);
+    /// A stick box on the board, and **+ stick**: a cool slate grey.
+    pub const STICK_FILL: Color = Color::rgb(0x2b, 0x34, 0x3e);
+    /// A stick box's edge: 3:1 or more against the place round it.
+    pub const STICK_EDGE: Color = Color::rgb(0x7d, 0x8b, 0x98);
+    /// "Stick n", its glyph and ×: 4.5:1 or more on the stick's fill.
+    pub const STICK_TEXT: Color = Color::rgb(0x96, 0xa1, 0xac);
+    /// A vault box on the board: a pale tint of the accent.
+    pub const VAULT_FILL: Color = Color::rgb(0x2a, 0x3e, 0x4a);
+    /// A vault box's edge and its solid header band, and the lock mark: the accent, moved where it must be to stand 3:1 against the stick round it. One step from `ACCENT` in this table, so the themes can tell them apart.
+    pub const VAULT_EDGE: Color = Color::rgb(0x83, 0xd8, 0xee);
+    /// "Vault n · sealed" and its × on the vault's band: 4.5:1 or more on it. One step from `ON_ACCENT`, so the themes can tell them apart.
+    pub const VAULT_ON: Color = Color::rgb(0x0d, 0x12, 0x1a);
+    /// Paper (and Scanned in) on the board: a warm cream.
+    pub const PAPER_FILL: Color = Color::rgb(0x34, 0x37, 0x35);
+    /// Paper's edge, a brown: 3:1 or more against the place round it.
+    pub const PAPER_EDGE: Color = Color::rgb(0xb8, 0x98, 0x50);
+    /// "Paper", its glyph: 4.5:1 or more on paper's fill.
+    pub const PAPER_TEXT: Color = Color::rgb(0xc8, 0xa8, 0x60);
+    /// A chip's edge on the board: a neutral a step stronger than `BORDER`.
+    pub const CHIP_EDGE: Color = Color::rgb(0x69, 0x71, 0x79);
+
     /// The boot stick's pill and render: Bitcoin's orange, as the Bitcoin
     /// Orange theme's accent, on a dark page.
     pub const STICK_BOOT: Color = Color::rgb(0xf7, 0x93, 0x1a);
@@ -173,7 +208,7 @@ pub mod pal {
 
     /// Each colour above and what it is in the light theme
     /// (`docs/MOTION.md` §3.6).
-    pub const LIGHT: [(Color, Color); 14] = [
+    pub const LIGHT: [(Color, Color); 28] = [
         (BG, Color::rgb(0xf4, 0xf6, 0xf8)),
         (SIDEBAR, Color::rgb(0xe9, 0xed, 0xf1)),
         (SURFACE, Color::rgb(0xff, 0xff, 0xff)),
@@ -188,10 +223,24 @@ pub mod pal {
         (OK, Color::rgb(0x1d, 0x85, 0x56)),
         (WARN, Color::rgb(0x9a, 0x5d, 0x00)),
         (ERR, Color::rgb(0xbf, 0x34, 0x34)),
+        (PLACE_FILL, Color::rgb(0xed, 0xf6, 0xef)),
+        (PLACE_BAND, Color::rgb(0xdc, 0xee, 0xe1)),
+        (PLACE_EDGE, Color::rgb(0x5e, 0x9a, 0x73)),
+        (PLACE_TEXT, Color::rgb(0x1e, 0x5b, 0x35)),
+        (STICK_FILL, Color::rgb(0xe3, 0xe8, 0xed)),
+        (STICK_EDGE, Color::rgb(0x7d, 0x8b, 0x98)),
+        (STICK_TEXT, Color::rgb(0x36, 0x42, 0x4d)),
+        (VAULT_FILL, Color::rgb(0xd3, 0xea, 0xf3)),
+        (VAULT_EDGE, Color::rgb(0x0b, 0x7a, 0x9e)),
+        (VAULT_ON, Color::rgb(0xff, 0xff, 0xff)),
+        (PAPER_FILL, Color::rgb(0xfb, 0xf5, 0xe6)),
+        (PAPER_EDGE, Color::rgb(0x97, 0x7a, 0x36)),
+        (PAPER_TEXT, Color::rgb(0x6a, 0x50, 0x1a)),
+        (CHIP_EDGE, Color::rgb(0xae, 0xb9, 0xc3)),
     ];
 
     /// Nord (nordtheme.com): Polar Night, Snow Storm and Frost.
-    pub const NORD: [(Color, Color); 14] = [
+    pub const NORD: [(Color, Color); 28] = [
         (BG, Color::rgb(0x2e, 0x34, 0x40)),
         (SIDEBAR, Color::rgb(0x27, 0x2c, 0x36)),
         (SURFACE, Color::rgb(0x3b, 0x42, 0x52)),
@@ -206,10 +255,24 @@ pub mod pal {
         (OK, Color::rgb(0xa3, 0xbe, 0x8c)),
         (WARN, Color::rgb(0xeb, 0xcb, 0x8b)),
         (ERR, Color::rgb(0xeb, 0xa1, 0xa8)),
+        (PLACE_FILL, Color::rgb(0x3d, 0x4c, 0x54)),
+        (PLACE_BAND, Color::rgb(0x3f, 0x58, 0x57)),
+        (PLACE_EDGE, Color::rgb(0x73, 0xa7, 0x85)),
+        (PLACE_TEXT, Color::rgb(0xba, 0xd4, 0xc3)),
+        (STICK_FILL, Color::rgb(0x48, 0x50, 0x60)),
+        (STICK_EDGE, Color::rgb(0x9a, 0xa5, 0xaf)),
+        (STICK_TEXT, Color::rgb(0xc2, 0xc8, 0xcf)),
+        (VAULT_FILL, Color::rgb(0x47, 0x56, 0x66)),
+        (VAULT_EDGE, Color::rgb(0x88, 0xc0, 0xd0)),
+        (VAULT_ON, Color::rgb(0x2e, 0x34, 0x40)),
+        (PAPER_FILL, Color::rgb(0x51, 0x53, 0x58)),
+        (PAPER_EDGE, Color::rgb(0xc1, 0xa4, 0x65)),
+        (PAPER_TEXT, Color::rgb(0xde, 0xcb, 0xa0)),
+        (CHIP_EDGE, Color::rgb(0x82, 0x87, 0x93)),
     ];
 
     /// Catppuccin Mocha (catppuccin.com): base, mantle, surfaces, mauve.
-    pub const CATPPUCCIN: [(Color, Color); 14] = [
+    pub const CATPPUCCIN: [(Color, Color); 28] = [
         (BG, Color::rgb(0x1e, 0x1e, 0x2e)),
         (SIDEBAR, Color::rgb(0x18, 0x18, 0x25)),
         (SURFACE, Color::rgb(0x31, 0x32, 0x44)),
@@ -224,10 +287,24 @@ pub mod pal {
         (OK, Color::rgb(0xa6, 0xe3, 0xa1)),
         (WARN, Color::rgb(0xf9, 0xe2, 0xaf)),
         (ERR, Color::rgb(0xf3, 0x8b, 0xa8)),
+        (PLACE_FILL, Color::rgb(0x34, 0x3e, 0x48)),
+        (PLACE_BAND, Color::rgb(0x37, 0x4c, 0x4c)),
+        (PLACE_EDGE, Color::rgb(0x5e, 0x9a, 0x73)),
+        (PLACE_TEXT, Color::rgb(0xa2, 0xc4, 0xae)),
+        (STICK_FILL, Color::rgb(0x40, 0x43, 0x54)),
+        (STICK_EDGE, Color::rgb(0x89, 0x95, 0xa1)),
+        (STICK_TEXT, Color::rgb(0xae, 0xb7, 0xbf)),
+        (VAULT_FILL, Color::rgb(0x4a, 0x45, 0x61)),
+        (VAULT_EDGE, Color::rgb(0xcb, 0xa6, 0xf7)),
+        (VAULT_ON, Color::rgb(0x1e, 0x1e, 0x2e)),
+        (PAPER_FILL, Color::rgb(0x49, 0x46, 0x4c)),
+        (PAPER_EDGE, Color::rgb(0xb8, 0x98, 0x50)),
+        (PAPER_TEXT, Color::rgb(0xd2, 0xb8, 0x7d)),
+        (CHIP_EDGE, Color::rgb(0x6f, 0x74, 0x8a)),
     ];
 
     /// Tokyo Night (enkia's theme): night background, storm cards, blue.
-    pub const TOKYO_NIGHT: [(Color, Color); 14] = [
+    pub const TOKYO_NIGHT: [(Color, Color); 28] = [
         (BG, Color::rgb(0x1a, 0x1b, 0x26)),
         (SIDEBAR, Color::rgb(0x16, 0x16, 0x1e)),
         (SURFACE, Color::rgb(0x24, 0x28, 0x3b)),
@@ -242,10 +319,24 @@ pub mod pal {
         (OK, Color::rgb(0x9e, 0xce, 0x6a)),
         (WARN, Color::rgb(0xe0, 0xaf, 0x68)),
         (ERR, Color::rgb(0xf7, 0x76, 0x8e)),
+        (PLACE_FILL, Color::rgb(0x28, 0x35, 0x40)),
+        (PLACE_BAND, Color::rgb(0x2d, 0x44, 0x45)),
+        (PLACE_EDGE, Color::rgb(0x5e, 0x9a, 0x73)),
+        (PLACE_TEXT, Color::rgb(0x92, 0xba, 0xa0)),
+        (STICK_FILL, Color::rgb(0x35, 0x3a, 0x4c)),
+        (STICK_EDGE, Color::rgb(0x7d, 0x8b, 0x98)),
+        (STICK_TEXT, Color::rgb(0xa1, 0xab, 0xb5)),
+        (VAULT_FILL, Color::rgb(0x32, 0x3c, 0x59)),
+        (VAULT_EDGE, Color::rgb(0x7a, 0xa2, 0xf7)),
+        (VAULT_ON, Color::rgb(0x1a, 0x1b, 0x26)),
+        (PAPER_FILL, Color::rgb(0x3d, 0x3d, 0x44)),
+        (PAPER_EDGE, Color::rgb(0xb8, 0x98, 0x50)),
+        (PAPER_TEXT, Color::rgb(0xc9, 0xaa, 0x63)),
+        (CHIP_EDGE, Color::rgb(0x62, 0x69, 0x85)),
     ];
 
     /// Gruvbox dark (morhetz): bg0 to bg2, fg, yellow, and its bright accents.
-    pub const GRUVBOX: [(Color, Color); 14] = [
+    pub const GRUVBOX: [(Color, Color); 28] = [
         (BG, Color::rgb(0x28, 0x28, 0x28)),
         (SIDEBAR, Color::rgb(0x1d, 0x20, 0x21)),
         (SURFACE, Color::rgb(0x32, 0x30, 0x2f)),
@@ -260,11 +351,25 @@ pub mod pal {
         (OK, Color::rgb(0xb8, 0xbb, 0x26)),
         (WARN, Color::rgb(0xfe, 0x80, 0x19)),
         (ERR, Color::rgb(0xfd, 0x6f, 0x5a)),
+        (PLACE_FILL, Color::rgb(0x35, 0x3c, 0x35)),
+        (PLACE_BAND, Color::rgb(0x38, 0x4a, 0x3c)),
+        (PLACE_EDGE, Color::rgb(0x5e, 0x9a, 0x73)),
+        (PLACE_TEXT, Color::rgb(0x9d, 0xc1, 0xaa)),
+        (STICK_FILL, Color::rgb(0x41, 0x41, 0x42)),
+        (STICK_EDGE, Color::rgb(0x85, 0x92, 0x9e)),
+        (STICK_TEXT, Color::rgb(0xaa, 0xb4, 0xbc)),
+        (VAULT_FILL, Color::rgb(0x52, 0x47, 0x2f)),
+        (VAULT_EDGE, Color::rgb(0xfa, 0xbd, 0x2f)),
+        (VAULT_ON, Color::rgb(0x28, 0x28, 0x28)),
+        (PAPER_FILL, Color::rgb(0x4a, 0x44, 0x3a)),
+        (PAPER_EDGE, Color::rgb(0xb8, 0x98, 0x50)),
+        (PAPER_TEXT, Color::rgb(0xd0, 0xb4, 0x76)),
+        (CHIP_EDGE, Color::rgb(0x7c, 0x74, 0x63)),
     ];
 
     /// Rosé Pine Dawn (rosepinetheme.com): base, surface, overlay, pine. Its
     /// gold, love and a green beside them are darkened to read on its paper.
-    pub const ROSE_PINE: [(Color, Color); 14] = [
+    pub const ROSE_PINE: [(Color, Color); 28] = [
         (BG, Color::rgb(0xfa, 0xf4, 0xed)),
         (SIDEBAR, Color::rgb(0xf2, 0xe9, 0xe1)),
         (SURFACE, Color::rgb(0xff, 0xfa, 0xf3)),
@@ -279,12 +384,26 @@ pub mod pal {
         (OK, Color::rgb(0x3d, 0x7a, 0x52)),
         (WARN, Color::rgb(0xa8, 0x64, 0x12)),
         (ERR, Color::rgb(0xa4, 0x50, 0x6a)),
+        (PLACE_FILL, Color::rgb(0xed, 0xf2, 0xe5)),
+        (PLACE_BAND, Color::rgb(0xdb, 0xea, 0xd8)),
+        (PLACE_EDGE, Color::rgb(0x59, 0x92, 0x6d)),
+        (PLACE_TEXT, Color::rgb(0x42, 0x6c, 0x50)),
+        (STICK_FILL, Color::rgb(0xe5, 0xe4, 0xe1)),
+        (STICK_EDGE, Color::rgb(0x72, 0x7e, 0x8a)),
+        (STICK_TEXT, Color::rgb(0x59, 0x63, 0x6c)),
+        (VAULT_FILL, Color::rgb(0xd8, 0xe0, 0xdf)),
+        (VAULT_EDGE, Color::rgb(0x28, 0x69, 0x83)),
+        (VAULT_ON, Color::rgb(0xff, 0xfa, 0xf3)),
+        (PAPER_FILL, Color::rgb(0xfa, 0xf0, 0xdc)),
+        (PAPER_EDGE, Color::rgb(0x97, 0x7a, 0x36)),
+        (PAPER_TEXT, Color::rgb(0x7f, 0x66, 0x2d)),
+        (CHIP_EDGE, Color::rgb(0xb2, 0xae, 0xb3)),
     ];
 
     /// Bitcoin Orange: a warm near-black page, Bitcoin's orange
     /// (#F7931A) as the accent at full strength. Light text on a dark
     /// page needs no darkening to read against it.
-    pub const BITCOIN_ORANGE: [(Color, Color); 14] = [
+    pub const BITCOIN_ORANGE: [(Color, Color); 28] = [
         (BG, Color::rgb(0x1c, 0x14, 0x10)),
         (SIDEBAR, Color::rgb(0x14, 0x0e, 0x0a)),
         (SURFACE, Color::rgb(0x27, 0x1d, 0x17)),
@@ -299,12 +418,26 @@ pub mod pal {
         (OK, Color::rgb(0x8e, 0xcb, 0x86)),
         (WARN, Color::rgb(0xe8, 0xb9, 0x4c)),
         (ERR, Color::rgb(0xe5, 0x48, 0x4d)),
+        (PLACE_FILL, Color::rgb(0x2b, 0x2b, 0x1f)),
+        (PLACE_BAND, Color::rgb(0x2f, 0x3c, 0x29)),
+        (PLACE_EDGE, Color::rgb(0x5e, 0x9a, 0x73)),
+        (PLACE_TEXT, Color::rgb(0x83, 0xb1, 0x93)),
+        (STICK_FILL, Color::rgb(0x37, 0x30, 0x2d)),
+        (STICK_EDGE, Color::rgb(0x7d, 0x8b, 0x98)),
+        (STICK_TEXT, Color::rgb(0x94, 0xa0, 0xab)),
+        (VAULT_FILL, Color::rgb(0x48, 0x30, 0x17)),
+        (VAULT_EDGE, Color::rgb(0xf7, 0x93, 0x1a)),
+        (VAULT_ON, Color::rgb(0x1c, 0x14, 0x10)),
+        (PAPER_FILL, Color::rgb(0x40, 0x33, 0x25)),
+        (PAPER_EDGE, Color::rgb(0xb8, 0x98, 0x50)),
+        (PAPER_TEXT, Color::rgb(0xc8, 0xa8, 0x60)),
+        (CHIP_EDGE, Color::rgb(0x78, 0x6f, 0x67)),
     ];
 
     /// Bitcoin Orange Light: a warm paper page, Bitcoin's orange
     /// (#F7931A) as the accent at full strength (owner, 2026-10-11),
     /// with dark text on it: white on that orange is 2.1:1.
-    pub const BITCOIN_ORANGE_LIGHT: [(Color, Color); 14] = [
+    pub const BITCOIN_ORANGE_LIGHT: [(Color, Color); 28] = [
         (BG, Color::rgb(0xfd, 0xf1, 0xe7)),
         (SIDEBAR, Color::rgb(0xf5, 0xe6, 0xd7)),
         (SURFACE, Color::rgb(0xff, 0xfc, 0xf8)),
@@ -319,12 +452,26 @@ pub mod pal {
         (OK, Color::rgb(0x1d, 0x85, 0x56)),
         (WARN, Color::rgb(0x7a, 0x64, 0x00)),
         (ERR, Color::rgb(0xbf, 0x34, 0x34)),
+        (PLACE_FILL, Color::rgb(0xed, 0xf4, 0xea)),
+        (PLACE_BAND, Color::rgb(0xdb, 0xeb, 0xdc)),
+        (PLACE_EDGE, Color::rgb(0x59, 0x92, 0x6d)),
+        (PLACE_TEXT, Color::rgb(0x42, 0x6c, 0x50)),
+        (STICK_FILL, Color::rgb(0xe5, 0xe5, 0xe5)),
+        (STICK_EDGE, Color::rgb(0x73, 0x80, 0x8c)),
+        (STICK_TEXT, Color::rgb(0x59, 0x63, 0x6c)),
+        (VAULT_FILL, Color::rgb(0xfe, 0xe9, 0xd0)),
+        (VAULT_EDGE, Color::rgb(0xb4, 0x6b, 0x13)),
+        (VAULT_ON, Color::rgb(0x00, 0x00, 0x00)),
+        (PAPER_FILL, Color::rgb(0xfa, 0xf2, 0xe0)),
+        (PAPER_EDGE, Color::rgb(0x97, 0x7a, 0x36)),
+        (PAPER_TEXT, Color::rgb(0x7f, 0x66, 0x2d)),
+        (CHIP_EDGE, Color::rgb(0xbb, 0xb5, 0xae)),
     ];
 
     /// Cobalt: a cool blue-white page (its sidebar the owner's #E8EEFA)
     /// with a deep cobalt blue (#0062A3, 6.0:1 on the page) as the
     /// accent.
-    pub const COBALT: [(Color, Color); 14] = [
+    pub const COBALT: [(Color, Color); 28] = [
         (BG, Color::rgb(0xf1, 0xf4, 0xfb)),
         (SIDEBAR, Color::rgb(0xe8, 0xee, 0xfa)),
         (SURFACE, Color::rgb(0xff, 0xff, 0xff)),
@@ -339,13 +486,27 @@ pub mod pal {
         (OK, Color::rgb(0x1d, 0x85, 0x56)),
         (WARN, Color::rgb(0x9a, 0x5d, 0x00)),
         (ERR, Color::rgb(0xbf, 0x34, 0x34)),
+        (PLACE_FILL, Color::rgb(0xed, 0xf6, 0xf0)),
+        (PLACE_BAND, Color::rgb(0xdb, 0xee, 0xe1)),
+        (PLACE_EDGE, Color::rgb(0x5a, 0x94, 0x6e)),
+        (PLACE_TEXT, Color::rgb(0x43, 0x6d, 0x52)),
+        (STICK_FILL, Color::rgb(0xe5, 0xe8, 0xea)),
+        (STICK_EDGE, Color::rgb(0x74, 0x81, 0x8d)),
+        (STICK_TEXT, Color::rgb(0x5b, 0x65, 0x6f)),
+        (VAULT_FILL, Color::rgb(0xd1, 0xe3, 0xee)),
+        (VAULT_EDGE, Color::rgb(0x00, 0x62, 0xa3)),
+        (VAULT_ON, Color::rgb(0xff, 0xff, 0xff)),
+        (PAPER_FILL, Color::rgb(0xfa, 0xf4, 0xe6)),
+        (PAPER_EDGE, Color::rgb(0x97, 0x7a, 0x36)),
+        (PAPER_TEXT, Color::rgb(0x80, 0x68, 0x2e)),
+        (CHIP_EDGE, Color::rgb(0xaf, 0xb2, 0xb4)),
     ];
 
     /// Lamplight: warm cream paper and espresso text, a terracotta
     /// accent darkened to read at 4.5:1 against the page for text and
     /// the focus ring (#A34E26 is 5.2:1), and a muted sage, amber and
     /// brick that read at 4.5:1 there too.
-    pub const LAMPLIGHT: [(Color, Color); 14] = [
+    pub const LAMPLIGHT: [(Color, Color); 28] = [
         (BG, Color::rgb(0xfb, 0xf3, 0xe6)),
         (SIDEBAR, Color::rgb(0xf3, 0xe6, 0xd2)),
         (SURFACE, Color::rgb(0xff, 0xfa, 0xf2)),
@@ -360,6 +521,20 @@ pub mod pal {
         (OK, Color::rgb(0x3f, 0x73, 0x50)),
         (WARN, Color::rgb(0x8a, 0x5c, 0x0e)),
         (ERR, Color::rgb(0xa3, 0x39, 0x2e)),
+        (PLACE_FILL, Color::rgb(0xed, 0xf2, 0xe4)),
+        (PLACE_BAND, Color::rgb(0xdb, 0xea, 0xd7)),
+        (PLACE_EDGE, Color::rgb(0x58, 0x91, 0x6c)),
+        (PLACE_TEXT, Color::rgb(0x41, 0x6a, 0x4f)),
+        (STICK_FILL, Color::rgb(0xe5, 0xe4, 0xe0)),
+        (STICK_EDGE, Color::rgb(0x72, 0x7e, 0x8a)),
+        (STICK_TEXT, Color::rgb(0x59, 0x63, 0x6c)),
+        (VAULT_FILL, Color::rgb(0xee, 0xdb, 0xcd)),
+        (VAULT_EDGE, Color::rgb(0xa3, 0x4e, 0x26)),
+        (VAULT_ON, Color::rgb(0xff, 0xfa, 0xf2)),
+        (PAPER_FILL, Color::rgb(0xfa, 0xf0, 0xdb)),
+        (PAPER_EDGE, Color::rgb(0x97, 0x7a, 0x36)),
+        (PAPER_TEXT, Color::rgb(0x7f, 0x66, 0x2d)),
+        (CHIP_EDGE, Color::rgb(0xb6, 0xaf, 0xa6)),
     ];
 }
 
@@ -625,7 +800,7 @@ impl Theme {
         )
     }
 
-    fn table(self) -> Option<&'static [(Color, Color); 14]> {
+    fn table(self) -> Option<&'static [(Color, Color); 28]> {
         match self {
             Theme::Dark => None,
             Theme::Light => Some(&pal::LIGHT),
@@ -1067,7 +1242,9 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         // Deeper on a small panel, where it is the sign there is more.
         let depth = if self.compact { 44.0 } else { 24.0 };
         let band = ((depth * self.f).round() as i32).clamp(1, view.h / 4 + 1);
-        let page = self.col(if self.in_sheet { SURFACE } else { BG });
+        // The page and a sheet are both the surface (`docs/DECISIONS.md`
+        // F39).
+        let page = self.col(SURFACE);
         let reach = band as f32 / self.f;
         let top = (offset / reach).clamp(0.0, 1.0);
         let bottom = ((max - offset) / reach).clamp(0.0, 1.0);
@@ -1129,7 +1306,9 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         } else {
             Rect::new(view.x, view.bottom() - n, view.w, n)
         };
-        let page = self.col(if self.in_sheet { SURFACE } else { BG });
+        // The page and a sheet are both the surface (`docs/DECISIONS.md`
+        // F39).
+        let page = self.col(SURFACE);
         self.c.fill_rect(gap, page);
         for (r, _) in self.hits.iter_mut() {
             if r.intersect(&view) == *r {
@@ -1281,8 +1460,11 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         self.c.stroke_rounded_rect(rect, r * self.f, width, color);
     }
 
-    /// A card: a surface with a one-unit edge.
+    /// A card: a surface with a one-unit edge. The page is the surface
+    /// too (`docs/DECISIONS.md` F39), so a card's resting edge, `LINE`,
+    /// is drawn in the stronger `BORDER`: the edge is what sets it apart.
     pub fn card(&mut self, x: f32, y: f32, w: f32, h: f32, edge: Color) {
+        let edge = if edge == LINE { BORDER } else { edge };
         self.fill(x, y, w, h, 12.0, SURFACE);
         self.stroke(x, y, w, h, 12.0, edge);
     }
@@ -1854,7 +2036,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     pub fn pill_in(&mut self, x: f32, y: f32, h: f32, label: &str, color: Color) -> f32 {
         let width = self.measure(12.0, W::R, label) + 24.0;
         self.fill(x, y, width, h, h / 2.0, SURFACE);
-        self.stroke(x, y, width, h, h / 2.0, LINE);
+        self.stroke(x, y, width, h, h / 2.0, BORDER);
         self.text_mid(x + 12.0, y, h, 12.0, W::R, color, label);
         width
     }

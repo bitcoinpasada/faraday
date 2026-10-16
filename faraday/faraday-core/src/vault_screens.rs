@@ -507,7 +507,7 @@ pub(crate) fn unlock(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             12.0,
             if on { ACCENT.with_alpha(18) } else { SURFACE },
         );
-        ui.stroke(x, y, w, ch, 12.0, if on { ACCENT } else { LINE });
+        ui.stroke(x, y, w, ch, 12.0, if on { ACCENT } else { BORDER });
         let fg = if on { ACCENT } else { MUTED };
         ui.fill(x + 16.0, y + 14.0, 44.0, 44.0, 10.0, fg.with_alpha(30));
         ui.icon(x + 16.0, y + 14.0, 44.0, Icon::Lock, 18.0, fg);
@@ -858,7 +858,7 @@ fn unlock_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             12.0,
             if on { ACCENT.with_alpha(18) } else { SURFACE },
         );
-        ui.stroke(x, y, w, ch, 12.0, if on { ACCENT } else { LINE });
+        ui.stroke(x, y, w, ch, 12.0, if on { ACCENT } else { BORDER });
         let fg = if on { ACCENT } else { MUTED };
         ui.fill(x + 12.0, y + 12.0, 36.0, 36.0, 8.0, fg.with_alpha(30));
         ui.icon(x + 12.0, y + 12.0, 36.0, Icon::Lock, 15.0, fg);

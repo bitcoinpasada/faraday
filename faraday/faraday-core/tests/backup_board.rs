@@ -1609,10 +1609,11 @@ fn a_narrow_window_places_by_tap_from_the_add_sheet_as_a_drag_does_on_wide() {
 }
 
 /// What is sealed in a vault and what is only a file on its stick are
-/// told apart as a person reads them (`docs/BACKUP-FLOW.md` §19.14): the
-/// stick box headed "Stick 1" holds the vault box headed "Vault 1", with
-/// Seed A inside it, and beside the vault box, outside it, Seed B's
-/// words file and SeedQR picture; Paper is outside the stick box.
+/// told apart as a person reads them (`docs/BACKUP-FLOW.md` §19.14,
+/// §19.15): the stick box headed "Stick 1" holds the vault box headed
+/// "Vault 1 · sealed", with Seed A inside it, and under the vault box,
+/// outside it, Seed B's words file and SeedQR picture; Paper is outside
+/// the stick box, beside it.
 #[test]
 fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes() {
     let mut app = three_on_an_empty_board();
@@ -1646,7 +1647,10 @@ fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes()
         inside(file, stick) && !inside(file, vault),
         "Seed B's file is on the stick, outside the vault"
     );
-    assert!(paper.1 >= stick.1 + stick.3, "Paper is under the stick box");
+    assert!(
+        paper.0 >= stick.0 + stick.2,
+        "Paper is beside the stick box, outside it"
+    );
     // Each box has its head row: "Stick 1" above the vault box, "Vault 1"
     // at the top of it; Seed B's chip reads its two file forms.
     let texts = app.drawn_text_boxes();
@@ -1658,18 +1662,75 @@ fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes()
             .unwrap_or_else(|| panic!("{t:?} not drawn"))
     };
     let stick_head = at("Stick 1");
-    let vault_head = at("Vault 1");
+    let vault_head = at("Vault 1 · sealed");
     assert!(
         stick_head.1 < i32::from(vault.1),
         "Stick 1 heads the stick box"
     );
     assert!(
         vault_head.1 >= i32::from(vault.1) && vault_head.1 < i32::from(sealed.1),
-        "Vault 1 heads the vault box"
+        "Vault 1 · sealed heads the vault box"
     );
     assert!(
         texts
             .iter()
             .any(|(s, _)| s.contains("Words file · SeedQR file"))
     );
+}
+
+/// On `wide` the board reads a place to a row (`docs/BACKUP-FLOW.md`
+/// §19.15 item 1): under Place 1's header, its two stick boxes, **+
+/// stick** and Paper stand side by side, left to right, on one row; Place
+/// 2 is under Place 1, its own row under its own header.
+#[test]
+fn on_wide_a_places_sticks_and_paper_stand_on_one_row_and_the_places_one_under_another() {
+    let mut app = three_on_an_empty_board();
+    tap(&mut app, BP::AddPlace);
+    put(&mut app, Thing::Vault(0), Zone::Card(0));
+    put(&mut app, Thing::Whole, Zone::NewStick(0));
+    put(&mut app, Thing::Seed(0), Zone::Paper(0));
+    put(&mut app, Thing::Seed(1), Zone::Paper(1));
+    let v = vault_stick(&app, 0, 0).unwrap();
+    let f = files_stick(&app, 0).unwrap();
+    let _ = on_board(&mut app, BP::Zone(Zone::Paper(0)));
+    let boxed = |app: &Faraday, z: Zone| {
+        app.hit_box(Action::Board(BP::Zone(z)))
+            .unwrap_or_else(|| panic!("{z:?} is not drawn"))
+    };
+    let first = boxed(&app, Zone::Files(0, v.min(f)));
+    let second = boxed(&app, Zone::Files(0, v.max(f)));
+    let add = boxed(&app, Zone::NewStick(0));
+    let paper = boxed(&app, Zone::Paper(0));
+    let paper_2 = boxed(&app, Zone::Paper(1));
+    // Side by side, left to right, each starting where the one before it
+    // ends, on one row: the same top.
+    let row = [first, second, add, paper];
+    for pair in row.windows(2) {
+        assert!(pair[0].0 + pair[0].2 <= pair[1].0, "left to right: {row:?}");
+        assert_eq!(pair[0].1, pair[1].1, "one row: {row:?}");
+    }
+    let texts = app.drawn_text_boxes();
+    let at = |t: &str| {
+        texts
+            .iter()
+            .find(|(s, _)| s == t)
+            .map(|(_, b)| *b)
+            .unwrap_or_else(|| panic!("{t:?} not drawn"))
+    };
+    let (place_1, place_2) = (at("Place 1"), at("Place 2"));
+    assert!(
+        place_1.1 + place_1.3 <= i32::from(first.1),
+        "the row is under Place 1's header"
+    );
+    assert!(
+        at("Stick 1").0 < at("Stick 2").0 && at("Stick 2").0 < at("Paper").0,
+        "Stick 1, Stick 2 and Paper read left to right"
+    );
+    // Place 2 under Place 1's row, at the same left edge.
+    assert!(
+        i32::from(paper.1 + paper.3) <= place_2.1,
+        "Place 2 is under Place 1"
+    );
+    assert_eq!(place_1.0, place_2.0, "one under another");
+    assert!(place_2.1 + place_2.3 <= i32::from(paper_2.1));
 }

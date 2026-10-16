@@ -493,6 +493,8 @@ pub(crate) struct StickView {
     pub label: String,
     /// The vault on it: its chip, and the vault's own zone.
     pub vault: Option<(ChipView, ZoneView)>,
+    /// The vault's header band, "Vault 1 · sealed"; empty with no vault.
+    pub sealed: String,
     /// Its files.
     pub files: ZoneView,
 }
@@ -967,9 +969,13 @@ impl Faraday {
                             inside.chips.extend(self.board_before(&shape, &a, v));
                             (head, inside)
                         });
+                        let sealed = vault.as_ref().map_or_else(String::new, |(head, _)| {
+                            fill(EN.board_sealed, &[&head.name])
+                        });
                         StickView {
                             label: fill(EN.board_stick, &[&(s + 1).to_string()]),
                             vault,
+                            sealed,
                             files: zone(Zone::Files(p, s), At::Stick(p, s), Some(p), true),
                         }
                     })

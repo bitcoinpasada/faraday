@@ -647,6 +647,13 @@ fn run(
     let mut app = Faraday::new();
     app.medium = medium;
     app.event(display(size, dpi));
+    // `FARADAY_SNAP_THEME=<id>` takes the tour in that theme ("light",
+    // "dark" …) instead of the first start's.
+    if let Ok(id) = std::env::var("FARADAY_SNAP_THEME")
+        && let Some(theme) = faraday_core::ui::Theme::from_id(&id)
+    {
+        app.press(Action::Theme(theme));
+    }
     let mut t = Tour {
         app,
         out: out.to_path_buf(),
@@ -3650,6 +3657,7 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
 /// forms open, a share on paper and in Vault 1, and the software place.
 fn board_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::board::{BoardPress as B, Chip, Thing, Zone};
+    let was = t.app.theme;
     t.load_kit()?;
     for n in 1..3 {
         t.press(Action::Entry(None));
@@ -3703,7 +3711,8 @@ fn board_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("board-vault-and-files-dark")?;
     t.press(Action::Theme(faraday_core::ui::Theme::Light));
     t.shot("board-vault-and-files-light")?;
-    t.press(Action::Theme(faraday_core::ui::Theme::Cobalt));
+    // Back to the theme the tour is in.
+    t.press(Action::Theme(was));
     // The narrow column: Add opens the list as a sheet; a chip pressed
     // there closes it, the chip selected and the zones that take it
     // edged (§19.12 item 3).

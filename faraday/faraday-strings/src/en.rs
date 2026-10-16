@@ -8009,7 +8009,7 @@ pub struct Strings {
     pub board_places: &'static str,
     /// A list chip's count, or the card closed with one place.
     pub board_one_place: &'static str,
-    /// A place card's row that makes a stick of what is dropped on it.
+    /// A place's box that makes a stick of what is dropped on it.
     pub board_add_stick: &'static str,
     /// A stick zone's label. `{}`: its number at the place, from 1.
     pub board_stick: &'static str,
@@ -8067,6 +8067,11 @@ pub struct Strings {
     /// The narrow column's button that opens the board's list as a sheet
     /// (`docs/BACKUP-FLOW.md` §19.12 item 3).
     pub board_add: &'static str,
+    /// The board's row after the last place that adds a place
+    /// (`docs/BACKUP-FLOW.md` §19.15).
+    pub board_add_place: &'static str,
+    /// A vault box's header band. `{}`: the vault, "Vault 1".
+    pub board_sealed: &'static str,
 }
 
 /// The English wording.
@@ -11966,4 +11971,6 @@ pub static EN: Strings = Strings {
     board_vault_holds: "{} holds {}",
     board_take_off: "Take off",
     board_add: "Add",
+    board_add_place: "+ place",
+    board_sealed: "{} · sealed",
 };

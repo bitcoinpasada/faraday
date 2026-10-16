@@ -1681,5 +1681,5 @@ page looked busy.
 - Applies across the app: Create, New key, Restore, Back up, the
   checklist and every flow drawn with step cards; and to the right-hand
   column, divided from the page by the same rule.
-- Built with BACKUP-FLOW §19.15 (F2c).
+- Built with BACKUP-FLOW §19.15 (F2c, 2026-10-16).
 

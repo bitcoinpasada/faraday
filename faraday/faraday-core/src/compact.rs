@@ -366,7 +366,7 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         10.0,
         if pressed { INNER } else { SURFACE },
     );
-    ui.stroke(M, y, inner, 52.0, 10.0, LINE);
+    ui.stroke(M, y, inner, 52.0, 10.0, BORDER);
     ui.dot(M + 16.0, y + 18.0, 4.0, dot);
     let line = ui.fit(14.0, W::S, &line, inner - 40.0);
     ui.text_mid(M + 28.0, y + 6.0, 24.0, 14.0, W::S, TEXT, &line);
@@ -448,7 +448,7 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         let ty = y + (i / 2) as f32 * (th + gap);
         let pressed = ui.is_pressed(*action);
         ui.fill(tx, ty, tw, th, 12.0, if pressed { INNER } else { SURFACE });
-        ui.stroke(tx, ty, tw, th, 12.0, LINE);
+        ui.stroke(tx, ty, tw, th, 12.0, BORDER);
         let (ibg, ifg) = if *enabled {
             (ACCENT.with_alpha(26), ACCENT)
         } else {

@@ -1,7 +1,9 @@
 //! The step-card column every flow is drawn with, the way Create vault
 //! is in the prototype (`PLAN.md` §9.1): one card open at a time, the
 //! others closed to a line that says what was chosen, and the column
-//! scrolled so the open card is in view.
+//! scrolled so the open card is in view. A card is a flat section on the
+//! page divided from the next by a rule, with no fill and no box
+//! (`docs/DECISIONS.md` F39).
 //!
 //! In Guided mode a card can carry a short written walk-through, shown at
 //! the top of the card while it is open (`docs/WALLETS.md` §6). Steps only
@@ -15,6 +17,11 @@ use crate::Action;
 use crate::ui::Disclosure;
 use crate::ui::pal::*;
 use crate::ui::{Ui, W};
+
+/// How far in from a step's left edge its body is drawn, under its title.
+pub const BODY_INDENT: f32 = 58.0;
+/// How far in from a step's right edge its body stops.
+pub const BODY_RIGHT: f32 = 18.0;
 
 /// One card of a flow.
 pub struct Card {
@@ -178,8 +185,8 @@ pub fn column_foot(
         y += nh + 20.0;
     }
 
-    let inner_x = x + 58.0;
-    let inner_w = w - 76.0;
+    let inner_x = x + BODY_INDENT;
+    let inner_w = w - BODY_INDENT - BODY_RIGHT;
     let mut open_top = None;
     let mut open_body = None;
     // A card opening grows and the one closing shrinks
@@ -236,12 +243,9 @@ pub fn column_foot(
         if card.open {
             open_body = Some(body_h);
         }
-        let edge = if card.open {
-            ACCENT.with_alpha(100)
-        } else {
-            LINE
-        };
-        ui.card(x, card_top, w, card_h, edge);
+        // A step is a flat section on the page, a rule above it
+        // (`docs/DECISIONS.md` F39): no fill and no box.
+        ui.rule(x, card_top, w, LINE);
         if card.open && card_h < full_h {
             let rect = ui.rect(x, card_top, w, card_h);
             ui.reveal(rect);
@@ -304,7 +308,11 @@ pub fn column_foot(
             );
         }
         ui.hit(x, card_top, w, 56.0, card.toggle);
-        y += card_h + 10.0;
+        y += card_h;
+    }
+    // The rule under the last step closes the list of them.
+    if !cards.is_empty() {
+        ui.rule(x, y, w, LINE);
     }
     let mut foot_top = None;
     if let Some(foot) = foot {
@@ -434,16 +442,11 @@ fn paged(
                 y += nh + 14.0;
             }
             for (i, card) in cards.iter().enumerate() {
-                let pressed = ui.is_pressed(card.toggle);
-                ui.fill(
-                    M,
-                    y,
-                    inner,
-                    52.0,
-                    10.0,
-                    if pressed { INNER } else { SURFACE },
-                );
-                ui.stroke(M, y, inner, 52.0, 10.0, LINE);
+                // Each step a row on the page, a rule above it (F39).
+                if ui.is_pressed(card.toggle) {
+                    ui.fill(M, y, inner, 52.0, 10.0, INNER);
+                }
+                ui.rule(M, y, inner, LINE);
                 ui.badge(M + 10.0, y + 13.0, &(i + 1).to_string(), card.done, false);
                 let tw = inner - 70.0;
                 let title = ui.fit(14.0, W::S, &card.title, tw);
@@ -460,7 +463,11 @@ fn paged(
                     DIM,
                 );
                 ui.hit(M, y, inner, 52.0, card.toggle);
-                y += 52.0 + 8.0;
+                y += 52.0;
+            }
+            if !cards.is_empty() {
+                ui.rule(M, y, inner, LINE);
+                y += 8.0;
             }
             if let Some(foot) = foot {
                 y += 6.0 + foot(ui, M, y + 6.0, inner);

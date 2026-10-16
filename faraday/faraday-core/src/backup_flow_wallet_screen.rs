@@ -143,7 +143,7 @@ fn card_head(
     if ui.is_pressed(toggle) || ui.is_hovered(toggle) {
         ui.fill(x, y, w, h, 8.0, INNER);
     }
-    ui.stroke(x, y, w, h, 8.0, LINE);
+    ui.stroke(x, y, w, h, 8.0, BORDER);
     let tw = ui.measure(14.0, W::S, title).min(w * 0.5);
     let t = ui.fit(14.0, W::S, title, w * 0.5);
     ui.text_mid(x + 12.0, y, h, 14.0, W::S, TEXT, &t);

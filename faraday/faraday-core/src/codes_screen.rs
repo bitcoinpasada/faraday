@@ -57,7 +57,7 @@ fn code_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &CodeRow) -> f32 {
     let h = 80.0;
     let pressed = ui.is_pressed(action);
     ui.fill(x, y, w, h, 12.0, if pressed { INNER } else { SURFACE });
-    ui.stroke(x, y, w, h, 12.0, LINE);
+    ui.stroke(x, y, w, h, 12.0, BORDER);
     ui.hit(x, y, w, h, action);
     let t = ui.fit(15.0, W::S, &r.title, w - 140.0);
     ui.text(x + 16.0, y + 14.0, 15.0, W::S, TEXT, &t);
