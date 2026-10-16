@@ -1627,3 +1627,23 @@ places, and wants to see it that way.
 - Built: F1, the model (2026-10-16); F2a, the board in Back up
   (2026-10-16). F2b (the guided flow and a narrow window) and F3 not
   built.
+
+### F38 Who can spend: layers of access (2026-10-16)
+
+**Why.** A backup serves several people (the owner, family, heirs),
+each reaching the wallet by a different route with different
+knowledge; arranging places by hand so that each of them can spend and
+no stranger can is hard.
+
+**Decision** (owner, 2026-10-16; the spec is `docs/BACKUP-FLOW.md` §20).
+
+- A layer is a name and what it is able to spend with: places, and the
+  vault passwords and passphrases its person knows.
+- The person sets the layers first; Faraday works out the board so that
+  every layer can spend, making as large as it can the number of places
+  a stranger who knows nothing can find and still not spend.
+- No layers that must not spend; the stranger is the rule against.
+- Conflicts are explained, each with what would resolve it.
+- Each layer's instructions are shown on screen to be copied by hand,
+  never printed or written to a file.
+- Specified, not built; after F37's F3.

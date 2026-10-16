@@ -2234,3 +2234,115 @@ Decided after seeing F2a's board; built in F2b. Where this differs from
 5. Not changed: the checklist stage, after **Make the checklist**, keeps
    its side panel and Map (a choice: the owner has not ruled on it);
    a narrow window keeps the list as a sheet opened by **Add**.
+
+## 20. Who can spend (F38)
+
+(owner, 2026-10-16. Specified, not built; after §19's F3.)
+
+A backup serves more than one person: the wallet's owner, a spouse or
+family, heirs. Each reaches the wallet by a different route, and the
+same things at the same places serve them all, depending on what each
+knows. The person says, for each, what they are able to spend with;
+Faraday works out what goes where so that each of them can, and so that
+a stranger who finds places cannot.
+
+### 20.1 Layers
+
+A **layer** is a name and the list of what it is **able to spend with**.
+An entry in the list is one of:
+
+- a **place** of the plan (Home, Bank box, Lawyer …): everything kept
+  there;
+- a **vault's password** the layer's person knows;
+- a **passphrase** the layer's person knows.
+
+Examples: "Owner: Home, Vault 1's password"; "Spouse: Home, Office,
+Vault 2's password"; "Heirs: Home, Bank box, Lawyer".
+
+Presets, which the person renames, adds to and changes: **Owner**;
+**Owner and family**; **Owner, family and heirs**. There are no layers
+that must not spend; the stranger of §20.2 is the one rule against.
+
+A layer is "met" when, with only its list, the wallet can be rebuilt and
+spent: at least `m` of its seeds (each with its passphrase where it has
+one) and the description, whole or from enough shares (`check`, as the
+board counts today). A vault counts only for a layer that has its
+password; a written vault password (§20.4) counts for any layer that
+has the place it is kept at.
+
+### 20.2 The stranger
+
+A **stranger** knows nothing and finds places. The plan's **stranger
+margin** is the largest `k` such that a stranger who finds any `k`
+places cannot spend. Faraday makes it as large as the wallet and the
+layers allow: with more seeds, a larger quorum or more places it can
+grow (a 3-of-5 leaves more room than a 2-of-3). A margin of at least 1
+(no one place alone spends) is required unless a layer's list is one
+place with no password, which makes that place alone spend; the board
+then warns.
+
+Second, as far as it does not lower the margin: the number of places a
+stranger must find to see the balance (the description) is made as
+large as it can be.
+
+### 20.3 Working it out
+
+**Who can spend** is a card after **Start from** and before the board
+(§19). Its **Work it out** runs the search and fills the board:
+
+1. Over the plan's places, seeds, the description and its shares, and
+   the vaults, Faraday chooses where each is kept and in what form
+   (paper, a file on a stick, sealed in a vault) so that every layer is
+   met.
+2. Among the placements that meet every layer it keeps those with the
+   largest stranger margin, then the largest margin for the balance,
+   then the fewest things kept (copies, sticks, vaults, written
+   passwords), then the fewest secrets kept unsealed.
+3. The board shows the result. The person may change anything on it;
+   every change checks every layer again and the margin, as lines at
+   the top of the list column: one per layer ("Heirs: Home, Bank box,
+   Lawyer · can spend") and "A stranger who finds any 2 places cannot
+   spend". A layer no longer met, or a margin lowered, is a warning
+   line, never a refusal (§19.5).
+
+The search runs on the press, never while drawing. It is exhaustive over
+the plan's places and seeds, which are few; where it would take longer
+than the spec's bound (to be measured on the slow laptop, SPEED §7) it
+shows the best placement found and says it is the best found.
+
+### 20.4 Conflicts
+
+When no placement meets every layer, or meets them only with a margin
+of 0, Faraday says which layers conflict and why, in one line each
+("Spouse with Home alone and a stranger at Home cannot both hold: Home
+alone would spend"), and offers what would resolve it, each a press:
+
+- add a place to a layer's list, or a new place;
+- give a layer a vault's password, or write a vault's password on paper
+  at a place (a new thing on the board, **Vault n's password**, kept as
+  words on paper only, Secret);
+- add a vault;
+- for a wallet still being made, a larger quorum or more seeds (only
+  where the wallet's shape is not yet fixed).
+
+### 20.5 Instructions, by hand
+
+The map of who reaches what is sensitive: it is not printed and not
+written to any file. For each layer Faraday shows, on screen only, a
+template to copy out by hand: the places to go to, in order, and what
+to take from each; the secrets needed, by name only ("the password you
+were told for Vault 1"), never the secret; what to open and restore
+with. Leaving the screen leaves nothing.
+
+### 20.6 What it adds to the plan
+
+The layers are part of the plan: kept with it (plan text, the vault's
+plan record) and read back with it. A plan saved before this has no
+layers and reads as one layer, "Owner", able to spend with everything.
+
+### 20.7 Open
+
+- The bound on the search's time, measured before it is built.
+- Whether a layer's list may name "any two of" a set of places (a
+  spouse who may reach either of two offices).
+- Batches, tests and DESIGN rows, when it is scheduled.

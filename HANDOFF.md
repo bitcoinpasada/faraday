@@ -2786,6 +2786,15 @@ as possible before the next build.
     the narrow column, §17's strings; then the owner tests on the
     stick before F3.
 
+79. [ ] 2026-10-16, owner: **who can spend** (`docs/BACKUP-FLOW.md` §20,
+    F38). Layers of access (owner, family, heirs), each a list of what
+    it is able to spend with: places, and the vault passwords and
+    passphrases its person knows. Faraday works out the board so every
+    layer can spend and a stranger who finds as many places as possible
+    still cannot; conflicts explained with what would resolve them;
+    each layer's instructions shown on screen, copied by hand. Specified,
+    not built; after item 78's F3.
+
 80. [ ] 2026-10-16, owner: **Restore ends on a choice**
     (`docs/NEW-WALLET.md` §12.3; tracker issue 134). A restored wallet
     landed in the backup flow; Restore now ends on Done every time, with
