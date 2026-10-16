@@ -1715,3 +1715,15 @@ though its state was kept.
   opened from, with its name and open step; a press returns to it as
   it was left. The small Home leads with a tile for each.
 - The same for every flow: wallet, vault and tool flows alike.
+
+### F42 Restart beside Power off, with the BIOS key (2026-10-16)
+
+**Why.** Turning Secure Boot back on means opening the BIOS at the next
+start; the power sheet offered only Power off.
+
+**Decision** (owner, 2026-10-16; `docs/FLOWS.md`, Restart).
+
+- The power sheet on the PC stick and the Pi offers **Restart** beside
+  **Power off**, with the same holds and the same wiping.
+- Where the Secure Boot reminder shows, the sheet also shows this
+  computer's **BIOS key**, from its maker page.

@@ -2817,6 +2817,12 @@ as possible before the next build.
     left; the small Home leads with a tile for each. Survey first which
     screens keep their state. Specified, not built.
 
+82. [ ] 2026-10-16, owner: **Restart on the power sheet**
+    (`docs/FLOWS.md`, Restart; F42). Restart beside Power off on the
+    PC stick and the Pi, ending in `reboot -f` through the inittab;
+    where the Secure Boot reminder shows, a BIOS key row from the
+    maker page. Specified, not built.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:
