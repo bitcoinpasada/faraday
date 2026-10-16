@@ -2235,38 +2235,40 @@ Decided after seeing F2a's board; built in F2b. Where this differs from
    its side panel and Map (a choice: the owner has not ruled on it);
    a narrow window keeps the list as a sheet opened by **Add**.
 
-## 20. Who can spend (F38)
+## 20. Access layers (F38)
 
 (owner, 2026-10-16. Specified, not built; after §19's F3.)
 
-A backup serves more than one person: the wallet's owner, a spouse or
-family, heirs. Each reaches the wallet by a different route, and the
-same things at the same places serve them all, depending on what each
-knows. The person says, for each, what they are able to spend with;
-Faraday works out what goes where so that each of them can, and so that
-a stranger who finds places cannot.
+A backup may serve more than one access layer. Each layer reaches the
+wallet by its own route, and the same things at the same places serve
+every layer, depending on what each layer knows. The person says, for
+each layer, what it is able to spend with; Faraday works out what goes
+where so that each layer can, and so that a stranger who finds places
+cannot.
 
-### 20.1 Layers
+### 20.1 Access layers
 
-A **layer** is a name and the list of what it is **able to spend with**.
-An entry in the list is one of:
+An **access layer** ("Access layer 1", "Access layer 2" …) is a list of
+what it is **able to spend with**. An entry in the list is one of:
 
-- a **place** of the plan (Home, Bank box, Lawyer …): everything kept
+- a **place** of the plan ("Place 1", "Place 2" …): everything kept
   there;
-- a **vault's password** the layer's person knows;
-- a **passphrase** the layer's person knows.
+- a **vault's password** known to the layer;
+- a **passphrase** known to the layer.
 
-Examples: "Owner: Home, Vault 1's password"; "Spouse: Home, Office,
-Vault 2's password"; "Heirs: Home, Bank box, Lawyer".
+Examples: "Access layer 1: Place 1, Vault 1's password"; "Access layer
+2: Place 1, Place 2, Vault 2's password"; "Access layer 3: Place 1,
+Place 3, Place 4".
 
-Presets, which the person renames, adds to and changes: **Owner**;
-**Owner and family**; **Owner, family and heirs**. There are no layers
-that must not spend; the stranger of §20.2 is the one rule against.
+The board starts with one access layer; **+ layer** adds one and × on a
+layer removes it. Presets give one, two or three layers. There are no
+layers that must not spend; the stranger of §20.2 is the one rule
+against.
 
 A layer is "met" when, with only its list, the wallet can be rebuilt and
 spent: at least `m` of its seeds (each with its passphrase where it has
 one) and the description, whole or from enough shares (`check`, as the
-board counts today). A vault counts only for a layer that has its
+board counts today). A vault counts only for a layer that knows its
 password; a written vault password (§20.4) counts for any layer that
 has the place it is kept at.
 
@@ -2287,7 +2289,7 @@ large as it can be.
 
 ### 20.3 Working it out
 
-**Who can spend** is a card after **Start from** and before the board
+**Access layers** is a card after **Start from** and before the board
 (§19). Its **Work it out** runs the search and fills the board:
 
 1. Over the plan's places, seeds, the description and its shares, and
@@ -2300,10 +2302,10 @@ large as it can be.
    passwords), then the fewest secrets kept unsealed.
 3. The board shows the result. The person may change anything on it;
    every change checks every layer again and the margin, as lines at
-   the top of the list column: one per layer ("Heirs: Home, Bank box,
-   Lawyer · can spend") and "A stranger who finds any 2 places cannot
-   spend". A layer no longer met, or a margin lowered, is a warning
-   line, never a refusal (§19.5).
+   the top of the list column: one per layer ("Access layer 3: Place 1,
+   Place 3, Place 4 · can spend") and "A stranger who finds any 2 places
+   cannot spend". A layer no longer met, or a margin lowered, is a
+   warning line, never a refusal (§19.5).
 
 The search runs on the press, never while drawing. It is exhaustive over
 the plan's places and seeds, which are few; where it would take longer
@@ -2314,8 +2316,9 @@ shows the best placement found and says it is the best found.
 
 When no placement meets every layer, or meets them only with a margin
 of 0, Faraday says which layers conflict and why, in one line each
-("Spouse with Home alone and a stranger at Home cannot both hold: Home
-alone would spend"), and offers what would resolve it, each a press:
+("Access layer 2 with Place 1 alone and a stranger at Place 1 cannot
+both hold: Place 1 alone would spend"), and offers what would resolve
+it, each a press:
 
 - add a place to a layer's list, or a new place;
 - give a layer a vault's password, or write a vault's password on paper
@@ -2327,22 +2330,22 @@ alone would spend"), and offers what would resolve it, each a press:
 
 ### 20.5 Instructions, by hand
 
-The map of who reaches what is sensitive: it is not printed and not
-written to any file. For each layer Faraday shows, on screen only, a
+The map of which layer reaches what is sensitive: it is not printed and
+not written to any file. For each layer Faraday shows, on screen only, a
 template to copy out by hand: the places to go to, in order, and what
-to take from each; the secrets needed, by name only ("the password you
-were told for Vault 1"), never the secret; what to open and restore
-with. Leaving the screen leaves nothing.
+to take from each; the secrets needed, by name only ("Vault 1's
+password"), never the secret; what to open and restore with. Leaving
+the screen leaves nothing.
 
 ### 20.6 What it adds to the plan
 
 The layers are part of the plan: kept with it (plan text, the vault's
 plan record) and read back with it. A plan saved before this has no
-layers and reads as one layer, "Owner", able to spend with everything.
+layers and reads as one layer, Access layer 1, able to spend with
+everything.
 
 ### 20.7 Open
 
 - The bound on the search's time, measured before it is built.
-- Whether a layer's list may name "any two of" a set of places (a
-  spouse who may reach either of two offices).
+- Whether a layer's list may name "any two of" a set of places.
 - Batches, tests and DESIGN rows, when it is scheduled.
