@@ -1,6 +1,6 @@
 [package]
 name = "faraday-mediafoundation"
-version = "0.1.3"
+version = "0.1.4"
 description = "Media Foundation capture through one small C file: the Windows twin of opensigner-avfoundation"
 edition.workspace = true
 license.workspace = true
