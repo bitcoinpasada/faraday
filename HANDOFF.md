@@ -2793,8 +2793,12 @@ as possible before the next build.
     to it. Faraday works out the board so every layer can spend and a
     stranger who finds as many places as possible still cannot;
     conflicts explained with what would resolve them; each layer's
-    instructions shown on screen, copied by hand. Specified, not built;
-    after item 78's F3.
+    instructions shown on screen, copied by hand. A layer has routes,
+    each "any k of" its places, and a paper route is offered (§20.9).
+    Create a wallet and Back up start with questions whose answers
+    suggest the wallet (single-key or a standard multisig quorum);
+    "I know what I want" and "The standard way" skip them (§20.10,
+    §20.11). Specified, not built; after item 78's F3.
 
 80. [ ] 2026-10-16, owner: **Restore ends on a choice**
     (`docs/NEW-WALLET.md` §12.3; tracker issue 134). A restored wallet

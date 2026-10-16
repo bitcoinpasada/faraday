@@ -108,6 +108,11 @@ it describes the bar.
 
 ### 2.1 Create and New key open on step 1
 
+*(To come, owner 2026-10-16: Create a wallet starts with a choice
+between **Plan the backup first**, whose questions suggest the wallet,
+and **I know what I want**, which opens Kind as below. Specified in
+`docs/BACKUP-FLOW.md` §20.11, not built.)*
+
 **What.** Create a wallet opens with **Kind** open, whatever opened it
 (Wallets, Home, a Tools tile with its kind already ticked). Kind's
 Continue closes it as done and opens the next card. New key opens with
