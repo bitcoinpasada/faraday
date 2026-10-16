@@ -172,6 +172,23 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   it. Fewer bytes cross to the framebuffer each frame, and the window in
   which the beam can catch a frame half written is shorter. The frame
   count and the 60 Hz grid still follow the core's draws, not the bytes.
+- **The stick's cursor moves by the arrow's scale** (2026-10-16, F43;
+  owner: the mouse was slow on a Dell XPS 13 9360 with its 3200×1800
+  screen, fine on HP, Lenovo and Beelink at 1920×1080 and below). One
+  mouse count moved the cursor one panel pixel, so a dense screen took
+  up to three times the hand movement to cross. Now one count moves it
+  by the arrow's own scale (`cursor::scale`, a whole number from the
+  panel's short side: 1 below 1,800 lines, 2 at 1,800 to 2,999, 3 from
+  3,000), times `--pointer-speed` as before: the cursor moves through
+  the panel as a desktop's moves through its scaled pixels, and a
+  3200×1800 panel crosses like a 1600×900 one. A touchpad's moves are
+  scaled the same; the tap's travel limit (`TAP_TRAVEL_PX`) and a
+  two-finger pan are measured in the same scaled steps, so a tap is as
+  easy at any density. Still no acceleration. Not built. Tests
+  (`cursor.rs`): 100 counts right move the cursor 100 pixels on a
+  1920×1080 panel and 200 on a 3200×1800 one; the cursor stops at the
+  panel's edge at either; a tap at 3200×1800 that travels 5 counts is
+  still a tap.
 - `faraday --timings` prints once a second what the frames cost on the
   machine it runs on: the render, the copy into the window, and the time
   from one frame to the next while something moved. A frame-to-frame
