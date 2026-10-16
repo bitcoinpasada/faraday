@@ -78,7 +78,7 @@ pub const CUSTOM_PASSES: [u32; 7] = [2, 3, 4, 5, 6, 8, 10];
 /// The kinds a vault's contents are listed by, with the record types each
 /// shows.
 pub const CATEGORIES: [(&str, &[u8]); 7] = [
-    (EN.vaults_bitcoin_keys, &[kind::KEY]),
+    (EN.vaults_bitcoin_keys, &[kind::KEY, kind::PASSPHRASE]),
     (EN.vaults_wallets, &[kind::WALLET, kind::WALLET_SHARE]),
     (EN.vaults_entries, &[kind::ENTRY]),
     (EN.vaults_notes, &[kind::NOTE, kind::SHEET]),
@@ -718,7 +718,8 @@ pub struct Vaults {
     /// What the last check said.
     pub sb_checked: Option<String>,
     /// Key fingerprints worked out for the contents screen, by the
-    /// SHA-256 of the key's payload: deriving one takes 2048 rounds.
+    /// SHA-256 of the key's payload and the passphrase stored with it:
+    /// deriving one takes 2048 rounds. In memory only.
     pub fingerprints: std::cell::RefCell<Vec<([u8; 32], String)>>,
     draws: u64,
 }
@@ -2553,10 +2554,13 @@ impl Faraday {
             }
             let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
             if let Some(m) = records::words_of(r) {
+                // Stored with the key, or kept alone in an open vault.
+                let pass = match r.text(field::KEY_PASSPHRASE) {
+                    Some(p) => Zeroizing::new(p.to_string()),
+                    None => self.passphrase_kept_for(&m).unwrap_or_default(),
+                };
                 words.push((phrase_of(&m), label));
-                passphrases.push(Zeroizing::new(
-                    r.text(field::KEY_PASSPHRASE).unwrap_or("").to_string(),
-                ));
+                passphrases.push(pass);
             } else if let Some(seed) = seed_of(r) {
                 seeds.push((seed, label));
             }
@@ -2724,7 +2728,12 @@ impl Faraday {
                 let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
                 let added = match records::words_of(r) {
                     Some(m) => {
-                        let p = r.text(field::KEY_PASSPHRASE).unwrap_or("").to_string();
+                        // Stored with the key, or kept alone in an open
+                        // vault (`docs/BACKUP-FLOW.md` §19.12 item 4).
+                        let p = match r.text(field::KEY_PASSPHRASE) {
+                            Some(p) => Zeroizing::new(p.to_string()),
+                            None => self.passphrase_kept_for(&m).unwrap_or_default(),
+                        };
                         self.session.add_mnemonic(&m, &p, &label, None)
                     }
                     None => match seed_of(r) {
@@ -3007,6 +3016,33 @@ impl Faraday {
                 &fill(EN.vaults_is_in_the_vault, &[&label.to_string()]),
             );
         }
+    }
+
+    /// Costs a BIP-39 seed and a master key per passphrase record tried:
+    /// the passphrase an open vault keeps alone (a type 14 record,
+    /// `docs/BACKUP-FLOW.md` §19.12 item 4) for the key the words `m` make
+    /// with it, found by the fingerprint the record names.
+    pub(crate) fn passphrase_kept_for(
+        &self,
+        m: &osk_bip::bip39::Mnemonic,
+    ) -> Option<Zeroizing<String>> {
+        for open in &self.vaults.open {
+            for (_, r) in open.contents.of(kind::PASSPHRASE) {
+                let (Some(fp), Some(p)) =
+                    (r.field(field::PASSPHRASE_KEY), r.text(field::PASSPHRASE))
+                else {
+                    continue;
+                };
+                let Ok(seed) = m.to_seed(p.as_bytes()) else {
+                    continue;
+                };
+                let master = osk_bip::keys::MasterKey::from_seed(&seed, self.session.network());
+                if master.fingerprint().0[..] == *fp {
+                    return Some(Zeroizing::new(p.to_string()));
+                }
+            }
+        }
+        None
     }
 
     /// Session key `k` as the vault's key record, loaded at unlock, and

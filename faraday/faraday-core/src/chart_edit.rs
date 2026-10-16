@@ -205,7 +205,9 @@ impl Faraday {
         let shape = self.plan_shape(w);
         let boxes = plan::map(&shape, &answers);
         let dest: Vec<(What, Option<usize>)> = match edit {
-            Edit::RemovePlace(p) => boxes
+            // Each thing the place keeps, its sticks' too, as the chart
+            // lists them.
+            Edit::RemovePlace(p) => plan::by_place(&boxes)
                 .iter()
                 .filter(|s| s.at == At::Place(p))
                 .flat_map(|s| s.holds.iter().map(|(w, _)| *w))

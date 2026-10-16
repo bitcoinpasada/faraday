@@ -35,6 +35,10 @@ use crate::{Faraday, Item, forms, stem};
 pub enum SeedSource {
     /// A text file of BIP-39 words.
     Words(usize),
+    /// A text file of BIP-39 words, with its BIP-39 passphrase in a file
+    /// of its own, `passphrase-{fingerprint}.txt`, the fingerprint the
+    /// words make with it (`docs/BACKUP-FLOW.md` §19.12 items 5 and 6).
+    WordsWith(usize, usize),
     /// SLIP-39 shares that add up, by Inbox place.
     Slip39(Vec<usize>),
     /// A codex32 secret, or shares of it that add up.
@@ -47,7 +51,9 @@ impl SeedSource {
     /// What the source is called on screen.
     pub fn name(&self, app: &Faraday) -> String {
         match self {
-            SeedSource::Words(k) => app.inbox.get(*k).map_or(String::new(), |i| i.name.clone()),
+            SeedSource::Words(k) | SeedSource::WordsWith(k, _) => {
+                app.inbox.get(*k).map_or(String::new(), |i| i.name.clone())
+            }
             SeedSource::Slip39(ks) => fill(EN.inbox_slip_39_shares_2, &[&ks.len().to_string()]),
             SeedSource::Codex32(ks) if ks.len() == 1 => "codex32".to_string(),
             SeedSource::Codex32(ks) => fill(EN.inbox_codex32_shares, &[&ks.len().to_string()]),
@@ -284,7 +290,9 @@ impl Faraday {
                 .map(|i| Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
         };
         match source {
-            SeedSource::Words(k) => words_of(&text(k)?).map(Secret::Words),
+            SeedSource::Words(k) | SeedSource::WordsWith(k, _) => {
+                words_of(&text(k)?).map(Secret::Words)
+            }
             SeedSource::Slip39(ks) => {
                 let shares: Vec<slip39::Share> = ks
                     .iter()
@@ -319,12 +327,19 @@ impl Faraday {
     fn source_fingerprint(&self, items: &[Item], source: &SeedSource) -> Option<Fingerprint> {
         let tag: &[u8] = match source {
             SeedSource::Words(_) => b"words",
+            SeedSource::WordsWith(..) => b"words+passphrase",
             SeedSource::Slip39(_) => b"slip39",
             SeedSource::Codex32(_) => b"codex32",
             SeedSource::Loaded => return None,
         };
         let material: Vec<u8> = match source {
             SeedSource::Words(k) => items.get(*k)?.bytes.clone(),
+            SeedSource::WordsWith(k, p) => {
+                let mut v = items.get(*k)?.bytes.clone();
+                v.push(0);
+                v.extend_from_slice(&items.get(*p)?.bytes);
+                v
+            }
             SeedSource::Slip39(ks) | SeedSource::Codex32(ks) => ks
                 .iter()
                 .filter_map(|k| items.get(*k))
@@ -335,9 +350,30 @@ impl Faraday {
         let material = Zeroizing::new(material);
         self.fingerprint_memo(tag, &material, || {
             self.secret_in(items, source)?
-                .master("", &self.session)
+                .master(&self.source_passphrase(items, source), &self.session)
                 .map(|m| m.fingerprint())
         })
+    }
+
+    /// The passphrase a seed source among `items` brings: a passphrase
+    /// file's one line, else none.
+    pub(crate) fn source_passphrase(
+        &self,
+        items: &[Item],
+        source: &SeedSource,
+    ) -> Zeroizing<String> {
+        let SeedSource::WordsWith(_, p) = source else {
+            return Zeroizing::new(String::new());
+        };
+        let Some(item) = items.get(*p) else {
+            return Zeroizing::new(String::new());
+        };
+        let text = Zeroizing::new(String::from_utf8_lossy(&item.bytes).into_owned());
+        let line = text
+            .strip_suffix('\n')
+            .map(|t| t.strip_suffix('\r').unwrap_or(t))
+            .unwrap_or(&text);
+        Zeroizing::new(line.to_string())
     }
 
     /// Everything the Inbox gives, put together.
@@ -371,8 +407,34 @@ impl Faraday {
                 }
             };
         let loaded_fp = |fp: Fingerprint| self.session.keys.iter().any(|k| k.fingerprint() == fp);
+        // A passphrase file a stick keeps beside a seed's words, named by
+        // the fingerprint the words make with it (`docs/BACKUP-FLOW.md`
+        // §19.12 item 6): the words with it are that key, and the words
+        // alone no seed of their own.
+        let passphrase_files: Vec<(usize, String)> = items
+            .iter()
+            .enumerate()
+            .filter_map(|(k, it)| {
+                let fp = it.name.strip_prefix("passphrase-")?.strip_suffix(".txt")?;
+                (fp.len() == 8 && fp.bytes().all(|b| b.is_ascii_hexdigit()))
+                    .then(|| (k, fp.to_ascii_lowercase()))
+            })
+            .collect();
         for (k, item) in items.iter().enumerate() {
             if item.kind != FileKind::Words {
+                continue;
+            }
+            let mut with = false;
+            for (p, name) in &passphrase_files {
+                let src = SeedSource::WordsWith(k, *p);
+                if let Some(fp) = self.source_fingerprint(items, &src)
+                    && fp_text(fp).eq_ignore_ascii_case(name)
+                {
+                    add_seed(&mut found, fp, stem(&item.name), src, loaded_fp(fp));
+                    with = true;
+                }
+            }
+            if with {
                 continue;
             }
             let src = SeedSource::Words(k);
@@ -696,8 +758,13 @@ impl Faraday {
                 {
                     continue;
                 }
+                let pass = s
+                    .sources
+                    .first()
+                    .map(|src| self.source_passphrase(items, src))
+                    .unwrap_or_default();
                 if let Some(secret) = s.sources.first().and_then(|src| self.secret_in(items, src))
-                    && secret.add("", &s.label, &mut self.session).is_ok()
+                    && secret.add(&pass, &s.label, &mut self.session).is_ok()
                 {
                     keys += 1;
                 }
@@ -967,9 +1034,16 @@ impl Faraday {
         } else {
             fill(EN.inbox_with_passphrase, &[&seed.label.to_string()])
         };
+        // A passphrase file beside the words, where none is typed.
+        let kept = seed
+            .sources
+            .first()
+            .map(|src| self.source_passphrase(&self.inbox, src))
+            .unwrap_or_default();
         // The key itself: already loaded with no passphrase, or added now.
         let added = match (&secret, pass.is_empty()) {
             (_, true) if seed.loaded => Ok(seed.fingerprint),
+            (Some(s), true) => s.add(&kept, &label, &mut self.session),
             (Some(s), _) => s.add(&pass, &label, &mut self.session),
             (None, false) => {
                 let words = self

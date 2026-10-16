@@ -1,7 +1,9 @@
 # Speed in long flows
 
-**Status: 2026-10-16, batches A and B built, waiting for the owner's
-check on the stick; C next; D not needed (§6); E in faraday-website.
+**Status: 2026-10-16, batches A and B built and checked by the owner on
+the slow laptop's stick; C next, after BACKUP-FLOW §19's F batches; D
+measured at the stick's high-density sizes before it is decided (§6); E
+in faraday-website.
 §7 is a standing rule (owner). Tracker issue 119 and its sub-issues
 120–130.**
 
@@ -400,9 +402,14 @@ What is left after B, from stacks sampled at 1366×768:
 The glyph cache (§3.8): at 2560×1600 scale 2 no screen measured (the
 checklist at every stage, the Wallets page, Create's Keys card) cleared
 it, in a frame, a scroll or the whole session; the most it held was
-171,800 of its 262,144 bytes. Batch D is not built. At a layout scale
-of about 2.5 a dense screen's glyphs would pass the budget (estimated
-from the area, not measured).
+171,800 of its 262,144 bytes. At a layout scale of about 2.5, which
+the stick reaches full screen on a high-density panel, a dense screen's
+glyphs would pass the budget (estimated from the area, not measured).
+Batch D waits for that measurement at the stick's full-screen sizes on
+high-density panels.
+
+The owner's check (2026-10-16): the stick built from batch B, on the
+slow laptop, through the same flow: quick throughout.
 
 ## 7. Standing rule: a late-flow frame is timed (owner, 2026-10-15)
 

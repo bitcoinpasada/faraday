@@ -2045,6 +2045,20 @@ pub(crate) fn picture_names(name: &str, part: &str, text: &str) -> Vec<String> {
         .collect()
 }
 
+/// Splits `text` into BBQr parts when it needs more than one code: what
+/// each picture [`picture_codes`] makes of `text` holds, in the order
+/// [`picture_names`] names them: the text itself for one code, else each
+/// BBQr part. No code is drawn.
+pub(crate) fn picture_payloads(text: &str) -> Vec<Vec<u8>> {
+    use osk_codec::qr::{Ecc, byte_capacity};
+    if text.len() <= byte_capacity(25, Ecc::Medium) {
+        return vec![text.as_bytes().to_vec()];
+    }
+    faraday_qr::bbqr::encode('U', text.as_bytes(), QR_PARTS[1])
+        .map(|parts| parts.into_iter().map(String::into_bytes).collect())
+        .unwrap_or_default()
+}
+
 /// The line that names a cosigner's key under its code: `Key {fp} ·
 /// {kind} · {path}`, the path read from the key's `[fp/path]` origin.
 fn key_label(fp: &str, kind: &str, key: &str) -> String {
@@ -2326,6 +2340,11 @@ pub struct BackupState {
     /// into it ([`Faraday::vault_tokens`]): the flow's round never takes
     /// it out (`docs/BACKUP-FLOW.md` §17). Never a secret.
     pub before: Vec<([u8; 32], Vec<String>)>,
+    /// The seeds, by fingerprint as text, whose files on a stick the
+    /// person has let out unprotected past the secret sheet's warning:
+    /// **Lock and write** makes a seed's file only once it is here
+    /// (`docs/BACKUP-FLOW.md` §19.12 item 6). Never a secret.
+    pub files_warned: Vec<String>,
 }
 
 /// Signing a message: the cards' state.
@@ -3708,6 +3727,17 @@ impl Faraday {
             StorageEvent::Read { stick, name, bytes } if self.flow_wants_read(&stick, &name) => {
                 self.flow_read_answer(&name, Some(bytes));
             }
+            // A picture the write step wrote, read back for its codes.
+            StorageEvent::QrRead {
+                name,
+                bytes,
+                payloads,
+            } if self.flow_wants_qr(&name) => {
+                self.flow_qr_answer(&name, Some((bytes, payloads)));
+            }
+            StorageEvent::ReadFailed { name, .. } if self.flow_wants_qr(&name) => {
+                self.flow_qr_answer(&name, None);
+            }
             StorageEvent::ReadFailed { stick, name, .. } if self.flow_wants_read(&stick, &name) => {
                 self.flow_read_answer(&name, None);
             }
@@ -4480,6 +4510,20 @@ impl Faraday {
         self.save_boxes();
     }
 
+    /// What a write's record keeps of a file written with this SHA-256:
+    /// the hash, or nothing (all zeros) for a secret waiting in the Outbox
+    /// or the Inbox, since a receipt and a flow's sticks are kept across a
+    /// lock and a hash of a seed's words or a passphrase is derived from
+    /// it. Hashes each file there that is a secret.
+    pub(crate) fn hash_to_keep(&self, hash: [u8; 32]) -> [u8; 32] {
+        let secret = self
+            .outbox
+            .iter()
+            .chain(self.inbox.iter())
+            .any(|i| i.exposure() == secrets::Exposure::Secret && sha256_of(&i.bytes) == hash);
+        if secret { [0; 32] } else { hash }
+    }
+
     /// A write's answer onto the receipt: the first answer of a write
     /// replaces the last receipt with a new one (`docs/SIMPLIFY.md` §4.3).
     fn receipt_add(&mut self, name: &str, failure: Option<String>) {
@@ -4505,6 +4549,7 @@ impl Faraday {
         if sent.is_empty() {
             self.visit.writing = None;
         }
+        let hash = self.hash_to_keep(hash);
         if let Some(r) = self.receipt.as_mut() {
             r.files.push(ReceiptFile {
                 name,
@@ -7747,7 +7792,45 @@ impl Faraday {
         self.session.wallets.get(b.wallet)?;
         let (own_seeds, _) = self.backup_vault_seeds(v);
         let shares = !self.backup_vault_shares(v).is_empty();
-        (!own_seeds.is_empty() || b.answers.wallet_in_vault(v) || shares).then_some(())
+        let passphrases = !self.backup_vault_passphrases(v).is_empty();
+        (!own_seeds.is_empty() || b.answers.wallet_in_vault(v) || shares || passphrases)
+            .then_some(())
+    }
+
+    /// The session keys whose passphrase the plan keeps alone in vault
+    /// `v`, as a passphrase record (`docs/BACKUP-FLOW.md` §19.12 item 4):
+    /// a key with a passphrase only.
+    pub(crate) fn backup_vault_passphrases(&self, v: usize) -> Vec<usize> {
+        let Some(b) = self.backup.as_ref() else {
+            return Vec::new();
+        };
+        let shape = self.plan_shape(b.wallet);
+        let list = self.backup_seed_list(b.wallet);
+        b.answers
+            .vault_passphrases(&shape, v)
+            .into_iter()
+            .filter_map(|i| list.get(i)?.1)
+            .filter(|&k| {
+                self.session
+                    .keys
+                    .get(k)
+                    .is_some_and(|key| key.passphrase.as_ref().is_some_and(|p| !p.is_empty()))
+            })
+            .collect()
+    }
+
+    /// Whether open vault `o` holds session key `k`'s passphrase as a
+    /// passphrase record: its fingerprint and its passphrase.
+    pub(crate) fn vault_holds_passphrase(&self, o: usize, k: usize) -> bool {
+        use faraday_vault::records::{field, kind};
+        let (Some(open), Some(key)) = (self.vaults.open.get(o), self.session.keys.get(k)) else {
+            return false;
+        };
+        let fp = key.fingerprint().0;
+        open.contents.of(kind::PASSPHRASE).any(|(_, r)| {
+            r.field(field::PASSPHRASE_KEY) == Some(&fp[..])
+                && r.text(field::PASSPHRASE) == key.passphrase.as_ref().map(|p| p.as_str())
+        })
     }
 
     /// The shares the plan keeps in vault `v`, each with its text and how
@@ -7807,6 +7890,10 @@ impl Faraday {
                 .backup_vault_shares(v)
                 .iter()
                 .all(|(j, text, _)| self.vault_holds_share(o, w.checksum(), *j, text))
+            && self
+                .backup_vault_passphrases(v)
+                .iter()
+                .all(|&k| self.vault_holds_passphrase(o, k))
     }
 
     /// The vault that does the plan's vault `v`: an open vault, or one
@@ -7820,15 +7907,16 @@ impl Faraday {
         let wallet_too = b.answers.wallet_in_vault(v);
         let (own_seeds, _) = self.backup_vault_seeds(v);
         let shares = !self.backup_vault_shares(v).is_empty();
-        if own_seeds.is_empty() && !wallet_too && !shares {
+        let passphrases = !self.backup_vault_passphrases(v).is_empty();
+        if own_seeds.is_empty() && !wallet_too && !shares && !passphrases {
             return None;
         }
         if let Some(o) = self.backup_vault_open(v) {
             return Some(self.vaults.open[o].name.clone());
         }
-        // A locked vault's summary lists no shares: a vault that is to
-        // hold one is done only while it is open.
-        if shares {
+        // A locked vault's summary lists no shares and no passphrases: a
+        // vault that is to hold one is done only while it is open.
+        if shares || passphrases {
             return None;
         }
         let (own, others) = self.backup_vault_keys(v);
@@ -8001,11 +8089,14 @@ impl Faraday {
             let name = names.get(p).map_or("", |n| n.trim());
             record.push(field::PLAN_PLACE, name.as_bytes());
         }
-        for spot in plan::map(&shape, answers) {
+        // A place with what its sticks keep.
+        for spot in plan::place_map(&shape, answers) {
             let at = match spot.at {
                 // The map's field names a place by number only; the name
                 // itself lives in field 3 (`field::PLAN_PLACE`) alone.
-                plan::At::Place(p) => fill(EN.plan_store_place, &[&(p + 1).to_string()]),
+                plan::At::Place(p) | plan::At::Stick(p, _) => {
+                    fill(EN.plan_store_place, &[&(p + 1).to_string()])
+                }
                 plan::At::Vault(v) => answers.vault_name(&shape, v),
                 plan::At::Files => fill(EN.plan_store_of_files, &[self.medium.cap()]),
                 plan::At::Software => EN.plan_store_watch_only.to_string(),

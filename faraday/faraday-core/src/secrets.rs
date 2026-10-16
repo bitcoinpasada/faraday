@@ -88,6 +88,11 @@ pub struct SecretOut {
     /// An Inbox file a stick visit would write to another stick: past the
     /// warning it is ticked on the visit, and goes nowhere else.
     pub to_visit: bool,
+    /// The warning **Lock and write** asks for before it makes a seed's
+    /// files on a stick (`docs/BACKUP-FLOW.md` §19.12 item 6), for the
+    /// seed of this fingerprint (as text): past it, the seed is let out
+    /// and the lock goes on. Such a sheet holds no bytes.
+    pub to_lock: Option<String>,
 }
 
 /// What a secret becomes in a vault.
@@ -155,6 +160,7 @@ impl SecretOut {
             form: 0,
             ack: Ack::Any,
             to_visit: false,
+            to_lock: None,
         }
     }
 }
@@ -276,6 +282,7 @@ impl Faraday {
             form: 0,
             ack: Ack::Seed,
             to_visit: false,
+            to_lock: None,
         };
         self.offer_secret(out);
     }
@@ -396,6 +403,16 @@ impl Faraday {
         // from the Inbox when the person presses Write.
         if out.to_visit {
             self.visit.from_inbox.insert(out.name.clone());
+            return;
+        }
+        // The seed's files on a stick, let out: Lock and write goes on.
+        if let Some(fp) = out.to_lock {
+            if let Some(b) = self.backup.as_mut()
+                && !b.files_warned.contains(&fp)
+            {
+                b.files_warned.push(fp);
+            }
+            self.wallet_lock_write();
             return;
         }
         if matches!(out.keep, Keep::Round(_))

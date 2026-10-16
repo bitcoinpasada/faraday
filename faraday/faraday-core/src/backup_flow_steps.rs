@@ -258,7 +258,7 @@ impl Faraday {
             return false;
         }
         match s.target {
-            Target::Place(_) | Target::PlaceVault(..) => {
+            t if t.vault_stick() => {
                 if !f.adding {
                     return true;
                 }
@@ -540,6 +540,7 @@ impl Faraday {
                 Target::Place(q) if q > p => Target::Place(q - 1),
                 Target::PlaceVault(q, v) if q > p => Target::PlaceVault(q - 1, v),
                 Target::PlaceFiles(q) if q > p => Target::PlaceFiles(q - 1),
+                Target::Another(q, v, n) if q > p => Target::Another(q - 1, v, n),
                 t => t,
             };
         }
@@ -625,6 +626,11 @@ impl Faraday {
     /// **One stick for both**: a place that keeps several vaults keeps them
     /// on one stick, or on one each.
     fn flow_together(&mut self, i: usize, p: usize) {
+        // A wallet's sticks are its map's, a vault on each
+        // (`docs/BACKUP-FLOW.md` §19.4).
+        if self.backup_flows[i].kind.is_wallet() {
+            return;
+        }
         let f = &mut self.backup_flows[i];
         if f.plan.places.get(p).is_none_or(|vs| vs.len() < 2) {
             return;
@@ -2225,10 +2231,17 @@ impl Faraday {
             let Some(w) = &s.written else {
                 continue;
             };
+            // A vault file by its SHA-256; a file beside it, which is not
+            // read, by its name in the listing (a stick of files holds no
+            // vault, `docs/BACKUP-FLOW.md` §19.4).
             let holds = r
                 .files
                 .iter()
-                .any(|(vr, _)| w.files.iter().any(|(_, sha)| *sha == vr.sha));
+                .any(|(vr, _)| w.files.iter().any(|(_, sha)| *sha == vr.sha))
+                || w.files.iter().any(|(n, _)| {
+                    !n.to_ascii_lowercase().ends_with(".ofv")
+                        && r.listing.iter().any(|(x, _)| x == n)
+                });
             if holds && w.label == r.label && w.serial == r.serial {
                 let mine = f.vaults_of(r.slot);
                 let theirs = f.vaults_of(k);
@@ -2352,13 +2365,14 @@ impl Faraday {
             .map(|s| s.files.clone())
             .unwrap_or_default();
         names.extend(f.last_write_files(slot));
-        // The seeds a wallet's plan keeps as files, which the person let
-        // out unprotected on the secret sheet, go to the stick of files and
-        // to no other.
+        // The seeds' files a wallet's plan keeps, let out unprotected,
+        // go to the stick the plan keeps them on and to no other: the stick
+        // of files, or a stick at a place, beside its vault or not
+        // (`docs/BACKUP-FLOW.md` §19.4).
         let files_stick = f
             .slots
             .get(slot)
-            .is_some_and(|s| matches!(s.target, Target::Files | Target::PlaceFiles(_)));
+            .is_some_and(|s| s.target != Target::Public);
         for name in names {
             match self
                 .outbox
@@ -2388,6 +2402,11 @@ impl Faraday {
             .iter()
             .map(|(n, b, _)| (n.clone(), sha256_of(b)))
             .collect();
+        let plain: Vec<String> = sends
+            .iter()
+            .filter(|(_, _, vault)| !vault)
+            .map(|(n, _, _)| n.clone())
+            .collect();
         for (name, bytes, vault) in sends {
             // A vault goes over the copy of its salt and nothing else, or
             // beside what the stick holds; any other file beside under a
@@ -2410,6 +2429,10 @@ impl Faraday {
             target,
             pending,
             done: Vec::new(),
+            plain,
+            retried: Vec::new(),
+            aliases: Vec::new(),
+            qr: Vec::new(),
             label: r.label,
             serial: r.serial,
         });
@@ -2422,7 +2445,9 @@ impl Faraday {
     }
 
     /// A write was answered; `Ok` with the name it was written as, or the
-    /// reason it was not.
+    /// reason it was not. A picture written is read back for its codes
+    /// (`docs/BACKUP-FLOW.md` §19.12 item 10); a file that did not read
+    /// back is written again once, and a second time refuses the stick.
     pub(crate) fn flow_write_answer(&mut self, name: &str, answer: Result<String, String>) {
         let Some(i) = self.fi() else {
             return;
@@ -2434,17 +2459,146 @@ impl Faraday {
             return;
         };
         let (_, sha) = w.pending.remove(k);
+        let meant = w
+            .aliases
+            .iter()
+            .find(|(sent, _)| sent == name)
+            .map_or_else(|| name.to_string(), |(_, m)| m.clone());
+        let plain = w.plain.contains(&meant);
+        let stick = w.id.clone();
+        let picture = self.backup_flows[i]
+            .wallet
+            .as_ref()
+            .is_some_and(|wf| wf.readback.iter().any(|(n, _)| *n == meant));
         match answer {
-            Ok(wrote_as) => w.done.push((wrote_as, sha)),
+            Ok(wrote_as) if picture => {
+                if let Some(w) = self.backup_flows[i].live.writing.as_mut() {
+                    w.qr.push((wrote_as.clone(), meant, sha));
+                }
+                self.storage_out.push_back(StorageCommand::ReadQr {
+                    stick,
+                    name: wrote_as,
+                });
+            }
+            Ok(wrote_as) => {
+                if let Some(w) = self.backup_flows[i].live.writing.as_mut() {
+                    w.done.push((wrote_as, sha));
+                }
+            }
+            Err(_) if plain => return self.flow_write_again(i, &meant, name, false),
             Err(_) => {
                 self.backup_flows[i].live.writing = None;
                 self.flow_refuse(i, Problem::NotChecked);
                 return;
             }
         }
-        if w.pending.is_empty()
-            && let Some(w) = self.backup_flows[i].live.writing.take()
-        {
+        self.flow_write_settle(i);
+    }
+
+    /// Whether the flow on screen waits for picture `name`'s codes, read
+    /// back after its write.
+    pub(crate) fn flow_wants_qr(&self, name: &str) -> bool {
+        self.flow()
+            .and_then(|f| f.live.writing.as_ref())
+            .is_some_and(|w| w.qr.iter().any(|(n, _, _)| n == name))
+    }
+
+    /// A picture read back from the stick it was just written to (its bytes
+    /// and its codes), or `None` where it could not be read: it counts when
+    /// its codes hold what it was made to hold, else it is written again
+    /// once. A public picture is checked against the SHA-256 kept at the
+    /// lock; a SeedQR against the Outbox's picture byte for byte and, while
+    /// its key is loaded, against the digits of the key's words, which are
+    /// written out for the comparison and dropped.
+    pub(crate) fn flow_qr_answer(&mut self, name: &str, read: Option<(Vec<u8>, Vec<Vec<u8>>)>) {
+        use crate::backup_flow::ReadBack;
+        let Some(i) = self.fi() else {
+            return;
+        };
+        let Some(w) = self.backup_flows[i].live.writing.as_mut() else {
+            return;
+        };
+        let Some(k) = w.qr.iter().position(|(n, _, _)| n == name) else {
+            return;
+        };
+        let (wrote_as, meant, sha) = w.qr.remove(k);
+        let want = self.backup_flows[i]
+            .wallet
+            .as_ref()
+            .and_then(|wf| wf.readback.iter().find(|(n, _)| *n == meant))
+            .map(|(_, b)| b.clone());
+        let good = match (want, read) {
+            (Some(ReadBack::Codes(h)), Some((_, codes))) => sha256_of(&codes.concat()) == h,
+            (Some(ReadBack::Seed(fp)), Some((bytes, codes))) => {
+                let made = self
+                    .outbox
+                    .iter()
+                    .find(|it| it.name == meant)
+                    .is_some_and(|it| it.bytes == bytes);
+                let key = (0..self.session.keys.len())
+                    .find(|&k| crate::wallet::fp_text(self.session.keys[k].fingerprint()) == fp);
+                let reads = match (key, codes.as_slice()) {
+                    (_, []) => false,
+                    (Some(k), [one]) => self.seedqr_reads_as(k, one).unwrap_or(true),
+                    (Some(_), _) => false,
+                    (None, _) => true,
+                };
+                made && reads
+            }
+            _ => false,
+        };
+        if good {
+            if let Some(w) = self.backup_flows[i].live.writing.as_mut() {
+                w.done.push((wrote_as, sha));
+            }
+            return self.flow_write_settle(i);
+        }
+        self.flow_write_again(i, &meant, &wrote_as, true);
+    }
+
+    /// File `meant` (sent as `sent`) did not read back: written again once,
+    /// over what was written when `over`; a second time, the stick's write
+    /// does not count and the card says so.
+    fn flow_write_again(&mut self, i: usize, meant: &str, sent: &str, over: bool) {
+        let Some(w) = self.backup_flows[i].live.writing.as_ref() else {
+            return;
+        };
+        let item = self
+            .outbox
+            .iter()
+            .chain(self.inbox.iter())
+            .find(|it| it.name == meant)
+            .map(|it| it.bytes.clone());
+        let (Some(bytes), false) = (item, w.retried.iter().any(|n| n == meant)) else {
+            self.backup_flows[i].live.writing = None;
+            return self.flow_refuse(i, Problem::NoReadBack(meant.to_string()));
+        };
+        let stick = w.id.clone();
+        let sha = sha256_of(&bytes);
+        if let Some(w) = self.backup_flows[i].live.writing.as_mut() {
+            w.retried.push(meant.to_string());
+            w.pending.push((sent.to_string(), sha));
+            if sent != meant {
+                w.aliases.push((sent.to_string(), meant.to_string()));
+            }
+        }
+        self.storage_out.push_back(StorageCommand::Write {
+            stick,
+            name: sent.to_string(),
+            bytes,
+            replace: over,
+        });
+    }
+
+    /// Every file of the write under way is answered and read back: the
+    /// stick counts.
+    fn flow_write_settle(&mut self, i: usize) {
+        let ready = self.backup_flows[i]
+            .live
+            .writing
+            .as_ref()
+            .is_some_and(|w| w.pending.is_empty() && w.qr.is_empty());
+        if ready && let Some(w) = self.backup_flows[i].live.writing.take() {
             // The write counts for the stick it was for, by target: the
             // slots may have moved since it started.
             let Some(slot) = self.backup_flows[i]
@@ -2470,6 +2624,10 @@ impl Faraday {
         done: Vec<(String, [u8; 32])>,
     ) {
         let time = self.clock_now();
+        let done: Vec<(String, [u8; 32])> = done
+            .into_iter()
+            .map(|(n, h)| (n, self.hash_to_keep(h)))
+            .collect();
         let Some(s) = self.backup_flows[i].slots.get_mut(slot) else {
             return;
         };
@@ -2827,6 +2985,13 @@ impl Faraday {
                 fill(FEN.backup_flow_not_checked, &[&label])
             }
             Problem::Pulled => FEN.backup_flow_pulled.to_string(),
+            Problem::NoReadBack(file) => {
+                let label = f
+                    .and_then(|f| f.live.reading.as_ref())
+                    .map(|r| r.label.clone())
+                    .unwrap_or_default();
+                fill(FEN.backup_flow_no_read_back, &[file, &label])
+            }
         }
     }
 }
@@ -2843,7 +3008,7 @@ impl BackupFlow {
                 let names: Vec<String> = vs.iter().map(|&v| BackupFlow::vault_name(v)).collect();
                 format!("{} ({})", names.join(", "), BackupFlow::place_name(*p))
             }
-            Target::PlaceVault(p, v) => format!(
+            Target::PlaceVault(p, v) | Target::Another(p, Some(v), _) => format!(
                 "{} ({})",
                 BackupFlow::vault_name(*v),
                 BackupFlow::place_name(*p)
@@ -2856,11 +3021,11 @@ impl BackupFlow {
     /// "Files", "Public files"; after its number on a device (§18).
     pub fn target_what(&self, t: &Target, medium: &str) -> String {
         match t {
-            Target::Place(_) | Target::PlaceVault(..) if self.is_setup() => self.target_vaults(t),
-            Target::Place(_) | Target::PlaceVault(..) => self.target_short(t, medium),
+            t if t.vault_stick() && self.is_setup() => self.target_vaults(t),
+            t if t.vault_stick() => self.target_short(t, medium),
             Target::Files => FEN.backup_flow_for_files.to_string(),
             Target::Public => FEN.backup_flow_for_public.to_string(),
-            Target::PlaceFiles(_) => self.target_name(t, medium),
+            _ => self.target_name(t, medium),
         }
     }
 
@@ -2868,17 +3033,22 @@ impl BackupFlow {
     pub fn target_name(&self, t: &Target, medium: &str) -> String {
         match t {
             // Before the keys, a stick is a vault's: no place is asked.
-            Target::Place(_) | Target::PlaceVault(..) if self.is_setup() => fill(
+            t if t.vault_stick() && self.is_setup() => fill(
                 FEN.backup_flow_stick_for_vault,
                 &[medium, &self.target_vaults(t)],
             ),
-            Target::Place(_) | Target::PlaceVault(..) => fill(
+            t if t.vault_stick() => fill(
                 FEN.backup_flow_stick_for,
                 &[medium, &self.target_vaults(t), &self.target_place(t)],
             ),
             Target::Files => fill(FEN.backup_flow_files_stick, &[medium]),
             Target::Public => fill(FEN.backup_flow_public_stick, &[medium]),
-            Target::PlaceFiles(p) => fill(FEN.backup_flow_files_at, &[&BackupFlow::place_name(*p)]),
+            // A place's sticks of files, each named alike: the pill's
+            // number tells them apart (§18).
+            Target::PlaceFiles(p) | Target::Another(p, None, _) => {
+                fill(FEN.backup_flow_files_at, &[&BackupFlow::place_name(*p)])
+            }
+            _ => String::new(),
         }
     }
 
@@ -2895,7 +3065,7 @@ impl BackupFlow {
                         .join(", ")
                 })
                 .unwrap_or_default(),
-            Target::PlaceVault(_, v) => BackupFlow::vault_name(*v),
+            Target::PlaceVault(_, v) | Target::Another(_, Some(v), _) => BackupFlow::vault_name(*v),
             _ => String::new(),
         }
     }

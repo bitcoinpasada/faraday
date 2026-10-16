@@ -108,7 +108,8 @@ fn kept_field(s: &str) -> String {
 
 fn at_text(at: At) -> String {
     match at {
-        At::Place(p) => format!("place{p}"),
+        // The record keeps places: a stick is its place's (`plan::by_place`).
+        At::Place(p) | At::Stick(p, _) => format!("place{p}"),
         At::Vault(0) => "vault".into(),
         At::Vault(v) => format!("vault{v}"),
         At::Files => "files".into(),
@@ -283,7 +284,8 @@ impl Faraday {
         };
         let stem = file_stem(&wallet.name);
         let public = wi.map_or_else(Vec::new, |wi| self.backup_public_names_for(wi, a));
-        plan::map(&shape, a)
+        // A place with what its sticks keep.
+        plan::place_map(&shape, a)
             .into_iter()
             .map(|spot| {
                 let mut out = Spot {
@@ -317,10 +319,22 @@ impl Faraday {
                             out.files
                                 .push(format!("{stem}-share-{}-of-{}.pdf", j + 1, shape.keys))
                         }
-                        What::SeedFile(i) => {
+                        // The stick of files of a plan saved before keeps
+                        // the checklist's seed files; a stick at a place
+                        // its own (`docs/BACKUP-FLOW.md` §19.12 item 6).
+                        What::SeedFile(i) if spot.at == At::Files => {
                             if let Some(fp) = fp_of(i) {
                                 let fps = fp_text(osk_bip::keys::Fingerprint(fp)).to_lowercase();
                                 out.secret.push(format!("{stem}-{fps}-"));
+                            }
+                        }
+                        What::SeedFile(i) | What::SeedQrFile(i) | What::PassphraseFile(i) => {
+                            if let Some(fp) = fp_of(i) {
+                                let name = crate::backup_flow_wallet::seed_stick_name(
+                                    *what,
+                                    &fp_text(osk_bip::keys::Fingerprint(fp)),
+                                );
+                                out.secret.extend(name);
                             }
                         }
                         What::Wallet if spot.at == At::Files => out.files.extend(public.clone()),
@@ -547,7 +561,7 @@ impl Faraday {
             .enumerate()
             .map(|(i, s)| {
                 let place = match s.at {
-                    At::Place(p) => names
+                    At::Place(p) | At::Stick(p, _) => names
                         .get(p)
                         .map(|n| n.trim())
                         .filter(|n| !n.is_empty())

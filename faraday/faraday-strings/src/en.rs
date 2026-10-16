@@ -3820,6 +3820,24 @@ pub struct Strings {
     pub plan_wallet_description: &'static str,
     /// Text in `label`. `{}`: `seed(i)`.
     pub plan_seed_file: &'static str,
+    /// Text in `label`. `{}`: `seed(i)`.
+    pub plan_seedqr_file: &'static str,
+    /// Text in `label`. `{}`: `seed(i)`.
+    pub plan_passphrase_file: &'static str,
+    /// Text in `label`. `{}`: the form, `form_name`.
+    pub plan_wallet_file: &'static str,
+    /// Text in `label`. `{}`: the share, how many, the form.
+    pub plan_share_file: &'static str,
+    /// Text in `label`.
+    pub plan_software_file: &'static str,
+    /// A public file's form, in `form_name`.
+    pub plan_form_text_file: &'static str,
+    /// A public file's form, in `form_name`.
+    pub plan_form_qr_picture: &'static str,
+    /// A node's thing on the chart. `{}`: the key's number.
+    pub glance_key_seedqr_file: &'static str,
+    /// A node's thing on the chart. `{}`: the key's number.
+    pub glance_passphrase_file: &'static str,
     /// Text in `text`.
     pub plan_yes_with_the_vault: &'static str,
     /// Text in `text`.
@@ -7719,10 +7737,6 @@ pub struct Strings {
     pub backup_flow_public_stick: &'static str,
     /// A place's stick of files (§17.2): the place.
     pub backup_flow_files_at: &'static str,
-    /// On the map: the wallet description's public files at a place.
-    pub backup_flow_wallet_files: &'static str,
-    /// On the map: a share's files at a place: share, of.
-    pub backup_flow_share_files: &'static str,
     /// The plan's Places card: the stepper's label.
     pub backup_flow_number_of_places: &'static str,
     /// A place's card: a row.
@@ -7876,6 +7890,9 @@ pub struct Strings {
     pub backup_flow_pulled: &'static str,
     /// A write that did not read back.
     pub backup_flow_not_checked: &'static str,
+    /// A file written to a stick did not read back, twice
+    /// (`docs/BACKUP-FLOW.md` §19.12 item 10): the file, the stick.
+    pub backup_flow_no_read_back: &'static str,
     /// A stick's written copy was deleted or the stick wiped.
     pub backup_flow_first_gone_toast: &'static str,
     /// Done's result.
@@ -9895,6 +9912,15 @@ pub static EN: Strings = Strings {
     plan_seed_with_its: "Seed {} with its passphrase",
     plan_wallet_description: "Wallet description",
     plan_seed_file: "Seed {}: file",
+    plan_seedqr_file: "Seed {}: SeedQR file",
+    plan_passphrase_file: "Passphrase of {}: file",
+    plan_wallet_file: "Wallet description · {}",
+    plan_share_file: "Share {} of {} · {}",
+    plan_software_file: "Watch-only software file",
+    plan_form_text_file: "Text file",
+    plan_form_qr_picture: "QR picture",
+    glance_key_seedqr_file: "Key {} SeedQR file",
+    glance_passphrase_file: "Passphrase {} file",
     plan_yes_with_the_vault: "Yes, with the vault's passphrase",
     plan_yes: "Yes",
     plan_only_with_the: "Only with the vault's passphrase",
@@ -11772,8 +11798,6 @@ pub static EN: Strings = Strings {
     backup_flow_files_stick: "the {} of files",
     backup_flow_public_stick: "the {} of public files",
     backup_flow_files_at: "Files ({})",
-    backup_flow_wallet_files: "Wallet description: files",
-    backup_flow_share_files: "Share {} of {}: files",
     backup_flow_number_of_places: "Number of places",
     backup_flow_seed_words_by_hand: "Seed words by hand",
     backup_flow_seedqr_by_hand: "SeedQR by hand",
@@ -11845,6 +11869,7 @@ pub static EN: Strings = Strings {
     backup_flow_written: "Written and checked on {}",
     backup_flow_pulled: "Pulled before the copy was checked. Nothing counted",
     backup_flow_not_checked: "The copy did not check on {}. Nothing counted",
+    backup_flow_no_read_back: "{} did not read back from {}; try another stick",
     backup_flow_first_gone_toast: "A written copy was deleted",
     backup_flow_done: "Written",
     backup_flow_row: "Backup",

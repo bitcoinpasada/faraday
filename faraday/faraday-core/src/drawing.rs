@@ -2,7 +2,7 @@
 //!
 //! A frame asks the backup's checklist the same questions many times: the
 //! items, whether each is done, the plan's shape, the seeds, the held keys
-//! and the public file names. While [`crate::Faraday::render`] runs the
+//! and the public file names, a stick's among them. While [`crate::Faraday::render`] runs the
 //! answers are kept here; nothing is kept outside it. Only drawing reads
 //! them: a decision (a press gated, a hold released) computes from the
 //! state as it is (`docs/SPEED.md` §2 rule 3).
@@ -33,6 +33,9 @@ pub(crate) struct Drawing {
     pub held: OnceCell<Vec<Fingerprint>>,
     /// `backup_public_names_for` per wallet, for the backup's own answers.
     pub public_names: RefCell<Vec<(usize, Vec<String>)>>,
+    /// `stick_file_names` per wallet and thing, for the backup's own
+    /// answers.
+    pub stick_names: RefCell<Vec<(usize, plan::What, Vec<String>)>>,
 }
 
 impl Drawing {

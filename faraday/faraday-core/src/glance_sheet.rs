@@ -375,7 +375,8 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             let of_seed = |w: What| {
                 seed.is_some_and(|s| {
                     matches!(w, What::Words(i) | What::SeedQr(i) | What::Seed(i)
-                        | What::SeedPassphrase(i) | What::SeedFile(i) if i == s)
+                        | What::SeedPassphrase(i) | What::SeedFile(i)
+                        | What::SeedQrFile(i) if i == s)
                 })
             };
             let at: Vec<&str> = nodes
@@ -575,7 +576,8 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                 .collect();
             let mut rows = Vec::new();
             let icon = match node.at {
-                At::Place(p) => {
+                // The chart's nodes are places, their sticks folded in.
+                At::Place(p) | At::Stick(p, _) => {
                     rows.push(if vault_open {
                         row(
                             EN.glance_sheet_rename,
@@ -765,22 +767,24 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                     ));
                 }),
                 What::Seed(s) | What::SeedPassphrase(s) => secret(s, &mut rows, &|_, _| {}),
-                What::WalletFile | What::ShareFile(_) => {
-                    let it = if what == What::WalletFile {
-                        Item::PublicFiles
+                // A passphrase record in a vault: nothing to do from here.
+                What::PassphraseSealed(_) => {}
+                // A file at a place is made and written with its stick
+                // (`docs/BACKUP-FLOW.md` §19.12 item 6); a seed's file on
+                // the stick of files of a plan saved before, by the seed
+                // files item.
+                What::SeedFile(_)
+                | What::SeedQrFile(_)
+                | What::PassphraseFile(_)
+                | What::WalletFile(_)
+                | What::ShareFile(..)
+                | What::SoftwareFile => {
+                    let it = if at_place {
+                        Item::Sticks
                     } else {
-                        Item::Sheets
+                        Item::SeedFiles
                     };
                     if let Some(a) = item(it) {
-                        rows.push(row(
-                            EN.glance_sheet_write_it,
-                            EN.glance_sheet_for_the,
-                            Some(a),
-                        ));
-                    }
-                }
-                What::SeedFile(_) => {
-                    if let Some(a) = item(Item::SeedFiles) {
                         rows.push(row(
                             EN.glance_sheet_write_it,
                             EN.glance_sheet_for_the,

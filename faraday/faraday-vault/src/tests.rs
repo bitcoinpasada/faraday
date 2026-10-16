@@ -295,3 +295,41 @@ fn wallet_shares_seal_and_open_and_one_without_its_text_is_refused() {
         Some(Error::Contents(Fault::Missing(kind::WALLET_SHARE, 1)))
     );
 }
+
+/// A passphrase kept on its own (type 14) seals and opens with the
+/// fingerprint of its key and the passphrase; one without its passphrase,
+/// or with a fingerprint of another length, refuses the slot
+/// (`docs/BACKUP-FLOW.md` §19.12 item 4).
+#[test]
+fn a_passphrase_record_seals_and_opens_and_one_without_its_passphrase_is_refused() {
+    let c = Contents {
+        records: vec![
+            Record::new(kind::PASSPHRASE)
+                .with(field::PASSPHRASE_KEY, &[0x9a, 0x6a, 0x25, 0x80])
+                .with(field::PASSPHRASE, b"TREZOR"),
+        ],
+    };
+    let file = create(SMALL, CHEAP, &[b"apart"], &[c], &[6; 32]).unwrap();
+    let (_, back) = open(&file, b"apart").unwrap();
+    let (_, r) = back.of(kind::PASSPHRASE).next().expect("the record");
+    assert_eq!(
+        r.field(field::PASSPHRASE_KEY),
+        Some(&[0x9a, 0x6a, 0x25, 0x80][..])
+    );
+    assert_eq!(r.text(field::PASSPHRASE), Some("TREZOR"));
+    let none = Contents {
+        records: vec![Record::new(kind::PASSPHRASE).with(field::PASSPHRASE_KEY, &[1, 2, 3, 4])],
+    };
+    assert_eq!(
+        none.encode(SMALL).err(),
+        Some(Error::Contents(Fault::Missing(kind::PASSPHRASE, 2)))
+    );
+    let short = Contents {
+        records: vec![
+            Record::new(kind::PASSPHRASE)
+                .with(field::PASSPHRASE_KEY, &[1, 2, 3])
+                .with(field::PASSPHRASE, b"x"),
+        ],
+    };
+    assert!(short.encode(SMALL).is_err());
+}

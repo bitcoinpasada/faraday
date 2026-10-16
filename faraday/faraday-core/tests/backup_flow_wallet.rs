@@ -357,9 +357,12 @@ fn single_key_with(
     answer_backup(&mut app, qrow::FORM, form::TEXT);
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    // The description's files at Place 2 are made and written with that
+    // place's stick: no item of their own (`docs/BACKUP-FLOW.md` §19.12
+    // item 6).
     assert_eq!(
         app.backup_items(),
-        vec![bstep::VAULT, bstep::PUBLIC, bstep::ENVELOPE, bstep::STICKS]
+        vec![bstep::VAULT, bstep::ENVELOPE, bstep::STICKS]
     );
     {
         // The flow follows the plan: the stick read for Vault 1 is at its
@@ -1256,7 +1259,9 @@ fn the_done_card_unlocks_to_the_checklist_done_and_the_files_read_written_to() {
     assert_eq!(app.screen, Screen::Backup, "{:?}", app.toast_text());
     assert!(app.backup_item_done(Item::Sticks));
     assert!(app.outbox.is_empty());
-    expect_part(&mut app, "Written to KEYSTICK");
+    // The description's files went with their stick's write, the item
+    // that says so (`docs/BACKUP-FLOW.md` §19.12 item 6).
+    expect_part(&mut app, "3 of 3 written");
     assert!(!offered(&mut app, Action::WriteAsk), "no Write to a stick");
 }
 
@@ -1292,26 +1297,28 @@ fn a_seed_let_out_unprotected_is_written_to_the_stick_of_files_and_to_no_other()
     }
     app.press(Action::BChecklist);
     save_vaults(&mut app);
-    assert!(app.backup_items().contains(&bstep::FILES));
-    // The seed's file, past the secret sheet.
-    app.press(Action::BFile);
-    assert_eq!(app.sheet, Some(Sheet::SecretOut));
-    app.press(Action::SecretAck);
-    app.press(Action::SecretUnprotected);
-    assert!(
-        app.outbox.iter().any(|i| i.secret),
-        "the file waits, unprotected"
-    );
+    // The seed's file is made at the lock and written with its stick: no
+    // item of its own (`docs/BACKUP-FLOW.md` §19.12 item 6).
+    assert!(!app.backup_items().contains(&bstep::FILES));
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(&mut app, F::WalletLock);
+    assert_eq!(
+        let_seed_files_out(&mut app),
+        1,
+        "the seed's file, past the warning"
+    );
+    assert!(
+        app.outbox
+            .iter()
+            .any(|i| i.secret && i.name == seed_txt(fp)),
+        "the file waits, unprotected"
+    );
     let mut app = restart(&mut shell, &mut app);
     // The vault's stick takes no secret file.
     shell.plug(&mut app, "S1");
     shell.pull(&mut app, "S1");
     assert!(
-        !names(&shell, "S1")
-            .iter()
-            .any(|n| n.ends_with("-words.txt")),
+        !names(&shell, "S1").contains(&seed_txt(fp)),
         "no seed file on a vault's stick: {:?}",
         names(&shell, "S1")
     );
@@ -1320,13 +1327,27 @@ fn a_seed_let_out_unprotected_is_written_to_the_stick_of_files_and_to_no_other()
     shell.pull(&mut app, "S2");
     assert_eq!(step(&app), Step::Done);
     assert!(
-        names(&shell, "S2")
-            .iter()
-            .any(|n| n.ends_with("-words.txt")),
+        names(&shell, "S2").contains(&seed_txt(fp)),
         "the seed's file is on the stick of files: {:?}",
         names(&shell, "S2")
     );
     no_visit(&shell);
+}
+
+/// Whether `n` is a seed's words file: as a stick at a place keeps it
+/// (`docs/BACKUP-FLOW.md` §19.12 item 6), or as the stick of files of a
+/// plan saved before keeps it.
+fn seed_words_file(n: &str) -> bool {
+    (n.starts_with("seed-") && n.ends_with(".txt")) || n.ends_with("-words.txt")
+}
+
+/// The name a seed's words file is written as on a stick
+/// (`docs/BACKUP-FLOW.md` §19.12 item 6).
+fn seed_txt(fp: [u8; 4]) -> String {
+    format!(
+        "seed-{}.txt",
+        faraday_core::wallet::fp_text(osk_bip::keys::Fingerprint(fp)).to_lowercase()
+    )
 }
 
 // ---- the review's fixes ----
@@ -1436,19 +1457,20 @@ fn a_seed_kept_only_as_a_file_is_held_until_its_stick_is_written() {
     keep_at(&mut app, 0, Row::File, &[0]);
     form_off_everywhere(&mut app, Form::Paper);
     app.press(Action::BChecklist);
-    assert_eq!(
-        app.backup_items(),
-        vec![bstep::FILES, bstep::ENVELOPE, bstep::STICKS]
-    );
-    app.press(Action::BFile);
-    app.press(Action::SecretAck);
-    app.press(Action::SecretUnprotected);
+    // Its file is made and written with its stick (`docs/BACKUP-FLOW.md`
+    // §19.12 item 6).
+    assert_eq!(app.backup_items(), vec![bstep::ENVELOPE, bstep::STICKS]);
     app.press(Action::BNext(bstep::ENVELOPE));
     assert!(
         app.key_held(osk_bip::keys::Fingerprint(fp)),
         "no vault holds it, and still it waits for its file's stick"
     );
     shell.flow(&mut app, F::WalletLock);
+    assert_eq!(
+        let_seed_files_out(&mut app),
+        1,
+        "the seed's file, past the warning"
+    );
     let mut app = restart(&mut shell, &mut app);
     let held = app.backup_flows[0].wallet.as_ref().unwrap().held.clone();
     assert!(!held.is_empty(), "the flow holds the key back");
@@ -1664,6 +1686,183 @@ fn the_round_keeps_a_passphrase_apart_and_copies_only_this_wallets_records() {
         .of(kind::PLAN)
         .any(|(_, r)| r.text(field::PLAN_WALLET) == Some(testkit::savings().as_str()));
     assert!(!has_foreign_plan, "another wallet's plan was copied");
+}
+
+/// Key 1's passphrase ("kept apart" at the lock) dropped on the chart,
+/// after the lock, into a vault that does not keep Key 1's seed: the
+/// round starts, and once its vaults are open `source` puts the passphrase
+/// where an open vault keeps it (as a vault from an earlier backup
+/// would); Copy the keys runs the round. The vault that took it, and Key
+/// 1's fingerprint with its passphrase.
+fn lone_passphrase_round(
+    source: impl Fn(&mut Faraday, [u8; 4], usize),
+) -> (Faraday, usize, [u8; 4]) {
+    use faraday_core::glance::Press;
+    use faraday_core::glance_sheet::ChartAction as C;
+    let mut shell = Shell::new();
+    let mut app = two_of_three_ready_with(&mut shell, true);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    let (v, fp) = {
+        let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+        let v = (0..wf.answers.vault_count(&wf.shape))
+            .find(|&v| !wf.answers.vault_seeds(&wf.shape, v).contains(&0))
+            .expect("a vault without Key 1");
+        let name = &wf.shape.seeds[0].name;
+        let fp: Vec<u8> = (0..4)
+            .map(|k| u8::from_str_radix(&name[2 * k..2 * k + 2], 16).unwrap())
+            .collect();
+        (v, <[u8; 4]>::try_from(fp).unwrap())
+    };
+    // Its vaults opened on Vaults, and the wallet loaded from them.
+    app.press(Action::Nav(Screen::Vaults));
+    let files = app.vault_files().len();
+    for n in 0..files {
+        for phrase in [PHRASE, PHRASE_2, PHRASE_3] {
+            if app.vault_files().get(n).is_none_or(|f| f.open.is_some()) {
+                break;
+            }
+            app.press(Action::Vault(faraday_core::vaults::VaultAction::Open(n)));
+            app.vaults.ms_per_unit = Some(180);
+            unlock(&mut app, phrase);
+        }
+    }
+    assert_eq!(app.vaults.open.len(), 3, "{:?}", app.vaults.unlock_error);
+    let name = app.flow().unwrap().wallet.as_ref().unwrap().name.clone();
+    for o in 0..app.vaults.open.len() {
+        if app.session.wallets.iter().any(|x| x.name == name) {
+            break;
+        }
+        app.press(Action::Vault(
+            faraday_core::vaults::VaultAction::LoadChosen(o),
+        ));
+    }
+    let w = app
+        .session
+        .wallets
+        .iter()
+        .position(|x| x.name == name)
+        .expect("the wallet, from its vaults");
+    // Key 1 typed in again with its passphrase, which no vault keeps:
+    // the chart reads the plan of the wallet with it.
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
+    app.press(Action::EntryPassphrase);
+    type_text(&mut app, "kept apart");
+    app.press(Action::EntryAdd);
+    app.press(Action::Backup(w));
+    let press = Press::Loaded(w);
+    app.press(Action::Chart(C::Edit(
+        press,
+        plan::Edit::Add(At::Vault(v), What::Passphrase(0)),
+    )));
+    assert!(app.chart_work.ask.is_some(), "the chart asks to confirm");
+    app.press(Action::Chart(C::Confirm(press)));
+    {
+        let f = app.flow().unwrap();
+        let wf = f.wallet.as_ref().unwrap();
+        assert_eq!(
+            wf.answers.vault_passphrases(&wf.shape, v),
+            vec![0],
+            "{:?}",
+            app.toast_text()
+        );
+        assert!(f.adding, "a passphrase put into a vault is a round");
+    }
+    shell.flow(&mut app, F::Continue);
+    for phrase in [PHRASE, PHRASE_2, PHRASE_3] {
+        if step(&app) == Step::Make {
+            break;
+        }
+        unlock(&mut app, phrase);
+    }
+    assert_eq!(step(&app), Step::Make, "{:?}", app.vaults.unlock_error);
+    source(&mut app, fp, v);
+    shell.flow(&mut app, F::CopyKey);
+    (app, v, fp)
+}
+
+/// The passphrase records vault `v` of the flow holds: each one's key
+/// fingerprint and passphrase.
+fn passphrase_records(app: &Faraday, v: usize) -> Vec<(Vec<u8>, Vec<u8>)> {
+    use faraday_vault::records::field;
+    let salt = app.flow().unwrap().plan.vaults[v].salt.expect("its salt");
+    let open = app
+        .vaults
+        .open
+        .iter()
+        .find(|o| o.header().salt == salt)
+        .expect("the vault is open");
+    open.contents
+        .of(kind::PASSPHRASE)
+        .map(|(_, r)| {
+            (
+                r.field(field::PASSPHRASE_KEY).unwrap_or_default().to_vec(),
+                r.field(field::PASSPHRASE).unwrap_or_default().to_vec(),
+            )
+        })
+        .collect()
+}
+
+/// The round copies a passphrase kept alone in another open vault's
+/// passphrase record into the vault the plan now keeps it in.
+#[test]
+fn the_round_copies_a_lone_passphrase_from_another_vaults_passphrase_record() {
+    use faraday_vault::Record;
+    use faraday_vault::records::field;
+    let (app, v, fp) = lone_passphrase_round(|app, fp, v| {
+        let salt = app.flow().unwrap().plan.vaults[v].salt;
+        let o = app
+            .vaults
+            .open
+            .iter()
+            .position(|o| Some(o.header().salt) != salt)
+            .expect("another open vault");
+        app.vaults.open[o].contents.records.push(
+            Record::new(kind::PASSPHRASE)
+                .with(field::PASSPHRASE_KEY, &fp)
+                .with(field::PASSPHRASE, b"kept apart"),
+        );
+    });
+    assert_eq!(
+        passphrase_records(&app, v),
+        vec![(fp.to_vec(), b"kept apart".to_vec())],
+        "{:?}",
+        app.toast_text()
+    );
+}
+
+/// The round copies a passphrase kept alone from Key 1's record in an
+/// open vault that stores it with the words.
+#[test]
+fn the_round_copies_a_lone_passphrase_from_a_key_record_that_stores_it() {
+    use faraday_vault::records::field;
+    let (app, v, fp) = lone_passphrase_round(|app, _, _| {
+        let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
+        let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &words).unwrap();
+        let payload = faraday_vault::records::words_payload(&m);
+        let (o, k) = app
+            .vaults
+            .open
+            .iter()
+            .enumerate()
+            .find_map(|(o, open)| {
+                open.contents
+                    .records
+                    .iter()
+                    .position(|r| r.kind == kind::KEY && r.field(field::KEY) == Some(&payload[..]))
+                    .map(|k| (o, k))
+            })
+            .expect("Key 1's record in an open vault");
+        let r = &mut app.vaults.open[o].contents.records[k];
+        r.push(field::KEY_PASSPHRASE, b"kept apart");
+    });
+    assert_eq!(
+        passphrase_records(&app, v),
+        vec![(fp.to_vec(), b"kept apart".to_vec())],
+        "{:?}",
+        app.toast_text()
+    );
 }
 
 /// [`two_of_three_ready`] with Key 1 typed in with a passphrase.
@@ -2121,11 +2320,13 @@ fn a_key_with_its_vault_written_but_not_its_seed_file_is_held() {
     form_off_everywhere(&mut app, Form::Paper);
     app.press(Action::BChecklist);
     save_vaults(&mut app);
-    app.press(Action::BFile);
-    app.press(Action::SecretAck);
-    app.press(Action::SecretUnprotected);
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(&mut app, F::WalletLock);
+    assert_eq!(
+        let_seed_files_out(&mut app),
+        1,
+        "the seed's file, past the warning"
+    );
     let mut app = restart(&mut shell, &mut app);
     write_sticks(&mut shell, &mut app, &["S1"]);
     assert_eq!(app.flow().unwrap().written_of(), (1, 2), "the file waits");
@@ -2228,7 +2429,7 @@ fn a_seed_file_let_out_and_then_dropped_from_the_plan_is_not_written_beside_the_
         assert!(
             f.slots
                 .iter()
-                .all(|s| s.files.iter().all(|n| !n.ends_with("-words.txt"))),
+                .all(|s| s.files.iter().all(|n| !seed_words_file(n))),
             "no stick is given the seed file"
         );
     }
@@ -2241,7 +2442,7 @@ fn a_seed_file_let_out_and_then_dropped_from_the_plan_is_not_written_beside_the_
     );
     for d in ["S1", "S2"] {
         assert!(
-            names(&shell, d).iter().all(|n| !n.ends_with("-words.txt")),
+            names(&shell, d).iter().all(|n| !seed_words_file(n)),
             "{d}: {:?}",
             names(&shell, d)
         );
@@ -3012,7 +3213,7 @@ fn the_flows_plan_card_edits_the_map_the_cards_made() {
     let wf = app.flow().unwrap().wallet.as_ref().unwrap();
     let a = &wf.answers;
     assert!(a.map.is_some(), "the map stays the plan");
-    let m = plan::map(&wf.shape, a);
+    let m = plan::place_map(&wf.shape, a);
     let at = |at: At| -> Vec<What> {
         m.iter()
             .filter(|s| s.at == at)
@@ -3021,7 +3222,9 @@ fn the_flows_plan_card_edits_the_map_the_cards_made() {
     };
     assert!(a.vault_seeds(&wf.shape, 0).is_empty(), "no seed in a vault");
     assert!(
-        at(At::Place(1)).contains(&What::WalletFile),
+        at(At::Place(1))
+            .iter()
+            .any(|w| matches!(w, What::WalletFile(_))),
         "the description's files stay at Place 2"
     );
     assert!(
@@ -3047,13 +3250,15 @@ fn a_seed_kept_as_a_file_at_a_place_is_released_once_that_stick_is_written() {
     keep_at(&mut app, 1, Row::File, &[0]);
     form_off_everywhere(&mut app, Form::Paper);
     app.press(Action::BChecklist);
-    app.press(Action::BFile);
-    app.press(Action::SecretAck);
-    app.press(Action::SecretUnprotected);
     app.press(Action::BNext(bstep::ENVELOPE));
     let fp = osk_bip::keys::Fingerprint(fp);
     assert!(app.key_held(fp), "held for Place 2's stick of files");
     shell.flow(&mut app, F::WalletLock);
+    assert_eq!(
+        let_seed_files_out(&mut app),
+        1,
+        "the seed's file, past the warning"
+    );
     let mut app = restart(&mut shell, &mut app);
     assert_eq!(app.flow().unwrap().slots[0].target, Target::PlaceFiles(1));
     write_sticks(&mut shell, &mut app, &["S1"]);
@@ -3090,18 +3295,17 @@ fn each_places_stick_of_files_takes_only_that_places_seed_file() {
         .map(|s| s.name.to_lowercase())
         .collect();
     app.press(Action::BChecklist);
-    assert_eq!(
-        app.backup_items(),
-        vec![bstep::FILES, bstep::ENVELOPE, bstep::STICKS]
-    );
-    for _ in 0..3 {
-        app.press(Action::BFile);
-        app.press(Action::SecretAck);
-        app.press(Action::SecretUnprotected);
-    }
-    assert_eq!(app.outbox.iter().filter(|i| i.secret).count(), 3);
+    // The files are made at the lock and written with their sticks
+    // (`docs/BACKUP-FLOW.md` §19.12 item 6).
+    assert_eq!(app.backup_items(), vec![bstep::ENVELOPE, bstep::STICKS]);
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(&mut app, F::WalletLock);
+    assert_eq!(
+        let_seed_files_out(&mut app),
+        3,
+        "each seed's file, past the warning"
+    );
+    assert_eq!(app.outbox.iter().filter(|i| i.secret).count(), 3);
     let mut app = restart(&mut shell, &mut app);
     let targets: Vec<Target> = app.flow().unwrap().slots.iter().map(|s| s.target).collect();
     assert_eq!(
@@ -3122,7 +3326,7 @@ fn each_places_stick_of_files_takes_only_that_places_seed_file() {
     for (p, d) in ["S1", "S2", "S3"].iter().enumerate() {
         let words: Vec<String> = names(&shell, d)
             .into_iter()
-            .filter(|n| n.ends_with("-words.txt"))
+            .filter(|n| n.starts_with("seed-") && n.ends_with(".txt"))
             .collect();
         assert_eq!(words.len(), 1, "{d}: {words:?}");
         assert!(words[0].contains(&seed_names[p]), "{d}: {words:?}");
@@ -4297,13 +4501,13 @@ fn a_seed_file_taken_off_after_the_lock_is_refused_and_its_stick_keeps_its_files
         .map(|s| s.name.to_lowercase())
         .collect();
     app.press(Action::BChecklist);
-    for _ in 0..3 {
-        app.press(Action::BFile);
-        app.press(Action::SecretAck);
-        app.press(Action::SecretUnprotected);
-    }
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(&mut app, F::WalletLock);
+    assert_eq!(
+        let_seed_files_out(&mut app),
+        3,
+        "each seed's file, past the warning"
+    );
     let mut app = restart(&mut shell, &mut app);
     shell.flow(&mut app, F::ChangePlan);
     // Files stay as made after the lock (§17.8): refused, and Place 1's
@@ -4328,7 +4532,7 @@ fn a_seed_file_taken_off_after_the_lock_is_refused_and_its_stick_keeps_its_files
     let words = |d: &str| -> Vec<String> {
         names_on(&shell, d)
             .into_iter()
-            .filter(|n| n.ends_with("-words.txt"))
+            .filter(|n| seed_words_file(n))
             .collect()
     };
     assert_eq!(words("S1").len(), 2);
@@ -4389,11 +4593,13 @@ fn a_held_key_is_not_left_on_a_stale_file_after_the_lock() {
     app.press(Action::BNext(bstep::BLANK));
     type_back_the_copy(&mut app);
     save_vaults(&mut app);
-    app.press(Action::BFile);
-    app.press(Action::SecretAck);
-    app.press(Action::SecretUnprotected);
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(&mut app, F::WalletLock);
+    assert_eq!(
+        let_seed_files_out(&mut app),
+        1,
+        "the seed's file, past the warning"
+    );
     let mut app = restart(&mut shell, &mut app);
     shell.flow(&mut app, F::ChangePlan);
     flow_plan(&mut shell, &mut app, PlanPress::RowOff(1, Row::File.code()));
@@ -4411,8 +4617,9 @@ fn a_held_key_is_not_left_on_a_stale_file_after_the_lock() {
     let wf = f.wallet.as_ref().unwrap();
     assert!(!wf.answers.vault_seeds(&wf.shape, 0).contains(&0));
     assert!(
-        f.slots.iter().any(|s| s.target == Target::PlaceFiles(1)
-            && s.files.iter().any(|n| n.ends_with("-words.txt"))),
+        f.slots.iter().any(
+            |s| s.target == Target::PlaceFiles(1) && s.files.iter().any(|n| seed_words_file(n))
+        ),
         "kept on the stick of files"
     );
     let held = &app.flow().unwrap().wallet.as_ref().unwrap().held;
@@ -5024,7 +5231,7 @@ fn another_open_vault_never_replaces_a_backup_past_its_lock() {
     let press = Press::Loaded(w);
     app.press(Action::Chart(C::Edit(
         press,
-        plan::Edit::Add(At::Place(0), What::WalletFile),
+        plan::Edit::Add(At::Place(0), What::WalletFile(plan::form::QR)),
     )));
     app.press(Action::Chart(C::Confirm(press)));
     app.press(Action::BChecklist);
@@ -5098,4 +5305,89 @@ fn back_up_again_after_done_adds_a_file_and_writes_it() {
         "{:?}",
         names(&shell, "S4")
     );
+}
+
+/// A single key with a passphrase and two vaults set up before it: the
+/// seed's words in Vault 1, its passphrase alone in Vault 2
+/// (`docs/BACKUP-FLOW.md` §19.12 item 4). Vault 1's item saves the key
+/// record of the words alone; Vault 2's a passphrase record naming the
+/// key, and nothing else of it.
+#[test]
+fn a_passphrase_alone_in_a_vault_is_saved_as_a_passphrase_record() {
+    use faraday_vault::records::field;
+    let mut shell = Shell::new();
+    sticks(&mut shell, 2);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, false, 2);
+    bring_in_all(&mut shell, &mut app, &["S1", "S2"]);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    create_vault(&mut shell, &mut app, 1, PHRASE_2);
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words("summer"));
+    app.press(Action::EntryPassphrase);
+    type_text(&mut app, "TREZOR");
+    app.press(Action::EntryAdd);
+    let fp = app.session.keys.last().unwrap().fingerprint();
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CSlotHere(0, fp.0));
+    app.press(Action::CNext(cstep::KEYS));
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(1));
+    untick_everywhere(&mut app, Row::Words);
+    untick_everywhere(&mut app, Row::Passphrase);
+    form_off_everywhere(&mut app, Form::Paper);
+    // Vault 1 at Place 1 with the words; Vault 2 at Place 2 with the
+    // passphrase, dropped there as the board drops it.
+    let shape = app.plan_shape(app.backup.as_ref().unwrap().wallet);
+    {
+        let a = &mut app.backup.as_mut().unwrap().answers;
+        let mut m = plan::map(&shape, a);
+        for v in 0..2 {
+            for w in [What::Seed(0), What::SeedPassphrase(0)] {
+                m = plan::without(&m, At::Vault(v), w);
+            }
+            for p in 0..plan::places_of(&m) {
+                m = plan::without(&m, At::Place(p), What::VaultStick(v));
+            }
+        }
+        m = plan::with_vault_stick(&m, 0, 0);
+        m = plan::with_vault_stick(&m, 1, 1);
+        m = plan::with_added(&m, At::Vault(0), What::Seed(0));
+        m = plan::with_added(&m, At::Vault(1), What::Passphrase(0));
+        a.set_map(m);
+    }
+    let m = plan::map(&shape, &app.backup.as_ref().unwrap().answers);
+    let held = plan::holds_at(&m, At::Vault(0));
+    assert!(held.contains(&What::Seed(0)), "{held:?}");
+    assert!(!held.contains(&What::SeedPassphrase(0)), "{held:?}");
+    let held = plan::holds_at(&m, At::Vault(1));
+    assert!(held.contains(&What::PassphraseSealed(0)), "{held:?}");
+    assert!(!held.contains(&What::Seed(0)), "{held:?}");
+    assert_eq!(app.backup_kept_nowhere(), None);
+    app.press(Action::BChecklist);
+    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    save_vaults(&mut app);
+    assert_eq!(app.vaults.open.len(), 2);
+    let with = |k: u8| {
+        app.vaults
+            .open
+            .iter()
+            .find(|o| o.contents.of(k).count() > 0)
+            .map(|o| o.contents.clone())
+            .expect("a vault with it")
+    };
+    let words = with(kind::KEY);
+    let keys: Vec<_> = words.of(kind::KEY).map(|(_, r)| r.clone()).collect();
+    assert_eq!(keys.len(), 1);
+    assert!(
+        keys[0].field(field::KEY_PASSPHRASE).is_none(),
+        "the words alone"
+    );
+    assert_eq!(words.of(kind::PASSPHRASE).count(), 0);
+    let apart = with(kind::PASSPHRASE);
+    assert_eq!(apart.of(kind::KEY).count(), 0, "no seed in Vault 2");
+    let (_, r) = apart.of(kind::PASSPHRASE).next().expect("the record");
+    assert_eq!(r.field(field::PASSPHRASE_KEY), Some(&fp.0[..]));
+    assert_eq!(r.text(field::PASSPHRASE), Some("TREZOR"));
 }

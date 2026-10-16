@@ -113,7 +113,8 @@ impl Faraday {
                 .find(|b| {
                     b.whats.iter().any(|x| {
                         matches!(*x, What::Words(i) | What::SeedQr(i) | What::Seed(i)
-                            | What::SeedPassphrase(i) | What::SeedFile(i) if i == seed)
+                            | What::SeedPassphrase(i) | What::SeedFile(i)
+                            | What::SeedQrFile(i) if i == seed)
                     })
                 })
                 .map(|b| b.name.clone())

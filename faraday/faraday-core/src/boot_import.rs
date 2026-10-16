@@ -299,6 +299,7 @@ impl ImportState {
     fn source_items(src: &SeedSource) -> Vec<usize> {
         match src {
             SeedSource::Words(k) => vec![*k],
+            SeedSource::WordsWith(k, p) => vec![*k, *p],
             SeedSource::Slip39(ks) | SeedSource::Codex32(ks) => ks.clone(),
             SeedSource::Loaded => Vec::new(),
         }

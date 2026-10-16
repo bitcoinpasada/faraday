@@ -2768,8 +2768,10 @@ as possible before the next build.
     keep secrets out of every kept value and decisions off the memo.
     Measured (SPEED §6): a late checklist frame went from about 180 ms
     to about 10 ms after batches A and B, a pointer move from 13 ms to
-    nothing. Batches A and B built, waiting for the owner's check on
-    the stick; then C. D not needed; E in faraday-website.
+    nothing. Batches A and B built; the owner checked them on the slow
+    laptop's stick (quick throughout). C next, after item 78's F
+    batches; D measured at high-density full-screen sizes first; E in
+    faraday-website.
 
 78. [ ] 2026-10-15, owner: **the backup board** (`docs/BACKUP-FLOW.md`
     §19, F37). The plan's place cards become a board: a card per place
@@ -2778,7 +2780,8 @@ as possible before the next build.
     per thing, warnings never refusals, watch-only software as a place,
     and a vault's key and wallet shown as QR and saved to a stick from
     its contents screen. `wide` only. Batches F1 (model), F2 (board),
-    F3 (vault show and save). After SPEED batch B.
+    F3 (vault show and save). F1 built 2026-10-16 (BACKUP-FLOW §19.13
+    for what building it decided); F2 next.
 
 80. [ ] 2026-10-16, owner: **Restore ends on a choice**
     (`docs/NEW-WALLET.md` §12.3; tracker issue 134). A restored wallet

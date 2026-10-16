@@ -727,9 +727,10 @@ pub(crate) fn map_rows(
         Vec::new()
     };
     let mut cy = y;
-    for spot in plan::map(shape, a) {
+    // Each place with what its sticks keep.
+    for spot in plan::place_map(shape, a) {
         let name = match spot.at {
-            At::Place(p) => ctx.name(p),
+            At::Place(p) | At::Stick(p, _) => ctx.name(p),
             At::Vault(v) => a.vault_name(shape, v),
             At::Files => fill(EN.map_rows_of_files, &[app.medium.cap()]),
             At::Software => EN.map_rows_watch_only.to_string(),

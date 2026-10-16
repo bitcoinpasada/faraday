@@ -487,13 +487,21 @@ fn backup_nodes(
         What::VaultStick(v) => fill(EN.glance_stick, &[&vault_name(v).to_string()]),
         What::Seed(i) => fill(EN.glance_key_seed, &[&number(i).to_string()]),
         What::SeedPassphrase(i) => fill(EN.glance_key_seed_passphrase, &[&number(i).to_string()]),
+        What::PassphraseSealed(i) => fill(EN.glance_passphrase, &[&number(i).to_string()]),
         What::Wallet => EN.glance_description.to_string(),
         What::SeedFile(i) => fill(EN.glance_key_file, &[&number(i).to_string()]),
-        What::WalletFile => EN.backup_flow_wallet_files.to_string(),
-        What::ShareFile(j) => fill(
-            EN.backup_flow_share_files,
-            &[&(j + 1).to_string(), &shape.keys.to_string()],
+        What::SeedQrFile(i) => fill(EN.glance_key_seedqr_file, &[&number(i).to_string()]),
+        What::PassphraseFile(i) => fill(EN.glance_passphrase_file, &[&number(i).to_string()]),
+        What::WalletFile(f) => fill(EN.plan_wallet_file, &[plan::form_name(f)]),
+        What::ShareFile(j, f) => fill(
+            EN.plan_share_file,
+            &[
+                &(j + 1).to_string(),
+                &shape.keys.to_string(),
+                plan::form_name(f),
+            ],
         ),
+        What::SoftwareFile => EN.plan_software_file.to_string(),
     };
     // The small panel names the keys a vault's stick opens.
     let keys_label = |what: What| match what {
@@ -528,7 +536,8 @@ fn backup_nodes(
             .max_by_key(|t| rank(*t))
             .unwrap_or(Tag::Public)
     };
-    let boxes = plan::map(shape, a);
+    // The chart draws places: each with what its sticks keep.
+    let boxes = plan::place_map(shape, a);
     // A vault's stick at more than one place: the first is its stick, each
     // further one a copy, "Vault 1 · copy" (§9.4).
     let stick_at = |at: At, v: usize| {
@@ -566,7 +575,7 @@ fn backup_nodes(
                 w => label(w),
             };
             let name = match spot.at {
-                At::Place(p) => place(p),
+                At::Place(p) | At::Stick(p, _) => place(p),
                 At::Vault(v) => vault_name(v),
                 At::Files => fill(EN.glance_of_files, &[app.medium.cap()]),
                 At::Software => EN.glance_watch_only_software.to_string(),
@@ -1650,8 +1659,12 @@ pub(crate) fn thing_label(g: Option<&Glance>, what: What) -> String {
         What::Seed(i) => fill(EN.glance_key_seed, &[&number(i).to_string()]),
         What::SeedPassphrase(i) => fill(EN.glance_key_seed_passphrase, &[&number(i).to_string()]),
         What::Wallet => EN.glance_the_description.to_string(),
-        What::SeedFile(i) => fill(EN.glance_key, &[&number(i).to_string()]),
-        What::WalletFile => EN.backup_flow_wallet_files.to_string(),
-        What::ShareFile(j) => fill(EN.glance_share, &[&(j + 1).to_string()]),
+        What::SeedFile(i) | What::SeedQrFile(i) => fill(EN.glance_key, &[&number(i).to_string()]),
+        What::PassphraseFile(i) | What::PassphraseSealed(i) => {
+            fill(EN.glance_passphrase, &[&number(i).to_string()])
+        }
+        What::WalletFile(f) => fill(EN.plan_wallet_file, &[plan::form_name(f)]),
+        What::ShareFile(j, _) => fill(EN.glance_share, &[&(j + 1).to_string()]),
+        What::SoftwareFile => EN.plan_software_file.to_string(),
     }
 }

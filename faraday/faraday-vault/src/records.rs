@@ -53,6 +53,9 @@ pub mod kind {
     /// A share of a multisig wallet's description, some keys left off
     /// (`docs/BACKUP-FLOW.md` §17.6).
     pub const WALLET_SHARE: u8 = 13;
+    /// A key's BIP-39 passphrase kept without the key's words, in a vault
+    /// that does not hold them (`docs/BACKUP-FLOW.md` §19.12 item 4).
+    pub const PASSPHRASE: u8 = 14;
 }
 
 /// The fields of each record type, by number.
@@ -136,6 +139,12 @@ pub mod field {
     /// Wallet share: the wallet, as a plan's field 1 holds it, by which a
     /// share is told from another wallet's of the same name.
     pub const SHARE_WALLET: u8 = 5;
+
+    /// Passphrase: the fingerprint of the key it is the passphrase of, the
+    /// key's words with this passphrase (4 bytes).
+    pub const PASSPHRASE_KEY: u8 = 1;
+    /// Passphrase: the passphrase.
+    pub const PASSPHRASE: u8 = 2;
 }
 
 /// Bit 0 of a key's flags: load it into the session at unlock.
@@ -290,6 +299,11 @@ const WALLET_SHARE_RULES: &[Rule] = &[
     rule(5, false, false, TEXT),
 ];
 
+const PASSPHRASE_RULES: &[Rule] = &[
+    rule(1, true, false, Shape::Exact(4)),
+    rule(2, true, false, TEXT),
+];
+
 /// The fields of each record type (§7).
 fn rules(kind: u8) -> Option<&'static [Rule]> {
     Some(match kind {
@@ -306,6 +320,7 @@ fn rules(kind: u8) -> Option<&'static [Rule]> {
         kind::PLAN => PLAN_RULES,
         kind::APK_KEY => APK_KEY_RULES,
         kind::WALLET_SHARE => WALLET_SHARE_RULES,
+        kind::PASSPHRASE => PASSPHRASE_RULES,
         _ => return None,
     })
 }

@@ -5609,10 +5609,13 @@ pub(crate) fn held_item(
     let item = match (at, what) {
         (At::Away, _) | (_, What::Passphrase(_) | What::VaultStick(_)) => return None,
         (_, What::Words(i) | What::SeedQr(i)) => Item::Copy(i),
-        (_, What::Sheet | What::Share(_) | What::ShareFile(_)) => Item::Sheets,
+        (_, What::Sheet | What::Share(_)) => Item::Sheets,
         (At::Vault(v), _) => Item::Vault(v),
         (At::Software, _) if has(Item::ShowDescriptor) => Item::ShowDescriptor,
-        (_, What::SeedFile(_)) => Item::SeedFiles,
+        (At::Files, What::SeedFile(_)) => Item::SeedFiles,
+        // A file at a place is made and written with its stick
+        // (`docs/BACKUP-FLOW.md` §19.12 item 6).
+        (At::Place(_) | At::Stick(..), w) if crate::plan::is_file(w) => Item::Sticks,
         _ => Item::PublicFiles,
     };
     has(item).then_some(item)
@@ -6356,7 +6359,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 cy += map_rows(app, ui, x, cy, w, false);
             } else {
                 let shape = app.plan_shape(b.wallet);
-                for spot in crate::plan::map(&shape, &b.answers) {
+                for spot in crate::plan::place_map(&shape, &b.answers) {
                     let crate::plan::At::Place(p) = spot.at else {
                         continue;
                     };

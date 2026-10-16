@@ -6,7 +6,7 @@
 use faraday_core::Faraday;
 use faraday_core::plan::{
     Answers, At, Form, Found, Item, Lost, Preset, Question, Row, Seed, Shape, Spot, What, check,
-    checklist, form, map, seeds, software, wallet,
+    checklist, form, place_map, seeds, software, wallet,
 };
 
 fn seed(name: &str, here: bool) -> Seed {
@@ -63,7 +63,7 @@ fn each_preset_fills_a_one_key_wallets_answers() {
         );
         assert!(a.form[form::QR] && !a.form[form::TEXT], "{preset:?}: as QR");
         // The sheet in each place, the words in each.
-        for spot in map(&shape, &a)
+        for spot in place_map(&shape, &a)
             .iter()
             .filter(|s| matches!(s.at, At::Place(_)))
         {
@@ -82,7 +82,7 @@ fn each_preset_fills_a_two_of_threes_answers() {
         assert_eq!(a.places, 3, "{preset:?}: a place per key");
         assert!(!a.split, "{preset:?}: the whole sheet in each");
         assert_eq!(a.seeds[seeds::VAULT], preset != Preset::Paper, "{preset:?}");
-        let places: Vec<_> = map(&shape, &a)
+        let places: Vec<_> = place_map(&shape, &a)
             .into_iter()
             .filter(|s| matches!(s.at, At::Place(_)))
             .collect();
@@ -105,7 +105,7 @@ fn seeds_held_elsewhere_get_no_paper_here_and_watch_only_asks_nothing_of_seeds()
     shape.seeds[1].here = false;
     shape.seeds[2].here = false;
     let a = Answers::preset(&shape, Preset::Paper);
-    let boxes = map(&shape, &a);
+    let boxes = place_map(&shape, &a);
     let away = boxes
         .iter()
         .find(|s| s.at == At::Away)
@@ -255,7 +255,7 @@ fn the_answers_read_back_as_the_vault_keeps_them() {
 #[test]
 fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
     use faraday_core::create::NewKind;
-    use faraday_core::{Action, bstep, cstep, qrow, qstep, testkit};
+    use faraday_core::{Action, bstep, cstep, qrow, testkit};
     use osk_shell_api::{App, Event, Key};
     let mut app = testkit::started();
     for word in ["bacon", "zebra", "summer"] {
@@ -288,10 +288,11 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
             app.press(Action::BAnswer(qrow::SOFTWARE, row));
         }
     }
-    // The description goes as files too, at Place 1: the public files
-    // item.
-    app.press(Action::BQ(qstep::WHERE));
-    app.press(Action::BForm(0, Form::File.code()));
+    // The software takes the description's text too: the public files
+    // item. (The description as files at a place is written with that
+    // place's stick, no item of its own: `docs/BACKUP-FLOW.md` §19.12
+    // item 6.)
+    app.press(Action::BAnswer(qrow::FORM, form::TEXT as u8));
     // Nothing by hand or into a vault, so the item is open to reach.
     let places = app.backup.as_ref().unwrap().answers.places;
     let w = app.backup.as_ref().unwrap().wallet;
@@ -313,6 +314,11 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
         "the checklist has the public files item"
     );
     app.press(Action::BStep(bstep::PUBLIC));
+    // Making the checklist made its files in the text form too: each
+    // taken back out, to be made from the item.
+    for n in [1u8, 2, 5, 6, 7] {
+        app.press(Action::PublicRemove(built, n));
+    }
     // Down the column to the item's rows, past a vault item per seed.
     for _ in 0..10 {
         let _ = app.frame();
@@ -524,7 +530,7 @@ fn two_here() -> Shape {
 /// Which seeds whoever finds place `p` alone holds a copy of: its words
 /// and SeedQRs, and the seeds in each vault whose stick it keeps.
 fn keys_at(shape: &Shape, a: &Answers, p: usize) -> Vec<usize> {
-    let boxes = map(shape, a);
+    let boxes = place_map(shape, a);
     let mut out: Vec<usize> = Vec::new();
     let place = boxes.iter().find(|s| s.at == At::Place(p)).unwrap();
     for (what, _) in &place.holds {
@@ -551,7 +557,7 @@ fn keys_at(shape: &Shape, a: &Answers, p: usize) -> Vec<usize> {
 }
 
 fn sticks_at(shape: &Shape, a: &Answers, p: usize) -> Vec<usize> {
-    map(shape, a)
+    place_map(shape, a)
         .into_iter()
         .filter(|s| s.at == At::Place(p))
         .flat_map(|s| s.holds)
@@ -566,7 +572,7 @@ fn sticks_at(shape: &Shape, a: &Answers, p: usize) -> Vec<usize> {
 fn paper_and_vault_puts_one_seed_in_each_vault_each_stick_away_from_the_other_seeds_words() {
     let shape = two_here();
     let a = Answers::preset(&shape, Preset::PaperVault);
-    let vaults: Vec<(At, Vec<What>)> = map(&shape, &a)
+    let vaults: Vec<(At, Vec<What>)> = place_map(&shape, &a)
         .into_iter()
         .filter(|s| matches!(s.at, At::Vault(_)))
         .map(|s| (s.at, s.holds.into_iter().map(|(w, _)| w).collect()))
@@ -585,7 +591,7 @@ fn paper_and_vault_puts_one_seed_in_each_vault_each_stick_away_from_the_other_se
     assert_eq!(sticks_at(&shape, &a, 1), vec![1]);
     assert_eq!(sticks_at(&shape, &a, 2), vec![0]);
     assert_eq!(
-        map(&shape, &a)[2]
+        place_map(&shape, &a)[2]
             .holds
             .iter()
             .find(|(w, _)| matches!(w, What::VaultStick(_)))
@@ -672,7 +678,7 @@ fn a_plan_saved_with_one_vault_still_loads() {
     assert_eq!(a.vault_seeds(&shape, 0), vec![0, 1, 2], "every seed here");
     assert_eq!(sticks_at(&shape, &a, 0), vec![0], "its stick at Place 1");
     assert!(sticks_at(&shape, &a, 1).is_empty() && sticks_at(&shape, &a, 2).is_empty());
-    let vault = map(&shape, &a)
+    let vault = place_map(&shape, &a)
         .into_iter()
         .find(|s| s.at == At::Vault(0))
         .unwrap();
@@ -840,10 +846,11 @@ fn keep(app: &mut Faraday, p: usize, row: Row, seeds: &[usize]) {
     assert_eq!(app.sheet, None);
 }
 
-/// The plan's map as the cards show it.
+/// The plan's map as the cards show it: each place with what its
+/// sticks keep.
 fn the_map(app: &Faraday) -> Vec<Spot> {
     let b = app.backup.as_ref().unwrap();
-    map(&app.plan_shape(b.wallet), &b.answers)
+    place_map(&app.plan_shape(b.wallet), &b.answers)
 }
 
 /// What spot `at` holds on the map.
@@ -1179,20 +1186,17 @@ fn a_seed_file_at_a_place_has_that_places_stick_of_files_and_is_held_until_writt
     }
     assert_eq!(held(&app, At::Place(1)), vec![What::SeedFile(0)]);
     app.press(Action::BChecklist);
-    assert_eq!(
-        app.backup_items(),
-        vec![bstep::FILES, bstep::ENVELOPE, bstep::STICKS]
-    );
-    app.press(Action::BFile);
-    app.press(Action::SecretAck);
-    app.press(Action::SecretUnprotected);
+    // The file is made and written with its stick: no item of its own
+    // (`docs/BACKUP-FLOW.md` §19.12 item 6).
+    assert_eq!(app.backup_items(), vec![bstep::ENVELOPE, bstep::STICKS]);
     let rows = app.wallet_stick_rows();
     assert_eq!(rows.len(), 1, "{rows:?}");
     assert_eq!(rows[0].0, "Files (Place 2)");
-    assert!(
-        rows[0].1.iter().any(|n| n.ends_with("-words.txt")),
-        "{rows:?}"
+    let name = format!(
+        "seed-{}.txt",
+        faraday_core::wallet::fp_text(Fingerprint(fp.0)).to_lowercase()
     );
+    assert_eq!(rows[0].1, vec![name], "{rows:?}");
     app.press(Action::BNext(bstep::ENVELOPE));
     assert!(
         app.key_held(Fingerprint(fp.0)),
@@ -1303,6 +1307,6 @@ fn a_plan_saved_before_the_cards_shows_on_them_as_its_map() {
     // A card's first answer makes that map the plan, as it was.
     let mut b = a.clone();
     b.ensure_map(&shape);
-    assert_eq!(map(&shape, &b), map(&shape, &a));
+    assert_eq!(place_map(&shape, &b), place_map(&shape, &a));
     assert_eq!(Answers::from_text(&shape, &b.to_text()), Some(b));
 }

@@ -2096,3 +2096,53 @@ plans on the board, keeping what each checked; none is deleted.
   popup, warnings, both plan cards, place names, the narrow column, the
   lock (§19.1, §19.2, §19.5, §19.6, §19.12 items 1–3, 8), DESIGN §4.17.
 - **F3, the vault's show and save** (§19.7). Independent of F1 and F2.
+
+F1 built 2026-10-16.
+
+### 19.13 Decided while building F1 (2026-10-16)
+
+1. **Old plans** (owner): an old plan whose places kept files gets the
+   new checklist, its files written with each stick, one item per stick
+   (item 6); an old plan with no files at a place makes exactly the
+   checklist it made before. §19.9's old-plan test reads this way.
+2. **Stick files** are made into the Outbox at Lock and write, while
+   the keys are loaded. A seed's words file, SeedQR picture or
+   passphrase file is made only past the seed-file warning (the secret
+   sheet, one per seed), on the board's plan as on the place cards
+   still drawn where the board is not.
+3. **Every stick is its own write.** The flow's targets are keyed by
+   stick: a vault's second stick at a place, and a place's second stick
+   of files, are each one write, one checklist item and one pill
+   (`Target::Another`). Sticks of files at one place share their label
+   and are told apart by the pill's number. A stick of files put back
+   is recognised by its written files, as a vault stick is by its vault
+   files.
+4. **File names**: a share's files keep Back up's names,
+   `{wallet}-share-{j}-of-{n}.txt` and `.png` (item 6's "as Back up
+   names files today"). The old `At::Files` stick keeps its old names
+   and its own item.
+5. **Plan text codes**: a stick is `stick{p}.{s}`; `qrfile{i}`,
+   `passfile{i}`, `vpass{i}`, `wallettxt`, `walletqr`, `sharetxt{j}`,
+   `shareqr{j}`, `softwarefile`. An old `walletfile` or `sharefile{j}`
+   reads as every form the plan's form answers had on; read alone, as
+   the QR form.
+6. **The passphrase record** (type 14, `docs/VAULT.md` §7) names the
+   key's fingerprint with its passphrase, the one wallets and file
+   names use. A key loaded from a vault's key record without a stored
+   passphrase takes one from a type 14 record in any open vault whose
+   fingerprint matches, as a stored passphrase is taken; nothing is
+   asked. This supersedes §19.3's "there is no record for a passphrase
+   alone".
+7. **Read back** (item 10): the storage channel's write already reads a
+   text file back; a picture is read back by the disk process's QR
+   reading (`faraday-files`, osk-codec's decoder), not `faraday-scanner`.
+   A public picture is checked against the SHA-256 of what its code
+   must hold. A SeedQR is checked byte for byte against the Outbox's
+   picture and, while its key is loaded, against the key's words; no
+   value derived from a seed or a passphrase is kept. A text file
+   written again goes beside the failed one, never over it.
+8. **Nothing secret is kept outside a vault.** The flow's kept state and
+   the visit's receipt record a written file's SHA-256 only when the
+   file is not a secret; a secret's is all zeros.
+9. **Restore** pairs a words file with `passphrase-{fp}.txt` when the
+   two give `fp`, and lists them as one seed.

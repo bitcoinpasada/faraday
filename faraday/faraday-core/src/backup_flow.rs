@@ -258,6 +258,14 @@ pub enum Target {
     /// files kept there (`docs/BACKUP-FLOW.md` §17.2). Named after step 2
     /// and written at step 6 in its place's turn, as the stick of files is.
     PlaceFiles(usize),
+    /// A further stick at place `p` like an earlier one there
+    /// (`docs/BACKUP-FLOW.md` §19.4, §19.12 item 7): another stick of
+    /// vault `v` (`Some(v)`), or another stick of files (`None`), the
+    /// `n`th of its kind there counting from 0 (so `n` ≥ 1; the first is
+    /// [`Target::PlaceVault`] or [`Target::PlaceFiles`]). A wallet's map
+    /// may keep a vault on two sticks at one place, and files on two
+    /// sticks; each is a stick of its own and a write of its own.
+    Another(usize, Option<usize>, usize),
     /// The stick of public files.
     Public,
 }
@@ -270,6 +278,8 @@ impl Target {
             Target::Files => "f".into(),
             Target::Public => "u".into(),
             Target::PlaceFiles(p) => format!("r{p}"),
+            Target::Another(p, Some(v), n) => format!("a{p}.{v}.{n}"),
+            Target::Another(p, None, n) => format!("a{p}.-.{n}"),
         }
     }
 
@@ -278,6 +288,19 @@ impl Target {
             "f" => Some(Target::Files),
             "u" => Some(Target::Public),
             _ => {
+                if let Some(rest) = s.strip_prefix('a') {
+                    let mut it = rest.split('.');
+                    let (p, v, n) = (it.next()?, it.next()?, it.next()?);
+                    if it.next().is_some() {
+                        return None;
+                    }
+                    let v = match v {
+                        "-" => None,
+                        v => Some(v.parse().ok()?),
+                    };
+                    let n: usize = n.parse().ok()?;
+                    return (n >= 1).then_some(Target::Another(p.parse().ok()?, v, n));
+                }
                 if let Some(rest) = s.strip_prefix('r') {
                     return rest.parse().ok().map(Target::PlaceFiles);
                 }
@@ -293,7 +316,7 @@ impl Target {
     /// The place whose stick of files it is.
     pub fn files_place(self) -> Option<usize> {
         match self {
-            Target::PlaceFiles(p) => Some(p),
+            Target::PlaceFiles(p) | Target::Another(p, None, _) => Some(p),
             _ => None,
         }
     }
@@ -302,19 +325,28 @@ impl Target {
     /// of files is [`Target::files_place`].
     pub fn place(self) -> Option<usize> {
         match self {
-            Target::Place(p) | Target::PlaceVault(p, _) => Some(p),
+            Target::Place(p) | Target::PlaceVault(p, _) | Target::Another(p, Some(_), _) => Some(p),
             _ => None,
         }
     }
 
-    /// Sort key: places and their vaults in order, then the extras.
-    fn key(self) -> (u8, usize, usize) {
+    /// Whether it is a stick that carries a vault at a place.
+    pub fn vault_stick(self) -> bool {
+        self.place().is_some()
+    }
+
+    /// Sort key: places and their vaults in order, each vault's sticks
+    /// there in order, the place's sticks of files after them, then the
+    /// extras.
+    fn key(self) -> (u8, usize, usize, usize) {
         match self {
-            Target::Place(p) => (0, p, 0),
-            Target::PlaceVault(p, v) => (0, p, v + 1),
-            Target::PlaceFiles(p) => (0, p, usize::MAX),
-            Target::Files => (1, 0, 0),
-            Target::Public => (2, 0, 0),
+            Target::Place(p) => (0, p, 0, 0),
+            Target::PlaceVault(p, v) => (0, p, v + 1, 0),
+            Target::Another(p, Some(v), n) => (0, p, v + 1, n),
+            Target::PlaceFiles(p) => (0, p, usize::MAX, 0),
+            Target::Another(p, None, n) => (0, p, usize::MAX, n),
+            Target::Files => (1, 0, 0, 0),
+            Target::Public => (2, 0, 0, 0),
         }
     }
 }
@@ -402,12 +434,19 @@ impl Plan {
 
     /// The sticks the plan names besides its places', in order.
     pub fn extra_targets(&self) -> Vec<Target> {
-        let mut out: Vec<Target> = self
-            .place_files
-            .iter()
-            .filter(|&&p| p < self.places.len())
-            .map(|&p| Target::PlaceFiles(p))
-            .collect();
+        // A place named twice keeps two sticks of files.
+        let mut out: Vec<Target> = Vec::new();
+        for (k, &p) in self.place_files.iter().enumerate() {
+            if p >= self.places.len() {
+                continue;
+            }
+            let n = self.place_files[..k].iter().filter(|&&q| q == p).count();
+            out.push(if n == 0 {
+                Target::PlaceFiles(p)
+            } else {
+                Target::Another(p, None, n)
+            });
+        }
         if self.files {
             out.push(Target::Files);
         }
@@ -430,7 +469,17 @@ impl Plan {
             if self.one_stick(p) {
                 out.push(Target::Place(p));
             } else if let Some(vs) = self.places.get(p) {
-                out.extend(vs.iter().map(|&v| Target::PlaceVault(p, v)));
+                // A vault named twice at a place is kept there on two
+                // sticks (a wallet's map, `docs/BACKUP-FLOW.md` §19.12
+                // item 7).
+                for (k, &v) in vs.iter().enumerate() {
+                    let n = vs[..k].iter().filter(|&&u| u == v).count();
+                    out.push(if n == 0 {
+                        Target::PlaceVault(p, v)
+                    } else {
+                        Target::Another(p, Some(v), n)
+                    });
+                }
             }
         }
         out
@@ -479,29 +528,34 @@ impl Plan {
 }
 
 /// The flow's plan for a wallet, from the map its answers draw
-/// (`docs/BACKUP-FLOW.md` §2, §10.2): a place for each place of the map,
-/// keeping the sticks of the vaults the map puts there; a vault for each
-/// vault number the map names (numbered as the answers number them, a
-/// number no map uses left empty); the stick of files where the map keeps
-/// seeds or the wallet as files; and the stick that carries the public
-/// files and sheets.
+/// (`docs/BACKUP-FLOW.md` §2, §10.2, §19.4): a place for each place of the
+/// map, keeping a stick for each stick there that carries a vault (a vault
+/// named once per stick of it, so a place may keep one vault on two
+/// sticks); a vault for each vault number the map names (numbered as the
+/// answers number them, a number no map uses left empty); a place's stick
+/// of files for each stick there that carries files and no vault; the
+/// stick of files where the map keeps seeds or the wallet as files; and
+/// the stick that carries the public files and sheets. Every stick of the
+/// map is one stick of the flow ([`stick_target`]).
 pub fn plan_of(shape: &crate::plan::Shape, a: &crate::plan::Answers) -> Plan {
     use crate::plan::{At, What};
-    let boxes = crate::plan::map(shape, a);
+    let sticks = crate::plan::map(shape, a);
+    // A place with its sticks folded in: what the place keeps.
+    let boxes = crate::plan::by_place(&sticks);
     let mut places: Vec<(usize, Vec<usize>)> = Vec::new();
+    let mut place_files: Vec<usize> = Vec::new();
     let mut nv = 0usize;
     let mut with_wallet: Option<usize> = None;
     for s in &boxes {
         match s.at {
             At::Place(p) => {
-                let vs: Vec<usize> = s
-                    .holds
-                    .iter()
-                    .filter_map(|(w, _)| match w {
-                        What::VaultStick(v) => Some(*v),
-                        _ => None,
-                    })
-                    .collect();
+                let mut vs: Vec<usize> = Vec::new();
+                for k in 0..crate::plan::sticks_at(&sticks, p) {
+                    match crate::plan::stick_vault(&sticks, p, k) {
+                        Some(v) => vs.push(v),
+                        None => place_files.push(p),
+                    }
+                }
                 nv = nv.max(vs.iter().map(|v| v + 1).max().unwrap_or(0));
                 if !vs.is_empty()
                     && with_wallet.is_none()
@@ -521,7 +575,6 @@ pub fn plan_of(shape: &crate::plan::Shape, a: &crate::plan::Answers) -> Plan {
     let seed_files =
         files_spot.is_some_and(|s| s.holds.iter().any(|(w, _)| matches!(w, What::SeedFile(_))));
     let wallet_files = files_spot.is_some_and(|s| s.holds.iter().any(|(w, _)| *w == What::Wallet));
-    let place_files = a.file_places(shape);
     let public_any = crate::plan::public_stick(shape, a);
     // The stick of public files is read on an online computer: a plain
     // seed file never shares it by default, however the plan keeps the
@@ -542,6 +595,53 @@ pub fn plan_of(shape: &crate::plan::Shape, a: &crate::plan::Answers) -> Plan {
         place_files,
         public_on,
     }
+}
+
+/// The flow's stick for stick `s` at place `p` of a wallet's map
+/// `sticks` (`docs/BACKUP-FLOW.md` §19.4), as [`plan_of`] names it: the
+/// place's only stick with a vault, [`Target::Place`]; else its vault's
+/// first stick there, [`Target::PlaceVault`], and a later one
+/// [`Target::Another`]; a stick with no vault, the place's first stick of
+/// files [`Target::PlaceFiles`] and a later one [`Target::Another`].
+pub fn stick_target(sticks: &[crate::plan::Spot], p: usize, s: usize) -> Option<Target> {
+    use crate::plan::{stick_vault, sticks_at};
+    let n = sticks_at(sticks, p);
+    if s >= n {
+        return None;
+    }
+    let vault = stick_vault(sticks, p, s);
+    let before = (0..s)
+        .filter(|&k| stick_vault(sticks, p, k) == vault)
+        .count();
+    Some(match vault {
+        Some(v) => {
+            let vault_sticks = (0..n)
+                .filter(|&k| stick_vault(sticks, p, k).is_some())
+                .count();
+            if vault_sticks <= 1 {
+                Target::Place(p)
+            } else if before == 0 {
+                Target::PlaceVault(p, v)
+            } else {
+                Target::Another(p, Some(v), before)
+            }
+        }
+        None if before == 0 => Target::PlaceFiles(p),
+        None => Target::Another(p, None, before),
+    })
+}
+
+/// The stick of a wallet's map `sticks` that the flow's stick `t` is
+/// ([`stick_target`] read back); `None` for a stick no place keeps.
+pub fn target_stick(sticks: &[crate::plan::Spot], t: Target) -> Option<crate::plan::At> {
+    let p = match t {
+        Target::Place(p) | Target::PlaceVault(p, _) | Target::PlaceFiles(p) => p,
+        Target::Another(p, _, _) => p,
+        Target::Files | Target::Public => return None,
+    };
+    (0..crate::plan::sticks_at(sticks, p))
+        .find(|&s| stick_target(sticks, p, s) == Some(t))
+        .map(|s| crate::plan::At::Stick(p, s))
 }
 
 /// What the key is known by once made (§3): the public value, as hex, and
@@ -595,6 +695,9 @@ pub enum Problem {
     HasFilesOf(Target),
     /// The copy did not check.
     NotChecked,
+    /// This file, written again once, still did not read back as it was
+    /// meant (`docs/BACKUP-FLOW.md` §19.12 item 10).
+    NoReadBack(String),
     /// Pulled before the copy was checked.
     Pulled,
 }
@@ -670,6 +773,17 @@ pub struct Writing {
     pub pending: Vec<(String, [u8; 32])>,
     /// Files answered, read back and matched: the name written as.
     pub done: Vec<(String, [u8; 32])>,
+    /// The files sent that are not vaults, by the name sent: each may be
+    /// written again once when it does not read back (§19.12 item 10).
+    pub plain: Vec<String>,
+    /// The files written again, by the name the flow meant them under.
+    pub retried: Vec<String>,
+    /// A name a file was sent again under, with the name the flow meant
+    /// it under.
+    pub aliases: Vec<(String, String)>,
+    /// Pictures written whose codes are being read back: the name written
+    /// as, the name meant, and the file's SHA-256.
+    pub qr: Vec<(String, String, [u8; 32])>,
     /// The stick's label.
     pub label: String,
     /// The stick's FAT volume serial.
@@ -788,6 +902,25 @@ pub struct WalletFlow {
     /// about, kept across the lock that makes the process clean: nothing
     /// secret, so the setup is picked up where it was.
     pub again: Option<Again>,
+    /// Each picture the write step puts on a stick, by its name, with what
+    /// it is read back against (`docs/BACKUP-FLOW.md` §19.12 item 10).
+    /// Made at the lock, where the pictures are. Nothing in it is derived
+    /// from a seed or a passphrase: a SeedQR is named by its key's
+    /// fingerprint only.
+    pub readback: Vec<(String, ReadBack)>,
+}
+
+/// What a picture written to a stick must read back as.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReadBack {
+    /// A public picture (the description, a share, or a part of one): the
+    /// SHA-256 of what its codes hold.
+    Codes([u8; 32]),
+    /// The SeedQR of the seed with this fingerprint (as text): its codes
+    /// must hold the digits of the key's words while the key is loaded,
+    /// and the picture must be the Outbox's byte for byte. Nothing of the
+    /// seed is kept for it.
+    Seed(String),
 }
 
 /// The non-secret state of Make a new wallet or Restore, kept while its
@@ -883,6 +1016,7 @@ impl BackupFlow {
             owner: 0,
             setup: false,
             again: None,
+            readback: Vec::new(),
         });
         f
     }
@@ -1074,10 +1208,13 @@ impl BackupFlow {
         let mut orphaned: Vec<String> = Vec::new();
         self.slots.retain(|s| {
             let keep = match s.target {
-                Target::Place(_) | Target::PlaceVault(..) => want.contains(&s.target),
-                Target::Files | Target::Public | Target::PlaceFiles(_) => {
-                    extras.contains(&s.target)
+                Target::Place(_) | Target::PlaceVault(..) | Target::Another(_, Some(_), _) => {
+                    want.contains(&s.target)
                 }
+                Target::Files
+                | Target::Public
+                | Target::PlaceFiles(_)
+                | Target::Another(_, None, _) => extras.contains(&s.target),
             };
             if !keep {
                 orphaned.extend(s.files.iter().cloned());
@@ -1205,21 +1342,26 @@ impl BackupFlow {
     pub(crate) fn vaults_of(&self, slot: usize) -> Vec<usize> {
         match self.slots.get(slot).map(|s| s.target) {
             Some(Target::Place(p)) => self.plan.places.get(p).cloned().unwrap_or_default(),
-            Some(Target::PlaceVault(_, v)) => vec![v],
+            Some(Target::PlaceVault(_, v) | Target::Another(_, Some(v), _)) => vec![v],
             _ => Vec::new(),
         }
     }
 
-    /// Which copy of vault `v` the stick of `slot` takes: 0 the first.
+    /// Which copy of vault `v` the stick of `slot` takes: 0 the first. The
+    /// sticks that carry it are its copies in slot order: one per place
+    /// that keeps it, or more where a place keeps it on several sticks.
     pub(crate) fn copy_number(&self, v: usize, slot: usize) -> usize {
-        let Some(p) = self.slots.get(slot).and_then(|s| s.target.place()) else {
+        if self
+            .slots
+            .get(slot)
+            .and_then(|s| s.target.place())
+            .is_none()
+        {
             return 0;
-        };
-        self.plan
-            .places_of(v)
-            .iter()
-            .position(|&q| q == p)
-            .unwrap_or(0)
+        }
+        (0..slot.min(self.slots.len()))
+            .filter(|&k| self.vaults_of(k).contains(&v))
+            .count()
     }
 
     /// The sealing of vault `v` the writes use: the last made.
@@ -1316,6 +1458,16 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
             }
             if w.pieces {
                 out.push_str("wpieces\t1\n");
+            }
+            for (name, back) in &w.readback {
+                match back {
+                    ReadBack::Codes(sha) => {
+                        out.push_str(&format!("wqr\t{}\t{}\n", clean(name), hex_text(sha)));
+                    }
+                    ReadBack::Seed(fp) => {
+                        out.push_str(&format!("wqs\t{}\t{}\n", clean(name), clean(fp)));
+                    }
+                }
             }
             for (salt, held) in &w.before {
                 out.push_str(&format!(
@@ -1571,6 +1723,20 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
         ["wbase", list] => {
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
             w.base = list.split(',').map(str::to_string).collect();
+            true
+        }
+        ["wqr", name, sha] => {
+            let Some(sha) = hex_array(sha) else {
+                return false;
+            };
+            let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
+            w.readback.push((name.to_string(), ReadBack::Codes(sha)));
+            true
+        }
+        ["wqs", name, fp] => {
+            let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
+            w.readback
+                .push((name.to_string(), ReadBack::Seed(fp.to_string())));
             true
         }
         ["wpieces", on] => {
@@ -1873,6 +2039,7 @@ impl WalletFlow {
             owner: 0,
             setup: false,
             again: None,
+            readback: Vec::new(),
         }
     }
 }

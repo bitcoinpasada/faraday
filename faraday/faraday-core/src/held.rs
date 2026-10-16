@@ -454,6 +454,32 @@ impl Faraday {
         // Each share the plan keeps in the vault, as a type 13 record
         // (`docs/BACKUP-FLOW.md` §17.6): once per wallet and share number,
         // an older text of that share replaced.
+        // Each passphrase the plan keeps alone in the vault, as a
+        // passphrase record (`docs/BACKUP-FLOW.md` §19.12 item 4): one per
+        // key, an older one of that key replaced.
+        for k in self.backup_vault_passphrases(v) {
+            if self.vault_holds_passphrase(cur, k) {
+                continue;
+            }
+            let Some(key) = self.session.keys.get(k) else {
+                continue;
+            };
+            let fp = key.fingerprint();
+            let Some(pass) = key.passphrase.clone() else {
+                continue;
+            };
+            if let Some(open) = self.vaults.open.get_mut(cur) {
+                open.contents.records.retain(|r| {
+                    !(r.kind == kind::PASSPHRASE
+                        && r.field(field::PASSPHRASE_KEY) == Some(&fp.0[..]))
+                });
+            }
+            let record = Record::new(kind::PASSPHRASE)
+                .with(field::PASSPHRASE_KEY, &fp.0)
+                .with(field::PASSPHRASE, pass.as_bytes());
+            let said = fill(EN.plan_passphrase_of, &[&fp_text(fp)]);
+            self.vault_push_in(cur, record, &said);
+        }
         let Some((name, cs, desc)) = self.session.wallets.get(w).map(|wl| {
             (
                 wl.name.clone(),

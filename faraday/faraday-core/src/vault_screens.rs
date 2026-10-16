@@ -2168,6 +2168,15 @@ fn item_heading(app: &Faraday, r: &Record) -> (String, String, bool) {
                 false,
             )
         }
+        // A key's passphrase kept without its words: named by the key.
+        kind::PASSPHRASE => {
+            let fp = r
+                .field(field::PASSPHRASE_KEY)
+                .and_then(|b| <[u8; 4]>::try_from(b).ok())
+                .map(|b| fp_text(osk_bip::keys::Fingerprint(b)))
+                .unwrap_or_default();
+            (fill(FEN.plan_passphrase_of, &[&fp]), String::new(), true)
+        }
         kind::APK_KEY => match crate::apk::shown(r, app.tz_min) {
             Some(s) => (s.name, s.package, false),
             None => (FEN.vault_record.to_string(), String::new(), false),
@@ -2204,8 +2213,16 @@ pub(crate) fn wallet_shape(r: &Record) -> Option<String> {
 /// A key record's fingerprint, worked out once per key and kept.
 pub(crate) fn key_fingerprint(app: &Faraday, r: &Record) -> Option<String> {
     use osk_bip::bitcoin::hashes::{Hash, sha256};
+    // By the payload and the passphrase stored with it: the same words
+    // with a passphrase are another key.
     let payload = r.field(field::KEY)?;
-    let id = sha256::Hash::hash(payload).to_byte_array();
+    let mut engine = sha256::Hash::engine();
+    osk_bip::bitcoin::hashes::HashEngine::input(&mut engine, payload);
+    if let Some(p) = r.field(field::KEY_PASSPHRASE) {
+        osk_bip::bitcoin::hashes::HashEngine::input(&mut engine, &[0]);
+        osk_bip::bitcoin::hashes::HashEngine::input(&mut engine, p);
+    }
+    let id = sha256::Hash::from_engine(engine).to_byte_array();
     if let Some((_, fp)) = app
         .vaults
         .fingerprints

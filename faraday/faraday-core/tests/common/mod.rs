@@ -85,6 +85,12 @@ pub struct Shell {
     pub fail_save: bool,
     /// Every write is answered as failed on its read-back.
     pub mismatch_writes: bool,
+    /// The writes of files whose names end so are answered as failed on
+    /// their read-back, so many times, then written as given.
+    pub mismatch_names: Vec<(String, usize)>,
+    /// Pictures whose names end so read as holding no code, so many
+    /// times.
+    pub blank_pictures: Vec<(String, usize)>,
     /// Reads, space and writes asked while the process was not clean.
     pub unclean_io: Vec<String>,
 }
@@ -276,7 +282,18 @@ impl Shell {
                     // says so.
                     let mut bytes = bytes;
                     let mut bad = false;
-                    if self.mismatch_writes
+                    let named = self
+                        .mismatch_names
+                        .iter_mut()
+                        .find(|(end, n)| *n > 0 && name.ends_with(end.as_str()));
+                    let named = match named {
+                        Some((_, n)) => {
+                            *n -= 1;
+                            true
+                        }
+                        None => false,
+                    };
+                    if (self.mismatch_writes || named)
                         && let Some(b) = bytes.last_mut()
                     {
                         *b ^= 1;
@@ -308,6 +325,33 @@ impl Shell {
                         wrote_as,
                     });
                     app.storage(StorageEvent::Sticks(self.infos()));
+                }
+                // The disk process's picture reader, on the disk's file.
+                StorageCommand::ReadQr { stick, name } => {
+                    let Some(bytes) = self.disk(&stick).file(&name).cloned() else {
+                        app.storage(StorageEvent::ReadFailed {
+                            stick,
+                            name,
+                            reason: "gone".into(),
+                        });
+                        continue;
+                    };
+                    let blank = self
+                        .blank_pictures
+                        .iter_mut()
+                        .find(|(end, n)| *n > 0 && name.ends_with(end.as_str()));
+                    let payloads = match blank {
+                        Some((_, n)) => {
+                            *n -= 1;
+                            Vec::new()
+                        }
+                        None => faraday_files::qr_in_png(&bytes).unwrap_or_default(),
+                    };
+                    app.storage(StorageEvent::QrRead {
+                        name,
+                        bytes,
+                        payloads,
+                    });
                 }
                 StorageCommand::SaveBoxes {
                     inbox,
@@ -633,4 +677,21 @@ pub fn make_released(app: &mut Faraday, kind: Kind, fields: &[&str]) -> Option<S
         app.press(Action::Vault(V::Category(kind.category())));
     }
     toast
+}
+
+/// Past **Lock and write**'s secret sheet for each seed the plan keeps as
+/// a file on a stick: the line ticked and the seed let out, once per seed
+/// (`docs/BACKUP-FLOW.md` §19.12 item 6). Returns how many sheets it
+/// went through.
+pub fn let_seed_files_out(app: &mut Faraday) -> usize {
+    let mut n = 0;
+    while app.sheet == Some(Sheet::SecretOut)
+        && app.secret_out.as_ref().is_some_and(|o| o.to_lock.is_some())
+        && n < 16
+    {
+        app.press(Action::SecretAck);
+        app.press(Action::SecretUnprotected);
+        n += 1;
+    }
+    n
 }
