@@ -9950,7 +9950,7 @@ pub static EN: Strings = Strings {
     plan_can_spend_with: "Can spend with the vault's passphrase",
     plan_sees_the_balance_2: "Sees the balance",
     plan_sees_the_balance: "Sees the balance with the vault's passphrase",
-    plan_nothing: "Nothing",
+    plan_nothing: "Cannot see balance",
     plan_at_no_place: "at no place",
     plan_vault_whose_is: "Vault {}, whose {} is {}",
     plan_in: "in {}",

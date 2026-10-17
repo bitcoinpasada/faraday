@@ -438,7 +438,7 @@ when a loaded wallet is pressed), the **Keys** section is replaced by
    unprotected files, watch-only software, on its own device. Each node
    lists what it holds, as the map panel does, with the tag (secret,
    sealed, public) and the checked state the Backups screen shows, and
-   one line of what it gives whoever finds it alone: "Nothing",
+   one line of what it gives whoever finds it alone: "Cannot see balance",
    "Sees the balance", "Can spend", "Can spend with the vault's
    passphrase"; a vault's node reads "Sealed" and names the place its
    stick is kept. A line from each key to every node that holds its

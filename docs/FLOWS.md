@@ -1212,7 +1212,7 @@ guarantees for this file's rule:
   plan's map, each listing what it holds ("Key 1 words", "Vault 2
   stick", "Key 2 seed + passphrase", "Description"), its tag, what
   Backups saw of it, and what it gives whoever finds it alone
-  ("Nothing", "Sees the balance", "Can spend", "Can spend with the
+  ("Cannot see balance", "Sees the balance", "Can spend", "Can spend with the
   vault's passphrase"; a vault "Sealed", with where its stick is). A
   line runs from the wallet to each key and from each key held here to
   every node holding its seed, a colour and dash pattern per key; a

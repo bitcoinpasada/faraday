@@ -1816,8 +1816,9 @@ impl Alone {
         }
     }
 
-    /// The line the wallet's chart writes under a spot: "Nothing", "Sees
-    /// the balance", "Can spend", "Can spend with the vault's passphrase".
+    /// The line the wallet's chart writes under a spot: "Cannot see
+    /// balance", "Sees the balance", "Can spend", "Can spend with the
+    /// vault's passphrase".
     pub fn text(self) -> &'static str {
         self.parts().0
     }
